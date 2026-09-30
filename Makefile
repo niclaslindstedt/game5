@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud skis blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud skis skier blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -44,7 +44,7 @@ icons:
 # needs a Chromium: CHROMIUM_PATH=/opt/pw-browsers/chromium in a web
 # session. SEED=n picks the map; ARGS="--views=powder,lookback" a subset.
 world:
-	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:
@@ -55,6 +55,17 @@ world:
 # poses and the landing stand on; ARGS="--sheet=poses" one sheet.
 skis:
 	npm run skis -- $(if $(SKIS),--skis $(SKIS),) $(ARGS)
+
+# THE SKIER LAB: the skier IN MOTION as the game draws him — every move (a
+# skate stride, a double pole, a jump loaded, sprung and landed, a hockey
+# stop, a carve cut hard, the tuck, a landing, a wipeout) skied by the real
+# engine, the committed models posed through its states and photographed
+# from five sides a frame a column — previews/skier-<move>.png — and a
+# turntable round his stance, his tuck and a skate stride. Its own one-off
+# bundle from pwa/skier-preview.html; needs a Chromium like `world`.
+# MOVE=skate,jump a subset; ARGS="--code" the code's figure.
+skier:
+	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
 
 # THE BLENDER LAB: a game asset MODELLED in Blender off the game's own data
 # (a pair: its spec and its class's traced look) — studio renders, the
@@ -222,7 +233,7 @@ native-android:
 # `simulate` job — it exits non-zero when the bot finishes NO seed.
 # `make sim` · `make sim SEEDS=3,7`
 sim:
-	npm run sim -- $(if $(SEEDS),--seeds $(SEEDS),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run sim -- $(if $(SEEDS),--seeds $(SEEDS),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # THE LEVEL MAP: one map from above, from the engine alone — no build, no
 # browser. The hills, the forest, the track and every checkpoint numbered,
@@ -231,14 +242,14 @@ sim:
 # 38" is a claim about a row here.
 # `make level SEED=38` · `make level SEED=38 ARGS=--json`
 level:
-	npm run level -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run level -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # SCORE generated maps instead of looking at them: each check a band, and a
 # finding names what is wrong. The measuring half of the generator loop;
 # `make level` is the looking half. Exits non-zero on any error finding.
 # `make analyze SEED=7` · `make analyze COUNT=24`
 analyze:
-	npm run analyze -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run analyze -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # RATE generated maps — how HARD each one is and what KIND of hard, on the
 # eight axes of engine/rating/ folded into one index. `--stats` is the

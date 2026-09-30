@@ -48,6 +48,8 @@ engine has an opinion about colour.
 | `pwa/src/game/snowfall.ts` | THE SNOW IN THE AIR: a wrapped box of flakes round the lens moved by one vector a frame (how hard it snows is the draw range; the SPRAY row caps the pool; a flake in the player's beam or the arena's floodlights lights up), and the spindrift lifted off the crests on the CPU when the wind can lift dry snow |
 | `pwa/src/game/environment.ts` | Hangs it in the scene: the key light and the hemisphere light, the dome, the haze, re-read EVERY FRAME off the run's own clock; the key light's shadow box, aimed at a circle `SHADOW_LOOK[row].reach` (SKIERS: tight, the figures alone; MEDIUM and HIGH: every tree's too) round a point ahead of the lens and snapped to whole texels so a tree's shadow edge does not crawl, its normal bias scaled with the texel; at night the finish arena's FLOODLIGHTS on the run-out (the only lamps: a skier carries none) |
 | `pwa/src/game/shadow-box.ts` | WHERE THE SHADOW STANDS, three-free: the circle ahead of the lens (`aimShadow`), its fade (`shadowFade`), how long a tree's shadow is at this sun (`shadowLength`) and whether it reaches the circle (`castsInto` — what `forest.ts` picks its casters by). The fade itself is a graft on three's `lights_fragment_begin` inside `hazeMaterial`, so every world material fades the same shadow at the same rim |
+| `pwa/src/game/terrain-shadow.ts` | THE MOUNTAIN'S OWN SHADOW, three-free: the HORIZON every texel of a grid over the whole map sees along the key's bearing, baked by one convex-hull sweep of the engine's heightfield (`bakeHorizon`), and the share of the key a point under it takes (`sunlitShare`, a band as soft as the sun's disc) — and the same in GLSL (`TERRAIN_SHADOW_GLSL`'s `terrainLit`). The key stands still over a run, so it is baked once a map and again only when the key's BEARING moves (`bakedFor`); its elevation is compared per pixel |
+| `pwa/src/game/terrain-shade.ts` | The horizon on the GPU: asked of `terrain-shadow-worker.ts` (off the thread — a million samples), uploaded as one half-float texture, on while the SHADOWS row casts at all; and `shadeDepth` / `castInLight`, the depth every caster draws into the key's map and the skiers' own through, which throws away what the mountain already shades |
 | `pwa/src/game/hero-shadow.ts` | THE SKIERS' OWN SHADOWS (SHADOWS HIGH): every skier and his skis — the player and the field, a quadrant of one atlas each — cast into a map of their own, a box in the key light's frame just round their bound (`heroFrame` in `shadow-box.ts`) following them exactly — millimetres a texel where the wide map's are centimetres — and are taken OUT of the wide map, so no blurred copy swims round the sharp one. Every world material takes the darkest of them (`haze.ts`'s `heroShadowed`) |
 
 ## The rules
@@ -85,6 +87,16 @@ engine has an opinion about colour.
   it travels. Past the circle the haze and the terrain's forest tint carry
   the woods. Widening it to shadow the whole face is a blurred shadow for
   every tree.
+- **The mountain shades itself, and what stands in its shade casts
+  nothing.** A face turned from a low sun is in the shade of the ground
+  above it; the key's shadow map cannot say so (the ground is not drawn
+  into it, and could not be at its reach), so the horizon map does, taken
+  with the map the darker of the two — one shadow model, the key taken away
+  and the sky left. And a caster's depth pass discards what the mountain
+  already shades (`shadeDepth`): without it a skier in a face's shade still
+  takes the sun on his body and throws a long, thin shadow down-sun onto the
+  first sunlit crest ahead — tens of metres from his feet, closing in as he
+  skis toward it. A caster added anywhere goes through `castInLight`.
 - **What casts is decided by where the shadow falls**, never by how near
   its tree is to the lens (`castsInto`). A caster set cut by distance to the
   lens, or by the view frustum, is a shadow that appears as the skier
@@ -105,12 +117,17 @@ ladder is judged side by side. Then:
 
 1. `make world SEED=<n> ARGS=--views=vista,powder,forest` at seeds with an
    EARLY and a LATE hour (`make level SEED=<n>` prints the day; a low sun is
-   where a palette change breaks) — the dome, the haze on the rim, the blue
-   in the shadows.
-2. Sample a column of pixels through the skyline when a picture is "somehow
+   where a palette change breaks; `ARGS=--hour=15.3` puts any map under one)
+   — the dome, the haze on the rim, the blue in the shadows. A shadow that
+   changes as the skier descends is the chase series: `chase-<s>` views at
+   any second of the run (`chase-60,chase-90,chase-120` by default).
+2. `npx vitest run tests/terrain_shadow_test.ts` — the mountain's shadow on
+   hand-built ground: a wall's shade as long as the key throws it, a face
+   turned from the key.
+3. Sample a column of pixels through the skyline when a picture is "somehow
    flat" rather than arguing about it — the step at the horizon is a number.
-3. `npx vitest run tests/world_render_test.ts` — the colour model.
-4. `make build`, `make screenshots` — the game's framing at every viewport;
+4. `npx vitest run tests/world_render_test.ts` — the colour model.
+5. `make build`, `make screenshots` — the game's framing at every viewport;
    `make profile` if the shadow or a pass changed.
 
 ## What the change obliges elsewhere

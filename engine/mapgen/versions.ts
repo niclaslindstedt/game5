@@ -72,6 +72,17 @@ export type GeneratorTraits = {
    * what the version AFTER it changed — which is what tells the next
    * session whether the row is still earning its keep. */
   note: string;
+  /** BEFORE THE GRADES (v1): every map is built on the rule book's own
+   * numbers — the UNGRADED row of `grades.ts` — whatever grade it is
+   * asked for, deals none, lays no drop (R24) and publishes no
+   * `Level.grade`; its colour is only measured. The six trick maps stand
+   * on it. */
+  ungraded?: boolean;
+  /** BEFORE THE FACE WAS TURNED TO THE SUN (v1): the fall line faces due
+   * north whatever the hour R15 deals, so a low winter sun stands behind
+   * the face and the mountain shades the piste — no `Level.sun.facing` is
+   * dealt or published. */
+  northFace?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -81,7 +92,20 @@ export type GeneratorTraits = {
 export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
   {
     version: 1,
-    note: "The generator as Fall Line launched with it (R1–R22).",
+    note:
+      "The generator as Fall Line launched with it (R1–R22). v2 builds every map to a " +
+      "PISTE GRADE (R23) — dealt off the seed where none is asked — with the drops " +
+      "across a black (R24), and turns the face to the sun (R15); this row builds them " +
+      "all on the ungraded rules with the face due north.",
+    ungraded: true,
+    northFace: true,
+  },
+  {
+    version: 2,
+    note:
+      "The graded generator: green, blue, red and black pistes (R23), each built to its " +
+      "colour's band, the drops across a black (R24), and the face turned to the sun " +
+      "(R15).",
   },
 ];
 

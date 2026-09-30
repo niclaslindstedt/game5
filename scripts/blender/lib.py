@@ -587,7 +587,10 @@ def finish(name, out, samples, centre, size, lods=(("lod1", 0.35), ("lod2", 0.1)
         _select_only([root] + list(root.children_recursive))
         bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_apply=True, export_extras=True,
                                   export_skins=True, export_morph=True, export_animations=True,
-                                  export_animation_mode="NLA_TRACKS", export_def_bones=False)
+                                  export_animation_mode="NLA_TRACKS", export_def_bones=False,
+                                  # A baked map (the skier's cloth) as WebP: a third
+                                  # of the PNG, and three.js reads it.
+                                  export_image_format="WEBP", export_image_quality=88)
 
     export(os.path.join(out, f"{name}-lod0.glb"))
     # The lower LODs are a blind decimation: fine at range, torn up close.

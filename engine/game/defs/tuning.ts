@@ -193,9 +193,10 @@ export const TUNING = {
      * acceleration (the rate the edge asks for, times the way), on the
      * packed share of the snow; powder charges for its own shoving through
      * the plough. Why a bend taken flat out costs the way rather than
-     * being free: a full-edge bend at 90 km/h in a tuck about holds its
-     * speed. */
-    scrub: 0.25,
+     * being free — but only a little of it: this is a FAST game, and a
+     * clean carve at 90 km/h in a tuck gathers speed down a red pitch
+     * rather than bleeding it. */
+    scrub: 0.12,
     /** THE TIP LOADED: a lean forward loads the tips and tightens the
      * carve, a lean back lets it run — this share of the curvature per
      * unit of lean. */
@@ -208,7 +209,9 @@ export const TUNING = {
      * (a snowplough alone is 0.35 g, which brings a skier down toward a
      * walk on a 20° groomer; a real hockey stop pulls about 0.5–0.8 g,
      * and the pivoted edges scraping on `grip.skidHold` add their share on
-     * top of this). */
+     * top of this). The pivot is only thrown by the back key pressed FIRST
+     * (`input-model.ts`): the same key pressed with an edge on is the edge
+     * cut harder (`carve`), which costs nearly nothing. */
     skidAngle: 1.05,
     skidFast: 0.5,
     skidFadeSpeed: 20,
@@ -300,16 +303,83 @@ export const TUNING = {
     slipEdge: 0.75,
   },
 
-  /** THE POLES (`poles.ts`): the push off the start and across a flat. */
+  /** THE DRIVE A SKIER MAKES HIMSELF (`poles.ts`): off a standstill and up
+   * a rise he STRIDES — the skis parallel, a leg kicking back off each
+   * step and the other arm planting its pole, the gait of a man walking
+   * on skis — rolling he SKATES — the skis in a V, a leg pushing off each
+   * stride, the poles planted with it — and faster he DOUBLE-POLES, both
+   * poles planted together and the body folded over them. Both are a man's legs and arms against the
+   * snow, so the push is POWER-LIMITED: the force is the lesser of what a
+   * plant can press (`SkiSpec.polePush`, N) and `power` W over the way,
+   * which is how every human-powered drive falls off with speed. It is
+   * AUTOMATIC below `fade` — a skier going slowly works for his speed
+   * whatever the thumbs say — and stops with the skid thrown, in the air,
+   * with a jump being loaded, and once he is thrown. */
   poles: {
-    /** The way, m/s, under which a plant pushes at its full force, and the
-     * way by which the poles are tucked away and push nothing. */
-    speed: 4,
-    fade: 7,
-    /** The share of a plant's push left in powder — the basket sinks. */
-    powderShare: 0.5,
-    /** A plant a second, on the groomer, the push held half of it. */
-    cadence: 1,
+    /** The speed, m/s, under which the push is its whole, and the speed by
+     * which the legs and the arms can no longer keep up and it is gone: 22
+     * and 40 km/h — a racer skates out of the gate and keeps skating on a
+     * flat to hold his speed, and the power law (below) is what makes the
+     * last of it little. */
+    speed: 6,
+    fade: 11,
+    /** The mean propulsive power, W — a fit recreational skier's sprint
+     * (an elite cross-country skier holds over 400 W for minutes). */
+    power: 450,
+    /** Below this way, m/s, he skates; over `skateTo` he double-poles —
+     * blended between: a skater's V at a crawl and up to about 20 km/h,
+     * where the legs can no longer keep up with the skis and the arms take
+     * the whole of the work. */
+    skateFrom: 5.5,
+    skateTo: 9,
+    /** Under `strideTo` m/s he STRIDES (the diagonal stride), all of it
+     * under `strideFrom`: a V taken at a walk goes nowhere, and a skier
+     * setting off or climbing a rise walks his skis forward. */
+    strideFrom: 1.6,
+    strideTo: 3,
+    /** THE DRIVE IS FOR A STRAIGHT: a skier works on the flat and down the
+     * run-out, not with his skis on edge in a bend — the edge asked past
+     * `edgeFrom` of full takes it away by `edgeGone`. */
+    edgeFrom: 0.25,
+    edgeGone: 0.6,
+    /** The share of the push left in powder — the baskets sink and a
+     * skating ski has nothing to push off. */
+    powderShare: 0.4,
+    /** Strides a second: a skate stride each leg at a crawl, a double
+     * pole a second faster — and the share of each cycle the push is on,
+     * the rest the recovery (a rest level of `floor` of the mean between). */
+    cadence: 1.3,
+    cadencePole: 1.05,
+    duty: 0.45,
+    floor: 0.3,
+    /** How fast the drive the body shows comes and goes, 1/s. */
+    rate: 4,
+  },
+
+  /** THE JUMP (`skier.ts`): the skier sinks and loads his legs while the
+   * jump is held on the snow and springs off them when it is let go — an
+   * OLLIE, straight up off the snow's own normal. The pop is `popMin` m/s
+   * for a tap, rising with the time held to `popMax` at `full` s; held
+   * longer is no higher. At the race's flight gravity the full pop stands
+   * him about a metre off the snow; a tap hops a boot's height. How deep
+   * the load folds him, as a crouch. */
+  jump: {
+    popMin: 2.2,
+    popMax: 6,
+    full: 2,
+    crouch: 0.75,
+  },
+
+  /** CUTTING HARDER (`skier.ts`): the back key thrown with an edge already
+   * on — the skis stood further over and pressed into the groove, so the
+   * line tightens rather than slows. The extra share of the edge's lock,
+   * the most edge it reaches, the tighter curvature, the extra grip the
+   * pressed edge holds, and the share of the groove's scrub it spares. */
+  carve: {
+    edge: 0.45,
+    tighten: 0.35,
+    grip: 0.3,
+    scrubSpared: 0.6,
   },
 
   /** THE AIR — what the skier can still do once the snow has let go of him
@@ -372,8 +442,48 @@ export const TUNING = {
      * take it all and the skier pays for it — a share of his way per m/s
      * over, up to `harshMax`. */
     harshSpeed: 8,
-    harshLoss: 0.035,
-    harshMax: 0.22,
+    harshLoss: 0.02,
+    harshMax: 0.12,
+  },
+
+  /** THE LANDING'S LOAD (`flight.ts`'s `landingLoad`) — how hard the snow
+   * takes a skier back, and how true he has to come down to ride it away.
+   *
+   * THE IMPACT is the EQUIVALENT FALL HEIGHT, the snow-park engineers'
+   * measure of a landing: the speed into the slope as a drop from rest,
+   * EFH = v⊥² / 2g. Jump designers hold the sweet spot of a landing to
+   * 0.1–0.9 m and call past 1.5 m a hard one; measured tables run to 3–5 m
+   * off the sweet spot, and hard snow lands about a third harder than soft
+   * at the same spot. The legs and the snow stop that fall over a STROKE —
+   * the hips sinking from the stance into a squat, `stroke` m (less the
+   * share of it a tuck has already spent, `tuckStroke`), plus the snow
+   * pressed under the skis: `give` of whatever loose snow lies there (40 cm
+   * of powder takes a quarter of a metre, a metre of it most of the fall) —
+   * so the load is 1 + EFH / stroke g. */
+  landing: {
+    stroke: 0.45,
+    tuckStroke: 0.25,
+    give: 0.6,
+    /** THE LOAD A LANDING MAY CARRY: under `clean` g a landing is judged
+     * only as the tips' dig is (`crash.noseAngle`), and past `buckle` g the
+     * legs fold however true it was — a flat landing off a big air. */
+    clean: 6,
+    buckle: 14,
+    /** HOW TRUE HE MUST COME DOWN: the most the skis may be off the slope
+     * they land on, rad — the tips down into it, the tails first, rolled
+     * across it, and sideways to the way he is going — at a landing under
+     * `clean` g, shrinking to `tight` of it at `buckle`. The bigger the
+     * landing, the more perfect it must be. */
+    tipsDown: 0.5,
+    tailsDown: 0.8,
+    rolled: 0.6,
+    sideways: 0.9,
+    tight: 0.2,
+    /** ...and under `clean` g more forgiving still, to `1 + slack` of it
+     * at a hop that loads him no more than standing. */
+    slack: 1,
+    /** Only a landing that ends a real flight is judged, s in the air. */
+    air: 0.3,
   },
 
   /** THE HULL: points on the body — the hips, the shoulders, the helmet,

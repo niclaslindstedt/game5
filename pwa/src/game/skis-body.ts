@@ -29,7 +29,7 @@
 // read off `skier-colours.ts` so the minimap's dot is the same colour.
 
 import * as THREE from "three";
-import { plantPulse, type SkiSpec, type SkierState, type Thrown, type TrickPose } from "@engine";
+import { TUNING, type SkiSpec, type SkierState, type Thrown, type TrickPose } from "@engine";
 
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
@@ -41,6 +41,7 @@ import { createSkier, type SkierFigure, type SkierStyle } from "./skier-figure.t
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
+  gaitOf,
   mountsFor,
   ragdollPose,
   skierPose,
@@ -189,7 +190,6 @@ function poseInputOf(
   legs: ReturnType<typeof createSkierSpring>,
   mounts: Mounts,
   trick: TrickPose | null,
-  t: number,
 ): SkierPoseInput {
   return {
     hipRight: skier.hipRight,
@@ -204,8 +204,13 @@ function poseInputOf(
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,
-    // The poles are planted at a crawl, in time with the engine's own push.
-    plant: !skier.airborne && Math.abs(skier.way) < 4.5 && skier.tuck > 0.05 ? plantPulse(t) : 0,
+    // THE GAIT at a crawl — the skate and the double pole — in time with
+    // the engine's own push (`poles.ts`).
+    gait: gaitOf(skier),
+    jumpLoad: skier.jumpLoad / TUNING.jump.full,
+    popped: skier.popped,
+    carve: skier.carve,
+    skid: skier.skid,
     trick,
     mounts,
   };
@@ -319,7 +324,6 @@ export function createSkisModel(
   // lying away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
   const BOUND = bound.radius;
-  let clock = 0;
 
   return {
     root,
@@ -331,7 +335,6 @@ export function createSkisModel(
       return out;
     },
     pose(skier, at, sink, trick = null, dt = 0, body) {
-      clock += dt;
       root.position.set(at.x, at.y - sink, at.z);
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       gear.pose(skier, sink);
@@ -364,7 +367,7 @@ export function createSkisModel(
           bound.radius = BOUND;
         }
         stepSkierSpring(legs, skier.vy, skier.airborne, dt);
-        const input = poseInputOf(skier, legs, mounts, trick, clock);
+        const input = poseInputOf(skier, legs, mounts, trick);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);
       }

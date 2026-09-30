@@ -8,6 +8,7 @@
 //   npm run analyze                       # seeds 1..20
 //   npm run analyze -- --seed 38          # one map, every finding
 //   npm run analyze -- --from 1 --count 100
+//   npm run analyze -- --count 24 --grade black   # every map a black (R23)
 //
 // A finding names its rule (`R8`, `R12`…), so a fix is pointed at one
 // paragraph of `engine/mapgen/rules.ts`. Exits non-zero when any seed
@@ -34,8 +35,12 @@ const args = parseArgs(
       default: "alpine",
       help: "the kind of snow country (R21): alpine, fell, continental, maritime",
     },
+    grade: {
+      kind: "string",
+      help: "the piste grade to build to (R23): green, blue, red, black — the seed's own when left out",
+    },
   },
-  "usage: npm run analyze -- [--seed n | --from n --count k] [--region id]",
+  "usage: npm run analyze -- [--seed n | --from n --count k] [--region id] [--grade id]",
 );
 
 const seeds =
@@ -45,7 +50,7 @@ const seeds =
 const f = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "inf");
 
 console.log(
-  "seed   ms  try  length  width      turn  grade colour   drop  vert  kick  off  clf  cps    gap  trees  sun   findings",
+  "seed   ms  try  length  width      turn  grade  steep  built colour  mean   drop  vert  kick  off  clf drop  cps    gap  trees  sun   findings",
 );
 const rows = [];
 let broken = 0;
@@ -53,7 +58,7 @@ for (const seed of seeds) {
   const t0 = performance.now();
   let level;
   try {
-    level = generateLevel(seed, { region: args.region });
+    level = generateLevel(seed, { region: args.region, grade: args.grade });
   } catch (e) {
     broken++;
     console.log(`${String(seed).padStart(4)}  FAILED  ${String(e.message ?? e).slice(0, 300)}`);
@@ -69,7 +74,8 @@ for (const seed of seeds) {
   console.log(
     `${String(seed).padStart(4)} ${f(ms, 0).padStart(4)} ${String(s.attempt).padStart(4)} ${f(s.length, 0).padStart(7)} ` +
       `${f(s.widthMin)}-${f(s.widthMax)} ${f(s.minRadius, 0).padStart(6)} ${f(s.maxGrade * 100).padStart(6)} ` +
-      `${s.colour.padStart(6)} ${f(s.drop, 0).padStart(6)} ${f(s.vertical, 0).padStart(5)} ${String(s.trackKickers).padStart(5)} ${String(s.offKickers).padStart(4)} ${String(s.cliffs).padStart(4)} ` +
+      `${f(s.steepestSpan * 100).padStart(6)} ${(s.grade ?? "-").padStart(6)} ${s.colour.padStart(6)} ${f(s.meanGrade * 100).padStart(5)} ` +
+      `${f(s.drop, 0).padStart(6)} ${f(s.vertical, 0).padStart(5)} ${String(s.trackKickers).padStart(5)} ${String(s.offKickers).padStart(4)} ${String(s.cliffs - s.drops).padStart(4)} ${String(s.drops).padStart(4)} ` +
       `${String(s.checkpoints).padStart(4)} ${f(s.treeGap, 1).padStart(6)} ${String(s.trees).padStart(6)} ` +
       `${f(s.sunElevation, 0).padStart(4)}°  ${findings || "clean"}`,
   );
@@ -94,7 +100,7 @@ if (rows.length > 1) {
   console.log(
     `  grade ${spread("maxGrade", 1, 100)} %, drop ${spread("drop", 0)} m, vertical ${spread("vertical", 0)} m, trees ${spread("trees", 0)}, tree gap ${spread("treeGap", 1)} m, cliffs ${spread("cliffs", 0)}`,
   );
-  const colours = ["blue", "red", "black"]
+  const colours = ["green", "blue", "red", "black"]
     .map((c) => `${c}:${rows.filter((r) => r.colour === c).length}`)
     .join(" ");
   console.log(`piste kickers per map — ${kick} · colours — ${colours}`);

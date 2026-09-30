@@ -72,6 +72,7 @@ export const STRINGS = {
   /** The EDGE bar's caption (`hud-dial.tsx`) and the skid's word on it. */
   edge: "EDGE",
   brake: "SKID",
+  cut: "CUT",
   clockLabel: "TIME",
   /** Gates taken, of how many the piste has — the start gate the first,
    * the finish the last. */
@@ -133,18 +134,24 @@ export const STRINGS = {
   newsMissed: (index: number): string =>
     index === 0 ? "MISSED THE START GATE" : `MISSED GATE ${index}`,
   newsTree: "TREE!",
-  newsHarsh: "HARD LANDING",
+  /** A landing the legs paid for, and a big one ridden away — its load in
+   * g (`flight.ts`'s `landingLoad`). */
+  newsHarsh: (g: number): string => `HARD LANDING · ${g.toFixed(1)} G`,
+  newsLoad: (g: number): string => `${g.toFixed(1)} G LANDING`,
   newsReset: "BACK ON THE PISTE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
-   * landing taken over the tips, a fall at speed, an edge caught. */
-  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch"): string =>
+   * landing taken over the tips, a fall at speed, an edge caught, a big
+   * landing the legs folded under. */
+  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing"): string =>
     cause === "tree"
       ? "YARD SALE! TREE"
       : cause === "nose"
         ? "OVER THE TIPS"
         : cause === "roll"
           ? "YARD SALE"
-          : "EDGE CAUGHT",
+          : cause === "landing"
+            ? "COMPRESSED!"
+            : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
@@ -251,6 +258,14 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
+  startGrade: "GRADE",
+  startGradeHint:
+    "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %) or black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it. The mountain's own, or one of the four.",
+  /** THE PISTE GRADES (R23), as a sign names them: the GRADE row's stops,
+   * the mark's name, the loading card's line. */
+  gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK" },
+  /** A grade as a run: `BLACK RUN`. */
+  gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
   startSeasonHint:
     "The time of winter: how high the sun climbs and how long the shadows lie, from the low sun of December to the long days of April. Starts on the mountain's own date.",
@@ -289,10 +304,10 @@ export const STRINGS = {
   startCaption: "Tap the chart to start anywhere on the mountain · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
   seedRefused: "NO PISTE ON THIS SEED",
-  /** The line under the chart: the piste's length, its vertical and its
-   * kickers. */
-  seedRead: (piste: number, drop: number, kickers: number): string =>
-    `${(piste / 1000).toFixed(1)} KM PISTE · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
+  /** The line under the chart: the piste's grade and length, its vertical
+   * and its kickers. */
+  seedRead: (grade: string, piste: number, drop: number, kickers: number): string =>
+    `${grade} · ${(piste / 1000).toFixed(1)} KM · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
   seedChart: (seed: number, kickers: number): string =>
     `The mountain on seed ${seed}, with ${kickers} kickers`,
 
@@ -378,7 +393,7 @@ export const STRINGS = {
     "How far out trees are drawn in full, how thick the far woods stand, and how many shapes of each kind of tree are drawn.",
   optShadows: "SHADOWS",
   optShadowsHint:
-    "The sun's shadows: SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
+    "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
   optSprayHint: "How much snow the skis throw.",
   optAntialias: "SMOOTH EDGES",
@@ -395,7 +410,8 @@ export const STRINGS = {
   keysClashHint: (action: string, others: string): string =>
     `The key on ${action.toLowerCase()} also does ${others.toLowerCase()} — pressing it does both.`,
   keyTuck: "TUCK",
-  keyBrake: "BRAKE",
+  keyBrake: "BRAKE / CUT",
+  keyJump: "JUMP",
   keyLeft: "LEFT",
   keyRight: "RIGHT",
   keyLeanBack: "LEAN BACK",

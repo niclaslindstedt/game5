@@ -9,7 +9,15 @@
 
 import { describe, expect, it } from "vitest";
 
-import { FULL_ASSIST, LEVEL_RULES, RACE, SKIS, createGame, type GameState } from "@engine";
+import {
+  FULL_ASSIST,
+  LEVEL_RULES,
+  PISTE_GRADES,
+  RACE,
+  SKIS,
+  createGame,
+  type GameState,
+} from "@engine";
 
 import {
   CAMPAIGN_LEVELS,
@@ -73,13 +81,16 @@ function winShelf(progress: CampaignProgress, shelf = FIRST): CampaignProgress {
 }
 
 describe("the ladder", () => {
-  it("is three shelves of six maps, ids unique and numbered by rung", () => {
-    expect(SHELVES).toHaveLength(3);
+  it("is four shelves of six maps, one a grade gentlest first, ids unique and numbered by rung", () => {
+    expect(SHELVES).toHaveLength(4);
+    expect(SHELVES.map((shelf) => shelf.id)).toEqual(PISTE_GRADES);
     const ids = new Set<string>();
     for (const shelf of SHELVES) {
       expect(shelf.levels).toHaveLength(6);
       shelf.levels.forEach((level, i) => {
         expect(level.id).toBe(`${shelf.id}-${i + 1}`);
+        // Every map on a shelf is built to the shelf's grade (R23).
+        expect(level.grade).toBe(shelf.id);
         expect(ids.has(level.id), level.id).toBe(false);
         ids.add(level.id);
         expect(level.name.length).toBeGreaterThan(0);
@@ -87,7 +98,7 @@ describe("the ladder", () => {
         expect(level.digest).toMatch(/^[0-9a-f]{8}$/);
       });
     }
-    expect(CAMPAIGN_LEVELS).toHaveLength(18);
+    expect(CAMPAIGN_LEVELS).toHaveLength(24);
   });
 
   it("opens and closes every shelf on a race, with two trials between", () => {
@@ -121,8 +132,8 @@ describe("the ladder", () => {
   });
 
   it("finds a map by id, and nothing by a stale one", () => {
-    const hit = findLevel("ridge-3");
-    expect(hit?.shelf).toBe(SECOND);
+    const hit = findLevel("red-3");
+    expect(hit?.shelf).toBe(SHELVES[2]);
     expect(hit?.index).toBe(2);
     expect(findLevel("nowhere-9")).toBeNull();
   });
@@ -267,7 +278,7 @@ describe("where the campaign picks back up", () => {
     const won = winShelf(EMPTY_PROGRESS);
     expect(ladderAfter(FIRST.levels[5].id, won)).toEqual({ kind: "next", level: SECOND.levels[0] });
     expect(ladderAfter(THIRD.levels[5].id, won).kind).not.toBe("next");
-    expect(campaignStanding(won)).toEqual({ cleared: 6, of: 18 });
+    expect(campaignStanding(won)).toEqual({ cleared: 6, of: 24 });
   });
 });
 
@@ -281,16 +292,16 @@ describe("a stored board", () => {
     const out = mergeProgress({
       results: {
         "nowhere-1": { best: 1, skis: "hare", place: 1, medal: null },
-        "nursery-1": { best: "fast", skis: "hare", place: 1, medal: null },
-        "nursery-2": { best: 100, skis: "sofa", place: 1, medal: "gold" },
-        "nursery-3": { best: 100, skis: "hare", place: 0, medal: null },
-        "nursery-4": { best: 100, skis: "hare", place: 2, medal: "platinum" },
+        "green-1": { best: "fast", skis: "hare", place: 1, medal: null },
+        "green-2": { best: 100, skis: "sofa", place: 1, medal: "gold" },
+        "green-3": { best: 100, skis: "hare", place: 0, medal: null },
+        "green-4": { best: 100, skis: "hare", place: 2, medal: "platinum" },
       },
-      points: { "nowhere-1": { you: 3 }, "nursery-4": { you: 2, r0: "x" } },
+      points: { "nowhere-1": { you: 3 }, "green-4": { you: 2, r0: "x" } },
     });
-    expect(Object.keys(out.results)).toEqual(["nursery-4"]);
-    expect(out.results["nursery-4"].medal).toBeNull();
-    expect(out.points).toEqual({ "nursery-4": { you: 2 } });
+    expect(Object.keys(out.results)).toEqual(["green-4"]);
+    expect(out.results["green-4"].medal).toBeNull();
+    expect(out.points).toEqual({ "green-4": { you: 2 } });
     for (const junk of [null, 7, "board", [], { results: 3 }]) {
       expect(mergeProgress(junk)).toEqual(EMPTY_PROGRESS);
     }
@@ -309,10 +320,10 @@ describe("which map a run is on", () => {
 
   it("puts a measured run on the chosen map, the first rung by default, and a link on its seed", () => {
     expect(pinnedFor(null, "race", null)).toBe(CAMPAIGN_LEVELS[0]);
-    expect(pinnedFor("glacier-2", "timeTrial", null)?.id).toBe("glacier-2");
+    expect(pinnedFor("black-2", "timeTrial", null)?.id).toBe("black-2");
     expect(pinnedFor("nowhere-2", "race", null)).toBe(CAMPAIGN_LEVELS[0]);
-    expect(pinnedFor("glacier-2", "free", null)).toBeNull();
-    expect(pinnedFor("glacier-2", "race", 38)).toBeNull();
+    expect(pinnedFor("black-2", "free", null)).toBeNull();
+    expect(pinnedFor("black-2", "race", 38)).toBeNull();
   });
 
   it("stands a rung up in its own mode and laps, with nobody leaning on anybody", () => {
@@ -333,15 +344,15 @@ describe("which map a run is on", () => {
   });
 
   it("bills the front door off the board and the chosen map", () => {
-    const pins = frontDoorPins(EMPTY_PROGRESS, "ridge-4", null);
-    expect(pins.campaign).toEqual({ cleared: 0, of: 18, next: FIRST.levels[0].name });
-    expect(pins.raceMap).toBe(findLevel("ridge-4")!.level.name);
+    const pins = frontDoorPins(EMPTY_PROGRESS, "red-4", null);
+    expect(pins.campaign).toEqual({ cleared: 0, of: 24, next: FIRST.levels[0].name });
+    expect(pins.raceMap).toBe(findLevel("red-4")!.level.name);
     expect(frontDoorPins(EMPTY_PROGRESS, null, 7).raceMap).toBeNull();
   });
 
   it("keeps the level card's pick between visits, and only a map this ladder has", () => {
     expect(freshSettings().level).toBeNull();
-    expect(mergeSettings({ level: "glacier-5" }).level).toBe("glacier-5");
+    expect(mergeSettings({ level: "black-5" }).level).toBe("black-5");
     expect(mergeSettings({ level: "nowhere-1" }).level).toBeNull();
     expect(mergeSettings({ level: 3 }).level).toBeNull();
   });

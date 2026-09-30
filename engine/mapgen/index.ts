@@ -4,17 +4,23 @@
 
 export * from "./types.ts";
 export { generateLevel, subSeed } from "./generate.ts";
+export { LEVEL_RULES, bendFloor, inBand, withinBand, type Band } from "./rules.ts";
+export { bermCrest, bermProfile } from "./berm.ts";
 export {
-  LEVEL_RULES,
-  bendFloor,
-  bermCrest,
-  bermProfile,
-  inBand,
-  pisteColour,
-  withinBand,
-  type Band,
-  type PisteColour,
-} from "./rules.ts";
+  GRADES,
+  PISTE_GRADES,
+  UNGRADED,
+  dealGrade,
+  gradeOf,
+  gradeRow,
+  gradeRowOf,
+  isPisteGrade,
+  pisteGradeOf,
+  steepestSpan,
+  verticalBand,
+  type GradeRow,
+  type PisteGrade,
+} from "./grades.ts";
 export {
   nearestTrackPoint,
   nearestWithin,
@@ -30,7 +36,9 @@ export {
   TIMES_OF_DAY,
   dayOfYearOf,
   declinationOf,
+  faceTheSun,
   freeHours,
+  sunOffFace,
   hourOfTime,
   sunWindow,
   withDay,
@@ -58,6 +66,7 @@ export {
   isRegionId,
   regionOf,
   regionRow,
+  scaleCount,
   treeKindAt,
   type Region,
   type RegionId,

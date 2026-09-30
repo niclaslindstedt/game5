@@ -15,9 +15,12 @@ import {
   TUNING,
   bearingToNext,
   fieldOrder,
+  gradeOf,
   racePlace,
   trenched,
   type GameState,
+  type Level,
+  type PisteGrade,
   type Progress,
 } from "@engine";
 
@@ -62,6 +65,8 @@ export type HudSnapshot = {
   tuck: number;
   /** The skid is on (the body's own reading of the brake, after its lag). */
   braking: boolean;
+  /** The edge is cut hard (`SkierState.carve`, the back key after the edge). */
+  cutting: boolean;
   /** The run clock, s, and whether it has stopped. */
   time: number;
   finished: boolean;
@@ -123,6 +128,8 @@ export type HudSnapshot = {
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
+  /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
+  grade: PisteGrade;
 };
 
 /** Gates taken so far, the start gate counted as the first, and never
@@ -160,6 +167,19 @@ export function droppedOf(state: GameState): number {
   return Math.max(0, top - level.groundAt(skier.x, skier.z));
 }
 
+/** The colour each map is signed with, read once a map: on a map from
+ * before the grades `gradeOf` measures the piste, which is a walk down it
+ * the snapshot need not take every frame. */
+const GRADES = new WeakMap<Level, PisteGrade>();
+function gradeOfLevel(level: Level): PisteGrade {
+  let grade = GRADES.get(level);
+  if (grade === undefined) {
+    grade = gradeOf(level);
+    GRADES.set(level, grade);
+  }
+  return grade;
+}
+
 /** A run with no book behind it: a race, measured against nothing. */
 const NO_LEDGER: RunLedger = { mode: "race", standing: null };
 
@@ -179,6 +199,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     edge: (c.edge / c.spec.edgeMax) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
     braking: c.brake > BRAKE_SHOWN,
+    cutting: c.carve > BRAKE_SHOWN,
     time: p.time,
     finished: p.finished,
     countdown: state.phase === "countdown" ? Math.ceil(state.countdown) : 0,
@@ -211,5 +232,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         }
       : null,
     tricks: comboTile(state),
+    grade: gradeOfLevel(state.level),
   };
 }

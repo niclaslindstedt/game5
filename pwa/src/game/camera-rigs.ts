@@ -164,17 +164,20 @@ export const RIGS: Record<Rung, Rig> = {
   },
   // A skier's origin stands a metre over his skis, so the aim sits a
   // little BELOW it: the boots and the skis stay in the frame, not just
-  // the helmet.
+  // the helmet. LOW AND CLOSE, because speed is read off the snow streaming
+  // under the lens: the nearer the eye is to the ground the faster the
+  // ground goes past it, and a camera a storey up flattens a schuss into a
+  // stroll.
   chase: {
     kind: "boom",
-    dist: 6,
+    dist: 5.2,
     distPerSpeed: 0,
-    height: 2.1,
-    aimAhead: 7,
-    aimHeight: -0.3,
-    fov: 60,
-    fovPerSpeed: 0.62,
-    fovMax: 84,
+    height: 1.6,
+    aimAhead: 8,
+    aimHeight: -0.25,
+    fov: 62,
+    fovPerSpeed: 0.75,
+    fovMax: 90,
     hold: 0.45,
     surge: 1,
     tremor: 1,

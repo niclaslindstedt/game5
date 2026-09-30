@@ -274,6 +274,8 @@ window.__cloud = {
       renderer.setOverride(null);
       renderer.setCamera("chase", true);
       renderer.draw(state, 0, FRAME, false);
+      // The mountain's shadow under this row's light, baked off the thread.
+      await renderer.shadeSettled();
       const frame = (on: boolean) => {
         for (let i = 0; i < 2; i++) step(state, hold(state, row.kmh, heading, on));
         renderer.draw(state, 0, FRAME, false);

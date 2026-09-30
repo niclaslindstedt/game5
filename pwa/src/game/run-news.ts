@@ -11,7 +11,7 @@
 // place — is not news, and neither is a landing the skis simply rode away
 // from.
 
-import type { GameEvent, GameState } from "@engine";
+import { TUNING, type GameEvent, type GameState } from "@engine";
 
 import { gatesTaken } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -42,7 +42,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "hit":
       return { text: STRINGS.newsTree, tone: "bad" };
     case "land":
-      return e.harsh ? { text: STRINGS.newsHarsh, tone: "bad" } : null;
+      // A landing the legs paid for, or one that loaded them past what a
+      // clean landing asks (`TUNING.landing.clean`): its load, in g.
+      if (e.harsh) return { text: STRINGS.newsHarsh(e.g), tone: "bad" };
+      return e.g > TUNING.landing.clean ? { text: STRINGS.newsLoad(e.g), tone: "info" } : null;
     case "reset":
       return { text: STRINGS.newsReset, tone: "info" };
     case "wipeout":

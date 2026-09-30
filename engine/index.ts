@@ -151,8 +151,25 @@ export {
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
-export { poleForce, plantPulse } from "./game/poles.ts";
-export { landingAhead, landingLoss, type Landing } from "./game/flight.ts";
+export {
+  driveForce,
+  driveReach,
+  plantPulse,
+  poleForce,
+  skateShare,
+  strideRate,
+  strideShare,
+  strideShape,
+} from "./game/poles.ts";
+export {
+  fallHeight,
+  landingAhead,
+  landingLoad,
+  landingLoss,
+  landingOff,
+  landingTolerance,
+  type Landing,
+} from "./game/flight.ts";
 export { noseDown, wipeoutCause, crashOver } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
@@ -188,7 +205,7 @@ export {
 } from "./game/tricks.ts";
 export { poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
-export { moonAgeOn, moonAtRun, sunAtRun } from "./game/clock.ts";
+export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
 export { windAt, type Wind } from "./game/wind.ts";
 export { freshRate, freshStep, snowAt, visibilityIn, type Fall } from "./game/snowfall.ts";
 export {

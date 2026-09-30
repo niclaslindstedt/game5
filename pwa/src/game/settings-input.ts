@@ -41,6 +41,7 @@ export const KEY_ACTIONS: readonly { id: KeyAction; label: string }[] = [
   { id: "right", label: STRINGS.keyRight },
   { id: "leanBack", label: STRINGS.keyLeanBack },
   { id: "leanForward", label: STRINGS.keyLeanForward },
+  { id: "jump", label: STRINGS.keyJump },
   { id: "trick", label: STRINGS.keyTrick },
   { id: "reset", label: STRINGS.keyReset },
   { id: "restart", label: STRINGS.keyRestart },
@@ -61,6 +62,7 @@ const HELD: Record<HeldAction, true> = {
   leanBack: true,
   leanForward: true,
   trick: true,
+  jump: true,
 };
 
 export function isHeldAction(action: KeyAction): action is HeldAction {
@@ -71,10 +73,15 @@ export function isHeldAction(action: KeyAction): action is HeldAction {
  * THE KEYBOARD AS IT SHIPS.
  *
  * THE LEFT HAND SKIS, THE RIGHT HAND FLIES. W is the TUCK — held, the body
- * folds out of the wind and, at a crawl, the poles push; S is the SKID (the
- * brake: the skis pivoted across the way, SPACE a second one, because it is
- * where a hand that has never played this reaches first); A D and ← → are
- * the EDGES, the skis tipped into a carve.
+ * folds out of the wind (and a skier stood still sets off skating); A D
+ * and ← → are the EDGES, the skis tipped into a carve; S is the BACK KEY,
+ * which means two things by the ORDER it meets the edge in
+ * (`input-model.ts`'s `backMode`): pressed first and an edge put on after
+ * it, the skis swing across the way into a HOCKEY STOP (alone, a
+ * snowplough's check); pressed with an edge already on, the edge is CUT
+ * HARDER — a tighter line that costs little speed. SPACE is the JUMP:
+ * held, he sinks onto his legs, the lower the longer, and let go he
+ * springs — the higher the longer it was loaded, to two seconds.
  *
  * THE LEAN is the skier's own weight, and in the air it is the pitch
  * control: ↑ leans forward (tips down), ↓ leans back (tips up — the landing
@@ -98,7 +105,8 @@ export function isHeldAction(action: KeyAction): action is HeldAction {
  */
 export const DEFAULT_KEYS: KeyBindings = {
   tuck: ["KeyW"],
-  brake: ["KeyS", "Space"],
+  brake: ["KeyS"],
+  jump: ["Space"],
   left: ["KeyA", "ArrowLeft"],
   right: ["KeyD", "ArrowRight"],
   // The arrow FIRST: it is the one the front door's key line prints.

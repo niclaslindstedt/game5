@@ -28,6 +28,10 @@
 //   COUNTRY the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
+//   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
+//           green, a blue, a red or a black built to its band — the chart
+//           under it bills the colour that came out with its sign.
+//
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
@@ -39,7 +43,14 @@
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
 // one a `?start=free` link boots into are the same ride read the same way.
 
-import { REGION_IDS, TIMES_OF_DAY, WEATHER_KINDS, type WeatherKind } from "@engine";
+import {
+  PISTE_GRADES,
+  REGION_IDS,
+  TIMES_OF_DAY,
+  WEATHER_KINDS,
+  type PisteGrade,
+  type WeatherKind,
+} from "@engine";
 import { useState } from "preact/hooks";
 
 import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
@@ -60,6 +71,12 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 
 /** The COUNTRY row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
+
+/** The GRADE row's stops: the seed's own colour, then R23's four. */
+const GRADE_STOPS: { id: "dealt" | PisteGrade; label: string }[] = [
+  { id: "dealt", label: STRINGS.weatherDealt },
+  ...PISTE_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
+];
 
 /** The SEASON row's stops: the map's own date, then the four. */
 const SEASON_STOPS = [
@@ -99,7 +116,7 @@ export function StartPage({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
-  const chart = useSeedPreview(seed, ride.region);
+  const chart = useSeedPreview(seed, ride.region, ride.grade);
 
   return (
     <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
@@ -141,6 +158,14 @@ export function StartPage({
               stops={REGION_STOPS}
               value={ride.region}
               onPick={(region) => setRide({ region })}
+              onHint={setHint}
+            />
+            <StepRow
+              label={STRINGS.startGrade}
+              hint={STRINGS.startGradeHint}
+              stops={GRADE_STOPS}
+              value={ride.grade ?? "dealt"}
+              onPick={(id) => setRide({ grade: id === "dealt" ? null : id })}
               onHint={setHint}
             />
           </div>

@@ -23,7 +23,7 @@
 // Every pinned map is built here anyway, so the two other things a campaign
 // map quotes about itself without a build are held to it too: the day on its
 // box (`CampaignLevel.day`) and the loop drawn behind it (`campaign-routes.ts`,
-// `make routes`). Eighteen builds is the cost, which is why this is its own
+// `make routes`). Twenty-four builds is the cost, which is why this is its own
 // file: on a shard it is the whole file's floor.
 
 import { describe, expect, it } from "vitest";
@@ -40,13 +40,22 @@ import {
   withSky,
 } from "@engine";
 
+import { BENCHMARK } from "../pwa/src/game/benchmark-plan.ts";
 import { CAMPAIGN_LEVELS, buildCampaignLevel, campaignSky } from "../pwa/src/game/campaign.ts";
 import { CAMPAIGN_ROUTES } from "../pwa/src/game/campaign-routes.ts";
 import { routeOf } from "../pwa/src/game/route-shape.ts";
+import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
-/** Every version the committed campaign actually stands on. */
-const pinned = new Set(CAMPAIGN_LEVELS.map((level) => level.version));
+/** Every version something committed actually stands on: the campaign's
+ * maps, the trick maps (`trick_maps_test.ts` holds their digests) and the
+ * benchmark's race — each a map pinned so that a result on it is a result on
+ * the same snow. */
+const pinned = new Set([
+  ...CAMPAIGN_LEVELS.map((level) => level.version),
+  ...TRICK_MAPS.map((map) => map.version),
+  BENCHMARK.version,
+]);
 
 describe("the generator's version registry", () => {
   it("counts up, with no version stated twice", () => {
@@ -110,13 +119,13 @@ describe("what the campaign pins", () => {
     }
   });
 
-  it("keeps no legacy version the campaign has stopped naming", () => {
+  it("keeps no legacy version nothing pinned names any more", () => {
     const stale = GENERATOR_VERSION_IDS.filter(
       (version) => version !== CURRENT_GENERATOR_VERSION && !pinned.has(version),
     );
     expect(
       stale,
-      `no campaign map names generator v${stale.join(", v")} any more — delete the row from ` +
+      `nothing pinned names generator v${stale.join(", v")} any more — delete the row from ` +
         "engine/mapgen/versions.ts and every trait branch that only existed for it",
     ).toEqual([]);
   });

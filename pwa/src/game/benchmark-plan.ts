@@ -15,12 +15,19 @@
 // tool is running it twice with one row moved — which is what obliges the
 // map, the sky and the stretch below to be ones where every row can show.
 
-import { CURRENT_GENERATOR_VERSION, type GameMode, type RegionId, type SkyOverride } from "@engine";
+import {
+  generateLevel,
+  type GameMode,
+  type GeneratorVersion,
+  type Level,
+  type RegionId,
+  type SkyOverride,
+} from "@engine";
 
 import type { CameraRung } from "./renderer-api.ts";
 
 export type BenchmarkPlan = {
-  /** THE MAP. Seed 20 in the MARITIME (R21) on the current generator,
+  /** THE MAP. Seed 20 in the MARITIME (R21) on generator v1 (`version`),
    * because of what its first thirty seconds ski through: the maritime is
    * the one country wooded nearly to the summit — in the alpine the tree
    * line stands at about half the vertical, so no seed's first thirty
@@ -38,6 +45,13 @@ export type BenchmarkPlan = {
   /** The kind of snow country the seed is raised in (R21) — pinned with
    * the seed, because the same seed in another region is another map. */
   region: RegionId;
+  /** WHICH GENERATOR builds it (`versions.ts`) — pinned like a campaign
+   * map's, so the race a score was taken on is the race every later build
+   * takes it on: v1, the generator before the grades (R23), which is the
+   * map the sweep above chose and the one the history's scores stand on.
+   * A graded map re-rolls the seed, and a sweep of the graded ones found
+   * none with both the woods and a flight in its first thirty seconds. */
+  version: GeneratorVersion;
   /** THE RACE, because it is the heaviest thing the game does: four skis
    * drawn, and — the part no screenshot shows — four whole runs stepped at
    * 120 Hz, each ridden by the bot deciding on every step. A benchmark that
@@ -67,12 +81,18 @@ export type BenchmarkPlan = {
 export const BENCHMARK: BenchmarkPlan = {
   seed: 20,
   region: "maritime",
+  version: 1,
   mode: "race",
   camera: "chase",
   sky: { weather: "fair", hour: 11 },
   step: 1 / 60,
   frames: 1800,
 };
+
+/** THE BENCHMARK'S MAP, built on its own version in its own country. */
+export function benchmarkLevel(plan: BenchmarkPlan = BENCHMARK): Level {
+  return generateLevel(plan.seed, { region: plan.region, version: plan.version });
+}
 
 /** How long the measured stretch is, s — the plan's own arithmetic, so the
  * developer page's row and the card's billing never disagree about it. */
@@ -86,7 +106,7 @@ export function plannedRows(plan: BenchmarkPlan = BENCHMARK): { label: string; v
   return [
     { label: "seed", value: String(plan.seed) },
     { label: "region", value: plan.region },
-    { label: "generator", value: `v${CURRENT_GENERATOR_VERSION}` },
+    { label: "generator", value: `v${plan.version}` },
     { label: "mode", value: plan.mode },
     { label: "camera", value: plan.camera },
     { label: "sky", value: `${plan.sky.weather} ${plan.sky.hour}h` },

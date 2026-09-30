@@ -130,6 +130,8 @@ describe("what an event is worth in the hands (pwa/src/game/rumble.ts)", () => {
     speed: 20,
     harsh,
     lost: harsh ? 0.1 : 0,
+    g: 3,
+    off: 0.1,
   });
 
   it("sizes a landing by how fast the skier was coming down", () => {

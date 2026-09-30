@@ -35,6 +35,7 @@
     "bench": "node scripts/benchmark.mjs",
     "world": "node scripts/world-preview.mjs",
     "skis": "node scripts/skis-preview.mjs",
+    "skier": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-preview.mjs",
     "blender": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/blender.mjs",
     "sky": "node scripts/sky-preview.mjs",
     "cloud": "node scripts/cloud-preview.mjs",

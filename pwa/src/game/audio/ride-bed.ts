@@ -15,7 +15,7 @@
 // stuttered when it was starved, and a stutter is what a player reports as
 // crackle.
 
-import { plantPulse, sunAtRun, topSpeedOf, type GameState, type Level } from "@engine";
+import { TUNING, plantPulse, sunAtRun, topSpeedOf, type GameState, type Level } from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -39,9 +39,9 @@ import { WIND_GLIDE, WIND_LAYERS, windTargets, type WindLayer } from "./wind-voi
  * was tuned at. */
 const WIND_TAU = 0.25;
 
-/** The way under which a skier holding the tuck is POLING rather than
- * tucking, m/s — the engine's own `poles.speed` band, by ear. */
-const POLING_UNDER = 4.5;
+/** The way under which a skier working for his speed is heard planting
+ * his poles, m/s — the engine's own `poles.fade`, where the push is gone. */
+const POLING_UNDER = TUNING.poles.fade;
 
 /** One step of a one-pole filter on a time constant. */
 function follow(previous: number, target: number, dt: number, tau: number): number {
@@ -148,10 +148,10 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       );
 
       // ── The poles ────────────────────────────────────────────────────
-      // A plant on each rise of the engine's own pulse while he is poling:
-      // the tuck held under walking pace on the snow.
-      const poling = !c.airborne && c.tuck > 0.05 && Math.abs(c.way) < POLING_UNDER && grounded > 0;
-      const pulse = poling ? plantPulse(state.t) : 0;
+      // A plant on each rise of the engine's own stride while he is working
+      // for his speed (`poles.ts`): the skate's and the double pole's.
+      const poling = !c.airborne && c.drive > 0.3 && Math.abs(c.way) < POLING_UNDER && grounded > 0;
+      const pulse = poling ? plantPulse(c.stride) : 0;
       if (pulse > 0.5 && planted <= 0.5) {
         playSound(synth, RUN_BANK, "plant", {
           gain: listener.events * duck * (0.6 + 0.4 * (1 - c.packed)),

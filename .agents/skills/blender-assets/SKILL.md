@@ -207,6 +207,31 @@ and handed to Blender as every bone's frame at every frame (`clip()` with a
   yoke, the cuffs — and the LAPS, square across each thigh, since a tucked
   skier's thighs lie above the hem's plane and "nearest bone" leaves a
   ragged edge in three.js where it looked fine in a still.
+- **THE KIT IS A SKIER'S**, not a racer-over-a-machine's: a fitted
+  quilted jacket to under the seat with a stood collar, the second colour
+  on the yoke, a centre-front zip, the cuffs and a stripe down the outside
+  of each sleeve (each a plane the suit is cut along — the stripes a plane
+  along the arm bone a few centimetres out); softshell pants flared over
+  the boot; GLOVES CLOSED ROUND THE GRIP (a palm, four fingers wrapped round
+  the shaft along the bend's side, a thumb over the top — at game quality a
+  finger is five points of tube); an OPEN helmet (the measured shell cut at
+  the port AND everything under it across its width — a ski helmet's front
+  rim is its brow) over a head in a dark balaclava, and GOGGLES on the face
+  bent round a cylinder about the head's up, centred on the port, their
+  outline a squared superellipse shaped row by row (a culled cell grid is a
+  staircase). The helmet's openings are eased along themselves a few
+  passes: a grid cut is stairs.
+- **THE CLOTH IS A TEXTURE, AND ONE MODEL DRESSES EVERY KIT**: the fabric
+  is a height in the suit's own frame (the jacket QUILTED in channels
+  8.5 cm apart round the body, a ripstop's 8 mm grid on every garment, the
+  pants mottled), rendered straight from the shader in the studio and, at
+  game quality, BAKED onto a smart unwrap of the suit: a DETAIL map (the
+  fabric's shade × ambient occlusion, EMIT bake) and a tangent NORMAL map
+  (the height's bump on a diffuse, NORMAL bake), 1024², exported WebP
+  (`export_image_format`). The suit's materials multiply the kit's colour
+  over the detail, which three.js reads as `color × map` — so `dressOf`
+  still recolours every slot. Every other part in a garment's material (the
+  gaiters) is unwrapped onto a plain corner of both maps (white, flat).
 - **No sheen on anything exported**: Blender's sheen goes into the glTF as
   a sheen extension three.js draws as a pale bloom.
 - **Budget**: the figure's LOD0 sits under 10k triangles (the suit

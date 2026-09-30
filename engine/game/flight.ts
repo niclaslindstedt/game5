@@ -15,6 +15,12 @@
 // stop and the skier pays a share of his way per m/s over, which is why
 // landing on the downslope of a kicker is fast and landing flat after
 // overshooting it is not.
+//
+// AND WHETHER HE RIDES IT AWAY AT ALL (`landingLoad`, `landingOff`): the
+// speed into the slope read as an EQUIVALENT FALL HEIGHT and stopped over
+// the legs' stroke and the snow's give is the landing's load in g; the
+// bigger it is, the truer the skis have to come down to the slope, until
+// past `landing.buckle` nothing holds him (`crash.ts` throws him).
 
 import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
@@ -23,6 +29,7 @@ import type { Level } from "../mapgen/types.ts";
 import type { SkierState } from "./state.ts";
 
 const A = TUNING.air;
+const LD = TUNING.landing;
 
 /** The skier's torques in the air, body frame, N·m, added into `out`.
  * `level` is how much of the roll-levelling the run's assist grants (0..1,
@@ -124,4 +131,62 @@ const ground = { x: 0, y: 1, z: 0 };
 export function landingLoss(impact: number, harsh: number = A.harshSpeed): number {
   if (impact <= harsh) return 0;
   return clamp((impact - harsh) * A.harshLoss, 0, A.harshMax);
+}
+
+/** THE EQUIVALENT FALL HEIGHT of a landing met at `impact` m/s into the
+ * slope, m — the drop from rest that meets the snow as hard. */
+export function fallHeight(impact: number): number {
+  return (impact * impact) / (2 * TUNING.g);
+}
+
+/** THE LOAD A LANDING PUTS ON HIM, g: the equivalent fall height stopped
+ * over the legs' stroke — less what a tuck (`crouch` 0..1) has already
+ * folded out of them — and the snow's give, `loose` m of unpressed snow
+ * under the skis (`landing.give` of it presses). One g is standing. */
+export function landingLoad(impact: number, crouch: number, loose: number): number {
+  const stroke =
+    LD.stroke * (1 - LD.tuckStroke * clamp(crouch, 0, 1)) + LD.give * Math.max(0, loose);
+  return 1 + fallHeight(impact) / stroke;
+}
+
+/** How much of the clean landing's tolerance a load of `g` leaves: the
+ * whole of it at `landing.clean` — and more under it, to `1 + slack` of it
+ * for a hop that loads him no more than standing — `landing.tight` of it at
+ * `landing.buckle`, nothing past it. */
+export function landingTolerance(g: number): number {
+  if (g <= LD.clean) return 1 + (LD.slack * (LD.clean - Math.max(1, g))) / (LD.clean - 1);
+  if (g >= LD.buckle) return 0;
+  return 1 - ((1 - LD.tight) * (g - LD.clean)) / (LD.buckle - LD.clean);
+}
+
+/** HOW FAR OFF TRUE the skis come down, as a share of what a clean landing
+ * forgives (1 is the edge of it): the worst of the tips into the slope, the
+ * tails first, the roll across it and the slide sideways to the way. The
+ * skis' `fwd` and `right` and the ground's `normal` in the world frame,
+ * and the velocity. */
+export function landingOff(
+  fwd: { x: number; y: number; z: number },
+  right: { x: number; y: number; z: number },
+  normal: { x: number; y: number; z: number },
+  vx: number,
+  vz: number,
+): number {
+  const pitch = Math.asin(clamp(-(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z), -1, 1));
+  const roll = Math.asin(
+    clamp(right.x * normal.x + right.y * normal.y + right.z * normal.z, -1, 1),
+  );
+  const flat = hypot(vx, vz);
+  const slide =
+    flat > 1
+      ? Math.abs(
+          Math.asin(clamp((fwd.x * vz - fwd.z * vx) / (flat * (hypot(fwd.x, fwd.z) || 1)), -1, 1)),
+        )
+      : 0;
+  // Landing backwards is landing sideways twice over.
+  const back = flat > 1 && fwd.x * vx + fwd.z * vz < 0 ? Math.PI / 2 : 0;
+  return Math.max(
+    pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,
+    Math.abs(roll) / LD.rolled,
+    (slide + back) / LD.sideways,
+  );
 }

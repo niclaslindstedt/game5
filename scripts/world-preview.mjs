@@ -23,7 +23,10 @@
 // cliff-edge, forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
-// switched on by the lens coming nearer), orbit, and last, staged rather
+// switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
+// chase boom a minute, a minute and a half and two minutes down the run —
+// the skier's shadow at every height of the face; `chase-<s>` at any
+// second), orbit, and last, staged rather
 // than ridden to: wipeout and wipeout-lie (the player put into the nearest
 // trunk flat out, then where the skier came to rest); then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
@@ -65,6 +68,9 @@ const VIEWS = [
   "approach-90",
   "approach-60",
   "approach-40",
+  "chase-60",
+  "chase-90",
+  "chase-120",
   "orbit",
   "wipeout",
   "wipeout-lie",
@@ -83,6 +89,15 @@ const args = parseArgs(
       kind: "string",
       default: "alpine",
       help: "the kind of snow country (R21): alpine, fell, continental, maritime",
+    },
+    hour: {
+      kind: "number",
+      default: -1,
+      help: "the sun's solar hour (withSky, as the app's ?hour=); the map's own when left out",
+    },
+    grade: {
+      kind: "string",
+      help: "the piste grade (R23): green, blue, red, black — the seed's own when left out",
     },
     snow: {
       kind: "number",
@@ -119,7 +134,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -198,10 +213,12 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   region: args.region,
+  ...(args.grade ? { grade: args.grade } : {}),
   quality: args.quality,
   ...(args.shadows ? { shadows: args.shadows } : {}),
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
+  ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),
 }).toString();
@@ -216,13 +233,18 @@ if (crashed) process.exit(1);
 const wanted = args.views ? args.views.split(",").map((v) => v.trim()) : VIEWS;
 // The run is continuous: a view is reached by riding through every view
 // before it, so the list is walked in the lab's own order.
-for (const view of VIEWS.filter((v) => wanted.includes(v))) {
+// A chase view at any second (`chase-45`) rides in the chase series' place,
+// in the order of its clock.
+const isChase = (v) => /^chase-\d+$/.test(v);
+const chases = wanted.filter(isChase).sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)));
+const order = VIEWS.flatMap((v) => (v === "chase-60" ? chases : isChase(v) ? [] : [v]));
+for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();
   const shot = await page.evaluate((name) => globalThis.__world.shoot(name), view);
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.snow > 0 ? `snow${args.snow}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

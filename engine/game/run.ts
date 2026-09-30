@@ -26,6 +26,9 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 /** What the skier holds under the lights: the skis across the slope, and
  * nothing else. */
 const HOLD: SkierInput = { ...NEUTRAL_INPUT, brake: 1 };
+/** What a finished skier does: checks his speed down to a stop in the
+ * arena — a skier left to himself would go on working (`poles.ts`). */
+const COAST: SkierInput = { ...NEUTRAL_INPUT, brake: 0.6 };
 
 /** Advance one skier's run by the step the world has just taken. `events`
  * is the run's own list, already cleared for this step. */
@@ -43,7 +46,7 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   // THE WIPEOUT (`crash.ts`): with the skier thrown, the skis go on with
   // the controls let go, and he tumbles on his own.
   const off = c.thrown;
-  const held = off || !racing ? (run.phase === "countdown" ? HOLD : NEUTRAL_INPUT) : input;
+  const held = off ? NEUTRAL_INPUT : !racing ? (run.phase === "countdown" ? HOLD : COAST) : input;
   const tricks = run.rules.tricks && held === input;
   stepSkier(run, tricks ? poseInput(run, held) : held, events);
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.

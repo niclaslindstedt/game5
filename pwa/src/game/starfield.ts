@@ -51,7 +51,8 @@ export function skyTurnOf(level: Pick<Level, "sun">): SkyTurn {
   const { hour, dayOfYear, latitude } = level.sun;
   return {
     pole: latitude * DEG,
-    bearing: SOUTH + Math.PI,
+    // Due north as a WORLD heading: the face's bearing (R15) taken out.
+    bearing: SOUTH + Math.PI - (level.sun.facing ?? 0),
     spin: -TAU * (hour / 24 + dayOfYear / 365),
   };
 }

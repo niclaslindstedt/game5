@@ -249,6 +249,34 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* The piste's sign (R23) ahead of the GATES label, on the label's line. */
+.hud-gates .hud-chip-sub {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hud-chip-sub .hud-grade {
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.3em;
+  vertical-align: -0.25em;
+}
+
+/* The chart's reading, led by the sign of the colour that came out. */
+.seed-preview-read {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seed-preview-read .seed-preview-grade {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.4em;
+  vertical-align: -0.25em;
+}
+
 .hud-chip-sub {
   font-size: 0.62em;
   opacity: 0.85;
@@ -1482,6 +1510,27 @@ canvas {
   fill: var(--hud-ink);
   stroke: rgb(var(--hud-plate) / 70%);
   stroke-width: 2;
+}
+
+/* THE JUMP LOADING under the lever's thumb (the tap-and-hold): the knob
+   ringed in the accent and swelling over the two seconds a full load
+   takes, so the thumb can see it loading. */
+.hud-lever-jump .hud-lever-knob {
+  stroke: var(--hud-good);
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hud-jump-load 2s ease-out forwards;
+}
+
+@keyframes hud-jump-load {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.45);
+  }
 }
 
 @keyframes hud-anchor-in {

@@ -21,273 +21,35 @@
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
 
-const TUCK = { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false };
-const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
-
-/** THE REFERENCE PITCH, m/m: the 20° groomed schuss the top speeds are
- * quoted on (`TOP_SPEED_PITCH`) — and the one the carves are measured on
- * too: a bend held on an edge scrubs speed (`steer.scrub`, the skid past
- * what the edge holds), and a gentler pitch cannot pay it back. */
-const PITCH = Math.tan(Math.PI / 9);
-
-/** The first time a recorded run reached `kmh`, s, or null. */
-function timeTo(run, kmh) {
-  const f = run.frames.find((f) => f.speed * 3.6 >= kmh);
-  return f ? f.t : null;
-}
-
-/** THE GOVERNOR: the tuck and the brake that hold a skier at `kmh` down a
- * pitch — folded into the tuck to gather speed, stood up to shed it, the
- * snowplough only for a real overshoot. A turn measured at "60 km/h" on a
- * fixed tuck drifts to whatever speed that tuck finds in the bend, and the
- * radius goes as the speed squared, so a figure taken without it is a
- * figure about the tuck. */
-function hold(st, kmh) {
-  const err = kmh / 3.6 - st.skier.speed;
-  return {
-    tuck: Math.min(1, Math.max(0, 0.5 + 0.5 * err)),
-    brake: Math.min(1, Math.max(0, -0.5 * err - 0.4)),
-  };
-}
-
-/** The mean of `f` over the frames from `from` s to the end. */
-function tail(run, from, f) {
-  const fs = run.frames.filter((x) => x.t >= from);
-  return fs.reduce((s, x) => s + f(x), 0) / Math.max(1, fs.length);
-}
-
-const fmt = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
-
-function schuss(run) {
-  const top = Math.max(...run.frames.map((f) => f.speed));
-  const t100 = timeTo(run, 100);
-  const at100 = run.frames.find((f) => f.speed * 3.6 >= 100);
-  return [
-    ["0-50 km/h s", fmt(timeTo(run, 50))],
-    ["0-100 km/h s", fmt(t100)],
-    ["to 100 m", at100 ? fmt(at100.dist, 0) : "—"],
-    ["top km/h", fmt(top * 3.6, 1)],
-    ["sink at top m", fmt(run.frames[run.frames.length - 1].sink, 3)],
-  ];
-}
-
-/** A BEND'S NUMBERS, read over the second and a half after the edge has
- * gone on (t = 0.5..2 s): the radius the yaw rate and the speed make, the
- * lateral g, the edge and the roll. Read early and not settled, because a
- * skier cannot hold a governed circle on a slope — an edge held turns him
- * across the pitch and up it, and the bend's own scrub takes the speed —
- * so a carve is a thing measured at the speed he came in with. */
-function turn(run) {
-  const fs = run.frames.filter((f) => f.t >= 0.5 && f.t < 2);
-  const mean = (g) => fs.reduce((sum, f) => sum + g(f), 0) / Math.max(1, fs.length);
-  const v = mean((f) => f.speed);
-  const wy = Math.abs(mean((f) => f.wy));
-  const radius = wy > 1e-3 ? v / wy : Infinity;
-  return [
-    ["radius m", fmt(radius, 1)],
-    ["speed km/h", fmt(v * 3.6, 1)],
-    ["lateral g", fmt((v * wy) / 9.81, 2)],
-    ["edge deg", fmt(mean((f) => Math.abs(f.edge)) * 57.3, 0)],
-    ["roll deg", fmt(mean((f) => f.roll) * 57.3, 1)],
-    ["resets", run.events.filter((e) => e.kind === "reset").length],
-  ];
-}
-
-function flight(run) {
-  const lands = run.events.filter((e) => e.kind === "land");
-  const air = run.events.find((e) => e.kind === "air");
-  const first = lands[0];
-  const launch = run.frames.find((f) => f.airborne);
-  const touch = launch ? run.frames.find((f) => f.t > launch.t && !f.airborne) : null;
-  const peak = run.frames.reduce((m, f) => Math.max(m, f.y - f.ground), 0);
-  return [
-    ["launch km/h", air ? fmt(air.speed * 3.6, 1) : "—"],
-    ["air s", first ? fmt(first.airTime) : "—"],
-    ["carry m", launch && touch ? fmt(touch.dist - launch.dist, 1) : "—"],
-    ["peak m", fmt(peak - 1, 2)],
-    ["impact m/s", first ? fmt(first.impact) : "—"],
-    ["harsh", first ? (first.harsh ? `yes -${Math.round(first.lost * 100)}%` : "no") : "—"],
-    ["land pitch deg", touch ? fmt(touch.pitch * 57.3, 1) : "—"],
-    ["out km/h", fmt(run.frames[run.frames.length - 1].speed * 3.6, 1)],
-  ];
-}
-
-/** THE WIPEOUT's numbers: what put him off and when, how fast he was
- * going, how far his body slid from where he left the skis, how many turns
- * it took, and when the reset stood him up. */
-function wipeout(run) {
-  const off = run.events.find((e) => e.kind === "wipeout");
-  const reset = run.events.find((e) => e.kind === "reset" && (!off || e.t > off.t));
-  const lying = off ? run.frames.filter((f) => f.t > off.t && f.thrown) : [];
-  const last = lying[lying.length - 1];
-  return [
-    ["wipeout", off ? `${off.cause} at ${fmt(off.t)} s` : "no"],
-    ["at km/h", off ? fmt(off.speed * 3.6, 1) : "—"],
-    ["body slid m", last ? fmt(Math.hypot(last.rx - off.x, last.rz - off.z), 1) : "—"],
-    ["tumbled turns", last ? fmt(Math.abs(last.tumble) / (2 * Math.PI), 1) : "—"],
-    ["reset at s", reset ? fmt(reset.t) : "—"],
-  ];
-}
-
-/** A skier rocking: the weight thrown fore and aft and side to side, `hz`
- * times a second, on `tuck` (the poles). */
-function rock(t, hz, tuck) {
-  const s = Math.sin(2 * Math.PI * hz * t) >= 0 ? 1 : -1;
-  return { steer: s, tuck, brake: 0, lean: s, reset: false };
-}
-
-/** Which phase of the rocking scenario a run is in, per run. */
-const dug = new WeakMap();
-
-/** BOGGED's numbers: when he was bogged, how deep he sank, when he was out
- * and moving again, and whether the engine had to reset him. */
-function trench(run) {
-  const stuck = run.events.find((e) => e.kind === "stuck");
-  const deepest = run.frames.reduce((m, f) => Math.max(m, f.trench), 0);
-  // Two moments, because they are two different things: the hole PACKED
-  // BACK by the rocking (the trench's own mechanic), and the skier SKIED
-  // OFF — which also asks whether the bank he stopped against lets him
-  // turn away.
-  const packed = stuck ? run.frames.find((f) => f.t > stuck.t && f.trench === 0) : null;
-  const out = stuck ? run.frames.find((f) => f.t > stuck.t && f.trench === 0 && f.speed > 2) : null;
-  return [
-    ["bogged at s", stuck ? fmt(stuck.t) : "—"],
-    ["deepest m", fmt(deepest, 3)],
-    ["packed back at s", packed ? fmt(packed.t) : "—"],
-    ["skied off at s", out ? fmt(out.t) : "—"],
-    ["resets", run.events.filter((e) => e.kind === "reset").length],
-  ];
-}
-
-/** THE SCORE's numbers (`tricks.ts`): what was won, how the flight ended,
- * and what the combo came to. */
-function tricked(run) {
-  const land = run.events.find((e) => e.kind === "land");
-  const won = run.events.filter((e) => e.kind === "trick").map((e) => e.trick);
-  const combo = run.events.find((e) => e.kind === "combo");
-  const bail = run.events.find((e) => e.kind === "bail");
-  const touch = land ? run.frames.find((f) => f.t >= land.t) : null;
-  return [
-    ["air s", land ? fmt(land.airTime) : "—"],
-    ["won", won.length ? won.join("+") : "nothing"],
-    ["land pitch deg", touch ? fmt(touch.pitch * 57.3, 1) : "—"],
-    ["impact m/s", land ? `${fmt(land.impact)}${land.harsh ? " harsh" : ""}` : "—"],
-    [
-      "combo",
-      bail
-        ? `lost ${bail.lost} (${bail.cause})`
-        : combo
-          ? `${combo.base} × ${combo.mult} = ${combo.points}${combo.sketchy ? " sketchy" : ""}`
-          : "—",
-    ],
-  ];
-}
-
-/** A METRE OF FRESH SNOW: the snow dial at its deepest (`SNOW_DIAL.max`,
- * `snow.deep.full`), where the powder is bottomless. */
-const DEEP = 2.5;
-
-/** The first time after `from` s that the boot's station came up under
- * `under` m of sink — the moment the skis climbed onto the top of the
- * snow — as [time, speed], or null. */
-function planedAfter(run, from, under = 0.05) {
-  const f = run.frames.find((x) => x.t >= from && x.sink < under);
-  return f ? [f.t, f.speed] : null;
-}
-
-/** A deep run's numbers: the speed at 10 s and at the end, when he came up
- * onto the top, and the deepest he sank on the way. */
-function deepSchuss(run) {
-  const at = (t) => run.frames.reduce((b, f) => (Math.abs(f.t - t) < Math.abs(b.t - t) ? f : b));
-  const planed = planedAfter(run, 0);
-  return [
-    ["at 10 s km/h", fmt(at(10).speed * 3.6, 0)],
-    ["at end km/h", fmt(run.frames[run.frames.length - 1].speed * 3.6, 0)],
-    ["planed at s", planed ? fmt(planed[0], 1) : "—"],
-    ["planed km/h", planed ? fmt(planed[1] * 3.6, 0) : "—"],
-  ];
-}
-
-/** Held at `kmh` on the tuck and the brake, as a skier would on a traverse. */
-function cruise(st, kmh) {
-  return { ...TUCK, ...hold(st, kmh) };
-}
-
-/** The balance's numbers: the worst roll off the snow's plane, whether he
- * went over and when, and how far he got. */
-function balance(run) {
-  const over = run.frames.find((f) => Math.abs(f.roll) > 1.2);
-  const upright = over ? run.frames.filter((f) => f.t < over.t) : run.frames;
-  const worst = upright.reduce((m, f) => Math.max(m, Math.abs(f.roll)), 0);
-  const last = (over ?? run.frames[run.frames.length - 1]).dist;
-  return [
-    ["worst roll deg", fmt(worst * 57.3, 0)],
-    ["over at s", over ? fmt(over.t, 1) : "no"],
-    ["skied m", fmt(last, 0)],
-  ];
-}
-
-/** A stop's numbers: when and where he stopped from the speed he was
- * placed at, and the mean deceleration. */
-function stopped(run, kmh) {
-  const stop = run.frames.find((f) => f.t > 0.2 && f.speed < 0.3);
-  return [
-    ["stop s", stop ? fmt(stop.t) : "—"],
-    ["stop m", stop ? fmt(stop.dist, 1) : "—"],
-    ["mean g", stop ? fmt(kmh / 3.6 / stop.t / 9.81, 2) : "—"],
-  ];
-}
-
-/** THE SLIP ANGLE over a run: how far the skis have come round off the
- * way he is actually going, while he is still going anywhere, rad. */
-function worstSlip(run) {
-  let slip = 0;
-  for (let i = 1; i < run.frames.length; i++) {
-    const a = run.frames[i - 1];
-    const b = run.frames[i];
-    if (b.speed < 3) continue;
-    const way = Math.atan2(b.x - a.x, b.z - a.z);
-    let d = Math.abs(b.heading - way) % (2 * Math.PI);
-    if (d > Math.PI) d = 2 * Math.PI - d;
-    if (d > slip) slip = d;
-  }
-  return slip;
-}
-
-/** The kicker on the slope's piste (`SLOPE.kickerZ`), approached from
- * `back` m up the piste at `kmh`. */
-function atKicker(S, back, kmh) {
-  const z = S.SLOPE.kickerZ - back;
-  return { x: S.pisteX(z), z, heading: 0, speed: kmh / 3.6 };
-}
-
-/** A flight a kicker would have thrown, staged in the air over packed snow:
- * 1.2 m up, climbing 8.5 m/s, at 80 km/h — about 1.9 s up. */
-const LAUNCH = { x: 1500, z: 200, heading: 0, speed: 22, height: 1.2, vy: 8.5 };
-
-/** A trick scenario: the staged launch, skied in a tricks run. */
-function trick(id, title, input) {
-  return {
-    id,
-    title,
-    mode: "tricks",
-    level: (S) => S.flatLevel({ packed: 1 }),
-    place: () => LAUNCH,
-    seconds: 4,
-    view: "profile",
-    input: (t) => ({ ...TUCK, ...input(t) }),
-    measure: tricked,
-  };
-}
-
-/** The pitch's strips: a 20° groomed schuss and the same in powder — each
- * 4 km long, falling past z = 200. */
-const schussStrip = (S, packed = 1) =>
-  S.flatLevel({ packed, grade: PITCH, slopeFrom: 200, size: 4000 });
-/** Pushed off at 3 m/s at the top of the pitch. */
-const TOP = { x: 2000, z: 210, heading: 0, speed: 3 };
-/** Down the pitch already, at `kmh`. */
-const onPitch = (kmh) => ({ x: 2000, z: 600, heading: 0, speed: kmh / 3.6 });
+import {
+  TUCK,
+  IDLE,
+  hold,
+  tail,
+  fmt,
+  schuss,
+  turn,
+  flight,
+  wipeout,
+  jumped,
+  landed,
+  rock,
+  dug,
+  trench,
+  tricked,
+  DEEP,
+  planedAfter,
+  deepSchuss,
+  cruise,
+  balance,
+  stopped,
+  worstSlip,
+  atKicker,
+  trick,
+  schussStrip,
+  TOP,
+  onPitch,
+} from "./ride-helpers.mjs";
 
 export const SCENARIOS = [
   {
@@ -344,6 +106,26 @@ export const SCENARIOS = [
     },
   },
   {
+    id: "skate",
+    title: "hands off from a shuffle across the flat: skating, then double-poling",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 150, heading: 0, speed: 1 }),
+    seconds: 12,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const at = (t) => run.frames.find((x) => x.t >= t) ?? run.frames[run.frames.length - 1];
+      const f = run.frames[run.frames.length - 1];
+      return [
+        ["at 1 s km/h", fmt(at(1).speed * 3.6, 1)],
+        ["at 3 s km/h", fmt(at(3).speed * 3.6, 1)],
+        ["at 6 s km/h", fmt(at(6).speed * 3.6, 1)],
+        ["at 12 s km/h", fmt(f.speed * 3.6, 1)],
+        ["metres", fmt(f.dist, 1)],
+      ];
+    },
+  },
+  {
     id: "schuss",
     title: "a tuck down the 20° groomed pitch from a push-off",
     level: (S) => schussStrip(S, 1),
@@ -383,7 +165,7 @@ export const SCENARIOS = [
     title: "a snowplough from 80 km/h on flat packed snow",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({ x: 1500, z: 200, heading: 0, speed: 80 / 3.6 }),
-    seconds: 8,
+    seconds: 20,
     view: "profile",
     input: () => ({ ...IDLE, brake: 1 }),
     measure: (run) => stopped(run, 80),
@@ -440,6 +222,46 @@ export const SCENARIOS = [
     view: "plan",
     input: (t, st) => ({ ...TUCK, steer: 0.4, ...hold(st, 100) }),
     measure: turn,
+  },
+  {
+    id: "carve-hard",
+    title: "full edge cut hard (the back key after the edge) at 80 km/h down the pitch",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(80),
+    seconds: 3,
+    view: "plan",
+    input: (t, st) => ({ ...TUCK, steer: 1, carve: true, ...hold(st, 80) }),
+    measure: turn,
+  },
+  {
+    id: "carve-full",
+    title: "the same full edge at 80 km/h, not cut hard",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(80),
+    seconds: 3,
+    view: "plan",
+    input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
+    measure: turn,
+  },
+  {
+    id: "jump-tap",
+    title: "the jump tapped at 50 km/h on flat packed snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 50 / 3.6 }),
+    seconds: 3,
+    view: "profile",
+    input: (t) => ({ ...IDLE, jump: t >= 0.5 && t < 0.55 }),
+    measure: (run) => [...jumped(run), ...flight(run).slice(1, 6)],
+  },
+  {
+    id: "jump-full",
+    title: "the jump loaded for 2.5 s at 50 km/h on flat packed snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 50 / 3.6 }),
+    seconds: 5,
+    view: "profile",
+    input: (t) => ({ ...IDLE, jump: t >= 0.5 && t < 3 }),
+    measure: (run) => [...jumped(run), ...flight(run).slice(1, 6)],
   },
   {
     id: "turn-in",
@@ -597,6 +419,74 @@ export const SCENARIOS = [
     view: "profile",
     input: () => TUCK,
     measure: flight,
+  },
+  {
+    id: "drop-true",
+    title: "dropped 1.5 m at 70 km/h, skis true, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 2.5, roll: 0, pitch: 0 }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-rolled",
+    title: "dropped 1.5 m at 70 km/h rolled 20°, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 70 / 3.6,
+      height: 2.5,
+      roll: 0.35,
+      pitch: 0,
+    }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big",
+    title: "dropped 8 m at 70 km/h, skis true, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9, roll: 0, pitch: 0 }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big-powder",
+    title: "dropped 8 m at 70 km/h, skis true, into a metre of powder",
+    level: (S) => S.flatLevel({ packed: 0 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9, roll: 0, pitch: 0 }),
+    snow: 2.5,
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big-tilted",
+    title: "dropped 8 m at 70 km/h tips 15° down, into a metre of powder",
+    level: (S) => S.flatLevel({ packed: 0 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 70 / 3.6,
+      height: 9,
+      roll: 0,
+      pitch: -0.26,
+    }),
+    snow: 2.5,
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
   },
   {
     id: "climb",

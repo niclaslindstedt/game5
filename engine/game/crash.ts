@@ -2,7 +2,7 @@
 // THE WIPEOUT — the skier thrown off his skis, and the few seconds before
 // the reset stands him back on the piste.
 //
-// FOUR WAYS OFF, each a threshold on something the step has already
+// FIVE WAYS OFF, each a threshold on something the step has already
 // measured, and each well past anything a clean run meets (`TUNING.crash`):
 //   - a TRUNK met hard — the `hit` event's closing speed past `treeSpeed`:
 //     the trunk stops the skis, and the man on them goes on at the way he
@@ -17,6 +17,14 @@
 //     `rollSpeed` or more: an edge lost. Turning over in the air is not yet
 //     a fall — the landing decides — and a slow sit-down he rides out, the
 //     reset's own clock (`reset.overFor`) standing him up as before;
+//   - A LANDING HE COULD NOT RIDE AWAY — a `land` ending a flight of
+//     `landing.air` s or more whose load (`flight.ts`'s `landingLoad`: the
+//     equivalent fall height over the legs' stroke and the snow's give)
+//     leaves less tolerance (`landingTolerance`) than the skis came down off
+//     true (`landingOff`): the bigger the landing, the more perfect it must
+//     be, and past `landing.buckle` g no landing is perfect enough. Deep
+//     soft snow is a long stroke and a kind one; the groomer and the ice
+//     are not;
 //   - a CAUGHT EDGE, the high-side — a ski stood well over on its edge
 //     (`skier.slipEdge`) while the snow slides past across it faster than
 //     `skier.slipSpeed`: the edge bites all at once and the body is thrown
@@ -48,6 +56,7 @@
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
+import { landingTolerance } from "./flight.ts";
 import { centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import type { CrashCause, GameEvent, GameState, SkierState, Thrown } from "./state.ts";
 
@@ -82,6 +91,16 @@ export function wipeoutCause(
       noseDown(state) >= K.noseAngle
     ) {
       return "nose";
+    }
+    // A skier coming down on his side or his back is the fall's (below),
+    // not a landing gone wrong.
+    if (
+      e.kind === "land" &&
+      e.airTime >= TUNING.landing.air &&
+      e.off > landingTolerance(e.g) &&
+      !overSnow(state)
+    ) {
+      return "landing";
     }
   }
   // Over is over against the SNOW, not the sky — a skier on a steep face

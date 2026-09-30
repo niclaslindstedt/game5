@@ -22,6 +22,7 @@ import * as THREE from "three";
 import type { SkierState } from "@engine";
 
 import { gearLift, SINK_SHARE, skiTilt } from "./ski-gear.ts";
+import { gaitOf } from "./skier-pose.ts";
 
 type Rest = { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 };
 type Aim = {
@@ -91,6 +92,7 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
     .sort((a, b) => sideOf(a) - sideOf(b));
   const up = new THREE.Vector3();
   const fwd = new THREE.Vector3();
+  const side = new THREE.Vector3();
 
   const mixer = new THREE.AnimationMixer(root);
 
@@ -131,10 +133,26 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
       body.getWorldQuaternion(pq);
       up.copy(Y).applyQuaternion(pq);
       fwd.set(0, 0, 1).applyQuaternion(pq);
+      side.set(1, 0, 0).applyQuaternion(pq);
       const lift = gearLift(skier);
       const drop = skier.spec.crouchDrop * skier.crouch;
       const tilt = skiTilt(skier);
-      skis.forEach((o, i) => drive(o, lift[i] + drop + sink * SINK_SHARE, skier.skiAngle, tilt));
+      // The gait's V, the push out and the lifted recovery, as the code's
+      // skis are drawn (`ski-gear.ts`).
+      const gait = gaitOf(skier);
+      skis.forEach((o, i) => {
+        drive(
+          o,
+          lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
+          skier.skiAngle + gait.splay[i],
+          tilt,
+        );
+        if (gait.out[i] !== 0 || gait.fore[i] !== 0) {
+          o.getWorldPosition(w);
+          w.addScaledVector(side, gait.out[i]).addScaledVector(fwd, gait.fore[i]);
+          o.position.copy(o.parent!.worldToLocal(w));
+        }
+      });
       root.updateMatrixWorld(true);
       for (const a of aims) {
         const d = a.node.parent!.worldToLocal(a.target.getWorldPosition(w)).sub(a.node.position);

@@ -249,12 +249,25 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
-/* The piste's sign (R23) ahead of the GATES label. */
+/* The piste's sign (R23) ahead of the GATES label, on the label's line. */
+.hud-gates .hud-chip-sub {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
 .hud-chip-sub .hud-grade {
   width: 1.1em;
   height: 1.1em;
   margin-right: 0.3em;
   vertical-align: -0.25em;
+}
+
+/* The chart's reading, led by the sign of the colour that came out. */
+.seed-preview-read {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .seed-preview-read .seed-preview-grade {

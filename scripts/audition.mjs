@@ -156,13 +156,24 @@ function compileRuntime() {
 const { RUN_BANK } = await import(join(root, "pwa/src/game/audio/bank.ts"));
 const { WIND_LAYERS } = await import(join(root, "pwa/src/game/audio/wind-voice.ts"));
 const { SNOW_LAYERS } = await import(join(root, "pwa/src/game/audio/snow-voice.ts"));
-const { SKIS, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const { SKIS, SKI_CATALOG, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const { APP_NAME } = await import(join(root, "pwa/src/identity.ts"));
 const spec = SKIS;
 
 const runtime = compileRuntime();
+// EVERY PAIR, as the snow bed hears it (`skiVoiceOf` off its own spec, in
+// the page) and how fast it goes flat out — the snow's PACE is a share of it.
 const data = JSON.stringify({
   bank: RUN_BANK,
   skis: { name: spec.name, top: topSpeedOf(spec) },
+  catalog: SKI_CATALOG.map((s) => ({
+    name: s.name,
+    kind: s.kind,
+    top: topSpeedOf(s),
+    flex: s.flex,
+    waist: s.waist,
+    length: s.length,
+  })),
 });
 
 const page = `<!doctype html>
@@ -170,7 +181,7 @@ const page = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Powder Run — the ear</title>
+<title>${APP_NAME} — the ear</title>
 <style>
   /* ONE LOOK, DELIBERATELY: a trailhead hut at dusk. Deep pine-night blue,
      snow-white ink, and the red of a checkpoint flag. It does not follow the
@@ -295,11 +306,14 @@ const page = `<!doctype html>
 
   <h2>The snow</h2>
   <p class="sub">
-    The skis on the snow: five layers. <b>Pace</b> is the share of top speed, <b>packed</b>
-    how much of the skier is on the groomed piste (the hiss) rather than in powder (the hush),
-    <b>hard</b> how icy the piste is (the chatter), <b>edge</b> how far over the skis are
-    tipped (the tear), <b>skid</b> how far across the way they are pivoted (the rasp). Take the
-    skier into the air and the snow goes quiet.
+    The skis on the snow: eight layers over the six kinds of snow. <b>Pace</b> is the share of
+    the pair's top speed; the six kind sliders are the MIX under the skis (weighed against each
+    other, so one alone is that snow everywhere) — the <b>groomed</b> piste's hiss, the wind
+    <b>crust</b>'s crunch, settled <b>powder</b>'s hush, <b>new</b> snow's quieter one, <b>wet</b>
+    spring snow's slush and the <b>ice</b>'s scrape. <b>Edge</b> is how far over the skis are
+    tipped (the tear, and the chatter at speed), <b>skid</b> how far across the way they are
+    pivoted (the rasp). The <b>skis</b> row picks the pair: a stiff one rings higher, a soft one
+    buzzes, a fat one hushes deeper. Take the skier into the air and the snow goes quiet.
   </p>
   <div class="panel">
     <div class="switches"><button id="snow" class="primary" type="button">Start the snow</button></div>
@@ -442,11 +456,30 @@ const snow = { airborne: false };
 window.__ear.snow = snow;
 const snowSliders = document.getElementById("snowSliders");
 sliderRow(snowSliders, snow, "pace", "Pace", 0.5);
-sliderRow(snowSliders, snow, "packed", "Packed", 1);
-sliderRow(snowSliders, snow, "hard", "Hard", 0.5);
+const KINDS = [
+  ["groomed", "Groomed", 1],
+  ["hard", "Crust", 0],
+  ["soft", "Powder", 0],
+  ["new", "New snow", 0],
+  ["wet", "Wet", 0],
+  ["ice", "Ice", 0],
+];
+for (const [id, label, initial] of KINDS) sliderRow(snowSliders, snow, id, label, initial);
 sliderRow(snowSliders, snow, "edge", "Edge", 0);
 sliderRow(snowSliders, snow, "skid", "Skid", 0);
 toggle(snowSliders, snow, "airborne", "In the air");
+snow.ski = DATA.catalog[0].name;
+switchRow(snowSliders, "Skis", DATA.catalog.map((c) => c.name), snow.ski, (n) => (snow.ski = n));
+
+/** The kind sliders as a mix summing to 1 — all at zero is the groomer. */
+function underOf(store) {
+  let sum = 0;
+  for (const [id] of KINDS) sum += Math.max(0, store[id] ?? 0);
+  const under = {};
+  for (const [id] of KINDS) under[id] = sum > 0 ? Math.max(0, store[id] ?? 0) / sum : 0;
+  if (sum <= 0) under.groomed = 1;
+  return under;
+}
 
 let snowRack = null;
 const snowBtn = document.getElementById("snow");
@@ -467,14 +500,15 @@ snowBtn.addEventListener("click", () => {
   const timer = setInterval(() => {
     if (synth.now() === null) return;
     const ear = listenerFor(seat.view);
-    const speed = snow.pace * DATA.skis.top;
+    const pair = DATA.catalog.find((c) => c.name === snow.ski) ?? DATA.catalog[0];
+    const speed = snow.pace * pair.top;
     rack.apply(
       snowTargets(
         {
           speed,
           pace: snow.pace,
-          packed: snow.packed,
-          hard: snow.hard,
+          under: underOf(snow),
+          ski: skiVoiceOf(pair),
           grounded: snow.airborne ? 0 : 1,
           edge: snow.edge,
           skid: snow.skid,
@@ -541,41 +575,80 @@ console.log(
 /** The moments the beds are metered at — a ladder from a skier stood in
  * the start gate to the whole mix flat out in a tuck, and the ones the ear
  * finds faults at: the push off into powder, a hockey stop and the air. */
+/** The snow as a preset writes it: one kind of snow, every other slider at
+ * zero, so a preset never inherits the last one's mix. */
+const on = (kind, rest) => ({
+  groomed: 0,
+  hard: 0,
+  soft: 0,
+  new: 0,
+  wet: 0,
+  ice: 0,
+  [kind]: 1,
+  ski: "Chamois",
+  ...rest,
+});
+
 const PRESETS = [
   {
     name: "in the start gate",
     rush: { wind: 0, crouch: 0, airborne: false },
-    snow: { pace: 0, packed: 1, hard: 0.5, edge: 0, skid: 0, airborne: false },
+    snow: on("groomed", { pace: 0, edge: 0, skid: 0, airborne: false }),
   },
   {
     name: "pushing off into powder",
     rush: { wind: 3, crouch: 0, airborne: false },
-    snow: { pace: 0.08, packed: 0, hard: 0, edge: 0, skid: 0, airborne: false },
+    snow: on("soft", { pace: 0.08, edge: 0, skid: 0, airborne: false }),
   },
   {
     name: "cruising the piste",
     rush: { wind: 18, crouch: 0.2, airborne: false },
-    snow: { pace: 0.55, packed: 1, hard: 0.5, edge: 0.3, skid: 0, airborne: false },
+    snow: on("groomed", { pace: 0.55, edge: 0.3, skid: 0, airborne: false }),
   },
   {
     name: "flat out in a tuck",
     rush: { wind: 36, crouch: 1, airborne: false },
-    snow: { pace: 1, packed: 1, hard: 0.6, edge: 0.1, skid: 0, airborne: false },
+    snow: on("groomed", { pace: 1, edge: 0.1, skid: 0, airborne: false }),
   },
   {
     name: "carving on ice",
     rush: { wind: 25, crouch: 0.3, airborne: false },
-    snow: { pace: 0.7, packed: 1, hard: 1, edge: 0.9, skid: 0, airborne: false },
+    snow: on("ice", { pace: 0.7, edge: 0.9, skid: 0, airborne: false }),
   },
   {
     name: "hockey stop",
     rush: { wind: 12, crouch: 0, airborne: false },
-    snow: { pace: 0.4, packed: 1, hard: 0.5, edge: 0.4, skid: 1, airborne: false },
+    snow: on("groomed", { pace: 0.4, edge: 0.4, skid: 1, airborne: false }),
+  },
+  {
+    name: "across the crust",
+    rush: { wind: 15, crouch: 0.1, airborne: false },
+    snow: on("hard", { pace: 0.45, edge: 0.4, skid: 0.2, airborne: false }),
+  },
+  {
+    name: "deep in new snow",
+    rush: { wind: 10, crouch: 0, airborne: false },
+    snow: on("new", { pace: 0.3, edge: 0.2, skid: 0, airborne: false, ski: "Marmot" }),
+  },
+  {
+    name: "spring slush",
+    rush: { wind: 10, crouch: 0, airborne: false },
+    snow: on("wet", { pace: 0.3, edge: 0.3, skid: 0.3, airborne: false }),
+  },
+  {
+    name: "slalom ski on ice",
+    rush: { wind: 20, crouch: 0.2, airborne: false },
+    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Swift" }),
+  },
+  {
+    name: "park ski on ice",
+    rush: { wind: 20, crouch: 0.2, airborne: false },
+    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Hare" }),
   },
   {
     name: "in the air",
     rush: { wind: 30, crouch: 0.4, airborne: true },
-    snow: { pace: 0.9, packed: 1, hard: 0.5, edge: 0, skid: 0, airborne: true },
+    snow: on("groomed", { pace: 0.9, edge: 0, skid: 0, airborne: true }),
   },
 ];
 

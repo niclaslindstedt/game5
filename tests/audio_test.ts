@@ -32,13 +32,18 @@ import {
 import { LISTENERS, listenerFor } from "../pwa/src/game/audio/listener.ts";
 import { DEFAULT_VOLUME, playDef } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed } from "../pwa/src/game/audio/ride-bed.ts";
-import { heardFrom, soundForEvent, soundsForStep } from "../pwa/src/game/audio/route.ts";
+import { heardFrom, soundForEvent, soundsForStep, trunkAt } from "../pwa/src/game/audio/route.ts";
 import {
+  NEUTRAL_SKI,
   SNOW_LAYERS,
+  skiVoiceOf,
   snowTargets,
   type SnowLayer,
+  type SnowUnder,
   type SnowVoice,
 } from "../pwa/src/game/audio/snow-voice.ts";
+import { SNOW_KINDS, type SnowKind } from "../pwa/src/game/snowpack.ts";
+import { SKI_CATALOG } from "@engine";
 import { RUN_CAMERAS } from "../pwa/src/game/settings.ts";
 import {
   safeCutoff,
@@ -189,6 +194,78 @@ describe("the bank and the route (bank.ts, route.ts)", () => {
   });
 });
 
+describe("what a skier meets and comes down into (route.ts's Contact)", () => {
+  const ground = (o: Partial<SnowUnder>): SnowUnder => ({
+    groomed: 0,
+    hard: 0,
+    soft: 0,
+    new: 0,
+    wet: 0,
+    ice: 0,
+    ...o,
+  });
+
+  it("brushes a trunk slow and meets it fast, deeper for a fat one, dry for a snag", () => {
+    const hit = EVERY_EVENT_BY_KIND.hit;
+    expect(soundForEvent({ ...hit, speed: 2 })!.id).toBe("brush_tree");
+    expect(soundForEvent({ ...hit, speed: 12 })!.id).toBe("hit_tree");
+    const thin = soundForEvent(hit, { trunk: { radius: 0.15, snag: false } })!;
+    const fat = soundForEvent(hit, { trunk: { radius: 0.6, snag: false } })!;
+    expect(fat.shape!.pitch!).toBeLessThan(thin.shape!.pitch!);
+    expect(fat.shape!.stretch!).toBeGreaterThan(thin.shape!.stretch!);
+    expect(soundForEvent(hit, { trunk: { radius: 0.3, snag: true } })!.id).toBe("hit_snag");
+  });
+
+  it("finds the trunk a hit met on the map, and none where there is no tree", () => {
+    const level = {
+      trees: [
+        { x: 10, z: 10, y: 0, height: 12, radius: 0.35, crown: 2 },
+        { x: 11, z: 10, y: 0, height: 8, radius: 0.2, crown: 2, kind: "snag" as const },
+      ],
+    };
+    expect(trunkAt(level, 11.2, 10)).toEqual({ radius: 0.2, snag: true });
+    expect(trunkAt(level, 9.6, 10)).toEqual({ radius: 0.35, snag: false });
+    expect(trunkAt(level, 40, 40)).toBe(null);
+  });
+
+  it("gives every way of being thrown a sound of its own, from a def that exists", () => {
+    const causes = ["tree", "nose", "roll", "catch"] as const;
+    const ids = causes.map((cause) => {
+      const hit = soundForEvent({ ...EVERY_EVENT_BY_KIND.wipeout, cause })!;
+      expect(RUN_BANK[hit.id], cause).toBeDefined();
+      return hit.id;
+    });
+    expect(new Set(ids).size).toBe(causes.length);
+  });
+
+  it("lands in the snow it comes down into: a whumpf in powder, a slap on ice", () => {
+    const land = EVERY_EVENT_BY_KIND.land;
+    expect(soundForEvent(land, { ground: ground({ groomed: 1 }) })!.id).toBe("land_soft");
+    expect(soundForEvent(land, { ground: ground({ soft: 1 }) })!.id).toBe("land_powder");
+    expect(soundForEvent(land, { ground: ground({ new: 1 }) })!.id).toBe("land_powder");
+    expect(soundForEvent(land, { ground: ground({ ice: 1 }) })!.id).toBe("land_ice");
+    // A harsh one is the legs' failure, whatever it lands on.
+    expect(soundForEvent({ ...land, harsh: true }, { ground: ground({ soft: 1 }) })!.id).toBe(
+      "land_hard",
+    );
+    // Deep snow swallows the top of a fall.
+    const fall = EVERY_EVENT_BY_KIND.wipeout;
+    const inPowder = soundForEvent(fall, { ground: ground({ soft: 1 }) })!.shape!;
+    const onPiste = soundForEvent(fall, { ground: ground({ groomed: 1 }) })!.shape!;
+    expect(inPowder.pitch!).toBeLessThan(onPiste.pitch!);
+    expect(inPowder.stretch!).toBeGreaterThan(onPiste.stretch!);
+  });
+
+  it("hands every event of a step its contact", () => {
+    const seen: string[] = [];
+    soundsForStep([EVERY_EVENT_BY_KIND.hit, EVERY_EVENT_BY_KIND.land], (e) => {
+      seen.push(e.kind);
+      return {};
+    });
+    expect(seen).toEqual(["hit", "land"]);
+  });
+});
+
 describe("the wind bed (wind-voice.ts)", () => {
   const mix = { wind: 1, tone: 1 };
   const voice = (o: Partial<WindVoice>): WindVoice => ({
@@ -249,11 +326,17 @@ describe("the wind bed (wind-voice.ts)", () => {
 
 describe("the snow bed (snow-voice.ts)", () => {
   const mix = { snow: 1 };
+  /** One kind of snow everywhere under the skis. */
+  const only = (kind: SnowKind): SnowUnder => {
+    const under = { groomed: 0, hard: 0, soft: 0, new: 0, wet: 0, ice: 0 };
+    under[kind] = 1;
+    return under;
+  };
   const voice = (o: Partial<SnowVoice>): SnowVoice => ({
     speed: 20,
     pace: 0.6,
-    packed: 1,
-    hard: 0.5,
+    under: only("groomed"),
+    ski: NEUTRAL_SKI,
     grounded: 1,
     edge: 0,
     skid: 0,
@@ -261,42 +344,123 @@ describe("the snow bed (snow-voice.ts)", () => {
     ...o,
   });
 
-  it("crossfades the hiss of the packed piste into the hush of powder", () => {
-    const piste = snowTargets(voice({ packed: 1 }), mix);
-    const powder = snowTargets(voice({ packed: 0 }), mix);
+  it("crossfades the hiss of the groomed piste into the hush of powder", () => {
+    const piste = snowTargets(voice({ under: only("groomed") }), mix);
+    const powder = snowTargets(voice({ under: only("soft") }), mix);
     expect(piste.hiss.level).toBeGreaterThan(0);
     expect(piste.powder.level).toBe(0);
     expect(powder.powder.level).toBeGreaterThan(0);
     expect(powder.hiss.level).toBe(0);
   });
 
-  it("is silent at rest and says nothing of the snow in the air", () => {
-    const rest = snowTargets(voice({ speed: 0, pace: 0 }), mix);
-    for (const name of Object.keys(rest) as SnowLayer[]) expect(rest[name].level, name).toBe(0);
-    const air = snowTargets(voice({ airborne: true, edge: 1, skid: 1 }), mix);
-    for (const name of Object.keys(air) as SnowLayer[]) expect(air[name].level, name).toBe(0);
+  it("gives every kind of snow a layer of its own", () => {
+    const heard: Record<SnowKind, SnowLayer> = {
+      groomed: "hiss",
+      hard: "crunch",
+      soft: "powder",
+      new: "powder",
+      wet: "slush",
+      ice: "scrape",
+    };
+    for (const kind of SNOW_KINDS) {
+      const t = snowTargets(voice({ under: only(kind), edge: 0.6, skid: 0.2 }), mix);
+      expect(t[heard[kind]].level, kind).toBeGreaterThan(0);
+    }
+    // Each kind's own layer is silent on every other kind.
+    for (const [kind, layer] of [
+      ["hard", "crunch"],
+      ["wet", "slush"],
+      ["ice", "scrape"],
+    ] as const) {
+      for (const other of SNOW_KINDS) {
+        if (other === kind) continue;
+        const t = snowTargets(voice({ under: only(other), edge: 1, skid: 1 }), mix);
+        expect(t[layer].level, `${layer} on ${other}`).toBe(0);
+      }
+    }
   });
 
-  it("tears on the edge, chatters on hard snow at speed, and rasps in a skid", () => {
+  it("hushes deeper and darker in new snow than in settled powder", () => {
+    const settled = snowTargets(voice({ under: only("soft") }), mix).powder;
+    const fresh = snowTargets(voice({ under: only("new") }), mix).powder;
+    expect(fresh.level).toBeLessThan(settled.level);
+    expect(fresh.cutoff!).toBeLessThan(settled.cutoff!);
+  });
+
+  it("takes the edge's tear off the ice and gives it to the scrape", () => {
+    const groomer = snowTargets(voice({ edge: 1 }), mix);
+    const ice = snowTargets(voice({ edge: 1, under: only("ice") }), mix);
+    expect(ice.edge.level).toBe(0);
+    expect(ice.scrape.level).toBeGreaterThan(0);
+    expect(groomer.scrape.level).toBe(0);
+    // A flat base running straight on ice does not screech.
+    expect(snowTargets(voice({ under: only("ice") }), mix).scrape.level).toBe(0);
+  });
+
+  it("is silent at rest and says nothing of the snow in the air", () => {
+    for (const kind of SNOW_KINDS) {
+      const rest = snowTargets(voice({ speed: 0, pace: 0, under: only(kind), edge: 1 }), mix);
+      for (const name of Object.keys(rest) as SnowLayer[])
+        expect(rest[name].level, `${name} on ${kind}`).toBe(0);
+      const air = snowTargets(voice({ airborne: true, edge: 1, skid: 1, under: only(kind) }), mix);
+      for (const name of Object.keys(air) as SnowLayer[]) expect(air[name].level, name).toBe(0);
+    }
+  });
+
+  it("tears on the edge, chatters on firm snow at speed, and rasps in a skid", () => {
     expect(snowTargets(voice({ edge: 0 }), mix).edge.level).toBe(0);
     expect(snowTargets(voice({ edge: 1 }), mix).edge.level).toBeGreaterThan(0);
     // A skidded ski is not carving: the skid takes the edge's tear down.
     expect(snowTargets(voice({ edge: 1, skid: 1 }), mix).edge.level).toBeLessThan(
       snowTargets(voice({ edge: 1 }), mix).edge.level,
     );
-    expect(snowTargets(voice({ edge: 1, hard: 1, speed: 8 }), mix).chatter.level).toBe(0);
-    expect(snowTargets(voice({ edge: 1, hard: 1, speed: 28 }), mix).chatter.level).toBeGreaterThan(
-      snowTargets(voice({ edge: 1, hard: 0.2, speed: 28 }), mix).chatter.level,
+    const ice = only("ice");
+    expect(snowTargets(voice({ edge: 1, under: ice, speed: 8 }), mix).chatter.level).toBe(0);
+    expect(
+      snowTargets(voice({ edge: 1, under: ice, speed: 28 }), mix).chatter.level,
+    ).toBeGreaterThan(
+      snowTargets(voice({ edge: 1, under: only("groomed"), speed: 28, pace: 0.2 }), mix).chatter
+        .level,
+    );
+    expect(snowTargets(voice({ edge: 1, under: only("soft"), speed: 28 }), mix).chatter.level).toBe(
+      0,
     );
     expect(snowTargets(voice({ skid: 0 }), mix).skid.level).toBe(0);
     expect(snowTargets(voice({ skid: 1 }), mix).skid.level).toBeGreaterThan(0);
   });
 
+  it("hears the pair: a soft ski buzzes, a stiff one rings higher, a fat one hushes deeper", () => {
+    const pair = (name: string) => skiVoiceOf(SKI_CATALOG.find((s) => s.name === name)!);
+    const onIce = (ski: ReturnType<typeof skiVoiceOf>) =>
+      snowTargets(voice({ ski, under: only("ice"), edge: 1, speed: 28, pace: 0.9 }), mix).chatter;
+    expect(onIce(pair("Hare")).level).toBeGreaterThan(onIce(pair("Eagle")).level);
+    expect(onIce(pair("Eagle")).cutoff!).toBeGreaterThan(onIce(pair("Hare")).cutoff!);
+    const inPowder = (ski: ReturnType<typeof skiVoiceOf>) =>
+      snowTargets(voice({ ski, under: only("soft") }), mix).powder;
+    expect(inPowder(pair("Marmot")).level).toBeGreaterThan(inPowder(pair("Swift")).level);
+    expect(inPowder(pair("Marmot")).cutoff!).toBeLessThan(inPowder(pair("Swift")).cutoff!);
+    for (const spec of SKI_CATALOG) {
+      const v = skiVoiceOf(spec);
+      for (const n of [v.flex, v.width, v.length]) {
+        expect(n, spec.name).toBeGreaterThanOrEqual(0);
+        expect(n, spec.name).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   it("keeps its cutoffs under the headset", () => {
-    for (const pace of [0, 0.5, 1.2]) {
-      const t = snowTargets(voice({ pace, speed: pace * 33, edge: 1, skid: 1, hard: 1 }), mix);
-      for (const name of Object.keys(t) as SnowLayer[]) {
-        expect(t[name].cutoff!, name).toBeLessThanOrEqual(HEADSET);
+    for (const kind of SNOW_KINDS) {
+      for (const pace of [0, 0.5, 1.2]) {
+        for (const ski of [skiVoiceOf(SKI_CATALOG[0]), { flex: 1, width: 1, length: 1 }]) {
+          const t = snowTargets(
+            voice({ pace, speed: pace * 33, edge: 1, skid: 1, under: only(kind), ski }),
+            mix,
+          );
+          for (const name of Object.keys(t) as SnowLayer[]) {
+            expect(t[name].cutoff!, name).toBeLessThanOrEqual(HEADSET);
+            expect(t[name].level, name).toBeGreaterThanOrEqual(0);
+          }
+        }
       }
     }
     expect(Object.keys(SNOW_LAYERS).sort()).toEqual(
@@ -375,6 +539,21 @@ describe("the ride bed (ride-bed.ts)", () => {
     createRideBed(effects, voice).update(going(20), 1 / 60);
     expect(voice.layers.length).toBe(Object.keys(WIND_LAYERS).length);
     expect(effects.layers.length).toBe(Object.keys(SNOW_LAYERS).length);
+  });
+
+  it("reads what lies under the skis off the run's snowpack, a mix summing to one", () => {
+    const bed = createRideBed(recorder());
+    const state = going(20);
+    bed.update(state, 1 / 60);
+    const under = bed.ground();
+    const sum = Object.values(under).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1, 6);
+    // Snow falling during the run buries what was there in new snow — gone
+    // wet at once under the synthetic slope's high spring sun.
+    state.fresh = 1;
+    bed.update(state, 1 / 60);
+    expect(bed.ground().new + bed.ground().wet).toBeGreaterThan(0.5);
+    expect(bed.ground().groomed).toBe(0);
   });
 
   it("scales the whole bed by the duck under a card", () => {

@@ -10,10 +10,89 @@
 // different SOUND — a landing the legs took and one they could not are two
 // different things happening to a skier. Most only scale the one they have
 // (`PlayShape`: louder, lower, longer).
+//
+// AND WHAT WAS MET, AND WHAT IT CAME DOWN INTO (`Contact`). The engine's
+// event says a trunk was met and how fast; the app knows WHICH trunk (the
+// map's own, found by where) and what snow lay under the skis (the bed's
+// snowpack reading), and both change the sound rather than the news: a
+// sapling brushed is the boughs' swish, a fat old trunk a deep crack, a dead
+// snag a dry hollow knock with no snow on it to shake down; a landing in
+// deep powder is a whumpf, on ice the skis' slap. Left out, every contact
+// is the groomer's and every trunk a middling living one — the sound the
+// bank had before it knew.
 
-import type { GameEvent } from "@engine";
+import type { GameEvent, Level } from "@engine";
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
+
+import type { SnowUnder } from "./snow-voice.ts";
+
+/** What the app knows about a contact that the event does not say. */
+export type Contact = {
+  /** What lay under the skis — what a body or a pair comes down into. */
+  ground?: SnowUnder;
+  /** The trunk a `hit` met: its radius, m, and whether it is dead wood. */
+  trunk?: Trunk;
+};
+
+export type Trunk = { radius: number; snag: boolean };
+
+/** How far from a hit's point a trunk may stand and still be the one met,
+ * m: the skier's footprint circle and the fattest trunk, with room. */
+const TRUNK_REACH = 2.5;
+
+/** THE TRUNK AT A HIT: the map's nearest within reach of where the engine
+ * said the skier met one, or null (a synthetic map with no forest). */
+export function trunkAt(level: Pick<Level, "trees">, x: number, z: number): Trunk | null {
+  let best = TRUNK_REACH * TRUNK_REACH;
+  let found: Trunk | null = null;
+  for (const tree of level.trees) {
+    const dx = tree.x - x;
+    const dz = tree.z - z;
+    const d = dx * dx + dz * dz;
+    if (d < best) {
+      best = d;
+      found = { radius: tree.radius, snag: tree.kind === "snag" };
+    }
+  }
+  return found;
+}
+
+/** A trunk's size as heard, 0 (a sapling at the tree line) … 1 (an old
+ * trunk half a metre through): trunk radii run 0.15–0.6 m (`forest.ts`'s
+ * `trunk` rule off a tree's height). */
+function girth(trunk: Trunk | undefined): number {
+  return trunk ? ramp(trunk.radius, 0.15, 0.6) : 0.4;
+}
+
+/** How deep and loose the snow is under a contact, 0..1, and how icy. */
+function looseOf(ground: SnowUnder | undefined): number {
+  return ground ? Math.min(1, Math.max(0, ground.soft + ground.new + 0.5 * ground.wet)) : 0;
+}
+function iceOf(ground: SnowUnder | undefined): number {
+  return ground ? Math.min(1, Math.max(0, ground.ice + 0.4 * ground.hard)) : 0;
+}
+
+/** THE SNOW A BODY COMES DOWN INTO, as a shape: deep loose snow swallows
+ * the top of it (lower, longer, a little quieter), ice leaves it bare. */
+function intoSnow(shape: PlayShape, ground: SnowUnder | undefined): PlayShape {
+  const loose = looseOf(ground);
+  const ice = iceOf(ground);
+  return {
+    gain: (shape.gain ?? 1) * (1 - 0.15 * loose + 0.1 * ice),
+    pitch: (shape.pitch ?? 1) * (1 - 0.14 * loose + 0.1 * ice),
+    stretch: (shape.stretch ?? 1) * (1 + 0.25 * loose - 0.15 * ice),
+  };
+}
+
+/** A contact under this speed, m/s, is a brush with a trunk rather than a
+ * blow: the shoulder through the boughs and a knock on the bark. */
+const BRUSH_UNDER = 4;
+
+/** Loose snow deep enough that a landing is a whumpf into it, and ice
+ * bare enough that it is the skis' slap on it. */
+const POWDER_LANDING = 0.6;
+const ICE_LANDING = 0.5;
 
 /** The speed INTO the slope at which a landing is as big as it gets, m/s,
  * and the share of that the gentlest touchdown is still worth — a small
@@ -35,14 +114,31 @@ function ramp(value: number, lo: number, hi: number): number {
 }
 
 /** What one event sounds like. Null means the event is silent. */
-export function soundForEvent(event: GameEvent): { id: string; shape?: PlayShape } | null {
+export function soundForEvent(
+  event: GameEvent,
+  contact: Contact = {},
+): { id: string; shape?: PlayShape } | null {
+  const ground = contact.ground;
   switch (event.kind) {
+    // A LANDING is the legs taking it — and what they take it ON: a harsh
+    // one is the hard thud whatever the snow; a clean one is a whumpf into
+    // deep powder, the skis' flat slap on ice, the soft thump elsewhere.
     case "land": {
       if (!event.harsh && event.airTime < LAND_HEARD) return null;
       const big = LAND_FLOOR + (1 - LAND_FLOOR) * ramp(event.impact, 0, LAND_FULL);
+      const id = event.harsh
+        ? "land_hard"
+        : looseOf(ground) >= POWDER_LANDING
+          ? "land_powder"
+          : iceOf(ground) >= ICE_LANDING
+            ? "land_ice"
+            : "land_soft";
       return {
-        id: event.harsh ? "land_hard" : "land_soft",
-        shape: { gain: 0.55 + 0.75 * big, pitch: 1.12 - 0.28 * big, stretch: 0.85 + 0.5 * big },
+        id,
+        shape: intoSnow(
+          { gain: 0.55 + 0.75 * big, pitch: 1.12 - 0.28 * big, stretch: 0.85 + 0.5 * big },
+          ground,
+        ),
       };
     }
 
@@ -54,23 +150,44 @@ export function soundForEvent(event: GameEvent): { id: string; shape?: PlayShape
       return { id: "land_soft", shape: { gain: 0.4 + 0.4 * big, pitch: 1.35, stretch: 0.6 } };
     }
 
+    // A TRUNK: brushed or met — and which. A fat trunk cracks deeper and
+    // longer, a sapling higher and shorter; dead wood is its own sound.
     case "hit": {
+      const size = girth(contact.trunk);
+      const pitch = 1.15 - 0.3 * size;
+      const stretch = 0.85 + 0.35 * size;
+      if (event.speed < BRUSH_UNDER) {
+        const soft = ramp(event.speed, 0, BRUSH_UNDER);
+        return {
+          id: "brush_tree",
+          shape: { gain: 0.6 + 0.5 * soft, pitch, stretch },
+        };
+      }
       const hard = ramp(event.speed, 2, HIT_FULL);
       return {
-        id: "hit_tree",
-        shape: { gain: 0.6 + 0.7 * hard, pitch: 1.1 - 0.3 * hard, stretch: 0.9 + 0.5 * hard },
+        id: contact.trunk?.snag ? "hit_snag" : "hit_tree",
+        shape: {
+          gain: (0.6 + 0.7 * hard) * (0.85 + 0.3 * size),
+          pitch: pitch - 0.25 * hard,
+          stretch: stretch + 0.5 * hard,
+        },
       };
     }
 
-    // THE WIPEOUT: a man and his skis arriving in the snow separately —
-    // the hard landing's thud, at its biggest and lowest. What bent (the
-    // `damage` event) and a skier bogged (`stuck`) are the blow's and the
-    // snow's own sounds already, and say nothing of their own.
+    // THE WIPEOUT: a man and his skis arriving in the snow separately, and
+    // HOW is the sound — into a trunk's foot with its load coming down on
+    // him, over the tips with the skis levered off, tumbling end over end,
+    // or the high-side off an edge caught. What bent (the `damage` event)
+    // and a skier bogged (`stuck`) are the blow's and the snow's own sounds
+    // already, and say nothing of their own.
     case "wipeout": {
       const hard = ramp(event.speed, 6, HIT_FULL);
       return {
-        id: "land_hard",
-        shape: { gain: 1.1 + 0.4 * hard, pitch: 0.8 - 0.15 * hard, stretch: 1.3 + 0.4 * hard },
+        id: `wipeout_${event.cause}`,
+        shape: intoSnow(
+          { gain: 0.9 + 0.4 * hard, pitch: 1 - 0.15 * hard, stretch: 1 + 0.35 * hard },
+          ground,
+        ),
       };
     }
 
@@ -133,13 +250,16 @@ export function soundForEvent(event: GameEvent): { id: string; shape?: PlayShape
  * would be one sound at twice the level. And the flag outranks the lap it
  * closes — the last lap's chime under the finish phrase is the same news
  * said twice. */
-export function soundsForStep(list: readonly GameEvent[]): { id: string; shape?: PlayShape }[] {
+export function soundsForStep(
+  list: readonly GameEvent[],
+  contactOf: (event: GameEvent) => Contact = () => ({}),
+): { id: string; shape?: PlayShape }[] {
   const finishing = list.some((e) => e.kind === "finish");
   const played = new Set<string>();
   const out: { id: string; shape?: PlayShape }[] = [];
   for (const event of list) {
     if (finishing && event.kind === "lap") continue;
-    const hit = soundForEvent(event);
+    const hit = soundForEvent(event, contactOf(event));
     if (!hit || played.has(hit.id)) continue;
     played.add(hit.id);
     out.push(hit);

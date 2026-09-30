@@ -160,7 +160,15 @@ export {
   strideRate,
   strideShape,
 } from "./game/poles.ts";
-export { landingAhead, landingLoss, type Landing } from "./game/flight.ts";
+export {
+  fallHeight,
+  landingAhead,
+  landingLoad,
+  landingLoss,
+  landingOff,
+  landingTolerance,
+  type Landing,
+} from "./game/flight.ts";
 export { noseDown, wipeoutCause, crashOver } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";

@@ -191,9 +191,10 @@ export type SkierState = {
 };
 
 /** WHAT THREW THE SKIER (`crash.ts`): a trunk met hard, a landing taken
- * over the tips, a fall at speed (an edge lost), or a high-side (an edge
- * caught). */
-export type CrashCause = "tree" | "nose" | "roll" | "catch";
+ * over the tips, a fall at speed (an edge lost), a high-side (an edge
+ * caught), or a big landing he could not ride away — too hard for his legs,
+ * or not true enough for its load. */
+export type CrashCause = "tree" | "nose" | "roll" | "catch" | "landing";
 
 /** THE SKIER THROWN — a body of his own from the moment he leaves his skis
  * until the reset stands him back on the piste (`crash.ts`): a RAGDOLL
@@ -402,6 +403,11 @@ export type GameEvent =
       speed: number;
       harsh: boolean;
       lost: number;
+      /** The load it put on him, g (`landingLoad`), and how far off true the
+       * skis came down, as a share of what that load forgives — past 1 he
+       * does not ride it away (`crash.ts`). */
+      g: number;
+      off: number;
     }
   /** A trunk met at `speed` m/s closing. */
   | { kind: "hit"; t: number; speed: number; x: number; z: number }

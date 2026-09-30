@@ -171,7 +171,16 @@ describe("the news column (run-news.ts)", () => {
   it("says the bad news in the bad tone, and a clean landing not at all", () => {
     expect(line({ kind: "missed", t: 1, index: 4 })?.tone).toBe("bad");
     expect(line({ kind: "hit", t: 1, speed: 10, x: 0, z: 0 })?.tone).toBe("bad");
-    const land = { kind: "land", t: 1, airTime: 1, impact: 9, speed: 20, lost: 0.1 } as const;
+    const land = {
+      kind: "land",
+      t: 1,
+      airTime: 1,
+      impact: 9,
+      speed: 20,
+      lost: 0.1,
+      g: 4,
+      off: 0.2,
+    } as const;
     expect(line({ ...land, harsh: true })?.tone).toBe("bad");
     expect(line({ ...land, harsh: false, lost: 0 })).toBe(null);
     expect(line({ kind: "count", t: 1, left: 3 })).toBe(null);

@@ -134,18 +134,24 @@ export const STRINGS = {
   newsMissed: (index: number): string =>
     index === 0 ? "MISSED THE START GATE" : `MISSED GATE ${index}`,
   newsTree: "TREE!",
-  newsHarsh: "HARD LANDING",
+  /** A landing the legs paid for, and a big one ridden away — its load in
+   * g (`flight.ts`'s `landingLoad`). */
+  newsHarsh: (g: number): string => `HARD LANDING · ${g.toFixed(1)} G`,
+  newsLoad: (g: number): string => `${g.toFixed(1)} G LANDING`,
   newsReset: "BACK ON THE PISTE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
-   * landing taken over the tips, a fall at speed, an edge caught. */
-  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch"): string =>
+   * landing taken over the tips, a fall at speed, an edge caught, a big
+   * landing the legs folded under. */
+  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing"): string =>
     cause === "tree"
       ? "YARD SALE! TREE"
       : cause === "nose"
         ? "OVER THE TIPS"
         : cause === "roll"
           ? "YARD SALE"
-          : "EDGE CAUGHT",
+          : cause === "landing"
+            ? "COMPRESSED!"
+            : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",

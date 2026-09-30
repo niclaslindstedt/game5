@@ -59,7 +59,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { SKIS, inertiaOf, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { airTorque, landingAhead, landingLoss } from "./flight.ts";
+import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
 import {
   bodyPlough,
@@ -792,6 +792,20 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
         c.vz = (c.vz - vn * normal.z) * (1 - lost) + vn * normal.z;
       }
       c.landing = 0;
+      // THE LANDING'S LOAD (`landingLoad`): the fall into the slope stopped
+      // over the legs and whatever loose snow lies under the skis — and how
+      // true they came down to the slope, which the load decides is enough
+      // or not (`crash.ts`).
+      level.normalAt(c.x, c.z, normal);
+      const loose = TUNING.snow.cover * depth * (1 - c.packed);
+      const load = landingLoad(impact, c.crouch, loose);
+      const off = landingOff(
+        rotate(c.q, { x: 0, y: 0, z: 1 }),
+        rotate(c.q, { x: 1, y: 0, z: 0 }),
+        normal,
+        c.vx,
+        c.vz,
+      );
       events.push({
         kind: "land",
         t: state.t,
@@ -800,6 +814,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
         speed: hypot3(c.vx, c.vy, c.vz),
         harsh: lost > 0,
         lost,
+        g: load,
+        off,
       });
     }
   }

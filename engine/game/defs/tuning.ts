@@ -431,6 +431,46 @@ export const TUNING = {
     harshMax: 0.12,
   },
 
+  /** THE LANDING'S LOAD (`flight.ts`'s `landingLoad`) — how hard the snow
+   * takes a skier back, and how true he has to come down to ride it away.
+   *
+   * THE IMPACT is the EQUIVALENT FALL HEIGHT, the snow-park engineers'
+   * measure of a landing: the speed into the slope as a drop from rest,
+   * EFH = v⊥² / 2g. Jump designers hold the sweet spot of a landing to
+   * 0.1–0.9 m and call past 1.5 m a hard one; measured tables run to 3–5 m
+   * off the sweet spot, and hard snow lands about a third harder than soft
+   * at the same spot. The legs and the snow stop that fall over a STROKE —
+   * the hips sinking from the stance into a squat, `stroke` m (less the
+   * share of it a tuck has already spent, `tuckStroke`), plus the snow
+   * pressed under the skis: `give` of whatever loose snow lies there (40 cm
+   * of powder takes a quarter of a metre, a metre of it most of the fall) —
+   * so the load is 1 + EFH / stroke g. */
+  landing: {
+    stroke: 0.45,
+    tuckStroke: 0.25,
+    give: 0.6,
+    /** THE LOAD A LANDING MAY CARRY: under `clean` g a landing is judged
+     * only as the tips' dig is (`crash.noseAngle`), and past `buckle` g the
+     * legs fold however true it was — a flat landing off a big air. */
+    clean: 6,
+    buckle: 14,
+    /** HOW TRUE HE MUST COME DOWN: the most the skis may be off the slope
+     * they land on, rad — the tips down into it, the tails first, rolled
+     * across it, and sideways to the way he is going — at a landing under
+     * `clean` g, shrinking to `tight` of it at `buckle`. The bigger the
+     * landing, the more perfect it must be. */
+    tipsDown: 0.5,
+    tailsDown: 0.8,
+    rolled: 0.6,
+    sideways: 0.9,
+    tight: 0.2,
+    /** ...and under `clean` g more forgiving still, to `1 + slack` of it
+     * at a hop that loads him no more than standing. */
+    slack: 1,
+    /** Only a landing that ends a real flight is judged, s in the air. */
+    air: 0.3,
+  },
+
   /** THE HULL: points on the body — the hips, the shoulders, the helmet,
    * the knees — and the skis' tips and tails that meet the snow when the
    * legs are not what is touching it: a tail dragged over a crest, a skier

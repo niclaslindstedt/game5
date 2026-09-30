@@ -138,6 +138,18 @@ function jumped(run) {
   ];
 }
 
+/** THE LANDING'S LOAD: the equivalent fall height, the load in g, how far
+ * off true the skis came down as a share of what that load forgives. */
+function landed(run) {
+  const land = run.events.find((e) => e.kind === "land");
+  return [
+    ["impact m/s", land ? fmt(land.impact) : "—"],
+    ["EFH m", land ? fmt((land.impact * land.impact) / (2 * 9.81)) : "—"],
+    ["load g", land ? fmt(land.g, 1) : "—"],
+    ["off true", land ? fmt(land.off) : "—"],
+  ];
+}
+
 /** A skier rocking: the weight thrown fore and aft and side to side, `hz`
  * times a second, on `tuck` (the poles). */
 function rock(t, hz, tuck) {
@@ -666,6 +678,74 @@ export const SCENARIOS = [
     view: "profile",
     input: () => TUCK,
     measure: flight,
+  },
+  {
+    id: "drop-true",
+    title: "dropped 1.5 m at 70 km/h, skis true, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 2.5, roll: 0, pitch: 0 }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-rolled",
+    title: "dropped 1.5 m at 70 km/h rolled 20°, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 70 / 3.6,
+      height: 2.5,
+      roll: 0.35,
+      pitch: 0,
+    }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big",
+    title: "dropped 8 m at 70 km/h, skis true, onto the groomer",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9, roll: 0, pitch: 0 }),
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big-powder",
+    title: "dropped 8 m at 70 km/h, skis true, into a metre of powder",
+    level: (S) => S.flatLevel({ packed: 0 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9, roll: 0, pitch: 0 }),
+    snow: 2.5,
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
+  },
+  {
+    id: "drop-big-tilted",
+    title: "dropped 8 m at 70 km/h tips 15° down, into a metre of powder",
+    level: (S) => S.flatLevel({ packed: 0 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 70 / 3.6,
+      height: 9,
+      roll: 0,
+      pitch: -0.26,
+    }),
+    snow: 2.5,
+    seconds: 4,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run).slice(0, 1)],
   },
   {
     id: "climb",

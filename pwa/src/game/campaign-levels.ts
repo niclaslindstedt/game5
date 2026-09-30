@@ -156,7 +156,7 @@ const NURSERY: CampaignShelf = {
       region: "fell",
       grade: "green",
       day: { weather: "high", hour: 12.26 },
-      medals: { gold: 312, silver: 328, bronze: 358 },
+      medals: { gold: 271, silver: 285, bronze: 311 },
     },
     {
       id: "green-3",
@@ -196,7 +196,7 @@ const NURSERY: CampaignShelf = {
       region: "fell",
       grade: "green",
       day: { weather: "clear", hour: 12.98 },
-      medals: { gold: 335, silver: 353, bronze: 385 },
+      medals: { gold: 299, silver: 314, bronze: 343 },
     },
     {
       id: "green-6",
@@ -246,7 +246,7 @@ const WOODS: CampaignShelf = {
       region: "maritime",
       grade: "blue",
       day: { weather: "fair", hour: 15.59 },
-      medals: { gold: 293, silver: 308, bronze: 336 },
+      medals: { gold: 263, silver: 277, bronze: 302 },
     },
     {
       id: "blue-3",
@@ -286,7 +286,7 @@ const WOODS: CampaignShelf = {
       region: "maritime",
       grade: "blue",
       day: { weather: "clear", hour: 18.4 },
-      medals: { gold: 312, silver: 328, bronze: 358 },
+      medals: { gold: 284, silver: 298, bronze: 326 },
     },
     {
       id: "blue-6",
@@ -336,7 +336,7 @@ const RIDGE: CampaignShelf = {
       region: "alpine",
       grade: "red",
       day: { weather: "fair", hour: 10.67 },
-      medals: { gold: 305, silver: 320, bronze: 350 },
+      medals: { gold: 291, silver: 306, bronze: 335 },
     },
     {
       id: "red-3",
@@ -376,7 +376,7 @@ const RIDGE: CampaignShelf = {
       region: "alpine",
       grade: "red",
       day: { weather: "fair", hour: 21.22 },
-      medals: { gold: 324, silver: 340, bronze: 372 },
+      medals: { gold: 305, silver: 320, bronze: 350 },
     },
     {
       id: "red-6",
@@ -427,7 +427,7 @@ const GLACIER: CampaignShelf = {
       region: "continental",
       grade: "black",
       day: { weather: "snow", hour: 13.67 },
-      medals: { gold: 303, silver: 318, bronze: 348 },
+      medals: { gold: 312, silver: 328, bronze: 359 },
     },
     {
       id: "black-3",
@@ -467,7 +467,7 @@ const GLACIER: CampaignShelf = {
       region: "continental",
       grade: "black",
       day: { weather: "snow", hour: 13.41 },
-      medals: { gold: 305, silver: 320, bronze: 350 },
+      medals: { gold: 296, silver: 311, bronze: 340 },
     },
     {
       id: "black-6",

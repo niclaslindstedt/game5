@@ -15,10 +15,11 @@
 //
 // COLOUR BEFORE FILTER, always: brown is mass and distance, pink is snow in
 // the air and the wind, white is grit and the crack of wood. And `drive` on
-// anything with a body behind it — a chassis thumping, a trunk — because a
+// anything with a body behind it — a body thumping down, a trunk — because a
 // clean sine is a bell.
 
 import { BIRD_BANK } from "./bird-bank.ts";
+import { CONTACT_BANK } from "./contact-bank.ts";
 import type { SoundBank } from "@niclaslindstedt/oss-game-framework/audio/types";
 
 export const RUN_BANK: SoundBank = {
@@ -62,7 +63,7 @@ export const RUN_BANK: SoundBank = {
 
   land_hard: {
     description:
-      "A landing the suspension could not take: the chassis bottoming out " +
+      "A landing the legs could not take: the knees folded to the stops " +
       "— a hard driven thump with a white knock on top of it, the one hard " +
       "edge a landing is allowed — then the same brown mass and a bigger " +
       "sheet of snow, longer, because the whole skier has gone into it.",
@@ -107,7 +108,7 @@ export const RUN_BANK: SoundBank = {
   hit_tree: {
     description:
       "A skier into a trunk. The CRACK of wood — broadband white gone inside " +
-      "a fiftieth of a second — over the chassis's own hollow thump, a " +
+      "a fiftieth of a second — over the body's own hollow thump, a " +
       "driven sine barely moving off its note. Then the TREE ANSWERS: the " +
       "load on its branches shaken loose, a pink sheet of snow falling " +
       "through a lowpass a beat later and thinning out. The forest edge " +
@@ -159,7 +160,7 @@ export const RUN_BANK: SoundBank = {
       "Skier on skier: two bodies shouldering, skis clacking — a short " +
       "driven triangle bending down for the body of it, a band of white for " +
       "the knock, no crack in it — with a thin pink spit of snow off both " +
-      "tracks. Rounder than the tree, because nothing here is hard.",
+      "pairs of skis. Rounder than the tree, because nothing here is hard.",
     voices: [
       {
         call: "noise",
@@ -446,6 +447,11 @@ export const RUN_BANK: SoundBank = {
       },
     ],
   },
+
+  // WHAT A SKIER MEETS AND COMES DOWN INTO — the landings in powder and on
+  // ice, a trunk brushed, a dead snag, the four ways he is thrown — are
+  // their own module (`contact-bank.ts`), picked by `route.ts`'s `Contact`.
+  ...CONTACT_BANK,
 
   // THE BIRDS' CRIES are their own module (`bird-bank.ts`), raised by
   // `bird-bed.ts` off the flocks `bird-plan.ts` laid over the map.

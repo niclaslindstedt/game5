@@ -15,7 +15,7 @@
 // stuttered when it was starved, and a stutter is what a player reports as
 // crackle.
 
-import { plantPulse, topSpeedOf, type GameState } from "@engine";
+import { plantPulse, sunAtRun, topSpeedOf, type GameState, type Level } from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -23,7 +23,15 @@ import { RUN_BANK } from "./bank.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { createRack, type Rack } from "@niclaslindstedt/oss-game-framework/audio/rack";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
-import { SNOW_GLIDE, SNOW_LAYERS, snowTargets, type SnowLayer } from "./snow-voice.ts";
+import { emptyMix, snowMix, snowpackOf, type Snowpack } from "../snowpack.ts";
+import {
+  SNOW_GLIDE,
+  SNOW_LAYERS,
+  skiVoiceOf,
+  snowTargets,
+  type SnowLayer,
+  type SnowUnder,
+} from "./snow-voice.ts";
 import { WIND_GLIDE, WIND_LAYERS, windTargets, type WindLayer } from "./wind-voice.ts";
 
 /** How quickly the wind follows the speed, s — a time constant rather than a
@@ -58,6 +66,9 @@ export type RideBed = {
   silence: () => void;
   /** The race is over or the player left it. */
   reset: () => void;
+  /** WHAT LAY UNDER THE PLAYER'S SKIS at the last frame — the snow a
+   * landing, a fall or a trunk's load comes down into (`route.ts`). */
+  ground: () => SnowUnder;
   /** How many layers are standing — for the tests. */
   live: () => number;
 };
@@ -68,6 +79,11 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
   let wind = 0;
   let planted = 0;
   let listener: Listener = listenerFor("chase");
+  // THE RUN'S SNOWPACK (`snowpack.ts`), the one the picture reads: built
+  // once per map under its own sky and sun, its new snow moved every frame.
+  let pack: Snowpack | null = null;
+  let packLevel: Level | null = null;
+  const under = emptyMix();
   const air: Rack<WindLayer> = createRack(voice, WIND_LAYERS, WIND_GLIDE);
   const snow: Rack<SnowLayer> = createRack(synth, SNOW_LAYERS, SNOW_GLIDE);
 
@@ -102,18 +118,26 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       );
 
       // ── The skis on the snow ─────────────────────────────────────────
-      // How hard the packed snow is, by ear: a groomer firms up with the
-      // speed the edge is driven into it at, and the ice a map lays
-      // (`level.iceAt`) is boilerplate.
-      const ice = state.level.iceAt ? state.level.iceAt(c.x, c.z) : 0;
-      const hard = Math.max(ice, 0.3 + 0.7 * Math.min(1, pace));
+      // WHAT LIES UNDER THEM: the six kinds as the picture mixes them at
+      // his boots — the map's groomer, crust and ice, the new snow the sky
+      // has laid and is laying, the thaw under a high sun.
+      if (pack === null || packLevel !== state.level) {
+        pack = snowpackOf(state.level, {
+          elevation: sunAtRun(state.level).elevation,
+          depth: state.snowDepth,
+        });
+        packLevel = state.level;
+      }
+      pack.fresh = state.fresh;
+      pack.depth = state.snowDepth;
+      snowMix(pack, c.x, c.z, under);
       snow.apply(
         snowTargets(
           {
             speed: c.speed,
             pace,
-            packed: c.packed,
-            hard,
+            under,
+            ski: skiVoiceOf(spec),
             grounded,
             edge: Math.abs(c.edge) / Math.max(0.3, spec.edgeMax),
             skid: c.skid,
@@ -147,7 +171,11 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       hush();
       wind = 0;
       planted = 0;
+      pack = null;
+      packLevel = null;
     },
+
+    ground: () => under,
 
     live: () => air.live() + snow.live(),
   };

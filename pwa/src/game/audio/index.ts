@@ -17,7 +17,7 @@
 // or a layer steered by a pure function of the state, and the only module
 // that touches WebAudio is the framework's `audio/synth`.
 
-import type { GameEvent, GameState } from "@engine";
+import type { GameEvent, GameState, Level } from "@engine";
 
 import { RUN_BANK } from "./bank.ts";
 import { createBirdBed, type BirdBed } from "./bird-bed.ts";
@@ -25,15 +25,17 @@ import { engineSfx, sfx } from "./bus.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
-import { heardFrom, soundsForStep } from "./route.ts";
+import { heardFrom, soundsForStep, trunkAt, type Contact } from "./route.ts";
 
 export { setAudioVolumes, unlockAudio } from "./bus.ts";
 export { RUN_BANK } from "./bank.ts";
-export { soundForEvent, soundsForStep } from "./route.ts";
+export { soundForEvent, soundsForStep, trunkAt } from "./route.ts";
 
 export type RunAudio = {
-  /** Translate one step's events into sound. */
-  events: (list: readonly GameEvent[]) => void;
+  /** Translate one step's events into sound. `state` is the run they came
+   * out of — which trunk a hit met is read off its map; without it every
+   * trunk is a middling one. */
+  events: (list: readonly GameEvent[], state?: GameState) => void;
   /** Advance the continuous beds; call once per rendered frame. `duck`
    * scales the whole bed — 1 with the player on his skis, less
    * under a card the race is scenery behind. */
@@ -57,8 +59,16 @@ export function createRunAudio(): RunAudio {
   let ear: Listener = listenerFor("chase");
 
   return {
-    events(list) {
-      for (const hit of soundsForStep(list)) {
+    events(list, state) {
+      // WHAT WAS MET, AND WHAT IT CAME DOWN INTO (`route.ts`'s `Contact`):
+      // the snow the bed last read under the skis, and a hit's own trunk.
+      const level: Level | undefined = state?.level;
+      const contactOf = (event: GameEvent): Contact => {
+        const ground = bed.ground();
+        if (event.kind !== "hit" || !level) return { ground };
+        return { ground, trunk: trunkAt(level, event.x, event.z) ?? undefined };
+      };
+      for (const hit of soundsForStep(list, contactOf)) {
         playSound(sfx, RUN_BANK, hit.id, heardFrom(hit.shape, ear));
       }
     },

@@ -218,7 +218,9 @@ export type ShadowLook = {
 
 /** SHADOWS. Under MEDIUM and HIGH, EVERY tree whose shadow can land in reach casts,
  * whatever band it is drawn in — so a shadow is never switched on by
- * riding closer to its tree. */
+ * riding closer to its tree. Every stop but OFF also lays the MOUNTAIN'S OWN
+ * shadow (`terrain-shade.ts`): one horizon map baked a map off the thread,
+ * and a texture read a pixel — nothing a frame the stops tell apart. */
 export const SHADOW_LOOK: Record<ShadowLevel, ShadowLook> = {
   off: { size: 0, reach: 0, trees: false, hero: 0 },
   // The field on a tight map: the sharpest shadow there is under the skiers for

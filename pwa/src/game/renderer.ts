@@ -76,6 +76,7 @@ import { topsheetOf } from "./ski-topsheets.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
+import { castInLight } from "./terrain-shade.ts";
 import { createSpray, type Spray } from "./spray.ts";
 import { createSnowCloud, type SnowCloud } from "./snow-cloud.ts";
 import {
@@ -157,6 +158,8 @@ export type WorldRendererExt = WorldRenderer &
     /** Ride the map under another sky, or from another hour, without loading
      * it again (`withSky`) — a lab's sheet; null hands it back to the map's. */
     setSky(sky: SkyOverride | null): void;
+    /** Resolves once the mountain's shadow under the sky last drawn is. */
+    shadeSettled(): Promise<void>;
     /** Lay ONE kind of snow over the whole map for the picture — the
      * cloud, the spray, the furrows and the prints (`snowpack.ts`) — or
      * null for the map's own: a lab's sheet. */
@@ -407,6 +410,7 @@ export function createWorldRenderer(
     riders = [];
     level = null;
     skyLevel = null;
+    void env.setGround(null, null);
     snowfall.clear();
   }
 
@@ -441,6 +445,7 @@ export function createWorldRenderer(
     const livery = dressIn(i, spec);
     const style = livery < 0 ? slot : styleIn(slot, topsheetOf(spec.id, livery));
     const model = createSkisModel(spec, style, wrap);
+    castInLight(model.root, env.haze);
     model.root.name = "field";
     scene.add(model.root);
     return {
@@ -557,6 +562,7 @@ export function createWorldRenderer(
       forest.group.name = "forest";
       scene.add(forest.group);
       gates = createGates(lv, env.haze);
+      castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
       clear = createLineClear(lv);
       boomClear = createLineClear(lv, { trees: false });
@@ -595,11 +601,14 @@ export function createWorldRenderer(
       // The trail maps' passes are compiled beside the scene: they are drawn
       // on the first frame too, and are not in it.
       gl.setRenderTarget(picture.load(lv));
+      // THE MOUNTAIN'S SHADOW is baked off the thread meanwhile, for the
+      // key the run opens under.
+      const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
       if (gl.extensions.has("KHR_parallel_shader_compile")) {
-        await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl)]);
+        await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl), shade]);
       } else {
         gl.compile(scene, lens.camera);
-        await trail.compile(gl);
+        await Promise.all([trail.compile(gl), shade]);
       }
       gl.setRenderTarget(null);
     },
@@ -899,6 +908,7 @@ export function createWorldRenderer(
       skyLevel = level && sky ? withSky(level, sky) : level;
       if (lastState && level) pack = packFor(lastState);
     },
+    shadeSettled: () => env.shadeSettled(),
     setSnow(kind) {
       snowForce = kind;
       if (lastState && level) pack = packFor(lastState);

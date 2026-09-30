@@ -21,6 +21,7 @@ import * as THREE from "three";
 import { HERO_SLOTS, type HazeUniforms } from "./haze.ts";
 import { HERO_BACK, HERO_DEPTH, heroFrame, type ShadowBox } from "./shadow-box.ts";
 import type { SkisModel } from "./skis-body.ts";
+import { createShadeDepth } from "./terrain-shade.ts";
 
 /** The first of the layers a slot's meshes are on, besides the picture's. */
 const HERO_LAYER = 7;
@@ -45,10 +46,8 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
   let target: THREE.WebGLRenderTarget | null = null;
   let slotSize = 0;
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, HERO_BACK + HERO_DEPTH);
-  const depth = new THREE.MeshDepthMaterial({
-    depthPacking: THREE.RGBADepthPacking,
-    side: THREE.DoubleSide,
-  });
+  // What the mountain already shades casts nothing (`terrain-shade.ts`).
+  const depth = createShadeDepth(haze, { side: THREE.DoubleSide });
   const bias = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
   const sphere = new THREE.Sphere();
   const clear = new THREE.Color();

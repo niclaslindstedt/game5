@@ -88,6 +88,10 @@ const state: GameState = createGame({
   region,
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
+/** The sun's solar hour (`withSky`), the map's own unless named: a low sun
+ * is where a shadow shows what it is made of. */
+const hour = Number(params.get("hour"));
+if (params.get("hour") !== null && Number.isFinite(hour)) renderer.setSky({ hour });
 
 const FRAME = 1 / 60;
 
@@ -365,6 +369,16 @@ function meadow(): { x: number; z: number; heading: number } | null {
 /** How far out the approach views stand from the wood, m. */
 const APPROACH = [140, 90, 60, 40];
 
+/** THE RUN FROM THE CHASE BOOM at `t` s down the whole mountain (the view
+ * `chase-<t>`, any whole second) — what a shadow that drifts as the skier
+ * descends looks like at each height of the face. */
+function chaseAt(t: number): string {
+  renderer.setCamera("chase", true);
+  rideUntil(() => state.t >= t && !state.skier.airborne, t + 30);
+  settle(30);
+  return `chase at t ${state.t.toFixed(1)} s, y ${state.skier.y.toFixed(0)} m`;
+}
+
 /** How far the lens stands off the skier's origin, m — so a boom pulled in
  * against the slope shows in the note, not only in the picture. */
 function standoff(): string {
@@ -638,7 +652,8 @@ const shots: Record<string, () => string> = {
 window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
-    const run = shots[name];
+    const chase = /^chase-(\d+)$/.exec(name);
+    const run = chase ? () => chaseAt(Number(chase[1])) : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

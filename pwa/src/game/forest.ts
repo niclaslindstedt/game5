@@ -32,6 +32,7 @@ import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { shadeDepth } from "./terrain-shade.ts";
 import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
@@ -250,6 +251,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         const im = new THREE.InstancedMesh(g, casterMaterial, room[k]);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         im.castShadow = true;
+        // A tree the mountain already shades casts nothing (`terrain-shade.ts`).
+        im.customDepthMaterial = shadeDepth(haze);
         im.receiveShadow = false;
         im.frustumCulled = false;
         im.count = 0;

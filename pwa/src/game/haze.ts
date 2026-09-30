@@ -20,6 +20,7 @@
 import * as THREE from "three";
 
 import type { SkyLook } from "./sky.ts";
+import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
 
 /** How many the floods the snow is lit by: the player and the field. */
 export const LAMP_SLOTS = 4;
@@ -56,6 +57,13 @@ export type HazeUniforms = {
   uHeroOn: { value: THREE.Vector4 };
   uHeroBias: { value: THREE.Vector4 };
   uHero: { value: THREE.Vector4 };
+  /** THE MOUNTAIN'S OWN SHADOW (`terrain-shadow.ts`, `terrain-shade.ts`):
+   * the horizon map over the whole map, the world-to-uv of its grid (the
+   * origin less half a texel, and one over its span) and `x` whether there
+   * is one to read (1) or none (0). Written by `terrain-shade.ts`. */
+  uTerrainShade: { value: THREE.Texture | null };
+  uTerrainShadeBox: { value: THREE.Vector4 };
+  uTerrainShadeOn: { value: THREE.Vector4 };
   /** The haze's thinning height, m, and the share of it left up there. */
   uHazeLift: { value: number };
   uHazeFloor: { value: number };
@@ -91,6 +99,9 @@ export function createHazeUniforms(): HazeUniforms {
     uHeroOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHeroBias: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHero: { value: new THREE.Vector4(0, 1, 0, 0) },
+    uTerrainShade: { value: null },
+    uTerrainShadeBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uTerrainShadeOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHazeLift: { value: 700 },
     uHazeFloor: { value: 0.55 },
     uFlat: { value: 0 },
@@ -283,9 +294,12 @@ const DIR_SHADOW_CLOSE = "vDirectionalShadowCoord[ i ] ) : 1.0;";
 
 /** Three's `lights_fragment_begin` with the directional light's shadow
  * passed through `shadowFaded` (and not read at all past the ridge, where the
- * fade takes it whole), and the skiers' own maps taken with it
- * (`heroShadowed`). Built once, and loudly: a three that moved the line
- * would otherwise leave the ridge a hard edge with nothing said. */
+ * fade takes it whole), the skiers' own maps taken with it
+ * (`heroShadowed`), and the mountain's own shadow (`terrainLit`) with both —
+ * the darkest of them, one shadow model: the key's light taken away and the
+ * sky's left, so a ridge's shade is the same blue as a tree's. Built once,
+ * and loudly: a three that moved the line would otherwise leave the ridge a
+ * hard edge with nothing said. */
 let fadedLights: string | null = null;
 export function lightsWithFade(): string {
   if (fadedLights !== null) return fadedLights;
@@ -296,9 +310,12 @@ export function lightsWithFade(): string {
   fadedLights = chunk
     .replace(
       DIR_SHADOW_OPEN,
-      "? heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow( directionalShadowMap[ i ]",
+      "? min( terrainLit( vHazeWorld ), heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow( directionalShadowMap[ i ]",
     )
-    .replace(DIR_SHADOW_CLOSE, "vDirectionalShadowCoord[ i ] ) ), geometryNormal ) : 1.0;");
+    .replace(
+      DIR_SHADOW_CLOSE,
+      "vDirectionalShadowCoord[ i ] ) ), geometryNormal ) ) : terrainLit( vHazeWorld );",
+    );
   return fadedLights;
 }
 
@@ -337,7 +354,7 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",

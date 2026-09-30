@@ -25,9 +25,10 @@ Seven modules answer it, and the split matters:
   (`snowDrag`: the base's friction, the plough, powder drag) and how hard it
   can be gripped (`gripAt`: the edge's hold on packed snow, the base's hold in
   powder). Knobs in `TUNING.snow` and `TUNING.grip`.
-- **`engine/game/poles.ts`** — THE ONE PUSH THAT IS NOT GRAVITY: a plant a
-  second under `poles.speed` with the tuck held, fading to nothing by
-  `poles.fade`, half in powder. Knobs in `TUNING.poles`.
+- **`engine/game/poles.ts`** — THE ONE PUSH THAT IS NOT GRAVITY: the skate
+  at a crawl and the double pole once rolling, AUTOMATIC below `poles.fade`
+  and POWER-LIMITED (`min(polePush, power / v)`), in strides the pose reads
+  (`SkierState.drive`, `stride`). Knobs in `TUNING.poles`.
 - **`engine/game/skier.ts`** — THE BODY: every force summed in the world
   frame, torques about the CoG turned into the body frame, one semi-implicit
   step at 120 Hz (velocity then position, body rates then the quaternion).
@@ -77,7 +78,10 @@ term and the comment's claim has to stay true.
 | The scrub | An edge holding a carve is cutting a groove: a drag of `steer.scrub` of the bend's own acceleration (the rate ASKED × the way), on the packed share only | `skier.ts`, `TUNING.steer.scrub` |
 | The yaw hand | ARCADE: the yaw rate held toward the one the edge's geometry asks for, the nose held to the way — models nothing, stated as such; stated on the reference pair, scaled by each pair's yaw inertia | `skier.ts`, `TUNING.steer.yawHold` |
 | The arcade's hands | ARCADE multipliers on measured quantities, 1 the bare physics: `sideGrip` on every sideways grip, `hangOff` on the tipping point and the roll held; in the air the pitch eased toward the flight path | `TUNING.arcade`, `TUNING.air.pitch*`, `skier.ts`, `flight.ts` |
-| The drive | GRAVITY, and at a crawl THE POLES: `polePush` of the spec in a pulse at `poles.cadence`, under `poles.speed` of way, fading by `poles.fade`, half in powder, gone with the tuck let go | `poles.ts` — `poleForce`, `plantPulse` |
+| The drive | GRAVITY, and at a crawl THE SKATE AND THE DOUBLE POLE: the lesser of `polePush` and `poles.power` over the SPEED (never the way — a sideways slide pushes nothing), whole under `poles.speed`, gone by `poles.fade`, in half-sine strides of `duty` on a `floor`; automatic once rolling past 0.4 m/s or asked with the tuck, stopped by the skid, a jump loading, the air and a throw; the crouch is the tuck less the drive | `poles.ts` — `poleForce`, `driveForce`, `strideShape` |
+| The jump | Loaded while held on the snow to `jump.full` s (the crouch deepening), sprung on the release at `popMin`…`popMax` m/s off the snow's own normal | `skier.ts`, `TUNING.jump` |
+| The hard cut | The back key after the edge: the edge's lock raised by `carve.edge` (never past `edgeMax`), the curvature by `carve.tighten`, the grip (and the yaw hand's and the incline's reach) by `carve.grip`, the scrub spared `carve.scrubSpared` | `skier.ts`, `TUNING.carve` |
+| The landing's load | EFH = v⊥²/2g over the legs' `landing.stroke` (less a tuck's share) plus `give` of the loose snow: 1 + EFH/stroke g; what it forgives (`landingTolerance`) against how far off true the skis came down (`landingOff`) — read by `crash.ts` | `flight.ts`, `TUNING.landing` |
 | The tuck | The body folds toward the crouch the tuck asks for at `skier.crouchRate`; the drag area eases from `cdAUpright` to `cdATuck` (`dragAreaOf`) and the CoG drops by `crouchDrop` | `skier.ts`, `defs/skis.ts` |
 | The skier | His hips moved inside the turn (`hipRight`, the angulation, once the bend pulls `hangG`) and fore and aft (`hipAft`), lagging; the INCLINATION the whole settles at into a carve (`rollPacked`, `rollPowder`, held by `rollStiff` up to `rollMax`); in powder THE CARVE ON THE BASE — a ski rolled over in powder turns toward the low side, `carve` per radian of roll, with way on | `skier.ts`, `TUNING.skier` |
 | Air control | Lean → pitch (tips up is back), the edge → a little yaw, the body levelling the roll up to `rollGiveUp`; no lever rolls a skier in the air and the tuck does nothing there | `flight.ts` |
@@ -127,6 +131,10 @@ look at.** The scenarios are `scripts/lib/ride-scenarios.mjs`:
 | `sidehill` | Across a 40° groomed slope at 40 km/h: the worst roll, whether he went over, the slide down it |
 | `tree` / `tree-glance` | A trunk met at 50 km/h, and one clipped at a crawl in a snowplough: the speed in and out, the yaw, the wipeout |
 | `nose-in` / `rollover` | A landing 40° over the tips at 60 km/h, and thrown onto his side at 70: the impact, the wipeout, how far the body slid, the reset |
+| `skate` | Hands off from a shuffle across the flat: the drive's speed at 1, 3, 6 and 12 s |
+| `jump-tap` / `jump-full` | The jump tapped and loaded 2 s at 50 km/h on the flat: the pop, the air, the peak, the impact |
+| `carve-hard` / `carve-full` | A full edge at 80 km/h down the pitch, cut hard and not: radius, g, the edge |
+| `drop-true` / `drop-rolled` / `drop-big` / `drop-big-powder` / `drop-big-tilted` | Drops of 1.5 m and 8 m at 70 km/h, true, rolled or tips-down, onto the groomer or into a metre of powder: the impact, the EFH, the load in g, how far off true, whether he was thrown |
 | `stuck` / `stuck-held` | Poling from rest in a metre of fresh snow: bogged, then rocked out and skied off — or the push held until the engine resets him |
 | `rest-deep` / `schuss-deep` / `schuss-deep-back` | A metre of fresh snow (the dial's deepest): how far down he sits at rest, whether he planes tucked, and leaning back to lift the tips |
 | `bog-deep` | Planing through a metre at 70 km/h, stood up out of the tuck for four seconds, then tucked again: the slowest he got, the deepest sink, when he was back on top |
@@ -201,11 +209,13 @@ rewrites that row. No build, no browser, seconds.
   stores the impact and hands it back — the skier who hit the foot of a face
   was fired forty metres up it. The two FUSES (`MAX_LOAD`, `MAX_SPIN`) are
   guards, not models; a change that leans on one is a force that is wrong.
-- **THE DRIVE IS GRAVITY, AND ONLY EVER GENTLE OTHERWISE.** Nothing but the
-  slope can push a skier past a jog: the poles are a pulse at a crawl that
-  fades out by `poles.fade`, one-way, and never a brake. A term that
-  accelerates a skier on the flat at speed is a motor, and this game has
-  none.
+- **THE DRIVE IS GRAVITY, AND A MAN'S PUSH OTHERWISE.** Nothing but the
+  slope can push a skier past a skater's pace: the skate and the double
+  pole are power-limited and gone by `poles.fade`, one-way, never a brake,
+  and read off the SPEED — a push read off the way was a motor for a skier
+  sliding sideways (the bot on seed 4 hit 150 km/h in a spin before it was
+  fixed). A term that accelerates a skier on the flat at speed is a motor,
+  and this game has none.
 - **THE TOP SPEED IS WHERE THE DRAG MEETS THE SLOPE, NOT A CEILING.** The
   terminal speed on a pitch is the air's drag on `cdATuck` balancing the
   slope's pull less the base's friction (`terminalSpeed`); `SKIS.topSpeed` is

@@ -193,7 +193,8 @@ function caption(f: Frame): string {
   else if (c.popped < 0.3) words.push("pop");
   else {
     const gait = gaitOf(c);
-    if (gait.skate > 0.3) words.push("skate");
+    if (gait.stride > 0.3) words.push("stride");
+    else if (gait.skate > 0.3) words.push("skate");
     else if (gait.pole > 0.3) words.push("pole");
   }
   if (c.skid > 0.3) words.push("skid");
@@ -217,7 +218,14 @@ function layout(rows: number, cols: number): { w: number; h: number; top: number
   return { w, h, top };
 }
 
-function drawCell(cam: THREE.Camera, col: number, row: number, rows: number, w: number, h: number): void {
+function drawCell(
+  cam: THREE.Camera,
+  col: number,
+  row: number,
+  rows: number,
+  w: number,
+  h: number,
+): void {
   const x = col * w;
   const y = (rows - 1 - row) * h;
   renderer.setViewport(x, y, w, h);
@@ -254,7 +262,12 @@ function drawTurntable(): { rows: number; cols: number; note: string } {
   const rows = data.turntable.length;
   const cols = TURNS.length;
   const { w, h, top } = layout(rows, cols);
-  label("turntable — the stance, the tuck, a skate stride; the lens every 45° from behind", 0, 0, true);
+  label(
+    "turntable — the stance, the tuck, a skate stride; the lens every 45° from behind",
+    0,
+    0,
+    true,
+  );
   data.turntable.forEach((moment, row) => {
     let aimAt = { centre: new THREE.Vector3(), heading: 0 };
     moment.frames.forEach((f, i) => {

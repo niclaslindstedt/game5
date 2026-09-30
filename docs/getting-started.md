@@ -13,7 +13,7 @@ Open [game5.niclaslindstedt.se](https://game5.niclaslindstedt.se/). To keep it o
 3. **The ski card.** Which pair: the skis on their rack with the skier beside them, an arrow either side to step through the six, best all-round first — **CHAMOIS**, an all-mountain ski (the middle of every band), **SWIFT**, a slalom ski (short and narrow on a tight sidecut: darts from edge to edge, nervous at speed), **CHOUGH**, a giant slalom ski (long, stiff and cut for a wide arc: holds an edge on ice, skids a tight bend), **EAGLE**, a downhill ski (the longest and fastest in a tuck, hates a tight bend), **MARMOT**, a powder ski (wide and rockered: floats where the others bog, vague on the groomer) and **HARE**, a soft twin-tip for the park and the beginner (spins and grabs, lands soft, slow) — its length, waist, sidecut radius, weight and top speed beside it, six bars saying where it stands against the others (TOP SPEED, EDGE HOLD, QUICKNESS, FLOAT, FORGIVENESS, LANDINGS), and its TOPSHEET: four graphics each pair is sold in — the paint, the trim and a pattern — picked on the swatches. The pair and each pair's topsheet are remembered. **SKI** stands the run up; the three rivals are each dealt a pair of their own.
 4. **The loading card.** The mountain generated from its seed, the field stood on the start line, the terrain, the forest and the gates built, every shader compiled — a second or two, shown as a bar per phase.
 5. **The lights.** You stand four abreast on the start line behind the start gate, a few metres of flat before the face falls away. Three lights, then GO.
-6. **Out of the gate.** Pole out of the start (hold TUCK at a crawl and the poles push), and the start gate a few metres down opens the run. The piste is one open descent: a groomed, packed line graded down the fall line with long traverses across it, rollers on it that are jumps, drifts of fresh snow across it (R17) — slower going on a narrow ski, and where a powder ski earns its keep — and the groomer's windrows along both edges. Off the piste is the mountain: bowls and gullies, the woods below the tree line, and the deep powder.
+6. **Out of the gate.** Hold TUCK and the skier skates out of the start — the skis opened into a V, a leg pushing off each stride, the poles planted with every push — then double-poles once he is rolling, and the start gate a few metres down opens the run. The piste is one open descent: a groomed, packed line graded down the fall line with long traverses across it, rollers on it that are jumps, drifts of fresh snow across it (R17) — slower going on a narrow ski, and where a powder ski earns its keep — and the groomer's windrows along both edges. Off the piste is the mountain: bowls and gullies, the woods below the tree line, and the deep powder.
 7. **The run.** Gates — a pair of poles with a panel between them, red and blue alternating, the next one loud, the rest muted — must be taken in order. Ski past one — outside its poles — and the HUD warns you at once, with an arrow back up at it, the metres to go and the reset press lit; the next one is not credited until the missed one is taken. The last gate is the **finish line** under the arch, in a fenced arena on the valley floor. The round map under the buttons in the top right turns with you, so ahead is always up: the grey line is the piste, the red bar the gate you owe (a red chevron on the rim points at it when it is off the map), and the coloured dots the other three skiers.
 8. **The finish plate.** Your place and time, then the whole field's table, live, as the others cross the line. **RACE AGAIN** (the same mountain from the start line), **NEW MOUNTAIN** (back to the level card), or **MAIN MENU**. A time trial's plate is your time, then the record book's line: **NEW RECORD**, or the best that stood — its pair and the day it was set — and how far off it you were; **SKI AGAIN** is the same mountain from the start line.
 
@@ -66,11 +66,14 @@ Hold the front door's title — the mark and the name — for **seven seconds**.
 The whole game is two grounds under one pair of skis. On the **groomed piste** the edges bite, a carve holds and the skier is quick and sure. In **powder** the skis sink: at walking pace you wallow to the knees, and as speed builds the tips float up onto the top of the snow and you plane — keep the speed up and you float; stop in it and you dig in. Cutting a corner through the powder is a decision with a price. The drive is gravity: the steeper the pitch, the faster you go, and a **tuck** takes the wind off you.
 
 - **Turning.** On the piste the **edge** turns you: tip the skis over and the sidecut bends into the snow and carves an arc — more edge, a tighter arc, until the edge lets go and skids. In powder the skis turn on their bases and the skier's weight does the work.
-- **The skid** is the brake: the skis pivoted across the way, a snowplough at a touch and a hockey stop at full throw. It scrubs speed, throws a sheet of snow, and at speed it is how a bend too tight for the carve is made.
-- **The tuck.** Fold out of the wind and the speed builds; stand up and it bleeds off. At a crawl the same key is the poles — the push out of the start and across a flat.
+- **The back key means two things, by the order you press it.** Press it FIRST and it is the **brake**: alone a snowplough, and an edge put on after it swings the skis across the way into a **hockey stop** — the skis turned across the slope, the stop. Press it with an edge ALREADY ON and it **cuts the edge harder**: the skis stood further over and pressed into the groove, a tighter arc that costs you almost nothing — the slalom racer's turn. On the phone, drag the edge thumb DOWN for the back key (in the air it is still the lean back).
+- **The tuck.** Fold out of the wind and the speed builds; stand up and it bleeds off.
+- **Working for speed.** Below about 40 km/h on a straight the skier works on his own, to gain speed and to keep it: off a standstill and up a rise he **strides** (the skis parallel, each leg kicking back in turn, the opposite arm planting its pole), rolling he **skates** (the skis in a V, pushing off each leg in turn, the poles planted with every push), and faster he **double-poles** (both poles planted ahead and the body folded down over them). It is a man's push, strong off a standstill and fading as he gathers speed; braking or loading a jump stops it. Stood still with nothing pressed, he stays put — hold the tuck to set off.
+- **The jump.** Hold **SPACE** and the skier sinks onto his legs, the lower the longer; let go and he springs — the longer it was loaded, the higher, up to two seconds' worth. Pop a roller's crest and you fly further.
+- **Landings.** Every landing is a load on the legs: the speed into the slope as a fall from rest, stopped over the legs and whatever loose snow is under you. A small one forgives a lot; the bigger the landing, the truer the skis must come down to the slope — tips, tails, roll and sideways — and past what the legs can take no landing is true enough (**COMPRESSED!**). Deep powder is a long, soft landing; the groomer and the ice are hard. A big landing ridden away shows its load in g.
 - **Kickers.** Rollers on the piste (and wind lips on the crests off it) are shaped to throw you. In the air the **lean** pitches you, tips up or down; land on the downslope and you keep your speed; land flat past it and the legs bottom and cost you.
 - **Trees** are solid. A clipped trunk spins you; one met square stops you — and met hard, it stops the skis and not you.
-- **Wipeouts.** Hit a trunk hard, land over the tips, fall at speed or catch an edge (an edge stood too far over for the speed — the high-side) and the skier comes off, tumbles through the snow with the skis going on without him, and a couple of seconds later you are stood back on the piste at the last gate you took.
+- **Wipeouts.** Hit a trunk hard, land over the tips, land a big air crooked (or flat, past what the legs take), fall at speed or catch an edge (an edge stood too far over for the speed — the high-side) and the skier comes off, tumbles through the snow with the skis going on without him, and a couple of seconds later you are stood back on the piste at the last gate you took.
 - **Bogged.** Stop in deep powder and you sink to the knees (**BOGGED** on the screen). **Pole out**: hold the tuck for the poles and **rock** — the lean back and forth and the edge side to side — and you climb out.
 - **Stuck or down?** **R** stands you back on the piste just past the last gate you took. It also happens on its own after a few seconds lying still or going nowhere (longer once you are bogged, to give you the time to pole out).
 
@@ -78,25 +81,26 @@ The whole game is two grounds under one pair of skis. On the **groomed piste** t
 
 **Keyboard** (`pwa/src/game/settings-input.ts` is the table):
 
-| Key                | Does                                                      |
-| ------------------ | --------------------------------------------------------- |
-| W                  | Tuck — and the poles at a crawl; in the air, lean forward |
-| S / Space          | Brake (the skid) — S in the air, lean back                |
-| A D / ← →          | Edge left / right                                         |
-| ↓ / E / Shift      | Lean back — in the air, tips up                           |
-| ↑ / Q / Z          | Lean forward — in the air, tips down                      |
-| F / X              | Hold in the air on a tricks run: a grab                   |
-| R                  | Back onto the piste at the last gate taken                |
-| B                  | Restart the run from the start line                       |
-| C                  | Next camera                                               |
-| H                  | HUD on / off                                              |
-| Enter              | Take a picture (filed in the GALLERY)                     |
-| Escape             | Pause                                                     |
-| Arrows, Enter, Esc | Walk a card, press a row, go back                         |
+| Key                | Does                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------- |
+| W                  | Tuck — and sets off from a standstill; in the air, lean forward                           |
+| S                  | First: brake (then A / D: hockey stop). After an edge: cut harder — in the air, lean back |
+| Space              | Hold to load a jump, let go to spring (higher the longer, to 2 s)                         |
+| A D / ← →          | Edge left / right                                                                         |
+| ↓ / E / Shift      | Lean back — in the air, tips up                                                           |
+| ↑ / Q / Z          | Lean forward — in the air, tips down                                                      |
+| F / X              | Hold in the air on a tricks run: a grab                                                   |
+| R                  | Back onto the piste at the last gate taken                                                |
+| B                  | Restart the run from the start line                                                       |
+| C                  | Next camera                                                                               |
+| H                  | HUD on / off                                                                              |
+| Enter              | Take a picture (filed in the GALLERY)                                                     |
+| Escape             | Pause                                                                                     |
+| Arrows, Enter, Esc | Walk a card, press a row, go back                                                         |
 
 W and S lean only when they go down while the skier is IN THE AIR (a tuck held off the lip stays a tuck), S leaning does not brake, and a lean key held over them wins.
 
-**Touch:** the lower-left of the screen is the **edge control** — touch anywhere there and move the thumb: sideways travel tips the skis onto their edge, vertical travel leans. The lower-right is the **tuck lever** — the skier is IN A FULL TUCK the moment your thumb lands; slide UP to stand him up, and further up to brake. The top-right corner carries three presses: pause, reset, camera.
+**Touch:** the lower-left of the screen is the **edge control** — touch anywhere there and move the thumb: sideways travel tips the skis onto their edge, vertical travel leans — and on the snow a drag DOWN is the back key (down first, then across: the hockey stop; across first, then down: the edge cut harder). The lower-right is the **tuck lever** — the skier is IN A FULL TUCK the moment your thumb lands; slide UP to stand him up, and further up to brake. **Tap it and put the thumb straight back down** to load a jump (the knob rings and swells), and lift to spring. The top-right corner carries three presses: pause, reset, camera.
 
 **Cameras** (C, or the camera press): **tips** (a lens low over the ski tips) and **helmet** (the skier's own eyes) are worn and pitch and roll with him; **chase** (the default), **far** and **high** stand behind on a boom. The game remembers the one you chose.
 

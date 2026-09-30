@@ -312,6 +312,7 @@ export function buildGear(
         // origin by `crouchDrop` at a full tuck), so the skis rise in the
         // body frame by as much.
         g.position.x = ((i === 0 ? -1 : 1) * spec.stance) / 2 + gait.out[i];
+        g.position.z = gait.fore[i];
         g.position.y =
           ground +
           lifts[i] +

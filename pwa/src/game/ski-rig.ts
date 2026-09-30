@@ -141,10 +141,16 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
       // skis are drawn (`ski-gear.ts`).
       const gait = gaitOf(skier);
       skis.forEach((o, i) => {
-        drive(o, lift[i] + gait.lift[i] + drop + sink * SINK_SHARE, skier.skiAngle + gait.splay[i], tilt);
-        if (gait.out[i] !== 0) {
+        drive(
+          o,
+          lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
+          skier.skiAngle + gait.splay[i],
+          tilt,
+        );
+        if (gait.out[i] !== 0 || gait.fore[i] !== 0) {
           o.getWorldPosition(w);
-          o.position.copy(o.parent!.worldToLocal(w.addScaledVector(side, gait.out[i])));
+          w.addScaledVector(side, gait.out[i]).addScaledVector(fwd, gait.fore[i]);
+          o.position.copy(o.parent!.worldToLocal(w));
         }
       });
       root.updateMatrixWorld(true);

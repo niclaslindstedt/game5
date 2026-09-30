@@ -158,6 +158,7 @@ export {
   poleForce,
   skateShare,
   strideRate,
+  strideShare,
   strideShape,
 } from "./game/poles.ts";
 export {

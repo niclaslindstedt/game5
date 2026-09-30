@@ -1,6 +1,6 @@
 ---
 name: skier
-description: "Use when working on THE SKIER — the figure standing on the skis: how he is posed on them (the boots in the bindings, the hands on the pole grips, the knees bent, the stance a ski is skied in), how his body answers the engine's readings (the knees folded by the legs' compression, the hips angulated inside a carve, the weight fore and aft with the lean, the crouch of the tuck, the poles planted at a crawl and tucked under the arms at speed, standing taller in the air, a landing folded into the knees, the grabs of a tricks run), and how he looks from behind at chase range. Owns `pwa/src/game/skier-pose.ts` (the pose as three-free arithmetic: `BODY`, `MOUNTS`, `solveLimb`, `skierPose`, and the body on its legs — `createSkierSpring` / `stepSkierSpring`), `skier-figure.ts` (the figure in his kit), `skier-cloth.ts` (the cloth he is built of) and `skier-helmet.ts` (the head, the helmet and the goggles), the skier's cases in `tests/world_render_test.ts` and `tests/skier_pose_test.ts`, and the loop: `make skis ARGS=--sheet=skier` (close up), `--sheet=poses` and `--sheet=landing`, `make world` (orbit, jump, landing), then the built app with `make screenshots`."
+description: "Use when working on THE SKIER — the figure standing on the skis: how he is posed on them (the boots in the bindings, the hands on the pole grips, the knees bent, the stance a ski is skied in), how his body answers the engine's readings (the knees folded by the legs' compression, the hips angulated inside a carve, the weight fore and aft with the lean, the crouch of the tuck, the poles planted at a crawl and tucked under the arms at speed, standing taller in the air, a landing folded into the knees, the grabs of a tricks run), and how he looks from behind at chase range. Owns `pwa/src/game/skier-pose.ts` (the pose as three-free arithmetic: `BODY`, `MOUNTS`, `solveLimb`, `skierPose`, and the body on its legs — `createSkierSpring` / `stepSkierSpring`), `skier-figure.ts` (the figure in his kit), `skier-cloth.ts` (the cloth he is built of) and `skier-helmet.ts` (the head, the helmet and the goggles), the skier's cases in `tests/world_render_test.ts` and `tests/skier_pose_test.ts`, and the loop: `make skier` (every MOVE — setting off, the skate, the double pole, the jump, the hockey stop, the hard cut, the tuck, a landing, a wipeout — skied by the real engine and the committed models posed through its states from five sides, and a turntable), `make skis ARGS=--sheet=skier` (close up), `--sheet=poses` and `--sheet=landing`, `make world` (orbit, jump, landing), then the built app with `make screenshots`."
 ---
 
 # The skier
@@ -32,9 +32,19 @@ full tuck — the back flat, the poles under the arms, the head up. **HUNG
 INSIDE** a carve his hips go past the outside ski (`HANG` × the engine's
 `hipRight`) and his shoulders stay nearer level (`HANG_ROLL` — the
 angulation, not a lean of the whole body), the inside knee driven in, the
-head looking round the arc. **THE POLES** are planted in turn at a crawl
-(`plantPulse` from the engine, the same pulse the push comes in), swung
-forward in a turn, and held level under the arms in a tuck.
+head looking round the arc. **THE GAIT** at a crawl is the engine's own drive (`gaitOf`, off
+`SkierState.drive` and `stride`, the same strides the push comes in —
+`poles.ts`): SKATING, the skis opened into a V, a leg pushed out along its
+ski and lifted back in while the hips ride the other, and DOUBLE-POLING,
+both poles planted ahead, the trunk folded over them and the arms swept
+through past the hips; one statement the skis (`ski-gear.ts`, `ski-rig.ts`)
+and the figure both read, so a boot never leaves its ski. A JUMP loading
+(`jumpLoad`) sinks him and draws the arms back; the pop (`popped`) throws
+them up. CUT HARD (`carve`) the angulation deepens and the inside hand goes
+toward the snow; in a HOCKEY STOP (`skid`) he sits into it, the shoulders
+facing on down the hill. His SHIN BENDS ONLY ABOVE THE BOOT'S CUFF
+(`SHIN_ABOVE_CUFF`) — the boot holds the rest — which is what lets the
+stance stand on real knees.
 
 **HE IS A MAN IN CLOTHES, NOT A STACK OF CAPSULES.** Dressed after
 photographs of skiers seen from behind: a helmet with goggles over the eyes
@@ -98,6 +108,14 @@ deltas.
 
 ## The loop
 
+0. `make skier` (`MOVE=skate,jump` a subset; `ARGS=--code` the code's
+   figure) — the skier IN MOTION: `previews/skier-<move>.png`, a column a
+   moment across the move's window and a row a view (behind, the rear
+   three-quarter, the side, the front three-quarter, the front), and
+   `previews/skier-turntable.png`. Every move is `scripts/lib/skier-moves.mjs`
+   — a run the engine skis — so a pose number is judged on what the game
+   really does, frame after frame: a twitch, a boot off its ski or an arm
+   through the body shows up a column later.
 1. `make skis ARGS=--sheet=skier` — him CLOSE UP in the poses that read
    most, from behind at the chase camera's height, the rear three-quarter,
    the side and the front three-quarter (`--slot=n` another kit). Judge the

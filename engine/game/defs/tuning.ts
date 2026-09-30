@@ -303,10 +303,12 @@ export const TUNING = {
     slipEdge: 0.75,
   },
 
-  /** THE DRIVE A SKIER MAKES HIMSELF (`poles.ts`): at a crawl he SKATES —
-   * the skis in a V, a leg pushing off each stride, a double pole on every
-   * other — and faster he DOUBLE-POLES, both poles planted together and
-   * the body folded over them. Both are a man's legs and arms against the
+  /** THE DRIVE A SKIER MAKES HIMSELF (`poles.ts`): off a standstill and up
+   * a rise he STRIDES — the skis parallel, a leg kicking back off each
+   * step and the other arm planting its pole, the gait of a man walking
+   * on skis — rolling he SKATES — the skis in a V, a leg pushing off each
+   * stride, the poles planted with it — and faster he DOUBLE-POLES, both
+   * poles planted together and the body folded over them. Both are a man's legs and arms against the
    * snow, so the push is POWER-LIMITED: the force is the lesser of what a
    * plant can press (`SkiSpec.polePush`, N) and `power` W over the way,
    * which is how every human-powered drive falls off with speed. It is
@@ -314,11 +316,13 @@ export const TUNING = {
    * whatever the thumbs say — and stops with the skid thrown, in the air,
    * with a jump being loaded, and once he is thrown. */
   poles: {
-    /** The way, m/s, under which the push is its whole, and the way by
-     * which the arms can no longer keep up and it is gone: 22 and 32 km/h
-     * — a strong skater on alpine skis on the flat. */
+    /** The speed, m/s, under which the push is its whole, and the speed by
+     * which the legs and the arms can no longer keep up and it is gone: 22
+     * and 40 km/h — a racer skates out of the gate and keeps skating on a
+     * flat to hold his speed, and the power law (below) is what makes the
+     * last of it little. */
     speed: 6,
-    fade: 9,
+    fade: 11,
     /** The mean propulsive power, W — a fit recreational skier's sprint
      * (an elite cross-country skier holds over 400 W for minutes). */
     power: 450,
@@ -326,8 +330,18 @@ export const TUNING = {
      * blended between: a skater's V at a crawl and up to about 20 km/h,
      * where the legs can no longer keep up with the skis and the arms take
      * the whole of the work. */
-    skateFrom: 4.5,
-    skateTo: 6.5,
+    skateFrom: 5.5,
+    skateTo: 9,
+    /** Under `strideTo` m/s he STRIDES (the diagonal stride), all of it
+     * under `strideFrom`: a V taken at a walk goes nowhere, and a skier
+     * setting off or climbing a rise walks his skis forward. */
+    strideFrom: 1.6,
+    strideTo: 3,
+    /** THE DRIVE IS FOR A STRAIGHT: a skier works on the flat and down the
+     * run-out, not with his skis on edge in a bend — the edge asked past
+     * `edgeFrom` of full takes it away by `edgeGone`. */
+    edgeFrom: 0.25,
+    edgeGone: 0.6,
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,

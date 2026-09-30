@@ -9,6 +9,10 @@
 // the snow makes of the push is the grip's (`skier.ts` applies it along
 // the skis); this module owns what a stride is worth.
 //
+// Off a standstill and up a rise he STRIDES — the diagonal stride, the skis
+// parallel and each leg kicking back in turn as the other arm plants —
+// before the skis will take a V (`strideShare`).
+//
 // THE PUSH IS POWER-LIMITED, which is how every human-powered drive behaves:
 // the force is the lesser of what a plant can press (`SkiSpec.polePush`)
 // and `poles.power` over the way — so the first strides off a standstill
@@ -45,6 +49,13 @@ export function driveReach(way: number): number {
  * way of `way` m/s, 0..1. */
 export function skateShare(way: number): number {
   return 1 - clamp((Math.abs(way) - P.skateFrom) / (P.skateTo - P.skateFrom), 0, 1);
+}
+
+/** The share of the drive that is the DIAGONAL STRIDE (the skis parallel,
+ * the legs kicking alternately, the arms opposite) at `speed` m/s, 0..1 —
+ * the rest is the skate's and the double pole's (`skateShare`). */
+export function strideShare(speed: number): number {
+  return 1 - clamp((Math.abs(speed) - P.strideFrom) / (P.strideTo - P.strideFrom), 0, 1);
 }
 
 /** Strides a second at a way — the skate's cadence at a crawl, the double

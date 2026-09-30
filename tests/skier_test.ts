@@ -111,8 +111,11 @@ describe("the skier at rest", () => {
   });
 
   it("folds into a tuck: the crouch follows the thumb and drops the body", () => {
-    const tall = stage(PACKED);
-    const tucked = stage(PACKED);
+    // Rolling past the drive (`poles.fade`): a skier tucking at a crawl is
+    // skating off, stood up to it, and folds only once the push is gone.
+    const rolling = TUNING.poles.fade + 3;
+    const tall = stage(PACKED, rolling);
+    const tucked = stage(PACKED, rolling);
     ride(tall, 3, NEUTRAL_INPUT);
     ride(tucked, 3, TUCK);
     expect(tucked.skier.crouch).toBeGreaterThan(0.95);

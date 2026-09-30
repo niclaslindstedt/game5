@@ -30,6 +30,15 @@ export const MOVES = [
     input: () => ({ ...IDLE, tuck: 1 }),
   },
   {
+    id: "stride",
+    title: "striding up a gentle rise from a walk, the tuck key held — the diagonal stride",
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.2, slopeFrom: 100, size: 3000 }),
+    place: () => ({ x: 1500, z: 1400, heading: Math.PI, speed: 1.2 }),
+    seconds: 3,
+    window: [1.0, 2.6],
+    input: () => ({ ...IDLE, tuck: 1 }),
+  },
+  {
     id: "skate",
     title: "skating off a shuffle on the flat, hands off — a stride each leg",
     level: (S) => S.flatLevel({ packed: 1 }),

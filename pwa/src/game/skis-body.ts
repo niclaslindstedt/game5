@@ -324,7 +324,6 @@ export function createSkisModel(
   // lying away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
   const BOUND = bound.radius;
-  let clock = 0;
 
   return {
     root,
@@ -336,7 +335,6 @@ export function createSkisModel(
       return out;
     },
     pose(skier, at, sink, trick = null, dt = 0, body) {
-      clock += dt;
       root.position.set(at.x, at.y - sink, at.z);
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       gear.pose(skier, sink);

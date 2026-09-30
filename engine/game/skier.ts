@@ -277,7 +277,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // loading a jump, in the air or off his skis; the stride's phase runs
   // only while he is working.
   const going = c.way > DRIVE_FROM || c.tuck > 0.05;
-  const working = going && !c.airborne && c.thrown === null && c.jumpLoad === 0 ? 1 - c.brake : 0;
+  // ...and, once rolling, on a straight: the skis stood on edge in a bend
+  // take it away. At a crawl a skier steps his skis round while he pushes.
+  const bent = clamp((Math.abs(c.steer) - P.edgeFrom) / (P.edgeGone - P.edgeFrom), 0, 1);
+  const straight = 1 - bent * clamp((speed0 - P.strideTo) / P.strideTo, 0, 1);
+  const working =
+    going && !c.airborne && c.thrown === null && c.jumpLoad === 0 ? (1 - c.brake) * straight : 0;
   c.drive = approach(c.drive, working, P.rate * dt);
   // Read off the SPEED, not the way: a skier sliding sideways at 80 km/h has
   // no way along his skis and no business pushing on them.

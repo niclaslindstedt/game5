@@ -37,6 +37,8 @@ const {
   isSkiId,
   isRegionId,
   REGION_IDS,
+  isPisteGrade,
+  PISTE_GRADES,
 } = await import(join(root, "engine/index.ts"));
 
 const args = parseArgs(
@@ -58,10 +60,19 @@ const args = parseArgs(
       default: "alpine",
       help: `the kind of snow country each map is built in (R21: ${REGION_IDS.join(", ")})`,
     },
+    grade: {
+      kind: "string",
+      help: `the piste grade each map is built to (R23: ${PISTE_GRADES.join(", ")}); the seed's own when left out`,
+    },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--region id] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--region id] [--grade id] [--json path]",
 );
+
+if (args.grade !== undefined && !isPisteGrade(args.grade)) {
+  console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);
+  process.exit(2);
+}
 
 if (!isRegionId(args.region)) {
   console.error(`unknown region "${args.region}" (${REGION_IDS.join(", ")})`);
@@ -89,7 +100,8 @@ console.log(
   `sim — engine ${engineVersion} at ${TUNING.physicsHz} Hz · skis ${args.skis} · seeds ${seeds.join(",")} · ` +
     `laps ${args.laps ?? "map"} · rivals ${args.rivals} · max ${args.max} s` +
     (args.tricks ? " · trick field" : "") +
-    (args.region !== "alpine" ? ` · ${args.region}` : ""),
+    (args.region !== "alpine" ? ` · ${args.region}` : "") +
+    (args.grade ? ` · ${args.grade}` : ""),
 );
 const header = [
   pad("seed", 5),
@@ -99,6 +111,7 @@ const header = [
   pad("cps", 7),
   pad("len", 6),
   pad("pow", 4),
+  pad("grade", 6),
   pad("mean", 5),
   pad("top", 5),
   pad("air", 5),
@@ -127,6 +140,7 @@ for (const spec of roster) {
       spec,
       tricks: args.tricks,
       region: args.region === "alpine" ? undefined : args.region,
+      grade: args.grade,
     });
     rows.push(r);
     console.log(
@@ -138,6 +152,7 @@ for (const spec of roster) {
         pad(`${r.checkpoints}/${r.crossings}`, 7),
         pad(r.trackLength.toFixed(0), 6),
         pad(`${Math.round(r.powder * 100)}%`, 4),
+        pad(r.grade, 6),
         pad(kmh(r.meanSpeed), 5),
         pad(kmh(r.topSpeed), 5),
         pad(r.airTime.toFixed(1), 5),

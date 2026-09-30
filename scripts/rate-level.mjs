@@ -70,9 +70,13 @@ const args = parseArgs(
       default: "alpine",
       help: "the kind of snow country the sweep is built in (R21: alpine, fell, continental, maritime)",
     },
+    grade: {
+      kind: "string",
+      help: "the piste grade the sweep is built to (R23: green, blue, red, black) — each seed's own when left out",
+    },
     json: { kind: "string", help: "write every rating to this file" },
   },
-  "usage: npm run rate -- [--seed n | --seeds a,b,c | --count n [--from n]] [--hour h] [--weather w] [--sim] [--stats] [--campaign] [--region id] [--json path]",
+  "usage: npm run rate -- [--seed n | --seeds a,b,c | --count n [--from n]] [--hour h] [--weather w] [--sim] [--stats] [--campaign] [--region id] [--grade id] [--json path]",
 );
 
 const pad = (v, n) => String(v).padStart(n);
@@ -103,9 +107,11 @@ function printHeader() {
       pad("r min", 5),
       pad("tight", 5),
       pad("rad/km", 6),
+      pad("piste", 5),
       pad("grade", 5),
       pad("steep", 5),
       pad("kick", 4),
+      pad("drop", 4),
       pad("lips", 5),
       pad("wall", 5),
       pad("drift", 5),
@@ -131,9 +137,11 @@ function printRow(row) {
       pad(f(s.tightest, 0), 5),
       pad(f(s.tight, 2), 5),
       pad(f(s.sweepPerKm, 1), 6),
+      pad(s.grade, 5),
       pad(f(s.meanGrade, 2), 5),
       pad(f(s.steepest, 2), 5),
       pad(s.kickers, 4),
+      pad(s.drops, 4),
       pad(f(s.lips, 1), 5),
       pad(f(s.walled, 2), 5),
       pad(f(s.drifted, 2), 5),
@@ -195,7 +203,12 @@ async function auditCampaign() {
   const all = [];
   let moved = 0;
   for (const shelf of SHELVES) {
-    console.log(`\n${shelf.name.toUpperCase()} — ${shelf.levels.length} maps`);
+    console.log(
+      `\n${shelf.name.toUpperCase()} — ${shelf.levels.length} ${shelf.grade ?? ""} maps`.replace(
+        "  ",
+        " ",
+      ),
+    );
     printHeader();
     const rungs = [];
     for (const pinned of shelf.levels) {
@@ -211,6 +224,9 @@ async function auditCampaign() {
       console.log(`  ${pinned.mode} "${pinned.name}" — the bot ${bot}${medals}`);
       if (pinned.medals && run.finished && run.time > pinned.medals.bronze) {
         console.log(`  !! the bot is slower than ${pinned.id}'s bronze — the door would be shut`);
+      }
+      if (shelf.grade && row.rating.stats.grade !== shelf.grade) {
+        console.log(`  !! ${pinned.id} is a ${row.rating.stats.grade} on a ${shelf.grade} shelf`);
       }
       if (levelDigest(level) !== pinned.digest) {
         moved += 1;
@@ -278,7 +294,7 @@ if (args.campaign) {
   for (const seed of seeds) {
     let level;
     try {
-      level = generateLevel(seed, { region: args.region });
+      level = generateLevel(seed, { region: args.region, grade: args.grade });
     } catch (error) {
       console.log(`${padEnd(String(seed), 12)} the generator gave up: ${error.message}`);
       continue;

@@ -16,9 +16,11 @@
 //     piste — the lamps that light the snow after dark (`snow-glsl.ts`'s
 //     lamp slots), since a skier carries none.
 //   * THE EDGE POLES: a stake every fifty metres along both edges of the
-//     piste, the right-hand ones banded orange at the top (the convention
-//     that tells a skier in fog which side he is on), with a reflector
-//     that catches the floods and the moon at night.
+//     piste, painted in the PISTE'S GRADE (R23, `grade-look.ts` — green,
+//     blue, red or black, as a piste is marked), the right-hand ones banded
+//     orange at the top (the convention that tells a skier in fog which
+//     side he is on), with a reflector that catches the floods and the moon
+//     at night.
 //
 // THE NEXT GATE IS THE ONE THAT MATTERS, so it is the one that is loud:
 // its panels are their colour at full strength and breathe a little light,
@@ -34,10 +36,11 @@
 // this map's ground.
 
 import * as THREE from "three";
-import type { Checkpoint, Level } from "@engine";
+import { gradeOf, type Checkpoint, type Level } from "@engine";
 
 import { PALETTE } from "../identity.ts";
 import { archModel, checkpointModel } from "./gate-models.ts";
+import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { ARCH, GATE, archPlan, type ArchPlan } from "./start-arch.ts";
 import { STRINGS } from "./strings.ts";
@@ -615,14 +618,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   poles.instanceMatrix.needsUpdate = true;
   panels.instanceMatrix.needsUpdate = true;
 
-  // THE EDGE POLES down both sides of the piste, the right-hand ones
-  // banded orange at the top.
+  // THE EDGE POLES down both sides of the piste in the piste's own colour,
+  // the right-hand ones banded orange at the top.
   const stakeGeo = new THREE.CylinderGeometry(EDGE.radius, EDGE.radius * 1.3, EDGE.height, 6);
   stakeGeo.translate(0, EDGE.height / 2, 0);
   const bandGeo = new THREE.CylinderGeometry(EDGE.radius * 1.4, EDGE.radius * 1.4, EDGE.band, 6);
   bandGeo.translate(0, EDGE.height - EDGE.band / 2, 0);
   geos.push(stakeGeo, bandGeo);
-  const stakeMat = std({ color: 0x2c3138, roughness: 0.6 }, "edge-stake");
+  const stakeMat = std({ color: GRADE_LOOK[gradeOf(level)].stake, roughness: 0.55 }, "edge-stake");
   const edgeCount = Math.ceil(level.track.length / EDGE.every) + 1;
   const stakes = new THREE.InstancedMesh(stakeGeo, stakeMat, edgeCount * 2);
   const bands = new THREE.InstancedMesh(bandGeo, reflectorMat, edgeCount);

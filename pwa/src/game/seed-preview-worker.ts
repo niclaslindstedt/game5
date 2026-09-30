@@ -11,13 +11,14 @@
 // arrives. The engine is framework-free and `minimap-bake.ts` and
 // `seed-chart.ts` are DOM-free, so all three run here unchanged.
 
-import { generateLevel, type RegionId } from "@engine";
+import { generateLevel, gradeOf, type PisteGrade, type RegionId } from "@engine";
 
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
 import { CHART_PX, seedSchematic, type SeedSchematic } from "./seed-chart.ts";
 
-/** What the card asks for: one seed, in one kind of snow country (R21). */
-export type PreviewRequest = { seed: number; region: RegionId };
+/** What the card asks for: one seed, in one kind of snow country (R21), to
+ * one grade (R23) — null the one the seed deals. */
+export type PreviewRequest = { seed: number; region: RegionId; grade: PisteGrade | null };
 
 /** What comes back. A seed the generator refuses is an answer too: the
  * card says so rather than sitting on a spinner forever. The picture is
@@ -26,6 +27,7 @@ export type PreviewReply =
   | {
       seed: number;
       region: RegionId;
+      grade: PisteGrade | null;
       ok: true;
       picture: Blob | { px: number; rgba: Uint8ClampedArray<ArrayBuffer> };
       schematic: SeedSchematic;
@@ -33,24 +35,28 @@ export type PreviewReply =
       length: number;
       /** The mountain's vertical, m — the summit to the base (R2). */
       vertical: number;
+      /** The colour the piste came out (R23, `gradeOf`). */
+      colour: PisteGrade;
     }
-  | { seed: number; region: RegionId; ok: false; error: string };
+  | { seed: number; region: RegionId; grade: PisteGrade | null; ok: false; error: string };
 
 const post = (reply: PreviewReply, transfer: Transferable[] = []): void =>
   (self as unknown as Worker).postMessage(reply, transfer);
 
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
-  const { seed, region } = e.data;
+  const { seed, region, grade } = e.data;
   try {
-    const level = generateLevel(seed, { region });
+    const level = generateLevel(seed, { region, grade: grade ?? undefined });
     const rgba = bakeMinimap(minimapSource(level), CHART_PX);
     const base = {
       seed,
       region,
+      grade,
       ok: true as const,
       schematic: seedSchematic(level),
       length: level.track.length,
       vertical: level.mountain?.vertical ?? 0,
+      colour: gradeOf(level),
     };
     if (typeof OffscreenCanvas !== "undefined") {
       const canvas = new OffscreenCanvas(CHART_PX, CHART_PX);
@@ -64,6 +70,12 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     }
     post({ ...base, picture: { px: CHART_PX, rgba } }, [rgba.buffer]);
   } catch (err) {
-    post({ seed, region, ok: false, error: err instanceof Error ? err.message : String(err) });
+    post({
+      seed,
+      region,
+      grade,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 };

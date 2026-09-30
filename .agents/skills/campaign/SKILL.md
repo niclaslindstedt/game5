@@ -6,9 +6,10 @@ description: "Use when working on THE CAMPAIGN — the pinned maps and the ladde
 # The campaign: the pinned maps, skied for points
 
 The campaign is the sibling games' championship retyped for a mountain:
-three SHELVES (the NURSERY — blue runs on the fells; the RIDGE — red runs
-in the alpine; the GLACIER — black runs on steep continental faces), six
-MAPS each — a race,
+four SHELVES, one a PISTE GRADE (R23) gentlest first (the NURSERY — green
+runs on the fells; the WOODS — blue runs in the maritime; the RIDGE — red
+runs in the alpine; the GLACIER — black runs on steep continental faces),
+the shelf's id its grade and every map built to it, six MAPS each — a race,
 a time trial, two races, a time trial and a race, so the race both opens and
 closes a shelf — every map a SEED on a generator VERSION, ridden on the day
 its seed dealt (or a `sky` laid over it). A race rung is ridden against the

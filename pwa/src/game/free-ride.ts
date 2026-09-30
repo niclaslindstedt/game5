@@ -23,8 +23,10 @@
 import {
   DEFAULT_REGION,
   TIMES_OF_DAY,
+  isPisteGrade,
   isRegionId,
   snowCoverOf,
+  type PisteGrade,
   type RegionId,
   type TimeOfDay,
   type WeatherKind,
@@ -86,6 +88,9 @@ export type FreeRide = {
   weather: WeatherKind | null;
   /** The kind of snow country the map is built in (R21). */
   region: RegionId;
+  /** The piste grade the map is built to (R23); null is the one the seed
+   * deals. */
+  grade: PisteGrade | null;
 };
 
 export function freshRide(): FreeRide {
@@ -97,6 +102,7 @@ export function freshRide(): FreeRide {
     spot: null,
     weather: null,
     region: DEFAULT_REGION,
+    grade: null,
   };
 }
 
@@ -129,6 +135,7 @@ export function mergeRide(blob: unknown): FreeRide {
     out.weather = b.weather as WeatherKind;
   }
   if (isRegionId(b.region)) out.region = b.region;
+  if (isPisteGrade(b.grade)) out.grade = b.grade;
   const spot = b.spot as Record<string, unknown> | null | undefined;
   if (
     spot &&
@@ -162,6 +169,7 @@ export function freeGameOptions(
     assist,
     mode: "free",
     region: ride.region,
+    grade: ride.grade ?? undefined,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's

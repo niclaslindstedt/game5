@@ -43,6 +43,7 @@
 import { treesNear } from "../game/collision.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { sunAt } from "@niclaslindstedt/oss-game-framework/core/solar";
+import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
 import { LEVEL_RULES } from "../mapgen/rules.ts";
 import { declinationOf } from "../mapgen/sun.ts";
 import { weatherOf, withSky } from "../mapgen/weather.ts";
@@ -56,7 +57,8 @@ export type RatingAxes = {
   /** How much the line asks of the edges: how much of it is bent tight,
    * and the heading change per km. */
   bends: number;
-  /** How much air the piste throws: lip height on the line, per km. */
+  /** How much air the piste throws: lip height on the line and the height
+   * of every drop across it (R24), per km. */
   air: number;
   /** How close the woods stand: the share of the piste with a trunk inside
    * `WALL_REACH` of either edge — a line walled by trees is a line where a
@@ -106,6 +108,11 @@ export type MapRating = {
     /** Kickers on the piste, and the sum of their lips, m. */
     kickers: number;
     lips: number;
+    /** Drops across the piste (R24), and the sum of their heights, m. */
+    drops: number;
+    dropped: number;
+    /** The colour on the map's signs (R23, `gradeOf`). */
+    grade: PisteGrade;
     /** Share of the piste walled by trees, 0..1. */
     walled: number;
     /** Share of the piste held across the face, and the longest traverse, m. */
@@ -126,8 +133,10 @@ export const RATING = {
   /** Each raw reading's BAND: the value that reads as nothing on its axis
    * and the value that reads as all of it, off the sweep's tails. Read off
    * a sweep of the first ninety-six alpine seeds (`make rate COUNT=96
-   * ARGS=--stats`) with the bot's pace off `make sim`; the fell reads lower
-   * on the pitch and the continental higher, which is the ladder. */
+   * ARGS=--stats`) with the bot's pace off `make sim` — every grade in it,
+   * green to black (R23), so the pitch reads from a nursery run's to a
+   * black's and a green shelf rates under a black one, which is the
+   * ladder. */
   scale: {
     /** m/s a competent skier averages down a piste — what a run is
      * estimated at when nobody measured it: the bot's mean off `make sim`. */
@@ -135,11 +144,11 @@ export const RATING = {
     /** A run's seconds: a three-kilometre piste to a four-and-a-half at
      * that pace. */
     run: { min: 220, max: 360 },
-    /** The mean grade, drop over length: the alpine sweep runs 0.25 to
-     * 0.32, a fell under that. */
-    meanGrade: { min: 0.2, max: 0.34 },
-    /** The steepest hundred metres: from a red's pitch to R8's ceiling. */
-    steepest: { min: 0.4, max: 0.78 },
+    /** The mean grade, drop over length: a green's tenth to a black's
+     * third. */
+    meanGrade: { min: 0.08, max: 0.34 },
+    /** The steepest hundred metres: from a green's pitch to R8's ceiling. */
+    steepest: { min: 0.12, max: 0.78 },
     /** The share of the piste bent tighter than `TIGHT_FLOORS` × R6's
      * floor — the walk's turn is capped, so every piste's tightest bend
      * sits at the floor and the SHARE is what tells a twisting piste from
@@ -147,9 +156,9 @@ export const RATING = {
     tight: { min: 0.1, max: 0.55 },
     /** rad/km of heading change: the sweep runs 10 to 21. */
     sweepPerKm: { min: 9, max: 21 },
-    /** m of lip on the piste per km: two small kickers on a long piste to
-     * six big ones on a short one. */
-    lipsPerKm: { min: 0.6, max: 3.5 },
+    /** m of lip and drop on the piste per km: a green's lone roll to a
+     * black's kickers and drops. */
+    lipsPerKm: { min: 0.3, max: 6 },
     /** Share of the piste walled by trees. */
     walled: { min: 0.05, max: 0.6 },
     /** Share of the piste held across the face, and the longest traverse, m. */
@@ -309,6 +318,8 @@ export function rateLevel(built: Level, opts: RateOptions = {}): MapRating {
   // take and never has to.
   const onTrack = (level.kickers ?? []).filter((k) => k.onTrack);
   const lips = onTrack.reduce((sum, k) => sum + k.height, 0);
+  const drops = (level.cliffs ?? []).filter((c) => c.onTrack);
+  const dropped = drops.reduce((sum, c) => sum + c.drop, 0);
 
   // THE WOODS: at every ten-metre station, is there a trunk inside the reach
   // past each edge? Half a point for each side walled. And THE TRAVERSES:
@@ -364,7 +375,7 @@ export function rateLevel(built: Level, opts: RateOptions = {}): MapRating {
   const axes: RatingAxes = {
     steepness: 0.5 * across(meanGrade, S.meanGrade) + 0.5 * across(steepest, S.steepest),
     bends: 0.5 * across(tight, S.tight) + 0.5 * across(sweepPerKm, S.sweepPerKm),
-    air: across(lips / km, S.lipsPerKm),
+    air: across((lips + dropped) / km, S.lipsPerKm),
     woods: across(walled, S.walled),
     traverses:
       0.5 * across(traverseShare, S.traversed) + 0.5 * across(longestTraverse, S.longestTraverse),
@@ -390,6 +401,9 @@ export function rateLevel(built: Level, opts: RateOptions = {}): MapRating {
       sweepPerKm,
       kickers: onTrack.length,
       lips,
+      drops: drops.length,
+      dropped,
+      grade: gradeOf(level),
       walled,
       traversed: traverseShare,
       longestTraverse,

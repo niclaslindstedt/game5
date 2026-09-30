@@ -26,6 +26,7 @@
 //   ?weather=<kind>  the map under another sky (clear, fair, high, overcast,
 //                    snow, fog), and ?hour=<h> from another start hour.
 //   ?region=<id>     the seed's map built in another kind of snow country
+//   ?grade=<id>      the seed's piste built to a grade (--grade, R23)
 //                    (R21: alpine, fell, continental, maritime).
 //   ?probe=0         always sent: the first-visit probe must not move the
 //                    picture under the shutter.
@@ -177,6 +178,10 @@ const args = parseArgs(
       kind: "string",
       help: "build the seed's map in this kind of snow country (alpine, fell, continental, maritime)",
     },
+    grade: {
+      kind: "string",
+      help: "build the seed's piste to this grade (green, blue, red, black)",
+    },
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     trial: { kind: "flag", help: "a time trial rather than a race (?mode=trial)" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
@@ -188,7 +193,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--update] [--trial] [--tricks] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -310,12 +315,14 @@ if (args.surface) {
     }
     const params = { seed: String(args.seed), probe: "0", ...surface.params };
     if (args.region !== undefined) params.region = String(args.region);
+    if (args.grade !== undefined) params.grade = String(args.grade);
     if (args.video !== undefined) params.video = String(args.video);
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
     for (const v of viewports)
       await capture(
-        `${name}${args.region !== undefined ? `-${args.region}` : ""}${args.update ? "-update" : ""}`,
+        `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
+          `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}`,
         params,
         v,
         surface,
@@ -354,12 +361,14 @@ if (args.surface) {
       if (sky !== undefined) params.weather = sky;
       if (args.hour !== undefined) params.hour = String(args.hour);
       if (args.region !== undefined) params.region = String(args.region);
+      if (args.grade !== undefined) params.grade = String(args.grade);
       if (args.trial) params.mode = "trial";
       if (args.tricks) params.mode = "tricks";
       const name =
         `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${sky !== undefined ? `-${sky}` : ""}` +
         `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
         `${args.region !== undefined ? `-${args.region}` : ""}` +
+        `${args.grade !== undefined ? `-${args.grade}` : ""}` +
         `${args.t !== undefined ? `-t${args.t}` : ""}` +
         `${args.camera !== undefined ? `-${args.camera}` : ""}` +
         `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}`;

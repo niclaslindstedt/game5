@@ -32,6 +32,7 @@ import {
   type NoiseField,
 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import { UNGRADED, verticalBand, type GradeRow, type ProfileShape } from "./grades.ts";
 import { REGIONS, scaleBand, scaleCount, type Region } from "./regions.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 
@@ -80,6 +81,9 @@ export type TerrainPlan = {
   /** The region the mountain is built in (R21), which everything
    * downstream of the plan reads its own multipliers off. */
   readonly region: Region;
+  /** The grade the piste down it is built to (R23) — the UNGRADED row on a
+   * map from before the grades. */
+  readonly grade: GradeRow;
   /** Noise seeds, one per layer so the layers do not echo each other. */
   readonly seeds: {
     readonly warp: number;
@@ -96,10 +100,9 @@ export type TerrainPlan = {
 const PROFILE_SAMPLES = 1024;
 
 /** The grade's shape down the fall line, before it is scaled to the
- * vertical (`mountain.profile`): a shoulder under the ridge, the peak, and
- * the ease to the run-out. */
-function gradeShape(u: number): number {
-  const P = R.mountain.profile;
+ * vertical (`mountain.profile`, or a piste grade's own, R23): a shoulder
+ * under the ridge, the peak, and the ease to the run-out. */
+function gradeShape(P: ProfileShape, u: number): number {
   const shoulder = P.shoulder + (1 - P.shoulder) * smoothstep(0, P.shoulderRun, u);
   const ease = Math.max(0, 1 - u) ** P.ease;
   return shoulder * (ease * (1 - P.runout) + P.runout);
@@ -108,35 +111,41 @@ function gradeShape(u: number): number {
 /** The profile table: the share of the drop still below `u`, 1 at the
  * summit and 0 at the base, off the grade shape integrated by the
  * trapezium. */
-function tabulateProfile(): Float64Array {
+function tabulateProfile(P: ProfileShape): Float64Array {
   const n = PROFILE_SAMPLES;
   const table = new Float64Array(n + 1);
   let sum = 0;
   for (let i = n - 1; i >= 0; i--) {
-    sum += (gradeShape(i / n) + gradeShape((i + 1) / n)) / 2 / n;
+    sum += (gradeShape(P, i / n) + gradeShape(P, (i + 1) / n)) / 2 / n;
     table[i] = sum;
   }
   for (let i = 0; i <= n; i++) table[i] /= sum;
   return table;
 }
 
-/** Deal the mountain's plan off the attempt's stream, in `region` (R21).
- * Every band is the rule's scaled by the region's row — the same band, and
- * so the same draws, in the alpine. */
-export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainPlan {
+/** Deal the mountain's plan off the attempt's stream, in `region` (R21),
+ * for a piste of `grade` (R23). Every band is the rule's scaled by the
+ * region's row and the grade's — the same band, and so the same draws, in
+ * the alpine on the ungraded row. */
+export function planTerrain(
+  rng: Rng,
+  region: Region = REGIONS.alpine,
+  grade: GradeRow = UNGRADED,
+): TerrainPlan {
   const size = R.world.size;
   const M = R.mountain;
   const F = R.face;
   const K = region.relief;
+  const G = grade.relief;
   const seed = (): number => rng.int(1, 0x7ffffff0);
   const summitZ = size * M.summit;
   const baseZ = size * M.base;
   const cx = size / 2;
   // In this order: the stream a map is always dealt.
-  const vertical = inBand(rng, scaleBand(M.vertical, K.vertical));
+  const vertical = inBand(rng, verticalBand(region, grade));
   const flank = inBand(rng, scaleBand(M.flank.height, K.flank));
-  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills));
-  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges));
+  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills * G.hills));
+  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges * G.ridges));
   const bowls: Bowl[] = [];
   const nBowls = scaleCount(F.bowls.count, K.bowls.count);
   const bowlCount = rng.int(nBowls.min, nBowls.max);
@@ -151,13 +160,13 @@ export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainP
     });
   }
   const headwalls: Headwall[] = [];
-  const nWalls = scaleCount(F.headwalls.count, K.headwalls.count);
+  const nWalls = scaleCount(F.headwalls.count, K.headwalls.count * G.headwalls.count);
   const wallCount = rng.int(nWalls.min, nWalls.max);
   for (let i = 0; i < wallCount; i++) {
     const u = inBand(rng, F.headwalls.at);
     headwalls.push({
       z: summitZ + (baseZ - summitZ) * u,
-      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop)),
+      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop * G.headwalls.drop)),
       run: inBand(rng, F.headwalls.run),
     });
   }
@@ -182,13 +191,26 @@ export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainP
     crests: M.crests * K.crests,
     hills,
     ridges,
-    rollers: F.rollers.amplitude * K.rollers,
+    rollers: F.rollers.amplitude * K.rollers * G.rollers,
     bowls,
     headwalls,
-    profile: tabulateProfile(),
+    profile: profileFor(grade.profile),
     region,
+    grade,
     seeds: s,
   };
+}
+
+/** The profile tables tabulated so far, one per shape: a shape is a row's
+ * constant, so a table is worked out once per grade. */
+const PROFILES = new Map<ProfileShape, Float64Array>();
+function profileFor(shape: ProfileShape): Float64Array {
+  let table = PROFILES.get(shape);
+  if (!table) {
+    table = tabulateProfile(shape);
+    PROFILES.set(shape, table);
+  }
+  return table;
 }
 
 /** Fractal value noise centred on zero, roughly −1..1: the octaves are

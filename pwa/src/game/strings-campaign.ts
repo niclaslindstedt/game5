@@ -8,8 +8,9 @@
 // and the campaign's block is one file to read. Templates, never
 // concatenations at the call site (§39.2).
 //
-// The shelves are graded like pistes: THE NURSERY is the blue runs, THE
-// RIDGE the reds, THE GLACIER the blacks (`campaign-levels.ts`).
+// The shelves are graded like pistes (R23): THE NURSERY is the green runs,
+// THE WOODS the blues, THE RIDGE the reds, THE GLACIER the blacks
+// (`campaign-levels.ts`).
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 

@@ -86,8 +86,8 @@ Hold a shortlist to a BRIEF instead, and read the index as a pass mark:
 - no two rungs the same map twice (`LADDER.apart`, on the closest PAIR)
 - every kind of ask led on somewhere: a bends rung, a steep rung, a woods
   rung, an air rung, a traverse rung, a powder rung, a dark one
-- the shelf's colour held: a nursery rung stays a blue (its steepest pitch
-  under 25 %), a ridge rung a red (under 40 %), a glacier rung a black
+- the shelf's colour held: every map is built to its shelf's grade (R23),
+  and `make rate CAMPAIGN=1` says so with `!!` where one measures another
 - the formats interleaved: a race, a time trial
 - no `make analyze` errors — the sweep prints them
 

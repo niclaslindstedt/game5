@@ -249,6 +249,21 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* The piste's sign (R23) ahead of the GATES label. */
+.hud-chip-sub .hud-grade {
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.3em;
+  vertical-align: -0.25em;
+}
+
+.seed-preview-read .seed-preview-grade {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.4em;
+  vertical-align: -0.25em;
+}
+
 .hud-chip-sub {
   font-size: 0.62em;
   opacity: 0.85;

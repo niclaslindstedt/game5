@@ -11,6 +11,7 @@ import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import { generateLevel } from "../mapgen/generate.ts";
 import type { GameEvent } from "../game/state.ts";
+import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { botInput, RIDER_BOT, type BotProfile } from "./bot.ts";
@@ -37,6 +38,9 @@ export type SimOptions = {
   /** Ski the seed's map as built in this kind of snow country (R21); the
    * alpine when left out. Ignored when `level` is given. */
   region?: RegionId;
+  /** Ski the seed's map as built to this piste grade (R23); the one the
+   * seed deals when left out. Ignored when `level` is given. */
+  grade?: PisteGrade;
 };
 
 export type RunReport = {
@@ -46,6 +50,8 @@ export type RunReport = {
   /** How much of the piste's centreline is not groomed — its share lying
    * under a drift (R17) — 0..1. What a catalog's rows are read against. */
   powder: number;
+  /** The colour on the map's signs (R23, `gradeOf`). */
+  grade: PisteGrade;
   finished: boolean;
   /** Race clock at the finish (or the timeout), s. */
   time: number;
@@ -95,8 +101,12 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     seed,
     level:
       options.level ??
-      (options.tricks || options.region
-        ? generateLevel(seed, { tricks: options.tricks, region: options.region })
+      (options.tricks || options.region || options.grade
+        ? generateLevel(seed, {
+            tricks: options.tricks,
+            region: options.region,
+            grade: options.grade,
+          })
         : undefined),
     laps: options.laps,
     rivals: options.rivals ?? 0,
@@ -164,6 +174,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     seed,
     skis: (options.spec ?? SKIS).id,
     powder: soft / pts.length,
+    grade: gradeOf(state.level),
     finished: p.finished,
     time: p.time,
     laps: p.lap,

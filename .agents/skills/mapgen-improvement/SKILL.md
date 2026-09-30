@@ -147,11 +147,17 @@ The numbers in `rules.ts` are inside what real mountains and real courses
 measure, and a retune stays inside the same bands (the research behind them
 is cited in the rule book's comments, never a name):
 
-- **A piste is graded by its STEEPEST stretch, not its average.** A blue run
-  is ≤ 25 % (about 14°), a red ≤ 40 % (22°), a black anything over that; the
-  steepest groomed pitches run to about 78 % (38°). The campaign's shelves
-  are those three colours (`campaign`), and `engine/rating/`'s steepness axis
-  reads the same bands.
+- **A piste is graded by its STEEPEST stretch, not its average.** The
+  northern signs' bands (R23, `grades.ts`): a green ≤ 16 % (9°), a blue
+  ≤ 27 % (15°), a red ≤ 47 % (25°), a black anything over that; the steepest
+  groomed pitches run to about 78 % (38°). The generator BUILDS to the grade
+  it is asked for (its row sets the vertical, the fall line, the walk's
+  steepest, the grading's ceiling and a cap on every hundred metres) and the
+  analysis refuses a map that does not measure it. The campaign's four
+  shelves are the four colours (`campaign`), and `engine/rating/`'s
+  steepness axis reads the same bands. A black's DROPS (R24) have no apron
+  on purpose: off an edge taken along the line the fall is the drop's
+  height at any speed, and an apron is height added to it.
 - **A downhill course is 3–4.5 km long over 850–1030 m of vertical**, 15–27 %
   on average with pitches of 35–41° and jumps of 40–80 m. R5's length band
   (3000–4500 m) and R2's vertical (850–1030 m) are those bands — a two- to

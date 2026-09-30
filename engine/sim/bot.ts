@@ -5,7 +5,8 @@
 // a rival started on: a point a speed-dependent distance ahead of where it
 // stands on the piste, that far across it, is what it edges toward;
 // it reads the bends coming and skids off speed for the ones it cannot
-// carve at the speed it has, and for a kicker it would overshoot; it tucks
+// carve at the speed it has, and for a kicker or a drop (R24) it would
+// overshoot; it tucks
 // wherever nothing asks it not to; off the piste before the start gate (a
 // hand-built map's start line in the powder), it skis onto the piste short
 // of the gate, so it crosses it skiing down it; it levels itself to the
@@ -20,7 +21,7 @@
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { arcAhead, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
-import type { Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
+import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "../game/collision.ts";
 import { brakeDecel, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "../game/limits.ts";
 import type { SkiSpec } from "../game/defs/skis.ts";
@@ -177,14 +178,8 @@ const KICKER_RUNUP = 10;
  * speed in turn, until the impact into the slope would fold the legs of
  * the skier on these skis. A skier learns this on his first run; the bot
  * is handed it. Worked out once per kicker per pair. */
-const kickerSpeeds = new WeakMap<SkiSpec, Map<number, WeakMap<Kicker, number>>>();
-function kickerSpeed(
-  level: Level,
-  k: Kicker,
-  spec: SkiSpec,
-  profile: BotProfile,
-  fall: number,
-): number {
+const kickerSpeeds = new WeakMap<SkiSpec, Map<number, WeakMap<Kicker | Cliff, number>>>();
+function knownSpeeds(spec: SkiSpec, fall: number): WeakMap<Kicker | Cliff, number> {
   let bySpec = kickerSpeeds.get(spec);
   if (!bySpec) {
     bySpec = new Map();
@@ -195,6 +190,16 @@ function kickerSpeed(
     mine = new WeakMap();
     bySpec.set(fall, mine);
   }
+  return mine;
+}
+function kickerSpeed(
+  level: Level,
+  k: Kicker,
+  spec: SkiSpec,
+  profile: BotProfile,
+  fall: number,
+): number {
+  const mine = knownSpeeds(spec, fall);
   const known = mine.get(k);
   if (known !== undefined) return known;
   const fx = Math.sin(k.heading);
@@ -210,13 +215,54 @@ function kickerSpeed(
       (2 * k.height) / k.ramp -
       averaged,
   );
+  const best = flownSpeed(level, k.x, k.z, fx, fz, lip, angle, spec, profile, fall);
+  mine.set(k, best);
+  return best;
+}
+
+/** THE SPEED A DROP WANTS (R24), m/s: the same flight off its edge, which
+ * the shelf leaves level with the line — so the skier goes over it along
+ * the line's own pitch, read over the last two metres before it. */
+function dropSpeed(
+  level: Level,
+  d: Cliff,
+  spec: SkiSpec,
+  profile: BotProfile,
+  fall: number,
+): number {
+  const mine = knownSpeeds(spec, fall);
+  const known = mine.get(d);
+  if (known !== undefined) return known;
+  const fx = Math.sin(d.heading);
+  const fz = Math.cos(d.heading);
+  const lip = level.groundAt(d.x, d.z);
+  const angle = Math.atan((lip - level.groundAt(d.x - fx * 2, d.z - fz * 2)) / 2);
+  const best = flownSpeed(level, d.x, d.z, fx, fz, lip, angle, spec, profile, fall);
+  mine.set(d, best);
+  return best;
+}
+
+/** The fastest a point flown off a lip at `angle` over the real snow
+ * comes down without the impact into the slope folding the legs. */
+function flownSpeed(
+  level: Level,
+  x0: number,
+  z0: number,
+  fx: number,
+  fz: number,
+  lip: number,
+  angle: number,
+  spec: SkiSpec,
+  profile: BotProfile,
+  fall: number,
+): number {
   const floor = 0.9;
   const limit = harshSpeedOf(spec) * profile.kickerMargin;
   const n = { x: 0, y: 1, z: 0 };
   let best = 8;
   for (let v = 8; v <= 45; v += 1) {
-    let x = k.x;
-    let z = k.z;
+    let x = x0;
+    let z = z0;
     let y = lip + floor;
     const h = v * Math.cos(angle);
     let vy = v * Math.sin(angle);
@@ -235,7 +281,6 @@ function kickerSpeed(
     if (impact > limit) break;
     best = v;
   }
-  mine.set(k, best);
   return best;
 }
 
@@ -268,6 +313,14 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     // At its speed a ramp's length SHORT of the lip, and steady up the ramp:
     // a skier skidding on the lip loads his tips, and with them gone over
     // the crest he pitches onto them before he has left the snow.
+    const now = Math.sqrt(v * v + 2 * decel * Math.max(0, d - KICKER_RUNUP));
+    if (now < allowed) allowed = now;
+  }
+  for (const c of level.cliffs ?? []) {
+    if (!c.onTrack || c.s === undefined) continue;
+    const d = arcAhead(level, s, c.s);
+    if (d < 0 || d > reach) continue;
+    const v = dropSpeed(level, c, spec, profile, flightGravity(state.rules));
     const now = Math.sqrt(v * v + 2 * decel * Math.max(0, d - KICKER_RUNUP));
     if (now < allowed) allowed = now;
   }

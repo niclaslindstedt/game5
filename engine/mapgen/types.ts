@@ -3,6 +3,7 @@
 // everything that skis, draws or measures one. Extend it; never rename a
 // field without moving every reader with it.
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import type { PisteGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
 
@@ -100,7 +101,12 @@ export interface Level {
   /** One slot per skier, the player's first. */
   grid: Spawn[];
   trees: TreeDef[];
-  sun: { hour: number; dayOfYear: number; latitude: number };
+  /** The day (R15): the solar hour, the day of the year and the latitude —
+   * and, on a map the graded generator built, the FACE'S BEARING: the
+   * compass heading (radians, 0 north, clockwise) the world's +z — the fall
+   * line — points to. Absent, the face falls due north. Read the sun's place
+   * through `sunAtRun`, which turns it into the world's headings. */
+  sun: { hour: number; dayOfYear: number; latitude: number; facing?: number };
   /** Always 1: a run is skied once, top to bottom (R16). */
   laps: number;
 
@@ -129,6 +135,10 @@ export interface Level {
   /** The kind of snow country the map was built in (R21) — ask `regionOf`,
    * which reads a hand-built map without one as the alpine. */
   region?: RegionId;
+  /** THE PISTE GRADE the map was BUILT to (R23) — absent on a map from a
+   * generator before the grades, or a hand-built one. Ask `gradeOf` for the
+   * colour on its signs, which measures one where none was built to. */
+  grade?: PisteGrade;
   /** THE REGION'S OWN SNOW (R21), on the ground's grid: the wind crust's
    * share of the country, 0..1, before it is folded into `packed` — what
    * the picture draws a crust with. Absent where the region lays none. */
@@ -246,10 +256,12 @@ export interface KickerShape {
   dig: number;
 }
 
-/** A cliff a skier drops off into the lower ground below (R22). `x, z` is
- * the middle of its EDGE, the top of the face. */
+/** A cliff a skier drops off into the lower ground below (R22) — or a DROP
+ * across the piste (R24, `onTrack`). `x, z` is the middle of its EDGE, the
+ * top of the face. */
 export interface Cliff {
-  /** `C1…`, in the order they were laid. */
+  /** `C1…` off the piste, in the order they were laid; `D1…` across it, in
+   * the order they are skied. */
   id: string;
   x: number;
   z: number;
@@ -270,6 +282,10 @@ export interface Cliff {
   shelf: number;
   /** Full-height length of the edge across, m. */
   width: number;
+  /** A DROP across the piste (R24), laid on the graded line. */
+  onTrack?: boolean;
+  /** Arc length of a drop's edge down the piste (drops only), m. */
+  s?: number;
 }
 
 /** What a caller may ask of the generator beyond the seed. */
@@ -291,6 +307,9 @@ export interface GenerateOptions {
   /** The kind of snow country to build in (R21, `regions.ts`); the alpine
    * when left out. */
   region?: RegionId;
+  /** The PISTE GRADE to build to (R23, `grades.ts`); the one the seed deals
+   * when left out. A version from before the grades builds none either way. */
+  grade?: PisteGrade;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

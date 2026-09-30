@@ -18,7 +18,9 @@
 //   2. the start (R12): where under the ridge, and the heading out of it
 //   3. the piste (R5–R7), walked again until one fits the face, and
 //      graded into that mountain (R8)
-//   4. the piste's kickers (R9), added to the graded line
+//   4. the drops across a black (R24), added to the graded line — off a
+//      stream of their own
+//   4a the piste's kickers (R9), clear of the drops, added to the line
 //   5. the corridor pressed into the ground, and the packed field (R8, R10)
 //   6. the natural kickers off the piste (R4), stamped where the corridor
 //      is not
@@ -44,6 +46,12 @@
 // THE REGION (R21) scales the numbers steps 1, 6, 8 and 9 draw with and
 // draws nothing in their place; the alpine's row is all ones and lays no
 // crust, so a map nobody asked a region of is the alpine's.
+//
+// THE GRADE (R23) is chosen before the first attempt — asked for, or dealt
+// off the seed on a stream of its own — so every attempt of one seed builds
+// to the same colour, and it sets the numbers steps 1 to 7a draw with. A
+// version from before the grades (`ungraded`) builds on the UNGRADED row,
+// the rule book's own numbers, and so draws exactly what it always drew.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -55,12 +63,14 @@ import { debug } from "@niclaslindstedt/oss-game-framework/core/output";
 import { compileLevel } from "./compile.ts";
 import { dealDrifts, stampDrifts } from "./drift.ts";
 import { layCliffs } from "./cliffs.ts";
+import { layDrops, publishDrops } from "./drops.ts";
+import { UNGRADED, dealGrade, gradeRow, type GradeRow } from "./grades.ts";
 import { growForest } from "./forest.ts";
 import { layOffKickers, layTrackKickers, publishTrackKickers } from "./kickers.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { planTrickField, stampTrickField } from "./trick-field.ts";
 import { chooseStart, gridOnTrack, layCheckpoints } from "./spawn.ts";
-import { dealSun } from "./sun.ts";
+import { dealSun, faceTheSun } from "./sun.ts";
 import { bakeCountry, planTerrain } from "./terrain.ts";
 import { dealWeather, withSky } from "./weather.ts";
 import { regionRow, type Region } from "./regions.ts";
@@ -102,13 +112,15 @@ function attemptLevel(
   version: GeneratorVersion,
   tricks: boolean,
   region: Region,
+  grade: GradeRow,
+  northFace: boolean,
 ): GeneratedLevel | string {
   const sub = subSeed(seed, attempt);
   const rng = createRng(sub);
-  const plan = planTerrain(rng, region);
+  const plan = planTerrain(rng, region, grade);
   const ground = bakeCountry(plan);
 
-  const start = chooseStart(rng, ground);
+  const start = chooseStart(rng, ground, grade);
   if (typeof start === "string") return start;
   let piste: Piste | null = null;
   let why = "";
@@ -118,7 +130,12 @@ function attemptLevel(
       why = drawn;
       continue;
     }
-    const graded = gradePiste(drawn, ground);
+    const graded = gradePiste(
+      drawn,
+      ground,
+      grade.track.maxGrade,
+      grade.id === null || grade.id === "black" ? undefined : grade.steepest.max,
+    );
     if (graded) {
       why = graded;
       continue;
@@ -127,25 +144,31 @@ function attemptLevel(
   }
   if (!piste) return `no piste fits this mountain (last: ${why})`;
 
-  const trackKickers = layTrackKickers(rng, piste);
+  const trackDrops = layDrops(sub, piste, grade);
+  if (trackDrops.length < grade.drops.min) {
+    return `only ${trackDrops.length} drop(s) fit the piste (R24)`;
+  }
+  const trackKickers = layTrackKickers(rng, piste, grade, trackDrops);
+  const drops = publishDrops(piste, trackDrops);
   const { packed, near, along, dist } = stampCorridor(piste, ground);
   const offKickers = layOffKickers(rng, plan, ground, piste);
-  const cliffs = layCliffs(sub, plan, ground, trackOf(piste), offKickers);
+  const cliffs = layCliffs(sub, plan, ground, trackOf(piste), offKickers, drops);
 
   // Publish the heights the ground actually carries, so a reader of a
   // station and a reader of `groundAt` under it read the same number.
   for (const p of piste.points) p.y = sampleField(ground, p.x, p.z);
   const kickers = publishTrackKickers(piste, trackKickers).concat(offKickers);
   for (const k of kickers) k.y = sampleField(ground, k.x, k.z);
+  for (const d of drops) d.y = sampleField(ground, d.x, d.z);
   // R20 — the park is chosen here, so the drifts keep off it, and stamped
   // last, onto the finished mountain.
   let field: Kicker[] = [];
   if (tricks) {
-    const planned = planTrickField(piste, kickers);
+    const planned = planTrickField(piste, kickers, drops);
     if (typeof planned === "string") return planned;
     field = planned;
   }
-  const drifts = dealDrifts(sub, piste.length, kickers.concat(field));
+  const drifts = dealDrifts(sub, piste.length, kickers.concat(field), grade.drift, drops);
   stampDrifts(packed, near, along, drifts, R.track.step);
   const crust = layCrust(sub, region, ground);
   if (crust) foldSurface(packed, dist, region, crust);
@@ -163,10 +186,15 @@ function attemptLevel(
   };
 
   const treeLineY = base.y + (plan.treeLine - plan.altitude);
-  let trees = growForest(rng, plan, ground, trackOf(piste), kickers, cliffs, treeLineY);
+  const edges = drops.length > 0 ? drops.concat(cliffs) : cliffs;
+  let trees = growForest(rng, plan, ground, trackOf(piste), kickers, edges, treeLineY);
   const day = dealSun(rng, region.sun);
   const { weather, hour } = dealWeather(sub, day);
-  const sun = { ...day, hour };
+  // R15 — the face turned to the sun at the hour the run starts, on a map
+  // whose generator turns it.
+  const sun = northFace
+    ? { ...day, hour }
+    : { ...day, hour, facing: faceTheSun(sub, { ...day, hour }) };
   if (field.length > 0) {
     stampTrickField(ground, field, { near, along, dist }, piste);
     trees = clearField(trees, ground);
@@ -187,7 +215,7 @@ function attemptLevel(
     grid,
     trees,
     kickers: kickers.concat(field),
-    cliffs,
+    cliffs: edges,
     sun,
     laps,
     mountain,
@@ -196,6 +224,7 @@ function attemptLevel(
     weather,
     version,
     region: region.id,
+    grade: grade.id,
     crust,
   });
 }
@@ -204,11 +233,22 @@ function attemptLevel(
 export function generateLevel(seed: number, opts: GenerateOptions = {}): GeneratedLevel {
   const attempts = opts.attempts ?? 16;
   const laps = opts.laps ?? R.race.laps;
-  const { version } = generatorTraits(opts.version);
+  const traits = generatorTraits(opts.version);
+  const { version } = traits;
   const region = regionRow(opts.region);
+  const grade = traits.ungraded ? UNGRADED : gradeRow(opts.grade ?? dealGrade(seed));
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region);
+    const built = attemptLevel(
+      seed,
+      a,
+      laps,
+      version,
+      opts.tricks === true,
+      region,
+      grade,
+      traits.northFace === true,
+    );
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);
       continue;

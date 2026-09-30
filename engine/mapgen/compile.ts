@@ -14,6 +14,7 @@ import {
   sampleFieldGradient,
   type Heightfield,
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import type { PisteGrade } from "./grades.ts";
 import type {
   Checkpoint,
   Cliff,
@@ -47,6 +48,8 @@ export type LevelParts = {
   weather: GeneratedLevel["weather"];
   version: GeneratedLevel["version"];
   region: GeneratedLevel["region"];
+  /** The grade the map was built to (R23); null on the ungraded row. */
+  grade: PisteGrade | null;
   /** The region's own snow (R21), where it lays any. */
   crust: Heightfield | null;
 };
@@ -87,6 +90,7 @@ export function compileLevel(parts: LevelParts): GeneratedLevel {
     version: parts.version,
     weather: parts.weather,
     region: parts.region,
+    ...(parts.grade ? { grade: parts.grade } : {}),
     ...(parts.crust ? { crust: parts.crust } : {}),
   };
 }

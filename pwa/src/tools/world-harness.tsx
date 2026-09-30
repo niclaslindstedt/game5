@@ -14,11 +14,13 @@
 import {
   botInput,
   createGame,
+  isPisteGrade,
   isRegionId,
   NEUTRAL_INPUT,
   placeRun,
   step,
   type GameState,
+  type PisteGrade,
   type RegionId,
 } from "@engine";
 
@@ -54,6 +56,8 @@ const params = new URLSearchParams(location.search);
 const seed = Number(params.get("seed") ?? 38);
 /** The kind of snow country (R21); the alpine unless named. */
 const region = isRegionId(params.get("region")) ? (params.get("region") as RegionId) : undefined;
+/** The piste grade (R23); the seed's own unless named. */
+const grade = isPisteGrade(params.get("grade")) ? (params.get("grade") as PisteGrade) : undefined;
 /** The picture, a preset at a time (`settings-video.ts`); HIGH unless named. */
 const tier = (TIERS as readonly string[]).includes(params.get("quality") ?? "")
   ? (params.get("quality") as Tier)
@@ -86,6 +90,7 @@ const snow = Number(params.get("snow"));
 const state: GameState = createGame({
   seed,
   region,
+  grade,
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
 

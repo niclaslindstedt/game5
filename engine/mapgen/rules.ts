@@ -21,8 +21,11 @@
 //   track.width 20–40 m          a downhill course is typically 30 m wide,
 //                                a groomed resort run 20–60 m; the finish
 //                                line at least 15 m
-//   track.grades 0.25 / 0.40     the piste colours: BLUE to 25 % (14°), RED
-//                                to 40 % (22°), BLACK past that
+//   grade.bands 0.16/0.27/0.47   the piste colours as the northern signs
+//                                state them: GREEN to 16 % (9°), BLUE to
+//                                27 % (15°), RED to 47 % (25°), BLACK past
+//                                that (the European: a blue's 25 %, a red's
+//                                40 %; the North American: a blue's 40 %)
 //   track.maxGrade 0.78          the steepest groomed piste, 78 % (38°) —
 //                                past ~35° a winch cat, so nothing steeper
 //                                is a piste
@@ -69,8 +72,8 @@
 //       behind it — and the VALLEY FLOOR lies along the bottom, from
 //       `mountain.base` of the way down: nearly flat, the finish arena.
 //       Between them the ground falls `mountain.vertical` (850–1030 m, a
-//       downhill course's) on a
-//       smooth concave PROFILE: a shoulder under the ridge, the steepest
+//       downhill course's) — or on a graded map its grade's own (R23) — on
+//       a smooth concave PROFILE: a shoulder under the ridge, the steepest
 //       pitch below it, easing all the way to the run-out. SIDE RIDGES rise
 //       left and right of the face — past `mountain.flank.inner` metres from
 //       the map's middle, measured across x and warped by `mountain.flank.warp`
@@ -114,7 +117,9 @@
 //       falls along steeper than `track.steepest`. It ends where it reaches
 //       the valley floor (`track.finishZ` of the way down the map) with a
 //       FINISH STRAIGHT of `track.finish` metres, its length landing in
-//       `track.length` (3–4.5 km, a downhill course's), sampled every
+//       `track.length` (3–4.5 km, a downhill course's) — on a graded map its
+//       grade's own band, a green's and a black's let run a little short of
+//       it (R23) — sampled every
 //       `track.step` (2 m). Its
 //       first `track.hold` metres run straight. It never crosses itself, and
 //       any two parts of it more than `track.separation.along` metres apart
@@ -123,15 +128,16 @@
 //   R6  NO BEND TIGHTER THAN A SKIER CAN CARRY SPEED THROUGH. The radius of
 //       every bend, measured over `track.turnWindow` metres of the line, is
 //       at least `bendFloor` of the grade the line falls at there: at
-//       least `track.minRadius` (20 m) on a blue's pitch, and wider the
-//       steeper the pitch — rising to `track.steepRadius` (50 m, a downhill
+//       least `track.minRadius` (20 m) up to `track.bendKnee` (25 %, a
+//       blue's pitch), and wider the steeper the pitch — rising to `track.steepRadius` (50 m, a downhill
 //       ski's sidecut and more) where the line falls at `track.maxGrade`, so
 //       no hairpin is laid on a headwall; and at least the piste's
 //       half-width there with the flat shoulder and the windrow's bench
 //       beyond it (R8, R18) — a wide piste bends wide, so its inside edge
 //       never folds over itself.
 //   R7  A WIDE PISTE. The piste is `track.width` (20–40 m, a downhill
-//       course's thirty and a resort run's band) wide, the width
+//       course's thirty and a resort run's band) wide — on a graded map
+//       inside its grade's own part of that band (R23) — the width
 //       wandering smoothly along it over wavelengths of `track.widthScale`
 //       metres, narrowing toward the band's least where the untouched face
 //       falls across it steeper than `track.narrow`, and opening to the
@@ -145,16 +151,21 @@
 //       between `track.bank.min` and `track.bank.max` metres wide. Along the
 //       line the profile is graded so that it NEVER CLIMBS: over every
 //       `track.gradeWindow` metres it falls at least `track.minGrade` (0.06)
-//       and at most `track.maxGrade` (0.78, the 38° of the steepest groomed
-//       piste), and no point of it is cut or filled more than `track.maxCut`
-//       metres. The steepest `track.colourWindow` (100 m) of it is the
-//       piste's COLOUR (`pisteColour`): BLUE to `track.grades.blue` (25 %),
-//       RED to `track.grades.red` (40 %), BLACK past that. The kickers of R9
-//       are the only stretches allowed to climb or fall steeper, and the
+//       and at most its grade's own ceiling (R23) — never more than
+//       `track.maxGrade` (0.78, the 38° of the steepest groomed piste) — and
+//       no point of it is cut or filled more than `track.maxCut` metres.
+//       The steepest `track.colourWindow` (100 m) of it — a terrain park's
+//       kickers (R20) aside — is the piste's
+//       COLOUR (`pisteGradeOf`): GREEN to `grade.bands.green` (16 %), BLUE
+//       to `grade.bands.blue` (27 %), RED to `grade.bands.red` (47 %),
+//       BLACK past that. The kickers of R9 and the drops of R24 are the only
+//       stretches allowed to climb or fall steeper, and the
 //       finish straight — the last `track.finish` metres, eased into over
 //       `track.runout` before it — is the one flat.
 //   R9  KICKERS ON THE PISTE. The line carries `kickers.on.count` (2–6)
-//       crests that make jumps: a ramp `kickers.on.ramp` times the lip's
+//       crests that make jumps — on a graded map its grade's own count, from
+//       none to two on a green to five to nine on a black, the lips a
+//       multiple of their height (R23): a ramp `kickers.on.ramp` times the lip's
 //       height long rising to a lip, steepest at the lip, and a landing
 //       `kickers.on.landing` times the lip's height long falling away past
 //       it. The lip stands `kickers.on.height` metres over the line — the
@@ -165,7 +176,8 @@
 //       stretch that turns no
 //       more than `kickers.on.straight` radians from the foot of its ramp to
 //       the end of its landing, where the line comes down to the lip no
-//       steeper than `kickers.on.approachGrade` and falls away past it
+//       steeper than `kickers.on.approachGrade` (its grade's own, R23) and
+//       falls away past it
 //       within `kickers.on.roll` of as steeply as it came — a roll before a
 //       pitch, the natural jump of a downhill course; two stand at least
 //       `kickers.on.spacing` metres apart along the piste.
@@ -188,8 +200,10 @@
 //       it — at a heading chosen so that the first `spawn.run` metres after
 //       the start gate run straight, turning no more than `spawn.straight`
 //       radians, and fall no steeper than `spawn.maxSlope` (0.25, a blue's
-//       pitch out of the start hut); no kicker's lip stands within
-//       `spawn.kickerGap` metres of the start gate.
+//       pitch out of the start hut) — on a graded map its grade's own, and
+//       on a black at least its grade's floor on the whole, so the run
+//       drops off the hut onto a pitch (R23); no kicker's lip and no drop
+//       (R24) stands within `spawn.kickerGap` metres of the start gate.
 //   R13 THE START LINE. The skiers stand on the piste's first station (arc
 //       length 0), the start line, facing down the piste: `grid.slots` (4)
 //       of them abreast in one row, `grid.spacing` (3 m) apart across the
@@ -230,17 +244,28 @@
 //       `sun.minElevation` degrees over the horizon — except on the maps R19
 //       deals an EVENING, which start instead `sun.evening` (−0.5 to +3.5 h)
 //       from that day's sunset: from the last of the sun into full night.
+//       THE FACE IS TURNED TO THE SUN: the mountain shades itself, and a
+//       face turned from a low winter sun is skied in its own shadow, so a
+//       graded map (R23) is dealt the compass bearing its fall line faces
+//       (`Level.sun.facing`) within `sun.facing` of the sun's own bearing at
+//       the hour the run starts — the evening's included — off a stream of
+//       its own: the skier skis down toward the sun and across it, and the
+//       piste he skis is lit. A map from before (`versions.ts`) faces due
+//       north.
 //   R16 ONE RUN. A race is `race.laps` (1) run of the piste, from the start
 //       gate to the finish line.
 //   R17 DRIFTS ACROSS THE PISTE. The wind lays fresh snow over stretches of
 //       the groomed line — on a traverse, as the wind does. A map is dealt
-//       a share of its piste in `drift.share` (0–50 %) to lie drifted, laid
+//       a share of its piste in `drift.share` (0–50 %) — on a graded map its
+//       grade's own, the groomer over nearly all of a green and half a
+//       black left to the wind (R23) — to lie drifted, laid
 //       as stretches `drift.length` (60–180 m) long, at least `drift.gap`
 //       metres apart; across a stretch the packed field — the piste's width
 //       and its shoulders — falls to `drift.packed` of its groomed value,
 //       easing in and out over `drift.fade` metres at either end. No drift
 //       lies within `drift.clear` metres of the start line or of the finish,
-//       nor within `drift.fade` metres of a kicker's ramp or landing (R9).
+//       nor within `drift.fade` metres of a kicker's ramp or landing (R9) or
+//       of a drop's shelf or landing (R24).
 //       The drifts are dealt off a stream of their own, so a map's drifts
 //       move nothing else it draws; `Level.drifts` publishes every stretch.
 //   R18 THE WINDROWS. The groomer's tiller leaves the snow it pushed off the
@@ -324,7 +349,8 @@
 //       lays none, so a map built without a region is exactly the map its
 //       seed builds in the alpine.
 //   R22 CLIFFS. The face carries `cliff.count` cliffs — scaled by the
-//       region's count of kickers (R21) — to be dropped off into the lower
+//       region's count of kickers (R21) and its grade's multiple (R23) —
+//       to be dropped off into the lower
 //       ground below: each stands on a slope at least `cliff.fall` steep
 //       and faces down the fall line. A shelf climbs out of the country
 //       over `cliff.shelf` metres behind the edge, level at the top; a face
@@ -336,9 +362,57 @@
 //       and sinks back into the country over `cliff.edge` metres at either
 //       end. Nothing stands on a cliff or within `cliff.runout` metres past
 //       its landing — no tree, no kicker — and no part of it comes within
-//       `cliff.clearance` metres of the piste's edge or onto the side
-//       ridges. The cliffs are dealt off a stream of their own;
-//       `Level.cliffs` publishes every one.
+//       `cliff.clearance` metres of the piste's edge (its grade's own
+//       clearance, R23) or onto the side ridges. A grade may stand some of
+//       them BESIDE the piste — its row's `cliffs.beside` — each searched
+//       for just past that clearance off a station of the line, facing the
+//       fall line, so a skier sees its edge from the piste and leaves the
+//       line to take it. The cliffs are dealt off a stream of their own;
+//       `Level.cliffs` publishes every one, the drops of R24 among them.
+//   R23 THE GRADE. Every map built by a graded generator (`versions.ts`)
+//       is built to one PISTE GRADE — `green`, `blue`, `red` or `black`, the
+//       colour on its signs — asked for by `GenerateOptions.grade` or, where
+//       nobody asked, dealt off the seed on a stream of its own at the odds
+//       in `grade.odds`, and published as `Level.grade`. A grade's row
+//       (`mapgen/grades.ts`) sets the mountain's vertical (its own band,
+//       with `grade.regionShare` of the region's multiple of R2's) and the
+//       shape of its fall line; multiplies the face's hills, spurs, rollers
+//       and headwalls (R3); sets the steepest ground the walk runs down
+//       (R5), the steepest window the grading leaves (R8), the width band
+//       (R7) and the length band (R5), the sweeps, how much steeper than the
+//       untouched ground the walk reads a pitch for its bends (R6), the
+//       pitch out of the start hut (R12), how many
+//       kickers stand on the line and how tall and off how steep a pitch
+//       (R9), how many stand off it (R4), how many drops cross it (R24),
+//       how many cliffs stand on the face and how near the piste (R22), and
+//       how much of it lies drifted (R17). The piste's steepest
+//       `track.colourWindow` must then MEASURE its grade: over
+//       `grade.bands` of the next gentler colour and no more than its own
+//       (a green's at most 16 %, a black's past 47 %), so the colour a map
+//       is signed with is the colour a skier finds. A map built by a
+//       version from before the grades carries none, and its colour is only
+//       measured (`gradeOf`).
+//   R24 DROPS ACROSS THE PISTE. A black piste (R23) is crossed by
+//       `drops` of its row — cliff bands the line is built over: a shelf
+//       `drop.shelf` metres long rising `drop.drop` metres out of the line,
+//       level with it at its top; an edge the whole width of the corridor;
+//       and a face falling the whole of it back onto the line over
+//       `cliff.face` of a metre per metre of drop. The LANDING is the line's
+//       own pitch below — `drop.landing` metres of it kept clear — so a
+//       skier who leaves the edge along the line falls the drop's height
+//       onto a slope going his way at any speed, and no more: the band is
+//       one a skier's legs take whole (`air.harshSpeed`). Each stands where
+//       the line falls at least `drop.minFall` and turns no more than
+//       `drop.straight` radians over its shelf, face and landing, keeps the
+//       line falling over its shelf (R8), stands
+//       `drop.spacing` metres of piste from another, `drop.kickerClear`
+//       from a kicker's ramp or landing (R9), `spawn.kickerGap` from the
+//       start gate and clear of the finish's run-out, and OFF THE GATES
+//       (R11) — `drop.gateClear` metres of piste from any gate to the foot
+//       of its shelf or the end of its landing, so no reset stands a skier
+//       on a face. They are dealt off a stream of their own and published
+//       among `Level.cliffs` (`onTrack`, `D1…` in the order they are
+//       skied).
 
 import type { SnowingKind, TrickSize, WeatherKind } from "./types.ts";
 
@@ -493,8 +567,8 @@ export const LEVEL_RULES = {
        * the next one's run-up, with a bend between. */
       spacing: 220,
       /** The line may come down to the lip no steeper than this, m per m:
-       * a jump off a red's pitch at most (`track.grades.red`), never off a
-       * headwall. */
+       * a jump off a red's pitch at most, never off a headwall — on a
+       * graded map its grade's own (R23). */
       approachGrade: 0.4,
       /** How much gentler than the approach the landing may fall and the
        * stretch still count as a roll, m per m: the line past the lip
@@ -563,7 +637,7 @@ export const LEVEL_RULES = {
     /** Least bend radius on a blue's pitch, m. */
     minRadius: 20,
     /** Least bend radius where the line falls at `maxGrade`, m: the floor
-     * rises from `minRadius` at `grades.blue` to this (`bendFloor`). */
+     * rises from `minRadius` at `bendKnee` to this (`bendFloor`). */
     steepRadius: 50,
     /** Baseline the radius is measured over, m. */
     turnWindow: 10,
@@ -595,10 +669,10 @@ export const LEVEL_RULES = {
     /** The steepest the line may fall outside a kicker: the steepest
      * groomed piste, 78 % — 38°. */
     maxGrade: 0.78,
-    /** THE COLOURS (R8): the steepest window a BLUE piste falls at (25 %,
-     * 14°) and a RED (40 %, 22°); a BLACK is anything steeper, up to
-     * `maxGrade`. */
-    grades: { blue: 0.25, red: 0.4 },
+    /** R6 — the pitch up to which a bend may be as tight as `minRadius`,
+     * m per m: 25 % (14°), the older European ceiling on a blue's pitch.
+     * The COLOURS themselves are `grade.bands` (R23). */
+    bendKnee: 0.25,
     /** The most cross-fall the corridor keeps on a traverse, m per m. */
     camber: 0.06,
     /** Baseline the grade is measured over, m. */
@@ -706,6 +780,10 @@ export const LEVEL_RULES = {
      * before it, three and a half after — past nautical twilight into the
      * dark on every day and latitude of the band. */
     evening: { min: -0.5, max: 3.5 } as Band,
+    /** The most the face's bearing is dealt off the sun's at the run's
+     * hour, radians (55°): the skier skis toward the sun and across it,
+     * never away from it. */
+    facing: (55 * Math.PI) / 180,
   },
   /** R16 — the race. */
   race: { laps: 1 },
@@ -805,6 +883,45 @@ export const LEVEL_RULES = {
     /** The least grade of the country a cliff faces down. */
     fall: 0.05,
   },
+  /** R23 — the piste grades; each grade's own row is `mapgen/grades.ts`. */
+  grade: {
+    /** THE COLOURS: the steepest `track.colourWindow` a GREEN piste falls
+     * at (16 %, 9°), a BLUE (27 %, 15°) and a RED (47 %, 25°); a BLACK is
+     * anything steeper, up to `track.maxGrade`. */
+    bands: { green: 0.16, blue: 0.27, red: 0.47 },
+    /** How often a seed nobody asked a grade of is dealt each (they sum to
+     * one): a ski area's runs are mostly blue and red. */
+    odds: { green: 0.2, blue: 0.3, red: 0.3, black: 0.2 },
+    /** How much of the region's multiple of the vertical (R21) a graded
+     * map keeps: a fell's green a little lower, each still its colour. */
+    regionShare: 0.35,
+  },
+  /** R24 — the drops across a black piste. */
+  drop: {
+    /** The face's height, m: off an edge taken along the line, a skier
+     * falls onto the pitch below at about √(2·g·drop) whatever his speed —
+     * 6 m/s off the least, 7.5 off the most, under the 8 m/s the legs take
+     * whole (`air.harshSpeed`). */
+    drop: { min: 1.8, max: 3.2 } as Band,
+    /** The shelf behind the edge, m: at least this, and long enough that
+     * the line keeps falling over it (R8). */
+    shelf: { min: 20, max: 50 } as Band,
+    /** The landing: the line's own pitch past the face, kept clear, m. */
+    landing: 18,
+    /** The least the graded line falls under a drop, m per m: the pitch
+     * that makes a band of rock into a drop rather than a step. */
+    minFall: 0.22,
+    /** Most the line turns from the shelf's foot to the landing's end, rad. */
+    straight: 0.5,
+    /** Least piste between two drops, m. */
+    spacing: 150,
+    /** Least piste between a drop and a kicker's ramp or landing, m. */
+    kickerClear: 40,
+    /** Least piste between a gate and a drop's either end, m (R11). */
+    gateClear: 6,
+    /** Clear piste after the landing's end before the finish's run-out, m. */
+    finishClear: 120,
+  },
   /** R20 — the terrain park. */
   trick: {
     count: { min: 6, max: 40 } as Band,
@@ -857,41 +974,13 @@ export const LEVEL_RULES = {
   },
 } as const;
 
-/** R18 — the windrow's height over the graded line `u` metres out from the
- * inner toe (0 … `berm.width`), with its crest `crest` metres tall. */
-export function bermProfile(crest: number, u: number): number {
-  const w = LEVEL_RULES.berm.width;
-  if (u <= 0 || u >= w) return 0;
-  const k = Math.sin((Math.PI * u) / w);
-  return crest * k * k;
-}
-
-/** R18 — the crest's height `s` metres down the piste: two slow sines of
- * the wander's wavelengths, wandering inside `berm.height` without drawing
- * anything. */
-export function bermCrest(s: number): number {
-  const B = LEVEL_RULES.berm;
-  const [a, b] = B.wander;
-  const v =
-    0.5 + 0.3 * Math.sin((2 * Math.PI * s) / a) + 0.2 * Math.sin((2 * Math.PI * s) / b + 1.3);
-  return B.height.min + (B.height.max - B.height.min) * v;
-}
-
-/** R8 — the colour of a piste whose steepest window falls at `steepest`
- * m per m: blue, red or black. */
-export type PisteColour = "blue" | "red" | "black";
-export function pisteColour(steepest: number): PisteColour {
-  const G = LEVEL_RULES.track.grades;
-  return steepest <= G.blue ? "blue" : steepest <= G.red ? "red" : "black";
-}
-
 /** R6 — the least bend radius where the line falls at `grade` (m per m),
- * m: `track.minRadius` up to a blue's pitch, rising smoothly to
+ * m: `track.minRadius` up to `track.bendKnee`, rising smoothly to
  * `track.steepRadius` at `track.maxGrade` — the wider turn the speed of a
  * steep pitch needs. */
 export function bendFloor(grade: number): number {
   const T = LEVEL_RULES.track;
-  const t = Math.min(1, Math.max(0, (grade - T.grades.blue) / (T.maxGrade - T.grades.blue)));
+  const t = Math.min(1, Math.max(0, (grade - T.bendKnee) / (T.maxGrade - T.bendKnee)));
   const ease = t * t * (3 - 2 * t);
   return T.minRadius + (T.steepRadius - T.minRadius) * ease;
 }

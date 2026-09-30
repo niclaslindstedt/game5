@@ -107,6 +107,9 @@ export function levelDigest(level: Level): string {
   mix(level.sun.hour);
   mix(level.sun.dayOfYear);
   mix(level.sun.latitude);
+  // R15 — the face's bearing, where the map was dealt one: a map facing due
+  // north (from before the face was turned) adds nothing.
+  if (level.sun.facing !== undefined) mix(level.sun.facing);
   const sky = weatherOf(level);
   word(sky.kind);
   mix(sky.snowfall);
@@ -118,5 +121,8 @@ export function levelDigest(level: Level): string {
   // one seed never share a word; the alpine adds nothing.
   const region = regionOf(level).id;
   if (region !== DEFAULT_REGION) word(region);
+  // R23 — the grade a map was built to, where it was built to one: a map
+  // from before the grades adds nothing.
+  if (level.grade) word(level.grade);
   return hash.toString(16).padStart(8, "0");
 }

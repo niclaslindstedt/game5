@@ -49,7 +49,9 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { valueNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { LEVEL_RULES as R, bendFloor, bermCrest, bermProfile, inBand } from "./rules.ts";
+import { UNGRADED, type GradeRow } from "./grades.ts";
+import { bermCrest, bermProfile } from "./berm.ts";
+import { LEVEL_RULES as R, bendFloor, inBand } from "./rules.ts";
 import { fallAlong } from "./spawn.ts";
 import { flankAt, type TerrainPlan } from "./terrain.ts";
 import type { Spawn, TrackPoint } from "./types.ts";
@@ -116,8 +118,16 @@ const LOOK = 30;
 
 /** The heading the ground steers a wanted heading to at a point: toward
  * the fall line where the ground would not fall along it, off the fall
- * line where it would fall too steeply. */
-function steer(ground: Heightfield, x: number, z: number, want: number, bend: number): number {
+ * line where it would fall steeper than `steepest` (R5, the grade's own —
+ * R23). */
+function steer(
+  ground: Heightfield,
+  x: number,
+  z: number,
+  want: number,
+  bend: number,
+  steepest: number,
+): number {
   const T = R.track;
   const w = T.gradeWindow;
   const fall = fallAlong(ground, x, z, want, LOOK);
@@ -125,15 +135,15 @@ function steer(ground: Heightfield, x: number, z: number, want: number, bend: nu
     (sampleField(ground, x, z) -
       sampleField(ground, x + Math.sin(want) * LOOK, z + Math.cos(want) * LOOK)) /
     LOOK;
-  if (mean >= T.minFall * 1.5 && fall.steepest <= T.steepest) return want;
+  if (mean >= T.minFall * 1.5 && fall.steepest <= steepest) return want;
   // The mountain's own fall line here, read over the window.
   const gx = (sampleField(ground, x + w, z) - sampleField(ground, x - w, z)) / (2 * w);
   const gz = (sampleField(ground, x, z + w) - sampleField(ground, x, z - w)) / (2 * w);
   const grade = hypot(gx, gz);
   const down = Math.atan2(-gx, -gz);
-  if (fall.steepest > T.steepest && grade > T.steepest) {
+  if (fall.steepest > steepest && grade > steepest) {
     // A traverse: at least this far off the fall line to hold the grade.
-    const theta = Math.acos(T.steepest / grade);
+    const theta = Math.acos(steepest / grade);
     const off = angleDiff(down, want);
     const side = Math.abs(off) < 1e-6 ? (bend >= 0 ? 1 : -1) : Math.sign(off);
     if (Math.abs(off) < theta) return down + side * theta;
@@ -151,6 +161,7 @@ export function drawPiste(
   start: Spawn,
 ): Piste | string {
   const T = R.track;
+  const G: GradeRow = plan.grade;
   const size = R.world.size;
   const step = T.step;
   // Everything drawn is drawn here, in this order; the walk itself draws
@@ -161,7 +172,7 @@ export function drawPiste(
   const period = inBand(rng, T.wander.scale);
   let phase = rng.range(0, TAU);
   const sweeps: Sweep[] = [];
-  const nSweeps = rng.int(T.sweeps.count.min, T.sweeps.count.max);
+  const nSweeps = rng.int(G.track.sweeps.min, G.track.sweeps.max);
   for (let i = 0; i < nSweeps; i++) {
     sweeps.push({
       at: rng.range(0.15, 0.8) * aim,
@@ -178,12 +189,13 @@ export function drawPiste(
   const edge = R.mountain.flank.inner - 120;
   const most = Math.ceil((T.length.max + 100) / step);
   const cross = new Float64Array(most + Math.round(T.finish / step) + 2);
-  /** R7 — the width at a station: the noise's wander, narrowed where the
-   * untouched face falls steeply across the line; and the cross-slope
-   * read for it, kept for the camber (R8). */
+  /** R7 — the width at a station: the noise's wander inside the grade's
+   * band (R23), narrowed where the untouched face falls steeply across the
+   * line; and the cross-slope read for it, kept for the camber (R8). */
+  const W = G.track.width;
   const widthAt = (p: TrackPoint, i: number): number => {
     const v = valueNoise(p.s, 0, T.widthScale, widthSeed);
-    const wide = T.width.min + (T.width.max - T.width.min) * smoothstep(0.15, 0.85, v);
+    const wide = W.min + (W.max - W.min) * smoothstep(0.15, 0.85, v);
     const rx = Math.cos(p.heading);
     const rz = -Math.sin(p.heading);
     const reach = wide / 2;
@@ -192,7 +204,7 @@ export function drawPiste(
         sampleField(ground, p.x - rx * reach, p.z - rz * reach)) /
       wide;
     cross[i] = clamp(fall, -T.camber, T.camber);
-    return wide - (wide - T.width.min) * smoothstep(T.narrow.min, T.narrow.max, Math.abs(fall));
+    return wide - (wide - W.min) * smoothstep(T.narrow.min, T.narrow.max, Math.abs(fall));
   };
   /** R6 — the turn a step may make, rad: the least radius the pitch
    * allows (`bendFloor`), or the bench radius of a wide piste, whichever
@@ -242,9 +254,9 @@ export function drawPiste(
       const across = x - size / 2;
       const away = smoothstep(edge, edge + 120, Math.abs(across));
       bend = bend * (1 - away) + -Math.sign(across) * 0.8 * away;
-      want = clamp(steer(ground, x, z, bend, bend), -T.swing, T.swing);
+      want = clamp(steer(ground, x, z, bend, bend, G.track.steepest), -T.swing, T.swing);
     }
-    const maxTurn = turnFor(points[points.length - 1].width, pitchAt(x, z, h));
+    const maxTurn = turnFor(points[points.length - 1].width, pitchAt(x, z, h) * G.track.pitch);
     h += clamp(angleDiff(h, want), -maxTurn, maxTurn);
     x += Math.sin(h) * step;
     z += Math.cos(h) * step;
@@ -267,7 +279,7 @@ export function drawPiste(
     points.push(p);
   }
   const length = s;
-  if (length < T.length.min || length > T.length.max) {
+  if (length < G.track.length.min || length > G.track.length.max) {
     return `the piste comes out ${length.toFixed(0)} m long`;
   }
   smoothWalk(points, start);
@@ -555,10 +567,24 @@ export function finishFrom(length: number): number {
   return length - R.track.finish - R.track.runout;
 }
 
-/** R8 — grade the piste's profile against the mountain under it. Writes
- * each station's `y` and `raw`; returns a reason on a line that cannot be
- * graded inside `track.maxCut`. */
-export function gradePiste(piste: Piste, country: Heightfield): string | null {
+/** How far inside a grade's colour ceiling (R23) the grading holds every
+ * `track.colourWindow`: the blur rounds the joins and a kicker's ramp and
+ * landing (R9), added afterwards, can lean a window by up to a lip's height
+ * over its length. */
+const COLOUR_MARGIN = 0.9;
+
+/** R8 — grade the piste's profile against the mountain under it, no window
+ * steeper than `maxGrade` (the grade's own, R23) and, on a graded map, no
+ * `track.colourWindow` steeper than `colour` — the ceiling of the grade it
+ * is built to, so the piste MEASURES its colour. Writes each station's `y`
+ * and `raw`; returns a reason on a line that cannot be graded inside
+ * `track.maxCut`. */
+export function gradePiste(
+  piste: Piste,
+  country: Heightfield,
+  maxGrade: number = UNGRADED.track.maxGrade,
+  colour?: number,
+): string | null {
   const T = R.track;
   const pts = piste.points;
   const n = pts.length;
@@ -568,7 +594,7 @@ export function gradePiste(piste: Piste, country: Heightfield): string | null {
   // Aim a little inside both bounds, so the blur and the window cannot tip
   // a stretch that sat exactly on one over it.
   const least = T.minGrade * 1.1 * step;
-  const most = T.maxGrade * 0.95 * step;
+  const most = maxGrade * 0.95 * step;
   // NEVER CLIMBS: the cut from above and the fill from below, both falling
   // at least `least` a step, and their mean.
   const cut = Float64Array.from(raw);
@@ -578,11 +604,21 @@ export function gradePiste(piste: Piste, country: Heightfield): string | null {
   let y: Float64Array<ArrayBuffer> = new Float64Array(n);
   for (let i = 0; i < n; i++) y[i] = (cut[i] + fill[i]) / 2;
   // NEVER STEEPER THAN THE RULE: the fill that holds every step from
-  // above and the cut that holds it from below, and their mean.
+  // above and the cut that holds it from below, and their mean — and on a
+  // graded map every colour window the same way (a mean of two lines that
+  // each keep a linear bound keeps it too).
+  const K = colour === undefined ? 0 : Math.max(1, Math.round(T.colourWindow / step));
+  const mostK = colour === undefined ? Infinity : colour * COLOUR_MARGIN * K * step;
   const held = Float64Array.from(y);
-  for (let i = 1; i < n; i++) held[i] = Math.max(held[i], held[i - 1] - most);
+  for (let i = 1; i < n; i++) {
+    held[i] = Math.max(held[i], held[i - 1] - most);
+    if (K > 0 && i >= K) held[i] = Math.max(held[i], held[i - K] - mostK);
+  }
   const shaved = Float64Array.from(y);
-  for (let i = n - 2; i >= 0; i--) shaved[i] = Math.min(shaved[i], shaved[i + 1] + most);
+  for (let i = n - 2; i >= 0; i--) {
+    shaved[i] = Math.min(shaved[i], shaved[i + 1] + most);
+    if (K > 0 && i + K < n) shaved[i] = Math.min(shaved[i], shaved[i + K] + mostK);
+  }
   for (let i = 0; i < n; i++) y[i] = (held[i] + shaved[i]) / 2;
   // THE FINISH STRAIGHT, flat, and the run-out eased into it.
   const flat = Math.max(0, n - 1 - Math.round(T.finish / step));

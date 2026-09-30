@@ -31,7 +31,7 @@
 /* THE SHELVES: one tab a shelf, the shown one lit in the flag's red. */
 .menu-shelves {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
 }
 
@@ -81,7 +81,8 @@
   letter-spacing: 0.12em;
 }
 
-.menu-shelf-name .menu-glyph {
+.menu-shelf-name .menu-glyph,
+.menu-shelf-name .grade-mark {
   width: 1em;
   height: 1em;
 }
@@ -93,9 +94,14 @@
   text-wrap: balance;
 }
 
-/* A phone held upright gives each tab a third of 390 px: the name steps down
-   and closes up so CONTINENTAL and its padlock still fit on one line. */
+/* A phone held upright stacks the four tabs two by two, each half of
+   390 px: the name steps down and closes up so a name, its sign and its
+   padlock still fit on one line. */
 @media (max-width: 30rem) {
+  .menu-shelves {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .menu-shelf {
     padding: 0.45rem 0.4rem;
   }
@@ -232,6 +238,21 @@
   width: 1.2em;
   height: 1.2em;
   color: var(--flag);
+}
+
+/* THE GRADE'S SIGN (R23, grade-mark.tsx): the green circle, the blue
+   square, the red rectangle, the black diamond — sized by the type it sits
+   in, so a box, a tab and a HUD chip each carry it at their own scale. */
+.grade-mark {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.2em;
+}
+
+.menu-level-grade {
+  width: 1.35em;
+  height: 1.35em;
 }
 
 .menu-level-name {

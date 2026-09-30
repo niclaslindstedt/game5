@@ -1,0 +1,8 @@
+---
+title: Read the GPU's own timer by PASS and the interleaved A/B by SUBSYSTEM — never SPLIT on a tiled GPU, never two separate runs
+date: 2026-09-24
+scope: pwa/src/game/gpu-timer.ts
+concepts: [performance, benchmark, gpu, measurement]
+---
+
+`make bench ARGS="--gpu --ab"` prints two GPU tables. WHERE THE GPU WENT is timer queries around each RENDER PASS (trail, hero, shadow, scene, grade): honest, because a pass boundary is already a boundary the driver cuts. Its `trail` row overstates, though: a query around a tiny pass bills the load and store of the whole target, and hiding the trail passes saved a quarter of what the row said. `--split` puts a query boundary between subsystems INSIDE the scene's pass, and on a tiled GPU (every phone, every laptop with the GPU on the processor) that cuts the pass at each boundary: on an integrated laptop GPU the split's slices summed to five times the whole pass. Read subsystems off the A/B table instead, where each frame hides one subsystem in turn and the card's frame is billed under what it was drawn without. The noise floor is about ±0.07 ms; a row inside it (or positive) is nothing. Running each hidden subsystem as its OWN whole benchmark, one after another, is worthless: the machine drifts between runs by more than most subsystems cost (hiding the checkpoints once "cost" +5.5 ms). Compare two BUILDS with `--dist`, alternating A B A B, because the whole card moves about 10% from run to run. The fence (`gpu` in WHERE THE FRAME WENT) is not the card's time: it adds the round trip to the browser's GPU process, and it also hides CPU-side uploads. Always read the CPU phases beside the GPU: on a desktop GPU the posed merge's per-frame vertex re-lay (`pose`) was half the frame while the card sat at 2 ms.

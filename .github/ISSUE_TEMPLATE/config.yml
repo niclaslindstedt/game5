@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & ideas
+    url: https://github.com/niclaslindstedt/game5/discussions
+    about: For questions and open-ended discussion, use Discussions instead of issues.
+  - name: Security vulnerabilities
+    url: https://github.com/niclaslindstedt/game5/security/advisories/new
+    about: Report security problems privately — never in a public issue. See SECURITY.md.

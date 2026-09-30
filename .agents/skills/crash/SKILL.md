@@ -1,0 +1,179 @@
+---
+name: crash
+description: "Use when working on the skier PAST SAVING and OFF HIS SKIS — the four ways he is thrown (a trunk met hard, a landing over the tips, a fall at speed, a caught edge — the high-side), his body tumbling on the snow until the reset while the skis go on without him (the yard sale), the skier BOGGED in deep powder and poled and rocked back out, and what a blow costs when damage is on (a dulled edge, hurt legs). Owns `engine/game/crash.ts`, `trench.ts`, `damage.ts`, the `TUNING.crash` / `.trench` / `.damage` blocks, the `wipeout` / `stuck` / `damage` events, and the ride lab's `tree`, `tree-glance`, `nose-in`, `rollover`, `catch`, `stuck` and `stuck-held` scenarios. Not the contact that STARTS a crash (`collision` — the trunk, the rival, the edge of the map) and not the fall's own physics (`ski-physics` — the body carries a skier over)."
+---
+
+# The crash
+
+This skill owns **one question**: what happens to the skier and his skis
+once a mistake is past saving — and how he gets going again?
+
+Three modules answer it, and the split matters:
+
+- **`engine/game/crash.ts`** — THE WIPEOUT. `wipeoutCause` reads the step
+  just taken (the `hit` and `land` events, the body's attitude against the
+  snow, the sideways slip at the stations) and names a cause or none; the
+  throw puts the skier off onto a body of his own (`SkierState.thrown`, a
+  `Thrown`); `stepThrown` moves that body — a RAGDOLL
+  (`engine/game/ragdoll.ts`): thirteen jointed points, each meeting the snow
+  (the floor, friction, the powder's plough) and the trunks on its own — and
+  `crashOver` says when the reset may stand him back up. Knobs in
+  `TUNING.crash` (`.body` is the skier's measures, the same bones
+  `skier-pose.ts`'s `BODY` draws — `tests/crash_test.ts` holds them
+  together).
+- **`engine/game/trench.ts`** — BOGGED IN DEEP POWDER. `stepTrench` sinks a
+  skier stopped in powder who is poling going nowhere
+  (`SkierState.trench`, m — how far the hole under his skis is pressed past
+  the snow's own sink) and packs it back as he rocks or moves out;
+  `skier.ts` adds the trench to the skis' support and takes a share of the
+  poles' push with it (`trenchGrip`). Knobs in `TUNING.trench`.
+- **`engine/game/damage.ts`** — WHAT A BLOW COSTS, only on a run that asked
+  for it (`GameState.damage`). `takeDamage` charges this step's blows to the
+  two skis' edges and the legs (`SkierState.damage`); `skier.ts` reads five
+  shares off it (`skiPull`, `skiBite`, `springShare`, `dampShare`,
+  `harshShare`). Knobs in `TUNING.damage`.
+
+`run.ts` is where they meet the step: with the skier off, the skis are
+stepped under the neutral input, his body under `stepThrown`, the course
+takes nothing, and the reset comes off `crashOver`; a bogged skier's
+automatic reset waits `trench.holdFor` instead of `reset.stuckFor`.
+
+The design came from the rally game's (`game2`) `crash` skill and its
+`roll.ts`, by way of the snowmobile game (`game4`): a crash is judged on a
+bench, one mechanism at a time, and a fall is the far end of the handling
+model rather than its own system. What is ours alone is the caught edge, the
+skis going on without their skier, and the snow he lands in — and the bog,
+which is snow's own way of stopping a skier.
+
+**Read this skill's lessons first** —
+`npx ogf-skill-lessons crash --list`.
+
+| Load beside this one | For |
+| --- | --- |
+| `ski-physics` | the fall itself, the caught edge's slip, the landing's cost, the sink the bog deepens |
+| `collision` | the trunk and the rival that start a crash, the reset that ends one |
+| `skier` | the figure thrown: `ragdollPose` off `Thrown.points` and how `skis-body.ts` lays him |
+| `visual-effects` | the burst, the puffs and the gouge a body leaves, the pulse |
+| `test-scenario` | staging a crash on the synthetic maps with `placeRun` |
+
+## The instrument: `make ride`
+
+A crash is over in two seconds and in the game it is mostly snow in the air.
+So stage it and read the numbers:
+
+```sh
+make ride SCENARIO=tree          # a trunk at 50 km/h: thrown, how far, when stood up
+make ride SCENARIO=tree-glance   # a trunk clipped slowly: a hit held on through
+make ride SCENARIO=nose-in       # a landing 40 degrees over the tips at 60 km/h
+make ride SCENARIO=rollover      # thrown onto his side at 70 km/h — a fall at speed
+make ride SCENARIO=catch         # an edge caught: the skis flung across at 70 km/h, then stood on their edge — the high-side
+make ride SCENARIO=stuck         # poling from rest in a metre of fresh snow: bogged, rocked out, skied off
+make ride SCENARIO=stuck-held    # the same with the push held: the reset
+```
+
+Every wipeout scenario prints the same line — the cause and when, the speed,
+how far the skier slid from his skis, how many turns he tumbled, when the
+reset came. The bog's prints when he sank, how deep, when he was out and
+whether the engine had to reset him. Then look: `make world
+ARGS=--views=wipeout,wipeout-lie` puts the player into the nearest trunk
+through the game's own renderer and photographs the skier in the air and
+where he came to rest, with the gouge his slide cut and the skis lying where
+they stopped.
+
+**`make sim` is the no-regression check, and its `wipe` column must read
+0.** The bot on every seed on every pair lands at most a few degrees
+tips-down and well under the impact that throws him, never goes past half
+over, never catches an edge and meets no trunk — the thresholds sit well
+beyond all of it (`TUNING.crash`'s comment says by how much). A wipeout in
+the solo table is a threshold that has come down into clean skiing, or a bot
+that has got worse. In a race (`--rivals 3`) the field shoulders skiers into
+the woods and a wipeout there is honest.
+
+## The rules
+
+- **A WIPEOUT IS A THRESHOLD ON WHAT THE STEP ALREADY MEASURED.** The trunk's
+  closing speed is the `hit` event's, the landing's impact the `land`
+  event's, the attitude the body's own quaternion against the snow's normal,
+  the caught edge the `sideSlip` the grip already computed. Nothing here
+  re-measures a contact; a cause that needs a new measurement belongs in the
+  module that makes the contact.
+- **NO CLEAN RUN CROSSES A THRESHOLD.** Before moving one, run the bot over
+  the corpus on every pair and print the distribution of what it meets (the
+  tips' angle and the impact at every landing, the worst attitude, the worst
+  slip at full edge, every trunk). The margin between that and the
+  threshold is the point of the number.
+- **OVER IS OVER AGAINST THE SNOW, ON THE SNOW, AND HELD.** A skier
+  traversing a steep face stands far off vertical while perfectly upright on
+  the slope: read his up against the ground's normal, never against the
+  sky, and only while he is ON the snow (`rolledFor`, not `overFor`) for
+  `crash.rollHold`. A skier turning over in the air has not fallen — the
+  landing decides — and one who clips a hip on the way round and comes back
+  onto his skis skis away.
+- **JUDGE THE LANDING THAT ENDS A FLIGHT, NEVER ITS REBOUND.** A hard
+  touchdown hands the skier back up for a fraction of a second and the
+  `land` event fires again when he comes down; that second contact is the
+  same landing, and its tips' angle is the slap of the legs, not a dive.
+  `crash.noseAir` keeps the over-the-tips to flights that were flights.
+  Before shipping a threshold, ski the stock `kicker` on every pair (`make
+  ride SCENARIO=kicker ARGS="--skis all"`, `crash_test`'s kicker case): an
+  ordinary jump overshot must be skied out.
+- **THE CAUGHT EDGE NEEDS BOTH: THE EDGE OVER AND THE SNOW SLIDING ACROSS
+  IT.** A flat ski slides sideways all day — a snowplough is exactly that —
+  and a ski well over on its edge holds; it is the two together past
+  `skier.slipSpeed` and `skier.slipEdge` that is a high-side. A threshold on
+  the slip alone throws every skier who skids; on the edge alone every skier
+  who carves.
+- **THE SKIER CARRIES THE WAY HE HAD BEFORE THE BLOW.** A trunk stops the
+  skis in one step; the velocity the skier leaves with is the one from
+  before that step (`run.ts` keeps it), times `keep`. Read after the trunk,
+  he would drop off stopped skis.
+- **A CRASH DRAWS NOTHING FROM THE STREAM.** The tumble, the throw and the
+  slide are functions of the moment, so a crash replays exactly and the sim's
+  digests do not move when one is added. Anything random-looking in the
+  picture is the renderer's, off its own seed.
+- **WITH THE SKIER OFF, THE SKIS ARE LET GO AND TAKE NOTHING.** The neutral
+  input, no gate, the automatic reset's clocks quiet; the skis slide on down
+  the slope on their own (a landing over the tips gives them the tip-over
+  the digging tips would, `skiKick`); the reset is `crashOver`'s — `lieMin`
+  off and `lieStill` lain still (`Thrown.still`), the beat the app's death
+  cam (`camera-death.ts`) rises over him on; cut it and the camera has
+  nothing to rise into. A skier who presses reset gets it at once.
+- **THE BOG DIGS ONLY WHEN STUCK, AND IS PACKED BY MOVING WEIGHT.** It grows
+  while the skier is poling (the tuck held) at a crawl in powder, for
+  `trench.after` s first — so no push off out of a powder start ever gets
+  there; it shrinks by the metre his weight moves (`hipAft`, `hipRight` —
+  the lean and the edge thrown about) and by the way made good past
+  `creep`. A skier rocking with the poles pinned is sinking as fast as he
+  packs: that is the lesson the mechanic teaches.
+- **A SOUND PAIR READS EXACTLY 0 AND EXACTLY 1.** Every damage share is
+  `1 - k · d`, every pull `k · (dR - dL)`, and the bog's grip and sink terms
+  the same, so a run without damage and out of any hole is the same
+  arithmetic to the last bit — which is why no digest moved when they landed.
+  Keep it so: a share written as `(1 - d) ** k` or a clamp with a floor is a
+  digest that moves for no reason.
+- **DAMAGE IS THE PLAYER'S AND NEVER A RIVAL'S.** `createRivals` deals every
+  rival `damage: false`; the field is never slowed by a setting the player
+  chose.
+
+## Workflow
+
+1. **Take the baseline first.** `make ride` on the crash and bog scenarios
+   and `kicker --skis all` (an ordinary overshot jump must be skied out), and
+   `make sim`, before the first edit.
+2. **Find WHICH STEP decided it.** Print every step's cause candidate —
+   impact, the tips' angle against the snow, up against the normal,
+   `sideSlip` against the edge, `overFor`, the trench and its clock — around
+   the moment; a crash that fired where it should not is one threshold met
+   on one step.
+3. **Tune defs, with the bot's distribution beside the number.**
+4. **Re-run the lab, then the tests** —
+   `npx vitest run tests/crash_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
+5. **LOOK.** `make world ARGS=--views=wipeout,wipeout-lie`.
+6. Docs: `docs/riding.md` ("The wipeout", "Stuck in powder", "Damage").
+
+## Skill self-improvement
+
+Record lessons under `.agents/skills/crash/.lessons/` via the
+**`skill-reflection`** skill: a threshold a clean run crossed and the
+measurement that showed it, a crash that moved a digest, a bog a push-off
+fell into — the class of failure, not the one-off.

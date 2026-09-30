@@ -1,0 +1,6 @@
+# The web deploy is not meant to be indexed. Nothing here is crawlable: no
+# sitemap, no llms.txt, and every HTML page carries `noindex` in its head as
+# well, because a robots rule only asks a crawler not to FETCH a page — it
+# does not stop one that already knows the URL from listing it.
+User-agent: *
+Disallow: /

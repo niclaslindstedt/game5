@@ -1,0 +1,39 @@
+# Common
+.DS_Store
+*.log
+*.tmp
+.env
+.env.local
+
+# Editors
+.vscode/
+.idea/
+.codex/
+*.swp
+
+# Coverage
+.coverage/
+coverage/
+
+# Node
+node_modules/
+pwa/dist/
+
+# Generated previews (level maps, ride strips, world views, the audition
+# page, gameplay screenshots) — tooling output, regenerated on demand with
+# `make level` / `make ride` / `make world` / `make audition` /
+# `make screenshots`.
+#
+# ANCHORED to the root on purpose. Unanchored, this pattern matches a
+# directory called `previews` at any depth, including one a later feature
+# might ship under pwa/public/.
+/previews/
+
+# Release scratch
+.release-notes.md
+
+# THE PLATFORM SHELLS. `tauri/` (the desktop app) and `native/` (the store
+# app) are both built, and each carries a .gitignore of its own — their
+# dependency trees, their build output and packed webroots, their .env and
+# every piece of signing material. Nothing in either may be a personal
+# identifier or a credential in a committed file.

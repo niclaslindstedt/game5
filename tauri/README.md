@@ -1,0 +1,207 @@
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+
+# Fall Line — the desktop app
+
+A desktop wrapper around the game for **Windows, macOS and Linux**. It is a
+thin [Tauri](https://tauri.app) shell whose entire content is the built
+website, so the app **looks and plays exactly like the site** — and because
+the site is bundled inside it and served from a private scheme, it plays
+offline and is an app rather than a viewer for a web page.
+
+The window uses the **platform's own webview** (WebView2 on Windows, WKWebView
+on macOS, WebKitGTK on Linux) rather than carrying a browser engine of its
+own, which is what keeps the download a few megabytes over the site itself.
+What is added around the page is the short list a browser tab cannot give a
+game and nothing more: one stable origin, a window that remembers itself, a
+fullscreen the page can reach (and a key for it), links out that open in the
+browser, a launch log, and — on macOS — a **real menu bar**, whose every row
+presses a button the game already has.
+
+---
+
+## Layout — TWO crates, and the split is the design
+
+| Path                        | What it is                                                                        |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `shell/`                    | **Every decision.** No Tauri, no GUI, no window                                   |
+| `shell/src/config.rs`       | The scheme, the host, the names, and what the window may navigate to              |
+| `shell/src/webroot.rs`      | Which file one request path is — the containment check                            |
+| `shell/src/window_state.rs` | Where the window opens, validated against the monitors attached                   |
+| `shell/src/output.rs`       | Where a diagnostic line goes: stdout, and the launch log                          |
+| `shell/src/display.rs`      | Whether there is anywhere to put a window, and what a panic should say            |
+| `shell/src/menu.rs`         | **The macOS menu bar, as data** — every row, its binding, and who serves it       |
+| `shell/tests/`              | Its whole test suite — runs anywhere a Rust toolchain does                        |
+| `src-tauri/src/main.rs`     | The process: the builder, the one command, the lifecycle                          |
+| `src-tauri/src/window.rs`   | The window, its geometry, and pinning it to our own origin                        |
+| `src-tauri/src/protocol.rs` | Answering `game://` off the bundled `webroot/`                                    |
+| `src-tauri/src/page.rs`     | The initialization script — the page's whole view of the shell                    |
+| `src-tauri/src/menu.rs`     | Building that bar, and spending its events                                        |
+| `src-tauri/capabilities/`   | **Tauri's own ACL** — what the window may reach. Deny by default                  |
+| `src-tauri/tauri.conf.json` | The static half of the bundle's shape; `scripts/package.mjs` computes the rest    |
+| `scripts/bundle-web.mjs`    | Builds the site and copies it to `webroot/` (gitignored)                          |
+| `scripts/icons.mjs`         | Re-encodes the mark to the RGBA Tauri insists on, plus the `.ico` and the `.icns` |
+| `scripts/lib/mac-icon.mjs`  | **The macOS icon** — the squircle, the inset, the lighting, the `.icns` ladder    |
+| `scripts/package.mjs`       | Packaging — this platform's downloads, into `release/`                            |
+
+`cargo test -p fallline-shell` therefore runs the entire decision layer on a
+machine with **no GUI libraries installed at all**, which is what makes this
+tree's logic coverable on an ordinary CI runner. The app crate has no tests of
+its own by design — every decision lives in the library, which is the whole
+reason for the split, and a test that would need one is a decision sitting in
+the wrong crate.
+
+---
+
+## How the pieces fit
+
+**The page barely learns it is inside this app.** One frozen global,
+`__SH_SHELL__ = "tauri"`, is defined before the game's own scripts run
+(`src-tauri/src/page.rs`), and `pwa/src/shell-host.ts` reads it to keep the
+PWA update lifecycle off — the bundle IS the update in here, so a service
+worker precaching it would only ever prompt about a build it already is.
+Nothing else about the page changes, and nothing in `engine/` knows the shell
+exists. The root suite (`tests/tauri_test.ts`) holds the global's name, the
+window title, the brand background and the bundle's description to
+`pwa/src/identity.ts`.
+
+**The origin is the one thing to be careful with.** The player's settings live
+in origin-keyed browser storage, so `APP_SCHEME` and `APP_HOST` are constants
+that must never be tidied. WebView2 maps a registered scheme onto
+`http://<scheme>.localhost`; WKWebView and WebKitGTK serve it as a real
+`<scheme>://` URL. Both are one constant per platform, which is the property
+that matters.
+
+**The page never sees Tauri.** `withGlobalTauri` is off, the ACL grants the
+window `core:default` and nothing else, and the one command the page may reach
+(`shell_fullscreen`) is looked up at call time rather than captured. The
+dialog and opener plugins are called from Rust only.
+
+**The window's fullscreen is the one thing the page may ask for**, because it
+is the one thing a desktop window has that a browser tab keeps for itself —
+the Fullscreen API belongs to a chrome this window does not have. It is two
+DOM events rather than a handle: the page dispatches `sh-shell-fullscreen-ask`
+carrying one word (`on`, `off`, `toggle`, `state`), and the shell answers on
+`sh-shell-fullscreen` with where the window now stands. The answer is PUSHED
+— on every ask and on every resize — so F11, Alt+Enter and the window
+manager's own button all reach a FULLSCREEN row in the game's options, which
+never has to guess. Both event names are spelled again in
+`pwa/src/shell-host.ts`, and `tests/tauri_test.ts` holds the pair together.
+The website has no such row today; the conversation is here for the day it
+grows one, and F11 works either way.
+
+**The menu bar presses the game's own keys.** Five words cross —
+`restart`, `reset`, `pause`, `camera`, `shot` — and each is a key the player
+can already press (B, R, Escape, C, Enter), under a RACE menu and a VIEW menu
+(View ▸ Take Screenshot, ⇧⌘S, files a picture in the game's gallery). `App.tsx` lands every one of them on the very handler the key
+lands on, so a menu row can never become a second button; the words are listed
+in `pwa/src/shell-host.ts` and `tests/tauri_test.ts` holds the two lists
+together.
+
+**The window is pinned to its own origin.** The site's own pages navigate
+normally; the repository link, a credit and the privacy and support pages open
+in the player's browser rather than replacing the game with a page it cannot leave.
+Which URLs count is `shell/src/config.rs`, which has the tests.
+
+---
+
+## Developing
+
+Needs a **Rust toolchain** ([rustup](https://rustup.rs)) plus the platform's
+webview development libraries — Tauri's own
+[prerequisites](https://tauri.app/start/prerequisites/) page is the current
+list per platform. On Debian/Ubuntu that is `libwebkit2gtk-4.1-dev`,
+`libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` and `patchelf`;
+on macOS the Xcode command line tools; on Windows the WebView2 runtime
+(already present on Windows 11).
+
+The root entry point builds the site into `tauri/webroot/`, compiles the
+shell, and launches it:
+
+```sh
+make tauri                # from the repo root
+npm run tauri             # the same thing
+```
+
+### Checking it
+
+```sh
+make tauri-test    # the decision layer — needs no GUI libraries
+make tauri-lint    # clippy at zero warnings, BOTH crates (needs the libraries)
+make tauri-fmt     # rustfmt in place
+```
+
+**Neither is on the root suite's path**: `make test` and `make lint` stop at
+this tree's edge, because it has its own toolchain.
+`.github/workflows/desktop-tauri.yml` runs both on every push that touches
+`tauri/`, so a tree somebody forgot to check is a red PR rather than a
+surprise. The root suite still reaches the static half — `tests/tauri_test.ts`
+reads `tauri.conf.json` and the Rust constants as text.
+
+`make tauri-lint` needs a `webroot/` and the icons to exist (`tauri-build`
+refuses a missing bundle resource or icon before a line of code is looked at);
+`npm run lint` in this tree makes the icons, and the workflow drops a one-line
+placeholder page in as the webroot rather than building the site to typecheck
+Rust.
+
+### The launch log, when it does not start
+
+The shell writes **every launch** to `launch.log` in its user-data directory
+(`%APPDATA%\fallline` on Windows, `~/Library/Application Support/fallline` on
+macOS, `~/.local/share/fallline` on Linux), keeping the previous one beside it
+as `launch.log.prev`. A packaged game has no console, so that file — plus the
+error dialog anything fatal raises — is the whole diagnosis. Attach it to a bug
+report. The window's remembered geometry (`window-state.json`) is the only
+other thing there; the player's settings are the webview's own.
+
+### Environment
+
+| Variable       | Effect                                                                    |
+| -------------- | ------------------------------------------------------------------------- |
+| `SH_GAME_URL`  | Load a remote URL instead of the bundled site (e.g. the `/preview/` slot) |
+| `SH_WEBROOT`   | Serve the site from somewhere else without rebuilding                     |
+| `SH_VERBOSE=1` | Keep the informational log in a release build                             |
+
+---
+
+## Packaging
+
+```sh
+make desktop                                      # this machine's downloads
+make desktop ARGS="--target aarch64-apple-darwin" # an explicit target
+```
+
+`scripts/package.mjs` builds the site, makes the icons, runs `tauri build`
+with the game's version (root `package.json`'s — the shell crate's own number
+is never a release's) patched in, and collects the downloads into `release/`
+as `fallline-<version>-<os>-<arch>.<ext>`: a `.deb` and an `.AppImage` on
+Linux, a `.dmg` on macOS, an NSIS `-setup.exe` on Windows.
+
+**macOS is never signed with nothing** — Apple Silicon refuses to execute
+unsigned arm64 code at all, so the default is an ad-hoc signature and
+`APPLE_SIGNING_IDENTITY` is what a release sets instead. An ad-hoc build is
+refused once by Gatekeeper (System Settings → Privacy & Security → Open
+Anyway), which the release notes tell the player. On CI that identity is not
+configured by hand: `.github/actions/apple-signing` imports the certificate
+and reads it back out, and the notarization that removes the prompt entirely
+is three more secrets — [configuration.md](../docs/configuration.md) has the
+table.
+
+`--keep` adds to `release/` instead of clearing it, which is what lets one
+Apple Silicon runner produce both macOS slices: the native `aarch64` build,
+then `--target x86_64-apple-darwin --skip-web --keep` for an Intel Mac.
+
+`release.yml` runs the same script on a runner per platform and attaches the
+result to every release — created as a draft, made public only once all three
+downloads are on it. `desktop-tauri.yml`'s dispatch does the same for one
+platform without cutting a version, with the identical signing and
+notarization environment, so a certificate can be proved before a version is
+tagged rather than after.
+
+## What is deliberately not here yet
+
+The sibling rally game's shell also carries a **store half** — a Steam page, a
+Mac App Store submission with its own sandbox entitlements and config overlay,
+and a layered macOS 26 icon — all compiled from an authored listing that this
+repository does not have. None of it is ported: a listing is a different
+craft with a different review loop, and half a store submission in the tree is
+worse than none. See [`docs/platforms.md`](../docs/platforms.md).

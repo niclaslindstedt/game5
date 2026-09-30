@@ -1,1 +1,151 @@
-# game5
+# Fall Line
+
+> A downhill skiing game for the browser: a generated mountain with a graded piste descending it from the summit ridge to the valley floor, through the trees, over the rollers and off the kickers, with deep powder beside it everywhere — a skier who edges, carves, skids, tucks, floats and flies the way a skier actually does — playable on your phone or desktop, installable as a PWA, offline once loaded. **[Play it now](https://game5.niclaslindstedt.se/).**
+
+[![ci](https://github.com/niclaslindstedt/game5/actions/workflows/ci.yml/badge.svg)](https://github.com/niclaslindstedt/game5/actions/workflows/ci.yml)
+[![release](https://github.com/niclaslindstedt/game5/actions/workflows/release.yml/badge.svg)](https://github.com/niclaslindstedt/game5/actions/workflows/release.yml)
+[![pages](https://github.com/niclaslindstedt/game5/actions/workflows/pages.yml/badge.svg)](https://github.com/niclaslindstedt/game5/actions/workflows/pages.yml)
+[![spec](https://img.shields.io/badge/OSS__GAME__SPEC-v1.1.0-blueviolet)](OSS_GAME_SPEC.md)
+[![license](https://img.shields.io/badge/license-PolyForm--NC-blue.svg)](LICENSE)
+
+## What
+
+Fall Line is an arcade downhill skiing game — no account, no download, free. The whole game is the sensation of a skier meeting snow: on the groomed piste the edges bite and the sidecut carves, off it the skis sink into deep powder at walking pace and float up onto the top of it as speed builds, the way skis really do. There is no engine — the drive is gravity. Tuck and the drag comes off; stand up and it comes back; throw the skis across the way and the skid scrubs speed off in a sheet of snow; a caught edge high-sides you. Rollers kick you into the air, the lean pitches you in flight, and a harsh landing costs you the speed you carried into it.
+
+Every map is **generated from a seed** by a rules engine: a mountain face under a summit ridge, spurs and gullies running down the fall line, bowls above a tree line that is a real altitude, woods and glades below it, and one piste graded down it — an open descent from a start gate near the summit to a finish straight on the valley floor, never climbing, with crests on it that are jumps and gates down it every hundred metres or so, red and blue, to the finish line. The race starts four abreast behind the start gate and runs one descent against three rivals through the gates in order; stretches of the piste lie drifted over with fresh snow. The sun's hour comes with the seed too; the same seed is the same mountain on every machine, so a URL is a map and a bug report is a repro.
+
+Six pairs of skis ship — an all-mountain pair, a slalom ski, a giant slalom ski, a downhill ski, a powder ski and a soft twin-tip, each a real class with its numbers inside the class's measured bands, an answer to a kind of snow, dressed in four topsheets and with no real brand behind it — with the skier standing on them. Every hill is written in code, every sound is synthesized, and the skis, the skier, all twenty kinds of tree, every bird and animal of the wildlife and the course's marks are modelled in Blender off the game's own numbers (`make models`; switch back to the code-built ones with `VITE_MODEL_SKIS=0`, `VITE_MODEL_SKIERS=0`, `VITE_MODEL_TREES=0`, `VITE_MODEL_BIRDS=0`, `VITE_MODEL_BEASTS=0`, `VITE_MODEL_GATES=0`).
+
+**What exists today is the first vertical slice**: one generated mountain, six pairs of skis to choose between on a ski card, a CAMPAIGN (three shelves of six pinned maps — the nursery's blue runs, the ridge's reds, the glacier's blacks — skied for points and medals against the field, each map opening the next), a RACE (you and three bot rivals, one run top to bottom), a TIME TRIAL (the same mountain alone, against a record book kept per map and pair, and the translucent ghost of the run that set the record), a FREE RIDE (the whole mountain to yourself, in a kind of country, on a date, an hour and a depth of snow you pick on a start card, starting anywhere you tap on its chart) and TRICKS (two minutes alone on one of six trick maps, each on its own date, hour and sky, with a terrain park of kickers in three sizes laid down its piste — the big ones landed on a slope dug past the lip — scored for the air, the backflips, front flips and 360s, the grabs and a clean landing, combo by combo), under one of eight weathers, the bright ones most days — clear, fair, flurries out of a sunny sky, high cloud, the flat light of an overcast, a steady snowfall, a storm under black cloud that closes the view to tens of metres, a valley fog — the snow that falls piling up on the piste and in the powder as you ski, and on a quarter of the maps into dusk and night under the moon, the stars and the Milky Way, the finish arena's floodlights on the run-out, the tracks every ski leaves in the snow, four kinds of country to raise a seed in (the alpine, the fell, the continental, the maritime), each with its own woods, snow and wildlife, a HUD with the speed, the gates taken, the run clock, your place, an edge bar and a heading-up minimap, keyboard and touch controls, and a shell of attract card, front door, OPTIONS (the picture's cost row by row, the sound, the keys, the thumbs and how much the skis help), loading card, pause card, finish plate, a replay of every run on a broadcast camera, and a shutter with a gallery. The same build also ships as a desktop app (`tauri/`) and a store app for phones (`native/`). More modes are planned, not built.
+
+## Why
+
+- **The snow first.** The groomed piste and virgin powder are two different grounds under the same skis: sink, drag and grip all answer to how packed the snow under each station of each ski is, and the skis float higher the faster they go.
+- **A skier, not a vehicle.** Two skis on two legs, an edge whose sidecut decides the carve, a skid that is the only brake, a tuck that is the only throttle, and the skier's own weight inclined into the turn. Each force is stated once, with its unit.
+- **Mountains, endlessly.** A rules engine builds every mountain and every piste under hard constraints — same seed, same map, shareable and replayable.
+- **Measured, not guessed.** A headless simulator skis a bot through the real engine; the balance table and the labs keep the skier, the snow and the generator honest with each other.
+- **Web-native.** One codebase, phone-first, portrait and landscape, installable, offline-capable. The same site is wrapped as a desktop app and a store app ([docs/platforms.md](docs/platforms.md)).
+
+## Prerequisites
+
+- Node.js 22+ (CI pins the version in [`.nvmrc`](.nvmrc))
+- npm 10+
+
+## Install
+
+```sh
+git clone https://github.com/niclaslindstedt/game5
+cd game5
+npm install
+```
+
+Every dependency comes from the public npm registry — no token, no registry configuration.
+
+## Quick start
+
+```sh
+npm run dev
+```
+
+Open the printed URL. `?seed=38` on the URL opens another mountain.
+
+## Usage
+
+| Command                 | What it does                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make build`            | Typecheck both programs (the engine and the app) and build the site into `pwa/dist/`                                                                                                                                                                                                                                                                                                     |
+| `make test`             | The vitest suite; `SHARD=i/N` runs one slice of it (CI runs two)                                                                                                                                                                                                                                                                                                                         |
+| `make lint`             | eslint and the typecheck, zero warnings                                                                                                                                                                                                                                                                                                                                                  |
+| `make fmt`              | prettier in place; `make fmt-check` is what CI runs                                                                                                                                                                                                                                                                                                                                      |
+| `make hooks`            | Install the pre-commit and commit-msg git hooks                                                                                                                                                                                                                                                                                                                                          |
+| `make icons`            | Regenerate the install icons and the favicon from the app mark                                                                                                                                                                                                                                                                                                                           |
+| `make sim`              | The headless balance sweep: the bot skis generated mountains through the real engine (`SEEDS=3,7`; `ARGS="--skis all"` every pair; `ARGS=--tricks` on the trick-park maps; `REGION=fell`)                                                                                                                                                                                                |
+| `make level`            | One mountain from above, from the engine alone: the face, the forest and the tree line, the piste and its gates (`SEED=38`; `REGION=`; `ARGS=--tricks` lays the terrain park)                                                                                                                                                                                                            |
+| `make analyze`          | Score generated maps for defects; exits non-zero on an error finding (`SEED=7`, `COUNT=24`, `REGION=`)                                                                                                                                                                                                                                                                                   |
+| `make rate`             | Rate generated maps: how hard and what kind of hard (`COUNT=96 ARGS=--stats`; `CAMPAIGN=1` audits the committed ladder)                                                                                                                                                                                                                                                                  |
+| `make difficulty`       | One map from above with what makes it hard drawn over it (`SEED=38`; `CAMPAIGN=1` a sheet per campaign map)                                                                                                                                                                                                                                                                              |
+| `make routes`           | Regenerate the piste drawn behind each campaign box (`pwa/src/game/campaign-routes.ts`)                                                                                                                                                                                                                                                                                                  |
+| `make ride`             | The skier on the snow in profile, one staged scenario at a time (`SCENARIO=`: a schuss, a carve, a hockey stop, a kicker, the powder, a trunk, a caught edge, bogged; `backflip`, `frontflip`, `spin`, `pose`, `kicker-flip` score a trick)                                                                                                                                              |
+| `make world`            | One mountain skied by the bot, photographed through the renderer at named views (`SEED=38`, `ARGS=--views=`, `REGION=`)                                                                                                                                                                                                                                                                  |
+| `make skis`             | Every pair and its skier, built by the game's own builder, on labelled contact sheets: the catalog by view, the topsheets, the skier's poses, the skier close up, his helmet alone from every side, a landing, and modelled versions beside the builder's, posed by their rigs and playing their clips (`SKIS=chough`, `ARGS=--sheet=poses`, `ARGS=--asset=a.glb`, `ARGS=--skier=s.glb`) |
+| `make blender`          | A game asset modelled in Blender off the game's own data: studio renders, the game-budget glTF (skinned on a rig, with its clips) with two LODs, the `.blend` — never committed (`KIND=skis`, `KIND=skier`, `KIND=tree` — a kind's ten variants in one glTF — `KIND=bird`, `KIND=beast` or `KIND=gate`; `ID=chough` or `ID=all`, `ARGS=--quality=game`; needs Blender)                   |
+| `make models`           | The skis, the skier, every kind of tree, every bird and animal and the course's marks modelled at game quality and published into the committed `pwa/models/` with their sources' stamps (needs Blender; `SET=machines`, `trees`, `birds`, `beasts` or `gates` one half) — run it when `tests/models_test.ts` says a model is stale, and commit                                          |
+| `make model-registry`   | Rewrite `docs/models.md`'s table — which assets are Blender models and which the code generates — from `pwa/src/game/model-registry.ts` (`ARGS=--check` only compares)                                                                                                                                                                                                                   |
+| `make ci-models`        | Switch the models on or off for every CI build without a commit (`MODELS=off` sets the `VITE_MODEL_*` repository variables to 0; needs `gh`)                                                                                                                                                                                                                                             |
+| `make sky`              | Every weather against every three hours, day and night, on one map from one place, as one contact sheet (`SEED=38`, `ARGS=--hours=`)                                                                                                                                                                                                                                                     |
+| `make cloud`            | The snow a skier rips up and the groove he leaves: each kind of snow × light × speed skied across a bowl, photographed from several angles, as one contact sheet (`ARGS=--snow=soft,new --light=back,night`)                                                                                                                                                                             |
+| `make birds`            | Every bird and every animal of the wildlife side by side, three poses each, as one contact sheet (`ARGS=--rows=raven,chamois`; `ARGS=--models` the modelled ones, `--from=previews/blender --compare` a Blender run's under the code's)                                                                                                                                                  |
+| `make trees`            | Every kind of tree and each of its ten variants side by side, as one contact sheet (`REGION=fell`, `ARGS=--sketch`; `ARGS=--models` the modelled trees, `--from=previews/blender --compare` a Blender run's under the code's)                                                                                                                                                            |
+| `make forest`           | A map's woods measured and drawn from above: the kinds, the clumps, the gaps, the tree line, how far a skier sees in (`SEED=38 ARGS=--compare`, `COUNT=12`)                                                                                                                                                                                                                              |
+| `make audition`         | The audio review page, every sound and bed on a button; `ARGS=--meter` prints the levels                                                                                                                                                                                                                                                                                                 |
+| `make screenshots`      | Drive the built app headlessly and photograph it at the reference viewports (`make build` first)                                                                                                                                                                                                                                                                                         |
+| `make profile`          | What one frame costs the renderer: draw calls, triangles, binds (`make build` first; `ARGS="--video all"` meters every picture preset)                                                                                                                                                                                                                                                   |
+| `make bench`            | DEVELOPER ▸ BENCHMARK on the built site: the pinned race timed, and its debug report printed (`make build` first); `ARGS="--gpu --ab"` on the host's GPU with each subsystem's GPU cost; `--costs` prices every picture stop for AUTO                                                                                                                                                    |
+| `make tauri`            | Build the site into the desktop app and launch it (needs Rust)                                                                                                                                                                                                                                                                                                                           |
+| `make tauri-test`       | The desktop app's decision layer, on a bare Rust toolchain                                                                                                                                                                                                                                                                                                                               |
+| `make tauri-lint`       | clippy over both desktop crates at zero warnings (needs the webview libraries); `make tauri-fmt` formats                                                                                                                                                                                                                                                                                 |
+| `make desktop`          | Package this machine's desktop downloads into `tauri/release/`                                                                                                                                                                                                                                                                                                                           |
+| `make native-install`   | The store app's own dependency tree                                                                                                                                                                                                                                                                                                                                                      |
+| `make native-bundle`    | Pack the built site into the store app — before every native build                                                                                                                                                                                                                                                                                                                       |
+| `make native-typecheck` | tsc over the store app's shell                                                                                                                                                                                                                                                                                                                                                           |
+| `make native-ios`       | The store app on an iOS simulator (`native-android` for Android, `native-iphone` for a real iPhone)                                                                                                                                                                                                                                                                                      |
+| `make shellcheck`       | shellcheck over the scripts and the git hooks; `make actionlint` lints the workflows                                                                                                                                                                                                                                                                                                     |
+| `make changelog`        | Preview the CHANGELOG section a release would write (`VERSION=X.Y.Z`)                                                                                                                                                                                                                                                                                                                    |
+| `make bump`             | Print the semver bump the release would derive from the changeset fragments                                                                                                                                                                                                                                                                                                              |
+
+The browser-driven labs (`screenshots`, `profile`, `world`, `sky`, `cloud`, `skis`, `birds`, `trees`, `audition ARGS=--meter`) need `npm i --no-save playwright-core` and a Chromium; `CHROMIUM_PATH` points at one.
+
+## Controls
+
+**Keyboard:** W tuck (fold down into the crouch — the drag comes off and the speed comes; at a crawl it is the poles pushing you out of the start gate and across a flat), S / Space brake (the skid: the skis thrown across the way, a snowplough with the skis straight and a hockey stop with an edge in), A D / ← → edge (tip the skis over and the sidecut carves — the harder over, the tighter the arc), ↓ / E / Shift lean back and ↑ / Q / Z lean forward (a lean back at speed floats the tips out of the powder; in the air they pitch you; carried all the way on a tricks run they throw a flip, and the edge thrown all the way over a 360), F / X held in the air on a tricks run for a grab, R back onto the piste at the last gate you took, B restart the run from the start line, C camera (TIPS, HELMET, CHASE, FAR, HIGH), H HUD on / off, Enter take a picture (kept in the front door's GALLERY, forty to a roll, to share, copy or save), Escape pause — every one of them rebindable on OPTIONS ▸ KEYS. W and S pressed in the air lean forward and back too (a lean key held over them wins).
+
+**Touch:** the lower-left of the screen is the EDGE THUMB — touch anywhere and move the thumb: sideways travel tips the skis onto an edge, vertical travel leans. The lower-right is the TUCK LEVER — you are in a full tuck the moment your thumb lands: slide UP to stand up, and further up to skid. The top-right corner carries three presses: pause, reset, camera. A screenshot taken with the phone's own buttons in the store app is kept in the GALLERY. OPTIONS swaps the lever and the thumb for a left hand, sets the thumbs' travel, and inverts the lean. Works in portrait and landscape; the HUD re-flows to fit.
+
+**On the phone:** the game is an installable PWA — open [game5.niclaslindstedt.se](https://game5.niclaslindstedt.se/), then "Add to Home Screen" (iOS Safari: Share → Add to Home Screen; Android Chrome: menu → Install app). It launches fullscreen, works offline and prompts in-app when a new build ships.
+
+## Configuration
+
+All configuration is a URL parameter or build-time:
+
+- `?seed=` — which mountain; `?skis=` — which pair, for the visit; `?mode=trial` — a time trial rather than a race; `?region=` — which kind of country (`alpine`, `fell`, `continental`, `maritime`).
+- OPTIONS on the front door — the picture, the sound, the keys, the thumbs and the assist, remembered between visits.
+- `VITE_BASE` — deploy base path (`/`, `/preview/`, `/branch/`); set by the Pages workflow, defaults to `/`.
+- `VITE_PWA_IGNORE_PATHS` — sibling deploy slots the root service worker must not claim; set by the Pages workflow.
+
+**The three deploy slots**, all on GitHub Pages at [game5.niclaslindstedt.se](https://game5.niclaslindstedt.se/):
+
+| Slot        | Serves                                                                                |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `/`         | The latest release (the highest `v*` tag), or `main` before the first release         |
+| `/preview/` | The current `main`, rebuilt on every push                                             |
+| `/branch/`  | A feature branch parked there by dispatching the `pages` workflow with a `branch_ref` |
+
+See [docs/configuration.md](docs/configuration.md) for the full picture.
+
+## Troubleshooting
+
+- **Black canvas / WebGL errors** — the renderer needs WebGL2; check `chrome://gpu` or try another browser. The engine itself is fine — `make sim` runs without any GPU.
+- **You sink to the knees off the piste** — deep powder holds a slow skier. Keep the speed up and lean back and the skis float up onto the top of the snow; stop in it and you are BOGGED: hold the tuck to pole and rock the lean and the edge to work out, or R back onto the piste.
+- **Thrown, or lying in the snow** — R puts you back on the piste at the last gate you took; it also happens on its own after a few seconds.
+- **Stale build after deploy** — the service worker prompts before updating; if a prompt was dismissed, reload twice or clear site data.
+
+## Architecture
+
+Three layers, one direction of dependency: `engine/` is the whole game as a framework-free, renderer-free TypeScript module (the map generator, the skier, the snow, the course, the race, the bot and the analyzer — fixed 120 Hz steps, deterministic per seed); `pwa/` is the browser shell (Preact, three.js, the HUD, the audio, the PWA plumbing) that reads the engine's state and never steps it; `tests/` and `scripts/` sit beside them. [AGENTS.md](AGENTS.md) is where new code goes.
+
+## Documentation
+
+- [Configuration](docs/configuration.md) — URL parameters, the deploy slots, the identity
+- [Getting started](docs/getting-started.md) — a first run, every control, running from a checkout
+- [Troubleshooting](docs/troubleshooting.md) — what goes wrong playing and developing, and why
+- [Audio](docs/audio.md) — how every sound is synthesized and mixed
+- [Platforms](docs/platforms.md) — the web, the desktop app and the store app
+- [Spec conformance](docs/spec-conformance.md) — where this repo stands against [OSS_GAME_SPEC.md](OSS_GAME_SPEC.md), chapter by chapter
+
+## Contributing
+
+Bugs and feature requests go to [GitHub Issues](https://github.com/niclaslindstedt/game5/issues); questions to [Discussions](https://github.com/niclaslindstedt/game5/discussions). Read [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (conventional commits, changeset fragments, the labs-before-and-after rule for skis, snow and generator changes). This repository conforms to [OSS_GAME_SPEC.md](OSS_GAME_SPEC.md).
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE) — free to play, read, and modify for noncommercial purposes. Code and the generated assets alike: the game ships nothing it did not write, so there is no second license to state.

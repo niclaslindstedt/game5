@@ -1,0 +1,173 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
+  THE PRIVACY POLICY. A static page under `pwa/public/`, so it is copied into
+  every deploy slot verbatim and needs neither the app's bundle nor a route:
+  a store listing names this URL, and Apple checks that it resolves before
+  review opens the app at all. A page behind the game's own JavaScript would
+  be a page a crawler, a rating board and a Play Console form all fail to
+  read.
+
+  IT SAYS ONE THING, AND IT IS TRUE OF THE BUILD: nothing reaches us. The one
+  thing that leaves the device is the iOS app's cloud save, into the skier's
+  own iCloud (pwa/src/game/cloud-save.ts), and the page says so. Keep it that
+  way — if the game ever gains an account, a leaderboard server,
+  an analytics call or an advertising SDK, this page becomes false in the
+  same commit.
+
+  The colours are `PALETTE` from pwa/src/identity.ts, restated because a
+  static page cannot import a TypeScript module. There is no third copy: this
+  is a leaf, not a source of truth.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Fall Line</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root {
+        --sky: #6fa8dc;
+        --sky-deep: #0d2233;
+        --ink: #0d2233;
+        --ink-dim: #4a6472;
+        --paper: #f4f8fb;
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(160deg, var(--sky) 0%, var(--sky-deep) 100%);
+        color: var(--ink);
+        font-family:
+          "Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+        font-size: 17px;
+        line-height: 1.55;
+        padding: 4vh 5vw 12vh;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        background: var(--paper);
+        border-radius: 14px;
+        padding: clamp(1.5rem, 4vw, 3rem);
+        box-shadow: 0 18px 50px rgb(4 30 42 / 35%);
+      }
+      h1 {
+        font-size: clamp(1.8rem, 5vw, 2.6rem);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        margin: 0 0 0.2em;
+      }
+      h2 {
+        font-size: 1.15rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 2.2em 0 0.5em;
+        color: var(--sky);
+      }
+      .lede {
+        font-size: 1.2rem;
+        margin: 0 0 1.5em;
+      }
+      .updated {
+        color: var(--ink-dim);
+        font-size: 0.95rem;
+        margin: 0 0 2em;
+      }
+      ul {
+        padding-left: 1.2em;
+      }
+      li {
+        margin-bottom: 0.4em;
+      }
+      a {
+        color: var(--sky);
+      }
+      footer {
+        margin-top: 3em;
+        padding-top: 1.5em;
+        border-top: 1px solid rgb(8 42 56 / 15%);
+        color: var(--ink-dim);
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="lede">
+        <strong>Fall Line collects nothing.</strong> There is no account, no sign-in, no analytics,
+        no advertising, and no server of ours anywhere that knows you played.
+      </p>
+      <p class="updated">
+        Applies to the web game and to any app built from it. Last updated 2026-09-23.
+      </p>
+
+      <h2>What the game stores</h2>
+      <p>
+        The game remembers a few things so that it is still the game you left. All of it is held by
+        your own browser or app, on your own device, in ordinary local storage:
+      </p>
+      <ul>
+        <li>Your settings.</li>
+        <li>
+          Your best times down each piste, the ghost runs that set them, and your campaign's
+          results.
+        </li>
+      </ul>
+      <p>
+        In the web game none of it is transmitted: clearing the site data in your browser deletes
+        all of it, and there is no copy elsewhere to restore it from.
+      </p>
+      <p>
+        In the iOS app, the same things — except the picture settings and the touch controls, which
+        belong to that device — are also kept in your own iCloud (Apple's key-value storage, under
+        the Apple ID the device is signed into), so your other devices can pick up where this one
+        left off. That copy is yours and Apple's; we have no access to it and no server that
+        receives it. Signing out of iCloud, or turning iCloud off for the app, keeps everything on
+        the device alone.
+      </p>
+
+      <h2>What the game sends</h2>
+      <p>
+        Nothing of ours, and nothing to us. The web version loads the game's own files from its own
+        address once, then runs offline. The only connection you can cause is a link you press
+        yourself — the source repository, or a credit — which opens in your own browser and is then
+        between you and that site.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        The game is suitable for a general audience and collects no personal information from
+        anybody, of any age. There is nothing to buy inside it and no way to communicate with
+        another player through it.
+      </p>
+
+      <h2>Hosting</h2>
+      <p>
+        The web version is served by GitHub Pages. Like any web server, it sees the requests that
+        fetch the page. We neither receive nor keep those logs, and we run no other service that the
+        game talks to.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        If a future version of the game ever gains something that does leave your device, this page
+        changes in the same release that adds it.
+      </p>
+
+      <footer>
+        <p>
+          Questions:
+          <a href="https://github.com/niclaslindstedt/game5/discussions">Discussions</a> ·
+          <a href="/support/">Support</a> · <a href="/">Play the game</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

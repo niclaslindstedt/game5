@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// WHAT THE LENS MAY NOT STAND INSIDE, for one map: the `LineClear` the booms
+// pull their arm in against (`camera-rigs.ts`). Three-free, so the suite
+// reads it (`tests/world_render_test.ts`).
+//
+// THE SOLIDS ARE THE ONES AS DRAWN, not the physics' trunks. A skis only
+// meets a trunk, but a lens meets the crown: a spruce is drawn as a cone of
+// skirts from a tenth of its height to its tip (`forest.ts`), and a lens
+// anywhere inside that cone is a frame of green. Beside the trees stand the
+// course's own marks — every checkpoint's two stakes, and the start/finish
+// arch's two legs and the span across the track over them (`start-arch.ts`).
+//
+// The trees near the line are asked of the engine's own hash (`treesNear`),
+// once per question, for the circle round the whole line; the line is then
+// walked in short steps from the skier's helmet out to the lens, and the
+// share of it before the first step that lands inside something is the
+// answer. A skier already under a bough (the helmet inside a crown) is not
+// a reason to pull the lens onto him: the walk starts counting at the first
+// step that is out in the open.
+//
+// THE RIDDEN BOOMS DO NOT ASK ABOUT THE TREES (`{ trees: false }`): a boom
+// pulled in for every trunk flicking past jolts the lens at the skier, and a
+// bough across the frame for a moment is the lesser fault. They still keep
+// out of the course's own marks; the planted lenses (the broadcast, the
+// death cam) ask of the trees as well.
+
+import { treesNear, type Level } from "@engine";
+
+import type { LineClear, Vec3 } from "./camera-rigs.ts";
+import { ARCH, archPlan } from "./start-arch.ts";
+
+/** How far off any solid the lens is kept, m — a near plane's worth and a
+ * little more, so the branch nearest the lens is never cut open by it. */
+export const LENS_PAD = 0.45;
+/** Walk step along the line, m. */
+const STEP = 0.3;
+/** Where a drawn crown starts, as a share of the tree's height; and the
+ * share of the generator's crown radius the drawing is (`forest.ts`). */
+const CROWN_FROM = 0.08;
+const CROWN_DRAWN = 0.95;
+/** Checkpoint stake: height and radius, m (`gates.ts`). */
+const STAKE = { height: 3.2, radius: 0.06 };
+
+type Post = { x: number; z: number; y0: number; y1: number; r: number };
+type Banner = {
+  x: number;
+  z: number;
+  ux: number;
+  uz: number;
+  half: number;
+  /** Half its thickness along the track, m. */
+  thick: number;
+  y0: number;
+  y1: number;
+};
+
+export type LineClearOptions = {
+  /** Whether the trees are solid to the lens (default true). */
+  trees?: boolean;
+};
+
+export function createLineClear(level: Level, opts: LineClearOptions = {}): LineClear {
+  const trees = opts.trees ?? true;
+  const posts: Post[] = [];
+  let banner: Banner | null = null;
+  const last = level.checkpoints.length - 1;
+  level.checkpoints.forEach((cp, index) => {
+    if (index === last) {
+      // The finish line has no stakes: the arch stands over it instead.
+      const arch = archPlan(level, cp);
+      for (const f of arch.feet) {
+        posts.push({ x: f.x, z: f.z, y0: f.y - 1, y1: arch.top, r: ARCH.tube });
+      }
+      const face = Math.max(ARCH.tube, ARCH.panel / 2);
+      banner = {
+        x: arch.x,
+        z: arch.z,
+        ux: arch.rx,
+        uz: arch.rz,
+        half: arch.reach + ARCH.tube,
+        thick: ARCH.tube,
+        y0: arch.top - face,
+        y1: arch.top + face,
+      };
+      return;
+    }
+    const rx = Math.cos(cp.heading);
+    const rz = -Math.sin(cp.heading);
+    const half = cp.width / 2 + 1;
+    for (const side of [-1, 1]) {
+      const x = cp.x + rx * half * side;
+      const z = cp.z + rz * half * side;
+      const y = level.groundAt(x, z);
+      posts.push({ x, z, y0: y - 1, y1: y + STAKE.height, r: STAKE.radius });
+    }
+  });
+
+  const near: number[] = [];
+
+  const inside = (x: number, y: number, z: number): boolean => {
+    for (const i of near) {
+      const t = level.trees[i];
+      const d = Math.hypot(x - t.x, z - t.z);
+      const h = y - t.y;
+      if (h < -LENS_PAD || h > t.height + LENS_PAD) continue;
+      const f = h / t.height;
+      const crown =
+        f < CROWN_FROM ? 0 : t.crown * CROWN_DRAWN * Math.max(0, 1 - (f - CROWN_FROM) / 0.92);
+      if (d < Math.max(t.radius, crown) + LENS_PAD) return true;
+    }
+    for (const p of posts) {
+      if (y < p.y0 || y > p.y1 + LENS_PAD) continue;
+      if (Math.hypot(x - p.x, z - p.z) < p.r + LENS_PAD) return true;
+    }
+    const b = banner as Banner | null;
+    if (b && y > b.y0 - LENS_PAD && y < b.y1 + LENS_PAD) {
+      const dx = x - b.x;
+      const dz = z - b.z;
+      const across = dx * b.ux + dz * b.uz;
+      const along = -dx * b.uz + dz * b.ux;
+      if (Math.abs(across) < b.half + LENS_PAD && Math.abs(along) < b.thick + LENS_PAD) return true;
+    }
+    return false;
+  };
+
+  return (from: Vec3, to: Vec3): number => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dz = to.z - from.z;
+    const len = Math.hypot(dx, dy, dz);
+    if (len < 1e-6) return 1;
+    if (trees) {
+      treesNear(
+        level,
+        (from.x + to.x) / 2,
+        (from.z + to.z) / 2,
+        Math.hypot(dx, dz) / 2 + 5 + LENS_PAD,
+        near,
+      );
+    }
+    const n = Math.max(1, Math.ceil(len / STEP));
+    let open = false;
+    let last = 0;
+    for (let k = 0; k <= n; k++) {
+      const s = k / n;
+      const hit = inside(from.x + dx * s, from.y + dy * s, from.z + dz * s);
+      if (!hit) {
+        open = true;
+        last = s;
+      } else if (open) {
+        return last;
+      }
+    }
+    return 1;
+  };
+}

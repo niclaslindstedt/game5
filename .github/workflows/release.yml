@@ -1,0 +1,383 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+name: release
+
+# THE RELEASE, END TO END. Normally CALLED by version-bump.yml — the one
+# entry point a maintainer dispatches (OSS_GAME_SPEC §10.3) — and also
+# dispatchable on its own as the break-glass, with the same `bump` input.
+#
+# What it does, in order: derive the semver bump from the changeset
+# fragments in .changes/unreleased/ (their front-matter carries the
+# Added/Changed/Fixed/... type and an optional `breaking: true` — see
+# the framework's ogf-compute-bump), consume those fragments into a new
+# CHANGELOG section, update every shipped version string via
+# scripts/update-versions.sh, commit `chore(release): vX.Y.Z` to main, tag
+# it, create the GitHub Release, then chain into pages.yml so the new tag is
+# served at `/` (and the same code at `/preview/`, because main now matches
+# the tag) without waiting for the next push.
+#
+# WHY THERE IS NO RELEASE_TOKEN. The spec's reference shape has version-bump
+# push a `v*` tag with a PAT so that a `push: tags` trigger fires here; the
+# PAT exists only because the default GITHUB_TOKEN suppresses downstream
+# workflow triggers. This repository chains the two workflows with a
+# `workflow_call` instead — one dispatched run, in which the commit, the tag,
+# the GitHub Release and the Pages deploy all happen — so no cross-workflow
+# trigger is needed, the default GITHUB_TOKEN is sufficient, and the tag is
+# created exactly once, already on the release commit: there is nothing to
+# force-push and no retag step. The sibling rally repo works the same way.
+#
+# `bump` defaults to `auto` — the fragment-derived bump above. Set it to an
+# explicit patch/minor/major only to override that derivation.
+#
+# The release is created as a DRAFT and made public by the `publish` job at
+# the bottom. Between the two sits the `desktop` matrix, which packages the
+# Tauri shell (tauri/, docs/platforms.md) on a runner per platform and
+# attaches every download — so no player ever finds a release page whose
+# download for their machine is missing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Semver bump. 'auto' derives it from the .changes/unreleased/ fragments (breaking → major, Added/Changed/Removed/Deprecated → minor, Fixed/Security → patch). Pick patch/minor/major to override."
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+  workflow_call:
+    inputs:
+      bump:
+        description: "Semver bump, resolved or 'auto' (see workflow_dispatch above)."
+        required: false
+        type: string
+        default: auto
+
+# Default to no permissions; every job declares its own least-privilege
+# `permissions:` block.
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    # contents: write — this job pushes the release commit and the tag.
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Verify clean working tree
+        run: |
+          if ! git diff --quiet || ! git diff --quiet --cached; then
+            echo "::error::working tree is not clean — refusing to release"
+            git status
+            exit 1
+          fi
+
+      # Resolve the effective bump. `auto` (the default) derives it from
+      # the changeset fragments' front-matter so the release needs no
+      # human judgement; an explicit patch/minor/major from the dispatch
+      # form overrides that derivation.
+      - name: Resolve bump
+        id: resolve
+        env:
+          REQUESTED: ${{ inputs.bump }}
+        run: |
+          if [ "$REQUESTED" = "auto" ] || [ -z "$REQUESTED" ]; then
+            BUMP=$(npx ogf-compute-bump)
+            echo "Auto-derived bump from fragments: $BUMP"
+          else
+            BUMP="$REQUESTED"
+            echo "Using requested bump override: $BUMP"
+          fi
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      # Compute the next version from the highest released tag (not from
+      # package.json, which could lag), then rewrite every shipped
+      # version string — root + workspace package.json, the lockfile,
+      # and engine/version.ts — via the script that owns them.
+      - name: Bump version
+        id: bump
+        env:
+          BUMP: ${{ steps.resolve.outputs.bump }}
+        run: |
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          CURRENT="${LATEST_TAG#v}"
+          CURRENT="${CURRENT:-0.0.0}"
+          IFS=. read -r MAJOR MINOR PATCH <<<"$CURRENT"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+            *) echo "::error::unknown bump '$BUMP'"; exit 1 ;;
+          esac
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            echo "::error::tag v${VERSION} already exists — refusing to release over it"
+            exit 1
+          fi
+          ./scripts/update-versions.sh "v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Bumped from ${LATEST_TAG:-nothing} to v${VERSION}"
+
+      - name: Collate changelog
+        run: npx ogf-collate-changelog "${{ steps.bump.outputs.version }}"
+
+      # The macOS paragraph depends on whether this repository is configured
+      # to notarize, which is the same condition the `desktop` job's signing
+      # turns on.
+      - name: Extract release-notes body
+        env:
+          NOTARIZED: ${{ secrets.MAC_CSC_LINK != '' && secrets.APPLE_ID != '' }}
+        run: |
+          npx ogf-extract-section "${{ steps.bump.outputs.version }}" > .release-notes.md
+          cat >> .release-notes.md <<'NOTES'
+
+          ---
+
+          Play this release at https://game5.niclaslindstedt.se/ — it is an
+          installable PWA (add it to your home screen) and works offline
+          once loaded.
+
+          ### Desktop downloads
+
+          The same game as a desktop app, below: an installer for Windows,
+          a `.dmg` for macOS (`aarch64` for Apple Silicon, `x64` for an
+          Intel Mac), and a `.deb` or `.AppImage` for Linux.
+          NOTES
+
+          if [ "$NOTARIZED" = "true" ]; then
+            cat >> .release-notes.md <<'NOTES'
+
+          **macOS:** signed and notarized by Apple — it opens like any other
+          app.
+          NOTES
+          else
+            cat >> .release-notes.md <<'NOTES'
+
+          **macOS:** the app is signed but not notarized, so the first
+          launch is refused. Open **System Settings → Privacy & Security**,
+          scroll to the message about Fall Line and choose **Open Anyway**.
+          macOS remembers after that.
+          NOTES
+          fi
+
+      - name: make build
+        run: make build
+        env:
+          # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
+          # drawn unless a repository variable switches one back — `make
+          # ci-models MODELS=off`, no commit needed; unset is on.
+          VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+          VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
+          VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
+          VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
+          VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
+          VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
+      - name: make test
+        run: make test
+
+      - name: Commit + tag
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json pwa/package.json engine/version.ts CHANGELOG.md .changes/unreleased
+          git commit -m "chore(release): v${VERSION}"
+          git tag -a "$TAG" -m "Release ${TAG}"
+          git push origin HEAD:main
+          git push origin "$TAG"
+
+      # A DRAFT, and the `publish` job at the bottom is what makes it
+      # public — once everything that belongs on it is attached.
+      #
+      # Idempotent on purpose: the tag is already pushed by the step above,
+      # so a bare `gh release create` that fails (or a re-run after one did)
+      # would leave a tagged version with no release at all. The edit
+      # deliberately does NOT pass `--draft`, so re-running against a
+      # release that is already public refreshes its notes instead of
+      # retracting it.
+      - name: Create GitHub Release (draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — updating its notes."
+            gh release edit "$TAG" --title "$TAG" --notes-file .release-notes.md
+          else
+            gh release create "$TAG" --draft --title "$TAG" --notes-file .release-notes.md
+          fi
+
+  # The desktop downloads, attached to the draft the job above created. One
+  # runner per platform, because each one packages the shell for its own OS
+  # in the platform's own webview, and the bundle has to be built where the
+  # app will run. `tauri/scripts/package.mjs` names every download
+  # `fallline-<version>-<os>-<arch>.<ext>`.
+  desktop:
+    needs: release
+    name: desktop (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    # contents: write — the downloads are uploaded onto the GitHub Release.
+    permissions:
+      contents: write
+    env:
+      # The release commit is on the tag, so the build is made from exactly
+      # what was tagged rather than from whatever main looks like by now.
+      TAG: ${{ needs.release.outputs.tag }}
+      # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
+      # drawn unless a repository variable switches one back — `make
+      # ci-models MODELS=off`, no commit needed; unset is on.
+      VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+      VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
+      VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
+      VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
+      VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
+      VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
+      # NOTARIZATION. The bundler acts on these three only once the app is
+      # signed with a real Developer ID (the `Apple signing` step below), and
+      # ignores them otherwise — so an unconfigured repo still packages, it
+      # just packages the ad-hoc build. `APPLE_PASSWORD` is the bundler's
+      # name for an app-specific password; the secret keeps the longer name
+      # it has in the sibling repo.
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      # The website build lives in the root workspace; the shell copies its
+      # output and packages around it.
+      - uses: ./.github/actions/setup
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri
+
+      - name: Linux packaging libraries
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      # Turns `package.mjs`'s ad-hoc fallback into a real signature, and
+      # with it unlocks the notarization the env above configures. A no-op
+      # with a warning when the certificate secret is empty.
+      - name: Apple signing
+        if: matrix.target == 'macos'
+        uses: ./.github/actions/apple-signing
+        with:
+          certificate: ${{ secrets.MAC_CSC_LINK }}
+          certificate-password: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          identity: ${{ secrets.MAC_SIGN_IDENTITY }}
+
+      # An Intel Mac cannot run the arm64 bundle, and `macos-latest` is
+      # Apple Silicon, so its slice is a cross-compile — cheap, because the
+      # web build and the icons are already made by then (`--skip-web`), and
+      # `--keep` is what stops the second pass wiping the first one's `.dmg`.
+      - name: An Intel Mac target
+        if: matrix.target == 'macos'
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Package
+        shell: bash
+        run: npm run tauri:package
+
+      - name: Package (macOS, Intel)
+        if: matrix.target == 'macos'
+        shell: bash
+        run: npm run tauri:package -- --target x86_64-apple-darwin --skip-web --keep
+
+      # Whatever this platform's packager produced — a job that listed
+      # filenames would silently upload nothing the day a target changed
+      # its suffix.
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          assets=(tauri/release/*)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "::error::${{ matrix.target }} produced no downloads"
+            ls -R tauri/release || true
+            exit 1
+          fi
+          printf 'uploading %s\n' "${assets[@]}"
+          gh release upload "$TAG" "${assets[@]}" --clobber
+
+  # THE RELEASE BECOMES VISIBLE HERE, and nowhere else: `needs: desktop`
+  # means every platform in the matrix has packaged AND uploaded before
+  # anybody can see the release page. If one target fails, the draft stays
+  # a draft — a release that is missing a download is a bug report from
+  # every player on that platform, and the fix (re-dispatch, or upload the
+  # file by hand and flip the draft off) is much cheaper while nobody has
+  # seen it yet.
+  publish:
+    needs: [release, desktop]
+    runs-on: ubuntu-latest
+    # contents: write — this is the flag flip on the release itself.
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          gh release edit "$TAG" --draft=false --latest
+          gh release view "$TAG" --json assets \
+            --jq '.assets[] | "published asset: \(.name)"'
+
+  # Chain straight into pages.yml so the new tag is served at `/`
+  # immediately — without this, deployment would wait for the next
+  # push to main.
+  #
+  # Deliberately `needs: release` and not `needs: publish`: the website IS
+  # the game, it is built from the tag that already exists, and holding the
+  # web deploy hostage to anything downstream would take the free-to-play
+  # version down over a step nobody playing depends on.
+  pages:
+    needs: release
+    uses: ./.github/workflows/pages.yml
+    with:
+      release_ref: ${{ needs.release.outputs.tag }}
+    permissions:
+      # pages.yml declares `contents: write` at the top level because its
+      # assemble job force-pushes the /branch/ slot to the `branch-deploy`
+      # orphan branch. A reusable workflow can't be granted fewer permissions
+      # than it requests, so these must match or the whole release run fails
+      # at startup before any job runs.
+      contents: write
+      pages: write
+      id-token: write
+    secrets: inherit

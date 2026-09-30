@@ -423,7 +423,7 @@ export function App() {
       for (const e of state.events) tally[e.kind] = (tally[e.kind] ?? 0) + 1;
       if (preroll) return;
       const rides = playerRides(shellRef.current);
-      if (soundsLive(shellRef.current)) audio.events(state.events);
+      if (soundsLive(shellRef.current)) audio.events(state.events, state);
       if (rides) {
         if (!params.bot) campaign.rig.step(state);
         runRumble.events(state.events);

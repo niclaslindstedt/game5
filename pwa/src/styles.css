@@ -1484,6 +1484,27 @@ canvas {
   stroke-width: 2;
 }
 
+/* THE JUMP LOADING under the lever's thumb (the tap-and-hold): the knob
+   ringed in the accent and swelling over the two seconds a full load
+   takes, so the thumb can see it loading. */
+.hud-lever-jump .hud-lever-knob {
+  stroke: var(--hud-good);
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hud-jump-load 2s ease-out forwards;
+}
+
+@keyframes hud-jump-load {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.45);
+  }
+}
+
 @keyframes hud-anchor-in {
   from {
     opacity: 0;

@@ -58,7 +58,8 @@ import {
 import { recordId, type RecordKey } from "./records.ts";
 
 /** THE TAPE'S LAYOUT: the axes one step is written down as, each a byte —
- * the reset's edge and the trick button packed into `flags`. The names are
+ * the reset's edge, the trick button, the hard cut and the jump packed
+ * into `flags`. The names are
  * the stored tape's keys, so renaming one is a format change. */
 const TAPE: TapeSchema<"steer" | "lean" | "tuck" | "brake" | "flags"> = {
   steer: "signed",
@@ -73,7 +74,7 @@ const TAPE: TapeSchema<"steer" | "lean" | "tuck" | "brake" | "flags"> = {
  * else, and a ghost that misses every corner is worse than none. A tape
  * whose format this build does not know is dropped and rewritten by the
  * next run on that map. */
-export const GHOST_FORMAT = 1;
+export const GHOST_FORMAT = 2;
 
 /** THE BIGGEST TAPE WORTH KEEPING, characters of JSON. `localStorage` is a
  * few megabytes for the whole origin, shared with the record book and the
@@ -139,6 +140,9 @@ export type GhostRun = GhostStage &
 const FLAG_RESET = 1;
 /** ...and the trick button held (a tricks run's poses, `strokes.ts`). */
 const FLAG_TRICK = 2;
+/** ...the edge cut hard, and the jump held. */
+const FLAG_CARVE = 4;
+const FLAG_JUMP = 8;
 
 export type ControlRecorder = {
   /** Write down the controls a step was ridden on — the input the engine
@@ -158,7 +162,11 @@ export function createControlRecorder(): ControlRecorder {
         lean: input.lean,
         tuck: input.tuck,
         brake: input.brake,
-        flags: (input.reset ? FLAG_RESET : 0) | (input.trick ? FLAG_TRICK : 0),
+        flags:
+          (input.reset ? FLAG_RESET : 0) |
+          (input.trick ? FLAG_TRICK : 0) |
+          (input.carve ? FLAG_CARVE : 0) |
+          (input.jump ? FLAG_JUMP : 0),
       }),
     steps: tape.steps,
     seal: tape.seal,
@@ -181,7 +189,10 @@ export function readControls(tape: ControlTape): GhostTape {
   return {
     steps: reader.steps,
     at: (step) => {
-      if (reader.at(step, axes) === null) return Object.assign(input, NEUTRAL_INPUT);
+      if (reader.at(step, axes) === null) {
+        input.trick = input.carve = input.jump = undefined;
+        return Object.assign(input, NEUTRAL_INPUT);
+      }
       input.steer = axes.steer;
       input.lean = axes.lean;
       input.tuck = axes.tuck;
@@ -189,6 +200,8 @@ export function readControls(tape: ControlTape): GhostTape {
       input.reset = (axes.flags & FLAG_RESET) !== 0;
       // Left off when it is not held, so a tape reads back as the input it was.
       input.trick = (axes.flags & FLAG_TRICK) !== 0 ? true : undefined;
+      input.carve = (axes.flags & FLAG_CARVE) !== 0 ? true : undefined;
+      input.jump = (axes.flags & FLAG_JUMP) !== 0 ? true : undefined;
       return input;
     },
   };

@@ -151,7 +151,15 @@ export {
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
-export { poleForce, plantPulse } from "./game/poles.ts";
+export {
+  driveForce,
+  driveReach,
+  plantPulse,
+  poleForce,
+  skateShare,
+  strideRate,
+  strideShape,
+} from "./game/poles.ts";
 export { landingAhead, landingLoss, type Landing } from "./game/flight.ts";
 export { noseDown, wipeoutCause, crashOver } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";

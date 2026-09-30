@@ -80,6 +80,7 @@ export function poseInput(state: GameState, input: SkierInput): SkierInput {
   posed.tuck = input.tuck;
   posed.brake = input.brake;
   posed.reset = input.reset;
+  posed.jump = input.jump;
   return posed;
 }
 

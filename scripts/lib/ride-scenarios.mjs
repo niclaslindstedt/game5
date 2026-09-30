@@ -129,6 +129,15 @@ function wipeout(run) {
   ];
 }
 
+/** THE POP's numbers: how hard he sprang and how long it was loaded. */
+function jumped(run) {
+  const j = run.events.find((e) => e.kind === "jump");
+  return [
+    ["pop m/s", j ? fmt(j.pop) : "—"],
+    ["loaded s", j ? fmt(j.held) : "—"],
+  ];
+}
+
 /** A skier rocking: the weight thrown fore and aft and side to side, `hz`
  * times a second, on `tuck` (the poles). */
 function rock(t, hz, tuck) {
@@ -344,6 +353,26 @@ export const SCENARIOS = [
     },
   },
   {
+    id: "skate",
+    title: "hands off from a shuffle across the flat: skating, then double-poling",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 150, heading: 0, speed: 1 }),
+    seconds: 12,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const at = (t) => run.frames.find((x) => x.t >= t) ?? run.frames[run.frames.length - 1];
+      const f = run.frames[run.frames.length - 1];
+      return [
+        ["at 1 s km/h", fmt(at(1).speed * 3.6, 1)],
+        ["at 3 s km/h", fmt(at(3).speed * 3.6, 1)],
+        ["at 6 s km/h", fmt(at(6).speed * 3.6, 1)],
+        ["at 12 s km/h", fmt(f.speed * 3.6, 1)],
+        ["metres", fmt(f.dist, 1)],
+      ];
+    },
+  },
+  {
     id: "schuss",
     title: "a tuck down the 20° groomed pitch from a push-off",
     level: (S) => schussStrip(S, 1),
@@ -383,7 +412,7 @@ export const SCENARIOS = [
     title: "a snowplough from 80 km/h on flat packed snow",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({ x: 1500, z: 200, heading: 0, speed: 80 / 3.6 }),
-    seconds: 8,
+    seconds: 20,
     view: "profile",
     input: () => ({ ...IDLE, brake: 1 }),
     measure: (run) => stopped(run, 80),
@@ -440,6 +469,46 @@ export const SCENARIOS = [
     view: "plan",
     input: (t, st) => ({ ...TUCK, steer: 0.4, ...hold(st, 100) }),
     measure: turn,
+  },
+  {
+    id: "carve-hard",
+    title: "full edge cut hard (the back key after the edge) at 80 km/h down the pitch",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(80),
+    seconds: 3,
+    view: "plan",
+    input: (t, st) => ({ ...TUCK, steer: 1, carve: true, ...hold(st, 80) }),
+    measure: turn,
+  },
+  {
+    id: "carve-full",
+    title: "the same full edge at 80 km/h, not cut hard",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(80),
+    seconds: 3,
+    view: "plan",
+    input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
+    measure: turn,
+  },
+  {
+    id: "jump-tap",
+    title: "the jump tapped at 50 km/h on flat packed snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 50 / 3.6 }),
+    seconds: 3,
+    view: "profile",
+    input: (t) => ({ ...IDLE, jump: t >= 0.5 && t < 0.55 }),
+    measure: (run) => [...jumped(run), ...flight(run).slice(1, 6)],
+  },
+  {
+    id: "jump-full",
+    title: "the jump loaded for 2.5 s at 50 km/h on flat packed snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 50 / 3.6 }),
+    seconds: 5,
+    view: "profile",
+    input: (t) => ({ ...IDLE, jump: t >= 0.5 && t < 3 }),
+    measure: (run) => [...jumped(run), ...flight(run).slice(1, 6)],
   },
   {
     id: "turn-in",

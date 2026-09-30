@@ -72,6 +72,7 @@ export const STRINGS = {
   /** The EDGE bar's caption (`hud-dial.tsx`) and the skid's word on it. */
   edge: "EDGE",
   brake: "SKID",
+  cut: "CUT",
   clockLabel: "TIME",
   /** Gates taken, of how many the piste has — the start gate the first,
    * the finish the last. */
@@ -395,7 +396,8 @@ export const STRINGS = {
   keysClashHint: (action: string, others: string): string =>
     `The key on ${action.toLowerCase()} also does ${others.toLowerCase()} — pressing it does both.`,
   keyTuck: "TUCK",
-  keyBrake: "BRAKE",
+  keyBrake: "BRAKE / CUT",
+  keyJump: "JUMP",
   keyLeft: "LEFT",
   keyRight: "RIGHT",
   keyLeanBack: "LEAN BACK",

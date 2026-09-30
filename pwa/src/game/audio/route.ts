@@ -46,6 +46,14 @@ export function soundForEvent(event: GameEvent): { id: string; shape?: PlayShape
       };
     }
 
+    // THE POP: the skis leaving the snow off straightened legs — the soft
+    // landing's whump run backwards in the ear: short, bright, and bigger
+    // the longer the jump was loaded.
+    case "jump": {
+      const big = ramp(event.pop, 2, 5.5);
+      return { id: "land_soft", shape: { gain: 0.4 + 0.4 * big, pitch: 1.35, stretch: 0.6 } };
+    }
+
     case "hit": {
       const hard = ramp(event.speed, 2, HIT_FULL);
       return {

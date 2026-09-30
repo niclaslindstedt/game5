@@ -39,6 +39,15 @@ export type SkierInput = {
    * run whose rules count tricks, and only in the air; left out, it is
    * off. */
   trick?: boolean;
+  /** HELD: CUT HARDER — the back key thrown with an edge already on
+   * (`input-model.ts` tells the two orders apart): the skis stood further
+   * over and pressed into the groove, a tighter line that costs little.
+   * Left out, it is off. */
+  carve?: boolean;
+  /** HELD: THE JUMP LOADED — the skier sinks onto his legs while it is
+   * held on the snow, and springs off them the step it is let go, the
+   * higher the longer it was held (`TUNING.jump`). Left out, it is off. */
+  jump?: boolean;
 };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
@@ -111,6 +120,18 @@ export type SkierState = {
   /** The skis' actual angle under the body, rad, positive clockwise — the
    * skid's pivot plus the edge's toe-in. */
   skiAngle: number;
+  /** CUTTING HARDER, 0..1 — the carve key after the edge's own lag. */
+  carve: number;
+  /** THE JUMP BEING LOADED: seconds held on the snow, to `jump.full` — and
+   * seconds since the last pop, starting large (the pose's spring off the
+   * legs reads it). */
+  jumpLoad: number;
+  popped: number;
+  /** THE DRIVE HE IS MAKING (`poles.ts`), 0..1 of the whole push, after
+   * its lag — and the strides taken while making it, counted: the phase
+   * the push and the pose are both on. */
+  drive: number;
+  stride: number;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;
@@ -367,6 +388,9 @@ export type GameEvent =
   /** The skier has been off the snow long enough to count as air
    * (`air.counts`); `vy` is the climb he left with, m/s. */
   | { kind: "air"; t: number; vy: number; speed: number }
+  /** The skier sprang off his legs (`TUNING.jump`): the pop, m/s off the
+   * snow, and how long it was loaded, s. */
+  | { kind: "jump"; t: number; pop: number; held: number }
   /** Back on the snow after `airTime` s. `impact` is the speed INTO the
    * slope he met, m/s; `harsh` whether the legs could not take it all, and
    * `lost` the share of his way that cost. */

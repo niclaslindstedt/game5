@@ -166,6 +166,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   state.input.brake = input.brake;
   state.input.lean = input.lean;
   state.input.reset = input.reset;
+  state.input.carve = input.carve;
+  state.input.jump = input.jump;
   // THE NEW SNOW the fall lays this step, grid or no grid.
   state.fresh += freshStep(state.level, state.t, TUNING.dt);
 

@@ -231,7 +231,7 @@ export function Hud({
         <div class="hud-revs-row">
           <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
           <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
-            {snap.braking ? STRINGS.brake : STRINGS.edge}
+            {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
           </span>
         </div>
         <div class="hud-cluster">

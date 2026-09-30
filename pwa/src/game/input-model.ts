@@ -105,6 +105,62 @@ export function leverBrake(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
   return clamp(past / LEVER_BRAKE_PX, 0, 1);
 }
 
+/** THE JUMP ON THE LEVER'S THUMB: a TAP, then the thumb put straight back
+ * down and HELD, loads the jump — and lifting it springs him. A tap is a
+ * touch lifted within `JUMP_TAP_MAX` s, and the hold has to land within
+ * `JUMP_TAP_GAP` s of it: the lever is under that thumb nearly all race,
+ * so a jump must be a gesture no tuck ever makes by accident, and one the
+ * thumb can make without leaving its place. */
+export const JUMP_TAP_MAX = 0.25;
+export const JUMP_TAP_GAP = 0.35;
+
+/** The tap-and-hold's memory: when the last touch came down and when it
+ * lifted (s, any one clock), and whether the touch now down is loading. */
+export type JumpTap = { downAt: number; upAt: number; tapped: boolean; loading: boolean };
+
+export function createJumpTap(): JumpTap {
+  return { downAt: -1e9, upAt: -1e9, tapped: false, loading: false };
+}
+
+/** A thumb down on the lever at `t` s: is it the hold after a tap? */
+export function jumpTapDown(tap: JumpTap, t: number): boolean {
+  tap.loading = tap.tapped && t - tap.upAt <= JUMP_TAP_GAP;
+  tap.tapped = false;
+  tap.downAt = t;
+  return tap.loading;
+}
+
+/** ...and lifted at `t` s. A short touch that was not itself a load is a
+ * tap the next touch may follow. */
+export function jumpTapUp(tap: JumpTap, t: number): void {
+  tap.tapped = !tap.loading && t - tap.downAt <= JUMP_TAP_MAX;
+  tap.loading = false;
+  tap.upAt = t;
+}
+
+/** THE BACK KEY'S TWO MEANINGS, told apart by ORDER. Pressed with no edge
+ * asked, it is the BRAKE — and an edge put on while it is held swings the
+ * skis across the way into a hockey stop. Pressed with an edge ALREADY on,
+ * it is the edge CUT HARDER — the skis stood further over and pressed into
+ * the groove, a tighter line that costs little speed. Whichever it was when
+ * it went down, it stays until it is let go. On the edge thumb the back key
+ * is the thumb dragged DOWN past `BACK_TOUCH` of its lean travel, on the
+ * snow only — in the air the same drag is the lean back it always was. */
+export type BackMode = "none" | "brake" | "carve";
+/** How far down the edge thumb has to be dragged to be the back key, as a
+ * share of the lean's travel, and how much edge — keys or thumb — counts as
+ * one already on when it goes down. */
+export const BACK_TOUCH = 0.35;
+export const EDGE_FIRST = 0.25;
+
+/** The back key's mode for this step, off whether it is `down` and the edge
+ * asked at the moment it went down (`edge`, -1..1, the raw ask). */
+export function backMode(model: InputModel, down: boolean, edge: number): BackMode {
+  if (!down) model.back = "none";
+  else if (model.back === "none") model.back = Math.abs(edge) >= EDGE_FIRST ? "carve" : "brake";
+  return model.back;
+}
+
 /** THE EDGE CONTROL, AND HOW BIG IT IS. Thumb travel from the anchor to
  * the end of its throw — full edge across, full lean up and down, and the
  * radius the reach ring is drawn at (`hud-touch.tsx`), so the circle a
@@ -155,6 +211,8 @@ export type KeysHeld = {
   leanForward: boolean;
   /** The grab button (`strokes.ts`'s poses) — a switch, not a ramp. */
   trick: boolean;
+  /** THE JUMP: loaded while held, sprung on the release. */
+  jump: boolean;
 };
 
 export const NO_KEYS: KeysHeld = {
@@ -165,6 +223,7 @@ export const NO_KEYS: KeysHeld = {
   leanBack: false,
   leanForward: false,
   trick: false,
+  jump: false,
 };
 
 /** What the thumb zones have written, screen-space, at pointer rate. A zone
@@ -181,10 +240,12 @@ export type TouchChannel = {
   tuck: number;
   brake: number;
   lever: boolean;
+  /** The lever's thumb loading the jump (`jumpTapDown`). */
+  jump: boolean;
 };
 
 export function neutralTouch(): TouchChannel {
-  return { steer: 0, lean: 0, bar: false, tuck: 0, brake: 0, lever: false };
+  return { steer: 0, lean: 0, bar: false, tuck: 0, brake: 0, lever: false, jump: false };
 }
 
 /** The keyboard's ramped axes, screen-space. Advanced once per STEP (§37.1)
@@ -201,6 +262,8 @@ export type InputModel = {
   /** Whether each of them is leaning the skier this flight (`airLean`). */
   tuckLeans: boolean;
   brakeLeans: boolean;
+  /** What the back key went down as (`backMode`). */
+  back: BackMode;
 };
 
 export function createInputModel(): InputModel {
@@ -213,6 +276,7 @@ export function createInputModel(): InputModel {
     wasBrake: false,
     tuckLeans: false,
     brakeLeans: false,
+    back: "none",
   };
 }
 
@@ -257,7 +321,9 @@ export function airLean(model: InputModel, keys: KeysHeld, airborne: boolean): n
  * held under it would fight the hand. The tuck takes the DEEPER of key and
  * lever, and so does the brake; and then the brake WINS over the tuck,
  * because a skier throwing a skid is not also asking to go faster,
- * whichever hand the other input came from.
+ * whichever hand the other input came from. The back key is the brake or
+ * the edge cut harder by the order it met the edge in (`backMode`); the
+ * jump is the key or the lever thumb's tap-and-hold (`jumpTapDown`).
  *
  * `airborne` is whether the skier being ridden is off the snow this step —
  * the one thing about the run the keyboard's maths reads (`airLean`). */
@@ -273,9 +339,17 @@ export function sampleInput(
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   model.steer = rampToward(model.steer, steerTarget, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
   model.tuck = rampToward(model.tuck, keys.tuck ? 1 : 0, dt, KEY_TUCK_ATTACK, KEY_TUCK_RELEASE);
+  // THE BACK KEY, the key or the edge thumb dragged down on the snow, and
+  // which of its two meanings it went down as.
+  const thumbBack = touch.bar && !airborne && touch.lean >= BACK_TOUCH;
+  const back = backMode(
+    model,
+    (keys.brake && !model.brakeLeans) || thumbBack,
+    touch.bar ? touch.steer : steerTarget,
+  );
   model.brake = rampToward(
     model.brake,
-    keys.brake && !model.brakeLeans ? 1 : 0,
+    back === "brake" ? 1 : 0,
     dt,
     KEY_BRAKE_ATTACK,
     KEY_BRAKE_RELEASE,
@@ -287,7 +361,8 @@ export function sampleInput(
   model.lean = rampToward(model.lean, leanTarget, dt, KEY_LEAN_ATTACK, KEY_LEAN_RELEASE);
 
   const steer = touch.bar ? touch.steer : model.steer;
-  const lean = touch.bar ? touch.lean : model.lean;
+  // A thumb dragged down as the back key is not also leaning him back.
+  const lean = touch.bar ? (thumbBack ? 0 : touch.lean) : model.lean;
   const brake = clamp(Math.max(model.brake, touch.lever ? touch.brake : 0), 0, 1);
   const tuck = clamp(Math.max(model.tuck, touch.lever ? touch.tuck : 0), 0, 1);
   // ON THE TAPE'S GRID (`ghost.ts`'s `snapInput`), here where the input is
@@ -300,5 +375,7 @@ export function sampleInput(
     lean: clamp(lean, -1, 1),
     reset,
     trick: keys.trick,
+    carve: back === "carve",
+    jump: keys.jump || (touch.lever && touch.jump),
   });
 }

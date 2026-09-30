@@ -62,6 +62,8 @@ export type HudSnapshot = {
   tuck: number;
   /** The skid is on (the body's own reading of the brake, after its lag). */
   braking: boolean;
+  /** The edge is cut hard (`SkierState.carve`, the back key after the edge). */
+  cutting: boolean;
   /** The run clock, s, and whether it has stopped. */
   time: number;
   finished: boolean;
@@ -179,6 +181,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     edge: (c.edge / c.spec.edgeMax) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
     braking: c.brake > BRAKE_SHOWN,
+    cutting: c.carve > BRAKE_SHOWN,
     time: p.time,
     finished: p.finished,
     countdown: state.phase === "countdown" ? Math.ceil(state.countdown) : 0,

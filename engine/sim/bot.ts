@@ -113,6 +113,7 @@ export const RIDER_BOT: BotProfile = {
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
 const pa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 const pb: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+const pc: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 const near: number[] = [];
 
 /** Where on the piste the skier stands, restricted to the stretch between
@@ -247,13 +248,21 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
   const aLat = cornerGrip(spec, 1) * profile.cornerShare;
   const decel = brakeDecel(spec, 1) * profile.brakeShare;
   const reach = (speed * speed) / (2 * decel) + 30;
+  const y0 = trackPointAt(level, s, pc).y;
   let allowed = Infinity;
   for (let d = 0; d <= reach; d += 4) {
-    // The skidding room alone already allows what is allowed: no bend this
-    // far on, however tight, can lower it — nor any further on, the room
-    // only growing. The square root is monotone, so the test is exact.
-    const room = 2 * decel * Math.max(0, d - 6);
-    if (Math.sqrt(room) >= allowed) break;
+    // THE SKIDDING ROOM, less what the fall of the piste gives back: a skid
+    // down a steep pitch sheds only what it takes beyond the slope's own
+    // pull, so the height the piste drops by the bend is paid out of it
+    // (v² = v_bend² + 2·a·d − 2·g·drop). The bends themselves shed little
+    // (`steer.scrub`), so a skier who planned for the brake alone on a
+    // steep pitch arrives at the bend still carrying the pitch.
+    const drop = Math.max(0, y0 - trackPointAt(level, s + d, pc).y);
+    const room = Math.max(0, 2 * decel * Math.max(0, d - 6) - 2 * TUNING.g * drop);
+    // The room alone already allows what is allowed: no bend this far on,
+    // however tight, can lower it — nor any further on, the room only ever
+    // growing on a piste that never climbs faster than the brake bites.
+    if (Math.sqrt(room) >= allowed && drop === 0) break;
     const k = bendAt(level, s + d, profile.bendSpan);
     if (k < 1e-4) continue;
     const corner = Math.sqrt(aLat / k);

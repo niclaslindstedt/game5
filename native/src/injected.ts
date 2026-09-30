@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// JavaScript injected into the game WebView. Five jobs, all invisible to the
+// game's own code — the first four run on their own as the page loads, the
+// fifth is fired at it by the shell when the phone does something the page
+// cannot see:
+//
+//  1. NATIVE_FLAG — names this shell to the page BEFORE the game boots, on
+//     the one global every shell shares (`__SH_SHELL__`, read by
+//     pwa/src/shell-host.ts; the desktop app writes "tauri" there the same
+//     way). The web app reads it on its very first render to turn the PWA
+//     update lifecycle off: the shell bundles the game and ships updates
+//     through the store, so there is no service worker to install and no "a
+//     new version is ready" card to show — a player updates by downloading a
+//     new build, never by an in-page reload. Frozen, so nothing on the page
+//     can later claim to be a browser.
+//
+//  2. RUMBLE_BRIDGE — carry the page's vibration asks out to the phone's own
+//     haptics. The website decides what is felt and how big it is
+//     (pwa/src/game/rumble.ts) and dispatches a DOM event describing each
+//     pulse; a browser with a motor answers it itself, and a WKWebView —
+//     which has no Vibration API at all — has this listener instead, relaying
+//     the pulse over the message channel to src/haptics.ts. Injected BEFORE
+//     the content for the same reason the flag is: a listener added after the
+//     game's first frame is a landing nobody feels.
+//
+//  3. CLOUD_BRIDGE — carry the page's cloud asks out to iCloud. The website
+//     owns what is saved and how two devices reconcile
+//     (pwa/src/game/cloud-save.ts); the shell moves an opaque string and says
+//     what happened (src/cloud-save.ts). Injected before the content so an
+//     ask made during the game's first frame is heard.
+//
+//  4. VIEWPORT_HARDENING — make the page feel like an app, not a document:
+//     kill the long-press callout/selection and rubber-band scroll that a raw
+//     WKWebView still allows even with the website's own viewport meta.
+//
+//  5. SHOT_COMMAND — press the game's own SHUTTER, because the phone has one
+//     of its own and the page cannot hear it. Fired through
+//     `injectJavaScript` when the OS says the skier took a screenshot
+//     (src/screen-capture.ts), so the picture they took with the hardware is
+//     also filed in the game's gallery.
+//
+// Every script must be an IIFE ending in `true;` — iOS requires an injected
+// script to evaluate to a primitive, or it warns and aborts.
+
+/** Runs via `injectedJavaScriptBeforeContentLoaded` — before the game's own
+ * scripts, so the flag exists by the time the app's first module reads it.
+ * The word is `SHELL_GLOBAL` in `pwa/src/shell-host.ts`, which this file
+ * cannot import; `tests/shell_test.ts` holds the two together. */
+export const NATIVE_FLAG = `(function () {
+  try {
+    Object.defineProperty(window, "__SH_SHELL__", {
+      value: "native",
+      writable: false,
+      configurable: false,
+      enumerable: false,
+    });
+  } catch (e) {}
+  true;
+})();`;
+
+/** Listens for the page's rumble asks and posts each one to the shell. The
+ * event's name and its two fields are `SHELL_RUMBLE` in
+ * `pwa/src/shell-host.ts`, and the message's shape is `parseRumble` in
+ * `src/rumble.ts` — change one, change all three; `tests/rumble_test.ts`
+ * holds them together. */
+export const RUMBLE_BRIDGE = `(function () {
+  try {
+    window.addEventListener("sh-shell-rumble", function (event) {
+      var pulse = event.detail || {};
+      var post = window.ReactNativeWebView;
+      if (!post) return;
+      post.postMessage(
+        JSON.stringify({ sh: "rumble", ms: pulse.ms, strength: pulse.strength }),
+      );
+    });
+  } catch (e) {}
+  true;
+})();`;
+
+/** Listens for the page's cloud asks and posts each one to the shell. The
+ * event's name and the ask's shape are `SHELL_CLOUD` in
+ * `pwa/src/shell-host.ts`, and the message is read by `parseCloudAsk` in
+ * `src/cloud-ask.ts` — change one, change all three; `tests/shell_test.ts`
+ * holds them together. The answer comes back the other way, through
+ * `injectJavaScript`. */
+export const CLOUD_BRIDGE = `(function () {
+  try {
+    window.addEventListener("sh-shell-cloud", function (event) {
+      var ask = event.detail || {};
+      var post = window.ReactNativeWebView;
+      if (!post) return;
+      post.postMessage(
+        JSON.stringify({
+          sh: "cloud",
+          action: ask.action,
+          requestId: ask.requestId,
+          data: ask.data,
+        }),
+      );
+    });
+  } catch (e) {}
+  true;
+})();`;
+
+/** Runs via `injectedJavaScript` — after the document exists — to append a
+ * small stylesheet that suppresses the iOS long-press callout and text
+ * selection (except in inputs, so a seed can still be typed on a keyboard)
+ * and blocks overscroll bounce. */
+export const VIEWPORT_HARDENING = `(function () {
+  try {
+    var css =
+      "html,body{overscroll-behavior:none;touch-action:none;}" +
+      "*:not(input):not(textarea){-webkit-touch-callout:none !important;" +
+      "-webkit-user-select:none !important;user-select:none !important;}";
+    var style = document.createElement("style");
+    style.setAttribute("data-sh-app", "");
+    style.appendChild(document.createTextNode(css));
+    (document.head || document.documentElement).appendChild(style);
+  } catch (e) {}
+  true;
+})();`;
+
+/** THE SHUTTER, PRESSED FROM OUTSIDE — the shell's one way INTO the page, and
+ * the same door the desktop app's macOS menu bar uses: a command word on the
+ * `sh-shell-command` event, named in `pwa/src/shell-host.ts` (`SHELL_COMMAND`
+ * and `SHELL_COMMANDS`) and spelled again here because neither file can import
+ * the other; `tests/shell_test.ts` holds them together.
+ *
+ * A phone's screenshot is taken by the hardware and lands in the phone's own
+ * photo gallery, and nothing on the page ever learns it happened. The store
+ * app is the one place that CAN be told, so it presses ENTER on the skier's
+ * behalf: the same picture, with the HUD composited in and the game's mark in
+ * the corner, filed in the gallery on the front door.
+ *
+ * A press the game cannot serve where it stands — under a card, with no race
+ * on screen to photograph — does nothing at all, exactly as the key does.
+ * Sent through `injectJavaScript`, so it runs long after the document is up
+ * and still has to evaluate to a primitive for iOS. */
+export const SHOT_COMMAND = `(function () {
+  try {
+    window.dispatchEvent(
+      new CustomEvent("sh-shell-command", { detail: { command: "shot" } }),
+    );
+  } catch (e) {}
+  true;
+})();`;

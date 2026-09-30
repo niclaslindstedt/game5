@@ -1,0 +1,269 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE DEVELOPER PAGE, ITS OVERLAY AND THE BENCHMARK'S CARDS
+   (`menu-dev.tsx`, `debug-hud.tsx`, `menu-bench.tsx`, `menu-unlocks.tsx`).
+   A sheet of its own, the `campaign.css` pattern: a subject that is not the
+   game's own look, kept out of the file every card shares. */
+
+/* THE HOLD'S TARGET: a title held on a phone must neither select its text
+   nor bring up the system's own long-press sheet over it. */
+.menu-brand {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* A press on the developer page that LEAVES it, with a line under its name
+   saying what it will do. Left-aligned, because the lines are sentences. */
+.menu-item-dev {
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.menu-item-dev:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu-item-sub {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-indent: 0;
+  text-transform: none;
+  color: var(--hud-info);
+}
+
+/* The trapdoor, quieter than the presses above it. */
+.opt-reset-quiet {
+  border-style: solid;
+  border-color: transparent;
+  opacity: 0.7;
+}
+
+.dev-line {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--hud-info);
+}
+
+.dev-locks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dev-lock {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.dev-lock-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dev-lock-act {
+  width: auto;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+/* ── THE OVERLAY ─────────────────────────────────────────────────────── */
+/* Down the left of the picture, under the HUD's clock and its split, taking no
+   presses: an instrument must not steal the thumb riding the race. */
+.dev-overlay {
+  position: fixed;
+  top: max(7.5rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  z-index: 30;
+  max-width: min(34rem, calc(100vw - 1rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  pointer-events: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: var(--hud-ink);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 70%);
+}
+
+.dev-overlay-fps {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.dev-overlay-block,
+.dev-overlay-repro {
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.35rem;
+  background: rgb(var(--hud-plate) / 62%);
+}
+
+.dev-overlay-repro {
+  word-break: break-all;
+  color: var(--hud-info);
+}
+
+.dev-overlay-log div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dev-probes {
+  border-collapse: collapse;
+}
+
+.dev-probes th,
+.dev-probes td {
+  padding: 0 0.5rem 0 0;
+  text-align: right;
+}
+
+.dev-probes th:first-child,
+.dev-probes td:first-child {
+  text-align: left;
+}
+
+.dev-probe-off {
+  opacity: 0.45;
+}
+
+/* ── THE BENCHMARK ───────────────────────────────────────────────────── */
+/* Small and to one side: the race under it IS the measurement. */
+.bench-card {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  z-index: 40;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: calc(100% - 2rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border-radius: 0.8rem;
+  border: 2px solid rgb(244 248 251 / 22%);
+  background: rgb(20 46 74 / 86%);
+  color: var(--hud-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.bench-head {
+  display: flex;
+  flex-direction: column;
+}
+
+.bench-title {
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.bench-sub,
+.bench-unit,
+.bench-axis {
+  font-size: 0.62rem;
+  color: var(--hud-info);
+}
+
+.bench-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.bench-index {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bench-graph {
+  width: 100%;
+  height: 5.5rem;
+  border-radius: 0.35rem;
+  background: rgb(var(--hud-plate) / 55%);
+}
+
+.bench-graph polyline,
+.bench-graph line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.bench-line {
+  stroke: var(--flag);
+  stroke-width: 2;
+}
+
+.bench-rate {
+  stroke: var(--sky-high);
+  stroke-width: 1;
+  opacity: 0.8;
+}
+
+.bench-real {
+  stroke: rgb(244 248 251 / 45%);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.bench-axis {
+  display: flex;
+  justify-content: space-between;
+}
+
+.bench-presses {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.bench-card .menu-item {
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.bench-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.bench-run {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr auto;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.45rem 0.6rem;
+  border: 2px solid rgb(244 248 251 / 18%);
+  border-radius: 0.45rem;
+  background: rgb(13 34 51 / 55%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: 0.68rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bench-run b {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bench-run:hover,
+.bench-run:focus-visible,
+.bench-run.nav-cursor {
+  border-color: var(--flag);
+  outline: none;
+}

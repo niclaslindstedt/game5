@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Manual native app builds via EAS. Deliberately dispatch-only (never on push)
+# so builds — which consume paid EAS build minutes and store credentials — only
+# run when a human asks. Requires an EXPO_TOKEN repo secret (an Expo access
+# token from https://expo.dev/settings/access-tokens) and, until the project
+# id is pinned in native/app.config.js, an EAS_PROJECT_ID repo variable; store
+# submission also needs the App Store Connect / Play credentials configured on
+# the EAS project. native/RELEASING.md is the run-through.
+name: native
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        default: all
+        options: [all, ios, android]
+      profile:
+        description: EAS build profile (see native/eas.json)
+        type: choice
+        default: preview
+        options: [preview, testflight, production]
+      submit:
+        description: Submit the build to the store after it finishes
+        type: boolean
+        default: false
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The app bundles the website on-device (assets/webroot.zip), so the
+      # ROOT tree is installed first — Node from .nvmrc and the workspace's
+      # dependencies, exactly as ci.yml does it.
+      - uses: ./.github/actions/setup
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # The shell is outside the npm workspace with a dependency tree and a
+      # lockfile of its own, so it is installed on its own.
+      - name: Install app dependencies
+        working-directory: native
+        run: npm ci
+
+      # The shell's own typecheck — the root lint never sees this tree.
+      - name: Typecheck the shell
+        working-directory: native
+        run: npm run typecheck
+
+      # vite build + zip. The .easignore keeps the generated zip in the upload
+      # despite .gitignore.
+      - name: Bundle the website into the app
+        working-directory: native
+        run: npm run bundle
+        env:
+          # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
+          # drawn unless a repository variable switches one back — `make
+          # ci-models MODELS=off`, no commit needed; unset is on.
+          VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+          VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
+          VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
+          VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
+          VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
+          VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
+
+      - name: EAS build
+        working-directory: native
+        env:
+          EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+          # The store identifier — never committed (see app.config.js). A
+          # production profile without it refuses to build.
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+        run: |
+          eas build \
+            --non-interactive \
+            --profile "${{ inputs.profile }}" \
+            --platform "${{ inputs.platform }}" \
+            ${{ inputs.submit && '--auto-submit' || '' }}

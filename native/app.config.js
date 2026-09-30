@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Dynamic Expo config. Brand identity is NOT re-hardcoded here — it is read
+// out of the repo's single source of truth (pwa/src/identity.ts), the same
+// module the website's manifest and <head> are filled from, so a rename or a
+// palette change there flows into the app's name and colours on the next
+// build. The marketing version tracks the game version in the root
+// package.json so the app and site never disagree; store build numbers are
+// auto-incremented by EAS (see eas.json).
+
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
+
+const { version } = require("../package.json");
+const withIosSigning = require("./plugins/with-ios-signing");
+
+// identity.ts is TypeScript, and Expo evaluates this file in plain Node, so the
+// two values the shell needs are read off the module's source. Each one is a
+// one-line `export const NAME = "…"` (or a `key: "…"` inside PALETTE), and a
+// read that finds nothing FAILS the config rather than shipping an app called
+// "undefined" — the regex is the contract, and tests/identity_test.ts holds
+// identity.ts to the shape it reads.
+const IDENTITY = readFileSync(join(__dirname, "..", "pwa", "src", "identity.ts"), "utf8");
+
+function identity(name) {
+  const match = IDENTITY.match(new RegExp(`^export const ${name} = "([^"]+)";`, "m"));
+  if (!match) throw new Error(`pwa/src/identity.ts: no one-line string export named ${name}`);
+  return match[1];
+}
+
+function palette(key) {
+  const match = IDENTITY.match(new RegExp(`^\\s+${key}: "(#[0-9a-fA-F]{6})",`, "m"));
+  if (!match) throw new Error(`pwa/src/identity.ts: no PALETTE entry named ${key}`);
+  return match[1];
+}
+
+const APP_NAME = identity("APP_NAME");
+// Brand + boot background: whichever PALETTE entry identity.ts names as
+// BRAND_COLOR (`export const BRAND_COLOR = PALETTE.<key>;`), as on the
+// website's manifest/theme-color — read through the name, so choosing a
+// different entry there moves the app too.
+function brandColor() {
+  const match = IDENTITY.match(/^export const BRAND_COLOR = PALETTE\.(\w+);/m);
+  if (!match) throw new Error("pwa/src/identity.ts: BRAND_COLOR is not a PALETTE entry");
+  return palette(match[1]);
+}
+const BRAND_BG = brandColor();
+
+// The Expo project this app builds under. `eas init` writes it into
+// extra.eas.projectId; pin the id here once the project exists so the app is
+// linked without an interactive login. Until then it can be supplied per build
+// through the environment.
+const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID;
+
+// Reverse-DNS app id on the PUBLISHER's domain: Agilator AB is the entity that
+// holds the store agreements, so the permanent identifier is the company's
+// rather than the author's. Kept identical on both stores so the app is one
+// product across platforms — and UNCHANGEABLE once an app record ships under it.
+// A store listing's identifier is a fact about a deployment, not about the
+// code, so it arrives as a build variable and is not committed: APP_BUNDLE_ID,
+// a repository secret and an EAS environment variable, named identically in
+// every app in the fleet so a secret is pasted rather than translated. Unset,
+// a checkout builds under the development id below and runs; a `production`
+// profile without it throws rather than shipping a binary under that id.
+// UNCHANGEABLE once an app record ships under it.
+const DEV_BUNDLE_ID = "dev.local.fallline";
+const BUNDLE_ID = process.env.APP_BUNDLE_ID?.trim() || DEV_BUNDLE_ID;
+
+// The listing name. The games keep one name in both places — a prefix earns
+// nothing on a title that is already distinctive — so this falls back to the
+// project's own name rather than to something duller, and still reads the same
+// variable as the rest of the fleet.
+const DISPLAY_NAME = process.env.APP_DISPLAY_NAME?.trim() || null;
+
+if (process.env.EAS_BUILD_PROFILE === "production") {
+  for (const key of ["APP_BUNDLE_ID", "EAS_PROJECT_ID"]) {
+    if (!process.env[key]?.trim()) {
+      throw new Error(
+        `${key} is not set. A production build needs it — set it as an EAS ` +
+          `environment variable on the EAS project (and as a repository ` +
+          `secret for the build workflow). See native/README.md.`,
+      );
+    }
+  }
+}
+
+// The Apple team that signs a LOCAL device build (`make native-iphone`).
+// Deliberately NOT committed: it identifies a specific developer account, and
+// this repo is public — every contributor signs with their OWN team. It comes
+// from the environment, which for a laptop means `native/.env` (gitignored;
+// see .env.example). Absent, the config is unchanged and only a device build
+// notices — see plugins/with-ios-signing.js, and scripts/ios-device.mjs, which
+// says so before it builds anything. EAS builds never read it: they use the
+// credentials configured on the Expo project.
+const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;
+
+// CLOUD SAVE (src/cloud-save.ts) needs the iCloud capability with key-value
+// storage on the App ID, and an entitlement the App ID does not carry FAILS
+// code signing — which would break a quick local build on a bare Apple ID
+// that has neither. So it can be dropped with EXPO_PUBLIC_CLOUD_SAVE=off (the
+// shell then reports cloud save unavailable and the game stays device-local).
+// Store builds leave it on; native/README.md says how to enable the
+// capability.
+const CLOUD_SAVE = process.env.EXPO_PUBLIC_CLOUD_SAVE !== "off";
+
+// iCloud key-value storage is namespaced <TeamID>.<container>; the team prefix
+// is filled in at build time. The container is the app's own identifier, which
+// is a build variable — so a development build saves into a development
+// container and a store build into the store's, and neither can read the
+// other's rows by accident.
+const CLOUD_ENTITLEMENTS = {
+  "com.apple.developer.ubiquity-kvstore-identifier": `$(TeamIdentifierPrefix)${BUNDLE_ID}`,
+};
+
+module.exports = () => ({
+  expo: {
+    name: DISPLAY_NAME ?? APP_NAME,
+    slug: "fall-line",
+    version,
+    // Follow the device: the web game is fully responsive and lays its touch
+    // controls out for both shapes, so the shell must let the WebView rotate.
+    // "default" tracks the OS rotation lock / sensor, so portrait and
+    // landscape both work.
+    orientation: "default",
+    icon: "./assets/icon.png",
+    scheme: "fallline",
+    userInterfaceStyle: "light",
+    backgroundColor: BRAND_BG,
+    // Ship the packed website (assets/webroot.zip) inside the app so the game
+    // is fully self-contained; the shell unzips + serves it locally on launch
+    // (src/local-server.ts). Generate the zip with `npm run bundle` before a build.
+    assetBundlePatterns: ["**/*"],
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: BUNDLE_ID,
+      requireFullScreen: true,
+      ...(CLOUD_SAVE ? { entitlements: CLOUD_ENTITLEMENTS } : {}),
+      infoPlist: {
+        // Synthesized audio only — no recording — but the WebView's WebAudio
+        // must survive the ringer switch (paired with setAudioModeAsync).
+        UIBackgroundModes: [],
+        // Skip the App Store export-compliance prompt: no non-exempt crypto.
+        ITSAppUsesNonExemptEncryption: false,
+      },
+    },
+    android: {
+      package: BUNDLE_ID,
+      edgeToEdgeEnabled: true,
+      adaptiveIcon: {
+        foregroundImage: "./assets/icon.png",
+        backgroundColor: BRAND_BG,
+      },
+      // expo-audio pulls in RECORD_AUDIO for its recorder; the game only ever
+      // PLAYS synthesized sound, so strip it — otherwise Play Store review
+      // asks why a game wants the microphone.
+      // expo-screen-capture is the same story with photos: below Android 14 its
+      // screenshot listener watches the media store and so declares the skier's
+      // whole photo library, which is a far bigger ask than the feature is
+      // worth (the picture is already in their gallery). Blocked, which leaves
+      // DETECT_SCREEN_CAPTURE — Android 14+, install-time, prompts nobody — as
+      // the only way the shell hears a screenshot. See src/screen-capture.ts.
+      blockedPermissions: [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+      ],
+    },
+    web: {
+      favicon: "./assets/favicon.png",
+    },
+    plugins: [
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: BRAND_BG,
+        },
+      ],
+      // The game never records — disable the microphone permission the plugin
+      // would otherwise request, so App Store review doesn't ask why.
+      ["expo-audio", { microphonePermission: false }],
+      // The bundled static server (lighttpd, via @dr.pogodin/react-native-static-server)
+      // needs Android minSdk 28.
+      ["expo-build-properties", { android: { minSdkVersion: 28 } }],
+      // Keep the signing team across prebuilds so a device build can sign.
+      [withIosSigning, { teamId: APPLE_TEAM_ID }],
+    ],
+    extra: {
+      // NO `gameUrl` HERE, deliberately. The shell serves the copy of the site
+      // bundled inside the app (assets/webroot.zip) from a local HTTP server —
+      // that is what makes the game playable offline and what makes it an app
+      // rather than a viewer for a website (App Store guideline 4.2, minimum
+      // functionality). `src/config.ts` treats ANY value here as "stream the
+      // remote site instead and skip the local server entirely", which would
+      // silently turn every build, store builds included, into a thin browser
+      // over game5.niclaslindstedt.se.
+      //
+      // To point a debug build at a deployed slot, set EXPO_PUBLIC_GAME_URL at
+      // build time; `src/config.ts` reads that env var directly, so it needs no
+      // entry here.
+      ...(EAS_PROJECT_ID ? { eas: { projectId: EAS_PROJECT_ID } } : {}),
+    },
+  },
+});

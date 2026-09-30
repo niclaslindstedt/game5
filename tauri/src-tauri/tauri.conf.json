@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Fall Line",
+  "mainBinaryName": "fallline",
+  "version": "0.1.0",
+  "identifier": "se.agilator.fallline",
+  "build": {
+    "frontendDist": "./placeholder"
+  },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": false,
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "app", "dmg", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/256x256.png",
+      "icons/512x512.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../webroot": "webroot"
+    },
+    "externalBin": [],
+    "category": "Sports Game",
+    "shortDescription": "A downhill skiing game over a generated mountain",
+    "longDescription": "A downhill skiing game that runs in your browser. Ski a graded piste from the summit to the valley over a generated mountain — through the trees, over the rollers and off the kickers — or drop into the powder beside it; on your phone or desktop, offline once loaded. No account, no download.",
+    "copyright": "Copyright © Niclas Lindstedt",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    }
+  }
+}

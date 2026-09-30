@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # Include `labeled` / `unlabeled` so the `no-changelog` escape
+    # hatch re-runs the changeset job when the label is toggled after
+    # the PR opened. The default activity types (`opened`,
+    # `synchronize`, `reopened`) would otherwise leave the check stuck
+    # red until the next push.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+# Every gate below is an independent job rather than a step in one, because
+# the run is only ever as long as its slowest job and none of these need
+# each other's output: formatting, lint, the tests, the production build and
+# the balance sweep all read the same checkout and nothing more. Run in
+# series they cost the sum of their parts; run beside each other they cost
+# the maximum, and the maximum is the sharded test suite.
+
+permissions:
+  contents: read
+
+concurrency:
+  # A second push to a PR makes the run in flight worthless, so PRs group by
+  # ref and cancel: only the commit anyone will actually merge is worth a
+  # runner.
+  #
+  # A push groups by SHA instead, which puts every main commit in a group of
+  # its own — never queued behind another, never evicted from one. Grouping
+  # main by ref does NOT work, and `cancel-in-progress: false` does not save
+  # it: that keeps the RUNNING run alive, but a group holds only one PENDING
+  # run, so each new merge evicts the one waiting and cancels it outright.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # The suite is the long pole, so it is the one thing that gets its own
+  # runners.
+  #
+  # `--shard` splits at FILE granularity, which means the SLOWEST SINGLE FILE
+  # is the floor and no number of runners gets under it. That floor is what
+  # to work on when this job is too slow, and there are two ways at it: stop
+  # a file rebuilding the same levels once per rule (`tests/support/levels.ts`
+  # hands out the corpus a rule suite shares), and split a file whose subject
+  # is really two subjects. Two shards is plenty for a suite this size;
+  # widen the matrix only once no file is the floor.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # Let the other shards finish and report. A failure in one slice says
+      # nothing about the other one, and their results are what tell you
+      # whether the break is local or general.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make test SHARD=${{ matrix.shard }}/2
+
+  # One stable check name over a matrix whose width is an implementation
+  # detail. Branch protection requires `tests`; the shard count can then
+  # change without anyone editing the protected-branch rules, which would
+  # otherwise leave a required `test (2)` pending forever.
+  tests:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every shard passed
+        if: needs.test.result != 'success'
+        run: |
+          echo "test shards: ${{ needs.test.result }}"
+          exit 1
+
+  # Prettier over the whole tree, on its own runner. It is a cheap job that
+  # would otherwise queue behind two expensive ones, and a formatting failure
+  # is the one people most want told immediately — it is a one-command fix.
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make fmt-check
+
+  # eslint plus the typecheck, kept together because `make lint` is the
+  # repo's definition of lint and splitting the target so CI could fan it
+  # out further would make the local command mean something different from
+  # the CI one.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make lint
+
+  # The production build (`tsc --noEmit` across both projects, then vite).
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
+      # drawn unless a repository variable switches one back — `make
+      # ci-models MODELS=off`, no commit needed; unset is on.
+      VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+      VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
+      VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
+      VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
+      VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
+      VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make build
+
+  # The bot must keep finishing what the generator builds — the simulation
+  # sweep is its own job so a balance regression is named as such rather
+  # than buried in a unit-test log.
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make sim
+
+  shell-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: make shellcheck
+      - name: Install actionlint
+        run: |
+          curl -sSfL \
+            https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash \
+            | bash -s -- 1.7.7 /usr/local/bin
+      - run: make actionlint
+
+  # OSS_GAME_SPEC §7.1 / §21.2: every tool-specific guidance file is a
+  # SYMLINK onto AGENTS.md, and every tool-specific skills directory a symlink
+  # onto .agents/skills. A checkout on a platform without symlink support, or
+  # an editor that "helpfully" dereferences one, turns a single source of
+  # truth into a copy that drifts — and nothing else in the suite would
+  # notice, because the copy reads fine.
+  symlinks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify the guidance and skill symlinks
+        run: |
+          fail=0
+          check() {
+            if [ ! -L "$1" ]; then
+              echo "::error file=$1::$1 is not a symlink"
+              fail=1
+            elif [ "$(readlink "$1")" != "$2" ]; then
+              echo "::error file=$1::$1 -> $(readlink "$1"), expected $2"
+              fail=1
+            elif [ ! -e "$1" ]; then
+              echo "::error file=$1::$1 dangles ($2 is missing)"
+              fail=1
+            else
+              echo "ok  $1 -> $2"
+            fi
+          }
+          check CLAUDE.md AGENTS.md
+          check GEMINI.md AGENTS.md
+          check .cursorrules AGENTS.md
+          check .windsurfrules AGENTS.md
+          check .github/copilot-instructions.md ../AGENTS.md
+          exit $fail
+
+  changeset:
+    # Enforces that every PR touching user-visible code drops a
+    # changelog fragment under .changes/unreleased/, or opts out via
+    # the `no-changelog` label. Pure refactors, CI/build tweaks, and
+    # docs-only edits pass via the skip-list inside the script.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # The gate is the framework's (`ogf-check-changeset`), so it needs the
+      # dependency installed.
+      - run: npm ci
+      - name: Check for changelog fragment
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: npx ogf-check-changeset

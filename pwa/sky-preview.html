@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Sky preview harness</title>
+    <!-- Tooling page for scripts/sky-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It stands a
+         seed up and draws one view of it under every weather at every few
+         hours, as one labelled contact sheet. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      #stage {
+        position: absolute;
+        left: -10000px;
+      }
+      #sheet {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <canvas id="sheet"></canvas>
+    <script type="module" src="/src/tools/sky-harness.ts"></script>
+  </body>
+</html>

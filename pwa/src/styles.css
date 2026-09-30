@@ -1,0 +1,4332 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+
+/* App stylesheet.
+
+     1. Tailwind v4 base + utilities.
+     2. The game shell: a full-viewport, non-scrolling canvas with the
+        arcade HUD painted over it.
+
+   Every surface a player sees, the new-build button included, is the app's
+   own and wears the chrome below: there is no third-party component
+   stylesheet here, and nothing outside this tree is scanned for utility
+   classes. The HUD's own classes arrive with the HUD; this file is the base
+   it stands on. */
+
+@import "tailwindcss";
+
+:root {
+  /* PALETTE from identity.ts, restated because a stylesheet cannot import a
+     TypeScript module. There is no third copy: this is a leaf. */
+  --sky-high: #6fa8dc;
+  --sky: #cfe6f7;
+  --snow: #f4f8fb;
+  --snow-shadow: #b9cde0;
+  --track: #dfe7ee;
+  --flag: #e8412c;
+  --pine: #1f4a36;
+  --pine-dark: #143326;
+  /* The deepest tone a card is washed toward — the HUD's own navy. */
+  --night: #0d2233;
+  --hud-ink: #ffffff;
+  /* THE CHROME'S OWN NAVY, as bare channels so every plate can still mix
+     its own alpha off it — the glyph a letter is stamped in and the ground
+     under a button are one idea, stated once. */
+  --hud-plate: 13 34 51;
+  --hud-shadow: rgb(var(--hud-plate));
+  /* The SIGNAL colours: the flag's red is the way on and the thing a skier
+     is hunting for out on the snow; the alarm is every warning. */
+  --hud-good: #e8412c;
+  --hud-bad: #ff5a4e;
+  --hud-info: #cfe6f7;
+  /* THE TOP-RIGHT CLUSTER'S WIDTH — the row of three presses, sized to be
+     found at a glance from the corner of an eye that is on the track. The
+     rem FLOOR carries a phone on its side, where vmin is the short edge. */
+  --hud-cluster: clamp(8rem, 24vmin, 11rem);
+  /* The gap between the glyph buttons. Their diameter is `--hud-press` on
+     `.hud`, computed against the cluster width that element has. */
+  --hud-mini-gap: 0.35rem;
+
+  /* WHERE THE PAGE IS VISIBLE. `--shell-height` is how tall the viewport is,
+     and stays a UNIT — only a unit can reach past the layout viewport to the
+     physical bottom of an iOS screen (the block below). The other two are how
+     far the visible window has been pushed off the viewport's top and bottom
+     edges, which no unit can say: the framework's `display/visible-viewport` measures them and
+     writes them here in px. Both are 0 whenever the browser is showing the
+     whole page, which is nearly always — so `--shell-visible` is then the
+     viewport's own height and every box below is laid out exactly as it would
+     be without any of this. */
+  --shell-top: 0px;
+  --shell-bottom: 0px;
+  --shell-height: 100%;
+  --shell-visible: calc(var(--shell-height) - var(--shell-top) - var(--shell-bottom));
+}
+
+html,
+body {
+  margin: 0;
+  height: var(--shell-height);
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--sky-high);
+  color: var(--hud-ink);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: "Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+}
+
+/* NO TEXT INTERACTION ANYWHERE — the loupe, the callout, the word select.
+   iOS reads a double tap (and a press-and-hold) as the start of "put the
+   caret somewhere" and answers it with a magnifying lens over the page. On a
+   document that is the point; on a game it is a lens over the snow because
+   a thumb bounced on the screen. Stated on EVERY element rather than
+   inherited, because iOS decides from the element under the touch, and a
+   UA-styled element never sees what the shell passed down. A surface that
+   MEANS to take typed text names a class and wins on specificity. */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* THE GAME, over everything: the canvas and the HUD fill the viewport. */
+#root {
+  position: fixed;
+  inset: 0;
+  top: var(--shell-top);
+  height: var(--shell-visible);
+  z-index: 1;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* iOS EDGE TO EDGE, and the fallback under the measured shell. A fixed,
+   non-scrolling shell laid out with `inset: 0` stops at the LAYOUT viewport,
+   which on iOS leaves a dead band along the bottom of the screen — the game
+   paints down to the layout edge and `body`'s own `--sky-high` fills the rest, a
+   flat blue strip under the instrument panel. Percentage heights
+   (`height: 100%`) land in the same place for the same reason: the document
+   stops at the letterboxed viewport instead of reaching under the home
+   indicator. An explicit viewport height is what carries the shell to the
+   physical bottom — `#root` is over-constrained by it (`top` plus `height`
+   wins, `bottom` is dropped), and the canvas, the HUD's ground and the
+   renderer's `ResizeObserver` all follow the box they sit in. Nothing is
+   pushed out of reach, because every pinned instrument is anchored with
+   `env(safe-area-inset-*)`.
+
+   THIS IS THE ONLY THING THAT MAY BE A UNIT. `--shell-height` is how tall the
+   viewport is and is answered here for good; where the browser is showing the
+   page inside it is measured in JS and subtracted (the `:root` block at the
+   top). Writing a measured height over this instead would hand iOS back the
+   letterboxed viewport the unit exists to escape.
+
+   INSTALLED vs BROWSER TAB is the whole subtlety. `100vh` is the LARGE
+   viewport — the screen as it would be with the toolbars retracted. That is
+   exactly right in an installed PWA, which has no toolbars, and exactly wrong
+   in Safari proper, where the toolbar is ON SCREEN: sized that way the shell
+   hangs past the bottom edge and takes the rev bar, the speed, the build
+   stamp and the tuck lever with it. So a browser tab — and only a browser
+   tab — gets the DYNAMIC viewport (`100dvh`), which is by definition the part
+   visible right now. Matching on `browser` rather than `standalone` is
+   deliberate: an installed app's effective display mode is not reliably
+   `standalone`, and a missed match there would hand it a height it never
+   asked for. Scoped to iOS by the `-webkit-touch-callout` probe (no other
+   engine supports it), so Android and desktop keep the plain viewport-tracking
+   shell; a Safari without `dvh` drops that declaration and falls back to it. */
+@supports (-webkit-touch-callout: none) {
+  :root {
+    --shell-height: 100vh;
+  }
+
+  @media (display-mode: browser) {
+    :root {
+      --shell-height: 100dvh;
+    }
+  }
+}
+
+/* The boot card: the name over the snow while the game loads. */
+.boot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: linear-gradient(180deg, var(--night) 0%, var(--sky-high) 100%);
+  text-shadow: 0 2px 0 var(--hud-shadow);
+}
+
+/* THE HUD's ground: a layer over the canvas that never takes the touch the
+   edge thumb and the lever are reading, except where a control says it does.
+   Padded by the safe-area insets so nothing hides under a notch. */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+
+  /* THE CHROME'S WHITE EDGE — the rim round a pressable plate, and the
+     line along a gauge's track. */
+  --hud-edge: rgb(255 255 255 / 65%);
+  --hud-track: rgb(255 255 255 / 70%);
+
+  /* THE THREE PRESSES' DIAMETER, and the one statement of it: a third of
+     the cluster's width less the gaps. Declared HERE rather than in `:root`
+     because two subtrees need it — the buttons and `.hud-zone`'s clearance
+     over them — and a `var()` inside a custom property is substituted
+     against the element it is DECLARED on; `.hud` is the element the
+     portrait query re-declares `--hud-cluster` on, so both resolve together. */
+  --hud-press: calc((var(--hud-cluster) - 2 * var(--hud-mini-gap)) / 3);
+
+  text-shadow: 0 1px 0 rgb(var(--hud-plate));
+}
+.hud button,
+.hud [data-touch] {
+  pointer-events: auto;
+}
+
+/* ── THE HUD ─────────────────────────────────────────────────────────────
+   Chunky arcade chrome: condensed capitals with a hard shadow, nothing
+   boxed unless it is a button. Sizes are `vmin`-clamped so the same layout
+   reads on a phone held either way and on a desktop. */
+
+/* The run's own corner: the clock and the checkpoint count on one row, the wind
+   vane on the next. All three are facts about how the run is going, and they
+   are read down a single left-aligned column. */
+.hud-top {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: max(0.8rem, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  /* Never under the presses: the row WRAPS before it reaches the corner
+     they own, which on a phone held upright is what puts the chips on a
+     second line under the clock. */
+  max-width: calc(100% - var(--hud-cluster) - 2.6rem);
+}
+
+.hud-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.35rem 1rem;
+}
+
+.hud-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.hud-clock-time {
+  font-size: clamp(1.5rem, 5.5vmin, 2.6rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* The top bar's readouts never wrap: a tighter row beats a broken one. */
+.hud-chip {
+  font-size: clamp(0.9rem, 2.5vmin, 1.3rem);
+  letter-spacing: 0.04em;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-chip-sub {
+  font-size: 0.62em;
+  opacity: 0.85;
+  letter-spacing: 0.08em;
+}
+
+.hud-topright {
+  position: absolute;
+  /* Above the thumb zones, which are later siblings and would otherwise
+     win the hit test wherever the two overlap. The zone's top is meant to
+     clear this cluster on its own; this is what keeps a button pressable
+     on the day a new row makes it taller than the clearance allows. */
+  z-index: 1;
+  top: max(0.6rem, env(safe-area-inset-top));
+  right: max(0.8rem, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* THE MINIMAP: a round plate under the presses, as wide as their row, with
+   the map turned heading-up about the skier (minimap.tsx). Round because the
+   map turns: a square window would swing its corners through the country
+   every bend. It takes no pointer — a thumb landing here on a phone held
+   sideways belongs to the lever's zone under it. The plate's own ground is
+   the grey of rock past the map's edge, which is what the corners of the
+   baked picture give way to. */
+.hud-minimap {
+  width: var(--hud-map, var(--hud-cluster));
+  height: var(--hud-map, var(--hud-cluster));
+  border-radius: 50%;
+  overflow: hidden;
+  background: #5d6670;
+  border: 2px solid var(--hud-edge);
+  box-shadow:
+    0 2px 0 rgb(var(--hud-plate) / 60%),
+    inset 0 0 0.6rem rgb(var(--hud-plate) / 45%);
+  pointer-events: none;
+}
+
+.hud-minimap-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The world group is posed by one transform written out whole, from the
+   origin (minimap.tsx's `pose`), and tweened between two snapshots — so a
+   map read twelve times a second turns and slides like one drawn every
+   frame. The angle it tweens through is kept continuous by the payload, so
+   a heading crossing south never spins the map the long way round. */
+.hud-minimap-world {
+  transform-origin: 0 0;
+  transition: transform 90ms linear;
+}
+
+.hud-minimap-world image {
+  image-rendering: auto;
+}
+
+/* The piste over the baked ground: the payload hands the width in metres,
+   floored so the piste is never a hair at the widest window. */
+.hud-minimap-track {
+  fill: none;
+  stroke: rgb(255 255 255 / 55%);
+  stroke-linejoin: round;
+}
+
+.hud-minimap-checkpoint {
+  vector-effect: non-scaling-stroke;
+  stroke: rgb(var(--hud-plate) / 55%);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.hud-minimap-checkpoint-start {
+  stroke: var(--hud-ink);
+  stroke-width: 2.4;
+}
+
+/* THE ONE THE RUN OWES, in the flag's red and wider than the rest — the
+   place on the map the skier has to reach next. */
+.hud-minimap-checkpoint-owed {
+  stroke: var(--hud-good);
+  stroke-width: 4;
+}
+
+.hud-minimap-checkpoint-missed {
+  stroke: var(--hud-bad);
+  stroke-width: 4.5;
+}
+
+.hud-minimap-rival {
+  stroke: rgb(var(--hud-plate) / 85%);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  transition:
+    cx 90ms linear,
+    cy 90ms linear;
+}
+
+.hud-minimap-chevron {
+  fill: var(--hud-good);
+  stroke: var(--hud-ink);
+  stroke-width: 0.8;
+  transition: transform 90ms linear;
+}
+
+.hud-minimap-chevron-missed {
+  fill: var(--hud-bad);
+}
+
+.hud-minimap-plinth {
+  fill: rgb(var(--hud-plate) / 55%);
+}
+
+.hud-minimap-skier {
+  stroke: var(--hud-ink);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+/* THE NOTICE STANDING OVER A CARD (App.tsx): the front door is a layer of
+   its own with a wash across the whole screen, so the corner the new-build
+   mark stands in has to be lifted over it — under it the one thing the app
+   ever says on its own initiative arrives dimmed and unpressable. Above the
+   menu (1500) and deliberately below the loading and attract cards (1800,
+   2000): those two are the app covering its own screen, and a notice over a
+   cover is a notice over nothing. */
+.hud-over-card {
+  z-index: 1600;
+}
+
+/* THE THREE PRESSES, side by side in the top-right corner: targets a thumb
+   finds without leaving the snow, in the corner the skier glances at between
+   checkpoints (hud-actions.tsx). The row is the cluster's width and the discs
+   share it, so a press added or taken out is one edit to `--hud-press`. */
+.hud-action-stack {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: var(--hud-cluster);
+  gap: var(--hud-mini-gap);
+}
+
+.hud-mini {
+  font: inherit;
+  font-size: clamp(0.65rem, 2vmin, 0.9rem);
+  letter-spacing: 0.08em;
+  color: var(--hud-ink);
+  background: rgb(var(--hud-plate) / 70%);
+  border: 2px solid var(--hud-edge);
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  text-shadow: none;
+  /* No double-tap wait on a press a skier makes mid-race, and the browser
+     never claims the touch for a gesture of its own halfway through one
+     (the framework's `input/hud-press`). */
+  touch-action: manipulation;
+  /* A button that squashes turns its glyph into a smear. */
+  flex: none;
+}
+
+/* A GLYPH BUTTON is a DISC around its mark rather than a plate padded round a
+   word. IT IS ROUND BECAUSE IT IS THE ONLY THING IN THIS CORNER THAT IS
+   PRESSED: the chips are read and never touched, and a disc is the one shape
+   on this screen that can only be a button. The flair — a sheen off the top,
+   a rim of light along its upper edge, a shadow it stands off the snow on —
+   is what keeps it from reading as a flat sticker. */
+.hud-mini-icon {
+  /* The halo the missed state hangs off is this element's own `::after`. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The diameter, and `.hud-zone`'s clearance over the cluster, are the one
+     number (`--hud-press` on `.hud`) — a press added to or taken out of this
+     row changes it there, and the clearance follows without being re-picked. */
+  width: var(--hud-press);
+  height: var(--hud-press);
+  padding: 0;
+  border-radius: 50%;
+  /* THE FACE, curved under one light from above: the plate lifted toward the
+     ink at the crown and left under its own weight at the foot. A flat fill
+     at this size is a hole cut in the frame. */
+  background: radial-gradient(
+    118% 118% at 50% 2%,
+    color-mix(in srgb, rgb(var(--hud-plate) / 84%), var(--hud-ink) 14%),
+    rgb(var(--hud-plate) / 72%) 54%,
+    rgb(var(--hud-plate) / 62%)
+  );
+  /* The rim of light along the top of the moulding, and the shadow the disc
+     stands off the snow on — the same separation the map beside it is given. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 28%),
+    0 2px 3px rgb(0 0 0 / 45%);
+  transition:
+    transform 110ms ease,
+    box-shadow 110ms ease,
+    border-color 110ms ease;
+}
+
+/* Pressable, said the way the map beside it says it: the disc brightens and
+   its rim goes to full ink. */
+.hud-mini-icon:hover,
+.hud-mini-icon:focus-visible,
+.hud-mini-icon.nav-cursor {
+  outline: none;
+  border-color: var(--hud-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 34%),
+    0 2px 3px rgb(0 0 0 / 45%),
+    0 0 10px rgb(255 255 255 / 20%);
+}
+
+/* ...and pressed, it goes INTO the panel: the crown's rim becomes a shadow
+   cast down the inside of the moulding, which is the whole of what a real
+   button does when a thumb is on it. */
+.hud-mini-icon:active {
+  transform: translateY(1px) scale(0.95);
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 42%),
+    0 1px 1px rgb(0 0 0 / 40%);
+}
+
+/* THE WAY BACK, LIT. A missed checkpoint is the one moment this press stops
+   being a convenience and becomes the answer — and it is also the moment the
+   skier is least likely to be remembering that the key is R, because he is
+   turned round somewhere he did not mean to be. So the disc goes to the
+   warning colour and beats, on the SAME 900 ms heartbeat the missed checkpoint
+   warning pulses on over the nose (the missed-checkpoint warning over the nose): one machine saying one
+   thing in two corners rather than two corners each having an idea. On
+   `--hud-bad`, which the night dressing deliberately never dims.
+
+   The beat is the RING's, never the disc's own `transform` — an animation
+   there would replace the press's `scale` wholesale, and the button would
+   stop answering the thumb at exactly the moment it is being used. */
+.hud-mini-missed {
+  color: var(--hud-bad);
+  border-color: var(--hud-bad);
+  /* THE FACE STAYS DARK. A disc filled with the warning colour is a red mark
+     on a red ground, and the one thing a skier has to be able to read here is
+     WHICH way the arrow curls — the face keeps its own plate with a cast of
+     the warning in it, just enough that the lamp is plainly lit, and the mark
+     keeps the contrast it was drawn with. The urgency is carried by the rim,
+     the glow and the ring, which have the whole snow to be seen against. */
+  background: radial-gradient(
+    118% 118% at 50% 2%,
+    color-mix(in srgb, rgb(var(--hud-plate) / 88%), var(--hud-bad) 15%),
+    color-mix(in srgb, rgb(var(--hud-plate) / 78%), var(--hud-bad) 8%) 54%,
+    rgb(var(--hud-plate) / 68%)
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 28%),
+    0 2px 3px rgb(0 0 0 / 45%),
+    0 0 12px color-mix(in srgb, var(--hud-bad) 45%, transparent);
+}
+
+/* The ring going out of it, on the button's own `::after` so the mark inside
+   is untouched — and out of the hit test, because it stands over the whole of
+   a target a thumb is reaching for. Reduced motion leaves it standing at full
+   strength: the warning survives even when its movement does not, which is
+   the rule the chart's halo is drawn under too. */
+.hud-mini-missed::after {
+  content: "";
+  position: absolute;
+  /* Off the disc's own diameter, so the ring keeps its proportions whatever
+     size the row is drawn at. */
+  inset: calc(var(--hud-press) * -0.07);
+  border: 2px solid var(--hud-bad);
+  border-radius: 50%;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hud-mini-missed::after {
+    animation: hud-missed-ring 900ms ease-out infinite;
+  }
+}
+
+/* Out of the rim and away, fading as it goes, so the pair reads as one disc
+   pulsing rather than as a button with a second circle round it. */
+@keyframes hud-missed-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.82);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
+.hud-glyph {
+  /* A shade smaller than the plate wore it: a mark set to the edges of a
+     SQUARE has the corners to grow into, and inside a circle the same share
+     runs out of face at every diagonal. */
+  width: 54%;
+  height: 54%;
+  fill: currentcolor;
+  display: block;
+  filter: drop-shadow(0 1px 0 var(--hud-shadow));
+}
+
+/* ── The new-build button ────────────────────────────────────────────────
+
+   A mark in the bottom-right corner, and nothing more: an update is never
+   urgent, so it is offered rather than announced. It is the foot of the news
+   column (`.hud-right`), which is how it keeps the corner to itself — a
+   flash arriving stacks ABOVE it rather than pushing it about — and the same
+   corner holds it over the front door, where a deploy is most likely to be
+   seen landing.
+
+   ON A PHONE IT STANDS INSIDE THE LEVER'S GLASS, which is the cost of this
+   corner and is paid rather than argued away: `.hud-right` carries the
+   `z-index` that wins the hit test, so the tuck loses one button's worth
+   of anchor in the very corner — the poorest place on that glass to start a
+   downward drag — and the two-press arming is what keeps a stray thumb from
+   reloading the page out from under a run.
+
+   It wears the RESET button's chrome (`.hud-mini`'s colours) so every plate
+   on this screen reads as one set, and is a circle until the first press
+   turns it into a word. */
+.update-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The gap belongs to the ARMED state only. A collapsed word is still a
+     flex item, and a gap in front of it is real width — it pushes the mark
+     off the circle's centre by half of itself, which is exactly the amount
+     a round button makes obvious. */
+  gap: 0;
+  /* A circle at rest: the mark's own width plus the padding is under this,
+     so the minimum is what shapes it, and arming widens the same button
+     from here rather than standing a new shape up under the finger. */
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.55rem;
+  font: inherit;
+  font-size: clamp(0.62rem, 1.9vmin, 0.85rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--hud-ink);
+  background: rgb(var(--hud-plate) / 70%);
+  border: 2px solid var(--hud-edge);
+  border-radius: 1rem;
+  cursor: pointer;
+  text-shadow: none;
+  touch-action: manipulation;
+  flex: none;
+  opacity: 0.7;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease,
+    gap 160ms ease;
+}
+
+.update-nudge:hover,
+.update-nudge:focus-visible {
+  opacity: 1;
+}
+
+.update-nudge:active {
+  transform: translateY(1px);
+}
+
+/* The mark: an arrow coming down onto a line, sized to be read at a glance
+   and no larger. */
+.update-nudge-mark {
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--hud-good);
+}
+
+.update-nudge-mark path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.update-nudge-mark polygon {
+  fill: currentcolor;
+}
+
+/* ARMED: the second press is the one that reloads, so the button says so.
+   Collapsed rather than absent, so arming widens the same button in place
+   instead of standing a new one up under the finger. */
+.update-nudge-word {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    max-width 160ms ease,
+    opacity 160ms ease;
+}
+
+.update-nudge[data-armed] {
+  gap: 0.35rem;
+  opacity: 1;
+  background: rgb(var(--hud-plate) / 92%);
+  border-color: var(--hud-good);
+}
+
+.update-nudge[data-armed] .update-nudge-word {
+  max-width: 6rem;
+  opacity: 1;
+}
+
+/* The bottom-left corner is the instrument panel: revs over speed. */
+.hud-speed {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+/* ON A TOUCHSCREEN the bottom-left corner is where the left thumb lives,
+   and the skis drawn round it would sit on the speed. So there the
+   panel moves to the bottom centre — under the skis, between the two thumb
+   zones' natural anchors, where both hands leave the glass clear. */
+.hud[data-touch] .hud-speed {
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.hud[data-touch] .hud-build {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hud-revs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-revs {
+  width: clamp(7rem, 26vmin, 13rem);
+  height: clamp(0.55rem, 1.8vmin, 0.85rem);
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 40%));
+}
+
+.hud-revs-track {
+  fill: rgb(var(--hud-plate) / 55%);
+  stroke: var(--hud-track);
+  stroke-width: 1.2;
+}
+
+.hud-revs-red {
+  fill: rgb(255 90 78 / 45%);
+}
+
+.hud-revs-fill {
+  fill: var(--hud-ink);
+  transform-origin: 0 50%;
+  /* Tweened between the HUD's 12 Hz snapshots so the bar sweeps. */
+  transition: transform 90ms linear;
+}
+
+.hud-revs-hot .hud-revs-fill {
+  fill: var(--hud-bad);
+}
+
+/* The reverse bucket down: the bar and its caption go the brake's colour —
+   the same one the touch lever's upward throw fills with — so a skier on
+   the keys, who has no lever to watch, reads the brake off the corner they
+   already read the speed off. */
+.hud-revs-brake .hud-revs-fill,
+.hud-brake {
+  fill: var(--hud-bad);
+  color: var(--hud-bad);
+  opacity: 1;
+}
+
+.hud-revs-tick {
+  stroke: rgb(var(--hud-plate) / 70%);
+  stroke-width: 1;
+}
+
+.hud-cluster {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+/* THE DAMAGE INSTRUMENT (hud-damage.tsx): the skier from above beside
+   the speed, its parts painted sound, tired or wrecked. */
+.hud-damage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  width: clamp(1.6rem, 5vmin, 2.4rem);
+  height: clamp(2.6rem, 7.5vmin, 3.6rem);
+  margin-left: 0.3rem;
+}
+
+.hud-damage svg {
+  flex: 1;
+  filter: drop-shadow(0 1px 1px var(--hud-shadow));
+}
+
+.hud-damage-ok {
+  fill: var(--hud-ink);
+}
+
+.hud-damage-worn {
+  fill: #ffc24a;
+}
+
+.hud-damage-bad {
+  fill: var(--hud-bad);
+}
+
+/* STUCK sits where the missed arrow would, a notch lower so the two read
+   as different news. */
+.hud-stuck {
+  top: 32%;
+}
+
+.hud-speed-num {
+  font-size: clamp(2.4rem, 10vmin, 4.8rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hud-speed-unit {
+  font-size: clamp(0.8rem, 2.6vmin, 1.2rem);
+  letter-spacing: 0.06em;
+}
+
+/* THE MISSED CHECKPOINT GUIDE. One quarter of the way down the frame, centred:
+   below the two top clusters, above the skis and the snow the skier is
+   turning back across. The transparent slot
+   is filled by camera-space geometry (`checkpoint-arrow.ts`), with the live
+   distance directly below it so the three parts read top to bottom as one
+   answer: what happened, where it is, how far. */
+.hud-missed {
+  position: absolute;
+  z-index: 1;
+  top: 25%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-bad);
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: hud-air-in 260ms ease-out;
+}
+
+.hud-missed-title {
+  font-size: clamp(1.05rem, 4vmin, 1.9rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.hud-missed-distance {
+  color: var(--hud-ink);
+  font-size: clamp(0.78rem, 2.5vmin, 1.15rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+/* THE AIR CLOCK, top centre — over the nose where the skier is aiming, and
+   drawn only while the skis is off the snow. Centred on the frame rather
+   than laid out between the two top corners: it is never up at the same
+   time as anything that would crowd it, and a number that moved sideways
+   with the clock's width would be harder to read at a glance than one that
+   is always in the same place. Sized to the smaller axis so it stays clear
+   of the clock and the map on a phone held upright. */
+.hud-air {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  /* A COLUMN, because the combo rides under the clock rather than beside
+     it: the seconds and what they are worth are one reading taken down the
+     centreline, and a combo laid out alongside would push the clock off it.
+     Centred, so the clock keeps the centreline when the combo is not
+     there and when the combo outlives it. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--hud-good);
+
+  /* THE SIZE IS PART OF THE READING. `--air-grow` is the snapshot's 0..1
+     from the line a flight starts counting at to one worth the whole size
+     (`snapshot.ts`), and the tile is drawn half again as big at the top of
+     it — so a skier reading nothing but the shape of the thing over his nose
+     still knows whether this one is big. The transition smooths the
+     snapshot's own twelve ticks a second into a growth rather than a
+     staircase, and the origin is the TOP edge so the tile grows DOWN into
+     the frame instead of up under the notch.
+
+     It arrives by FADING: this is the one readout that appears mid-run, and
+     a number that pops into the middle of the frame at the moment the skis
+     leaves the snow is a flinch where the skier wanted a reading. */
+  --air-grow: 0;
+  --air-size: clamp(2.5rem, 9vmin, 4.4rem);
+  transform: translateX(-50%) scale(calc(1 + 0.5 * var(--air-grow)));
+  transform-origin: top center;
+  transition: transform 140ms linear;
+  animation: hud-air-in 420ms ease-out;
+}
+
+@keyframes hud-air-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hud-air-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-air-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-air-num {
+  font-size: var(--air-size);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* THE RUN'S BEST, BEING FLOWN OR JUST FLOWN. The clock holds the winning
+   number for a couple of seconds after the landing (`snapshot.ts` measures
+   the hold off the engine's `progress.bestAirAt`), and while it does the
+   tile BREATHES — the one thing on this screen that moves under its own
+   steam, which is what separates "still up there" from "that was the one".
+
+   The word is the column's third line, under the unit label: each figure
+   keeps its own place whether the news is up or not, and the tile — anchored
+   by its top edge — grows DOWNWARD to make room. A word laid out beside the
+   number would push the number off its column.
+
+   The breathing is the RECORD'S OWN, not the tile's. The seconds and the
+   metres are two bests and a flight takes one, the other or both, so the
+   half that won it is the half that moves; a tile breathing whole would
+   claim the record for a figure that did not take it. */
+.hud-air-read-best {
+  animation: hud-air-pulse 640ms ease-in-out infinite;
+}
+
+.hud-air-best {
+  margin-top: 0.35em;
+  font-size: clamp(0.72rem, 2.3vmin, 1.05rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  animation: hud-air-in 260ms ease-out;
+}
+
+@keyframes hud-air-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+    text-shadow:
+      0 1px 0 var(--hud-shadow),
+      0 0 0.45em var(--hud-good);
+  }
+}
+
+/* THE PLACE's beat: a place gained or lost lands with a thump. */
+@keyframes hud-score-bank {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+    color: var(--hud-good);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The bottom-right corner: the news column, with the new-build mark pinned
+   under it (hud.tsx, and App.tsx over the front door). The column grows
+   UPWARD from the corner, so the mark keeps the corner and the flashes stack
+   over it.
+
+   `z-index` for the same reason `.hud-topright` carries one: `.hud-touch` is
+   a later sibling, and at `auto` the lever's glass would win the hit test
+   over the whole of this corner and eat the one press the app ever asks for.
+   The flashes are not pressable, so nothing else here takes glass from the
+   thumb. */
+.hud-right {
+  position: absolute;
+  z-index: 1;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  text-align: right;
+}
+
+.hud-flashes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.12rem;
+}
+
+.hud-flash {
+  font-size: clamp(0.72rem, 2.3vmin, 1.05rem);
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  animation:
+    hud-flash-pop 180ms ease-out,
+    hud-flash-fade 500ms ease-in 2.6s forwards;
+}
+
+.hud-flash-good {
+  color: var(--hud-good);
+}
+
+.hud-flash-bad {
+  color: var(--hud-bad);
+}
+
+.hud-flash-info {
+  color: var(--hud-info);
+}
+
+@keyframes hud-flash-pop {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hud-flash-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/* §38.3 — the build corner: which build, which map. Small,
+   under the instrument panel's line of sight, never in the way. */
+.hud-build {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(0.2rem, calc(env(safe-area-inset-bottom) - 0.4rem));
+  display: flex;
+  gap: 0.6rem;
+  font-size: clamp(0.5rem, 1.5vmin, 0.7rem);
+  letter-spacing: 0.06em;
+  color: var(--hud-info);
+  opacity: 0.85;
+}
+
+.hud-build a {
+  color: inherit;
+  text-decoration: none;
+  pointer-events: auto;
+}
+
+@keyframes hud-clock-low {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* THE PLACE: keyed on its value in the markup, so a place gained or lost
+   lands with the score chip's own thump. */
+.hud-place {
+  animation: hud-score-bank 340ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* THE LIGHTS. Dead centre, as big as the frame allows, and each one arrives
+   with a punch and fades as its second runs out — the same beat the sound
+   makes. Nothing is under the pointer here: the whole box lets presses
+   through to the snow. */
+.hud-lights {
+  pointer-events: none;
+}
+
+.hud-count {
+  font-size: clamp(5rem, 24vmin, 12rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #fff;
+  text-shadow:
+    0 0 2px var(--hud-shadow),
+    0 3px 0 var(--hud-shadow),
+    0 4px 18px rgb(0 0 0 / 45%);
+  animation: hud-count-in 1s ease-out both;
+}
+
+.hud-count-go {
+  color: var(--hud-good);
+}
+
+/* It settles rather than vanishing: a light that faded to nothing before
+   the next one landed would leave a held frame — the pause card, a
+   screenshot — with no count on it at all. */
+@keyframes hud-count-in {
+  0% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  18% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.94);
+    opacity: 0.8;
+  }
+}
+
+/* THE RESULT PLATE — the tab-away card's plate with the finish's own lines on
+   it and a row of presses under them (hud-result.tsx), and a gold rim on the
+   day the book gains a row.
+
+   ITS OWN LAYER, over the HUD and under every card: the presses on it are the
+   only ways off a finished run, so they are never behind a readout — and the
+   pause card, which offers the same three in its own words, stands over the
+   top of it (`.menu` sits higher still). */
+.hud-result-layer {
+  z-index: 2;
+}
+
+.hud-result {
+  min-width: min(20rem, 80vw);
+  /* ...and a gutter it may never cross. The row of presses is the widest
+     thing on the card, so without a ceiling it runs to both edges of a phone
+     held upright and the plate stops reading as a card at all. */
+  max-width: min(34rem, calc(100vw - 2rem));
+  animation: hud-air-in 420ms ease-out;
+}
+
+/* THE GOLD RIM on the day the book gains a row. Qualified with `.hud-card`,
+   which it is never seen without, because `.hud-card`'s own `border`
+   SHORTHAND is declared further down this file: at equal specificity the
+   later rule wins, so the bare `.hud-result-record` this used to be never
+   painted a single card. The same trap as two box-shadows at equal
+   specificity. */
+.hud-card.hud-result-record {
+  border-color: var(--hud-good);
+}
+
+/* The eyebrow: what happened, over what it was worth. Quiet and wide — it is
+   the one line on the card the skier does not have to read twice. */
+.hud-result-label {
+  letter-spacing: 0.18em;
+  opacity: 0.8;
+}
+
+.hud-result-note {
+  margin-top: 0.3rem;
+  opacity: 0.7;
+}
+
+/* The centre: the pause card. */
+.hud-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1rem 1.6rem;
+  background: rgb(var(--hud-plate) / 75%);
+  border: 2px solid var(--hud-edge);
+  border-radius: 0.6rem;
+}
+
+.hud-card-title {
+  font-size: clamp(1.4rem, 6vmin, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hud-card-note {
+  font-size: clamp(0.7rem, 2vmin, 1rem);
+  color: var(--hud-info);
+}
+
+/* THE WAYS ON, at the foot of the finish plate: presses made on a card rather
+   than mid-ride, so they want room above them rather than a thumb zone. They
+   WRAP — three words side by side is more than a phone held upright can take
+   on one line, and a row that overflowed instead would put the door off the
+   edge of the card. */
+.hud-result-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* Bigger than a mid-run press, because it is read before it is hit: a plate
+   the skier has stopped at is not the corner of the screen. */
+.hud-result-act {
+  font-size: clamp(0.72rem, 2.2vmin, 1rem);
+  padding: 0.45rem 0.9rem;
+}
+
+/* THE REPLAY BAR (hud-replay.tsx): bottom centre, where the thumbs would be
+   on a race somebody is riding. Over the HUD, and clear of the chips along
+   the top; it gives up its key note before it gives up the ways out. */
+.hud-replay-layer {
+  z-index: 2;
+}
+
+.hud-replay {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(30rem, calc(100% - 2rem));
+  box-sizing: border-box;
+  padding: 0.6rem 1rem;
+  gap: 0.4rem;
+}
+
+.hud-replay-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 100%;
+}
+
+.hud-replay-label {
+  font-size: clamp(0.65rem, 1.8vmin, 0.85rem);
+  letter-spacing: 0.3em;
+  color: var(--hud-info);
+}
+
+.hud-replay-slow {
+  margin-left: 0.8em;
+  padding: 0 0.4em;
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 85%);
+  color: rgb(var(--hud-plate));
+  letter-spacing: 0.15em;
+}
+
+.hud-replay-title {
+  font-size: clamp(0.9rem, 2.8vmin, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hud-replay-line {
+  font-size: clamp(0.7rem, 2vmin, 0.95rem);
+  color: var(--hud-info);
+}
+
+/* The gauge is a TRANSFORM, so the fill never lays the page out again. */
+.hud-replay-bar {
+  width: 100%;
+  height: 0.25rem;
+  margin-top: 0.25rem;
+  border-radius: 0.2rem;
+  background: rgb(255 255 255 / 20%);
+  overflow: hidden;
+}
+
+.hud-replay-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--hud-track);
+  transform-origin: left center;
+}
+
+.hud-replay-acts {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hud-replay-act {
+  font-size: clamp(0.72rem, 2.2vmin, 1rem);
+  padding: 0.4rem 0.9rem;
+}
+
+@media (max-height: 30rem) {
+  .hud-replay-note {
+    display: none;
+  }
+}
+
+/* THE SPLIT: the clock at the checkpoint just taken, landing with the
+   place chip's own thump, in the flag's colour so it reads as news. */
+.hud-split {
+  animation: hud-score-bank 340ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.hud-split > span:first-child {
+  color: var(--hud-good);
+}
+
+/* THE GAP to the record at the same crossing: the flag's colour ahead of
+   it, the warning's behind — the one chip whose colour IS the reading. */
+.hud-gap.hud-gap-behind > span:first-child {
+  color: var(--hud-bad);
+}
+
+/* THE ARROW BACK: a chevron in the warning colour, turned by the HUD to point
+   at the checkpoint that is owed. The turn is a transform tweened across the
+   snapshot's twelve ticks a second, so the arrow swings rather than steps. */
+.hud-missed-arrow {
+  display: block;
+  width: clamp(3.2rem, 10vmin, 5rem);
+  height: clamp(3.2rem, 10vmin, 5rem);
+  margin: 0.2rem 0;
+  fill: var(--hud-bad);
+  stroke: var(--hud-shadow);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  transition: transform 90ms linear;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 40%));
+}
+
+/* THE FIELD'S TABLE on the finish plate: place, name, time — a results
+   sheet, in the HUD's own condensed capitals, the skier's own row lit. */
+.hud-standings {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: clamp(0.8rem, 2.4vmin, 1.05rem);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-standing {
+  display: grid;
+  grid-template-columns: 1.6em 1fr auto;
+  gap: 0.6rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  background: rgb(var(--hud-plate) / 35%);
+}
+
+.hud-standing-you {
+  color: var(--hud-good);
+  background: rgb(var(--hud-plate) / 70%);
+}
+
+.hud-standing-place {
+  font-weight: 700;
+  text-align: right;
+}
+
+.hud-standing-time {
+  text-align: right;
+}
+
+/* ── THE TOUCH CONTROLS ──────────────────────────────────────────────────
+   The two thumb zones: the lower 60% of the screen at most, split down the
+   middle. The bar or the lever anchors wherever the thumb lands in its zone.
+
+   WHY A PROPORTION, AND WHY IT IS A FLOOR RATHER THAN THE WHOLE RULE. The
+   presses in the top-right corner are sized in clamped rem, so that cluster
+   is a FIXED number of pixels tall while the zone's top is a fraction of the
+   viewport — and a zone that reaches a button eats the press. So the top is
+   the LOWER of the two: two fifths of the way down, unless the cluster
+   reaches further than that, stated as the cluster's own arithmetic (the top
+   inset and one press) so the sum cannot be left behind by a change to it.
+
+   THE NEW-BUILD MARK IS THE ONE PRESS THIS RULE DOES NOT COVER: it sits in
+   the bottom-right corner, deep inside the lever's own zone by design, and
+   keeps its press on `z-index` instead (`.hud-right`). */
+.hud-touch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-zone {
+  position: absolute;
+  /* The cluster's foot plus a finger's clearance, or two fifths — whichever
+     is further down. See the note above for why it is the arithmetic and not
+     the fraction that is load-bearing. */
+  top: max(40%, calc(max(0.6rem, env(safe-area-inset-top)) + var(--hud-press) + 1.1rem));
+  bottom: 0;
+  width: 50%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.hud-zone-left {
+  left: 0;
+}
+
+.hud-zone-right {
+  right: 0;
+}
+
+/* The edge thumb, anchored at the touch point. It turns via the pointer
+   handler writing the SVG transform — never React — so it answers at
+   pointer rate rather than the HUD's 12 Hz. Hidden until a thumb is down:
+   this is glass the player is meant to be able to ignore. */
+.hud-bar {
+  position: absolute;
+  display: none;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation: hud-anchor-in 100ms steps(2);
+}
+
+.hud-bar-svg {
+  position: absolute;
+  left: -100px;
+  top: -100px;
+  width: 200px;
+  height: 200px;
+  color: var(--hud-ink);
+  opacity: 0.85;
+  filter: drop-shadow(2px 2px 0 rgb(var(--hud-plate) / 60%));
+}
+
+.hud-bar-reach {
+  fill: none;
+  stroke: rgb(255 255 255 / 30%);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.hud-bar-tube {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+}
+
+.hud-bar-grip {
+  fill: var(--hud-good);
+}
+
+/* The tuck lever: a track UP the glass from the anchor (wide open) to
+   the shut mark and the brake past it, the knob on the thumb, the fill how
+   open the tuck is. */
+.hud-lever {
+  position: absolute;
+  display: none;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation: hud-anchor-in 100ms steps(2);
+}
+
+/* `top` is written inline from the throw's own length (hud-touch.tsx): the
+   drawing hangs above the thumb, so how far above is the lever's business
+   and not a number to keep in step here. */
+.hud-lever-svg {
+  position: absolute;
+  left: -22px;
+  filter: drop-shadow(2px 2px 0 rgb(var(--hud-plate) / 60%));
+}
+
+.hud-lever-track {
+  fill: rgb(var(--hud-plate) / 45%);
+  stroke: var(--hud-track);
+  stroke-width: 2;
+}
+
+.hud-lever-fill {
+  fill: var(--hud-good);
+}
+
+/* The top of the throw, past the shut mark, is the BRAKE, and it is the one
+   control that has to read differently at a glance from the one beside it. */
+.hud-lever-fill-reverse {
+  fill: var(--hud-bad);
+}
+
+.hud-lever-neutral {
+  stroke: var(--hud-track);
+  stroke-width: 2;
+}
+
+.hud-lever-knob {
+  fill: var(--hud-ink);
+  stroke: rgb(var(--hud-plate) / 70%);
+  stroke-width: 2;
+}
+
+@keyframes hud-anchor-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* PORTRAIT: the corners close in on a narrow screen. The instrument panel
+   and the news column share the bottom, so both shrink, and the top bar's
+   two clusters keep clear of each other. */
+@media (orientation: portrait) {
+  .hud-top {
+    gap: 0.35rem;
+  }
+
+  /* The air clock cannot sit level with the two top corners on a narrow
+     screen: the race's chips reach the middle of the frame there. So it
+     drops below both of them — still on the centreline, still over the
+     nose, and now with the whole width of the frame to itself. */
+  .hud-air {
+    top: auto;
+    bottom: 62%;
+  }
+
+  .hud-top-row {
+    gap: 0.7rem;
+  }
+
+  /* The presses share the top of a narrow screen with the clock and the
+     chips, so the cluster is sized off the WIDTH there rather than `vmin`. */
+  .hud {
+    --hud-cluster: clamp(6.6rem, 30vw, 8.4rem);
+  }
+
+  .hud-topright {
+    gap: 0.35rem;
+  }
+
+  .hud-speed-num {
+    font-size: clamp(2rem, 12vw, 3.6rem);
+  }
+
+  .hud-revs {
+    width: clamp(6rem, 34vw, 10rem);
+  }
+
+  .hud-right {
+    max-width: 46vw;
+  }
+
+  .hud-flash {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 46vw;
+  }
+}
+
+/* A short landscape (a phone on its side) has no height to spare: the
+   panel tightens vertically. */
+@media (orientation: landscape) and (max-height: 30rem) {
+  /* The plate gives the height back: under the presses at the cluster's
+     width it would reach half-way down a phone on its side, into the
+     lever's glass. */
+  .hud {
+    --hud-map: calc(var(--hud-cluster) * 0.72);
+  }
+
+  .hud-speed {
+    gap: 0.1rem;
+  }
+
+  .hud-build {
+    display: none;
+  }
+}
+
+/* ── THE MENU SYSTEM ───────────────────────────────────────────────────────
+   Three cards, in the order the player meets them: the attract card the app
+   opens on, the front door under it, and the loading card over a run being
+   stood up. All three sit over the SAME LIVE CANVAS — the snow is being
+   stepped and drawn the whole time any of them is up — so each one is a
+   cover rather than a screen, and the chrome below is the same chrome the
+   HUD wears so that lifting a card reads as the game arriving. */
+
+/* ── THE APP MARK, BUILDING ────────────────────────────────────────────────
+   The two trails off the icon, laid left to right (`mark-trails.tsx`).
+
+   IT IS A WIPE, NOT A STROKE. `stroke-dashoffset` is the obvious way to draw
+   a line on and it is the wrong one: it animates on the MAIN THREAD, which is
+   the thread the loading card exists to cover for. Standing a map up blocks
+   that thread for seconds at a time, and a mark that froze for them would
+   read as a hung game rather than a loading one. A transform does not —
+   browsers run it on the compositor, so the fill keeps travelling through a
+   block that would stop a stroke animation dead. */
+.mark-trails {
+  position: relative;
+  display: block;
+  /* The drawing's own ratio — MARK_TRAIL_VIEWBOX in app-mark.ts (400 × 160),
+     restated because a stylesheet cannot import a TypeScript module, so a
+     mark mounted anywhere needs only a width. Change one, change both. */
+  aspect-ratio: 400 / 160;
+}
+
+.mark-trails svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: var(--snow);
+  stroke-linecap: round;
+}
+
+/* The finished shape, faint, under everything. It holds the space the fill is
+   about to take — so nothing beside the mark shifts as it runs, and the card
+   never shows a half-laid trail adrift of its own box. */
+.mark-trails-ghost {
+  opacity: 0.22;
+}
+
+/* THE WINDOW, and the drawing inside it. The window slides RIGHT over the
+   shape while the shape slides LEFT by the same amount, so what is on screen
+   stays put and only the window into it moves: at `translateX(-100%)` the
+   window sits entirely left of the mark and nothing shows, and at `0` it
+   covers all of it. Both halves are transforms, which is the whole point. */
+.mark-trails-wipe {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Its own layer, so the fill is composited rather than repainted. */
+  will-change: transform;
+}
+
+.mark-trails-slide {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* Filled once, and left there: a flourish beside a title that has just come
+   up. `both` is what keeps it — the mark holds the finished state rather than
+   snapping back to empty at the end of the run. */
+.mark-trails-once .mark-trails-wipe {
+  animation: mark-wipe 900ms cubic-bezier(0.33, 0, 0.2, 1) both;
+}
+
+.mark-trails-once .mark-trails-slide {
+  animation: mark-slide 900ms cubic-bezier(0.33, 0, 0.2, 1) both;
+}
+
+/* ...and over and over, for a load in progress. */
+.mark-trails-loop .mark-trails-wipe {
+  animation: mark-wipe-loop 1700ms cubic-bezier(0.4, 0, 0.25, 1) infinite;
+}
+
+.mark-trails-loop .mark-trails-slide {
+  animation: mark-slide-loop 1700ms cubic-bezier(0.4, 0, 0.25, 1) infinite;
+}
+
+@keyframes mark-wipe {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes mark-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Filled, held long enough to be read as a shape rather than a sweep, then
+   faded off so the next one starts from nothing. The fade is opacity, which
+   is composited like the transform beside it; at the moment the loop wraps
+   the window is back left of the mark and there is nothing on screen to
+   pop. */
+@keyframes mark-wipe-loop {
+  0% {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  55%,
+  78% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes mark-slide-loop {
+  0% {
+    transform: translateX(100%);
+  }
+  55%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ── THE ATTRACT CARD ──────────────────────────────────────────────────────
+   The house's name while the snow is built, then the title and an invitation
+   (`splash-screen.tsx`). Painted in the same snow the game is painted in, so
+   the card lifting reads as the menu arriving rather than as a screen
+   change. */
+.splash {
+  position: fixed;
+  inset: 0;
+  top: var(--shell-top);
+  height: var(--shell-visible);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.9rem, 3.6vmin, 2rem);
+  padding: 1.5rem;
+  background: linear-gradient(
+    180deg,
+    var(--night) 0%,
+    var(--sky-high) 62%,
+    var(--snow-shadow) 100%
+  );
+  color: var(--hud-ink);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 1;
+  transition: opacity 340ms ease-out;
+}
+
+/* Cleared — fade out of the way. The duration must match FADE_MS in
+   splash-screen.tsx, which is what times the unmount behind it.
+
+   NO `pointer-events: none` here, and that is not an omission: a tap is three
+   events and only the FIRST dismisses the card, so letting the fading card
+   stop taking presses hands the `click` that follows its own `pointerdown`
+   straight to the menu coming up underneath. */
+.splash.leaving {
+  opacity: 0;
+}
+
+.splash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  animation: splash-in 460ms ease-out both;
+}
+
+.splash-publisher {
+  font-size: clamp(1.1rem, 5vmin, 2rem);
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-shadow: 0 2px 0 var(--hud-shadow);
+}
+
+.splash-presents {
+  font-size: clamp(0.58rem, 2.1vmin, 0.9rem);
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  /* The tracking is applied to the RIGHT of every glyph, the last one
+     included, so without this the word sits visibly left of centre. */
+  text-indent: 0.5em;
+  opacity: 0.85;
+}
+
+/* Beat two: the crest and the game's name, mounted the moment the game behind
+   the card is standing.
+
+   THE HAND-OVER IS FOUR BEATS, NOT ONE MOVE, and the delays below are what
+   keeps them apart. The block takes its place in the layout blank, so the
+   lockup above has somewhere to walk to (`.held`); it fades in once the walk
+   has landed; the crest then draws ITSELF, which is the mark's own animation
+   and must not have run behind an invisible block; and the name rises last.
+   The walk itself is the one part the stylesheet cannot own — its distance is
+   the height of this block, so `splash-screen.tsx` measures it. */
+.splash-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.4rem, 1.8vmin, 1rem);
+  animation: splash-crest 420ms ease-out both;
+}
+
+/* The lift in progress: the space taken, nothing drawn in it. Every animation
+   inside is stopped rather than merely hidden — an animation that had run
+   behind this would arrive FINISHED, which for the crest means a mark that
+   never draws itself at all. Dropping the class starts each of them from its
+   own first frame. */
+.splash-title.held,
+.splash-title.held .splash-game,
+.splash-title.held .mark-trails-wipe,
+.splash-title.held .mark-trails-slide {
+  animation: none;
+}
+
+.splash-title.held {
+  opacity: 0;
+}
+
+/* The crest ARRIVES, and only then draws itself. The wipe waits out the
+   block's own fade so the two read as two beats rather than one muddle; it
+   holds its first frame through the wait (`both` on the animation itself),
+   so what stands there in the meantime is the faint ghost of the finished
+   shape — the mark present, and not yet made. */
+.splash-mark.mark-trails-once .mark-trails-wipe,
+.splash-mark.mark-trails-once .mark-trails-slide {
+  animation-delay: 300ms;
+}
+
+/* The crest's box. The ratio is the SVG's own viewBox, restated here so the
+   space is reserved before the trails have been laid in it — and the height cap
+   is what keeps the crest off the title on a phone held sideways, the
+   tightest surface in the app. */
+.splash-mark {
+  width: min(64vw, 34vh, 22rem);
+}
+
+.splash-game {
+  max-width: 14ch;
+  font-size: clamp(1.8rem, 8vmin, 3.2rem);
+  letter-spacing: 0.05em;
+  line-height: 0.94;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--flag);
+  text-shadow: 0 3px 0 var(--hud-shadow);
+}
+
+/* The name rises into place under the crest the wipe is still filling, so the
+   two read as one flourish rather than two appearances. */
+.splash-title .splash-game {
+  animation: splash-name 520ms 700ms ease-out both;
+}
+
+/* WHAT THE CARD WANTS — beat two only, and the one thing on screen the player
+   has to act on, so it sits under the title where they were already looking.
+
+   The arcade blink: a hard on/off. A fade would read as a notification. */
+.splash-prompt {
+  font-size: clamp(0.68rem, 2.5vmin, 1rem);
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  text-align: center;
+  color: var(--flag);
+  text-shadow: 0 2px 0 var(--hud-shadow);
+  /* It arrives LAST, after the name it sits under, and only then starts
+     asking. The blink carries no fill of its own: a backwards fill would put
+     the prompt on screen through its own delay, which is the one thing the
+     rise in front of it is there to prevent. */
+  animation:
+    splash-name 400ms 900ms ease-out both,
+    splash-blink 1.05s linear 1300ms infinite;
+}
+
+/* WHAT THE CARD IS DOING — beat one, and all it has to say is that work is
+   happening. That is worth a corner, not a headline: a small ring turning in
+   the bottom right, clear of the lockup, claiming no fraction and asking for
+   nothing.
+
+   Drawn in the card's own ink, which is what every other mark on it is drawn
+   in — the gradient ends on `--snow-shadow`, a pale blue, so white carries
+   further down here than the shadow's navy does.
+
+   It turns on a TRANSFORM and nothing else. Beat one is precisely when the
+   main thread is building a map, and anything animated off the compositor
+   stops dead for exactly as long as the player most needs to see something
+   moving — the same reason every fill on the loading card is a transform. */
+.splash-spinner {
+  position: absolute;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  width: clamp(1.05rem, 3.2vmin, 1.5rem);
+  aspect-ratio: 1;
+  border: 0.14rem solid color-mix(in srgb, var(--hud-ink), transparent 76%);
+  /* One quarter lit, with the square ends the rest of the game's drawing
+     wears. A tapered arc would be the one soft edge on the screen. */
+  border-top-color: color-mix(in srgb, var(--hud-ink), transparent 22%);
+  border-radius: 50%;
+  animation: splash-spin 760ms linear infinite;
+}
+
+@keyframes splash-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes splash-crest {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes splash-name {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes splash-blink {
+  0%,
+  56% {
+    opacity: 1;
+  }
+  57%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ── THE FRONT DOOR AND ITS PAGES ──────────────────────────────────────────
+   A card over the live race (`menu-main.tsx`). It is a COVER, not a scrim over
+   a stopped game: the snow behind it is being stepped and drawn at full
+   rate, so the card is dimmed against it rather than the snow dimmed under the
+   card. */
+.menu {
+  position: absolute;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  /* Just enough wash to hold contrast over bright snow without hiding it. */
+  background: rgb(13 34 51 / 42%);
+}
+
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(30rem, 100%);
+  max-height: 100%;
+  /* THE CARD IS THE SCROLLER, not the rows inside it. A scrolling body
+     within a fixed head reserves a gutter its head does not, and every row
+     then sits a scrollbar's width left of the rule above them — a card that
+     looks broken on the one page long enough to need the scroll. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(1rem, 3.5vmin, 1.6rem);
+  border-radius: 0.9rem;
+  background: rgb(20 46 74 / 88%);
+  border: 2px solid rgb(244 248 251 / 22%);
+  box-shadow: 0 10px 0 rgb(13 34 51 / 45%);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* …AND THAT PROMISE NEEDS THIS LINE. A flex column at `max-height` SHRINKS its
+   children to fit before it will scroll, so a card taller than the viewport
+   was squeezing every row instead of scrolling — and `.menu-item`'s
+   `overflow: hidden` hid the evidence by clipping the row's own text mid-word.
+   The benchmark's card is where it showed (a head, a score, a graph, six
+   picture cells and two rows is the tallest card in the game), but the trap is
+   the rule's rather than that card's, and it is armed for every card that
+   outgrows a phone.
+
+   It costs nothing on a card that FITS: there is no shrinking to refuse. */
+.menu-card > * {
+  flex-shrink: 0;
+}
+
+/* The front door is the one card that centres on its own wordmark rather than
+   opening with a head, so it gets its air from the brand block above. */
+.menu-card-root {
+  align-items: stretch;
+  text-align: center;
+}
+
+/* THE PAUSE CARD (menu-pause.tsx): the front door's chrome, narrower, over a
+   run that is standing still. It opens with a head of its own rather than a
+   wordmark — the game's name is not the question here, WHICH RUN IS HELD is —
+   and the rows under it are the front door's, so RESUME wears START's weight
+   and the eye lands on the way back to the snow.
+
+   IT IS THE TIGHTEST HEIGHT BUDGET IN THE GAME. A phone held SIDEWAYS is 390
+   px tall and this card has to carry a head, a strip of figures and five
+   presses inside it — which is the whole reason RESUME and OPTIONS are a
+   LINE apiece with a mark at the head of each, and the three that end the
+   race share one quiet strip at the foot (`.pause-foot`). Measure it (`.menu-card-*`'s `scrollHeight` against its
+   `clientHeight`, both viewports) before adding anything to it: a card a row
+   too tall does not clip, does not wrap and does not show in any screenshot
+   — its last press simply sits below the fold. */
+.menu-card-pause {
+  align-items: stretch;
+  text-align: center;
+  width: min(24rem, 100%);
+  /* The card's own air between its blocks, scaled on the short axis like
+     every other vertical measure on it: the 0.9rem every card keeps is four
+     gaps' worth of the phone on its side. */
+  gap: clamp(0.45rem, 2.2vmin, 0.9rem);
+}
+
+.menu-pause-head {
+  margin-bottom: clamp(0.1rem, 1vmin, 0.3rem);
+}
+
+.menu-pause-head .menu-title {
+  font-size: clamp(1.3rem, 5.5vmin, 1.9rem);
+  color: var(--hud-good);
+}
+
+/* HOW THE HELD RUN HAS GONE (`pause-stats.ts`): up to four figures in one
+   row, each over its caption — the HUD's own chip, because the skier reading
+   this card was reading those chips a second ago.
+
+   ONE ROW, NEVER TWO. `1fr` columns rather than `auto-fit` with a minimum:
+   a minimum that cannot be met WRAPS, silently, and a strip that wrapped
+   would cost this card a whole second line of height on exactly the viewport
+   that has none to give. Equal columns cannot wrap, so the figures are sized
+   to the cell instead, and the widest of them — a four-skier standing, ten
+   minutes on the clock — was MEASURED into a four-cell strip at every
+   reference viewport rather than eyeballed on the three-cell one a lab can
+   ride to. */
+.pause-stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.3rem;
+  /* Every vertical measure on this card is scaled against the SHORT axis,
+     because the viewport that decides it is a phone on its side: 390 px of
+     height, of which the wash keeps some. `vmin` is what turns "roomy on a
+     desktop" into "tight on the one screen that cannot afford roomy"
+     without a second layout to keep in step. */
+  margin: 0.1rem 0 clamp(0.3rem, 1.5vmin, 0.55rem);
+  padding: clamp(0.28rem, 1.2vmin, 0.45rem) 0.2rem;
+  border-top: 2px solid rgb(242 247 248 / 14%);
+  border-bottom: 2px solid rgb(242 247 248 / 14%);
+}
+
+.pause-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pause-stat-value {
+  /* FLAT, and deliberately not clamped against a viewport. The card is
+     `min(24rem, 100%)` wide, so a four-cell strip is 81–88 px per cell at
+     every reference viewport — the column barely moves, and a figure sized
+     against the viewport moves anyway: against `vw` it reaches its maximum
+     on a wide SHORT screen whose cells are still a phone's, and the widest
+     figure walks out of its column into its neighbour's. This is the size
+     the widest figure was measured to fit the NARROWEST of those cells at. */
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--hud-ink);
+  white-space: nowrap;
+}
+
+.pause-stat-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  color: var(--hud-info);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* THE ROWS, ON THIS CARD ONLY. `.menu-item` is the pause card's RESUME and the
+   developer page's whole column as well, so the mark-and-a-line layout is
+   scoped here rather than pushed onto all of them: the pause card is the one
+   surface where its presses have to share a phone's short side with a head,
+   a strip of figures and a foot. */
+.menu-card-pause .menu-item {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.45rem, 1.7vmin, 0.7rem);
+  padding: clamp(0.44rem, 1.6vmin, 0.62rem) clamp(0.6rem, 2.2vmin, 0.85rem);
+  text-align: left;
+  font-size: 0.92rem;
+  /* Looser than body text and tighter than the front door's tiles: the
+     front door's 0.16em is a tile's worth of spacing and this is a row's. */
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+}
+
+.menu-card-pause .menu-items {
+  gap: clamp(0.34rem, 1.4vmin, 0.5rem);
+}
+
+/* Scoped to the ROWS, not to the card: the pause card's own OPTIONS panel
+   wears `.menu-card-pause` too, and its group headings carry marks of their
+   own at the size every settings page draws them. */
+.menu-card-pause .menu-item .menu-glyph {
+  width: 1.25em;
+  height: 1.25em;
+  opacity: 0.9;
+}
+
+/* THE FOOT STRIP: RESTART, WATCH REPLAY and MAIN MENU — the three presses
+   that END the race — side by side, a mark over a short word each, in the
+   card's quietest ink and with no fill until a finger or the cursor is on
+   one. Three columns of `1fr` for the reason the figures above are: a strip
+   that could wrap would buy back the very row it exists to save. The rule
+   over it is the figures' own, so the card reads head / figures / presses /
+   foot rather than as a fifth and sixth row of the same weight as RESUME. */
+.pause-foot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.3rem;
+  padding-top: clamp(0.3rem, 1.2vmin, 0.5rem);
+  border-top: 2px solid rgb(242 247 248 / 14%);
+}
+
+.pause-foot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* From the top, so the three marks and their words stand on one line and
+     the replay's price hangs under its own word rather than lifting it. */
+  justify-content: flex-start;
+  gap: 0.18rem;
+  min-width: 0;
+  /* A thumb's worth of target, whatever the words inside it come to. */
+  min-height: 2.75rem;
+  padding: 0.35rem 0.2rem 0.3rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background: none;
+  color: var(--hud-info);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pause-foot-item:hover,
+.pause-foot-item:focus-visible,
+.pause-foot-item.nav-cursor {
+  border-color: var(--flag);
+  background: rgb(44 92 140 / 55%);
+  color: var(--hud-ink);
+  outline: none;
+}
+
+.pause-foot-item:active {
+  transform: translateY(1px);
+}
+
+.pause-foot-item .menu-glyph {
+  width: 1.15rem;
+  height: 1.15rem;
+  opacity: 0.85;
+}
+
+.pause-foot-name,
+.pause-foot-note {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+
+/* WATCH REPLAY's price, under its word: taken mid-race, the race is over. */
+.pause-foot-note {
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+/* THE PAUSE CARD'S OPTIONS PANEL (menu-pause.tsx): the same groups the front
+   door's page carries, one column wide, on the pause card's own narrow plate
+   so the two faces of the card are the same object rather than two.
+
+   ONE COLUMN AT EVERY WIDTH. `.knob-groups` goes to a two-column grid at
+   48rem, which is a rule written for a page of four groups; four rows split two
+   and two is a panel with a hole in the corner of it. */
+.menu-card-pause-options {
+  align-items: stretch;
+  text-align: left;
+  gap: 0.55rem;
+}
+
+/* `align-items` is restated on purpose: the two-column rule at 48rem sets it
+   to `start` for a GRID, where it means "do not stretch a short group down the
+   row", and the same word in a flex COLUMN means "do not stretch a group
+   ACROSS" — which sized every group to its own longest label and left the
+   panel's rows standing at three different widths. */
+.menu-card-pause-options .knob-groups {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+/* The head reads as the card's, not as a page's: the run behind it is still
+   the subject, and a title the weight of PAUSED would make the panel look
+   like somewhere you had navigated to. */
+.menu-card-pause-options .menu-title {
+  font-size: clamp(0.95rem, 3.4vmin, 1.15rem);
+}
+
+.menu-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 0.4rem;
+}
+
+/* The mark rides with the NAME, not with the name and its billing: paired
+   with the whole block it sits visibly low, because the tagline under it
+   drags the centre it is aligned to down a line. */
+.menu-brand-line {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.menu-brand-mark {
+  width: clamp(3.4rem, 13vmin, 5rem);
+  flex: none;
+}
+
+.menu-brand-name {
+  white-space: nowrap;
+  font-size: clamp(1.6rem, 7vmin, 2.6rem);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-shadow: 0 3px 0 var(--hud-shadow);
+}
+
+/* EVERY MARK FROM menu-glyphs.tsx. Sized in `em`, so a glyph is whatever the
+   control it sits in is: one rule, and a mark that never has to be re-sized
+   when the text around it moves. */
+.menu-glyph {
+  flex: none;
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+/* ── THE FRONT DOOR'S TILES ────────────────────────────────────────────────
+   A mark and a name, and never a full-width row carrying the same words in a
+   column: a column of labelled rows is a FORM, which is the one thing the way
+   into a game must not read as. A tile is the arcade's own shape — the mark
+   is what the eye lands on, the word is what confirms it, and a player learns
+   each one once.
+
+   THE COLOUR IS THE TIER, and the tier is how close the press is to snow
+   (`menu-main.tsx`'s header states it in full). ORANGE is the way IN and
+   there is exactly one of it; the sky's blue is a way onto snow; the foot strip
+   below is everything that is not. A door where two tiles are lit is a door
+   with no way on, because the eye is handed a choice where it wanted an
+   answer — so nothing but the hero is allowed the flag's red.
+
+   THE GRID IS ONE GRID AT EVERY VIEWPORT and the hero is a SPAN in it, so
+   the door turning sideways is a change of column count rather than a second
+   layout to keep in step. Upright: two columns, the hero across the top and
+   the four modes paired beneath it. Sideways: four columns and the hero
+   takes the left quadrant, which is the shape that fits the one axis a phone
+   held sideways has any room on (see the landscape rule at the foot of this
+   block). */
+.menu-tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+/* One tile. `position: relative` so RACE's hold fill has something to be
+   clipped by, and `overflow: hidden` so the fill wears the tile's own rounded
+   corners rather than squaring them off.
+
+   The drop is the card's own idiom — a hard offset with no blur, the shadow
+   the whole game's chrome is drawn with — and it is what the press SPENDS:
+   `:active` walks the tile down by exactly the shadow's height and takes the
+   shadow away, so the button goes into the card rather than merely tinting.
+   A blurred shadow here would be the one soft edge on the screen. */
+.menu-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 5.2rem;
+  padding: 0.9rem 0.5rem;
+  border: 2px solid rgb(244 248 251 / 26%);
+  border-radius: 0.55rem;
+  background: rgb(44 92 140 / 55%);
+  box-shadow: 0 3px 0 rgb(13 34 51 / 50%);
+  color: var(--hud-ink);
+  font: inherit;
+  /* The mark is sized off this, so the whole tile grows together: a laptop
+     gets a mark worth looking at and a phone keeps the one that fits. */
+  font-size: clamp(0.88rem, 3vmin, 1.05rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* The mark, over the hero's travelling sheen rather than under it —
+   `position` is what gives it a stacking context of its own, exactly as the
+   label below has. */
+.menu-tile .menu-glyph {
+  position: relative;
+  width: 2.3em;
+  height: 2.3em;
+  color: var(--flag);
+}
+
+.menu-tile:hover,
+.menu-tile:focus-visible,
+.menu-tile.nav-cursor {
+  border-color: var(--flag);
+  background: rgb(44 92 140 / 78%);
+  outline: none;
+}
+
+.menu-tile:active {
+  transform: translateY(3px);
+  box-shadow: none;
+}
+
+/* The label under the mark. It wraps rather than being clipped: RACE says
+   KEEP HOLDING… while it is being held, which is two words in a tile half a
+   phone wide. */
+.menu-tile-name {
+  position: relative;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+/* ── THE HERO ──────────────────────────────────────────────────────────────
+   THE CAMPAIGN, and the only lit tile on the card. It is bigger than the
+   four beside it in every way the eye reads size — width, mark, weight of
+   colour — because being told which button to press first is the single most
+   useful thing a front door can do for somebody who has just arrived.
+
+   It is also the only tile whose FACE CHANGES between visits: the line under
+   the name is how far up the ladder the player has got (`campaignStanding`).
+   That is what stops the door being furniture — a card that says exactly the
+   same thing on the fortieth visit as on the first is a card nobody reads
+   twice, and no amount of decoration fixes it.
+
+   Laid out as a ROW here — mark left, words right — which is the shape that
+   fills a tile twice as wide as it is tall, and which breaks the grid of
+   identical centred stacks the rest of the card is. */
+.menu-tile-hero {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.9rem;
+  min-height: 0;
+  padding: 0.85rem 1.1rem;
+  background: rgb(232 65 44 / 82%);
+  border-color: rgb(244 248 251 / 45%);
+  text-align: left;
+}
+
+/* Ink on the orange, where every other mark on the card is orange on the
+   blue: the hero is the one tile lit from the other side. */
+/* THE TIME TRIAL: the hero's shape, a row the card's width, but in the
+   card's own blue — the second way onto the snow, not the lit one. */
+.menu-tile-wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.9rem;
+  min-height: 0;
+  padding: 0.85rem 1.1rem;
+  text-align: left;
+}
+
+.menu-tile-wide .menu-glyph {
+  width: 2.6em;
+  height: 2.6em;
+}
+
+.menu-tile-wide .menu-tile-name {
+  font-size: 1.25em;
+}
+
+.menu-tile-hero .menu-glyph {
+  width: 2.6em;
+  height: 2.6em;
+  color: var(--snow);
+}
+
+.menu-tile-hero:hover,
+.menu-tile-hero:focus-visible,
+.menu-tile-hero.nav-cursor {
+  background: var(--flag);
+  border-color: var(--snow);
+}
+
+.menu-tile-words {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.menu-tile-hero .menu-tile-name {
+  font-size: 1.25em;
+}
+
+/* HOW FAR UP THE LADDER, under the name. Dimmed against the name rather than
+   coloured: it is the same tile's second line, not a second thing to press. */
+.menu-tile-line {
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  line-height: 1.2;
+  color: rgb(255 255 255 / 82%);
+}
+
+/* THE SHEEN — a bar of light travelling the hero, the one moving thing on a
+   card that stands over moving snow. It is a transform and an opacity and
+   nothing else, so it is composited rather than repainted: this card is up
+   while the engine is stepping a bot-ridden run behind it, and an effect
+   that cost the main thread would be paid for out of that snow's frame rate.
+
+   Off unless the machine has said it wants motion — see the rule below. */
+.menu-tile-sheen {
+  position: absolute;
+  top: -50%;
+  bottom: -50%;
+  left: -40%;
+  width: 28%;
+  transform: translateX(-200%) rotate(14deg);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0%),
+    rgb(255 255 255 / 26%),
+    rgb(255 255 255 / 0%)
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── THE FOOT STRIP ────────────────────────────────────────────────────────
+   Everything that is NOT a way onto the snow, along the bottom of the card
+   in one low row. It is deliberately not tile-shaped: a press that cannot
+   start a run should not wear the shape of one, and the strip is the cheapest
+   tier in the door's height budget — which is right, because it is the tier
+   nobody came here for. The build stamp rides at the far end of the same row
+   for the same reason, and costs the card no line of its own. */
+.menu-strip {
+  display: flex;
+  /* The stamp is the one thing here that MUST NOT break — a commit sha split
+     across two lines is a string nobody can match against `git log` — so the
+     row wraps rather than squeezing it. On a narrow phone that puts the
+     stamp on a line of its own; everywhere else the three share one. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.menu-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.7rem;
+  border: 2px solid rgb(244 248 251 / 18%);
+  border-radius: 0.5rem;
+  background: rgb(13 34 51 / 55%);
+  color: rgb(244 248 251 / 78%);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.menu-chip .menu-glyph {
+  width: 1.35em;
+  height: 1.35em;
+  color: rgb(244 248 251 / 62%);
+}
+
+.menu-chip:hover,
+.menu-chip:focus-visible,
+.menu-chip.nav-cursor {
+  border-color: var(--flag);
+  background: rgb(44 92 140 / 70%);
+  color: var(--hud-ink);
+  outline: none;
+}
+
+.menu-chip:hover .menu-glyph,
+.menu-chip:focus-visible .menu-glyph,
+.menu-chip.nav-cursor .menu-glyph {
+  color: var(--flag);
+}
+
+.menu-chip:active {
+  transform: translateY(1px);
+}
+
+/* ── THE DOOR ARRIVING, AND THE ONE THING ON IT THAT MOVES ─────────────────
+   The tiles come up in sequence rather than all at once — the arcade's own
+   entrance, and the difference between a card that APPEARS and a card that
+   is dealt. Both halves are a transform and an opacity, which is what keeps
+   them off the main thread the snow behind the card is being stepped on.
+
+   Asked for rather than assumed: a machine that has not said it wants motion
+   gets the door standing there already, which is also what every screenshot
+   the lab takes is of. */
+@media (prefers-reduced-motion: no-preference) {
+  /* `backwards`, never `both`. The fill has one job — hold the tile off
+     screen through its own delay — and a FORWARDS fill would go on applying
+     `transform: none` at animation priority after the arrival has finished,
+     which outranks the cascade and silently kills `:active`'s press. The
+     door would come up beautifully and then never depress under a thumb. */
+  .menu-card-root .menu-tile,
+  .menu-card-root .menu-chip {
+    animation: menu-tile-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+  }
+
+  /* A beat between one tile and the next. Short enough that the whole door
+     is standing inside half a second — a front door that has to be waited
+     out is worse than one that simply appeared. */
+  .menu-card-root .menu-tiles > :nth-child(1) {
+    animation-delay: 40ms;
+  }
+
+  .menu-card-root .menu-tiles > :nth-child(2) {
+    animation-delay: 90ms;
+  }
+
+  .menu-card-root .menu-tiles > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+
+  .menu-card-root .menu-tiles > :nth-child(4) {
+    animation-delay: 190ms;
+  }
+
+  .menu-card-root .menu-tiles > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+
+  .menu-card-root .menu-strip > :nth-child(n) {
+    animation-delay: 290ms;
+  }
+
+  /* The sheen, once the hero has landed and then every few seconds — a long
+     wait and a fast pass, so it reads as light catching the tile rather than
+     as a thing that is animating. */
+  .menu-tile-sheen {
+    animation: menu-sheen 5.5s 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes menu-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.7rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes menu-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-200%) rotate(14deg);
+  }
+  6% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 0;
+  }
+  22.01%,
+  100% {
+    opacity: 0;
+    transform: translateX(700%) rotate(14deg);
+  }
+}
+
+/* ── THE DOOR TURNED SIDEWAYS ──────────────────────────────────────────────
+   HOW THE GAME IS ACTUALLY HELD. A phone on its side has width and no height
+   at all — 390 px of it, less the safe areas — so the brand comes down to one
+   line and the card spends the axis that HAS room. `max-height` rather than a
+   width query, because what is short is what hurts: a desktop window dragged
+   into a letterbox has the same problem and gets the same door. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu-card-root {
+    width: min(36rem, 100%);
+    gap: 0.6rem;
+  }
+
+  .menu-brand-mark {
+    width: 3.2rem;
+  }
+
+  .menu-brand-name {
+    font-size: 1.6rem;
+  }
+
+  /* Four chips along the foot on one row, so none of them — the GALLERY is
+     the last — is below the card's fold. */
+  .menu-card-root .menu-chip {
+    padding: 0.45rem 0.55rem;
+    gap: 0.35rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+.menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* A row on the pause card, and the press that carries a page on (RIDE on the
+   the pause card's RESUME). `position: relative` and
+   `overflow: hidden` for the same reason a tile has them. */
+.menu-item {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 2px solid rgb(244 248 251 / 26%);
+  border-radius: 0.55rem;
+  background: rgb(44 92 140 / 55%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible,
+.menu-item.nav-cursor {
+  border-color: var(--flag);
+  background: rgb(44 92 140 / 78%);
+  outline: none;
+}
+
+.menu-item:active {
+  transform: translateY(1px);
+}
+
+/* The way ON, given the weight the eye should land on first. */
+.menu-item-start {
+  background: rgb(232 65 44 / 78%);
+  border-color: rgb(244 248 251 / 42%);
+}
+
+.menu-item-start:hover,
+.menu-item-start:focus-visible,
+.menu-item-start.nav-cursor {
+  background: var(--flag);
+}
+
+/* The one press on the pause card that ENDS the run, held visibly apart from
+   the two above it and given none of their weight: a thumb aiming for RESUME
+   must not be one row's travel away from throwing the run away. Written after
+   `.menu-item` on purpose — an override placed earlier than its base rule
+   loses the cascade without a word. */
+.menu-item-leave {
+  margin-top: 0.55rem;
+  background: rgb(13 34 51 / 70%);
+  color: var(--hud-info);
+  font-size: 0.88rem;
+}
+
+.menu-item-name {
+  position: relative;
+}
+
+/* The build, at the far end of the foot strip, linking to its own commit.
+   `margin-left: auto` is what puts it there — it rides in the strip's row
+   rather than on a line of its own, which is a line of card height bought
+   back for nothing. */
+.menu-version {
+  margin-left: auto;
+  padding-left: 0.4rem;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  /* A commit sha is a sha. The card upper-cases everything on it, and a
+     hexadecimal one shouted back is a string nobody can match against
+     `git log`. */
+  text-transform: none;
+  color: var(--hud-info);
+  opacity: 0.75;
+  text-decoration: none;
+}
+
+.menu-version-dev {
+  opacity: 0.5;
+}
+
+/* ── A PAGE UNDER THE FRONT DOOR (menu-options.tsx, menu-keys.tsx) ─────────
+   A head with the way out in it, then the rows (menu-knobs.tsx). OPTIONS is
+   the longest card in the game, so the CARD scrolls — see `.menu-card`. */
+.menu-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid rgb(244 248 251 / 16%);
+}
+
+.menu-back {
+  padding: 0.3rem 0.5rem;
+  border: 2px solid rgb(244 248 251 / 24%);
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--hud-info);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.menu-back:hover,
+.menu-back:focus-visible,
+.menu-back.nav-cursor {
+  border-color: var(--flag);
+  color: var(--hud-ink);
+  outline: none;
+}
+
+.menu-head .menu-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+/* ONE SILHOUETTE PER ROW: the name on the left, the value on the right
+   between two arrows, and under the value the pips that say where on its
+   ladder it stands. The ARROWS are the touch targets, 2.2rem square: 40px is
+   the floor for a thumb, and the row is sized by them rather than its text. */
+.knob-groups,
+.knob-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, 1.8vmin, 0.85rem);
+}
+
+.knob-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* THE HEADING IS WHAT MAKES THE PAGE SCANNABLE: the mark first, then the
+   word, over a rule the width of the group — the mark is the only thing in
+   the column that is not a word, so it is what the eye finds. */
+.knob-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin: 0;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--flag);
+  padding: 0 0.2rem 0.25rem;
+  border-bottom: 2px solid rgb(232 65 44 / 42%);
+}
+
+.knob-group-glyph {
+  width: 1.5em;
+  height: 1.5em;
+  opacity: 0.95;
+}
+
+.knob-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* A transparent border rather than none, so lighting a row changes a colour
+   and never a size. */
+.knob {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 2.6rem;
+  font: inherit;
+  color: var(--hud-ink);
+  background: rgb(244 248 251 / 8%);
+  border: 2px solid transparent;
+  border-radius: 0.55rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.7rem;
+  text-align: left;
+}
+
+.knob:hover,
+.knob:focus-within,
+.knob.nav-cursor {
+  background: rgb(232 65 44 / 14%);
+  border-color: rgb(232 65 44 / 45%);
+}
+
+.knob-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--hud-info);
+}
+
+.knob-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knob-ctl {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.knob-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--flag);
+  background: transparent;
+  border: 0;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.knob-arrow:hover,
+.knob-arrow:focus-visible {
+  background: rgb(244 248 251 / 14%);
+  outline: none;
+}
+
+.knob-arrow:active {
+  background: var(--flag);
+  color: var(--hud-shadow);
+  transform: translateY(1px);
+}
+
+/* The value column is a FIXED width so the arrows stand on the same two x's
+   down the whole page — a page whose arrows wander is one the eye hunts. */
+.knob-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: clamp(6.5rem, 22vw, 9rem);
+}
+
+.knob-word {
+  position: relative;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--snow);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.knob-pips {
+  display: flex;
+  gap: 0.26rem;
+}
+
+.knob-pip {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: rgb(244 248 251 / 28%);
+}
+
+.knob-pip-on {
+  background: var(--flag);
+  box-shadow: 0 0 0.35rem rgb(232 65 44 / 70%);
+}
+
+/* A fader: the ladder drawn as a track filled to the level (`--fill` is
+   written by the row), the reading standing over it where a ladder's value
+   stands — one value line down a column that mixes the two. */
+.knob-fade {
+  gap: 0.05rem;
+}
+
+.knob-faded {
+  min-height: 2.8rem;
+}
+
+/* THE WHOLE BAND IS THE PRESS, not the line drawn inside it: a range input
+   is hit-tested on its own box, so it is a finger-tall transparent band with
+   the line drawn on the runnable track inside. */
+.knob-range {
+  width: 100%;
+  min-width: 0;
+  height: 1.2rem;
+  margin: 0;
+  appearance: none;
+  background: none;
+  cursor: pointer;
+}
+
+.knob-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    to right,
+    var(--flag) var(--fill),
+    rgb(244 248 251 / 22%) var(--fill)
+  );
+}
+
+.knob-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    to right,
+    var(--flag) var(--fill),
+    rgb(244 248 251 / 22%) var(--fill)
+  );
+}
+
+.knob-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  /* Onto the middle of the line: webkit hangs the thumb off the TRACK's top
+     edge, where Firefox centres it. */
+  margin-top: calc((0.5rem - 1rem) / 2 - 2px);
+  border-radius: 50%;
+  background: var(--snow);
+  border: 2px solid var(--hud-shadow);
+}
+
+.knob-range::-moz-range-thumb {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--snow);
+  border: 2px solid var(--hud-shadow);
+}
+
+.knob-read {
+  min-width: 3.4em;
+  padding: 0 0.25rem;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+/* THE PAGE'S ONE SENTENCE, fixed to the foot of the WINDOW — the card is the
+   scroller, and a caption at the bottom of a column taller than the viewport
+   is a caption nobody reading a row at the top can see. Fixed is safe only
+   while nothing between this and the root carries a transform, a filter,
+   `contain` or `will-change`: put one on `.menu-card` and the bar is clipped
+   by the card again. No pointer events, ever: it lies over the foot of
+   whatever card is up. */
+.knob-caption {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--shell-bottom) + max(0.6rem, env(safe-area-inset-bottom)));
+  z-index: 1600;
+  transform: translateX(-50%);
+  width: min(44rem, calc(100vw - 2rem));
+  pointer-events: none;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  text-transform: none;
+  text-align: center;
+  color: var(--hud-info);
+  opacity: 0.72;
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgb(13 34 51 / 82%);
+  border: 1px solid rgb(244 248 251 / 18%);
+  transition: opacity 120ms ease;
+}
+
+.knob-caption-on {
+  opacity: 0.95;
+  border-color: rgb(232 65 44 / 45%);
+}
+
+.knob-caption-name {
+  color: var(--flag);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.knob-caption-name::after {
+  content: " — ";
+  color: var(--hud-info);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* A CARD WITH A CAPTION STOPS ABOVE IT, or its last row sits under the one
+   element that exists to explain a row. */
+.menu:has(.knob-caption) {
+  padding-bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.2rem);
+}
+
+.menu-card-options,
+.menu-card-keys {
+  width: min(36rem, 100%);
+  gap: 0.6rem;
+  text-align: left;
+}
+
+/* TWO ABREAST AT MOST: at a third of a card the NAME is what gives. */
+.knob-binds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0.25rem 0.6rem;
+}
+
+.knob-link,
+.knob-bind {
+  width: 100%;
+  cursor: pointer;
+}
+
+.knob-arrow-go {
+  color: rgb(244 248 251 / 55%);
+}
+
+/* A binding row has no arrows, so its value may take their room: "L SHIFT /
+   R SHIFT / E" is what the defaults actually read. */
+.knob-bind .knob-value {
+  width: clamp(8.5rem, 26vw, 9.5rem);
+}
+
+.knob-bind .knob-word {
+  font-size: 0.72rem;
+  white-space: normal;
+  text-align: center;
+}
+
+/* WAITING FOR THE KEY: the row goes to the flag's colour and the prompt
+   blinks, so a page of ten identical rows says which one has the keyboard. */
+.knob-bind-listening {
+  background: rgb(232 65 44 / 22%);
+  border-color: var(--flag);
+}
+
+.knob-bind-listening .knob-word {
+  animation: knob-blink 0.9s steps(2) infinite;
+}
+
+@keyframes knob-blink {
+  to {
+    opacity: 0.3;
+  }
+}
+
+.knob-clash {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--hud-bad);
+  opacity: 0.85;
+  text-align: center;
+}
+
+.opt-reset {
+  margin-top: 0.2rem;
+  padding: 0.55rem 0.7rem;
+  border: 2px dashed rgb(244 248 251 / 26%);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--hud-info);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.opt-reset:hover,
+.opt-reset:focus-visible,
+.opt-reset.nav-cursor {
+  border-color: var(--flag);
+  color: var(--hud-ink);
+  outline: none;
+}
+
+/* A phone held UPRIGHT: one column, and the chrome between the groups given
+   back. The ROWS keep their height — the arrows are the thumb targets. */
+@media (max-width: 30rem) {
+  .menu-card-options,
+  .menu-card-keys {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+    gap: 0.35rem;
+  }
+
+  .knob-groups,
+  .knob-col {
+    gap: 0.3rem;
+  }
+
+  .knob-group {
+    gap: 0.15rem;
+  }
+
+  .knob-group-title {
+    gap: 0.35rem;
+    font-size: 0.6rem;
+    padding-bottom: 0.12rem;
+  }
+
+  .knob-rows {
+    gap: 0.15rem;
+  }
+
+  .knob {
+    padding-left: 0.5rem;
+  }
+
+  .knob-caption {
+    padding: 0.35rem 0.6rem;
+  }
+}
+
+/* Wide enough for two columns — a laptop, a tablet, a phone on its side —
+   the game's groups on the left and the picture on the right. */
+@media (min-width: 48rem) {
+  .menu-card-options,
+  .menu-card-keys {
+    width: min(48rem, 100%);
+  }
+
+  .knob-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.4rem 1rem;
+  }
+
+  .menu-card-options .knob-value {
+    width: 6.8rem;
+  }
+}
+
+/* ── THE SKIS CARD (menu-skis.tsx, skis-picker.tsx) ───────────────────────
+   THE SKIS IS THE PAGE. It is the only thing on this card that cannot be
+   said in words, so it takes the room, and everything beside it is sized to
+   be READ rather than to fill: five figures and six bars (ski-stats.ts).
+   The card's one sentence — the pair's own billing — stands IN the
+   picture rather than on a row of its own, because height on a phone is the
+   skis getting smaller. */
+.menu-card-skis {
+  width: min(52rem, 100%);
+  gap: 0.6rem;
+}
+
+.skis-pick-body {
+  display: grid;
+  gap: clamp(0.6rem, 2.4vmin, 1.1rem);
+}
+
+.skis-stage-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.skis-pick-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* The arrows come off the row and stand over the corners of the picture,
+   where they cost the skis no width. */
+.skis-pick {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+/* The pane the pair turns in: the winter sky over the snow it stands on. */
+.skis-pick-stage {
+  position: relative;
+  flex: 1;
+  height: clamp(9rem, 30vh, 15rem);
+  border-radius: 0.7rem;
+  border: 2px solid rgb(244 248 251 / 18%);
+  background: linear-gradient(rgb(111 168 220 / 55%), rgb(207 230 247 / 35%) 70%);
+  overflow: hidden;
+}
+
+/* OUT OF THE FLOW, and load-bearing: a canvas sized `height: 100%` against
+   a parent of indefinite height falls back to its BUFFER's aspect ratio,
+   and the buffer is cut to the pane every frame (skis-turntable.ts) — a loop
+   that keeps whatever shape the pane last had. Absolute, the canvas gives the
+   pane no height and the causation only runs one way. */
+.skis-pick-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.skis-pick-step {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  min-width: 2.4rem;
+  padding: 0.45rem 0.5rem;
+  border: 2px solid rgb(244 248 251 / 30%);
+  border-radius: 0.5rem;
+  background: rgb(var(--hud-plate) / 60%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: clamp(1.1rem, 4vmin, 1.6rem);
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translateY(-50%);
+}
+
+.skis-pick-step:hover,
+.skis-pick-step:focus-visible,
+.skis-pick-step.nav-cursor {
+  border-color: var(--flag);
+  outline: none;
+}
+
+.skis-pick-step[data-nav-step="left"] {
+  left: 0.45rem;
+}
+
+.skis-pick-step[data-nav-step="right"] {
+  right: 0.45rem;
+}
+
+/* The name and the count, one plate across the head of the picture — in the
+   sky, where the pair is not. */
+.skis-pick-id {
+  position: absolute;
+  white-space: nowrap;
+  top: 0.55rem;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.2rem 0.85rem 0.25rem;
+  border-radius: 0.5rem;
+  background: rgb(var(--hud-plate) / 60%);
+  transform: translateX(-50%);
+}
+
+.skis-pick-name {
+  font-size: clamp(0.9rem, 3.2vmin, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--hud-ink);
+}
+
+.skis-topsheets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 6%);
+}
+
+.skis-topsheet-label {
+  font-size: clamp(0.5rem, 1.8vmin, 0.62rem);
+  letter-spacing: 0.14em;
+  color: var(--hud-ink);
+  opacity: 0.8;
+  margin-right: 0.3rem;
+}
+
+.skis-topsheet {
+  width: clamp(1.4rem, 4.2vmin, 1.9rem);
+  height: clamp(1.4rem, 4.2vmin, 1.9rem);
+  padding: 0;
+  border: 2px solid rgb(255 255 255 / 35%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.skis-topsheet.is-on {
+  border-color: var(--hud-ink);
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 35%);
+  transform: scale(1.12);
+}
+
+.skis-topsheet-name {
+  min-width: 5.5em;
+  font-size: clamp(0.55rem, 2vmin, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--hud-ink);
+  opacity: 0.8;
+}
+
+.skis-pick-kind {
+  font-size: clamp(0.55rem, 2vmin, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--hud-ink);
+  opacity: 0.72;
+}
+
+.skis-pick-count {
+  font-size: clamp(0.55rem, 2vmin, 0.72rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.18em;
+  color: var(--hud-info);
+}
+
+/* The card's ONE sentence, across the foot of the picture, over the snow the
+   pair is standing on. */
+.skis-blurb {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.5rem;
+  left: 0.55rem;
+  z-index: 1;
+  margin: 0;
+  padding: 0.28rem 0.7rem;
+  border-radius: 0.45rem;
+  background: rgb(var(--hud-plate) / 60%);
+  font-size: clamp(0.56rem, 2vmin, 0.7rem);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: none;
+  text-wrap: balance;
+  color: var(--hud-info);
+}
+
+/* Beside the skis, two blocks held together in the middle of the column:
+   one sheet — the figures and what they are worth against the catalog. */
+.skis-spec {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.45rem, 2vmin, 0.8rem);
+  min-width: 0;
+}
+
+.skis-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.skis-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.6rem 0.6rem;
+  border-radius: 0.6rem;
+  background: rgb(244 248 251 / 8%);
+}
+
+.skis-figure-label {
+  font-size: clamp(0.5rem, 1.7vmin, 0.64rem);
+  letter-spacing: 0.16em;
+  color: var(--hud-info);
+}
+
+/* Tabular, because the number COUNTS to its new value (menu-skis.tsx) and
+   proportional digits would shuffle sideways all the way there. */
+.skis-figure-value {
+  font-size: clamp(0.95rem, 3.2vmin, 1.35rem);
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  color: var(--hud-ink);
+}
+
+.skis-figure-unit {
+  margin-left: 0.3em;
+  font-size: 0.6em;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+
+/* The bars in ONE panel: they are read together, as a comparison. */
+.skis-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgb(244 248 251 / 8%);
+}
+
+.skis-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* Fixed, so the tracks start on the same x down the block. */
+.skis-bar-label {
+  flex: none;
+  width: 6.4rem;
+  font-size: clamp(0.44rem, 1.5vmin, 0.56rem);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--hud-info);
+}
+
+.skis-bar-track {
+  flex: 1;
+  min-width: 0;
+  height: 0.45rem;
+  border-radius: 0.23rem;
+  background: rgb(244 248 251 / 14%);
+  overflow: hidden;
+}
+
+/* The bar TRAVELS to its new length over the figures' own count
+   (the framework's `hud/count`), so the whole sheet moves as one thing. */
+.skis-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--flag);
+  transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.skis-done {
+  margin-top: 0.2rem;
+  text-align: center;
+}
+
+/* Two columns the moment the card is wide enough to read the sheet beside
+   the skis; the stage takes the slack. */
+@media (min-width: 40rem) {
+  .skis-pick-body {
+    grid-template-columns: minmax(0, 1.4fr) minmax(15rem, 1fr);
+    align-items: stretch;
+  }
+
+  .skis-pick-stage {
+    height: auto;
+    min-height: clamp(9rem, 30vh, 15rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  .menu-card-skis {
+    width: min(60rem, 100%);
+  }
+
+  .skis-pick-body {
+    grid-template-columns: minmax(0, 1.6fr) minmax(19rem, 1fr);
+  }
+
+  .skis-pick-stage {
+    min-height: clamp(13rem, 46vh, 24rem);
+  }
+}
+
+/* A phone held sideways: the least height, and most of it spoken for. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu-card-skis {
+    gap: 0.4rem;
+  }
+
+  .skis-pick-body {
+    gap: 0.6rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
+  .skis-spec {
+    gap: 0.4rem;
+  }
+
+  .skis-figure {
+    padding: 0.35rem 0.5rem 0.4rem;
+  }
+
+  .skis-pick-stage {
+    min-height: clamp(6rem, 34vh, 11rem);
+  }
+
+  /* The billing gives its two lines back to the pair: on this shape the
+     pane is the scarcest thing on the card, and the bars beside it already
+     say what the sentence says. */
+  .skis-blurb {
+    display: none;
+  }
+
+  .skis-done {
+    margin-top: 0;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* ── THE GALLERY (menu-gallery.tsx) ────────────────────────────────────────
+   The pictures the player took, under the front door's GALLERY chip. A VIEWER
+   rather than a grid: one picture fills the frame, an arrow either side of
+   it, the roll running as a filmstrip underneath.
+
+   THE FRAME IS THE PICTURE'S OWN SHAPE, bounded. A fixed landscape frame
+   would be the wrong shape for every picture in the roll on the one device
+   most of them are taken on: a phone held upright photographs a tall frame,
+   and letterboxing it into 16:9 throws away most of the card's width to draw
+   it small. So the frame hugs whatever is in it and the picture is bounded
+   instead — never wider than the card, never taller than half
+   the window, which is what keeps the caption, the buttons and the filmstrip
+   under it on screen. The cost is a card that changes height when the roll
+   is flipped between shapes; on any one device every picture in the roll has
+   the same shape, so it is a cost almost nobody pays. */
+.menu-card-gallery {
+  width: min(52rem, 100%);
+  gap: 0.7rem;
+}
+
+/* The count against the cap, under the head. */
+.gallery-sub {
+  margin-top: -0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+}
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-height: 0;
+}
+
+.gallery-empty {
+  padding: 1.6rem 0.4rem;
+  text-align: center;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  line-height: 1.7;
+  opacity: 0.8;
+}
+
+.gallery-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+/* The two arrows are a STEPPER (`data-nav-steps`), so they wear the knob
+   rows' own arrows rather than a shape of their own: the same press on the
+   same silhouette picks a value everywhere else on every other card. */
+.gallery-step {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 3.4rem;
+  font: inherit;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--flag);
+  background: transparent;
+  border: 0;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gallery-step:hover,
+.gallery-step:focus-visible {
+  background: rgb(244 248 251 / 14%);
+  outline: none;
+}
+
+.gallery-step:active {
+  background: var(--flag);
+  color: var(--hud-shadow);
+  transform: translateY(1px);
+}
+
+.gallery-step:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.gallery-frame {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  /* Enough to be a frame before anything has decoded in it, so the card does
+     not jump as the picture arrives. */
+  min-height: 8rem;
+  background: rgb(13 34 51 / 55%);
+  border: 2px solid rgb(244 248 251 / 18%);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* NEVER CROPPED, and never blown up past the pixels that were captured: a
+   gallery that cropped to fit would quietly cut the very thing the picture
+   was taken for. */
+.gallery-img {
+  max-width: 100%;
+  max-height: 52vh;
+  object-fit: contain;
+  display: block;
+}
+
+.gallery-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+}
+
+.gallery-label {
+  font-weight: 700;
+}
+
+.gallery-stamp {
+  opacity: 0.7;
+  /* A date broken across two lines reads as two facts. */
+  white-space: nowrap;
+  /* The date is the one thing on this card that is not the game's own
+     vocabulary, so it does not shout. */
+  text-transform: none;
+  letter-spacing: 0.06em;
+}
+
+.gallery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gallery-btn {
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-ink);
+  background: rgb(20 46 74 / 70%);
+  border: 2px solid rgb(244 248 251 / 26%);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gallery-btn:hover,
+.gallery-btn:focus-visible {
+  background: rgb(40 78 118 / 90%);
+  outline: none;
+}
+
+.gallery-btn:active {
+  transform: translateY(1px);
+}
+
+/* DELETE is quiet until it has been asked once, and then it is the loudest
+   thing on the card — the two-step is the whole safety, and a player has to
+   be able to see which step they are on without reading the word. */
+.gallery-btn-quiet {
+  margin-left: auto;
+  background: transparent;
+  opacity: 0.75;
+}
+
+.gallery-btn-arm {
+  background: var(--hud-bad);
+  border-color: var(--hud-bad);
+  color: var(--hud-shadow);
+  opacity: 1;
+}
+
+.gallery-notice {
+  flex-basis: 100%;
+  min-height: 1.1em;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--hud-info);
+}
+
+/* The filmstrip scrolls on its own, so a full roll never grows the card past
+   the viewport — the card is the scroller everywhere else, and forty tiles
+   wrapped into rows would push the picture itself off the top. */
+.gallery-strip {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gallery-thumb {
+  flex: none;
+  padding: 0;
+  background: rgb(13 34 51 / 55%);
+  border: 2px solid rgb(244 248 251 / 18%);
+  border-radius: 0.35rem;
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.gallery-thumb-on {
+  border-color: var(--flag);
+}
+
+.gallery-thumb-slot {
+  display: block;
+  width: 5rem;
+  height: 2.9rem;
+}
+
+.gallery-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* A PHONE HELD UPRIGHT has no width to spare beside the picture, so the
+   arrows shrink to what a thumb still hits and the strip's tiles with them.
+   Nothing is dropped: a gallery that hid its own way of flipping on the one
+   device with no arrow keys would be a gallery with one picture in it. */
+@media (max-width: 30rem) {
+  .gallery-step {
+    width: 1.7rem;
+    font-size: 1.3rem;
+  }
+
+  .gallery-thumb-slot {
+    width: 4rem;
+    height: 2.3rem;
+  }
+}
+
+/* A PHONE ON ITS SIDE has the width and none of the height: the picture gives
+   way first, so the buttons and the filmstrip under it stay on the screen
+   rather than below the card's fold. */
+@media (max-height: 30rem) {
+  .menu-card-gallery,
+  .gallery {
+    gap: 0.45rem;
+  }
+
+  .gallery-img {
+    max-height: 34vh;
+  }
+
+  .gallery-frame {
+    min-height: 5rem;
+  }
+
+  .gallery-btn {
+    padding: 0.35rem 0.8rem;
+  }
+
+  .gallery-thumb-slot {
+    width: 3.6rem;
+    height: 2rem;
+  }
+}
+
+/* ── THE LOADING CARD ──────────────────────────────────────────────────────
+   Over a run being stood up (`loading-screen.tsx`, `run-loader.ts`): the level
+   searched and compiled, two heightfields baked, the scene built off them and
+   every shader in it compiled — all of which would otherwise be paid for with
+   a frozen page and then a stuttering first minute.
+
+   The same snow as the attract card, for the same reason: this is the app's
+   own cover coming down over the game, not a screen change. */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--night) 0%, var(--sky-high) 100%);
+  opacity: 1;
+  transition: opacity 260ms ease-out;
+}
+
+.loading.leaving {
+  opacity: 0;
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(22rem, 76vw);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.loading-mark {
+  width: 100%;
+}
+
+.loading-word {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-shadow: 0 2px 0 var(--hud-shadow);
+}
+
+/* Held open whether or not there is a phase to name: a line arriving on the
+   second frame would shift the mark above it. */
+.loading-step {
+  margin: 0;
+  min-height: 1.1em;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--hud-info);
+}
+
+/* A LOAD THAT WILL NOT FINISH keeps the card and loses the bar: there is no
+   phase left to fill one, and a bar sitting under a refusal would read as
+   work still going on. The way out takes its place. */
+.loading-back {
+  margin-top: 0.5rem;
+}
+
+.loading-bar {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(13 34 51 / 60%);
+}
+
+/* EVERY FILL IS A TRANSFORM. The phases that need a bar most are single
+   indivisible calls that hold the main thread for seconds, and a width or a
+   stroke animated on that thread freezes for exactly as long as the player
+   most needs to see something moving. */
+.loading-bar-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--flag);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* MEASURED — the work counts itself, so the fill sits at exactly that. Eased
+   so a step that lands in one frame does not snap. */
+.loading-bar-measured .loading-bar-fill {
+  transform: scaleX(0);
+  transition: transform 160ms linear;
+}
+
+/* ESTIMATED — nothing inside the phase can count, but the same phase took a
+   known time on this machine last time, so the fill runs against that clock.
+   Held short of full (`--load-fill`) until the phase really ends: a bar that
+   reached the end and stopped reads as a hung game. */
+.loading-bar-estimated .loading-bar-fill {
+  animation: load-estimate linear both;
+}
+
+@keyframes load-estimate {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(var(--load-fill));
+  }
+}
+
+/* SWEEPING — a machine that has never stood a run up has neither a count nor
+   a clock. A band travels the bar and claims nothing at all. */
+.loading-bar-sweeping .loading-bar-fill {
+  transform-origin: center;
+  animation: load-sweep 1200ms ease-in-out infinite;
+}
+
+@keyframes load-sweep {
+  0% {
+    transform: translateX(-100%) scaleX(0.35);
+  }
+  100% {
+    transform: translateX(100%) scaleX(0.35);
+  }
+}
+
+/* REDUCED MOTION: every card still shows and still does its job — what goes
+   is the travelling, not the information. The wipe lands filled, the sweep
+   holds still, and the prompt stops blinking but stays lit, because a prompt
+   that has stopped asking is a card nobody knows how to leave. */
+@media (prefers-reduced-motion: reduce) {
+  .splash-card,
+  .splash-title,
+  .splash-title .splash-game,
+  .loading-bar-fill {
+    animation: none;
+    transform: none;
+  }
+
+  /* The mark stands FINISHED rather than drawing itself on: parked, both
+     halves are at `none`, which is the window over the whole shape and the
+     shape under it — the last frame of the wipe, not the first.
+
+     It is stated at the same weight as the two lays it is overruling
+     (`.mark-trails-once .mark-trails-wipe` and the loop beside it) and after
+     them. A lighter selector loses to those on SPECIFICITY however late it
+     comes, and what that looks like is not a mark that keeps moving: it is a
+     mark parked on the wipe's FIRST frame, drawn as nothing but its own faint
+     ghost. */
+  .mark-trails .mark-trails-wipe,
+  .mark-trails .mark-trails-slide {
+    animation: none;
+    transform: none;
+  }
+
+  .splash-prompt {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* The ring stops turning and stands as it is drawn. A parked spinner is
+     still the glyph everybody reads as "working", where fading it out would
+     leave beat one with nothing on screen but the house's name. */
+  .splash-spinner {
+    animation: none;
+  }
+
+  .loading-bar-sweeping .loading-bar-fill {
+    transform: scaleX(0.35);
+  }
+
+  /* The air clock's record still STICKS and still lights up; what stops is
+     the breathing. A readout pulsing on forever over the middle of the frame
+     is exactly the motion this setting is asking about, and the glow and the
+     word beside it say the same thing standing still. The clock's own growth
+     is not motion for motion's sake — the size IS the reading — so it stays,
+     and so does the fade, which is opacity and travels nowhere. */
+  .hud-air-read-best {
+    animation: none;
+    text-shadow:
+      0 1px 0 var(--hud-shadow),
+      0 0 0.45em var(--hud-good);
+  }
+}
+
+/* ── THE FREE RIDE: its start card, its chart ──────────────────────────────
+   (Its front-door tile is a `.menu-tile-wide`, unlit, like the time trial's:
+   exactly one red control per card, and that is RACE.) */
+/* A PAGE'S WAY ON, STANDING IN ITS HEAD opposite the way back. `.menu-item`
+   is a full-width row; here only its colour and weight are kept. */
+.menu-head-with-action {
+  grid-template-columns: auto 1fr auto;
+}
+
+.menu-head-go {
+  width: auto;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+/* A VALUE THAT IS TYPED INTO — the seed: the reading it is, with a faint box
+   that says "type here" without competing with the number in it. */
+.knob-field {
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid rgb(244 248 251 / 20%);
+  border-radius: 0.4rem;
+  padding: 0.05rem 0.3rem;
+  background: transparent;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.knob-field:hover {
+  border-color: rgb(232 65 44 / 45%);
+}
+
+.knob-field:focus {
+  outline: none;
+  border-color: rgb(232 65 44 / 75%);
+  background: rgb(232 65 44 / 16%);
+}
+
+/* THE START CARD, WHOSE LAYOUT IS DECIDED BY THE CHART. The chart is square,
+   so every pixel of its width is a pixel of card height: beside the rows it
+   costs the card nothing, so the card takes the width and the map is drawn
+   big enough to find a kicker on. */
+.menu-card-start {
+  gap: 0.6rem;
+  text-align: left;
+}
+
+.start-cols,
+.start-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.start-actions .menu-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 30rem) {
+  .menu-card-start {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  .menu-card-start {
+    width: min(48rem, 100%);
+  }
+
+  .start-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem 1.1rem;
+  }
+
+  .menu-card-start .seed-preview-plate {
+    max-width: min(20rem, 46vh);
+  }
+
+  .menu-card-start .knob-value {
+    width: 7rem;
+  }
+}
+
+/* A phone on its side: the least height of all, so the two columns stand
+   side by side there too and the chart gives way first. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .start-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem 0.8rem;
+  }
+
+  .menu-card-start {
+    width: min(48rem, 100%);
+  }
+
+  .menu-card-start {
+    gap: 0.4rem;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .menu-card-start .seed-preview-plate {
+    max-width: min(12rem, 34vh);
+  }
+
+  .menu-card-start .seed-preview {
+    padding: 0.25rem;
+  }
+}
+
+/* ── THE SEED'S CHART (seed-preview.tsx) ───────────────────────────────────
+   The minimap's own bake of the ground, north up, with the piste, the start line
+   and every kicker over it. The plate is a square the CARD sizes, reserved
+   before the first chart lands, so nothing moves under a press. */
+.seed-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border: 2px solid rgb(244 248 251 / 16%);
+  border-radius: 0.5rem;
+  background: rgb(13 34 51 / 55%);
+}
+
+.seed-preview-plate {
+  display: flex;
+  width: 100%;
+  max-width: min(15rem, 26vh);
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.seed-preview-waiting {
+  opacity: 0.45;
+}
+
+.seed-preview-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.3rem;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.seed-preview-word {
+  margin: 0;
+  text-align: center;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+  opacity: 0.8;
+}
+
+.seed-preview-read {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.64rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.seed-preview-route {
+  stroke: #f48024;
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+/* A kicker: the flag's red on the piste, a violet out on the mountain — the
+   level lab's two colours, so a skier who has read one has read the other. */
+.seed-preview-kicker {
+  fill: var(--flag);
+  stroke: var(--snow);
+  stroke-width: 0.35;
+}
+
+.seed-preview-kicker-off {
+  fill: #7832d2;
+}
+
+.seed-preview-grid {
+  fill: #1ea848;
+  stroke: var(--snow);
+  stroke-width: 0.4;
+}
+
+.seed-preview-grid-off {
+  opacity: 0.45;
+}
+
+.seed-preview-spot circle:first-child {
+  fill: none;
+  stroke: var(--snow);
+  stroke-width: 0.9;
+}
+
+.seed-preview-spot circle:last-child {
+  fill: #1ea848;
+  stroke: var(--night);
+  stroke-width: 0.3;
+}
+
+/* THE FREE RIDE'S BEST AIR: keyed on its value, so a new best lands with the
+   place chip's thump, in the flag's colour so it reads as news. */
+.hud-best-air {
+  animation: hud-score-bank 340ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* ── THE TRICKS RUN (hud-combo.tsx) ──────────────────────────────────────
+   THE COMBO OVER THE NOSE: a column on the centreline, a little under the
+   air clock, so the seconds, what was turned in them and what they are
+   worth read down one line. Its figure is keyed on the multiplier, so every
+   element won lands with a beat. */
+.hud-combo {
+  position: absolute;
+  z-index: 1;
+  top: 22%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  line-height: 1.05;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  max-width: min(90vw, 40rem);
+}
+
+.hud-combo-line {
+  font-size: clamp(0.85rem, 2.6vmin, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.hud-combo-points {
+  font-size: clamp(1.2rem, 4.4vmin, 2.2rem);
+  font-weight: 700;
+  color: var(--hud-good);
+  font-variant-numeric: tabular-nums;
+  animation: hud-combo-beat 260ms ease-out;
+}
+
+.hud-combo-closed .hud-combo-points {
+  color: var(--hud-info);
+}
+
+.hud-combo-bailed,
+.hud-combo-bailed .hud-combo-points {
+  color: var(--hud-bad);
+}
+
+@keyframes hud-combo-beat {
+  from {
+    transform: scale(1.25);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The buzzer's last ten seconds. */
+.hud-score-late {
+  color: var(--hud-bad);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-combo-points {
+    animation: none;
+  }
+}

@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE WORLD GENERATOR's public surface. `engine/index.ts` re-exports all of
+// it; nothing outside `mapgen/` should reach past this file.
+
+export * from "./types.ts";
+export { generateLevel, subSeed } from "./generate.ts";
+export {
+  LEVEL_RULES,
+  bendFloor,
+  bermCrest,
+  bermProfile,
+  inBand,
+  pisteColour,
+  withinBand,
+  type Band,
+  type PisteColour,
+} from "./rules.ts";
+export {
+  nearestTrackPoint,
+  nearestWithin,
+  trackPointAt,
+  arcAhead,
+  arcBetween,
+  type HasTrack,
+} from "./query.ts";
+export { kickerProfile } from "./kickers.ts";
+export { cliffFootprint, cliffProfile } from "./cliffs.ts";
+export { dealDrifts, driftAt } from "./drift.ts";
+export {
+  TIMES_OF_DAY,
+  dayOfYearOf,
+  declinationOf,
+  freeHours,
+  hourOfTime,
+  sunWindow,
+  withDay,
+  type TimeOfDay,
+} from "./sun.ts";
+export {
+  CLEAR_WEATHER,
+  WEATHER_KINDS,
+  dealWeather,
+  hasLid,
+  snowfallBand,
+  snows,
+  sunsetOf,
+  weatherFor,
+  weatherOf,
+  withSky,
+} from "./weather.ts";
+export { gridOnTrack, startGateArc } from "./spawn.ts";
+export { CLEAR as SURFACE_CLEAR } from "./surface.ts";
+export {
+  DEFAULT_REGION,
+  REGIONS,
+  REGION_IDS,
+  TREE_KINDS,
+  isRegionId,
+  regionOf,
+  regionRow,
+  treeKindAt,
+  type Region,
+  type RegionId,
+  type TreeKind,
+} from "./regions.ts";
+// The scoreboard the search gates on, re-exported here so the one surface
+// that carries the generator carries its verdict too.
+export {
+  analyzeLevel,
+  type Finding,
+  type LevelAnalysis,
+  type Severity,
+} from "../analysis/index.ts";
+export {
+  bendRoom,
+  finishFrom,
+  minRadius,
+  minSeparation,
+  tightestBend,
+  windowGrades,
+} from "./track.ts";
+export type { BendReading } from "./track.ts";
+export {
+  CURRENT_GENERATOR_VERSION,
+  GENERATOR_VERSIONS,
+  GENERATOR_VERSION_IDS,
+  generatorTraits,
+  isGeneratorVersion,
+  type GeneratorTraits,
+  type GeneratorVersion,
+} from "./versions.ts";
+export { levelDigest } from "./digest.ts";

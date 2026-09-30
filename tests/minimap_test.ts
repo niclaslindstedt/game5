@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE MINIMAP, read without a browser: the ground baked once per map
+// (`minimap-bake.ts`) and the payload the plate is drawn from
+// (`minimap-view.ts`) — which way the map is turned, how far it is zoomed,
+// where the piste, the gates and the field stand on it, and the chevron
+// that points at the gate owed once it is off the plate.
+
+import { describe, expect, it } from "vitest";
+
+import { TUNING, botInput, createGame, placeRun, step, type GameState } from "@engine";
+
+import { bakeMinimap, minimapSource } from "../pwa/src/game/minimap-bake.ts";
+import { VIEW, ZOOM, buildMinimap, project, spanFor } from "../pwa/src/game/minimap-view.ts";
+import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
+import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
+import { LONE_TREE, SLOPE, syntheticLevel } from "./support/synthetic.ts";
+
+function race(): GameState {
+  return createGame({ level: syntheticLevel(), seed: 7, quiet: true });
+}
+
+/** Where a world point lands against the plate's middle, view units. */
+function onPlate(state: GameState, x: number, z: number): [number, number] {
+  const map = buildMinimap(state);
+  const [px, py] = project(map.pose, x, z);
+  return [px - VIEW / 2, py - VIEW / 2];
+}
+
+describe("the baked ground (minimap-bake.ts)", () => {
+  it("paints every pixel of the map, opaque", () => {
+    const px = 64;
+    const rgba = bakeMinimap(minimapSource(syntheticLevel()), px);
+    expect(rgba.length).toBe(px * px * 4);
+    for (let k = 3; k < rgba.length; k += 4) expect(rgba[k]).toBe(255);
+  });
+
+  it("marks a tree darker than the open snow beside it", () => {
+    const level = syntheticLevel();
+    const px = 500;
+    const rgba = bakeMinimap(minimapSource(level), px);
+    const at = (x: number, z: number): number => {
+      const i = Math.floor((x / level.size) * px);
+      const j = Math.floor((z / level.size) * px);
+      const k = (j * px + i) * 4;
+      return rgba[k] + rgba[k + 1] + rgba[k + 2];
+    };
+    expect(at(LONE_TREE.x, LONE_TREE.z)).toBeLessThan(at(LONE_TREE.x + 30, LONE_TREE.z) - 150);
+  });
+
+  it("paints the groomed track apart from the powder beside it", () => {
+    const level = levelFor(LEVEL_SEEDS[0]);
+    const px = 400;
+    const rgba = bakeMinimap(minimapSource(level), px);
+    const tone = (x: number, z: number): [number, number] => {
+      const i = Math.floor((x / level.size) * px);
+      const j = Math.floor((z / level.size) * px);
+      const k = (j * px + i) * 4;
+      // Blue over red: the snow is blue-white, the groomer's grey is not.
+      return [rgba[k + 2] - rgba[k], rgba[k] + rgba[k + 1] + rgba[k + 2]];
+    };
+    let on = 0;
+    let off = 0;
+    const pts = level.track.points;
+    for (let i = 0; i < pts.length; i += 25) {
+      const p = pts[i];
+      on += tone(p.x, p.z)[0];
+      // Out into the powder, square to the track.
+      const d = p.width + 30;
+      off += tone(p.x + Math.cos(p.heading) * d, p.z - Math.sin(p.heading) * d)[0];
+    }
+    expect(on).toBeLessThan(off);
+  });
+});
+
+describe("the plate's pose (minimap-view.ts)", () => {
+  it("is heading-up: what is ahead of the skier is up the plate", () => {
+    const state = race();
+    for (const heading of [0, 0.7, Math.PI / 2, 2.5, -1.9]) {
+      placeRun(state, { x: 500, z: 500, heading });
+      const [dx, dy] = onPlate(state, 500 + Math.sin(heading) * 50, 500 + Math.cos(heading) * 50);
+      expect(Math.abs(dx)).toBeLessThan(1e-6);
+      expect(dy).toBeLessThan(0);
+    }
+  });
+
+  it("puts on the left of the plate what the chase camera sees on the left", () => {
+    // Facing +z, the renderer's camera has engine +x on its LEFT — the same
+    // fact `SCREEN_TO_ENGINE` states at the thumbs.
+    const state = race();
+    placeRun(state, { x: 500, z: 500, heading: 0 });
+    expect(onPlate(state, 540, 500)[0]).toBeLessThan(0);
+    placeRun(state, { x: 500, z: 500, heading: Math.PI / 2 });
+    expect(onPlate(state, 500, 540)[0]).toBeGreaterThan(0);
+  });
+
+  it("keeps the turn continuous through south, so the tween never spins the long way", () => {
+    const state = race();
+    let last: number | null = null;
+    for (let i = 0; i <= 40; i++) {
+      // Two whole turns, in steps a tenth of a radian apart.
+      const heading = Math.atan2(Math.sin(i * 0.3), Math.cos(i * 0.3));
+      placeRun(state, { x: 500, z: 500, heading });
+      state.t += TUNING.dt;
+      const angle = buildMinimap(state).pose.angle;
+      if (last !== null) expect(Math.abs(angle - last)).toBeLessThan(20);
+      last = angle;
+    }
+  });
+
+  it("opens with speed, and follows it with a lag rather than a jump", () => {
+    expect(spanFor(0)).toBe(ZOOM.close);
+    expect(spanFor(200)).toBe(ZOOM.far);
+    expect(spanFor(50)).toBeGreaterThan(spanFor(20));
+
+    const state = race();
+    placeRun(state, { x: 500, z: 500, heading: 0 });
+    state.t += 1;
+    const rest = buildMinimap(state).pose.scale;
+    expect(rest).toBeCloseTo(VIEW / ZOOM.close, 6);
+    placeRun(state, { x: 500, z: 500, heading: 0, speed: 30 });
+    state.t += 0.08;
+    const next = buildMinimap(state).pose.scale;
+    expect(next).toBeLessThan(rest);
+    expect(next).toBeGreaterThan(VIEW / ZOOM.far);
+  });
+});
+
+describe("the marks (minimap-view.ts)", () => {
+  it("draws the piste once, in world metres, open from the start line to the finish", () => {
+    const state = race();
+    const map = buildMinimap(state);
+    const pts = state.level.track.points;
+    const last = pts[pts.length - 1];
+    expect(map.track.startsWith(`M${pts[0].x.toFixed(1)} ${pts[0].z.toFixed(1)}`)).toBe(true);
+    expect(map.track.endsWith(`L${last.x.toFixed(1)} ${last.z.toFixed(1)}`)).toBe(true);
+    expect(map.track.includes("Z")).toBe(false);
+    expect(map.trackWidth).toBeGreaterThanOrEqual(SLOPE.width * 0.9);
+    // The same string object from one snapshot to the next — the DOM diff
+    // is a comparison, not a re-parse.
+    expect(buildMinimap(state).track).toBe(map.track);
+  });
+
+  it("names the gate owed, and the start gate", () => {
+    const state = race();
+    const map = buildMinimap(state);
+    expect(map.checkpoints).toHaveLength(state.level.checkpoints.length);
+    expect(map.checkpoints[0].state).toBe("owed");
+    state.progress.nextCheckpoint = 2;
+    const later = buildMinimap(state);
+    expect(later.checkpoints[0].state).toBe("start");
+    expect(later.checkpoints[2].state).toBe("owed");
+    state.progress.missed = 2;
+    expect(buildMinimap(state).checkpoints[2].state).toBe("missed");
+  });
+
+  it("puts every rival on the map in his start-line slot's colour", () => {
+    const state = race();
+    const map = buildMinimap(state);
+    expect(map.rivals.map((r) => r.slot)).toEqual(state.rivals.map((r) => r.id + 1));
+    for (const [i, r] of map.rivals.entries()) {
+      expect(r.x).toBe(state.rivals[i].run.skier.x);
+      expect(r.z).toBe(state.rivals[i].run.skier.z);
+    }
+    // A dot the same size on the plate at every zoom.
+    expect(map.dot * map.pose.scale).toBeCloseTo(3.4, 6);
+  });
+
+  it("pins the owed gate to the rim once it is off the plate", () => {
+    const state = race();
+    const cp = state.level.checkpoints[0];
+    // Right beside it: on the plate, so no chevron.
+    placeRun(state, { x: cp.x, z: cp.z - 20, heading: 0 });
+    expect(buildMinimap(state).chevron).toBeNull();
+    // Four hundred metres out across the powder: on the rim, pointing at it.
+    placeRun(state, { x: cp.x, z: cp.z - 400, heading: 0 });
+    const chevron = buildMinimap(state).chevron!;
+    expect(chevron).not.toBeNull();
+    expect(Math.hypot(chevron.x - VIEW / 2, chevron.y - VIEW / 2)).toBeLessThan(VIEW / 2);
+    // Dead ahead of a skier facing it: straight up the plate.
+    expect(chevron.angle).toBeCloseTo(0, 3);
+    expect(chevron.x).toBeCloseTo(VIEW / 2, 3);
+    expect(chevron.y).toBeLessThan(VIEW / 2);
+  });
+
+  it("has nothing to point at once the finish is crossed", () => {
+    const state = race();
+    state.progress.finished = true;
+    const map = buildMinimap(state);
+    expect(map.chevron).toBeNull();
+    expect(map.checkpoints.some((c) => c.state === "owed" || c.state === "missed")).toBe(false);
+  });
+
+  it("rides in the HUD's snapshot through a race", () => {
+    const state = race();
+    for (let i = 0; i < 6 * TUNING.physicsHz; i++) step(state, botInput(state));
+    const snap = takeSnapshot(state);
+    expect(snap.minimap.level).toBe(state.level);
+    expect(snap.minimap.pose.x).toBe(state.skier.x);
+    expect(snap.minimap.pose.z).toBe(state.skier.z);
+  });
+});

@@ -286,7 +286,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // jump being loaded: a body takes a moment to fold.
   const crouch0 = c.crouch;
   const load = c.jumpLoad > 0 ? J.crouch * Math.min(1, 0.35 + (0.65 * c.jumpLoad) / J.full) : 0;
-  c.crouch = approach(c.crouch, Math.max(c.tuck, load), K.crouchRate * dt);
+  // A skier working for his speed stands up to it: a man skating or
+  // double-poling is not folded into a tuck, whatever the thumb says.
+  const tucked = c.tuck * (1 - c.drive * driveReach(speed0));
+  c.crouch = approach(c.crouch, Math.max(tucked, load), K.crouchRate * dt);
   const drop = spec.crouchDrop * c.crouch;
   const k = Math.min(1, dt / K.lag);
   const right0 = c.hipRight;

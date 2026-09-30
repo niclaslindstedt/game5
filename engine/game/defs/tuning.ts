@@ -323,10 +323,11 @@ export const TUNING = {
      * (an elite cross-country skier holds over 400 W for minutes). */
     power: 450,
     /** Below this way, m/s, he skates; over `skateTo` he double-poles —
-     * blended between. A skate step at a standstill goes nowhere on skis
-     * in a line, and a skate at 25 km/h is a sprinter's. */
-    skateFrom: 3,
-    skateTo: 5,
+     * blended between: a skater's V at a crawl and up to about 20 km/h,
+     * where the legs can no longer keep up with the skis and the arms take
+     * the whole of the work. */
+    skateFrom: 4.5,
+    skateTo: 6.5,
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,

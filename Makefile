@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud skis blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud skis skier blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -55,6 +55,17 @@ world:
 # poses and the landing stand on; ARGS="--sheet=poses" one sheet.
 skis:
 	npm run skis -- $(if $(SKIS),--skis $(SKIS),) $(ARGS)
+
+# THE SKIER LAB: the skier IN MOTION as the game draws him — every move (a
+# skate stride, a double pole, a jump loaded, sprung and landed, a hockey
+# stop, a carve cut hard, the tuck, a landing, a wipeout) skied by the real
+# engine, the committed models posed through its states and photographed
+# from five sides a frame a column — previews/skier-<move>.png — and a
+# turntable round his stance, his tuck and a skate stride. Its own one-off
+# bundle from pwa/skier-preview.html; needs a Chromium like `world`.
+# MOVE=skate,jump a subset; ARGS="--code" the code's figure.
+skier:
+	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
 
 # THE BLENDER LAB: a game asset MODELLED in Blender off the game's own data
 # (a pair: its spec and its class's traced look) — studio renders, the

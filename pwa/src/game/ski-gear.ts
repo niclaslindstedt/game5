@@ -35,6 +35,7 @@ import type { SkiSpec, SkierState } from "@engine";
 
 import { baseHeight, halfWidth, lookFrame, thickness, type SkiLook } from "./ski-looks.ts";
 import { PATTERNS, type Pattern } from "./ski-topsheets.ts";
+import { gaitOf } from "./skier-pose.ts";
 
 /** Rest compression of a leg, m — the sag the drawn skis sit at when the
  * engine reports it (a skier's stance settles a few centimetres under his
@@ -302,16 +303,25 @@ export function buildGear(
     pose(skier, sink) {
       const lifts = gearLift(skier);
       const tilt = skiTilt(skier);
+      // THE GAIT (`skier-pose.ts`'s `gaitOf`): skating, each ski opened
+      // into the V, the pushing one out and then lifted back in.
+      const gait = gaitOf(skier);
       for (let i = 0; i < 2; i++) {
         const g = skis[i];
         // The tuck LOWERS the body toward the skis (the engine drops the
         // origin by `crouchDrop` at a full tuck), so the skis rise in the
         // body frame by as much.
-        g.position.y = ground + lifts[i] + sink * SINK_SHARE + skier.spec.crouchDrop * skier.crouch;
+        g.position.x = ((i === 0 ? -1 : 1) * spec.stance) / 2 + gait.out[i];
+        g.position.y =
+          ground +
+          lifts[i] +
+          gait.lift[i] +
+          sink * SINK_SHARE +
+          skier.spec.crouchDrop * skier.crouch;
         // Clockwise from above is a positive turn about +y (the framework's
         // `core/quat`); right edges down is a negative turn about the ski's
         // own length, taken after the skid's pivot.
-        g.quaternion.setFromEuler(e.set(0, skier.skiAngle, -tilt, "YZX"));
+        g.quaternion.setFromEuler(e.set(0, skier.skiAngle + gait.splay[i], -tilt, "YZX"));
       }
     },
   };

@@ -117,6 +117,14 @@ describe("the shadow's fade, grafted into every world material (haze.ts)", () =>
     const chunk = lightsWithFade();
     expect(chunk.match(/heroShadowed\(/g)?.length).toBe(1);
     expect(chunk).toContain("heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow(");
-    expect(chunk).toContain("), geometryNormal ) : 1.0;");
+    expect(chunk).toContain("), geometryNormal ) )");
+  });
+
+  it("takes the mountain's own shadow with both, the darker, and alone where none is received", async () => {
+    const { lightsWithFade } = await import("../pwa/src/game/haze.ts");
+    const chunk = lightsWithFade();
+    expect(chunk).toContain("? min( terrainLit( vHazeWorld ), heroShadowed(");
+    expect(chunk).toContain(") : terrainLit( vHazeWorld );");
+    expect(chunk.match(/terrainLit\(/g)?.length).toBe(2);
   });
 });

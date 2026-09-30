@@ -385,7 +385,7 @@ export const STRINGS = {
     "How far out trees are drawn in full, how thick the far woods stand, and how many shapes of each kind of tree are drawn.",
   optShadows: "SHADOWS",
   optShadowsHint:
-    "The sun's shadows: SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
+    "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
   optSprayHint: "How much snow the skis throw.",
   optAntialias: "SMOOTH EDGES",

@@ -14,14 +14,20 @@
 // shadow edge does not crawl as the lens moves, and every shadow fades out
 // over the circle's rim instead of stopping at the map's edge. Past it the
 // haze and the terrain's forest tint carry the woods.
+//
+// THE MOUNTAIN'S OWN SHADOW is the other half of the key's shade, over the
+// whole map at once (`terrain-shade.ts`): a horizon baked once a map along
+// the key's bearing, on while the SHADOWS row casts at all.
 
 import * as THREE from "three";
+import type { Heightfield } from "@engine";
 
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
 import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
 import { aimShadow, SHADOW_MARGIN, shadowFade, type ShadowBox } from "./shadow-box.ts";
-import type { SkyLook } from "./sky.ts";
+import type { Dir, SkyLook } from "./sky.ts";
+import { createTerrainShade } from "./terrain-shade.ts";
 
 /** Where the key light is parked along the sun, m (it is directional; the
  * distance only has to clear anything that casts). */
@@ -42,6 +48,11 @@ export type Environment = {
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
   setDistance(distance: DistanceLevel): void;
+  /** The map's ground the mountain's shadow is baked off (null: none), and
+   * the key it is baked for first; resolves once that shade is drawn. */
+  setGround(ground: Heightfield | null, key: Dir | null): Promise<void>;
+  /** Resolves once the mountain's shadow for the key last seen is drawn. */
+  shadeSettled(): Promise<void>;
   dispose(): void;
 };
 
@@ -51,6 +62,7 @@ export function createEnvironment(
   domeRadius: number,
 ): Environment {
   const haze = createHazeUniforms();
+  const terrain = createTerrainShade(haze);
   const dome = createSkyDome(haze, domeRadius);
   dome.mesh.name = "sky";
   scene.add(dome.mesh);
@@ -137,6 +149,7 @@ export function createEnvironment(
       sun.target.position.copy(at);
       sun.position.copy(at).addScaledVector(dir, KEY_DISTANCE);
       sun.target.updateMatrixWorld();
+      terrain.update(sky.key, sun.castShadow);
       dome.follow(camera);
     },
     shadow() {
@@ -146,7 +159,12 @@ export function createEnvironment(
     setDistance(next) {
       haze.uMist.value = mistFor(next);
     },
+    setGround(ground, key) {
+      return terrain.setGround(ground, key, sun.castShadow);
+    },
+    shadeSettled: () => terrain.settled(),
     dispose() {
+      terrain.dispose();
       dome.dispose();
       sun.shadow.map?.dispose();
     },

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CAMPAIGN CARD — a row of three shelves, six boxes each, and the table
+// THE CAMPAIGN CARD — a row of four shelves, six boxes each, and the table
 // under the one being looked at.
 //
-// The card is one column: the shelves as a row of tabs across the top (three
-// is a row a phone can read, so the coast step the sibling game needs for
-// four coasts is not a step here), the six boxes in a grid, then the table.
+// The card is one column: the shelves as a row of tabs across the top (four
+// across, two by two on a phone held upright), each led by its GRADE'S SIGN
+// (R23: the green circle, the blue square, the red rectangle, the black
+// diamond — `grade-mark.tsx`), the six boxes in a grid, then the table.
 // A BOX is a number, a name, what the map is (a race or a time trial, over
 // top to bottom) and the day it is skied in, the piste itself drawn behind
 // the words (`CourseMap`), and what has been got out of it — the best place
@@ -42,6 +43,7 @@ import {
 } from "./campaign.ts";
 import { CAMPAIGN_ROUTES } from "./campaign-routes.ts";
 import { MenuHead } from "./menu-knobs.tsx";
+import { GradeMark } from "./grade-mark.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { ROUTE_BOX, ROUTE_STROKE } from "./route-shape.ts";
 import { STRINGS } from "./strings.ts";
@@ -140,6 +142,7 @@ function LevelBox({
       <CourseMap levelId={level.id} />
       <span class="menu-level-head">
         <span class="menu-level-no">{index + 1}</span>
+        <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name={level.mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
         <span class="menu-level-billing">{billing(level)}</span>
       </span>
@@ -242,6 +245,7 @@ export function ShelfTabs({
           >
             <span class="menu-shelf-name">
               {!unlocked && <Glyph name="lock" />}
+              <GradeMark grade={shelf.id} className="menu-shelf-grade" />
               {shelf.name}
             </span>
             <span class="menu-shelf-line">{unlocked ? line(shelf) : hint}</span>

@@ -33,6 +33,7 @@ import {
   type CampaignShelf,
 } from "./campaign.ts";
 import { CourseMap, ShelfTabs, dayLine } from "./menu-campaign.tsx";
+import { GradeMark } from "./grade-mark.tsx";
 import { MenuHead } from "./menu-knobs.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
@@ -63,6 +64,7 @@ function LevelBox({
     >
       <CourseMap levelId={level.id} />
       <span class="menu-level-head">
+        <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name={mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
         <span class="menu-level-billing">{STRINGS.campaignBilling(mode === "timeTrial")}</span>
       </span>

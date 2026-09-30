@@ -17,6 +17,7 @@ import {
   sampleField,
   type Heightfield,
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { UNGRADED, type GradeRow } from "./grades.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 import { trackPointAt, type HasTrack } from "./query.ts";
 import type { Checkpoint, Spawn } from "./types.ts";
@@ -33,6 +34,11 @@ const START_TRIES = 4;
  * run, m per m: a roller's back the grading (R8) cuts through, never a
  * hill. */
 const START_CLIMB = 0.08;
+
+/** How far over a grade's floor under the start (R23) the untouched ground
+ * must fall for the graded line to keep it: the grading's envelopes and
+ * blur take a little off a pitch. */
+const START_FLOOR = 1.15;
 
 /** The fall of the untouched ground along a heading from a point, m per m,
  * read over `run` metres and reported as the steepest and the gentlest
@@ -61,13 +67,20 @@ export function fallAlong(
 
 /** R12 — the start: a seeded x under the summit ridge, and the first
  * heading the ground makes a fair start along: falling no steeper than
- * R12's slope, and never really climbing (a roller's back the grading cuts
- * is allowed), from the start line to the end of R12's run. */
-export function chooseStart(rng: Rng, ground: Heightfield): Spawn | string {
+ * R12's slope — the grade's own (R23) — and never really climbing (a
+ * roller's back the grading cuts is allowed), from the start line to the
+ * end of R12's run; and on a grade with a floor under its start (a black),
+ * falling at least that on the whole, so the hut drops onto a pitch. */
+export function chooseStart(
+  rng: Rng,
+  ground: Heightfield,
+  grade: GradeRow = UNGRADED,
+): Spawn | string {
   const T = R.track;
   const size = R.world.size;
   const z = size * T.start.z;
   const run = startGateArc() + R.spawn.run;
+  const { maxSlope, minSlope } = grade.spawn;
   for (let attempt = 0; attempt < START_TRIES; attempt++) {
     const x = size * inBand(rng, T.start.x);
     const side = rng.chance(0.5) ? 1 : -1;
@@ -75,9 +88,12 @@ export function chooseStart(rng: Rng, ground: Heightfield): Spawn | string {
       for (const sign of a === 0 ? [1] : [side, -side]) {
         const heading = a * sign;
         const fall = fallAlong(ground, x, z, heading, run);
-        if (fall.steepest <= R.spawn.maxSlope * 0.9 && fall.gentlest >= -START_CLIMB) {
-          return { x, z, heading };
+        if (fall.steepest > maxSlope * 0.9 || fall.gentlest < -START_CLIMB) continue;
+        if (minSlope > 0) {
+          const end = sampleField(ground, x + Math.sin(heading) * run, z + Math.cos(heading) * run);
+          if ((sampleField(ground, x, z) - end) / run < minSlope * START_FLOOR) continue;
         }
+        return { x, z, heading };
       }
     }
   }

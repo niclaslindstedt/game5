@@ -30,12 +30,13 @@
 //     the plate is a square the CARD sizes, so nothing moves under a press
 //     already aimed at a button.
 
-import type { RegionId } from "@engine";
+import type { PisteGrade, RegionId } from "@engine";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
 import type { PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
+import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** How long the arrows have to be still before a map is built, ms. */
@@ -70,17 +71,22 @@ function pixelsToUrl(
   canvas.toBlob((blob) => blob && done(URL.createObjectURL(blob)), MAP_TYPE, MAP_QUALITY);
 }
 
-/** What names an answer: the seed, in its region (R21). */
-const keyOf = (a: { seed: number; region: RegionId }): string => `${a.region}:${a.seed}`;
+/** What names an answer: the seed, in its region (R21), to its grade (R23). */
+const keyOf = (a: { seed: number; region: RegionId; grade: PisteGrade | null }): string =>
+  `${a.region}:${a.grade ?? "dealt"}:${a.seed}`;
 
-export function useSeedPreview(seed: number, region: RegionId): SeedChart {
+export function useSeedPreview(
+  seed: number,
+  region: RegionId,
+  grade: PisteGrade | null,
+): SeedChart {
   const [shown, setShown] = useState<SeedAnswer | null>(null);
   const cache = useRef(new Map<string, SeedAnswer>());
   const worker = useRef<Worker | null>(null);
   /** The map on screen RIGHT NOW, for the reply handler — a ref, because
    * the handler outlives the render it was created in. */
-  const wanted = useRef(keyOf({ seed, region }));
-  wanted.current = keyOf({ seed, region });
+  const wanted = useRef(keyOf({ seed, region, grade }));
+  wanted.current = keyOf({ seed, region, grade });
 
   useEffect(() => {
     const kept = cache.current;
@@ -127,19 +133,19 @@ export function useSeedPreview(seed: number, region: RegionId): SeedChart {
   }, []);
 
   useEffect(() => {
-    const kept = cache.current.get(keyOf({ seed, region }));
+    const kept = cache.current.get(keyOf({ seed, region, grade }));
     if (kept) {
       setShown(kept);
       return;
     }
-    const ask: PreviewRequest = { seed, region };
+    const ask: PreviewRequest = { seed, region, grade };
     const timer = window.setTimeout(() => worker.current?.postMessage(ask), SETTLE_MS);
     return () => window.clearTimeout(timer);
-  }, [seed, region]);
+  }, [seed, region, grade]);
 
   return {
     shown,
-    fresh: shown !== null && keyOf(shown) === keyOf({ seed, region }),
+    fresh: shown !== null && keyOf(shown) === keyOf({ seed, region, grade }),
   };
 }
 
@@ -224,8 +230,14 @@ export function SeedPreview({
       {/* Always rendered, empty until there is a reading: the line holds its
           own height, so the chart's arrival adds nothing under the plate. */}
       <p class="seed-preview-read">
+        {drawn && <GradeMark grade={drawn.colour} className="seed-preview-grade" />}
         {drawn
-          ? STRINGS.seedRead(drawn.length, drawn.vertical, drawn.schematic.kickers.length)
+          ? STRINGS.seedRead(
+              STRINGS.gradeNames[drawn.colour],
+              drawn.length,
+              drawn.vertical,
+              drawn.schematic.kickers.length,
+            )
           : ""}
       </p>
     </div>

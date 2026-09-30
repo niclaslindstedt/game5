@@ -45,6 +45,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: null,
       weather: null,
       region: "alpine",
+      grade: null,
     });
   });
 
@@ -74,6 +75,9 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(mergeRide("nonsense")).toEqual(freshRide());
     expect(mergeRide({ weather: "snow" }).weather).toBe("snow");
     expect(mergeRide({ weather: "hail" }).weather).toBeNull();
+    // THE GRADE (R23): one of the four, or the seed's own.
+    expect(mergeRide({ grade: "black" }).grade).toBe("black");
+    expect(mergeRide({ grade: "orange" }).grade).toBeNull();
   });
 
   it("reads the faders' blob onto the nearest snow and hands the day back to the map", () => {
@@ -102,9 +106,16 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: { seed: 9, x: 400, z: 200 },
       weather: "fog" as const,
       region: "fell" as const,
+      grade: "black" as const,
     };
     const opts = freeGameOptions(ride, 9, SKIS, { yaw: 1, air: 1 });
     expect(opts.mode).toBe("free");
+    // The GRADE row's colour (R23), and the seed's own where it stands on
+    // AS DEALT.
+    expect(opts.grade).toBe("black");
+    expect(freeGameOptions({ ...ride, grade: null }, 9, SKIS, { yaw: 1, air: 1 }).grade).toBe(
+      undefined,
+    );
     expect(opts.seed).toBe(9);
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });

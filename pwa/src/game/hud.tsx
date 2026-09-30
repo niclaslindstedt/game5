@@ -38,6 +38,7 @@ import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
+import { GradeMark } from "./grade-mark.tsx";
 import { EdgeBar } from "./hud-dial.tsx";
 import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
 import type { TouchFeel } from "./input-model.ts";
@@ -168,9 +169,14 @@ export function Hud({
             </div>
           ) : null}
           {!snap.free && (
-            <div class="hud-chip">
+            <div class="hud-chip hud-gates">
               <span>{STRINGS.gates(snap.taken, snap.gates)}</span>
-              <span class="hud-chip-sub">{STRINGS.gatesLabel}</span>
+              <span class="hud-chip-sub">
+                {/* THE PISTE'S SIGN (R23) beside its gates: the colour of
+                    the run, the whole way down. */}
+                <GradeMark grade={snap.grade} className="hud-grade" />
+                {STRINGS.gatesLabel}
+              </span>
             </div>
           )}
           {/* THE VERTICAL: how far down the mountain the run has got — the

@@ -205,7 +205,7 @@ export {
 } from "./game/tricks.ts";
 export { poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
-export { moonAgeOn, moonAtRun, sunAtRun } from "./game/clock.ts";
+export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
 export { windAt, type Wind } from "./game/wind.ts";
 export { freshRate, freshStep, snowAt, visibilityIn, type Fall } from "./game/snowfall.ts";
 export {

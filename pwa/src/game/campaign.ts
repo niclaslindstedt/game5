@@ -88,11 +88,16 @@ export function findLevel(
 }
 
 /** THE MAP ITSELF, exactly as it was curated: the seed on its own generator
- * version. Nothing about the sky is in here — a pinned sky is laid over the
- * run (`pinnedGameOptions`), and the same map under a different sky is the same
- * map, with the same digest. */
+ * version, in its country, built to its grade (R23). Nothing about the sky
+ * is in here — a pinned sky is laid over the run (`pinnedGameOptions`), and
+ * the same map under a different sky is the same map, with the same
+ * digest. */
 export function buildCampaignLevel(level: CampaignLevel): Level {
-  return generateLevel(level.seed, { version: level.version, region: level.region });
+  return generateLevel(level.seed, {
+    version: level.version,
+    region: level.region,
+    grade: level.grade,
+  });
 }
 
 /** THE SKY the map is ridden under, where the rung pins one over the day its
@@ -503,8 +508,10 @@ export function ladderAfter(levelId: string, progress: CampaignProgress): Ladder
 
 /** Versioned, so a board a later ladder reshapes is a board it can
  * recognise: the board is keyed by MAP ID and the ids are rung numbers, so a
- * re-cut shelf would land a row on water nobody rode. */
-export const PROGRESS_KEY = "fall-line.campaign.v1";
+ * re-cut shelf would land a row on water nobody rode. v2 is the ladder re-cut
+ * by piste grade (R23) — its ids are the grades' (`green-1` …), so a v1 row
+ * carried in by the cloud save names no map and is dropped too. */
+export const PROGRESS_KEY = "fall-line.campaign.v2";
 
 /** A stored blob turned into progress this build can stand on: every id
  * checked against this ladder, every figure checked for being a number, and

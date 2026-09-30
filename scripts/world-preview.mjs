@@ -95,6 +95,10 @@ const args = parseArgs(
       default: -1,
       help: "the sun's solar hour (withSky, as the app's ?hour=); the map's own when left out",
     },
+    grade: {
+      kind: "string",
+      help: "the piste grade (R23): green, blue, red, black — the seed's own when left out",
+    },
     snow: {
       kind: "number",
       default: 0,
@@ -130,7 +134,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -209,6 +213,7 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   region: args.region,
+  ...(args.grade ? { grade: args.grade } : {}),
   quality: args.quality,
   ...(args.shadows ? { shadows: args.shadows } : {}),
   ...(args.picture ? { picture: args.picture } : {}),
@@ -239,7 +244,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

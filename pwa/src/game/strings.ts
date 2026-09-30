@@ -258,6 +258,14 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
+  startGrade: "GRADE",
+  startGradeHint:
+    "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %) or black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it. The mountain's own, or one of the four.",
+  /** THE PISTE GRADES (R23), as a sign names them: the GRADE row's stops,
+   * the mark's name, the loading card's line. */
+  gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK" },
+  /** A grade as a run: `BLACK RUN`. */
+  gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
   startSeasonHint:
     "The time of winter: how high the sun climbs and how long the shadows lie, from the low sun of December to the long days of April. Starts on the mountain's own date.",
@@ -296,10 +304,10 @@ export const STRINGS = {
   startCaption: "Tap the chart to start anywhere on the mountain · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
   seedRefused: "NO PISTE ON THIS SEED",
-  /** The line under the chart: the piste's length, its vertical and its
-   * kickers. */
-  seedRead: (piste: number, drop: number, kickers: number): string =>
-    `${(piste / 1000).toFixed(1)} KM PISTE · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
+  /** The line under the chart: the piste's grade and length, its vertical
+   * and its kickers. */
+  seedRead: (grade: string, piste: number, drop: number, kickers: number): string =>
+    `${grade} · ${(piste / 1000).toFixed(1)} KM · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
   seedChart: (seed: number, kickers: number): string =>
     `The mountain on seed ${seed}, with ${kickers} kickers`,
 

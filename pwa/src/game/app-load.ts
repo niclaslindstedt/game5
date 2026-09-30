@@ -199,7 +199,7 @@ export function createLoader(
 export function raceOrFallback(
   seed: number,
   skier: { assist: Settings["assist"]; spec: SkiSpec; mode: GameMode; laps: number } | null,
-  world: Pick<CreateGameOptions, "sky" | "region"> = {},
+  world: Pick<CreateGameOptions, "sky" | "region" | "grade"> = {},
 ): GameState {
   const help = {
     ...(skier

@@ -63,6 +63,10 @@
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
 //                   start card's COUNTRY row, and a race a `?seed=` link
 //                   boots into; never a campaign map, which is pinned.
+//   ?grade=<id>     build a seed's piste to this grade (R23: green, blue,
+//                   red, black) instead of the one the seed deals — a free
+//                   ride over the start card's GRADE row, and a race a
+//                   `?seed=` link boots into; never a campaign map.
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -81,9 +85,11 @@
 
 import {
   WEATHER_KINDS,
+  isPisteGrade,
   isRegionId,
   isSkiId,
   type CreateGameOptions,
+  type PisteGrade,
   type RegionId,
   type GameMode,
   type SkyOverride,
@@ -170,6 +176,8 @@ export type UrlParams = {
   sky: SkyOverride | null;
   /** The kind of snow country a seed's map is built in, over the card's. */
   region: RegionId | null;
+  /** The piste grade a seed's map is built to, over the card's. */
+  grade: PisteGrade | null;
 };
 
 /** The sky a link names, if any. */
@@ -241,22 +249,29 @@ export function readParams(search: string): UrlParams {
     probe: q.get("probe") !== "0",
     sky: skyOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
+    grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
   };
 }
 
-/** WHAT A LINK SAYS ABOUT THE WORLD a seed's run is stood up in: its sky
- * and its region, as options `createGame` takes — nothing where it names
- * neither. */
-export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "region"> {
-  return { sky: params.sky ?? undefined, region: params.region ?? undefined };
+/** WHAT A LINK SAYS ABOUT THE WORLD a seed's run is stood up in: its sky,
+ * its region and its grade, as options `createGame` takes — nothing where it
+ * names none. */
+export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "region" | "grade"> {
+  return {
+    sky: params.sky ?? undefined,
+    region: params.region ?? undefined,
+    grade: params.grade ?? undefined,
+  };
 }
 
-/** A free ride's options with a link's sky and region laid over the card's. */
+/** A free ride's options with a link's sky, region and grade laid over the
+ * card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   return {
     ...ride,
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
+    grade: params.grade ?? ride.grade,
   };
 }
 

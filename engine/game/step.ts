@@ -13,6 +13,7 @@
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { generateLevel, withDay, withSky } from "../mapgen/index.ts";
+import type { PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
@@ -45,6 +46,9 @@ export type CreateGameOptions = {
   /** The kind of snow country the seed's map is built in (R21); the boreal
    * when left out. Ignored when `level` is given. */
   region?: RegionId;
+  /** The piste grade the seed's map is built to (R23); the one the seed
+   * deals when left out. Ignored when `level` is given. */
+  grade?: PisteGrade;
   /** The mode whose rules the run is dealt (`MODE_RULES`); a race when left
    * out. Each option below still overrides its own rule. */
   mode?: GameMode;
@@ -114,6 +118,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     generateLevel(options.seed ?? 1, {
       tricks: options.mode === "tricks",
       region: options.region,
+      grade: options.grade,
     });
   const dayed = options.day ? withDay(built, options.day) : built;
   const level = options.sky ? withSky(dayed, options.sky) : dayed;

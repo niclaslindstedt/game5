@@ -1,0 +1,6 @@
+---
+type: Added
+title: Piste grades — green, blue, red and black runs
+---
+
+Every mountain's piste is now built to a PISTE GRADE and signed with it the way a ski area signs its runs — a green circle, a blue square, a red rectangle or a black diamond — on the campaign's tabs and boxes, the level card, the free ride's start card, the HUD beside the gates and the piste's own edge poles, which are painted in the grade's colour. The colour is the gradient the piste's steepest hundred metres falls at, built to and held to it: a GREEN never past 16 %, gentle and wide and groomed; a BLUE under 27 %; a RED under 47 %; a BLACK past that — over a thousand metres of vertical, steep straight off the start hut so the skier is going fast within seconds, pitches past 70 %, cliff bands across the piste to drop off, cliffs standing right beside it, the most kickers on the mountain and a good part of it left ungroomed. The campaign is re-cut into four shelves, one a grade — the Nursery's greens on the fells, the Woods' blues among the firs, the Ridge's reds in the alpine and the Glacier's blacks — twenty-four new maps; the free ride's start card gains a GRADE row (and links a `?grade=`); and the face a run goes down is now turned to the sun, so the piste is skied in the light rather than in the mountain's own shadow.

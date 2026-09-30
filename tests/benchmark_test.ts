@@ -17,7 +17,12 @@ import {
   type GameState,
 } from "@engine";
 
-import { BENCHMARK, benchmarkSeconds, plannedRows } from "../pwa/src/game/benchmark-plan.ts";
+import {
+  BENCHMARK,
+  benchmarkLevel,
+  benchmarkSeconds,
+  plannedRows,
+} from "../pwa/src/game/benchmark-plan.ts";
 import {
   INDEX_REAL,
   SAMPLE_EVERY,
@@ -71,7 +76,7 @@ import { readParams } from "../pwa/src/game/url-params.ts";
 function rideBenchmark(): { state: GameState; airs: number; treesNear: number } {
   const state = createGame({
     seed: BENCHMARK.seed,
-    region: BENCHMARK.region,
+    level: benchmarkLevel(),
     mode: BENCHMARK.mode,
     sky: BENCHMARK.sky,
     quiet: true,

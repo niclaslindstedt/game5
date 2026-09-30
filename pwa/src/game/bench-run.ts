@@ -24,7 +24,7 @@ import { createGame, type GameMode, type GameState, type Level } from "@engine";
 
 import type { LoadPlan } from "./app-load.ts";
 import { rememberBenchmark } from "./benchmark-history.ts";
-import { BENCHMARK, plannedRows } from "./benchmark-plan.ts";
+import { BENCHMARK, benchmarkLevel, plannedRows } from "./benchmark-plan.ts";
 import {
   HIDEABLE,
   pictureRows,
@@ -124,7 +124,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
       build: () =>
         createGame({
           seed: BENCHMARK.seed,
-          region: BENCHMARK.region,
+          level: benchmarkLevel(),
           mode: BENCHMARK.mode,
           sky: BENCHMARK.sky,
         }),

@@ -19,15 +19,16 @@ import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math"
 import { sunAt } from "@niclaslindstedt/oss-game-framework/core/solar";
 import { nearestTrackPoint, nearestWithin, trackPointAt } from "../mapgen/query.ts";
 import {
-  LEVEL_RULES as R,
-  pisteColour,
-  withinBand,
-  type Band,
-  type PisteColour,
-} from "../mapgen/rules.ts";
+  gradeRowOf,
+  pisteGradeOf,
+  steepestSpan as steepestSpanOf,
+  verticalBand,
+  type PisteGrade,
+} from "../mapgen/grades.ts";
+import { LEVEL_RULES as R, withinBand, type Band } from "../mapgen/rules.ts";
 import { regionOf, scaleCount } from "../mapgen/regions.ts";
 import { startGateArc } from "../mapgen/spawn.ts";
-import { declinationOf } from "../mapgen/sun.ts";
+import { declinationOf, sunOffFace } from "../mapgen/sun.ts";
 import { WEATHER_KINDS, snowfallBand, snows, sunsetOf, weatherOf } from "../mapgen/weather.ts";
 import {
   bendRoom,
@@ -38,7 +39,7 @@ import {
   windowGrades,
 } from "../mapgen/track.ts";
 import type { Level } from "../mapgen/types.ts";
-import { checkCliffs } from "./cliffs.ts";
+import { checkCliffs, checkDrops } from "./cliffs.ts";
 import { selfCrossings } from "./crossings.ts";
 import { checkTrickField } from "./trick-field.ts";
 
@@ -66,9 +67,16 @@ export type LevelAnalysis = {
     /** The steepest fall over a window outside the kickers, m per m. */
     maxGrade: number;
     /** The steepest `colourWindow` of the piste, m per m, and the COLOUR
-     * it makes the piste (R8). */
+     * it makes the piste (R8) — the MEASURED grade. */
     steepestSpan: number;
-    colour: PisteColour;
+    colour: PisteGrade;
+    /** The grade the map was BUILT to (R23), null on one from before the
+     * grades. */
+    grade: PisteGrade | null;
+    /** The piste's drop over its length, m per m. */
+    meanGrade: number;
+    /** Drops across the piste (R24). */
+    drops: number;
     /** The gentlest fall outside the kickers and the finish, m per m. */
     minGrade: number;
     /** The most any window CLIMBS outside the kickers, m per m (0 where
@@ -157,6 +165,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   const step = n > 1 ? L / (n - 1) : R.track.step;
   const size = level.size;
   const region = regionOf(level);
+  const G = gradeRowOf(level);
   const inside = (x: number, z: number): boolean => x >= 0 && z >= 0 && x <= size && z <= size;
 
   // R1 — everything on the map.
@@ -171,10 +180,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   const vertical = M?.vertical ?? 0;
   if (!M) add("R2", "error", "no mountain published");
   else {
-    const band = {
-      min: R.mountain.vertical.min * region.relief.vertical,
-      max: R.mountain.vertical.max * region.relief.vertical,
-    };
+    const band = verticalBand(region, G);
     if (!withinBand(M.vertical, band, 1e-6)) {
       add("R2", "error", `a vertical of ${fmt(M.vertical, 0)} m (band ${bandText(band, " m")})`);
     }
@@ -210,8 +216,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
 
   // R5 — one open descent, in its length band, every station lower down
   // the map than the one before, never crossing itself.
-  if (!withinBand(L, R.track.length)) {
-    add("R5", "error", `the piste is ${fmt(L, 0)} m (band ${bandText(R.track.length, " m")})`);
+  if (!withinBand(L, G.track.length)) {
+    add("R5", "error", `the piste is ${fmt(L, 0)} m (band ${bandText(G.track.length, " m")})`);
   }
   if (Math.abs(step - R.track.step) > 0.2) add("R5", "error", `stations every ${fmt(step, 2)} m`);
   let descends = true;
@@ -260,11 +266,13 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     widthMin = Math.min(widthMin, p.width);
     widthMax = Math.max(widthMax, p.width);
   }
-  if (!withinBand(widthMin, R.track.width) || !withinBand(widthMax, R.track.width)) {
+  // The grade's band (R23) on the run; the arena opens to R7's widest.
+  const widths = { min: G.track.width.min, max: R.track.width.max };
+  if (!withinBand(widthMin, widths) || !withinBand(widthMax, widths)) {
     add(
       "R7",
       "error",
-      `width runs ${fmt(widthMin)}–${fmt(widthMax)} m (band ${bandText(R.track.width, " m")})`,
+      `width runs ${fmt(widthMin)}–${fmt(widthMax)} m (band ${bandText(widths, " m")})`,
     );
   }
   if (n > 0 && pts[n - 1].width < R.track.width.max - 0.5) {
@@ -275,27 +283,45 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   // the ground across.
   const kickers = level.kickers ?? [];
   const trackKickers = kickers.filter((k) => k.onTrack);
+  const drops = (level.cliffs ?? []).filter((c) => c.onTrack);
+  // Where R8's bounds do not hold: over a kicker (R9), and over a drop's
+  // face and landing (R24) — its shelf is held, since a shelf that climbed
+  // would be a climb. `steep` adds the shelf for the ceiling: its top falls
+  // into the face.
   const skip = new Uint8Array(n);
-  for (const k of trackKickers) {
-    const s0 = k.s ?? 0;
-    for (let i = 0; i < n; i++) {
-      const u = pts[i].s - s0;
-      if (u > -k.ramp - 4 && u < k.landing + 4) skip[i] = 1;
+  const steep = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const s = pts[i].s;
+    for (const k of trackKickers) {
+      const u = s - (k.s ?? 0);
+      if (u > -k.ramp - 4 && u < k.landing + 4) skip[i] = steep[i] = 1;
+    }
+    for (const d of drops) {
+      const u = s - (d.s ?? 0);
+      if (u > -4 && u < d.face + d.landing + 4) skip[i] = 1;
+      if (u > -d.shelf - 4 && u < d.face + d.landing + 4) steep[i] = 1;
     }
   }
   const ys = pts.map((p) => p.y);
   const whole = windowGrades(ys, step, skip);
-  const maxGrade = whole.steepest;
-  // THE COLOUR: the steepest hundred metres, kickers and all — a piste is
-  // graded on its steepest stretch.
-  const span = Math.max(1, Math.round(R.track.colourWindow / step));
-  let steepestSpan = 0;
-  for (let i = 0; i + span < n; i++) {
-    steepestSpan = Math.max(steepestSpan, (ys[i] - ys[i + span]) / (span * step));
-  }
+  const maxGrade = windowGrades(ys, step, steep).steepest;
+  // THE COLOUR: the steepest hundred metres — a piste is graded on its
+  // steepest stretch (`steepestSpan`, a park's kickers aside).
+  const steepestSpan = steepestSpanOf(level);
+  const colour = pisteGradeOf(steepestSpan);
   const climb = Math.max(0, -whole.gentlest);
-  if (maxGrade > R.track.maxGrade + 0.01) {
-    add("R8", "error", `the line falls at ${fmt(maxGrade, 3)} (most ${R.track.maxGrade})`);
+  const ceiling = Math.min(R.track.maxGrade, G.track.maxGrade);
+  if (maxGrade > ceiling + 0.01) {
+    add("R8", "error", `the line falls at ${fmt(maxGrade, 3)} (most ${ceiling})`);
+  }
+  // R23 — the colour the map was built to is the colour it measures.
+  if (level.grade && colour !== level.grade) {
+    add(
+      "R23",
+      "error",
+      `a ${level.grade} piste whose steepest ${R.track.colourWindow} m falls at ` +
+        `${fmt(steepestSpan * 100, 0)} % — a ${colour}'s`,
+    );
   }
   if (climb > 0.005) add("R8", "error", `the line climbs at ${fmt(climb, 3)} outside a kicker`);
   const finishAt = finishFrom(L);
@@ -314,6 +340,9 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   let worstCross = 0;
   for (let i = 0; i < n; i += 3) {
     const p = pts[i];
+    // Not across a drop's face (R24): a wall read across a bend reads its
+    // skew, not the camber.
+    if (drops.some((d) => Math.abs(p.s - (d.s ?? 0) - d.face / 2) < d.face / 2 + 4)) continue;
     const hw = p.width / 2;
     const rx = Math.cos(p.heading);
     const rz = -Math.sin(p.heading);
@@ -339,12 +368,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   // crest, and that each is taken off a moderate pitch. The park's are
   // R20's, and held below.
   const crests = trackKickers.filter((k) => !k.trick);
-  if (!withinBand(crests.length, R.kickers.on.count)) {
-    add(
-      "R9",
-      "error",
-      `${crests.length} kicker(s) on the piste (band ${bandText(R.kickers.on.count)})`,
-    );
+  if (!withinBand(crests.length, G.kickers.on)) {
+    add("R9", "error", `${crests.length} kicker(s) on the piste (band ${bandText(G.kickers.on)})`);
   }
   for (let a = 0; a < crests.length; a++) {
     const k = crests[a];
@@ -360,7 +385,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     // The line under the ramp: from its foot to the lip less the lip's own
     // height, no steeper than the approach grade.
     const approach = (at(-k.ramp) - (lip - k.height)) / k.ramp;
-    if (approach > R.kickers.on.approachGrade + 0.03) {
+    if (approach > G.kickers.approachGrade + 0.03) {
       add("R9", "error", `${k.id} is taken off a ${fmt(approach * 100, 0)} % pitch`);
     }
     for (let b = a + 1; b < crests.length; b++) {
@@ -378,12 +403,13 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       add("R4", "error", `${k.id} stands ${fmt(hit.distance, 0)} m from the piste`);
     }
   }
-  if (offKickers.length < scaleCount(R.kickers.off.count, region.kickers).min) {
+  if (offKickers.length < scaleCount(R.kickers.off.count, region.kickers * G.kickers.off).min) {
     add("R4", "warn", `only ${offKickers.length} kicker(s) off the piste`);
   }
 
-  // R22 — the cliffs.
+  // R22 — the cliffs; R24 — the drops across the piste.
   checkCliffs(level, add);
+  checkDrops(level, trackKickers, add);
 
   // R20 — the park, when the map carries one.
   checkTrickField(level, trackKickers, add);
@@ -447,6 +473,12 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       add("R12", "error", `${k.id} stands ${fmt(ds, 0)} m from the start gate`);
     }
   }
+  for (const d of drops) {
+    const ds = (d.s ?? 0) - d.shelf - gateArc;
+    if (ds < R.spawn.kickerGap - 1) {
+      add("R12", "error", `${d.id} stands ${fmt(ds, 0)} m from the start gate`);
+    }
+  }
   const gate = trackPointAt(level, gateArc);
   let bend = 0;
   let steepest = 0;
@@ -459,8 +491,14 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   if (bend > R.spawn.straight + 0.02) {
     add("R12", "error", `the run out of the gate turns ${fmt(bend, 2)} rad`);
   }
-  if (steepest > R.spawn.maxSlope + 0.02) {
+  if (steepest > G.spawn.maxSlope + 0.02) {
     add("R12", "error", `the run out of the gate is ${fmt(steepest * 100, 0)} % steep`);
+  }
+  // R12, R23 — a black drops off the hut onto a pitch.
+  const runEnd = trackPointAt(level, gateArc + R.spawn.run);
+  const startFall = (gate.y - runEnd.y) / R.spawn.run;
+  if (G.spawn.minSlope > 0 && startFall < G.spawn.minSlope - 0.02) {
+    add("R12", "error", `the run out of the gate falls only ${fmt(startFall * 100, 0)} %`);
   }
 
   // R13 — the start line: on the groomer at the piste's first station,
@@ -573,6 +611,15 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     );
   }
 
+  // R15 — the face turned to the sun, on a map dealt a bearing.
+  if (level.sun.facing !== undefined && sunOffFace(level.sun) > R.sun.facing + 1e-6) {
+    add(
+      "R15",
+      "error",
+      `the sun stands ${fmt((sunOffFace(level.sun) * 180) / Math.PI, 0)}° off the face's bearing`,
+    );
+  }
+
   // R19 — the weather: a sky the rule deals, at numbers inside its bands.
   if (level.weather) {
     const wind = R.weather.wind[weather.kind];
@@ -628,7 +675,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       add("R17", "error", `the drift at s ${fmt(d.from, 0)} m is ${fmt(deepest, 2)} packed`);
     }
   }
-  if (driftLength / L > R.drift.share.max + R.drift.length.min / L + 0.01) {
+  if (driftLength / L > G.drift.max + R.drift.length.min / L + 0.01) {
     add("R17", "warn", `${fmt((100 * driftLength) / L, 0)} % of the piste is drifted`);
   }
 
@@ -695,7 +742,10 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       minRadius: radius,
       minSeparation: separation,
       maxGrade,
-      colour: pisteColour(steepestSpan),
+      colour,
+      grade: level.grade ?? null,
+      meanGrade: n > 1 ? (pts[0].y - pts[n - 1].y) / L : 0,
+      drops: drops.length,
       steepestSpan,
       minGrade,
       climb,

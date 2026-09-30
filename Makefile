@@ -44,7 +44,7 @@ icons:
 # needs a Chromium: CHROMIUM_PATH=/opt/pw-browsers/chromium in a web
 # session. SEED=n picks the map; ARGS="--views=powder,lookback" a subset.
 world:
-	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:
@@ -233,7 +233,7 @@ native-android:
 # `simulate` job — it exits non-zero when the bot finishes NO seed.
 # `make sim` · `make sim SEEDS=3,7`
 sim:
-	npm run sim -- $(if $(SEEDS),--seeds $(SEEDS),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run sim -- $(if $(SEEDS),--seeds $(SEEDS),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # THE LEVEL MAP: one map from above, from the engine alone — no build, no
 # browser. The hills, the forest, the track and every checkpoint numbered,
@@ -242,14 +242,14 @@ sim:
 # 38" is a claim about a row here.
 # `make level SEED=38` · `make level SEED=38 ARGS=--json`
 level:
-	npm run level -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run level -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # SCORE generated maps instead of looking at them: each check a band, and a
 # finding names what is wrong. The measuring half of the generator loop;
 # `make level` is the looking half. Exits non-zero on any error finding.
 # `make analyze SEED=7` · `make analyze COUNT=24`
 analyze:
-	npm run analyze -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run analyze -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # RATE generated maps — how HARD each one is and what KIND of hard, on the
 # eight axes of engine/rating/ folded into one index. `--stats` is the

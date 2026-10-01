@@ -214,15 +214,16 @@ describe("the camera ladder", () => {
   it("follows a turn rather than copying it", () => {
     const st = createBoomState();
     frameRig(RIGS.chase, pose(), st, 1 / 60, flat);
-    frameRig(
-      RIGS.chase,
-      pose({ heading: 1, vx: Math.sin(1) * 10, vz: Math.cos(1) * 10 }),
-      st,
-      1 / 60,
-      flat,
-    );
-    expect(st.yaw).toBeGreaterThan(0);
-    expect(st.yaw).toBeLessThan(0.2);
+    for (let i = 0; i < 3; i++)
+      frameRig(
+        RIGS.chase,
+        pose({ heading: 1, vx: Math.sin(1) * 10, vz: Math.cos(1) * 10 }),
+        st,
+        1 / 60,
+        flat,
+      );
+    expect(st.yaw.y).toBeGreaterThan(0);
+    expect(st.yaw.y).toBeLessThan(0.2);
   });
 
   it("keeps the lens out of the hill", () => {
@@ -300,10 +301,18 @@ describe("the rider stays in the picture", () => {
     }
   });
 
-  it("leaves the look alone on level snow", () => {
-    const st = createBoomState();
-    const lens = frameRig(RIGS.chase, pose(), st, 1 / 60, flat);
-    expect(lens.target.y).toBeCloseTo(10 + (RIGS.chase as { aimHeight: number }).aimHeight, 9);
+  it("composes the skier under the middle of the frame on level snow", () => {
+    for (const rung of ["chase", "far", "high"] as const) {
+      const st = createBoomState();
+      let o = 0;
+      for (let i = 0; i < 120; i++) {
+        const p = pose({ z: 100 + (i * 10) / 60 });
+        o = offAxis(frameRig(RIGS[rung], p, st, 1 / 60, flat), p);
+      }
+      const place = (RIGS[rung] as { place: number }).place;
+      expect(o).toBeLessThan(0);
+      expect(Math.abs(o + place)).toBeLessThan(0.05);
+    }
   });
 });
 

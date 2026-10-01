@@ -462,11 +462,12 @@ function camera(view: View, s: SkiSpec): THREE.Camera {
     lens.position.set(0, 11, -0.2);
     lens.lookAt(0, 0, -0.2);
   } else {
-    // THE CHASE CAMERA's place (`camera-rigs.ts`: 5.2 m back, 1.9 m up,
-    // aimed 7 m ahead at 0.7 m) — the view the skier is judged from.
-    lens.fov = 62;
-    lens.position.set(0, 1.9, -5.2);
-    lens.lookAt(0, 0.7, 7);
+    // THE CHASE CAMERA's place on level snow at a crawl (`camera-rigs.ts`:
+    // 5 m back, 2.2 m over his centre of gravity, the look pitched to stand
+    // him under the middle of the frame) — the view the skier is judged from.
+    lens.fov = 59;
+    lens.position.set(0, 3.2, -5);
+    lens.lookAt(0, 0.35, 7);
   }
   lens.updateProjectionMatrix();
   return lens;

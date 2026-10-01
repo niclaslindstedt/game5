@@ -92,7 +92,14 @@ What each contributes:
 - **The camera sits low and follows with a lag.** A lens that rides the
   skier's heave exactly reads a field of rollers as nothing; one fixed in
   height reads it as the skier bouncing. The answer is in between
-  (`heightFollow`, `heightFollowAir` per rung).
+  (`lift`, `liftAir` per rung — springs told the face's own descent, so the
+  lag is the rollers' alone and never the mountain's).
+- **The steepness is felt by tipping with the face, but not all the way.**
+  A lens that aims level down a 30° face stands the skier at the foot of
+  the frame under half a picture of sky; one parallel to the snow reads
+  the face as flat. The boom leans by `incline` of the fall line and
+  composes the skier at `place` in the frame, so the horizon rides high
+  and the drop shows under it.
 - **Speed only feels fast against scale.** Trunks passing close, gate panels
   flicking by, the trail beside the piste — a wide empty bowl at 100 km/h
   reads as 40.
@@ -108,9 +115,10 @@ data and arithmetic, three-free so `tests/world_render_test.ts` reads it;
 | The rungs, and the order `C` walks them | `RIGS` in `camera-rigs.ts` (`tips`, `helmet`, `chase`, `far`, `high`, and `orbit` for the menu); `RUN_CAMERAS` / `nextCamera` in `settings.ts` |
 | Where a BOLTED lens sits on the skier, and how much of his pitch and roll it takes | `tips` / `helmet`: `eye`, `rollShare` — the lens pitches and rolls WITH the body, which is the whole sensation of those views; the helmet view is first person, the tips view a lens low at the ski tips |
 | Where a BOOM lens stands behind, and how it pulls back with speed | `dist`, `distPerSpeed`, `height`, `fovPerSpeed`, `fovMax` |
-| How it follows the heave, on the snow and in the air | `heightFollow`, `heightFollowAir`, `followRate` |
+| How heavy it is: the springs every reading is chased on, and their poles | `camera-spring.ts` (`Poles`: `f` the natural frequency, `zeta` the damping, `r` the response — 2 with a trend fed in tracks a ramp with no lag); per rung `yaw`, `lift` / `liftAir` (the heave, on the snow and in the air), `lean`, `look` |
+| How it leans with the mountain, and where the skier stands in the frame | `ahead` (how far the fall line is read, s of travel), `incline` (the share of its pitch the arm rises up the slope by, and the look tips by), `place` (the skier composed under the axis, a share of the half-fov) |
 | Looking through a skid | `slipWeight` — the blend between the skis' line and the way |
-| Never losing the skier off a jump or a cliff | `lagMax` (the most the sprung height may trail, eased into with a tanh) and `frame` (the share of the vertical half-fov the skier is kept inside — the look TILTS past a knee at half of it); `tiltToFrame` |
+| Never losing the skier off a jump or a cliff | `lagMax` (the most the sprung height may trail, eased into with a tanh) and `frame` (the share of the vertical half-fov the skier is kept inside — measured round where he is composed, the look TILTS past a knee at half the room); `tiltToFrame` |
 | Never inside the snow | `clearance` |
 | Never inside a gate pole or the finish arch; a tree is let through | `camera-clear.ts` — the `LineClear` a boom pulls its arm in against: the gate poles and the start hut and the finish arch (`start-arch.ts`), walked from the helmet out. The SKIED booms are handed it with `{ trees: false }` — an arm pulled in for every trunk flicking past is a jolt at the skier, and a bough across the frame for a moment is the lesser fault; the planted lenses (the broadcast, the death cam) keep out of the trees AS DRAWN (a lens meets the crown, not the trunk) |
 | A switch that is a move rather than a cut | `HANDOVER` seconds of `blendLens` in `camera.ts` |

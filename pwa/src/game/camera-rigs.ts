@@ -14,6 +14,25 @@
 // under the skis is not a mogul under the lens. `orbit` is the menus'
 // drone, flown slowly round the skier.
 //
+// A BOOM HAS WEIGHT. Every reading it chases — the yaw, the height, the
+// fall line, the pitch of the look — is a second-order spring
+// (`camera-spring.ts`) whose poles the row places: a lens that has to be
+// accelerated into a move and settles out of it, rather than one that
+// jumps at its fastest the instant the target does.
+//
+// A BOOM LEANS WITH THE MOUNTAIN, and composes the skier. It reads the
+// fall line down its own bearing from just behind the skier to where he
+// will be in a moment (`ahead`), so it starts to tip before a face drops
+// away; swings its arm up the slope behind him by `incline` of that pitch,
+// so the lens keeps its height over the snow; and pitches the look to
+// stand him at `place` of the half-fov under the middle of the frame —
+// the same place on a green's 9° and a black's 38°. A lens that aimed
+// level whatever the snow did stood the skier at the foot of the frame on
+// a steep face under half a picture of sky; one that tipped all the way
+// with the face would read it as flat. Leaning most of the way keeps the
+// horizon riding high in the frame and the drop under it, which is how a
+// steep face is FELT.
+//
 // THE SNOW IS THE DIFFERENCE FROM THE WATER GAME. A skier rides on ground
 // that does not move, so the booms follow the TERRAIN'S height under the
 // skis rather than a mean water line, and the chase row sits lower than a
@@ -49,6 +68,15 @@
 // way an operator tips the head to follow a drop.
 
 import { rotate, type Quat } from "@engine";
+
+import {
+  createSpring,
+  follow,
+  followAngle,
+  settle,
+  type Poles,
+  type Spring,
+} from "./camera-spring.ts";
 
 export type Vec3 = { x: number; y: number; z: number };
 
@@ -94,11 +122,11 @@ export type BoomRig = {
   /** Standoff behind the skier, m, and what each m/s of pace adds. */
   dist: number;
   distPerSpeed: number;
-  /** Height over the skier, m. */
+  /** Height over the skier, m, on level snow. */
   height: number;
-  /** Aim point ahead of the skier, m, and over it. */
+  /** How far past the skier the look reaches, m — where the target stands
+   * along the look, which `lookAt` needs and nothing else does. */
   aimAhead: number;
-  aimHeight: number;
   fov: number;
   fovPerSpeed: number;
   fovMax: number;
@@ -108,17 +136,31 @@ export type BoomRig = {
   /** Shares of `PACE.surge` and `PACE.tremor` the lens takes. */
   surge: number;
   tremor: number;
-  /** How briskly the yaw follows the nose, 1/s. */
-  followRate: number;
+  /** How the yaw swings after the nose (`camera-spring.ts`). */
+  yaw: Poles;
   /** Share of the travel direction (against the nose) the yaw takes. */
   slipWeight: number;
-  /** How fast the lens height follows the skier's, 1/s, on the snow and in
-   * the air. */
-  heightFollow: number;
-  heightFollowAir: number;
+  /** How the lens's height follows the skier's, on the snow and in the
+   * air — softer in the air, which is what makes a flight hang. */
+  lift: Poles;
+  liftAir: Poles;
   /** The most the lens's height is let trail the skier's, m — a soft cap. */
   lagMax: number;
-  /** Share of the half-fov (vertical) the skier is kept inside, 0..1. */
+  /** THE INCLINE: share of the fall line's pitch the arm rises by up the
+   * slope behind, and so the look tips down by, 0..1. 1 rides parallel to
+   * the snow (a steep face reads flat); 0 stands level (a steep face reads
+   * as sky). */
+  incline: number;
+  /** How far ahead the fall line is read, s of travel (never under
+   * `LEAN_REACH` m), and how the reading is followed. */
+  ahead: number;
+  lean: Poles;
+  /** THE COMPOSITION: where the skier stands in the frame, as a share of
+   * the vertical half-fov BELOW the axis, and how the look's pitch chases
+   * the angle that puts him there. */
+  place: number;
+  look: Poles;
+  /** Share of the half-fov (vertical) the skier is never let out of, 0..1. */
   frame: number;
   /** The lens is never closer to the snow under it than this, m. */
   clearance: number;
@@ -162,52 +204,62 @@ export const RIGS: Record<Rung, Rig> = {
     rollShare: 0.6,
     tremor: 0.8,
   },
-  // A skier's origin stands a metre over his skis, so the aim sits a
-  // little BELOW it: the boots and the skis stay in the frame, not just
-  // the helmet. LOW AND CLOSE, because speed is read off the snow streaming
-  // under the lens: the nearer the eye is to the ground the faster the
-  // ground goes past it, and a camera a storey up flattens a schuss into a
-  // stroll.
+  // THE CHASE: behind and above, the skier composed a little under the
+  // middle of the frame and the piste he is about to ski over his head.
+  // On a steep face the arm rises up the slope behind him and the look
+  // tips down the fall line with it — not all the way, or the face reads
+  // flat, so the horizon stays in the top of the frame and the drop is
+  // felt. Close, because speed is read off the snow streaming under the
+  // lens, and the fov held narrow enough that the skier is a body in the
+  // frame rather than a speck at the foot of it.
   chase: {
     kind: "boom",
-    dist: 5.2,
+    dist: 5,
     distPerSpeed: 0,
-    height: 1.6,
-    aimAhead: 8,
-    aimHeight: -0.25,
-    fov: 62,
-    fovPerSpeed: 0.75,
-    fovMax: 90,
-    hold: 0.45,
+    height: 2.2,
+    aimAhead: 12,
+    fov: 58,
+    fovPerSpeed: 0.55,
+    fovMax: 74,
+    hold: 0.5,
     surge: 1,
     tremor: 1,
-    followRate: 4.2,
+    yaw: { f: 1.2, zeta: 0.9, r: 0 },
     slipWeight: 0.3,
-    heightFollow: 6,
-    heightFollowAir: 3.2,
+    lift: { f: 1.8, zeta: 0.7, r: 2 },
+    liftAir: { f: 0.9, zeta: 0.85, r: 2 },
     lagMax: 2.2,
-    frame: 0.6,
+    incline: 0.7,
+    ahead: 0.6,
+    lean: { f: 0.7, zeta: 1, r: 0 },
+    place: 0.3,
+    look: { f: 1.6, zeta: 0.85, r: 0 },
+    frame: 0.66,
     clearance: 0.9,
   },
   far: {
     kind: "boom",
     dist: 10,
     distPerSpeed: 0.02,
-    height: 3.6,
-    aimAhead: 10,
-    aimHeight: -0.2,
-    fov: 56,
-    fovPerSpeed: 0.45,
-    fovMax: 76,
+    height: 3.8,
+    aimAhead: 14,
+    fov: 54,
+    fovPerSpeed: 0.4,
+    fovMax: 68,
     hold: 0.5,
     surge: 1.4,
     tremor: 0.6,
-    followRate: 2.6,
+    yaw: { f: 0.8, zeta: 0.9, r: 0 },
     slipWeight: 0.4,
-    heightFollow: 3.5,
-    heightFollowAir: 2.2,
+    lift: { f: 1.2, zeta: 0.75, r: 2 },
+    liftAir: { f: 0.7, zeta: 0.85, r: 2 },
     lagMax: 3.2,
-    frame: 0.6,
+    incline: 0.5,
+    ahead: 0.8,
+    lean: { f: 0.55, zeta: 1, r: 0 },
+    place: 0.22,
+    look: { f: 1.2, zeta: 0.9, r: 0 },
+    frame: 0.66,
     clearance: 1.4,
   },
   high: {
@@ -215,20 +267,24 @@ export const RIGS: Record<Rung, Rig> = {
     dist: 13,
     distPerSpeed: 0.05,
     height: 10,
-    aimAhead: 8,
-    aimHeight: 0,
+    aimAhead: 14,
     fov: 56,
     fovPerSpeed: 0.2,
     fovMax: 66,
     hold: 0,
     surge: 1,
     tremor: 0.3,
-    followRate: 2,
+    yaw: { f: 0.65, zeta: 0.9, r: 0 },
     slipWeight: 0.5,
-    heightFollow: 2.5,
-    heightFollowAir: 1.6,
+    lift: { f: 0.8, zeta: 0.8, r: 2 },
+    liftAir: { f: 0.5, zeta: 0.9, r: 2 },
     lagMax: 4.5,
-    frame: 0.6,
+    incline: 0.35,
+    ahead: 1,
+    lean: { f: 0.45, zeta: 1, r: 0 },
+    place: 0.12,
+    look: { f: 1, zeta: 0.9, r: 0 },
+    frame: 0.66,
     clearance: 3,
   },
   orbit: { kind: "orbit", radius: 16, height: 6, spin: 0.14, fov: 55 },
@@ -242,13 +298,19 @@ export function turn(a: number, b: number): number {
   return d;
 }
 
-/** A boom's memory between frames: the yaw it has swung to, the height it
- * has sprung to, the orbit's angle, and how far out along its arm the lens
- * is let stand (`pull`, 1 the whole arm). `fresh` asks the next frame to
- * snap rather than ease (a new run, a reset). */
+/** A boom's memory between frames: the springs it swings, lifts, leans and
+ * looks on (`camera-spring.ts`), the orbit's angle, and how far out along
+ * its arm the lens is let stand (`pull`, 1 the whole arm). `fresh` asks the
+ * next frame to snap rather than ease (a new run, a reset). */
 export type BoomState = {
-  yaw: number;
-  y: number;
+  /** The yaw the arm has swung to, rad (free to wind past ±π). */
+  yaw: Spring;
+  /** The height the lens is framed from, m. */
+  y: Spring;
+  /** The fall line's pitch the arm leans to, rad, positive dropping ahead. */
+  slope: Spring;
+  /** The pitch of the look, rad, positive up. */
+  pitch: Spring;
   orbit: number;
   pull: number;
   fresh: boolean;
@@ -264,8 +326,10 @@ export type BoomState = {
 
 export function createBoomState(): BoomState {
   return {
-    yaw: 0,
-    y: 0,
+    yaw: createSpring(),
+    y: createSpring(),
+    slope: createSpring(),
+    pitch: createSpring(),
     orbit: 0,
     pull: 1,
     fresh: true,
@@ -390,8 +454,6 @@ export function frameRig(
     const swing = rig.look * PACE.tremor.aim;
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing, z: rig.look });
     const target = { x: eye.x + fwd.x, y: eye.y + fwd.y, z: eye.z + fwd.z };
-    st.yaw = pose.heading;
-    st.y = pose.y;
     st.fresh = false;
     return {
       eye,
@@ -412,75 +474,126 @@ export function frameRig(
     return { eye, target: { x: pose.x, y: pose.y + 0.6, z: pose.z }, fov: rig.fov, roll: 0 };
   }
   // THE BOOM. Its yaw follows a blend of the nose and the travel.
+  const snap = st.fresh;
   const plan = Math.hypot(pose.vx, pose.vz);
   const travel = plan > 2 ? Math.atan2(pose.vx, pose.vz) : pose.heading;
   const want = pose.heading + turn(pose.heading, travel) * rig.slipWeight;
-  const k = st.fresh ? 1 : 1 - Math.exp(-rig.followRate * dt);
-  st.yaw += turn(st.yaw, want) * k;
-  const hk = st.fresh
-    ? 1
-    : 1 - Math.exp(-(pose.airborne ? rig.heightFollowAir : rig.heightFollow) * dt);
-  st.y += (pose.y - st.y) * hk;
+  const yaw = snap ? settle(st.yaw, want) : followAngle(st.yaw, rig.yaw, want, dt);
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  // THE FALL LINE, read down the arm's own bearing from a little behind the
+  // skier to where he will be in `ahead` s — so the arm starts to rise and
+  // the look to tip BEFORE the face drops away, not after.
+  const reachAhead = Math.max(LEAN_REACH, rig.ahead * pose.speed);
+  const drop =
+    groundAt(pose.x - fx * LEAN_BEHIND, pose.z - fz * LEAN_BEHIND) -
+    groundAt(pose.x + fx * reachAhead, pose.z + fz * reachAhead);
+  const fall = Math.max(LEAN_MIN, Math.min(LEAN_MAX, Math.atan2(drop, reachAhead + LEAN_BEHIND)));
+  const slope = snap ? settle(st.slope, fall) : follow(st.slope, rig.lean, fall, dt);
+  // The height follows the skier on its spring, told the DESCENT the fall
+  // line predicts as the target's own velocity: a steady schuss down a face
+  // is tracked with no lag, and only the rollers in it are smoothed away.
+  const descent = -plan * Math.tan(slope);
+  const lifted = snap
+    ? settle(st.y, pose.y)
+    : follow(st.y, pose.airborne ? rig.liftAir : rig.lift, pose.y, dt, descent);
   // The height the lens is FRAMED from: the spring's, with its lag eased
   // into `lagMax` so a long fall cannot leave the lens up on the cliff.
-  const lag = pose.y - st.y;
+  const lag = pose.y - lifted;
   const y = pose.y - rig.lagMax * Math.tanh(lag / rig.lagMax);
   const surge = surgeAt(st, pose, rig.surge, dt);
   const shake = tremorAt(st, pose, rig.tremor, dt);
-  const snap = st.fresh;
   st.fresh = false;
-  const fx = Math.sin(st.yaw);
-  const fz = Math.cos(st.yaw);
   // THE STRETCH: the arm pulled in along its own line by the share of the
   // fov's widening it holds, so the skier keeps his size in the frame.
   const fov = Math.min(rig.fovMax, rig.fov + rig.fovPerSpeed * pose.speed);
   const half = (d: number) => Math.tan((d * Math.PI) / 360);
   const arm = 1 - rig.hold * (1 - half(rig.fov) / half(fov));
   const dist = (rig.dist + rig.distPerSpeed * pose.speed) * arm + surge;
-  const buzz = PACE.tremor.travel;
+  const rise = rig.height * arm;
+  // THE INCLINE: the arm swung up the slope behind by its share of the
+  // fall line's pitch, about the skier — the lens keeps its height over
+  // the snow it stands above instead of meeting it.
+  const len = Math.hypot(dist, rise);
+  const up = Math.atan2(rise, dist) + rig.incline * slope;
   const eye = {
-    x: pose.x - fx * dist + fz * shake.x * buzz,
-    y: y + rig.height * arm + shake.y * buzz,
-    z: pose.z - fz * dist - fx * shake.x * buzz,
+    x: pose.x - fx * len * Math.cos(up),
+    y: y + len * Math.sin(up),
+    z: pose.z - fz * len * Math.cos(up),
   };
   const floor = groundAt(eye.x, eye.z) + rig.clearance;
   if (eye.y < floor) eye.y = floor;
   if (clear) pullIn(eye, pose, st, snap, dt, clear, groundAt);
+  // THE COMPOSITION: the look pitched to stand the skier `place` of the
+  // half-fov under the axis, measured from the sprung height so his heave
+  // over a roller moves HIM in the frame rather than the horizon — and
+  // chased on its own spring, so the head has weight.
+  const halfAngle = (fov * Math.PI) / 360;
+  const placed = Math.atan(rig.place * Math.tan(halfAngle));
+  const back = Math.hypot(pose.x - eye.x, pose.z - eye.z);
+  const composed = Math.atan2(y + FRAME_AT - eye.y, back) + placed;
+  const pitch = snap ? settle(st.pitch, composed) : follow(st.pitch, rig.look, composed, dt);
+  const reach = back + rig.aimAhead;
   const target = {
-    x: pose.x + fx * rig.aimAhead,
-    y: y + rig.aimHeight,
-    z: pose.z + fz * rig.aimAhead,
+    x: eye.x + fx * reach,
+    y: eye.y + reach * Math.tan(Math.max(-TILT_MAX, Math.min(TILT_MAX, pitch))),
+    z: eye.z + fz * reach,
   };
-  tiltToFrame(eye, target, pose, ((fov * Math.PI) / 360) * rig.frame);
+  tiltToFrame(eye, target, pose, halfAngle, rig.frame, placed);
+  // The tremor last, on the lens alone: the look's own spring never sees it.
+  const buzz = PACE.tremor.travel;
+  eye.x += fz * shake.x * buzz;
+  eye.y += shake.y * buzz;
+  eye.z -= fx * shake.x * buzz;
   return { eye, target, fov, roll: shake.r * PACE.tremor.roll };
 }
 
-/** Where on the skier the tilt frames: the middle of his body, m over the
- * body's origin. */
-export const FRAME_AT = 0.9;
-/** The steepest the tilt ever pitches the look, rad — short of straight
- * down, where `lookAt`'s up vector has no answer. */
+/** THE FALL LINE's reading: metres behind the skier it starts, the least
+ * it reaches ahead, m, and the pitch it is held between, rad (a short rise
+ * up a kicker's face tips the arm down a little; a cliff no more than
+ * 55°). */
+const LEAN_BEHIND = 3;
+const LEAN_REACH = 6;
+const LEAN_MIN = -0.3;
+const LEAN_MAX = 0.95;
+
+/** Where on the skier the lens frames: the middle of him, between his
+ * boots (a metre under his centre of gravity, the pose's origin) and his
+ * helmet, m over the origin. */
+export const FRAME_AT = -0.1;
+/** The steepest the look ever pitches, rad — short of straight down,
+ * where `lookAt`'s up vector has no answer. */
 const TILT_MAX = 1.35;
 /** Share of the kept band the skier roams before the look starts to tip. */
 const TILT_KNEE = 0.5;
 
-/** THE TILT: pitch the look from `eye` through `target` so the skier
- * stands within `half` rad of its axis, keeping the aim's bearing and its
- * reach. Inside the knee (half of `half`) the look is left alone; past it
- * the skier's offset is eased into `half` rather than stopped at it, so the
- * lens tips into a drop and back out of it without a kink. Moves only
+/** THE TILT, the guard over the composition: pitch the look from `eye`
+ * through `target` so the skier never stands more than `frame` of the
+ * vertical half-fov (`half` rad) off its axis, keeping the aim's bearing
+ * and its reach. The band is measured round where he is COMPOSED (`placed`
+ * rad under the axis): inside its knee the look is left alone; past it his
+ * offset is eased into the band rather than stopped at it, so the lens
+ * tips into a drop and back out of it without a kink. Moves only
  * `target.y`. */
-function tiltToFrame(eye: Vec3, target: Vec3, pose: RigPose, half: number): void {
+function tiltToFrame(
+  eye: Vec3,
+  target: Vec3,
+  pose: RigPose,
+  half: number,
+  frame: number,
+  placed: number,
+): void {
   const reach = Math.hypot(target.x - eye.x, target.z - eye.z);
   if (reach < 1e-6 || half <= 0) return;
   const aim = Math.atan2(target.y - eye.y, reach);
   const skier = Math.atan2(pose.y + FRAME_AT - eye.y, Math.hypot(pose.x - eye.x, pose.z - eye.z));
-  const off = skier - aim;
-  const knee = half * TILT_KNEE;
+  const room = Math.max(half * frame - placed, half * 0.1);
+  const off = skier - aim + placed;
+  const knee = room * TILT_KNEE;
   if (Math.abs(off) <= knee) return;
-  const room = half - knee;
-  const kept = Math.sign(off) * (knee + room * Math.tanh((Math.abs(off) - knee) / room));
-  const pitch = Math.max(-TILT_MAX, Math.min(TILT_MAX, skier - kept));
+  const give = room - knee;
+  const kept = Math.sign(off) * (knee + give * Math.tanh((Math.abs(off) - knee) / give));
+  const pitch = Math.max(-TILT_MAX, Math.min(TILT_MAX, skier + placed - kept));
   target.y = eye.y + reach * Math.tan(pitch);
 }
 

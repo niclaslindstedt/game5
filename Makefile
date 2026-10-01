@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud skis skier blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud skis skier blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -243,6 +243,15 @@ sim:
 # `make level SEED=38` · `make level SEED=38 ARGS=--json`
 level:
 	npm run level -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
+
+# THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
+# alone — the piste map from above (every run in its colour, the lifts, the
+# course raced), the panorama over the valley, every course's profile, and a
+# listing of the lifts, the runs, the courses and the findings, to
+# previews/resort-<seed>*. COUNT=n sweeps instead, one row a seed.
+# `make resort SEED=7` · `make resort SEED=7 REGION=fell ARGS="--course 4"` · `make resort COUNT=24`
+resort:
+	npm run resort -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
 
 # SCORE generated maps instead of looking at them: each check a band, and a
 # finding names what is wrong. The measuring half of the generator loop;

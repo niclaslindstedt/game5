@@ -18,7 +18,7 @@
 // ahead" can be negative — a point up the piste from another is behind it.
 
 import { angleDiff, cellKey, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { TrackHit, TrackPoint } from "./types.ts";
+import type { Hub, TrackHit, TrackPoint } from "./types.ts";
 
 /** Anything carrying an open piste: a finished `Level`, or the generator's
  * own line before it is one. */
@@ -181,4 +181,31 @@ export function arcAhead(_level: HasTrack, a: number, b: number): number {
 /** Arc distance between two stations, m, whichever is higher. */
 export function arcBetween(_level: HasTrack, a: number, b: number): number {
   return Math.abs(b - a);
+}
+
+/** R29 — THE HUB ASKED: its two edges at `x` (the upper edge `top`, up the
+ * mountain, and the lower `bottom`), read between the columns it is
+ * published at; null past either end of it. */
+export function hubAt(hub: Hub, x: number): { top: number; bottom: number } | null {
+  const n = hub.top.length;
+  const t = (x - hub.x0) / hub.step;
+  if (n === 0 || t < 0 || t > n - 1) return null;
+  const i = Math.min(n - 2, Math.floor(t));
+  const f = n === 1 ? 0 : t - i;
+  const j = Math.min(n - 1, i + 1);
+  return {
+    top: hub.top[i] + (hub.top[j] - hub.top[i]) * f,
+    bottom: hub.bottom[i] + (hub.bottom[j] - hub.bottom[i]) * f,
+  };
+}
+
+/** How far outside the hub a plan point lies, m — 0 inside it; along z
+ * past an edge, along x past an end, and the two together past a corner. */
+export function outsideHub(hub: Hub, x: number, z: number): number {
+  const x1 = hub.x0 + hub.step * (hub.top.length - 1);
+  const cx = Math.min(x1, Math.max(hub.x0, x));
+  const edges = hubAt(hub, cx);
+  if (!edges) return Infinity;
+  const dz = Math.max(0, edges.top - z, z - edges.bottom);
+  return hypot(x - cx, dz);
 }

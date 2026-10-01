@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { TUNING, botInput, createGame, placeRun, step, type GameState } from "@engine";
 
+import { GRADE_LOOK } from "../pwa/src/game/grade-look.ts";
 import { bakeMinimap, minimapSource } from "../pwa/src/game/minimap-bake.ts";
 import { VIEW, ZOOM, buildMinimap, project, spanFor } from "../pwa/src/game/minimap-view.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
@@ -138,6 +139,48 @@ describe("the marks (minimap-view.ts)", () => {
     // The same string object from one snapshot to the next — the DOM diff
     // is a comparison, not a re-parse.
     expect(buildMinimap(state).track).toBe(map.track);
+  });
+
+  it("lays the resort's runs and lifts under the course, cut once per map", () => {
+    const bare = buildMinimap(race());
+    expect(bare.runs).toEqual([]);
+    expect(bare.lifts).toEqual([]);
+    const base = syntheticLevel();
+    const run = (id: string, kind: "piste" | "road", grade: "red" | "green") => ({
+      id,
+      kind,
+      grade,
+      points: base.track.points,
+      length: base.track.length,
+      from: "L1",
+      into: null,
+      drifts: [],
+    });
+    const level = {
+      ...base,
+      resort: {
+        runs: [run("1", "piste", "red"), run("2", "road", "green")],
+        lifts: [
+          {
+            id: "L1",
+            kind: "chair" as const,
+            bottom: { x: 100, y: 0, z: 900 },
+            top: { x: 120, y: 300, z: 80 },
+          },
+        ],
+        courses: [],
+        course: "C1",
+        village: { x: 0, y: 0, z: 0 },
+      },
+    };
+    const state = createGame({ level, seed: 7, quiet: true });
+    const map = buildMinimap(state);
+    // The lane first, so every piste lies over it; a piste in its paint.
+    expect(map.runs.map((r) => r.road)).toEqual([true, false]);
+    expect(map.runs[1].paint).toBe(GRADE_LOOK.red.paint);
+    expect(map.runs[1].d).toBe(map.track);
+    expect(map.lifts).toEqual([{ id: "L1", a: [100, 900], b: [120, 80] }]);
+    expect(buildMinimap(state).runs).toBe(map.runs);
   });
 
   it("names the gate owed, and the start gate", () => {

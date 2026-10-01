@@ -5,10 +5,11 @@
 // Two halves are owned elsewhere: `minimap-bake.ts` paints the ground once
 // per map (in `minimap-worker.ts`), and `minimap-view.ts` decides the pose
 // and every mark. This file is the DOM: one world group carrying the
-// picture, the piste, the gates and the field, posed by one CSS
-// transform that is TWEENED between two snapshots — so a map read twelve
-// times a second turns and slides like one drawn every frame — and the
-// skier's own arrow, fixed at the middle and pointing up, over it.
+// picture, the resort's runs, lifts and wind tunnels, the piste, the gates and the field,
+// posed by one CSS transform that is TWEENED between two snapshots — so a
+// map read twelve times a second turns and slides like one drawn every
+// frame — and the skier's own arrow, fixed at the middle and pointing up,
+// over it.
 //
 // Not a button: nothing is pressed here, and the lever's thumb may land on
 // the plate on a phone held sideways, so it takes no pointer at all.
@@ -130,6 +131,9 @@ function pose(p: HudMinimap["pose"]): string {
 const SKIER = "M 0 -6.4 L 4.4 5 L 0 2.6 L -4.4 5 Z";
 const PLINTH = 7.4;
 
+/** A tunnel's arrow, pointing up, in view units at the plate's scale. */
+const TUNNEL_ARROW = "M 0 -3.2 L 2.6 1.6 L 0 0.4 L -2.6 1.6 Z";
+
 /** The owed gate's chevron on the rim. */
 const CHEVRON = "M 0 -4.4 L 3.6 2 L 0 0.4 L -3.6 2 Z";
 
@@ -152,6 +156,44 @@ export function Minimap({ map }: { map: HudMinimap }) {
           {url !== null && (
             <image href={url} x={0} y={0} width={size} height={size} preserveAspectRatio="none" />
           )}
+          {/* THE RESORT under the course: every run in its grade's paint,
+              the lanes light, the lifts as dark lines over them with a dot
+              at each station. */}
+          {map.runs.map((r) => (
+            <path
+              key={r.id}
+              class={r.road ? "hud-minimap-lane" : "hud-minimap-run"}
+              d={r.d}
+              style={r.road ? undefined : { stroke: r.paint }}
+            />
+          ))}
+          {map.lifts.map((l) => (
+            <g key={l.id} class="hud-minimap-lift">
+              <path
+                d={`M ${l.a[0].toFixed(1)} ${l.a[1].toFixed(1)} L ${l.b[0].toFixed(1)} ${l.b[1].toFixed(1)}`}
+              />
+              <circle cx={l.a[0]} cy={l.a[1]} r={map.dot * 0.45} />
+              <circle cx={l.b[0]} cy={l.b[1]} r={map.dot * 0.45} />
+            </g>
+          ))}
+          {/* THE WIND TUNNELS: a broad line in each one's own colour with
+              white arrows down it the way it blows, sized to the plate
+              like the dots. */}
+          {map.tunnels.map((t) => (
+            <g key={t.id} class="hud-minimap-tunnel" style={{ stroke: t.paint }}>
+              <path d={t.d} />
+              {t.arrows.map((a, i) => (
+                <path
+                  key={i}
+                  class="hud-minimap-tunnel-arrow"
+                  d={TUNNEL_ARROW}
+                  style={{
+                    transform: `translate(${a.x.toFixed(1)}px, ${a.z.toFixed(1)}px) rotate(${a.angle.toFixed(1)}deg) scale(${(map.dot / 3.4).toFixed(3)})`,
+                  }}
+                />
+              ))}
+            </g>
+          ))}
           <path class="hud-minimap-track" d={map.track} stroke-width={map.trackWidth} />
           {map.checkpoints.map((m) => (
             <Checkpoint key={m.index} mark={m} />

@@ -15,12 +15,15 @@
 //     side, and two FLOODLIGHT masts at the arch's feet, aimed back up the
 //     piste — the lamps that light the snow after dark (`snow-glsl.ts`'s
 //     lamp slots), since a skier carries none.
-//   * THE EDGE POLES: a stake every fifty metres along both edges of the
-//     piste, painted in the PISTE'S GRADE (R23, `grade-look.ts` — green,
-//     blue, red or black, as a piste is marked), the right-hand ones banded
+//   * THE EDGE POLES: a stake every fifty metres along both edges of every
+//     run on the mountain (R27), painted in ITS GRADE (R23, `grade-look.ts`
+//     — green, blue, red or black, as a piste is marked), the right-hand ones banded
 //     orange at the top (the convention that tells a skier in fog which
 //     side he is on), with a reflector that catches the floods and the moon
 //     at night.
+//   * THE SIGNS: a board on a post at the head of every run and where a
+//     lane leaves one — its mark, its number, its name, an arrow
+//     (`run-signs.ts`).
 //
 // THE NEXT GATE IS THE ONE THAT MATTERS, so it is the one that is loud:
 // its panels are their colour at full strength and breathe a little light,
@@ -42,6 +45,7 @@ import { PALETTE } from "../identity.ts";
 import { archModel, checkpointModel } from "./gate-models.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createRunSigns } from "./run-signs.ts";
 import { ARCH, GATE, archPlan, type ArchPlan } from "./start-arch.ts";
 import { STRINGS } from "./strings.ts";
 import { LOOSE } from "./trail-stamp.ts";
@@ -618,40 +622,60 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   poles.instanceMatrix.needsUpdate = true;
   panels.instanceMatrix.needsUpdate = true;
 
-  // THE EDGE POLES down both sides of the piste in the piste's own colour,
-  // the right-hand ones banded orange at the top.
+  // THE EDGE POLES down both sides of every run on the mountain, each in
+  // its own colour (R23, R27) — on a map of a resort the other runs are
+  // marked as the raced one is — the right-hand ones banded orange at the
+  // top. A pole that would stand on another run's groomed snow (a junction,
+  // a lane across a piste) is left out.
   const stakeGeo = new THREE.CylinderGeometry(EDGE.radius, EDGE.radius * 1.3, EDGE.height, 6);
   stakeGeo.translate(0, EDGE.height / 2, 0);
   const bandGeo = new THREE.CylinderGeometry(EDGE.radius * 1.4, EDGE.radius * 1.4, EDGE.band, 6);
   bandGeo.translate(0, EDGE.height - EDGE.band / 2, 0);
   geos.push(stakeGeo, bandGeo);
-  const stakeMat = std({ color: GRADE_LOOK[gradeOf(level)].stake, roughness: 0.55 }, "edge-stake");
-  const edgeCount = Math.ceil(level.track.length / EDGE.every) + 1;
+  const stakeMat = std({ color: 0xffffff, roughness: 0.55 }, "edge-stake");
+  const lines = level.resort
+    ? level.resort.runs
+    : [{ points: level.track.points, length: level.track.length, grade: gradeOf(level) }];
+  const edgeCount = lines.reduce((sum, r) => sum + Math.ceil(r.length / EDGE.every) + 1, 0);
   const stakes = new THREE.InstancedMesh(stakeGeo, stakeMat, edgeCount * 2);
   const bands = new THREE.InstancedMesh(bandGeo, reflectorMat, edgeCount);
   stakes.castShadow = true;
   group.add(stakes, bands);
   let si = 0;
   let bi = 0;
-  let nextS = 0;
-  for (const p of level.track.points) {
-    if (p.s < nextS) continue;
-    nextS += EDGE.every;
-    for (const side of [-1, 1]) {
-      const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + EDGE.out);
-      const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + EDGE.out);
-      const y = level.groundAt(x, z) - 0.1;
-      if (si < stakes.count)
-        stakes.setMatrixAt(si++, m4.compose(at.set(x, y, z), q.identity(), one));
-      if (side > 0 && bi < bands.count) {
-        bands.setMatrixAt(bi++, m4.compose(at.set(x, y, z), q.identity(), one));
+  const paint = new THREE.Color();
+  for (const run of lines) {
+    paint.set(GRADE_LOOK[run.grade].stake);
+    let nextS = 0;
+    for (const p of run.points) {
+      if (p.s < nextS) continue;
+      nextS += EDGE.every;
+      for (const side of [-1, 1]) {
+        const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + EDGE.out);
+        const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + EDGE.out);
+        if (lines.length > 1 && level.packedAt(x, z) > 0.5) continue;
+        const y = level.groundAt(x, z) - 0.1;
+        if (si < stakes.count) {
+          stakes.setColorAt(si, paint);
+          stakes.setMatrixAt(si++, m4.compose(at.set(x, y, z), q.identity(), one));
+        }
+        // The skier's right going down AS DRAWN is the engine's left: the
+        // renderer's frame mirrors the map (`input-model.ts`).
+        if (side < 0 && bi < bands.count) {
+          bands.setMatrixAt(bi++, m4.compose(at.set(x, y, z), q.identity(), one));
+        }
       }
     }
   }
   for (let i = si; i < stakes.count; i++) stakes.setMatrixAt(i, m4.compose(at, q, none));
   for (let i = bi; i < bands.count; i++) bands.setMatrixAt(i, m4.compose(at, q, none));
   stakes.instanceMatrix.needsUpdate = true;
+  if (stakes.instanceColor) stakes.instanceColor.needsUpdate = true;
   bands.instanceMatrix.needsUpdate = true;
+
+  // THE SIGNS at the head of every run and where a lane leaves one.
+  const signs = createRunSigns(level, haze);
+  group.add(signs.group);
 
   const breathing = new THREE.Color();
   let lit = -1;
@@ -695,6 +719,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       panels.dispose();
       stakes.dispose();
       bands.dispose();
+      signs.dispose();
       for (const t of texs) t.dispose();
     },
   };

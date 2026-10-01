@@ -22,6 +22,7 @@
     "fmt:check": "prettier --check .",
     "icons": "node scripts/generate-icons.mjs",
     "sim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/simulate-run.mjs",
+    "resort": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/resort-map.mjs",
     "level": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/level-map.mjs",
     "analyze": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/analyze-level.mjs",
     "rate": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/rate-level.mjs",

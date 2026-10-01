@@ -251,7 +251,7 @@ if (args.campaign) {
         level,
         opts: { sky: campaignSky(pinned), runSeconds: botRun(level) },
         name: `difficulty-${pinned.id}`,
-        title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed}  ${pinned.mode === "race" ? "RACE" : "TIME TRIAL"}  V${pinned.version}`,
+        title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed} COURSE ${pinned.course} ${pinned.grade.toUpperCase()}  ${pinned.mode === "race" ? "RACE" : "TIME TRIAL"}  V${pinned.version}`,
       });
     }
   }

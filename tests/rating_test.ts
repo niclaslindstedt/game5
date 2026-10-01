@@ -65,7 +65,13 @@ describe("a map's rating", () => {
   });
 
   it("asks more under a heavier sky and in the dark, and moves nothing of the map", () => {
-    const level = levelFor(LEVEL_SEEDS[1]);
+    // On the spring equinox, so a clear noon stands the sun well over
+    // `RATING.scale.sunHigh` wherever the map lies: the day is the map's own
+    // (every course of a ski area is dealt one, R15), and a midwinter noon
+    // at a high latitude honestly reads a little dark — the sky's zero is a
+    // clear sky with the sun high, not any noon at all.
+    const built = levelFor(LEVEL_SEEDS[1]);
+    const level = { ...built, sun: { ...built.sun, dayOfYear: 80 } };
     const clear = rateLevel(level, { sky: { weather: "clear", hour: 12 } });
     const night = rateLevel(level, { sky: { weather: { kind: "snow", snowfall: 1 }, hour: 23 } });
     expect(clear.axes.weather).toBe(0);

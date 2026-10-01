@@ -119,13 +119,14 @@ export function layCliffs(
   piste: HasTrack,
   kickers: readonly Kicker[],
   drops: readonly Cliff[] = [],
+  distanceTo?: (x: number, z: number) => number,
 ): Cliff[] {
   const C = R.cliff;
   const G = plan.grade.cliffs;
   const rng = createRng((sub ^ CLIFF_SALT) >>> 0);
   const count = scaleCount(C.count, plan.region.kickers * G.count);
   const size = R.world.size;
-  const face = R.mountain.flank.inner - 40;
+  const face = (plan.flankBand ?? R.mountain.flank).inner - 40;
   const clear = R.track.width.max / 2 + G.clearance;
   const out: Cliff[] = [];
   const length = piste.track.length;
@@ -189,7 +190,9 @@ export function layCliffs(
     };
     const foot = cliffFootprint(cliff);
     if (foot.some((p) => flankAt(plan, p.x, p.z) > 0.02)) return false;
-    if (foot.some((p) => nearestTrackPoint(piste, p.x, p.z).distance < clear)) return false;
+    const far =
+      distanceTo ?? ((px: number, pz: number) => nearestTrackPoint(piste, px, pz).distance);
+    if (foot.some((p) => far(p.x, p.z) < clear)) return false;
     if (
       foot.some(
         (p) =>

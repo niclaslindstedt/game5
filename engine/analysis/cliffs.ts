@@ -10,6 +10,7 @@ import { regionOf, scaleCount } from "../mapgen/regions.ts";
 import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import type { Kicker, Level } from "../mapgen/types.ts";
 import type { Severity } from "./index.ts";
+import { nearestRun } from "./resort.ts";
 
 type Add = (rule: string, severity: Severity, message: string) => void;
 
@@ -23,8 +24,12 @@ const DROP_SHOWN = 0.75;
  * drops across the piste are R24's, held below. */
 export function checkCliffs(level: Level, add: Add): void {
   const C = R.cliff;
-  const G = gradeRowOf(level).cliffs;
-  const cliffs = (level.cliffs ?? []).filter((c) => !c.onTrack);
+  // On a resort (R25) the cliffs are the mountain's, laid clear of every
+  // run at the rule book's own clearance; the drops across the runs that
+  // are not the course carry their run and are R24's.
+  const resort = level.resort !== undefined;
+  const G = resort ? { count: 1, clearance: C.clearance } : gradeRowOf(level).cliffs;
+  const cliffs = (level.cliffs ?? []).filter((c) => !c.onTrack && c.run === undefined);
   const clear = R.track.width.max / 2 + G.clearance;
   for (const c of cliffs) {
     const fx = Math.sin(c.heading);
@@ -42,7 +47,10 @@ export function checkCliffs(level: Level, add: Add): void {
     }
     let nearest = Infinity;
     for (const p of cliffFootprint(c)) {
-      nearest = Math.min(nearest, nearestTrackPoint(level, p.x, p.z).distance);
+      nearest = Math.min(
+        nearest,
+        resort ? nearestRun(level, p.x, p.z, 400) : nearestTrackPoint(level, p.x, p.z).distance,
+      );
     }
     if (nearest < clear - 1) {
       add("R22", "error", `${c.id} comes ${nearest.toFixed(0)} m from the piste's centreline`);
@@ -60,7 +68,8 @@ export function checkDrops(level: Level, kickers: readonly Kicker[], add: Add): 
   const D = R.drop;
   const band = gradeRowOf(level).drops;
   const drops = (level.cliffs ?? []).filter((c) => c.onTrack);
-  if (!withinBand(drops.length, band)) {
+  // A resort's runs each carry their own share of drops (R27).
+  if (level.resort === undefined && !withinBand(drops.length, band)) {
     add("R24", "error", `${drops.length} drop(s) across the piste (band ${band.min}–${band.max})`);
   }
   const gates = level.checkpoints.map((c) => c.s);

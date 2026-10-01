@@ -181,8 +181,10 @@ export {
   crossingsToFinish,
   freeSpawn,
   freshProgress,
+  gateLineAt,
   resetPose,
   resetSkier,
+  slalom,
   standSkier,
 } from "./game/course.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";

@@ -131,8 +131,14 @@ export const STRINGS = {
   newsCheckpoint: (index: number, seconds: number): string =>
     `GATE ${index}  ${formatTime(seconds)}`,
   newsStart: "OUT OF THE GATE",
-  newsMissed: (index: number): string =>
-    index === 0 ? "MISSED THE START GATE" : `MISSED GATE ${index}`,
+  /** A gate gone past — and, for a slalom gate the run is charged for
+   * (`missed`'s `penalty`), the seconds it put on the clock. */
+  newsMissed: (index: number, penalty?: number): string =>
+    index === 0
+      ? "MISSED THE START GATE"
+      : penalty
+        ? `MISSED GATE ${index}  +${Number(penalty.toFixed(1))} s`
+        : `MISSED GATE ${index}`,
   newsTree: "TREE!",
   /** A landing the legs paid for, and a big one ridden away — its load in
    * g (`flight.ts`'s `landingLoad`). */
@@ -153,6 +159,8 @@ export const STRINGS = {
             ? "COMPRESSED!"
             : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
+  /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
+  newsTunnel: "WIND TUNNEL! HOLD ON",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>
@@ -162,6 +170,9 @@ export const STRINGS = {
   resultTitle: "RUN FINISHED",
   resultPlace: (place: number, of: number): string => `${ordinal(place)} OF ${of}`,
   resultTime: (seconds: number): string => formatTime(seconds),
+  /** The slalom gates the run was charged for (R28), already in its time. */
+  resultPenalty: (seconds: number): string =>
+    `INCL. +${Number(seconds.toFixed(1))} s FOR MISSED GATES`,
   /** A skier's name on the standings. */
   skierYou: "YOU",
   skierRival: (slot: number): string => `SKIER ${slot}`,

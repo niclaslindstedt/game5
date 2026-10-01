@@ -61,7 +61,7 @@ export function PinnedCards({
       progress={progress}
       chosen={settings.level}
       best={(level) => {
-        const row = standing({ seed: level.seed, skis, mode, laps });
+        const row = standing({ seed: level.seed, course: level.course, skis, mode, laps });
         return row ? STRINGS.levelsBest(row.value, skisById(row.skis).name) : null;
       }}
       onBack={onBack}

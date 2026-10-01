@@ -8,9 +8,9 @@
 // and the campaign's block is one file to read. Templates, never
 // concatenations at the call site (§39.2).
 //
-// The shelves are graded like pistes (R23): THE NURSERY is the green runs,
-// THE WOODS the blues, THE RIDGE the reds, THE GLACIER the blacks
-// (`campaign-levels.ts`).
+// The shelves are four SKI AREAS, each raced down six of its red and black
+// courses (`campaign-levels.ts`); their names and blurbs are the ladder's
+// own data there, and the kind of country a tab bills is `regionNames`.
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 

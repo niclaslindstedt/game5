@@ -346,6 +346,54 @@ canvas {
   stroke-linejoin: round;
 }
 
+/* THE RESORT under the course (R26, R27): every other run a thin line in
+   its grade's paint (set inline), a transport lane a thinner light one, and
+   each lift a dark hairline with its stations dotted — the piste map's
+   convention, kept quieter than the course laid over it. */
+.hud-minimap-run,
+.hud-minimap-lane {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.hud-minimap-run {
+  stroke-width: 1.5;
+  opacity: 0.85;
+}
+
+.hud-minimap-lane {
+  stroke: rgb(255 255 255 / 75%);
+  stroke-width: 1;
+}
+
+.hud-minimap-lift path {
+  fill: none;
+  stroke: #1d2126;
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud-minimap-lift circle {
+  fill: #1d2126;
+}
+
+.hud-minimap-tunnel > path:first-child {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud-minimap-tunnel-arrow {
+  fill: #fff;
+  stroke: rgb(0 0 0 / 55%);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
 .hud-minimap-checkpoint {
   vector-effect: non-scaling-stroke;
   stroke: rgb(var(--hud-plate) / 55%);
@@ -1172,6 +1220,14 @@ canvas {
 .hud-result-note {
   margin-top: 0.3rem;
   opacity: 0.7;
+}
+
+/* What the slalom gates skied past put on the clock, under the time it is
+   already in: the bad tone, small, so it explains the time rather than
+   competing with it. */
+.hud-result-penalty {
+  color: var(--hud-bad);
+  font-size: 0.85em;
 }
 
 /* The centre: the pause card. */

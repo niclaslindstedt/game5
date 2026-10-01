@@ -526,7 +526,7 @@ export function minSeparation(piste: { points: readonly TrackPoint[] }): number 
  * line carried on at its own grade above the start (a held value would
  * gentle the first window under R8's floor), and held past the end, where
  * the finish is flat. */
-function blur(y: Float64Array, k: number): Float64Array<ArrayBuffer> {
+export function blur(y: Float64Array, k: number): Float64Array<ArrayBuffer> {
   const n = y.length;
   const out = new Float64Array(n);
   const at = (i: number): number => (i < 0 ? y[0] + (y[0] - y[1]) * -i : i >= n ? y[n - 1] : y[i]);

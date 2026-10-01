@@ -16,6 +16,8 @@
 // MOUNTAIN is the front door's RACE, pressed from here so a skier who wants
 // another mountain is not sent through a card to get it.
 //
+// UNDER THE TITLE, the course raced by its runs' names (`courseName`).
+//
 // A TIME TRIAL'S PLATE is the same card with the time where the place was
 // and no table under it — there is nobody else to list — and under either
 // the RECORD BOOK's line (`records.ts`): a new record, or the row that
@@ -85,6 +87,7 @@ export function ResultPlate({
                 ? STRINGS.resultTrialTitle
                 : STRINGS.resultTitle}
           </span>
+          {snap.course && <span class="hud-card-note">{snap.course}</span>}
           {snap.tricks ? (
             <span class="hud-card-title">{STRINGS.score(snap.tricks.score)}</span>
           ) : trial ? (
@@ -94,6 +97,13 @@ export function ResultPlate({
               <span class="hud-card-title">{STRINGS.resultPlace(result.place, snap.skiers)}</span>
               <span class="hud-card-note">{STRINGS.resultTime(result.time)}</span>
             </>
+          )}
+          {/* What the time owes the slalom gates skied past — already in
+              it (`Progress.penalty`), so the time stands as the clock. */}
+          {!snap.tricks && result.penalty > 0 && (
+            <span class="hud-card-note hud-result-penalty">
+              {STRINGS.resultPenalty(result.penalty)}
+            </span>
           )}
           {/* THE RECORD BOOK's line: the row this run set, or the one that
               stood and how far off it the run was. */}

@@ -108,6 +108,7 @@ export function layTrackKickers(
   piste: Piste,
   grade: GradeRow = UNGRADED,
   drops: readonly TrackDrop[] = [],
+  keepOff: readonly { from: number; to: number }[] = [],
 ): TrackKicker[] {
   const pts = piste.points;
   const n = pts.length;
@@ -186,6 +187,12 @@ export function layTrackKickers(
       });
       if (onDrop) continue;
     }
+    if (keepOff.length > 0) {
+      const s0 = pts[c.index].s;
+      if (keepOff.some((k) => s0 - height * rampOf < k.to && s0 + height * landingOf > k.from)) {
+        continue;
+      }
+    }
     chosen.push({ index: c.index, height, ramp: height * rampOf, landing: height * landingOf });
   }
   chosen.sort((a, b) => a.index - b.index);
@@ -230,7 +237,8 @@ export function layOffKickers(
   rng: Rng,
   plan: TerrainPlan,
   ground: Heightfield,
-  piste: Piste,
+  piste: Piste | null,
+  distanceTo?: (x: number, z: number) => number,
 ): Kicker[] {
   const K = R.kickers.off;
   // R21, R23 — the region's and the grade's multiple of the rule's count;
@@ -239,7 +247,7 @@ export function layOffKickers(
   const want = rng.int(count.min, count.max);
   const out: Kicker[] = [];
   const size = R.world.size;
-  const face = R.mountain.flank.inner - 60;
+  const face = (plan.flankBand ?? R.mountain.flank).inner - 60;
   for (let tries = 0; tries < want * 40 && out.length < want; tries++) {
     const x = size / 2 + rng.range(-face, face);
     const z = plan.summitZ + (plan.baseZ - plan.summitZ) * rng.range(0.08, 0.96);
@@ -265,8 +273,12 @@ export function layOffKickers(
     );
     const below = fallAlong(ground, x, z, heading, landing);
     if (below.steepest - above.gentlest < K.roll) continue;
-    const hit = nearestTrackPoint(trackOf(piste), x, z);
-    if (hit.distance - reach < R.track.width.max / 2 + K.clearance) continue;
+    const distance = distanceTo
+      ? distanceTo(x, z)
+      : piste
+        ? nearestTrackPoint(trackOf(piste), x, z).distance
+        : Infinity;
+    if (distance - reach < R.track.width.max / 2 + K.clearance) continue;
     if (out.some((k) => hypot(k.x - x, k.z - z) < reach + Math.max(k.ramp, k.landing) + 20)) {
       continue;
     }

@@ -45,6 +45,14 @@ export interface Checkpoint {
   /** The gate's panels (R11): red and blue alternate down the piste, the
    * start gate red. Drawn only. */
   colour: "red" | "blue";
+  /** A SLALOM GATE (R28): its centre stands this far right of the piste's
+   * centreline (negative: left), m — on a resort's course every gate but
+   * the start gate and the finish is one, narrower than the piste and set
+   * alternately either side of its line. Absent: a gate across the whole
+   * piste. */
+  offset?: number;
+  /** A slalom gate's piste: its width there, m. */
+  span?: number;
 }
 
 export interface TrackPoint {
@@ -149,6 +157,9 @@ export interface Level {
    * reader that asks keeps the physics' answer to ice honest. */
   ice?: Heightfield;
   iceAt?(x: number, z: number): number;
+  /** THE SKI AREA (R25–R28) on a map built by a generator from the resorts
+   * on: every run, lift and course, and which course `track` is. */
+  resort?: Resort;
 }
 
 /** The skies R19 deals, lightest first. Three of them SNOW — a few flakes
@@ -232,6 +243,9 @@ export interface Kicker {
   onTrack: boolean;
   /** Arc length of the lip down the piste (on-piste kickers only), m. */
   s?: number;
+  /** The resort's run it stands on (R27), on one that is not the course
+   * raced — a piste's kicker, though not this map's piste's. */
+  run?: string;
   /** One of the TERRAIN PARK's (R20, `T1…`), laid on the piste only on a
    * map built for a tricks run. */
   trick?: boolean;
@@ -286,6 +300,92 @@ export interface Cliff {
   onTrack?: boolean;
   /** Arc length of a drop's edge down the piste (drops only), m. */
   s?: number;
+  /** The resort's run a drop stands across (R27), on one that is not the
+   * course raced. */
+  run?: string;
+}
+
+/** R27 — what a run is: a PISTE built to a colour, or a TRANSPORT LANE
+ * (a cat track) graded gentle across the mountain between them. */
+export type RunKind = "piste" | "road";
+
+/** A run of a resort (R27): its number on the piste map, what it is, the
+ * colour it measures, its line — every station on it as the piste's
+ * (`TrackPoint`), arc from its top station — the lift it leaves the top of,
+ * and the run it merges into at what arc of that one (null: it runs into
+ * the village). */
+export interface Run {
+  id: string;
+  kind: RunKind;
+  grade: PisteGrade;
+  points: TrackPoint[];
+  length: number;
+  from: string;
+  /** `from` here is the arc on THIS run from which it closes on the one it
+   * merges into — where it came within the gap of it (R27). */
+  into: { run: string; s: number; from: number } | null;
+  /** A BRANCH LANE (R27): the run it leaves part-way down, and the arc on
+   * that run where it leaves — a junction at its start, as `into` is at
+   * its end. Absent on a run that leaves a top station. */
+  branch?: { run: string; s: number };
+  /** A LINK LANE (R27): the lift whose bottom station it runs to (`into`
+   * null). Absent on every other run. */
+  to?: string;
+  /** The stretches of it lying drifted (R17), by its own arc. */
+  drifts: Drift[];
+}
+
+/** A lift (R26): a straight line from its bottom station to its top. */
+export interface Lift {
+  id: string;
+  kind: "gondola" | "chair" | "drag";
+  bottom: Vec3;
+  top: Vec3;
+}
+
+/** A course (R28): the line from a run's top station down the network to
+ * the village — the runs it follows, in order, and what it measures. */
+export interface Course {
+  id: string;
+  grade: PisteGrade;
+  runs: string[];
+  length: number;
+  /** Its drop from the start line to the finish, m. */
+  drop: number;
+}
+
+/** R29 — THE HUB: the open band across the valley floor where the runs
+ * end and the valley's bottom stations stand, as its two edges read every
+ * `step` metres across from `x0` — `top[i]` the upper edge's z (up the
+ * mountain), `bottom[i]` the lower edge's, at x = x0 + i · step. */
+export type Hub = { x0: number; step: number; top: number[]; bottom: number[] };
+
+/** R30 — A WIND TUNNEL: a horizontal lift along the hub that blows a skier
+ * from its entrance to its exit. Its line runs entrance→exit, points every
+ * ~4 m on the ground (`s` its arc, `heading` the way the wind blows);
+ * width ≈8–10 m; speed m/s ≈25–30. */
+export type WindTunnel = {
+  id: string;
+  points: { x: number; z: number; y: number; s: number; heading: number }[];
+  length: number;
+  width: number;
+  speed: number;
+};
+
+/** THE SKI AREA a resort map is (R25): its runs, its lifts, the courses
+ * down them, and which one this map is raced on. */
+export interface Resort {
+  runs: Run[];
+  lifts: Lift[];
+  courses: Course[];
+  /** The id of the course this map's `track` is. */
+  course: string;
+  /** The village on the valley floor. */
+  village: Vec3;
+  /** R29 — the hub at the foot of the mountain. */
+  hub?: Hub;
+  /** R30 — the wind tunnels along the hub, "W1" and "W2". */
+  tunnels?: WindTunnel[];
 }
 
 /** What a caller may ask of the generator beyond the seed. */
@@ -308,8 +408,12 @@ export interface GenerateOptions {
    * when left out. */
   region?: RegionId;
   /** The PISTE GRADE to build to (R23, `grades.ts`); the one the seed deals
-   * when left out. A version from before the grades builds none either way. */
+   * when left out. A version from before the grades builds none either way.
+   * On a resort (R28): the colour of the course raced. */
   grade?: PisteGrade;
+  /** R28 — the course a resort map is raced on, by id; one of `grade`'s (or
+   * the seed's) when left out. */
+  course?: string;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

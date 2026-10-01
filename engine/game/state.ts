@@ -179,6 +179,9 @@ export type SkierState = {
   thrown: Thrown | null;
   /** What the skis and the legs have taken (`damage.ts`). */
   damage: SkierDamage;
+  /** THE WIND TUNNEL he is being carried along (R30, `wind-tunnel.ts`),
+   * or null. */
+  tunnel: TunnelRide | null;
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;
@@ -364,6 +367,9 @@ export type Progress = {
   lastResetAt: number;
   /** The run's longest flight, s. */
   bestAir: number;
+  /** The seconds a run has been charged for slalom gates skied past
+   * (R28, `course.missPenalty` each) — already on its clock. */
+  penalty: number;
   /** How far the skier has skied, m of plan distance — a reset's jump not
    * counted. The free ride's odometer; a race keeps it too. */
   distance: number;
@@ -379,6 +385,19 @@ export type Rival = {
   run: GameState;
   pace: number;
   lane: number;
+};
+
+/** A skier carried along a WIND TUNNEL (`wind-tunnel.ts`): which (its
+ * place among the resort's tunnels, and its id), where along it he is —
+ * the arc, m; how far right of its line, m; the way it blows there, rad —
+ * and the station his line was last read from. */
+export type TunnelRide = {
+  index: number;
+  id: string;
+  s: number;
+  lateral: number;
+  heading: number;
+  seg: number;
 };
 
 export type GameEvent =
@@ -424,7 +443,7 @@ export type GameEvent =
    * clock. */
   | { kind: "checkpoint"; t: number; index: number; lap: number; split: number }
   /** A gate skied past without being taken. */
-  | { kind: "missed"; t: number; index: number }
+  | { kind: "missed"; t: number; index: number; penalty?: number }
   /** The run finished: `lap` is how many are done (1), `time` the run's
    * own. Fired beside `finish` at the finish line. */
   | { kind: "lap"; t: number; lap: number; time: number }
@@ -440,7 +459,10 @@ export type GameEvent =
    * `sketchy` landing banked it at its base alone. */
   | { kind: "combo"; t: number; points: number; base: number; mult: number; sketchy: boolean }
   /** THE COMBO LOST, and what it would have been worth. */
-  | { kind: "bail"; t: number; lost: number; cause: BailCause };
+  | { kind: "bail"; t: number; lost: number; cause: BailCause }
+  /** Taken into a WIND TUNNEL (R30, `wind-tunnel.ts`) by its id, or let go
+   * of it. */
+  | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" };
 
 /** `countdown` is the lights: the field stands in the start gate, nothing
  * is steered and the clock reads 0. `racing` runs the clock; `finished`

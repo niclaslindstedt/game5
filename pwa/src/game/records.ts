@@ -2,9 +2,10 @@
 // THE RECORD BOOK — the best time this device has seen on each mountain, on each
 // skis, in each mode, over each length.
 //
-// ONE ROW PER (SEED, SKIS, MODE, LAPS). The seed is the map: the generator
-// is a pure function of it, so two runs on one seed are two runs round the
-// same piste. The pair is in the key rather than merely written on the row,
+// ONE ROW PER (SEED AND COURSE, SKIS, MODE, LAPS). The seed is the
+// mountain — the generator is a pure function of it — and on a resort the
+// COURSE is which of its pistes was raced (R28), so two runs on one seed and
+// course are two runs down the same piste. The pair is in the key rather than merely written on the row,
 // because the six pairs are six answers to the snow — a slalom ski's time
 // down a groomed piste is not a powder ski's to beat — and the run count is
 // (always one on a piste, kept so the key's shape is the sibling games'),
@@ -37,9 +38,13 @@ import {
   splitGap as gapAt,
 } from "@niclaslindstedt/oss-game-framework/racing/records";
 
-/** What names a row. */
+/** What names a row. `course` is the resort's course the run was raced
+ * down (R28, `Resort.course`) — one seed builds a whole ski area and the
+ * campaign rides six of its courses, so the seed alone no longer names the
+ * piste; absent on a map with one piste (a version before the resorts). */
 export type RecordKey = {
   seed: number;
+  course?: string;
   skis: SkiId;
   mode: GameMode;
   laps: number;
@@ -65,7 +70,8 @@ export type RunLedger = { mode: GameMode; standing: RunRecord | null };
 
 /** The row's id. */
 export function recordId(key: RecordKey): string {
-  return `${key.mode}/${key.seed}/${key.skis}/${key.laps}`;
+  const map = key.course === undefined ? `${key.seed}` : `${key.seed}.${key.course}`;
+  return `${key.mode}/${map}/${key.skis}/${key.laps}`;
 }
 
 /** WHETHER A MODE KEEPS A BOOK AT ALL (see the header). */

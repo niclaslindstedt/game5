@@ -12,7 +12,7 @@
 // against every other.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { generateLevel, withDay, withSky } from "../mapgen/index.ts";
+import { PARK_VERSION, generateLevel, withDay, withSky } from "../mapgen/index.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
@@ -112,13 +112,16 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
 }
 
 export function createGame(options: CreateGameOptions = {}): GameState {
-  // A tricks run is ridden on the seed's map with its trick field laid (R20).
+  // A tricks run is ridden on the seed's map with its trick field laid (R20)
+  // — a map of one piste (`PARK_VERSION`): a resort (R25) lays no park.
+  const tricks = options.mode === "tricks";
   const built =
     options.level ??
     generateLevel(options.seed ?? 1, {
-      tricks: options.mode === "tricks",
+      tricks,
       region: options.region,
       grade: options.grade,
+      version: tricks ? PARK_VERSION : undefined,
     });
   const dayed = options.day ? withDay(built, options.day) : built;
   const level = options.sky ? withSky(dayed, options.sky) : dayed;

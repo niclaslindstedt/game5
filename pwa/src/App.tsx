@@ -106,7 +106,8 @@ import { useRenderKit } from "./game/use-render-kit.ts";
 import { createRunActions } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
-import { newsFor, shotLabel } from "./game/run-news.ts";
+import { shotLabel } from "./game/run-news.ts";
+import { createNewsFeed } from "./game/run-watch.ts";
 import {
   assistOf,
   loadSettings,
@@ -354,7 +355,13 @@ export function App() {
       params.bot || !keepsRecords(mode)
         ? null
         : {
-            key: { seed: s.seed, skis: s.skier.spec.id, mode, laps: s.rules.laps },
+            key: {
+              seed: s.seed,
+              course: s.level.resort?.course,
+              skis: s.skier.spec.id,
+              mode,
+              laps: s.rules.laps,
+            },
             assist: { ...s.assist },
           };
     const drawable = (): boolean => standing !== null && standing === state.level;
@@ -363,6 +370,7 @@ export function App() {
     let ready = false;
     const live: { id: number; text: string; tone: HudFlash["tone"]; until: number }[] = [];
     let flashId = 0;
+    const news = createNewsFeed();
     /** Every event the player's run has raised, by kind (`__SH_PROBE__`). */
     const tally: Record<string, number> = {};
     let hudClock = HUD_TICK;
@@ -430,10 +438,8 @@ export function App() {
         runRumble.step(state.skier);
       }
       if (rides || watching(shellRef.current)) {
-        for (const e of state.events) {
-          const line = newsFor(e, state);
-          if (line) live.push({ id: flashId++, ...line, until: wall + FLASH_LIFE });
-        }
+        for (const line of news.step(state))
+          live.push({ id: flashId++, ...line, until: wall + FLASH_LIFE });
       }
     };
 

@@ -23,6 +23,7 @@ import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { arcAhead, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
 import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "../game/collision.ts";
+import { gateLineAt } from "../game/course.ts";
 import { brakeDecel, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "../game/limits.ts";
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -167,6 +168,8 @@ function bendAt(level: Level, s: number, span: number): number {
  * powder. So the field holds its slots out of the gate and closes on the
  * racing line as it gathers pace. */
 const LANE_MARGIN = 3;
+/** How far inside a slalom gate's edge a rival's lane is held, m. */
+const SLALOM_MARGIN = 2.5;
 const LANE_DRIFT = 0.25;
 
 /** How far short of a kicker's lip the bot is at the speed it takes it at,
@@ -308,7 +311,8 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     // however tight, can lower it — nor any further on, the room only ever
     // growing on a piste that never climbs faster than the brake bites.
     if (Math.sqrt(room) >= allowed && drop === 0) break;
-    const k = bendAt(level, s + d, profile.bendSpan);
+    // The bend, and the weave round the slalom gates on it (R28).
+    const k = bendAt(level, s + d, profile.bendSpan) + gateLineAt(level, s + d).curvature;
     if (k < 1e-4) continue;
     const corner = Math.sqrt(aLat / k);
     const now = Math.sqrt(corner * corner + room);
@@ -406,11 +410,15 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     if (toLine - short <= aimS - on.s) aimS = Math.max(0, cps[0].s - short);
   }
   const aim = trackPointAt(level, aimS, pb);
-  // THE LANE: the aim stands that far right of the centreline, no nearer
-  // the edge than the margin allows here.
-  if (lane !== 0) {
+  // THE GATE LINE (R28): on a course of slalom gates the line through
+  // them, weaving either side of the centreline; and THE LANE, that far
+  // right of it — inside a slalom gate's own width where there is one.
+  const weave = state.rules.course ? gateLineAt(level, aimS).offset : 0;
+  if (lane !== 0 || weave !== 0) {
     const room = Math.max(0, aim.width / 2 - LANE_MARGIN - LANE_DRIFT * speed);
-    const across = clamp(lane, -room, room);
+    const gate = cps[Math.min(cps.length - 1, p.nextCheckpoint)];
+    const inGate = weave !== 0 && gate ? Math.max(0, gate.width / 2 - SLALOM_MARGIN) : Infinity;
+    const across = clamp(weave + clamp(lane, -inGate, inGate), -room, room);
     aim.x += Math.cos(aim.heading) * across;
     aim.z -= Math.sin(aim.heading) * across;
   }

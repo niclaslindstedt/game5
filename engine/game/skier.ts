@@ -78,6 +78,7 @@ import { carveCurvature, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } f
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
 import { driveReach, poleForce, strideRate } from "./poles.ts";
+import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import type { GameEvent, GameState, SkierInput, SkierState, SnowContact } from "./state.ts";
@@ -200,6 +201,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     rolledFor: 0,
     thrown: null,
     damage: { ski: [0, 0], legs: 0 },
+    tunnel: null,
     hitCooldown: 0,
     bumpCooldown: 0,
     sinks: probes.map(() => 0),
@@ -631,11 +633,18 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   }
 
   // ── The air ───────────────────────────────────────────────────────────
-  const v = hypot3(c.vx, c.vy, c.vz);
+  // ...which in a wind tunnel moves along it (R30, `wind-tunnel.ts`), and
+  // the tunnel's blowers thrust him on and hold him to its line.
+  const tunnels = level.resort?.tunnels;
+  const wind = tunnelWind(c, tunnels);
+  const ax = c.vx - wind.x;
+  const az = c.vz - wind.z;
+  const v = hypot3(ax, c.vy, az);
   const drag = 0.5 * TUNING.airDensity * dragAreaOf(spec, c.crouch) * v;
-  fx -= drag * c.vx;
+  const blow = tunnelBlow(c, tunnels);
+  fx += m * blow.x - drag * ax;
   fy -= drag * c.vy;
-  fz -= drag * c.vz;
+  fz += m * blow.z - drag * az;
 
   // ── Into the body frame, with the skier's own torques ─────────────────
   const tb = unrotate(q, torque);

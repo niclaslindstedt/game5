@@ -203,11 +203,9 @@ async function auditCampaign() {
   const all = [];
   let moved = 0;
   for (const shelf of SHELVES) {
+    const mix = shelf.levels.map((l) => l.grade).join(" ");
     console.log(
-      `\n${shelf.name.toUpperCase()} — ${shelf.levels.length} ${shelf.grade ?? ""} maps`.replace(
-        "  ",
-        " ",
-      ),
+      `\n${shelf.name.toUpperCase()} — seed ${shelf.seed} in the ${shelf.region}, ${shelf.levels.length} courses: ${mix}`,
     );
     printHeader();
     const rungs = [];
@@ -221,12 +219,16 @@ async function auditCampaign() {
       const medals = pinned.medals
         ? ` · medals gold ${pinned.medals.gold} / silver ${pinned.medals.silver} / bronze ${pinned.medals.bronze} s`
         : "";
-      console.log(`  ${pinned.mode} "${pinned.name}" — the bot ${bot}${medals}`);
+      console.log(
+        `  ${pinned.mode} "${pinned.name}" — course ${pinned.course} (${pinned.grade}), the bot ${bot}${medals}`,
+      );
       if (pinned.medals && run.finished && run.time > pinned.medals.bronze) {
         console.log(`  !! the bot is slower than ${pinned.id}'s bronze — the door would be shut`);
       }
-      if (shelf.grade && row.rating.stats.grade !== shelf.grade) {
-        console.log(`  !! ${pinned.id} is a ${row.rating.stats.grade} on a ${shelf.grade} shelf`);
+      if (row.rating.stats.grade !== pinned.grade) {
+        console.log(
+          `  !! ${pinned.id} pins a ${pinned.grade} and measures ${row.rating.stats.grade}`,
+        );
       }
       if (levelDigest(level) !== pinned.digest) {
         moved += 1;

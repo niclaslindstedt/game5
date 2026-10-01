@@ -9,13 +9,17 @@
 //
 // The ids are read off the code, never listed here — a new rule lands in
 // the rule book and this file asks for its mirror without being edited.
+// The book is two files read as one: `rules.ts` states R1–R24 and the
+// resort's rule book (`resort-rules.ts`) R25 onward.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const rules = readFileSync(join(ROOT, "engine", "mapgen", "rules.ts"), "utf8");
+const BOOKS = ["rules.ts", "resort-rules.ts"].map((file) =>
+  readFileSync(join(ROOT, "engine", "mapgen", file), "utf8"),
+);
 const doc = readFileSync(join(ROOT, "docs", "level-generator.md"), "utf8");
 
 const squash = (s: string): string => s.replace(/\s+/g, " ").trim();
@@ -31,7 +35,7 @@ function rulesInCode(): Map<string, string> {
     current = null;
     buffer = [];
   };
-  for (const line of rules.split("\n")) {
+  for (const line of BOOKS.join("\n").split("\n")) {
     const head = /^\/\/\s+(R\d+)\s+(.*)$/.exec(line);
     if (head) {
       flush();
@@ -86,7 +90,9 @@ describe("docs/level-generator.md mirrors the rule book", () => {
     // The knob groups annotate themselves `/** R14 — …` and the analysis
     // names a finding's rule; a citation of a rule the header does not
     // state is a rule that exists only as a number.
-    for (const m of rules.matchAll(/\/\*\*\s*((?:R\d+(?:,\s*|\s+and\s+|[–-])?)+)\s*[—-]/g)) {
+    for (const m of BOOKS.join("\n").matchAll(
+      /\/\*\*\s*((?:R\d+(?:,\s*|\s+and\s+|[–-])?)+)\s*[—-]/g,
+    )) {
       for (const id of m[1].match(/R\d+/g) ?? []) {
         expect(code.has(id), `${id} is cited in the numbers but not stated`).toBe(true);
       }

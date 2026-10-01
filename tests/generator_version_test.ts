@@ -23,8 +23,9 @@
 // Every pinned map is built here anyway, so the two other things a campaign
 // map quotes about itself without a build are held to it too: the day on its
 // box (`CampaignLevel.day`) and the loop drawn behind it (`campaign-routes.ts`,
-// `make routes`). Twenty-four builds is the cost, which is why this is its own
-// file: on a shard it is the whole file's floor.
+// `make routes`). Four ski areas, each built once and raced down six courses,
+// is the cost, which is why this is its own file: on a shard it is the whole
+// file's floor.
 
 import { describe, expect, it } from "vitest";
 
@@ -134,6 +135,9 @@ describe("what the campaign pins", () => {
     it(`${level.id} (seed ${level.seed}, v${level.version}) still builds the map it was curated on`, () => {
       const built = buildCampaignLevel(level);
       expect(built.version).toBe(level.version);
+      // The course its box signs, raced down the ski area it names (R28).
+      expect(built.resort?.course, `${level.id} races another course`).toBe(level.course);
+      expect(built.grade, `${level.id}'s box signs the wrong colour`).toBe(level.grade);
       expect(
         levelDigest(built),
         `${level.id} builds to a different map from the one it pins — read engine/mapgen/versions.ts's header: ` +

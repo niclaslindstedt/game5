@@ -5,7 +5,7 @@
 // that one does.
 import { describe, expect, it } from "vitest";
 
-import { analyzeLevel, LEVEL_RULES as R, type Level } from "@engine";
+import { analyzeLevel, generateLevel, LEVEL_RULES as R, type Level } from "@engine";
 
 import { LEVEL_SEEDS, analysisFor, levelFor } from "./support/levels.ts";
 
@@ -31,7 +31,11 @@ describe("analyzeLevel", () => {
       expect(a.stats.points).toBe(levelFor(seed).track.points.length);
       expect(a.stats.checkpoints).toBe(levelFor(seed).checkpoints.length);
       expect(a.stats.treesOnCorridor).toBe(0);
-      expect(a.stats.trackKickers).toBeGreaterThanOrEqual(R.kickers.on.count.min);
+      // A single piste carries its grade's kickers; a resort's course
+      // (R28) the share of each run it follows (R27).
+      if (!levelFor(seed).resort) {
+        expect(a.stats.trackKickers).toBeGreaterThanOrEqual(R.kickers.on.count.min);
+      }
     }
   });
 
@@ -78,14 +82,21 @@ describe("analyzeLevel", () => {
   });
 
   it("finds a cliff cut across the piste (R22)", () => {
-    const c = base.cliffs[0];
+    // One of the mountain's own: not a drop across the course or another
+    // run (R24).
+    const c = base.cliffs.find((cc) => !cc.onTrack && cc.run === undefined)!;
     const p = base.track.points[200];
     const moved = { ...c, x: p.x, z: p.z };
     expect(errorRules({ ...base, cliffs: [moved, ...base.cliffs.slice(1)] })).toContain("R22");
   });
 
-  it("finds a piste with no kicker on it (R9)", () => {
-    expect(errorRules({ ...base, kickers: base.kickers.filter((k) => !k.onTrack) })).toContain(
+  it("finds a single piste with no kicker on it (R9)", () => {
+    // A map of one piste (v1's, the trick maps'): a resort's course carries
+    // the kickers of the runs it follows, and may follow none with one.
+    const single = generateLevel(LEVEL_SEEDS[0], { version: 1 });
+    expect(single.resort).toBeUndefined();
+    expect(errorRules(single)).toEqual([]);
+    expect(errorRules({ ...single, kickers: single.kickers.filter((k) => !k.onTrack) })).toContain(
       "R9",
     );
   });

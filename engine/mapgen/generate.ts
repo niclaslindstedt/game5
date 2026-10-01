@@ -47,11 +47,12 @@
 // draws nothing in their place; the alpine's row is all ones and lays no
 // crust, so a map nobody asked a region of is the alpine's.
 //
-// THE GRADE (R23) is chosen before the first attempt — asked for, or dealt
-// off the seed on a stream of its own — so every attempt of one seed builds
-// to the same colour, and it sets the numbers steps 1 to 7a draw with. A
-// version from before the grades (`ungraded`) builds on the UNGRADED row,
-// the rule book's own numbers, and so draws exactly what it always drew.
+// THE GRADE (R23) sets the numbers steps 1 to 7a draw with. The one piste
+// is built only by a version from before the resorts (`singlePiste`, v1 —
+// the trick maps and the benchmark stand on it), which is also from before
+// the grades: it builds on the UNGRADED row, the rule book's own numbers,
+// down a face due north, and so draws exactly what it always drew. A ski
+// area's runs are graded run by run (`resort-build.ts`).
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -64,13 +65,13 @@ import { compileLevel } from "./compile.ts";
 import { dealDrifts, stampDrifts } from "./drift.ts";
 import { layCliffs } from "./cliffs.ts";
 import { layDrops, publishDrops } from "./drops.ts";
-import { UNGRADED, dealGrade, gradeRow, type GradeRow } from "./grades.ts";
+import { UNGRADED, dealGrade, type GradeRow } from "./grades.ts";
 import { growForest } from "./forest.ts";
 import { layOffKickers, layTrackKickers, publishTrackKickers } from "./kickers.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { planTrickField, stampTrickField } from "./trick-field.ts";
 import { chooseStart, gridOnTrack, layCheckpoints } from "./spawn.ts";
-import { dealSun, faceTheSun } from "./sun.ts";
+import { dealSun } from "./sun.ts";
 import { bakeCountry, planTerrain } from "./terrain.ts";
 import { dealWeather, withSky } from "./weather.ts";
 import { regionRow, type Region } from "./regions.ts";
@@ -78,6 +79,8 @@ import { foldSurface, layCrust } from "./surface.ts";
 import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./track.ts";
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
+import { buildResort, chooseCourse, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { analyzeResort } from "../analysis/resort.ts";
 
 /** How many pistes an attempt walks before it gives up on its mountain. */
 const DRAWS = 40;
@@ -113,7 +116,6 @@ function attemptLevel(
   tricks: boolean,
   region: Region,
   grade: GradeRow,
-  northFace: boolean,
 ): GeneratedLevel | string {
   const sub = subSeed(seed, attempt);
   const rng = createRng(sub);
@@ -190,11 +192,9 @@ function attemptLevel(
   let trees = growForest(rng, plan, ground, trackOf(piste), kickers, edges, treeLineY);
   const day = dealSun(rng, region.sun);
   const { weather, hour } = dealWeather(sub, day);
-  // R15 — the face turned to the sun at the hour the run starts, on a map
-  // whose generator turns it.
-  const sun = northFace
-    ? { ...day, hour }
-    : { ...day, hour, facing: faceTheSun(sub, { ...day, hour }) };
+  // R15 — the one piste's face is due north (from before the face was
+  // turned to the sun), so no `facing` is dealt or published.
+  const sun = { ...day, hour };
   if (field.length > 0) {
     stampTrickField(ground, field, { near, along, dist }, piste);
     trees = clearField(trees, ground);
@@ -235,20 +235,12 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
   const laps = opts.laps ?? R.race.laps;
   const traits = generatorTraits(opts.version);
   const { version } = traits;
+  if (!traits.singlePiste) return generateResortLevel(seed, opts, attempts, laps, version);
   const region = regionRow(opts.region);
-  const grade = traits.ungraded ? UNGRADED : gradeRow(opts.grade ?? dealGrade(seed));
+  const grade = UNGRADED;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptLevel(
-      seed,
-      a,
-      laps,
-      version,
-      opts.tricks === true,
-      region,
-      grade,
-      traits.northFace === true,
-    );
+    const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region, grade);
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);
       continue;
@@ -263,4 +255,44 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
     reasons.push(`#${a}: ${errors.map((f) => `${f.rule} ${f.message}`).join(", ")}`);
   }
   throw new Error(`level ${seed}: no clean map in ${attempts} attempts — ${reasons.join("; ")}`);
+}
+
+/** R25–R28 — a map of a resort: the ski area the seed builds (the first
+ * attempt whose network and whose courses the analysis passes), raced on
+ * the course asked for. */
+function generateResortLevel(
+  seed: number,
+  opts: GenerateOptions,
+  attempts: number,
+  laps: number,
+  version: GeneratorVersion,
+): GeneratedLevel {
+  const accept = (b: BuiltResort): string | null => {
+    // The network once, on the first course's map; then every course on
+    // its own — a course that will not stand is not offered.
+    const first = resortLevel(b, 0, laps, version);
+    const network = analyzeResort(first);
+    const errors = network.findings.filter((f) => f.severity === "error");
+    if (errors.length > 0) return errors.map((f) => `${f.rule} ${f.message}`).join(", ");
+    b.courses = b.courses.filter((c, i) => {
+      const level = i === 0 ? first : resortLevel(b, i, laps, version);
+      const course = analyzeLevel(level, { network: false });
+      if (!course.ok) {
+        const why = course.findings.filter((f) => f.severity === "error");
+        debug(
+          `resort ${seed}: course ${c.course.id} left out — ${why.map((f) => `${f.rule} ${f.message}`).join(", ")}`,
+        );
+      }
+      return course.ok;
+    });
+    return b.courses.length > 0 ? null : "no course down the network stands";
+  };
+  const built = buildResort(seed, opts.region, attempts, subSeed, accept);
+  const index = chooseCourse(built, {
+    course: opts.course,
+    grade: opts.grade,
+    dealt: dealGrade(seed),
+  });
+  const level = resortLevel(built, index, laps, version);
+  return opts.sky ? withSky(level, opts.sky) : level;
 }

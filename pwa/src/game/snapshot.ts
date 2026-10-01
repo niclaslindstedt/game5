@@ -27,6 +27,7 @@ import {
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
+import { courseName } from "./run-names.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -104,6 +105,9 @@ export type HudSnapshot = {
    * straight ahead, and how far, m — or null with nothing owed. */
   missed: { angle: number; distance: number } | null;
   seed: number;
+  /** The COURSE raced, by its runs' names (`courseName`) — null off a ski
+   * area and on a free ride, which races none. */
+  course?: string | null;
   /** A FREE RIDE: no field, no gates owed — the HUD shows the run's best
    * air and the distance skied in their place. */
   free: boolean;
@@ -113,8 +117,9 @@ export type HudSnapshot = {
   distance: number;
   /** THE FINISH: the player's own result once he is through the finish,
    * and the whole field's table under it — live, because the field is
-   * still coming down behind him. Null until then. */
-  result: { place: number; time: number } | null;
+   * still coming down behind him. `time` carries the slalom gates' charge
+   * (`penalty`, s) already. Null until then. */
+  result: { place: number; time: number; penalty: number } | null;
   standings: Standing[] | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
@@ -217,10 +222,14 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     airBest: airTime > 0 && airTime > p.bestAir,
     missed: owed ? { angle: owed.error * SCREEN_TO_ENGINE, distance: owed.distance } : null,
     seed: state.seed,
+    course:
+      state.rules.course && state.level.resort
+        ? courseName(state.level, state.level.resort.course)
+        : null,
     free: !state.rules.course,
     bestAir: p.bestAir,
     distance: p.distance,
-    result: p.finished ? { place: racePlace(state), time: p.time } : null,
+    result: p.finished ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,

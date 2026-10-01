@@ -27,6 +27,8 @@ export {
   trackPointAt,
   arcAhead,
   arcBetween,
+  hubAt,
+  outsideHub,
   type HasTrack,
 } from "./query.ts";
 export { kickerProfile } from "./kickers.ts";
@@ -66,6 +68,7 @@ export {
   isRegionId,
   regionOf,
   regionRow,
+  scaleBand,
   scaleCount,
   treeKindAt,
   type Region,
@@ -99,3 +102,16 @@ export {
   type GeneratorVersion,
 } from "./versions.ts";
 export { levelDigest } from "./digest.ts";
+export { PARK_VERSION } from "./trick-field.ts";
+// THE RESORT (R25–R30): its rule book, and the scoreboard that holds a
+// whole ski area to it — R29's access report among it.
+export { RESORT_RULES, type ResortRules } from "./resort-rules.ts";
+export {
+  accessReport,
+  analyzeResort,
+  nearestOtherRun,
+  nearestRun,
+  type AccessReport,
+  type ResortAnalysis,
+  type RunAccess,
+} from "../analysis/resort.ts";

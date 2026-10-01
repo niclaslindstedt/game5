@@ -10,8 +10,9 @@
 //     is always full wherever the lens goes and the CPU moves nothing but
 //     one vector a frame. How hard it snows is how many of the flakes are
 //     drawn (the draw range), and the picture's SPRAY row caps the pool.
-//     A flake in a floodlight's beam lights up — the snow streaming through
-//     a lamp is most of what a night fall looks like in the finish arena.
+//     A flake in a beam lights up — the player's headlamp, a rival's, the
+//     finish arena's floods: the snow streaming through a lamp is most of
+//     what a night fall looks like.
 //   * THE AIR'S CRYSTALS: under a sky that is not snowing the box is never
 //     quite empty — a few thousand of the same flakes, drawn as fine ice
 //     dust that hangs rather than falls, near the lens only. It is the one
@@ -29,7 +30,7 @@
 import * as THREE from "three";
 import { createRng, type Level, type Wind } from "@engine";
 
-import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
+import { LAMP_GLSL, LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 
 /** Flakes in the pool at a SPRAY share of 1. */
@@ -95,6 +96,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       uLampDir: haze.uLampDir,
       uLampOn: haze.uLampOn,
       uLampCol: haze.uLampCol,
+      uLampBeam: haze.uLampBeam,
     },
     vertexShader: /* glsl */ `
       attribute vec4 aSeed;
@@ -105,10 +107,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       uniform float uSize;
       uniform float uMote;
       uniform vec3 uLit;
-      uniform vec3 uLampPos[${LAMP_SLOTS}];
-      uniform vec3 uLampDir[${LAMP_SLOTS}];
-      uniform float uLampOn[${LAMP_SLOTS}];
-      uniform vec3 uLampCol;
+      ${LAMP_GLSL}
       varying float vAlpha;
       varying vec3 vCol;
       void main() {
@@ -130,11 +129,13 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
         float reach = mix(${(BOX / 2).toFixed(1)}, ${MOTE_REACH.toFixed(1)}, uMote);
         vAlpha = min(px, 1.0) * smoothstep(reach, reach * 0.6, dist)
           * smoothstep(0.25, 1.0, dist) * mix(1.0, 0.6, uMote);
-        vec3 L = p - uLampPos[0];
-        float d = length(L);
-        float beam = smoothstep(0.88, 0.975, dot(L / max(d, 1e-3), uLampDir[0]))
-          / (1.0 + 0.02 * d * d) * uLampOn[0];
-        vCol = uLit + uLampCol * beam * 7.0;
+        vCol = uLit;
+        for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+          if (uLampOn[i] <= 0.001) continue;
+          vec3 L = uLampPos[i] - p;
+          float d = length(L);
+          vCol += uLampCol[i] * lampReach(i, L / max(d, 1e-3), d) * 7.0;
+        }
         gl_Position = projectionMatrix * mv;
       }
     `,

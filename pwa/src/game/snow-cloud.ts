@@ -25,8 +25,9 @@
 //     (Henyey–Greenstein, g ≈ 0.6), so against a low sun the thin edges of
 //     the cloud light up silver and the whole of it glows;
 //   * GLINTS: in dry cold snow single crystals catch the sun and twinkle;
-//   * THE LAMPS: at night the finish arena's floodlights' cones light what
-//     they pass through (the snow shader's own lamp slots);
+//   * THE LAMPS: at night every lamp's beam — the finish arena's floods,
+//     the skiers' headlamps — lights what it passes through (the lamp
+//     slots, `haze.ts`'s `lampReach`);
 //   * it FADES INTO THE SNOW where it meets it (the lower part of a puff
 //     sitting on the ground thins out instead of cutting a line), away
 //     close to the lens (a chase camera rides inside the player's own
@@ -42,7 +43,7 @@
 import * as THREE from "three";
 import { rotate, type Level, type SkierState, type Wind } from "@engine";
 
-import { LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   flyPuff,
@@ -203,10 +204,7 @@ uniform float uFlat;
 uniform float uGlint;
 uniform float uTime;
 uniform float uNight;
-uniform vec3 uLampPos[${LAMP_SLOTS}];
-uniform vec3 uLampDir[${LAMP_SLOTS}];
-uniform float uLampOn[${LAMP_SLOTS}];
-uniform vec3 uLampCol;
+${LAMP_GLSL}
 varying vec2 vUv;
 varying vec2 vSpin;
 varying vec4 vLook;
@@ -297,15 +295,14 @@ void main() {
   float glint = step(1.0 - odds, h) * spot * uGlint * smoothstep(0.1, 0.5, d) * shade;
   col += uKeyCol * glint * (3.0 + hg);
 
-  // THE LAMPS: a floodlight's cone lights what it passes through.
+  // THE LAMPS: a floodlight's cone, a headlamp's beam, lights what it
+  // passes through — brightest seen looking back up it.
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
     if (uLampOn[i] <= 0.0) continue;
-    vec3 away = vWorld - uLampPos[i];
-    float gap = length(away);
-    float cone = smoothstep(0.82, 0.97, dot(away / max(gap, 1e-3), uLampDir[i]));
-    float fall = max(0.0, 1.0 - gap / 40.0);
+    vec3 back = uLampPos[i] - vWorld;
+    float gap = length(back);
     float toward = 0.5 + 0.5 * pow(max(0.0, dot(-toEye, uLampDir[i])), 3.0);
-    col += uLampCol * uLampOn[i] * cone * fall * fall * toward * 1.4;
+    col += uLampCol[i] * lampReach(i, back / max(gap, 1e-3), gap) * toward * 1.8;
   }
   gl_FragColor = vec4(col, alpha);
   #include <tonemapping_fragment>

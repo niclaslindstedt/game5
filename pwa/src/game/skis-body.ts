@@ -21,9 +21,10 @@
 //     mesh (`posed-merge.ts`) and re-posed in place, so four skiers of forty
 //     parts each are four draws and four shadow casts.
 //
-// There are no lamps on a skier. The night's lights are the finish arena's
-// floods and the piste's edge-pole reflectors (`gates.ts`), never the
-// figure's.
+// THE HEADLAMP (`headlamp.ts`) on the brow of his helmet, on a band round
+// the crown, hung on the head's frame so it is on whichever helmet is
+// drawn; a draw of its own, since its lens is a lamp, not paint. After
+// dark it and the finish arena's floods (`gates.ts`) are the night's lights.
 //
 // Four colour schemes (`SKI_STYLES`), one per start-line slot, their paint
 // read off `skier-colours.ts` so the minimap's dot is the same colour.
@@ -31,6 +32,7 @@
 import * as THREE from "three";
 import { TUNING, type SkiSpec, type SkierState, type Thrown, type TrickPose } from "@engine";
 
+import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
@@ -159,6 +161,8 @@ export type SkisModel = {
     body?: Thrown | null,
   ): void;
   setSkierVisible(visible: boolean): void;
+  /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
+  lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
   casters: THREE.Mesh[];
   /** The draw's bound in the world, at the last pose: grown while the
@@ -318,6 +322,12 @@ export function createSkisModel(
   // group (and the poles in its hands) and hides its body alone.
   if (models?.skier) figure.setBodyVisible(false);
   merged.update();
+  // Hung after the merge, so it stays out of the one draw and is never
+  // hidden with the code's body: the model's helmet wears it too.
+  const lamp = buildHeadlamp(figure.head, mat, (g) => {
+    geos.push(g);
+    return g;
+  });
 
   const toRoot = new THREE.Quaternion();
   const thrown = new THREE.Quaternion();
@@ -336,6 +346,7 @@ export function createSkisModel(
 
   return {
     root,
+    lamp,
     casters: [merged.mesh, ...(models?.meshes ?? [])],
     bound(out) {
       out.center.copy(bound.center);

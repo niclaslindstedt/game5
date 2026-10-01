@@ -57,7 +57,8 @@ import { createGates, type Gates } from "./gates.ts";
 import { createLifts, type Lifts } from "./lifts.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
-import { LAMP_SLOTS, hazeMaterial } from "./haze.ts";
+import { hazeMaterial } from "./haze.ts";
+import { dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
 import {
   createBodyTrack,
@@ -523,23 +524,6 @@ export function createWorldRenderer(
     }
   }
 
-  /** THE NIGHT'S LIGHTS at `level` (0 off … 1): a skier carries no lamp,
-   * so what lights the snow after dark is the finish arena's FLOODLIGHTS
-   * (`gates.ts`), the first `LAMP_SLOTS` of them as beams on the snow. */
-  function lightLamps(level: number) {
-    const u = env.haze;
-    for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
-    if (level <= 0 || !gates) return;
-    const floods = gates.floods;
-    for (let i = 0; i < Math.min(LAMP_SLOTS, floods.length); i++) {
-      const f = floods[i];
-      u.uLampPos.value[i].set(f.x, f.y, f.z);
-      u.uLampDir.value[i].set(f.dx, f.dy, f.dz);
-      u.uLampOn.value[i] = level;
-    }
-    gates.setLamps(level);
-  }
-
   /** THE RUN'S SNOWPACK: the map's snow under the sky it is ridden under
    * (a lab's `setSky` too), the run's dial and its new snow. */
   function packFor(state: GameState): Snowpack {
@@ -809,7 +793,9 @@ export function createWorldRenderer(
       }
       gates?.update(state.progress.nextCheckpoint, state.t);
       lifts?.update(state.t);
-      lightLamps(look.lamps);
+      // THE NIGHT'S LIGHTS: every skier's headlamp and the arena's floods.
+      dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
+      gates?.setLamps(look.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       spray.setScale(pixels);

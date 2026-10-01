@@ -78,8 +78,11 @@ const moves = args.move
  * skier's, not the model's. */
 const CUFF_LEAN = (0.22 * 180) / Math.PI;
 const grounded = (f) => !f.skier.airborne && !f.skier.thrown;
-const carving = (f) => grounded(f) && Math.abs(f.skier.hipRight) > 0.12 && f.skier.crouch < 0.5;
-const tucked = (f) => grounded(f) && f.skier.crouch > 0.85;
+const carving = (f) =>
+  grounded(f) && Math.abs(f.skier.hipRight) > 0.12 && f.skier.crouch < 0.5 && f.skier.skid < 0.3;
+const stopping = (f) =>
+  grounded(f) && f.skier.skid >= 0.3 && f.skier.crouch < 0.5 && Math.abs(f.skier.edge) > 0.3;
+const tucked = (f) => grounded(f) && f.skier.crouch > 0.85 && f.skier.skid < 0.3;
 const standing = (f) =>
   grounded(f) &&
   f.skier.crouch < 0.5 &&
@@ -94,6 +97,12 @@ const BANDS = [
     say: "a shin behind its boot's cuff (the cuff holds it ≥ its own lean)",
     when: grounded,
     bad: (m) => Math.min(...m.shinLean) < CUFF_LEAN - 2,
+  },
+  {
+    id: "kneeup",
+    say: "a knee folded up higher than its hip (more than 2 cm over it)",
+    when: (f) => !f.skier.thrown,
+    bad: (m) => m.kneeRise > 0.02,
   },
   {
     id: "boot",
@@ -131,6 +140,12 @@ const BANDS = [
     say: "carving: angulated 12–40° at the hips",
     when: carving,
     bad: (m) => m.angulation < 12 || m.angulation > 40,
+  },
+  {
+    id: "stop",
+    say: "skidding to a stop: angulated 15–55° across the skis, the hips uphill of the boots",
+    when: stopping,
+    bad: (m) => m.angulation < 15 || m.angulation > 55,
   },
   {
     id: "inside",
@@ -221,6 +236,7 @@ function measure(move) {
       c.airborne,
       last ? now - lastT : 0,
       c.jumpLoad / E.TUNING.jump.full,
+      c,
     );
     lastT = now;
     if (c.thrown) continue;

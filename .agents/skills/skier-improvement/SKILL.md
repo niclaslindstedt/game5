@@ -17,7 +17,7 @@ and keeps both. Load `skier` (what he is, where everything lives) and
 | Command | Question | Read it |
 | --- | --- | --- |
 | `make skier-metrics ARGS="--json=previews/m-before.json"` | Is the pose a skier's? | A move a row (`scripts/lib/skier-moves.mjs`), the mean of each reading over its window, and the share of frames at fault; `--faults` every fault with the engine's state beside it; `--compare=` the change. Pure Node, seconds |
-| `make skier ARGS=--sheet=closeup` | Does he look right? | The lab's MOMENTS (stance, carve, cut, tuck, pole, skate, air, landing, hockey, thrown) a row, four sides, big cells. `MOVE=`/`--moment=` a subset |
+| `make skier ARGS=--sheet=closeup` | Does he look right? | The lab's MOMENTS (stance, carve, cut, plant, tuck, pole, skate, air, landing, hockey, skid, thrown) a row, four sides, big cells. `MOVE=`/`--moment=` a subset |
 | `make skier ARGS=--sheet=detail` | Do the parts hold? | Each hand on its grip, the boots in the bindings, the head, the jacket front and back — framed off the model's own bones |
 | `make skier ARGS=--sheet=game` | Does it READ in the game? | The chase and far cameras at a 1280×720 frame's own pixels, enlarged unsmoothed. Judge here last: a detail that is not here does not exist for a player |
 | `make skier ARGS=--sheet=stretch` | Does the skin bend? | Every triangle coloured by its area off its bind (blue crushed, red stretched) and the share outside 0.6–1.6 by region, printed. A moment at exactly 0 % is a pose AT the bind, not a perfect one |

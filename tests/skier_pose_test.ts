@@ -4,7 +4,9 @@
 // inclined column hinged at the hips, each shin held in its boot — his
 // eyes held toward the horizon; compact in the air, into it and out of it
 // as motions; a landing folds him down and he comes back up; the poles hang
-// from his fists and a plant reaches one to the snow; stood still, he waits
+// from his fists and a plant reaches one to the snow — one on every new turn
+// at speed; his legs lean with the skis' edge and turn with their pivot, so
+// a tucked skid never folds a knee past his hip; stood still, he waits
 // alive. And the rig his model is posed by (`skier-rig.ts`): the half bones
 // turn half way, the hands hold the poles.
 
@@ -153,6 +155,107 @@ describe("the body on its legs", () => {
         expect(Math.hypot(tip.x - h.x, tip.y - h.y, tip.z - h.z)).toBeCloseTo(MOUNTS.pole, 6);
       }
     }
+  });
+
+  it("never folds a knee up past his hip, tucked and braking across the skis at speed", () => {
+    // The tuck held through a skidded turn at 65 km/h: the pair rolled
+    // into the turn, the skis pivoted across under him and on their edge,
+    // the engine's hips hung inside. A skier braking rises out of his tuck
+    // and his knees fold forward over the boots, never up by his shoulders.
+    for (const skid of [0, 0.5, 1]) {
+      for (const skiAngle of [-0.2, -0.45, -0.9]) {
+        const p = skierPose({
+          ...base,
+          crouch: 1,
+          skid,
+          skiAngle: skiAngle * skid,
+          edge: -0.3,
+          roll: -0.55,
+          hipRight: -0.35,
+          steer: -1,
+        });
+        for (const i of [0, 1]) {
+          expect(p.knees[i].y, `skid ${skid}, pivot ${skiAngle}`).toBeLessThan(
+            p.hipJoints[i].y + 0.02,
+          );
+        }
+      }
+    }
+  });
+
+  it("leans his legs with the skis' edge, and turns them with the skis' pivot", () => {
+    // Edged, flat in the hang: the boots hold the shins tipped with the
+    // skis, so the hips go over to where the shins point, less what the
+    // knees angulate by themselves.
+    const legLean = (p: SkierPose) =>
+      Math.atan2(
+        p.hips.x - (p.feet[0].x + p.feet[1].x) / 2,
+        p.hips.y - (p.feet[0].y + p.feet[1].y) / 2,
+      );
+    for (const edge of [0.3, 0.6, 0.9]) {
+      const lean = legLean(skierPose({ ...base, edge }));
+      expect(lean, `edge ${edge}`).toBeGreaterThan(edge - 0.45);
+      expect(lean, `edge ${edge}`).toBeLessThan(edge + 0.1);
+    }
+    // Hung inside by the engine with the skis flat under him (the pair
+    // already rolled into the turn): no more than the knees allow.
+    expect(Math.abs(legLean(skierPose({ ...base, hipRight: 0.35, edge: 0 })))).toBeLessThan(0.16);
+    // Pivoted across in a hockey stop, the hips stand behind the boots
+    // along the skis, not off to the side of them.
+    const stop = skierPose({ ...base, skiAngle: 1.2, skid: 1 });
+    const along = { x: Math.sin(1.2), z: Math.cos(1.2) };
+    const off = {
+      x: stop.hips.x - (stop.feet[0].x + stop.feet[1].x) / 2,
+      z: stop.hips.z - (stop.feet[0].z + stop.feet[1].z) / 2,
+    };
+    expect(Math.abs(off.x * along.z - off.z * along.x)).toBeLessThan(0.05);
+  });
+
+  it("plants a pole on each new turn, a rod swung to the snow and back without a jump", () => {
+    // The spring times the plant: a turn held, then the edge over to the
+    // other side starts one on the new turn's inside pole — none while
+    // tucked.
+    const ride = (edge: number, crouch = 0) => ({
+      edge,
+      speed: 12,
+      crouch,
+      drive: 0,
+      hipRight: 0.3 * Math.sign(edge),
+      roll: 0,
+    });
+    const legs = createSkierSpring();
+    for (let i = 0; i < 60; i++) stepSkierSpring(legs, 0, false, 1 / 60, 0, ride(-0.5));
+    stepSkierSpring(legs, 0, false, 1 / 60, 0, ride(0.5));
+    expect(legs.plantSide).toBe(1);
+    expect(legs.plantT).toBeLessThan(0.05);
+    const tucked = createSkierSpring();
+    for (let i = 0; i < 60; i++) stepSkierSpring(tucked, 0, false, 1 / 60, 0, ride(-0.5, 1));
+    stepSkierSpring(tucked, 0, false, 1 / 60, 0, ride(0.5, 1));
+    expect(tucked.plantT).toBe(Number.POSITIVE_INFINITY);
+    // The plant itself, sampled finely: the pole a rod of its own length,
+    // its basket on the snow at the touch, nothing moving more than a
+    // couple of centimetres between neighbouring samples.
+    let prev: SkierPose | null = null;
+    let worst = 0;
+    let lowest = Infinity;
+    for (let k = 0; k <= 400; k++) {
+      const p = skierPose({ ...base, plantAt: { side: 1, t: k / 400, weight: 1 } });
+      const tip = p.poles![1];
+      const h = p.hands[1];
+      expect(Math.hypot(tip.x - h.x, tip.y - h.y, tip.z - h.z)).toBeCloseTo(MOUNTS.pole, 6);
+      lowest = Math.min(lowest, tip.y);
+      if (prev) {
+        const a = [prev.hands[1], prev.elbows[1], prev.poles![1]];
+        [h, p.elbows[1], tip].forEach((b, j) => {
+          worst = Math.max(worst, Math.hypot(b.x - a[j].x, b.y - a[j].y, b.z - a[j].z));
+        });
+      }
+      prev = p;
+    }
+    expect(worst).toBeLessThan(0.03);
+    // On the snow at the touch, and never into it.
+    expect(lowest).toBeLessThan(MOUNTS.ground + 0.02);
+    expect(lowest).toBeGreaterThan(MOUNTS.ground - 0.01);
   });
 
   it("holds his eyes toward the horizon however far the pair is rolled", () => {

@@ -31,7 +31,8 @@ engine's `crouch` (the tuck after its lag): 0 stood tall, 1 folded into a
 full tuck — the back rounded, the poles under the arms, the head up. **IN
 A CARVE** he is an inclined column with a hinge at the hips: the legs lean
 in with the skis (each shin held in its boot, so the knees go in with the
-edge), the trunk leans in too but less (`ANGULATE`), the shoulders turned
+edge), the trunk leans in too but less (`ANGULATE_SHARE` of the legs' lean
+IN THE WORLD — the engine has already rolled the pair), the shoulders turned
 toward the outside ski and the eyes held toward the horizon — never sat
 sideways with his hips shoved inside and his trunk thrown out over the
 outside ski, which is what "shoulders level" in the body's own frame gave. **THE GAIT** at a crawl is the engine's own drive (`gaitOf`, off
@@ -48,8 +49,13 @@ between neighbouring samples; one statement the skis (`ski-gear.ts`, `ski-rig.ts
 and the figure both read, so a boot never leaves its ski. A JUMP loading
 (`jumpLoad`) sinks him and draws the arms back; the pop (`popped`) throws
 them up. CUT HARD (`carve`) the angulation deepens and the inside hand goes
-toward the snow; in a HOCKEY STOP (`skid`) he sits into it, the shoulders
-facing on down the hill. His SHIN BENDS ONLY ABOVE THE BOOT'S CUFF
+toward the snow; in a HOCKEY STOP (`skid`) the legs lean across the
+pivoted skis, the shoulders facing on down the hill, and a skier braking
+rises out of his tuck (`SKID_RISE`) — never a knee folded up past his hip.
+AT SPEED he plants a pole on every new turn: the view's spring times it off
+the edge changing sides (`SkierSpring.plantT`), and the rod swings round
+the OUTSIDE to the snow ahead and back (`TURN_PLANT`) — a 1.2 m pole from a
+fist nearer the snow than that cannot pass vertical. His SHIN BENDS ONLY ABOVE THE BOOT'S CUFF
 (`SHIN_ABOVE_CUFF`) — the boot holds the rest — which is what lets the
 stance stand on real knees.
 
@@ -87,6 +93,7 @@ when the skis he stands on are what moves.
 | `pwa/src/game/posed-merge.ts` | The posed tree — skis, poles and skier — drawn as ONE mesh, every part a rigid BONE of it, so the GPU lays each part through its matrix (in every pass, the shadows included); a part hidden with its ancestors (the skier in the helmet view) collapses to nothing |
 | `pwa/src/game/skis-body.ts` | Hangs the skier on the skis; the bindings and the poles he is fixed to are drawn there |
 | `engine/game/skier.ts` | Where his MASS actually is: `hipRight`, `hipAft`, `crouch`, `edge` and `skiCompression` on `SkierState`, lagging the edge, the lean and the tuck by `TUNING.skier.lag` and `crouchRate` |
+| `pwa/src/game/skier-stroke.ts` | THE ARMS' STROKES (`DOUBLE_STROKE`, `STRIDE_STROKE`: where a fist goes through a cycle, each pole a rod turned through it) and THE TURN'S POLE PLANT (`TURN_PLANT`, `plantPole`: the rod swung round the outside to the snow ahead and back); `skier-vec.ts` the few vectors both are posed with |
 | `pwa/src/game/skier-gait.ts` | THE GAIT at a crawl (`gaitOf`): the stride, the skate's V and the double pole, and what each does to each ski as drawn |
 | `pwa/src/game/skier-spring.ts` | The view's own state between frames: the body's spring on its legs, the air and a jump's load eased, his own clock |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
@@ -95,9 +102,18 @@ when the skis he stands on are what moves.
 ## How he is posed
 
 1. The HIPS go where the engine has put his mass — `hipRight`, `hipAft` off
-   `MOUNTS.hips` — so the physics' own lag is the pose's lag; the PELVIS
-   turns with the skis as a hockey stop throws them across (the hip joints,
-   `SkierPose.hipJoints`, lie along it).
+   `MOUNTS.hips` — as far as the BOOTS ALLOW: the legs lean with the skis'
+   own tilt in the pair's frame (`edge` − the pair's `roll`), the hips
+   within a band of it the knees angulate (`KNEE_IN`, more on a steep edge,
+   `KNEE_STEEP`), measured from the edged boots and swung over them as a
+   column of the legs' own length — never slid across at a standing
+   height. The whole lower body stands in the SKIS' frame, turned with the
+   skid's pivot; the PELVIS turns with the skis as a hockey stop throws them
+   across (the hip joints, `SkierPose.hipJoints`, lie along it). The body
+   above the boots follows the engine's hip shift, edge and roll on the
+   view's critically damped spring (`SkierSpring.hip`, `.edge`, `.roll`):
+   those readings start and stop at full rate, and a step in their rate is
+   a snap at the head.
 2. The BOOTS are IN THE BINDINGS (`MOUNTS.boot`, one a ski) and EACH SHIN
    IS HELD BY ITS BOOT: in the boot's own plane (`SkierPose.boots` — turned
    and tipped with the ski), leaning forward of the ski's normal at least
@@ -106,10 +122,11 @@ when the skis he stands on are what moves.
    SINKS until the knee can be reached — a skier in ski boots never stands
    on straight legs.
 3. A CARVE is an INCLINED COLUMN WITH A HINGE AT THE HIPS: the legs lean
-   in with the skis, the trunk leans in too but `ANGULATE` less, never out
-   past the vertical; the hips carry what the trunk's lean changes so his
-   mass stays where the engine put it. The shoulders COUNTER-ROTATE toward
-   the outside ski (`TWIST`), the pelvis half as far.
+   in with the skis, the trunk comes back up `ANGULATE_SHARE` of the legs'
+   lean IN THE WORLD, never out past the vertical. The shoulders
+   COUNTER-ROTATE toward the outside ski (`TWIST`), the pelvis half as far,
+   by how far into the turn the hips are — never by the steer key, which
+   flips in a step.
 4. The BACK is two spans (`SkierPose.waist`: the lumbar and the chest's),
    bent through `SPINE_ROUND` — near straight standing, rounded in the
    tuck, curled over the poles and folded by a landing.

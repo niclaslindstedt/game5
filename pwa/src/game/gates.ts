@@ -15,7 +15,7 @@
 //     side, and two FLOODLIGHT masts at the arch's feet, aimed back up the
 //     piste — the lamps that light the snow after dark (`snow-glsl.ts`'s
 //     lamp slots), since a skier carries none.
-//   * THE EDGE POLES: a stake every fifty metres along both edges of every
+//   * THE EDGE POLES: a stake every twenty-five metres along both edges of every
 //     run on the mountain (R27), painted in ITS GRADE (R23, `grade-look.ts`
 //     — green, blue, red or black, as a piste is marked), the right-hand ones banded
 //     orange at the top (the convention that tells a skier in fog which
@@ -60,7 +60,7 @@ const PANEL = { pole: 1.85, gap: 1.05, drop: 0.5, radius: 0.017 };
 /** THE EDGE POLES, m: their spacing down the piste, their height, the
  * orange band's height at the top of a right-hand one, and how far outside
  * the piste's edge they stand. */
-const EDGE = { every: 50, height: 2.2, band: 0.45, out: 1.5, radius: 0.02 };
+const EDGE = { every: 25, height: 2.2, band: 0.45, out: 1.5, radius: 0.02 };
 
 /** THE START HUT, m: its footprint and height, and where it stands — off
  * the line's left edge. */

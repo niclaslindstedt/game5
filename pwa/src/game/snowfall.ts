@@ -19,6 +19,15 @@
 //     thing in open air close enough to stream past: at pace the crystals
 //     whip by the lens, which is most of what says the skier is FAST over a
 //     meadow with nothing else near it. As the fall starts they become it.
+//   * THE STREAKS: at pace the nearest crystals are drawn as the smear an
+//     eye or a shutter makes of them — a line from where each one is to
+//     where it stood against the lens a moment ago (`SHUTTER` of the lens's
+//     own travel through the air), so they streak out of the point the
+//     skier is heading for and past the edges of the frame. Nothing else in
+//     open air is close enough to say how fast he is going, and a point
+//     that crosses ten pixels between two frames reads as a flicker, not a
+//     rush. Only a lens that rides with the skier streaks them: a planted
+//     one (the broadcast, the death cam) is standing still.
 //   * THE SPINDRIFT is a few hundred grains on the CPU, lifted where the
 //     ground CRESTS (the ground over its neighbours) and blown downwind a
 //     metre or two off the snow, fading as they go. Only a wind that could
@@ -44,6 +53,12 @@ const FALL_SPEED = 1.1;
 const MOTES = 4000;
 const MOTE_SETTLE = 0.2;
 const MOTE_REACH = 14;
+/** THE STREAKS: how many of the nearest crystals streak at a SPRAY share of
+ * 1, the seconds of the lens's travel each smear spans, and the pace they
+ * start to show from and are whole at, m/s (20 and 75 km/h). */
+const STREAKS = 2500;
+const SHUTTER = 0.045;
+const STREAK_PACE = { from: 5.5, full: 21 };
 /** Spindrift grains at a SPRAY share of 1. */
 const GRAINS = 900;
 /** The wind at which dry snow starts to lift, and where it is all lifting,
@@ -53,8 +68,16 @@ const LIFT = { from: 6, full: 13 };
 export type Snowfall = {
   group: THREE.Group;
   /** One frame: the look (how hard it falls, how it is lit), the wind, the
-   * lens, and the level for the ground the spindrift runs on. */
-  update(look: SkyLook, wind: Wind, camera: THREE.Camera, level: Level, dt: number): void;
+   * lens, the level for the ground the spindrift runs on, and the lens's
+   * own velocity, m/s (null for a lens planted still: nothing streaks). */
+  update(
+    look: SkyLook,
+    wind: Wind,
+    camera: THREE.Camera,
+    level: Level,
+    dt: number,
+    moving: { vx: number; vy: number; vz: number } | null,
+  ): void;
   /** The pixels a metre spans at a metre from the lens. */
   setScale(pixelsPerMetre: number): void;
   /** The SPRAY row's share of the pools. */
@@ -62,6 +85,18 @@ export type Snowfall = {
   clear(): void;
   dispose(): void;
 };
+
+/** Where a flake stands this frame: its seed in the box, carried by the
+ * whole fall's shift, fluttering on its own clock, wrapped about the lens. */
+const FLAKE_AT = /* glsl */ `
+  vec3 flakeAt(vec4 seed) {
+    vec3 p = seed.xyz * ${BOX.toFixed(1)} + uShift;
+    float ph = seed.w * 43.0;
+    p.x += sin(uTime * (0.8 + seed.w) + ph) * 0.35;
+    p.z += cos(uTime * (0.7 + seed.w) + ph * 1.3) * 0.35;
+    return mod(p - uCam + ${(BOX / 2).toFixed(1)}, ${BOX.toFixed(1)}) - ${(BOX / 2).toFixed(1)} + uCam;
+  }
+`;
 
 export function createSnowfall(haze: HazeUniforms): Snowfall {
   const group = new THREE.Group();
@@ -110,13 +145,9 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       ${LAMP_GLSL}
       varying float vAlpha;
       varying vec3 vCol;
+      ${FLAKE_AT}
       void main() {
-        vec3 p = aSeed.xyz * ${BOX.toFixed(1)} + uShift;
-        // Each flake flutters on its own clock as it falls.
-        float ph = aSeed.w * 43.0;
-        p.x += sin(uTime * (0.8 + aSeed.w) + ph) * 0.35;
-        p.z += cos(uTime * (0.7 + aSeed.w) + ph * 1.3) * 0.35;
-        p = mod(p - uCam + ${(BOX / 2).toFixed(1)}, ${BOX.toFixed(1)}) - ${(BOX / 2).toFixed(1)} + uCam;
+        vec3 p = flakeAt(aSeed);
         vec4 mv = viewMatrix * vec4(p, 1.0);
         float depth = max(-mv.z, 0.05);
         float size = (0.035 + 0.05 * aSeed.w) * uSize * mix(1.0, 0.35, uMote);
@@ -158,6 +189,67 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
   fall.frustumCulled = false;
   fall.renderOrder = 5;
   group.add(fall);
+
+  // THE STREAKS: the first of the same seeds, two ends apiece — the head
+  // where the flake is, the tail back along the air's travel past the lens.
+  const streakSeeds = new Float32Array(STREAKS * 8);
+  const streakEnds = new Float32Array(STREAKS * 2);
+  for (let i = 0; i < STREAKS; i++) {
+    for (let k = 0; k < 4; k++) {
+      streakSeeds[i * 8 + k] = seeds[i * 4 + k];
+      streakSeeds[i * 8 + 4 + k] = seeds[i * 4 + k];
+    }
+    streakEnds[i * 2 + 1] = 1;
+  }
+  const streakGeo = new THREE.BufferGeometry();
+  streakGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(STREAKS * 6), 3));
+  streakGeo.setAttribute("aSeed", new THREE.BufferAttribute(streakSeeds, 4));
+  streakGeo.setAttribute("aEnd", new THREE.BufferAttribute(streakEnds, 1));
+  streakGeo.setDrawRange(0, 0);
+  const streakOwn = {
+    /** The air's travel past the lens over the shutter, m. */
+    uSmear: { value: new THREE.Vector3() },
+    /** How much of the streak shows, 0..1, by pace. */
+    uPace: { value: 0 },
+  };
+  const streakMat = new THREE.ShaderMaterial({
+    uniforms: { ...own, ...streakOwn },
+    vertexShader: /* glsl */ `
+      attribute vec4 aSeed;
+      attribute float aEnd;
+      uniform vec3 uShift;
+      uniform vec3 uCam;
+      uniform float uTime;
+      uniform vec3 uSmear;
+      uniform float uPace;
+      varying float vAlpha;
+      ${FLAKE_AT}
+      void main() {
+        vec3 head = flakeAt(aSeed);
+        vec3 p = head + uSmear * aEnd;
+        float dist = length(head - uCam);
+        // Near the lens only, never right on it, the head the brighter end.
+        vAlpha = uPace * (1.0 - aEnd) * smoothstep(${MOTE_REACH.toFixed(1)}, 3.0, dist)
+          * smoothstep(0.6, 1.6, dist) * (0.35 + 0.4 * aSeed.w);
+        gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uLit;
+      varying float vAlpha;
+      void main() {
+        gl_FragColor = vec4(uLit * 1.3, vAlpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+  });
+  const streaks = new THREE.LineSegments(streakGeo, streakMat);
+  streaks.frustumCulled = false;
+  streaks.renderOrder = 5;
+  group.add(streaks);
 
   // THE SPINDRIFT.
   const gPos = new Float32Array(GRAINS * 3);
@@ -240,7 +332,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
   let grains = GRAINS;
   const api: Snowfall = {
     group,
-    update(look, wind, camera, level, dt) {
+    update(look, wind, camera, level, dt, moving) {
       const step = Math.min(dt, 0.1);
       // Lit by the sky and the key, never brighter than the snow it lands on.
       const k = look.keyIntensity * 0.25;
@@ -264,6 +356,20 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       own.uSize.value = 0.8 + 1.3 * look.snowfall;
       fallGeo.setDrawRange(0, flakes);
       fall.visible = flakes > 0;
+      // The air past the lens is the lens's travel less the wind's.
+      const ax = moving ? moving.vx - wind.x : 0;
+      const ay = moving ? moving.vy : 0;
+      const az = moving ? moving.vz - wind.z : 0;
+      const pace = Math.hypot(ax, ay, az);
+      const shows = Math.max(
+        0,
+        Math.min(1, (pace - STREAK_PACE.from) / (STREAK_PACE.full - STREAK_PACE.from)),
+      );
+      streakOwn.uPace.value = shows * shows * (3 - 2 * shows);
+      streakOwn.uSmear.value.set(ax * SHUTTER, ay * SHUTTER, az * SHUTTER);
+      const smears = shows > 0 ? Math.min(flakes, Math.round(STREAKS * share)) : 0;
+      streakGeo.setDrawRange(0, smears * 2);
+      streaks.visible = smears > 0;
 
       const strength =
         Math.max(0, Math.min(1, (wind.speed - LIFT.from) / (LIFT.full - LIFT.from))) *
@@ -312,6 +418,8 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
     dispose() {
       fallGeo.dispose();
       fallMat.dispose();
+      streakGeo.dispose();
+      streakMat.dispose();
       driftGeo.dispose();
       driftMat.dispose();
     },

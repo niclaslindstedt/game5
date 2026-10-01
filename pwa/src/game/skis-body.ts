@@ -197,7 +197,9 @@ export function poseInputOf(
 ): SkierPoseInput {
   return {
     roll: skier.roll,
-    hipRight: skier.hipRight,
+    // The hips' shift as his body carries it (eased in the view's spring),
+    // or the engine's own before the spring has read a ride.
+    hipRight: Number.isNaN(legs.hip) ? skier.hipRight : legs.hip,
     hipAft: skier.hipAft,
     lean: skier.lean,
     steer: skier.steer,
@@ -209,6 +211,11 @@ export function poseInputOf(
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,
+    // THE POLE PLANT the view times on his turns (`skier-spring.ts`).
+    plantAt:
+      legs.plantT < legs.plantLength
+        ? { side: legs.plantSide, t: legs.plantT / legs.plantLength, weight: legs.plantOk }
+        : undefined,
     // THE GAIT at a crawl — the skate and the double pole — in time with
     // the engine's own push (`poles.ts`).
     gait: gaitOf(skier),
@@ -386,7 +393,7 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        stepSkierSpring(legs, skier.vy, skier.airborne, dt, skier.jumpLoad / TUNING.jump.full);
+        stepSkierSpring(legs, skier.vy, skier.airborne, dt, skier.jumpLoad / TUNING.jump.full, skier);
         const input = poseInputOf(skier, legs, mounts, trick);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);

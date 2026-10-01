@@ -114,7 +114,12 @@ export function measurePose(
   const trunkRoll = Math.atan2(up.x, up.y) * DEG;
   const outer = p.hips.x > feetMid.x ? 0 : 1; // the leg on the far side from the hips
   const legLine = sub(hipJ[outer], p.feet[outer]);
-  const frontal = (v) => Math.atan2(v.x, v.y) * DEG;
+  // The back view is taken along the SKIS (their mean turn), not the
+  // way he travels: thrown across in a skid, the legs lean across the
+  // skis, and a view along the travel sees them side on.
+  const turn = (turns[0] + turns[1]) / 2;
+  const acrossSkis = { x: Math.cos(turn), y: 0, z: -Math.sin(turn) };
+  const frontal = (v) => Math.atan2(dot(v, acrossSkis), v.y) * DEG;
   const angulation = Math.abs(frontal(up) - frontal(legLine));
   const inclination = frontal(sub(p.neck, feetMid));
   // THE BOOTS hold the shins: a ski tipped on its edge tips its boot, and
@@ -181,6 +186,10 @@ export function measurePose(
       segDist(p.elbows[i], add(p.hips, scale(up, 0.15)), p.neck) - 0.15 - 0.05,
     ]),
   );
+  // THE KNEES UNDER THE HIPS: how far the higher knee stands over its own
+  // hip joint along the skis' normal, m — a skier's knees fold forward
+  // over his boots, never up past his hips.
+  const kneeRise = Math.max(...[0, 1].map((i) => p.knees[i].y - hipJ[i].y));
   const kneeClear = segSeg(p.knees[0], p.feet[0], p.knees[1], p.feet[1]) - 0.12;
   const thighClear = segSeg(hipJ[0], p.knees[0], hipJ[1], p.knees[1]) - 0.15;
   const armLeg = Math.min(
@@ -194,6 +203,7 @@ export function measurePose(
     comOver: com.x - feetMid.x,
     comHeight: com.y - feetMid.y,
     knee: leg.map((l) => l.knee),
+    kneeRise,
     shinLean: leg.map((l) => l.shinLean),
     hip: leg.map((l) => l.hip),
     legLength: leg.map((l) => l.length),

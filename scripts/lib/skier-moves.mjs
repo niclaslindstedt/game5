@@ -93,6 +93,29 @@ export const MOVES = [
     input: (t) => ({ ...IDLE, tuck: 0.3, steer: t >= 0.2 ? -1 : 0, carve: t >= 1.2 }),
   },
   {
+    id: "turns",
+    title: "linked turns down the 20° pitch from 40 km/h, a pole planted on each",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6 }),
+    seconds: 4.2,
+    window: [0.6, 4],
+    input: (t) => ({ ...IDLE, steer: t < 0.3 ? 0 : Math.floor((t - 0.3) / 1.1) % 2 ? 1 : -1 }),
+  },
+  {
+    id: "skid",
+    title: "a turn skidded at 65 km/h down the 20° pitch, the tuck held through the brake",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 65 / 3.6 }),
+    seconds: 1.7,
+    window: [0.2, 1.6],
+    input: (t) => ({
+      ...IDLE,
+      tuck: 1,
+      steer: t >= 0.2 ? -1 : 0,
+      brake: t >= 0.4 && t < 1.6 ? 0.7 : 0,
+    }),
+  },
+  {
     id: "tuck",
     title: "folding into the tuck down the 20° pitch from 40 km/h",
     level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
@@ -138,6 +161,8 @@ export const MOMENTS = [
   { id: "air", move: "jump", t: 2.1, say: "in the air off a jump" },
   { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
+  { id: "skid", move: "skid", t: 1.0, say: "a turn skidded at speed, tucked" },
+  { id: "plant", move: "turns", t: 1.8, say: "a pole planted at a turn" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
 ];
 

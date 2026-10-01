@@ -482,8 +482,10 @@ describe("the rider's pose", () => {
   });
 
   it("keeps the poles a pole's length from the fists", () => {
+    // Into a turn to his right: the look follows the engine's hip shift
+    // (which lags the key), never the key itself, which flips in a step.
     const p = skierPose({
-      hipRight: 0,
+      hipRight: 0.2,
       hipAft: 0,
       lean: 0,
       steer: 0.8,

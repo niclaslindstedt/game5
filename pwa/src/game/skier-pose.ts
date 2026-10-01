@@ -132,8 +132,11 @@ export const MOUNTS: Mounts = {
   // that the knees bend about 45° over ankles flexed into the cuffs.
   hips: { x: 0, y: -0.02, z: -0.06 },
   tuckHips: { x: 0, y: -0.06, z: -0.18 },
-  hand: { x: 0.3, y: 0.06, z: 0.4 },
-  tuckHand: { x: 0.12, y: -0.12, z: 0.62 },
+  // THE HANDS: forward and outside the body, a little over the hips — a
+  // skier carries them where he can see them, and from behind they show
+  // either side of his jacket rather than tucked away against his ribs.
+  hand: { x: 0.37, y: 0.1, z: 0.42 },
+  tuckHand: { x: 0.12, y: -0.12, z: 0.66 },
   ground: -1,
   poleReach: 0.9,
   pole: 1.2,
@@ -165,10 +168,21 @@ export function mountsFor(
  * mass — the hips go further than the centre of mass does, because the
  * feet stay on the skis. */
 const HANG = 1.15;
+/** How far the knees angulate inside the line from the hips to the boots,
+ * rad — the edge a ski stands on that the hips need not follow. */
+const KNEE_IN = 0.22;
+/** …and how far the hips may hang inside the shins' line, rad — the knees
+ * bowed out a little, no more. */
+const KNEE_OUT = 0.06;
+/** How much of the tuck a full skid stands him out of. */
+const SKID_RISE = 0.6;
 /** THE ANGULATION at the engine's full reach, rad: how much less the trunk
  * leans into a turn than the legs do — the hinge at the hips a carved turn
  * is skied on (a racer's is 15–30°). */
 const ANGULATE = 0.42;
+/** …and at the least, the share of the legs' own lean the trunk takes
+ * back at the hips. */
+const ANGULATE_SHARE = 0.45;
 /** The counter-roll the hips' reach is stated against, rad at full hang:
  * the engine's `hipRight` places his mass with the trunk this far off
  * the legs' lean, so another trunk moves the hips to keep it there. */
@@ -240,6 +254,10 @@ export type SkierPoseInput = {
   bump?: number;
   /** A pole plant in hand, 0..1 — a lone plant, when no `gait` is given. */
   plant?: number;
+  /** THE POLE PLANT a turn is started on (`SkierSpring`): the pole (0
+   * left), how far through it he is (0..1) and how much of it his riding
+   * allows (0..1). */
+  plantAt?: { side: 0 | 1; t: number; weight: number };
   /** THE GAIT the skier is working in at a crawl (`gaitOf`). */
   gait?: Gait;
   /** How far into the air his body is, 0..1, eased (`SkierSpring.air`);
@@ -444,6 +462,19 @@ const STRIDE_STROKE: Stroke = {
   dip: 0.03,
   basket: { x: 0.3, from: 0.2, to: -0.75 },
 };
+/** THE POLE PLANT AT SPEED, as shares of the plant: the swing forward to
+ * the touch ends at `touch`, the basket is in the snow while the body
+ * passes it until `release`, then it trails back up to its hang. Where
+ * the basket touches (`x` out from the centre, m — the rod's own length
+ * puts it on the snow ahead of the fist); and how far
+ * the fist reaches for it — forward, down and out, m — a flick of the
+ * wrist and the forearm, the arm never thrown. */
+const TURN_PLANT = {
+  touch: 0.32,
+  release: 0.55,
+  basket: { x: 0.42, pass: 0.45 },
+  reach: { z: 0.14, y: -0.05, x: 0.04 },
+};
 /** How a pole swings through the recovery: the basket trailing back and
  * up, clear of the snow, at the middle of it. */
 const POLE_TRAIL: V3 = { x: 0, y: 0.25, z: -0.35 };
@@ -558,14 +589,18 @@ function bootKnee(hip: V3, cuff: V3, boot: Boot, thigh: number, shin: number): V
 export function skierPose(input: SkierPoseInput): SkierPose {
   const M = input.mounts ?? MOUNTS;
   const lean = Math.max(-1, Math.min(1, input.lean));
-  const crouch = clamp01(input.crouch);
   const edge = input.edge ?? 0;
   const skiAngle = input.skiAngle ?? 0;
   const lift = input.lift ?? [0, 0];
-  const drop = input.drop ?? crouch * M.crouchDrop;
+  const drop = input.drop ?? clamp01(input.crouch) * M.crouchDrop;
   const gait = input.airborne ? STILL_GAIT : (input.gait ?? STILL_GAIT);
   const carve = clamp01(input.carve ?? 0);
   const skid = clamp01(input.skid ?? 0);
+  // A SKIER BRAKING RISES OUT OF HIS TUCK: the skis thrown across under a
+  // man folded flat swing his folded legs into profile, the knees up by
+  // his shoulders — so the skid stands him up off the tuck, the skis
+  // staying where the engine's drop has them.
+  const crouch = clamp01(input.crouch) * (1 - SKID_RISE * skid);
   // Into the air and back as motions (the view's eased `air`), and a
   // load let go of over the pop rather than in a step.
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
@@ -600,6 +635,11 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // Hung inside: how far, as a share of a full hang, signed to the side —
   // deeper for an edge cut hard.
   const hang = Math.max(-1, Math.min(1, (input.hipRight / 0.3) * (1 + 0.35 * carve)));
+  // HOW FAR INTO A TURN HE IS, −1..1: the engine's own hip shift, which
+  // lags the key — never the key itself, which flips from one side to the
+  // other in a step and would snap the shoulders, the pelvis and the head
+  // round at every change of edge.
+  const turning = Math.max(-1, Math.min(1, input.hipRight / 0.3));
 
   // THE FEET, on the boots: the cuff's height, raised by the tuck's drop
   // and the ski's lift, carried round by the skid's pivot and across by
@@ -645,26 +685,55 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const shift = still * IDLE.shift * wave(7.3, 1.1);
   const glance = still * IDLE.glance * wave(9.7, 2.3) * (0.6 + 0.4 * wave(4.1));
   const fidget = [still * IDLE.fidget * wave(2.9, 0.4), still * IDLE.fidget * wave(3.4, 1.9)];
+  // THE LEGS STAND IN THE SKIS' FRAME: the hips' place over the boots —
+  // the hang into the turn across the skis, the stance's sit behind the
+  // boots along them — is turned with the skid's pivot, because the boots
+  // hold each shin in its ski's own plane. Stated in the pair's frame, a
+  // pair thrown across under him swings the thighs out over the tips and
+  // folds the knees up to the hips.
+  const hang0 = input.hipRight * HANG * (1 + 0.35 * carve);
+  // THE LEGS LEAN WITH THE SKIS: a boot clamped to an edged ski holds its
+  // shin tipped with it, so the hips go where the engine has put his mass
+  // only as far as the knees can angulate off the shins' line — inside it
+  // by up to `KNEE_IN` (the knees driven in, the hips kept out over the
+  // outside ski), barely outside it. The engine's roll of the whole pair
+  // has already leaned the legs into the turn; a hang laid on top of that
+  // with the skis flat under him throws the thighs out sideways and folds
+  // the knees up to the hips.
+  const legH = Math.max(0.3, rest.y - M.foot.y - drop);
+  const inward = 0.5 + 0.5 * Math.tanh(edge / 0.08);
+  const legLean0 = Math.atan2(hang0, legH);
+  const legLeanTo = Math.max(
+    edge - KNEE_IN * inward - KNEE_OUT * (1 - inward),
+    Math.min(edge + KNEE_OUT * inward + KNEE_IN * (1 - inward), legLean0),
+  );
+  const across0 =
+    rest.x +
+    legH * Math.tan(legLeanTo) +
+    SKATE_SWAY.hips * sway +
+    shift;
+  const along0 =
+    rest.z -
+    input.hipAft * 0.8 -
+    0.05 * lean +
+    0.03 * lone -
+    0.06 * load -
+    0.06 * gait.pole * swing;
+  const pc = Math.cos(skiAngle);
+  const ps = Math.sin(skiAngle);
   let hips: V3 = {
-    x: rest.x + input.hipRight * HANG * (1 + 0.35 * carve) + SKATE_SWAY.hips * sway + shift,
+    x: across0 * pc + along0 * ps,
     y:
       rest.y +
       feetLift * 0.5 -
-      0.06 * Math.abs(hang) -
+      0.06 * Math.abs(hang) * (1 - crouch) -
       bump +
       AIR_SINK * air -
-      0.06 * skid -
+      0.06 * skid * (1 - crouch) -
       0.05 * gait.skate -
       0.06 * gait.pole * swing +
       0.08 * pop,
-    z:
-      rest.z -
-      input.hipAft * 0.8 -
-      0.05 * lean +
-      0.03 * lone -
-      0.08 * skid -
-      0.06 * load -
-      0.06 * gait.pole * swing,
+    z: -across0 * ps + along0 * pc,
   };
   // THE GRABS, in the air: a DAFFY kicks one ski forward and one back, a
   // SPREAD flings both wide, a GRAB folds him to a hand on the outside of
@@ -679,7 +748,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // THE PELVIS: turned with the skis as a hockey stop throws them across
   // (the legs turn under him; the shoulders stay facing down the hill),
   // the hip joints a hip's width either side along it.
-  const pelvisYaw = skiAngle * 0.9 - input.steer * TWIST * 0.4 * (1 - 0.5 * crouch);
+  const pelvisYaw = skiAngle * 0.9 - turning * TWIST * 0.4 * (1 - 0.5 * crouch);
   const pelvis: V3 = { x: Math.cos(pelvisYaw), y: 0, z: -Math.sin(pelvisYaw) };
   // THE LEGS FIT THE BOOTS: a hip a thigh and more from the knee its boot
   // allows at the cuff's least lean would need the shin stood up behind
@@ -727,7 +796,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     hips.x - (feet[0].x + feet[1].x) / 2,
     hips.y - (feet[0].y + feet[1].y) / 2,
   );
-  const angulate = Math.abs(hang) * ANGULATE * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
+  // The hinge follows the legs' own lean: however far the skis' edge has
+  // put the legs over, the trunk comes back up a share of it.
+  const angulate = Math.max(
+    Math.abs(hang) * ANGULATE,
+    Math.min(0.6, ANGULATE_SHARE * Math.abs(legLean)),
+  ) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
   const roll =
     Math.sign(hang) *
       Math.max(-0.12, Math.abs(legLean) - angulate) *
@@ -773,7 +847,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const neck = add(waist, scale(upperDir, thoracic));
   // The head held up to look down the hill: the neck bends back out of a
   // tuck's pitch, and turns into the turn.
-  const look = input.steer * 0.35 + glance;
+  const look = turning * 0.35 + glance;
   // THE EYES NEARER LEVEL: whatever the body leans, a skier holds his
   // eyes toward the horizon — the head rolls back off the trunk's lean in
   // the WORLD (the pair's own roll, `input.roll`, and the trunk's on it)
@@ -788,7 +862,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   );
   // The shoulders face on down the hill while a hockey stop throws the
   // skis across under them.
-  const twist = -input.steer * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid;
+  const twist = -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid;
   const across: V3 = norm({
     x: Math.cos(roll) * Math.cos(twist),
     y: -Math.sin(roll),
@@ -836,6 +910,20 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // arc: up and ahead for the plant, down and back past the hips at the
   // end of the push. Loading a jump draws them back; the pop throws them
   // up and forward. Cut hard, the inside hand goes down toward the snow.
+  // THE TURN'S POLE PLANT: the fist reaches forward for the touch and
+  // stays there while the body passes the pole, then comes back.
+  const plantAt = input.plantAt;
+  const plantW = plantAt ? clamp01(plantAt.weight) * (1 - crouch) * (1 - air) : 0;
+  const plantU = plantAt ? clamp01(plantAt.t) : 0;
+  const reachOf = (i: number): number =>
+    plantAt && plantAt.side === i
+      ? plantW *
+        (plantU < TURN_PLANT.touch
+          ? smooth(plantU / TURN_PLANT.touch)
+          : plantU < TURN_PLANT.release
+            ? 1
+            : 1 - smooth((plantU - TURN_PLANT.release) / (1 - TURN_PLANT.release)))
+      : 0;
   const double = strokeHand(DOUBLE_STROKE, swing);
   const hands = [-1, 1].map((side, i) => {
     const h = mix(
@@ -844,7 +932,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       crouch,
     );
     const inside = side * hang > 0 ? Math.abs(hang) : 0;
-    const polesX = h.x + input.hipRight * 0.7 + side * 0.1 * air;
+    const polesX =
+      h.x + input.hipRight * 0.7 + side * 0.1 * air + side * TURN_PLANT.reach.x * reachOf(i);
     return {
       x: polesX,
       y:
@@ -858,7 +947,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         gait.stride * strokeHand(STRIDE_STROKE, strideSwing[i]).y -
         0.1 * load +
         0.25 * pop -
-        0.3 * carve * inside,
+        0.3 * carve * inside +
+        TURN_PLANT.reach.y * reachOf(i),
       z:
         h.z +
         0.25 * lone +
@@ -867,7 +957,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         arms * double.z +
         gait.stride * strokeHand(STRIDE_STROKE, strideSwing[i]).z -
         0.3 * load +
-        0.2 * pop,
+        0.2 * pop +
+        TURN_PLANT.reach.z * reachOf(i),
     };
   }) as [V3, V3];
   if (input.trick === "grab") {
@@ -903,7 +994,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       y: across.z * arm.x - across.x * arm.z,
       z: across.x * arm.y - across.y * arm.x,
     });
-    const flare = Math.max(0.08, 0.5 - 0.3 * crouch - 0.45 * working);
+    const flare = Math.max(0.08, 0.6 - 0.4 * crouch - 0.5 * working);
     return solveLimb(
       shoulders[i],
       hands[i],
@@ -951,6 +1042,32 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         handIn(DOUBLE_STROKE, arms, swing),
       );
       tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, arms)), M.pole));
+    }
+    if (plantAt && plantAt.side === i && plantW > 0) {
+      // The rod turned from its hang to the basket ahead, held in the snow
+      // as the body passes it, then trailed back up to the hang — every
+      // leg of it a direction blended to the next, so nothing jumps.
+      const hang = norm(sub(tip, hands[i]));
+      // The basket meets the snow where the rod's own length reaches it,
+      // ahead of the fist; passing, the rod pivots toward the vertical
+      // (`basket.pass` of the way), the basket pressed a little into it.
+      const dx = side * TURN_PLANT.basket.x - hands[i].x;
+      const dy = ground - hands[i].y;
+      const ahead = Math.sqrt(Math.max(0, M.pole * M.pole - dx * dx - dy * dy));
+      const to = (z: number) => norm({ x: dx, y: dy, z });
+      const touchDir = to(ahead);
+      const passDir = to(ahead * TURN_PLANT.basket.pass);
+      const u = plantU;
+      const dir =
+        u < TURN_PLANT.touch
+          ? mix(hang, touchDir, smooth(u / TURN_PLANT.touch))
+          : u < TURN_PLANT.release
+            ? mix(touchDir, passDir, (u - TURN_PLANT.touch) / (TURN_PLANT.release - TURN_PLANT.touch))
+            : add(
+                mix(passDir, hang, smooth((u - TURN_PLANT.release) / (1 - TURN_PLANT.release))),
+                scale(POLE_TRAIL, 0.5 * Math.sin((Math.PI * (u - TURN_PLANT.release)) / (1 - TURN_PLANT.release))),
+              );
+      tip = add(hands[i], scale(norm(mix(hang, norm(dir), plantW)), M.pole));
     }
     return tip;
   }) as [V3, V3];

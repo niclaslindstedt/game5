@@ -340,11 +340,15 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad += across * cos(ph) * 1.9 * 0.07 * k;
   }
   if (nearFade > 0.0) {
-    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.025 * nearFade;
-    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.004 * nearFade * (1.0 - snowPress);
+    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.035 * nearFade;
+    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.007 * nearFade * (1.0 - snowPress);
   }
 
-  // THE CORDUROY: the groomer's comb, running along the track.
+  // THE CORDUROY: the groomer's comb, running along the track — and WORN
+  // along it, in patches a few metres long where skis have scraped it
+  // flat and chips a hand across where it has crumbled. A comb running
+  // unbroken along the way looks the same however fast it is skied; its
+  // wear is what streams past.
   vec4 td = texture2D(uTrackDir, guv);
   snowBerm = td.b;
   float along = length(td.xy * 2.0 - 1.0);
@@ -356,6 +360,9 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     float aa = 1.0 - smoothstep(0.35, 0.9, fwidth(phase));
     float k = snowPacked * min(along * 2.0, 1.0) * aa * (1.0 - snowPress * 0.7);
     k *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
+    float worn = smoothstep(0.3, 0.7, snowNoise(p * 0.42 + 11.0));
+    float chip = snowNoise(p * 2.6 + 5.0);
+    k *= mix(0.3, 1.0, worn) * mix(0.55, 1.0, chip);
     grad += across * cos(phase) * 0.14 * k;
   }
 
@@ -392,7 +399,8 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float px = length(fwidth(p));
     float m1 = (snowNoise(p * 0.85) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 0.85));
     float m2 = (snowNoise(p * 2.9 + 3.7) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 2.9));
-    alb *= 1.0 + (m1 * 0.55 + m2 * 0.45) * mix(0.14, 0.22, snowPacked) * (1.0 - snowIce);
+    float m3 = (snowNoise(p * 8.5 + 9.1) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 8.5));
+    alb *= 1.0 + (m1 * 0.45 + m2 * 0.4 + m3 * 0.3) * mix(0.22, 0.32, snowPacked) * (1.0 - snowIce);
   }
   // The berm is snow turned over by the plough: back to fresh white, with
   // the shade of its clods in it.

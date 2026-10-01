@@ -375,13 +375,13 @@ describe("the sense of speed", () => {
 describe("the lens kept out of the woods", () => {
   const level = syntheticLevel();
   const clear = createLineClear(level);
-  // Riding north (+z) four metres past the lone spruce: the boom's arm runs
+  // Riding north (+z) three metres past the lone spruce: the boom's arm runs
   // straight back through its crown.
   const past = () =>
     pose({
       x: LONE_TREE.x,
-      z: LONE_TREE.z + 4,
-      y: level.groundAt(LONE_TREE.x, LONE_TREE.z + 4) + 0.5,
+      z: LONE_TREE.z + 3,
+      y: level.groundAt(LONE_TREE.x, LONE_TREE.z + 3) + 0.5,
     });
 
   it("reads a line through a crown as blocked and one in the open as clear", () => {

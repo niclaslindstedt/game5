@@ -12,9 +12,12 @@ picture is sky. The geometry decides it: with the skier COMPOSED at one place
 in the frame, the arm's elevation alone sets where the horizon lands and how
 much of the piste ahead shows (the band between the skier and the slope's
 vanishing line is roughly the lens's elevation above the slope PLANE). So the
-arm leans up the slope by `incline` (0.7 on chase) and the look follows the
-composition; 1 reads the face flat, 0.5 puts the lens nearly in the slope
-plane on a black and the piste ahead collapses onto the skier's head.
+arm leans up the slope by `incline` and the look follows the composition;
+1 reads the face flat, 0.5 puts the lens nearly in the slope plane on a black
+and the piste ahead collapses onto the skier's head. A single share cannot
+serve both: 0.7 read every ordinary piste as a flat plain (the snow ahead
+seemed to RISE to the horizon), so the chase leans 0.5 to 15° and eases to
+`inclineSteep` 0.75 by 35° (`STEEP`).
 
 Two traps in second-order springs: a height spring lags a steady descent by
 k1·v (1.7 m at 100 km/h down 30°, which pushes the skier low) unless it is

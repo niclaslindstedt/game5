@@ -149,8 +149,11 @@ export type BoomRig = {
   /** THE INCLINE: share of the fall line's pitch the arm rises by up the
    * slope behind, and so the look tips down by, 0..1. 1 rides parallel to
    * the snow (a steep face reads flat); 0 stands level (a steep face reads
-   * as sky). */
+   * as sky). `inclineSteep` is the share on the steepest faces
+   * (`STEEP`): tipped further there, so the piste ahead still shows over
+   * the skier's head where the drop needs no help to read. */
   incline: number;
+  inclineSteep: number;
   /** How far ahead the fall line is read, s of travel (never under
    * `LEAN_REACH` m), and how the reading is followed. */
   ahead: number;
@@ -207,20 +210,22 @@ export const RIGS: Record<Rung, Rig> = {
   // THE CHASE: behind and above, the skier composed a little under the
   // middle of the frame and the piste he is about to ski over his head.
   // On a steep face the arm rises up the slope behind him and the look
-  // tips down the fall line with it — not all the way, or the face reads
-  // flat, so the horizon stays in the top of the frame and the drop is
-  // felt. Close, because speed is read off the snow streaming under the
-  // lens, and the fov held narrow enough that the skier is a body in the
-  // frame rather than a speck at the foot of it.
+  // tips down the fall line with it — but only half way: tipped further,
+  // the face reads as a flat plain under a level horizon, and the drop
+  // under the skis is what a steep piste is felt by. Close and LOW — a
+  // little under head height, because the snow streams past at the pace
+  // over the lens's height, and a lens two metres up halves it — on a fov
+  // that opens wide with speed while the arm pulls in, so the skier keeps
+  // his size and the snow at the frame's edges is what rushes.
   chase: {
     kind: "boom",
-    dist: 5,
+    dist: 4.3,
     distPerSpeed: 0,
-    height: 2.2,
+    height: 1.7,
     aimAhead: 12,
-    fov: 58,
-    fovPerSpeed: 0.55,
-    fovMax: 74,
+    fov: 62,
+    fovPerSpeed: 0.75,
+    fovMax: 86,
     hold: 0.5,
     surge: 1,
     tremor: 1,
@@ -229,7 +234,8 @@ export const RIGS: Record<Rung, Rig> = {
     lift: { f: 1.8, zeta: 0.7, r: 2 },
     liftAir: { f: 0.9, zeta: 0.85, r: 2 },
     lagMax: 2.2,
-    incline: 0.7,
+    incline: 0.5,
+    inclineSteep: 0.75,
     ahead: 0.6,
     lean: { f: 0.7, zeta: 1, r: 0 },
     place: 0.3,
@@ -243,9 +249,9 @@ export const RIGS: Record<Rung, Rig> = {
     distPerSpeed: 0.02,
     height: 3.8,
     aimAhead: 14,
-    fov: 54,
-    fovPerSpeed: 0.4,
-    fovMax: 68,
+    fov: 56,
+    fovPerSpeed: 0.5,
+    fovMax: 76,
     hold: 0.5,
     surge: 1.4,
     tremor: 0.6,
@@ -254,7 +260,8 @@ export const RIGS: Record<Rung, Rig> = {
     lift: { f: 1.2, zeta: 0.75, r: 2 },
     liftAir: { f: 0.7, zeta: 0.85, r: 2 },
     lagMax: 3.2,
-    incline: 0.5,
+    incline: 0.4,
+    inclineSteep: 0.6,
     ahead: 0.8,
     lean: { f: 0.55, zeta: 1, r: 0 },
     place: 0.22,
@@ -280,6 +287,7 @@ export const RIGS: Record<Rung, Rig> = {
     liftAir: { f: 0.5, zeta: 0.9, r: 2 },
     lagMax: 4.5,
     incline: 0.35,
+    inclineSteep: 0.35,
     ahead: 1,
     lean: { f: 0.45, zeta: 1, r: 0 },
     place: 0.12,
@@ -345,9 +353,9 @@ export function createBoomState(): BoomState {
  * of (the header says what each is for). The rigs only scale them. */
 export const PACE = {
   tremor: {
-    /** Where it starts, and where it is whole, m/s (40 and 110 km/h). */
-    from: 11,
-    full: 30.5,
+    /** Where it starts, and where it is whole, m/s (36 and 94 km/h). */
+    from: 10,
+    full: 26,
     /** How far a boom's lens travels at the whole of it, m. */
     travel: 0.01,
     /** How far a bolted lens's aim swings at the whole of it, rad. */
@@ -515,7 +523,9 @@ export function frameRig(
   // fall line's pitch, about the skier — the lens keeps its height over
   // the snow it stands above instead of meeting it.
   const len = Math.hypot(dist, rise);
-  const up = Math.atan2(rise, dist) + rig.incline * slope;
+  const steep = Math.max(0, Math.min(1, (slope - STEEP.from) / (STEEP.full - STEEP.from)));
+  const incline = rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep);
+  const up = Math.atan2(rise, dist) + incline * slope;
   const eye = {
     x: pose.x - fx * len * Math.cos(up),
     y: y + len * Math.sin(up),
@@ -556,6 +566,10 @@ const LEAN_BEHIND = 3;
 const LEAN_REACH = 6;
 const LEAN_MIN = -0.3;
 const LEAN_MAX = 0.95;
+/** The fall line's pitch, rad, where a boom's incline starts to move from
+ * `incline` toward `inclineSteep`, and where it is all the way there (15°,
+ * a blue's pitch, and 35°). */
+const STEEP = { from: 0.26, full: 0.61 };
 
 /** Where on the skier the lens frames: the middle of him, between his
  * boots (a metre under his centre of gravity, the pose's origin) and his

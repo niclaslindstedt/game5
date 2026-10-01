@@ -61,6 +61,45 @@ describe("the start line", () => {
     for (let i = 0; i < 8 * TUNING.physicsHz; i++) step(state, NEUTRAL_INPUT);
     for (const r of state.rivals) expect(r.run.skier.speed).toBeGreaterThan(3);
   });
+
+  it("lets each rival go on his own reaction, out of step with the rest", () => {
+    const state = createGame({ level: syntheticLevel(), seed: 5, quiet: true });
+    for (const r of state.rivals) {
+      expect(r.react).toBeGreaterThanOrEqual(RACE.reactBand.min);
+      expect(r.react).toBeLessThan(RACE.reactBand.max);
+    }
+    expect(new Set(state.rivals.map((r) => r.react.toFixed(3))).size).toBe(RACE.rivals);
+    expect(new Set(state.rivals.map((r) => r.run.skier.stride.toFixed(3))).size).toBe(RACE.rivals);
+    // The step each one first moves off his spot after GO.
+    const start = state.rivals.map((r) => ({ x: r.run.skier.x, z: r.run.skier.z }));
+    const went: (number | null)[] = state.rivals.map(() => null);
+    while (state.phase === "countdown") step(state, NEUTRAL_INPUT);
+    const go = state.t;
+    for (let i = 0; i < 2 * TUNING.physicsHz; i++) {
+      step(state, NEUTRAL_INPUT);
+      state.rivals.forEach((r, k) => {
+        if (went[k] !== null) return;
+        // Off his spot by more than the settle onto the snow walks him.
+        if (Math.hypot(r.run.skier.x - start[k].x, r.run.skier.z - start[k].z) > 0.5)
+          went[k] = state.t - go;
+      });
+    }
+    state.rivals.forEach((r, k) => {
+      expect(went[k]).not.toBeNull();
+      expect(went[k] as number).toBeGreaterThan(r.react);
+    });
+    expect(new Set(went.map((t) => (t as number).toFixed(2))).size).toBe(RACE.rivals);
+  });
+
+  it("deals the start beside the field, leaving its paces and skis as they were", () => {
+    // Seed 7's field as it was dealt before the start was: the start is
+    // drawn off a stream of its own, so no rival's pair or pace moved.
+    const state = createGame({ level: syntheticLevel(), seed: 7, quiet: true });
+    expect(state.rivals.map((r) => r.run.skier.spec.id)).toEqual(["chamois", "marmot", "chough"]);
+    expect(state.rivals.map((r) => r.pace)).toEqual([
+      0.8023409506306053, 0.995381526555866, 0.9042890537064523,
+    ]);
+  });
 });
 
 describe("the standings", () => {

@@ -90,12 +90,14 @@ export function keepsReplay(mode: GameMode): boolean {
 }
 
 /** A FINGERPRINT OF A RUN AT ITS FIRST STEP: where every skier stands, on
- * which pair, at what pace — what a rebuild has to agree on before it is
+ * which pair, at what pace and how late off the start — what a rebuild has to agree on before it is
  * worth watching. */
 export function startPrint(state: GameState): string {
   const r = (v: number): string => v.toFixed(4);
   const s = state.skier;
-  const field = state.rivals.map((v) => `${v.run.skier.spec.id}:${r(v.pace)}`).join(",");
+  const field = state.rivals
+    .map((v) => `${v.run.skier.spec.id}:${r(v.pace)}:${r(v.react)}`)
+    .join(",");
   return [
     state.seed,
     state.skier.spec.id,

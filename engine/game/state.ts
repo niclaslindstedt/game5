@@ -377,13 +377,15 @@ export type Progress = {
 
 /** ANOTHER SKIER ON THE SAME SNOW (`rivals.ts`): a whole run of its own
  * over the player's very level, rules and stream. `pace` is the tuck its
- * bot is allowed, dealt once at the start line; `lane` the line it holds
+ * bot is allowed, dealt once at the start line; `react` how long after GO
+ * he stays in the gate, s (`RACE.reactBand`); `lane` the line it holds
  * down the piste, m right of the centreline — its own slot's; `id` its
  * slot less one. */
 export type Rival = {
   id: number;
   run: GameState;
   pace: number;
+  react: number;
   lane: number;
 };
 

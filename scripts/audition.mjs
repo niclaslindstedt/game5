@@ -13,6 +13,8 @@
 //   THE SNOW   the skis on the snow: the pace, how PACKED the snow is (the
 //              hiss crossfading into the powder's hush), how HARD it is,
 //              the edge, the skid.
+//   THE TUNNEL a wind tunnel's gale: how far in the lane the skier is and
+//              how near its fan.
 //   THE BANK   every discrete sound in the game, one button each, with the
 //              description it was written against printed beside it.
 //
@@ -86,6 +88,7 @@ const RUNTIME = [
   "pwa/src/game/audio/listener.ts",
   "pwa/src/game/audio/wind-voice.ts",
   "pwa/src/game/audio/snow-voice.ts",
+  "pwa/src/game/audio/tunnel-voice.ts",
 ];
 
 /** Compile the runtime modules to plain JS and return one concatenated blob. */
@@ -320,6 +323,17 @@ const page = `<!doctype html>
     <div id="snowSliders"></div>
   </div>
 
+  <h2>The wind tunnel</h2>
+  <p class="sub">
+    A wind tunnel's gale, through the wind's fader: <b>in the lane</b> is how far in it the skier
+    is (1 in it; a third of that is the murmur from beside it), <b>fan</b> how near the entrance's
+    fan motor. The gale wavers on its own beat. The whoosh in and out are in the bank.
+  </p>
+  <div class="panel">
+    <div class="switches"><button id="tunnel" class="primary" type="button">Start the tunnel</button></div>
+    <div id="tunnelSliders"></div>
+  </div>
+
   <div id="bank"></div>
 
   <footer>
@@ -521,6 +535,41 @@ snowBtn.addEventListener("click", () => {
   snowRack = { timer, rack };
 });
 
+// ── The wind tunnel ────────────────────────────────────────────────────────
+const tunnel = {};
+window.__ear.tunnel = tunnel;
+const tunnelSliders = document.getElementById("tunnelSliders");
+sliderRow(tunnelSliders, tunnel, "presence", "In the lane", 1);
+sliderRow(tunnelSliders, tunnel, "fan", "Fan", 0.5);
+let tunnelRack = null;
+const tunnelBtn = document.getElementById("tunnel");
+tunnelBtn.addEventListener("click", () => {
+  synth.unlock();
+  refreshState();
+  if (tunnelRack !== null) {
+    clearInterval(tunnelRack.timer);
+    tunnelRack.rack.stop();
+    tunnelRack = null;
+    tunnelBtn.className = "primary";
+    tunnelBtn.textContent = "Start the tunnel";
+    return;
+  }
+  tunnelBtn.className = "primary on";
+  tunnelBtn.textContent = "Stop the tunnel";
+  const rack = createRack(synth, TUNNEL_LAYERS, TUNNEL_GLIDE);
+  const timer = setInterval(() => {
+    if (synth.now() === null) return;
+    const ear = listenerFor(seat.view);
+    rack.apply(
+      tunnelTargets(
+        { presence: tunnel.presence, fan: tunnel.fan, t: performance.now() / 1000 },
+        { wind: ear.wind },
+      ),
+    );
+  }, 33);
+  tunnelRack = { timer, rack };
+});
+
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -650,6 +699,18 @@ const PRESETS = [
     rush: { wind: 30, crouch: 0.4, airborne: true },
     snow: on("groomed", { pace: 0.9, edge: 0, skid: 0, airborne: true }),
   },
+  {
+    name: "blown down a wind tunnel",
+    rush: { wind: 28, crouch: 0.3, airborne: false },
+    snow: on("groomed", { pace: 0.75, edge: 0, skid: 0, airborne: false }),
+    tunnel: { presence: 1, fan: 0.3 },
+  },
+  {
+    name: "beside a wind tunnel",
+    rush: { wind: 8, crouch: 0, airborne: false },
+    snow: on("groomed", { pace: 0.2, edge: 0, skid: 0, airborne: false }),
+    tunnel: { presence: 0.2, fan: 0 },
+  },
 ];
 
 /** How long a bed is given to reach its targets before it is read, ms, and
@@ -737,10 +798,12 @@ async function meter() {
   console.log("\nTHE BEDS (mean / peak)");
   await page.click("#rush");
   await page.click("#snow");
+  await page.click("#tunnel");
   for (const preset of PRESETS) {
     await page.evaluate((p) => {
       Object.assign(window.__ear.rush, p.rush);
       Object.assign(window.__ear.snow, p.snow);
+      Object.assign(window.__ear.tunnel, p.tunnel ?? { presence: 0, fan: 0 });
     }, preset);
     await page.waitForTimeout(SETTLE_MS);
     const { mean, peak } = await read(READ_MS);
@@ -748,6 +811,7 @@ async function meter() {
   }
   await page.click("#rush");
   await page.click("#snow");
+  await page.click("#tunnel");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");

@@ -72,17 +72,15 @@ export type GeneratorTraits = {
    * what the version AFTER it changed — which is what tells the next
    * session whether the row is still earning its keep. */
   note: string;
-  /** BEFORE THE GRADES (v1): every map is built on the rule book's own
-   * numbers — the UNGRADED row of `grades.ts` — whatever grade it is
-   * asked for, deals none, lays no drop (R24) and publishes no
-   * `Level.grade`; its colour is only measured. The six trick maps stand
-   * on it. */
-  ungraded?: boolean;
-  /** BEFORE THE FACE WAS TURNED TO THE SUN (v1): the fall line faces due
-   * north whatever the hour R15 deals, so a low winter sun stands behind
-   * the face and the mountain shades the piste — no `Level.sun.facing` is
-   * dealt or published. */
-  northFace?: boolean;
+  /** BEFORE THE RESORTS (v1): a map is one piste down a face of one fall
+   * line's profile (R2–R24), no lifts and no other run on it — and, being
+   * from before the grades and the turned face too, it is built on the
+   * rule book's own numbers (the UNGRADED row of `grades.ts`, whatever
+   * grade it is asked for: no grade dealt, no drop laid, no `Level.grade`
+   * published) down a face due north (no `Level.sun.facing`). The trick
+   * maps and the benchmark stand on it. From v3 every map is a ski area
+   * (R25–R28) raced on one course of it. */
+  singlePiste?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -93,19 +91,21 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
   {
     version: 1,
     note:
-      "The generator as Fall Line launched with it (R1–R22). v2 builds every map to a " +
-      "PISTE GRADE (R23) — dealt off the seed where none is asked — with the drops " +
-      "across a black (R24), and turns the face to the sun (R15); this row builds them " +
-      "all on the ungraded rules with the face due north.",
-    ungraded: true,
-    northFace: true,
+      "The generator as Fall Line launched with it (R1–R22): one ungraded piste down one " +
+      "face, the fall line due north. v3 builds every map as a whole ski area — a massif, " +
+      "its lifts, a network of runs each built to a PISTE GRADE (R23) with the drops " +
+      "across a black (R24), the face turned to the sun (R15) and transport lanes merging " +
+      "down to a village (R25–R28) — raced on one course down it; this row builds one " +
+      "piste on the ungraded rules with the face due north.",
+    singlePiste: true,
   },
   {
-    version: 2,
+    version: 3,
     note:
-      "The graded generator: green, blue, red and black pistes (R23), each built to its " +
-      "colour's band, the drops across a black (R24), and the face turned to the sun " +
-      "(R15).",
+      "The resorts: every map a ski area on one massif — its lifts, its runs of every " +
+      "colour and its transport lanes merging down to the village (R25–R27) — raced on " +
+      "one COURSE down that network (R28), the woods thick low down and thinning through " +
+      "the ecotone to the tree line (R14).",
   },
 ];
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// ONE SKIER'S STEP — the skier (and, on a tricks run, the strokes thrown in
+// ONE SKIER'S STEP — the wind tunnel he rides, if any (`wind-tunnel.ts`),
+// the skier (and, on a tricks run, the strokes thrown in
 // the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
 // tumble once he is thrown, `crash.ts`), the damage it cost (`damage.ts`),
 // the air record, the clock and the odometer, the buzzer
@@ -20,6 +21,7 @@ import { stepSkier } from "./skier.ts";
 import { crashOver, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
+import { stepTunnel } from "./wind-tunnel.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -48,6 +50,8 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   const off = c.thrown;
   const held = off ? NEUTRAL_INPUT : !racing ? (run.phase === "countdown" ? HOLD : COAST) : input;
   const tricks = run.rules.tricks && held === input;
+  // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
+  stepTunnel(run, events);
   stepSkier(run, tricks ? poseInput(run, held) : held, events);
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (tricks) stepStrokes(run, input);

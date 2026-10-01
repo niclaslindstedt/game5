@@ -36,7 +36,7 @@
 // THE UNGRADED ROW is the generator before there were grades: every number
 // the rule book's own, drawn in the same order off the same stream, and no
 // drop laid — so a map built by a version from before R23 (`versions.ts`'s
-// `ungraded` trait: the trick maps stand on it) is exactly the map it was.
+// `singlePiste` row, v1: the trick maps stand on it) is exactly the map it was.
 // Its colour is only ever MEASURED (`pisteGradeOf`), never built to.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";

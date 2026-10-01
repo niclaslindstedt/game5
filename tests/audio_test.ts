@@ -126,6 +126,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   trick: { kind: "trick", t: 1, trick: "backflip", spins: 1, points: 300, mult: 3 },
   combo: { kind: "combo", t: 1, points: 2000, base: 700, mult: 3, sketchy: false },
   bail: { kind: "bail", t: 1, lost: 2000, cause: "wipeout" },
+  tunnel: { kind: "tunnel", t: 1, id: "W1", phase: "in" },
 };
 
 /** The kinds the bank says nothing about, with the reason: the lip is the

@@ -58,6 +58,15 @@ import { LEVEL_RULES as R } from "./rules.ts";
 import { gateArcs, startGateArc } from "./spawn.ts";
 import type { Piste } from "./track.ts";
 import type { Cliff, Kicker, KickerShape, TrackPoint, TrickSize } from "./types.ts";
+import { GENERATOR_VERSIONS, type GeneratorVersion } from "./versions.ts";
+
+/** The generator a map with a park on it is built by when none is named:
+ * the newest that still lays ONE piste down a face — the park is laid on a
+ * piste of its own, and a resort (R25) lays none — the one the trick maps
+ * stand on. */
+export const PARK_VERSION: GeneratorVersion | undefined = [...GENERATOR_VERSIONS]
+  .reverse()
+  .find((v) => v.singlePiste)?.version;
 
 /** The arc a kicker covers, foot of the ramp to the end of its landing, m. */
 function footprint(k: { s?: number; ramp: number; landing: number }): [number, number] {

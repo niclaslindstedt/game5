@@ -10,6 +10,7 @@ import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import { generateLevel } from "../mapgen/generate.ts";
+import { PARK_VERSION } from "../mapgen/trick-field.ts";
 import type { GameEvent } from "../game/state.ts";
 import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
@@ -106,6 +107,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
             tricks: options.tricks,
             region: options.region,
             grade: options.grade,
+            // The park is laid on a map of one piste (R20).
+            version: options.tricks ? PARK_VERSION : undefined,
           })
         : undefined),
     laps: options.laps,

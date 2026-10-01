@@ -88,6 +88,31 @@
   height: 1em;
 }
 
+/* The area's country and its six runs' signs in rung order: the climb from
+   the gentle runs to the steep ones, read off the tab. */
+.menu-shelf-mix {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.menu-shelf-region {
+  opacity: 0.85;
+}
+
+.menu-shelf-grades {
+  display: inline-flex;
+  gap: 0.12rem;
+}
+
+.menu-shelf-grades .grade-mark {
+  width: 1.15em;
+  height: 1.15em;
+}
+
 .menu-shelf-line {
   font-size: 0.58rem;
   letter-spacing: 0.08em;

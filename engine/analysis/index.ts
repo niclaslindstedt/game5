@@ -17,8 +17,10 @@
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { sunAt } from "@niclaslindstedt/oss-game-framework/core/solar";
-import { nearestTrackPoint, nearestWithin, trackPointAt } from "../mapgen/query.ts";
+import { nearestTrackPoint, nearestWithin, outsideHub, trackPointAt } from "../mapgen/query.ts";
 import {
+  GRADES,
+  gradeRow,
   gradeRowOf,
   pisteGradeOf,
   steepestSpan as steepestSpanOf,
@@ -38,10 +40,13 @@ import {
   tightestBend,
   windowGrades,
 } from "../mapgen/track.ts";
-import type { Level } from "../mapgen/types.ts";
+import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { checkCliffs, checkDrops } from "./cliffs.ts";
 import { selfCrossings } from "./crossings.ts";
 import { checkTrickField } from "./trick-field.ts";
+import { analyzeResort, nearestOtherRun, nearestRun } from "./resort.ts";
+import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
+import { WIDEST, clearance } from "../mapgen/network.ts";
 
 export type Severity = "error" | "warn";
 
@@ -153,8 +158,42 @@ const TRAVERSE = Math.PI / 4;
 const fmt = (v: number, digits = 1): string => v.toFixed(digits);
 const bandText = (b: Band, unit = ""): string => `${b.min}–${b.max}${unit}`;
 
-/** Re-check a finished level against the rule book. */
-export function analyzeLevel(level: Level): LevelAnalysis {
+/** On a resort's map (R25–R28), how near another run may come to a station
+ * of the course before the windrow, the cross-fall and the powder beside
+ * it are the junction's and not the piste's, m past the rule's clearance. */
+const JUNCTION_SLACK = 12;
+
+/** The most the seam between two runs' surfaces may climb over a grade
+ * window where a course runs off one onto the other (R27), m per m: the
+ * two are pressed one after the other onto a two-metre grid. */
+const JUNCTION_CLIMB = 0.04;
+
+/** R6 — `bendRoom` over the stations a mask leaves in, m. */
+function bendRoomOff(pts: readonly TrackPoint[], mask: Uint8Array): number {
+  const n = pts.length;
+  const k = Math.max(1, Math.round(R.track.turnWindow / 2 / R.track.step));
+  const bench = R.track.shoulder.flat + R.berm.width;
+  let least = Infinity;
+  for (let i = k; i + k < n; i++) {
+    if (mask[i - k] || mask[i] || mask[i + k]) continue;
+    const a = pts[i - k];
+    const b = pts[i];
+    const c = pts[i + k];
+    const ab = hypot(b.x - a.x, b.z - a.z);
+    const bc = hypot(c.x - b.x, c.z - b.z);
+    const ca = hypot(a.x - c.x, a.z - c.z);
+    const area2 = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
+    if (area2 < 1e-9) continue;
+    least = Math.min(least, (ab * bc * ca) / (2 * area2) - (b.width / 2 + bench));
+  }
+  return least;
+}
+
+/** Re-check a finished level against the rule book. On a resort's map the
+ * piste held is the COURSE (R28), and the resort round it is held too
+ * (`analyzeResort`) unless `network` is false — the generator reads the
+ * network once a resort and every course on its own. */
+export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): LevelAnalysis {
   const findings: Finding[] = [];
   const add = (rule: string, severity: Severity, message: string): void => {
     findings.push({ rule, severity, message });
@@ -167,6 +206,42 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   const region = regionOf(level);
   const G = gradeRowOf(level);
   const inside = (x: number, z: number): boolean => x >= 0 && z >= 0 && x <= size && z <= size;
+  const resort = level.resort;
+  /** Whether another run comes near enough each station of the course that
+   * its windrow, its cross-fall and the snow beside it are a junction's. */
+  const junction = new Uint8Array(n);
+  if (resort) {
+    const top = RR.network.shared + JUNCTION_SLACK;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const reach = clearance(p.width, WIDEST) + JUNCTION_SLACK;
+      // Off a top station, the runs that left it with the course's first
+      // are beside it, its own later ones among them.
+      if (nearestOtherRun(level, p.x, p.z, reach, p.s < top) < reach) junction[i] = 1;
+    }
+  }
+  if (resort) {
+    // ...and the course's OWN junctions: where it runs off one of its runs
+    // onto the next, from where their corridors first touch.
+    const byId = new Map(resort.runs.map((r) => [r.id, r]));
+    const course = resort.courses.find((c) => c.id === resort.course);
+    let at = 0;
+    let from = 0;
+    for (const id of course?.runs ?? []) {
+      const run = byId.get(id);
+      if (!run?.into) break;
+      // ...to past its end by its end cap: the bench and the windrow round
+      // the last station of the run that joins.
+      const end =
+        run.points[run.points.length - 1].width / 2 + R.track.shoulder.flat + R.berm.width;
+      const a = at + run.into.from - from - JUNCTION_SLACK * 2;
+      const b = at + run.length - from + end + JUNCTION_SLACK * 2;
+      for (let i = 0; i < n; i++) if (pts[i].s >= a && pts[i].s <= b) junction[i] = 1;
+      at += run.length - from;
+      from = run.into.s;
+    }
+  }
+  const atJunction = (i: number): boolean => junction[i] === 1;
 
   // R1 — everything on the map.
   if (!pts.every((p) => inside(p.x, p.z))) add("R1", "error", "the piste leaves the map");
@@ -181,7 +256,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   if (!M) add("R2", "error", "no mountain published");
   else {
     const band = verticalBand(region, G);
-    if (!withinBand(M.vertical, band, 1e-6)) {
+    // A resort's vertical is the massif's (R25), held by `analyzeResort`.
+    if (!resort && !withinBand(M.vertical, band, 1e-6)) {
       add("R2", "error", `a vertical of ${fmt(M.vertical, 0)} m (band ${bandText(band, " m")})`);
     }
     if (Math.abs(M.summit.y - M.base.y - M.vertical) > 0.01) {
@@ -216,18 +292,21 @@ export function analyzeLevel(level: Level): LevelAnalysis {
 
   // R5 — one open descent, in its length band, every station lower down
   // the map than the one before, never crossing itself.
-  if (!withinBand(L, G.track.length)) {
-    add("R5", "error", `the piste is ${fmt(L, 0)} m (band ${bandText(G.track.length, " m")})`);
+  const lengthBand = resort ? RR.course.length : G.track.length;
+  if (!withinBand(L, lengthBand)) {
+    add("R5", "error", `the piste is ${fmt(L, 0)} m (band ${bandText(lengthBand, " m")})`);
   }
   if (Math.abs(step - R.track.step) > 0.2) add("R5", "error", `stations every ${fmt(step, 2)} m`);
   let descends = true;
   let traverses = 0;
   for (let i = 0; i < n; i++) {
-    if (i > 0 && pts[i].z <= pts[i - 1].z) descends = false;
+    // A course is laid again every two metres across its junctions (R28):
+    // a hair of slack for the resampling's own rounding.
+    if (i > 0 && pts[i].z <= pts[i - 1].z - (resort ? 0.05 : 0)) descends = false;
     if (Math.abs(pts[i].heading) > TRAVERSE) traverses++;
   }
   if (!descends) add("R5", "error", "the piste turns back up the map");
-  if (n > 0 && Math.abs(pts[0].z - R.track.start.z * size) > 1) {
+  if (!resort && n > 0 && Math.abs(pts[0].z - R.track.start.z * size) > 1) {
     add("R5", "error", `the start stands ${fmt(pts[0].z, 0)} m down the map`);
   }
   const crossings = selfCrossings(pts);
@@ -256,7 +335,9 @@ export function analyzeLevel(level: Level): LevelAnalysis {
         `at ${fmt(tight.s)} m (least ${fmt(tight.floor)} m there)`,
     );
   }
-  const room = bendRoom(level.track);
+  // Where a course runs off one run onto the next its bench is the two
+  // runs' surfaces together, not a bend's inside.
+  const room = resort ? bendRoomOff(pts, junction) : bendRoom(level.track);
   if (room < -0.5) add("R6", "error", `a bend folds the inside bench by ${fmt(-room)} m`);
 
   // R7 — the width, and the arena.
@@ -267,7 +348,10 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     widthMax = Math.max(widthMax, p.width);
   }
   // The grade's band (R23) on the run; the arena opens to R7's widest.
-  const widths = { min: G.track.width.min, max: R.track.width.max };
+  const widths = {
+    min: resort ? RR.road.width.min : G.track.width.min,
+    max: resort ? WIDEST : R.track.width.max,
+  };
   if (!withinBand(widthMin, widths) || !withinBand(widthMax, widths)) {
     add(
       "R7",
@@ -309,8 +393,17 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   // steepest stretch (`steepestSpan`, a park's kickers aside).
   const steepestSpan = steepestSpanOf(level);
   const colour = pisteGradeOf(steepestSpan);
-  const climb = Math.max(0, -whole.gentlest);
-  const ceiling = Math.min(R.track.maxGrade, G.track.maxGrade);
+  // At a junction (R27) the course runs off one run's surface onto
+  // another's, pressed apart; the seam is held to `JUNCTION_CLIMB` rather
+  // than to the line's own never-climbing.
+  const plain = Uint8Array.from(skip);
+  for (let i = 0; i < n; i++) if (junction[i]) plain[i] = 1;
+  const seams = resort ? windowGrades(ys, step, skip) : whole;
+  if (resort && -seams.gentlest > JUNCTION_CLIMB) {
+    add("R27", "error", `a junction on the course climbs at ${fmt(-seams.gentlest, 3)}`);
+  }
+  const climb = Math.max(0, -(resort ? windowGrades(ys, step, plain) : whole).gentlest);
+  const ceiling = resort ? R.track.maxGrade : Math.min(R.track.maxGrade, G.track.maxGrade);
   if (maxGrade > ceiling + 0.01) {
     add("R8", "error", `the line falls at ${fmt(maxGrade, 3)} (most ${ceiling})`);
   }
@@ -325,7 +418,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   }
   if (climb > 0.005) add("R8", "error", `the line climbs at ${fmt(climb, 3)} outside a kicker`);
   const finishAt = finishFrom(L);
-  const held = Uint8Array.from(skip);
+  const held = Uint8Array.from(plain);
   for (let i = 0; i < n; i++) if (pts[i].s > finishAt - R.track.gradeWindow) held[i] = 1;
   const minGrade = windowGrades(ys, step, held).gentlest;
   if (minGrade < R.track.minGrade - 0.01) {
@@ -343,6 +436,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     // Not across a drop's face (R24): a wall read across a bend reads its
     // skew, not the camber.
     if (drops.some((d) => Math.abs(p.s - (d.s ?? 0) - d.face / 2) < d.face / 2 + 4)) continue;
+    if (atJunction(i)) continue;
     const hw = p.width / 2;
     const rx = Math.cos(p.heading);
     const rz = -Math.sin(p.heading);
@@ -368,7 +462,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   // crest, and that each is taken off a moderate pitch. The park's are
   // R20's, and held below.
   const crests = trackKickers.filter((k) => !k.trick);
-  if (!withinBand(crests.length, G.kickers.on)) {
+  // A resort's runs each carry their own share of kickers (R27).
+  if (!resort && !withinBand(crests.length, G.kickers.on)) {
     add("R9", "error", `${crests.length} kicker(s) on the piste (band ${bandText(G.kickers.on)})`);
   }
   for (let a = 0; a < crests.length; a++) {
@@ -385,7 +480,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     // The line under the ramp: from its foot to the lip less the lip's own
     // height, no steeper than the approach grade.
     const approach = (at(-k.ramp) - (lip - k.height)) / k.ramp;
-    if (approach > G.kickers.approachGrade + 0.03) {
+    const approachMost = resort ? GRADES.black.kickers.approachGrade : G.kickers.approachGrade;
+    if (approach > approachMost + 0.03) {
       add("R9", "error", `${k.id} is taken off a ${fmt(approach * 100, 0)} % pitch`);
     }
     for (let b = a + 1; b < crests.length; b++) {
@@ -395,12 +491,14 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       }
     }
   }
-  const offKickers = kickers.filter((k) => !k.onTrack);
+  const offKickers = kickers.filter((k) => !k.onTrack && k.run === undefined);
   for (const k of offKickers) {
-    const hit = nearestTrackPoint(level, k.x, k.z);
+    const distance = resort
+      ? nearestRun(level, k.x, k.z, 400)
+      : nearestTrackPoint(level, k.x, k.z).distance;
     const reach = Math.max(k.ramp, k.landing) + k.width / 2 + R.kickers.edge;
-    if (hit.distance - reach < R.track.width.max / 2 + R.kickers.off.clearance - 1) {
-      add("R4", "error", `${k.id} stands ${fmt(hit.distance, 0)} m from the piste`);
+    if (distance - reach < R.track.width.max / 2 + R.kickers.off.clearance - 1) {
+      add("R4", "error", `${k.id} stands ${fmt(distance, 0)} m from the piste`);
     }
   }
   if (offKickers.length < scaleCount(R.kickers.off.count, region.kickers * G.kickers.off).min) {
@@ -417,17 +515,24 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   // R10 — packed on the line, powder off it — outside the drifts (R17),
   // each read with its ease either side, which is what they published.
   const drifts = level.drifts ?? [];
+  const hub = level.resort?.hub;
   const F = R.drift.fade;
   const drifted = (s: number): boolean => drifts.some((d) => s > d.from - F && s < d.to + F);
   let packedLow = 1;
   let packedHigh = 0;
   for (let i = 0; i < n; i += 5) {
     const p = pts[i];
+    if (atJunction(i)) continue;
     if (!drifted(p.s)) packedLow = Math.min(packedLow, level.packedAt(p.x, p.z));
     const off = p.width / 2 + R.track.shoulder.packed + 3;
     const rx = Math.cos(p.heading);
     const rz = -Math.sin(p.heading);
-    packedHigh = Math.max(packedHigh, level.packedAt(p.x + rx * off, p.z + rz * off));
+    // Off a resort's course where it runs out into the hub (R29), the
+    // snow beside it is the hub's, groomed.
+    const bx = p.x + rx * off;
+    const bz = p.z + rz * off;
+    if (hub && outsideHub(hub, bx, bz) <= RR.hub.fade) continue;
+    packedHigh = Math.max(packedHigh, level.packedAt(bx, bz));
   }
   if (packedLow < 0.98) add("R10", "error", `the centreline is only ${fmt(packedLow, 2)} packed`);
   if (packedHigh > POWDER_SLACK)
@@ -447,14 +552,20 @@ export function analyzeLevel(level: Level): LevelAnalysis {
       if (d <= 0) add("R11", "error", `gate ${i + 1} stands up the piste from gate ${i}`);
     }
     const hit = nearestTrackPoint(level, a.x, a.z);
-    if (hit.distance > 0.5)
+    // A slalom gate (R28) stands its offset off the line, and inside the
+    // piste with its margin to spare.
+    const off = Math.abs(a.offset ?? 0);
+    if (Math.abs(hit.distance - off) > 0.75)
       add("R11", "error", `gate ${i} stands ${fmt(hit.distance)} m off the line`);
+    if (
+      a.offset !== undefined &&
+      off + a.width / 2 > (a.span ?? 0) / 2 - RR.course.gates.margin + 0.5
+    ) {
+      add("R28", "error", `gate ${i} hangs over the piste's edge`);
+    }
   }
-  if (
-    cps.length < 2 ||
-    spacingMin < R.checkpoint.spacing.min - 0.5 ||
-    spacingMax > R.checkpoint.spacing.max + 0.5
-  ) {
+  const gap = resort ? RR.course.gates.spacing : R.checkpoint.spacing;
+  if (cps.length < 2 || spacingMin < gap.min - 0.5 || spacingMax > gap.max + 0.5) {
     add("R11", "error", `gates ${fmt(spacingMin, 0)}–${fmt(spacingMax, 0)} m apart`);
   }
   if (cps.length > 0 && Math.abs(cps[0].s - startGateArc()) > 1e-6) {
@@ -491,13 +602,19 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   if (bend > R.spawn.straight + 0.02) {
     add("R12", "error", `the run out of the gate turns ${fmt(bend, 2)} rad`);
   }
-  if (steepest > G.spawn.maxSlope + 0.02) {
+  // On a resort the start is the first run's, held to the colour that run
+  // measures — a red that runs into a black is still a red off its top.
+  const firstRun = resort?.runs.find(
+    (r) => r.id === resort.courses.find((c) => c.id === resort.course)?.runs[0],
+  );
+  const S = firstRun ? gradeRow(firstRun.grade) : G;
+  if (steepest > S.spawn.maxSlope + 0.02) {
     add("R12", "error", `the run out of the gate is ${fmt(steepest * 100, 0)} % steep`);
   }
   // R12, R23 — a black drops off the hut onto a pitch.
   const runEnd = trackPointAt(level, gateArc + R.spawn.run);
   const startFall = (gate.y - runEnd.y) / R.spawn.run;
-  if (G.spawn.minSlope > 0 && startFall < G.spawn.minSlope - 0.02) {
+  if (S.spawn.minSlope > 0 && startFall < S.spawn.minSlope - 0.02) {
     add("R12", "error", `the run out of the gate falls only ${fmt(startFall * 100, 0)} %`);
   }
 
@@ -529,13 +646,24 @@ export function analyzeLevel(level: Level): LevelAnalysis {
 
   // R14 — the forest: off the corridor, in its height band, under the tree
   // line.
-  const treeLineY = M ? M.base.y + (M.treeLine - M.altitude) : Infinity;
+  // The tree line stands its height over the valley floor: on a resort the
+  // village's (R25), which the woods are grown to — a course's finish is
+  // a few metres off it, and a different few on every course.
+  const floorY = resort ? resort.village.y : M?.base.y;
+  const treeLineY = M && floorY !== undefined ? floorY + (M.treeLine - M.altitude) : Infinity;
   let treesOnCorridor = 0;
   let aboveTreeLine = 0;
   const hit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
-  for (const t of level.trees) {
-    nearestWithin(level, t.x, t.z, R.track.width.max / 2 + R.forest.corridor, hit);
-    if (hit.distance < pts[hit.index].width / 2 + R.forest.corridor - 0.5) treesOnCorridor++;
+  // On a resort the woods are the whole mountain's, read once a resort
+  // (`analyzeResort` holds them off every run); a course read on its own
+  // skips them.
+  const woods = !resort || opts.network !== false;
+  const trees = woods ? level.trees : [];
+  for (const t of trees) {
+    if (!resort) {
+      nearestWithin(level, t.x, t.z, R.track.width.max / 2 + R.forest.corridor, hit);
+      if (hit.distance < pts[hit.index].width / 2 + R.forest.corridor - 0.5) treesOnCorridor++;
+    }
     if (!withinBand(t.height, R.forest.height))
       add("R14", "error", `a tree ${fmt(t.height)} m tall`);
     if (M && t.y > treeLineY + 0.01) aboveTreeLine++;
@@ -554,7 +682,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   let clumpGap = Infinity;
   let clumpSpread = 0;
   const clumps = new Set<number>();
-  for (const t of level.trees) {
+  for (const t of trees) {
     const bx = Math.floor(t.x / R.forest.gap);
     const bz = Math.floor(t.z / R.forest.gap);
     if (t.clump !== undefined) clumps.add(t.clump);
@@ -586,7 +714,7 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   if (clumpSpread > 2 * R.forest.clumps.radius + 0.01) {
     add("R14", "error", `a clump spreads ${fmt(clumpSpread)} m`);
   }
-  if (level.trees.length < 600 * region.forest.density) {
+  if (woods && level.trees.length < 600 * region.forest.density) {
     add("R14", "warn", `only ${level.trees.length} trees`);
   }
 
@@ -668,6 +796,8 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     }
     let deepest = 0;
     for (let s = d.from; s <= d.to; s += 5) {
+      // A lane groomed across a drift (R27) packs its own way over it.
+      if (atJunction(Math.min(n - 1, Math.round(s / step)))) continue;
       const p = trackPointAt(level, s);
       deepest = Math.max(deepest, level.packedAt(p.x, p.z));
     }
@@ -689,10 +819,13 @@ export function analyzeLevel(level: Level): LevelAnalysis {
   let bermLow = Infinity;
   let bermSteep = 0;
   let worstBerm = 0;
+  let steepBerm = 0;
   for (let i = 0; i < n; i += 3) {
     // Not across a kicker (R9, R20): the line breaks at a lip, and a read
     // across the break reads the landing's drop, not the windrow.
     if (skip[i]) continue;
+    // Not where another run joins (R27): its windrow is opened there.
+    if (atJunction(i)) continue;
     const p = pts[i];
     const hw = p.width / 2;
     const rx = Math.cos(p.heading);
@@ -706,7 +839,11 @@ export function analyzeLevel(level: Level): LevelAnalysis {
         const u = (j / across) * R.berm.width;
         const y = at(hw + toe + u);
         crest = Math.max(crest, y - edge);
-        bermSteep = Math.max(bermSteep, Math.abs(y - prev) / (R.berm.width / across));
+        const face = Math.abs(y - prev) / (R.berm.width / across);
+        if (face > bermSteep) {
+          bermSteep = face;
+          steepBerm = p.s;
+        }
         prev = y;
       }
       if (crest < bermLow) {
@@ -726,9 +863,12 @@ export function analyzeLevel(level: Level): LevelAnalysis {
     add(
       "R18",
       "error",
-      `a windrow's face climbs at ${fmt(bermSteep, 2)} (most ${R.berm.maxSlope})`,
+      `a windrow's face climbs at ${fmt(bermSteep, 2)} (most ${R.berm.maxSlope}) at s ${fmt(steepBerm, 0)} m`,
     );
   }
+
+  // R25–R28 — the resort round the course.
+  if (resort && opts.network !== false) findings.push(...analyzeResort(level).findings);
 
   return {
     seed: level.seed,

@@ -4,7 +4,10 @@
 // Everything a generated map needs is a seed and the generator it was built
 // by, so a campaign map is just those with a name and the mode pinned to
 // them (`campaign-levels.ts`): the same generator builds it, on the version
-// it was curated under, and it comes out identical for every player.
+// it was curated under, and it comes out identical for every player. A
+// shelf is ONE SKI AREA (a seed's resort, R25) and its maps six of the
+// area's COURSES (R28): the whole mountain is there to ski on every rung,
+// and the points are paid down the one course the rung races.
 //
 // A CAMPAIGN IS A CHAMPIONSHIP, the sibling games' shape retyped for snow.
 // Every race rung is ridden against the same three rivals — on the snow to
@@ -48,6 +51,7 @@ import {
   RACE,
   generateLevel,
   isSkiId,
+  regionOf,
   type Assist,
   type CreateGameOptions,
   type GameMode,
@@ -87,16 +91,18 @@ export function findLevel(
   return null;
 }
 
-/** THE MAP ITSELF, exactly as it was curated: the seed on its own generator
- * version, in its country, built to its grade (R23). Nothing about the sky
- * is in here — a pinned sky is laid over the run (`pinnedGameOptions`), and
- * the same map under a different sky is the same map, with the same
- * digest. */
+/** THE MAP ITSELF, exactly as it was curated: the seed's resort on its own
+ * generator version, in its country, raced down its own course (R28) of its
+ * grade (R23). Nothing about the sky is in here — a pinned sky is laid over
+ * the run (`pinnedGameOptions`), and the same map under a different sky is
+ * the same map, with the same digest. The six maps of a shelf are one
+ * resort, which the generator builds once and keeps (`buildResort`). */
 export function buildCampaignLevel(level: CampaignLevel): Level {
   return generateLevel(level.seed, {
     version: level.version,
     region: level.region,
     grade: level.grade,
+    course: level.course,
   });
 }
 
@@ -154,10 +160,15 @@ export function pinnedPress(
 }
 
 /** Whether `level` is the very map `pin` builds — the same seed on the same
- * generator — so a run on it can reuse a map already standing rather than
- * build it again. */
+ * generator, raced down the same course of its resort — so a run on it can
+ * reuse a map already standing rather than build it again. */
 export function isPinnedMap(level: Level, pin: CampaignLevel): boolean {
-  return level.seed === pin.seed && level.version === pin.version;
+  return (
+    level.seed === pin.seed &&
+    level.version === pin.version &&
+    regionOf(level).id === regionOf(pin).id &&
+    level.resort?.course === pin.course
+  );
 }
 
 /** Who skis a pinned run, and with what: the pair, the help, and whether
@@ -508,10 +519,11 @@ export function ladderAfter(levelId: string, progress: CampaignProgress): Ladder
 
 /** Versioned, so a board a later ladder reshapes is a board it can
  * recognise: the board is keyed by MAP ID and the ids are rung numbers, so a
- * re-cut shelf would land a row on water nobody rode. v2 is the ladder re-cut
- * by piste grade (R23) — its ids are the grades' (`green-1` …), so a v1 row
- * carried in by the cloud save names no map and is dropped too. */
-export const PROGRESS_KEY = "fall-line.campaign.v2";
+ * re-cut shelf would land a row on water nobody rode. v3 is the ladder re-cut
+ * as SKI AREAS (R25–R28) — a shelf one resort, its maps six of its courses,
+ * its ids the area's (`rime-1` …) — so a row of the graded ladder before it
+ * (`green-1` …) carried in by the cloud save names no map and is dropped. */
+export const PROGRESS_KEY = "fall-line.campaign.v3";
 
 /** A stored blob turned into progress this build can stand on: every id
  * checked against this ladder, every figure checked for being a number, and

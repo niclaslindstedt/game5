@@ -21,12 +21,13 @@
 // THE RESET stands the skier on the piste a few metres past the last gate
 // he took, facing down it, at rest — or on the start line before he has
 // taken one. It is the skier's (the key) and the engine's (`run.ts`: on his
-// back, or bogged going nowhere).
+// back, or bogged going nowhere). On a free ride it stands him on the
+// nearest run of the resort, a piste before a lane.
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
-import type { Checkpoint, Level, Spawn } from "../mapgen/types.ts";
+import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { derive } from "./skier.ts";
 import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
@@ -56,6 +57,7 @@ export function freshProgress(level: Level): Progress {
     time: 0,
     finished: false,
     missed: null,
+    penalty: 0,
     lastPassedAt: 0,
     lastResetAt: 0,
     bestAir: 0,
@@ -142,6 +144,24 @@ export function stepCourse(state: GameState, x0: number, z0: number, events: Gam
     p.nextCheckpoint = owed + 1;
     return;
   }
+  // A SLALOM GATE skied past (R28) — beside it anywhere across the piste,
+  // or the next one taken first — costs the run `course.missPenalty` on
+  // its clock and the run goes on to the next: a skier never climbs back
+  // to a gate set in the middle of a piste.
+  if (slalom(cps[owed]) && owed < n - 1) {
+    const past = rodePast(cps[owed], x0, z0, c.x, c.z, 0, slalomReach(cps[owed]));
+    const next = cps[owed + 1];
+    const took = crossedCheckpoint(next, x0, z0, c.x, c.z) !== null;
+    if (past || took) {
+      p.time += K.missPenalty;
+      p.penalty += K.missPenalty;
+      p.nextCheckpoint = owed + 1;
+      events.push({ kind: "missed", t: state.t, index: owed, penalty: K.missPenalty });
+      // The move may have taken the next gate as it went past this one.
+      if (took) stepCourse(state, x0, z0, events);
+    }
+    return;
+  }
   // THE ARROW: skiing past the owed gate's line OUTSIDE it — within
   // `missReach` of its edge, so a far sweep of the piste across the line's
   // extension is not taken for it — or crossing the NEXT gate's line while
@@ -168,11 +188,48 @@ function rodePast(
   x1: number,
   z1: number,
   extra: number,
+  reach: number = K.missReach,
 ): boolean {
   const lateral = crossedLine(cp, x0, z0, x1, z1);
   if (lateral === null) return false;
   const edge = cp.width / 2 + K.grace + extra;
-  return Math.abs(lateral) > edge && Math.abs(lateral) <= edge + K.missReach;
+  return Math.abs(lateral) > edge && Math.abs(lateral) <= edge + reach;
+}
+
+/** Whether a gate is a SLALOM GATE (R28): set off the line, narrower than
+ * the piste. */
+export function slalom(cp: Checkpoint): boolean {
+  return cp.offset !== undefined;
+}
+
+/** How far past a slalom gate's edge a crossing of its line still counts as
+ * going past it: to the far edge of the piste, and a little more. */
+function slalomReach(cp: Checkpoint): number {
+  return (cp.span ?? cp.width) / 2 + Math.abs(cp.offset ?? 0) + 10;
+}
+
+/** THE GATE LINE (R28): how far right of the piste's centreline the line
+ * through a course's gates stands `s` metres down it, m, and how sharply
+ * it weaves there, 1/m — a cosine from each gate's offset to the next's,
+ * so it stands on every gate's centre, crosses straight between two set
+ * either side, and turns hardest round each gate, as a skier does. Zero on
+ * a piste whose gates span it. */
+export function gateLineAt(level: Level, s: number): { offset: number; curvature: number } {
+  const cps = level.checkpoints;
+  let i = 0;
+  while (i + 1 < cps.length && cps[i + 1].s < s) i++;
+  const a = cps[i];
+  const b = cps[Math.min(cps.length - 1, i + 1)];
+  const oa = a?.offset ?? 0;
+  const ob = b?.offset ?? 0;
+  if (!a || b === a || oa === ob) return { offset: oa, curvature: 0 };
+  const span = Math.max(1, b.s - a.s);
+  const t = Math.min(1, Math.max(0, (s - a.s) / span));
+  const w = Math.PI / span;
+  return {
+    offset: oa + ((ob - oa) * (1 - Math.cos(Math.PI * t))) / 2,
+    curvature: Math.abs(((ob - oa) * w * w * Math.cos(Math.PI * t)) / 2),
+  };
 }
 
 /** Where a run that has just finished stands: one more than the rivals
@@ -184,11 +241,39 @@ function placeOf(state: GameState): number {
   return ahead + 1;
 }
 
+/** How much nearer a TRANSPORT LANE (a cat track, R27) must be than the
+ * nearest piste for a free ride's reset to stand the skier on it, m: a
+ * skier set back on the snow is set on a run to ski, and a lane is only
+ * the way between them. */
+const LANE_HANDICAP = 40;
+
+/** The point of a run's centreline nearest (x, z) on a free ride: of every
+ * run of the resort (R27) — a piste preferred over a lane by
+ * `LANE_HANDICAP` — or of the map's one piste where the map is not a
+ * resort. Facing the way that run runs there. Pure: the runs are walked in
+ * their published order and the first of two equal answers is kept. */
+function nearestRunPoint(level: Level, x: number, z: number): TrackPoint {
+  const runs = level.resort?.runs ?? [];
+  let best: TrackPoint | null = null;
+  let score = Infinity;
+  for (const run of runs) {
+    if (run.points.length < 2) continue;
+    const line = { track: { points: run.points, length: run.length } };
+    const near = nearestTrackPoint(line, x, z);
+    const d = near.distance + (run.kind === "road" ? LANE_HANDICAP : 0);
+    if (d < score) {
+      score = d;
+      best = trackPointAt(line, near.s);
+    }
+  }
+  return best ?? trackPointAt(level, nearestTrackPoint(level, x, z).s);
+}
+
 /** Where a reset stands the skier: on the piste's centreline a few metres
  * past the last gate taken (or on the start line before the start gate),
  * facing down the piste. On a FREE RIDE, where no gate is owed, it is the
- * point of the centreline nearest the skier — the groomer he was last
- * closest to, facing the way the piste runs there. */
+ * nearest point of the nearest RUN of the resort (`nearestRunPoint`) — the
+ * groomer he was last closest to, facing the way it runs there. */
 export function resetPose(state: GameState): {
   x: number;
   z: number;
@@ -196,8 +281,7 @@ export function resetPose(state: GameState): {
   checkpoint: number;
 } {
   if (!state.rules.course) {
-    const near = nearestTrackPoint(state.level, state.skier.x, state.skier.z);
-    const at = trackPointAt(state.level, near.s);
+    const at = nearestRunPoint(state.level, state.skier.x, state.skier.z);
     return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };
   }
   const cps = state.level.checkpoints;

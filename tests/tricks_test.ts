@@ -64,6 +64,10 @@ const tricksOf = (events: GameEvent[]): string[] =>
   events.flatMap((e) => (e.kind === "trick" ? [e.trick] : []));
 const BACKFLIP = (t: number): Partial<SkierInput> => ({ lean: t < 1.2 ? 1 : 0 });
 
+/** The terrain park (R20) is laid on a map of ONE piste — the generator
+ * the six trick maps stand on (`trick-maps.ts`); a resort (R25) lays none. */
+const PARK = { version: 1 } as const;
+
 describe("a staged backflip", () => {
   it("scores: the flip, the air it was turned in, and the combo banked on a clean landing", () => {
     const state = staged();
@@ -327,7 +331,7 @@ describe("the landing, judged", () => {
   });
 
   it("is what the park's built landings are for: the high lip landed whole at speed", () => {
-    const level = generateLevel(1, { tricks: true });
+    const level = generateLevel(1, { tricks: true, ...PARK });
     const high = (level.kickers ?? []).find((k) => k.size === "high");
     expect(high).toBeDefined();
     const k = high as NonNullable<typeof high>;
@@ -360,8 +364,8 @@ describe("the landing, judged", () => {
 
 describe("the terrain park (R20)", () => {
   const seed = 3;
-  const race = generateLevel(seed);
-  const tricks = generateLevel(seed, { tricks: true });
+  const race = generateLevel(seed, PARK);
+  const tricks = generateLevel(seed, { tricks: true, ...PARK });
   const field = (tricks.kickers ?? []).filter((k) => k.trick);
   const F = LEVEL_RULES.trick;
 
@@ -436,7 +440,9 @@ describe("the terrain park (R20)", () => {
 
   it("stands every map of a spread on the race map's own attempt", () => {
     for (const s of [1, 2, 4, 6, 7]) {
-      expect(generateLevel(s, { tricks: true }).attempt).toBe(generateLevel(s).attempt);
+      expect(generateLevel(s, { tricks: true, ...PARK }).attempt).toBe(
+        generateLevel(s, PARK).attempt,
+      );
     }
   });
 

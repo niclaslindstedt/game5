@@ -50,6 +50,11 @@ export type Headwall = {
   readonly z: number;
   readonly drop: number;
   readonly run: number;
+  /** On a resort's massif (R25): the x it is centred on and how far across
+   * the face it reaches (a bell's sigma), m — a headwall is a band of the
+   * face, not a step across the whole mountain. */
+  readonly x?: number;
+  readonly spread?: number;
 };
 
 /** Everything the mountain is drawn from, dealt once per attempt. */
@@ -85,6 +90,16 @@ export type TerrainPlan = {
    * map from before the grades. */
   readonly grade: GradeRow;
   /** Noise seeds, one per layer so the layers do not echo each other. */
+  /** THE RESORT'S MOUNTAIN (R25, `massif.ts`): where it is set, the
+   * height is the massif's — a summit ridge rising to a peak, a steep
+   * sector under it, a gentle shoulder, a mid-mountain bench — rather than
+   * one fall line's profile across the whole face. Absent on a map from a
+   * generator before the resorts. */
+  readonly massif?: import("./massif.ts").Massif;
+  /** R2 — where the side ridges start and reach their height, m across from
+   * the map's middle: the rule book's `mountain.flank` when absent — a
+   * resort's face is wider (R25). */
+  readonly flankBand?: { readonly inner: number; readonly outer: number };
   readonly seeds: {
     readonly warp: number;
     readonly flank: number;
@@ -215,7 +230,7 @@ function profileFor(shape: ProfileShape): Float64Array {
 
 /** Fractal value noise centred on zero, roughly −1..1: the octaves are
  * `fbmFields`' fields, halving in scale and in weight. */
-function fbm(fields: readonly NoiseField[], x: number, z: number): number {
+export function fbm(fields: readonly NoiseField[], x: number, z: number): number {
   let sum = 0;
   let amp = 1;
   let norm = 0;
@@ -227,7 +242,7 @@ function fbm(fields: readonly NoiseField[], x: number, z: number): number {
   return sum / norm;
 }
 
-function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
+export function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
   const fields: NoiseField[] = [];
   let s = scale;
   for (let o = 0; o < octaves; o++) {
@@ -238,7 +253,7 @@ function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
 }
 
 /** Ridged noise, 0..1 with sharp crests at 1, off a `ridgedFields` pair. */
-function ridged(f: RidgedFields, x: number, z: number): number {
+export function ridged(f: RidgedFields, x: number, z: number): number {
   const a = 1 - Math.abs(sampleNoise(f.coarse, x, z) * 2 - 1);
   const b = 1 - Math.abs(sampleNoise(f.fine, x, z) * 2 - 1);
   const v = a * a * 0.7 + b * b * 0.3;
@@ -246,16 +261,16 @@ function ridged(f: RidgedFields, x: number, z: number): number {
   return v * Math.sqrt(Math.sqrt(v));
 }
 
-type RidgedFields = { readonly coarse: NoiseField; readonly fine: NoiseField };
+export type RidgedFields = { readonly coarse: NoiseField; readonly fine: NoiseField };
 
-function ridgedFields(scale: number, seed: number): RidgedFields {
+export function ridgedFields(scale: number, seed: number): RidgedFields {
   return { coarse: noiseField(scale, seed), fine: noiseField(scale * 0.5, seed + 31) };
 }
 
 /** Every noise field the mountain is read off, for one plan. Each keeps the
  * lattice square it last read (`NoiseField`), and a bake reads its grid in
  * order, so nearly every read reuses its field's four corner hashes. */
-type CountryFields = {
+export type CountryFields = {
   readonly warpX: NoiseField;
   readonly warpZ: NoiseField;
   readonly flank: NoiseField;
@@ -267,7 +282,7 @@ type CountryFields = {
   readonly headwalls: readonly NoiseField[];
 };
 
-function countryFields(plan: TerrainPlan): CountryFields {
+export function countryFields(plan: TerrainPlan): CountryFields {
   const s = plan.seeds;
   return {
     warpX: noiseField(420, s.warp),
@@ -290,12 +305,13 @@ export function descentAt(plan: TerrainPlan, z: number): number {
 
 /** R2 — how far up a side ridge a point stands: 0 on the face, 1 at the
  * flank's full height. Read off the warp's noise at (x, z). */
-function flankOf(plan: TerrainPlan, noise: number, x: number, z: number): number {
+export function flankOf(plan: TerrainPlan, noise: number, x: number, z: number): number {
   const F = R.mountain.flank;
+  const band = plan.flankBand ?? F;
   const warp = (noise * 2 - 1) * F.warp;
   const across = Math.abs(x - R.world.size / 2) + warp;
   const open = 1 - smoothstep(F.open.min, F.open.max, descentAt(plan, z));
-  return smoothstep(F.inner, F.outer, across) * open;
+  return smoothstep(band.inner, band.outer, across) * open;
 }
 
 /** R2 — how far up a side ridge a plan point stands, 0..1. */
@@ -376,7 +392,10 @@ function countryAt(plan: TerrainPlan, f: CountryFields, x: number, z: number): n
 
 /** Bake the untouched mountain onto the map's grid (R1), row by row — the
  * order the noise fields' kept squares pay off in. */
-export function bakeCountry(plan: TerrainPlan): Heightfield {
+export function bakeCountry(
+  plan: TerrainPlan,
+  at: (plan: TerrainPlan, f: CountryFields, x: number, z: number) => number = countryAt,
+): Heightfield {
   const cell = R.world.cell;
   const n = Math.round(R.world.size / cell) + 1;
   const field = createHeightfield(0, 0, cell, n, n);
@@ -384,7 +403,7 @@ export function bakeCountry(plan: TerrainPlan): Heightfield {
   const fields = countryFields(plan);
   for (let r = 0; r < n; r++) {
     const z = r * cell;
-    for (let c = 0; c < n; c++) d[r * n + c] = countryAt(plan, fields, c * cell, z);
+    for (let c = 0; c < n; c++) d[r * n + c] = at(plan, fields, c * cell, z);
   }
   return field;
 }

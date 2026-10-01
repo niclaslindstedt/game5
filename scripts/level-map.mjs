@@ -31,7 +31,9 @@ import { renderLevelMap } from "./lib/level-draw.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 // The generator's own surface rather than `engine/index.ts`: this lab needs
 // the map and its scoreboard and nothing of the rest of the engine.
-const { generateLevel, trackPointAt } = await import(join(root, "engine/mapgen/index.ts"));
+const { PARK_VERSION, generateLevel, trackPointAt } = await import(
+  join(root, "engine/mapgen/index.ts")
+);
 const { analyzeLevel } = await import(join(root, "engine/analysis/index.ts"));
 
 const args = parseArgs(
@@ -61,6 +63,8 @@ const level = generateLevel(args.seed, {
   tricks: args.tricks,
   region: args.region,
   grade: args.grade,
+  // The park is laid on a map of one piste (R20).
+  version: args.tricks ? PARK_VERSION : undefined,
 });
 const built = performance.now() - t0;
 const analysis = analyzeLevel(level);

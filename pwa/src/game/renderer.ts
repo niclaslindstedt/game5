@@ -8,6 +8,7 @@
 //   forest.ts       the snow-loaded conifers, two bands and their casters
 //   gates.ts        the gates' poles and panels, the start hut, the finish
 //                   arena and its floodlights, the piste's edge poles
+//   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the edge's sheet, the skid's wall and the landing puff
 //   snow-cloud.ts   the fine powder they raise: the plume, the hanging cloud
@@ -53,6 +54,7 @@ import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import { createGates, type Gates } from "./gates.ts";
+import { createLifts, type Lifts } from "./lifts.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
 import { LAMP_SLOTS, hazeMaterial } from "./haze.ts";
@@ -282,6 +284,7 @@ export function createWorldRenderer(
   let terrain: Terrain | null = null;
   let forest: Forest | null = null;
   let gates: Gates | null = null;
+  let lifts: Lifts | null = null;
   let trail: TrailMap | null = null;
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
@@ -383,6 +386,7 @@ export function createWorldRenderer(
     terrain?.dispose();
     forest?.dispose();
     gates?.dispose();
+    lifts?.dispose();
     trail?.dispose();
     spray?.dispose();
     cloud?.dispose();
@@ -392,6 +396,7 @@ export function createWorldRenderer(
       terrain?.group,
       forest?.group,
       gates?.group,
+      lifts?.group,
       spray?.points,
       cloud?.mesh,
       wildlife?.group,
@@ -401,7 +406,7 @@ export function createWorldRenderer(
     for (const r of riders) scene.remove(r.model.root);
     ghost?.dispose();
     ghost = null;
-    terrain = forest = gates = trail = spray = null;
+    terrain = forest = gates = lifts = trail = spray = null;
     cloud = null;
     pack = null;
     wildlife = null;
@@ -567,6 +572,10 @@ export function createWorldRenderer(
       clear = createLineClear(lv);
       boomClear = createLineClear(lv, { trees: false });
       scene.add(gates.group);
+      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray]);
+      castInLight(lifts.group, env.haze);
+      lifts.group.name = "lifts";
+      scene.add(lifts.group);
       pack = packFor(state);
       wildlife = createWildlife(lv, env.haze, {
         at: sampleSnow,
@@ -799,6 +808,7 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state.progress.nextCheckpoint, state.t);
+      lifts?.update(state.t);
       lightLamps(look.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
@@ -938,6 +948,7 @@ export function createWorldRenderer(
       env.setDistance(video.distance);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
+      lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);
       forest?.setOptions(forestOptions());
       // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch,

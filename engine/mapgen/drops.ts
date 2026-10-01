@@ -68,7 +68,12 @@ export type TrackDrop = {
 /** R24 — choose the drops across the piste and add them to the graded
  * profile, as many as the grade deals. Returns them in order down the
  * line. */
-export function layDrops(sub: number, piste: Piste, grade: GradeRow): TrackDrop[] {
+export function layDrops(
+  sub: number,
+  piste: Piste,
+  grade: GradeRow,
+  keepOff: readonly { from: number; to: number }[] = [],
+): TrackDrop[] {
   if (grade.drops.max <= 0) return [];
   const D = R.drop;
   const rng = createRng((sub ^ DROP_SALT) >>> 0);
@@ -126,6 +131,7 @@ export function layDrops(sub: number, piste: Piste, grade: GradeRow): TrackDrop[
     // Off the gates and the other drops.
     if (gates.some((g) => g > from - D.gateClear && g < to + D.gateClear)) continue;
     if (chosen.some((d) => Math.abs(pts[d.index].s - s0) < D.spacing)) continue;
+    if (keepOff.some((k) => from < k.to && to > k.from)) continue;
     chosen.push({ index, drop, shelf, face, apron, landing });
   }
   chosen.sort((a, b) => a.index - b.index);

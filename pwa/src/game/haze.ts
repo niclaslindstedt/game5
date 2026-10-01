@@ -366,3 +366,14 @@ export function hazeMaterial<M extends THREE.Material>(
   };
   return material;
 }
+
+/** PAST THE MIST'S WALL NOTHING SHOWS (`hazeAmount`): the ground and the
+ * woods stop there, so anything standing up off a far face — a lift's
+ * rope and towers, a wind tunnel's arches — would hang in the sky the
+ * mountain behind it is no longer drawn on. An `extra` for `hazeMaterial`. */
+export const PAST_THE_WALL = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "void main() {",
+    "void main() {\n  if (uMist > 0.0 && length(vHazeWorld - cameraPosition) > uMist) discard;",
+  );
+};

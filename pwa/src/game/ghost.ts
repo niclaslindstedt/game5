@@ -24,7 +24,7 @@
 // wrote nothing that moves the skis), and the two runs advance in lockstep.
 //
 // WHAT NAMES THE SNOW is a `GhostStage`: the record-book row the run is
-// filed under (`records.ts`'s `recordId` — seed, skis, mode, laps) and a
+// filed under (`records.ts`'s `recordId` — seed and course, skis, mode, laps) and a
 // FINGERPRINT of the map that was ridden (`mapPrint`), because a generator
 // that moves under a seed is exactly the case a matching seed would miss. A
 // ghost riding a map that is no longer there is worse than no ghost at all.

@@ -6,7 +6,8 @@
 //
 // NEWS IS WHAT CHANGED THE RUN: a gate taken and its clock, one missed, a
 // tree met, a landing the legs could not take, a wipeout and what caused
-// it, the skier bogged, an edge dulled or a knee hurt, a reset, the finish.
+// it, the skier bogged, an edge dulled or a knee hurt, a reset, the skier
+// blown into a wind tunnel, the finish.
 // What the HUD already shows in its own corner every frame — the speed, the
 // place — is not news, and neither is a landing the skis simply rode away
 // from.
@@ -38,7 +39,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // event beside this one carries the line.
       return null;
     case "missed":
-      return { text: STRINGS.newsMissed(e.index), tone: "bad" };
+      // A slalom gate skied past is charged on the clock: the line says
+      // what it cost.
+      return { text: STRINGS.newsMissed(e.index, e.penalty), tone: "bad" };
     case "hit":
       return { text: STRINGS.newsTree, tone: "bad" };
     case "land":
@@ -69,6 +72,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         text: STRINGS.newsFinish(e.place, state.rivals.length + 1, e.time),
         tone: "good",
       };
+    case "tunnel":
+      // Blown into a wind tunnel; coming out of the far end is not news,
+      // the run carrying on.
+      return e.phase === "in" ? { text: STRINGS.newsTunnel, tone: "info" } : null;
     default:
       return null;
   }

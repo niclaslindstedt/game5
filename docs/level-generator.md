@@ -8,7 +8,10 @@ from a start gate near the summit to a finish straight on the valley floor, its 
 about the fall line with a few long traverses and a schuss or two, never climbing, with crests on it
 that are jumps, drifts of fresh snow across it and the groomer's windrows along both edges, the start
 line four abreast behind the start gate and gates every hundred-odd metres down to the finish line.
-Nothing is authored and nothing is stored — the same seed builds the same map on every machine, and a
+From v3 that mountain is a whole SKI AREA — a massif with a peak, a shoulder and a bench, its lifts, a
+network of runs of every colour and the transport lanes between them, merging down to a village —
+and the piste a run is raced on is one COURSE down it, its gates set slalom-fashion either side of
+the line ([Resorts](#resorts-r25r30)). Nothing is authored and nothing is stored — the same seed builds the same map on every machine, and a
 map is the seed's to share.
 
 This page is the generator's contract in words. The code lives in `engine/mapgen/`; its rule book is
@@ -35,26 +38,27 @@ region deals at an altitude of its own, with 150 m of krummholz under it.
 
 `generateLevel(seed, opts?)` returns a `Level` (`engine/mapgen/types.ts`):
 
-| Field                        | What it is                                                                                                                                                                                                                                                                                           |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `size`, `cell`               | The map is `[0, size] × [0, size]` metres (3000), heights on a grid of `cell` (2 m) cells                                                                                                                                                                                                            |
-| `ground`                     | The baked heightfield, the piste's grading, every kicker and every cliff included                                                                                                                                                                                                                    |
-| `groundAt`, `normalAt`       | Bilinear height and unit normal off `ground`                                                                                                                                                                                                                                                         |
-| `packedAt`                   | 0 = virgin powder … 1 = groomed piste, off the baked `packed` field                                                                                                                                                                                                                                  |
-| `track`                      | THE PISTE, open (`closed: false`): stations every 2 m with `x, z, y, s, heading, width`, from the start line (`s = 0`) to the finish (`s = length`)                                                                                                                                                  |
-| `checkpoints`                | THE GATES, in order: index 0 the START GATE (`grid.back` and a station down from the start line), the last the FINISH LINE at `s = length`; each with its `colour`, red and blue alternating                                                                                                         |
-| `spawn`, `grid`              | The start line's centreline point, facing down the piste, and four slots abreast on it (the player's first, the leftmost)                                                                                                                                                                            |
-| `trees`                      | Every trunk: position, ground height, height, trunk radius, crown radius, its kind (drawn only), its clump                                                                                                                                                                                           |
-| `kickers`                    | Every crest shaped to throw a skier: `K1…` on the piste (with their arc length), `X1…` off it, and on a map built for a tricks run the terrain park's `T1…` (`trick: true`, with a `size` and a built `shape`)                                                                                       |
-| `cliffs`                     | Every cliff cut into the face (R22), `C1…`: the middle of its edge, the heading it is dropped off in, the drop, the face, the shelf behind it, its width — none within its grade's clearance of the piste; and on a black the DROPS across the piste (R24), `D1…` (`onTrack`, with their arc length) |
-| `mountain`                   | The summit at the head of the fall line, the base at the finish, the vertical between them, the valley floor's altitude and the tree line's, m above the sea (R2, R21)                                                                                                                               |
-| `sun`                        | Solar hour, day of the year and latitude of a winter day (the region's bands)                                                                                                                                                                                                                        |
-| `weather`                    | The sky R19 dealt: its kind, the fall, the fog, the wind, and whether the run is an evening one                                                                                                                                                                                                      |
-| `drifts`                     | Every stretch of the piste under a drift (R17), as arc lengths                                                                                                                                                                                                                                       |
-| `laps`                       | 1 — a run is skied once, top to bottom (R16)                                                                                                                                                                                                                                                         |
-| `region`, `crust`            | The kind of snow country (R21), and the wind crust's own field where the region lays one                                                                                                                                                                                                             |
-| `grade`                      | The PISTE GRADE the map was built to (R23): `green`, `blue`, `red` or `black` — absent on a map from a version before the grades; `gradeOf` reads the colour on its signs either way                                                                                                                 |
-| `version`, `attempt`, `seed` | Which generator built it; which sub-seed attempt was accepted; the seed                                                                                                                                                                                                                              |
+| Field                        | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `size`, `cell`               | The map is `[0, size] × [0, size]` metres (3000), heights on a grid of `cell` (2 m) cells                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `ground`                     | The baked heightfield, the piste's grading, every kicker and every cliff included                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `groundAt`, `normalAt`       | Bilinear height and unit normal off `ground`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `packedAt`                   | 0 = virgin powder … 1 = groomed piste, off the baked `packed` field                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `track`                      | THE PISTE, open (`closed: false`): stations every 2 m with `x, z, y, s, heading, width`, from the start line (`s = 0`) to the finish (`s = length`)                                                                                                                                                                                                                                                                                                                                                                                             |
+| `checkpoints`                | THE GATES, in order: index 0 the START GATE (`grid.back` and a station down from the start line), the last the FINISH LINE at `s = length`; each with its `colour`, red and blue alternating; on a resort's course every gate between them a SLALOM GATE (R28), `offset` m off the line and narrower than the piste's `span`                                                                                                                                                                                                                    |
+| `spawn`, `grid`              | The start line's centreline point, facing down the piste, and four slots abreast on it (the player's first, the leftmost)                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `trees`                      | Every trunk: position, ground height, height, trunk radius, crown radius, its kind (drawn only), its clump                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `kickers`                    | Every crest shaped to throw a skier: `K1…` on the piste (with their arc length), `X1…` off it, and on a map built for a tricks run the terrain park's `T1…` (`trick: true`, with a `size` and a built `shape`)                                                                                                                                                                                                                                                                                                                                  |
+| `cliffs`                     | Every cliff cut into the face (R22), `C1…`: the middle of its edge, the heading it is dropped off in, the drop, the face, the shelf behind it, its width — none within its grade's clearance of the piste; and on a black the DROPS across the piste (R24), `D1…` (`onTrack`, with their arc length)                                                                                                                                                                                                                                            |
+| `mountain`                   | The summit at the head of the fall line, the base at the finish, the vertical between them, the valley floor's altitude and the tree line's, m above the sea (R2, R21)                                                                                                                                                                                                                                                                                                                                                                          |
+| `sun`                        | Solar hour, day of the year and latitude of a winter day (the region's bands)                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `weather`                    | The sky R19 dealt: its kind, the fall, the fog, the wind, and whether the run is an evening one                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `drifts`                     | Every stretch of the piste under a drift (R17), as arc lengths                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `laps`                       | 1 — a run is skied once, top to bottom (R16)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `region`, `crust`            | The kind of snow country (R21), and the wind crust's own field where the region lays one                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `grade`                      | The PISTE GRADE the map was built to (R23): `green`, `blue`, `red` or `black` — absent on a map from a version before the grades; `gradeOf` reads the colour on its signs either way                                                                                                                                                                                                                                                                                                                                                            |
+| `resort`                     | THE SKI AREA on a map from v3 (R25–R30): every run (`Run`: a piste or a lane, its colour, its line, the run it merges into or leaves, the lift a link lane runs to, its drifts), every lift (`Lift`: a gondola, a chair or a drag, bottom to top), every course down the network (`Course`), which course `track` is, the village, the HUB at the foot of the mountain (`Hub`: its two edges read every `step` metres across) and its two WIND TUNNELS (`WindTunnel`: a line of stations from entrance to exit, its width and its wind's speed) |
+| `version`, `attempt`, `seed` | Which generator built it; which sub-seed attempt was accepted; the seed                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Two queries answer what every reader of a piste asks (`engine/mapgen/query.ts`) — and neither wraps,
 because the piste is open:
@@ -132,7 +136,8 @@ same everywhere. Inside an attempt the order is the dependency order:
 12. **The gates and the start line** (`spawn.ts`, R11, R13), read off the piste as it finally lies,
     and the compile (`compile.ts`) that binds it all into a `Level`.
 
-A map builds in about two seconds on Node, most seeds on the first attempt.
+That is a single-piste map (v1's), built in about two seconds on Node, most seeds on the first
+attempt; a resort (v3) builds in its own order ([Resorts](#resorts-r25r30)) in four to six.
 
 ## Regions (R21)
 
@@ -154,7 +159,8 @@ No frozen water lies on a mountain: every row's `river` is null and `Level.ice` 
 
 ## Grades (R23, R24)
 
-Every map a graded generator builds (v2 on) is built to one PISTE GRADE — the colour on its signs,
+Every piste a graded generator builds (v3: every run of the area, and the course raced measured
+whole) is built to one PISTE GRADE — the colour on its signs,
 asked for with `GenerateOptions.grade` (the free ride's GRADE row, a `?grade=` link, a campaign
 map's own) or dealt off the seed on a stream of its own (a fifth green, three tenths blue, three
 tenths red, a fifth black) — and published as `Level.grade`. A piste is graded by its STEEPEST
@@ -177,6 +183,106 @@ the corridor and a face falling 1.8–3.2 m straight back onto the line, landed 
 It has no apron on purpose: off an edge taken along the line a skier falls the drop's height onto
 the slope — √(2·g·drop), 6–7.5 m/s — at any speed, under the 8 m/s a skier's legs take whole, where
 an apron built up over the line is height added to the fall for anyone fast enough to overfly it.
+
+## Resorts (R25–R30)
+
+From v3 a seed builds a whole SKI AREA, and the map a run is raced on is that area with one COURSE
+down it. Every other run on the mountain is groomed and skiable beside the course — a free ride's
+reset stands the skier on the nearest of them — and only the course carries gates. The rules are in
+a second rule book beside the first, `engine/mapgen/resort-rules.ts` (R25–R30, every number in
+`RESORT_RULES`), carried verbatim below with the rest; `engine/mapgen/resort-build.ts` is the order
+an attempt is built in and `engine/analysis/resort.ts` (`analyzeResort`, with `access.ts` and
+`hub.ts` beside it) holds the finished area to it, once per resort rather than once per course;
+`tests/resort_test.ts` asserts it across seeds in every region.
+
+- **The massif** (`massif.ts`, R25) — 900–1150 m of vertical (the region's multiple on top), the
+  summit ridge rising to a PEAK one side of the map's middle and falling to a lower SHOULDER on the
+  other; the face under the peak on a steep profile, the face under the shoulder on a rounded,
+  gentler one, blended across a sector; a BENCH part-way down where the fall eases and the
+  mid-station stands; the headwalls on the steep sector; the village on the valley floor. Every
+  profile falls from the ridge to the floor, so any blend of them does and the ground never climbs
+  down the fall line under R3's folds.
+- **The lifts** (`resort.ts`, R26) — straight lines from a bottom station to a top one: a gondola
+  (`G1`) from the village to the mid-station on the bench, a chair (`C1`) on to the peak, a chair
+  (`C2`) from the floor to the shoulder, a drag (`D1`) to the top of the nursery and, where the face
+  beyond the peak has room, a chair (`C3`) to an outer top. Every top stands on a level groomed pad
+  under the crest, and no tree stands within 14 m of a lift's line. Where access (R29) asks for one,
+  a DRAG LIFT (`drags.ts`; `D2`, `D3` and on — a T-bar or a platter) climbs from beside a piste's foot
+  to beside the station or the lane that brings its skier home: 300–1200 m long, never steeper than
+  42 % over any 20 m of its line (a rope pulls a skier on his skis up to about forty per cent),
+  crossing a piste only square and otherwise 8 m off every piste's edge, its top on ground level
+  enough to step off onto. The game draws them (`pwa/src/game/lift-plan.ts` places the towers and
+  hangs the rope, `lifts.ts` draws them).
+- **The network** (`network.ts`, `net-index.ts`, `network-build.ts`, R27) — every run a SLOT (a top
+  station, a colour, a target to steer for), walked in order: the trunks home from the mid-station
+  first, then the nursery, the shoulder's, the peak's and the outer top's, which come down onto
+  them. A run is walked like R5's piste but toward its target, asking an index of the runs laid
+  before it how near the nearest is: one it would come within the gap of it MERGES into, turned onto
+  the other's line until the two are one groomed surface; one it would have to cross is refused and
+  walked again. Each run is graded and pressed in the order it was laid, so one that merges is
+  graded onto the other's finished surface and the other's windrow opens where it joins. The
+  region tilts the colours (a fell's reds are blues, a continental's blues reds), and a run's colour
+  is MEASURED, never only billed.
+- **The widths and the necks** (R27) — a resort's piste is wider than a race course's: 25–60 m
+  through a forest and wider on the open snow above the tree line, a beginner's the widest (a green
+  40–70 m, a black 25–50 m, never past 90 m), against the 80–150 m of a groomed race piste on a
+  big face and R7's 20–40 m on a single-piste map. Every 450–900 m down it a piste closes to a NECK
+  — between the trees, down a gully, past a rock — 14–24 m wide by its colour for 140–260 m and
+  opens out again; a black's is a couloir. No piste is ever narrower than the narrowest neck.
+- **The transport lanes** (`lanes.ts`, `links.ts`, R27) — cat tracks 6–10 m wide — inside the 5–10 m
+  a real one is cut, a piste machine or two — and never steeper than 12 % over any grade window,
+  inside the 6–15 % one is graded to: a lane off a top station carries a skier who will not ski a red across to another sector; a
+  BRANCH LANE leaves a piste part-way down and crosses the face to a piste off another lift; a LINK
+  LANE runs from a piste's lower part to a lift's bottom station no piste comes by. A lane's line
+  is SEARCHED for on a coarse grid (a greedy walk goes wrong at the first gully) along the benches
+  and round the heads of the gullies; it crosses a piste square, never runs beside one and never
+  meets another lane. Outside a junction, a shared top or the village, two runs keep 24 m of the
+  mountain between their benches — the strip of trees a forest piste keeps from its neighbour.
+- **Access and the hub** (`access-build.ts`, `links.ts`, `drags.ts`, `hub.ts`, R29) — every piste can
+  be skied again without a harder one: from some lift's top a skier comes onto it, and from its foot,
+  on lifts, lanes (a green, whatever their pitch), wind tunnels and pistes no harder than it, a
+  lift's top puts him back at its start. The generator reckons it off the PLAN as it lays the area
+  (`reckonAccess`) and cures what fails in order — a drag lift from the piste's foot back up, else a
+  link lane off it before it meets the harder run, else the piste is left out — and gives a drag
+  to a piste off a lift whose bottom stands up the mountain where its skier would otherwise ski
+  more than 800 m of the runs below to get home. Every lift's bottom station is reached on skis
+  from the hub, so no lift is an island. THE HUB is the foot of the mountain: an open band across
+  the valley floor — not a clearing round the village — from 140 m past the outermost finish or
+  bottom station either way, its upper edge where the ground has risen 4 m over the floor but
+  always 40 m above every finish and valley station, 100–240 m deep, eased along the floor, groomed,
+  with no tree, kicker or cliff in it and the woods thinning into it over 40 m.
+  `engine/analysis/access.ts` holds the finished map to the same rule off what it publishes
+  (`accessReport`: every piste's verdict, both halves, and the island lifts) and `analysis/hub.ts`
+  the hub, the tunnels and the drags' lines.
+- **The wind tunnels** (`hub.ts`, R30) — two horizontal lifts along the hub, `W1` one way across the
+  floor and `W2` back, each from the bottom station or finish at one end of the hub to the one at
+  the other: a line of stations every 4 m on a bed graded into the floor 55 m below the lowest
+  finish and 28 m apart, 9 m wide, at least 300 m long, never falling or climbing more than 6 %
+  over 20 m, crossing a run only square, no tree within 14 m of its edge, its wind at 28 m/s. A
+  skier who stands into the wind inside one is carried to its exit (`engine/game/wind-tunnel.ts`,
+  [riding.md](riding.md#the-wind-tunnels-wind-tunnelts)); the game draws the arches, the canopy, the
+  fan and the blown snow (`pwa/src/game/wind-tunnels.ts` off `wind-tunnel-plan.ts`) and plays the
+  gale (`audio/tunnel-voice.ts`).
+- **The courses** (`courses.ts`, R28) — from every run's top station down the network to the
+  village: that run, then each run it merges into from where it joins, eased across the junction
+  over 60 m, 0.8–4.8 km long and coloured by its steepest run. A map is raced on one — asked by id
+  (`GenerateOptions.course`), by colour (`GenerateOptions.grade`), or dealt — and the course's own
+  stream deals its day, so every map of one resort shares every metre of its snow.
+- **The gates** (`course-gates.ts`, R11, R28) — on a course every gate but the start gate and the finish is a SLALOM
+  GATE (`Checkpoint.offset`, `.span`): 13–22 m wide by the course's colour, 70–115 m apart, set
+  alternately left and right of the line by most of the room the piste leaves — no further than a
+  weave of 45 m radius (or R6's floor half again) can carry between two — and on the line over a
+  kicker or a drop. One skied past costs three seconds on the clock and the run goes on
+  (`docs/riding.md`); the bot skis `gateLineAt`, the cosine through every gate's centre.
+- **The woods by altitude** (`resort-woods.ts`, R14) — closed forest low on the mountain, thinning on
+  an S-curve through an ECOTONE to the tree line and bare above it, the trees shrinking the same
+  way, the valley floor cleared round the village; the curve is a region's row (the fell's birch
+  ends abruptly, the maritime's upper woods are parkland). Every tree stands clear of every run,
+  every lift and the village.
+
+`npm run resort -- --seed 7` (`make resort SEED=7`) draws one seed's area — the piste map from
+above, the panorama over the valley, every course's profile — and lists its lifts, runs, courses and
+findings; `--count 24` sweeps (`make resort COUNT=24 REGION=fell`).
 
 ## Versions, and the digest
 
@@ -204,9 +310,20 @@ Today there are two:
   trick maps that stand on it (`pwa/src/game/trick-maps.ts`). Its trait `ungraded` builds every map
   on the UNGRADED row of `grades.ts` — the rule book's own numbers, drawn in the same order off the
   same streams — whatever grade it is asked for, deals none and lays no drop, so each of those maps
-  is exactly the map it was; its colour is only measured.
-- **v2** is the graded generator (R23, R24) and is what every campaign map, free ride, race off a
-  link and lab builds.
+  is exactly the map it was; its colour is only measured. Its trait `northFace` keeps the fall line
+  due north whatever the hour, and `singlePiste` builds one piste down one face rather than a ski
+  area.
+- **v3** is the resorts (R25–R30): every map a ski area on one massif, its lifts and the drag lifts
+  access asks for, its runs of every colour and its transport lanes merging down to the hub at the
+  foot of the mountain, every piste skiable again without a harder one, two wind tunnels along the
+  hub, raced on one course down that network through slalom gates — a gate missed costs three
+  seconds — the woods thick low down and thinning through the ecotone to the tree line. It is what
+  every free ride, race off a link and lab builds. It lays no terrain park (R20): a TRICKS run off a
+  seed is built on v1's one piste, as the trick maps are (`createGame`).
+
+v2 — the graded generator of one piste down one face (R23, R24) — was retired when the campaign
+moved onto the ski areas: no map names it any more, so its row went, and a number is never used
+twice.
 
 ## Labs
 
@@ -221,6 +338,11 @@ Today there are two:
   over a sweep; `--stats` is the population per axis, `--campaign` audits the committed ladder,
   `--region` sweeps another kind of country. `npm run difficulty -- --seed 38` draws what makes a
   map hard over its plan.
+- `npm run resort -- --seed 7` — the whole ski area a seed builds (R25–R30): the piste map from
+  above (`previews/resort-7.png`, every run in its colour, the lifts, the course raced), the
+  panorama over the valley, every course's profile coloured by its pitch, and a listing of the
+  lifts, the runs, the courses, the kilometres of each colour and the resort's findings;
+  `--count 24` sweeps, one row a seed; `--region` and `--course`/`--grade` as elsewhere.
 - `npm run analyze` — the scoreboard over a sweep of seeds (`--seed n` for one, `--from`/`--count`
   for a range): one row a map, every finding by rule, its colour, and the spread of the numbers at
   the foot.
@@ -272,3 +394,9 @@ Today there are two:
 - **R22** CLIFFS. The face carries `cliff.count` cliffs — scaled by the region's count of kickers (R21) and its grade's multiple (R23) — to be dropped off into the lower ground below: each stands on a slope at least `cliff.fall` steep and faces down the fall line. A shelf climbs out of the country over `cliff.shelf` metres behind the edge, level at the top; a face falls `cliff.drop` metres from the edge over `cliff.face` of a metre per metre of drop; and below it a landing apron, standing `cliff.apron` of the drop over the country at the face's foot, falls away over `cliff.landing` times its own height, steepest at the top. The edge runs `cliff.width` metres across at full height and sinks back into the country over `cliff.edge` metres at either end. Nothing stands on a cliff or within `cliff.runout` metres past its landing — no tree, no kicker — and no part of it comes within `cliff.clearance` metres of the piste's edge (its grade's own clearance, R23) or onto the side ridges. A grade may stand some of them BESIDE the piste — its row's `cliffs.beside` — each searched for just past that clearance off a station of the line, facing the fall line, so a skier sees its edge from the piste and leaves the line to take it. The cliffs are dealt off a stream of their own; `Level.cliffs` publishes every one, the drops of R24 among them.
 - **R23** THE GRADE. Every map built by a graded generator (`versions.ts`) is built to one PISTE GRADE — `green`, `blue`, `red` or `black`, the colour on its signs — asked for by `GenerateOptions.grade` or, where nobody asked, dealt off the seed on a stream of its own at the odds in `grade.odds`, and published as `Level.grade`. A grade's row (`mapgen/grades.ts`) sets the mountain's vertical (its own band, with `grade.regionShare` of the region's multiple of R2's) and the shape of its fall line; multiplies the face's hills, spurs, rollers and headwalls (R3); sets the steepest ground the walk runs down (R5), the steepest window the grading leaves (R8), the width band (R7) and the length band (R5), the sweeps, how much steeper than the untouched ground the walk reads a pitch for its bends (R6), the pitch out of the start hut (R12), how many kickers stand on the line and how tall and off how steep a pitch (R9), how many stand off it (R4), how many drops cross it (R24), how many cliffs stand on the face and how near the piste (R22), and how much of it lies drifted (R17). The piste's steepest `track.colourWindow` must then MEASURE its grade: over `grade.bands` of the next gentler colour and no more than its own (a green's at most 16 %, a black's past 47 %), so the colour a map is signed with is the colour a skier finds. A map built by a version from before the grades carries none, and its colour is only measured (`gradeOf`).
 - **R24** DROPS ACROSS THE PISTE. A black piste (R23) is crossed by `drops` of its row — cliff bands the line is built over: a shelf `drop.shelf` metres long rising `drop.drop` metres out of the line, level with it at its top; an edge the whole width of the corridor; and a face falling the whole of it back onto the line over `cliff.face` of a metre per metre of drop. The LANDING is the line's own pitch below — `drop.landing` metres of it kept clear — so a skier who leaves the edge along the line falls the drop's height onto a slope going his way at any speed, and no more: the band is one a skier's legs take whole (`air.harshSpeed`). Each stands where the line falls at least `drop.minFall` and turns no more than `drop.straight` radians over its shelf, face and landing, keeps the line falling over its shelf (R8), stands `drop.spacing` metres of piste from another, `drop.kickerClear` from a kicker's ramp or landing (R9), `spawn.kickerGap` from the start gate and clear of the finish's run-out, and OFF THE GATES (R11) — `drop.gateClear` metres of piste from any gate to the foot of its shelf or the end of its landing, so no reset stands a skier on a face. They are dealt off a stream of their own and published among `Level.cliffs` (`onTrack`, `D1…` in the order they are skied).
+- **R25** THE RESORT. A generator from the resorts on (`versions.ts`) builds every map as one SKI AREA: a single mountain, its lifts and its runs, and the map a run is raced on is that whole area with one COURSE down it (R28) — every other run on the mountain groomed and skiable beside it. The mountain is a MASSIF: its summit ridge rises to a PEAK `massif.peak.across` metres one side of the map's middle and falls to a lower SHOULDER `massif.shoulder.across` metres the other side, standing `massif.shoulder.share` of the vertical (`massif.vertical`, scaled by the region, R21); the face under the peak falls on a STEEP profile and the face under the shoulder on a GENTLE one, blended across a sector `massif.sector` metres wide; part-way down — `massif.bench.at` of the descent — a BENCH eases the fall by up to `massif.bench.depth`, strongest under the mid-station; the headwalls (R3) stand on the steep sector; and the VILLAGE stands on the valley floor `massif.village.across` metres to the shoulder's side of the middle, with the face between side ridges `massif.flank.inner` metres either side of the middle.
+- **R26** THE LIFTS. The area's lifts are straight lines from a BOTTOM station to a TOP station: a gondola from the village to the MID-STATION on the bench, a chair from the mid-station to the PEAK's top station, a chair from the valley floor to the SHOULDER's, a short drag from the valley floor to the top of the NURSERY slopes, and, where the face beyond the peak has room, a chair to an OUTER top on the steep sector — the valley's bottom stations in the HUB (R29). Where R29 asks for one, a DRAG LIFT (a T-bar or a platter, `lift.drag`; D2, D3 and on after the nursery's D1) climbs from beside a piste's foot — its finish, the stretch it merges in, or the lower part of it — to beside a station or a lane that brings its skier back to its top: `lift.drag.length` long, never steeper than `lift.drag.pitch` over any `lift.drag.pitchWindow` of its line, crossing a piste only square (within `lift.drag.square` of square) and otherwise `lift.drag.room` metres off every piste's edge, its top on ground falling no more than `lift.drag.padGrade` across its pad. Every top station stands `lift.below` metres under the ridge's crest or on its bench, on a level PAD `lift.pad` metres across, groomed; no tree stands within `lift.clear` metres of a lift's line or a station.
+- **R27** THE RUNS. Every run leaves a top station down the mountain — a PISTE built to a colour (R23's rows: its steepest raw ground, its ceiling; a region tilting the colours, R21), `piste.width` metres wide by its colour, opening above the tree line and closing every `piste.neck.every` metres down it to a NECK `piste.neck.width` wide for `piste.neck.length` metres — or a TRANSPORT LANE (`road`: `road.width` metres wide, never steeper than `road.grade` over any `track.gradeWindow`, traversing as far off the fall line as `road.swing` to hold it) — walked like R5's piste, never climbing, never doubling back up the map, its bends R6's, with room past the inside bench of every one. A run ENDS either on the valley floor, with R5's finish straight into the hub (R29) beside the others' (their benches may meet, their corridors never), or by MERGING into a run laid before it, never in that one's first or last stretch: it closes on the other's line until it runs inside it, along it, and the two are one groomed surface there. LANES BETWEEN THE RUNS are laid once every run off a top station is: a BRANCH LANE leaves a piste part-way down, from its edge, and runs across the face to join a piste off another lift — two sectors side by side across the face linked one way or the other — and a LINK LANE runs from a piste's lower part to a lift's BOTTOM station where R29 asks for one; the area's lanes run to at most a few tenths of its kilometres. A lane crosses a piste square, never runs beside one, and never meets another lane. No piste crosses another, and anywhere but where one merges into another, a lane leaves its piste, or two leave one top station (and there off each other's width and bench), the corridors of two runs keep `network.gap` metres of the mountain between their benches. Each run's colour is MEASURED (R8's steepest `track.colourWindow` on its own line, up to where it runs inside the run it merges into), and a run is graded, its kickers and drops laid (R9, R24, never within `network.junction` metres of a junction), its drifts dealt (R17), pressed into the mountain (R8, R10, R18) — drawn onto another's surface wherever it runs on it, at a junction, off a shared top or where a lane leaves its piste — and its windrows opened where another run joins or leaves it, in the order the runs were laid. The area offers `network.colours` of each colour by region, and at least `network.runs.min` pistes.
+- **R28** THE COURSE. A course is the line a skier follows from a run's top station down the network to the village: that run, then each run it merges into from where it joins, eased across the junction over `course.merge` metres, its length in `course.length`. Its colour is the steepest colour on it. Every run that leaves a top station starts a course; a map is raced on ONE of them — the one asked for (`GenerateOptions.course`), or one of the colour asked for, or one the seed deals — and R11–R13's gates, start gate and start line stand on that course; its kickers and drops are the ones on the piste (R9, R24) and every other run's are the mountain's. The day (R15, R19) is the course's own, dealt off a stream of its own, its hour turned to the face the resort was dealt.
+- **R29** ACCESS AND THE HUB. The lifts, the lanes and the wind tunnels (R30) reach the whole mountain, and every piste can be skied again without a harder one. THE HUB is the foot of the mountain, where the runs end and the valley's bottom stations stand: an open band across the valley floor — not a clearing round the village — from `hub.reach` metres past the outermost finish or bottom station on either side, its lower edge `hub.below` metres out from the foot of the face (and `hub.inside` past the outer tunnel, R30), its upper edge where the ground has risen `hub.rise` metres over the floor there, but always `hub.margin` metres above every finish and every valley bottom station, and never less than `hub.depth.min` nor more than `hub.depth.max` deep — following the ground, eased along it over `hub.ease` metres, read every `hub.step` metres across; no tree, kicker or cliff stands in it, the woods thinning into it over `hub.fringe` metres, and it is groomed. Every piste P, as hard as the colour it measures, holds two halves skied only on LIFTS (bottom to top, the only way onto a top), LANES (green whatever their pitch), WIND TUNNELS (entrance to exit) and PISTES no harder than P, always downhill along a run from where he came onto it: THE WAY IN — from some lift's top a skier comes onto P within `access.skate` metres of its start — and THE WAY OUT AND BACK — down P, off it onto a lane that leaves it, and on from where it ends (the run it merges into, at the junction, a merge into a harder run being that run skied; its finish in the hub; the station a link lane runs to), a lift's top puts him back on P as near its start. He comes off a run at a lift's BOTTOM station where the run's line passes within `access.skate` metres of it, at a lane that leaves the run further down, or at the run's end; off a lift's TOP onto any run whose line passes as near, where it passes nearest, and to a bottom station as near; and the hub is one place — every finish in it reaches every bottom station in it or within `access.skate` of it, and every tunnel's entrance. A piste is walked to merge only into a run no harder than itself; where one still does — the mountain made it gentler than it was built — or cannot otherwise be skied again, a DRAG LIFT from its foot back up (R26), else a LINK LANE off it before it meets the harder run to a station or a run no harder, brings its skier back; a piste neither brings back is left out; and where a piste off a lift whose bottom station stands up the mountain would leave its skier more than `access.runout` metres of the runs below it to ski on the way back to its start, a drag lift from its foot, or a link lane to its own lift's station, brings him back where one fits. Every lift's bottom station is reached on skis from the hub, so no lift is an island.
+- **R30** WIND TUNNELS. Two horizontal lifts carry a skier along the hub without his skiing — W1 one way across the floor and W2 back — each from an entrance by the bottom station or the finish at one end of the hub to an exit by the one at the other, both on the floor below every finish: a line of stations every `tunnel.step` metres on a bed graded into the floor, `tunnel.under` metres below the lowest finish or bottom station and `tunnel.gap` metres apart, `tunnel.width` metres wide, at least `tunnel.length` long, never falling or climbing more than `tunnel.grade` over any `tunnel.window`, inside the hub, crossing a run only square and groomed under, no tree within `lift.clear` metres of its edge; its wind blows at `tunnel.speed` m/s. A skier who stands into the wind inside one is carried along it at its speed (TUNING.tunnel) and let go at its exit, his way kept.

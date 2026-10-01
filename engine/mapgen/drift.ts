@@ -39,6 +39,7 @@ export function dealDrifts(
   kickers: readonly Kicker[],
   share: Band = R.share,
   drops: readonly Cliff[] = [],
+  keepOff: readonly { from: number; to: number }[] = [],
 ): Drift[] {
   const rng = createRng((sub ^ DRIFT_SALT) >>> 0);
   const target = inBand(rng, share) * length;
@@ -47,7 +48,8 @@ export function dealDrifts(
   const kept: { from: number; to: number }[] = kickers
     .filter((k) => k.onTrack && k.s !== undefined)
     .map((k) => ({ from: k.s! - k.ramp, to: k.s! + k.landing }))
-    .concat(drops.map((d) => ({ from: d.s! - d.shelf, to: d.s! + d.face + d.landing })));
+    .concat(drops.map((d) => ({ from: d.s! - d.shelf, to: d.s! + d.face + d.landing })))
+    .concat(keepOff);
   const drifts: Drift[] = [];
   let laid = 0;
   const lo = R.clear + R.fade;

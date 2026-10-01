@@ -533,6 +533,9 @@ export const TUNING = {
     /** A crossing of the owed gate's line this far past its edge (beyond
      * the grace), m, is that gate skied past, and flagged at once. */
     missReach: 25,
+    /** A SLALOM GATE skied past (R28) costs this on the clock, s, and the
+     * run goes on — an arcade racer's penalty, never a climb back. */
+    missPenalty: 3,
     /** A reset stands the skier this far PAST the last gate he took, m (or
      * this far short of the start gate before he has taken one). */
     resetAhead: 3,
@@ -685,6 +688,30 @@ export const TUNING = {
      * and what "nowhere" is, m/s. */
     stuckFor: 3,
     stuckSpeed: 0.6,
+  },
+
+  /** THE WIND TUNNEL (R30, `wind-tunnel.ts`): a horizontal lift along the
+   * hub that blows a skier from its entrance to its exit without his
+   * skiing. The air inside moves along it at the tunnel's own speed, so the
+   * drag a skier feels there is against THAT air — it pushes him on while
+   * he is slower, and costs him nothing once he rides at its speed — and
+   * the blowers THRUST him along over it: `thrust` m/s² while he is
+   * `soft` m/s or more under the wind's speed, easing to nothing at it
+   * (and a quarter of it back past it), so a skier stood at the entrance
+   * is at the wind's speed in a few seconds. Across it he is CENTRED,
+   * `centre` m/s² a metre off its line, `damp` /s of his sideways way
+   * taken out. He is taken in where he stands inside its width with his
+   * skis within `capture` rad of the way it blows — a skier crossing it
+   * is not — and let go `release` m past its edge, at its exit with his
+   * way kept, or thrown. */
+  tunnel: {
+    thrust: 9,
+    soft: 4,
+    back: 0.25,
+    centre: 0.8,
+    damp: 1.5,
+    capture: 0.7,
+    release: 2,
   },
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */

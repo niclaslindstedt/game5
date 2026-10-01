@@ -93,6 +93,7 @@ describe("the snapshot (snapshot.ts)", () => {
     ride(state, 6);
     state.progress.finished = true;
     state.progress.time = 181.5;
+    state.progress.penalty = 6;
     state.rivals[1].run.progress.finished = true;
     state.rivals[1].run.progress.time = 170.25;
     const snap = takeSnapshot(state);
@@ -107,6 +108,9 @@ describe("the snapshot (snapshot.ts)", () => {
     expect(table[2].taken).toBeGreaterThanOrEqual(0);
     expect(table[2].taken).toBeLessThan(state.level.checkpoints.length);
     expect(snap.result!.place).toBe(2);
+    // The time is the clock, the slalom gates' charge already in it.
+    expect(snap.result!.time).toBe(181.5);
+    expect(snap.result!.penalty).toBe(6);
     expect(new Set(table.map((s) => s.slot)).size).toBe(4);
   });
 });
@@ -170,6 +174,13 @@ describe("the news column (run-news.ts)", () => {
 
   it("says the bad news in the bad tone, and a clean landing not at all", () => {
     expect(line({ kind: "missed", t: 1, index: 4 })?.tone).toBe("bad");
+    // A slalom gate skied past says what it put on the clock; a gate only
+    // gone past (the arrow's) does not.
+    expect(line({ kind: "missed", t: 1, index: 4, penalty: 3 })?.text).toBe(
+      STRINGS.newsMissed(4, 3),
+    );
+    expect(STRINGS.newsMissed(4, 3)).toContain("+3 s");
+    expect(line({ kind: "missed", t: 1, index: 4 })?.text).not.toContain("+");
     expect(line({ kind: "hit", t: 1, speed: 10, x: 0, z: 0 })?.tone).toBe("bad");
     const land = {
       kind: "land",

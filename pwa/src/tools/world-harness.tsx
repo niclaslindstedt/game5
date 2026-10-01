@@ -28,7 +28,9 @@ import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
+import { planLift, ropeAt } from "../game/lift-plan.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { signView } from "./sign-view.ts";
 import {
   DEFAULT_VIDEO,
   SHADOW_LEVELS,
@@ -39,6 +41,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { wildGround } from "../game/wild-ground.ts";
+import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
 type Shot = { name: string; note: string };
 
@@ -128,6 +131,56 @@ function still() {
 
 const level = state.level;
 
+/** THE WIND TUNNELS the views stand at: the map's own, or — on a map whose
+ * generator laid none — a STUB PAIR across the valley floor, one each way,
+ * so the picture can be judged before the engine lays them. */
+const stubbed = tunnelsOf(level).length === 0;
+if (stubbed) {
+  const base = level.mountain?.base ?? { x: level.size / 2, z: level.size * 0.9 };
+  const lane = (id: string, z: number, from: number, to: number): WindTunnel => {
+    const points: WindTunnel["points"] = [];
+    const length = Math.abs(to - from);
+    const way = Math.sign(to - from);
+    for (let s = 0; s <= length; s += 4) {
+      const x = from + way * s;
+      points.push({ x, z, y: level.groundAt(x, z), s, heading: (way * Math.PI) / 2 });
+    }
+    return { id, points, length: points[points.length - 1].s, width: 9, speed: 28 };
+  };
+  const z = Math.min(level.size - 60, base.z);
+  const tunnels = [
+    lane("W1", z - 12, base.x - 180, base.x + 180),
+    lane("W2", z + 12, base.x + 180, base.x - 180),
+  ];
+  const resort = (level.resort ?? {}) as { tunnels?: WindTunnel[] };
+  resort.tunnels = tunnels;
+  (level as { resort?: unknown }).resort = resort;
+}
+
+/** The skier stood `s` m down the first tunnel at `speed` and ridden a
+ * third of a second with his hands off — the engine's clock has to move
+ * for the picture to take the new stand rather than ease toward it from
+ * the last one — then where he is on the lane. */
+function inTunnel(
+  s: number,
+  speed: number,
+): { tunnel: WindTunnel; x: number; y: number; z: number; heading: number } | null {
+  const tunnel = tunnelsOf(level)[0];
+  if (!tunnel) return null;
+  const p = tunnelPointAt(tunnel, s);
+  placeRun(state, { x: p.x, z: p.z, heading: p.heading, speed });
+  for (let i = 0; i < 20; i++) {
+    for (let k = 0; k < 2; k++) step(state, NEUTRAL_INPUT);
+    renderer.draw(state, 0, FRAME, false);
+  }
+  const hit = tunnelNear(level, state.skier.x, state.skier.z, 50);
+  return { tunnel, ...tunnelPointAt(tunnel, hit?.tunnel === tunnel ? hit.s : s) };
+}
+
+/** A note on a tunnel view: whose tunnel it is. */
+const tunnelNote = (said: string): string =>
+  `${said}${stubbed ? " (STUB tunnels: the generator laid none on this map)" : ""}`;
+
 /** The summit ridge over the mountain, looking down the face. */
 function vista(): LensPose {
   const m = level.mountain ?? {
@@ -154,6 +207,38 @@ function vista(): LensPose {
   return {
     eye: { x: best.x, y: best.y + 6, z: best.z },
     target: { x: c.x, y: level.groundAt(c.x, c.z) + 10, z: c.z },
+    fov: 60,
+    roll: 0,
+  };
+}
+
+/** THE LIFTS: the resort's longest lift (or its first of a kind), seen
+ * from `side` m off its line and `back` m down it from the point `share`
+ * of the way up, the lens `high` m over the snow, looking up the line at
+ * the rope `ahead` m on. */
+function liftView(
+  kind: "longest" | "gondola" | "chair" | "drag",
+  [share, side, back, high, ahead]: readonly number[],
+): LensPose | null {
+  const all = level.resort?.lifts ?? [];
+  const lifts = kind === "longest" ? all : all.filter((l) => l.kind === kind);
+  if (lifts.length === 0) return null;
+  const lift = lifts.reduce((a, b) =>
+    Math.hypot(b.top.x - b.bottom.x, b.top.z - b.bottom.z) >
+    Math.hypot(a.top.x - a.bottom.x, a.top.z - a.bottom.z)
+      ? b
+      : a,
+  );
+  const plan = planLift(level, lift);
+  const u = plan.length * share;
+  const ex = lift.bottom.x + plan.dx * (u - back) + plan.dz * side;
+  const ez = lift.bottom.z + plan.dz * (u - back) - plan.dx * side;
+  const t = Math.min(plan.length, u + ahead);
+  const tx = lift.bottom.x + plan.dx * t;
+  const tz = lift.bottom.z + plan.dz * t;
+  return {
+    eye: { x: ex, y: level.groundAt(ex, ez) + high, z: ez },
+    target: { x: tx, y: ropeAt(plan, t) - 3, z: tz },
     fov: 60,
     roll: 0,
   };
@@ -480,6 +565,27 @@ const shots: Record<string, () => string> = {
     renderer.setOverride(null);
     return "over the mountain from the summit ridge";
   },
+  ...Object.fromEntries(
+    (
+      [
+        ["lift", "longest", [0.45, 4, 50, 1.7, 80], "under the rope of the longest lift"],
+        ["lift-gondola", "gondola", [0.5, 30, 40, 8, 60], "beside the gondola's line"],
+        ["lift-drag", "drag", [0.5, 8, 30, 1.7, 40], "beside the drag's line"],
+        ["lift-station", "longest", [0, 20, 30, 1.7, 0], "the longest lift's bottom station"],
+        ["lift-far", "longest", [0.5, 180, 0, 30, 0], "the longest lift from across the face"],
+      ] as const
+    ).map(([name, kind, a, said]) => [
+      name,
+      () => {
+        const pose = liftView(kind, a);
+        if (!pose) return "no lift on this map";
+        renderer.setOverride(pose);
+        still();
+        renderer.setOverride(null);
+        return said;
+      },
+    ]),
+  ),
   forest() {
     renderer.setOverride(forestView());
     still();
@@ -575,6 +681,19 @@ const shots: Record<string, () => string> = {
     renderer.setOverride(null);
     return view.note;
   },
+  ...Object.fromEntries(
+    (["sign", "sign-tree"] as const).map((name) => [
+      name,
+      () => {
+        const view = signView(level, name === "sign-tree");
+        if (!view) return "no sign on this map";
+        renderer.setOverride(view.pose);
+        still();
+        renderer.setOverride(null);
+        return view.note;
+      },
+    ]),
+  ),
   herd() {
     const view = herdView();
     if (!view) return "no animal on this map";
@@ -624,6 +743,53 @@ const shots: Record<string, () => string> = {
     still();
     renderer.setOverride(null);
     return `beside it, the CoG ${(s.y - level.groundAt(s.x, s.z)).toFixed(2)} m over the untouched snow`;
+  },
+  tunnel() {
+    // THE MOUTH: the player stood just inside the first tunnel, seen from
+    // behind its fan, up and off to one side — the cowl, the sign, the
+    // arches running away down the lane.
+    const at = inTunnel(3, 0);
+    if (!at) return "no wind tunnel on this map";
+    const back = 24;
+    const ex = at.x - Math.sin(at.heading) * back + Math.cos(at.heading) * 5;
+    const ez = at.z - Math.cos(at.heading) * back - Math.sin(at.heading) * 5;
+    const far = tunnelPointAt(at.tunnel, 30);
+    renderer.setOverride({
+      eye: { x: ex, y: level.groundAt(ex, ez) + 4.5, z: ez },
+      target: { x: far.x, y: far.y + 2.5, z: far.z },
+      fov: 55,
+      roll: 0,
+    });
+    still();
+    renderer.setOverride(null);
+    return tunnelNote(`the mouth of ${at.tunnel.id}, ${at.tunnel.speed} m/s`);
+  },
+  "tunnel-side"() {
+    // THE LANE FROM BESIDE IT, the player in it, well down it — clear of
+    // the powder the last view's stand may have raised.
+    const at = inTunnel(400, 0);
+    if (!at) return "no wind tunnel on this map";
+    const side = 26;
+    const ex = at.x + Math.cos(at.heading) * side - Math.sin(at.heading) * 6;
+    const ez = at.z - Math.sin(at.heading) * side - Math.cos(at.heading) * 6;
+    renderer.setOverride({
+      eye: { x: ex, y: level.groundAt(ex, ez) + 3, z: ez },
+      target: { x: at.x, y: at.y + 2, z: at.z },
+      fov: 60,
+      roll: 0,
+    });
+    still();
+    renderer.setOverride(null);
+    return tunnelNote(`beside ${at.tunnel.id}, from the right of the way it blows`);
+  },
+  "tunnel-inside"() {
+    // DOWN THE LANE on the chase boom, the streaks overtaking him.
+    const at = inTunnel(80, 0);
+    if (!at) return "no wind tunnel on this map";
+    renderer.setCamera("chase", true);
+    for (let i = 0; i < 30; i++) renderer.draw(state, 0, FRAME, false);
+    still();
+    return tunnelNote(`in ${at.tunnel.id} on the chase boom`);
   },
   prints() {
     // Last night's prints across a meadow: the player stood fifty metres

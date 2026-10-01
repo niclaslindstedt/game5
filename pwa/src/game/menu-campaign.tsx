@@ -3,9 +3,12 @@
 // under the one being looked at.
 //
 // The card is one column: the shelves as a row of tabs across the top (four
-// across, two by two on a phone held upright), each led by its GRADE'S SIGN
+// across, two by two on a phone held upright) — each a SKI AREA, named, with
+// its kind of country (R21) and the six runs' GRADE SIGNS in rung order
 // (R23: the green circle, the blue square, the red rectangle, the black
-// diamond — `grade-mark.tsx`), the six boxes in a grid, then the table.
+// diamond — `grade-mark.tsx`), so the climb from the gentle runs to the
+// steep ones reads before a box is opened — the six boxes in a grid, each
+// with its own run's sign, then the table.
 // A BOX is a number, a name, what the map is (a race or a time trial, over
 // top to bottom) and the day it is skied in, the piste itself drawn behind
 // the words (`CourseMap`), and what has been got out of it — the best place
@@ -245,8 +248,15 @@ export function ShelfTabs({
           >
             <span class="menu-shelf-name">
               {!unlocked && <Glyph name="lock" />}
-              <GradeMark grade={shelf.id} className="menu-shelf-grade" />
               {shelf.name}
+            </span>
+            <span class="menu-shelf-mix">
+              <span class="menu-shelf-region">{STRINGS.regionNames[shelf.region]}</span>
+              <span class="menu-shelf-grades" aria-hidden="true">
+                {shelf.levels.map((level) => (
+                  <GradeMark key={level.id} grade={level.grade} className="menu-shelf-grade" />
+                ))}
+              </span>
             </span>
             <span class="menu-shelf-line">{unlocked ? line(shelf) : hint}</span>
           </button>

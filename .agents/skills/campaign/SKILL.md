@@ -6,20 +6,27 @@ description: "Use when working on THE CAMPAIGN — the pinned maps and the ladde
 # The campaign: the pinned maps, skied for points
 
 The campaign is the sibling games' championship retyped for a mountain:
-four SHELVES, one a PISTE GRADE (R23) gentlest first (the NURSERY — green
-runs on the fells; the WOODS — blue runs in the maritime; the RIDGE — red
-runs in the alpine; the GLACIER — black runs on steep continental faces),
-the shelf's id its grade and every map built to it, six MAPS each — a race,
-a time trial, two races, a time trial and a race, so the race both opens and
-closes a shelf — every map a SEED on a generator VERSION, ridden on the day
-its seed dealt (or a `sky` laid over it). A race rung is ridden against the
+four SHELVES, each ONE SKI AREA (a seed's resort on the resort generator,
+R25–R28) in a kind of country (R21) — RIME WOODS (maritime), HIGH CIRQUE
+(alpine), FROST BASIN and COLD CREST (two continental massifs) — and six
+MAPS a shelf, each one of the area's COURSES (R28, `CampaignLevel.course`):
+a race, a time trial, two races, a time trial and a race, so the race both
+opens and closes a shelf. The whole mountain is skiable on every rung; the
+points are paid down the one course raced. THE CAMPAIGN RACES RED AND
+BLACK: greens and blues are the free ride's, save ONE blue to warm up on
+as the very first rung; the shelves blacken as they climb (0, 2, 3, 5
+blacks) and the blacks are ordered by the rating's index, so the early
+shelves' blacks are the raceable ones and the last shelf's the brutal. The
+FELL hosts no shelf — its areas offer no black and at most two reds. Every
+map is a SEED on a generator VERSION, ridden on the day its course was
+dealt (or a `sky` laid over it). A race rung is ridden against the
 race's three rivals with contact off and pays the podium three, two and one
 for the whole field; a trial rung is ridden alone and pays a MEDAL against
 times set off the bot's own run. The next map opens behind a podium or a
 medal, the next shelf behind the table. `campaign.ts`'s header says why each
 of those is the shape it is.
 
-The same eighteen maps are the game's MEASURED maps: a RACE and a TIME TRIAL
+The same twenty-four maps are the game's MEASURED maps: a RACE and a TIME TRIAL
 off the front door pick one on the level card (`menu-levels.tsx`) out of the
 shelves the campaign has opened, so two times in the record book are two
 times round the same loop. A seed of one's own is the free ride's, and a
@@ -84,7 +91,13 @@ CAMPAIGN=1` can step down under a bare `rateLevel`. The audit is the
 measurement; the test suite does not ride the bot on every rung.
 
 **A map is named for what it is like, never for where it is** — the snow,
-the light, the shape of the ask. Every pinned map names no place; each shelf is dealt its REGION (R21) on purpose — a shelf is a colour of run in a kind of country, a deliberate curation, never a side effect of `add-region`.
+the light, the shape of the ask; a ski area's name is invented and generic.
+Each shelf is dealt its REGION (R21) on purpose — a shelf is a ski area in a
+kind of country, a deliberate curation, never a side effect of `add-region`.
+To find one: `make resort COUNT=40 REGION=…` lists every seed's courses by
+colour; keep the areas with six red-and-black courses that stand clean and
+read as a ski area on the plan, then ride every course with the bot and rate
+it (`make rate CAMPAIGN=1` once pinned) and order the six by the index.
 
 ## The version contract, and the digest
 

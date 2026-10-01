@@ -240,6 +240,11 @@ export function soundForEvent(
     case "bail":
       return { id: "missed" };
 
+    // A WIND TUNNEL'S MOUTH: sucked in, and let go at the far end
+    // (`tunnel-voice.ts`'s two sweeps); the gale between is the bed's.
+    case "tunnel":
+      return { id: event.phase === "in" ? "tunnel_in" : "tunnel_out" };
+
     default:
       return null;
   }

@@ -20,6 +20,7 @@
 
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
+import { TUNNEL_BANK } from "./tunnel-voice.ts";
 import type { SoundBank } from "@niclaslindstedt/oss-game-framework/audio/types";
 
 export const RUN_BANK: SoundBank = {
@@ -456,4 +457,8 @@ export const RUN_BANK: SoundBank = {
   // THE BIRDS' CRIES are their own module (`bird-bank.ts`), raised by
   // `bird-bed.ts` off the flocks `bird-plan.ts` laid over the map.
   ...BIRD_BANK,
+
+  // THE WIND TUNNEL'S MOUTH crossed, in and out — the bed's cues
+  // (`tunnel-voice.ts`).
+  ...TUNNEL_BANK,
 };

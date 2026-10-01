@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE BED'S SCHEDULER — the half that reads the live `GameState` once a frame
 // and steers every continuous voice the race has. What a voice IS lives in
-// `wind-voice.ts` (the skier's own wind) and `snow-voice.ts` (the skis on
-// the snow); this is the one place that turns a state into their targets —
-// and the one place the POLES are heard: a plant is not an engine event, so
-// the bed watches the engine's own pulse (`plantPulse`) while the skier is
-// poling and plays the bank's click on each one.
+// `wind-voice.ts` (the skier's own wind), `snow-voice.ts` (the skis on the
+// snow) and `tunnel-voice.ts` (a wind tunnel's gale); this is the one place
+// that turns a state into their targets — and the one place the POLES are
+// heard: a plant is not an engine event, so the bed watches the engine's
+// own pulse (`plantPulse`) while the skier is poling and plays the bank's
+// click on each one.
 //
 // NOTHING HERE IS BOOKED AHEAD. The layers run on the audio thread and
 // every frame merely tells them where to go next, over a glide; a frame
@@ -33,6 +34,15 @@ import {
   type SnowUnder,
 } from "./snow-voice.ts";
 import { WIND_GLIDE, WIND_LAYERS, windTargets, type WindLayer } from "./wind-voice.ts";
+import {
+  TUNNEL_GLIDE,
+  TUNNEL_HEARD,
+  TUNNEL_LAYERS,
+  tunnelTargets,
+  tunnelVoiceAt,
+  type TunnelLayer,
+} from "./tunnel-voice.ts";
+import { tunnelNear, tunnelsOf } from "../wind-tunnel-plan.ts";
 
 /** How quickly the wind follows the speed, s — a time constant rather than a
  * per-frame fraction, because a fraction is only true at the frame rate it
@@ -86,10 +96,14 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
   const under = emptyMix();
   const air: Rack<WindLayer> = createRack(voice, WIND_LAYERS, WIND_GLIDE);
   const snow: Rack<SnowLayer> = createRack(synth, SNOW_LAYERS, SNOW_GLIDE);
+  // THE WIND TUNNELS' GALE, through the wind's fader — built only on a map
+  // with a tunnel on it.
+  const gale: Rack<TunnelLayer> = createRack(voice, TUNNEL_LAYERS, TUNNEL_GLIDE);
 
   const hush = (): void => {
     air.stop();
     snow.stop();
+    gale.stop();
   };
 
   return {
@@ -147,6 +161,16 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
         ),
       );
 
+      // ── The wind tunnels ─────────────────────────────────────────────
+      // The gale of the lane he is carried down (`SkierState.tunnel`), or a
+      // murmur of one he is beside. The whoosh at the mouth is the engine's
+      // `tunnel` event (`route.ts`). A map with no tunnel builds none of it.
+      if (tunnelsOf(state.level).length > 0) {
+        const near = tunnelNear(state.level, c.x, c.z, TUNNEL_HEARD);
+        const hit = c.tunnel ? { out: 0, s: c.tunnel.s } : near;
+        gale.apply(tunnelTargets(tunnelVoiceAt(hit, state.t), { wind: listener.wind * duck }));
+      }
+
       // ── The poles ────────────────────────────────────────────────────
       // A plant on each rise of the engine's own stride while he is working
       // for his speed (`poles.ts`): the skate's and the double pole's.
@@ -177,6 +201,6 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
 
     ground: () => under,
 
-    live: () => air.live() + snow.live(),
+    live: () => air.live() + snow.live() + gale.live(),
   };
 }

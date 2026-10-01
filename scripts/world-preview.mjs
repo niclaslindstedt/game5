@@ -19,8 +19,13 @@
 //
 // The views, in the order the run reaches them: spawn, powder, powder-high,
 // lookback, furrow, track, tips, helmet, far, jump, drop (late in a flight,
-// falling fast), landing, vista, cliff,
-// cliff-edge, forest,
+// falling fast), landing, vista, lift, lift-gondola, lift-drag,
+// lift-station, lift-far (the resort's longest lift from under its rope,
+// the gondola and the drag from beside theirs, the longest one's bottom
+// station, and the longest from across the face), cliff, cliff-edge,
+// sign (the head of the course raced, its piste-head sign beside it),
+// sign-tree (the post carrying the most boards),
+// forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
@@ -31,7 +36,12 @@
 // trunk flat out, then where the skier came to rest); then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
-// on a fox's round, the player stood off it so the fine trail map is over it).
+// on a fox's round, the player stood off it so the fine trail map is over it);
+// and the resort's wind tunnels: tunnel-inside (the chase lens down the
+// first one's lane), tunnel (the player stood in its mouth, from behind its
+// fan) and tunnel-side (the lane from beside it, the player in it) — a map
+// whose generator laid none is given a stub pair on its valley floor, and
+// the note says so.
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -61,8 +71,15 @@ const VIEWS = [
   "drop",
   "landing",
   "vista",
+  "lift",
+  "lift-gondola",
+  "lift-drag",
+  "lift-station",
+  "lift-far",
   "cliff",
   "cliff-edge",
+  "sign",
+  "sign-tree",
   "forest",
   "approach-140",
   "approach-90",
@@ -79,6 +96,9 @@ const VIEWS = [
   "prints",
   "deep",
   "deep-side",
+  "tunnel-inside",
+  "tunnel",
+  "tunnel-side",
 ];
 
 const args = parseArgs(

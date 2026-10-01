@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE: nobody else out there, no lights and no course — the clock
 // and the odometer run, no gate is ever owed, a reset stands the skier on
-// the nearest point of the piste, a spot picked on the chart is where it
+// the nearest point of the piste (of the resort's nearest run on a resort), a spot picked on the chart is where it
 // starts (held out of the trees and inside the edge), the day can be moved,
 // and the snow dial sinks the powder deeper or shallower without drawing
 // anything from the stream.
@@ -90,6 +90,56 @@ describe("the free ride's reset", () => {
     step(state, { ...NEUTRAL_INPUT, reset: true });
     expect(state.events.some((e) => e.kind === "reset")).toBe(true);
     expect(Math.hypot(state.skier.x - near.x, state.skier.z - near.z)).toBeLessThan(1);
+  });
+
+  it("on a resort, stands him on the nearest RUN — a piste before a lane", () => {
+    // Two straight lines down the face beside the skier: a run of the
+    // resort and a lane (R27). Each is a line of 2 m stations along +z.
+    const line = (x: number, kind: "piste" | "road", id: string) => {
+      const points = Array.from({ length: 201 }, (_, i) => ({
+        x,
+        z: 400 + i * 2,
+        y: 0,
+        s: i * 2,
+        heading: 0,
+        width: 20,
+      }));
+      return {
+        id,
+        kind,
+        grade: "blue" as const,
+        points,
+        length: 400,
+        from: "L1",
+        into: null,
+        drifts: [],
+      };
+    };
+    const resortOf = (...runs: ReturnType<typeof line>[]) => ({
+      runs,
+      lifts: [],
+      courses: [],
+      course: "C1",
+      village: { x: 0, y: 0, z: 0 },
+    });
+    const at = (resort: ReturnType<typeof resortOf>) => {
+      const state = createGame({
+        level: { ...syntheticLevel(), resort },
+        mode: "free",
+        quiet: true,
+      });
+      placeRun(state, { x: SLOPE.x + 200, z: 700, heading: 1 });
+      return resetPose(state);
+    };
+    // The piste 40 m off beats a lane 5 m off: a lane is the way between.
+    const near = at(resortOf(line(SLOPE.x + 205, "road", "R"), line(SLOPE.x + 240, "piste", "P")));
+    expect(near.x).toBeCloseTo(SLOPE.x + 240, 5);
+    expect(near.z).toBeCloseTo(700, 5);
+    expect(near.heading).toBe(0);
+    // A lane right under him beats a piste a hundred metres off.
+    const lane = at(resortOf(line(SLOPE.x + 200, "road", "R"), line(SLOPE.x + 300, "piste", "P")));
+    expect(lane.x).toBeCloseTo(SLOPE.x + 200, 5);
+    expect(lane.checkpoint).toBe(-1);
   });
 
   it("a race's reset still goes back to the start gate before one is taken", () => {

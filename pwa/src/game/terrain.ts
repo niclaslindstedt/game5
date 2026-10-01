@@ -327,7 +327,8 @@ export function createTerrain(
         .replace("#include <common>", `#include <common>\n${SNOW_VERTEX_PARS}`)
         .replace("#include <beginnormal_vertex>", SNOW_VERTEX_PLACE)
         .replace("#include <begin_vertex>", SNOW_VERTEX_BEGIN);
-      shader.fragmentShader = shader.fragmentShader
+      // The snow lights itself by the lamps, glitter and all.
+      shader.fragmentShader = `#define OWN_LAMPS\n${shader.fragmentShader}`
         .replace("#include <common>", `#include <common>\n${SNOW_FRAGMENT_PARS}`)
         .replace(
           "#include <clipping_planes_fragment>",

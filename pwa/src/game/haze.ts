@@ -22,8 +22,10 @@ import * as THREE from "three";
 import type { SkyLook } from "./sky.ts";
 import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
 
-/** How many the floods the snow is lit by: the player and the field. */
-export const LAMP_SLOTS = 4;
+/** How many lamps light the world at once: the player's headlamp first,
+ * the finish arena's two floods, then the field's headlamps
+ * (`headlamp.ts`'s `lightLamps` deals them). */
+export const LAMP_SLOTS = 6;
 /** How many skiers cast into a map of their own (`hero-shadow.ts`): the
  * player and the field, a quadrant of one atlas each. */
 export const HERO_SLOTS = 4;
@@ -73,12 +75,16 @@ export type HazeUniforms = {
   /** THE NEW SNOW over the run, m (`GameState.fresh`): what buries the
    * groomer's look. The run's, not the sky's — the renderer writes it. */
   uFresh: { value: number };
-  /** THE LAMPS: each floodlight — where it is, where it points, how
-   * far on (0 for a slot with no lamp) — and the colour of the beam. */
+  /** THE LAMPS: each slot's lamp — a flood or a skier's headlamp — where
+   * it is, where it points, how far on (0 for a slot with no lamp), the
+   * colour of its light (linear) and its BEAM (`lampReach`): the spot's
+   * cosine from its edge to its full, where the wide flood round it
+   * starts, and the flood's share of the spot. */
   uLampPos: { value: THREE.Vector3[] };
   uLampDir: { value: THREE.Vector3[] };
   uLampOn: { value: number[] };
-  uLampCol: { value: THREE.Color };
+  uLampCol: { value: THREE.Vector3[] };
+  uLampBeam: { value: THREE.Vector4[] };
 };
 
 export function createHazeUniforms(): HazeUniforms {
@@ -110,8 +116,8 @@ export function createHazeUniforms(): HazeUniforms {
     uLampPos: { value: vectors() },
     uLampDir: { value: vectors() },
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },
-    // A halogen's warm white, in linear light.
-    uLampCol: { value: new THREE.Color().setRGB(1.0, 0.86, 0.66) },
+    uLampCol: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector3(1, 1, 1)) },
+    uLampBeam: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
   };
 }
 
@@ -186,6 +192,46 @@ float mistBand(vec3 dir) {
   if (uMist <= 0.0) return 0.0;
   return 1.0 - smoothstep(0.0, 40.0 / uMist, max(dir.y, 0.0));
 }
+`;
+
+/** THE LAMPS' UNIFORMS AND THEIR BEAM, for any shader, vertex or fragment:
+ * `lampReach(i, toLamp, d)` is how much of lamp `i` reaches a point `d` m
+ * from it, `toLamp` the unit way back to the lamp — its spot and the wide
+ * flood round it (`uLampBeam`), falling off with the square of the
+ * distance, and faded out within a metre of the lens, so a headlamp never
+ * floods the helmet it is strapped to. */
+export const LAMP_GLSL = /* glsl */ `
+uniform vec3 uLampPos[${LAMP_SLOTS}];
+uniform vec3 uLampDir[${LAMP_SLOTS}];
+uniform float uLampOn[${LAMP_SLOTS}];
+uniform vec3 uLampCol[${LAMP_SLOTS}];
+uniform vec4 uLampBeam[${LAMP_SLOTS}];
+float lampReach(int i, vec3 toLamp, float d) {
+  float axis = dot(-toLamp, uLampDir[i]);
+  vec4 b = uLampBeam[i];
+  float beam = smoothstep(b.x, b.y, axis) + b.w * smoothstep(b.z, b.x, axis);
+  return uLampOn[i] * beam * smoothstep(0.2, 0.9, d) / (1.0 + 0.012 * d * d);
+}
+`;
+
+/** THE LAMPS ON EVERYTHING ELSE: a tree, a gate, a skier in a beam takes
+ * it on the side that faces the lamp. The snow has its own (`snow-glsl.ts`,
+ * with its glitter) and says so with `OWN_LAMPS`. */
+const LAMP_FRAGMENT = /* glsl */ `
+#ifndef OWN_LAMPS
+{
+  vec3 lpN = inverseTransformDirection(normal, viewMatrix);
+  vec3 lpLit = vec3(0.0);
+  for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+    if (uLampOn[i] <= 0.001) continue;
+    vec3 L = uLampPos[i] - vHazeWorld;
+    float d = length(L);
+    L /= max(d, 1e-3);
+    lpLit += uLampCol[i] * lampReach(i, L, d) * max(dot(lpN, L), 0.0);
+  }
+  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lpLit * 9.0;
+}
+#endif
 `;
 
 const HAZE_VERTEX = /* glsl */ `
@@ -354,13 +400,14 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",
         `#include <shadowmap_pars_fragment>\n${HERO_SHADOW_GLSL}`,
       )
       .replace("#include <lights_fragment_begin>", lightsWithFade())
+      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${LAMP_FRAGMENT}`)
       .replace("#include <fog_fragment>", HAZE_FRAGMENT);
     extra?.(shader);
   };

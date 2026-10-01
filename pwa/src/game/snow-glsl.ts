@@ -196,10 +196,6 @@ uniform vec4 uHole;
 uniform float uFlat;
 uniform float uFresh;
 uniform float uGlitter;
-uniform vec3 uLampPos[${LAMP_SLOTS}];
-uniform vec3 uLampDir[${LAMP_SLOTS}];
-uniform float uLampOn[${LAMP_SLOTS}];
-uniform vec3 uLampCol;
 uniform sampler2D uSurface;
 uniform vec3 uForestTint;
 uniform vec3 uCrustTone;
@@ -447,10 +443,11 @@ normal = normalize((viewMatrix * vec4(snowN, 0.0)).xyz);
  * than one turned away. That is the one cue drawn, at a tenth of the
  * contrast a sun gives: readable, but hard.
  *
- * THE LAMPS (`uLamp*`): each floodlight is a cone from its mast,
- * falling off with the square of the distance, with a little spill round
- * the pool; the snow in it glitters toward the lamp as it does toward the
- * sun, which is what makes a lit pool of snow read as snow at night. */
+ * THE LAMPS (`uLamp*`, `haze.ts`'s `lampReach`): a floodlight's cone
+ * from its mast, a skier's headlamp's spot and the wide flood round it,
+ * each falling off with the square of the distance in its own colour; the
+ * snow in a beam glitters toward the lamp as it does toward the sun, which
+ * is what makes a lit pool of snow read as snow at night. */
 export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
 {
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
@@ -461,23 +458,21 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
   vec3 V = normalize(cameraPosition - vSnowWorld);
   float loose = (1.0 - snowPacked * 0.8) * (1.0 - snowPress * 0.6) * (1.0 - snowIce) * (1.0 - snowRock);
   vec3 lampLit = vec3(0.0);
-  float lampGlint = 0.0;
+  vec3 lampGlint = vec3(0.0);
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
     if (uLampOn[i] <= 0.001) continue;
     vec3 L = uLampPos[i] - vSnowWorld;
     float d = length(L);
     L /= max(d, 1e-3);
-    float axis = dot(-L, uLampDir[i]);
-    float beam = smoothstep(0.86, 0.975, axis) + 0.1 * smoothstep(0.35, 0.86, axis);
-    float e = uLampOn[i] * beam / (1.0 + 0.012 * d * d);
-    lampLit += vec3(e * max(dot(snowN, L), 0.0));
+    float e = lampReach(i, L, d);
+    lampLit += uLampCol[i] * (e * max(dot(snowN, L), 0.0));
     if (snowDist < 40.0) {
       vec3 H = normalize(L + V);
-      lampGlint += e * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 57.0);
+      lampGlint += uLampCol[i] * (e * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 57.0));
     }
   }
-  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * uLampCol * lampLit * 9.0;
-  reflectedLight.directSpecular += uLampCol * lampGlint * loose
+  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lampLit * 9.0;
+  reflectedLight.directSpecular += lampGlint * loose
     * (1.0 - smoothstep(12.0, 40.0, snowDist)) * 12.0;
 }
 #if NUM_DIR_LIGHTS > 0

@@ -46,6 +46,9 @@ export type SkierStyle = {
 
 export type SkierFigure = {
   group: THREE.Group;
+  /** The head's frame (z forward, y up, the origin at the middle of the
+   * head), posed with him — what the helmet and its lamp hang on. */
+  head: THREE.Group;
   pose(input: SkierPoseInput): void;
   /** Pose him THROWN, off the engine's ragdoll (`ragdollPose`): the poles
    * let go, every limb where the physics has it. The caller places and
@@ -449,6 +452,7 @@ export function createSkier(
 
   return {
     group,
+    head: headGroup,
     pose(input) {
       lay(skierPose(input));
     },

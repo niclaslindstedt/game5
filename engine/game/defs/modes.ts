@@ -66,6 +66,13 @@ export const RACE = {
   /** The tuck each rival's bot is allowed, dealt off the run's stream once
    * at the start line: what tells one rival from the next. */
   paceBand: { min: 0.8, max: 1 },
+  /** HOW LATE EACH RIVAL GOES, s after GO: the eye's reaction to the
+   * lights and the moment a body takes to come off the skid held across the
+   * slope — a human's 0.15 s at the sharpest, half a second and more on a
+   * slow start. Dealt per rival with the phase his first stride lands on,
+   * so a field does not push off on one step and skate out of the gate in
+   * step. */
+  reactBand: { min: 0.15, max: 0.7 },
   /** HOW ONE SKIER LEANS ON ANOTHER: each is two circles down his skis'
    * length of `radius` m, `offset` m ahead and behind the CoG — the radius
    * is the skier's own half-width with his arms and his poles out, so two

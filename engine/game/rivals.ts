@@ -13,6 +13,15 @@
 // is on — any of the catalog's (`SKI_CATALOG`), so a powder map has a
 // powder ski in the field as often as a groomed one has a race ski.
 //
+// THE START IS NOT IN STEP. Four skiers let go on one step, every one
+// starting his stride cycle at its first push, skate out of the gate as one
+// figure four times over. So each rival is dealt — off a stream of the
+// start's own (`START_SALT`), which leaves the run's stream and so the
+// field above exactly as it was — how late he reacts to GO (`Rival.react`,
+// `RACE.reactBand`: held in the gate with his skis across until then, his
+// clock running like everyone's), and where in the stride cycle his first
+// push lands, and on which leg (`SkierState.stride`).
+//
 // THE START LINE is the level's (`Level.grid`): four slots abreast a few
 // metres above the start gate, the player in the first. A field bigger than
 // the level's line stands its extra skiers a row behind. A rival HOLDS THE
@@ -32,11 +41,18 @@ import type { Spawn } from "../mapgen/types.ts";
 import { freshProgress, laneAcross, standSkier } from "./course.ts";
 import { FULL_ASSIST, RACE } from "./defs/modes.ts";
 import { SKI_CATALOG } from "./defs/skis.ts";
-import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierState } from "./state.ts";
+import {
+  NEUTRAL_INPUT,
+  type GameEvent,
+  type GameState,
+  type SkierInput,
+  type SkierState,
+} from "./state.ts";
 import { stepRun } from "./run.ts";
 import { freshSkier } from "./skier.ts";
 import { freshTricks } from "./tricks.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   fieldOrder as orderField,
   legProgress,
@@ -46,6 +62,14 @@ import {
 
 /** How far behind the level's start line an extra row stands, m. */
 const ROW_BACK = 5;
+
+/** What the start's own stream is seeded with beside the run's seed — a
+ * stream apart, so dealing the start draws nothing off `state.rng`. */
+const START_SALT = 0x5a17e5;
+
+/** What a rival does in the gate after GO until he reacts: the skis held
+ * across the slope, as under the lights. */
+const IN_GATE: SkierInput = { ...NEUTRAL_INPUT, brake: 1 };
 
 /** How far right of the piste's centreline slot `slot` stands, m — the
  * lane its skier holds down the piste. */
@@ -67,11 +91,12 @@ export function gridSlot(state: GameState, slot: number): Spawn {
   };
 }
 
-/** STAND THE FIELD: `count` rivals, each on its slot with its pace and its
- * skis dealt. Called once, from `createGame`, and only for a run with
- * rivals in it. */
+/** STAND THE FIELD: `count` rivals, each on its slot with its pace, its
+ * skis and its start dealt. Called once, from `createGame`, and only for a
+ * run with rivals in it. */
 export function createRivals(state: GameState, count: number): void {
   state.rivals = [];
+  const start = createRng((state.seed ^ START_SALT) >>> 0);
   for (let i = 0; i < count; i++) {
     const pace = state.rng.range(RACE.paceBand.min, RACE.paceBand.max);
     const run: GameState = {
@@ -91,18 +116,23 @@ export function createRivals(state: GameState, count: number): void {
     };
     const at = gridSlot(state, i + 1);
     standSkier(run, at.x, at.z, at.heading);
+    // The stride count's whole part is the leg, its fraction the phase.
+    run.skier.stride = start.range(0, 2);
     state.rivals.push({
       id: i,
       run,
       pace,
+      react: start.range(RACE.reactBand.min, RACE.reactBand.max),
       lane: laneOf(state, i + 1),
     });
   }
 }
 
 /** Step every rival by the step the world has just taken: the bot skis
- * each one's own run, its tuck held to its pace, under the player's lights. */
+ * each one's own run, its tuck held to its pace, under the player's lights
+ * — and from his own reaction after GO. */
 export function stepRivals(state: GameState): void {
+  const sinceGo = state.t - state.rules.countdown;
   for (const rival of state.rivals) {
     const run = rival.run;
     run.t = state.t;
@@ -116,7 +146,12 @@ export function stepRivals(state: GameState): void {
         ? "countdown"
         : "racing";
     run.events.length = 0;
-    const input = run.phase === "racing" ? botInput(run, RIDER_BOT, rival.lane) : NEUTRAL_INPUT;
+    const input =
+      run.phase !== "racing"
+        ? NEUTRAL_INPUT
+        : sinceGo < rival.react
+          ? IN_GATE
+          : botInput(run, RIDER_BOT, rival.lane);
     run.input.steer = input.steer;
     run.input.tuck = Math.min(input.tuck, rival.pace);
     run.input.brake = input.brake;

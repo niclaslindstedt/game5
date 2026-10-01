@@ -23,7 +23,7 @@ A pure TypeScript module with no framework, no renderer, no DOM and no `node:` �
 - `placeRun(state, moment)` stands a run at a moment instead of skiing to it — a plan point, a heading, a speed, optionally a height, a climb, a pitch and a roll — with the skis flat and the body standing. The tests and the ride lab stage through it; the moment itself is still the engine's to emit.
 - `botInput(state)` is the bot's answer for the same state (`sim/bot.ts`); `simulateRun(seed, options)` skis a whole mountain with it (`sim/simulate.ts`, [simulation.md](simulation.md)).
 
-**Determinism is a hard invariant.** Everything random draws from the seeded stream in the state (`state.rng = createRng(seed)`, the framework's `core/prng`), never `Math.random`; `state.t` is the only clock the engine knows. The only draws a run makes are the rivals' paces at the start line. A seed and a list of inputs reproduce a run to the bit, which is what the sim digests rely on and `tests/determinism_test.ts` holds.
+**Determinism is a hard invariant.** Everything random draws from the seeded stream in the state (`state.rng = createRng(seed)`, the framework's `core/prng`), never `Math.random`; `state.t` is the only clock the engine knows. The only draws a run makes are the rivals' paces and pairs at the start line, and — off a stream of the start's own seeded beside it, so the field a seed deals is untouched by it — how late each rival goes after GO (`RACE.reactBand`) and the phase his first stride lands on. A seed and a list of inputs reproduce a run to the bit, which is what the sim digests rely on and `tests/determinism_test.ts` holds.
 
 ### The step
 

@@ -195,6 +195,20 @@ describe("the URL (url-params.ts, splash.ts)", () => {
     expect(readParams("?probe=0").probe).toBe(false);
   });
 
+  it("reads a held ride: a speed, a move and its seconds, or nothing", () => {
+    expect(readParams("?start=race&hold=40").hold).toEqual({
+      kmh: 40,
+      move: "straight",
+      seconds: 3,
+    });
+    expect(readParams("?hold=15,check,5").hold).toEqual({ kmh: 15, move: "check", seconds: 5 });
+    expect(readParams("?hold=15,flail").hold?.move).toBe("straight");
+    expect(readParams("?hold=15,carve,99").hold?.seconds).toBe(20);
+    expect(readParams("?hold=fast").hold).toBe(null);
+    expect(readParams("?hold=400").hold).toBe(null);
+    expect(readParams("").hold).toBe(null);
+  });
+
   it("deals a seed in the generator's range", () => {
     expect(dealSeed(() => 0)).toBe(1);
     expect(dealSeed(() => 0.999999)).toBeLessThan(100_000);

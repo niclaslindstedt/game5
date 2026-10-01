@@ -21,6 +21,15 @@ const PITCH = Math.tan(Math.PI / 9);
 
 export const MOVES = [
   {
+    id: "wait",
+    title: "stood still on the flat, waiting at the start line",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 8,
+    window: [0.5, 7.5],
+    input: () => IDLE,
+  },
+  {
     id: "start",
     title: "setting off from a standstill on the flat, the tuck key held: skating away",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -113,3 +122,23 @@ export const MOVES = [
 ];
 
 export const MOVE_IDS = MOVES.map((m) => m.id);
+
+/** THE MOMENTS the close-up, game-scale and stretch sheets stand him at —
+ * each a move skied to a second of it, so a moment is a state the engine
+ * reached and never a pose typed in: the stance, a carve each way and cut
+ * hard, the tuck, a double pole's push, a skate's, the flight and a
+ * landing taken in the legs, a hockey stop. */
+export const MOMENTS = [
+  { id: "stance", move: "hockey", t: 0.25, say: "the stance at 50 km/h" },
+  { id: "carve", move: "carve", t: 1.0, say: "a full edge at 70 km/h" },
+  { id: "cut", move: "carve", t: 2.0, say: "the edge cut hard" },
+  { id: "tuck", move: "tuck", t: 1.3, say: "the full tuck" },
+  { id: "pole", move: "pole", t: 1.45, say: "a double pole's push" },
+  { id: "skate", move: "skate", t: 2.0, say: "a skate stride" },
+  { id: "air", move: "jump", t: 2.1, say: "in the air off a jump" },
+  { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
+  { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
+  { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
+];
+
+export const MOMENT_IDS = MOMENTS.map((m) => m.id);

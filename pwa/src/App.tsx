@@ -79,6 +79,7 @@ import { useCloudSync } from "./game/use-cloud-sync.ts";
 import { freeGameOptions } from "./game/free-ride.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
+import { heldRide } from "./game/hold-input.ts";
 import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts";
 import { keepsRecords } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
@@ -447,7 +448,7 @@ export function App() {
     // the player waits for another), or the race a link names — already
     // `t` seconds in, ridden by the bot.
     // A link's race is the player's, and filed — unless the bot pre-rides it.
-    adopt(state, params.rides && params.t === 0 ? ticketFor(state) : null);
+    adopt(state, params.rides && params.t === 0 && !params.hold ? ticketFor(state) : null);
     if (params.rides && params.t > 0) {
       preroll = true;
       const steps = Math.round(params.t * TUNING.physicsHz);
@@ -455,6 +456,7 @@ export function App() {
       preroll = false;
     }
     if (params.rides && params.pose) placeRun(state, params.pose);
+    const holdRide = heldRide(params.rides ? params.hold : null); // `?hold=`, as the map stands
     renderer.setCamera(cameraFor(shellRef.current, settingsRef.current.camera));
     build(state).catch((e: unknown) =>
       error(`the renderer could not build the map: ${e instanceof Error ? e.message : String(e)}`),
@@ -667,6 +669,7 @@ export function App() {
       const rate = replays.frame() * renderer.timeRate();
       const dtRun = dtFrame * rate;
       const simAt = performance.now();
+      if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
       if (!frozen && !held && shown) {
         const steps = clock.frame(dtRun);
         for (let i = 0; i < steps; i++) stepOnce();

@@ -71,10 +71,11 @@ describe("the models the game ships", () => {
     for (const f of all) {
       const at = join(root, MODELS_DIR, f);
       expect(existsSync(at), `${MODELS_DIR}/${f} — run \`make models\``).toBe(true);
-      // A pair's LOD0 is under 1 MB, the skier's ~0.5 MB, a kind of tree's
-      // ten variants (packed) ~0.15 MB, a bird or an animal (packed) a few
-      // KB, the arch ~40 KB: a model grown past this is a builder that lost
-      // its game budget.
+      // A pair's LOD0 is under 1 MB, the skier's ~1 MB (two dozen bones —
+      // the half-angle helpers and the hands among them — and his baked
+      // cloth), a kind of tree's ten variants (packed) ~0.15 MB, a bird or
+      // an animal (packed) a few KB, the arch ~40 KB: a model grown past
+      // this is a builder that lost its game budget.
       const budget = f.startsWith("trees/")
         ? 320_000
         : f.startsWith("birds/") || f.startsWith("beasts/")
@@ -82,7 +83,7 @@ describe("the models the game ships", () => {
           : f.startsWith("gates/")
             ? 120_000
             : f === "skier.glb"
-              ? 900_000
+              ? 1_200_000
               : 1_600_000;
       expect(statSync(at).size, f).toBeLessThan(budget);
     }

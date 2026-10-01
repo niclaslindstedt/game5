@@ -31,6 +31,13 @@
 //   ?probe=0         always sent: the first-visit probe must not move the
 //                    picture under the shutter.
 //   ?update=1        the new-build button, as if a build were waiting.
+//   ?pose=x,z,h,v    the player's skis stood there once the pre-roll is
+//                    ridden (--pose: plan metres, heading rad, speed m/s —
+//                    the REPRO line's, or the cloud lab's meadow).
+//   ?hold=<kmh>,<move>,<s>  ...and ridden on HELD at that speed in a move
+//                    (--hold, a capture a speed; --move, --hold-for): the
+//                    game's own frame of what a speed looks like — the
+//                    snow cloud it raises, the skier at it.
 //   window.__SH_READY__ === true
 //     set by the app once a race's frame has been drawn. This tool waits for
 //     it (30 s, then a clear error).
@@ -38,6 +45,7 @@
 //   node scripts/screenshot.mjs                          # the race at 10 s
 //   node scripts/screenshot.mjs --scene grid             # on the lights
 //   node scripts/screenshot.mjs --surface all            # every card
+//   node scripts/screenshot.mjs --pose 1884,1036,0,5 --hold 15,40,70 --move check  # the cloud at speeds
 //   node scripts/screenshot.mjs --surface menu,loading --viewport phone
 //   node scripts/screenshot.mjs --scene race --camera tips --seed 7
 //   node scripts/screenshot.mjs --weather all --viewport desktop   # every sky
@@ -171,6 +179,20 @@ const args = parseArgs(
     seed: { kind: "number", default: 38, help: "map seed" },
     t: { kind: "number", help: "seconds into the race (overrides the scene's own)" },
     camera: { kind: "string", help: "tips, helmet, chase, far, high" },
+    pose: {
+      kind: "string",
+      help: "stand the player's skis at x,z,heading,speed (m, m, rad, m/s) once the pre-roll is ridden (?pose=)",
+    },
+    hold: {
+      kind: "string",
+      help: "then ride on HELD at these speeds, km/h, a capture each (?hold=) — what the cloud looks like at a speed",
+    },
+    move: {
+      kind: "string",
+      default: "straight",
+      help: "the held ride's move (straight, carve, check, stop, skate)",
+    },
+    "hold-for": { kind: "number", default: 3, help: "seconds the held ride is ridden" },
     video: { kind: "string", help: "picture preset for the visit (low, medium, high)" },
     update: { kind: "flag", help: "draw the new-build button (?update=1)" },
     weather: { kind: "string", help: `ride under this sky (${WEATHERS.join(", ")}, all)` },
@@ -192,7 +214,7 @@ const args = parseArgs(
     },
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
-  "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] " +
+  "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
     "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--viewport v] [--timeout s]",
 );
 const viewports =
@@ -342,38 +364,43 @@ if (args.surface) {
       process.exit(2);
     }
   }
+  const holds = args.hold === undefined ? [undefined] : String(args.hold).split(",");
   for (const scene of scenes)
-    for (const sky of skies) {
-      if (!(scene in SCENES)) {
-        console.error(`unknown scene "${scene}" (${Object.keys(SCENES).join(", ")}, all)`);
-        failures += 1;
-        continue;
+    for (const sky of skies)
+      for (const hold of holds) {
+        if (!(scene in SCENES)) {
+          console.error(`unknown scene "${scene}" (${Object.keys(SCENES).join(", ")}, all)`);
+          failures += 1;
+          continue;
+        }
+        const params = {
+          start: "race",
+          seed: String(args.seed),
+          t: String(args.t ?? SCENES[scene]),
+          shot: "1",
+        };
+        if (args.camera !== undefined) params.camera = String(args.camera);
+        if (args.video !== undefined) params.video = String(args.video);
+        if (args.update) params.update = "1";
+        if (sky !== undefined) params.weather = sky;
+        if (args.hour !== undefined) params.hour = String(args.hour);
+        if (args.region !== undefined) params.region = String(args.region);
+        if (args.grade !== undefined) params.grade = String(args.grade);
+        if (args.trial) params.mode = "trial";
+        if (args.tricks) params.mode = "tricks";
+        if (args.pose !== undefined) params.pose = String(args.pose);
+        if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
+        const name =
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
+          `${args.region !== undefined ? `-${args.region}` : ""}` +
+          `${args.grade !== undefined ? `-${args.grade}` : ""}` +
+          `${args.t !== undefined ? `-t${args.t}` : ""}` +
+          `${args.camera !== undefined ? `-${args.camera}` : ""}` +
+          `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}` +
+          `${args.pose !== undefined ? "-posed" : ""}${hold !== undefined ? `-hold${hold}-${args.move}` : ""}`;
+        for (const v of viewports) await capture(name, params, v);
       }
-      const params = {
-        start: "race",
-        seed: String(args.seed),
-        t: String(args.t ?? SCENES[scene]),
-        shot: "1",
-      };
-      if (args.camera !== undefined) params.camera = String(args.camera);
-      if (args.video !== undefined) params.video = String(args.video);
-      if (args.update) params.update = "1";
-      if (sky !== undefined) params.weather = sky;
-      if (args.hour !== undefined) params.hour = String(args.hour);
-      if (args.region !== undefined) params.region = String(args.region);
-      if (args.grade !== undefined) params.grade = String(args.grade);
-      if (args.trial) params.mode = "trial";
-      if (args.tricks) params.mode = "tricks";
-      const name =
-        `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${sky !== undefined ? `-${sky}` : ""}` +
-        `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
-        `${args.region !== undefined ? `-${args.region}` : ""}` +
-        `${args.grade !== undefined ? `-${args.grade}` : ""}` +
-        `${args.t !== undefined ? `-t${args.t}` : ""}` +
-        `${args.camera !== undefined ? `-${args.camera}` : ""}` +
-        `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}`;
-      for (const v of viewports) await capture(name, params, v);
-    }
 }
 
 await browser.close();

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SKIER'S BODY ON ITS LEGS (`skier-pose.ts`): tall at rest, folded into
-// the tuck by the crouch, angulated into a carve with his hips inside and
-// his shoulders held level over them, his head nearer level than his
-// shoulders; a landing folds him down and he comes back up; the poles hang
-// from his fists and a plant reaches one to the snow.
+// the tuck by the crouch with his back rounded, angulated into a carve — an
+// inclined column hinged at the hips, each shin held in its boot — his
+// eyes held toward the horizon; compact in the air, into it and out of it
+// as motions; a landing folds him down and he comes back up; the poles hang
+// from his fists and a plant reaches one to the snow; stood still, he waits
+// alive. And the rig his model is posed by (`skier-rig.ts`): the half bones
+// turn half way, the hands hold the poles.
 
 import { describe, expect, it } from "vitest";
 
@@ -15,6 +18,7 @@ import {
   stepSkierSpring,
   type SkierPose,
 } from "../pwa/src/game/skier-pose.ts";
+import { STANDING, skierBones } from "../pwa/src/game/skier-rig.ts";
 
 const base = {
   hipRight: 0,
@@ -55,13 +59,26 @@ describe("the body on its legs", () => {
     expect(folded.hips.y).toBeLessThan(skierPose(base).hips.y - 0.15);
   });
 
-  it("angulates into a carve: the hips inside, the shoulders levelled over them", () => {
+  it("angulates into a carve: an inclined column with a hinge at the hips", () => {
     const carve = skierPose({ ...base, hipRight: -0.3, steer: -1, edge: -0.6 });
-    expect(carve.hips.x).toBeLessThan(-0.25);
-    // The trunk rolls AGAINST the hang, so the neck stands back toward
-    // the centre from the hips: a hinge at the hip, not a lean.
-    expect(carve.neck.x).toBeGreaterThan(carve.hips.x);
+    expect(carve.hips.x).toBeLessThan(-0.2);
+    // The legs lean in with the skis and the trunk leans in too, but less:
+    // never thrown out past the vertical over the outside ski, never
+    // leaning in as far as the legs.
+    const feetX = (carve.feet[0].x + carve.feet[1].x) / 2;
+    const feetY = (carve.feet[0].y + carve.feet[1].y) / 2;
+    const legs = Math.atan2(carve.hips.x - feetX, carve.hips.y - feetY);
     const tilt = Math.atan2(carve.neck.x - carve.hips.x, carve.neck.y - carve.hips.y);
+    expect(tilt).toBeLessThan(0.15);
+    expect(tilt).toBeGreaterThan(legs + 0.15);
+    // Each shin stands in its boot, tipped with its ski.
+    for (const i of [0, 1]) {
+      const shin = Math.atan2(
+        carve.knees[i].x - carve.feet[i].x,
+        carve.knees[i].y - carve.feet[i].y,
+      );
+      expect(shin).toBeCloseTo(-0.6, 1);
+    }
     const head = Math.atan2(carve.head.x - carve.neck.x, carve.head.y - carve.neck.y);
     expect(Math.abs(head)).toBeLessThan(Math.abs(tilt) + 0.3);
     // The feet go with the edge's tilt: the boots move across.
@@ -135,6 +152,104 @@ describe("the body on its legs", () => {
         const h = p.hands[i];
         expect(Math.hypot(tip.x - h.x, tip.y - h.y, tip.z - h.z)).toBeCloseTo(MOUNTS.pole, 6);
       }
+    }
+  });
+
+  it("holds his eyes toward the horizon however far the pair is rolled", () => {
+    // A pair rolled 0.6 rad into a left turn, the trunk on it: the head
+    // keeps only a share of that lean in the world.
+    const p = skierPose({ ...base, roll: -0.6, hipRight: -0.3, steer: -1, edge: -0.5 });
+    const trunkWorld = -0.6 + p.roll;
+    const headWorld = -0.6 + p.headRoll;
+    expect(Math.abs(headWorld)).toBeLessThan(Math.abs(trunkWorld) * 0.5);
+    // Never turned on the neck past what a neck turns.
+    expect(Math.abs(p.headRoll - p.roll)).toBeLessThanOrEqual(0.5 + 1e-9);
+  });
+
+  it("rounds his back in the tuck, near straight standing", () => {
+    const bend = (q: SkierPose) => {
+      const a = { x: q.waist.x - q.hips.x, y: q.waist.y - q.hips.y, z: q.waist.z - q.hips.z };
+      const b = { x: q.neck.x - q.waist.x, y: q.neck.y - q.waist.y, z: q.neck.z - q.waist.z };
+      const c =
+        (a.x * b.x + a.y * b.y + a.z * b.z) /
+        (Math.hypot(a.x, a.y, a.z) * Math.hypot(b.x, b.y, b.z));
+      return Math.acos(Math.min(1, c));
+    };
+    expect(bend(skierPose(base))).toBeLessThan(0.12);
+    expect(bend(skierPose({ ...base, crouch: 1 }))).toBeGreaterThan(0.4);
+  });
+
+  it("flies compact and goes into the air and out of it as motions", () => {
+    // In flight the knees stay bent: the body sinks toward the skis.
+    const knee = (q: SkierPose) => {
+      const h = q.hipJoints[0];
+      const a = { x: q.knees[0].x - h.x, y: q.knees[0].y - h.y, z: q.knees[0].z - h.z };
+      const b = {
+        x: q.feet[0].x - q.knees[0].x,
+        y: q.feet[0].y - q.knees[0].y,
+        z: q.feet[0].z - q.knees[0].z,
+      };
+      return Math.acos(
+        (a.x * b.x + a.y * b.y + a.z * b.z) /
+          (Math.hypot(a.x, a.y, a.z) * Math.hypot(b.x, b.y, b.z)),
+      );
+    };
+    expect(knee(skierPose({ ...base, airborne: true, lift: [-0.06, -0.06] }))).toBeGreaterThan(0.9);
+    // The view's spring eases into the air and lets a load go over the
+    // pop: neither jumps in one frame.
+    const legs = createSkierSpring();
+    stepSkierSpring(legs, 0, false, 1 / 60, 1);
+    for (let i = 0; i < 60; i++) stepSkierSpring(legs, 0, false, 1 / 60, 1);
+    expect(legs.load).toBeGreaterThan(0.95);
+    stepSkierSpring(legs, 3, true, 1 / 60, 0);
+    expect(legs.air).toBeLessThan(0.3);
+    expect(legs.load).toBeGreaterThan(0.6);
+  });
+
+  it("waits alive when stood still, and not once he moves", () => {
+    const at = (t: number, still: number) => skierPose({ ...base, idle: { t, still } });
+    const a = at(1, 1);
+    const b = at(4.5, 1);
+    expect(Math.abs(a.look - b.look) + Math.abs(a.hips.x - b.hips.x)).toBeGreaterThan(0.02);
+    expect(at(1, 0)).toEqual(at(4.5, 0));
+  });
+});
+
+describe("the rig his model is posed by", () => {
+  it("turns each half bone half way, and binds it on its parent", () => {
+    // At rest every half bone stands as its parent does.
+    const rest = skierBones(skierPose(STANDING));
+    for (const [half, parent] of [
+      ["hip_l", "pelvis"],
+      ["knee_r", "thigh_r"],
+      ["shoulder_l", "chest"],
+      ["elbow_r", "upperarm_r"],
+    ] as const) {
+      expect(rest[half].y.x).toBeCloseTo(rest[parent].y.x, 6);
+      expect(rest[half].y.y).toBeCloseTo(rest[parent].y.y, 6);
+      expect(rest[half].z.z).toBeCloseTo(rest[parent].z.z, 6);
+    }
+    // Folded, the knee's half bone lies between the thigh and the shin.
+    const tuck = skierBones(skierPose({ ...STANDING, crouch: 1 }));
+    const ang = (u: { x: number; y: number; z: number }, v: typeof u) =>
+      Math.acos(Math.min(1, u.x * v.x + u.y * v.y + u.z * v.z));
+    const whole = ang(tuck.thigh_l.y, tuck.shin_l.y);
+    expect(ang(tuck.thigh_l.y, tuck.knee_l.y)).toBeLessThan(whole * 0.75);
+    expect(ang(tuck.knee_l.y, tuck.shin_l.y)).toBeLessThan(whole * 0.75);
+  });
+
+  it("closes each hand round its pole: the shaft runs up through the fist", () => {
+    const p = skierPose({ ...STANDING, plant: 1 });
+    const bones = skierBones(p);
+    for (const [i, s] of [
+      [0, "l"],
+      [1, "r"],
+    ] as const) {
+      const hand = bones[`hand_${s}`];
+      const pole = p.poles![i];
+      const d = { x: p.hands[i].x - pole.x, y: p.hands[i].y - pole.y, z: p.hands[i].z - pole.z };
+      const l = Math.hypot(d.x, d.y, d.z);
+      expect((d.x * hand.z.x + d.y * hand.z.y + d.z * hand.z.z) / l).toBeCloseTo(1, 6);
     }
   });
 });

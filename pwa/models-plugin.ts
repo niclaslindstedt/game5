@@ -80,6 +80,8 @@ export const MODEL_SOURCES = [
   "pwa/src/game/ski-looks.ts",
   "pwa/src/game/ski-gear.ts",
   "pwa/src/game/skier-pose.ts",
+  "pwa/src/game/skier-gait.ts",
+  "pwa/src/game/skier-spring.ts",
   "pwa/src/game/skier-helmet.ts",
   "pwa/src/game/skier-rig.ts",
 ];

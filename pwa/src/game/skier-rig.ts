@@ -9,9 +9,14 @@
 //   skierBones(pose)   every bone's frame for a pose — its head on a joint,
 //                      its +y along the span to the next, its +z where the
 //                      joint bends (a knee's front, an elbow's point), the
-//                      head turned as `skier-figure.ts` turns it. Three-free:
-//                      the Blender driver binds the model in the standing
-//                      pose off it and samples every clip through it.
+//                      head turned as `skier-figure.ts` turns it; the
+//                      trunk in two (the pelvis and the chest), a HALF BONE
+//                      at every hip, knee, shoulder and elbow turned half
+//                      way between the two it joins, each HAND closed round
+//                      its pole and each FOOT in its boot's frame.
+//                      Three-free: the Blender driver binds the model in
+//                      the standing pose off it and samples every clip
+//                      through it.
 //   STANDING           the pose the model is bound in: the athletic stance
 //                      on the move, the skis flat and straight.
 //   skierClips()       the clips a model carries, each SAMPLED off the
@@ -32,7 +37,6 @@ import * as THREE from "three";
 import { SKIS, type TrickPose } from "@engine";
 
 import {
-  BODY,
   createSkierSpring,
   skierPose,
   stepSkierSpring,
@@ -42,7 +46,8 @@ import {
 } from "./skier-pose.ts";
 
 export const SKIER_BONES = [
-  "spine",
+  "pelvis",
+  "chest",
   "head",
   "thigh_l",
   "shin_l",
@@ -54,6 +59,16 @@ export const SKIER_BONES = [
   "forearm_l",
   "upperarm_r",
   "forearm_r",
+  "hip_l",
+  "hip_r",
+  "knee_l",
+  "knee_r",
+  "shoulder_l",
+  "shoulder_r",
+  "elbow_l",
+  "elbow_r",
+  "hand_l",
+  "hand_r",
 ] as const;
 export type SkierBone = (typeof SKIER_BONES)[number];
 
@@ -70,6 +85,74 @@ const cross = (a: V3, b: V3): V3 => ({
   z: a.x * b.y - a.y * b.x,
 });
 const norm = (a: V3): V3 => scale(a, 1 / (Math.sqrt(dot(a, a)) || 1));
+
+type Quat = { x: number; y: number; z: number; w: number };
+
+/** A frame's turn as a quaternion (its axes the matrix's columns). */
+function quatOf(f: { x: V3; y: V3; z: V3 }): Quat {
+  const [m00, m01, m02] = [f.x.x, f.y.x, f.z.x];
+  const [m10, m11, m12] = [f.x.y, f.y.y, f.z.y];
+  const [m20, m21, m22] = [f.x.z, f.y.z, f.z.z];
+  const tr = m00 + m11 + m22;
+  if (tr > 0) {
+    const s = 0.5 / Math.sqrt(tr + 1);
+    return { w: 0.25 / s, x: (m21 - m12) * s, y: (m02 - m20) * s, z: (m10 - m01) * s };
+  }
+  if (m00 > m11 && m00 > m22) {
+    const s = 2 * Math.sqrt(1 + m00 - m11 - m22);
+    return { w: (m21 - m12) / s, x: 0.25 * s, y: (m01 + m10) / s, z: (m02 + m20) / s };
+  }
+  if (m11 > m22) {
+    const s = 2 * Math.sqrt(1 + m11 - m00 - m22);
+    return { w: (m02 - m20) / s, x: (m01 + m10) / s, y: 0.25 * s, z: (m12 + m21) / s };
+  }
+  const s = 2 * Math.sqrt(1 + m22 - m00 - m11);
+  return { w: (m10 - m01) / s, x: (m02 + m20) / s, y: (m12 + m21) / s, z: 0.25 * s };
+}
+const qmul = (a: Quat, b: Quat): Quat => ({
+  w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+  x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+  y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+  z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+});
+const qconj = (q: Quat): Quat => ({ w: q.w, x: -q.x, y: -q.y, z: -q.z });
+/** Half way along the shorter arc from `a` to `b` (normalised lerp: at a
+ * half the same as a slerp's). */
+function qhalf(a: Quat, b: Quat): Quat {
+  const k = a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z < 0 ? -1 : 1;
+  const q = { w: a.w + k * b.w, x: a.x + k * b.x, y: a.y + k * b.y, z: a.z + k * b.z };
+  const l = Math.hypot(q.w, q.x, q.y, q.z) || 1;
+  return { w: q.w / l, x: q.x / l, y: q.y / l, z: q.z / l };
+}
+function rotateBy(q: Quat, v: V3): V3 {
+  const t = qmul(qmul(q, { w: 0, ...v }), qconj(q));
+  return { x: t.x, y: t.y, z: t.z };
+}
+
+/** THE REST the half bones turn from: every bone in the pose the model is
+ * bound in (`STANDING`), found once. */
+let rest: Record<string, BoneFrame> | null = null;
+
+/**
+ * A HALF BONE between `parent` and `child`, its head at `at`: it turns from
+ * its rest (the parent's own) by half the parent's turn from rest and half
+ * the child's — the half-angle helper every skinned elbow is given, so the
+ * skin across the joint goes half as far round with neither bone.
+ */
+function halfway(parent: string, child: string, out: Record<string, BoneFrame>, at: V3): BoneFrame {
+  rest ??= skierBones(skierPose(STANDING), false);
+  const r = quatOf(rest[parent]);
+  const dp = qmul(quatOf(out[parent]), qconj(r));
+  const dc = qmul(quatOf(out[child]), qconj(quatOf(rest[child])));
+  const q = qmul(qhalf(dp, dc), r);
+  return {
+    head: at,
+    x: rotateBy(q, { x: 1, y: 0, z: 0 }),
+    y: rotateBy(q, { x: 0, y: 1, z: 0 }),
+    z: rotateBy(q, { x: 0, y: 0, z: 1 }),
+    length: 0.08,
+  };
+}
 
 /** A frame from `head` along to `tail`, its +z turned toward `face`
  * (`fallback` where `face` runs along the bone). */
@@ -88,9 +171,9 @@ const bend = (root: V3, mid: V3, tip: V3): V3 => sub(mid, scale(add(root, tip), 
 
 /** How the head is turned, as `skier-figure.ts` turns it: nearer level
  * than the shoulders and looking into the turn — three's "YXZ" Euler of
- * (−0.2 + pitch × 0.3, look × 0.5, −roll × 0.35), as axes. */
+ * (−0.2 + pitch × 0.3, look × 0.5, −headRoll), as axes. */
 function headAxes(p: SkierPose): { x: V3; y: V3; z: V3 } {
-  const [a, b, c] = [-0.2 + p.pitch * 0.3, p.look * 0.5, -p.roll * 0.35];
+  const [a, b, c] = [-0.2 + p.pitch * 0.3, p.look * 0.5, -p.headRoll];
   const rx = (v: V3): V3 => ({
     x: v.x,
     y: v.y * Math.cos(a) - v.z * Math.sin(a),
@@ -114,31 +197,59 @@ function headAxes(p: SkierPose): { x: V3; y: V3; z: V3 } {
   };
 }
 
-/** EVERY BONE'S FRAME FOR A POSE. */
-export function skierBones(p: SkierPose): Record<SkierBone, BoneFrame> {
+/** EVERY BONE'S FRAME FOR A POSE (the half bones with them, unless
+ * `halves` is false — the rest they turn from is found without them). */
+export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneFrame> {
   const up = norm(sub(p.neck, p.hips));
   const across = norm(sub(p.shoulders[1], p.shoulders[0]));
   const chest = norm(cross(across, up));
   const out = {} as Record<SkierBone, BoneFrame>;
-  out.spine = span(p.hips, p.neck, chest, { x: 0, y: 0, z: 1 });
+  // THE TRUNK IN TWO: the pelvis from the hips to the small of the back,
+  // facing the way the hip joints' line says (turned with the skis), and
+  // the chest from there to the neck, facing the way the shoulders do — so
+  // the back rounds in the tuck and the shoulders turn over the hips.
+  const pelvisAcross = norm(sub(p.hipJoints[1], p.hipJoints[0]));
+  const lower = norm(sub(p.waist, p.hips));
+  out.pelvis = span(p.hips, p.waist, cross(pelvisAcross, lower), chest);
+  out.chest = span(p.waist, p.neck, chest, { x: 0, y: 0, z: 1 });
   const h = headAxes(p);
   out.head = { head: p.head, ...h, length: 0.15 };
   [-1, 1].forEach((side, i) => {
     const s = i === 0 ? "l" : "r";
-    const hip = add(p.hips, scale(across, side * BODY.hip));
+    const hip = p.hipJoints[i];
     const knee = bend(hip, p.knees[i], p.feet[i]);
     out[`thigh_${s}`] = span(hip, p.knees[i], knee, chest);
     out[`shin_${s}`] = span(p.knees[i], p.feet[i], knee, chest);
-    // The boot along the level forward, its sole down.
-    out[`boot_${s}`] = span(
-      p.feet[i],
-      add(p.feet[i], { x: 0, y: 0, z: 0.2 }),
-      { x: 0, y: 1, z: 0 },
-      up,
-    );
+    // The foot along its boot's sole, its instep up (`SkierPose.boots`).
+    const boot = p.boots[i];
+    out[`boot_${s}`] = span(p.feet[i], add(p.feet[i], scale(boot.f, 0.2)), boot.n, up);
     const elbow = bend(p.shoulders[i], p.elbows[i], p.hands[i]);
     out[`upperarm_${s}`] = span(p.shoulders[i], p.elbows[i], elbow, scale(chest, -1));
     out[`forearm_${s}`] = span(p.elbows[i], p.hands[i], elbow, scale(chest, -1));
+    // THE HALF BONES: at every hip, knee, shoulder and elbow, a bone turned
+    // half way between the two it joins — the skin across the joint rides
+    // it, so a fold past a right angle spreads over the joint rather than
+    // collapsing where the two bones' weights meet.
+    // THE HAND, CLOSED ROUND THE POLE'S GRIP: its +z up the shaft (from the
+    // basket to the fist), its +y the forearm's line squared to it — so the
+    // pole runs through the fist whatever the stroke does to it, the wrist
+    // turning to hold it. A thrown skier's hand has let go: it lies along
+    // the forearm.
+    const fore = out[`forearm_${s}`];
+    const pole = p.poles?.[i];
+    if (pole) {
+      const zz = norm(sub(p.hands[i], pole));
+      let yy = sub(fore.y, scale(zz, dot(fore.y, zz)));
+      yy = dot(yy, yy) < 1e-8 ? fore.z : norm(yy);
+      out[`hand_${s}`] = { head: p.hands[i], x: cross(yy, zz), y: yy, z: zz, length: 0.08 };
+    } else {
+      out[`hand_${s}`] = { ...fore, head: p.hands[i], length: 0.08 };
+    }
+    if (!halves) return;
+    out[`hip_${s}`] = halfway("pelvis", `thigh_${s}`, out, hip);
+    out[`knee_${s}`] = halfway(`thigh_${s}`, `shin_${s}`, out, p.knees[i]);
+    out[`shoulder_${s}`] = halfway("chest", `upperarm_${s}`, out, p.shoulders[i]);
+    out[`elbow_${s}`] = halfway(`upperarm_${s}`, `forearm_${s}`, out, p.elbows[i]);
   });
   return out;
 }
@@ -223,12 +334,19 @@ function mix(a: SkierPose, b: SkierPose, k: number): SkierPose {
   const n = (p: number, q: number) => p + (q - p) * k;
   return {
     hips: v(a.hips, b.hips),
+    hipJoints: pair(a.hipJoints, b.hipJoints),
+    waist: v(a.waist, b.waist),
     neck: v(a.neck, b.neck),
     head: v(a.head, b.head),
     pitch: n(a.pitch, b.pitch),
     roll: n(a.roll, b.roll),
+    headRoll: n(a.headRoll, b.headRoll),
     knees: pair(a.knees, b.knees),
     feet: pair(a.feet, b.feet),
+    boots: [0, 1].map((i) => ({
+      f: norm(v(a.boots[i].f, b.boots[i].f)),
+      n: norm(v(a.boots[i].n, b.boots[i].n)),
+    })) as SkierPose["boots"],
     shoulders: pair(a.shoulders, b.shoulders),
     elbows: pair(a.elbows, b.elbows),
     hands: pair(a.hands, b.hands),

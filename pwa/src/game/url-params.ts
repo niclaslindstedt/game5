@@ -18,6 +18,12 @@
 //                   bot's pre-roll left it: the REPRO line's last word
 //                   (`debug-readout.ts`), so a frame found on the developer
 //                   page is a link.
+//   ?hold=<kmh>[,<move>[,<s>]]
+//                   ...and then ridden on a few seconds more (three unless
+//                   named) HELD at that speed along his heading in a move
+//                   (`hold-input.ts`: straight, carve, check, stop, skate) —
+//                   how a lab photographs what a speed looks like in the
+//                   game: the cloud it raises, the skier at it.
 //   ?shot=1         ...and held still once drawn, so nothing moves under a
 //                   screenshot's shutter.
 //   ?paused=1       ...or held under the pause card.
@@ -100,6 +106,7 @@ import {
 import { BENCHMARK } from "./benchmark-plan.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
+import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
@@ -144,6 +151,8 @@ export type UrlParams = {
   t: number;
   /** Where the player's skier is stood once the pre-roll is skied. */
   pose: SkisPose | null;
+  /** ...and the ride he is held on after it, at a speed in a move. */
+  hold: { kmh: number; move: HoldMove; seconds: number } | null;
   /** Run the benchmark on boot. */
   bench: boolean;
   /** ...its GPU timer's cut, and what it is drawn without. */
@@ -199,6 +208,21 @@ function framesOf(raw: string | null): number | null {
   return raw !== null && Number.isInteger(n) && n >= 60 && n <= BENCHMARK.frames ? n : null;
 }
 
+/** A held ride a link may name: a speed, km/h (0–150), a move and the
+ * seconds it is ridden (0.5–20, three unless named). */
+function holdOf(raw: string | null): UrlParams["hold"] {
+  if (raw === null || raw.trim() === "") return null;
+  const [kmhRaw, moveRaw, secondsRaw] = raw.split(",");
+  const kmh = Number(kmhRaw);
+  if (!Number.isFinite(kmh) || kmh < 0 || kmh > 150) return null;
+  const seconds = Number(secondsRaw ?? 3);
+  return {
+    kmh,
+    move: isHoldMove(moveRaw) ? moveRaw : "straight",
+    seconds: Number.isFinite(seconds) ? Math.max(0.5, Math.min(20, seconds)) : 3,
+  };
+}
+
 /** A seed a link may name: a whole number the generator's stream takes. */
 function seedOf(raw: string | null): number | null {
   if (raw === null || raw.trim() === "") return null;
@@ -219,6 +243,7 @@ export function readParams(search: string): UrlParams {
     free: start === "free",
     t: Number.isFinite(t) && t > 0 ? Math.min(t, 600) : 0,
     pose: readPose(q.get("pose")),
+    hold: holdOf(q.get("hold")),
     bench: q.get("bench") === "1",
     gpu: GPU_MODES.includes(q.get("gpu") as GpuMode) ? (q.get("gpu") as GpuMode) : "passes",
     hide: (q.get("hide") ?? "")

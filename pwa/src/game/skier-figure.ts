@@ -164,6 +164,48 @@ export function createSkier(
     ),
   );
   const shafts = [0, 1].map(() => part(shaftGeo, boot));
+  // HIS FEET, in the boots' padded liners, in each boot's own frame (x
+  // right, y up out of the sole, z along it; `SkierPose.boots`), the origin
+  // 2 cm over the cuff's top: the liner's shaft down the cuff's forward
+  // lean and the foot on the sole — inside the shell while he stands on
+  // his skis, and on the ends of his legs when he is thrown off them.
+  const LEAN = Math.tan(0.22);
+  const linerGeo = geo(
+    shaped(
+      [0.22, 0.16, 0.08, 0.02].map((d, k) => ({
+        y: -d,
+        w: [0.1, 0.102, 0.098, 0.092][k],
+        d: [0.108, 0.11, 0.106, 0.1][k],
+        z: 0.014 - (d - 0.02) * LEAN,
+      })),
+      { segments: 8, boxy: 2.2 },
+    ),
+  );
+  const footGeo = geo(
+    shaped(
+      [
+        { y: -0.125, w: 0.06, d: 0.046, z: 0.037 },
+        { y: -0.1, w: 0.08, d: 0.08, z: 0.048 },
+        { y: -0.04, w: 0.086, d: 0.092, z: 0.054 },
+        { y: 0.03, w: 0.088, d: 0.077, z: 0.046 },
+        { y: 0.09, w: 0.09, d: 0.058, z: 0.037 },
+        { y: 0.13, w: 0.074, d: 0.04, z: 0.03 },
+        { y: 0.15, w: 0.04, d: 0.02, z: 0.025 },
+      ],
+      { segments: 8, boxy: 2.2 },
+    ),
+  );
+  const feetParts = [0, 1].map(() => {
+    const at = new THREE.Group();
+    group.add(at);
+    part(linerGeo, liner, at);
+    // The foot's rings run along its own y: laid along the sole, z down
+    // the boot's up so its instep stands up.
+    const foot = part(footGeo, liner, at);
+    foot.rotation.x = Math.PI / 2;
+    foot.position.set(0, -0.285, -0.02);
+    return at;
+  });
 
   // THE ARMS: jacket sleeves, bulky at the shoulder and tapering to the
   // wrist, gathered in creases on both sides of the elbow and bunched where
@@ -402,6 +444,8 @@ export function createSkier(
   const across = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   const poleUp = new THREE.Vector3();
+  const bootUp = new THREE.Vector3();
+  const bootAhead = new THREE.Vector3();
 
   return {
     group,
@@ -432,11 +476,7 @@ export function createSkier(
    * poles let go. */
   function lay(p: SkierPose, free = false): void {
     for (let i = 0; i < 2; i++) {
-      const hip = {
-        x: p.hips.x + (i === 0 ? -1 : 1) * BODY.hip * Math.cos(p.roll),
-        y: p.hips.y - (i === 0 ? -1 : 1) * BODY.hip * Math.sin(p.roll),
-        z: p.hips.z,
-      };
+      const hip = p.hipJoints[i];
       const sd = i === 0 ? -1 : 1;
       bendOf(knee, hip, p.knees[i], p.feet[i], { x: 0, y: 0, z: 0.01 });
       bendOf(elbow, p.shoulders[i], p.elbows[i], p.hands[i], { x: sd * 0.01, y: -0.005, z: 0 });
@@ -444,6 +484,14 @@ export function createSkier(
       hang(shins[i], p.knees[i], p.feet[i], knee);
       // The gaiter stands on the boot's cuff, up the shin toward the knee.
       hang(shafts[i], p.feet[i], p.knees[i], knee);
+      // The foot in its liner, set in its boot's frame.
+      const bt = p.boots[i];
+      feetParts[i].position.set(p.feet[i].x, p.feet[i].y, p.feet[i].z);
+      bootUp.set(bt.n.x, bt.n.y, bt.n.z);
+      bootAhead.set(bt.f.x, bt.f.y, bt.f.z);
+      side.crossVectors(bootUp, bootAhead).normalize();
+      limb.makeBasis(side, bootUp, bootAhead);
+      feetParts[i].quaternion.setFromRotationMatrix(limb);
       hang(upper[i], p.shoulders[i], p.elbows[i], elbow);
       hang(fore[i], p.elbows[i], p.hands[i], elbow);
       // The glove turned along the forearm, closed round the grip.
@@ -475,6 +523,6 @@ export function createSkier(
     headGroup.position.set(p.head.x, p.head.y, p.head.z);
     // The head held nearer level than the shoulders — a skier looks down
     // the hill out of a tuck — and turned a little into the turn.
-    headGroup.rotation.set(-0.2 + p.pitch * 0.3, p.look * 0.5, -p.roll * 0.35, "YXZ");
+    headGroup.rotation.set(-0.2 + p.pitch * 0.3, p.look * 0.5, -p.headRoll, "YXZ");
   }
 }

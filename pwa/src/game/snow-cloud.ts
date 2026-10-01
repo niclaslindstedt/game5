@@ -46,6 +46,8 @@ import { LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   flyPuff,
+  carveOf,
+  driveOf,
   emptyRecipe,
   landingPuffs,
   puffOpacity,
@@ -53,6 +55,7 @@ import {
   skidCloud,
   skiCloud,
   type CloudRecipe,
+  CLOUD,
 } from "./snow-cloud-plan.ts";
 import type { SnowProps } from "./snowpack.ts";
 
@@ -162,10 +165,12 @@ void main() {
   // THE VEIL: the skier's own lens looks THROUGH his plume at him — what
   // stands between the lens and the skier, near the line of sight, is thinned
   // to \`uFocus.w\` (1 where the lens is planted and sees the cloud whole).
+  // It reaches a metre PAST him too: his newest puffs are born round his
+  // skis, at his own depth, and a ball of them sat on him otherwise.
   vec3 fwd = -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
   vec3 toF = uFocus.xyz - cameraPosition;
   vec3 toP = iPos.xyz - cameraPosition;
-  float before = smoothstep(dot(toF, fwd) - 0.5, dot(toF, fwd) - 2.5, dot(toP, fwd));
+  float before = smoothstep(dot(toF, fwd) + 1.0, dot(toF, fwd) - 1.5, dot(toP, fwd));
   vec3 dirF = toF / max(length(toF), 1e-3);
   float lat = length(toP - dirF * dot(toP, dirF));
   float onLine = 1.0 - smoothstep(1.2 + iPos.w * 0.6, 3.0 + iPos.w * 1.4, lat);
@@ -550,10 +555,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       const ux = skier.x + under.x;
       const uz = skier.z + under.z;
       const snow = snowAt(ux, uz);
-      drive.speed = skier.speed;
-      drive.skid = skier.skid;
-      drive.edge = Math.min(1, Math.abs(skier.edge) / 0.9);
-      drive.grounded = !skier.airborne;
+      driveOf(skier, drive);
       // Which way the skis are sliding across their own line.
       const out = skier.skiAngle !== 0 ? -Math.sign(skier.skiAngle) : -Math.sign(skier.edge || 1);
       // THE SKID'S WALL, off the boots, out across the way.
@@ -588,12 +590,12 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         );
       }
       // THE SKIS: the sheet off a carve, the bow wave of a buried tip.
-      const carve = drive.edge * (1 - drive.skid) * skier.speed;
+      const carve = carveOf(drive);
       for (let k = 0; k < 2; k++) {
         const tip = skier.contacts[k * 3];
         const mid = skier.contacts[k * 3 + 1];
         if (!mid || !mid.touching) continue;
-        skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski);
+        skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski, drive.speed);
         owed[1 + k] += ski.rate * dt * share;
         while (owed[1 + k] >= 1) {
           owed[1 + k] -= 1;
@@ -622,7 +624,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       if (landed > 0) {
         const at = snowAt(skier.x, skier.z);
         const n = Math.round(landingPuffs(landed, at) * share);
-        skidCloud({ speed: skier.speed, skid: 1, edge: 0, grounded: true }, at, puff);
+        // A landing's cloud is the fall's, not the forward speed's: lofted
+        // whole however slow he was going.
+        skidCloud(
+          { speed: skier.speed, skid: 1, edge: 0, grounded: true },
+          at,
+          puff,
+          CLOUD.loft.full,
+        );
         const g = groundOf(skier.x, skier.z);
         for (let i = 0; i < n; i++) {
           const a = random() * Math.PI * 2;
@@ -641,7 +650,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       }
     },
     burst(x, y, z, vx, vz, size, snow) {
-      skidCloud({ speed: 8, skid: 1, edge: 0, grounded: true }, snow, puff);
+      // A body meeting the snow throws its own cloud, whatever the speed.
+      skidCloud({ speed: 8, skid: 1, edge: 0, grounded: true }, snow, puff, CLOUD.loft.full);
       const n = Math.round(Math.min(45, (5 + 35 * size) * snow.loose * snow.fine) * share);
       for (let i = 0; i < n; i++) {
         const a = random() * Math.PI * 2;

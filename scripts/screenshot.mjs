@@ -7,7 +7,12 @@
 // TOUCHSCREEN — into the gitignored previews/. The third is the one the game
 // is actually held at, and the only one that reaches the short-landscape
 // rules, so a layout judged on the other two has not been judged where it is
-// played.
+// played. Two more hold a current notched phone on its side as it really is
+// (`iphone`, 852×393, its notch and home-bar insets emulated, and
+// `iphone-browser`, the same under a browser's bar along the top) — the
+// shape a card has to fit without scrolling anything but a list. Every
+// capture of a card says what scrolls: a card scrolling WHOLE is a fault, a
+// page's body scrolling under its head is a list doing its job.
 //
 // THE CONTRACT WITH THE APP (pwa/src/game/url-params.ts):
 //   ?start=race&seed=<n>&t=<s>&shot=1
@@ -162,6 +167,23 @@ const VIEWPORTS = {
   desktop: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true },
   landscape: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true },
+  // THE PHONE THE GAME IS HELD AT, as it really is: a current notched phone
+  // on its side, its insets emulated (the notch's 59 px on both long edges,
+  // the home bar's 21 under) — so every `env(safe-area-inset-*)` the cards
+  // pad by is paid for in the picture. Full-screen (the store app, an
+  // installed PWA), and under the browser's own bar along the top.
+  iphone: {
+    viewport: { width: 852, height: 393 },
+    deviceScaleFactor: 3,
+    hasTouch: true,
+    insets: { top: 0, left: 59, right: 59, bottom: 21 },
+  },
+  "iphone-browser": {
+    viewport: { width: 852, height: 340 },
+    deviceScaleFactor: 3,
+    hasTouch: true,
+    insets: { top: 0, left: 59, right: 59, bottom: 21 },
+  },
 };
 
 const args = parseArgs(
@@ -249,7 +271,12 @@ let failures = 0;
  * a screenshot of a frame the app threw on is a screenshot of the wrong
  * thing. */
 async function capture(name, params, viewportName, surface) {
-  const page = await browser.newPage({ ...VIEWPORTS[viewportName] });
+  const { insets, ...device } = VIEWPORTS[viewportName];
+  const page = await browser.newPage(device);
+  if (insets) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
+  }
   const problems = [];
   page.on("pageerror", (err) => problems.push(`pageerror: ${err.message}`));
   page.on("console", (msg) => {
@@ -312,6 +339,21 @@ async function capture(name, params, viewportName, surface) {
     // twice the pixels can take longer than the default to hand a frame over.
     await page.screenshot({ path: file, timeout: args.timeout * 1000 });
     console.log(`previews/shot-${name}-${viewportName}.png  ← ${url}`);
+    // A CARD THAT OUTGREW THE VIEWPORT PHOTOGRAPHS PERFECTLY — its last
+    // press just sits below the fold — so the overrun is measured and said.
+    // A card scrolling WHOLE is a fault (its head goes with it); a page's
+    // body scrolling under a head that stays is a list doing its job, and is
+    // said so it can be judged.
+    const over = await page.evaluate(() =>
+      [...globalThis.document.querySelectorAll(".menu-card, .menu-body")]
+        .filter((el) => el.scrollHeight - el.clientHeight > 1)
+        .map((el) =>
+          el.classList.contains("menu-body")
+            ? `   its body scrolls by ${el.scrollHeight - el.clientHeight} px`
+            : `!! ${[...el.classList].at(-1)} scrolls whole by ${el.scrollHeight - el.clientHeight} px`,
+        ),
+    );
+    problems.push(...over);
   } catch (err) {
     failures += 1;
     const ready = await page.evaluate("window.__SH_READY__").catch(() => undefined);

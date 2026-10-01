@@ -17,7 +17,7 @@ import { TRICKS_RUN } from "@engine";
 
 import { CourseMap } from "./menu-campaign.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { STRINGS } from "./strings.ts";
 import { TRICK_MAPS, trickDayLine, trickMapFor, type TrickMap } from "./trick-maps.ts";
 
@@ -83,11 +83,13 @@ export function TrickMapsPage({
           </button>
         }
       />
-      <div class="menu-levels">
-        {TRICK_MAPS.map((map) => (
-          <TrickBox key={map.id} map={map} chosen={map === pick} onPick={() => onPick(map)} />
-        ))}
-      </div>
+      <MenuBody>
+        <div class="menu-levels">
+          {TRICK_MAPS.map((map) => (
+            <TrickBox key={map.id} map={map} chosen={map === pick} onPick={() => onPick(map)} />
+          ))}
+        </div>
+      </MenuBody>
     </div>
   );
 }

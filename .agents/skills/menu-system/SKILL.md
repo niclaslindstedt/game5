@@ -153,10 +153,15 @@ npx vitest run tests/menu_system_test.ts tests/video_test.ts
 `__SH_READY__`, which is a race's flag. Then LOOK, and run `ui-review` at
 1280×720, 390×844 and 844×390.
 
-**A card that outgrew the viewport photographs perfectly** — `.menu-card`
-scrolls, so its last control sits below the fold in every picture. Anything
-that adds HEIGHT is measured: `scrollHeight` against `clientHeight`, before
-and after, on both phones.
+**A card that outgrew the viewport photographs perfectly** — its last
+control sits below the fold in every picture. So a page with a head is HEAD
+(`MenuHead`: the way back, and the way on opposite it) → BODY (`MenuBody`,
+the ONLY part that scrolls) → caption, and the head and the caption never
+move; only a LIST belongs in what scrolls, so the big things (the pair, the
+chart, the picture) are laid out to fit the phone on its side rather than
+scrolled to. A way on lives in the head, never at the foot. Anything that
+adds HEIGHT is measured — `make screenshots ARGS="--surface all --viewport
+iphone,iphone-browser"` prints what scrolls on every card, before and after.
 
 **A picture is not the machine.** Drive the real flow before calling a change
 done: attract card → a press → the front door → RACE → the level card → the

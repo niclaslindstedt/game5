@@ -33,6 +33,7 @@ import {
   FadeRow,
   KnobGroup,
   LinkRow,
+  MenuBody,
   MenuHead,
   ON_OFF,
   StepRow,
@@ -212,203 +213,205 @@ export function OptionsPage({
   return (
     <div class="menu-card menu-card-options" onPointerLeave={() => setHint(null)}>
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.menuOptions} />
-      <div class="knob-groups">
-        <div class="knob-col">
-          {(keys || touch) && (
-            <KnobGroup title={STRINGS.optControlsGroup} glyph="keyboard">
-              {keys && (
-                <LinkRow
-                  label={STRINGS.optKeys}
-                  hint={STRINGS.optKeysHint}
-                  value={STRINGS.optKeysCount(KEY_ACTIONS.length)}
-                  onOpen={onKeys}
-                  onHint={setHint}
-                />
-              )}
-              {touch && (
-                <>
-                  <StepRow
-                    label={STRINGS.optLever}
-                    hint={STRINGS.optLeverHint}
-                    stops={LEVER_STOPS}
-                    value={settings.touch.lever}
-                    onPick={(lever) => setTouch({ lever })}
+      <MenuBody>
+        <div class="knob-groups">
+          <div class="knob-col">
+            {(keys || touch) && (
+              <KnobGroup title={STRINGS.optControlsGroup} glyph="keyboard">
+                {keys && (
+                  <LinkRow
+                    label={STRINGS.optKeys}
+                    hint={STRINGS.optKeysHint}
+                    value={STRINGS.optKeysCount(KEY_ACTIONS.length)}
+                    onOpen={onKeys}
                     onHint={setHint}
                   />
-                  <FadeRow
-                    label={STRINGS.optSensitivity}
-                    hint={STRINGS.optSensitivityHint}
-                    value={settings.touch.sensitivity}
-                    min={T.min}
-                    max={T.max}
-                    step={T.step}
-                    read={STRINGS.times}
-                    onChange={(sensitivity) => setTouch({ sensitivity })}
-                    onHint={setHint}
-                  />
-                  <StepRow
-                    label={STRINGS.optInvertLean}
-                    hint={STRINGS.optInvertLeanHint}
-                    stops={ON_OFF}
-                    value={onOff(settings.touch.invertLean)}
-                    onPick={(id) => setTouch({ invertLean: id === "on" })}
-                    onHint={setHint}
-                  />
-                </>
-              )}
-            </KnobGroup>
-          )}
-          {/* THE ARCADE'S TWO HANDS on the skis — the engine's `Assist`. A race
+                )}
+                {touch && (
+                  <>
+                    <StepRow
+                      label={STRINGS.optLever}
+                      hint={STRINGS.optLeverHint}
+                      stops={LEVER_STOPS}
+                      value={settings.touch.lever}
+                      onPick={(lever) => setTouch({ lever })}
+                      onHint={setHint}
+                    />
+                    <FadeRow
+                      label={STRINGS.optSensitivity}
+                      hint={STRINGS.optSensitivityHint}
+                      value={settings.touch.sensitivity}
+                      min={T.min}
+                      max={T.max}
+                      step={T.step}
+                      read={STRINGS.times}
+                      onChange={(sensitivity) => setTouch({ sensitivity })}
+                      onHint={setHint}
+                    />
+                    <StepRow
+                      label={STRINGS.optInvertLean}
+                      hint={STRINGS.optInvertLeanHint}
+                      stops={ON_OFF}
+                      value={onOff(settings.touch.invertLean)}
+                      onPick={(id) => setTouch({ invertLean: id === "on" })}
+                      onHint={setHint}
+                    />
+                  </>
+                )}
+              </KnobGroup>
+            )}
+            {/* THE ARCADE'S TWO HANDS on the skis — the engine's `Assist`. A race
               is dealt them when it is stood up, so a change here is the NEXT
               race's, and the caption says so. */}
-          <KnobGroup title={STRINGS.optAssistGroup} glyph="gauge">
-            <StepRow
-              label={STRINGS.optAssistSteer}
-              hint={`${STRINGS.optAssistSteerHint} ${STRINGS.optAssistNote}`}
-              stops={ASSIST_STOPS}
-              value={settings.assist.steer}
-              onPick={(steer) => setAssist({ steer })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optAssistAir}
-              hint={`${STRINGS.optAssistAirHint} ${STRINGS.optAssistNote}`}
-              stops={ASSIST_STOPS}
-              value={settings.assist.air}
-              onPick={(air) => setAssist({ air })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optDamage}
-              hint={`${STRINGS.optDamageHint} ${STRINGS.optAssistNote}`}
-              stops={ON_OFF}
-              value={onOff(settings.damage)}
-              onPick={(id) => onSettings({ ...settings, damage: id === "on" })}
-              onHint={setHint}
-            />
-          </KnobGroup>
-          {/* THE FADERS ARE OVER A LIVE RACE TOO: the bus reads them every
+            <KnobGroup title={STRINGS.optAssistGroup} glyph="gauge">
+              <StepRow
+                label={STRINGS.optAssistSteer}
+                hint={`${STRINGS.optAssistSteerHint} ${STRINGS.optAssistNote}`}
+                stops={ASSIST_STOPS}
+                value={settings.assist.steer}
+                onPick={(steer) => setAssist({ steer })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optAssistAir}
+                hint={`${STRINGS.optAssistAirHint} ${STRINGS.optAssistNote}`}
+                stops={ASSIST_STOPS}
+                value={settings.assist.air}
+                onPick={(air) => setAssist({ air })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optDamage}
+                hint={`${STRINGS.optDamageHint} ${STRINGS.optAssistNote}`}
+                stops={ON_OFF}
+                value={onOff(settings.damage)}
+                onPick={(id) => onSettings({ ...settings, damage: id === "on" })}
+                onHint={setHint}
+              />
+            </KnobGroup>
+            {/* THE FADERS ARE OVER A LIVE RACE TOO: the bus reads them every
               frame, so the engine under the card gets quieter as the thumb
               moves. The switch over all three is the front door's own. */}
-          <KnobGroup title={STRINGS.optSoundGroup} glyph={settings.sound ? "speaker" : "mute"}>
-            <SoundRows settings={settings} onSettings={onSettings} onHint={setHint} />
-          </KnobGroup>
-        </div>
-        <div class="knob-col">
-          {/* Eight rows, not one, because they are eight different bills — a
+            <KnobGroup title={STRINGS.optSoundGroup} glyph={settings.sound ? "speaker" : "mute"}>
+              <SoundRows settings={settings} onSettings={onSettings} onHint={setHint} />
+            </KnobGroup>
+          </div>
+          <div class="knob-col">
+            {/* Eight rows, not one, because they are eight different bills — a
               machine can be short of pixels and rich in triangles. PRESET
               moves all of them and reads back which one they still are. */}
-          <KnobGroup title={STRINGS.optPicture} glyph="display">
-            {/* The readouts over the snow — H mid-race is the same switch. */}
-            <StepRow
-              label={STRINGS.optHud}
-              hint={STRINGS.optHudHint}
-              stops={ON_OFF}
-              value={onOff(settings.hud)}
-              onPick={(id) => onSettings({ ...settings, hud: id === "on" })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optPreset}
-              hint={STRINGS.optPresetHint}
-              stops={PRESET_STOPS}
-              value={settings.autoPicture ? "auto" : preset}
-              extra={STRINGS.optCustom}
-              onPick={(tier) =>
-                onSettings(
-                  tier === "auto"
-                    ? { ...settings, autoPicture: true }
-                    : { ...settings, autoPicture: false, video: withPreset(video, tier) },
-                )
-              }
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optResolution}
-              hint={STRINGS.optResolutionHint}
-              stops={TIER_STOPS}
-              value={video.resolution}
-              onPick={(resolution) => setVideo({ resolution })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optDistance}
-              hint={STRINGS.optDistanceHint}
-              stops={DISTANCE_STOPS}
-              value={video.distance}
-              onPick={(distance) => setVideo({ distance })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optTerrain}
-              hint={STRINGS.optTerrainHint}
-              stops={TIER_STOPS}
-              value={video.terrain}
-              onPick={(terrain) => setVideo({ terrain })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optTrails}
-              hint={STRINGS.optTrailsHint}
-              stops={TRAIL_STOPS}
-              value={video.trails}
-              onPick={(trails) => setVideo({ trails })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optForest}
-              hint={STRINGS.optForestHint}
-              stops={TIER_STOPS}
-              value={video.forest}
-              onPick={(forest) => setVideo({ forest })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optShadows}
-              hint={STRINGS.optShadowsHint}
-              stops={SHADOW_STOPS}
-              value={video.shadows}
-              onPick={(shadows) => setVideo({ shadows })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optSpray}
-              hint={STRINGS.optSprayHint}
-              stops={TIER_STOPS}
-              value={video.spray}
-              onPick={(spray) => setVideo({ spray })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.optAntialias}
-              hint={STRINGS.optAntialiasHint}
-              stops={ON_OFF}
-              value={onOff(video.antialias)}
-              onPick={(id) => setVideo({ antialias: id === "on" })}
-              onHint={setHint}
-            />
-          </KnobGroup>
+            <KnobGroup title={STRINGS.optPicture} glyph="display">
+              {/* The readouts over the snow — H mid-race is the same switch. */}
+              <StepRow
+                label={STRINGS.optHud}
+                hint={STRINGS.optHudHint}
+                stops={ON_OFF}
+                value={onOff(settings.hud)}
+                onPick={(id) => onSettings({ ...settings, hud: id === "on" })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optPreset}
+                hint={STRINGS.optPresetHint}
+                stops={PRESET_STOPS}
+                value={settings.autoPicture ? "auto" : preset}
+                extra={STRINGS.optCustom}
+                onPick={(tier) =>
+                  onSettings(
+                    tier === "auto"
+                      ? { ...settings, autoPicture: true }
+                      : { ...settings, autoPicture: false, video: withPreset(video, tier) },
+                  )
+                }
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optResolution}
+                hint={STRINGS.optResolutionHint}
+                stops={TIER_STOPS}
+                value={video.resolution}
+                onPick={(resolution) => setVideo({ resolution })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optDistance}
+                hint={STRINGS.optDistanceHint}
+                stops={DISTANCE_STOPS}
+                value={video.distance}
+                onPick={(distance) => setVideo({ distance })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optTerrain}
+                hint={STRINGS.optTerrainHint}
+                stops={TIER_STOPS}
+                value={video.terrain}
+                onPick={(terrain) => setVideo({ terrain })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optTrails}
+                hint={STRINGS.optTrailsHint}
+                stops={TRAIL_STOPS}
+                value={video.trails}
+                onPick={(trails) => setVideo({ trails })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optForest}
+                hint={STRINGS.optForestHint}
+                stops={TIER_STOPS}
+                value={video.forest}
+                onPick={(forest) => setVideo({ forest })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optShadows}
+                hint={STRINGS.optShadowsHint}
+                stops={SHADOW_STOPS}
+                value={video.shadows}
+                onPick={(shadows) => setVideo({ shadows })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optSpray}
+                hint={STRINGS.optSprayHint}
+                stops={TIER_STOPS}
+                value={video.spray}
+                onPick={(spray) => setVideo({ spray })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optAntialias}
+                hint={STRINGS.optAntialiasHint}
+                stops={ON_OFF}
+                value={onOff(video.antialias)}
+                onPick={(id) => setVideo({ antialias: id === "on" })}
+                onHint={setHint}
+              />
+            </KnobGroup>
+          </div>
         </div>
-      </div>
-      <Caption hint={hint} fallback={STRINGS.optCaption} />
-      {/* RESTORE DEFAULTS keeps the camera the skier chose, the probe's
+        {/* RESTORE DEFAULTS keeps the camera the skier chose, the probe's
           verdict and the developer page — none is a row on this page — and
           puts every row that IS back where it shipped. */}
-      <button
-        type="button"
-        class="opt-reset"
-        onClick={() =>
-          onSettings({
-            ...freshSettings(),
-            camera: settings.camera,
-            probed: settings.probed,
-            developer: settings.developer,
-            dev: settings.dev,
-          })
-        }
-      >
-        {STRINGS.optRestore}
-      </button>
+        <button
+          type="button"
+          class="opt-reset"
+          onClick={() =>
+            onSettings({
+              ...freshSettings(),
+              camera: settings.camera,
+              probed: settings.probed,
+              developer: settings.developer,
+              dev: settings.dev,
+            })
+          }
+        >
+          {STRINGS.optRestore}
+        </button>
+      </MenuBody>
+      <Caption hint={hint} fallback={STRINGS.optCaption} />
     </div>
   );
 }

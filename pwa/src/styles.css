@@ -2058,10 +2058,11 @@ canvas {
   gap: 0.9rem;
   width: min(30rem, 100%);
   max-height: 100%;
-  /* THE CARD IS THE SCROLLER, not the rows inside it. A scrolling body
-     within a fixed head reserves a gutter its head does not, and every row
-     then sits a scrollbar's width left of the rule above them — a card that
-     looks broken on the one page long enough to need the scroll. */
+  /* A card with a head never scrolls as a whole: its BODY does
+     (`.menu-body`), so the way back and the way on stay put. This is the
+     fallback for the two cards with no head (the front door, the pause
+     card), which are laid out to fit and scroll only on a screen smaller
+     than any phone. */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: clamp(1rem, 3.5vmin, 1.6rem);
@@ -2084,6 +2085,37 @@ canvas {
 
    It costs nothing on a card that FITS: there is no shrinking to refuse. */
 .menu-card > * {
+  flex-shrink: 0;
+}
+
+/* THE PAGE'S BODY (`MenuBody`): the one part of a card that scrolls, between
+   a head and a caption that do not — so BACK and the way on are never below
+   the fold, which on a phone on its side is 390 px away. It is the one child
+   ALLOWED to shrink, and it hands its children the same refusal the card
+   does, for the same reason. The gap is the card's own, so a page reads the
+   same whether or not it is long enough to scroll.
+
+   The inset and its matching negative margin give a lit box's ring and a
+   picked swatch's scale room inside the clip: a scroller cuts at its padding
+   edge, and with none every chosen box would lose its outer stroke. */
+.menu-card > .menu-body {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  margin: -0.3rem;
+  padding: 0.3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.menu-body > * {
   flex-shrink: 0;
 }
 
@@ -2733,23 +2765,53 @@ canvas {
    width query, because what is short is what hurts: a desktop window dragged
    into a letterbox has the same problem and gets the same door. */
 @media (orientation: landscape) and (max-height: 34rem) {
+  /* THE NAME AND THE CHIPS SHARE ONE LINE across the head of the card — the
+     name and the build on the left, everything that is not snow on the
+     right — and the line the chips had to themselves goes to the tiles. A
+     door that scrolls hides a way on below its fold, and under a browser's
+     own bar there is no line to spare. */
   .menu-card-root {
-    width: min(36rem, 100%);
-    gap: 0.6rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand strip"
+      "tiles tiles";
+    align-items: center;
+    gap: 0.5rem 1rem;
+  }
+
+  .menu-card-root .menu-brand {
+    grid-area: brand;
+    margin: 0;
+  }
+
+  .menu-card-root .menu-tiles {
+    grid-area: tiles;
+  }
+
+  .menu-card-root .menu-strip {
+    grid-area: strip;
+    justify-content: flex-end;
+    margin: 0;
+  }
+
+  /* The build rides beside the name, as its small print. */
+  .menu-card-root .menu-version {
+    order: -1;
+    margin: 0 auto 0 0;
+    padding: 0;
   }
 
   .menu-brand-mark {
-    width: 3.2rem;
+    width: 2.5rem;
   }
 
   .menu-brand-name {
-    font-size: 1.6rem;
+    font-size: 1.35rem;
   }
 
-  /* Four chips along the foot on one row, so none of them — the GALLERY is
-     the last — is below the card's fold. */
   .menu-card-root .menu-chip {
-    padding: 0.45rem 0.55rem;
+    padding: 0.4rem 0.6rem;
     gap: 0.35rem;
     letter-spacing: 0.1em;
   }
@@ -2849,7 +2911,7 @@ canvas {
 
 /* ── A PAGE UNDER THE FRONT DOOR (menu-options.tsx, menu-keys.tsx) ─────────
    A head with the way out in it, then the rows (menu-knobs.tsx). OPTIONS is
-   the longest card in the game, so the CARD scrolls — see `.menu-card`. */
+   the longest card in the game, so its BODY scrolls — see `.menu-body`. */
 .menu-head {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -3120,20 +3182,10 @@ canvas {
   text-align: center;
 }
 
-/* THE PAGE'S ONE SENTENCE, fixed to the foot of the WINDOW — the card is the
-   scroller, and a caption at the bottom of a column taller than the viewport
-   is a caption nobody reading a row at the top can see. Fixed is safe only
-   while nothing between this and the root carries a transform, a filter,
-   `contain` or `will-change`: put one on `.menu-card` and the bar is clipped
-   by the card again. No pointer events, ever: it lies over the foot of
-   whatever card is up. */
+/* THE PAGE'S ONE SENTENCE, at the foot of the CARD — after its body, which
+   is what scrolls, so the sentence is on screen whichever row is being
+   read. No pointer events: it is read, never pressed. */
 .knob-caption {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--shell-bottom) + max(0.6rem, env(safe-area-inset-bottom)));
-  z-index: 1600;
-  transform: translateX(-50%);
-  width: min(44rem, calc(100vw - 2rem));
   pointer-events: none;
   font-size: 0.64rem;
   font-weight: 500;
@@ -3166,12 +3218,6 @@ canvas {
   color: var(--hud-info);
   font-weight: 500;
   letter-spacing: 0;
-}
-
-/* A CARD WITH A CAPTION STOPS ABOVE IT, or its last row sits under the one
-   element that exists to explain a row. */
-.menu:has(.knob-caption) {
-  padding-bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.2rem);
 }
 
 .menu-card-options,
@@ -3608,11 +3654,6 @@ canvas {
   transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.skis-done {
-  margin-top: 0.2rem;
-  text-align: center;
-}
-
 /* Two columns the moment the card is wide enough to read the sheet beside
    the skis; the stage takes the slack. */
 @media (min-width: 40rem) {
@@ -3641,27 +3682,75 @@ canvas {
   }
 }
 
-/* A phone held sideways: the least height, and most of it spoken for. */
+/* A phone held sideways: the least height, and most of it spoken for. The
+   card takes the whole window and the body the whole card, so the PAIR's
+   pane is as tall as the window allows and never pushed past it; the sheet
+   beside it packs into one line of figures, the bars and the swatches. */
 @media (orientation: landscape) and (max-height: 34rem) {
   .menu-card-skis {
+    height: 100%;
     gap: 0.4rem;
+  }
+
+  .menu-card-skis > .menu-body {
+    flex: 1 1 0;
   }
 
   .skis-pick-body {
+    flex: 1 1 0;
+    min-height: 0;
     gap: 0.6rem;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .skis-spec {
-    gap: 0.4rem;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .skis-figures {
+    gap: 0.3rem;
   }
 
   .skis-figure {
-    padding: 0.35rem 0.5rem 0.4rem;
+    gap: 0.05rem;
+    padding: 0.3rem 0.4rem 0.35rem;
+    border-radius: 0.45rem;
+  }
+
+  .skis-figure-label {
+    font-size: 0.46rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .skis-figure-value {
+    font-size: 0.86rem;
+  }
+
+  .skis-figure-unit {
+    margin-left: 0.2em;
+    letter-spacing: 0.04em;
+  }
+
+  .skis-bars {
+    gap: 0.22rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .skis-bar-label {
+    width: 5.6rem;
+  }
+
+  .skis-topsheets {
+    padding: 0.35rem 0.6rem;
   }
 
   .skis-pick-stage {
-    min-height: clamp(6rem, 34vh, 11rem);
+    height: auto;
+    min-height: 0;
   }
 
   /* The billing gives its two lines back to the pair: on this shape the
@@ -3669,11 +3758,6 @@ canvas {
      say what the sentence says. */
   .skis-blurb {
     display: none;
-  }
-
-  .skis-done {
-    margin-top: 0;
-    padding: 0.5rem 1rem;
   }
 }
 
@@ -3882,6 +3966,57 @@ canvas {
   overflow-y: hidden;
   padding-bottom: 0.2rem;
   -webkit-overflow-scrolling: touch;
+}
+
+/* A phone on its side: the picture down the left, as tall as the window
+   allows, and everything that is said or pressed about it in a column
+   beside it — the filmstrip at its foot, scrolling on its own. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .gallery {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "stage caption"
+      "stage actions"
+      "stage strip";
+    gap: 0.5rem 0.8rem;
+  }
+
+  .gallery-stage {
+    grid-area: stage;
+  }
+
+  .gallery-caption {
+    grid-area: caption;
+    font-size: 0.7rem;
+  }
+
+  .gallery-actions {
+    grid-area: actions;
+  }
+
+  .gallery-strip {
+    grid-area: strip;
+    align-self: end;
+  }
+
+  .gallery-img {
+    max-height: calc(100dvh - 9rem);
+  }
+
+  .gallery-step {
+    width: 1.8rem;
+  }
+
+  .gallery-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.72rem;
+  }
+
+  .gallery-btn-quiet {
+    margin-left: 0;
+  }
 }
 
 .gallery-thumb {
@@ -4155,6 +4290,44 @@ canvas {
   white-space: nowrap;
 }
 
+/* ── EVERY PAGE TURNED SIDEWAYS ────────────────────────────────────────────
+   A phone on its side is 390 px tall, less a browser's own bar when it is
+   not installed, and every page pays for its head and its caption before a
+   row is drawn. So the chrome thins — the window's margin, the card's own
+   padding, the head's rule and title — and the caption keeps to ONE line:
+   a sentence that wrapped as the rows were walked would move the card under
+   the thumb walking them. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .menu-card {
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .menu-head {
+    padding-bottom: 0.4rem;
+  }
+
+  .menu-head .menu-title {
+    font-size: 1rem;
+  }
+
+  .menu-head-go {
+    padding: 0.4rem 1.2rem;
+  }
+
+  .knob-caption {
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* A VALUE THAT IS TYPED INTO — the seed: the reading it is, with a faint box
    that says "type here" without competing with the number in it. */
 .knob-field {
@@ -4240,32 +4413,104 @@ canvas {
   }
 }
 
-/* A phone on its side: the least height of all, so the two columns stand
-   side by side there too and the chart gives way first. */
+/* A phone on its side: the least height of all, so the CHART takes a column
+   of its own down the left, as tall as the body, and the rows stand in two
+   columns beside it — the mountain, the country and the grade with the two
+   chips under them; the day's four on the right. Nothing on the card is
+   below the fold, and nothing that is a picture scrolls. */
 @media (orientation: landscape) and (max-height: 34rem) {
+  /* THE CHART'S SIDE: square, and sized off what the window has left under
+     the head, over the caption and its own line of figures — the body is
+     that tall, and the chart is the reason the card exists. Its column is
+     cut to it, or the line of figures under it would widen the column to
+     its own length and squeeze the rows' names out. */
+  .menu-card-start {
+    --chart: clamp(8rem, calc(100dvh - 12rem), 13rem);
+    width: min(52rem, 100%);
+  }
+
   .start-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: calc(var(--chart) + 0.5rem + 4px) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     align-items: start;
-    gap: 0.4rem 0.8rem;
+    gap: 0.4rem 0.6rem;
   }
 
-  .menu-card-start {
-    width: min(48rem, 100%);
+  .start-col {
+    display: contents;
   }
 
-  .menu-card-start {
-    gap: 0.4rem;
-    padding-top: 0.6rem;
-    padding-bottom: 0.6rem;
+  .start-col:first-child > .knob-rows {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .start-cols .seed-preview {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    padding: 0.25rem;
+  }
+
+  .start-col:last-child > .knob-rows {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .start-actions {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .menu-card-start .seed-preview-plate {
-    max-width: min(12rem, 34vh);
+    width: var(--chart);
+    max-width: none;
   }
 
-  .menu-card-start .seed-preview {
-    padding: 0.25rem;
+  .menu-card-start .seed-preview-read {
+    font-size: 0.5rem;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  /* The two chips under the left column's rows share one line. */
+  .start-actions {
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+  }
+
+  .start-actions .menu-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.4rem 0.4rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-indent: 0;
+  }
+
+  /* Two columns of rows beside a chart: the name, the value and the arrows
+     each give a little width, so every row still says what it is. */
+  .menu-card-start .knob {
+    gap: 0.25rem;
+    padding-left: 0.55rem;
+    padding-right: 0.15rem;
+  }
+
+  .menu-card-start .knob-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+  }
+
+  .menu-card-start .knob-value {
+    width: 5.2rem;
+  }
+
+  .menu-card-start .knob-ctl {
+    gap: 0;
+  }
+
+  .menu-card-start .knob-arrow {
+    width: 1.8rem;
   }
 }
 

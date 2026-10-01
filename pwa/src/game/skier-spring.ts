@@ -46,6 +46,13 @@ export type SkierSpring = {
    * (NaN until the first ride is read). */
   hip: number;
   hipRate: number;
+  /** THE EDGE AND THE PAIR'S ROLL as his body carries them, rad, and their
+   * rates — the skis are the engine's to the frame, but the legs above the
+   * boots and the trunk on them take a rate-limited edge up as a motion. */
+  edge: number;
+  edgeRate: number;
+  roll: number;
+  rollRate: number;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -57,8 +64,10 @@ export type SpringRide = {
   crouch: number;
   drive: number;
   hipRight: number;
+  roll: number;
 };
-/** How quickly his body takes up the engine's hip shift, rad/s — a spring
+/** How quickly his body takes up the engine's hip shift, its edge and
+ * its roll, rad/s — a spring
  * some seventy milliseconds slow, critically damped. */
 const HIP_FOLLOW = 30;
 
@@ -96,22 +105,37 @@ export function createSkierSpring(offset = 0): SkierSpring {
     plantOk: 0,
     hip: Number.NaN,
     hipRate: 0,
+    edge: 0,
+    edgeRate: 0,
+    roll: 0,
+    rollRate: 0,
   };
 }
 
-/** The hips' shift followed (`SkierSpring.hip`). */
-function stepHip(s: SkierSpring, to: number, dt: number): void {
-  if (Number.isNaN(s.hip)) {
-    s.hip = to;
-    s.hipRate = 0;
-    return;
-  }
+/** One reading followed on a critically damped spring of `w` rad/s: its
+ * value and rate after `dt` s toward `to`. */
+function follow(v: number, rate: number, to: number, dt: number, w = HIP_FOLLOW): [number, number] {
   const n = Math.max(1, Math.ceil(dt / (1 / 240)));
   const h = dt / n;
   for (let i = 0; i < n; i++) {
-    s.hipRate += (HIP_FOLLOW * HIP_FOLLOW * (to - s.hip) - 2 * HIP_FOLLOW * s.hipRate) * h;
-    s.hip += s.hipRate * h;
+    rate += (w * w * (to - v) - 2 * w * rate) * h;
+    v += rate * h;
   }
+  return [v, rate];
+}
+
+/** The hips' shift, the edge and the roll followed (`SkierSpring.hip`,
+ * `.edge`, `.roll`) — taken as they are on the first ride read. */
+function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
+  if (Number.isNaN(s.hip)) {
+    s.hip = ride.hipRight;
+    s.edge = ride.edge;
+    s.roll = ride.roll;
+    return;
+  }
+  [s.hip, s.hipRate] = follow(s.hip, s.hipRate, ride.hipRight, dt);
+  [s.edge, s.edgeRate] = follow(s.edge, s.edgeRate, ride.edge, dt);
+  [s.roll, s.rollRate] = follow(s.roll, s.rollRate, ride.roll, dt);
 }
 
 /** Read the turns off the run and start a plant on each new one — the
@@ -158,7 +182,7 @@ export function stepSkierSpring(
   s.clock += dt;
   if (ride) {
     stepPlant(s, ride, airborne, dt);
-    stepHip(s, ride.hipRight, dt);
+    stepBody(s, ride, dt);
   }
   const toward = (from: number, to: number, rate: number) =>
     to + (from - to) * Math.exp(-rate * dt);

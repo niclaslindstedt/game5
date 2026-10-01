@@ -204,6 +204,10 @@ export function poseInputOf(
     lean: skier.lean,
     steer: skier.steer,
     edge: skiTilt(skier),
+    // The edge and the roll as his body above the boots carries them.
+    body: Number.isNaN(legs.hip)
+      ? undefined
+      : { tilt: skiTilt({ edge: legs.edge, roll: legs.roll }), roll: legs.roll },
     skiAngle: skier.skiAngle,
     crouch: skier.crouch,
     drop: skier.spec.crouchDrop * skier.crouch,

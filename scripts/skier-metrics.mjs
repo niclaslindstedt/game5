@@ -80,7 +80,8 @@ const CUFF_LEAN = (0.22 * 180) / Math.PI;
 const grounded = (f) => !f.skier.airborne && !f.skier.thrown;
 const carving = (f) =>
   grounded(f) && Math.abs(f.skier.hipRight) > 0.12 && f.skier.crouch < 0.5 && f.skier.skid < 0.3;
-const stopping = (f) => grounded(f) && f.skier.skid >= 0.3 && f.skier.crouch < 0.5;
+const stopping = (f) =>
+  grounded(f) && f.skier.skid >= 0.3 && f.skier.crouch < 0.5 && Math.abs(f.skier.edge) > 0.3;
 const tucked = (f) => grounded(f) && f.skier.crouch > 0.85 && f.skier.skid < 0.3;
 const standing = (f) =>
   grounded(f) &&

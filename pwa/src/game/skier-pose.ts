@@ -171,27 +171,18 @@ const HANG = 1.15;
 /** How far the knees angulate inside the line from the hips to the boots,
  * rad — the edge a ski stands on that the hips need not follow. */
 const KNEE_IN = 0.22;
+/** …and how much more they take for every radian of edge past half a
+ * radian — a steep edge is held as much in the knees as at the hips. */
+const KNEE_STEEP = 0.5;
 /** …and how far the hips may hang inside the shins' line, rad — the knees
  * bowed out a little, no more. */
 const KNEE_OUT = 0.06;
 /** How much of the tuck a full skid stands him out of. */
 const SKID_RISE = 0.6;
-/** THE ANGULATION at the engine's full reach, rad: how much less the trunk
- * leans into a turn than the legs do — the hinge at the hips a carved turn
- * is skied on (a racer's is 15–30°). */
-const ANGULATE = 0.42;
-/** …and at the least, the share of the legs' own lean the trunk takes
- * back at the hips. */
-const ANGULATE_SHARE = 0.45;
-/** The counter-roll the hips' reach is stated against, rad at full hang:
- * the engine's `hipRight` places his mass with the trunk this far off
- * the legs' lean, so another trunk moves the hips to keep it there. */
-const LEVELLED = 0.55;
-/** The share of his mass above the hips (trunk, head and arms) times how
- * far up the spine its centre lies, and the share that moves with the
- * hips (all of the upper body and half the legs). */
-const UPPER_SHARE = 0.62 * 0.4;
-const HIPS_SHARE = 0.81;
+/** THE ANGULATION: the share of the legs' lean in the world the trunk
+ * takes back at the hips — the hinge a carved turn is skied on (a racer's
+ * is 15–30°). */
+const ANGULATE_SHARE = 0.4;
 /** The trunk's pitch standing and in a full tuck, rad (0 upright). */
 const PITCH_STAND = 0.32;
 const PITCH_TUCK = 1.25;
@@ -237,6 +228,10 @@ export type SkierPoseInput = {
    * pivot, rad — the boots go with them. */
   edge?: number;
   skiAngle?: number;
+  /** The skis' tilt and the pair's roll as his body above the boots
+   * carries them (`SkierSpring`, eased) — what the legs lean and the trunk
+   * hinges by; `edge` and `roll` when left out. The boots stay on `edge`. */
+  body?: { tilt: number; roll: number };
   /** The tuck the body is in, 0..1 (`SkierState.crouch`). */
   crouch: number;
   /** How far the tuck has dropped the body's origin toward the skis, m —
@@ -595,6 +590,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const M = input.mounts ?? MOUNTS;
   const lean = Math.max(-1, Math.min(1, input.lean));
   const edge = input.edge ?? 0;
+  const bodyTilt = input.body?.tilt ?? edge;
   const skiAngle = input.skiAngle ?? 0;
   const lift = input.lift ?? [0, 0];
   const drop = input.drop ?? clamp01(input.crouch) * M.crouchDrop;
@@ -704,7 +700,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // pair thrown across under him swings the thighs out over the tips and
   // folds the knees up to the hips.
   const hang0 = input.hipRight * HANG * (1 + 0.35 * carve);
-  // THE LEGS LEAN WITH THE SKIS: a boot clamped to an edged ski holds its
+  // THE LEGS LEAN WITH THE SKIS, AS A COLUMN: the hips swing over the
+  // boots on the legs' own length, coming down as they go in — never slid
+  // across at a standing height, which folds the thighs flat and sits him
+  // sideways in a chair. A boot clamped to an edged ski holds its
   // shin tipped with it, so the hips go where the engine has put his mass
   // only as far as the knees can angulate off the shins' line — inside it
   // by up to `KNEE_IN` (the knees driven in, the hips kept out over the
@@ -713,15 +712,21 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // with the skis flat under him throws the thighs out sideways and folds
   // the knees up to the hips.
   const legH = Math.max(0.3, rest.y - M.foot.y - drop);
-  const inward = 0.5 + 0.5 * Math.tanh(edge / 0.08);
+  // Measured from the boots: an edged ski's cuff stands to the side of
+  // where it stood flat.
+  const bootsAcross = (M.foot.y - M.ground) * Math.sin(bodyTilt);
+  const inward = 0.5 + 0.5 * Math.tanh(bodyTilt / 0.08);
   const legLean0 = Math.atan2(hang0, legH);
+  // The steeper the edge, the more of it the knees take on their own.
+  const kneeIn = KNEE_IN + KNEE_STEEP * Math.max(0, Math.abs(bodyTilt) - 0.5);
   const legLeanTo = Math.max(
-    edge - KNEE_IN * inward - KNEE_OUT * (1 - inward),
-    Math.min(edge + KNEE_OUT * inward + KNEE_IN * (1 - inward), legLean0),
+    bodyTilt - kneeIn * inward - KNEE_OUT * (1 - inward),
+    Math.min(bodyTilt + KNEE_OUT * inward + kneeIn * (1 - inward), legLean0),
   );
   const across0 =
     rest.x +
-    legH * Math.tan(legLeanTo) +
+    bootsAcross +
+    legH * Math.sin(legLeanTo) +
     SKATE_SWAY.hips * sway +
     shift;
   const along0 =
@@ -739,7 +744,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     y:
       rest.y +
       feetLift * 0.5 -
-      0.06 * Math.abs(hang) * (1 - crouch) -
+      legH * (1 - Math.cos(legLeanTo)) -
       bump +
       AIR_SINK * air -
       0.06 * skid * (1 - crouch) -
@@ -802,8 +807,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     breath;
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
   // into the turn with a hinge at the hips — the legs lean in with the
-  // skis, and the trunk leans in too, but by `ANGULATE` less (more for an
-  // edge cut hard), so the shoulders come nearer level than the hips and
+  // skis, and the trunk leans in too, but by `ANGULATE_SHARE` less (more
+  // for an edge cut hard), so the shoulders come nearer level than the hips and
   // his weight stays over the outside ski. The trunk is never thrown out
   // past where the legs stand. Skating, the shoulders lean over the
   // gliding ski with the hips.
@@ -811,31 +816,17 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     hips.x - (feet[0].x + feet[1].x) / 2,
     hips.y - (feet[0].y + feet[1].y) / 2,
   );
-  // The hinge follows the legs' own lean: however far the skis' edge has
-  // put the legs over, the trunk comes back up a share of it.
-  const angulate = Math.max(
-    Math.abs(hang) * ANGULATE,
-    Math.min(0.6, ANGULATE_SHARE * Math.abs(legLean)),
-  ) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
-  const roll =
-    Math.sign(hang) *
-      Math.max(-0.12, Math.abs(legLean) - angulate) *
-      Math.min(1, Math.abs(hang) * 3) +
-    SKATE_SWAY.roll * sway;
-  // The hips carry what the trunk's lean does not: the body's mass stands
-  // where the engine put it (`hipRight`), so a trunk leaning further in
-  // than the old level shoulders draws the hips back out by the trunk's
-  // share of the difference — the upper body is three fifths of him and
-  // its centre two fifths up the spine.
-  const levelled = -hang * LEVELLED;
-  hips = {
-    x:
-      hips.x -
-      (UPPER_SHARE * (Math.sin(roll) - Math.sin(levelled)) * Math.cos(pitch) * BODY.spine) /
-        HIPS_SHARE,
-    y: hips.y,
-    z: hips.z,
-  };
+  // THE HINGE IS STATED IN THE WORLD: the engine has already rolled the
+  // whole pair into the turn (`input.roll`), so the legs' lean is that
+  // roll and their own on it, and the trunk comes back up toward the
+  // vertical a share of it — never out past the vertical. Stated in the
+  // pair's frame, a rolled pair carries the trunk over with the legs and
+  // the whole man tips into the turn as one stiff stick.
+  const pairRoll = input.roll ?? 0;
+  const legsWorld = (input.body?.roll ?? pairRoll) + legLean;
+  const angulate =
+    Math.min(0.6, ANGULATE_SHARE * Math.abs(legsWorld)) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
+  const roll = legsWorld - Math.sign(legsWorld) * angulate - pairRoll + SKATE_SWAY.roll * sway;
   const spineDir: V3 = {
     x: Math.sin(roll) * Math.cos(pitch),
     y: Math.cos(roll) * Math.cos(pitch),
@@ -867,7 +858,6 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // eyes toward the horizon — the head rolls back off the trunk's lean in
   // the WORLD (the pair's own roll, `input.roll`, and the trunk's on it)
   // until it keeps only `HEAD_LEAN` of it, as far as the neck turns.
-  const pairRoll = input.roll ?? 0;
   const trunkWorld = pairRoll + roll;
   const headRoll =
     roll + Math.max(-NECK_ROLL, Math.min(NECK_ROLL, HEAD_LEAN * trunkWorld - pairRoll - roll));

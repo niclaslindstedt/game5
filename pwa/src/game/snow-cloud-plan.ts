@@ -61,7 +61,45 @@ export const CLOUD = {
   opacity: 0.7,
   /** The landing's cloud: puffs per unit of landing, and the most. */
   landing: { per: 4, most: 60 },
+  /** THE LOFT: the speed, m/s, under which a ski only shoves the powder
+   * aside and it falls back, and the speed by which the fine snow it
+   * throws is all lofted into a cloud that hangs; and what of each puff a
+   * crawl keeps — of the rate, the size at birth, the swell, the life and
+   * the climb. */
+  loft: {
+    from: 1,
+    full: 14,
+    keep: { rate: 0.15, size: 0.6, grow: 0.4, hang: 0.45, lift: 0.55 },
+  },
 } as const;
+
+/** HOW MUCH OF THE SNOW A SKI THROWS BECOMES CLOUD at `speed` m/s, 0..1.
+ * A walking-pace ski in powder shoves it aside and it falls straight back:
+ * the grains are heavy against the little air they are thrown into. Only
+ * a ski at speed throws the fine snow fast enough, into air moving fast
+ * enough, to loft it — so a crawl leaves a low brief puff and a schuss a
+ * plume. */
+export function loftOf(speed: number): number {
+  const t = Math.min(
+    1,
+    Math.max(0, (speed - CLOUD.loft.from) / (CLOUD.loft.full - CLOUD.loft.from)),
+  );
+  return t * t * (3 - 2 * t);
+}
+
+/** A recipe scaled by the loft at `speed`: fewer, smaller, briefer, lower
+ * puffs at a crawl. */
+function lofted(out: CloudRecipe, speed: number): CloudRecipe {
+  const k = loftOf(speed);
+  const keep = CLOUD.loft.keep;
+  const by = (least: number) => least + (1 - least) * k;
+  out.rate *= by(keep.rate);
+  out.size *= by(keep.size);
+  out.grow *= by(keep.grow);
+  out.hang *= by(keep.hang);
+  out.lift *= by(keep.lift);
+  return out;
+}
 
 /** What the skier is doing, as the cloud needs it (off `SkierState`). */
 export type CloudDrive = {
@@ -73,6 +111,25 @@ export type CloudDrive = {
   /** The skis on the snow. */
   grounded: boolean;
 };
+
+/** What a skier's state says the cloud is thrown by, into `out` — the one
+ * reading `snow-cloud.ts` emits by and the cloud metrics lab measures by. */
+export function driveOf(
+  skier: { speed: number; skid: number; edge: number; airborne: boolean },
+  out: CloudDrive,
+): CloudDrive {
+  out.speed = skier.speed;
+  out.skid = skier.skid;
+  out.edge = Math.min(1, Math.abs(skier.edge) / 0.9);
+  out.grounded = !skier.airborne;
+  return out;
+}
+
+/** How hard a ski carves for its sheet: the edge it stands on, less what
+ * is skidded away, times the speed, m/s. */
+export function carveOf(drive: CloudDrive): number {
+  return drive.edge * (1 - drive.skid) * drive.speed;
+}
 
 /** One source's recipe: how many puffs a second, and what each is born as. */
 export type CloudRecipe = {
@@ -123,8 +180,15 @@ function puffOf(snow: SnowProps, out: CloudRecipe): CloudRecipe {
 
 /** THE SKID'S WALL: the cloud the skis push up when they are pivoted
  * across the way, into `out`. Nothing with the skis off the snow, nothing
- * with no skid and nothing where there is no loose snow. */
-export function skidCloud(drive: CloudDrive, snow: SnowProps, out: CloudRecipe): CloudRecipe {
+ * with no skid and nothing where there is no loose snow; lofted by the
+ * speed (`loftOf`) — or by `loftSpeed`, for a cloud whose energy is not
+ * the forward speed's (a landing, a body hitting the snow). */
+export function skidCloud(
+  drive: CloudDrive,
+  snow: SnowProps,
+  out: CloudRecipe,
+  loftSpeed = drive.speed,
+): CloudRecipe {
   puffOf(snow, out);
   const loose = Math.max(0, snow.loose);
   // A skidding ski shoves the snow ahead of its edge whether or not the
@@ -138,18 +202,20 @@ export function skidCloud(drive: CloudDrive, snow: SnowProps, out: CloudRecipe):
   out.lift = (CLOUD.lift.min + CLOUD.lift.loose * Math.min(1.5, loose)) * (0.35 + 0.65 * push);
   out.back =
     Math.min(CLOUD.back.most, CLOUD.back.min + drive.skid * CLOUD.back.skid) * (0.5 + push);
-  return out;
+  return lofted(out, loftSpeed);
 }
 
 /** THE SKI'S CLOUD: the sheet a ski throws off its outside edge when it
  * carves, and the bow wave its tip shoves up when it is buried. `carve` is
  * the edge (0..1 of the most) times the speed (m/s), `sink` how deep the
- * ski is in, m. */
+ * ski is in, m, `speed` the skier's, m/s — the plough lofts nothing at a
+ * crawl (`loftOf`). */
 export function skiCloud(
   carve: number,
   sink: number,
   snow: SnowProps,
   out: CloudRecipe,
+  speed: number = CLOUD.loft.full,
 ): CloudRecipe {
   puffOf(snow, out);
   const loose = Math.min(1.8, Math.max(0, snow.loose));
@@ -158,7 +224,7 @@ export function skiCloud(
   out.lift = 1 + 1.6 * Math.min(1.5, loose);
   out.back = 1.5;
   out.size *= 0.8;
-  return out;
+  return lofted(out, speed);
 }
 
 /** THE LANDING'S CLOUD: how many puffs a landing of `hard` (the renderer's

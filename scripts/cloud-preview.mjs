@@ -13,6 +13,12 @@
 // `--cols=times` the columns are moments of one ride from the first view,
 // which is how the cloud's LIFE is judged: the stall, the swell, the drift.
 //
+// A row is also a MOVE (`--moves`: running straight, carving, checking the
+// speed with the brake, a hockey stop from the speed, skating off from a
+// standstill) and the stage the open meadow off the piste or, with
+// `--where=piste`, the piste itself — the same rows `make cloud-metrics`
+// measures, as the game draws them.
+//
 // The lights are a sky and where the sun stands to the ride: FRONT (the sun
 // behind the chase camera), BACK (the chase camera into the sun, the cloud
 // backlit), SIDE, LOW (a sun a few degrees up, backlit), OVERCAST, SNOWING
@@ -32,6 +38,8 @@
 //   node scripts/cloud-preview.mjs --light=front,back,side,low,overcast,night --speeds=30,90
 //   node scripts/cloud-preview.mjs --cols=times --times=0.3,0.8,1.5,3,5 --views=side
 //   node scripts/cloud-preview.mjs --coast=2 --skip-build
+//   node scripts/cloud-preview.mjs --moves=straight,check,stop --speeds=10,25,50 --light=front
+//   node scripts/cloud-preview.mjs --where=piste --snow=map,new --moves=carve --speeds=20,60
 
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -66,6 +74,16 @@ const args = parseArgs(
       help: "the lights, rows (front,back,side,low,overcast,snowing,night)",
     },
     speeds: { kind: "string", default: "40,80", help: "the held speeds, km/h, rows" },
+    moves: {
+      kind: "string",
+      default: "straight",
+      help: "the manoeuvres, rows (straight,carve,check,stop,skate — a stop from the speed, a skate from a standstill)",
+    },
+    where: {
+      kind: "string",
+      default: "meadow",
+      help: "the stage: meadow (the open powder off the piste) or piste (the piste itself)",
+    },
     views: {
       kind: "string",
       default: "chase,side,front,trail,under",
@@ -131,6 +149,8 @@ const query = new URLSearchParams({
   snow: args.snow,
   light: args.light,
   speeds: args.speeds,
+  moves: args.moves,
+  where: args.where,
   views: args.views,
   cols: args.cols,
   times: args.times,
@@ -142,7 +162,7 @@ const query = new URLSearchParams({
   h: String(args.height),
 }).toString();
 console.log(
-  `cloud — seed ${args.seed}, snow ${args.snow}, light ${args.light}, ${args.speeds} km/h, ${args.cols === "times" ? `times ${args.times}` : `views ${args.views}`}`,
+  `cloud — seed ${args.seed}, snow ${args.snow}, light ${args.light}, ${args.moves} at ${args.speeds} km/h on the ${args.where}, ${args.cols === "times" ? `times ${args.times}` : `views ${args.views}`}`,
 );
 const t0 = Date.now();
 await page.goto(`${server.url}cloud-preview.html?${query}`);

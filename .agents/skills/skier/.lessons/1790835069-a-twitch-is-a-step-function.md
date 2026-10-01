@@ -2,7 +2,7 @@
 title: A twitch in a cyclic move is a step function in the pose — measure each joint's per-step travel, then build the cycle from rods turned and weights carried, never targets switched
 date: 2026-10-01
 scope: pwa/src/game/skier-pose.ts, tests/skier_pose_test.ts
-concepts: [gait, poles, continuity, twitch, solveLimb]
+concepts: [gait, poles, continuity, twitch, solve-limb]
 ---
 
 "Twitchy, not a smooth transition from left to right" was three

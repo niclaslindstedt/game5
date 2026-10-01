@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud skis skier blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics skis skier skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -61,11 +61,25 @@ skis:
 # stop, a carve cut hard, the tuck, a landing, a wipeout) skied by the real
 # engine, the committed models posed through its states and photographed
 # from five sides a frame a column — previews/skier-<move>.png — and a
-# turntable round his stance, his tuck and a skate stride. Its own one-off
+# turntable round his stance, his tuck and a skate stride; and, at the
+# lab's MOMENTS, close up (ARGS=--sheet=closeup), his hands, boots, head
+# and jacket (--sheet=detail), at the game's own pixels (--sheet=game) and
+# his skin's stretch off its bind (--sheet=stretch). Its own one-off
 # bundle from pwa/skier-preview.html; needs a Chromium like `world`.
 # MOVE=skate,jump a subset; ARGS="--code" the code's figure.
 skier:
 	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE SKIER METRICS LAB: is his pose a real skier's? Every move skied by the
+# engine in pure Node, the game's pose measured frame by frame (the knees,
+# the hips, the shins in their boots, the centre of mass over the feet, the
+# angulation, the head against the horizon, a limb through another, a
+# joint that snaps) and held to bands off coaching and biomechanics; the
+# table, and the share of frames at fault. Seconds, no browser.
+# MOVE=carve,tuck a subset; ARGS="--faults" every fault;
+# ARGS="--json=a.json" / "--compare=a.json" a before and after.
+skier-metrics:
+	npm run skier-metrics -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
 
 # THE BLENDER LAB: a game asset MODELLED in Blender off the game's own data
 # (a pair: its spec and its class's traced look) — studio renders, the
@@ -119,14 +133,27 @@ sky:
 
 # THE CLOUD LAB: the snow a skier throws up and the groove he leaves, as one
 # labelled contact sheet — previews/cloud-<seed>.png. Each row one ride
-# across the seed's open meadow (a kind of snow × a light × a held speed),
+# across the seed's open meadow, or the piste with ARGS=--where=piste (a
+# kind of snow × a light × a move — straight, carve, check, stop, skate —
+# × a held speed),
 # each column the same moment from another angle (chase, side, front, high,
 # trail, under, furrow), or with ARGS=--cols=times one angle at several
 # moments. Its own one-off bundle from pwa/cloud-preview.html (never
 # deployed); needs a Chromium like `world`. SEED=n, REGION=id;
-# ARGS="--snow=groomed,hard,soft,new,wet --light=back,low,night --speeds=30,90".
+# ARGS="--snow=groomed,hard,soft,new,wet --light=back,low,night --speeds=30,90";
+# ARGS="--moves=straight,check,stop --speeds=10,25,55".
 cloud:
 	npm run cloud -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
+# snow × move × speed skied by the engine in pure Node and every frame read
+# as snow-cloud.ts reads it: the puffs a second, the cloud alive behind him
+# (its opacity-weighted area, against his own silhouette), how high, how
+# long. Whether the cloud grows with speed, and by how much a change moved
+# it. Seconds, no browser. ARGS="--snow=new --moves=check,stop
+# --speeds=10,20,40"; ARGS="--json=a.json" / "--compare=a.json".
+cloud-metrics:
+	npm run cloud-metrics -- $(ARGS)
 
 # THE WILDLIFE LAB: every bird over the woods and every animal in the snow
 # side by side, three poses each through the game's own geometry and

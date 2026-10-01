@@ -185,13 +185,14 @@ function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
 }
 
 /** The engine's readings as the pose wants them, for one frame. */
-function poseInputOf(
+export function poseInputOf(
   skier: SkierState,
   legs: ReturnType<typeof createSkierSpring>,
   mounts: Mounts,
   trick: TrickPose | null,
 ): SkierPoseInput {
   return {
+    roll: skier.roll,
     hipRight: skier.hipRight,
     hipAft: skier.hipAft,
     lean: skier.lean,
@@ -207,12 +208,18 @@ function poseInputOf(
     // THE GAIT at a crawl — the skate and the double pole — in time with
     // the engine's own push (`poles.ts`).
     gait: gaitOf(skier),
-    jumpLoad: skier.jumpLoad / TUNING.jump.full,
+    air: legs.air,
+    jumpLoad: legs.load,
     popped: skier.popped,
     carve: skier.carve,
     skid: skier.skid,
     trick,
     mounts,
+    // STOOD STILL, he waits alive: his own clock, faded in below a walk.
+    idle: {
+      t: legs.clock,
+      still: Math.max(0, 1 - skier.speed / 1.5) * Math.max(0, 1 - skier.drive * 4),
+    },
   };
 }
 
@@ -265,7 +272,9 @@ export function createSkisModel(
     look.pole,
   );
   root.add(figure.group);
-  const legs = createSkierSpring();
+  // His own clock starts at his kit's own offset: four on a start line
+  // breathe and shift their weight out of step.
+  const legs = createSkierSpring((style.skier.jacket % 997) / 31);
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
@@ -366,7 +375,7 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        stepSkierSpring(legs, skier.vy, skier.airborne, dt);
+        stepSkierSpring(legs, skier.vy, skier.airborne, dt, skier.jumpLoad / TUNING.jump.full);
         const input = poseInputOf(skier, legs, mounts, trick);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);

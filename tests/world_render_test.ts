@@ -28,6 +28,7 @@ import {
   MOUNTS,
   ragdollPose,
   skierPose,
+  SHIN_ABOVE_CUFF,
   solveLimb,
   type BodyFrame,
 } from "../pwa/src/game/skier-pose.ts";
@@ -454,7 +455,13 @@ describe("the rider's pose", () => {
       for (let s = 0; s < 2; s++) {
         expect(d(p.shoulders[s], p.elbows[s])).toBeCloseTo(BODY.upperArm, 2);
         expect(d(p.elbows[s], p.hands[s])).toBeCloseTo(BODY.forearm, 2);
-        expect(d(p.knees[s], p.feet[s])).toBeCloseTo(BODY.shin, 2);
+        // The cloth stops at the boot's cuff up the shin; the foot in its
+        // liner is squared below it, its frame a true one.
+        expect(d(p.knees[s], p.feet[s])).toBeCloseTo(SHIN_ABOVE_CUFF, 2);
+        const { f, n } = p.boots[s];
+        expect(Math.hypot(f.x, f.y, f.z)).toBeCloseTo(1, 6);
+        expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 6);
+        expect(f.x * n.x + f.y * n.y + f.z * n.z).toBeCloseTo(0, 6);
       }
       expect(d(p.hips, p.neck)).toBeCloseTo(BODY.spine, 2);
       // The frame is his trunk's: the neck straight up it, the hips across.
@@ -492,16 +499,23 @@ describe("the rider's pose", () => {
       airborne: false,
       landing: 5,
     };
-    const hung = skierPose({ ...base, hipRight: 0.25, steer: 1 });
+    const hung = skierPose({ ...base, hipRight: 0.25, steer: 1, edge: 0.5 });
     expect(hung.hips.x).toBeGreaterThan(0.1);
-    // The shoulders are held level over hips hung inside: the neck stands
-    // back toward the centre.
-    expect(hung.neck.x).toBeLessThan(hung.hips.x);
+    // Angulated: the trunk leans in less than the legs do — a hinge at the
+    // hips, so the neck stands nearer the centre than the legs' line.
+    const feetX = (hung.feet[0].x + hung.feet[1].x) / 2;
+    const feetY = (hung.feet[0].y + hung.feet[1].y) / 2;
+    const legs = Math.atan2(hung.hips.x - feetX, hung.hips.y - feetY);
+    const trunk = Math.atan2(hung.neck.x - hung.hips.x, hung.neck.y - hung.hips.y);
+    expect(trunk).toBeLessThan(legs - 0.1);
     const back = skierPose({ ...base, lean: 1 });
     expect(back.pitch).toBeLessThan(skierPose(base).pitch);
-    expect(
-      Math.hypot(back.neck.x - back.hips.x, back.neck.y - back.hips.y, back.neck.z - back.hips.z),
-    ).toBeCloseTo(BODY.spine, 6);
+    // The back is two spans, never stretched: the lumbar and the chest's
+    // together are the spine's length, the chord a hair short of it.
+    const d = (a: { x: number; y: number; z: number }, b: typeof a) =>
+      Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    expect(d(back.hips, back.waist) + d(back.waist, back.neck)).toBeCloseTo(BODY.spine, 6);
+    expect(d(back.hips, back.neck)).toBeGreaterThan(BODY.spine - 0.01);
   });
 });
 

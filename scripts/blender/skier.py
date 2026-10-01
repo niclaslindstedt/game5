@@ -18,8 +18,10 @@
 # skin, weighted across each joint between the two bones that meet there —
 # and what does not bend rides one bone wholly: the helmet (the head), the
 # pants' gaiter over the boot's cuff (the shin), the gloves (the forearm).
-# THE BOOTS ARE THE SKIS' (`skis.py`, clamped in the bindings): the figure
-# ends at the cuff, as the game's own does (`skier-figure.ts`). The bones
+# THE BOOTS ARE THE SKIS' (`skis.py`, clamped in the bindings): the suit
+# ends at the cuff, as the game's own does (`skier-figure.ts`), and his FEET
+# in the boots' padded liners ride the boot bones — hidden in the shells
+# while he stands on his skis, and his own when he is thrown off them. The bones
 # are the game's spans (`skierBones`), so the game's pose drives him bone
 # for bone, and the clips are that pose played.
 
@@ -55,10 +57,21 @@ HELMET = mat("helmet", colour(STYLE["helmet"]), rough=0.25, coat=1.0)
 PEAK = mat("peak", colour(STYLE.get("peak", STYLE["helmet"])), rough=0.3, coat=1.0)
 LENS = mat("lens", colour(STYLE["visor"]), metal=0.7, rough=0.08)
 STRAP = mat("strap", colour(0x101114), rough=0.7)
+LINER = mat("liner", colour(0x2b2e34), rough=0.85)
 
 
 # ---------------------------------------------------------------- the RIG
 def frame(name):
+    """A bone's frame — or the TRUNK's ("spine"): the chord from the hips
+    to the neck the two spans of the back are bent about, facing the
+    chest. The suit is lofted and coloured along it and weighted across
+    the pelvis and the chest by how far up it a point lies."""
+    if name == "spine":
+        hips, neck = B(FRAMES["pelvis"]["head"]), B(FRAMES["chest"]["head"]) + B(FRAMES["chest"]["y"]) * FRAMES["chest"]["length"]
+        y = (neck - hips).normalized()
+        z = B(FRAMES["chest"]["z"])
+        z = (z - y * z.dot(y)).normalized()
+        return hips, y.cross(z), y, z, (neck - hips).length
     f = FRAMES[name]
     return B(f["head"]), B(f["x"]), B(f["y"]), B(f["z"]), f["length"]
 
@@ -67,7 +80,18 @@ for name in FRAMES:
     head, _, y, z, length = frame(name)
     bone(name, head, head + y * length, roll_to=z)
 
-SEGMENTS = {n: (frame(n)[0], frame(n)[0] + frame(n)[2] * frame(n)[4]) for n in FRAMES}
+# THE HALF BONES (`skierBones`): the joint each sits on, and the two bones
+# it is turned half way between.
+HALF = {}
+for s in "lr":
+    HALF |= {(f"spine", f"thigh_{s}"): f"hip_{s}", (f"thigh_{s}", f"shin_{s}"): f"knee_{s}",
+             ("spine", f"upperarm_{s}"): f"shoulder_{s}", (f"upperarm_{s}", f"forearm_{s}"): f"elbow_{s}"}
+
+# The segments a point of the suit is weighed against: every bone's, with
+# the trunk's two spans as the one chord ("spine") they are split along.
+SEGMENTS = {n: (frame(n)[0], frame(n)[0] + frame(n)[2] * frame(n)[4]) for n in FRAMES
+            if n not in ("pelvis", "chest") and n not in HALF.values()}
+SEGMENTS["spine"] = (frame("spine")[0], frame("spine")[0] + frame("spine")[2] * frame("spine")[4])
 NEAR = {"spine": ["head", "thigh_l", "thigh_r", "upperarm_l", "upperarm_r"], "head": ["spine"]}
 for s in "lr":
     NEAR |= {f"thigh_{s}": ["spine", f"shin_{s}"], f"shin_{s}": [f"thigh_{s}", f"boot_{s}"],
@@ -87,13 +111,54 @@ def nearest(co, among=None):
     return min(among or SEGMENTS, key=lambda n: along(co, SEGMENTS[n])[1])
 
 
+# How wide the blend across a joint is, m: what 1/e of the share takes. A
+# hinge (a knee, an elbow) is blended tight, or its cloth shrinks to a
+# candy wrapper as it folds; a BALL joint (a hip, a shoulder — the trunk
+# against a thigh or an arm) is blended wide, so the seat, the groin and
+# the back between the blades spread a deep fold — the tuck's hips past a
+# right angle, its arms driven ahead — over a hand's width rather than
+# tearing along a seam.
+BLEND = {"hinge": 0.04, "ball": 0.075}
+
+
+def blend(a, b):
+    trunk = "spine" in (a, b)
+    limb = any(n.startswith(("thigh", "upperarm")) for n in (a, b))
+    return BLEND["ball"] if trunk and limb else BLEND["hinge"]
+
+
 def suit_weights(co):
     """Across a joint, shared between the bones that meet there by how much
-    nearer each is — 4 cm makes the difference between half and a third."""
+    nearer each is (`BLEND`)."""
     b0 = nearest(co, [n for n in SEGMENTS if not n.startswith("boot")])
     d0 = along(co, SEGMENTS[b0])[1]
-    w = {n: math.exp(-(along(co, SEGMENTS[n])[1] - d0) / 0.04) for n in [b0] + NEAR[b0]}
+    w = {n: math.exp(-(along(co, SEGMENTS[n])[1] - d0) / blend(b0, n)) for n in [b0] + NEAR[b0]}
     top = sorted(w.items(), key=lambda kv: -kv[1])[:3]
+    total = sum(v for _, v in top)
+    out = {n: v / total for n, v in top}
+    # Across a joint with a HALF BONE, the pair's share is laid over three
+    # (the quadratic Bernstein weights of how far toward the far bone the
+    # point is): the near bone's falls away as the half bone's peaks on the
+    # seam and the far bone's rises — smooth, and summing to the pair's.
+    for (a, b), h in HALF.items():
+        if a in out and b in out:
+            wa, wb = out.pop(a), out.pop(b)
+            c = wb / (wa + wb)
+            out[a] = (wa + wb) * (1 - c) ** 2
+            out[b] = (wa + wb) * c * c
+            out[h] = out.get(h, 0.0) + (wa + wb) * 2 * c * (1 - c)
+    # The trunk's share split between the pelvis and the chest by how far
+    # up the chord the point lies — a long blend across the small of the
+    # back, so the jacket bends there as a back does rather than creasing.
+    if "spine" in out:
+        t = along(co, SEGMENTS["spine"])[0]
+        c = max(0.0, min(1.0, (t - 0.25) / 0.45))
+        c = c * c * (3 - 2 * c)
+        share = out.pop("spine")
+        out["pelvis"] = out.get("pelvis", 0.0) + share * (1 - c)
+        out["chest"] = out.get("chest", 0.0) + share * c
+    # A glTF vertex carries four influences: the four largest, summing to one.
+    top = sorted(out.items(), key=lambda kv: -kv[1])[:4]
     total = sum(v for _, v in top)
     return {n: v / total for n, v in top}
 
@@ -164,7 +229,7 @@ def lofted(name, bone_name, sections, n=2.4):
     return loft(name, rings, [JACKET])
 
 
-rides("spine")
+rides("chest")
 pieces = []
 # The trunk: the survey's levels, each the body's half breadth, depth
 # ahead of and behind the spine's line, and what the kit adds there.
@@ -412,6 +477,46 @@ for j in range(NE):
         i1 = (i + 1) % NA
         faces.append([j * NA + i, (j + 1) * NA + i, (j + 1) * NA + i1, j * NA + i1])
         fm.append(m)
+# THE COLOURS' EDGES SMOOTHED: the cap's and the strap's faces were picked
+# a grid cell at a time, so where one colour meets the next the edge is a
+# stair of cells. Every vertex on such an edge (with exactly two of its
+# kind beside it) is eased along it — in the shell's own around-and-up
+# parameters, then laid back on the measured surface — so the cap ends on
+# the clean curve the game's own helmet cuts it along.
+def reach_at(a, e):
+    """The measured reach at any (a, e), bilinear on the fine grid."""
+    fi = (a + math.pi) / (2 * math.pi) * HELM["around"]
+    fj = max(0.0, min(HELM["up"] - 1e-6, (e + math.pi / 2) / math.pi * HELM["up"]))
+    i0, j0 = int(math.floor(fi)), int(fj)
+    u, v = fi - i0, fj - j0
+    r = HELM["reach"]
+    at = lambda i, j: r[j][i % HELM["around"]]
+    return (at(i0, j0) * (1 - u) + at(i0 + 1, j0) * u) * (1 - v) + (at(i0, j0 + 1) * (1 - u) + at(i0 + 1, j0 + 1) * u) * v
+
+
+param = [ang(i, j) for j in range(NE + 1) for i in range(NA)]
+edge_faces = {}
+for f_i, quad in enumerate(faces):
+    for k in range(4):
+        key = tuple(sorted((quad[k], quad[(k + 1) % 4])))
+        edge_faces.setdefault(key, []).append(f_i)
+seam = {}
+for (va, vb), fs in edge_faces.items():
+    if len(fs) == 2 and fm[fs[0]] != fm[fs[1]]:
+        seam.setdefault(va, []).append(vb)
+        seam.setdefault(vb, []).append(va)
+for _ in range(5):
+    moved = {}
+    for v, ns in seam.items():
+        if len(ns) != 2:
+            continue
+        a0, e0 = param[v]
+        # The azimuth unwrapped about this vertex's own, across ±π.
+        da = [((param[n][0] - a0 + math.pi) % (2 * math.pi)) - math.pi for n in ns]
+        moved[v] = (a0 + 0.25 * (da[0] + da[1]), e0 * 0.5 + 0.25 * (param[ns[0]][1] + param[ns[1]][1]))
+    for v, (a, e) in moved.items():
+        param[v] = (a, e)
+        verts[v] = worn(a, e, reach_at(a, e))
 shell = mesh_obj("helmet", verts, faces, [HELMET, PEAK, STRAP, LENS], fm)
 # THE RIM SMOOTHED: the openings were cut a grid cell at a time, so their
 # edges are stairs — eased along themselves, a few passes.
@@ -466,8 +571,32 @@ def goggle(name, proud, half, tall, mats, depth):
             k = j * (GA + 1) + i
             fs.append([k, k + 1, k + GA + 2, k + GA + 1])
     ob = mesh_obj(name, vs, fs, mats)
+    # Its own unwrap, the frame's grid laid flat (u across, v up), for the
+    # lens's mirrored ramp.
+    layer = ob.data.uv_layers.new(name="UVMap")
+    for loop in ob.data.loops:
+        k = loop.vertex_index
+        layer.data[loop.index].uv = ((k % (GA + 1)) / GA, (k // (GA + 1)) / GE)
     ob.modifiers.new("thick", "SOLIDIFY").thickness = depth
     return ob
+
+
+# THE LENS'S MIRROR: a racer's goggle is a mirrored lens graded from bright
+# at its brow to darker below, a band of sheen across its upper third —
+# a grey ramp the kit's lens colour (`dressOf`'s "lens") is laid over.
+ramp = bpy.data.images.new("lens_ramp", 8, 64)
+pix = []
+for j in range(64):
+    v = j / 63
+    g = min(1.0, 0.5 + 0.42 * v ** 1.4 + 0.22 * math.exp(-(((v - 0.76) / 0.07) ** 2)))
+    pix += [g, g, g, 1.0] * 8
+ramp.pixels = pix
+ramp.pack()
+lens_nt = LENS.node_tree
+lens_tex = lens_nt.nodes.new("ShaderNodeTexImage")
+lens_tex.image = ramp
+lens_tex.interpolation = "Linear"
+lens_nt.links.new(lens_tex.outputs["Color"], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
 
 goggle("goggle_frame", 0.012, 1.15, 0.092, [STRAP], 0.02)
@@ -488,25 +617,53 @@ for i, s in enumerate("lr"):
     loft("gaiter", [[f + bz * -0.03 + up_shin * u + sh[1] * (w * math.cos(a))
                      + sh[3] * ((fr if math.sin(a) > 0 else bk) * math.sin(a))
                      for a in (2 * math.pi * k / 16 for k in range(16))] for u, w, fr, bk in shaft], [PANTS])
+    # THE FOOT IN THE BOOT'S LINER, on the boot bone (its head 2 cm over
+    # the cuff's top, +y along the sole, +z up out of it): the liner's shaft
+    # down the cuff's own forward lean to the ankle, and the foot on the
+    # sole — inside the shell (`skis.py`: 0.1 m wide, 0.32 long, the cuff
+    # 0.058–0.066 m round) while he is on his skis, so nothing of it shows
+    # until a crash takes him off them.
+    rides(f"boot_{s}")
+    o, fx_, fy_, fz_, _ = frame(f"boot_{s}")
+    lean = 0.22
+
+    def down(d):
+        """A point `d` m down the cuff's axis from its top."""
+        return o + fy_ * (0.014 - d * math.sin(lean)) - fz_ * (0.02 + d * math.cos(lean))
+
+    axis = (fz_ * math.cos(lean) + fy_ * math.sin(lean)).normalized()
+    ahead = (fy_ - axis * fy_.dot(axis)).normalized()
+    loft("liner", [[down(d) + fx_ * (r * math.cos(2 * math.pi * k / 16)) + ahead * (r * 1.08 * math.sin(2 * math.pi * k / 16))
+                    for k in range(16)] for d, r in ((0.0, 0.046), (0.06, 0.049), (0.14, 0.051), (0.2, 0.05))],
+         [LINER])
+    sole = o - fz_ * 0.285 + fy_ * -0.02
+    FOOT = [(-0.125, 0.03, 0.014, 0.06), (-0.1, 0.04, 0.008, 0.088), (-0.04, 0.043, 0.008, 0.1),
+            (0.03, 0.044, 0.008, 0.085), (0.09, 0.045, 0.008, 0.066), (0.13, 0.037, 0.01, 0.05),
+            (0.15, 0.02, 0.016, 0.034)]
+    loft("foot", [[sole + fy_ * u + fx_ * (w * math.cos(2 * math.pi * k / 16))
+                   + fz_ * ((lo + hi) / 2 + (hi - lo) / 2 * math.sin(2 * math.pi * k / 16)) for k in range(16)]
+                  for u, w, lo, hi in FOOT], [LINER])
     rides(f"forearm_{s}")
     e, fx, fy, fz, fl = frame(f"forearm_{s}")
     wrist_t = ANSUR["forearm_length"] * MM / fl
     cyl("gauntlet", e + fy * (fl * (wrist_t - 0.2)), e + fy * (fl * (wrist_t - 0.02)), 0.058, GLOVE, r2=0.046)
-    # THE HAND, CLOSED ROUND THE GRIP: the grip's shaft runs through the
-    # fist along the bend's side (`fz`), the back of the hand faces out,
+    # THE HAND, CLOSED ROUND THE GRIP, on its own bone (`skierBones`'s
+    # hand: +z up the pole's shaft, +y the forearm's line squared to it):
+    # the shaft runs through the fist, the back of the hand faces out,
     # four fingers wrap the shaft from the palm round the front, stacked
     # down it a finger's width apart, and the thumb lies over the top.
-    c = e + fy * fl
-    out = fx if fx.dot(shoulders[i] - neck) > 0 else -fx
-    turn = Matrix((out, fy, fz)).transposed().to_euler()
-    ellipsoid("palm", c - fy * 0.035 + out * 0.012, (0.03, 0.05, 0.047), GLOVE, rot=turn)
+    rides(f"hand_{s}")
+    c, hx_, hy_, hz_, _ = frame(f"hand_{s}")
+    out = hx_ if hx_.dot(shoulders[i] - neck) > 0 else -hx_
+    turn = Matrix((out, hy_, hz_)).transposed().to_euler()
+    ellipsoid("palm", c - hy_ * 0.035 + out * 0.012, (0.03, 0.05, 0.047), GLOVE, rot=turn)
     for k in range(4):
-        along_g = fz * (0.028 - 0.019 * k)
-        arc = [c + along_g + (fy * math.cos(t) + out * math.sin(t)) * 0.023
+        along_g = hz_ * (0.028 - 0.019 * k)
+        arc = [c + along_g + (hy_ * math.cos(t) + out * math.sin(t)) * 0.023
                for t in (math.radians(a) for a in range(-110, 181, 58 if GAME else 20))]
         tube("finger", arc, 0.0095 - 0.0008 * k, GLOVE, smooth_n=0 if GAME else 2)
-    tube("thumb", [c - fy * 0.03 - out * 0.018 + fz * 0.03, c - out * 0.02 + fz * 0.046,
-                   c + fy * 0.02 - out * 0.012 + fz * 0.048], 0.011, GLOVE, smooth_n=0 if GAME else 2)
+    tube("thumb", [c - hy_ * 0.03 - out * 0.018 + hz_ * 0.03, c - out * 0.02 + hz_ * 0.046,
+                   c + hy_ * 0.02 - out * 0.012 + hz_ * 0.048], 0.011, GLOVE, smooth_n=0 if GAME else 2)
 
 
 # ---------------------------------------------------------------- the CLOTH
@@ -598,12 +755,175 @@ KIT_RGB = {"jacket": colour(STYLE["jacket"]), "accent": colour(STYLE.get("accent
            "pants": colour(STYLE["pants"])}
 
 
+def _bake(kind, image, **kw):
+    """Bake into `image` through every garment's material."""
+    for m in (JACKET, ACCENT, PANTS):
+        t = m.node_tree.nodes.new("ShaderNodeTexImage")
+        t.image = image
+        for nd in m.node_tree.nodes:
+            nd.select = False
+        t.select = True
+        m.node_tree.nodes.active = t
+    bpy.ops.object.bake(type=kind, margin=8, **kw)
+
+
+def _emitting(colour_of):
+    """Every garment's shader swapped for an emission of `colour_of(m, nt)`
+    (a node output)."""
+    for m in (JACKET, ACCENT, PANTS):
+        nt = m.node_tree
+        for nd in list(nt.nodes):
+            if nd.type != "OUTPUT_MATERIAL":
+                nt.nodes.remove(nd)
+        em = nt.nodes.new("ShaderNodeEmission")
+        nt.links.new(colour_of(m, nt), em.inputs["Color"])
+        nt.links.new(em.outputs["Emission"], nt.nodes.get("Material Output").inputs["Surface"])
+
+
+def _pixels(image):
+    import numpy as np
+    buf = np.empty(TEX * TEX * 4, dtype=np.float32)
+    image.pixels.foreach_get(buf)
+    return buf.reshape(TEX, TEX, 4)
+
+
+def garment_height(P, N, G):
+    """THE KIT'S CONSTRUCTION, as a height (0..1) and a shade (0..1) at
+    every texel, off where on him it lies (`P`, the suit's own frame — the
+    pose he is bound in), which way it faces (`N`) and which garment it is
+    (`G`: 0 the jacket, 1 its second colour, 2 the pants):
+
+      * the WEAVE: a ripstop's 8 mm grid over everything; the jacket lightly
+        quilted in channels a hand apart round the trunk; the softshell
+        pants mottled;
+      * the SEAMS, each a welt between two lines of stitching: down the
+        jacket's sides and the pants' outsides; the knees' articulation
+        darts above and below each knee on the front of the leg;
+      * the ZIPS, a dark tape with its teeth: up the jacket's front, a
+        chest pocket slanting over his left breast, a hand pocket over each
+        hip;
+      * the HEM, an elastic band ribbed at the foot of the jacket.
+
+    Laid out in the body's own terms — across (`SX`), up the trunk (`UP`),
+    ahead (`CHEST`), and where each knee is — so a seam stays on his side
+    and a zip on his chest whatever the unwrap did to them."""
+    import numpy as np
+    S = np.ones(P.shape[:2], dtype=np.float32)
+    H = np.full(P.shape[:2], 0.5, dtype=np.float32)
+    v3 = lambda v: np.array([v.x, v.y, v.z], dtype=np.float32)
+    up, across, ahead = v3(UP), v3(SX), v3(CHEST)
+    h0 = v3(hips)
+    spine = (neck - hips).length
+    rel = P - h0
+    lvl = rel @ up / spine          # 0 at the hips, 1 at the neck
+    side = rel @ across             # m to his right (SX is the body's x)
+    fwd = rel @ ahead
+    nf, ns = N @ ahead, N @ across
+    jacket = G < 2
+    pants = G == 2
+
+    def ridge(d, w):
+        return np.exp(-((d / w) ** 2))
+
+    def seam(d, along, live):
+        """A welt on the line `d` = 0, stitched either side every 4 mm."""
+        welt = 0.35 * ridge(d, 0.004)
+        stitch = -0.28 * (ridge(np.abs(d) - 0.0065, 0.0012)) * (0.5 + 0.5 * np.cos(2 * np.pi * along / 0.004))
+        return np.where(live, welt + stitch, 0.0)
+
+    def zip_(d, along, live, half=0.006):
+        """A zip on `d` = 0: a dark tape `half` m a side, its teeth across."""
+        on = live & (np.abs(d) < half)
+        teeth = 0.25 + 0.2 * (np.cos(2 * np.pi * along / 0.0035) > 0)
+        return on, np.where(on, teeth * ridge(d, half * 0.9), 0.0)
+
+    # The WEAVE.
+    grid = np.minimum(np.abs(np.sin(np.pi * P[..., 0] / 0.008)), np.abs(np.sin(np.pi * P[..., 2] / 0.008))) ** 0.3
+    H += 0.06 * (grid - 0.5)
+    quilt = np.abs(np.sin(np.pi * (lvl * spine) / 0.085)) ** 0.35
+    H += np.where(jacket & (lvl > -0.05), 0.22 * (quilt - 0.6), 0.0)
+    # The softshell's mottle: value noise on a 2 cm lattice.
+    rng = np.random.default_rng(7)
+    lat = rng.random((64, 64, 64), dtype=np.float32)
+    q = P / 0.02
+    i0 = np.floor(q).astype(np.int64)
+    f = q - i0
+    f = f * f * (3 - 2 * f)
+    def L(dx, dy, dz):
+        return lat[(i0[..., 0] + dx) % 64, (i0[..., 1] + dy) % 64, (i0[..., 2] + dz) % 64]
+    noise = 0.0
+    for dx in (0, 1):
+        for dy in (0, 1):
+            for dz in (0, 1):
+                w = (f[..., 0] if dx else 1 - f[..., 0]) * (f[..., 1] if dy else 1 - f[..., 1]) * (f[..., 2] if dz else 1 - f[..., 2])
+                noise = noise + w * L(dx, dy, dz)
+    H += np.where(pants, 0.12 * (noise - 0.5), 0.0)
+    S *= np.where(pants, 0.94 + 0.06 * noise, 1.0)
+
+    trunk = jacket & (lvl > -0.25) & (lvl < 0.92)
+    # SIDE SEAMS: where the trunk's skin turns from his front to his back.
+    H += seam(nf * 0.12, lvl * spine, trunk & (np.abs(ns) > 0.6))
+    # The HEM's elastic band, ribbed, the hand's breadth over the hem.
+    hem = (rel @ up) - (HEM[0] - hips).dot(UP)
+    band = jacket & (hem > 0) & (hem < 0.035)
+    H += np.where(band, 0.12 * np.cos(2 * np.pi * side / 0.004) - 0.05, 0.0)
+    H += np.where(jacket & (np.abs(hem - 0.035) < 0.0015), -0.25, 0.0)
+    # THE ZIPS: up the front, a chest pocket over his left breast, a hand
+    # pocket over each hip — each a slanting line in (side, up).
+    front = trunk & (nf > 0.25)
+    on, z = zip_(side, lvl * spine, front & (lvl > -0.2) & (lvl < 0.97), 0.007)
+    H += z
+    S = np.where(on, S * 0.45, S)
+
+    def slant(x0, y0, x1, y1):
+        dx, dy = x1 - x0, y1 - y0
+        ln = math.hypot(dx, dy)
+        ux, uy = dx / ln, dy / ln
+        px, py = side - x0, lvl * spine - y0
+        t = px * ux + py * uy
+        d = px * -uy + py * ux
+        return d, t, (t > 0) & (t < ln)
+
+    for x0, y0, x1, y1 in ((-0.035, 0.42, -0.13, 0.33),   # the chest pocket, his left
+                           (-0.07, 0.17, -0.15, 0.03),    # the hand pockets
+                           (0.07, 0.17, 0.15, 0.03)):
+        d, t, inside = slant(x0, y0, x1, y1)
+        on, z = zip_(d, t, front & inside, 0.0045)
+        H += z
+        S = np.where(on, S * 0.5, S)
+        # The pocket's bag under the zip, a little proud.
+        H += np.where(front & inside & (d < -0.006) & (d > -0.09), 0.05, 0.0)
+
+    # THE PANTS: the outside seam down each leg, and the knees' darts.
+    for i, s_ in enumerate("lr"):
+        hd, fx_, fy_, fz_, fl = frame(f"thigh_{s_}")
+        out = fx_ if fx_.dot(hd - hips) > 0 else -fx_
+        o = v3(out)
+        nearleg = pants & (np.abs(rel @ across - (hd - hips).dot(SX)) < 0.25)
+        H += seam((N @ o - 1.0) * 0.1 + 0.02, lvl * spine, nearleg & (N @ o > 0.75))
+        k = v3(knees[i])
+        sh = frame(f"shin_{s_}")
+        ax = v3((sh[2] - fy_).normalized()) if (sh[2] - fy_).length > 1e-3 else v3(fy_)
+        face = v3((fz_ + sh[3]).normalized())
+        r = P - k
+        s_along = r @ v3(fy_)
+        lateral = r @ v3(out)
+        knee_front = pants & (N @ face > 0.15) & (np.linalg.norm(r, axis=-1) < 0.2)
+        for off in (-0.075, 0.065):
+            H += seam(s_along - off - 0.9 * lateral ** 2, lateral, knee_front & (np.abs(lateral) < 0.08))
+    return np.clip(H, 0, 1), np.clip(S, 0, 1)
+
+
 def bake_cloth():
-    """THE BAKE (the game's build): the suit unwrapped, the fabric's shade
-    times the occlusion baked as the DETAIL, its bump as the NORMAL, and the
-    shaders swapped for the maps. The top-right corner of both maps is left
-    plain — white, flat — for every other part that wears a garment's
-    material (the gaiters), whose unwrap is that corner."""
+    """THE BAKE (the game's build): the suit unwrapped; where every texel of
+    it lies on him, which way it faces and which garment it is, baked;
+    the kit's construction worked out at every texel off those
+    (`garment_height`); then the fabric's shade times the occlusion baked
+    as the DETAIL and the height's bump as the NORMAL, and the shaders
+    swapped for the maps. The top-right corner of both maps is left plain —
+    white, flat — for every other part that wears a garment's material (the
+    gaiters), whose unwrap is that corner."""
+    import numpy as np
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -621,71 +941,103 @@ def bake_cloth():
     normal = bpy.data.images.new("suit_normal", TEX, TEX, is_data=True)
     normal.colorspace_settings.name = "Non-Color"
 
-    def target(image):
-        for m in (JACKET, ACCENT, PANTS):
-            t = m.node_tree.nodes.new("ShaderNodeTexImage")
-            t.image = image
-            for nd in m.node_tree.nodes:
-                nd.select = False
-            t.select = True
-            m.node_tree.nodes.active = t
+    # WHERE, WHICH WAY AND WHAT: the suit's own position (a quarter scale,
+    # about the middle), its normal, and its garment, each baked as an
+    # emission into a float map.
+    def float_map(name):
+        im = bpy.data.images.new(name, TEX, TEX, float_buffer=True, is_data=True)
+        im.colorspace_settings.name = "Non-Color"
+        return im
 
-    # The detail: emission of the fabric's shade times the occlusion.
-    for m in (JACKET, ACCENT, PANTS):
-        nt = m.node_tree
-        out = nt.nodes.get("Material Output")
-        h = cloth_height(nt, CLOTH[m.name][0])
-        shade = nt.nodes.new("ShaderNodeMapRange")
-        shade.inputs["To Min"].default_value = 0.78
-        nt.links.new(h, shade.inputs["Value"])
+    def coord(kind, k, b):
+        def out(m, nt):
+            tc = nt.nodes.new("ShaderNodeTexCoord")
+            mp = nt.nodes.new("ShaderNodeVectorMath")
+            mp.operation = "MULTIPLY_ADD"
+            mp.inputs[1].default_value = (k, k, k)
+            mp.inputs[2].default_value = (b, b, b)
+            nt.links.new(tc.outputs[kind], mp.inputs[0])
+            return mp.outputs["Vector"]
+        return out
+
+    where, facing, which = float_map("suit_where"), float_map("suit_facing"), float_map("suit_which")
+    _emitting(coord("Object", 0.25, 0.5))
+    _bake("EMIT", where)
+    _emitting(coord("Normal", 0.5, 0.5))
+    _bake("EMIT", facing)
+    ids = {"jacket": (1, 0, 0, 1), "accent": (0, 1, 0, 1), "pants": (0, 0, 1, 1)}
+
+    def garment(m, nt):
+        rgb = nt.nodes.new("ShaderNodeRGB")
+        rgb.outputs[0].default_value = ids[m.name]
+        return rgb.outputs[0]
+    _emitting(garment)
+    _bake("EMIT", which)
+    P = (_pixels(where)[..., :3] - 0.5) / 0.25
+    N = _pixels(facing)[..., :3] * 2 - 1
+    N /= np.maximum(1e-6, np.linalg.norm(N, axis=-1, keepdims=True))
+    G = np.argmax(_pixels(which)[..., :3], axis=-1)
+    H, S = garment_height(P, N, G)
+    height = float_map("suit_height")
+    shade = float_map("suit_shade")
+    height.pixels.foreach_set(np.dstack([H, H, H, np.ones_like(H)]).ravel())
+    shade.pixels.foreach_set(np.dstack([S, S, S, np.ones_like(S)]).ravel())
+
+    def tex(nt, image):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = image
+        t.interpolation = "Linear"
+        return t
+
+    # The DETAIL: the shade times the occlusion.
+    def shaded(m, nt):
         ao = nt.nodes.new("ShaderNodeAmbientOcclusion")
         ao.inputs["Distance"].default_value = 0.25
         mul = nt.nodes.new("ShaderNodeMath")
         mul.operation = "MULTIPLY"
-        nt.links.new(shade.outputs["Result"], mul.inputs[0])
+        nt.links.new(tex(nt, shade).outputs["Color"], mul.inputs[0])
         nt.links.new(ao.outputs["AO"], mul.inputs[1])
-        em = nt.nodes.new("ShaderNodeEmission")
-        nt.links.new(mul.outputs[0], em.inputs["Color"])
-        m["_bake_out"] = em.name
-        nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
-    target(detail)
-    bpy.ops.object.bake(type="EMIT", margin=6)
-    # The normal: the fabric's bump on a plain diffuse.
+        return mul.outputs[0]
+    _emitting(shaded)
+    _bake("EMIT", detail)
+    # The NORMAL: the height's bump on a plain diffuse.
     for m in (JACKET, ACCENT, PANTS):
         nt = m.node_tree
-        out = nt.nodes.get("Material Output")
+        for nd in list(nt.nodes):
+            if nd.type != "OUTPUT_MATERIAL":
+                nt.nodes.remove(nd)
         bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = CLOTH[m.name][1]
-        bump.inputs["Distance"].default_value = 0.004
-        nt.links.new(cloth_height(nt, CLOTH[m.name][0]), bump.inputs["Height"])
+        bump.inputs["Strength"].default_value = 1.0
+        bump.inputs["Distance"].default_value = 0.006
+        nt.links.new(tex(nt, height).outputs["Color"], bump.inputs["Height"])
         dif = nt.nodes.new("ShaderNodeBsdfDiffuse")
         nt.links.new(bump.outputs["Normal"], dif.inputs["Normal"])
-        nt.links.new(dif.outputs["BSDF"], out.inputs["Surface"])
-    target(normal)
-    bpy.ops.object.bake(type="NORMAL", normal_space="TANGENT", margin=6)
+        nt.links.new(dif.outputs["BSDF"], nt.nodes.get("Material Output").inputs["Surface"])
+    _bake("NORMAL", normal, normal_space="TANGENT")
     # The plain corner, for everything else in a garment's material.
     for img, px in ((detail, (1.0, 1.0, 1.0, 1.0)), (normal, (0.5, 0.5, 1.0, 1.0))):
-        pix = list(img.pixels)
+        pix = _pixels(img)
         lo = int(TEX * 0.975)
-        for y in range(lo, TEX):
-            for x in range(lo, TEX):
-                k = 4 * (y * TEX + x)
-                pix[k:k + 4] = px
-        img.pixels = pix
+        pix[lo:, lo:] = px
+        img.pixels.foreach_set(pix.ravel())
         img.pack()
+    for im in (where, facing, which, height, shade):
+        bpy.data.images.remove(im)
     # The shaders swapped for the maps: the Principled BSDF back on the
     # output, the kit's colour over the detail, the normal map on it.
     for m in (JACKET, ACCENT, PANTS):
         nt = m.node_tree
         for nd in list(nt.nodes):
-            if nd.type not in ("BSDF_PRINCIPLED", "OUTPUT_MATERIAL"):
+            if nd.type != "OUTPUT_MATERIAL":
                 nt.nodes.remove(nd)
-        nt.links.new(nt.nodes.get("Principled BSDF").outputs["BSDF"],
-                     nt.nodes.get("Material Output").inputs["Surface"])
+        p = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        p.name = "Principled BSDF"
+        p.inputs["Roughness"].default_value = {"jacket": 0.62, "accent": 0.6, "pants": 0.8}[m.name]
+        nt.links.new(p.outputs["BSDF"], nt.nodes.get("Material Output").inputs["Surface"])
         cloth_shader(m, KIT_RGB[m.name], detail, normal)
     # Every other part's unwrap: the plain corner.
     for o in COL.objects:
-        if o.type == "MESH" and o is not suit:
+        if o.type == "MESH" and o is not suit and not o.name.startswith("goggle_lens"):
             layer = o.data.uv_layers.new(name="UVMap") if not o.data.uv_layers else o.data.uv_layers.active
             for l in layer.data:
                 l.uv = (0.99, 0.99)
@@ -705,10 +1057,18 @@ else:
 
 # ---------------------------------------------------------------- the CLIPS
 # Every clip is the game's pose sampled: each frame every bone's frame,
-# set as its matrix and keyed.
+# set as its matrix and keyed. The game never plays them — it poses his
+# bones live off `skierPose` — so they are keyed at half the shelf's rate
+# (the lab's clip sheets are all that read them), which keeps two dozen
+# bones' tracks inside the model's budget. The data comes sampled at 30 a
+# second (`skierClips`).
+lib.FPS = 15
+DATA_FPS = 30
+
+
 def keyed(frames):
     def at(t):
-        f = frames[min(len(frames) - 1, round(t * lib.FPS))]
+        f = frames[min(len(frames) - 1, round(t * DATA_FPS))]
         out = {}
         for name, fr in f.items():
             head, x, y, z = B(fr["head"]), B(fr["x"]), B(fr["y"]), B(fr["z"])

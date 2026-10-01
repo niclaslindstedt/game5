@@ -51,6 +51,7 @@ sibling's the day one lands, and add its registry row.
 | `ski-design` | How the skis LOOK: the builder in the body frame, the topsheets, the start line's four colours; `make skis`, `make world` |
 | `blender-assets` | A game asset modelled in Blender off the game's own data: `make blender`, the budget and its LODs, the asset sheet beside the game's own, headless Blender; the models in the game |
 | `skier` | The figure on the skis: the stance from the engine's readings, the limbs solved to the bindings and the pole grips; judged from behind |
+| `skier-improvement` | Making the skier more realistic: the loop and its harnesses — `make skier-metrics` (the pose against a skier's bands), the skier lab's closeup, detail, game-pixel and skin-stretch sheets, the model rebuilt and published — and what the first pass learned |
 | `collision` | The skier meeting what is not snow — trunks, rivals, the edge of the map — and the course counting: gates, misses, the finish, the reset |
 | `crash` | The skier past saving and off his skis: the wipeout (a trunk, over the tips, a fall, an edge caught) and his tumble, bogged in the powder and poling out, damage when it is on (the rally game's `crash`, by way of the snowmobile game's) |
 | `engine-system` | Adding or changing a gameplay system, engine-first |

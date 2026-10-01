@@ -203,7 +203,7 @@ const TWIST = 0.28;
  * the back rounds between them, rad — standing, in a full tuck, at a
  * double pole's push and in a landing's fold (added). */
 const LUMBAR = 0.45;
-const SPINE_ROUND = { stand: 0.08, tuck: 0.5, pole: 0.3, fold: 0.25 };
+const SPINE_ROUND = { stand: 0.08, tuck: 0.5, pole: 0.42, fold: 0.25 };
 
 /** `v` turned `a` rad about the unit `axis` (Rodrigues). */
 function turnAbout(v: V3, axis: V3, a: number): V3 {
@@ -432,7 +432,12 @@ export function ragdollPose(points: readonly number[], frame: BodyFrame): SkierP
 /** How far a double-pole's push folds the trunk further over, rad, and
  * how far a skate's push pitches it — a skier working out of a gate, not
  * a cross-country racer bowed to his knees. */
-const POLE_FOLD = 0.5;
+const POLE_FOLD = 0.72;
+/** …and what the rest of him does through it: how far the hips sink and
+ * go back as he crunches onto the poles, m, how far he rises and comes
+ * forward over his feet into the plant, m, and how far the trunk stands
+ * up into it, rad. */
+const POLE_BODY = { sink: 0.1, back: 0.07, rise: 0.03, forward: 0.03, stand: 0.08 };
 const SKATE_PITCH = 0.22;
 /** How far the skate carries the hips, m, and rolls the shoulders, rad,
  * across onto the gliding ski. */
@@ -451,10 +456,10 @@ type Stroke = {
   basket: { x: number; from: number; to: number };
 };
 const DOUBLE_STROKE: Stroke = {
-  plant: { y: 0.22, z: 0.2 },
+  plant: { y: 0.14, z: 0.26 },
   finish: { y: -0.24, z: -0.8 },
-  dip: 0.05,
-  basket: { x: 0.32, from: 0.3, to: -1.2 },
+  dip: 0.18,
+  basket: { x: 0.32, from: 0.25, to: -1.2 },
 };
 const STRIDE_STROKE: Stroke = {
   plant: { y: 0.1, z: 0.26 },
@@ -626,6 +631,13 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // Where the arms are in their swing: 0 planted ahead, 1 swept through
   // past the hips at the end of the push, and back over the recovery.
   const swing = strokeSwing(gait.phase, duty);
+  // THE BODY WORKS THE POLES, not the arms alone: through the push he
+  // crunches down onto them — the trunk folded over, the back rounded, the
+  // knees giving and the hips going back — and over the recovery he rises
+  // tall again on his legs as the arms swing through, standing up into the
+  // next plant. The double pole's and the skate's poling alike.
+  const crunch = arms * swing;
+  const tall = arms * (1 - swing);
   // The diagonal stride's arms each have a cycle two strides long, planted
   // with the kick of the leg on their own side — so they swing opposite,
   // a man walking, and pass each other rather than both stopping.
@@ -718,7 +730,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     0.05 * lean +
     0.03 * lone -
     0.06 * load -
-    0.06 * gait.pole * swing;
+    POLE_BODY.back * crunch +
+    POLE_BODY.forward * tall;
   const pc = Math.cos(skiAngle);
   const ps = Math.sin(skiAngle);
   let hips: V3 = {
@@ -731,7 +744,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       AIR_SINK * air -
       0.06 * skid * (1 - crouch) -
       0.05 * gait.skate -
-      0.06 * gait.pole * swing +
+      POLE_BODY.sink * crunch +
+      POLE_BODY.rise * tall +
       0.08 * pop,
     z: -across0 * ps + along0 * pc,
   };
@@ -778,7 +792,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     (PITCH_TUCK - PITCH_STAND) * crouch -
     0.3 * lean * (1 - crouch) +
     fold * 1.4 +
-    POLE_FOLD * gait.pole * swing +
+    POLE_FOLD * crunch -
+    POLE_BODY.stand * tall +
     SKATE_PITCH * gait.skate +
     0.15 * gait.stride +
     0.25 * load -
@@ -836,7 +851,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const round =
     SPINE_ROUND.stand +
     SPINE_ROUND.tuck * crouch +
-    SPINE_ROUND.pole * gait.pole * swing +
+    SPINE_ROUND.pole * crunch +
     SPINE_ROUND.fold * Math.min(1, fold / 0.15);
   const lumbar = BODY.spine * LUMBAR;
   const thoracic = BODY.spine - lumbar;

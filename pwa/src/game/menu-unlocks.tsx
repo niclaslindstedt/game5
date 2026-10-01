@@ -10,7 +10,7 @@
 
 import { campaignStanding, type CampaignProgress } from "./campaign.ts";
 import { lockShelves, unlockRows, unlockShelves } from "./campaign-unlocks.ts";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { STRINGS } from "./strings.ts";
 
 export function UnlocksPage({
@@ -31,52 +31,54 @@ export function UnlocksPage({
   return (
     <div class="menu-card menu-card-options">
       <MenuHead back={onBack} backLabel={STRINGS.devTitle} title={STRINGS.unlocksTitle} />
-      <div class="dev-line">{STRINGS.unlocksLine(cleared, of)}</div>
-      <button
-        type="button"
-        class="menu-item menu-item-dev"
-        disabled={allWon}
-        onClick={() => onProgress(unlockShelves(progress, null))}
-      >
-        {STRINGS.unlocksAll}
-      </button>
-      <button
-        type="button"
-        class="menu-item menu-item-dev"
-        disabled={allShut}
-        onClick={() => onProgress(lockShelves(progress, null))}
-      >
-        {STRINGS.unlocksNone}
-      </button>
-      <div class="dev-line">{STRINGS.unlocksRule}</div>
-      <div class="dev-locks">
-        {rows.map((row) => (
-          <div class="dev-lock" key={row.shelf.id}>
-            <span class="dev-lock-text">
-              <b>{row.shelf.name.toUpperCase()}</b>
-              <span class="menu-item-sub">
-                {STRINGS.unlocksShelfLine(row.cleared, row.of, row.open)}
+      <MenuBody>
+        <div class="dev-line">{STRINGS.unlocksLine(cleared, of)}</div>
+        <button
+          type="button"
+          class="menu-item menu-item-dev"
+          disabled={allWon}
+          onClick={() => onProgress(unlockShelves(progress, null))}
+        >
+          {STRINGS.unlocksAll}
+        </button>
+        <button
+          type="button"
+          class="menu-item menu-item-dev"
+          disabled={allShut}
+          onClick={() => onProgress(lockShelves(progress, null))}
+        >
+          {STRINGS.unlocksNone}
+        </button>
+        <div class="dev-line">{STRINGS.unlocksRule}</div>
+        <div class="dev-locks">
+          {rows.map((row) => (
+            <div class="dev-lock" key={row.shelf.id}>
+              <span class="dev-lock-text">
+                <b>{row.shelf.name.toUpperCase()}</b>
+                <span class="menu-item-sub">
+                  {STRINGS.unlocksShelfLine(row.cleared, row.of, row.open)}
+                </span>
               </span>
-            </span>
-            <button
-              type="button"
-              class="menu-item menu-item-dev dev-lock-act"
-              disabled={row.won}
-              onClick={() => onProgress(unlockShelves(progress, row.shelf.id))}
-            >
-              {STRINGS.unlocksOpen}
-            </button>
-            <button
-              type="button"
-              class="menu-item menu-item-dev dev-lock-act"
-              disabled={row.shut}
-              onClick={() => onProgress(lockShelves(progress, row.shelf.id))}
-            >
-              {STRINGS.unlocksShut}
-            </button>
-          </div>
-        ))}
-      </div>
+              <button
+                type="button"
+                class="menu-item menu-item-dev dev-lock-act"
+                disabled={row.won}
+                onClick={() => onProgress(unlockShelves(progress, row.shelf.id))}
+              >
+                {STRINGS.unlocksOpen}
+              </button>
+              <button
+                type="button"
+                class="menu-item menu-item-dev dev-lock-act"
+                disabled={row.shut}
+                onClick={() => onProgress(lockShelves(progress, row.shelf.id))}
+              >
+                {STRINGS.unlocksShut}
+              </button>
+            </div>
+          ))}
+        </div>
+      </MenuBody>
     </div>
   );
 }

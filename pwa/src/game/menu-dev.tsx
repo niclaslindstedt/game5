@@ -27,7 +27,16 @@ import { BENCHMARK, benchmarkSeconds } from "./benchmark-plan.ts";
 import { campaignStanding, type CampaignProgress } from "./campaign.ts";
 import { useReceipt } from "./copy-receipt.ts";
 import { BenchHistoryPage } from "./menu-bench.tsx";
-import { Caption, KnobGroup, MenuHead, ON_OFF, StepRow, onOff, type Hint } from "./menu-knobs.tsx";
+import {
+  Caption,
+  KnobGroup,
+  MenuBody,
+  MenuHead,
+  ON_OFF,
+  StepRow,
+  onOff,
+  type Hint,
+} from "./menu-knobs.tsx";
 import { UnlocksPage } from "./menu-unlocks.tsx";
 import { DEV_SWITCHES, freshSettings, type DevSettings, type Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -57,55 +66,61 @@ function DeveloperPage({
   return (
     <div class="menu-card menu-card-options" onPointerLeave={() => setHint(null)}>
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.devTitle} />
-      <KnobGroup title={STRINGS.devInstruments} glyph="gauge">
-        {DEV_SWITCHES.map((key: keyof DevSettings) => (
-          <StepRow
-            key={key}
-            label={STRINGS.devRow[key]}
-            hint={STRINGS.devRowHint[key]}
-            stops={ON_OFF}
-            value={onOff(dev[key])}
-            onPick={(id) => onSettings({ ...settings, dev: { ...dev, [key]: id === "on" } })}
-            onHint={setHint}
-          />
-        ))}
-      </KnobGroup>
-      <Caption hint={hint} fallback={STRINGS.devCaption} />
-      {/* THE STOPWATCH, under the rows rather than among them: not a setting
+      <MenuBody>
+        <KnobGroup title={STRINGS.devInstruments} glyph="gauge">
+          {DEV_SWITCHES.map((key: keyof DevSettings) => (
+            <StepRow
+              key={key}
+              label={STRINGS.devRow[key]}
+              hint={STRINGS.devRowHint[key]}
+              stops={ON_OFF}
+              value={onOff(dev[key])}
+              onPick={(id) => onSettings({ ...settings, dev: { ...dev, [key]: id === "on" } })}
+              onHint={setHint}
+            />
+          ))}
+        </KnobGroup>
+        {/* THE STOPWATCH, under the rows rather than among them: not a setting
           but a press that takes the canvas for half a minute. */}
-      <button type="button" class="menu-item menu-item-dev" onClick={onBenchmark}>
-        {STRINGS.benchTitle}
-        <span class="menu-item-sub">
-          {STRINGS.benchRowHint(benchmarkSeconds(), BENCHMARK.seed, RACE.rivals + 1)}
-        </span>
-      </button>
-      <button type="button" class="menu-item menu-item-dev" onClick={() => onPage("benchHistory")}>
-        {STRINGS.benchHistoryTitle}
-        <span class="menu-item-sub">{STRINGS.benchHistoryRowHint(benchmarkRuns().length)}</span>
-      </button>
-      <button type="button" class="menu-item menu-item-dev" onClick={() => onPage("unlocks")}>
-        {STRINGS.unlocksTitle}
-        <span class="menu-item-sub">{STRINGS.unlocksRowHint(standing.cleared, standing.of)}</span>
-      </button>
-      <button
-        type="button"
-        class="opt-reset"
-        onClick={() => say(copyText(`${location.origin}${location.pathname}${repro()}`))}
-      >
-        {said ?? STRINGS.devRepro}
-      </button>
-      {/* The way back out, last and quiet: a page of tools must not put its
+        <button type="button" class="menu-item menu-item-dev" onClick={onBenchmark}>
+          {STRINGS.benchTitle}
+          <span class="menu-item-sub">
+            {STRINGS.benchRowHint(benchmarkSeconds(), BENCHMARK.seed, RACE.rivals + 1)}
+          </span>
+        </button>
+        <button
+          type="button"
+          class="menu-item menu-item-dev"
+          onClick={() => onPage("benchHistory")}
+        >
+          {STRINGS.benchHistoryTitle}
+          <span class="menu-item-sub">{STRINGS.benchHistoryRowHint(benchmarkRuns().length)}</span>
+        </button>
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onPage("unlocks")}>
+          {STRINGS.unlocksTitle}
+          <span class="menu-item-sub">{STRINGS.unlocksRowHint(standing.cleared, standing.of)}</span>
+        </button>
+        <button
+          type="button"
+          class="opt-reset"
+          onClick={() => say(copyText(`${location.origin}${location.pathname}${repro()}`))}
+        >
+          {said ?? STRINGS.devRepro}
+        </button>
+        {/* The way back out, last and quiet: a page of tools must not put its
           own trapdoor where a thumb reaching for a row lands. */}
-      <button
-        type="button"
-        class="opt-reset opt-reset-quiet"
-        onClick={() => {
-          onSettings({ ...settings, developer: false, dev: freshSettings().dev });
-          onBack();
-        }}
-      >
-        {STRINGS.devLock}
-      </button>
+        <button
+          type="button"
+          class="opt-reset opt-reset-quiet"
+          onClick={() => {
+            onSettings({ ...settings, developer: false, dev: freshSettings().dev });
+            onBack();
+          }}
+        >
+          {STRINGS.devLock}
+        </button>
+      </MenuBody>
+      <Caption hint={hint} fallback={STRINGS.devCaption} />
     </div>
   );
 }

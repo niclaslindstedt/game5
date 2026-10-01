@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { skisById, type SkiId } from "@engine";
 
 import { COUNT_SECONDS, countAt } from "@niclaslindstedt/oss-game-framework/hud/count";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { SkisPicker } from "./ski-picker.tsx";
 import { SKI_TOPSHEETS } from "./ski-topsheets.ts";
 import { skisBars, skisFacts, type SkisFact } from "./ski-stats.ts";
@@ -149,29 +149,39 @@ export function SkisPage({
   const pick = (index: number) => onTopsheet({ ...topsheets, [spec.id]: index });
   return (
     <div class="menu-card menu-card-skis">
-      <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.skisTitle} />
-      <div class="skis-pick-body">
-        {/* THE SKIS takes the room: it is the only thing on this card that
+      <MenuHead
+        back={onBack}
+        backLabel={STRINGS.menuBack}
+        title={STRINGS.skisTitle}
+        /* The press that rides stands in the head opposite the way back, as
+           on every card a run is picked on, wearing the way-on's weight and
+           marked as this surface's `next` — so START from anywhere on the
+           card is the start line, and the pair below can take the height. */
+        action={
+          <button
+            type="button"
+            class="menu-item menu-item-start menu-head-go skis-done"
+            data-menu="ride"
+            data-nav-next
+            onClick={onRide}
+          >
+            <span class="menu-item-name">{STRINGS.skisRide}</span>
+          </button>
+        }
+      />
+      <MenuBody>
+        <div class="skis-pick-body">
+          {/* THE SKIS takes the room: it is the only thing on this card that
             cannot be said in words. */}
-        <div class="skis-stage-col">
-          <SkisPicker skis={skis} topsheet={topsheet} onPick={onPick} />
-          <p class="skis-blurb">{spec.blurb}</p>
+          <div class="skis-stage-col">
+            <SkisPicker skis={skis} topsheet={topsheet} onPick={onPick} />
+            <p class="skis-blurb">{spec.blurb}</p>
+          </div>
+          <SkisReadings skis={skis}>
+            <Topsheets skis={spec.id} topsheet={topsheet} onTopsheet={pick} />
+          </SkisReadings>
         </div>
-        <SkisReadings skis={skis}>
-          <Topsheets skis={spec.id} topsheet={topsheet} onTopsheet={pick} />
-        </SkisReadings>
-      </div>
-      {/* The press that rides, wearing the way-on's weight and marked as this
-          surface's `next`, so START from anywhere on the card is the start line. */}
-      <button
-        type="button"
-        class="menu-item menu-item-start skis-done"
-        data-menu="ride"
-        data-nav-next
-        onClick={onRide}
-      >
-        <span class="menu-item-name">{STRINGS.skisRide}</span>
-      </button>
+      </MenuBody>
     </div>
   );
 }

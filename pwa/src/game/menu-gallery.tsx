@@ -53,7 +53,7 @@ import {
   type ShotMeta,
 } from "@niclaslindstedt/oss-game-framework/shots/shot-store";
 import { releaseThumbs, thumbUrl } from "@niclaslindstedt/oss-game-framework/shots/shot-thumbs";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { MAX_SHOTS, armScreenshots, shotFileName } from "./screenshots.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -158,93 +158,95 @@ export function GalleryPage({ onBack }: { onBack: () => void }) {
       {/* An empty roll has the card's own empty state under it saying how a
           picture gets here; the head does not say it a second time. */}
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.galleryTitle} />
-      {shots.length > 0 && (
-        <div class="menu-sub gallery-sub">{STRINGS.gallerySub(shots.length, MAX_SHOTS)}</div>
-      )}
-      {shots.length === 0 ? (
-        <div class="gallery-empty">{read ? STRINGS.galleryEmpty : STRINGS.galleryReading}</div>
-      ) : (
-        <div class="gallery">
-          <div class="gallery-stage" data-nav-steps data-nav-focus>
-            <button
-              type="button"
-              class="gallery-step"
-              data-nav-step="left"
-              aria-label={STRINGS.galleryPrev}
-              disabled={shots.length < 2}
-              onClick={() => step(-1)}
-            >
-              ‹
-            </button>
-            <div class="gallery-frame">
-              {url && (
-                <img src={url} alt={current?.label ?? ""} class="gallery-img" decoding="async" />
-              )}
+      <MenuBody>
+        {shots.length > 0 && (
+          <div class="menu-sub gallery-sub">{STRINGS.gallerySub(shots.length, MAX_SHOTS)}</div>
+        )}
+        {shots.length === 0 ? (
+          <div class="gallery-empty">{read ? STRINGS.galleryEmpty : STRINGS.galleryReading}</div>
+        ) : (
+          <div class="gallery">
+            <div class="gallery-stage" data-nav-steps data-nav-focus>
+              <button
+                type="button"
+                class="gallery-step"
+                data-nav-step="left"
+                aria-label={STRINGS.galleryPrev}
+                disabled={shots.length < 2}
+                onClick={() => step(-1)}
+              >
+                ‹
+              </button>
+              <div class="gallery-frame">
+                {url && (
+                  <img src={url} alt={current?.label ?? ""} class="gallery-img" decoding="async" />
+                )}
+              </div>
+              <button
+                type="button"
+                class="gallery-step"
+                data-nav-step="right"
+                aria-label={STRINGS.galleryNext}
+                disabled={shots.length < 2}
+                onClick={() => step(1)}
+              >
+                ›
+              </button>
             </div>
-            <button
-              type="button"
-              class="gallery-step"
-              data-nav-step="right"
-              aria-label={STRINGS.galleryNext}
-              disabled={shots.length < 2}
-              onClick={() => step(1)}
-            >
-              ›
-            </button>
-          </div>
 
-          <div class="gallery-caption">
-            <span class="gallery-label">{current?.label ?? ""}</span>
-            <span class="gallery-stamp">
-              {STRINGS.galleryAt(at + 1, shots.length, stamp(current))}
-            </span>
-          </div>
+            <div class="gallery-caption">
+              <span class="gallery-label">{current?.label ?? ""}</span>
+              <span class="gallery-stamp">
+                {STRINGS.galleryAt(at + 1, shots.length, stamp(current))}
+              </span>
+            </div>
 
-          <div class="gallery-actions">
-            {canShare && (
-              <button type="button" class="gallery-btn" onClick={() => void doShare()}>
-                {STRINGS.galleryShare}
+            <div class="gallery-actions">
+              {canShare && (
+                <button type="button" class="gallery-btn" onClick={() => void doShare()}>
+                  {STRINGS.galleryShare}
+                </button>
+              )}
+              {canCopy && (
+                <button type="button" class="gallery-btn" onClick={() => void doCopy()}>
+                  {STRINGS.galleryCopy}
+                </button>
+              )}
+              <button type="button" class="gallery-btn" onClick={doSave}>
+                {STRINGS.gallerySave}
               </button>
-            )}
-            {canCopy && (
-              <button type="button" class="gallery-btn" onClick={() => void doCopy()}>
-                {STRINGS.galleryCopy}
+              <button
+                type="button"
+                class={`gallery-btn gallery-btn-quiet${confirming ? " gallery-btn-arm" : ""}`}
+                onClick={doDelete}
+              >
+                {confirming ? STRINGS.galleryDeleteArm : STRINGS.galleryDelete}
               </button>
-            )}
-            <button type="button" class="gallery-btn" onClick={doSave}>
-              {STRINGS.gallerySave}
-            </button>
-            <button
-              type="button"
-              class={`gallery-btn gallery-btn-quiet${confirming ? " gallery-btn-arm" : ""}`}
-              onClick={doDelete}
-            >
-              {confirming ? STRINGS.galleryDeleteArm : STRINGS.galleryDelete}
-            </button>
-            <span class="gallery-notice">{notice ?? ""}</span>
-          </div>
+              <span class="gallery-notice">{notice ?? ""}</span>
+            </div>
 
-          {/* The filmstrip: the whole roll, newest first, the shown picture
+            {/* The filmstrip: the whole roll, newest first, the shown picture
               framed. Scrolls on its own so a full roll never grows the card
               past the viewport. */}
-          <div class="gallery-strip">
-            {shots.map((entry, n) => (
-              <button
-                key={entry.id}
-                type="button"
-                class={`gallery-thumb${n === at ? " gallery-thumb-on" : ""}`}
-                aria-label={STRINGS.galleryThumb(n + 1)}
-                onClick={() => {
-                  setConfirming(false);
-                  setIndex(n);
-                }}
-              >
-                <Thumb meta={entry} />
-              </button>
-            ))}
+            <div class="gallery-strip">
+              {shots.map((entry, n) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  class={`gallery-thumb${n === at ? " gallery-thumb-on" : ""}`}
+                  aria-label={STRINGS.galleryThumb(n + 1)}
+                  onClick={() => {
+                    setConfirming(false);
+                    setIndex(n);
+                  }}
+                >
+                  <Thumb meta={entry} />
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </MenuBody>
     </div>
   );
 }

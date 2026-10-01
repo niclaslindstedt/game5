@@ -34,7 +34,7 @@ import {
 } from "./campaign.ts";
 import { CourseMap, ShelfTabs, dayLine } from "./menu-campaign.tsx";
 import { GradeMark } from "./grade-mark.tsx";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -123,29 +123,31 @@ export function LevelsPage({
           ) : undefined
         }
       />
-      <ShelfTabs
-        shown={shown}
-        open={(shelf) => shelfUnlocked(shelf, progress)}
-        line={(shelf) => shelf.blurb}
-        hint={STRINGS.levelsShelfLocked}
-        onPick={setShown}
-      />
-      {open ? (
-        <div class="menu-levels">
-          {shown.levels.map((level) => (
-            <LevelBox
-              key={level.id}
-              level={level}
-              mode={mode}
-              best={best(level)}
-              chosen={level === pick}
-              onPick={() => onPick(level)}
-            />
-          ))}
-        </div>
-      ) : (
-        <p class="menu-empty">{STRINGS.campaignShelfLocked}</p>
-      )}
+      <MenuBody>
+        <ShelfTabs
+          shown={shown}
+          open={(shelf) => shelfUnlocked(shelf, progress)}
+          line={(shelf) => shelf.blurb}
+          hint={STRINGS.levelsShelfLocked}
+          onPick={setShown}
+        />
+        {open ? (
+          <div class="menu-levels">
+            {shown.levels.map((level) => (
+              <LevelBox
+                key={level.id}
+                level={level}
+                mode={mode}
+                best={best(level)}
+                chosen={level === pick}
+                onPick={() => onPick(level)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p class="menu-empty">{STRINGS.campaignShelfLocked}</p>
+        )}
+      </MenuBody>
     </div>
   );
 }

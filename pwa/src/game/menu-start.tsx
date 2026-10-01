@@ -54,7 +54,7 @@ import {
 import { useState } from "preact/hooks";
 
 import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
-import { Caption, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
+import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -140,92 +140,94 @@ export function StartPage({
           </button>
         }
       />
-      <div class="start-cols">
-        <div class="start-col">
-          <div class="knob-rows">
-            <NumberRow
-              label={STRINGS.startMap}
-              hint={STRINGS.startMapHint}
-              value={seed}
-              min={SEED_RANGE.min}
-              max={SEED_RANGE.max}
-              onValue={(next) => setRide({ seed: next })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startRegion}
-              hint={STRINGS.startRegionHint}
-              stops={REGION_STOPS}
-              value={ride.region}
-              onPick={(region) => setRide({ region })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startGrade}
-              hint={STRINGS.startGradeHint}
-              stops={GRADE_STOPS}
-              value={ride.grade ?? "dealt"}
-              onPick={(id) => setRide({ grade: id === "dealt" ? null : id })}
-              onHint={setHint}
+      <MenuBody>
+        <div class="start-cols">
+          <div class="start-col">
+            <div class="knob-rows">
+              <NumberRow
+                label={STRINGS.startMap}
+                hint={STRINGS.startMapHint}
+                value={seed}
+                min={SEED_RANGE.min}
+                max={SEED_RANGE.max}
+                onValue={(next) => setRide({ seed: next })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startRegion}
+                hint={STRINGS.startRegionHint}
+                stops={REGION_STOPS}
+                value={ride.region}
+                onPick={(region) => setRide({ region })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startGrade}
+                hint={STRINGS.startGradeHint}
+                stops={GRADE_STOPS}
+                value={ride.grade ?? "dealt"}
+                onPick={(id) => setRide({ grade: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+            </div>
+            <SeedPreview
+              chart={chart}
+              spot={spotOn(ride, seed)}
+              onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />
           </div>
-          <SeedPreview
-            chart={chart}
-            spot={spotOn(ride, seed)}
-            onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
-          />
+          <div class="start-col">
+            <div class="knob-rows">
+              <StepRow
+                label={STRINGS.startSeason}
+                hint={STRINGS.startSeasonHint}
+                stops={SEASON_STOPS}
+                value={ride.season ?? "dealt"}
+                onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startTime}
+                hint={STRINGS.startTimeHint}
+                stops={TIME_STOPS}
+                value={ride.time ?? "dealt"}
+                onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startWeather}
+                hint={STRINGS.startWeatherHint}
+                stops={WEATHER_STOPS}
+                value={ride.weather ?? "dealt"}
+                onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startSnow}
+                hint={STRINGS.startSnowHint}
+                stops={SNOW_ROW}
+                value={ride.snow}
+                onPick={(snow) => setRide({ snow })}
+                onHint={setHint}
+              />
+            </div>
+            <div class="start-actions">
+              <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
+                <span class="menu-tile-name">{STRINGS.startReroll}</span>
+              </button>
+              <button
+                type="button"
+                class="menu-chip"
+                data-menu="grid"
+                disabled={spotOn(ride, seed) === null}
+                onClick={() => setRide({ spot: null })}
+              >
+                <span class="menu-tile-name">{STRINGS.startGrid}</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="start-col">
-          <div class="knob-rows">
-            <StepRow
-              label={STRINGS.startSeason}
-              hint={STRINGS.startSeasonHint}
-              stops={SEASON_STOPS}
-              value={ride.season ?? "dealt"}
-              onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startTime}
-              hint={STRINGS.startTimeHint}
-              stops={TIME_STOPS}
-              value={ride.time ?? "dealt"}
-              onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startWeather}
-              hint={STRINGS.startWeatherHint}
-              stops={WEATHER_STOPS}
-              value={ride.weather ?? "dealt"}
-              onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startSnow}
-              hint={STRINGS.startSnowHint}
-              stops={SNOW_ROW}
-              value={ride.snow}
-              onPick={(snow) => setRide({ snow })}
-              onHint={setHint}
-            />
-          </div>
-          <div class="start-actions">
-            <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
-              <span class="menu-tile-name">{STRINGS.startReroll}</span>
-            </button>
-            <button
-              type="button"
-              class="menu-chip"
-              data-menu="grid"
-              disabled={spotOn(ride, seed) === null}
-              onClick={() => setRide({ spot: null })}
-            >
-              <span class="menu-tile-name">{STRINGS.startGrid}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      </MenuBody>
       <Caption hint={hint} fallback={STRINGS.startCaption} />
     </div>
   );

@@ -27,7 +27,7 @@
 
 import { useLayoutEffect, useState } from "preact/hooks";
 
-import { BindRow, Caption, MenuHead, type Hint } from "./menu-knobs.tsx";
+import { BindRow, Caption, MenuBody, MenuHead, type Hint } from "./menu-knobs.tsx";
 import { holdNav } from "./menu-nav.ts";
 import type { Settings } from "./settings.ts";
 import {
@@ -82,40 +82,42 @@ export function KeysPage({
   return (
     <div class="menu-card menu-card-keys" onPointerLeave={() => setHint(null)}>
       <MenuHead back={onBack} backLabel={STRINGS.menuOptions} title={STRINGS.keysTitle} />
-      <div class="knob-binds">
-        {KEY_ACTIONS.map((entry) => {
-          const clash = clashesWith(settings.keys, entry.id);
-          const others = clash.map((id) => LABELS.get(id) ?? id).join(", ");
-          return (
-            <BindRow
-              key={entry.id}
-              label={entry.label}
-              bound={boundLabel(settings.keys[entry.id])}
-              listening={listening === entry.id}
-              clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
-              hint={
-                clash.length > 0
-                  ? STRINGS.keysClashHint(entry.label, others)
-                  : STRINGS.keysRowHint(entry.label)
-              }
-              // A second press on a row that is already listening is how a
-              // player who changed their mind says so, with no key bound.
-              onListen={() => setListening(listening === entry.id ? null : entry.id)}
-              onHint={setHint}
-            />
-          );
-        })}
-      </div>
-      <Caption hint={hint} fallback={STRINGS.keysCaption} />
-      {/* The page's own restore: a skier who has made a mess of the keys
+      <MenuBody>
+        <div class="knob-binds">
+          {KEY_ACTIONS.map((entry) => {
+            const clash = clashesWith(settings.keys, entry.id);
+            const others = clash.map((id) => LABELS.get(id) ?? id).join(", ");
+            return (
+              <BindRow
+                key={entry.id}
+                label={entry.label}
+                bound={boundLabel(settings.keys[entry.id])}
+                listening={listening === entry.id}
+                clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
+                hint={
+                  clash.length > 0
+                    ? STRINGS.keysClashHint(entry.label, others)
+                    : STRINGS.keysRowHint(entry.label)
+                }
+                // A second press on a row that is already listening is how a
+                // player who changed their mind says so, with no key bound.
+                onListen={() => setListening(listening === entry.id ? null : entry.id)}
+                onHint={setHint}
+              />
+            );
+          })}
+        </div>
+        {/* The page's own restore: a skier who has made a mess of the keys
           wants the keys back, not the whole options page thrown away. */}
-      <button
-        type="button"
-        class="opt-reset"
-        onClick={() => onSettings({ ...settings, keys: freshKeys() })}
-      >
-        {STRINGS.keysRestore}
-      </button>
+        <button
+          type="button"
+          class="opt-reset"
+          onClick={() => onSettings({ ...settings, keys: freshKeys() })}
+        >
+          {STRINGS.keysRestore}
+        </button>
+      </MenuBody>
+      <Caption hint={hint} fallback={STRINGS.keysCaption} />
     </div>
   );
 }

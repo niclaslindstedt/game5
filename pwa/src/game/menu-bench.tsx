@@ -30,7 +30,7 @@ import { BENCHMARK } from "./benchmark-plan.ts";
 import { benchmarkReport, pictureRows } from "./benchmark-report.ts";
 import type { BenchmarkStatus } from "./benchmark.ts";
 import { useReceipt } from "./copy-receipt.ts";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import type { VideoSettings } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -128,44 +128,50 @@ export function BenchHistoryPage({ onBack, onRun }: { onBack: () => void; onRun:
   return (
     <div class="menu-card menu-card-options">
       <MenuHead back={onBack} backLabel={STRINGS.devTitle} title={STRINGS.benchHistoryTitle} />
-      <div class="dev-line">{STRINGS.benchHistoryLine(runs.length)}</div>
-      <div class="bench-runs">
-        {runs.map((run) => (
+      <MenuBody>
+        <div class="dev-line">{STRINGS.benchHistoryLine(runs.length)}</div>
+        <div class="bench-runs">
+          {runs.map((run) => (
+            <button
+              key={run.at}
+              type="button"
+              class="bench-run"
+              title={STRINGS.benchHistoryCopyOne}
+              onClick={() => say(copyText(benchmarkReport(run)))}
+            >
+              <b>{Math.round(run.index)}</b>
+              <span>{new Date(run.at).toLocaleString()}</span>
+              <span>
+                {run.width}×{run.height} · {pictureCode(run.picture)}
+              </span>
+            </button>
+          ))}
+        </div>
+        <button type="button" class="menu-item menu-item-dev" onClick={onRun}>
+          {STRINGS.benchTitle}
+        </button>
+        {runs.length > 0 && (
           <button
-            key={run.at}
             type="button"
-            class="bench-run"
-            title={STRINGS.benchHistoryCopyOne}
-            onClick={() => say(copyText(benchmarkReport(run)))}
+            class="opt-reset"
+            onClick={() => say(copyText(benchmarkSheet(runs)))}
           >
-            <b>{Math.round(run.index)}</b>
-            <span>{new Date(run.at).toLocaleString()}</span>
-            <span>
-              {run.width}×{run.height} · {pictureCode(run.picture)}
-            </span>
+            {said ?? STRINGS.benchHistoryCopy}
           </button>
-        ))}
-      </div>
-      <button type="button" class="menu-item menu-item-dev" onClick={onRun}>
-        {STRINGS.benchTitle}
-      </button>
-      {runs.length > 0 && (
-        <button type="button" class="opt-reset" onClick={() => say(copyText(benchmarkSheet(runs)))}>
-          {said ?? STRINGS.benchHistoryCopy}
-        </button>
-      )}
-      {runs.length > 0 && (
-        <button
-          type="button"
-          class="opt-reset opt-reset-quiet"
-          onClick={() => {
-            clearBenchmarks();
-            setRuns([]);
-          }}
-        >
-          {STRINGS.benchHistoryClear}
-        </button>
-      )}
+        )}
+        {runs.length > 0 && (
+          <button
+            type="button"
+            class="opt-reset opt-reset-quiet"
+            onClick={() => {
+              clearBenchmarks();
+              setRuns([]);
+            }}
+          >
+            {STRINGS.benchHistoryClear}
+          </button>
+        )}
+      </MenuBody>
     </div>
   );
 }

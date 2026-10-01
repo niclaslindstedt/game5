@@ -45,7 +45,7 @@ import {
   type CampaignShelf,
 } from "./campaign.ts";
 import { CAMPAIGN_ROUTES } from "./campaign-routes.ts";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { GradeMark } from "./grade-mark.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { ROUTE_BOX, ROUTE_STROKE } from "./route-shape.ts";
@@ -292,28 +292,30 @@ export function CampaignPage({
   return (
     <div class="menu-card menu-card-campaign">
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.campaign} action={ride} />
-      <ShelfTabs
-        shown={shown}
-        open={(shelf) => shelfUnlocked(shelf, progress)}
-        line={(shelf) => shelfLine(shelf, progress)}
-        hint={STRINGS.campaignShelfLocked}
-        onPick={setShown}
-      />
-      <p class="menu-shelf-blurb">{shown.blurb}</p>
-      <div class="menu-levels">
-        {shown.levels.map((level, index) => (
-          <LevelBox
-            key={level.id}
-            level={level}
-            index={index}
-            open={levelUnlocked(shown, index, progress)}
-            next={level === next}
-            progress={progress}
-            onRide={() => onRide(level)}
-          />
-        ))}
-      </div>
-      <ShelfTable shelf={shown} progress={progress} />
+      <MenuBody>
+        <ShelfTabs
+          shown={shown}
+          open={(shelf) => shelfUnlocked(shelf, progress)}
+          line={(shelf) => shelfLine(shelf, progress)}
+          hint={STRINGS.campaignShelfLocked}
+          onPick={setShown}
+        />
+        <p class="menu-shelf-blurb">{shown.blurb}</p>
+        <div class="menu-levels">
+          {shown.levels.map((level, index) => (
+            <LevelBox
+              key={level.id}
+              level={level}
+              index={index}
+              open={levelUnlocked(shown, index, progress)}
+              next={level === next}
+              progress={progress}
+              onRide={() => onRide(level)}
+            />
+          ))}
+        </div>
+        <ShelfTable shelf={shown} progress={progress} />
+      </MenuBody>
     </div>
   );
 }

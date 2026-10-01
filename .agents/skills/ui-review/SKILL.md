@@ -47,7 +47,13 @@ feature.
 
 The three are the floor, not the ceiling: a small phone (375×667) is the next
 tight case, since a surface tuned to exactly fit 390×844 runs out of room on
-the SE class first.
+the SE class first. And the harness has two more for the CARDS: `iphone`
+(852×393, a notched phone on its side with its 59 px insets emulated) and
+`iphone-browser` (852×340 — the same under a browser's bar), which is the
+tightest shape a card meets. Every card capture prints what scrolls: `!! …
+scrolls whole` is a bug (the head went with it); `its body scrolls by N px`
+is a page's list under a head that stays, and is fine for a list and a bug
+for anything big — a picture, a chart, the pair, a way on.
 
 **When the change is ONE instrument's placement rather than a surface, take
 one scene per viewport instead of the whole sweep.** `SCENE=grid` is the cheap

@@ -85,6 +85,20 @@ export function MenuHead({
   );
 }
 
+/** A PAGE'S BODY: everything between the head and the caption, and the ONLY
+ * part of a card that scrolls. The head (the way back, the way on) and the
+ * caption stand still around it, so no press a page is left by is ever
+ * below the fold — a phone on its side has 390 px for all of it. */
+export function MenuBody({
+  children,
+  class: extra,
+}: {
+  children: ComponentChildren;
+  class?: string;
+}) {
+  return <div class={extra ? `menu-body ${extra}` : "menu-body"}>{children}</div>;
+}
+
 /** The name a row leads with, in a box of its own so it can be TRUNCATED
  * rather than run under the arrows: a row is sized by its value and its two
  * targets, and the name is the only part of it that may give. */
@@ -455,8 +469,8 @@ export function KnobGroup({
 
 /** The page's ONE sentence — the row being looked at, named and then
  * explained, or the page's own line while no row is. Written as the card's
- * last child and DRAWN at the foot of the window (`.knob-caption` is fixed),
- * out of flow so it costs the card no height. */
+ * last child, after its `MenuBody`: the body scrolls and this does not, so
+ * the sentence is on screen whichever row is being read. */
 export function Caption({ hint, fallback }: { hint: Hint | null; fallback: string }) {
   return (
     <div class={`knob-caption${hint ? " knob-caption-on" : ""}`} aria-live="polite">

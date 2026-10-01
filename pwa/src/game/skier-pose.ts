@@ -30,10 +30,13 @@
 //     down and he comes back up;
 //   * THE GAIT at a crawl (`gaitOf`, off the engine's own `drive` and
 //     `stride`): SKATING — the skis opened into a V, a leg pushing out off
-//     each stride and lifted back in while the body rides the other ski —
-//     and, rolling, DOUBLE-POLING — both poles planted ahead together, the
-//     body folded down over them and the arms swept through past the hips,
-//     then stood back up for the next;
+//     each stride and lifted back in while the weight is carried across
+//     onto the other ski — and, rolling, DOUBLE-POLING — both poles
+//     planted ahead together, the body folded down over them and the arms
+//     driven back past the hips until they are long, then swung forward
+//     for the next. Every arm works one STROKE (plant, push, recover) and
+//     every pole is a rigid rod turned through it, so the cycle runs on
+//     from stride to stride without a joint jumping;
 //   * THE JUMP: sunk onto the legs and the arms drawn back while it loads
 //     (`jumpLoad`), then sprung — the legs straight and the arms thrown up
 //     and forward — for a moment after the pop (`popped`);
@@ -407,9 +410,41 @@ export function ragdollPose(points: readonly number[], frame: BodyFrame): SkierP
 }
 
 /** How far a double-pole's push folds the trunk further over, rad, and
- * how far a skate's push pitches it. */
-const POLE_FOLD = 0.75;
-const SKATE_PITCH = 0.3;
+ * how far a skate's push pitches it — a skier working out of a gate, not
+ * a cross-country racer bowed to his knees. */
+const POLE_FOLD = 0.5;
+const SKATE_PITCH = 0.22;
+/** How far the skate carries the hips, m, and rolls the shoulders, rad,
+ * across onto the gliding ski. */
+const SKATE_SWAY = { hips: 0.08, roll: 0.08 };
+/** THE ARMS' STROKE: where the hands are, off their stance, at the PLANT
+ * (ahead and up) and at the FINISH of the push (down and back past the
+ * hips, the arms long), m, and how far below the straight line between
+ * them the hands pass; and where the basket is on the snow at the plant
+ * and at the finish (`x` out from the centre, `z` along the skis). The
+ * double pole's — both arms together, the skate's poles with it — and
+ * the diagonal stride's, one arm at a time and shorter. */
+type Stroke = {
+  plant: { y: number; z: number };
+  finish: { y: number; z: number };
+  dip: number;
+  basket: { x: number; from: number; to: number };
+};
+const DOUBLE_STROKE: Stroke = {
+  plant: { y: 0.22, z: 0.2 },
+  finish: { y: -0.24, z: -0.8 },
+  dip: 0.05,
+  basket: { x: 0.32, from: 0.3, to: -1.2 },
+};
+const STRIDE_STROKE: Stroke = {
+  plant: { y: 0.1, z: 0.26 },
+  finish: { y: -0.08, z: -0.36 },
+  dip: 0.03,
+  basket: { x: 0.3, from: 0.2, to: -0.75 },
+};
+/** How a pole swings through the recovery: the basket trailing back and
+ * up, clear of the snow, at the middle of it. */
+const POLE_TRAIL: V3 = { x: 0, y: 0.25, z: -0.35 };
 /** How long the pop's spring shows, s. */
 const POP_SHOWN = 0.35;
 
@@ -418,6 +453,62 @@ const smooth = (t: number): number => {
   const k = clamp01(t);
   return k * k * (3 - 2 * k);
 };
+
+/** Where an arm is in its stroke at `phase` 0..1 of its own cycle, the
+ * push the first `duty` of it: 0 planted, 1 at the finish, and back. Eased
+ * at both ends, so an arm comes to the plant and leaves it at rest. */
+const strokeSwing = (phase: number, duty: number): number =>
+  phase < duty ? smooth(phase / duty) : 1 - smooth((phase - duty) / (1 - duty));
+
+/** A reach of `l` m eased short of a limb's full `length`: whole under
+ * 85 % of it, closing smoothly on 97 %. */
+function easeReach(l: number, length: number): number {
+  const knee = 0.85 * length;
+  const top = 0.97 * length;
+  return l <= knee ? l : knee + (top - knee) * Math.tanh((l - knee) / (top - knee));
+}
+
+/** A hand's offset off its stance at `swing` through a stroke. */
+function strokeHand(st: Stroke, swing: number): { y: number; z: number } {
+  return {
+    y: st.plant.y + (st.finish.y - st.plant.y) * swing - st.dip * Math.sin(Math.PI * swing),
+    z: st.plant.z + (st.finish.z - st.plant.z) * swing,
+  };
+}
+
+/**
+ * THE POLE THROUGH A STROKE, as a direction out of the fist: on the push
+ * toward its basket on the snow, the snow sliding back under him; on the
+ * recovery turned from where the push left it to where the next plant
+ * wants it, the basket trailing. A rigid pole whose angle only ever turns,
+ * so nothing jumps at the plant or the release. `handAt(swing)` is the
+ * fist at a point of the stroke, everything else held.
+ */
+function strokePole(
+  st: Stroke,
+  side: number,
+  ground: number,
+  phase: number,
+  duty: number,
+  handAt: (swing: number) => V3,
+): V3 {
+  const toBasket = (swing: number): V3 =>
+    norm(
+      sub(
+        {
+          x: side * st.basket.x,
+          y: ground,
+          z: st.basket.from + (st.basket.to - st.basket.from) * swing,
+        },
+        handAt(swing),
+      ),
+    );
+  if (phase < duty) return toBasket(strokeSwing(phase, duty));
+  const r = (phase - duty) / (1 - duty);
+  return norm(
+    add(mix(toBasket(1), toBasket(0), smooth(r)), scale(POLE_TRAIL, Math.sin(Math.PI * r))),
+  );
+}
 
 /** THE WHOLE POSE for one frame. */
 export function skierPose(input: SkierPoseInput): SkierPose {
@@ -450,8 +541,13 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const duty = TUNING.poles.duty;
   // Where the arms are in their swing: 0 planted ahead, 1 swept through
   // past the hips at the end of the push, and back over the recovery.
-  const swing =
-    gait.phase < duty ? smooth(gait.phase / duty) : 1 - smooth((gait.phase - duty) / (1 - duty));
+  const swing = strokeSwing(gait.phase, duty);
+  // The diagonal stride's arms each have a cycle two strides long, planted
+  // with the kick of the leg on their own side — so they swing opposite,
+  // a man walking, and pass each other rather than both stopping.
+  const strideDuty = duty / 2;
+  const stridePhase = [0, 1].map((i) => ((i === gait.push ? 0 : 1) + gait.phase) / 2);
+  const strideSwing = stridePhase.map((p) => strokeSwing(p, strideDuty));
   // Hung inside: how far, as a share of a full hang, signed to the side —
   // deeper for an edge cut hard.
   const hang = Math.max(-1, Math.min(1, (input.hipRight / 0.3) * (1 + 0.35 * carve)));
@@ -476,9 +572,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // The feet's average height: the hips stand over it — a skier hanging in
   // the air with his legs long is not folded by his own lift.
   const feetLift = (lift[0] + lift[1]) / 2;
-  // THE GLIDING SKI carries him while the other pushes: the hips ride over
-  // it.
-  const glide = gait.skate > 0 ? (gait.push === 0 ? 1 : -1) : 0;
+  // THE WEIGHT, skating: over the pushing ski as its push starts, carried
+  // across onto the gliding ski by the push's end and held there through
+  // the glide — which is the next stride's pushing ski, so a stride begins
+  // where the last one left him and nothing jumps from side to side.
+  const glideSide = gait.push === 0 ? 1 : -1;
+  const sway = gait.skate * glideSide * -Math.cos(Math.PI * Math.min(1, gait.phase / duty));
 
   // THE HIPS: over the feet standing, down and back in a tuck, inside the
   // turn by the engine's angulation, aft of nominal by the engine's shift,
@@ -486,7 +585,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // hockey stop, and up and forward in the pop.
   const rest = mix(M.hips, M.tuckHips, crouch);
   const hips: V3 = {
-    x: rest.x + input.hipRight * HANG * (1 + 0.35 * carve) + glide * 0.1 * gait.skate,
+    x: rest.x + input.hipRight * HANG * (1 + 0.35 * carve) + SKATE_SWAY.hips * sway,
     y:
       rest.y +
       feetLift * 0.5 -
@@ -523,8 +622,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // Angulated: the shoulders held level while the hips go inside, so the
   // trunk rolls AGAINST the hang; skating, the shoulders lean over the
   // gliding ski with the hips.
-  const roll =
-    -hang * ANGULATE * (1 - 0.6 * crouch) * (1 + 0.3 * carve) + glide * 0.12 * gait.skate;
+  const roll = -hang * ANGULATE * (1 - 0.6 * crouch) * (1 + 0.3 * carve) + SKATE_SWAY.roll * sway;
   const spineDir: V3 = {
     x: Math.sin(roll) * Math.cos(pitch),
     y: Math.cos(roll) * Math.cos(pitch),
@@ -592,15 +690,15 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // arc: up and ahead for the plant, down and back past the hips at the
   // end of the push. Loading a jump draws them back; the pop throws them
   // up and forward. Cut hard, the inside hand goes down toward the snow.
-  const hands = [-1, 1].map((side) => {
+  const double = strokeHand(DOUBLE_STROKE, swing);
+  const hands = [-1, 1].map((side, i) => {
     const h = mix(
       { x: side * M.hand.x, y: M.hand.y, z: M.hand.z },
       { x: side * M.tuckHand.x, y: M.tuckHand.y, z: M.tuckHand.z },
       crouch,
     );
     const inside = side * hang > 0 ? Math.abs(hang) : 0;
-    const polesX =
-      h.x + input.hipRight * 0.7 + (input.airborne ? side * 0.1 : 0) - side * 0.06 * arms;
+    const polesX = h.x + input.hipRight * 0.7 + (input.airborne ? side * 0.1 : 0);
     return {
       x: polesX,
       y:
@@ -608,7 +706,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         feetLift * 0.3 -
         bump * 0.5 -
         0.12 * lone * (side > 0 ? 1 : 0.4) +
-        arms * (0.3 - 0.45 * swing) -
+        arms * double.y +
+        gait.stride * strokeHand(STRIDE_STROKE, strideSwing[i]).y -
         0.1 * load +
         0.25 * pop -
         0.3 * carve * inside,
@@ -617,40 +716,39 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         0.25 * lone +
         0.08 * (input.airborne ? 1 : 0) -
         0.15 * Math.max(0, lean) +
-        arms * (0.25 - 1.0 * swing) -
+        arms * double.z +
+        gait.stride * strokeHand(STRIDE_STROKE, strideSwing[i]).z -
         0.3 * load +
         0.2 * pop,
     };
   }) as [V3, V3];
-  // THE STRIDE'S ARMS go opposite the legs: the arm on the kicking leg's
-  // side reaches forward to plant as that leg drives back, the other swings
-  // through behind — a man walking, on skis.
-  if (gait.stride > 0) {
-    const kick =
-      gait.phase < duty
-        ? Math.sin((Math.PI / 2) * (gait.phase / duty))
-        : 1 - smooth((gait.phase - duty) / (1 - duty));
-    for (const i of [0, 1]) {
-      const swingArm = (i === gait.push ? 1 : -1) * gait.stride * kick;
-      hands[i] = {
-        x: hands[i].x,
-        y: hands[i].y + 0.12 * swingArm,
-        z: hands[i].z + 0.32 * swingArm,
-      };
-    }
-  }
   if (input.trick === "grab") {
     // Folded to the right boot, the other hand out for balance.
     hands[1] = { x: feet[1].x + 0.12, y: feet[1].y + 0.04, z: feet[1].z + 0.12 };
     hands[0] = { x: -0.45, y: hips.y + 0.35, z: 0.1 };
   }
-  // Elbows OUT and a little down, tucked in against the ribs in a tuck and
-  // drawn in by the double pole's drive.
+  // THE ARMS NEVER LOCK: a fist carried toward the arm's full length is
+  // eased in short of it, so the elbow straightens into a push's finish
+  // rather than snapping straight (`solveLimb`'s bend runs away near full
+  // reach). A grab reaches for its boot as it is.
+  if (input.trick !== "grab") {
+    const arm = BODY.upperArm + BODY.forearm;
+    for (const i of [0, 1]) {
+      const d = sub(hands[i], shoulders[i]);
+      const l = len(d);
+      const eased = easeReach(l, arm);
+      if (eased < l) hands[i] = add(shoulders[i], scale(d, eased / l));
+    }
+  }
+  // Elbows OUT and a little down, tucked in against the ribs in a tuck —
+  // and, working the poles, down and back behind the fists, the arms
+  // driving the push rather than flapping out like wings.
+  const working = clamp01(arms + gait.stride);
   const elbows = [-1, 1].map((side, i) =>
     solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
-      x: side * (0.8 - 0.5 * crouch - 0.55 * arms),
-      y: -0.6 + 0.3 * arms * swing,
-      z: -0.35 + 0.3 * crouch - 0.5 * arms * swing,
+      x: side * Math.max(0.08, 0.8 - 0.5 * crouch - 0.8 * working),
+      y: -0.6 - 0.1 * working,
+      z: -0.35 + 0.3 * crouch - 0.45 * working,
     }),
   ) as [V3, V3];
   // THE POLES: hanging back from the grips, laid back under the arms in a
@@ -665,25 +763,33 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     const free = add(hands[i], scale(dir, M.pole));
     const planted: V3 = { x: side * 0.4, y: ground, z: M.poleReach * 0.9 };
     let tip = mix(free, planted, lone * (side > 0 ? 1 : 0.35));
+    // The fist at another point of a stroke, everything else held.
+    const handIn = (st: Stroke, w: number, now: number) => (at: number) => {
+      const a = strokeHand(st, now);
+      const b = strokeHand(st, at);
+      return { x: hands[i].x, y: hands[i].y + w * (b.y - a.y), z: hands[i].z + w * (b.z - a.z) };
+    };
     if (gait.stride > 0) {
-      // The forward arm's pole in the snow by its foot through the kick,
-      // the other trailing behind.
-      const planting = i === gait.push && gait.phase < duty;
-      const trail = add(hands[i], scale(norm({ x: side * 0.1, y: -0.8, z: -0.55 }), M.pole));
-      const inSnow: V3 = { x: side * 0.3, y: ground, z: 0.25 - 0.9 * swing };
-      tip = mix(tip, planting ? inSnow : trail, gait.stride);
+      const dir = strokePole(
+        STRIDE_STROKE,
+        side,
+        ground,
+        stridePhase[i],
+        strideDuty,
+        handIn(STRIDE_STROKE, gait.stride, strideSwing[i]),
+      );
+      tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, gait.stride)), M.pole));
     }
     if (arms > 0) {
-      // On the push the basket stays in the snow and he goes past it; on
-      // the recovery the pole swings clear, basket trailing.
-      const onSnow = gait.phase < duty;
-      const worked: V3 = onSnow
-        ? { x: side * 0.34, y: ground, z: 0.4 - 1.4 * swing }
-        : add(
-            hands[i],
-            scale(norm({ x: side * 0.1, y: -0.55, z: -0.6 + 0.9 * (1 - swing) }), M.pole),
-          );
-      tip = mix(tip, worked, arms);
+      const dir = strokePole(
+        DOUBLE_STROKE,
+        side,
+        ground,
+        gait.phase,
+        duty,
+        handIn(DOUBLE_STROKE, arms, swing),
+      );
+      tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, arms)), M.pole));
     }
     return tip;
   }) as [V3, V3];

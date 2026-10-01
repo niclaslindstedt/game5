@@ -35,9 +35,14 @@ angulation, not a lean of the whole body), the inside knee driven in, the
 head looking round the arc. **THE GAIT** at a crawl is the engine's own drive (`gaitOf`, off
 `SkierState.drive` and `stride`, the same strides the push comes in —
 `poles.ts`): SKATING, the skis opened into a V, a leg pushed out along its
-ski and lifted back in while the hips ride the other, and DOUBLE-POLING,
-both poles planted ahead, the trunk folded over them and the arms swept
-through past the hips; one statement the skis (`ski-gear.ts`, `ski-rig.ts`)
+ski and lifted back in while the hips are carried across onto the other,
+and DOUBLE-POLING, both poles planted ahead, the trunk folded over them and
+the arms driven back past the hips until they are long. Each arm works one
+STROKE (`DOUBLE_STROKE`, `STRIDE_STROKE`: plant, push, recover — the
+stride's arms opposite, two strides a cycle) and each pole is a rigid rod
+TURNED through it, never a tip placed and jumped to; the suite samples a
+whole cycle and fails a joint that moves more than a few centimetres
+between neighbouring samples; one statement the skis (`ski-gear.ts`, `ski-rig.ts`)
 and the figure both read, so a boot never leaves its ski. A JUMP loading
 (`jumpLoad`) sinks him and draws the arms back; the pop (`popped`) throws
 them up. CUT HARD (`carve`) the angulation deepens and the inside hand goes

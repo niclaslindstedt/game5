@@ -9,9 +9,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSkierSpring,
+  gaitOf,
   MOUNTS,
   skierPose,
   stepSkierSpring,
+  type SkierPose,
 } from "../pwa/src/game/skier-pose.ts";
 
 const base = {
@@ -80,5 +82,59 @@ describe("the body on its legs", () => {
     const plant = skierPose({ ...base, plant: 1 });
     expect(plant.poles![1].y).toBeCloseTo(MOUNTS.ground, 2);
     expect(plant.poles![1].z).toBeGreaterThan(0.5);
+  });
+
+  it("works the poles without a twitch: every joint moves on through a whole cycle", () => {
+    // Two strides (one each leg) sampled at 1/240 of a stride — about three
+    // milliseconds at the skate's cadence — at the walk's stride, the
+    // stride turning to a skate, the skate, the skate turning to a double
+    // pole and the double pole. A hand at its fastest covers about a
+    // centimetre a sample; the weight thrown from ski to ski or a pole
+    // snapped from the snow to the hand would cover tens.
+    const at = (p: SkierPose) => [p.hips, p.neck, ...p.hands, ...p.elbows, ...p.knees, ...p.poles!];
+    for (const speed of [1, 2.3, 4, 7, 9.5]) {
+      let prev: SkierPose | null = null;
+      let worst = 0;
+      for (let k = 0; k <= 480; k++) {
+        const gait = gaitOf({
+          drive: 1,
+          stride: 3 + k / 240,
+          speed,
+          airborne: false,
+          thrown: null,
+        });
+        const pose = skierPose({ ...base, gait });
+        if (prev) {
+          const a = at(prev);
+          at(pose).forEach((b, j) => {
+            worst = Math.max(worst, Math.hypot(b.x - a[j].x, b.y - a[j].y, b.z - a[j].z));
+          });
+        }
+        prev = pose;
+      }
+      expect(worst, `at ${speed} m/s`).toBeLessThan(0.03);
+    }
+  });
+
+  it("carries the weight across onto the gliding ski and swings the poles as rods", () => {
+    const skate = (stride: number) =>
+      skierPose({
+        ...base,
+        gait: gaitOf({ drive: 1, stride, speed: 4, airborne: false, thrown: null }),
+      });
+    // The left leg pushes the first stride: he starts it over the left ski
+    // and ends it over the right, and the next push starts there.
+    expect(skate(0).hips.x).toBeLessThan(-0.05);
+    expect(skate(0.6).hips.x).toBeGreaterThan(0.05);
+    expect(skate(1).hips.x).toBeCloseTo(skate(0.999).hips.x, 2);
+    // A pole is never stretched or shrunk to reach the snow.
+    for (const stride of [0, 0.2, 0.45, 0.7, 0.95]) {
+      const p = skate(stride);
+      for (let i = 0; i < 2; i++) {
+        const tip = p.poles![i];
+        const h = p.hands[i];
+        expect(Math.hypot(tip.x - h.x, tip.y - h.y, tip.z - h.z)).toBeCloseTo(MOUNTS.pole, 6);
+      }
+    }
   });
 });

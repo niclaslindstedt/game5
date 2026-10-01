@@ -21,10 +21,12 @@ export type SkierSpring = {
    * eased, so leaving the snow and meeting it again are motions, not a
    * pose swapped in a frame. */
   air: number;
+  airRate: number;
   /** A JUMP's load as his body holds it, 0..1: it follows the engine's
    * load down into the crouch and, sprung, lets go of it over the pop
    * rather than in the step the engine zeroes it. */
   load: number;
+  loadRate: number;
   /** His own clock, s — what a skier standing still breathes and shifts
    * his weight by, started at his own offset so a start line of four does
    * not breathe in step. */
@@ -84,10 +86,11 @@ const PLANT = { on: 0.14, held: 0.35, slow: 3, fast: 26, length: 6.5, least: 0.4
  * they fold or extend, m. */
 const LEGS = { omega: 14.5, zeta: 0.42, kick: 0.5, fold: 0.22, extend: 0.05 };
 /** How fast the body goes into the air and comes back to the snow, and
- * how fast a load is taken and let go, 1/s (exponential rates: a fifth of
- * a second to most of the way into the air, a tenth to let go of a jump —
- * the time a skier's extension takes). */
-const EASE = { up: 9, down: 14, take: 18, release: 16 };
+ * how fast a load is taken and let go, rad/s — critically damped springs,
+ * so each starts as a motion rather than at full speed in a step: a fifth
+ * of a second to most of the way into the air, a tenth to let go of a
+ * jump, the time a skier's extension takes. */
+const EASE = { up: 16, down: 25, take: 32, release: 29 };
 
 export function createSkierSpring(offset = 0): SkierSpring {
   return {
@@ -95,7 +98,9 @@ export function createSkierSpring(offset = 0): SkierSpring {
     rate: 0,
     lastVy: Number.NaN,
     air: 0,
+    airRate: 0,
     load: 0,
+    loadRate: 0,
     clock: offset,
     turnSide: 0,
     turnHeld: 0,
@@ -154,11 +159,7 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   const e = ride.edge;
   const side = e > PLANT.on ? 1 : e < -PLANT.on ? -1 : 0;
   if (side === 0 || side === s.turnSide) return;
-  if (
-    s.turnHeld > PLANT.held &&
-    s.plantT > s.plantLength &&
-    s.plantOk > 0.5
-  ) {
+  if (s.turnHeld > PLANT.held && s.plantT > s.plantLength && s.plantOk > 0.5) {
     s.plantSide = side > 0 ? 1 : 0;
     s.plantT = 0;
     s.plantLength = Math.max(PLANT.least, Math.min(PLANT.most, PLANT.length / ride.speed));
@@ -184,11 +185,18 @@ export function stepSkierSpring(
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, dt);
   }
-  const toward = (from: number, to: number, rate: number) =>
-    to + (from - to) * Math.exp(-rate * dt);
-  s.air = toward(s.air, airborne ? 1 : 0, airborne ? EASE.up : EASE.down);
+  const into = airborne ? 1 : 0;
+  [s.air, s.airRate] = follow(s.air, s.airRate, into, dt, airborne ? EASE.up : EASE.down);
+  s.air = Math.max(0, Math.min(1, s.air));
   const held = airborne ? 0 : Math.max(0, Math.min(1, load));
-  s.load = toward(s.load, held, held > s.load ? EASE.take : EASE.release);
+  [s.load, s.loadRate] = follow(
+    s.load,
+    s.loadRate,
+    held,
+    dt,
+    held > s.load ? EASE.take : EASE.release,
+  );
+  s.load = Math.max(0, Math.min(1, s.load));
   if (!Number.isNaN(s.lastVy)) {
     // The pair's change of climb since the last frame is a kick the body
     // does not share: it keeps going the way it was.

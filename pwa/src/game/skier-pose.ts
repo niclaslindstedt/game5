@@ -62,11 +62,25 @@
 import { RAGDOLL as R, TUNING, type TrickPose } from "@engine";
 
 import { STILL_GAIT, type Gait } from "./skier-gait.ts";
+import {
+  DOUBLE_STROKE,
+  easeReach,
+  plantPole,
+  plantReach,
+  smooth,
+  STRIDE_STROKE,
+  strokeHand,
+  strokePole,
+  strokeSwing,
+  TURN_PLANT,
+  type Stroke,
+} from "./skier-stroke.ts";
+import { add, clamp01, dot, len, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 
 export { STILL_GAIT, gaitOf, type Gait } from "./skier-gait.ts";
 export { createSkierSpring, stepSkierSpring, type SkierSpring } from "./skier-spring.ts";
 
-export type V3 = { x: number; y: number; z: number };
+export type { V3 } from "./skier-vec.ts";
 
 /** Limb lengths and body proportions, m — the engine's own
  * (`TUNING.crash.body`), which the thrown body is built on. */
@@ -311,30 +325,6 @@ export type SkierPose = {
   look: number;
 };
 
-function add(a: V3, b: V3): V3 {
-  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
-}
-function sub(a: V3, b: V3): V3 {
-  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
-}
-function scale(a: V3, k: number): V3 {
-  return { x: a.x * k, y: a.y * k, z: a.z * k };
-}
-function dot(a: V3, b: V3): number {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-function len(a: V3): number {
-  return Math.sqrt(dot(a, a));
-}
-function norm(a: V3): V3 {
-  const l = len(a) || 1;
-  return scale(a, 1 / l);
-}
-function mix(a: V3, b: V3, k: number): V3 {
-  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k };
-}
-const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
-
 /**
  * TWO BONES FROM `root` TOWARD `target`: the joint between them, bent
  * toward `pole`. Lengths `a` and `b`. A target out of reach is reached for
@@ -437,47 +427,6 @@ const SKATE_PITCH = 0.22;
 /** How far the skate carries the hips, m, and rolls the shoulders, rad,
  * across onto the gliding ski. */
 const SKATE_SWAY = { hips: 0.08, roll: 0.08 };
-/** THE ARMS' STROKE: where the hands are, off their stance, at the PLANT
- * (ahead and up) and at the FINISH of the push (down and back past the
- * hips, the arms long), m, and how far below the straight line between
- * them the hands pass; and where the basket is on the snow at the plant
- * and at the finish (`x` out from the centre, `z` along the skis). The
- * double pole's — both arms together, the skate's poles with it — and
- * the diagonal stride's, one arm at a time and shorter. */
-type Stroke = {
-  plant: { y: number; z: number };
-  finish: { y: number; z: number };
-  dip: number;
-  basket: { x: number; from: number; to: number };
-};
-const DOUBLE_STROKE: Stroke = {
-  plant: { y: 0.14, z: 0.26 },
-  finish: { y: -0.24, z: -0.8 },
-  dip: 0.18,
-  basket: { x: 0.32, from: 0.25, to: -1.2 },
-};
-const STRIDE_STROKE: Stroke = {
-  plant: { y: 0.1, z: 0.26 },
-  finish: { y: -0.08, z: -0.36 },
-  dip: 0.03,
-  basket: { x: 0.3, from: 0.2, to: -0.75 },
-};
-/** THE POLE PLANT AT SPEED, as shares of the plant: the swing forward to
- * the touch ends at `touch`, the basket is in the snow while the body
- * passes it until `release`, then it trails back up to its hang. Where
- * the basket touches (`x` out from the centre, m — the rod's own length
- * puts it on the snow ahead of the fist); and how far
- * the fist reaches for it — forward, down and out, m — a flick of the
- * wrist and the forearm, the arm never thrown. */
-const TURN_PLANT = {
-  touch: 0.32,
-  release: 0.55,
-  basket: { x: 0.42, pass: 0.45 },
-  reach: { z: 0.14, y: -0.05, x: 0.04 },
-};
-/** How a pole swings through the recovery: the basket trailing back and
- * up, clear of the snow, at the middle of it. */
-const POLE_TRAIL: V3 = { x: 0, y: 0.25, z: -0.35 };
 /** WAITING: the breath's lift of the chest (rad off the trunk's pitch),
  * the weight's shift from ski to ski (m), the glance about (rad of the
  * head's turn) and the hands working the grips (m) — at their fullest. */
@@ -489,69 +438,7 @@ const AIR_SINK = -0.13;
 /** How long the pop's spring shows, s, and how long it takes to rise out
  * of the crouch into it. */
 const POP_SHOWN = 0.35;
-const POP_RISE = 0.1;
-
-/** Ease in and out over 0..1. */
-const smooth = (t: number): number => {
-  const k = clamp01(t);
-  return k * k * (3 - 2 * k);
-};
-
-/** Where an arm is in its stroke at `phase` 0..1 of its own cycle, the
- * push the first `duty` of it: 0 planted, 1 at the finish, and back. Eased
- * at both ends, so an arm comes to the plant and leaves it at rest. */
-const strokeSwing = (phase: number, duty: number): number =>
-  phase < duty ? smooth(phase / duty) : 1 - smooth((phase - duty) / (1 - duty));
-
-/** A reach of `l` m eased short of a limb's full `length`: whole under
- * 85 % of it, closing smoothly on 97 %. */
-function easeReach(l: number, length: number): number {
-  const knee = 0.85 * length;
-  const top = 0.97 * length;
-  return l <= knee ? l : knee + (top - knee) * Math.tanh((l - knee) / (top - knee));
-}
-
-/** A hand's offset off its stance at `swing` through a stroke. */
-function strokeHand(st: Stroke, swing: number): { y: number; z: number } {
-  return {
-    y: st.plant.y + (st.finish.y - st.plant.y) * swing - st.dip * Math.sin(Math.PI * swing),
-    z: st.plant.z + (st.finish.z - st.plant.z) * swing,
-  };
-}
-
-/**
- * THE POLE THROUGH A STROKE, as a direction out of the fist: on the push
- * toward its basket on the snow, the snow sliding back under him; on the
- * recovery turned from where the push left it to where the next plant
- * wants it, the basket trailing. A rigid pole whose angle only ever turns,
- * so nothing jumps at the plant or the release. `handAt(swing)` is the
- * fist at a point of the stroke, everything else held.
- */
-function strokePole(
-  st: Stroke,
-  side: number,
-  ground: number,
-  phase: number,
-  duty: number,
-  handAt: (swing: number) => V3,
-): V3 {
-  const toBasket = (swing: number): V3 =>
-    norm(
-      sub(
-        {
-          x: side * st.basket.x,
-          y: ground,
-          z: st.basket.from + (st.basket.to - st.basket.from) * swing,
-        },
-        handAt(swing),
-      ),
-    );
-  if (phase < duty) return toBasket(strokeSwing(phase, duty));
-  const r = (phase - duty) / (1 - duty);
-  return norm(
-    add(mix(toBasket(1), toBasket(0), smooth(r)), scale(POLE_TRAIL, Math.sin(Math.PI * r))),
-  );
-}
+const POP_RISE = 0.18;
 
 /** THE BOOT'S CUFF: how far it leans the shin forward of the ski's normal
  * at the least (the cuff's own forward lean, `ski-gear.ts`'s cuff tipped
@@ -610,7 +497,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // leaves the snow off his own legs.
   const pop =
     input.popped !== undefined && input.popped < POP_SHOWN
-      ? smooth(input.popped / POP_RISE) * (1 - input.popped / POP_SHOWN)
+      ? smooth(input.popped / POP_RISE) * (1 - smooth(input.popped / POP_SHOWN))
       : 0;
   // A fresh landing takes it in the knees — the spring's, when there is
   // one, or else a fold over a third of a second.
@@ -724,11 +611,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     Math.min(bodyTilt + KNEE_OUT * inward + kneeIn * (1 - inward), legLean0),
   );
   const across0 =
-    rest.x +
-    bootsAcross +
-    legH * Math.sin(legLeanTo) +
-    SKATE_SWAY.hips * sway +
-    shift;
+    rest.x + bootsAcross + legH * Math.sin(legLeanTo) + SKATE_SWAY.hips * sway + shift;
   const along0 =
     rest.z -
     input.hipAft * 0.8 -
@@ -921,14 +804,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const plantW = plantAt ? clamp01(plantAt.weight) * (1 - crouch) * (1 - air) : 0;
   const plantU = plantAt ? clamp01(plantAt.t) : 0;
   const reachOf = (i: number): number =>
-    plantAt && plantAt.side === i
-      ? plantW *
-        (plantU < TURN_PLANT.touch
-          ? smooth(plantU / TURN_PLANT.touch)
-          : plantU < TURN_PLANT.release
-            ? 1
-            : 1 - smooth((plantU - TURN_PLANT.release) / (1 - TURN_PLANT.release)))
-      : 0;
+    plantAt && plantAt.side === i ? plantW * plantReach(plantU) : 0;
   const double = strokeHand(DOUBLE_STROKE, swing);
   const hands = [-1, 1].map((side, i) => {
     const h = mix(
@@ -1049,30 +925,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, arms)), M.pole));
     }
     if (plantAt && plantAt.side === i && plantW > 0) {
-      // The rod turned from its hang to the basket ahead, held in the snow
-      // as the body passes it, then trailed back up to the hang — every
-      // leg of it a direction blended to the next, so nothing jumps.
       const hang = norm(sub(tip, hands[i]));
-      // The basket meets the snow where the rod's own length reaches it,
-      // ahead of the fist; passing, the rod pivots toward the vertical
-      // (`basket.pass` of the way), the basket pressed a little into it.
-      const dx = side * TURN_PLANT.basket.x - hands[i].x;
-      const dy = ground - hands[i].y;
-      const ahead = Math.sqrt(Math.max(0, M.pole * M.pole - dx * dx - dy * dy));
-      const to = (z: number) => norm({ x: dx, y: dy, z });
-      const touchDir = to(ahead);
-      const passDir = to(ahead * TURN_PLANT.basket.pass);
-      const u = plantU;
-      const dir =
-        u < TURN_PLANT.touch
-          ? mix(hang, touchDir, smooth(u / TURN_PLANT.touch))
-          : u < TURN_PLANT.release
-            ? mix(touchDir, passDir, (u - TURN_PLANT.touch) / (TURN_PLANT.release - TURN_PLANT.touch))
-            : add(
-                mix(passDir, hang, smooth((u - TURN_PLANT.release) / (1 - TURN_PLANT.release))),
-                scale(POLE_TRAIL, 0.5 * Math.sin((Math.PI * (u - TURN_PLANT.release)) / (1 - TURN_PLANT.release))),
-              );
-      tip = add(hands[i], scale(norm(mix(hang, norm(dir), plantW)), M.pole));
+      const dir = plantPole(hang, hands[i], ground, side, plantU, M.pole);
+      tip = add(hands[i], scale(norm(mix(hang, dir, plantW)), M.pole));
     }
     return tip;
   }) as [V3, V3];

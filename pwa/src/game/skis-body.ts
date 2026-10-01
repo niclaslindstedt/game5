@@ -397,7 +397,14 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        stepSkierSpring(legs, skier.vy, skier.airborne, dt, skier.jumpLoad / TUNING.jump.full, skier);
+        stepSkierSpring(
+          legs,
+          skier.vy,
+          skier.airborne,
+          dt,
+          skier.jumpLoad / TUNING.jump.full,
+          skier,
+        );
         const input = poseInputOf(skier, legs, mounts, trick);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);

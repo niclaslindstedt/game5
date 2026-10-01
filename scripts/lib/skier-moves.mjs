@@ -162,7 +162,7 @@ export const MOMENTS = [
   { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
   { id: "skid", move: "skid", t: 1.0, say: "a turn skidded at speed, tucked" },
-  { id: "plant", move: "turns", t: 1.8, say: "a pole planted at a turn" },
+  { id: "plant", move: "turns", t: 1.82, say: "a pole planted at a turn" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
 ];
 

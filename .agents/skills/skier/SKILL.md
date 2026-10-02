@@ -37,13 +37,18 @@ toward the outside ski and the eyes held toward the horizon — never sat
 sideways with his hips shoved inside and his trunk thrown out over the
 outside ski, which is what "shoulders level" in the body's own frame gave. **THE GAIT** at a crawl is the engine's own drive (`gaitOf`, off
 `SkierState.drive` and `stride`, the same strides the push comes in —
-`poles.ts`): SKATING, the skis opened into a V, a leg pushed out along its
-ski and lifted back in while the hips are carried across onto the other,
-and DOUBLE-POLING, both poles planted ahead, the trunk folded over them and
-the arms driven back past the hips until they are long. Each arm works one
-STROKE (`DOUBLE_STROKE`, `STRIDE_STROKE`: plant, push, recover — the
-stride's arms opposite, two strides a cycle) and each pole is a rigid rod
-TURNED through it, never a tip placed and jumped to; the suite samples a
+`poles.ts`): SETTING OFF on the flat or down a pitch he DOUBLE-POLES —
+the diagonal stride is only for climbing a rise (the pair's `pitch`), a
+man walking on skis everywhere else; SKATING, the skis opened into a V, a
+leg driven out AND back off its ski's INSIDE edge (`Gait.tilt`) while the
+hips are carried across over the flat gliding ski, both poles planted with
+every push; and DOUBLE-POLING, the trunk already 40° over at the plant
+with the elbows bent and out, crunched to 60° and the arms driven back past
+the hips until they are long. The double pole's arms are swung FROM THE
+SHOULDERS (`DOUBLE_ARM`, `armAt`); the stride's off the stance
+(`STRIDE_STROKE`: the arms opposite, two strides a cycle); every pushed
+pole BITES — its basket on the snow behind the fist (`strokePole`) — and is
+a rigid rod TURNED through the stroke, never a tip placed and jumped to; the suite samples a
 whole cycle and fails a joint that moves more than a few centimetres
 between neighbouring samples; one statement the skis (`ski-gear.ts`, `ski-rig.ts`)
 and the figure both read, so a boot never leaves its ski. A JUMP loading
@@ -93,9 +98,10 @@ when the skis he stands on are what moves.
 | `pwa/src/game/posed-merge.ts` | The posed tree — skis, poles and skier — drawn as ONE mesh, every part a rigid BONE of it, so the GPU lays each part through its matrix (in every pass, the shadows included); a part hidden with its ancestors (the skier in the helmet view) collapses to nothing |
 | `pwa/src/game/skis-body.ts` | Hangs the skier on the skis; the bindings and the poles he is fixed to are drawn there |
 | `engine/game/skier.ts` | Where his MASS actually is: `hipRight`, `hipAft`, `crouch`, `edge` and `skiCompression` on `SkierState`, lagging the edge, the lean and the tuck by `TUNING.skier.lag` and `crouchRate` |
-| `pwa/src/game/skier-stroke.ts` | THE ARMS' STROKES (`DOUBLE_STROKE`, `STRIDE_STROKE`: where a fist goes through a cycle, each pole a rod turned through it) and THE TURN'S POLE PLANT (`TURN_PLANT`, `plantPole`: the rod swung round the outside to the snow ahead and back); `skier-vec.ts` the few vectors both are posed with |
-| `pwa/src/game/skier-gait.ts` | THE GAIT at a crawl (`gaitOf`): the stride, the skate's V and the double pole, and what each does to each ski as drawn |
-| `pwa/src/game/skier-spring.ts` | The view's own state between frames: the body's spring on its legs, the air and a jump's load eased, his own clock |
+| `pwa/src/game/skier-stroke.ts` | THE ARMS' STROKES (`DOUBLE_ARM` swung from the shoulder, `STRIDE_STROKE` off the stance; each pushed pole biting the snow behind its fist, `strokePole`, a rod turned through the cycle) and THE TURN'S POLE PLANT (`TURN_PLANT`, `plantPole`: the rod swung round the outside to the snow ahead and back); `skier-vec.ts` the few vectors both are posed with |
+| `pwa/src/game/skier-gait.ts` | THE GAIT at a crawl (`gaitOf`): the double pole he sets off on, the diagonal stride (only up a rise), the skate's V off the pushing ski's inside edge, and what each does to each ski as drawn |
+| `pwa/src/game/skier-limbs.ts` | The limbs' geometry: `solveLimb`, the boot's frame and the knee its cuff allows (`bootFrame`, `bootKnee`, `CUFF`) |
+| `pwa/src/game/skier-spring.ts` | The view's own state between frames: the body's spring on its legs, the air and a jump's load eased, the hips, edge, roll and the skid's pivot followed (`drawnSkiAngle` — the skis are drawn on it too), the start gate's stance eased in and out (`ready`, off `inStartGate`), his own clock |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
 | `tests/world_render_test.ts`, `tests/skier_pose_test.ts` | The pose held: boots in the bindings, each shin in its boot, hands on the grips, the carve an inclined column hinged at the hips, the eyes toward the horizon, the back rounded in the tuck, compact in the air, alive stood still; the half bones turn half way and the hands close round the poles |
 
@@ -144,8 +150,15 @@ when the skis he stands on are what moves.
    spring; a GRAB folds him to a ski.
 8. STOOD STILL (`idle`, faded in below a walk) he breathes, shifts his
    weight, glances about and works the grips on his own clock — started at
-   his kit's own offset so four on a start line are not in step.
-9. THROWN, the ragdoll's foot is the ANKLE: the cloth stops at the cuff up
+   his kit's own offset so four on a start line are not in step. IN THE
+   START GATE (`ready`, eased off `inStartGate`: the lights, and a rival
+   still held after GO) he crouches over poles planted ahead of the wand,
+   the arms set at the double pole's plant — so GO's first push starts
+   from where he stands (every first push starts at its plant).
+9. AT A WALK the skis are drawn on their bases (`skiTilt`'s `WALK_TILT`):
+   the engine steers a crawl on a full edge, and a figure stood on a 40°
+   edge with no speed to lean on is a man tipped over sideways.
+10. THROWN, the ragdoll's foot is the ANKLE: the cloth stops at the cuff up
    that shin and the FOOT in its boot's liner is squared below it — the
    model's feet ride the boot bones, hidden in the shells on the skis.
 

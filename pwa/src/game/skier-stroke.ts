@@ -7,31 +7,70 @@
 
 import { add, clamp01, mix, norm, sub, scale, type V3 } from "./skier-vec.ts";
 
-/** THE ARMS' STROKE: where the hands are, off their stance, at the PLANT
- * (ahead and up) and at the FINISH of the push (down and back past the
- * hips, the arms long), m, and how far below the straight line between
- * them the hands pass; and where the basket is on the snow at the plant
- * and at the finish (`x` out from the centre, `z` along the skis). The
- * double pole's — both arms together, the skate's poles with it — and
- * the diagonal stride's, one arm at a time and shorter. */
+/** WHERE A WORKING POLE BITES: `x` out from the centre, m, and the least
+ * its basket stands behind the fist, m — a pole is planted angled back,
+ * never ahead of the hand that pushes on it. */
+export type Basket = { x: number; behind: number };
+/** THE DIAGONAL STRIDE'S ARMS: where the hands are, off their stance, at
+ * the PLANT (ahead and up) and at the FINISH of the push (down and back
+ * past the hips), m, and how far below the straight line between them
+ * the hands pass — one arm at a time, a short stroke. */
 export type Stroke = {
   plant: { y: number; z: number };
   finish: { y: number; z: number };
   dip: number;
-  basket: { x: number; from: number; to: number };
+  basket: Basket;
 };
-export const DOUBLE_STROKE: Stroke = {
-  plant: { y: 0.14, z: 0.26 },
-  finish: { y: -0.24, z: -0.8 },
-  dip: 0.18,
-  basket: { x: 0.32, from: 0.25, to: -1.2 },
-};
+/** The double pole's baskets: wide of the boots, and planted with the
+ * poles near upright — some 75° to the snow at the plant in measured
+ * double poling, so a basket a quarter of the rod behind its fist. The
+ * hands' path is `DOUBLE_ARM`'s. */
+export const DOUBLE_BASKET: Basket = { x: 0.38, behind: 0.3 };
 export const STRIDE_STROKE: Stroke = {
   plant: { y: 0.1, z: 0.26 },
-  finish: { y: -0.08, z: -0.36 },
-  dip: 0.03,
-  basket: { x: 0.3, from: 0.2, to: -0.75 },
+  finish: { y: -0.12, z: -0.4 },
+  dip: 0.06,
+  basket: { x: 0.3, behind: 0.15 },
 };
+/** THE DOUBLE POLE'S ARMS, SWUNG FROM THE SHOULDERS: each arm's angle off
+ * straight down, rad (forward positive), and its reach as a share of the
+ * whole arm, at the PLANT (well ahead, the elbows bent and out, the fists
+ * a little under the shoulders) and at the FINISH (long behind the hips);
+ * how far the elbows bend through the push, as a share of the arm lost at
+ * its middle — the arms pressing down on the poles as the trunk crunches
+ * over them — and how much the arm gives at the elbow as it swings
+ * forward through the recovery (a share of the arm, shorter negative):
+ * hanging loose from the shoulder, a little bent, so the fists come
+ * through clear of the thighs. Measured double poling has the elbow bent
+ * some 120° at the plant, bent further early in the push and near straight
+ * (about 140° open) at the pole's release. Stated off the shoulders rather
+ * than the stance, a trunk folded over the poles carries the arms with it
+ * and a fist never passes up by the shoulder with the arm folded tight. */
+export type ArmSwing = {
+  plant: { angle: number; reach: number };
+  finish: { angle: number; reach: number };
+  bend: number;
+  lift: number;
+};
+export const DOUBLE_ARM: ArmSwing = {
+  plant: { angle: 1.2, reach: 0.74 },
+  finish: { angle: -0.95, reach: 0.97 },
+  bend: 0.3,
+  lift: -0.05,
+};
+
+/** Where a fist is off its shoulder at `swing` through an arm's stroke
+ * (`pushing`, or swung back through the recovery), as shares of the arm's
+ * length: down (`y`, negative) and forward (`z`). */
+export function armAt(a: ArmSwing, swing: number, pushing: boolean): { y: number; z: number } {
+  const angle = a.plant.angle + (a.finish.angle - a.plant.angle) * swing;
+  const reach =
+    a.plant.reach +
+    (a.finish.reach - a.plant.reach) * swing +
+    (pushing ? -a.bend : a.lift) * Math.sin(Math.PI * swing);
+  return { y: -Math.cos(angle) * reach, z: Math.sin(angle) * reach };
+}
+
 /** THE POLE PLANT AT SPEED, as shares of the plant: the swing forward
  * ends at the `touch` — a tap at speed — and the rest of it the basket
  * trails back up to its hang. Where the basket touches (`x` out from the
@@ -79,32 +118,34 @@ export function strokeHand(st: Stroke, swing: number): { y: number; z: number } 
 }
 
 /**
- * THE POLE THROUGH A STROKE, as a direction out of the fist: on the push
- * toward its basket on the snow, the snow sliding back under him; on the
- * recovery turned from where the push left it to where the next plant
- * wants it, the basket trailing. A rigid pole whose angle only ever turns,
+ * THE POLE THROUGH A STROKE, as a direction out of the fist `pole` m long:
+ * on the push BITING — its basket on the snow behind the fist, as far
+ * behind as the rod's length leaves once the fist's height is taken off
+ * it, so a pole pushed on is a pole in the snow, angled back further the
+ * lower and further back the fist drives; on the recovery turned from
+ * where the push left it to where the next plant wants it, the basket
+ * trailing. A fist too high for the snow holds the pole at its plant's
+ * angle, the basket just off it. A rigid pole whose angle only ever turns,
  * so nothing jumps at the plant or the release. `handAt(swing)` is the
  * fist at a point of the stroke, everything else held.
  */
 export function strokePole(
-  st: Stroke,
+  basket: Basket,
   side: number,
   ground: number,
   phase: number,
   duty: number,
   handAt: (swing: number) => V3,
+  pole: number,
 ): V3 {
-  const toBasket = (swing: number): V3 =>
-    norm(
-      sub(
-        {
-          x: side * st.basket.x,
-          y: ground,
-          z: st.basket.from + (st.basket.to - st.basket.from) * swing,
-        },
-        handAt(swing),
-      ),
-    );
+  const toBasket = (swing: number): V3 => {
+    const hand = handAt(swing);
+    const x = side * basket.x;
+    const drop = hand.y - ground;
+    const reach = pole * pole - drop * drop - (x - hand.x) ** 2;
+    const behind = Math.max(basket.behind, Math.sqrt(Math.max(0, reach)));
+    return norm(sub({ x, y: ground, z: hand.z - behind }, hand));
+  };
   if (phase < duty) return toBasket(strokeSwing(phase, duty));
   const r = (phase - duty) / (1 - duty);
   return norm(

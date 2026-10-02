@@ -41,12 +41,18 @@ export type RunMoment = {
    * already crossed. */
   time?: number;
   nextCheckpoint?: number;
+  /** Seconds of the lights still to run in front of the moment, the
+   * skier held in the start gate through them; none when left out. */
+  lights?: number;
 };
 
 /** Stand the run at a moment. A staged moment has no lights in front of
- * it: the run is racing from here. */
+ * it unless it asks for them: the run is racing from here. */
 export function placeRun(state: GameState, moment: RunMoment): void {
-  if (state.phase === "countdown") {
+  if (moment.lights !== undefined && moment.lights > 0) {
+    state.phase = "countdown";
+    state.countdown = moment.lights;
+  } else if (state.phase === "countdown") {
     state.phase = "racing";
     state.countdown = 0;
   }

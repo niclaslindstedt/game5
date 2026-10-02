@@ -115,6 +115,7 @@ const moments = args.moment
 aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const S = await import(join(root, "tests/support/synthetic.ts"));
+const SPRING = await import(join(root, "pwa/src/game/skier-spring.ts"));
 const spec = E.skisById(args.skis);
 const n = { x: 0, y: 1, z: 0 };
 
@@ -128,6 +129,7 @@ function frameOf(state) {
     t: state.t,
     skier: JSON.parse(JSON.stringify(c)),
     trick: state.tricks?.pose ?? null,
+    waiting: SPRING.inStartGate(state),
     ground: [state.level.groundAt(at.x, at.z), n.x, n.y, n.z],
   };
 }

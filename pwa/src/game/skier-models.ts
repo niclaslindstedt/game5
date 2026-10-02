@@ -157,7 +157,9 @@ export type ModelParts = {
   /** Whether each is drawn in place of the code's. */
   skis: boolean;
   skier: boolean;
-  pose(skier: SkierState, sink: number, dt: number): void;
+  /** The pair posed; `angle` the skid's pivot as drawn (the engine's when
+   * left out). */
+  pose(skier: SkierState, sink: number, dt: number, angle?: number): void;
   /** The skier at a pose, his holder where the figure's group stands. */
   poseSkier(p: SkierPose, figure: THREE.Object3D): void;
   setSkierVisible(v: boolean): void;
@@ -216,9 +218,9 @@ export function attachModels(o: {
     meshes,
     skis: !!skisRig,
     skier: !!skierRig,
-    pose(skier, sink) {
+    pose(skier, sink, _dt, angle) {
       o.root.updateWorldMatrix(true, false);
-      skisRig?.pose(skier, 0, sink);
+      skisRig?.pose(skier, 0, sink, angle);
     },
     poseSkier(p, figure) {
       if (!skierHolder || !skierRig) return;

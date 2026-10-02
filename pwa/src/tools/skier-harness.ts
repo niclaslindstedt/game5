@@ -42,6 +42,8 @@ type Frame = {
   trick: TrickPose | null;
   /** The snow under him: its height and its normal. */
   ground: [number, number, number, number];
+  /** In the start gate under the lights. */
+  waiting?: boolean;
 };
 type Move = { id: string; title: string; frames: Frame[]; shots: number[] };
 type Moment = { name: string; say?: string; frames: Frame[] };
@@ -141,7 +143,7 @@ async function load(): Promise<void> {
  * heading. */
 function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number } {
   const c = f.skier;
-  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt);
+  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
   const [gy, nx, ny, nz] = f.ground;
   const off = c.thrown;
   const cx = off ? off.x : c.x;

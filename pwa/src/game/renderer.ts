@@ -75,6 +75,7 @@ import { createRegionPicture } from "./region-picture.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import { createSkisModel, SKI_STYLES, styleIn, type SkisModel } from "./skis-body.ts";
+import { inStartGate } from "./skier-spring.ts";
 import { topsheetOf } from "./ski-topsheets.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
@@ -659,7 +660,15 @@ export function createWorldRenderer(
         const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
-        r.model.pose(skier, r.drawn, r.sink, run.tricks.pose, dt, sampleBody(r.body, alpha));
+        r.model.pose(
+          skier,
+          r.drawn,
+          r.sink,
+          run.tricks.pose,
+          dt,
+          sampleBody(r.body, alpha),
+          inStartGate(run),
+        );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(
             skier.contacts,

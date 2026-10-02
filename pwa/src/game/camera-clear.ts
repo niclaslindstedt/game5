@@ -20,14 +20,14 @@
 //
 // THE RIDDEN BOOMS DO NOT PULL IN FOR THE TREES (`{ trees: false }`): a boom
 // pulled in for every trunk flicking past jolts the lens at the skier. They
-// pull in only for the course's own marks, and SWAY round the trees instead
-// — the whole clear handed them as `woods`, a fan of lines tried each frame
-// (`camera-rigs.ts`). The planted lenses (the broadcast, the death cam) pull
-// in for the trees as well.
+// pull in only for the course's own marks, and are PUSHED OFF THE TRUNKS
+// instead — a metre of free space round the bark and no more, asked of
+// `createTrunksNear` (`camera-rigs.ts`'s `repel`). The planted lenses (the
+// broadcast, the death cam) pull in for the trees as well.
 
 import { treesNear, type Level } from "@engine";
 
-import type { LineClear, Vec3 } from "./camera-rigs.ts";
+import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
 
 /** How far off any solid the lens is kept, m — a near plane's worth and a
@@ -153,5 +153,20 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
       }
     }
     return 1;
+  };
+}
+
+/** The trunks the ridden booms are pushed off: every tree's trunk as the
+ * physics has it (`Level.trees`' radius), from a metre under its foot to its
+ * tip. */
+export function createTrunksNear(level: Level): TrunksNear {
+  const ids: number[] = [];
+  return (x: number, z: number, reach: number, out: Trunk[]): Trunk[] => {
+    out.length = 0;
+    for (const i of treesNear(level, x, z, reach, ids)) {
+      const t = level.trees[i];
+      out.push({ id: i, x: t.x, z: t.z, r: t.radius, y0: t.y - 1, y1: t.y + t.height });
+    }
+    return out;
   };
 }

@@ -15,13 +15,15 @@ import {
   createBoomState,
   FRAME_AT,
   frameRig,
+  MAGNET,
   PACE,
   PULL_MIN,
   RIGS,
   turn,
   type RigPose,
+  type TrunksNear,
 } from "../pwa/src/game/camera-rigs.ts";
-import { createLineClear } from "../pwa/src/game/camera-clear.ts";
+import { createLineClear, createTrunksNear } from "../pwa/src/game/camera-clear.ts";
 import { createTrack, nlerp, observe, sample } from "../pwa/src/game/interp.ts";
 import {
   BODY,
@@ -425,49 +427,103 @@ describe("the lens kept out of the woods", () => {
     expect(st.pull).toBeLessThan(1);
   });
 
-  /** The chase boom ridden past the lone spruce at 12 m/s, `beside` m east
-   * of its trunk: how many frames its line to the helmet ran into the
-   * crown, the widest it swayed, and the boom's last state. */
-  const rideBy = (beside: number, woods?: typeof clear) => {
+  /** The chase boom ridden north past the lone spruce at 12 m/s, `beside` m
+   * east of its trunk (and drifting `drift` m east a second): every lens,
+   * and the boom's last state. The speed it READS is under the tremor's,
+   * so the buzz does not stir the metres measured. */
+  const rideBy = (beside: number, trunks?: TrunksNear, drift = 0) => {
     const boomClear = createLineClear(level, { trees: false });
     const st = createBoomState();
-    let blocked = 0;
-    let widest = 0;
-    let lens = null as ReturnType<typeof frameRig> | null;
-    let p = past();
+    const lenses: ReturnType<typeof frameRig>[] = [];
+    const poses: RigPose[] = [];
     for (let i = 0; i < 240; i++) {
       const z = LONE_TREE.z - 25 + (12 * i) / 60;
-      const x = LONE_TREE.x + beside;
-      p = pose({ x, z, y: level.groundAt(x, z) + 0.5, vz: 12, speed: 12 });
-      lens = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, woods);
-      if (clear({ x, y: p.y + 1.3, z }, lens.eye) < 1) blocked++;
-      widest = Math.max(widest, Math.abs(st.sway.y));
+      const x = LONE_TREE.x + beside + (drift * i) / 60;
+      const p = pose({ x, z, y: level.groundAt(x, z) + 0.5, vx: drift, vz: 12, speed: 8 });
+      poses.push(p);
+      lenses.push(frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, trunks));
     }
-    return { blocked, widest, st, lens: lens!, p };
+    return { lenses, poses, st };
   };
+  const bark = (eye: { x: number; z: number }) =>
+    Math.hypot(eye.x - LONE_TREE.x, eye.z - LONE_TREE.z) - 0.35;
 
-  it("sways the ridden boom round a tree it rides past, never pulling it in", () => {
-    for (const beside of [1.5, -1.5]) {
+  it("keeps the ridden boom a metre off a trunk it rides past, never pulling it in", () => {
+    const trunks = createTrunksNear(level);
+    for (const beside of [1.2, -1.2, 0.6, 0]) {
       const straight = rideBy(beside);
-      const swayed = rideBy(beside, clear);
-      expect(straight.widest).toBe(0);
-      expect(straight.blocked).toBeGreaterThan(8);
-      // Only the moments the skier is under the boughs himself are left.
-      expect(swayed.blocked).toBeLessThan(straight.blocked / 2);
-      expect(swayed.widest).toBeGreaterThan(0.3);
-      expect(swayed.widest).toBeLessThanOrEqual(RIGS.chase.kind === "boom" ? RIGS.chase.sway : 0);
-      expect(swayed.st.pull).toBe(1);
+      const pushed = rideBy(beside, trunks);
+      expect(Math.min(...straight.lenses.map((l) => bark(l.eye)))).toBeLessThan(MAGNET.gap);
+      const closest = Math.min(...pushed.lenses.map((l) => bark(l.eye)));
+      expect(closest).toBeGreaterThan(MAGNET.gap - 1e-6);
+      // A metre, not a swing: never further off its own path than the push
+      // needs, and never a jump from one frame to the next.
+      let widest = 0;
+      let leap = 0;
+      pushed.lenses.forEach((l, i) => {
+        widest = Math.max(
+          widest,
+          Math.hypot(l.eye.x - straight.lenses[i].eye.x, l.eye.z - straight.lenses[i].eye.z),
+        );
+        if (i > 0) {
+          const was = pushed.lenses[i - 1].eye;
+          leap = Math.max(leap, Math.hypot(l.eye.x - was.x, l.eye.z - was.z));
+        }
+      });
+      expect(widest).toBeGreaterThan(0);
+      expect(widest).toBeLessThan(0.35 + MAGNET.gap + MAGNET.soft);
+      expect(leap).toBeLessThan(0.5);
+      expect(pushed.st.pull).toBe(1);
     }
   });
 
-  it("keeps the look on the skier while swayed", () => {
+  it("lets a lens that clears the trunk by more than the band ride straight by", () => {
+    const trunks = createTrunksNear(level);
+    const beside = 0.35 + MAGNET.gap + MAGNET.soft + 0.3;
+    const straight = rideBy(beside);
+    const pushed = rideBy(beside, trunks);
+    pushed.lenses.forEach((l, i) => expect(l.eye).toEqual(straight.lenses[i].eye));
+  });
+
+  it("carries a lens whose arm swings over the trunk round it, never through it or across it at a stroke", () => {
+    const trunks = createTrunksNear(level);
     const boomClear = createLineClear(level, { trees: false });
-    const st = createBoomState();
-    st.swayWant = 0.5;
-    st.sway.y = 0.5;
-    const p = past();
-    const lens = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, clear);
-    expect(Math.abs(st.sway.y)).toBeGreaterThan(0.1);
+    for (const dir of [1, -1]) {
+      // Stood four metres past the spruce and turning across it, so the
+      // arm behind him sweeps over the trunk.
+      const x = LONE_TREE.x;
+      const z = LONE_TREE.z + 4;
+      const st = createBoomState();
+      const free = createBoomState();
+      let slid = false;
+      let leap = 0;
+      let was: { x: number; z: number } | null = null;
+      let last = null as ReturnType<typeof frameRig> | null;
+      let alone = null as ReturnType<typeof frameRig> | null;
+      for (let i = 0; i < 300; i++) {
+        const heading = dir * (-0.8 + (1.6 * Math.min(i, 180)) / 180);
+        const p = pose({ x, z, y: level.groundAt(x, z) + 0.5, heading, vz: 0, speed: 0 });
+        last = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, trunks);
+        alone = frameRig(RIGS.chase, p, free, 1 / 60, level.groundAt, boomClear);
+        expect(bark(last.eye)).toBeGreaterThan(MAGNET.gap - 1e-6);
+        if (was) leap = Math.max(leap, Math.hypot(last.eye.x - was.x, last.eye.z - was.z));
+        was = last.eye;
+        slid ||= st.slide !== null;
+      }
+      expect(slid).toBe(true);
+      expect(leap).toBeLessThan(0.5);
+      expect(st.slide).toBeNull();
+      expect(last!.eye).toEqual(alone!.eye);
+    }
+  });
+
+  it("keeps the look on the skier while pushed", () => {
+    const { lenses, poses } = rideBy(0.6, createTrunksNear(level));
+    const straight = rideBy(0.6);
+    const i = lenses.findIndex((l, k) => l.eye.x !== straight.lenses[k].eye.x);
+    expect(i).toBeGreaterThan(0);
+    const lens = lenses[i];
+    const p = poses[i];
     const ax = lens.target.x - lens.eye.x;
     const az = lens.target.z - lens.eye.z;
     const bx = p.x - lens.eye.x;
@@ -477,7 +533,8 @@ describe("the lens kept out of the woods", () => {
     );
   });
 
-  it("never sways in the open, and swings home once the tree is passed", () => {
+  it("never moves the lens in the open, and lets it go once the tree is passed", () => {
+    const trunks = createTrunksNear(level);
     const boomClear = createLineClear(level, { trees: false });
     const open = pose({ x: LONE_TREE.x, z: LONE_TREE.z + 40 });
     open.y = level.groundAt(open.x, open.z) + 0.5;
@@ -489,14 +546,13 @@ describe("the lens kept out of the woods", () => {
       1 / 60,
       level.groundAt,
       boomClear,
-      clear,
+      trunks,
     );
     expect(rode.eye).toEqual(free.eye);
-    const { st } = rideBy(1.5, clear);
-    for (let i = 0; i < 240; i++) {
-      frameRig(RIGS.chase, open, st, 1 / 60, level.groundAt, boomClear, clear);
-    }
-    expect(Math.abs(st.sway.y)).toBeLessThan(0.01);
+    const straight = rideBy(0.6);
+    const pushed = rideBy(0.6, trunks);
+    expect(pushed.lenses.at(-1)!.eye).toEqual(straight.lenses.at(-1)!.eye);
+    expect(pushed.st.sides.size).toBe(0);
   });
 });
 

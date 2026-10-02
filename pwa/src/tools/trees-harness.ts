@@ -14,23 +14,24 @@
 // SADDLE: a lens at the skier's head (2.2 m, the chase lens's height and
 // the one the forest lab's sightlines ride at) standing `STAND` metres off
 // and looking up the tree — so what the sheet shows under a crown is what a
-// skier sees under it — with a metre rule along the snow at the foot. `?sketch=1` draws the far band's sketches
-// instead; `?region=<id>` the region's paint; `?kinds=pine,larch` a subset;
-// `?models=1` the MODELLED trees (`tree-models.ts`, the glTFs the lab copied
-// beside the page) as the forest draws them, and `?models=compare` each
-// kind's code-built row with its modelled row under it.
+// skier sees under it — with a metre rule along the snow at the foot, and
+// its trunk drawn to the girth of a tree of `?age=` years (90 unsaid) as the
+// forest draws it (`trunkRadius`). `?lod=1` draws the MID cut and `?lod=2`
+// (or `?sketch=1`) the far band's sketch; `?ages=1` puts a row a kind of its
+// lead variant at the ages a wood holds, sapling to veteran; `?region=<id>`
+// the region's paint; `?kinds=pine,larch` a subset.
 //
 // Sets `window.__done` when the sheet is on screen.
 
 import * as THREE from "three";
 
-import { TREE_KINDS, isRegionId, type RegionId, type TreeKind } from "@engine";
+import { TREE_KINDS, isRegionId, trunkRadius, type RegionId, type TreeKind } from "@engine";
 
 import { createHazeUniforms, hazeMaterial } from "../game/haze.ts";
 import { regionLookOf } from "../game/region-look.ts";
-import { loadTreeModels, treeModel } from "../game/tree-models.ts";
-import { buildTree, treePaint } from "../game/tree-shapes.ts";
-import { TREE_VARIANTS } from "../game/tree-variants.ts";
+import { TRUNK_REF, graftGirth } from "../game/tree-mesh.ts";
+import { LOD_NAMES, buildTree, treePaint, type TreeLod } from "../game/tree-shapes.ts";
+import { TREE_VARIANTS, leadVariant, type TreeVariant } from "../game/tree-variants.ts";
 
 /** One cell, px. */
 const CELL_W = 170;
@@ -47,12 +48,18 @@ const FOV = 62;
 const query = new URLSearchParams(location.search);
 const asked = query.get("region") ?? "alpine";
 const region: RegionId = isRegionId(asked) ? asked : "alpine";
-const sketch = query.get("sketch") === "1";
-const models = query.get("models");
+const lod: TreeLod =
+  query.get("sketch") === "1"
+    ? 2
+    : (Math.max(0, Math.min(2, Number(query.get("lod") ?? 0))) as TreeLod);
+const ageSheet = query.get("ages") === "1";
+const age = Number(query.get("age") ?? 90);
 const want = query.get("kinds");
 const kinds: readonly TreeKind[] = want
   ? TREE_KINDS.filter((k) => want.split(",").includes(k))
   : TREE_KINDS;
+/** The ages `?ages=1` stands a kind at, years: a sapling to a veteran. */
+const AGES = [12, 25, 45, 70, 100, 150, 220, 320, 450];
 
 const haze = createHazeUniforms();
 haze.uHaze.value = 0;
@@ -64,19 +71,17 @@ function lights(scene: THREE.Scene): void {
   scene.add(key);
 }
 
-/** Each row: a kind, and whether it is drawn off its models. */
-const rows: readonly { kind: TreeKind; model: boolean }[] = kinds.flatMap((kind) =>
-  models === "compare"
-    ? [
-        { kind, model: false },
-        { kind, model: true },
-      ]
-    : [{ kind, model: models === "1" }],
+/** Each cell of a row: the variant, the age its trunk is drawn at, and
+ * what the foot of the cell calls it. */
+type Cell = { v: TreeVariant; age: number; name: string };
+const rows: readonly Cell[][] = kinds.map((kind) =>
+  ageSheet
+    ? AGES.map((a) => ({ v: leadVariant(kind), age: a, name: `${a} yr` }))
+    : TREE_VARIANTS[kind].map((v) => ({ v, age, name: v.name })),
 );
 
 async function main(): Promise<void> {
-  if (models) await loadTreeModels("./");
-  const cols = Math.max(...kinds.map((k) => TREE_VARIANTS[k].length));
+  const cols = Math.max(...rows.map((r) => r.length));
   const sheetCanvas = document.getElementById("stage") as HTMLCanvasElement;
   sheetCanvas.width = CELL_W * cols;
   sheetCanvas.height = CELL_H * rows.length;
@@ -94,6 +99,7 @@ async function main(): Promise<void> {
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "tree",
+    graftGirth,
   );
   const snowMaterial = new THREE.MeshLambertMaterial({ color: 0xeef3f8 });
   const dark = new THREE.MeshBasicMaterial({ color: 0x11181d });
@@ -109,15 +115,22 @@ async function main(): Promise<void> {
     labels.appendChild(div);
   };
 
-  rows.forEach(({ kind, model }, row) => {
-    TREE_VARIANTS[kind].forEach((v, col) => {
+  rows.forEach((cells, row) => {
+    cells.forEach(({ v, age: years, name }, col) => {
       const scene = new THREE.Scene();
       lights(scene);
       const snow = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), snowMaterial);
       snow.rotation.x = -Math.PI / 2;
       scene.add(snow);
-      const modelled = model ? treeModel(v, paint, sketch) : null;
-      const geometry = modelled ?? buildTree(v, paint, sketch);
+      const geometry = buildTree(v, paint, lod);
+      // The trunk at the girth of its age, as the forest hands every
+      // instance its own (`forest.ts`).
+      const g = trunkRadius(years) / (TRUNK_REF * CROWN * 0.95);
+      const n = geometry.getAttribute("position").count;
+      geometry.setAttribute(
+        "girth",
+        new THREE.Float32BufferAttribute(new Float32Array(n * 2).fill(g), 2),
+      );
       const tree = new THREE.Mesh(geometry, material);
       tree.scale.set(CROWN * 0.95, HEIGHT, CROWN * 0.95);
       tree.rotation.y = 0.6;
@@ -136,10 +149,8 @@ async function main(): Promise<void> {
       camera.lookAt(0, EYE + Math.tan(tilt) * STAND, 0);
       renderer.render(scene, camera);
       sheet.drawImage(cell, col * CELL_W, row * CELL_H);
-      const tag = model ? (modelled ? " · model" : " · NO MODEL") : "";
-      addLabel(`${kind} ${col}${tag}`, col, row, 4);
-      const tris = (geometry.index?.count ?? geometry.getAttribute("position").count) / 3;
-      addLabel(`${v.name} · ${tris}`, col, row, CELL_H - 24, "foot");
+      addLabel(`${v.kind} ${ageSheet ? v.index : col} · ${LOD_NAMES[lod]}`, col, row, 4);
+      addLabel(`${name} · ${n / 3}`, col, row, CELL_H - 24, "foot");
       tree.geometry.dispose();
     });
   });

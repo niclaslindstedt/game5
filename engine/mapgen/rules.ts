@@ -214,9 +214,10 @@
 //       most one per `forest.spacing` metre cell, jittered — thinning to
 //       `forest.meadow` of that density in the open glades between, with
 //       `forest.clearings.count` round clearings cut out of the woods. A
-//       tree is `forest.height` (6–19 m) tall with a trunk of `forest.trunk`
-//       and a crown `forest.crown` of its height across, never wider than
-//       `forest.crownMax`. THE TREE LINE IS AN ALTITUDE: the region's
+//       tree is `forest.height` (6–19 m) tall with a trunk as thick as its
+//       age (`forest.age`, `forest.trunk`) and a crown `forest.crown` of its
+//       height across, never wider than `forest.crownMax`. THE TREE LINE IS
+//       AN ALTITUDE: the region's
 //       (R21, `Mountain.treeLine`, metres above the sea — 1800–2200 m in
 //       the alpine, 600–1000 m on the fell, 3000–3500 m in the continental,
 //       about 1500 m in the maritime) over the base altitude the region
@@ -719,8 +720,10 @@ export const LEVEL_RULES = {
     },
     /** Tree height, m. */
     height: { min: 6, max: 19 } as Band,
-    /** Trunk collision radius as a share of height (plus a floor, m). */
-    trunk: { share: 0.018, floor: 0.14 },
+    /** AGE, years: the height read back off top·(1 − e^(−rate·t)), spread (`treeAge`). */
+    age: { top: 24, rate: 0.012, spread: 0.45, veterans: 0.07, veteran: 2.6, max: 480 },
+    /** TRUNK radius at breast height, m: floor + top·(1 − e^(−rate·age))^shape. */
+    trunk: { floor: 0.04, top: 0.68, rate: 0.006, shape: 1.1 },
     /** Crown radius as a share of height, and the most it may spread, m. */
     crown: 0.24,
     crownMax: 3.2,

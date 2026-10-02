@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A STATIC MODEL, READ: what every glTF made on the Blender lab's static
-// shelf (`scripts/blender/static.py` — the trees, the birds, the animals,
-// the course's marks) is once three has parsed it. Each carries no colour
+// shelf (`scripts/blender/static.py` — the birds, the animals, the
+// course's marks) is once three has parsed it. Each carries no colour
 // of its own: its meshes are PARTS (named as the builder named them —
 // `v3`, `wing`, `leg_lf`, `arch`), every primitive of a part a ROLE (its
 // material's name, all the paint it has), every vertex three numbers of
@@ -10,10 +10,10 @@
 // Blender's z up is the game's y up, and the builders point their asset's
 // nose down Blender -y, which is the game's +z, so nothing here turns
 // anything. The root node's extras are the numbers the kind's loader
-// needs (a tree's reference size, an animal's hip, an arch's reach).
+// needs (an animal's hip, an arch's reach).
 //
-// Every kind's loader (`tree-models.ts`, `bird-models.ts`,
-// `beast-models.ts`, `gate-models.ts`) reads its file through this and
+// Every kind's loader (`bird-models.ts`, `beast-models.ts`,
+// `gate-models.ts`) reads its file through this and
 // dresses the parts itself; `Assembly` is the one way a dressed part
 // becomes a `BufferGeometry`, so a vertex's colour is `first` blended to
 // `second` by its tone's G and darkened by its R in every kind alike.

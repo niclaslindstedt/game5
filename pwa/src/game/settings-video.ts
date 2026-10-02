@@ -22,11 +22,13 @@
 //   TRAILS      the trail maps (`trail-map.ts`): the fine window's texels and
 //               span, the coarse map's texels — or OFF, which stamps nothing
 //               and leaves the snow untouched.
-//   FOREST      how far the full-detail band runs, how many of the far
-//               band's sketches stand at all, and — under SHADOWS MEDIUM
-//               and HIGH —
-//               whether a tree casts its own crown or the sketch. Never WHICH trunks exist: the physics hits every
-//               one of them, and a tree the skier can hit is always drawn.
+//   FOREST      how far the full and the mid cut of a tree run, how many of
+//               the far band's sketches stand at all, how many VARIANTS of
+//               each kind are drawn (10, 5 or 2 — never fewer kinds), and —
+//               under SHADOWS MEDIUM and HIGH — whether a tree casts its
+//               mid cut or the sketch. Never WHICH trunks exist: the physics
+//               hits every one of them, and a tree the skier can hit is
+//               always drawn.
 //   SHADOWS     OFF, SKI_CATALOG (the machines, the skiers and the flags on a
 //               tight map), MEDIUM (every tree's too, as far as the eye
 //               needs them — each tree casting the shape the FOREST row
@@ -144,30 +146,32 @@ export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
 };
 
 export type ForestLook = {
-  /** The full-detail tree runs out to here, m; past it, the sketch. WHICH
-   * trees cast is the SHADOWS row's (`SHADOW_LOOK`), never this band's, so
-   * no shadow is switched on by riding closer to its tree. */
+  /** The FULL tree runs out to here, m; past it the MID cut of the same
+   * variant, to `mid`; past that the far band's sketch. WHICH trees cast is
+   * the SHADOWS row's (`SHADOW_LOOK`), never a band's, so no shadow is
+   * switched on by riding closer to its tree. */
   full: number;
+  mid: number;
   /** The share of the far band's sketches that stand, 0..1. */
   farShare: number;
-  /** THE SHAPE BUDGET: how many tree meshes the full band may draw —
-   * shared out among the kinds a map grows by how many of their trees
-   * stand on it, one to ten variants each (`tree-variants.ts`, the most
-   * telling first). A mesh is a draw call; the far band and the casters
-   * draw one shape a kind whatever this is. */
-  shapes: number;
-  /** What a tree casts under SHADOWS ALL: its own full-detail crown, or the
-   * far band's sketch drawn a touch inside it (a quarter of the triangles
-   * in the shadow pass, and it reads the same on the snow). */
+  /** HOW MANY VARIANTS OF EACH KIND are drawn, 1..10 (`tree-variants.ts`,
+   * the most telling first) — every kind a map grows is always drawn, only
+   * in fewer shapes. A shape is a mesh at the full and the mid cut, so two
+   * draw calls and its triangles held on the GPU; the far band and the
+   * casters draw one shape a kind whatever this is. */
+  variants: number;
+  /** What a tree casts under SHADOWS MEDIUM and HIGH: its kind's mid cut,
+   * or the far band's sketch drawn a touch inside it (a fraction of the
+   * triangles in the shadow pass, and it reads the same on the snow). */
   casters: TreeCasters;
 };
 
 export type TreeCasters = "full" | "sketch";
 
 export const FOREST_LOOK: Record<Tier, ForestLook> = {
-  low: { full: 90, farShare: 0.5, shapes: 12, casters: "sketch" },
-  medium: { full: 130, farShare: 0.75, shapes: 28, casters: "sketch" },
-  high: { full: 160, farShare: 1, shapes: 80, casters: "full" },
+  low: { full: 50, mid: 140, farShare: 0.5, variants: 2, casters: "sketch" },
+  medium: { full: 80, mid: 220, farShare: 0.75, variants: 5, casters: "sketch" },
+  high: { full: 110, mid: 320, farShare: 1, variants: 10, casters: "full" },
 };
 
 export type DistanceLook = {

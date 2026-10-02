@@ -412,7 +412,7 @@ export const STRINGS = {
     "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched.",
   optForest: "FOREST",
   optForestHint:
-    "How far out trees are drawn in full, how thick the far woods stand, and how many shapes of each kind of tree are drawn.",
+    "How far out trees are drawn in full, how thick the far woods stand, and how many variants of each kind of tree are drawn: ten, five or two.",
   optShadows: "SHADOWS",
   optShadowsHint:
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",

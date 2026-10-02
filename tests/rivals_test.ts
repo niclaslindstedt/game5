@@ -100,6 +100,25 @@ describe("the start line", () => {
       0.8023409506306053, 0.995381526555866, 0.9042890537064523,
     ]);
   });
+
+  it("deals each rival a resilience of his own in the band, the same per seed; the player's is a pro's", () => {
+    const deal = (seed: number) => createGame({ level: syntheticLevel(), seed, quiet: true });
+    const state = deal(7);
+    expect(state.skier.resilience).toBe(1);
+    const grit = state.rivals.map((r) => r.resilience);
+    for (const [i, r] of grit.entries()) {
+      expect(r).toBeGreaterThanOrEqual(RACE.resilienceBand.min);
+      expect(r).toBeLessThanOrEqual(RACE.resilienceBand.max);
+      expect(state.rivals[i].run.skier.resilience).toBe(r);
+    }
+    expect(deal(7).rivals.map((r) => r.resilience)).toEqual(grit);
+    // Across a handful of fields, the rivals are not all one skier.
+    const all = [1, 2, 3, 4, 5].flatMap((seed) => deal(seed).rivals.map((r) => r.resilience));
+    expect(Math.max(...all) - Math.min(...all)).toBeGreaterThan(0.3);
+    expect(createGame({ level: syntheticLevel(), seed: 7, resilience: 0.2 }).skier.resilience).toBe(
+      0.2,
+    );
+  });
 });
 
 describe("the standings", () => {

@@ -53,7 +53,10 @@
 //     down and back into it, the upper body facing on down the hill while
 //     the skis are thrown across;
 //   * on a tricks run a GRAB held in the air folds him to a hand on a ski,
-//     kicks the skis apart (a spread) or fore and aft (a daffy).
+//     kicks the skis apart (a spread) or fore and aft (a daffy);
+//   * THE SAVE (`jolt`, `skier-save.ts`): thrown by a near fall — sunk,
+//     lurched, rocked, the shoulders knocked round, the arms flung out or
+//     a hand put down to the snow — and fighting back up out of it.
 //
 // The limbs are two bones each, solved analytically (`solveLimb`) toward a
 // pole — the knees forward and a little out, the elbows out and down — so a
@@ -75,6 +78,7 @@ import {
   TURN_PLANT,
   type Stroke,
 } from "./skier-stroke.ts";
+import { joltHand, NO_JOLT, type Jolt } from "./skier-save.ts";
 import { add, clamp01, dot, len, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 
 export { STILL_GAIT, gaitOf, type Gait } from "./skier-gait.ts";
@@ -286,6 +290,8 @@ export type SkierPoseInput = {
   idle?: { t: number; still: number };
   /** A TRICKS run's grab held in the air (`strokes.ts`), or none. */
   trick?: TrickPose | null;
+  /** THE SAVE his body is making (`skier-save.ts`), or none. */
+  jolt?: Jolt;
   mounts?: Mounts;
 };
 
@@ -484,6 +490,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const gait = input.airborne ? STILL_GAIT : (input.gait ?? STILL_GAIT);
   const carve = clamp01(input.carve ?? 0);
   const skid = clamp01(input.skid ?? 0);
+  const J = input.jolt ?? NO_JOLT;
   // A SKIER BRAKING RISES OUT OF HIS TUCK: the skis thrown across under a
   // man folded flat swing his folded legs into profile, the knees up by
   // his shoulders — so the skid stands him up off the tuck, the skis
@@ -634,7 +641,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       0.05 * gait.skate -
       POLE_BODY.sink * crunch +
       POLE_BODY.rise * tall +
-      0.08 * pop,
+      0.08 * pop -
+      J.sink,
     z: -across0 * ps + along0 * pc,
   };
   // THE GRABS, in the air: a DAFFY kicks one ski forward and one back, a
@@ -687,7 +695,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     0.25 * load -
     0.25 * pop +
     0.1 * skid -
-    breath;
+    breath +
+    J.lurch;
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
   // into the turn with a hinge at the hips — the legs lean in with the
   // skis, and the trunk leans in too, but by `ANGULATE_SHARE` less (more
@@ -709,7 +718,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const legsWorld = (input.body?.roll ?? pairRoll) + legLean;
   const angulate =
     Math.min(0.6, ANGULATE_SHARE * Math.abs(legsWorld)) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
-  const roll = legsWorld - Math.sign(legsWorld) * angulate - pairRoll + SKATE_SWAY.roll * sway;
+  const roll =
+    legsWorld - Math.sign(legsWorld) * angulate - pairRoll + SKATE_SWAY.roll * sway + J.sway;
   const spineDir: V3 = {
     x: Math.sin(roll) * Math.cos(pitch),
     y: Math.cos(roll) * Math.cos(pitch),
@@ -746,11 +756,14 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     roll + Math.max(-NECK_ROLL, Math.min(NECK_ROLL, HEAD_LEAN * trunkWorld - pairRoll - roll));
   const head = add(
     neck,
-    scale(norm({ x: Math.sin(headRoll), y: 1, z: upperDir.z * (0.35 + 0.45 * crouch) }), BODY.neck),
+    scale(
+      norm({ x: Math.sin(headRoll), y: 1 - 0.3 * J.duck, z: upperDir.z * (0.35 + 0.45 * crouch) }),
+      BODY.neck,
+    ),
   );
   // The shoulders face on down the hill while a hockey stop throws the
   // skis across under them.
-  const twist = -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid;
+  const twist = -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid + J.twist;
   const across: V3 = norm({
     x: Math.cos(roll) * Math.cos(twist),
     y: -Math.sin(roll),
@@ -842,6 +855,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         TURN_PLANT.reach.z * reachOf(i),
     };
   }) as [V3, V3];
+  // THE SAVE: the arms flung out for the balance, or a hand put down.
+  if (J !== NO_JOLT) {
+    for (const i of [0, 1]) hands[i] = joltHand(hands[i], i ? 1 : -1, J, M.ground + drop);
+  }
   if (input.trick === "grab") {
     // Folded to the right boot, the other hand out for balance.
     hands[1] = { x: feet[1].x + 0.12, y: feet[1].y + 0.04, z: feet[1].z + 0.12 };

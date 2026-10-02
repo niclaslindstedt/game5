@@ -201,7 +201,8 @@ describe("losing the combo", () => {
   });
 
   it("a wipeout loses it", () => {
-    // A landing over the tips (the ride lab's), with a combo in hand.
+    // A landing over the tips steep enough to spear the snow (the ride
+    // lab's `nose-in`), with a combo in hand.
     const state = staged("tricks", {
       x: 1500,
       z: 200,
@@ -209,7 +210,7 @@ describe("losing the combo", () => {
       speed: 60 / 3.6,
       height: 2.5,
       vy: -3,
-      pitch: -0.7,
+      pitch: -1,
     });
     state.tricks.base = 400;
     state.tricks.mult = 3;

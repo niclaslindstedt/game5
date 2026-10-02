@@ -51,6 +51,9 @@ import {
   onPitch,
 } from "./ride-helpers.mjs";
 
+/** The fastest the snow slid across the skis over a run, m/s. */
+const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
+
 export const SCENARIOS = [
   {
     id: "rest",
@@ -360,25 +363,33 @@ export const SCENARIOS = [
   },
   {
     id: "catch",
-    title: "an edge caught: the skis flung across at 70 km/h, then stood on their edge",
+    title: "an edge caught: slid sideways at 45 km/h with the skis stood up on their edge",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 300, heading: Math.PI / 2, speed: 0 }),
+    // Facing across the strip and sliding down it: the snow crosses the
+    // skis at the whole of the speed, and the edge is already over.
+    prepare: (st) => {
+      st.skier.vx = 0;
+      st.skier.vz = 45 / 3.6;
+      st.skier.edge = 1;
+    },
+    seconds: 4,
+    view: "plan",
+    input: () => ({ ...IDLE, steer: 1 }),
+    measure: (run) => [["worst side slip m/s", fmt(maxSideSlip(run), 1)], ...wipeout(run)],
+  },
+  {
+    id: "catch-held",
+    title: "a hockey stop let go at 70 km/h onto full edge — the edge bites and is held",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({ x: 1500, z: 300, heading: 0, speed: 70 / 3.6 }),
     seconds: 6,
     view: "plan",
     // Half a second of hockey stop puts the skis across the way at speed;
     // the brake let go with the edge still full is a ski stood over while
-    // the snow slides across it — the high-side.
+    // the snow slides across it — a save, short of a high-side.
     input: (t) => ({ ...IDLE, steer: 1, brake: t < 0.5 ? 1 : 0 }),
-    measure: (run) => [
-      [
-        "worst side slip m/s",
-        fmt(
-          run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0),
-          1,
-        ),
-      ],
-      ...wipeout(run),
-    ],
+    measure: (run) => [["worst side slip m/s", fmt(maxSideSlip(run), 1)], ...wipeout(run)],
   },
   {
     id: "carve-powder",
@@ -576,8 +587,24 @@ export const SCENARIOS = [
     },
   },
   {
-    id: "nose-in",
-    title: "a landing taken 40 degrees over the tips at 60 km/h",
+    id: "shoulder",
+    title: "a trunk taken on the shoulder: slid into it sideways at 18 km/h, skiing past at 50",
+    level: (S) => S.syntheticLevel(),
+    place: (S) => ({ x: S.LONE_TREE.x - 0.8, z: S.LONE_TREE.z, heading: 0, speed: 14 }),
+    prepare: (st) => {
+      st.skier.vx = 5;
+    },
+    seconds: 4,
+    view: "plan",
+    input: () => TUCK,
+    measure: (run) => {
+      const hit = run.events.find((e) => e.kind === "hit");
+      return [["hit km/h", hit ? fmt(hit.speed * 3.6, 1) : "—"], ...wipeout(run)];
+    },
+  },
+  {
+    id: "nose-save",
+    title: "a landing taken 40 degrees over the tips at 60 km/h — slapped down and saved",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({
       x: 1500,
@@ -595,6 +622,37 @@ export const SCENARIOS = [
       const land = run.events.find((e) => e.kind === "land");
       return [["impact m/s", land ? fmt(land.impact) : "—"], ...wipeout(run)];
     },
+  },
+  {
+    id: "nose-in",
+    title: "a landing taken 57 degrees over the tips at 60 km/h — the tips spear the snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 60 / 3.6,
+      height: 2.5,
+      vy: -3,
+      pitch: -1,
+    }),
+    seconds: 6,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const land = run.events.find((e) => e.kind === "land");
+      return [["impact m/s", land ? fmt(land.impact) : "—"], ...wipeout(run)];
+    },
+  },
+  {
+    id: "drop-side",
+    title: "dropped 1.5 m at 70 km/h onto his side",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 2.5, roll: 1.5 }),
+    seconds: 6,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run)],
   },
   {
     id: "rollover",

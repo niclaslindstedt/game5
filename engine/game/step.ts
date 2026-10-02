@@ -23,6 +23,7 @@ import {
   FULL_ASSIST,
   MODE_RULES,
   RACE,
+  clampResilience,
   clampSnowDepth,
   type Assist,
   type GameMode,
@@ -69,6 +70,10 @@ export type CreateGameOptions = {
   /** Whether blows dull the player's edges (`damage.ts`); off when left
    * out. */
   damage?: boolean;
+  /** How much the player can take before he goes down, 0 a club skier …
+   * 1 a professional (`SkierState.resilience`); 1 when left out. The
+   * field's is its own, dealt at the start line. */
+  resilience?: number;
   /** Build without announcing the map (the sim's sweeps). */
   quiet?: boolean;
   /** Where a FREE RIDE (`mode: "free"`) starts, a plan point on the map
@@ -133,7 +138,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     t: 0,
     tick: 0,
     level,
-    skier: freshSkier(options.spec ?? SKIS),
+    skier: { ...freshSkier(options.spec ?? SKIS), resilience: clampResilience(options.resilience) },
     input: { ...NEUTRAL_INPUT },
     progress: freshProgress(level),
     rules,

@@ -11,7 +11,10 @@
 // off the run's own stream at the start line, so the same seed deals the
 // same field: the tuck its bot is allowed (`Rival.pace`), and the skis it
 // is on — any of the catalog's (`SKI_CATALOG`), so a powder map has a
-// powder ski in the field as often as a groomed one has a race ski.
+// powder ski in the field as often as a groomed one has a race ski. And
+// how much each can take before he goes down (`Rival.resilience`,
+// `RACE.resilienceBand`), off a stream of its own (`GRIT_SALT`) so that
+// neither the run's stream nor the start's moves for it.
 //
 // THE START IS NOT IN STEP. Four skiers let go on one step, every one
 // starting his stride cycle at its first push, skate out of the gate as one
@@ -66,6 +69,8 @@ const ROW_BACK = 5;
 /** What the start's own stream is seeded with beside the run's seed — a
  * stream apart, so dealing the start draws nothing off `state.rng`. */
 const START_SALT = 0x5a17e5;
+/** ...and what each rival's resilience is dealt off — a third stream. */
+const GRIT_SALT = 0x6e5111;
 
 /** What a rival does in the gate after GO until he reacts: the skis held
  * across the slope, as under the lights. */
@@ -97,7 +102,9 @@ export function gridSlot(state: GameState, slot: number): Spawn {
 export function createRivals(state: GameState, count: number): void {
   state.rivals = [];
   const start = createRng((state.seed ^ START_SALT) >>> 0);
+  const grit = createRng((state.seed ^ GRIT_SALT) >>> 0);
   for (let i = 0; i < count; i++) {
+    const resilience = grit.range(RACE.resilienceBand.min, RACE.resilienceBand.max);
     const pace = state.rng.range(RACE.paceBand.min, RACE.paceBand.max);
     const run: GameState = {
       ...state,
@@ -118,10 +125,12 @@ export function createRivals(state: GameState, count: number): void {
     standSkier(run, at.x, at.z, at.heading);
     // The stride count's whole part is the leg, its fraction the phase.
     run.skier.stride = start.range(0, 2);
+    run.skier.resilience = resilience;
     state.rivals.push({
       id: i,
       run,
       pace,
+      resilience,
       react: start.range(RACE.reactBand.min, RACE.reactBand.max),
       lane: laneOf(state, i + 1),
     });

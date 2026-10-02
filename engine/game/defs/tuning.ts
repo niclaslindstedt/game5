@@ -296,9 +296,10 @@ export const TUNING = {
      * for and stands back up, 1/s — and the least of the way (m/s) a tuck
      * counts for anything: a skier at rest crouching is not going faster. */
     crouchRate: 3,
-    /** THE HIGH-SIDE (`crash.ts`): the sideways slip at a contact, m/s,
-     * past which an edge standing more than `slipEdge` rad over catches
-     * and throws him. */
+    /** THE START OF A HIGH-SIDE: the sideways slip at a contact, m/s,
+     * past which an edge standing more than `slipEdge` rad over is in
+     * trouble — the bot stands his edge down past it; what actually
+     * throws a skier is `crash.catchSlip` / `.catchEdge`, well beyond. */
     slipSpeed: 6,
     slipEdge: 0.75,
   },
@@ -544,25 +545,90 @@ export const TUNING = {
   /** THE WIPEOUT — the skier thrown (`crash.ts`). Four ways off, each a
    * threshold no clean run comes near. */
   crash: {
-    /** A trunk met at this closing speed or more throws him, m/s (25 km/h):
-     * the trunk stops the skis and he does not. */
+    /** THE PROFESSIONAL'S MARGIN: every threshold here is where a skier
+     * who skis for a living can no longer stay on his feet — what the
+     * body physically cannot stand up out of — and everything short of it
+     * is ridden out, with the save shown (`SkierState.save`).
+     *
+     * A trunk SQUARE IN FRONT OF THE SKIS (the tips' circle) met at this
+     * closing speed or more throws him, m/s (25 km/h): the trunk stops the
+     * skis and he does not. A trunk BESIDE HIM — taken on the shoulder, the
+     * body's or the tails' circle — throws him only at `treeShoulder`
+     * (36 km/h into it): the blow knocks him aside and round, and his skis
+     * are still under him to stand on. */
     treeSpeed: 7,
-    /** A landing taken this far tips-down against the slope, rad (32°), at
-     * this speed into it or more, m/s, goes over the tips — the landing
-     * that ends a real flight of `noseAir` s or more. */
-    noseAngle: 0.56,
+    treeShoulder: 10,
+    /** A landing taken this far tips-down against the slope, rad, at this
+     * speed into it or more, m/s, goes over the tips — the landing that
+     * ends a real flight of `noseAir` s or more. The tips DIG only where
+     * the snow takes them: `noseDig` (32°) in loose snow, and on the
+     * groomer they slap down flat unless they come in at `noseAngle`
+     * (46°), past which they spear it. */
+    noseAngle: 0.8,
+    noseDig: 0.56,
     noseImpact: 5,
     noseAir: 0.3,
+    /** THE BODY DOWN: the hips, the shoulders or the helmet driven into
+     * the snow at this speed or more, m/s (`SkierState.bodyHit` — what a
+     * drop of twelve centimetres hits at) — he has come down on his side,
+     * his back or his head, and no one stands up out of that. A hip
+     * brushed in a deep carve slides along the snow and goes into it at a
+     * fraction of this; that, and a hand put down, are saves. */
+    bodySlam: 1.5,
+    /** THE LEGS FOLD: a landing's load past this, g (`landingLoad`), is
+     * more than a skier's legs can hold however true he came down — the
+     * knees go and he sits down on the snow at speed. How true the skis
+     * came down is the snow's and the body's to settle: a landing on the
+     * skis is ridden away, and one on the body is `bodySlam`'s. */
+    legsFold: 18,
     /** A skier going over (`reset.overUp`) at this speed or more, m/s, is
      * thrown; slower, he sits down and the reset's own clock stands him up. */
     rollSpeed: 6,
     /** ...once he has lain over ON THE SNOW (`SkierState.rolledFor`) this
-     * long, s. */
-    rollHold: 0.2,
-    /** A CAUGHT EDGE is never read in a skid: past this much of the brake's
-     * pivot (`SkierState.skid`) the slide across the skis is the skier's
-     * own — a hockey stop, not a high-side. */
+     * long, s — less, and he has put a hand down and pushed himself back
+     * up onto his skis. */
+    rollHold: 0.35,
+    /** THE CAUGHT EDGE: a ski stood this far over, rad (49°), with the
+     * snow sliding across it at this speed or more, m/s (32 km/h). A pro
+     * holds a skidded edge far past where the bot stands his down
+     * (`skier.slipEdge` / `.slipSpeed`). Never read in a SKID: past
+     * `catchSkid` of the brake's pivot (`SkierState.skid`) the slide across
+     * the skis is the skier's own — a hockey stop, not a high-side. */
+    catchEdge: 0.85,
+    catchSlip: 9,
     catchSkid: 0.5,
+    /** THE CLUB SKIER: the same thresholds for a skier of resilience 0
+     * (`SkierState.resilience`) — the professional's above are 1, and a
+     * skier between is the blend (`crash.ts`'s `crashLimit`). A trunk on
+     * the tips at 18 km/h and on the shoulder at 22, the tips digging at
+     * 25° in loose snow and 32° on the groomer, down from a body drop of
+     * five centimetres, the legs folding at 10 g, a hand down held for an
+     * eighth of a second, an edge caught at 40° and 22 km/h across it. */
+    club: {
+      treeSpeed: 5,
+      treeShoulder: 6,
+      noseAngle: 0.56,
+      noseDig: 0.44,
+      bodySlam: 1,
+      legsFold: 10,
+      rollHold: 0.12,
+      catchEdge: 0.7,
+      catchSlip: 6,
+    },
+    /** THE SAVE (`SkierState.save`): how near a thing came to throwing him
+     * is a share of its threshold, and a save is kept from `saveFrom` of
+     * one. A landing is near from `landing.clean` g toward `legsFold`, and
+     * from `saveTip` rad tips-down or `saveRoll` rad rolled against the
+     * slope; an edge from `saveEdge` of the edge and `saveSlip` of the
+     * slide that catch it (an ordinary skidded turn is short of both); a
+     * newer save takes the place of one older than `saveHold` s or nearer
+     * than what is left of it. */
+    saveFrom: 0.25,
+    saveTip: 0.3,
+    saveRoll: 0.5,
+    saveEdge: 0.9,
+    saveSlip: 0.7,
+    saveHold: 0.5,
     /** What he leaves with: this share of his velocity before the blow, and
      * a climb, m/s, and a turn head over heels at his speed over
      * `tumbleRadius` m, no faster than `maxSpin` rad/s, with `carry` of his

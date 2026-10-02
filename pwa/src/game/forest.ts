@@ -58,8 +58,13 @@ function hash(x: number, z: number): number {
 }
 
 /** How close the lens may come to a drawn crown before the tree is taken
- * out of the picture, m. */
+ * out of the picture once it is behind (`LENS_BEHIND`), m. */
 export const LENS_CLEAR = 2.4;
+
+/** How far behind the lens, m along its look in plan, a trunk must be
+ * before its tree is taken out of the picture: one coming at the lens, or
+ * one the lens is passing through, stays drawn. */
+export const LENS_BEHIND = 1;
 
 /** Whether the lens, `d` m from the trunk in plan at height `y`, is within
  * `LENS_CLEAR` of the tree as drawn — its variant's crown at that height,
@@ -405,6 +410,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const c0 = Math.floor(cx / CELL);
       const r0 = Math.floor(cz / CELL);
       const lens2 = LENS_REACH * LENS_REACH;
+      const plan = Math.hypot(look.x, look.z);
+      const ux = plan > 1e-6 ? look.x / plan : 0;
+      const uz = plan > 1e-6 ? look.z / plan : 0;
       const full2 = options.full * options.full;
       const far2 = options.far * options.far;
       for (let r = Math.max(0, r0 - reach); r <= Math.min(cols - 1, r0 + reach); r++) {
@@ -420,11 +428,20 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
           for (const i of bins[b]) {
             const t = trees[i];
             const e2 = (t.x - cx) ** 2 + (t.z - cz) ** 2;
-            // THE TREES AT THE LENS: a crown a metre or two off the lens is
-            // not a tree but a wall of green across a third of the frame, so
-            // it is taken out of the picture. Its caster stays, so the snow
-            // under it does not light up as the lens goes by.
-            if (e2 < lens2 && atLens(t, shapes.variantOf[i], Math.sqrt(e2), cy)) continue;
+            // THE TREES AT THE LENS are drawn while they come at it and while
+            // it passes through them — the boughs across the frame are the
+            // woods closing round a skier off the piste (the booms sway round
+            // them where they can, `camera-rigs.ts`). Only once the trunk is
+            // `LENS_BEHIND` behind the lens is a tree whose crown is still at
+            // it taken out of the picture, so its boughs do not hang round
+            // the frame's edges. Its caster stays, so the snow under it does
+            // not light up as the lens goes by.
+            if (
+              e2 < lens2 &&
+              (t.x - cx) * ux + (t.z - cz) * uz < -LENS_BEHIND &&
+              atLens(t, shapes.variantOf[i], Math.sqrt(e2), cy)
+            )
+              continue;
             if (e2 < full2) place(full, i);
             else if (e2 < far2 && thin[i] < options.farShare) place(far, i);
           }

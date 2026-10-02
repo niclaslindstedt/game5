@@ -299,7 +299,8 @@ export function createWorldRenderer(
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
   let wildlife: Wildlife | null = null;
   let clear: LineClear | undefined;
-  /** The ridden booms' clear: the course's marks, never the trees. */
+  /** The ridden booms' clear: the course's marks, never the trees — they
+   * sway round those, off `clear` (`camera-rigs.ts`). */
   let boomClear: LineClear | undefined;
   let riders: Rider[] = [];
   let ghost: GhostModel | null = null;
@@ -707,7 +708,7 @@ export function createWorldRenderer(
       rigPose.packed = skier.packed;
       const inside = lens.rung() === "tips" || lens.rung() === "helmet";
       player.model.setSkierVisible(!inside);
-      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear);
+      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, clear);
       // THE DEATH CAM (`camera-death.ts`) takes the lens off the ladder while
       // the player is off his skis, on WALL time: `dt` is the run's, slowed
       // by the rate it handed out.

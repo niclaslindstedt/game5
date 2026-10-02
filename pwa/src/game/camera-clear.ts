@@ -18,11 +18,12 @@
 // a reason to pull the lens onto him: the walk starts counting at the first
 // step that is out in the open.
 //
-// THE RIDDEN BOOMS DO NOT ASK ABOUT THE TREES (`{ trees: false }`): a boom
-// pulled in for every trunk flicking past jolts the lens at the skier, and a
-// bough across the frame for a moment is the lesser fault. They still keep
-// out of the course's own marks; the planted lenses (the broadcast, the
-// death cam) ask of the trees as well.
+// THE RIDDEN BOOMS DO NOT PULL IN FOR THE TREES (`{ trees: false }`): a boom
+// pulled in for every trunk flicking past jolts the lens at the skier. They
+// pull in only for the course's own marks, and SWAY round the trees instead
+// — the whole clear handed them as `woods`, a fan of lines tried each frame
+// (`camera-rigs.ts`). The planted lenses (the broadcast, the death cam) pull
+// in for the trees as well.
 
 import { treesNear, type Level } from "@engine";
 

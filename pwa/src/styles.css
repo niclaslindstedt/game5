@@ -3184,8 +3184,14 @@ canvas {
 
 /* THE PAGE'S ONE SENTENCE, at the foot of the CARD — after its body, which
    is what scrolls, so the sentence is on screen whichever row is being
-   read. No pointer events: it is read, never pressed. */
+   read. No pointer events: it is read, never pressed.
+
+   Every sentence the card can show is stacked in ONE grid cell and all but
+   the one being read are hidden, so the bar is always as tall as the longest
+   of them (`Caption`): a bar that grew as a row was touched would pull the
+   row out from under the finger before the press landed. */
 .knob-caption {
+  display: grid;
   pointer-events: none;
   font-size: 0.64rem;
   font-weight: 500;
@@ -3200,6 +3206,18 @@ canvas {
   background: rgb(13 34 51 / 82%);
   border: 1px solid rgb(244 248 251 / 18%);
   transition: opacity 120ms ease;
+}
+
+.knob-caption-line {
+  grid-area: 1 / 1;
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.knob-caption-sizer {
+  visibility: hidden;
 }
 
 .knob-caption-on {
@@ -4344,8 +4362,6 @@ canvas {
   .knob-caption {
     padding: 0.3rem 0.6rem;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 

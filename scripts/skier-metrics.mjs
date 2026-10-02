@@ -281,7 +281,8 @@ function measure(move) {
     const behind = [0, 1].filter((k) => pose.poles && pose.poles[k].z < pose.hands[k].z - 0.05);
     m.bite = behind.length ? Math.min(...behind.map((k) => pose.poles[k].y - snow)) : Infinity;
     const gait = input.gait ?? P.STILL_GAIT;
-    m.work = gait.stride + gait.skate + gait.pole;
+    // The arms' work: the stride's, and the poles' as far as he works them.
+    m.work = gait.stride + (gait.skate + gait.pole) * (gait.keep ?? 1);
     // …and in the gate, the higher basket over the snow and the nearer
     // basket's distance ahead of the boots, m.
     const feetZ = (pose.feet[0].z + pose.feet[1].z) / 2;

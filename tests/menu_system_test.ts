@@ -339,15 +339,25 @@ describe("the keys page (settings-input.ts)", () => {
   });
 
   it("merges stored keys against the actions this build has", () => {
-    // A stored row is the skier's, whatever it holds; a row the blob does
-    // not carry is the shipped one.
+    // A stored row is the skier's; a row the blob does not carry is the
+    // shipped one, and takes its keys back off any stored row — the first
+    // layout's SPACE on the brake is the jump's, not a skid with it.
     const old = mergeKeys({
       tuck: ["KeyW", "ArrowUp"],
       brake: ["KeyS", "ArrowDown", "Space"],
       leanBack: ["KeyP"],
     });
-    expect(old.tuck).toEqual(["KeyW", "ArrowUp"]);
-    expect(old.brake).toEqual(["KeyS", "ArrowDown", "Space"]);
+    // ArrowUp is the lean forward's own, and the blob does not carry it.
+    expect(old.tuck).toEqual(["KeyW"]);
+    expect(old.brake).toEqual(["KeyS", "ArrowDown"]);
+    expect(old.jump).toEqual(["Space"]);
+    // ...and a stored row left with nothing is its shipped one.
+    expect(mergeKeys({ brake: ["Space"] }).brake).toEqual(DEFAULT_KEYS.brake);
+    // A layout that carries the row keeps whatever the skier put there.
+    expect(mergeKeys({ jump: ["KeyJ"], brake: ["KeyS", "Space"] }).brake).toEqual([
+      "KeyS",
+      "Space",
+    ]);
     expect(old.leanForward).toEqual(freshKeys().leanForward);
     expect(old.leanBack).toEqual(["KeyP"]);
     expect(mergeKeys(null)).toEqual(freshKeys());

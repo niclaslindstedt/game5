@@ -158,6 +158,8 @@ export {
   driveReach,
   plantPulse,
   poleForce,
+  poleKeepUp,
+  poleSweep,
   skateShare,
   strideRate,
   strideShare,

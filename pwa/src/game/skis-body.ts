@@ -46,13 +46,12 @@ import {
   drawnSkiAngle,
   gaitOf,
   mountsFor,
-  ragdollPose,
   skierPose,
   stepSkierSpring,
-  type BodyFrame,
   type Mounts,
   type SkierPoseInput,
 } from "./skier-pose.ts";
+import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -219,6 +218,7 @@ export function poseInputOf(
     // The skid's pivot as his body carries it (eased in the view's spring).
     skiAngle: drawnSkiAngle(legs, skier),
     crouch: skier.crouch,
+    tuck: skier.tuck,
     drop: skier.spec.crouchDrop * skier.crouch,
     lift: gearLift(skier),
     airborne: skier.airborne,
@@ -231,7 +231,10 @@ export function poseInputOf(
         : undefined,
     // THE GAIT at a crawl — the skate and the double pole — in time with
     // the engine's own push (`poles.ts`).
-    gait: gaitOf(skier),
+    // ...how much he works the poles as his arms carry it.
+    gait: Number.isNaN(legs.keep) ? gaitOf(skier) : { ...gaitOf(skier), keep: legs.keep },
+    // The snow passed since the stroke's plant, as the view kept it.
+    poled: Number.isNaN(legs.poledStride) ? undefined : legs.poled,
     air: legs.air,
     jumpLoad: legs.load,
     popped: skier.popped,

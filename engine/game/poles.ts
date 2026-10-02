@@ -40,9 +40,12 @@ import { TUNING } from "./defs/tuning.ts";
 const P = TUNING.poles;
 
 /** How much of the push the way leaves, 0..1: whole under `poles.speed`,
- * gone by `poles.fade`. */
+ * gone by `poles.fade` — and the poles' share of it gone sooner, once his
+ * arms cannot keep up with the snow (`poleKeepUp`): he stops working them
+ * and tucks. */
 export function driveReach(way: number): number {
-  return 1 - clamp((Math.abs(way) - P.speed) / (P.fade - P.speed), 0, 1);
+  const fade = 1 - clamp((Math.abs(way) - P.speed) / (P.fade - P.speed), 0, 1);
+  return fade * (1 - (1 - skateShare(way)) * (1 - poleKeepUp(way)));
 }
 
 /** The share of the drive that is SKATING rather than double-poling at a
@@ -58,11 +61,35 @@ export function strideShare(speed: number): number {
   return 1 - clamp((Math.abs(speed) - P.strideFrom) / (P.strideTo - P.strideFrom), 0, 1);
 }
 
+/** The most of one push a planted pole can sweep, m — the skate's at a
+ * crawl, the double pole's once rolling. */
+export function poleSweep(way: number): number {
+  const k = skateShare(way);
+  return P.sweepSkate * k + P.sweep * (1 - k);
+}
+
 /** Strides a second at a way — the skate's cadence at a crawl, the double
- * pole's once rolling. */
+ * pole's once rolling — and, faster, the cadence that keeps a planted pole
+ * PLANTED: a basket in the snow stays where it bit while he goes by it, so
+ * a push lasts only as long as the snow takes to pass under one sweep of
+ * the pole (`poleSweep`). The faster he goes the quicker and harder he
+ * works his arms, up to the quickest an arm swings (`poles.cadenceMax`). */
 export function strideRate(way: number): number {
   const k = skateShare(way);
-  return P.cadence * k + P.cadencePole * (1 - k);
+  const cadence = P.cadence * k + P.cadencePole * (1 - k);
+  return Math.min(
+    Math.max(cadence, P.cadenceMax),
+    Math.max(cadence, (Math.abs(way) * P.duty) / poleSweep(way)),
+  );
+}
+
+/** How well a push keeps up with the snow at `way` m/s, 0..1: whole while
+ * one push sweeps all the snow that passes under it, gone once his arms at
+ * their quickest cannot keep up — where a skier stops working the poles
+ * and folds into the tuck instead. */
+export function poleKeepUp(way: number): number {
+  const fit = (poleSweep(way) * strideRate(way)) / Math.max(1e-6, Math.abs(way) * P.duty);
+  return clamp((fit - P.keepUp.to) / (P.keepUp.from - P.keepUp.to), 0, 1);
 }
 
 /** The shape of a push over one stride at phase 0..1: a half-sine over the

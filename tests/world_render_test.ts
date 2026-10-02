@@ -25,15 +25,8 @@ import {
 } from "../pwa/src/game/camera-rigs.ts";
 import { createLineClear, createTrunksNear } from "../pwa/src/game/camera-clear.ts";
 import { createTrack, nlerp, observe, sample } from "../pwa/src/game/interp.ts";
-import {
-  BODY,
-  MOUNTS,
-  ragdollPose,
-  skierPose,
-  SHIN_ABOVE_CUFF,
-  solveLimb,
-  type BodyFrame,
-} from "../pwa/src/game/skier-pose.ts";
+import { BODY, MOUNTS, skierPose, SHIN_ABOVE_CUFF, solveLimb } from "../pwa/src/game/skier-pose.ts";
+import { ragdollPose, type BodyFrame } from "../pwa/src/game/skier-ragdoll.ts";
 import { airMass, skyLookAt, skyLookFor, sunDirection, sunTint } from "../pwa/src/game/sky.ts";
 import {
   bodyStampOf,

@@ -319,11 +319,11 @@ export const TUNING = {
   poles: {
     /** The speed, m/s, under which the push is its whole, and the speed by
      * which the legs and the arms can no longer keep up and it is gone: 22
-     * and 40 km/h — a racer skates out of the gate and keeps skating on a
+     * and 34 km/h — a racer skates out of the gate and keeps skating on a
      * flat to hold his speed, and the power law (below) is what makes the
      * last of it little. */
     speed: 6,
-    fade: 11,
+    fade: 9.5,
     /** The mean propulsive power, W — a fit recreational skier's sprint
      * (an elite cross-country skier holds over 400 W for minutes). */
     power: 450,
@@ -353,6 +353,21 @@ export const TUNING = {
     cadencePole: 1.05,
     duty: 0.45,
     floor: 0.3,
+    /** How far he goes past a planted basket over one push, m — the pole's
+     * sweep from its plant to its release behind him, double-poling and
+     * skating (the pose's own strokes sweep 1.55 and 1.19 m; less here, so
+     * a push ends before the last of the arm's reach, where the basket
+     * hardly moves for all the arm it takes). A push is never longer than
+     * the snow takes to pass under it (`strideRate`). */
+    sweep: 1.35,
+    sweepSkate: 1,
+    /** The quickest he works the poles, strides a second — a double pole
+     * at its most driven — and the shares of the snow going by under one
+     * push that a push at that cadence still sweeps where he starts to
+     * give up poling for the tuck, and where he has (the arm reaches past
+     * `sweep`, so he keeps up with somewhat more than it). */
+    cadenceMax: 2,
+    keepUp: { from: 0.85, to: 0.6 },
     /** How fast the drive the body shows comes and goes, 1/s. */
     rate: 4,
   },

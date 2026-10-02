@@ -424,6 +424,80 @@ describe("the lens kept out of the woods", () => {
     expect(st.pull).toBeGreaterThan(pulled);
     expect(st.pull).toBeLessThan(1);
   });
+
+  /** The chase boom ridden past the lone spruce at 12 m/s, `beside` m east
+   * of its trunk: how many frames its line to the helmet ran into the
+   * crown, the widest it swayed, and the boom's last state. */
+  const rideBy = (beside: number, woods?: typeof clear) => {
+    const boomClear = createLineClear(level, { trees: false });
+    const st = createBoomState();
+    let blocked = 0;
+    let widest = 0;
+    let lens = null as ReturnType<typeof frameRig> | null;
+    let p = past();
+    for (let i = 0; i < 240; i++) {
+      const z = LONE_TREE.z - 25 + (12 * i) / 60;
+      const x = LONE_TREE.x + beside;
+      p = pose({ x, z, y: level.groundAt(x, z) + 0.5, vz: 12, speed: 12 });
+      lens = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, woods);
+      if (clear({ x, y: p.y + 1.3, z }, lens.eye) < 1) blocked++;
+      widest = Math.max(widest, Math.abs(st.sway.y));
+    }
+    return { blocked, widest, st, lens: lens!, p };
+  };
+
+  it("sways the ridden boom round a tree it rides past, never pulling it in", () => {
+    for (const beside of [1.5, -1.5]) {
+      const straight = rideBy(beside);
+      const swayed = rideBy(beside, clear);
+      expect(straight.widest).toBe(0);
+      expect(straight.blocked).toBeGreaterThan(8);
+      // Only the moments the skier is under the boughs himself are left.
+      expect(swayed.blocked).toBeLessThan(straight.blocked / 2);
+      expect(swayed.widest).toBeGreaterThan(0.3);
+      expect(swayed.widest).toBeLessThanOrEqual(RIGS.chase.kind === "boom" ? RIGS.chase.sway : 0);
+      expect(swayed.st.pull).toBe(1);
+    }
+  });
+
+  it("keeps the look on the skier while swayed", () => {
+    const boomClear = createLineClear(level, { trees: false });
+    const st = createBoomState();
+    st.swayWant = 0.5;
+    st.sway.y = 0.5;
+    const p = past();
+    const lens = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, clear);
+    expect(Math.abs(st.sway.y)).toBeGreaterThan(0.1);
+    const ax = lens.target.x - lens.eye.x;
+    const az = lens.target.z - lens.eye.z;
+    const bx = p.x - lens.eye.x;
+    const bz = p.z - lens.eye.z;
+    expect(Math.abs(ax * bz - az * bx) / Math.hypot(ax, az) / Math.hypot(bx, bz)).toBeLessThan(
+      1e-6,
+    );
+  });
+
+  it("never sways in the open, and swings home once the tree is passed", () => {
+    const boomClear = createLineClear(level, { trees: false });
+    const open = pose({ x: LONE_TREE.x, z: LONE_TREE.z + 40 });
+    open.y = level.groundAt(open.x, open.z) + 0.5;
+    const free = frameRig(RIGS.chase, open, createBoomState(), 1 / 60, level.groundAt, boomClear);
+    const rode = frameRig(
+      RIGS.chase,
+      open,
+      createBoomState(),
+      1 / 60,
+      level.groundAt,
+      boomClear,
+      clear,
+    );
+    expect(rode.eye).toEqual(free.eye);
+    const { st } = rideBy(1.5, clear);
+    for (let i = 0; i < 240; i++) {
+      frameRig(RIGS.chase, open, st, 1 / 60, level.groundAt, boomClear, clear);
+    }
+    expect(Math.abs(st.sway.y)).toBeLessThan(0.01);
+  });
 });
 
 describe("the rider's pose", () => {

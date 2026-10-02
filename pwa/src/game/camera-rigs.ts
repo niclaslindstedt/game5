@@ -66,6 +66,19 @@
 // than hitting it, and the look TILTS — the aim is pitched down (or up)
 // just far enough that the skier stays inside `frame` of the half-fov, the
 // way an operator tips the head to follow a drop.
+//
+// THE BOOM SWAYS ROUND THE TREES. Off the piste the woods close in, and a
+// lens that rode straight through every crown behind the skier was a frame
+// of green — while one that pulled its arm in for every trunk jolted at
+// him. So the arm SWINGS: every frame a fan of yaws either side of where it
+// would stand is tried (`SWAY`), each for whether the line from the
+// skier's helmet out to the lens runs clear of the trees as drawn, now and
+// where both will be a beat from now; the clearest, nearest the middle and
+// nearest the last pick, is the yaw the arm swings to on a spring of its
+// own (`sway`). The look still runs through the skier, so he stays the
+// middle of the picture while the woods wheel past. Where there is no
+// clear line — a thicket — the arm stays where it is and the boughs are in
+// the frame: the trees are never taken out of the picture.
 
 import { rotate, type Quat } from "@engine";
 
@@ -167,6 +180,10 @@ export type BoomRig = {
   frame: number;
   /** The lens is never closer to the snow under it than this, m. */
   clearance: number;
+  /** THE SWAY: the most the arm swings round the skier off a tree, rad, and
+   * how it swings there (`camera-spring.ts`). */
+  sway: number;
+  swing: Poles;
 };
 
 export type OrbitRig = {
@@ -242,6 +259,8 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1.6, zeta: 0.85, r: 0 },
     frame: 0.66,
     clearance: 0.9,
+    sway: 0.75,
+    swing: { f: 1.3, zeta: 1, r: 0 },
   },
   far: {
     kind: "boom",
@@ -268,6 +287,8 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1.2, zeta: 0.9, r: 0 },
     frame: 0.66,
     clearance: 1.4,
+    sway: 0.5,
+    swing: { f: 1, zeta: 1, r: 0 },
   },
   high: {
     kind: "boom",
@@ -294,6 +315,8 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1, zeta: 0.9, r: 0 },
     frame: 0.66,
     clearance: 3,
+    sway: 0.3,
+    swing: { f: 0.8, zeta: 1, r: 0 },
   },
   orbit: { kind: "orbit", radius: 16, height: 6, spin: 0.14, fov: 55 },
 };
@@ -321,6 +344,10 @@ export type BoomState = {
   pitch: Spring;
   orbit: number;
   pull: number;
+  /** THE SWAY: the yaw the arm is swung round the skier by, rad, and the
+   * one it was last asked to swing to. */
+  sway: Spring;
+  swayWant: number;
   fresh: boolean;
   /** THE SURGE's memory: the last frame's speed, m/s, the acceleration
    * read off it, m/s², and the metres of standoff it has the arm out to. */
@@ -340,6 +367,8 @@ export function createBoomState(): BoomState {
     pitch: createSpring(),
     orbit: 0,
     pull: 1,
+    sway: createSpring(),
+    swayWant: 0,
     fresh: true,
     lastSpeed: 0,
     accel: 0,
@@ -437,7 +466,8 @@ export type LineClear = (from: Vec3, to: Vec3) => number;
  * calls solid between the skier's head and the lens — at once, because a
  * frame inside a post is the fault — and let back out slowly. Never closer
  * than `PULL_MIN` m. The ridden booms are handed a clear that lets the trees
- * through (`camera-clear.ts`): a trunk flicking past is not worth a jolt. */
+ * through (`camera-clear.ts`): a trunk flicking past is not worth a jolt —
+ * they SWAY round the trees instead (`woods`, `swayTo`). */
 export const PULL_MIN = 1.6;
 /** How briskly the arm lets back out, 1/s. */
 export const PULL_RELEASE = 1.8;
@@ -445,7 +475,8 @@ export const PULL_RELEASE = 1.8;
 export const PULL_PIVOT = 1.3;
 
 /** One frame of `rig` behind `pose`, `dt` s after the last. `groundAt` keeps
- * the lens out of the hill. */
+ * the lens out of the hill; `clear` is what the arm pulls in against, and
+ * `woods` what it sways round. */
 export function frameRig(
   rig: Rig,
   pose: RigPose,
@@ -453,6 +484,7 @@ export function frameRig(
   dt: number,
   groundAt: (x: number, z: number) => number,
   clear?: LineClear,
+  woods?: LineClear,
 ): LensPose {
   if (rig.kind === "bolted") {
     const off = rotate(pose.q, rig.eye);
@@ -487,15 +519,15 @@ export function frameRig(
   const travel = plan > 2 ? Math.atan2(pose.vx, pose.vz) : pose.heading;
   const want = pose.heading + turn(pose.heading, travel) * rig.slipWeight;
   const yaw = snap ? settle(st.yaw, want) : followAngle(st.yaw, rig.yaw, want, dt);
-  const fx = Math.sin(yaw);
-  const fz = Math.cos(yaw);
+  const lx = Math.sin(yaw);
+  const lz = Math.cos(yaw);
   // THE FALL LINE, read down the arm's own bearing from a little behind the
   // skier to where he will be in `ahead` s — so the arm starts to rise and
   // the look to tip BEFORE the face drops away, not after.
   const reachAhead = Math.max(LEAN_REACH, rig.ahead * pose.speed);
   const drop =
-    groundAt(pose.x - fx * LEAN_BEHIND, pose.z - fz * LEAN_BEHIND) -
-    groundAt(pose.x + fx * reachAhead, pose.z + fz * reachAhead);
+    groundAt(pose.x - lx * LEAN_BEHIND, pose.z - lz * LEAN_BEHIND) -
+    groundAt(pose.x + lx * reachAhead, pose.z + lz * reachAhead);
   const fall = Math.max(LEAN_MIN, Math.min(LEAN_MAX, Math.atan2(drop, reachAhead + LEAN_BEHIND)));
   const slope = snap ? settle(st.slope, fall) : follow(st.slope, rig.lean, fall, dt);
   // The height follows the skier on its spring, told the DESCENT the fall
@@ -526,13 +558,22 @@ export function frameRig(
   const steep = Math.max(0, Math.min(1, (slope - STEEP.from) / (STEEP.full - STEEP.from)));
   const incline = rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep);
   const up = Math.atan2(rise, dist) + incline * slope;
-  const eye = {
-    x: pose.x - fx * len * Math.cos(up),
-    y: y + len * Math.sin(up),
-    z: pose.z - fz * len * Math.cos(up),
+  // THE SWAY: the arm swung round the skier off the trees, the look with it.
+  const standAt = (turned: number): Vec3 => {
+    const e = {
+      x: pose.x - Math.sin(turned) * len * Math.cos(up),
+      y: y + len * Math.sin(up),
+      z: pose.z - Math.cos(turned) * len * Math.cos(up),
+    };
+    e.y = Math.max(e.y, groundAt(e.x, e.z) + rig.clearance);
+    return e;
   };
-  const floor = groundAt(eye.x, eye.z) + rig.clearance;
-  if (eye.y < floor) eye.y = floor;
+  if (woods && rig.sway > 0) st.swayWant = swayTo(rig, pose, st, yaw, standAt, woods, snap, dt);
+  else st.swayWant = 0;
+  const sway = snap ? settle(st.sway, st.swayWant) : follow(st.sway, rig.swing, st.swayWant, dt);
+  const fx = Math.sin(yaw + sway);
+  const fz = Math.cos(yaw + sway);
+  const eye = standAt(yaw + sway);
   if (clear) pullIn(eye, pose, st, snap, dt, clear, groundAt);
   // THE COMPOSITION: the look pitched to stand the skier `place` of the
   // half-fov under the axis, measured from the sprung height so his heave
@@ -609,6 +650,79 @@ function tiltToFrame(
   const kept = Math.sign(off) * (knee + give * Math.tanh((Math.abs(off) - knee) / give));
   const pitch = Math.max(-TILT_MAX, Math.min(TILT_MAX, skier + placed - kept));
   target.y = eye.y + reach * Math.tan(pitch);
+}
+
+/** THE SWAY's fan: how many yaws either side of the arm's own are tried;
+ * the moments ahead each line is tried again at, s; what a pick costs — a
+ * line into a tree, a yaw off the middle (at the fan's edge) and a swing
+ * over to the other side of the skier, each against the others; and how
+ * briskly a swing is let back toward the middle once it is no longer
+ * needed, 1/s. */
+const SWAY = {
+  steps: 4,
+  ahead: [0, 0.25, 0.5, 0.75],
+  tree: 1,
+  edge: 0.2,
+  change: 0.15,
+  release: 2,
+};
+
+/** The yaw, rad round the skier off the arm's own (`yaw`), whose line from
+ * his helmet to the lens (`standAt`) runs clearest of `woods` — now and at
+ * each of `SWAY.ahead`, both ends carried along the skier's way, so the arm
+ * starts to swing for a trunk before it is in the line. A line into a tree
+ * costs the most, and the more of it is lost the more; then a yaw off the
+ * middle; and a swing to the other side from the last pick, so the arm
+ * commits to a side of a trunk rather than dithering over it. A wider swing
+ * is taken at once; a narrower one on the same side only eased toward, so
+ * the arm is not called back before its lagging lens has cleared the tree. */
+function swayTo(
+  rig: BoomRig,
+  pose: RigPose,
+  st: BoomState,
+  yaw: number,
+  standAt: (turned: number) => Vec3,
+  woods: LineClear,
+  snap: boolean,
+  dt: number,
+): number {
+  const pivot = { x: pose.x, y: pose.y + PULL_PIVOT, z: pose.z };
+  const lost = (share: number): number => (share >= 1 ? 0 : 0.75 + 0.25 * (1 - share));
+  const blocked = (turned: number): number => {
+    const eye = standAt(yaw + turned);
+    let sum = 0;
+    for (const t of SWAY.ahead) {
+      const ax = pose.vx * t;
+      const ay = pose.vy * t;
+      const az = pose.vz * t;
+      sum += lost(
+        woods(
+          { x: pivot.x + ax, y: pivot.y + ay, z: pivot.z + az },
+          { x: eye.x + ax, y: eye.y + ay, z: eye.z + az },
+        ),
+      );
+    }
+    return (SWAY.tree * sum) / SWAY.ahead.length;
+  };
+  const held = st.swayWant;
+  // The middle open and nothing held: nothing to swing for.
+  if (held === 0 && blocked(0) === 0) return 0;
+  let best = 0;
+  let cost = Infinity;
+  for (let k = -SWAY.steps; k <= SWAY.steps; k++) {
+    const turned = (rig.sway * k) / SWAY.steps;
+    const off = turned / rig.sway;
+    const c = blocked(turned) + SWAY.edge * off * off + (turned * held < 0 ? SWAY.change : 0);
+    if (c < cost) {
+      cost = c;
+      best = turned;
+    }
+  }
+  // At once: a fresh frame, nothing held, or a wider swing on the side held.
+  if (snap || held === 0 || (best * held > 0 && Math.abs(best) >= Math.abs(held))) return best;
+  // Eased: narrower on the same side, or home, or over through the middle.
+  const eased = held + (best - held) * (1 - Math.exp(-SWAY.release * dt));
+  return Math.abs(eased) < 1e-3 ? 0 : eased;
 }
 
 /** Shorten the arm from the skier's helmet to `eye` to what is clear. */

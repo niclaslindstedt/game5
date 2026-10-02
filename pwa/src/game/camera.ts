@@ -25,12 +25,14 @@ export type Lens = {
   set(rung: Rung, cut?: boolean): void;
   /** Snap the booms onto the skier on the next frame (a new run, a reset). */
   snap(): void;
-  /** `clear` keeps the booms out of the trees and the course's posts. */
+  /** `clear` keeps the booms out of the course's posts (and whatever else
+   * it calls solid); `woods` is what they sway round (`camera-rigs.ts`). */
   frame(
     pose: RigPose,
     dt: number,
     groundAt: (x: number, z: number) => number,
     clear?: LineClear,
+    woods?: LineClear,
   ): LensPose;
 };
 
@@ -65,13 +67,13 @@ export function createLens(near: number, far: number): Lens {
       since = HANDOVER;
       previous = null;
     },
-    frame(pose, dt, groundAt, clear) {
+    frame(pose, dt, groundAt, clear, woods) {
       const st = stateOf(current);
       // A rung that has not been framed for a while starts from the skier.
-      let lens = frameRig(RIGS[current], pose, st, dt, groundAt, clear);
+      let lens = frameRig(RIGS[current], pose, st, dt, groundAt, clear, woods);
       since += dt;
       if (previous && since < HANDOVER) {
-        const from = frameRig(RIGS[previous], pose, stateOf(previous), dt, groundAt, clear);
+        const from = frameRig(RIGS[previous], pose, stateOf(previous), dt, groundAt, clear, woods);
         lens = blendLens(from, lens, since / HANDOVER);
       } else {
         previous = null;
@@ -80,7 +82,7 @@ export function createLens(near: number, far: number): Lens {
       // starts from where it would be rather than from a stale frame.
       for (const r of ["chase", "far", "high"] as const) {
         if (r !== current && r !== previous)
-          frameRig(RIGS[r], pose, stateOf(r), dt, groundAt, clear);
+          frameRig(RIGS[r], pose, stateOf(r), dt, groundAt, clear, woods);
       }
       camera.position.set(lens.eye.x, lens.eye.y, lens.eye.z);
       camera.up.set(0, 1, 0);

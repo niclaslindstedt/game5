@@ -49,7 +49,7 @@ describe("the model registry", () => {
   });
 
   it("names only switches the game reads", () => {
-    const readers = ["skier-models", "tree-models", "bird-models", "beast-models", "gate-models"]
+    const readers = ["skier-models", "bird-models", "beast-models", "gate-models"]
       .map((m) => read(`pwa/src/game/${m}.ts`))
       .join("\n");
     for (const r of MODEL_REGISTRY) {

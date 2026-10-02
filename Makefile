@@ -90,34 +90,34 @@ skier-metrics:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the skier, every kind of tree,
+# The models the game ships: every pair of skis, the skier,
 # every bird and animal, and the course's marks (the checkpoint and the
 # start arch), game quality (no stills), made by Blender and published
 # into the COMMITTED pwa/models/ with a stamp of their sources —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. Needs Blender (or the bpy module: scripts/bpy-blender.sh). SET=machines (the skis and the skier), SET=trees,
+# from. Needs Blender (or the bpy module: scripts/bpy-blender.sh). SET=machines (the skis and the skier),
 # SET=birds, SET=beasts or SET=gates makes one half only. A build draws
 # them unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_SKIERS=0,
-# VITE_MODEL_TREES=0, VITE_MODEL_BIRDS=0, VITE_MODEL_BEASTS=0,
+# VITE_MODEL_BIRDS=0, VITE_MODEL_BEASTS=0,
 # VITE_MODEL_GATES=0).
 models:
 	@if [ -z "$(SET)" ] || [ "$(SET)" = "machines" ]; then \
 	  npm run blender -- --id all --quality=game --views=none && \
 	  npm run blender -- --kind skier --id skier0 --quality=game --views=none; fi
-	@for kind in tree bird beast gate; do \
+	@for kind in bird beast gate; do \
 	  if [ -z "$(SET)" ] || [ "$(SET)" = "$${kind}s" ]; then \
 	    npm run blender -- --kind $$kind --id all --quality=game --views=none || exit 1; fi; done
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs $(if $(SET),--set $(SET),)
 
 # Switch the models on or off for every CI build — the repository
 # VARIABLES the workflows hand the build (needs gh, and the right to set
-# them): `make ci-models MODELS=off` draws the code-built skis, skier
-# and trees on the next deploy with no commit; MODELS=on (or deleting the
+# them): `make ci-models MODELS=off` draws the code-built skis, skier,
+# wildlife and marks on the next deploy with no commit; MODELS=on (or deleting the
 # variables) puts the models back. (SET=... on `make models` — the halves.)
 ci-models:
 	@case "$(MODELS)" in \
-	  off) for v in SKIS SKIERS TREES BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 0 || exit 1; done ;; \
-	  on) for v in SKIS SKIERS TREES BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 1 || exit 1; done ;; \
+	  off) for v in SKIS SKIERS BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 0 || exit 1; done ;; \
+	  on) for v in SKIS SKIERS BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 1 || exit 1; done ;; \
 	  *) echo "usage: make ci-models MODELS=on|off" >&2; exit 2 ;; \
 	esac
 	@gh variable list | grep VITE_MODEL || true
@@ -163,12 +163,14 @@ cloud-metrics:
 birds:
 	npm run birds -- $(ARGS)
 
-# THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch) and each
-# of its ten variants side by side through the game's own builder and
-# material, over snow, seen from the skier's head (2.2 m) standing off
-# each tree — previews/trees.png. Its own one-off bundle from pwa/trees-preview.html
-# (never deployed); needs a Chromium like `world`. REGION=id paints it as
-# that country; ARGS="--kinds=pine,larch" or "--sketch" (the far band's).
+# THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
+# each of its ten variants side by side through the game's own procedural
+# builder and material, over snow, seen from the skier's head (2.2 m)
+# standing off each tree — previews/trees.png. Its own one-off bundle from
+# pwa/trees-preview.html (never deployed); needs a Chromium like `world`.
+# REGION=id paints it as that country; ARGS="--kinds=pine,larch", "--lod=1"
+# (the mid cut), "--lod=2" (the far band's sketch) or "--ages" (each kind's
+# trunk from a sapling to a veteran).
 trees:
 	npm run trees -- $(if $(REGION),--region $(REGION),) $(ARGS)
 

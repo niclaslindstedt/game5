@@ -70,6 +70,31 @@ export type ForestOptions = {
   readonly tall: (y: number) => number;
 };
 
+/** R14 — HOW OLD A TREE IS, years: the age `forest.age`'s growth curve
+ * gives the height it `grew` to, spread round that by a log-normal off a
+ * hash of where it stands (three hashes summed, near enough a normal) and
+ * now and then a VETERAN's many times that. A hash, not the generator's
+ * stream: an age drawn from the stream would move every tree after it. */
+export function treeAge(grew: number, x: number, z: number, seed: number): number {
+  const A = R.forest.age;
+  const h = Math.min(grew, A.top * 0.97);
+  const typical = -Math.log(1 - h / A.top) / A.rate;
+  const ix = Math.floor(x * 8);
+  const iz = Math.floor(z * 8);
+  const normal =
+    (hash2(ix, iz, seed + 41) + hash2(ix, iz, seed + 42) + hash2(ix, iz, seed + 43) - 1.5) * 2;
+  let age = typical * Math.exp(A.spread * normal);
+  if (hash2(ix, iz, seed + 44) < A.veterans) age *= A.veteran;
+  return Math.min(A.max, age);
+}
+
+/** R14 — the trunk's radius at breast height for a tree of `age` years,
+ * m (`forest.trunk`). */
+export function trunkRadius(age: number): number {
+  const T = R.forest.trunk;
+  return T.floor + T.top * Math.pow(1 - Math.exp(-T.rate * Math.max(0, age)), T.shape);
+}
+
 /** R14 — grow the forest. `lineY` is the tree line as a HEIGHT on this
  * map, m — the region's altitude over the valley floor's, stood on the
  * base at the finish. */
@@ -189,13 +214,18 @@ export function growForest(
     kx: number,
     kz: number,
   ): void => {
+    // Aged off the height it would have grown to unstunted: a krummholz
+    // tree is as old as the tall one, only beaten down.
+    const stunt = 1 - (1 - F.krummholzHeight) * smoothstep(stuntY, lineY, y);
+    const age = treeAge(height / Math.max(1e-6, stunt), x, z, seed);
     const tree: TreeDef = {
       x,
       z,
       y,
       height,
-      radius: F.trunk.floor + F.trunk.share * height,
+      radius: trunkRadius(age),
       crown: Math.min(F.crownMax, F.crown * height),
+      age,
     };
     const kind = treeKindAt(plan.region, kx, kz);
     if (kind !== "spruce") tree.kind = kind;

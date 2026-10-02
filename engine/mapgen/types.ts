@@ -20,8 +20,12 @@ export interface TreeDef {
   /** Ground height at the trunk, m. */
   y: number;
   height: number;
-  /** Trunk collision radius, m. */
+  /** Trunk collision radius, m — the trunk at breast height, its girth
+   * that of its AGE (R14). */
   radius: number;
+  /** How old the tree is, years (R14): what its trunk is grown from, and
+   * what the picture reads as old or young. */
+  age?: number;
   /** Crown radius at its widest, m. */
   crown: number;
   /** What grows here (R21) — a spruce when left out. Drawn only: a trunk

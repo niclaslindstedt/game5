@@ -115,14 +115,20 @@ describe("the picture's ladders (settings-video.ts)", () => {
       const lo = FOREST_LOOK[TIERS[i - 1]];
       const hi = FOREST_LOOK[TIERS[i]];
       expect(lo.full).toBeLessThanOrEqual(hi.full);
+      expect(lo.mid).toBeLessThanOrEqual(hi.mid);
       expect(lo.farShare).toBeLessThanOrEqual(hi.farShare);
-      expect(lo.shapes).toBeLessThanOrEqual(hi.shapes);
+      // Fewer VARIANTS of each kind down the ladder — never fewer kinds.
+      expect(lo.variants).toBeLessThan(hi.variants);
     }
-    // The top rung's budget carries every variant of a map's main kinds.
-    expect(FOREST_LOOK.high.shapes).toBeGreaterThanOrEqual(60);
-    // The full band draws EVERY tree — the thinning is the far band's
-    // sketches alone — so a trunk in reach of the skis is always drawn.
-    for (const t of TIERS) expect(FOREST_LOOK[t].full).toBeLessThan(DISTANCE_LOOK.low.trees);
+    expect(FOREST_LOOK.high.variants).toBe(10);
+    expect(FOREST_LOOK.low.variants).toBeGreaterThanOrEqual(1);
+    // The full and the mid band draw EVERY tree — the thinning is the far
+    // band's sketches alone — so a trunk in reach of the skis is always
+    // drawn, whatever the DISTANCE row.
+    for (const t of TIERS) {
+      expect(FOREST_LOOK[t].full).toBeLessThan(FOREST_LOOK[t].mid);
+      expect(FOREST_LOOK[t].full).toBeLessThan(DISTANCE_LOOK.low.trees);
+    }
     expect(FOREST_LOOK.high.farShare).toBe(1);
   });
 

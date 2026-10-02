@@ -64,6 +64,17 @@ export type SkierSpring = {
    * motion, and one save cut short by the next does not jump. */
   jolt: Jolt;
   joltRate: Jolt;
+  /** THE SKID'S PIVOT as the skis are drawn, rad, and its rate — the
+   * engine's `skiAngle` followed: it is the brake times the steer key, so
+   * it swings the skis across in a single step whenever the key changes
+   * under the brake (and at GO, out of the gate's held brake). */
+  skiAngle: number;
+  skiAngleRate: number;
+  /** THE START GATE: how far into the ready stance he is, 0..1, and its
+   * rate — set under the lights, the poles planted over the wand, and
+   * come out of as GO sends him into his first push. */
+  ready: number;
+  readyRate: number;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -78,6 +89,8 @@ export type SpringRide = {
   roll: number;
   /** What he last nearly fell to (`SkierState.save`). */
   save?: Save | null;
+  /** The skid's pivot, rad (`SkierState.skiAngle`); none when left out. */
+  skiAngle?: number;
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
@@ -107,6 +120,9 @@ const LEGS = { omega: 14.5, zeta: 0.42, kick: 0.5, fold: 0.22, extend: 0.05 };
  * of a second to most of the way into the air, a tenth to let go of a
  * jump, the time a skier's extension takes. */
 const EASE = { up: 16, down: 25, take: 32, release: 29 };
+/** How fast he settles into the start gate's stance and comes out of it,
+ * rad/s — out of it is the first push, which is quick. */
+const READY = { in: 9, out: 20 };
 
 export function createSkierSpring(offset = 0): SkierSpring {
   return {
@@ -132,6 +148,10 @@ export function createSkierSpring(offset = 0): SkierSpring {
     rollRate: 0,
     jolt: { ...NO_JOLT },
     joltRate: { ...NO_JOLT },
+    skiAngle: 0,
+    skiAngleRate: 0,
+    ready: 0,
+    readyRate: 0,
   };
 }
 
@@ -147,13 +167,15 @@ function follow(v: number, rate: number, to: number, dt: number, w = HIP_FOLLOW)
   return [v, rate];
 }
 
-/** The hips' shift, the edge and the roll followed (`SkierSpring.hip`,
- * `.edge`, `.roll`) — taken as they are on the first ride read. */
+/** The hips' shift, the edge, the roll and the skid's pivot followed
+ * (`SkierSpring.hip`, `.edge`, `.roll`, `.skiAngle`) — taken as they are
+ * on the first ride read. */
 function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
   if (Number.isNaN(s.hip)) {
     s.hip = ride.hipRight;
     s.edge = ride.edge;
     s.roll = ride.roll;
+    s.skiAngle = ride.skiAngle ?? 0;
     return;
   }
   [s.hip, s.hipRate] = follow(s.hip, s.hipRate, ride.hipRight, dt);
@@ -163,6 +185,7 @@ function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
   for (const k of JOLT_KEYS) {
     [s.jolt[k], s.joltRate[k]] = follow(s.jolt[k], s.joltRate[k], to[k], dt, JOLT_FOLLOW);
   }
+  [s.skiAngle, s.skiAngleRate] = follow(s.skiAngle, s.skiAngleRate, ride.skiAngle ?? 0, dt);
 }
 
 /** Read the turns off the run and start a plant on each new one — the
@@ -192,7 +215,8 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
 
 /** Advance the body on its legs by `dt` s for a pair climbing at `vy` m/s
  * (the engine's own), in the air or not, a jump loaded `load` of the way
- * (0..1; the engine's `jumpLoad` over a full one). */
+ * (0..1; the engine's `jumpLoad` over a full one), `waiting` in the start
+ * gate under the lights or not. */
 export function stepSkierSpring(
   s: SkierSpring,
   vy: number,
@@ -200,9 +224,18 @@ export function stepSkierSpring(
   dt: number,
   load = 0,
   ride?: SpringRide,
+  waiting = false,
 ): void {
   if (!(dt > 0)) return;
   s.clock += dt;
+  [s.ready, s.readyRate] = follow(
+    s.ready,
+    s.readyRate,
+    waiting ? 1 : 0,
+    dt,
+    waiting ? READY.in : READY.out,
+  );
+  s.ready = Math.max(0, Math.min(1, s.ready));
   if (ride) {
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, dt);
@@ -239,4 +272,41 @@ export function stepSkierSpring(
     s.bump = -LEGS.extend;
     s.rate = Math.max(0, s.rate);
   }
+}
+
+/** THE SKID'S PIVOT AS DRAWN: the spring's, once it has read a ride and
+ * while he is on his skis — the engine's own otherwise (thrown, the skis
+ * go on without him and are drawn where the engine has them). */
+export function drawnSkiAngle(
+  s: SkierSpring,
+  skier: { skiAngle: number; thrown: unknown },
+): number {
+  return Number.isNaN(s.hip) || skier.thrown ? skier.skiAngle : s.skiAngle;
+}
+
+/** How long after GO a skier still held on his brake with no push begun is
+ * read as still in the gate, s — the field's rivals react a beat after the
+ * lights go out (`RACE.reactBand`), held in the gate until they do. */
+const GATE_HOLD = 1;
+/** …and the most he creeps there on his held brake, m/s. */
+const GATE_CREEP = 0.6;
+
+/** IN THE START GATE: under the lights, or just after GO and still held
+ * there on the brake, standing, not yet pushing — what `stepSkierSpring`'s
+ * `waiting` is handed for a run. */
+export function inStartGate(run: {
+  phase: string;
+  t: number;
+  rules: { countdown: number };
+  input: { brake: number };
+  skier: { drive: number; speed: number };
+}): boolean {
+  if (run.phase === "countdown") return true;
+  return (
+    run.phase === "racing" &&
+    run.t - run.rules.countdown < GATE_HOLD &&
+    run.input.brake >= 1 &&
+    run.skier.drive <= 0 &&
+    run.skier.speed < GATE_CREEP
+  );
 }

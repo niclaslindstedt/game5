@@ -39,6 +39,16 @@ export const MOVES = [
     input: () => ({ ...IDLE, tuck: 1 }),
   },
   {
+    id: "gate",
+    title:
+      "in the start gate under the lights, then out of it down a 12 % pitch at GO, the tuck held",
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.12, slopeFrom: 150, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, lights: 1.5 }),
+    seconds: 4.5,
+    window: [1.0, 4.4],
+    input: () => ({ ...IDLE, tuck: 1 }),
+  },
+  {
     id: "stride",
     title: "striding up a gentle rise from a walk, the tuck key held — the diagonal stride",
     level: (S) => S.flatLevel({ packed: 1, grade: 0.2, slopeFrom: 100, size: 3000 }),
@@ -158,6 +168,8 @@ export const MOMENTS = [
   { id: "tuck", move: "tuck", t: 1.3, say: "the full tuck" },
   { id: "pole", move: "pole", t: 1.45, say: "a double pole's push" },
   { id: "skate", move: "skate", t: 2.0, say: "a skate stride" },
+  { id: "ready", move: "gate", t: 1.2, say: "in the start gate, under the lights" },
+  { id: "setoff", move: "gate", t: 1.75, say: "out of the gate: the first push" },
   { id: "air", move: "jump", t: 2.1, say: "in the air off a jump" },
   { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },

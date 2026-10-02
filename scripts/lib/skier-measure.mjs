@@ -51,8 +51,8 @@ const MASS = {
 /** A SKIER'S POSE MEASURED. `pose` is `skierPose`'s; `q` the pair's
  * orientation and `head` the head's frame in the body frame (both
  * optional — the head's world readings are left out without them);
- * `tilt` the skis' edge in the body frame and `turns` each ski's turn off
- * the body's line (the skid's pivot and the skate's V), rad — the boots'
+ * `tilt` the skis' edge in the body frame (or each ski's, a pair) and
+ * `turns` each ski's turn off the body's line (the skid's pivot and the skate's V), rad — the boots'
  * frames; `hipHalf` half the hips' width (`BODY.hip`). */
 export function measurePose(
   pose,
@@ -83,7 +83,9 @@ export function measurePose(
 
   // EACH BOOT'S FRAME: forward along its ski, up its tipped normal, right
   // across it.
-  const boots = turns.map((t) => {
+  const tilts = Array.isArray(tilt) ? tilt : [tilt, tilt];
+  const boots = turns.map((t, i) => {
+    const tilt = tilts[i];
     const f = { x: Math.sin(t), y: 0, z: Math.cos(t) };
     const r0 = { x: Math.cos(t), y: 0, z: -Math.sin(t) };
     const n = add(scale(r0, Math.sin(tilt)), { x: 0, y: Math.cos(tilt), z: 0 });

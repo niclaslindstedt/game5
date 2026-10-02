@@ -43,6 +43,7 @@ import { createSkier, type SkierFigure, type SkierStyle } from "./skier-figure.t
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
+  drawnSkiAngle,
   gaitOf,
   mountsFor,
   ragdollPose,
@@ -159,6 +160,8 @@ export type SkisModel = {
     trick?: TrickPose | null,
     dt?: number,
     body?: Thrown | null,
+    /** In the start gate under the lights. */
+    waiting?: boolean,
   ): void;
   setSkierVisible(visible: boolean): void;
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
@@ -188,12 +191,14 @@ function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
   return false;
 }
 
-/** The engine's readings as the pose wants them, for one frame. */
+/** The engine's readings as the pose wants them, for one frame —
+ * `waiting` in the start gate under the lights. */
 export function poseInputOf(
   skier: SkierState,
   legs: ReturnType<typeof createSkierSpring>,
   mounts: Mounts,
   trick: TrickPose | null,
+  waiting = false,
 ): SkierPoseInput {
   return {
     roll: skier.roll,
@@ -207,8 +212,12 @@ export function poseInputOf(
     // The edge and the roll as his body above the boots carries them.
     body: Number.isNaN(legs.hip)
       ? undefined
-      : { tilt: skiTilt({ edge: legs.edge, roll: legs.roll }), roll: legs.roll },
-    skiAngle: skier.skiAngle,
+      : {
+          tilt: skiTilt({ edge: legs.edge, roll: legs.roll, speed: skier.speed }),
+          roll: legs.roll,
+        },
+    // The skid's pivot as his body carries it (eased in the view's spring).
+    skiAngle: drawnSkiAngle(legs, skier),
     crouch: skier.crouch,
     drop: skier.spec.crouchDrop * skier.crouch,
     lift: gearLift(skier),
@@ -232,6 +241,9 @@ export function poseInputOf(
     jolt: legs.jolt,
     trick,
     mounts,
+    // IN THE START GATE under the lights, as his body has settled into it
+    // — or, before the spring has read a ride, as the lights say.
+    ready: Number.isNaN(legs.hip) ? (waiting ? 1 : 0) : legs.ready,
     // STOOD STILL, he waits alive: his own clock, faded in below a walk.
     idle: {
       t: legs.clock,
@@ -367,10 +379,9 @@ export function createSkisModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, trick = null, dt = 0, body) {
+    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
       root.position.set(at.x, at.y - sink, at.z);
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
-      gear.pose(skier, sink);
       const off = body === undefined ? skier.thrown : body;
       if (off) {
         // THE SKIER THROWN (`crash.ts`): off his skis, his figure hung on
@@ -406,12 +417,17 @@ export function createSkisModel(
           dt,
           skier.jumpLoad / TUNING.jump.full,
           skier,
+          waiting,
         );
-        const input = poseInputOf(skier, legs, mounts, trick);
+        const input = poseInputOf(skier, legs, mounts, trick, waiting);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);
       }
-      models?.pose(skier, sink, dt);
+      // The skis drawn on the skid's pivot as his body carries it — the
+      // figure's boots stand on the same one.
+      const angle = drawnSkiAngle(legs, skier);
+      gear.pose(skier, sink, angle);
+      models?.pose(skier, sink, dt, angle);
       merged.update();
     },
     poseSkier(input) {

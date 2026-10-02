@@ -40,8 +40,9 @@ export type AssetRig = {
   rest(): void;
   /** Posed off the engine's state; `run` is kept for the lab's call shape
    * (nothing on a pair of skis runs), and `sink` is how much deeper the
-   * drawn furrow is than the physics' sink. */
-  pose(skier: SkierState, run?: number, sink?: number): void;
+   * drawn furrow is than the physics' sink; `angle` the skid's pivot as
+   * drawn (the engine's when left out). */
+  pose(skier: SkierState, run?: number, sink?: number, angle?: number): void;
   /** Clip `name` at `t` s. */
   play(name: string, t: number): void;
 };
@@ -128,7 +129,7 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
   return {
     clips: animations.map((c) => ({ name: c.name, seconds: c.duration })),
     rest: reset,
-    pose(skier, _run = 0, sink = 0) {
+    pose(skier, _run = 0, sink = 0, angle = skier.skiAngle) {
       reset();
       body.getWorldQuaternion(pq);
       up.copy(Y).applyQuaternion(pq);
@@ -137,15 +138,15 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
       const lift = gearLift(skier);
       const drop = skier.spec.crouchDrop * skier.crouch;
       const tilt = skiTilt(skier);
-      // The gait's V, the push out and the lifted recovery, as the code's
-      // skis are drawn (`ski-gear.ts`).
+      // The gait's V, the push out on its edge and the lifted recovery, as
+      // the code's skis are drawn (`ski-gear.ts`).
       const gait = gaitOf(skier);
       skis.forEach((o, i) => {
         drive(
           o,
           lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
-          skier.skiAngle + gait.splay[i],
-          tilt,
+          angle + gait.splay[i],
+          tilt + gait.tilt[i],
         );
         if (gait.out[i] !== 0 || gait.fore[i] !== 0) {
           o.getWorldPosition(w);

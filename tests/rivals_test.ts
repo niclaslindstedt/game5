@@ -69,7 +69,12 @@ describe("the start line", () => {
       expect(r.react).toBeLessThan(RACE.reactBand.max);
     }
     expect(new Set(state.rivals.map((r) => r.react.toFixed(3))).size).toBe(RACE.rivals);
-    expect(new Set(state.rivals.map((r) => r.run.skier.stride.toFixed(3))).size).toBe(RACE.rivals);
+    // Every first push starts at its plant — on a leg of his own — so the
+    // field pushes off a reaction apart, never a stroke begun halfway.
+    for (const r of state.rivals) {
+      expect(Number.isInteger(r.run.skier.stride)).toBe(true);
+      expect([0, 1]).toContain(r.run.skier.stride);
+    }
     // The step each one first moves off his spot after GO.
     const start = state.rivals.map((r) => ({ x: r.run.skier.x, z: r.run.skier.z }));
     const went: (number | null)[] = state.rivals.map(() => null);

@@ -22,8 +22,11 @@
 // start's own (`START_SALT`), which leaves the run's stream and so the
 // field above exactly as it was — how late he reacts to GO (`Rival.react`,
 // `RACE.reactBand`: held in the gate with his skis across until then, his
-// clock running like everyone's), and where in the stride cycle his first
-// push lands, and on which leg (`SkierState.stride`).
+// clock running like everyone's), and on which leg his first push lands
+// (`SkierState.stride`). Every first push starts at its PLANT — out of a
+// start gate the first stroke is the poles thrown down ahead, never one
+// begun halfway through — so a field set off a beat apart pushes a beat
+// apart, each on a leg of his own.
 //
 // THE START LINE is the level's (`Level.grid`): four slots abreast a few
 // metres above the start gate, the player in the first. A field bigger than

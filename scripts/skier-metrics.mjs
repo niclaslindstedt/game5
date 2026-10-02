@@ -91,6 +91,9 @@ const standing = (f) =>
   f.skier.jumpLoad <= 0 &&
   f.skier.skid < 0.3 &&
   f.skier.landing > 0.6;
+/** Working for his speed: the drive well on, on the snow, the gait drawn
+ * (`gaitOf`) a whole one. */
+const working = (f) => grounded(f) && f.skier.drive > 0.3 && f.m.work > 0.5;
 const BANDS = [
   {
     id: "shin",
@@ -124,8 +127,8 @@ const BANDS = [
   },
   {
     id: "tipsy",
-    say: "the centre of mass ahead of the toes",
-    when: grounded,
+    say: "the centre of mass ahead of the toes (unless the poles carry him: working them, or leant on them in the gate)",
+    when: (f) => grounded(f) && f.skier.drive < 0.3 && !f.waiting,
     bad: (m) => m.comAhead > 0.16,
   },
   {
@@ -187,6 +190,25 @@ const BANDS = [
     bad: (m) => m.handsAhead < 0.05 || m.handsApart < 0.2,
   },
   {
+    id: "gate",
+    say: "in the start gate: the poles planted on the snow ahead of the boots, the trunk ≥ 25° over and the knees ≥ 35°",
+    when: (f) => grounded(f) && f.waiting,
+    bad: (m) =>
+      m.planted > 0.06 || m.plantedAhead < 0.3 || m.trunkPitch < 25 || Math.min(...m.knee) < 35,
+  },
+  {
+    id: "setoff",
+    say: "working at a crawl on the flat or down a pitch: over his skis — the trunk ≥ 25° over, the knees ≥ 35°",
+    when: (f) => working(f) && f.skier.pitch < 0.04,
+    bad: (m) => m.trunkPitch < 25 || Math.min(...m.knee) < 35,
+  },
+  {
+    id: "push",
+    say: "working: in the middle of a push a pole BITES — its basket on the snow (≤ 6 cm) behind its fist",
+    when: (f) => working(f) && f.m.pushing,
+    bad: (m) => m.bite > 0.06,
+  },
+  {
     id: "through",
     say: "a limb through the trunk, the knees through each other or an arm through a thigh",
     when: (f) => !f.skier.thrown,
@@ -237,20 +259,38 @@ function measure(move) {
       last ? now - lastT : 0,
       c.jumpLoad / E.TUNING.jump.full,
       c,
+      P.inStartGate(state),
     );
     lastT = now;
     if (c.thrown) continue;
     const trick = state.tricks?.pose ?? null;
-    const input = G.poseInputOf(c, legs, mounts, trick);
+    const input = G.poseInputOf(c, legs, mounts, trick, P.inStartGate(state));
     const pose = P.skierPose(input);
     const head = RIG.skierBones(pose).head;
     const m = measurePose(pose, {
       q: c.q,
       head,
-      tilt: input.edge ?? 0,
+      tilt: [0, 1].map((k) => (input.edge ?? 0) + (input.gait?.tilt?.[k] ?? 0)),
       turns: [0, 1].map((i) => (input.skiAngle ?? 0) + (input.gait?.splay[i] ?? 0)),
       hipHalf: P.BODY.hip,
     });
+    // THE POLES' BITE: how high over the snow the lower basket of a pole
+    // angled back from its fist stands (the one pushing), m — and whether
+    // the gait is in the middle of a push, where one must be in the snow.
+    const snow = mounts.ground + (input.drop ?? 0);
+    const behind = [0, 1].filter((k) => pose.poles && pose.poles[k].z < pose.hands[k].z - 0.05);
+    m.bite = behind.length ? Math.min(...behind.map((k) => pose.poles[k].y - snow)) : Infinity;
+    const gait = input.gait ?? P.STILL_GAIT;
+    m.work = gait.stride + gait.skate + gait.pole;
+    // …and in the gate, the higher basket over the snow and the nearer
+    // basket's distance ahead of the boots, m.
+    const feetZ = (pose.feet[0].z + pose.feet[1].z) / 2;
+    m.planted = pose.poles ? Math.max(...pose.poles.map((b) => b.y - snow)) : Infinity;
+    m.plantedAhead = pose.poles ? Math.min(...pose.poles.map((b) => b.z - feetZ)) : -Infinity;
+    const duty = E.TUNING.poles.duty;
+    const ph = gait.stride > 0.5 ? (gait.phase + (gait.push ? 1 : 0)) / 2 : gait.phase;
+    const mid = gait.stride > 0.5 ? [0.08, 0.18] : [0.12, 0.33];
+    m.pushing = ph % 1 >= mid[0] && ph % 1 <= mid[1] && duty > 0;
     const moved = last ? poseTravel(last, pose, prev) : { travel: 0, joint: "", snap: 0 };
     m.travel = moved.travel;
     m.snap = moved.snap;
@@ -258,7 +298,7 @@ function measure(move) {
     prev = last;
     last = pose;
     if (now < move.window[0] || now > move.window[1]) continue;
-    frames.push({ t: now, skier: { ...c }, m });
+    frames.push({ t: now, skier: { ...c }, waiting: P.inStartGate(state), m });
   }
   const mean = (get) => {
     const v = frames.map((f) => get(f.m)).filter((x) => x !== null && Number.isFinite(x));

@@ -7,7 +7,8 @@
 // from his fists and a plant reaches one to the snow — one on every new turn
 // at speed; his legs lean with the skis' edge and turn with their pivot, so
 // a tucked skid never folds a knee past his hip; stood still, he waits
-// alive. And the rig his model is posed by (`skier-rig.ts`): the half bones
+// alive; he sets off on his poles out of a start gate he waits in crouched
+// over them, the poles biting the snow, and skates off an edged ski. And the rig his model is posed by (`skier-rig.ts`): the half bones
 // turn half way, the hands hold the poles.
 
 import { describe, expect, it } from "vitest";
@@ -105,13 +106,22 @@ describe("the body on its legs", () => {
 
   it("works the poles without a twitch: every joint moves on through a whole cycle", () => {
     // Two strides (one each leg) sampled at 1/240 of a stride — about three
-    // milliseconds at the skate's cadence — at the walk's stride, the
-    // stride turning to a skate, the skate, the skate turning to a double
+    // milliseconds at the skate's cadence — at a walk up a rise (the
+    // diagonal stride) and on the flat (setting off on the poles), the
+    // walk turning to a skate, the skate, the skate turning to a double
     // pole and the double pole. A hand at its fastest covers about a
     // centimetre a sample; the weight thrown from ski to ski or a pole
     // snapped from the snow to the hand would cover tens.
     const at = (p: SkierPose) => [p.hips, p.neck, ...p.hands, ...p.elbows, ...p.knees, ...p.poles!];
-    for (const speed of [1, 2.3, 4, 7, 9.5]) {
+    for (const [speed, pitch] of [
+      [1, 0.12],
+      [1, 0],
+      [2.3, 0.12],
+      [2.3, 0],
+      [4, 0],
+      [7, 0],
+      [9.5, 0],
+    ]) {
       let prev: SkierPose | null = null;
       let worst = 0;
       for (let k = 0; k <= 480; k++) {
@@ -119,6 +129,7 @@ describe("the body on its legs", () => {
           drive: 1,
           stride: 3 + k / 240,
           speed,
+          pitch,
           airborne: false,
           thrown: null,
         });
@@ -131,7 +142,7 @@ describe("the body on its legs", () => {
         }
         prev = pose;
       }
-      expect(worst, `at ${speed} m/s`).toBeLessThan(0.03);
+      expect(worst, `at ${speed} m/s, pitched ${pitch}`).toBeLessThan(0.03);
     }
   });
 
@@ -139,7 +150,7 @@ describe("the body on its legs", () => {
     const skate = (stride: number) =>
       skierPose({
         ...base,
-        gait: gaitOf({ drive: 1, stride, speed: 4, airborne: false, thrown: null }),
+        gait: gaitOf({ drive: 1, stride, speed: 4, pitch: 0, airborne: false, thrown: null }),
       });
     // The left leg pushes the first stride: he starts it over the left ski
     // and ends it over the right, and the next push starts there.
@@ -155,6 +166,78 @@ describe("the body on its legs", () => {
         expect(Math.hypot(tip.x - h.x, tip.y - h.y, tip.z - h.z)).toBeCloseTo(MOUNTS.pole, 6);
       }
     }
+  });
+
+  it("sets off on his poles, strides only up a rise, and his poles bite the snow", () => {
+    const walk = (pitch: number, stride = 0) =>
+      gaitOf({ drive: 1, stride, speed: 1, pitch, airborne: false, thrown: null });
+    // Off a standstill on the flat or down a pitch he double-poles out —
+    // the racer's push out of the gate — and only up a rise does he walk
+    // his skis forward in the diagonal stride.
+    expect(walk(0).stride).toBe(0);
+    expect(walk(-0.12).stride).toBe(0);
+    expect(walk(0).pole).toBeGreaterThan(0.9);
+    expect(walk(0.12).stride).toBeGreaterThan(0.9);
+    // In the middle of the push both poles are IN THE SNOW behind the
+    // fists, the body over them: a pole pushed on is a pole that bites.
+    const push = skierPose({ ...base, gait: walk(0, 0.2) });
+    const feetZ = (push.feet[0].z + push.feet[1].z) / 2;
+    for (let i = 0; i < 2; i++) {
+      expect(push.poles![i].y).toBeCloseTo(MOUNTS.ground, 2);
+      expect(push.poles![i].z).toBeLessThan(push.hands[i].z - 0.2);
+    }
+    expect(push.neck.z).toBeGreaterThan(feetZ + 0.2);
+    // At the plant the trunk is already well over — he falls onto the
+    // poles (measured double poling: 40–45° at the plant) — and the
+    // fists are out ahead of him with the poles near upright.
+    const plant = skierPose({ ...base, gait: walk(0, 0) });
+    expect(plant.pitch).toBeGreaterThan(0.6);
+    for (let i = 0; i < 2; i++) {
+      expect(plant.hands[i].z).toBeGreaterThan(plant.neck.z);
+      const p = plant.poles![i];
+      const h = plant.hands[i];
+      const fromUpright = Math.atan2(Math.hypot(p.x - h.x, p.z - h.z), h.y - p.y);
+      expect(fromUpright).toBeLessThan(0.45);
+    }
+  });
+
+  it("skates off his pushing ski's inside edge with his weight on the other", () => {
+    const g = gaitOf({ drive: 1, stride: 0.4, speed: 4, pitch: 0, airborne: false, thrown: null });
+    // The left ski (0) pushes the first stride: rolled onto its inside —
+    // right — edge, out to the left and finishing behind him; the right
+    // ski glides flat.
+    expect(g.push).toBe(0);
+    expect(g.tilt[0]).toBeGreaterThan(0.2);
+    expect(g.tilt[1]).toBe(0);
+    expect(g.out[0]).toBeLessThan(-0.1);
+    expect(g.fore[0]).toBeLessThan(-0.1);
+    const p = skierPose({ ...base, gait: g });
+    // The hips have gone across over the gliding ski.
+    expect(p.hips.x).toBeGreaterThan(0.05);
+  });
+
+  it("waits in the start gate crouched over poles planted ahead of his boots", () => {
+    const stand = skierPose(base);
+    const gate = skierPose({ ...base, ready: 1, skid: 1 });
+    // Lower and further over than stood — and the brake that holds him
+    // under the lights is not drawn as a skid.
+    expect(gate.hips.y).toBeLessThan(stand.hips.y - 0.05);
+    expect(gate.pitch).toBeGreaterThan(stand.pitch + 0.25);
+    const feetZ = (gate.feet[0].z + gate.feet[1].z) / 2;
+    for (let i = 0; i < 2; i++) {
+      expect(gate.poles![i].y).toBeCloseTo(MOUNTS.ground, 2);
+      expect(gate.poles![i].z).toBeGreaterThan(feetZ + 0.3);
+      expect(gate.poles![i].z).toBeGreaterThan(gate.hands[i].z);
+    }
+    // …and he goes into the gate and out of it at GO as motions.
+    const legs = createSkierSpring();
+    stepSkierSpring(legs, 0, false, 1 / 60, 0, undefined, true);
+    expect(legs.ready).toBeGreaterThan(0);
+    expect(legs.ready).toBeLessThan(0.1);
+    for (let i = 0; i < 120; i++) stepSkierSpring(legs, 0, false, 1 / 60, 0, undefined, true);
+    expect(legs.ready).toBeGreaterThan(0.99);
+    stepSkierSpring(legs, 0, false, 1 / 60, 0, undefined, false);
+    expect(legs.ready).toBeGreaterThan(0.9);
   });
 
   it("never folds a knee up past his hip, tucked and braking across the skis at speed", () => {

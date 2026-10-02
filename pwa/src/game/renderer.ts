@@ -47,9 +47,9 @@ import {
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { createLens, type Lens } from "./camera.ts";
-import { createLineClear } from "./camera-clear.ts";
+import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
-import type { LensPose, LineClear, RigPose } from "./camera-rigs.ts";
+import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
@@ -301,8 +301,9 @@ export function createWorldRenderer(
   let wildlife: Wildlife | null = null;
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
-   * sway round those, off `clear` (`camera-rigs.ts`). */
+   * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
   let boomClear: LineClear | undefined;
+  let trunks: TrunksNear | undefined;
   let riders: Rider[] = [];
   let ghost: GhostModel | null = null;
   let ghostRun: GameState | null = null;
@@ -415,6 +416,7 @@ export function createWorldRenderer(
     wildlife = null;
     clear = undefined;
     boomClear = undefined;
+    trunks = undefined;
     riders = [];
     level = null;
     skyLevel = null;
@@ -557,6 +559,7 @@ export function createWorldRenderer(
       gates.group.name = "checkpoints";
       clear = createLineClear(lv);
       boomClear = createLineClear(lv, { trees: false });
+      trunks = createTrunksNear(lv);
       scene.add(gates.group);
       lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray]);
       castInLight(lifts.group, env.haze);
@@ -717,7 +720,7 @@ export function createWorldRenderer(
       rigPose.packed = skier.packed;
       const inside = lens.rung() === "tips" || lens.rung() === "helmet";
       player.model.setSkierVisible(!inside);
-      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, clear);
+      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks);
       // THE DEATH CAM (`camera-death.ts`) takes the lens off the ladder while
       // the player is off his skis, on WALL time: `dt` is the run's, slowed
       // by the rate it handed out.

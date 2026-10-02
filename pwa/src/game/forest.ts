@@ -430,8 +430,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             const e2 = (t.x - cx) ** 2 + (t.z - cz) ** 2;
             // THE TREES AT THE LENS are drawn while they come at it and while
             // it passes through them — the boughs across the frame are the
-            // woods closing round a skier off the piste (the booms sway round
-            // them where they can, `camera-rigs.ts`). Only once the trunk is
+            // woods closing round a skier off the piste (the booms keep only
+            // off the trunks, `camera-rigs.ts`). Only once the trunk is
             // `LENS_BEHIND` behind the lens is a tree whose crown is still at
             // it taken out of the picture, so its boughs do not hang round
             // the frame's edges. Its caster stays, so the snow under it does

@@ -27,7 +27,7 @@
 // with the start card that needs it.
 
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
 import { Glyph, type GlyphName } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
@@ -48,6 +48,12 @@ export type OnHint = (hint: Hint | null) => void;
 
 const says = (label: string, text: string | undefined): Hint | null =>
   text === undefined || text === "" ? null : { label, text };
+
+/** A row's sentence, written onto the row itself as well, so the page's
+ * {@link Caption} can find every sentence it may be asked to show and stand
+ * as tall as the longest of them before any is shown. */
+const carries = (label: string, text: string | undefined) =>
+  text === undefined || text === "" ? {} : { "data-hint-label": label, "data-hint": text };
 
 /** The two stops of a switch, stated once so ON and OFF are the same two
  * words everywhere. */
@@ -147,7 +153,13 @@ export function StepRow<T extends string>({
     describe();
   };
   return (
-    <div class="knob" data-nav-steps onPointerEnter={describe} onFocusCapture={describe}>
+    <div
+      class="knob"
+      data-nav-steps
+      {...carries(label, hint)}
+      onPointerEnter={describe}
+      onFocusCapture={describe}
+    >
       <KnobLabel label={label} />
       <div class="knob-ctl">
         <button
@@ -217,7 +229,13 @@ export function FadeRow({
     Number((Math.round((Math.min(max, Math.max(min, next)) - min) / step) * step + min).toFixed(2));
   const fill = max > min ? (value - min) / (max - min) : 0;
   return (
-    <div class="knob knob-faded" data-nav-steps onPointerEnter={describe} onFocusCapture={describe}>
+    <div
+      class="knob knob-faded"
+      data-nav-steps
+      {...carries(label, hint)}
+      onPointerEnter={describe}
+      onFocusCapture={describe}
+    >
       <KnobLabel label={label} />
       <div class="knob-ctl">
         <button
@@ -311,7 +329,13 @@ export function NumberRow({
     if (next !== value) onValue(next);
   };
   return (
-    <div class="knob" data-nav-steps onPointerEnter={describe} onFocusCapture={describe}>
+    <div
+      class="knob"
+      data-nav-steps
+      {...carries(label, hint)}
+      onPointerEnter={describe}
+      onFocusCapture={describe}
+    >
       <KnobLabel label={label} />
       <div class="knob-ctl">
         <button
@@ -381,6 +405,7 @@ export function LinkRow({
     <button
       type="button"
       class="knob knob-link"
+      {...carries(label, hint)}
       onPointerEnter={describe}
       onFocus={describe}
       onClick={onOpen}
@@ -428,6 +453,7 @@ export function BindRow({
       type="button"
       class={`knob knob-bind${listening ? " knob-bind-listening" : ""}`}
       aria-pressed={listening}
+      {...carries(label, hint)}
       onPointerEnter={describe}
       onFocus={describe}
       onClick={onListen}
@@ -470,18 +496,64 @@ export function KnobGroup({
 /** The page's ONE sentence — the row being looked at, named and then
  * explained, or the page's own line while no row is. Written as the card's
  * last child, after its `MenuBody`: the body scrolls and this does not, so
- * the sentence is on screen whichever row is being read. */
+ * the sentence is on screen whichever row is being read.
+ *
+ * IT IS AS TALL AS THE LONGEST SENTENCE ON THE CARD, ALWAYS. On a phone the
+ * hint is set by the very touch that presses a row — the pointer enters on
+ * the finger going down, the click comes on it lifting — so a caption that
+ * grew to fit a long sentence shrank the body between the two, slid the row
+ * out from under the finger and lost the press, leaving the sentence standing
+ * where the row had been. So every sentence the card's rows carry
+ * (`carries`) is laid in the same cell, unseen, and the one being read is
+ * drawn over them: the bar's height is decided before the first touch and
+ * never moves after it. */
 export function Caption({ hint, fallback }: { hint: Hint | null; fallback: string }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [all, setAll] = useState<Hint[]>([]);
+  useLayoutEffect(() => {
+    const card = bar.current?.parentElement;
+    if (!card) return;
+    const read = (): void => {
+      const found = [...card.querySelectorAll<HTMLElement>("[data-hint]")].map((row) => ({
+        label: row.dataset.hintLabel ?? "",
+        text: row.dataset.hint ?? "",
+      }));
+      const same = (held: Hint[]): boolean =>
+        held.length === found.length &&
+        held.every((h, i) => h.label === found[i].label && h.text === found[i].text);
+      setAll((held) => (same(held) ? held : found));
+    };
+    read();
+    // A row shown or hidden by another (a switch that opens its own rows)
+    // brings its sentence or takes it away.
+    const watch = new MutationObserver(read);
+    watch.observe(card, {
+      subtree: true,
+      childList: true,
+      attributeFilter: ["data-hint", "data-hint-label"],
+    });
+    return () => watch.disconnect();
+  }, []);
+  const line = (shown: Hint | null) =>
+    shown === null ? (
+      fallback
+    ) : (
+      <>
+        <b class="knob-caption-name">{shown.label}</b>
+        {shown.text}
+      </>
+    );
   return (
-    <div class={`knob-caption${hint ? " knob-caption-on" : ""}`} aria-live="polite">
-      {hint === null ? (
-        fallback
-      ) : (
-        <>
-          <b class="knob-caption-name">{hint.label}</b>
-          {hint.text}
-        </>
-      )}
+    <div ref={bar} class={`knob-caption${hint ? " knob-caption-on" : ""}`} aria-live="polite">
+      <span class="knob-caption-line">{line(hint)}</span>
+      <span class="knob-caption-line knob-caption-sizer" aria-hidden="true">
+        {fallback}
+      </span>
+      {all.map((each, i) => (
+        <span key={i} class="knob-caption-line knob-caption-sizer" aria-hidden="true">
+          {line(each)}
+        </span>
+      ))}
     </div>
   );
 }

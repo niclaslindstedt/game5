@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, the skier's as `models/skier.glb`, every kind of
-// tree's as `models/trees/<kind>.glb`, every bird's and animal's as
+// `models/<id>.glb`, the skier's as `models/skier.glb`, every bird's and
+// animal's as
 // `models/birds/<id>.glb` and `models/beasts/<id>.glb`, and the course's
 // marks as `models/gates/<id>.glb`, emitted into the bundle (so the
 // service worker precaches them with everything else) and served the same
@@ -10,12 +10,13 @@
 // data — the `blender-assets` skill), with a stamp of the sources they were
 // made from (`sources.json`), which `tests/models_test.ts` holds to the
 // sources as they stand: a model older than its sources fails the suite.
-// Each half is stamped apart (`TREE_SOURCES`, `BIRD_SOURCES`,
-// `BEAST_SOURCES`, `GATE_SOURCES`), so a tree remade never asks for the
-// skis to be, nor the other way round.
+// Each half is stamped apart (`BIRD_SOURCES`, `BEAST_SOURCES`,
+// `GATE_SOURCES`), so a bird remade never asks for the skis to be, nor the
+// other way round. The TREES are not models: every one is built in code,
+// procedurally (`src/game/tree-shapes.ts`).
 //
 // A build switched back to a code-built half (`VITE_MODEL_SKIS=0`,
-// `VITE_MODEL_SKIERS=0`, `VITE_MODEL_TREES=0`, `VITE_MODEL_BIRDS=0`,
+// `VITE_MODEL_SKIERS=0`, `VITE_MODEL_BIRDS=0`,
 // `VITE_MODEL_BEASTS=0`, `VITE_MODEL_GATES=0` — `src/game/model-switch.ts`)
 // packs none of that side's files.
 
@@ -26,7 +27,6 @@ import { join } from "node:path";
 import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
-import { TREE_KINDS } from "../engine/mapgen/regions.ts";
 import { BEAST_IDS } from "./src/game/beast-defs.ts";
 import { BIRD_IDS } from "./src/game/bird-defs.ts";
 import { GATE_IDS } from "./src/game/gate-ids.ts";
@@ -34,7 +34,6 @@ import { GATE_IDS } from "./src/game/gate-ids.ts";
 export type ModelSwitches = {
   skis: boolean;
   skiers: boolean;
-  trees: boolean;
   birds: boolean;
   beasts: boolean;
   gates: boolean;
@@ -44,7 +43,6 @@ export type ModelSwitches = {
 export const ALL_MODELS: ModelSwitches = {
   skis: true,
   skiers: true,
-  trees: true,
   birds: true,
   beasts: true,
   gates: true,
@@ -58,7 +56,6 @@ export function modelFiles(on: ModelSwitches): string[] {
   return [
     ...(on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : []),
     ...(on.skiers ? ["skier.glb"] : []),
-    ...(on.trees ? TREE_KINDS.map((k) => `trees/${k}.glb`) : []),
     ...(on.birds ? BIRD_IDS.map((k) => `birds/${k}.glb`) : []),
     ...(on.beasts ? BEAST_IDS.map((k) => `beasts/${k}.glb`) : []),
     ...(on.gates ? GATE_IDS.map((k) => `gates/${k}.glb`) : []),
@@ -87,18 +84,6 @@ export const MODEL_SOURCES = [
   "pwa/src/game/skier-spring.ts",
   "pwa/src/game/skier-helmet.ts",
   "pwa/src/game/skier-rig.ts",
-];
-
-/** WHAT A TREE IS MADE FROM: the builder, the shelf and the driver, the
- * variant rows it models, and the packer the published files go through. */
-export const TREE_SOURCES = [
-  "scripts/blender.mjs",
-  "scripts/blender/kinds/tree.mjs",
-  "scripts/blender/lib.py",
-  "scripts/blender/static.py",
-  "scripts/blender/tree.py",
-  "scripts/lib/glb-pack.mjs",
-  "pwa/src/game/tree-variants.ts",
 ];
 
 /** The static shelf every wildlife and gate model stands on, and the
@@ -139,7 +124,6 @@ export const GATE_SOURCES = [
 /** Every half's stamp in `sources.json`, and the sources it hashes. */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
-  trees: TREE_SOURCES,
   birds: BIRD_SOURCES,
   beasts: BEAST_SOURCES,
   gates: GATE_SOURCES,
@@ -148,7 +132,7 @@ export type ModelHalf = keyof typeof MODEL_HALVES;
 
 /** The sources' hash, from the repository's `root` (line endings as
  * committed: `\r` dropped, so a checkout's conversion moves nothing) — the
- * skis' and the skier's, or the trees' (`TREE_SOURCES`). */
+ * skis' and the skier's, or a static half's (`BIRD_SOURCES`, …). */
 export function sourcesHash(root: string, sources: readonly string[] = MODEL_SOURCES): string {
   const h = createHash("sha256");
   for (const f of sources) {
@@ -169,7 +153,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0 / VITE_MODEL_TREES=0)",
+            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0 / VITE_MODEL_BIRDS=0 / …)",
         );
       }
     },
@@ -184,7 +168,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const name = /\/models\/((?:trees\/|birds\/|beasts\/|gates\/)?[\w-]+\.glb)$/.exec(
+        const name = /\/models\/((?:birds\/|beasts\/|gates\/)?[\w-]+\.glb)$/.exec(
           req.url ?? "",
         )?.[1];
         if (!name || !files.includes(name) || !existsSync(join(dir, name))) return next();

@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS THE GAME SHIPS, published: the last step of `make models`
 // (which first runs `make blender`'s game quality for every pair, the
-// skier, every kind of tree, every bird and animal, and the course's
+// skier, every bird and animal, and the course's
 // marks). Copies each pair's and the skier's LOD0 glTF out of the
 // gitignored `previews/blender/` into the committed `pwa/models/` under the
 // name the build packs it by (`<id>.glb`, `skier.glb`), PACKS every static
 // model's (`scripts/lib/glb-pack.mjs`: quantized and meshopt-compressed)
-// into `pwa/models/trees/<kind>.glb`, `birds/<id>.glb`, `beasts/<id>.glb`
-// and `gates/<id>.glb`, and writes `pwa/models/sources.json` — the hash of
+// into `pwa/models/birds/<id>.glb`, `beasts/<id>.glb` and
+// `gates/<id>.glb`, and writes `pwa/models/sources.json` — the hash of
 // every source each half is made from (`MODEL_HALVES` in
 // `pwa/models-plugin.ts`), which `tests/models_test.ts` holds to the tree.
-// A half not published keeps its stamp: it was not remade.
+// A half not published keeps its stamp: it was not remade. (No tree is a
+// model: every one is built in code, `pwa/src/game/tree-shapes.ts`.)
 //
 //   node scripts/models.mjs                  publish what `make blender` made
-//   node scripts/models.mjs --set=trees      one half only (machines: the skis and the skier; trees, birds, beasts, gates)
+//   node scripts/models.mjs --set=birds      one half only (machines: the skis and the skier; birds, beasts, gates)
 //   node scripts/models.mjs --check          only say whether the stamps are fresh
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -34,7 +35,7 @@ const args = parseArgs(
     set: {
       kind: "string",
       default: "all",
-      help: "which half to publish: machines (the skis and the skier), trees, birds, beasts, gates, or all",
+      help: "which half to publish: machines (the skis and the skier), birds, beasts, gates, or all",
     },
     from: {
       kind: "string",
@@ -42,12 +43,11 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--set=all|machines|trees|birds|beasts|gates] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--set=all|machines|birds|beasts|gates] [--from=previews/blender]",
 );
 /** The halves, by the name `--set` calls each and its stamp. */
 const HALVES = {
   machines: "sources",
-  trees: "trees",
   birds: "birds",
   beasts: "beasts",
   gates: "gates",
@@ -91,7 +91,6 @@ const made = (name) =>
 const names = modelFiles({
   skis: machines,
   skiers: machines,
-  trees: on("trees"),
   birds: on("birds"),
   beasts: on("beasts"),
   gates: on("gates"),
@@ -103,8 +102,7 @@ if (missing.length) {
   );
   process.exit(1);
 }
-for (const dir of ["trees", "birds", "beasts", "gates"])
-  mkdirSync(join(out, dir), { recursive: true });
+for (const dir of ["birds", "beasts", "gates"]) mkdirSync(join(out, dir), { recursive: true });
 for (const n of names) {
   if (n.includes("/")) {
     writeFileSync(join(out, n), await packGlb(readFileSync(made(n))));

@@ -80,16 +80,12 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
   {
     asset: "Trees",
     ids: [...TREE_KINDS],
-    source: "blender",
-    code: ["pwa/src/game/tree-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/tree-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/forest.ts",
-    blender: {
-      builder: "scripts/blender/tree.py",
-      files: TREE_KINDS.map((k) => `trees/${k}.glb`),
-      pattern: "trees/<kind>.glb",
-      switch: "VITE_MODEL_TREES",
-    },
-    note: "ten variants a kind, dressed in the region's paint",
+    note:
+      "procedural: ten variants a kind at three levels of detail, the trunk sized " +
+      "to the tree's age, painted in the region's colours",
   },
   {
     asset: "Birds",

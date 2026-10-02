@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS, SKIERS, TREES, WILDLIFE AND MARKS the game ships
+// THE MODELLED SKIS, SKIERS, WILDLIFE AND MARKS the game ships
 // (`pwa/models/`, made by `make models`, packed by `pwa/models-plugin.ts`,
-// drawn by `skier-models.ts`, `tree-models.ts`, `bird-models.ts`,
+// drawn by `skier-models.ts`, `bird-models.ts`,
 // `beast-models.ts` and `gate-models.ts`): every one committed, none older
 // than the sources it is made from, each within its budget; the switches
 // on unless a build turns one back; and every material the Blender
-// builders name dressed as the builder's own pair, or the region's tree,
-// would be. The names are stated twice — in `scripts/blender/*.py`,
-// which cannot import a module of the game, and in `dressOf` /
-// `roleColours` and the wildlife's — so the builders are read here as
+// builders name dressed as the builder's own pair would be. The names are
+// stated twice — in `scripts/blender/*.py`, which cannot import a module
+// of the game, and in `dressOf` and the wildlife's — so the builders are
+// read here as
 // TEXT, the way `tauri_test.ts` reads the Rust.
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { SKI_CATALOG, TREE_KINDS } from "@engine";
+import { SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -42,18 +42,16 @@ describe("the models the game ships", () => {
   const none = {
     skis: false,
     skiers: false,
-    trees: false,
     birds: false,
     beasts: false,
     gates: false,
   };
 
-  it("are every pair under its id, one skier, every tree, bird, animal and mark", () => {
+  it("are every pair under its id, one skier, every bird, animal and mark", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
         "skier.glb",
-        ...TREE_KINDS.map((k) => `trees/${k}.glb`),
         ...BIRD_IDS.map((k) => `birds/${k}.glb`),
         ...BEAST_IDS.map((k) => `beasts/${k}.glb`),
         ...GATE_IDS.map((k) => `gates/${k}.glb`),
@@ -73,12 +71,10 @@ describe("the models the game ships", () => {
       expect(existsSync(at), `${MODELS_DIR}/${f} — run \`make models\``).toBe(true);
       // A pair's LOD0 is under 1 MB, the skier's ~1 MB (two dozen bones —
       // the half-angle helpers and the hands among them — and his baked
-      // cloth), a kind of tree's ten variants (packed) ~0.15 MB, a bird or
-      // an animal (packed) a few KB, the arch ~40 KB: a model grown past
-      // this is a builder that lost its game budget.
-      const budget = f.startsWith("trees/")
-        ? 320_000
-        : f.startsWith("birds/") || f.startsWith("beasts/")
+      // cloth), a bird or an animal (packed) a few KB, the arch ~40 KB: a
+      // model grown past this is a builder that lost its game budget.
+      const budget =
+        f.startsWith("birds/") || f.startsWith("beasts/")
           ? 40_000
           : f.startsWith("gates/")
             ? 120_000

@@ -34,13 +34,6 @@ import type { TreeKind } from "@engine";
 /** How many variants every kind has. */
 export const VARIANTS = 10;
 
-/** THE TREE A MODEL IS MADE AT, m: the Blender builder (`make blender
- * KIND=tree`) states every variant in metres at this height and crown
- * radius (the generator's crown share of it, `forest.crown`), and
- * `tree-models.ts` divides them back out into the unit frame the forest
- * scales every tree from. */
-export const TREE_REFERENCE = { height: 12, crown: 2.88 } as const;
-
 /** A conifer as a stack of drooping skirts. */
 export type ConiferForm = {
   readonly form: "conifer";
@@ -494,9 +487,9 @@ export const TREE_VARIANTS: Readonly<Record<TreeKind, readonly TreeVariant[]>> =
 })();
 
 /** WHICH VARIANTS SURVIVE A CHEAPER PICTURE: a kind's ten, the most telling
- * first — the forest draws the first so many its share of the FOREST row's
- * budget buys (`FOREST_LOOK`). An unlisted kind's rows are written most-
- * telling-first already. */
+ * first — the forest draws the first so many the FOREST row asks for
+ * (`FOREST_LOOK[row].variants`: ten, five or two). An unlisted kind's rows
+ * are written most-telling-first already. */
 const VARIANT_ORDER: Partial<Record<TreeKind, readonly number[]>> = {
   spruce: [0, 3, 2, 1, 6, 8, 4, 9, 5, 7],
   fir: [0, 2, 4, 3, 1, 5, 9, 6, 7, 8],

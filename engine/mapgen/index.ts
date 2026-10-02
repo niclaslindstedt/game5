@@ -32,6 +32,7 @@ export {
   type HasTrack,
 } from "./query.ts";
 export { kickerProfile } from "./kickers.ts";
+export { treeAge, trunkRadius } from "./forest.ts";
 export { cliffFootprint, cliffProfile } from "./cliffs.ts";
 export { dealDrifts, driftAt } from "./drift.ts";
 export {

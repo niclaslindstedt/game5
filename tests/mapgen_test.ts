@@ -40,6 +40,7 @@ import {
   startGateArc,
   subSeed,
   trackPointAt,
+  trunkRadius,
   withinBand,
   type GeneratedLevel,
   sunsetOf,
@@ -124,7 +125,9 @@ describe("the Level contract", () => {
       expect(level.region).toBe("alpine");
       for (const t of level.trees.slice(0, 200)) {
         expect(withinBand(t.height, R.forest.height)).toBe(true);
-        expect(t.radius).toBeGreaterThan(0.1);
+        // A trunk as thick as the tree is old (R14), never under the floor.
+        expect(t.radius).toBeGreaterThan(R.forest.trunk.floor);
+        expect(t.radius).toBeCloseTo(trunkRadius(t.age!), 9);
         expect(t.crown).toBeGreaterThan(t.radius);
         expect(t.y).toBeCloseTo(level.groundAt(t.x, t.z), 3);
       }

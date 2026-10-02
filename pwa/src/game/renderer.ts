@@ -110,7 +110,6 @@ import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import { loadTreeModels } from "./tree-models.ts";
 import { loadBirdModels } from "./bird-models.ts";
 import { loadBeastModels } from "./beast-models.ts";
 import { loadGateModels } from "./gate-models.ts";
@@ -123,16 +122,10 @@ import {
   type TrailPen,
 } from "./trail-stamp.ts";
 
-// The modelled skis, skiers and trees, fetched before the kit is handed
+// The modelled skis, skiers, wildlife and marks, fetched before the kit is handed
 // out (`use-render-kit.ts`), when this build draws them.
 export async function loadModels(): Promise<void> {
-  await Promise.all([
-    loadSkierModels(),
-    loadTreeModels(),
-    loadBirdModels(),
-    loadBeastModels(),
-    loadGateModels(),
-  ]);
+  await Promise.all([loadSkierModels(), loadBirdModels(), loadBeastModels(), loadGateModels()]);
 }
 
 export type RendererOptions = {

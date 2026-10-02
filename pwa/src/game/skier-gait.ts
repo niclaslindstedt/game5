@@ -5,9 +5,21 @@
 // the skis (`ski-gear.ts`, `ski-rig.ts`) and the figure (`skier-pose.ts`)
 // both read, so a boot never leaves its ski. Three-free.
 
-import { TUNING, driveReach, skateShare, strideShare, type SkierState } from "@engine";
+import {
+  TUNING,
+  driveReach,
+  poleKeepUp,
+  skateShare,
+  strideRate,
+  strideShare,
+  type SkierState,
+} from "@engine";
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+const smooth01 = (v: number): number => {
+  const k = clamp01(v);
+  return k * k * (3 - 2 * k);
+};
 
 /** THE GAIT: how the skier is working for his speed this frame, off the
  * engine's own `drive` and `stride` (`poles.ts`), and what it does to each
@@ -35,7 +47,21 @@ export type Gait = {
    * right edges down positive — the skate's pushing ski on its INSIDE
    * edge, which is what it pushes off. */
   tilt: [number, number];
+  /** How far he goes over the snow in one stride, m — what a planted
+   * basket is left behind by over a push (`pinnedSwing`); 0 standing —
+   * and how much he works the poles on it, 0..1: all of it while one push
+   * sweeps the snow going by under it, none once his arms at their
+   * quickest (`poleKeepUp`) or folded into the tuck, which shortens the
+   * stroke, cannot keep up — he stops poling rather than swing the poles
+   * over the snow. */
+  pass: number;
+  keep: number;
 };
+
+/** What one push of the poles sweeps from the plant to the release, m —
+ * double-poling and skating — and the share of it a full tuck takes off
+ * (the pose's own strokes, measured). */
+const POLE_SWEEP = { pole: 1.55, skate: 1.19, tuck: 0.75 };
 
 /** The skate's V, each ski off the line, rad; how far out a push takes the
  * ski, m, and how far behind him it finishes, m — the body glides on past
@@ -66,10 +92,15 @@ export const STILL_GAIT: Gait = {
   lift: [0, 0],
   fore: [0, 0],
   tilt: [0, 0],
+  pass: 0,
+  keep: 1,
 };
 
 export function gaitOf(
-  s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch">,
+  s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
+    way?: number;
+    crouch?: number;
+  },
 ): Gait {
   if (s.airborne || s.thrown || s.drive <= 0.01) return STILL_GAIT;
   // THE MOTION IS WHOLE while he works at all: the push fades with speed
@@ -93,6 +124,16 @@ export function gaitOf(
   const push = (Math.floor(s.stride) % 2) as 0 | 1;
   const glide = (1 - push) as 0 | 1;
   const duty = TUNING.poles.duty;
+  // The snow passed in a stride — the engine counts one at `strideRate` ×
+  // the drive a second — and how much of it one push sweeps.
+  const pass = Math.abs(s.way ?? s.speed) / (strideRate(s.speed) * Math.max(0.2, s.drive));
+  const poling = skate + work * Math.max(0, 1 - striding - skating);
+  const sweep =
+    (poling > 0
+      ? (POLE_SWEEP.pole * (poling - skate) + POLE_SWEEP.skate * skate) / poling
+      : POLE_SWEEP.pole) *
+    (1 - POLE_SWEEP.tuck * clamp01(s.crouch ?? 0));
+  const fit = sweep / Math.max(1e-6, pass * duty);
   const out: [number, number] = [0, 0];
   const lift: [number, number] = [0, 0];
   const fore: [number, number] = [0, 0];
@@ -122,5 +163,7 @@ export function gaitOf(
     lift,
     fore,
     tilt,
+    pass,
+    keep: poleKeepUp(s.speed) * smooth01((fit - 0.8) / 0.15),
   };
 }

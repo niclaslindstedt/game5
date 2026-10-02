@@ -187,18 +187,29 @@ export function freshKeys(): KeyBindings {
 
 /** A stored blob's bindings, checked against the actions THIS build has,
  * the `mergeSettings` rule: an action this build dropped is dropped, a code
- * that is not a string is dropped, and anything left over is the default. */
+ * that is not a string is dropped, and anything left over is the default.
+ *
+ * AN ACTION NEWER THAN THE BLOB CLAIMS ITS OWN KEYS: a row the stored
+ * layout does not carry is the shipped one, and its keys are taken off
+ * every stored row that still holds them — the first layout put SPACE on
+ * the brake, and a blob saved then would otherwise have the jump and the
+ * skid on one key, every jump stood up out of the tuck into a skid. A
+ * stored row left with no key at all goes back to its own shipped keys. */
 export function mergeKeys(parsed: unknown): KeyBindings {
   const keys = freshKeys() as Record<KeyAction, string[]>;
   if (!parsed || typeof parsed !== "object") return keys;
   const blob = parsed as Partial<Record<KeyAction, unknown>>;
-  for (const action of Object.keys(keys) as KeyAction[]) {
+  const actions = Object.keys(keys) as KeyAction[];
+  const claimed = new Set(
+    actions.filter((action) => !Array.isArray(blob[action])).flatMap((action) => keys[action]),
+  );
+  for (const action of actions) {
     const codes = blob[action];
     if (!Array.isArray(codes)) continue;
     const clean = codes.filter(
-      (code): code is string => typeof code === "string" && code.length > 0,
+      (code): code is string => typeof code === "string" && code.length > 0 && !claimed.has(code),
     );
-    keys[action] = [...new Set(clean)].slice(0, KEYS_PER_ACTION);
+    if (clean.length > 0) keys[action] = [...new Set(clean)].slice(0, KEYS_PER_ACTION);
   }
   return keys;
 }

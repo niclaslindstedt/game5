@@ -5,7 +5,9 @@
 // air and out of it, a jump loaded and sprung. Stepped with the frame's
 // `dt` (`skis-body.ts`); `skier-pose.ts` reads it. Three-free.
 
-import type { Save } from "@engine";
+import { strideRate, type Save, type SkierState } from "@engine";
+
+import { gaitOf } from "./skier-gait.ts";
 
 import { JOLT_KEYS, joltOf, NO_JOLT, type Jolt } from "./skier-save.ts";
 
@@ -75,6 +77,18 @@ export type SkierSpring = {
    * come out of as GO sends him into his first push. */
   ready: number;
   readyRate: number;
+  /** THE SNOW PASSED SINCE THE LAST PLANT, m, and the stride it was planted
+   * on (the engine's stride count, floored; NaN before the first) — how
+   * far behind him a planted basket is, kept as he went rather than
+   * guessed off his speed now, which overshoots while a push is speeding
+   * him up. */
+  poled: number;
+  poledStride: number;
+  /** HOW MUCH HE WORKS THE POLES as his arms carry it (`Gait.keep`), and
+   * its rate — giving the stroke up for the tuck, and taking it back, as
+   * a motion (NaN until the first ride is read). */
+  keep: number;
+  keepRate: number;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -91,12 +105,23 @@ export type SpringRide = {
   save?: Save | null;
   /** The skid's pivot, rad (`SkierState.skiAngle`); none when left out. */
   skiAngle?: number;
+  /** The engine's stride count and the way along the skis, m/s
+   * (`SkierState.stride` / `.way`) — the plants the snow is passed from. */
+  stride?: number;
+  way?: number;
+  /** The pair's pitch, rad, and the body thrown off it (`SkierState`) —
+   * what the gait is read off. */
+  pitch?: number;
+  thrown?: SkierState["thrown"];
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
  * some four metres a second and no faster, so a blow reads as a motion
  * (`tests/skier_save_test.ts` holds a joint under 3 cm a step). */
 const JOLT_FOLLOW = 24;
+/** How quickly he gives the poles up for the tuck and takes them back,
+ * rad/s — some quarter of a second. */
+const KEEP_FOLLOW = 12;
 /** How quickly his body takes up the engine's hip shift, its edge and
  * its roll, rad/s — a spring
  * some seventy milliseconds slow, critically damped. */
@@ -152,6 +177,10 @@ export function createSkierSpring(offset = 0): SkierSpring {
     skiAngleRate: 0,
     ready: 0,
     readyRate: 0,
+    poled: 0,
+    poledStride: Number.NaN,
+    keep: Number.NaN,
+    keepRate: 0,
   };
 }
 
@@ -213,6 +242,32 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   s.turnHeld = 0;
 }
 
+/** The snow passed since the last plant: run on by the way, and begun
+ * again on each new stride from the share of it already gone — and how
+ * much he works the poles, followed. */
+function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
+  if (ride.stride === undefined || ride.way === undefined) return;
+  const keep = gaitOf({
+    drive: ride.drive,
+    stride: ride.stride,
+    speed: ride.speed,
+    way: ride.way,
+    crouch: ride.crouch,
+    pitch: ride.pitch ?? 0,
+    airborne,
+    thrown: ride.thrown ?? null,
+  }).keep;
+  if (Number.isNaN(s.keep)) s.keep = keep;
+  else [s.keep, s.keepRate] = follow(s.keep, s.keepRate, keep, dt, KEEP_FOLLOW);
+  const n = Math.floor(ride.stride);
+  const way = Math.abs(ride.way);
+  if (n !== s.poledStride) {
+    const rate = strideRate(ride.speed) * Math.max(0.2, ride.drive);
+    s.poled = ((ride.stride - n) * way) / rate;
+    s.poledStride = n;
+  } else s.poled += way * dt;
+}
+
 /** Advance the body on its legs by `dt` s for a pair climbing at `vy` m/s
  * (the engine's own), in the air or not, a jump loaded `load` of the way
  * (0..1; the engine's `jumpLoad` over a full one), `waiting` in the start
@@ -239,6 +294,7 @@ export function stepSkierSpring(
   if (ride) {
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, dt);
+    stepPoled(s, ride, airborne, dt);
   }
   const into = airborne ? 1 : 0;
   [s.air, s.airRate] = follow(s.air, s.airRate, into, dt, airborne ? EASE.up : EASE.down);

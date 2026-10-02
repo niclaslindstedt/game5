@@ -12,12 +12,14 @@
 // turn half way, the hands hold the poles.
 
 import { describe, expect, it } from "vitest";
+import { TUNING } from "@engine";
 
 import {
   createSkierSpring,
   gaitOf,
   MOUNTS,
   skierPose,
+  STILL_GAIT,
   stepSkierSpring,
   type SkierPose,
 } from "../pwa/src/game/skier-pose.ts";
@@ -398,6 +400,68 @@ describe("the body on its legs", () => {
     const b = at(4.5, 1);
     expect(Math.abs(a.look - b.look) + Math.abs(a.hips.x - b.hips.x)).toBeGreaterThan(0.02);
     expect(at(1, 0)).toEqual(at(4.5, 0));
+  });
+});
+
+describe("the knees, the jump and the poles held to the snow", () => {
+  // How far a knee stands off its hip-to-boot line across the pair, m —
+  // positive to the skier's right.
+  const bow = (p: SkierPose, i: number): number => {
+    const h = p.hipJoints[i];
+    const f = p.feet[i];
+    const k = p.knees[i];
+    const dx = f.x - h.x;
+    const dy = f.y - h.y;
+    return ((h.x - k.x) * dy - (h.y - k.y) * dx) / Math.hypot(dx, dy);
+  };
+
+  it("bows no knee out of a turn whose roll has run past the edge", () => {
+    // A right turn the engine has rolled further than the skis are edged:
+    // the skis tip to the LEFT in the pair's frame, against the turn.
+    const edge = 0.83;
+    const roll = 0.97;
+    const tilt = edge - roll;
+    const p = skierPose({
+      ...base,
+      hipRight: 0.34,
+      steer: 1,
+      roll,
+      edge: tilt,
+      body: { tilt, roll },
+    });
+    const stand = skierPose(base);
+    for (const i of [0, 1]) expect(bow(p, i)).toBeGreaterThan(bow(stand, i) - 0.01);
+  });
+
+  it("sinks deeper loading a jump in the tuck, and springs off it still folded", () => {
+    const tuck = skierPose({ ...base, crouch: 1, tuck: 1 });
+    const loading = skierPose({ ...base, crouch: 1, tuck: 1, jumpLoad: 1 });
+    expect(loading.hips.y).toBeLessThan(tuck.hips.y - 0.05);
+    const popped = skierPose({ ...base, crouch: 1, tuck: 1, popped: 0.18 });
+    expect(popped.hips.y).toBeCloseTo(tuck.hips.y, 3);
+    expect(popped.pitch).toBeCloseTo(tuck.pitch, 3);
+    // Stood up, he still rises into the pop.
+    const standing = skierPose({ ...base, crouch: 0.5, tuck: 0, popped: 0.18 });
+    expect(standing.hips.y).toBeGreaterThan(skierPose({ ...base, crouch: 0.5, tuck: 0 }).hips.y);
+  });
+
+  it("holds a planted basket where it bit through the middle of a push", () => {
+    const duty = TUNING.poles.duty;
+    const pass = 2.5;
+    const at = (phase: number) =>
+      skierPose({
+        ...base,
+        gait: { ...STILL_GAIT, pole: 1, pass, phase },
+      });
+    const plant = at(0).poles!;
+    for (const u of [0.3, 0.45, 0.6]) {
+      const p = at(u * duty);
+      for (const i of [0, 1]) {
+        // Gone back along him by the snow passed, and on the snow.
+        expect(p.poles![i].z).toBeCloseTo(plant[i].z - pass * u * duty, 2);
+        expect(p.poles![i].y).toBeCloseTo(MOUNTS.ground, 2);
+      }
+    }
   });
 });
 

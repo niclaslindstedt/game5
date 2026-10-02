@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WIPEOUT, BOGGED, AND THE DAMAGE: a hard trunk, a landing over the
-// tips, a fall at speed and a caught edge each throw the skier, and nothing
-// short of them does; he tumbles on his own and the reset stands him back
-// up; a skier bogged in powder sinks in and works back out; and a blow dulls
+// tips, the body slammed down, a fall at speed and a caught edge each throw
+// the skier, and nothing short of them does — a professional rides out the
+// rest, and the near fall is kept as a save for the figure to play; he
+// tumbles on his own and the reset stands him back up; a skier bogged in powder sinks in and works back out; and a blow dulls
 // an edge or hurts the legs only on a run that asked for damage.
 
 import { describe, expect, it } from "vitest";
 
 import {
   botInput,
+  crashLimit,
   createGame,
   NEUTRAL_INPUT,
   placeRun,
@@ -18,6 +20,7 @@ import {
   step,
   trenchGrip,
   TUNING,
+  type CrashLimit,
   type GameEvent,
   type GameState,
   type RunMoment,
@@ -44,8 +47,13 @@ function ride(
   return events;
 }
 
-function staged(level = flatLevel({ packed: 1 }), moment: RunMoment, damage = false): GameState {
-  const state = createGame({ level, rivals: 0, countdown: 0, damage, quiet: true });
+function staged(
+  level = flatLevel({ packed: 1 }),
+  moment: RunMoment,
+  damage = false,
+  resilience?: number,
+): GameState {
+  const state = createGame({ level, rivals: 0, countdown: 0, damage, quiet: true, resilience });
   placeRun(state, moment);
   return state;
 }
@@ -131,7 +139,7 @@ describe("the wipeout", () => {
         speed: 60 / 3.6,
         height: 2.5,
         vy: -3,
-        pitch: -0.7,
+        pitch: -1,
       });
       let body: Thrown | null = null;
       let down = -1;
@@ -193,10 +201,10 @@ describe("the wipeout", () => {
     expect(state.progress.passed).toBe(passed);
   });
 
-  it("a landing taken on the tips goes over them; the same drop level does not", () => {
-    const drop = (pitch: number): GameEvent[] =>
+  it("a landing taken steep on the tips goes over them; less steep, or level, is ridden away", () => {
+    const drop = (pitch: number, packed = 1): GameEvent[] =>
       ride(
-        staged(undefined, {
+        staged(flatLevel({ packed }), {
           x: 1500,
           z: 200,
           heading: 0,
@@ -208,9 +216,16 @@ describe("the wipeout", () => {
         2,
         NEUTRAL_INPUT,
       );
-    const nose = wipeouts(drop(-0.7));
+    const nose = wipeouts(drop(-1));
     expect(nose).toHaveLength(1);
     expect(nose[0].kind === "wipeout" && nose[0].cause).toBe("nose");
+    // Forty degrees over the tips: they slap down on the groomer, and he
+    // saves it thrown over them — but in loose snow they dig.
+    const slap = drop(-0.7);
+    expect(wipeouts(slap)).toHaveLength(0);
+    const saved = slap.find((e) => e.kind === "save");
+    expect(saved?.kind === "save" && saved.save).toBe("landing");
+    expect(wipeouts(drop(-0.7, 0))).toHaveLength(1);
     const flat = drop(0);
     expect(flat.some((e) => e.kind === "land")).toBe(true);
     expect(wipeouts(flat)).toHaveLength(0);
@@ -243,7 +258,7 @@ describe("the wipeout", () => {
     }
   });
 
-  it("a fall at speed throws him; the same roll at a crawl does not", () => {
+  it("coming down on his side at speed throws him; the same roll at a crawl does not", () => {
     const over = (kmh: number): GameEvent[] =>
       ride(
         staged(undefined, {
@@ -259,8 +274,70 @@ describe("the wipeout", () => {
       );
     const fast = wipeouts(over(70));
     expect(fast).toHaveLength(1);
-    expect(fast[0].kind === "wipeout" && fast[0].cause).toBe("roll");
+    // The hip and the shoulder hit the snow: he has landed on his side.
+    expect(fast[0].kind === "wipeout" && fast[0].cause).toBe("landing");
     expect(wipeouts(over(10))).toHaveLength(0);
+  });
+
+  it("a fall at speed on the snow throws him once he has lain over, not before", () => {
+    // Stood on the snow rolled right over: the body down at speed.
+    const state = staged(undefined, { x: 1500, z: 200, heading: 0, speed: 70 / 3.6, roll: 1.4 });
+    const events = ride(state, 2, TUCK);
+    const fall = wipeouts(events);
+    expect(fall).toHaveLength(1);
+    expect(fall[0].kind === "wipeout" && ["roll", "landing"]).toContain(fall[0].cause);
+  });
+
+  it("a trunk taken on the shoulder is shrugged off; met as hard on the tips, it throws him", () => {
+    // Skiing down beside the trunk and slid sideways into it: the blow
+    // lands on the body's circle, past what the tips take but short of
+    // what a shoulder does.
+    const level = syntheticLevel();
+    const tree = level.trees.find((t) => t.x === LONE_TREE.x && t.z === LONE_TREE.z)!;
+    const reach = TUNING.trees.bodyRadius + tree.radius + 0.1;
+    const glance = staged(level, { x: tree.x - reach, z: tree.z, heading: 0, speed: 14 });
+    glance.skier.vx = 5;
+    const events = ride(glance, 2, TUCK);
+    const hit = events.find((e) => e.kind === "hit");
+    expect(hit && hit.kind === "hit" && hit.speed).toBeGreaterThan(TUNING.crash.treeSpeed);
+    expect(wipeouts(events)).toHaveLength(0);
+    const saved = events.find((e) => e.kind === "save");
+    expect(saved?.kind === "save" && saved.save).toBe("tree");
+    expect(glance.skier.save?.side).toBe(1);
+    // Straight on into it, the tips first, at a crawl past `treeSpeed`.
+    const square = staged(level, { x: tree.x, z: tree.z - 2, heading: 0, speed: 8 });
+    expect(wipeouts(ride(square, 2, TUCK))).toHaveLength(1);
+  });
+
+  it("a club skier goes down to what a professional rides out, and a skier between is between", () => {
+    const nose = (resilience: number) =>
+      wipeouts(
+        ride(
+          staged(
+            undefined,
+            { x: 1500, z: 200, heading: 0, speed: 60 / 3.6, height: 2.5, vy: -3, pitch: -0.7 },
+            false,
+            resilience,
+          ),
+          2,
+          NEUTRAL_INPUT,
+        ),
+      );
+    expect(nose(1)).toHaveLength(0);
+    expect(nose(0)).toHaveLength(1);
+    const pro = { ...createGame({ level: flatLevel(), quiet: true }).skier, resilience: 1 };
+    const club = { ...pro, resilience: 0 };
+    const mid = { ...pro, resilience: 0.5 };
+    for (const key of Object.keys(TUNING.crash.club) as CrashLimit[]) {
+      expect(crashLimit(pro, key), key).toBe(TUNING.crash[key]);
+      expect(crashLimit(club, key), key).toBeCloseTo(TUNING.crash.club[key], 12);
+      // Every club threshold is the easier one.
+      expect(TUNING.crash.club[key], key).toBeLessThan(TUNING.crash[key]);
+      expect(crashLimit(mid, key), key).toBeCloseTo(
+        (TUNING.crash[key] + TUNING.crash.club[key]) / 2,
+        12,
+      );
+    }
   });
 
   it("a caught edge at speed throws him", () => {
@@ -269,7 +346,7 @@ describe("the wipeout", () => {
     const state = staged(undefined, { x: 1500, z: 200, heading: Math.PI / 2, speed: 40 / 3.6 });
     state.skier.vx = 0;
     state.skier.vz = 40 / 3.6;
-    state.skier.edge = TUNING.skier.slipEdge + 0.1;
+    state.skier.edge = TUNING.crash.catchEdge + 0.1;
     const events = ride(state, 1, { ...NEUTRAL_INPUT, steer: 1 });
     const caught = wipeouts(events);
     expect(caught).toHaveLength(1);

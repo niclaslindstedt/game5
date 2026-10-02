@@ -89,7 +89,7 @@ term and the comment's claim has to stay true.
 | Body contacts | Velocity-level impulse through the effective mass (angular term in), a little restitution, a capped push-out, Coulomb friction; against the powder's FLOOR; the tuck lowers every body point | `chassis.ts` |
 | Gravity, air drag | g on the CoG, and in genuine flight the run's heavier ARCADE pull (`RunRules.airGravity`: `air.gravity` on a race, 1 on a tricks run; `limits.ts`'s `flightGravity`, which the bot reads too); ½ ρ C_dA v² with ρ at −8 °C two thousand metres up | `skier.ts`, `TUNING.airDensity`, `TUNING.air.gravity` |
 | The landing looked for | ARCADE: the pitch hand eases the skis onto the slope the ballistic arc will land on over the last `landLook` s (`landingAhead`) | `flight.ts` |
-| The high-side | A CAUGHT EDGE: the sideways slip at a station (`SkierState.sideSlip`) past `skier.slipSpeed` while the edge stands over `skier.slipEdge` throws him — read by `crash.ts`, measured here | `skier.ts`, `TUNING.skier` |
+| The high-side | A CAUGHT EDGE: the sideways slip at a station (`SkierState.sideSlip`) past `crash.catchSlip` while the edge stands over `crash.catchEdge` throws him (`skier.slipSpeed` / `.slipEdge` are where the bot stands its edge down) — read by `crash.ts`, measured here | `skier.ts`, `TUNING.skier` |
 
 ## The instrument: `make ride`
 

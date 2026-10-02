@@ -228,6 +228,8 @@ export function poseInputOf(
     popped: skier.popped,
     carve: skier.carve,
     skid: skier.skid,
+    // THE SAVE his body is making, as the view's spring carries it.
+    jolt: legs.jolt,
     trick,
     mounts,
     // STOOD STILL, he waits alive: his own clock, faded in below a walk.

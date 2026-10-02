@@ -49,7 +49,7 @@ for staging exact contacts.
 | `lap` | The finish line crossed — the run done | 1, the run's time |
 | `finish` | The same crossing | the run's time, the place |
 | `reset` | Stood back on the piste | the gate, whether the engine did it |
-| `wipeout` | The skier thrown (`crash.ts`): a `hit` past `crash.treeSpeed`, a landing over the tips, a fall at speed, a caught edge | the cause, the speed, where |
+| `wipeout` | The skier thrown (`crash.ts`): a `hit` past `crash.treeSpeed` on the tips or `treeShoulder` beside him, a landing over the tips, the body down, a fall at speed, the legs folded, a caught edge | the cause, the speed, where |
 | `stuck` | Bogged in powder past `trench.stuckAt` (`trench.ts`) | — |
 | `damage` | An edge dulled or the legs hurt (`damage.ts`, damage on only) | the part, how bad it now is |
 | `count` / `go` | The lights | seconds left / the clock starts |

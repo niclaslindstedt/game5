@@ -66,6 +66,12 @@ export const RACE = {
   /** The tuck each rival's bot is allowed, dealt off the run's stream once
    * at the start line: what tells one rival from the next. */
   paceBand: { min: 0.8, max: 1 },
+  /** HOW MUCH EACH RIVAL CAN TAKE before he goes down
+   * (`SkierState.resilience`: 0 a club skier, 1 a professional), dealt
+   * once at the start line off a stream of its own — so a field has a
+   * rival who rides out what throws another, and dealing it moves nothing
+   * else the start deals. */
+  resilienceBand: { min: 0.35, max: 1 },
   /** HOW LATE EACH RIVAL GOES, s after GO: the eye's reaction to the
    * lights and the moment a body takes to come off the skid held across the
    * slope — a human's 0.15 s at the sharpest, half a second and more on a
@@ -141,6 +147,13 @@ export const SNOW_DIAL = { min: 0.25, max: 2.5, step: 0.25 } as const;
 export function clampSnowDepth(depth: number | undefined): number {
   if (depth === undefined || !Number.isFinite(depth)) return 1;
   return Math.min(SNOW_DIAL.max, Math.max(SNOW_DIAL.min, depth));
+}
+
+/** A resilience held to 0..1 (`SkierState.resilience`); anything that is
+ * not a number is the professional's. */
+export function clampResilience(r: number | undefined): number {
+  if (r === undefined || !Number.isFinite(r)) return 1;
+  return Math.min(1, Math.max(0, r));
 }
 
 /** THE WAYS ONTO THE SNOW. A mode is a NAME for a bundle of `RunRules`

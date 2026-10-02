@@ -174,6 +174,20 @@ export type SkierState = {
   /** Seconds lying over on the snow (`crash.ts`) — the fall's clock;
    * turning over in the air does not run it. */
   rolledFor: number;
+  /** THE BODY ON THE SNOW this step (`chassis.ts`): the fastest any of the
+   * hips, the shoulders or the helmet went into it, m/s (0 with none of
+   * them touching), and the side of the one that did (−1 left, 1 right, 0
+   * the helmet) — a skier down on his side, his back or his head. */
+  bodyHit: number;
+  bodySide: number;
+  /** The last thing he nearly fell to, or null (`crash.ts`). */
+  save: Save | null;
+  /** HOW MUCH HE CAN TAKE before he goes down, 0..1 (`crash.ts`'s
+   * `crashLimit`): 1 is a professional (`TUNING.crash`'s own thresholds),
+   * 0 a club skier (`TUNING.crash.club`). The player's is 1 unless
+   * `createGame` is asked otherwise; each rival is dealt his own
+   * (`RACE.resilienceBand`). Read only by the crash. */
+  resilience: number;
   /** THE SKIER THROWN OFF HIS SKIS, or null while he is on them
    * (`crash.ts`). */
   thrown: Thrown | null;
@@ -194,10 +208,24 @@ export type SkierState = {
 };
 
 /** WHAT THREW THE SKIER (`crash.ts`): a trunk met hard, a landing taken
- * over the tips, a fall at speed (an edge lost), a high-side (an edge
- * caught), or a big landing he could not ride away — too hard for his legs,
- * or not true enough for its load. */
+ * over the tips, a fall at speed (an edge lost, or the body slammed down on
+ * the snow), a high-side (an edge caught), or a landing he could not stand
+ * up out of — come down on his side, his back or his head, or too hard for
+ * his legs. */
 export type CrashCause = "tree" | "nose" | "roll" | "catch" | "landing";
+
+/** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
+ * taken on the shoulder, a hand or a hip down on the snow and pushed back
+ * up off, an edge that bit and was held. */
+export type SaveKind = "landing" | "tree" | "body" | "edge";
+
+/** THE SAVE — the moment a skier rode out something that came near to
+ * throwing him, kept for the figure to play (`skier-save.ts`): which, how
+ * long ago (s), how near it came (0 nothing … 1 the edge of a fall), the
+ * side it came from (−1 left, 1 right — the trunk, the snow, the edge)
+ * and, for a landing, which way it threw him (1 over the tips, −1 onto
+ * the tails). Written by `crash.ts` only, read by nothing in the physics. */
+export type Save = { kind: SaveKind; t: number; size: number; side: number; fore: number };
 
 /** THE SKIER THROWN — a body of his own from the moment he leaves his skis
  * until the reset stands him back on the piste (`crash.ts`): a RAGDOLL
@@ -385,6 +413,9 @@ export type Rival = {
   id: number;
   run: GameState;
   pace: number;
+  /** How much this rival can take before he goes down, 0..1 — his skier's
+   * `resilience`, dealt at the start line. */
+  resilience: number;
   react: number;
   lane: number;
 };
@@ -432,6 +463,9 @@ export type GameEvent =
     }
   /** A trunk met at `speed` m/s closing. */
   | { kind: "hit"; t: number; speed: number; x: number; z: number }
+  /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
+   * which, and how near it came, 0..1. */
+  | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */

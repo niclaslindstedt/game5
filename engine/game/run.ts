@@ -2,7 +2,8 @@
 // ONE SKIER'S STEP — the wind tunnel he rides, if any (`wind-tunnel.ts`),
 // the skier (and, on a tricks run, the strokes thrown in
 // the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
-// tumble once he is thrown, `crash.ts`), the damage it cost (`damage.ts`),
+// tumble once he is thrown, `crash.ts` — or what he nearly fell to and
+// rode out), the damage it cost (`damage.ts`),
 // the air record, the clock and the odometer, the buzzer
 // (`RunRules.limit`), the course (when the rules count one — a free ride
 // does not) and the automatic reset, in that order, for ONE run: the
@@ -18,7 +19,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
 import { resetSkier, stepCourse } from "./course.ts";
 import { stepSkier } from "./skier.ts";
-import { crashOver, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
+import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
@@ -63,6 +64,7 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   } else {
     const cause = wipeoutCause(run, events, speed0);
     if (cause) throwRider(run, cause, v0, events);
+    else noteSave(run, events);
   }
   takeDamage(run, events);
   // THE RUN'S AIR RECORD, off the landing the skier has just reported.

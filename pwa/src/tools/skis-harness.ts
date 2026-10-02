@@ -63,11 +63,13 @@ import {
   SKIS,
   SKI_CATALOG,
   skisById,
+  type Save,
   type SkiSpec,
   type SkierState,
   type TrickPose,
 } from "@engine";
 
+import { joltOf } from "../game/skier-save.ts";
 import { createSkier, type SkierFigure } from "../game/skier-figure.ts";
 import {
   createSkierSpring,
@@ -146,6 +148,8 @@ type Moment = {
   /** Either leg's compression past its rest, m. */
   left?: number;
   right?: number;
+  /** A near fall ridden out (`skier-save.ts`), shown at its peak. */
+  save?: Omit<Save, "t">;
 };
 
 const POSES: Moment[] = [
@@ -162,6 +166,10 @@ const POSES: Moment[] = [
   { name: "daffy", airborne: true, trick: "daffy" },
   { name: "spread", airborne: true, trick: "spread" },
   { name: "grab", airborne: true, trick: "grab" },
+  { name: "saved a landing", save: { kind: "landing", size: 1, side: 0, fore: 1 } },
+  { name: "trunk on the right", save: { kind: "tree", size: 1, side: 1, fore: 0 } },
+  { name: "hand down, left", save: { kind: "body", size: 1, side: -1, fore: 0 } },
+  { name: "edge bit, right", save: { kind: "edge", size: 1, side: 1, fore: 0 } },
 ];
 
 /** The moments the rig sheet poses every pair at: the edge each way, the
@@ -321,6 +329,7 @@ function skierAt(c: SkierState, at: Moment, legs: SkierSpring | null): SkierPose
     airborne: c.airborne,
     landing: c.landing,
     trick: at.trick ?? null,
+    jolt: at.save ? joltOf({ ...at.save, t: 0.15 }) : undefined,
     mounts: mountsOf(c.spec),
   };
 }

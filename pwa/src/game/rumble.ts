@@ -110,6 +110,12 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
     case "wipeout":
       return { ms: RUMBLE.longest, strength: 1 };
 
+    // A SAVE: the body fighting to stay on its skis — a short shudder, as
+    // big as the fall it nearly was. The landing or the trunk that started
+    // it is felt on the same step, and the motor plays the bigger.
+    case "save":
+      return { ms: 70 + 110 * event.size, strength: 0.3 + 0.4 * event.size };
+
     // BOGGED: the skier sunk to the knees in powder — a low, short shudder
     // so the hands know the poles have stopped doing anything.
     case "stuck":

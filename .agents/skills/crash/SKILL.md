@@ -1,6 +1,6 @@
 ---
 name: crash
-description: "Use when working on the skier PAST SAVING and OFF HIS SKIS — the four ways he is thrown (a trunk met hard, a landing over the tips, a fall at speed, a caught edge — the high-side), his body tumbling on the snow until the reset while the skis go on without him (the yard sale), the skier BOGGED in deep powder and poled and rocked back out, and what a blow costs when damage is on (a dulled edge, hurt legs). Owns `engine/game/crash.ts`, `trench.ts`, `damage.ts`, the `TUNING.crash` / `.trench` / `.damage` blocks, the `wipeout` / `stuck` / `damage` events, and the ride lab's `tree`, `tree-glance`, `nose-in`, `rollover`, `catch`, `stuck` and `stuck-held` scenarios. Not the contact that STARTS a crash (`collision` — the trunk, the rival, the edge of the map) and not the fall's own physics (`ski-physics` — the body carries a skier over)."
+description: "Use when working on the skier PAST SAVING and OFF HIS SKIS — the ways he is thrown (a trunk met hard, a landing over the tips, the body slammed down on the snow, a fall at speed, the legs folded, a caught edge — the high-side) and only those — a professional rides out the rest, the near fall kept as a SAVE the figure plays — and the RESILIENCE knob each skier carries (the player a professional, each rival dealt his own), his body tumbling on the snow until the reset while the skis go on without him (the yard sale), the skier BOGGED in deep powder and poled and rocked back out, and what a blow costs when damage is on (a dulled edge, hurt legs). Owns `engine/game/crash.ts`, `trench.ts`, `damage.ts`, the `TUNING.crash` / `.trench` / `.damage` blocks, the `wipeout` / `save` / `stuck` / `damage` events, `SkierState.save` / `.resilience` and the figure's `skier-save.ts`, and the ride lab's `tree`, `tree-glance`, `shoulder`, `nose-save`, `nose-in`, `drop-side`, `rollover`, `catch`, `catch-held`, `stuck` and `stuck-held` scenarios (`--resilience` skis any of them as a club skier). Not the contact that STARTS a crash (`collision` — the trunk, the rival, the edge of the map) and not the fall's own physics (`ski-physics` — the body carries a skier over)."
 ---
 
 # The crash
@@ -81,7 +81,8 @@ where he came to rest, with the gouge his slide cut and the skis lying where
 they stopped.
 
 **`make sim` is the no-regression check, and its `wipe` column must read
-0.** The bot on every seed on every pair lands at most a few degrees
+0** (seed 10's battering spot aside, a trap on the map that predates the
+professional thresholds). The bot on every seed on every pair lands at most a few degrees
 tips-down and well under the impact that throws him, never goes past half
 over, never catches an edge and meets no trunk — the thresholds sit well
 beyond all of it (`TUNING.crash`'s comment says by how much). A wipeout in
@@ -117,10 +118,24 @@ the woods and a wipeout there is honest.
   Before shipping a threshold, ski the stock `kicker` on every pair (`make
   ride SCENARIO=kicker ARGS="--skis all"`, `crash_test`'s kicker case): an
   ordinary jump overshot must be skied out.
+- **A FALL IS WHAT THE BODY CANNOT STAND UP OUT OF.** The skier goes down
+  when his hips, shoulders or helmet hit the snow (`bodyHit`, off the hull's
+  own contacts), when he lies over on it at speed, when a landing's load is
+  past what legs hold, when a trunk is square in front of his skis, when the
+  tips spear the snow, or when an edge bites while the snow slides across
+  it — never because a landing on his skis was crooked. Short of a fall,
+  `noteSave` keeps how near it came for the figure (`skier-save.ts`) — sized
+  against the skier's OWN thresholds, so a club skier's saves come nearer.
+- **RESILIENCE IS ONE KNOB, AND 1 IS THE PRO'S NUMBER TO THE BIT.** Every
+  threshold is read through `crashLimit` (the professional's `TUNING.crash`
+  row at 1, `crash.club` at 0); the player is 1, each rival is dealt his own
+  off a stream of its own (`rivals.ts`' `GRIT_SALT`) so no other draw moves.
+  A new threshold gets a club row beside it, and an easier one.
 - **THE CAUGHT EDGE NEEDS BOTH: THE EDGE OVER AND THE SNOW SLIDING ACROSS
   IT.** A flat ski slides sideways all day — a snowplough is exactly that —
   and a ski well over on its edge holds; it is the two together past
-  `skier.slipSpeed` and `skier.slipEdge` that is a high-side. A threshold on
+  `crash.catchSlip` and `crash.catchEdge` that is a high-side (the bot
+  stands its edge down from `skier.slipSpeed` / `.slipEdge`, well short). A threshold on
   the slip alone throws every skier who skids; on the edge alone every skier
   who carves.
 - **THE SKIER CARRIES THE WAY HE HAD BEFORE THE BLOW.** A trunk stops the

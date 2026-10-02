@@ -5,6 +5,10 @@
 // air and out of it, a jump loaded and sprung. Stepped with the frame's
 // `dt` (`skis-body.ts`); `skier-pose.ts` reads it. Three-free.
 
+import type { Save } from "@engine";
+
+import { JOLT_KEYS, joltOf, NO_JOLT, type Jolt } from "./skier-save.ts";
+
 /** THE BODY ON ITS LEGS — the secondary motion a skier's own mass has on
  * top of the skis, kept by the view (it is the picture's, not the
  * physics'): a spring-damper in the pair's vertical, kicked by every change
@@ -55,6 +59,11 @@ export type SkierSpring = {
   edgeRate: number;
   roll: number;
   rollRate: number;
+  /** THE SAVE as his body makes it (`skier-save.ts`): the shape a near fall
+   * throws him into, followed on a spring so it comes on and goes as a
+   * motion, and one save cut short by the next does not jump. */
+  jolt: Jolt;
+  joltRate: Jolt;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -67,7 +76,14 @@ export type SpringRide = {
   drive: number;
   hipRight: number;
   roll: number;
+  /** What he last nearly fell to (`SkierState.save`). */
+  save?: Save | null;
 };
+/** How quickly his body is thrown into a save and fights back out of it,
+ * rad/s — a tenth of a second to most of the way: a flung arm moves at
+ * some four metres a second and no faster, so a blow reads as a motion
+ * (`tests/skier_save_test.ts` holds a joint under 3 cm a step). */
+const JOLT_FOLLOW = 24;
 /** How quickly his body takes up the engine's hip shift, its edge and
  * its roll, rad/s — a spring
  * some seventy milliseconds slow, critically damped. */
@@ -114,6 +130,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     edgeRate: 0,
     roll: 0,
     rollRate: 0,
+    jolt: { ...NO_JOLT },
+    joltRate: { ...NO_JOLT },
   };
 }
 
@@ -141,6 +159,10 @@ function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
   [s.hip, s.hipRate] = follow(s.hip, s.hipRate, ride.hipRight, dt);
   [s.edge, s.edgeRate] = follow(s.edge, s.edgeRate, ride.edge, dt);
   [s.roll, s.rollRate] = follow(s.roll, s.rollRate, ride.roll, dt);
+  const to = joltOf(ride.save);
+  for (const k of JOLT_KEYS) {
+    [s.jolt[k], s.joltRate[k]] = follow(s.jolt[k], s.joltRate[k], to[k], dt, JOLT_FOLLOW);
+  }
 }
 
 /** Read the turns off the run and start a plant on each new one — the

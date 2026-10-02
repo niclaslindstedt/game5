@@ -110,6 +110,8 @@ export {
   NEUTRAL_INPUT,
   type CraftState,
   type CrashCause,
+  type Save,
+  type SaveKind,
   type DamagePart,
   type SkierDamage,
   type Thrown,
@@ -170,7 +172,7 @@ export {
   landingTolerance,
   type Landing,
 } from "./game/flight.ts";
-export { noseDown, wipeoutCause, crashOver } from "./game/crash.ts";
+export { crashLimit, crashOver, noseDown, wipeoutCause, type CrashLimit } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";

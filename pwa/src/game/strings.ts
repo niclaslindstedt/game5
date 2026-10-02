@@ -145,9 +145,20 @@ export const STRINGS = {
   newsHarsh: (g: number): string => `HARD LANDING · ${g.toFixed(1)} G`,
   newsLoad: (g: number): string => `${g.toFixed(1)} G LANDING`,
   newsReset: "BACK ON THE PISTE",
+  /** THE SAVE (`crash.ts`): a near fall ridden out, by what nearly put
+   * the skier down — a hard landing, a trunk on the shoulder, the body on
+   * the snow and back up, an edge that bit. */
+  newsSave: (kind: "landing" | "tree" | "body" | "edge"): string =>
+    kind === "landing"
+      ? "SAVED THE LANDING"
+      : kind === "tree"
+        ? "SHRUGGED OFF THE TREE"
+        : kind === "body"
+          ? "BACK UP!"
+          : "HELD THE EDGE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
-   * landing taken over the tips, a fall at speed, an edge caught, a big
-   * landing the legs folded under. */
+   * landing taken over the tips, a fall at speed, an edge caught, a
+   * landing on the body or one the legs folded under. */
   newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing"): string =>
     cause === "tree"
       ? "YARD SALE! TREE"
@@ -156,7 +167,7 @@ export const STRINGS = {
         : cause === "roll"
           ? "YARD SALE"
           : cause === "landing"
-            ? "COMPRESSED!"
+            ? "CRASH LANDING"
             : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */

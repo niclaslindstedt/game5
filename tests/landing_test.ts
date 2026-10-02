@@ -2,7 +2,9 @@
 // THE LANDING'S LOAD (`flight.ts`'s `landingLoad`, `landingTolerance`,
 // `landingOff`; the `landing` wipeout in `crash.ts`): the speed into the
 // slope as an equivalent fall height, stopped over the legs and the snow's
-// give — and the bigger that load, the truer the skis must come down.
+// give — and what a professional rides away: anything he comes down on his
+// skis for, short of the load that folds his legs, and nothing he comes
+// down on his side for.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -42,14 +44,16 @@ function drop(opts: { packed: number; height: number; roll?: number; snow?: numb
   });
   let land: Extract<GameEvent, { kind: "land" }> | null = null;
   let thrown: string | null = null;
+  let save: string | null = null;
   for (let i = 0; i < 4 * TUNING.physicsHz; i++) {
     step(state, TUCK);
     for (const e of state.events) {
       if (e.kind === "land" && !land) land = e;
       if (e.kind === "wipeout" && !thrown) thrown = e.cause;
+      if (e.kind === "save" && !save) save = e.save;
     }
   }
-  return { land, thrown };
+  return { land, thrown, save };
 }
 
 describe("the landing's load", () => {
@@ -84,7 +88,7 @@ describe("a landing ridden away, or not", () => {
 
   it("buckles under a big drop onto the flat groomer, however true", () => {
     const { land, thrown } = drop({ packed: 1, height: 9 });
-    expect(land!.g).toBeGreaterThan(TUNING.landing.buckle);
+    expect(land!.g).toBeGreaterThan(TUNING.crash.legsFold);
     expect(thrown).toBe("landing");
   });
 
@@ -95,8 +99,17 @@ describe("a landing ridden away, or not", () => {
     expect(powder.thrown).toBeNull();
   });
 
-  it("needs a big landing truer than a small one: a roll ridden off a hop throws him off a drop", () => {
-    expect(drop({ packed: 1, height: 1.4, roll: 0.5 }).thrown).toBeNull();
-    expect(drop({ packed: 1, height: 4, roll: 0.5 }).thrown).not.toBeNull();
+  it("rides a crooked landing away on his edges, off a hop or a drop — the drop a save", () => {
+    for (const height of [1.4, 4]) {
+      expect(drop({ packed: 1, height, roll: 0.5 }).thrown, `${height} m`).toBeNull();
+    }
+    expect(drop({ packed: 1, height: 4, roll: 0.5 }).save).toBe("landing");
+    expect(drop({ packed: 1, height: 1.4, roll: 1 }).save).toBe("landing");
+  });
+
+  it("goes down when he comes down on his side, off a hop or a drop", () => {
+    for (const height of [1.4, 4]) {
+      expect(drop({ packed: 1, height, roll: 1.5 }).thrown, `${height} m`).toBe("landing");
+    }
   });
 });

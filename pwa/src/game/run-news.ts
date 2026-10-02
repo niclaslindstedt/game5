@@ -20,6 +20,9 @@ import { STRINGS } from "./strings.ts";
 /** A line in the news column: what it says, its colour, and an id the list
  * is keyed on so a line leaving does not restart the animation of the one
  * under it. */
+/** How near a save must have come to a fall to be said (`Save.size`). */
+const SAVE_SAID = 0.6;
+
 export type HudFlash = { id: number; text: string; tone: "good" | "bad" | "info" };
 
 export type NewsLine = Omit<HudFlash, "id">;
@@ -51,6 +54,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return e.g > TUNING.landing.clean ? { text: STRINGS.newsLoad(e.g), tone: "info" } : null;
     case "reset":
       return { text: STRINGS.newsReset, tone: "info" };
+    case "save":
+      // A near fall ridden out is worth a word only when it was near.
+      return e.size >= SAVE_SAID ? { text: STRINGS.newsSave(e.save), tone: "good" } : null;
     case "wipeout":
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":

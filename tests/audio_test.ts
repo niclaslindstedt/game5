@@ -121,6 +121,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   finish: { kind: "finish", t: 1, time: 180, place: 1 },
   reset: { kind: "reset", t: 1, checkpoint: 2, auto: false },
   wipeout: { kind: "wipeout", t: 1, cause: "tree", speed: 14, x: 0, z: 0 },
+  save: { kind: "save", t: 1, save: "tree", size: 0.7 },
   stuck: { kind: "stuck", t: 1 },
   damage: { kind: "damage", t: 1, part: "skiLeft", level: 0.3 },
   trick: { kind: "trick", t: 1, trick: "backflip", spins: 1, points: 300, mult: 3 },
@@ -132,8 +133,9 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
 /** The kinds the bank says nothing about, with the reason: the lip is the
  * wind's moment — it comes up with the snow gone — not a one-shot's; a
  * skier bogged is the powder's hush, which the snow bed already is; and
- * what a blow bent is heard in the blow. */
-const SILENT_KINDS: GameEvent["kind"][] = ["air", "stuck", "damage"];
+ * what a blow bent is heard in the blow, as a save is in the landing, the
+ * trunk or the edges' scrape that started it. */
+const SILENT_KINDS: GameEvent["kind"][] = ["air", "stuck", "damage", "save"];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */
 const HEADSET = safeCutoff(1e9, 16000);

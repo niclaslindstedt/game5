@@ -96,8 +96,21 @@ export function flight(run) {
 
 /** THE WIPEOUT's numbers: what put him off and when, how fast he was
  * going, how far his body slid from where he left the skis, how many turns
- * it took, and when the reset stood him up. */
+ * it took, and when the reset stood him up — and the nearest thing he
+ * SAVED before it (`crash.ts`'s `noteSave`): which, how near, when. */
 export function wipeout(run) {
+  return [...thrownRows(run), ...saved(run)];
+}
+
+/** THE SAVE: the nearest fall he rode out — its kind, how near it came
+ * (0..1) and when. */
+export function saved(run) {
+  let best = null;
+  for (const e of run.events) if (e.kind === "save" && (!best || e.size > best.size)) best = e;
+  return [["saved", best ? `${best.save} ${fmt(best.size)} at ${fmt(best.t)} s` : "—"]];
+}
+
+function thrownRows(run) {
   const off = run.events.find((e) => e.kind === "wipeout");
   const reset = run.events.find((e) => e.kind === "reset" && (!off || e.t > off.t));
   const lying = off ? run.frames.filter((f) => f.t > off.t && f.thrown) : [];

@@ -74,10 +74,12 @@ export function gaitOf(
   if (s.airborne || s.thrown || s.drive <= 0.01) return STILL_GAIT;
   // THE MOTION IS WHOLE while he works at all: the push fades with speed
   // (`driveReach`), but a skier pushing at all makes a whole stride of it —
-  // a stride drawn at half size reads as a twitch. Eased in and out, so
-  // the arms come up from their hang to the first plant as a motion.
-  const w = clamp01(1.5 * s.drive * driveReach(s.speed));
-  const work = w * w * (3 - 2 * w);
+  // a stride drawn at half size reads as a twitch. It comes in over the
+  // drive's own rise, eased, so the arms come up from their hang (or out
+  // of the start gate) into the stroke as a motion — even a stroke the
+  // engine's stride count starts halfway through.
+  const d = clamp01(s.drive);
+  const work = d * d * (3 - 2 * d) * clamp01(2 * driveReach(s.speed));
   if (work <= 0.01) return STILL_GAIT;
   // At a walk he strides up a rise and double-poles everywhere else; the
   // skate takes over from either as he rolls.

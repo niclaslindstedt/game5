@@ -10,7 +10,10 @@ concepts: [moves, reproduction, start, rivals, snap]
 lab skis one skier, and the start's worst faults were in no move: the skid
 pivot jumping at GO, a rival's first push begun mid-stroke (the start's
 stride draw), and rivals leaving the gate stance a reaction before they
-push (`inStartGate`). A throwaway probe that steps `createGame({ seed })`
+push (`inStartGate`). Fix the mid-stroke start in the VIEW (the arms eased
+in over the drive's rise), never in the engine's draw: the field's runs
+change, and in the benchmark's pinned race a rival then shouldered the
+player off his only flight (`tests/benchmark_test.ts`). A throwaway probe that steps `createGame({ seed })`
 with `botInput` for the player and runs `poseTravel` over every run's pose
 from 2.5 s to 6 s found all three in seconds. Real numbers to hold the
 start to: measured double poling has the trunk 40–45° over at the plant

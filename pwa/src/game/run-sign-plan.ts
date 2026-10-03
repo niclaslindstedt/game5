@@ -17,9 +17,15 @@
 // among them, its boards stacked, the pistes over the lanes, green to black,
 // each arrow pointing its own run's way.
 
-import { trackPointAt, type Level, type PisteGrade, type Run, type TrackPoint } from "@engine";
+import {
+  LIFT_LOOK,
+  trackPointAt,
+  type Level,
+  type PisteGrade,
+  type Run,
+  type TrackPoint,
+} from "@engine";
 
-import { LIFT_LOOK } from "./lift-plan.ts";
 import { runName, runNumber } from "./run-names.ts";
 
 /** The sign's measure, m: how far down the run it stands; how far off the

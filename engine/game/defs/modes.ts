@@ -44,6 +44,10 @@ export type RunRules = {
    * the free ride's resort full of people; 0 on every measured run, which
    * has the snow to itself. */
   crowd: number;
+  /** WHETHER THE LIFTS TAKE HIM UP (`lift-ride.ts`): a skier who rides into
+   * a lift's load zone is carried to its top. On a FREE RIDE only — a race
+   * is one run down, and a lift ridden would be a run off the course. */
+  lifts: boolean;
 };
 
 /** HOW MUCH HELP THE SKIER IS GIVEN — the arcade's two hands on him, each
@@ -106,6 +110,7 @@ export function raceRules(laps: number): RunRules {
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
+    lifts: false,
   };
 }
 
@@ -121,6 +126,7 @@ export function openRules(laps: number): RunRules {
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
+    lifts: false,
   };
 }
 
@@ -138,6 +144,7 @@ export function freeRules(laps: number): RunRules {
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: CROWD.count,
+    lifts: true,
   };
 }
 
@@ -196,6 +203,7 @@ export function timeTrialRules(laps: number): RunRules {
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
+    lifts: false,
   };
 }
 
@@ -210,6 +218,7 @@ export const TRICKS_RUN = {
    * sized to the hang a kicker gives at it, and the arcade's heavier air
    * would land a backflip before it had come round. */
   airGravity: 1,
+  lifts: false,
 } as const;
 
 /** A tricks run as a skier is dealt it: the lights, the strokes read, the
@@ -225,6 +234,7 @@ export function tricksRules(laps: number): RunRules {
     limit: TRICKS_RUN.limit,
     airGravity: TRICKS_RUN.airGravity,
     crowd: 0,
+    lifts: false,
   };
 }
 

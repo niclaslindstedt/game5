@@ -6,7 +6,7 @@
 // start line, and "how far ahead" can be negative.
 import { describe, expect, it } from "vitest";
 
-import { LEVEL_RULES as R, arcAhead, arcBetween, nearestTrackPoint, trackPointAt } from "@engine";
+import { arcAhead, arcBetween, nearestTrackPoint, trackPointAt } from "@engine";
 
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
@@ -59,7 +59,7 @@ describe("the piste queries", () => {
     expect(before.x).toBeCloseTo(pts[0].x, 9);
     expect(before.s).toBe(0);
     // Halfway between two stations is halfway between them.
-    const mid = trackPointAt(level, pts[10].s + R.track.step / 2);
+    const mid = trackPointAt(level, (pts[10].s + pts[11].s) / 2);
     expect(mid.x).toBeCloseTo((pts[10].x + pts[11].x) / 2, 9);
   });
 

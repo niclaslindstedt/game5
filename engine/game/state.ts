@@ -205,6 +205,8 @@ export type SkierState = {
   /** THE WIND TUNNEL he is being carried along (R30, `wind-tunnel.ts`),
    * or null. */
   tunnel: TunnelRide | null;
+  /** THE LIFT he is riding (`lift-ride.ts`), or null — on a free ride. */
+  lift: LiftRide | null;
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;
@@ -449,6 +451,31 @@ export type TunnelRide = {
   seg: number;
 };
 
+/** A skier on a LIFT (`lift-ride.ts`). `board`: being taken from where he
+ * rode into its load zone (`from`) to where it carries him off; `ride`:
+ * carried, his grip `u` m of plan up the line at `speed` m/s, his chair or
+ * cabin swung `swing` rad about the rope (its foot toward the top
+ * positive) at `swingRate` rad/s; `lead`: stood off it at the top of the
+ * free ride's lift and led toward the run he picked (`lead`), until he
+ * takes the controls. `t` is seconds in the phase; `tower` the next of its
+ * supports he has still to pass over. */
+export type LiftRide = {
+  index: number;
+  id: string;
+  kind: "gondola" | "chair" | "drag";
+  phase: "board" | "ride" | "lead";
+  u: number;
+  speed: number;
+  swing: number;
+  swingRate: number;
+  t: number;
+  tower: number;
+  /** Where he came into the zone from (`board`), or where the carrier
+   * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
+  from: { x: number; y: number; z: number; heading: number };
+  lead: { run: number; s: number; until: number } | null;
+};
+
 export type GameEvent =
   /** ONE LIGHT: `left` whole seconds still to run (3, 2, 1). */
   | { kind: "count"; t: number; left: number }
@@ -515,12 +542,27 @@ export type GameEvent =
   | { kind: "bail"; t: number; lost: number; cause: BailCause }
   /** Taken into a WIND TUNNEL (R30, `wind-tunnel.ts`) by its id, or let go
    * of it. */
-  | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" };
+  | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" }
+  /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
+   * carrier run over a tower's sheaves, stood off it at the top, or the
+   * controls handed back after the free ride's lead. */
+  | {
+      kind: "lift";
+      t: number;
+      id: string;
+      lift: "gondola" | "chair" | "drag";
+      phase: "board" | "tower" | "off" | "free";
+    };
 
 /** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
  * piste, down in the snow after a fall, in the air off a kicker, or up a
  * lift between runs — off the snow and not drawn. */
-export type AmateurMode = "ski" | "stop" | "down" | "air" | "lift";
+/** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
+ * in a lift's QUEUE at its foot, skating to his place and standing in it;
+ * RIDING a carrier of it (`crowd-lift.ts`); SKATING off its top onto the
+ * run he chose; or up a lift with no lift to show it (`lift`, a map with
+ * none). */
+export type AmateurMode = "ski" | "stop" | "down" | "air" | "lift" | "queue" | "ride" | "skate";
 
 /** ONE OF THE CROWD (`crowd.ts`): an amateur on the ski area's runs, kept
  * as where he is along his run (`run`, `s`) and across it (`d`, m right of
@@ -589,6 +631,16 @@ export type Amateur = {
   fallSide: number;
   pole: number;
   push: number;
+  /** ON A LIFT (`crowd-lift.ts`): which (by its place among the map's
+   * lifts, −1 none), the carrier he rides (`carrierAt`'s `k`) and his seat
+   * on it; and where he skates to — his place in the queue, or off the
+   * top the arc `ts` of his run `run` he joins it at. */
+  lift: number;
+  carrier: number;
+  seat: number;
+  tx: number;
+  tz: number;
+  ts: number;
 };
 
 /** A GROUP of the crowd: its kind, its members (leader first) by index
@@ -600,6 +652,10 @@ export type CrowdGroup = {
   keep: GroupFollow;
   gap: number;
   lift: number;
+  /** The lift the group is queueing for (−1 none), and the run it skis
+   * off that lift's top (−1 not yet chosen) — every member takes it. */
+  queue: number;
+  next: number;
 };
 
 /** THE CROWD on a run that has one (`RunRules.crowd`): everyone, the
@@ -609,6 +665,8 @@ export type CrowdState = {
   rng: Rng;
   amateurs: Amateur[];
   groups: CrowdGroup[];
+  /** Every lift's queue at its foot, front first, by amateur id. */
+  queues: number[][];
 };
 
 /** `countdown` is the lights: the field stands in the start gate, nothing

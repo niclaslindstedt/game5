@@ -26,6 +26,7 @@ import * as THREE from "three";
 import { cloth, limbRings, shaped, torsoFold } from "./skier-cloth.ts";
 import { buildHelmet } from "./skier-helmet.ts";
 import { BODY, skierPose, type SkierPose, type SkierPoseInput, type V3 } from "./skier-pose.ts";
+import { seatedPose, type Seat } from "./skier-seat.ts";
 
 export type SkierStyle = {
   jacket: number;
@@ -49,7 +50,9 @@ export type SkierFigure = {
   /** The head's frame (z forward, y up, the origin at the middle of the
    * head), posed with him — what the helmet and its lamp hang on. */
   head: THREE.Group;
-  pose(input: SkierPoseInput): void;
+  /** Posed for `input`, sat on a chair's `seat` when one is handed in
+   * (`skier-seat.ts`). */
+  pose(input: SkierPoseInput, seat?: Seat | null): void;
   /** Pose him THROWN, off the engine's ragdoll (`ragdollPose`): the poles
    * let go, every limb where the physics has it. The caller places and
    * turns the group. */
@@ -453,8 +456,8 @@ export function createSkier(
   return {
     group,
     head: headGroup,
-    pose(input) {
-      lay(skierPose(input));
+    pose(input, seat = null) {
+      lay(seat ? seatedPose(input, seat) : skierPose(input));
     },
     sprawl(pose) {
       lay(pose, true);

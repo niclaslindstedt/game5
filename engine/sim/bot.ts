@@ -386,6 +386,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   const p = state.progress;
   const level = state.level;
   if (p.finished) return { ...NEUTRAL_INPUT };
+  // A skier a lift has (`lift-ride.ts`) is left to it: carried, or led off
+  // the free ride's lift, his hands off the controls.
+  if (c.lift) return { ...NEUTRAL_INPUT };
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)

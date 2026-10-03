@@ -19,6 +19,7 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 | --- | --- |
 | Who is out there: the bodies, the kinds and their knob bands, the turn styles, the group kinds, the crowd's numbers (how many, how crowded each colour, the lift, the speeds, falls, stops, off-piste, kickers, the knock) | `engine/game/defs/crowd.ts` (`CROWD`, `CROWD_KINDS`, `CROWD_GROUPS`, `TURN_STYLES`, `CROWD_SIZE`) |
 | The network they ski (`crowdNet`), dealing them (`createCrowd`), their step and their decisions (`stepCrowd`), the player against them (`clipCrowd`) | `engine/game/crowd.ts` |
+| The lifts they take: the queue at a lift's foot on its corral's lane (`queueSpot`), the carrier that takes the front of it at the load line (`carrierPassing`), the ride on that carrier (`carrierAt` — the lifts always run), off the top onto the group's run; dealt riding or queueing at the start | `engine/game/crowd-lift.ts` over `engine/game/lift-line.ts`; `CROWD.ride` |
 | What a run asks for | `RunRules.crowd` (`freeRules` deals `CROWD.count`; every measured run 0), `createGame`'s `crowd` |
 | The state | `Amateur`, `CrowdGroup`, `CrowdState`, `GameState.crowd` in `state.ts`; the `bump` event's `amateur`, the `skier` crash cause |
 | The skeleton in every pose — the PLAYER'S `skierPose`, sized to each body — and the weights an amateur is drawn at (`dialsOf`) | `pwa/src/game/crowd-rig.ts` (three-free) |
@@ -58,11 +59,23 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   after every write, or every vertex reads a base influence of 0 and the
   figure collapses to a point — invisible, with no error.
 
+- **THE LIFTS ARE REAL.** An amateur at the foot of the mountain queues at
+  a lift and rides a CARRIER of it — `carrierAt(plan, k, t)`, the same pure
+  function of the clock every chair is drawn by, so a rider is never
+  stepped and never drifts off his chair. A carrier takes no more than its
+  seats (`CROWD.ride.seats`, counting who is already on it); a real ride
+  takes minutes, so a third of the crowd is on the lifts at any moment and
+  `CROWD.count` is sized for the snow to keep its share. The seated rider is
+  the player's own seated pose (`seatedPose`, the `seat` target), set on
+  the chair's seat by each body's own `seatHeight`.
+
 ## The loop
 
 1. `make crowd` (every sheet) before the change; keep the PNGs.
    `ARGS=--sheet=figures,lods,moments` for the figures,
-   `ARGS="--sheet=slope --seed=7 --t=90"` for the crowd on a mountain,
+   `ARGS="--sheet=slope --seed=7 --t=90"` for the crowd on a mountain
+   (`--views=queue,chairs` the longest queue at its lift's foot and a rider
+   on his chair),
    `--sheet=dress` for the kit. Browser-driven: `CHROMIUM_PATH=…` and
    `npm i --no-save playwright-core`.
 2. Change it. Behaviour: the knobs and bands in `defs/crowd.ts` first.

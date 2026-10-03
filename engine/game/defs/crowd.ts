@@ -392,8 +392,9 @@ export const CROWD_GROUPS: Readonly<Record<GroupKind, CrowdGroupDef>> = {
 
 /** THE CROWD'S OWN NUMBERS. */
 export const CROWD = {
-  /** How many amateurs a free ride deals onto the mountain. */
-  count: 260,
+  /** How many amateurs a free ride deals onto the mountain — a third of
+   * them on the lifts at any moment (`ride`). */
+  count: 400,
   /** The most a run may ask for (`createGame`'s `crowd`). */
   most: 600,
   /** HOW CROWDED EACH COLOUR IS, per metre of run: the greens full, the
@@ -408,11 +409,35 @@ export const CROWD = {
     Record<PisteGrade | "road", number>
   >,
   lost: 0.05,
-  /** The share of the crowd riding a lift when the run starts. */
+  /** The share of the crowd in a lift's queue when the run starts. */
   lifted: 0.15,
   /** How long a group is up the lift between runs, s — a fraction of a
    * real ride, so the snow keeps its crowd. */
   lift: [12, 45] as readonly [number, number],
+  /** THE LIFTS RIDDEN (`crowd-lift.ts`): how many a carrier takes by kind
+   * (a quad chair, a T-bar's two, a cabin's eight); how far from a run's
+   * end a lift's foot is looked for, m; how fast he skates to his place in
+   * a queue or off a lift to his run, m/s; how long a chair takes to sit
+   * him down, s; how far under the rope a chair's seat is, m (where a
+   * rider is kept: the view sits each body on it); how far
+   * apart a chair's seats and a T-bar's two riders are, m; a queue's
+   * weight against a lift, per amateur already in it, and a ride's, a
+   * lift this many metres long half as likely (a short lift is lapped);
+   * and the share of the groups already riding one when the run starts —
+   * a real ride takes minutes, so on a mountain open all morning a good
+   * part of the crowd is on the lifts. */
+  ride: {
+    seats: { chair: 4, gondola: 8, drag: 2 } as const,
+    reach: 450,
+    skate: 3,
+    sit: 0.6,
+    under: 2.4,
+    seat: 0.55,
+    tee: 0.35,
+    queued: 0.12,
+    lapped: 900,
+    riding: 0.3,
+  },
   /** How often an amateur reconsiders his line, s. */
   think: 0.25,
   /** The speed an amateur skis at, m/s: `base` and up to `span` more by
@@ -460,8 +485,10 @@ export const CROWD = {
    * looks, m and s of his speed, and how wide a berth, m. */
   room: { ahead: 4, time: 0.8, berth: 1.8 },
   /** A GROUP regrouping: how far behind the last one may fall before the
-   * leader waits, m, and how near he must come before they go on. */
-  regroup: { far: 60, near: 15 },
+   * leader waits, m, and how near he must come before they go on; and how
+   * far down his run off a lift's top a leader waits there for the rest
+   * still on it, m. */
+  regroup: { far: 60, near: 15, top: 80 },
   /** THE PLAYER MEETING ONE: the closing speed that knocks the amateur
    * down at no skill and at all, m/s; the share of it that comes back;
    * and the closing speed that takes the PLAYER down, as a share of what

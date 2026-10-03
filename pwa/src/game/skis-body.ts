@@ -34,7 +34,14 @@
 // read off `skier-colours.ts` so the minimap's dot is the same colour.
 
 import * as THREE from "three";
-import { TUNING, type SkiSpec, type SkierState, type Thrown, type TrickPose } from "@engine";
+import {
+  TUNING,
+  seatedShare,
+  type SkiSpec,
+  type SkierState,
+  type Thrown,
+  type TrickPose,
+} from "@engine";
 
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { Pose } from "./interp.ts";
@@ -58,6 +65,10 @@ import {
 } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
+import { CHAIR_SEAT, seatedPose } from "./skier-seat.ts";
+
+/** How long a rider takes to stand up off a chair, s. */
+const STAND_UP = 0.35;
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -409,6 +420,8 @@ export function createSkisModel(
   // lying away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
   const BOUND = bound.radius;
+  // How seated he is drawn, eased down as he stands off a chair.
+  let seated = 0;
 
   return {
     root,
@@ -421,6 +434,8 @@ export function createSkisModel(
       return out;
     },
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
+      // IN A GONDOLA'S CABIN he is out of sight, skis and all.
+      root.visible = !(skier.lift?.kind === "gondola" && skier.lift.phase === "ride");
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // His legs' spring first: how far he stands on the snow is its own.
@@ -477,8 +492,14 @@ export function createSkisModel(
           bound.radius = BOUND;
         }
         const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
-        figure.pose(input);
-        models?.poseSkier(skierPose(input), figure.group);
+        // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
+        // over a moment once the chair lets him go.
+        const sat = skier.lift?.kind === "chair" && skier.lift.phase !== "lead";
+        const share = sat ? seatedShare(skier.lift!) : 0;
+        seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
+        const seat = seated > 0 ? { share: seated, y: TUNING.lift.seat - CHAIR_SEAT } : null;
+        figure.pose(input, seat);
+        models?.poseSkier(seatedPose(input, seat), figure.group);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.

@@ -144,6 +144,23 @@ const SURFACES = {
     wait: ".hud-best-air",
     settle: 1500,
   },
+  // THE FREE RIDE'S ARRIVAL BY CHAIR (`lift-ride.ts`): seated on the chair
+  // up the last spans, coming into the top station, and led off the pad.
+  "free-chair": {
+    params: { start: "free", t: "4", shot: "1" },
+    wait: ".hud-best-air",
+    settle: 1500,
+  },
+  "free-top": {
+    params: { start: "free", t: "12", shot: "1" },
+    wait: ".hud-best-air",
+    settle: 1500,
+  },
+  "free-off": {
+    params: { start: "free", t: "16", shot: "1" },
+    wait: ".hud-best-air",
+    settle: 1500,
+  },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.
@@ -199,7 +216,10 @@ const args = parseArgs(
       help: `a card instead of a race (${Object.keys(SURFACES).join(", ")}, all)`,
     },
     seed: { kind: "number", default: 38, help: "map seed" },
-    t: { kind: "number", help: "seconds into the race (overrides the scene's own)" },
+    t: {
+      kind: "number",
+      help: "seconds into the race, or a riding surface (overrides the scene's own)",
+    },
     camera: { kind: "string", help: "tips, helmet, chase, far, high" },
     pose: {
       kind: "string",
@@ -383,10 +403,13 @@ if (args.surface) {
     if (args.video !== undefined) params.video = String(args.video);
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
+    // A surface that rides a run (`free`) is held at `--t` when given.
+    if (args.t !== undefined && params.t !== undefined) params.t = String(args.t);
     for (const v of viewports)
       await capture(
         `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
-          `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}`,
+          `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
+          `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}`,
         params,
         v,
         surface,

@@ -10,13 +10,23 @@
 // two vec4s an instance, written into buffers allocated once.
 //
 // Presentation, end to end: it reads `GameState` and the `Level`, writes
-// neither, and an amateur up a lift is not drawn.
+// neither. An amateur on a lift (`crowd-lift.ts`) is drawn where it has
+// him — in its queue, sat on his chair, stood behind his T-bar — save in a
+// cabin, on the chair the player rides, or up a lift on a map with none.
 
 import * as THREE from "three";
-import { CROWD_BODIES, type CrowdBody, type GameState, type Level } from "@engine";
+import {
+  CROWD,
+  CROWD_BODIES,
+  carrierAt,
+  liftPlans,
+  type CrowdBody,
+  type GameState,
+  type Level,
+} from "@engine";
 
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
-import { CROWD_POSES, dialsOf } from "./crowd-rig.ts";
+import { CROWD_LOOKS, CROWD_POSES, dialsOf, seatHeight } from "./crowd-rig.ts";
 import { CROWD_LODS, buildCrowdFigure, crowdMaterial, type CrowdLod } from "./crowd-shapes.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
@@ -101,6 +111,10 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const right = new THREE.Vector3();
   const normal = { x: 0, y: 1, z: 0 };
   const dials = new Float32Array(TARGETS);
+  /** How far under a chair's seat each body's figure is set, m. */
+  const seatDrop = Object.fromEntries(
+    CROWD_BODIES.map((b) => [b, seatHeight(CROWD_LOOKS[b])]),
+  ) as Record<CrowdBody, number>;
 
   const update: CrowdView["update"] = (state, eye) => {
     const crowd = state.crowd;
@@ -125,8 +139,19 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     }
     for (const slot of slots.values()) slot.n = 0;
     const reach2 = CROWD_CUTS.far * CROWD_CUTS.far;
+    const plans = liftPlans(level);
+    const mine = state.skier.lift;
     for (const a of crowd.amateurs) {
       if (a.mode === "lift") continue;
+      // ON A LIFT (`crowd-lift.ts`): in a cabin he is out of sight, and on
+      // the chair the player rides his own is the player's alone.
+      const kind = a.mode === "ride" ? plans[a.lift]?.lift.kind : undefined;
+      if (kind === "gondola") continue;
+      if (kind && mine?.phase === "ride" && mine.index === a.lift) {
+        const c = carrierAt(plans[a.lift], a.carrier, state.t);
+        if (c.side === 0 && Math.abs(c.u - mine.u) < plans[a.lift].look.every / 2) continue;
+      }
+      const seat = kind === "chair" ? Math.min(1, a.timer / CROWD.ride.sit) : 0;
       const dx = a.x - eye.x;
       const dz = a.z - eye.z;
       const d2 = dx * dx + dz * dz;
@@ -136,16 +161,19 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       const slot = slots.get(`${a.body}:${lod}`);
       if (!slot || slot.n >= (capacityOf?.[a.body] ?? 0)) continue;
       const i = slot.n;
-      // Stood on the snow's own slope, facing his heading.
-      level.normalAt(a.x, a.z, normal);
+      // Stood on the snow's own slope, facing his heading — or, sat on a
+      // chair, upright on its seat.
+      if (seat > 0) normal.x = normal.z = 0;
+      else level.normalAt(a.x, a.z, normal);
+      if (seat > 0) normal.y = 1;
       up.set(normal.x, normal.y, normal.z);
       fwd.set(Math.sin(a.heading), 0, Math.cos(a.heading));
       right.crossVectors(up, fwd).normalize();
       fwd.crossVectors(right, up).normalize();
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
-      const mirror = dialsOf(a, dials);
-      pos.set(a.x, a.y, a.z);
+      const mirror = dialsOf(a, dials, seat);
+      pos.set(a.x, a.y - (seat > 0 ? seatDrop[a.body] : 0), a.z);
       m.compose(pos, quat, size.set(mirror, 1, 1));
       slot.mesh.setMatrixAt(i, m);
       // The morph texture: the base's influence, then each target's.

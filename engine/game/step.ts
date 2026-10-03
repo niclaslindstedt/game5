@@ -34,6 +34,7 @@ import { SKIS, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
+import { arriveByLift } from "./lift-ride.ts";
 import { stepRun } from "./run.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
@@ -86,6 +87,11 @@ export type CreateGameOptions = {
    * line's first slot when left out. Ignored by every other mode, which
    * starts on the line. */
   spawn?: { x: number; z: number };
+  /** A FREE RIDE begun ON A LIFT (`arriveByLift`): seated on the chair whose
+   * run passes nearest `spawn` (or the start line), carried to its top and
+   * led off it toward that run. A map with no chair to ride starts at
+   * `spawn` as ever. Ignored by every other mode. */
+  byLift?: boolean;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's. 1 when left out. */
   snowDepth?: number;
@@ -119,6 +125,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     limit: base.limit,
     airGravity: base.airGravity,
     crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
+    lifts: base.lifts,
   };
 }
 
@@ -163,6 +170,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
       : gridSlot(state, 0);
   standSkier(state, at.x, at.z, at.heading);
+  if (options.mode === "free" && options.byLift) {
+    const spot = options.spawn ?? level.spawn;
+    arriveByLift(state, spot.x, spot.z);
+  }
   if (rules.rivals > 0) createRivals(state, rules.rivals);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {

@@ -20,6 +20,7 @@
 
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
+import { LIFT_BANK } from "./lift-voice.ts";
 import { TUNNEL_BANK } from "./tunnel-voice.ts";
 import type { SoundBank } from "@niclaslindstedt/oss-game-framework/audio/types";
 
@@ -461,4 +462,7 @@ export const RUN_BANK: SoundBank = {
   // THE WIND TUNNEL'S MOUTH crossed, in and out — the bed's cues
   // (`tunnel-voice.ts`).
   ...TUNNEL_BANK,
+
+  // THE LIFT RIDDEN (`lift-voice.ts`): taken on, its towers, stood off.
+  ...LIFT_BANK,
 };

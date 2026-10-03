@@ -862,6 +862,63 @@ export const TUNING = {
     release: 2,
   },
 
+  /** THE LIFT RIDE (`lift-ride.ts`; the lifts' own measure is `LIFT_LOOK`).
+   * The rope's slowing into the top terminal, m/s², and its pick-up off
+   * the load line, m/s²; how far down the hanger from the grip a chair's
+   * rider (`seat`) and a cabin's (`cabin`) has his body's origin, m, and
+   * each hanger's swinging length, m; the swing's damping, 1/s, the most
+   * it swings, rad, and the kick a tower's bend in the rope gives it, rad/s
+   * per unit of slope change read `bend` m either side (to `kickMost`
+   * rad/s — a lurch of a few degrees); how long a chair
+   * scoops a rider up, s; the way a chair stands him up with on the ramp,
+   * turned `ramp` rad off the line to the up rope's side (the ramp runs
+   * off on the diagonal, clear of the chairs round the wheel),
+   * a cabin walks him out with, m/s, and how far short of the top the
+   * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the chair's ride
+   * starts `before` m short of its last tower, held to `rideLeast`..
+   * `rideMost` m below the top; the lead gives the controls back past
+   * `leadNear`..`leadFar` m down the run (as far as the spot picked) or
+   * after `leadFor` s, joins the run at its nearest point `drop` m or more
+   * below him (within `joinFar` m — the free ride picks a run off a chair
+   * it can be joined from, a metres-off-the-spot penalty `noJoin` on any
+   * other), aims `aim` m on down it, steers `steer` per rad
+   * off it, pushes on the poles under `push` m/s and reads the run `window`
+   * m on and `back` m back of his last place; a control past `touch` takes
+   * it. */
+  lift: {
+    decel: 0.8,
+    accel: 1.2,
+    seat: 2.3,
+    cabin: 3.6,
+    chairHang: 2.4,
+    cabinHang: 4.0,
+    damp: 0.45,
+    swingMost: 0.3,
+    kick: 1.5,
+    kickMost: 0.2,
+    bend: 3,
+    scoop: 0.8,
+    standUp: 2.2,
+    ramp: 0.55,
+    walkOut: 1.5,
+    door: 10,
+    before: 30,
+    rideLeast: 60,
+    rideMost: 130,
+    leadNear: 40,
+    drop: 2,
+    joinFar: 120,
+    noJoin: 2000,
+    leadFar: 90,
+    leadFor: 16,
+    aim: 14,
+    steer: 2.2,
+    push: 6,
+    window: 40,
+    back: 6,
+    touch: 0.15,
+  },
+
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */
   tricks: TRICKS,
 } as const;

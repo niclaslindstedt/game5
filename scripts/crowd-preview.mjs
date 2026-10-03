@@ -15,7 +15,9 @@
 //   dress     a real crowd's groups in what they were dealt
 //                                                      → previews/crowd-dress.png
 //   slope     the crowd on `--seed`'s mountain `--t` s into a free ride, at
-//             the views `busy`, `group`, `chase`, `kicker`, `overview`
+//             the views `busy`, `group`, `chase`, `kicker`, `overview`,
+//             `queue` (the longest lift queue at its foot) and `chairs`
+//             (a chair line with its riders, from under it)
 //                                                      → previews/crowd-slope-<view>.png
 //
 // The page does the drawing (`pwa/src/tools/crowd-harness.ts`); this builds
@@ -42,7 +44,7 @@ const buildDir = join(root, "previews", ".crowd-preview");
 const outDir = join(root, "previews");
 
 const SHEETS = ["figures", "lods", "moments", "dress", "slope"];
-const VIEWS = ["busy", "group", "chase", "kicker", "overview"];
+const VIEWS = ["busy", "group", "chase", "kicker", "overview", "queue", "chairs"];
 
 const args = parseArgs(
   process.argv.slice(2),

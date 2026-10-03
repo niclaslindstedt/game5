@@ -90,6 +90,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // Blown into a wind tunnel; coming out of the far end is not news,
       // the run carrying on.
       return e.phase === "in" ? { text: STRINGS.newsTunnel, tone: "info" } : null;
+    case "lift":
+      // Taken onto a lift: which kind, and that the top is where it goes.
+      return e.phase === "board" ? { text: STRINGS.newsLift(e.lift), tone: "info" } : null;
     default:
       return null;
   }

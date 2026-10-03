@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CURRENT_GENERATOR_VERSION,
+  generatorTraits,
   FULL_ASSIST,
   LEVEL_RULES,
   RACE,
@@ -95,7 +95,7 @@ describe("the ladder", () => {
         // own (R28) — never the same course twice.
         expect(level.seed, level.id).toBe(shelf.seed);
         expect(level.region, level.id).toBe(shelf.region);
-        expect(level.version, level.id).toBe(CURRENT_GENERATOR_VERSION);
+        expect(generatorTraits(level.version).singlePiste, level.id).toBeFalsy();
         expect(courses.has(level.course), `${level.id} races course ${level.course} twice`).toBe(
           false,
         );

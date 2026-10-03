@@ -147,6 +147,7 @@ export {
   type CrowdState,
   type SkierInput,
   type SkierState,
+  type LiftRide,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -227,6 +228,25 @@ export {
   stepRivals,
 } from "./game/rivals.ts";
 export { stepRun } from "./game/run.ts";
+export {
+  DRAG_ARM,
+  LIFT_LOOK,
+  carrierAt,
+  carrierCount,
+  carrierPassing,
+  liftPlans,
+  queueLane,
+  queueSpot,
+  QUEUE_GAP,
+  planLift,
+  ropeAt,
+  upRope,
+  type LiftKind,
+  type LiftLook,
+  type LiftPlan,
+  type Support,
+} from "./game/lift-line.ts";
+export { arriveByLift, leadInput, seatedShare, stepLift } from "./game/lift-ride.ts";
 export {
   airPointsPerSecond,
   landingGrade,

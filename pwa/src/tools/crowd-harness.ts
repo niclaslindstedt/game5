@@ -41,6 +41,9 @@ import {
   type Amateur,
   type CrowdBody,
   type GameState,
+  liftPlans,
+  queueSpot,
+  ropeAt,
 } from "@engine";
 
 import { outfitOf, type Outfit } from "../game/crowd-dress.ts";
@@ -132,6 +135,12 @@ function standIn(body: CrowdBody, id: number, over: Partial<Amateur> = {}): Amat
     fallSide: 1,
     pole: 0,
     push: 0,
+    lift: -1,
+    carrier: -1,
+    seat: 0,
+    tx: 0,
+    tz: 0,
+    ts: 0,
     ...over,
   };
 }
@@ -437,6 +446,40 @@ async function slope(): Promise<void> {
         busiest(40);
       behind(a, 14, 3, 50);
       return `amateur ${a.id} (${a.kind}) ${a.mode === "air" ? "in the air" : "lining up"}`;
+    },
+    // THE LIFTS (`crowd-lift.ts`): the longest queue at its lift's foot,
+    // from beside its corral, the load line and the chairs coming round.
+    queue() {
+      const plans = liftPlans(level);
+      let lift = 0;
+      crowd.queues.forEach((q, i) => {
+        if (q.length > (crowd.queues[lift]?.length ?? 0)) lift = i;
+      });
+      const p = plans[lift];
+      const load = queueSpot(p, 0);
+      const back = queueSpot(p, 6);
+      const ex = back.x + p.dz * 9 - p.dx * 4;
+      const ez = back.z - p.dx * 9 - p.dz * 4;
+      look(
+        [ex, level.groundAt(ex, ez) + 3.5, ez],
+        [load.x, level.groundAt(load.x, load.z) + 1, load.z],
+        55,
+      );
+      return `${p.lift.id}'s queue of ${crowd.queues[lift]?.length ?? 0}`;
+    },
+    chairs() {
+      // A rider on a chair, from beside his chair a little below it.
+      const plans = liftPlans(level);
+      const a = crowd.amateurs.find(
+        (o) => o.mode === "ride" && plans[o.lift]?.lift.kind === "chair" && o.timer > 2,
+      );
+      if (!a) return "nobody on a chair";
+      const p = plans[a.lift];
+      const ex = a.x + p.dz * 9 - p.dx * 6;
+      const ez = a.z - p.dx * 9 - p.dz * 6;
+      look([ex, a.y - 1, ez], [a.x, a.y, a.z], 50);
+      const on = crowd.amateurs.filter((o) => o.mode === "ride" && o.lift === a.lift).length;
+      return `${p.lift.id}'s chair ${a.carrier} with amateur ${a.id} on it, ${on} riding`;
     },
     overview() {
       const a = busiest(120);

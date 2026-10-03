@@ -244,6 +244,8 @@ export function poseInputOf(
     // THE FALL his body is riding, by how far it is.
     flight: flightShape(legs.flight, legs.clock, legs.air),
     trick,
+    // ...with his poles, or with nothing in his hands (the hard mode).
+    poles: skier.poles,
     mounts,
     // IN THE START GATE under the lights, as his body has settled into it
     // — or, before the spring has read a ride, as the lights say.

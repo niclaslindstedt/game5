@@ -26,17 +26,10 @@
 //                 driver compiles every shader in it — paid for under the
 //                 card rather than out of the player's first second.
 
-import {
-  createGame,
-  error,
-  type GameMode,
-  type GameState,
-  type CreateGameOptions,
-  type SkiSpec,
-} from "@engine";
+import { createGame, error, type GameMode, type GameState, type CreateGameOptions } from "@engine";
 
+import type { PinnedSkier } from "./campaign.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
-import { assistOf, type Settings } from "./settings.ts";
 import {
   advanceLoad,
   createLoad,
@@ -194,18 +187,20 @@ export function createLoader(
 
 /** A whole race on `seed` — or, where the generator refuses it, the map the
  * game falls back on, so the page ALWAYS mounts over something. `skier` is
- * the player's help and pair for a race a link boots into; the race under
+ * the player's help, pair and switches for a race a link boots into; the race under
  * the front door is the bot's, on the default pair with every hand on. */
 export function raceOrFallback(
   seed: number,
-  skier: { assist: Settings["assist"]; spec: SkiSpec; mode: GameMode; laps: number } | null,
+  skier: (PinnedSkier & { mode: GameMode; laps: number }) | null,
   world: Pick<CreateGameOptions, "sky" | "region" | "grade"> = {},
 ): GameState {
   const help = {
     ...(skier
       ? {
-          assist: assistOf(skier.assist),
+          assist: skier.assist,
           spec: skier.spec,
+          damage: skier.damage,
+          poles: skier.poles,
           mode: skier.mode,
           laps: skier.mode === "timeTrial" ? skier.laps : undefined,
         }

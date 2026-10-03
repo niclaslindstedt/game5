@@ -137,6 +137,12 @@ describe("the replay reaches the same flag", () => {
     );
   });
 
+  it("rebuilds a run skied without poles without them", () => {
+    const bare = createGame({ level, seed: 11, mode: "race", laps: 1, quiet: true, poles: false });
+    expect(createGame(recipeOf(bare, "race")).skier.poles).toBe(false);
+    expect(createGame(recipeOf(race, "race")).skier.poles).toBe(true);
+  });
+
   it("rides the tape to the same finish, on the same step, every rival with it", () => {
     const again = rideReplay(replay!);
     expect(again.finish).toEqual(recorded.ride.finish);

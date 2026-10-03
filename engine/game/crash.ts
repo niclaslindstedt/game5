@@ -84,10 +84,13 @@ export type CrashLimit = keyof typeof TUNING.crash.club;
 
 /** THE SKIER'S OWN THRESHOLD: `TUNING.crash`'s professional's at a
  * resilience of 1, its club skier's (`crash.club`) at 0, the blend between —
- * written so 1 is the professional's number to the bit. */
+ * written so 1 is the professional's number to the bit. A skier without
+ * his poles keeps only `poles.bare.balance` of his resilience: nothing to
+ * catch a lurch on. */
 export function crashLimit(c: SkierState, key: CrashLimit): number {
   const pro = K[key];
-  return pro - (pro - K.club[key]) * (1 - c.resilience);
+  const steady = c.poles ? c.resilience : c.resilience * TUNING.poles.bare.balance;
+  return pro - (pro - K.club[key]) * (1 - steady);
 }
 
 /** How far down the tips may come into a landing before they dig, rad:

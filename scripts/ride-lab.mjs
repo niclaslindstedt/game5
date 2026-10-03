@@ -55,6 +55,7 @@ const args = parseArgs(
       default: 1,
       help: "how much the skier can take before he goes down: 0 a club skier, 1 a professional",
     },
+    "no-poles": { kind: "flag", help: "ski without poles (the hard mode)" },
     "no-png": { kind: "flag", help: "print the numbers, draw nothing" },
     card: {
       kind: "flag",
@@ -62,7 +63,7 @@ const args = parseArgs(
     },
     out: { kind: "string", default: "previews", help: "where the pictures go" },
   },
-  "usage: npm run ride -- [scenario] [--skis id|all] [--seconds s] [--resilience 0..1] [--no-png] [--out dir]",
+  "usage: npm run ride -- [scenario] [--skis id|all] [--seconds s] [--resilience 0..1] [--no-poles] [--no-png] [--out dir]",
 );
 
 if (args.skis !== "all" && !E.isSkiId(args.skis)) {
@@ -92,6 +93,7 @@ function record(scenario, spec) {
     countdown: 0,
     spec,
     resilience: args.resilience,
+    poles: !args["no-poles"],
     quiet: true,
   });
   E.placeRun(state, scenario.place(S));

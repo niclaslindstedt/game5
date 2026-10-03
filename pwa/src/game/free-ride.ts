@@ -155,19 +155,20 @@ export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } |
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
 }
 
-/** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on `spec`
- * with `assist` — everything but the map itself, which the caller either
- * hands over already built or leaves to the seed. */
+/** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on his
+ * pair with his help and his poles (with them when left out) — everything
+ * but the map itself, which the caller either hands over already built or
+ * leaves to the seed. */
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  spec: SkiSpec,
-  assist: Assist,
+  skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
 ): CreateGameOptions {
   return {
     seed,
-    spec,
-    assist,
+    spec: skier.spec,
+    assist: skier.assist,
+    poles: skier.poles ?? true,
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,

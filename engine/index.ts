@@ -184,6 +184,7 @@ export {
   type Grip,
 } from "./game/snow.ts";
 export {
+  climbShare,
   driveForce,
   driveReach,
   glideYaw,

@@ -281,6 +281,14 @@ export function OptionsPage({
                 onHint={setHint}
               />
               <StepRow
+                label={STRINGS.optPoles}
+                hint={`${STRINGS.optPolesHint} ${STRINGS.optAssistNote}`}
+                stops={ON_OFF}
+                value={onOff(settings.poles)}
+                onPick={(id) => onSettings({ ...settings, poles: id === "on" })}
+                onHint={setHint}
+              />
+              <StepRow
                 label={STRINGS.optDamage}
                 hint={`${STRINGS.optDamageHint} ${STRINGS.optAssistNote}`}
                 stops={ON_OFF}

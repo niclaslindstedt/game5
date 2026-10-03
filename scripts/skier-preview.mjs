@@ -92,6 +92,11 @@ const args = parseArgs(
     },
     cell: { kind: "number", default: 260, help: "a cell's width, px" },
     code: { kind: "flag", default: false, help: "draw the code's figure, not the models" },
+    "no-poles": {
+      kind: "flag",
+      default: false,
+      help: "ski every move without poles (the hard mode)",
+    },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 240, help: "seconds a sheet may take" },
   },
@@ -153,6 +158,7 @@ function ski(move) {
     quiet: true,
     mode: move.mode,
     snowDepth: move.snow,
+    poles: !args["no-poles"],
   });
   E.placeRun(state, move.place());
   const t0 = state.t;

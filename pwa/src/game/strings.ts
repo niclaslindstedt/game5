@@ -409,6 +409,9 @@ export const STRINGS = {
   assistHalf: "HALF",
   assistFull: "FULL",
   optAssistNote: "Applies from the next run.",
+  optPoles: "POLES",
+  optPolesHint:
+    "Off is the hard mode: no poles to push on, so no double pole, a rise you can barely climb and less to keep your balance with.",
   optDamage: "DAMAGE",
   optDamageHint:
     "On: a trunk or a hard landing dulls an edge or hurts a knee, and you ski it for the rest of the run.",

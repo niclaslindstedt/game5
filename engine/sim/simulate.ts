@@ -42,6 +42,9 @@ export type SimOptions = {
   /** Ski the seed's map as built to this piste grade (R23); the one the
    * seed deals when left out. Ignored when `level` is given. */
   grade?: PisteGrade;
+  /** Ski WITHOUT POLES (`SkierState.poles` — the player's hard mode); with
+   * them when left out. */
+  poles?: boolean;
 };
 
 export type RunReport = {
@@ -115,6 +118,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     rivals: options.rivals ?? 0,
     countdown: 0,
     spec: options.spec,
+    poles: options.poles,
     quiet: true,
   });
   const events: GameEvent[] = [];

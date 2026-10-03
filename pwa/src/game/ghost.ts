@@ -133,6 +133,10 @@ export type GhostRun = GhostStage &
     /** The help the run was ridden with: the ghost rides with it too, since
      * the same hands with another hold on the yaw are another line. */
     assist: Assist;
+    /** Whether it was skied on poles (`SkierState.poles`): the ghost skis
+     * as it did, since the same hands with no poles are another line. Left
+     * out of a tape that had them — every tape an older build wrote. */
+    poles?: boolean;
     /** The time the run set, s. */
     value: number;
   };
@@ -214,6 +218,7 @@ export function sealGhost(
   key: RecordKey,
   assist: Assist,
   value: number,
+  poles = true,
 ): GhostRun {
   return {
     ...stage,
@@ -224,6 +229,7 @@ export function sealGhost(
     mode: key.mode,
     laps: key.laps,
     assist: { ...assist },
+    ...(poles ? {} : { poles: false }),
     value,
   };
 }
@@ -250,6 +256,7 @@ export function readsAsGhost(parsed: unknown): parsed is GhostRun {
     return false;
   }
   if (!run.assist || !share(run.assist.yaw) || !share(run.assist.air)) return false;
+  if (run.poles !== undefined && typeof run.poles !== "boolean") return false;
   if (typeof run.value !== "number" || !Number.isFinite(run.value) || run.value <= 0) return false;
   return isControlTape(parsed, TAPE);
 }

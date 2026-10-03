@@ -21,6 +21,9 @@
 //   game       the same moments as the game's chase and far cameras frame
 //              them, drawn at the pixels a 1280×720 frame gives him and
 //              enlarged without smoothing
+//   path       one move from straight above and from behind, strobed, with
+//              the line he takes over the snow (`skier-path.ts`) —
+//              previews/skier-path-<move>.png
 //   stretch    the model's skin at each moment coloured by how far every
 //              triangle is stretched (red) or crushed (blue) off the pose
 //              it was bound in, and the share outside the band, by region
@@ -35,6 +38,7 @@ import { skisById, type SkierState, type TrickPose } from "@engine";
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
+import { drawPath } from "./skier-path.ts";
 
 type Frame = {
   t: number;
@@ -668,5 +672,10 @@ window.__skier = {
             ? drawDetail()
             : sheet === "stretch"
               ? drawStretch()
-              : drawMove(),
+              : sheet === "path"
+                ? drawPath(
+                    { renderer, scene, poseAt, layout, label, cell },
+                    data.moves.find((m) => m.id === moveId) ?? data.moves[0],
+                  )
+                : drawMove(),
 };

@@ -221,9 +221,9 @@ const BANDS = [
   },
   {
     id: "setoff",
-    say: "working at a crawl on the flat or down a pitch: over his skis — the trunk ≥ 25° over, the knees ≥ 35°",
+    say: "working at a crawl on the flat or down a pitch: over his skis — the trunk ≥ 25° over, the knees ≥ 35° (skating, the gliding knee: the push leg drives out long)",
     when: (f) => working(f) && f.skier.pitch < 0.04,
-    bad: (m) => m.trunkPitch < 25 || Math.min(...m.knee) < 35,
+    bad: (m) => m.trunkPitch < 25 || (m.skating > 0.5 ? Math.max : Math.min)(...m.knee) < 35,
   },
   {
     id: "push",
@@ -337,14 +337,17 @@ function measure(move) {
     const gait = input.gait ?? P.STILL_GAIT;
     // The arms' work: the stride's, and the poles' as far as he works them.
     m.work = gait.stride + (gait.skate + gait.pole) * (gait.keep ?? 1);
+    m.skating = gait.skate;
     // …and in the gate, the higher basket over the snow and the nearer
     // basket's distance ahead of the boots, m.
     const feetZ = (pose.feet[0].z + pose.feet[1].z) / 2;
     m.planted = pose.poles ? Math.max(...pose.poles.map((b) => b.y - snow)) : Infinity;
     m.plantedAhead = pose.poles ? Math.min(...pose.poles.map((b) => b.z - feetZ)) : -Infinity;
-    const duty = E.TUNING.poles.duty;
+    // The middle of a push: the poles' bite (`Gait.duty`), or the
+    // stride's, each arm's two strides long.
+    const duty = gait.duty ?? E.TUNING.poles.duty;
     const ph = gait.stride > 0.5 ? (gait.phase + (gait.push ? 1 : 0)) / 2 : gait.phase;
-    const mid = gait.stride > 0.5 ? [0.08, 0.18] : [0.12, 0.33];
+    const mid = gait.stride > 0.5 ? [0.08, 0.18] : [0.27 * duty, 0.73 * duty];
     m.pushing = ph % 1 >= mid[0] && ph % 1 <= mid[1] && duty > 0;
     const moved = last ? poseTravel(last, pose, prev) : { travel: 0, joint: "", snap: 0 };
     m.travel = moved.travel;

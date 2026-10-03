@@ -27,6 +27,14 @@
 // was bound in, with the share of the suit outside a band printed per
 // region — where the skinning tears or collapses.
 //
+// `--sheet=path` draws WHERE EACH MOVE TAKES HIM: straight down and from
+// behind, the skier strobed every quarter second over the line his centre
+// of gravity draws on the snow and each foot's prints, with the numbers
+// that say whether he goes the way his skis point (the drift off his
+// heading, the glide off the gliding ski's line, the sway, the V, the
+// strides a second): previews/skier-path-<move>.png
+// (`pwa/src/tools/skier-path.ts`).
+//
 // It exists because a pose that reads in one still can be a twitch, a
 // boot leaving its ski or an arm through the body a frame later — and the
 // game's cameras, the world lab and the skis lab all show one moment.
@@ -38,6 +46,7 @@
 //   node scripts/skier-preview.mjs --frames=12 --views=back,side
 //   node scripts/skier-preview.mjs --sheet=closeup,game,stretch
 //   node scripts/skier-preview.mjs --sheet=closeup --moment=carve,tuck
+//   node scripts/skier-preview.mjs --sheet=path --move=skate,pole,start
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -66,7 +75,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "moves (the frame strips), turntable (every 45°), closeup, detail (the hands, the boots, the head), game (the chase and far cameras at the game's pixels), stretch (the skin's stretch); moves and turntable when left out",
+      help: "moves (the frame strips), path (each move from above, the line he takes), turntable (every 45°), closeup, detail (the hands, the boots, the head), game (the chase and far cameras at the game's pixels), stretch (the skin's stretch); moves and turntable when left out",
     },
     moment: {
       kind: "string",
@@ -86,7 +95,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 240, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/skier-preview.mjs [--move=a,b] [--sheet=moves|turntable|closeup|detail|game|stretch] [--moment=a,b] [--code] [--frames=n] [--views=a,b]",
+  "usage: node scripts/skier-preview.mjs [--move=a,b] [--sheet=moves|path|turntable|closeup|detail|game|stretch] [--moment=a,b] [--code] [--frames=n] [--views=a,b]",
 );
 
 const moves = args.move
@@ -200,7 +209,7 @@ const data = {
   slot: args.slot,
   // The flight's gravity, m/s² — what the page reads his falls by.
   gravity: E.flightGravity(E.MODE_RULES.race),
-  moves: sheets.includes("moves") ? moves.map(ski) : [],
+  moves: sheets.includes("moves") || sheets.includes("path") ? moves.map(ski) : [],
   turntable: sheets.includes("turntable") ? turntable() : [],
   moments: sheets.some((s) => CLOSE.includes(s)) ? momentFrames() : [],
 };
@@ -241,7 +250,10 @@ const browser = await found.chromium.launch({
 
 let crashed = null;
 const jobs = [
-  ...data.moves.map((m) => ({ sheet: "moves", id: m.id })),
+  ...(sheets.includes("moves") ? data.moves.map((m) => ({ sheet: "moves", id: m.id })) : []),
+  ...(sheets.includes("path")
+    ? data.moves.map((m) => ({ sheet: "path", id: `path-${m.id}`, move: m.id }))
+    : []),
   ...(data.turntable.length ? [{ sheet: "turntable", id: "turntable" }] : []),
   ...CLOSE.filter((s) => sheets.includes(s)).map((s) => ({ sheet: s, id: s })),
 ];
@@ -259,7 +271,7 @@ for (const job of jobs) {
   page.setDefaultTimeout(args.timeout * 1000);
   const query = new URLSearchParams({
     sheet: job.sheet,
-    move: job.id,
+    move: job.move ?? job.id,
     views: args.views,
     cell: String(args.cell),
   }).toString();

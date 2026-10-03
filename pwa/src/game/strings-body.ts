@@ -133,7 +133,7 @@ export const BODY_STRINGS = {
   gUnit: "G",
   gWhat: (source: ImpactSource, part: BodyPart): string =>
     source === "landing" ? SOURCE_WORDS.landing : `${PART_WORDS[part]} ${SOURCE_WORDS[source]}`,
-  /** The run's hardest blow so far, under the body. */
+  /** The run's hardest blow he fell on so far, under the body. */
   hardest: (g: number): string => `HARDEST ${Math.round(g)} G`,
   /** THE NEWS: an injury taken. */
   newsInjury: (kind: InjuryKind, part: BodyPart): string => INJURY_WORDS[kind](sideWord(part)),

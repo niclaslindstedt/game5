@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE G METER — how hard that was. The moment a landing, the body on the
-// snow, a trunk or another skier lands a blow worth billing (`body.ts`),
-// its peak in g goes up over the skier in big figures, SHAKING by how hard
+// snow, a trunk or another skier lands a blow worth billing (`body.ts`) AND
+// someone goes down on it — he, or the skier he shouldered — its peak in g goes up over the skier in big figures, SHAKING by how hard
 // it was — a jolt barely trembles, a blow past what a body takes whole
 // rattles the number — and fades out over the hold. Under it, what took it
 // from what. Keyed on the blow's number, so a harder one arriving in the

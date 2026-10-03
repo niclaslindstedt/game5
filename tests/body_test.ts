@@ -148,8 +148,11 @@ describe("the body on the snow", () => {
         spec.id,
       ).toBe(true);
       expect(state.skier.body.injuries, spec.id).toEqual([]);
-      // ...and the landing is billed on the meter.
+      // ...and the landing is billed on the meter — but ridden out, so the
+      // HUD shows no g for it.
       expect(state.skier.body.peak, spec.id).toBeGreaterThan(I.landingShown);
+      expect(state.skier.body.impact?.fall, spec.id).toBe(false);
+      expect(state.skier.body.fallPeak, spec.id).toBe(0);
     }
   });
 
@@ -182,6 +185,9 @@ describe("the body on the snow", () => {
     const body = state.skier.body;
     expect(events.some((e) => e.kind === "wipeout")).toBe(true);
     expect(body.peak).toBeGreaterThan(100);
+    // He went down on it, so it is a fall's blow: the HUD's to show.
+    expect(body.fallPeak).toBe(body.peak);
+    expect(body.impact?.fall).toBe(true);
     expect(body.injuries.length).toBeGreaterThan(0);
     expect(severityOf(body)).toBeGreaterThanOrEqual(9);
     // Every injury taken was reported as it was taken.

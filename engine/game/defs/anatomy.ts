@@ -274,8 +274,11 @@ export const INJURY = {
   /** THE G METER: a blow is billed from `shown` g (a landing from
    * `landingShown`, since an ordinary one is two or three), and held
    * `hold` s — a harder one in that time takes its place, a softer one
-   * waits. */
+   * waits. Only a blow he FELL on is shown — he went down, or the skier he
+   * shouldered did — and a fall within `fallWindow` s after a blow makes
+   * it the fall's (the shove that put him over a moment later). */
   shown: 3,
   landingShown: 2,
   hold: 1.6,
+  fallWindow: 0.5,
 } as const;

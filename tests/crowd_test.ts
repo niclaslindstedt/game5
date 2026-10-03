@@ -15,6 +15,8 @@ import {
   clipCrowd,
   createGame,
   crowdNet,
+  feelBumps,
+  markFall,
   NEUTRAL_INPUT,
   step,
   type Amateur,
@@ -229,6 +231,8 @@ describe("the player meets the crowd", () => {
     c.vz = v;
     const events: GameEvent[] = [];
     clipCrowd(state, events);
+    feelBumps(state, events);
+    markFall(state);
     return { state, a, events };
   }
 
@@ -251,5 +255,34 @@ describe("the player meets the crowd", () => {
     expect(taken.a.mode).toBe("down");
     expect(taken.state.skier.thrown?.cause).toBe("skier");
     expect(taken.events.some((e) => e.kind === "wipeout" && e.cause === "skier")).toBe(true);
+  });
+
+  it("the g of a shoulder is the HUD's only when somebody went down on it", () => {
+    // Both stood up: the blow is billed, but as one ridden out.
+    const stood = meet(5, 0.95);
+    expect(stood.a.mode).not.toBe("down");
+    const blow = stood.state.skier.body.impact!;
+    expect(blow.source).toBe("skier");
+    expect(blow.fall).toBe(false);
+    expect(stood.state.skier.body.fallPeak).toBe(0);
+    // He goes down a moment after the shove: the blow is the fall's.
+    stood.a.mode = "down";
+    blow.t = 0.2;
+    markFall(stood.state);
+    expect(blow.fall).toBe(true);
+    expect(blow.t).toBe(0);
+    expect(stood.state.skier.body.fallPeak).toBe(blow.g);
+    // The amateur knocked down, or the player thrown: a fall's at once.
+    expect(meet(6).state.skier.body.impact?.fall).toBe(true);
+    expect(meet(20).state.skier.body.impact?.fall).toBe(true);
+  });
+
+  it("a fall long after the shove is not the shove's", () => {
+    const stood = meet(5, 0.95);
+    const blow = stood.state.skier.body.impact!;
+    stood.a.mode = "down";
+    blow.t = 1;
+    markFall(stood.state);
+    expect(blow.fall).toBe(false);
   });
 });

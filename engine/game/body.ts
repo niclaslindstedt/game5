@@ -102,7 +102,14 @@ const LADDER: { kind: InjuryKind; index: number; def: InjuryDef }[][] = BODY_PAR
 
 /** A sound body. */
 export function freshBody(): BodyState {
-  return { worst: new Array<number>(PARTS).fill(0), injuries: [], impact: null, peak: 0, blows: 0 };
+  return {
+    worst: new Array<number>(PARTS).fill(0),
+    injuries: [],
+    impact: null,
+    peak: 0,
+    fallPeak: 0,
+    blows: 0,
+  };
 }
 
 /** THE BLOW, g: the peak deceleration of a part met at `v` m/s and
@@ -137,6 +144,8 @@ const faced = new Int8Array(PARTS);
 let billG = 0;
 let billPart: BodyPart = "pelvis";
 let billSource: ImpactSource = "snow";
+let billRival = -1;
+let billAmateur = -1;
 
 function clear(): void {
   dose.fill(0);
@@ -159,12 +168,23 @@ function charge(part: BodyPart, mech: Mechanism, d: number): void {
   if (d > dose[k]) dose[k] = d;
 }
 
-/** Offer the g meter a blow; the hardest this step is the one billed. */
-function offer(g: number, part: BodyPart, source: ImpactSource): void {
+/** Offer the g meter a blow; the hardest this step is the one billed —
+ * and, off another skier, which. */
+function offer(g: number, part: BodyPart, source: ImpactSource, rival = -1, amateur = -1): void {
   if (g <= billG) return;
   billG = g;
   billPart = part;
   billSource = source;
+  billRival = rival;
+  billAmateur = amateur;
+}
+
+/** IS ANYONE DOWN over a blow: he is thrown, or the rival or the amateur
+ * he shouldered is (`rival` / `amateur` −1 for none). */
+function downOver(state: GameState, rival: number, amateur: number): boolean {
+  if (state.skier.thrown) return true;
+  if (rival >= 0 && state.rivals.find((r) => r.id === rival)?.run.skier.thrown) return true;
+  return amateur >= 0 && state.crowd?.amateurs.find((a) => a.id === amateur)?.mode === "down";
 }
 
 /** A blow met at `v` m/s on `part`, against snow of give `snow` m (or a
@@ -433,13 +453,26 @@ function fall(c: SkierState, cause: string, speed: number): void {
 function judge(state: GameState, events: GameEvent[]): void {
   const body = state.skier.body;
   if (billG >= (billSource === "landing" ? I.landingShown : I.shown)) {
-    const cur = body.impact;
-    const left = cur ? cur.g * Math.max(0, 1 - cur.t / I.hold) : 0;
-    if (billG >= left) {
+    // A blow he went down on takes the meter from one he rode out, and
+    // one he rode out never takes it from a fall's.
+    const fall = downOver(state, billRival, billAmateur);
+    const cur = body.impact && body.impact.t < I.hold ? body.impact : null;
+    const left = cur ? cur.g * (1 - cur.t / I.hold) : 0;
+    if (!cur || (fall && !cur.fall) || (fall === cur.fall && billG >= left)) {
       body.blows += 1;
-      body.impact = { g: billG, part: billPart, source: billSource, t: 0, id: body.blows };
+      body.impact = {
+        g: billG,
+        part: billPart,
+        source: billSource,
+        t: 0,
+        id: body.blows,
+        fall,
+        rival: billRival,
+        amateur: billAmateur,
+      };
     }
     if (billG > body.peak) body.peak = billG;
+    if (fall && billG > body.fallPeak) body.fallPeak = billG;
   }
   // Every part's worst injury drawn this step, then the worst `perBlow`
   // of them taken: one blow does a few things, and a body thrown into a
@@ -535,9 +568,22 @@ export function feelBumps(state: GameState, events: GameEvent[]): void {
     const g = blow(shoulder, e.speed, I.give.shoulder, false);
     strike(shoulder, g, side < 0 ? "left" : "right");
     strike(sided("arm", side), blow(sided("arm", side), e.speed, I.give.shoulder, false, 0.6));
-    offer(g, shoulder, "skier");
+    offer(g, shoulder, "skier", e.rival, e.amateur ?? -1);
   }
   if (any) judge(state, events);
+}
+
+/** A FALL A MOMENT AFTER THE BLOW: the blow on the meter that he — or the
+ * skier he shouldered — went down within `fallWindow` of is the fall's,
+ * and is shown from then for the meter's whole hold. After the field and
+ * the crowd have moved, every step. */
+export function markFall(state: GameState): void {
+  const body = state.skier.body;
+  const b = body.impact;
+  if (!b || b.fall || b.t > I.fallWindow || !downOver(state, b.rival, b.amateur)) return;
+  b.fall = true;
+  b.t = 0;
+  if (b.g > body.fallPeak) body.fallPeak = b.g;
 }
 
 /** The ISS's regions, by part: the head and neck, the chest (the thoracic

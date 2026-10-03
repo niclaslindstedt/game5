@@ -7,10 +7,19 @@
 
 import { describe, expect, it } from "vitest";
 
-import { TUNING, botInput, createGame, placeRun, step, type GameState } from "@engine";
+import {
+  TUNING,
+  botInput,
+  createGame,
+  createHeightfield,
+  fillField,
+  placeRun,
+  step,
+  type GameState,
+} from "@engine";
 
 import { GRADE_LOOK } from "../pwa/src/game/grade-look.ts";
-import { bakeMinimap, minimapSource } from "../pwa/src/game/minimap-bake.ts";
+import { bakeMinimap, mapPxFor, minimapSource } from "../pwa/src/game/minimap-bake.ts";
 import { VIEW, ZOOM, buildMinimap, project, spanFor } from "../pwa/src/game/minimap-view.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
@@ -46,6 +55,58 @@ describe("the baked ground (minimap-bake.ts)", () => {
       return rgba[k] + rgba[k + 1] + rgba[k + 2];
     };
     expect(at(LONE_TREE.x, LONE_TREE.z)).toBeLessThan(at(LONE_TREE.x + 30, LONE_TREE.z) - 150);
+  });
+
+  it("lays the woods' green round a tree, past its own dot", () => {
+    const level = syntheticLevel();
+    const px = 500;
+    const rgba = bakeMinimap(minimapSource(level), px);
+    // Green over red: a wood is green, the open snow is blue-white.
+    const green = (x: number, z: number): number => {
+      const k = (Math.floor((z / level.size) * px) * px + Math.floor((x / level.size) * px)) * 4;
+      return rgba[k + 1] - rgba[k];
+    };
+    const tree = level.trees.find((t) => t.x === LONE_TREE.x && t.z === LONE_TREE.z)!;
+    const beside = tree.crown * 2;
+    expect(green(LONE_TREE.x + beside, LONE_TREE.z)).toBeGreaterThan(
+      green(LONE_TREE.x + 60, LONE_TREE.z) + 10,
+    );
+  });
+
+  it("shows rock on a face too steep to hold snow, and only there", () => {
+    const size = 400;
+    const ground = createHeightfield(0, 0, 4, 101, 101);
+    // A gentle slope west of x = 200, a wall steeper than any rock band east.
+    fillField(ground, (x) => (x < 200 ? x * 0.1 : 20 + (x - 200) * 2));
+    const src = {
+      size,
+      ground,
+      packed: null,
+      trees: new Float32Array(0),
+      rock: { tone: [90, 80, 70] as [number, number, number], from: 0.75, to: 1.2 },
+      wood: [90, 140, 100] as [number, number, number],
+    };
+    const px = 100;
+    const rgba = bakeMinimap(src, px);
+    const blue = (i: number): number => {
+      const k = (50 * px + i) * 4;
+      return rgba[k + 2] - rgba[k];
+    };
+    // Snow is bluer than red; the rock's tone is the other way round.
+    expect(blue(20)).toBeGreaterThan(10);
+    expect(blue(80)).toBeLessThan(0);
+    // And a country with no rock keeps its snow on the same wall.
+    expect(bakeMinimap({ ...src, rock: null }, px)[(50 * px + 80) * 4 + 2]).toBeGreaterThan(
+      bakeMinimap({ ...src, rock: null }, px)[(50 * px + 80) * 4],
+    );
+  });
+
+  it("bakes a pixel every metre and a half or so, inside a size every phone decodes", () => {
+    expect(mapPxFor(1600)).toBe(1280);
+    expect(mapPxFor(3000)).toBe(2048);
+    expect(mapPxFor(400)).toBe(1024);
+    expect(mapPxFor(20000)).toBe(2048);
+    for (const size of [800, 1600, 2400, 3000]) expect(mapPxFor(size) % 256).toBe(0);
   });
 
   it("paints the groomed track apart from the powder beside it", () => {

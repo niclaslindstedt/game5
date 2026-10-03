@@ -306,6 +306,7 @@ canvas {
    the grey of rock past the map's edge, which is what the corners of the
    baked picture give way to. */
 .hud-minimap {
+  position: relative;
   width: var(--hud-map, var(--hud-cluster));
   height: var(--hud-map, var(--hud-cluster));
   border-radius: 50%;
@@ -318,113 +319,16 @@ canvas {
   pointer-events: none;
 }
 
+/* The world is painted on a canvas (minimap.tsx — the pose, its glide
+   between snapshots and every mark's paint are there); the skier's arrow and
+   the rim's chevron ride an SVG laid over it in the plate's own space. */
+.hud-minimap-world,
 .hud-minimap-face {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* The world group is posed by one transform written out whole, from the
-   origin (minimap.tsx's `pose`), and tweened between two snapshots — so a
-   map read twelve times a second turns and slides like one drawn every
-   frame. The angle it tweens through is kept continuous by the payload, so
-   a heading crossing south never spins the map the long way round. */
-.hud-minimap-world {
-  transform-origin: 0 0;
-  transition: transform 90ms linear;
-}
-
-.hud-minimap-world image {
-  image-rendering: auto;
-}
-
-/* The piste over the baked ground: the payload hands the width in metres,
-   floored so the piste is never a hair at the widest window. */
-.hud-minimap-track {
-  fill: none;
-  stroke: rgb(255 255 255 / 55%);
-  stroke-linejoin: round;
-}
-
-/* THE RESORT under the course (R26, R27): every other run a thin line in
-   its grade's paint (set inline), a transport lane a thinner light one, and
-   each lift a dark hairline with its stations dotted — the piste map's
-   convention, kept quieter than the course laid over it. */
-.hud-minimap-run,
-.hud-minimap-lane {
-  fill: none;
-  vector-effect: non-scaling-stroke;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.hud-minimap-run {
-  stroke-width: 1.5;
-  opacity: 0.85;
-}
-
-.hud-minimap-lane {
-  stroke: rgb(255 255 255 / 75%);
-  stroke-width: 1;
-}
-
-.hud-minimap-lift path {
-  fill: none;
-  stroke: #1d2126;
-  stroke-width: 0.8;
-  vector-effect: non-scaling-stroke;
-}
-
-.hud-minimap-lift circle {
-  fill: #1d2126;
-}
-
-.hud-minimap-tunnel > path:first-child {
-  fill: none;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.hud-minimap-tunnel-arrow {
-  fill: #fff;
-  stroke: rgb(0 0 0 / 55%);
-  stroke-width: 0.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.hud-minimap-checkpoint {
-  vector-effect: non-scaling-stroke;
-  stroke: rgb(var(--hud-plate) / 55%);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-}
-
-.hud-minimap-checkpoint-start {
-  stroke: var(--hud-ink);
-  stroke-width: 2.4;
-}
-
-/* THE ONE THE RUN OWES, in the flag's red and wider than the rest — the
-   place on the map the skier has to reach next. */
-.hud-minimap-checkpoint-owed {
-  stroke: var(--hud-good);
-  stroke-width: 4;
-}
-
-.hud-minimap-checkpoint-missed {
-  stroke: var(--hud-bad);
-  stroke-width: 4.5;
-}
-
-.hud-minimap-rival {
-  stroke: rgb(var(--hud-plate) / 85%);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-  transition:
-    cx 90ms linear,
-    cy 90ms linear;
 }
 
 .hud-minimap-chevron {

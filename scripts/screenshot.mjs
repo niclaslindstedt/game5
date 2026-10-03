@@ -351,7 +351,7 @@ async function capture(name, params, viewportName, surface) {
       // costs the picture nothing. A HUD with no plate does not wait.
       await page
         .waitForFunction(
-          "!document.querySelector('.hud-minimap') || !!document.querySelector('.hud-minimap image')",
+          "!document.querySelector('.hud-minimap') || !!document.querySelector('.hud-minimap[data-ground]')",
           null,
           { timeout: 15_000 },
         )

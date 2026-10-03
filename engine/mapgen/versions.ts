@@ -78,16 +78,9 @@ export type GeneratorTraits = {
    * rule book's own numbers (the UNGRADED row of `grades.ts`, whatever
    * grade it is asked for: no grade dealt, no drop laid, no `Level.grade`
    * published) down a face due north (no `Level.sun.facing`). The trick
-   * maps and the benchmark stand on it. From v3 every map is a ski area
+   * maps and the benchmark stand on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
-  /** BEFORE THE SUMMIT STATIONS (v3): a top station stands on the face as
-   * the massif left it — no level pad cut into it, no chair's unload ramp,
-   * (R26) — the runs off it start wherever the contour
-   * lets them, a bottom station stands wherever it was placed whatever run
-   * came down over it, and a drag lift crosses a piste square. Every
-   * campaign map stands on it. */
-  rawStations?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -99,7 +92,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     version: 1,
     note:
       "The generator as Fall Line launched with it (R1–R22): one ungraded piste down one " +
-      "face, the fall line due north. v3 builds every map as a whole ski area — a massif, " +
+      "face, the fall line due north. v4 builds every map as a whole ski area — a massif, " +
       "its lifts, a network of runs each built to a PISTE GRADE (R23) with the drops " +
       "across a black (R24), the face turned to the sun (R15) and transport lanes merging " +
       "down to a village (R25–R28) — raced on one course down it; this row builds one " +
@@ -107,24 +100,15 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     singlePiste: true,
   },
   {
-    version: 3,
-    note:
-      "The resorts: every map a ski area on one massif — its lifts, its runs of every " +
-      "colour and its transport lanes merging down to the village (R25–R27) — raced on " +
-      "one COURSE down that network (R28), the woods thick low down and thinning through " +
-      "the ecotone to the tree line (R14). v4 cuts a level PAD into the slope at every " +
-      "gondola's and chair's top and raises a chair's UNLOAD RAMP on it (R26), before the " +
-      "runs are walked off it, stands every bottom station beside the runs and lets no drag " +
-      "lift cross a piste; this row leaves the stations where it laid them.",
-    rawStations: true,
-  },
-  {
     version: 4,
     note:
-      "The stations: every gondola's and chair's top stands on a level pad cut into the " +
-      "slope, its downhill edge a lip onto the face, a chair's unload ramp on it and a " +
-      "groomed lane down to each of its runs; every station stands beside the runs, never " +
-      "on one, and no drag lift crosses a piste (R26).",
+      "The resorts with their stations: every map a ski area on one massif — its lifts, " +
+      "its runs of every colour and its transport lanes merging down to the village " +
+      "(R25–R27) — raced on one COURSE down that network (R28), the woods thick low down " +
+      "and thinning through the ecotone to the tree line (R14); every gondola's and " +
+      "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
+      "the face and a chair's unload ramp on it, every station stands beside the runs, " +
+      "never on one, and no drag lift crosses a piste (R26).",
   },
 ];
 

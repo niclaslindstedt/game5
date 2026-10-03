@@ -68,9 +68,8 @@
 //       finish, the stretch it merges in, or the lower part of it — to beside
 //       a station or a lane that brings its skier back to its top:
 //       `lift.drag.length` long, never steeper than `lift.drag.pitch` over
-//       any `lift.drag.pitchWindow` of its line, crossing a piste only square
-//       (within `lift.drag.square` of square) and otherwise `lift.drag.room`
-//       metres off every piste's edge, its top on ground falling no more than
+//       any `lift.drag.pitchWindow` of its line, `lift.drag.room` metres off
+//       every piste's edge, its top on ground falling no more than
 //       `lift.drag.padGrade` across its pad. Every top station stands
 //       `lift.below` metres under the ridge's crest or on its bench, on a
 //       level PAD `lift.pad` metres across, cut into the slope more than

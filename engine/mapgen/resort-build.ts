@@ -289,20 +289,19 @@ export function attemptResort(
   attempt: number,
   sub: number,
   region: Region,
-  withPads = true,
 ): BuiltResort | string {
   const rng = createRng(sub);
   const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
-  const pads = withPads ? pressPads(ground, liftPlans) : [];
+  const pads = pressPads(ground, liftPlans);
   /** Every station standing as the runs are walked — a lift's two ends,
    * the valley floor's aside (the runs finish among them in the hub, and
    * they are stood clear of them once every run stands) (R26). */
-  const stations = withPads
-    ? liftPlans.flatMap((l) => (l.bottom.z >= plan.baseZ - 1 ? [l.top] : [l.top, l.bottom]))
-    : [];
+  const stations = liftPlans.flatMap((l) =>
+    l.bottom.z >= plan.baseZ - 1 ? [l.top] : [l.top, l.bottom],
+  );
   /** Whether a piste `half` m wide either side of (x, z) would run over a
    * drag lift's line laid before the runs (the nursery's, R26). */
   const drags = liftPlans.filter((l) => l.kind === "drag");
@@ -381,8 +380,7 @@ export function attemptResort(
       // Never over a drag lift's line (R26): its track is ridden on the snow.
       // The runs off a drag's own top, which leave beside it and would
       // otherwise wander across it all the way down.
-      if (fair && withPads && drags.some((l) => l.id === spec.from))
-        fair = { ...fair, avoid: overDrag };
+      if (fair && drags.some((l) => l.id === spec.from)) fair = { ...fair, avoid: overDrag };
     }
     if (!fair) {
       debug(
@@ -407,7 +405,6 @@ export function attemptResort(
     walked,
     lifts: liftPlans,
     floor,
-    crossing: !withPads,
     route: (x, z, side, may, ask) =>
       routeLane(ground, walking, x, z, side, may, { ...ask, keepOff: onPad }),
     lay,
@@ -609,7 +606,6 @@ export function attemptResort(
   );
   const pressedGround: DragGround = {
     floor,
-    crossing: !withPads,
     height: (x, z) => sampleField(ground, x, z),
     piste: (x, z) => {
       net.nearest(x, z, WIDEST, (r) => kept[r].spec.kind === "road", hit);
@@ -636,7 +632,7 @@ export function attemptResort(
     if (b.run.to !== undefined) b.run.to = settled.renamed.get(b.run.to) ?? b.run.to;
 
   // ── 4c. THE STATIONS BESIDE THE RUNS (R26) ───────────────────────────
-  if (withPads) {
+  {
     const beside: StationGround = {
       onRun: (x, z, pad) => net.covers(x, z, pad, hit),
       onPiste: (x, z, pad) => {
@@ -685,13 +681,12 @@ export function attemptResort(
     ...liftPlans.flatMap((l) => (floor(l.bottom) ? [l.bottom] : [])),
   ];
   const hubPlan = planHub(plan, ground, floorPoints, sub);
-  const unhubbed = withPads ? packed.data.slice() : null;
+  const unhubbed = packed.data.slice();
   groomHub(hubPlan.hub, packed);
   // A drift the hub's grooming reaches into is groomed over there, the run's
   // whole width, and the drift cut back to the fresh snow left of it (R17,
-  // R29) — on a version whose stations stand beside the runs, the hub laid
-  // round where they now stand.
-  if (unhubbed) for (const b of built) trimDrifts(b, packed, unhubbed);
+  // R29) — the hub laid round where the stations now stand.
+  for (const b of built) trimDrifts(b, packed, unhubbed);
   groomPads(pads, packed, (x, z) => net.covers(x, z, 0, hit));
   const tunnels = layTunnels(hubPlan, ground);
 
@@ -785,14 +780,13 @@ export function buildResort(
   attempts: number,
   subSeed: (seed: number, attempt: number) => number,
   accept: (built: BuiltResort) => string | null,
-  pads = true,
 ): BuiltResort {
   const region = regionRow(regionId);
-  const key = `${seed}:${region.id}:${attempts}:${pads ? "pads" : "bare"}`;
+  const key = `${seed}:${region.id}:${attempts}`;
   if (cache && cache.key === key) return cache.built;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptResort(seed, a, subSeed(seed, a), region, pads);
+    const built = attemptResort(seed, a, subSeed(seed, a), region);
     if (typeof built === "string") {
       debug(`resort ${seed}#${a}: refused — ${built}`);
       reasons.push(`#${a}: ${built}`);

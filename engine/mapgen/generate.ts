@@ -287,8 +287,7 @@ function generateResortLevel(
     });
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
-  const pads = !generatorTraits(version).rawStations;
-  const built = buildResort(seed, opts.region, attempts, subSeed, accept, pads);
+  const built = buildResort(seed, opts.region, attempts, subSeed, accept);
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,

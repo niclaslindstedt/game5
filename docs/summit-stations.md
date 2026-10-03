@@ -62,10 +62,8 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   ramp as a low mound of packed snow under the unload point, 1.2 m high and
   7 m in reach — 16 % — so a rider stood up there slides off it whichever way
   he turns. The runs off a top leave from the pad's EDGES — their starts and
-  first stretch keep 25 m off its middle, a lane's route keeps off it — and a
-  groomed DISPERSAL LANE, kept clear of trees, runs from the pad down to each
-  run off its lift where it first passes below the pad. v3 maps (every
-  campaign map) keep the mountain as it was (`rawStations`).
+  first stretch keep 25 m off its middle, and a lane's route keeps off it.
+  Every map builds it, the campaign's included (generator v4).
 - **The stations drawn (`station-plan.ts`, `station-parts.ts`, `lifts.ts`)** —
   at a chair's top the terminal's hood over the wheel, the machine room, the
   operator's booth beside the unload with glass all round, the stop gate, the

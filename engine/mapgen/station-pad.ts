@@ -15,8 +15,7 @@
 // Pressed into the ground BEFORE the runs are walked, so the pistes start
 // off the pad's edges as the mountain now is (R12) and press their own
 // surfaces over it; groomed once the crust is folded in. Every number is
-// `RESORT_RULES.lift`'s. A version from before the pads (`rawStations`,
-// v3) presses none.
+// `RESORT_RULES.lift`'s.
 
 import { hypot, smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import {

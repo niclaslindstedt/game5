@@ -17,7 +17,6 @@ import type { PisteGrade } from "../mapgen/grades.ts";
 import { BENCH, NetIndex, WIDEST, clearance, netHit, runColour } from "../mapgen/network.ts";
 import { regionOf, scaleBand } from "../mapgen/regions.ts";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
-import { generatorTraits } from "../mapgen/versions.ts";
 import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
@@ -190,8 +189,8 @@ export function analyzeResort(level: Level): ResortAnalysis {
       add("R26", "error", `${l.id} climbs only ${(l.top.y - l.bottom.y).toFixed(0)} m`);
   }
   // R26 — every gondola's and chair's top on its level pad, a chair's with
-  // its unload ramp; a version from before the pads stands on the face.
-  if (!generatorTraits(level.version).rawStations) {
+  // its unload ramp.
+  {
     for (const l of resort.lifts) {
       const pad = padReading(level, l);
       if (!pad) continue;

@@ -113,7 +113,7 @@ export function placeRun(state: GameState, moment: RunMoment): void {
   c.crouch = tucked;
   // The crouch sits him lower on his legs (`skier.ts`), never in the air.
   if (!c.airborne) c.y -= c.spec.crouchDrop * c.crouch;
-  derive(c);
+  derive(c, state.level);
   if (moment.time !== undefined) state.progress.time = moment.time;
   if (moment.nextCheckpoint !== undefined) {
     state.progress.nextCheckpoint = moment.nextCheckpoint;

@@ -12,7 +12,11 @@
 //   * THE SKIS (`ski-gear.ts`) — two lofted beams with a sidecut, on their
 //     bindings, the boots clamped in them, posed every frame off the engine:
 //     lifted by each leg's compression, pivoted by the skid, tipped onto the
-//     edge, and raised toward the body by the tuck's drop.
+//     edge, and raised toward the body by the tuck's drop — and ON THE
+//     SNOW (`ski-stand.ts`): the body drawn turned about its feet rather
+//     than its centre of gravity, the inside ski lifted toward him and the
+//     outside let down, so he inclines over two skis on the snow and never
+//     rolls the outside one up into the air.
 //   * THE SKIER (`skier-figure.ts`), hung on the points `skier-pose.ts`
 //     works out: his boots are the skis' boots, his hips angulated inside
 //     the turn by what the engine reports, folded into the tuck, his poles
@@ -35,8 +39,9 @@ import { TUNING, type SkiSpec, type SkierState, type Thrown, type TrickPose } fr
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
-import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
+import { buildGear, cuffHeight, skiTilt } from "./ski-gear.ts";
 import { SKI_LOOKS, lookOf } from "./ski-looks.ts";
+import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { SKIER_BODY } from "./skier-colours.ts";
 import { createSkier, type SkierFigure, type SkierStyle } from "./skier-figure.ts";
@@ -190,15 +195,34 @@ function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
   return false;
 }
 
+/** How far he stands on the snow as drawn, 0..1: the view's eased air, or
+ * the engine's flag before the spring has read a ride. */
+export function groundOf(skier: SkierState, legs: ReturnType<typeof createSkierSpring>): number {
+  if (skier.thrown) return 0;
+  return Number.isNaN(legs.hip) ? (skier.airborne ? 0 : 1) : 1 - legs.air;
+}
+
 /** The engine's readings as the pose wants them, for one frame —
- * `waiting` in the start gate under the lights. */
+ * `waiting` in the start gate under the lights; `stand` where the skis
+ * stand on the snow (`ski-stand.ts`, worked out off `legs` when left
+ * out). */
 export function poseInputOf(
   skier: SkierState,
   legs: ReturnType<typeof createSkierSpring>,
   mounts: Mounts,
   trick: TrickPose | null,
   waiting = false,
+  stand: Stand = standOf(
+    skier,
+    groundOf(skier, legs),
+    undefined,
+    undefined,
+    drawnSkiAngle(legs, skier),
+  ),
 ): SkierPoseInput {
+  // The inclination the skis are tipped against beyond the world's roll —
+  // carried onto the body's own eased roll.
+  const onSnow = stand.incline - groundOf(skier, legs) * skier.roll;
   return {
     roll: skier.roll,
     // The hips' shift as his body carries it (eased in the view's spring),
@@ -207,12 +231,12 @@ export function poseInputOf(
     hipAft: skier.hipAft,
     lean: skier.lean,
     steer: skier.steer,
-    edge: skiTilt(skier),
+    edge: stand.tilt,
     // The edge and the roll as his body above the boots carries them.
     body: Number.isNaN(legs.hip)
       ? undefined
       : {
-          tilt: skiTilt({ edge: legs.edge, roll: legs.roll, speed: skier.speed }),
+          tilt: skiTilt({ edge: legs.edge, roll: legs.roll + onSnow, speed: skier.speed }),
           roll: legs.roll,
         },
     // The skid's pivot as his body carries it (eased in the view's spring).
@@ -220,7 +244,10 @@ export function poseInputOf(
     crouch: skier.crouch,
     tuck: skier.tuck,
     drop: skier.spec.crouchDrop * skier.crouch,
-    lift: gearLift(skier),
+    lift: stand.lift,
+    spread: stand.out,
+    fore: stand.fore,
+    incline: stand.incline,
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,
@@ -359,6 +386,8 @@ export function createSkisModel(
 
   const toRoot = new THREE.Quaternion();
   const thrown = new THREE.Quaternion();
+  const stand = emptyStand();
+  const pivot = new THREE.Vector3();
   const trunk = new THREE.Matrix4();
   const axis = { x: new THREE.Vector3(), y: new THREE.Vector3(), z: new THREE.Vector3() };
   const frame: BodyFrame = {
@@ -383,9 +412,26 @@ export function createSkisModel(
       return out;
     },
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
-      root.position.set(at.x, at.y - sink, at.z);
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
+      // His legs' spring first: how far he stands on the snow is its own.
+      if (!off)
+        stepSkierSpring(
+          legs,
+          skier.vy,
+          skier.airborne,
+          dt,
+          skier.jumpLoad / TUNING.jump.full,
+          skier,
+          waiting,
+        );
+      // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
+      // feet, so the drawn origin goes inside the turn by the legs' length
+      // times the sine of the inclination.
+      const angle = drawnSkiAngle(legs, skier);
+      standOf(skier, off ? 0 : groundOf(skier, legs), stand, inclineAt(skier, at.q), angle);
+      pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
+      root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
         // THE SKIER THROWN (`crash.ts`): off his skis, his figure hung on
         // the engine's ragdoll — laid in the root's frame at his trunk's
@@ -413,24 +459,14 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        stepSkierSpring(
-          legs,
-          skier.vy,
-          skier.airborne,
-          dt,
-          skier.jumpLoad / TUNING.jump.full,
-          skier,
-          waiting,
-        );
-        const input = poseInputOf(skier, legs, mounts, trick, waiting);
+        const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
         figure.pose(input);
         models?.poseSkier(skierPose(input), figure.group);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
-      const angle = drawnSkiAngle(legs, skier);
-      gear.pose(skier, sink, angle);
-      models?.pose(skier, sink, dt, angle);
+      gear.pose(skier, sink, angle, stand);
+      models?.pose(skier, sink, dt, angle, stand);
       merged.update();
     },
     poseSkier(input) {

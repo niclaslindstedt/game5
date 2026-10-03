@@ -53,10 +53,11 @@ const MASS = {
  * optional — the head's world readings are left out without them);
  * `tilt` the skis' edge in the body frame (or each ski's, a pair) and
  * `turns` each ski's turn off the body's line (the skid's pivot and the skate's V), rad — the boots'
- * frames; `hipHalf` half the hips' width (`BODY.hip`). */
+ * frames, pivoted in the snow's plane on a body `incline` rad to it
+ * (`ski-stand.ts`); `hipHalf` half the hips' width (`BODY.hip`). */
 export function measurePose(
   pose,
-  { q = null, head = null, tilt = 0, turns = [0, 0], hipHalf = 0.12 } = {},
+  { q = null, head = null, tilt = 0, turns = [0, 0], hipHalf = 0.12, incline = 0 } = {},
 ) {
   const p = pose;
   const up = norm(sub(p.neck, p.hips));
@@ -84,13 +85,18 @@ export function measurePose(
   // EACH BOOT'S FRAME: forward along its ski, up its tipped normal, right
   // across it.
   const tilts = Array.isArray(tilt) ? tilt : [tilt, tilt];
+  const lean = (v) => ({
+    x: v.x * Math.cos(incline) - v.y * Math.sin(incline),
+    y: v.x * Math.sin(incline) + v.y * Math.cos(incline),
+    z: v.z,
+  });
   const boots = turns.map((t, i) => {
-    const tilt = tilts[i];
+    const tilt = tilts[i] + incline;
     const f = { x: Math.sin(t), y: 0, z: Math.cos(t) };
     const r0 = { x: Math.cos(t), y: 0, z: -Math.sin(t) };
     const n = add(scale(r0, Math.sin(tilt)), { x: 0, y: Math.cos(tilt), z: 0 });
     const r = add(scale(r0, Math.cos(tilt)), { x: 0, y: -Math.sin(tilt), z: 0 });
-    return { f, n, r };
+    return { f: lean(f), n: lean(n), r: lean(r) };
   });
   // THE LEGS: the knee's flexion (0 straight), the shin's forward lean off
   // the skis' normal in the side view (the boot's cuff holds it at its own

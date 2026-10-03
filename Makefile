@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics skis skier skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics turns skis skier skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -134,7 +134,8 @@ sky:
 # THE CLOUD LAB: the snow a skier throws up and the groove he leaves, as one
 # labelled contact sheet — previews/cloud-<seed>.png. Each row one ride
 # across the seed's open meadow, or the piste with ARGS=--where=piste (a
-# kind of snow × a light × a move — straight, carve, check, stop, skate —
+# kind of snow × a light × a move — straight, carve, turn, skid, check,
+# stop, skate —
 # × a held speed),
 # each column the same moment from another angle (chase, side, front, high,
 # trail, under, furrow), or with ARGS=--cols=times one angle at several
@@ -154,6 +155,20 @@ cloud:
 # --speeds=10,20,40"; ARGS="--json=a.json" / "--compare=a.json".
 cloud-metrics:
 	npm run cloud-metrics -- $(ARGS)
+
+# THE TURNS LAB: the skier TURNING AND STOPPING as the game draws him — one
+# turn held, linked carves, a skidded turn and a hockey stop (the held moves
+# of hold-input.ts), each at several speeds, ridden on a real map's piste
+# through the game's own renderer (the models, the tracks, the spray, the
+# cloud) and photographed at moments of each — previews/turns-<seed>-<view>.png,
+# a sheet a lens (chase, low at the snow, behind, side, front, high). Every
+# cell prints the speed, the inclination, each ski's share of the load and
+# its gap to the snow (ski-stand.ts). Its own one-off bundle from
+# pwa/turns-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n, REGION=id; ARGS="--views=low,side --moves=stop --speeds=30,60";
+# ARGS="--where=meadow --moves=carve".
+turns:
+	npm run turns -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE WILDLIFE LAB: every bird over the woods and every animal in the snow
 # side by side, three poses each through the game's own geometry and

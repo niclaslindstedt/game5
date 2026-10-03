@@ -11,9 +11,9 @@
 // blue in its shaded side, the glow of a taillight in it at night, how much
 // less a wet or crusted snow throws — only shows side by side.
 //
-// THE STAGE: one open meadow on the seed's own map — the flattest spot with
-// no tree near it and the track well away — or, with `where=piste`, the
-// piste itself (its own groomer, unless a snow is laid over it), ridden at
+// THE STAGE (`stage.ts`): one open meadow on the seed's own map — the
+// flattest spot with no tree near it and the track well away — or, with
+// `where=piste`, the piste itself (its own groomer, unless a snow is laid over it), ridden at
 // a held speed in one of the MOVES: running straight, carving, checking the
 // speed with the brake's skid, a hockey stop from the speed, skating off
 // from a standstill. The SUN is turned to the ride rather than the ride to the
@@ -26,7 +26,6 @@
 import {
   createGame,
   isRegionId,
-  nearestTrackPoint,
   placeRun,
   step,
   sunAtRun,
@@ -41,6 +40,7 @@ import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { holdInput, isHoldMove, type HoldMove } from "../game/hold-input.ts";
 import { isSnowKind, type SnowKind } from "../game/snowpack.ts";
+import { hourAt, meadow, pisteSpot } from "./stage.ts";
 
 declare global {
   interface Window {
@@ -87,62 +87,24 @@ renderer.resize(cellW, cellH, 1);
 const first: GameState = createGame({ seed, region, mode: "free", rivals: 0, quiet: true });
 const level = first.level;
 
-/** THE STAGE: the open meadow — the most room from the nearest tree, flat,
- * off the piste, on the mountain's face. */
-function meadow(): { x: number; z: number; room: number } {
-  const c = { x: level.size / 2, z: level.size * 0.5, rim: level.size * 0.4 };
-  let best = { x: c.x, z: c.z, room: -Infinity };
-  for (let x = c.x - c.rim * 0.8; x <= c.x + c.rim * 0.8; x += 16) {
-    for (let z = c.z - c.rim * 0.8; z <= c.z + c.rim * 0.8; z += 16) {
-      if (Math.hypot(x - c.x, z - c.z) > c.rim * 0.8) continue;
-      const near = nearestTrackPoint(level, x, z);
-      if (Math.hypot(near.x - x, near.z - z) < 45 || level.packedAt(x, z) > 0.05) continue;
-      let tree = 90;
-      for (const t of level.trees) tree = Math.min(tree, Math.hypot(t.x - x, t.z - z));
-      let lo = Infinity;
-      let hi = -Infinity;
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
-        for (const r of [0, 20, 40]) {
-          const y = level.groundAt(x + Math.sin(a) * r, z + Math.cos(a) * r);
-          lo = Math.min(lo, y);
-          hi = Math.max(hi, y);
-        }
-      }
-      const room = tree - (hi - lo) * 6;
-      if (room > best.room) best = { x, z, room };
-    }
-  }
-  return best;
-}
-
 /** A LIGHT: the sky it rides under and where the sun stands to the ride —
  * the ride's heading off the sun's azimuth (0 rides at the sun). */
 type Light = { label: string; sky: SkyOverride; turn: number };
 
-/** The hour (solar) the sun stands nearest `elevation` rad, before noon. */
-function hourAt(elevation: number): number {
-  let best = 12;
-  let gap = Infinity;
-  for (let h = 5; h <= 12; h += 0.25) {
-    const e = sunAtRun(withSky(level, { hour: h })).elevation;
-    if (Math.abs(e - elevation) < gap) {
-      gap = Math.abs(e - elevation);
-      best = h;
-    }
-  }
-  return best;
-}
-
 const DEG = Math.PI / 180;
 function lightOf(name: string): Light {
-  const day = hourAt(16 * DEG);
+  const day = hourAt(level, 16 * DEG);
   switch (name) {
     case "back":
       return { label: "INTO THE SUN", sky: { weather: "clear", hour: day }, turn: 0 };
     case "side":
       return { label: "SUN ACROSS", sky: { weather: "clear", hour: day }, turn: Math.PI / 2 };
     case "low":
-      return { label: "LOW SUN, BACK", sky: { weather: "clear", hour: hourAt(4 * DEG) }, turn: 0 };
+      return {
+        label: "LOW SUN, BACK",
+        sky: { weather: "clear", hour: hourAt(level, 4 * DEG) },
+        turn: 0,
+      };
     case "overcast":
       return { label: "OVERCAST", sky: { weather: "overcast", hour: 12 }, turn: 0 };
     case "snowing":
@@ -213,19 +175,12 @@ for (const snow of snows) {
   }
 }
 
-/** THE PISTE as a stage: a point a third of the way down it and its
- * heading there. */
-function pisteSpot(): { x: number; z: number; heading: number } {
-  const p = level.track.points[Math.floor(level.track.points.length / 3)];
-  return { x: p.x, z: p.z, heading: p.heading };
-}
-
 let spot = { x: 0, z: 0, room: 0 };
 
 window.__cloud = {
   ready: (async () => {
     await renderer.load(first);
-    spot = meadow();
+    spot = meadow(level);
   })(),
   async sheet() {
     const cols = byTimes ? times.length : views.length;
@@ -255,7 +210,7 @@ window.__cloud = {
       renderer.setSky(row.light.sky);
       renderer.setSnow(row.snow);
       const sun = sunAtRun(withSky(level, row.light.sky));
-      const piste = onPiste ? pisteSpot() : null;
+      const piste = onPiste ? pisteSpot(level) : null;
       const heading = piste ? piste.heading : wrap(sun.azimuth + row.light.turn);
       const state = createGame({
         level,

@@ -81,6 +81,7 @@ import { driveReach, poleForce, strideRate } from "./poles.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
+import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState, SnowContact } from "./state.ts";
 
 const dt = TUNING.dt;
@@ -167,6 +168,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     heading: 0,
     pitch: 0,
     roll: 0,
+    incline: 0,
     speed: 0,
     way: 0,
     tuck: 0,
@@ -844,7 +846,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     }
   }
 
-  derive(c);
+  derive(c, level);
   // ── The automatic reset's clocks (`run.ts` acts on them) ──────────────
   const upright = rotate(c.q, { x: 0, y: 1, z: 0 }).y;
   c.overFor = upright < TUNING.reset.overUp ? c.overFor + dt : 0;
@@ -855,12 +857,21 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
 }
 
 /** The readouts derived from the body's state — written once at the end
- * of a step (and by anything that stands a skier somewhere). */
-export function derive(c: SkierState): void {
+ * of a step (and by anything that stands a skier somewhere). The
+ * inclination is measured against the snow under him on `level`, and is
+ * the world's roll where no level is given. */
+export function derive(c: SkierState, level?: Level): void {
   const e = toEuler(c.q);
   c.heading = e.heading;
   c.pitch = e.pitch;
   c.roll = e.roll;
+  if (level) {
+    level.normalAt(c.x, c.z, normal);
+    const right = rotate(c.q, { x: 1, y: 0, z: 0 });
+    c.incline = Math.asin(
+      clamp(-(right.x * normal.x + right.y * normal.y + right.z * normal.z), -1, 1),
+    );
+  } else c.incline = e.roll;
   c.speed = hypot3(c.vx, c.vy, c.vz);
   const f = rotate(c.q, { x: 0, y: 0, z: 1 });
   const fl = hypot(f.x, f.z) || 1;

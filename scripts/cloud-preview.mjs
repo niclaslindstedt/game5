@@ -77,7 +77,7 @@ const args = parseArgs(
     moves: {
       kind: "string",
       default: "straight",
-      help: "the manoeuvres, rows (straight,carve,check,stop,skate — a stop from the speed, a skate from a standstill)",
+      help: "the manoeuvres, rows (straight,carve,turn,skid,check,stop,skate — a stop from the speed, a skate from a standstill)",
     },
     where: {
       kind: "string",

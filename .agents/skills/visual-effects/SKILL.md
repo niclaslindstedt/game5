@@ -32,6 +32,14 @@ differently from the ground under it and reads as paint. The LENS's reaction
 (the flown hand-over, a landing's kick) is the camera's — `camera.ts` under
 `game-feel`.
 
+**WHICH SKI THROWS IT.** A turning skier stands on his OUTSIDE ski — 95 %
+of him at a crawl, three quarters at a cruise, two thirds in a fast carve
+(`ski-stand.ts`'s `skiShares`, laid over the engine's two loads, which its
+equal legs carry alike) — and the snow comes off that ski's edge: the
+spray's sheet and the cloud's per-ski sheet go by each ski's share (the two
+together throwing what the pair does), and the skid's wall rises off the
+loaded ski's boot. Judge it with `make turns ARGS=--views=low`.
+
 ## The modules
 
 | Effect | Where |
@@ -112,7 +120,7 @@ in code. Snow in the air is:
    (`--cols=times`). The LIGHT is the sun turned to the run, so BACK is
    always the chase lens looking into the sun through the cloud. Run it
    before and after, both sheets in the PR.
-   `--moves=straight,carve,check,stop,skate` rides each row in a
+   `--moves=straight,carve,turn,skid,check,stop,skate` rides each row in a
    manoeuvre (the controls are `hold-input.ts`'s, the app's own held
    ride) and `--where=piste` stands it on the groomer.
 2. **`make cloud-metrics`** is the NUMBERS behind those sheets: the same

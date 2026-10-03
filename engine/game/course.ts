@@ -367,7 +367,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
     contact.load = 0;
   }
   c.comps.fill(0);
-  derive(c);
+  derive(c, state.level);
 }
 
 /** How far clear of a trunk a free ride may be stood, m past its radius. */

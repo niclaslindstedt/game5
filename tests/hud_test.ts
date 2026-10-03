@@ -23,7 +23,7 @@ import {
 } from "@engine";
 
 import { newsFor } from "../pwa/src/game/run-news.ts";
-import { gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
+import { AIR_SHOWN, gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
@@ -95,6 +95,21 @@ describe("the snapshot (snapshot.ts)", () => {
     expect(snap.missed).not.toBe(null);
     expect(snap.missed!.distance).toBeGreaterThan(0);
     expect(Math.abs(snap.missed!.angle)).toBeLessThanOrEqual(Math.PI + 1e-9);
+  });
+
+  it("times a flight only once it has lasted past AIR_SHOWN — a hop is not a jump", () => {
+    const state = race();
+    state.skier.airborne = true;
+    state.skier.airTime = AIR_SHOWN - 0.05;
+    expect(takeSnapshot(state).airTime).toBe(0);
+    expect(takeSnapshot(state).airBest).toBe(false);
+    state.skier.airTime = AIR_SHOWN + 0.05;
+    expect(takeSnapshot(state).airTime).toBeCloseTo(AIR_SHOWN + 0.05, 9);
+    // The best air reads nothing until a flight past the floor has landed.
+    state.progress.bestAir = 0.3;
+    expect(takeSnapshot(state).bestAir).toBe(0);
+    state.progress.bestAir = 0.8;
+    expect(takeSnapshot(state).bestAir).toBe(0.8);
   });
 
   it("bills the finish, and the whole field's table under it, live", () => {

@@ -33,6 +33,7 @@ import {
   WEATHER_KINDS,
   type Assist,
   type CreateGameOptions,
+  type Level,
   type SkiSpec,
 } from "@engine";
 
@@ -182,4 +183,13 @@ export function freeGameOptions(
     sky: ride.weather === null ? undefined : { weather: ride.weather },
     spawn: spotOn(ride, seed) ?? undefined,
   };
+}
+
+/** THE FREE RIDE STARTED AGAIN (the pause card's restart): the options it
+ * was stood up with, on the map `level` it built. The day and the sky are
+ * already in that map, so they are dropped rather than laid on again —
+ * `withSky` makes a new map of any map it is handed, and a new map is one
+ * the renderer has not built, which it would never draw. */
+export function freeAgainOptions(options: CreateGameOptions, level: Level): CreateGameOptions {
+  return { ...options, level, day: undefined, sky: undefined };
 }

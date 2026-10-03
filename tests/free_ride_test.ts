@@ -27,6 +27,7 @@ import {
   sunAtRun,
   TIMES_OF_DAY,
   TUNING,
+  trackPointAt,
   withDay,
   type GameState,
 } from "@engine";
@@ -140,6 +141,28 @@ describe("the free ride's reset", () => {
     const lane = at(resortOf(line(SLOPE.x + 200, "road", "R"), line(SLOPE.x + 300, "piste", "P")));
     expect(lane.x).toBeCloseTo(SLOPE.x + 200, 5);
     expect(lane.checkpoint).toBe(-1);
+  });
+
+  it("at the foot of the piste — the finish and its arena — goes back up to the start line", () => {
+    const state = freeRide();
+    const spawn = state.level.spawn;
+    const end = state.level.track.points[state.level.track.points.length - 1];
+    // On the finish line, and a little past it in the arena.
+    for (const past of [0, 10]) {
+      placeRun(state, {
+        x: end.x + Math.sin(end.heading) * past,
+        z: end.z + Math.cos(end.heading) * past,
+        heading: end.heading,
+      });
+      const pose = resetPose(state);
+      expect(Math.hypot(pose.x - spawn.x, pose.z - spawn.z)).toBeLessThan(1e-9);
+      expect(pose.heading).toBe(spawn.heading);
+    }
+    // Further up, the reset is still the nearest point of the piste.
+    const up = trackPointAt(state.level, state.level.track.length - TUNING.course.footReach - 20);
+    placeRun(state, { x: up.x, z: up.z, heading: up.heading });
+    const pose = resetPose(state);
+    expect(Math.hypot(pose.x - up.x, pose.z - up.z)).toBeLessThan(1);
   });
 
   it("a race's reset still goes back to the start gate before one is taken", () => {

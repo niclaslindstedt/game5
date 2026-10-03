@@ -252,9 +252,9 @@ const LANE_HANDICAP = 40;
  * `LANE_HANDICAP` — or of the map's one piste where the map is not a
  * resort. Facing the way that run runs there. Pure: the runs are walked in
  * their published order and the first of two equal answers is kept. */
-function nearestRunPoint(level: Level, x: number, z: number): TrackPoint {
+function nearestRunPoint(level: Level, x: number, z: number): TrackPoint & { foot: boolean } {
   const runs = level.resort?.runs ?? [];
-  let best: TrackPoint | null = null;
+  let best: (TrackPoint & { foot: boolean }) | null = null;
   let score = Infinity;
   for (const run of runs) {
     if (run.points.length < 2) continue;
@@ -263,17 +263,22 @@ function nearestRunPoint(level: Level, x: number, z: number): TrackPoint {
     const d = near.distance + (run.kind === "road" ? LANE_HANDICAP : 0);
     if (d < score) {
       score = d;
-      best = trackPointAt(line, near.s);
+      // A run's foot is the bottom only where it runs into the village.
+      const foot = run.into === null && run.length - near.s < K.footReach;
+      best = { ...trackPointAt(line, near.s), foot };
     }
   }
-  return best ?? trackPointAt(level, nearestTrackPoint(level, x, z).s);
+  if (best) return best;
+  const near = nearestTrackPoint(level, x, z);
+  return { ...trackPointAt(level, near.s), foot: level.track.length - near.s < K.footReach };
 }
 
 /** Where a reset stands the skier: on the piste's centreline a few metres
  * past the last gate taken (or on the start line before the start gate),
  * facing down the piste. On a FREE RIDE, where no gate is owed, it is the
  * nearest point of the nearest RUN of the resort (`nearestRunPoint`) — the
- * groomer he was last closest to, facing the way it runs there. */
+ * groomer he was last closest to, facing the way it runs there — unless
+ * that is the run's foot (`footReach`), where it is the start line. */
 export function resetPose(state: GameState): {
   x: number;
   z: number;
@@ -282,7 +287,9 @@ export function resetPose(state: GameState): {
 } {
   if (!state.rules.course) {
     const at = nearestRunPoint(state.level, state.skier.x, state.skier.z);
-    return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };
+    if (!at.foot) return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };
+    const spawn = state.level.spawn;
+    return { x: spawn.x, z: spawn.z, heading: spawn.heading, checkpoint: -1 };
   }
   const cps = state.level.checkpoints;
   const last = state.progress.lastCheckpoint;

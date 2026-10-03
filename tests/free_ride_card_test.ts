@@ -22,6 +22,7 @@ import {
   SEASONS,
   SNOW_STOPS,
   depthOf,
+  freeAgainOptions,
   freeGameOptions,
   freshRide,
   mergeRide,
@@ -138,6 +139,19 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(state.snowDepth).toBe(depthOf("thick"));
     expect(state.level.sun.dayOfYear).toBe(56);
     expect(freeGameOptions(ride, 10, SKIS, { yaw: 1, air: 1 }).spawn).toBeUndefined();
+  });
+
+  it("starts the same ride again on the very map it built — the renderer's", () => {
+    // With a sky and an hour asked for: laid on again they would make a new
+    // map the renderer never built, and the restart would never be drawn.
+    const ride = { ...freshRide(), time: "evening" as const, weather: "storm" as const };
+    const opts = { ...freeGameOptions(ride, 9, SKIS, { yaw: 1, air: 1 }), quiet: true };
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const again = createGame(freeAgainOptions(opts, first.level));
+    expect(again.level).toBe(first.level);
+    expect(again.level.weather?.kind).toBe("storm");
+    expect(again.skier.x).toBeCloseTo(first.skier.x, 9);
+    expect(again.skier.z).toBeCloseTo(first.skier.z, 9);
   });
 });
 

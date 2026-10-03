@@ -51,24 +51,22 @@ const version = process.env.GITHUB_SHA ? buildLabel : `${buildLabel}+${new Date(
 const envDir = here("..");
 
 export default defineConfig(({ mode }) => {
-  // The MODEL switches (`pwa/models-plugin.ts`, `src/game/skier-models.ts`):
-  // on unless the environment or the root `.env` switches one back
+  // The MODEL switch (`pwa/models-plugin.ts`, `src/game/skier-models.ts`):
+  // on unless the environment or the root `.env` switches it back
   // (`src/game/model-switch.ts`).
   const env = { ...loadEnv(mode, envDir, "VITE_"), ...process.env };
-  const models = {
-    skis: modelSwitch(env.VITE_MODEL_SKIS),
-    skiers: modelSwitch(env.VITE_MODEL_SKIERS),
-  };
+  const models = { skis: modelSwitch(env.VITE_MODEL_SKIS) };
   return {
     base,
     envDir,
     // The lazy renderer carries three.js and every procedural builder (the
-    // riders, the trees, the wildlife, the marks) in a 684 kB chunk by
-    // design. Keep Vite's warning just above that measured envelope. It is
+    // riders and the loom their outfits are cut on, the trees, the
+    // wildlife, the marks) in a 715 kB chunk by design. Keep Vite's
+    // warning just above that measured envelope. It is
     // the ONLY thing watching bundle size: what keeps three.js off the
     // first-render path is the dynamic import of `renderer.ts` in `App.tsx`
     // and nothing else (spec-conformance §23.9).
-    build: { chunkSizeWarningLimit: 700 },
+    build: { chunkSizeWarningLimit: 725 },
     resolve: {
       alias: {
         "@engine": here("../engine/index.ts"),

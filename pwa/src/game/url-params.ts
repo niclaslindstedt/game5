@@ -119,6 +119,7 @@ export type DevPage = "dev" | "unlocks" | "benchHistory";
 export type MenuPage =
   | "root"
   | "skis"
+  | "dress"
   | "options"
   | "keys"
   | "start"
@@ -130,6 +131,7 @@ export type MenuPage =
 const MENU_PAGES: readonly MenuPage[] = [
   "root",
   "skis",
+  "dress",
   "options",
   "keys",
   "start",

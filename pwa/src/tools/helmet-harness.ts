@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HELMET LAB's page (driven by `scripts/helmet-preview.mjs`): the head
-// in its helmet, as the game draws it — the CODE's (`skier-helmet.ts`, on
-// the code's figure) and the MODEL's (the committed `skier.glb`, or a
+// in its helmet, as the game draws it — the CODE's (`dress-head.ts` over `helmet-shape.ts`, on
+// the dressed figure) and a MODEL's (a Blender skier, `make blender KIND=skier`, a
 // candidate the driver serves beside it), both posed by the game's own
 // pose on the same spot, so a row of one is a row of the other. Four
 // sheets:
@@ -32,7 +32,8 @@ import { dressOf } from "../game/skier-models.ts";
 import { createSkier, type SkierFigure } from "../game/skier-figure.ts";
 import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
-import { mountsOf, SKI_STYLES } from "../game/skis-body.ts";
+import { coloursOf } from "../game/outfit.ts";
+import { mountsOf, SLOT_DRESS } from "../game/skis-body.ts";
 
 type Drawn = { rows: number; cols: number; note: string; table: string[] };
 
@@ -47,7 +48,7 @@ const sheet = params.get("sheet") ?? "views";
 const cell = Number(params.get("cell") ?? 300);
 const slots = (params.get("slots") ?? "0").split(",").map(Number);
 /** The sources drawn: `code` and every model file served beside the page. */
-const sources = (params.get("sources") ?? "code,models/skier.glb").split(",");
+const sources = (params.get("sources") ?? "code").split(",");
 
 /** The poses: on the move, stood up, and folded into the tuck. */
 const STAND: SkierPoseInput = {
@@ -127,23 +128,31 @@ const loader = new GLTFLoader();
 const gltfs = new Map<string, Promise<GLTF>>();
 const plain = <M extends THREE.Material>(m: M): M => m;
 
-function trisOf(g: THREE.BufferGeometry): number {
-  return (g.index ? g.index.count : g.getAttribute("position").count) / 3;
-}
-
 /** The code's figure in a kit; its head's triangles by material. */
 function codeHead(slot: number): Head {
-  const fig: SkierFigure = createSkier(SKI_STYLES[slot].skier, plain);
+  const fig: SkierFigure = createSkier(SLOT_DRESS[slot], plain);
   fig.group.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = o.receiveShadow = true;
   });
+  // The head's share of the dressed skin: every triangle whose corners all
+  // ride the head bone, by the mesh it is drawn in.
   const tris = new Map<string, number>();
-  fig.head.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
-    const m = o.material as THREE.MeshStandardMaterial;
-    const name = `#${m.color.getHexString()}`;
-    tris.set(name, (tris.get(name) ?? 0) + trisOf(o.geometry));
-  });
+  for (const o of fig.skin) {
+    const head = o.skeleton.bones.findIndex((b) => b.name === "head");
+    const idx = o.geometry.getAttribute("skinIndex");
+    const wgt = o.geometry.getAttribute("skinWeight");
+    const rides = (v: number) => {
+      for (let k = 0; k < 4; k++)
+        if (idx.getComponent(v, k) === head && wgt.getComponent(v, k) > 0.5) return true;
+      return false;
+    };
+    const index = o.geometry.index!;
+    let n = 0;
+    for (let i = 0; i < index.count; i += 3) {
+      if (rides(index.getX(i)) && rides(index.getX(i + 1)) && rides(index.getX(i + 2))) n++;
+    }
+    tris.set(o.name, n);
+  }
   return {
     label: `code · slot ${slot}`,
     root: fig.group,
@@ -170,7 +179,7 @@ async function modelHead(file: string, slot: number, frameOf: Head): Promise<Hea
     o.frustumCulled = false;
     const dress = (m: THREE.Material) => {
       const own = m.clone() as THREE.MeshStandardMaterial;
-      const d = dressOf(m.name, null, SKI_STYLES[slot].skier);
+      const d = dressOf(m.name, null, coloursOf(SLOT_DRESS[slot].outfit, SLOT_DRESS[slot].tone));
       if (d) own.color.setHex(d.colour);
       own.name = m.name;
       return own;

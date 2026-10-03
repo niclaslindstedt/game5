@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb` and the skier's as `models/skier.glb`, emitted into the
+// `models/<id>.glb`, emitted into the
 // bundle (so the service worker precaches them with everything else) and
 // served the same way by the dev server. They are COMMITTED, in
 // `pwa/models/`, made there by `make models` (Blender, off the game's own
 // data — the `blender-assets` skill), with a stamp of the sources they were
 // made from (`sources.json`), which `tests/models_test.ts` holds to the
 // sources as they stand: a model older than its sources fails the suite.
-// Nothing else the game draws is a model: the trees, the birds, the animals
-// and the course's marks are built in code, procedurally
-// (`src/game/tree-shapes.ts`, `bird-shapes.ts`, `beast-shapes.ts`,
-// `mark-shapes.ts`).
+// Nothing else the game draws is a model: the skier is dressed in code
+// (`src/game/skier-dress.ts`, his outfit cut on the rig), and the trees,
+// the birds, the animals and the course's marks are built in code,
+// procedurally (`src/game/tree-shapes.ts`, `bird-shapes.ts`,
+// `beast-shapes.ts`, `mark-shapes.ts`).
 //
-// A build switched back to the code-built skis or skier (`VITE_MODEL_SKIS=0`,
-// `VITE_MODEL_SKIERS=0` — `src/game/model-switch.ts`) packs none of that
-// side's files.
+// A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
+// `src/game/model-switch.ts`) packs none of them.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -24,49 +24,34 @@ import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
 
-export type ModelSwitches = { skis: boolean; skiers: boolean };
+export type ModelSwitches = { skis: boolean };
 
 /** Every switch on — what a build draws unless told otherwise. */
-export const ALL_MODELS: ModelSwitches = { skis: true, skiers: true };
+export const ALL_MODELS: ModelSwitches = { skis: true };
 
 /** Where the committed models are, from the repository's root. */
 export const MODELS_DIR = "pwa/models";
 
 /** Every file a build with these switches packs, by its published name. */
 export function modelFiles(on: ModelSwitches): string[] {
-  return [
-    ...(on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : []),
-    ...(on.skiers ? ["skier.glb"] : []),
-  ];
+  return on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : [];
 }
 
-/** WHAT A MODEL IS MADE FROM: the Blender builders and their driver, and
- * the game's own data they read — the spec, the traced looks, the drawn
- * travel, the skier's pose, bones and clips, the helmet's measured shell.
+/** WHAT A MODEL IS MADE FROM: the Blender builder and its driver, and the
+ * game's own data it reads — the spec, the traced looks, the drawn travel.
  * A change to any of these can move a model; the stamp is their hash. */
 export const MODEL_SOURCES = [
   "scripts/blender.mjs",
   "scripts/blender/kinds/skis.mjs",
-  "scripts/blender/kinds/skier.mjs",
   "scripts/blender/lib.py",
   "scripts/blender/skis.py",
-  "scripts/blender/skier.py",
   "engine/game/defs/skis.ts",
   "pwa/src/game/ski-looks.ts",
   "pwa/src/game/ski-gear.ts",
-  "pwa/src/game/skier-pose.ts",
-  "pwa/src/game/skier-limbs.ts",
-  "pwa/src/game/skier-mounts.ts",
-  "pwa/src/game/skier-gait.ts",
-  "pwa/src/game/skier-stroke.ts",
-  "pwa/src/game/skier-vec.ts",
-  "pwa/src/game/skier-spring.ts",
-  "pwa/src/game/helmet-shape.ts",
-  "pwa/src/game/skier-rig.ts",
 ];
 
 /** Every half's stamp in `sources.json`, and the sources it hashes — one
- * half today, the skis and the skier. */
+ * half today, the skis. */
 export const MODEL_HALVES = { sources: MODEL_SOURCES } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
@@ -92,7 +77,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0)",
+            "(VITE_MODEL_SKIS=0)",
         );
       }
     },

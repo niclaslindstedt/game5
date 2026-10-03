@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS AND SKIER the game ships (`pwa/models/`, made by `make
-// models`, packed by `pwa/models-plugin.ts`, drawn by `skier-models.ts`):
-// every one committed, none older than the sources it is made from, each
-// within its budget; the switches on unless a build turns one back; and
-// every material the Blender builders name dressed as the builder's own
-// pair would be. The names are stated twice — in `scripts/blender/*.py`,
-// which cannot import a module of the game, and in `dressOf` — so the
-// builders are read here as TEXT, the way `tauri_test.ts` reads the Rust.
-// Nothing else is a model: the wildlife and the course's marks are built in
-// code, and `pwa/models/` holds nothing of theirs.
+// THE MODELLED SKIS the game ships (`pwa/models/`, made by `make models`,
+// packed by `pwa/models-plugin.ts`, drawn by `skier-models.ts`): every one
+// committed, none older than the sources it is made from, each within its
+// budget; the switch on unless a build turns it back; and every material
+// the Blender builders name dressed as the builder's own pair would be —
+// and a modelled skier (the labs' comparison, `make blender KIND=skier`)
+// in an outfit's colours. The names are stated twice — in
+// `scripts/blender/*.py`, which cannot import a module of the game, and in
+// `dressOf` — so the builders are read here as TEXT, the way
+// `tauri_test.ts` reads the Rust. Nothing else is a model: the skier is
+// dressed in code, the wildlife and the course's marks are built in code,
+// and `pwa/models/` holds nothing of theirs.
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -25,7 +27,8 @@ import {
 } from "../pwa/models-plugin.ts";
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
 import { dressOf } from "../pwa/src/game/skier-models.ts";
-import { SKI_STYLES } from "../pwa/src/game/skis-body.ts";
+import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
+import { pairStyle } from "../pwa/src/game/skis-body.ts";
 
 const root = join(import.meta.dirname, "..");
 const matNames = (file: string): string[] =>
@@ -35,15 +38,14 @@ const matNames = (file: string): string[] =>
 
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
-  const none = { skis: false, skiers: false };
 
-  it("are every pair under its id and one skier", () => {
-    expect([...all].sort()).toEqual([...SKI_CATALOG.map((s) => `${s.id}.glb`), "skier.glb"].sort());
-    expect(modelFiles({ ...none, skiers: true })).toEqual(["skier.glb"]);
-    expect(modelFiles(none)).toEqual([]);
+  it("are every pair under its id", () => {
+    expect([...all].sort()).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`).sort());
+    expect(modelFiles({ skis: false })).toEqual([]);
   });
 
-  it("are nothing but the skis and the skier", () => {
+  it("are nothing but the skis — the skier is dressed in code", () => {
+    expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
     }
@@ -57,12 +59,9 @@ describe("the models the game ships", () => {
     for (const f of all) {
       const at = join(root, MODELS_DIR, f);
       expect(existsSync(at), `${MODELS_DIR}/${f} — run \`make models\``).toBe(true);
-      // A pair's LOD0 is under 1 MB, the skier's ~1 MB (two dozen bones —
-      // the half-angle helpers and the hands among them — and his baked
-      // cloth): a model grown past this is a builder that lost its game
-      // budget.
-      const budget = f === "skier.glb" ? 1_200_000 : 1_600_000;
-      expect(statSync(at).size, f).toBeLessThan(budget);
+      // A pair's LOD0 is well under 1.6 MB: a model grown past this is a
+      // builder that lost its game budget.
+      expect(statSync(at).size, f).toBeLessThan(1_600_000);
     }
   });
 
@@ -73,7 +72,7 @@ describe("the models the game ships", () => {
     for (const [half, sources] of Object.entries(MODEL_HALVES)) {
       expect(
         stamp[half],
-        `a source of the skis or the skier moved since they were made — run \`make models\` and commit pwa/models/`,
+        `a source of the skis moved since they were made — run \`make models\` and commit pwa/models/`,
       ).toBe(sourcesHash(root, sources));
     }
     expect(sourcesHash(root)).toBe(sourcesHash(root, MODEL_HALVES.sources));
@@ -89,7 +88,7 @@ describe("the model switches", () => {
 });
 
 describe("a model's dress", () => {
-  const style = SKI_STYLES[1];
+  const style = pairStyle(SKI_CATALOG[1], { outfit: RIVAL_OUTFITS[0] });
 
   it("reads every name it dresses off the builders' own materials", () => {
     const skis = new Set(matNames("skis.py"));
@@ -106,12 +105,13 @@ describe("a model's dress", () => {
     expect(dressOf("paint", style, null)).toEqual({ colour: style.body });
     expect(dressOf("white", style, null)).toEqual({ colour: style.accent });
     expect(dressOf("panel", { ...style, panel: 0x123456 }, null)).toEqual({ colour: 0x123456 });
-    expect(dressOf("pole", style, null)).toEqual({ colour: 0x9aa1a9 });
+    expect(dressOf("pole", style, null)).toEqual({ colour: style.pole });
+    expect(dressOf("pole", { body: 1, accent: 2 }, null)).toEqual({ colour: 0x9aa1a9 });
     expect(dressOf("base", style, null)).toBeNull();
   });
 
-  it("dresses a skier in the slot's kit", () => {
-    const kit = style.skier;
+  it("dresses a modelled skier in an outfit's colours", () => {
+    const kit = coloursOf(RIVAL_OUTFITS[0], RIVAL_OUTFITS[0].tone);
     expect(dressOf("jacket", null, kit)).toEqual({ colour: kit.jacket });
     expect(dressOf("pants", null, kit)).toEqual({ colour: kit.pants });
     expect(dressOf("helmet", null, kit)).toEqual({ colour: kit.helmet });

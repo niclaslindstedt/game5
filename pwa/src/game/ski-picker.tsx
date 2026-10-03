@@ -13,21 +13,24 @@
 import { useEffect, useRef } from "preact/hooks";
 import { SKI_CATALOG, skisById, type SkiId } from "@engine";
 
+import type { Outfit } from "./outfit.ts";
 import type { SkisTurntable } from "./ski-turntable.ts";
 import { STRINGS } from "./strings.ts";
 
 export function SkisPicker({
   skis,
-  topsheet,
+  outfit,
   onPick,
 }: {
   skis: SkiId;
-  /** The topsheet it is shown in (`skis-topsheets.ts`). */
-  topsheet: number;
+  /** What the skier stood on it wears (`Settings.outfit`). */
+  outfit: Outfit;
   onPick: (id: SkiId) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const standRef = useRef<SkisTurntable | null>(null);
+  // The outfit rides beside the stand too, for one that lands late.
+  const outfitRef = useRef(outfit);
   const spec = skisById(skis);
   const index = Math.max(
     0,
@@ -46,10 +49,7 @@ export function SkisPicker({
       await loadModels();
       if (disposed) return;
       standRef.current = createSkisTurntable(canvas);
-      standRef.current.setSkis(
-        skisById(canvas.dataset.skis ?? spec.id),
-        Number(canvas.dataset.topsheet ?? topsheet),
-      );
+      standRef.current.setSkis(skisById(canvas.dataset.skis ?? spec.id), outfitRef.current);
     });
     const onResize = (): void => standRef.current?.resize();
     window.addEventListener("resize", onResize);
@@ -67,12 +67,10 @@ export function SkisPicker({
   // The id also rides on the canvas, so a stand that finishes loading after
   // a pick has already happened picks it up.
   useEffect(() => {
-    if (canvasRef.current) {
-      canvasRef.current.dataset.skis = spec.id;
-      canvasRef.current.dataset.topsheet = String(topsheet);
-    }
-    standRef.current?.setSkis(spec, topsheet);
-  }, [spec, topsheet]);
+    if (canvasRef.current) canvasRef.current.dataset.skis = spec.id;
+    outfitRef.current = outfit;
+    standRef.current?.setSkis(spec, outfit);
+  }, [spec, outfit]);
 
   return (
     <div class="skis-pick-row">

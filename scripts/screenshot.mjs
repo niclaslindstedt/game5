@@ -25,6 +25,7 @@
 //   ?splash=1 / ?menu=root   the attract card / the front door;
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
 //   ?menu=skis[&skis=id]     the ski card RACE opens, on a pair.
+//   ?menu=dress      the DRESS card behind the ski card's CUSTOMIZE SKIER.
 //   ?menu=start      the free ride's start card (its chart built in a worker).
 //   ?start=free      a FREE RIDE on the start card's stored map and day.
 //   ?video=<tier>    ride at a picture preset (low, medium, high) this visit.
@@ -134,6 +135,8 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
+  // THE DRESS CARD: the skier on the same stand, framed on him.
+  dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },

@@ -97,7 +97,7 @@ import { MainMenu } from "./game/menu-main.tsx";
 import { createMenuNav, walkCardsOnKeys } from "./game/menu-nav.ts";
 import { GalleryPage } from "./game/menu-gallery.tsx";
 import { OptionsPage } from "./game/menu-options.tsx";
-import { SkisPage } from "./game/menu-skis.tsx";
+import { SkisCards } from "./game/menu-dress.tsx";
 import { StartPage } from "./game/menu-start.tsx";
 import { PauseMenu } from "./game/menu-pause.tsx";
 import { PinnedCards } from "./game/menu-pinned.tsx";
@@ -781,7 +781,7 @@ export function App() {
   // renderer's own effect above, so the first call finds it standing.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => rendererRef.current?.setVideo(videoOf(settings)), [renderKit, settings.video]);
-  useEffect(() => rendererRef.current?.dress(settings.topsheets), [renderKit, settings.topsheets]);
+  useEffect(() => rendererRef.current?.dress(settings.outfit), [renderKit, settings.outfit]);
 
   /** THE TIME TRIAL'S MAP: a pinned one, or the one the menu stands over. */
   const trialSeed = params.seed ?? mapSeed;
@@ -922,15 +922,14 @@ export function App() {
               onChoose={campaign.choose}
               onTrick={campaign.chooseTrick}
             />
-          ) : page === "skis" ? (
-            <SkisPage
+          ) : page === "skis" || page === "dress" ? (
+            <SkisCards
+              page={page}
               skis={specOf(settings).id}
-              topsheets={settings.topsheets}
-              onPick={(skis) => {
-                setLinkSkis(null);
-                setSettings((s) => ({ ...s, skis }));
-              }}
-              onTopsheet={(topsheets) => setSettings((s) => ({ ...s, topsheets }))}
+              settings={settings}
+              onSettings={setSettings}
+              onLink={() => setLinkSkis(null)}
+              onPage={setPage}
               onBack={() => setPage(skisBack(campaign.rung.current, modeRef.current, params.seed))}
               onRide={modeRef.current === "free" ? freeRide : race}
             />

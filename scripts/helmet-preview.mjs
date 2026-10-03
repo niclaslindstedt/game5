@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HELMET LAB (`make helmet`): the skier's head in its helmet, the
-// code's (`skier-helmet.ts`) and the model's (the committed
-// `pwa/models/skier.glb`, or a candidate from `make blender KIND=skier`)
+// code's (the dressed skier's, `dress-head.ts` over `helmet-shape.ts`)
+// and a modelled skier's (a candidate from `make blender KIND=skier`)
 // side by side, posed by the game's own pose — `previews/helmet-<sheet>.png`:
 //
 //   views    every source and kit a row: the front, the three-quarter, the
@@ -24,7 +24,7 @@
 //   node scripts/helmet-preview.mjs                      every sheet, slot 0
 //   node scripts/helmet-preview.mjs --sheet=wire --slots=0,1,2,3
 //   node scripts/helmet-preview.mjs --model=previews/blender/skier0-lod0.glb
-//                                  a candidate model beside the committed one
+//                                  a modelled skier beside the code's
 
 import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -52,19 +52,14 @@ const args = parseArgs(
     model: {
       kind: "string",
       default: "",
-      help: "candidate skier models (.glb), comma-separated, drawn beside the committed one",
-    },
-    committed: {
-      kind: "flag",
-      default: true,
-      help: "draw the committed model (--committed=0: not)",
+      help: "modelled skiers (.glb), comma-separated, drawn beside the code's",
     },
     code: { kind: "flag", default: true, help: "draw the code's helmet (--code=0: not)" },
     cell: { kind: "number", default: 300, help: "a cell's width, px" },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/helmet-preview.mjs [--sheet=views,wire,profile,game] [--slots=0,1] [--model=a.glb] [--code=0] [--committed=0]",
+  "usage: node scripts/helmet-preview.mjs [--sheet=views,wire,profile,game] [--slots=0,1] [--model=a.glb] [--code=0]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS;
@@ -96,7 +91,6 @@ if (!args["skip-build"] || !existsSync(join(buildDir, "helmet-preview.html"))) {
 cpSync(join(root, "pwa", "models"), join(buildDir, "models"), { recursive: true });
 const sources = [];
 if (args.code) sources.push("code");
-if (args.committed) sources.push("models/skier.glb");
 for (const file of args.model ? args.model.split(",") : []) {
   const from = resolve(root, file);
   if (!existsSync(from)) {

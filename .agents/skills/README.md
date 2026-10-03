@@ -48,9 +48,10 @@ sibling's the day one lands, and add its registry row.
 | `game-feel` | How the game FEELS: a skier on two grounds (the groomer and the powder), the reference (the arcade winter racers), the camera ladder, the cross-system levers |
 | `ski-physics` | The skier's answer to the snow: the six stations and the legs, the sink and the float, the edge and the carve, the skid, the tuck, the poles, the hips, the body, the fall, flight; `make ride` |
 | `ski-tuning` | A pair's own numbers (`defs/skis.ts`), the expectations a test holds the physics to, the field's pace, the day a roster lands |
-| `ski-design` | How the skis LOOK: the builder in the body frame, the topsheets, the start line's four colours; `make skis`, `make world` |
+| `ski-design` | How the skis LOOK: the builder in the body frame, each pair's own topsheet; `make skis`, `make world` |
 | `blender-assets` | A game asset modelled in Blender off the game's own data: `make blender`, the budget and its LODs, the asset sheet beside the game's own, headless Blender; the models in the game |
 | `skier` | The figure on the skis: the stance from the engine's readings, the limbs solved to the bindings and the pole grips; judged from behind |
+| `skier-gear` | What the skier wears: the catalog (two bodies, jackets, pants, helmets, gloves, poles — each in its own colours), the loom that cuts a piece onto the rig, the DRESS card, and `make gear` (every piece, every outfit, the moves, the game's pixels, a Blender skier and local references beside them) |
 | `skier-improvement` | Making the skier more realistic: the loop and its harnesses — `make skier-metrics` (the pose against a skier's bands), the skier lab's closeup, detail, game-pixel and skin-stretch sheets, the model rebuilt and published — and what the first pass learned |
 | `collision` | The skier meeting what is not snow — trunks, rivals, the edge of the map — and the course counting: gates, misses, the finish, the reset |
 | `crash` | The skier past saving and off his skis: the wipeout (a trunk, over the tips, a fall, an edge caught) and his tumble, bogged in the powder and poling out, damage when it is on (the rally game's `crash`, by way of the snowmobile game's) |

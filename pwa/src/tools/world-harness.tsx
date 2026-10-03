@@ -22,6 +22,7 @@ import {
   type GameState,
   type PisteGrade,
   type RegionId,
+  type Thrown,
 } from "@engine";
 
 import { beastById } from "../game/beast-defs.ts";
@@ -469,6 +470,62 @@ function chaseAt(t: number): string {
   return `chase at t ${state.t.toFixed(1)} s, y ${state.skier.y.toFixed(0)} m`;
 }
 
+/** THE FALL AS A SEQUENCE (the views `fall-<s>`, any time off the skis):
+ * the player put into the nearest trunk flat out — the wipeout view's
+ * staging — and drawn `t` s after he left his skis from a lens that keeps
+ * square to the line he was thrown along, 7 m off his side and a little
+ * over him, so a run of them reads as the frames of one fall. */
+let fallSide = 0;
+function fallAt(t: number): string {
+  if (!state.skier.thrown) {
+    intoTrunk();
+    const pinned = { ...NEUTRAL_INPUT, tuck: 1 };
+    const until = state.t + 6;
+    while (!state.skier.thrown && state.t < until) {
+      for (let i = 0; i < 2; i++) step(state, pinned);
+      renderer.draw(state, 0, FRAME, false);
+    }
+    // Read afresh: the steps above may have thrown him.
+    const off = state.skier.thrown as Thrown | null;
+    if (!off) return "no wipeout";
+    fallSide = off.heading + Math.PI / 2;
+  }
+  while (state.skier.thrown && state.skier.thrown.t < t - 1e-9) {
+    step(state, NEUTRAL_INPUT);
+    if (state.tick % 2 === 0) renderer.draw(state, 0, FRAME, false);
+  }
+  const off = state.skier.thrown;
+  if (!off) return "already stood back up";
+  const ex = off.x + Math.sin(fallSide) * 7;
+  const ez = off.z + Math.cos(fallSide) * 7;
+  renderer.setOverride({
+    eye: { x: ex, y: Math.max(level.groundAt(ex, ez) + 1.2, off.y + 0.6), z: ez },
+    target: { x: off.x, y: off.y, z: off.z },
+    fov: 40,
+    roll: 0,
+  });
+  still();
+  renderer.setOverride(null);
+  return `${off.cause}, ${off.t.toFixed(2)} s off, tumbled ${(off.tumble / (2 * Math.PI)).toFixed(1)} turns`;
+}
+
+/** The player stood short of the trunk nearest him and pointed at it at
+ * 55 km/h. */
+function intoTrunk(): void {
+  const s = state.skier;
+  let tree = level.trees[0];
+  for (const t of level.trees) {
+    if (Math.hypot(t.x - s.x, t.z - s.z) < Math.hypot(tree.x - s.x, tree.z - s.z)) tree = t;
+  }
+  const h = Math.atan2(s.x - tree.x, s.z - tree.z);
+  placeRun(state, {
+    x: tree.x + Math.sin(h) * 25,
+    z: tree.z + Math.cos(h) * 25,
+    heading: h + Math.PI,
+    speed: 55 / 3.6,
+  });
+}
+
 /** How far the lens stands off the skier's origin, m — so a boom pulled in
  * against the slope shows in the note, not only in the picture. */
 function standoff(): string {
@@ -616,18 +673,7 @@ const shots: Record<string, () => string> = {
     // THE WIPEOUT (`crash.ts`): the player stood short of the trunk
     // nearest it and ridden into it flat out, drawn a moment after the
     // skier has left his skis — the burst, and him in the air past it.
-    const s = state.skier;
-    let tree = level.trees[0];
-    for (const t of level.trees) {
-      if (Math.hypot(t.x - s.x, t.z - s.z) < Math.hypot(tree.x - s.x, tree.z - s.z)) tree = t;
-    }
-    const h = Math.atan2(s.x - tree.x, s.z - tree.z);
-    placeRun(state, {
-      x: tree.x + Math.sin(h) * 25,
-      z: tree.z + Math.cos(h) * 25,
-      heading: h + Math.PI,
-      speed: 55 / 3.6,
-    });
+    intoTrunk();
     renderer.setCamera("chase", true);
     const pinned = { ...NEUTRAL_INPUT, tuck: 1 };
     const on = (done: () => boolean, limit: number) => {
@@ -824,7 +870,12 @@ window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
-    const run = chase ? () => chaseAt(Number(chase[1])) : shots[name];
+    const fall = /^fall-(\d+(?:\.\d+)?)$/.exec(name);
+    const run = chase
+      ? () => chaseAt(Number(chase[1]))
+      : fall
+        ? () => fallAt(Number(fall[1]))
+        : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

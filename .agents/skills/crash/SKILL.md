@@ -20,7 +20,8 @@ Three modules answer it, and the split matters:
   `crashOver` says when the reset may stand him back up. Knobs in
   `TUNING.crash` (`.body` is the skier's measures, the same bones
   `skier-pose.ts`'s `BODY` draws — `tests/crash_test.ts` holds them
-  together).
+  together; `.tone` the muscles; `.over` which way each cause throws him;
+  `tests/ragdoll_test.ts` holds the body to its joints and its laws).
 - **`engine/game/trench.ts`** — BOGGED IN DEEP POWDER. `stepTrench` sinks a
   skier stopped in powder who is poling going nowhere
   (`SkierState.trench`, m — how far the hole under his skis is pressed past
@@ -142,6 +143,22 @@ the woods and a wipeout there is honest.
   skis in one step; the velocity the skier leaves with is the one from
   before that step (`run.ts` keeps it), times `keep`. Read after the trunk,
   he would drop off stopped skis.
+- **A BODY FALLS, A SACK DROPS.** The ragdoll's limbs are driven by
+  muscle (`crash.tone`): braced in the air — the arms thrown out ahead,
+  the legs spread, held in the TRUNK'S frame — and slack once he is down.
+  The drive is internal: whatever push and twist it would put on the
+  whole body is taken back off (`drive`), so no muscle ever turns the man
+  in the air, and a limb planted in the snow yields. Never tuck the brace
+  (a body drawn in spins up like a diver) and never aim it at the world's
+  down (the hands chase it round and windmill the trunk the other way).
+- **THE SOLVER GIVES NO ENERGY, THE SNOW IS A PATCH.** A joint limit put
+  right without velocity and then held at the bones' length is a kick out
+  of nowhere — `calm` takes back whatever a joint pass added. And the
+  snow's friction and plough are a patch of back or side, not points to
+  pivot over (`crash.patch`, `spinDrag`): a body that cartwheels down a
+  face is snow acting at a point. Watch the fall frame by frame (`make
+  world ARGS=--views=fall-0.2,fall-0.5,fall-1,fall-2`) on a steep powder
+  face, not only on the synthetic slope — seed 38's trunk is the case.
 - **A CRASH DRAWS NOTHING FROM THE STREAM.** The tumble, the throw and the
   slide are functions of the moment, so a crash replays exactly and the sim's
   digests do not move when one is added. Anything random-looking in the
@@ -182,8 +199,10 @@ the woods and a wipeout there is honest.
    on one step.
 3. **Tune defs, with the bot's distribution beside the number.**
 4. **Re-run the lab, then the tests** —
-   `npx vitest run tests/crash_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
-5. **LOOK.** `make world ARGS=--views=wipeout,wipeout-lie`.
+   `npx vitest run tests/crash_test.ts tests/ragdoll_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
+5. **LOOK.** `make world ARGS=--views=wipeout,wipeout-lie`, and the fall
+   as frames — `ARGS=--views=fall-0.2,fall-0.4,fall-0.8,fall-1.3,fall-2`,
+   one lens beside him — against the same views on `main`.
 6. Docs: `docs/riding.md` ("The wipeout", "Stuck in powder", "Damage").
 
 ## Skill self-improvement

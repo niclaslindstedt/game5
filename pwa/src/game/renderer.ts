@@ -306,11 +306,9 @@ export function createWorldRenderer(
   /** The new snow the trail maps have been filled by, m (`trail.fill`). */
   let filled = 0;
   let override: LensPose | null = null;
-  /** THE DEATH CAM: its state, whether the app lets it take the lens, and
-   * the time rate it last handed the app (`timeRate`). */
+  /** THE DEATH CAM: its state, and whether the app lets it take the lens. */
   const death = createDeathCam();
   let deathOn = false;
-  let handed = 1;
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
   let box = { width: 1, height: 1, pixelRatio: 1 };
@@ -715,21 +713,19 @@ export function createWorldRenderer(
       player.model.setSkierVisible(!inside);
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks);
       // THE DEATH CAM (`camera-death.ts`) takes the lens off the ladder while
-      // the player is off his skis, on WALL time: `dt` is the run's, slowed
-      // by the rate it handed out.
+      // the player is off his skis — at full speed, the run never slowed.
       let dead: LensPose | null = null;
       if (deathOn && !override && !shot && lens.rung() !== "orbit") {
-        const real = Math.min(handed > 0 ? dt / handed : dt, 0.1);
         dead = frameDeath(
           death,
           sampleBody(player.body, alpha),
           ladder,
-          real,
+          Math.min(dt, 0.1),
           level.groundAt,
           clear,
         );
         if (death.ended) lens.snap();
-      } else if (death.active || death.rate !== 1) {
+      } else if (death.active) {
         dropDeathCam(death);
       }
       // The ladder is framed underneath either way, so a lens planted for a
@@ -894,10 +890,6 @@ export function createWorldRenderer(
 
     setDeathCam(on) {
       deathOn = on;
-    },
-    timeRate() {
-      handed = deathOn ? death.rate : 1;
-      return handed;
     },
 
     setShot(next) {

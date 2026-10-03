@@ -174,7 +174,12 @@ describe("the wipeout", () => {
     }
     expect(powder.slid).toBeLessThan(groomer.slid - 5);
     expect(deep.slid).toBeLessThanOrEqual(powder.slid);
-    expect(deep.rolled).toBeLessThanOrEqual(groomer.rolled + 1e-9);
+    // ...and how far he goes over once down: on the groomer barely, in
+    // powder a little further over the hands he put out, never past his
+    // back.
+    expect(groomer.rolled).toBeLessThan(Math.PI / 2);
+    expect(powder.rolled).toBeLessThan(Math.PI);
+    expect(deep.rolled).toBeLessThan(Math.PI);
   });
 
   it("a trunk clipped slowly is a hit he skis on through", () => {

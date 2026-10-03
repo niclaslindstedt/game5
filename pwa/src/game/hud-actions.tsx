@@ -12,9 +12,11 @@
 // the reset in particular is reached for with the skis on its side in a
 // tree well, which is the worst possible moment to be remembering a key.
 //
-// THE RESET LIGHTS UP WHEN A CHECKPOINT HAS BEEN MISSED. It is the press
-// that answers that moment, so it stops being one of three identical marks
-// and becomes the only lit thing in the corner (`.hud-mini-missed`).
+// THE RESET LIGHTS UP WHEN A GATE HAS BEEN MISSED OR THE SKIER IS DOWN —
+// the moment he is thrown off his skis, not when he has stopped tumbling.
+// It is the press that answers both moments, so it stops being one of three
+// identical marks and becomes the only lit thing in the corner
+// (`.hud-mini-missed`).
 //
 // Each mark is drawn on a viewBox cut to its own INK, so the three sit at
 // the same size in the middle of their discs.
@@ -100,21 +102,21 @@ export function HudActions({
   onPause,
   onReset,
   onCamera,
-  missed,
+  lit,
 }: {
   onPause: () => void;
   onReset: () => void;
   onCamera: () => void;
-  /** A checkpoint is behind the skier and owed — the one bit this row needs
-   * to light the reset. */
-  missed: boolean;
+  /** A gate is behind the skier and owed, or he is off his skis — the one
+   * bit this row needs to light the reset. */
+  lit: boolean;
 }) {
   return (
     <div class="hud-action-stack">
       <Press title={STRINGS.pauseTitle} onPress={onPause}>
         <PauseGlyph />
       </Press>
-      <Press title={STRINGS.resetTitle} lit={missed} onPress={onReset}>
+      <Press title={STRINGS.resetTitle} lit={lit} onPress={onReset}>
         <ResetGlyph />
       </Press>
       <Press title={STRINGS.cameraTitle} onPress={onCamera}>

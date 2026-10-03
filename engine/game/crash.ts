@@ -258,6 +258,28 @@ function rolledSide(state: GameState): { roll: number; side: number } {
   return { roll, side: roll < 0 ? 1 : -1 };
 }
 
+/** The side of the way he was going that he goes down on, −1 left, 1
+ * right: away from a trunk, and otherwise the side his body came down on
+ * or his skis were already lying toward. */
+function fallSide(
+  state: GameState,
+  cause: CrashCause,
+  heading: number,
+  events: readonly GameEvent[],
+): number {
+  const c = state.skier;
+  const rx = Math.cos(heading);
+  const rz = -Math.sin(heading);
+  if (cause === "tree") {
+    const hit = events.find((e) => e.kind === "hit");
+    if (hit && hit.kind === "hit") return (hit.x - c.x) * rx + (hit.z - c.z) * rz > 0 ? -1 : 1;
+  }
+  const side = c.bodySide || rolledSide(state).side;
+  const r = rotate(c.q, { x: side, y: 0, z: 0 });
+  const along = r.x * rx + r.z * rz;
+  return Math.abs(along) > 0.1 ? Math.sign(along) : side;
+}
+
 /** Whether the skier's up axis is under `reset.overUp` of the snow's own. */
 function overSnow(state: GameState): boolean {
   const c = state.skier;
@@ -278,17 +300,27 @@ export function throwRider(
   const flat = hypot(v0.x, v0.z);
   const speed = hypot3(v0.x, v0.y, v0.z);
   const heading = flat > 1 ? Math.atan2(v0.x, v0.z) : c.heading;
-  // Head over heels about the axis across the way he goes, forward
-  // positive (a right-handed turn about his right), and a share of his own
-  // turning — a body going over takes its turn with it.
-  const over = Math.min(K.maxSpin, (flat * K.keep) / K.tumbleRadius);
+  // THE TURN HE GOES OVER WITH, by what threw him (`crash.over`): head
+  // over heels about the axis across the way he goes (forward positive, a
+  // right-handed turn about his right) and over onto his side about the
+  // way itself (a turn of −side about it brings his head down on `side`),
+  // and a share of his own turning — a body going over takes its turn with
+  // it.
+  const how = K.over[cause];
+  const spin = Math.min(K.maxSpin, (flat * K.keep) / K.tumbleRadius);
+  const pitch = how.pitch * spin;
+  const roll = -fallSide(state, cause, heading, events) * how.side * Math.max(K.topple, spin);
+  const turn = hypot(pitch, roll);
+  const cap = turn > K.maxSpin ? K.maxSpin / turn : 1;
   const own = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz });
+  const fx = Math.sin(heading);
+  const fz = Math.cos(heading);
   const w = {
-    x: Math.cos(heading) * over + own.x * K.carry,
+    x: (fz * pitch + fx * roll) * cap + own.x * K.carry,
     y: own.y * K.carry,
-    z: -Math.sin(heading) * over + own.z * K.carry,
+    z: (-fx * pitch + fz * roll) * cap + own.z * K.carry,
   };
-  const v = { x: v0.x * K.keep, y: Math.max(0, v0.y) * K.keep + K.throwUp, z: v0.z * K.keep };
+  const v = { x: v0.x * K.keep, y: Math.max(0, v0.y) * K.keep + how.up, z: v0.z * K.keep };
   const body = throwBody(c.q, c.x, c.y, c.z, v, w);
   const com = centreOf(body.points);
   const thrown: Thrown = {
@@ -305,6 +337,8 @@ export function throwRider(
     points: body.points,
     last: body.last,
     touching: false,
+    planted: 0,
+    down: -1,
     still: 0,
   };
   if (cause === "nose") {

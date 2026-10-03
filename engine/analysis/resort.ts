@@ -21,6 +21,7 @@ import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
 import type { Level, Run } from "../mapgen/types.ts";
+import { generatorTraits } from "../mapgen/versions.ts";
 import { accessOf } from "./access.ts";
 import { holdDrags, holdHub, holdTunnels } from "./hub.ts";
 import type { Finding, Severity } from "./index.ts";
@@ -95,11 +96,12 @@ const PAD_TOLERANCE = 0.3;
 /** How near a run's line the pad is that run's snow, m. */
 const PAD_LINE = 10;
 
-/** R26 — a top station's pad as the finished ground reads: how far it falls
- * over rings out to near its rim (round a chair's unload mound, and off any
- * run's line across it), and the
- * mound's height over it — null for a drag, whose top is held by
- * `lift.drag.padGrade`. */
+/** R26 — a top station's pad as the finished ground reads: how far it
+ * stands off the surface R26 cuts it to — level on a v4 map; from v5 its
+ * deck along the line level and the pad leaning off it to both sides
+ * (`lift.top`) — over rings out to near its rim (round a chair's unload
+ * mound, and off any run's line across it), and the mound's height over it
+ * — null for a drag, whose top is held by `lift.drag.padGrade`. */
 function padReading(
   level: Level,
   l: { kind: string; bottom: { x: number; z: number }; top: { x: number; y: number; z: number } },
@@ -109,9 +111,15 @@ function padReading(
   const back = RR.lift.unload.at / len;
   const ux = l.top.x + (l.bottom.x - l.top.x) * back;
   const uz = l.top.z + (l.bottom.z - l.top.z) * back;
+  const dx = (l.top.x - l.bottom.x) / len;
+  const dz = (l.top.z - l.bottom.z) / len;
   const chair = l.kind === "chair";
+  const levelPads = generatorTraits(level.version).levelPads === true;
+  const pad = levelPads ? RR.lift.pad : RR.lift.top.pad;
+  const deck = levelPads ? Infinity : RR.lift.top.deck;
+  const lean = levelPads ? 0 : RR.lift.top.lean;
   // A run's line crossing the pad is the snow it was graded to (R27).
-  const reach = RR.lift.pad / 2 + PAD_LINE + 4;
+  const reach = pad / 2 + PAD_LINE + 4;
   const lines = (level.resort?.runs ?? []).flatMap((r) =>
     r.points.filter((p) => hypot(p.x - l.top.x, p.z - l.top.z) < reach),
   );
@@ -119,12 +127,14 @@ function padReading(
   let hi = -Infinity;
   for (let a = 0; a < 24; a++) {
     const t = (a / 24) * Math.PI * 2;
-    for (const r of [0, 0.15, 0.3, 0.45].map((k) => k * RR.lift.pad)) {
+    for (const r of [0, 0.15, 0.3, 0.45].map((k) => k * pad)) {
       const x = l.top.x + Math.sin(t) * r;
       const z = l.top.z + Math.cos(t) * r;
       if (chair && hypot(x - ux, z - uz) < RR.lift.unload.reach + 1) continue;
       if (lines.some((p) => hypot(x - p.x, z - p.z) < PAD_LINE)) continue;
-      const g = level.groundAt(x, z);
+      // The lean off the deck taken back out: what is left is level.
+      const v = Math.abs((x - l.top.x) * dz - (z - l.top.z) * dx);
+      const g = level.groundAt(x, z) + lean * Math.max(0, v - deck);
       lo = Math.min(lo, g);
       hi = Math.max(hi, g);
     }
@@ -195,7 +205,7 @@ export function analyzeResort(level: Level): ResortAnalysis {
       const pad = padReading(level, l);
       if (!pad) continue;
       if (pad.spread > PAD_TOLERANCE)
-        add("R26", "error", `${l.id}'s top pad falls ${pad.spread.toFixed(2)} m across it`);
+        add("R26", "error", `${l.id}'s top pad stands ${pad.spread.toFixed(2)} m off its cut`);
       if (pad.ramp !== null && pad.ramp < RR.lift.unload.height * 0.8)
         add("R26", "error", `${l.id}'s unload ramp stands only ${pad.ramp.toFixed(2)} m`);
     }

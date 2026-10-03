@@ -773,8 +773,8 @@ export const TUNING = {
    * chair keeps him in the way off's lane (`chairLane`, `laneWide` m either
    * side of its line) aiming `laneAim` m
    * on down it at a glide (poled under `lanePush` m/s, checked over
-   * `laneSpeed` m/s — and so across the pad, `padNear` m of the top),
-   * turning for his run `turnIn` m short of the parting */
+   * `laneSpeed` m/s — and so round a station house), turning for his run
+   * `turnIn` m short of the parting and let run off the pad's lean */
   lift: {
     decel: 0.8,
     accel: 1.2,
@@ -814,9 +814,8 @@ export const TUNING = {
     laneAim: 6,
     laneWide: 3,
     turnIn: 1,
-    laneSpeed: 2,
+    laneSpeed: 3,
     lanePush: 1.5,
-    padNear: 10,
     cutHarder: 0.4,
   },
 

@@ -81,6 +81,11 @@ export type GeneratorTraits = {
    * maps and the benchmark stand on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
+  /** LEVEL PADS (v4): every gondola's and chair's top stands on a level pad
+   * `lift.pad` metres across (R26). From v5 the pad is `lift.top.pad`
+   * across and leans off its deck to both sides (`lift.top`), so a rider
+   * stood off a chair slides away to his run. */
+  levelPads?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -108,7 +113,17 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "and thinning through the ecotone to the tree line (R14); every gondola's and " +
       "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
       "the face and a chair's unload ramp on it, every station stands beside the runs, " +
-      "never on one, and no drag lift crosses a piste (R26).",
+      "never on one, and no drag lift crosses a piste (R26). v5 cuts every gondola's and " +
+      "chair's top wider and LEANING off its deck to both sides instead of level; this " +
+      "row keeps the level pad 30 m across.",
+    levelPads: true,
+  },
+  {
+    version: 5,
+    note:
+      "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
+      "deck along the line level and the pad leaning off it to both sides to its rim, so a " +
+      "rider stood off a chair slides away to his run gathering speed (R26).",
   },
 ];
 

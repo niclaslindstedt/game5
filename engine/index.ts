@@ -292,7 +292,7 @@ export {
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
-export { arriveByLift, leadInput, seatedShare, stepLift } from "./game/lift-ride.ts";
+export { arriveByLift, leadInput, runsOffTop, seatedShare, stepLift } from "./game/lift-ride.ts";
 export {
   airPointsPerSecond,
   landingGrade,

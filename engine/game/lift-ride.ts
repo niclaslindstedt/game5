@@ -264,14 +264,34 @@ function joinOf(
   x: number,
   y: number,
   z: number,
-): { s: number; distance: number } | null {
-  let best: { s: number; distance: number } | null = null;
+): { s: number; x: number; z: number; distance: number } | null {
+  let best: { s: number; x: number; z: number; distance: number } | null = null;
   for (const p of points) {
     if (p.y > y - K.drop) continue;
     const d = hypot(p.x - x, p.z - z);
-    if (d <= K.joinFar && (!best || d < best.distance)) best = { s: p.s, distance: d };
+    if (d <= K.joinFar && (!best || d < best.distance))
+      best = { s: p.s, x: p.x, z: p.z, distance: d };
   }
   return best;
+}
+
+/** THE RUNS A RIDER STOOD OFF A LIFT'S TOP CAN SKI ONTO: every run leaving
+ * it (R27) that drops below its pad near enough to join (`joinOf`) — a
+ * lane off the top that starts up the contour above the pad and stays over
+ * it is not one — each with the point it is joined at. What the signs at a
+ * chair's top point at, and what the lead off one goes to. */
+export function runsOffTop(
+  level: Level,
+  plan: LiftPlan,
+): { run: number; at: { x: number; z: number; s: number } }[] {
+  const top = plan.lift.top;
+  const out: { run: number; at: { x: number; z: number; s: number } }[] = [];
+  (level.resort?.runs ?? []).forEach((r, i) => {
+    if (r.from !== plan.lift.id) return;
+    const j = joinOf(r.points, top.x, top.y, top.z);
+    if (j) out.push({ run: i, at: { x: j.x, z: j.z, s: j.s } });
+  });
+  return out;
 }
 
 /** The rider where his carrier holds him: on a chair's seat, in a cabin —
@@ -378,16 +398,17 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
   if (ride.lead.s >= ride.lead.until) return free();
   const want = ride.lead.s + K.aim;
   const lane = laneAim(run, ride);
-  const aim =
-    lane ?? round(run.level, c.x, c.z, pts.find((p) => p.s >= want) ?? pts[pts.length - 1]);
+  const onRun = pts.find((p) => p.s >= want) ?? pts[pts.length - 1];
+  const aim = lane ?? round(run.level, c.x, c.z, onRun);
   const bearing = Math.atan2(aim.x - c.x, aim.z - c.z);
-  // Down the lane and across the pad at a glide, checked to `laneSpeed`
-  // for the turn at the parting and round the station; then on, over the
-  // lip. At a crawl the tuck is the poles pushing him on (`poles.ts`).
-  const top = liftPlans(run.level)[ride.index].lift.top;
-  const near = lane || hypot(c.x - top.x, c.z - top.z) < K.padNear;
-  const most = near ? K.laneSpeed : Infinity;
+  // Down the lane at a glide, checked to `laneSpeed` for the turn at the
+  // parting, round a station house and while he is still turned off his
+  // way (past `cutHarder`); then let run off the pad's lean and over its
+  // lip, gathering speed. At a crawl the tuck is the poles pushing him on
+  // (`poles.ts`).
   const off = angleDiff(c.heading, bearing);
+  const near = lane !== null || aim !== onRun || Math.abs(off) > K.cutHarder;
+  const most = near ? K.laneSpeed : Infinity;
   return {
     steer: clamp(off * K.steer, -1, 1),
     tuck: c.speed < (near ? K.lanePush : K.push) ? 1 : 0.25,

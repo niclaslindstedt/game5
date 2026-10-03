@@ -13,10 +13,12 @@ import {
   carrierCount,
   chairLane,
   liftPlans,
+  runsOffTop,
   stationHouses,
   TUNING,
 } from "@engine";
 import { summitShare } from "../pwa/src/game/camera-summit.ts";
+import { summitSigns } from "../pwa/src/game/run-sign-plan.ts";
 import { MOUNTS, skierPose } from "../pwa/src/game/skier-pose.ts";
 import { CHAIR_SEAT, seatedPose } from "../pwa/src/game/skier-seat.ts";
 import { layStations, signsOf } from "../pwa/src/game/station-plan.ts";
@@ -62,8 +64,8 @@ describe("the stations laid out", () => {
 
   it("stands every piece on the snow it is over", () => {
     for (const q of layout.parts) {
-      // A hood and a canopy are hung at the wheel; a sign on its post.
-      if (q.kind === "hood" || q.kind === "canopy" || q.kind === "sign") continue;
+      // A hood and a canopy are hung at the wheel.
+      if (q.kind === "hood" || q.kind === "canopy") continue;
       expect(Math.abs(q.y - level.groundAt(q.x, q.z))).toBeLessThan(1e-6);
     }
   });
@@ -93,7 +95,7 @@ describe("the way off a chair's top", () => {
       const lane = chairLane(p);
       const from = p.length - p.look.off;
       for (const q of layout.parts) {
-        if (q.kind === "hood" || q.kind === "sign" || q.kind === "signpost") continue;
+        if (q.kind === "hood") continue;
         const c = frame(p, q.x, q.z);
         if (c.u < from || c.u > lane.exit) continue;
         expect(Math.abs(c.v - lane.v)).toBeGreaterThan(2);
@@ -112,28 +114,33 @@ describe("the way off a chair's top", () => {
     }
   });
 
-  it("signs every run off the top across the far side of the way, pointing the way it leaves", () => {
+  it("fences nothing at the top: no netting and no stop gate across the way off", () => {
+    for (const p of chairs) {
+      for (const f of layout.fences) {
+        const c = frame(p, f.a.x, f.a.z);
+        expect(Math.hypot(c.u - p.length, c.v)).toBeGreaterThan(40);
+      }
+    }
+  });
+
+  it("signs every run the pad drops onto, on wooden arrow boards pointing the way it leaves", () => {
     for (const p of chairs) {
       const lane = chairLane(p);
-      const runs = level.resort!.runs.filter((r) => r.from === p.lift.id);
+      const runs = runsOffTop(level, p).map((j) => level.resort!.runs[j.run]);
       const signs = signsOf(level, p);
       expect(signs.map((s) => s.run).sort()).toEqual(runs.map((r) => r.id).sort());
-      const post = layout.parts.find(
-        (q) =>
-          q.kind === "signpost" &&
-          Math.hypot(frame(p, q.x, q.z).u - lane.signs, frame(p, q.x, q.z).v - lane.v) < 0.01,
+      // Every run joined lies below the pad.
+      for (const r of runs) expect(r.points.some((q) => q.y < p.lift.top.y - 2)).toBe(true);
+      if (signs.length === 0) continue;
+      const post = summitSigns(level).find(
+        (q) => Math.hypot(frame(p, q.x, q.z).u - lane.signs, frame(p, q.x, q.z).v - lane.v) < 0.01,
       );
       expect(post).toBeDefined();
-      const boards = layout.parts.filter(
-        (q) => q.kind === "sign" && Math.hypot(q.x - post!.x, q.z - post!.z) < 0.01,
-      );
-      expect(boards).toHaveLength(runs.length);
+      expect(post!.boards.map((b) => b.run)).toEqual(signs.map((s) => s.run));
       signs.forEach((s, i) => {
-        expect(boards[i].grade).toBe(s.grade);
-        // A board points its +x: across the line's frame, +v for `1`.
-        const ux = Math.cos(boards[i].yaw);
-        const uz = -Math.sin(boards[i].yaw);
-        expect(Math.sign(ux * p.dz - uz * p.dx)).toBe(s.way);
+        expect(post!.boards[i].grade).toBe(s.grade);
+        // The lane's side (+v) is the reader's left as the picture shows it.
+        expect(post!.boards[i].point).toBe(s.way === 1 ? "left" : "right");
       });
     }
   });

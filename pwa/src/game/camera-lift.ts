@@ -15,11 +15,11 @@
 // station ahead of him (`docs/summit-stations.md`). Coming into the top the
 // skis touch on the flat, he stands where it tips down and the chair pushes
 // him off down the ramp, gliding on away from the chair's path before he
-// turns for his run. The lens stays on his back through all of that and only
-// opens out to the chase once he is skiing on his own: held whole for the
-// stand-up and the ramp, then let out over the lead onto the run (`LIFT_LOOK
-// .lead`), or eased out over `release` s where a ride off a lift he chose
-// ends at the unload with no lead.
+// turns for his run. The lens stays on his back through the stand-up and the
+// ramp, then hands him to the chase (`LIFT_LOOK.lead`) — on the pad the
+// summit's own low look behind him (`camera-summit.ts`), opening out only
+// once he is over the lip — or eases out over `release` s where a ride off a
+// lift he chose ends at the unload with no lead.
 
 import type { LiftRide } from "@engine";
 
@@ -41,8 +41,9 @@ export const LIFT_LOOK = {
   take: 2.5,
   release: 0.55,
   /** Over the lead onto the run, s of it: whole until `hold` (the stand-up
-   * and the ramp), opened all the way out by `out`. */
-  lead: { hold: 3.5, out: 9 },
+   * and the ramp), handed over by `out` to the chase — which on the pad is
+   * the summit's low look behind him (`SUMMIT_LOOK`). */
+  lead: { hold: 1.5, out: 3.5 },
 } as const;
 
 /** What the boom is handed (`RigPose.ride`): how much of the lift's look

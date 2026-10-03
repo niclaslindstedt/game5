@@ -72,11 +72,13 @@
 //       every piste's edge, its top on ground falling no more than
 //       `lift.drag.padGrade` across its pad. Every top station stands
 //       `lift.below` metres under the ridge's crest or on its bench, on a
-//       level PAD `lift.pad` metres across, cut into the slope more than
+//       PAD `lift.top.pad` metres across, cut into the slope more than
 //       filled (`lift.padCut` of the fill a pad level with its middle would
 //       need) and eased into the mountain over `lift.padBlend` metres,
-//       groomed — its downhill edge a LIP where the level rolls over onto
-//       the face — and a chair's pad carries its UNLOAD RAMP, a mound of
+//       groomed — its DECK `lift.top.deck` metres either side of the line
+//       level and the pad LEANING off it to both sides at `lift.top.lean`
+//       to its rim, its downhill edge a LIP where it rolls over onto the
+//       face — and a chair's pad carries its UNLOAD RAMP, a mound of
 //       packed snow `lift.unload.height` metres high under the unload point
 //       `lift.unload.at` metres short of the top, falling off over
 //       `lift.unload.reach` metres. Every BOTTOM
@@ -268,6 +270,12 @@ export const RESORT_RULES = {
     pad: 30,
     padCut: 0.25,
     padBlend: 22,
+    /** THE TOP a gondola's or a chair's station stands on (generator v5):
+     * `pad` m across, its DECK `deck` m either side of the line level (the
+     * wheel, the ramp and the way off), LEANING off it to both sides at
+     * `lean` m per m to its rim — a rider stood off slides away to his run
+     * gathering speed (a green's pitch is up to 16 %). */
+    top: { pad: 48, deck: 7, lean: 0.11 },
     /** A chair's UNLOAD RAMP: the unload point, m short of the top down
      * the line (a rider stands up 5–8 m before the bullwheel); the mound
      * under it, m high (1–1.5 m of ramp); and how far it falls off, m —

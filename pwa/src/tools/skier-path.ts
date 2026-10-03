@@ -53,6 +53,9 @@ const STROBE = 0.25;
 const SPACING = 1.3;
 /** How much snow the plan shows either side of the run's line, m. */
 const ACROSS = 2.2;
+/** The tallest sheet the lab's page photographs, px (`skier-preview.mjs`'s
+ * viewport). */
+const PAGE_H = 2600;
 /** The line's colours and widths, m: the centre of gravity's, the feet's,
  * and the facing ticks (their length too). */
 const LINE = { cog: 0xffc400, left: 0x2f7bff, right: 0xff7a1a, tick: 0xffffff };
@@ -219,15 +222,35 @@ export function drawPath(h: PathHost, move: Move): Drawn {
   const run = Math.hypot(b.x - a.x, b.z - a.z);
   const fx = run > 0.5 ? (b.x - a.x) / run : Math.sin(a.heading);
   const fz = run > 0.5 ? (b.z - a.z) / run : Math.cos(a.heading);
-  const mid = new THREE.Vector3((a.x + b.x) / 2, groundAt(on[0], a.x, a.z), (a.z + b.z) / 2);
+  // A TURN bends the line off the chord: the plan is centred on the whole
+  // of it, as seen along and across the chord, and as wide as it reaches.
+  let lo = { along: Infinity, across: Infinity };
+  let hi = { along: -Infinity, across: -Infinity };
+  for (const f of on) {
+    const along = (f.skier.x - a.x) * fx + (f.skier.z - a.z) * fz;
+    const across = (f.skier.x - a.x) * fz - (f.skier.z - a.z) * fx;
+    lo = { along: Math.min(lo.along, along), across: Math.min(lo.across, across) };
+    hi = { along: Math.max(hi.along, along), across: Math.max(hi.across, across) };
+  }
+  const cAlong = (lo.along + hi.along) / 2;
+  const cAcross = (lo.across + hi.across) / 2;
+  const cx = a.x + fx * cAlong + fz * cAcross;
+  const cz = a.z + fz * cAlong - fx * cAcross;
+  const mid = new THREE.Vector3(cx, groundAt(on[0], a.x, a.z), cz);
 
   const cols = Math.max(move.shots.length, 6);
   const sheetW = cols * h.cell;
   // Straight down, the run left to right, `ACROSS` m of snow either side of
-  // the run's line — the sheet as tall as that is at the run's scale.
-  const half = Math.max(run / 2 + 2, 4);
-  const planH = Math.max(Math.round(h.cell * 1.1), Math.round((sheetW * ACROSS) / half));
+  // the run's line — the sheet as tall as that is at the run's scale, and
+  // tall enough for all of a line that turns.
+  // (Never taller than the page holds: a line turned right round widens
+  // the plan's reach along instead.)
+  const across = Math.max(ACROSS, (hi.across - lo.across) / 2 + ACROSS);
   const shotH = h.cell;
+  const tallest = Math.round((PAGE_H - shotH) / 2.2);
+  let half = Math.max((hi.along - lo.along) / 2 + 2, 4);
+  half = Math.max(half, (sheetW * across) / tallest);
+  const planH = Math.max(Math.round(h.cell * 1.1), Math.round((sheetW * across) / half));
   const { top } = h.layout(1, 1, sheetW, planH * 2 + shotH);
   const fullH = planH * 2 + shotH + top;
   const plan = new THREE.OrthographicCamera(

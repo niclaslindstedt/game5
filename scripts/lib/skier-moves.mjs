@@ -15,6 +15,7 @@
 //   window           [from, to] s: the stretch the frames are spread over
 //   input(t, st)     the controls at run time t
 //   mode, snow       optional: the run's mode and snow dial
+//   poles            optional: false skis it WITHOUT POLES (the hard mode)
 
 const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 const PITCH = Math.tan(Math.PI / 9);
@@ -75,6 +76,86 @@ export const MOVES = [
     seconds: 3,
     window: [1.2, 2.8],
     input: () => IDLE,
+  },
+  {
+    id: "skate-turn",
+    title: "skating round to the left at a crawl on the flat, the tuck key held: a skate turn",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 3 }),
+    seconds: 4.4,
+    window: [0.4, 4.3],
+    input: (t) => ({ ...IDLE, tuck: 1, steer: t >= 0.6 ? -1 : 0 }),
+  },
+  {
+    id: "step-turn",
+    title: "turning to the right from a standstill on the flat, the tuck key held: stepped round",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 4,
+    window: [0.2, 3.9],
+    input: () => ({ ...IDLE, tuck: 1, steer: 1 }),
+  },
+  {
+    id: "skate-zigzag",
+    title: "skating at a crawl on the flat, stepped left and right a turn each 1.6 s",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 3.5 }),
+    seconds: 6,
+    window: [0.3, 5.9],
+    input: (t) => ({
+      ...IDLE,
+      tuck: 1,
+      steer: t < 0.4 ? 0 : Math.floor((t - 0.4) / 1.6) % 2 ? 1 : -1,
+    }),
+  },
+  {
+    id: "pole-turn",
+    title: "rolling at 25 km/h on the flat with the tuck key held, then turned to the right",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 7 }),
+    seconds: 4,
+    window: [0.3, 3.9],
+    input: (t) => ({ ...IDLE, tuck: 1, steer: t >= 0.8 ? 1 : 0 }),
+  },
+  {
+    id: "bare-away",
+    title: "WITHOUT POLES: skating away from a standstill on the flat, the tuck key held",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 7,
+    window: [0.3, 6.8],
+    input: () => ({ ...IDLE, tuck: 1 }),
+    poles: false,
+  },
+  {
+    id: "bare-skate",
+    title: "WITHOUT POLES: skating at 15 km/h on the flat, the tuck key held — a stride each leg",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 4.2 }),
+    seconds: 4,
+    window: [1.5, 3.8],
+    input: () => ({ ...IDLE, tuck: 1 }),
+    poles: false,
+  },
+  {
+    id: "bare-turn",
+    title: "WITHOUT POLES: skating round to the left at a crawl, the tuck key held",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 3 }),
+    seconds: 4.4,
+    window: [0.4, 4.3],
+    input: (t) => ({ ...IDLE, tuck: 1, steer: t >= 0.6 ? -1 : 0 }),
+    poles: false,
+  },
+  {
+    id: "bare-ride",
+    title: "WITHOUT POLES: riding down the 20° pitch from 40 km/h, a turn each way",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6 }),
+    seconds: 4.2,
+    window: [0.2, 4],
+    input: (t) => ({ ...IDLE, steer: t < 0.8 ? 0 : t < 2.2 ? -1 : t < 3.4 ? 1 : 0 }),
+    poles: false,
   },
   {
     id: "pole",

@@ -158,7 +158,7 @@ function ski(move) {
     quiet: true,
     mode: move.mode,
     snowDepth: move.snow,
-    poles: !args["no-poles"],
+    poles: !args["no-poles"] && move.poles !== false,
   });
   E.placeRun(state, move.place());
   const t0 = state.t;

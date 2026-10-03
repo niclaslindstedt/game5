@@ -232,8 +232,8 @@ const BANDS = [
   },
   {
     id: "push",
-    say: "working: in the middle of a push a pole BITES — its basket on the snow (≤ 6 cm) behind its fist",
-    when: (f) => working(f) && f.m.pushing,
+    say: "working: in the middle of a push a pole BITES — its basket on the snow (≤ 6 cm) behind its fist (a skier with poles)",
+    when: (f) => working(f) && f.m.pushing && f.skier.poles !== false,
     bad: (m) => m.bite > 0.06,
   },
   {
@@ -307,6 +307,7 @@ function measure(move) {
     quiet: true,
     mode: move.mode,
     snowDepth: move.snow,
+    poles: move.poles !== false,
   });
   E.placeRun(state, move.place());
   const t0 = state.t;

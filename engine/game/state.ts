@@ -148,6 +148,12 @@ export type SkierState = {
    * skis grip and the drive pushes along it, so a skater goes the way
    * the ski he stands on points. */
   glide: number;
+  /** THE STEP TURN, −1..1, right positive: how far he is stepping his
+   * skis round a turn at a crawl (`poles.ts`'s `stepWork`) — the steer
+   * key over the share of him on his legs, taken up and let go at
+   * `poles.turn.rate`. It turns his heading a step a stride and leads the
+   * V into the turn (`glideYaw`); 0 at speed, on his poles, or straight. */
+  step: number;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;

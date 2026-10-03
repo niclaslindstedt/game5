@@ -5,7 +5,7 @@
 // air and out of it, a jump loaded and sprung. Stepped with the frame's
 // `dt` (`skis-body.ts`); `skier-pose.ts` reads it. Three-free.
 
-import { strideRate, type Save, type SkierState } from "@engine";
+import { stepQuick, strideRate, type Save, type SkierState } from "@engine";
 
 import { flying, gaitOf } from "./skier-gait.ts";
 
@@ -144,6 +144,8 @@ export type SpringRide = {
    * (`SkierState.stride` / `.way`) — the plants the snow is passed from. */
   stride?: number;
   way?: number;
+  /** The step turn he is making (`SkierState.step`); none when left out. */
+  step?: number;
   /** The pair's pitch, rad, and the body thrown off it (`SkierState`) —
    * what the gait is read off. */
   pitch?: number;
@@ -390,6 +392,7 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     stride: ride.stride,
     speed: ride.speed,
     way: ride.way,
+    step: ride.step,
     crouch: ride.crouch,
     pitch: ride.pitch ?? 0,
     airborne,
@@ -402,7 +405,9 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   const n = Math.floor(ride.stride);
   const way = Math.abs(ride.way);
   if (n !== s.poledStride) {
-    const rate = strideRate(ride.speed) * Math.max(0.2, ride.drive);
+    const step = ride.step ?? 0;
+    const rate =
+      strideRate(ride.speed, true, step) * stepQuick(step, ride.speed) * Math.max(0.2, ride.drive);
     s.poled = ((ride.stride - n) * way) / rate;
     s.poledStride = n;
   } else s.poled += way * dt;

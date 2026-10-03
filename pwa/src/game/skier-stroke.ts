@@ -166,10 +166,14 @@ export function easeFist(shoulder: V3, hand: V3, length: number): V3 {
   return eased < l ? add(shoulder, scale(d, eased / l)) : hand;
 }
 
-/** The shares of a push the pin is eased in over at the plant and out
- * over toward the release — the longer, where the last of the arm's
- * reach would have to be thrown back to keep up with the snow. */
-const PIN_EASE = { in: 0.25, out: 0.4 };
+/** The share of a push the pin is eased in over at the plant; and THE
+ * FOLLOW-THROUGH — an arm let go of its pole at speed is still going back,
+ * and carries on behind him, slowing, before it swings forward: the most
+ * of a swing's rate it may carry on with, as the recovery's own pace. Held to the
+ * snow to the release and stopped there instead, the fist went from the
+ * snow's speed to rest in two frames. */
+const PIN_EASE = { in: 0.3 };
+const FOLLOW = { most: 1.2 };
 
 /** What a push held to the snow makes of the arms (`holdPush`): each
  * fist, each arm's swing off its shoulder as posed, and each stroke's
@@ -236,13 +240,28 @@ export function holdPush(o: {
     // comes to each end of its push at rest, as it leaves the recovery and
     // goes into it, rather than at the snow's speed in a frame.
     const plant = o.plant ? o.plant[i].z : zAt(0);
-    const end = 1 + (pinnedSwing(zAt, plant, o.pass * duty) - 1) * bites;
+    const release = o.pass * duty;
+    const end = 1 + (pinnedSwing(zAt, plant, release) - 1) * bites;
     const u = phase / duty;
-    const held = bites * smooth(u / PIN_EASE.in) * smooth((1 - u) / PIN_EASE.out);
+    const held = bites * smooth(u / PIN_EASE.in);
     const timed = end * strokeSwing(phase, duty);
+    // THE RECOVERY carries on from the release at the pace the push let
+    // go at — back behind him, slowing — and swings forward to the next
+    // plant, arriving at rest: a cubic off the swing and its rate there.
+    const lag = 0.02 * release;
+    const rate =
+      ((end - (1 + (pinnedSwing(zAt, plant, release - lag) - 1) * bites)) / lag) * o.pass;
+    // ...never past the arm's own finish: the cubic carries on some 4/27
+    // of its rate past where the push let go.
+    const follow = Math.min(
+      FOLLOW.most,
+      6.75 * Math.max(0, 1 - end),
+      Math.max(0, rate * (1 - duty)),
+    );
+    const r = (phase - duty) / (1 - duty);
     const at = pushing
       ? timed + (pinnedSwing(zAt, plant, passed) - timed) * held
-      : end * (1 - smooth((phase - duty) / (1 - duty)));
+      : end * (2 * r * r * r - 3 * r * r + 1) + follow * (r * r * r - 2 * r * r + r);
     const arm = armAt(DOUBLE_ARM, at, pushing, end);
     return {
       hand: easeFist(o.shoulders[i], swungTo(o.hands[i], o.arm, arm), o.reach),

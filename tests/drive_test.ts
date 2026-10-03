@@ -10,9 +10,13 @@ import {
   SKIS,
   TUNING,
   createGame,
+  angleDiff,
   driveForce,
+  glideYaw,
   placeRun,
+  skateAngle,
   skateShare,
+  skateWork,
   step,
   strideShape,
   type GameState,
@@ -77,6 +81,49 @@ describe("the drive (poles.ts)", () => {
     const state = stage(PACKED, 4);
     ride(state, 2, { brake: 1 });
     expect(state.skier.drive).toBeLessThan(0.05);
+  });
+});
+
+describe("the skate goes where the ski points (poles.ts' glideYaw)", () => {
+  it("glides each stride on the gliding ski's arm of the V, the right ski's while the left pushes", () => {
+    const vee = skateAngle(3);
+    // Past the push, the whole of the arm: right (clockwise) on a left push.
+    expect(glideYaw(0.8, 3, 1)).toBeCloseTo(vee, 6);
+    expect(glideYaw(1.8, 3, 1)).toBeCloseTo(-vee, 6);
+    // Carried across over the push, never jumping at a stride's turn.
+    expect(glideYaw(0.999999, 3, 1)).toBeCloseTo(glideYaw(1, 3, 1), 4);
+    // Not skating, straight on.
+    expect(glideYaw(0.8, 3, 0)).toBe(0);
+    expect(skateWork(0.3, 3)).toBe(0);
+    // The V closes as he rolls.
+    expect(skateAngle(TUNING.poles.skateTo)).toBeLessThan(skateAngle(2));
+  });
+
+  it("takes him diagonally along the gliding ski — a zig-zag, not straight up the V", () => {
+    const state = stage(PACKED, 4);
+    ride(state, 0.6);
+    const c = state.skier;
+    let worst = 0;
+    let left = 0;
+    let right = 0;
+    let n = 0;
+    for (let i = 0; i < 3 * TUNING.physicsHz; i++) {
+      step(state, NEUTRAL_INPUT);
+      const p = c.stride - Math.floor(c.stride);
+      const way = angleDiff(c.heading, Math.atan2(c.vx, c.vz));
+      if (way < -0.1) left += 1;
+      if (way > 0.1) right += 1;
+      // Gliding (past the push) he goes the way the ski he stands on points.
+      if (p > TUNING.poles.duty && skateWork(c.drive, c.speed) > 0.5) {
+        worst = Math.max(worst, Math.abs(angleDiff(way, c.glide)));
+        n += 1;
+      }
+    }
+    expect(n).toBeGreaterThan(60);
+    expect(worst).toBeLessThan(0.05);
+    // Both arms of the V are skied, a good part of the time each.
+    expect(left).toBeGreaterThan(60);
+    expect(right).toBeGreaterThan(60);
   });
 });
 

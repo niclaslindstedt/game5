@@ -141,6 +141,12 @@ export type SkierState = {
    * the push and the pose are both on. */
   drive: number;
   stride: number;
+  /** THE LINE HE GLIDES ON, rad off his heading, clockwise positive: 0
+   * but skating, when it is the gliding ski's — the V's other arm each
+   * stride, carried across by the push (`poles.ts`'s `glideYaw`). The
+   * skis grip and the drive pushes along it, so a skater goes the way
+   * the ski he stands on points. */
+  glide: number;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;

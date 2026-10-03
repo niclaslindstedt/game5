@@ -40,6 +40,15 @@ export const MOVES = [
     input: () => ({ ...IDLE, tuck: 1 }),
   },
   {
+    id: "away",
+    title: "skating away from a standstill on the flat, the tuck key held, until he double-poles",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 7,
+    window: [0.5, 6.8],
+    input: () => ({ ...IDLE, tuck: 1 }),
+  },
+  {
     id: "gate",
     title:
       "in the start gate under the lights, then out of it down a 12 % pitch at GO, the tuck held",

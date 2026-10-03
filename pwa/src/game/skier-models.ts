@@ -109,6 +109,7 @@ export function dressOf(name: string, skis: SkisStyle | null, skier: SkierStyle 
     if (name === "helmet") return { colour: skier.helmet };
     if (name === "peak") return { colour: skier.peak ?? skier.helmet };
     if (name === "lens") return { colour: skier.visor };
+    if (name === "skin" && skier.skin !== undefined) return { colour: skier.skin };
   }
   return null;
 }

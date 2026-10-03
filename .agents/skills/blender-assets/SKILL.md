@@ -44,7 +44,7 @@ pair, `skier` for the figure) — its judging rules apply to a model too.
 | --- | --- |
 | `scripts/blender.mjs` | THE DRIVER (`make blender`): loads every KIND under `scripts/blender/kinds/<kind>.mjs` (its ids, the JSON of the game's data for one, its builder, its default), finds Blender, runs each QUALITY, echoes what matters (`BONES`, `CLIPS`, `TRIANGLES`, what was saved, any traceback) and fails on a Python error. A kind's data module is in its own sources alone, so a kind added moves no other stamp |
 | `scripts/blender/lib.py` | THE SHELF every builder imports: the scene, `mat`, the geometry (`loft`, `superellipse`, `tube`, `cyl`, `box`, `ellipsoid`, `coil`, `catmull`, `resample`, boolean cutters), THE RIG (`rides`, `bone`, `marker`, `clip`, `morph`), and `finish()` — the rig built and skinned, the clips baked, the studio, the Cycles stills, the join into one skinned mesh, LOD0 and the decimated LODs as glTF |
-| `scripts/blender/skier.py` | THE SKIER BUILDER (`KIND=skier`, `ID=skier0…3` a start-line slot's kit): one SUIT that bends (a man of the ANSUR II survey's mean measure in a racer's kit, lofted a piece a bone, remeshed into one skin, creased where a joint bends, cut along the hem, yoke, cuff and lap planes before it is coloured, weighted across each joint between the two bones that meet there) and rigid parts on one bone each — the helmet laid on the game's MEASURED shell (`helmetReach` / `helmetPart` sampled on a grid) with the goggles on it, the boots, the gloves |
+| `scripts/blender/skier.py` | THE SKIER BUILDER (`KIND=skier`, `ID=skier0…3` a start-line slot's kit): one SUIT that bends (a man of the ANSUR II survey's mean measure in a racer's kit, lofted a piece a bone, remeshed into one skin, creased where a joint bends, cut along the hem, yoke, cuff and lap planes before it is coloured, weighted across each joint between the two bones that meet there) and rigid parts on one bone each — the head in its helmet as the GAME'S OWN TRIANGLES (`helmet-shape.ts`'s `helmetParts`, handed in with their normals and the lens's unwrap — so the model's helmet is the code's, triangle for triangle), the boots, the gloves |
 | `pwa/src/game/skier-rig.ts` | THE SKIER'S CONTRACT: `skierBones(pose)` (every bone's frame off a `SkierPose` — the game's own spans, rolled to face each joint's bend, the head turned as `skier-figure.ts` turns it; a pelvis and a chest, HALF BONES at the hips, knees, shoulders and elbows, the hands along their poles, the feet in their boots), `STANDING` (the pose he is bound in), `skierClips()` (every clip SAMPLED off the game's `skierPose` and `stepSkierSpring`), `rigSkier` (a loaded model's bones set to a pose, or a clip played) |
 | `scripts/blender/skis.py` | THE SKIS BUILDER: the two skis (the tip's rise and the rocker, the sidecut's waist, the tail; the topsheet, the base, the edges), the bindings at the mount, the boots in them, the poles with their baskets and grips — every dimension off the spec and the trace |
 | `pwa/src/tools/skis-harness.ts` + `scripts/skis-preview.mjs` | THE ASSET SHEETS (`make skis ARGS=--asset=a.glb,b.glb`): `asset` — the builder's pair in the first row, each model below it, every one stood on by the game's skier through `skierStance`; `rig` — builder and models posed at the same engine moments (an edge each way, each leg's compression, the skid); `clips` — the first model's clips played across their length (and a `--skier=` model's, him alone); `figure` — a modelled skier beside the game's own on the builder's pair in every pose. A `--skier=` model also stands on the models on the asset and rig sheets |
@@ -208,13 +208,7 @@ and handed to Blender as every bone's frame at every frame (`clip()` with a
   along the arm bone a few centimetres out); softshell pants flared over
   the boot; GLOVES CLOSED ROUND THE GRIP (a palm, four fingers wrapped round
   the shaft along the bend's side, a thumb over the top — at game quality a
-  finger is five points of tube); an OPEN helmet (the measured shell cut at
-  the port AND everything under it across its width — a ski helmet's front
-  rim is its brow) over a head in a dark balaclava, and GOGGLES on the face
-  bent round a cylinder about the head's up, centred on the port, their
-  outline a squared superellipse shaped row by row (a culled cell grid is a
-  staircase). The helmet's openings are eased along themselves a few
-  passes: a grid cut is stairs.
+  finger is five points of tube); the HEAD IN ITS HELMET built from `helmet-shape.ts`'s triangles, a material a part (`PAINT` in `skier.py`), its normals set as custom normals so the stripe's cut and the rolled rim shade as the code's do — the shell is designed THERE, in TypeScript, never in the builder; `make helmet` sets the two side by side.
 - **THE CLOTH IS A TEXTURE, AND ONE MODEL DRESSES EVERY KIT**: the fabric
   is a height in the suit's own frame (the jacket QUILTED in channels
   8.5 cm apart round the body, a ripstop's 8 mm grid on every garment, the
@@ -229,8 +223,8 @@ and handed to Blender as every bone's frame at every frame (`clip()` with a
 - **No sheen on anything exported**: Blender's sheen goes into the glTF as
   a sheen extension three.js draws as a pale bloom.
 - **Budget**: the figure's LOD0 sits under 10k triangles (the suit
-  decimated to a few thousand quads' worth, the helmet's grid every fourth
-  of the render's sample and single-sided — nothing sees under it — boots,
+  decimated to a few thousand quads' worth, the head in its helmet the game's
+  own cut of `helmetParts` (some 3,400 triangles; a still takes the finer cut) — boots,
   guards and gloves the rest), the lower LODs a third and a tenth of it;
   render quality is the 6 mm remesh.
 

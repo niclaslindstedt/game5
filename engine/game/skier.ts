@@ -437,6 +437,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   let skiR = 0;
   let slipWorst = 0;
   let midSink = 0;
+  // How much of what the touching stations could hold at no slip the
+  // slope's pull asks of them, weighted by their loads, and the loads
+  // (`grip.stillSpeed`).
+  let strain = 0;
+  let strained = 0;
   for (let i = 0; i < probes.length; i++) {
     const p = probes[i];
     const contact = c.contacts[i];
@@ -587,12 +592,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // THE EDGE holds sideways, as much as it is stood on; the BASE holds
     // in powder whatever the edge is doing; either lets go progressively.
     // A ski pivoted into a skid scrapes on its edge rather than biting
-    // with it: `grip.skidHold` of the hold, by how far it is pivoted.
+    // with it: `grip.skidHold` of the hold, by how far it is pivoted —
+    // until he is all but stopped, when the pivoted edge is SET and bites
+    // the ledge it stops on (`grip.skidBite`).
     const hold =
       (grip.edge * edgeShare * skiBite(c, p.side) + grip.base) *
       ARC.sideGrip *
       pressed *
-      (1 - c.skid * (1 - G.skidHold));
+      (1 - c.skid * (1 - G.skidHold) * clamp(speed0 / G.skidBite, 0, 1));
     let across = -hold * load * Math.tanh(vl / G.sideRef);
     // THE CARVE IN POWDER: a ski rolled over in soft snow turns toward the
     // low side, once there is way on to carve with.
@@ -602,6 +609,26 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // THE SKID pays for the snow it shoves sideways, over and above what
     // the pivoted edge scrubs.
     let along = -(drag + S.skidDrag * c.skid * load) * Math.tanh(vf / DRAG_FADE);
+    // THE STANDSTILL'S HOLD: a ski at rest presses the snow under it into
+    // a LEDGE level across it, so however steep the pitch, the pull across
+    // the ski stands on that ledge; only the pull ALONG its line is the
+    // base's and the plough's to hold. Bare ice takes no ledge: there the
+    // edge's own hold is all there is across. This station's share of the
+    // pull (its load times the slope's tangent), over what it holds, an
+    // ellipse between the two ways.
+    const fall = Math.sqrt(Math.max(0, 1 - normal.y * normal.y));
+    if (fall > 1e-6) {
+      const pull = (load * fall) / normal.y;
+      const ux = (normal.x * normal.y) / fall;
+      const uy = (normal.y * normal.y - 1) / fall;
+      const uz = (normal.z * normal.y) / fall;
+      const da =
+        (pull * (ux * tx + uy * ty + uz * tz)) / Math.max(1e-9, drag + S.skidDrag * c.skid * load);
+      const ds =
+        (ice * pull * (ux * side.x + uy * side.y + uz * side.z)) / Math.max(1e-9, hold * load);
+      strain += load * hypot(da, ds);
+    }
+    strained += load;
     // THE DRIVE pushes along the skis, under the boots, at a crawl.
     if (p.station === "mid")
       along += (bite * poleForce(spec, speed0, packed, c.drive, c.stride)) / 2;
@@ -796,6 +823,30 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const hullHit = chassisContacts(c, level, depth, state.fresh, drop);
   const hullTouch = hullHit > 0;
   if (hullHit > impact) impact = hullHit;
+  // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his
+  // skis, not working for his speed or springing off them, whose stations
+  // hold the slope's pull — along his skis' line, the ledge they stand on
+  // taking it across them — is held: his way over the snow taken out, the
+  // legs left to settle along its normal.
+  if (
+    grounded &&
+    c.thrown === null &&
+    c.tunnel === null &&
+    c.trench === 0 &&
+    c.drive === 0 &&
+    pop === 0
+  ) {
+    level.normalAt(c.x, c.z, normal);
+    const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
+    const sx = c.vx - vn * normal.x;
+    const sy = c.vy - vn * normal.y;
+    const sz = c.vz - vn * normal.z;
+    if (hypot3(sx, sy, sz) < G.stillSpeed && strained > 0 && strain <= strained) {
+      c.vx = vn * normal.x;
+      c.vy = vn * normal.y;
+      c.vz = vn * normal.z;
+    }
+  }
   c.x += c.vx * dt;
   c.y += c.vy * dt;
   c.z += c.vz * dt;

@@ -156,11 +156,26 @@ export const TUNING = {
     /** The slip speed across the ski at which the sideways grip is 76 %
      * developed, m/s. */
     sideRef: 0.4,
+    /** STANDING STILL: below this speed over the snow, m/s, a skier whose
+     * stations can hold the slope's pull with no slip at all — Coulomb's
+     * STATIC friction — stands where he is. A ski at rest presses the snow
+     * into a LEDGE level across it, so the pull across the skis stands on
+     * that ledge whatever the pitch, and only the pull along their line is
+     * the base's and the plough's to hold (bare ice takes no ledge: there
+     * the edge's own hold is all there is across). The `tanh` grips are
+     * nothing at no slip and develop over `sideRef` and the drag's fade
+     * (0.3–0.4 m/s), so a skier stopping on a pitch settles into a slip
+     * of that order; this is twice it, so that slip is caught. */
+    stillSpeed: 0.6,
     /** THE SKID SCRAPES: a ski pivoted across the way and shoved sideways
      * is sliding on its edge, not cutting a groove with it, and sliding
      * friction is less than the bite — this share of the edge's hold is
      * what a fully skidding ski keeps (blended by `SkierState.skid`). */
     skidHold: 0.5,
+    /** ...but a skier all but stopped SETS the pivoted edge: the scrape
+     * fades out below this speed, m/s, and the edge bites with all of its
+     * hold — how a stop on a steep pitch ends stood, not side-slipping. */
+    skidBite: 2,
     /** BLUE ICE (a frozen tarn's, `Level.iceAt`, and the icy patches a
      * region's crust carries): the share of the groomer's grip an edge has
      * left on bare ice — a sharp edge scratches a line and little more. */

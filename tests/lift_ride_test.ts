@@ -73,12 +73,18 @@ describe("riding a lift on a free ride", () => {
     expect(run.skier.lift?.phase).toBe("board");
     let highest = 0;
     let lowest = Infinity;
+    let inclined = 0;
     const events = ride(run, 600, (r) => {
       const c = r.skier;
       if (c.lift?.phase === "ride") {
         highest = Math.max(highest, c.y - level.groundAt(c.x, c.z));
         // Once sat: the chair scoops him up off the load line first.
-        if (c.lift.t > TUNING.lift.scoop) lowest = Math.min(lowest, c.y - level.groundAt(c.x, c.z));
+        if (c.lift.t > TUNING.lift.scoop) {
+          lowest = Math.min(lowest, c.y - level.groundAt(c.x, c.z));
+          // Sat, he is inclined to nothing: the cross-slope passing under
+          // the chair is not under his skis.
+          inclined = Math.max(inclined, Math.abs(c.incline));
+        }
       }
       return c.lift === null;
     });
@@ -88,6 +94,7 @@ describe("riding a lift on a free ride", () => {
     // with his skis on it, never in it…
     expect(highest).toBeGreaterThan(4);
     expect(lowest).toBeGreaterThan(TUNING.lift.sit - 1e-6);
+    expect(inclined).toBe(0);
     // …and stood up over the ramp, LIFT_LOOK's `off` short of the top.
     const c = run.skier;
     const fromTop = Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z);

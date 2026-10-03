@@ -40,6 +40,17 @@
 // stops it is the skid thrown (a skier braking is not also pushing), a jump
 // being loaded, the air, and being thrown off his skis — `skier.ts` asks.
 //
+// HE TURNS BY STEPPING (`stepWork`, `SkierState.step`). A skier at a crawl
+// does not wait for his sidecut to bring him round — a ski's arc at a walk
+// is fifteen metres and more — he STEPS his skis round: the skate turn
+// (skating more to one side: the V turned toward the turn, its inside arm
+// opened wide and glided on, the outside ski pushed off and brought in,
+// a step turned in each stride) and, slower, the step turn of a walk.
+// Each stride turns his heading by `turn.step` (`stepYaw`) on top of what
+// the edge carves, the V leads it by `turn.lead`, and the drive is NOT
+// taken away for the bend: a skier stepping round a turn is pushing all
+// the way through it, which is how he gains speed out of it.
+//
 // WITHOUT POLES (`SkierState.poles` off — the player's hard mode,
 // `poles.bare`) the arms have nothing to push on: there is no double pole,
 // so he SKATES at every speed the drive reaches, on his legs' share of the
@@ -50,10 +61,11 @@
 // A drive that is one-way and only ever gentle: nothing here can push a
 // skier faster than the fade, and nothing here brakes him.
 
-import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { approach, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { riderOf } from "./defs/riders.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
+import type { SkierState } from "./state.ts";
 
 const P = TUNING.poles;
 const B = P.bare;
@@ -62,16 +74,21 @@ const B = P.bare;
  * gone by `poles.fade` — and the poles' share of it gone sooner, once his
  * arms cannot keep up with the snow (`poleKeepUp`): he stops working them
  * and tucks. A skier with no `poles` skates all the way to the fade. */
-export function driveReach(way: number, poles = true): number {
+export function driveReach(way: number, poles = true, step = 0): number {
   const fade = 1 - clamp((Math.abs(way) - P.speed) / (P.fade - P.speed), 0, 1);
-  return fade * (1 - (1 - skateShare(way, poles)) * (1 - poleKeepUp(way)));
+  return fade * (1 - (1 - skateShare(way, poles, step)) * (1 - poleKeepUp(way, step)));
 }
 
 /** The share of the drive that is SKATING rather than double-poling at a
- * way of `way` m/s, 0..1 — all of it with no `poles` to double-pole on. */
-export function skateShare(way: number, poles = true): number {
+ * way of `way` m/s, 0..1 — all of it with no `poles` to double-pole on,
+ * and, stepping round a turn (`step`, −1..1, `SkierState.step`), as much
+ * of it as the turn: a double pole's skis stay together and turn nothing,
+ * so a skier on his poles skates through a bend, as a racer does out of
+ * the gate. */
+export function skateShare(way: number, poles = true, step = 0): number {
   if (!poles) return 1;
-  return 1 - clamp((Math.abs(way) - P.skateFrom) / (P.skateTo - P.skateFrom), 0, 1);
+  const pole = clamp((Math.abs(way) - P.skateFrom) / (P.skateTo - P.skateFrom), 0, 1);
+  return 1 - pole * (1 - Math.min(1, Math.abs(step)));
 }
 
 /** THE CLIMB WITHOUT POLES, 0..1: the share of a push left up a rise of
@@ -106,10 +123,38 @@ export function skateAngle(speed: number): number {
  * under a held brake or on an edge does not step his skis into a V — over
  * the share of the push the speed leaves (`driveReach`), less the walk's
  * diagonal stride and the double pole. */
-export function skateWork(drive: number, speed: number, poles = true): number {
+export function skateWork(drive: number, speed: number, poles = true, step = 0): number {
   const d = clamp((drive - P.skateDrive) / (1 - P.skateDrive), 0, 1);
-  const work = d * d * (3 - 2 * d) * clamp(2 * driveReach(speed, poles), 0, 1);
-  return work * (1 - strideShare(speed)) * skateShare(speed, poles);
+  const work = d * d * (3 - 2 * d) * clamp(2 * driveReach(speed, poles, step), 0, 1);
+  return work * (1 - strideShare(speed)) * skateShare(speed, poles, step);
+}
+
+/** HOW MUCH OF HIM CAN STEP HIS SKIS ROUND A TURN, 0..1, working at
+ * `drive` at `speed` m/s: all of the drive the speed leaves him, eased in
+ * over its upper half as the skate is (`skateWork`) — a skier walking
+ * steps his skis round, a skater skates more to one side, and one on his
+ * poles goes over to the skate for the turn (`skateShare`'s `step`). What
+ * a turn at a crawl can be stepped by. */
+export function stepWork(drive: number, speed: number, poles = true): number {
+  const d = clamp((drive - P.skateDrive) / (1 - P.skateDrive), 0, 1);
+  return d * d * (3 - 2 * d) * clamp(2 * driveReach(speed, poles, 1), 0, 1);
+}
+
+/** THE STEP TURN'S RATE, rad/s, clockwise positive, for a step turn of
+ * `step` (`SkierState.step`, −1..1) made at `drive` at `way` m/s: a
+ * stride's turn (`turn.step`) at the strides he takes a second, quickened
+ * (`stepQuick`). */
+export function stepYaw(step: number, drive: number, way: number, poles = true): number {
+  return step * P.turn.step * strideRate(way, poles, step) * stepQuick(step, way) * drive;
+}
+
+/** How much quicker his strides come stepping round a turn of `step`
+ * (−1..1) at `way` m/s: at a walk a step turn is short quick steps, not a
+ * skater's long glide — and rolling, a skater turns on his own cadence
+ * (whole under `strideTo`, gone by `skateFrom`). */
+export function stepQuick(step: number, way: number): number {
+  const walk = 1 - clamp((Math.abs(way) - P.strideTo) / (P.skateFrom - P.strideTo), 0, 1);
+  return 1 + P.turn.quick * Math.abs(step) * walk;
 }
 
 /** THE LINE HE GLIDES ON, rad off his heading (clockwise positive), at
@@ -117,20 +162,23 @@ export function skateWork(drive: number, speed: number, poles = true): number {
  * (`skateWork`): the gliding ski's arm of the V — the right ski's while
  * the left leg pushes, the left's while the right does — reached over the
  * push from the arm he glided on before, eased at both ends, and held
- * through the glide. */
-export function glideYaw(stride: number, speed: number, skate: number): number {
-  if (skate <= 0) return 0;
+ * through the glide; and, stepping round a turn (`step`, −1..1), the whole
+ * V turned toward it by `turn.lead` — its inside arm opened wide, its
+ * outside one closed: skating more to one side. */
+export function glideYaw(stride: number, speed: number, skate: number, step = 0): number {
+  const lead = step * P.turn.lead;
+  if (skate <= 0) return lead;
   const p = stride - Math.floor(stride);
   const side = Math.floor(stride) % 2 === 0 ? 1 : -1;
   const k = clamp(p / P.duty, 0, 1);
   const across = k * k * (3 - 2 * k);
-  return side * skateAngle(speed) * skate * (2 * across - 1);
+  return side * skateAngle(speed) * skate * (2 * across - 1) + lead;
 }
 
 /** The most of one push a planted pole can sweep, m — the skate's at a
  * crawl, the double pole's once rolling. */
-export function poleSweep(way: number): number {
-  const k = skateShare(way);
+export function poleSweep(way: number, step = 0): number {
+  const k = skateShare(way, true, step);
   return P.sweepSkate * k + P.sweep * (1 - k);
 }
 
@@ -146,8 +194,8 @@ export function poleSweep(way: number): number {
  * `poles.cadencePole` up to the quickest an arm swings
  * (`poles.cadenceMax`). Blended between by `skateShare`; with no `poles`,
  * the skate's alone. */
-export function strideRate(way: number, poles = true): number {
-  const k = skateShare(way, poles);
+export function strideRate(way: number, poles = true, step = 0): number {
+  const k = skateShare(way, poles, step);
   const pinned = (Math.abs(way) * P.duty) / P.sweep;
   const pole = clamp(pinned, P.cadencePole, P.cadenceMax);
   return skateCadence(way) * k + pole * (1 - k);
@@ -165,8 +213,8 @@ function skateCadence(way: number): number {
  * snow takes to pass under one sweep of the pole at the skate's cadence
  * — a quick bite inside the leg's long push — and never less than
  * `poles.dutyLeast`. What the arms are posed on. */
-export function poleDuty(way: number): number {
-  const k = skateShare(way);
+export function poleDuty(way: number, step = 0): number {
+  const k = skateShare(way, true, step);
   const bite = (P.sweepSkate * skateCadence(way)) / Math.max(1e-6, Math.abs(way));
   const skate = clamp(bite, P.dutyLeast, P.duty);
   return skate * k + P.duty * (1 - k);
@@ -176,8 +224,10 @@ export function poleDuty(way: number): number {
  * one push sweeps all the snow that passes under it in the poles' bite
  * (`poleDuty`), gone once his arms at their quickest cannot keep up —
  * where a skier stops working the poles and folds into the tuck instead. */
-export function poleKeepUp(way: number): number {
-  const fit = (poleSweep(way) * strideRate(way)) / Math.max(1e-6, Math.abs(way) * poleDuty(way));
+export function poleKeepUp(way: number, step = 0): number {
+  const fit =
+    (poleSweep(way, step) * strideRate(way, true, step)) /
+    Math.max(1e-6, Math.abs(way) * poleDuty(way, step));
   return clamp((fit - P.keepUp.to) / (P.keepUp.from - P.keepUp.to), 0, 1);
 }
 
@@ -207,9 +257,10 @@ export function driveForce(
   packed: number,
   effort: number,
   poles = true,
+  step = 0,
 ): number {
   if (effort <= 0) return 0;
-  const reach = driveReach(way, poles);
+  const reach = driveReach(way, poles, step);
   if (reach <= 0) return 0;
   const legs = poles ? 1 : B.legs;
   // The rider's own push (`RiderSpec.strength`) is in the plant and the
@@ -229,6 +280,44 @@ export function poleForce(
   effort: number,
   stride: number,
   poles = true,
+  step = 0,
 ): number {
-  return driveForce(spec, way, packed, effort, poles) * strideShape(stride);
+  return driveForce(spec, way, packed, effort, poles, step) * strideShape(stride);
+}
+
+/** ONE STEP OF HIS STRIDES, for a skier working at `c.drive` at `speed`
+ * m/s over `dt` s: the stride counted on (`SkierState.stride`), the step
+ * turn taken up or let go (`SkierState.step`), the line he glides on
+ * (`SkierState.glide`) — and his way turned with that line and with the
+ * step he turns, by the leg, its speed kept. Returns the step turn's rate,
+ * rad/s, clockwise positive: what `skier.ts` asks of the yaw on top of the
+ * carve. */
+export function strideOn(c: SkierState, speed: number, dt: number): number {
+  // Read off the SPEED, not the way: a skier sliding sideways at 80 km/h has
+  // no way along his skis and no business pushing on them.
+  if (c.drive > 0 && driveReach(speed, c.poles, c.step) > 0) {
+    c.stride += strideRate(speed, c.poles, c.step) * stepQuick(c.step, speed) * c.drive * dt;
+  }
+  // STEPPING ROUND A TURN: the steer key over the share of him that can
+  // step, taken up and let go over a stride or so.
+  c.step = approach(c.step, c.steer * stepWork(c.drive, speed, c.poles), P.turn.rate * dt);
+  // SKATING, he rides the gliding ski's line: the snow grips him along it
+  // and the push drives him along it — and the push's SIDEWAYS share is
+  // what carries his way from one arm of the V to the other, so the way is
+  // turned with the line, its speed kept: the leg pays for the turn, the
+  // snow is not asked to scrub it out of him. Each stride's step turned
+  // likewise.
+  const glide0 = c.glide;
+  c.glide = glideYaw(c.stride, speed, skateWork(c.drive, speed, c.poles, c.step), c.step);
+  const onSnow = !c.airborne && c.thrown === null;
+  const stepped = onSnow ? stepYaw(c.step, c.drive, speed, c.poles) : 0;
+  if (onSnow && (c.glide !== glide0 || stepped !== 0)) {
+    const turn = c.glide - glide0 + stepped * dt;
+    const cos = Math.cos(turn);
+    const sin = Math.sin(turn);
+    const vx = c.vx;
+    c.vx = vx * cos + c.vz * sin;
+    c.vz = c.vz * cos - vx * sin;
+  }
+  return stepped;
 }

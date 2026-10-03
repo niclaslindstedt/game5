@@ -406,6 +406,21 @@ export const TUNING = {
      * `edgeFrom` of full takes it away by `edgeGone`. */
     edgeFrom: 0.25,
     edgeGone: 0.6,
+    /** THE STEP TURN (`poles.ts`'s `stepWork`): a skier at a crawl STEPS
+     * his skis round a turn, pushing all the way, rather than wait on a
+     * sidecut whose arc at a walk is fifteen metres and more. Each stride
+     * turns his heading `step` rad (a step turn's steps are 15–30° each, a
+     * skate turn's push-and-step 30–45° at a crawl), the V leads the
+     * heading into it by `lead` rad (its inside arm stepped out ahead of
+     * the line he is on), a turn is taken up and let go at `rate` a second
+     * — a stride or so — and the skis stand on `edge` less of the speed's
+     * lock while he can step (some 22° rather than 55°: an edge to push off
+     * and to lean the turn's load on, not a carve); at a walk his strides
+     * come `quick` quicker than going straight (a step turn is short quick
+     * steps, not a skater's long glide; rolling, he turns on the skate's
+     * own cadence). So from a crawl to 27 km/h he comes round 90° in some
+     * two seconds, on a few metres, faster out of it than into it. */
+    turn: { step: 0.7, lead: 0.25, rate: 3, edge: 0.6, quick: 0.35 },
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,

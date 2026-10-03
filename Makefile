@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -71,6 +71,29 @@ skis:
 # MOVE=skate,jump a subset; ARGS="--code" the code's figure.
 skier:
 	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE POLELESS LAB: what a skier WITHOUT POLES (the hard mode) does with his
+# hands — every poleless move of the skier lab skied by the real engine and
+# each fist measured (its swing, its bob, the wave a stride, its jolt in
+# the world and off the hips, any snap, whether the arm forward is the one
+# on the side of the leg that pushed, how far it crosses), then the moves
+# photographed through the skier lab (previews/skier-bare-*.png). Pure
+# Node for the table; the sheets need a Chromium like `world`.
+# MOVE=bare-skate a subset; ARGS=--no-shots the table alone;
+# ARGS="--json=a.json" / "--compare=a.json" before and after.
+poleless:
+	npm run poleless -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE SKATE TURNS LAB: how a skier turns at a crawl — stepped round, the
+# skate turned to one side — from each speed with the steer held, with and
+# without poles (the heading turned at 1, 2 and 3 s, how long to come round
+# 90° and on what radius, the speed kept against the same run straight),
+# then the turning moves photographed through the skier lab: from above
+# over the line he draws (previews/skier-path-*.png) and a frame a column.
+# ARGS=--no-shots the table alone; ARGS=--grade=0.08 down a pitch;
+# ARGS="--json=a.json" / "--compare=a.json" before and after.
+skate-turns:
+	npm run skate-turns -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
 
 # THE HELMET LAB: the head in its helmet, the code's and the committed
 # model's side by side — every side (previews/helmet-views.png), every

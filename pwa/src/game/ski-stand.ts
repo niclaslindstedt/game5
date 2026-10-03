@@ -30,6 +30,11 @@
 //     into one line, as two skis each pivoted on its own binding do) and
 //     flat on the snow — so the pivot is taken about the snow's normal
 //     and then rolled into the inclined body, the bindings with it.
+//   * A SKATE'S PUSH IS ACROSS THE SNOW. The gait drives the pushing ski
+//     out and sets the feet under him (`Gait.out`, `skier-gait.ts`) along
+//     the snow, as the stance is: rolled into the body with the rest
+//     (`out`, `lift`), so a skater leaning into a skate turn pushes his ski
+//     out over the snow rather than up off it or down into it.
 //
 // Both ease out in the air (`ground`, the view's own eased flag): a flying
 // skier turns about his centre of gravity and his skis hang off his legs.
@@ -48,6 +53,7 @@
 import { probesOf, rotate, type Level, type SkierState } from "@engine";
 
 import { gearLift, skiTilt } from "./ski-gear.ts";
+import { gaitOf } from "./skier-gait.ts";
 
 /** THE OUTSIDE SKI'S SHARE of the load at the height of a turn, by speed
  * (m/s): a wedge at a crawl, a long turn at a cruise, a racer's carve. */
@@ -182,11 +188,14 @@ export function standOf(
   // turned with the pivot — rolled into the body.
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
+  // The skate's push across the snow, rolled in with the stance: what the
+  // drawers add as the gait's own (`Gait.out`) is taken back off here.
+  const push = gaitOf(skier).out;
   for (let i = 0; i < 2; i++) {
     const side = i === 0 ? -1 : 1;
-    const across = side * w * ca;
+    const across = side * w * ca + push[i];
     out.lift[i] = lift[i] + across * sr;
-    out.out[i] = across * cr - side * w;
+    out.out[i] = across * cr - side * w - push[i];
     out.fore[i] = -side * w * sa;
     out.pitch[i] = 0;
     out.rock[i] = 0;

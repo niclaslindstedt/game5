@@ -815,7 +815,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     hands[0] = push.hands[0];
     hands[1] = push.hands[1];
   }
-  if (bare) placeBare(hands, knees, { gait, crouch, air, ready, hang });
+  if (bare) placeBare(hands, knees, shoulders, { gait, crouch, air, ready, hang });
   // THE FALL: the fists spotting, circling or reaching for the snow.
   if (F) flightHands(F, shoulders, hands, armLength);
   // THE SAVE: the arms flung out for the balance, or a hand put down.

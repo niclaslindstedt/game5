@@ -115,7 +115,12 @@ function rideReplay(replay: Replay): Ride {
 
 describe("the replay reaches the same flag", () => {
   const level = syntheticLevel({ laps: 1 });
-  const race = createGame({ level, seed: 11, mode: "race", laps: 1, quiet: true });
+  // A field whose passes leave the kicker's flight its own shot: the
+  // director spaces the edit, and a rival's pass a few seconds before the
+  // take-off crowds a small air out of it (seed 11's does since the step
+  // turn quickened the start).
+  const SEED = 7;
+  const race = createGame({ level, seed: SEED, mode: "race", laps: 1, quiet: true });
   const recorded = rideRecorded(race, "race");
   const replay = recorded.open();
 
@@ -132,13 +137,20 @@ describe("the replay reaches the same flag", () => {
     expect(replay!.state.level).toBe(race.level);
     expect(startPrint(replay!.state)).toBe(
       startPrint(
-        createGame(recipeOf(createGame({ level, seed: 11, mode: "race", laps: 1 }), "race")),
+        createGame(recipeOf(createGame({ level, seed: SEED, mode: "race", laps: 1 }), "race")),
       ),
     );
   });
 
   it("rebuilds a run skied without poles without them", () => {
-    const bare = createGame({ level, seed: 11, mode: "race", laps: 1, quiet: true, poles: false });
+    const bare = createGame({
+      level,
+      seed: SEED,
+      mode: "race",
+      laps: 1,
+      quiet: true,
+      poles: false,
+    });
     expect(createGame(recipeOf(bare, "race")).skier.poles).toBe(false);
     expect(createGame(recipeOf(race, "race")).skier.poles).toBe(true);
   });
@@ -151,7 +163,7 @@ describe("the replay reaches the same flag", () => {
     expect(again.airborne.length).toBeLessThan(recorded.ride.airborne.length);
     // Every skier on the same metre of snow, as far as the replay runs.
     expect(again.trace).toEqual(recorded.ride.trace.slice(0, again.trace.length));
-    const cut = createGame({ level, seed: 11, mode: "race", laps: 1, quiet: true });
+    const cut = createGame({ level, seed: SEED, mode: "race", laps: 1, quiet: true });
     const recut = rideRecorded(cut, "race");
     expect(recut.ride.digest).toBe(recorded.ride.digest);
     const replayed = rideReplay(recut.open()!);

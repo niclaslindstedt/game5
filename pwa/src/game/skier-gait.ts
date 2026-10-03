@@ -14,6 +14,7 @@ import {
   skateAngle,
   skateShare,
   skateWork,
+  stepQuick,
   strideRate,
   strideShare,
   type SkierState,
@@ -158,6 +159,8 @@ export function flying(s: { airborne: boolean; airTime?: number; popped?: number
 export function gaitOf(
   s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
     way?: number;
+    /** The step turn he is making (`SkierState.step`); none when left out. */
+    step?: number;
     crouch?: number;
     /** Whether he has his poles (`SkierState.poles`); with them when left
      * out. With none he never double-poles: he walks his skis off a
@@ -169,6 +172,7 @@ export function gaitOf(
 ): Gait {
   if (flying(s) || s.thrown || s.drive <= 0.01) return STILL_GAIT;
   const poles = s.poles ?? true;
+  const step = s.step ?? 0;
   // THE MOTION IS WHOLE while he works at all: the push fades with speed
   // (`driveReach`), but a skier pushing at all makes a whole stride of it —
   // a stride drawn at half size reads as a twitch. It comes in over the
@@ -176,26 +180,30 @@ export function gaitOf(
   // of the start gate) into the stroke as a motion — even a stroke the
   // engine's stride count starts halfway through.
   const d = clamp01(s.drive);
-  const work = d * d * (3 - 2 * d) * clamp01(2 * driveReach(s.speed, poles));
+  const work = d * d * (3 - 2 * d) * clamp01(2 * driveReach(s.speed, poles, step));
   if (work <= 0.01) return STILL_GAIT;
   // At a walk he strides up a rise and double-poles everywhere else — or,
   // with nothing to double-pole on, strides everywhere; the skate takes
   // over from either as he rolls.
   const walk = strideShare(s.speed);
-  const climb = poles ? clamp01((s.pitch - CLIMB.from) / CLIMB.span) : 1;
+  // ...and he steps round a turn at a walk rather than pole through it.
+  const climb = poles ? Math.max(clamp01((s.pitch - CLIMB.from) / CLIMB.span), Math.abs(step)) : 1;
   const striding = walk * climb;
   const stride = work * striding;
   // The engine's own measure, which it rides the V by (`glideYaw`).
-  const skate = skateWork(s.drive, s.speed, poles);
-  const skating = (1 - walk) * skateShare(s.speed, poles);
+  const skate = skateWork(s.drive, s.speed, poles, step);
+  const skating = (1 - walk) * skateShare(s.speed, poles, step);
   const phase = s.stride - Math.floor(s.stride);
   const push = (Math.floor(s.stride) % 2) as 0 | 1;
   const glide = (1 - push) as 0 | 1;
+  const lead = glideYaw(0, s.speed, 0, step);
   const duty = TUNING.poles.duty;
-  const poleShare = poleDuty(s.speed);
+  const poleShare = poleDuty(s.speed, step);
   // The snow passed in a stride — the engine counts one at `strideRate` ×
   // the drive a second — and how much of it one push sweeps.
-  const pass = Math.abs(s.way ?? s.speed) / (strideRate(s.speed, poles) * Math.max(0.2, s.drive));
+  const pass =
+    Math.abs(s.way ?? s.speed) /
+    (strideRate(s.speed, poles, step) * stepQuick(step, s.speed) * Math.max(0.2, s.drive));
   const poling = skate + work * Math.max(0, 1 - striding - skating);
   const sweep =
     (poling > 0
@@ -240,17 +248,19 @@ export function gaitOf(
     pole: work * Math.max(0, 1 - striding - skating),
     phase,
     push,
-    splay: [-skateAngle(s.speed) * skate, skateAngle(s.speed) * skate],
+    // THE V, turned into a step turn as the engine leads the line he
+    // glides on (`glideYaw`): the inside arm opened, the outside closed.
+    splay: [-skateAngle(s.speed) * skate + lead, skateAngle(s.speed) * skate + lead],
     out,
     lift,
     fore,
     tilt,
     pass,
-    keep: poleKeepUp(s.speed) * smooth01((fit - 0.8) / 0.15),
+    keep: poleKeepUp(s.speed, step) * smooth01((fit - 0.8) / 0.15),
     duty: poleShare,
     roll: WEIGHT.roll * across,
     sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)),
     pitch: WEIGHT.pitch * skate,
-    twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate),
+    twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate, step),
   };
 }

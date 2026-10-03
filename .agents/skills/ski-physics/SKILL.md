@@ -28,7 +28,16 @@ Seven modules answer it, and the split matters:
 - **`engine/game/poles.ts`** — THE ONE PUSH THAT IS NOT GRAVITY: the skate
   at a crawl and the double pole once rolling, AUTOMATIC below `poles.fade`
   and POWER-LIMITED (`min(polePush, power / v)`), in strides the pose reads
-  (`SkierState.drive`, `stride`). Knobs in `TUNING.poles`.
+  (`SkierState.drive`, `stride`). Knobs in `TUNING.poles`. And THE TURN
+  AT A CRAWL is STEPPED, not carved (`stepWork`, `stepYaw`,
+  `SkierState.step`, `TUNING.poles.turn`): the skate turned to one side —
+  a step of heading a stride, the V led into the turn, the edge eased off,
+  the double pole given up for the skate — pushed all the way round, so he
+  comes out faster than he went in. `make skate-turns` is its lab: the
+  heading turned at 1, 2 and 3 s from each crawl speed, the time and
+  radius to 90°, the speed against the same run straight, before
+  (`--json`) and after (`--compare`), and the turning moves drawn from
+  above over the line he takes.
 - **`engine/game/skier.ts`** — THE BODY: every force summed in the world
   frame, torques about the CoG turned into the body frame, one semi-implicit
   step at 120 Hz (velocity then position, body rates then the quaternion).
@@ -322,6 +331,9 @@ rewrites that row. No build, no browser, seconds.
 - `docs/riding.md` for any force, model or constant, and its measured table.
 - `make ride` before/after on the reached scenarios, and `make sim`
   before/after, in the PR.
+- A change to the drive or the turn at a crawl: `make skate-turns`
+  before/after too — a skier who barely comes round at 10 km/h is the
+  first thing a player feels.
 - `SKIS.topSpeed` re-derived if the physics legitimately moved it
   (`ski-tuning`).
 - A `.changes/unreleased/` fragment — the skier is what the player is.

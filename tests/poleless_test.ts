@@ -141,11 +141,15 @@ describe("the figure without poles (skier-gait.ts, skier-bare.ts)", () => {
     expect(skierPose({ ...BASE, poles: false, plantAt: plant, ready: 1 }).poles).toBeNull();
   });
 
-  it("holds his arms out wider for his balance while he rides", () => {
+  it("carries his hands where a skier does riding: forward, a little wider — never winged out", () => {
+    // The coaching is the same with poles or without: the hands forward,
+    // a little wider than the shoulders, in sight, the elbows soft.
     const poled = skierPose(BASE);
     const bare = skierPose({ ...BASE, poles: false });
     const span = (p: typeof poled) => p.hands[1].x - p.hands[0].x;
-    expect(span(bare)).toBeGreaterThan(span(poled) + 0.15);
+    expect(span(bare)).toBeGreaterThan(span(poled) - 0.02);
+    expect(span(bare)).toBeLessThan(span(poled) + 0.12);
+    for (const i of [0, 1]) expect(bare.hands[i].z).toBeGreaterThan(bare.hips.z + 0.2);
   });
 
   it("waits in the gate with his hands on his knees, not over planted poles", () => {
@@ -173,17 +177,49 @@ describe("the figure without poles (skier-gait.ts, skier-bare.ts)", () => {
     }
   });
 
-  it("swings his arms like a skater, the pushing side back and the other forward", () => {
+  it("swings his arms opposite the legs, as the free skate is coached", () => {
+    // "With the left leg gliding, the right arm is extended forward,
+    // forearm over the gliding ski, while the left forearm is extended to
+    // the rear": through the glide after the RIGHT leg's push, the right
+    // arm forward and across, the left one back past the hips.
     const speed = 6;
-    // The left leg's push, well into it.
-    const gait = rolling(0.25, speed, false);
-    expect(gait.push).toBe(0);
+    const gait = rolling(1.8, speed, false);
+    expect(gait.push).toBe(1);
     const p = skierPose({ ...BASE, gait, poles: false });
-    expect(p.hands[0].z).toBeLessThan(p.hips.z);
     expect(p.hands[1].z).toBeGreaterThan(p.hands[0].z + 0.4);
-    // ...and the next stride, the right's, the other way about.
-    const next = skierPose({ ...BASE, gait: rolling(1.25, speed, false), poles: false });
+    expect(p.hands[0].z).toBeLessThan(p.hips.z);
+    expect(p.hands[1].x).toBeLessThan(p.shoulders[1].x - 0.1);
+    // ...and after the left leg's, the other way about.
+    const next = skierPose({ ...BASE, gait: rolling(2.8, speed, false), poles: false });
     expect(next.hands[0].z).toBeGreaterThan(next.hands[1].z + 0.4);
+    expect(next.hands[0].x).toBeGreaterThan(next.shoulders[0].x + 0.1);
+  });
+
+  it("swings them smoothly: no fist jumps at a change of leg, none bobs on its own", () => {
+    const speed = 5;
+    let last: ReturnType<typeof skierPose> | null = null;
+    let low = Infinity;
+    let high = -Infinity;
+    for (let k = 0; k <= 200; k++) {
+      const p = skierPose({ ...BASE, gait: rolling(1 + k / 100, speed, false), poles: false });
+      if (last) {
+        for (const i of [0, 1]) {
+          const d = Math.hypot(
+            p.hands[i].x - last.hands[i].x,
+            p.hands[i].y - last.hands[i].y,
+            p.hands[i].z - last.hands[i].z,
+          );
+          // A hundredth of a stride: a fist moves a few centimetres at most.
+          expect(d).toBeLessThan(0.04);
+        }
+      }
+      // The fist's height off its own shoulder: an arm swung, not shaken.
+      const y = p.hands[0].y - p.shoulders[0].y;
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+      last = p;
+    }
+    expect(high - low).toBeLessThan(0.25);
   });
 });
 

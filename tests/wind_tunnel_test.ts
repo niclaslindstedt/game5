@@ -117,7 +117,11 @@ describe("the wind tunnel (R30)", () => {
     const state = stage(1500, Z - 40, 0, 10);
     const events = ride(state, 8, (s) => s.skier.z > Z + 40);
     expect(events).toHaveLength(0);
-    expect(Math.abs(state.skier.vx)).toBeLessThan(0.5);
+    // Nothing shoved him sideways: his way runs along his skis — skating
+    // by then, along the gliding one's line (`glide`), a zig-zag of his own.
+    const c = state.skier;
+    const line = c.heading + c.glide;
+    expect(Math.abs(c.vx * Math.cos(line) - c.vz * Math.sin(line))).toBeLessThan(0.5);
   });
 
   it("blows nothing on a map without one, and the same ride twice is the same ride", () => {

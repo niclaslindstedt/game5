@@ -26,8 +26,11 @@
 // silhouette) and FAR (a sketch, one a kind). The trees are binned into
 // 64 m cells once; when the lens moves, the cells in reach are tested
 // against the view frustum and their trees are copied into the bands'
-// instance buffers. Past the far band the terrain's own forest tint
-// (`snow-glsl.ts`) carries the woods to the ridge.
+// instance buffers. No band ends at a line: over the last stretch of each a
+// tree is drawn in both cuts, dithered into one another (`tree-bands.ts`),
+// so a skier never sees a tree swap its cut. Past the far band the
+// terrain's own forest tint (`snow-glsl.ts`) carries the woods to the
+// ridge.
 //
 // THE SHADOWS ARE A THIRD SET, NOT A BAND. No band casts. Every tree whose
 // shadow can land in the sun's circle (`shadow-box.ts`'s `castsInto`) is
@@ -47,6 +50,7 @@ import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
+import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -64,6 +68,27 @@ const CELL = 64;
 /** An instanced shape's girth attribute (`withGirth`). */
 const girthOf = (im: THREE.InstancedMesh): THREE.InstancedBufferAttribute =>
   im.geometry.getAttribute("girth") as THREE.InstancedBufferAttribute;
+
+/** An instanced band shape's dither window (`withFade`). */
+const fadeOf = (im: THREE.InstancedMesh): THREE.InstancedBufferAttribute =>
+  im.geometry.getAttribute("fade") as THREE.InstancedBufferAttribute;
+
+/** THE HAND-OVER, in the tree material: every band instance carries the
+ * window `[lo, hi)` of a screen-space dither its pixels are kept in
+ * (`tree-bands.ts`); a whole tree's is `[0, 1)` and discards nothing. */
+function graftFade(shader: { vertexShader: string; fragmentShader: string }): void {
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", "#include <common>\nattribute vec2 fade;\nvarying vec2 vFade;")
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFade = fade;");
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying vec2 vFade;")
+    .replace(
+      "void main() {",
+      `void main() {
+  float lodDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (lodDither < vFade.x || lodDither >= vFade.y) discard;`,
+    );
+}
 
 /** A shape drawn `by` of its width — its trunks' axes with it. */
 function inset(g: THREE.BufferGeometry, by: number): THREE.BufferGeometry {
@@ -180,7 +205,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "tree",
-    graftGirth,
+    (shader) => {
+      graftGirth(shader);
+      graftFade(shader);
+    },
   );
   // The casters' depth, with the same girth: a veteran's trunk throws a
   // veteran's shadow.
@@ -225,6 +253,14 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     return g;
   };
 
+  /** The dither window an instanced band shape carries, `room` trees long. */
+  const withFade = (g: THREE.BufferGeometry, room: number): THREE.BufferGeometry => {
+    const a = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, room) * 2), 2);
+    a.setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute("fade", a);
+    return g;
+  };
+
   /** THE SHAPES for `variants` of every kind (the FOREST row's): which
    * variant every tree is, the meshes the map's own variants are built into
    * at the full and the mid cut (only the ones it grows), and the far band
@@ -266,7 +302,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
       const meshes = geos.map((g, k) => {
-        const im = new THREE.InstancedMesh(withGirth(g, room[k]), material, room[k]);
+        const im = new THREE.InstancedMesh(
+          withFade(withGirth(g, room[k]), room[k]),
+          material,
+          room[k],
+        );
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(room[k] * 3), 3);
         im.instanceColor.setUsage(THREE.DynamicDrawUsage);
@@ -342,14 +382,25 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const lastShadow: ShadowBox = { x: Infinity, y: 0, z: 0, reach: 0, sx: 0, sy: 0, sz: 0 };
   let castersOn = false;
 
-  function place(band: Band, i: number) {
+  /** Tree `i` into `band`, keeping the dither window `[lo, hi)`. */
+  function place(band: Band, i: number, lo: number, hi: number) {
+    if (hi <= lo) return;
     const sh = band.shape[i];
     const im = band.meshes[sh];
     const k = band.fill[sh]++;
     (im.instanceMatrix.array as Float32Array).set(matrices.subarray(i * 16, i * 16 + 16), k * 16);
     (im.instanceColor!.array as Float32Array).set(colours.subarray(i * 3, i * 3 + 3), k * 3);
     (girthOf(im).array as Float32Array).set(girths.subarray(i * 2, i * 2 + 2), k * 2);
+    const fade = fadeOf(im).array as Float32Array;
+    fade[k * 2] = lo;
+    fade[k * 2 + 1] = hi;
   }
+  /** Every tree's cut and its dissolve into the next (`tree-bands.ts`). */
+  const hand = createHandOver(count);
+  const draw: TreeDraw = { from: -1, band: -1, split: 0 };
+  /** Fills so far, and whether the last left a tree dissolving. */
+  let tick = 1;
+  let dissolving = false;
 
   /** Refill the casters: every tree whose shadow can reach the circle. */
   function fillCasters(shadow: ShadowBox | null) {
@@ -431,9 +482,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         fillCasters(shadow);
       }
       // The bands, only when the lens has moved or turned enough to change
-      // the answer.
+      // the answer — or a tree is still dissolving into its next cut.
       camera.getWorldDirection(look);
       if (
+        !dissolving &&
         camera.position.distanceToSquared(lastAt) < 0.5 &&
         look.dot(lastLook) > 0.9998 &&
         camera.fov === lastFov
@@ -457,10 +509,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const plan = Math.hypot(look.x, look.z);
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
-      const full2 = options.full * options.full;
-      // The mid band never runs past where the trees stop.
-      const mid2 = Math.min(options.mid, options.far) ** 2;
       const far2 = options.far * options.far;
+      const bands = [full, mid, far];
+      const now = performance.now();
+      tick++;
+      dissolving = false;
       for (let r = Math.max(0, r0 - reach); r <= Math.min(cols - 1, r0 + reach); r++) {
         for (let c = Math.max(0, c0 - reach); c <= Math.min(cols - 1, c0 + reach); c++) {
           const b = r * cols + c;
@@ -488,9 +541,12 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
               atLens(t, shapes.variantOf[i], Math.sqrt(e2), cy)
             )
               continue;
-            if (e2 < full2) place(full, i);
-            else if (e2 < mid2) place(mid, i);
-            else if (e2 < far2 && thin[i] < options.farShare) place(far, i);
+            const inFar = thin[i] < options.farShare;
+            if (handOver(hand, i, Math.sqrt(e2), options, inFar, now, tick, draw)) {
+              dissolving = true;
+            }
+            if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
+            if (draw.band >= 0) place(bands[draw.band], i, draw.split, 1);
           }
         }
       }
@@ -506,14 +562,17 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
           im.instanceColor!.clearUpdateRanges();
           im.instanceColor!.addUpdateRange(0, Math.max(1, n) * 3);
           im.instanceColor!.needsUpdate = true;
-          const g = girthOf(im);
-          g.clearUpdateRanges();
-          g.addUpdateRange(0, Math.max(1, n) * 2);
-          g.needsUpdate = true;
+          for (const a of [girthOf(im), fadeOf(im)]) {
+            a.clearUpdateRanges();
+            a.addUpdateRange(0, Math.max(1, n) * 2);
+            a.needsUpdate = true;
+          }
         });
       }
     },
     invalidate() {
+      // A new frame of reference: every tree takes its cut at once.
+      tick++;
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
@@ -523,6 +582,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         shapes = buildShapes(next.variants);
       }
       options = { ...next };
+      tick++;
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },

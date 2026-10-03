@@ -332,6 +332,11 @@ export const STRINGS = {
     `${grade} · ${(piste / 1000).toFixed(1)} KM · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
   seedChart: (seed: number, kickers: number): string =>
     `The mountain on seed ${seed}, with ${kickers} kickers`,
+  seedPanorama: (seed: number, runs: number, lifts: number): string =>
+    `The mountain on seed ${seed} seen from the valley, with ${runs} runs and ${lifts} lifts`,
+  /** The plate's chip, naming the view it turns to. */
+  seedViewPanorama: "PANORAMA",
+  seedViewPlan: "PLAN",
 
   /* ── OPTIONS (menu-options.tsx) and its rows (menu-knobs.tsx) ──────── */
   optCaption: "Point at a row to read what it does",

@@ -2,6 +2,14 @@
 // THE SEED'S CHART — the map a number makes, drawn beside the rows that
 // pick it, and the place a free ride starts, picked by pointing at it.
 //
+// TWO VIEWS OF ONE MAP, a chip on the plate between them. THE PANORAMA,
+// first: the mountain painted from out over the valley the way a ski area's
+// piste map hangs (`panorama.ts`), every run laid over it in its colour, the
+// course this map is raced on cased in white, the lifts, the start and the
+// finish. THE PLAN: the ground from above, the summit at the top, the piste
+// and every kicker on it — the honest map to hunt a kicker on. Both hang
+// summit-up, so a run falls DOWN the plate in either.
+//
 // A seed is an opaque integer, and a row that offers one without showing
 // what it means is not a choice at all: it is a lottery with arrows on it.
 // So the whole map goes on the card — the hills hillshaded, the woods, the
@@ -33,23 +41,26 @@
 import type { PisteGrade, RegionId } from "@engine";
 import { useEffect, useRef, useState } from "preact/hooks";
 
+import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
+import { PANORAMA_VIEW, fromPanorama, spotInPanorama, type PanoramaSchematic } from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
-import type { PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
+import type { PreviewPicture, PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** How long the arrows have to be still before a map is built, ms. */
 const SETTLE_MS = 220;
 
-/** How many answers are kept — a chart is a small JPEG and a schematic of a
- * few kilobytes, and a skier walks tens of seeds, not thousands. */
+/** How many answers are kept — two small JPEGs, a schematic of a few
+ * kilobytes and a pick grid of sixty-odd, and a skier walks tens of seeds,
+ * not thousands. */
 const KEPT = 40;
 
-/** An answer as the card keeps it: the reply, with its picture as a URL an
- * `<image>` takes. */
+/** An answer as the card keeps it: the reply, with its two pictures as URLs
+ * an `<image>` takes (null until each has been made one). */
 export type SeedAnswer =
-  | (Extract<PreviewReply, { ok: true }> & { url: string | null })
+  | (Extract<PreviewReply, { ok: true }> & { url: string | null; panoUrl: string | null })
   | Extract<PreviewReply, { ok: false }>;
 
 /** The chart as the card holds it: the last answer that arrived, and
@@ -70,6 +81,18 @@ function pixelsToUrl(
   ctx.putImageData(new ImageData(rgba, px, px), 0, 0);
   canvas.toBlob((blob) => blob && done(URL.createObjectURL(blob)), MAP_TYPE, MAP_QUALITY);
 }
+
+/** A worker's picture as a URL: a finished one at once, raw pixels once
+ * this thread has drawn them. */
+function asUrl(picture: PreviewPicture, done: (url: string) => void): void {
+  if (picture instanceof Blob) done(URL.createObjectURL(picture));
+  else pixelsToUrl(picture.px, picture.rgba, done);
+}
+
+const revoke = (a: Extract<SeedAnswer, { ok: true }>): void => {
+  if (a.url) URL.revokeObjectURL(a.url);
+  if (a.panoUrl) URL.revokeObjectURL(a.panoUrl);
+};
 
 /** What names an answer: the seed, in its region (R21), to its grade (R23). */
 const keyOf = (a: { seed: number; region: RegionId; grade: PisteGrade | null }): string =>
@@ -94,10 +117,11 @@ export function useSeedPreview(
       type: "module",
     });
     const keep = (answer: SeedAnswer): void => {
-      if (kept.size >= KEPT) {
+      // An answer kept again (its picture landed) takes no other's place.
+      if (!kept.has(keyOf(answer)) && kept.size >= KEPT) {
         const oldest = kept.keys().next().value as string;
         const out = kept.get(oldest);
-        if (out?.ok && out.url) URL.revokeObjectURL(out.url);
+        if (out?.ok) revoke(out);
         kept.delete(oldest);
       }
       kept.set(keyOf(answer), answer);
@@ -109,25 +133,27 @@ export function useSeedPreview(
         keep(reply);
         return;
       }
-      const { picture } = reply;
-      if (picture instanceof Blob) {
-        keep({ ...reply, url: URL.createObjectURL(picture) });
-      } else {
-        // The pixels are turned into a picture on this thread: keep the
-        // schematic at once, and the picture when it lands.
-        const answer: SeedAnswer = { ...reply, url: null };
-        keep(answer);
-        pixelsToUrl(picture.px, picture.rgba, (url) => {
-          if (kept.get(keyOf(reply)) === answer) keep({ ...answer, url });
-          else URL.revokeObjectURL(url);
+      // Keep the schematic at once and each picture as it becomes a URL —
+      // at once from a worker with a canvas, a moment later from one without.
+      let answer: SeedAnswer = { ...reply, url: null, panoUrl: null };
+      keep(answer);
+      const land = (field: "url" | "panoUrl", picture: PreviewPicture): void =>
+        asUrl(picture, (url) => {
+          if (kept.get(keyOf(reply)) !== answer) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          answer = { ...answer, [field]: url };
+          keep(answer);
         });
-      }
+      land("url", reply.picture);
+      land("panoUrl", reply.panorama.picture);
     };
     worker.current = w;
     return () => {
       w.terminate();
       worker.current = null;
-      for (const a of kept.values()) if (a.ok && a.url) URL.revokeObjectURL(a.url);
+      for (const a of kept.values()) if (a.ok) revoke(a);
       kept.clear();
     };
   }, []);
@@ -152,6 +178,156 @@ export function useSeedPreview(
 /** A kicker's mark: a chevron pointing the way it throws, at its lip. */
 const KICKER_MARK = "M 0 -2.6 L 2 1.6 L 0 0.6 L -2 1.6 Z";
 
+/** The start line's mark: a triangle pointing down the piste. */
+const GRID_MARK = "M 0 -3 L 2.4 2 L -2.4 2 Z";
+
+/** Which of the plate's two views is up. */
+export type SeedView = "panorama" | "plan";
+
+/** A run's number on the panorama: in its grade's sign, as a piste map
+ * prints it, this many user units across. */
+const BADGE = 7;
+
+type Drawn = Extract<SeedAnswer, { ok: true }>;
+
+/** The plan: the ground from above, summit-up (`seed-chart.ts`). */
+function PlanLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }) {
+  return (
+    <>
+      {/* THE GROUND, baked with its rows along +z (the summit's row first,
+          so at the top) and its columns turned round here once, so the
+          plan is seen from the valley (`seed-chart.ts`). */}
+      {drawn.url && (
+        <image
+          href={drawn.url}
+          x={0}
+          y={0}
+          width={CHART_VIEW}
+          height={CHART_VIEW}
+          preserveAspectRatio="none"
+          transform={`matrix(-1 0 0 1 ${CHART_VIEW} 0)`}
+        />
+      )}
+      <path class="seed-preview-route" d={drawn.schematic.track} fill="none" />
+      {drawn.schematic.kickers.map((k) => (
+        <path
+          key={k.id}
+          class={`seed-preview-kicker${k.onTrack ? "" : " seed-preview-kicker-off"}`}
+          d={KICKER_MARK}
+          transform={`translate(${k.x.toFixed(1)} ${k.y.toFixed(1)}) rotate(${degrees(k.angle).toFixed(0)})`}
+        />
+      ))}
+      <path
+        class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
+        d={GRID_MARK}
+        transform={`translate(${drawn.schematic.grid.x.toFixed(1)} ${drawn.schematic.grid.y.toFixed(1)}) rotate(${degrees(drawn.schematic.grid.angle).toFixed(0)})`}
+      />
+    </>
+  );
+}
+
+/** The panorama: the painted mountain and the ski area over it. Every run's
+ * hidden stretches (behind a ridge, in a gully the view does not see into)
+ * dotted faintly under the lot, then the seen ones cased in white, the
+ * course raced the widest; the lifts over the runs, as they hang over them;
+ * the kickers, the numbers, the start and the finish on top. */
+function PanoramaLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }) {
+  const pano: PanoramaSchematic = drawn.panorama.schematic;
+  const stroke = (grade: PisteGrade): string => GRADE_LOOK[grade].paint;
+  return (
+    <>
+      {drawn.panoUrl && (
+        <image
+          href={drawn.panoUrl}
+          x={0}
+          y={0}
+          width={PANORAMA_VIEW}
+          height={PANORAMA_VIEW}
+          preserveAspectRatio="none"
+        />
+      )}
+      {pano.runs.map((r) => (
+        <path
+          key={`h${r.id}`}
+          class="pano-run-hidden"
+          d={r.hidden}
+          stroke={stroke(r.grade)}
+          fill="none"
+        />
+      ))}
+      {pano.runs.map((r) => (
+        <path
+          key={`c${r.id}`}
+          class={`pano-run-casing${r.raced ? " pano-raced" : ""}`}
+          d={r.seen}
+          fill="none"
+        />
+      ))}
+      {pano.runs.map((r) => (
+        <path
+          key={`r${r.id}`}
+          class={`pano-run${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
+          d={r.seen}
+          stroke={stroke(r.grade)}
+          fill="none"
+        />
+      ))}
+      {pano.lifts.map((l) => (
+        <g key={l.id} class={`pano-lift pano-lift-${l.kind}`}>
+          <line class="pano-lift-casing" x1={l.from[0]} y1={l.from[1]} x2={l.to[0]} y2={l.to[1]} />
+          <line class="pano-lift-line" x1={l.from[0]} y1={l.from[1]} x2={l.to[0]} y2={l.to[1]} />
+          <circle class="pano-station" cx={l.from[0]} cy={l.from[1]} r={0.9} />
+          <circle class="pano-station" cx={l.to[0]} cy={l.to[1]} r={0.9} />
+        </g>
+      ))}
+      {pano.kickers.map((k) => (
+        <path
+          key={k.id}
+          class={`seed-preview-kicker${k.onTrack ? "" : " seed-preview-kicker-off"}`}
+          d={KICKER_MARK}
+          transform={`translate(${k.x.toFixed(1)} ${k.y.toFixed(1)}) rotate(${k.angle.toFixed(0)}) scale(0.45)`}
+        />
+      ))}
+      {pano.runs.map((r) =>
+        r.badge ? (
+          <g
+            key={`b${r.id}`}
+            class="pano-badge"
+            transform={`translate(${(r.badge[0] - BADGE / 2).toFixed(1)} ${(r.badge[1] - BADGE / 2).toFixed(1)})`}
+          >
+            <path
+              d={gradePath(GRADE_LOOK[r.grade].shape)}
+              fill={GRADE_LOOK[r.grade].paint}
+              stroke={GRADE_LOOK[r.grade].rim}
+              stroke-width={1.6}
+              transform={`scale(${BADGE / 24})`}
+            />
+            <text x={BADGE / 2} y={BADGE / 2 + 1.3}>
+              {r.id}
+            </text>
+          </g>
+        ) : null,
+      )}
+      {pano.finish && (
+        <rect
+          class="pano-finish"
+          x={pano.finish[0] - 1.4}
+          y={pano.finish[1] - 1.4}
+          width={2.8}
+          height={2.8}
+        />
+      )}
+      {pano.start && (
+        <path
+          class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
+          d={GRID_MARK}
+          transform={`translate(${pano.start.x.toFixed(1)} ${pano.start.y.toFixed(1)}) rotate(${pano.start.angle.toFixed(0)}) scale(0.75)`}
+        />
+      )}
+    </>
+  );
+}
+
 export function SeedPreview({
   chart,
   spot,
@@ -163,16 +339,38 @@ export function SeedPreview({
   onSpot: (spot: { x: number; z: number }) => void;
 }) {
   const { shown, fresh } = chart;
+  const [view, setView] = useState<SeedView>("panorama");
   const drawn = shown !== null && shown.ok ? shown : null;
   const pick = (e: MouseEvent): void => {
     if (!drawn || !fresh) return;
     const box = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     if (box.width <= 0 || box.height <= 0) return;
-    const cx = ((e.clientX - box.left) / box.width) * CHART_VIEW;
-    const cy = ((e.clientY - box.top) / box.height) * CHART_VIEW;
-    onSpot(fromChart(drawn.schematic.size, cx, cy));
+    const u = (e.clientX - box.left) / box.width;
+    const v = (e.clientY - box.top) / box.height;
+    if (view === "plan") {
+      onSpot(fromChart(drawn.schematic.size, u * CHART_VIEW, v * CHART_VIEW));
+      return;
+    }
+    // A tap on the sky picks nothing.
+    const { view: lens, pick: grid } = drawn.panorama;
+    const at = fromPanorama(lens, grid, u * PANORAMA_VIEW, v * PANORAMA_VIEW);
+    if (at) onSpot(at);
   };
-  const at = drawn && spot ? toChart(drawn.schematic.size, spot.x, spot.z) : null;
+  const at =
+    drawn && spot
+      ? view === "plan"
+        ? toChart(drawn.schematic.size, spot.x, spot.z)
+        : spotInPanorama(drawn.panorama.view, drawn.panorama.pick, spot.x, spot.z)
+      : null;
+  const label = drawn
+    ? view === "plan"
+      ? STRINGS.seedChart(drawn.seed, drawn.schematic.kickers.length)
+      : STRINGS.seedPanorama(
+          drawn.seed,
+          drawn.panorama.schematic.runs.filter((r) => r.kind === "piste").length,
+          drawn.panorama.schematic.lifts.length,
+        )
+    : "";
   return (
     <div class={`seed-preview${fresh ? "" : " seed-preview-waiting"}`}>
       <div class="seed-preview-plate">
@@ -181,36 +379,14 @@ export function SeedPreview({
             class="seed-preview-map"
             viewBox={`0 0 ${CHART_VIEW} ${CHART_VIEW}`}
             role="img"
-            aria-label={STRINGS.seedChart(drawn.seed, drawn.schematic.kickers.length)}
+            aria-label={label}
             onClick={pick}
           >
-            {/* THE GROUND, baked with its rows along +z and flipped here
-                once so north is up (`seed-chart.ts`). */}
-            {drawn.url && (
-              <image
-                href={drawn.url}
-                x={0}
-                y={0}
-                width={CHART_VIEW}
-                height={CHART_VIEW}
-                preserveAspectRatio="none"
-                transform={`matrix(1 0 0 -1 0 ${CHART_VIEW})`}
-              />
+            {view === "plan" ? (
+              <PlanLayers drawn={drawn} at={at} />
+            ) : (
+              <PanoramaLayers drawn={drawn} at={at} />
             )}
-            <path class="seed-preview-route" d={drawn.schematic.track} fill="none" />
-            {drawn.schematic.kickers.map((k) => (
-              <path
-                key={k.id}
-                class={`seed-preview-kicker${k.onTrack ? "" : " seed-preview-kicker-off"}`}
-                d={KICKER_MARK}
-                transform={`translate(${k.x.toFixed(1)} ${k.y.toFixed(1)}) rotate(${degrees(k.angle).toFixed(0)})`}
-              />
-            ))}
-            <path
-              class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
-              d="M 0 -3 L 2.4 2 L -2.4 2 Z"
-              transform={`translate(${drawn.schematic.grid.x.toFixed(1)} ${drawn.schematic.grid.y.toFixed(1)}) rotate(${degrees(drawn.schematic.grid.angle).toFixed(0)})`}
-            />
             {at && (
               <g
                 class="seed-preview-spot"
@@ -225,6 +401,16 @@ export function SeedPreview({
           <p class="seed-preview-word">
             {shown === null ? STRINGS.seedReading : STRINGS.seedRefused}
           </p>
+        )}
+        {drawn && (
+          <button
+            type="button"
+            class="seed-preview-view"
+            data-menu="view"
+            onClick={() => setView(view === "plan" ? "panorama" : "plan")}
+          >
+            {view === "plan" ? STRINGS.seedViewPanorama : STRINGS.seedViewPlan}
+          </button>
         )}
       </div>
       {/* Always rendered, empty until there is a reading: the line holds its

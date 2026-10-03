@@ -43,7 +43,6 @@ import {
   type GameState,
   liftPlans,
   queueSpot,
-  ropeAt,
 } from "@engine";
 
 import { outfitOf, type Outfit } from "../game/crowd-dress.ts";

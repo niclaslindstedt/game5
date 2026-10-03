@@ -9,7 +9,8 @@
 // THE STEP ORDER: the clock; the lights; the player's run (`run.ts`: the
 // skier, the trees, the edge, the clock, the course, the reset); the score
 // (`tricks.ts`); every rival's run by the same function; then every skier
-// against every other.
+// against every other; then the crowd on a free ride (`crowd.ts`) — its
+// amateurs down their runs, and the player against them.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { PARK_VERSION, generateLevel, withDay, withSky } from "../mapgen/index.ts";
@@ -32,6 +33,7 @@ import {
 import { SKIS, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
+import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { stepRun } from "./run.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
@@ -62,6 +64,9 @@ export type CreateGameOptions = {
   countdown?: number;
   /** Whether skiers lean on each other. */
   contact?: boolean;
+  /** How many amateurs are out on the ski area (`crowd.ts`); the mode's
+   * own when left out — the free ride's crowd, nobody on any other. */
+  crowd?: number;
   /** The skis; the all-mountain pair when left out. */
   spec?: SkiSpec;
   /** The arcade's help for the player's own skiing (`Assist`); every hand on
@@ -113,6 +118,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     tricks: base.tricks,
     limit: base.limit,
     airGravity: base.airGravity,
+    crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
   };
 }
 
@@ -158,11 +164,13 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       : gridSlot(state, 0);
   standSkier(state, at.x, at.z, at.heading);
   if (rules.rivals > 0) createRivals(state, rules.rivals);
+  if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {
     status(
       `Map ${level.seed}: ${level.checkpoints.length} gates over ${Math.round(
         level.track.length,
-      )} m of piste, ${level.trees.length} trees, ${rules.rivals} rivals`,
+      )} m of piste, ${level.trees.length} trees, ${rules.rivals} rivals` +
+        (rules.crowd > 0 ? `, ${rules.crowd} out skiing` : ""),
     );
   }
   return state;
@@ -204,6 +212,11 @@ export function step(state: GameState, input: SkierInput): GameState {
   stepTricks(state, events);
   stepRivals(state);
   if (state.rules.contact) clipRiders(state, events);
+  // THE CROWD (`crowd.ts`), on a run that has one.
+  if (state.crowd) {
+    stepCrowd(state);
+    if (state.rules.contact) clipCrowd(state, events);
+  }
   return state;
 }
 

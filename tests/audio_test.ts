@@ -232,7 +232,7 @@ describe("what a skier meets and comes down into (route.ts's Contact)", () => {
   });
 
   it("gives every way of being thrown a sound of its own, from a def that exists", () => {
-    const causes = ["tree", "nose", "roll", "catch"] as const;
+    const causes = ["tree", "nose", "roll", "catch", "skier"] as const;
     const ids = causes.map((cause) => {
       const hit = soundForEvent({ ...EVERY_EVENT_BY_KIND.wipeout, cause })!;
       expect(RUN_BANK[hit.id], cause).toBeDefined();

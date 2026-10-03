@@ -107,6 +107,27 @@ export {
 } from "./game/defs/skis.ts";
 export { TUNING } from "./game/defs/tuning.ts";
 export {
+  CROWD,
+  CROWD_BODIES,
+  CROWD_GROUPS,
+  CROWD_KINDS,
+  CROWD_SIZE,
+  TURN_STYLES,
+  type AmateurKnobs,
+  type CrowdBody,
+  type CrowdKind,
+  type GroupKind,
+  type TurnStyle,
+} from "./game/defs/crowd.ts";
+export {
+  clipCrowd,
+  createCrowd,
+  crowdNet,
+  stepCrowd,
+  type CrowdNet,
+  type NetRun,
+} from "./game/crowd.ts";
+export {
   NEUTRAL_INPUT,
   type CraftState,
   type CrashCause,
@@ -120,6 +141,10 @@ export {
   type GameState,
   type Progress,
   type Rival,
+  type Amateur,
+  type AmateurMode,
+  type CrowdGroup,
+  type CrowdState,
   type SkierInput,
   type SkierState,
   type SnowContact,

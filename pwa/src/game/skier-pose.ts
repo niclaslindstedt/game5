@@ -94,6 +94,7 @@ import {
   bootFrame,
   bootKnee,
   CUFF,
+  hipsOver,
   kneeRoom,
   pelvisAxis,
   solveLimb,
@@ -362,19 +363,6 @@ const POP_RISE = 0.18;
  * him lower on his knees. */
 const LOAD_SINK = 0.09;
 
-/** How far either side of nought the legs' hang is eased into, m: a
- * corner there in the hips' and the hands' height is a snap each time his
- * weight passes from ski to ski. */
-const HANG_EASE = 0.03;
-
-/** `min(0, x)` with its corner rounded over `w` either side — the same
- * value and slope beyond it, and no step in the slope at nought. */
-function softBelow(x: number, w: number): number {
-  if (x <= -w) return x;
-  if (x >= w) return 0;
-  return -((w - x) * (w - x)) / (4 * w);
-}
-
 /** THE WHOLE POSE for one frame. */
 export function skierPose(input: SkierPoseInput): SkierPose {
   const M = input.mounts ?? MOUNTS;
@@ -479,14 +467,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     };
     return add(base, add(scale(boot.n, cuff), scale(boot.f, M.foot.z)));
   }) as [V3, V3];
-  // The feet's average lift: the LEGS TAKE IT. Skis brought up toward him
-  // by the engine's legs fold his knees and leave his hips where his mass
-  // is — the spring legs a skier rides bumps on — but a skier hanging in
-  // the air with his legs long is not stretched straight by them: the hips
-  // come down half of that. (Skating, the gait has put the feet under him:
-  // his weight over the gliding ski.)
-  const feetLift = (lift[0] + lift[1]) / 2;
-  const hipsLift = softBelow(feetLift, HANG_EASE) * 0.5;
+  // The feet's average lift: the LEGS TAKE IT (`hipsOver`). (Skating, the
+  // gait has put the feet under him: his weight over the gliding ski.)
+  const hipsLift = hipsOver((lift[0] + lift[1]) / 2);
 
   // THE HIPS: over the feet standing, down and back in a tuck, inside the
   // turn by the engine's angulation, aft of nominal by the engine's shift,

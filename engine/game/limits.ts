@@ -73,13 +73,30 @@ export function tipLimit(spec: SkiSpec): number {
   return Math.tan(Math.min(incline, 1.2)) * TUNING.arcade.hangOff;
 }
 
-/** HOW HARD A SKIER CAN CORNER, m/s², on snow `packed` 0..1: the edges'
- * (or in powder the bases') sideways grip over the whole weight — or the
- * tipping point, whichever comes first. That is what a skier holding a
+/** THE CHATTER at `speed` m/s on firm snow, 0 … the pair's own most
+ * (`TUNING.chatter`): the speed's share, a smoothstep from `from` to
+ * `full`, times how much of it the pair lets through (`footprint.ts`).
+ * What the edge's hold loses to it is `chatter.loss` of this. */
+export function chatterOf(spec: SkiSpec, speed: number): number {
+  const C = TUNING.chatter;
+  const k = Math.min(1, Math.max(0, (Math.abs(speed) - C.from) / (C.full - C.from)));
+  return k * k * (3 - 2 * k) * footprintOf(spec).chatter;
+}
+
+/** The share of the edge's sideways hold left to a pair shaking at
+ * `speed` m/s — what the physics multiplies the edge by. */
+export function chatterHold(spec: SkiSpec, speed: number): number {
+  return Math.max(0, 1 - TUNING.chatter.loss * chatterOf(spec, speed));
+}
+
+/** HOW HARD A SKIER CAN CORNER, m/s², on snow `packed` 0..1 at `speed`
+ * m/s: the edges' (or in powder the bases') sideways grip over the whole
+ * weight — the edges' less what the CHATTER costs them at that speed — or
+ * the tipping point, whichever comes first. That is what a skier holding a
  * carve can call on; the bot reads it to judge a bend's speed. */
-export function cornerGrip(spec: SkiSpec, packed: number): number {
+export function cornerGrip(spec: SkiSpec, packed: number, speed = 0): number {
   const grip = gripAt(packed, scratch, footprintOf(spec));
-  const hold = grip.edge * packed + grip.base * (1 - packed);
+  const hold = grip.edge * chatterHold(spec, speed) * packed + grip.base * (1 - packed);
   return TUNING.g * Math.min(hold * TUNING.arcade.sideGrip, tipLimit(spec));
 }
 

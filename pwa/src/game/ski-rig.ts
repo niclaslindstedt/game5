@@ -117,19 +117,28 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
   /** Move `o` by `lift` up the body, turn it by `angle` about the body's
    * up, then tip it by `tilt` about the body's forward (right edges down
    * positive) — on a body inclined `incline` to the snow, the turn and the
-   * tip taken in the snow's frame. */
-  function drive(o: THREE.Object3D, lift: number, angle = 0, tilt = 0, incline = 0): void {
+   * tip taken in the snow's frame — its tip first lifted `pitch` about its
+   * own across (the chatter's flap, `ski-chatter.ts`). */
+  function drive(
+    o: THREE.Object3D,
+    lift: number,
+    angle = 0,
+    tilt = 0,
+    incline = 0,
+    pitch = 0,
+  ): void {
     const parent = o.parent!;
     o.getWorldPosition(w);
     const at = parent.worldToLocal(w.clone().addScaledVector(up, lift));
     o.position.copy(at);
-    if (angle || tilt || incline) {
+    if (angle || tilt || incline || pitch) {
       parent.getWorldQuaternion(pq);
       // The pivot about the snow's normal and the edge against the snow,
       // rolled into a body inclined `incline` to it (`ski-stand.ts`).
       q.setFromAxisAngle(fwd, incline)
         .multiply(new THREE.Quaternion().setFromAxisAngle(up, angle))
-        .multiply(new THREE.Quaternion().setFromAxisAngle(fwd, -(tilt + incline)));
+        .multiply(new THREE.Quaternion().setFromAxisAngle(fwd, -(tilt + incline)))
+        .multiply(new THREE.Quaternion().setFromAxisAngle(side, -pitch));
       o.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
     }
   }
@@ -154,8 +163,9 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
           o,
           lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
           angle + gait.splay[i],
-          tilt + gait.tilt[i],
+          tilt + gait.tilt[i] + (stand?.rock[i] ?? 0),
           stand?.incline ?? 0,
+          stand?.pitch[i] ?? 0,
         );
         const across = gait.out[i] + (stand?.out[i] ?? 0);
         const fore = gait.fore[i] + (stand?.fore[i] ?? 0);

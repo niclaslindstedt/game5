@@ -298,6 +298,8 @@ export {
   TOP_SPEED_PITCH,
   brakeDecel,
   carveCurvature,
+  chatterHold,
+  chatterOf,
   cornerGrip,
   edgeLockAt,
   flightGravity,

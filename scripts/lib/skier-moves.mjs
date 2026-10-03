@@ -113,6 +113,16 @@ export const MOVES = [
     input: (t) => ({ ...IDLE, tuck: 0.3, steer: t >= 0.2 ? -1 : 0, carve: t >= 1.2 }),
   },
   {
+    id: "chatter",
+    title: "a carve at 110 km/h down the 20° pitch: the skis chattering, the knees taking it",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 110 / 3.6 }),
+    seconds: 1.4,
+    // A tenth of a second across the sheet: the flutter frame by frame.
+    window: [1.2, 1.3],
+    input: (t) => ({ ...IDLE, tuck: 0.6, steer: t >= 0.2 ? -0.7 : 0 }),
+  },
+  {
     id: "turns",
     title: "linked turns down the 20° pitch from 40 km/h, a pole planted on each",
     level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
@@ -233,6 +243,7 @@ export const MOMENTS = [
   { id: "absorb", move: "bumps", t: 2.8, say: "a roller taken in the legs, the body riding level" },
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
   { id: "skid", move: "skid", t: 1.0, say: "a turn skidded at speed, tucked" },
+  { id: "chatter", move: "chatter", t: 1.25, say: "the skis chattering in a carve at 110 km/h" },
   { id: "plant", move: "turns", t: 1.82, say: "a pole planted at a turn" },
   {
     id: "apex",

@@ -314,7 +314,10 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     // The bend, and the weave round the slalom gates on it (R28).
     const k = bendAt(level, s + d, profile.bendSpan) + gateLineAt(level, s + d).curvature;
     if (k < 1e-4) continue;
-    const corner = Math.sqrt(aLat / k);
+    // The bend's speed at the grip of a standstill, then once more at the
+    // grip left at THAT speed — the chatter takes some of it off the top.
+    const still = Math.sqrt(aLat / k);
+    const corner = Math.sqrt((cornerGrip(spec, 1, still) * profile.cornerShare) / k);
     const now = Math.sqrt(corner * corner + room);
     if (now < allowed) allowed = now;
   }
@@ -483,7 +486,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // snow the skier is on — which is what slows him for the turn onto the
   // piste out of the powder, and back onto it after running wide.
   if (!p.started && on.distance > halfWidth) {
-    const grip = cornerGrip(c.spec, c.packed) * profile.cornerShare;
+    const grip = cornerGrip(c.spec, c.packed, speed) * profile.cornerShare;
     const turn = Math.sqrt(grip * profile.entryRadius);
     const left = on.distance - halfWidth;
     allowed = Math.min(
@@ -494,7 +497,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   const reach = hypot(tx - c.x, tz - c.z);
   const bend = (2 * Math.abs(Math.sin(angleDiff(c.heading, bearing)))) / Math.max(reach, 1);
   if (bend > 1e-3) {
-    const grip = cornerGrip(c.spec, c.packed) * profile.cornerShare;
+    const grip = cornerGrip(c.spec, c.packed, speed) * profile.cornerShare;
     allowed = Math.min(allowed, Math.max(profile.crawl, Math.sqrt(grip / bend)));
   }
   // Past the finish nothing is owed but a stop: stand up and skid.

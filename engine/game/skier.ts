@@ -74,7 +74,15 @@ import {
   snowDrag,
   type Grip,
 } from "./snow.ts";
-import { carveCurvature, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "./limits.ts";
+import {
+  carveCurvature,
+  chatterHold,
+  chatterOf,
+  cornerGrip,
+  edgeLockAt,
+  flightGravity,
+  harshSpeedOf,
+} from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
 import { climbShare, driveReach, glideYaw, poleForce, skateWork, strideRate } from "./poles.ts";
@@ -190,6 +198,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     hipAft: 0,
     packed: 0,
     sideSlip: 0,
+    chatter: 0,
     contacts,
     skiCompression: [0, 0],
     airborne: false,
@@ -433,6 +442,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const edgeShare =
     G.flatShare +
     (1 - G.flatShare) * clamp(Math.sin(Math.abs(c.edge)) / Math.sin(spec.edgeMax), 0, 1);
+  // THE CHATTER (`TUNING.chatter`): the snow passing under the skis at
+  // speed shakes them, and an edge skipping off the snow holds less.
+  const shaken = chatterHold(spec, speed0);
   let touching = 0;
   let loadSum = 0;
   let packedLoad = 0;
@@ -600,7 +612,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // until he is all but stopped, when the pivoted edge is SET and bites
     // the ledge it stops on (`grip.skidBite`).
     const hold =
-      (grip.edge * edgeShare * skiBite(c, p.side) + grip.base) *
+      (grip.edge * shaken * edgeShare * skiBite(c, p.side) + grip.base) *
       ARC.sideGrip *
       pressed *
       (1 - c.skid * (1 - G.skidHold) * clamp(speed0 / G.skidBite, 0, 1));
@@ -671,6 +683,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     loadSum > 0 ? packedLoad / loadSum : packedUnder(level.packedAt(c.x, c.z), state.fresh);
   c.sideSlip = touching > 0 ? slipWorst : 0;
   const grounded = touching > 0;
+  // THE CHATTER AS IT SHOWS: the speed's share on the packed snow under
+  // him, most with the bend's load on the edge — a readout for the view.
+  const CH = TUNING.chatter;
+  const edged = clamp(bend / (CH.loadedG * g), 0, 1) * clamp(Math.abs(c.edge) / spec.edgeMax, 0, 1);
+  c.chatter = grounded
+    ? Math.min(1, chatterOf(spec, speed0)) * c.packed * (CH.flat + (1 - CH.flat) * Math.sqrt(edged))
+    : 0;
   // THE ARCADE'S GRAVITY (`air.gravity`): a skier who was flying at the end
   // of the last step and has found no snow under a ski this one is pulled
   // down harder than the ground ever holds him — the hang shortened, never
@@ -719,7 +738,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // The load the bend actually puts on him: what the edge asks for, and
     // never more than the grip can hold — a ski over-edged at speed skids,
     // and a skier does not lay himself down for a turn he is not getting.
-    const lateral = Math.min(c.way * c.way * Math.abs(kappa), cornerGrip(spec, packed) * pressed);
+    const lateral = Math.min(
+      c.way * c.way * Math.abs(kappa),
+      cornerGrip(spec, packed, speed0) * pressed,
+    );
     const incline = Math.atan2(lateral, g) * Math.sign(c.edge);
     const target =
       clamp(incline, -K.rollPacked, K.rollPacked) * packed + c.steer * K.rollPowder * (1 - packed);
@@ -774,7 +796,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const way = c.way;
     const flat = hypot(c.vx, c.vz);
     const reach =
-      Math.abs(way) > 1 ? (cornerGrip(spec, packed) * pressed * S.pathShare) / Math.abs(way) : 0;
+      Math.abs(way) > 1
+        ? (cornerGrip(spec, packed, speed0) * pressed * S.pathShare) / Math.abs(way)
+        : 0;
     const asked = clamp(way * kappa, -reach, reach);
     // ...the way the skis point: skating, the gliding ski's line.
     const slip =

@@ -138,6 +138,11 @@ export type Stand = {
   pivot: { x: number; y: number };
   /** Each ski's share of the load (`skiShares`). */
   share: [number, number];
+  /** Each ski's tip lifted about its binding, rad (tips up positive), and
+   * its edge rocked about its length, rad (right edge down positive) — the
+   * chatter at speed (`ski-chatter.ts`); nought off `standOf`. */
+  pitch: [number, number];
+  rock: [number, number];
 };
 
 export function emptyStand(): Stand {
@@ -149,6 +154,8 @@ export function emptyStand(): Stand {
     tilt: 0,
     pivot: { x: 0, y: 0 },
     share: [0.5, 0.5],
+    pitch: [0, 0],
+    rock: [0, 0],
   };
 }
 
@@ -181,6 +188,8 @@ export function standOf(
     out.lift[i] = lift[i] + across * sr;
     out.out[i] = across * cr - side * w;
     out.fore[i] = -side * w * sa;
+    out.pitch[i] = 0;
+    out.rock[i] = 0;
   }
   // On the snow the skis' edge is taken against the snow he inclines to;
   // in the air against the world, as before.

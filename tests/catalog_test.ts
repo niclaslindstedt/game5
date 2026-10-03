@@ -138,6 +138,7 @@ describe("the catalog", () => {
     expect(fit.base).toBe(1);
     expect(fit.edgeRate).toBe(1);
     expect(fit.harsh).toBe(1);
+    expect(fit.chatter).toBe(1);
     expect(harshSpeedOf(SKIS)).toBeCloseTo(TUNING.air.harshSpeed, 9);
   });
 });

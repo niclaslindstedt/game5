@@ -279,6 +279,9 @@ function freshAmateur(
     ts: 0,
     pole: 0,
     push: 0,
+    turnSide: 0,
+    turnT: 0,
+    turnHeld: 0,
   };
 }
 
@@ -779,6 +782,15 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
   const lean = clamp(Math.atan2(v * omega, G) * (0.45 + 0.55 * k.skill) + sway, -0.9, 0.9);
   const ease = 1 - Math.exp(-dt * 6);
   a.lean += ((a.mode === "down" ? 0 : lean) - a.lean) * ease;
+  // A NEW TURN is begun when the lean goes over past `turnOn` on the other
+  // side — not when it passes level between two.
+  a.turnT += dt;
+  const side = a.lean > C.turnOn ? 1 : a.lean < -C.turnOn ? -1 : 0;
+  if (side !== 0 && side !== a.turnSide) {
+    a.turnHeld = a.turnT;
+    a.turnT = 0;
+    a.turnSide = side;
+  }
   const tuck = k.style === "line" ? clamp(v / 16, 0, 1) * 0.9 : 0;
   const crouch =
     a.mode === "air"

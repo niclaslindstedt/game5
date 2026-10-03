@@ -140,6 +140,9 @@ function standIn(body: CrowdBody, id: number, over: Partial<Amateur> = {}): Amat
     tx: 0,
     tz: 0,
     ts: 0,
+    turnSide: 0,
+    turnT: 0,
+    turnHeld: 0,
     ...over,
   };
 }
@@ -269,8 +272,17 @@ function lodCells(): Cell[] {
   ]);
 }
 
+/** A turn to the right begun after one that held, at a cruise. */
+const TURNING: Partial<Amateur> = {
+  speed: 8,
+  crouch: 0.3,
+  lean: 0.3,
+  turnSide: 1,
+  turnHeld: 2,
+};
+
 /** The moments the crowd is drawn in, as an amateur's numbers. */
-const MOMENTS: readonly { name: string; at: Partial<Amateur> }[] = [
+const MOMENTS: readonly { name: string; at: Partial<Amateur>; t?: number }[] = [
   { name: "carve right", at: { crouch: 0.35, lean: 0.5 } },
   { name: "carve left", at: { crouch: 0.35, lean: -0.5 } },
   { name: "bomber's tuck", at: { crouch: 0.95 } },
@@ -281,6 +293,11 @@ const MOMENTS: readonly { name: string; at: Partial<Amateur> }[] = [
   { name: "off a kicker", at: { mode: "air", airAt: 0.5, airT: 1, crouch: 0.55 } },
   { name: "drunk's sway", at: { lean: 0.35, crouch: 0.1, plough: 0.3 } },
   { name: "down", at: { fall: 1, fallSide: -1 } },
+  { name: "pole plant", at: { ...TURNING, turnT: 0.22 } },
+  { name: "pole trailing", at: { ...TURNING, turnT: 0.5 } },
+  // His own clock a quarter of the wait's swing in, and three quarters.
+  { name: "waiting", at: { mode: "stop" }, t: 7.3 * 0.25 },
+  { name: "waiting, away", at: { mode: "stop" }, t: 7.3 * 0.75 },
 ];
 
 function momentCells(): Cell[] {
@@ -290,7 +307,7 @@ function momentCells(): Cell[] {
       foot: "",
       draw(scene: THREE.Scene) {
         const w = new Float32Array(CROWD_POSES.length);
-        const mirror = dialsOf(standIn(body, 0, m.at), w);
+        const mirror = dialsOf(standIn(body, 0, m.at), w, m.t);
         scene.add(figure(body, "near", w, sample(body, row * 11 + k), mirror, 0));
         return stage(scene, 2.6, 0.85);
       },

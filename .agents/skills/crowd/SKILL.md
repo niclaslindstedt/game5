@@ -46,6 +46,14 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   `tests/crowd_figure_test.ts` holds the joints to the player's. Never
   hand-pose a target. The one shape the player has no pose for — lying in
   the snow — is his half-crouch laid over.
+- **HIS ANIMATIONS ON THE PLAYER'S TIMING.** A stance blended alone is a
+  statue gliding. What the player's body does on its own clock is a target
+  pair too — the turn's pole plant at its touch and its trail (either pole),
+  the wait leant and looking one way and the other — and `dialsOf` runs an
+  amateur through them by the player's own rule: `PLANT` / `plantLength`
+  from `skier-spring.ts` against the turn clock the engine keeps
+  (`Amateur.turnSide`, `turnT`, `turnHeld`, begun past `CROWD.turnOn`).
+  Never a second timing.
 - **A MORPH IS LINEAR.** A weight below zero extrapolates the target
   backwards (a body run "anti-lean" stretches upward), so a turn each way
   is a target of its own (`lean`, `leanLeft`) and every weight is ≥ 0.

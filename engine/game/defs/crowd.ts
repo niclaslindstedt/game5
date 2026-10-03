@@ -452,6 +452,10 @@ export const CROWD = {
    * and his skating give him: the speed, m/s, and the push, m/s². */
   brake: 3.5,
   crawl: { speed: 2.6, push: 0.9 },
+  /** The lean a turn is read as begun past, rad — so a drunk's sway or a
+   * straight line's chatter starts none (the player's view reads his edge
+   * past 0.14 the same way). */
+  turnOn: 0.1,
   /** How fast he can swing his skis round, rad/s, at no skill and at all. */
   yawRate: [1.4, 3.4] as readonly [number, number],
   /** A FALL: how many a minute at no skill on a green, and how much more

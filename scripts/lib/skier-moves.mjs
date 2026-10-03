@@ -18,6 +18,7 @@
 
 const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 const PITCH = Math.tan(Math.PI / 9);
+const CLIFF = Math.tan((35 * Math.PI) / 180);
 
 export const MOVES = [
   {
@@ -144,6 +145,34 @@ export const MOVES = [
     input: () => IDLE,
   },
   {
+    id: "kicker",
+    title: "flown 1 m over the 20° pitch at 55 km/h: a kicker's air, ridden compact",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 55 / 3.6, height: 2, vy: -4 }),
+    seconds: 1.6,
+    window: [0, 1.2],
+    input: () => IDLE,
+  },
+  {
+    id: "ledge",
+    title: "a 3 m drop at 45 km/h onto the 20° pitch: spotted, then reached for",
+    level: (S) => S.flatLevel({ packed: 1, grade: PITCH, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 45 / 3.6, height: 4 }),
+    seconds: 1.9,
+    window: [0, 1.5],
+    input: () => IDLE,
+  },
+  {
+    id: "cliff",
+    title: "a 12 m cliff at 40 km/h onto a 35° apron: spotted, windmilled, reached for",
+    level: (S) => S.flatLevel({ packed: 1, grade: CLIFF, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6, height: 13 }),
+    // To the snow: a drop this big buckles his legs there (`crash.ts`).
+    seconds: 1.95,
+    window: [0, 1.88],
+    input: () => IDLE,
+  },
+  {
     id: "wipeout",
     title: "dropped 8 m at 70 km/h onto the groomer: the legs buckle",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -183,6 +212,9 @@ export const MOMENTS = [
     say: "the height of a linked turn: inclined over both skis",
   },
   { id: "stopping", move: "hockey", t: 0.95, say: "a hockey stop at its hardest" },
+  { id: "spot", move: "ledge", t: 0.7, say: "spotting the landing off a 3 m drop" },
+  { id: "windmill", move: "cliff", t: 1.35, say: "windmilling down a 12 m cliff" },
+  { id: "reach", move: "cliff", t: 1.75, say: "reaching for the snow at the foot of a cliff" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
 ];
 

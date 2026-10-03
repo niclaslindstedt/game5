@@ -63,6 +63,7 @@ const P = await import(join(root, "pwa/src/game/skier-pose.ts"));
 const G = await import(join(root, "pwa/src/game/skis-body.ts"));
 const RIG = await import(join(root, "pwa/src/game/skier-rig.ts"));
 const ST = await import(join(root, "pwa/src/game/ski-stand.ts"));
+const FL = await import(join(root, "pwa/src/game/skier-flight.ts"));
 const spec = E.skisById(args.skis);
 const mounts = G.mountsOf(spec);
 
@@ -282,6 +283,13 @@ function measure(move) {
       c.jumpLoad / E.TUNING.jump.full,
       c,
       P.inStartGate(state),
+      // THE FALL read over the map, as the game reads it (`skis-body.ts`).
+      {
+        read: c.airborne
+          ? FL.flightRead(state.level, c, c.spec.cogHeight, E.flightGravity(state.rules))
+          : null,
+        gravity: E.flightGravity(state.rules),
+      },
     );
     lastT = now;
     if (c.thrown) continue;

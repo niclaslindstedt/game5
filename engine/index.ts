@@ -220,6 +220,7 @@ export {
   carveCurvature,
   cornerGrip,
   edgeLockAt,
+  flightGravity,
   harshSpeedOf,
   lockAt,
   terminalSpeed,

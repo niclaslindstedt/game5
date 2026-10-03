@@ -50,6 +50,8 @@ type Moment = { name: string; say?: string; frames: Frame[] };
 type Data = {
   skis: string;
   slot: number;
+  /** The flight's gravity, m/s². */
+  gravity: number;
   moves: Move[];
   turntable: Moment[];
   moments: Moment[];
@@ -143,8 +145,16 @@ async function load(): Promise<void> {
  * and his heading. */
 function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number } {
   const c = f.skier;
-  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
   const [gy, nx, ny, nz] = f.ground;
+  // His falls read over the snow under him: the plane the frame records.
+  model.setGround(
+    {
+      groundAt: (x, z) => gy - (nx * (x - c.x) + nz * (z - c.z)) / ny,
+      normalAt: (_x, _z, out) => Object.assign(out, { x: nx, y: ny, z: nz }),
+    },
+    data.gravity,
+  );
+  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
   const off = c.thrown;
   const cx = off ? off.x : c.x;
   const cz = off ? off.z : c.z;

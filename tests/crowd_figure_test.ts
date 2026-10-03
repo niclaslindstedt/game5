@@ -19,6 +19,7 @@ import {
 } from "../pwa/src/game/crowd-rig.ts";
 import { CROWD_LODS, buildCrowdFigure, crowdTriangles } from "../pwa/src/game/crowd-shapes.ts";
 import { skierPose } from "../pwa/src/game/skier-pose.ts";
+import { PLANT, plantLength } from "../pwa/src/game/skier-spring.ts";
 
 const sub = (a: V3, b: { x: number; y: number; z: number } | V3): V3 =>
   Array.isArray(b) ? [a[0] - b[0], a[1] - b[1], a[2] - b[2]] : [a[0] - b.x, a[1] - b.y, a[2] - b.z];
@@ -112,6 +113,51 @@ describe("an amateur's weights and kit", () => {
     expect(left.of("leanLeft")).toBeGreaterThan(0.5);
     expect(left.of("lean")).toBe(0);
     for (const v of [...right.out, ...left.out]) expect(v).toBeGreaterThanOrEqual(0);
+  });
+
+  it("a pole plant on every turn he begins, by the player's own rule", () => {
+    const turning = { mode: "ski", speed: 8, crouch: 0.3, plough: 0, push: 0, fall: 0 } as const;
+    const into = (turnT: number, over: Partial<Amateur> = {}) =>
+      w({ ...turning, turnSide: 1, turnHeld: 1, turnT, fallSide: 1, ...over });
+    // A turn to the right plants the right pole, swung to the touch and
+    // trailed back, and is over when the player's plant would be.
+    const touch = into(0.2);
+    expect(touch.of("plantRight")).toBeGreaterThan(0.5);
+    expect(touch.of("plantLeft") + touch.of("trailLeft")).toBe(0);
+    expect(into(0.5).of("trailRight")).toBeGreaterThan(touch.of("trailRight"));
+    const over = into(plantLength(8) + 0.01);
+    for (const k of ["plantRight", "trailRight"] as const) expect(over.of(k)).toBe(0);
+    // ...the left one on a turn to the left, and the other again mirrored.
+    expect(into(0.2, { turnSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
+    expect(into(0.2, { fallSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
+    // None after a turn that never held, too slow, in a wedge, or down.
+    for (const not of [
+      { turnHeld: PLANT.held / 2 },
+      { speed: PLANT.slow / 2 },
+      { plough: 0.9 },
+      { fall: 1, mode: "down" as const },
+    ]) {
+      const no = into(0.2, not);
+      expect(no.of("plantRight") + no.of("trailRight")).toBe(0);
+    }
+  });
+
+  it("stood still he waits alive, swung one way and the other on his own clock", () => {
+    const still = { mode: "stop", speed: 0, push: 0, fall: 0 } as const;
+    const seen = new Set<string>();
+    for (let t = 0; t < 8; t += 0.5) {
+      const out = new Array<number>(CROWD_POSES.length).fill(0);
+      dialsOf(at({ ...still }), out, t);
+      const idle = out[CROWD_POSES.indexOf("idle")];
+      const away = out[CROWD_POSES.indexOf("idleAway")];
+      expect(idle * away).toBe(0);
+      if (idle > 0.5) seen.add("idle");
+      if (away > 0.5) seen.add("away");
+    }
+    expect(seen.size).toBe(2);
+    // Moving, he is not waiting.
+    const moving = w({ mode: "ski", speed: 6, fall: 0 });
+    expect(moving.of("idle") + moving.of("idleAway")).toBe(0);
   });
 
   it("down in the snow, nothing else shows, mirrored to the side he fell on", () => {

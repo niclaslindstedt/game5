@@ -49,12 +49,15 @@ describe("the model registry", () => {
   });
 
   it("names only switches the game reads", () => {
-    const readers = ["skier-models", "bird-models", "beast-models", "gate-models"]
-      .map((m) => read(`pwa/src/game/${m}.ts`))
-      .join("\n");
+    const readers = read("pwa/src/game/skier-models.ts");
     for (const r of MODEL_REGISTRY) {
       if (r.blender) expect(readers, r.asset).toContain(`ENV.${r.blender.switch}`);
     }
+  });
+
+  it("keeps only the skis and the skier as models — the rest is built in code", () => {
+    const modelled = MODEL_REGISTRY.filter((r) => r.source === "blender").map((r) => r.asset);
+    expect(modelled).toEqual(["Skis", "Skier"]);
   });
 
   it("is the table docs/models.md carries — `make model-registry` rewrites it", () => {

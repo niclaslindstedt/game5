@@ -1,24 +1,20 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, the skier's as `models/skier.glb`, every bird's and
-// animal's as
-// `models/birds/<id>.glb` and `models/beasts/<id>.glb`, and the course's
-// marks as `models/gates/<id>.glb`, emitted into the bundle (so the
-// service worker precaches them with everything else) and served the same
-// way by the dev server. They are COMMITTED, in
+// `models/<id>.glb` and the skier's as `models/skier.glb`, emitted into the
+// bundle (so the service worker precaches them with everything else) and
+// served the same way by the dev server. They are COMMITTED, in
 // `pwa/models/`, made there by `make models` (Blender, off the game's own
 // data — the `blender-assets` skill), with a stamp of the sources they were
 // made from (`sources.json`), which `tests/models_test.ts` holds to the
 // sources as they stand: a model older than its sources fails the suite.
-// Each half is stamped apart (`BIRD_SOURCES`, `BEAST_SOURCES`,
-// `GATE_SOURCES`), so a bird remade never asks for the skis to be, nor the
-// other way round. The TREES are not models: every one is built in code,
-// procedurally (`src/game/tree-shapes.ts`).
+// Nothing else the game draws is a model: the trees, the birds, the animals
+// and the course's marks are built in code, procedurally
+// (`src/game/tree-shapes.ts`, `bird-shapes.ts`, `beast-shapes.ts`,
+// `mark-shapes.ts`).
 //
-// A build switched back to a code-built half (`VITE_MODEL_SKIS=0`,
-// `VITE_MODEL_SKIERS=0`, `VITE_MODEL_BIRDS=0`,
-// `VITE_MODEL_BEASTS=0`, `VITE_MODEL_GATES=0` — `src/game/model-switch.ts`)
-// packs none of that side's files.
+// A build switched back to the code-built skis or skier (`VITE_MODEL_SKIS=0`,
+// `VITE_MODEL_SKIERS=0` — `src/game/model-switch.ts`) packs none of that
+// side's files.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -27,26 +23,11 @@ import { join } from "node:path";
 import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
-import { BEAST_IDS } from "./src/game/beast-defs.ts";
-import { BIRD_IDS } from "./src/game/bird-defs.ts";
-import { GATE_IDS } from "./src/game/gate-ids.ts";
 
-export type ModelSwitches = {
-  skis: boolean;
-  skiers: boolean;
-  birds: boolean;
-  beasts: boolean;
-  gates: boolean;
-};
+export type ModelSwitches = { skis: boolean; skiers: boolean };
 
 /** Every switch on — what a build draws unless told otherwise. */
-export const ALL_MODELS: ModelSwitches = {
-  skis: true,
-  skiers: true,
-  birds: true,
-  beasts: true,
-  gates: true,
-};
+export const ALL_MODELS: ModelSwitches = { skis: true, skiers: true };
 
 /** Where the committed models are, from the repository's root. */
 export const MODELS_DIR = "pwa/models";
@@ -56,9 +37,6 @@ export function modelFiles(on: ModelSwitches): string[] {
   return [
     ...(on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : []),
     ...(on.skiers ? ["skier.glb"] : []),
-    ...(on.birds ? BIRD_IDS.map((k) => `birds/${k}.glb`) : []),
-    ...(on.beasts ? BEAST_IDS.map((k) => `beasts/${k}.glb`) : []),
-    ...(on.gates ? GATE_IDS.map((k) => `gates/${k}.glb`) : []),
   ];
 }
 
@@ -87,53 +65,13 @@ export const MODEL_SOURCES = [
   "pwa/src/game/skier-rig.ts",
 ];
 
-/** The static shelf every wildlife and gate model stands on, and the
- * packer it ships through. */
-const STATIC_SOURCES = [
-  "scripts/blender.mjs",
-  "scripts/blender/lib.py",
-  "scripts/blender/static.py",
-  "scripts/lib/glb-pack.mjs",
-];
-
-/** WHAT A BIRD IS MADE FROM: its builder and the roster's rows. */
-export const BIRD_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/bird.mjs",
-  "scripts/blender/bird.py",
-  "pwa/src/game/bird-defs.ts",
-];
-
-/** WHAT AN ANIMAL IS MADE FROM: its builder, the roster's rows and the
- * styles that proportion it. */
-export const BEAST_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/beast.mjs",
-  "scripts/blender/beast.py",
-  "pwa/src/game/beast-defs.ts",
-  "pwa/src/game/beast-shapes.ts",
-];
-
-/** WHAT THE COURSE'S MARKS ARE MADE FROM: the builder and the plan. */
-export const GATE_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/gate.mjs",
-  "scripts/blender/gate.py",
-  "pwa/src/game/start-arch.ts",
-];
-
-/** Every half's stamp in `sources.json`, and the sources it hashes. */
-export const MODEL_HALVES = {
-  sources: MODEL_SOURCES,
-  birds: BIRD_SOURCES,
-  beasts: BEAST_SOURCES,
-  gates: GATE_SOURCES,
-} as const;
+/** Every half's stamp in `sources.json`, and the sources it hashes — one
+ * half today, the skis and the skier. */
+export const MODEL_HALVES = { sources: MODEL_SOURCES } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
 /** The sources' hash, from the repository's `root` (line endings as
- * committed: `\r` dropped, so a checkout's conversion moves nothing) — the
- * skis' and the skier's, or a static half's (`BIRD_SOURCES`, …). */
+ * committed: `\r` dropped, so a checkout's conversion moves nothing). */
 export function sourcesHash(root: string, sources: readonly string[] = MODEL_SOURCES): string {
   const h = createHash("sha256");
   for (const f of sources) {
@@ -154,7 +92,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0 / VITE_MODEL_BIRDS=0 / …)",
+            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0)",
         );
       }
     },
@@ -169,9 +107,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const name = /\/models\/((?:birds\/|beasts\/|gates\/)?[\w-]+\.glb)$/.exec(
-          req.url ?? "",
-        )?.[1];
+        const name = /\/models\/([\w-]+\.glb)$/.exec(req.url ?? "")?.[1];
         if (!name || !files.includes(name) || !existsSync(join(dir, name))) return next();
         res.setHeader("Content-Type", "model/gltf-binary");
         res.end(readFileSync(join(dir, name)));

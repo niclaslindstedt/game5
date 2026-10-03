@@ -24,7 +24,9 @@
 // the gondola and the drag from beside theirs, the longest one's bottom
 // station, and the longest from across the face), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
-// sign-tree (the post carrying the most boards),
+// sign-tree (the post carrying the most boards), gate, hut, finish (the
+// course's marks close to: the panel gate at the middle gate, the start
+// hut, the finish arch from up the last straight),
 // forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
@@ -83,6 +85,9 @@ const VIEWS = [
   "cliff-edge",
   "sign",
   "sign-tree",
+  "gate",
+  "hut",
+  "finish",
   "forest",
   "approach-140",
   "approach-90",

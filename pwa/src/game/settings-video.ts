@@ -164,14 +164,44 @@ export type ForestLook = {
    * or the far band's sketch drawn a touch inside it (a fraction of the
    * triangles in the shadow pass, and it reads the same on the snow). */
   casters: TreeCasters;
+  /** THE WILDLIFE rides the same row (the woods and what lives in them are
+   * one thing to a skier): how many FORMS of each species are drawn, 1..3
+   * (`wild-traits.ts`, the most telling first — a cheap picture draws a
+   * herd's calves as its grown animals, never fewer SPECIES), and how far
+   * from the lens an animal or a bird is drawn at its NEAR cut, m, before
+   * the FAR one takes over. */
+  wild: WildLook;
 };
+
+export type WildLook = { readonly forms: number; readonly near: number };
 
 export type TreeCasters = "full" | "sketch";
 
 export const FOREST_LOOK: Record<Tier, ForestLook> = {
-  low: { full: 50, mid: 140, farShare: 0.5, variants: 2, casters: "sketch" },
-  medium: { full: 80, mid: 220, farShare: 0.75, variants: 5, casters: "sketch" },
-  high: { full: 110, mid: 320, farShare: 1, variants: 10, casters: "full" },
+  low: {
+    full: 50,
+    mid: 140,
+    farShare: 0.5,
+    variants: 2,
+    casters: "sketch",
+    wild: { forms: 1, near: 35 },
+  },
+  medium: {
+    full: 80,
+    mid: 220,
+    farShare: 0.75,
+    variants: 5,
+    casters: "sketch",
+    wild: { forms: 2, near: 60 },
+  },
+  high: {
+    full: 110,
+    mid: 320,
+    farShare: 1,
+    variants: 10,
+    casters: "full",
+    wild: { forms: 3, near: 90 },
+  },
 };
 
 export type DistanceLook = {

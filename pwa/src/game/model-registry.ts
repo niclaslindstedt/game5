@@ -20,7 +20,6 @@ import { SKI_CATALOG, TREE_KINDS } from "@engine";
 
 import { BEAST_IDS } from "./beast-defs.ts";
 import { BIRD_IDS } from "./bird-defs.ts";
-import { GATE_IDS } from "./gate-ids.ts";
 
 export type ModelSource = "blender" | "code";
 
@@ -90,44 +89,30 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
   {
     asset: "Birds",
     ids: BIRD_IDS,
-    source: "blender",
-    code: ["pwa/src/game/bird-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/bird-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/birds.ts",
-    blender: {
-      builder: "scripts/blender/bird.py",
-      files: BIRD_IDS.map((k) => `birds/${k}.glb`),
-      pattern: "birds/<id>.glb",
-      switch: "VITE_MODEL_BIRDS",
-    },
-    note: "one model a species, painted in its style, flapped by the same shader",
+    note:
+      "procedural: a form for each sex or age that shows — a cock, a hen, a first-winter " +
+      "bird — at two levels of detail, each bird its own size and shade, flapped in the shader",
   },
   {
     asset: "Animals",
     ids: BEAST_IDS,
-    source: "blender",
-    code: ["pwa/src/game/beast-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/beast-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/beasts.ts",
-    blender: {
-      builder: "scripts/blender/beast.py",
-      files: BEAST_IDS.map((k) => `beasts/${k}.glb`),
-      pattern: "beasts/<id>.glb",
-      switch: "VITE_MODEL_BEASTS",
-    },
-    note: "one model a species, painted in its style, walked by the same shader",
+    note:
+      "procedural: grown and young forms at two levels of detail, each animal its own " +
+      "size and shade, antlers and horns grown to its age in the shader",
   },
   {
     asset: "Gates, the start hut and the finish arch",
-    ids: [...GATE_IDS],
-    source: "blender",
-    code: ["pwa/src/game/gates.ts", "pwa/src/game/start-arch.ts"],
+    ids: ["gate-pole", "gate-panel", "edge-pole", "marker", "start-hut", "finish-arch"],
+    source: "code",
+    code: ["pwa/src/game/mark-shapes.ts", "pwa/src/game/start-arch.ts"],
     drawnBy: "pwa/src/game/gates.ts",
-    blender: {
-      builder: "scripts/blender/gate.py",
-      files: GATE_IDS.map((k) => `gates/${k}.glb`),
-      pattern: "gates/<id>.glb",
-      switch: "VITE_MODEL_GATES",
-    },
-    note: "the arch stretched to the finish line; the panels, the nets, the edge poles and the floods stay code",
+    note: "procedural and faceted; the arch built round the finish line's own plan",
   },
 ];
 

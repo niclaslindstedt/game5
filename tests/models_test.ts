@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS, SKIERS, WILDLIFE AND MARKS the game ships
-// (`pwa/models/`, made by `make models`, packed by `pwa/models-plugin.ts`,
-// drawn by `skier-models.ts`, `bird-models.ts`,
-// `beast-models.ts` and `gate-models.ts`): every one committed, none older
-// than the sources it is made from, each within its budget; the switches
-// on unless a build turns one back; and every material the Blender
-// builders name dressed as the builder's own pair would be. The names are
-// stated twice — in `scripts/blender/*.py`, which cannot import a module
-// of the game, and in `dressOf` and the wildlife's — so the builders are
-// read here as
-// TEXT, the way `tauri_test.ts` reads the Rust.
+// THE MODELLED SKIS AND SKIER the game ships (`pwa/models/`, made by `make
+// models`, packed by `pwa/models-plugin.ts`, drawn by `skier-models.ts`):
+// every one committed, none older than the sources it is made from, each
+// within its budget; the switches on unless a build turns one back; and
+// every material the Blender builders name dressed as the builder's own
+// pair would be. The names are stated twice — in `scripts/blender/*.py`,
+// which cannot import a module of the game, and in `dressOf` — so the
+// builders are read here as TEXT, the way `tauri_test.ts` reads the Rust.
+// Nothing else is a model: the wildlife and the course's marks are built in
+// code, and `pwa/models/` holds nothing of theirs.
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -24,9 +23,6 @@ import {
   modelFiles,
   sourcesHash,
 } from "../pwa/models-plugin.ts";
-import { BEAST_IDS } from "../pwa/src/game/beast-defs.ts";
-import { BIRD_IDS } from "../pwa/src/game/bird-defs.ts";
-import { GATE_IDS } from "../pwa/src/game/gate-ids.ts";
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
 import { dressOf } from "../pwa/src/game/skier-models.ts";
 import { SKI_STYLES } from "../pwa/src/game/skis-body.ts";
@@ -39,30 +35,22 @@ const matNames = (file: string): string[] =>
 
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
-  const none = {
-    skis: false,
-    skiers: false,
-    birds: false,
-    beasts: false,
-    gates: false,
-  };
+  const none = { skis: false, skiers: false };
 
-  it("are every pair under its id, one skier, every bird, animal and mark", () => {
-    expect([...all].sort()).toEqual(
-      [
-        ...SKI_CATALOG.map((s) => `${s.id}.glb`),
-        "skier.glb",
-        ...BIRD_IDS.map((k) => `birds/${k}.glb`),
-        ...BEAST_IDS.map((k) => `beasts/${k}.glb`),
-        ...GATE_IDS.map((k) => `gates/${k}.glb`),
-      ].sort(),
-    );
+  it("are every pair under its id and one skier", () => {
+    expect([...all].sort()).toEqual([...SKI_CATALOG.map((s) => `${s.id}.glb`), "skier.glb"].sort());
     expect(modelFiles({ ...none, skiers: true })).toEqual(["skier.glb"]);
-    expect(modelFiles({ ...none, gates: true })).toEqual([
-      "gates/checkpoint.glb",
-      "gates/start-arch.glb",
-    ]);
     expect(modelFiles(none)).toEqual([]);
+  });
+
+  it("are nothing but the skis and the skier", () => {
+    for (const dir of ["birds", "beasts", "gates"]) {
+      expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
+    }
+    const stamp = JSON.parse(
+      readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
+    ) as object;
+    expect(Object.keys(stamp).sort()).toEqual(["blender", "sources"]);
   });
 
   it("are all committed, each within its budget", () => {
@@ -71,16 +59,9 @@ describe("the models the game ships", () => {
       expect(existsSync(at), `${MODELS_DIR}/${f} — run \`make models\``).toBe(true);
       // A pair's LOD0 is under 1 MB, the skier's ~1 MB (two dozen bones —
       // the half-angle helpers and the hands among them — and his baked
-      // cloth), a bird or an animal (packed) a few KB, the arch ~40 KB: a
-      // model grown past this is a builder that lost its game budget.
-      const budget =
-        f.startsWith("birds/") || f.startsWith("beasts/")
-          ? 40_000
-          : f.startsWith("gates/")
-            ? 120_000
-            : f === "skier.glb"
-              ? 1_200_000
-              : 1_600_000;
+      // cloth): a model grown past this is a builder that lost its game
+      // budget.
+      const budget = f === "skier.glb" ? 1_200_000 : 1_600_000;
       expect(statSync(at).size, f).toBeLessThan(budget);
     }
   });
@@ -90,10 +71,9 @@ describe("the models the game ships", () => {
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as Record<string, string>;
     for (const [half, sources] of Object.entries(MODEL_HALVES)) {
-      const set = half === "sources" ? "machines" : half;
       expect(
         stamp[half],
-        `a source of the ${set} moved since they were made — run \`make models SET=${set}\` and commit pwa/models/`,
+        `a source of the skis or the skier moved since they were made — run \`make models\` and commit pwa/models/`,
       ).toBe(sourcesHash(root, sources));
     }
     expect(sourcesHash(root)).toBe(sourcesHash(root, MODEL_HALVES.sources));

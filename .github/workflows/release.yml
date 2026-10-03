@@ -184,9 +184,6 @@ jobs:
           # ci-models MODELS=off`, no commit needed; unset is on.
           VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
           VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-          VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-          VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-          VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
       - name: make test
         run: make test
 
@@ -255,9 +252,6 @@ jobs:
       # ci-models MODELS=off`, no commit needed; unset is on.
       VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
       VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-      VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-      VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-      VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
       # NOTARIZATION. The bundler acts on these three only once the app is
       # signed with a real Developer ID (the `Apple signing` step below), and
       # ignores them otherwise — so an unconfigured repo still packages, it

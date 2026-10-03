@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE ANIMALS, DRAWN — the groups `beast-plan.ts` laid over the map, one
-// instanced mesh a species holding whatever of it is within sight this
-// frame, each animal posed off the engine's own clock with its legs and its
-// head moved in the shader; and their PRINTS, handed to the trail map as
-// stamps beside the skiers' own.
+// instanced mesh a species FORM and cut (`beast-shapes.ts`) holding whatever
+// of it is within sight this frame, each animal posed off the engine's own
+// clock with its legs, its head and its rack moved in the shader, and drawn
+// as WHO it is (`wild-traits.ts`: grown or young, its size, its shade, how
+// far its antlers have grown — dealt off the group's own scatter, never the
+// engine's stream) at the NEAR cut within `WildLook.near` of the lens and the
+// FAR one past it; and their PRINTS, handed to the trail map as stamps beside
+// the skiers' own.
 //
 // TWO MEMORIES, both the renderer's, both decided by rules stated in the
 // plan: when each group was last frightened and where it ran (`spookAt`),
@@ -31,10 +35,17 @@ import {
   type BeastPlan,
   type Spook,
 } from "./beast-plan.ts";
-import { beastModel } from "./beast-models.ts";
-import { BEAST_STYLES, beastDepthMaterial, beastMaterial, buildBeast } from "./beast-shapes.ts";
+import {
+  BEAST_STYLES,
+  beastDepthMaterial,
+  beastMaterial,
+  buildBeast,
+  type BeastLod,
+} from "./beast-shapes.ts";
 import { TRACKED, footfall, footfallSpacing, priorPrints } from "./beast-tracks.ts";
 import type { HazeUniforms } from "./haze.ts";
+import type { WildLook } from "./settings-video.ts";
+import { BEAST_FORMS, beastIndividual, drawnForm, freshIndividual } from "./wild-traits.ts";
 import type { SnowSampler, Stamp } from "./trail-stamp.ts";
 import { wildGround } from "./wild-ground.ts";
 
@@ -45,13 +56,16 @@ const REACH = 520;
 /** The most new prints kept to be laid again when the window moves. */
 const MOST_FRESH = 6000;
 
-type Roster = {
-  mesh: THREE.InstancedMesh;
-  gait: THREE.InstancedBufferAttribute;
-  stride: THREE.InstancedBufferAttribute;
-  graze: THREE.InstancedBufferAttribute;
-  n: number;
-};
+/** The cuts, in the order a roster's slots are laid. */
+const LODS: readonly BeastLod[] = ["near", "far"];
+
+/** One mesh of a species: a form at a cut, and its instances' motion
+ * (gait, stride, graze, rack). */
+type Slot = { mesh: THREE.InstancedMesh; motion: THREE.InstancedBufferAttribute; n: number };
+
+/** A species' meshes, form by form and cut by cut (`form * 2 + lod`), and
+ * how many of its forms are drawn. */
+type Roster = { slots: Slot[]; forms: number };
 
 /** The fine trail window, as the renderer has it: its corner and its side. */
 export type TrailWindow = { x: number; z: number; span: number };
@@ -72,6 +86,9 @@ export type Beasts = {
   retrack: () => void;
   /** A new run on the same map: every group back on its round. */
   reset: () => void;
+  /** The FOREST row moved: how many forms are drawn and where the cuts
+   * hand over. */
+  setLook: (look: WildLook) => void;
   plan: BeastPlan;
   dispose: () => void;
 };
@@ -82,43 +99,69 @@ export type Beasts = {
  * packed field. */
 export type PrintSnow = { at: SnowSampler; soften: () => number };
 
-export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow): Beasts {
+export function createBeasts(
+  level: Level,
+  haze: HazeUniforms,
+  look: WildLook,
+  snow?: PrintSnow,
+): Beasts {
   const group = new THREE.Group();
   const plan = beastPlanFor(level);
   const ground = wildGround(level);
   const rosters = new Map<BeastId, Roster>();
-  for (const spec of BEASTS) {
-    const capacity = beastCount(plan, spec.id);
-    if (capacity === 0) continue;
-    // The species' model where one is loaded (`beast-models.ts`), else
-    // the code's own animal, flat-shaded as it is built to be.
-    const modelled = beastModel(spec, BEAST_STYLES[spec.id]);
-    const { geometry, pivot } = modelled ?? buildBeast(spec, BEAST_STYLES[spec.id]);
-    const attr = (): THREE.InstancedBufferAttribute => {
-      const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
-      a.setUsage(THREE.DynamicDrawUsage);
-      return a;
-    };
-    const gait = attr();
-    const stride = attr();
-    const graze = attr();
-    geometry.setAttribute("aGait", gait);
-    geometry.setAttribute("aStride", stride);
-    geometry.setAttribute("aGraze", graze);
-    const mesh = new THREE.InstancedMesh(
-      geometry,
-      beastMaterial(spec, pivot, haze, !modelled),
-      capacity,
-    );
-    mesh.customDepthMaterial = beastDepthMaterial(spec, pivot);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.count = 0;
-    mesh.frustumCulled = false;
-    group.add(mesh);
-    rosters.set(spec.id, { mesh, gait, stride, graze, n: 0 });
-  }
+  let near = look.near;
+  let drawnForms = look.forms;
+
+  const clear = (): void => {
+    for (const roster of rosters.values()) {
+      for (const slot of roster.slots) {
+        group.remove(slot.mesh);
+        slot.mesh.geometry.dispose();
+        (slot.mesh.material as THREE.Material).dispose();
+        slot.mesh.customDepthMaterial?.dispose();
+      }
+    }
+    rosters.clear();
+  };
+  const build = (forms: number): void => {
+    clear();
+    for (const spec of BEASTS) {
+      const capacity = beastCount(plan, spec.id);
+      if (capacity === 0) continue;
+      const drawn = Math.max(1, Math.min(forms, BEAST_FORMS[spec.id].length));
+      const slots: Slot[] = [];
+      for (const form of BEAST_FORMS[spec.id].slice(0, drawn)) {
+        for (const lod of LODS) {
+          const { geometry, pivot } = buildBeast(spec, BEAST_STYLES[spec.id], form, lod);
+          const motion = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+          motion.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute("aMotion", motion);
+          const mesh = new THREE.InstancedMesh(
+            geometry,
+            beastMaterial(spec, pivot, haze),
+            capacity,
+          );
+          mesh.customDepthMaterial = beastDepthMaterial(spec, pivot);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          // Every individual's shade, written as it is drawn.
+          mesh.instanceColor = new THREE.InstancedBufferAttribute(
+            new Float32Array(capacity * 3),
+            3,
+          );
+          mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+          mesh.count = 0;
+          mesh.visible = false;
+          mesh.frustumCulled = false;
+          group.add(mesh);
+          slots.push({ mesh, motion, n: 0 });
+        }
+      }
+      rosters.set(spec.id, { slots, forms: drawn });
+    }
+  };
+  build(look.forms);
 
   const prior: Stamp[] = [];
   /** Last night's prints, laid into the snow the run is ridden on — so
@@ -139,10 +182,12 @@ export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow)
   const prints = new Uint32Array(plan.groups.length * TRACKED);
 
   const pose = freshBeastPose();
+  const who = freshIndividual();
   const m = new THREE.Matrix4();
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
-  const one = new THREE.Vector3(1, 1, 1);
+  const size = new THREE.Vector3();
+  const tint = new THREE.Color();
 
   const inWindow = (s: Stamp, w: TrailWindow): boolean =>
     s.bx > w.x - 2 && s.bz > w.z - 2 && s.bx < w.x + w.span + 2 && s.bz < w.z + w.span + 2;
@@ -168,7 +213,7 @@ export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow)
 
   const update: Beasts["update"] = (state, eyeX, eyeZ, stamps, window) => {
     if (stamps) layPrints(stamps, window);
-    for (const roster of rosters.values()) roster.n = 0;
+    for (const roster of rosters.values()) for (const slot of roster.slots) slot.n = 0;
     const t = state.t;
     plan.groups.forEach((g, k) => {
       const was = spooks[k];
@@ -176,11 +221,11 @@ export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow)
       spooks[k] = spook;
       const roster = rosters.get(g.species);
       if (!roster) return;
-      const near = Math.hypot(g.round.x - eyeX, g.round.z - eyeZ) - g.round.radius;
+      const far = Math.hypot(g.round.x - eyeX, g.round.z - eyeZ) - g.round.radius;
       // A group that has run off its round lays new prints wherever the
       // lens is: the prints are the map's, not the picture's.
       const wandering = spook.at > -Infinity;
-      if (near > REACH && !wandering) return;
+      if (far > REACH && !wandering) return;
       const spec = beastById(g.species);
       for (let i = 0; i < g.count; i++) {
         beastPose(g, i, t, ground, pose, spook);
@@ -213,25 +258,29 @@ export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow)
             lastZ[slot] = pose.z;
           }
         }
-        if (near > REACH || roster.n >= roster.mesh.instanceMatrix.count) continue;
+        if (far > REACH) continue;
+        beastIndividual(g.species, g.scatter, i, g.count, who);
+        const lod = Math.hypot(pose.x - eyeX, pose.z - eyeZ) < near ? 0 : 1;
+        const slot = roster.slots[drawnForm(who.form, roster.forms) * 2 + lod];
+        if (slot.n >= slot.mesh.instanceMatrix.count) continue;
         pos.set(pose.x, pose.y, pose.z);
         quat.set(pose.q.x, pose.q.y, pose.q.z, pose.q.w);
-        m.compose(pos, quat, one);
-        roster.mesh.setMatrixAt(roster.n, m);
-        roster.gait.setX(roster.n, pose.gait);
-        roster.stride.setX(roster.n, pose.stride);
-        roster.graze.setX(roster.n, pose.graze);
-        roster.n++;
+        m.compose(pos, quat, size.setScalar(who.scale));
+        slot.mesh.setMatrixAt(slot.n, m);
+        slot.mesh.setColorAt(slot.n, tint.setRGB(who.shade[0], who.shade[1], who.shade[2]));
+        slot.motion.setXYZW(slot.n, pose.gait, pose.stride, pose.graze, who.rack);
+        slot.n++;
       }
     });
     for (const roster of rosters.values()) {
-      roster.mesh.count = roster.n;
-      roster.mesh.visible = roster.n > 0;
-      if (roster.n === 0) continue;
-      roster.mesh.instanceMatrix.needsUpdate = true;
-      roster.gait.needsUpdate = true;
-      roster.stride.needsUpdate = true;
-      roster.graze.needsUpdate = true;
+      for (const slot of roster.slots) {
+        slot.mesh.count = slot.n;
+        slot.mesh.visible = slot.n > 0;
+        if (slot.n === 0) continue;
+        slot.mesh.instanceMatrix.needsUpdate = true;
+        if (slot.mesh.instanceColor) slot.mesh.instanceColor.needsUpdate = true;
+        slot.motion.needsUpdate = true;
+      }
     }
   };
 
@@ -251,13 +300,12 @@ export function createBeasts(level: Level, haze: HazeUniforms, snow?: PrintSnow)
       laid = false;
       windowAt = null;
     },
-    plan,
-    dispose: () => {
-      for (const roster of rosters.values()) {
-        roster.mesh.geometry.dispose();
-        (roster.mesh.material as THREE.Material).dispose();
-        roster.mesh.customDepthMaterial?.dispose();
-      }
+    setLook: (next) => {
+      near = next.near;
+      if (next.forms !== drawnForms) build(next.forms);
+      drawnForms = next.forms;
     },
+    plan,
+    dispose: clear,
   };
 }

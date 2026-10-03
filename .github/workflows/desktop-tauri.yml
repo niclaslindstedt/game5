@@ -139,9 +139,6 @@ jobs:
       # ci-models MODELS=off`, no commit needed; unset is on.
       VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
       VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-      VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-      VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-      VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
       # macOS notarization, exactly as release.yml passes it — so a dispatch
       # here is a real rehearsal of the release's macOS half, which is the
       # only way to find out that a certificate or an app-specific password

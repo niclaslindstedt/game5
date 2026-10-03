@@ -3502,45 +3502,15 @@ canvas {
   color: var(--hud-ink);
 }
 
-.skis-topsheets {
+/* The way to the DRESS card, where the topsheet swatches stood: a pair is
+   sold in one topsheet, and what the skier wears is a card of its own. */
+.skis-dress-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.6rem;
-  background: rgb(255 255 255 / 6%);
 }
 
-.skis-topsheet-label {
-  font-size: clamp(0.5rem, 1.8vmin, 0.62rem);
-  letter-spacing: 0.14em;
-  color: var(--hud-ink);
-  opacity: 0.8;
-  margin-right: 0.3rem;
-}
-
-.skis-topsheet {
-  width: clamp(1.4rem, 4.2vmin, 1.9rem);
-  height: clamp(1.4rem, 4.2vmin, 1.9rem);
-  padding: 0;
-  border: 2px solid rgb(255 255 255 / 35%);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.skis-topsheet.is-on {
-  border-color: var(--hud-ink);
-  box-shadow: 0 0 0 2px rgb(0 0 0 / 35%);
-  transform: scale(1.12);
-}
-
-.skis-topsheet-name {
-  min-width: 5.5em;
-  font-size: clamp(0.55rem, 2vmin, 0.72rem);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  color: var(--hud-ink);
-  opacity: 0.8;
+.skis-dress {
+  flex: 1;
+  justify-content: center;
 }
 
 .skis-pick-kind {
@@ -3762,10 +3732,6 @@ canvas {
     width: 5.6rem;
   }
 
-  .skis-topsheets {
-    padding: 0.35rem 0.6rem;
-  }
-
   .skis-pick-stage {
     height: auto;
     min-height: 0;
@@ -3776,6 +3742,47 @@ canvas {
      say what the sentence says. */
   .skis-blurb {
     display: none;
+  }
+}
+
+/* ── THE DRESS CARD (menu-dress.tsx) ──────────────────────────────────────
+   The skier on his stand beside six rows of kit. Side by side where there
+   is the width, the stand over the rows on a phone held upright. */
+.menu-card-dress {
+  width: min(52rem, 100%);
+  gap: 0.6rem;
+}
+
+.dress-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(0.6rem, 2.4vmin, 1.1rem);
+  align-items: stretch;
+}
+
+.dress-stage {
+  position: relative;
+  min-height: clamp(12rem, 42vh, 22rem);
+  border-radius: 0.7rem;
+  border: 2px solid rgb(244 248 251 / 18%);
+  background: linear-gradient(rgb(111 168 220 / 55%), rgb(207 230 247 / 35%) 70%);
+  overflow: hidden;
+}
+
+.dress-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+@media (max-width: 40rem) and (orientation: portrait) {
+  .dress-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dress-stage {
+    min-height: clamp(11rem, 34vh, 16rem);
   }
 }
 

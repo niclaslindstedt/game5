@@ -40,7 +40,6 @@ import {
   withSky,
   type GameState,
   type Level,
-  type SkiId,
   type SkiSpec,
   type SkierState,
   type SkyOverride,
@@ -77,9 +76,10 @@ import {
 import { createRegionPicture } from "./region-picture.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
-import { createSkisModel, SKI_STYLES, styleIn, type SkisModel } from "./skis-body.ts";
+import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { inStartGate } from "./skier-spring.ts";
-import { topsheetOf } from "./ski-topsheets.ts";
+import { outfitKey } from "./dress.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -187,9 +187,8 @@ type Rider = {
   /** The pair the model was built off: a run on another one is a new
    * model, even on the same map and in the same slot. */
   spec: SkiSpec;
-  /** The topsheet it was dressed in (`ski-topsheets.ts`), or -1 for its
-   * start-line slot's own colours. */
-  livery: number;
+  /** The outfit the skier was dressed in (`outfitKey`). */
+  kit: string;
   track: PoseTrack;
   pen: TrailPen;
   drawn: Pose;
@@ -444,21 +443,23 @@ export function createWorldRenderer(
     casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
   });
 
-  /** The player's topsheets, and which one slot 0's model was dressed in. */
-  let liveries: Partial<Record<SkiId, number>> = {};
-  const dressIn = (i: number, spec: SkiSpec): number => (i === 0 ? (liveries[spec.id] ?? 0) : -1);
+  /** The player's outfit: slot 0 wears it, the field its slots' own. */
+  let outfit: Outfit = DEFAULT_OUTFIT;
+  const dressOf = (i: number) =>
+    i === 0 ? { outfit } : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  const kitOf = (i: number): string => {
+    const d = dressOf(i);
+    return outfitKey(d.outfit, d.tone);
+  };
   function riderFor(i: number, spec: SkiSpec): Rider {
-    const slot = SKI_STYLES[i % SKI_STYLES.length];
-    const livery = dressIn(i, spec);
-    const style = livery < 0 ? slot : styleIn(slot, topsheetOf(spec.id, livery));
-    const model = createSkisModel(spec, style, wrap);
+    const model = createSkisModel(spec, pairStyle(spec, dressOf(i)), wrap);
     castInLight(model.root, env.haze);
     model.root.name = "field";
     scene.add(model.root);
     return {
       model,
       spec,
-      livery,
+      kit: kitOf(i),
       track: createTrack(),
       pen: createPen(16),
       drawn: { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } },
@@ -621,7 +622,7 @@ export function createWorldRenderer(
       // chose different skis for a race on the same map — is rebuilt.
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
-        if (riders[i].spec === spec && riders[i].livery === dressIn(i, spec)) continue;
+        if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
         scene.remove(riders[i].model.root);
         riders[i].model.dispose();
         riders[i] = riderFor(i, runs[i].skier.spec);
@@ -888,8 +889,8 @@ export function createWorldRenderer(
       };
     },
 
-    dress(picks) {
-      liveries = { ...picks };
+    dress(kit) {
+      outfit = kit;
     },
     setGhost(run) {
       ghostRun = run;

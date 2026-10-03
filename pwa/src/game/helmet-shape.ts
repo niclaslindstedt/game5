@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HEAD IN ITS SKI HELMET, AS GEOMETRY — three-free arithmetic, so the
-// code's figure (`skier-helmet.ts`) and the Blender model
+// dressed figure (`dress-head.ts`) and the Blender model
 // (`scripts/blender/kinds/skier.mjs` hands this mesh to `skier.py`) draw
 // the one helmet, and the suite can read it. Laid in the head's frame: z
 // forward, y up, x to his right, the origin at the middle of the head.
@@ -36,7 +36,7 @@
 // vents a handful.
 
 /** What each surface is painted as — the code's materials and the
- * model's are picked by it (`skier-helmet.ts`, `skier.py`). */
+ * model's are picked by it (`dress-head.ts`, `skier.py`). */
 export type HelmetMaterial =
   | "shell"
   | "stripe"

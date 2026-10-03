@@ -19,7 +19,7 @@
 //             rode it — its time still travels in the book.
 //   campaign  YES. A board half-ridden on one device and half on another is
 //             the case this whole file exists for.
-//   settings  THE SKIER'S HALF. The camera, the skis, the sound and its
+//   settings  THE SKIER'S HALF. The camera, the skis, the outfit, the sound and its
 //             faders, the keys, the help, damage, the trial's length, the
 //             level card's map, the trick map, the free ride's card, the
 //             HUD switch — a person's preferences. NOT the picture (`video`, `probed`, `autoPicture`: what

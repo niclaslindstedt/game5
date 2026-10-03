@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics turns skis skier helmet skier-metrics blender models model-registry ci-models birds crowd trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -81,6 +81,19 @@ skier:
 helmet:
 	npm run helmet -- $(if $(SLOTS),--slots $(SLOTS),) $(ARGS)
 
+# THE GEAR LAB: the skier in every piece of his kit — the catalog's
+# jackets, pants, helmets, gloves and poles and both bodies, cut on the
+# loom and skinned on the rig — from every side (previews/gear-catalog.png),
+# every start-line outfit (gear-outfits.png), one outfit through the moves
+# (gear-poses.png), at the game's own pixels (gear-game.png), wired and
+# counted (gear-wire.png), beside a modelled skier (gear-compare.png,
+# ARGS=--model=previews/blender/skier0-lod0.glb) and beside local reference
+# photographs never committed (gear-refs.png, ARGS="--sheet=refs --refs=DIR").
+# Its own one-off bundle from pwa/gear-preview.html; needs a Chromium like
+# `world`. SLOTS=jacket,pants the catalog's slots; OUTFITS=0,1 the outfits.
+gear:
+	npm run gear -- $(if $(SLOTS),--slots $(SLOTS),) $(if $(OUTFITS),--outfits $(OUTFITS),) $(ARGS)
+
 # THE SKIER METRICS LAB: is his pose a real skier's? Every move skied by the
 # engine in pure Node, the game's pose measured frame by frame (the knees,
 # the hips, the shins in their boots, the centre of mass over the feet, the
@@ -101,27 +114,27 @@ skier-metrics:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis and the skier, game
-# quality (no stills), made by Blender and published into the COMMITTED
-# pwa/models/ with a stamp of their sources — tests/models_test.ts fails
-# when a model is older than what it is made from. Needs Blender (or the
-# bpy module: scripts/bpy-blender.sh). A build draws them unless switched
-# back (VITE_MODEL_SKIS=0, VITE_MODEL_SKIERS=0). The trees, the wildlife
-# and the course's marks are built in code and have no models.
+# The models the game ships: every pair of skis, game quality (no
+# stills), made by Blender and published into the COMMITTED pwa/models/
+# with a stamp of their sources — tests/models_test.ts fails when a model
+# is older than what it is made from. Needs Blender (or the bpy module:
+# scripts/bpy-blender.sh). A build draws them unless switched back
+# (VITE_MODEL_SKIS=0). The skier (dressed in code, `make gear`), the
+# trees, the wildlife and the course's marks are built in code and have no
+# models; `make blender KIND=skier` still models the skier for the labs.
 models:
 	npm run blender -- --id all --quality=game --views=none
-	npm run blender -- --kind skier --id skier0 --quality=game --views=none
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs
 
 # Switch the models on or off for every CI build — the repository
-# VARIABLES the workflows hand the build (needs gh, and the right to set
-# them): `make ci-models MODELS=off` draws the code-built skis and skier
-# on the next deploy with no commit; MODELS=on (or deleting the variables)
-# puts the models back.
+# VARIABLE the workflows hand the build (needs gh, and the right to set
+# it): `make ci-models MODELS=off` draws the code-built skis on the next
+# deploy with no commit; MODELS=on (or deleting the variable) puts the
+# models back.
 ci-models:
 	@case "$(MODELS)" in \
-	  off) for v in SKIS SKIERS; do gh variable set VITE_MODEL_$$v --body 0 || exit 1; done ;; \
-	  on) for v in SKIS SKIERS; do gh variable set VITE_MODEL_$$v --body 1 || exit 1; done ;; \
+	  off) gh variable set VITE_MODEL_SKIS --body 0 || exit 1 ;; \
+	  on) gh variable set VITE_MODEL_SKIS --body 1 || exit 1 ;; \
 	  *) echo "usage: make ci-models MODELS=on|off" >&2; exit 2 ;; \
 	esac
 	@gh variable list | grep VITE_MODEL || true

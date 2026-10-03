@@ -2,7 +2,7 @@
 # THE SKIER MODELLED IN BLENDER off the game's own data: his body
 # (`BODY`), the pose he is bound in and every bone's frame in it
 # (`skier-rig.ts`'s `STANDING` and `skierBones`), a start-line slot's kit
-# (`SKI_STYLES`), the head in its helmet as the game's own triangles
+# (`SLOT_DRESS`'s colours, `coloursOf`), the head in its helmet as the game's own triangles
 # (`helmet-shape.ts`'s `helmetParts`), and every clip
 # sampled off the game's own `skierPose` — handed in as one JSON file by
 # `scripts/blender.mjs --kind=skier`, the driver and the only way this runs.

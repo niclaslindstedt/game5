@@ -37,7 +37,7 @@ import { skisById, type SkierState, type TrickPose } from "@engine";
 
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
-import { createSkisModel, SKI_STYLES, type SkisModel } from "../game/skis-body.ts";
+import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
 import { drawPath } from "./skier-path.ts";
 
 type Frame = {
@@ -137,7 +137,8 @@ async function load(): Promise<void> {
   ]);
   data = frames;
   const plain = <M extends THREE.Material>(m: M): M => m;
-  model = createSkisModel(skisById(data.skis), SKI_STYLES[data.slot % SKI_STYLES.length], plain);
+  const spec = skisById(data.skis);
+  model = createSkisModel(spec, pairStyle(spec, SLOT_DRESS[data.slot % SLOT_DRESS.length]), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });
@@ -353,7 +354,7 @@ function drawDetail(): Drawn {
     const { heading } = settle(moment);
     model.root.updateMatrixWorld(true);
     DETAIL.forEach(([name, bone, off], col) => {
-      const b = model.root.getObjectByName("model-skier")?.getObjectByName(bone);
+      const b = model.root.getObjectByName("dressed")?.getObjectByName(bone);
       if (!b) return;
       b.getWorldPosition(at);
       const fx = Math.sin(heading);
@@ -522,7 +523,7 @@ function drawStretch(): Drawn {
     }
     // Every skinned mesh, laid in the world and coloured.
     const bad: Record<string, [number, number]> = {};
-    const skier = model.root.getObjectByName("model-skier");
+    const skier = model.root.getObjectByName("dressed");
     skier?.traverse((o) => {
       if (!(o instanceof THREE.SkinnedMesh) || !o.visible) return;
       const g = o.geometry;

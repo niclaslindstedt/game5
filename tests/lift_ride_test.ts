@@ -14,15 +14,18 @@ import {
   NEUTRAL_INPUT,
   TUNING,
   angleDiff,
+  chairLane,
   createGame,
   liftPlans,
   standSkier,
+  stationHouses,
   step,
   type GameEvent,
   type GameState,
   type LiftPlan,
   type SkierInput,
 } from "@engine";
+import { signsOf } from "../pwa/src/game/station-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -69,15 +72,22 @@ describe("riding a lift on a free ride", () => {
     step(run, NEUTRAL_INPUT);
     expect(run.skier.lift?.phase).toBe("board");
     let highest = 0;
+    let lowest = Infinity;
     const events = ride(run, 600, (r) => {
       const c = r.skier;
-      if (c.lift?.phase === "ride") highest = Math.max(highest, c.y - level.groundAt(c.x, c.z));
+      if (c.lift?.phase === "ride") {
+        highest = Math.max(highest, c.y - level.groundAt(c.x, c.z));
+        // Once sat: the chair scoops him up off the load line first.
+        if (c.lift.t > TUNING.lift.scoop) lowest = Math.min(lowest, c.y - level.groundAt(c.x, c.z));
+      }
       return c.lift === null;
     });
     const off = events.find((e) => e.kind === "lift" && e.phase === "off");
     expect(off).toBeDefined();
-    // Carried clear of the snow out on the line…
+    // Carried clear of the snow out on the line, and down to the ramp sat
+    // with his skis on it, never in it…
     expect(highest).toBeGreaterThan(4);
+    expect(lowest).toBeGreaterThan(TUNING.lift.sit - 1e-6);
     // …and stood up over the ramp, LIFT_LOOK's `off` short of the top.
     const c = run.skier;
     const fromTop = Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z);
@@ -196,6 +206,44 @@ describe("a free ride begun on a lift", () => {
     const near = Math.min(...r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z)));
     expect(near).toBeLessThan(25);
     expect(c.thrown).toBeNull();
+  });
+
+  it("leads him straight down the lane off the ramp, then the way the signs point, never through the house", () => {
+    const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
+    const lead = run.skier.lift!;
+    const plan = plans[lead.index];
+    const lane = chairLane(plan);
+    const houses = plans.flatMap((p) => stationHouses(level, p));
+    const frame = (x: number, z: number) => ({
+      u: (x - plan.lift.bottom.x) * plan.dx + (z - plan.lift.bottom.z) * plan.dz,
+      v: (x - plan.lift.bottom.x) * plan.dz - (z - plan.lift.bottom.z) * plan.dx,
+    });
+    const way = signsOf(level, plan).find((s) => s.run === resort.runs[lead.lead!.run].id)!.way;
+    let laned = 0;
+    let parted = false;
+    let turned = 0;
+    ride(run, 120, (r) => {
+      const c = r.skier;
+      if (c.lift?.phase !== "lead") return c.lift === null;
+      // Never inside a station house.
+      for (const h of houses) {
+        const a = (c.x - h.x) * h.plan.dx + (c.z - h.z) * h.plan.dz;
+        const b = (c.x - h.x) * h.plan.dz - (c.z - h.z) * h.plan.dx;
+        expect(Math.max(Math.abs(a) - h.halfLength, Math.abs(b) - h.halfWidth)).toBeGreaterThan(0);
+      }
+      const { u, v } = frame(c.x, c.z);
+      // Down the lane to the parting…
+      if (u >= lane.exit - TUNING.lift.turnIn) parted = true;
+      if (!parted && u > plan.length) {
+        expect(Math.abs(v - lane.v)).toBeLessThan(1.5);
+        laned++;
+      }
+      // …and off it the way his run's sign points.
+      if (turned === 0 && Math.abs(v - lane.v) > 6) turned = Math.sign(v - lane.v);
+      return false;
+    });
+    expect(laned).toBeGreaterThan(0);
+    expect(turned).toBe(way);
   });
 
   it("hands the skis back at the first touch of a control", () => {

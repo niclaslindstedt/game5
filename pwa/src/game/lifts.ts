@@ -37,10 +37,11 @@ import {
   carrierCount,
   planLift,
   ropeAt,
+  stationHouses,
   type LiftKind,
   type LiftPlan,
 } from "@engine";
-import { CHAIR_SEAT } from "./skier-seat.ts";
+import { CHAIR_BACK, CHAIR_SEAT } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
@@ -73,12 +74,26 @@ export type Lifts = {
   /** Move what moves — the chairs, the cabins and the T-bars on the rope,
    * the wind tunnels' fans, streaks and lights — to the engine's clock;
    * with the player on a lift (`SkierState.lift`), his own chair hung
-   * under him where he is drawn. */
-  update(t: number, rider?: LiftRide | null, drawn?: RiderPose | null): void;
+   * under him where he is drawn — and once he is off it, running on empty,
+   * left out of the frame while it stands between the lens (`eye`) and
+   * him. */
+  update(
+    t: number,
+    rider?: LiftRide | null,
+    drawn?: RiderPose | null,
+    eye?: { x: number; y: number; z: number },
+  ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
   dispose(): void;
 };
+
+/** A chair's box under its grip, m: half its depth and width, and how far
+ * it hangs (`chairGeometry`). */
+const CHAIR_BOX = { halfAlong: 0.55, halfAcross: 1.2, drop: 2.95 };
+/** Where on him the lens looks, m over his origin, for whether the empty
+ * chair stands in the way; the samples along that sight. */
+const SIGHT = { up: 0.4, samples: 12 };
 
 /** Where the rider is drawn between two steps: his origin and his turn. */
 export type RiderPose = {
@@ -110,7 +125,7 @@ function chairGeometry(): THREE.BufferGeometry {
     box(0.1, 0.1, 0.5, 0, -0.25, -0.22, PAINT.dark),
     box(0.1, 1.85, 0.1, 0, -1.15, -0.46, PAINT.dark),
     box(2.3, 0.08, 0.08, 0, -2.05, -0.46, PAINT.dark),
-    box(2.2, 0.7, 0.09, 0, -2.08, -0.38, PAINT.seat),
+    box(2.2, 0.7, 0.09, 0, -2.08, CHAIR_BACK - 0.045, PAINT.seat),
     box(2.2, 0.11, 0.58, 0, 0.055 - CHAIR_SEAT, -0.08, PAINT.seat),
     box(2.3, 0.07, 0.07, 0, -2.53, -0.08, PAINT.dark),
     box(2.2, 0.05, 0.05, 0, -1.85, 0.42, PAINT.dark),
@@ -161,7 +176,12 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
     for (const m of mats) m.dispose();
     for (const m of meshes) m.dispose();
   };
-  const done: Lifts = { group, update: tunnels.update, setBudget: tunnels.setBudget, dispose };
+  const done: Lifts = {
+    group,
+    update: tunnels.update,
+    setBudget: tunnels.setBudget,
+    dispose,
+  };
   if (lifts.length === 0) return done;
   const plans = lifts.map((l) => planLift(level, l));
   const std = (p: THREE.MeshStandardMaterialParameters, name: string) => {
@@ -250,8 +270,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
     });
   }
 
-  // THE STATIONS: a house behind each end of the line, its roof, and the
-  // bullwheel flat at the rope's height over the end itself.
+  // THE STATIONS: a house at each end of the line (`stationHouses`), its
+  // roof, and the bullwheel flat at the rope's height over the end itself.
   const houseGeo = new THREE.BoxGeometry(1, 1, 1);
   houseGeo.translate(0, 0.5, 0);
   const roofGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -264,67 +284,35 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
     base: number;
     top: number;
     p: LiftPlan;
+    width: number;
+    length: number;
     wheelX: number;
     wheelZ: number;
     wheelY: number;
   };
-  const stations: End[] = [];
-  for (const p of plans) {
-    const h = p.look.house;
-    for (const s of [p.supports[0], p.supports[p.supports.length - 1]]) {
-      // Behind the wheel: down the line from the bottom one, up it from
-      // the top one.
-      const away = s.u === 0 ? -1 : 1;
-      const cx = s.x + p.dx * away * (h.length / 2 + 1.5);
-      const cz = s.z + p.dz * away * (h.length / 2 + 1.5);
-      // On a slope the house is footed on its lowest corner and stands to
-      // its height over the snow at its middle.
-      let lo = Infinity;
-      for (const a of [-1, 1]) {
-        for (const b of [-1, 1]) {
-          const x = cx + p.dx * a * (h.length / 2) + p.dz * b * (h.width / 2 + p.look.gauge / 2);
-          const z = cz + p.dz * a * (h.length / 2) - p.dx * b * (h.width / 2 + p.look.gauge / 2);
-          lo = Math.min(lo, level.groundAt(x, z));
-        }
-      }
-      const mid = level.groundAt(cx, cz);
-      stations.push({
-        x: cx,
-        z: cz,
-        base: lo - 0.5,
-        top: mid + h.height,
-        p,
-        wheelX: s.x,
-        wheelZ: s.z,
-        wheelY: s.ground + s.rope,
-      });
-    }
-  }
+  const stations: End[] = plans.flatMap((p) =>
+    stationHouses(level, p).map((h) => ({
+      x: h.x,
+      z: h.z,
+      base: h.base,
+      top: h.top,
+      p,
+      width: h.halfWidth * 2,
+      length: h.halfLength * 2,
+      wheelX: h.wheel.x,
+      wheelZ: h.wheel.z,
+      wheelY: h.wheel.ground + h.wheel.rope,
+    })),
+  );
   instanced(houseGeo, plain, ends, (set) => {
     for (const e of stations) {
-      const h = e.p.look.house;
       const walls = e.p.lift.kind === "gondola" ? PAINT.walls : PAINT.timber;
-      set(
-        e.x,
-        e.base,
-        e.z,
-        e.p.heading,
-        size.set(h.width + e.p.look.gauge, e.top - e.base, h.length),
-        walls,
-      );
+      set(e.x, e.base, e.z, e.p.heading, size.set(e.width, e.top - e.base, e.length), walls);
     }
   });
   instanced(roofGeo, plain, ends, (set) => {
     for (const e of stations) {
-      const h = e.p.look.house;
-      set(
-        e.x,
-        e.top,
-        e.z,
-        e.p.heading,
-        size.set(h.width + e.p.look.gauge + 1.2, 0.45, h.length + 1.2),
-        PAINT.roof,
-      );
+      set(e.x, e.top, e.z, e.p.heading, size.set(e.width + 1.2, 0.45, e.length + 1.2), PAINT.roof);
     }
   });
   instanced(wheelGeo, plain, ends, (set) => {
@@ -458,7 +446,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   const hide = m4.compose(zero, q.identity(), zero).clone();
   /** Every carrier where the clock has it; the one a rider sits in is his
    * own chair's (`ridden`). */
-  function moveCarriers(t: number, rider: LiftRide | null): void {
+  function moveCarriers(t: number, rider: { index: number; u: number } | null): void {
     const seat = (h: THREE.InstancedMesh | null, list: Carrier[]) => {
       if (!h) return;
       list.forEach((c, n) => {
@@ -512,18 +500,86 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   }
   moveCarriers(0, null);
 
-  done.update = (t, rider, drawn) => {
+  // THE CHAIR HE GOT OFF runs on empty round to the wheel at the terminal's
+  // slow speed — the clock's chairs stay hidden about it — and is gone
+  // where every chair is, into the hood short of the wheel.
+  let seatedOn: { index: number; u: number } | null = null;
+  let empty: { index: number; u: number; t: number } | null = null;
+  const emptyAt = (t: number): { plan: LiftPlan; u: number } | null => {
+    if (!empty) return null;
+    const plan = plans[empty.index];
+    const u = empty.u + plan.look.slow * (t - empty.t);
+    return u < plan.length - 2 && t >= empty.t ? { plan, u } : null;
+  };
+  /** Whether the sight from `eye` to (x, y, z) passes through the chair
+   * hung from a grip at (gx, gy, gz) facing up `plan`'s line. */
+  const blocks = (
+    eye: { x: number; y: number; z: number },
+    x: number,
+    y: number,
+    z: number,
+    plan: LiftPlan,
+    gx: number,
+    gy: number,
+    gz: number,
+  ): boolean => {
+    for (let i = 1; i < SIGHT.samples; i++) {
+      const k = i / SIGHT.samples;
+      const px = eye.x + (x - eye.x) * k - gx;
+      const py = eye.y + (y - eye.y) * k;
+      const pz = eye.z + (z - eye.z) * k - gz;
+      const along = px * plan.dx + pz * plan.dz;
+      const across = px * plan.dz - pz * plan.dx;
+      if (
+        py < gy &&
+        py > gy - CHAIR_BOX.drop &&
+        Math.abs(along) < CHAIR_BOX.halfAlong &&
+        Math.abs(across) < CHAIR_BOX.halfAcross
+      )
+        return true;
+    }
+    return false;
+  };
+
+  done.update = (t, rider, drawn, eye) => {
     tunnels.update(t);
-    moveCarriers(t, rider?.phase === "ride" || rider?.phase === "board" ? rider : null);
+    const sat = rider?.kind === "chair" && rider.phase === "ride";
+    if (sat) {
+      seatedOn = { index: rider.index, u: rider.u };
+      empty = null;
+    } else if (seatedOn) {
+      empty = { ...seatedOn, t };
+      seatedOn = null;
+    }
+    const runOn = emptyAt(t);
+    if (!runOn) empty = null;
+    moveCarriers(
+      t,
+      rider?.phase === "ride" || rider?.phase === "board"
+        ? rider
+        : runOn && empty
+          ? { index: empty.index, u: runOn.u }
+          : null,
+    );
     // His own chair, hung from the grip over him: in the body's frame, the
-    // grip `lift.seat` up from his origin.
-    const seated = rider?.kind === "chair" && rider.phase === "ride" && drawn;
-    ridden.visible = !!seated;
+    // grip `lift.seat` up from his origin — or running on without him.
+    const seated = sat && drawn;
+    ridden.visible = !!seated || !!runOn;
     if (seated) {
       riderQ.set(drawn.q.x, drawn.q.y, drawn.q.z, drawn.q.w);
       lift.set(0, TUNING.lift.seat, 0).applyQuaternion(riderQ);
       ridden.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);
       ridden.quaternion.copy(riderQ);
+    } else if (runOn) {
+      const { plan, u } = runOn;
+      const o = ropesOf(plan)[0];
+      const x = plan.lift.bottom.x + plan.dx * u + plan.dz * o;
+      const z = plan.lift.bottom.z + plan.dz * u - plan.dx * o;
+      const y = ropeAt(plan, u);
+      ridden.position.set(x, y, z);
+      ridden.quaternion.setFromAxisAngle(up, plan.heading);
+      if (eye && drawn && blocks(eye, drawn.x, drawn.y + SIGHT.up, drawn.z, plan, x, y, z))
+        ridden.visible = false;
     }
   };
 

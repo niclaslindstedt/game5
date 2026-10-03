@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -208,6 +208,17 @@ birds:
 # ARGS="--sheet=figures --bodies=child,oldWoman".
 crowd:
 	npm run crowd -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE LIFT RIDE LAB: a free ride begun on the chairlift, carried to the
+# top, stood off down the unload ramp and its lane past the station house,
+# turned at the signs and led onto its run — ridden unbroken at sixty
+# frames a second through the game's renderer and camera, so the lens's
+# springs are the ones a player sees, and photographed at moments round the
+# unload into one sheet, previews/lift-ride-<seed>.png. Its own one-off
+# bundle from pwa/lift-ride-preview.html (never deployed); needs a Chromium
+# like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
+lift-ride:
+	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

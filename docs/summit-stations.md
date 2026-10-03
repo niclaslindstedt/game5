@@ -64,11 +64,24 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   he turns. The runs off a top leave from the pad's EDGES — their starts and
   first stretch keep 25 m off its middle, and a lane's route keeps off it.
   Every map builds it, the campaign's included (generator v4).
+- **The way off a chair's top (`chairLane`, `CHAIR_EXIT`)** — the rider
+  stands up at the unload point and slides STRAIGHT ON down the ramp, a step
+  out of the chair's way into a LANE 2.4 m outside the up rope, clear of the
+  chairs swinging round the wheel. The machine house stands on the lane's
+  outer side, 2.2 m clear of it, ending a step short of the PARTING 3 m past
+  the wheel, where the paths go off either way across the pad. Across the far
+  side of the way, 14 m past the wheel and facing up it, stand the RUN SIGNS
+  (`signsOf`): a post and an arrow board a run off the top, in its grade's
+  colour, pointing the way it leaves — those to the house's side above those
+  across the line. Nobody picks a run on the ramp; the signs are read coming
+  down the lane.
 - **The stations drawn (`station-plan.ts`, `station-parts.ts`, `lifts.ts`)** —
-  at a chair's top the terminal's hood over the wheel, the machine room, the
-  operator's booth beside the unload with glass all round, the stop gate, the
-  orange netting round the wheel, the wind mast; on the highest top the patrol
-  hut and the map board. At a chair's foot the hood, the booth by the load
+  at a chair's top the terminal's hood over the wheel, the machine house beside
+  the way off, the operator's booth behind it with glass all round, the stop
+  gate's bar hung over the chairs' path short of the wheel (for a rider who
+  did not get off, clear of the lane), the orange netting between the lane and
+  the wheel and on its other side, the run signs, the wind mast on the house's
+  far corner; on the highest top the patrol hut and the map board. At a chair's foot the hood, the booth by the load
   line, the blue load line across the up rope's lane and the roped corral
   bringing a skier in on the diagonal past the house; a gondola's station door
   with its canopy and corral; a drag's hut, corral and track board.
@@ -85,12 +98,24 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   (pulled up it standing on the skis and let go short of the top wheel).
 - **The ride up** — a chair rides at line speed, its hanger a pendulum: a
   lurch of a few degrees as the grip runs over each tower's sheaves, a swing
-  forward as it slows into the top terminal; the rider is stood up at the
-  unload point and sent down the ramp on the diagonal, clear of the chairs
-  round the wheel. A free ride STARTS on one: seated a span or two below the
-  top of the chair whose run passes nearest the spot picked (among the runs a
-  rider can drop onto from its pad), led round on the pad and over its lip
-  onto that run, and from the first touch of a control the skis are his.
+  forward as it slows into the top terminal, coming down to the ramp with his
+  skis just on the snow, never through it; the rider sits back against the
+  chair's backrest, and is stood up at the unload point and sent straight on
+  down the ramp into the lane. The chair he got off runs on empty round to
+  the wheel. A free ride STARTS on one: seated a span or two below the top of
+  the chair whose run passes nearest the spot picked (among the runs a rider
+  can drop onto from its pad), then LED — down the lane at a glide, turned at
+  the parting the way his run's sign points, round the house if the run lies
+  behind it, across the pad and over its lip onto that run — and from the
+  first touch of a control the skis are his.
+- **The lens on a lift (`camera-lift.ts`)** — carried up a chair the chase
+  boom comes in close behind him and a little over his head, level, the
+  chair's back and hanger in the frame's foot and the rope running on up to
+  the top station ahead; it holds there through the stand-up, the ramp and
+  the lane, and opens out to the chase over the lead onto the run. The empty
+  chair is left out of the frame while it stands between the lens and him.
+  `make lift-ride` rides the whole sequence unbroken at sixty frames a second
+  and photographs it round the unload.
 - **The drop (`camera-summit.ts`, `camera-rigs.ts`)** — on a top station's
   pad and over its lip the chase lens is held near level instead of leaning
   with the face, its height hung on the softer in-flight spring and its fov

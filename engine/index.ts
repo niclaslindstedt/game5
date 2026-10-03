@@ -263,7 +263,10 @@ export {
   carrierAt,
   carrierCount,
   carrierPassing,
+  CHAIR_EXIT,
+  chairLane,
   liftPlans,
+  stationHouses,
   queueLane,
   queueSpot,
   QUEUE_GAP,
@@ -273,6 +276,7 @@ export {
   type LiftKind,
   type LiftLook,
   type LiftPlan,
+  type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
 export { arriveByLift, leadInput, seatedShare, stepLift } from "./game/lift-ride.ts";

@@ -25,7 +25,7 @@
 // `createTrunksNear` (`camera-rigs.ts`'s `repel`). The planted lenses (the
 // broadcast, the death cam) pull in for the trees as well.
 
-import { treesNear, type Level } from "@engine";
+import { liftPlans, stationHouses, treesNear, type Level, type StationHouse } from "@engine";
 
 import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
@@ -96,6 +96,10 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     }
   });
 
+  // Every lift's station houses: a lens carried up a chair and led off its
+  // top past the house is pulled in short of the wall, never through it.
+  const houses: StationHouse[] = liftPlans(level).flatMap((p) => stationHouses(level, p));
+
   const near: number[] = [];
 
   const inside = (x: number, y: number, z: number): boolean => {
@@ -112,6 +116,15 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     for (const p of posts) {
       if (y < p.y0 || y > p.y1 + LENS_PAD) continue;
       if (Math.hypot(x - p.x, z - p.z) < p.r + LENS_PAD) return true;
+    }
+    for (const h of houses) {
+      if (y < h.base || y > h.top + LENS_PAD) continue;
+      const dx = x - h.x;
+      const dz = z - h.z;
+      const along = dx * h.plan.dx + dz * h.plan.dz;
+      const across = dx * h.plan.dz - dz * h.plan.dx;
+      if (Math.abs(along) < h.halfLength + LENS_PAD && Math.abs(across) < h.halfWidth + LENS_PAD)
+        return true;
     }
     const b = banner as Banner | null;
     if (b && y > b.y0 - LENS_PAD && y < b.y1 + LENS_PAD) {

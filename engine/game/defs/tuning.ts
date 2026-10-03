@@ -884,13 +884,15 @@ export const TUNING = {
    * The rope's slowing into the top terminal, m/s², and its pick-up off
    * the load line, m/s²; how far down the hanger from the grip a chair's
    * rider (`seat`) and a cabin's (`cabin`) has his body's origin, m, and
-   * each hanger's swinging length, m; the swing's damping, 1/s, the most
+   * each hanger's swinging length, m; the least a chair carries its rider's
+   * origin over the snow, m (`sit`: sat with his skis just on it, where the
+   * chair comes down to the ramp — his CoG's height over his skis); the swing's damping, 1/s, the most
    * it swings, rad, and the kick a tower's bend in the rope gives it, rad/s
    * per unit of slope change read `bend` m either side (to `kickMost`
    * rad/s — a lurch of a few degrees); how long a chair
    * scoops a rider up, s; the way a chair stands him up with on the ramp,
-   * turned `ramp` rad off the line to the up rope's side (the ramp runs
-   * off on the diagonal, clear of the chairs round the wheel),
+   * turned `ramp` rad off the line to the up rope's side (a step out of
+   * the chair's way into the lane straight on off the ramp, `chairLane`),
    * a cabin walks him out with, m/s, and how far short of the top the
    * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the chair's ride
    * starts `before` m short of its last tower, held to `rideLeast`..
@@ -902,14 +904,20 @@ export const TUNING = {
    * other), aims `aim` m on down it, steers `steer` per rad
    * off it, pushes on the poles under `push` m/s and reads the run `window`
    * m on and `back` m back of his last place; a control past `touch` takes
-   * it. */
+   * it; it rounds a station house with `houseGap` m to spare, and off a
+   * chair keeps him in the way off's lane (`chairLane`, `laneWide` m either
+   * side of its line) aiming `laneAim` m
+   * on down it at a glide (poled under `lanePush` m/s, checked over
+   * `laneSpeed` m/s — and so across the pad, `padNear` m of the top),
+   * turning for his run `turnIn` m short of the parting */
   lift: {
     decel: 0.8,
     accel: 1.2,
-    seat: 2.3,
+    seat: 1.85,
     cabin: 3.6,
     chairHang: 2.4,
     cabinHang: 4.0,
+    sit: 1.0,
     damp: 0.45,
     swingMost: 0.3,
     kick: 1.5,
@@ -917,7 +925,7 @@ export const TUNING = {
     bend: 3,
     scoop: 0.8,
     standUp: 2.2,
-    ramp: 0.55,
+    ramp: 0.3,
     walkOut: 1.5,
     door: 10,
     before: 30,
@@ -928,13 +936,21 @@ export const TUNING = {
     joinFar: 120,
     noJoin: 2000,
     leadFar: 90,
-    leadFor: 16,
+    leadFor: 26,
     aim: 14,
     steer: 2.2,
     push: 6,
     window: 40,
     back: 6,
     touch: 0.15,
+    houseGap: 2,
+    laneAim: 6,
+    laneWide: 3,
+    turnIn: 1,
+    laneSpeed: 2,
+    lanePush: 1.5,
+    padNear: 10,
+    cutHarder: 0.4,
   },
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */

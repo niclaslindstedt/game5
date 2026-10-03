@@ -9,7 +9,7 @@
 // his back on the backrest, his hands on his thighs and the poles held
 // upright beside his knees. The boots stay where the skis have them — the
 // pair hangs under him as it stood under him — so the HIPS go to the seat:
-// back by a thigh off the boots and down onto the seat's top, the trunk
+// back against the chair's backrest and down onto the seat's top, the trunk
 // carried with them and stood up off its lean, the knees solved again over
 // the cuffs and the arms brought in to the thighs. `share` blends it in, so
 // a chair scooping him off the load line sits him down rather than
@@ -27,22 +27,24 @@ import { solveLimb } from "./skier-limbs.ts";
 import type { Mounts } from "./skier-mounts.ts";
 import type { V3 } from "./skier-vec.ts";
 
-/** How far the chair's seat top hangs under its grip on the rope, m — the
- * chair's own (`lifts.ts` builds it to this). */
+/** How far the chair's seat top hangs under its grip on the rope, m, and
+ * where its backrest's face stands, m along the way he faces from under
+ * the grip (behind it) — the chair's own (`lifts.ts` builds it to these). */
 export const CHAIR_SEAT = 2.4;
+export const CHAIR_BACK = -0.335;
 
 /** The seat as the pose needs it: how seated he is, 0..1, and the seat's
  * top in the body frame, m. */
 export type Seat = { share: number; y: number };
 
 /** The hip joints over the seat's top, m — the pelvis sat on it; how far
- * back of the cuffs the hips sit, in thighs (one along the seat; read at
- * the call, the two modules importing each other); the trunk's
+ * ahead of the backrest's face the hips sit, m (the seat and the back of
+ * him between — sat back against it, never in it); the trunk's
  * lean back against the backrest, rad (negative: back); where the hands
  * rest along the thigh from the knee, and over it, m; and how far ahead of
  * its fist a pole held upright stands its basket, m. */
 const PELVIS = 0.11;
-const BACK = 0.95;
+const BACK = 0.17;
 const SIT_PITCH = -0.08;
 const HAND_ALONG = 0.3;
 const HAND_OVER = 0.07;
@@ -56,8 +58,7 @@ function lerp(a: V3, b: V3, k: number): V3 {
 export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
   const k = Math.max(0, Math.min(1, seat.share));
   if (k <= 0) return p;
-  const footZ = Math.min(p.feet[0].z, p.feet[1].z);
-  const hipsTo = { x: 0, y: seat.y + PELVIS, z: footZ - BACK * BODY.thigh };
+  const hipsTo = { x: 0, y: seat.y + PELVIS, z: CHAIR_BACK + BACK };
   // Stood up off his lean, about the hips, the whole trunk rigid.
   const back = (p.pitch - SIT_PITCH) * k;
   const cos = Math.cos(back);

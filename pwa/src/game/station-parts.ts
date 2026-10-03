@@ -3,12 +3,13 @@
 // built in boxes like the rest of the lifts and coloured per vertex, ONE
 // INSTANCED DRAW A KIND for the whole resort: the terminal hoods, the
 // operators' booths, the stop gates, the wind masts, the patrol hut, the map
-// board, the load lines, the stations' doors and canopies, the drag huts,
+// board, the run signs at a chair top's parting, the load lines, the stations' doors and canopies, the drag huts,
 // and the fences — the orange netting and the corrals' rope lines on their
 // poles.
 
 import * as THREE from "three";
 
+import { GRADE_LOOK } from "./grade-look.ts";
 import type { Fence, Part, PartKind, StationLayout } from "./station-plan.ts";
 
 /** The paints, sRGB. */
@@ -142,6 +143,13 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
       box(0.12, 1.0, 0.02, 0.6, 1.8, 0.13, P.dark),
       box(2.6, 0.12, 0.3, 0, 2.66, 0.05, P.roof),
     ]),
+  // The signs' post at the parting off a chair's top.
+  signpost: () =>
+    merged([box(0.16, 3.0, 0.16, 0, 1.5, 0, P.timber), box(0.32, 0.06, 0.32, 0, 3.02, 0, P.roof)]),
+  // A run's sign, white and two-faced: the arrow pointing its +x off the
+  // post. Its board in the run's grade's colour is laid on per grade
+  // (`signBoard`).
+  sign: () => signBoard(P.white),
   // The load line: a blue board laid across the lane, flush with the snow.
   load: () => merged([box(1, 0.04, 0.35, 0, 0.02, 0, P.load)]),
   // A station's door: the dark doorway and its frame, standing proud of
@@ -164,6 +172,21 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
       box(2.7, 0.25, 2.7, 0, 2.3, 0, P.roof),
     ]),
 };
+
+/** A run's arrow board in `paint`, standing off its post along +x at the
+ * part's height: the board, its arrowhead stepped down to a point, a white
+ * shaft across both faces. */
+function signBoard(paint: number): THREE.BufferGeometry {
+  return merged([
+    box(1.4, 0.42, 0.06, 0.82, 0, 0, paint),
+    box(0.18, 0.32, 0.06, 1.61, 0, 0, paint),
+    box(0.14, 0.2, 0.06, 1.77, 0, 0, paint),
+    box(0.08, 0.1, 0.06, 1.88, 0, 0, paint),
+    box(0.9, 0.08, 0.072, 0.8, 0, 0, P.white),
+    box(0.14, 0.22, 0.072, 1.3, 0, 0, P.white),
+    box(0.08, 0.11, 0.072, 1.41, 0, 0, P.white),
+  ]);
+}
 
 /** A hood, a canopy and a load line are scaled across to their width. */
 const WIDE: ReadonlySet<PartKind> = new Set(["hood", "canopy", "load"]);
@@ -208,15 +231,19 @@ export function buildStations(
     meshes.push(mesh);
     group.add(mesh);
   };
-  const byKind = new Map<PartKind, Part[]>();
+  // A run's sign is drawn in its grade's colour: one set per grade.
+  const byKind = new Map<string, Part[]>();
   for (const part of layout.parts) {
-    const list = byKind.get(part.kind) ?? [];
+    const key = part.kind === "sign" && part.grade ? `sign:${part.grade}` : part.kind;
+    const list = byKind.get(key) ?? [];
     list.push(part);
-    byKind.set(part.kind, list);
+    byKind.set(key, list);
   }
-  for (const [kind, list] of byKind) {
+  for (const list of byKind.values()) {
+    const kind = list[0].kind;
+    const grade = list[0].grade;
     add(
-      BUILD[kind](),
+      kind === "sign" && grade ? signBoard(GRADE_LOOK[grade].stake) : BUILD[kind](),
       list.map((p) => ({
         p: at.clone().set(p.x, p.y, p.z),
         yaw: p.yaw,

@@ -193,11 +193,12 @@ function ropeBetween(a: Support, b: Support, sag: number, u: number): number {
 /** The clearance the rope owes the snow `u` m up a line `length` long: the
  * whole of it out on the line, and less near a station, where the rope
  * comes down to its bullwheel and the carriers to the snow. */
-function owed(look: LiftLook, length: number, u: number): number {
+function owed(look: LiftLook, kind: LiftKind, length: number, u: number): number {
   const near = Math.min(u, length - u);
   // Over the load line and the unload ramp the carriers come down to a
-  // skier's height on purpose.
-  if (near < look.off + 6) return 0;
+  // skier's height on purpose — a chair's seat or a cabin's floor to the
+  // snow, never through it; a drag's rope only ever over it.
+  if (near < look.off + 6) return kind === "drag" ? 0 : look.hang;
   return Math.min(look.hang + look.under, look.wheel * 0.8 + near * 0.15);
 }
 
@@ -250,7 +251,8 @@ export function planLift(level: Level, lift: Lift): LiftPlan {
       const b = supports[i + 1];
       if (given.has(a)) continue;
       for (let u = a.u + PROBE; u < b.u; u += PROBE) {
-        const lack = owed(look, length, u) - (ropeBetween(a, b, look.sag, u) - at(u).ground);
+        const lack =
+          owed(look, lift.kind, length, u) - (ropeBetween(a, b, look.sag, u) - at(u).ground);
         if (lack > worst) {
           worst = lack;
           where = u;
@@ -276,6 +278,82 @@ export function planLift(level: Level, lift: Lift): LiftPlan {
     if (!raised) given.add(a);
   }
   return { lift, look, length, dx, dz, heading: Math.atan2(dx, dz), supports };
+}
+
+/** THE WAY OFF A CHAIR'S TOP (`docs/summit-stations.md`): stood up at the
+ * unload, a rider slides straight on down the ramp in a LANE `out` m
+ * outside the up rope — clear of the chairs swinging round the wheel — to
+ * the PARTING `exit` m past the wheel, where the paths go off either way
+ * across the pad in front of the SIGNS `signs` m past it. The top's HOUSE
+ * stands on the lane's outer side, `house` m clear of it, ending a step
+ * short of the parting. */
+export const CHAIR_EXIT = { out: 2.4, exit: 3, signs: 14, house: 2.2 } as const;
+
+/** A chair top's way off, in the line's frame (`u` m up it from the
+ * bottom, `v` m to the up rope's side): the lane's `v`, the parting's
+ * `u`, the signs' `u`. */
+export function chairLane(plan: LiftPlan): { v: number; exit: number; signs: number } {
+  return {
+    v: plan.look.gauge / 2 + CHAIR_EXIT.out,
+    exit: plan.length + CHAIR_EXIT.exit,
+    signs: plan.length + CHAIR_EXIT.signs,
+  };
+}
+
+/** A STATION'S HOUSE as it stands: its middle on the snow, its foot and its
+ * roof's underside, m, and its half-width across the line and half-length
+ * along it. Behind the wheel, about the ropes, down the line from a
+ * bottom station and up it from a gondola's or a drag's top; at a chair's
+ * top beside the way off (`CHAIR_EXIT`), so a rider stood off the chair
+ * slides on past it. On a slope it is footed on its lowest corner and
+ * stands to its height over the snow at its middle. What `lifts.ts` draws
+ * and the lens is kept out of. */
+export type StationHouse = {
+  x: number;
+  z: number;
+  base: number;
+  top: number;
+  halfWidth: number;
+  halfLength: number;
+  plan: LiftPlan;
+  wheel: Support;
+};
+
+export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
+  const h = plan.look.house;
+  const halfLength = h.length / 2;
+  return [plan.supports[0], plan.supports[plan.supports.length - 1]].map((s) => {
+    const top = s.u !== 0;
+    const beside = top && plan.lift.kind === "chair";
+    const halfWidth = beside ? h.width / 2 : (h.width + plan.look.gauge) / 2;
+    // Along the line from the wheel, and across it.
+    const along = beside ? CHAIR_EXIT.exit - 0.5 - halfLength : (top ? 1 : -1) * (halfLength + 1.5);
+    const across = beside ? chairLane(plan).v + CHAIR_EXIT.house + halfWidth : 0;
+    const x = s.x + plan.dx * along + plan.dz * across;
+    const z = s.z + plan.dz * along - plan.dx * across;
+    let lo = Infinity;
+    for (const a of [-1, 1]) {
+      for (const b of [-1, 1]) {
+        lo = Math.min(
+          lo,
+          level.groundAt(
+            x + plan.dx * a * halfLength + plan.dz * b * halfWidth,
+            z + plan.dz * a * halfLength - plan.dx * b * halfWidth,
+          ),
+        );
+      }
+    }
+    return {
+      x,
+      z,
+      base: lo - 0.5,
+      top: level.groundAt(x, z) + h.height,
+      halfWidth,
+      halfLength,
+      plan,
+      wheel: s,
+    };
+  });
 }
 
 /** Every lift of a map's resort planned, once per map: a skier riding one

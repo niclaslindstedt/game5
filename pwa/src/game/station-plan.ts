@@ -5,12 +5,17 @@
 // holds the layout (`tests/stations_test.ts`) and `lifts.ts` only builds it.
 //
 // AT A CHAIR'S TOP: the TERMINAL HOOD over the bullwheel and the unload; the
-// OPERATOR'S BOOTH beside the unload on the up rope's side, glazed, looking
-// down the ramp and up the line; the STOP GATE a step past the unload
-// point; orange NETTING either side of the wheel the chairs swing round;
-// the WIND MAST on the far corner of the machine house. On the highest top
-// of the mountain the PATROL HUT on the pad's other side and the PISTE MAP
-// BOARD at the head of the dispersal area, where the runs leave.
+// way off straight on down the ramp in its lane beside the chairs
+// (`CHAIR_EXIT`), the machine house on the lane's outer side; the
+// OPERATOR'S BOOTH beside the unload on that side, glazed, looking down the
+// ramp and up the line; the STOP GATE over the chairs' path short of the
+// wheel, for a rider who did not get off; orange NETTING between the lane
+// and the wheel the chairs swing round, and on its other side; the SIGNS
+// across the far side of the way at the parting — an arrow board a run off
+// the top, in its grade's colour, pointing the way it leaves — and the WIND
+// MAST on the far corner of the house. On the highest top of the mountain
+// the PATROL HUT on the pad's other side and the PISTE MAP BOARD where the
+// rider comes up the line.
 //
 // AT A CHAIR'S FOOT: the hood, the booth by the load line, the LOAD LINE
 // itself painted across the up rope's lane, and the roped CORRAL bringing a
@@ -25,14 +30,45 @@
 // from its wheel (positive up it), `v` m right of it — and turned to the
 // world here.
 
-import { queueLane, type Level, type LiftPlan } from "@engine";
+import {
+  chairLane,
+  queueLane,
+  stationHouses,
+  type Level,
+  type LiftPlan,
+  type PisteGrade,
+} from "@engine";
 
 export type PartKind =
-  "hood" | "booth" | "gate" | "mast" | "patrol" | "board" | "load" | "door" | "canopy" | "hut";
+  | "hood"
+  | "booth"
+  | "gate"
+  | "mast"
+  | "patrol"
+  | "board"
+  | "load"
+  | "door"
+  | "canopy"
+  | "hut"
+  | "signpost"
+  | "sign";
 
 /** One piece set down: where (its foot on the snow, or `y` given), turned
- * `yaw` (its +z), sized as its builder reads it. */
-export type Part = { kind: PartKind; x: number; y: number; z: number; yaw: number; size: number };
+ * `yaw` (its +z), sized as its builder reads it; a sign's run's grade. */
+export type Part = {
+  kind: PartKind;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  size: number;
+  grade?: PisteGrade;
+};
+
+/** A run's arrow on a top's signs: its grade, and which way it points off
+ * the parting — `1` to the up rope's side (the lane's, the house's), `-1`
+ * across the line. */
+export type Sign = { run: string; grade: PisteGrade; way: 1 | -1 };
 
 /** A run of fence from `a` to `b` on the snow: orange NETTING round the
  * machinery, or a ROPE line on poles for a corral. */
@@ -44,14 +80,25 @@ export type Fence = {
 
 export type StationLayout = { parts: Part[]; fences: Fence[] };
 
-/** The booth's set-back from the up rope, m, and how far short of the
- * unload it stands along the line; the gate's step past the unload, m; the
- * netting's set-back from a rope, m; the corral lane's half-width, m. */
+/** The booth's set-back from the up rope at a foot, and from the way off
+ * at a top, m, and how far short of the unload it stands along the line;
+ * the netting's set-back from a rope, m; the corral lane's half-width, m. */
 const BOOTH_OUT = 3.6;
-const BOOTH_BACK = 2;
-const GATE_PAST = 1.6;
+const BOOTH_LANE = 2.4;
+const BOOTH_BACK = 5;
 const NET_OUT = 1.9;
 const LANE = 1.4;
+/** The net between the way off and the wheel, m outside the up rope; the
+ * stop gate's step short of the wheel, m, and its post's inside the up
+ * rope, m; the signs' boards: how high the
+ * first stands, m, and the step between them; how far down a run its
+ * bearing off the parting is read, m. */
+const NET_IN = 1.25;
+const GATE_SHORT = 2.5;
+const GATE_IN = 1.3;
+const SIGN_LOW = 1.4;
+const SIGN_STEP = 0.5;
+const SIGN_READ = 30;
 
 /** Every station of the map laid out. */
 export function layStations(level: Level, plans: readonly LiftPlan[]): StationLayout {
@@ -76,13 +123,32 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
     const side = p.heading + Math.PI / 2;
     if (p.lift.kind === "chair") {
       const off = L - p.look.off;
-      // THE TOP.
+      // THE TOP: the way off down the lane, the house beside it.
+      const lane = chairLane(p);
       put("hood", L - 1, 0, p.heading, g * 2 + 2.4, wheelY(L) + 0.35);
-      put("booth", off - BOOTH_BACK, g + BOOTH_OUT, side + Math.PI);
-      put("gate", off + GATE_PAST, g + 1.4, side + Math.PI);
-      fence("net", L - 0.5, g + NET_OUT, L + 1.5, g + NET_OUT);
-      fence("net", L - 0.5, g + NET_OUT, L - 0.5, g + NET_OUT + 2);
+      put("booth", off - BOOTH_BACK, lane.v + BOOTH_LANE, side + Math.PI);
+      // The gate's post inside the ropes, its bar reaching out over the
+      // up rope's chairs — clear of the way off beyond them.
+      put("gate", L - GATE_SHORT, g - GATE_IN, side);
+      fence("net", L - 2, g + NET_IN, L + 2.5, g + NET_IN);
       fence("net", L - 3, -g - NET_OUT, L + 1.5, -g - NET_OUT);
+      // THE SIGNS across the far side of the way, facing up it: a post and
+      // a board a run, those to one side above those to the other.
+      put("signpost", lane.signs, lane.v, p.heading + Math.PI);
+      signsOf(level, p).forEach((s, i) => {
+        const at = up(lane.signs, lane.v);
+        parts.push({
+          kind: "sign",
+          x: at.x,
+          y: level.groundAt(at.x, at.z) + SIGN_LOW + i * SIGN_STEP,
+          z: at.z,
+          // A board points its own +x: across the line for `-1`, turned
+          // about to the lane's side for `1`.
+          yaw: p.heading + (s.way === 1 ? 0 : Math.PI),
+          size: 1,
+          grade: s.grade,
+        });
+      });
       // THE FOOT.
       const e = p.look.entry;
       put("hood", 1, 0, p.heading, g * 2 + 2.4, wheelY(0) + 0.35);
@@ -103,7 +169,19 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
       corral(fence, p);
     }
     // THE WIND MAST on the far corner of the top's house.
-    if (p.lift.kind !== "drag") put("mast", L + h.length + 1.5, -(h.width / 2 + g), p.heading, 1);
+    if (p.lift.kind !== "drag") {
+      const house = stationHouses(level, p)[1];
+      const fx = house.x + p.dx * house.halfLength + p.dz * house.halfWidth;
+      const fz = house.z + p.dz * house.halfLength - p.dx * house.halfWidth;
+      parts.push({
+        kind: "mast",
+        x: fx,
+        y: level.groundAt(fx, fz),
+        z: fz,
+        yaw: p.heading,
+        size: 1,
+      });
+    }
     // THE HIGHEST TOP: the patrol's hut and the map board.
     if (p.lift.kind !== "drag" && p.lift.top.y === peak) {
       put("patrol", L - 10, -(g + 11), side);
@@ -111,6 +189,24 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
     }
   }
   return { parts, fences };
+}
+
+/** WHICH WAY EACH RUN OFF A CHAIR'S TOP LEAVES from the parting at the end
+ * of the way off (`chairLane`): its bearing read `SIGN_READ` m down it, to
+ * the up rope's side or across the line — those to the lane's side first,
+ * each side's in the order the runs are listed. What the signs point and
+ * the lead off a free ride's chair turns by. */
+export function signsOf(level: Level, plan: LiftPlan): Sign[] {
+  const lane = chairLane(plan);
+  const runs = level.resort?.runs.filter((r) => r.from === plan.lift.id) ?? [];
+  const signs = runs.map((r): Sign => {
+    const at = r.points.find((q) => q.s >= SIGN_READ) ?? r.points[r.points.length - 1];
+    const dx = at.x - plan.lift.bottom.x;
+    const dz = at.z - plan.lift.bottom.z;
+    const v = dx * plan.dz - dz * plan.dx;
+    return { run: r.id, grade: r.grade, way: v >= lane.v ? 1 : -1 };
+  });
+  return [...signs.filter((s) => s.way === 1), ...signs.filter((s) => s.way === -1)];
 }
 
 /** A corral fenced either side of a lift's queue lane (`queueLane`, the

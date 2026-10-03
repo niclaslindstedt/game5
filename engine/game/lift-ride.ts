@@ -29,7 +29,16 @@ import { angleDiff, clamp, hypot, smoothstep } from "@niclaslindstedt/oss-game-f
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { liftPlans, ropeAt, upRope, type LiftPlan } from "./lift-line.ts";
+import {
+  chairLane,
+  liftPlans,
+  ropeAt,
+  stationHouses,
+  upRope,
+  type LiftPlan,
+  type StationHouse,
+} from "./lift-line.ts";
+import type { Level } from "../mapgen/types.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState, LiftRide, SkierInput } from "./state.ts";
 
@@ -252,6 +261,8 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   let x = grip.x + plan.dx * Math.sin(ride.swing) * drop;
   let z = grip.z + plan.dz * Math.sin(ride.swing) * drop;
   let y = gy - Math.cos(ride.swing) * drop;
+  // Coming down to the ramp a chair carries him on the snow, never in it.
+  if (plan.lift.kind === "chair") y = Math.max(y, run.level.groundAt(x, z) + K.sit);
   // Scooped off the load line: lifted from where he stood onto the seat.
   const k = seatedShare(ride);
   if (k < 1) {
@@ -300,8 +311,10 @@ function touched(input: SkierInput): boolean {
 }
 
 /** THE LEAD off the free ride's lift: the input the skier is given toward
- * the run he picked — out over the pad and its lip and down onto the run
- * where it joins it (`joinRun`), then along it — until
+ * the run he picked — off a chair straight on down the lane to the parting
+ * (`laneAim`), then across the pad and over its lip, round any station
+ * house, down onto the run where it joins it (`joinRun`), then along it —
+ * until
  * he takes the controls, or is far enough down it, or long enough off the
  * chair; then his own. */
 export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]): SkierInput {
@@ -333,16 +346,119 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
   ride.lead.s = Math.max(ride.lead.s, s);
   if (ride.lead.s >= ride.lead.until) return free();
   const want = ride.lead.s + K.aim;
-  const aim = pts.find((p) => p.s >= want) ?? pts[pts.length - 1];
+  const lane = laneAim(run, ride);
+  const aim =
+    lane ?? round(run.level, c.x, c.z, pts.find((p) => p.s >= want) ?? pts[pts.length - 1]);
   const bearing = Math.atan2(aim.x - c.x, aim.z - c.z);
+  // Down the lane and across the pad at a glide, checked to `laneSpeed`
+  // for the turn at the parting and round the station; then on, over the
+  // lip. At a crawl the tuck is the poles pushing him on (`poles.ts`).
+  const top = liftPlans(run.level)[ride.index].lift.top;
+  const near = lane || hypot(c.x - top.x, c.z - top.z) < K.padNear;
+  const most = near ? K.laneSpeed : Infinity;
+  const off = angleDiff(c.heading, bearing);
   return {
-    steer: clamp(angleDiff(c.heading, bearing) * K.steer, -1, 1),
-    // At a crawl the tuck is the poles pushing him on (`poles.ts`).
-    tuck: c.speed < K.push ? 1 : 0.25,
-    brake: 0,
+    steer: clamp(off * K.steer, -1, 1),
+    tuck: c.speed < (near ? K.lanePush : K.push) ? 1 : 0.25,
+    brake: clamp(c.speed - most, 0, 1),
     lean: 0,
     reset: false,
+    // Round the station's corners the edge is cut harder.
+    carve: near && Math.abs(off) > K.cutHarder,
   };
+}
+
+/** OFF A CHAIR, DOWN THE LANE (`chairLane`): while he is short of the
+ * parting, the point `lift.laneAim` m on down the lane ahead of him —
+ * straight on off the ramp past the house — and null from there on, or
+ * anywhere out of the lane (`laneWide` m either side of it), where the
+ * lead turns him for his run, the way the signs point. */
+function laneAim(run: GameState, ride: LiftRide): { x: number; z: number } | null {
+  if (ride.kind !== "chair") return null;
+  const plan = liftPlans(run.level)[ride.index];
+  const c = run.skier;
+  const u = (c.x - plan.lift.bottom.x) * plan.dx + (c.z - plan.lift.bottom.z) * plan.dz;
+  const v = (c.x - plan.lift.bottom.x) * plan.dz - (c.z - plan.lift.bottom.z) * plan.dx;
+  const lane = chairLane(plan);
+  // In the lane: between the unload and the parting, and in its width.
+  const inLane = Math.abs(v - lane.v) < K.laneWide && u > offAt(plan) - K.laneWide;
+  if (!inLane || u >= lane.exit - K.turnIn) return null;
+  return along(plan, Math.min(u + K.laneAim, lane.exit + K.laneAim / 2), lane.v);
+}
+
+/** Every station house of a map, once per map: the lead steers round them. */
+const housesOf = new WeakMap<Level, StationHouse[]>();
+
+function houses(level: Level): StationHouse[] {
+  let all = housesOf.get(level);
+  if (!all) {
+    all = liftPlans(level).flatMap((p) => stationHouses(level, p));
+    housesOf.set(level, all);
+  }
+  return all;
+}
+
+/** THE WAY ROUND A STATION: `aim` as the lead heads for it from (x, z),
+ * or, where the straight line there runs through a station house (with
+ * `lift.houseGap` m to spare), the corner of the house to make for first:
+ * alongside the house, the corner on his side at whichever end is the
+ * shorter way round; off one end, the corner at that end on the side `aim`
+ * lies. A rider stood off a chair on its pad is led on round the house
+ * beside the way off, never through it. */
+function round(
+  level: Level,
+  x: number,
+  z: number,
+  aim: { x: number; z: number },
+): { x: number; z: number } {
+  for (const h of houses(level)) {
+    const { dx, dz } = h.plan;
+    const a0 = (x - h.x) * dx + (z - h.z) * dz;
+    const b0 = (x - h.x) * dz - (z - h.z) * dx;
+    const a1 = (aim.x - h.x) * dx + (aim.z - h.z) * dz;
+    const b1 = (aim.x - h.x) * dz - (aim.z - h.z) * dx;
+    const hl = h.halfLength + K.houseGap;
+    const hw = h.halfWidth + K.houseGap;
+    // The box he is kept out of is a little inside the corners he makes
+    // for, so a line from a corner on never crosses it again.
+    if (!crosses(a0, b0, a1, b1, hl - 0.25, hw - 0.25)) continue;
+    const round = (end: number, side: number) => ({ a: end * hl, b: side * hw });
+    let corner;
+    if (Math.abs(a0) >= hl - 0.25) corner = round(Math.sign(a0), Math.sign(b1) || 1);
+    else {
+      const side = Math.sign(b0) || 1;
+      const way = (c: { a: number; b: number }) =>
+        hypot(c.a - a0, c.b - b0) + hypot(a1 - c.a, b1 - c.b);
+      const ahead = round(1, side);
+      const back = round(-1, side);
+      corner = way(ahead) <= way(back) ? ahead : back;
+    }
+    return { x: h.x + dx * corner.a + dz * corner.b, z: h.z + dz * corner.a - dx * corner.b };
+  }
+  return aim;
+}
+
+/** Whether the segment (a0, b0)–(a1, b1) passes through the box |a| < hl,
+ * |b| < hw (a slab test). */
+function crosses(a0: number, b0: number, a1: number, b1: number, hl: number, hw: number): boolean {
+  let lo = 0;
+  let hi = 1;
+  for (const [p, q, half] of [
+    [a0, a1, hl],
+    [b0, b1, hw],
+  ]) {
+    const d = q - p;
+    if (Math.abs(d) < 1e-9) {
+      if (Math.abs(p) >= half) return false;
+      continue;
+    }
+    const t0 = (-half - p) / d;
+    const t1 = (half - p) / d;
+    lo = Math.max(lo, Math.min(t0, t1));
+    hi = Math.min(hi, Math.max(t0, t1));
+    if (lo >= hi) return false;
+  }
+  return true;
 }
 
 /** A FREE RIDE STARTED ON A LIFT: the chair whose run (R27) passes nearest

@@ -81,6 +81,8 @@
 
 import { rotate, type Quat } from "@engine";
 
+import type { RideLook } from "./camera-lift.ts";
+
 import {
   createSpring,
   follow,
@@ -112,6 +114,9 @@ export type RigPose = {
   /** AT A SUMMIT, 0..1 (`camera-summit.ts`): on a top station's pad and
    * over its lip, where the boom holds its look level (`SUMMIT_LOOK`). */
   summit?: number;
+  /** ON A LIFT (`camera-lift.ts`): how much of the lift's close look the
+   * boom takes, and that look — from boarding to the lead onto a run. */
+  ride?: RideLook | null;
 };
 
 /** What a rig asks of the lens this frame. `roll` is the horizon's tilt,
@@ -182,6 +187,9 @@ export type BoomRig = {
   frame: number;
   /** The lens is never closer to the snow under it than this, m. */
   clearance: number;
+  /** Share of a lift's close look (`RigPose.ride`) the rig takes, 0..1: the
+   * chase comes in behind a rider, the far and high lenses keep their own. */
+  ride: number;
 };
 
 export type OrbitRig = {
@@ -257,6 +265,7 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1.6, zeta: 0.85, r: 0 },
     frame: 0.66,
     clearance: 0.9,
+    ride: 1,
   },
   far: {
     kind: "boom",
@@ -283,6 +292,7 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1.2, zeta: 0.9, r: 0 },
     frame: 0.66,
     clearance: 1.4,
+    ride: 0,
   },
   high: {
     kind: "boom",
@@ -309,6 +319,7 @@ export const RIGS: Record<Rung, Rig> = {
     look: { f: 1, zeta: 0.9, r: 0 },
     frame: 0.66,
     clearance: 3,
+    ride: 0,
   },
   orbit: { kind: "orbit", radius: 16, height: 6, spin: 0.14, fov: 55 },
 };
@@ -529,7 +540,12 @@ export function frameRig(
   const drop =
     groundAt(pose.x - lx * LEAN_BEHIND, pose.z - lz * LEAN_BEHIND) -
     groundAt(pose.x + lx * reachAhead, pose.z + lz * reachAhead);
-  const fall = Math.max(LEAN_MIN, Math.min(LEAN_MAX, Math.atan2(drop, reachAhead + LEAN_BEHIND)));
+  const ground = Math.max(LEAN_MIN, Math.min(LEAN_MAX, Math.atan2(drop, reachAhead + LEAN_BEHIND)));
+  // ON A LIFT (`camera-lift.ts`) the snow under him is the wrong ground: the
+  // arm reads his own path instead — the rope's climb, then the ramp's fall.
+  const ride = pose.ride ? pose.ride.share * rig.ride : 0;
+  const path = Math.max(RIDE_CLIMB, Math.min(LEAN_MAX, -Math.atan2(pose.vy, Math.max(plan, 0.5))));
+  const fall = ground + (path - ground) * ride;
   const slope = snap ? settle(st.slope, fall) : follow(st.slope, rig.lean, fall, dt);
   // The height follows the skier on its spring, told the DESCENT the fall
   // line predicts as the target's own velocity: a steady schuss down a face
@@ -541,7 +557,13 @@ export function frameRig(
   const softly = pose.airborne || summit > SUMMIT_LOOK.soft;
   const lifted = snap
     ? settle(st.y, pose.y)
-    : follow(st.y, softly ? rig.liftAir : rig.lift, pose.y, dt, descent * (1 - summit));
+    : follow(
+        st.y,
+        softly ? rig.liftAir : rig.lift,
+        pose.y,
+        dt,
+        descent * (1 - summit) * (1 - ride) + pose.vy * ride,
+      );
   // The height the lens is FRAMED from: the spring's, with its lag eased
   // into `lagMax` so a long fall cannot leave the lens up on the cliff.
   const lag = pose.y - lifted;
@@ -551,12 +573,15 @@ export function frameRig(
   st.fresh = false;
   // THE STRETCH: the arm pulled in along its own line by the share of the
   // fov's widening it holds, so the skier keeps his size in the frame.
-  const fov =
+  const look = pose.ride;
+  const chased =
     Math.min(rig.fovMax, rig.fov + rig.fovPerSpeed * pose.speed) + SUMMIT_LOOK.fov * summit;
+  const fov = look ? chased + (look.fov - chased) * ride : chased;
   const half = (d: number) => Math.tan((d * Math.PI) / 360);
-  const arm = 1 - rig.hold * (1 - half(rig.fov) / half(fov));
-  const dist = (rig.dist + rig.distPerSpeed * pose.speed) * arm + surge;
-  const rise = rig.height * arm;
+  const arm = 1 - rig.hold * (1 - half(rig.fov) / half(chased));
+  const far = (rig.dist + rig.distPerSpeed * pose.speed) * arm + surge;
+  const dist = look ? far + (look.dist - far) * ride : far;
+  const rise = look ? rig.height * arm + (look.height - rig.height * arm) * ride : rig.height * arm;
   // THE INCLINE: the arm swung up the slope behind by its share of the
   // fall line's pitch, about the skier — the lens keeps its height over
   // the snow it stands above instead of meeting it.
@@ -566,7 +591,8 @@ export function frameRig(
   // the drop reads as the drop it is.
   const incline =
     (rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep)) *
-    (1 - SUMMIT_LOOK.level * summit);
+    (1 - SUMMIT_LOOK.level * summit) *
+    (1 - ride);
   const up = Math.atan2(rise, dist) + incline * slope;
   const eye = {
     x: pose.x - Math.sin(yaw) * len * Math.cos(up),
@@ -594,9 +620,13 @@ export function frameRig(
   // over a roller moves HIM in the frame rather than the horizon — and
   // chased on its own spring, so the head has weight.
   const halfAngle = (fov * Math.PI) / 360;
-  const placed = Math.atan(rig.place * Math.tan(halfAngle));
+  const place = look ? rig.place + (look.place - rig.place) * ride : rig.place;
+  const placed = Math.atan(place * Math.tan(halfAngle));
   const back = Math.hypot(pose.x - eye.x, pose.z - eye.z);
-  const composed = Math.atan2(y + FRAME_AT - eye.y, back) + placed;
+  // Carried up a lift the look tips up with the climb, the rope and the
+  // top station ahead over his head rather than the slope under the chair.
+  const climb = Math.max(0, -slope) * RIDE_LOOK_UP * ride;
+  const composed = Math.atan2(y + FRAME_AT - eye.y, back) + placed + climb;
   const pitch = snap ? settle(st.pitch, composed) : follow(st.pitch, rig.look, composed, dt);
   const reach = back + rig.aimAhead;
   const target = {
@@ -626,6 +656,11 @@ export const SUMMIT_LOOK = { level: 0.9, soft: 0.5, fov: 6 } as const;
 const LEAN_BEHIND = 3;
 const LEAN_REACH = 6;
 const LEAN_MIN = -0.3;
+/** The steepest climb a lift's path is read at, rad (a chair's rope runs
+ * up to about 35°). */
+const RIDE_CLIMB = -0.65;
+/** Share of a lift's climb the look tips up by (`RIGS.chase.ride`). */
+const RIDE_LOOK_UP = 0.6;
 const LEAN_MAX = 0.95;
 /** The fall line's pitch, rad, where a boom's incline starts to move from
  * `incline` toward `inclineSteep`, and where it is all the way there (15°,

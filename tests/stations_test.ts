@@ -7,11 +7,19 @@
 
 import { describe, expect, it } from "vitest";
 
-import { carrierAt, carrierCount, liftPlans, TUNING } from "@engine";
+import {
+  CHAIR_EXIT,
+  carrierAt,
+  carrierCount,
+  chairLane,
+  liftPlans,
+  stationHouses,
+  TUNING,
+} from "@engine";
 import { summitShare } from "../pwa/src/game/camera-summit.ts";
 import { MOUNTS, skierPose } from "../pwa/src/game/skier-pose.ts";
 import { CHAIR_SEAT, seatedPose } from "../pwa/src/game/skier-seat.ts";
-import { layStations } from "../pwa/src/game/station-plan.ts";
+import { layStations, signsOf } from "../pwa/src/game/station-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -54,8 +62,79 @@ describe("the stations laid out", () => {
 
   it("stands every piece on the snow it is over", () => {
     for (const q of layout.parts) {
-      if (q.kind === "hood" || q.kind === "canopy") continue;
+      // A hood and a canopy are hung at the wheel; a sign on its post.
+      if (q.kind === "hood" || q.kind === "canopy" || q.kind === "sign") continue;
       expect(Math.abs(q.y - level.groundAt(q.x, q.z))).toBeLessThan(1e-6);
+    }
+  });
+});
+
+describe("the way off a chair's top", () => {
+  const chairs = plans.filter((p) => p.lift.kind === "chair");
+  /** A plan point in a lift's frame: `u` m up the line from its bottom,
+   * `v` m to the up rope's side. */
+  const frame = (p: (typeof plans)[number], x: number, z: number) => ({
+    u: (x - p.lift.bottom.x) * p.dx + (z - p.lift.bottom.z) * p.dz,
+    v: (x - p.lift.bottom.x) * p.dz - (z - p.lift.bottom.z) * p.dx,
+  });
+
+  it("stands the top's house beside the lane, on its outer side, ending short of the parting", () => {
+    for (const p of chairs) {
+      const lane = chairLane(p);
+      const h = stationHouses(level, p)[1];
+      const c = frame(p, h.x, h.z);
+      expect(c.v - h.halfWidth - lane.v).toBeCloseTo(CHAIR_EXIT.house, 6);
+      expect(c.u + h.halfLength).toBeLessThan(lane.exit);
+    }
+  });
+
+  it("leaves the lane clear from the unload to the parting: no piece and no fence in it", () => {
+    for (const p of chairs) {
+      const lane = chairLane(p);
+      const from = p.length - p.look.off;
+      for (const q of layout.parts) {
+        if (q.kind === "hood" || q.kind === "sign" || q.kind === "signpost") continue;
+        const c = frame(p, q.x, q.z);
+        if (c.u < from || c.u > lane.exit) continue;
+        expect(Math.abs(c.v - lane.v)).toBeGreaterThan(2);
+      }
+      for (const f of layout.fences) {
+        for (let k = 0; k <= 10; k++) {
+          const c = frame(
+            p,
+            f.a.x + ((f.b.x - f.a.x) * k) / 10,
+            f.a.z + ((f.b.z - f.a.z) * k) / 10,
+          );
+          if (c.u < from || c.u > lane.exit) continue;
+          expect(Math.abs(c.v - lane.v)).toBeGreaterThan(0.8);
+        }
+      }
+    }
+  });
+
+  it("signs every run off the top across the far side of the way, pointing the way it leaves", () => {
+    for (const p of chairs) {
+      const lane = chairLane(p);
+      const runs = level.resort!.runs.filter((r) => r.from === p.lift.id);
+      const signs = signsOf(level, p);
+      expect(signs.map((s) => s.run).sort()).toEqual(runs.map((r) => r.id).sort());
+      const post = layout.parts.find(
+        (q) =>
+          q.kind === "signpost" &&
+          Math.hypot(frame(p, q.x, q.z).u - lane.signs, frame(p, q.x, q.z).v - lane.v) < 0.01,
+      );
+      expect(post).toBeDefined();
+      const boards = layout.parts.filter(
+        (q) => q.kind === "sign" && Math.hypot(q.x - post!.x, q.z - post!.z) < 0.01,
+      );
+      expect(boards).toHaveLength(runs.length);
+      signs.forEach((s, i) => {
+        expect(boards[i].grade).toBe(s.grade);
+        // A board points its +x: across the line's frame, +v for `1`.
+        const ux = Math.cos(boards[i].yaw);
+        const uz = -Math.sin(boards[i].yaw);
+        expect(Math.sign(ux * p.dz - uz * p.dx)).toBe(s.way);
+      });
     }
   });
 });

@@ -63,7 +63,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { envelopeOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
+import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
 
 const K = TUNING.crash;
@@ -340,6 +340,8 @@ export function throwRider(
     planted: 0,
     down: -1,
     still: 0,
+    impacts: new Array<number>(RAGDOLL.count).fill(0),
+    struck: new Array<number>(RAGDOLL.count).fill(0),
   };
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a

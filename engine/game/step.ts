@@ -35,6 +35,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { stepRun } from "./run.ts";
+import { feelBumps } from "./body.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { freshTricks, stepTricks } from "./tricks.ts";
@@ -217,6 +218,8 @@ export function step(state: GameState, input: SkierInput): GameState {
     stepCrowd(state);
     if (state.rules.contact) clipCrowd(state, events);
   }
+  // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
+  if (state.rules.contact) feelBumps(state, events);
   return state;
 }
 

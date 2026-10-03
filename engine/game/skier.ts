@@ -86,7 +86,15 @@ import {
 } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
-import { climbShare, driveReach, poleForce, stepWork, strideOn } from "./poles.ts";
+import {
+  climbShare,
+  driveReach,
+  poleForce,
+  stepRound,
+  stepWork,
+  stoodStill,
+  strideOn,
+} from "./poles.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -195,6 +203,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     stride: 0,
     glide: 0,
     step: 0,
+    pivot: 0,
     crouch: 0,
     hipRight: 0,
     hipAft: 0,
@@ -281,7 +290,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const lock =
     Math.min(spec.edgeMax, edgeLockAt(spec, speed0) * (1 + CV.edge * c.carve)) *
     (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
-  c.edge = approach(c.edge, c.steer * lock + skiPull(c), S.edgeRate * fit.edgeRate * dt);
+  // STOOD STILL, a steer is no edge: it steps him round on the spot.
+  const still = stoodStill(c, speed0);
+  c.edge = approach(
+    c.edge,
+    (still ? 0 : c.steer) * lock + skiPull(c),
+    S.edgeRate * fit.edgeRate * dt,
+  );
   // THE SKID: the skis pivoted across the way by the brake — toward the
   // side the edge is on for a hockey stop, and with the skis straight a
   // snowplough, which pivots nothing and only scrubs.
@@ -319,6 +334,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // The strides, the step turn and the line he glides on (`strideOn`), and
   // the turn he steps this step, which the yaw is asked for below.
   const stepped = strideOn(c, speed0, dt);
+  // ...or, stood still with a steer held, a step round on the spot.
+  if (still) level.normalAt(c.x, c.z, normal);
+  stepRound(c, normal, still, dt);
   // THE CROUCH follows the tuck — or, deeper the longer it is held, the
   // jump being loaded: a body takes a moment to fold.
   const crouch0 = c.crouch;

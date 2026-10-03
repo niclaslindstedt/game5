@@ -62,7 +62,7 @@ import { MOMENTS, MOMENT_IDS, MOVES, MOVE_IDS } from "./lib/skier-moves.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".skier-preview");
 const outDir = join(root, "previews");
-const VIEWS = ["back", "back3", "side", "front3", "front", "chase"];
+const VIEWS = ["back", "back3", "side", "front3", "front", "chase", "top", "fixed"];
 
 const args = parseArgs(
   process.argv.slice(2),

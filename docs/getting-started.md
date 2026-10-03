@@ -89,7 +89,7 @@ The whole game is two grounds under one pair of skis. On the **groomed piste** t
 | W                  | Tuck — and sets off from a standstill; in the air, lean forward                           |
 | S                  | First: brake (then A / D: hockey stop). After an edge: cut harder — in the air, lean back |
 | Space              | Hold to load a jump, let go to spring (higher the longer, to 2 s)                         |
-| A D / ← →          | Edge left / right                                                                         |
+| A D / ← →          | Edge left / right; stood still, step the skis round on the spot                           |
 | ↓ / E / Shift      | Lean back — in the air, tips up                                                           |
 | ↑ / Q / Z          | Lean forward — in the air, tips down                                                      |
 | F / X              | Hold in the air on a tricks run: a grab                                                   |

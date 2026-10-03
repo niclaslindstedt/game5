@@ -105,6 +105,10 @@ export type SkierSpring = {
    * come out of as GO sends him into his first push. */
   ready: number;
   readyRate: number;
+  /** STEPPING ROUND ON THE SPOT, 0..1, eased (`STEP_FOLLOW`): a skier
+   * stepping his skis round is no longer waiting with his arms hung — he
+   * holds them out for his balance. */
+  stepping: number;
   /** THE SNOW PASSED SINCE THE LAST PLANT, m, and the stride it was planted
    * on (the engine's stride count, floored; NaN before the first) — how
    * far behind him a planted basket is, kept as he went rather than
@@ -155,6 +159,8 @@ export type SpringRide = {
   airTime?: number;
   /** Seconds since he last sprang a jump (`SkierState.popped`). */
   popped?: number;
+  /** Stepping round on the spot (`SkierState.pivot`), ±1 or 0. */
+  pivot?: number;
   wx?: number;
   wy?: number;
   wz?: number;
@@ -253,6 +259,9 @@ const EASE = { up: 16, down: 25, take: 32, release: 29 };
 /** How fast he settles into the start gate's stance and comes out of it,
  * rad/s — out of it is the first push, which is quick. */
 const READY = { in: 9, out: 20 };
+/** How quickly a step turn on the spot takes him out of his idle stance
+ * and lets him back into it, 1/s — a third of a second to most of it. */
+const STEP_FOLLOW = 6;
 
 export function createSkierSpring(offset = 0): SkierSpring {
   return {
@@ -289,6 +298,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     skiAngleRate: 0,
     ready: 0,
     readyRate: 0,
+    stepping: 0,
     poled: 0,
     poledStride: Number.NaN,
     keep: Number.NaN,
@@ -442,6 +452,7 @@ export function stepSkierSpring(
   );
   s.ready = Math.max(0, Math.min(1, s.ready));
   if (ride) {
+    s.stepping += (Math.abs(ride.pivot ?? 0) - s.stepping) * Math.min(1, STEP_FOLLOW * dt);
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, airborne, dt);
     stepPoled(s, ride, airborne, dt);

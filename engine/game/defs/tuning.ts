@@ -421,6 +421,16 @@ export const TUNING = {
      * own cadence). So from a crawl to 27 km/h he comes round 90° in some
      * two seconds, on a few metres, faster out of it than into it. */
     turn: { step: 0.7, lead: 0.25, rate: 3, edge: 0.6, quick: 0.35 },
+    /** THE STEP TURN ON THE SPOT (`stepRound`): stood still with only a
+     * steer held, a skier is not going anywhere — he STEPS HIS SKIS ROUND,
+     * the inside ski's tip lifted and set down `angle` rad further round,
+     * its tail where it was (the star turn every beginner is taught on the
+     * flat), then the outside ski lifted and brought alongside it; `steps`
+     * such pairs a second. Measured stepping round on skis takes 15–30° a
+     * step at one to two steps a second, so a right angle is three or four
+     * pairs: about 25° at 1.2 a second — some 30°/s. A pair begun is
+     * finished, and set down together. */
+    pivot: { angle: 0.44, steps: 1.2 },
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,

@@ -51,6 +51,13 @@
 // taken away for the bend: a skier stepping round a turn is pushing all
 // the way through it, which is how he gains speed out of it.
 //
+// STOOD STILL WITH ONLY A STEER HELD he is going nowhere, and STEPS HIS
+// SKIS ROUND ON THE SPOT (`stepRound`, `poles.pivot`, `SkierState.pivot`):
+// the inside ski's tip lifted and set down further round off its tail,
+// then the outside one brought alongside — a pair at a time, a pair begun
+// always finished — on flat skis, until he faces the way he wants. Asked
+// to go (the tuck) he skates off and steps round as he goes, above.
+//
 // WITHOUT POLES (`SkierState.poles` off — the player's hard mode,
 // `poles.bare`) the arms have nothing to push on: there is no double pole,
 // so he SKATES at every speed the drive reaches, on his legs' share of the
@@ -62,6 +69,13 @@
 // skier faster than the fade, and nothing here brakes him.
 
 import { approach, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import {
+  fromAxisAngle,
+  multiply,
+  normalize,
+  rotate,
+  type Vec3,
+} from "@niclaslindstedt/oss-game-framework/core/quat";
 import { riderOf } from "./defs/riders.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -320,4 +334,77 @@ export function strideOn(c: SkierState, speed: number, dt: number): number {
     c.vz = c.vz * cos - vx * sin;
   }
   return stepped;
+}
+
+/** The speed, m/s, under which a skier is STOOD STILL — `skier.ts`'s own
+ * threshold for setting off — and the drive under which he is not
+ * working. */
+const STILL_SPEED = 0.4;
+export const STILL_DRIVE = 0.02;
+/** The steer, of full, that steps a skier stood still round on the spot. */
+const PIVOT_STEER = 0.3;
+
+/** STOOD STILL, at `speed` m/s: not asked to go (the tuck), not working,
+ * braking, loading a jump, in the air or thrown. A steer here steps him
+ * round on the spot (`stepRound`) and stands his skis on no edge. */
+export function stoodStill(c: SkierState, speed: number): boolean {
+  return (
+    speed <= STILL_SPEED &&
+    c.tuck <= 0.05 &&
+    c.drive < STILL_DRIVE &&
+    c.brake < 0.05 &&
+    c.jumpLoad === 0 &&
+    !c.airborne &&
+    c.thrown === null
+  );
+}
+
+/** HOW FAR ROUND EACH SKI HAS BEEN STEPPED over a pair of steps on the
+ * spot, at its phase `u` 0..1 (`stepRound`), as shares of the step's
+ * angle: the INSIDE ski's tip lifted and set down round over the first
+ * part, the OUTSIDE ski brought alongside it over the second, each eased
+ * at both ends — and the body, which stands between them, half of each. */
+export function pivotSteps(u: number): { inside: number; outside: number; body: number } {
+  const ease = (a: number, b: number): number => {
+    const k = clamp((u - a) / (b - a), 0, 1);
+    return k * k * (3 - 2 * k);
+  };
+  const inside = ease(0, 0.45);
+  const outside = ease(0.5, 0.95);
+  return { inside, outside, body: (inside + outside) / 2 };
+}
+
+/** THE STEP TURN ON THE SPOT, this step (`poles.pivot`): a skier stood
+ * still (`still`, `stoodStill`) with a steer held steps his skis round a
+ * pair at a time, the inside one first — `SkierState.pivot` ±1 the way he
+ * steps, the stride's phase where in the pair he is (the pose reads both)
+ * — and a pair begun is finished the way it was begun, whatever the thumb
+ * does meanwhile; let go, or set off, he stands with his skis together.
+ * His body, which stands between his skis, is turned about the snow's
+ * normal `n` (and the little way he has with it). */
+export function stepRound(c: SkierState, n: Vec3, still: boolean, dt: number): void {
+  const mid = c.pivot !== 0 && c.stride - Math.floor(c.stride) > 1e-6;
+  if (!still || (!mid && Math.abs(c.steer) <= PIVOT_STEER)) {
+    // Off the spot, a pair half taken is set down together.
+    if (mid) c.stride = Math.round(c.stride);
+    c.pivot = 0;
+    return;
+  }
+  if (!mid) {
+    // A pair is begun from the skis together, the way the steer asks.
+    c.stride = Math.ceil(c.stride - 1e-6);
+    c.pivot = Math.sign(c.steer);
+  }
+  const u0 = c.stride - Math.floor(c.stride);
+  // The pair ends with the skis together: never carried past it.
+  const end = Math.floor(c.stride) + 1;
+  c.stride = Math.min(c.stride + P.pivot.steps * dt, end);
+  const u1 = c.stride >= end ? 1 : c.stride - Math.floor(c.stride);
+  const yaw = c.pivot * P.pivot.angle * (pivotSteps(u1).body - pivotSteps(u0).body);
+  const turn = fromAxisAngle(n.x, n.y, n.z, yaw);
+  c.q = normalize(multiply(turn, c.q));
+  const v = rotate(turn, { x: c.vx, y: c.vy, z: c.vz });
+  c.vx = v.x;
+  c.vy = v.y;
+  c.vz = v.z;
 }

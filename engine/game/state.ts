@@ -154,6 +154,11 @@ export type SkierState = {
    * `poles.turn.rate`. It turns his heading a step a stride and leads the
    * V into the turn (`glideYaw`); 0 at speed, on his poles, or straight. */
   step: number;
+  /** STEPPING ROUND ON THE SPOT (`poles.ts`'s `stepRound`): ±1 the way he
+   * steps, right positive, while he is stood still with only a steer held
+   * — the stride's phase is where in a pair of steps he is — and 0 when he
+   * is not. What the pose reads to draw his skis stepped one at a time. */
+  pivot: number;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;

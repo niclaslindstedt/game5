@@ -22,8 +22,8 @@ and keeps both. Load `skier` (what he is, where everything lives) and
 | `make skier ARGS=--sheet=game` | Does it READ in the game? | The chase and far cameras at a 1280×720 frame's own pixels, enlarged unsmoothed. Judge here last: a detail that is not here does not exist for a player |
 | `make skier ARGS=--sheet=stretch` | Does the skin bend? | Every triangle coloured by its area off its bind (blue crushed, red stretched) and the share outside 0.6–1.6 by region, printed. A moment at exactly 0 % is a pose AT the bind, not a perfect one |
 | `make skier MOVE=jump ARGS="--sheet=moves --views=back,side"` | Does it MOVE right? | A column a moment across a move; twitches show here before anywhere |
-| `make blender KIND=skier ID=skier0 ARGS="--quality=game --views=none"`, copy `previews/blender/skier0-lod0.glb` to `pwa/models/skier.glb` | The model, rebuilt, for the lab | A minute. The lab copies `pwa/models/` beside its page, so it draws what was just built |
-| `make models` | The model, PUBLISHED with its stamp | Ten minutes (every pair too, byte-identical when untouched). Do not edit a `MODEL_SOURCES` file while it runs |
+| `make gear` | Does the KIT fit him through every move? | The game's skier is DRESSED in code (`skier-gear`): every piece and outfit from four sides, one outfit through the moves, the game's pixels, a Blender skier beside (`--sheet=compare --model=…`) |
+| `make blender KIND=skier ID=skier0 ARGS="--quality=game --views=none"` | A modelled skier, for the labs' comparison | A minute. Never shipped: the game draws the dressed skier |
 
 The bands live in `scripts/skier-metrics.mjs` (`BANDS`) and say where each
 number comes from: the cuff's own forward lean (0.22 rad) is the least a

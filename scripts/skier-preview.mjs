@@ -218,7 +218,7 @@ const data = {
 mkdirSync(outDir, { recursive: true });
 // The model switches are the build's (`model-switch.ts`), read off the
 // environment like every build's.
-if (args.code) process.env.VITE_MODEL_SKIS = process.env.VITE_MODEL_SKIERS = "0";
+if (args.code) process.env.VITE_MODEL_SKIS = "0";
 if (!args["skip-build"] || !existsSync(join(buildDir, "skier-preview.html"))) {
   const { build } = await import("vite");
   await build({

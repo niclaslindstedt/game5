@@ -1,6 +1,6 @@
 ---
 name: skier
-description: "Use when working on THE SKIER — the figure standing on the skis: how he is posed on them (the boots in the bindings, the hands on the pole grips, the knees bent, the stance a ski is skied in), how his body answers the engine's readings (the knees folded by the legs' compression, each shin held in its boot, a carve an inclined column hinged at the hips with the eyes held toward the horizon, the weight fore and aft with the lean, the crouch of the tuck, the poles planted at a crawl and tucked under the arms at speed, compact in the air, a landing folded into the knees, the grabs of a tricks run), and how he looks from behind at chase range. Owns `pwa/src/game/skier-pose.ts` (the pose as three-free arithmetic: `BODY`, `MOUNTS`, `solveLimb`, `skierPose`, with the gait in `skier-gait.ts` and the view's own state between frames — the body on its legs, the air and a jump's load eased, his own clock — in `skier-spring.ts`), `skier-figure.ts` (the figure in his kit), `skier-cloth.ts` (the cloth he is built of) and `skier-helmet.ts` over `helmet-shape.ts` (the head, the helmet and the goggles — one set of triangles the Blender model is built from too), the skier's cases in `tests/world_render_test.ts` and `tests/skier_pose_test.ts`, and the loop: `make skier-metrics` (the pose measured against a skier's bands), `make skier` (every MOVE — setting off, the skate, the double pole, the jump, the hockey stop, the hard cut, the tuck, a landing, a wipeout — skied by the real engine and the committed models posed through its states from five sides, and a turntable; `--sheet=closeup,detail,game,stretch` at its moments), `make helmet` (the head: code and model, wired, on a centimetre grid and at the game's pixels), `make skis ARGS=--sheet=skier` (close up), `--sheet=poses` and `--sheet=landing`, `make world` (orbit, jump, landing), then the built app with `make screenshots`."
+description: "Use when working on THE SKIER — the figure standing on the skis: how he is posed on them (the boots in the bindings, the hands on the pole grips, the knees bent, the stance a ski is skied in), how his body answers the engine's readings (the knees folded by the legs' compression, each shin held in its boot, a carve an inclined column hinged at the hips with the eyes held toward the horizon, the weight fore and aft with the lean, the crouch of the tuck, the poles planted at a crawl and tucked under the arms at speed, compact in the air, a landing folded into the knees, the grabs of a tricks run), and how he looks from behind at chase range. Owns `pwa/src/game/skier-pose.ts` (the pose as three-free arithmetic: `BODY`, `MOUNTS`, `solveLimb`, `skierPose`, with the gait in `skier-gait.ts` and the view's own state between frames — the body on its legs, the air and a jump's load eased, his own clock — in `skier-spring.ts`), `skier-figure.ts` (the figure: his dressed skin, his poles, his head's frame — what he WEARS is `skier-gear`'s) and `helmet-shape.ts` (the head, the race helmet's measured shell and the goggles — one set of triangles every helmet of the dress and the Blender model are built over), the skier's cases in `tests/world_render_test.ts` and `tests/skier_pose_test.ts`, and the loop: `make skier-metrics` (the pose measured against a skier's bands), `make skier` (every MOVE — setting off, the skate, the double pole, the jump, the hockey stop, the hard cut, the tuck, a landing, a wipeout — skied by the real engine and the committed models posed through its states from five sides, and a turntable; `--sheet=closeup,detail,game,stretch` at its moments), `make helmet` (the head: code and model, wired, on a centimetre grid and at the game's pixels), `make skis ARGS=--sheet=skier` (close up), `--sheet=poses` and `--sheet=landing`, `make world` (orbit, jump, landing), then the built app with `make screenshots`."
 ---
 
 # The skier
@@ -73,7 +73,8 @@ stance stand on real knees.
 **HE IS A MAN IN CLOTHES, NOT A STACK OF CAPSULES.** Dressed after
 photographs of skiers seen from behind: a RACER'S SKI HELMET over a
 balaclava, built ONCE as three-free geometry (`helmet-shape.ts`) that the
-code's figure (`skier-helmet.ts`) and the Blender model both draw, and
+dress (`dress-head.ts`, under each helmet's own parts) and the Blender
+model both draw, and
 held to a real one's measures (`tests/helmet_test.ts`: an adult medium's
 shell 26–28 cm long, 21–23 wide, 20–22 from the ear cover's foot to the
 crown, widest just above the ears): a smooth hard-eared shell, its edge a
@@ -86,15 +87,13 @@ back — the stripe and the strap a cross that says "the back of his head"
 at thirty pixels; vents in the brim and in rows fore and aft over the
 crown (never either side of the clip: two dark dots over a dark bar make a
 FACE on the back of his head); his face below the goggles and a chin
-strap. a shell jacket that
-is one padded mass from the hem to the shoulders under a contrasting yoke;
-sleeves bunched into gloves; ski pants over tall stiff boots with their
-buckles (`SkierStyle`: jacket, accent, pants, helmet, goggles, boots). Every
-part is CLOTH (`skier-cloth.ts`): coarse, boxy shaped sections (eight sides a
-limb) whose silhouette carries the garment — the bagging at the knee, the
-pads, a few big creases in the crook of each joint — rather than fine round
-tubes. Each limb is turned about its bone so its +z faces where the joint
-bends, so a knee pad is on the knee. The whole figure stands on the traced
+strap. HE IS HIS OUTFIT (`outfit.ts`, the `skier-gear` skill): a jacket
+over pants over tall stiff boots, gloves round the grips, a helmet —
+every piece cut to his body's measure plus its ease on a loom laid in the
+rig's bind pose (`dress-loft.ts`) and SKINNED on the rig's own bones
+(`skier-dress.ts`), so the cloth bends with every pose as one skin and
+nothing is drawn under it; a woman is her own measure on the same
+skeleton. The whole figure stands on the traced
 bindings (`MOUNTS.boot` in `skis-body.ts`), so every pair's skier stands on
 its own skis.
 
@@ -109,11 +108,10 @@ when the skis he stands on are what moves.
 | --- | --- |
 | `pwa/src/game/skier-pose.ts` | `BODY` (the limb lengths and proportions, m — the same bones `TUNING.crash.body` throws, `tests/crash_test.ts` holds the two together), `MOUNTS` (where the bindings, the pole grips and the base hips are fixed to the skis), `solveLimb` (two bones toward a target, bent toward a pole), `skierPose(input)` → every joint. Three-free, so the suite reads it |
 | `pwa/src/game/skier-ragdoll.ts` | `ragdollPose` — the figure hung on the engine's `Thrown.points` once he is off his skis, as the same joints `skierPose` places |
-| `pwa/src/game/skier-figure.ts` | `createSkier(style)`: the figure in the slot's `SkierStyle` — each limb a fixed shape hung from its joint and turned to face its bend (only ever turned, never stretched), the torso in its own frame, the helmet |
+| `pwa/src/game/skier-figure.ts` | `createSkier(dress)`: the dressed skin (`skier-dress.ts`, posed bone for bone off `skierBones`), the outfit's poles hung from the fists, the head's frame the lamp is strapped to |
 | `pwa/src/game/helmet-shape.ts` | THE HEAD IN ITS HELMET as three-free triangles, a material a part (`helmetParts`): the shell lofted ring by ring (`SHELL`, `section`, `shellAt`), its columns laid CONFORMALLY to the lower edge (`EDGE`, resampled along it by length and eased to an even turn toward the crown, so the brim and the ear line are curves, not stairs), the stripe cut exactly along its planes, the rolled rim and the liner, the vents, the goggles (`GOGGLES`: frame, foam, the lens and its unwrap), the strap and clip (`STRAP`), the face, balaclava and chin strap; `helmetReach` (where the headlamp is strapped) and `helmetTriangles`. The Blender model is built from these very triangles |
-| `pwa/src/game/skier-helmet.ts` | `buildHelmet`: `helmetParts` as three.js meshes in the figure's materials (`PAINT`) |
-| `scripts/helmet-preview.mjs`, `pwa/src/tools/helmet-harness.ts` | THE HELMET LAB (`make helmet`): the code's head and the committed model's (or a candidate's) side by side — `views`, `wire` (the head's triangles counted by material), `profile` (a centimetre grid and a real helmet's envelope) and `game` (the chase and far cameras at a 1280×720 frame's pixels) |
-| `pwa/src/game/skier-cloth.ts` | What he is built of: `shaped` (rings of a rounded box along a line, smoothed and folded, rings laid only as densely as a fold needs), `cloth` (a limb's creases and pads), `torsoFold` (the jacket gathered, draped, the blades under it). A crease wants three rings a ridge or it breaks into a saw |
+| `scripts/helmet-preview.mjs`, `pwa/src/tools/helmet-harness.ts` | THE HELMET LAB (`make helmet`): the code's head and a modelled skier's (`--model=`) side by side — `views`, `wire` (the head's triangles counted by material), `profile` (a centimetre grid and a real helmet's envelope) and `game` (the chase and far cameras at a 1280×720 frame's pixels) |
+| `pwa/src/game/dress-*.ts`, `skier-dress.ts`, `outfit.ts` | WHAT HE WEARS — the `skier-gear` skill's: the catalog, the loom, the garments, the skin on the rig; `make gear` |
 | `pwa/src/game/posed-merge.ts` | The posed tree — skis, poles and skier — drawn as ONE mesh, every part a rigid BONE of it, so the GPU lays each part through its matrix (in every pass, the shadows included); a part hidden with its ancestors (the skier in the helmet view) collapses to nothing |
 | `pwa/src/game/skis-body.ts` | Hangs the skier on the skis; the bindings and the poles he is fixed to are drawn there |
 | `engine/game/skier.ts` | Where his MASS actually is: `hipRight`, `hipAft`, `crouch`, `edge` and `skiCompression` on `SkierState`, lagging the edge, the lean and the tuck by `TUNING.skier.lag` and `crouchRate` |
@@ -259,10 +257,10 @@ intent from physics deltas.
    (spend them where the silhouette and the openings are), on a centimetre
    grid against the envelope a real helmet fills, and at the chase and far
    cameras' own pixels — where the read is decided. A helmet change is made
-   in `helmet-shape.ts`, judged there with `--committed=0` (seconds), then
-   cut into the model (`make blender KIND=skier ARGS=--quality=game`, set
-   beside with `ARGS=--model=previews/blender/skier0-lod0.glb`) and
-   published with `make models SET=machines`. Start from the numbers of a
+   in `helmet-shape.ts`, judged there (seconds), and set beside a
+   modelled skier when it matters (`make blender KIND=skier
+   ARGS=--quality=game`, then `ARGS=--model=previews/blender/skier0-lod0.glb`).
+   Start from the numbers of a
    real one (the research is in `helmet-shape.ts`'s header and held by
    `tests/helmet_test.ts`).
 1b. `make turns` (`ARGS="--views=low,side"`) — him TURNING AND STOPPING on a
@@ -273,7 +271,7 @@ intent from physics deltas.
    the game's view), then the side for the stance, the crouch and the
    poles.
 3. A pose change is a number in `skierPose` or `MOUNTS`; a body change is
-   `BODY`; a look change is `skier-figure.ts`'s figure or a `SkierStyle`. One
+   `BODY`; a look change is a garment's (`skier-gear`). One
    axis, re-shoot, look.
 4. `npx vitest run tests/world_render_test.ts tests/skier_pose_test.ts` —
    the pose cases.

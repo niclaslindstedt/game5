@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS THE GAME SHIPS, published: the last step of `make models`
-// (which first runs `make blender`'s game quality for every pair and the
-// skier). Copies each pair's and the skier's LOD0 glTF out of the
-// gitignored `previews/blender/` into the committed `pwa/models/` under the
-// name the build packs it by (`<id>.glb`, `skier.glb`), and writes
+// (which first runs `make blender`'s game quality for every pair). Copies
+// each pair's LOD0 glTF out of the gitignored `previews/blender/` into the
+// committed `pwa/models/` under the name the build packs it by
+// (`<id>.glb`), and writes
 // `pwa/models/sources.json` — the hash of every source they are made from
 // (`MODEL_HALVES` in `pwa/models-plugin.ts`), which `tests/models_test.ts`
-// holds to the tree. (Nothing else is a model: the trees, the wildlife and
-// the course's marks are built in code — `pwa/src/game/tree-shapes.ts`,
-// `bird-shapes.ts`, `beast-shapes.ts`, `mark-shapes.ts`.)
+// holds to the tree. (Nothing else is a model: the skier is dressed in code
+// — `pwa/src/game/skier-dress.ts` — and the trees, the wildlife and the
+// course's marks are built in code — `tree-shapes.ts`, `bird-shapes.ts`,
+// `beast-shapes.ts`, `mark-shapes.ts`.)
 //
 //   node scripts/models.mjs                  publish what `make blender` made
 //   node scripts/models.mjs --check          only say whether the stamp is fresh
@@ -58,13 +59,8 @@ if (args.check) {
 }
 
 /** Each published name and the file `make blender` wrote it as: a pair's
- * or the skier's LOD0. */
-const made = (name) =>
-  join(
-    root,
-    args.from,
-    name === "skier.glb" ? "skier0-lod0.glb" : name.replace(".glb", "-lod0.glb"),
-  );
+ * LOD0. */
+const made = (name) => join(root, args.from, name.replace(".glb", "-lod0.glb"));
 const names = modelFiles(ALL_MODELS);
 const missing = names.filter((n) => !existsSync(made(n)));
 if (missing.length) {

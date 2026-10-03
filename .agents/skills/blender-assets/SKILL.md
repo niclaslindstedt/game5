@@ -1,13 +1,15 @@
 ---
 name: blender-assets
-description: "Use when a game asset is to be MODELLED IN BLENDER off the game's own data — the skis (a pair with its bindings, boots and poles) and the skier today; any other drawn thing when its kind is added — for studio renders, a real-time glTF with LODs, or to find out how good an authored version of something the game builds in code could look. Owns `make blender` (`scripts/blender.mjs` and the KINDS under `scripts/blender/kinds/`, each the JSON the game's data for one is handed as), the Blender shelf (`scripts/blender/lib.py`: the helpers, the studio, the rig, the game-budget export) and each kind's builder (`scripts/blender/skis.py`, `skier.py`), the RIG every model carries and the clips baked into it (the game-side contracts `ski-rig.ts` and `skier-rig.ts`), the lab sheet that sets a model beside the game's own (`make skis ARGS=--asset=…`), THE MODELS IN THE GAME (the `VITE_MODEL_SKIS` / `VITE_MODEL_SKIERS` build switches, `make models`, `pwa/models-plugin.ts`, `skier-models.ts`: packed, loaded, dressed, posed in place of the code's drawn parts), the frame a model is stated in and turned back from, the triangle budget and its LODs, installing and running Blender headless on macOS and Linux, reference photographs (local only, never committed, never named), and adding a new kind. Not the game's own builders (`ski-design`, `nature`, `skier`) — though they are what every model is held against — and not the TREES, the WILDLIFE or the COURSE'S MARKS, which are not modelled: every one is built procedurally in code (`tree-shapes.ts`, `bird-shapes.ts`, `beast-shapes.ts`, `mark-shapes.ts`; `nature`, `collision`)."
+description: "Use when a game asset is to be MODELLED IN BLENDER off the game's own data — the skis (a pair with its bindings, boots and poles) and the skier today; any other drawn thing when its kind is added — for studio renders, a real-time glTF with LODs, or to find out how good an authored version of something the game builds in code could look. Owns `make blender` (`scripts/blender.mjs` and the KINDS under `scripts/blender/kinds/`, each the JSON the game's data for one is handed as), the Blender shelf (`scripts/blender/lib.py`: the helpers, the studio, the rig, the game-budget export) and each kind's builder (`scripts/blender/skis.py`, `skier.py`), the RIG every model carries and the clips baked into it (the game-side contracts `ski-rig.ts` and `skier-rig.ts`), the lab sheet that sets a model beside the game's own (`make skis ARGS=--asset=…`), THE MODELS IN THE GAME (the skis: the `VITE_MODEL_SKIS` build switch, `make models`, `pwa/models-plugin.ts`, `skier-models.ts`: packed, loaded, dressed, posed in place of the code's drawn parts), the frame a model is stated in and turned back from, the triangle budget and its LODs, installing and running Blender headless on macOS and Linux, reference photographs (local only, never committed, never named), and adding a new kind. Not the game's own builders (`ski-design`, `nature`, `skier`) — though they are what every model is held against — and not the TREES, the WILDLIFE or the COURSE'S MARKS, which are not modelled: every one is built procedurally in code (`tree-shapes.ts`, `bird-shapes.ts`, `beast-shapes.ts`, `mark-shapes.ts`; `nature`, `collision`)."
 ---
 
 # Blender assets
 
-The game draws its **skis and skier from the models made here** —
-committed in `pwa/models/` by `make models` — and builds everything else
-(and, one switch away, those two too) in code (§ "The models in the game"). This skill is the other
+The game draws its **skis from the models made here** — committed in
+`pwa/models/` by `make models` — and builds everything else (and, one
+switch away, the skis too) in code; the SKIER is dressed in code from a
+gear catalog (`skier-gear`), and his Blender model is the labs'
+comparison (§ "The models in the game"). This skill is the other
 road, kept open on purpose — the same things MODELLED in Blender, off the
 same numbers, so that the question "how good could it look, and what would
 it cost?" is answered with a render, a triangle count and a picture in the
@@ -302,17 +304,27 @@ bits.
 
 ## The models in the game
 
-Every build draws them — local, CI, the site's slots, a release, the
-desktop and store apps — unless SWITCHED BACK (`VITE_MODEL_SKIS=0`,
-`VITE_MODEL_SKIERS=0` in the environment or the root `.env`;
-`model-switch.ts`). Every workflow's build step hands on the
-repository variables of the same names, so `make ci-models MODELS=off`
+THE SKIER IS NOT SHIPPED AS A MODEL. The gear is a catalog to mix (two
+bodies under five jackets, four pants, four helmets, gloves and poles),
+and a modelled skier is one suit: the game dresses him in code instead
+(`skier-gear`: each piece cut onto the rig in its bind pose and skinned on
+the very bones `skier-rig.ts` states, so a modelled skier and the dressed
+one are posed alike). `make blender KIND=skier` still models one suit —
+the comparison `make gear ARGS="--sheet=compare --model=…"` sets beside
+the dressed skier — and `skier-rig.ts`, `skier.py` and `dressOf`'s skier
+half serve that.
+
+Every build draws the SKIS — local, CI, the site's slots, a release, the
+desktop and store apps — unless SWITCHED BACK (`VITE_MODEL_SKIS=0` in the
+environment or the root `.env`; `model-switch.ts`). Every workflow's
+build step hands on the repository variable of the same name, so
+`make ci-models MODELS=off`
 switches every CI build back with no commit. `docs/configuration.md` is
 the description; what a session needs:
 
-- **Committed, stamped, drift-tested.** `make models` makes every pair and
-  `skier0` at game quality (no stills), and `scripts/models.mjs` publishes
-  the LOD0s into `pwa/models/<id>.glb` / `skier.glb` with `sources.json`
+- **Committed, stamped, drift-tested.** `make models` makes every pair at
+  game quality (no stills), and `scripts/models.mjs` publishes the LOD0s
+  into `pwa/models/<id>.glb` with `sources.json`
   (`MODEL_HALVES` in `pwa/models-plugin.ts` — the builders, the driver,
   the kinds' data modules, and the game data they read).
   `tests/models_test.ts` recomputes it: a change to any source FAILS the
@@ -327,15 +339,19 @@ the description; what a session needs:
   hangs the model beside it and COLLAPSES the code's drawn parts out of the
   merged draw (`posed-merge.ts`); the lamp, the bound, the thrown skier and
   every reader of a `SkierModel` go on as they were. The pair is posed by
-  `ski-rig.ts`, the skier by `skier-rig.ts` at the figure's own pose. "Up"
+  `ski-rig.ts` (a lab's Blender skier by `skier-rig.ts` at the figure's own
+  pose). "Up"
   and "side" are the PAIR's (`rigAsset` reads them off the loaded scene's
   frame), never the lab's floor.
 - **Dressed, not repainted by hand.** `dressOf` maps each material's NAME
   (as `skis.py` / `skier.py` name it — `tests/models_test.ts` reads them)
   to the topsheet's colour or to the code pair's own base, edge and lamp
   materials; every other material goes through the world's `wrap`. A
-  topsheet's graphic does not reach a model (open work). One skier model
-  for every kit.
+  pair's GRAPHIC is cut into its model (a pair is sold in one topsheet):
+  `skis.py` lays the pattern's decals in `white` — the trim — exactly where
+  `ski-gear.ts`' `decalGeometry` lays the code pair's, and a race pair's
+  number panel in `base`; `ski-topsheets.ts` is a `MODEL_SOURCES` file. A
+  lab's Blender skier takes an outfit's colours (`outfit.ts`' `coloursOf`).
 - **Cost**: a pair's LOD0 in the low thousands of triangles, the skier's
   under 10k; the lower LODs are packed by nothing yet (open work: rivals at range on LOD1).
 

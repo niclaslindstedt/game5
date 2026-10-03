@@ -61,21 +61,20 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
   {
     asset: "Skier",
     ids: ["skier"],
-    source: "blender",
+    source: "code",
     code: [
-      "pwa/src/game/skier-figure.ts",
-      "pwa/src/game/skier-cloth.ts",
-      "pwa/src/game/skier-helmet.ts",
+      "pwa/src/game/skier-dress.ts",
+      "pwa/src/game/dress.ts",
+      "pwa/src/game/dress-loft.ts",
+      "pwa/src/game/dress-garments.ts",
+      "pwa/src/game/dress-head.ts",
       "pwa/src/game/helmet-shape.ts",
     ],
-    drawnBy: "pwa/src/game/skier-models.ts",
-    blender: {
-      builder: "scripts/blender/skier.py",
-      files: ["skier.glb"],
-      pattern: "skier.glb",
-      switch: "VITE_MODEL_SKIERS",
-    },
-    note: "one model, dressed in each start-line slot's kit",
+    drawnBy: "pwa/src/game/skier-figure.ts",
+    note:
+      "procedural: his outfit (outfit.ts — two bodies, five jackets, four pants, four helmets, " +
+      "four gloves, four poles) cut to the body's measure on the rig and skinned on it; " +
+      "`make blender KIND=skier` still models one suit, the labs' comparison (`make gear`)",
   },
   {
     asset: "Trees",

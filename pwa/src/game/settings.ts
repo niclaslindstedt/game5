@@ -26,7 +26,7 @@ import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
-import { SKI_TOPSHEETS } from "./ski-topsheets.ts";
+import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
 
 /** THE LADDER C WALKS, nearest first: a lens at the ski tips, the helmet
@@ -86,10 +86,10 @@ export type Settings = {
   camera: CameraRung;
   /** The pair the player skis on (`SKI_CATALOG`). */
   skis: SkiId;
-  /** The topsheet each pair wears (`ski-topsheets.ts`), an index into its
-   * list — kept per pair, so trying another pair's graphics does not lose
-   * this one's. A pair with none is in its first. */
-  topsheets: Partial<Record<SkiId, number>>;
+  /** What the skier wears (`outfit.ts`): a body, a jacket, pants, a
+   * helmet, gloves and poles, each sold in its own colours — picked on the
+   * DRESS card. */
+  outfit: Outfit;
   /** Whether the game makes a sound at all. */
   sound: boolean;
   audio: AudioLevels;
@@ -129,11 +129,6 @@ export type Settings = {
   dev: DevSettings;
 };
 
-/** Settings with pair `id` wearing topsheet `index`. */
-export function withTopsheet(s: Settings, id: SkiId, index: number): Settings {
-  return { ...s, topsheets: { ...s.topsheets, [id]: index } };
-}
-
 /** How long the front door's title is held to let the developer page out,
  * ms: long enough that no thumb resting on it does it by accident. */
 export const DEV_HOLD_MS = 7000;
@@ -156,7 +151,7 @@ export function freshSettings(): Settings {
   return {
     camera: DEFAULT_CAMERA,
     skis: SKIS.id,
-    topsheets: {},
+    outfit: { ...DEFAULT_OUTFIT },
     sound: true,
     audio: { master: 1, engine: 1, effects: 1 },
     video: { ...DEFAULT_VIDEO },
@@ -214,12 +209,7 @@ export function mergeSettings(parsed: unknown): Settings {
     out.camera = blob.camera as CameraRung;
   }
   if (typeof blob.skis === "string" && isSkiId(blob.skis)) out.skis = blob.skis;
-  const topsheets = record(blob.topsheets);
-  for (const id of Object.keys(topsheets)) {
-    const pick = topsheets[id];
-    if (!isSkiId(id) || typeof pick !== "number" || !Number.isInteger(pick)) continue;
-    if (pick >= 0 && pick < SKI_TOPSHEETS[id].length) out.topsheets[id] = pick;
-  }
+  out.outfit = outfitOf(blob.outfit);
   if (typeof blob.sound === "boolean") out.sound = blob.sound;
   const audio = record(blob.audio);
   for (const k of ["master", "engine", "effects"] as const) {

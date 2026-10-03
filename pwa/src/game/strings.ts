@@ -252,8 +252,20 @@ export const STRINGS = {
   skisRide: "SKI",
   skisPrev: "Previous pair",
   skisNext: "Next pair",
-  skisTopsheet: "Topsheet",
+  skisDress: "CUSTOMIZE SKIER",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
+
+  /* ── THE DRESS CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
+  dressTitle: "DRESS",
+  dressDone: "DONE",
+  dressSlots: {
+    body: "BODY",
+    jacket: "JACKET",
+    pants: "PANTS",
+    helmet: "HELMET",
+    gloves: "GLOVES",
+    poles: "POLES",
+  },
   /** THE SPEC SHEET's figures: what a pair is, off its catalog row. */
   skisFacts: {
     length: "LENGTH",

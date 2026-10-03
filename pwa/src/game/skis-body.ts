@@ -30,8 +30,11 @@
 // drawn; a draw of its own, since its lens is a lamp, not paint. After
 // dark it and the finish arena's floods (`gates.ts`) are the night's lights.
 //
-// Four colour schemes (`SKI_STYLES`), one per start-line slot, their paint
-// read off `skier-colours.ts` so the minimap's dot is the same colour.
+// Every pair is drawn in its own topsheet (`ski-topsheets.ts`) — a pair is
+// sold in one — and every skier in his own outfit (`outfit.ts`): the
+// player's as dressed on the DRESS card, each rival's his slot's
+// (`SLOT_DRESS`), his jacket in the slot's colour so the minimap's dot is
+// the jacket a player sees.
 
 import * as THREE from "three";
 import { TUNING, type SkiSpec, type SkierState, type Thrown, type TrickPose } from "@engine";
@@ -42,16 +45,16 @@ import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, skiTilt } from "./ski-gear.ts";
 import { SKI_LOOKS, lookOf } from "./ski-looks.ts";
 import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
+import { outfitKey } from "./dress.ts";
+import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
-import { SKIER_BODY } from "./skier-colours.ts";
-import { createSkier, type SkierFigure, type SkierStyle } from "./skier-figure.ts";
+import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
   drawnSkiAngle,
   gaitOf,
   mountsFor,
-  skierPose,
   stepSkierSpring,
   type Mounts,
   type SkierPoseInput,
@@ -65,90 +68,42 @@ export type SkiStyle = {
   /** The topsheet's paint, and the trim its graphic is cut in. */
   body: number;
   accent: number;
-  skier: SkierStyle;
+  /** What the skier on the pair wears (`skier-dress.ts`). */
+  skier: SkierDress;
   /** The rest of a topsheet (`ski-topsheets.ts`), when the style carries
    * one: the sidewalls' and bindings' dark, the boots' shell, the poles'
    * shaft, the pattern. Left out, the sidewalls and bindings are black, the
-   * boots the kit's own, the poles alloy, and the pattern the pair's own
-   * first topsheet's. */
+   * boots black, the poles alloy, and the pattern the pair's own. */
   panel?: number;
   boot?: number;
   pole?: number;
   pattern?: PatternId;
 };
 
-/** A start-line slot's style dressed in a topsheet: the paint, the trim,
- * the sidewalls, the boots, the poles and the pattern are the topsheet's;
- * the skier's kit stays the slot's. */
-export function styleIn(style: SkiStyle, topsheet: Topsheet): SkiStyle {
+/** A pair in a topsheet with a skier on it in `skier`'s outfit. */
+export function styleIn(topsheet: Topsheet, skier: SkierDress): SkiStyle {
   return {
-    ...style,
     body: topsheet.body,
     accent: topsheet.trim,
     panel: topsheet.panel,
     boot: topsheet.boot,
     pole: topsheet.pole,
     pattern: topsheet.pattern,
+    skier,
   };
 }
 
-export const SKI_STYLES: SkiStyle[] = [
-  // The player's: the gate red, and a racer's kit to match — a red suit
-  // with a black yoke, black pants, a black helmet under a red stripe,
-  // gold-mirrored goggles.
-  {
-    body: SKIER_BODY[0],
-    accent: 0xf4f4f4,
-    skier: {
-      jacket: 0xc92a1c,
-      accent: 0x15171b,
-      pants: 0x15171b,
-      helmet: 0x1b1d21,
-      visor: 0xd9a21a,
-      peak: 0xe8412c,
-      skin: 0xc68863,
-    },
-  },
-  {
-    body: SKIER_BODY[1],
-    accent: 0xf2f5f8,
-    skier: {
-      jacket: 0x2a6fd6,
-      accent: 0xf2f2f2,
-      pants: 0x1a1d24,
-      helmet: 0xf2f2f2,
-      visor: 0x6fb4e8,
-      peak: 0x2a6fd6,
-      skin: 0xe8b896,
-    },
-  },
-  {
-    body: SKIER_BODY[2],
-    accent: 0x151515,
-    skier: {
-      jacket: 0x252525,
-      accent: 0xf2bf22,
-      pants: 0x151515,
-      helmet: 0xf2bf22,
-      visor: 0x2b2f36,
-      peak: 0x151515,
-      skin: 0x8a5a3c,
-    },
-  },
-  {
-    body: SKIER_BODY[3],
-    accent: 0x0e1a14,
-    skier: {
-      jacket: 0x0f6b48,
-      accent: 0x0e1a14,
-      pants: 0x1b1f1d,
-      helmet: 0x0e1a14,
-      visor: 0xd96a2b,
-      peak: 0x0f6b48,
-      skin: 0xb07650,
-    },
-  },
+/** WHAT EACH START-LINE SLOT'S SKIER WEARS: the player's (slot 0) before
+ * they have dressed, then each rival's own (`RIVAL_OUTFITS`). */
+export const SLOT_DRESS: readonly SkierDress[] = [
+  { outfit: DEFAULT_OUTFIT },
+  ...RIVAL_OUTFITS.map(({ tone, ...outfit }) => ({ outfit, tone })),
 ];
+
+/** A pair in its own topsheet, `skier` on it. */
+export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
+  return styleIn(TOPSHEETS[spec.id], skier);
+}
 
 export type SkisModel = {
   root: THREE.Group;
@@ -307,11 +262,11 @@ export function createSkisModel(
   const paint = mat({ color: style.body, roughness: 0.28, metalness: 0.05 });
   const trim = mat({ color: style.accent, roughness: 0.35 });
   const black = mat({ color: style.panel ?? 0x1c1f23, roughness: 0.7 });
-  const boot = mat({ color: style.boot ?? style.skier.pants, roughness: 0.55 });
+  const boot = mat({ color: style.boot ?? 0x121316, roughness: 0.55 });
   const alloy = mat({ color: 0x9aa1a9, roughness: 0.3, metalness: 0.8 });
   // The base: the black sintered sheet a ski runs on, with a little sheen.
   const base = mat({ color: 0x0c0d10, roughness: 0.45, metalness: 0.2 });
-  const pattern = PATTERNS[style.pattern ?? TOPSHEETS[spec.id][0].pattern];
+  const pattern = PATTERNS[style.pattern ?? TOPSHEETS[spec.id].pattern];
 
   const add = (g: THREE.BufferGeometry, m: THREE.Material, parent: THREE.Object3D = root) => {
     geos.push(g);
@@ -333,23 +288,23 @@ export function createSkisModel(
 
   // THE SKIER, in the body frame — his feet go where the boots go.
   const mounts = mountsOf(spec);
-  const figure: SkierFigure = createSkier(
-    { ...style.skier, pole: style.pole ?? style.skier.pole },
-    wrap,
-    look.pole,
-  );
+  const figure: SkierFigure = createSkier(style.skier, wrap, look.pole);
   root.add(figure.group);
   // His own clock starts at his kit's own offset: four on a start line
   // breathe and shift their weight out of step.
-  const legs = createSkierSpring((style.skier.jacket % 997) / 31);
+  const kit = outfitKey(style.skier.outfit, style.skier.tone);
+  let seed = 0;
+  for (let i = 0; i < kit.length; i++) seed = (seed * 31 + kit.charCodeAt(i)) % 997;
+  const legs = createSkierSpring(seed / 31);
   let fall: { ground: FlightGround; gravity: number } | null = null;
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
   // through one vertex-coloured mesh, each part a bone of it.
   const parts: THREE.Mesh[] = [];
+  // The dressed skin is skinned on the rig and drawn apart.
   root.traverse((o) => {
-    if (o instanceof THREE.Mesh) parts.push(o);
+    if (o instanceof THREE.Mesh && !(o instanceof THREE.SkinnedMesh)) parts.push(o);
   });
   const merged = mergePosed(
     root,
@@ -357,19 +312,11 @@ export function createSkisModel(
     mat({ vertexColors: true, roughness: 0.55, metalness: 0.05 }, "skis-merged"),
   );
 
-  // THE MODELLED SKIS AND SKIER, where this build draws them
-  // (`skier-models.ts`): the code's drawn parts collapsed out of the merged
-  // draw — the figure by hiding its group, the skis by hiding every other
-  // part — and the models posed beside them.
-  const models = attachModels({
-    spec,
-    root,
-    skis: style,
-    skier: style.skier,
-    wrap,
-  });
-  // The merged draw itself stays: it is the one draw the code's parts
-  // (the figure, the poles) reach the screen through.
+  // THE MODELLED SKIS, where this build draws them (`skier-models.ts`):
+  // the code's skis collapsed out of the merged draw and the model posed
+  // beside them. The merged draw itself stays: it is the one draw the
+  // code's poles reach the screen through.
+  const models = attachModels({ spec, root, skis: style, wrap });
   if (models?.skis) {
     root.traverse((o) => {
       if (
@@ -382,12 +329,9 @@ export function createSkisModel(
       }
     });
   }
-  // The modelled skier carries no poles, so the code figure keeps its
-  // group (and the poles in its hands) and hides its body alone.
-  if (models?.skier) figure.setBodyVisible(false);
   merged.update();
-  // Hung after the merge, so it stays out of the one draw and is never
-  // hidden with the code's body: the model's helmet wears it too.
+  // Hung after the merge, so it stays out of the one draw: a lamp of its
+  // own, on whichever helmet he wears.
   const lamp = buildHeadlamp(figure.head, mat, (g) => {
     geos.push(g);
     return g;
@@ -413,7 +357,7 @@ export function createSkisModel(
   return {
     root,
     lamp,
-    casters: [merged.mesh, ...(models?.meshes ?? [])],
+    casters: [merged.mesh, ...figure.skin, ...(models?.meshes ?? [])],
     bound(out) {
       out.center.copy(bound.center);
       root.localToWorld(out.center);
@@ -468,7 +412,6 @@ export function createSkisModel(
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
         figure.sprawl(p);
-        models?.poseSkier(p, figure.group);
         bound.radius = BOUND + figure.group.position.length();
       } else {
         if (bound.radius !== BOUND) {
@@ -478,7 +421,6 @@ export function createSkisModel(
         }
         const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
         figure.pose(input);
-        models?.poseSkier(skierPose(input), figure.group);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
@@ -489,14 +431,12 @@ export function createSkisModel(
     poseSkier(input) {
       const full = { mounts, ...input };
       figure.pose(full);
-      models?.poseSkier(skierPose(full), figure.group);
       merged.update();
     },
     setGround(ground, gravity) {
       fall = ground ? { ground, gravity } : null;
     },
     setSkierVisible(v) {
-      models?.setSkierVisible(v);
       if (figure.group.visible === v) return;
       figure.group.visible = v;
       merged.update();

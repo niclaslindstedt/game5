@@ -31,23 +31,32 @@
 // panels themselves do. Every other gate's panels are muted — present,
 // countable, but not asking for the eye.
 //
-// THE MARKS ARE MODELS where a build carries them (`gate-models.ts`: the
-// marker and the inflatable itself, made in Blender off the same numbers)
-// and the code's own below otherwise; the panels, the hut, the wand, the
-// nets, the edge poles, the banner, the guy lines and the line dyed on the
-// snow are the code's either way — they are written, strung and laid on
-// this map's ground.
+// EVERY MARK IS BUILT IN CODE, in the woods' chunky, faceted, low-poly look
+// (`mark-shapes.ts`: the poles and their panels, the stakes, the marker, the
+// hut, the arch's tube, skirts and blowers); the wand, the nets, the masts,
+// the banner, the guy lines and the line dyed on the snow are strung and
+// laid on this map's own ground here.
 
 import * as THREE from "three";
 import { gradeOf, type Checkpoint, type Level } from "@engine";
 
 import { PALETTE } from "../identity.ts";
-import { archModel, checkpointModel } from "./gate-models.ts";
 import { glow } from "./glow-sprite.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import {
+  archBlower,
+  archSkirt,
+  archTube,
+  edgeBand,
+  edgeStake,
+  gateMarker,
+  gatePanel,
+  gatePole,
+  startHut,
+} from "./mark-shapes.ts";
 import { createRunSigns } from "./run-signs.ts";
-import { ARCH, GATE, archPlan, type ArchPlan } from "./start-arch.ts";
+import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
 import { STRINGS } from "./strings.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
@@ -215,13 +224,6 @@ function strand(a: THREE.Vector3, b: THREE.Vector3, r: number): THREE.BufferGeom
   return g;
 }
 
-/** The code's own marker: a cone, point down, over the owed gate. */
-function codeMarker(): THREE.BufferGeometry {
-  const marker = new THREE.ConeGeometry(GATE.marker.width / 2, GATE.marker.height, 4);
-  marker.rotateX(Math.PI);
-  return marker;
-}
-
 export function createGates(level: Level, haze: HazeUniforms): Gates {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
@@ -232,24 +234,18 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     mats.push(m);
     return m;
   };
-  const model = checkpointModel();
   const markerMat = std(
-    {
-      color: model ? 0xffffff : PALETTE.flag,
-      vertexColors: !!model,
-      emissive: PALETTE.flag,
-      emissiveIntensity: 0.5,
-      roughness: 0.6,
-    },
-    model ? "gate-marker-model" : "gate-marker",
+    { vertexColors: true, emissive: PALETTE.flag, emissiveIntensity: 0.35, roughness: 0.6 },
+    "gate-marker",
   );
-  const markerGeo = model ? model.marker : codeMarker();
+  const markerGeo = gateMarker();
   geos.push(markerGeo);
   const red = new THREE.Color(PALETTE.flag);
   const blue = new THREE.Color(PALETTE.gateBlue);
   const muted = (c: THREE.Color) => c.clone().lerp(new THREE.Color(0x9aa4ad), 0.4);
   const dark = std({ color: 0x23282e, roughness: 0.8 }, "gate-dark");
-  const timber = std({ color: 0x6b4a2e, roughness: 0.85 }, "gate-timber");
+  /** The built marks' own paint, a face at a time. */
+  const painted = std({ vertexColors: true, roughness: 0.75 }, "gate-painted");
   const alloy = std({ color: 0xb8bec4, roughness: 0.35, metalness: 0.6 }, "gate-alloy");
   const rope = std({ color: 0xe8ecef, roughness: 0.9 }, "gate-rope");
 
@@ -257,13 +253,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // two meshes, coloured per instance — a course is a hundred of them, and
   // one draw each would be most of a frame's draw calls. The panels are
   // double-sided cloth; the poles a hinged plastic.
-  const poleGeo = new THREE.CylinderGeometry(PANEL.radius, PANEL.radius * 1.2, PANEL.pole, 6);
-  poleGeo.translate(0, PANEL.pole / 2, 0);
-  const panelGeo = new THREE.PlaneGeometry(PANEL.gap, PANEL.drop);
-  panelGeo.translate(0, PANEL.pole - PANEL.drop / 2, 0);
+  const poleGeo = gatePole(PANEL.pole, PANEL.radius);
+  const panelGeo = gatePanel(PANEL.gap, PANEL.drop, PANEL.pole);
   geos.push(poleGeo, panelGeo);
-  const poleMat = std({ color: 0xffffff, vertexColors: false, roughness: 0.5 }, "gate-pole");
-  const panelMat = std({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide }, "gate-panel");
+  const poleMat = std({ vertexColors: true, roughness: 0.5 }, "gate-pole");
+  const panelMat = std(
+    { vertexColors: true, roughness: 0.8, side: THREE.DoubleSide },
+    "gate-panel",
+  );
   const gates = level.checkpoints.length;
   const poles = new THREE.InstancedMesh(poleGeo, poleMat, gates * 4);
   const panels = new THREE.InstancedMesh(panelGeo, panelMat, gates * 2);
@@ -332,31 +329,23 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       own.push(new THREE.Vector3(cx, y + PANEL.pole + 1.2, cz));
     });
     tops.push(own);
-    if (first) startHut(cp, rx, rz, fx, fz);
+    if (first) hutAt(cp, rx, rz, fx, fz);
     if (last) finish(cp, fx, fz);
   };
 
-  // THE START HUT off the line's left edge, a timber box under a pitched
-  // roof, its open side to the piste; and the wand across the gate.
-  const startHut = (cp: Checkpoint, rx: number, rz: number, fx: number, fz: number) => {
+  // THE START HUT off the line's left edge, a timber box under a gabled
+  // roof, its window to the piste; and the wand across the gate.
+  const hutAt = (cp: Checkpoint, rx: number, rz: number, fx: number, fz: number) => {
     const half = cp.width / 2 + 1;
     const hx = cp.x - rx * (half + HUT.out) + fx * 1.5;
     const hz = cp.z - rz * (half + HUT.out) + fz * 1.5;
     const hy = level.groundAt(hx, hz);
-    const hut = new THREE.Group();
+    const hutGeo = startHut(HUT.width, HUT.depth, HUT.height);
+    geos.push(hutGeo);
+    const hut = new THREE.Mesh(hutGeo, painted);
     hut.position.set(hx, hy, hz);
     hut.rotation.y = cp.heading;
-    const box = new THREE.BoxGeometry(HUT.width, HUT.height, HUT.depth);
-    box.translate(0, HUT.height / 2, 0);
-    const roof = new THREE.ConeGeometry(HUT.width * 0.85, 0.7, 4);
-    roof.rotateY(Math.PI / 4);
-    roof.translate(0, HUT.height + 0.35, 0);
-    geos.push(box, roof);
-    const walls = new THREE.Mesh(box, timber);
-    walls.castShadow = true;
-    const lid = new THREE.Mesh(roof, dark);
-    lid.castShadow = true;
-    hut.add(walls, lid);
+    hut.castShadow = true;
     group.add(hut);
     // The wand: two posts a racer's shins go between, the bar at the knee.
     for (const side of [-1, 1]) {
@@ -389,23 +378,12 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // fencing the last stretch; the floodlights on their masts.
   const finish = (cp: Checkpoint, fx: number, fz: number) => {
     const a = archPlan(level, cp);
-    const modelled = archModel(a);
-    if (modelled) {
-      const dressed = std({ vertexColors: true, roughness: 0.55 }, "arch-model");
-      geos.push(modelled);
-      const body = new THREE.Mesh(modelled, dressed);
-      body.position.set(a.x, a.top - ARCH.top, a.z);
-      body.rotation.y = cp.heading;
-      body.castShadow = true;
-      group.add(body);
-    } else {
-      const fabric = std({ color: PALETTE.flag, roughness: 0.45 }, "arch-fabric");
-      const tube = new THREE.TubeGeometry(archPath(a), 140, ARCH.tube, 16, false);
-      geos.push(tube);
-      const body = new THREE.Mesh(tube, fabric);
-      body.castShadow = true;
-      group.add(body);
-    }
+    const fabric = std({ vertexColors: true, roughness: 0.45 }, "arch-fabric");
+    const tube = archTube(a, archPath(a));
+    geos.push(tube);
+    const body = new THREE.Mesh(tube, fabric);
+    body.castShadow = true;
+    group.add(body);
 
     // The banner across the span's face. ONE-SIDED, and hung twice back
     // to back: a plane drawn from behind reads its lettering mirrored.
@@ -424,28 +402,24 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     }
 
     // At each foot the skirt it is weighted down with and the blower that
-    // keeps it up (the model's own where there is one), a guy line fore
-    // and aft to a stake — and the FLOODLIGHT MAST, its lamp head aimed
-    // back up the piste at the last stretch.
-    const skirt = new THREE.CylinderGeometry(ARCH.tube * 1.25, ARCH.tube * 1.35, 0.8, 16);
-    skirt.translate(0, 0.4, 0);
-    const blower = new THREE.BoxGeometry(0.45, 0.4, 0.55);
-    blower.translate(0, 0.2, 0);
+    // keeps it up, a guy line fore and aft to a stake — and the FLOODLIGHT
+    // MAST, its lamp head aimed back up the piste at the last stretch.
+    const skirt = archSkirt();
+    const blower = archBlower();
     geos.push(skirt, blower);
     a.feet.forEach((f, k) => {
       const side = k === 0 ? -1 : 1;
-      if (!modelled) {
-        const s = new THREE.Mesh(skirt, dark);
-        s.position.set(f.x, f.y + ARCH.sink - 0.2, f.z);
-        s.castShadow = true;
-        const bx = f.x + a.rx * side * 1.3;
-        const bz = f.z + a.rz * side * 1.3;
-        const box = new THREE.Mesh(blower, dark);
-        box.position.set(bx, level.groundAt(bx, bz) - 0.05, bz);
-        box.rotation.y = cp.heading;
-        box.castShadow = true;
-        group.add(s, box);
-      }
+      const s = new THREE.Mesh(skirt, painted);
+      s.position.set(f.x, f.y + ARCH.sink - 0.2, f.z);
+      s.castShadow = true;
+      const bx = f.x + a.rx * side * 1.3;
+      const bz = f.z + a.rz * side * 1.3;
+      const box = new THREE.Mesh(blower, painted);
+      box.position.set(bx, level.groundAt(bx, bz) - 0.05, bz);
+      // The grille faces the leg it feeds.
+      box.rotation.y = cp.heading + (side < 0 ? Math.PI / 2 : -Math.PI / 2);
+      box.castShadow = true;
+      group.add(s, box);
       const shoulder = new THREE.Vector3(f.x, a.top - ARCH.corner * 0.3, f.z);
       for (const along of [-1, 1]) {
         const gx = f.x + a.rx * side * 1.5 + fx * along * 4.2;
@@ -607,10 +581,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // marked as the raced one is — the right-hand ones banded orange at the
   // top. A pole that would stand on another run's groomed snow (a junction,
   // a lane across a piste) is left out.
-  const stakeGeo = new THREE.CylinderGeometry(EDGE.radius, EDGE.radius * 1.3, EDGE.height, 6);
-  stakeGeo.translate(0, EDGE.height / 2, 0);
-  const bandGeo = new THREE.CylinderGeometry(EDGE.radius * 1.4, EDGE.radius * 1.4, EDGE.band, 6);
-  bandGeo.translate(0, EDGE.height - EDGE.band / 2, 0);
+  const stakeGeo = edgeStake(EDGE.height, EDGE.radius);
+  const bandGeo = edgeBand(EDGE.height, EDGE.band, EDGE.radius);
   geos.push(stakeGeo, bandGeo);
   const stakeMat = std({ color: 0xffffff, roughness: 0.55 }, "edge-stake");
   const lines = level.resort

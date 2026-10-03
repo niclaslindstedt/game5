@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE TREE BUILDER'S BENCH — the primitives every procedural tree is made of
+// THE BUILDER'S BENCH — the primitives every procedural tree is made of
 // (`tree-shapes.ts`): a tapering tube, a two-sided fin of twigs, and the
 // mesh they are pushed into, in the unit frame the forest instances every
-// tree in (x and z a crown radius, y the height).
+// tree in (x and z a crown radius, y the height). The wildlife
+// (`bird-shapes.ts`, `beast-shapes.ts`) and the course's marks
+// (`mark-shapes.ts`) are built on the same bench, in metres and with no
+// lean, so the whole mountain is faceted one way: a loft of keyed rings,
+// a cap, a flat-coloured face, and a MARK on every vertex (a wing's flag, a
+// leg's phase, an antler's root) for the vertex shader that moves it.
 //
 // TWO THINGS ARE DECIDED HERE FOR EVERY TREE.
 //
@@ -60,6 +65,13 @@ export function graftGirth(shader: { vertexShader: string }): void {
     .replace("#include <begin_vertex>", `#include <begin_vertex>\n${GIRTH_VERTEX}`);
 }
 
+/** A triangle's own normal, unnormalised. */
+export function faceNormal(a: V3, b: V3, c: V3): V3 {
+  const e = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const f = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  return [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
+}
+
 /** A small deterministic hash for a shape's own irregularity. */
 export function jitter(i: number): number {
   const s = Math.sin(i * 91.345 + 17.13) * 43758.5453;
@@ -69,6 +81,15 @@ export function jitter(i: number): number {
 export const smooth = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
+};
+
+/** What a shape carries past a tree's: its MARKS (name → floats a
+ * vertex), whether it has a trunk's `stem`, and whether its triangles are
+ * rewound to their pushed normals. */
+export type ShapeOptions = {
+  readonly marks?: Readonly<Record<string, number>>;
+  readonly stems?: boolean;
+  readonly wind?: boolean;
 };
 
 /** A mesh under construction: positions, colours, normals and stem tags,
@@ -81,11 +102,34 @@ export class Shape {
   readonly nrm: number[] = [];
   readonly stem: number[] = [];
   readonly facets: number[] = [];
+  /** Every MARK's values, one a vertex (`size` floats each): named when the
+   * shape is made, set in `mark` before the pushes they tag. */
+  readonly marks = new Map<string, { size: number; values: number[]; now: number[] }>();
   private readonly lean: number;
+  /** Whether the geometry carries the trunk's `stem` attribute. */
+  private readonly stems: boolean;
+  /** Whether every triangle is rewound to face the way it was pushed
+   * facing, so a culled or two-sided material lights it from its front. */
+  private readonly wind: boolean;
   /** The facet share the next pushes take. */
   facet = 0.55;
-  constructor(lean: number) {
+  constructor(lean: number, opts: ShapeOptions = {}) {
     this.lean = lean;
+    this.stems = opts.stems ?? true;
+    this.wind = opts.wind ?? false;
+    for (const [name, size] of Object.entries(opts.marks ?? {})) {
+      this.marks.set(name, { size, values: [], now: Array<number>(size).fill(0) });
+    }
+  }
+  /** Tag every vertex pushed from here on with `value` under `name`. */
+  mark(name: string, ...value: number[]): void {
+    const m = this.marks.get(name);
+    if (!m) throw new Error(`no mark ${name}`);
+    for (let k = 0; k < m.size; k++) m.now[k] = value[k] ?? 0;
+  }
+  /** How many vertices have been pushed. */
+  get count(): number {
+    return this.pos.length / 3;
   }
   push(p: V3, c: THREE.Color, n: V3, axis: V3 | null = null, w = 0): void {
     const shove = p[1] * this.lean * 4;
@@ -96,6 +140,55 @@ export class Shape {
     if (axis && w > 0) this.stem.push(axis[0] + shove, axis[2], w);
     else this.stem.push(p[0] + shove, p[2], 0);
     this.facets.push(this.facet);
+    for (const m of this.marks.values()) m.values.push(...m.now);
+  }
+  /** One triangle in one flat colour, its volume normal `n` (the face's own
+   * when left out). */
+  tri(a: V3, b: V3, c: V3, col: THREE.Color, n?: V3): void {
+    const nn = n ?? faceNormal(a, b, c);
+    this.push(a, col, nn);
+    this.push(b, col, nn);
+    this.push(c, col, nn);
+  }
+  /** A quad `a b c d` (wound the same way) as two triangles of one colour. */
+  quad(a: V3, b: V3, c: V3, d: V3, col: THREE.Color, n?: V3): void {
+    this.tri(a, b, c, col, n);
+    this.tri(a, c, d, col, n);
+  }
+  /** A LOFT through rings of equal size, each round its `centre`: every
+   * quad between two rings one flat colour (`paint(ring, side)`), its
+   * corners' volume normals out from their own ring's centre — so the body
+   * turns from sun to shade as a mass and the facets still read. Wound
+   * outward for rings that go counter-clockwise seen from the last one. */
+  loft(
+    rings: readonly V3[][],
+    centres: readonly V3[],
+    paint: (k: number, s: number) => THREE.Color,
+  ): void {
+    const out = (p: V3, c: V3): V3 => [p[0] - c[0], p[1] - c[1], p[2] - c[2]];
+    for (let k = 0; k + 1 < rings.length; k++) {
+      const a = rings[k];
+      const b = rings[k + 1];
+      for (let s = 0; s < a.length; s++) {
+        const s1 = (s + 1) % a.length;
+        const col = paint(k, s);
+        this.push(a[s], col, out(a[s], centres[k]));
+        this.push(a[s1], col, out(a[s1], centres[k]));
+        this.push(b[s1], col, out(b[s1], centres[k + 1]));
+        this.push(a[s], col, out(a[s], centres[k]));
+        this.push(b[s1], col, out(b[s1], centres[k + 1]));
+        this.push(b[s], col, out(b[s], centres[k + 1]));
+      }
+    }
+  }
+  /** A ring closed to a point `tip` (or flat to its centre), one colour,
+   * facing `n` — the loft's end. `flip` turns its winding. */
+  cap(ring: readonly V3[], tip: V3, col: THREE.Color, n: V3, flip = false): void {
+    for (let s = 0; s < ring.length; s++) {
+      const s1 = (s + 1) % ring.length;
+      if (flip) this.tri(ring[s1], ring[s], tip, col, n);
+      else this.tri(ring[s], ring[s1], tip, col, n);
+    }
   }
   /** A tapering tube of `sides` from `a` to `b`, radii `ra` and `rb`, its
    * colour `ca` at the foot going to `cb` at the head; `girth` is how much
@@ -204,6 +297,21 @@ export class Shape {
     this.push(rootR, rootC, nDown);
     this.push(tipR, tipC, nDown);
   }
+  /** Swap two vertices, every attribute of them. */
+  private swap(i: number, j: number): void {
+    const sw = (arr: number[], size: number): void => {
+      for (let k = 0; k < size; k++) {
+        const v = arr[i * size + k];
+        arr[i * size + k] = arr[j * size + k];
+        arr[j * size + k] = v;
+      }
+    };
+    sw(this.pos, 3);
+    sw(this.col, 3);
+    sw(this.nrm, 3);
+    sw(this.stem, 3);
+    for (const m of this.marks.values()) sw(m.values, m.size);
+  }
   /** The mesh: every triangle's normals blended toward its own face's by
    * the share it was pushed with. */
   geometry(): THREE.BufferGeometry {
@@ -211,7 +319,7 @@ export class Shape {
     const n = this.nrm;
     for (let t = 0; t + 8 < p.length; t += 9) {
       const f = this.facets[t / 3];
-      if (f <= 0) continue;
+      if (f <= 0 && !this.wind) continue;
       const ex = p[t + 3] - p[t];
       const ey = p[t + 4] - p[t + 1];
       const ez = p[t + 5] - p[t + 2];
@@ -232,6 +340,7 @@ export class Shape {
       // Facing the way the part was pushed facing.
       const dot = fx * n[t] + fy * n[t + 1] + fz * n[t + 2];
       const s = dot < 0 ? -1 : 1;
+      if (this.wind && dot < 0) this.swap(t / 3 + 1, t / 3 + 2);
       for (let k = 0; k < 9; k += 3) {
         const x = n[t + k] * (1 - f) + fx * s * f;
         const y = n[t + k + 1] * (1 - f) + fy * s * f;
@@ -246,7 +355,10 @@ export class Shape {
     g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(n, 3));
-    g.setAttribute("stem", new THREE.Float32BufferAttribute(this.stem, 3));
+    if (this.stems) g.setAttribute("stem", new THREE.Float32BufferAttribute(this.stem, 3));
+    for (const [name, m] of this.marks) {
+      g.setAttribute(name, new THREE.Float32BufferAttribute(m.values, m.size));
+    }
     g.computeBoundingSphere();
     return g;
   }

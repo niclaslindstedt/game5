@@ -32,21 +32,11 @@ export const ARCH = {
   panel: 1.25,
   /** The dyed band on the snow: its depth along the track — three rows. */
   band: 1.8,
-  /** The reach a MODELLED arch is made at (`gate.py`): the loader stretches
-   * its span to the line's own, and its legs down to their feet. */
-  modelReach: 7,
 };
 
-/** THE CHECKPOINT'S MARKS, m: the banded stake a course crew plants (its
- * height over the snow, the bands round it), the pennant hung off its top
- * (how far it streams out and how deep it hangs) and the marker that
- * stands over the owed gate's poles (its width and its height). `gates.ts`
- * builds the code's own off these and `scripts/blender/gate.py` the
- * modelled ones. */
+/** THE OWED GATE'S MARKER, m: its width and its height over the panels it
+ * stands above. `mark-shapes.ts` builds it off these. */
 export const GATE = {
-  pole: 3.2,
-  bands: 8,
-  pennant: { reach: 0.95, drop: 0.6 },
   marker: { width: 0.6, height: 0.7 },
 };
 

@@ -14,6 +14,7 @@ import type { GameState, Level } from "@engine";
 import { createBeasts, type Beasts, type PrintSnow, type TrailWindow } from "./beasts.ts";
 import { createBirds, type Birds } from "./birds.ts";
 import type { HazeUniforms } from "./haze.ts";
+import type { WildLook } from "./settings-video.ts";
 import type { Stamp } from "./trail-stamp.ts";
 
 export type Wildlife = {
@@ -32,14 +33,21 @@ export type Wildlife = {
   retrack: () => void;
   /** A new run on the same map. */
   reset: () => void;
+  /** The FOREST row moved (`FOREST_LOOK[row].wild`). */
+  setLook: (look: WildLook) => void;
   birds: Birds;
   beasts: Beasts;
   dispose: () => void;
 };
 
-export function createWildlife(level: Level, haze: HazeUniforms, snow?: PrintSnow): Wildlife {
-  const birds = createBirds(level, haze);
-  const beasts = createBeasts(level, haze, snow);
+export function createWildlife(
+  level: Level,
+  haze: HazeUniforms,
+  look: WildLook,
+  snow?: PrintSnow,
+): Wildlife {
+  const birds = createBirds(level, haze, look);
+  const beasts = createBeasts(level, haze, look, snow);
   const group = new THREE.Group();
   group.add(birds.group, beasts.group);
   return {
@@ -52,6 +60,10 @@ export function createWildlife(level: Level, haze: HazeUniforms, snow?: PrintSno
     reset() {
       birds.reset();
       beasts.reset();
+    },
+    setLook(look) {
+      birds.setLook(look);
+      beasts.setLook(look);
     },
     birds,
     beasts,

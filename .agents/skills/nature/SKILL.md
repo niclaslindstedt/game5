@@ -61,9 +61,28 @@ no roster names the range it was read off.
 
 Marmots hibernate through the season and are never drawn. No tree bird
 lives above the tree line; nothing lives on a tarn's ice. A new species is a
-row in the defs plus a shape variant of an existing builder (`bird-shapes.ts`,
-`beast-shapes.ts`), and — where a build carries the models — a Blender model
-(`blender-assets`).
+row in the defs, a style (its paint, its outline, its rack) for the
+procedural builder (`bird-shapes.ts`, `beast-shapes.ts`), and its FORMS and
+its sexes' and ages' rules in `wild-traits.ts` — there are no wildlife
+models.
+
+**EVERY BIRD AND ANIMAL IS BUILT IN CODE, AND EACH ONE IS AN INDIVIDUAL.**
+The builders stand on the trees' bench (`tree-mesh.ts`'s `Shape`): a body
+LOFTED FROM KEYED RINGS (a bird's flat back over a keeled breast, an
+animal's withers over its loins and its tucked flank — equal rings make a
+cigar), flat colour a face, faceted light, and MARKS on the vertices the
+shader moves. Each species is built in the FORMS that show (a cock and a
+hen, a first-winter eagle with its white patches, a calf's round build) at
+a NEAR and a FAR cut from the same builder (the far a third of the
+triangles, the silhouette kept). Who each animal is — its form, its size,
+its shade, how far its rack has grown — is a HASH of its group's own
+`scatter` and its index (`wild-traits.ts`), never the engine's stream. The
+antlers and horns are in every grown animal's mesh and GROWN in the vertex
+shader (`aAntler`: the root and the age each tine comes at, `TINE_AT`;
+the rack in `aMotion` per instance): a cow's folds away, a yearling carries a spike, an
+old bull the crown. The FOREST row draws fewer FORMS on a cheaper picture
+(`FOREST_LOOK[row].wild`) — never fewer species — and sets where the near
+cut hands over.
 
 ## The files, one direction of flow
 
@@ -84,7 +103,8 @@ row in the defs plus a shape variant of an existing builder (`bird-shapes.ts`,
 | `pwa/src/game/rarity.ts`, `wild-ground.ts` | The RARITY LADDER (`perKm` → a word, and the drawn fraction that makes a count of it) and the questions both wildlife placers ask a map: the nearest trunk, the piste, the drawn snow's height, the slope, the tree line |
 | `pwa/src/game/bird-defs.ts`, `bird-roost.ts`, `bird-plan.ts` | THE BIRDS: the roster (a plain array, every row naming its regions), where every flock lives (a spruce crown, a burrow in a glade, a crag on the ridge) and its circuit held over the canopy or the face, and `birdPose` — the cycle, the circuit, the wings, the FLUSH (`flushAt`, any skier) and the skeins crossing in March (`crossingAt`, by the map's day) |
 | `pwa/src/game/beast-defs.ts`, `beast-plan.ts`, `beast-tracks.ts` | THE ANIMALS IN THE SNOW: the roster, where every group lives (a wood's edge, a glade, a crag — never on or beside the piste), `beastPose` — a round walked in a closed-form cycle of standing and moving — and the FRIGHT (`spookAt`); the PRINTS as trail-map stamps in the species' own pattern |
-| `pwa/src/game/bird-shapes.ts`, `beast-shapes.ts`, `birds.ts`, `beasts.ts`, `wildlife.ts` | The wildlife as drawn: one instanced mesh a species (a draw call each, only while one is in reach), the wings and the legs and the head moved in the vertex shader, the haze through `hazeMaterial`; the renderer's two memories (the flushes, the frights) and the prints laid again whenever the fine trail window moves |
+| `pwa/src/game/wild-traits.ts` | WHO EACH ANIMAL IS (three-free): the forms a species is drawn in, most telling first (`BIRD_FORMS`, `BEAST_FORMS`), an individual's form, sex, size, shade, age and rack (`birdIndividual`, `beastIndividual`, `rackOf`) off its group's scatter, the form drawn when a cheap picture draws fewer (`drawnForm`), and the age each tine comes at (`TINE_AT`) |
+| `pwa/src/game/bird-shapes.ts`, `beast-shapes.ts`, `birds.ts`, `beasts.ts`, `wildlife.ts` | The wildlife as BUILT (procedurally, on `tree-mesh.ts`'s bench: a form at a near and a far cut, `BIRD_STYLES` / `BEAST_STYLES` the paint, the outline and the rack) and DRAWN: one instanced mesh a species form and cut (a draw call each, only while one is in reach), each instance scaled and tinted to its individual, the wings, the legs, the head and the rack moved in the vertex shader (the animals' depth material grafted the same, so the shadow walks and wears its antlers), the haze through `hazeMaterial`; the renderer's two memories (the flushes, the frights) and the prints laid again whenever the fine trail window moves |
 
 ## How the mountain should read
 
@@ -161,7 +181,9 @@ row in the defs plus a shape variant of an existing builder (`bird-shapes.ts`,
 6. If a rule moved: `mapgen-improvement`'s loop (`make analyze`, the
    verbatim mirror in `docs/level-generator.md`, `make sim`).
 7. **The wildlife**: `make birds` for the roster side by side (the
-   silhouettes, the paint, three poses each over a metre rule), then
+   silhouettes, the paint, three poses each over a metre rule, each in the
+   next of its forms — an old male, a female, a youngster; `ARGS=--lod=both`
+   sets each species' far cut beside its near), then
    `make world ARGS=--views=herd,birds,prints` for them on the mountain, and
    `tests/birds_test.ts` for the claims (no digest moved, nothing on the
    piste, every row's regions, the flush and the fright as rules). A cry is

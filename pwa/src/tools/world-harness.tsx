@@ -31,6 +31,7 @@ import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-
 import type { LensPose } from "../game/camera-rigs.ts";
 import { planLift, ropeAt } from "../game/lift-plan.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { markView } from "./mark-view.ts";
 import { signView } from "./sign-view.ts";
 import {
   DEFAULT_VIDEO,
@@ -733,6 +734,19 @@ const shots: Record<string, () => string> = {
       () => {
         const view = signView(level, name === "sign-tree");
         if (!view) return "no sign on this map";
+        renderer.setOverride(view.pose);
+        still();
+        renderer.setOverride(null);
+        return view.note;
+      },
+    ]),
+  ),
+  ...Object.fromEntries(
+    (["gate", "hut", "finish"] as const).map((name) => [
+      name,
+      () => {
+        const view = markView(level, name);
+        if (!view) return "no course on this map";
         renderer.setOverride(view.pose);
         still();
         renderer.setOverride(null);

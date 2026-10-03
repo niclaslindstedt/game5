@@ -110,9 +110,6 @@ import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import { loadBirdModels } from "./bird-models.ts";
-import { loadBeastModels } from "./beast-models.ts";
-import { loadGateModels } from "./gate-models.ts";
 import {
   bodyStampOf,
   createPen,
@@ -122,10 +119,11 @@ import {
   type TrailPen,
 } from "./trail-stamp.ts";
 
-// The modelled skis, skiers, wildlife and marks, fetched before the kit is handed
-// out (`use-render-kit.ts`), when this build draws them.
+// The modelled skis and skiers, fetched before the kit is handed out
+// (`use-render-kit.ts`), when this build draws them. Everything else is
+// built in code.
 export async function loadModels(): Promise<void> {
-  await Promise.all([loadSkierModels(), loadBirdModels(), loadBeastModels(), loadGateModels()]);
+  await loadSkierModels();
 }
 
 export type RendererOptions = {
@@ -557,7 +555,7 @@ export function createWorldRenderer(
       lifts.group.name = "lifts";
       scene.add(lifts.group);
       pack = packFor(state);
-      wildlife = createWildlife(lv, env.haze, {
+      wildlife = createWildlife(lv, env.haze, FOREST_LOOK[video.forest].wild, {
         at: sampleSnow,
         // A snowing sky has been filling last night's prints for hours.
         soften: () => (pack ? Math.min(0.75, (pack.laid / NEW_COVER) * 0.6) : 0),
@@ -935,6 +933,7 @@ export function createWorldRenderer(
       lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);
       forest?.setOptions(forestOptions());
+      wildlife?.setLook(FOREST_LOOK[video.forest].wild);
       // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch,
       // its reach and a map's size are what their buffers were allocated
       // at. New trail maps lose the trails cut so far — this is pressed over

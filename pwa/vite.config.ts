@@ -58,20 +58,17 @@ export default defineConfig(({ mode }) => {
   const models = {
     skis: modelSwitch(env.VITE_MODEL_SKIS),
     skiers: modelSwitch(env.VITE_MODEL_SKIERS),
-    birds: modelSwitch(env.VITE_MODEL_BIRDS),
-    beasts: modelSwitch(env.VITE_MODEL_BEASTS),
-    gates: modelSwitch(env.VITE_MODEL_GATES),
   };
   return {
     base,
     envDir,
-    // The lazy renderer carries three.js and the generated rider shapes in a
-    // 571 kB chunk by design. Keep Vite's warning just above that measured
-    // envelope. It is the ONLY thing watching bundle size now: the raw and
-    // gzip budgets over the first-render path went with `check-seo.mjs`, so
-    // what keeps three.js off that path is the dynamic import of
-    // `renderer.ts` in `App.tsx` and nothing else (spec-conformance §23.9).
-    build: { chunkSizeWarningLimit: 600 },
+    // The lazy renderer carries three.js and every procedural builder (the
+    // riders, the trees, the wildlife, the marks) in a 684 kB chunk by
+    // design. Keep Vite's warning just above that measured envelope. It is
+    // the ONLY thing watching bundle size: what keeps three.js off the
+    // first-render path is the dynamic import of `renderer.ts` in `App.tsx`
+    // and nothing else (spec-conformance §23.9).
+    build: { chunkSizeWarningLimit: 700 },
     resolve: {
       alias: {
         "@engine": here("../engine/index.ts"),

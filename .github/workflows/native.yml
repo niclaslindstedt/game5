@@ -72,9 +72,6 @@ jobs:
           # ci-models MODELS=off`, no commit needed; unset is on.
           VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
           VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-          VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-          VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-          VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
 
       - name: EAS build
         working-directory: native

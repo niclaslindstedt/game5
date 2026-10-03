@@ -90,34 +90,27 @@ skier-metrics:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the skier,
-# every bird and animal, and the course's marks (the checkpoint and the
-# start arch), game quality (no stills), made by Blender and published
-# into the COMMITTED pwa/models/ with a stamp of their sources —
-# tests/models_test.ts fails when a model is older than what it is made
-# from. Needs Blender (or the bpy module: scripts/bpy-blender.sh). SET=machines (the skis and the skier),
-# SET=birds, SET=beasts or SET=gates makes one half only. A build draws
-# them unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_SKIERS=0,
-# VITE_MODEL_BIRDS=0, VITE_MODEL_BEASTS=0,
-# VITE_MODEL_GATES=0).
+# The models the game ships: every pair of skis and the skier, game
+# quality (no stills), made by Blender and published into the COMMITTED
+# pwa/models/ with a stamp of their sources — tests/models_test.ts fails
+# when a model is older than what it is made from. Needs Blender (or the
+# bpy module: scripts/bpy-blender.sh). A build draws them unless switched
+# back (VITE_MODEL_SKIS=0, VITE_MODEL_SKIERS=0). The trees, the wildlife
+# and the course's marks are built in code and have no models.
 models:
-	@if [ -z "$(SET)" ] || [ "$(SET)" = "machines" ]; then \
-	  npm run blender -- --id all --quality=game --views=none && \
-	  npm run blender -- --kind skier --id skier0 --quality=game --views=none; fi
-	@for kind in bird beast gate; do \
-	  if [ -z "$(SET)" ] || [ "$(SET)" = "$${kind}s" ]; then \
-	    npm run blender -- --kind $$kind --id all --quality=game --views=none || exit 1; fi; done
-	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs $(if $(SET),--set $(SET),)
+	npm run blender -- --id all --quality=game --views=none
+	npm run blender -- --kind skier --id skier0 --quality=game --views=none
+	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs
 
 # Switch the models on or off for every CI build — the repository
 # VARIABLES the workflows hand the build (needs gh, and the right to set
-# them): `make ci-models MODELS=off` draws the code-built skis, skier,
-# wildlife and marks on the next deploy with no commit; MODELS=on (or deleting the
-# variables) puts the models back. (SET=... on `make models` — the halves.)
+# them): `make ci-models MODELS=off` draws the code-built skis and skier
+# on the next deploy with no commit; MODELS=on (or deleting the variables)
+# puts the models back.
 ci-models:
 	@case "$(MODELS)" in \
-	  off) for v in SKIS SKIERS BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 0 || exit 1; done ;; \
-	  on) for v in SKIS SKIERS BIRDS BEASTS GATES; do gh variable set VITE_MODEL_$$v --body 1 || exit 1; done ;; \
+	  off) for v in SKIS SKIERS; do gh variable set VITE_MODEL_$$v --body 0 || exit 1; done ;; \
+	  on) for v in SKIS SKIERS; do gh variable set VITE_MODEL_$$v --body 1 || exit 1; done ;; \
 	  *) echo "usage: make ci-models MODELS=on|off" >&2; exit 2 ;; \
 	esac
 	@gh variable list | grep VITE_MODEL || true
@@ -171,10 +164,12 @@ turns:
 	npm run turns -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE WILDLIFE LAB: every bird over the woods and every animal in the snow
-# side by side, three poses each through the game's own geometry and
-# material, over a metre rule — previews/birds.png. Its own one-off bundle
-# from pwa/birds-preview.html (never deployed); needs a Chromium like
-# `world`. ARGS="--rows=raven,ptarmigan,reindeer" narrows it.
+# side by side, three poses each (each in the next of its forms: an old
+# male, a female, a youngster) through the game's own procedural geometry
+# and material, over a metre rule — previews/birds.png. Its own one-off
+# bundle from pwa/birds-preview.html (never deployed); needs a Chromium
+# like `world`. ARGS="--rows=raven,ptarmigan,reindeer" narrows it;
+# ARGS=--lod=far draws the far cut, --lod=both each species at both.
 birds:
 	npm run birds -- $(ARGS)
 

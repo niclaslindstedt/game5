@@ -153,6 +153,53 @@ function measure(A: typeof MAN, female: boolean): BodyMeasure {
 
 export const BODY_MEASURES = { man: measure(MAN, false), woman: measure(WOMAN, true) } as const;
 
+/** A BUILD'S SHAPE over the medium one's (`WeightDef`): `girth` the
+ * trunk's breadth and depth as a share of the medium build's, `belly` how
+ * far the stomach stands out ahead of that (a share of the trunk's depth
+ * there, at its fullest over the navel), `chest` how much broader the chest
+ * and shoulders' flesh are (an athlete's, not a gut). */
+export type BuildShape = { girth: number; belly: number; chest: number };
+
+/** THE BODY BUILT TO A SHAPE: at the same height and on the same bones a
+ * heavier skier is broader and deeper through the trunk and rounder in the
+ * limbs (the arms and legs taking less of it than the trunk), a heavy one
+ * carries a STOMACH out ahead over the belt and a little over his hips, a
+ * solid one a broader chest and shoulders; a lighter one is slighter
+ * everywhere. The shoulders' bone breadth (`acromion`) is the skeleton's and
+ * does not move. The medium build's measure is handed back as it is. */
+export function builtTo(m: BodyMeasure, b: BuildShape): BodyMeasure {
+  if (b.girth === 1 && b.belly === 0 && b.chest === 0) return m;
+  const limb = 1 + (b.girth - 1) * 0.7;
+  // The stomach: fullest between the waist and the lowest rib, gone by the
+  // crotch and under the chest.
+  const navel = m.waist + (m.waist - m.crotch) * 0.1;
+  const reach = (m.waist - m.crotch) * 0.85;
+  const gut = (level: number): number => {
+    const u = Math.max(0, 1 - Math.abs(level - navel) / reach);
+    return u * u * (3 - 2 * u);
+  };
+  // The chest: the levels between the lowest rib and the armpit.
+  const pecs = (level: number): number => Math.max(0, Math.min(1, (level - m.waist) / 0.25));
+  return {
+    ...m,
+    trunk: m.trunk.map((t) => ({
+      level: t.level,
+      w: t.w * b.girth * (1 + 0.25 * b.belly * gut(t.level)) * (1 + b.chest * pecs(t.level)),
+      f: t.f * b.girth * (1 + b.belly * gut(t.level)) * (1 + 0.6 * b.chest * pecs(t.level)),
+      b: t.b * b.girth * (1 + 0.15 * b.belly * gut(t.level)),
+    })),
+    deltoid: m.acromion + (m.deltoid - m.acromion) * limb * (1 + 2 * b.chest),
+    thigh: m.thigh * limb,
+    lowerThigh: m.lowerThigh * limb,
+    calf: m.calf * limb,
+    ankle: m.ankle * (1 + (b.girth - 1) * 0.3),
+    biceps: m.biceps * limb * (1 + b.chest),
+    forearm: m.forearm * limb,
+    wrist: m.wrist * (1 + (b.girth - 1) * 0.3),
+    neck: m.neck * limb,
+  };
+}
+
 /** The trunk at a level, smoothed between the survey's levels (linear
  * between them, flat past the ends). */
 export function trunkAt(m: BodyMeasure, level: number): TrunkLevel {

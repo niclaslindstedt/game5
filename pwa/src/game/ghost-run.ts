@@ -40,6 +40,8 @@
 import {
   createGame,
   skisById,
+  riderById,
+  withRider,
   step,
   type Assist,
   type GameEvent,
@@ -184,7 +186,7 @@ export function createRunBook(world: GhostWorld): RunBook {
       const saved = store.loadGhost(stage);
       if (!saved) return;
       hadTape = true;
-      // The recording's OWN skis and help, on the very map object the run
+      // The recording's OWN skis, build and help, on the very map object the run
       // beside it stands on — building a map is the dearest thing the engine
       // does, and this one is paid for.
       ghost = createGame({
@@ -192,7 +194,7 @@ export function createRunBook(world: GhostWorld): RunBook {
         seed: state.seed,
         mode: saved.mode,
         laps: saved.laps,
-        spec: skisById(saved.skis),
+        spec: withRider(skisById(saved.skis), riderById(saved.rider ?? "medium")),
         assist: saved.assist,
         poles: saved.poles ?? true,
         quiet: true,

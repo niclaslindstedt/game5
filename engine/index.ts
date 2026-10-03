@@ -105,6 +105,17 @@ export {
   type SkiSpec,
   type LegSpec,
 } from "./game/defs/skis.ts";
+export {
+  RIDERS,
+  MEDIUM_RIDER,
+  riderById,
+  isRiderId,
+  withRider,
+  riderOf,
+  type RiddenSpec,
+  type RiderId,
+  type RiderSpec,
+} from "./game/defs/riders.ts";
 export { TUNING } from "./game/defs/tuning.ts";
 export {
   CROWD,

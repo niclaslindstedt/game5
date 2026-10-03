@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DRESS CARD — what the skier wears, behind the ski card's CUSTOMIZE
-// SKIER press. Six rows, one a piece of kit (`outfit.ts`): the BODY, the
-// JACKET, the PANTS, the HELMET, the GLOVES and the POLES, each stepped
+// SKIER press. Seven rows (`outfit.ts`): the BODY and its WEIGHT — the one
+// row the engine reads too (`defs/riders.ts`: a heavier skier runs faster
+// downhill, skates up to speed slower, lands harder and shoulders harder)
+// — then a piece of kit a row, the JACKET, the PANTS, the HELMET, the
+// GLOVES and the POLES, each stepped
 // through its catalog — and beside them the skier himself on the pair he
 // has picked, turning on the ski card's own stand (`ski-turntable.ts`,
 // framed on him), so a piece is judged on him rather than by its name.

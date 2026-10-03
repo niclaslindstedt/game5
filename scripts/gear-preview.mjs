@@ -45,7 +45,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".gear-preview");
 const outDir = join(root, "previews");
 const SHEETS = ["catalog", "outfits", "poses", "game", "wire", "compare", "refs"];
-const SLOTS = ["body", "jacket", "pants", "helmet", "gloves", "poles"];
+const SLOTS = ["body", "weight", "jacket", "pants", "helmet", "gloves", "poles"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -63,7 +63,7 @@ const args = parseArgs(
     outfits: {
       kind: "string",
       default: "0,1,2,3",
-      help: "outfits: start-line slots (0..3) or six ids body.jacket.pants.helmet.gloves.poles, comma-separated",
+      help: "outfits: start-line slots (0..3) or seven ids body.weight.jacket.pants.helmet.gloves.poles, comma-separated",
     },
     model: {
       kind: "string",

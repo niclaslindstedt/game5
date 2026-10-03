@@ -57,6 +57,7 @@ import {
   unrotate,
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
@@ -901,7 +902,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       // or not (`crash.ts`).
       level.normalAt(c.x, c.z, normal);
       const loose = TUNING.snow.cover * depth * (1 - c.packed);
-      const load = landingLoad(impact, c.crouch, loose);
+      const load = landingLoad(impact, c.crouch, loose, riderOf(spec).hold);
       const off = landingOff(
         rotate(c.q, { x: 0, y: 0, z: 1 }),
         rotate(c.q, { x: 1, y: 0, z: 0 }),

@@ -67,7 +67,7 @@ const params = new URLSearchParams(location.search);
 const sheet = params.get("sheet") ?? "catalog";
 const cell = Number(params.get("cell") ?? 300);
 const slotsAsked = (params.get("slots") ?? GEAR_SLOTS.join(",")).split(",") as GearSlot[];
-/** Outfits: start-line slot numbers, or six ids joined by dots. */
+/** Outfits: start-line slot numbers, or seven ids joined by dots. */
 const outfitsAsked = (params.get("outfits") ?? "0,1,2,3").split(",");
 const models = (params.get("models") ?? "").split(",").filter(Boolean);
 const refs = (params.get("refs") ?? "").split(",").filter(Boolean);

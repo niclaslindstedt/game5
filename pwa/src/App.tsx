@@ -82,7 +82,7 @@ import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
 import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts";
-import { keepsRecords } from "./game/records.ts";
+import { keepsRecords, pairKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { ResultPlate } from "./game/hud-result.tsx";
@@ -116,6 +116,7 @@ import {
   mixOf,
   nextCamera,
   saveSettings,
+  specFor,
   type Settings,
 } from "./game/settings.ts";
 import { withPreset, type VideoSettings } from "./game/settings-video.ts";
@@ -184,8 +185,8 @@ export function App() {
   const [linkSkis, setLinkSkis] = useState(params.skis);
   const linkSkisRef = useRef(linkSkis);
   linkSkisRef.current = linkSkis;
-  /** The pair the player skis. */
-  const specOf = (s: Settings): SkiSpec => skisById(linkSkisRef.current ?? s.skis);
+  /** The pair the player skis, under his build (`specFor`). */
+  const specOf = (s: Settings): SkiSpec => specFor(s, linkSkisRef.current);
   /** Who skis the player's runs, and with what: the pair, the help, the
    * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
   const skierOf = (s: Settings): PinnedSkier => ({
@@ -360,7 +361,7 @@ export function App() {
             key: {
               seed: s.seed,
               course: s.level.resort?.course,
-              skis: s.skier.spec.id,
+              ...pairKey(s.skier.spec),
               mode,
               laps: s.rules.laps,
             },
@@ -805,7 +806,7 @@ export function App() {
   };
   const trialBest = bookRef.current?.standing({
     seed: trialSeed,
-    skis: specOf(settings).id,
+    ...pairKey(specOf(settings)),
     mode: "timeTrial",
     laps: settings.trialLaps,
   });

@@ -37,10 +37,12 @@
 import {
   NEUTRAL_INPUT,
   isGameMode,
+  isRiderId,
   isSkiId,
   type Assist,
   type GameMode,
   type Level,
+  type RiderId,
   type SkiId,
   type SkierInput,
 } from "@engine";
@@ -128,6 +130,9 @@ export type GhostRun = GhostStage &
     format: number;
     seed: number;
     skis: SkiId;
+    /** The skier's build it was ridden at — absent on a medium build's run
+     * (and on every run kept before a build could be chosen). */
+    rider?: RiderId;
     mode: GameMode;
     laps: number;
     /** The help the run was ridden with: the ghost rides with it too, since
@@ -226,6 +231,7 @@ export function sealGhost(
     format: GHOST_FORMAT,
     seed: key.seed,
     skis: key.skis,
+    ...(key.rider && key.rider !== "medium" ? { rider: key.rider } : {}),
     mode: key.mode,
     laps: key.laps,
     assist: { ...assist },
@@ -251,6 +257,9 @@ export function readsAsGhost(parsed: unknown): parsed is GhostRun {
   if (run.format !== GHOST_FORMAT) return false;
   if (typeof run.id !== "string" || typeof run.map !== "string") return false;
   if (typeof run.skis !== "string" || !isSkiId(run.skis)) return false;
+  if (run.rider !== undefined && (typeof run.rider !== "string" || !isRiderId(run.rider))) {
+    return false;
+  }
   if (!isGameMode(run.mode)) return false;
   if (!Number.isInteger(run.seed) || !Number.isInteger(run.laps) || (run.laps as number) < 1) {
     return false;

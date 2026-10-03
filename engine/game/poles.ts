@@ -15,7 +15,7 @@
 //
 // THE PUSH IS POWER-LIMITED, which is how every human-powered drive behaves:
 // the force is the lesser of what a plant can press (`SkiSpec.polePush`)
-// and `poles.power` over the way — so the first strides off a standstill
+// and `poles.power` over the way (both the rider's own, `strength`) — so the first strides off a standstill
 // are strong and each one after buys less, and a skier on the flat runs up
 // to about 25 km/h and no further. Under `poles.speed` it is whole, and it
 // is gone by `poles.fade`; `poles.powderShare` of it is left in powder.
@@ -51,6 +51,7 @@
 // skier faster than the fade, and nothing here brakes him.
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { riderOf } from "./defs/riders.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 
@@ -211,7 +212,10 @@ export function driveForce(
   const reach = driveReach(way, poles);
   if (reach <= 0) return 0;
   const legs = poles ? 1 : B.legs;
-  const force = legs * Math.min(spec.polePush, P.power / Math.max(0.5, Math.abs(way)));
+  // The rider's own push (`RiderSpec.strength`) is in the plant and the
+  // power alike — `polePush` already carries it.
+  const power = P.power * riderOf(spec).strength;
+  const force = legs * Math.min(spec.polePush, power / Math.max(0.5, Math.abs(way)));
   const snow = packed + (1 - packed) * P.powderShare;
   return force * reach * snow * effort;
 }

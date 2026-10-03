@@ -3,36 +3,47 @@
 // the head of every run and at every junction a lane leaves by, built for
 // `gates.ts`, which carries them with the rest of the course's furniture.
 //
-// A BOARD IS PRINTED AS A SKI AREA PRINTS ONE: white enamel in a dark rim,
-// the run's MARK at its left — the grade's shape in its colour
-// (`grade-look.ts`: the green circle, the blue square, the red rectangle,
-// the black diamond) with the run's number in white on it — then the NAME
-// in heavy capitals, measured to the board, and an ARROW at the right the
-// way the run goes from where the sign stands. A lane's board is the same
-// print, smaller. The back is bare painted metal; the post a galvanised
-// tube.
+// A BOARD IS A PLANK WITH ITS WORDS BURNED IN: the grain of the country's
+// wood (`sign-look.ts`), its edges scorched dark, the run's MARK painted at
+// its left — the grade's shape in its colour (`grade-look.ts`: the green
+// circle, the blue square, the red rectangle, the black diamond) with the
+// run's number in white on it, outlined with the iron — then the NAME burned
+// black in the country's own hand, measured to the board, and an ARROW
+// burned at the right the way the run goes from where the sign stands. A
+// lane's board is the same plank, smaller. The board has a thickness of end
+// grain round it and a bare back; the post is a square timber.
+//
+// LIT AS WOOD IS LIT: nothing on a board glows. The print is the albedo and,
+// read again by its red channel, the BUMP — the burned letters and the grain
+// sunk into the plank — so the sun rakes across the letters by day and a
+// headlamp or a floodlight finds them by night (`hazeMaterial`'s lamp term),
+// and in the dark with no lamp on it a sign is as dark as the wood it is.
 //
 // THREE DRAWS FOR EVERY SIGN ON THE MAP: every board's print is one cell
 // of ONE canvas atlas, and the fronts are one merged mesh whose UVs reach
-// into it; the backs are a second mesh, the posts one instanced tube.
-// Everything goes through `hazeMaterial`, so a far sign fades into the air
-// and the mist as the stakes do.
+// into it; the backs and edges are a second mesh, the posts one instanced
+// timber. The atlas is printed at once in a fallback hand and printed again
+// when the country's face has loaded.
 
 import * as THREE from "three";
+import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { Level } from "@engine";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { signPlan, type SignArrow, type SignBoard } from "./run-sign-plan.ts";
+import { SIGN_FALLBACK, signLookOf, type SignLook } from "./sign-look.ts";
 
 /** One board's cell in the atlas, px — the boards' own 4 : 1. */
 const CELL = { w: 512, h: 128 };
 
-/** The post, m: its radius and how far it stands above the top board. */
-const POST = { radius: 0.045, over: 0.12 };
+/** The post, m: its half-width and how far it stands above the top board. */
+const POST = { half: 0.055, over: 0.12 };
 
-/** How far in front of the post a board's face hangs, m. */
-const FACE = 0.06;
+/** How far in front of the post's centre a board's face hangs, and the
+ * plank's thickness, m. */
+const FACE = 0.1;
+const THICK = 0.035;
 
 /** The arrow's angle on the board, rad from pointing up, clockwise. */
 const ARROW_ANGLE: Readonly<Record<SignArrow, number>> = {
@@ -43,74 +54,238 @@ const ARROW_ANGLE: Readonly<Record<SignArrow, number>> = {
   left: -Math.PI / 2,
 };
 
-const INK = "#15181c";
-const ENAMEL = "#f3f5f7";
+/** The burn: the char at the heart of a stroke, and the scorch it browns
+ * the wood with round it. */
+const CHAR = "#120a05";
+const SCORCH = "rgba(62, 26, 6, 0.85)";
+
+/** How far the wood's tone soaks through the grade's paint, 0..1, and the
+ * number's paint — an old white, never the enamel's. */
+const SOAK = 0.75;
+const NUMBER = "#ddd0b6";
+
+/** The faces loaded on this page, by family. */
+const loaded = new Map<string, Promise<boolean>>();
+
+function loadFace(look: SignLook): Promise<boolean> {
+  let p = loaded.get(look.family);
+  if (!p) {
+    p =
+      typeof FontFace === "undefined"
+        ? Promise.resolve(false)
+        : new FontFace(look.family, `url(${look.url})`).load().then(
+            (face) => {
+              document.fonts.add(face);
+              return true;
+            },
+            () => false,
+          );
+    loaded.set(look.family, p);
+  }
+  return p;
+}
+
+/** Draw `shape` burned into the wood: a soft scorch round it, the char on it. */
+function burn(g: CanvasRenderingContext2D, shape: () => void): void {
+  g.save();
+  g.shadowColor = SCORCH;
+  g.shadowBlur = 9;
+  g.fillStyle = g.strokeStyle = "#2a1408";
+  shape();
+  g.shadowBlur = 0;
+  g.fillStyle = g.strokeStyle = CHAR;
+  shape();
+  g.restore();
+}
+
+/** The grain over (x0, y0, w, h): long lines along the board, each
+ * wandering on its own wave, `alpha` of their full strength. */
+function grain(
+  g: CanvasRenderingContext2D,
+  look: SignLook,
+  rng: Rng,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  alpha: number,
+): void {
+  g.strokeStyle = look.grain;
+  const lines = Math.round((26 * h) / CELL.h);
+  for (let i = 0; i < lines; i++) {
+    const y = y0 + rng.range(-4, h + 4);
+    const amp = rng.range(1, 4);
+    const len = rng.range(60, 160);
+    const ph = rng.range(0, Math.PI * 2);
+    g.globalAlpha = rng.range(0.08, 0.32) * alpha;
+    g.lineWidth = rng.range(0.6, 2.4);
+    g.beginPath();
+    for (let x = 0; x <= w; x += 8) {
+      const yy = y + Math.sin(x / len + ph) * amp + Math.sin(x / 23 + ph * 3) * 0.6;
+      if (x === 0) g.moveTo(x0 + x, yy);
+      else g.lineTo(x0 + x, yy);
+    }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+/** The plank: its tone, the grain wandering along it, a knot or two, and
+ * the edges browned where the iron went round them. */
+function plank(
+  g: CanvasRenderingContext2D,
+  look: SignLook,
+  rng: Rng,
+  x0: number,
+  y0: number,
+): void {
+  const { w, h } = CELL;
+  g.save();
+  g.beginPath();
+  g.rect(x0, y0, w, h);
+  g.clip();
+  g.fillStyle = look.wood;
+  g.fillRect(x0, y0, w, h);
+  grain(g, look, rng, x0, y0, w, h, 1);
+  g.strokeStyle = look.grain;
+  // A knot, its rings, now and then.
+  if (rng.chance(0.6)) {
+    const kx = x0 + rng.range(w * 0.25, w * 0.75);
+    const ky = y0 + rng.range(h * 0.15, h * 0.85);
+    for (let r = 1; r <= 4; r++) {
+      g.globalAlpha = 0.5 / r;
+      g.lineWidth = r === 1 ? 3 : 1.2;
+      g.beginPath();
+      g.ellipse(kx, ky, 3 + r * 5, 2 + r * 2.2, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+  // The scorched rim: a wide dark stroke just outside the cell, its blur
+  // browning the plank's edge inwards.
+  g.shadowColor = SCORCH;
+  g.shadowBlur = 16;
+  g.strokeStyle = "#3a1c0a";
+  g.lineWidth = 10;
+  g.strokeRect(x0 - 4, y0 - 4, w + 8, h + 8);
+  g.restore();
+}
+
+/** The arrow burned at (ax, ay), `s` its half-length, turned the run's way. */
+function arrow(
+  g: CanvasRenderingContext2D,
+  ax: number,
+  ay: number,
+  s: number,
+  way: SignArrow,
+): void {
+  burn(g, () => {
+    g.save();
+    g.translate(ax, ay);
+    g.rotate(ARROW_ANGLE[way]);
+    g.lineCap = g.lineJoin = "round";
+    g.lineWidth = s * 0.34;
+    g.beginPath();
+    g.moveTo(0.02 * s, s * 0.92);
+    g.quadraticCurveTo(-0.05 * s, 0.1 * s, 0, -s * 0.82);
+    g.moveTo(-s * 0.62, -s * 0.2);
+    g.lineTo(0, -s * 0.86);
+    g.lineTo(s * 0.6, -s * 0.24);
+    g.stroke();
+    g.restore();
+  });
+}
 
 /** One board's print into its cell at (x0, y0). */
-function printBoard(g: CanvasRenderingContext2D, b: SignBoard, x0: number, y0: number): void {
+function printBoard(
+  g: CanvasRenderingContext2D,
+  b: SignBoard,
+  look: SignLook,
+  font: string,
+  seed: number,
+  x0: number,
+  y0: number,
+): void {
   const { w, h } = CELL;
-  const rim = 7;
-  g.fillStyle = INK;
-  g.fillRect(x0, y0, w, h);
-  g.fillStyle = ENAMEL;
-  g.fillRect(x0 + rim, y0 + rim, w - rim * 2, h - rim * 2);
+  plank(g, look, createRng(seed), x0, y0);
 
-  // THE MARK: the grade's shape from its 24-unit path, the number on it.
-  const look = GRADE_LOOK[b.grade];
-  const box = h - rim * 2 - 8;
-  const mx = x0 + rim + 6;
-  const my = y0 + rim + 4;
+  // THE MARK: the grade's shape painted from its 24-unit path, ringed with
+  // the iron, the number on it in white.
+  const pad = 12;
+  const grade = GRADE_LOOK[b.grade];
+  const box = h - pad * 2;
+  const mx = x0 + pad + 2;
+  const my = y0 + pad;
+  const path = new Path2D(gradePath(grade.shape));
+  const onMark = (draw: () => void): void => {
+    g.save();
+    g.translate(mx, my);
+    g.scale(box / 24, box / 24);
+    draw();
+    g.restore();
+  };
+  // Paint brushed onto bare wood soaks in: the wood's own tone multiplied
+  // through it darkens and warms it, and the grain shows through.
+  onMark(() => {
+    g.clip(path);
+    g.fillStyle = grade.paint;
+    g.fillRect(0, 0, 24, 24);
+    g.globalCompositeOperation = "multiply";
+    g.globalAlpha = SOAK;
+    g.fillStyle = look.wood;
+    g.fillRect(0, 0, 24, 24);
+  });
   g.save();
-  g.translate(mx, my);
-  g.scale(box / 24, box / 24);
-  const path = new Path2D(gradePath(look.shape));
-  g.fillStyle = look.paint;
-  g.fill(path);
-  g.lineWidth = 1.1;
-  g.strokeStyle = INK;
-  g.stroke(path);
+  g.beginPath();
+  g.rect(mx, my, box, box);
+  g.clip();
+  g.globalCompositeOperation = "multiply";
+  grain(g, look, createRng(seed ^ 0x5eed), mx, my, box, box, 0.6);
   g.restore();
-  g.fillStyle = "#ffffff";
+  burn(g, () =>
+    onMark(() => {
+      g.lineWidth = 1.3;
+      g.stroke(path);
+    }),
+  );
+  g.save();
+  g.fillStyle = NUMBER;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  const numSize = Math.round(box * (look.shape === "diamond" ? 0.36 : 0.46));
-  g.font = `900 ${numSize}px sans-serif`;
-  g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.06, box * 0.62);
-
-  // THE ARROW at the right, turned the way the run goes.
-  const ax = x0 + w - rim - h * 0.4;
-  const ay = y0 + h / 2;
-  const s = h * 0.3;
-  g.save();
-  g.translate(ax, ay);
-  g.rotate(ARROW_ANGLE[b.arrow]);
-  g.fillStyle = INK;
-  g.beginPath();
-  g.moveTo(0, -s);
-  g.lineTo(s * 0.8, -s * 0.15);
-  g.lineTo(s * 0.28, -s * 0.15);
-  g.lineTo(s * 0.28, s);
-  g.lineTo(-s * 0.28, s);
-  g.lineTo(-s * 0.28, -s * 0.15);
-  g.lineTo(-s * 0.8, -s * 0.15);
-  g.closePath();
-  g.fill();
+  const numSize = Math.round(box * (grade.shape === "diamond" ? 0.4 : 0.52));
+  g.font = `${numSize}px ${font}`;
+  g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();
 
-  // THE NAME between them, as big as the room lets it be.
-  const left = mx + box + 14;
-  const room = ax - s - 12 - left;
-  const text = b.name.toUpperCase();
-  let size = 80;
-  g.font = `800 ${size}px sans-serif`;
-  const wide = g.measureText(text).width;
-  if (wide > room) {
-    size = Math.max(30, Math.floor((size * room) / wide));
-    g.font = `800 ${size}px sans-serif`;
-  }
-  g.fillStyle = INK;
-  g.textAlign = "left";
-  g.fillText(text, left, y0 + h / 2 + size * 0.05, room);
+  // THE ARROW at the right.
+  const s = h * 0.3;
+  const ax = x0 + w - pad - s * 0.9;
+  const ay = y0 + h / 2;
+  arrow(g, ax, ay, s, b.arrow);
+
+  // THE NAME between them, as big as the room lets it be, centred on its
+  // own ink rather than on the face's em box — each hand sits differently.
+  const left = mx + box + 16;
+  const room = ax - s * 0.75 - 14 - left;
+  const text = look.caps ? b.name.toUpperCase() : b.name;
+  let size = h * 0.9;
+  g.font = `${size}px ${font}`;
+  let m = g.measureText(text);
+  const tall = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+  size *= Math.min(
+    1,
+    room / Math.max(1, m.width),
+    (h * (look.caps ? 0.62 : 0.72)) / Math.max(1, tall),
+  );
+  g.font = `${size}px ${font}`;
+  m = g.measureText(text);
+  const cy = y0 + h / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+  burn(g, () => {
+    g.textAlign = "left";
+    g.textBaseline = "alphabetic";
+    g.font = `${size}px ${font}`;
+    g.fillText(text, left + Math.max(0, (room - m.width) / 2), cy);
+  });
 }
 
 export type RunSigns = { group: THREE.Group; dispose(): void };
@@ -121,6 +296,7 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   const posts = signPlan(level);
   const boards = posts.flatMap((p) => p.boards.map((b) => ({ post: p, board: b })));
   if (boards.length === 0) return { group, dispose: () => {} };
+  const look = signLookOf(level.region);
 
   const cols = boards.length > 16 ? 4 : 2;
   const rows = Math.ceil(boards.length / cols);
@@ -130,8 +306,16 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext("2d")!;
-  g.fillStyle = ENAMEL;
-  g.fillRect(0, 0, W, H);
+  const printed = boards.filter((_, i) => (Math.floor(i / cols) + 1) * CELL.h <= H);
+  const print = (font: string): void => {
+    g.fillStyle = look.wood;
+    g.fillRect(0, 0, W, H);
+    printed.forEach(({ board }, i) => {
+      const seed = (level.seed * 31 + i * 7919) >>> 0;
+      printBoard(g, board, look, font, seed, (i % cols) * CELL.w, Math.floor(i / cols) * CELL.h);
+    });
+  };
+  print(SIGN_FALLBACK);
 
   const front = {
     pos: [] as number[],
@@ -139,12 +323,16 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
     nrm: [] as number[],
     idx: [] as number[],
   };
-  const back = { pos: [] as number[], nrm: [] as number[], idx: [] as number[] };
-  boards.forEach(({ post, board }, i) => {
+  const wood = { pos: [] as number[], nrm: [] as number[], idx: [] as number[] };
+  const quad = (a: number[], b: number[], c: number[], d: number[], n: number[]): void => {
+    const base = wood.pos.length / 3;
+    wood.pos.push(...a, ...b, ...c, ...d);
+    for (let k = 0; k < 4; k++) wood.nrm.push(n[0], n[1], n[2]);
+    wood.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  printed.forEach(({ post, board }, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    if ((row + 1) * CELL.h > H) return;
-    printBoard(g, board, col * CELL.w, row * CELL.h);
     // The reader looks along f; the board's face is turned back at him, and
     // its print runs left to right across his view — along f × up.
     const fx = Math.sin(post.heading);
@@ -152,97 +340,110 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
     const sx = -fz;
     const sz = fx;
     const hw = board.width / 2;
-    const cx = post.x - fx * FACE;
-    const cz = post.z - fz * FACE;
     const y0 = post.y + board.y;
     const y1 = y0 + board.height;
-    const corners = [
-      [cx - sx * hw, y0, cz - sz * hw],
-      [cx + sx * hw, y0, cz + sz * hw],
-      [cx + sx * hw, y1, cz + sz * hw],
-      [cx - sx * hw, y1, cz - sz * hw],
+    const at = (depth: number, side: number, y: number): number[] => [
+      post.x - fx * depth + sx * side,
+      y,
+      post.z - fz * depth + sz * side,
     ];
     const pad = 0.5;
     const u0 = (col * CELL.w + pad) / W;
     const u1 = ((col + 1) * CELL.w - pad) / W;
     const vTop = 1 - (row * CELL.h + pad) / H;
     const vBot = 1 - ((row + 1) * CELL.h - pad) / H;
-    let base = front.pos.length / 3;
-    for (const c of corners) front.pos.push(c[0], c[1], c[2]);
+    const base = front.pos.length / 3;
+    front.pos.push(
+      ...at(FACE, -hw, y0),
+      ...at(FACE, hw, y0),
+      ...at(FACE, hw, y1),
+      ...at(FACE, -hw, y1),
+    );
     front.uv.push(u0, vBot, u1, vBot, u1, vTop, u0, vTop);
     for (let k = 0; k < 4; k++) front.nrm.push(-fx, 0, -fz);
     front.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    // The back, a hair behind, wound the other way.
-    base = back.pos.length / 3;
-    for (const c of corners) back.pos.push(c[0] + fx * 0.02, c[1], c[2] + fz * 0.02);
-    for (let k = 0; k < 4; k++) back.nrm.push(fx, 0, fz);
-    back.idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    // The back and the four edges of end grain.
+    const b = FACE - THICK;
+    quad(at(b, hw, y0), at(b, -hw, y0), at(b, -hw, y1), at(b, hw, y1), [fx, 0, fz]);
+    quad(at(FACE, -hw, y1), at(FACE, hw, y1), at(b, hw, y1), at(b, -hw, y1), [0, 1, 0]);
+    quad(at(b, -hw, y0), at(b, hw, y0), at(FACE, hw, y0), at(FACE, -hw, y0), [0, -1, 0]);
+    quad(at(b, hw, y0), at(b, hw, y1), at(FACE, hw, y1), at(FACE, hw, y0), [sx, 0, sz]);
+    quad(at(FACE, -hw, y0), at(FACE, -hw, y1), at(b, -hw, y1), at(b, -hw, y0), [-sx, 0, -sz]);
   });
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
+  // The bump reads the same print as linear data — its red channel is the
+  // height, the char deepest — so it gets its own view of the canvas.
+  const bump = new THREE.CanvasTexture(canvas);
+  bump.colorSpace = THREE.NoColorSpace;
+  bump.anisotropy = 8;
   const frontGeo = new THREE.BufferGeometry();
   frontGeo.setAttribute("position", new THREE.Float32BufferAttribute(front.pos, 3));
   frontGeo.setAttribute("normal", new THREE.Float32BufferAttribute(front.nrm, 3));
   frontGeo.setAttribute("uv", new THREE.Float32BufferAttribute(front.uv, 2));
   frontGeo.setIndex(front.idx);
-  const backGeo = new THREE.BufferGeometry();
-  backGeo.setAttribute("position", new THREE.Float32BufferAttribute(back.pos, 3));
-  backGeo.setAttribute("normal", new THREE.Float32BufferAttribute(back.nrm, 3));
-  backGeo.setIndex(back.idx);
-  // The print glows a little of its own, as a reflective sign does under
-  // the sky, so it reads in the shade of its own board.
+  const woodGeo = new THREE.BufferGeometry();
+  woodGeo.setAttribute("position", new THREE.Float32BufferAttribute(wood.pos, 3));
+  woodGeo.setAttribute("normal", new THREE.Float32BufferAttribute(wood.nrm, 3));
+  woodGeo.setIndex(wood.idx);
   const faceMat = hazeMaterial(
-    new THREE.MeshStandardMaterial({
-      map: tex,
-      emissive: 0xffffff,
-      emissiveMap: tex,
-      emissiveIntensity: 0.22,
-      roughness: 0.6,
-    }),
+    new THREE.MeshStandardMaterial({ map: tex, bumpMap: bump, bumpScale: 2, roughness: 0.85 }),
     haze,
     "sign-face",
   );
-  const backMat = hazeMaterial(
-    new THREE.MeshStandardMaterial({ color: 0x7c848c, roughness: 0.5, metalness: 0.4 }),
+  const woodMat = hazeMaterial(
+    new THREE.MeshStandardMaterial({ color: look.edge, roughness: 0.9 }),
     haze,
     "sign-back",
   );
   const faces = new THREE.Mesh(frontGeo, faceMat);
-  const backs = new THREE.Mesh(backGeo, backMat);
+  const backs = new THREE.Mesh(woodGeo, woodMat);
   faces.castShadow = backs.castShadow = true;
 
-  const postGeo = new THREE.CylinderGeometry(POST.radius, POST.radius, 1, 8);
+  const postGeo = new THREE.BoxGeometry(POST.half * 2, 1, POST.half * 2);
   postGeo.translate(0, 0.5, 0);
   const postMat = hazeMaterial(
-    new THREE.MeshStandardMaterial({ color: 0xa9b0b6, roughness: 0.4, metalness: 0.6 }),
+    new THREE.MeshStandardMaterial({ color: look.edge, roughness: 0.9 }),
     haze,
     "sign-post",
   );
-  const tubes = new THREE.InstancedMesh(postGeo, postMat, posts.length);
-  tubes.castShadow = true;
+  const timbers = new THREE.InstancedMesh(postGeo, postMat, posts.length);
+  timbers.castShadow = true;
   const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
   posts.forEach((p, i) => {
     const top = p.boards[0];
     const height = top.y + top.height + POST.over + 0.3;
-    m4.makeScale(1, height, 1).setPosition(p.x, p.y - 0.3, p.z);
-    tubes.setMatrixAt(i, m4);
+    q.setFromAxisAngle(up, p.heading);
+    m4.compose(new THREE.Vector3(p.x, p.y - 0.3, p.z), q, new THREE.Vector3(1, height, 1));
+    timbers.setMatrixAt(i, m4);
   });
-  tubes.instanceMatrix.needsUpdate = true;
-  group.add(faces, backs, tubes);
+  timbers.instanceMatrix.needsUpdate = true;
+  group.add(faces, backs, timbers);
+
+  let disposed = false;
+  void loadFace(look).then((ok) => {
+    if (!ok || disposed) return;
+    print(`"${look.family}", ${SIGN_FALLBACK}`);
+    tex.needsUpdate = bump.needsUpdate = true;
+  });
 
   return {
     group,
     dispose() {
+      disposed = true;
       frontGeo.dispose();
-      backGeo.dispose();
+      woodGeo.dispose();
       postGeo.dispose();
       faceMat.dispose();
-      backMat.dispose();
+      woodMat.dispose();
       postMat.dispose();
-      tubes.dispose();
+      timbers.dispose();
       tex.dispose();
+      bump.dispose();
     },
   };
 }

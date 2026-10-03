@@ -160,7 +160,8 @@ export const MOVE_IDS = MOVES.map((m) => m.id);
  * each a move skied to a second of it, so a moment is a state the engine
  * reached and never a pose typed in: the stance, a carve each way and cut
  * hard, the tuck, a double pole's push, a skate's, the flight and a
- * landing taken in the legs, a hockey stop. */
+ * landing taken in the legs, a hockey stop — and at its hardest, and the
+ * height of a linked turn, inclined over both skis on the snow. */
 export const MOMENTS = [
   { id: "stance", move: "hockey", t: 0.25, say: "the stance at 50 km/h" },
   { id: "carve", move: "carve", t: 1.0, say: "a full edge at 70 km/h" },
@@ -175,6 +176,13 @@ export const MOMENTS = [
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
   { id: "skid", move: "skid", t: 1.0, say: "a turn skidded at speed, tucked" },
   { id: "plant", move: "turns", t: 1.82, say: "a pole planted at a turn" },
+  {
+    id: "apex",
+    move: "turns",
+    t: 2.15,
+    say: "the height of a linked turn: inclined over both skis",
+  },
+  { id: "stopping", move: "hockey", t: 0.95, say: "a hockey stop at its hardest" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
 ];
 

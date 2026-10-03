@@ -101,7 +101,10 @@ when the skis he stands on are what moves.
 | `engine/game/skier.ts` | Where his MASS actually is: `hipRight`, `hipAft`, `crouch`, `edge` and `skiCompression` on `SkierState`, lagging the edge, the lean and the tuck by `TUNING.skier.lag` and `crouchRate` |
 | `pwa/src/game/skier-stroke.ts` | THE ARMS' STROKES (`DOUBLE_ARM` swung from the shoulder, `STRIDE_STROKE` off the stance; each pushed pole biting the snow behind its fist, `strokePole`, a rod turned through the cycle, its recovery a heading and a tilt carried clear of the snow), THE PUSH HELD TO THE SNOW (`holdPush`, `pinnedSwing`: the arm driven back as fast as the snow passes the basket where it bit, off the pose at the plant) and THE TURN'S POLE PLANT (`TURN_PLANT`, `plantPole`: the rod swung round the outside to the snow ahead and back); `skier-vec.ts` the few vectors both are posed with |
 | `pwa/src/game/skier-gait.ts` | THE GAIT at a crawl (`gaitOf`): the double pole he sets off on, the diagonal stride (only up a rise), the skate's V off the pushing ski's inside edge, and what each does to each ski as drawn |
-| `pwa/src/game/skier-limbs.ts` | The limbs' geometry: `solveLimb`, the boot's frame and the knee its cuff allows (`bootFrame`, `bootKnee`, `CUFF`) |
+| `pwa/src/game/skier-limbs.ts` | The limbs' geometry: `solveLimb`, the boot's frame and the knee its cuff allows (`bootFrame`, `bootKnee`, `CUFF`), the pelvis tilted over the higher ski (`pelvisAxis`), the hips lifted so no knee folds past a skier's (`kneeRoom`, `KNEE_MOST`) |
+| `pwa/src/game/skier-mounts.ts` | `MOUNTS` and `mountsFor` — the bindings, the hips, the hands, in the body frame (re-exported by `skier-pose.ts`) |
+| `pwa/src/game/ski-stand.ts` | THE SKIS ON THE SNOW: `standOf` (the pivot about the feet, each ski's lift, shift and the stance turned with the pivot), `skiShares` (which ski carries him), `skiGaps` (each drawn ski's gap to the snow — what the turns lab prints and the suite holds) |
+| `scripts/turns-preview.mjs`, `pwa/src/tools/turns-harness.ts` | THE TURNS LAB (`make turns`): one turn, linked carves, a skidded turn and a hockey stop at several speeds through the game's own renderer, each cell printing the load split and each ski's gap |
 | `pwa/src/game/skier-spring.ts` | The view's own state between frames: the body's spring on its legs, the air and a jump's load eased, the hips, edge, roll and the skid's pivot followed (`drawnSkiAngle` — the skis are drawn on it too), the start gate's stance eased in and out (`ready`, off `inStartGate`), his own clock |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
 | `tests/world_render_test.ts`, `tests/skier_pose_test.ts` | The pose held: boots in the bindings, each shin in its boot, hands on the grips, the carve an inclined column hinged at the hips, the eyes toward the horizon, the back rounded in the tuck, compact in the air, alive stood still; the half bones turn half way and the hands close round the poles |
@@ -159,7 +162,24 @@ when the skis he stands on are what moves.
 9. AT A WALK the skis are drawn on their bases (`skiTilt`'s `WALK_TILT`):
    the engine steers a crawl on a full edge, and a figure stood on a 40°
    edge with no speed to lean on is a man tipped over sideways.
-10. THROWN, the ragdoll's foot is the ANKLE: the cloth stops at the cuff up
+10. ON THE SNOW (`ski-stand.ts`): the engine casts both legs down the
+   SNOW's normal, so both skis are on the snow however far he inclines;
+   the pair is drawn in the body's rolled frame, so it is laid back onto
+   the snow — the body turned about its FEET (the drawn origin goes inside
+   the turn by the legs' length × sin of `SkierState.incline`), the inside
+   ski lifted toward him and the outside let down (`stance · sin incline`),
+   the stance and the skid's pivot taken in the snow's plane and rolled
+   into the body (`bootFrame`'s `incline`) — a pair thrown across under an
+   inclined body pivoted about the body's up has one end buried and the
+   other in the air. The outside ski carries most of him (`skiShares`: 95 %
+   at a crawl, 77 % at a cruise, 66 % in a fast carve) and throws the snow.
+11. THE INSIDE LEG IS SHORT, AND THE HIPS TAKE IT: the PELVIS TILTS up over
+   the higher ski (`pelvisAxis`) so both knees share the difference, and
+   NO KNEE FOLDS PAST A SKIER'S (`KNEE_MOST`: 113° turning, 124° tucked,
+   `kneeRoom`) — the hips lift instead and the trunk folds forward at the
+   hip by as much. A racer's inside knee folds 113–122° at a slalom apex,
+   the outside one 48–53°.
+12. THROWN, the ragdoll's foot is the ANKLE: the cloth stops at the cuff up
    that shin and the FOOT in its boot's liner is squared below it — the
    model's feet ride the boot bones, hidden in the shells on the skis.
 
@@ -202,6 +222,9 @@ intent from physics deltas.
    from a PHOTOGRAPH of a real one (a freely licensed one, kept out of the
    tree): grid it, scale it to a known length, read the numbers off it, and
    lay the profile beside it at the same scale.
+1b. `make turns` (`ARGS="--views=low,side"`) — him TURNING AND STOPPING on a
+   real map's piste, in the game's renderer: the skis on the snow, the spray
+   off the outside ski, the body inclined over them.
 2. `make world SEED=38 ARGS=--views=orbit,far,jump,landing` — round him,
    at range, in the air and coming down. Judge from BEHIND first (that is
    the game's view), then the side for the stance, the crouch and the

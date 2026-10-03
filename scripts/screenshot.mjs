@@ -212,7 +212,7 @@ const args = parseArgs(
     move: {
       kind: "string",
       default: "straight",
-      help: "the held ride's move (straight, carve, check, stop, skate)",
+      help: "the held ride's move (straight, carve, turn, skid, check, stop, skate)",
     },
     "hold-for": { kind: "number", default: 3, help: "seconds the held ride is ridden" },
     video: { kind: "string", help: "picture preset for the visit (low, medium, high)" },

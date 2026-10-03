@@ -29,6 +29,7 @@ import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine"
 import { modelSwitch } from "./model-switch.ts";
 import { lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
+import type { Stand } from "./ski-stand.ts";
 import type { SkierStyle } from "./skier-figure.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { rigSkier } from "./skier-rig.ts";
@@ -158,8 +159,9 @@ export type ModelParts = {
   skis: boolean;
   skier: boolean;
   /** The pair posed; `angle` the skid's pivot as drawn (the engine's when
-   * left out). */
-  pose(skier: SkierState, sink: number, dt: number, angle?: number): void;
+   * left out), `stand` where each ski stands on the snow
+   * (`ski-stand.ts`). */
+  pose(skier: SkierState, sink: number, dt: number, angle?: number, stand?: Stand): void;
   /** The skier at a pose, his holder where the figure's group stands. */
   poseSkier(p: SkierPose, figure: THREE.Object3D): void;
   setSkierVisible(v: boolean): void;
@@ -218,9 +220,9 @@ export function attachModels(o: {
     meshes,
     skis: !!skisRig,
     skier: !!skierRig,
-    pose(skier, sink, _dt, angle) {
+    pose(skier, sink, _dt, angle, stand) {
       o.root.updateWorldMatrix(true, false);
-      skisRig?.pose(skier, 0, sink, angle);
+      skisRig?.pose(skier, 0, sink, angle, stand);
     },
     poseSkier(p, figure) {
       if (!skierHolder || !skierRig) return;

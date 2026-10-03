@@ -21,7 +21,8 @@
 //   ?hold=<kmh>[,<move>[,<s>]]
 //                   ...and then ridden on a few seconds more (three unless
 //                   named) HELD at that speed along his heading in a move
-//                   (`hold-input.ts`: straight, carve, check, stop, skate) —
+//                   (`hold-input.ts`: straight, carve, turn, skid, check,
+//                   stop, skate) —
 //                   how a lab photographs what a speed looks like in the
 //                   game: the cloud it raises, the skier at it.
 //   ?shot=1         ...and held still once drawn, so nothing moves under a

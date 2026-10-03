@@ -10,7 +10,10 @@
 // angles, where his centre of mass stands over his boots, the trunk's
 // pitch, the angulation and the inclination in a turn, the shoulders'
 // counter-rotation, the head against the horizon, the hands, any limb
-// through another, any joint that jumps between two frames.
+// through another, any joint that jumps between two frames — and THE SKIS
+// ON THE SNOW: each drawn ski's gap to the snow under it in the world, as
+// the game lays the pair (`ski-stand.ts`), and the outside ski's share of
+// the load in a turn.
 //
 // Each reading is held to a BAND — what a skier doing that move does, from
 // coaching and biomechanics (the boot's cuff holds the shin at its own
@@ -59,6 +62,7 @@ const S = await import(join(root, "tests/support/synthetic.ts"));
 const P = await import(join(root, "pwa/src/game/skier-pose.ts"));
 const G = await import(join(root, "pwa/src/game/skis-body.ts"));
 const RIG = await import(join(root, "pwa/src/game/skier-rig.ts"));
+const ST = await import(join(root, "pwa/src/game/ski-stand.ts"));
 const spec = E.skisById(args.skis);
 const mounts = G.mountsOf(spec);
 
@@ -82,9 +86,15 @@ const carving = (f) =>
   grounded(f) && Math.abs(f.skier.hipRight) > 0.12 && f.skier.crouch < 0.5 && f.skier.skid < 0.3;
 const stopping = (f) =>
   grounded(f) && f.skier.skid >= 0.3 && f.skier.crouch < 0.5 && Math.abs(f.skier.edge) > 0.3;
-const tucked = (f) => grounded(f) && f.skier.crouch > 0.85 && f.skier.skid < 0.3;
+/** Upright on the snow: inclined into no turn (an edge change still
+ * inclined is not a stance, and a tucked turn folds its inside leg). */
+const upright = (f) => Math.abs(f.skier.incline) < 0.15;
+/** Well into a turn on the snow (`ski-stand.ts`'s `turnOf`). */
+const turning = (f) => grounded(f) && Math.abs(ST.turnOf(f.skier)) > 0.5;
+const tucked = (f) => grounded(f) && f.skier.crouch > 0.85 && f.skier.skid < 0.3 && upright(f);
 const standing = (f) =>
   grounded(f) &&
+  upright(f) &&
   f.skier.crouch < 0.5 &&
   Math.abs(f.skier.hipRight) < 0.08 &&
   f.skier.drive < 0.05 &&
@@ -95,6 +105,18 @@ const standing = (f) =>
  * (`gaitOf`) a whole one. */
 const working = (f) => grounded(f) && f.skier.drive > 0.3 && f.m.work > 0.5;
 const BANDS = [
+  {
+    id: "onsnow",
+    say: "on the snow: each ski resting on the snow — its lowest station within 4 cm of it, never floating, never buried",
+    when: (f) => grounded(f) && f.skier.trench <= 0,
+    bad: (m) => Math.max(...m.skiGap.map(Math.abs)) > 0.04,
+  },
+  {
+    id: "outside",
+    say: "turning: the outside ski carries 60–97 % of the load (measured under racers' and learners' bindings)",
+    when: turning,
+    bad: (m) => m.outside < 0.6 || m.outside > 0.97,
+  },
   {
     id: "shin",
     say: "a shin behind its boot's cuff (the cuff holds it ≥ its own lean)",
@@ -264,7 +286,16 @@ function measure(move) {
     lastT = now;
     if (c.thrown) continue;
     const trick = state.tricks?.pose ?? null;
-    const input = G.poseInputOf(c, legs, mounts, trick, P.inStartGate(state));
+    // THE PAIR ON THE SNOW as the game lays it (`skis-body.ts`): the body
+    // turned about its feet, each ski where the stance puts it.
+    const stand = ST.standOf(
+      c,
+      G.groundOf(c, legs),
+      undefined,
+      undefined,
+      P.drawnSkiAngle(legs, c),
+    );
+    const input = G.poseInputOf(c, legs, mounts, trick, P.inStartGate(state), stand);
     const pose = P.skierPose(input);
     const head = RIG.skierBones(pose).head;
     const m = measurePose(pose, {
@@ -273,12 +304,27 @@ function measure(move) {
       tilt: [0, 1].map((k) => (input.edge ?? 0) + (input.gait?.tilt?.[k] ?? 0)),
       turns: [0, 1].map((i) => (input.skiAngle ?? 0) + (input.gait?.splay[i] ?? 0)),
       hipHalf: P.BODY.hip,
+      incline: stand.incline,
     });
     // THE POLES' BITE: how high over the snow the lower basket of a pole
     // angled back from its fist stands (the one pushing), m — and whether
     // the gait is in the middle of a push, where one must be in the snow.
     const snow = mounts.ground + (input.drop ?? 0);
     const behind = [0, 1].filter((k) => pose.poles && pose.poles[k].z < pose.hands[k].z - 0.05);
+    // THE SKIS ON THE SNOW: each drawn ski's base under its boot over the
+    // snow beneath it, m — less what the gait lifts on purpose (a skate's
+    // recovering ski) — and the outside ski's share of the load.
+    const gaitS = input.gait ?? P.STILL_GAIT;
+    // A rigid ski rests on whichever of its stations stands lowest (a
+    // skier sat back into a stop rides his tails): the gap is that one's
+    // (`skiGaps`, the pair laid as the game lays it).
+    m.skiGap = ST.skiGaps(c, stand, state.level, input.skiAngle ?? 0, {
+      out: gaitS.out,
+      fore: gaitS.fore,
+      splay: gaitS.splay,
+    });
+    const side = ST.turnOf(c);
+    m.outside = side > 0 ? stand.share[0] : side < 0 ? stand.share[1] : 0.5;
     m.bite = behind.length ? Math.min(...behind.map((k) => pose.poles[k].y - snow)) : Infinity;
     const gait = input.gait ?? P.STILL_GAIT;
     // The arms' work: the stride's, and the poles' as far as he works them.
@@ -340,6 +386,11 @@ function measure(move) {
       gaze: mean((m) => m.gaze),
       ahead: mean((m) => m.handsAhead),
       clear: Math.min(...frames.map((f) => Math.min(...Object.values(f.m.clear)))),
+      gap: Math.max(
+        ...frames.filter(grounded).map((f) => Math.max(...f.m.skiGap.map(Math.abs))),
+        0,
+      ),
+      outside: mean((m) => (m.outside === 0.5 ? null : m.outside * 100)),
       snap: Math.max(...frames.map((f) => f.m.snap)),
     },
   };
@@ -362,6 +413,8 @@ const COLS = [
   ["gaze", "gaze°", 0],
   ["ahead", "hands m", 2],
   ["clear", "clear m", 2],
+  ["gap", "gap m", 2],
+  ["outside", "out %", 0],
   ["snap", "snap m", 3],
 ];
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;

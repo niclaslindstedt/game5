@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE LIMBS' GEOMETRY — the arithmetic every pose is solved with: two bones
 // toward a target (`solveLimb`), a boot's frame on its ski and the knee its
-// cuff allows (`bootFrame`, `bootKnee`, `CUFF`), a vector turned about an
-// axis. `skier-pose.ts` poses the skier on the skis with it and hangs him
+// cuff allows (`bootFrame`, `bootKnee`, `CUFF`), the pelvis tilted over the
+// higher ski (`pelvisAxis`), how far the hips must lift so no knee folds
+// past a skier's (`kneeRoom`), a vector turned about an axis. `skier-pose.ts` poses the skier on the skis with it and hangs him
 // on the ragdoll. Three-free.
 
 import { add, dot, len, norm, scale, sub, type V3 } from "./skier-vec.ts";
@@ -36,11 +37,22 @@ export const CUFF = { least: 0.19, most: 0.72 };
 
 /** A boot's frame: its forward along the ski (turned `turn` about the
  * vertical, clockwise), its UP the ski's normal tipped `edge` about that
- * forward (right edges down positive). */
-export function bootFrame(turn: number, edge: number): Boot {
+ * forward (right edges down positive). On a body INCLINED `incline` rad to
+ * the snow (`ski-stand.ts`) the ski is turned about the SNOW's normal and
+ * tipped against the snow — `edge` stays the tilt in the body's frame —
+ * and the whole is then rolled into the body's frame: a ski pivoted
+ * across under an inclined skier stays flat on the snow, never one end
+ * buried and the other in the air. */
+export function bootFrame(turn: number, edge: number, incline = 0): Boot {
+  const e = edge + incline;
   const f = { x: Math.sin(turn), y: 0, z: Math.cos(turn) };
   const r = { x: Math.cos(turn), y: 0, z: -Math.sin(turn) };
-  return { f, n: add(scale(r, Math.sin(edge)), { x: 0, y: Math.cos(edge), z: 0 }) };
+  const n = add(scale(r, Math.sin(e)), { x: 0, y: Math.cos(e), z: 0 });
+  if (incline === 0) return { f, n };
+  const c = Math.cos(incline);
+  const sn = Math.sin(incline);
+  const roll = (v: V3): V3 => ({ x: v.x * c - v.y * sn, y: v.x * sn + v.y * c, z: v.z });
+  return { f: roll(f), n: roll(n) };
 }
 
 /**
@@ -58,6 +70,65 @@ export function bootKnee(hip: V3, cuff: V3, boot: Boot, thigh: number, shin: num
   const lean = Math.atan2(df, dn) + Math.acos(Math.max(-1, Math.min(1, c)));
   const k = Math.max(CUFF.least, Math.min(CUFF.most, lean));
   return add(cuff, scale(add(scale(boot.n, Math.cos(k)), scale(boot.f, Math.sin(k))), shin));
+}
+
+/** THE PELVIS'S TILT: the share of the skis' difference in height it takes
+ * up, and the most it rises on one side, as a sine of the tilt (30°). */
+export const PELVIS = { take: 0.8, most: 0.5 };
+
+/**
+ * THE PELVIS'S AXIS, left hip to right: turned `yaw` rad (clockwise from
+ * above) and TILTED with the angulation — the hip over the higher ski (the
+ * inside one, on an inclined stance — `ski-stand.ts`), `rise` m higher
+ * than the other, rides up and the other drops, so the two legs share
+ * their difference between the hips and both knees, never the inside knee
+ * folding up alone beside a straight outside leg. `half` is half the hips'
+ * width.
+ */
+export function pelvisAxis(yaw: number, rise: number, half: number): V3 {
+  const hike = (PELVIS.take * rise) / (2 * half);
+  const tilt = Math.asin(Math.max(-PELVIS.most, Math.min(PELVIS.most, hike)));
+  return {
+    x: Math.cos(yaw) * Math.cos(tilt),
+    y: Math.sin(tilt),
+    z: -Math.sin(yaw) * Math.cos(tilt),
+  };
+}
+
+/** The most a knee folds, rad of flexion: standing or turning (a racer's
+ * inside knee at the height of a slalom turn folds 113–122°), and in a
+ * full tuck. */
+export const KNEE_MOST = { bent: 1.97, tucked: 2.16 };
+
+/**
+ * THE KNEES FOLD ONLY AS FAR AS KNEES DO: how far the hips (`hips`, the
+ * pelvis's middle on `pelvis`, `half` its half width) must lift, m, so that
+ * neither leg — a `thigh` and a `shin` from each hip joint to its cuff in
+ * `feet` — folds past `KNEE_MOST` (`crouch` of the way to the tucked
+ * one); as far as the other leg reaches, never stretching it. A skier gets
+ * low by bending at the hip, never by a knee folded up past a skier's.
+ */
+export function kneeRoom(
+  hips: V3,
+  pelvis: V3,
+  feet: readonly [V3, V3],
+  crouch: number,
+  half: number,
+  thigh: number,
+  shin: number,
+): number {
+  const most = KNEE_MOST.bent + (KNEE_MOST.tucked - KNEE_MOST.bent) * crouch;
+  const span = Math.sqrt(thigh * thigh + shin * shin + 2 * thigh * shin * Math.cos(most));
+  const reach = (thigh + shin) * 0.97;
+  let need = 0;
+  let room = Infinity;
+  [-1, 1].forEach((side, i) => {
+    const d = sub(add(hips, scale(pelvis, side * half)), feet[i]);
+    const flat = d.x * d.x + d.z * d.z;
+    if (flat < span * span) need = Math.max(need, Math.sqrt(span * span - flat) - d.y);
+    room = Math.min(room, flat < reach * reach ? Math.sqrt(reach * reach - flat) - d.y : 0);
+  });
+  return Math.max(0, Math.min(need, room));
 }
 
 /** `v` turned `a` rad about the unit `axis` (Rodrigues). */

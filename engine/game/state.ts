@@ -100,6 +100,14 @@ export type SkierState = {
   heading: number;
   pitch: number;
   roll: number;
+  /** The body's roll against the SNOW under him, rad, right side down
+   * positive — his inclination into a turn, measured from the snow's own
+   * normal rather than the vertical (on a side hill `roll` is not). The
+   * legs are cast down that normal (`skier.ts`), so this is the one angle
+   * between the body and the line his two skis stand along on the snow;
+   * the drawn skis read it to stay there (`ski-stand.ts`). A readout, as
+   * `roll` is: nothing integrates it. */
+  incline: number;
   /** |v|, m/s, vertical included — what the speedo reads. Written once at
    * the end of the step. */
   speed: number;

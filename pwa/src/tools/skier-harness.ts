@@ -139,8 +139,8 @@ async function load(): Promise<void> {
 }
 
 /** Pose the pair and its skier at one engine state, `dt` s after the last,
- * and lay the snow under him. Returns where to aim: his centre, and his
- * heading. */
+ * and lay the snow under him. Returns where to aim: his centre as drawn,
+ * and his heading. */
 function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number } {
   const c = f.skier;
   model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
@@ -150,7 +150,12 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
   const cz = off ? off.z : c.z;
   snow.position.set(cx, gy, cz);
   snow.quaternion.setFromUnitVectors(Y, tmp.set(nx, ny, nz));
-  const centre = new THREE.Vector3(cx, off ? Math.max(off.y, gy + 0.5) : c.y - 0.1, cz);
+  // On his skis, the drawn body's own centre — turned about his feet into
+  // a turn (`ski-stand.ts`), it leans in off the engine's.
+  const drawn = model.root.position;
+  const centre = off
+    ? new THREE.Vector3(cx, Math.max(off.y, gy + 0.5), cz)
+    : new THREE.Vector3(drawn.x, drawn.y - 0.1, drawn.z);
   sun.position.set(centre.x + 4, centre.y + 8, centre.z - 3);
   sun.target.position.copy(centre);
   return { centre, heading: off ? off.heading : c.heading };

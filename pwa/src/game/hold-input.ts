@@ -2,16 +2,18 @@
 // A RIDE HELD AT A SPEED — the controls a lab (and a link's `?hold=`) skis
 // the player on to photograph what a speed and a manoeuvre look like: the
 // tuck and the brake on the gap to the speed, the edge on the heading's
-// error, and on top the MOVE's own — a carve's turns either way, a check's
-// brake every 1.2 s, a hockey stop's brake and edge, a skate's tuck held
-// from a standstill. DOM-free and three-free, so the cloud lab
-// (`tools/cloud-harness.ts`) and the app ride the same hands.
+// error, and on top the MOVE's own — a carve's turns either way, ONE TURN
+// held to the right, a SKIDDED turn (the edge and the brake together), a
+// check's brake every 1.2 s, a hockey stop's brake and edge, a skate's
+// tuck held from a standstill. DOM-free and three-free, so the cloud lab
+// (`tools/cloud-harness.ts`), the turns lab (`tools/turns-harness.ts`) and
+// the app ride the same hands.
 
 import { placeRun, step, TUNING, type GameState, type SkierInput } from "@engine";
 
 import { snapInput } from "./ghost.ts";
 
-export const HOLD_MOVES = ["straight", "carve", "check", "stop", "skate"] as const;
+export const HOLD_MOVES = ["straight", "carve", "turn", "skid", "check", "stop", "skate"] as const;
 export type HoldMove = (typeof HOLD_MOVES)[number];
 
 export function isHoldMove(value: unknown): value is HoldMove {
@@ -47,6 +49,14 @@ export function holdInput(
   switch (move) {
     case "carve":
       return { ...base, steer: clamp(Math.sin((2 * Math.PI * t) / 2.4) + keep * 0.4, -1, 1) };
+    case "turn":
+      // Laid over onto the right edge after a beat and held there: the
+      // speed kept with the tuck alone, never braked out of the arc.
+      return { ...base, steer: t >= 0.3 ? 1 : keep, brake: 0 };
+    case "skid":
+      // The edge and the brake together: the skis pivoted across and
+      // scrubbed round the turn, the speed bled off as it goes.
+      return { ...base, tuck: 0, steer: t >= 0.3 ? 1 : keep, brake: t >= 0.5 ? 0.6 : 0 };
     case "check":
       return { ...base, tuck: 0, brake: t % 1.2 < 0.45 ? 0.8 : 0 };
     case "stop":

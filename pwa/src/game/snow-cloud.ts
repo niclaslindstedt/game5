@@ -44,6 +44,7 @@ import * as THREE from "three";
 import { rotate, type Level, type SkierState, type Wind } from "@engine";
 
 import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { skiShares } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   flyPuff,
@@ -539,6 +540,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const ski = emptyRecipe();
   const puff = emptyRecipe();
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
+  const shares: [number, number] = [0.5, 0.5];
 
   const api: SnowCloud = {
     mesh,
@@ -548,14 +550,21 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         owed = [0, 0, 0];
         debt.set(skier, owed);
       }
+      // THE SKI THAT CARRIES HIM throws the cloud (`ski-stand.ts`): the
+      // outside one, two thirds of his weight and more in a turn — the
+      // wall rises off its boot, and each ski's sheet goes by its share.
+      skiShares(skier, shares);
+      const lead = skier.contacts[(shares[0] >= shares[1] ? 0 : 3) + 1];
       const under = rotate(skier.q, { x: 0, y: -skier.spec.cogHeight, z: 0 });
-      const ux = skier.x + under.x;
-      const uz = skier.z + under.z;
+      const on = lead?.touching === true;
+      const ux = on ? lead.x : skier.x + under.x;
+      const uy = on ? lead.y : skier.y + under.y;
+      const uz = on ? lead.z : skier.z + under.z;
       const snow = snowAt(ux, uz);
       driveOf(skier, drive);
       // Which way the skis are sliding across their own line.
       const out = skier.skiAngle !== 0 ? -Math.sign(skier.skiAngle) : -Math.sign(skier.edge || 1);
-      // THE SKID'S WALL, off the boots, out across the way.
+      // THE SKID'S WALL, off the loaded ski's boot, out across the way.
       skidCloud(drive, snow, wall);
       owed[0] += wall.rate * dt * share;
       while (owed[0] >= 1) {
@@ -565,7 +574,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const back = random() * dt;
         const at = rotate(skier.q, {
           x: (random() - 0.5) * 0.7 + out * 0.3,
-          y: -skier.spec.cogHeight + 0.1 + (random() - 0.5) * 0.2,
+          y: 0.1 + (random() - 0.5) * 0.2,
           z: (random() - 0.5) * 0.8,
         });
         const kick = rotate(skier.q, {
@@ -573,11 +582,11 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
           y: wall.lift * (0.55 + 0.7 * random()),
           z: (random() - 0.5) * 1.5,
         });
-        const x = skier.x + at.x - skier.vx * back;
-        const z = skier.z + at.z - skier.vz * back;
+        const x = ux + at.x - skier.vx * back;
+        const z = uz + at.z - skier.vz * back;
         spawn(
           x,
-          skier.y + at.y - skier.vy * back,
+          uy + at.y - skier.vy * back,
           z,
           skier.vx * 0.45 + kick.x,
           skier.vy * 0.3 + kick.y,
@@ -593,7 +602,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const mid = skier.contacts[k * 3 + 1];
         if (!mid || !mid.touching) continue;
         skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski, drive.speed);
-        owed[1 + k] += ski.rate * dt * share;
+        owed[1 + k] += ski.rate * dt * share * 2 * shares[k];
         while (owed[1 + k] >= 1) {
           owed[1 + k] -= 1;
           const c = random() < 0.5 && tip?.touching ? tip : mid;

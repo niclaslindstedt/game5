@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns skis skier helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -162,6 +162,17 @@ sky:
 # ARGS="--moves=straight,check,stop --speeds=10,25,55".
 cloud:
 	npm run cloud -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE SNOWFALL LAB: the falling snow as a skier sees it at speed — every
+# falling sky ridden INTO its wind, WITH it and ACROSS it at a ladder of
+# speeds, as two contact sheets (previews/snowfall-<seed>.png, the game's
+# frame; previews/snowfall-<seed>-flow.png, the flakes alone over several
+# frames, each one's way across the picture a track) and a table of the air
+# past the lens. Its own one-off bundle from pwa/snowfall-preview.html (never
+# deployed); needs a Chromium like `world`. SEED=n;
+# ARGS="--weathers=storm --rides=into --speeds=0,50,100,150 --camera=tips".
+snowfall:
+	npm run snowfall -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
 # snow × move × speed skied by the engine in pure Node and every frame read

@@ -1,6 +1,6 @@
 ---
 name: atmosphere
-description: "Use when working on the SKY and the air under it — where the sun stands at the map's hour (still for the whole run) on its day at its latitude (R15, `sunAtRun`), what colour it makes the dome, the two lights and the blue in the snow's shadows, the haze every far slope dissolves into (one sky function read along each surface's own direction), and the key light's one shadow map over a circle ahead of the lens that every shadow fades out at the rim of — and over that the WEATHER R19 deals (clear, fair, flurries, high cloud, overcast, a steady fall, a storm, valley fog), its cloud, its falling snow in squalls and the new snow it lays (`snowAt`, `GameState.fresh`), its spindrift, its flat light, and the NIGHT an evening map rides into (the moon as the key, the stars and the Milky Way — `starfield.ts` — the finish arena's floodlights and every skier's headlamp — `headlamp.ts`). Owns `pwa/src/game/sky.ts` (the colour model, three-free), `haze.ts`, `sky-dome.ts`, `environment.ts`, `snowfall.ts`, `starfield.ts`, and on the engine side `engine/game/clock.ts` (the sun and the moon), `engine/game/wind.ts`, `engine/game/snowfall.ts`, R15 in `mapgen/sun.ts` and R19 in `mapgen/weather.ts`; and `make sky`, the contact sheet that is the only honest way to judge any of it. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
+description: "Use when working on the SKY and the air under it — where the sun stands at the map's hour (still for the whole run) on its day at its latitude (R15, `sunAtRun`), what colour it makes the dome, the two lights and the blue in the snow's shadows, the haze every far slope dissolves into (one sky function read along each surface's own direction), and the key light's one shadow map over a circle ahead of the lens that every shadow fades out at the rim of — and over that the WEATHER R19 deals (clear, fair, flurries, high cloud, overcast, a steady fall, a storm, valley fog), its cloud, its falling snow in squalls and the new snow it lays (`snowAt`, `GameState.fresh`), its spindrift, its flat light, and the NIGHT an evening map rides into (the moon as the key, the stars and the Milky Way — `starfield.ts` — the finish arena's floodlights and every skier's headlamp — `headlamp.ts`). Owns `pwa/src/game/sky.ts` (the colour model, three-free), `haze.ts`, `sky-dome.ts`, `environment.ts`, `snowfall.ts` (over `snowfall-plan.ts`: the fall's velocity past the lens), `starfield.ts`, and on the engine side `engine/game/clock.ts` (the sun and the moon), `engine/game/wind.ts`, `engine/game/snowfall.ts`, R15 in `mapgen/sun.ts` and R19 in `mapgen/weather.ts`; and `make sky`, the contact sheet that is the only honest way to judge any of it, with `make snowfall` for the fall at speed. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
 ---
 
 # The atmosphere: the sun, the sky and the haze
@@ -114,7 +114,13 @@ every three hours on one seed from one place, as one sheet
 (`previews/sky-<seed>.png`; `ARGS="--hours=10,17,22 --weathers=fair,blizzard
 --width=640 --height=360"` to zoom a few cells). A map is dealt one sky at one
 hour, so a race's screenshot can only say whether that one is wrong; the
-ladder is judged side by side. Then:
+ladder is judged side by side. A change to the FALLING SNOW (how it moves,
+how a flake is drawn) owes **`make snowfall`** before and after as well: each
+falling sky ridden into, with and across its wind at 0–140 km/h, the game's
+frame (`previews/snowfall-<seed>.png`) and the flakes alone laid over several
+frames (`-flow.png`, every flake's way across the picture a track — at speed
+they run out of the heading point, unbroken), with the table of the air past
+the lens off `snowfall-plan.ts`. Then:
 
 1. `make world SEED=<n> ARGS=--views=vista,powder,forest` at seeds with an
    EARLY and a LATE hour (`make level SEED=<n>` prints the day; a low sun is

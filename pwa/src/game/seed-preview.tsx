@@ -42,7 +42,7 @@ import type { PisteGrade, RegionId } from "@engine";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
-import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
+import { MAP_QUALITY } from "./minimap-bake.ts";
 import { PANORAMA_VIEW, fromPanorama, spotInPanorama, type PanoramaSchematic } from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
 import type { PreviewPicture, PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
@@ -71,6 +71,7 @@ export type SeedChart = { shown: SeedAnswer | null; fresh: boolean };
 function pixelsToUrl(
   px: number,
   rgba: Uint8ClampedArray<ArrayBuffer>,
+  type: string,
   done: (url: string) => void,
 ): void {
   const canvas = document.createElement("canvas");
@@ -79,14 +80,14 @@ function pixelsToUrl(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.putImageData(new ImageData(rgba, px, px), 0, 0);
-  canvas.toBlob((blob) => blob && done(URL.createObjectURL(blob)), MAP_TYPE, MAP_QUALITY);
+  canvas.toBlob((blob) => blob && done(URL.createObjectURL(blob)), type, MAP_QUALITY);
 }
 
 /** A worker's picture as a URL: a finished one at once, raw pixels once
  * this thread has drawn them. */
 function asUrl(picture: PreviewPicture, done: (url: string) => void): void {
   if (picture instanceof Blob) done(URL.createObjectURL(picture));
-  else pixelsToUrl(picture.px, picture.rgba, done);
+  else pixelsToUrl(picture.px, picture.rgba, picture.type, done);
 }
 
 const revoke = (a: Extract<SeedAnswer, { ok: true }>): void => {
@@ -258,7 +259,7 @@ function PanoramaLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | nu
       {pano.runs.map((r) => (
         <path
           key={`c${r.id}`}
-          class={`pano-run-casing${r.raced ? " pano-raced" : ""}`}
+          class={`pano-run-casing${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
           d={r.seen}
           fill="none"
         />
@@ -351,7 +352,7 @@ export function SeedPreview({
       onSpot(fromChart(drawn.schematic.size, u * CHART_VIEW, v * CHART_VIEW));
       return;
     }
-    // A tap on the sky picks nothing.
+    // A tap off the mountain picks nothing.
     const { view: lens, pick: grid } = drawn.panorama;
     const at = fromPanorama(lens, grid, u * PANORAMA_VIEW, v * PANORAMA_VIEW);
     if (at) onSpot(at);

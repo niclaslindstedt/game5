@@ -73,13 +73,32 @@ describe("the panorama's view (fitPanorama)", () => {
 });
 
 describe("the painted picture (renderPanorama)", () => {
-  it("paints every pixel, the sky over the ground", () => {
-    const { view, picture } = paintedFor(SEEDS[0]);
-    for (let i = 0; i < view.px * view.px; i++) expect(picture.rgba[i * 4 + 3]).toBe(255);
-    // The top row is sky everywhere; the bottom row is ground everywhere.
-    for (let c = 0; c < view.px; c++) {
-      expect(Number.isNaN(picture.depth[c])).toBe(true);
-      expect(Number.isNaN(picture.depth[(view.px - 1) * view.px + c])).toBe(false);
+  it("cuts the mountain out: nothing behind the ridge, beside the ski area or under the valley", () => {
+    const { level, view, picture } = paintedFor(SEEDS[0]);
+    const px = view.px;
+    const alpha = (c: number, r: number): number => picture.rgba[(r * px + c) * 4 + 3];
+    // The top row is clear sky, and so is the outermost column either side
+    // of the ski area's slice — the rim the map rises into is never painted.
+    for (let c = 0; c < px; c++) expect(alpha(c, 0)).toBe(0);
+    for (let r = 0; r < px; r++) {
+      expect(alpha(0, r)).toBe(0);
+      expect(alpha(px - 1, r)).toBe(0);
+    }
+    // The ground behind the summit ridge's crest is not painted either.
+    for (let i = 0; i < px * px; i++) {
+      if (!Number.isNaN(picture.depth[i])) expect(picture.depth[i]).toBeGreaterThan(0);
+    }
+    // And the mountain itself is solid: the summit's column, from its
+    // crest down the face, is opaque.
+    const [sc, sr] = toPanorama(
+      view,
+      level.mountain.summit.x,
+      level.mountain.summit.y,
+      level.mountain.summit.z,
+    );
+    const col = Math.round((sc / PANORAMA_VIEW) * px);
+    for (let r = Math.ceil((sr / PANORAMA_VIEW) * px) + 4; r < px * 0.8; r++) {
+      expect(alpha(col, r)).toBe(255);
     }
   });
 

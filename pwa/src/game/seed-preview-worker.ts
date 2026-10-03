@@ -27,8 +27,14 @@ import {
 import { CHART_LIGHT, CHART_PX, seedSchematic, type SeedSchematic } from "./seed-chart.ts";
 
 /** A picture as the worker hands it back: finished where it has a canvas
- * of its own, raw pixels where not. */
-export type PreviewPicture = Blob | { px: number; rgba: Uint8ClampedArray<ArrayBuffer> };
+ * of its own, raw pixels (and the type to encode them as) where not. */
+export type PreviewPicture =
+  Blob | { px: number; rgba: Uint8ClampedArray<ArrayBuffer>; type: string };
+
+/** How the panorama is encoded: it is cut out, so it needs its alpha — a
+ * WebP, which a browser that cannot write one hands back as a PNG. The
+ * plan's ground is opaque and stays the minimap's JPEG. */
+export const PANORAMA_TYPE = "image/webp";
 
 /** The mountain painted from the valley, and what the card needs to draw
  * over it and to turn a tap on it back into the snow. */
@@ -36,7 +42,7 @@ export type PreviewPanorama = {
   picture: PreviewPicture;
   view: PanoramaView;
   schematic: PanoramaSchematic;
-  /** `pickGrid`'s world z behind each cell (NaN on the sky). */
+  /** `pickGrid`'s world z behind each cell (NaN where no mountain is). */
   pick: Float32Array<ArrayBuffer>;
 };
 
@@ -74,17 +80,18 @@ async function encode(
   px: number,
   rgba: Uint8ClampedArray<ArrayBuffer>,
   transfer: Transferable[],
+  type: string = MAP_TYPE,
 ): Promise<PreviewPicture> {
   if (typeof OffscreenCanvas !== "undefined") {
     const canvas = new OffscreenCanvas(px, px);
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.putImageData(new ImageData(rgba, px, px), 0, 0);
-      return canvas.convertToBlob({ type: MAP_TYPE, quality: MAP_QUALITY });
+      return canvas.convertToBlob({ type, quality: MAP_QUALITY });
     }
   }
   transfer.push(rgba.buffer);
-  return { px, rgba };
+  return { px, rgba, type };
 }
 
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
@@ -102,7 +109,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     const pick = pickGrid(view, painted.depth);
     transfer.push(pick.buffer);
     const panorama: PreviewPanorama = {
-      picture: await encode(view.px, painted.rgba, transfer),
+      picture: await encode(view.px, painted.rgba, transfer, PANORAMA_TYPE),
       view,
       schematic: panoramaSchematic(level, view, painted.depth),
       pick,

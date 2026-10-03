@@ -23,9 +23,13 @@
 //     a ridge reads as a ridge; the shadows in the snow INDIGO rather than
 //     grey; the woods a dark mass of small individual trees with snow on
 //     their lit shoulders; the pistes the cleanest white on the mountain;
-//     rock where it is too steep to hold snow; the far air hazed blue; and
-//     far ranges behind the summit ridge under a clear sky — the painted
-//     map is always a bluebird day.
+//     rock where it is too steep to hold snow; the far air hazed blue.
+//   - THE MOUNTAIN CUT OUT, nothing behind it. Only the ski area's own
+//     slice of the world is painted — its runs and lifts with a margin
+//     either side, fading out at both sides and along the valley floor at
+//     its foot — and everything else (the sky, the rim the map rises into
+//     at its edges) is left TRANSPARENT, so the mountain stands on the
+//     card's own glass the way a painted map's mountain stands on its paper.
 //
 // HOW IT IS DRAWN: column by column, each column marched from the valley
 // floor up the face with a running horizon (the lab's panorama does the
@@ -69,10 +73,21 @@ const RELIEF = 1.2;
 const TILT_MIN = (18 * Math.PI) / 180;
 const TILT_MAX = (46 * Math.PI) / 180;
 
-/** The sky over the summit ridge and the valley floor under the village, as
- * shares of the ski area's height in the picture. */
-const SKY = 0.16;
+/** The room over the summit ridge and the valley floor under the village,
+ * as shares of the ski area's height in the picture. */
+const SKY = 0.04;
 const FOOT = 0.05;
+
+/** The margin the cut-out keeps either side of the ski area, as a share of
+ * its width (and never less than `PAD_MIN`, m), and how much of it the
+ * picture fades out across. */
+const PAD = 0.08;
+const PAD_MIN = 60;
+const SIDE_FADE = 0.7;
+
+/** The valley floor at the map's near edge, m of z the picture fades out
+ * across. */
+const FOOT_FADE = 90;
 
 /** THE VIEW: an orthographic camera looking along −z, tilted down by
  * `tilt`. A world point (x, y, z) lands in the picture at column
@@ -91,6 +106,9 @@ export type PanoramaView = {
   cx: number;
   /** The `up` of the picture's top edge, m. */
   top: number;
+  /** The world x span the picture paints, m — the ski area and its margin;
+   * the columns either side of it are left transparent. */
+  clip: [number, number];
 };
 
 /** What the painter reads off a map. */
@@ -152,7 +170,7 @@ export function fitPanorama(level: PanoramaLevel, px: number = PANORAMA_PX): Pan
     xb = Math.max(xb, p.x);
     zTop = Math.min(zTop, p.z);
   }
-  const pad = Math.max(60, 0.08 * (xb - xa));
+  const pad = Math.max(PAD_MIN, PAD * (xb - xa));
   xa = Math.max(0, xa - pad);
   xb = Math.min(size, xb + pad);
   // The ridge behind the top stations: it is the picture's skyline, so it
@@ -186,23 +204,16 @@ export function fitPanorama(level: PanoramaLevel, px: number = PANORAMA_PX): Pan
   const spanU = (hi - lo) * (1 + SKY + FOOT);
   const span = Math.max(width, spanU);
   const scale = px / span;
-  // A picture wider than the mountain is tall gets its slack split: most of
-  // it to the sky, as a painter leaves it.
+  // A mountain wider than it is tall stands in the middle of the plate.
   const slack = span - spanU;
-  const top = hi + (hi - lo) * SKY + slack * 0.6;
-  return { size, px, tilt, relief: RELIEF, scale, cx: (xa + xb) / 2, top };
+  const top = hi + (hi - lo) * SKY + slack / 2;
+  return { size, px, tilt, relief: RELIEF, scale, cx: (xa + xb) / 2, top, clip: [xa, xb] };
 }
 
 // ── The paint, sRGB 0..255 ───────────────────────────────────────────────
 
 type RGB = [number, number, number];
 
-const SKY_TOP: RGB = [58, 112, 192];
-const SKY_LOW: RGB = [196, 218, 241];
-const FAR_RANGE: RGB = [170, 192, 224];
-const FAR_RANGE_LIT: RGB = [214, 226, 244];
-const NEAR_RANGE: RGB = [138, 162, 204];
-const NEAR_RANGE_LIT: RGB = [200, 214, 238];
 const SNOW_LIT: RGB = [252, 252, 249];
 /** The shadowed snow: a blue with indigo in it, the painter's trick that
  * gives the snow its body. */
@@ -242,6 +253,18 @@ const HAZE_FAR = 0.3;
  * the plate's scale — the painter's licence. */
 const TREE_LIFT = 2.1;
 
+/** The grid the runs' corridors are kept on, m. A tree drawn
+ * {@link TREE_LIFT} times its height would bury a cat track six metres
+ * wide, so — the painter's other licence — no tree is painted over a run's
+ * own snow, and every piste and lane shows its cut through the woods. (Not
+ * the packed field: a region's wind crust is packed too, far from any run.) */
+const CORRIDOR_CELL = 2;
+
+/** How far down the face from the summit's row a column's crest is looked
+ * for, m, and the step it is looked for at. */
+const CREST_REACH = 600;
+const CREST_STEP = 8;
+
 /** The broadleaves, drawn bare. */
 const BARE_KINDS = new Set(["birch", "aspen", "rowan", "alder", "willow", "beech", "maple", "ash"]);
 
@@ -261,26 +284,8 @@ function hash(a: number, b: number, seed: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** A peaked 1-D range line, 0..1 (1 the peaks): value noise, folded. */
-function rangeLine(t: number, seed: number): number {
-  let sum = 0;
-  let amp = 0.62;
-  let f = 1;
-  for (let o = 0; o < 3; o++) {
-    const u = t * f;
-    const i = Math.floor(u);
-    const s = u - i;
-    const e = s * s * (3 - 2 * s);
-    const n = hash(i, o, seed) * (1 - e) + hash(i + 1, o, seed) * e;
-    sum += amp * (1 - Math.abs(2 * n - 1));
-    amp *= 0.4;
-    f *= 2.1;
-  }
-  return sum / (0.62 * (1 + 0.4 + 0.16));
-}
-
-/** The painted picture and the world z behind every pixel of it (NaN on
- * the sky). */
+/** The painted picture — RGBA, transparent wherever no mountain is — and
+ * the world z of the ground behind every pixel of it (NaN where none is). */
 export type PanoramaPicture = { rgba: Uint8ClampedArray<ArrayBuffer>; depth: Float32Array };
 
 /** PAINT THE MOUNTAIN. */
@@ -288,49 +293,131 @@ export function renderPanorama(level: PanoramaLevel, v: PanoramaView): PanoramaP
   const px = v.px;
   const rgba = new Uint8ClampedArray(px * px * 4);
   const depth = new Float32Array(px * px).fill(NaN);
-  const put = (i: number, c: RGB): void => {
-    rgba[i * 4] = c[0];
-    rgba[i * 4 + 1] = c[1];
-    rgba[i * 4 + 2] = c[2];
-    rgba[i * 4 + 3] = 255;
-  };
+  // Which pixels show a run's own snow — a piste or a lane — that no tree
+  // is painted over (`stamp`).
+  const groomed = new Uint8Array(px * px);
+  const onRun = corridorOf(level);
+  const crests = crestsOf(level, v);
   const grad = new Float64Array(3);
   const size = v.size;
+  const cover = clipCover(v);
   // A sample every half pixel of valley floor, which the face's own slope
   // only ever spreads over more rows.
   const dz = 0.5 / (v.scale * Math.sin(v.tilt));
-  const skyline = new Float32Array(px);
   for (let col = 0; col < px; col++) {
+    if (cover[col] <= 0) continue;
     const x = Math.min(size, Math.max(0, xOfColumn(v, col + 0.5)));
-    let free = px; // the next row up still to paint
-    for (let z = size; z >= 0 && free > 0; z -= dz) {
+    const rowOf = (h: number, z: number): number =>
+      Math.max(0, Math.ceil((v.top - upOf(v, h, z)) * v.scale));
+    // The map's near edge is the foot of the picture: nothing under it.
+    let free = Math.min(px, rowOf(sampleField(level.ground, x, size), size));
+    // The summit ridge is the skyline: the ground behind its crest — the
+    // ridge's back, falling away to the map's far edge — is not painted.
+    for (let z = size; z >= crests[col] && free > 0; z -= dz) {
       sampleFieldGradient(level.ground, x, z, grad);
-      const h = grad[0];
-      const row = Math.max(0, Math.ceil((v.top - upOf(v, h, z)) * v.scale));
+      const row = rowOf(grad[0], z);
       if (row >= free) continue;
-      const c = groundColour(level, x, z, grad);
+      const packed = level.packedAt(x, z);
+      const c = groundColour(level, x, z, grad, packed);
       for (let r = row; r < free; r++) {
-        put(r * px + col, c);
-        depth[r * px + col] = z;
+        const i = r * px + col;
+        groomed[i] = onRun(x, z) ? 1 : 0;
+        rgba[i * 4] = c[0];
+        rgba[i * 4 + 1] = c[1];
+        rgba[i * 4 + 2] = c[2];
+        rgba[i * 4 + 3] = 255;
+        depth[i] = z;
       }
       free = row;
     }
-    skyline[col] = free;
   }
-  paintSky(rgba, depth, skyline, px, level.seed);
-  paintTrees(level, v, rgba, depth);
+  paintTrees(level, v, rgba, depth, groomed);
   paintVillage(level, v, rgba, depth);
+  // The cut: faded out at both sides of the ski area and along the valley
+  // floor at the map's near edge.
+  for (let i = 0; i < px * px; i++) {
+    const z = depth[i];
+    const foot = Number.isNaN(z) ? 1 : clamp01((size - z) / FOOT_FADE);
+    rgba[i * 4 + 3] *= cover[i % px] * foot;
+  }
   return { rgba, depth };
 }
 
+/** Whether a plan point lies on a run's own snow: each run's (or, on a map
+ * with no ski area, the piste's) width stamped along its line. */
+function corridorOf(level: PanoramaLevel): (x: number, z: number) => boolean {
+  const n = Math.ceil(level.size / CORRIDOR_CELL) + 1;
+  const cells = new Uint8Array(n * n);
+  const lines = level.resort ? level.resort.runs.map((r) => r.points) : [level.track.points];
+  for (const pts of lines) {
+    for (const p of pts) {
+      const r = p.width / 2 / CORRIDOR_CELL;
+      const c0 = p.x / CORRIDOR_CELL;
+      const r0 = p.z / CORRIDOR_CELL;
+      for (let j = Math.max(0, Math.floor(r0 - r)); j <= Math.min(n - 1, Math.ceil(r0 + r)); j++) {
+        for (
+          let i = Math.max(0, Math.floor(c0 - r));
+          i <= Math.min(n - 1, Math.ceil(c0 + r));
+          i++
+        ) {
+          if ((i - c0) ** 2 + (j - r0) ** 2 <= r * r) cells[j * n + i] = 1;
+        }
+      }
+    }
+  }
+  return (x, z) => {
+    const i = Math.round(x / CORRIDOR_CELL);
+    const j = Math.round(z / CORRIDOR_CELL);
+    return i >= 0 && j >= 0 && i < n && j < n && cells[j * n + i] === 1;
+  };
+}
+
+/** Each column's crest: the z of the highest ground down its slice from
+ * the map's far edge to a little past the summit's row. */
+function crestsOf(level: PanoramaLevel, v: PanoramaView): Float32Array {
+  const out = new Float32Array(v.px);
+  const reach = Math.min(v.size, level.mountain.summit.z + CREST_REACH);
+  for (let col = 0; col < v.px; col++) {
+    const x = Math.min(v.size, Math.max(0, xOfColumn(v, col + 0.5)));
+    let best = -Infinity;
+    for (let z = 0; z <= reach; z += CREST_STEP) {
+      const h = sampleField(level.ground, x, z);
+      if (h > best) {
+        best = h;
+        out[col] = z;
+      }
+    }
+  }
+  return out;
+}
+
+/** How much of each column the cut keeps, 0..1: all of it inside the ski
+ * area's slice, eased out to nothing across the outer part of its margin. */
+function clipCover(v: PanoramaView): Float32Array {
+  const [xa, xb] = v.clip;
+  const fade = Math.max(1, (xb - xa) * PAD * SIDE_FADE);
+  const out = new Float32Array(v.px);
+  for (let col = 0; col < v.px; col++) {
+    const x = xOfColumn(v, col + 0.5);
+    const t = clamp01(Math.min(x - xa, xb - x) / fade);
+    out[col] = t * t * (3 - 2 * t);
+  }
+  return out;
+}
+
 /** The colour of the ground at a point, `grad` its height and slope. */
-function groundColour(level: PanoramaLevel, x: number, z: number, grad: Float64Array): RGB {
+function groundColour(
+  level: PanoramaLevel,
+  x: number,
+  z: number,
+  grad: Float64Array,
+  packed: number,
+): RGB {
   const gx = grad[1];
   const gz = grad[2];
   const nx = -gx * SHADE_RELIEF;
   const nz = -gz * SHADE_RELIEF;
   const lit = clamp01((nx * LIGHT[0] + LIGHT[1] + nz * LIGHT[2]) / Math.hypot(nx, 1, nz));
-  const packed = level.packedAt(x, z);
   let c = mix(SNOW_SHADE, SNOW_LIT, lit * lit * (3 - 2 * lit));
   if (packed > 0.35) {
     // The groomed snow: lifted out of the shadow, the cleanest white there is.
@@ -346,49 +433,12 @@ function groundColour(level: PanoramaLevel, x: number, z: number, grad: Float64A
   return mix(c, HAZE, HAZE_FAR * clamp01(1 - z / level.size));
 }
 
-/** The sky, and two far ranges behind the summit ridge where it dips. */
-function paintSky(
-  rgba: Uint8ClampedArray,
-  depth: Float32Array,
-  skyline: Float32Array,
-  px: number,
-  seed: number,
-): void {
-  let mean = 0;
-  for (let c = 0; c < px; c++) mean += skyline[c];
-  mean /= px;
-  const far = (c: number): number => mean - px * (0.015 + 0.09 * rangeLine(c / 70, seed + 1));
-  const near = (c: number): number =>
-    mean + px * 0.02 - px * (0.01 + 0.06 * rangeLine(c / 46, seed + 2));
-  // Light from the left: a flank that climbs to the right faces it, by
-  // how steeply it climbs.
-  const litOf = (line: (c: number) => number, c: number): number =>
-    clamp01(0.5 + (line(c - 3) - line(c + 3)) * 0.12);
-  for (let c = 0; c < px; c++) {
-    const f = far(c);
-    const n = near(c);
-    const farCol = mix(FAR_RANGE, FAR_RANGE_LIT, litOf(far, c));
-    const nearCol = mix(NEAR_RANGE, NEAR_RANGE_LIT, litOf(near, c));
-    for (let r = 0; r < skyline[c]; r++) {
-      const i = r * px + c;
-      if (!Number.isNaN(depth[i])) continue;
-      const air = mix(SKY_TOP, SKY_LOW, clamp01(r / Math.max(1, mean)) ** 0.8);
-      // Each range fades into the air at its foot, as a far range does.
-      let col = air;
-      if (r >= n) col = mix(nearCol, SKY_LOW, clamp01((r - n) / (px * 0.08)) * 0.5);
-      else if (r >= f) col = mix(farCol, SKY_LOW, clamp01((r - f) / (px * 0.08)) * 0.6);
-      rgba[i * 4] = col[0];
-      rgba[i * 4 + 1] = col[1];
-      rgba[i * 4 + 2] = col[2];
-      rgba[i * 4 + 3] = 255;
-    }
-  }
-}
-
-/** Blend a colour into a pixel the ground there does not stand in front of. */
+/** Blend a colour into a pixel the ground there does not stand in front of
+ * — and, given the `groomed` mask, that is not groomed snow. */
 function stamp(
   rgba: Uint8ClampedArray,
   depth: Float32Array,
+  groomed: Uint8Array | null,
   px: number,
   col: number,
   row: number,
@@ -400,11 +450,21 @@ function stamp(
   const i = row * px + col;
   // A tree hides behind the ground nearer the viewer than it (a larger z)
   // and stands in front of the rest; a pixel's span of z is the slack.
-  if (depth[i] > z + 12) return;
+  if (depth[i] > z + 12 || groomed?.[i]) return;
   const k = i * 4;
+  if (rgba[k + 3] === 0) {
+    // Over nothing (a crown against the sky): the paint itself, as opaque
+    // as the stroke.
+    rgba[k] = c[0];
+    rgba[k + 1] = c[1];
+    rgba[k + 2] = c[2];
+    rgba[k + 3] = a * 255;
+    return;
+  }
   rgba[k] += (c[0] - rgba[k]) * a;
   rgba[k + 1] += (c[1] - rgba[k + 1]) * a;
   rgba[k + 2] += (c[2] - rgba[k + 2]) * a;
+  rgba[k + 3] = Math.max(rgba[k + 3], a * 255);
 }
 
 /** Every tree, far ones first: a small conifer with snow on its lit
@@ -414,6 +474,7 @@ function paintTrees(
   v: PanoramaView,
   rgba: Uint8ClampedArray,
   depth: Float32Array,
+  groomed: Uint8Array,
 ): void {
   const px = v.px;
   const order = level.trees.map((_, i) => i).sort((a, b) => level.trees[a].z - level.trees[b].z);
@@ -427,11 +488,12 @@ function paintTrees(
     const ci = Math.round(c0);
     if (bare) {
       const stalk = mix(BARE, HAZE, haze);
-      for (let k = 0; k < h; k++) stamp(rgba, depth, px, ci, Math.round(r0 - k), t.z, stalk, 0.7);
+      for (let k = 0; k < h; k++)
+        stamp(rgba, depth, groomed, px, ci, Math.round(r0 - k), t.z, stalk, 0.7);
       const crown = Math.max(1, h * 0.25);
       for (let k = Math.floor(h * 0.4); k < h; k++) {
         for (let d = -crown; d <= crown; d++) {
-          stamp(rgba, depth, px, ci + Math.round(d), Math.round(r0 - k), t.z, stalk, 0.22);
+          stamp(rgba, depth, groomed, px, ci + Math.round(d), Math.round(r0 - k), t.z, stalk, 0.22);
         }
       }
       continue;
@@ -448,7 +510,7 @@ function paintTrees(
         const left = d < 0 || (d === 0 && c0 - ci < 0);
         let c = left ? lit : shade;
         if (left && k % 3 === 1 && hash(n, k, level.seed) > 0.45) c = snow;
-        stamp(rgba, depth, px, ci + d, row, t.z, c, a);
+        stamp(rgba, depth, groomed, px, ci + d, row, t.z, c, a);
       }
     }
   }
@@ -482,12 +544,12 @@ function paintVillage(
     for (let d = 0; d < w; d++) {
       for (let k = 0; k < tall; k++) {
         const c = d < w / 2 ? WALL_LIT : WALL_SHADE;
-        stamp(rgba, depth, px, ci - (w >> 1) + d, ri - k, hs.z + 20, c, 1);
+        stamp(rgba, depth, null, px, ci - (w >> 1) + d, ri - k, hs.z + 20, c, 1);
       }
       // The roof: a snowed gable over the walls.
       const peak = Math.round((1 - Math.abs((d + 0.5) / w - 0.5) * 2) * (w * 0.35));
       for (let k = 0; k <= peak; k++) {
-        stamp(rgba, depth, px, ci - (w >> 1) + d, ri - tall - k, hs.z + 20, ROOF, 1);
+        stamp(rgba, depth, null, px, ci - (w >> 1) + d, ri - tall - k, hs.z + 20, ROOF, 1);
       }
     }
   }
@@ -648,7 +710,7 @@ export function panoramaSchematic(
 // ── A tap, and a spot ───────────────────────────────────────────────────
 
 /** The pick grid: the world z behind each cell of a `PICK_PX` square laid
- * over the picture (NaN on the sky), sampled at each cell's centre. */
+ * over the picture (NaN where no mountain is), sampled at each cell's centre. */
 export function pickGrid(v: PanoramaView, depth: Float32Array): Float32Array<ArrayBuffer> {
   const out = new Float32Array(PICK_PX * PICK_PX);
   for (let j = 0; j < PICK_PX; j++) {
@@ -661,7 +723,7 @@ export function pickGrid(v: PanoramaView, depth: Float32Array): Float32Array<Arr
   return out;
 }
 
-/** A point of the schematic as a point on the snow — null on the sky. The
+/** A point of the schematic as a point on the snow — null off the mountain. The
  * column fixes x; the pick grid holds the z the ground there is seen at. */
 export function fromPanorama(
   v: PanoramaView,

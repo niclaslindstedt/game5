@@ -33,6 +33,11 @@
 // reached. And a soft
 // ski lands softer: it takes some of a landing the legs would otherwise
 // take — `harsh`, on the harsh speed.
+//
+// THE CHATTER at speed (`TUNING.chatter`): a long ski spans more of the
+// snow's bumps and a stiff one damps them, so a downhill ski runs quiet at
+// a pace a short soft one shakes at — `chatter`, on how much of it a pair
+// lets through.
 
 import { SKIS, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -57,6 +62,9 @@ export type Footprint = {
   /** The harsh speed, as a multiple of the reference's: a soft ski takes
    * a share of a landing. */
   harsh: number;
+  /** The chatter at speed, as a multiple of the reference's: a long stiff
+   * ski shakes less. */
+  chatter: number;
 };
 
 /** The skis' ground pressure at rest, Pa: the whole weight over the two
@@ -88,6 +96,7 @@ export function footprintOf(spec: SkiSpec): Footprint {
         Math.pow(spec.waist / SKIS.waist, F.waistRate) *
         (1 + F.flexRate * flex)),
     harsh: 1 + F.flexHarsh * (SKIS.flex - spec.flex),
+    chatter: Math.pow(SKIS.length / spec.length, F.chatterLength) * (1 - F.chatterFlex * flex),
   };
   cache.set(spec, fit);
   return fit;

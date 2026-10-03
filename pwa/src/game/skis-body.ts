@@ -52,6 +52,7 @@ import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
 import { SKI_LOOKS, lookOf } from "./ski-looks.ts";
 import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
+import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
@@ -367,6 +368,10 @@ export function createSkisModel(
   const toRoot = new THREE.Quaternion();
   const thrown = new THREE.Quaternion();
   const stand = emptyStand();
+  // THE CHATTER as drawn (`ski-chatter.ts`): the snow passed and the shake.
+  const chatter = createChatter();
+  const flap = new THREE.Quaternion();
+  const shook = new THREE.Euler();
   const pivot = new THREE.Vector3();
   const trunk = new THREE.Matrix4();
   const axis = { x: new THREE.Vector3(), y: new THREE.Vector3(), z: new THREE.Vector3() };
@@ -422,7 +427,13 @@ export function createSkisModel(
       // feet, so the drawn origin goes inside the turn by the legs' length
       // times the sine of the inclination.
       const angle = drawnSkiAngle(legs, skier);
-      standOf(skier, off ? 0 : groundOf(skier, legs), stand, inclineAt(skier, at.q), angle);
+      const ground = off ? 0 : groundOf(skier, legs);
+      standOf(skier, ground, stand, inclineAt(skier, at.q), angle);
+      // ...and SHAKEN at speed: each ski hopping, flapping and rocking on
+      // the snow passing under it, the knees taking it (the boots stand on
+      // the same stand).
+      stepChatter(chatter, skier, dt);
+      shakeStand(stand, skier, ground, chatter);
       pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
@@ -463,6 +474,14 @@ export function createSkisModel(
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
       gear.pose(skier, sink, angle, stand);
+      // The chatter's flap and rock on the code's skis, about each ski's
+      // own across and length (tips up a negative turn about +x).
+      for (let i = 0; i < 2; i++) {
+        if (stand.pitch[i] === 0 && stand.rock[i] === 0) continue;
+        gear.skis[i].quaternion.multiply(
+          flap.setFromEuler(shook.set(-stand.pitch[i], 0, -stand.rock[i])),
+        );
+      }
       models?.pose(skier, sink, dt, angle, stand);
       merged.update();
     },

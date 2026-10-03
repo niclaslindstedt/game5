@@ -6,7 +6,10 @@
 // ski a quarter of a metre and more in the air; the outside ski carries
 // most of him, by a measured share that falls with speed; and the pose
 // takes the inside leg's shortening at the pelvis and the hips, never by
-// folding a knee further than a skier's folds.
+// folding a knee further than a skier's folds. And at speed the pair
+// CHATTERS (`ski-chatter.ts`): each ski hops up off the snow and flaps on
+// the snow passed under it, out of step with the other, by as much as the
+// engine says it is shaking.
 
 import { describe, expect, it } from "vitest";
 import { createGame, placeRun, skisById, step, TUNING, type GameState } from "@engine";
@@ -15,6 +18,12 @@ import { gearLift } from "../pwa/src/game/ski-gear.ts";
 import { groundOf, mountsOf, poseInputOf } from "../pwa/src/game/skis-body.ts";
 import { emptyStand, outsideShare, skiGaps, standOf, turnOf } from "../pwa/src/game/ski-stand.ts";
 import { KNEE_MOST } from "../pwa/src/game/skier-limbs.ts";
+import {
+  CHATTER_LOOK,
+  createChatter,
+  shakeStand,
+  stepChatter,
+} from "../pwa/src/game/ski-chatter.ts";
 import {
   createSkierSpring,
   drawnSkiAngle,
@@ -222,5 +231,57 @@ describe("the knees on an inclined stance", () => {
       seen++;
     });
     expect(seen).toBeGreaterThan(5);
+  });
+});
+
+describe("the skis chattering at speed", () => {
+  it("shakes the pair by the engine's chatter, up off the snow and out of step", () => {
+    let still = 0;
+    let shook = 0;
+    let apart = 0;
+    let worst = 0;
+    const view = createChatter();
+    ski(
+      110,
+      1.5,
+      (t) => ({ ...IDLE, tuck: 0.6, steer: t >= 0.2 ? -0.7 : 0 }),
+      (state, legs) => {
+        const c = state.skier;
+        stepChatter(view, c, 2 * TUNING.dt);
+        const ground = groundOf(c, legs);
+        const stand = standOf(c, ground);
+        const lift = [...stand.lift];
+        shakeStand(stand, c, ground, view);
+        for (let i = 0; i < 2; i++) {
+          const hop = stand.lift[i] - lift[i];
+          // Only ever thrown UP, and never more than the look's whole.
+          expect(hop).toBeGreaterThanOrEqual(0);
+          expect(hop).toBeLessThanOrEqual(CHATTER_LOOK.lift + 1e-9);
+          expect(Math.abs(stand.pitch[i])).toBeLessThanOrEqual(CHATTER_LOOK.pitch + 1e-9);
+          worst = Math.max(worst, Math.abs(stand.pitch[i]));
+        }
+        apart = Math.max(apart, Math.abs(stand.pitch[0] - stand.pitch[1]));
+        if (c.chatter > 0.3) shook++;
+        else still++;
+      },
+    );
+    expect(shook).toBeGreaterThan(still);
+    expect(worst).toBeGreaterThan(0.01);
+    expect(apart).toBeGreaterThan(0.01);
+  });
+
+  it("leaves a slow pair alone", () => {
+    ski(
+      20,
+      1,
+      (t) => ({ ...IDLE, steer: t >= 0.2 ? -0.7 : 0 }),
+      (state, legs) => {
+        const stand = standOf(state.skier, groundOf(state.skier, legs));
+        const lift = [...stand.lift];
+        shakeStand(stand, state.skier, 1, createChatter());
+        expect(stand.lift).toEqual(lift);
+        expect(stand.pitch).toEqual([0, 0]);
+      },
+    );
   });
 });

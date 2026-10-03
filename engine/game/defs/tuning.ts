@@ -138,6 +138,11 @@ export const TUNING = {
     /** A soft ski lands softer: the harsh speed goes as
      * `1 + flexHarsh · (flex₀ − flex)`. */
     flexHarsh: 0.25,
+    /** THE CHATTER a pair lets through at speed (`TUNING.chatter`): a long
+     * ski spans more of the bumps and a stiff one is damped against them,
+     * `(L₀ / L)^chatterLength · (1 − chatterFlex · (flex − flex₀))`. */
+    chatterLength: 1.5,
+    chatterFlex: 0.6,
   },
 
   /** GRIP — the friction coefficients between the skis and the snow, each
@@ -234,6 +239,36 @@ export const TUNING = {
     skidDrag: 0.35,
     /** How fast the skis pivot into and out of a skid, rad/s. */
     skidRate: 4,
+  },
+
+  /** THE CHATTER — the skis shaken by the snow passing under them. A
+   * groomed surface is never smooth: its corduroy, the ruts of the skiers
+   * before and its grains are bumps of every wavelength, and a ski running
+   * over them at v is driven at v / λ — a few hertz at a walk, the ski's
+   * own bending (some 10–20 Hz) and torsional (some 50–70 Hz) modes by a
+   * racer's pace. The measured vibration on a running ski climbs steeply
+   * with speed and is worst on hard snow under a loaded edge; past the
+   * ski's damping the edge skips, leaving the snow for an instant at a
+   * time, and a skipping edge holds less than a biting one. That is why a
+   * downhiller's skis are long, stiff and heavily damped, and why a soft
+   * short ski that carves a nursery slope clean is all over the place
+   * flat out. So the chatter is the speed's share — nothing under `from`
+   * m/s, the whole by `full` (a smoothstep between) — times the pair's own
+   * (`footprint.ts`'s `chatter`: a long stiff ski less, a short soft one
+   * more), on packed snow only (powder cushions the ski); and at the whole
+   * of it the EDGE'S sideways hold is `loss` less. The yaw the edge asks
+   * for at a speed goes as v·κ while the bend it can hold goes as the
+   * grip over v, so a turn already widens as v²; the chatter takes a
+   * little more off the top end, where real skis lose it. */
+  chatter: {
+    from: 14,
+    full: 36,
+    loss: 0.2,
+    /** How much of the chatter shows (`SkierState.chatter`) with the skis
+     * running flat and unloaded — the rest comes with the bend's load on
+     * the edge, whole by `loadedG` g of it. */
+    flat: 0.35,
+    loadedG: 0.8,
   },
 
   /** THE ARCADE'S HANDS — dials that model nothing, stated as such, and the

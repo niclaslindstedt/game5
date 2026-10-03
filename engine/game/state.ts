@@ -160,6 +160,13 @@ export type SkierState = {
   /** THE SIDEWAYS SLIP: the fastest any touching station slid across its
    * own line this step, m/s — what a caught edge is read off (`crash.ts`). */
   sideSlip: number;
+  /** THE CHATTER: how hard the skis are vibrating on the firm snow under
+   * them this step, 0 (still, slow or in powder) … 1 (shaking on a
+   * hard-loaded edge flat out) — the speed's share (`chatterOf`) on the
+   * packed share of the load, most on an edge carrying a bend. Read by
+   * the view (the skis' flutter, the knees taking it) and nothing in the
+   * physics: the grip it costs is `chatterOf`'s own. */
+  chatter: number;
   /** Every probe (`SnowContact`): the left ski's tip, mid and tail, then
    * the right ski's. */
   contacts: SnowContact[];

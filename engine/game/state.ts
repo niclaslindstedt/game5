@@ -299,13 +299,14 @@ export type Thrown = {
 /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): the worst injury on each
  * part (its AIS rank, 0 sound … 5 critical, in `BODY_PARTS` order), every
  * injury in the order it was taken, the last blow worth billing on the g
- * meter, and the run's hardest blow, g. A reset does not mend it; a new run
- * does. */
+ * meter, the run's hardest blow, g, and the hardest he FELL on — the one
+ * the HUD bills. A reset does not mend it; a new run does. */
 export type BodyState = {
   worst: number[];
   injuries: Injury[];
   impact: Impact | null;
   peak: number;
+  fallPeak: number;
   /** How many blows have been billed — what the HUD keys the meter on. */
   blows: number;
 };
@@ -319,8 +320,21 @@ export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number 
 export type ImpactSource = "landing" | "snow" | "tree" | "skier";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
- * came from, how long ago, s, and its number (`BodyState.blows`). */
-export type Impact = { g: number; part: BodyPart; source: ImpactSource; t: number; id: number };
+ * came from, how long ago, s, and its number (`BodyState.blows`); whether
+ * it came with a FALL — he went down, or the skier he hit did — which is
+ * the only blow the HUD shows; and, for a shoulder into another skier,
+ * which (`rival` −1 for an amateur of the crowd, `amateur` −1 for a
+ * rival). */
+export type Impact = {
+  g: number;
+  part: BodyPart;
+  source: ImpactSource;
+  t: number;
+  id: number;
+  fall: boolean;
+  rival: number;
+  amateur: number;
+};
 
 /** A part `damage.ts` keeps a figure for. */
 export type DamagePart = "skiLeft" | "skiRight" | "legs";

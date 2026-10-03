@@ -219,8 +219,18 @@ describe("the body and the g meter (body-tile.ts)", () => {
 
   it("holds the blow on the meter for the engine's hold, and lights the part it struck", () => {
     const body = freshBody();
-    body.impact = { g: 42, part: "head", source: "tree", t: 0.4, id: 3 };
+    body.impact = {
+      g: 42,
+      part: "head",
+      source: "tree",
+      t: 0.4,
+      id: 3,
+      fall: true,
+      rival: -1,
+      amateur: -1,
+    };
     body.peak = 42;
+    body.fallPeak = 42;
     const tile = bodyTile(body, 1);
     expect(tile.blow).toEqual({
       g: 42,
@@ -233,6 +243,25 @@ describe("the body and the g meter (body-tile.ts)", () => {
     expect(tile.peak).toBe(42);
     body.impact.t = TUNING.injury.hold;
     expect(bodyTile(body, 3).blow).toBe(null);
+  });
+
+  it("shows no g for a blow nobody fell on", () => {
+    const body = freshBody();
+    body.impact = {
+      g: 9,
+      part: "back",
+      source: "landing",
+      t: 0.1,
+      id: 1,
+      fall: false,
+      rival: -1,
+      amateur: -1,
+    };
+    body.peak = 9;
+    const tile = bodyTile(body, 1);
+    expect(tile.blow).toBe(null);
+    expect(tile.struck).toBe(null);
+    expect(tile.peak).toBe(0);
   });
 
   it("bills a trunk met at speed on the meter, with an injury in plain words", () => {

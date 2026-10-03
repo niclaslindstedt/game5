@@ -176,17 +176,12 @@ const CLOUD_HEIGHT = 1400;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
-/** A RIVAL nearer the lens's eye than this share of the eye's reach to
- * the player is not drawn that frame: the field bunched behind the player
- * out of the start puts one in the boom's own spot, and the back of his
- * helmet would fill the picture. A share rather than metres, so the far
- * boom keeps the same rule at its own length. */
+/** A RIVAL nearer the lens's eye than this share of the eye's reach to the
+ * player is not drawn that frame where the lens TRAILS him: the field
+ * bunched behind puts one in the boom's own spot, his helmet filling the
+ * picture. A lens circling him or planted by the piste sees the field ski
+ * PAST in plain view, so it drops only one within `LENS_TOUCH` m of it. */
 const LENS_CROWD = 0.55;
-/** That rule is the TRAILING booms' alone: a lens that does not sit behind
- * the player — the menus' orbit circling him, a planted broadcast or death
- * cam — has the field skiing PAST it in plain view, and a rival dropped
- * there vanishes mid-picture. Such a lens leaves out only a rival about to
- * ski through its glass, nearer than this, m. */
 const LENS_TOUCH = 1.5;
 
 type Rider = {
@@ -769,10 +764,8 @@ export function createWorldRenderer(
       // A rival standing in the lens's own spot is left out of this frame.
       const eye = lens.camera.position;
       const me = player.drawn;
-      const trailing = !planted && lens.rung() !== "orbit";
-      const reach = trailing
-        ? Math.max(LENS_TOUCH, Math.hypot(me.x - eye.x, me.y - eye.y, me.z - eye.z) * LENS_CROWD)
-        : LENS_TOUCH;
+      const far = Math.hypot(me.x - eye.x, me.y - eye.y, me.z - eye.z) * LENS_CROWD;
+      const reach = !planted && lens.rung() !== "orbit" ? Math.max(LENS_TOUCH, far) : LENS_TOUCH;
       for (let i = 1; i < riders.length; i++) {
         const at = riders[i].drawn;
         riders[i].model.root.visible = Math.hypot(at.x - eye.x, at.y - eye.y, at.z - eye.z) > reach;

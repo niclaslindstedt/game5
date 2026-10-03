@@ -28,7 +28,8 @@
 // No plant is posed anywhere, and every fist is eased inside the arm's
 // reach afterwards (`easeFist`).
 
-import type { V3 } from "./skier-vec.ts";
+import type { Gait } from "./skier-gait.ts";
+import { add, clamp01, mix, type V3 } from "./skier-vec.ts";
 
 /** WHERE AN EMPTY HAND RESTS, m, off the pole stance's grip (`MOUNTS.hand`,
  * x outward): RIDING, out and down to the hips' height and drawn back
@@ -105,4 +106,26 @@ export function bareHands(a: BareArms): [V3, V3] {
       z: a.skate * (SKATER.ahead * fwd - SKATER.behind * back) + a.free * TURN.reach * outside,
     };
   }) as [V3, V3];
+}
+
+/** THE EMPTY HANDS PLACED, in place, on the fists the stance put at their
+ * rest (`bareRest`): the skater's swing and the turn's reach on them, and
+ * in the start gate his hands on his knees. `crouch`, `air` and `ready` are
+ * the pose's own 0..1, `hang` its −1..1. */
+export function placeBare(
+  hands: V3[],
+  knees: readonly V3[],
+  p: { gait: Gait; crouch: number; air: number; ready: number; hang: number },
+): void {
+  const skate = p.gait.skate * (1 - p.crouch * 0.5);
+  const off = bareHands({
+    skate,
+    phase: p.gait.phase,
+    push: p.gait.push,
+    free: (1 - clamp01(skate + p.gait.stride)) * (1 - p.crouch) * (1 - p.air) * (1 - p.ready),
+    hang: p.hang,
+  });
+  for (const i of [0, 1]) {
+    hands[i] = mix(add(hands[i], off[i]), onKnee(knees[i], i ? 1 : -1), p.ready);
+  }
 }

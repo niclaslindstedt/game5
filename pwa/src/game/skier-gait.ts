@@ -140,6 +140,21 @@ export const STILL_GAIT: Gait = {
   twist: 0,
 };
 
+/** How long in the air before he is FLYING rather than hopping, s. */
+export const HOP = 0.12;
+
+/** IN FLIGHT, not just off the snow: skis skimming off a crest for a
+ * tenth of a second are the legs not quite keeping them down, and his
+ * body rides on over them — the stroke he is making, the stance — as it
+ * does over the bump. A jump he sprang himself (`popped` since he left
+ * the snow) flies from the first frame; with no clock read, any air is a
+ * flight. */
+export function flying(s: { airborne: boolean; airTime?: number; popped?: number }): boolean {
+  if (!s.airborne) return false;
+  const t = s.airTime ?? Infinity;
+  return t >= HOP || (s.popped !== undefined && s.popped <= t + HOP);
+}
+
 export function gaitOf(
   s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
     way?: number;
@@ -148,9 +163,11 @@ export function gaitOf(
      * out. With none he never double-poles: he walks his skis off a
      * standstill wherever he is and skates once rolling. */
     poles?: boolean;
+    airTime?: number;
+    popped?: number;
   },
 ): Gait {
-  if (s.airborne || s.thrown || s.drive <= 0.01) return STILL_GAIT;
+  if (flying(s) || s.thrown || s.drive <= 0.01) return STILL_GAIT;
   const poles = s.poles ?? true;
   // THE MOTION IS WHOLE while he works at all: the push fades with speed
   // (`driveReach`), but a skier pushing at all makes a whole stride of it —

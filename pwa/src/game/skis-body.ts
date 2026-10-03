@@ -49,7 +49,7 @@ import {
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
-import { buildGear, cuffHeight, skiTilt } from "./ski-gear.ts";
+import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
 import { SKI_LOOKS, lookOf } from "./ski-looks.ts";
 import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
 import { outfitKey } from "./dress.ts";
@@ -63,6 +63,7 @@ import {
   gaitOf,
   leadOf,
   mountsFor,
+  pitchHeld,
   stepSkierSpring,
   type Mounts,
   type SkierPoseInput,
@@ -244,6 +245,8 @@ export function poseInputOf(
     skid: skier.skid,
     // THE SAVE his body is making, as the view's spring carries it.
     jolt: legs.jolt,
+    // THE TRUNK HELD while the skis rock under him over a bump.
+    pitchHeld: pitchHeld(legs, skier.pitch),
     // THE FALL his body is riding, by how far it is.
     flight: flightShape(legs.flight, legs.clock, legs.air),
     trick,
@@ -259,6 +262,14 @@ export function poseInputOf(
       still: Math.max(0, 1 - skier.speed / 1.5) * Math.max(0, 1 - skier.drive * 4),
     },
   };
+}
+
+/** How far the drawn skis stand folded up toward him off the engine's
+ * legs, m, the two skis' mean (`gearLift`) — what the body's spring is
+ * handed so the legs never fold or stretch past their reach. */
+export function legsLift(skier: SkierState): number {
+  const lift = gearLift(skier);
+  return (lift[0] + lift[1]) / 2;
 }
 
 export function createSkisModel(
@@ -405,6 +416,7 @@ export function createSkisModel(
                 gravity: fall.gravity,
               }
             : undefined,
+          legsLift(skier),
         );
       // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
       // feet, so the drawn origin goes inside the turn by the legs' length

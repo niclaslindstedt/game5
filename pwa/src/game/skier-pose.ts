@@ -107,6 +107,7 @@ export {
   drawnSkiAngle,
   inStartGate,
   leadOf,
+  pitchHeld,
   stepSkierSpring,
   type SkierSpring,
 } from "./skier-spring.ts";
@@ -277,6 +278,9 @@ export type SkierPoseInput = {
   trick?: TrickPose | null;
   /** THE SAVE his body is making (`skier-save.ts`), or none. */
   jolt?: Jolt;
+  /** How far his trunk is held off the skis' pitch, rad — further forward
+   * of skis rocked back under him over a bump (`pitchHeld`). */
+  pitchHeld?: number;
   /** THE FALL his body is riding (`skier-flight.ts`), or none. */
   flight?: FlightShape;
   /** Whether he has his poles (`SkierState.poles`); with them when left out. */
@@ -358,6 +362,19 @@ const POP_RISE = 0.18;
  * him lower on his knees. */
 const LOAD_SINK = 0.09;
 
+/** How far either side of nought the legs' hang is eased into, m: a
+ * corner there in the hips' and the hands' height is a snap each time his
+ * weight passes from ski to ski. */
+const HANG_EASE = 0.03;
+
+/** `min(0, x)` with its corner rounded over `w` either side — the same
+ * value and slope beyond it, and no step in the slope at nought. */
+function softBelow(x: number, w: number): number {
+  if (x <= -w) return x;
+  if (x >= w) return 0;
+  return -((w - x) * (w - x)) / (4 * w);
+}
+
 /** THE WHOLE POSE for one frame. */
 export function skierPose(input: SkierPoseInput): SkierPose {
   const M = input.mounts ?? MOUNTS;
@@ -371,7 +388,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const tip = Math.sin(input.incline ?? 0) * Math.sin(skiAngle);
   const lift = input.lift ?? [0, 0];
   const drop = input.drop ?? clamp01(input.crouch) * M.crouchDrop;
-  const gait = input.airborne ? STILL_GAIT : (input.gait ?? STILL_GAIT);
+  // Over a hop the gait handed in is still his stroke (`flying`); with no
+  // eased air handed in, any air stills it.
+  const gait = input.airborne && input.air === undefined ? STILL_GAIT : (input.gait ?? STILL_GAIT);
   const carve = clamp01(input.carve ?? 0);
   // In the start gate the brake is the wand holding him, not a skid to draw.
   const ready = clamp01(input.ready ?? 0) * (1 - clamp01(input.air ?? 0));
@@ -460,10 +479,14 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     };
     return add(base, add(scale(boot.n, cuff), scale(boot.f, M.foot.z)));
   }) as [V3, V3];
-  // The feet's average height: the hips stand over it — a skier hanging in
-  // the air with his legs long is not folded by his own lift. (Skating,
-  // the gait has put the feet under him: his weight over the gliding ski.)
+  // The feet's average lift: the LEGS TAKE IT. Skis brought up toward him
+  // by the engine's legs fold his knees and leave his hips where his mass
+  // is — the spring legs a skier rides bumps on — but a skier hanging in
+  // the air with his legs long is not stretched straight by them: the hips
+  // come down half of that. (Skating, the gait has put the feet under him:
+  // his weight over the gliding ski.)
   const feetLift = (lift[0] + lift[1]) / 2;
+  const hipsLift = softBelow(feetLift, HANG_EASE) * 0.5;
 
   // THE HIPS: over the feet standing, down and back in a tuck, inside the
   // turn by the engine's angulation, aft of nominal by the engine's shift,
@@ -547,7 +570,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     x: across0 * pc + along0 * ps,
     y:
       rest.y +
-      feetLift * 0.5 -
+      hipsLift -
       legH * (1 - Math.cos(legLeanTo)) -
       bump +
       AIR_SINK * air -
@@ -621,6 +644,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     breath +
     J.lurch +
     (F?.pitch ?? 0) +
+    (input.pitchHeld ?? 0) +
     Math.asin(Math.min(1, raise / BODY.spine));
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
   // into the turn with a hinge at the hips — the legs lean in with the
@@ -777,7 +801,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       armW * side * POLE_WIDE;
     // Off the stance, or — working the poles — off the shoulder, which
     // already rides the hips' sink and the legs' fold.
-    const own = h.y + feetLift * 0.3 - bump * 0.5 - sink;
+    const own = h.y + hipsLift * 0.6 - bump * 0.5 - sink;
     const toArm = {
       y: armW * (shoulders[i].y - own) + armLength * (arms * double.y + gateW * planted.y),
       z: armW * (shoulders[i].z - h.z) + armLength * (arms * double.z + gateW * planted.z),
@@ -786,7 +810,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       x: polesX,
       y:
         h.y +
-        feetLift * 0.3 -
+        hipsLift * 0.6 -
         bump * 0.5 -
         sink +
         fidget[i] -

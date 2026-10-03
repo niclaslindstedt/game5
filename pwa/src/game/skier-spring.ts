@@ -7,23 +7,32 @@
 
 import { strideRate, type Save, type SkierState } from "@engine";
 
-import { gaitOf } from "./skier-gait.ts";
+import { flying, gaitOf } from "./skier-gait.ts";
 
 import { JOLT_KEYS, joltOf, NO_JOLT, type Jolt } from "./skier-save.ts";
 import { createFlight, stepFlight, type Flight, type FlightRead } from "./skier-flight.ts";
 
 /** THE BODY ON ITS LEGS — the secondary motion a skier's own mass has on
  * top of the skis, kept by the view (it is the picture's, not the
- * physics'): a spring-damper in the pair's vertical, kicked by every change
- * in the pair's own climb, so a landing that stops the skis dead leaves the
- * body still coming down — the knees fold and spring back — and the chatter
- * of a hard piste is a jiggle. */
+ * physics'): HIS UPPER BODY IS A MASS OF ITS OWN, carried on his legs as on
+ * two springs (`LEGS`). Every change in the pair's climb is a kick the body
+ * does not share — it goes on the way it was going — and the legs' spring
+ * brings it back damped against THE LINE HE RIDES (`slope`: the pair's
+ * climb taken slowly, the pitch and the long swells), never against the
+ * skis' every bump: so a roller under the skis folds his knees and lets
+ * them out again while his head rides on level, a landing that stops the
+ * skis dead leaves the body still coming down until the knees have taken
+ * it, and the chatter of a hard piste is a jiggle in the legs. */
 export type SkierSpring = {
-  /** The fold, m (positive sunk), and its rate, m/s. */
+  /** The fold, m (positive sunk: his body below where the engine carries
+   * it, the knees folded by as much), and its rate, m/s. */
   bump: number;
   rate: number;
   /** The pair's climb at the last frame, m/s, or NaN before the first. */
   lastVy: number;
+  /** THE LINE HE RIDES: the pair's climb taken slowly (`LEGS.line`), m/s
+   * — what the body is damped toward (NaN before the first frame). */
+  slope: number;
   /** How far into the AIR his body is, 0 on the snow to 1 in flight —
    * eased, so leaving the snow and meeting it again are motions, not a
    * pose swapped in a frame. */
@@ -72,6 +81,14 @@ export type SkierSpring = {
   upperRate: number;
   lower: number;
   lowerRate: number;
+  /** THE PAIR'S PITCH as his trunk carries it, rad (tips up positive), and
+   * its rate: the skis rock fore and aft over every bump with the snow
+   * under them, and the trunk above his ankles, knees and hips takes the
+   * long pitch of the slope and not the rocking (NaN until the first ride
+   * is read). In the air it closes on the pair's own — a flip turns all of
+   * him. */
+  pitch: number;
+  pitchRate: number;
   /** THE SAVE as his body makes it (`skier-save.ts`): the shape a near fall
    * throws him into, followed on a spring so it comes on and goes as a
    * motion, and one save cut short by the next does not jump. */
@@ -134,6 +151,8 @@ export type SpringRide = {
   /** How long he has been in the air, s, and his body's rates, rad/s
    * (`SkierState`) — what the fall is staged by. */
   airTime?: number;
+  /** Seconds since he last sprang a jump (`SkierState.popped`). */
+  popped?: number;
   wx?: number;
   wy?: number;
   wz?: number;
@@ -159,6 +178,23 @@ const HIP_FOLLOW = 30;
  * on their bases and he leads with nothing. */
 const LEAD = { upper: 40, lower: 10, most: 180, from: 2, to: 6 };
 
+/** How quickly his trunk takes up the pair's pitch on the snow, rad/s —
+ * the slope's long pitch in a few tenths of a second, the skis' rocking
+ * over a bump (a few times a second) hardly at all. */
+const PITCH_FOLLOW = 7;
+
+/** How far his trunk is held off the pair's pitch, rad (tips up positive:
+ * the skis rocked back under him, so the trunk is that much further
+ * forward of them) — faded out as he goes into the air, where the pair
+ * and he turn as one. */
+export function pitchHeld(s: SkierSpring, pairPitch: number): number {
+  if (Number.isNaN(s.pitch)) return 0;
+  const off = Math.max(-PITCH_HOLD, Math.min(PITCH_HOLD, pairPitch - s.pitch));
+  return off * (1 - Math.max(0, Math.min(1, s.air)));
+}
+/** The most the trunk is held off the skis' pitch, rad. */
+const PITCH_HOLD = 0.3;
+
 /** THE PLANT'S TIMING: the edge a turn is read as begun past (rad), so a
  * flat run's chatter starts nothing; the least a
  * turn must have held for the next to be planted on (s); the speeds a
@@ -178,11 +214,34 @@ export const PLANT = {
 export const plantLength = (speed: number): number =>
   Math.max(PLANT.least, Math.min(PLANT.most, PLANT.length / speed));
 
-/** The body's natural frequency on its legs, rad/s (about 2.3 Hz), its
- * damping ratio, the share of the pair's change of climb the body is
- * kicked by (the legs soak up the rest before the knees move), and the most
- * they fold or extend, m. */
-const LEGS = { omega: 14.5, zeta: 0.42, kick: 0.5, fold: 0.22, extend: 0.05 };
+/** THE LEGS AS SPRINGS, after what skiers' legs are measured to do. The
+ * body's whole weight on bent knees rides at some 2–3 Hz (2.75 Hz stood on
+ * flexed knees under vertical vibration; hopping, 2.2 Hz) and passes what
+ * is slower than about 6 Hz up to the pelvis — but over bumps a skier does
+ * better than a spring: he folds his knees as the skis climb and lets them
+ * out into the trough, and his head rides on level (the mogul skier's
+ * "quiet upper body"; over 0.5 m swells 4 m apart his knees work between
+ * 32° and 84°, his hips between 40° and 107°). So the body here rides
+ * SLOWER than the legs' own bounce — `omega` rad/s (about 1 Hz) — damped by
+ * `zeta` against the line he rides — the pair's climb taken up over
+ * `line` s — and kicked by the WHOLE of every change in the pair's climb.
+ * A landing's absorption is the same spring: the impact phase of a ski
+ * jumper's landing is some 0.19 s, and the fold here peaks a quarter of a
+ * second after the skis stop. `fold` and `extend` are how far the legs can
+ * fold below and stretch above the stance in all, m — the engine's own
+ * compression spent first (`stepSkierSpring`'s `lift`), stiffening over
+ * the last `stop.zone` m of the fold at `stop.omega` rad/s — and `flight`
+ * how long in the air, s, makes a hop a flight, landed against the snow
+ * he comes down on rather than the line he left. */
+export const LEGS = {
+  omega: 6,
+  zeta: 1,
+  line: 0.8,
+  fold: 0.4,
+  extend: 0.1,
+  stop: { zone: 0.12, omega: 45 },
+  flight: 0.3,
+};
 /** How fast the body goes into the air and comes back to the snow, and
  * how fast a load is taken and let go, rad/s — critically damped springs,
  * so each starts as a motion rather than at full speed in a step: a fifth
@@ -198,6 +257,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     bump: 0,
     rate: 0,
     lastVy: Number.NaN,
+    slope: Number.NaN,
     air: 0,
     airRate: 0,
     load: 0,
@@ -219,6 +279,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     upperRate: 0,
     lower: 0,
     lowerRate: 0,
+    pitch: Number.NaN,
+    pitchRate: 0,
     jolt: { ...NO_JOLT },
     joltRate: { ...NO_JOLT },
     skiAngle: 0,
@@ -264,8 +326,15 @@ function leadShare(ride: SpringRide, airborne: boolean): number {
 
 /** The hips' shift, the edge, the roll, the upper body's lead and the
  * skid's pivot followed (`SkierSpring.hip`, `.edge`, `.roll`, `.upper` and
- * `.lower`, `.skiAngle`) — taken as they are on the first ride read. */
+ * `.lower`, `.skiAngle`) and the trunk's pitch (`.pitch`) — taken as they
+ * are on the first ride read. */
 function stepBody(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
+  const pitch = ride.pitch ?? 0;
+  if (Number.isNaN(s.pitch)) s.pitch = pitch;
+  else {
+    const w = airborne ? HIP_FOLLOW : PITCH_FOLLOW;
+    [s.pitch, s.pitchRate] = follow(s.pitch, s.pitchRate, pitch, dt, w);
+  }
   if (Number.isNaN(s.hip)) {
     s.hip = ride.hipRight;
     s.edge = ride.edge;
@@ -324,6 +393,8 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     crouch: ride.crouch,
     pitch: ride.pitch ?? 0,
     airborne,
+    airTime: ride.airTime,
+    popped: ride.popped,
     thrown: ride.thrown ?? null,
   }).keep;
   if (Number.isNaN(s.keep)) s.keep = keep;
@@ -341,7 +412,9 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
  * (the engine's own), in the air or not, a jump loaded `load` of the way
  * (0..1; the engine's `jumpLoad` over a full one), `waiting` in the start
  * gate under the lights or not; `fall` the snow under his flight as read
- * (`flightRead`) and the flight's gravity, m/s². */
+ * (`flightRead`) and the flight's gravity, m/s²; `lift` how far the drawn
+ * skis already stand folded up toward him off the engine's own legs, m
+ * (the mean of `gearLift`) — what the legs have left to fold is less it. */
 export function stepSkierSpring(
   s: SkierSpring,
   vy: number,
@@ -351,6 +424,7 @@ export function stepSkierSpring(
   ride?: SpringRide,
   waiting = false,
   fall?: { read: FlightRead | null; gravity: number },
+  lift = 0,
 ): void {
   if (!(dt > 0)) return;
   s.clock += dt;
@@ -376,8 +450,10 @@ export function stepSkierSpring(
     dt,
     fall?.gravity,
   );
-  const into = airborne ? 1 : 0;
-  [s.air, s.airRate] = follow(s.air, s.airRate, into, dt, airborne ? EASE.up : EASE.down);
+  // A HOP is not a flight (`flying`): he goes compact only once he is
+  // really flying.
+  const into = flying({ airborne, airTime: ride?.airTime, popped: ride?.popped }) ? 1 : 0;
+  [s.air, s.airRate] = follow(s.air, s.airRate, into, dt, into ? EASE.up : EASE.down);
   s.air = Math.max(0, Math.min(1, s.air));
   const held = airborne ? 0 : Math.max(0, Math.min(1, load));
   [s.load, s.loadRate] = follow(
@@ -388,24 +464,69 @@ export function stepSkierSpring(
     held > s.load ? EASE.take : EASE.release,
   );
   s.load = Math.max(0, Math.min(1, s.load));
-  if (!Number.isNaN(s.lastVy)) {
-    // The pair's change of climb since the last frame is a kick the body
-    // does not share: it keeps going the way it was.
-    s.rate += (vy - s.lastVy) * LEGS.kick * (airborne ? 0 : 1);
-  }
+  stepLegs(s, vy, airborne, dt, ride, lift);
+}
+
+/** THE BODY ON ITS LEGS stepped (`LEGS`): kicked by the pair's change of
+ * climb, sprung back toward where the engine carries him and damped
+ * against the line he rides — and in the air brought back over the skis,
+ * the two flying as one. */
+function stepLegs(
+  s: SkierSpring,
+  vy: number,
+  airborne: boolean,
+  dt: number,
+  ride: SpringRide | undefined,
+  lift: number,
+): void {
+  // THE LINE: the pair's own climb taken slowly — exact on any steady
+  // line, a skid sideways down a pitch included, and carried on through a
+  // hop over a crest. A real FLIGHT is landed against the climb the snow
+  // he comes down on asks of him instead: the way along the skis up their
+  // pitch, which the air eases onto the landing slope (`flight.ts`) — not
+  // against the fall he came down on. With no ride read, the climb he
+  // has once he is back on the snow.
+  const read = ride?.way !== undefined && ride.pitch !== undefined;
+  if (airborne && !read) s.slope = Number.NaN;
+  else if (airborne && (ride?.airTime ?? 0) > LEGS.flight) {
+    s.slope = ride!.way! * Math.sin(ride!.pitch!);
+  } else if (Number.isNaN(s.slope)) s.slope = vy;
+  else s.slope += (vy - s.slope) * Math.min(1, dt / LEGS.line);
+  // The pair's change of climb since the last frame is a push the body
+  // does not share: it keeps going the way it was — spread over the frame
+  // it came in. (In the air the two fall together; and a JUMP is his own
+  // legs throwing his body up off the snow, so the body goes with it.)
+  const sprang = ride?.popped !== undefined && ride.popped <= dt;
+  const kick = Number.isNaN(s.lastVy) || airborne || sprang ? 0 : (vy - s.lastVy) / dt;
   s.lastVy = vy;
+  // On the snow the body is damped against the line, so a bump the skis
+  // climb faster than it folds him; in the air, against the skis, and his
+  // legs bring him back over them as they fly.
+  const give = airborne ? 0 : vy - s.slope;
+  // The legs' reach: what the engine's compression has folded them by is
+  // spent. Over the last of it the knees stiffen (`LEGS.stop`), so a hard
+  // landing is slowed into the deepest fold rather than stopped dead at it.
+  const fold = LEGS.fold - Math.max(0, lift);
+  const extend = -LEGS.extend - Math.min(0, lift);
+  const deep = fold - LEGS.stop.zone;
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
   const h = dt / n;
   for (let i = 0; i < n; i++) {
-    const acc = -LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * s.rate;
+    let acc =
+      kick - LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * (s.rate - give);
+    if (s.bump > deep) {
+      const w = LEGS.stop.omega;
+      acc -= w * w * (s.bump - deep) + 2 * w * Math.max(0, s.rate);
+    }
     s.rate += acc * h;
     s.bump += s.rate * h;
   }
-  if (s.bump > LEGS.fold) {
-    s.bump = LEGS.fold;
+  // ...and a body run to the very end of it is carried with the skis.
+  if (s.bump > fold) {
+    s.bump = fold;
     s.rate = Math.min(0, s.rate);
-  } else if (s.bump < -LEGS.extend) {
-    s.bump = -LEGS.extend;
+  } else if (s.bump < extend) {
+    s.bump = extend;
     s.rate = Math.max(0, s.rate);
   }
 }

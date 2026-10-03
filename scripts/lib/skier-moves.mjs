@@ -145,6 +145,25 @@ export const MOVES = [
     input: (t) => ({ ...IDLE, tuck: t >= 0.1 ? 1 : 0 }),
   },
   {
+    id: "bumps",
+    title:
+      "straight over rollers 15 cm high every 4 m at 35 km/h: the legs take them, the body rides",
+    level: (S) =>
+      S.flatLevel({
+        packed: 1,
+        grade: 0.12,
+        slopeFrom: 0,
+        size: 1200,
+        bumps: { height: 0.15, length: 4, from: 300, to: 900 },
+      }),
+    place: () => ({ x: 600, z: 290, heading: 0, speed: 35 / 3.6 }),
+    // The first second on the strip and the first over the rollers ridden
+    // in; the window is the legs settled to their work.
+    seconds: 4.4,
+    window: [2, 4.2],
+    input: () => IDLE,
+  },
+  {
     id: "drop",
     title: "dropped 1.5 m at 60 km/h onto the groomer: the landing taken in the legs",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -211,6 +230,7 @@ export const MOMENTS = [
   { id: "setoff", move: "gate", t: 1.75, say: "out of the gate: the first push" },
   { id: "air", move: "jump", t: 2.1, say: "in the air off a jump" },
   { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
+  { id: "absorb", move: "bumps", t: 2.8, say: "a roller taken in the legs, the body riding level" },
   { id: "hockey", move: "hockey", t: 1.4, say: "a hockey stop" },
   { id: "skid", move: "skid", t: 1.0, say: "a turn skidded at speed, tucked" },
   { id: "plant", move: "turns", t: 1.82, say: "a pole planted at a turn" },

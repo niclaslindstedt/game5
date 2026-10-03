@@ -208,6 +208,17 @@ describe("what names the snow", () => {
     expect(readsAsGhost({ ...run, steer: undefined })).toBe(false);
     expect(readsAsGhost(null)).toBe(false);
   });
+
+  it("a run skied without poles says so, and one with them carries nothing new", () => {
+    const stage = ghostStage(KEY, LEVEL)!;
+    expect("poles" in sealGhost(RECORDED.tape, stage, KEY, TICKET.assist, RECORDED.time)).toBe(
+      false,
+    );
+    const bare = sealGhost(RECORDED.tape, stage, KEY, TICKET.assist, RECORDED.time, false);
+    expect(bare.poles).toBe(false);
+    expect(readsAsGhost(JSON.parse(JSON.stringify(bare)))).toBe(true);
+    expect(readsAsGhost({ ...bare, poles: "no" })).toBe(false);
+  });
 });
 
 /** An in-memory store, so the rig runs without a browser. */
@@ -353,6 +364,30 @@ describe("the rig", () => {
     expect(run.progress.finished).toBe(true);
     expect(rig.settled()?.record).toBe(true);
     expect(mem.ghosts.size).toBe(0);
+  });
+
+  it("a run without poles keeps its tape, and its ghost skis without them", () => {
+    const mem = memoryStore();
+    const rig = createRunBook({ show: () => {}, store: mem.store, now: () => 1 });
+    const run = createGame({
+      level: LEVEL,
+      seed: 7,
+      mode: "timeTrial",
+      laps: 1,
+      quiet: true,
+      poles: false,
+    });
+    rig.arm(run, TICKET);
+    for (let i = 0; i < MAX_STEPS && !run.progress.finished; i++) {
+      const input = snapInput(botInput(run));
+      step(run, input);
+      rig.step(input, run.events);
+    }
+    expect(run.progress.finished).toBe(true);
+    expect([...mem.ghosts.values()][0].poles).toBe(false);
+    // The next run — on poles — rides beside a ghost that has none.
+    rig.arm(trial(), TICKET);
+    expect(rig.ghost()?.skier.poles).toBe(false);
   });
 
   it("an unarmed run is nobody's: nothing filed, nothing kept", () => {

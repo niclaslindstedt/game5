@@ -30,6 +30,8 @@
 // a run with DAMAGE on (`GameState.damage`): a tape carries the controls and
 // not what the blows cost, and a ghost replayed on a sound skier would
 // ride off the recording's line at its first bent ski. It is still filed.
+// A run skied WITHOUT POLES keeps its tape, marked so (`GhostRun.poles`):
+// its ghost skis without them too.
 //
 // Everything this module needs from the app is handed in (the renderer's
 // one call, and the book's storage through `records.ts`); the app decides
@@ -126,6 +128,8 @@ export function createRunBook(world: GhostWorld): RunBook {
   let settled: Settled | null = null;
   let recorder: ControlRecorder | null = null;
   let stage: GhostStage | null = null;
+  /** Whether the run being taped is skied on poles. */
+  let poles = true;
   /** Whether a readable tape for this map was on file at the start. */
   let hadTape = false;
   let ghost: GameState | null = null;
@@ -161,7 +165,7 @@ export function createRunBook(world: GhostWorld): RunBook {
     }
     settled = { time, record: noted.record };
     if (recorder && stage && (noted.record || !hadTape)) {
-      store.saveGhost(sealGhost(recorder.seal(), stage, key, assist, time));
+      store.saveGhost(sealGhost(recorder.seal(), stage, key, assist, time, poles));
     }
     recorder = null;
   };
@@ -175,6 +179,7 @@ export function createRunBook(world: GhostWorld): RunBook {
       if (state.tick !== 0 || state.damage) return;
       stage = ghostStage(next.key, state.level);
       if (!stage) return;
+      poles = state.skier.poles;
       recorder = createControlRecorder();
       const saved = store.loadGhost(stage);
       if (!saved) return;
@@ -189,6 +194,7 @@ export function createRunBook(world: GhostWorld): RunBook {
         laps: saved.laps,
         spec: skisById(saved.skis),
         assist: saved.assist,
+        poles: saved.poles ?? true,
         quiet: true,
       });
       tape = readControls(saved);

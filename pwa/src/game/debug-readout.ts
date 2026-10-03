@@ -33,6 +33,8 @@ export type ReproFacts = {
   /** The start hour the map's sun was dealt (or asked for). */
   hour: number;
   pose: SkisPose;
+  /** False for a run skied without poles (the hard mode, `?poles=0`). */
+  poles?: boolean;
 };
 
 /** Where the player's skis stands: plan position, heading, forward speed. */
@@ -50,6 +52,7 @@ export function reproOf(state: GameState, mode: GameMode, camera: CameraRung): R
     weather: weatherOf(state.level).kind,
     hour: state.level.sun.hour,
     pose: { x: s.x, z: s.z, heading: s.heading, speed: s.way },
+    poles: s.poles,
   };
 }
 
@@ -71,6 +74,7 @@ export function reproQuery(f: ReproFacts): string {
   q.set("hour", String(round(f.hour, 2)));
   const p = f.pose;
   q.set("pose", [round(p.x, 1), round(p.z, 1), round(p.heading, 3), round(p.speed, 1)].join(","));
+  if (f.poles === false) q.set("poles", "0");
   q.set("splash", "0");
   return `?${q.toString()}`;
 }

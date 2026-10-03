@@ -60,7 +60,8 @@
 //     kicks the skis apart (a spread) or fore and aft (a daffy);
 //   * THE SAVE (`jolt`, `skier-save.ts`): thrown by a near fall — sunk,
 //     lurched, rocked, the shoulders knocked round, the arms flung out or
-//     a hand put down to the snow — and fighting back up out of it.
+//     a hand put down to the snow — and fighting back up out of it;
+//   * WITHOUT POLES (`poles: false`, `skier-bare.ts`): empty hands, no plant.
 //
 // The limbs are two bones each, solved analytically (`solveLimb`) toward a
 // pole — the knees forward and a little out, the elbows out and down — so a
@@ -86,6 +87,7 @@ import {
   type Stroke,
 } from "./skier-stroke.ts";
 import { joltHand, NO_JOLT, type Jolt } from "./skier-save.ts";
+import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands, flightPole, type FlightShape } from "./skier-flight.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
@@ -277,6 +279,8 @@ export type SkierPoseInput = {
   jolt?: Jolt;
   /** THE FALL his body is riding (`skier-flight.ts`), or none. */
   flight?: FlightShape;
+  /** Whether he has his poles (`SkierState.poles`); with them when left out. */
+  poles?: boolean;
   mounts?: Mounts;
 };
 
@@ -371,6 +375,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const carve = clamp01(input.carve ?? 0);
   // In the start gate the brake is the wand holding him, not a skid to draw.
   const ready = clamp01(input.ready ?? 0) * (1 - clamp01(input.air ?? 0));
+  const bare = input.poles === false;
   const skid = clamp01(input.skid ?? 0) * (1 - ready);
   const J = input.jolt ?? NO_JOLT;
   const F = input.flight;
@@ -399,12 +404,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // planted with every push, the way a racer skates out of the gate — or
   // a lone plant handed in.
   // ...worked only while a stroke keeps up with the snow (`gait.keep`).
-  const arms = clamp01(gait.pole + gait.skate) * (1 - crouch * 0.5) * gait.keep;
+  const arms = bare ? 0 : clamp01(gait.pole + gait.skate) * (1 - crouch * 0.5) * gait.keep;
   // The arms as posed: working, or set at the plant in the start gate —
   // where GO's first push begins from.
-  const armW = arms + ready * (1 - arms);
+  const armW = bare ? 0 : arms + ready * (1 - arms);
   const lone =
-    gait.stride + gait.skate + gait.pole > 0.01
+    bare || gait.stride + gait.skate + gait.pole > 0.01
       ? 0
       : clamp01(input.plant ?? 0) * (1 - crouch) * (1 - air);
   // The poles' share of the stride: a double pole's whole push, a quick
@@ -738,7 +743,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // up and forward. Cut hard, the inside hand goes down toward the snow.
   // THE TURN'S POLE PLANT: the fist reaches forward for the touch and
   // stays there while the body passes the pole, then comes back.
-  const plantAt = input.plantAt;
+  const plantAt = bare ? undefined : input.plantAt;
   const plantW = plantAt ? clamp01(plantAt.weight) * (1 - crouch) * (1 - air) : 0;
   const plantU = plantAt ? clamp01(plantAt.t) : 0;
   const reachOf = (i: number): number =>
@@ -752,8 +757,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const planted = armAt(DOUBLE_ARM, 0, true);
   const gateW = armW - arms;
   const hands = [-1, 1].map((side, i) => {
+    // With no poles, the empty hand's own rest (`skier-bare.ts`).
+    const grip = { x: side * M.hand.x, y: M.hand.y, z: M.hand.z };
     const h = mix(
-      { x: side * M.hand.x, y: M.hand.y, z: M.hand.z },
+      bare ? bareRest(grip, side, still) : grip,
       { x: side * M.tuckHand.x, y: M.tuckHand.y, z: M.tuckHand.z },
       crouch,
     );
@@ -833,6 +840,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     hands[0] = push.hands[0];
     hands[1] = push.hands[1];
   }
+  if (bare) placeBare(hands, knees, { gait, crouch, air, ready, hang });
   // THE FALL: the fists spotting, circling or reaching for the snow.
   if (F) flightHands(F, shoulders, hands, armLength);
   // THE SAVE: the arms flung out for the balance, or a hand put down.
@@ -858,7 +866,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // along it (where an elbow solved to a fixed pole flips across). At the
   // double pole's plant the elbows are OUT, bent over the grips, and close
   // in as the push drives them down and back.
-  const working = clamp01(arms + gait.stride);
+  const working = clamp01(arms + gait.stride + (bare ? gait.skate : 0));
   const elbows = [-1, 1].map((side, i) => {
     const arm = norm(sub(hands[i], shoulders[i]));
     const bendTo = norm({
@@ -985,7 +993,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     shoulders,
     elbows,
     hands,
-    poles,
+    poles: bare ? null : poles,
     look,
   };
 }

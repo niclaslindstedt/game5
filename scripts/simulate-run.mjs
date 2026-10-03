@@ -55,6 +55,7 @@ const args = parseArgs(
       help: `the pair (${SKI_CATALOG.map((s) => s.id).join(", ")}), or all for the catalog`,
     },
     tricks: { kind: "flag", help: "ride each seed's map with its trick field laid (R20)" },
+    "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     region: {
       kind: "string",
       default: "alpine",
@@ -66,7 +67,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--region id] [--grade id] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -100,6 +101,7 @@ console.log(
   `sim — engine ${engineVersion} at ${TUNING.physicsHz} Hz · skis ${args.skis} · seeds ${seeds.join(",")} · ` +
     `laps ${args.laps ?? "map"} · rivals ${args.rivals} · max ${args.max} s` +
     (args.tricks ? " · trick field" : "") +
+    (args["no-poles"] ? " · no poles" : "") +
     (args.region !== "alpine" ? ` · ${args.region}` : "") +
     (args.grade ? ` · ${args.grade}` : ""),
 );
@@ -139,6 +141,7 @@ for (const spec of roster) {
       maxSeconds: args.max,
       spec,
       tricks: args.tricks,
+      poles: !args["no-poles"],
       region: args.region === "alpine" ? undefined : args.region,
       grade: args.grade,
     });

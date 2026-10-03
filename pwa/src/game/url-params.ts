@@ -40,6 +40,9 @@
 //   ?bot=1          the player's own skis skied by the bot for the whole
 //                   run, not just the pre-roll — a race watched to its
 //                   finish plate with nobody's hands on it.
+//   ?poles=0        the player's runs this visit skied WITHOUT POLES (the
+//                   hard mode), over the stored OPTIONS row (`poles=1` with
+//                   them) — never written back.
 //   ?menu=root      open on the front door rather than the attract card;
 //   ?menu=options   ...on OPTIONS, and `keys` on OPTIONS ▸ KEYS; `skis` on
 //                   the skis card RACE opens; `start` on the free ride's
@@ -173,6 +176,9 @@ export type UrlParams = {
   mode: GameMode;
   /** The bot rides the player's skis for the whole run. */
   bot: boolean;
+  /** The player's poles for this visit — false without, true with, null
+   * the stored OPTIONS row's. */
+  poles: boolean | null;
   /** The URL names the front door. */
   menu: boolean;
   /** ...and which page of it. */
@@ -269,6 +275,7 @@ export function readParams(search: string): UrlParams {
             ? "tricks"
             : "race",
     bot: q.get("bot") === "1",
+    poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
 
     menu: q.get("menu") !== null,
     page: MENU_PAGES.includes(q.get("menu") as MenuPage) ? (q.get("menu") as MenuPage) : "root",

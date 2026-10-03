@@ -23,8 +23,8 @@
 // WHAT NAMES THE AFTERNOON is read off the run itself at its first step
 // (`recipeOf`) rather than off the settings that asked for it: the `Level`
 // (which already carries the day and the sky the run was stood up under),
-// the seed, the rules, the pair, the help, the damage switch and the snow
-// dial. Nothing is written to disk — a replay lives as long as the tab does.
+// the seed, the rules, the pair, the help, the damage and poles switches
+// and the snow dial. Nothing is written to disk — a replay lives as long as the tab does.
 // And the rebuild is CHECKED before it is watched (`startPrint`): a recipe
 // that stopped describing its run is a replay that quietly rides a different
 // race, and a press that does nothing is the better failure.
@@ -79,6 +79,7 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     spec: state.skier.spec,
     assist: { ...state.assist },
     damage: state.damage,
+    poles: state.skier.poles,
     snowDepth: state.snowDepth,
     quiet: true,
   };

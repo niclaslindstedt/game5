@@ -18,12 +18,18 @@
 // (its field and all), and it needs nothing to stand up again — the level
 // it stands on already carries the map's day and sky.
 
-import { createGame, type GameMode, type GameState, type SkiSpec } from "@engine";
+import { createGame, type GameMode, type GameState } from "@engine";
 
 import type { Loader } from "./app-load.ts";
-import { isPinnedMap, pinnedFor, pinnedRun, type CampaignLevel } from "./campaign.ts";
+import {
+  isPinnedMap,
+  pinnedFor,
+  pinnedRun,
+  type CampaignLevel,
+  type PinnedSkier,
+} from "./campaign.ts";
 import type { CampaignRig } from "./campaign-run.ts";
-import { assistOf, type Settings } from "./settings.ts";
+import type { Settings } from "./settings.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -48,8 +54,10 @@ export function createPinnedRuns(world: {
   /** What the game remembers — the help, the damage switch, the trial's
    * length, the lens — read at the press. */
   settings: () => Settings;
-  /** The pair the player skis (a link's `?skis=` over the stored one). */
-  spec: (settings: Settings) => SkiSpec;
+  /** Who skis, and with what: the pair (a link's `?skis=` over the stored
+   * one), the help and the switches (a link's `?poles=` over the stored
+   * row). */
+  skier: (settings: Settings) => PinnedSkier;
   /** The app's own note of which mode the player's runs are in. */
   setMode: (mode: GameMode) => void;
   /** Run on the frame the loading card lifts. */
@@ -60,7 +68,7 @@ export function createPinnedRuns(world: {
     press: (pin, mode, rung) => {
       world.setMode(mode);
       const s = world.settings();
-      const skier = { spec: world.spec(s), assist: assistOf(s.assist), damage: s.damage };
+      const skier = world.skier(s);
       world.loader.begin({
         build: () => {
           world.rig.arm(rung ? pin : null);
@@ -80,7 +88,7 @@ export function createPinnedRuns(world: {
       last = null;
       world.rig.arm(null);
       const s = world.settings();
-      const skier = { spec: world.spec(s), assist: assistOf(s.assist), damage: s.damage };
+      const skier = world.skier(s);
       world.loader.begin({
         build: () => {
           const now = world.current();

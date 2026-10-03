@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { freshSkier, type SkiSpec } from "@engine";
 
 import { outfitKey } from "./dress.ts";
-import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
+import { carriesPoles, DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { createSkisModel, pairStyle, REST_SAG, type SkisModel } from "./skis-body.ts";
 
 export { loadModels } from "./skier-models.ts";
@@ -133,7 +133,8 @@ export function createSkisTurntable(
     clear();
     shown = keyOf(spec, outfit);
     model = createSkisModel(spec, pairStyle(spec, { outfit }), plain);
-    const rest = freshSkier(spec);
+    // ...with his poles in his hands, or none (`carriesPoles`).
+    const rest = { ...freshSkier(spec), poles: carriesPoles(outfit) };
     rest.skiCompression[0] = REST_SAG;
     rest.skiCompression[1] = REST_SAG;
     model.pose(rest, { x: 0, y: spec.cogHeight, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } }, 0);

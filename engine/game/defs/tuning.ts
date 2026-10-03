@@ -403,6 +403,29 @@ export const TUNING = {
     keepUp: { from: 0.85, to: 0.6 },
     /** How fast the drive the body shows comes and goes, 1/s. */
     rate: 4,
+    /** WITHOUT POLES (`SkierState.poles` off — the player's hard mode):
+     *   - `legs`: the share of the push's power and a plant's press his
+     *     legs make alone. Measured skating, the arms put a third and more
+     *     of the propulsive power into the snow, and all of a double pole
+     *     — so with none he skates at every speed (`skateShare`) on 0.6 of
+     *     it;
+     *   - `climb`: up a rise, the pair's pitch, rad, from which a push with
+     *     no basket to brace it slips back (2°), and by which only `least`
+     *     of it holds (10°, `climbShare`) — the herringbone's grip without
+     *     the arms behind it;
+     *   - `balance`: the share of his resilience (`SkierState.resilience`)
+     *     he keeps — poles are a skier's outriggers, a touch on the snow
+     *     that catches a lurch, and without them a professional falls where
+     *     a skier halfway to the club skier does (`crash.ts`'s
+     *     `crashLimit`);
+     *   - `rock`: the share of a bog's rocking that packs the hole back
+     *     (`trench.ts`) with no poles to lever himself on. */
+    bare: {
+      legs: 0.6,
+      climb: { from: 0.035, to: 0.17, least: 0.15 },
+      balance: 0.5,
+      rock: 0.45,
+    },
   },
 
   /** THE JUMP (`skier.ts`): the skier sinks and loads his legs while the

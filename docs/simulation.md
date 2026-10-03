@@ -33,6 +33,7 @@ npm run sim -- --rivals 3          # a whole race
 npm run sim -- --skis eagle        # one pair of the catalog (the all-mountain pair when left out)
 npm run sim -- --skis all          # the catalog: every pair's table, then who was quickest on each seed
 npm run sim -- --tricks            # each seed's map of one piste with its terrain park laid (R20)
+npm run sim -- --no-poles          # the bot skis without poles (the player's hard mode)
 npm run sim -- --region fell       # each seed's map built in another kind of snow country (R21)
 npm run sim -- --json out.json
 ```

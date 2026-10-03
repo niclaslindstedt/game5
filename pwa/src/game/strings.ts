@@ -269,6 +269,9 @@ export const STRINGS = {
     gloves: "GLOVES",
     poles: "POLES",
   },
+  /** Under the rows while the POLES row reads NONE. */
+  dressNoPoles:
+    "Skiing without poles is harder: no poles to push on, a rise you can barely climb and less to keep your balance with.",
   /** THE SPEC SHEET's figures: what a pair is, off its catalog row. */
   skisFacts: {
     length: "LENGTH",

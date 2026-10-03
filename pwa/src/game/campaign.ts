@@ -171,9 +171,9 @@ export function isPinnedMap(level: Level, pin: CampaignLevel): boolean {
   );
 }
 
-/** Who skis a pinned run, and with what: the pair, the help, and whether
- * blows cost him. */
-export type PinnedSkier = { spec: SkiSpec; assist: Assist; damage: boolean };
+/** Who skis a pinned run, and with what: the pair, the help, whether
+ * blows cost him, and his poles (with them when left out). */
+export type PinnedSkier = { spec: SkiSpec; assist: Assist; damage: boolean; poles?: boolean };
 
 /** A RUN ON THE PINNED MAP — the map's own snow under the map's own sky,
  * skied as `mode` on the skier's pair. `laps` is the run's own — a
@@ -198,6 +198,7 @@ export function pinnedGameOptions(
     spec: skier.spec,
     assist: skier.assist,
     damage: skier.damage,
+    poles: skier.poles,
     contact: opts.contact,
   };
 }

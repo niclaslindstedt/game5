@@ -173,8 +173,10 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
 
       // ── The poles ────────────────────────────────────────────────────
       // A plant on each rise of the engine's own stride while he is working
-      // for his speed (`poles.ts`): the skate's and the double pole's.
-      const poling = !c.airborne && c.drive > 0.3 && Math.abs(c.way) < POLING_UNDER && grounded > 0;
+      // for his speed (`poles.ts`): the skate's and the double pole's — and
+      // none from a skier who has none (`SkierState.poles`).
+      const poling =
+        c.poles && !c.airborne && c.drive > 0.3 && Math.abs(c.way) < POLING_UNDER && grounded > 0;
       const pulse = poling ? plantPulse(c.stride) : 0;
       if (pulse > 0.5 && planted <= 0.5) {
         playSound(synth, RUN_BANK, "plant", {

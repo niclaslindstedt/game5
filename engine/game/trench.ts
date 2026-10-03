@@ -55,7 +55,8 @@ export function stepTrench(state: GameState, moved: number, events: GameEvent[])
   if (was > 0 || c.boggedFor >= T.after) {
     let d = was;
     if (c.boggedFor >= T.after) d += T.dig * (1 - c.packed) * c.tuck * dt;
-    d -= T.rock * moved;
+    // ...worse with no poles to lever himself on (`poles.bare.rock`).
+    d -= T.rock * (c.poles ? 1 : TUNING.poles.bare.rock) * moved;
     // Creeping about in the hole is not moving out of it.
     d -= T.clear * Math.max(0, Math.abs(c.way) - T.creep) * dt;
     c.trench = clamp(d, 0, T.max);

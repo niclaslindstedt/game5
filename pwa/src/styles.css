@@ -3776,6 +3776,18 @@ canvas {
   justify-content: center;
 }
 
+/* What NONE on the POLES row costs: the one pick that is more than a look. */
+.dress-note {
+  margin: 0.2rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--flag);
+  border-radius: 0.3rem;
+  background: rgb(10 20 34 / 45%);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: rgb(244 248 251 / 88%);
+}
+
 @media (max-width: 40rem) and (orientation: portrait) {
   .dress-body {
     grid-template-columns: minmax(0, 1fr);

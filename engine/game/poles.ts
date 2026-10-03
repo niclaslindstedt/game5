@@ -40,6 +40,13 @@
 // stops it is the skid thrown (a skier braking is not also pushing), a jump
 // being loaded, the air, and being thrown off his skis — `skier.ts` asks.
 //
+// WITHOUT POLES (`SkierState.poles` off — the player's hard mode,
+// `poles.bare`) the arms have nothing to push on: there is no double pole,
+// so he SKATES at every speed the drive reaches, on his legs' share of the
+// power (`bare.legs`); and up a rise a push with no basket to brace it
+// slips back down the hill (`climbShare`), so a pitch he would skate up on
+// his poles he can barely walk.
+//
 // A drive that is one-way and only ever gentle: nothing here can push a
 // skier faster than the fade, and nothing here brakes him.
 
@@ -48,20 +55,33 @@ import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 
 const P = TUNING.poles;
+const B = P.bare;
 
 /** How much of the push the way leaves, 0..1: whole under `poles.speed`,
  * gone by `poles.fade` — and the poles' share of it gone sooner, once his
  * arms cannot keep up with the snow (`poleKeepUp`): he stops working them
- * and tucks. */
-export function driveReach(way: number): number {
+ * and tucks. A skier with no `poles` skates all the way to the fade. */
+export function driveReach(way: number, poles = true): number {
   const fade = 1 - clamp((Math.abs(way) - P.speed) / (P.fade - P.speed), 0, 1);
-  return fade * (1 - (1 - skateShare(way)) * (1 - poleKeepUp(way)));
+  return fade * (1 - (1 - skateShare(way, poles)) * (1 - poleKeepUp(way)));
 }
 
 /** The share of the drive that is SKATING rather than double-poling at a
- * way of `way` m/s, 0..1. */
-export function skateShare(way: number): number {
+ * way of `way` m/s, 0..1 — all of it with no `poles` to double-pole on. */
+export function skateShare(way: number, poles = true): number {
+  if (!poles) return 1;
   return 1 - clamp((Math.abs(way) - P.skateFrom) / (P.skateTo - P.skateFrom), 0, 1);
+}
+
+/** THE CLIMB WITHOUT POLES, 0..1: the share of a push left up a rise of
+ * `pitch` rad (the pair's own, tips up positive — `SkierState.pitch`). On
+ * his poles a skier braces every push and climbs whatever he can skate;
+ * with none, the ski he pushes off slips back from `bare.climb.from` and
+ * holds only `least` of it by `to`. Whole with `poles`, and on the flat. */
+export function climbShare(pitch: number, poles = true): number {
+  if (poles) return 1;
+  const C = B.climb;
+  return 1 - (1 - C.least) * clamp((pitch - C.from) / (C.to - C.from), 0, 1);
 }
 
 /** The share of the drive that is the DIAGONAL STRIDE (the skis parallel,
@@ -85,10 +105,10 @@ export function skateAngle(speed: number): number {
  * under a held brake or on an edge does not step his skis into a V — over
  * the share of the push the speed leaves (`driveReach`), less the walk's
  * diagonal stride and the double pole. */
-export function skateWork(drive: number, speed: number): number {
+export function skateWork(drive: number, speed: number, poles = true): number {
   const d = clamp((drive - P.skateDrive) / (1 - P.skateDrive), 0, 1);
-  const work = d * d * (3 - 2 * d) * clamp(2 * driveReach(speed), 0, 1);
-  return work * (1 - strideShare(speed)) * skateShare(speed);
+  const work = d * d * (3 - 2 * d) * clamp(2 * driveReach(speed, poles), 0, 1);
+  return work * (1 - strideShare(speed)) * skateShare(speed, poles);
 }
 
 /** THE LINE HE GLIDES ON, rad off his heading (clockwise positive), at
@@ -123,9 +143,10 @@ export function poleSweep(way: number): number {
  * snow takes to pass under one sweep of the pole (`poleSweep`), and the
  * faster he goes the quicker and harder he works his arms — from
  * `poles.cadencePole` up to the quickest an arm swings
- * (`poles.cadenceMax`). Blended between by `skateShare`. */
-export function strideRate(way: number): number {
-  const k = skateShare(way);
+ * (`poles.cadenceMax`). Blended between by `skateShare`; with no `poles`,
+ * the skate's alone. */
+export function strideRate(way: number, poles = true): number {
+  const k = skateShare(way, poles);
   const pinned = (Math.abs(way) * P.duty) / P.sweep;
   const pole = clamp(pinned, P.cadencePole, P.cadenceMax);
   return skateCadence(way) * k + pole * (1 - k);
@@ -177,12 +198,20 @@ export function plantPulse(stride: number): number {
 }
 
 /** The MEAN force the skier drives himself with along the skis, N, at
- * `way` m/s on snow `packed` 0..1, working at `effort` 0..1. */
-export function driveForce(spec: SkiSpec, way: number, packed: number, effort: number): number {
+ * `way` m/s on snow `packed` 0..1, working at `effort` 0..1 — with no
+ * `poles`, his legs' share of the power and of the press (`bare.legs`). */
+export function driveForce(
+  spec: SkiSpec,
+  way: number,
+  packed: number,
+  effort: number,
+  poles = true,
+): number {
   if (effort <= 0) return 0;
-  const reach = driveReach(way);
+  const reach = driveReach(way, poles);
   if (reach <= 0) return 0;
-  const force = Math.min(spec.polePush, P.power / Math.max(0.5, Math.abs(way)));
+  const legs = poles ? 1 : B.legs;
+  const force = legs * Math.min(spec.polePush, P.power / Math.max(0.5, Math.abs(way)));
   const snow = packed + (1 - packed) * P.powderShare;
   return force * reach * snow * effort;
 }
@@ -195,6 +224,7 @@ export function poleForce(
   packed: number,
   effort: number,
   stride: number,
+  poles = true,
 ): number {
-  return driveForce(spec, way, packed, effort) * strideShape(stride);
+  return driveForce(spec, way, packed, effort, poles) * strideShape(stride);
 }

@@ -116,36 +116,43 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       region: "fell" as const,
       grade: "black" as const,
     };
-    const opts = freeGameOptions(ride, 9, SKIS, { yaw: 1, air: 1 });
+    const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");
     // The GRADE row's colour (R23), and the seed's own where it stands on
     // AS DEALT.
     expect(opts.grade).toBe("black");
-    expect(freeGameOptions({ ...ride, grade: null }, 9, SKIS, { yaw: 1, air: 1 }).grade).toBe(
-      undefined,
-    );
+    expect(
+      freeGameOptions({ ...ride, grade: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .grade,
+    ).toBe(undefined);
     expect(opts.seed).toBe(9);
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });
     expect(opts.spawn).toEqual({ x: 400, z: 200 });
     // The weather row names the sky and never an hour: the hour is the day's.
     expect(opts.sky).toEqual({ weather: "fog" });
-    expect(freeGameOptions({ ...ride, weather: null }, 9, SKIS, { yaw: 1, air: 1 }).sky).toBe(
-      undefined,
-    );
+    expect(
+      freeGameOptions({ ...ride, weather: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .sky,
+    ).toBe(undefined);
     const state = createGame({ ...opts, level: syntheticLevel(), quiet: true });
     expect(state.level.weather?.kind).toBe("fog");
     expect(state.rules.course).toBe(false);
     expect(state.snowDepth).toBe(depthOf("thick"));
     expect(state.level.sun.dayOfYear).toBe(56);
-    expect(freeGameOptions(ride, 10, SKIS, { yaw: 1, air: 1 }).spawn).toBeUndefined();
+    expect(
+      freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).spawn,
+    ).toBeUndefined();
   });
 
   it("starts the same ride again on the very map it built — the renderer's", () => {
     // With a sky and an hour asked for: laid on again they would make a new
     // map the renderer never built, and the restart would never be drawn.
     const ride = { ...freshRide(), time: "evening" as const, weather: "storm" as const };
-    const opts = { ...freeGameOptions(ride, 9, SKIS, { yaw: 1, air: 1 }), quiet: true };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
     const first = createGame({ ...opts, level: syntheticLevel() });
     const again = createGame(freeAgainOptions(opts, first.level));
     expect(again.level).toBe(first.level);

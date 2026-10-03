@@ -81,6 +81,10 @@ export type CreateGameOptions = {
    * 1 a professional (`SkierState.resilience`); 1 when left out. The
    * field's is its own, dealt at the start line. */
   resilience?: number;
+  /** Whether the player skis with his poles (`SkierState.poles`); with
+   * them when left out. Going without is the hard mode — every rival has
+   * his. */
+  poles?: boolean;
   /** Build without announcing the map (the sim's sweeps). */
   quiet?: boolean;
   /** Where a FREE RIDE (`mode: "free"`) starts, a plan point on the map
@@ -152,7 +156,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     t: 0,
     tick: 0,
     level,
-    skier: { ...freshSkier(options.spec ?? SKIS), resilience: clampResilience(options.resilience) },
+    skier: {
+      ...freshSkier(options.spec ?? SKIS),
+      resilience: clampResilience(options.resilience),
+      poles: options.poles ?? true,
+    },
     input: { ...NEUTRAL_INPUT },
     progress: freshProgress(level),
     rules,

@@ -204,6 +204,12 @@ export type SkierState = {
    * `createGame` is asked otherwise; each rival is dealt his own
    * (`RACE.resilienceBand`). Read only by the crash. */
   resilience: number;
+  /** WHETHER HE HAS HIS POLES: true for every skier but a player who asked
+   * to go without (`createGame`'s `poles`, the hard mode) — then the push
+   * is his legs' alone and never a double pole, a rise holds less of it,
+   * he keeps less of his balance and rocks out of a bog worse
+   * (`TUNING.poles.bare`). Read, never written, during a run. */
+  poles: boolean;
   /** THE SKIER THROWN OFF HIS SKIS, or null while he is on them
    * (`crash.ts`). */
   thrown: Thrown | null;

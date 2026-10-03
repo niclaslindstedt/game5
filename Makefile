@@ -5,8 +5,10 @@ build:
 	npm run build
 
 # The vitest suite. SHARD=i/N runs only the i-th of N slices of the test
-# FILES — how CI fans the suite out across runners (two of them); a bare
+# FILES — how CI fans the suite out across runners (six of them); a bare
 # `make test` is still the whole thing, and stays the definition of green.
+# The slices are cut by each file's measured time, not by count
+# (`tests/support/shards.ts`).
 #
 # Sharding splits at file granularity, so the SLOWEST SINGLE FILE is the
 # floor and more runners cannot get under it: share one corpus of built maps

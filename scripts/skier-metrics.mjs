@@ -161,10 +161,16 @@ const BANDS = [
   },
   {
     id: "stand",
-    say: "standing: knees bent 20–55°, hips 25–70°",
+    say: "standing: knees bent 20–55° (a ski stepped off the snow aside), hips 25–70°",
     when: standing,
-    bad: (m) =>
-      Math.max(...m.knee) > 55 || Math.min(...m.knee) < 20 || m.hip[0] < 25 || m.hip[0] > 70,
+    bad: (m) => {
+      const planted = m.knee.filter((_, i) => m.lifted[i] < 0.005);
+      return (
+        (planted.length > 0 && (Math.max(...planted) > 55 || Math.min(...planted) < 20)) ||
+        m.hip[0] < 25 ||
+        m.hip[0] > 70
+      );
+    },
   },
   {
     id: "angulate",
@@ -387,6 +393,8 @@ function measure(move) {
     // The arms' work: the stride's, and the poles' as far as he works them.
     m.work = gait.stride + (gait.skate + gait.pole) * (gait.keep ?? 1);
     m.skating = gait.skate;
+    // Each ski lifted off the snow by the gait (a step), m.
+    m.lifted = gait.lift;
     // …and in the gate, the higher basket over the snow and the nearer
     // basket's distance ahead of the boots, m.
     const feetZ = (pose.feet[0].z + pose.feet[1].z) / 2;

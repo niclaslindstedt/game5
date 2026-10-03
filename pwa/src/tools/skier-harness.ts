@@ -61,7 +61,11 @@ type Data = {
   moments: Moment[];
 };
 type Drawn = { rows: number; cols: number; note: string; table?: string[] };
-type View = "back" | "back3" | "side" | "front3" | "front" | "chase";
+type View = "back" | "back3" | "side" | "front3" | "front" | "chase" | "top" | "fixed";
+/** The views held to the WORLD rather than to his heading — a turn is seen
+ * turning: `top` straight down with the move's first heading up the cell,
+ * `fixed` from behind where he first faced. */
+const HELD: readonly View[] = ["top", "fixed"];
 
 declare global {
   interface Window {
@@ -84,6 +88,8 @@ const VIEW_AT: Record<View, { at: [number, number, number]; fov: number; ahead?:
   front3: { at: [3, 0.8, 3.2], fov: 34 },
   front: { at: [0, 0.6, 4.4], fov: 34 },
   chase: { at: [0, 1.6, -5.2], fov: 62, ahead: 8 },
+  top: { at: [0, 6.5, 0], fov: 34 },
+  fixed: { at: [0, 1.6, -4.6], fov: 34 },
 };
 /** The turntable's bearings round him, deg from behind, clockwise from
  * above, and the one from over him. */
@@ -201,6 +207,9 @@ function aim(view: View | number, centre: THREE.Vector3, heading: number): THREE
     centre.y + at[1],
     centre.z + rz * at[0] + fz * at[2],
   );
+  // Straight down, his first heading is up the cell.
+  if (view === "top") lens.up.set(fx, 0, fz);
+  else lens.up.copy(Y);
   lens.lookAt(centre.x + fx * ahead, centre.y - (ahead ? 0.5 : 0), centre.z + fz * ahead);
   lens.aspect = 4 / 3;
   lens.updateProjectionMatrix();
@@ -628,8 +637,10 @@ function drawMove(): Drawn {
     }
     if (shot <= posedTo) aimAt = poseAt(move.frames[shot], 0);
     posedTo = Math.max(posedTo, shot);
+    const first = move.frames[0].skier.heading;
     views.forEach((view, row) => {
-      drawCell(aim(view, aimAt.centre, aimAt.heading), col, row, rows, w, h);
+      const heading = HELD.includes(view) ? first : aimAt.heading;
+      drawCell(aim(view, aimAt.centre, heading), col, row, rows, w, h);
       label(row === 0 ? `${caption(move.frames[shot])}` : view, col * w, top + row * h);
     });
   });

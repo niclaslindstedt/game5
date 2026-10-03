@@ -199,6 +199,7 @@ export {
   driveForce,
   driveReach,
   glideYaw,
+  pivotSteps,
   plantPulse,
   poleDuty,
   poleForce,
@@ -208,11 +209,14 @@ export {
   skateShare,
   skateWork,
   stepQuick,
+  stepRound,
   stepWork,
   stepYaw,
+  STILL_DRIVE,
+  stoodStill,
   strideRate,
-  strideShare,
   strideShape,
+  strideShare,
 } from "./game/poles.ts";
 export {
   fallHeight,

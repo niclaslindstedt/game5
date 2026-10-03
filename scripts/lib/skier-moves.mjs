@@ -96,6 +96,25 @@ export const MOVES = [
     input: () => ({ ...IDLE, tuck: 1, steer: 1 }),
   },
   {
+    id: "pivot",
+    title: "stood still on the flat, only the right key held: stepping his skis round on the spot",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 3,
+    window: [0.05, 1.75],
+    input: () => ({ ...IDLE, steer: 1 }),
+  },
+  {
+    id: "pivot-bare",
+    title: "WITHOUT POLES: stood still, only the right key held — stepped round on empty hands",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 3,
+    window: [0.05, 1.75],
+    input: () => ({ ...IDLE, steer: 1 }),
+    poles: false,
+  },
+  {
     id: "skate-zigzag",
     title: "skating at a crawl on the flat, stepped left and right a turn each 1.6 s",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -337,6 +356,7 @@ export const MOMENTS = [
   { id: "windmill", move: "cliff", t: 1.35, say: "windmilling down a 12 m cliff" },
   { id: "reach", move: "cliff", t: 1.75, say: "reaching for the snow at the foot of a cliff" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
+  { id: "pivot", move: "pivot", t: 0.25, say: "a step turn on the spot: the inside ski stepped" },
 ];
 
 export const MOMENT_IDS = MOMENTS.map((m) => m.id);

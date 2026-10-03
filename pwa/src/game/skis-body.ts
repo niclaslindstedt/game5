@@ -260,7 +260,9 @@ export function poseInputOf(
     // STOOD STILL, he waits alive: his own clock, faded in below a walk.
     idle: {
       t: legs.clock,
-      still: Math.max(0, 1 - skier.speed / 1.5) * Math.max(0, 1 - skier.drive * 4),
+      // ...but not while he steps his skis round on the spot.
+      still:
+        Math.max(0, 1 - skier.speed / 1.5) * Math.max(0, 1 - skier.drive * 4) * (1 - legs.stepping),
     },
   };
 }

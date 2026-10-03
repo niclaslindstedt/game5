@@ -109,6 +109,33 @@ export const SCENARIOS = [
     },
   },
   {
+    id: "pivot",
+    title: "stood still on the flat, only the right key held for 3 s: stepped round on the spot",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 300, heading: 0 }),
+    seconds: 4,
+    view: "plan",
+    input: (t) => ({ ...IDLE, steer: t < 3 ? 1 : 0 }),
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const turned = (until) => {
+        const fs = run.frames.filter((x) => x.t <= until);
+        let a = 0;
+        for (let i = 1; i < fs.length; i++) {
+          const d = fs[i].heading - fs[i - 1].heading;
+          a += Math.atan2(Math.sin(d), Math.cos(d));
+        }
+        return a * (180 / Math.PI);
+      };
+      return [
+        ["at 1 s deg", fmt(turned(1), 0)],
+        ["at 3 s deg", fmt(turned(3), 0)],
+        ["let go deg", fmt(turned(Infinity), 0)],
+        ["moved m", fmt(f.dist, 2)],
+      ];
+    },
+  },
+  {
     id: "skate",
     title: "hands off from a shuffle across the flat: skating, then double-poling",
     level: (S) => S.flatLevel({ packed: 1 }),

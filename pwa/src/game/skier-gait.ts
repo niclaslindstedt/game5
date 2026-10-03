@@ -6,18 +6,19 @@
 // both read, so a boot never leaves its ski. Three-free.
 
 import {
-  TUNING,
   driveReach,
   glideYaw,
+  pivotSteps,
   poleDuty,
   poleKeepUp,
   skateAngle,
   skateShare,
   skateWork,
+  type SkierState,
   stepQuick,
   strideRate,
   strideShare,
-  type SkierState,
+  TUNING,
 } from "@engine";
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
@@ -73,6 +74,9 @@ export type Gait = {
   sink: number;
   pitch: number;
   twist: number;
+  /** STEPPING ROUND ON THE SPOT, −1, 0 or 1 the way (`pivotGait`): the
+   * skis stepped one at a time and nothing pushed. */
+  pivot: number;
 };
 
 /** What one push of the poles sweeps from the plant to the release, m —
@@ -139,6 +143,7 @@ export const STILL_GAIT: Gait = {
   sink: 0,
   pitch: 0,
   twist: 0,
+  pivot: 0,
 };
 
 /** How long in the air before he is FLYING rather than hopping, s. */
@@ -156,11 +161,65 @@ export function flying(s: { airborne: boolean; airTime?: number; popped?: number
   return t >= HOP || (s.popped !== undefined && s.popped <= t + HOP);
 }
 
+/** THE STEP TURN ON THE SPOT, as drawn (`poles.ts`'s `stepRound`): each
+ * ski turned about a point behind its boot, m — near the tail, so the
+ * tails stay together and the tips step out (the star turn) — how high
+ * the stepping ski comes off the snow, m; how far his weight goes over the
+ * ski he stands on, m; how far the shoulders roll over it, rad; and how
+ * far he sinks onto it, m. */
+const PIVOT = { behind: 0.5, lift: 0.07, across: 0.06, roll: 0.05, sink: 0.01 };
+
+/** The step turn's gait at phase `u` of a pair of steps, `dir` ±1 the way
+ * he steps (right positive): the inside ski stepped round off its tail
+ * and set down, then the outside one brought alongside — each ski's turn
+ * off the body, which stands between them (`pivotSteps`). */
+export function pivotGait(u: number, dir: number): Gait {
+  const p = pivotSteps(u);
+  const angle = TUNING.poles.pivot.angle * Math.sign(dir);
+  const inner = dir > 0 ? 1 : 0;
+  const outer = 1 - inner;
+  const splay: [number, number] = [0, 0];
+  splay[inner] = angle * (p.inside - p.body);
+  splay[outer] = angle * (p.outside - p.body);
+  // Each step a lift and a set-down: the inside ski over the first part of
+  // the pair, the outside over the second (`pivotSteps`' windows).
+  const hop = (a: number, b: number): number =>
+    u > a && u < b ? Math.sin((Math.PI * (u - a)) / (b - a)) : 0;
+  const lift: [number, number] = [0, 0];
+  lift[inner] = PIVOT.lift * hop(0, 0.45);
+  lift[outer] = PIVOT.lift * hop(0.5, 0.95);
+  // The standing ski carries him: the outside one while the inside steps,
+  // and the inside one while the outside comes in.
+  const stand = hop(0, 0.45) - hop(0.5, 0.95);
+  const over = (inner === 1 ? -1 : 1) * stand;
+  const out: [number, number] = [0, 0];
+  const fore: [number, number] = [0, 0];
+  for (const i of [0, 1]) {
+    out[i] = PIVOT.behind * Math.sin(splay[i]) - PIVOT.across * over;
+    fore[i] = PIVOT.behind * (Math.cos(splay[i]) - 1);
+  }
+  return {
+    ...STILL_GAIT,
+    phase: u,
+    push: inner as 0 | 1,
+    splay,
+    out,
+    lift,
+    fore,
+    roll: PIVOT.roll * over,
+    sink: -PIVOT.sink * Math.abs(stand),
+    pivot: Math.sign(dir),
+  };
+}
+
 export function gaitOf(
   s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
     way?: number;
     /** The step turn he is making (`SkierState.step`); none when left out. */
     step?: number;
+    /** Stepping round on the spot (`SkierState.pivot`), ±1; none when left
+     * out. */
+    pivot?: number;
     crouch?: number;
     /** Whether he has his poles (`SkierState.poles`); with them when left
      * out. With none he never double-poles: he walks his skis off a
@@ -170,7 +229,9 @@ export function gaitOf(
     popped?: number;
   },
 ): Gait {
-  if (flying(s) || s.thrown || s.drive <= 0.01) return STILL_GAIT;
+  if (flying(s) || s.thrown) return STILL_GAIT;
+  if (s.pivot) return pivotGait(s.stride - Math.floor(s.stride), s.pivot);
+  if (s.drive <= 0.01) return STILL_GAIT;
   const poles = s.poles ?? true;
   const step = s.step ?? 0;
   // THE MOTION IS WHOLE while he works at all: the push fades with speed
@@ -262,5 +323,6 @@ export function gaitOf(
     sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)),
     pitch: WEIGHT.pitch * skate,
     twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate, step),
+    pivot: 0,
   };
 }

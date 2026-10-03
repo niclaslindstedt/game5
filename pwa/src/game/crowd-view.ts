@@ -6,8 +6,8 @@
 // what is drawn at all. Each is placed where the engine has him, stood on
 // the snow's own slope, turned to his heading, mirrored to the side he went
 // down on, posed by the weights of the player's poses (`dialsOf`) and
-// dressed in his outfit (`outfitOf`) — a matrix, seven morph weights and
-// two vec4s an instance, written into buffers allocated once.
+// dressed in his outfit (`outfitOf`) — a matrix, a morph weight a pose
+// and two vec4s an instance, written into buffers allocated once.
 //
 // Presentation, end to end: it reads `GameState` and the `Level`, writes
 // neither, and an amateur up a lift is not drawn.
@@ -144,7 +144,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       fwd.crossVectors(right, up).normalize();
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
-      const mirror = dialsOf(a, dials);
+      const mirror = dialsOf(a, dials, state.t);
       pos.set(a.x, a.y, a.z);
       m.compose(pos, quat, size.set(mirror, 1, 1));
       slot.mesh.setMatrixAt(i, m);

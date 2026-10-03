@@ -142,7 +142,19 @@ const HIP_FOLLOW = 30;
  * turn must have held for the next to be planted on (s); the speeds a
  * plant is made between (m/s); and how long one takes, s — the swing, the
  * touch and the release, shorter the faster he goes. */
-const PLANT = { on: 0.14, held: 0.35, slow: 3, fast: 26, length: 6.5, least: 0.42, most: 0.85 };
+export const PLANT = {
+  on: 0.14,
+  held: 0.35,
+  slow: 3,
+  fast: 26,
+  length: 6.5,
+  least: 0.42,
+  most: 0.85,
+};
+
+/** How long a plant takes at `speed` m/s, s. */
+export const plantLength = (speed: number): number =>
+  Math.max(PLANT.least, Math.min(PLANT.most, PLANT.length / speed));
 
 /** The body's natural frequency on its legs, rad/s (about 2.3 Hz), its
  * damping ratio, the share of the pair's change of climb the body is
@@ -247,7 +259,7 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   if (s.turnHeld > PLANT.held && s.plantT > s.plantLength && s.plantOk > 0.5) {
     s.plantSide = side > 0 ? 1 : 0;
     s.plantT = 0;
-    s.plantLength = Math.max(PLANT.least, Math.min(PLANT.most, PLANT.length / ride.speed));
+    s.plantLength = plantLength(ride.speed);
   }
   s.turnSide = side;
   s.turnHeld = 0;

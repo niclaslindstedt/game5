@@ -634,6 +634,13 @@ export type Amateur = {
   fallSide: number;
   pole: number;
   push: number;
+  /** HIS TURNS as his body reads them, for the picture to time his pole
+   * plants on: the side of the one he is in (−1 left, 1 right, 0 none
+   * yet), how long he has been in it, s, and how long the one before it
+   * held, s. */
+  turnSide: number;
+  turnT: number;
+  turnHeld: number;
 };
 
 /** A GROUP of the crowd: its kind, its members (leader first) by index

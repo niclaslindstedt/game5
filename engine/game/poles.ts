@@ -26,6 +26,16 @@
 // the power-limited force. The pose reads the same cycle, so a leg is seen
 // pushing on the step the snow is pushed.
 //
+// THE SKATE GOES WHERE THE SKI POINTS. A skater stands on one ski of the
+// V at a time and rides it: each push sends his body off along the other
+// ski's line, so he travels on a zig-zag — diagonally one way for a
+// stride, diagonally the other the next — and never straight up the
+// middle of the V. `glideYaw` is that line off his heading, the gliding
+// ski's (`skateAngle` of the V's arm, by how much of him is skating,
+// `skateWork`), carried across from one arm to the other over the push;
+// `skier.ts` grips and pushes along it, and the pose opens the V by the
+// same angle, so the ski he stands on points the way he goes.
+//
 // IT IS AUTOMATIC: a skier going slowly works whatever the thumbs say. What
 // stops it is the skid thrown (a skier braking is not also pushing), a jump
 // being loaded, the air, and being thrown off his skis — `skier.ts` asks.
@@ -61,6 +71,41 @@ export function strideShare(speed: number): number {
   return 1 - clamp((Math.abs(speed) - P.strideFrom) / (P.strideTo - P.strideFrom), 0, 1);
 }
 
+/** THE SKATE'S V: each ski's angle off his line, rad, at `speed` m/s —
+ * wide at a crawl, where a push must go out to the side to go anywhere,
+ * and closing as he rolls (`poles.vee`). */
+export function skateAngle(speed: number): number {
+  const k = clamp((Math.abs(speed) - P.strideFrom) / (P.skateTo - P.strideFrom), 0, 1);
+  return P.vee.slow + (P.vee.fast - P.vee.slow) * k;
+}
+
+/** HOW MUCH OF HIM IS SKATING, 0..1, working at `drive` (`SkierState.drive`)
+ * at `speed` m/s: the drive eased in over its upper half (`poles.skateDrive`)
+ * — a skater commits to a stride or he does not, and a skier half working
+ * under a held brake or on an edge does not step his skis into a V — over
+ * the share of the push the speed leaves (`driveReach`), less the walk's
+ * diagonal stride and the double pole. */
+export function skateWork(drive: number, speed: number): number {
+  const d = clamp((drive - P.skateDrive) / (1 - P.skateDrive), 0, 1);
+  const work = d * d * (3 - 2 * d) * clamp(2 * driveReach(speed), 0, 1);
+  return work * (1 - strideShare(speed)) * skateShare(speed);
+}
+
+/** THE LINE HE GLIDES ON, rad off his heading (clockwise positive), at
+ * stride `stride` (counted) and `speed` m/s, `skate` of him skating
+ * (`skateWork`): the gliding ski's arm of the V — the right ski's while
+ * the left leg pushes, the left's while the right does — reached over the
+ * push from the arm he glided on before, eased at both ends, and held
+ * through the glide. */
+export function glideYaw(stride: number, speed: number, skate: number): number {
+  if (skate <= 0) return 0;
+  const p = stride - Math.floor(stride);
+  const side = Math.floor(stride) % 2 === 0 ? 1 : -1;
+  const k = clamp(p / P.duty, 0, 1);
+  const across = k * k * (3 - 2 * k);
+  return side * skateAngle(speed) * skate * (2 * across - 1);
+}
+
 /** The most of one push a planted pole can sweep, m — the skate's at a
  * crawl, the double pole's once rolling. */
 export function poleSweep(way: number): number {
@@ -68,27 +113,49 @@ export function poleSweep(way: number): number {
   return P.sweepSkate * k + P.sweep * (1 - k);
 }
 
-/** Strides a second at a way — the skate's cadence at a crawl, the double
- * pole's once rolling — and, faster, the cadence that keeps a planted pole
- * PLANTED: a basket in the snow stays where it bit while he goes by it, so
- * a push lasts only as long as the snow takes to pass under one sweep of
- * the pole (`poleSweep`). The faster he goes the quicker and harder he
- * works his arms, up to the quickest an arm swings (`poles.cadenceMax`). */
+/** Strides a second at a way. THE SKATE is a leg's push and a long glide
+ * on the other ski, at a skater's own unhurried cadence (`poles.cadence`),
+ * quickening only toward his top speed — the faster he goes, the further
+ * each glide carries him, and the shorter the poles' bite in it
+ * (`poleDuty`). THE
+ * DOUBLE POLE keeps a planted pole PLANTED: a basket in the snow stays
+ * where it bit while he goes by it, so a push lasts only as long as the
+ * snow takes to pass under one sweep of the pole (`poleSweep`), and the
+ * faster he goes the quicker and harder he works his arms — from
+ * `poles.cadencePole` up to the quickest an arm swings
+ * (`poles.cadenceMax`). Blended between by `skateShare`. */
 export function strideRate(way: number): number {
   const k = skateShare(way);
-  const cadence = P.cadence * k + P.cadencePole * (1 - k);
-  return Math.min(
-    Math.max(cadence, P.cadenceMax),
-    Math.max(cadence, (Math.abs(way) * P.duty) / poleSweep(way)),
-  );
+  const pinned = (Math.abs(way) * P.duty) / P.sweep;
+  const pole = clamp(pinned, P.cadencePole, P.cadenceMax);
+  return skateCadence(way) * k + pole * (1 - k);
+}
+
+/** THE SKATE'S CADENCE, strides a second, at `way` m/s (`poles.cadence`):
+ * slow and long at a crawl, quickening toward his top speed. */
+function skateCadence(way: number): number {
+  const C = P.cadence;
+  return C.slow + (C.fast - C.slow) * clamp((Math.abs(way) - C.from) / (C.to - C.from), 0, 1);
+}
+
+/** THE POLES' SHARE OF A STRIDE on the snow, 0..1, at `way` m/s: the
+ * double pole's whole push (`poles.duty`); skating, no longer than the
+ * snow takes to pass under one sweep of the pole at the skate's cadence
+ * — a quick bite inside the leg's long push — and never less than
+ * `poles.dutyLeast`. What the arms are posed on. */
+export function poleDuty(way: number): number {
+  const k = skateShare(way);
+  const bite = (P.sweepSkate * skateCadence(way)) / Math.max(1e-6, Math.abs(way));
+  const skate = clamp(bite, P.dutyLeast, P.duty);
+  return skate * k + P.duty * (1 - k);
 }
 
 /** How well a push keeps up with the snow at `way` m/s, 0..1: whole while
- * one push sweeps all the snow that passes under it, gone once his arms at
- * their quickest cannot keep up — where a skier stops working the poles
- * and folds into the tuck instead. */
+ * one push sweeps all the snow that passes under it in the poles' bite
+ * (`poleDuty`), gone once his arms at their quickest cannot keep up —
+ * where a skier stops working the poles and folds into the tuck instead. */
 export function poleKeepUp(way: number): number {
-  const fit = (poleSweep(way) * strideRate(way)) / Math.max(1e-6, Math.abs(way) * P.duty);
+  const fit = (poleSweep(way) * strideRate(way)) / Math.max(1e-6, Math.abs(way) * poleDuty(way));
   return clamp((fit - P.keepUp.to) / (P.keepUp.from - P.keepUp.to), 0, 1);
 }
 

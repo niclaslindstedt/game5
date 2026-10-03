@@ -155,10 +155,12 @@ describe("the body on its legs", () => {
         gait: gaitOf({ drive: 1, stride, speed: 4, pitch: 0, airborne: false, thrown: null }),
       });
     // The left leg pushes the first stride: he starts it over the left ski
-    // and ends it over the right, and the next push starts there.
-    expect(skate(0).hips.x).toBeLessThan(-0.05);
-    expect(skate(0.6).hips.x).toBeGreaterThan(0.05);
-    expect(skate(1).hips.x).toBeCloseTo(skate(0.999).hips.x, 2);
+    // and ends it over the right, and the next push starts there — the
+    // feet go under him, his centre the line the engine skis.
+    const over = (p: ReturnType<typeof skate>, i: number) => Math.abs(p.feet[i].x - p.hips.x);
+    expect(over(skate(0), 0)).toBeLessThan(over(skate(0), 1) - 0.1);
+    expect(over(skate(0.6), 1)).toBeLessThan(over(skate(0.6), 0) - 0.1);
+    expect(skate(1).feet[1].x).toBeCloseTo(skate(0.999).feet[1].x, 2);
     // A pole is never stretched or shrunk to reach the snow.
     for (const stride of [0, 0.2, 0.45, 0.7, 0.95]) {
       const p = skate(stride);
@@ -214,8 +216,9 @@ describe("the body on its legs", () => {
     expect(g.out[0]).toBeLessThan(-0.1);
     expect(g.fore[0]).toBeLessThan(-0.1);
     const p = skierPose({ ...base, gait: g });
-    // The hips have gone across over the gliding ski.
-    expect(p.hips.x).toBeGreaterThan(0.05);
+    // His hips are over the gliding ski, the pushing one driven out wide.
+    expect(Math.abs(p.feet[1].x - p.hips.x)).toBeLessThan(0.12);
+    expect(p.hips.x - p.feet[0].x).toBeGreaterThan(0.35);
   });
 
   it("waits in the start gate crouched over poles planted ahead of his boots", () => {

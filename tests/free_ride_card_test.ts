@@ -27,7 +27,14 @@ import {
   mergeRide,
   spotOn,
 } from "../pwa/src/game/free-ride.ts";
-import { CHART_VIEW, fromChart, seedSchematic, toChart } from "../pwa/src/game/seed-chart.ts";
+import {
+  CHART_VIEW,
+  chartAngle,
+  degrees,
+  fromChart,
+  seedSchematic,
+  toChart,
+} from "../pwa/src/game/seed-chart.ts";
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -158,22 +165,35 @@ describe("what the rows ask for", () => {
 });
 
 describe("the chart (seed-chart.ts)", () => {
-  it("is north-up, and a point goes to the chart and back", () => {
-    expect(toChart(1000, 0, 0)).toEqual([0, CHART_VIEW]);
-    expect(toChart(1000, 1000, 1000)).toEqual([CHART_VIEW, 0]);
+  it("hangs summit-up, seen from the valley, and a point goes to the chart and back", () => {
+    // The world's +z is the fall line, so it runs DOWN the chart; the
+    // viewer faces up the mountain, so the world's +x is on his left.
+    expect(toChart(1000, 0, 0)).toEqual([CHART_VIEW, 0]);
+    expect(toChart(1000, 1000, 1000)).toEqual([0, CHART_VIEW]);
+    // A heading straight down the fall line points down the chart.
+    expect(degrees(chartAngle(0))).toBeCloseTo(180);
     const back = fromChart(1600, ...toChart(1600, 420, 1210));
     expect(back.x).toBeCloseTo(420);
     expect(back.z).toBeCloseTo(1210);
   });
 
   it("holds a point off the chart on the map", () => {
-    expect(fromChart(1000, -10, 150)).toEqual({ x: 0, z: 0 });
+    expect(fromChart(1000, -10, 150)).toEqual({ x: 1000, z: 1000 });
   });
 
   it("marks every kicker and the grid of a generated map", () => {
     const level = generateLevel(38);
     const chart = seedSchematic(level);
     expect(chart.size).toBe(level.size);
+    // The summit above the base, and the piste falling down the chart.
+    expect(toChart(level.size, level.mountain.summit.x, level.mountain.summit.z)[1]).toBeLessThan(
+      toChart(level.size, level.mountain.base.x, level.mountain.base.z)[1],
+    );
+    const first = level.track.points[0];
+    const last = level.track.points[level.track.points.length - 1];
+    expect(toChart(level.size, first.x, first.z)[1]).toBeLessThan(
+      toChart(level.size, last.x, last.z)[1],
+    );
     expect(chart.kickers).toHaveLength(level.kickers.length);
     expect(chart.kickers.some((k) => !k.onTrack)).toBe(level.kickers.some((k) => !k.onTrack));
     for (const k of chart.kickers) {

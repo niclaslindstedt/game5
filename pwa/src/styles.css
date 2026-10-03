@@ -4552,9 +4552,11 @@ canvas {
 }
 
 /* ── THE SEED'S CHART (seed-preview.tsx) ───────────────────────────────────
-   The minimap's own bake of the ground, north up, with the piste, the start line
-   and every kicker over it. The plate is a square the CARD sizes, reserved
-   before the first chart lands, so nothing moves under a press. */
+   Two views of the map, summit-up: the PANORAMA (the mountain painted from
+   the valley, the ski area over it — panorama.ts) and the PLAN (the
+   minimap's own bake of the ground, with the piste, the start line and every
+   kicker over it). The plate is a square the CARD sizes, reserved before the
+   first chart lands, so nothing moves under a press. */
 .seed-preview {
   display: flex;
   flex-direction: column;
@@ -4567,6 +4569,7 @@ canvas {
 }
 
 .seed-preview-plate {
+  position: relative;
   display: flex;
   width: 100%;
   max-width: min(15rem, 26vh);
@@ -4634,6 +4637,100 @@ canvas {
 
 .seed-preview-grid-off {
   opacity: 0.45;
+}
+
+/* The chip that turns the plate to its other view, in the plate's corner. */
+.seed-preview-view {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid rgb(244 248 251 / 55%);
+  border-radius: 0.25rem;
+  background: rgb(13 34 51 / 72%);
+  color: var(--snow);
+  font: inherit;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.seed-preview-view:hover,
+.seed-preview-view:focus-visible {
+  background: rgb(13 34 51 / 92%);
+  border-color: var(--snow);
+}
+
+/* THE PANORAMA'S SCHEMATIC, as a painted piste map prints it: every run in
+   its grade's colour on a white casing (a transport lane dashed), the
+   course raced the widest, the stretches the view cannot see dotted
+   faintly, the lifts as dark lines between two stations. */
+.pano-run-hidden {
+  stroke-width: 0.5;
+  stroke-dasharray: 0.6 1.1;
+  opacity: 0.5;
+}
+
+.pano-run-casing {
+  stroke: #fff;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+.pano-run {
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.pano-run-casing.pano-raced {
+  stroke-width: 2.3;
+}
+
+.pano-run.pano-raced {
+  stroke-width: 1.35;
+}
+
+.pano-road {
+  stroke-dasharray: 1.6 1.1;
+  stroke-linecap: butt;
+}
+
+.pano-lift-casing {
+  stroke: #fff;
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.pano-lift-line {
+  stroke: #16181b;
+  stroke-width: 0.4;
+}
+
+.pano-lift-drag .pano-lift-line {
+  stroke-dasharray: 1.2 0.6;
+}
+
+.pano-station {
+  fill: #16181b;
+  stroke: #fff;
+  stroke-width: 0.3;
+}
+
+.pano-badge text {
+  fill: #fff;
+  font-size: 3.6px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.pano-finish {
+  fill: #16181b;
+  stroke: #fff;
+  stroke-width: 0.4;
 }
 
 .seed-preview-spot circle:first-child {

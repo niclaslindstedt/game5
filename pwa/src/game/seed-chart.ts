@@ -6,15 +6,19 @@
 // worker cuts the schematic here without a document, and the suite reads it
 // (`tests/free_ride_card_test.ts`).
 //
-// THE CHART IS NORTH-UP. The engine's +z is north and +x east (the framework's `core/solar`
-// puts the noon sun at heading π, due −z), so the chart's x is the world's x
-// and its y is the world's z turned upside down — a map, not a mirror. The
+// THE CHART IS SUMMIT-UP, as a piste map hangs. The world's +z is the fall
+// line (the summit ridge at low z, the valley floor at high z), so the chart
+// is the plan seen by a skier standing in the valley looking up the face:
+// the chart's y is the world's z (down the page is down the mountain) and
+// its x is the world's x turned round (the viewer faces −z, so world +x is
+// on his LEFT) — the plan turned half a turn, a map and not a mirror, and
+// the same left and right the panorama (`panorama.ts`) is painted in. The
 // ground is the minimap's own bake (`minimap-bake.ts`, whose rows run along
-// +z), so the plate flips it once, in `seed-preview.tsx`, and nothing else
-// ever needs to know.
+// +z), so the plate turns its columns round once, in `seed-preview.tsx`, and
+// nothing else ever needs to know.
 //
-// WHAT IS ON IT is what a free skier reads a map for: the loop, the grid,
-// and EVERY KICKER — the crests shaped to throw a skis, on the track and off
+// WHAT IS ON IT is what a free skier reads a map for: the piste, the start
+// line, and EVERY KICKER — the crests shaped to throw a skis, on the track and off
 // it — which is what he is out there hunting.
 
 import type { GeneratedLevel, Level } from "@engine";
@@ -27,7 +31,8 @@ export const CHART_VIEW = 100;
  * pixel every six metres — the woods as a texture and the hills as light. */
 export const CHART_PX = 256;
 
-/** A kicker on the chart: where its lip is, which way it throws, and
+/** A kicker on the chart: where its lip is, which way it throws (as an SVG
+ * rotation, `chartAngle`), and
  * whether it is on the piste (`K…`) or out on the mountain (`X…`). */
 export type ChartKicker = { id: string; x: number; y: number; angle: number; onTrack: boolean };
 
@@ -40,7 +45,7 @@ export type SeedSchematic = {
   track: string;
   kickers: ChartKicker[];
   /** The start line's first slot: where a ride starts when no spot is
-   * picked, and the heading it faces, rad. */
+   * picked, and the way it faces as an SVG rotation (`chartAngle`), rad. */
   grid: { x: number; y: number; angle: number };
 };
 
@@ -51,7 +56,7 @@ const TRACK_STRIDE = 8;
 
 /** A world plan point on the chart. */
 export function toChart(size: number, x: number, z: number): [number, number] {
-  return [(x / size) * CHART_VIEW, CHART_VIEW - (z / size) * CHART_VIEW];
+  return [CHART_VIEW - (x / size) * CHART_VIEW, (z / size) * CHART_VIEW];
 }
 
 /** A chart point on the snow: the inverse of {@link toChart}, held on the
@@ -59,8 +64,14 @@ export function toChart(size: number, x: number, z: number): [number, number] {
 export function fromChart(size: number, cx: number, cy: number): { x: number; z: number } {
   const u = Math.min(1, Math.max(0, cx / CHART_VIEW));
   const v = Math.min(1, Math.max(0, cy / CHART_VIEW));
-  return { x: u * size, z: (1 - v) * size };
+  return { x: (1 - u) * size, z: v * size };
 }
+
+/** The light the chart's ground is shaded by: from its upper left — over
+ * the summit's left shoulder, world +x and −z — and forty-odd degrees up,
+ * the cartographer's convention. A light from the foot of the page turns
+ * every ridge into a gully to the eye. */
+export const CHART_LIGHT: readonly [number, number, number] = [0.55, 0.9, -0.55];
 
 const f = (n: number): string => n.toFixed(1);
 
@@ -80,20 +91,29 @@ export function trackPath(level: Pick<Level, "size" | "track">): string {
   return parts.join(" ");
 }
 
-/** THE SCHEMATIC of a map, cut once per seed (in the worker). A heading is
- * clockwise from north, which on a north-up chart is clockwise on screen —
- * so it goes into an SVG `rotate` as it is. */
+/** A heading (clockwise from above, 0 along +z) as the SVG `rotate` of a
+ * mark drawn pointing up the chart: +z is DOWN the chart, so a heading is
+ * turned half a turn — and, the chart being the plan turned rather than
+ * mirrored, still clockwise. */
+export const chartAngle = (heading: number): number => heading + Math.PI;
+
+/** THE SCHEMATIC of a map, cut once per seed (in the worker). */
 export function seedSchematic(
   level: Pick<GeneratedLevel, "size" | "track" | "kickers" | "grid">,
 ): SeedSchematic {
   const size = level.size;
   const kickers = level.kickers.map((k) => {
     const [x, y] = toChart(size, k.x, k.z);
-    return { id: k.id, x, y, angle: k.heading, onTrack: k.onTrack };
+    return { id: k.id, x, y, angle: chartAngle(k.heading), onTrack: k.onTrack };
   });
   const g = level.grid[0];
   const [gx, gy] = toChart(size, g.x, g.z);
-  return { size, track: trackPath(level), kickers, grid: { x: gx, y: gy, angle: g.heading } };
+  return {
+    size,
+    track: trackPath(level),
+    kickers,
+    grid: { x: gx, y: gy, angle: chartAngle(g.heading) },
+  };
 }
 
 /** Degrees, for an SVG `rotate`. */

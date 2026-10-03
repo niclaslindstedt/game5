@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MINIMAP'S GROUND — the whole map painted ONCE into a raster, the way
 // the level lab draws it (`scripts/lib/level-draw.mjs`): snow shaded by
-// height and hillshaded from the north-west, a contour every ten metres and
+// height and hillshaded from the upper left, a contour every ten metres and
 // a heavier one every fifty, the packed snow of the track in the groomer's
 // grey, and every tree a dark dot its crown's size.
 //
@@ -65,10 +65,13 @@ const TREE = [30, 70, 52];
 const CONTOUR_STEP = 10;
 const CONTOUR_MAJOR = 5;
 
-/** The light the hills are shaded by: from the north-west and forty degrees
- * up, the cartographer's convention (engine x, z; +z is north on the chart).
- * `SHADE` is how dark a face turned fully away gets, as a share. */
-const LIGHT = normalise([-0.55, 0.9, 0.55]);
+/** The light the hills are shaded by (engine x, y, z, toward the light):
+ * from −x and +z and forty degrees up — the upper left of a plate with +z up
+ * the screen, which the heading-up minimap mostly is, skiing down the fall
+ * line. A plate drawn the other way up hands its own (`seed-chart.ts`'s
+ * `CHART_LIGHT`). `SHADE` is how dark a face turned fully away gets, as a
+ * share. */
+const LIGHT: readonly [number, number, number] = [-0.55, 0.9, 0.55];
 const SHADE = 0.42;
 /** Relief exaggeration for the shading, so a rolling face still reads. */
 const RELIEF = 2.2;
@@ -82,7 +85,9 @@ function normalise(v: number[]): number[] {
 export function bakeMinimap(
   src: MinimapSource,
   px: number = MAP_PX,
+  toward: readonly [number, number, number] = LIGHT,
 ): Uint8ClampedArray<ArrayBuffer> {
+  const light = normalise([...toward]);
   const out = new Uint8ClampedArray(px * px * 4);
   const step = src.size / px;
   const heights = new Float32Array(px * px);
@@ -109,7 +114,7 @@ export function bakeMinimap(
       // The surface normal of y = h(x, z), exaggerated, against the light.
       const nx = -grad[1] * RELIEF;
       const nz = -grad[2] * RELIEF;
-      const lit = (nx * LIGHT[0] + LIGHT[1] + nz * LIGHT[2]) / Math.hypot(nx, 1, nz);
+      const lit = (nx * light[0] + light[1] + nz * light[2]) / Math.hypot(nx, 1, nz);
       const shade = 1 - SHADE + SHADE * Math.max(0, lit);
       const t = (h - lo) / range;
       let r = (SNOW_LOW[0] + (SNOW_HIGH[0] - SNOW_LOW[0]) * t) * shade;

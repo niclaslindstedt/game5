@@ -3,14 +3,17 @@
 // rides into a lift's load zone is carried to its top — a chair seated and
 // stood up over the ramp on its pad, a gondola inside its cabin and walked
 // out facing down the mountain, a drag pulled up its track on his skis —
-// and a free ride begun on a lift arrives at the top of the chair whose run
-// passes nearest the spot picked and is led onto that run until he takes
-// the controls. A race never boards one.
+// and a free ride begun on a lift arrives at the top of the lift serving the
+// first run of the course its colour chose (or, given a spot, the chair whose
+// run passes nearest it) and is led onto that run until he takes the
+// controls. A race never boards one.
 
 import { describe, expect, it } from "vitest";
 
 import {
   LIFT_LOOK,
+  PISTE_GRADES,
+  generateLevel,
   NEUTRAL_INPUT,
   TUNING,
   angleDiff,
@@ -268,4 +271,28 @@ describe("a free ride begun on a lift", () => {
     ride(b, 40, () => false);
     expect([a.skier.x, a.skier.y, a.skier.z]).toEqual([b.skier.x, b.skier.y, b.skier.z]);
   });
+});
+
+describe("a free ride begun on a lift with no spot", () => {
+  // Seed 1 serves its green off a drag, its blue off the gondola and its
+  // black off a chair: the colour asked for is the run arrived at, on
+  // whatever lift leaves its top.
+  for (const grade of PISTE_GRADES) {
+    it(`rides up to the top of the ${grade} course's first run`, () => {
+      const map = generateLevel(1, { grade });
+      const resort = map.resort!;
+      const course = resort.courses.find((c) => c.id === resort.course)!;
+      const run = createGame({ level: map, mode: "free", byLift: true, quiet: true });
+      const lift = run.skier.lift!;
+      expect(lift.phase).toBe("ride");
+      const first = resort.runs.find((r) => r.id === course.runs[0])!;
+      expect(resort.runs[lift.lead!.run].id).toBe(first.id);
+      expect(lift.id).toBe(first.from);
+      expect(lift.kind).toBe(resort.lifts.find((l) => l.id === first.from)!.kind);
+      // Off the top and led toward the run, never thrown on the way.
+      const events = ride(run, 120, (r) => r.skier.lift === null);
+      expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
+      expect(run.skier.thrown).toBeNull();
+    });
+  }
 });

@@ -129,6 +129,14 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });
     expect(opts.spawn).toEqual({ x: 400, z: 200 });
+    // A spot picked is where the ride starts — no chair up to its run's top;
+    // with none (or one picked on another seed) the ride arrives by chair.
+    expect(opts.byLift).toBe(false);
+    expect(
+      freeGameOptions({ ...ride, spot: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .byLift,
+    ).toBe(true);
+    expect(freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).byLift).toBe(true);
     // The weather row names the sky and never an hour: the hour is the day's.
     expect(opts.sky).toEqual({ weather: "fog" });
     expect(
@@ -140,6 +148,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(state.rules.course).toBe(false);
     expect(state.snowDepth).toBe(depthOf("thick"));
     expect(state.level.sun.dayOfYear).toBe(56);
+    expect(state.skier.lift).toBeNull();
     expect(
       freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).spawn,
     ).toBeUndefined();

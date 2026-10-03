@@ -17,10 +17,11 @@
 //     is pulled up the track standing on his skis and let go short of the
 //     top wheel.
 //
-// A FREE RIDE BEGINS ON ONE (`arriveByLift`): seated a span or two below the
-// top of the chair whose run passes nearest the spot the skier picked, and,
-// once stood off it, LED off the pad toward that run and over its lip
-// (`leadInput`) until he touches a control — then the skis are his.
+// A FREE RIDE BEGINS ON ONE (`arriveByLift`): a span or two below the top of
+// the lift serving the run it is to start down — the first run of the course
+// its colour chose, on whatever lift leaves that run's top — and, once off
+// it, LED off the pad toward that run and over its lip (`leadInput`) until he
+// touches a control — then the skis are his.
 //
 // Pure over the level, the plan and the clock: nothing here draws from the
 // stream, and a run whose rules carry no lifts never comes in here.
@@ -224,11 +225,34 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
 function joinRun(run: GameState, lead: NonNullable<LiftRide["lead"]>): boolean {
   const c = run.skier;
   const r = run.level.resort?.runs[lead.run];
-  const join = r ? joinOf(r.points, c.x, c.y - c.spec.cogHeight, c.z) : null;
+  const y = c.y - c.spec.cogHeight;
+  // A run starting further off along the contour (a gondola's or a drag's,
+  // pinned by its colour) is made for from farther — at its head, the first
+  // of it below the pad, never its nearest point a long way down it.
+  const join = r ? (joinOf(r.points, c.x, y, c.z) ?? headOf(r.points, c.x, y, c.z)) : null;
   if (!join) return false;
   lead.s = join.s;
   lead.until = Math.max(lead.until, join.s + K.leadNear);
+  // Time to cross the pad to a run that starts beyond the near reach.
+  lead.time = K.leadFor + Math.max(0, join.distance - K.joinFar) / K.leadPace;
   return true;
+}
+
+/** WHERE A RUN STARTING FAR OFF THE PAD IS JOINED from (x, y, z): the first
+ * point of it lying `lift.drop` m or more below the pad within
+ * `lift.joinReach` m; null where none is. */
+function headOf(
+  points: readonly { x: number; y: number; z: number; s: number }[],
+  x: number,
+  y: number,
+  z: number,
+): { s: number; distance: number } | null {
+  for (const p of points) {
+    if (p.y > y - K.drop) continue;
+    const d = hypot(p.x - x, p.z - z);
+    if (d <= K.joinReach) return { s: p.s, distance: d };
+  }
+  return null;
 }
 
 /** WHERE A RUN IS JOINED from a station's pad at (x, y, z): its nearest
@@ -333,7 +357,7 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
     events.push({ kind: "lift", t: run.t, id: ride.id, lift: ride.kind, phase: "free" });
     return input;
   };
-  if (!r || touched(input) || c.thrown || ride.t > K.leadFor) return free();
+  if (!r || touched(input) || c.thrown || ride.t > ride.lead.time) return free();
   // His place along the run, looked for about the last.
   const pts = r.points;
   let best = Infinity;
@@ -347,8 +371,10 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
     }
   }
   // Only ever on down it: a skier turning about on the pad is not sent
-  // back up it.
-  ride.lead.s = Math.max(ride.lead.s, s);
+  // back up it — and only once he is on it, not while he is still making
+  // for a run that starts far off the pad, whose nearest point in the
+  // window is its far end.
+  if (best < K.window) ride.lead.s = Math.max(ride.lead.s, s);
   if (ride.lead.s >= ride.lead.until) return free();
   const want = ride.lead.s + K.aim;
   const lane = laneAim(run, ride);
@@ -466,14 +492,19 @@ function crosses(a0: number, b0: number, a1: number, b1: number, hl: number, hw:
   return true;
 }
 
-/** A FREE RIDE STARTED ON A LIFT: the chair whose run (R27) passes nearest
- * the spot (x, z) picked, the skier seated on it a span or two below its
- * top and led, once off it, toward that run as far down it as the spot (in
- * `lead.near`..`lead.far` of it). False where the map has no chair to ride
- * — a map from before the resorts. */
-export function arriveByLift(run: GameState, x: number, z: number): boolean {
+/** A FREE RIDE STARTED ON A LIFT: the skier carried a span or two below
+ * the top of the lift whose run (R27) is to be skied, and led, once off it,
+ * toward that run as far down it as the spot (x, z) (in
+ * `lead.near`..`lead.far` of it). The run is `pin` by id where one is named
+ * — on whatever lift leaves its top, a chair, a gondola or a drag — and
+ * otherwise the chair-served run passing nearest the spot. False where the
+ * map has no such lift to ride — a map from before the resorts. */
+export function arriveByLift(run: GameState, x: number, z: number, pin?: string): boolean {
   const resort = run.level.resort;
   if (!resort) return false;
+  if (pin !== undefined && !resort.runs.some((r) => r.id === pin && r.kind === "piste")) {
+    pin = undefined;
+  }
   const plans = liftPlans(run.level);
   // The run passing nearest the spot among those a rider stood off its
   // chair drops onto (`joinOf`); the nearest of any where none does.
@@ -482,9 +513,9 @@ export function arriveByLift(run: GameState, x: number, z: number): boolean {
   let cost = Infinity;
   let at = 0;
   resort.runs.forEach((r, i) => {
-    if (r.kind !== "piste") return;
+    if (r.kind !== "piste" || (pin !== undefined && r.id !== pin)) return;
     const l = plans.findIndex((p) => p.lift.id === r.from);
-    if (l < 0 || plans[l].lift.kind !== "chair") return;
+    if (l < 0 || (pin === undefined && plans[l].lift.kind !== "chair")) return;
     const top = plans[l].lift.top;
     const joins = joinOf(r.points, top.x, top.y, top.z) !== null;
     for (const p of r.points) {
@@ -497,7 +528,7 @@ export function arriveByLift(run: GameState, x: number, z: number): boolean {
       }
     }
   });
-  if (pick < 0) return false;
+  if (pick < 0) return pin !== undefined ? arriveByLift(run, x, z) : false;
   const plan = plans[lift];
   const s = plan.supports;
   const last = s.length > 2 ? s[s.length - 2].u : 0;
@@ -506,7 +537,7 @@ export function arriveByLift(run: GameState, x: number, z: number): boolean {
   c.lift = {
     index: lift,
     id: plan.lift.id,
-    kind: "chair",
+    kind: plan.lift.kind,
     phase: "ride",
     u: Math.max(plan.look.entry.at, u),
     speed: plan.look.speed,
@@ -518,8 +549,12 @@ export function arriveByLift(run: GameState, x: number, z: number): boolean {
       s.findIndex((p) => p.u > u),
     ),
     from: { x: c.x, y: Number.NaN, z: c.z, heading: plan.heading },
-    lead: { run: pick, s: 0, until: clamp(at, K.leadNear, K.leadFar) },
+    lead: { run: pick, s: 0, until: clamp(at, K.leadNear, K.leadFar), time: K.leadFor },
   };
-  hold(run, plan, c.lift);
+  if (plan.lift.kind === "drag") {
+    // On a drag he is pulled up the track on his skis.
+    const p = along(plan, c.lift.u, upRope(plan));
+    setOff(run, p.x, p.z, plan.heading, c.lift.speed);
+  } else hold(run, plan, c.lift);
   return true;
 }

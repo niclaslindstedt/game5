@@ -158,7 +158,7 @@ export function StartPage({
                 hint={STRINGS.startRegionHint}
                 stops={REGION_STOPS}
                 value={ride.region}
-                onPick={(region) => setRide({ region })}
+                onPick={(region) => setRide({ region, spot: null })}
                 onHint={setHint}
               />
               <StepRow
@@ -166,7 +166,7 @@ export function StartPage({
                 hint={STRINGS.startGradeHint}
                 stops={GRADE_STOPS}
                 value={ride.grade ?? "dealt"}
-                onPick={(id) => setRide({ grade: id === "dealt" ? null : id })}
+                onPick={(id) => setRide({ grade: id === "dealt" ? null : id, spot: null })}
                 onHint={setHint}
               />
             </div>

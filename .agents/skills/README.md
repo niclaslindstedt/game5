@@ -57,6 +57,7 @@ sibling's the day one lands, and add its registry row.
 | `engine-system` | Adding or changing a gameplay system, engine-first |
 | `mapgen-improvement` | The world generator: the mountain, the piste's descent, the gates, the kickers, the start, the forest and the tree line, the day; the R-rules; piste-and-terrain craft; the analyze → fix → `make level` loop |
 | `add-region` | A new kind of snow country (R21) end to end: the row, the surface, the look and the grade, the word, the suite and the labs — the alpine kept all ones |
+| `crowd` | The free ride's amateurs: who is out on the ski area and in what groups, the knobs that make each one himself, how they ski the runs and ride the lifts, the player meeting them, and the figures — eight bodies at three cuts posed by the player's own pose; `make crowd` |
 | `nature` | The snow-loaded woods (where they stand, the tree line, how they are drawn), the mountain as a landscape, the ground's clipmap, the wildlife by region |
 | `atmosphere` | The clear winter sky: the sun by the run's own hour, the colour model, the blue in the shadows, the haze; the weather and the night |
 | `snow-look` | The snow as DRAWN: the shader, the glitter, the groomed piste, the trail map and the grooves it lowers |

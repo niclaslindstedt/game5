@@ -61,6 +61,14 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
       return { text: STRINGS.newsStuck, tone: "bad" };
+    case "bump": {
+      // One of the crowd shouldered on a free ride: whether he stayed up.
+      if (e.amateur === undefined) return null;
+      const who = state.crowd?.amateurs[e.amateur];
+      return who?.mode === "down"
+        ? { text: STRINGS.newsCrowdDown, tone: "bad" }
+        : { text: STRINGS.newsCrowdBump, tone: "info" };
+    }
     case "damage":
       return { text: STRINGS.newsDamage(e.part), tone: "bad" };
     case "combo":

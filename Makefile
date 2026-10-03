@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics turns skis skier helmet skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics turns skis skier helmet skier-metrics blender models model-registry ci-models birds crowd trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -183,6 +183,18 @@ turns:
 # ARGS=--lod=far draws the far cut, --lod=both each species at both.
 birds:
 	npm run birds -- $(ARGS)
+
+# THE CROWD LAB: the free ride's amateurs — every body at the stance and at
+# each of the player's poses its figure is morphed between (figures), its
+# NEAR, MID and FAR cut with the triangles (lods), the poses blended as the
+# crowd is drawn (moments), a real crowd's groups in what they were dealt
+# (dress), and the crowd on SEED's mountain through the game's renderer
+# (slope: busy, group, chase, kicker, overview) — previews/crowd-*.png. Its
+# own one-off bundle from pwa/crowd-preview.html (never deployed); needs a
+# Chromium like `world`. SEED=n; ARGS="--sheet=slope --t=90 --views=busy";
+# ARGS="--sheet=figures --bodies=child,oldWoman".
+crowd:
+	npm run crowd -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

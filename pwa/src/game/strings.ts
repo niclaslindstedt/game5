@@ -159,17 +159,23 @@ export const STRINGS = {
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under. */
-  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing"): string =>
+  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier"): string =>
     cause === "tree"
       ? "YARD SALE! TREE"
-      : cause === "nose"
-        ? "OVER THE TIPS"
-        : cause === "roll"
-          ? "YARD SALE"
-          : cause === "landing"
-            ? "CRASH LANDING"
-            : "EDGE CAUGHT",
+      : cause === "skier"
+        ? "YARD SALE! TAKEN OUT"
+        : cause === "nose"
+          ? "OVER THE TIPS"
+          : cause === "roll"
+            ? "YARD SALE"
+            : cause === "landing"
+              ? "CRASH LANDING"
+              : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
+  /** The player into one of the crowd on a free ride (`crowd.ts`): a
+   * shoulder he rode through, or one that put the other skier down. */
+  newsCrowdBump: "OI! WATCH IT",
+  newsCrowdDown: "SKIER DOWN! SORRY",
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>

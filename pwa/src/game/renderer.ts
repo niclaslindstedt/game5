@@ -16,6 +16,7 @@
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
+//   crowd-view.ts   the free ride's amateurs out on the ski area
 //   camera.ts      the ladder of lenses and the hand-over between them
 //
 // WHAT IT COSTS is the picture it is handed (`settings-video.ts`): every
@@ -110,6 +111,7 @@ import { createTerrain, type Terrain } from "./terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
+import { createCrowdView, type CrowdView } from "./crowd-view.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
 import {
   bodyStampOf,
@@ -219,6 +221,7 @@ const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   spray: "spray",
   snowfall: "snowfall",
   wildlife: "wildlife",
+  crowd: "field",
 };
 
 /** The runs a frame draws: the player's first, then the field's. */
@@ -291,6 +294,7 @@ export function createWorldRenderer(
   const sampleSnow = (x: number, z: number): SnowProps =>
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
   let wildlife: Wildlife | null = null;
+  let crowd: CrowdView | null = null;
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
@@ -385,6 +389,7 @@ export function createWorldRenderer(
     spray?.dispose();
     cloud?.dispose();
     wildlife?.dispose();
+    crowd?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -394,6 +399,7 @@ export function createWorldRenderer(
       spray?.points,
       cloud?.mesh,
       wildlife?.group,
+      crowd?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -403,7 +409,7 @@ export function createWorldRenderer(
     terrain = forest = gates = lifts = trail = spray = null;
     cloud = null;
     pack = null;
-    wildlife = null;
+    wildlife = crowd = null;
     clear = undefined;
     boomClear = undefined;
     trunks = undefined;
@@ -563,6 +569,8 @@ export function createWorldRenderer(
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
+      crowd = createCrowdView(lv, env.haze);
+      scene.add(crowd.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
@@ -764,6 +772,7 @@ export function createWorldRenderer(
         TRAIL_LOOK[video.trails].stamp ? stamps : null,
         { x: fine.uFineOrigin.value.x, z: fine.uFineOrigin.value.y, span: fine.uFineSpan.value },
       );
+      crowd?.update(state, lens.camera.position);
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       // THE NEW SNOW: it settles into every trail and buries the groomer.

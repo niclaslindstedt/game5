@@ -16,7 +16,7 @@
 // (`make model-registry` rewrites it, and prettier pads its columns).
 // DOM-free and three-free.
 
-import { SKI_CATALOG, TREE_KINDS } from "@engine";
+import { CROWD_BODIES, SKI_CATALOG, TREE_KINDS } from "@engine";
 
 import { BEAST_IDS } from "./beast-defs.ts";
 import { BIRD_IDS } from "./bird-defs.ts";
@@ -106,6 +106,20 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
     note:
       "procedural: grown and young forms at two levels of detail, each animal its own " +
       "size and shade, antlers and horns grown to its age in the shader",
+  },
+  {
+    asset: "Amateur skiers",
+    ids: CROWD_BODIES,
+    source: "code",
+    code: [
+      "pwa/src/game/crowd-shapes.ts",
+      "pwa/src/game/crowd-rig.ts",
+      "pwa/src/game/tree-mesh.ts",
+    ],
+    drawnBy: "pwa/src/game/crowd-view.ts",
+    note:
+      "procedural: the free ride's crowd — eight bodies at three levels of detail, posed " +
+      "by morph targets solved from the player's own pose and dressed per instance",
   },
   {
     asset: "Gates, the start hut and the finish arch",

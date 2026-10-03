@@ -119,6 +119,8 @@ export function createRivals(state: GameState, count: number): void {
       progress: freshProgress(state.level),
       tricks: freshTricks(),
       rivals: [],
+      // The crowd is the world's, stepped once, never a rival's own.
+      crowd: undefined,
       events: [],
     };
     const at = gridSlot(state, i + 1);

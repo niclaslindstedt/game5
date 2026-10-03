@@ -9,6 +9,7 @@
 // out there, so a simulated run's digest carries the skier and nothing in
 // front of him.
 
+import { CROWD } from "./crowd.ts";
 import { TUNING } from "./tuning.ts";
 
 export type RunRules = {
@@ -39,6 +40,10 @@ export type RunRules = {
    * run, whose strokes and combos are timed to a real hang (`limits.ts`'s
    * `flightGravity`). */
   airGravity: number;
+  /** THE CROWD: how many amateurs are out on the ski area (`crowd.ts`) —
+   * the free ride's resort full of people; 0 on every measured run, which
+   * has the snow to itself. */
+  crowd: number;
 };
 
 /** HOW MUCH HELP THE SKIER IS GIVEN — the arcade's two hands on him, each
@@ -100,6 +105,7 @@ export function raceRules(laps: number): RunRules {
     tricks: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
+    crowd: 0,
   };
 }
 
@@ -114,11 +120,13 @@ export function openRules(laps: number): RunRules {
     tricks: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
+    crowd: 0,
   };
 }
 
-/** THE FREE RIDE: nobody else out there, no lights, and no course — the
- * whole mountain to ski, the clock running only as a record of the outing. */
+/** THE FREE RIDE: no field, no lights, and no course — the whole mountain
+ * to ski, the clock running only as a record of the outing, and the ski
+ * area full of other people skiing it (`CROWD.count` of them). */
 export function freeRules(laps: number): RunRules {
   return {
     rivals: 0,
@@ -129,6 +137,7 @@ export function freeRules(laps: number): RunRules {
     tricks: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
+    crowd: CROWD.count,
   };
 }
 
@@ -186,6 +195,7 @@ export function timeTrialRules(laps: number): RunRules {
     tricks: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
+    crowd: 0,
   };
 }
 
@@ -214,6 +224,7 @@ export function tricksRules(laps: number): RunRules {
     tricks: true,
     limit: TRICKS_RUN.limit,
     airGravity: TRICKS_RUN.airGravity,
+    crowd: 0,
   };
 }
 

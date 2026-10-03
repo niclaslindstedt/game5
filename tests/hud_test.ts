@@ -12,16 +12,20 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  BODY_PARTS,
+  INJURIES,
   NEUTRAL_INPUT,
   TUNING,
   botInput,
   createGame,
+  freshBody,
   placeRun,
   step,
   type GameEvent,
   type GameState,
 } from "@engine";
 
+import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import { AIR_SHOWN, gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -170,6 +174,97 @@ describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
   });
 });
 
+describe("the body and the g meter (body-tile.ts)", () => {
+  it("paints a part by its worst AIS rank and the body by its severity score's band", () => {
+    expect([0, 1, 2, 3, 5].map(toneOf)).toEqual(["ok", "hurt", "spent", "dead", "dead"]);
+    expect([0, 2, 6, 12, 20, 34].map(conditionOf)).toEqual([
+      "sound",
+      "bruised",
+      "hurt",
+      "injured",
+      "serious",
+      "critical",
+    ]);
+    const tile = takeSnapshot(race()).body;
+    expect(tile.parts).toHaveLength(BODY_PARTS.length);
+    expect(tile.parts.every((t) => t === "ok")).toBe(true);
+    expect(tile.condition).toBe("sound");
+    expect(tile.blow).toBe(null);
+  });
+
+  it("lists the worst injuries first, the newest first within a rank, and counts the rest", () => {
+    const body = freshBody();
+    const take = (part: (typeof BODY_PARTS)[number], kind: keyof typeof INJURIES, t: number) => {
+      const ais = INJURIES[kind].ais;
+      body.injuries.push({ part, kind, ais, t });
+      const i = BODY_PARTS.indexOf(part);
+      body.worst[i] = Math.max(body.worst[i], ais);
+    };
+    take("handL", "sprainedThumb", 1);
+    take("kneeR", "tornAcl", 2);
+    take("head", "concussion", 3);
+    take("pelvis", "brokenPelvis", 4);
+    take("shinL", "bruisedShin", 5);
+    const tile = bodyTile(body, 5.5);
+    expect(tile.lines.map((l) => l.kind)).toEqual(["brokenPelvis", "concussion", "tornAcl"]);
+    expect(tile.lines).toHaveLength(LINES);
+    expect(tile.more).toBe(2);
+    expect(tile.lines[0].fresh).toBe(true);
+    expect(tile.lines[2].fresh).toBe(false);
+    expect(tile.parts[BODY_PARTS.indexOf("pelvis")]).toBe("dead");
+    // Pelvis 3 (limbs), head 2, nothing else: 9 + 4.
+    expect(tile.severity).toBe(13);
+    expect(tile.condition).toBe("injured");
+  });
+
+  it("holds the blow on the meter for the engine's hold, and lights the part it struck", () => {
+    const body = freshBody();
+    body.impact = { g: 42, part: "head", source: "tree", t: 0.4, id: 3 };
+    body.peak = 42;
+    const tile = bodyTile(body, 1);
+    expect(tile.blow).toEqual({
+      g: 42,
+      part: "head",
+      source: "tree",
+      id: 3,
+      age: 0.4 / TUNING.injury.hold,
+    });
+    expect(tile.struck).toBe("head");
+    expect(tile.peak).toBe(42);
+    body.impact.t = TUNING.injury.hold;
+    expect(bodyTile(body, 3).blow).toBe(null);
+  });
+
+  it("bills a trunk met at speed on the meter, with an injury in plain words", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: LONE_TREE.x, z: LONE_TREE.z - 20, heading: 0, speed: 60 / 3.6 });
+    let seen = 0;
+    for (let i = 0; i < 3 * TUNING.physicsHz; i++) {
+      step(state, NEUTRAL_INPUT);
+      const blow = takeSnapshot(state).body.blow;
+      if (blow) seen = Math.max(seen, blow.g);
+    }
+    expect(seen).toBeGreaterThan(TUNING.injury.shown);
+    const first = state.skier.body.injuries[0];
+    expect(STRINGS.injury(first.kind, first.part).length).toBeGreaterThan(0);
+  });
+
+  it("names every injury, and the side of a paired part", () => {
+    for (const kind of Object.keys(INJURIES) as (keyof typeof INJURIES)[]) {
+      const part = INJURIES[kind].part;
+      const paired = !BODY_PARTS.includes(part as (typeof BODY_PARTS)[number]);
+      const line = STRINGS.injury(
+        kind,
+        paired
+          ? (`${part}L` as (typeof BODY_PARTS)[number])
+          : (part as (typeof BODY_PARTS)[number]),
+      );
+      expect(line.trim().length, kind).toBeGreaterThan(0);
+      if (paired) expect(line, kind).toContain("LEFT");
+    }
+  });
+});
+
 describe("the news column (run-news.ts)", () => {
   const state = race();
   const line = (e: GameEvent) => newsFor(e, state);
@@ -233,6 +328,36 @@ describe("the news column (run-news.ts)", () => {
     expect(line({ ...land, harsh: true })?.tone).toBe("bad");
     expect(line({ ...land, harsh: false, lost: 0 })).toBe(null);
     expect(line({ kind: "count", t: 1, left: 3 })).toBe(null);
+  });
+
+  it("says a moderate injury or worse — the worst of its step — and leaves a bruise to the body", () => {
+    const hurt = createGame({ level: syntheticLevel(), rivals: 0, quiet: true });
+    const acl: GameEvent = { kind: "injury", t: 1, part: "kneeL", injury: "tornAcl", ais: 2 };
+    const pelvis: GameEvent = {
+      kind: "injury",
+      t: 1,
+      part: "pelvis",
+      injury: "brokenPelvis",
+      ais: 3,
+    };
+    const bruise: GameEvent = {
+      kind: "injury",
+      t: 1,
+      part: "shinL",
+      injury: "bruisedShin",
+      ais: 1,
+    };
+    hurt.events.push(bruise);
+    expect(newsFor(bruise, hurt)).toBe(null);
+    hurt.events.push(acl);
+    expect(newsFor(acl, hurt)).toEqual({
+      text: STRINGS.newsInjury("tornAcl", "kneeL"),
+      tone: "bad",
+    });
+    expect(STRINGS.newsInjury("tornAcl", "kneeL")).toBe("TORN LEFT ACL");
+    hurt.events.push(pelvis);
+    expect(newsFor(acl, hurt)).toBe(null);
+    expect(newsFor(pelvis, hurt)?.text).toBe(STRINGS.newsInjury("brokenPelvis", "pelvis"));
   });
 });
 

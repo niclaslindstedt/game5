@@ -6,7 +6,8 @@
 //
 // NEWS IS WHAT CHANGED THE RUN: a gate taken and its clock, one missed, a
 // tree met, a landing the legs could not take, a wipeout and what caused
-// it, the skier bogged, an edge dulled or a knee hurt, a reset, the skier
+// it, an injury and what it was, the skier bogged, an edge dulled or a
+// knee hurt, a reset, the skier
 // blown into a wind tunnel, the finish.
 // What the HUD already shows in its own corner every frame — the speed, the
 // place — is not news, and neither is a landing the skis simply rode away
@@ -22,6 +23,10 @@ import { STRINGS } from "./strings.ts";
  * under it. */
 /** How near a save must have come to a fall to be said (`Save.size`). */
 const SAVE_SAID = 0.6;
+
+/** The least AIS rank an injury must have to be said: a bruise is the
+ * body panel's, a torn ligament is news. */
+const INJURY_SAID = 2;
 
 export type HudFlash = { id: number; text: string; tone: "good" | "bad" | "info" };
 
@@ -71,6 +76,16 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     }
     case "damage":
       return { text: STRINGS.newsDamage(e.part), tone: "bad" };
+    case "injury": {
+      // What the body took, in plain words (`body.ts`) — a moderate injury
+      // or worse, and only the worst a step's blows did: a body thrown into
+      // a trunk takes a dozen at once, and the body panel lists them all.
+      if (e.ais < INJURY_SAID) return null;
+      let top = 0;
+      for (const o of state.events) if (o.kind === "injury" && o.ais > top) top = o.ais;
+      const first = state.events.find((o) => o.kind === "injury" && o.ais === top);
+      return first === e ? { text: STRINGS.newsInjury(e.injury, e.part), tone: "bad" } : null;
+    }
     case "combo":
       return e.sketchy
         ? { text: `${STRINGS.comboSketchy} ${STRINGS.comboBanked(e.points)}`, tone: "info" }

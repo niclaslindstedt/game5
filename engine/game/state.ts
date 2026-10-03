@@ -17,6 +17,7 @@ import type { Level } from "../mapgen/types.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import type { Assist, RunRules } from "./defs/modes.ts";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
+import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -208,6 +209,10 @@ export type SkierState = {
   thrown: Thrown | null;
   /** What the skis and the legs have taken (`damage.ts`). */
   damage: SkierDamage;
+  /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): every part's injuries,
+   * the last blow worth billing and the run's hardest. Read by nothing in
+   * the physics. */
+  body: BodyState;
   /** THE WIND TUNNEL he is being carried along (R30, `wind-tunnel.ts`),
    * or null. */
   tunnel: TunnelRide | null;
@@ -283,7 +288,39 @@ export type Thrown = {
   /** Seconds he has lain STILL on the snow — every point under
    * `crash.restSpeed`, touching — without a break: what the reset waits on. */
   still: number;
+  /** THE BLOWS THIS STEP, one per point in `RAGDOLL` order, m/s: the way
+   * each point brought into the snow it was put back on, and into the
+   * trunk it was pushed out of — 0 for none. Written by `stepRagdoll`, read
+   * by `body.ts`; nothing in the fall reads them back. */
+  impacts: number[];
+  struck: number[];
 };
+
+/** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): the worst injury on each
+ * part (its AIS rank, 0 sound … 5 critical, in `BODY_PARTS` order), every
+ * injury in the order it was taken, the last blow worth billing on the g
+ * meter, and the run's hardest blow, g. A reset does not mend it; a new run
+ * does. */
+export type BodyState = {
+  worst: number[];
+  injuries: Injury[];
+  impact: Impact | null;
+  peak: number;
+  /** How many blows have been billed — what the HUD keys the meter on. */
+  blows: number;
+};
+
+/** ONE INJURY: the part, which, its AIS rank, and the run clock it came at
+ * (the engine's own, `GameState.t`). */
+export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number };
+
+/** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
+ * trunk, another skier. */
+export type ImpactSource = "landing" | "snow" | "tree" | "skier";
+
+/** ONE BLOW on the g meter: its peak, g, the part that took it, what it
+ * came from, how long ago, s, and its number (`BodyState.blows`). */
+export type Impact = { g: number; part: BodyPart; source: ImpactSource; t: number; id: number };
 
 /** A part `damage.ts` keeps a figure for. */
 export type DamagePart = "skiLeft" | "skiRight" | "legs";
@@ -522,6 +559,8 @@ export type GameEvent =
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
    * which, and how bad it now is, 0..1. */
   | { kind: "damage"; t: number; part: DamagePart; level: number }
+  /** AN INJURY TAKEN (`body.ts`): the part, which, its AIS rank. */
+  | { kind: "injury"; t: number; part: BodyPart; injury: InjuryKind; ais: number }
   /** Another skier — the player's own contact with rival `rival`, or (with
    * `rival` −1) with amateur `amateur` of the crowd (`crowd.ts`). */
   | { kind: "bump"; t: number; rival: number; speed: number; amateur?: number }

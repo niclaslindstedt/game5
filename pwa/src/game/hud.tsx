@@ -19,6 +19,11 @@
 //   upper centre  a MISSED GATE warning with an arrow pointing back up at
 //                 it and the metres to go, until it is taken — or BOGGED,
 //                 while the skier is sunk to the knees and wants poling out
+//   left edge     THE BODY: the skier from behind, every part painted by
+//                 its worst injury, the word for the whole of him and the
+//                 worst injuries in plain words (hud-body.tsx)
+//   centre        THE G METER, shaking, the moment a blow lands
+//                 (hud-gforce.tsx)
 //   bottom left   the EDGE bar over the speed, and on a run with damage on
 //                 the DAMAGE instrument beside it (hud-damage.tsx)
 //   bottom right  the news column — a gate's clock, a tree, a wipeout
@@ -37,7 +42,9 @@ import { REPO_URL } from "../identity.ts";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
+import { BodyPanel } from "./hud-body.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
+import { GForce } from "./hud-gforce.tsx";
 import { GradeMark } from "./grade-mark.tsx";
 import { EdgeBar } from "./hud-dial.tsx";
 import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
@@ -286,6 +293,11 @@ export function Hud({
           </div>
         </div>
       )}
+
+      {/* THE BODY at the left edge, and THE G METER over the skier the
+          moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}
+      <BodyPanel tile={snap.body} />
+      {snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
       {snap.tricks && <ComboTile tile={snap.tricks} />}

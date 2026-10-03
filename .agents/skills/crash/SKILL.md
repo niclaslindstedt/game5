@@ -1,6 +1,6 @@
 ---
 name: crash
-description: "Use when working on the skier PAST SAVING and OFF HIS SKIS — the ways he is thrown (a trunk met hard, a landing over the tips, the body slammed down on the snow, a fall at speed, the legs folded, a caught edge — the high-side) and only those — a professional rides out the rest, the near fall kept as a SAVE the figure plays — and the RESILIENCE knob each skier carries (the player a professional, each rival dealt his own), his body tumbling on the snow until the reset while the skis go on without him (the yard sale), the skier BOGGED in deep powder and poled and rocked back out, and what a blow costs when damage is on (a dulled edge, hurt legs). Owns `engine/game/crash.ts`, `trench.ts`, `damage.ts`, the `TUNING.crash` / `.trench` / `.damage` blocks, the `wipeout` / `save` / `stuck` / `damage` events, `SkierState.save` / `.resilience` and the figure's `skier-save.ts`, and the ride lab's `tree`, `tree-glance`, `shoulder`, `nose-save`, `nose-in`, `drop-side`, `rollover`, `catch`, `catch-held`, `stuck` and `stuck-held` scenarios (`--resilience` skis any of them as a club skier). Not the contact that STARTS a crash (`collision` — the trunk, the rival, the edge of the map) and not the fall's own physics (`ski-physics` — the body carries a skier over)."
+description: "Use when working on the skier PAST SAVING and OFF HIS SKIS — the ways he is thrown (a trunk met hard, a landing over the tips, the body slammed down on the snow, a fall at speed, the legs folded, a caught edge — the high-side) and only those — a professional rides out the rest, the near fall kept as a SAVE the figure plays — and the RESILIENCE knob each skier carries (the player a professional, each rival dealt his own), his body tumbling on the snow until the reset while the skis go on without him (the yard sale), the skier BOGGED in deep powder and poled and rocked back out, and what a blow costs when damage is on (a dulled edge, hurt legs) — and THE BODY: every blow's g off the stop the body and the snow give it, the injuries it does part by part (a ladder per part on the Abbreviated Injury Scale, a risk curve drawn off a hash), the injury severity score, and the HUD's body and g meter that read it. Owns `engine/game/crash.ts`, `trench.ts`, `damage.ts`, `body.ts` and `defs/anatomy.ts`, the `TUNING.crash` / `.trench` / `.damage` / `.injury` blocks, the `wipeout` / `save` / `stuck` / `damage` / `injury` events, `SkierState.body`, `SkierState.save` / `.resilience` and the figure's `skier-save.ts`, and the ride lab's `tree`, `tree-glance`, `shoulder`, `nose-save`, `nose-in`, `drop-side`, `rollover`, `catch`, `catch-held`, `stuck` and `stuck-held` scenarios (`--resilience` skis any of them as a club skier). Not the contact that STARTS a crash (`collision` — the trunk, the rival, the edge of the map) and not the fall's own physics (`ski-physics` — the body carries a skier over)."
 ---
 
 # The crash
@@ -33,6 +33,18 @@ Three modules answer it, and the split matters:
   two skis' edges and the legs (`SkierState.damage`); `skier.ts` reads five
   shares off it (`skiPull`, `skiBite`, `springShare`, `dampShare`,
   `harshShare`). Knobs in `TUNING.damage`.
+
+- **`engine/game/body.ts`** — WHAT HIS BODY TAKES, on every run, as a
+  readout nothing in the physics reads. Every blow the step already
+  measured — a landing's load, a trunk's closing speed, `bodyHit`, every
+  ragdoll point meeting the snow or a trunk (`Thrown.impacts`, `.struck`,
+  written by `stepRagdoll`), a rival's bump (`feelBumps`) — is a STOP over
+  the part's own give and the snow's (`blowOf`, `snowGive`), in g; each of
+  the twenty parts reads its LADDER (`defs/anatomy.ts`'s `INJURIES`) against
+  the doses of each mechanism (`blunt`, `load`, `drawer`, `twist`, `bend`)
+  on a log-logistic risk curve (`riskOf`) drawn off a hash; `severityOf`
+  sums the whole body. The HUD's half is `body-tile.ts` (DOM-free),
+  `hud-body.tsx` and `hud-gforce.tsx`. Knobs in `TUNING.injury`.
 
 `run.ts` is where they meet the step: with the skier off, the skis are
 stepped under the neutral input, his body under `stepThrown`, the course
@@ -74,7 +86,9 @@ make ride SCENARIO=stuck-held    # the same with the push held: the reset
 
 Every wipeout scenario prints the same line — the cause and when, the speed,
 how far the skier slid from his skis, how many turns he tumbled, when the
-reset came. The bog's prints when he sank, how deep, when he was out and
+reset came, the run's HARDEST blow in g and every INJURY taken (the
+engine's names with their AIS rank) — and every flight and landing
+scenario the last two as well. The bog's prints when he sank, how deep, when he was out and
 whether the engine had to reset him. Then look: `make world
 ARGS=--views=wipeout,wipeout-lie` puts the player into the nearest trunk
 through the game's own renderer and photographs the skier in the air and
@@ -183,6 +197,30 @@ the woods and a wipeout there is honest.
   arithmetic to the last bit — which is why no digest moved when they landed.
   Keep it so: a share written as `(1 - d) ** k` or a clamp with a floor is a
   digest that moves for no reason.
+- **A BLOW IS A STOP, AND THE SNOW IS HALF OF IT.** The g of a blow is
+  v² / 2s peaked, `s` the part's give plus what it met — never the solver's
+  one-step change of velocity, which is a hundred g for anything the snow
+  puts back on its surface. The snow's give is fitted to the measured head
+  drops on snow (`tests/body_test.ts` holds the fit); keep the fit when a
+  give moves, and let the snow's depth reach an injury THROUGH the give,
+  never through a rule of its own.
+- **NO CLEAN LANDING HURTS, AND THE LOTTERY IS CAPPED.** Under half an
+  injury's dose there is no chance at all (`injury.floor`), so a landing a
+  pro calls clean (`landing.clean`, square on the skis) hurts nothing on any
+  pair (`body_test`'s kicker case); and of all a step's draws only the worst
+  `perBlow` are taken — a body thrown into a trunk meets it with every point
+  at once, and fourteen breaks from one blow is a lottery, not a body. Run
+  the bot over the corpus (`previews/` probe over `simulateRun` with
+  `keepEvents`) before moving a threshold: injuries there should come only
+  from a harsh landing or seed 10's battering spot.
+- **A LIMB'S WHIP IS NOT A BLOW ON THE BODY.** The g meter bills the head
+  and the trunk; a ragdoll's hand or elbow flung into a trunk at twice his
+  speed is a broken bone on its own ladder, not a 900 g headline. Limbs
+  carry their joints' fold in their give.
+- **THE BODY DRAWS NOTHING FROM THE STREAM.** Every chance is a hash of the
+  step, the part and the map, so a run replays injury for injury, a ghost
+  and a replay hurt where the skier did, and `make sim`'s digests do not move
+  — a body change that moves a digest has reached into the physics.
 - **DAMAGE IS THE PLAYER'S AND NEVER A RIVAL'S.** `createRivals` deals every
   rival `damage: false`; the field is never slowed by a setting the player
   chose.
@@ -199,11 +237,12 @@ the woods and a wipeout there is honest.
    on one step.
 3. **Tune defs, with the bot's distribution beside the number.**
 4. **Re-run the lab, then the tests** —
-   `npx vitest run tests/crash_test.ts tests/ragdoll_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
+   `npx vitest run tests/crash_test.ts tests/ragdoll_test.ts tests/body_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
 5. **LOOK.** `make world ARGS=--views=wipeout,wipeout-lie`, and the fall
    as frames — `ARGS=--views=fall-0.2,fall-0.4,fall-0.8,fall-1.3,fall-2`,
    one lens beside him — against the same views on `main`.
-6. Docs: `docs/riding.md` ("The wipeout", "Stuck in powder", "Damage").
+6. Docs: `docs/riding.md` ("The wipeout", "Stuck in powder", "Damage",
+   "The body").
 
 ## Skill self-improvement
 

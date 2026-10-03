@@ -131,6 +131,8 @@ function record(scenario, spec) {
       crouch: c.crouch,
       sideSlip: c.sideSlip,
       heading: c.heading,
+      // The run's hardest blow so far, g (`body.ts`).
+      peakG: c.body.peak,
       wy: c.wy,
       // The share of the skier's load on the tips — what the lean moves.
       tipLoad:

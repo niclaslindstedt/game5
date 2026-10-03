@@ -23,6 +23,7 @@ import {
   type Progress,
 } from "@engine";
 
+import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
@@ -139,6 +140,10 @@ export type HudSnapshot = {
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
+  /** THE BODY (`body-tile.ts`): every part's paint, the word for the whole
+   * of him, the worst injuries, the run's hardest blow — and the blow on
+   * the g meter while it holds. */
+  body: BodyTile;
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
@@ -250,6 +255,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
           legs: c.damage.legs,
         }
       : null,
+    body: bodyTile(c.body, state.t),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
   };

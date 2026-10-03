@@ -248,6 +248,11 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   }
   const com0 = centreOf(P);
   treesNear(level, com0.x, com0.z, 2, near);
+  // The blows this step (`Thrown.impacts`, `.struck`), for `body.ts`.
+  const hit = b.impacts;
+  const struck = b.struck;
+  hit.fill(0);
+  struck.fill(0);
   const lo = TUNING.bounds.margin;
   const hi = level.size - TUNING.bounds.margin;
   for (let k = 0; k < K.iterations; k++) {
@@ -270,6 +275,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         const d = hypot(dx, dz) || 1e-6;
         const reach = RADIUS[i] + tree.radius;
         if (d >= reach) continue;
+        const closing = -((P[j] - L[j]) * dx + (P[j + 2] - L[j + 2]) * dz) / (d * dt);
+        if (closing > struck[i]) struck[i] = closing;
         P[j] = tree.x + (dx / d) * reach;
         P[j + 2] = tree.z + (dz / d) * reach;
       }
@@ -294,6 +301,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     if (pushed[i] > 0) {
       touching = true;
       planted |= 1 << i;
+      // A fresh contact is a blow; a point already lying on the snow is not.
+      if (!(b.planted & (1 << i))) hit[i] = arrive[i];
       // The way into the snow is gone — and the way OUT of it is the
       // push's own, never faster than `crash.pushOut`: a point put back on
       // the surface from under it is a position corrected, not a launch,

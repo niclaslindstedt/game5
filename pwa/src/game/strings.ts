@@ -13,6 +13,7 @@
 import type { TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
+import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
@@ -66,6 +67,8 @@ export const STRINGS = {
   ...GALLERY_STRINGS,
   /* ── THE DEVELOPER PAGE — stated in strings-dev.ts ─────────────────── */
   ...DEV_STRINGS,
+  /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
+  ...BODY_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",

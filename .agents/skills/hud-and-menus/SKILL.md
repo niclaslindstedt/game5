@@ -48,6 +48,7 @@ how the thumbs read (`TouchFeel`, the lever's side).
 | What an event SAYS in the news column | `pwa/src/game/run-news.ts` (pure: an event and the state in, a line out — a wipeout names how he fell, a bog says POLE OUT, a hurt edge is news); words from `strings.ts` |
 | The FINISH PLATE: the place and the time, then the whole field's table, live, while the rest ski home; the campaign's lines on a rung; WATCH REPLAY | `pwa/src/game/hud-result.tsx` |
 | The DAMAGE instrument on a run with damage on: the two edges and the legs | `pwa/src/game/hud-damage.tsx` |
+| THE BODY at the left edge (the skier from behind, every part painted by its worst injury, the word off the injury severity score, the worst injuries in plain words, the run's hardest blow) and THE G METER over the skier the moment a blow lands, shaking by how hard — both off the DOM-free `body-tile.ts`; what a blow and an injury ARE is `crash`'s (`body.ts`) | `pwa/src/game/hud-body.tsx`, `hud-gforce.tsx`, `body-tile.ts`, `strings-body.ts`, `pwa/src/body.css` |
 | The COMBO over the tips on a tricks run: the elements, the multiplier, the score, the buzzer | `pwa/src/game/hud-combo.tsx` over `trick-tile.ts` (DOM-free); the words `TRICK_WORDS` / `comboLine` |
 | Every word | `pwa/src/game/strings.ts` (§39.1) — templates, never concatenations at the call site |
 | What the speedo READS | `SkierState.speed` — `|v|`, vertical included, written once by the engine; never re-derived here |

@@ -11,6 +11,7 @@
 // folded in as `TUNING.tricks`.
 
 import { TRICKS } from "./tricks.ts";
+import { INJURY } from "./anatomy.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -881,4 +882,7 @@ export const TUNING = {
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */
   tricks: TRICKS,
+
+  /** THE BODY AND WHAT HURTS IT (`defs/anatomy.ts`, `body.ts`). */
+  injury: INJURY,
 } as const;

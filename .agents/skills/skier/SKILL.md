@@ -154,6 +154,18 @@ when the skis he stands on are what moves.
    COUNTER-ROTATE toward the outside ski (`TWIST`), the pelvis half as far,
    by how far into the turn the hips are — never by the steer key, which
    flips in a step.
+3b. THE UPPER BODY LEADS A TURN, the knees follow: the steer key is
+   followed twice in the view's spring — quickly by the shoulders and head
+   (acceleration-capped, so a key flipped in a step snaps nothing),
+   slowly by the legs — and what the first is ahead of the second
+   (`leadOf`) leans the trunk into the new turn, crosses the hips over,
+   turns the shoulders and the head into it and carries the hands across
+   (`LEAD`), spent as the legs catch up. The engine tips the skis on the
+   first step of a turn and the boots hold the shins to them, so without
+   it the knees went in first while the hips and the head swung OUT for a
+   tenth of a second. The hips are measured from the boots as they stand
+   (`edge`), never off the body's eased tilt, which lags them.
+   `tests/skier_pose_test.ts` skis the turn and holds the order.
 4. The BACK is two spans (`SkierPose.waist`: the lumbar and the chest's),
    bent through `SPINE_ROUND` — near straight standing, rounded in the
    tuck, curled over the poles and folded by a landing.

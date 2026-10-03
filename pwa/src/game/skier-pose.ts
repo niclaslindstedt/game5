@@ -104,6 +104,7 @@ export {
   createSkierSpring,
   drawnSkiAngle,
   inStartGate,
+  leadOf,
   stepSkierSpring,
   type SkierSpring,
 } from "./skier-spring.ts";
@@ -172,6 +173,14 @@ const PITCH_TUCK = 1.25;
  * upper body that keeps facing down the fall line — so the shoulders face
  * the OUTSIDE of the turn off the skis' line, and the pelvis half as far. */
 const TWIST = 0.28;
+/** THE UPPER BODY LEADS A TURN (`SkierSpring`'s `leadOf`): a skier starts
+ * one by moving his upper body into it — the head turned, the hips crossed
+ * over toward the new turn, the shoulders and the hands carried with them
+ * — and the knees follow the skis onto their edges. At a full lead: how far
+ * the trunk leans into the turn in the world, rad, how far the hips cross
+ * over, m, how far the shoulders turn toward it, rad, how far the head
+ * looks into it, rad, and how far the hands are carried across, m. */
+const LEAD = { lean: 0.3, hips: 0.08, twist: 0.15, look: 0.4, hands: 0.1 };
 /** THE SPINE'S TWO SPANS: the lumbar's share of hips-to-neck, and how far
  * the back rounds between them, rad — standing, in a full tuck, at a
  * double pole's push and in a landing's fold (added). */
@@ -205,6 +214,9 @@ export type SkierPoseInput = {
    * carries them (`SkierSpring`, eased) — what the legs lean and the trunk
    * hinges by; `edge` and `roll` when left out. The boots stay on `edge`. */
   body?: { tilt: number; roll: number };
+  /** The upper body's lead into a turn, −1..1, right positive
+   * (`leadOf`); none when left out. */
+  lead?: number;
   /** The tuck the body is in, 0..1 (`SkierState.crouch`). */
   crouch: number;
   /** The tuck ASKED for, 0..1 (`SkierState.tuck`) — the crouch is also a
@@ -422,6 +434,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // other in a step and would snap the shoulders, the pelvis and the head
   // round at every change of edge.
   const turning = Math.max(-1, Math.min(1, input.hipRight / 0.3));
+  // THE UPPER BODY FIRST: how far his upper body has gone into a turn
+  // ahead of his legs — so the head, the hips and the shoulders go, and
+  // the knees follow.
+  const ahead = Math.max(-1, Math.min(1, input.lead ?? 0)) * (1 - air) * (1 - 0.5 * crouch);
 
   // THE FEET, on the boots: each binding where its ski stands — raised by
   // the tuck's drop and the ski's lift, out along a skate's V and up off
@@ -482,7 +498,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const legH = Math.max(0.3, rest.y - M.foot.y - drop);
   // Measured from the boots: an edged ski's cuff stands to the side of
   // where it stood flat.
-  const bootsAcross = (M.foot.y - M.ground) * Math.sin(bodyTilt);
+  const bootsAcross = (M.foot.y - M.ground) * Math.sin(edge);
   // THE KNEES GO INTO THE TURN THE SKIS ARE EDGED FOR — its side read off
   // the edge IN THE WORLD, never off the skis' tilt in the pair's frame:
   // the engine's roll of the pair runs past the edge for half a second
@@ -509,7 +525,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     bodyTilt - kneeIn * inward - out * (1 - inward),
     Math.min(bodyTilt + out * inward + kneeIn * (1 - inward), legLean0),
   );
-  const across0 = rest.x + bootsAcross + legH * Math.sin(legLeanTo) + shift;
+  const across0 = rest.x + bootsAcross + legH * Math.sin(legLeanTo) + LEAD.hips * ahead + shift;
   const along0 =
     rest.z -
     input.hipAft * 0.8 -
@@ -622,7 +638,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const legsWorld = (input.body?.roll ?? pairRoll) + legLean;
   const angulate =
     Math.min(0.6, ANGULATE_SHARE * Math.abs(legsWorld)) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
-  const roll = legsWorld - Math.sign(legsWorld) * angulate - pairRoll + gait.roll + J.sway;
+  const roll =
+    legsWorld - Math.sign(legsWorld) * angulate - pairRoll + LEAD.lean * ahead + gait.roll + J.sway;
   const spineDir: V3 = {
     x: Math.sin(roll) * Math.cos(pitch),
     y: Math.cos(roll) * Math.cos(pitch),
@@ -649,7 +666,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const neck = add(waist, scale(upperDir, thoracic));
   // The head held up to look down the hill: the neck bends back out of a
   // tuck's pitch, and turns into the turn.
-  const look = turning * 0.35 + glance;
+  const look = turning * 0.35 + LEAD.look * ahead + glance;
   // THE EYES NEARER LEVEL: whatever the body leans, a skier holds his
   // eyes toward the horizon — the head rolls back off the trunk's lean in
   // the WORLD (the pair's own roll, `input.roll`, and the trunk's on it)
@@ -671,7 +688,11 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // The shoulders face on down the hill while a hockey stop throws the
   // skis across under them.
   const twist =
-    -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid + 0.5 * gait.twist + J.twist;
+    -turning * TWIST * (1 - 0.5 * crouch) +
+    LEAD.twist * ahead -
+    skiAngle * 0.5 * skid +
+    0.5 * gait.twist +
+    J.twist;
   const across: V3 = norm({
     x: Math.cos(roll) * Math.cos(twist),
     y: -Math.sin(roll),
@@ -743,6 +764,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     const polesX =
       h.x +
       hips.x * 0.6 +
+      LEAD.hands * ahead +
       side * 0.1 * air +
       side * TURN_PLANT.reach.x * reachOf(i) +
       armW * side * POLE_WIDE;

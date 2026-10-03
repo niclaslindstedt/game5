@@ -62,6 +62,16 @@ export type SkierSpring = {
   edgeRate: number;
   roll: number;
   rollRate: number;
+  /** THE UPPER BODY'S LEAD into a turn: the steer key (−1..1, right
+   * positive) followed twice — quickly by his shoulders and head
+   * (`upper`), slowly by his legs (`lower`), each with its rate. What `upper` is ahead of `lower` is the lead
+   * (`leadOf`): a skier starts a turn by moving his upper body into it,
+   * and the knees follow the skis (`skier-pose.ts`'s `LEAD`). None at a
+   * crawl, in the air, braking or thrown. */
+  upper: number;
+  upperRate: number;
+  lower: number;
+  lowerRate: number;
   /** THE SAVE as his body makes it (`skier-save.ts`): the shape a near fall
    * throws him into, followed on a spring so it comes on and goes as a
    * motion, and one save cut short by the next does not jump. */
@@ -105,6 +115,10 @@ export type SpringRide = {
   drive: number;
   hipRight: number;
   roll: number;
+  /** The steer key and the skid's share (`SkierState.steer` / `.skid`) —
+   * what the upper body's lead is read off; none when left out. */
+  steer?: number;
+  skid?: number;
   /** What he last nearly fell to (`SkierState.save`). */
   save?: Save | null;
   /** The skid's pivot, rad (`SkierState.skiAngle`); none when left out. */
@@ -136,6 +150,14 @@ const KEEP_FOLLOW = 12;
  * its roll, rad/s — a spring
  * some seventy milliseconds slow, critically damped. */
 const HIP_FOLLOW = 30;
+/** THE LEAD: how quickly the upper body and the legs follow the key,
+ * rad/s (the legs some 200 ms behind it — the engine's own lag and the
+ * edge's tip together), the most the upper body is accelerated by, /s²
+ * (the key flips in a step; this is what keeps the shoulders from
+ * snapping after it — some 0.15 s from straight to a full lead), and the
+ * speeds the lead comes in between, m/s: at a crawl the skis are turned
+ * on their bases and he leads with nothing. */
+const LEAD = { upper: 40, lower: 10, most: 180, from: 2, to: 6 };
 
 /** THE PLANT'S TIMING: the edge a turn is read as begun past (rad), so a
  * flat run's chatter starts nothing; the least a
@@ -193,6 +215,10 @@ export function createSkierSpring(offset = 0): SkierSpring {
     edgeRate: 0,
     roll: 0,
     rollRate: 0,
+    upper: 0,
+    upperRate: 0,
+    lower: 0,
+    lowerRate: 0,
     jolt: { ...NO_JOLT },
     joltRate: { ...NO_JOLT },
     skiAngle: 0,
@@ -208,21 +234,38 @@ export function createSkierSpring(offset = 0): SkierSpring {
 }
 
 /** One reading followed on a critically damped spring of `w` rad/s: its
- * value and rate after `dt` s toward `to`. */
-function follow(v: number, rate: number, to: number, dt: number, w = HIP_FOLLOW): [number, number] {
+ * value and rate after `dt` s toward `to`, accelerated by `most` /s² at
+ * most. */
+function follow(
+  v: number,
+  rate: number,
+  to: number,
+  dt: number,
+  w = HIP_FOLLOW,
+  most = Number.POSITIVE_INFINITY,
+): [number, number] {
   const n = Math.max(1, Math.ceil(dt / (1 / 240)));
   const h = dt / n;
   for (let i = 0; i < n; i++) {
-    rate += (w * w * (to - v) - 2 * w * rate) * h;
+    const acc = w * w * (to - v) - 2 * w * rate;
+    rate += Math.max(-most, Math.min(most, acc)) * h;
     v += rate * h;
   }
   return [v, rate];
 }
 
-/** The hips' shift, the edge, the roll and the skid's pivot followed
- * (`SkierSpring.hip`, `.edge`, `.roll`, `.skiAngle`) — taken as they are
- * on the first ride read. */
-function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
+/** The share of the upper body's lead his riding allows, 0..1: on the
+ * snow, on his skis, moving, and not braking. */
+function leadShare(ride: SpringRide, airborne: boolean): number {
+  if (airborne || ride.thrown) return 0;
+  const k = Math.max(0, Math.min(1, (ride.speed - LEAD.from) / (LEAD.to - LEAD.from)));
+  return k * k * (3 - 2 * k) * (1 - Math.min(1, ride.skid ?? 0));
+}
+
+/** The hips' shift, the edge, the roll, the upper body's lead and the
+ * skid's pivot followed (`SkierSpring.hip`, `.edge`, `.roll`, `.upper` and
+ * `.lower`, `.skiAngle`) — taken as they are on the first ride read. */
+function stepBody(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
   if (Number.isNaN(s.hip)) {
     s.hip = ride.hipRight;
     s.edge = ride.edge;
@@ -233,6 +276,9 @@ function stepBody(s: SkierSpring, ride: SpringRide, dt: number): void {
   [s.hip, s.hipRate] = follow(s.hip, s.hipRate, ride.hipRight, dt);
   [s.edge, s.edgeRate] = follow(s.edge, s.edgeRate, ride.edge, dt);
   [s.roll, s.rollRate] = follow(s.roll, s.rollRate, ride.roll, dt);
+  const key = Math.max(-1, Math.min(1, ride.steer ?? 0)) * leadShare(ride, airborne);
+  [s.upper, s.upperRate] = follow(s.upper, s.upperRate, key, dt, LEAD.upper, LEAD.most);
+  [s.lower, s.lowerRate] = follow(s.lower, s.lowerRate, key, dt, LEAD.lower);
   const to = joltOf(ride.save);
   for (const k of JOLT_KEYS) {
     [s.jolt[k], s.joltRate[k]] = follow(s.jolt[k], s.joltRate[k], to[k], dt, JOLT_FOLLOW);
@@ -318,7 +364,7 @@ export function stepSkierSpring(
   s.ready = Math.max(0, Math.min(1, s.ready));
   if (ride) {
     stepPlant(s, ride, airborne, dt);
-    stepBody(s, ride, dt);
+    stepBody(s, ride, airborne, dt);
     stepPoled(s, ride, airborne, dt);
   }
   stepFlight(
@@ -362,6 +408,14 @@ export function stepSkierSpring(
     s.bump = -LEGS.extend;
     s.rate = Math.max(0, s.rate);
   }
+}
+
+/** THE UPPER BODY'S LEAD into a turn, −1..1, right positive: how far his
+ * shoulders have gone into it ahead of his legs — the most at the start of
+ * a turn (and of the next, at an edge change), none once the legs have
+ * caught up. */
+export function leadOf(s: SkierSpring): number {
+  return Math.max(-1, Math.min(1, s.upper - s.lower));
 }
 
 /** THE SKID'S PIVOT AS DRAWN: the spring's, once it has read a ride and

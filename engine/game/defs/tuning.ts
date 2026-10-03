@@ -645,14 +645,36 @@ export const TUNING = {
     saveSlip: 0.7,
     saveHold: 0.5,
     /** What he leaves with: this share of his velocity before the blow, and
-     * a climb, m/s, and a turn head over heels at his speed over
-     * `tumbleRadius` m, no faster than `maxSpin` rad/s, with `carry` of his
-     * own turning on top. */
+     * a turn at his speed over `tumbleRadius` m, no faster than `maxSpin`
+     * rad/s, with `carry` of his own turning on top. */
     keep: 0.85,
-    throwUp: 1.8,
     tumbleRadius: 2,
     maxSpin: 6,
     carry: 0.5,
+    /** WHICH WAY HE GOES OVER, by what threw him, against the way he was
+     * going: `pitch` is the share of the turn that takes his head on along
+     * it (back, negative), `side` the share that takes it over to one side
+     * of it, and `up` the climb he leaves with, m/s:
+     *   - a TRUNK stops the skis and the man goes on over them — on, and
+     *     away from the side the trunk was on;
+     *   - over the TIPS, the tips dig and he is pitched over them;
+     *   - a CAUGHT EDGE bites and stops the slide, and he is flung on over
+     *     it the way the snow was sliding — the high-side, which on skis
+     *     slid sideways is over onto his side;
+     *   - a FALL AT SPEED is the skis gone from under him: down onto the
+     *     side he was already lying toward, barely off the snow;
+     *   - a LANDING the legs could not hold sits him down BACK and to the
+     *     side, the commonest fall there is.
+     * A sideways fall turns at least `topple` rad/s whatever his speed —
+     * the turn of a man of his height going over from his feet. */
+    over: {
+      tree: { pitch: 1, side: 0.25, up: 1.8 },
+      nose: { pitch: 1, side: 0, up: 1.8 },
+      catch: { pitch: 1, side: 0.2, up: 1.2 },
+      roll: { pitch: 0.1, side: 1, up: 0.3 },
+      landing: { pitch: -0.45, side: 0.8, up: 0.2 },
+    },
+    topple: 3,
     /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,
      * the head, the knees, the feet, the elbows, the hands — held at the
      * skier's own measures (`skier-pose.ts`'s `BODY` states the same ones
@@ -676,10 +698,38 @@ export const TUNING = {
     /** Passes over the body's joints a step: enough that no limb is seen to
      * stretch. */
     iterations: 8,
-    /** THE JOINTS a body cannot pass. */
+    /** THE JOINTS a body cannot pass: the thigh `hipBack` of its length
+     * behind the hip and `hipUp` above it; a hand no nearer its shoulder
+     * than `foldArm` m; the knee and the elbow folded no tighter than
+     * `kneeFold` and `elbowFold` rad between their two bones (35° and 30° —
+     * the calf meets the thigh and the forearm the upper arm there); and
+     * no limb nearer the line of the spine than `torso` m, so an arm or a
+     * knee flung across him meets his chest rather than passing through. */
     hipBack: 0.35,
     hipUp: 0.3,
     foldArm: 0.2,
+    kneeFold: 0.6,
+    elbowFold: 0.52,
+    torso: 0.16,
+    /** THE BODY'S OWN TONE — a man falling is not a sack: the limbs are
+     * driven toward a pose by muscle, a spring of `brace` rad/s with
+     * `braceDamp` of critical damping while he is in the air (the
+     * PROTECTIVE REFLEX: the hands thrown out toward the snow he is about
+     * to meet at `reach` of the arm's length, the knees drawn up and bent),
+     * giving way at `relax` 1/s once his trunk has met the snow to the
+     * slack pose a body lies in — legs out and a little bent, arms out at
+     * his sides — held at `lie` rad/s and `lieDamp`. The muscles are inside
+     * the body, so they never move it as a whole: whatever push and twist
+     * the drive would put on the body is taken back off it (`ragdoll.ts`),
+     * and only the snow can turn him. */
+    tone: {
+      brace: 10,
+      braceDamp: 0.8,
+      lie: 2,
+      lieDamp: 1.2,
+      relax: 12,
+      reach: 0.85,
+    },
     /** THE SNOW under every point: it settles `sink` m into powder at the
      * ordinary dial (twice that at the deepest), the speed into it taken
      * away; Coulomb friction along it on the weight and on the arrival —
@@ -688,6 +738,17 @@ export const TUNING = {
      * buried in fresh snow loses a second shoving it. */
     sink: 0.15,
     frictionPacked: 0.45,
+    /** ...and the friction and the plough a point meets are not that
+     * point's alone: what touches the snow is a patch of back, side or
+     * shoulder, and this share of every point's loss is taken off the body
+     * as a whole — so a hand or a head digging in slows him rather than
+     * being a pivot to cartwheel over. */
+    patch: 0.7,
+    /** A BODY IS NOT A WHEEL: what meets the snow is a back, a side, a
+     * shoulder — a broad patch, never a point to pivot over — so while his
+     * trunk is on it the snow takes this share of his turning a second, on
+     * top of the friction at each point. */
+    spinDrag: 3,
     frictionPowder: 0.8,
     plough: 1.2,
     /** A point put back on the snow from under it keeps no more than this

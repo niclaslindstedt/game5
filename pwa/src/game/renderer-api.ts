@@ -44,10 +44,6 @@ export interface WorldRenderer {
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */
   setDeathCam(on: boolean): void;
-  /** The time rate the death cam asks the run to be stepped at, 0..1 — 1
-   * whenever it is idle or not let in. What it returns is what the next
-   * `draw`'s `dt` is taken to have been slowed by. */
-  timeRate(): number;
   /** Wait for the GPU to finish everything asked of it, and say how long
    * that took, ms — what the first-visit probe times a frame with. */
   drain(): number;

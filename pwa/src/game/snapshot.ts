@@ -127,6 +127,10 @@ export type HudSnapshot = {
   /** BOGGED: the skier is sunk to the knees in powder (`trench.ts`) and
    * must pole out — the standing hint, up while he is. */
   stuck: boolean;
+  /** DOWN: the skier is off his skis (`crash.ts`'s `Thrown`) — the reset
+   * lit from the step he is thrown, so a skier who wants to be back on the
+   * piste at once sees the press that does it. */
+  down: boolean;
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
@@ -233,6 +237,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     standings: p.finished ? standingsOf(state) : null,
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
+    down: c.thrown !== null,
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],

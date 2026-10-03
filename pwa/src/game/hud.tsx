@@ -110,7 +110,7 @@ export function Hud({
       onPause={onPause}
       onReset={onReset}
       onCamera={onCamera}
-      missed={snap.missed !== null}
+      lit={snap.missed !== null || snap.down}
     />
   );
   const thumbs = touch && (

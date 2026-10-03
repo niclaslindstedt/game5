@@ -663,10 +663,10 @@ export function App() {
 
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is fewer steps per frame and nothing else: the replay's
-      // director (`replay-shots.ts`) and the death cam (`camera-death.ts`).
+      // SLOW MOTION is the replay director's alone (`replay-shots.ts`): fewer
+      // steps per frame. A wipeout runs at full speed (`camera-death.ts`).
       renderer.setDeathCam(playerRides(shellRef.current));
-      const rate = replays.frame() * renderer.timeRate();
+      const rate = replays.frame();
       const dtRun = dtFrame * rate;
       const simAt = performance.now();
       if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));

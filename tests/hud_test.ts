@@ -11,12 +11,21 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { TUNING, botInput, createGame, step, type GameEvent, type GameState } from "@engine";
+import {
+  NEUTRAL_INPUT,
+  TUNING,
+  botInput,
+  createGame,
+  placeRun,
+  step,
+  type GameEvent,
+  type GameState,
+} from "@engine";
 
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import { gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
-import { syntheticLevel } from "./support/synthetic.ts";
+import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 /** A race on the slope, three rivals on the start line and the lights on. */
 function race(): GameState {
@@ -122,6 +131,20 @@ describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
     state.skier.damage.ski[1] = 0.4;
     state.skier.damage.legs = 0.25;
     expect(takeSnapshot(state).damage).toEqual({ skiLeft: 0, skiRight: 0.4, legs: 0.25 });
+  });
+
+  it("lights the reset the step the skier is thrown, and puts it out when he is stood up", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 30, heading: 0, speed: 50 / 3.6 });
+    expect(takeSnapshot(state).down).toBe(false);
+    const tuck = { ...NEUTRAL_INPUT, tuck: 1 };
+    for (let i = 0; i < 6 * TUNING.physicsHz && !state.skier.thrown; i++) step(state, tuck);
+    expect(state.skier.thrown).not.toBeNull();
+    expect(takeSnapshot(state).down).toBe(true);
+    // The press it lights answers at once.
+    step(state, { ...NEUTRAL_INPUT, reset: true });
+    expect(state.skier.thrown).toBeNull();
+    expect(takeSnapshot(state).down).toBe(false);
   });
 
   it("says BOGGED while the skier is sunk in, and not while he is thrown off", () => {

@@ -33,7 +33,10 @@
 // the skier's shadow at every height of the face; `chase-<s>` at any
 // second), orbit, and last, staged rather
 // than ridden to: wipeout and wipeout-lie (the player put into the nearest
-// trunk flat out, then where the skier came to rest); then the wildlife:
+// trunk flat out, then where the skier came to rest) — and before them,
+// `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
+// crash drawn from one lens planted square to his line, the frames of one
+// fall; then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
 // on a fox's round, the player stood off it so the fine trail map is over it);
@@ -127,7 +130,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")})`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s> and fall-<s> at any time)`,
     },
     quality: {
       kind: "string",
@@ -257,7 +260,13 @@ const wanted = args.views ? args.views.split(",").map((v) => v.trim()) : VIEWS;
 // in the order of its clock.
 const isChase = (v) => /^chase-\d+$/.test(v);
 const chases = wanted.filter(isChase).sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)));
-const order = VIEWS.flatMap((v) => (v === "chase-60" ? chases : isChase(v) ? [] : [v]));
+// A fall view (`fall-0.4`) rides just before the wipeout's, in the order
+// of its clock: the frames of one fall.
+const isFall = (v) => /^fall-\d+(\.\d+)?$/.test(v);
+const falls = wanted.filter(isFall).sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)));
+const order = VIEWS.flatMap((v) =>
+  v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
+);
 for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();
   const shot = await page.evaluate((name) => globalThis.__world.shoot(name), view);

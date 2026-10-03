@@ -262,8 +262,15 @@ export type Thrown = {
    * where they were a step ago — the velocity is the difference. */
   points: number[];
   last: number[];
-  /** Some part of him on the snow this step. */
+  /** Some part of him on the snow this step — and which, one bit a point
+   * in `RAGDOLL` order: a limb planted in the snow yields, and the muscles
+   * leave it be (`ragdoll.ts`). */
   touching: boolean;
+  planted: number;
+  /** Seconds since his trunk — the hips, the shoulders or the head — first
+   * came down on the snow, or −1 while it has not: what the muscles' brace
+   * gives way on (`crash.tone`). */
+  down: number;
   /** Seconds he has lain STILL on the snow — every point under
    * `crash.restSpeed`, touching — without a break: what the reset waits on. */
   still: number;

@@ -92,10 +92,13 @@ export type CreateGameOptions = {
    * line's first slot when left out. Ignored by every other mode, which
    * starts on the line. */
   spawn?: { x: number; z: number };
-  /** A FREE RIDE begun ON A LIFT (`arriveByLift`): seated on the chair whose
-   * run passes nearest `spawn` (or the start line), carried to its top and
-   * led off it toward that run. A map with no chair to ride starts at
-   * `spawn` as ever. Ignored by every other mode. */
+  /** A FREE RIDE begun ON A LIFT (`arriveByLift`): carried up the lift to
+   * the top of the course's first run (R28 — the colour asked for, on
+   * whatever lift serves it), or, with a `spawn`, seated on the chair whose
+   * run passes nearest it, and led off the top toward that run. A map with
+   * no lift to ride starts at `spawn` as ever. Ignored by every other mode
+   * (the app asks for it only without a spot: a spot picked is where the
+   * ride starts). */
   byLift?: boolean;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's. 1 when left out. */
@@ -180,8 +183,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       : gridSlot(state, 0);
   standSkier(state, at.x, at.z, at.heading);
   if (options.mode === "free" && options.byLift) {
-    const spot = options.spawn ?? level.spawn;
-    arriveByLift(state, spot.x, spot.z);
+    if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
+    else {
+      // With no spot, up the lift to the top of the course this map's
+      // colour chose (R28) — the run the start card marks — whatever kind
+      // of lift serves it.
+      const resort = level.resort;
+      const course = resort?.courses.find((c) => c.id === resort.course);
+      arriveByLift(state, level.spawn.x, level.spawn.z, course?.runs[0]);
+    }
   }
   if (rules.rivals > 0) createRivals(state, rules.rivals);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);

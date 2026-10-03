@@ -164,6 +164,7 @@ export function freeGameOptions(
   seed: number,
   skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
 ): CreateGameOptions {
+  const spot = spotOn(ride, seed);
   return {
     seed,
     spec: skier.spec,
@@ -182,10 +183,12 @@ export function freeGameOptions(
       dayOfYear: SEASONS.find((s) => s.id === ride.season)?.day ?? null,
     },
     sky: ride.weather === null ? undefined : { weather: ride.weather },
-    spawn: spotOn(ride, seed) ?? undefined,
-    // ONTO THE MOUNTAIN BY CHAIR (`lift-ride.ts`): up the lift whose run
-    // passes nearest the spot, and led off its top onto that run.
-    byLift: true,
+    spawn: spot ?? undefined,
+    // A SPOT PICKED ON THE CHART IS WHERE THE RIDE STARTS: stood on the snow
+    // there, never carried up a lift to the top of the run beside it. With no
+    // spot it comes onto the mountain BY CHAIR (`lift-ride.ts`): up the lift
+    // whose run passes nearest the start line, led off its top onto that run.
+    byLift: spot === null,
   };
 }
 

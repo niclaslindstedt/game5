@@ -543,7 +543,10 @@ export type LiftRide = {
   /** Where he came into the zone from (`board`), or where the carrier
    * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
   from: { x: number; y: number; z: number; heading: number };
-  lead: { run: number; s: number; until: number } | null;
+  /** The run he is led to, his arc along it, the arc he is let go at and
+   * the seconds the lead may take (`lift.leadFor`, longer to a run that
+   * starts far off the pad). */
+  lead: { run: number; s: number; until: number; time: number } | null;
 };
 
 export type GameEvent =

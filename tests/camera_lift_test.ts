@@ -28,7 +28,7 @@ function ride(phase: LiftRide["phase"], t = 0, kind: LiftRide["kind"] = "chair")
     t,
     tower: 1,
     from: { x: 0, y: 0, z: 0, heading: 0 },
-    lead: phase === "lead" ? { run: 0, s: 0, until: 40 } : null,
+    lead: phase === "lead" ? { run: 0, s: 0, until: 40, time: 26 } : null,
   };
 }
 

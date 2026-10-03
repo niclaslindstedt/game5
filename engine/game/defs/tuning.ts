@@ -764,7 +764,9 @@ export const TUNING = {
    * after `leadFor` s, joins the run at its nearest point `drop` m or more
    * below him (within `joinFar` m — the free ride picks a run off a chair
    * it can be joined from, a metres-off-the-spot penalty `noJoin` on any
-   * other), aims `aim` m on down it, steers `steer` per rad
+   * other; a run pinned by its colour, off whatever lift, is made for
+   * within `joinReach` m where it cannot be joined nearer, the lead given
+   * a second more for every `leadPace` m past `joinFar`), aims `aim` m on down it, steers `steer` per rad
    * off it, pushes on the poles under `push` m/s and reads the run `window`
    * m on and `back` m back of his last place; a control past `touch` takes
    * it; it rounds a station house with `houseGap` m to spare, and off a
@@ -797,6 +799,8 @@ export const TUNING = {
     leadNear: 40,
     drop: 2,
     joinFar: 120,
+    joinReach: 320,
+    leadPace: 2,
     noJoin: 2000,
     leadFar: 90,
     leadFor: 26,

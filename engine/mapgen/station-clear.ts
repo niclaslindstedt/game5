@@ -45,7 +45,7 @@ const SLIDES = [0, 6, -6, 12, -12, 18, -18, 26, -26, 34, -34, 44, -44, 56, -56, 
  * it was, m, on as many bearings (access holds it to the starts it
  * serves), and its foot slid this far either way across, m, every `step`. */
 const DRAG_TOP = { reach: [0, 15, 30, 45, 60, 75, 95, 120, 150], bearings: 12 };
-const DRAG_FOOT = { reach: 180, step: 10, up: [0, 0.25, 0.45] };
+const DRAG_FOOT = { reach: 180, step: 10, up: [0, 0.25, 0.45, 0.6, 0.72] };
 
 /** The step a footprint and a drag's line are read at, m; how far off a
  * run's surface a station keeps, m; the most the ground may fall across a

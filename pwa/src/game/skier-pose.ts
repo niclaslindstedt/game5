@@ -94,11 +94,11 @@ import {
   bootFrame,
   bootKnee,
   CUFF,
+  hipsOver,
   kneeRoom,
   pelvisAxis,
   solveLimb,
   turnAbout,
-  type Boot,
 } from "./skier-limbs.ts";
 
 export { STILL_GAIT, gaitOf, type Gait } from "./skier-gait.ts";
@@ -107,11 +107,14 @@ export {
   drawnSkiAngle,
   inStartGate,
   leadOf,
+  pitchHeld,
   stepSkierSpring,
   type SkierSpring,
 } from "./skier-spring.ts";
 
 export type { V3 } from "./skier-vec.ts";
+import type { SkierPose } from "./skier-joints.ts";
+export type { SkierPose } from "./skier-joints.ts";
 import { MOUNTS, type Mounts } from "./skier-mounts.ts";
 export { MOUNTS, mountsFor, type Mounts } from "./skier-mounts.ts";
 export { solveLimb, type Boot } from "./skier-limbs.ts";
@@ -277,44 +280,14 @@ export type SkierPoseInput = {
   trick?: TrickPose | null;
   /** THE SAVE his body is making (`skier-save.ts`), or none. */
   jolt?: Jolt;
+  /** How far his trunk is held off the skis' pitch, rad — further forward
+   * of skis rocked back under him over a bump (`pitchHeld`). */
+  pitchHeld?: number;
   /** THE FALL his body is riding (`skier-flight.ts`), or none. */
   flight?: FlightShape;
   /** Whether he has his poles (`SkierState.poles`); with them when left out. */
   poles?: boolean;
   mounts?: Mounts;
-};
-
-export type SkierPose = {
-  hips: V3;
-  /** The hip joints, left and right — the pelvis turned with the skis. */
-  hipJoints: [V3, V3];
-  /** The small of the back, where the lumbar span meets the chest's. */
-  waist: V3;
-  neck: V3;
-  head: V3;
-  /** Trunk pitch forward, rad, and roll toward the skier's right, rad. */
-  pitch: number;
-  roll: number;
-  /** The head's roll in the pair's frame, rad, right side down positive —
-   * nearer the horizon than the trunk's. */
-  headRoll: number;
-  knees: [V3, V3];
-  /** Each leg's end where the figure's own cloth stops: the top of the
-   * boot's cuff. */
-  feet: [V3, V3];
-  /** Each FOOT's frame — the boot on its ski on the snow, turned and
-   * tipped with it; thrown, the foot at the end of his shin, its sole
-   * square to it. The feet (in the boots' liners) ride it, so on the skis
-   * they sit hidden in the shells and thrown they go with him. */
-  boots: [Boot, Boot];
-  shoulders: [V3, V3];
-  elbows: [V3, V3];
-  hands: [V3, V3];
-  /** Each pole's basket end, or null with the poles gone (a thrown skier
-   * has let go of them). */
-  poles: [V3, V3] | null;
-  /** How far the skier looks into the turn, rad (positive to his right). */
-  look: number;
 };
 
 /** How far a double-pole's push folds the trunk further over, rad — a
@@ -371,7 +344,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const tip = Math.sin(input.incline ?? 0) * Math.sin(skiAngle);
   const lift = input.lift ?? [0, 0];
   const drop = input.drop ?? clamp01(input.crouch) * M.crouchDrop;
-  const gait = input.airborne ? STILL_GAIT : (input.gait ?? STILL_GAIT);
+  // Over a hop the gait handed in is still his stroke (`flying`); with no
+  // eased air handed in, any air stills it.
+  const gait = input.airborne && input.air === undefined ? STILL_GAIT : (input.gait ?? STILL_GAIT);
   const carve = clamp01(input.carve ?? 0);
   // In the start gate the brake is the wand holding him, not a skid to draw.
   const ready = clamp01(input.ready ?? 0) * (1 - clamp01(input.air ?? 0));
@@ -460,10 +435,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     };
     return add(base, add(scale(boot.n, cuff), scale(boot.f, M.foot.z)));
   }) as [V3, V3];
-  // The feet's average height: the hips stand over it — a skier hanging in
-  // the air with his legs long is not folded by his own lift. (Skating,
-  // the gait has put the feet under him: his weight over the gliding ski.)
-  const feetLift = (lift[0] + lift[1]) / 2;
+  // The feet's average lift: the LEGS TAKE IT (`hipsOver`). (Skating, the
+  // gait has put the feet under him: his weight over the gliding ski.)
+  const hipsLift = hipsOver((lift[0] + lift[1]) / 2);
 
   // THE HIPS: over the feet standing, down and back in a tuck, inside the
   // turn by the engine's angulation, aft of nominal by the engine's shift,
@@ -547,7 +521,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     x: across0 * pc + along0 * ps,
     y:
       rest.y +
-      feetLift * 0.5 -
+      hipsLift -
       legH * (1 - Math.cos(legLeanTo)) -
       bump +
       AIR_SINK * air -
@@ -621,6 +595,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     breath +
     J.lurch +
     (F?.pitch ?? 0) +
+    (input.pitchHeld ?? 0) +
     Math.asin(Math.min(1, raise / BODY.spine));
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
   // into the turn with a hinge at the hips — the legs lean in with the
@@ -777,7 +752,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       armW * side * POLE_WIDE;
     // Off the stance, or — working the poles — off the shoulder, which
     // already rides the hips' sink and the legs' fold.
-    const own = h.y + feetLift * 0.3 - bump * 0.5 - sink;
+    const own = h.y + hipsLift * 0.6 - bump * 0.5 - sink;
     const toArm = {
       y: armW * (shoulders[i].y - own) + armLength * (arms * double.y + gateW * planted.y),
       z: armW * (shoulders[i].z - h.z) + armLength * (arms * double.z + gateW * planted.z),
@@ -786,7 +761,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       x: polesX,
       y:
         h.y +
-        feetLift * 0.3 -
+        hipsLift * 0.6 -
         bump * 0.5 -
         sink +
         fidget[i] -

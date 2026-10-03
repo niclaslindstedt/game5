@@ -47,7 +47,17 @@ function ski(
     step(state, input(state.t - t0));
     if (i % 2 === 0) continue;
     const c = state.skier;
-    stepSkierSpring(legs, c.vy, c.airborne, 2 * TUNING.dt, c.jumpLoad / TUNING.jump.full, c);
+    stepSkierSpring(
+      legs,
+      c.vy,
+      c.airborne,
+      2 * TUNING.dt,
+      c.jumpLoad / TUNING.jump.full,
+      c,
+      false,
+      undefined,
+      (gearLift(c)[0] + gearLift(c)[1]) / 2,
+    );
     look(state, legs, state.t - t0);
   }
 }

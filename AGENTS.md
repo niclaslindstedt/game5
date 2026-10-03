@@ -43,7 +43,7 @@ npm install       # everything resolves from the public npm registry
 make build        # typecheck (both programs) + production build (pwa/dist/)
 make test         # vitest over the engine and the DOM-free app modules (SHARD=i/N slices it; CI runs six)
 make lint         # eslint + typecheck, zero warnings
-make fmt          # prettier in place; fmt-check is what CI runs
+make fmt          # prettier in place over the code and config (never Markdown — .prettierignore); fmt-check is what CI runs
 make hooks        # install pre-commit + commit-msg hooks
 make icons        # regenerate icons/favicon from the app mark
 make tauri-test   # the desktop shell's decision layer (Rust; needs no GUI libraries)

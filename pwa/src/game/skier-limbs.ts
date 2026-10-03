@@ -142,3 +142,21 @@ export function turnAbout(v: V3, axis: V3, a: number): V3 {
     z: v.z * c + (axis.x * v.y - axis.y * v.x) * s + axis.z * k,
   };
 }
+
+/** How far either side of nought the legs' hang is eased into, m: a
+ * corner there in the hips' and the hands' height is a snap each time his
+ * weight passes from ski to ski. */
+const HANG_EASE = 0.03;
+
+/** THE LEGS TAKE THE SKIS' LIFT, m: skis brought up toward him by the
+ * engine's legs (`lift`, the two skis' mean) fold his knees and leave his
+ * hips where his mass is — the spring legs a skier rides bumps on — but a
+ * skier hanging in the air with his legs long is not stretched straight by
+ * them: his hips come down half of that, the corner at nought rounded over
+ * `HANG_EASE`. */
+export function hipsOver(lift: number): number {
+  const w = HANG_EASE;
+  if (lift <= -w) return lift / 2;
+  if (lift >= w) return 0;
+  return -((w - lift) * (w - lift)) / (8 * w);
+}

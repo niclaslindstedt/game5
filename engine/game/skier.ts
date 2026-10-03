@@ -77,7 +77,7 @@ import {
 import { carveCurvature, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
-import { driveReach, glideYaw, poleForce, skateWork, strideRate } from "./poles.ts";
+import { climbShare, driveReach, glideYaw, poleForce, skateWork, strideRate } from "./poles.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -207,6 +207,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     bodySide: 0,
     save: null,
     resilience: 1,
+    poles: true,
     thrown: null,
     damage: { ski: [0, 0], legs: 0 },
     body: freshBody(),
@@ -298,14 +299,16 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.drive = approach(c.drive, working, P.rate * dt);
   // Read off the SPEED, not the way: a skier sliding sideways at 80 km/h has
   // no way along his skis and no business pushing on them.
-  if (c.drive > 0 && driveReach(speed0) > 0) c.stride += strideRate(speed0) * c.drive * dt;
+  if (c.drive > 0 && driveReach(speed0, c.poles) > 0) {
+    c.stride += strideRate(speed0, c.poles) * c.drive * dt;
+  }
   // SKATING, he rides the gliding ski's line (`glideYaw`): the snow grips
   // him along it and the push drives him along it, below — and the push's
   // SIDEWAYS share is what carries his way from one arm of the V to the
   // other, so the way is turned with the line, its speed kept: the leg
   // pays for the turn, the snow is not asked to scrub it out of him.
   const glide0 = c.glide;
-  c.glide = glideYaw(c.stride, speed0, skateWork(c.drive, speed0));
+  c.glide = glideYaw(c.stride, speed0, skateWork(c.drive, speed0, c.poles));
   if (!c.airborne && c.thrown === null && c.glide !== glide0) {
     const turn = c.glide - glide0;
     const cos = Math.cos(turn);
@@ -323,7 +326,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // from the step he means to work, not once the drive has come up, or a
   // skier sent off at GO with the tuck held folds down and is stood back
   // up again before his first push.
-  const tucked = c.tuck * (1 - Math.max(c.drive, working) * driveReach(speed0));
+  const tucked = c.tuck * (1 - Math.max(c.drive, working) * driveReach(speed0, c.poles));
   c.crouch = approach(c.crouch, Math.max(tucked, load), K.crouchRate * dt);
   const drop = spec.crouchDrop * c.crouch;
   const k = Math.min(1, dt / K.lag);
@@ -423,7 +426,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // (`trench.ts`) — each exactly 1 on a sound skier out of any hole.
   const soft = springShare(c);
   const dampen = dampShare(c);
-  const bite = trenchGrip(c.trench);
+  // ...less up a rise with no poles to brace the push (`climbShare`).
+  const bite = trenchGrip(c.trench) * climbShare(c.pitch, c.poles);
   // How much of the edge the ski's tilt buys: a flat ski slides on a share
   // of it, a ski stood right up bites with all of it.
   const edgeShare =
@@ -631,7 +635,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     strained += load;
     // THE DRIVE pushes along the skis, under the boots, at a crawl.
     if (p.station === "mid")
-      along += (bite * poleForce(spec, speed0, packed, c.drive, c.stride)) / 2;
+      along += (bite * poleForce(spec, speed0, packed, c.drive, c.stride, c.poles)) / 2;
     push(
       cx,
       cy,

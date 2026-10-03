@@ -10,6 +10,9 @@
 // picks the piece, and the piece is the colours it comes in — as a pair of
 // skis is its topsheet. It WRITES `settings.outfit`; DONE (or the way
 // back) is the ski card again, and RIDE is there.
+//
+// POLES: NONE is the hard mode (`carriesPoles`) — the one pick that is
+// more than a look, so the card says what it costs under the rows.
 
 import { useEffect, useRef } from "preact/hooks";
 import { skisById, type SkiId } from "@engine";
@@ -17,7 +20,7 @@ import { skisById, type SkiId } from "@engine";
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
 import { SkisPage } from "./menu-skis.tsx";
 import type { Settings } from "./settings.ts";
-import { GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
+import { carriesPoles, GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
 import type { SkisTurntable } from "./ski-turntable.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -109,6 +112,11 @@ export function DressPage({
                 onPick={(id) => onOutfit({ ...outfit, [slot]: id })}
               />
             ))}
+            {!carriesPoles(outfit) && (
+              <p class="dress-note" role="note" data-menu="dress-no-poles">
+                {STRINGS.dressNoPoles}
+              </p>
+            )}
           </div>
         </div>
       </MenuBody>

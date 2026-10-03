@@ -252,6 +252,7 @@ const args = parseArgs(
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     trial: { kind: "flag", help: "a time trial rather than a race (?mode=trial)" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
+    "no-poles": { kind: "flag", help: "the player skis without poles, the hard mode (?poles=0)" },
     viewport: {
       kind: "string",
       default: "all",
@@ -260,7 +261,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -406,13 +407,15 @@ if (args.surface) {
     if (args.video !== undefined) params.video = String(args.video);
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
+    if (args["no-poles"]) params.poles = "0";
     // A surface that rides a run (`free`) is held at `--t` when given.
     if (args.t !== undefined && params.t !== undefined) params.t = String(args.t);
     for (const v of viewports)
       await capture(
         `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
-          `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}`,
+          `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
+          `${args["no-poles"] ? "-nopoles" : ""}`,
         params,
         v,
         surface,
@@ -456,6 +459,7 @@ if (args.surface) {
         if (args.grade !== undefined) params.grade = String(args.grade);
         if (args.trial) params.mode = "trial";
         if (args.tricks) params.mode = "tricks";
+        if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
@@ -466,6 +470,7 @@ if (args.surface) {
           `${args.t !== undefined ? `-t${args.t}` : ""}` +
           `${args.camera !== undefined ? `-${args.camera}` : ""}` +
           `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}` +
+          `${args["no-poles"] ? "-nopoles" : ""}` +
           `${args.pose !== undefined ? "-posed" : ""}${hold !== undefined ? `-hold${hold}-${args.move}` : ""}`;
         for (const v of viewports) await capture(name, params, v);
       }

@@ -22,6 +22,11 @@
 // ahead of the knees) — and a frame outside one is a FAULT. The table is a
 // move a row, the mean of each reading over the move's window, and the
 // share of frames at fault: the lab's answer is that share going down.
+// Beside the means, two readings of the LEGS AS SPRINGS: `kneeR` the knees'
+// range over the window, and `ride` how much of the boots' bounce the head
+// keeps (% — near 100 a body bolted to its skis, near 0 a head riding on
+// level while the knees work); and every joint's SNAP is judged in the
+// world, where the eye sees it.
 //
 //   node scripts/skier-metrics.mjs                    every move, the table
 //   node scripts/skier-metrics.mjs --move=carve,tuck  those moves
@@ -249,6 +254,48 @@ const BANDS = [
   },
 ];
 
+/** A body-frame point turned by the body's quaternion `q`. */
+function rot(q, v) {
+  const tx = 2 * (q.y * v.z - q.z * v.y);
+  const ty = 2 * (q.z * v.x - q.x * v.z);
+  const tz = 2 * (q.x * v.y - q.y * v.x);
+  return {
+    x: v.x + q.w * tx + (q.y * tz - q.z * ty),
+    y: v.y + q.w * ty + (q.z * tx - q.x * tz),
+    z: v.z + q.w * tz + (q.x * ty - q.y * tx),
+  };
+}
+
+/** The joints `poseTravel` reads, stood in the world off the skier `c`. */
+function inWorld(pose, c) {
+  const at = (v) => {
+    const r = rot(c.q, v);
+    return { x: c.x + r.x, y: c.y + r.y, z: c.z + r.z };
+  };
+  const out = { hips: at(pose.hips), neck: at(pose.neck), head: at(pose.head) };
+  for (const k of ["knees", "feet", "shoulders", "elbows", "hands"]) out[k] = pose[k].map(at);
+  return out;
+}
+
+const mid3 = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
+
+/** HOW MUCH OF THE SKIS' BOUNCE THE BODY TAKES: the head's world height
+ * and the boots', each less its own running mean over half a second (the
+ * slope he rides, and the rollers slow enough for the body to follow),
+ * and the head's left-over motion as a share of the boots', % — near 100
+ * a body bolted to its skis, near 0 a head riding level while the legs
+ * work. Null with too little bounce under him to read. */
+function rideShare(frames) {
+  const hp = (get) =>
+    frames.map((f, i) => {
+      const w = frames.slice(Math.max(0, i - 15), i + 16);
+      return get(f.m) - w.reduce((a, x) => a + get(x.m), 0) / w.length;
+    });
+  const rms = (v) => Math.sqrt(v.reduce((a, x) => a + x * x, 0) / Math.max(1, v.length));
+  const feet = rms(hp((m) => m.feetY));
+  return feet < 0.02 ? null : (100 * rms(hp((m) => m.headY))) / feet;
+}
+
 /** One move skied through the real engine and the game's pose taken off
  * every other step, its body's spring stepped as the game steps it. */
 function measure(move) {
@@ -290,6 +337,7 @@ function measure(move) {
           : null,
         gravity: E.flightGravity(state.rules),
       },
+      G.legsLift(c),
     );
     lastT = now;
     if (c.thrown) continue;
@@ -349,12 +397,21 @@ function measure(move) {
     const ph = gait.stride > 0.5 ? (gait.phase + (gait.push ? 1 : 0)) / 2 : gait.phase;
     const mid = gait.stride > 0.5 ? [0.08, 0.18] : [0.27 * duty, 0.73 * duty];
     m.pushing = ph % 1 >= mid[0] && ph % 1 <= mid[1] && duty > 0;
-    const moved = last ? poseTravel(last, pose, prev) : { travel: 0, joint: "", snap: 0 };
+    // THE BODY ON ITS LEGS, in the world: how high the head and the boots
+    // stand, m — what the `ride` column high-passes and sets side by side.
+    m.headY = c.y + rot(c.q, pose.head).y;
+    m.feetY = c.y + rot(c.q, mid3(pose.feet[0], pose.feet[1])).y;
+    // A JOINT'S MOTION IS JUDGED IN THE WORLD, where the eye sees it — the
+    // lens's height rides a spring of its own (`camera-rigs.ts`) — not in
+    // the body frame, which the engine's centre of gravity jolts: a head
+    // held level while the legs take a bump stands still on the screen.
+    const seen = inWorld(pose, c);
+    const moved = last ? poseTravel(last, seen, prev) : { travel: 0, joint: "", snap: 0 };
     m.travel = moved.travel;
     m.snap = moved.snap;
     m.joint = moved.snap > 0.03 ? moved.snapped : moved.joint;
     prev = last;
-    last = pose;
+    last = seen;
     if (now < move.window[0] || now > move.window[1]) continue;
     frames.push({ t: now, skier: { ...c }, waiting: P.inStartGate(state), m });
   }
@@ -403,6 +460,11 @@ function measure(move) {
       ),
       outside: mean((m) => (m.outside === 0.5 ? null : m.outside * 100)),
       snap: Math.max(...frames.map((f) => f.m.snap)),
+      kneeR: frames.length
+        ? Math.max(...frames.map((f) => Math.max(...f.m.knee))) -
+          Math.min(...frames.map((f) => Math.min(...f.m.knee)))
+        : null,
+      ride: rideShare(frames.filter((f) => !f.skier.thrown)),
     },
   };
 }
@@ -427,6 +489,8 @@ const COLS = [
   ["gap", "gap m", 2],
   ["outside", "out %", 0],
   ["snap", "snap m", 3],
+  ["kneeR", "kneeR°", 0],
+  ["ride", "ride %", 0],
 ];
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
 const fmt = (v, d) => (v === null || !Number.isFinite(v) ? "—" : v.toFixed(d));

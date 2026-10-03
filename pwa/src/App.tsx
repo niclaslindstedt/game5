@@ -72,7 +72,8 @@ import { onShellCommand } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
-import { frontDoorPins, pinnedFor, pinnedPress } from "./game/campaign.ts";
+import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
+import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
@@ -185,6 +186,14 @@ export function App() {
   linkSkisRef.current = linkSkis;
   /** The pair the player skis. */
   const specOf = (s: Settings): SkiSpec => skisById(linkSkisRef.current ?? s.skis);
+  /** Who skis the player's runs, and with what: the pair, the help, the
+   * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
+  const skierOf = (s: Settings): PinnedSkier => ({
+    spec: specOf(s),
+    assist: assistOf(s.assist),
+    damage: s.damage,
+    poles: params.poles ?? carriesPoles(s.outfit),
+  });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
    * `?video=` is never written back. */
   const videoOf = (s: Settings): VideoSettings => ({
@@ -300,7 +309,7 @@ export function App() {
     const freeBoot = (): GameState => {
       const s = settingsRef.current;
       const seed = params.seed ?? s.ride.seed ?? raceSeed;
-      const ride = freeGameOptions(s.ride, seed, specOf(s), assistOf(s.assist));
+      const ride = freeGameOptions(s.ride, seed, skierOf(s));
       // A link's sky (`?weather=` / `?hour=`) and region over the card's.
       const opts = overLink(ride, params);
       try {
@@ -309,12 +318,7 @@ export function App() {
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-        return raceOrFallback(1, {
-          assist: s.assist,
-          spec: specOf(s),
-          mode: "race",
-          laps: s.trialLaps,
-        });
+        return raceOrFallback(1, { ...skierOf(s), mode: "race", laps: s.trialLaps });
       }
     };
     // A race a link boots into is the player's, with the player's help; the
@@ -325,8 +329,7 @@ export function App() {
           raceSeed,
           params.rides
             ? {
-                assist: settingsRef.current.assist,
-                spec: specOf(settingsRef.current),
+                ...skierOf(settingsRef.current),
                 mode: params.mode,
                 laps: settingsRef.current.trialLaps,
               }
@@ -345,9 +348,7 @@ export function App() {
         ...linkWorld(params),
         mode,
         laps: mode === "timeTrial" ? settingsRef.current.trialLaps : undefined,
-        spec: specOf(settingsRef.current),
-        assist: assistOf(settingsRef.current.assist),
-        damage: settingsRef.current.damage,
+        ...skierOf(settingsRef.current),
       });
     /** What a player's run is filed under — nothing for a run the bot rides
      * from the line (`?bot=1`), which is nobody's time, and nothing for a
@@ -506,7 +507,7 @@ export function App() {
       loader,
       current: () => state,
       settings: () => settingsRef.current,
-      spec: specOf,
+      skier: skierOf,
       setMode: (asked) => (mode = asked),
       done: lift,
     });
@@ -815,9 +816,7 @@ export function App() {
    * the pair the ski card holds. */
   const freeRide = (): void => {
     setPage("root");
-    pressRef.current.free(
-      freeGameOptions(settings.ride, startSeed, specOf(settings), assistOf(settings.assist)),
-    );
+    pressRef.current.free(freeGameOptions(settings.ride, startSeed, skierOf(settings)));
   };
 
   const hudUp = hudOver(shell) && snap !== null && input !== null;

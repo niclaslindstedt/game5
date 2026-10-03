@@ -8,20 +8,27 @@
 // at speed; his legs lean with the skis' edge and turn with their pivot, so
 // a tucked skid never folds a knee past his hip; stood still, he waits
 // alive; he sets off on his poles out of a start gate he waits in crouched
-// over them, the poles biting the snow, and skates off an edged ski. And the rig his model is posed by (`skier-rig.ts`): the half bones
+// over them, the poles biting the snow, and skates off an edged ski; into a
+// turn his upper body goes first and the knees follow. And the rig his model is posed by (`skier-rig.ts`): the half bones
 // turn half way, the hands hold the poles.
 
 import { describe, expect, it } from "vitest";
-import { TUNING } from "@engine";
+import { createGame, NEUTRAL_INPUT, placeRun, rotate, skisById, step, TUNING } from "@engine";
 
+import { flatLevel } from "./support/synthetic.ts";
+import { groundOf, mountsOf, poseInputOf } from "../pwa/src/game/skis-body.ts";
+import { standOf } from "../pwa/src/game/ski-stand.ts";
 import {
   createSkierSpring,
+  drawnSkiAngle,
   gaitOf,
+  leadOf,
   MOUNTS,
   skierPose,
   STILL_GAIT,
   stepSkierSpring,
   type SkierPose,
+  type V3,
 } from "../pwa/src/game/skier-pose.ts";
 import { STANDING, skierBones } from "../pwa/src/game/skier-rig.ts";
 
@@ -403,6 +410,87 @@ describe("the body on its legs", () => {
     const b = at(4.5, 1);
     expect(Math.abs(a.look - b.look) + Math.abs(a.hips.x - b.hips.x)).toBeGreaterThan(0.02);
     expect(at(1, 0)).toEqual(at(4.5, 0));
+  });
+});
+
+describe("the upper body leads a turn", () => {
+  // A turn skied through the engine down the 20° pitch, the key pressed
+  // at `press` s (from straight, or from a turn the other way), the pose
+  // taken as the game takes it at 60 Hz: how far the head, the shoulders
+  // and the knees have gone across into the new turn off the feet, m, IN
+  // THE WORLD (the pair's own roll with them — what the eye sees), at each
+  // frame after the press — and the lead left at the end.
+  const turn = (kmh: number, from: -1 | 0) => {
+    const spec = skisById("chamois");
+    const mounts = mountsOf(spec);
+    const state = createGame({
+      level: flatLevel({ packed: 1, grade: 0.364, slopeFrom: 200, size: 4000 }),
+      spec,
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+    });
+    placeRun(state, { x: 2000, z: 600, heading: 0, speed: kmh / 3.6 });
+    const legs = createSkierSpring();
+    const press = 1.2;
+    const t0 = state.t;
+    let at0: { head: number; sh: number; knee: number } | null = null;
+    const frames: { t: number; head: number; sh: number; knee: number }[] = [];
+    for (let i = 0; i < 2 * TUNING.physicsHz; i++) {
+      const t = state.t - t0;
+      step(state, { ...NEUTRAL_INPUT, steer: t < 0.2 ? 0 : t < press ? from : 1 });
+      if (i % 2 === 0) continue;
+      const c = state.skier;
+      stepSkierSpring(legs, c.vy, c.airborne, 2 * TUNING.dt, 0, c);
+      const stand = standOf(c, groundOf(c, legs), undefined, undefined, drawnSkiAngle(legs, c));
+      const p = skierPose(poseInputOf(c, legs, mounts, null, false, stand));
+      const mid = (a: V3, b: V3): V3 => ({
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+        z: (a.z + b.z) / 2,
+      });
+      const feet = mid(p.feet[0], p.feet[1]);
+      // Across the way he was heading, positive to his right.
+      const across = (v: V3): number => {
+        const w = rotate(c.q, { x: v.x - feet.x, y: v.y - feet.y, z: v.z - feet.z });
+        return w.x * Math.cos(c.heading) - w.z * Math.sin(c.heading);
+      };
+      const now = {
+        head: across(p.head),
+        sh: across(mid(p.shoulders[0], p.shoulders[1])),
+        knee: across(mid(p.knees[0], p.knees[1])),
+      };
+      if (state.t - t0 <= press) at0 = now;
+      else if (at0) {
+        frames.push({
+          t: state.t - t0 - press,
+          head: now.head - at0.head,
+          sh: now.sh - at0.sh,
+          knee: now.knee - at0.knee,
+        });
+      }
+    }
+    return { frames, lead: leadOf(legs) };
+  };
+
+  it("moves the head and the shoulders into a turn ahead of the knees, never out of it first", () => {
+    for (const [kmh, from] of [
+      [40, 0],
+      [70, 0],
+      [60, -1],
+    ] as const) {
+      const { frames, lead } = turn(kmh, from);
+      for (const f of frames.filter((f) => f.t < 0.25)) {
+        expect(f.head, `${kmh} km/h at ${f.t.toFixed(3)} s`).toBeGreaterThan(-0.005);
+        expect(f.sh, `${kmh} km/h at ${f.t.toFixed(3)} s`).toBeGreaterThan(-0.005);
+      }
+      for (const f of frames.filter((f) => f.t > 0.06 && f.t < 0.25)) {
+        expect(f.head, `${kmh} km/h at ${f.t.toFixed(3)} s`).toBeGreaterThan(f.knee);
+        expect(f.sh, `${kmh} km/h at ${f.t.toFixed(3)} s`).toBeGreaterThan(f.knee);
+      }
+      // …and once the legs have caught up, the lead is spent.
+      expect(Math.abs(lead)).toBeLessThan(0.05);
+    }
   });
 });
 

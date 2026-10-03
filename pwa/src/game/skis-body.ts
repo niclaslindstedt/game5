@@ -61,6 +61,7 @@ import {
   createSkierSpring,
   drawnSkiAngle,
   gaitOf,
+  leadOf,
   mountsFor,
   stepSkierSpring,
   type Mounts,
@@ -211,6 +212,8 @@ export function poseInputOf(
           tilt: skiTilt({ edge: legs.edge, roll: legs.roll + onSnow, speed: skier.speed }),
           roll: legs.roll,
         },
+    // The upper body's lead into a turn, ahead of the skis' edge.
+    lead: leadOf(legs),
     // The skid's pivot as his body carries it (eased in the view's spring).
     skiAngle: drawnSkiAngle(legs, skier),
     crouch: skier.crouch,

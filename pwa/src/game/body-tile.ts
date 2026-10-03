@@ -9,7 +9,9 @@
 // rank on the Abbreviated Injury Scale — green sound, yellow a minor one,
 // orange a moderate one, red serious and worse — and the word over the
 // whole body IS its injury severity score's band (`severityOf`), the trauma
-// ward's own lines: 16 and up is major trauma.
+// ward's own lines: 16 and up is major trauma. The g is billed only off a
+// FALL — he went down, or the skier he shouldered did (`Impact.fall`): a
+// landing ridden out or a shoulder both stood up from shows no number.
 
 import {
   BODY_PARTS,
@@ -54,9 +56,9 @@ export type BodyTile = {
    * at most `LINES`; `more` how many the panel leaves out. */
   lines: BodyLine[];
   more: number;
-  /** The run's hardest blow, g — 0 before one worth billing. */
+  /** The run's hardest blow he fell on, g — 0 before one. */
   peak: number;
-  /** The blow on the meter, or null with none fresh. */
+  /** The blow on the meter, or null with no fall's fresh. */
   blow: BlowTile | null;
 };
 
@@ -98,7 +100,9 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
   const hold = TUNING.injury.hold;
   const b = body.impact;
   const blow =
-    b && b.t < hold ? { g: b.g, part: b.part, source: b.source, id: b.id, age: b.t / hold } : null;
+    b && b.fall && b.t < hold
+      ? { g: b.g, part: b.part, source: b.source, id: b.id, age: b.t / hold }
+      : null;
   const severity = severityOf(body);
   return {
     parts: BODY_PARTS.map((_, i) => toneOf(body.worst[i])),
@@ -107,7 +111,7 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
     severity,
     lines,
     more: Math.max(0, body.injuries.length - LINES),
-    peak: body.peak,
+    peak: body.fallPeak,
     blow,
   };
 }

@@ -218,6 +218,7 @@ export {
   blowOf,
   feelBumps,
   freshBody,
+  markFall,
   riskOf,
   severityOf,
   snowGive,

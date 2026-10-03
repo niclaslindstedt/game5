@@ -244,8 +244,15 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
       expect(worth, `${measured} ms`).toBeLessThanOrEqual(last);
       last = worth;
     }
-    // A machine no fit can save gets every row at its cheapest.
-    expect(samePicture(fitPicture(DEFAULT_VIDEO, 500), bottom())).toBe(true);
+    // A machine no fit can save gets the cheapest picture there is: every
+    // row at its cheapest, bar a stop that measured free over the one under
+    // it, which is kept for nothing.
+    const floor = fitPicture(DEFAULT_VIDEO, 500);
+    expect(pictureCost(floor)).toBe(FLOOR_MS);
+    for (const row of PICTURE_ROWS) {
+      const prices = PICTURE_PRICES[row] as Record<string, { cost: number }>;
+      expect(prices[floor[row] as string].cost, row).toBe(0);
+    }
   });
 
   it("gives up the step that loses least per millisecond first, and never one that saves nothing", () => {

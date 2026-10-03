@@ -37,15 +37,18 @@ concurrency:
 
 jobs:
   # The suite is the long pole, so it is the one thing that gets its own
-  # runners.
+  # runners: six of them, so the whole run lands in a minute or two.
   #
   # `--shard` splits at FILE granularity, which means the SLOWEST SINGLE FILE
-  # is the floor and no number of runners gets under it. That floor is what
-  # to work on when this job is too slow, and there are two ways at it: stop
-  # a file rebuilding the same levels once per rule (`tests/support/levels.ts`
-  # hands out the corpus a rule suite shares), and split a file whose subject
-  # is really two subjects. Two shards is plenty for a suite this size;
-  # widen the matrix only once no file is the floor.
+  # is the floor and no number of runners gets under it — today about a
+  # minute, the resort, mapgen, weather and birds suites. The slices are cut
+  # by each file's measured time (`tests/support/shards.ts`), not vitest's
+  # hash of its path, so each heavy file gets a runner to itself and the
+  # cheap files fill in round it; a wider matrix buys nothing until one of
+  # those files is split. When this job is too slow, work on that floor:
+  # stop a file rebuilding the same levels once per rule
+  # (`tests/support/levels.ts` hands out the corpus a rule suite shares),
+  # split a file whose subject is really two, and re-weigh what moved.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -54,11 +57,11 @@ jobs:
       # whether the break is local or general.
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: make test SHARD=${{ matrix.shard }}/2
+      - run: make test SHARD=${{ matrix.shard }}/6
 
   # One stable check name over a matrix whose width is an implementation
   # detail. Branch protection requires `tests`; the shard count can then

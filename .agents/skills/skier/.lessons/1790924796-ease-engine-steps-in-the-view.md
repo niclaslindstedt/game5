@@ -14,6 +14,8 @@ one step (a knee jumped 25 cm). The cure is `follow` in `skier-spring.ts`
 (~30 rad/s, some 70 ms of lag) — and for the pivot the DRAWN SKIS must ride
 it too (`drawnSkiAngle`, handed to `gear.pose` / the rig), or the boots
 leave the bindings. Faster followers (45, 60 rad/s) bring the snap back. An
-EXPONENTIAL ease has the same fault (it starts at full speed). Drive the
-shoulders' twist and the head off the followed hip shift, never `steer`.
-The boots stay on the raw edge on purpose; the knees' band absorbs it.
+EXPONENTIAL ease has the same fault (it starts at full speed). Never pose
+off the raw `steer` — but the key IS what the upper body must lead a turn
+on: follow it with an ACCELERATION CAP (`follow`'s `most`), as the lead
+does (see the upper-body-first lesson). The boots stay on the raw edge on
+purpose; the knees' band absorbs it.

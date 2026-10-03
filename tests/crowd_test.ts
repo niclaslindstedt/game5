@@ -76,6 +76,17 @@ describe("the crowd is dealt", () => {
     expect(withCrowd.skier.x).toBe(without.skier.x);
   });
 
+  it("pushes off with the whole crowd, never in step with it", () => {
+    const state = free();
+    ride(state, 1);
+    const poling = state.crowd!.amateurs.filter((a) => a.push > 0.05);
+    expect(poling.length).toBeGreaterThan(20);
+    // How bunched their strokes are: 1 all in step, 0 spread round the cycle.
+    const c = poling.reduce((x, a) => x + Math.cos(a.pole), 0) / poling.length;
+    const s = poling.reduce((x, a) => x + Math.sin(a.pole), 0) / poling.length;
+    expect(Math.hypot(c, s)).toBeLessThan(0.3);
+  });
+
   it("the same seed, the same crowd, step for step", () => {
     const a = free();
     const b = free();

@@ -81,6 +81,7 @@ import { driveReach, poleForce, strideRate } from "./poles.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
+import { freshBody } from "./body.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState, SnowContact } from "./state.ts";
 
@@ -207,6 +208,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     resilience: 1,
     thrown: null,
     damage: { ski: [0, 0], legs: 0 },
+    body: freshBody(),
     tunnel: null,
     hitCooldown: 0,
     bumpCooldown: 0,

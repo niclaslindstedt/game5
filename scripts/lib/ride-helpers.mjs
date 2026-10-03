@@ -91,6 +91,7 @@ export function flight(run) {
     ["harsh", first ? (first.harsh ? `yes -${Math.round(first.lost * 100)}%` : "no") : "—"],
     ["land pitch deg", touch ? fmt(touch.pitch * 57.3, 1) : "—"],
     ["out km/h", fmt(run.frames[run.frames.length - 1].speed * 3.6, 1)],
+    ...hurt(run),
   ];
 }
 
@@ -99,7 +100,21 @@ export function flight(run) {
  * it took, and when the reset stood him up — and the nearest thing he
  * SAVED before it (`crash.ts`'s `noteSave`): which, how near, when. */
 export function wipeout(run) {
-  return [...thrownRows(run), ...saved(run)];
+  return [...thrownRows(run), ...saved(run), ...hurt(run)];
+}
+
+/** THE BODY (`body.ts`): the run's hardest blow and every injury taken,
+ * in the engine's own names with their AIS rank. */
+export function hurt(run) {
+  const last = run.frames[run.frames.length - 1];
+  const taken = run.events.filter((e) => e.kind === "injury");
+  return [
+    ["hardest g", last ? fmt(last.peakG, 0) : "—"],
+    [
+      "injuries",
+      taken.length ? taken.map((e) => `${e.part}:${e.injury}(${e.ais})`).join(" ") : "none",
+    ],
+  ];
 }
 
 /** THE SAVE: the nearest fall he rode out — its kind, how near it came
@@ -142,6 +157,7 @@ export function landed(run) {
     ["EFH m", land ? fmt((land.impact * land.impact) / (2 * 9.81)) : "—"],
     ["load g", land ? fmt(land.g, 1) : "—"],
     ["off true", land ? fmt(land.off) : "—"],
+    ...hurt(run),
   ];
 }
 

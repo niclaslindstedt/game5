@@ -135,6 +135,10 @@ export {
   type SaveKind,
   type DamagePart,
   type SkierDamage,
+  type BodyState,
+  type Injury,
+  type Impact,
+  type ImpactSource,
   type Thrown,
   type GameEvent,
   type GamePhase,
@@ -202,6 +206,27 @@ export {
 export { crashLimit, crashOver, noseDown, wipeoutCause, type CrashLimit } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
+export {
+  PART,
+  baseOf,
+  blowOf,
+  feelBumps,
+  freshBody,
+  riskOf,
+  severityOf,
+  snowGive,
+  stepBody,
+} from "./game/body.ts";
+export {
+  BODY_PARTS,
+  INJURIES,
+  INJURY,
+  type BodyPart,
+  type Facing,
+  type InjuryDef,
+  type InjuryKind,
+  type Mechanism,
+} from "./game/defs/anatomy.ts";
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";
 export {
   bearingToNext,

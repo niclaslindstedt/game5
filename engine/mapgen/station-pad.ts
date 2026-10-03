@@ -48,11 +48,14 @@ export function padShape(levelPads = false): PadShape {
  * the unload point. */
 export type StationPad = PadShape & {
   lift: string;
+  kind: Lift["kind"];
   x: number;
   z: number;
   y: number;
   dx: number;
   dz: number;
+  /** The line's plan length, m. */
+  length: number;
   unload: { x: number; z: number } | null;
 };
 
@@ -112,6 +115,8 @@ export function pressPads(
     const pad: StationPad = {
       ...shape,
       lift: l.id,
+      kind: l.kind,
+      length: len,
       x,
       z,
       y,
@@ -120,9 +125,61 @@ export function pressPads(
       unload: l.kind === "chair" ? unloadPoint(l.bottom, l.top) : null,
     };
     levelPad(ground, pad);
+    if (shape.lean > 0) cutApproach(ground, pad);
     pads.push(pad);
   }
   return pads;
+}
+
+/** R26 — THE APPROACH to a top (v5): under the last
+ * `lift.top.approach.length` metres of the line, from just past the unload
+ * on back down it, the ground cut down below the rope's way in — a straight
+ * line from the top's bullwheel (`approach.wheel` over the deck) to a tower
+ * (`approach.tower` over the ground there) — by a carrier's hang and
+ * `approach.clear` more, so the mountain falls away under the line and no
+ * shoulder of it, nor the pad itself, stands up into the chairs as they come
+ * in: a rider is carried over the snow, never dragged up through it. Only
+ * ever cut, never filled, `half` metres either side of the line and eased
+ * out over `blend` more; never over a run's snow (`onRun`). */
+function cutApproach(
+  ground: Heightfield,
+  p: StationPad,
+  onRun: ((x: number, z: number) => boolean) | null = null,
+): void {
+  const A = RR.lift.top.approach;
+  const k = p.kind === "gondola" ? "gondola" : "chair";
+  const reach = Math.min(A.length, p.length / 2);
+  const half = A.half[k];
+  const far = half + A.blend;
+  const b0 = A.from[k];
+  const bx = p.x - p.dx * reach;
+  const bz = p.z - p.dz * reach;
+  // The rope's way in, wheel to tower, and what hangs under it.
+  const wheel = p.y + A.wheel[k];
+  const tower = sampleField(ground, bx, bz) + A.tower[k];
+  const under = A.hang[k] + A.clear;
+  const cell = ground.cell;
+  const xs = [p.x, bx];
+  const zs = [p.z, bz];
+  const c0 = Math.max(0, Math.floor((Math.min(...xs) - far - ground.originX) / cell));
+  const c1 = Math.min(ground.cols - 1, Math.ceil((Math.max(...xs) + far - ground.originX) / cell));
+  const r0 = Math.max(0, Math.floor((Math.min(...zs) - far - ground.originZ) / cell));
+  const r1 = Math.min(ground.rows - 1, Math.ceil((Math.max(...zs) + far - ground.originZ) / cell));
+  for (let row = r0; row <= r1; row++) {
+    for (let col = c0; col <= c1; col++) {
+      const x = ground.originX + col * cell;
+      const z = ground.originZ + row * cell;
+      // Back down the line from the top, and across it.
+      const back = (p.x - x) * p.dx + (p.z - z) * p.dz;
+      const v = Math.abs((x - p.x) * p.dz - (z - p.z) * p.dx);
+      if (back < b0 - A.ease || back > reach || v > far || (onRun && onRun(x, z))) continue;
+      const rope = wheel + ((tower - wheel) * back) / reach;
+      const w = (1 - smoothstep(half, far, v)) * smoothstep(b0 - A.ease, b0, back);
+      const i = row * ground.cols + col;
+      const cut = rope - under;
+      if (ground.data[i] > cut) ground.data[i] -= (ground.data[i] - cut) * w;
+    }
+  }
 }
 
 /** R26 — press the pads again at the levels they were cut to, everywhere
@@ -134,7 +191,10 @@ export function relevelPads(
   pads: readonly StationPad[],
   onRun: (x: number, z: number) => boolean,
 ): void {
-  for (const p of pads) levelPad(ground, p, onRun);
+  for (const p of pads) {
+    levelPad(ground, p, onRun);
+    if (p.lean > 0) cutApproach(ground, p, onRun);
+  }
 }
 
 /** One pad eased into `ground` at its own surface, and a chair's ramp

@@ -116,3 +116,4 @@ export {
   type ResortAnalysis,
   type RunAccess,
 } from "../analysis/resort.ts";
+export { offRamp, rampFrame, rampHeight, rampLip } from "./summit-ramps.ts";

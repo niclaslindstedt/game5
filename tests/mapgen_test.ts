@@ -44,6 +44,7 @@ import {
   withinBand,
   type GeneratedLevel,
   sunsetOf,
+  offRamp,
 } from "@engine";
 
 import { LEVEL_SEEDS, analysisFor, levelFor } from "./support/levels.ts";
@@ -68,7 +69,10 @@ function groomedBeside(level: GeneratedLevel, x: number, z: number): boolean {
   if (runsCovering(level, x, z, R.track.shoulder.packed + 2).size > 0) return true;
   if (resort.hub && outsideHub(resort.hub, x, z) <= RR.hub.fade) return true;
   return resort.lifts.some(
-    (l) => Math.hypot(l.top.x - x, l.top.z - z) < RR.lift.pad + R.track.shoulder.packed,
+    (l) =>
+      Math.hypot(l.top.x - x, l.top.z - z) < RR.lift.pad + R.track.shoulder.packed ||
+      // A ramp off a top, groomed down to its run (R26).
+      (l.ramps ?? []).some((r) => offRamp(r, x, z) < R.track.shoulder.packed),
   );
 }
 

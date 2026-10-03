@@ -345,7 +345,22 @@ export interface Lift {
   kind: "gondola" | "chair" | "drag";
   bottom: Vec3;
   top: Vec3;
+  /** THE RAMPS OFF ITS TOP (R26, generator v5 on): one down from its pad's
+   * rim to the head of each run a rider skis onto from it. Absent on a drag
+   * and on a map from before them. */
+  ramps?: SummitRamp[];
 }
+
+/** A RAMP OFF A TOP (R26, `summit-ramps.ts`): from the pad's rim (`from`, on
+ * the pad's surface) down to where it joins the run `run` (`to`, its point
+ * there and its arc `s`), `width` m wide — eased off the pad, even down to
+ * the run's head, the run's lip. */
+export type SummitRamp = {
+  run: string;
+  from: Vec3;
+  to: Vec3 & { s: number };
+  width: number;
+};
 
 /** A course (R28): the line from a run's top station down the network to
  * the village — the runs it follows, in order, and what it measures. */

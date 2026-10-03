@@ -284,6 +284,7 @@ export {
   queueSpot,
   QUEUE_GAP,
   planLift,
+  ropeShortfall,
   ropeAt,
   upRope,
   type LiftKind,

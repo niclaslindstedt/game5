@@ -82,9 +82,11 @@ export type GeneratorTraits = {
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
   /** LEVEL PADS (v4): every gondola's and chair's top stands on a level pad
-   * `lift.pad` metres across (R26). From v5 the pad is `lift.top.pad`
-   * across and leans off its deck to both sides (`lift.top`), so a rider
-   * stood off a chair slides away to his run. */
+   * `lift.pad` metres across (R26), with no ramps off it, no approach cut
+   * under its line and no rope held to the snow. From v5 the pad is
+   * `lift.top.pad` across and leans off its deck to both sides
+   * (`lift.top`), ramps come down off it to its runs, and the ground under
+   * every line's way in is cut beneath the rope. */
   levelPads?: boolean;
 };
 
@@ -123,7 +125,10 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     note:
       "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
       "deck along the line level and the pad leaning off it to both sides to its rim, so a " +
-      "rider stood off a chair slides away to his run gathering speed (R26).",
+      "rider stood off a chair slides away to his run gathering speed; a wide groomed RAMP " +
+      "comes down off the rim to every run the top serves, gentle and rolling over a LIP " +
+      "where it must fall further; and the ground under the last of every line is cut away " +
+      "beneath the rope's way in, so no carrier ever runs into the snow (R26).",
   },
 ];
 

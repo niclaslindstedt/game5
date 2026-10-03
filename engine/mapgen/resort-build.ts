@@ -61,6 +61,7 @@ import { planLifts, settleDrags, type DragGround } from "./drags.ts";
 import { clearStations, nearLine, type StationGround } from "./station-clear.ts";
 import { reckonAccess } from "./access-build.ts";
 import { groomPads, padShape, pressPads, relevelPads } from "./station-pad.ts";
+import { groomRamps, layRamps, offRamp } from "./summit-ramps.ts";
 import { trimDrifts } from "./drift-trim.ts";
 import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.ts";
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
@@ -267,6 +268,8 @@ const LANE_KEEP = 12;
 /** How near a run's line a pad pressed again yields to the run, m: its
  * line is the one it was graded to (R27). */
 const PAD_LINE = 8;
+/** How far past a run's edge a ramp's grooming stops (R10's powder). */
+const RAMP_GROOM = R.track.shoulder.packed + 4;
 /** How far off a drag lift's line a piste keeps its edge, m (R26). */
 const DRAG_ROOM = 6;
 const START_ROOM = 12;
@@ -593,6 +596,11 @@ export function attemptResort(
   for (const w of kept)
     net.add(w.points, rankOf(w.spec), w.into?.run ?? -1, w.mergeStart, w.spec.kind === "road");
   const hit = netHit();
+  // ── 4a. THE RAMPS OFF THE TOPS (R26), off a run's snow and a station ──
+  const runAt = (x: number, z: number, past = 0): boolean => net.covers(x, z, past, hit);
+  const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
+  const ramps = layRamps(ground, pads, runs, runAt, liftPlans);
+  const allRamps = [...ramps.values()].flat();
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
   // R29 again on the colours the pressed runs measure and the runs that
@@ -665,6 +673,7 @@ export function attemptResort(
     let d = h.distance - Math.max(0, h.width - R.track.width.max) / 2;
     // A station's pad, eased out, is kept off as a run is (R26).
     for (const p of pads) d = Math.min(d, hypot(x - p.x, z - p.z) - p.r - RR.lift.padBlend);
+    for (const r of allRamps) d = Math.min(d, offRamp(r, x, z));
     return d;
   };
   const offKickers = layOffKickers(rng, plan, ground, null, distanceTo);
@@ -688,7 +697,8 @@ export function attemptResort(
   // whole width, and the drift cut back to the fresh snow left of it (R17,
   // R29) — the hub laid round where the stations now stand.
   for (const b of built) trimDrifts(b, packed, unhubbed);
-  groomPads(pads, packed, (x, z) => net.covers(x, z, 0, hit));
+  groomPads(pads, packed, runAt);
+  groomRamps(packed, ramps, pads, (x, z) => runAt(x, z, RAMP_GROOM));
   const tunnels = layTunnels(hubPlan, ground);
 
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
@@ -697,6 +707,7 @@ export function attemptResort(
     kind: l.kind,
     bottom: { x: l.bottom.x, z: l.bottom.z, y: sampleField(ground, l.bottom.x, l.bottom.z) },
     top: { x: l.top.x, z: l.top.z, y: sampleField(ground, l.top.x, l.top.z) },
+    ...(ramps.has(l.id) ? { ramps: ramps.get(l.id) } : {}),
   }));
   const village: Vec3 = { x: v.x, z: v.z, y: sampleField(ground, v.x, v.z) };
   const baseY = village.y;
@@ -706,6 +717,7 @@ export function attemptResort(
     if (hubClear(hubPlan.hub, sub, x, z)) return true;
     for (const l of lifts) if (nearLine(l, x, z) < RR.lift.clear) return true;
     for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + RR.lift.clear) return true;
+    for (const r of allRamps) if (offRamp(r, x, z) < 0) return true;
     // Off every run's corridor, not only the nearest's (R14).
     return net.covers(x, z, R.forest.corridor, hit);
   };

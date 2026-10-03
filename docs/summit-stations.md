@@ -69,6 +69,28 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   top leave from beyond the pad's rim — their starts and first stretch keep
   10 m past it, and a lane's route 12 m. The campaign's maps stand on
   generator v4, whose pads are level and 30 m across (`levelPads`).
+- **The ramps off a top (generator v5, `summit-ramps.ts`)** — from the pad's
+  rim a RAMP 26 m wide, groomed, comes down to every run the top serves, so
+  the way from the lift to the slope is one wide run-out rather than the raw
+  face. It leaves from whichever point of the rim reaches the run most
+  gently and ends where it meets the run's shoulder, at that ground's height
+  — never onto a run's first 50 m (its start and windrows), never across
+  another run, a station, another ramp or under a lift's line. Where it can
+  fall no more than 20 % it is even all the way and the run's own head is
+  the LIP onto the run's pitch; where it must fall more it runs out at 12 %
+  and rolls over a LIP into a drop of up to 65 % down to the run. The ramps
+  are published on the lift (`Lift.ramps`): the signs point down them, the
+  lead off a free ride's chair skis down them, and the lens holds its summit
+  look to the lip.
+- **The approach under the line (generator v5)** — a chair's bullwheel
+  stands 3.8 m over the deck and the chairs come down to the unload ramp,
+  so a mountain that stays level, or bulges, under the last of the line
+  stands up into the chairs: a rider is dragged up through the snow. So the
+  ground under the last 90 m of every line, from just past the unload, is
+  cut away beneath the rope's way in (a straight line from the wheel to a
+  tower) by a carrier's hang and 0.8 m more, and the analyzer holds every
+  lift to it: out of the load and unload zones no carrier's lowest point
+  meets the snow (`ropeShortfall`).
 - **The way off a chair's top (`chairLane`, `CHAIR_EXIT`)** — the rider
   stands up at the unload point and slides STRAIGHT ON down the ramp, a step
   out of the chair's way into a LANE 2.4 m outside the up rope, clear of the
@@ -115,8 +137,9 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   the chair whose run passes nearest the spot picked (among the runs a rider
   can drop onto from its pad), then LED — down the lane at a glide, turned at
   the parting the way his run's sign points, round the house if the run lies
-  behind it, let run down the pad's lean gathering speed and over its lip
-  onto that run — and from the first touch of a control the skis are his.
+  behind it, let run down the pad's lean and its ramp gathering speed and
+  over the lip onto that run — and from the first touch of a control the
+  skis are his.
 - **The lens on a lift (`camera-lift.ts`)** — carried up a chair the chase
   boom comes in close behind him and a little over his head, level, the
   chair's back and hanger in the frame's foot and the rope running on up to
@@ -135,4 +158,4 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   height hangs on the softer in-flight spring, so as he drops over the lip
   the lens holds a beat at the top and TIPS DOWN after him; the chase's own
   height and lean are handed back over the first dozen metres he drops below
-  the deck.
+  the deck — or, down a ramp off the top, below the ramp's lip (`rampLip`).

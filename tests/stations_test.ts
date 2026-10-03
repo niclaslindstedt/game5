@@ -12,7 +12,12 @@ import {
   carrierAt,
   carrierCount,
   chairLane,
+  LIFT_LOOK,
   liftPlans,
+  rampHeight,
+  rampLip,
+  RESORT_RULES,
+  ropeShortfall,
   runsOffTop,
   stationHouses,
   TUNING,
@@ -169,6 +174,75 @@ describe("the summit as the lens reads it", () => {
     const top = plans.find((p) => p.lift.kind === "chair")!.lift.top;
     expect(summitShare(level, top.x, top.z)).toBeCloseTo(1, 6);
     expect(summitShare(level, level.spawn.x, level.size - 100)).toBe(0);
+  });
+
+  it("holds whole down a ramp off a top to its lip", () => {
+    const ramps = plans.flatMap((p) => p.lift.ramps ?? []);
+    expect(ramps.length).toBeGreaterThan(0);
+    for (const r of ramps) {
+      const lip = rampLip(r);
+      const k = (lip.at * 0.9) / lip.length;
+      const x = r.from.x + (r.to.x - r.from.x) * k;
+      const z = r.from.z + (r.to.z - r.from.z) * k;
+      expect(summitShare(level, x, z)).toBeCloseTo(1, 6);
+    }
+  });
+});
+
+describe("the ramps off a top (R26)", () => {
+  const RT = RESORT_RULES.lift.top;
+  it("leave the pad's rim and come down to their run's snow, on the ground they were cut to", () => {
+    for (const p of plans) {
+      for (const r of p.lift.ramps ?? []) {
+        const run = level.resort!.runs.find((q) => q.id === r.run)!;
+        expect(run.from).toBe(p.lift.id);
+        expect(Math.hypot(r.from.x - p.lift.top.x, r.from.z - p.lift.top.z)).toBeCloseTo(
+          RT.pad / 2,
+          3,
+        );
+        expect(r.to.y).toBeLessThan(r.from.y);
+        expect(rampHeight(r, 0)).toBeCloseTo(r.from.y, 6);
+        expect(rampHeight(r, 1)).toBeCloseTo(r.to.y, 6);
+        // The ground down its line is its own profile.
+        for (const t of [0.2, 0.4, 0.6, 0.8]) {
+          const x = r.from.x + (r.to.x - r.from.x) * t;
+          const z = r.from.z + (r.to.z - r.from.z) * t;
+          expect(Math.abs(level.groundAt(x, z) - rampHeight(r, t))).toBeLessThan(0.3);
+        }
+        // Never steeper than its lip's drop.
+        const lip = rampLip(r);
+        for (let t = 0; t < 1; t += 0.05) {
+          const fall = (rampHeight(r, t) - rampHeight(r, t + 0.05)) / (0.05 * lip.length);
+          expect(fall).toBeLessThan(RT.ramp.lip + 0.05);
+        }
+      }
+    }
+  });
+
+  it("are what a rider stood off the top is led down and the signs point to", () => {
+    for (const p of plans) {
+      for (const r of p.lift.ramps ?? []) {
+        const off = runsOffTop(level, p).find((j) => level.resort!.runs[j.run].id === r.run);
+        expect(off).toBeDefined();
+        expect(off!.at.x).toBeCloseTo(r.from.x, 6);
+        expect(off!.at.s).toBeCloseTo(r.to.s, 6);
+      }
+    }
+  });
+});
+
+describe("the rope over the snow (R26)", () => {
+  it("carries every chair and cabin clear of the snow out of its load and unload zones", () => {
+    for (const p of plans) expect(ropeShortfall(level, p).lack, p.lift.id).toBeLessThan(0.3);
+  });
+
+  it("cuts a top's approach to the lift's own measures (its restated copy of LIFT_LOOK)", () => {
+    const A = RESORT_RULES.lift.top.approach;
+    for (const k of ["chair", "gondola"] as const) {
+      expect(A.wheel[k]).toBe(LIFT_LOOK[k].wheel);
+      expect(A.tower[k]).toBe(LIFT_LOOK[k].tower);
+      expect(A.hang[k]).toBe(LIFT_LOOK[k].hang);
+    }
   });
 });
 

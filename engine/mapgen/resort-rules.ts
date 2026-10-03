@@ -77,8 +77,19 @@
 //       need) and eased into the mountain over `lift.padBlend` metres,
 //       groomed — its DECK `lift.top.deck` metres either side of the line
 //       level and the pad LEANING off it to both sides at `lift.top.lean`
-//       to its rim, its downhill edge a LIP where it rolls over onto the
-//       face — and a chair's pad carries its UNLOAD RAMP, a mound of
+//       to its rim, the ground under the last `lift.top.approach.length`
+//       metres of the line below the unload cut down under the rope's way
+//       in so the mountain falls away beneath the chairs — a carrier
+//       clears the snow all the way in to the unload —
+//       and from its rim a RAMP `lift.top.ramp.width` metres
+//       wide, groomed, comes down to every run off the top joined
+//       `lift.top.ramp.drop` metres or more under the deck within
+//       `lift.top.ramp.far` metres of it, at no more than
+//       `lift.top.ramp.grade` where it can, eased off the pad and even down
+//       to the run, where the run is a LIP onto its own pitch, and where it
+//       cannot running out at `lift.top.ramp.gentle` to a LIP over a drop
+//       at no more than `lift.top.ramp.lip` down to the run — and
+//       a chair's pad carries its UNLOAD RAMP, a mound of
 //       packed snow `lift.unload.height` metres high under the unload point
 //       `lift.unload.at` metres short of the top, falling off over
 //       `lift.unload.reach` metres. Every BOTTOM
@@ -275,7 +286,50 @@ export const RESORT_RULES = {
      * wheel, the ramp and the way off), LEANING off it to both sides at
      * `lean` m per m to its rim — a rider stood off slides away to his run
      * gathering speed (a green's pitch is up to 16 %). */
-    top: { pad: 48, deck: 7, lean: 0.11 },
+    top: {
+      pad: 48,
+      deck: 7,
+      lean: 0.11,
+      /** THE RAMPS off it: one to every run off the top, joined at its
+       * nearest point `drop` m or more under the deck within `far` m of the
+       * top (and more than `least` m past the pad's rim) that it reaches at
+       * no more than `grade` m per m — a blue's — or the gentlest where
+       * none; `width` m wide and eased into the mountain over `blend` m
+       * beside and past its foot, eased off the pad over its first `ease`
+       * share of its length; never onto a run's first `head` m. One that
+       * must fall more than `grade` runs out at `gentle` and rolls over a
+       * LIP, rounded over `knee` m, into a drop at `lip` down to the run. */
+      /** THE APPROACH under its line (by kind): from `from` m back down
+       * the line from the top (just past the unload; eased in over `ease`)
+       * to `length` m, the ground cut `hang` + `clear` m under the rope's
+       * way in — straight from the bullwheel `wheel` m over the deck to a
+       * tower `tower` m over the ground at `length` — `half` m either side
+       * of the line, eased out over `blend` (`LIFT_LOOK`'s measures). */
+      approach: {
+        length: 90,
+        from: { chair: 11, gondola: 4 },
+        ease: 3,
+        wheel: { chair: 3.8, gondola: 6 },
+        tower: { chair: 11, gondola: 16 },
+        hang: { chair: 2.9, gondola: 4.3 },
+        clear: 0.8,
+        half: { chair: 7, gondola: 9 },
+        blend: 10,
+      },
+      ramp: {
+        width: 26,
+        blend: 12,
+        drop: 4,
+        far: 180,
+        least: 6,
+        grade: 0.2,
+        ease: 0.3,
+        gentle: 0.12,
+        lip: 0.65,
+        knee: 3,
+        head: 30,
+      },
+    },
     /** A chair's UNLOAD RAMP: the unload point, m short of the top down
      * the line (a rider stands up 5–8 m before the bullwheel); the mound
      * under it, m high (1–1.5 m of ramp); and how far it falls off, m —

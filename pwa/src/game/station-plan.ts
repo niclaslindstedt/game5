@@ -14,8 +14,8 @@
 // the pad's lean to his run. The SIGNS at the parting, an arrow board a run
 // he can ski onto from the pad (`signsOf`), are the piste signs' own wooden
 // boards (`run-sign-plan.ts`). On the highest top of the mountain the
-// PATROL HUT on the pad's other side and the PISTE MAP BOARD where the
-// rider comes up the line.
+// PATROL HUT up behind the top and the PISTE MAP BOARD beside the signs
+// at the parting.
 //
 // AT A CHAIR'S FOOT: the hood, the booth by the load line, the LOAD LINE
 // itself painted across the up rope's lane, and the roped CORRAL bringing a
@@ -76,6 +76,10 @@ const BOOTH_OUT = 3.6;
 const BOOTH_LANE = 2.4;
 const BOOTH_BACK = 5;
 const LANE = 1.4;
+/** The patrol's hut, m up the line past the wheel and across it; the map
+ * board, m beside the signs' post (or up past a gondola's wheel). */
+const PATROL = { u: 20, v: 8 };
+const BOARD = { u: 12, v: 4 };
 
 /** Every station of the map laid out. */
 export function layStations(level: Level, plans: readonly LiftPlan[]): StationLayout {
@@ -137,10 +141,18 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
         size: 1,
       });
     }
-    // THE HIGHEST TOP: the patrol's hut and the map board.
+    // THE HIGHEST TOP: the patrol's hut up behind the top, where no way off
+    // the pad goes, and the map board beside the signs at the parting —
+    // both off the pad's lean, which a rider slides down to his run.
     if (p.lift.kind !== "drag" && p.lift.top.y === peak) {
-      put("patrol", L - 10, -(g + 11), side);
-      put("board", L - 17, g + 8, p.heading + Math.PI);
+      put("patrol", L + PATROL.u, -(g + PATROL.v), side);
+      const at = p.lift.kind === "chair" ? chairLane(p) : null;
+      put(
+        "board",
+        at ? at.signs : L + BOARD.u,
+        at ? at.v + BOARD.v : g + BOARD.v,
+        p.heading + Math.PI,
+      );
     }
   }
   return { parts, fences };

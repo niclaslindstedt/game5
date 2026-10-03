@@ -57,6 +57,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -168,6 +169,11 @@ export type SkisModel = {
     waiting?: boolean,
   ): void;
   setSkierVisible(visible: boolean): void;
+  /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
+   * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
+   * the snow comes, which stage his fall by. Without one a fall is staged
+   * by the time aloft alone. */
+  setGround(ground: FlightGround | null, gravity: number): void;
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
   lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
@@ -269,6 +275,8 @@ export function poseInputOf(
     skid: skier.skid,
     // THE SAVE his body is making, as the view's spring carries it.
     jolt: legs.jolt,
+    // THE FALL his body is riding, by how far it is.
+    flight: flightShape(legs.flight, legs.clock, legs.air),
     trick,
     mounts,
     // IN THE START GATE under the lights, as his body has settled into it
@@ -334,6 +342,7 @@ export function createSkisModel(
   // His own clock starts at his kit's own offset: four on a start line
   // breathe and shift their weight out of step.
   const legs = createSkierSpring((style.skier.jacket % 997) / 31);
+  let fall: { ground: FlightGround; gravity: number } | null = null;
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
@@ -424,6 +433,14 @@ export function createSkisModel(
           skier.jumpLoad / TUNING.jump.full,
           skier,
           waiting,
+          fall
+            ? {
+                read: skier.airborne
+                  ? flightRead(fall.ground, skier, skier.spec.cogHeight, fall.gravity)
+                  : null,
+                gravity: fall.gravity,
+              }
+            : undefined,
         );
       // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
       // feet, so the drawn origin goes inside the turn by the legs' length
@@ -474,6 +491,9 @@ export function createSkisModel(
       figure.pose(full);
       models?.poseSkier(skierPose(full), figure.group);
       merged.update();
+    },
+    setGround(ground, gravity) {
+      fall = ground ? { ground, gravity } : null;
     },
     setSkierVisible(v) {
       models?.setSkierVisible(v);

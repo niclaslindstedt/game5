@@ -10,6 +10,7 @@ import { strideRate, type Save, type SkierState } from "@engine";
 import { gaitOf } from "./skier-gait.ts";
 
 import { JOLT_KEYS, joltOf, NO_JOLT, type Jolt } from "./skier-save.ts";
+import { createFlight, stepFlight, type Flight, type FlightRead } from "./skier-flight.ts";
 
 /** THE BODY ON ITS LEGS — the secondary motion a skier's own mass has on
  * top of the skis, kept by the view (it is the picture's, not the
@@ -89,6 +90,9 @@ export type SkierSpring = {
    * a motion (NaN until the first ride is read). */
   keep: number;
   keepRate: number;
+  /** THE FALL as his body rides it (`skier-flight.ts`): secure off a
+   * kicker, spotting a drop, windmilling a cliff, reaching for the snow. */
+  flight: Flight;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -113,6 +117,12 @@ export type SpringRide = {
    * what the gait is read off. */
   pitch?: number;
   thrown?: SkierState["thrown"];
+  /** How long he has been in the air, s, and his body's rates, rad/s
+   * (`SkierState`) — what the fall is staged by. */
+  airTime?: number;
+  wx?: number;
+  wy?: number;
+  wz?: number;
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
@@ -181,6 +191,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     poledStride: Number.NaN,
     keep: Number.NaN,
     keepRate: 0,
+    flight: createFlight(),
   };
 }
 
@@ -271,7 +282,8 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
 /** Advance the body on its legs by `dt` s for a pair climbing at `vy` m/s
  * (the engine's own), in the air or not, a jump loaded `load` of the way
  * (0..1; the engine's `jumpLoad` over a full one), `waiting` in the start
- * gate under the lights or not. */
+ * gate under the lights or not; `fall` the snow under his flight as read
+ * (`flightRead`) and the flight's gravity, m/s². */
 export function stepSkierSpring(
   s: SkierSpring,
   vy: number,
@@ -280,6 +292,7 @@ export function stepSkierSpring(
   load = 0,
   ride?: SpringRide,
   waiting = false,
+  fall?: { read: FlightRead | null; gravity: number },
 ): void {
   if (!(dt > 0)) return;
   s.clock += dt;
@@ -296,6 +309,15 @@ export function stepSkierSpring(
     stepBody(s, ride, dt);
     stepPoled(s, ride, airborne, dt);
   }
+  stepFlight(
+    s.flight,
+    airborne,
+    fall?.read,
+    ride?.airTime ?? 0,
+    Math.hypot(ride?.wx ?? 0, ride?.wy ?? 0, ride?.wz ?? 0),
+    dt,
+    fall?.gravity,
+  );
   const into = airborne ? 1 : 0;
   [s.air, s.airRate] = follow(s.air, s.airRate, into, dt, airborne ? EASE.up : EASE.down);
   s.air = Math.max(0, Math.min(1, s.air));

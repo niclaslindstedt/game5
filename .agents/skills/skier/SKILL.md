@@ -117,6 +117,7 @@ when the skis he stands on are what moves.
 | `pwa/src/game/skier-mounts.ts` | `MOUNTS` and `mountsFor` — the bindings, the hips, the hands, in the body frame (re-exported by `skier-pose.ts`) |
 | `pwa/src/game/ski-stand.ts` | THE SKIS ON THE SNOW: `standOf` (the pivot about the feet, each ski's lift, shift and the stance turned with the pivot), `skiShares` (which ski carries him), `skiGaps` (each drawn ski's gap to the snow — what the turns lab prints and the suite holds) |
 | `scripts/turns-preview.mjs`, `pwa/src/tools/turns-harness.ts` | THE TURNS LAB (`make turns`): one turn, linked carves, a skidded turn and a hockey stop at several speeds through the game's own renderer, each cell printing the load split and each ski's gap |
+| `pwa/src/game/skier-flight.ts` | THE FALL: the fall clock, SET → SPOT → WINDMILL → REACH, the arms' angle wound round and braked home, `flightRead` (how high, how soon the snow), `flightShape` (what the pose lays on); `tests/skier_flight_test.ts` |
 | `pwa/src/game/skier-spring.ts` | The view's own state between frames: the body's spring on its legs, the air and a jump's load eased, the hips, edge, roll and the skid's pivot followed (`drawnSkiAngle` — the skis are drawn on it too), the start gate's stance eased in and out (`ready`, off `inStartGate`), his own clock |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
 | `tests/world_render_test.ts`, `tests/skier_pose_test.ts` | The pose held: boots in the bindings, each shin in its boot, hands on the grips, the carve an inclined column hinged at the hips, the eyes toward the horizon, the back rounded in the tuck, compact in the air, alive stood still; the half bones turn half way and the hands close round the poles |
@@ -163,7 +164,19 @@ when the skis he stands on are what moves.
    the knees stay bent) and goes into the air and out of it as MOTIONS —
    the view's `SkierSpring.air` and `load` ease the flag and the jump's
    load (`skier-spring.ts`); a fresh LANDING folds the knees on the
-   spring; a GRAB folds him to a ski.
+   spring; a GRAB folds him to a ski. A FALL is ridden by how far it is
+   (`skier-flight.ts`, `SkierSpring.flight`) on a FALL CLOCK that runs only
+   while he is HIGH over the snow: SET (compact, quiet), SPOT (hands
+   forward and wide, chest over the knees, head on the landing), a
+   measured forward WINDMILL on a cliff (both arms on one circle round
+   their shoulders, a beat apart, a circle a second — wound up from the
+   spot and braked home into it, never hurried), and REACH over the last
+   half second (`flightRead`: the flight's ballistics over the map, which
+   each model is handed by `setGround`) — arms forward and down, legs long
+   by the size of the fall. Never panicked: a professional's. The arms are
+   only off home while the fall holds them whole, so no fist is mixed
+   through him; anything eased by `air` steps at the touchdown, so the
+   chest, the head and the hands let go on springs of their own.
 8. STOOD STILL (`idle`, faded in below a walk) he breathes, shifts his
    weight, glances about and works the grips on his own clock — started at
    his kit's own offset so four on a start line are not in step. IN THE

@@ -198,6 +198,8 @@ const CLOSE = ["closeup", "detail", "game", "stretch"];
 const data = {
   skis: spec.id,
   slot: args.slot,
+  // The flight's gravity, m/s² — what the page reads his falls by.
+  gravity: E.flightGravity(E.MODE_RULES.race),
   moves: sheets.includes("moves") ? moves.map(ski) : [],
   turntable: sheets.includes("turntable") ? turntable() : [],
   moments: sheets.some((s) => CLOSE.includes(s)) ? momentFrames() : [],

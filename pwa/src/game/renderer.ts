@@ -31,6 +31,7 @@ import * as THREE from "three";
 import {
   SKIS,
   TUNING,
+  flightGravity,
   sunAtRun,
   totalMass,
   weatherOf,
@@ -652,6 +653,7 @@ export function createWorldRenderer(
         const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
+        r.model.setGround(level, flightGravity(run.rules));
         r.model.pose(
           skier,
           r.drawn,

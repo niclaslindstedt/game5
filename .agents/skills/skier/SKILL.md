@@ -39,10 +39,16 @@ outside ski, which is what "shoulders level" in the body's own frame gave. **THE
 `SkierState.drive` and `stride`, the same strides the push comes in —
 `poles.ts`): SETTING OFF on the flat or down a pitch he DOUBLE-POLES —
 the diagonal stride is only for climbing a rise (the pair's `pitch`), a
-man walking on skis everywhere else; SKATING, the skis opened into a V, a
-leg driven out AND back off its ski's INSIDE edge (`Gait.tilt`) while the
-hips are carried across over the flat gliding ski, both poles planted with
-every push; and DOUBLE-POLING, the trunk already 40° over at the plant
+man walking on skis everywhere else; SKATING, the skis opened into a V (the engine's
+`skateAngle`), a leg driven out long AND back off its ski's INSIDE edge
+(`Gait.tilt`) while his weight goes wholly over the flat gliding ski — the
+FEET moved under him (`Gait.out`), never his hips slid off his centre,
+because his centre is the line the engine skis: along the gliding ski
+(`SkierState.glide`), a zig-zag — the hips bobbing through each stroke,
+turned toward the line he glides on, the shoulders rolled over it
+(`Gait.sink`, `twist`, `roll`), both poles planted with every push for a
+quick bite inside the leg's long one (`Gait.duty`) and the arms following
+through behind him after the release; and DOUBLE-POLING, the trunk already 40° over at the plant
 with the elbows bent and out, crunched to 60° and the arms driven back past
 the hips until they are long. The double pole's arms are swung FROM THE
 SHOULDERS (`DOUBLE_ARM`, `armAt`); the stride's off the stance
@@ -210,7 +216,7 @@ when the skis he stands on are what moves.
 
 Everything he does is a `SkierState` field the engine wrote (`hipRight`,
 `hipAft`, `crouch`, `lean`, `steer`, `edge`, `roll`, `skiCompression`,
-`airborne`, `landing`, `jumpLoad`, `popped`, `drive`, `speed`) or
+`airborne`, `landing`, `jumpLoad`, `popped`, `drive`, `glide`, `speed`) or
 `TrickState.pose`, eased only by the view's own spring; nothing re-derives
 intent from physics deltas.
 
@@ -235,6 +241,14 @@ intent from physics deltas.
    1280×720 frame's own pixels, enlarged unsmoothed — what a player reads)
    and `--sheet=stretch` (the skin coloured by each triangle's stretch off
    its bind, the share outside the band printed by region).
+   WHERE A MOVE TAKES HIM: `ARGS=--sheet=path` (`skier-path.ts`) draws each
+   move straight down and from behind, strobed, over the yellow line his
+   centre of gravity draws on the snow and each foot's prints, and prints
+   the drift off his heading and the `glide` — the way he goes off the
+   GLIDING ski's line, which a skater rides, so near nought — with the
+   sway, the V and the strides a second (`MOVE=away,skate,start` for the
+   skate). A frame strip shows a body; only this shows whether the body
+   goes where its skis point.
 1. `make skis ARGS=--sheet=skier` — him CLOSE UP in the poses that read
    most, from behind at the chase camera's height, the rear three-quarter,
    the side and the front three-quarter (`--slot=n` another kit). Judge the

@@ -338,6 +338,16 @@ export const TUNING = {
      * setting off or climbing a rise walks his skis forward. */
     strideFrom: 1.6,
     strideTo: 3,
+    /** THE SKATE'S V, each ski off his line, rad: at a walk (`strideFrom`)
+     * and by `skateTo` — measured skating holds some 14° a ski at 3 m/s
+     * (19° in the asymmetric skate a skier climbs in, 45° and more slow up
+     * a steep rise), and the V closes as the speed comes up. He rides the
+     * gliding ski's arm of it (`glideYaw`). */
+    vee: { slow: 0.36, fast: 0.2 },
+    /** The drive under which he does not skate at all (`skateWork`): a
+     * skier half working — the brake held, an edge on — pushes on his
+     * poles with his skis together. */
+    skateDrive: 0.4,
     /** THE DRIVE IS FOR A STRAIGHT: a skier works on the flat and down the
      * run-out, not with his skis on edge in a bend — the edge asked past
      * `edgeFrom` of full takes it away by `edgeGone`. */
@@ -346,13 +356,20 @@ export const TUNING = {
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,
-    /** Strides a second: a skate stride each leg at a crawl, a double
-     * pole a second faster — and the share of each cycle the push is on,
-     * the rest the recovery (a rest level of `floor` of the mean between). */
-    cadence: 1.3,
+    /** Strides a second: THE SKATE'S — one leg's push and the long glide
+     * on the other ski (`strideRate`), measured at 0.85 a second at 3.5
+     * m/s rising to 1.3 by 6.3 (a skater lengthens his glide first and
+     * quickens only toward his top speed) — and the slowest a double pole
+     * is worked; the share of each stride the push is on (measured: the
+     * leg's push 0.42–0.5 s of a stroke), the rest the glide and the
+     * recovery (a rest level of `floor` of the mean between); and the
+     * least share of a skate stride the poles bite for (`poleDuty` —
+     * measured 0.34 s slow to 0.22 s fast, a quarter of a stroke). */
+    cadence: { slow: 0.85, fast: 1.3, from: 3.5, to: 6.3 },
     cadencePole: 1.05,
     duty: 0.45,
     floor: 0.3,
+    dutyLeast: 0.2,
     /** How far he goes past a planted basket over one push, m — the pole's
      * sweep from its plant to its release behind him, double-poling and
      * skating (the pose's own strokes sweep 1.55 and 1.19 m; less here, so

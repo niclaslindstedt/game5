@@ -77,7 +77,7 @@ import {
 import { carveCurvature, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
-import { driveReach, poleForce, strideRate } from "./poles.ts";
+import { driveReach, glideYaw, poleForce, skateWork, strideRate } from "./poles.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -183,6 +183,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     popped: 1e6,
     drive: 0,
     stride: 0,
+    glide: 0,
     crouch: 0,
     hipRight: 0,
     hipAft: 0,
@@ -296,6 +297,21 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // Read off the SPEED, not the way: a skier sliding sideways at 80 km/h has
   // no way along his skis and no business pushing on them.
   if (c.drive > 0 && driveReach(speed0) > 0) c.stride += strideRate(speed0) * c.drive * dt;
+  // SKATING, he rides the gliding ski's line (`glideYaw`): the snow grips
+  // him along it and the push drives him along it, below — and the push's
+  // SIDEWAYS share is what carries his way from one arm of the V to the
+  // other, so the way is turned with the line, its speed kept: the leg
+  // pays for the turn, the snow is not asked to scrub it out of him.
+  const glide0 = c.glide;
+  c.glide = glideYaw(c.stride, speed0, skateWork(c.drive, speed0));
+  if (!c.airborne && c.thrown === null && c.glide !== glide0) {
+    const turn = c.glide - glide0;
+    const cos = Math.cos(turn);
+    const sin = Math.sin(turn);
+    const vx = c.vx;
+    c.vx = vx * cos + c.vz * sin;
+    c.vz = c.vz * cos - vx * sin;
+  }
   // THE CROUCH follows the tuck — or, deeper the longer it is held, the
   // jump being loaded: a body takes a moment to fold.
   const crouch0 = c.crouch;
@@ -548,7 +564,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // is turning at exactly the curvature the edge asks for. On the
     // groomer only: in powder the edge is buried and the ski bends into
     // its float, not its sidecut. The whole ski's pivot is the skid's.
-    const toe = c.skiAngle + kappa * packed * p.bz;
+    // Skating, the line is the gliding ski's (`glide`).
+    const toe = c.skiAngle + c.glide + kappa * packed * p.bz;
     const skiDir = rotate(q, { x: Math.sin(toe), y: 0, z: Math.cos(toe) });
     // The tangent frame along this station's line of travel.
     const dn = skiDir.x * normal.x + skiDir.y * normal.y + skiDir.z * normal.z;
@@ -726,7 +743,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const reach =
       Math.abs(way) > 1 ? (cornerGrip(spec, packed) * pressed * S.pathShare) / Math.abs(way) : 0;
     const asked = clamp(way * kappa, -reach, reach);
-    const slip = flat > S.slipFrom && way > 0 ? angleDiff(Math.atan2(c.vx, c.vz), c.heading) : 0;
+    // ...the way the skis point: skating, the gliding ski's line.
+    const slip =
+      flat > S.slipFrom && way > 0 ? angleDiff(Math.atan2(c.vx, c.vz), c.heading + c.glide) : 0;
     // Stated in N·m on the reference pair and scaled by this one's yaw
     // inertia: a hand on the yaw is an ACCELERATION.
     const heft = I.y / inertiaOf(SKIS).y;

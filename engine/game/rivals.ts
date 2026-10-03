@@ -22,8 +22,9 @@
 // start's own (`START_SALT`), which leaves the run's stream and so the
 // field above exactly as it was — how late he reacts to GO (`Rival.react`,
 // `RACE.reactBand`: held in the gate with his skis across until then, his
-// clock running like everyone's), and where in the stride cycle his first
-// push lands, and on which leg (`SkierState.stride`).
+// clock running like everyone's), and where in his first push he goes —
+// somewhere in it, never waiting through a glide for it — and on which
+// leg (`SkierState.stride`).
 //
 // THE START LINE is the level's (`Level.grid`): four slots abreast a few
 // metres above the start gate, the player in the first. A field bigger than
@@ -44,6 +45,7 @@ import type { Spawn } from "../mapgen/types.ts";
 import { freshProgress, laneAcross, standSkier } from "./course.ts";
 import { FULL_ASSIST, RACE } from "./defs/modes.ts";
 import { SKI_CATALOG } from "./defs/skis.ts";
+import { TUNING } from "./defs/tuning.ts";
 import {
   NEUTRAL_INPUT,
   type GameEvent,
@@ -125,8 +127,12 @@ export function createRivals(state: GameState, count: number): void {
     };
     const at = gridSlot(state, i + 1);
     standSkier(run, at.x, at.z, at.heading);
-    // The stride count's whole part is the leg, its fraction the phase.
-    run.skier.stride = start.range(0, 2);
+    // The stride count's whole part is the leg, its fraction the phase —
+    // somewhere in the PUSH: a racer goes on his reaction, and a skate
+    // stride is long enough that one dealt into its glide stood a second
+    // after GO before he moved.
+    const dealt = start.range(0, 2);
+    run.skier.stride = Math.floor(dealt) + (dealt - Math.floor(dealt)) * TUNING.poles.duty;
     run.skier.resilience = resilience;
     state.rivals.push({
       id: i,

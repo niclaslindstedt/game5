@@ -8,8 +8,12 @@
 import {
   TUNING,
   driveReach,
+  glideYaw,
+  poleDuty,
   poleKeepUp,
+  skateAngle,
   skateShare,
+  skateWork,
   strideRate,
   strideShare,
   type SkierState,
@@ -56,6 +60,18 @@ export type Gait = {
    * over the snow. */
   pass: number;
   keep: number;
+  /** The share of the stride the POLES are on the snow (`poleDuty`): the
+   * double pole's whole push, a quick bite inside a skate's long one. */
+  duty: number;
+  /** THE SKATE'S BODY, off his own centre: how far the shoulders roll over
+   * the gliding ski, rad (right side down positive), how far the hips
+   * sink as he loads it, m, how far the trunk leans on over his skis,
+   * rad, and how far his hips turn toward the line he glides on, rad
+   * (clockwise positive — the engine's `glide`, a share of it). */
+  roll: number;
+  sink: number;
+  pitch: number;
+  twist: number;
 };
 
 /** What one push of the poles sweeps from the plant to the release, m —
@@ -63,14 +79,37 @@ export type Gait = {
  * (the pose's own strokes, measured). */
 const POLE_SWEEP = { pole: 1.55, skate: 1.19, tuck: 0.75 };
 
-/** The skate's V, each ski off the line, rad; how far out a push takes the
- * ski, m, and how far behind him it finishes, m — the body glides on past
- * a foot pushed out sideways, so the push ends out AND back; how high the
- * recovery lifts it, m; and how far the pushing ski is rolled onto its
- * inside edge at the end of the push, rad — a flat ski has nothing to push
- * off, and a skater's push is a leg driven out along a ski on its edge
- * while he glides on the other, flat. */
-const SKATE = { splay: 0.3, out: 0.26, back: 0.22, lift: 0.09, edge: 0.45 };
+/** THE SKATE, after measured skating: how far out a push drives the ski,
+ * m — the leg extended long and out to the side, a skater's foot ends
+ * half a metre and more off his centre — and how far behind him it
+ * finishes, m (the body glides on past a foot pushed out sideways, so the
+ * push ends out AND back); how high the recovery lifts it clear of the
+ * snow, m; and how far the pushing ski is rolled onto its inside edge at
+ * the end of the push, rad — a flat ski has nothing to push off, and a
+ * skater's push is a leg driven out along a ski on its edge while he
+ * glides on the other, flat. The V itself is the engine's (`skateAngle`),
+ * which he rides the gliding arm of. */
+const SKATE = { out: 0.3, back: 0.3, lift: 0.12, edge: 0.62 };
+/** THE SKATER'S WEIGHT, wholly over the gliding ski — nose, knee and toe
+ * in one line over it: how far the feet go across under him, m, from the
+ * pushing ski under his centre to the gliding one (his centre is the line
+ * the engine skis, which already swings him some ±20 cm across the run's
+ * line, as measured); how far the shoulders roll over the gliding ski,
+ * rad; how far the hips bob through a stroke, m — measured 16 cm, the
+ * knees bent 52–59° just after the ski is set down and opened to 21–25°
+ * as he rises over it in the glide — over a standing `stoop`, and where
+ * in the stride he is lowest; how far the trunk leans over his skis,
+ * rad; and the share of the line he glides on his hips turn to face
+ * (measured: the pelvis turns 14–22° from side to side). */
+const WEIGHT = {
+  across: 0.14,
+  roll: 0.16,
+  sink: 0.11,
+  stoop: 0.02,
+  low: 0.1,
+  pitch: 0.2,
+  twist: 0.6,
+};
 /** THE DIAGONAL STRIDE: how far the kicking ski slides back and the
  * gliding one forward, m, and how high the kick comes off the snow. */
 const STRIDE = { back: 0.3, ahead: 0.24, kick: 0.04 };
@@ -94,6 +133,11 @@ export const STILL_GAIT: Gait = {
   tilt: [0, 0],
   pass: 0,
   keep: 1,
+  duty: TUNING.poles.duty,
+  roll: 0,
+  sink: 0,
+  pitch: 0,
+  twist: 0,
 };
 
 export function gaitOf(
@@ -117,13 +161,15 @@ export function gaitOf(
   const walk = strideShare(s.speed);
   const climb = clamp01((s.pitch - CLIMB.from) / CLIMB.span);
   const striding = walk * climb;
-  const skating = (1 - walk) * skateShare(s.speed);
   const stride = work * striding;
-  const skate = work * skating;
+  // The engine's own measure, which it rides the V by (`glideYaw`).
+  const skate = skateWork(s.drive, s.speed);
+  const skating = (1 - walk) * skateShare(s.speed);
   const phase = s.stride - Math.floor(s.stride);
   const push = (Math.floor(s.stride) % 2) as 0 | 1;
   const glide = (1 - push) as 0 | 1;
   const duty = TUNING.poles.duty;
+  const poleShare = poleDuty(s.speed);
   // The snow passed in a stride — the engine counts one at `strideRate` ×
   // the drive a second — and how much of it one push sweeps.
   const pass = Math.abs(s.way ?? s.speed) / (strideRate(s.speed) * Math.max(0.2, s.drive));
@@ -133,7 +179,7 @@ export function gaitOf(
       ? (POLE_SWEEP.pole * (poling - skate) + POLE_SWEEP.skate * skate) / poling
       : POLE_SWEEP.pole) *
     (1 - POLE_SWEEP.tuck * clamp01(s.crouch ?? 0));
-  const fit = sweep / Math.max(1e-6, pass * duty);
+  const fit = sweep / Math.max(1e-6, pass * poleShare);
   const out: [number, number] = [0, 0];
   const lift: [number, number] = [0, 0];
   const fore: [number, number] = [0, 0];
@@ -152,18 +198,36 @@ export function gaitOf(
   lift[push] = SKATE.lift * skate * recover + STRIDE.kick * stride * reach;
   fore[push] = -(STRIDE.back * stride + SKATE.back * skate) * reach;
   fore[glide] = STRIDE.ahead * stride * reach;
+  // THE WEIGHT, skating: over the pushing ski as its push starts, carried
+  // across onto the gliding ski by the push's end and held there through
+  // the glide — which is the next stride's pushing ski, so a stride begins
+  // where the last one left him and nothing jumps from side to side. The
+  // feet go under him rather than his hips over them: his centre is the
+  // line the engine skis, along the gliding ski.
+  const glideSide = glide === 1 ? 1 : -1;
+  const across = skate * glideSide * -Math.cos(Math.PI * Math.min(1, phase / duty));
+  out[0] -= WEIGHT.across * across;
+  out[1] -= WEIGHT.across * across;
+  // He loads the ski he lands on and rises over it as the push drives
+  // him up; lowest just after the push begins.
+  const low = 0.5 + 0.5 * Math.cos(2 * Math.PI * (phase - WEIGHT.low));
   return {
     stride,
     skate,
     pole: work * Math.max(0, 1 - striding - skating),
     phase,
     push,
-    splay: [-SKATE.splay * skate, SKATE.splay * skate],
+    splay: [-skateAngle(s.speed) * skate, skateAngle(s.speed) * skate],
     out,
     lift,
     fore,
     tilt,
     pass,
     keep: poleKeepUp(s.speed) * smooth01((fit - 0.8) / 0.15),
+    duty: poleShare,
+    roll: WEIGHT.roll * across,
+    sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)),
+    pitch: WEIGHT.pitch * skate,
+    twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate),
   };
 }

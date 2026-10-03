@@ -32,9 +32,10 @@
 //   * `bump` is his legs taking a hit (`skierSpring`): a landing folds him
 //     down and he comes back up;
 //   * THE GAIT at a crawl (`gaitOf`, off the engine's own `drive` and
-//     `stride`): SKATING — the skis opened into a V, a leg pushing out off
-//     each stride and lifted back in while the weight is carried across
-//     onto the other ski — and, rolling, DOUBLE-POLING — both poles
+//     `stride`): SKATING — the skis opened into a V, a leg driven out long
+//     off its edge each stride and lifted back in while the weight goes
+//     wholly over the other ski, the one he glides on and the way he goes
+//     (the engine's `glide`) — and, rolling, DOUBLE-POLING — both poles
 //     planted ahead together, the body folded down over them and the arms
 //     driven back past the hips until they are long, then swung forward
 //     for the next. Every arm works one STROKE (plant, push, recover) and
@@ -300,9 +301,9 @@ export type SkierPose = {
   look: number;
 };
 
-/** How far a double-pole's push folds the trunk further over, rad, and
- * how far a skate's push pitches it — a skier working out of a gate, not
- * a cross-country racer bowed to his knees. */
+/** How far a double-pole's push folds the trunk further over, rad — a
+ * skier working out of a gate, not a cross-country racer bowed to his
+ * knees. (The skate's own lean, roll, sink and twist are the gait's.) */
 const POLE_FOLD = 0.36;
 /** …and what the rest of him does through it: how far the hips sink and
  * go back as he crunches onto the poles, m, how far he rises and comes
@@ -313,12 +314,8 @@ const POLE_FOLD = 0.36;
  * double poling has the trunk some 40–45° over at the plant and 55° at
  * the bottom of the push; this plants at 39° and crunches to 60°. */
 const POLE_BODY = { sink: 0.1, back: 0.07, rise: 0.03, forward: 0.03, lean: 0.36 };
-const SKATE_PITCH = 0.1;
 /** How much wider of the hips the fists go working the poles, m. */
 const POLE_WIDE = 0.06;
-/** How far the skate carries the hips, m, and rolls the shoulders, rad,
- * across onto the gliding ski. */
-const SKATE_SWAY = { hips: 0.17, roll: 0.12 };
 /** How far out the elbows flare at the double pole's plant. */
 const PLANT_FLARE = 0.35;
 /** THE START GATE (`ready`): how far the hips sink and sit back over the
@@ -398,7 +395,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     gait.stride + gait.skate + gait.pole > 0.01
       ? 0
       : clamp01(input.plant ?? 0) * (1 - crouch) * (1 - air);
-  const duty = TUNING.poles.duty;
+  // The poles' share of the stride: a double pole's whole push, a quick
+  // bite inside a skate's long one (`poleDuty`).
+  const duty = gait.duty;
   // Where the arms are in their swing: 0 planted ahead, 1 swept through
   // past the hips at the end of the push, and back over the recovery.
   const swing = strokeSwing(gait.phase, duty);
@@ -412,7 +411,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // The diagonal stride's arms each have a cycle two strides long, planted
   // with the kick of the leg on their own side — so they swing opposite,
   // a man walking, and pass each other rather than both stopping.
-  const strideDuty = duty / 2;
+  const strideDuty = TUNING.poles.duty / 2;
   const stridePhase = [0, 1].map((i) => ((i === gait.push ? 0 : 1) + gait.phase) / 2);
   const strideSwing = stridePhase.map((p) => strokeSwing(p, strideDuty));
   // Hung inside: how far, as a share of a full hang, signed to the side —
@@ -441,14 +440,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     return add(base, add(scale(boot.n, cuff), scale(boot.f, M.foot.z)));
   }) as [V3, V3];
   // The feet's average height: the hips stand over it — a skier hanging in
-  // the air with his legs long is not folded by his own lift.
+  // the air with his legs long is not folded by his own lift. (Skating,
+  // the gait has put the feet under him: his weight over the gliding ski.)
   const feetLift = (lift[0] + lift[1]) / 2;
-  // THE WEIGHT, skating: over the pushing ski as its push starts, carried
-  // across onto the gliding ski by the push's end and held there through
-  // the glide — which is the next stride's pushing ski, so a stride begins
-  // where the last one left him and nothing jumps from side to side.
-  const glideSide = gait.push === 0 ? 1 : -1;
-  const sway = gait.skate * glideSide * -Math.cos(Math.PI * Math.min(1, gait.phase / duty));
 
   // THE HIPS: over the feet standing, down and back in a tuck, inside the
   // turn by the engine's angulation, aft of nominal by the engine's shift,
@@ -515,8 +509,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     bodyTilt - kneeIn * inward - out * (1 - inward),
     Math.min(bodyTilt + out * inward + kneeIn * (1 - inward), legLean0),
   );
-  const across0 =
-    rest.x + bootsAcross + legH * Math.sin(legLeanTo) + SKATE_SWAY.hips * sway + shift;
+  const across0 = rest.x + bootsAcross + legH * Math.sin(legLeanTo) + shift;
   const along0 =
     rest.z -
     input.hipAft * 0.8 -
@@ -538,7 +531,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       bump +
       AIR_SINK * air -
       0.06 * skid * (1 - crouch) -
-      0.05 * gait.skate -
+      gait.sink -
       POLE_BODY.sink * crunch +
       POLE_BODY.rise * tall -
       GATE.sink * ready +
@@ -562,7 +555,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // (the legs turn under him; the shoulders stay facing down the hill),
   // the hip joints a hip's width either side along it, TILTED up over the
   // higher ski (`pelvisAxis`).
-  const pelvisYaw = skiAngle * 0.9 - turning * TWIST * 0.4 * (1 - 0.5 * crouch);
+  // Skating, his hips turn toward the line he glides on (`gait.twist`).
+  const pelvisYaw = skiAngle * 0.9 - turning * TWIST * 0.4 * (1 - 0.5 * crouch) + gait.twist;
   const pelvis = pelvisAxis(pelvisYaw, lift[1] - lift[0], BODY.hip);
   // THE LEGS FIT THE BOOTS: a hip a thigh and more from the knee its boot
   // allows at the cuff's least lean would need the shin stood up behind
@@ -598,7 +592,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     POLE_FOLD * crunch +
     POLE_BODY.lean * arms +
     GATE.pitch * ready * (1 - arms) +
-    SKATE_PITCH * gait.skate +
+    gait.pitch +
     0.15 * gait.stride +
     0.25 * load -
     0.25 * pop +
@@ -628,8 +622,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const legsWorld = (input.body?.roll ?? pairRoll) + legLean;
   const angulate =
     Math.min(0.6, ANGULATE_SHARE * Math.abs(legsWorld)) * (1 - 0.5 * crouch) * (1 + 0.4 * carve);
-  const roll =
-    legsWorld - Math.sign(legsWorld) * angulate - pairRoll + SKATE_SWAY.roll * sway + J.sway;
+  const roll = legsWorld - Math.sign(legsWorld) * angulate - pairRoll + gait.roll + J.sway;
   const spineDir: V3 = {
     x: Math.sin(roll) * Math.cos(pitch),
     y: Math.cos(roll) * Math.cos(pitch),
@@ -677,7 +670,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   );
   // The shoulders face on down the hill while a hockey stop throws the
   // skis across under them.
-  const twist = -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid + J.twist;
+  const twist =
+    -turning * TWIST * (1 - 0.5 * crouch) - skiAngle * 0.5 * skid + 0.5 * gait.twist + J.twist;
   const across: V3 = norm({
     x: Math.cos(roll) * Math.cos(twist),
     y: -Math.sin(roll),

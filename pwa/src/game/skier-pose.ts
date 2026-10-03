@@ -88,7 +88,7 @@ import {
   type Stroke,
 } from "./skier-stroke.ts";
 import { joltHand, NO_JOLT, type Jolt } from "./skier-save.ts";
-import { bareHands } from "./skier-bare.ts";
+import { bareHands, bareRest, onKnee } from "./skier-bare.ts";
 import { flightHands, flightPole, type FlightShape } from "./skier-flight.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
@@ -739,8 +739,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const planted = armAt(DOUBLE_ARM, 0, true);
   const gateW = armW - arms;
   const hands = [-1, 1].map((side, i) => {
+    // With no poles, the empty hand's own rest (`skier-bare.ts`).
+    const grip = { x: side * M.hand.x, y: M.hand.y, z: M.hand.z };
     const h = mix(
-      { x: side * M.hand.x, y: M.hand.y, z: M.hand.z },
+      bare ? bareRest(grip, side, still) : grip,
       { x: side * M.tuckHand.x, y: M.tuckHand.y, z: M.tuckHand.z },
       crouch,
     );
@@ -827,9 +829,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       push: gait.push,
       free: (1 - clamp01(skate + gait.stride)) * (1 - crouch) * (1 - air) * (1 - ready),
       hang,
-      ready,
     });
-    for (const i of [0, 1]) hands[i] = add(hands[i], off[i]);
+    // ...and in the start gate, his hands on his knees.
+    for (const i of [0, 1]) {
+      const own = add(hands[i], off[i]);
+      hands[i] = mix(own, onKnee(knees[i], i ? 1 : -1), ready);
+    }
   }
   // THE FALL: the fists spotting, circling or reaching for the snow.
   if (F) flightHands(F, shoulders, hands, armLength);

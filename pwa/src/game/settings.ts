@@ -106,10 +106,6 @@ export type Settings = {
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
    * run's, off unless asked for. */
   damage: boolean;
-  /** Whether the skier takes his poles (`SkierState.poles`) — off is the
-   * HARD MODE: no double pole, a weaker climb, less balance. The next
-   * run's, on unless asked otherwise. */
-  poles: boolean;
   /** The time trial's length, laps (`TIME_TRIAL.laps`). */
   trialLaps: number;
   /** THE START CARD's answers: the free ride's mountain, day and snow
@@ -165,7 +161,6 @@ export function freshSettings(): Settings {
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
-    poles: true,
     trialLaps: TIME_TRIAL.laps[0],
     ride: freshRide(),
     level: null,
@@ -235,7 +230,6 @@ export function mergeSettings(parsed: unknown): Settings {
   out.assist.steer = onLadder(assist.steer, ASSIST_LEVELS, out.assist.steer);
   out.assist.air = onLadder(assist.air, ASSIST_LEVELS, out.assist.air);
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
-  if (typeof blob.poles === "boolean") out.poles = blob.poles;
   if (typeof blob.trialLaps === "number" && TIME_TRIAL.laps.includes(blob.trialLaps)) {
     out.trialLaps = blob.trialLaps;
   }

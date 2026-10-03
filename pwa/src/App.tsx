@@ -73,6 +73,7 @@ import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
+import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
@@ -186,12 +187,12 @@ export function App() {
   /** The pair the player skis. */
   const specOf = (s: Settings): SkiSpec => skisById(linkSkisRef.current ?? s.skis);
   /** Who skis the player's runs, and with what: the pair, the help, the
-   * switches — a link's `?poles=` over the stored row for this visit. */
+   * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
   const skierOf = (s: Settings): PinnedSkier => ({
     spec: specOf(s),
     assist: assistOf(s.assist),
     damage: s.damage,
-    poles: params.poles ?? s.poles,
+    poles: params.poles ?? carriesPoles(s.outfit),
   });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
    * `?video=` is never written back. */

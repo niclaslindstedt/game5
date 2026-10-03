@@ -34,7 +34,9 @@
 //   poles    ALLOY (a straight 18 mm shaft, a small basket); CARBON (a
 //            slim black shaft); SPEED (a downhill racer's, bent round the
 //            body so it lies along him in the tuck); POWDER (a big basket
-//            that floats in deep snow)
+//            that floats in deep snow); and NONE — the hard mode: out with
+//            nothing in his hands (`carriesPoles`, the engine's
+//            `SkierState.poles`), slower, a weaker climb, less balance
 //
 // Three-free and DOM-free: the dress (`dress-garments.ts`) cuts each
 // piece, the card shows the names, `settings.ts` keeps the pick and
@@ -45,7 +47,7 @@ export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
 export type GloveId = "gauntlet" | "mitten" | "undercuff" | "race";
-export type PoleId = "alloy" | "carbon" | "speed" | "powder";
+export type PoleId = "alloy" | "carbon" | "speed" | "powder" | "none";
 
 export type Outfit = {
   body: BodyId;
@@ -165,7 +167,25 @@ export const POLES: readonly PoleDef[] = [
     radius: [0.0095, 0.0075],
     basketRadius: 0.06,
   },
+  // NO POLES: the hard mode. Nothing of it is drawn (the pose hands the
+  // figure no poles, `skier-pose.ts`); its colours are the alloy pair's,
+  // for anything that asks.
+  {
+    id: "none",
+    name: "None",
+    shaft: 0x9aa1a9,
+    grip: 0x17191d,
+    basket: 0x17191d,
+    radius: [0.009, 0.007],
+    basketRadius: 0.045,
+  },
 ];
+
+/** WHETHER AN OUTFIT CARRIES POLES — every pair but NONE, which sends the
+ * skier out without them (the hard mode, `SkierState.poles`). */
+export function carriesPoles(o: Outfit): boolean {
+  return o.poles !== "none";
+}
 
 /** Every slot's catalog, in the order the DRESS card lists them. */
 export const GEAR = {

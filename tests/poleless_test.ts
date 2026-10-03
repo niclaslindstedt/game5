@@ -21,6 +21,7 @@ import {
 import { flatLevel } from "./support/synthetic.ts";
 import { reproOf, reproQuery } from "../pwa/src/game/debug-readout.ts";
 import { freeGameOptions, freshRide } from "../pwa/src/game/free-ride.ts";
+import { carriesPoles, DEFAULT_OUTFIT, RIVAL_OUTFITS, stepGear } from "../pwa/src/game/outfit.ts";
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { gaitOf, skierPose } from "../pwa/src/game/skier-pose.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -147,6 +148,31 @@ describe("the figure without poles (skier-gait.ts, skier-bare.ts)", () => {
     expect(span(bare)).toBeGreaterThan(span(poled) + 0.15);
   });
 
+  it("waits in the gate with his hands on his knees, not over planted poles", () => {
+    const p = skierPose({ ...BASE, poles: false, ready: 1 });
+    for (const i of [0, 1]) {
+      const d = Math.hypot(
+        p.hands[i].x - p.knees[i].x,
+        p.hands[i].y - p.knees[i].y,
+        p.hands[i].z - p.knees[i].z,
+      );
+      expect(d).toBeLessThan(0.15);
+    }
+  });
+
+  it("lets his arms hang by his sides stood still, and holds no fist out at the grips", () => {
+    const still = skierPose({ ...BASE, poles: false, idle: { t: 0, still: 1 } });
+    const riding = skierPose({ ...BASE, poles: false });
+    const poled = skierPose(BASE);
+    for (const i of [0, 1]) {
+      expect(still.hands[i].y).toBeLessThan(riding.hands[i].y - 0.1);
+      expect(still.hands[i].y).toBeLessThan(still.hips.y);
+      // Riding, nearer his body and lower than a pole's grip is held.
+      expect(riding.hands[i].z).toBeLessThan(poled.hands[i].z - 0.08);
+      expect(riding.hands[i].y).toBeLessThan(poled.hands[i].y);
+    }
+  });
+
   it("swings his arms like a skater, the pushing side back and the other forward", () => {
     const speed = 6;
     // The left leg's push, well into it.
@@ -161,11 +187,14 @@ describe("the figure without poles (skier-gait.ts, skier-bare.ts)", () => {
   });
 });
 
-describe("the switch (settings.ts, url-params.ts)", () => {
-  it("is on unless asked otherwise, and a stored blob is read only as a yes or a no", () => {
-    expect(freshSettings().poles).toBe(true);
-    expect(mergeSettings({ poles: false }).poles).toBe(false);
-    expect(mergeSettings({ poles: "off" }).poles).toBe(true);
+describe("the pick (outfit.ts, settings.ts, url-params.ts)", () => {
+  it("is the DRESS card's POLES row: NONE, kept with the outfit, and poles unless picked", () => {
+    expect(carriesPoles(freshSettings().outfit)).toBe(true);
+    expect(carriesPoles(DEFAULT_OUTFIT)).toBe(true);
+    const bare = mergeSettings({ outfit: { ...DEFAULT_OUTFIT, poles: "none" } });
+    expect(carriesPoles(bare.outfit)).toBe(false);
+    expect(stepGear(DEFAULT_OUTFIT, "poles", -1).poles).toBe("none");
+    expect(RIVAL_OUTFITS.every(carriesPoles)).toBe(true);
   });
 
   it("is a link's for the visit, and a repro link carries it", () => {

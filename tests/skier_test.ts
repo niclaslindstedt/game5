@@ -139,11 +139,35 @@ describe("the skier at rest", () => {
     expect(state.skier.airborne).toBe(false);
   });
 
-  it("is not held on a pitch his skis cannot hold", () => {
+  it("stands across a steep pitch on the ledge his skis press, whatever the pitch", () => {
+    // 31°: across the fall line the pull stands on the ledge; only its
+    // share along the skis is the base's to hold, and across there is none.
+    const steep = flatLevel({ packed: 1, grade: 0.6, slopeFrom: 0 });
+    const state = stage(steep, 0, Math.PI / 2);
+    ride(state, 1, NEUTRAL_INPUT);
+    const x0 = state.skier.x;
+    const z0 = state.skier.z;
+    ride(state, 10, NEUTRAL_INPUT);
+    expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(0.01);
+  });
+
+  it("is not held with his skis pointing down a pitch the base cannot hold", () => {
     const steep = flatLevel({ packed: 1, grade: 0.6, slopeFrom: 0 });
     const state = stage(steep);
     ride(state, 2, { ...NEUTRAL_INPUT, brake: 1 });
     expect(state.skier.speed).toBeGreaterThan(1);
+  });
+
+  it("ends a hockey stop on a steep pitch stood, not side-slipping", () => {
+    // 27°, from 40 km/h down the fall line: the edge set at the end of it.
+    const steep = flatLevel({ packed: 1, grade: 0.5, slopeFrom: 0 });
+    const state = stage(steep, 11);
+    ride(state, 10, { ...NEUTRAL_INPUT, brake: 1, steer: 1 });
+    expect(state.skier.speed).toBeLessThan(1e-6);
+    const x0 = state.skier.x;
+    const z0 = state.skier.z;
+    ride(state, 5, { ...NEUTRAL_INPUT, brake: 1, steer: 1 });
+    expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(0.01);
   });
 });
 

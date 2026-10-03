@@ -3,8 +3,9 @@
 // the spec and its class's traced look — the very tables `ski-gear.ts`
 // builds the code's pair from — with each ski's stations SAMPLED off the
 // same profile, plan and thickness the code lofts (`ski-looks.ts`), the
-// boot's place along the ski, and the drawn travel and edge tilt its clips
-// run.
+// boot's place along the ski, the drawn travel and edge tilt its clips
+// run, and the pair's own topsheet's GRAPHIC (`ski-topsheets.ts`: a pair
+// is sold in one, so its decals are cut into its model).
 export const kind = {
   ids: async () => (await import("../../../engine/index.ts")).SKI_CATALOG.map((s) => s.id),
   data: async (id) => {
@@ -12,6 +13,7 @@ export const kind = {
     const { SKI_LOOKS, baseHeight, halfWidth, thickness } =
       await import("../../../pwa/src/game/ski-looks.ts");
     const { KNEE_TRAVEL, EDGE_TILT, REST_SAG } = await import("../../../pwa/src/game/ski-gear.ts");
+    const { PATTERNS, TOPSHEETS } = await import("../../../pwa/src/game/ski-topsheets.ts");
     const spec = SKI_CATALOG.find((s) => s.id === id);
     const look = SKI_LOOKS[id];
     const n = 48;
@@ -31,6 +33,9 @@ export const kind = {
       /** The boot's centre, m from the tail. */
       boot: spec.length / 2 + bootOffset(spec),
       gear: { travel: KNEE_TRAVEL, edgeTilt: EDGE_TILT, restSag: REST_SAG },
+      /** The graphic, in the topsheet's own (u, v): u from the tail to the
+       * tip, v across from the left edge (-1) to the right (1). */
+      pattern: PATTERNS[TOPSHEETS[id].pattern],
     };
   },
   builder: "skis.py",

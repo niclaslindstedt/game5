@@ -38,7 +38,8 @@ export function modelFiles(on: ModelSwitches): string[] {
 }
 
 /** WHAT A MODEL IS MADE FROM: the Blender builder and its driver, and the
- * game's own data it reads — the spec, the traced looks, the drawn travel.
+ * game's own data it reads — the spec, the traced looks, the drawn travel,
+ * each pair's topsheet graphic.
  * A change to any of these can move a model; the stamp is their hash. */
 export const MODEL_SOURCES = [
   "scripts/blender.mjs",
@@ -48,6 +49,7 @@ export const MODEL_SOURCES = [
   "engine/game/defs/skis.ts",
   "pwa/src/game/ski-looks.ts",
   "pwa/src/game/ski-gear.ts",
+  "pwa/src/game/ski-topsheets.ts",
 ];
 
 /** Every half's stamp in `sources.json`, and the sources it hashes — one

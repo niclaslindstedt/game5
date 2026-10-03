@@ -347,8 +347,11 @@ the description; what a session needs:
   (as `skis.py` / `skier.py` name it — `tests/models_test.ts` reads them)
   to the topsheet's colour or to the code pair's own base, edge and lamp
   materials; every other material goes through the world's `wrap`. A
-  topsheet's graphic does not reach a model (open work). A lab's Blender
-  skier takes an outfit's colours (`outfit.ts`' `coloursOf`).
+  pair's GRAPHIC is cut into its model (a pair is sold in one topsheet):
+  `skis.py` lays the pattern's decals in `white` — the trim — exactly where
+  `ski-gear.ts`' `decalGeometry` lays the code pair's, and a race pair's
+  number panel in `base`; `ski-topsheets.ts` is a `MODEL_SOURCES` file. A
+  lab's Blender skier takes an outfit's colours (`outfit.ts`' `coloursOf`).
 - **Cost**: a pair's LOD0 in the low thousands of triangles, the skier's
   under 10k; the lower LODs are packed by nothing yet (open work: rivals at range on LOD1).
 

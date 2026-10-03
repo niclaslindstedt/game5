@@ -23,13 +23,14 @@ import {
   type PisteGrade,
   type RegionId,
   type Thrown,
+  planLift,
+  ropeAt,
 } from "@engine";
 
 import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
-import { planLift, ropeAt } from "../game/lift-plan.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { markView } from "./mark-view.ts";
 import { signView } from "./sign-view.ts";
@@ -631,6 +632,9 @@ const shots: Record<string, () => string> = {
         ["lift-drag", "drag", [0.5, 8, 30, 1.7, 40], "beside the drag's line"],
         ["lift-station", "longest", [0, 20, 30, 1.7, 0], "the longest lift's bottom station"],
         ["lift-far", "longest", [0.5, 180, 0, 30, 0], "the longest lift from across the face"],
+        ["lift-top", "chair", [1, 16, 28, 2, 0], "a chair's top station from its pad"],
+        ["lift-foot", "chair", [0, 16, 16, 1.8, 6], "a chair's load line and corral"],
+        ["lift-door", "gondola", [0, 12, 34, 2, -18], "the gondola station's door"],
       ] as const
     ).map(([name, kind, a, said]) => [
       name,

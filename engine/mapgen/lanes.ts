@@ -217,11 +217,14 @@ export type LaneRoute = { route: RoutePoint[]; run: number; x: number; z: number
 /** What a lane's search may be asked beyond its start: a lift's bottom
  * station to run to instead of a piste (`goal`), the least plan distance
  * to its join (`least`, `road.reach`'s own by default), and the stretch of
- * the map to search (`box`: across from `x0` to `x1`, down to `z1`). */
+ * the map to search (`box`: across from `x0` to `x1`, down to `z1`), and
+ * ground it may not cross (`keepOff`). */
 export type LaneAsk = {
   goal?: RoutePoint;
   least?: number;
   box?: { x0: number; x1: number; z1: number };
+  /** Ground the route may not cross — a station's pad (R26). */
+  keepOff?: (x: number, z: number) => boolean;
 };
 
 /** How near a lift's bottom station a route must come to end at it, m. */
@@ -242,7 +245,7 @@ export function routeLane(
   may: (run: number) => boolean,
   opts: LaneAsk = {},
 ): LaneRoute | null {
-  const { goal, least = RR.road.reach.min, box } = opts;
+  const { goal, least = RR.road.reach.min, box, keepOff } = opts;
   const top = ground.originZ + (ground.rows - 1) * ground.cell;
   const zEnd = Math.min(top - 200, z0 + RR.road.reach.max, box ? box.z1 : Infinity);
   const rows = Math.max(1, Math.floor((zEnd - z0) / CELL));
@@ -283,6 +286,7 @@ export function routeLane(
       const r0 = nearest.run[o];
       if (d < ON_LINE && may(r0) && joinable(net, r0, nearest.arc[o])) onRun[o] = r0;
       if (goal && hypot(x - goal.x, z - goal.z) < GOAL_REACH) atGoal[o] = 1;
+      if (keepOff && keepOff(x, z)) laned[o] = 1;
     }
   }
   // THE LANES LAID BEFORE: a lane never crosses or runs beside another

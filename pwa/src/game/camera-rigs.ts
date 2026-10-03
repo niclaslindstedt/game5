@@ -109,6 +109,9 @@ export type RigPose = {
   packed: number;
   /** Body → world (the framework's `core/quat` convention). */
   q: Quat;
+  /** AT A SUMMIT, 0..1 (`camera-summit.ts`): on a top station's pad and
+   * over its lip, where the boom holds its look level (`SUMMIT_LOOK`). */
+  summit?: number;
 };
 
 /** What a rig asks of the lens this frame. `roll` is the horizon's tilt,
@@ -532,9 +535,13 @@ export function frameRig(
   // line predicts as the target's own velocity: a steady schuss down a face
   // is tracked with no lag, and only the rollers in it are smoothed away.
   const descent = -plan * Math.tan(slope);
+  // AT A SUMMIT the height hangs on the air's softer spring: pushed off
+  // over the lip, he drops away under a lens that holds a beat at the top.
+  const summit = Math.max(0, Math.min(1, pose.summit ?? 0));
+  const softly = pose.airborne || summit > SUMMIT_LOOK.soft;
   const lifted = snap
     ? settle(st.y, pose.y)
-    : follow(st.y, pose.airborne ? rig.liftAir : rig.lift, pose.y, dt, descent);
+    : follow(st.y, softly ? rig.liftAir : rig.lift, pose.y, dt, descent * (1 - summit));
   // The height the lens is FRAMED from: the spring's, with its lag eased
   // into `lagMax` so a long fall cannot leave the lens up on the cliff.
   const lag = pose.y - lifted;
@@ -544,7 +551,8 @@ export function frameRig(
   st.fresh = false;
   // THE STRETCH: the arm pulled in along its own line by the share of the
   // fov's widening it holds, so the skier keeps his size in the frame.
-  const fov = Math.min(rig.fovMax, rig.fov + rig.fovPerSpeed * pose.speed);
+  const fov =
+    Math.min(rig.fovMax, rig.fov + rig.fovPerSpeed * pose.speed) + SUMMIT_LOOK.fov * summit;
   const half = (d: number) => Math.tan((d * Math.PI) / 360);
   const arm = 1 - rig.hold * (1 - half(rig.fov) / half(fov));
   const dist = (rig.dist + rig.distPerSpeed * pose.speed) * arm + surge;
@@ -554,7 +562,11 @@ export function frameRig(
   // the snow it stands above instead of meeting it.
   const len = Math.hypot(dist, rise);
   const steep = Math.max(0, Math.min(1, (slope - STEEP.from) / (STEEP.full - STEEP.from)));
-  const incline = rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep);
+  // AT A SUMMIT the arm stays level rather than leaning with the face, so
+  // the drop reads as the drop it is.
+  const incline =
+    (rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep)) *
+    (1 - SUMMIT_LOOK.level * summit);
   const up = Math.atan2(rise, dist) + incline * slope;
   const eye = {
     x: pose.x - Math.sin(yaw) * len * Math.cos(up),
@@ -600,6 +612,12 @@ export function frameRig(
   eye.z -= fx * shake.x * buzz;
   return { eye, target, fov, roll: shake.r * PACE.tremor.roll };
 }
+
+/** THE LOOK AT A SUMMIT (`camera-summit.ts`): the share of the boom's
+ * lean with the mountain taken out (all but a little), the share past which
+ * its height hangs on the air's softer spring, and the degrees the fov opens
+ * by — the face under the horizon, and the drop off the lip felt. */
+export const SUMMIT_LOOK = { level: 0.9, soft: 0.5, fov: 6 } as const;
 
 /** THE FALL LINE's reading: metres behind the skier it starts, the least
  * it reaches ahead, m, and the pitch it is held between, rad (a short rise

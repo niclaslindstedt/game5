@@ -211,6 +211,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     damage: { ski: [0, 0], legs: 0 },
     body: freshBody(),
     tunnel: null,
+    lift: null,
     hitCooldown: 0,
     bumpCooldown: 0,
     sinks: probes.map(() => 0),

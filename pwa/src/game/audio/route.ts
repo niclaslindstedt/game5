@@ -245,6 +245,16 @@ export function soundForEvent(
     case "tunnel":
       return { id: event.phase === "in" ? "tunnel_in" : "tunnel_out" };
 
+    // A LIFT RIDDEN (`lift-voice.ts`): the chair taking him, the grip over
+    // each tower's sheaves, and his skis set down at the top. A cabin's
+    // towers are heard inside it as a chair's are; a drag's is a pull on
+    // the snow, and the handing back of the controls says nothing.
+    case "lift":
+      if (event.phase === "board") return event.lift === "drag" ? null : { id: "lift_board" };
+      if (event.phase === "tower") return event.lift === "drag" ? null : { id: "lift_tower" };
+      if (event.phase === "off") return { id: "lift_off" };
+      return null;
+
     default:
       return null;
   }

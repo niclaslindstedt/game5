@@ -7,6 +7,10 @@
 import { describe, expect, it } from "vitest";
 import {
   CROWD,
+  carrierAt,
+  liftPlans,
+  queueSpot,
+  ropeAt,
   CROWD_GROUPS,
   clipCrowd,
   createGame,
@@ -120,13 +124,18 @@ describe("the crowd skis", () => {
   it("on the snow, down the mountain, and back up the lifts", () => {
     for (const a of state.crowd!.amateurs) {
       expect(Number.isFinite(a.x + a.y + a.z + a.s + a.d + a.speed)).toBe(true);
-      if (a.mode === "lift" || a.mode === "air") continue;
+      // Up in the air, or riding a lift's carrier (`crowd-lift.ts`).
+      if (a.mode === "lift" || a.mode === "air" || a.mode === "ride") continue;
       expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.01);
     }
     expect(speed / samples).toBeGreaterThan(2);
-    // Someone has been all the way down, up a lift and out again.
-    const round = [...seen.values()].filter((m) => m.join(",").includes("lift,ski"));
+    // Someone has ridden a lift and come off it onto a run.
+    const round = [...seen.values()].filter((m) => /ride,(skate,)?ski/.test(m.join(",")));
     expect(round.length).toBeGreaterThan(5);
+    // ...and someone has come down to a lift's foot and queued for it.
+    expect(
+      [...seen.values()].filter((m) => /ski,(stop,)?queue/.test(m.join(","))).length,
+    ).toBeGreaterThan(3);
     // ...and a few have stopped, and a few have fallen.
     const all = [...seen.values()].map((m) => m.join(","));
     expect(all.filter((m) => m.includes("stop")).length).toBeGreaterThan(10);
@@ -138,6 +147,53 @@ describe("the crowd skis", () => {
     expect(crowdNet(flat.level).runs).toHaveLength(1);
     ride(flat, 10);
     expect(flat.crowd!.amateurs.some((a) => a.mode === "ski" && a.speed > 1)).toBe(true);
+  });
+});
+
+describe("the crowd on the lifts", () => {
+  const state = free();
+  ride(state, 60);
+  const crowd = state.crowd!;
+  const plans = liftPlans(state.level);
+
+  it("queues at each lift's foot, on its corral's lane, front first", () => {
+    let queued = 0;
+    crowd.queues.forEach((q, lift) => {
+      q.forEach((id, slot) => {
+        const a = crowd.amateurs[id];
+        expect(a.mode).toBe("queue");
+        expect(a.lift).toBe(lift);
+        const p = plans[lift];
+        expect(Math.hypot(a.x - p.lift.bottom.x, a.z - p.lift.bottom.z)).toBeLessThan(
+          CROWD.ride.reach + 60,
+        );
+        // Stood in his place once he has skated to it.
+        const spot = queueSpot(p, slot);
+        if (a.speed === 0) expect(Math.hypot(a.x - spot.x, a.z - spot.z)).toBeLessThan(0.01);
+        queued++;
+      });
+    });
+    expect(queued).toBeGreaterThan(0);
+  });
+
+  it("rides the carrier the clock has, no more to it than its seats, a chair's under its rope", () => {
+    const load = new Map<string, number>();
+    let riders = 0;
+    for (const a of crowd.amateurs) {
+      if (a.mode !== "ride") continue;
+      riders++;
+      const p = plans[a.lift];
+      const key = `${a.lift}:${a.carrier}`;
+      load.set(key, (load.get(key) ?? 0) + 1);
+      expect(load.get(key)!).toBeLessThanOrEqual(CROWD.ride.seats[p.lift.kind]);
+      const at = carrierAt(p, a.carrier, state.t);
+      expect(at.side).toBe(0);
+      if (p.lift.kind === "chair")
+        expect(Math.abs(a.y - (ropeAt(p, at.u) - CROWD.ride.under))).toBeLessThan(1e-6);
+      if (p.lift.kind === "drag")
+        expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(1e-6);
+    }
+    expect(riders).toBeGreaterThan(20);
   });
 });
 

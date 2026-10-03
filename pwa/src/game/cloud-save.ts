@@ -52,6 +52,7 @@ import {
   EMPTY_PROGRESS,
   MEDALS,
   PLAYER_ID,
+  PROGRESS_KEY,
   findLevel,
   loadProgress,
   mergeProgress,
@@ -100,6 +101,10 @@ export type SettingsStamp = { at: number; values: CarriedSettings };
 
 export type CloudSave = {
   v: typeof CLOUD_SAVE_VERSION;
+  /** THE LADDER the board was won on (`PROGRESS_KEY`): a board from a
+   * ladder this build has re-cut names its maps by ids that now mean
+   * other maps, so it is read only when this matches. */
+  ladder: string;
   records: RecordBook;
   ghosts: GhostRun[];
   campaign: CampaignProgress;
@@ -202,6 +207,7 @@ export function mergeStamps(
 export function mergeSaves(mine: CloudSave, theirs: CloudSave): CloudSave {
   return {
     v: CLOUD_SAVE_VERSION,
+    ladder: PROGRESS_KEY,
     records: mergeBooks(mine.records, theirs.records),
     ghosts: mergeGhosts(mine.ghosts, theirs.ghosts),
     campaign: mergeBoards(mine.campaign, theirs.campaign),
@@ -252,9 +258,15 @@ export function parseSave(text: string | null): CloudSave | null {
   }
   return {
     v: CLOUD_SAVE_VERSION,
+    ladder: PROGRESS_KEY,
     records: mergeRecords(blob.records),
     ghosts: mergeGhosts([], ghosts),
-    campaign: blob.campaign === undefined ? EMPTY_PROGRESS : mergeProgress(blob.campaign),
+    // A board off another ladder — or written before boards carried one —
+    // is left behind, as local storage leaves it under its old key.
+    campaign:
+      blob.ladder === PROGRESS_KEY && blob.campaign !== undefined
+        ? mergeProgress(blob.campaign)
+        : EMPTY_PROGRESS,
     settings,
   };
 }
@@ -289,6 +301,7 @@ export function localSave(settings: Settings): CloudSave {
   const at = loadSettingsStamp();
   return {
     v: CLOUD_SAVE_VERSION,
+    ladder: PROGRESS_KEY,
     records: loadRecords(),
     ghosts: mergeGhosts([], loadGhosts()),
     campaign: loadProgress(),

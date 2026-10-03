@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// ONE SKIER'S STEP — the wind tunnel he rides, if any (`wind-tunnel.ts`),
+// ONE SKIER'S STEP — the lift that carries him, if any (`lift-ride.ts`),
+// the wind tunnel he rides (`wind-tunnel.ts`),
 // the skier (and, on a tricks run, the strokes thrown in
 // the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
 // tumble once he is thrown, `crash.ts` — or what he nearly fell to and
@@ -24,6 +25,7 @@ import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause 
 import { takeDamage } from "./damage.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
+import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -37,8 +39,12 @@ const COAST: SkierInput = { ...NEUTRAL_INPUT, brake: 0.6 };
 
 /** Advance one skier's run by the step the world has just taken. `events`
  * is the run's own list, already cleared for this step. */
-export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]): void {
+export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]): void {
   const racing = run.phase === "racing";
+  // THE LIFT (`lift-ride.ts`): while one carries him the step is its own;
+  // stood off the free ride's lift, he is led until he takes the controls.
+  if (stepLift(run, given, events)) return;
+  const input = leadInput(run, given, events);
   if (input.reset && racing) {
     resetSkier(run, events, false);
     return;

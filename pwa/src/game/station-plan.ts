@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE STATIONS AS LAID OUT — where every piece of a lift's two stations
+// stands beyond the wheel, the house and the rope `lifts.ts` already draws,
+// off the research in `docs/summit-stations.md`. Three-free, so the suite
+// holds the layout (`tests/stations_test.ts`) and `lifts.ts` only builds it.
+//
+// AT A CHAIR'S TOP: the TERMINAL HOOD over the bullwheel and the unload; the
+// OPERATOR'S BOOTH beside the unload on the up rope's side, glazed, looking
+// down the ramp and up the line; the STOP GATE a step past the unload
+// point; orange NETTING either side of the wheel the chairs swing round;
+// the WIND MAST on the far corner of the machine house. On the highest top
+// of the mountain the PATROL HUT on the pad's other side and the PISTE MAP
+// BOARD at the head of the dispersal area, where the runs leave.
+//
+// AT A CHAIR'S FOOT: the hood, the booth by the load line, the LOAD LINE
+// itself painted across the up rope's lane, and the roped CORRAL bringing a
+// skier in on the diagonal past the house onto it — the load zone the
+// engine boards from (`LIFT_LOOK.chair.entry`). A GONDOLA'S FOOT: the DOOR
+// in the back of the station house with a canopy over it and the corral to
+// it; its top the exit door in the house's front onto the pad. A DRAG'S
+// FOOT: the operator's hut, the corral and the board at the head of the
+// track.
+//
+// Every place is stated in a station's own frame — `u` m along the line
+// from its wheel (positive up it), `v` m right of it — and turned to the
+// world here.
+
+import { queueLane, type Level, type LiftPlan } from "@engine";
+
+export type PartKind =
+  "hood" | "booth" | "gate" | "mast" | "patrol" | "board" | "load" | "door" | "canopy" | "hut";
+
+/** One piece set down: where (its foot on the snow, or `y` given), turned
+ * `yaw` (its +z), sized as its builder reads it. */
+export type Part = { kind: PartKind; x: number; y: number; z: number; yaw: number; size: number };
+
+/** A run of fence from `a` to `b` on the snow: orange NETTING round the
+ * machinery, or a ROPE line on poles for a corral. */
+export type Fence = {
+  kind: "net" | "rope";
+  a: { x: number; z: number };
+  b: { x: number; z: number };
+};
+
+export type StationLayout = { parts: Part[]; fences: Fence[] };
+
+/** The booth's set-back from the up rope, m, and how far short of the
+ * unload it stands along the line; the gate's step past the unload, m; the
+ * netting's set-back from a rope, m; the corral lane's half-width, m. */
+const BOOTH_OUT = 3.6;
+const BOOTH_BACK = 2;
+const GATE_PAST = 1.6;
+const NET_OUT = 1.9;
+const LANE = 1.4;
+
+/** Every station of the map laid out. */
+export function layStations(level: Level, plans: readonly LiftPlan[]): StationLayout {
+  const parts: Part[] = [];
+  const fences: Fence[] = [];
+  const peak = plans.reduce((m, p) => Math.max(m, p.lift.top.y), -Infinity);
+  for (const p of plans) {
+    const L = p.length;
+    const g = p.look.gauge / 2;
+    const h = p.look.house;
+    const up = (u: number, v: number) => ({
+      x: p.lift.bottom.x + p.dx * u + p.dz * v,
+      z: p.lift.bottom.z + p.dz * u - p.dx * v,
+    });
+    const put = (kind: PartKind, u: number, v: number, yaw: number, size = 1, y?: number) => {
+      const at = up(u, v);
+      parts.push({ kind, x: at.x, y: y ?? level.groundAt(at.x, at.z), z: at.z, yaw, size });
+    };
+    const fence = (kind: Fence["kind"], u0: number, v0: number, u1: number, v1: number) =>
+      fences.push({ kind, a: up(u0, v0), b: up(u1, v1) });
+    const wheelY = (u: number) => level.groundAt(up(u, 0).x, up(u, 0).z) + p.look.wheel;
+    const side = p.heading + Math.PI / 2;
+    if (p.lift.kind === "chair") {
+      const off = L - p.look.off;
+      // THE TOP.
+      put("hood", L - 1, 0, p.heading, g * 2 + 2.4, wheelY(L) + 0.35);
+      put("booth", off - BOOTH_BACK, g + BOOTH_OUT, side + Math.PI);
+      put("gate", off + GATE_PAST, g + 1.4, side + Math.PI);
+      fence("net", L - 0.5, g + NET_OUT, L + 1.5, g + NET_OUT);
+      fence("net", L - 0.5, g + NET_OUT, L - 0.5, g + NET_OUT + 2);
+      fence("net", L - 3, -g - NET_OUT, L + 1.5, -g - NET_OUT);
+      // THE FOOT.
+      const e = p.look.entry;
+      put("hood", 1, 0, p.heading, g * 2 + 2.4, wheelY(0) + 0.35);
+      put("booth", e.at + 1, g + BOOTH_OUT, side + Math.PI);
+      put("load", e.at, e.side, p.heading, e.across * 2);
+      corral(fence, p);
+    } else if (p.lift.kind === "gondola") {
+      const back = -(h.length + 1.5);
+      put("canopy", L - 1, 0, p.heading, g * 2 + 3, wheelY(L) + 0.6);
+      put("door", L + 1.5, 0, p.heading + Math.PI);
+      put("canopy", 1, 0, p.heading, g * 2 + 3, wheelY(0) + 0.6);
+      put("door", back, 0, p.heading + Math.PI);
+      corral(fence, p);
+    } else {
+      const e = p.look.entry;
+      put("hut", -2, -(h.width / 2 + 2.2), side);
+      put("load", e.at, e.side, p.heading, e.across * 2);
+      corral(fence, p);
+    }
+    // THE WIND MAST on the far corner of the top's house.
+    if (p.lift.kind !== "drag") put("mast", L + h.length + 1.5, -(h.width / 2 + g), p.heading, 1);
+    // THE HIGHEST TOP: the patrol's hut and the map board.
+    if (p.lift.kind !== "drag" && p.lift.top.y === peak) {
+      put("patrol", L - 10, -(g + 11), side);
+      put("board", L - 17, g + 8, p.heading + Math.PI);
+    }
+  }
+  return { parts, fences };
+}
+
+/** A corral fenced either side of a lift's queue lane (`queueLane`, the
+ * one the crowd queues on), from a step short of the load line out past
+ * its mouth — rope lines on poles, `LANE` m either side. */
+function corral(
+  fence: (kind: Fence["kind"], u0: number, v0: number, u1: number, v1: number) => void,
+  plan: LiftPlan,
+): void {
+  const lane = queueLane(plan);
+  for (let k = 0; k + 1 < lane.length; k++) {
+    const a = lane[k];
+    const b = lane[k + 1];
+    const len = Math.hypot(b.u - a.u, b.v - a.v) || 1;
+    // The lane's normal in (u, v), and the last segment cut to the corral's
+    // own length past its mouth.
+    const nu = -(b.v - a.v) / len;
+    const nv = (b.u - a.u) / len;
+    const end = k + 2 === lane.length ? Math.min(1, CORRAL_TAIL / len) : 1;
+    const bu = a.u + (b.u - a.u) * end;
+    const bv = a.v + (b.v - a.v) * end;
+    for (const s of [-1, 1])
+      fence(
+        "rope",
+        a.u + nu * LANE * s,
+        a.v + nv * LANE * s,
+        bu + nu * LANE * s,
+        bv + nv * LANE * s,
+      );
+  }
+}
+
+/** How far past the corral's mouth its fences run on, m. */
+const CORRAL_TAIL = 8;

@@ -78,7 +78,7 @@ export type GeneratorTraits = {
    * rule book's own numbers (the UNGRADED row of `grades.ts`, whatever
    * grade it is asked for: no grade dealt, no drop laid, no `Level.grade`
    * published) down a face due north (no `Level.sun.facing`). The trick
-   * maps and the benchmark stand on it. From v3 every map is a ski area
+   * maps and the benchmark stand on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
 };
@@ -92,7 +92,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     version: 1,
     note:
       "The generator as Fall Line launched with it (R1–R22): one ungraded piste down one " +
-      "face, the fall line due north. v3 builds every map as a whole ski area — a massif, " +
+      "face, the fall line due north. v4 builds every map as a whole ski area — a massif, " +
       "its lifts, a network of runs each built to a PISTE GRADE (R23) with the drops " +
       "across a black (R24), the face turned to the sun (R15) and transport lanes merging " +
       "down to a village (R25–R28) — raced on one course down it; this row builds one " +
@@ -100,12 +100,15 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     singlePiste: true,
   },
   {
-    version: 3,
+    version: 4,
     note:
-      "The resorts: every map a ski area on one massif — its lifts, its runs of every " +
-      "colour and its transport lanes merging down to the village (R25–R27) — raced on " +
-      "one COURSE down that network (R28), the woods thick low down and thinning through " +
-      "the ecotone to the tree line (R14).",
+      "The resorts with their stations: every map a ski area on one massif — its lifts, " +
+      "its runs of every colour and its transport lanes merging down to the village " +
+      "(R25–R27) — raced on one COURSE down that network (R28), the woods thick low down " +
+      "and thinning through the ecotone to the tree line (R14); every gondola's and " +
+      "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
+      "the face and a chair's unload ramp on it, every station stands beside the runs, " +
+      "never on one, and no drag lift crosses a piste (R26).",
   },
 ];
 

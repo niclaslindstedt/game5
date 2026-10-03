@@ -264,7 +264,11 @@ describe("the piste (R5–R8)", () => {
     for (const level of corpus()) {
       const s = analysisFor(level.seed).stats;
       expect(s.climb).toBeLessThanOrEqual(0.005);
-      expect(s.maxGrade).toBeLessThanOrEqual(gradeRowOf(level).track.maxGrade + 0.01);
+      // A resort's course is measured by its colour (R23, R27) under the
+      // rule book's own ceiling, as the analyzer holds it; a one-piste map
+      // under its grade row's.
+      const ceiling = level.resort ? R.track.maxGrade : gradeRowOf(level).track.maxGrade;
+      expect(s.maxGrade).toBeLessThanOrEqual(ceiling + 0.01);
       expect(s.minGrade).toBeGreaterThanOrEqual(R.track.minGrade - 0.01);
       expect(s.maxCrossSlope).toBeLessThanOrEqual(R.track.camber + 0.03);
       // The finish straight is the one flat.
@@ -361,7 +365,9 @@ describe("the kickers (R4, R9)", () => {
 
   it("keeps the kickers off the piste clear of it", () => {
     for (const level of corpus()) {
-      for (const k of level.kickers.filter((k) => !k.onTrack)) {
+      // The mountain's own (R4) — a neighbouring run's kickers are on that
+      // piste, which may run beside the course off a shared top (R27).
+      for (const k of level.kickers.filter((k) => !k.onTrack && k.run === undefined)) {
         const reach = Math.max(k.ramp, k.landing) + k.width / 2;
         expect(nearestTrackPoint(level, k.x, k.z).distance - reach).toBeGreaterThan(
           R.kickers.off.clearance,

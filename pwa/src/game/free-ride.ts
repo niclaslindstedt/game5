@@ -182,6 +182,9 @@ export function freeGameOptions(
     },
     sky: ride.weather === null ? undefined : { weather: ride.weather },
     spawn: spotOn(ride, seed) ?? undefined,
+    // ONTO THE MOUNTAIN BY CHAIR (`lift-ride.ts`): up the lift whose run
+    // passes nearest the spot, and led off its top onto that run.
+    byLift: true,
   };
 }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE LIFTS AS PLANNED (`pwa/src/game/lift-plan.ts`): every tower stands on
+// THE LIFTS AS PLANNED (`engine/game/lift-line.ts`): every tower stands on
 // the snow under its rope, the towers are a class's span apart, and the
 // rope hangs clear of the snow between them by what its carriers need —
 // on the resort the generator builds, and on a hand-built crest a straight
@@ -7,8 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Lift } from "@engine";
-import { LIFT_LOOK, planLift, ropeAt } from "../pwa/src/game/lift-plan.ts";
+import { LIFT_LOOK, planLift, ropeAt, type Lift } from "@engine";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 

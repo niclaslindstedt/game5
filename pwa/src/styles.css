@@ -4694,9 +4694,17 @@ canvas {
   stroke-width: 1.35;
 }
 
-.pano-road {
-  stroke-dasharray: 1.6 1.1;
+/* A transport lane is a cat track a few metres wide, not a piste: a thin
+   line on a thin casing, finely dashed — never the weight of a run. */
+.pano-run.pano-road {
+  stroke-width: 0.45;
+  stroke-dasharray: 0.9 0.7;
   stroke-linecap: butt;
+}
+
+.pano-run-casing.pano-road {
+  stroke-width: 1;
+  opacity: 0.75;
 }
 
 .pano-lift-casing {

@@ -437,6 +437,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   let skiR = 0;
   let slipWorst = 0;
   let midSink = 0;
+  // What the touching stations could hold down the fall line at no slip,
+  // N (`grip.stillSpeed`).
+  let still = 0;
   for (let i = 0; i < probes.length; i++) {
     const p = probes[i];
     const contact = c.contacts[i];
@@ -602,6 +605,18 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // THE SKID pays for the snow it shoves sideways, over and above what
     // the pivoted edge scrubs.
     let along = -(drag + S.skidDrag * c.skid * load) * Math.tanh(vf / DRAG_FADE);
+    // THE STANDSTILL'S HOLD: what this station grips down its own fall
+    // line with no slip at all — the edge (or the base) across the ski,
+    // the base and the plough along it, an ellipse between the two.
+    const fall = Math.sqrt(Math.max(0, 1 - normal.y * normal.y));
+    if (fall > 1e-6) {
+      const ux = (normal.x * normal.y) / fall;
+      const uy = (normal.y * normal.y - 1) / fall;
+      const uz = (normal.z * normal.y) / fall;
+      const da = (ux * tx + uy * ty + uz * tz) / Math.max(1e-9, drag + S.skidDrag * c.skid * load);
+      const ds = (ux * side.x + uy * side.y + uz * side.z) / Math.max(1e-9, hold * load);
+      still += 1 / hypot(da, ds);
+    } else still = Infinity;
     // THE DRIVE pushes along the skis, under the boots, at a crawl.
     if (p.station === "mid")
       along += (bite * poleForce(spec, speed0, packed, c.drive, c.stride)) / 2;
@@ -796,6 +811,30 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const hullHit = chassisContacts(c, level, depth, state.fresh, drop);
   const hullTouch = hullHit > 0;
   if (hullHit > impact) impact = hullHit;
+  // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his
+  // skis, not working for his speed or springing off them, whose stations
+  // hold the slope's pull is held — his way over the snow taken out, the
+  // legs left to settle along its normal.
+  if (
+    grounded &&
+    c.thrown === null &&
+    c.tunnel === null &&
+    c.trench === 0 &&
+    c.drive === 0 &&
+    pop === 0
+  ) {
+    level.normalAt(c.x, c.z, normal);
+    const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
+    const sx = c.vx - vn * normal.x;
+    const sy = c.vy - vn * normal.y;
+    const sz = c.vz - vn * normal.z;
+    const pull = m * g * Math.sqrt(Math.max(0, 1 - normal.y * normal.y));
+    if (hypot3(sx, sy, sz) < G.stillSpeed && still >= pull) {
+      c.vx = vn * normal.x;
+      c.vy = vn * normal.y;
+      c.vz = vn * normal.z;
+    }
+  }
   c.x += c.vx * dt;
   c.y += c.vy * dt;
   c.z += c.vz * dt;

@@ -156,6 +156,14 @@ export const TUNING = {
     /** The slip speed across the ski at which the sideways grip is 76 %
      * developed, m/s. */
     sideRef: 0.4,
+    /** STANDING STILL: below this speed over the snow, m/s, a skier whose
+     * stations can hold the slope's pull with no slip at all — Coulomb's
+     * STATIC friction, the edge's hold across each ski and the base's and
+     * the plough's along it, summed over the stations touching — stands
+     * where he is. The `tanh` above is nothing at no slip, so without it a
+     * skier held on his brake in the start gate crept down the slope at
+     * the slip his grip needed to hold him (0.15 m/s). */
+    stillSpeed: 0.3,
     /** THE SKID SCRAPES: a ski pivoted across the way and shoved sideways
      * is sliding on its edge, not cutting a groove with it, and sliding
      * friction is less than the bite — this share of the edge's hold is

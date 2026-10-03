@@ -124,6 +124,27 @@ describe("the skier at rest", () => {
     expect(dropped).toBeGreaterThan(SKIS.crouchDrop * 0.7);
     expect(dropped).toBeLessThan(SKIS.crouchDrop * 1.2);
   });
+
+  it("stands firm on a pitch his skis can hold, rather than creeping down it", () => {
+    // Coulomb's static friction (`grip.stillSpeed`): the brake's plough
+    // holds an 8.5° pitch at no slip — the `tanh` grip alone let him creep.
+    const pitch = flatLevel({ packed: 1, grade: 0.15, slopeFrom: 0 });
+    const state = stage(pitch);
+    const brake = { ...NEUTRAL_INPUT, brake: 1 };
+    ride(state, 2, brake);
+    const x0 = state.skier.x;
+    const z0 = state.skier.z;
+    ride(state, 10, brake);
+    expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(0.01);
+    expect(state.skier.airborne).toBe(false);
+  });
+
+  it("is not held on a pitch his skis cannot hold", () => {
+    const steep = flatLevel({ packed: 1, grade: 0.6, slopeFrom: 0 });
+    const state = stage(steep);
+    ride(state, 2, { ...NEUTRAL_INPUT, brake: 1 });
+    expect(state.skier.speed).toBeGreaterThan(1);
+  });
 });
 
 describe("the skier under gravity", () => {

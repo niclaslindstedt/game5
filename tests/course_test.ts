@@ -239,7 +239,7 @@ describe("the lights", () => {
       step(state, { ...NEUTRAL_INPUT, tuck: 1 });
       events.push(...state.events);
       if (state.phase === "countdown") {
-        expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(0.3);
+        expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(1e-9);
         expect(state.progress.time).toBe(0);
       }
     }
@@ -249,5 +249,25 @@ describe("the lights", () => {
     expect(events.some((e) => e.kind === "go")).toBe(true);
     expect(state.phase).toBe("racing");
     expect(state.progress.time).toBeGreaterThan(0.9);
+  });
+
+  it("hold him in the gate above a pitch no plough could stand on, and let him go at GO", () => {
+    // A 31° face from the start line down: his brake alone would slide.
+    const state = createGame({
+      level: flatLevel({ grade: 0.6, slopeFrom: 0 }),
+      rivals: 0,
+      countdown: 10,
+      quiet: true,
+    });
+    const x0 = state.skier.x;
+    const z0 = state.skier.z;
+    for (let i = 0; i < 10 * TUNING.physicsHz && state.phase === "countdown"; i++) {
+      step(state, NEUTRAL_INPUT);
+      if (state.phase === "countdown")
+        expect(Math.hypot(state.skier.x - x0, state.skier.z - z0)).toBeLessThan(1e-9);
+    }
+    expect(state.phase).toBe("racing");
+    for (let i = 0; i < TUNING.physicsHz; i++) step(state, { ...NEUTRAL_INPUT, tuck: 1 });
+    expect(state.skier.speed).toBeGreaterThan(3);
   });
 });

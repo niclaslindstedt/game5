@@ -286,6 +286,11 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
     contact.load = 0;
   }
   derive(c, run.level);
+  // Sat on the seat he is inclined to nothing: the snow passing under the
+  // chair is not under his skis, and its cross-slope read as his lean
+  // would turn the figure about its feet (`ski-stand.ts`) — the rider
+  // sliding across the seat as the slope below him changes.
+  c.incline *= 1 - k;
 }
 
 /** HOW SEATED a rider is, 0 stood on the load line … 1 sat on his carrier:

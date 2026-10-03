@@ -20,7 +20,7 @@
 import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
 import { resetSkier, stepCourse } from "./course.ts";
-import { stepSkier } from "./skier.ts";
+import { derive, stepSkier } from "./skier.ts";
 import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
 import { stepBody } from "./body.ts";
@@ -62,6 +62,16 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   stepSkier(run, tricks ? poseInput(run, held) : held, events);
+  // IN THE GATE: under the lights his poles are planted over the wand and
+  // hold him where he stands, however steep the pitch below the hut — only
+  // his legs settle.
+  if (run.phase === "countdown" && !off) {
+    c.x = x0;
+    c.z = z0;
+    c.vx = 0;
+    c.vz = 0;
+    derive(c, run.level);
+  }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (tricks) stepStrokes(run, input);
   collideTrees(run, events);

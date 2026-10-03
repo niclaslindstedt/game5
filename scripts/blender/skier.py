@@ -2,8 +2,8 @@
 # THE SKIER MODELLED IN BLENDER off the game's own data: his body
 # (`BODY`), the pose he is bound in and every bone's frame in it
 # (`skier-rig.ts`'s `STANDING` and `skierBones`), a start-line slot's kit
-# (`SKI_STYLES`), the helmet's MEASURED shell sampled on a grid
-# (`skier-helmet.ts`'s `helmetReach` and `helmetPart`), and every clip
+# (`SKI_STYLES`), the head in its helmet as the game's own triangles
+# (`helmet-shape.ts`'s `helmetParts`), and every clip
 # sampled off the game's own `skierPose` — handed in as one JSON file by
 # `scripts/blender.mjs --kind=skier`, the driver and the only way this runs.
 #
@@ -419,166 +419,22 @@ for p in suit.data.polygons:
 weights(suit, suit_weights)
 
 # ---------------------------------------------------------------- the HELMET
-# The measured shell (`helmetReach`, sampled round from dead behind and up
-# from the chin), in the head's frame tipped nose-down as it is worn and
-# sat up on the head (`HELMET_TILT`, `HELMET_SIT`); cut where the game's is
-# cut (the neck), the goggles' lens in the port, the cap in the peak's
-# colour and the goggle strap round the back at the port's height.
-hc, hx, hy, hz, _ = frame("head")
-tilt = HELM["tilt"]
-STEP = 4 if GAME else 1
-NA, NE = HELM["around"] // STEP, HELM["up"] // STEP
-
-
-def worn(a, e, r):
-    x, y, z = math.sin(a) * math.cos(e) * r, math.sin(e) * r, math.cos(a) * math.cos(e) * r
-    y, z = y * math.cos(tilt) - z * math.sin(tilt), y * math.sin(tilt) + z * math.cos(tilt)
-    return hc + hy * HELM["sit"] + hx * x + hy * y + hz * z
-
-
-def ang(i, j):
-    return -math.pi + 2 * math.pi * i / NA, -math.pi / 2 + math.pi * j / NE
-
-
+# THE HEAD IN ITS HELMET is the game's own geometry (`helmet-shape.ts`'s
+# `helmetParts`): the shell, its stripe and rolled rim, the liner, the
+# vents, the goggles (frame, foam, the lens and its unwrap), the strap and
+# its clip, his face, balaclava and chin strap — every triangle and normal
+# handed in, a material a part, laid in the head's frame (z ahead, y up)
+# and riding the head bone. The game quality takes the game's own cut
+# (the code's figure draws the same), a still the finer one.
 rides("head")
-def part_at(i, j):
-    """What the shell is in cell (i, j) of this grid: the sampled cell at its middle."""
-    return HELM["part"][j * STEP + STEP // 2][i * STEP + STEP // 2]
+hc, hx, hy, hz, _ = frame("head")
+SKIN = mat("skin", colour(STYLE.get("skin", 0xC68863)), rough=0.6)
+PAINT = {"shell": HELMET, "stripe": PEAK, "frame": PEAK, "band": PEAK, "trim": STRAP, "strap": STRAP,
+         "foam": STRAP, "liner": LINER, "knit": LINER, "lens": LENS, "skin": SKIN}
 
 
-# THE FACE IS OPEN: a ski helmet's front rim is its brow, so everything of
-# the measured surface under the port and across its width goes with it.
-PORT = [ang(i + 0.5, j + 0.5) for j in range(NE) for i in range(NA) if part_at(i, j) == "port"]
-PA0, PA1 = min(p[0] for p in PORT), max(p[0] for p in PORT)
-PE0, PE1 = min(p[1] for p in PORT), max(p[1] for p in PORT)
-
-
-def open_face(a, e):
-    return PA0 <= a <= PA1 and e < PE1
-
-
-port_e = [ang(0, j + 0.5)[1] for j in range(NE) for i in range(NA) if part_at(i, j) == "port"]
-strap_e = sum(port_e) / len(port_e) if port_e else 0.1
-verts = [worn(*ang(i, j), HELM["reach"][j * STEP][i * STEP]) for j in range(NE + 1) for i in range(NA)]
-faces, fm = [], []
-for j in range(NE):
-    for i in range(NA):
-        part = part_at(i, j)
-        # An OPEN helmet: cut at the neck and at the face's port.
-        a, e = ang(i + 0.5, j + 0.5)
-        if part in ("neck", "port") or open_face(a, e):
-            continue
-        if part == "cap":
-            m = 1
-        elif abs(e - strap_e) < 0.07 and abs(a) > 1.9:
-            m = 2
-        else:
-            m = 0
-        i1 = (i + 1) % NA
-        faces.append([j * NA + i, (j + 1) * NA + i, (j + 1) * NA + i1, j * NA + i1])
-        fm.append(m)
-# THE COLOURS' EDGES SMOOTHED: the cap's and the strap's faces were picked
-# a grid cell at a time, so where one colour meets the next the edge is a
-# stair of cells. Every vertex on such an edge (with exactly two of its
-# kind beside it) is eased along it — in the shell's own around-and-up
-# parameters, then laid back on the measured surface — so the cap ends on
-# the clean curve the game's own helmet cuts it along.
-def reach_at(a, e):
-    """The measured reach at any (a, e), bilinear on the fine grid."""
-    fi = (a + math.pi) / (2 * math.pi) * HELM["around"]
-    fj = max(0.0, min(HELM["up"] - 1e-6, (e + math.pi / 2) / math.pi * HELM["up"]))
-    i0, j0 = int(math.floor(fi)), int(fj)
-    u, v = fi - i0, fj - j0
-    r = HELM["reach"]
-    at = lambda i, j: r[j][i % HELM["around"]]
-    return (at(i0, j0) * (1 - u) + at(i0 + 1, j0) * u) * (1 - v) + (at(i0, j0 + 1) * (1 - u) + at(i0 + 1, j0 + 1) * u) * v
-
-
-param = [ang(i, j) for j in range(NE + 1) for i in range(NA)]
-edge_faces = {}
-for f_i, quad in enumerate(faces):
-    for k in range(4):
-        key = tuple(sorted((quad[k], quad[(k + 1) % 4])))
-        edge_faces.setdefault(key, []).append(f_i)
-seam = {}
-for (va, vb), fs in edge_faces.items():
-    if len(fs) == 2 and fm[fs[0]] != fm[fs[1]]:
-        seam.setdefault(va, []).append(vb)
-        seam.setdefault(vb, []).append(va)
-for _ in range(5):
-    moved = {}
-    for v, ns in seam.items():
-        if len(ns) != 2:
-            continue
-        a0, e0 = param[v]
-        # The azimuth unwrapped about this vertex's own, across ±π.
-        da = [((param[n][0] - a0 + math.pi) % (2 * math.pi)) - math.pi for n in ns]
-        moved[v] = (a0 + 0.25 * (da[0] + da[1]), e0 * 0.5 + 0.25 * (param[ns[0]][1] + param[ns[1]][1]))
-    for v, (a, e) in moved.items():
-        param[v] = (a, e)
-        verts[v] = worn(a, e, reach_at(a, e))
-shell = mesh_obj("helmet", verts, faces, [HELMET, PEAK, STRAP, LENS], fm)
-# THE RIM SMOOTHED: the openings were cut a grid cell at a time, so their
-# edges are stairs — eased along themselves, a few passes.
-bm = bmesh.new()
-bm.from_mesh(shell.data)
-rim = [v for v in bm.verts if v.is_boundary]
-for _ in range(6):
-    moved = {}
-    for v in rim:
-        ring = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
-        if len(ring) == 2:
-            moved[v] = v.co * 0.5 + (ring[0].co + ring[1].co) * 0.25
-    for v, co in moved.items():
-        v.co = co
-bm.to_mesh(shell.data)
-bm.free()
-# A rim to every opening: the port shows the shell's edge.
-shell.modifiers.new("thick", "SOLIDIFY").thickness = -0.012
-# THE HEAD in it, in a balaclava's dark knit: what the port shows under
-# the goggles, down to the collar.
-ellipsoid("head", hc + hy * 0.0 + hz * 0.004, (0.074, 0.108, 0.092), STRAP,
-          rot=Matrix((hx, hy, hz)).transposed().to_euler())
-
-# THE GOGGLES, ON THE FACE: a wide frame across the port and the lens in
-# it, bent round the head on a cylinder about its own up — the curve a
-# goggle's frame is moulded to — centred on the port, a little proud of the
-# shell's rim, their corners rounded (a squared superellipse), held by the
-# strap round the back.
-ac, ec = (PA0 + PA1) / 2, (PE0 + PE1) / 2
-eye = worn(ac, ec, HELM["reach"][int((ec + math.pi / 2) / math.pi * HELM["up"])][
-    int((ac + math.pi) / (2 * math.pi) * HELM["around"]) % HELM["around"]])
-axis = hc + hy * (eye - hc).dot(hy)
-look = (eye - axis).normalized()
-side = hy.cross(look).normalized()
-R = (eye - axis).length
-
-
-def goggle(name, proud, half, tall, mats, depth):
-    GA, GE = (16, 6) if GAME else (48, 16)
-    vs, fs = [], []
-    for j in range(GE + 1):
-        w = 2 * j / GE - 1
-        # Each row as wide as the squared superellipse allows at its height:
-        # the corners rounded by the outline itself, never by culled cells.
-        reach = (1 - min(1.0, abs(w) ** 4)) ** (1 / 6)
-        for i in range(GA + 1):
-            t = (2 * i / GA - 1) * half * max(0.35, reach)
-            v = w * tall / 2
-            vs.append(axis + hy * (v + 0.004) + (look * math.cos(t) + side * math.sin(t)) * (R + proud))
-    for j in range(GE):
-        for i in range(GA):
-            k = j * (GA + 1) + i
-            fs.append([k, k + 1, k + GA + 2, k + GA + 1])
-    ob = mesh_obj(name, vs, fs, mats)
-    # Its own unwrap, the frame's grid laid flat (u across, v up), for the
-    # lens's mirrored ramp.
-    layer = ob.data.uv_layers.new(name="UVMap")
-    for loop in ob.data.loops:
-        k = loop.vertex_index
-        layer.data[loop.index].uv = ((k % (GA + 1)) / GA, (k // (GA + 1)) / GE)
-    ob.modifiers.new("thick", "SOLIDIFY").thickness = depth
-    return ob
+def head_point(p):
+    return hc + hx * p[0] + hy * p[1] + hz * p[2]
 
 
 # THE LENS'S MIRROR: a racer's goggle is a mirrored lens graded from bright
@@ -598,9 +454,21 @@ lens_tex.image = ramp
 lens_tex.interpolation = "Linear"
 lens_nt.links.new(lens_tex.outputs["Color"], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
-
-goggle("goggle_frame", 0.012, 1.15, 0.092, [STRAP], 0.02)
-goggle("goggle_lens", 0.034, 1.02, 0.07, [LENS], 0.004)
+for part in HELM["game" if GAME else "fine"]:
+    P, N, I = part["position"], part["normal"], part["index"]
+    verts = [head_point(P[k:k + 3]) for k in range(0, len(P), 3)]
+    faces = [I[k:k + 3] for k in range(0, len(I), 3)]
+    ob = mesh_obj(f"helmet_{part['material']}", verts, faces, [PAINT[part["material"]]], recalc=False)
+    # The game's normals, turned into Blender's frame: the shell's are the
+    # surface's own, so the stripe's cut and the rim's turn shade as one.
+    normals = [tuple(hx * N[k] + hy * N[k + 1] + hz * N[k + 2]) for k in range(0, len(N), 3)]
+    ob.data.normals_split_custom_set_from_vertices(normals)
+    if "uv" in part:
+        layer = ob.data.uv_layers.new(name="UVMap")
+        uv = part["uv"]
+        for loop in ob.data.loops:
+            k = loop.vertex_index
+            layer.data[loop.index].uv = (uv[k * 2], uv[k * 2 + 1])
 
 
 # ---------------------------------------------------------------- GAITERS and GLOVES

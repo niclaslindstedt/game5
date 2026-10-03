@@ -97,7 +97,7 @@ describe("a model's dress", () => {
     for (const n of ["paint", "white", "panel", "boot", "base"]) {
       expect(skis.has(n), `skis.py names "${n}"`).toBe(true);
     }
-    for (const n of ["jacket", "accent", "pants", "helmet", "peak", "lens"]) {
+    for (const n of ["jacket", "accent", "pants", "helmet", "peak", "lens", "skin"]) {
       expect(skier.has(n), `skier.py names "${n}"`).toBe(true);
     }
   });
@@ -116,6 +116,7 @@ describe("a model's dress", () => {
     expect(dressOf("pants", null, kit)).toEqual({ colour: kit.pants });
     expect(dressOf("helmet", null, kit)).toEqual({ colour: kit.helmet });
     expect(dressOf("lens", null, kit)).toEqual({ colour: kit.visor });
+    expect(dressOf("skin", null, kit)).toEqual({ colour: kit.skin });
     expect(dressOf("paint", null, kit)).toBeNull();
   });
 });

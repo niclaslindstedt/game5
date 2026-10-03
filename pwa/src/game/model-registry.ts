@@ -66,6 +66,7 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "pwa/src/game/skier-figure.ts",
       "pwa/src/game/skier-cloth.ts",
       "pwa/src/game/skier-helmet.ts",
+      "pwa/src/game/helmet-shape.ts",
     ],
     drawnBy: "pwa/src/game/skier-models.ts",
     blender: {

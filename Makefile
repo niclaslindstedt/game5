@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud cloud-metrics turns skis skier skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud cloud-metrics turns skis skier helmet skier-metrics blender models model-registry ci-models birds trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -69,6 +69,17 @@ skis:
 # MOVE=skate,jump a subset; ARGS="--code" the code's figure.
 skier:
 	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE HELMET LAB: the head in its helmet, the code's and the committed
+# model's side by side — every side (previews/helmet-views.png), every
+# triangle's edges and the head's count (helmet-wire.png), flat on a
+# centimetre grid against a real helmet's envelope (helmet-profile.png)
+# and at the chase and far cameras' own pixels (helmet-game.png). Its own
+# one-off bundle from pwa/helmet-preview.html; needs a Chromium like
+# `world`. SLOTS=0,1,2,3 the kits; ARGS="--model=previews/blender/skier0-lod0.glb"
+# a candidate beside the committed model.
+helmet:
+	npm run helmet -- $(if $(SLOTS),--slots $(SLOTS),) $(ARGS)
 
 # THE SKIER METRICS LAB: is his pose a real skier's? Every move skied by the
 # engine in pure Node, the game's pose measured frame by frame (the knees,

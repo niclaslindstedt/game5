@@ -8,8 +8,8 @@
 //   * ON THE HELMET, not the forehead: it turns with the head, so it lights
 //     where the skier looks — a little into the turn — and bobs and rolls
 //     with him. It is hung on the head's own frame, so it is wherever the
-//     helmet is, the code's or the model's (both are the one measured shell,
-//     worn the same way).
+//     helmet is, the code's or the model's (both are the one shell,
+//     `helmet-shape.ts`).
 //   * TWO OPTICS: a narrow SPOT, some 15–20° across, that throws far
 //     enough for the speed, and a WIDE FLOOD round it — the widest are
 //     120° across — for the snow at the tips and the piste's edges; a
@@ -30,21 +30,21 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 
 import { glow } from "./glow-sprite.ts";
 import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
-import { HELMET_SIT, HELMET_TILT, helmetReach } from "./skier-helmet.ts";
+import { helmetReach } from "./helmet-shape.ts";
 
-/** Where the lamp is strapped, on the shell as it is laid before it is
- * worn (`skier-helmet.ts`): dead ahead on the brow, `e` rad up — over the
- * goggles' port and under the peak — on an elastic band round the crown
- * from `band[0]` to `band[1]` rad up, `lift` m proud of the shell. */
-const MOUNT = { e: 0.63, band: [0.585, 0.675] as const, lift: 0.003 };
+/** Where the lamp is strapped, on the shell (`helmet-shape.ts`): dead
+ * ahead on the brow, `e` rad up — over the brim and its vents — on an
+ * elastic band round the crown from `band[0]` to `band[1]` rad up, `lift`
+ * m proud of the shell. */
+const MOUNT = { e: 0.62, band: [0.58, 0.66] as const, lift: 0.003 };
 
 /** The lamp's housing, m: across, tall and deep — a palm-sized body — and
  * its two lenses (the spot's and the flood's), side by side, their radius
  * and how far apart. */
 const HOUSING = { w: 0.058, h: 0.03, d: 0.03, lens: 0.0095, apart: 0.026 };
 
-/** How far the lamp is tipped down on its mount from the HEAD's own
- * forward (not the helmet's, which is worn tipped nose-down), rad: a skier
+/** How far the lamp is tipped down on its mount from the head's own
+ * forward, rad: a skier
  * carries his head tipped at the snow ahead, so along it the spot falls
  * some fifteen to twenty metres off — about a second at speed. */
 export const HEADLAMP_DIP = 0;
@@ -74,9 +74,8 @@ const LIT = { day: 0.4, night: 4, halo: 0.6 };
 const FIELD_REACH = 220;
 
 /** The point on the helmet's shell `lift` m proud of it, at `a` rad round
- * (0 dead ahead, clockwise from above) and `e` rad up, in the frame the
- * shell is laid in before it is worn — the one measured surface both the
- * code's helmet and the model's are. */
+ * (0 dead ahead, clockwise from above) and `e` rad up, in the head's
+ * frame — the one shell both the code's helmet and the model's are. */
 function onShell(a: number, e: number, lift: number): [number, number, number] {
   const r = helmetReach(a, e, lift);
   return [Math.sin(a) * Math.cos(e) * r, Math.sin(e) * r, Math.cos(a) * Math.cos(e) * r];
@@ -123,10 +122,6 @@ export function buildHeadlamp(
   mat: (params: THREE.MeshStandardMaterialParameters, name: string) => THREE.Material,
   keep: <G extends THREE.BufferGeometry>(g: G) => G,
 ): Headlamp {
-  const worn = new THREE.Group();
-  worn.rotation.x = HELMET_TILT;
-  worn.position.y = HELMET_SIT;
-  head.add(worn);
   const housing = mat({ color: 0x1b1d21, roughness: 0.6, metalness: 0.1 }, "headlamp");
   const lens = mat(
     { color: 0xe9edf2, emissive: 0xfff3e6, emissiveIntensity: LIT.day, roughness: 0.1 },
@@ -146,16 +141,16 @@ export function buildHeadlamp(
       .translate((side * HOUSING.apart) / 2, y, front + 0.001),
   );
   const strapped = [band(MOUNT.band[0], MOUNT.band[1], MOUNT.lift), box];
-  worn.add(new THREE.Mesh(keep(mergeGeometries(strapped)!), housing));
-  worn.add(new THREE.Mesh(keep(mergeGeometries(discs)!), lens));
+  head.add(new THREE.Mesh(keep(mergeGeometries(strapped)!), housing));
+  head.add(new THREE.Mesh(keep(mergeGeometries(discs)!), lens));
   for (const g of [...strapped, ...discs]) g.dispose();
 
   // THE BEAM leaves the lens tipped down by the dip; the halo stands a
   // little ahead of it, so the peak and the housing never clip it.
   const anchor = new THREE.Object3D();
   anchor.position.set(0, y, front);
-  anchor.rotation.x = HEADLAMP_DIP - HELMET_TILT;
-  worn.add(anchor);
+  anchor.rotation.x = HEADLAMP_DIP;
+  head.add(anchor);
   const halo = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glow(),

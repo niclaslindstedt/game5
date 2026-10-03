@@ -47,6 +47,7 @@
     "cloud-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/cloud-metrics.mjs",
     "birds": "node scripts/birds-preview.mjs",
     "crowd": "node scripts/crowd-preview.mjs",
+    "lift-ride": "node scripts/lift-ride-preview.mjs",
     "trees": "node scripts/trees-preview.mjs",
     "forest": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/forest-lab.mjs",
     "tauri": "npm --prefix tauri run start --",

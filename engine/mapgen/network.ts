@@ -84,6 +84,9 @@ export type RunSpec = {
   readonly branch?: { readonly run: number; readonly s: number };
   /** A LINK LANE's end (R27): the lift whose bottom station it runs to. */
   readonly to?: string;
+  /** Ground a piste may not run over — a drag lift's line, whose track is
+   * ridden on the snow (R26). */
+  readonly avoid?: (x: number, z: number, half: number) => boolean;
 };
 
 /** A run as it is walked and then built. */
@@ -695,6 +698,7 @@ function walk(
         return "a lane runs beside a run";
       }
     }
+    if (!road && spec.avoid?.(x, z, p.width / 2)) return "a run runs over a drag lift's line";
     if (pressed) return "a run is pressed against a run it may not merge into";
     // A LINK LANE ends at the lift's bottom station it was laid to.
     if (spec.to !== undefined) {

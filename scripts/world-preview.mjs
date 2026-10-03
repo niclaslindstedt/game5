@@ -22,7 +22,10 @@
 // falling fast), landing, vista, lift, lift-gondola, lift-drag,
 // lift-station, lift-far (the resort's longest lift from under its rope,
 // the gondola and the drag from beside theirs, the longest one's bottom
-// station, and the longest from across the face), cliff, cliff-edge,
+// station, and the longest from across the face), lift-top, lift-foot,
+// lift-door (a chair's top station from its pad — the hood, the booth, the
+// gate, the netting, the mast — its load line and corral, and the
+// gondola station's door), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
@@ -81,6 +84,9 @@ const VIEWS = [
   "lift-drag",
   "lift-station",
   "lift-far",
+  "lift-top",
+  "lift-foot",
+  "lift-door",
   "cliff",
   "cliff-edge",
   "sign",

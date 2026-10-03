@@ -22,10 +22,12 @@
 // THE NETWORK he skis is the resort's runs (`Level.resort`), each with the
 // one it merges into: reaching its end he carries on down that one —
 // keeping where he is across the snow, so the hand-over is seamless — or,
-// at the village, takes a LIFT: off the snow, undrawn, until the rest of
-// his group is down and the ride (`CROWD.lift`, a fraction of a real one)
-// is over, when they come off the top of a lift together onto the run they
-// chose. A map with no resort is one run, its piste.
+// at the village, takes a LIFT (`crowd-lift.ts`): skates to its queue at the
+// bottom station, rides the carrier that takes him up, and skates off its
+// top onto the run his group chose, the leader waiting for the rest. A map
+// with no lift to queue at sends him up one unseen until the rest of his
+// group is down and the ride (`CROWD.lift`) is over. A map with no resort
+// is one run, its piste.
 //
 // THE PLAYER MEETS THEM as a rival is met (`rivals.ts`): a plan circle each,
 // pushed apart by mass with the closing speed traded at
@@ -43,6 +45,14 @@ import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/pr
 import type { PisteGrade } from "../mapgen/grades.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "./collision.ts";
+import {
+  dealQueued,
+  dealRiding,
+  joinQueue,
+  onLift,
+  stepCrowdLifts,
+  type LiftRuns,
+} from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
 import {
   CROWD,
@@ -74,8 +84,10 @@ export type NetRun = {
   /** The run it merges into and at what arc of that one; null at the
    * village. */
   into: { run: number; s: number } | null;
-  /** Whether it leaves a lift's top station — a run a group can choose. */
+  /** Whether it leaves a lift's top station — a run a group can choose —
+   * and the lift it leaves the top of. */
   top: boolean;
+  from: string;
   /** Every kicker and drop across it: its lip's arc, its lateral, and half
    * its width, m. */
   kickers: { s: number; d: number; half: number }[];
@@ -103,6 +115,7 @@ export function crowdNet(level: Level): CrowdNet {
         length: r.length,
         into: r.into ? { run: index.get(r.into.run) ?? -1, s: r.into.s } : null,
         top: !r.branch && !r.to,
+        from: r.from,
         kickers: [],
       });
     }
@@ -122,6 +135,7 @@ export function crowdNet(level: Level): CrowdNet {
       length: level.track.length,
       into: null,
       top: true,
+      from: "",
       kickers: [],
     });
   }
@@ -257,6 +271,12 @@ function freshAmateur(
     across: 0,
     fall: 0,
     fallSide: 1,
+    lift: -1,
+    carrier: -1,
+    seat: 0,
+    tx: 0,
+    tz: 0,
+    ts: 0,
     // His own place in the stroke, off his id rather than the stream: the
     // whole crowd pushes off at once, and at one phase it poles in step.
     pole: id * 2.39996,
@@ -295,6 +315,17 @@ function bodyFor(rng: Rng, kind: CrowdKind, group: GroupKind, rank: number): Cro
 function runWeight(r: NetRun, skill: number, lengthy: boolean): number {
   const fits = skill >= CROWD.needs[r.grade] ? 1 : CROWD.lost;
   return CROWD.share[r.grade] * fits * (lengthy ? r.length : Math.sqrt(r.length));
+}
+
+/** The network as the lifts read it (`crowd-lift.ts`), once a network. */
+const liftRuns = new WeakMap<CrowdNet, LiftRuns>();
+function liftRunsOf(net: CrowdNet): LiftRuns {
+  let out = liftRuns.get(net);
+  if (!out) {
+    out = { runs: net.runs, weight: (k, skill) => runWeight(net.runs[k], skill, false) };
+    liftRuns.set(net, out);
+  }
+  return out;
 }
 
 function pickRun(rng: Rng, net: CrowdNet, skill: number, anywhere: boolean): number {
@@ -351,7 +382,7 @@ function launchGroup(crowd: CrowdState, net: CrowdNet, g: CrowdGroup, anywhere: 
 export function createCrowd(state: GameState, count: number): void {
   const net = crowdNet(state.level);
   const rng = createRng((state.seed ^ CROWD_SALT) >>> 0);
-  const crowd: CrowdState = { rng, amateurs: [], groups: [] };
+  const crowd: CrowdState = { rng, amateurs: [], groups: [], queues: [] };
   state.crowd = crowd;
   if (net.runs.length === 0) return;
   const total = Math.min(CROWD.most, Math.max(0, Math.round(count)));
@@ -359,7 +390,15 @@ export function createCrowd(state: GameState, count: number): void {
     const kind = pickGroup(rng);
     const def = CROWD_GROUPS[kind];
     const follow = Math.min(rng.int(def.count[0], def.count[1]), total - crowd.amateurs.length - 1);
-    const g: CrowdGroup = { kind, members: [], keep: def.keep, gap: def.gap, lift: 0 };
+    const g: CrowdGroup = {
+      kind,
+      members: [],
+      keep: def.keep,
+      gap: def.gap,
+      lift: 0,
+      queue: -1,
+      next: -1,
+    };
     const index = crowd.groups.length;
     const lead = rng.pick(def.lead);
     for (let k = 0; k <= follow; k++) {
@@ -383,9 +422,14 @@ export function createCrowd(state: GameState, count: number): void {
       crowd.amateurs.push(a);
     }
     crowd.groups.push(g);
-    if (rng.chance(CROWD.lifted)) {
-      for (const m of g.members) crowd.amateurs[m].mode = "lift";
-      g.lift = band(rng, CROWD.lift);
+    if (rng.chance(CROWD.ride.riding) && dealRiding(state, crowd, liftRunsOf(net), g.members)) {
+      // Riding a lift already, part-way up.
+    } else if (rng.chance(CROWD.lifted)) {
+      // In a lift's queue at its foot — or, with none, up one unseen.
+      if (!dealQueued(state, crowd, liftRunsOf(net), g.members)) {
+        for (const m of g.members) crowd.amateurs[m].mode = "lift";
+        g.lift = band(rng, CROWD.lift);
+      }
     } else {
       launchGroup(crowd, net, g, true);
     }
@@ -493,6 +537,12 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
     for (const m of g.members) {
       const o = crowd.amateurs[m];
       if (o === a || o.mode === "lift") continue;
+      // One still on the lift (`crowd-lift.ts`) is waited for at the top,
+      // just off it — never from further down, where he only went on ahead.
+      if (onLift(o)) {
+        if (a.s < CROWD.regroup.top) far = Math.max(far, CROWD.regroup.far + 1);
+        continue;
+      }
       // How far he has dropped back past his own place in the line.
       const lag = o.run === a.run ? a.s - o.s - o.rank * g.gap : o.mode === "down" ? Infinity : 0;
       far = Math.max(far, lag);
@@ -607,7 +657,7 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
 
 /** Carry on down the run he merges into — where he is across the snow kept
  * — or, at the village, up a lift. */
-function runOut(crowd: CrowdState, net: CrowdNet, a: Amateur): void {
+function runOut(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): void {
   const r = net.runs[a.run];
   if (r.into && r.into.run >= 0) {
     const next = net.runs[r.into.run];
@@ -620,6 +670,9 @@ function runOut(crowd: CrowdState, net: CrowdNet, a: Amateur): void {
     a.kickerAt = NaN;
     return;
   }
+  // At the foot of the mountain: into a real lift's queue (`crowd-lift.ts`),
+  // or — a map with no lift to queue at — up one unseen.
+  if (joinQueue(state, crowd, liftRunsOf(net), a)) return;
   a.mode = "lift";
   const g = crowd.groups[a.group];
   if (g.members.every((m) => crowd.amateurs[m].mode === "lift")) {
@@ -719,8 +772,8 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
   }
 
   if (a.s >= r.length) {
-    runOut(crowd, net, a);
-    if (a.mode === "lift") return;
+    runOut(state, crowd, net, a);
+    if (onLift(a)) return;
   }
   place(a, net.runs[a.run], state.level);
 
@@ -784,12 +837,13 @@ export function stepCrowd(state: GameState): void {
   if (!crowd || crowd.amateurs.length === 0) return;
   const net = crowdNet(state.level);
   liftGroups(crowd, net);
+  stepCrowdLifts(state, crowd, liftRunsOf(net));
   // Who is on each run, for the room each one keeps.
   while (onRun.length < net.runs.length) onRun.push([]);
   for (const list of onRun) list.length = 0;
-  for (const a of crowd.amateurs) if (a.mode !== "lift") onRun[a.run].push(a);
+  for (const a of crowd.amateurs) if (!onLift(a)) onRun[a.run].push(a);
   for (const a of crowd.amateurs) {
-    if (a.mode === "lift") continue;
+    if (onLift(a)) continue;
     a.think -= dt;
     if (a.think <= 0) {
       a.think += CROWD.think;
@@ -814,7 +868,7 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   const fz = Math.cos(c.heading);
   const feet = c.y - c.spec.cogHeight;
   for (const a of crowd.amateurs) {
-    if (a.mode === "lift") continue;
+    if (onLift(a)) continue;
     if (Math.abs(a.x - c.x) > 3 || Math.abs(a.z - c.z) > 3 || Math.abs(a.y - feet) > 1.6) continue;
     const size = CROWD_SIZE[a.body];
     for (const side of [-1, 1]) {

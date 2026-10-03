@@ -68,13 +68,23 @@
 //       finish, the stretch it merges in, or the lower part of it — to beside
 //       a station or a lane that brings its skier back to its top:
 //       `lift.drag.length` long, never steeper than `lift.drag.pitch` over
-//       any `lift.drag.pitchWindow` of its line, crossing a piste only square
-//       (within `lift.drag.square` of square) and otherwise `lift.drag.room`
-//       metres off every piste's edge, its top on ground falling no more than
+//       any `lift.drag.pitchWindow` of its line, `lift.drag.room` metres off
+//       every piste's edge, its top on ground falling no more than
 //       `lift.drag.padGrade` across its pad. Every top station stands
 //       `lift.below` metres under the ridge's crest or on its bench, on a
-//       level PAD `lift.pad` metres across, groomed; no tree stands within
-//       `lift.clear` metres of a lift's line or a station.
+//       level PAD `lift.pad` metres across, cut into the slope more than
+//       filled (`lift.padCut` of the fill a pad level with its middle would
+//       need) and eased into the mountain over `lift.padBlend` metres,
+//       groomed — its downhill edge a LIP where the level rolls over onto
+//       the face — and a chair's pad carries its UNLOAD RAMP, a mound of
+//       packed snow `lift.unload.height` metres high under the unload point
+//       `lift.unload.at` metres short of the top, falling off over
+//       `lift.unload.reach` metres. Every BOTTOM
+//       station, and a drag's top, stands BESIDE the runs: its footprint
+//       (`lift.footprint`: its house behind the wheel, its load line and
+//       corral before it) on no run's surface, on ground level enough to
+//       build on, and a drag lift's line crosses no piste. No tree stands
+//       within `lift.clear` metres of a lift's line or a station.
 //   R27 THE RUNS. Every run leaves a top station down the mountain — a PISTE
 //       built to a colour (R23's rows: its steepest raw ground, its ceiling;
 //       a region tilting the colours, R21), `piste.width` metres wide by its
@@ -252,8 +262,27 @@ export const RESORT_RULES = {
     below: 60,
     /** No tree within this of a lift's line or a station, m. */
     clear: 14,
-    /** The level pad a top station stands on, m across. */
+    /** The level pad a top station stands on, m across; the share of the
+     * fill a pad level with its middle would need that it is filled by
+     * (the rest is cut); and how far it is eased into the mountain, m. */
     pad: 30,
+    padCut: 0.25,
+    padBlend: 22,
+    /** A chair's UNLOAD RAMP: the unload point, m short of the top down
+     * the line (a rider stands up 5–8 m before the bullwheel); the mound
+     * under it, m high (1–1.5 m of ramp); and how far it falls off, m —
+     * 12–25 % of pitch. */
+    unload: { at: 7, height: 1.2, reach: 7 },
+    /** A STATION'S FOOTPRINT, by kind, m: a rectangle `back` behind its
+     * wheel (the house, a gondola's door and corral), `ahead` in front of
+     * it (the load line or the unload, a chair's corral), `half` either
+     * side of the line — kept off every run's surface at a bottom station
+     * and a drag's top. */
+    footprint: {
+      gondola: { back: 26, ahead: 6, half: 8 },
+      chair: { back: 13, ahead: 11, half: 11 },
+      drag: { back: 6, ahead: 9, half: 6 },
+    },
     /** The nursery's top: how far down the descent (u), and how far from
      * the village toward the shoulder, m. */
     nursery: { at: { min: 0.74, max: 0.8 } as Band, across: { min: 380, max: 560 } as Band },

@@ -181,6 +181,9 @@ export const STRINGS = {
   newsCrowdDown: "SKIER DOWN! SORRY",
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
+  /** Taken onto a lift on a free ride (`lift-ride.ts`). */
+  newsLift: (kind: "gondola" | "chair" | "drag"): string =>
+    kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>

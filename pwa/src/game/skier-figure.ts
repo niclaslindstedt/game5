@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { gearOf } from "./outfit.ts";
 import { createDressed, type SkierDress } from "./skier-dress.ts";
 import { skierPose, type SkierPose, type SkierPoseInput, type V3 } from "./skier-pose.ts";
+import { seatedPose, type Seat } from "./skier-seat.ts";
 
 export type { SkierDress } from "./skier-dress.ts";
 
@@ -31,7 +32,9 @@ export type SkierFigure = {
   /** The dressed skin's meshes — what casts, drawn apart from the merged
    * pair (`posed-merge.ts` takes only the poles). */
   skin: THREE.SkinnedMesh[];
-  pose(input: SkierPoseInput): void;
+  /** Posed for `input`, sat on a chair's `seat` when one is handed in
+   * (`skier-seat.ts`). */
+  pose(input: SkierPoseInput, seat?: Seat | null): void;
   /** Pose him THROWN, off the engine's ragdoll (`ragdollPose`): the poles
    * let go, every limb where the physics has it. The caller places and
    * turns the group. */
@@ -194,8 +197,8 @@ export function createSkier(
     group,
     head: headGroup,
     skin: dressed.meshes,
-    pose(input) {
-      lay(skierPose(input));
+    pose(input, seat = null) {
+      lay(seat ? seatedPose(input, seat) : skierPose(input));
     },
     sprawl(pose) {
       lay(pose, true);

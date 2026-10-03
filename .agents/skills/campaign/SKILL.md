@@ -14,7 +14,7 @@ a race, a time trial, two races, a time trial and a race, so the race both
 opens and closes a shelf. The whole mountain is skiable on every rung; the
 points are paid down the one course raced. THE CAMPAIGN RACES RED AND
 BLACK: greens and blues are the free ride's, save ONE blue to warm up on
-as the very first rung; the shelves blacken as they climb (0, 2, 3, 5
+as the very first rung; the shelves blacken as they climb (0, 2, 3, 4
 blacks) and the blacks are ordered by the rating's index, so the early
 shelves' blacks are the raceable ones and the last shelf's the brutal. The
 FELL hosts no shelf — its areas offer no black and at most two reds. Every

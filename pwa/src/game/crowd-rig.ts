@@ -36,7 +36,7 @@
 // The frame is the amateur's: x right, y up, z forward, the origin on the
 // snow between his feet.
 
-import type { Amateur, CrowdBody } from "@engine";
+import { TUNING, type Amateur, type CrowdBody } from "@engine";
 
 import {
   MOUNTS,
@@ -45,6 +45,7 @@ import {
   type SkierPose,
   type SkierPoseInput,
 } from "./skier-pose.ts";
+import { CHAIR_SEAT, seatedPose } from "./skier-seat.ts";
 import { PLANT, plantLength } from "./skier-spring.ts";
 import { smooth, TURN_PLANT } from "./skier-stroke.ts";
 
@@ -101,6 +102,7 @@ export const CROWD_POSES = [
   "trailRight",
   "idle",
   "idleAway",
+  "seat",
 ] as const;
 export type CrowdPose = (typeof CROWD_POSES)[number];
 
@@ -163,7 +165,7 @@ const STAND: SkierPoseInput = {
   airborne: false,
   landing: 10,
 };
-const INPUTS: Readonly<Record<Exclude<CrowdPose, "down">, SkierPoseInput>> = {
+const INPUTS: Readonly<Record<Exclude<CrowdPose, "down" | "seat">, SkierPoseInput>> = {
   crouch: { ...STAND, crouch: 1, tuck: 1 },
   lean: {
     ...STAND,
@@ -337,6 +339,10 @@ export function poseCrowd(look: CrowdLook, dials: PoseDials = {}): Posed {
   }
   const key = (Object.keys(dials) as CrowdPose[]).find((k) => (dials[k] ?? 0) !== 0);
   const share = key ? (dials[key] ?? 0) : 0;
+  if (key === "seat") {
+    // ON A CHAIR: the player's own seated pose (`skier-seat.ts`).
+    return grounded(fromPlayer(seatedPose(STAND, { share, y: SEAT_Y }), look));
+  }
   const input = key && key !== "down" ? blend(INPUTS[key], share) : STAND;
   const posed = grounded(fromPlayer(skierPose(input), look));
   // The lean's roll is the player's group's, turned about the outside
@@ -425,7 +431,9 @@ const crouchDial = (crouch: number): number => Math.max(0, crouch - 0.15) * 1.15
  * the picture (`Amateur.crouch` … `turnHeld`) and the run's clock `t`, s —
  * and which way his figure is mirrored (−1 left): a fall goes down on his
  * own side, and the lean, the stop and the plant are turned with it. Lying
- * in the snow, nothing else shows. */
+ * in the snow, nothing else shows; sat on a chair (`seat`, how far he is
+ * sat, which only the view knows — a T-bar's rider rides stood), his own
+ * seat, and neither a plant nor a stood skier's wait. */
 export function dialsOf(
   a: Pick<
     Amateur,
@@ -448,6 +456,7 @@ export function dialsOf(
   >,
   out: Float32Array | number[],
   t = 0,
+  seat = 0,
 ): number {
   const mirror = a.fallSide < 0 ? -1 : 1;
   const up = 1 - a.fall;
@@ -470,7 +479,7 @@ export function dialsOf(
   if (plant) {
     const u = plant.t;
     const touch = TURN_PLANT.touch;
-    const w = plant.weight * up;
+    const w = plant.weight * up * (1 - seat);
     const toTrail = smooth((u - touch) / (TRAIL - touch));
     const touchW = u < touch ? smooth(u / touch) : u < TRAIL ? 1 - toTrail : 0;
     const trailW = u < touch ? 0 : u < TRAIL ? toTrail : 1 - smooth((u - TRAIL) / (1 - TRAIL));
@@ -480,9 +489,25 @@ export function dialsOf(
   }
   // STOOD STILL, alive: the player's own wait, faded in below a walk and
   // swung from one side to the other on his own clock.
-  const still = Math.max(0, 1 - a.speed / 1.5) * (1 - a.push) * (a.mode === "air" ? 0 : up);
+  const still =
+    Math.max(0, 1 - a.speed / 1.5) * (1 - a.push) * (a.mode === "air" ? 0 : up) * (1 - seat);
   const wave = Math.sin((2 * Math.PI * t) / WAIT.period + a.id * 2.39);
   out[12] = still * Math.max(0, wave);
   out[13] = still * Math.max(0, -wave);
+  out[14] = seat * up;
   return mirror;
 }
+
+/** The player's seat in his own frame (`skier-seat.ts`): the chair's seat
+ * top under his body's origin, as the engine hangs him (`TUNING.lift`). */
+const SEAT_Y = TUNING.lift.seat - CHAIR_SEAT;
+
+/** HOW HIGH A BODY SITS: its seat's top over its skis in the seated target,
+ * m — what a rider's figure is dropped by under the chair's seat. */
+export function seatHeight(look: CrowdLook): number {
+  const sat = poseCrowd(look, { seat: 1 });
+  return sat.pelvis[1] - PELVIS_OVER_SEAT * (look.height / REFERENCE.height);
+}
+
+/** The player's hips over his seat when sat (`skier-seat.ts`), m. */
+const PELVIS_OVER_SEAT = 0.11;

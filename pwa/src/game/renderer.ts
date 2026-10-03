@@ -56,6 +56,8 @@ import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createLifts, type Lifts } from "./lifts.ts";
+import { summitShare } from "./camera-summit.ts";
+import { createRideMemory, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
 import { hazeMaterial } from "./haze.ts";
@@ -377,6 +379,7 @@ export function createWorldRenderer(
     packed: 1,
     q: { x: 0, y: 0, z: 0, w: 1 },
   };
+  const rideMem = createRideMemory();
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
@@ -718,6 +721,8 @@ export function createWorldRenderer(
       rigPose.speed = skier.speed;
       rigPose.airborne = skier.airborne;
       rigPose.packed = skier.packed;
+      rigPose.summit = summitShare(level, d.x, d.z);
+      rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       const inside = lens.rung() === "tips" || lens.rung() === "helmet";
       player.model.setSkierVisible(!inside);
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks);
@@ -804,7 +809,7 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state.progress.nextCheckpoint, state.t);
-      lifts?.update(state.t);
+      lifts?.update(state.t, skier.lift, player.drawn, lens.camera.position);
       // THE NIGHT'S LIGHTS: every skier's headlamp and the arena's floods.
       dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
       gates?.setLamps(look.lamps);

@@ -519,11 +519,13 @@ export function ladderAfter(levelId: string, progress: CampaignProgress): Ladder
 
 /** Versioned, so a board a later ladder reshapes is a board it can
  * recognise: the board is keyed by MAP ID and the ids are rung numbers, so a
- * re-cut shelf would land a row on water nobody rode. v3 is the ladder re-cut
- * as SKI AREAS (R25–R28) — a shelf one resort, its maps six of its courses,
- * its ids the area's (`rime-1` …) — so a row of the graded ladder before it
- * (`green-1` …) carried in by the cloud save names no map and is dropped. */
-export const PROGRESS_KEY = "fall-line.campaign.v3";
+ * re-cut shelf would land a row on water nobody rode. v3 was the ladder
+ * re-cut as SKI AREAS (R25–R28) — a shelf one resort, its maps six of its
+ * courses, its ids the area's (`rime-1` …). v4 keeps the ids and moves every
+ * map onto the generator that stands its stations beside the runs (four new
+ * ski areas, new courses), so a v3 board is left where it lies rather than
+ * read onto maps it was never won on. */
+export const PROGRESS_KEY = "fall-line.campaign.v4";
 
 /** A stored blob turned into progress this build can stand on: every id
  * checked against this ladder, every figure checked for being a number, and

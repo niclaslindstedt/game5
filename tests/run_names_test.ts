@@ -10,7 +10,15 @@ import { describe, expect, it } from "vitest";
 
 import type { GameState, Level, RegionId, Run } from "@engine";
 
-import { courseName, runById, runName, runNames, runNewsText } from "../pwa/src/game/run-names.ts";
+import {
+  courseName,
+  runById,
+  runName,
+  runNames,
+  runNewsText,
+  runNumber,
+  runNumbers,
+} from "../pwa/src/game/run-names.ts";
 import { SIGN, clearOfLifts, signPlan } from "../pwa/src/game/run-sign-plan.ts";
 import { createRunWatch } from "../pwa/src/game/run-watch.ts";
 import { RUN_NAMES, RUN_WORDS, type NameForm } from "../pwa/src/game/strings-run-names.ts";
@@ -139,7 +147,21 @@ describe("run names (run-names.ts)", () => {
       const text = runNewsText(level, run);
       expect(text.startsWith(RUN_WORDS.mark[run.grade])).toBe(true);
       expect(text.includes(runName(level, run).toUpperCase())).toBe(true);
-      expect(text.includes(`RUN ${run.id} `)).toBe(run.kind === "piste");
+      expect(text.includes(`RUN ${runNumber(level, run)} `)).toBe(run.kind === "piste");
+    }
+  });
+
+  it("numbers the pistes 1 to P without a gap, in the plan's order, and the lanes after them", () => {
+    for (const seed of SEEDS) {
+      const level = levelFor(seed);
+      const runs = resortOf(level).runs;
+      const pistes = runs.filter((r) => r.kind === "piste");
+      const lanes = runs.filter((r) => r.kind === "road");
+      const of = (rs: typeof runs) =>
+        [...rs].sort((a, b) => Number(a.id) - Number(b.id)).map((r) => runNumber(level, r));
+      expect(of(pistes)).toEqual(pistes.map((_, i) => String(i + 1)));
+      expect(of(lanes)).toEqual(lanes.map((_, i) => String(pistes.length + i + 1)));
+      expect(new Set(runs.map((r) => runNumbers(level).get(r.id))).size).toBe(runs.length);
     }
   });
 });

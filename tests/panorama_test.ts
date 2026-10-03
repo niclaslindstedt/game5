@@ -73,23 +73,23 @@ describe("the panorama's view (fitPanorama)", () => {
 });
 
 describe("the painted picture (renderPanorama)", () => {
-  it("cuts the mountain out: nothing behind the ridge, beside the ski area or under the valley", () => {
+  it("fills the square edge to edge: the ski area's slice under a blue sky, clear of the rim", () => {
     const { level, view, picture } = paintedFor(SEEDS[0]);
     const px = view.px;
-    const alpha = (c: number, r: number): number => picture.rgba[(r * px + c) * 4 + 3];
-    // The top row is clear sky, and so is the outermost column either side
-    // of the ski area's slice — the rim the map rises into is never painted.
-    for (let c = 0; c < px; c++) expect(alpha(c, 0)).toBe(0);
-    for (let r = 0; r < px; r++) {
-      expect(alpha(0, r)).toBe(0);
-      expect(alpha(px - 1, r)).toBe(0);
+    // Every pixel is painted; the top row is sky, and blue.
+    for (let i = 0; i < px * px; i++) expect(picture.rgba[i * 4 + 3]).toBe(255);
+    for (let c = 0; c < px; c++) {
+      expect(Number.isNaN(picture.depth[c])).toBe(true);
+      const k = c * 4;
+      expect(picture.rgba[k + 2]).toBeGreaterThan(picture.rgba[k] + 40);
     }
-    // The ground behind the summit ridge's crest is not painted either.
-    for (let i = 0; i < px * px; i++) {
-      if (!Number.isNaN(picture.depth[i])) expect(picture.depth[i]).toBeGreaterThan(0);
-    }
-    // And the mountain itself is solid: the summit's column, from its
-    // crest down the face, is opaque.
+    // The picture is exactly the slice it paints, cut hard at its sides,
+    // and that slice keeps clear of the rim the map rises into.
+    expect((view.clip[1] - view.clip[0]) * view.scale).toBeCloseTo(px, 6);
+    expect(view.clip[0]).toBeGreaterThanOrEqual(level.size * 0.09 - 1e-6);
+    expect(view.clip[1]).toBeLessThanOrEqual(level.size * 0.91 + 1e-6);
+    // The ground behind the summit ridge's crest is never painted: the
+    // summit's column shows no ground farther off than the summit's own row.
     const [sc, sr] = toPanorama(
       view,
       level.mountain.summit.x,
@@ -97,9 +97,13 @@ describe("the painted picture (renderPanorama)", () => {
       level.mountain.summit.z,
     );
     const col = Math.round((sc / PANORAMA_VIEW) * px);
-    for (let r = Math.ceil((sr / PANORAMA_VIEW) * px) + 4; r < px * 0.8; r++) {
-      expect(alpha(col, r)).toBe(255);
+    for (let r = 0; r < px; r++) {
+      const z = picture.depth[r * px + col];
+      if (!Number.isNaN(z)) expect(z).toBeGreaterThan(level.mountain.summit.z - 50);
     }
+    // And the bottom row is ground — the valley floor runs on to the foot.
+    for (let c = 0; c < px; c++) expect(Number.isNaN(picture.depth[(px - 1) * px + c])).toBe(false);
+    expect(sr).toBeGreaterThan(0);
   });
 
   it("is a pure function of the map", () => {
@@ -133,6 +137,12 @@ describe("the schematic (panoramaSchematic)", () => {
       level.resort?.runs.filter((r) => course?.runs.includes(r.id)).map((r) => r.id),
     );
     expect(schematic.finish).not.toBeNull();
+    // Every piste carries its number, the one its sign reads, and no two
+    // runs share one.
+    for (const r of schematic.runs) {
+      if (r.kind === "piste") expect(r.badge).not.toBeNull();
+    }
+    expect(new Set(schematic.runs.map((r) => r.number)).size).toBe(schematic.runs.length);
   });
 });
 

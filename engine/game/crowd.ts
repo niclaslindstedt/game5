@@ -277,7 +277,9 @@ function freshAmateur(
     tx: 0,
     tz: 0,
     ts: 0,
-    pole: 0,
+    // His own place in the stroke, off his id rather than the stream: the
+    // whole crowd pushes off at once, and at one phase it poles in step.
+    pole: id * 2.39996,
     push: 0,
     turnSide: 0,
     turnT: 0,

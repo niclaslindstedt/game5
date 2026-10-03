@@ -12,6 +12,7 @@
 //   npm run sim -- --seeds 3,7,38        specific seeds
 //   npm run sim -- --rivals 3            a whole race, the bot on the grid's first slot
 //   npm run sim -- --skis eagle          one pair of the catalog
+//   npm run sim -- --rider heavy         the skier of another build (defs/riders.ts)
 //   npm run sim -- --skis all            the whole catalog, seed by seed, and who won each
 //   npm run sim -- --tricks              the maps with their trick field laid (R20)
 //   npm run sim -- --laps 1 --json out.json
@@ -35,6 +36,10 @@ const {
   TUNING,
   SKI_CATALOG,
   isSkiId,
+  RIDERS,
+  isRiderId,
+  riderById,
+  withRider,
   isRegionId,
   REGION_IDS,
   isPisteGrade,
@@ -54,6 +59,11 @@ const args = parseArgs(
       default: SKI_CATALOG[0].id,
       help: `the pair (${SKI_CATALOG.map((s) => s.id).join(", ")}), or all for the catalog`,
     },
+    rider: {
+      kind: "string",
+      default: "medium",
+      help: `the skier's build (${RIDERS.map((r) => r.id).join(", ")})`,
+    },
     tricks: { kind: "flag", help: "ride each seed's map with its trick field laid (R20)" },
     "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     region: {
@@ -67,7 +77,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -84,7 +94,13 @@ if (args.skis !== "all" && !isSkiId(args.skis)) {
   console.error(`unknown skis "${args.skis}" (${SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
-const roster = args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis);
+if (!isRiderId(args.rider)) {
+  console.error(`unknown rider "${args.rider}" (${RIDERS.map((r) => r.id).join(", ")})`);
+  process.exit(2);
+}
+const roster = (
+  args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis)
+).map((s) => withRider(s, riderById(args.rider)));
 
 const seeds = args.seeds
   ? args.seeds.map(Number)
@@ -100,6 +116,7 @@ const kmh = (ms) => (ms * 3.6).toFixed(0);
 console.log(
   `sim — engine ${engineVersion} at ${TUNING.physicsHz} Hz · skis ${args.skis} · seeds ${seeds.join(",")} · ` +
     `laps ${args.laps ?? "map"} · rivals ${args.rivals} · max ${args.max} s` +
+    (args.rider !== "medium" ? ` · rider ${args.rider}` : "") +
     (args.tricks ? " · trick field" : "") +
     (args["no-poles"] ? " · no poles" : "") +
     (args.region !== "alpine" ? ` · ${args.region}` : "") +

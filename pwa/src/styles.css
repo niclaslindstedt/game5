@@ -3746,8 +3746,10 @@ canvas {
 }
 
 /* ── THE DRESS CARD (menu-dress.tsx) ──────────────────────────────────────
-   The skier on his stand beside six rows of kit. Side by side where there
-   is the width, the stand over the rows on a phone held upright. */
+   The skier on his stand beside seven rows — the body, its weight and the
+   kit. Side by side where there is the width, the stand over the rows on a
+   phone held upright, and the rows in two columns on a phone on its side,
+   where seven of them stacked are taller than the screen. */
 .menu-card-dress {
   width: min(52rem, 100%);
   gap: 0.6rem;
@@ -3786,6 +3788,32 @@ canvas {
   font-size: 0.82rem;
   line-height: 1.35;
   color: rgb(244 248 251 / 88%);
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .dress-body {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr);
+  }
+
+  .dress-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+  }
+
+  /* Half a row's width: a narrower value and arrows, so the slot's name
+     still reads beside them. */
+  .dress-rows .knob {
+    padding-left: 0.55rem;
+  }
+
+  .dress-rows .knob-value {
+    width: 6.4rem;
+  }
+
+  .dress-rows .knob-arrow {
+    width: 1.7rem;
+  }
 }
 
 @media (max-width: 40rem) and (orientation: portrait) {

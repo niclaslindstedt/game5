@@ -19,7 +19,17 @@
 // storage skin below it is the only part that touches `localStorage`, and it
 // never throws — a browser with storage turned off plays with the defaults.
 
-import { SKIS, TIME_TRIAL, isSkiId, type Assist, type SkiId } from "@engine";
+import {
+  SKIS,
+  TIME_TRIAL,
+  isSkiId,
+  riderById,
+  skisById,
+  withRider,
+  type Assist,
+  type SkiId,
+  type SkiSpec,
+} from "@engine";
 
 import { findLevel } from "./campaign.ts";
 import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
@@ -266,4 +276,11 @@ export function saveSettings(settings: Settings): void {
   } catch {
     // Private mode, a full quota: the visit still plays, it is just not kept.
   }
+}
+
+/** THE PAIR THE PLAYER SKIS: the one the ski card holds (or `link`'s, a
+ * link's pair for this visit), under the build the DRESS card gives the
+ * skier (`Outfit.weight`, `defs/riders.ts`). */
+export function specFor(s: Settings, link: SkiId | null = null): SkiSpec {
+  return withRider(skisById(link ?? s.skis), riderById(s.outfit.weight));
 }

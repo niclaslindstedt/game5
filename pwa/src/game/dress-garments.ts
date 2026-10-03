@@ -19,7 +19,7 @@
 // Angles round a ring: 0 its +x, π/2 its +z — on the trunk the chest, on a
 // leg the knee's front, on a sleeve the elbow's point.
 
-import { BODY_MEASURES, trunkAt, type BodyMeasure } from "./dress-body.ts";
+import { BODY_MEASURES, builtTo, trunkAt, type BodyMeasure } from "./dress-body.ts";
 import {
   add,
   bindPose,
@@ -612,7 +612,10 @@ function cutFeet(loom: Loom): void {
 
 /** The jacket, the pants and the feet of an outfit, cut onto `loom`. */
 export function cutClothes(loom: Loom, o: Outfit): void {
-  const m = BODY_MEASURES[gearOf("body", o.body).female ? "woman" : "man"];
+  const m = builtTo(
+    BODY_MEASURES[gearOf("body", o.body).female ? "woman" : "man"],
+    gearOf("weight", o.weight),
+  );
   cutPants(loom, m, o);
   cutJacket(loom, m, o);
   cutFeet(loom);

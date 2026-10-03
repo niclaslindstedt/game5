@@ -141,11 +141,13 @@ export function fallHeight(impact: number): number {
 
 /** THE LOAD A LANDING PUTS ON HIM, g: the equivalent fall height stopped
  * over the legs' stroke — less what a tuck (`crouch` 0..1) has already
- * folded out of them — and the snow's give, `loose` m of unpressed snow
- * under the skis (`landing.give` of it presses). One g is standing. */
-export function landingLoad(impact: number, crouch: number, loose: number): number {
+ * folded out of them, and as much of it as his legs stop his weight over
+ * (`hold`, `RiderSpec.hold`: a heavy rider's legs less) — and the snow's
+ * give, `loose` m of unpressed snow under the skis (`landing.give` of it
+ * presses). One g is standing. */
+export function landingLoad(impact: number, crouch: number, loose: number, hold = 1): number {
   const stroke =
-    LD.stroke * (1 - LD.tuckStroke * clamp(crouch, 0, 1)) + LD.give * Math.max(0, loose);
+    LD.stroke * hold * (1 - LD.tuckStroke * clamp(crouch, 0, 1)) + LD.give * Math.max(0, loose);
   return 1 + fallHeight(impact) / stroke;
 }
 

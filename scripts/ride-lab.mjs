@@ -16,6 +16,7 @@
 //   npm run ride -- schuss --seconds 30
 //   npm run ride -- --skis eagle       one pair of the catalog
 //   npm run ride -- --skis all         every scenario on every pair, one table
+//   npm run ride -- --rider heavy      the skier of another build (defs/riders.ts)
 //   npm run ride -- --card             THE ROSTER CARD: one row a pair, the
 //                                      figures that tell the classes apart
 //   npm run ride -- backflip           a trick scenario (backflip, frontflip,
@@ -50,6 +51,11 @@ const args = parseArgs(
       default: "chamois",
       help: `the pair (${E.SKI_CATALOG.map((s) => s.id).join(", ")}), or all`,
     },
+    rider: {
+      kind: "string",
+      default: "medium",
+      help: `the skier's build (${E.RIDERS.map((r) => r.id).join(", ")})`,
+    },
     resilience: {
       kind: "number",
       default: 1,
@@ -63,17 +69,23 @@ const args = parseArgs(
     },
     out: { kind: "string", default: "previews", help: "where the pictures go" },
   },
-  "usage: npm run ride -- [scenario] [--skis id|all] [--seconds s] [--resilience 0..1] [--no-poles] [--no-png] [--out dir]",
+  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--no-poles] [--no-png] [--out dir]",
 );
 
 if (args.skis !== "all" && !E.isSkiId(args.skis)) {
   console.error(`unknown skis "${args.skis}" (${E.SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
-const roster =
+if (!E.isRiderId(args.rider)) {
+  console.error(`unknown rider "${args.rider}" (${E.RIDERS.map((r) => r.id).join(", ")})`);
+  process.exit(2);
+}
+const rider = E.riderById(args.rider);
+const roster = (
   args.skis === "all" || (args.card && args.skis === "chamois" && !process.argv.includes("--skis"))
     ? E.SKI_CATALOG
-    : [E.skisById(args.skis)];
+    : [E.skisById(args.skis)]
+).map((s) => E.withRider(s, rider));
 
 const wanted = args.scenario ?? args._[0];
 if (wanted && !SCENARIO_IDS.includes(wanted)) {
@@ -196,7 +208,10 @@ if (args.card) {
   process.exit(0);
 }
 
-console.log(`ride lab — engine ${E.engineVersion} at ${E.TUNING.physicsHz} Hz · skis ${args.skis}`);
+console.log(
+  `ride lab — engine ${E.engineVersion} at ${E.TUNING.physicsHz} Hz · skis ${args.skis}` +
+    (args.rider !== "medium" ? ` · rider ${args.rider}` : ""),
+);
 if (!args["no-png"]) mkdirSync(join(root, args.out), { recursive: true });
 for (const scenario of chosen) {
   console.log(`\n${scenario.id.padEnd(13)} ${scenario.title}`);

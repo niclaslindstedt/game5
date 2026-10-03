@@ -24,6 +24,13 @@
 //            close softshell, a stripe down the outside of the leg); BAGGY
 //            (a park cut: wide, a dropped seat, stacked over the boot);
 //            CARGO (a relaxed cut with a bellows pocket on each thigh)
+//   weight   the skier's BUILD — LIGHT, MEDIUM, SOLID or HEAVY: not a piece
+//            of kit but what is in it, and the one row that is not only a
+//            look. The engine skis him at that weight (`defs/riders.ts`:
+//            faster downhill, slower to skate up to speed, harder landings,
+//            a harder shoulder), and the dress cuts him to its shape
+//            (`dress-body.ts`' `builtTo`: broader, a solid one through the
+//            chest, a heavy one with a stomach)
 //   helmets  RACE (the hard-eared shell, gloss, goggles strapped over it);
 //            FREERIDE (matt, soft ear pads, a short peak over the goggles);
 //            VISOR (a tinted visor dropped over the face instead of
@@ -42,6 +49,10 @@
 // piece, the card shows the names, `settings.ts` keeps the pick and
 // `tests/outfit_test.ts` holds the catalog.
 
+import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
+
+import type { BuildShape } from "./dress-body.ts";
+
 export type BodyId = "man" | "woman";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
@@ -51,6 +62,7 @@ export type PoleId = "alloy" | "carbon" | "speed" | "powder" | "none";
 
 export type Outfit = {
   body: BodyId;
+  weight: RiderId;
   jacket: JacketId;
   pants: PantsId;
   helmet: HelmetId;
@@ -58,6 +70,13 @@ export type Outfit = {
   poles: PoleId;
 };
 export type GearSlot = keyof Outfit;
+
+/** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
+ * GIRTH, the body's breadth and depth as a share of the medium build's at
+ * the same height (as the root of the weight, the area the engine's drag
+ * reads too), the BELLY a heavy skier carries ahead of it, and the CHEST a
+ * solid one carries instead. */
+export type WeightDef = BuildShape & { id: RiderId; name: string };
 
 export type BodyDef = {
   id: BodyId;
@@ -99,6 +118,20 @@ export const BODIES: readonly BodyDef[] = [
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232 },
 ];
+
+const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {
+  light: { name: "Light", belly: 0, chest: 0 },
+  medium: { name: "Medium", belly: 0, chest: 0 },
+  solid: { name: "Solid", belly: 0.05, chest: 0.08 },
+  heavy: { name: "Heavy", belly: 0.8, chest: 0 },
+};
+
+/** The four builds, lightest first, off the engine's own riders. */
+export const WEIGHTS: readonly WeightDef[] = RIDERS.map((r) => ({
+  id: r.id,
+  girth: Math.sqrt(r.mass / MEDIUM_RIDER.mass),
+  ...WEIGHT_LOOK[r.id],
+}));
 
 export const JACKETS: readonly JacketDef[] = [
   // The gate red, and a racer's black yoke over it.
@@ -190,6 +223,7 @@ export function carriesPoles(o: Outfit): boolean {
 /** Every slot's catalog, in the order the DRESS card lists them. */
 export const GEAR = {
   body: BODIES,
+  weight: WEIGHTS,
   jacket: JACKETS,
   pants: PANTS,
   helmet: HELMETS,
@@ -198,6 +232,7 @@ export const GEAR = {
 } as const;
 export const GEAR_SLOTS: readonly GearSlot[] = [
   "body",
+  "weight",
   "jacket",
   "pants",
   "helmet",
@@ -208,6 +243,7 @@ export const GEAR_SLOTS: readonly GearSlot[] = [
 /** The player's kit before they have dressed: a racer in the gate red. */
 export const DEFAULT_OUTFIT: Outfit = {
   body: "man",
+  weight: "medium",
   jacket: "race",
   pants: "insulated",
   helmet: "race",
@@ -217,10 +253,12 @@ export const DEFAULT_OUTFIT: Outfit = {
 
 /** WHAT THE FIELD WEARS: the start line's slots 1–3, each jacket in the
  * slot's own colour, each skier his or her own. The player's slot (0) is
- * the player's outfit. A rival's skin is his own (`tone`). */
+ * the player's outfit. A rival's skin is his own (`tone`), and every one is
+ * of the medium build — the field is skied at the reference weight. */
 export const RIVAL_OUTFITS: readonly (Outfit & { tone: number })[] = [
   {
     body: "woman",
+    weight: "medium",
     jacket: "puffer",
     pants: "race",
     helmet: "freeride",
@@ -230,6 +268,7 @@ export const RIVAL_OUTFITS: readonly (Outfit & { tone: number })[] = [
   },
   {
     body: "man",
+    weight: "medium",
     jacket: "shell",
     pants: "baggy",
     helmet: "visor",
@@ -239,6 +278,7 @@ export const RIVAL_OUTFITS: readonly (Outfit & { tone: number })[] = [
   },
   {
     body: "woman",
+    weight: "medium",
     jacket: "anorak",
     pants: "cargo",
     helmet: "slalom",

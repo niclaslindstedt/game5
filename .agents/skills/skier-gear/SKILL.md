@@ -53,7 +53,7 @@ card's chrome.
 
 1. **Before**: `make gear` (every sheet but refs) — keep the PNGs.
    `SLOTS=jacket` narrows the catalog; `OUTFITS=0,woman.anorak.cargo.slalom.race.speed`
-   names outfits (start-line slots or six ids).
+   names outfits (start-line slots or seven ids).
 2. **References, local only**: photographs of the real kind of piece (a
    studio front and back, a skier seen from behind) in the session's
    scratchpad, named by slot (`jacket-1.jpg`, `pants-2.jpg`), never under

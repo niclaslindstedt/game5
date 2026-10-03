@@ -61,7 +61,9 @@ import {
   type InjuryKind,
   type Mechanism,
 } from "./defs/anatomy.ts";
+import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { envelopeOf } from "./defs/skis.ts";
+import { CROWD_SIZE } from "./defs/crowd.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
@@ -564,10 +566,15 @@ export function feelBumps(state: GameState, events: GameEvent[]): void {
     const side =
       (o.x - c.x) * Math.cos(c.heading) - (o.z - c.z) * Math.sin(c.heading) >= 0 ? 1 : -1;
     const shoulder = sided("shoulder", side);
+    // His share of the exchange by the two riders' weights, against what
+    // the medium rider's would be: a heavy rider is jolted less.
+    const other = "spec" in o ? o.spec.skierMass : CROWD_SIZE[o.body].mass;
+    const speed =
+      e.speed * (shoulderShare(c.spec.skierMass, other) / shoulderShare(MEDIUM_RIDER.mass, other));
     // A shoulder against a shoulder: two of them give.
-    const g = blow(shoulder, e.speed, I.give.shoulder, false);
+    const g = blow(shoulder, speed, I.give.shoulder, false);
     strike(shoulder, g, side < 0 ? "left" : "right");
-    strike(sided("arm", side), blow(sided("arm", side), e.speed, I.give.shoulder, false, 0.6));
+    strike(sided("arm", side), blow(sided("arm", side), speed, I.give.shoulder, false, 0.6));
     offer(g, shoulder, "skier", e.rival, e.amateur ?? -1);
   }
   if (any) judge(state, events);

@@ -24,7 +24,7 @@
 
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { skisById, type SkiId } from "@engine";
+import { riderById, skisById, withRider, type SkiId } from "@engine";
 
 import { COUNT_SECONDS, countAt } from "@niclaslindstedt/oss-game-framework/hud/count";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -78,14 +78,23 @@ function DressButton({ onDress }: { onDress: () => void }) {
   );
 }
 
-/** The readings beside the pair: the figures saying what it IS, and the
- * bars saying what it is against the others. */
-function SkisReadings({ skis, children }: { skis: SkiId; children?: ComponentChildren }) {
+/** The readings beside the pair: the figures saying what it IS — its top
+ * speed under the skier's own build (`Outfit.weight`) — and the bars saying
+ * what it is against the others. */
+function SkisReadings({
+  skis,
+  outfit,
+  children,
+}: {
+  skis: SkiId;
+  outfit: Outfit;
+  children?: ComponentChildren;
+}) {
   const spec = skisById(skis);
   return (
     <div class="skis-spec">
       <div class="skis-figures">
-        {skisFacts(spec).map((fact) => (
+        {skisFacts(withRider(spec, riderById(outfit.weight))).map((fact) => (
           <Figure key={fact.key} fact={fact} />
         ))}
       </div>
@@ -154,7 +163,7 @@ export function SkisPage({
             <SkisPicker skis={skis} outfit={outfit} onPick={onPick} />
             <p class="skis-blurb">{spec.blurb}</p>
           </div>
-          <SkisReadings skis={skis}>
+          <SkisReadings skis={skis} outfit={outfit}>
             <DressButton onDress={onDress} />
           </SkisReadings>
         </div>

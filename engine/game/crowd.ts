@@ -66,6 +66,7 @@ import {
   type GroupKind,
 } from "./defs/crowd.ts";
 import { RACE } from "./defs/modes.ts";
+import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { Amateur, CrowdGroup, CrowdState, GameEvent, GameState } from "./state.ts";
@@ -903,8 +904,14 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       const vz = a.vz + (j / ma) * nz;
       a.speed = hypot(vx, vz);
       a.yaw = angleDiff(here.heading, Math.atan2(vx, vz));
+      // The thresholds are stated against the medium rider: a heavier one
+      // lands harder on the amateur and takes less of it himself
+      // (`shoulderShare`, by the riders' weights).
+      const rider = c.spec.skierMass;
+      const dealt = closing * (shoulderShare(ma, rider) / shoulderShare(ma, MEDIUM_RIDER.mass));
+      const taken = closing * (shoulderShare(rider, ma) / shoulderShare(MEDIUM_RIDER.mass, ma));
       const knock = CROWD.knock[0] + (CROWD.knock[1] - CROWD.knock[0]) * a.knobs.skill;
-      if (closing >= knock && a.mode !== "down") {
+      if (dealt >= knock && a.mode !== "down") {
         const right = nx * Math.cos(a.heading) - nz * Math.sin(a.heading);
         fallDown(a, crowd.rng, right >= 0 ? 1 : -1);
       }
@@ -912,7 +919,7 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
         c.bumpCooldown = B.cooldown;
         events.push({ kind: "bump", t: state.t, rival: -1, speed: closing, amateur: a.id });
       }
-      if (closing >= CROWD.floors * crashLimit(c, "treeShoulder")) {
+      if (taken >= CROWD.floors * crashLimit(c, "treeShoulder")) {
         throwRider(state, "skier", v0, events);
         return;
       }

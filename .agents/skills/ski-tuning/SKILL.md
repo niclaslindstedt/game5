@@ -81,7 +81,7 @@ on the spec that the model reads, never an `if (spec.id === …)`.
 
 | Knob | Moves |
 | --- | --- |
-| `skierMass`, `gearMass` | EVERYTHING: the terminal speed (a heavier skier runs faster against the same drag), the sink's load, the landing, the roll. The skier is nine tenths of the moving mass — which is why moving him is how skis are skied |
+| `skierMass`, `gearMass` | EVERYTHING: the terminal speed (a heavier skier runs faster against the same drag), the sink's load, the landing, the roll. The skier is nine tenths of the moving mass — which is why moving him is how skis are skied. Every row carries the MEDIUM rider (80 kg); the player's build is `withRider` (`defs/riders.ts`: the mass, the drag area, the legs, `strength`, `hold`), never a row's own number — `make ride`/`make sim` take `--rider` |
 | `length` | The stations' spread, the tree footprint, the pitch and yaw inertia, the ski's area on the snow (the float), how long it takes onto an edge |
 | `waist`, `tipWidth`, `tailWidth` | The station widths: the waist is what floats and turns on its base in powder, the tip what ploughs |
 | `sidecut` | THE CARVE: the radius a full edge runs (`carveCurvature`) — the one number that decides what a bend costs |

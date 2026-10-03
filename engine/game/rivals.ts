@@ -178,10 +178,18 @@ export function stepRivals(state: GameState): void {
   }
 }
 
-/** Push two skiers apart if they overlap; returns the closing speed, m/s. */
+/** Push two skiers apart if they overlap; returns the closing speed, m/s.
+ * The overlap and the exchange are shared by the RIDERS' weights
+ * (`SkiSpec.skierMass` — the skis' few kilos left out, so two riders of a
+ * build share them evenly whatever pairs they are on): a heavy rider
+ * shoulders a light one off his line and is barely moved himself. */
 function clipPair(a: SkierState, b: SkierState): number {
   const B = RACE.bump;
   let worst = 0;
+  // Each one's share of what is shared — a half each, to the bit, between
+  // two riders of one build.
+  const toA = b.spec.skierMass / (a.spec.skierMass + b.spec.skierMass);
+  const toB = a.spec.skierMass / (a.spec.skierMass + b.spec.skierMass);
   const af = { x: Math.sin(a.heading), z: Math.cos(a.heading) };
   const bf = { x: Math.sin(b.heading), z: Math.cos(b.heading) };
   for (const sa of [-1, 1]) {
@@ -197,18 +205,18 @@ function clipPair(a: SkierState, b: SkierState): number {
       const nx = d > 1e-6 ? dx / d : 1;
       const nz = d > 1e-6 ? dz / d : 0;
       const pen = 2 * B.radius - d;
-      a.x -= (nx * pen) / 2;
-      a.z -= (nz * pen) / 2;
-      b.x += (nx * pen) / 2;
-      b.z += (nz * pen) / 2;
+      a.x -= nx * pen * toA;
+      a.z -= nz * pen * toA;
+      b.x += nx * pen * toB;
+      b.z += nz * pen * toB;
       const closing = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
       if (closing <= 0) continue;
-      // Equal masses: each takes half the exchange.
-      const j = ((1 + B.restitution) * closing) / 2;
-      a.vx -= j * nx;
-      a.vz -= j * nz;
-      b.vx += j * nx;
-      b.vz += j * nz;
+      // The exchange, each rider's change of way by the other's weight.
+      const j = (1 + B.restitution) * closing;
+      a.vx -= j * toA * nx;
+      a.vz -= j * toA * nz;
+      b.vx += j * toB * nx;
+      b.vz += j * toB * nz;
       if (closing > worst) worst = closing;
     }
   }

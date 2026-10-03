@@ -263,6 +263,7 @@ export const STRINGS = {
   dressDone: "DONE",
   dressSlots: {
     body: "BODY",
+    weight: "WEIGHT",
     jacket: "JACKET",
     pants: "PANTS",
     helmet: "HELMET",

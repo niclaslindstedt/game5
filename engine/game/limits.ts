@@ -4,6 +4,7 @@
 // that only resembles the one the physics applies is a skier on different
 // skis. Nothing here has state: they are questions about a SPEC.
 
+import { riderOf } from "./defs/riders.ts";
 import { SKIS, totalMass, type SkiSpec } from "./defs/skis.ts";
 import type { RunRules } from "./defs/modes.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -133,8 +134,12 @@ export function harshSpeedOf(spec: SkiSpec): number {
   if (hit !== undefined) return hit;
   const stroke = (s: SkiSpec): number =>
     probesOf(s).reduce((sum, p) => sum + 0.5 * p.susp.rate * p.susp.travel ** 2, 0) / totalMass(s);
+  // ...and as the root of the share of it his legs stop his weight over
+  // (`RiderSpec.hold`): the fall height they take whole is in step with it.
   const v =
-    TUNING.air.harshSpeed * Math.sqrt(stroke(spec) / stroke(SKIS)) * footprintOf(spec).harsh;
+    TUNING.air.harshSpeed *
+    Math.sqrt((stroke(spec) / stroke(SKIS)) * riderOf(spec).hold) *
+    footprintOf(spec).harsh;
   harsh.set(spec, v);
   return v;
 }

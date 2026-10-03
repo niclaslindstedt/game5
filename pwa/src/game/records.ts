@@ -29,7 +29,15 @@
 //
 // A TIE IS NOT A RECORD. The row stands until it is beaten outright.
 
-import { isGameMode, isSkiId, type GameMode, type SkiId } from "@engine";
+import {
+  isGameMode,
+  isSkiId,
+  riderOf,
+  type GameMode,
+  type RiderId,
+  type SkiId,
+  type SkiSpec,
+} from "@engine";
 import {
   beats as beatsRow,
   bestIn,
@@ -46,6 +54,11 @@ export type RecordKey = {
   seed: number;
   course?: string;
   skis: SkiId;
+  /** The skier's build (`Outfit.weight`): a heavier skier is faster
+   * downhill, so each build keeps its own book. Absent is the medium
+   * build, whose rows keep the ids they had before a build could be
+   * chosen. */
+  rider?: RiderId;
   mode: GameMode;
   laps: number;
 };
@@ -68,10 +81,16 @@ export type RecordBook = Readonly<Record<string, RunRecord>>;
  * already been rewritten. */
 export type RunLedger = { mode: GameMode; standing: RunRecord | null };
 
+/** The pair and the build a run is skied on, as a key names them. */
+export function pairKey(spec: SkiSpec): Pick<RecordKey, "skis" | "rider"> {
+  return { skis: spec.id, rider: riderOf(spec).id };
+}
+
 /** The row's id. */
 export function recordId(key: RecordKey): string {
   const map = key.course === undefined ? `${key.seed}` : `${key.seed}.${key.course}`;
-  return `${key.mode}/${map}/${key.skis}/${key.laps}`;
+  const rider = key.rider === undefined || key.rider === "medium" ? "" : `/${key.rider}`;
+  return `${key.mode}/${map}/${key.skis}/${key.laps}${rider}`;
 }
 
 /** WHETHER A MODE KEEPS A BOOK AT ALL (see the header). */

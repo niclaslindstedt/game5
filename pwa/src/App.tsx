@@ -76,7 +76,7 @@ import { frontDoorPins, pinnedFor, pinnedPress } from "./game/campaign.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
-import { freeGameOptions } from "./game/free-ride.ts";
+import { freeAgainOptions, freeGameOptions } from "./game/free-ride.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -305,7 +305,7 @@ export function App() {
       const opts = overLink(ride, params);
       try {
         const game = createGame(opts);
-        freeAgain = { ...opts, level: game.level };
+        freeAgain = freeAgainOptions(opts, game.level);
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
@@ -557,7 +557,7 @@ export function App() {
             const reuse =
               state.level.seed === options.seed && state.rules.course ? state.level : undefined;
             const game = createGame({ ...options, level: reuse });
-            freeAgain = { ...options, level: game.level };
+            freeAgain = freeAgainOptions(options, game.level);
             return game;
           },
           camera: settingsRef.current.camera,

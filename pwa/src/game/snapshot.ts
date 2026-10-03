@@ -12,7 +12,6 @@
 // rule in the shell (§23.2), and there are none.
 
 import {
-  TUNING,
   bearingToNext,
   fieldOrder,
   gradeOf,
@@ -40,6 +39,11 @@ const GO_HOLD = 1;
  * clock — long enough to read it off the corner between two gates, gone
  * before the next so a stale split is never read as a fresh one. */
 const SPLIT_HOLD = 6;
+
+/** THE AIR CLOCK'S FLOOR, s: a flight is shown — on the clock, and as the
+ * run's best — only once it has lasted longer than this. A hop off a roller
+ * is air to the engine (`TUNING.air.counts`) but not a jump worth timing. */
+export const AIR_SHOWN = 0.5;
 
 /** One skier on the finish plate's table. */
 export type Standing = {
@@ -96,8 +100,8 @@ export type HudSnapshot = {
   mode: RunLedger["mode"];
   best: { time: number; skis: string; at: number } | null;
   /** THE AIR CLOCK, s — the flight so far, and 0 until it has lasted
-   * `TUNING.air.counts`: a hop off a bump is not air time, and a readout
-   * that counted it would flicker through every mogul. */
+   * `AIR_SHOWN`: a hop off a bump is not a jump, and a readout that timed
+   * it would flicker through every roller. */
   airTime: number;
   /** The flight in progress is the race's longest so far. */
   airBest: boolean;
@@ -111,7 +115,8 @@ export type HudSnapshot = {
   /** A FREE RIDE: no field, no gates owed — the HUD shows the run's best
    * air and the distance skied in their place. */
   free: boolean;
-  /** The run's longest flight so far, s. */
+  /** The run's longest flight so far, s — 0 until one has lasted
+   * `AIR_SHOWN`. */
   bestAir: number;
   /** How far has been skied, m. */
   distance: number;
@@ -198,7 +203,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const n = state.level.checkpoints.length;
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
-  const airTime = c.airborne && c.airTime > TUNING.air.counts ? c.airTime : 0;
+  const airTime = c.airborne && c.airTime > AIR_SHOWN ? c.airTime : 0;
   const split =
     Number.isFinite(lastAt) && p.time - lastAt < SPLIT_HOLD && !p.finished ? lastAt : null;
   const standing = ledger.standing;
@@ -231,7 +236,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         ? courseName(state.level, state.level.resort.course)
         : null,
     free: !state.rules.course,
-    bestAir: p.bestAir,
+    bestAir: p.bestAir > AIR_SHOWN ? p.bestAir : 0,
     distance: p.distance,
     result: p.finished ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,

@@ -20,7 +20,7 @@
 import { trackPointAt, type Level, type PisteGrade, type Run, type TrackPoint } from "@engine";
 
 import { LIFT_LOOK } from "./lift-plan.ts";
-import { runName } from "./run-names.ts";
+import { runName, runNumber } from "./run-names.ts";
 
 /** The sign's measure, m: how far down the run it stands; how far off the
  * line (half the run's width less a metre, held between `side`'s bounds —
@@ -109,7 +109,7 @@ function boardOf(level: Level, run: Run, arrow: SignArrow): Omit<SignBoard, "y">
   const size = lane ? SIGN.lane : SIGN.board;
   return {
     run: run.id,
-    number: run.id,
+    number: runNumber(level, run),
     name: runName(level, run),
     grade: run.grade,
     lane,

@@ -124,9 +124,12 @@ and a glide. The rules:
 - **The air is the wind alone.** Off a kicker the snow layers go and only
   the wind keeps going — the physics does that; the bed only hears it.
   Never fake it with a take-off one-shot.
-- **The poles are a crawl's sound.** Under `poles.speed` with the tuck held a
-  plant is a click and a push; at speed they are silent under the arms. A
-  cue off `plantPulse`, never an event.
+- **The poles are a crawl's sound, and heard only where they are SEEN.** A
+  plant plays where the pose plants — the bed reads the gait the figure is
+  drawn by (`gaitOf`: the stroke's start, the arms' share, `Gait.keep`), never
+  a looser test of its own — and sounds like the snow it goes into
+  (`plantVoice`): a tick on the groomer, a pat in loose snow taken to nothing
+  as it deepens. A cue, never an event.
 - **The pitches are arithmetic; the levels are taste.** Nothing about the
   wind's cutoff or the chatter's band is chosen by ear.
 

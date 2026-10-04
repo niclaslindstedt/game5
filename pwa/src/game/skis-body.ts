@@ -67,6 +67,7 @@ import {
   leadOf,
   mountsFor,
   pitchHeld,
+  restSkierSpring,
   stepSkierSpring,
   type Mounts,
   type SkierPoseInput,
@@ -399,6 +400,8 @@ export function createSkisModel(
   const BOUND = bound.radius;
   // How seated he is drawn, eased down as he stands off a chair.
   let seated = 0;
+  // Whether his legs' spring has been set back to rest since he was thrown.
+  let rested = false;
 
   return {
     root,
@@ -415,8 +418,14 @@ export function createSkisModel(
       root.visible = !(skier.lift?.kind === "gondola" && skier.lift.phase === "ride");
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
-      // His legs' spring first: how far he stands on the snow is its own.
-      if (!off)
+      // His legs' spring first: how far he stands on the snow is its own —
+      // and thrown, they carry nothing, so he is stood back up on them at
+      // rest.
+      if (off) {
+        if (!rested) restSkierSpring(legs);
+        rested = true;
+      } else {
+        rested = false;
         stepSkierSpring(
           legs,
           skier.vy,
@@ -435,6 +444,7 @@ export function createSkisModel(
             : undefined,
           legsLift(skier),
         );
+      }
       // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
       // feet, so the drawn origin goes inside the turn by the legs' length
       // times the sine of the inclination.

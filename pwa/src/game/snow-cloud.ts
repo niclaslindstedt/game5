@@ -305,6 +305,7 @@ void main() {
     float toward = 0.5 + 0.5 * pow(max(0.0, dot(-toEye, uLampDir[i])), 3.0);
     col += uLampCol[i] * lampReach(i, back / max(gap, 1e-3), gap) * toward * 1.8;
   }
+  col += uPisteCol * length(pisteLight(vWorld)) * 1.2;
   gl_FragColor = vec4(col, alpha);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

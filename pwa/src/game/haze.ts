@@ -24,7 +24,9 @@ import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
 
 /** How many lamps light the world at once: the player's headlamp first,
  * the finish arena's two floods, then the field's headlamps
- * (`headlamp.ts`'s `lightLamps` deals them). */
+ * (`headlamp.ts`'s `dealLamps` deals them). The piste lights' masts are
+ * not among them: they stand still, so their light is baked into one map
+ * (`pisteLight`). */
 export const LAMP_SLOTS = 6;
 /** How many skiers cast into a map of their own (`hero-shadow.ts`): the
  * player and the field, a quadrant of one atlas each. */
@@ -85,6 +87,15 @@ export type HazeUniforms = {
   uLampOn: { value: number[] };
   uLampCol: { value: THREE.Vector3[] };
   uLampBeam: { value: THREE.Vector4[] };
+  /** THE PISTE LIGHTS (`piste-lights.ts`): the light their masts lay on
+   * the ground over the whole map — a vector irradiance a texel, lux — the
+   * world-to-uv of its grid (the origin less half a texel, and one over its
+   * span), `x` how far on in the lamp slots' units a lux (0: dark, or no
+   * map baked) and the colour of the light, linear. Read by `pisteLight`. */
+  uPisteLight: { value: THREE.Texture | null };
+  uPisteBox: { value: THREE.Vector4 };
+  uPisteOn: { value: THREE.Vector4 };
+  uPisteCol: { value: THREE.Vector3 };
 };
 
 export function createHazeUniforms(): HazeUniforms {
@@ -118,6 +129,10 @@ export function createHazeUniforms(): HazeUniforms {
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },
     uLampCol: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector3(1, 1, 1)) },
     uLampBeam: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
+    uPisteLight: { value: null },
+    uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPisteCol: { value: new THREE.Vector3(1, 1, 1) },
   };
 }
 
@@ -199,7 +214,10 @@ float mistBand(vec3 dir) {
  * from it, `toLamp` the unit way back to the lamp — its spot and the wide
  * flood round it (`uLampBeam`), falling off with the square of the
  * distance, and faded out within a metre of the lens, so a headlamp never
- * floods the helmet it is strapped to. */
+ * floods the helmet it is strapped to. And `pisteLight(at)`: the PISTE
+ * LIGHTS' vector irradiance at a world point, in the same units — the light
+ * on a surface of normal n is `max(dot(n, v), 0)`, and `length(v)` all of
+ * it, for what has no one face (a flake, the cloud). */
 export const LAMP_GLSL = /* glsl */ `
 uniform vec3 uLampPos[${LAMP_SLOTS}];
 uniform vec3 uLampDir[${LAMP_SLOTS}];
@@ -211,6 +229,16 @@ float lampReach(int i, vec3 toLamp, float d) {
   vec4 b = uLampBeam[i];
   float beam = smoothstep(b.x, b.y, axis) + b.w * smoothstep(b.z, b.x, axis);
   return uLampOn[i] * beam * smoothstep(0.2, 0.9, d) / (1.0 + 0.012 * d * d);
+}
+uniform sampler2D uPisteLight;
+uniform vec4 uPisteBox;
+uniform vec4 uPisteOn;
+uniform vec3 uPisteCol;
+vec3 pisteLight(vec3 at) {
+  if (uPisteOn.x <= 0.0) return vec3(0.0);
+  vec2 uv = (at.xz - uPisteBox.xy) * uPisteBox.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
+  return texture2D(uPisteLight, uv).rgb * uPisteOn.x;
 }
 `;
 
@@ -229,6 +257,7 @@ const LAMP_FRAGMENT = /* glsl */ `
     L /= max(d, 1e-3);
     lpLit += uLampCol[i] * lampReach(i, L, d) * max(dot(lpN, L), 0.0);
   }
+  if (uPisteOn.x > 0.0) lpLit += uPisteCol * max(dot(lpN, pisteLight(vHazeWorld)), 0.0);
   reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lpLit * 9.0;
 }
 #endif

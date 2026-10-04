@@ -812,11 +812,11 @@ export function createWorldRenderer(
       }
       gates?.update(state.progress.nextCheckpoint, state.t);
       lifts?.update(state.t, skier.lift, player.drawn, lens.camera.position);
-      // THE NIGHT'S LIGHTS: every skier's headlamp and the arena's floods.
+      // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
       dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
-      gates?.setLamps(look.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
+      gates?.setLamps(look.lamps, pixels);
       spray.setScale(pixels);
       spray.update(Math.min(dt, 0.1), look, level);
       // The ladder's lens looks through the player's own tail at him; a

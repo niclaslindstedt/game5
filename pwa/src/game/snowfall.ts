@@ -150,6 +150,10 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       uLampOn: haze.uLampOn,
       uLampCol: haze.uLampCol,
       uLampBeam: haze.uLampBeam,
+      uPisteLight: haze.uPisteLight,
+      uPisteBox: haze.uPisteBox,
+      uPisteOn: haze.uPisteOn,
+      uPisteCol: haze.uPisteCol,
     },
     vertexShader: /* glsl */ `
       attribute vec4 aSeed;
@@ -218,6 +222,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
           float d = length(L);
           vCol += uLampCol[i] * lampReach(i, L / max(d, 1e-3), d) * 7.0;
         }
+        vCol += uPisteCol * length(pisteLight(head)) * 7.0;
       }
     `,
     fragmentShader: /* glsl */ `

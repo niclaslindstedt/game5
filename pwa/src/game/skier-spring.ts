@@ -54,6 +54,12 @@ export type SkierSpring = {
    * (0..1, eased — none tucked, working, in the air or at a crawl). */
   turnSide: -1 | 0 | 1;
   turnHeld: number;
+  /** HOW FAR HE HAS BEEN EDGING LATELY, rad: the edge's size taken over
+   * `SWING_SPAN` s (NaN until the first ride is read) — linked turns hold
+   * it up through each edge change, a straight run lets it go, so a flat
+   * ski between two turns is told from one on a schuss
+   * (`technique-pose.ts`'s `transitOf`). */
+  swing: number;
   plantSide: 0 | 1;
   plantT: number;
   plantLength: number;
@@ -218,6 +224,10 @@ export const PLANT = {
   most: 0.85,
 };
 
+/** How long the edge is remembered over for `SkierSpring.swing`, s — a
+ * little over a slalom turn, so the edge change between two is inside it. */
+const SWING_SPAN = 0.6;
+
 /** How long a plant takes at `speed` m/s, s. */
 export const plantLength = (speed: number): number =>
   Math.max(PLANT.least, Math.min(PLANT.most, PLANT.length / speed));
@@ -276,6 +286,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     clock: offset,
     turnSide: 0,
     turnHeld: 0,
+    swing: Number.NaN,
     plantSide: 0,
     plantT: Number.POSITIVE_INFINITY,
     plantLength: PLANT.most,
@@ -373,6 +384,10 @@ function stepBody(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numbe
 function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
   s.plantT += dt;
   s.turnHeld += dt;
+  const size = Math.abs(ride.edge);
+  s.swing = Number.isNaN(s.swing)
+    ? size
+    : s.swing + (size - s.swing) * (1 - Math.exp(-dt / SWING_SPAN));
   const ok =
     airborne || ride.speed < PLANT.slow || ride.speed > PLANT.fast
       ? 0

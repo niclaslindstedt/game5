@@ -149,8 +149,10 @@ The start (in progress):
       grades (green and blue among them). They want RED or steeper maps —
       a re-pin with `make rate CAMPAIGN=1` (the campaign skill), which
       changes the shelves; ask the user how.
-- [ ] The cross-block (the outside hand at the gate), the finish lunge.
-- [ ] A POSE ROW per technique (app-side, keyed by the technique id, read by
+- [x] The cross-block (the outside hand at the gate): `technique-pose.ts`'s
+      `gateBlock`, timed off the owed gate's turning pole.
+- [ ] The finish lunge.
+- [x] A POSE ROW per technique (app-side, keyed by the technique id, read by
       `skier-pose.ts`): counter-rotation, hands and poles (slalom's touch and
       the outside hand's block; the speed events' poles under the arms),
       the inside knee's fold and the outside leg held, stance width, the

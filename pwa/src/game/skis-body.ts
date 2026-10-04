@@ -39,7 +39,9 @@
 import * as THREE from "three";
 import {
   TUNING,
+  flightGravity,
   seatedShare,
+  type GameState,
   type SkiSpec,
   type SkierState,
   type Thrown,
@@ -74,6 +76,7 @@ import {
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 import { CHAIR_SEAT } from "./skier-seat.ts";
+import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 
 /** How long a rider takes to stand up off a chair, s. */
 const STAND_UP = 0.35;
@@ -146,6 +149,10 @@ export type SkisModel = {
    * the snow comes, which stage his fall by. Without one a fall is staged
    * by the time aloft alone. */
   setGround(ground: FlightGround | null, gravity: number): void;
+  /** THE RUN HE SKIS, read each pose: its map as his flights' ground
+   * (`setGround`), the technique he carries himself by and the gate he
+   * owes (`technique-pose.ts`). Without one he rides as the free skier. */
+  setRun(run: GameState | null): void;
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
   lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
@@ -184,7 +191,8 @@ export function groundOf(skier: SkierState, legs: ReturnType<typeof createSkierS
  * `waiting` in the start gate under the lights (`"house"` in a slalom's
  * start house, and out of it on his one push); `stand` where the skis
  * stand on the snow (`ski-stand.ts`, worked out off `legs` when left
- * out). */
+ * out); `riding` how he rides (`technique-pose.ts`'s `ridingOf`: the free
+ * skier, at no gate, when left out). */
 export function poseInputOf(
   skier: SkierState,
   legs: ReturnType<typeof createSkierSpring>,
@@ -198,6 +206,7 @@ export function poseInputOf(
     undefined,
     drawnSkiAngle(legs, skier),
   ),
+  riding?: Riding,
 ): SkierPoseInput {
   // A slalom's start house: the slalom start clip, in it and out of it.
   const clip = slalomStart(waiting === "house", skier.launch);
@@ -262,6 +271,11 @@ export function poseInputOf(
     trick,
     // ...with his poles, or with nothing in his hands (the hard mode).
     poles: skier.poles,
+    // HOW HE RIDES: his technique's row, the block at the gate he owes, and
+    // how far he has been edging lately (what tells an edge change).
+    style: riding?.style,
+    block: riding?.block,
+    swing: Number.isNaN(legs.swing) ? undefined : legs.swing,
     mounts,
     // IN THE START GATE under the lights, as his body has settled into it
     // — or, before the spring has read a ride, as the lights say.
@@ -337,6 +351,7 @@ export function createSkisModel(
   for (let i = 0; i < kit.length; i++) seed = (seed * 31 + kit.charCodeAt(i)) % 997;
   const legs = createSkierSpring(seed / 31);
   let fall: { ground: FlightGround; gravity: number } | null = null;
+  let run: GameState | null = null;
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
@@ -448,6 +463,9 @@ export function createSkisModel(
       shakeStand(stand, skier, ground, chatter);
       // ...and out of a slalom's start house, the heels kicked.
       kickStand(stand, skier.launch);
+      // HOW HE RIDES (`technique-pose.ts`): his technique's own stance.
+      const riding = run ? ridingOf(run, skier) : undefined;
+      if (riding) widenStand(stand, riding.style.stance, angle, skier.skid, skier.speed);
       pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
@@ -476,7 +494,7 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
+        const input = poseInputOf(skier, legs, mounts, trick, waiting, stand, riding);
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         const sat = skier.lift?.kind === "chair" && skier.lift.phase !== "lead";
@@ -506,6 +524,10 @@ export function createSkisModel(
     },
     setGround(ground, gravity) {
       fall = ground ? { ground, gravity } : null;
+    },
+    setRun(next) {
+      run = next;
+      fall = next ? { ground: next.level, gravity: flightGravity(next.rules) } : null;
     },
     setSkierVisible(v) {
       if (figure.group.visible === v) return;

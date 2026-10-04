@@ -116,7 +116,10 @@ smooth), the line a racer skis round its poles `engine/game/race-line.ts`
 (rounded out on a steep pitch), the gate verdicts `engine/game/strict.ts`,
 the board `engine/game/field.ts` and `par.ts`, the flex poles `gate-poles.ts`, the start `start-push.ts`; the
 house, the shots and the clip `pwa/src/game/start-house*.ts`,
-`camera-start.ts`, `slalom-start.ts`.
+`camera-start.ts`, `slalom-start.ts`; how each technique is STOOD — the
+counter-rotation, the hands and the poles, the cross-block at the turning
+pole, the legs, the retraction, the tuck — `pwa/src/game/technique-pose.ts`
+(a row a discipline, off the numbers on this page).
 
 Sources: [1] PMID 30317917 · [2] PMC7739813 · [3] doi:10.3390/app14041427 ·
 [4] PMC7739787 · [5] PMC12575998 · [6] KoreaScience JAKO201721242144242.

@@ -30,6 +30,7 @@
 //
 //   node scripts/skier-metrics.mjs                    every move, the table
 //   node scripts/skier-metrics.mjs --move=carve,tuck  those moves
+//   node scripts/skier-metrics.mjs --technique=slalom skied and stood as a slalom racer
 //   node scripts/skier-metrics.mjs --faults           every fault, frame by frame
 //   node scripts/skier-metrics.mjs --json=previews/metrics-before.json
 //   node scripts/skier-metrics.mjs --compare=previews/metrics-before.json
@@ -54,11 +55,16 @@ const args = parseArgs(
       help: `the moves to measure (${MOVE_IDS.join(", ")}); every one but the wipeout when left out`,
     },
     skis: { kind: "string", default: "chamois", help: "the pair he skis on" },
+    technique: {
+      kind: "string",
+      default: "",
+      help: "the riding technique he skis and carries himself with (free, slalom, giantSlalom, superG, downhill); each move's own mode's when left out",
+    },
     faults: { kind: "flag", default: false, help: "list every fault, frame by frame" },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
     compare: { kind: "string", default: "", help: "a JSON table to print the change against" },
   },
-  "usage: node scripts/skier-metrics.mjs [--move=a,b] [--faults] [--json=file] [--compare=file]",
+  "usage: node scripts/skier-metrics.mjs [--move=a,b] [--technique=id] [--faults] [--json=file] [--compare=file]",
 );
 
 aliasEngine(root);
@@ -69,6 +75,13 @@ const G = await import(join(root, "pwa/src/game/skis-body.ts"));
 const RIG = await import(join(root, "pwa/src/game/skier-rig.ts"));
 const ST = await import(join(root, "pwa/src/game/ski-stand.ts"));
 const FL = await import(join(root, "pwa/src/game/skier-flight.ts"));
+const TP = await import(join(root, "pwa/src/game/technique-pose.ts"));
+if (args.technique && !(args.technique in TP.TECHNIQUE_POSES)) {
+  console.error(
+    `unknown technique "${args.technique}" (${Object.keys(TP.TECHNIQUE_POSES).join(", ")})`,
+  );
+  process.exit(2);
+}
 const spec = E.skisById(args.skis);
 const mounts = G.mountsOf(spec);
 
@@ -322,6 +335,7 @@ function measure(move) {
     mode: move.mode,
     snowDepth: move.snow,
     poles: move.poles !== false,
+    technique: args.technique || undefined,
   });
   E.placeRun(state, move.place());
   const t0 = state.t;
@@ -366,7 +380,10 @@ function measure(move) {
       undefined,
       P.drawnSkiAngle(legs, c),
     );
-    const input = G.poseInputOf(c, legs, mounts, trick, P.inStartGate(state), stand);
+    // HOW HE RIDES, as the game reads it off the run (`skis-body.ts`).
+    const riding = TP.ridingOf(state, c);
+    TP.widenStand(stand, riding.style.stance, P.drawnSkiAngle(legs, c), c.skid, c.speed);
+    const input = G.poseInputOf(c, legs, mounts, trick, P.inStartGate(state), stand, riding);
     const pose = P.skierPose(input);
     const head = RIG.skierBones(pose).head;
     const m = measurePose(pose, {

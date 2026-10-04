@@ -121,6 +121,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "by morph targets solved from the player's own pose and dressed per instance",
   },
   {
+    asset: "Spectators",
+    ids: ["fan-near", "fan-far"],
+    source: "code",
+    code: ["pwa/src/game/spectator-shapes.ts", "pwa/src/game/spectator-plan.ts"],
+    drawnBy: "pwa/src/game/spectators.ts",
+    note:
+      "procedural: a race's crowd — one rough figure at two levels of detail carrying every " +
+      "hat and prop, each fan's look dealt per instance and his moves posed in the shader",
+  },
+  {
+    asset: "The finish arena",
+    ids: ["grandstand", "fan-fence", "finish-boards", "exit-gate", "leader-platform", "video-wall"],
+    source: "code",
+    code: ["pwa/src/game/finish-arena.ts"],
+    drawnBy: "pwa/src/game/spectators.ts",
+    note: "procedural and boxy, laid out by the crowd's plan; the video wall shows the run clock",
+  },
+  {
     asset: "Gates, the start hut and the finish arch",
     ids: ["gate-pole", "gate-panel", "edge-pole", "marker", "start-hut", "finish-arch"],
     source: "code",

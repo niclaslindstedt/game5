@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet gear skier-metrics blender models model-registry ci-models birds crowd lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -244,6 +244,18 @@ birds:
 # ARGS="--sheet=figures --bodies=child,oldWoman".
 crowd:
 	npm run crowd -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE AUDIENCE LAB: a race's crowd — every fan style through its animation
+# (moves: at rest, a racer coming, frame by frame as he passes, turned to
+# follow him), a map's dealt crowd in what it wears (looks), the near and
+# far cuts (cuts), and the crowd on SEED's race through the game's renderer
+# with the bot skiing (race: start, turn, pitch, jump, line, slope, pass-0…5,
+# finish, stand, arena, overview, chase) — previews/audience-*.png. Its own
+# one-off bundle from pwa/audience-preview.html (never deployed); needs a
+# Chromium like `world`. SEED=n; ARGS="--sheet=race --views=stand,arena";
+# ARGS="--sheet=race --views=pass --hour=19"; ARGS="--sheet=moves".
+audience:
+	npm run audience -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE LIFT RIDE LAB: a free ride begun on the chairlift, carried to the
 # top, stood off down the unload ramp and its lane past the station house,

@@ -21,8 +21,8 @@ particular:
   the rules (193 cm, 65 mm, 30 m sidecut); at 68° it carves R ≈ 30 · cos 68° ≈
   11 m, and the research's typical turn is ~20 m (least ~13 m). The
   technique lab's TURNS sheet showed 10 m — the technique row (its most edge,
-  its transition: cross-under on the flat, cross-over on the steep) has to
-  bring it into the band, not the ski.
+  its transition: cross-under on the flat, cross-over on the steep — the
+  row's `cross`, data today) has to bring it into the band, not the ski.
 - **Run the technique lab before and after every change** (`make technique
   ARGS="--techniques=giantSlalom"`), and give the giant slalom its own
   course in the lab (`--course`): on the open piste the bot follows the

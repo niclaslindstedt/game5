@@ -83,6 +83,19 @@ export function carveMost(spec: SkiSpec, edge: number): number {
   return 1 / (spec.sidecut * Math.max(0.05, Math.cos(edge)));
 }
 
+/** THE FASTEST A PAIR CARVES A BEND of curvature `k` 1/m skiing
+ * `technique`, m/s: the edge the sidecut must be stood on to bend that
+ * tight (`carveCurvature` turned round, atan(k·R)) is the lock the edge
+ * eases to with speed (`edgeLockAt`) at this speed and no faster. Zero
+ * where no edge the skier stands his skis on carves it at all — a bend a
+ * long ski can only be skidded round. */
+export function carveSpeedOf(spec: SkiSpec, k: number, technique: Technique = FREE): number {
+  const need = Math.atan(Math.abs(k) * spec.sidecut);
+  const most = edgeMostOf(spec, technique);
+  if (need >= most) return 0;
+  return 2 * TUNING.steer.fadeSpeed * technique.fade * (most / Math.max(need, 1e-6) - 1);
+}
+
 /** THE TIPPING POINT, as a lateral acceleration over g: past it the skier
  * is thrown over his outside ski before it slides. A skier is not a
  * vehicle on a track: what holds him up in a carve is the INCLINATION of

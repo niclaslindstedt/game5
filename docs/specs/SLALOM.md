@@ -67,11 +67,15 @@ standing docs (`getting-started.md`, `configuration.md`, `architecture.md`,
   eased back over 40 m), so the racer leaves at ~20 km/h within a second.
 - **The skis**: a slalom is skied on the slalom pair (`SLALOM.skis`,
   "swift").
-- **The physics' honest limit**: the edge's turn radius and yaw rate today
-  hold the bot to ~20–35 km/h through a slalom, so runs take ~80–110 s
-  where a real one is ~50 s. The board is calibrated to that par so the
-  standings are fair; speeding the slalom up is a `ski-physics` retune, out
-  of this round's scope.
+- **The physics' honest limit**: a racer laid into one turn crosses into
+  the next only as its load lets him go (`incline.ts`), so between two
+  turns he runs some 0.3 s on no edge; the bot leaves room for that
+  crossing (`race-line.ts`'s `lineSpeed`) and skis a slalom at ~30–33 km/h
+  on the mean, its runs ~50–90 s where a real one is ~45–60 s at ~40 km/h,
+  a tenth of its turns tighter than ~8 m at ~45° of edge at each turn's
+  peak (the research's 4–5 m at 66–71°). Faster, or round a line set
+  tighter than `slalom.bend` = 10 m, it misses gates. The board is
+  calibrated to that par so the standings are fair.
 
 ## The technique (researched)
 

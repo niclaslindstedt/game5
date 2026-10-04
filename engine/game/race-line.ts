@@ -23,6 +23,9 @@
 
 import { slalomLineFast, trackPointAt } from "../mapgen/index.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
+import type { SkiSpec } from "./defs/skis.ts";
+import type { Technique } from "./defs/technique.ts";
+import { cutGrip } from "./limits.ts";
 
 /** How far the line is rounded out by the pitch: from `from` of grade
  * (rise over run), `per` of the swing more a unit of grade past it, at
@@ -50,4 +53,49 @@ export function raceLineAt(level: Level, s: number): { offset: number; curvature
   out.offset = line.offset * round;
   out.curvature = line.curvature * round;
   return out;
+}
+
+/** How far apart the line's turns are about `s` metres down the piste,
+ * m: the stretch between the two points of the setter's line either side
+ * of it (each a turning pole's or a closed gate's end, where the line
+ * turns hardest) — over which it swings from one turn into the next.
+ * Infinity off the line. */
+export function raceSpanAt(level: Level, s: number): number {
+  const line = level.slalom?.line;
+  if (!line || line.length < 2 || s <= line[0].s || s >= line[line.length - 1].s) return Infinity;
+  let lo = 0;
+  let hi = line.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (line[mid].s <= s) lo = mid;
+    else hi = mid;
+  }
+  return Math.max(0.5, line[hi].s - line[lo].s);
+}
+
+/** THE SPEED A RACER CAN TAKE THE LINE AT where it bends `k` 1/m and turns
+ * every `span` m, m/s, on snow `packed`: the bend at `pace` of the grip
+ * his skis CUT HARD hold (`cutGrip`, read at a standstill and once more
+ * at the speed that gives) — less the stretch he crosses from one edge to
+ * the next. A racer is laid over into the old turn until its load lets him
+ * go, so for `cross` s between two turns he runs on no edge; the turn
+ * that is left, span − v·cross, must swing him as far, tighter by the
+ * square of the share left: v²·k·(span / (span − v·cross))² ≤ a. Read by
+ * the bot's speed and the par, so the line the bot skis is the one par
+ * is reckoned on. */
+export function lineSpeed(
+  spec: SkiSpec,
+  T: Technique,
+  k: number,
+  span: number,
+  packed: number,
+  pace: number,
+  cross: number,
+): number {
+  const fit = (a: number): number =>
+    Number.isFinite(span)
+      ? (Math.sqrt(a) * span) / (Math.sqrt(k) * span + Math.sqrt(a) * cross)
+      : Math.sqrt(a / k);
+  const first = fit(cutGrip(spec, 0, T, packed) * pace);
+  return fit(cutGrip(spec, first, T, packed) * pace);
 }

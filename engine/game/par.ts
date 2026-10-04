@@ -25,8 +25,7 @@ import type { Level } from "../mapgen/types.ts";
 import { totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { SLALOM_TECHNIQUE } from "./defs/technique.ts";
-import { cutGrip } from "./limits.ts";
-import { raceLineAt } from "./race-line.ts";
+import { lineSpeed, raceLineAt, raceSpanAt } from "./race-line.ts";
 
 /** The par's numbers. Metres, seconds. */
 export const PAR = {
@@ -35,7 +34,10 @@ export const PAR = {
   /** The share of the cut-hard corner grip a line's bend is skied at —
    * the rest is the edge rolling between two turns (the bot's own
    * `slalomPace`). */
-  pace: 0.5,
+  pace: 0.6,
+  /** ...and the time he runs between two turns crossing from one edge to
+   * the next, s (the bot's own `slalomCross`). */
+  cross: 0.3,
   /** How far up out of the tuck a slalom racer skis, 0 tall … 1 folded
    * (the bot's own `slalomStance`). */
   crouch: 0.3,
@@ -79,10 +81,7 @@ export function slalomPar(level: Level, spec: SkiSpec): Par | null {
     let v = Infinity;
     const k = raceLineAt(level, s)?.curvature ?? 0;
     if (k > 1e-4) {
-      // The grip read once at a standstill and once more at the speed that
-      // gives: the edge's lock eases with speed.
-      const first = Math.sqrt((cutGrip(spec, 0, SLALOM_TECHNIQUE) * PAR.pace) / k);
-      v = Math.min(v, Math.sqrt((cutGrip(spec, first, SLALOM_TECHNIQUE) * PAR.pace) / k));
+      v = lineSpeed(spec, SLALOM_TECHNIQUE, k, raceSpanAt(level, s), 1, PAR.pace, PAR.cross);
     }
     cap[i] = Math.max(1, v);
     pull[i] = TUNING.g * (Math.sin(grade) - TUNING.snow.crrPacked * Math.cos(grade)) * PAR.pull;

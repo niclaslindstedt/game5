@@ -1,7 +1,7 @@
 ---
 title: The slalom wants the forward-search planner, not a feedback controller — and its line must cross a closed gate clearly
 date: 2026-10-04
-scope: engine/sim/bot.ts, engine/mapgen/slalom.ts
+scope: engine/sim/bot.ts, engine/sim/slalom-plan.ts, engine/mapgen/slalom.ts
 concepts: [bot, slalom, controller, closed-gate, straddle]
 ---
 

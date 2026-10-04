@@ -53,6 +53,11 @@ const SINK = 1.2;
 
 /** A drag's bar rides this high over the snow, m — a skier's hips. */
 const TEE = 1.0;
+/** Where a towed rider's own T-bar rides: how far behind his origin, m,
+ * and how high over the snow, m — under his seat, across the backs of his
+ * thighs, lower than an empty bar hangs. */
+const TOW_BEHIND = 0.22;
+const TOW_HIGH = 0.5;
 
 /** The paints, sRGB: the towers' galvanised steel, the dark steel of the
  * grips and the sheaves, a gondola cabin's body and its glass, a chair's
@@ -418,6 +423,21 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   ridden.visible = false;
   ridden.castShadow = true;
   group.add(ridden);
+  // THE RIDER'S OWN T-BAR while a drag pulls him: the spring box at the
+  // rope over him, the cord down from it, and the bar behind his thighs —
+  // the clock's bar nearest him stood aside for it, as a chair's is.
+  const towBox = merged([box(0.14, 0.55, 0.14, 0, -0.3, 0, PAINT.dark)]);
+  const towCord = merged([box(0.03, 1, 0.03, 0, -0.5, 0, PAINT.dark)]);
+  geos.push(towBox, towCord);
+  const towSpring = new THREE.Mesh(towBox, painted);
+  const towLine = new THREE.Mesh(towCord, painted);
+  const towTee = new THREE.Mesh(tee, painted);
+  const tow = [towSpring, towLine, towTee];
+  for (const m of tow) {
+    m.visible = false;
+    m.castShadow = true;
+    group.add(m);
+  }
   const lift = new THREE.Vector3();
   const riderQ = new THREE.Quaternion();
 
@@ -561,6 +581,27 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
           ? { index: empty.index, u: runOn.u }
           : null,
     );
+    // His own T-bar on a drag: the grip on the rope straight over him, the
+    // bar behind his thighs (`TOW_HIGH`).
+    const towed =
+      rider?.kind === "drag" && rider.phase === "ride" && drawn ? plans[rider.index] : null;
+    for (const m of tow) m.visible = !!towed;
+    if (towed && drawn) {
+      const ground = level.groundAt(drawn.x, drawn.z);
+      const rope = ropeAt(towed, rider!.u);
+      const bx = drawn.x - towed.dx * TOW_BEHIND;
+      const bz = drawn.z - towed.dz * TOW_BEHIND;
+      const barY = ground + TOW_HIGH;
+      const cord = Math.max(0.3, rope - 0.58 - (barY + 0.6));
+      q.setFromAxisAngle(up, towed.heading);
+      towSpring.position.set(drawn.x, rope, drawn.z);
+      towSpring.quaternion.copy(q);
+      towLine.position.set(drawn.x, rope - 0.58, drawn.z);
+      towLine.quaternion.copy(q);
+      towLine.scale.set(1, cord, 1);
+      towTee.position.set(bx, barY, bz);
+      towTee.quaternion.copy(q);
+    }
     // His own chair, hung from the grip over him: in the body's frame, the
     // grip `lift.seat` up from his origin — or running on without him.
     const seated = sat && drawn;

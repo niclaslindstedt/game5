@@ -31,6 +31,14 @@ import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
 const plans = liftPlans(level);
+/** The first map of the corpus a top has a ramp off (R26) — a run that
+ * starts on its top's contour right by the pad needs none, so not every
+ * map lays one. */
+const rampLevel =
+  LEVEL_SEEDS.map(levelFor).find((l) =>
+    liftPlans(l).some((p) => (p.lift.ramps ?? []).length > 0),
+  ) ?? level;
+const rampPlans = liftPlans(rampLevel);
 const layout = layStations(level, plans);
 
 describe("the stations laid out", () => {
@@ -177,14 +185,14 @@ describe("the summit as the lens reads it", () => {
   });
 
   it("holds whole down a ramp off a top to its lip", () => {
-    const ramps = plans.flatMap((p) => p.lift.ramps ?? []);
+    const ramps = rampPlans.flatMap((p) => p.lift.ramps ?? []);
     expect(ramps.length).toBeGreaterThan(0);
     for (const r of ramps) {
       const lip = rampLip(r);
       const k = (lip.at * 0.9) / lip.length;
       const x = r.from.x + (r.to.x - r.from.x) * k;
       const z = r.from.z + (r.to.z - r.from.z) * k;
-      expect(summitShare(level, x, z)).toBeCloseTo(1, 6);
+      expect(summitShare(rampLevel, x, z)).toBeCloseTo(1, 6);
     }
   });
 });
@@ -192,9 +200,9 @@ describe("the summit as the lens reads it", () => {
 describe("the ramps off a top (R26)", () => {
   const RT = RESORT_RULES.lift.top;
   it("leave the pad's rim and come down to their run's snow, on the ground they were cut to", () => {
-    for (const p of plans) {
+    for (const p of rampPlans) {
       for (const r of p.lift.ramps ?? []) {
-        const run = level.resort!.runs.find((q) => q.id === r.run)!;
+        const run = rampLevel.resort!.runs.find((q) => q.id === r.run)!;
         expect(run.from).toBe(p.lift.id);
         expect(Math.hypot(r.from.x - p.lift.top.x, r.from.z - p.lift.top.z)).toBeCloseTo(
           RT.pad / 2,
@@ -207,7 +215,7 @@ describe("the ramps off a top (R26)", () => {
         for (const t of [0.2, 0.4, 0.6, 0.8]) {
           const x = r.from.x + (r.to.x - r.from.x) * t;
           const z = r.from.z + (r.to.z - r.from.z) * t;
-          expect(Math.abs(level.groundAt(x, z) - rampHeight(r, t))).toBeLessThan(0.3);
+          expect(Math.abs(rampLevel.groundAt(x, z) - rampHeight(r, t))).toBeLessThan(0.3);
         }
         // Never steeper than its lip's drop.
         const lip = rampLip(r);
@@ -220,9 +228,11 @@ describe("the ramps off a top (R26)", () => {
   });
 
   it("are what a rider stood off the top is led down and the signs point to", () => {
-    for (const p of plans) {
+    for (const p of rampPlans) {
       for (const r of p.lift.ramps ?? []) {
-        const off = runsOffTop(level, p).find((j) => level.resort!.runs[j.run].id === r.run);
+        const off = runsOffTop(rampLevel, p).find(
+          (j) => rampLevel.resort!.runs[j.run].id === r.run,
+        );
         expect(off).toBeDefined();
         expect(off!.at.x).toBeCloseTo(r.from.x, 6);
         expect(off!.at.s).toBeCloseTo(r.to.s, 6);

@@ -328,7 +328,7 @@ Today there are three:
   line where a run came down over it (`station-clear.ts`), and no drag lift's track crosses a piste —
   the nursery's drag may stand short, its foot up its line beside the nursery run, where the valley
   floor has no room. The analyzer holds all of it (R26). Every campaign map builds on it, its trait
-  `levelPads` keeping those level 30 m pads. It lays no terrain park (R20): a TRICKS run off a seed
+  `levelPads` keeping those level 30 m pads and `startsAcrossTop` its runs' starts. It lays no terrain park (R20): a TRICKS run off a seed
   is built on v1's one piste, as the trick maps are (`createGame`).
 - **v5** is the current rules: v4 with LEANING TOPS. Every gondola's and chair's top stands on a pad
   48 m across (`lift.top`), its DECK 7 m either side of the line — the wheel, the unload ramp and
@@ -348,8 +348,12 @@ Today there are three:
   stretch keep 10 m past the pad's rim, a lane's route 12 m. The analyzer takes the lean and the
   cut back out and holds what is left level, holds every ramp to its rim, its run and its
   steepest, and every lift's carriers clear of the snow out of its load and unload zones
-  (`ropeShortfall`); a ramp's foot is a junction to the course's own rules. Every free ride,
-  every race off a link and every lab builds on it.
+  (`ropeShortfall`); a ramp's foot is a junction to the course's own rules. And every run STARTS
+  UNDER ITS TOP: its start, still looked for out along the face from its top station, is slid down
+  the fall line onto the top's contour 4 m below the station's snow, just under a pad's rim (`headOnContour`) — never left
+  tens of metres up the face above it, where a rider off the lift, a drag's above all, would have had
+  to climb to it. Every free ride, every race off a link and every lab builds on it; v4's trait
+  `startsAcrossTop` keeps a campaign map's starts where they were.
 
 v2 — the graded generator of one piste down one face (R23, R24) — was retired when the campaign
 moved onto the ski areas, and v3 — the ski areas before their stations stood beside the runs — when

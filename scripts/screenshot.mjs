@@ -147,20 +147,21 @@ const SURFACES = {
     wait: ".hud-best-air",
     settle: 1500,
   },
-  // THE FREE RIDE'S ARRIVAL BY CHAIR (`lift-ride.ts`): seated on the chair
-  // up the last spans, coming into the top station, and led off the pad.
+  // THE FREE RIDE'S ARRIVAL BY LIFT (`lift-ride.ts`): seated on the chair
+  // for its last few seconds (`lift.arrive`), at the top station, and led
+  // off the pad.
   "free-chair": {
-    params: { start: "free", t: "4", shot: "1" },
+    params: { start: "free", t: "1", shot: "1" },
     wait: ".hud-best-air",
     settle: 1500,
   },
   "free-top": {
-    params: { start: "free", t: "12", shot: "1" },
+    params: { start: "free", t: "3", shot: "1" },
     wait: ".hud-best-air",
     settle: 1500,
   },
   "free-off": {
-    params: { start: "free", t: "16", shot: "1" },
+    params: { start: "free", t: "8", shot: "1" },
     wait: ".hud-best-air",
     settle: 1500,
   },

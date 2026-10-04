@@ -34,7 +34,7 @@ import { SKIS, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
-import { arriveByLift } from "./lift-ride.ts";
+import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
@@ -93,13 +93,17 @@ export type CreateGameOptions = {
    * starts on the line. */
   spawn?: { x: number; z: number };
   /** A FREE RIDE begun ON A LIFT (`arriveByLift`): carried up the lift to
-   * the top of the course's first run (R28 — the colour asked for, on
-   * whatever lift serves it), or, with a `spawn`, seated on the chair whose
+   * the top of the run `freeRunOf` reads off `run` and `grade` (the run
+   * named, else the first of the colour asked, else the course's first —
+   * on whatever lift serves it), or, with a `spawn`, seated on the chair whose
    * run passes nearest it, and led off the top toward that run. A map with
    * no lift to ride starts at `spawn` as ever. Ignored by every other mode
    * (the app asks for it only without a spot: a spot picked is where the
    * ride starts). */
   byLift?: boolean;
+  /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
+   * down (`freeRunOf`); ignored with a `spawn`. */
+  run?: string;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's. 1 when left out. */
   snowDepth?: number;
@@ -184,14 +188,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   standSkier(state, at.x, at.z, at.heading);
   if (options.mode === "free" && options.byLift) {
     if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
-    else {
-      // With no spot, up the lift to the top of the course this map's
-      // colour chose (R28) — the run the start card marks — whatever kind
-      // of lift serves it.
-      const resort = level.resort;
-      const course = resort?.courses.find((c) => c.id === resort.course);
-      arriveByLift(state, level.spawn.x, level.spawn.z, course?.runs[0]);
-    }
+    // With no spot, up the lift to the top of the run picked — the one the
+    // start card marks — whatever kind of lift serves it.
+    else
+      arriveByLift(
+        state,
+        level.spawn.x,
+        level.spawn.z,
+        freeRunOf(level, { run: options.run, grade: options.grade }),
+      );
   }
   if (rules.rivals > 0) createRivals(state, rules.rivals);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);

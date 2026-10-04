@@ -88,6 +88,12 @@ export type GeneratorTraits = {
    * (`lift.top`), ramps come down off it to its runs, and the ground under
    * every line's way in is cut beneath the rope. */
   levelPads?: boolean;
+  /** STARTS ACROSS THE TOP (v4): a run's start is looked for along the line
+   * across the face through its top station, at whatever height that finds
+   * — tens of metres above the station, often, so a rider off the lift had
+   * to climb to it. From v5 every start is slid down the fall line onto
+   * the top's contour, just below the station (R27). */
+  startsAcrossTop?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -117,8 +123,10 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "the face and a chair's unload ramp on it, every station stands beside the runs, " +
       "never on one, and no drag lift crosses a piste (R26). v5 cuts every gondola's and " +
       "chair's top wider and LEANING off its deck to both sides instead of level; this " +
-      "row keeps the level pad 30 m across.",
+      "row keeps the level pad 30 m across, and every run's start found along the line " +
+      "across the face through its top, at whatever height that is.",
     levelPads: true,
+    startsAcrossTop: true,
   },
   {
     version: 5,
@@ -127,8 +135,10 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "deck along the line level and the pad leaning off it to both sides to its rim, so a " +
       "rider stood off a chair slides away to his run gathering speed; a wide groomed RAMP " +
       "comes down off the rim to every run the top serves, gentle and rolling over a LIP " +
-      "where it must fall further; and the ground under the last of every line is cut away " +
-      "beneath the rope's way in, so no carrier ever runs into the snow (R26).",
+      "where it must fall further; the ground under the last of every line is cut away " +
+      "beneath the rope's way in, so no carrier ever runs into the snow (R26); and every " +
+      "run starts on its top's contour just BELOW the station, slid down the fall line to " +
+      "it, so a rider off any lift — a drag's too — glides to his run, never climbs (R27).",
   },
 ];
 

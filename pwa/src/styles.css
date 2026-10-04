@@ -4692,16 +4692,60 @@ canvas {
   stroke-width: 0.4;
 }
 
-.seed-preview-spot circle:first-child {
-  fill: none;
+/* WHERE THE RIDE STARTS: a dot in the run's colour (the go-green on a spot
+   tapped) inside a white ring, with two rings beating out of it in turn so
+   the eye finds it on a busy chart at once. Calm, one still halo, for a
+   skier who asked for less motion. */
+.seed-preview-entry {
+  pointer-events: none;
+}
+
+.seed-preview-entry-ring {
+  fill: rgb(0 0 0 / 0.35);
   stroke: var(--snow);
   stroke-width: 0.9;
 }
 
-.seed-preview-spot circle:last-child {
+.seed-preview-entry-dot {
   fill: #1ea848;
-  stroke: var(--night);
-  stroke-width: 0.3;
+  stroke: var(--snow);
+  stroke-width: 0.5;
+}
+
+.seed-preview-pulse {
+  fill: none;
+  stroke: var(--snow);
+  stroke-width: 0.7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seed-preview-pulse 1.6s ease-out infinite;
+}
+
+.seed-preview-pulse-late {
+  animation-delay: 0.8s;
+}
+
+@keyframes seed-preview-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seed-preview-pulse {
+    animation: none;
+    transform: scale(2);
+    opacity: 0.5;
+  }
+
+  .seed-preview-pulse-late {
+    display: none;
+  }
 }
 
 /* THE FREE RIDE'S BEST AIR: keyed on its value, so a new best lands with the

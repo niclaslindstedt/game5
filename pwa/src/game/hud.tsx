@@ -8,7 +8,7 @@
 //                 is going, read down one left-aligned column — and under
 //                 them the SPLIT at the last gate while it is fresh. On a
 //                 FREE RIDE, which has no run to read, the clock, the BEST
-//                 AIR and the distance SKIED
+//                 AIR, the distance SKIED and the map's SEED
 //   top right     the three presses: PAUSE, RESET and CAMERA, and under
 //                 them the MINIMAP — the piste, the field and the gate
 //                 owed, turned heading-up about the skier (minimap.tsx)
@@ -164,6 +164,14 @@ export function Hud({
             <div class="hud-chip">
               <span>{STRINGS.distance(snap.distance)}</span>
               <span class="hud-chip-sub">{STRINGS.distanceLabel}</span>
+            </div>
+          )}
+          {/* THE MAP'S SEED, so a picture of a free ride says which mountain
+              it was taken on — the one number that brings it back. */}
+          {snap.free && !snap.tricks && (
+            <div class="hud-chip hud-seed">
+              <span>{snap.seed}</span>
+              <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           )}
           {/* THE PLACE — the one number a racer reads more than the clock.

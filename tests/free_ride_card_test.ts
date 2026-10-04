@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import {
   SKIS,
   createGame,
+  freeRunOf,
+  freeRuns,
   generateLevel,
   NEUTRAL_INPUT,
   SNOW_DIAL,
@@ -24,8 +26,11 @@ import {
   depthOf,
   freeAgainOptions,
   freeGameOptions,
+  freeRunList,
   freshRide,
+  markedRun,
   mergeRide,
+  runOn,
   spotOn,
 } from "../pwa/src/game/free-ride.ts";
 import {
@@ -54,6 +59,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       weather: null,
       region: "alpine",
       grade: null,
+      run: null,
     });
   });
 
@@ -99,6 +105,38 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(mergeRide({ depth: 1 }).snow).toBe("medium");
   });
 
+  it("keeps a run only on the seed and in the country it was picked on", () => {
+    const ride = { ...freshRide(), run: { seed: 7, region: "alpine" as const, id: "3" } };
+    expect(runOn(ride, 7)).toBe("3");
+    expect(runOn(ride, 8)).toBeNull();
+    expect(runOn({ ...ride, region: "fell" }, 7)).toBeNull();
+    expect(mergeRide(JSON.parse(JSON.stringify(ride))).run).toEqual(ride.run);
+    expect(mergeRide({ run: { seed: 7, region: "mars", id: "3" } }).run).toBeNull();
+  });
+
+  it("marks the run the engine rides: the one picked, else the first of the colour, else the map's", () => {
+    const level = generateLevel(1);
+    const list = freeRunList(level);
+    expect(list.runs.map((r) => r.id)).toEqual(freeRuns(level).map((r) => r.id));
+    for (const r of list.runs) {
+      expect(r.vertical).toBeGreaterThan(0);
+      expect(r.number).toMatch(/^\d+$/);
+    }
+    const ride = freshRide();
+    for (const grade of [null, "green", "blue", "red", "black"] as const) {
+      const marked = markedRun({ ...ride, grade }, 1, list);
+      expect(marked?.id).toBe(freeRunOf(level, { grade: grade ?? undefined }));
+    }
+    const pick = list.runs[list.runs.length - 1];
+    const picked = {
+      ...ride,
+      grade: "green" as const,
+      run: { seed: 1, region: ride.region, id: pick.id },
+    };
+    expect(markedRun(picked, 1, list)?.id).toBe(pick.id);
+    expect(markedRun(picked, 2, list)?.id).toBe(freeRunOf(level, { grade: "green" }));
+  });
+
   it("keeps a spot only on the seed it was picked on", () => {
     const ride = { ...freshRide(), spot: { seed: 7, x: 10, z: 20 } };
     expect(spotOn(ride, 7)).toEqual({ x: 10, z: 20 });
@@ -115,6 +153,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       weather: "fog" as const,
       region: "fell" as const,
       grade: "black" as const,
+      run: { seed: 9, region: "fell" as const, id: "4" },
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");
@@ -129,6 +168,15 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });
     expect(opts.spawn).toEqual({ x: 400, z: 200 });
+    // The RUN row's run, on the map it was picked on and no other.
+    expect(opts.run).toBe("4");
+    expect(freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).run).toBe(
+      undefined,
+    );
+    expect(
+      freeGameOptions({ ...ride, region: "alpine" }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .run,
+    ).toBe(undefined);
     // A spot picked is where the ride starts — no chair up to its run's top;
     // with none (or one picked on another seed) the ride arrives by chair.
     expect(opts.byLift).toBe(false);

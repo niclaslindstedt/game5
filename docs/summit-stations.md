@@ -133,13 +133,17 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   skis just on the snow, never through it; the rider sits back against the
   chair's backrest, and is stood up at the unload point and sent straight on
   down the ramp into the lane. The chair he got off runs on empty round to
-  the wheel. A free ride STARTS on one: seated a span or two below the top of
-  the chair whose run passes nearest the spot picked (among the runs a rider
-  can drop onto from its pad), then LED — down the lane at a glide, turned at
+  the wheel. A free ride STARTS on one: the last three seconds of the lift serving
+  the run picked on the start card (`freeRunOf`, `lift.arrive`), the top
+  station close ahead, then LED — down the lane at a glide, turned at
   the parting the way his run's sign points, round the house if the run lies
   behind it, let run down the pad's lean and its ramp gathering speed and
   over the lip onto that run — and from the first touch of a control the
-  skis are his.
+  skis are his. A run off a top that starts along the contour ABOVE the pad,
+  with no ramp down to it and no groomed (or steep) line a glide reaches, is
+  one he is SKATED ACROSS to first (`lead.cross`, `lift.crossPace`) — and a
+  rider off a lift on his own is skated to the nearest run off its top when
+  none of them can be skied onto.
 - **The lens on a lift (`camera-lift.ts`)** — carried up a chair the chase
   boom comes in close behind him and a little over his head, level, the
   chair's back and hanger in the frame's foot and the rope running on up to

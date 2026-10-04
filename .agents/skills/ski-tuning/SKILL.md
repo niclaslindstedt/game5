@@ -39,14 +39,17 @@ animal names.
 | --- | --- | --- |
 | Chamois (all-mountain) | the middle of every band, best at nothing | 178 cm, an 88 mm waist, an 18 m sidecut, medium flex, a little rocker — every `footprint.ts` multiplier exactly 1 |
 | Swift (slalom) | quickest edge to edge, bites a tight groomed bend, nervous at speed, sinks in powder | 165 cm on a 66 mm waist, a 13 m sidecut, no rocker, the most edge |
-| Chough (giant slalom) | holds an edge on ice, carries speed through a long bend, skids a tight one | 188 cm, stiff, a 27 m sidecut, no rocker, a stiffer leg |
-| Eagle (downhill) | fastest flat out, lands a downhill's jumps on its length, hates a bend | 218 cm, the stiffest ski, a 45 m sidecut, the smallest tuck (0.28 m²), the heaviest gear |
+| Chough (giant slalom) | holds an edge on ice, carries speed through a long bend, skids a tight one | 193 cm on a 65 mm waist, stiff, a 30 m sidecut (the men's competition minimums), no rocker, a stiffer leg |
+| Eagle (downhill) | fastest flat out, lands a downhill's jumps on its length, hates a bend | 218 cm on a 65 mm waist, the stiffest ski, a 50 m sidecut (the men's competition minimums), the smallest tuck (0.35 m²), the heaviest gear |
 | Marmot (powder) | floats where the others sink, turns on its base, vague and slow on the groomer | a 116 mm waist, a 22 m sidecut, soft, a rockered tip |
 | Hare (park) | spins and lands anything softly, slow in a tuck and loose on an edge | a soft twin-tip on a centre mount, the softest leg with the most travel, the biggest tuck |
 
 Real-class BANDS (a band, never a make and a model — the router's rule):
 slalom skis 155–165 cm on 63–70 mm waists with 11–13 m sidecuts; giant slalom
-183–193 cm and 27–35 m; downhill 210–218 cm and 45–50 m; all-mountain 170–185
+193–195 cm and 30–35 m on at most 65 mm, downhill 218–223 cm and 50–55 m on
+at most 65 mm — the race pairs are built to the competition rules'
+men's minimums (`docs/disciplines.md`, "The skis": giant slalom ≥ 193 cm,
+≥ 30 m, a shoulder ≤ 103 mm; downhill ≥ 218 cm, ≥ 50 m, ≤ 95 mm); all-mountain 170–185
 cm on 85–105 mm; powder 100–125 mm; park twin-tips 85–100 mm on a centre
 mount; a pair of adult skis with bindings, boots and poles 7–10 kg; a
 racer's tuck 0.25–0.35 m² of drag area, upright 0.6–0.9; a carve stood at

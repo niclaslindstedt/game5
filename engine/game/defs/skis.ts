@@ -15,9 +15,9 @@
 //           default: at home on the piste and off it, best at nothing.
 //   SWIFT   a SLALOM ski — short, narrow, a tight 13 m sidecut: the
 //           quickest thing edge to edge, chattering and nervous at speed.
-//   CHOUGH  a GIANT SLALOM ski — long, stiff, a 27 m sidecut: the carving
+//   CHOUGH  a GIANT SLALOM ski — long, stiff, a 30 m sidecut: the carving
 //           racer, holding an edge on ice a slalom ski skids off.
-//   EAGLE   a DOWNHILL ski — the longest and stiffest here, a 45 m sidecut:
+//   EAGLE   a DOWNHILL ski — the longest and stiffest here, a 50 m sidecut:
 //           flat out in a tuck it outruns everything, and it hates a bend.
 //   MARMOT  a POWDER ski — wide under foot and rockered at the tip: floats
 //           where the others sink, vague and slow on the groomer.
@@ -26,6 +26,17 @@
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
+// The two speed-event pairs stand inside their discipline's COMPETITION
+// RULES at the top level (`docs/disciplines.md`, "The skis"), the men's
+// least length and sidecut radius and the most waist and shoulder.
+//
+// THE SIDECUT IS THE WIDTHS' GEOMETRY. A ski's edge between its widest
+// points (the shoulder at the tip, the tail's corner — a chord `c`, about
+// nine tenths of the length on a race ski) bows in by the side depth
+// d = ((tip + tail) / 2 − waist) / 2, and the circle through those three
+// points is R ≈ c² / 8d. The widths and the sidecut are stated together so
+// that circle is the one the spec carves (`tests/topsheet_test.ts` holds
+// every pair to it off the traced plan).
 //
 // The body frame is the engine's: x to the skier's right, y up, z forward,
 // the origin at the centre of gravity of skier AND skis together. Every
@@ -62,8 +73,9 @@ export type SkiSpec = {
   /** The skis, the bindings, the boots and the poles, kg (7–10 for a pair
    * of adult skis with race boots). */
   gearMass: number;
-  /** The ski's length, m (slalom 1.55–1.65, giant slalom 1.83–1.93,
-   * downhill 2.10–2.18, all-mountain 1.70–1.85). */
+  /** The ski's length, m (slalom 1.55–1.65; giant slalom 1.93–1.95, the
+   * rule's least 1.93 for men and 1.88 for women; downhill 2.18–2.23, the
+   * least 2.18 for men; all-mountain 1.70–1.85). */
   length: number;
   /** The widths, m: under the boot, at the tip, at the tail — the waist is
    * what the ski floats and turns on in powder, the tip what ploughs. */
@@ -71,8 +83,9 @@ export type SkiSpec = {
   tipWidth: number;
   tailWidth: number;
   /** THE SIDECUT RADIUS, m — the arc the ski's edge is cut to, and the
-   * turn it carves at 45° of edge (`skier.ts`). Slalom 11–13, giant slalom
-   * 27–35, downhill 45–50, all-mountain 15–20. */
+   * turn it carves at 45° of edge (`skier.ts`). Slalom 11–13; giant slalom
+   * 30–35, the rule's least 30; downhill 50–55, the least 50; all-mountain
+   * 15–20. */
   sidecut: number;
   /** How stiff the ski is, 0 (a soft park ski) … 1 (a downhill ski): a
    * stiff ski holds an edge on ice and pushes back at speed; a soft one
@@ -180,22 +193,26 @@ export const SWIFT: SkiSpec = {
   topSpeed: 112,
 };
 
-/** THE CHOUGH — a GIANT SLALOM ski: the carving racer. 188 cm on a 68 mm
- * waist with a 27 m sidecut (the class is 27–35), stiff, no rocker: it
- * holds an edge on ice the slalom ski skids off and carries its speed
- * through a long bend, and it wants a bend that long — a tight one it has
- * to be skidded round. */
+/** THE CHOUGH — a GIANT SLALOM ski: the carving racer, built to the
+ * men's top-level rule. 193 cm (the least the rule allows a man; 188 is the
+ * women's) on a 65 mm waist (the most it allows) with a 30 m sidecut (the
+ * least it allows; the class is skied on 30–35, and a racer picks the
+ * tightest he may), a 98 mm shoulder (at most 103) and an 80 mm tail —
+ * 12 mm of side depth over a 1.70 m chord, which is 30 m. Stiff, no
+ * rocker: it holds an edge on ice the slalom ski skids off and carries its
+ * speed through a long bend, and it wants a bend that long — a tight one
+ * it has to be skidded round. */
 export const CHOUGH: SkiSpec = {
   ...SKIS,
   id: "chough",
   name: "Chough",
   kind: "Giant slalom",
   blurb: "Long, stiff and cut for a wide arc: holds an edge on ice, skids a tight bend.",
-  length: 1.88,
-  waist: 0.068,
-  tipWidth: 0.104,
-  tailWidth: 0.088,
-  sidecut: 27,
+  length: 1.93,
+  waist: 0.065,
+  tipWidth: 0.098,
+  tailWidth: 0.08,
+  sidecut: 30,
   flex: 0.8,
   rocker: 0,
   edgeMax: 1.15,
@@ -206,12 +223,15 @@ export const CHOUGH: SkiSpec = {
   topSpeed: 126,
 };
 
-/** THE EAGLE — a DOWNHILL ski: the fastest thing here in a straight line.
- * 218 cm on a 66 mm waist with a 45 m sidecut (the class is 45–50), the
- * stiffest ski in the catalog, in a tuck worth 0.28 m² of drag: on a long
- * schuss it outruns everything and lands a downhill's jumps on its length —
- * and it hates a bend, hangs its tips in powder and takes its time onto an
- * edge. */
+/** THE EAGLE — a DOWNHILL ski: the fastest thing here in a straight line,
+ * built to the men's top-level rule. 218 cm (the least the rule allows a
+ * man) on a 65 mm waist (the most it allows) with a 50 m sidecut (the least
+ * it allows; the class is skied on 50–55), a 90 mm shoulder (at most 95)
+ * and a 75 mm tail — under 9 mm of side depth over a 1.88 m chord, which
+ * is 50 m. The stiffest ski in the catalog, in the smallest tuck here
+ * (0.35 m² of drag): on a long schuss it outruns everything and lands a
+ * downhill's jumps on its length — and it hates a bend, hangs its tips in
+ * powder and takes its time onto an edge. */
 export const EAGLE: SkiSpec = {
   ...SKIS,
   id: "eagle",
@@ -220,10 +240,10 @@ export const EAGLE: SkiSpec = {
   blurb: "Two metres and more of stiff ski: flat out it outruns everything, and it hates a bend.",
   gearMass: 10,
   length: 2.18,
-  waist: 0.066,
-  tipWidth: 0.1,
-  tailWidth: 0.086,
-  sidecut: 45,
+  waist: 0.065,
+  tipWidth: 0.09,
+  tailWidth: 0.075,
+  sidecut: 50,
   flex: 1,
   rocker: 0,
   edgeMax: 1.1,

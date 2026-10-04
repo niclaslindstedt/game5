@@ -30,8 +30,8 @@
 //                                past ~35° a winch cat, so nothing steeper
 //                                is a piste
 //   spawn.maxSlope 0.25          a blue's pitch out of the start hut
-//   track.steepRadius 50 m       a downhill ski's sidecut is at least 45 m
-//                                (a giant slalom's 30–35): the turn a ski
+//   track.steepRadius 50 m       a downhill ski's sidecut is at least 50 m
+//                                (a giant slalom's 30): the turn a ski
 //                                carves at 100 km/h and more, which is the
 //                                speed a black pitch hands a skier
 //   kickers.on.air 40–80 m       a downhill course's jumps throw 40–80 m of

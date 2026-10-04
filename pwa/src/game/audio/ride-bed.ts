@@ -16,7 +16,16 @@
 // stuttered when it was starved, and a stutter is what a player reports as
 // crackle.
 
-import { TUNING, plantPulse, sunAtRun, topSpeedOf, type GameState, type Level } from "@engine";
+import {
+  TUNING,
+  airflowAt,
+  plantPulse,
+  sunAtRun,
+  topSpeedOf,
+  type Airflow,
+  type GameState,
+  type Level,
+} from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -43,8 +52,9 @@ import {
   type TunnelLayer,
 } from "./tunnel-voice.ts";
 import { tunnelNear, tunnelsOf } from "../wind-tunnel-plan.ts";
+import { SCREEN_TO_ENGINE } from "../input-model.ts";
 
-/** How quickly the wind follows the speed, s — a time constant rather than a
+/** How quickly the wind follows the air, s — a time constant rather than a
  * per-frame fraction, because a fraction is only true at the frame rate it
  * was tuned at. */
 const WIND_TAU = 0.25;
@@ -87,6 +97,8 @@ export type RideBed = {
  * the one synth (`bus.ts`); the snow and the poles play through `synth`. */
 export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
   let wind = 0;
+  let side = 0;
+  const flow: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 };
   let planted = 0;
   let listener: Listener = listenerFor("chase");
   // THE RUN'S SNOWPACK (`snowpack.ts`), the one the picture reads: built
@@ -123,10 +135,18 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       const pace = c.speed / topSpeedOf(spec);
 
       // ── The wind ─────────────────────────────────────────────────────
-      wind = follow(wind, c.speed, frame, WIND_TAU);
+      // THE APPARENT WIND (`airflowAt`): the weather's air less his own
+      // velocity — a headwind adds to his speed, a tailwind takes from it,
+      // and a storm is heard standing still. Across him it is heard on the
+      // side it comes from: a wind toward the engine's right comes from his
+      // left, which the screen's one flip turns into the ear it lands on.
+      airflowAt(state.level, state.t, c.vx, c.vy, c.vz, c.heading, flow);
+      wind = follow(wind, flow.speed, frame, WIND_TAU);
+      const across = flow.speed > 1 ? -flow.across / flow.speed : 0;
+      side = follow(side, across * SCREEN_TO_ENGINE * listener.side, frame, WIND_TAU);
       air.apply(
         windTargets(
-          { wind, crouch: c.crouch, airborne: c.airborne },
+          { wind, crouch: c.crouch, airborne: c.airborne, side },
           { wind: listener.wind * duck, tone: listener.tone },
         ),
       );
@@ -196,6 +216,7 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
     reset() {
       hush();
       wind = 0;
+      side = 0;
       planted = 0;
       pack = null;
       packLevel = null;

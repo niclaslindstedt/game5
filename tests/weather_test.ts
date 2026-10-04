@@ -18,6 +18,7 @@ import {
   sunsetOf,
   weatherFor,
   weatherOf,
+  airflowAt,
   windAt,
   withSky,
   type WeatherKind,
@@ -172,6 +173,43 @@ describe("the wind", () => {
     const again = createGame({ seed: LEVEL_SEEDS[0], quiet: true });
     for (let t = 0; t < 30; t++) windAt(again.level, t);
     expect(again.rng.next()).toBe(before);
+  });
+});
+
+describe("the apparent wind (airflowAt)", () => {
+  const level = withSky(levelFor(LEVEL_SEEDS[1]), { weather: { kind: "storm", wind: 28 } });
+  const t = 31.5;
+  const w = windAt(level, t);
+  const ux = w.x / w.speed;
+  const uz = w.z / w.speed;
+
+  it("is the weather's own wind on a skier at rest", () => {
+    const f = airflowAt(level, t, 0, 0, 0, 0);
+    expect(f.x).toBeCloseTo(w.x, 9);
+    expect(f.z).toBeCloseTo(w.z, 9);
+    expect(f.speed).toBeCloseTo(w.speed, 9);
+  });
+
+  it("adds a headwind to the speed and takes a tailwind from it", () => {
+    // Skiing at 28 m/s straight into it: the two added, all of it in his face.
+    const into = Math.atan2(-ux, -uz);
+    const head = airflowAt(level, t, -ux * 28, 0, -uz * 28, into);
+    expect(head.speed).toBeCloseTo(w.speed + 28, 6);
+    expect(head.head).toBeCloseTo(head.speed, 6);
+    expect(head.across).toBeCloseTo(0, 6);
+    // Skiing with it as fast as it blows: a calm.
+    const tail = airflowAt(level, t, w.x, 0, w.z, Math.atan2(ux, uz));
+    expect(tail.speed).toBeCloseTo(0, 9);
+    // Falling through still air is wind too.
+    expect(airflowAt(level, t, w.x, -10, w.z, 0).speed).toBeCloseTo(10, 9);
+  });
+
+  it("reads a wind across him on the heading's right as positive", () => {
+    // Faced so the wind blows toward his right, (cos h, -sin h).
+    const h = Math.atan2(-uz, ux);
+    const f = airflowAt(level, t, 0, 0, 0, h);
+    expect(f.across).toBeCloseTo(w.speed, 6);
+    expect(f.head).toBeCloseTo(0, 6);
   });
 });
 

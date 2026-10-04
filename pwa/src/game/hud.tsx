@@ -24,7 +24,8 @@
 //                 worst injuries in plain words (hud-body.tsx)
 //   centre        THE G METER, shaking, the moment a blow lands
 //                 (hud-gforce.tsx)
-//   bottom left   the EDGE bar over the speed, and on a run with damage on
+//   bottom left   the EDGE bar over the speed, the WIND METER to the right
+//                 of the speed (hud-wind.tsx), and on a run with damage on
 //                 the DAMAGE instrument beside it (hud-damage.tsx)
 //   bottom right  the news column — a gate's clock, a tree, a wipeout
 //
@@ -56,6 +57,7 @@ import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 import { UpdateButton } from "./update-button.tsx";
+import { WindMeter } from "./hud-wind.tsx";
 
 export type { HudFlash };
 
@@ -255,6 +257,7 @@ export function Hud({
         <div class="hud-cluster">
           <span class="hud-speed-num">{Math.round(snap.speedKmh)}</span>
           <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
+          <WindMeter wind={snap.wind} />
           {snap.damage && <DamageGauge damage={snap.damage} />}
         </div>
       </div>

@@ -76,6 +76,12 @@ export const STRINGS = {
   edge: "EDGE",
   brake: "SKID",
   cut: "CUT",
+  /** THE WIND METER beside the speed (`hud-wind.tsx`): the felt wind's
+   * caption, the weather's own wind under it, and both said aloud. */
+  windLabel: "WIND",
+  windAir: (kmh: number): string => `WEATHER ${Math.round(kmh)}`,
+  windAria: (felt: number, air: number): string =>
+    `Wind ${Math.round(felt)} km/h, weather ${Math.round(air)} km/h`,
   clockLabel: "TIME",
   /** Gates taken, of how many the piste has — the start gate the first,
    * the finish the last. */

@@ -8,8 +8,11 @@
 // field draws NOTHING from `state.rng`, so no run's stream, and no sim
 // digest, knows it exists. Nothing in the physics reads it: it is what the
 // falling snow, the spindrift off the ridges and the clouds are carried by,
-// and it is stated here, in the engine, so a later system that lets the skier
-// feel it reads the same air the picture shows.
+// and it is stated here, in the engine, so whatever lets the skier feel it
+// reads the same air the picture shows: `airflowAt` below, the wind a moving
+// skier meets, is what he hears and what the HUD's wind meter reads.
+
+import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 import type { Level } from "../mapgen/index.ts";
 import { weatherOf } from "../mapgen/index.ts";
@@ -66,5 +69,52 @@ export function windAt(
   out.z = Math.cos(toward) * speed;
   out.speed = speed;
   out.gust = total > 0 ? 0.5 + (0.5 * g) / total : 0.5;
+  return out;
+}
+
+/** THE AIR AS A MOVING SKIER MEETS IT — the APPARENT wind: the weather's
+ * air less his own velocity. Skiing at 28 m/s into a 28 m/s headwind is
+ * 56 m/s in the face; the same wind behind him is a calm. Pure, like
+ * `windAt`, and read by the presentation alone (the wind he hears and the
+ * HUD's wind meter) — nothing in the physics reads it. */
+export type Airflow = {
+  /** Velocity of the air past the skier, m/s, world frame. */
+  x: number;
+  y: number;
+  z: number;
+  /** |velocity|, m/s — the wind in his ears. */
+  speed: number;
+  /** How much of it is in his FACE, m/s: along his heading, positive with
+   * the air streaming back past him (a headwind, or simply his speed),
+   * negative with it pushing him from behind. */
+  head: number;
+  /** How much of it is ACROSS him, m/s: positive moving toward his right
+   * (the heading's clockwise side — `steer` and `edge`'s right), which is a
+   * wind from his left. */
+  across: number;
+};
+
+const AIR: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
+
+/** The apparent wind on a skier on `heading` moving at (vx, vy, vz) on
+ * `level` at run time `t`. A skier at rest feels the weather's own wind. */
+export function airflowAt(
+  level: Pick<Level, "seed" | "weather">,
+  t: number,
+  vx: number,
+  vy: number,
+  vz: number,
+  heading: number,
+  out: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 },
+): Airflow {
+  const w = windAt(level, t, AIR);
+  out.x = w.x - vx;
+  out.y = -vy;
+  out.z = w.z - vz;
+  out.speed = hypot3(out.x, out.y, out.z);
+  const fx = Math.sin(heading);
+  const fz = Math.cos(heading);
+  out.head = -(out.x * fx + out.z * fz);
+  out.across = out.x * fz - out.z * fx;
   return out;
 }

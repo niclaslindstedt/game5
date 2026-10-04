@@ -33,6 +33,9 @@ export type Listener = {
   wind: number;
   /** How bright the wind is, 0..1: the rush's lowpass is scaled by it. */
   tone: number;
+  /** How far a crosswind is heard on the side it comes from, 0..1: all of
+   * it with the ear on the skier, none from a lens that circles him. */
+  side: number;
   /** The skis on the snow: the hiss, the hush, the edge, the skid. */
   snow: number;
   /** Every one-shot the race makes — the poles' plants among them. */
@@ -46,6 +49,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   tips: {
     wind: 1.3,
     tone: 1,
+    side: 1,
     snow: 1.4,
     events: 1.1,
     muffle: 1,
@@ -53,6 +57,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   helmet: {
     wind: 1.45,
     tone: 0.85,
+    side: 1,
     snow: 1.05,
     events: 1,
     muffle: 1,
@@ -60,6 +65,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   chase: {
     wind: 0.85,
     tone: 1,
+    side: 1,
     snow: 1.05,
     events: 1,
     muffle: 1,
@@ -67,6 +73,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   far: {
     wind: 0.4,
     tone: 0.9,
+    side: 0.6,
     snow: 0.8,
     events: 0.9,
     muffle: 0.95,
@@ -74,6 +81,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   high: {
     wind: 0.2,
     tone: 0.8,
+    side: 0.3,
     snow: 0.6,
     events: 0.8,
     muffle: 0.9,
@@ -81,6 +89,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
   orbit: {
     wind: 0.12,
     tone: 0.7,
+    side: 0,
     snow: 0.5,
     events: 0.6,
     muffle: 0.8,

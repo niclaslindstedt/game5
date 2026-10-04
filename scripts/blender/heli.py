@@ -3,10 +3,16 @@
 # `HELI` (engine/game/defs/heli.ts) handed in whole by
 # `scripts/blender.mjs --kind=heli` — the driver, and the only way this runs.
 # The rotor's hub, radius and blades, the tail rotor's hub, side, radius and
-# blades, the skids, the cabin's width, floor and roof, the boom's height,
-# the nose's and the fin's reach and the fin's top and foot (the crash's
-# strike points) are all read off it; what is drawn between them is the
-# light single-engine utility helicopter heli-ski operators fly.
+# blades, the skids and their cross tubes, the cabin's width, floor and roof,
+# the boom's height, the nose's and the fin's reach and the fin's top and
+# the ventral fin's foot (the crash's strike points) are all read off it;
+# what is drawn between them is the light single-engine utility helicopter
+# heli-ski operators fly, its proportions traced off that class's published
+# three-view: a short, tall cabin whose nose rounds over two metres from
+# the roof down to a tip a third of the way up and over a metre and a half
+# under it, a flat floor, a boxy transmission and engine cowl on the roof,
+# and a conical boom whose top runs level while its belly rises straight to
+# the tail.
 #
 # THE FRAME is the skid datum's: Blender x to the right, y forward (the
 # nose), z up, the origin on the ground under the middle of the skids —
@@ -22,20 +28,22 @@
 # `heli_tail_rotor` (its origin at the tail rotor's hub, turning about its
 # local x axis, the top blade going aft). Their parent `heli` is the datum.
 #
-# THE MATERIALS, by name: `paint` (the livery's colour), `trim` (its
-# second colour, and the blade tips), `glass` (dark, glossy, opaque — there
-# is no cabin behind it), `metal`, `dark` (seams, grilles, fittings),
+# THE MATERIALS, by name: `trim` (the livery's white ground), `paint` (its
+# colour: the belly band, the cowling, the fins, the blade tips), `stripe`
+# (its pinstripe), `glass` (dark, glossy, opaque — there is no cabin behind
+# it), `metal`, `dark` (seams, grilles, the anti-glare panel, fittings),
 # `rotor` (the blades), `lamp` (red: the beacons and the left navigation
-# light) and `lamp_green` (the right one), both emissive.
+# light) and `lamp_green` (the right one), both emissive. The paint is a
+# satin finish under a thin clear coat — a working machine's, not a toy's.
 #
 # THE CABIN'S SKIN is ONE parametric surface — a superellipse section at
-# every station along y, closed into a rounded nose and the boom's end —
-# and every window, door seam and livery line on it is a FIELD on that
-# surface whose zero contour is traced and laid into the mesh as
-# constrained edges (a constrained Delaunay triangulation in the surface's
-# own (y, angle) plane): every outline is crisp at any triangle budget,
-# flush, its own material, and the normals are the surface's own, so a
-# coarse cut still shades smooth.
+# every station along y, closed into the nose and the boom's end — and
+# every window, door seam and livery line on it is a FIELD on that surface
+# whose zero contour is traced and laid into the mesh as constrained edges
+# (a constrained Delaunay triangulation in the surface's own (y, angle)
+# plane): every outline is crisp at any triangle budget, flush, its own
+# material, and the normals are the surface's own, so a coarse cut still
+# shades smooth.
 
 import json, math, os, sys
 
@@ -61,32 +69,49 @@ HUB = Vector((0, RA, ROTOR["hub"]))
 _th = TAILR["hub"]
 TAIL_HUB = Vector((_th["x"], _th["z"], _th["y"]))
 TSIDE = 1 if TAIL_HUB.x > 0 else -1          # the side the tail rotor is on
-AFT = [p for p in BODY["strike"] if p["z"] < TAIL_HUB.y + 0.6]
-FIN_TOP = max(p["y"] for p in AFT)            # the fin's top strike point
-FIN_FOOT = min(p["y"] for p in AFT)           # the ventral fin's foot
+FINS = [p for p in BODY["strike"] if p["x"] == 0 and p["z"] < TAIL_HUB.y - 0.4]
+FIN_TOP = max(p["y"] for p in FINS)           # the fin's top strike point
+FIN_FOOT = min(p["y"] for p in FINS)          # the ventral fin's foot
 TRACK = SKID["track"] / 2
 SKID_Z = SKID["y"]
 
-# Where the skin changes character, off the data: the boom's end just
-# ahead of the tail rotor's hub, its root behind the mast, the cabin's back
-# under the mast, the nose's rounding over its last 1.35 m.
-Y_END = TAIL_HUB.y - 0.12
-Y_BOOM0 = RA - 3.1
-Y_CAB = RA - 0.9
-YN = NOSE - 1.35
-TIP = FLOOR + 0.5             # the nose's foremost point, at the panel's height
+
+def aft(d):
+    """The station `d` metres behind the nose's tip."""
+    return NOSE - d
+
+
+def ht(f):
+    """The height a share `f` of the way from the cabin's floor to its roof."""
+    return FLOOR + f * (ROOF - FLOOR)
+
+
+# Where the skin changes character, off the data: the nose rounding from
+# the roof over its first 2 m, from the floor over its first 1.5 m and in
+# plan over its first 1.3 m, its tip a third of the way up the cabin; the
+# boom's top running level from behind the cowl, its belly rising straight
+# from behind the cabin to its end a little short of the fin's top.
+TIP = ht(0.34)
+LT, LB, LW = 2.0, 1.5, 1.3
+BOOM_TOP = BOOM + 0.17
+Y_END = TAIL + 0.62
+YB0 = RA - 1.4
 R0 = 0.9                      # the metric the surface's angle is laid out in
+CAP = 0.06
 
 # ---------------------------------------------------------------- materials
-PAINT = mat("paint", (0.6, 0.025, 0.02), rough=0.32, coat=1.0)
-TRIM = mat("trim", (0.84, 0.85, 0.86), rough=0.32, coat=1.0)
-GLASS = mat("glass", (0.012, 0.016, 0.022), rough=0.04)
-METAL = mat("metal", (0.62, 0.63, 0.65), metal=1.0, rough=0.34)
-DARK = mat("dark", (0.025, 0.026, 0.03), rough=0.6)
-ROTOR_M = mat("rotor", (0.045, 0.047, 0.05), rough=0.42)
+TRIM = mat("trim", (0.80, 0.81, 0.82), rough=0.42, coat=0.35)
+PAINT = mat("paint", (0.50, 0.03, 0.026), rough=0.42, coat=0.35)
+STRIPE = mat("stripe", (0.02, 0.035, 0.11), rough=0.42, coat=0.35)
+GLASS = mat("glass", (0.045, 0.06, 0.08), rough=0.1)
+METAL = mat("metal", (0.66, 0.67, 0.69), metal=0.75, rough=0.4)
+DARK = mat("dark", (0.022, 0.023, 0.026), rough=0.7)
+ROTOR_M = mat("rotor", (0.05, 0.052, 0.056), rough=0.55)
 LAMP = mat("lamp", (0.8, 0.03, 0.02), rough=0.3, emit=(1.0, 0.05, 0.03), emit_str=6.0)
 LAMP_G = mat("lamp_green", (0.03, 0.7, 0.15), rough=0.3, emit=(0.05, 1.0, 0.25), emit_str=6.0)
-SKIN_MATS = [TRIM, PAINT, DARK, GLASS]        # the skin's slots, by index
+SKIN_MATS = [TRIM, PAINT, DARK, GLASS, STRIPE]   # the skin's slots, by index
+for _m in (TRIM, PAINT, STRIPE):
+    _m.node_tree.nodes["Principled BSDF"].inputs["Coat Roughness"].default_value = 0.12
 # The shelf sets every material's coat roughness; on one with no coat that
 # alone exports a clearcoat extension, which costs a physical material in
 # three.js for nothing — so it goes back to Blender's default.
@@ -96,12 +121,11 @@ for _m in (GLASS, METAL, DARK, ROTOR_M, LAMP, LAMP_G):
 # How fine each cut is: the render's, the game's LOD0 and its LOD1.
 DETAIL = {
     "render": dict(dy=0.02, sp=0.022, boom=2.0, tol=0.0015, seg=0.03, seams=True, accent=True,
-                   cowl=70, ring=64, wing=14, spans=6, foil=14, blade=None, tube=6, full=True),
-    "lod0": dict(dy=0.15, sp=0.17, boom=3.0, tol=0.007, seg=0.18, seams=True, accent=True,
-                 cowl=16, ring=20, wing=5, spans=2, foil=5, blade="lod0", tube=2, full=True),
+                   cowl=60, ring=48, wing=14, spans=6, foil=14, blade=None, pipe=16, smooth=8, full=True),
+    "lod0": dict(dy=0.13, sp=0.15, boom=3.0, tol=0.006, seg=0.16, seams=True, accent=True,
+                 cowl=18, ring=20, wing=5, spans=2, foil=5, blade="lod0", pipe=8, smooth=3, full=True),
     "lod1": dict(dy=0.26, sp=0.28, boom=3.0, tol=0.02, seg=0.35, seams=False, accent=False,
-                 cowl=10, ring=12, wing=3, spans=1, foil=3,
-                 blade="lod1", tube=2, full=False),
+                 cowl=10, ring=12, wing=3, spans=1, foil=3, blade="lod1", pipe=6, smooth=2, full=False),
 }
 
 
@@ -133,46 +157,46 @@ def sstep(a, b, x):
     return t * t * (3 - 2 * t)
 
 
-# The side view's top and bottom and the plan's half width, from the boom's
-# end to where the nose starts rounding.
-fT = pchip([(Y_END, BOOM + 0.14), (Y_END + 1.6, BOOM + 0.18), (Y_BOOM0, BOOM + 0.3),
-            (Y_BOOM0 + 0.75, ROOF - 0.17), (Y_CAB - 0.55, ROOF - 0.05), (Y_CAB, ROOF), (YN, ROOF)])
-fB = pchip([(Y_END, BOOM - 0.13), (Y_END + 1.6, BOOM - 0.18), (Y_BOOM0, BOOM - 0.28),
-            (Y_BOOM0 + 0.6, BOOM - 0.43), (Y_CAB - 0.85, FLOOR + 0.17), (Y_CAB - 0.3, FLOOR + 0.02),
-            (Y_CAB, FLOOR), (YN, FLOOR)])
-fW = pchip([(Y_END, 0.14), (Y_END + 1.6, 0.18), (Y_BOOM0, 0.3), (Y_BOOM0 + 0.6, 0.52),
-            (Y_CAB - 0.8, HALF - 0.1), (Y_CAB, HALF), (YN, HALF)])
-CAP = 0.06
+# The side view's top and bottom and the plan's half width aft of the nose.
+fT = pchip([(Y_END, BOOM_TOP - 0.03), (RA - 1.65, BOOM_TOP), (RA - 1.25, BOOM_TOP + 0.13),
+            (RA - 0.85, ROOF - 0.1), (RA - 0.35, ROOF - 0.015), (RA + 0.3, ROOF), (aft(LT), ROOF)])
+_bend = BOOM - 0.12
+fB = pchip([(Y_END, _bend), ((Y_END + YB0) / 2, (_bend + FLOOR + 0.48) / 2), (YB0, FLOOR + 0.48),
+            (RA - 0.85, FLOOR + 0.13), (RA - 0.45, FLOOR + 0.02), (RA - 0.25, FLOOR), (aft(LB), FLOOR)])
+fW = pchip([(Y_END, 0.13), (aft(8.2), 0.21), (aft(4.92), 0.41), (aft(4.07), 0.6), (aft(3.23), HALF - 0.07),
+            (aft(2.4), HALF), (aft(LW), HALF)])
 
 
 def section(y):
     """The section at `y`: its widest line's height, the half heights above
     and below it, the half width, and the superellipse's exponents above and
-    below (a round boom, a cabin with flat sides and a flatter belly)."""
+    below (a round boom; a cabin with near-upright sides, its roof and floor
+    rounded into them)."""
     y = np.asarray(y, float)
     T, B, W = fT(y), fB(y), fW(y)
-    s = sstep(Y_BOOM0, Y_CAB, y)
-    K, NT, NB = 0.5 - 0.08 * s, 2.0 + 0.7 * s, 2.0 + 1.6 * s
-    u = np.clip((y - YN) / (NOSE - YN), 0, 1)
-    nose = y > YN
-    T = np.where(nose, TIP + (ROOF - TIP) * (1 - u ** 2.2) ** (1 / 2.2), T)
-    B = np.where(nose, TIP - (TIP - FLOOR) * (1 - u ** 3) ** (1 / 3), B)
-    W = np.where(nose, HALF * (1 - u ** 2.3) ** (1 / 2.3), W)
+    s = sstep(RA - 1.7, RA - 0.3, y)
+    NT, NB = 2.0 + 1.0 * s, 2.0 + 1.4 * s
+    ut = np.clip((y - aft(LT)) / LT, 0, 1)
+    ub = np.clip((y - aft(LB)) / LB, 0, 1)
+    uw = np.clip((y - aft(LW)) / LW, 0, 1)
+    T = np.where(y > aft(LT), TIP + (ROOF - TIP) * np.sqrt(1 - ut ** 2), T)
+    B = np.where(y > aft(LB), TIP - (TIP - FLOOR) * (1 - ub ** 2.3) ** (1 / 2.3), B)
+    W = np.where(y > aft(LW), HALF * (1 - uw ** 2.3) ** (1 / 2.3), W)
     v = np.clip((Y_END + CAP - y) / CAP, 0, 1)
     f = np.sqrt(1 - v * v)
-    zc = B + K * (T - B)
+    zc = B + 0.5 * (T - B)
     return zc, (T - zc) * f, (zc - B) * f, W * f, NT, NB
 
 
 def skin(y, th):
     """The surface at station `y`, angle `th` (0 the belly's centre line,
     a quarter turn the right side, half a turn the roof)."""
-    zc, ht, hb, w, nt, nb = section(y)
+    zc, ht_, hb, w, nt, nb = section(y)
     c, s = np.sin(th), -np.cos(th)
     top = s > 0
     n = np.where(top, nt, nb)
     x = w * np.sign(c) * np.abs(c) ** (2 / n)
-    z = zc + np.where(top, ht, hb) * np.sign(s) * np.abs(s) ** (2 / n)
+    z = zc + np.where(top, ht_, hb) * np.sign(s) * np.abs(s) ** (2 / n)
     return x, np.broadcast_to(y, x.shape), z
 
 
@@ -195,6 +219,14 @@ def side_x(y, z, sx=1):
     return sx * float(x[k])
 
 
+def top_z(y, x):
+    """The skin's upper surface over the point `x` off the centre line at
+    station `y` (its side, past its half width)."""
+    zc, h, _, w, nt, _ = (float(np.asarray(v)) for v in section(y))
+    r = min(abs(x) / max(w, 1e-6), 1.0)
+    return zc + h * (1 - r ** nt) ** (1 / nt)
+
+
 # ---------------------------------------------------------------- the skin's fields
 def rint(fs, r):
     """The intersection of inside-positive fields, its corners rounded to `r`."""
@@ -203,49 +235,69 @@ def rint(fs, r):
     return -(q + np.minimum(np.maximum.reduce(d), 0) - r)
 
 
-def rbox(Y, Z, y0, y1, z0, z1, r):
-    return rint([Y - y0, y1 - Y, Z - z0, z1 - Z], r)
+def edge(D, Z, p, q):
+    """Metres aft of the side view's line through `p` and `q` ((d, z), `q`
+    the upper)."""
+    nd, nz = q[1] - p[1], -(q[0] - p[0])
+    return ((D - p[0]) * nd + (Z - p[1]) * nz) / math.hypot(nd, nz)
 
 
-SWOOSH = pchip([(Y_END, BOOM), (Y_BOOM0 - 0.5, BOOM), (Y_BOOM0 + 0.7, 1.52), (RA - 0.3, 1.1),
-                (RA + 1.7, 0.95), (NOSE - 1.0, 0.86), (NOSE, 0.75)])
-P0, P1 = (NOSE - 1.45, ROOF - 0.07), (NOSE - 0.75, TIP - 0.04)   # the windscreen's pillar
+# The side view's lines, as (metres behind the nose, height): the front
+# door's leading edge (the windscreen's pillar just ahead of it) and
+# trailing edge, both leaning forward at the foot, and the rear door's
+# trailing edge.
+DOOR1 = ((0.78, ht(0.17)), (1.2, ht(0.86)))
+DOOR2 = ((1.68, ht(0.16)), (1.92, ht(0.83)))
+DOOR3 = ((2.66, ht(0.15)), (2.84, ht(0.84)))
+SILL, HEAD = ht(0.19), ht(0.835)
+WIN0, WIN1 = ht(0.44), ht(0.785)
+# The livery's band: red under this line (metres behind the nose → height),
+# low along the cabin and sweeping up behind it onto the boom's side.
+SWEEP = pchip([(0.0, ht(0.3)), (0.6, ht(0.21)), (1.5, ht(0.185)), (2.7, ht(0.2)), (3.6, ht(0.33)),
+               (4.4, ht(0.56)), (5.3, BOOM - 0.02), (NOSE - Y_END + 0.1, BOOM - 0.02)])
 
 
-def pillar(Y, Z):
-    """Metres forward of the windscreen's pillar, in the side view."""
-    dy, dz = P1[0] - P0[0], P1[1] - P0[1]
-    return ((Y - P0[0]) * -dz + (Z - P0[1]) * dy) / math.hypot(dy, dz)
+def screen_foot(xs):
+    """The windscreen's lower edge: a hand over the nose's tip, running
+    back round the nose nearly level to the pillar's foot."""
+    return TIP + 0.19 - 0.05 * np.clip(xs / HALF, 0, 1) ** 2
 
 
-def regions(X, Y, Z, seams, accent):
+def regions(X, Y, Z, seams, accent, full):
     """Every outline on the skin as (slot, priority, field): the windows,
-    the doors' seams, the livery. The highest field that is positive wins;
-    the rest of the skin is `trim`."""
+    the doors' seams, the anti-glare panel, the livery. The highest field
+    that is positive wins; the rest of the skin is `trim`."""
     out = []
-    a1 = pillar(Y, Z)
+    D = NOSE - Y
     for sx in (1, -1):
         xs = sx * X
-        side = xs - 0.25
-        ws = rint([a1, Z - (TIP - 0.02 + 0.06 * sstep(NOSE - 0.7, NOSE - 0.1, Y)), xs - 0.025,
-                   Y - (NOSE - 1.19 - 0.26 * np.clip(xs / 0.75, 0, 1))], 0.05)
-        du, dv = Y - (NOSE - 0.62), Z - (FLOOR + 0.27)
-        ca, sa = math.cos(0.18), math.sin(0.18)
-        chin = 0.06 * (1 - ((du * ca + dv * sa) / 0.3) ** 2 - ((dv * ca - du * sa) / 0.13) ** 2)
-        front = rint([Y - (RA + 1.43), -a1 - 0.045, (NOSE - 0.9) - Y, Z - (FLOOR + 0.08),
-                      (ROOF - 0.09) - Z], 0.07)
-        front_win = rint([Y - (RA + 1.53), -a1 - 0.13, Z - (FLOOR + 0.66), (ROOF - 0.17) - Z], 0.09)
-        rear = rbox(Y, Z, RA + 0.05, RA + 1.33, FLOOR + 0.08, ROOF - 0.09, 0.07)
-        rear_win = rbox(Y, Z, RA + 0.17, RA + 1.21, FLOOR + 0.68, ROOF - 0.2, 0.1)
-        hatch = rbox(Y, Z, RA - 1.6, RA - 0.72, FLOOR + 0.36, FLOOR + 0.98, 0.06)
-        for f in (ws, np.minimum(chin, xs - 0.3), np.minimum(front_win, side), np.minimum(rear_win, side)):
+        side = xs - 0.28
+        foot = screen_foot(xs)
+        screen = rint([-edge(D, Z, *DOOR1) - 0.045, Z - foot, 1.3 - D, xs + 0.001], 0.04)
+        roofwin = rint([D - 1.33, 1.7 - D, xs - 0.13, 0.6 - xs, Z - (ROOF - 0.3)], 0.06)
+        chin = rint([D - 0.26, -edge(D, Z, *DOOR1) - 0.12, Z - ht(0.15), ht(0.38) - Z], 0.1)
+        door1 = rint([edge(D, Z, *DOOR1), -edge(D, Z, *DOOR2), Z - SILL, HEAD - Z], 0.06)
+        win1 = rint([edge(D, Z, *DOOR1) - 0.055, -edge(D, Z, *DOOR2) - 0.06, Z - WIN0, WIN1 - Z], 0.08)
+        low1 = rint([edge(D, Z, *DOOR1) - 0.08, -edge(D, Z, *DOOR2) - 0.12, Z - ht(0.2), ht(0.38) - Z], 0.09)
+        door2 = rint([edge(D, Z, *DOOR2) - 0.05, -edge(D, Z, *DOOR3), Z - SILL, HEAD - Z], 0.06)
+        win2 = rint([edge(D, Z, *DOOR2) - 0.11, -edge(D, Z, *DOOR3) - 0.07, Z - WIN0, WIN1 - Z], 0.1)
+        hatch = rint([D - 4.1, 4.75 - D, Z - ht(0.31), ht(0.66) - Z], 0.06)
+        for f in (screen, np.minimum(roofwin, xs - 0.1), np.minimum(chin, xs - 0.3),
+                  np.minimum(win1, side), np.minimum(low1, side), np.minimum(win2, side)):
             out.append((3, 5, f))
+        if full:
+            # the windscreen's centre post
+            out.append((2, 6, np.minimum(0.022 - xs, screen)))
         if seams:
-            for f in (front, rear, hatch):
-                out.append((2, 4, np.minimum(0.008 - np.abs(f), side)))
+            for f in (door1, door2, hatch):
+                out.append((2, 4, np.minimum(0.009 - np.abs(f), side)))
+        # the anti-glare panel on the nose, under the windscreen's foot
+        out.append((2, 3.5, rint([Z - (foot - 0.09), foot - Z + 0.02, 0.36 - xs, xs + 0.001, 0.6 - D], 0.03)))
+    if seams:
+        out.append((2, 4, 0.008 - np.abs(D - (NOSE - (RA - 1.62)))))  # the boom's joint
     if accent:
-        out.append((2, 3, 0.022 - np.abs(Z - (SWOOSH(Y) - 0.085))))
-    out.append((1, 2, Z - SWOOSH(Y)))
+        out.append((4, 3, 0.022 - np.abs(Z - (SWEEP(D) + 0.065))))
+    out.append((1, 2, SWEEP(D) - Z))
     return out
 
 
@@ -320,11 +372,11 @@ def split_seam(poly):
     for p, q in zip(poly, poly[1:]):
         if abs(q[1] - p[1]) > math.pi:
             qu = q[1] + (2 * math.pi if q[1] < p[1] else -2 * math.pi)
-            edge = 2 * math.pi if qu > p[1] else 0.0
-            yb = p[0] + (edge - p[1]) / (qu - p[1]) * (q[0] - p[0])
-            cur.append((yb, edge))
+            edge_ = 2 * math.pi if qu > p[1] else 0.0
+            yb = p[0] + (edge_ - p[1]) / (qu - p[1]) * (q[0] - p[0])
+            cur.append((yb, edge_))
             out.append(cur)
-            cur = [(yb, 2 * math.pi - edge), q]
+            cur = [(yb, 2 * math.pi - edge_), q]
         else:
             cur.append(q)
     out.append(cur)
@@ -366,7 +418,7 @@ def build_skin(Q):
     ys = np.arange(Y_END, NOSE + 1e-9, 0.006)
     ths = np.linspace(0, 2 * math.pi, 1024, endpoint=False)
     X, Y, Z = skin(ys[:, None], ths[None, :])
-    fields = regions(X, Y, Z, Q["seams"], Q["accent"])
+    fields = regions(X, Y, Z, Q["seams"], Q["accent"], Q["full"])
     polys = []
     for _, _, F in fields:
         for line in contours(F, ys, ths):
@@ -377,7 +429,7 @@ def build_skin(Q):
     rows, y = [], Y_END
     while y < NOSE - 1e-6:
         rows.append(y)
-        f = Q["boom"] if y < Y_BOOM0 - 0.4 else (0.6 if y > YN - 0.2 else 1.0)
+        f = Q["boom"] if y < RA - 1.9 else (0.6 if y > aft(LT) else 1.0)
         y += Q["dy"] * f
     rows.append(NOSE)
     verts = []
@@ -418,8 +470,8 @@ def build_skin(Q):
         ct.append((pt[a] + pt[b] + pt[c]) / 3)
     cx, cyy, cz = skin(np.array(cy), np.array(ct))
     slot = np.zeros(len(faces), int)
-    best = np.full(len(faces), -1)
-    for s, prio, F in regions(cx, cyy, cz, Q["seams"], Q["accent"]):
+    best = np.full(len(faces), -1.0)
+    for s, prio, F in regions(cx, cyy, cz, Q["seams"], Q["accent"], Q["full"]):
         win = (F > 0) & (prio > best)
         slot[win], best[win] = s, prio
     first = np.array(first)
@@ -436,6 +488,26 @@ def build_skin(Q):
 
 
 # ---------------------------------------------------------------- the parts
+def pipe(name, points, r, m, Q, r_end=None):
+    """A round tube along `points` (smoothed), its rings carried along the
+    path without twisting, closed at both ends — a fixed number of sides at
+    every cut, where a bevelled curve drops to a square at the game's."""
+    P = catmull(points, False, Q["smooth"]) if len(points) > 2 else [Vector(p) for p in points]
+    n = Q["pipe"]
+    t0 = (P[1] - P[0]).normalized()
+    up = Vector((0, 0, 1)) if abs(t0.z) < 0.9 else Vector((1, 0, 0))
+    u = (up - t0 * up.dot(t0)).normalized()
+    rings = []
+    for i, p in enumerate(P):
+        t = (P[min(i + 1, len(P) - 1)] - P[max(i - 1, 0)]).normalized()
+        u = (u - t * u.dot(t)).normalized()
+        v = t.cross(u)
+        rr = r if r_end is None else r + (r_end - r) * i / (len(P) - 1)
+        rings.append([p + (u * math.cos(2 * math.pi * k / n) + v * math.sin(2 * math.pi * k / n)) * rr
+                      for k in range(n)])
+    return loft(name, rings, [m])
+
+
 def airfoil(n, tk):
     """A symmetric section of thickness `tk` (of the chord), (u, v) round it:
     u from the leading edge (0) to the trailing edge (1)."""
@@ -474,115 +546,159 @@ def blade(name, centre, e, t, a, rs, chord, pitch, thick, sweep, Q, m):
     return loft(name, rings, [m])
 
 
-fTc = pchip([(RA + 0.95, ROOF - 0.01), (RA + 0.82, ROOF + 0.21), (RA + 0.55, ROOF + 0.35),
-             (RA + 0.1, ROOF + 0.41), (RA - 0.45, ROOF + 0.39), (RA - 0.75, ROOF + 0.31),
-             (RA - 1.9, ROOF + 0.29), (RA - 2.45, ROOF + 0.17), (RA - 2.95, ROOF - 0.15),
-             (RA - 3.35, BOOM + 0.25)])
-fWc = pchip([(RA + 0.95, 0.16), (RA + 0.82, 0.38), (RA + 0.55, 0.52), (RA - 0.45, 0.55),
-             (RA - 0.75, 0.6), (RA - 1.9, 0.58), (RA - 2.45, 0.48), (RA - 2.95, 0.28), (RA - 3.35, 0.1)])
+def oval(name, a, b, rx, rz, m, Q, rx2=None, rz2=None):
+    """A duct of elliptical section from `a` to `b`, closed at both ends."""
+    a, b = Vector(a), Vector(b)
+    t = (b - a).normalized()
+    u = Vector((0, 0, 1))
+    u = (u - t * u.dot(t)).normalized()
+    v = t.cross(u)
+    n = max(10, Q["pipe"] + 4)
+    rings = []
+    for p, ex, ez in ((a, rx, rz), (b, rx2 or rx, rz2 or rz)):
+        rings.append([p + v * (ex * math.cos(2 * math.pi * k / n)) + u * (ez * math.sin(2 * math.pi * k / n))
+                      for k in range(n)])
+    return loft(name, rings, [m])
+
+
+# The cowling over the cabin's back, in the side view and the plan: the
+# transmission's fairing rising off the roof ahead of the mast, flat over
+# it, the engine's cowl behind falling into the shaft's fairing on the boom.
+COWL0, COWL1 = RA + 0.98, RA - 1.68
+fTc = pchip([(COWL1, BOOM_TOP + 0.12), (RA - 1.45, BOOM_TOP + 0.24), (RA - 1.2, ROOF + 0.19),
+             (RA - 1.0, ROOF + 0.27), (RA + 0.6, ROOF + 0.3), (RA + 0.8, ROOF + 0.28),
+             (RA + 0.92, ROOF + 0.18), (COWL0, ROOF + 0.03)])
+fWc = pchip([(COWL1, 0.11), (RA - 1.3, 0.37), (RA - 1.0, 0.46), (RA + 0.55, 0.47), (RA + 0.85, 0.41),
+             (COWL0, 0.27)])
 
 
 def cowling(Q):
-    """The hump over the cabin's back: the transmission's fairing round the
-    mast, the engine's cowl behind it tapering into the boom, its foot sunk
-    in the skin."""
+    """The hump over the cabin's back: flat-sided, its top rounded, its foot
+    sunk in the skin wherever the skin is under it; the oil cooler's grille
+    in its face, the engine's intakes either side, the exhaust duct out of
+    its tail, the collar the mast leaves it through, and the drive shaft's
+    fairing along the boom's top."""
     n = Q["cowl"]
+    stations = [COWL0 + (COWL1 - COWL0) * (0.5 - 0.5 * math.cos(math.pi * k / n)) for k in range(n + 1)]
+    seams = (RA + 0.62, RA - 0.95) if Q["seams"] else ()   # the cowl's panels' joints
+    stations = sorted(set(stations) | {ys + e for ys in seams for e in (-0.009, 0.009)}, reverse=True)
     rings = []
-    for k in range(n + 1):
-        f = k / n
-        y = (RA + 0.95) - 4.3 * (f ** 1.15)
-        top, w = float(fTc(y)), float(fWc(y))
-        zb = min(ROOF - 0.2, float(fT(y)) - 0.1)
-        zc = zb + 0.42 * (top - zb)
+    for y in stations:
+        top = float(fTc(y))
+        w = min(float(fWc(y)), 0.93 * float(section(y)[3]))
+        zb = top_z(y, w) - 0.05
+        zm = zb + 0.45 * (top - zb)
         ring = []
         for j in range(Q["ring"]):
             th = 2 * math.pi * j / Q["ring"]
             c, s = math.sin(th), -math.cos(th)
-            ex = 3.2 if s > 0 else 2.6
+            ex = 4.0
             ring.append(Vector((w * math.copysign(abs(c) ** (2 / ex), c), y,
-                                zc + (top - zc if s > 0 else zc - zb) * math.copysign(abs(s) ** (2 / ex), s))))
+                                zm + (top - zm if s > 0 else zm - zb) * math.copysign(abs(s) ** (2 / ex), s))))
         rings.append(ring)
-    loft("cowl", rings, [PAINT])
-    # the engine's intakes either side, its exhaust behind, the collar
-    # the mast leaves the fairing through
+    loft("cowl", rings, [PAINT, DARK], face_mat=lambda c: int(any(abs(c.y - ys) < 0.009 for ys in seams)))
+    # the oil cooler's grille in the fairing's face
+    box("cooler", (0, COWL0 - 0.05, ROOF + 0.11), (0.3, 0.04, 0.1), DARK, bevel=0)
+    # the engine's intakes: a grille either side, behind the mast
     for sx in (1, -1):
-        y0, y1 = RA - 1.55, RA - 0.95
+        y0, y1 = RA - 0.95, RA - 0.3
         w = float(fWc((y0 + y1) / 2))
-        box("intake", (sx * (w - 0.004), (y0 + y1) / 2, ROOF + 0.06), (0.02, y1 - y0, 0.2), DARK, bevel=0)
+        box("intake", (sx * (w + 0.002), (y0 + y1) / 2, ROOF + 0.16), (0.03, y1 - y0, 0.17), DARK, bevel=0)
         if Q["full"]:
-            for k in range(5):
-                yk = y0 + (k + 0.5) * (y1 - y0) / 5
-                box("louvre", (sx * (w + 0.006), yk, ROOF + 0.06), (0.012, 0.02, 0.19), METAL, bevel=0)
-    a = Vector((0.06, RA - 2.42, ROOF + 0.07))
-    b = Vector((0.08, RA - 2.92, ROOF + 0.24))
-    cyl("exhaust", a, b, 0.115, METAL, r2=0.14, seg=20)
-    cyl("exhaust_in", b - (b - a).normalized() * 0.03, b + (b - a).normalized() * 0.002, 0.125, DARK, seg=20)
+            for k in range(6):
+                yk = y0 + (k + 0.5) * (y1 - y0) / 6
+                box("louvre", (sx * (w + 0.012), yk, ROOF + 0.16), (0.012, 0.022, 0.16), METAL, bevel=0)
+    # the exhaust: a short oval duct out of the cowl's tail, turned up
+    a = Vector((0.08, RA - 1.05, ROOF + 0.17))
+    b = Vector((0.12, RA - 1.66, ROOF + 0.33))
+    oval("exhaust", a, b, 0.2, 0.15, METAL, Q, rx2=0.22, rz2=0.18)
+    oval("exhaust_in", b - (b - a).normalized() * 0.05, b + (b - a).normalized() * 0.002, 0.19, 0.155, DARK, Q)
     zt = float(fTc(RA))
-    cyl("collar", (0, RA, zt - 0.06), (0, RA, zt + 0.05), 0.15, DARK, r2=0.11, seg=24)
+    cyl("collar", (0, RA, zt - 0.06), (0, RA, zt + 0.06), 0.16, DARK, r2=0.12, seg=24)
+    # the shaft's fairing along the boom's top, to the tail rotor's gearbox
+    rings = []
+    m = max(4, Q["spans"] * 3)
+    for k in range(m + 1):
+        y = COWL1 + 0.1 + (TAIL_HUB.y + 0.08 - COWL1 - 0.1) * k / m
+        zt_, wf = float(fT(y)), 0.1 - 0.02 * k / m
+        ring = []
+        for j in range(12):
+            th = 2 * math.pi * j / 12
+            c, s = math.sin(th), -math.cos(th)
+            ring.append(Vector((wf * math.copysign(abs(c) ** 0.5, c), y,
+                                zt_ + 0.03 + 0.09 * math.copysign(abs(s) ** 0.5, s))))
+        rings.append(ring)
+    loft("shaft_fairing", rings, [PAINT])
 
 
 def tail(Q):
-    """The fins, the stabiliser with its end plates, the tail rotor's
-    gearbox and the tail skid."""
-    zb = BOOM + 0.08
-    wing("fin", (0, Y_END + 0.75, zb), (0, TAIL + 0.04, zb), (0, TAIL + 0.42, FIN_TOP),
-         (0, TAIL, FIN_TOP - 0.03), (1, 0, 0), 0.13, Q, PAINT)
-    wing("ventral", (0, Y_END + 0.55, BOOM - 0.08), (0, TAIL + 0.08, BOOM - 0.08),
-         (0, TAIL + 0.42, FIN_FOOT), (0, TAIL + 0.02, FIN_FOOT + 0.03), (1, 0, 0), 0.13, Q, PAINT)
-    tube("tailskid", [(0, TAIL + 0.6, FIN_FOOT + 0.22), (0, TAIL + 0.32, FIN_FOOT + 0.02),
-                      (0, TAIL + 0.03, FIN_FOOT + 0.05)], 0.016, METAL, smooth_n=Q["tube"])
-    ys = RA + 0.72 * (TAIL_HUB.y - RA)
-    zs = float(section(ys)[0]) + 0.02
-    span = 1.1
+    """The fins — the upper swept back off the boom's end, the ventral
+    under it with its tail skid — the stabiliser across the boom with an end
+    plate at each tip, the tail rotor's gearbox and the beacons."""
+    zt = float(fT(TAIL_HUB.y)) - 0.03
+    zb = float(fB(TAIL_HUB.y + 0.1)) + 0.03
+    wing("fin", (0, TAIL_HUB.y - 0.12, zt), (0, Y_END + 0.02, zt), (0, TAIL + 0.33, FIN_TOP),
+         (0, TAIL, FIN_TOP - 0.02), (1, 0, 0), 0.13, Q, PAINT)
+    wing("ventral", (0, TAIL_HUB.y - 0.14, zb), (0, Y_END + 0.02, zb), (0, TAIL + 0.58, FIN_FOOT),
+         (0, TAIL + 0.22, FIN_FOOT + 0.04), (1, 0, 0), 0.13, Q, PAINT)
+    pipe("tailskid", [(0, TAIL + 0.62, FIN_FOOT + 0.12), (0, TAIL + 0.44, FIN_FOOT - 0.18),
+                      (0, TAIL + 0.16, FIN_FOOT - 0.22), (0, TAIL - 0.02, FIN_FOOT - 0.12)], 0.016, METAL, Q)
+    ys = TAIL_HUB.y + 1.35
+    zs = float(section(ys)[0])
+    span = 1.27
     for sx in (1, -1):
-        wing("stab", (0, ys + 0.24, zs), (0, ys - 0.26, zs), (sx * span, ys + 0.2, zs),
-             (sx * span, ys - 0.24, zs), (0, 0, 1), 0.12, Q, PAINT)
-        wing("plate", (sx * span, ys + 0.16, zs - 0.18), (sx * span, ys - 0.28, zs - 0.18),
-             (sx * span, ys - 0.06, zs + 0.3), (sx * span, ys - 0.38, zs + 0.3), (1, 0, 0), 0.1, Q, TRIM)
-        ellipsoid("nav", (sx * (span + 0.035), ys - 0.08, zs + 0.04), (0.02, 0.04, 0.025),
+        wing("stab", (0, ys + 0.21, zs), (0, ys - 0.21, zs), (sx * span, ys + 0.19, zs),
+             (sx * span, ys - 0.2, zs), (0, 0, 1), 0.14, Q, TRIM)
+        wing("plate", (sx * span, ys + 0.22, zs - 0.16), (sx * span, ys - 0.26, zs - 0.16),
+             (sx * span, ys + 0.02, zs + 0.36), (sx * span, ys - 0.34, zs + 0.36), (1, 0, 0), 0.1, Q, PAINT)
+        ellipsoid("nav", (sx * (span + 0.035), ys - 0.05, zs + 0.02), (0.02, 0.04, 0.025),
                   LAMP_G if sx > 0 else LAMP)
-    gx = TSIDE * 0.1
-    cyl("gearbox", (0, TAIL_HUB.y + 0.02, TAIL_HUB.z), (2 * gx, TAIL_HUB.y + 0.02, TAIL_HUB.z), 0.16, PAINT,
-        r2=0.1, seg=20)
+    gx = TSIDE * 0.12
+    cyl("gearbox", (0, TAIL_HUB.y, TAIL_HUB.z), (2 * gx, TAIL_HUB.y, TAIL_HUB.z), 0.14, PAINT, r2=0.09, seg=20)
     cyl("tr_shaft", (gx, TAIL_HUB.y, TAIL_HUB.z), (TAIL_HUB.x - TSIDE * 0.05, TAIL_HUB.y, TAIL_HUB.z),
         0.035, METAL, seg=16)
-    ellipsoid("beacon", (0, TAIL + 0.22, FIN_TOP + 0.015), (0.035, 0.07, 0.03), LAMP)
-    if Q["full"]:
-        cyl("whip", (0, RA - 3.4, float(fB(RA - 3.4)) + 0.02), (0, RA - 3.85, float(fB(RA - 3.4)) - 0.38),
-            0.006, DARK, seg=6)
+    ellipsoid("beacon", (0, TAIL + 0.17, FIN_TOP + 0.015), (0.035, 0.07, 0.03), LAMP)
+    ellipsoid("tail_light", (0, TAIL - 0.01, FIN_TOP - 0.25), (0.02, 0.03, 0.04), METAL)
 
 
 def skids(Q):
-    """The two skids on their arched cross tubes, shod where they bear;
-    the right skid clear between the tubes for the skier."""
+    """The two skids on their arched cross tubes — each tube rising out of
+    its skid's saddle, rounding over and running in under the belly — the
+    skids' toes turned up and shod where they bear; the right skid clear
+    between the tubes for the skier."""
     f, b, z = SKID["front"], SKID["back"], SKID_Z
-    r = SKID["tube"]
+    r = SKID["tube"] * 1.15
     for sx in (1, -1):
         x = sx * TRACK
-        tube("skid", [(x, b, z + 0.07), (x, b + 0.13, z + 0.006), (x, b + 0.35, z), (x, f - 0.4, z),
-                      (x, f - 0.18, z + 0.03), (x, f - 0.06, z + 0.12), (x, f, z + 0.24),
-                      (x, f - 0.03, z + 0.32)], r, METAL, smooth_n=Q["tube"])
+        pipe("skid", [(x, b - 0.04, z + 0.06), (x, b + 0.06, z + 0.005), (x, b + 0.3, z), (x, f - 0.3, z),
+                      (x, f - 0.05, z + 0.02), (x, f + 0.16, z + 0.1), (x, f + 0.32, z + 0.25),
+                      (x, f + 0.37, z + 0.38)], r, METAL, Q)
         for c in SKID["cross"]:
-            box("shoe", (x, c, z - r + 0.004), (0.05, 0.34, 0.012), DARK, bevel=0)
-            box("saddle", (x, c, z + 0.05), (0.075, 0.12, 0.07), DARK, bevel=0)
-            box("fitting", (sx * 0.48, c, FLOOR - 0.02), (0.16, 0.13, 0.08), DARK, bevel=0)
+            box("shoe", (x, c, z - r + 0.004), (0.06, 0.4, 0.014), DARK, bevel=0)
+            box("saddle", (x, c, z + 0.06), (0.1, 0.16, 0.1), DARK, bevel=0)
+            box("fitting", (sx * (TRACK - 0.62), c, FLOOR - 0.03), (0.2, 0.14, 0.09), DARK, bevel=0)
+        # the boarding step on the front tube, outboard — clear of the seat
+        c0 = SKID["cross"][0]
+        box("step", (x + sx * 0.06, c0, 0.34), (0.16, 0.26, 0.025), DARK, bevel=0)
+        cyl("step_arm", (x, c0, 0.27), (x + sx * 0.12, c0, 0.33), 0.016, METAL, seg=8)
     for c in SKID["cross"]:
-        half = [(TRACK, z + 0.03), (TRACK - 0.02, 0.22), (TRACK - 0.1, 0.45), (TRACK - 0.28, 0.6),
-                (TRACK - 0.55, FLOOR - 0.055), (0, FLOOR - 0.065)]
+        half = [(TRACK, z + 0.04), (TRACK - 0.005, 0.24), (TRACK - 0.03, 0.42), (TRACK - 0.11, 0.56),
+                (TRACK - 0.27, 0.64), (TRACK - 0.5, FLOOR - 0.06), (0, FLOOR - 0.075)]
         path = [(-x, zz) for x, zz in half] + [(x, zz) for x, zz in reversed(half[:-1])]
-        tube("cross", [(x, c, zz) for x, zz in path], 0.045, METAL, smooth_n=Q["tube"])
+        pipe("cross", [(x, c, zz) for x, zz in path], 0.055, METAL, Q)
 
 
 def basket(Q):
     """The ski basket on the LEFT skid: an aluminium cage outboard of it,
-    braced to the skid and the cross tubes, a few skis in it."""
-    x0, x1 = -(TRACK + 0.07), -(TRACK + 0.45)
-    y0, y1 = SKID["back"] + 0.25, SKID["front"] - 0.15
-    z0, z1 = 0.14, 0.5
-    rr = 0.014
+    braced to the cross tubes, a few skis in it."""
+    x0, x1 = -(TRACK + 0.08), -(TRACK + 0.46)
+    c0, c1 = SKID["cross"]
+    y0, y1 = c1 - 0.55, c0 + 0.55
+    z0, z1 = 0.16, 0.5
+    rr = 0.016
     for x in (x0, x1):
-        for z in (z0, z1):
-            cyl("rail", (x, y0, z), (x, y1, z), rr, METAL, seg=12)
+        for zz in (z0, z1):
+            cyl("rail", (x, y0, zz), (x, y1, zz), rr, METAL, seg=12)
     n = 6 if Q["full"] else 2
     for k in range(n + 1):
         y = y0 + (y1 - y0) * k / n
@@ -593,33 +709,49 @@ def basket(Q):
             cyl("rung", (x0, y, z1), (x1, y, z1), rr, METAL, seg=12)
     box("floor", ((x0 + x1) / 2, (y0 + y1) / 2, z0 + 0.008), (x0 - x1, y1 - y0, 0.006), DARK, bevel=0)
     for c in SKID["cross"]:
-        cyl("brace", (x0, c, z1), (-TRACK + 0.02, c, 0.3), 0.018, METAL, seg=12)
-        cyl("brace", (x0, c, z0), (-TRACK, c, SKID_Z + 0.05), 0.018, METAL, seg=12)
+        cyl("brace", (x0, c, z1), (-TRACK + 0.03, c, 0.4), 0.02, METAL, seg=12)
+        cyl("brace", (x0, c, z0), (-TRACK, c, SKID_Z + 0.06), 0.02, METAL, seg=12)
     if Q["full"]:
-        for k, (m, dx) in enumerate(((TRIM, 0.07), (TRIM, 0.16), (PAINT, 0.25), (DARK, 0.31))):
+        for k, (m, dx) in enumerate(((TRIM, 0.07), (PAINT, 0.15), (STRIPE, 0.23), (DARK, 0.3))):
             x = x0 - dx
-            ya, yb = y0 + 0.2 + 0.05 * k, y0 + 0.2 + 0.05 * k + 1.8
+            ya, yb = y0 + 0.15 + 0.05 * k, y0 + 0.15 + 0.05 * k + 1.75
             box("ski", (x, (ya + yb) / 2, z0 + 0.02 + 0.016 * (k % 2)), (0.085, yb - ya, 0.014), m, bevel=0)
             box("tip", (x, yb + 0.05, z0 + 0.05 + 0.016 * (k % 2)), (0.08, 0.13, 0.012), m,
                 rot=(0.5, 0, 0), bevel=0)
 
 
 def details(Q):
-    """The doors' handles, a belly beacon, an antenna on the cowl."""
+    """The doors' handles, the sliding door's rails on the right, the
+    landing lights under the chin, the belly beacon, the antennas."""
     for sx in (1, -1):
-        for y in (RA + 1.72, RA + 0.32):
-            box("handle", (side_x(y, 1.27, sx) + sx * 0.012, y, 1.27), (0.02, 0.14, 0.025), METAL, bevel=0)
+        for d in (1.78, 2.62):
+            y = aft(d)
+            box("handle", (side_x(y, ht(0.4), sx) + sx * 0.012, y, ht(0.4)), (0.02, 0.13, 0.025), METAL, bevel=0)
+    # the rear door slides aft along a rail under the cowl and one at the sill
+    sx = TSIDE
+    for zz, d0 in ((ht(0.82), 2.87), (SILL + 0.03, 2.75)):
+        ya, yb = aft(d0), aft(4.0)
+        xa, xb = side_x(ya, zz, sx), side_x(yb, zz, sx)
+        cyl("rail", (xa + sx * 0.012, ya, zz), (xb + sx * 0.012, yb, zz), 0.014, DARK, seg=8)
+    for sx in (1, -1):
+        y = aft(1.05)
+        cyl("landing", (sx * 0.22, y, FLOOR + 0.02), (sx * 0.22, y, FLOOR - 0.03), 0.07, METAL, seg=16)
+        cyl("landing_lens", (sx * 0.22, y, FLOOR - 0.025), (sx * 0.22, y, FLOOR - 0.035), 0.055, GLASS, seg=16)
     ellipsoid("belly_beacon", (0, RA - 0.6, float(fB(RA - 0.6)) - 0.015), (0.04, 0.07, 0.03), LAMP)
     if Q["full"]:
-        box("antenna", (0, RA - 2.1, float(fTc(RA - 2.1)) + 0.07), (0.01, 0.18, 0.13), DARK,
-            rot=(0.25, 0, 0), bevel=0)
+        box("antenna", (0, RA - 0.6, float(fTc(RA - 0.6)) + 0.07), (0.012, 0.16, 0.13), DARK,
+            rot=(0.3, 0, 0), bevel=0)
+        box("antenna", (0, aft(2.3), ROOF + 0.06), (0.01, 0.12, 0.1), DARK, rot=(0.3, 0, 0), bevel=0)
+        y = RA - 2.2
+        cyl("whip", (0, y, float(fB(y)) + 0.02), (0, y - 0.45, float(fB(y)) - 0.38), 0.006, DARK, seg=6)
 
 
 def rotor(Q):
     """The main rotor: the mast, the swashplate and its links, the three-
-    armed hub with a sleeve and an elastomer to each arm, the blades —
-    chord 0.355 m, twisted 8 degrees from root to tip, the last 0.35 m swept
-    and tapered, the tips banded in the trim."""
+    armed star of the hub with an elastomer bearing and a sleeve to each
+    arm, the dome over it, and the blades — chord 0.35 m, twisted 8 degrees
+    from root to tip, the last 0.35 m swept and tapered, the tips banded in
+    the livery."""
     R, nb = ROTOR["radius"], ROTOR["blades"]
     rs = {
         None: list(np.linspace(0.5, 0.8, 5)) + list(np.linspace(0.9, R - 0.4, 12))
@@ -627,36 +759,38 @@ def rotor(Q):
         "lod0": [0.5, 0.62, 0.78, 1.5, 2.8, 4.0, 4.8, R - 0.3, R - 0.12, R],
         "lod1": [0.5, 0.78, 2.8, R - 0.3, R],
     }[Q["blade"]]
-    c0, r0 = 0.355, rs[0]
-    chord = lambda r: (0.16 + (c0 - 0.16) * float(sstep(r0, 0.8, r))) * (1 - 0.4 * float(sstep(R - 0.35, R, r)))
+    c0, r0 = 0.35, rs[0]
+    chord = lambda r: (0.17 + (c0 - 0.17) * float(sstep(r0, 0.8, r))) * (1 - 0.4 * float(sstep(R - 0.35, R, r)))
     pitch = lambda r: math.radians(9 - 8 * (r - r0) / (R - r0))
     thick = lambda r: 0.12 + 0.25 * (1 - float(sstep(r0, 0.8, r)))
     sweep = lambda r: 0.12 * float(sstep(R - 0.35, R, r)) ** 1.5
     zt = float(fTc(RA))
-    cyl("mast", (0, RA, zt - 0.05), HUB + Vector((0, 0, -0.03)), 0.07, METAL, seg=20)
-    cyl("swash", HUB + Vector((0, 0, -0.33)), HUB + Vector((0, 0, -0.29)), 0.22, DARK, seg=28)
-    cyl("swash_top", HUB + Vector((0, 0, -0.29)), HUB + Vector((0, 0, -0.25)), 0.2, METAL, seg=28)
-    cyl("hub", HUB + Vector((0, 0, -0.05)), HUB + Vector((0, 0, 0.03)), 0.17, METAL, seg=28)
-    ellipsoid("cap", HUB + Vector((0, 0, 0.04)), (0.12, 0.12, 0.07), METAL)
+    cyl("mast", (0, RA, zt - 0.05), HUB + Vector((0, 0, -0.03)), 0.075, METAL, seg=20)
+    cyl("swash", HUB + Vector((0, 0, -0.34)), HUB + Vector((0, 0, -0.29)), 0.23, DARK, seg=28)
+    cyl("swash_top", HUB + Vector((0, 0, -0.29)), HUB + Vector((0, 0, -0.25)), 0.21, METAL, seg=28)
+    cyl("hub", HUB + Vector((0, 0, -0.06)), HUB + Vector((0, 0, 0.02)), 0.17, METAL, seg=28)
+    ellipsoid("cap", HUB + Vector((0, 0, 0.05)), (0.17, 0.17, 0.1), METAL)
     tip_from = R - 0.32
     for k in range(nb):
         ph = -math.pi / 2 + 2 * math.pi * k / nb
         e = Vector((math.cos(ph), math.sin(ph), 0))
         t = Vector((math.sin(ph), -math.cos(ph), 0))
-        box("arm", HUB + e * 0.24, (0.48, 0.12, 0.045), DARK, rot=(0, 0, ph), bevel=0 if GAME else 0.006)
-        cyl("sleeve", HUB + e * 0.14 + Vector((0, 0, -0.07)), HUB + e * 0.55 + Vector((0, 0, -0.04)),
-            0.055, METAL, r2=0.045, seg=16)
-        box("adapter", HUB + e * 0.36 + Vector((0, 0, -0.1)), (0.12, 0.1, 0.07), DARK, rot=(0, 0, ph), bevel=0)
-        horn = HUB + e * 0.34 + t * 0.1 + Vector((0, 0, -0.06))
-        box("horn", horn, (0.05, 0.1, 0.03), METAL, rot=(0, 0, ph), bevel=0)
+        box("arm", HUB + e * 0.27, (0.52, 0.17, 0.035), DARK, rot=(0, 0, ph), bevel=0 if GAME else 0.006)
+        cyl("bearing", HUB + e * 0.24 + Vector((0, 0, -0.07)), HUB + e * 0.24 + Vector((0, 0, 0.03)),
+            0.06, DARK, seg=16)
+        cyl("sleeve", HUB + e * 0.14 + Vector((0, 0, -0.08)), HUB + e * 0.56 + Vector((0, 0, -0.04)),
+            0.06, METAL, r2=0.045, seg=16)
+        box("adapter", HUB + e * 0.4 + Vector((0, 0, -0.11)), (0.13, 0.11, 0.07), DARK, rot=(0, 0, ph), bevel=0)
+        horn = HUB + e * 0.34 + t * 0.11 + Vector((0, 0, -0.07))
+        box("horn", horn, (0.05, 0.11, 0.03), METAL, rot=(0, 0, ph), bevel=0)
         if Q["full"]:
             lk = HUB + (e * math.cos(0.35) + t * math.sin(0.35)) * 0.2 + Vector((0, 0, -0.27))
-            cyl("link", lk, horn, 0.012, METAL, seg=8)
+            cyl("link", lk, horn, 0.013, METAL, seg=8)
         a = Vector((0, 0, 1))
         blade("blade", HUB + Vector((0, 0, -0.04)), e, t, a, [r for r in rs if r <= tip_from] + [tip_from],
               chord, pitch, thick, sweep, Q, ROTOR_M)
         blade("tipband", HUB + Vector((0, 0, -0.04)), e, t, a, [tip_from] + [r for r in rs if r > tip_from],
-              chord, pitch, thick, sweep, Q, TRIM)
+              chord, pitch, thick, sweep, Q, PAINT)
 
 
 def tail_rotor(Q):
@@ -741,7 +875,11 @@ def build(detail):
 
 
 def cameras():
-    """The studio's views of a machine 11 m long under a rotor 10.7 m across."""
+    """The studio's views of a machine 11 m long under a rotor 10.7 m across:
+    the stills (three-quarter, side, front, rear, top, close-ups), the views
+    the reference photographs were taken from, and three ORTHOGRAPHIC views
+    at 100 px/m, the nose 95 px from the left (`oside` from the left side,
+    `otop` with the right side up, `ofront`), to lay a three-view over."""
     for o in [o for o in COL.objects if o.type == "CAMERA"]:
         bpy.data.objects.remove(o)
     cams = {}
@@ -751,6 +889,11 @@ def cameras():
         "rear3": ((7, -15, 4.5), (0, -2, 1.6), 35), "top": ((0, -1.0, 32), None, 45),
         "hub": ((2.2, 2.6, 3.9), (0, 0.1, 2.9), 40), "skid": ((4.2, 3.2, 1.3), (0.6, 0.2, 0.8), 30),
         "basket": ((-4.0, 3.5, 1.6), (-1.2, 0.1, 0.5), 32), "tail": ((3.5, -9.6, 2.4), (0, -6.0, 1.7), 40),
+        # the photographs' own: a three-quarter from the front right, low
+        # and close; the left side from a little ahead; the left side over
+        # snow from a little above; the chase from behind and above
+        "photo3": ((-4.0, 6.4, 0.95), (0, 0.6, 1.45), 22), "photoside": ((-15, 3.0, 1.4), (0, -1.4, 1.5), 42),
+        "photosnow": ((-17, 5.5, 3.3), (0, -1.6, 1.5), 45), "chase": ((1.5, -17, 7.5), (0, -1.2, 1.7), 35),
     }
     for name, (loc, target, lens) in views.items():
         cd = bpy.data.cameras.new(name)
@@ -769,6 +912,19 @@ def cameras():
             tt.target = empty
             tt.track_axis = "TRACK_NEGATIVE_Z"
             tt.up_axis = "UP_Y"
+        cams[name] = cam
+    yc = NOSE - 5.45
+    for name, loc, rot in (("oside", (-40, yc, 1.75), (math.pi / 2, 0, -math.pi / 2)),
+                           ("otop", (0, yc, 40), (0, 0, -math.pi / 2)),
+                           ("ofront", (0, 40, 1.75), (math.pi / 2, 0, math.pi))):
+        cd = bpy.data.cameras.new(name)
+        cd.type = "ORTHO"
+        cd.ortho_scale = 12.8
+        cd.clip_end = 300
+        cam = bpy.data.objects.new(name, cd)
+        COL.objects.link(cam)
+        cam.location = loc
+        cam.rotation_euler = rot
         cams[name] = cam
     return cams
 

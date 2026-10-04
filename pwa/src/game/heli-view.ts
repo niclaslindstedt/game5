@@ -266,8 +266,15 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
     lights.add(sprite);
     return sprite;
   };
-  const beacons = [halo(0xff2a10, 0, 2.62, 6.75, 2.2), halo(0xff2a10, 0, 0.42, 0.6, 2)];
-  const navs = [halo(0xff3020, -1.2, 1.45, 5.55, 1.2), halo(0x30ff60, 1.2, 1.45, 5.55, 1.2)];
+  // Where the builder (`scripts/blender/heli.py`) puts them: the beacon on
+  // the fin's top strike point, the navs on the stabiliser's end plates.
+  const finTop = HELI.body.strike.reduce((a, p) => (p.y > a.y ? p : a));
+  const beacons = [
+    halo(0xff2a10, 0, finTop.y + 0.02, -(HELI.body.tail + 0.17), 2.2),
+    halo(0xff2a10, 0, 0.42, 0.45, 2),
+  ];
+  const stab = -(HELI.tail.hub.z + 1.35);
+  const navs = [halo(0xff3020, -1.3, 1.85, stab, 1.2), halo(0x30ff60, 1.3, 1.85, stab, 1.2)];
   const strobe = halo(0xe8f4ff, 0, 2.1, 1.0, 6);
   let disposed = false;
 

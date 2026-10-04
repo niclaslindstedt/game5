@@ -33,7 +33,7 @@ import { GHOST_FORMAT, GHOST_PREFIX, type GhostRun } from "../pwa/src/game/ghost
 import { RECORDS_KEY, recordId, type RecordBook } from "../pwa/src/game/records.ts";
 import { freshSettings } from "../pwa/src/game/settings.ts";
 
-const raceId = recordId({ seed: 5, skis: "hare", mode: "race", laps: 3 });
+const raceId = recordId({ seed: 5, skis: "hare", mode: "slalom", laps: 3 });
 const trialId = recordId({ seed: 5, skis: "hare", mode: "timeTrial", laps: 1 });
 
 const book = (rows: Record<string, number>): RecordBook =>

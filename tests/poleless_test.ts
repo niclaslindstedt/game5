@@ -238,9 +238,9 @@ describe("the pick (outfit.ts, settings.ts, url-params.ts)", () => {
     expect(readParams("?poles=0").poles).toBe(false);
     expect(readParams("?poles=1").poles).toBe(true);
     const bare = createGame({ level: flatLevel(), quiet: true, poles: false });
-    expect(reproQuery(reproOf(bare, "race", "chase"))).toContain("poles=0");
+    expect(reproQuery(reproOf(bare, "slalom", "chase"))).toContain("poles=0");
     const poled = createGame({ level: flatLevel(), quiet: true });
-    expect(reproQuery(reproOf(poled, "race", "chase"))).not.toContain("poles");
+    expect(reproQuery(reproOf(poled, "slalom", "chase"))).not.toContain("poles");
   });
 
   it("stands a free ride up without poles", () => {

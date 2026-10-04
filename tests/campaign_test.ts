@@ -64,7 +64,7 @@ function orderWith(place: number): (number | null)[] {
 }
 
 const [FIRST, SECOND, THIRD] = SHELVES;
-const race = (shelf = FIRST): CampaignLevel => shelf.levels.find((l) => l.mode === "race")!;
+const race = (shelf = FIRST): CampaignLevel => shelf.levels.find((l) => l.mode === "slalom")!;
 const trial = (shelf = FIRST): CampaignLevel => shelf.levels.find((l) => l.mode === "timeTrial")!;
 
 /** Every map of a shelf cleared: the race won, the trial on gold. */
@@ -127,8 +127,8 @@ describe("the ladder", () => {
 
   it("opens and closes every shelf on a race, with two trials between", () => {
     for (const shelf of SHELVES) {
-      expect(shelf.levels[0].mode).toBe("race");
-      expect(shelf.levels[shelf.levels.length - 1].mode).toBe("race");
+      expect(shelf.levels[0].mode).toBe("slalom");
+      expect(shelf.levels[shelf.levels.length - 1].mode).toBe("slalom");
       expect(shelf.levels.filter((l) => l.mode === "timeTrial")).toHaveLength(2);
     }
   });
@@ -136,7 +136,7 @@ describe("the ladder", () => {
   it("skis every rung as one run top to bottom, and prices every trial gold under silver under bronze", () => {
     for (const level of CAMPAIGN_LEVELS) {
       expect(level.laps).toBe(1);
-      if (level.mode === "race") {
+      if (level.mode === "slalom") {
         expect(level.medals).toBeUndefined();
       } else {
         const m = level.medals!;
@@ -346,7 +346,7 @@ describe("a stored board", () => {
 describe("which map a run is on", () => {
   it("rides every pinned map as a race or a time trial, and none as a free ride", () => {
     for (const level of CAMPAIGN_LEVELS) {
-      expect(fitsMode(level, "race")).toBe(true);
+      expect(fitsMode(level, "slalom")).toBe(true);
       expect(fitsMode(level, "timeTrial")).toBe(true);
       expect(fitsMode(level, "free")).toBe(false);
       expect(fitsMode(level, "tricks")).toBe(false);
@@ -354,12 +354,12 @@ describe("which map a run is on", () => {
   });
 
   it("puts a measured run on the chosen map, the first rung by default, and a link on its seed", () => {
-    expect(pinnedFor(null, "race", null)).toBe(CAMPAIGN_LEVELS[0]);
+    expect(pinnedFor(null, "slalom", null)).toBe(CAMPAIGN_LEVELS[0]);
     const late = SHELVES[3].levels[1].id;
     expect(pinnedFor(late, "timeTrial", null)?.id).toBe(late);
-    expect(pinnedFor("nowhere-2", "race", null)).toBe(CAMPAIGN_LEVELS[0]);
+    expect(pinnedFor("nowhere-2", "slalom", null)).toBe(CAMPAIGN_LEVELS[0]);
     expect(pinnedFor(late, "free", null)).toBeNull();
-    expect(pinnedFor(late, "race", 38)).toBeNull();
+    expect(pinnedFor(late, "slalom", 38)).toBeNull();
   });
 
   it("stands a rung up in its own mode and laps, with nobody leaning on anybody", () => {
@@ -371,12 +371,12 @@ describe("which map a run is on", () => {
     expect(rung.level).toBe(built);
     // Off the level card: the race over the race's one run top to bottom
     // (a trial rung's map included), the trial over the chip's.
-    expect(pinnedRun(trial(), "race", false, skier, 1, built)).toMatchObject({
-      mode: "race",
+    expect(pinnedRun(trial(), "slalom", false, skier, 1, built)).toMatchObject({
+      mode: "slalom",
       laps: LEVEL_RULES.race.laps,
     });
     expect(pinnedRun(t, "timeTrial", false, skier, 1, built)).toMatchObject({ laps: 1 });
-    expect(pinnedGameOptions(t, "race", skier, { built }).contact).toBeUndefined();
+    expect(pinnedGameOptions(t, "slalom", skier, { built }).contact).toBeUndefined();
   });
 
   it("bills the front door off the board and the chosen map", () => {
@@ -402,8 +402,8 @@ describe("which map a run is on", () => {
       mode: "timeTrial",
     });
     expect(skisBack(null, "free", null)).toBe("start");
-    expect(skisBack(FIRST.levels[0], "race", null)).toBe("campaign");
-    expect(skisBack(null, "race", null)).toBe("levels");
+    expect(skisBack(FIRST.levels[0], "slalom", null)).toBe("campaign");
+    expect(skisBack(null, "slalom", null)).toBe("levels");
     expect(skisBack(null, "timeTrial", 7)).toBe("root");
     expect(skisBack(null, "tricks", null)).toBe("tricks");
     expect(skisBack(null, "tricks", 7)).toBe("root");

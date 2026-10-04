@@ -41,7 +41,7 @@ describe("the crowd is dealt", () => {
     expect(free().crowd!.amateurs.length).toBe(CROWD.count);
     expect(free(40).crowd!.amateurs.length).toBe(40);
     expect(free(0).crowd).toBeUndefined();
-    for (const mode of ["race", "timeTrial"] as const) {
+    for (const mode of ["slalom", "timeTrial"] as const) {
       expect(createGame({ level, seed: SEED, mode, quiet: true }).crowd).toBeUndefined();
     }
     // A measured run has the snow to itself unless it asks.

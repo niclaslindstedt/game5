@@ -125,7 +125,7 @@ export function createRunBook(world: GhostWorld): RunBook {
   const now = world.now ?? Date.now;
   let book: RecordBook = store.loadBook();
   let ticket: RunTicket | null = null;
-  let ledger: RunLedger = { mode: "race", standing: null };
+  let ledger: RunLedger = { mode: "slalom", standing: null };
   let crossings: number[] = [];
   let settled: Settled | null = null;
   let recorder: ControlRecorder | null = null;
@@ -140,7 +140,7 @@ export function createRunBook(world: GhostWorld): RunBook {
 
   const clear = (): void => {
     ticket = null;
-    ledger = { mode: "race", standing: null };
+    ledger = { mode: "slalom", standing: null };
     crossings = [];
     settled = null;
     recorder = null;

@@ -113,11 +113,11 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
 }
 
 /** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: every one of them takes the
- * RACE and the TIME TRIAL — a map carries no discipline of its own, the piste
- * is the piste — and none takes the FREE RIDE, the one mode allowed a seed and
- * a day of its own. */
+ * SLALOM (set on its steepest stretch, R31) and the TIME TRIAL — a map
+ * carries no discipline of its own, the piste is the piste — and none takes
+ * the FREE RIDE, the one mode allowed a seed and a day of its own. */
 export function fitsMode(_level: CampaignLevel, mode: GameMode): boolean {
-  return mode === "race" || mode === "timeTrial";
+  return mode === "slalom" || mode === "timeTrial";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
@@ -156,7 +156,7 @@ export function pinnedPress(
 ): [CampaignLevel, CampaignLevel["mode"], boolean] | null {
   if (rung) return [rung, rung.mode, true];
   const pin = pinnedFor(chosen, mode, linkSeed);
-  return pin ? [pin, mode === "timeTrial" ? "timeTrial" : "race", false] : null;
+  return pin ? [pin, mode === "timeTrial" ? "timeTrial" : "slalom", false] : null;
 }
 
 /** Whether `level` is the very map `pin` builds — the same seed on the same
@@ -330,7 +330,7 @@ export function recordRun(
     medal: stood === undefined ? medal : bestMedal(stood.medal, medal),
   };
   const results = { ...progress.results, [level.id]: result };
-  if (level.mode !== "race") return { results, points: progress.points };
+  if (level.mode !== "slalom") return { results, points: progress.points };
   const scored: LevelScores = {};
   run.order.forEach((id, i) => {
     scored[skierKey(id)] = pointsFor(i + 1);
@@ -443,7 +443,7 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
 export function continueAt(shelf: CampaignShelf, progress: CampaignProgress): CampaignLevel | null {
   const open = shelf.levels.filter((_l, index) => levelUnlocked(shelf, index, progress));
   const spent = (level: CampaignLevel): boolean =>
-    level.mode === "race"
+    level.mode === "slalom"
       ? (progress.points[level.id]?.[PLAYER_ID] ?? 0) === POINTS[0]
       : progress.results[level.id]?.medal === MEDALS[MEDALS.length - 1];
   return (
@@ -488,7 +488,7 @@ export function frontDoorPins(
       ...campaignStanding(progress),
       next: continueAt(reachedShelf(progress), progress)?.name ?? null,
     },
-    raceMap: pinnedFor(chosen, "race", linkSeed)?.name ?? null,
+    raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
     trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
   };
 }
@@ -525,8 +525,10 @@ export function ladderAfter(levelId: string, progress: CampaignProgress): Ladder
  * courses, its ids the area's (`rime-1` …). v4 keeps the ids and moves every
  * map onto the generator that stands its stations beside the runs (four new
  * ski areas, new courses), so a v3 board is left where it lies rather than
- * read onto maps it was never won on. */
-export const PROGRESS_KEY = "fall-line.campaign.v4";
+ * read onto maps it was never won on. v5 keeps the ids and the maps and
+ * turns every race rung into a SLALOM (R31): a podium on a course the old
+ * board's places were never won on. */
+export const PROGRESS_KEY = "fall-line.campaign.v5";
 
 /** A stored blob turned into progress this build can stand on: every id
  * checked against this ladder, every figure checked for being a number, and

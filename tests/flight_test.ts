@@ -136,7 +136,7 @@ describe("a landing sticks", () => {
 
 describe("the air's pull", () => {
   // The same staged launch, climbing 8.5 m/s off the flat.
-  function hang(mode: "race" | "tricks"): number {
+  function hang(mode: "timeTrial" | "tricks"): number {
     const state = createGame({ level: flatLevel({ packed: 1 }), mode, countdown: 0, quiet: true });
     placeRun(state, { x: 1500, z: 200, heading: 0, speed: 18, height: 1.2, vy: 8.5 });
     const land = ride(state, 4, TUCK).find((e) => e.kind === "land");
@@ -144,7 +144,7 @@ describe("the air's pull", () => {
   }
 
   it("is the arcade's heavier air on a race and the real g on a tricks run", () => {
-    const race = hang("race");
+    const race = hang("timeTrial");
     const tricks = hang("tricks");
     expect(race).toBeGreaterThan(0.8);
     // Air time off the same launch goes as 1/g.

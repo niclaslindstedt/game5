@@ -188,7 +188,7 @@ describe("what names the snow", () => {
     const stage = ghostStage(KEY, LEVEL)!;
     expect(stage.id).toBe(recordId(KEY));
     expect(stage.map).toBe(mapPrint(syntheticLevel({ laps: 1 })));
-    expect(ghostStage({ ...KEY, mode: "race" }, LEVEL)).toBeNull();
+    expect(ghostStage({ ...KEY, mode: "slalom" }, LEVEL)).toBeNull();
     const moved = syntheticLevel({ laps: 1 });
     moved.checkpoints[1] = { ...moved.checkpoints[1], x: moved.checkpoints[1].x + 5 };
     expect(mapPrint(moved)).not.toBe(stage.map);
@@ -321,7 +321,7 @@ describe("the rig", () => {
   it("a race is filed but keeps no tape, and a run armed late keeps none either", () => {
     const mem = memoryStore();
     const rig = createRunBook({ show: () => {}, store: mem.store });
-    const race: RunTicket = { ...TICKET, key: { ...KEY, mode: "race" } };
+    const race: RunTicket = { ...TICKET, key: { ...KEY, mode: "slalom" } };
     const run = createGame({ level: LEVEL, seed: 7, rivals: 0, quiet: true });
     rig.arm(run, race);
     for (let i = 0; i < MAX_STEPS && !run.progress.finished; i++) {

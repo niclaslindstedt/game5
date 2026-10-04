@@ -149,7 +149,7 @@ describe("riding a lift on a free ride", () => {
 
   it("is a free ride's alone: a race never boards", () => {
     const plan = of("chair")!;
-    const run = createGame({ level, mode: "race", rivals: 0, countdown: 0, quiet: true });
+    const run = createGame({ level, rivals: 0, countdown: 0, quiet: true });
     const e = plan.look.entry;
     standSkier(
       run,

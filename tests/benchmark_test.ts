@@ -77,7 +77,6 @@ function rideBenchmark(): { state: GameState; airs: number; treesNear: number } 
   const state = createGame({
     seed: BENCHMARK.seed,
     level: benchmarkLevel(),
-    mode: BENCHMARK.mode,
     sky: BENCHMARK.sky,
     quiet: true,
   });
@@ -102,7 +101,7 @@ describe("what the benchmark runs (benchmark-plan.ts)", () => {
   const ride = rideBenchmark();
 
   it("PUTS THE WHOLE FIELD ON THE SNOW — the heaviest thing the game does", () => {
-    expect(BENCHMARK.mode).toBe("race");
+    expect(BENCHMARK.mode).toBe("field");
     expect(ride.state.rivals.length).toBe(RACE.rivals);
   });
 
@@ -411,7 +410,7 @@ describe("the REPRO line (debug-readout.ts)", () => {
     const state = createGame({ seed: 7, quiet: true });
     expect(readParams(reproQuery(reproOf(state, "free", "chase"))).free).toBe(true);
     expect(readParams(reproQuery(reproOf(state, "tricks", "chase"))).mode).toBe("tricks");
-    expect(readParams(reproQuery(reproOf(state, "race", "chase"))).mode).toBe("race");
+    expect(readParams(reproQuery(reproOf(state, "slalom", "chase"))).mode).toBe("slalom");
   });
 
   it("reads a pose back, and refuses anything that is not one", () => {

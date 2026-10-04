@@ -13,8 +13,8 @@
 //     the line dyed checkered across the snow under it (`start-arch.ts`
 //     says where and how big), safety NETS fencing the last stretch either
 //     side, and two FLOODLIGHT masts at the arch's feet, aimed back up the
-//     piste — the lamps that light the snow after dark (`snow-glsl.ts`'s
-//     lamp slots), since a skier carries none.
+//     piste — two of the lamps that light the snow after dark
+//     (`snow-glsl.ts`'s lamp slots).
 //   * THE EDGE POLES: a stake every twenty-five metres along both edges of every
 //     run on the mountain (R27), painted in ITS GRADE (R23, `grade-look.ts`
 //     — green, blue, red or black, as a piste is marked), the right-hand ones banded
@@ -24,6 +24,8 @@
 //   * THE SIGNS: a board on a post at the head of every run and where a
 //     lane leaves one — its mark, its number, its name, an arrow
 //     (`run-signs.ts`).
+//   * THE PISTE LIGHTS: a floodlight mast every fifty metres or so down
+//     every run, lit with the floods (`piste-lights.ts`).
 //
 // THE NEXT GATE IS THE ONE THAT MATTERS, so it is the one that is loud:
 // its panels are their colour at full strength and breathe a little light,
@@ -55,6 +57,7 @@ import {
   gatePole,
   startHut,
 } from "./mark-shapes.ts";
+import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
 import { STRINGS } from "./strings.ts";
@@ -97,9 +100,10 @@ export type Gates = {
   floods: Flood[];
   /** Highlight checkpoint `next`; `t` is seconds, for the breathing. */
   update(next: number, t: number): void;
-  /** The night's lights at `level` (0 off … 1): the floods' glow and the
-   * edge poles' reflectors. */
-  setLamps(level: number): void;
+  /** The night's lights at `level` (0 off … 1): the floods' glow, the
+   * edge poles' reflectors and the piste lights along every run, with
+   * `pixels` the lens's focal length in pixels. */
+  setLamps(level: number, pixels: number): void;
   dispose(): void;
 };
 
@@ -629,6 +633,10 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const signs = createRunSigns(level, haze);
   group.add(signs.group);
 
+  // THE PISTE LIGHTS: the floodlight masts down every run.
+  const lights = createPisteLights(level, haze);
+  group.add(lights.group);
+
   const breathing = new THREE.Color();
   let lit = -1;
   return {
@@ -655,8 +663,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       }
       if (panels.instanceColor) panels.instanceColor.needsUpdate = true;
     },
-    setLamps(level) {
+    setLamps(level, pixels) {
       const on = Math.min(1, Math.max(0, level));
+      lights.setLamps(on, pixels);
       for (const h of floodHeads) h.emissiveIntensity = FLOOD.day + FLOOD.night * on;
       for (const s of floodGlows) {
         s.visible = on > 0.02;
@@ -672,6 +681,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       stakes.dispose();
       bands.dispose();
       signs.dispose();
+      lights.dispose();
       for (const t of texs) t.dispose();
     },
   };

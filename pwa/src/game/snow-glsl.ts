@@ -453,7 +453,8 @@ normal = normalize((viewMatrix * vec4(snowN, 0.0)).xyz);
  *
  * THE LAMPS (`uLamp*`, `haze.ts`'s `lampReach`): a floodlight's cone
  * from its mast, a skier's headlamp's spot and the wide flood round it,
- * each falling off with the square of the distance in its own colour; the
+ * each falling off with the square of the distance in its own colour, and
+ * the piste lights' baked light (`pisteLight`) on the runs they stand by; the
  * snow in a beam glitters toward the lamp as it does toward the sun, which
  * is what makes a lit pool of snow read as snow at night. */
 export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
@@ -477,6 +478,18 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
     if (snowDist < 40.0) {
       vec3 H = normalize(L + V);
       lampGlint += uLampCol[i] * (e * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 57.0));
+    }
+  }
+  // THE PISTE LIGHTS, baked: a lit run's snow glitters toward its masts.
+  if (uPisteOn.x > 0.0) {
+    vec3 pv = pisteLight(vSnowWorld);
+    float pe = length(pv);
+    if (pe > 1e-4) {
+      lampLit += uPisteCol * max(dot(snowN, pv), 0.0);
+      if (snowDist < 40.0) {
+        vec3 H = normalize(pv / pe + V);
+        lampGlint += uPisteCol * (pe * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 83.0));
+      }
     }
   }
   reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lampLit * 9.0;

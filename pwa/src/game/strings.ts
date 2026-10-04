@@ -328,7 +328,7 @@ export const STRINGS = {
   },
   startTime: "TIME",
   startTimeHint:
-    "The time of day the run starts at, on that date at that mountain's latitude — a night run under the moon, the finish arena lit by its floodlights. The sun stays where it is for the whole run.",
+    "The time of day the run starts at, on that date at that mountain's latitude — a night run under the moon, the runs lit by their floodlight masts and the woods between them dark. The sun stays where it is for the whole run.",
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
   startWeather: "WEATHER",
   startWeatherHint:

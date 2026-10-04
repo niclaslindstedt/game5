@@ -14,7 +14,7 @@
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { Quat } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Level } from "../mapgen/types.ts";
-import type { SkiSpec } from "./defs/skis.ts";
+import type { SkiId, SkiSpec } from "./defs/skis.ts";
 import type { Assist, RunRules } from "./defs/modes.ts";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
 import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
@@ -500,6 +500,19 @@ export type Progress = {
   /** How far the skier has skied, m of plan distance — a reset's jump not
    * counted. The free ride's odometer; a race keeps it too. */
   distance: number;
+  /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
+   * finish, why, and at which gate — the run over (`finished` with it) and
+   * no time to rank. Null on every run that is still in it or home. */
+  out: RunOut | null;
+};
+
+/** How a racer goes out under the strict gates (R31): DISQUALIFIED for a
+ * gate MISSED, a pole STRADDLED or a START outside the window — or DID NOT
+ * FINISH, stopped by a FALL. `gate` is the checkpoint it happened at. */
+export type RunOut = {
+  status: "dsq" | "dnf";
+  why: "missed" | "straddle" | "start" | "fall";
+  gate: number;
 };
 
 /** ANOTHER SKIER ON THE SAME SNOW (`rivals.ts`): a whole run of its own
@@ -615,6 +628,8 @@ export type GameEvent =
   | { kind: "lap"; t: number; lap: number; time: number }
   /** The finish: the whole run's `time`, and the `place` it earned. */
   | { kind: "finish"; t: number; time: number; place: number }
+  /** OUT OF THE RACE (R31): disqualified or did not finish — the run over. */
+  | { kind: "out"; t: number; out: RunOut }
   /** Stood back on the piste at `checkpoint` (-1: at the start line);
    * `auto` when the engine did it rather than the skier. */
   | { kind: "reset"; t: number; checkpoint: number; auto: boolean }
@@ -762,6 +777,28 @@ export type CrowdState = {
   queues: number[][];
 };
 
+/** One racer of an interval start's field (`field.ts`): his slot (as a
+ * rival's id), the skis he was on, this run's time — null when he went
+ * out — and how, the clock at every gate, and the time he carried in from
+ * the first run (0 on the first). */
+export type FieldRun = {
+  id: number;
+  skis: SkiId;
+  time: number | null;
+  out: RunOut | null;
+  splits: number[];
+  before: number;
+};
+
+/** AN INTERVAL START'S FIELD: which run of the race this is, every racer
+ * of it in start order, and the time the PLAYER carries in from the first
+ * run (0 on the first). */
+export type Field = {
+  run: 1 | 2;
+  runs: FieldRun[];
+  before: number;
+};
+
 /** `countdown` is the lights: the field stands in the start gate, nothing
  * is steered and the clock reads 0. `racing` runs the clock; `finished`
  * coasts. */
@@ -796,8 +833,12 @@ export type GameState = {
    * surface is. */
   fresh: number;
   /** THE FIELD: every other skier, in start-line order; empty on a solo
-   * run. */
+   * run — and on an interval start, whose field has already skied. */
   rivals: Rival[];
+  /** THE FIELD OF AN INTERVAL START (`field.ts`): the start list skied
+   * before the player, one at a time, and what each one did — on a run
+   * whose rules start that way (the slalom); absent everywhere else. */
+  field?: Field;
   /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
    * whose rules ask for one (the free ride); absent everywhere else. */
   crowd?: CrowdState;

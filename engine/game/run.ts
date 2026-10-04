@@ -19,7 +19,7 @@
 
 import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
-import { resetSkier, stepCourse } from "./course.ts";
+import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
@@ -46,7 +46,7 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (stepLift(run, given, events)) return;
   const input = leadInput(run, given, events);
   if (input.reset && racing) {
-    resetSkier(run, events, false);
+    standUp(run, events, false);
     return;
   }
   const c = run.skier;
@@ -95,7 +95,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (!racing) return;
   const p = run.progress;
   if (p.finished) return;
-  p.time += TUNING.dt;
+  // On an interval start the clock waits for the wand.
+  if (p.started || run.rules.start !== "interval") p.time += TUNING.dt;
   p.distance += hypot(c.x - x0, c.z - z0);
   // THE BUZZER (`RunRules.limit`): the run is over wherever it stands.
   if (run.rules.limit > 0 && p.time >= run.rules.limit) {
@@ -108,7 +109,7 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (off) {
     // A thrown skier takes no gate; he is stood back up once he has lain
     // long enough.
-    if (crashOver(off)) resetSkier(run, events, true);
+    if (crashOver(off)) standUp(run, events, true);
     return;
   }
   if (run.rules.course) stepCourse(run, x0, z0, events);
@@ -116,5 +117,15 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   const R = TUNING.reset;
   // Bogged, the skier is given the time to work out (`trench.ts`).
   const stuck = c.trench > 0 ? c.trenchFor >= TUNING.trench.holdFor : c.stuckFor >= R.stuckFor;
-  if (c.overFor >= R.overFor || stuck) resetSkier(run, events, true);
+  if (c.overFor >= R.overFor || stuck) standUp(run, events, true);
+}
+
+/** THE RESET — or, under the strict gates (R31), where nobody is stood
+ * back on the course, the end of the run: a racer stopped is out. */
+function standUp(run: GameState, events: GameEvent[], auto: boolean): void {
+  if (run.rules.gates === "strict" && run.rules.course && !run.progress.finished) {
+    outRun(run, events, { status: "dnf", why: "fall", gate: run.progress.nextCheckpoint });
+    return;
+  }
+  resetSkier(run, events, auto);
 }

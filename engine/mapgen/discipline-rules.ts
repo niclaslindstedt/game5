@@ -84,6 +84,9 @@ export const DISCIPLINE_RULES = {
      * level's, then a lower race's, then an entry league's. */
     drops: [190, 160, 140, 110, 80] as readonly number[],
     vertical: { min: 140, max: 220 } as Band,
+    /** The longest a slalom runs down the piste, m: a top-level slalom
+     * hill is about 590 m long. */
+    maxLength: 720,
     /** The least piste width along it, m. */
     minWidth: 15,
     /** The finish's run-out: the steepest mean gradient past the line, and
@@ -96,8 +99,9 @@ export const DISCIPLINE_RULES = {
      * and the finish arena's box past the line: along, back up, across. */
     clear: 14,
     arena: { past: 70, before: 25, half: 40 },
-    /** How far a combination keeps from a kicker, m. */
-    kickerClear: 30,
+    /** How far the stretch keeps from a drop on the piste, m, and how far
+     * either side of it a kicker on the piste is levelled away. */
+    clearance: 30,
     /** The direction changes as a share of the vertical, and the ± on it. */
     changes: { min: 0.3, max: 0.35, slack: 3 },
     /** The spacing of the gates down the piste, m (plan). */

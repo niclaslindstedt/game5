@@ -13,7 +13,7 @@
 // amateurs down their runs, and the player against them.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { PARK_VERSION, generateLevel, withDay, withSky } from "../mapgen/index.ts";
+import { PARK_VERSION, generateLevel, setSlalom, withDay, withSky } from "../mapgen/index.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
@@ -24,6 +24,7 @@ import {
   FULL_ASSIST,
   MODE_RULES,
   RACE,
+  fieldRules,
   clampResilience,
   clampSnowDepth,
   type Assist,
@@ -33,6 +34,7 @@ import {
 import { SKIS, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
+import { createField, type Heat } from "./field.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift } from "./lift-ride.ts";
 import { stepRun } from "./run.ts";
@@ -54,9 +56,14 @@ export type CreateGameOptions = {
   /** The piste grade the seed's map is built to (R23); the one the seed
    * deals when left out. Ignored when `level` is given. */
   grade?: PisteGrade;
-  /** The mode whose rules the run is dealt (`MODE_RULES`); a race when left
-   * out. Each option below still overrides its own rule. */
+  /** The mode whose rules the run is dealt (`MODE_RULES`); the field on
+   * the start line (`fieldRules`) when left out. Each option below still
+   * overrides its own rule. */
   mode?: GameMode;
+  /** A SLALOM's SECOND RUN (`field.ts`): the first run carried in — the
+   * course set afresh (R31), only the first run's finishers starting, the
+   * standings on combined time. The first run when left out. */
+  heat?: Heat;
   /** How many rivals stand on the start line (`RACE.rivals` when left out;
    * 0 is a solo run — what the sim and the labs ski). */
   rivals?: number;
@@ -122,7 +129,8 @@ export type CreateGameOptions = {
 
 /** The rules a run is dealt from what it asked for. */
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
-  const base = MODE_RULES[options.mode ?? "race"](options.laps ?? level.laps);
+  const laps = options.laps ?? level.laps;
+  const base = options.mode ? MODE_RULES[options.mode](laps) : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -134,6 +142,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     airGravity: base.airGravity,
     crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
     lifts: base.lifts,
+    start: base.start,
+    gates: base.gates,
+    window: base.window,
   };
 }
 
@@ -149,7 +160,13 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       grade: options.grade,
       version: tricks ? PARK_VERSION : undefined,
     });
-  const dayed = options.day ? withDay(built, options.day) : built;
+  // A SLALOM is set over the map (R31) — run one's course, or the second
+  // run's — and any other mode skis the map under a slalom set over it.
+  const course =
+    options.mode === "slalom"
+      ? setSlalom(built, options.heat?.run ?? 1)
+      : (built.slalom?.base ?? built);
+  const dayed = options.day ? withDay(course, options.day) : course;
   const level = options.sky ? withSky(dayed, options.sky) : dayed;
   const seed = options.seed ?? level.seed;
   const rules = rulesFor(options, level);
@@ -193,7 +210,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       arriveByLift(state, level.spawn.x, level.spawn.z, course?.runs[0]);
     }
   }
-  if (rules.rivals > 0) createRivals(state, rules.rivals);
+  if (rules.rivals > 0) {
+    if (rules.start === "interval") createField(state, rules.rivals, options.heat);
+    else createRivals(state, rules.rivals);
+  }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {
     status(

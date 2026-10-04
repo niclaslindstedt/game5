@@ -3,13 +3,14 @@
 // it: the ground, the piste, the woods' outline, the day. What a slalom
 // sets over it is a COURSE — where on the piste the start hut stands and
 // where the finish line is, the pole gates down the stretch between, the
-// line a racer takes through them — and the trees the organisers cut for
-// the course and its finish arena.
+// line a racer takes through them — and what the organisers prepare for
+// it: the piste's kickers on the stretch levelled away, and the trees cut
+// for the course and its finish arena.
 //
 // THE STRETCH is found first and is the same for both runs: the steepest
 // stretch of the piste that drops the vertical a slalom asks for, wide
-// enough, clear of the piste's kickers and drops, with a gentler run-out
-// past the line for a finish arena. THE GATES are set second, off a stream
+// enough, clear of the piste's drops (a cliff is not levelled), with a
+// gentler run-out past the line for a finish arena. THE GATES are set second, off a stream
 // of the run's own (`SLALOM_SALT`, the run), so the two runs are two
 // courses on one hill and neither draws anything from any other stream.
 //
@@ -20,12 +21,18 @@
 // at the start or the finish, and the last gate fast and aimed at the
 // middle of the line.
 
-import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import {
+  sampleField,
+  sampleFieldGradient,
+  type Heightfield,
+} from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { clamp, smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { DISCIPLINE_RULES } from "./discipline-rules.ts";
+import { kickerProfile } from "./kickers.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import { startGateArc } from "./spawn.ts";
-import type { Checkpoint, Level, SlalomCourse, Spawn, TrackPoint } from "./types.ts";
+import type { Checkpoint, Kicker, Level, SlalomCourse, Spawn, TrackPoint, Vec3 } from "./types.ts";
 
 const S = DISCIPLINE_RULES.slalom;
 
@@ -39,9 +46,9 @@ export type SlalomStretch = { from: number; to: number; vertical: number };
 const stretches = new WeakMap<Level, SlalomStretch>();
 
 /** R31 — THE STRETCH: the steepest stretch of the piste that drops the
- * first of `slalom.drops` the piste has, wide enough, clear of its kickers
- * and drops, its finish on a gentler run-out. A pure function of the map,
- * kept per map. */
+ * first of `slalom.drops` the piste has, wide enough, clear of its drops,
+ * its finish on a gentler run-out. A pure function of the map, kept per
+ * map. */
 export function slalomStretch(level: Level): SlalomStretch {
   const known = stretches.get(level);
   if (known) return known;
@@ -50,13 +57,9 @@ export function slalomStretch(level: Level): SlalomStretch {
   const L = level.track.length;
   const top = startGateArc() + 4;
   const blocked: [number, number][] = [];
-  for (const k of level.kickers ?? []) {
-    if (!k.onTrack || k.s === undefined) continue;
-    blocked.push([k.s - k.ramp - S.kickerClear, k.s + k.landing + S.kickerClear]);
-  }
   for (const c of level.cliffs ?? []) {
     if (!c.onTrack || c.s === undefined) continue;
-    blocked.push([c.s - c.shelf - S.kickerClear, c.s + c.face + c.landing + S.kickerClear]);
+    blocked.push([c.s - c.shelf - S.clearance, c.s + c.face + c.landing + S.clearance]);
   }
   const step = L / Math.max(1, n - 1);
   const at = (s: number): number => clamp(Math.round(s / step), 0, n - 1);
@@ -71,6 +74,7 @@ export function slalomStretch(level: Level): SlalomStretch {
       while (a > 0 && pts[a].y - yB < drop) a--;
       const sA = pts[a].s;
       if (pts[a].y - yB < drop || sA < top) break;
+      if (sB - sA > S.maxLength) continue;
       // The run-out: gentler past the line, where there is piste to read.
       const end = Math.min(L, sB + S.outrunLength);
       if (end - sB >= S.outrunLength / 2) {
@@ -113,7 +117,7 @@ export function slalomStretch(level: Level): SlalomStretch {
 
 /** One gate as the setter lays it, before it is a checkpoint. */
 type Laid =
-  | { kind: "open"; s: number; side: number; across: number; width: number }
+  | { kind: "open"; s: number; side: number; across: number; width: number; delay?: boolean }
   | { kind: "closed"; s: number; side: number; at: number; height: number };
 
 /** A combination the setter spreads down the middle. */
@@ -161,30 +165,38 @@ function layGates(level: Level, stretch: SlalomStretch, run: 1 | 2): Laid[] {
   const first = stretch.from + 9;
   const goal = stretch.to - S.last;
   let spacing = 0;
+  let extra = 0;
   let out: Laid[] = [];
-  for (let pass = 0; pass < 6; pass++) {
-    const laid = layAt(level, stretch, createRng(seed), first, spacing);
+  for (let pass = 0; pass < 16; pass++) {
+    const laid = layAt(level, stretch, createRng(seed), first, spacing, extra);
     out = laid.gates;
-    spacing = laid.spacing;
     const end = out[out.length - 1].s;
     if (Math.abs(end - goal) < 0.25) break;
-    spacing = clamp(
-      spacing + (goal - end) / Math.max(1, laid.open - 1),
-      S.spacing.min * 0.85,
-      S.spacing.max * 1.1,
-    );
+    const next = laid.spacing + (goal - end) / Math.max(1, laid.open - 1);
+    // A spacing the rule cannot give is a gate more, or one fewer.
+    if (next > S.spacing.max) {
+      extra += 1;
+      spacing = 0;
+    } else if (next < S.spacing.min) {
+      extra -= 1;
+      spacing = 0;
+    } else {
+      spacing = next;
+    }
   }
   return out.filter((g) => g.s < stretch.to - 4);
 }
 
-/** One lay of the gates from `first` at `spacing` m between open gates (0:
- * the setter's own first guess off the count the vertical asks for). */
+/** One lay of the gates from `first` at `guess` m between open gates (0:
+ * the setter's own first guess off the count the vertical asks for), with
+ * `extra` open gates over that count. */
 function layAt(
   level: Level,
   stretch: SlalomStretch,
   rng: Rng,
   first: number,
   guess: number,
+  extra: number,
 ): { gates: Laid[]; open: number; spacing: number } {
   const combos = dealCombos(rng);
   const len = stretch.to - S.last - first;
@@ -202,7 +214,11 @@ function layAt(
   const room = Math.max(40, len - comboLength);
   // The spacing wins where the count and the hill disagree.
   let open = Math.max(2 * S.clean + combos.length + 1, asked - comboGates);
-  open = clamp(open, Math.ceil(room / S.spacing.max) + 1, Math.floor(room / S.spacing.min) + 1);
+  // (The spacing's top is what the turning poles' rule lets an open gate
+  // keep with its poles a full reach apart across the hill.)
+  const widest = Math.sqrt(S.turn.max ** 2 - (2 * S.across.max) ** 2);
+  const most = Math.min(S.spacing.max, widest);
+  open = clamp(open, Math.ceil(room / most) + 1, Math.floor(room / S.spacing.min) + 1) + extra;
   const spacing = guess > 0 ? guess : room / Math.max(1, open - 1);
   // Where each combination goes: after which open gate, spread evenly down
   // the middle, never within `clean` of either end.
@@ -256,7 +272,7 @@ function layAt(
           Math.max(S.across.min, q.width / 2 - S.inside - w),
         );
         s += on;
-        out.push({ kind: "open", s, side, across: wide, width: w });
+        out.push({ kind: "open", s, side, across: wide, width: w, delay: true });
         lastTurn = { s, x: side * wide };
         side = -side;
       } else {
@@ -287,14 +303,101 @@ function across(p: TrackPoint, by: number): { x: number; z: number } {
   return { x: p.x + Math.cos(p.heading) * by, z: p.z - Math.sin(p.heading) * by };
 }
 
+/** The map with its slalom stretch prepared: every kicker on the piste
+ * within `slalom.clearance` of the stretch LEVELLED — its profile taken back
+ * out of the piste's line and the ground under it, across the piste and
+ * eased out over the shoulders — so a racer meets the hill the piste was
+ * graded on rather than a jump. The rest of the mountain is the map's own.
+ * Kept per map, so both runs stand on one prepared hill. */
+const prepared = new WeakMap<Level, Level>();
+function levelStretch(level: Level, stretch: SlalomStretch): Level {
+  const known = prepared.get(level);
+  if (known) return known;
+  const lo = stretch.from - S.clearance;
+  const hi = stretch.to + S.clearance + S.outrunLength;
+  const gone: Kicker[] = [];
+  const kept: Kicker[] = [];
+  for (const k of level.kickers ?? []) {
+    const on = k.onTrack && k.s !== undefined && k.s + k.landing > lo && k.s - k.ramp < hi;
+    (on ? gone : kept).push(k);
+  }
+  if (gone.length === 0) {
+    prepared.set(level, level);
+    return level;
+  }
+  const field = level.ground;
+  const ground: Heightfield = { ...field, data: new Float32Array(field.data) };
+  const points = level.track.points.map((p) => ({ ...p }));
+  const ease = 6;
+  for (const k of gone) {
+    const s0 = k.s ?? 0;
+    for (const p of points) {
+      const u = p.s - s0;
+      if (u > -k.ramp && u < k.landing)
+        p.y -= kickerProfile(k.height, k.ramp, k.landing, u, k.shape);
+    }
+    // The ground under it, a cell at a time over the box round its line.
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (let s = s0 - k.ramp; s <= s0 + k.landing; s += 2) {
+      const p = trackPointAt(level, s);
+      const r = p.width / 2 + ease + 2;
+      x0 = Math.min(x0, p.x - r);
+      x1 = Math.max(x1, p.x + r);
+      z0 = Math.min(z0, p.z - r);
+      z1 = Math.max(z1, p.z + r);
+    }
+    const c0 = clamp(Math.floor((x0 - field.originX) / field.cell), 0, field.cols - 1);
+    const c1 = clamp(Math.ceil((x1 - field.originX) / field.cell), 0, field.cols - 1);
+    const r0 = clamp(Math.floor((z0 - field.originZ) / field.cell), 0, field.rows - 1);
+    const r1 = clamp(Math.ceil((z1 - field.originZ) / field.cell), 0, field.rows - 1);
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const x = field.originX + c * field.cell;
+        const z = field.originZ + r * field.cell;
+        const hit = nearestTrackPoint(level, x, z);
+        const u = hit.s - s0;
+        if (u <= -k.ramp || u >= k.landing) continue;
+        const half = (level.track.points[hit.index]?.width ?? k.width) / 2;
+        const weight = 1 - smoothstep(half, half + ease, hit.distance);
+        if (weight <= 0) continue;
+        ground.data[r * field.cols + c] -=
+          weight * kickerProfile(k.height, k.ramp, k.landing, u, k.shape);
+      }
+    }
+  }
+  const scratch = new Float64Array(3);
+  const out: Level = {
+    ...level,
+    ground,
+    groundAt: (x, z) => sampleField(ground, x, z),
+    normalAt: (x: number, z: number, n: Vec3) => {
+      sampleFieldGradient(ground, x, z, scratch);
+      const nx = -scratch[1];
+      const nz = -scratch[2];
+      const inv = 1 / Math.sqrt(nx * nx + 1 + nz * nz);
+      n.x = nx * inv;
+      n.y = inv;
+      n.z = nz * inv;
+    },
+    track: { ...level.track, points },
+    kickers: kept,
+  };
+  prepared.set(level, out);
+  return out;
+}
+
 /** R31 — A SLALOM SET OVER `level`: run `run`'s course down the slalom
  * stretch, as a map whose checkpoints are its gates and whose spawn is the
  * start hut. Setting one over a map that already carries a slalom sets it
  * over the map under that one, so a run's other course is set over the
  * same mountain and a slalom is never set twice. */
 export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
-  const base = level.slalom?.base ?? level;
-  const stretch = slalomStretch(base);
+  const original = level.slalom?.base ?? level;
+  const stretch = slalomStretch(original);
+  const base = levelStretch(original, stretch);
   const laid = layGates(base, stretch, run);
   const checkpoints: Checkpoint[] = [];
   const line: { s: number; x: number }[] = [];
@@ -333,8 +436,7 @@ export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
       // Just outside the turning pole: the racer's body over it, his feet
       // on the gate's side.
       line.push({ s: g.s, x: g.side * (g.across + 0.45) });
-      const prev = laid[i - 1];
-      if (prev?.kind === "open" && g.s - prev.s > S.delayed.min - 0.5) delays += 1;
+      if (g.delay) delays += 1;
       column = 0;
     } else {
       const mid = g.s + g.height / 2;
@@ -381,7 +483,7 @@ export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
   const spawn: Spawn = { x: hut.x, z: hut.z, heading: startAt.heading };
   const slalom: SlalomCourse = {
     run,
-    base,
+    base: original,
     from: stretch.from,
     to: stretch.to,
     vertical: stretch.vertical,

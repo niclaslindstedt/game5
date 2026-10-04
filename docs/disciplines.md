@@ -253,7 +253,11 @@ straight into a low tuck *(est.; no measured step counts found)*.
 
 Too much force for the speed means the radius is too tight: raise it or add
 skid. Speed events should be the hardest to knock off line, the slalom the
-most responsive. **Gaps**: no measured edge angles, inclination or
+most responsive. `make technique` skis every row down a real course with
+the bot and prints what it measures beside these targets (stated as bands
+in `scripts/lib/technique-measure.mjs`, off this page), with the run
+photographed from above, from behind through a turn and from the side at
+its apex. **Gaps**: no measured edge angles, inclination or
 angulation for the speed events or giant slalom, no start step counts, no
 stance widths and no downhill airtimes were found — those are *(est.)*.
 

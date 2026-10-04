@@ -6,8 +6,9 @@
 //
 //   * THE EDGE rolls at the skier's rate (`steer.edgeRate` × the pair's ×
 //     the technique's) toward the edge asked — but never further over than
-//     his body is laid to that side plus his angulation (`edgeWithin`'s
-//     rule: |incline| + `skier.angulateMost`).
+//     his body is laid to that side plus his angulation, or than his legs
+//     stand the skis under him where his technique crosses under
+//     (`incline.ts`'s `edgeReach`, the physics' own rule).
 //   * THE SKIS TURN at the rate the carve that edge buys asks of the yaw
 //     hand: the sidecut's arc (`carveCurvature`, the tips and the cut
 //     tightening it) no tighter than the ski's geometry bends
@@ -40,26 +41,34 @@
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { trackPointAt } from "../mapgen/index.ts";
 import type { TrackPoint } from "../mapgen/types.ts";
-import { techniqueOf } from "../game/defs/technique.ts";
+import { FREE, techniqueOf, type Technique } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { footprintOf } from "../game/footprint.ts";
-import { leanMostOf } from "../game/incline.ts";
-import { carveCurvature, carveMost, cornerGrip, edgeLockAt, edgeMostOf } from "../game/limits.ts";
+import { crossGate, edgeReach, leanMostOf } from "../game/incline.ts";
+import {
+  carveCurvature,
+  carveMost,
+  cornerGrip,
+  edgeLockAt,
+  edgeMostOf,
+  skidAngleAt,
+} from "../game/limits.ts";
 import { dragAreaOf } from "../game/air.ts";
-import { skidAngleAt } from "../game/skier.ts";
 import { totalMass } from "../game/defs/skis.ts";
 import type { GameState } from "../game/state.ts";
 
 /** How late the body's lean follows the lean it is held toward, s — a
- * first-order lag fitted to the engine's roll on the 20° strip (a turn
- * every 0.9–1.1 s): the lean ~15° off over 0.3 s, the way 4–5° off and
- * the line 0.15 m. */
-export const LEAN_LAG = 0.25;
+ * first-order lag fitted with `GRIP_SHARE` below: the model skied on the
+ * bot's own inputs from every quarter second of seven slaloms, 0.6 s
+ * ahead, against where the engine took him. Under the slalom's
+ * cross-under the edge waits little on the lean, and anything from 0.05
+ * to 0.4 s fits within a hundredth of a metre. */
+export const LEAN_LAG = 0.15;
 /** The share of the corner grip at an edge (`cornerGrip`, pressed) the
- * snow turns his way with — fitted the same way down real slaloms (the
- * line 0.2 m off over 0.6 s, a check in it or not): the stations' loads
- * and the shake under them take the rest. */
-export const GRIP_SHARE = 0.7;
+ * snow turns his way with — fitted with `LEAN_LAG` (the line 0.23 m off
+ * over 0.6 s on the root mean square, a check in it or not; 0.25 m at
+ * 0.7): the stations' loads and the shake under them take the rest. */
+export const GRIP_SHARE = 0.6;
 /** The longest step the model is skied on, s: the skis' slip off the way
  * settles in a few hundredths of a second. */
 export const TURN_STEP = 0.025;
@@ -100,6 +109,8 @@ export type TurnModel = {
    * piste, and the snow's push along its normal, m/s². */
   across: number;
   normal: number;
+  /** The pitch under him, rad. */
+  fall: number;
   packed: number;
   /** At each tabled edge: the yaw rate the carve asks for, rad/s; the
    * grip across the skis, m/s²; and the lean the bend that edge asks for
@@ -108,6 +119,8 @@ export type TurnModel = {
   grip: Float64Array;
   asked: Float64Array;
   leanMost: number;
+  /** The technique the edge change is read off (`Technique.cross`). */
+  technique: Technique;
   /** THE CHECK he is about to ask for (the brake, 0..1), and how far a
    * skid pivots the skis at this speed, rad (`skidAngleAt`). */
   brake: number;
@@ -123,11 +136,13 @@ export function createTurnModel(): TurnModel {
     held: 0.2,
     across: 0,
     normal: TUNING.g,
+    fall: 0,
     packed: 1,
     yaw: new Float64Array(TABLE + 1),
     grip: new Float64Array(TABLE + 1),
     asked: new Float64Array(TABLE + 1),
     leanMost: 0,
+    technique: FREE,
     brake: 0,
     skidAngle: 0,
     air: 0,
@@ -154,6 +169,7 @@ export function readTurnModel(state: GameState, s: number, brake: number, m: Tur
     Math.min(edgeMostOf(spec, T), edgeLockAt(spec, speed, T) * (1 + CV.edge * c.carve)),
   );
   m.leanMost = leanMostOf(T);
+  m.technique = T;
   m.brake = brake;
   m.skidAngle = skidAngleAt(speed);
   m.air = (0.5 * TUNING.airDensity * dragAreaOf(spec, c.crouch)) / totalMass(spec);
@@ -163,6 +179,7 @@ export function readTurnModel(state: GameState, s: number, brake: number, m: Tur
   );
   m.across = TUNING.g * Math.sin(grade);
   m.normal = TUNING.g * Math.cos(grade);
+  m.fall = Math.abs(grade);
   const pressed = 1 + CV.grip * c.carve;
   const tight = (1 - S.tipLoad * c.lean) * (1 + CV.tighten * c.carve);
   const cut = 1 + CV.tighten * c.carve;
@@ -220,8 +237,7 @@ export function stepTurn(m: TurnModel, t: TurnState, want: number, dt: number): 
   const K = TUNING.skier;
   const S = TUNING.steer;
   // THE EDGE, no further over than the body is laid plus his angulation.
-  const reach = K.angulateMost + Math.max(0, t.lean * Math.sign(want)) + (1 - m.packed) * Math.PI;
-  const goal = Math.sign(want) * Math.min(Math.abs(want), reach);
+  const goal = edgeReach(t.lean, want, m.packed, m.fall, m.technique);
   t.edge += clamp(goal - t.edge, -m.rate * dt, m.rate * dt);
   // THE SKIS turn at the rate the carve asks, the nose held to the way;
   // THE WAY is turned by the snow's grip across skis pointed off it, less
@@ -260,8 +276,7 @@ export function stepTurn(m: TurnModel, t: TurnState, want: number, dt: number): 
   // edge asked for wants — across, only as the old turn's load lets go.
   const asked = at(m, m.asked, want);
   const opposed = asked * t.balance < 0;
-  const commit =
-    K.commit * (opposed ? clamp(1 - Math.abs(Math.tan(t.balance)) / K.crossLoad, 0, 1) : 1);
+  const commit = K.commit * (opposed ? crossGate(t.balance) : 1);
   const target =
     clamp(t.balance + commit * (asked - t.balance), -m.leanMost, m.leanMost) * m.packed +
     (want / Math.max(m.held, 1e-3)) * K.rollPowder * (1 - m.packed);

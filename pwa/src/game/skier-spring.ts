@@ -307,6 +307,14 @@ export function createSkierSpring(offset = 0): SkierSpring {
   };
 }
 
+/** THE BODY STOOD BACK UP: the spring taken back to rest, as a fresh one
+ * on his own clock — for a skier off his skis, whose legs carried nothing
+ * while he tumbled, so the climb he had going down and the fold he was
+ * in are not what he stands up into at the reset. */
+export function restSkierSpring(s: SkierSpring): void {
+  Object.assign(s, createSkierSpring(s.clock));
+}
+
 /** One reading followed on a critically damped spring of `w` rad/s: its
  * value and rate after `dt` s toward `to`, accelerated by `most` /s² at
  * most. */
@@ -394,10 +402,12 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
 
 /** The snow passed since the last plant: run on by the way, and begun
  * again on each new stride from the share of it already gone — and how
- * much he works the poles, followed. */
-function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
-  if (ride.stride === undefined || ride.way === undefined) return;
-  const keep = gaitOf({
+ * much he works the poles, followed. Hands back how much of him is
+ * working for his speed this frame, 0..1 (the gait's stride, skate and
+ * double pole together). */
+function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): number {
+  if (ride.stride === undefined || ride.way === undefined) return 0;
+  const gait = gaitOf({
     drive: ride.drive,
     stride: ride.stride,
     speed: ride.speed,
@@ -409,7 +419,8 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     airTime: ride.airTime,
     popped: ride.popped,
     thrown: ride.thrown ?? null,
-  }).keep;
+  });
+  const keep = gait.keep;
   if (Number.isNaN(s.keep)) s.keep = keep;
   else [s.keep, s.keepRate] = follow(s.keep, s.keepRate, keep, dt, KEEP_FOLLOW);
   const n = Math.floor(ride.stride);
@@ -421,6 +432,7 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     s.poled = ((ride.stride - n) * way) / rate;
     s.poledStride = n;
   } else s.poled += way * dt;
+  return Math.min(1, gait.stride + gait.skate + gait.pole);
 }
 
 /** Advance the body on its legs by `dt` s for a pair climbing at `vy` m/s
@@ -451,11 +463,12 @@ export function stepSkierSpring(
     waiting ? READY.in : READY.out,
   );
   s.ready = Math.max(0, Math.min(1, s.ready));
+  let work = 0;
   if (ride) {
     s.stepping += (Math.abs(ride.pivot ?? 0) - s.stepping) * Math.min(1, STEP_FOLLOW * dt);
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, airborne, dt);
-    stepPoled(s, ride, airborne, dt);
+    work = stepPoled(s, ride, airborne, dt);
   }
   stepFlight(
     s.flight,
@@ -480,7 +493,7 @@ export function stepSkierSpring(
     held > s.load ? EASE.take : EASE.release,
   );
   s.load = Math.max(0, Math.min(1, s.load));
-  stepLegs(s, vy, airborne, dt, ride, lift);
+  stepLegs(s, vy, airborne, dt, ride, lift, work);
 }
 
 /** THE BODY ON ITS LEGS stepped (`LEGS`): kicked by the pair's change of
@@ -494,6 +507,7 @@ function stepLegs(
   dt: number,
   ride: SpringRide | undefined,
   lift: number,
+  work: number,
 ): void {
   // THE LINE: the pair's own climb taken slowly — exact on any steady
   // line, a skid sideways down a pitch included, and carried on through a
@@ -512,13 +526,19 @@ function stepLegs(
   // does not share: it keeps going the way it was — spread over the frame
   // it came in. (In the air the two fall together; and a JUMP is his own
   // legs throwing his body up off the snow, so the body goes with it.)
+  // Nor is the climb he makes WORKING for his speed: a skate across a
+  // side slope glides up on one arm of the V and down on the other, and
+  // his body goes up and down with the legs that push it there — kicked
+  // by it, he would sit deep on every uphill stride and stand tall on
+  // every downhill one.
   const sprang = ride?.popped !== undefined && ride.popped <= dt;
-  const kick = Number.isNaN(s.lastVy) || airborne || sprang ? 0 : (vy - s.lastVy) / dt;
+  const own = 1 - work;
+  const kick = Number.isNaN(s.lastVy) || airborne || sprang ? 0 : (own * (vy - s.lastVy)) / dt;
   s.lastVy = vy;
   // On the snow the body is damped against the line, so a bump the skis
   // climb faster than it folds him; in the air, against the skis, and his
   // legs bring him back over them as they fly.
-  const give = airborne ? 0 : vy - s.slope;
+  const give = airborne ? 0 : own * (vy - s.slope);
   // The legs' reach: what the engine's compression has folded them by is
   // spent. Over the last of it the knees stiffen (`LEGS.stop`), so a hard
   // landing is slowed into the deepest fold rather than stopped dead at it.

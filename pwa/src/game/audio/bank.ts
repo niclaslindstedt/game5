@@ -235,7 +235,8 @@ export const RUN_BANK: SoundBank = {
     description:
       "A pole planted: the carbide tip on the hardpack — a tick of white " +
       "noise a few milliseconds long over a short high sine, the basket's " +
-      "pat under it in pink. Small: it is heard because it is beside the ear.",
+      "pat under it in pink. Small: it is heard because it is beside the ear. " +
+      "Played by the packed share of the snow under him (`plantVoice`).",
     voices: [
       {
         call: "noise",
@@ -254,6 +255,25 @@ export const RUN_BANK: SoundBank = {
         attackMs: 4,
         delayMs: 6,
         filter: { type: "lowpass", frequency: 700, to: 300 },
+      },
+    ],
+  },
+
+  plantSoft: {
+    description:
+      "A pole planted in LOOSE snow: no tip strikes anything — the basket " +
+      "punched into the powder, a short low pat of pink noise under a " +
+      "closing lowpass. Played under the tick by the loose share of the " +
+      "snow, its cutoff lowered and its level taken down to nothing as the " +
+      "loose snow deepens (`plantVoice`).",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 70,
+        volume: 0.016,
+        color: "pink",
+        attackMs: 6,
+        filter: { type: "lowpass", frequency: 520, to: 180 },
       },
     ],
   },

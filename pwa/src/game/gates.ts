@@ -170,8 +170,9 @@ function bandTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-/** A safety net's mesh: an orange grid on a translucent sheet. */
-function netTexture(): THREE.CanvasTexture {
+/** A safety net's mesh: an orange grid on a translucent sheet — the
+ * spectators' fences are hung with it too (`finish-arena.ts`). */
+export function netTexture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;

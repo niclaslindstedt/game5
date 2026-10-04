@@ -16,7 +16,7 @@
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
-//   crowd-view.ts   the free ride's amateurs out on the ski area
+//   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder of lenses and the hand-over between them
 //
 // WHAT IT COSTS is the picture it is handed (`settings-video.ts`): every
@@ -113,7 +113,7 @@ import { createTerrain, type Terrain } from "./terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
-import { createCrowdView, type CrowdView } from "./crowd-view.ts";
+import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
 import {
   bodyStampOf,
@@ -574,7 +574,7 @@ export function createWorldRenderer(
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
-      crowd = createCrowdView(lv, env.haze);
+      crowd = createPeopleView(lv, env.haze, state.rules);
       scene.add(crowd.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";

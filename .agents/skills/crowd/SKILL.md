@@ -1,6 +1,6 @@
 ---
 name: crowd
-description: "Use when working on THE CROWD — the free ride's amateur skiers out on the ski area: who is out there and in what groups (families, friends, ski schools, the lot down from the hut), the knobs that make each one himself (skill, aggression, off-piste, turn style and width, wobble, the stopper, the jumper), how they ski the resort's runs and ride the lifts, how crowded each colour is, how the player meets them (the bump, the knock-down, the `skier` wipeout), and how they are DRAWN — eight procedural bodies at three cuts, posed by morph targets solved from the player's own pose, dressed per instance. Owns `engine/game/crowd.ts`, `engine/game/defs/crowd.ts`, `pwa/src/game/crowd-rig.ts`, `crowd-shapes.ts`, `crowd-dress.ts`, `crowd-view.ts`, and `make crowd`."
+description: "Use when working on THE CROWD — the free ride's amateur skiers out on the ski area: who is out there and in what groups (families, friends, ski schools, the lot down from the hut), the knobs that make each one himself (skill, aggression, off-piste, turn style and width, wobble, the stopper, the jumper), how they ski the resort's runs and ride the lifts, how crowded each colour is, how the player meets them (the bump, the knock-down, the `skier` wipeout), and how they are DRAWN — eight procedural bodies at three cuts, posed by morph targets solved from the player's own pose, dressed per instance — and THE SPECTATORS who watch every run but a free ride: where a race's audience stands (the finish arena's grandstands, back terraces and slope, the jumps, the inside of the hard turns, the steep pitches, the lower corridor, the start), what each fan wears and carries, how he moves when a racer comes (the shader's), the finish arena's furniture (the fences, the finish circle's boards and exit gate, the leader's platform, the video wall). Owns `engine/game/crowd.ts`, `engine/game/defs/crowd.ts`, `pwa/src/game/crowd-rig.ts`, `crowd-shapes.ts`, `crowd-dress.ts`, `crowd-view.ts`, `spectator-plan.ts`, `spectator-shapes.ts`, `spectators.ts`, `finish-arena.ts`, `make crowd` and `make audience`."
 ---
 
 # The crowd: the free ride's amateurs
@@ -93,8 +93,59 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 5. A behaviour change that touches the player (`clipCrowd`, the knock)
    owes `tests/crowd_test.ts`'s meeting cases.
 
+## The spectators: a race's audience
+
+Every run with something to watch (`hasSpectators`: a course counted or a
+terrain park scored — the race, the time trial, the tricks run; never the
+free ride, whose people are the amateurs above) is watched by a CROWD
+standing where a real race's crowd stands. Presentation only, end to end.
+
+| Piece | File |
+| --- | --- |
+| WHO stands WHERE and what each one wears, carries and how lively he is: the banks, the grandstands, the fences, the finish arena's layout — dealt off the map's seed (`FAN_SALT`) | `pwa/src/game/spectator-plan.ts` (three-free; `planSpectators`, `FANS`, `FAN_STYLES`, `FAN_HATS`, `FAN_PALETTE`) |
+| The figure at three cuts, every hat and prop on it and folded away per fan, and the SHADER that moves him | `pwa/src/game/spectator-shapes.ts` (`buildFanFigure`, `fanMaterial`, `POSE_GLSL`) |
+| The instanced draw a bank and cut, the racers and the arena's mood fed to the shader each frame | `pwa/src/game/spectators.ts` (`createSpectators`, `createPeopleView` — the one view the renderer holds for every person who is not racing) |
+| The grandstands, the nets, the finish circle's boards and exit gate, the leader's platform, the video wall and its live clock | `pwa/src/game/finish-arena.ts` |
+
+- **WHERE A REAL CROWD STANDS** (the circuit's own finish-installation
+  guide and the fans' guides; the plan's header has the numbers): most of
+  them in the FINISH ARENA — grandstands either side of the line, terraces
+  behind the finish circle making a U, the finish slope lined rows deep and
+  thinning up the hill; on the mountain behind the spectator fence where
+  something happens — the JUMPS (the two biggest on both sides), the HARD
+  TURNS on their INSIDE (the outside is where a racer who lets go ends up,
+  and where the nets are), the STEEP PITCHES; a corridor of short stretches
+  down the bottom of the hill where people walk up from the village; thin
+  knots elsewhere, thicker toward the bottom; a knot at the start. Never on
+  a piste, a trunk, a lift's station or a wind tunnel.
+- **NOTHING OF IT IS THE ENGINE'S.** The plan reads the `Level` and writes
+  nothing, draws off its own generator, and the shader reads the racers'
+  positions; `tests/spectators_test.ts` holds the digest unmoved.
+- **THE ANIMATION IS THE SHADER'S** — a pure function of `state.t` and the
+  racers (`uFanSkier`: where each is and how much he excites, `skierPull`),
+  so a replay is the same crowd and a bank of hundreds costs one draw and
+  no CPU. A fan's REACH (by bank kind, `REACH`) is how far off a racer
+  lights him up: short enough that excitement RIPPLES down a bank with the
+  racer, never the whole slope at once. At rest a fan fidgets on his own
+  clock (his habit for his hands, stamping, glancing, a flag held slanted).
+  GLSL ES has no ternary on a struct and `out` is a keyword — the shader
+  fails to link silently on the sheet if either slips in.
+- **THE BUDGET, measured** (`make profile`, the `late` moment at the
+  finish): NEAR ~500 triangles within 22 m, MID ~220 to 80 m, FAR ~75 to
+  450 m (`FAN_CUTS`), a bank handed over whole. A hidden part still costs
+  its vertices, so a cut carries only the parts that read at its range.
+
+**The loop** — `make audience` before and after (every sheet): `moves` is
+each style through its animation frame by frame, `looks` the dealt
+variety, `cuts` the three cuts and the game's pixels, and
+`ARGS="--sheet=race --views=pass"` one bank of the finish slope frame by
+frame as the racer goes by (with `idle`, `finish`, `stand`, `screen`,
+`arena`, `jump`, `turn`, `overview`, `chase` for the rest; `--seed=7` has
+jumps, `--hour=19.5` is under the lights). Then
+`npx vitest run tests/spectators_test.ts`, and `make profile` for a cost.
+
 ## Skill self-improvement
 
 Load **`skill-reflection`** before committing. Worth a fragment: a crowd
 behaviour that read wrong only on the slope sheet, a pose that blended
-badly, a cost that crept up.
+badly, a cost that crept up, a fan move that only read frame by frame.

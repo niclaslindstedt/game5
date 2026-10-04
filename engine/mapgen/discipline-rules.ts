@@ -52,28 +52,30 @@
 //   R31 THE SLALOM COURSE. A slalom is set on a built map's piste, on the
 //       steepest stretch of it that drops `slalom.vertical` metres (the
 //       first of `slalom.drops` the piste has) between a START and a
-//       FINISH, nowhere narrower than `slalom.minWidth`, crossing no kicker
-//       or drop on the piste, its finish on a gentler run-out (no steeper
-//       than `slalom.outrun` over the `slalom.outrunLength` past the line)
-//       — the start a hut over the piste, the line `slalom.finishWidth`
-//       metres wide at the least, and every tree within `slalom.clear`
-//       metres of the course and in the finish arena cleared. Its gates
-//       are POLE GATES, red and blue alternately, as many direction
-//       changes as `slalom.changes` of the vertical (spaced
-//       `slalom.spacing` metres apart down the piste, which wins where the
-//       two disagree): OPEN gates across the hill — the turning pole set
-//       either side of the course's line in turn, the outside pole
-//       `slalom.width` metres further out, `slalom.turn` metres turning
-//       pole to turning pole; `slalom.hairpins` HAIRPINS and
-//       `slalom.verticals` VERTICALS of CLOSED gates — poles one above the
-//       other, `slalom.closed` metres apart, `slalom.gap` between the
-//       gates of one, in a line down the hill; and `slalom.delays` DELAYED
-//       gates `slalom.delayed` metres on. No combination stands within
-//       `slalom.clean` gates of the start or the finish, an open gate comes
-//       before every one, every pole stands `slalom.inside` metres inside
-//       the piste, and the last gate is `slalom.last` metres above the
-//       line and aims at its middle. A slalom is two RUNS on the same
-//       stretch, the second set afresh.
+//       FINISH, no longer than `slalom.maxLength`, nowhere narrower than
+//       `slalom.minWidth`, crossing no drop on the piste, its finish on a
+//       gentler run-out (no steeper than `slalom.outrun` over the
+//       `slalom.outrunLength` past the line) — the start a hut over the
+//       piste, the line `slalom.finishWidth` metres wide at the least, every
+//       kicker on the piste within `slalom.clearance` of the stretch
+//       levelled, and every tree within `slalom.clear` metres of the course
+//       and in the finish arena cleared. Its gates are POLE GATES, red and
+//       blue alternately, as many direction changes as `slalom.changes` of
+//       the vertical (spaced `slalom.spacing` metres apart down the piste,
+//       which wins where the two disagree): OPEN gates across the hill — the
+//       turning pole set either side of the course's line in turn, no
+//       further across than leaves the line round the poles bending no
+//       tighter than `slalom.bend`, the outside pole `slalom.width` metres
+//       further out, `slalom.turn` metres turning pole to turning pole;
+//       `slalom.hairpins` HAIRPINS and `slalom.verticals` VERTICALS of
+//       CLOSED gates — poles one above the other, `slalom.closed` metres
+//       apart, `slalom.gap` between the gates of one, in a line down the
+//       hill; and `slalom.delays` DELAYED gates `slalom.delayed` metres on.
+//       No combination stands within `slalom.clean` gates of the start or
+//       the finish, an open gate comes before every one, every pole stands
+//       `slalom.inside` metres inside the piste, and the last gate is
+//       `slalom.last` metres above the line and aims at its middle. A slalom
+//       is two RUNS on the same stretch, the second set afresh.
 
 import type { Band } from "./rules.ts";
 
@@ -105,17 +107,25 @@ export const DISCIPLINE_RULES = {
     /** The direction changes as a share of the vertical, and the ± on it. */
     changes: { min: 0.3, max: 0.35, slack: 3 },
     /** The spacing of the gates down the piste, m (plan). */
-    spacing: { min: 8.5, max: 12.5 } as Band,
+    spacing: { min: 10.5, max: 12.5 } as Band,
     /** An open gate: the turning pole either side of the course's line,
-     * m, and the gate's width to its outside pole, m. */
-    across: { min: 1.3, max: 2.8 } as Band,
+     * m — the rules fix only the turning poles' distance, and this is the
+     * offset a slalom ski carves at race pace (`limits.ts`: a turn of
+     * eight or nine metres at its edge's hold), a section tight and a
+     * section open — and the gate's width to its outside pole, m. */
+    across: { min: 0.5, max: 1.0 } as Band,
     width: { min: 4, max: 6 } as Band,
     /** Turning pole to turning pole, m. */
     turn: { min: 6, max: 13 } as Band,
     /** A closed gate's poles apart down the hill, m, and the gap between
      * the gates of a combination, m. */
-    closed: { min: 4, max: 4.8 } as Band,
+    closed: { min: 4.8, max: 5.6 } as Band,
     gap: { min: 0.75, max: 1 } as Band,
+    /** THE TIGHTEST THE LINE ROUND THE POLES MAY BEND, m: a slalom ski's
+     * carve at race pace, with its edge's change between two turns
+     * (`limits.ts`) — so an open gate's turning pole stands no further
+     * across than the gates either side of it leave room to swing to. */
+    bend: 10,
     /** How many of each combination a course carries. */
     hairpins: { min: 3, max: 4 } as Band,
     verticals: { min: 1, max: 2 } as Band,
@@ -123,7 +133,7 @@ export const DISCIPLINE_RULES = {
     /** A delayed gate's turning pole on from the last, m, and how far
      * across, m. */
     delayed: { min: 12.5, max: 16 } as Band,
-    delayAcross: { min: 3, max: 4 } as Band,
+    delayAcross: { min: 1.8, max: 2.4 } as Band,
     /** No combination within this many gates of the start or the finish. */
     clean: 3,
     /** Every pole this far inside the piste's edge, m. */

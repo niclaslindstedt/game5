@@ -1,85 +1,147 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE FIELD OF AN INTERVAL START — a slalom's start list (R31), skied one
-// racer at a time out of the start hut BEFORE the player, as a real race
-// is: by the time he stands in the hut, the times are on the board and the
-// leader's splits are what his own are read against.
+// THE FIELD OF AN INTERVAL START — a slalom's start list (R31). Only one
+// racer is ever on a slalom course, so the field is never skied: by the
+// time the player stands in the hut its racers have been down, and what he
+// races is the BOARD — their times, the clock at every gate, who went out
+// and where. Every figure on it is dealt here, off the map's seed on
+// streams of the field's own, about the course's PAR (`par.ts`): what a
+// good racer takes down this line on a slalom ski.
 //
-// The start list is dealt exactly as a start line's field is
-// (`dealRivals`: the same draws in the same order off the same streams),
-// every racer stood in the hut, and each is then skied to the finish — or
-// out of the race — by the very bot and the very step a rival on the line
-// is (`rivalInput`, `stepRun`), alone on the course, off a random stream
-// of his own so the player's run draws nothing from the field's.
+// A RACER is a SKILL (0 the weakest of the list, 1 the best) and a GRIT,
+// dealt once for the race. His run is par times his skill's share of
+// `FIELD.spread` over it and a little of the day's own (`FIELD.noise`);
+// the weaker he is, the likelier he goes out (`FIELD.out`) — a gate missed
+// or straddled, disqualified, or a fall — at a gate dealt down the course.
 //
-// THE SECOND RUN: the first run's field is carried in (`Heat`), and only
-// its finishers start — the best `SLALOM.qualify` in reverse order, the
-// leader last, the rest after them in order — each carrying his first-run
-// time; the standings are the combined time.
+// THE START ORDER: on the first run the best seeds go first, drawn among
+// themselves (`FIELD.seeds`), then the rest by skill, and the player last,
+// to a full board. On the SECOND the first run's finishers start — the best
+// `SLALOM.qualify` in reverse, the leader last, the rest after them in
+// order — the player among them in his own place (`Field.slot`); the
+// racers after him come down once he is home. The standings are the
+// combined time.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { SLALOM } from "./defs/modes.ts";
-import { TUNING } from "./defs/tuning.ts";
-import { dealRivals, rivalInput } from "./rivals.ts";
-import { stepRun } from "./run.ts";
-import { freshStep } from "./snowfall.ts";
-import type { FieldRun, GameState, Rival } from "./state.ts";
+import { skisById } from "./defs/skis.ts";
+import { slalomPar } from "./par.ts";
+import type { FieldRun, GameState, RunOut } from "./state.ts";
 
-/** What each racer's own stream is seeded with beside the run's seed. */
+/** What the field's streams are seeded with beside the map's seed. */
 const FIELD_SALT = 0x0f1e1d;
+
+/** THE FIELD'S NUMBERS. */
+export const FIELD = {
+  /** The weakest racer's run over par, as a share of it, and the most a
+   * run strays either way on the day. */
+  spread: 0.09,
+  noise: 0.012,
+  /** The best racer's run over par — a good racer is par. */
+  best: -0.01,
+  /** The chance a run goes out: the best racer's, and the weakest's. */
+  out: { best: 0.06, worst: 0.24 },
+  /** How a run goes out, by share: a gate missed, a pole straddled, a fall. */
+  why: { missed: 0.45, straddle: 0.25, fall: 0.3 },
+  /** The best seeds, drawn among themselves at the head of the first run. */
+  seeds: 7,
+} as const;
 
 /** THE FIRST RUN, carried into the second: the player's time and the
  * field as it finished. */
 export type Heat = { run: 2; player: number; field: readonly FieldRun[] };
 
-/** SKI THE FIELD: `count` racers dealt, the starters among them (all of
- * them on the first run; the first run's finishers on the second) skied
- * alone, and the field put on the state. Called once, from `createGame`,
- * before the player's run has taken a step. */
+/** One racer of the start list: his slot (a rival's id), his skill and his
+ * grit. */
+type Racer = { id: number; skill: number; grit: number };
+
+/** THE START LIST: `count` racers, each dealt off the field's stream — the
+ * same list on both runs of a race. */
+function startList(seed: number, count: number): Racer[] {
+  const rng = createRng((seed ^ FIELD_SALT) >>> 0);
+  const out: Racer[] = [];
+  for (let id = 0; id < count; id++) out.push({ id, skill: rng.next(), grit: rng.next() });
+  return out;
+}
+
+/** DEAL THE FIELD: the start list, the order it goes in, and every run of
+ * it about the course's par — the field put on the state. Called once,
+ * from `createGame`, before the player's run has taken a step. */
 export function createField(state: GameState, count: number, heat?: Heat): void {
-  const hut = state.level.grid[0] ?? state.level.spawn;
-  const dealt = dealRivals(state, count, () => hut);
-  const carried = new Map((heat?.field ?? []).map((r) => [r.id, r]));
-  let starters: Rival[] = dealt;
-  if (heat) {
-    const home = dealt
+  const run = heat ? 2 : 1;
+  const list = startList(state.seed, count);
+  const order = createRng((state.seed ^ FIELD_SALT ^ 0x51) >>> 0);
+  let starters: Racer[];
+  let slot: number;
+  if (!heat) {
+    const ranked = [...list].sort((a, b) => b.skill - a.skill || a.id - b.id);
+    const seeds = ranked.slice(0, FIELD.seeds);
+    for (let i = seeds.length - 1; i > 0; i--) {
+      const j = order.int(0, i);
+      [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
+    }
+    starters = [...seeds, ...ranked.slice(FIELD.seeds)];
+    slot = starters.length;
+  } else {
+    // The first run's finishers, the player among them.
+    const carried = new Map(heat.field.map((r) => [r.id, r]));
+    type Row = { racer: Racer | null; time: number };
+    const home: Row[] = list
       .filter((r) => carried.get(r.id)?.time != null)
-      .sort((a, b) => (carried.get(a.id)?.time ?? 0) - (carried.get(b.id)?.time ?? 0));
-    const top = home.slice(0, SLALOM.qualify).reverse();
-    starters = [...top, ...home.slice(SLALOM.qualify)];
+      .map((r) => ({ racer: r, time: carried.get(r.id)?.time ?? 0 }));
+    home.push({ racer: null, time: heat.player });
+    home.sort((a, b) => a.time - b.time || (a.racer?.id ?? -1) - (b.racer?.id ?? -1));
+    const go = [...home.slice(0, SLALOM.qualify).reverse(), ...home.slice(SLALOM.qualify)];
+    slot = go.findIndex((r) => r.racer === null);
+    starters = go.flatMap((r) => (r.racer ? [r.racer] : []));
   }
+  const before = new Map((heat?.field ?? []).map((r) => [r.id, r.time ?? 0]));
   state.field = {
-    run: heat ? 2 : 1,
-    runs: starters.map((r) => skiAlone(state, r, carried.get(r.id)?.time ?? 0)),
+    run,
+    runs: starters.map((r) => dealRun(state, r, run, before.get(r.id) ?? 0)),
     before: heat?.player ?? 0,
+    slot,
   };
 }
 
-/** One racer's run, skied from the hut to the finish — or out of the race,
- * or to `SLALOM.limit` seconds of trying — on his own. */
-function skiAlone(state: GameState, rival: Rival, before: number): FieldRun {
-  const run = rival.run;
-  run.rng = createRng((state.seed ^ FIELD_SALT ^ Math.imul(rival.id + 1, 0x9e3779b1)) >>> 0);
-  const dt = TUNING.dt;
-  const end = run.rules.countdown + SLALOM.limit;
-  while (!run.progress.finished && run.t < end) {
-    run.t += dt;
-    run.tick += 1;
-    run.fresh += freshStep(run.level, run.t, dt);
-    if (run.phase === "countdown") {
-      run.countdown = Math.max(0, run.countdown - dt);
-      if (run.countdown <= 0) run.phase = "racing";
-    }
-    run.events.length = 0;
-    stepRun(run, rivalInput(run, rival, run.t - run.rules.countdown), run.events);
+/** One racer's run about par: home in his time with the clock at every
+ * gate, or out at a gate. */
+function dealRun(state: GameState, racer: Racer, run: 1 | 2, before: number): FieldRun {
+  const rng = createRng(
+    (state.seed ^ FIELD_SALT ^ Math.imul(run, 0x9e3779b1) ^ Math.imul(racer.id + 1, 0x85ebca6b)) >>>
+      0,
+  );
+  const level = state.level;
+  const par = slalomPar(level, skisById(SLALOM.skis));
+  const n = level.checkpoints.length;
+  const weak = 1 - racer.skill;
+  const share =
+    1 +
+    FIELD.best +
+    (FIELD.spread - FIELD.best) * weak +
+    FIELD.noise * (rng.next() + rng.next() - 1);
+  const parSplits = par?.splits ?? level.checkpoints.map((_, i) => i * 1.2);
+  const splits = parSplits.map((t) => t * share);
+  const risk =
+    FIELD.out.best + (FIELD.out.worst - FIELD.out.best) * (0.6 * weak + 0.4 * (1 - racer.grit));
+  let out: RunOut | null = null;
+  if (rng.next() < risk) {
+    const pick = rng.next();
+    const why: RunOut["why"] =
+      pick < FIELD.why.missed
+        ? "missed"
+        : pick < FIELD.why.missed + FIELD.why.straddle
+          ? "straddle"
+          : "fall";
+    const gate = 1 + Math.min(n - 3, Math.floor(rng.next() * (n - 2)));
+    out = { status: why === "fall" ? "dnf" : "dsq", why, gate };
+    for (let i = gate; i < n; i++) splits[i] = Number.NaN;
   }
-  const p = run.progress;
-  const out = p.out ?? (p.finished ? null : { status: "dnf", why: "fall", gate: p.nextCheckpoint });
   return {
-    id: rival.id,
-    skis: run.skier.spec.id,
-    time: out ? null : p.time,
+    id: racer.id,
+    skis: SLALOM.skis,
+    time: out ? null : splits[n - 1],
     out,
-    splits: p.splits.slice(),
+    splits,
     before,
   };
 }

@@ -652,6 +652,36 @@ export const TUNING = {
     cell: 12,
   },
 
+  /** THE FLEX POLES of a slalom's gates (R31, `gate-poles.ts`): a pole on
+   * a hinge at the snow that a racer knocks over and that stands itself
+   * back up — the turning pole is one by rule (at least 1.8 m over the
+   * snow, its hinge's resistance at least 4 N·m a metre up) — and what
+   * knocking one costs him. */
+  flex: {
+    /** The pole's height over the snow, m. */
+    height: 1.8,
+    /** The hinge as a damped spring on the tilt: its stiffness, 1/s² (a
+     * pole springing back up at about 2.5 Hz), and its damping, 1/s. */
+    stiff: 247,
+    damp: 7.5,
+    /** The furthest a pole lies over, rad — on its hinge, short of the
+     * snow. */
+    most: 1.35,
+    /** THE BODY that knocks it, as a plan line from his feet to his
+     * shoulders `shoulder` m up the body from the CoG, `reach` m either
+     * side of it — the shin guards, the knees, the hands and the arm a
+     * racer clears a pole with. */
+    shoulder: 0.55,
+    reach: 0.24,
+    /** What a knock costs: this share of the speed he drives into the
+     * pole, and never more than `loss` m/s at a blow — a flex pole tips
+     * at a few newtons against a skier's whole weight. */
+    share: 0.05,
+    loss: 0.25,
+    /** A knock is reported at this closing speed, m/s. */
+    knock: 0.4,
+  },
+
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
    * push that grows over `soft` m. */
   bounds: { margin: 6, soft: 20, push: 12 },

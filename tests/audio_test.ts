@@ -101,6 +101,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   count: { kind: "count", t: 1, left: 3 },
   go: { kind: "go", t: 3 },
   out: { kind: "out", t: 9, out: { status: "dsq", why: "missed", gate: 4 } },
+  pole: { kind: "pole", t: 9, gate: 3, speed: 2 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
   jump: { kind: "jump", t: 1, pop: 4, held: 1 },
   land: {

@@ -27,6 +27,7 @@ import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
+import { stepGatePoles } from "./gate-poles.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -75,6 +76,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (tricks) stepStrokes(run, input);
   collideTrees(run, events);
+  // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
+  stepGatePoles(run, events, off !== null);
   keepInBounds(run);
   if (off) {
     stepThrown(run, off);

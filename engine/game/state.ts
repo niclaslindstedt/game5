@@ -630,6 +630,9 @@ export type GameEvent =
   | { kind: "finish"; t: number; time: number; place: number }
   /** OUT OF THE RACE (R31): disqualified or did not finish — the run over. */
   | { kind: "out"; t: number; out: RunOut }
+  /** A FLEX POLE KNOCKED (`gate-poles.ts`): the gate it belongs to, and
+   * how hard he drove into it, m/s. */
+  | { kind: "pole"; t: number; gate: number; speed: number }
   /** Stood back on the piste at `checkpoint` (-1: at the start line);
    * `auto` when the engine did it rather than the skier. */
   | { kind: "reset"; t: number; checkpoint: number; auto: boolean }
@@ -777,6 +780,17 @@ export type CrowdState = {
   queues: number[][];
 };
 
+/** A RUN'S FLEX POLES (`gate-poles.ts`), one entry a pole, in the order
+ * `polePlan` lists them: how far over it lies, rad (negative past upright,
+ * swinging back), how fast it is turning, rad/s, and the plan direction its
+ * top lies toward. */
+export type GamePoles = {
+  tilt: Float32Array;
+  spin: Float32Array;
+  dirX: Float32Array;
+  dirZ: Float32Array;
+};
+
 /** One racer of an interval start's field (`field.ts`): his slot (as a
  * rival's id), the skis he was on, this run's time — null when he went
  * out — and how, the clock at every gate, and the time he carried in from
@@ -791,12 +805,14 @@ export type FieldRun = {
 };
 
 /** AN INTERVAL START'S FIELD: which run of the race this is, every racer
- * of it in start order, and the time the PLAYER carries in from the first
- * run (0 on the first). */
+ * of it in start order, the time the PLAYER carries in from the first run
+ * (0 on the first), and where he starts in that order — the racers before
+ * `slot` are down when he goes, the rest come down once he is home. */
 export type Field = {
   run: 1 | 2;
   runs: FieldRun[];
   before: number;
+  slot: number;
 };
 
 /** `countdown` is the lights: the field stands in the start gate, nothing
@@ -839,6 +855,9 @@ export type GameState = {
    * before the player, one at a time, and what each one did — on a run
    * whose rules start that way (the slalom); absent everywhere else. */
   field?: Field;
+  /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
+   * knocked them — on a map with pole gates; absent everywhere else. */
+  gatePoles?: GamePoles;
   /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
    * whose rules ask for one (the free ride); absent everywhere else. */
   crowd?: CrowdState;

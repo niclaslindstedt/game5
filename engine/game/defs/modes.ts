@@ -146,8 +146,8 @@ export function fieldRules(laps: number): RunRules {
 
 /** THE SLALOM'S NUMBERS (R31 sets its course). */
 export const SLALOM = {
-  /** The start list: the racers out of the hut before the player. */
-  field: 7,
+  /** The start list: the racers on the board beside the player. */
+  field: 29,
   /** "READY" … "GO": the starter's two words, s apart. */
   countdown: 4,
   /** Away within this of GO, s, or disqualified. */
@@ -156,8 +156,9 @@ export const SLALOM = {
   runs: 2,
   /** The best of the first run start the second, in reverse order. */
   qualify: 30,
-  /** The longest a racer is let ski one run before he is out, s. */
-  limit: 240,
+  /** The pair the field races on: the slalom ski — every racer in a
+   * slalom skis one, by rule as by sense. */
+  skis: "swift",
 } as const;
 
 /** THE SLALOM as a skier is dealt it (R31): the start list skied before

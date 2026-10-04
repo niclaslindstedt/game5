@@ -7,6 +7,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  RACE,
+  SWIFT,
   TUNING,
   botInput,
   createGame,
@@ -120,8 +122,11 @@ describe("the replay reaches the same flag", () => {
   // take-off crowds a small air out of it (seed 11's does since the step
   // turn quickened the start).
   const SEED = 7;
-  const race = createGame({ level, seed: SEED, mode: "slalom", laps: 1, quiet: true });
-  const recorded = rideRecorded(race, "slalom");
+  // The field on the start line beside him (a time trial with rivals, as
+  // the benchmark rides it): every rival's run is rebuilt with his.
+  const field = { mode: "timeTrial", rivals: RACE.rivals, laps: 1 } as const;
+  const race = createGame({ level, seed: SEED, ...field, quiet: true });
+  const recorded = rideRecorded(race, "timeTrial");
   const replay = recorded.open();
 
   it("records a race the field finishes", () => {
@@ -136,9 +141,7 @@ describe("the replay reaches the same flag", () => {
     expect(replay!.state).not.toBe(race);
     expect(replay!.state.level).toBe(race.level);
     expect(startPrint(replay!.state)).toBe(
-      startPrint(
-        createGame(recipeOf(createGame({ level, seed: SEED, mode: "slalom", laps: 1 }), "slalom")),
-      ),
+      startPrint(createGame(recipeOf(createGame({ level, seed: SEED, ...field }), "timeTrial"))),
     );
   });
 
@@ -152,7 +155,7 @@ describe("the replay reaches the same flag", () => {
       poles: false,
     });
     expect(createGame(recipeOf(bare, "slalom")).skier.poles).toBe(false);
-    expect(createGame(recipeOf(race, "slalom")).skier.poles).toBe(true);
+    expect(createGame(recipeOf(race, "timeTrial")).skier.poles).toBe(true);
   });
 
   it("rides the tape to the same finish, on the same step, every rival with it", () => {
@@ -163,8 +166,8 @@ describe("the replay reaches the same flag", () => {
     expect(again.airborne.length).toBeLessThan(recorded.ride.airborne.length);
     // Every skier on the same metre of snow, as far as the replay runs.
     expect(again.trace).toEqual(recorded.ride.trace.slice(0, again.trace.length));
-    const cut = createGame({ level, seed: SEED, mode: "slalom", laps: 1, quiet: true });
-    const recut = rideRecorded(cut, "slalom");
+    const cut = createGame({ level, seed: SEED, ...field, quiet: true });
+    const recut = rideRecorded(cut, "timeTrial");
     expect(recut.ride.digest).toBe(recorded.ride.digest);
     const replayed = rideReplay(recut.open()!);
     const rivals = recut.ride.rivals;
@@ -172,6 +175,24 @@ describe("the replay reaches the same flag", () => {
     replayed.rivals.forEach((t, i) => {
       if (t !== null && rivals[i] !== null) expect(t).toBeCloseTo(rivals[i]!, 9);
     });
+  });
+
+  it("replays a slalom to the same verdict, its board rebuilt, the second run's too", () => {
+    const first = createGame({ level, seed: 5, mode: "slalom", spec: SWIFT, quiet: true });
+    const rec = rideRecorded(first, "slalom");
+    const again = rideReplay(rec.open()!);
+    expect(again.finish).toEqual(rec.ride.finish);
+    expect(again.trace).toEqual(rec.ride.trace.slice(0, again.trace.length));
+    const second = createGame({
+      level: first.level,
+      seed: 5,
+      mode: "slalom",
+      spec: SWIFT,
+      quiet: true,
+      heat: { run: 2, player: 90, field: first.field!.runs },
+    });
+    expect(startPrint(createGame(recipeOf(second, "slalom")))).toBe(startPrint(second));
+    expect(createGame(recipeOf(second, "slalom")).level.slalom?.run).toBe(2);
   });
 
   it("replays a time trial to the same figure", () => {

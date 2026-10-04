@@ -20,12 +20,20 @@
 
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { arcAhead, nearestTrackPoint, slalomLineAt, trackPointAt } from "../mapgen/index.ts";
+import { arcAhead, nearestTrackPoint, slalomLineFast, trackPointAt } from "../mapgen/index.ts";
 import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "../game/collision.ts";
 import { gateLineAt } from "../game/course.ts";
-import { brakeDecel, cornerGrip, edgeLockAt, flightGravity, harshSpeedOf } from "../game/limits.ts";
+import {
+  brakeDecel,
+  carveCurvature,
+  cornerGrip,
+  edgeLockAt,
+  flightGravity,
+  harshSpeedOf,
+} from "../game/limits.ts";
 import type { SkiSpec } from "../game/defs/skis.ts";
+import { footprintOf } from "../game/footprint.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
 
@@ -88,6 +96,24 @@ export type BotProfile = {
    * never the piste's next bend. */
   slalomLook: number;
   slalomLookPerSpeed: number;
+  /** ...and the steering gain there, per radian — a slalom is turned
+   * twice a second, never eased into — and how far over the speed its line
+   * allows it skids, m/s: a slalom is carved, and a skid between two poles
+   * is a skier sliding past the next. */
+  slalomGain: number;
+  slalomSkidOver: number;
+  /** ...and the model a way of steering is skied forward on there: over
+   * how many seconds, how fast round the skis can turn at most, rad/s, how
+   * long the edge takes to come to what is asked, s, and how far outside a
+   * turning pole the feet are planned past it, m — the model's carve read
+   * `slalomBite` times the sidecut's own, as the skis turn on the snow. */
+  slalomHorizon: number;
+  slalomTurn: number;
+  slalomBite: number;
+  slalomClear: number;
+  /** The share of `slalomTurn` the line's bend is planned at — the rest is
+   * the edge rolling from one turn into the next. */
+  slalomPace: number;
 };
 
 export const RIDER_BOT: BotProfile = {
@@ -117,6 +143,13 @@ export const RIDER_BOT: BotProfile = {
   skidOver: 1.5,
   slalomLook: 2,
   slalomLookPerSpeed: 0.35,
+  slalomGain: 1,
+  slalomSkidOver: 0.5,
+  slalomHorizon: 0.6,
+  slalomTurn: 1.3,
+  slalomBite: 1.25,
+  slalomClear: 0.3,
+  slalomPace: 0.35,
 };
 
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
@@ -320,8 +353,17 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     if (Math.sqrt(room) >= allowed && drop === 0) break;
     // The bend, and the weave round the gates on it (R28) — or the line
     // round a slalom's poles (R31).
-    const k = bendAt(level, s + d, profile.bendSpan) + weaveAt(level, s + d).curvature;
+    const weave = weaveAt(level, s + d).curvature;
+    const k = bendAt(level, s + d, profile.bendSpan) + weave;
     if (k < 1e-4) continue;
+    // A slalom's line, as fast as the skis can come round it and roll from
+    // edge to edge between two poles.
+    if (level.slalom && state.rules.course && weave > 1e-4) {
+      allowed = Math.min(
+        allowed,
+        Math.sqrt(((profile.slalomTurn * profile.slalomPace) / weave) ** 2 + room),
+      );
+    }
     // The bend's speed at the grip of a standstill, then once more at the
     // grip left at THAT speed — the chatter takes some of it off the top.
     const still = Math.sqrt(aLat / k);
@@ -355,8 +397,97 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
  * round a slalom's poles (R31) where one is set, else the line through a
  * course's gates (R28). */
 function weaveAt(level: Level, s: number): { offset: number; curvature: number } {
-  return slalomLineAt(level, s) ?? gateLineAt(level, s);
+  return slalomLineFast(level, s) ?? gateLineAt(level, s);
 }
+
+/** THE STEER ON A SLALOM (R31), chosen the way a racer reads the next
+ * gates: a few ways of steering over the next second — one edge now, then
+ * another — skied forward on a plain model of the skis (the carve the edge
+ * buys, `carveCurvature`, no tighter than the skis hold at this speed and
+ * no faster round than `slalomTurn` rad/s, the edge reaching its target over
+ * `slalomLag` s), each scored by how far it strays from the course's line
+ * and, far more, by reaching the gate owed on the wrong side of its turning
+ * pole; the first edge of the best is the one given. Pure: it reads the
+ * state and writes nothing. */
+const STEERS = [-1, -0.5, 0, 0.5, 1];
+function slalomSteer(state: GameState, s: number, profile: BotProfile): number {
+  const level = state.level;
+  const c = state.skier;
+  const speed = Math.max(3, hypot(c.vx, c.vz));
+  const here = trackPointAt(level, s, pc);
+  const rx = Math.cos(here.heading);
+  const rz = -Math.sin(here.heading);
+  const y0 = (c.x - here.x) * rx + (c.z - here.z) * rz;
+  const going = hypot(c.vx, c.vz) > 1 ? Math.atan2(c.vx, c.vz) : c.heading;
+  const psi0 = angleDiff(here.heading, going);
+  // The edge he stands on now, how fast it rolls (`steer.edgeRate` as his
+  // pair rolls it) and the edge the skis hold at this speed.
+  const rate = TUNING.steer.edgeRate * footprintOf(c.spec).edgeRate;
+  const held = Math.max(0.2, Math.min(c.spec.edgeMax, edgeLockAt(c.spec, speed)));
+  const turnMost = profile.slalomTurn / speed;
+  const bendOf = (edge: number): number =>
+    Math.sign(edge) *
+    Math.min(turnMost, profile.slalomBite * carveCurvature(c.spec, Math.abs(edge)));
+  // The gate owed: where its turning pole stands across the piste, and on
+  // which side of it his feet must pass.
+  const p = state.progress;
+  const gate = level.checkpoints[p.nextCheckpoint];
+  let gateS = Infinity;
+  let pole = 0;
+  let side = 0;
+  if (gate?.pole === "open") {
+    const g = trackPointAt(level, gate.s, pb);
+    const across = (gate.x - g.x) * Math.cos(g.heading) - (gate.z - g.z) * Math.sin(g.heading);
+    const turn = gate.turn ?? -1;
+    pole = across + turn * (gate.width / 2);
+    side = -turn;
+    gateS = gate.s;
+  }
+  const dt = profile.slalomHorizon / SLALOM_STEPS;
+  const switchAt = Math.round(SLALOM_STEPS * 0.4);
+  // The line where each step of every way will be, read once: the ways
+  // part by a few centimetres down the piste over a second.
+  for (let i = 0; i < SLALOM_STEPS; i++) {
+    const line = slalomLineFast(level, s + speed * dt * (i + 1));
+    ahead[i] = line ? line.offset : 0;
+  }
+  let best = 0;
+  let bestCost = Infinity;
+  for (const first of STEERS) {
+    for (const then of STEERS) {
+      let u = 0;
+      let y = y0;
+      let psi = psi0;
+      let edge = c.edge;
+      let cost = 0;
+      let judged = false;
+      for (let i = 0; i < SLALOM_STEPS; i++) {
+        const want = (i < switchAt ? first : then) * held;
+        edge += clamp(want - edge, -rate * dt, rate * dt);
+        psi += speed * bendOf(edge) * dt;
+        u += speed * Math.cos(psi) * dt;
+        y += speed * Math.sin(psi) * dt;
+        const off = y - ahead[i];
+        cost += off * off;
+        if (!judged && s + u >= gateS) {
+          judged = true;
+          const clear = (y - pole) * side - profile.slalomClear;
+          if (clear < 0) cost += 400 * clear * clear + 40;
+        }
+      }
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = first;
+      }
+    }
+  }
+  return best;
+}
+
+/** How many steps the slalom's model skis a way of steering over, and the
+ * line under each. */
+const SLALOM_STEPS = 12;
+const ahead = new Float64Array(SLALOM_STEPS);
 
 /** Move the aim off a trunk standing in the line from the skier to it. */
 function dodgeTrees(
@@ -421,13 +552,19 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;
-  let aimS = Math.min(
-    L,
-    on.s +
-      (poles
-        ? profile.slalomLook + profile.slalomLookPerSpeed * speed
-        : profile.lookBase + profile.lookPerSpeed * speed),
-  );
+  let aimS = poles
+    ? Math.min(L, on.s + profile.slalomLook + profile.slalomLookPerSpeed * speed)
+    : Math.min(L, on.s + profile.lookBase + profile.lookPerSpeed * speed);
+  // ON A SLALOM, never past the gate owed: a racer goes AT the outside of
+  // the next turning pole and only then for the one after — an aim past it
+  // cuts inside the pole.
+  if (poles && p.started) {
+    const gate = cps[p.nextCheckpoint];
+    if (gate?.pole !== undefined) {
+      const at = gate.pole === "closed" ? gate.s + gate.width / 2 : gate.s;
+      aimS = Math.min(aimS, Math.max(on.s + 0.5, at));
+    }
+  }
   // BEFORE THE START GATE and off the piste (a start line in the powder, on
   // a hand-built map): aim onto the piste SHORT of the gate, so it is
   // crossed skiing down the piste.
@@ -496,6 +633,12 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     bearing,
   );
   input.steer = clamp(profile.steerGain * (1 - powder * profile.powderEase) * error, -1, 1);
+  // ON A SLALOM'S LINE the skis are steered off the line itself rather than
+  // a point on it: the bend it makes a moment ahead, and the heading and
+  // the place it asks of him now.
+  if (poles && p.started && on.distance <= halfWidth + 2) {
+    input.steer = slalomSteer(state, on.s, profile);
+  }
   // OUT OF A SKID WITH THE SKIS FLAT: while they are pivoted, or still
   // sliding across their line, the edge is held under what catches
   // (`skier.slipEdge`) — a skier finishing a hockey stop stands his skis up
@@ -532,7 +675,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   }
   // Past the finish nothing is owed but a stop: stand up and skid.
   if (p.finished) allowed = 0;
-  if (speed > allowed + profile.skidOver) {
+  if (speed > allowed + (poles ? profile.slalomSkidOver : profile.skidOver)) {
     input.tuck = 0;
     input.brake = clamp((speed - allowed) / 3, 0.25, 1);
   } else if (speed > allowed + profile.standOver) {

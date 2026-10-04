@@ -35,6 +35,7 @@ import { SKIS, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
+import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift } from "./lift-ride.ts";
 import { stepRun } from "./run.ts";
@@ -193,6 +194,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     countdown: rules.countdown,
     phase: rules.countdown > 0 ? "countdown" : "racing",
     events: [],
+    gatePoles: freshGatePoles(level),
   };
   const at =
     options.mode === "free" && options.spawn

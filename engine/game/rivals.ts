@@ -55,6 +55,7 @@ import {
   type SkierState,
 } from "./state.ts";
 import { fieldOrderOf, fieldPlace } from "./field.ts";
+import { freshGatePoles } from "./gate-poles.ts";
 import { stepRun } from "./run.ts";
 import { freshSkier } from "./skier.ts";
 import { freshTricks } from "./tricks.ts";
@@ -107,10 +108,9 @@ export function createRivals(state: GameState, count: number): void {
   state.rivals = dealRivals(state, count, (i) => gridSlot(state, i + 1));
 }
 
-/** DEAL THE START LIST: `count` rivals, each stood where `at` says, his pace
+/** DEAL THE START LINE: `count` rivals, each stood where `at` says, his pace
  * and his skis off the run's stream, his resilience off a stream of its own
- * and his start off the start's — the same draws in the same order however
- * the field then starts (`field.ts` skis these one at a time). */
+ * and his start off the start's. */
 export function dealRivals(state: GameState, count: number, at: (i: number) => Spawn): Rival[] {
   const out: Rival[] = [];
   const start = createRng((state.seed ^ START_SALT) >>> 0);
@@ -134,6 +134,8 @@ export function dealRivals(state: GameState, count: number, at: (i: number) => S
       // The crowd is the world's, stepped once, never a rival's own.
       crowd: undefined,
       field: undefined,
+      // Every racer knocks his own poles.
+      gatePoles: freshGatePoles(state.level),
       events: [],
     };
     const spot = at(i);

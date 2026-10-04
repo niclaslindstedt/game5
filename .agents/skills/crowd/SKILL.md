@@ -102,7 +102,8 @@ standing where a real race's crowd stands. Presentation only, end to end.
 
 | Piece | File |
 | --- | --- |
-| WHO stands WHERE and what each one wears, carries and how lively he is: the banks, the grandstands, the fences, the finish arena's layout — dealt off the map's seed (`FAN_SALT`) | `pwa/src/game/spectator-plan.ts` (three-free; `planSpectators`, `FANS`, `FAN_STYLES`, `FAN_HATS`, `FAN_PALETTE`) |
+| WHO stands WHERE and what each one wears, carries and how lively he is: the banks, the grandstands, the fences, the finish arena's layout — dealt off the map's seed (`FAN_SALT`) | `pwa/src/game/spectator-plan.ts` (three-free; `planSpectators`, `FANS`, `FAN_STYLES`, `FAN_HATS`, `FAN_PALETTE`; `NETS` / `netStretch`, the safety nets `gates.ts` draws) |
+| A SLALOM'S crowd: both sides of the course behind its nets, thin at the top and thick over the last gates, the combinations and the steepest pitch crowded, a few beside and behind the start house — laid through `planSpectators`' own dealer (`FanDealer`) | `pwa/src/game/spectator-slalom.ts` (three-free; `planSlalomBanks`, `SLALOM_FANS`) |
 | The figure at three cuts, every hat and prop on it and folded away per fan, and the SHADER that moves him | `pwa/src/game/spectator-shapes.ts` (`buildFanFigure`, `fanMaterial`, `POSE_GLSL`) |
 | The instanced draw a bank and cut, the racers and the arena's mood fed to the shader each frame | `pwa/src/game/spectators.ts` (`createSpectators`, `createPeopleView` — the one view the renderer holds for every person who is not racing) |
 | The grandstands, the nets, the finish circle's boards and exit gate, the leader's platform, the video wall and its live clock | `pwa/src/game/finish-arena.ts` |
@@ -118,6 +119,17 @@ standing where a real race's crowd stands. Presentation only, end to end.
   down the bottom of the hill where people walk up from the village; thin
   knots elsewhere, thicker toward the bottom; a knot at the start. Never on
   a piste, a trunk, a lift's station or a wind tunnel.
+- **A SLALOM IS WATCHED OTHERWISE** (`spectator-slalom.ts`): the course is
+  netted its whole length, so the crowd lines BOTH sides behind the
+  spectator fence (two metres or more behind the nets, `NETS`) from 30 m
+  below the start house down — a row a fifth full at the top growing to
+  four rows near the bottom, two rows more at a combination and one at the
+  steepest pitch — then the finish slope eight deep over the last gates and
+  the arena as a downhill's. The start is a restricted area: a dozen beside
+  and behind the house, never in front of the door. Nobody in the run-out.
+  A downhill's plan must not move for it: the slalom is a branch taken
+  after the arena, and every other seed's plan stays bit for bit (hash the
+  plans of a few seeds before and after any change to the shared dealer).
 - **NOTHING OF IT IS THE ENGINE'S.** The plan reads the `Level` and writes
   nothing, draws off its own generator, and the shader reads the racers'
   positions; `tests/spectators_test.ts` holds the digest unmoved.
@@ -139,7 +151,8 @@ standing where a real race's crowd stands. Presentation only, end to end.
 each style through its animation frame by frame, `looks` the dealt
 variety, `cuts` the three cuts and the game's pixels, and
 `ARGS="--sheet=race --views=pass"` one bank of the finish slope frame by
-frame as the racer goes by (with `idle`, `finish`, `stand`, `screen`,
+frame as the racer goes by (with `course` and `combo` — up a slalom's
+course from its middle, a combination's crowd — `idle`, `finish`, `stand`, `screen`,
 `arena`, `jump`, `turn`, `overview`, `chase` for the rest; `--seed=7` has
 jumps, `--hour=19.5` is under the lights). Then
 `npx vitest run tests/spectators_test.ts`, and `make profile` for a cost.

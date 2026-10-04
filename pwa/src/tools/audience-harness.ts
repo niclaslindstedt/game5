@@ -313,7 +313,10 @@ async function race(): Promise<void> {
   if (params.get("hour") !== null && Number.isFinite(hour)) renderer.setSky({ hour });
   await renderer.load(state);
   const level = state.level;
-  const length = level.track.length;
+  // The finish line's arc: the piste's end on a downhill, short of it on
+  // a slalom, whose course is a stretch of the piste.
+  const length = level.checkpoints[level.checkpoints.length - 1]?.s ?? level.track.length;
+  const startS = level.checkpoints[0]?.s ?? 0;
   const plan = planSpectators(level);
   const FRAME = 1 / 60;
   const sOf = (x: number, z: number) => nearestTrackPoint(level, x, z).s;
@@ -373,7 +376,9 @@ async function race(): Promise<void> {
 
   /** The arc each view wants the racer at, or null for none. */
   const at: Record<string, () => number | null> = {
-    start: () => 8,
+    start: () => startS + 4,
+    course: () => (startS + length) / 2,
+    combo: () => bankOf("combo")?.s ?? null,
     turn: () => bankOf("turn")?.s ?? null,
     pitch: () => bankOf("pitch")?.s ?? null,
     jump: () => bankOf("jump")?.s ?? null,
@@ -394,9 +399,29 @@ async function race(): Promise<void> {
 
   const shots: Record<string, () => string> = {
     start() {
+      if (level.slalom) {
+        // The start house from below on the course, its knot beside it.
+        const h = level.checkpoints[0];
+        const p = trackPointAt(level, h.s + 24);
+        look([p.x, p.y + 4, p.z], [h.x, h.y + 1.5, h.z], 60);
+        return "the start house and its knot, from down the course";
+      }
       const b = bankOf("start");
       across(b?.s ?? 15, 1, 2.2);
       return "the knot at the start, from across the piste";
+    },
+    course() {
+      const mid = (startS + length) / 2;
+      const p = trackPointAt(level, mid + 40);
+      const q = trackPointAt(level, mid - 80);
+      look([p.x, p.y + 9, p.z], [q.x, q.y, q.z], 60);
+      return `up the course from ${(mid + 40).toFixed(0)} m, both banks behind the nets`;
+    },
+    combo() {
+      const b = bankOf("combo");
+      if (!b) return "no combination on this course";
+      across(b.s, b.side, 2.5);
+      return `the crowd at a combination at ${b.s.toFixed(0)} m`;
     },
     turn() {
       const b = bankOf("turn");

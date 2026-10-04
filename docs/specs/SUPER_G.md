@@ -3,6 +3,16 @@
 **Draft. Research first, then build.** Delete this file when the super-G
 is finished (see `README.md`).
 
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*.
+2. Build after (or with) the GIANT SLALOM if it is not done: the panel
+   gates and the shared setter come from there (`GIANT_SLALOM.md`).
+3. The new parts are the jumps kept in a race course, the safety nets, one
+   run, and speed — read `engine/game/flight.ts` (`landingLoad`) and the
+   tuck in `engine/game/skier.ts` first.
+4. Research the to-do below into `docs/disciplines.md` before writing R33.
+
 ## What it is
 
 The speed discipline with gates turned: one run (no second), a course with
@@ -57,6 +67,10 @@ blind at race pace, which is why the course reads from the gates.
       giant slalom; delete this spec.
 
 ## Research to-do
+
+Write every finding into this discipline's section of
+`docs/disciplines.md` (numbers with sources, estimates marked, no names),
+then tick it here.
 
 - [ ] Competition rules restated generically: vertical drop bands, gates as
       a % of the vertical, minimum number of direction changes, distance

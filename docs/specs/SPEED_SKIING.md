@@ -3,6 +3,16 @@
 **Draft. Research first, then build.** Delete this file when speed skiing
 is finished (see `README.md`).
 
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*.
+2. The new parts are a straight track, a result that is a SPEED (the trap),
+   and the engine at its extreme — read `engine/game/limits.ts`
+   (`terminalSpeed`), the tuck's drag, `docs/riding.md`'s measured table,
+   and check the 120 Hz step and the collision hold at those speeds with a
+   `make ride` scenario before anything else.
+3. Research the to-do below into `docs/disciplines.md` before writing R36.
+
 ## What it is
 
 Straight down the fall line as fast as a skier can go: no gates, no turns.
@@ -50,10 +60,14 @@ with heats over several runs (research the format).
 - [ ] **Audience**: along the run-out and the finish (research).
 - [ ] **Sound**: the wind and the suit at 150+ km/h, the skis' chatter.
 - [ ] **Campaign**, **front door**, **labs** (the technique lab's speed
-      column; a `ride` scenario on the straight), **tests**, **docs**; delete
+      column; a `ride` scenario on the straight), **tests**, **docs** (`docs/disciplines.md` first); delete
       this spec.
 
 ## Research to-do
+
+Write every finding into this discipline's section of
+`docs/disciplines.md` (numbers with sources, estimates marked, no names),
+then tick it here.
 
 - [ ] The format restated generically: classes/categories, runs, heats and
       eliminations, how a result is the speed through the trap.

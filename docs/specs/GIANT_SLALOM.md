@@ -3,6 +3,15 @@
 **Draft. Research first, then build.** Delete this file when the giant
 slalom is finished (see `README.md`).
 
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*.
+2. The closest thing built is the SLALOM: two runs, interval start, strict
+   gates — the giant slalom is mostly new NUMBERS on the same machinery,
+   plus panel gates. Start by reading `engine/mapgen/slalom.ts` and deciding
+   what to factor out into a shared setter.
+3. Research the to-do below into `docs/disciplines.md` before writing R32.
+
 ## What it is
 
 The technical speed discipline between the slalom and the speed events:
@@ -65,10 +74,15 @@ in reverse order of the first's best, the combined time ranked.
       `analyze` showing the course; `sim` before/after.
 - [ ] **Tests**: course rules, gate judging with panels, the board, the bot
       finishing.
-- [ ] **Docs**: getting-started, configuration (`?start=` value), architecture,
-      AGENTS.md rows; delete this spec.
+- [ ] **Docs**: `docs/disciplines.md` (the research), getting-started,
+      configuration (`?start=` value), architecture, AGENTS.md rows; delete
+      this spec.
 
 ## Research to-do
+
+Write every finding into this discipline's section of
+`docs/disciplines.md` (numbers with sources, estimates marked, no names),
+then tick it here.
 
 - [ ] The competition rules for a giant slalom, restated generically:
       vertical drop bands by level, direction changes as a % of the vertical,

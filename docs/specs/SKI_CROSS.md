@@ -3,6 +3,18 @@
 **Draft. Research first, then build.** Delete this file when the ski cross
 is finished (see `README.md`).
 
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*.
+2. This one is NOT built on the slalom's board: the field is SKIED, side by
+   side. Start from the field the game had before the slalom — the start
+   line four abreast and the rivals as whole runs (`engine/game/rivals.ts`,
+   `fieldRules` in `defs/modes.ts`), skier against skier
+   (`engine/game/collision.ts`) — and the terrain park's kickers
+   (`engine/mapgen/trick-field.ts`) for the built features.
+3. Research the to-do below into `docs/disciplines.md` before writing R35;
+   the format (qualifying and the bracket) is a DOM-free module of its own.
+
 ## What it is
 
 The one discipline where racers are on the course TOGETHER: four (sometimes
@@ -56,9 +68,13 @@ is SKIED, side by side, so the bot and skier-against-skier contact matter.
 - [ ] **Audience**: along a built course, at the jumps and the finish.
 - [ ] **Sound**: the start gate's bars, contact, landings.
 - [ ] **Campaign**, **front door**, **labs** (a course lab for the built
-      features), **tests**, **docs**; delete this spec.
+      features), **tests**, **docs** (`docs/disciplines.md` first); delete this spec.
 
 ## Research to-do
+
+Write every finding into this discipline's section of
+`docs/disciplines.md` (numbers with sources, estimates marked, no names),
+then tick it here.
 
 - [ ] The format restated generically: qualifying, heat sizes, how many go
       through, the bracket, the small final, tie-breaks, a fall in a heat.

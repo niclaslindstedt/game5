@@ -3,6 +3,17 @@
 **Draft. Research first, then build.** Delete this file when the downhill
 is finished (see `README.md`).
 
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*.
+2. Build after the SUPER-G if it is not done: jumps in a race course, the
+   safety nets and the speed events' one run come from there.
+3. The new parts are the training runs, the speed trap and physics at
+   100+ km/h — read `engine/game/limits.ts` (`terminalSpeed`), the tuck's
+   drag in `TUNING.skier`, `docs/riding.md`'s measured table, and what the
+   generator's whole piste already is (`make level SEED=38`).
+4. Research the to-do below into `docs/disciplines.md` before writing R34.
+
 ## What it is
 
 The fastest discipline: the longest course and the most vertical, few
@@ -59,10 +70,14 @@ days before. Skied on the longest, straightest pair.
 - [ ] **Audience**: along the course and packed at the jumps and the finish.
 - [ ] **Sound**: the wind at 100+ km/h, the ski chatter, the landings.
 - [ ] **Campaign**, **front door**, **labs** (the technique lab's downhill
-      column, `ride` scenarios at speed), **tests**, **docs**; delete this
-      spec.
+      column, `ride` scenarios at speed), **tests**, **docs** (`docs/disciplines.md` first); delete
+      this spec.
 
 ## Research to-do
+
+Write every finding into this discipline's section of
+`docs/disciplines.md` (numbers with sources, estimates marked, no names),
+then tick it here.
 
 - [ ] Competition rules restated generically: vertical drop bands, course
       length, gates and panels, training runs (how many, required?), one race

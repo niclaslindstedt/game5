@@ -75,55 +75,8 @@ standing docs (`getting-started.md`, `configuration.md`, `architecture.md`,
 
 ## The technique (researched)
 
-What a slalom racer's body does, for the poses and the clips. Numbers are
-the research's; *(est.)* marks an estimate rather than a measurement.
-
-The start (to be drawn as ONE short **slalom start clip**, the same for every
-racer, driven by `SkierState.launch`):
-
-1. **Held**: boots just behind the wand, skis parallel about hip-width,
-   both pole tips planted beyond the wand, a little outside its posts; the
-   shafts lean forward, the hands over or ahead of the wand; crouched, the
-   weight back over the feet, the arms loaded on the poles.
-2. **Rise and fall forward**: up out of the crouch with no hop, the feet
-   still behind the wand; the chest goes out past the wand (a racer may rock
-   back first, then fire forward).
-3. **Kick**: with the body past the wand, both heels kicked back and up
-   (the body pitches further forward), then both skis fired forward
-   together through the wand — a two-footed jump, the feet barely off the
-   snow, the shins opening the wand. The feet are the LAST thing out of the
-   house; the body does not rise.
-4. **Push**: the arms finish a hard double-pole push past the hips.
-5. Out of it: the research has 1–3 skate steps with double poles; this game
-   skips them by the player's choice (he leaves already at speed, ~15–25
-   km/h *(est.)*, turning at the first gate within ~2 s).
-
-The wand: one bar on one post, at 35–50 cm, swinging open forward and
-downhill; the clock trips at a fixed angle 10–30° open.
-
-Through the gates:
-
-- A turn is ~0.8–1.0 s (giant slalom ~1.5 s); gates 9–11 m apart.
-- Edge ~5° at the transition, rising to 65–70° at or just after the gate;
-  the body's mass ~45–55° inclined with 10–20° hip angulation *(est.)*; the
-  outside leg long (knee flexed ~40–95°), the inside leg short (~75–110°),
-  the inside hip held up; load ~80:20 outside, ~60:40 late in the turn.
-- Transition: both legs flex (knee, hip, trunk toward ~90°), the skis cross
-  under a level body, then extend onto the new edge above the fall line.
-- Upper body quiet, square to the fall line, countered 15–25° (to ~45° late
-  in the turn); hands up, forward, wider than the hips, never across the
-  zipper.
-- Pole plant: short and firm, down the hill by the boot at the edge
-  release, the arm kept forward after.
-- **Cross-block**: the OUTSIDE hand punches forward and down at chest
-  height at the gate and knocks the pole over with the guard on the grip,
-  the feet passing outside it, the shin brushing it; an upright skier clears
-  with the inside hand. Not reaching across the body.
-- Hairpins and verticals: the feet flick side to side under level, square
-  shoulders.
-- The finish: a short tuck, then a LUNGE at the line — one boot shot
-  forward, the arms thrown forward — then up and a hockey stop.
-- Speed ~40 km/h average, 54–60 km/h peak; a run ~45–60 s.
+Moved to `docs/disciplines.md` § Slalom — the standing page every
+discipline's research lives on, which outlives this spec.
 
 ## Built
 

@@ -391,6 +391,7 @@ Each of these is the one place an answer is written down. Anything that needs it
 | A new failure mode, a new tool's trap | `docs/troubleshooting.md` |
 | App identity, domain, deploy slots | `identity.ts`, README, `docs/configuration.md`, `pwa/public/*`, `pwa/index.html` |
 | A shell's tree, a bridge, a build knob | `docs/platforms.md`, `tauri/README.md` or `native/README.md`, `docs/configuration.md`'s environment rows |
+| A race discipline's rules or research (what its course is, its format, its technique, with sources) | `docs/disciplines.md`; a discipline being built keeps its working spec in `docs/specs/` and deletes it when done |
 | A spec chapter, or a verdict under one | `docs/spec-conformance.md` — `sync-game-spec` re-dates it |
 | A skill added, renamed or retired | this file's Skills section, `.agents/skills/README.md`, the `maintenance` registry for an `update-*` — `tests/skills_test.ts` holds all three |
 

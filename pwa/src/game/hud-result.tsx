@@ -32,14 +32,26 @@
 // A TRICKS RUN'S PLATE is the score where the time was, and no book under
 // it: the record book is a book of times (`records.ts`).
 //
+// A SLALOM'S PLATE says which run it was; on the second the first run's
+// time, this run's and the total, and the place is on combined time. Under
+// it the BOARD (`hud-board.tsx`) — the whole start list, the player's row
+// lit — and after the first run the SECOND RUN press, or why there is none
+// (`secondRunOf`: out of the first run, or outside the qualifying places).
+// A run that went OUT is no finish: the plate says DISQUALIFIED or DID NOT
+// FINISH and why, in plain words, with no time and no place, over the same
+// board.
+//
 // ITS OWN LAYER, drawn by App.tsx outside the HUD, and gated here: it is up
 // over a finished race and down under the pause card, which offers its own.
 
 import { isSkiId, skisById } from "@engine";
 
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
+import { SLALOM } from "@engine";
+
 import type { CampaignLevel } from "./campaign.ts";
 import type { CampaignPlate } from "./campaign-run.ts";
+import { SlalomBoard } from "./hud-board.tsx";
 import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -52,6 +64,7 @@ export function ResultPlate({
   campaign = null,
   onNext,
   onReplay = null,
+  onSecond = null,
 }: {
   /** The race, or null while the plate is not the player's to press. */
   snap: HudSnapshot | null;
@@ -69,34 +82,59 @@ export function ResultPlate({
   /** The race watched back (`replay-run.ts`), or null where there is no
    * recording of it. */
   onReplay?: (() => void) | null;
+  /** A slalom's SECOND RUN stood up (`pinned-run.ts`), or null where the
+   * app offers none. */
+  onSecond?: (() => void) | null;
 }) {
-  if (!snap?.result || !snap.standings) return null;
-  const { result, standings, best } = snap;
+  if (!snap?.standings) return null;
+  const { result, standings, best, slalom } = snap;
+  const out = slalom?.out ?? null;
+  if (!result && !out) return null;
+  if (!result)
+    return <OutPlate snap={snap} onAgain={onAgain} onMenu={onMenu} onReplay={onReplay} />;
   const trial = snap.mode === "timeTrial";
   const record = best === null || result.time < best.time;
   const gold = snap.tricks ? false : trial ? record : result.place === 1;
+  const mine = standings.find((s) => s.you);
+  const second = slalom?.second ?? null;
   const skisName = (id: string): string => (isSkiId(id) ? skisById(id).name : id);
   return (
     <div class="hud hud-result-layer">
       <div class="hud-center">
-        <div class={`hud-card hud-result${gold ? " hud-result-record" : ""}`}>
+        <div
+          class={`hud-card hud-result${gold ? " hud-result-record" : ""}${slalom ? " hud-result-boarded" : ""}`}
+        >
           <span class="hud-card-note hud-result-label">
             {snap.tricks
               ? STRINGS.resultTricksTitle
               : trial
                 ? STRINGS.resultTrialTitle
-                : STRINGS.resultTitle}
+                : slalom
+                  ? STRINGS.resultSlalomTitle(slalom.run)
+                  : STRINGS.resultTitle}
           </span>
           {snap.course && <span class="hud-card-note">{snap.course}</span>}
           {snap.tricks ? (
             <span class="hud-card-title">{STRINGS.score(snap.tricks.score)}</span>
           ) : trial ? (
             <span class="hud-card-title">{STRINGS.resultTime(result.time)}</span>
+          ) : slalom?.run === 2 ? (
+            <>
+              <span class="hud-card-title">{STRINGS.resultPlace(result.place, snap.skiers)}</span>
+              <span class="hud-card-note">{STRINGS.resultRuns(slalom.before, result.time)}</span>
+              <span class="hud-card-note">{STRINGS.resultTotal(slalom.before + result.time)}</span>
+            </>
           ) : (
             <>
               <span class="hud-card-title">{STRINGS.resultPlace(result.place, snap.skiers)}</span>
               <span class="hud-card-note">{STRINGS.resultTime(result.time)}</span>
             </>
+          )}
+          {/* Where the player stands against the leader on the board. */}
+          {slalom && mine?.gap !== null && mine?.gap !== undefined && (
+            <span class="hud-card-note hud-result-lead" data-lead={mine.gap <= 0 ? "1" : undefined}>
+              {STRINGS.resultLead(mine.gap)}
+            </span>
           )}
           {/* What the time owes the slalom gates skied past — already in
               it (`Progress.penalty`), so the time stands as the clock. */}
@@ -128,9 +166,22 @@ export function ResultPlate({
           {campaign?.ladder && (
             <span class="hud-card-note hud-result-ladder">{campaign.ladder}</span>
           )}
+          {/* THE SECOND RUN, or why there is none. */}
+          {second && second.kind !== "go" && (
+            <span class="hud-card-note hud-result-penalty">
+              {second.kind === "out"
+                ? STRINGS.secondOut
+                : STRINGS.secondShort(second.place, SLALOM.qualify)}
+            </span>
+          )}
+          {second?.kind === "go" && onSecond && (
+            <span class="hud-card-note">{STRINGS.secondNote(SLALOM.qualify)}</span>
+          )}
+          {/* THE SLALOM'S BOARD: the whole start list, the player's row lit. */}
+          {slalom && <SlalomBoard rows={standings} second={slalom.run === 2} />}
           {/* THE FIELD, best first. A skier still out is billed by the gate
               he has got to, so the table fills in as they come home. */}
-          {standings.length > 1 && (
+          {!slalom && standings.length > 1 && (
             <ol class="hud-standings">
               {standings.map((s) => (
                 <li key={s.slot} class={`hud-standing${s.you ? " hud-standing-you" : ""}`}>
@@ -150,8 +201,28 @@ export function ResultPlate({
           {/* THE WAYS ON. Racing again first — it is what a skier wants most
               of the time and the only one with a key behind it. */}
           <div class="hud-result-acts">
-            <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
-              {trial || snap.tricks ? STRINGS.resultTrialAgain : STRINGS.resultAgain}
+            {/* A slalom's SECOND RUN first: after a first run it is the way on. */}
+            {second?.kind === "go" && onSecond && (
+              <button
+                type="button"
+                class="hud-mini hud-result-act hud-result-second"
+                data-nav-next
+                onClick={onSecond}
+              >
+                {STRINGS.secondRun}
+              </button>
+            )}
+            <button
+              type="button"
+              class="hud-mini hud-result-act"
+              data-nav-next={second?.kind === "go" && onSecond ? undefined : true}
+              onClick={onAgain}
+            >
+              {trial || snap.tricks
+                ? STRINGS.resultTrialAgain
+                : slalom
+                  ? STRINGS.runAgain(slalom.run)
+                  : STRINGS.resultAgain}
             </button>
             {campaign ? (
               campaign.next &&
@@ -178,7 +249,58 @@ export function ResultPlate({
               {STRINGS.pauseMainMenu}
             </button>
           </div>
-          {!touch && <span class="hud-card-note hud-result-note">{STRINGS.resultNote}</span>}
+          {!touch && (
+            <span class="hud-card-note hud-result-note">
+              {slalom ? STRINGS.slalomNote : STRINGS.resultNote}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** THE PLATE OVER A RUN THAT WENT OUT (R31): the verdict and why, the board
+ * under it, and the ways on — the run again, the replay, the front door. */
+function OutPlate({
+  snap,
+  onAgain,
+  onMenu,
+  onReplay,
+}: {
+  snap: HudSnapshot;
+  onAgain: () => void;
+  onMenu: () => void;
+  onReplay: (() => void) | null;
+}) {
+  const slalom = snap.slalom;
+  const out = slalom?.out;
+  if (!slalom || !out || !snap.standings) return null;
+  return (
+    <div class="hud hud-result-layer">
+      <div class="hud-center">
+        <div class="hud-card hud-result hud-result-out hud-result-boarded">
+          <span class="hud-card-note hud-result-label">
+            {STRINGS.resultSlalomTitle(slalom.run)}
+          </span>
+          {snap.course && <span class="hud-card-note">{snap.course}</span>}
+          <span class="hud-card-title hud-result-verdict">{STRINGS.outTitle(out.status)}</span>
+          <span class="hud-card-note hud-result-why">{STRINGS.outWhy(out)}</span>
+          {slalom.second?.kind === "out" && <span class="hud-card-note">{STRINGS.secondOut}</span>}
+          <SlalomBoard rows={snap.standings} second={slalom.run === 2} />
+          <div class="hud-result-acts">
+            <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
+              {STRINGS.runAgain(slalom.run)}
+            </button>
+            {onReplay && (
+              <button type="button" class="hud-mini hud-result-act" onClick={onReplay}>
+                {STRINGS.replayWatch}
+              </button>
+            )}
+            <button type="button" class="hud-mini hud-result-act" onClick={onMenu}>
+              {STRINGS.pauseMainMenu}
+            </button>
+          </div>
         </div>
       </div>
     </div>

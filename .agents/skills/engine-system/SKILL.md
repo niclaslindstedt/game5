@@ -27,7 +27,7 @@ system change.
 | Trees and the map's edge | `engine/game/collision.ts` — the `collision` skill |
 | The course: the gates, the finish, the reset | `engine/game/course.ts` — the `collision` skill |
 | Run orchestration | `engine/game/step.ts` — `createGame`, `rulesFor` and the fixed 120 Hz `step`: the clock, the lights, the player's run, the field, skier against skier. ONE skier's own step is `run.ts`'s `stepRun`, run for the player and for every rival |
-| What a run is PLAYING BY | `engine/game/defs/modes.ts` (`RunRules`, `RACE`, `raceRules`, `openRules`) → `GameState.rules`. Nothing branches on anything but the rules; `createGame` with no race asked for skis the open rules, so the sim and the tests never notice a mode landing |
+| What a run is PLAYING BY | `engine/game/defs/modes.ts` (`RunRules`, `MODE_RULES`, `fieldRules`, `slalomRules`, `openRules`) → `GameState.rules`. Nothing branches on anything but the rules; `createGame` with no race asked for skis the open rules, so the sim and the tests never notice a mode landing |
 | The field | `engine/game/rivals.ts` — a rival is a whole `GameState` sharing the level, the rules and the RNG by reference, skied by `sim/bot.ts`; `racePlace`, `fieldOrder`, `raceProgress` are the standings |
 | Standing the skier at a moment | `engine/game/place.ts` — `placeRun(state, moment)`; the `test-scenario` skill |
 | Where the sun stands over a run (still, at the map's hour) | `engine/game/clock.ts` — `sunAtRun`, `moonAtRun` |

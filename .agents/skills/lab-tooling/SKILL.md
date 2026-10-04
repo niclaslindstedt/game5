@@ -86,7 +86,7 @@ meter, `audition.mjs` for a page written by concatenation.
 A browser lab does not click through menus. `pwa/src/game/url-params.ts`
 states every parameter the app reads (DOM-free, so
 `tests/menu_system_test.ts` reads it), and `scripts/screenshot.mjs`'s header
-is the tool's side of it: `?seed=` (the map), `?start=race` (straight onto the
+is the tool's side of it: `?seed=` (the map), `?start=slalom` (straight onto the
 grid), `?t=` (seconds already ridden by the bot), `?shot=1` (held still once
 drawn), `?paused=1` (under the pause card), `?camera=` (a rung),
 `?splash=1` / `?menu=root` (a card), `?update=1` (the new-build button).

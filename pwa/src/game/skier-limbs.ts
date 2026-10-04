@@ -105,8 +105,9 @@ export const KNEE_MOST = { bent: 1.97, tucked: 2.16 };
  * pelvis's middle on `pelvis`, `half` its half width) must lift, m, so that
  * neither leg — a `thigh` and a `shin` from each hip joint to its cuff in
  * `feet` — folds past `KNEE_MOST` (`crouch` of the way to the tucked
- * one); as far as the other leg reaches, never stretching it. A skier gets
- * low by bending at the hip, never by a knee folded up past a skier's.
+ * one; `bent` the most turning, a technique's own); as far as the other
+ * leg reaches, never stretching it. A skier gets low by bending at the hip,
+ * never by a knee folded up past a skier's.
  */
 export function kneeRoom(
   hips: V3,
@@ -116,8 +117,9 @@ export function kneeRoom(
   half: number,
   thigh: number,
   shin: number,
+  bent = KNEE_MOST.bent,
 ): number {
-  const most = KNEE_MOST.bent + (KNEE_MOST.tucked - KNEE_MOST.bent) * crouch;
+  const most = bent + (KNEE_MOST.tucked - bent) * crouch;
   const span = Math.sqrt(thigh * thigh + shin * shin + 2 * thigh * shin * Math.cos(most));
   const reach = (thigh + shin) * 0.97;
   let need = 0;
@@ -129,6 +131,28 @@ export function kneeRoom(
     room = Math.min(room, flat < reach * reach ? Math.sqrt(reach * reach - flat) - d.y : 0);
   });
   return Math.max(0, Math.min(need, room));
+}
+
+/**
+ * HOW FAR THE HIPS CAN RISE, m, before the leg on `side` (−1 left) — a
+ * `thigh` and a `shin` from its hip joint (`hips` on `pelvis`, `half` its
+ * half width) to its cuff at `foot` — is let out to `flex` rad of knee
+ * flexion: an outside leg held long, never locked straight.
+ */
+export function legRoom(
+  hips: V3,
+  pelvis: V3,
+  foot: V3,
+  side: number,
+  half: number,
+  thigh: number,
+  shin: number,
+  flex: number,
+): number {
+  const span = Math.sqrt(thigh * thigh + shin * shin + 2 * thigh * shin * Math.cos(flex));
+  const d = sub(add(hips, scale(pelvis, side * half)), foot);
+  const flat = d.x * d.x + d.z * d.z;
+  return flat < span * span ? Math.max(0, Math.sqrt(span * span - flat) - d.y) : 0;
 }
 
 /** `v` turned `a` rad about the unit `axis` (Rodrigues). */

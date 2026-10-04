@@ -10,15 +10,17 @@
 //   its posts.
 //   FALL: up out of the crouch with no hop, the chest going out past the
 //   wand while the feet stay behind it.
-//   KICK: the body past the wand, he pitches on over it and fires both
-//   skis through together on the poles' push — the feet the last of him
-//   out of the house. (The push through the arms is `launchGait`'s.)
+//   KICK: the body past the wand, he kicks both heels back and up — the
+//   skis' tails off the snow — and fires both skis through together on the
+//   poles' push, the feet the last of him out of the house (`kickStand`;
+//   the push through the arms is `launchGait`'s).
 //   SETTLE: out of the clip into the racing stance.
 //
 // Three-free; `skis-body.ts` hands the frame's shape to `skierPose` as its
 // start gate (`SkierPoseInput.house`), weighted as `ready`.
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import type { Stand } from "./ski-stand.ts";
 
 /** A start gate's shape: how far the hips sink, m, and sit back over the
  * boots (negative is forward, out over the wand), m, how far the trunk
@@ -66,4 +68,53 @@ export function slalomStart(
     return { shape: S.kick, weight: 1 - smooth((launch - T.kick) / (T.settle - T.kick)) };
   }
   return null;
+}
+
+/** THE KICK in the feet, s from the launch: the heels kicked back and up
+ * (the skis lifted `lift` m, drawn back `back` m and their tips pitched
+ * `heel` rad down — the tails up), then the pair fired forward together
+ * `ahead` m, tips a touch up, and set back on the snow. Keyframes at the
+ * clip's own times, from the chest past the wand to the skis through. */
+export const SLALOM_KICK = {
+  heel: -0.3,
+  lift: 0.09,
+  back: -0.14,
+  ahead: 0.08,
+  tips: 0.05,
+  /** The heels at the top of the kick, s. */
+  top: 0.22,
+  /** Back on the snow, s. */
+  down: 0.5,
+} as const;
+
+/** The kick laid on the stand `stand` (`ski-stand.ts`) `launch` s out of
+ * the house — nothing outside the kick. */
+export function kickStand(stand: Stand, launch: number): void {
+  const K = SLALOM_KICK;
+  const T = SLALOM_START.times;
+  if (launch < T.fall || launch >= K.down) return;
+  let pitch: number;
+  let lift: number;
+  let fore: number;
+  if (launch < K.top) {
+    const k = smooth((launch - T.fall) / (K.top - T.fall));
+    pitch = K.heel * k;
+    lift = K.lift * k;
+    fore = K.back * k;
+  } else if (launch < T.kick) {
+    const k = smooth((launch - K.top) / (T.kick - K.top));
+    pitch = K.heel + (K.tips - K.heel) * k;
+    lift = K.lift * (1 - 0.5 * k);
+    fore = K.back + (K.ahead - K.back) * k;
+  } else {
+    const k = 1 - smooth((launch - T.kick) / (K.down - T.kick));
+    pitch = K.tips * k;
+    lift = K.lift * 0.5 * k;
+    fore = K.ahead * k;
+  }
+  for (const i of [0, 1] as const) {
+    stand.pitch[i] += pitch;
+    stand.lift[i] += lift;
+    stand.fore[i] += fore;
+  }
 }

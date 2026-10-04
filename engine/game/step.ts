@@ -33,6 +33,7 @@ import {
   type RunRules,
 } from "./defs/modes.ts";
 import { SKIS, type SkiSpec } from "./defs/skis.ts";
+import type { TechniqueId } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
@@ -53,6 +54,9 @@ export type CreateGameOptions = {
   seed?: number;
   /** A map to ride instead of the one the seed generates (tests, labs). */
   level?: Level;
+  /** HOW THE SKIER WORKS THE SKI (`technique.ts`), over the mode's own —
+   * so a lab can ski one course with every technique. */
+  technique?: TechniqueId;
   /** The kind of snow country the seed's map is built in (R21); the boreal
    * when left out. Ignored when `level` is given. */
   region?: RegionId;
@@ -161,6 +165,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     start: base.start,
     gates: base.gates,
     window: base.window,
+    technique: options.technique ?? base.technique,
   };
 }
 

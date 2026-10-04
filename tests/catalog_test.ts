@@ -130,6 +130,23 @@ describe("the catalog", () => {
     }
   });
 
+  it("builds the speed-event pairs to their discipline's competition rules", () => {
+    // The men's top-level rules (docs/disciplines.md, "The skis"): giant
+    // slalom at least 1.93 m and a 30 m sidecut, at most a 65 mm waist and
+    // a 103 mm shoulder; downhill at least 2.18 m and 50 m, at most 65 mm
+    // and 95 mm.
+    const rules = [
+      { ski: CHOUGH, length: 1.93, sidecut: 30, shoulder: 0.103 },
+      { ski: EAGLE, length: 2.18, sidecut: 50, shoulder: 0.095 },
+    ];
+    for (const r of rules) {
+      expect(r.ski.length, r.ski.id).toBeGreaterThanOrEqual(r.length);
+      expect(r.ski.sidecut, r.ski.id).toBeGreaterThanOrEqual(r.sidecut);
+      expect(r.ski.waist, r.ski.id).toBeLessThanOrEqual(0.065);
+      expect(r.ski.tipWidth, r.ski.id).toBeLessThanOrEqual(r.shoulder);
+    }
+  });
+
   it("prices the reference pair's footprint at exactly one on every axis", () => {
     const fit = footprintOf(SKIS);
     expect(fit.sink).toBe(1);

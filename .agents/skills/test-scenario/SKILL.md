@@ -126,7 +126,7 @@ true for one step.
   SCENARIO=<id>` draws what a test would measure. A moment worth a test is
   usually worth a scenario there — add it in the same change.
 - **The built app is staged by URL, not by `placeRun`.** `make screenshots`
-  opens `?start=race&seed=&t=&shot=1`: a generated run with `t` seconds
+  opens `?start=slalom&seed=&t=&shot=1`: a generated run with `t` seconds
   skied by the bot, held still. `make world` skis one seed and seeks named
   views (`jump`, `landing`, `furrow`…). There is no `?scene=` that stands the
   app at an arbitrary `RunMoment` yet; the sibling `game3`'s `scenarios.ts`

@@ -17,6 +17,7 @@ import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
+import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -69,6 +70,8 @@ export const STRINGS = {
   ...DEV_STRINGS,
   /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
   ...BODY_STRINGS,
+  /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
+  ...SLALOM_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -254,9 +257,19 @@ export const STRINGS = {
   splashPress: "PRESS ANY KEY TO START",
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
-  menuRace: "RACE",
+  menuRace: "SLALOM",
   menuRaceLine: (seed: number, skiers: number): string =>
-    `SEED ${seed} · TOP TO BOTTOM · ${skiers} SKIERS`,
+    `SEED ${seed} · TWO RUNS · ${skiers} SKIERS`,
+  /** THE DISCIPLINES the game names and has not built yet, on SLALOM. */
+  menuComing: (names: readonly string[]): string => `COMING · ${names.join(" · ")}`,
+  disciplines: {
+    slalom: "SLALOM",
+    giantSlalom: "GIANT SLALOM",
+    superG: "SUPER-G",
+    downhill: "DOWNHILL",
+    skiCross: "SKI CROSS",
+    speedSki: "SPEED SKIING",
+  },
   menuRacePinned: "PINNED BY THE LINK",
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",

@@ -20,6 +20,7 @@
 // course rule (R31 onward) — when it is.
 
 import { CROWD } from "./crowd.ts";
+import type { TechniqueId } from "./technique.ts";
 import { TUNING } from "./tuning.ts";
 
 export type RunRules = {
@@ -77,6 +78,9 @@ export type RunRules = {
   /** THE START WINDOW, s after GO: a racer not through the start gate by
    * then is disqualified; 0 is no window. */
   window: number;
+  /** HOW THE SKIER WORKS THE SKI (`technique.ts`): the slalom racer's on
+   * a slalom; left out, the free skier's — the shared model as it is. */
+  technique?: TechniqueId;
 };
 
 /** HOW MUCH HELP THE SKIER IS GIVEN — the arcade's two hands on him, each
@@ -184,6 +188,7 @@ export function slalomRules(laps: number): RunRules {
     start: "interval",
     gates: "strict",
     window: SLALOM.window,
+    technique: "slalom",
   };
 }
 

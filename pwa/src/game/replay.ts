@@ -52,6 +52,7 @@ import {
 
 import { createControlRecorder, readControls, type ControlRecorder } from "./ghost.ts";
 import { keepsRecords } from "./records.ts";
+import { heatOf } from "./slalom-heat.ts";
 import {
   createShotCollector,
   directAt,
@@ -83,14 +84,7 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     snowDepth: state.snowDepth,
     // A slalom's second run: the first run carried in again, so the course
     // and the board are the second run's.
-    heat:
-      state.field?.run === 2
-        ? {
-            run: 2,
-            player: state.field.before,
-            field: state.field.runs.map((r) => ({ ...r, time: r.before })),
-          }
-        : undefined,
+    heat: heatOf(state),
     quiet: true,
   };
 }

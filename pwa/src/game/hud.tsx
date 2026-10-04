@@ -7,6 +7,9 @@
 //                 vertical DROPPED on one row — the facts about how the run
 //                 is going, read down one left-aligned column — and under
 //                 them the SPLIT at the last gate while it is fresh. On a
+//                 SLALOM the RUN (1 / 2) where the position was, and the
+//                 split only at its two intermediates, against the leader.
+//                 On a
 //                 FREE RIDE, which has no run to read, the clock, the BEST
 //                 AIR, the distance SKIED and the map's SEED
 //   top right     the MINIMAP — the piste, the field and the gate owed,
@@ -15,7 +18,9 @@
 //   top centre    the AIR CLOCK while the skis are off the snow — the one
 //                 number a skier is trying to make go up, where he is
 //                 already looking to aim the landing
-//   dead centre   the LIGHTS, and GO
+//   dead centre   the LIGHTS, and GO — on a line start. A slalom's count
+//                 is the start clock's in the house, so its READY and GO
+//                 are small at the top centre, out of the starter's shot
 //   upper centre  a MISSED GATE warning with an arrow pointing back up at
 //                 it and the metres to go, until it is taken — or BOGGED,
 //                 while the skier is sunk to the knees and wants poling out
@@ -175,7 +180,14 @@ export function Hud({
             {/* THE PLACE — the one number a racer reads more than the clock.
               Keyed on the place, so a pass lands with its own beat. Left
               out of a race alone, where 1 / 1 says nothing. */}
-            {!snap.free && snap.skiers > 1 ? (
+            {snap.slalom ? (
+              /* A SLALOM'S RUN in its place: a racer on an interval start is
+               alone on the course, and his place is the board's at the flag. */
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.runOf(snap.slalom.run, snap.slalom.runs)}</span>
+                <span class="hud-chip-sub">{STRINGS.runLabel}</span>
+              </div>
+            ) : !snap.free && snap.skiers > 1 ? (
               <div class="hud-chip hud-place" key={snap.place}>
                 <span>{STRINGS.place(snap.place, snap.skiers)}</span>
                 <span class="hud-chip-sub">{STRINGS.placeLabel}</span>
@@ -201,6 +213,26 @@ export function Hud({
               </div>
             )}
           </div>
+          {/* A SLALOM'S INTERMEDIATE: the clock at the timing point and the
+            gap to the leader there — green ahead, red behind, as television
+            shows it. */}
+          {snap.slalom?.timing && (
+            <div class="hud-top-row">
+              <div class="hud-chip hud-split" key={`t-${snap.slalom.timing.point}`}>
+                <span>{STRINGS.split(snap.slalom.timing.time)}</span>
+                <span class="hud-chip-sub">{STRINGS.timingLabel(snap.slalom.timing.point)}</span>
+              </div>
+              {snap.slalom.timing.gap !== null && (
+                <div
+                  class={`hud-chip hud-split hud-gap ${snap.slalom.timing.gap < 0 ? "hud-gap-ahead" : "hud-gap-behind"}`}
+                  key={`tg-${snap.slalom.timing.point}`}
+                >
+                  <span>{STRINGS.gap(snap.slalom.timing.gap)}</span>
+                  <span class="hud-chip-sub">{STRINGS.leaderGapLabel}</span>
+                </div>
+              )}
+            </div>
+          )}
           {/* THE SPLIT, under the row it belongs to: the clock as it stood at
             the gate just taken, held for a few seconds and then gone,
             so a stale figure is never read as a fresh one. Keyed on the
@@ -284,6 +316,18 @@ export function Hud({
             key={snap.go ? 0 : snap.countdown}
           >
             {snap.go ? STRINGS.go : STRINGS.count(snap.countdown)}
+          </span>
+        </div>
+      )}
+
+      {/* THE STARTER'S WORD on a slalom, small at the top centre: the
+          start clock in the house carries the count, and the television
+          shot of the start is not to be covered. Keyed on the word, so GO
+          lands with its own beat. */}
+      {snap.slalom?.word && (
+        <div class="hud-starter" role="status" key={snap.slalom.word}>
+          <span class={snap.slalom.word === "go" ? "hud-starter-go" : undefined}>
+            {snap.slalom.word === "go" ? STRINGS.starterGo : STRINGS.starterReady}
           </span>
         </div>
       )}

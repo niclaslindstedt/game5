@@ -1,11 +1,44 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// WHERE THE SKIER IS FIXED TO HIS SKIS — the bindings his boots stand in,
-// the hips he stands at and folds to, the hands on the poles' grips — in the
-// engine's body frame, for the reference pair (`MOUNTS`) and for any pair
-// (`mountsFor`). `skier-pose.ts` poses him off them and re-exports them.
-// Three-free.
+// HIS BODY'S PROPORTIONS (`BODY`) AND WHERE THE SKIER IS FIXED TO HIS SKIS
+// — the bindings his boots stand in, the hips he stands at and folds to,
+// the hands on the poles' grips — in the engine's body frame, for the
+// reference pair (`MOUNTS`) and for any pair (`mountsFor`). `skier-pose.ts`
+// poses him off them and re-exports them. Three-free.
 
 import type { V3 } from "./skier-vec.ts";
+
+/** Limb lengths and body proportions, m — the engine's own
+ * (`TUNING.crash.body`), which the thrown body is built on. */
+export const BODY = {
+  thigh: 0.44,
+  /** The knee to the ankle — the ragdoll's shin. The figure's leg ends at
+   * the boot's CUFF, which holds the lower shin rigid, so the bone it bends
+   * is `shin − cuffOverAnkle`. */
+  shin: 0.46,
+  upperArm: 0.31,
+  /** The elbow to the middle of the fist round the pole's grip — the
+   * forearm and the hand as one bone, since the hand never leaves the grip. */
+  forearm: 0.34,
+  /** Hips to the base of the neck. */
+  spine: 0.5,
+  /** Half the shoulders' width, and of the hips'. */
+  shoulder: 0.2,
+  hip: 0.12,
+  /** Base of the neck to the helmet's centre. */
+  neck: 0.18,
+  /** How far the shoulder joints sit below the base of the neck, and
+   * forward of it — rounded forward, the way a skier holds himself. */
+  shoulderDrop: 0.06,
+  shoulderFore: 0.03,
+  /** How far a boot's cuff top stands over the ankle inside it, m — the
+   * stretch of shin the boot holds, which bends nothing. */
+  cuffOverAnkle: 0.17,
+};
+
+/** THE SHIN THE FIGURE BENDS: the knee to the boot's cuff, m. A leg solved
+ * to the cuff on the whole knee-to-ankle shin stands a skier on stilts that
+ * can only be folded into a squat; this is why the knees read right. */
+export const SHIN_ABOVE_CUFF = BODY.shin - BODY.cuffOverAnkle;
 
 /** Where the skier is fixed to his skis, and where his free parts settle,
  * in the body frame: for the REFERENCE pair (`SKIS`, a 0.3 m stance under

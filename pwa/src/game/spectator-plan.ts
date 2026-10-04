@@ -28,6 +28,11 @@
 //     there and the crowd is not.
 //   * A KNOT AT THE START: coaches, family, the few who rode the lift up.
 //
+// A SLALOM is watched otherwise — its course is short, netted from the
+// start house to past the line, and every metre of it is a viewpoint:
+// `spectator-slalom.ts` lays its banks behind the nets either side, the
+// finish arena kept as it is here.
+//
 // And they CARRY what ski fans carry — COWBELLS, flags on poles, a board
 // held over the head, a horn, a phone held up — and wear what a cold day
 // in the stands is: bright jackets, bobble hats, a hood, a scarf, a
@@ -43,15 +48,36 @@ import {
   createRng,
   nearestTrackPoint,
   trackPointAt,
+  type Checkpoint,
   type Level,
+  type Rng,
   type RunRules,
   type TrackPoint,
 } from "@engine";
 
+import { planSlalomBanks } from "./spectator-slalom.ts";
 import { wildGround } from "./wild-ground.ts";
 
 /** The salt on the map's seed the crowd is dealt off. */
 export const FAN_SALT = 0x5ec7;
+
+/** THE SAFETY NETS (the B-nets) along the piste's edges, m: how far up
+ * the piste of the line they fence, how far past it, their height, how far
+ * outside the piste's edge they stand, and their posts' spacing. Drawn by
+ * `gates.ts`; every spectator stands behind them, the spectator fence
+ * (`FANS.fence`) two metres further out — the gap a crowd-control plan
+ * keeps between a net and what it protects. */
+export const NETS = { before: 60, after: 30, height: 1.3, out: 1.2, post: 8 } as const;
+
+/** WHERE THE NETS RUN down the piste, as arcs: the last stretch to the
+ * line and past it — on a slalom the whole course, from just above its
+ * start house. */
+export function netStretch(level: Level, finish: Checkpoint): { from: number; to: number } {
+  return {
+    from: level.slalom ? level.slalom.from - 2 : Math.max(0, finish.s - NETS.before),
+    to: Math.min(level.track.length, finish.s + NETS.after),
+  };
+}
 
 /** WHO GETS A CROWD: every run with something to watch — a course
  * counted (the race and the time trial) or a terrain park scored (the
@@ -109,8 +135,10 @@ const HAT = [0, 1, 2, 3, 4, 5, 6, 7, 14, 8, 15];
 const SKIN = [16, 16, 17, 17, 18, 19, 20];
 const STRIPE = [0, 1, 2, 3, 4, 14, 8, 6, 7];
 
-/** What kind of bank a fan stands in. */
-export type BankKind = "finish" | "stand" | "back" | "jump" | "turn" | "pitch" | "start" | "line";
+/** What kind of bank a fan stands in. A slalom's banks line its course
+ * (`course`) and crowd its combinations (`combo`). */
+export type BankKind =
+  "finish" | "stand" | "back" | "jump" | "turn" | "pitch" | "start" | "line" | "course" | "combo";
 
 export type Fan = {
   x: number;
@@ -263,6 +291,37 @@ const REACH: Record<BankKind, [number, number]> = {
   pitch: [32, 52],
   start: [16, 26],
   line: [28, 46],
+  course: [24, 40],
+  combo: [28, 46],
+};
+
+/** What a course's own crowd is laid with (`spectator-slalom.ts`): the
+ * plan's stream and its fans, and the ways a fan is put down — a bank
+ * behind the fence, or one fan where the caller decides. */
+export type FanDealer = {
+  level: Level;
+  rng: Rng;
+  fans: readonly Fan[];
+  /** Where the finish slope's standing crowd stops above the line, m of
+   * arc: the grandstands stand below it. */
+  slopeEnd: number;
+  /** A standing bank behind the spectator fence, as `planSpectators` lays
+   * the finish slope: from arc `s0` to `s1` on `side`, `rows(s)` deep,
+   * each place taken at `fill(s)`. */
+  standing(
+    kind: BankKind,
+    s0: number,
+    s1: number,
+    side: number,
+    rows: (s: number) => number,
+    fill: number | ((s: number) => number),
+  ): void;
+  /** One fan at (x, z) facing `yaw`, where the ground, the trunks, the
+   * lifts and the next fan leave room — the piste NOT asked, so the caller
+   * answers for it. Whether he was put down. */
+  put(x: number, z: number, yaw: number, kind: BankKind, along: number): boolean;
+  /** Close a bank over the fans laid since `from`. */
+  close(kind: BankKind, from: number): void;
 };
 
 /** THE CROWD for `level`. The same map deals the same crowd every time. */
@@ -280,16 +339,21 @@ export function planSpectators(level: Level): SpectatorPlan {
   const points = level.track.points;
   const length = level.track.length;
 
-  /** Whether a fan can stand at (x, z): on the map, on ground he can stand
-   * on, clear of the trunks, the lifts, every skier's line and the next
+  /** Whether a fan has room at (x, z), the piste aside: on the map, on
+   * ground he can stand on, clear of the trunks, the lifts and the next
    * fan. */
-  const free = (x: number, z: number): boolean => {
+  const room = (x: number, z: number): boolean => {
     if (!ground.inside(x, z, 6)) return false;
     if (taken.has(cellOf(x, z))) return false;
     if (ground.slope(x, z) > FANS.steep) return false;
     if (ground.onIce(x, z)) return false;
     if (ground.nearestTree(x, z, FANS.trunk)) return false;
-    if (blocked(x, z)) return false;
+    return !blocked(x, z);
+  };
+  /** Whether a fan can stand at (x, z): where he has room and off every
+   * skier's line, behind the fence. */
+  const free = (x: number, z: number): boolean => {
+    if (!room(x, z)) return false;
     const hit = nearestTrackPoint(level, x, z);
     const w = points[hit.index]?.width ?? 30;
     return hit.distance >= w / 2 + FANS.fence + 0.4 || hit.s >= length;
@@ -369,7 +433,7 @@ export function planSpectators(level: Level): SpectatorPlan {
     s1: number,
     side: number,
     rows: (s: number) => number,
-    fill = 0.9,
+    fill: number | ((s: number) => number) = 0.9,
   ): void => {
     const from = fans.length;
     const fence: { x: number; z: number }[] = [];
@@ -392,8 +456,9 @@ export function planSpectators(level: Level): SpectatorPlan {
       // above.
       const facing = p.heading + Math.PI + side * -1.15;
       const deep = rows(s);
+      const full = typeof fill === "number" ? fill : fill(s);
       for (let r = 0; r < deep; r++) {
-        if (!rng.chance(fill - r * 0.05)) continue;
+        if (!rng.chance(full - r * 0.05)) continue;
         const out = edge + FANS.front + r * FANS.row + rng.range(-0.15, 0.2);
         const jog = rng.range(-0.2, 0.2);
         const x = p.x + rx * out + Math.sin(p.heading) * jog;
@@ -553,14 +618,37 @@ export function planSpectators(level: Level): SpectatorPlan {
       },
     };
 
-    // THE FINISH SLOPE: rows deep at the line, thinning up the hill.
-    const top = length - FANS.slope;
-    const end = length - st.before - 2;
-    const rows = (s: number): number => {
-      const k = Math.max(0, Math.min(1, (s - top) / (end - top)));
-      return Math.round(FANS.shallow + (FANS.deep - FANS.shallow) * k * k);
-    };
-    for (const side of [-1, 1]) standing("finish", top, end, side, rows, 0.92);
+    // THE FINISH SLOPE: rows deep at the line, thinning up the hill. A
+    // slalom's is laid with its course.
+    if (!level.slalom) {
+      const top = length - FANS.slope;
+      const end = length - st.before - 2;
+      const rows = (s: number): number => {
+        const k = Math.max(0, Math.min(1, (s - top) / (end - top)));
+        return Math.round(FANS.shallow + (FANS.deep - FANS.shallow) * k * k);
+      };
+      for (const side of [-1, 1]) standing("finish", top, end, side, rows, 0.92);
+    }
+  }
+
+  // A SLALOM: its course lined behind the nets from the start house to
+  // the finish slope, and nothing of a downhill's.
+  if (level.slalom && finishCp) {
+    planSlalomBanks({
+      level,
+      rng,
+      fans,
+      slopeEnd: finishCp.s - FANS.stand.before - 2,
+      standing,
+      put(x, z, yaw, kind, along) {
+        if (fans.length >= FANS.cap || !room(x, z)) return false;
+        taken.add(cellOf(x, z));
+        fans.push(fan(x, ground.snowY(x, z), z, yaw, kind, along));
+        return true;
+      },
+      close,
+    });
+    return { fans, banks, stands, fences, arena };
   }
 
   // ON THE MOUNTAIN: the jumps, the hard turns, the steep pitches.

@@ -335,6 +335,13 @@ rewrites that row. No build, no browser, seconds.
 - A change to the drive or the turn at a crawl: `make skate-turns`
   before/after too — a skier who barely comes round at 10 km/h is the
   first thing a player feels.
+- A change to a TECHNIQUE row (`defs/technique.ts`) or to anything a
+  discipline's turn reads (the edge, the carve, the platform, the
+  inclination): `make technique` before (`ARGS=--json=…`) and after
+  (`ARGS=--compare=…`) — every row skied down a real course by the bot,
+  its numbers against the research of `docs/disciplines.md`, and its
+  sheets (the line from above, a TV lens through a turn, the apex from the
+  side) looked at.
 - `SKIS.topSpeed` re-derived if the physics legitimately moved it
   (`ski-tuning`).
 - A `.changes/unreleased/` fragment — the skier is what the player is.

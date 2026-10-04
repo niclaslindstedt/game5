@@ -15,7 +15,8 @@
 //   cuts    a few of them at the NEAR, MID and FAR cuts, with the triangles, and
 //           the far cut at the game's size          → previews/audience-cuts.png
 //   race    the crowd on `--seed`'s race (`--mode`), the bot skiing, at the
-//           views `start`, `turn`, `pitch`, `jump`, `line`, `slope`,
+//           views `start`, `course` (up a slalom's course from its middle),
+//           `combo` (a slalom's combination), `turn`, `pitch`, `jump`, `line`, `slope`,
 //           `pass-0` … `pass-5` (one bank of the finish slope frame by
 //           frame as the racer passes), `idle` (that bank with the racer
 //           far up the hill), `finish`, `stand`, `screen`, `arena`,
@@ -52,6 +53,8 @@ const PASS = [0, 1, 2, 3, 4, 5].map((k) => `pass-${k}`);
 const VIEWS = [
   "idle",
   "start",
+  "course",
+  "combo",
   "turn",
   "pitch",
   "jump",
@@ -100,7 +103,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/audience-preview.mjs [--sheet=moves,looks,cuts,race] [--seed=n] [--mode=race] [--views=a,b] [--hour=h] [--skip-build]",
+  "usage: node scripts/audience-preview.mjs [--sheet=moves,looks,cuts,race] [--seed=n] [--mode=slalom] [--views=a,b] [--hour=h] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());

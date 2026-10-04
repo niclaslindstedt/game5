@@ -17,8 +17,16 @@
 // a trick map's is, when the run on the snow is a tricks run on its ground
 // (its field and all), and it needs nothing to stand up again — the level
 // it stands on already carries the map's day and sky.
+//
+// A SLALOM'S SECOND RUN is stood up here too, off whichever slalom is on the
+// snow, pinned or not: the run read back off its first step's afternoon
+// (`recipeOf`) with the first run handed over as its heat (`heatAfter`). A
+// run already in its second run stands up again as its second run — the
+// heat read back off it (`heatOf`, in `recipeOf`) — so a restart never drops
+// a racer back into the first. The second run books no campaign rung: the
+// rung is booked at the first run's flag.
 
-import { createGame, type GameMode, type GameState } from "@engine";
+import { TUNING, botInput, createGame, step, type GameMode, type GameState } from "@engine";
 
 import type { Loader } from "./app-load.ts";
 import {
@@ -29,7 +37,9 @@ import {
   type PinnedSkier,
 } from "./campaign.ts";
 import type { CampaignRig } from "./campaign-run.ts";
+import { recipeOf } from "./replay.ts";
 import type { Settings } from "./settings.ts";
+import { heatAfter, heatOf } from "./slalom-heat.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -38,9 +48,13 @@ export type PinnedRuns = {
   press: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
   /** Stand a TRICKS run up on a trick map (`trick-maps.ts`). */
   tricks: (map: TrickMap) => void;
-  /** The last pinned run stood up, again from the start line; null where the run
-   * on the snow is not a pinned one. */
+  /** The last pinned run stood up, again from the start line — or a
+   * slalom's second run again, its heat kept; null where the run on the
+   * snow is neither. */
   again: () => GameState | null;
+  /** A slalom's SECOND RUN, behind the loading card, off the first run on
+   * the snow — nothing where it earned none (`secondRunOf`). */
+  second: () => void;
   /** The run on the snow is no longer a pinned one: the rig disarmed and
    * nothing to stand up again. */
   clear: () => void;
@@ -101,15 +115,52 @@ export function createPinnedRuns(world: {
       });
     },
     again: () => {
+      const now = world.current();
+      if (heatOf(now)) return secondRunAgain(now);
       if (!last) return null;
       world.rig.arm(world.rig.riding());
       return createGame(last);
+    },
+    second: () => {
+      const now = world.current();
+      const heat = heatAfter(now);
+      if (!heat) return;
+      world.setMode("slalom");
+      world.loader.begin({
+        build: () => {
+          world.rig.arm(null);
+          return createGame({ ...recipeOf(now, "slalom"), heat });
+        },
+        camera: world.settings().camera,
+        done: world.done,
+      });
     },
     clear: () => {
       last = null;
       world.rig.arm(null);
     },
   };
+}
+
+/** The longest a first run is skied for a link's second run, s. */
+const FIRST_RUN_CAP = 600;
+
+/** A LINK'S SECOND RUN (`?run=2`): `first` skied by the bot to its flag
+ * in place, then the second run off it — or `first` as it stands where the
+ * bot went out of it and there is no second run to stand up. */
+export function secondRunOff(first: GameState): GameState {
+  if (first.field?.run !== 1) return first;
+  for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
+    step(first, botInput(first));
+  }
+  const heat = heatAfter(first);
+  return heat ? createGame({ ...recipeOf(first, "slalom"), heat }) : first;
+}
+
+/** A SLALOM'S SECOND RUN AGAIN from the start house: the same course, the
+ * same board, the same heat — or null on a run that is not a second run. */
+export function secondRunAgain(state: GameState): GameState | null {
+  return heatOf(state) ? createGame(recipeOf(state, "slalom")) : null;
 }
 
 /** Where BACK on the skis card goes: the card that opened it — the free

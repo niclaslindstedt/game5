@@ -634,8 +634,16 @@ void fanPose(vec3 pos) {
   }
   // THE WAVE, where it is: up on his toes with both arms high.
   FanArm upArm = fanArm(0.2, 2.95, 0.1);
-  FanArm armL = fanMix(fanMix(restL, hotL, hot), upArm, wave);
-  FanArm armR = fanMix(fanMix(restR, hotR, hot), upArm, wave);
+  // The arms go up WHOLE: the angle blended straight from hanging to high
+  // passes through level, and a fan half lit up — the arena between racers
+  // — would hold his arms straight out, a scarecrow. So each fan's arms
+  // snap across a threshold of his own: a crowd half lit up is half its
+  // fans' arms up and the rest down, and the swing between is a moment.
+  float th = 0.3 + 0.35 * fract(aAct.y * 3.71);
+  float armsHot = smoothstep(th - 0.06, th + 0.06, hot);
+  float armsUp = smoothstep(0.3, 0.45, wave);
+  FanArm armL = fanMix(fanMix(restL, hotL, armsHot), upArm, armsUp);
+  FanArm armR = fanMix(fanMix(restR, hotR, armsHot), upArm, armsUp);
   hop = hop * hot * lively + 0.12 * wave + 0.015 * arena * max(0.0, sin(beat * 2.0));
   lean = lean * hot + 0.03;
   roll = roll * hot + sway * (1.0 - hot);

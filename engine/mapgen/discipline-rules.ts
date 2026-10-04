@@ -63,7 +63,8 @@
 //       line `slalom.finishWidth` metres wide at the least, every
 //       kicker on the piste within `slalom.clearance` of the stretch
 //       levelled, the piste groomed hard from the hut to the end of the
-//       run-out whatever drift lay across it, and every tree within
+//       run-out whatever drift lay across it and its relief combed smooth
+//       over `slalom.comb`, and every tree within
 //       `slalom.clear` metres of the course and in the finish arena cleared. Its gates are POLE GATES, red and
 //       blue alternately, as many direction changes as `slalom.changes` of
 //       the vertical (spaced `slalom.spacing` metres apart down the piste,
@@ -116,6 +117,12 @@ export const DISCIPLINE_RULES = {
     /** How far the stretch keeps from a drop on the piste, m, and how far
      * either side of it a kicker on the piste is levelled away. */
     clearance: 30,
+    /** THE HILL COMBED SMOOTH: the ground under the course and its banks
+     * taken to its own mean over a square this many metres either side of
+     * each point — the length of the lips a black's face carries (one every
+     * 5–7 m), so they go and the pitch stays — and how far past the piste's
+     * edge the combing eases out, m. */
+    comb: { reach: 6, ease: 6 },
     /** The direction changes as a share of the vertical, and the ± on it. */
     changes: { min: 0.3, max: 0.35, slack: 3 },
     /** The spacing of the gates down the piste, m (plan). */

@@ -199,7 +199,53 @@ export type HudSnapshot = {
   grade: PisteGrade;
   /** THE WIND METER beside the speed (`windOf`). */
   wind: HudWind;
+  /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
+   * it while it waits for him, or null. */
+  heli: HudHeli | null;
 };
+
+/** THE HELICOPTER as the HUD reads it: flown — how high its skids are over
+ * the snow (the fall a jump off them is), m, and its climb, m/s — or
+ * waiting on its pad `pad` m from him. */
+export type HudHeli =
+  | {
+      kind: "flown";
+      height: number;
+      climb: number;
+      landed: boolean;
+      /** The collective lever, 0..1, and the disc's attitude as the
+       * horizon shows it: nose-up pitch and the bank as SCREEN rad (right
+       * side down positive as the player sees it), rad. */
+      collective: number;
+      pitch: number;
+      bank: number;
+    }
+  | { kind: "waiting"; pad: number };
+
+/** How near the waiting helicopter the HUD points him at it, m. */
+const HELI_CALL = 120;
+
+/** The helicopter's readout for the player at this step. */
+export function heliOf(state: GameState): HudHeli | null {
+  const h = state.heli;
+  if (!h) return null;
+  if (h.rider) {
+    return {
+      kind: "flown",
+      height: Math.max(0, h.y - state.level.groundAt(h.x, h.z)),
+      climb: h.vy,
+      landed: h.grounded,
+      collective: h.controls.collective,
+      pitch: h.pitch,
+      bank: h.roll * SCREEN_TO_ENGINE,
+    };
+  }
+  const c = state.skier;
+  const pad = Math.hypot(h.x - c.x, h.z - c.z);
+  return h.mode === "parked" && pad < HELI_CALL && c.thrown === null
+    ? { kind: "waiting", pad }
+    : null;
+}
 
 /** THE WIND as the meter reads it: the air the skier FEELS — the air where
  * he is less his own velocity (`airflowAt`), what he hears and what drags
@@ -383,5 +429,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
     wind: windOf(state),
+    heli: heliOf(state),
   };
 }

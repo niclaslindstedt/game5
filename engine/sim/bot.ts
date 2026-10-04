@@ -18,6 +18,7 @@
 // skier — human capability, never a superhuman one: it sees the piste ahead
 // the way a skier does and skids with the grip a skier has.
 
+import { pilotInput } from "../game/heli.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { arcAhead, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
@@ -499,6 +500,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // A skier a lift has (`lift-ride.ts`) is left to it: carried, or led off
   // the free ride's lift, his hands off the controls.
   if (c.lift) return { ...NEUTRAL_INPUT };
+  // A skier sat on the helicopter's skid flies it up the mountain
+  // (`heli.ts`'s `pilotInput`) and never jumps.
+  if (state.heli?.rider) return pilotInput(state);
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)

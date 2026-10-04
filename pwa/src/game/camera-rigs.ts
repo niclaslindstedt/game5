@@ -119,6 +119,25 @@ export type RigPose = {
   ride?: RideLook | null;
 };
 
+/** A pose at rest at the origin — what the renderer fills every frame. */
+export function freshRigPose(): RigPose {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    speed: 0,
+    airborne: false,
+    packed: 1,
+    q: { x: 0, y: 0, z: 0, w: 1 },
+  };
+}
+
 /** What a rig asks of the lens this frame. `roll` is the horizon's tilt,
  * rad, right side down positive. */
 export type LensPose = { eye: Vec3; target: Vec3; fov: number; roll: number };

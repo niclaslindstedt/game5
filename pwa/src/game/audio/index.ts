@@ -22,6 +22,7 @@ import type { GameEvent, GameState, Level } from "@engine";
 import { RUN_BANK } from "./bank.ts";
 import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
+import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
@@ -56,6 +57,9 @@ export function createRunAudio(): RunAudio {
   // The wood's own voices (`bird-bed.ts`): cues off the birds' plan, never
   // an engine event.
   const birds: BirdBed = createBirdBed(sfx);
+  // THE FREE RIDE'S HELICOPTER (`heli-bed.ts`), heard from the skier: built
+  // only on a run that has one.
+  const heli: HeliBed = createHeliBed(sfx);
   let ear: Listener = listenerFor("chase");
 
   return {
@@ -65,6 +69,12 @@ export function createRunAudio(): RunAudio {
       const level: Level | undefined = state?.level;
       const contactOf = (event: GameEvent): Contact => {
         const ground = bed.ground();
+        // The helicopter is somewhere else on the mountain: heard from the
+        // skier's head.
+        if (event.kind === "heli" && state) {
+          const c = state.skier;
+          return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
+        }
         if (event.kind !== "hit" || !level) return { ground };
         return { ground, trunk: trunkAt(level, event.x, event.z) ?? undefined };
       };
@@ -76,22 +86,26 @@ export function createRunAudio(): RunAudio {
     frame(state, dt, duck = 1) {
       bed.update(state, dt, duck);
       birds.update(state, dt, duck);
+      heli.update(state, dt, duck);
     },
 
     setView(view) {
       ear = listenerFor(view);
       bed.setView(view);
       birds.setView(view);
+      heli.setView(view);
     },
 
     silence() {
       bed.silence();
       birds.silence();
+      heli.silence();
     },
 
     reset() {
       bed.reset();
       birds.reset();
+      heli.reset();
     },
   };
 }

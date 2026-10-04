@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS the game ships (`pwa/models/`, made by `make models`,
-// packed by `pwa/models-plugin.ts`, drawn by `skier-models.ts`): every one
+// THE MODELLED SKIS AND HELICOPTER the game ships (`pwa/models/`, made by
+// `make models`, packed by `pwa/models-plugin.ts`, the skis drawn by
+// `skier-models.ts`, the helicopter by `heli-view.ts`): every one
 // committed, none older than the sources it is made from, each within its
 // budget; the switch on unless a build turns it back; and every material
 // the Blender builders name dressed as the builder's own pair would be —
@@ -8,15 +9,17 @@
 // in an outfit's colours. The names are stated twice — in
 // `scripts/blender/*.py`, which cannot import a module of the game, and in
 // `dressOf` — so the builders are read here as TEXT, the way
-// `tauri_test.ts` reads the Rust. Nothing else is a model: the skier is
-// dressed in code, the wildlife and the course's marks are built in code,
-// and `pwa/models/` holds nothing of theirs.
+// `tauri_test.ts` reads the Rust. The helicopter's nodes and materials are
+// read the same way off `heli.py` and held to the names its drawer is told
+// (`HELI_NODES`) and to what its glTF carries. Nothing else is a model: the
+// skier is dressed in code, the wildlife and the course's marks are built
+// in code, and `pwa/models/` holds nothing of theirs.
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { SKI_CATALOG } from "@engine";
+import { HELI, SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -26,7 +29,7 @@ import {
   sourcesHash,
 } from "../pwa/models-plugin.ts";
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
-import { dressOf } from "../pwa/src/game/skier-models.ts";
+import { dressOf, HELI_NODES, heliModelUrl } from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
 
@@ -39,12 +42,16 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id", () => {
-    expect([...all].sort()).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`).sort());
-    expect(modelFiles({ skis: false })).toEqual([]);
+  it("are every pair under its id, and the helicopter", () => {
+    expect([...all].sort()).toEqual([...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb"].sort());
+    expect(modelFiles({ skis: false, heli: true })).toEqual(["heli.glb"]);
+    expect(modelFiles({ skis: true, heli: false })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
+    expect(modelFiles({ skis: false, heli: false })).toEqual([]);
+    expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
+    expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis — the skier is dressed in code", () => {
+  it("are nothing but the skis and the helicopter — the skier is dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -52,15 +59,15 @@ describe("the models the game ships", () => {
     const stamp = JSON.parse(
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
-    expect(Object.keys(stamp).sort()).toEqual(["blender", "sources"]);
+    expect(Object.keys(stamp).sort()).toEqual(["blender", "heli", "sources"]);
   });
 
   it("are all committed, each within its budget", () => {
     for (const f of all) {
       const at = join(root, MODELS_DIR, f);
       expect(existsSync(at), `${MODELS_DIR}/${f} — run \`make models\``).toBe(true);
-      // A pair's LOD0 is well under 1.6 MB: a model grown past this is a
-      // builder that lost its game budget.
+      // A pair's LOD0, and the helicopter's, is well under 1.6 MB: a model
+      // grown past this is a builder that lost its game budget.
       expect(statSync(at).size, f).toBeLessThan(1_600_000);
     }
   });
@@ -72,10 +79,57 @@ describe("the models the game ships", () => {
     for (const [half, sources] of Object.entries(MODEL_HALVES)) {
       expect(
         stamp[half],
-        `a source of the skis moved since they were made — run \`make models\` and commit pwa/models/`,
+        `a source of the ${half === "heli" ? "helicopter" : "skis"} moved since it was made — run \`make models${half === "heli" ? " KIND=heli" : ""}\` and commit pwa/models/`,
       ).toBe(sourcesHash(root, sources));
     }
     expect(sourcesHash(root)).toBe(sourcesHash(root, MODEL_HALVES.sources));
+  });
+});
+
+describe("the helicopter model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "heli.glb"));
+  // A GLB's first chunk is its JSON: the nodes, the meshes, the materials.
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: { name: string; translation?: number[]; mesh?: number; children?: number[] }[];
+    materials: { name: string }[];
+    meshes: { primitives: { indices: number }[] }[];
+    accessors: { count: number }[];
+  };
+  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+  const builder = readFileSync(join(root, "scripts", "blender", "heli.py"), "utf8");
+
+  it("carries the three nodes its drawer is told of, each a rigid mesh", () => {
+    for (const name of Object.values(HELI_NODES)) {
+      expect(builder, `heli.py names ${name}`).toContain(`"${name}"`);
+      expect(node(name)?.mesh, name).toBeTypeOf("number");
+    }
+    expect(heliModelUrl()).toBe("/models/heli.glb");
+  });
+
+  it("hangs each rotor at its hub, as HELI has it (glTF: y up, the nose on -z)", () => {
+    const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+    expect(v(node(HELI_NODES.body)?.translation)).toEqual([0, 0, 0]);
+    expect(v(node(HELI_NODES.rotor)?.translation)).toEqual(v([0, HELI.rotor.hub, -HELI.rotor.at]));
+    const t = HELI.tail.hub;
+    expect(v(node(HELI_NODES.tail)?.translation)).toEqual(v([t.x, t.y, -t.z]));
+  });
+
+  it("names its materials as the builder does, the lamps among them", () => {
+    const named = new Set(matNames("heli.py"));
+    for (const n of ["paint", "trim", "glass", "metal", "dark", "rotor", "lamp", "lamp_green"]) {
+      expect(named.has(n), `heli.py names "${n}"`).toBe(true);
+    }
+    expect(new Set(gltf.materials.map((m) => m.name))).toEqual(named);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((m) => m.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 16k: the class's own silhouette — the nose rounded over two metres,
+    // the boxy cowl, the conical boom, the round tubes of the skid gear at
+    // eight sides — costs about 14k; a model past 16k lost its game cut.
+    expect(tris).toBeLessThanOrEqual(16_000);
   });
 });
 

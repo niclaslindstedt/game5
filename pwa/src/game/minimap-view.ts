@@ -29,6 +29,7 @@ import { angleDiff, type GameState, type Level, type TrackPoint } from "@engine"
 
 import { GRADE_LOOK } from "./grade-look.ts";
 import { tunnelPaint, tunnelPointAt, tunnelsOf } from "./wind-tunnel-plan.ts";
+import { helipadOf } from "@engine";
 
 /** The plate's own square user space. */
 export const VIEW = 100;
@@ -142,6 +143,9 @@ export type HudMinimap = {
   /** A skier dot's radius in world metres at this zoom. */
   dot: number;
   chevron: MinimapChevron | null;
+  /** THE HELICOPTER (`heli.ts`) on a free ride: where it is and where its
+   * pad stands, world metres; null on a run with none. */
+  heli: { x: number; z: number; pad: { x: number; z: number } } | null;
 };
 
 /** The zoom where it has got to, and the turn: frame state keyed by the map
@@ -329,5 +333,6 @@ export function buildMinimap(state: GameState): HudMinimap {
     rivals: state.rivals.map((r) => ({ slot: r.id + 1, x: r.run.skier.x, z: r.run.skier.z })),
     dot: DOT / scale,
     chevron: chevronFor(state, pose),
+    heli: state.heli ? { x: state.heli.x, z: state.heli.z, pad: helipadOf(level) } : null,
   };
 }

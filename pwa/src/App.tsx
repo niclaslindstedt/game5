@@ -246,9 +246,8 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  // The keys and the picture reach the manager and the renderer the same
-  // way: the moment they are pressed, over the live race.
-  useEffect(() => input?.setBindings(settings.keys), [input, settings.keys]);
+  const { keys: skiKeys, heliKeys } = settings;
+  useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();
@@ -404,7 +403,7 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(TUNING.dt, state.skier.airborne);
+        : manager.sample(TUNING.dt, state.skier.airborne, !!state.heli?.rider);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {

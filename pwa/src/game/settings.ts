@@ -35,6 +35,7 @@ import { findLevel } from "./campaign.ts";
 import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
+import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
@@ -111,6 +112,8 @@ export type Settings = {
    * or a preset pressed makes it the skier's. */
   autoPicture: boolean;
   keys: KeyBindings;
+  /** The helicopter's own keys (`settings-heli-keys.ts`). */
+  heliKeys: HeliBindings;
   touch: TouchSettings;
   assist: AssistSettings;
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
@@ -168,6 +171,7 @@ export function freshSettings(): Settings {
     probed: false,
     autoPicture: true,
     keys: freshKeys(),
+    heliKeys: freshHeliKeys(),
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
@@ -231,6 +235,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.autoPicture =
     typeof blob.autoPicture === "boolean" ? blob.autoPicture : videoUntouched(out.video);
   out.keys = mergeKeys(blob.keys);
+  out.heliKeys = mergeHeliKeys(blob.heliKeys);
   const touch = record(blob.touch);
   out.touch.lever = onLadder(touch.lever, LEVER_SIDES, out.touch.lever);
   const T = TOUCH_SENSITIVITY;

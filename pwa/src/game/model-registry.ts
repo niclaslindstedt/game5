@@ -59,6 +59,22 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
     note: "the ghost and the ski card draw the same models",
   },
   {
+    asset: "Helicopter",
+    ids: ["heli"],
+    source: "blender",
+    code: ["pwa/src/game/heli-view.ts"],
+    drawnBy: "pwa/src/game/heli-view.ts",
+    blender: {
+      builder: "scripts/blender/heli.py",
+      files: ["heli.glb"],
+      pattern: "heli.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the free ride's heli-ski machine, built off `HELI`: three rigid nodes (the airframe, " +
+      "the main rotor, the tail rotor); the code's stand-in is a cabin, a boom, the skids and the rotors",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

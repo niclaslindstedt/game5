@@ -54,7 +54,7 @@ import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
 import { GradeMark } from "./grade-mark.tsx";
 import { EdgeBar } from "./hud-dial.tsx";
-import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
+import { BarZone, LeverZone, StickZone, type ZoneSide } from "./hud-touch.tsx";
 import type { TouchFeel } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
 import { Minimap } from "./minimap.tsx";
@@ -63,6 +63,7 @@ import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
+import { HeliReadout } from "./hud-heli.tsx";
 
 export type { HudFlash };
 
@@ -123,13 +124,16 @@ export function Hud({
   const lit = snap.missed !== null || snap.down;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
+  const Right = snap.heli?.kind === "flown" ? StickZone : LeverZone;
   const thumbs = touch && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
           whichever of the two it is. */}
-      {lever === "left" && <LeverZone touch={input.touch} feel={feel} side="left" />}
+      {/* FLYING THE HELICOPTER the lever's glass is the cyclic stick, and
+          the edge thumb works the collective and the pedals. */}
+      {lever === "left" && <Right touch={input.touch} feel={feel} side="left" />}
       <BarZone touch={input.touch} feel={feel} side={lever === "left" ? "right" : "left"} />
-      {lever === "right" && <LeverZone touch={input.touch} feel={feel} side="right" />}
+      {lever === "right" && <Right touch={input.touch} feel={feel} side="right" />}
     </div>
   );
   if (bare) {
@@ -342,6 +346,10 @@ export function Hud({
           </div>
         </div>
       )}
+
+      {/* THE HELICOPTER (`hud-heli.tsx`): the drop under its skids while he
+          rides it, the call to it while it waits on its pad near him. */}
+      {snap.heli && snap.airTime === 0 && <HeliReadout heli={snap.heli} touch={touch} />}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}

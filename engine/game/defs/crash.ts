@@ -123,6 +123,9 @@ export const CRASH = {
     landing: { pitch: -0.45, side: 0.8, up: 0.2 },
     // Another skier taken out: half over him, half off to the side.
     skier: { pitch: 0.6, side: 0.6, up: 1.2 },
+    // Flung off a crashing helicopter's skid by the blast: head over heels
+    // and over onto a side, and up.
+    heli: { pitch: 0.8, side: 0.6, up: 3 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

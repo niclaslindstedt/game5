@@ -40,6 +40,7 @@ import { createField, type Heat } from "./field.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
+import { freshHeli, startAgain } from "./heli.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
@@ -114,6 +115,11 @@ export type CreateGameOptions = {
    * (the app asks for it only without a spot: a spot picked is where the
    * ride starts). */
   byLift?: boolean;
+  /** A FREE RIDE begun ON THE HELICOPTER (`heli.ts`): sat on its skid on
+   * its pad on the valley floor, the rotor turning, the controls the
+   * helicopter's. Wins over `byLift` and `spawn`. Ignored by every mode
+   * without a helicopter. */
+  heli?: boolean;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
    * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
    * it is stood at (`pisteHead`: the restart's top of the slope); ignored
@@ -155,6 +161,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     airGravity: base.airGravity,
     crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
     lifts: base.lifts,
+    heli: base.heli,
     start: base.start,
     gates: base.gates,
     window: base.window,
@@ -224,7 +231,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
       : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
-  if (free && options.byLift) {
+  if (rules.heli) state.heli = freshHeli(state);
+  if (state.heli && options.heli) startAgain(state, []);
+  else if (free && options.byLift) {
     if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
     // With no spot, up the lift to the top of the run picked — the one the
     // start card marks — whatever kind of lift serves it.

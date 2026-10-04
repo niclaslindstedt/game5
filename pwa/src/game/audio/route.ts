@@ -25,6 +25,7 @@ import type { GameEvent, Level } from "@engine";
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
+import { heliHeard } from "./heli-voice.ts";
 import type { SnowUnder } from "./snow-voice.ts";
 
 /** What the app knows about a contact that the event does not say. */
@@ -33,6 +34,9 @@ export type Contact = {
   ground?: SnowUnder;
   /** The trunk a `hit` met: its radius, m, and whether it is dead wood. */
   trunk?: Trunk;
+  /** Where the ear is — the player's skier — for a sound made somewhere
+   * else on the mountain (the helicopter's): heard by its distance. */
+  ear?: { x: number; y: number; z: number };
 };
 
 export type Trunk = { radius: number; snag: boolean };
@@ -105,8 +109,44 @@ const LAND_FLOOR = 0.3;
  * bury the wind. */
 const LAND_HEARD = 0.25;
 
+/** The distance the skid's own sounds are heard at full size from, m: the
+ * ear sat on it. */
+const HEARD_NEAR = 4;
+
 /** Closing speeds that separate a brush with a trunk from a wreck, m/s. */
 const HIT_FULL = 20;
+
+/** THE CRASH'S CLOSING SPEED at which the blast is as big as it gets,
+ * m/s, and the share of it the gentlest crash is still worth — a helicopter
+ * that only tips into the snow still blows up. */
+const CRASH_FULL = 25;
+const CRASH_FLOOR = 0.75;
+
+/** The distance an explosion is heard at full size from, m — a blast is
+ * louder than a rotor, so it carries on its own reference — and the
+ * quietest a far one gets, where it is still a thud down the valley. */
+const BLAST_REF = 20;
+const BLAST_FLOOR = 0.05;
+
+/** A sound made at the event's point as heard from the ear: the inverse of
+ * the distance from `ref` m (and none nearer), the air taking its top off
+ * (`heliHeard`'s brightness, as a pitch) and smearing it longer. Without
+ * an ear it is heard where it happened. */
+function heardAt(
+  at: { x: number; y: number; z: number },
+  ear: Contact["ear"],
+  ref: number,
+  floor = 0,
+): PlayShape {
+  if (!ear) return { gain: 1, pitch: 1, stretch: 1 };
+  const d = Math.hypot(at.x - ear.x, at.y - ear.y, at.z - ear.z);
+  const air = heliHeard(d);
+  return {
+    gain: Math.max(floor, ref / Math.max(ref, d)),
+    pitch: 0.75 + 0.25 * air.bright,
+    stretch: 1 + 0.4 * (1 - air.bright),
+  };
+}
 
 /** Take a value from `lo`..`hi` to 0..1. */
 function ramp(value: number, lo: number, hi: number): number {
@@ -264,6 +304,40 @@ export function soundForEvent(
       if (event.phase === "tower") return event.lift === "drag" ? null : { id: "lift_tower" };
       if (event.phase === "off") return { id: "lift_off" };
       return null;
+
+    // THE HELICOPTER (`heli-bank.ts`), heard from where the ear is: the
+    // boots on the skid, the skids lifting and landing, the drop's clack
+    // and rush — and the CRASH, the biggest sound in the game, carrying a
+    // long way down the valley. The pilot shutting down on the pad and the
+    // ride stood up again say nothing: the rotor's bed winds down and up
+    // on its own, and the skier stood on the pad is the reset's news.
+    case "heli": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      switch (event.phase) {
+        case "board":
+          return { id: "heli_board", shape: heard };
+        case "liftoff":
+          return { id: "heli_liftoff", shape: heard };
+        case "land":
+          return { id: "heli_land", shape: heard };
+        case "drop":
+          return { id: "heli_drop", shape: heard };
+        case "crash": {
+          const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+          const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, CRASH_FULL);
+          return {
+            id: "heli_crash",
+            shape: {
+              gain: blast.gain! * (0.85 + 0.45 * big),
+              pitch: blast.pitch! * (1.08 - 0.12 * big),
+              stretch: blast.stretch! * (0.9 + 0.2 * big),
+            },
+          };
+        }
+        default:
+          return null;
+      }
+    }
 
     default:
       return null;

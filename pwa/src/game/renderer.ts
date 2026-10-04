@@ -10,17 +10,16 @@
 //                   arena and its floodlights, the piste's edge poles
 //   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
-//   spray.ts        the edge's sheet, the skid's wall and the landing puff
-//   snow-cloud.ts   the fine powder they raise; snowpack.ts, the kinds of snow
+//   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
+//   heli-scene.ts   the free ride's helicopter, its wash and its explosion
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
 //
-// WHAT IT COSTS is the picture it is handed (`settings-video.ts`): every
-// module above is built or tuned off one `VideoSettings`, and `setVideo` is
-// the one place a row of OPTIONS ▸ PICTURE becomes a draw call.
+// WHAT IT COSTS is the picture it is handed (`settings-video.ts`): `setVideo`
+// is the one place a row of OPTIONS ▸ PICTURE becomes a draw call.
 //
 // It READS `GameState` and never writes it. Everything that depends on the
 // map is built in `load`; `draw` only moves things. Every skier — the player
@@ -50,6 +49,7 @@ import { createLens, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
 import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
+import { freshRigPose } from "./camera-rigs.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
@@ -59,6 +59,7 @@ import { createLifts, type Lifts } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
+import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
 import { hazeMaterial } from "./haze.ts";
 import { dealLamps } from "./headlamp.ts";
@@ -297,6 +298,7 @@ export function createWorldRenderer(
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
+  let heli: HeliScene | null = null;
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
@@ -365,21 +367,7 @@ export function createWorldRenderer(
     if (live) timer.pop();
   };
   const lensDir = new THREE.Vector3();
-  const rigPose: RigPose = {
-    x: 0,
-    y: 0,
-    z: 0,
-    heading: 0,
-    pitch: 0,
-    roll: 0,
-    vx: 0,
-    vy: 0,
-    vz: 0,
-    speed: 0,
-    airborne: false,
-    packed: 1,
-    q: { x: 0, y: 0, z: 0, w: 1 },
-  };
+  const rigPose: RigPose = freshRigPose();
   const rideMem = createRideMemory();
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
@@ -393,6 +381,7 @@ export function createWorldRenderer(
     cloud?.dispose();
     wildlife?.dispose();
     crowd?.dispose();
+    heli?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -403,6 +392,7 @@ export function createWorldRenderer(
       cloud?.mesh,
       wildlife?.group,
       crowd?.group,
+      heli?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -410,7 +400,7 @@ export function createWorldRenderer(
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
-    cloud = null;
+    cloud = heli = null;
     pack = null;
     wildlife = crowd = null;
     clear = undefined;
@@ -576,6 +566,8 @@ export function createWorldRenderer(
       scene.add(wildlife.group);
       crowd = createPeopleView(lv, env.haze, state.rules);
       scene.add(crowd.group);
+      heli = state.rules.heli ? createHeliScene(lv, env.haze) : null;
+      if (heli) scene.add(heli.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
@@ -667,6 +659,7 @@ export function createWorldRenderer(
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
         r.model.setRun(run);
+        r.model.setPerch(i === 0 && heli ? heli.perch(state) : null);
         r.model.pose(
           skier,
           r.drawn,
@@ -743,11 +736,14 @@ export function createWorldRenderer(
       } else if (death.active) {
         dropDeathCam(death);
       }
+      // THE HELICOPTER (`heli-scene.ts`): drawn, and its lens while he rides it.
+      const heliLens = heli?.frame(state, alpha, dt, d, lens.rung(), cloud, sampleSnow) ?? null;
       // The ladder is framed underneath either way, so a lens planted for a
       // moment hands back to a boom that is already where it should be.
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
+        heliLens ??
         dead ??
         frameStart(startMoment(state, d), ladder);
       if (planted) {

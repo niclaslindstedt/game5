@@ -16,7 +16,7 @@
 // the steer, the HUD's missed-gate arrow applies it to a bearing, and
 // nothing else may.
 
-import type { SkierInput } from "@engine";
+import type { HeliControls, SkierInput } from "@engine";
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { snapInput } from "./ghost.ts";
@@ -242,10 +242,32 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
+  /** A DOUBLE TAP on either thumb's zone, set on the second touch and kept
+   * until a step has taken it — what pushes the skier off the helicopter's
+   * skid. */
+  tap2: boolean;
+  /** THE CYCLIC STICK, the right thumb's while he flies the helicopter
+   * (`hud-touch.tsx`'s `StickZone`): −1..1 right and −1..1 pushed up
+   * (forward), screen-space, and whether a thumb is on it. */
+  stickX: number;
+  stickY: number;
+  stick: boolean;
 };
 
 export function neutralTouch(): TouchChannel {
-  return { steer: 0, lean: 0, bar: false, tuck: 0, brake: 0, lever: false, jump: false };
+  return {
+    steer: 0,
+    lean: 0,
+    bar: false,
+    tuck: 0,
+    brake: 0,
+    lever: false,
+    jump: false,
+    tap2: false,
+    stickX: 0,
+    stickY: 0,
+    stick: false,
+  };
 }
 
 /** The keyboard's ramped axes, screen-space. Advanced once per STEP (§37.1)
@@ -334,14 +356,15 @@ export function sampleInput(
   dt: number,
   reset: boolean,
   airborne = false,
+  flying = false,
 ): SkierInput {
-  const keyAir = airLean(model, keys, airborne);
+  const keyAir = airLean(model, keys, airborne && !flying);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   model.steer = rampToward(model.steer, steerTarget, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
   model.tuck = rampToward(model.tuck, keys.tuck ? 1 : 0, dt, KEY_TUCK_ATTACK, KEY_TUCK_RELEASE);
   // THE BACK KEY, the key or the edge thumb dragged down on the snow, and
   // which of its two meanings it went down as.
-  const thumbBack = touch.bar && !airborne && touch.lean >= BACK_TOUCH;
+  const thumbBack = touch.bar && !airborne && !flying && touch.lean >= BACK_TOUCH;
   const back = backMode(
     model,
     (keys.brake && !model.brakeLeans) || thumbBack,
@@ -376,6 +399,89 @@ export function sampleInput(
     reset,
     trick: keys.trick,
     carve: back === "carve",
-    jump: keys.jump || (touch.lever && touch.jump),
+    jump: keys.jump || (touch.lever && touch.jump) || (flying && touch.tap2),
   });
+}
+
+// ── THE HELICOPTER, FLOWN BY HAND (`heli.ts`, `SkierInput.heli`) ────────
+
+/** Which of the helicopter's keys are down (`settings-heli-keys.ts`). */
+export type HeliKeysHeld = {
+  collectiveUp: boolean;
+  collectiveDown: boolean;
+  cyclicForward: boolean;
+  cyclicBack: boolean;
+  cyclicLeft: boolean;
+  cyclicRight: boolean;
+  pedalLeft: boolean;
+  pedalRight: boolean;
+  jump: boolean;
+};
+
+export const NO_HELI_KEYS: HeliKeysHeld = {
+  collectiveUp: false,
+  collectiveDown: false,
+  cyclicForward: false,
+  cyclicBack: false,
+  cyclicLeft: false,
+  cyclicRight: false,
+  pedalLeft: false,
+  pedalRight: false,
+  jump: false,
+};
+
+/** THE COLLECTIVE'S TRAVEL, shares of the lever a second: a key held moves
+ * it at `COLLECTIVE_KEY_RATE` (from the stop to the hover's ~0.7 in a
+ * second and a half), the left thumb pushed all the way at
+ * `COLLECTIVE_THUMB_RATE`. A lever moves while it is worked and stays where
+ * it is left: the height held is the hand's, never the machine's. */
+export const COLLECTIVE_KEY_RATE = 0.45;
+export const COLLECTIVE_THUMB_RATE = 0.6;
+
+/** The flying hand's memory: the collective lever where it was left, and
+ * the cyclic's and the pedals' keyboard ramps, screen-space. */
+export type HeliModel = { collective: number; pitch: number; roll: number; pedal: number };
+
+export function createHeliModel(): HeliModel {
+  return { collective: 0, pitch: 0, roll: 0, pedal: 0 };
+}
+
+/**
+ * ONE STEP OF THE HELICOPTER'S CONTROLS off the keys and the thumbs:
+ *   * the COLLECTIVE lever worked up and down by its keys, or by the edge
+ *     thumb's vertical travel (pushed up raises it), and left where it is;
+ *   * the CYCLIC off the stick keys (ramped like the edge) or the right
+ *     thumb's stick, which owns both its axes while it is down;
+ *   * the PEDALS off their keys, or the edge thumb's sideways travel.
+ * The side-to-side axes go through the one screen-to-engine flip.
+ */
+export function sampleHeli(
+  model: HeliModel,
+  keys: HeliKeysHeld,
+  touch: TouchChannel,
+  dt: number,
+): HeliControls {
+  const lift = (keys.collectiveUp ? 1 : 0) - (keys.collectiveDown ? 1 : 0);
+  const thumbLift = touch.bar ? -touch.lean : 0;
+  model.collective = clamp(
+    model.collective + (lift * COLLECTIVE_KEY_RATE + thumbLift * COLLECTIVE_THUMB_RATE) * dt,
+    0,
+    1,
+  );
+  const fore = (keys.cyclicForward ? 1 : 0) - (keys.cyclicBack ? 1 : 0);
+  const side = (keys.cyclicRight ? 1 : 0) - (keys.cyclicLeft ? 1 : 0);
+  const yaw = (keys.pedalRight ? 1 : 0) - (keys.pedalLeft ? 1 : 0);
+  model.pitch = rampToward(model.pitch, fore, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  model.roll = rampToward(model.roll, side, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  model.pedal = rampToward(model.pedal, yaw, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  const pitch = touch.stick ? touch.stickY : model.pitch;
+  const roll = touch.stick ? touch.stickX : model.roll;
+  const pedal = touch.bar ? touch.steer : model.pedal;
+  const flip = (v: number): number => (v === 0 ? 0 : clamp(v, -1, 1) * SCREEN_TO_ENGINE);
+  return {
+    collective: model.collective,
+    pitch: clamp(pitch, -1, 1),
+    roll: flip(roll),
+    pedal: flip(pedal),
+  };
 }

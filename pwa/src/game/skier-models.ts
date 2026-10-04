@@ -158,6 +158,10 @@ export type ModelParts = {
    * left out), `stand` where each ski stands on the snow
    * (`ski-stand.ts`). */
   pose(skier: SkierState, sink: number, dt: number, angle?: number, stand?: Stand): void;
+  /** Ski `i` (0 the left) let go of (`lone-skis.ts`), after `pose`:
+   * `pair` takes the pair's root frame — where the ski stands in it at
+   * rest — to the world where it lies. */
+  lay(i: number, pair: THREE.Matrix4): void;
   dispose(): void;
 };
 
@@ -186,6 +190,7 @@ export function attachModels(o: {
   holder.position.set(0, F.y(0), F.z(0));
   o.root.add(holder);
   const skisRig = rigAsset(scene, skisGltf.animations);
+  const to = new THREE.Matrix4();
 
   return {
     meshes,
@@ -193,6 +198,10 @@ export function attachModels(o: {
     pose(skier, sink, _dt, angle, stand) {
       o.root.updateWorldMatrix(true, false);
       skisRig.pose(skier, 0, sink, angle, stand);
+    },
+    lay(i, pair) {
+      holder.updateMatrix();
+      skisRig.lay(i, to.multiplyMatrices(pair, holder.matrix));
     },
     dispose() {
       for (const m of mats) m.dispose();

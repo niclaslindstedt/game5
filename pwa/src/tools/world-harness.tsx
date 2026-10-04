@@ -476,9 +476,11 @@ function chaseAt(t: number): string {
  * the player put into the nearest trunk flat out — the wipeout view's
  * staging — and drawn `t` s after he left his skis from a lens that keeps
  * square to the line he was thrown along, 7 m off his side and a little
- * over him, so a run of them reads as the frames of one fall. */
+ * over him, so a run of them reads as the frames of one fall. The YARD
+ * SALE (`yard-<s>`) is the same fall from over it, pulled back to take in
+ * him and both skis he left (`lone-skis.ts`). */
 let fallSide = 0;
-function fallAt(t: number): string {
+function fallAt(t: number, yard = false): string {
   if (!state.skier.thrown) {
     intoTrunk();
     const pinned = { ...NEUTRAL_INPUT, tuck: 1 };
@@ -498,6 +500,37 @@ function fallAt(t: number): string {
   }
   const off = state.skier.thrown;
   if (!off) return "already stood back up";
+  if (yard) {
+    // The middle of him and the two skis, and the farthest of them from it.
+    const at = [{ x: off.x, y: off.y, z: off.z }];
+    for (const ski of off.skis) {
+      const e = ski.ends;
+      at.push({ x: (e[0] + e[3]) / 2, y: (e[1] + e[4]) / 2, z: (e[2] + e[5]) / 2 });
+    }
+    const mid = {
+      x: at.reduce((a, p) => a + p.x, 0) / at.length,
+      y: at.reduce((a, p) => a + p.y, 0) / at.length,
+      z: at.reduce((a, p) => a + p.z, 0) / at.length,
+    };
+    const far = Math.max(...at.map((p) => Math.hypot(p.x - mid.x, p.z - mid.z)));
+    const back = Math.max(6, far * 1.6 + 3);
+    const ex = mid.x + Math.sin(fallSide) * back * 0.6;
+    const ez = mid.z + Math.cos(fallSide) * back * 0.6;
+    renderer.setOverride({
+      eye: { x: ex, y: Math.max(level.groundAt(ex, ez), mid.y) + back * 0.8, z: ez },
+      target: mid,
+      fov: 50,
+      roll: 0,
+    });
+    still();
+    renderer.setOverride(null);
+    const gap = Math.hypot(at[1].x - at[2].x, at[1].z - at[2].z);
+    const lift = at
+      .slice(1)
+      .map((p) => (p.y - level.groundAt(p.x, p.z)).toFixed(2))
+      .join(", ");
+    return `${off.cause}, ${off.t.toFixed(2)} s off, skis ${gap.toFixed(1)} m apart, ${lift} m over the snow`;
+  }
   const ex = off.x + Math.sin(fallSide) * 7;
   const ez = off.z + Math.cos(fallSide) * 7;
   renderer.setOverride({
@@ -888,11 +921,11 @@ window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
-    const fall = /^fall-(\d+(?:\.\d+)?)$/.exec(name);
+    const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const run = chase
       ? () => chaseAt(Number(chase[1]))
       : fall
-        ? () => fallAt(Number(fall[1]))
+        ? () => fallAt(Number(fall[2]), fall[1] === "yard")
         : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();

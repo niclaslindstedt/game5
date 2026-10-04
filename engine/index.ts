@@ -159,6 +159,7 @@ export {
   type Impact,
   type ImpactSource,
   type Thrown,
+  type LoneSki,
   type GameEvent,
   type GamePhase,
   type GameState,

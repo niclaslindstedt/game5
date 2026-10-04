@@ -46,6 +46,10 @@ export type AssetRig = {
    * drawn (the engine's when left out); `stand` where each ski stands on
    * the snow (`ski-stand.ts`). */
   pose(skier: SkierState, run?: number, sink?: number, angle?: number, stand?: Stand): void;
+  /** THE SKI LET GO (`lone-skis.ts`): ski `i` (0 the left) laid where it
+   * lies, `to` taking the rig's body frame — where that ski stands at rest
+   * — to the world. After `pose`, which it overrides for that ski. */
+  lay(i: number, to: THREE.Matrix4): void;
   /** Clip `name` at `t` s. */
   play(name: string, t: number): void;
 };
@@ -94,6 +98,8 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
     .map((n) => named.get(n))
     .filter((o): o is THREE.Object3D => !!o)
     .sort((a, b) => sideOf(a) - sideOf(b));
+  // Where each ski's bone stands in the body frame at rest, for `lay`.
+  const inBody = skis.map((o) => body.matrixWorld.clone().invert().multiply(o.matrixWorld));
   const up = new THREE.Vector3();
   const fwd = new THREE.Vector3();
   const side = new THREE.Vector3();
@@ -112,7 +118,20 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
   }
 
   const w = new THREE.Vector3();
+  const laid = new THREE.Matrix4();
   const pq = new THREE.Quaternion();
+
+  /** Every linkage turned to its target, after the skis have moved. */
+  function aimAll(): void {
+    root.updateMatrixWorld(true);
+    for (const a of aims) {
+      const d = a.node.parent!.worldToLocal(a.target.getWorldPosition(w)).sub(a.node.position);
+      const r = rest.get(a.node)!;
+      a.node.quaternion.setFromUnitVectors(a.dir, d.clone().normalize()).multiply(r.q);
+      if (a.stretch) a.node.scale.y = (r.s.y * d.length()) / a.length;
+    }
+    root.updateMatrixWorld(true);
+  }
   const q = new THREE.Quaternion();
   /** Move `o` by `lift` up the body, turn it by `angle` about the body's
    * up, then tip it by `tilt` about the body's forward (right edges down
@@ -175,14 +194,20 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
           o.position.copy(o.parent!.worldToLocal(w));
         }
       });
-      root.updateMatrixWorld(true);
-      for (const a of aims) {
-        const d = a.node.parent!.worldToLocal(a.target.getWorldPosition(w)).sub(a.node.position);
-        const r = rest.get(a.node)!;
-        a.node.quaternion.setFromUnitVectors(a.dir, d.clone().normalize()).multiply(r.q);
-        if (a.stretch) a.node.scale.y = (r.s.y * d.length()) / a.length;
-      }
-      root.updateMatrixWorld(true);
+      aimAll();
+    },
+    lay(i, to) {
+      const o = skis[i];
+      if (!o) return;
+      const keep = o.scale.clone();
+      laid
+        .copy(o.parent!.matrixWorld)
+        .invert()
+        .multiply(to)
+        .multiply(inBody[i])
+        .decompose(o.position, o.quaternion, w);
+      o.scale.copy(keep);
+      aimAll();
     },
     play(name, t) {
       reset();

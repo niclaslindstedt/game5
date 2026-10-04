@@ -184,10 +184,16 @@ the woods and a wipeout there is honest.
   slide are functions of the moment, so a crash replays exactly and the sim's
   digests do not move when one is added. Anything random-looking in the
   picture is the renderer's, off its own seed.
-- **WITH THE SKIER OFF, THE SKIS ARE LET GO AND TAKE NOTHING.** The neutral
-  input, no gate, the automatic reset's clocks quiet; the skis slide on down
-  the slope on their own (a landing over the tips gives them the tip-over
-  the digging tips would, `skiKick`); the reset is `crashOver`'s — `lieMin`
+- **WITH THE SKIER OFF, THE SKIS ARE LET GO AND TAKE NOTHING.** No gate,
+  the automatic reset's clocks quiet; and no PAIR any more — each ski is a
+  body of its own (`lone-skis.ts`, `Thrown.skis`), the one under him held
+  in its binding a moment longer, the two wrenched apart off a hash, never
+  the stream (a landing over the tips gives them the tip-over the digging
+  tips would, `skiKick`). A ski SLIDES, never bounces (the way into the
+  snow taken whole), never sinks (it is built to rise: no end and not its
+  middle under the snow, and the app lays it on the drawn loose cover),
+  and rights itself onto its base; `make world ARGS=--views=yard-0.4,yard-3`
+  frames him and both skis from over the fall; the reset is `crashOver`'s — `lieMin`
   off and `lieStill` lain still (`Thrown.still`), the beat the app's death
   cam (`camera-death.ts`) rises over him on; cut it and the camera has
   nothing to rise into. A skier who presses reset gets it at once.

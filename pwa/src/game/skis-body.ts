@@ -40,6 +40,7 @@ import * as THREE from "three";
 import {
   TUNING,
   seatedShare,
+  type LoneSki,
   type SkiSpec,
   type SkierState,
   type Thrown,
@@ -73,6 +74,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 import { CHAIR_SEAT } from "./skier-seat.ts";
 
@@ -122,6 +124,11 @@ export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   return styleIn(TOPSHEETS[spec.id], skier);
 }
 
+/** The snow the skis are drawn over: the ground a flight is read over and,
+ * where the map has it, how packed it is (the loose cover stands on the
+ * rest). */
+export type SnowGround = FlightGround & { packedAt?(x: number, z: number): number };
+
 export type SkisModel = {
   root: THREE.Group;
   /** Pose from the engine's state, drawn at `at` (the interpolated place);
@@ -146,7 +153,7 @@ export type SkisModel = {
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
    * by the time aloft alone. */
-  setGround(ground: FlightGround | null, gravity: number): void;
+  setGround(ground: SnowGround | null, gravity: number): void;
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
   lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
@@ -166,6 +173,38 @@ export type SkisModel = {
 export function mountsOf(spec: SkiSpec): Mounts {
   const look = lookOf(spec);
   return mountsFor(spec, cuffHeight(look) + 0.02, look.pole.length);
+}
+
+const lifted = [0, 0, 0, 0, 0, 0];
+const tipward = new THREE.Vector3();
+const upward = new THREE.Vector3();
+const rightward = new THREE.Vector3();
+
+/** A ski let go (`lone-skis.ts`) as a world matrix in the frame the drawn
+ * ski is built in: at its boot centre on the base, x to its right, y out
+ * of its topsheet, z to its tip. `lift` is how far the drawn snow stands
+ * over the engine's ground at a point (the loose cover, `LOOSE`): each end
+ * is laid on top of it, never in it — a ski rides up out of the snow. */
+export function loneSkiFrame(
+  ski: LoneSki,
+  out: THREE.Matrix4,
+  lift: (x: number, z: number) => number = () => 0,
+): THREE.Matrix4 {
+  const e = lifted;
+  for (let k = 0; k < 6; k++) e[k] = ski.ends[k];
+  e[1] += lift(e[0], e[2]);
+  e[4] += lift(e[3], e[5]);
+  tipward.set(e[0] - e[3], e[1] - e[4], e[2] - e[5]).normalize();
+  upward.set(ski.up[0], ski.up[1], ski.up[2]);
+  upward.addScaledVector(tipward, -upward.dot(tipward)).normalize();
+  rightward.crossVectors(upward, tipward);
+  out.makeBasis(rightward, upward, tipward);
+  const m = ski.mount;
+  return out.setPosition(
+    e[3] + (e[0] - e[3]) * m,
+    e[4] + (e[1] - e[4]) * m,
+    e[5] + (e[2] - e[5]) * m,
+  );
 }
 
 /** Whether `o` hangs anywhere under `group`. */
@@ -337,7 +376,11 @@ export function createSkisModel(
   let seed = 0;
   for (let i = 0; i < kit.length; i++) seed = (seed * 31 + kit.charCodeAt(i)) % 997;
   const legs = createSkierSpring(seed / 31);
-  let fall: { ground: FlightGround; gravity: number } | null = null;
+  let fall: { ground: SnowGround; gravity: number } | null = null;
+  // How far the drawn snow stands over the engine's ground — the loose
+  // cover on powder, none on the groomer — for the skis let go to lie on.
+  const cover = (x: number, z: number): number =>
+    fall?.ground.packedAt ? LOOSE * (1 - fall.ground.packedAt(x, z)) : 0;
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
@@ -380,6 +423,13 @@ export function createSkisModel(
 
   const toRoot = new THREE.Quaternion();
   const thrown = new THREE.Quaternion();
+  // The skis let go: each one's place in the world, the root's inverse,
+  // and the pair's root as it would stand for each.
+  const lies = [new THREE.Matrix4(), new THREE.Matrix4()];
+  const pairAt = [new THREE.Matrix4(), new THREE.Matrix4()];
+  const toLocal = new THREE.Matrix4();
+  const laid = new THREE.Matrix4();
+  const restAt = new THREE.Matrix4();
   const stand = emptyStand();
   // THE CHATTER as drawn (`ski-chatter.ts`): the snow passed and the shake.
   const chatter = createChatter();
@@ -504,7 +554,30 @@ export function createSkisModel(
           flap.setFromEuler(shook.set(-stand.pitch[i], 0, -stand.rock[i])),
         );
       }
+      // THE SKIS LET GO (`lone-skis.ts`): each laid where its own body
+      // lies, no longer a pair under him.
+      const loose = off && off.skis.length === 2 ? off.skis : null;
+      if (loose) {
+        root.updateWorldMatrix(true, false);
+        toLocal.copy(root.matrixWorld).invert();
+        let reach = 0;
+        for (let i = 0; i < 2; i++) {
+          loneSkiFrame(loose[i], lies[i], cover);
+          const g = gear.skis[i];
+          const keep = g.scale.clone();
+          laid.multiplyMatrices(toLocal, lies[i]).decompose(g.position, g.quaternion, g.scale);
+          g.scale.copy(keep);
+          reach = Math.max(reach, g.position.length() + spec.length);
+          // The pair's root as it would stand for this ski at rest.
+          pairAt[i].multiplyMatrices(
+            lies[i],
+            restAt.makeTranslation((-loose[i].side * spec.stance) / 2, spec.cogHeight, 0),
+          );
+        }
+        bound.radius = Math.max(bound.radius, BOUND + reach);
+      }
       models?.pose(skier, sink, dt, angle, stand);
+      if (loose && models) for (let i = 0; i < 2; i++) models.lay(i, pairAt[i]);
       merged.update();
     },
     poseSkier(input) {

@@ -236,6 +236,8 @@ export function windOf(state: GameState): HudWind {
 export function gatesTaken(p: Progress, gates: number): number {
   if (p.finished && !p.out) return gates;
   if (!p.started) return 0;
+  // Out, he skis on down and past gates that no longer count.
+  if (p.out) return Math.min(gates, p.passed, p.out.gate);
   return Math.min(gates, p.passed);
 }
 

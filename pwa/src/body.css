@@ -121,32 +121,10 @@
   fill: rgb(60 40 24 / 45%);
 }
 
-/* THE CRACK across the bone: a dark hairline when cracked, a wide dark
-   gap through a broken one. */
-.hud-bone-crack {
-  fill: none;
-  stroke: #160f0a;
-  stroke-width: 0.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hud-bone-break .hud-bone-crack {
-  stroke-width: 1.5;
-}
-
-/* A BROKEN BONE glows, so a thin one (a fibula, a rib) is found at a
-   glance, and its crack opens on a gap of the flesh behind it. */
+/* A BROKEN BONE glows its red, so a thin one (a fibula, a rib) is found at
+   a glance. */
 .hud-bone-break {
   filter: drop-shadow(0 0 0.9px var(--hud-hp-dead));
-}
-
-.hud-bone-gap {
-  fill: none;
-  stroke: #9fb4b0;
-  stroke-width: 0.55;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 /* THE PART THE BLOW STRUCK, lit white and cooling to its paint. */

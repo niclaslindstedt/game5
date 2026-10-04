@@ -32,7 +32,7 @@ import {
   FIGURE,
   OUTLINE_POINTS,
   REGIONS,
-  crackPath,
+  fractureOf,
 } from "../pwa/src/game/body-figure.ts";
 import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
@@ -397,7 +397,38 @@ describe("the body as drawn (body-figure.ts)", () => {
       const b = BONE_SHAPES[bone];
       expect(b.fill.length, bone).toBeGreaterThan(0);
       for (const d of [...b.fill, ...b.shade]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
-      expect(crackPath(b.mark, 1), bone).toMatch(/^M[\d.,-]+(L[\d.,-]+)+$/);
+      const fr = fractureOf(bone);
+      for (const d of [fr.fissure, fr.piece]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+      expect(fr.move, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
+    }
+  });
+
+  it("puts every bone's crack ON the bone: its mark inside the bone's own shape", () => {
+    // Even-odd over every ring of the bone's fill.
+    const rings = (d: string): number[][][] =>
+      d
+        .split("Z")
+        .filter(Boolean)
+        .map((r) =>
+          r
+            .replace(/^M/, "")
+            .split("L")
+            .map((p) => p.split(",").map(Number)),
+        );
+    for (const bone of BONES) {
+      const b = BONE_SHAPES[bone];
+      let hit = false;
+      for (const r of b.fill.flatMap(rings))
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const [xi, yi] = r[i];
+          const [xj, yj] = r[j];
+          if (
+            yi > b.mark.y !== yj > b.mark.y &&
+            b.mark.x < ((xj - xi) * (b.mark.y - yi)) / (yj - yi) + xi
+          )
+            hit = !hit;
+        }
+      expect(hit, bone).toBe(true);
     }
   });
 

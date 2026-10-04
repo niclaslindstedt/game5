@@ -175,6 +175,8 @@ function digit(s: "R" | "L", i: number): [Pt, Pt, Pt] {
  * figure is a slimmer man than the plate's, slimmest at the forearm and
  * the ankle. */
 const WIDE = { arm: 0.86, fore: 0.82, carpus: 0.8, thigh: 0.92, shin: 0.8 };
+/** The jaw's width, of the plate's (see `mandible`). */
+const JAW = 0.9;
 /** A finger's width, of its length's scale. */
 const FINGER = 0.72;
 
@@ -438,7 +440,9 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
   const one = (comps: Comp[], m: Matrix): Piece[] => [{ comps, m }];
   return {
     skull: one(t.Cranium, skull),
-    mandible: one(t.Mandible, skull),
+    // The jaw a little narrower than the plate's broad one, as this man's
+    // is (its angles stand inside his neck's line).
+    mandible: one(t.Mandible, compose(skull, [JAW, 0, 0, 1, (1 - JAW) * PLATE.chin[0], 0])),
     cervical: one(
       t.CervicalVertebrae,
       segment(PLATE.c1, PLATE.c7, apply(skull, PLATE.c1), apply(thorax, PLATE.c7), G),

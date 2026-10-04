@@ -4,9 +4,10 @@
 // traced): his right on the viewer's left, the flesh of every part painted
 // by its worst injury that is not a bone's — green sound, yellow a minor
 // injury, orange a moderate one, red serious and worse (`body-tile.ts`) —
-// and over it, as an X-ray shows them, the BONES: ivory when sound, yellow
-// with a hairline across it when cracked, red with a gap through it when
-// broken. The part the last blow struck is lit while the g meter holds it.
+// and over it, as an X-ray shows them, the BONES: ivory and whole when
+// sound; on a hairline yellow, a fissure cut into the bone; broken red, cut
+// through and its fragment displaced (`fractureOf`) — the bone itself
+// fractured, never a mark drawn on it. The part the last blow struck is lit while the g meter holds it.
 //
 // Under the figure, the WORD for the whole body and the worst injuries the
 // figure cannot show, in plain words — the organs, the ligaments, the
@@ -24,7 +25,7 @@ import {
   FIGURE,
   OUTLINE,
   REGIONS,
-  crackPath,
+  fractureOf,
 } from "./body-figure.ts";
 import type { BodyTile, BodyTone, BoneTone } from "./body-tile.ts";
 import { STRINGS } from "./strings.ts";
@@ -41,23 +42,71 @@ function worstOf(parts: BodyTone[], bones: BoneTone[]): BodyTone {
   );
 }
 
-/** One bone: its shapes (each ring filled even-odd round its holes), its
- * shading, and the crack across it. */
+/** A bone's own shapes, filled even-odd round their holes. */
+function Fills({ bone }: { bone: Bone }): JSX.Element {
+  return (
+    <>
+      {BONE_SHAPES[bone].fill.map((d, i) => (
+        <path key={i} class="hud-bone-fill" d={d} fill-rule="evenodd" />
+      ))}
+    </>
+  );
+}
+
+/** One bone, and what is wrong with it — the bone itself, fractured, in
+ * its colour (`body.css`); nothing is drawn on it. SOUND: whole. A
+ * HAIRLINE: a fissure cut into it from one edge. A BREAK: cut through,
+ * the far fragment displaced and angulated, a long bone's butterfly
+ * fragment knocked out of the break. */
 function BoneMark({ bone, tone }: { bone: Bone; tone: BoneTone }): JSX.Element {
   const b = BONE_SHAPES[bone];
-  return (
-    <g class={`hud-bone hud-bone-${tone}`}>
-      {b.fill.map((d, i) => (
-        <path key={`f${i}`} class="hud-bone-fill" d={d} fill-rule="evenodd" />
-      ))}
+  const body = (
+    <>
+      <Fills bone={bone} />
       {b.shade.map((d, i) => (
         <path key={`s${i}`} class="hud-bone-shade" d={d} />
       ))}
-      {tone !== "sound" && (
-        <path class="hud-bone-crack" d={crackPath(b.mark, tone === "break" ? 2 : 1)} />
+    </>
+  );
+  if (tone === "sound") return <g class="hud-bone hud-bone-sound">{body}</g>;
+  const fr = fractureOf(bone);
+  const id = `hud-bone-${bone}`;
+  if (tone === "hairline") {
+    return (
+      <g class="hud-bone hud-bone-hairline">
+        <defs>
+          <clipPath id={`${id}-whole`}>
+            <path d={`M-20,-20H112V231H-20Z${fr.fissure}`} clip-rule="evenodd" />
+          </clipPath>
+        </defs>
+        <g clip-path={`url(#${id}-whole)`}>{body}</g>
+      </g>
+    );
+  }
+  return (
+    <g class="hud-bone hud-bone-break">
+      <defs>
+        <clipPath id={`${id}-rest`}>
+          <path d={fr.rest} clip-rule="evenodd" />
+        </clipPath>
+        <clipPath id={`${id}-piece`}>
+          <path d={fr.piece} clip-rule="evenodd" />
+        </clipPath>
+        {fr.chip && (
+          <clipPath id={`${id}-chip`}>
+            <path d={fr.chip} />
+          </clipPath>
+        )}
+      </defs>
+      <g clip-path={`url(#${id}-rest)`}>{body}</g>
+      <g transform={fr.move}>
+        <g clip-path={`url(#${id}-piece)`}>{body}</g>
+      </g>
+      {fr.chip && (
+        <g transform={fr.chipMove}>
+          <g clip-path={`url(#${id}-chip)`}>{body}</g>
+        </g>
       )}
-      {/* A break's two ends apart: the gap down the middle of the crack. */}
-      {tone === "break" && <path class="hud-bone-gap" d={crackPath(b.mark, 2)} />}
     </g>
   );
 }

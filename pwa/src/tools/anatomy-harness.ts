@@ -321,6 +321,10 @@ function mapBones(traced: Traced): Mapped[] {
           .filter((r) => ringArea(r) > 0.6),
       })),
     );
+    // A bone the plate draws in pieces (the hip bones, the sacrum and the
+    // pubic rami; the manubrium and the sternum) is fused into one shape,
+    // or the seams between its pieces read as fractures.
+    if (FUSED.has(bone)) comps.splice(0, comps.length, ...fuse(comps));
     const shade =
       bone === "skull"
         ? [
@@ -328,15 +332,121 @@ function mapBones(traced: Traced): Mapped[] {
             ...comps.flatMap((c) => c.holes),
           ]
         : [];
-    const s = spots[bone];
+    const spot = spots[bone];
+    const s = { ...spot, ...across(comps, onBone(comps, spot.p), spot.a) };
     return {
       bone,
       pieces: plan[bone],
       comps,
       shade,
-      mark: { x: s.p[0], y: s.p[1], a: s.a, r: halfWidth(comps, s.p, s.a) },
+      mark: { x: s.p[0], y: s.p[1], a: s.a, r: s.r },
     };
   });
+}
+
+/** Whether `p` is on the bone: inside its rings, even-odd. */
+function inside(comps: Mapped["comps"], p: Pt): boolean {
+  let hit = false;
+  for (const c of comps)
+    for (const r of [c.outer, ...c.holes])
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i];
+        const [xj, yj] = r[j];
+        if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi)
+          hit = !hit;
+      }
+  return hit;
+}
+
+/** A crack's spot ON the bone: the spot asked for if the bone is there
+ * (with a little bone round it), else the nearest such point to it. */
+function onBone(comps: Mapped["comps"], p: Pt): Pt {
+  const solid = (q: Pt): boolean =>
+    [
+      [0, 0],
+      [0.3, 0],
+      [-0.3, 0],
+      [0, 0.3],
+      [0, -0.3],
+    ].every(([dx, dy]) => inside(comps, [q[0] + dx, q[1] + dy]));
+  if (solid(p)) return p;
+  for (let r = 0.1; r < 6; r += 0.1)
+    for (let k = 0; k < 24; k++) {
+      const q: Pt = [
+        p[0] + r * Math.cos((k / 24) * Math.PI * 2),
+        p[1] + r * Math.sin((k / 24) * Math.PI * 2),
+      ];
+      if (solid(q)) return q;
+    }
+  return p;
+}
+
+/** The bones fused out of their plate pieces. */
+const FUSED = new Set<Bone>(["pelvis", "sternum"]);
+
+/** FUSE a bone's rings: drawn together at `FUSE_PX` a unit, closed over
+ * `FUSE_CLOSE` pixels (a dilation, then an erosion) so the seams between
+ * pieces fill, and traced again with its holes. */
+const FUSE_PX = 24;
+const FUSE_CLOSE = 4;
+function fuse(comps: Mapped["comps"]): Mapped["comps"] {
+  const all = comps.flatMap((c) => c.outer);
+  const [x0, y0, bw, bh] = boxOf(all, 1);
+  const W = Math.ceil(bw * FUSE_PX);
+  const H = Math.ceil(bh * FUSE_PX);
+  const cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const g = cv.getContext("2d")!;
+  g.setTransform(FUSE_PX, 0, 0, FUSE_PX, -x0 * FUSE_PX, -y0 * FUSE_PX);
+  g.fillStyle = "#fff";
+  for (const c of comps) g.fill(new Path2D(pathOf(c)), "evenodd");
+  const d = g.getImageData(0, 0, W, H).data;
+  let m: Uint8Array = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) m[i] = d[4 * i + 3] > 127 ? 1 : 0;
+  const morph = (src: Uint8Array, grow: boolean): Uint8Array => {
+    const out = new Uint8Array(W * H);
+    const r = FUSE_CLOSE;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        let v = grow ? 0 : 1;
+        for (let dy = -r; dy <= r && v === (grow ? 0 : 1); dy++)
+          for (let dx = -r; dx <= r; dx++) {
+            if (dx * dx + dy * dy > r * r) continue;
+            const X = x + dx;
+            const Y = y + dy;
+            const on = X >= 0 && Y >= 0 && X < W && Y < H ? src[Y * W + X] : 0;
+            if (grow && on) {
+              v = 1;
+              break;
+            }
+            if (!grow && !on) {
+              v = 0;
+              break;
+            }
+          }
+        out[y * W + x] = v;
+      }
+    return out;
+  };
+  m = morph(morph(m, true), false);
+  const back = (r: Pt[]): Pt[] =>
+    ring(r, 1.2).map(([x, y]) => [x0 + x / FUSE_PX, y0 + y / FUSE_PX] as Pt);
+  const { lab, comps: found } = components(m, W, H, 40);
+  const out = found.map((c) => ({
+    outer: back(contour(lab, W, H, c.id, c.start)),
+    holes: [] as Pt[][],
+  }));
+  const inv = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) inv[i] = m[i] ? 0 : 1;
+  const bg = components(inv, W, H, 60);
+  for (const hole of bg.comps) {
+    const [hx0, hy0, hx1, hy1] = hole.box;
+    if (hx0 === 0 || hy0 === 0 || hx1 === W - 1 || hy1 === H - 1) continue;
+    const k = found.findIndex((c) => c.id === lab[hole.start - 1]);
+    if (k >= 0) out[k].holes.push(back(contour(bg.lab, W, H, hole.id, hole.start)));
+  }
+  return out;
 }
 
 /** A ring's area, units². */
@@ -350,19 +460,17 @@ function ringArea(r: Pt[]): number {
   return Math.abs(a) / 2;
 }
 
-/** How far across the bone it is from `p`, either way, on its narrower
- * side: the crack's half length. */
-function halfWidth(comps: Mapped["comps"], p: Pt, a: number): number {
+/** The bone across `p` (its way `a`): how far to its edge either side, so
+ * the crack's spot is set midway across the bone and its half width read. */
+function across(comps: Mapped["comps"], p: Pt, a: number): { p: Pt; r: number } {
   const n: Pt = [-Math.sin(a), Math.cos(a)];
-  let best = Infinity;
-  for (const dir of [1, -1]) {
+  const reach = (dir: number): number => {
     let near = Infinity;
     for (const c of comps)
       for (const r of [c.outer, ...c.holes])
         for (let i = 0; i < r.length; i++) {
           const q0 = r[i];
           const q1 = r[(i + 1) % r.length];
-          // p + t·n·dir against the edge q0→q1.
           const ex = q1[0] - q0[0];
           const ey = q1[1] - q0[1];
           const dx = n[0] * dir;
@@ -373,9 +481,15 @@ function halfWidth(comps: Mapped["comps"], p: Pt, a: number): number {
           const u = ((q0[0] - p[0]) * dy - (q0[1] - p[1]) * dx) / den;
           if (t > 0 && u >= 0 && u <= 1) near = Math.min(near, t);
         }
-    best = Math.min(best, near);
-  }
-  return Math.max(0.6, Math.min(3, Number.isFinite(best) ? best : 1));
+    return Number.isFinite(near) ? near : 1;
+  };
+  const up = Math.min(reach(1), 6);
+  const down = Math.min(reach(-1), 6);
+  const mid = (up - down) / 2;
+  return {
+    p: [p[0] + n[0] * mid, p[1] + n[1] * mid],
+    r: Math.max(0.5, Math.min(3, (up + down) / 2)),
+  };
 }
 
 // ── 3. MEASURE ───────────────────────────────────────────────────────────

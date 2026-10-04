@@ -108,6 +108,9 @@ export const STRINGS = {
   distance: (metres: number): string =>
     metres < 1000 ? `${Math.round(metres)} M` : `${(metres / 1000).toFixed(2)} KM`,
   distanceLabel: "SKIED",
+  /** Under the free ride's map seed — its one figure over the snow — so a
+   * picture of it names its mountain. */
+  seedLabel: "SEED",
   /** THE LIGHTS: the whole second still to run, and the word after. */
   count: (left: number): string => String(left),
   go: "GO!",

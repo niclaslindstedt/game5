@@ -145,7 +145,20 @@ export function Hud({
       data-touch={touch ? "1" : undefined}
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
-          contest's, and a FREE RIDE is no contest: it skis without them. */}
+          contest's, and a FREE RIDE is no contest: it skis without them,
+          and carries the MAP'S SEED alone in their place, so a picture of
+          it says which mountain it was taken on — the one number that
+          brings it back. */}
+      {leisure && (
+        <div class="hud-top">
+          <div class="hud-top-row">
+            <div class="hud-chip hud-seed">
+              <span>{snap.seed}</span>
+              <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
+            </div>
+          </div>
+        </div>
+      )}
       {!leisure && (
         <div class="hud-top">
           <div class="hud-top-row">

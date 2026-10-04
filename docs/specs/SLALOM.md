@@ -150,6 +150,13 @@ The start (in progress):
       a re-pin with `make rate CAMPAIGN=1` (the campaign skill), which
       changes the shelves; ask the user how.
 - [ ] The cross-block (the outside hand at the gate), the finish lunge.
+- [ ] A POSE ROW per technique (app-side, keyed by the technique id, read by
+      `skier-pose.ts`): counter-rotation, hands and poles (slalom's touch and
+      the outside hand's block; the speed events' poles under the arms),
+      the inside knee's fold and the outside leg held, stance width, the
+      transition (cross-under / cross-over), the tuck between turns — off
+      `docs/disciplines.md`, judged with `make technique`'s behind and side
+      sheets and `make skier-metrics` before and after.
 - [ ] Screenshots of seed 38 at t = 1, 3, 4.6, 5, 6 to see it.
 
 The HUD and the plate:

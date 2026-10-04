@@ -58,31 +58,77 @@
 
 .hud-body-figure {
   width: auto;
-  height: clamp(5.6rem, 21vmin, 10rem);
+  height: clamp(8.5rem, 38vmin, 17rem);
   margin-bottom: 0.15rem;
+  overflow: visible;
   filter: drop-shadow(0 1px 1.5px var(--hud-shadow));
 }
 
+/* THE FLESH: a wash of the part's paint, faint while sound, the seams
+   between the parts a hair of the plate. */
 .hud-body-part,
-.hud-body-spine rect {
+.hud-body-back {
   fill: var(--hp);
-  stroke: rgb(var(--hud-plate) / 75%);
-  stroke-width: 0.8;
+  fill-opacity: 0.55;
+  stroke: rgb(var(--hud-plate) / 55%);
+  stroke-width: 0.35;
 }
 
 .hud-body-part.hud-hp-ok {
-  fill-opacity: 0.6;
+  fill-opacity: 0.22;
 }
 
-/* The spine over the trunk: sound, it is drawn as the bone it is, so the
-   vertebrae read against the green under them. */
-.hud-body-spine.hud-hp-ok rect {
-  fill: #e9f4ee;
+/* The back, behind the spine, shows only when it is hurt. */
+.hud-body-back {
+  stroke: none;
+}
+
+.hud-body-back.hud-hp-ok {
+  fill-opacity: 0;
+}
+
+.hud-body-skin {
+  fill: none;
+  stroke: #f4f8fb;
+  stroke-opacity: 0.9;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+/* THE BONES: ivory when sound, the HUD's yellow cracked, its red broken —
+   every shape outlined a hair darker so a bone reads over the flesh. */
+.hud-bone {
+  --bone: #eee6d1;
+}
+
+.hud-bone-hairline {
+  --bone: var(--hud-hp-hurt);
+}
+
+.hud-bone-break {
+  --bone: var(--hud-hp-dead);
+}
+
+.hud-bone-fill {
+  fill: var(--bone);
+  stroke: rgb(30 24 18 / 55%);
+  stroke-width: 0.22;
+  stroke-linejoin: round;
+}
+
+/* The skull's orbits and openings, darker in the bone. */
+.hud-bone-shade {
+  fill: rgb(60 40 24 / 45%);
+}
+
+/* A BROKEN BONE glows its red, so a thin one (a fibula, a rib) is found at
+   a glance. */
+.hud-bone-break {
+  filter: drop-shadow(0 0 0.9px var(--hud-hp-dead));
 }
 
 /* THE PART THE BLOW STRUCK, lit white and cooling to its paint. */
-.hud-body-struck,
-.hud-body-struck rect {
+.hud-body-struck {
   animation: hud-body-struck 900ms ease-out;
 }
 
@@ -185,14 +231,6 @@
 .hud-gforce-unit {
   font-size: clamp(1.2rem, 4.5vmin, 2.2rem);
   font-weight: 800;
-}
-
-.hud-gforce-what {
-  margin-top: 0.25rem;
-  color: var(--hud-ink);
-  font-size: clamp(0.66rem, 2.1vmin, 1rem);
-  font-weight: 700;
-  letter-spacing: 0.1em;
 }
 
 /* THE SHAKE: thrown about by `--shake` px (the blow's size, hud-gforce.tsx)

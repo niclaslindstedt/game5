@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // HOW THE BODY IS, as the HUD paints it — the engine's ledger
-// (`SkierState.body`, `body.ts`) folded into what a figure the size of a
-// thumb and three lines under it can say, and the blow the g meter shows.
+// (`SkierState.body`, `body.ts`) folded into what an anatomical figure and
+// three lines under it can say, and the blow the g meter shows: the flesh
+// of each part painted by its worst injury that is NOT a fracture, every
+// bone by its own (`fracturesOf`: sound, a hairline crack, broken), and the
+// lines saying only what the bones cannot show (`saidOf` — the organs, the
+// ligaments, the sprains).
 // DOM-free on purpose: the drawing is next door (`hud-body.tsx`,
 // `hud-gforce.tsx`), the arithmetic is here, and the root suite reads it.
 //
@@ -15,7 +19,10 @@
 
 import {
   BODY_PARTS,
+  PART,
   TUNING,
+  fracturesOf,
+  saidOf,
   severityOf,
   type BodyPart,
   type BodyState,
@@ -28,6 +35,9 @@ import type { BodyCondition } from "./strings-body.ts";
 /** A part's paint: sound, a minor injury, a moderate one, serious or worse
  * — the same four the rally game's car schematic is painted in. */
 export type BodyTone = "ok" | "hurt" | "spent" | "dead";
+
+/** A bone's paint: sound, cracked (a hairline), broken. */
+export type BoneTone = "sound" | "hairline" | "break";
 
 /** One line under the figure: an injury, and whether it is new enough to
  * be marked as news. */
@@ -45,15 +55,19 @@ export type BlowTile = {
 };
 
 export type BodyTile = {
-  /** Every part's paint, in `BODY_PARTS` order. */
+  /** Every part's paint, in `BODY_PARTS` order — its flesh: the worst
+   * injury on it that is not a bone's. */
   parts: BodyTone[];
+  /** Every bone's paint, in `BONES` order. */
+  bones: BoneTone[];
   /** The part the blow on the meter struck, while it is fresh — drawn lit. */
   struck: BodyPart | null;
   condition: BodyCondition;
   /** The injury severity score, 0 … 75. */
   severity: number;
-  /** The worst injuries, worst first and the newest first within a rank,
-   * at most `LINES`; `more` how many the panel leaves out. */
+  /** The worst injuries the figure cannot show — no fracture — worst
+   * first and the newest first within a rank, at most `LINES`; `more` how
+   * many of those the panel leaves out. */
   lines: BodyLine[];
   more: number;
   /** The run's hardest blow he fell on, g — 0 before one. */
@@ -67,6 +81,8 @@ export const LINES = 3;
 
 /** How long an injury is marked as news, s of the engine's clock. */
 const FRESH = 3;
+
+const BONE_TONES: BoneTone[] = ["sound", "hairline", "break"];
 
 /** A part's paint off its worst AIS rank. */
 export function toneOf(ais: number): BodyTone {
@@ -90,7 +106,14 @@ export function conditionOf(severity: number): BodyCondition {
 export function bodyTile(body: BodyState, t: number): BodyTile {
   const order = body.injuries
     .map((h, i) => ({ h, i }))
+    .filter(({ h }) => saidOf(h.kind))
     .sort((a, b) => b.h.ais - a.h.ais || b.i - a.i);
+  // The flesh: each part's worst injury that is said, not a bone's.
+  const flesh = new Array<number>(BODY_PARTS.length).fill(0);
+  for (const h of body.injuries) {
+    if (!saidOf(h.kind)) continue;
+    flesh[PART[h.part]] = Math.max(flesh[PART[h.part]], h.ais);
+  }
   const lines = order.slice(0, LINES).map(({ h }) => ({
     kind: h.kind,
     part: h.part,
@@ -105,12 +128,13 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
       : null;
   const severity = severityOf(body);
   return {
-    parts: BODY_PARTS.map((_, i) => toneOf(body.worst[i])),
+    parts: flesh.map(toneOf),
+    bones: fracturesOf(body).map((g) => BONE_TONES[g]),
     struck: blow ? blow.part : null,
     condition: conditionOf(severity),
     severity,
     lines,
-    more: Math.max(0, body.injuries.length - LINES),
+    more: Math.max(0, order.length - LINES),
     peak: body.fallPeak,
     blow,
   };

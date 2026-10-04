@@ -10,20 +10,28 @@ import { describe, expect, it } from "vitest";
 
 import {
   BODY_PARTS,
+  BONE_KINDS,
+  BONES,
   INJURIES,
   NEUTRAL_INPUT,
   SKI_CATALOG,
   TUNING,
   blowOf,
+  bonesOf,
+  fracturesOf,
   createGame,
   freshBody,
   placeRun,
+  resetSkier,
   riskOf,
+  saidOf,
   severityOf,
   snowGive,
   step,
   type GameEvent,
   type GameState,
+  type InjuryDef,
+  type InjuryKind,
   type RunMoment,
   type SkierInput,
 } from "@engine";
@@ -126,6 +134,62 @@ describe("the catalog", () => {
   });
 });
 
+describe("the bones", () => {
+  it("every bone can be cracked and broken, on the side of the part that does it", () => {
+    const reached = new Map<string, Set<string>>();
+    for (const kind of Object.keys(INJURIES) as InjuryKind[]) {
+      const def = INJURIES[kind] as InjuryDef;
+      if (!def.bones) continue;
+      expect(def.fracture, kind).toBeDefined();
+      const parts = BODY_PARTS.filter((p) => p === def.part || p.replace(/[LR]$/, "") === def.part);
+      for (const part of parts)
+        for (const bone of bonesOf(kind, part)) {
+          expect(BONES, `${kind} ${part}`).toContain(bone);
+          // A paired part breaks its own side's bone.
+          if (/[LR]$/.test(part) && /[LR]$/.test(bone)) expect(bone.at(-1)).toBe(part.at(-1));
+          if (!reached.has(bone)) reached.set(bone, new Set());
+          reached.get(bone)!.add(def.fracture!);
+        }
+    }
+    for (const bone of BONES)
+      expect([...(reached.get(bone) ?? [])].sort(), bone).toEqual(["break", "hairline"]);
+    expect(BONES.length).toBeGreaterThan(BONE_KINDS.length);
+  });
+
+  it("a crack is under its break: a rank at most as high, and a dose below it", () => {
+    for (const kind of Object.keys(INJURIES) as InjuryKind[]) {
+      const crack = INJURIES[kind] as InjuryDef;
+      if (crack.fracture !== "hairline") continue;
+      const breaks = Object.values(INJURIES as Record<string, InjuryDef>).filter(
+        (d) =>
+          d.fracture === "break" &&
+          d.part === crack.part &&
+          d.mech === crack.mech &&
+          d.bones!.some((b) => crack.bones!.includes(b)),
+      );
+      for (const d of breaks) {
+        expect(crack.ais, kind).toBeLessThanOrEqual(d.ais);
+        expect(crack.at, kind).toBeLessThan(d.at);
+      }
+    }
+  });
+
+  it("each bone shows its worst; a fracture is never said, the cord is", () => {
+    const body = freshBody();
+    body.injuries.push({ part: "thighL", kind: "crackedFemur", ais: 2, t: 0 });
+    body.injuries.push({ part: "thighL", kind: "brokenFemur", ais: 3, t: 1 });
+    body.injuries.push({ part: "shinR", kind: "crackedShin", ais: 1, t: 2 });
+    const f = fracturesOf(body);
+    expect(f[BONES.indexOf("femurL")]).toBe(2);
+    expect(f[BONES.indexOf("femurR")]).toBe(0);
+    expect(f[BONES.indexOf("tibiaR")]).toBe(1);
+    expect(f.filter((g) => g > 0)).toHaveLength(2);
+    expect(saidOf("brokenFemur")).toBe(false);
+    expect(saidOf("tornAcl")).toBe(true);
+    expect(saidOf("spinalCord")).toBe(true);
+  });
+});
+
 describe("the body on the snow", () => {
   it("a clean landing off the slope's kicker hurts nothing, on any pair", () => {
     for (const spec of SKI_CATALOG) {
@@ -215,18 +279,22 @@ describe("the body on the snow", () => {
     expect(a.rng.next()).toBe(b.rng.next());
   });
 
-  it("a reset does not mend him", () => {
+  it("a reset mends him, keeping the run's hardest blow", () => {
     const state = staged(syntheticLevel(), {
       x: LONE_TREE.x,
       z: LONE_TREE.z - 20,
       heading: 0,
       speed: 60 / 3.6,
     });
-    ride(state, 8);
-    const taken = state.skier.body.injuries.length;
-    expect(taken).toBeGreaterThan(0);
-    ride(state, 0.1, { ...NEUTRAL_INPUT, reset: true });
-    expect(state.skier.body.injuries.length).toBe(taken);
+    // Ski into the trunk until it has hurt him, then ask for the reset.
+    for (let i = 0; i < 8 * 120 && state.skier.body.injuries.length === 0; i++)
+      ride(state, 1 / 120);
+    expect(state.skier.body.injuries.length).toBeGreaterThan(0);
+    const peak = state.skier.body.peak;
+    resetSkier(state, [], false);
+    expect(state.skier.body.injuries).toEqual([]);
+    expect(state.skier.body.worst.every((w) => w === 0)).toBe(true);
+    expect(state.skier.body.peak).toBe(peak);
   });
 });
 

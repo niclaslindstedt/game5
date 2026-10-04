@@ -1,0 +1,65 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Anatomy preview harness</title>
+    <!-- Tooling page for scripts/anatomy-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It traces
+         the skeleton plate's bones, lays them into the HUD's figure, and
+         draws each one over the plate's own drawing of it. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+        color: #fff;
+        font: 12px/1.3 monospace;
+        overflow: auto;
+        height: auto;
+      }
+      #plate {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+      }
+      #plate #layer1 {
+        display: none;
+      }
+      .sheet {
+        display: inline-block;
+        padding: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, 412px);
+        gap: 10px;
+      }
+      .pair {
+        display: flex;
+        gap: 4px;
+      }
+      .cap {
+        margin: 0 0 4px;
+        letter-spacing: 0.05em;
+      }
+      svg {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="plate"></div>
+    <div id="sheet-overlay" class="sheet"></div>
+    <div id="sheet-bones" class="sheet"></div>
+    <script type="module" src="/src/tools/anatomy-harness.ts"></script>
+  </body>
+</html>

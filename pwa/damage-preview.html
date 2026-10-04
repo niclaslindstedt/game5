@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Damage preview harness</title>
+    <!-- Tooling page for scripts/damage-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It draws
+         the HUD's body panel and g meter, with the game's own stylesheets,
+         over staged and ridden bodies, at the reference viewports, enlarged,
+         and over local reference images. -->
+  </head>
+  <body>
+    <div id="sheet"></div>
+    <script type="module" src="/src/tools/damage-harness.tsx"></script>
+  </body>
+</html>

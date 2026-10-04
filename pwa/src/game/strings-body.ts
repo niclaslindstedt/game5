@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE BODY'S WORDS — the body instrument (`hud-body.tsx`), the g meter
-// (`hud-gforce.tsx`) and the news line an injury earns (`run-news.ts`).
+// (`hud-gforce.tsx`).
 // Stated beside the one table and spread into it (`strings.ts`), so every
 // word the player reads is still one `STRINGS` key. Templates, never
 // concatenations at the call site (§39.2).
@@ -9,7 +9,7 @@
 // these are the words. They say WHAT is hurt, plainly — a torn ligament, a
 // broken bone, a bruised kidney — and nothing about how it looks.
 
-import type { BodyPart, ImpactSource, InjuryKind } from "@engine";
+import type { BodyPart, InjuryKind } from "@engine";
 
 /** Which side a paired part is on, as the line says it: `LEFT ` / `RIGHT `
  * (with the space), and nothing for a part of the trunk. */
@@ -25,6 +25,9 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   concussion: () => "CONCUSSION",
   knockedOut: () => "KNOCKED OUT COLD",
   skullFracture: () => "FRACTURED SKULL",
+  crackedSkull: () => "CRACKED SKULL",
+  brokenJaw: () => "BROKEN JAW",
+  crackedJaw: () => "CRACKED JAW",
   brainInjury: () => "SERIOUS BRAIN INJURY",
   whiplash: () => "WHIPLASH",
   neckSprain: () => "SPRAINED NECK",
@@ -32,6 +35,9 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   brokenNeck: () => "BROKEN NECK",
   bruisedRibs: () => "BRUISED RIBS",
   brokenRibs: () => "BROKEN RIBS",
+  crackedRibs: () => "CRACKED RIBS",
+  crackedSternum: () => "CRACKED BREASTBONE",
+  brokenSternum: () => "BROKEN BREASTBONE",
   collapsedLung: () => "COLLAPSED LUNG",
   flailChest: () => "CRUSHED CHEST",
   bruisedBack: () => "BRUISED BACK",
@@ -39,6 +45,7 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   compressedVertebra: () => "COMPRESSED VERTEBRA",
   brokenBack: () => "BROKEN BACK",
   brokenBackBlow: () => "BROKEN BACK",
+  crackedVertebra: () => "CRACKED VERTEBRA",
   spinalCord: () => "SPINAL CORD INJURY",
   winded: () => "WINDED",
   bruisedKidney: () => "BRUISED KIDNEY",
@@ -54,15 +61,25 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   separatedShoulder: (s) => `SEPARATED ${s}SHOULDER`,
   dislocatedShoulder: (s) => `DISLOCATED ${s}SHOULDER`,
   brokenCollarbone: (s) => `BROKEN ${s}COLLARBONE`,
+  crackedCollarbone: (s) => `CRACKED ${s}COLLARBONE`,
+  crackedScapula: (s) => `CRACKED ${s}SHOULDER BLADE`,
+  brokenScapula: (s) => `BROKEN ${s}SHOULDER BLADE`,
   bruisedElbow: (s) => `BRUISED ${s}ELBOW`,
   dislocatedElbow: (s) => `DISLOCATED ${s}ELBOW`,
   brokenArm: (s) => `BROKEN ${s}ARM`,
+  crackedArm: (s) => `CRACKED ${s}ARM`,
+  crackedForearm: (s) => `CRACKED ${s}FOREARM`,
+  brokenForearm: (s) => `BROKEN ${s}FOREARM`,
   sprainedThumb: (s) => `SPRAINED ${s}THUMB`,
   sprainedWrist: (s) => `SPRAINED ${s}WRIST`,
   skiersThumb: (s) => `TORN ${s}THUMB LIGAMENT`,
+  crackedRadius: (s) => `CRACKED ${s}WRIST BONE`,
   brokenWrist: (s) => `BROKEN ${s}WRIST`,
+  crackedWrist: (s) => `CRACKED ${s}WRIST`,
+  brokenHand: (s) => `BROKEN ${s}HAND`,
   deadLeg: (s) => `DEAD ${s}LEG`,
   brokenFemur: (s) => `BROKEN ${s}THIGH BONE`,
+  crackedFemur: (s) => `CRACKED ${s}THIGH BONE`,
   sprainedKnee: (s) => `SPRAINED ${s}KNEE`,
   bruisedKnee: (s) => `BRUISED ${s}KNEE`,
   tornMcl: (s) => `TORN ${s}MCL`,
@@ -70,43 +87,18 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   tornAclTwist: (s) => `TORN ${s}ACL`,
   tornMeniscus: (s) => `TORN ${s}MENISCUS`,
   brokenKneecap: (s) => `BROKEN ${s}KNEECAP`,
+  crackedKneecap: (s) => `CRACKED ${s}KNEECAP`,
   bruisedShin: (s) => `BRUISED ${s}SHIN`,
   bootTop: (s) => `BROKEN ${s}SHIN AT THE BOOT`,
   brokenShin: (s) => `BROKEN ${s}SHIN`,
+  crackedBootTop: (s) => `CRACKED ${s}SHIN AT THE BOOT`,
+  crackedShin: (s) => `CRACKED ${s}SHIN`,
   bruisedFoot: (s) => `BRUISED ${s}FOOT`,
   sprainedAnkle: (s) => `SPRAINED ${s}ANKLE`,
+  crackedAnkle: (s) => `CRACKED ${s}ANKLE`,
   brokenAnkle: (s) => `BROKEN ${s}ANKLE`,
-};
-
-/** Every part as a word, for the g meter's line. */
-const PART_WORDS: Record<BodyPart, string> = {
-  head: "HEAD",
-  neck: "NECK",
-  chest: "CHEST",
-  back: "BACK",
-  abdomen: "BELLY",
-  pelvis: "HIPS",
-  shoulderL: "LEFT SHOULDER",
-  shoulderR: "RIGHT SHOULDER",
-  armL: "LEFT ARM",
-  armR: "RIGHT ARM",
-  handL: "LEFT HAND",
-  handR: "RIGHT HAND",
-  thighL: "LEFT THIGH",
-  thighR: "RIGHT THIGH",
-  kneeL: "LEFT KNEE",
-  kneeR: "RIGHT KNEE",
-  shinL: "LEFT SHIN",
-  shinR: "RIGHT SHIN",
-  footL: "LEFT FOOT",
-  footR: "RIGHT FOOT",
-};
-
-const SOURCE_WORDS: Record<ImpactSource, string> = {
-  landing: "LANDING",
-  snow: "INTO THE SNOW",
-  tree: "INTO A TREE",
-  skier: "INTO A SKIER",
+  crackedFoot: (s) => `CRACKED ${s}FOOT`,
+  brokenFoot: (s) => `BROKEN ${s}FOOT`,
 };
 
 /** How the whole body is, by its injury severity score (`body-tile.ts`). */
@@ -128,13 +120,9 @@ export const BODY_STRINGS = {
   /** The body as a whole, for a screen reader. */
   bodyAria: (condition: string, n: number): string =>
     `Body: ${condition.toLowerCase()}, ${n === 0 ? "no injuries" : `${n} ${n === 1 ? "injury" : "injuries"}`}`,
-  /** THE G METER: the blow, and what took it from what. */
+  /** THE G METER: the blow. */
   gForce: (g: number): string => (g < 10 ? g.toFixed(1) : Math.round(g).toString()),
   gUnit: "G",
-  gWhat: (source: ImpactSource, part: BodyPart): string =>
-    source === "landing" ? SOURCE_WORDS.landing : `${PART_WORDS[part]} ${SOURCE_WORDS[source]}`,
   /** The run's hardest blow he fell on so far, under the body. */
   hardest: (g: number): string => `HARDEST ${Math.round(g)} G`,
-  /** THE NEWS: an injury taken. */
-  newsInjury: (kind: InjuryKind, part: BodyPart): string => INJURY_WORDS[kind](sideWord(part)),
 };

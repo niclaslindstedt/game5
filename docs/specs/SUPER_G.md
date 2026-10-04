@@ -70,14 +70,18 @@ blind at race pace, which is why the course reads from the gates.
 
 Write every finding into this discipline's section of
 `docs/disciplines.md` (numbers with sources, estimates marked, no names),
-then tick it here.
+then tick it here. Researched so far: the course's vertical, gate
+spacing and direction changes, the ski rules, the technique (turns, edge,
+skid, transition, body, load, tuck, jumps, forces), the speeds and the
+start (estimated) — `docs/disciplines.md` § *Giant slalom, super-G and
+downhill*. The rest below is still open.
 
 - [ ] Competition rules restated generically: vertical drop bands, gates as
       a % of the vertical, minimum number of direction changes, distance
       between turning poles, gate width and panels, the inspection, one run,
       start interval and window, DSQ.
-- [ ] Ski rules: length and sidecut minimums; is there a super-G class.
-- [ ] Technique (studies): turn radius and duration, edge angles, speeds
+- [x] Ski rules: length and sidecut minimums; is there a super-G class.
+- [x] Technique (studies): turn radius and duration, edge angles, speeds
       (average and peak), how much of a run is tucked, the tuck's drag area,
       the jump technique (pre-jump, absorption, air time, distance), g-loads.
 - [ ] Course safety: nets (A/B), run-outs, jump design limits.

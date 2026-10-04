@@ -82,22 +82,26 @@ in reverse order of the first's best, the combined time ranked.
 
 Write every finding into this discipline's section of
 `docs/disciplines.md` (numbers with sources, estimates marked, no names),
-then tick it here.
+then tick it here. Researched so far: the course's vertical, gate
+spacing and direction changes, the ski rules, the technique (turns, edge,
+skid, transition, body, load, tuck, jumps, forces), the speeds and the
+start (estimated) — `docs/disciplines.md` § *Giant slalom, super-G and
+downhill*. The rest below is still open.
 
 - [ ] The competition rules for a giant slalom, restated generically:
       vertical drop bands by level, direction changes as a % of the vertical,
       gate width, panel size, the distance between gates, the start interval
       and window, two runs and the second run's order, what a DSQ is (miss,
       straddle, panel rules).
-- [ ] Ski rules: length minimums and sidecut radius minimums by category.
-- [ ] Technique (biomechanics studies): turn duration (~1.4–1.5 s noted),
+- [x] Ski rules: length minimums and sidecut radius minimums by category.
+- [x] Technique (biomechanics studies): turn duration (~1.4–1.5 s noted),
       turn radius, peak edge angle and where it peaks, skid angle, ground
       reaction forces, knee/hip flexion, inclination/angulation, load split,
       transition style, pole use.
-- [ ] Speeds: average and peak, run times, how much of a run is in a tuck.
+- [x] Speeds: average and peak, run times, how much of a run is in a tuck.
 - [ ] How a racer clears a giant slalom gate (body inside the line, the
       shoulder or shin past the turning pole; panels).
-- [ ] How the start works (pushes, skating steps).
+- [x] How the start works (pushes, skating steps).
 - [ ] Where spectators stand; broadcast camera positions.
 
 ## Open questions for the user

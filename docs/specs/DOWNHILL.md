@@ -77,13 +77,17 @@ days before. Skied on the longest, straightest pair.
 
 Write every finding into this discipline's section of
 `docs/disciplines.md` (numbers with sources, estimates marked, no names),
-then tick it here.
+then tick it here. Researched so far: the course's vertical, gate
+spacing and direction changes, the ski rules, the technique (turns, edge,
+skid, transition, body, load, tuck, jumps, forces), the speeds and the
+start (estimated) — `docs/disciplines.md` § *Giant slalom, super-G and
+downhill*. The rest below is still open.
 
 - [ ] Competition rules restated generically: vertical drop bands, course
       length, gates and panels, training runs (how many, required?), one race
       run, start interval and window, DSQ for a missed gate.
-- [ ] Ski rules: length and sidecut minimums for the downhill class.
-- [ ] Technique and physics (studies): average and peak speeds, run times,
+- [x] Ski rules: length and sidecut minimums for the downhill class.
+- [x] Technique and physics (studies): average and peak speeds, run times,
       the share of a run in a tuck, the tuck's drag area (high, mid, low),
       turn radius and edge angles at speed, jump distances and air times,
       landing forces, the forces in compressions.

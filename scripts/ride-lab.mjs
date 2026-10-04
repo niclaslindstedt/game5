@@ -100,6 +100,7 @@ function record(scenario, spec) {
   const state = E.createGame({
     level,
     mode: scenario.mode,
+    technique: scenario.technique,
     snowDepth: scenario.snow,
     rivals: 0,
     countdown: 0,
@@ -145,6 +146,11 @@ function record(scenario, spec) {
       crouch: c.crouch,
       sideSlip: c.sideSlip,
       heading: c.heading,
+      // The skid angle: the skis' line off the way he is going, rad.
+      slide: Math.atan2(
+        Math.sin(Math.atan2(c.vx, c.vz) - c.heading),
+        Math.cos(Math.atan2(c.vx, c.vz) - c.heading),
+      ),
       // The run's hardest blow so far, g (`body.ts`).
       peakG: c.body.peak,
       wy: c.wy,

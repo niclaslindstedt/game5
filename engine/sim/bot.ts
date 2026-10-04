@@ -28,12 +28,16 @@ import {
   brakeDecel,
   carveCurvature,
   cornerGrip,
+  cutGrip,
   edgeLockAt,
+  edgeMostOf,
   flightGravity,
   harshSpeedOf,
 } from "../game/limits.ts";
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { footprintOf } from "../game/footprint.ts";
+import { packedUnder } from "../game/snow.ts";
+import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
 
@@ -96,23 +100,19 @@ export type BotProfile = {
    * never the piste's next bend. */
   slalomLook: number;
   slalomLookPerSpeed: number;
-  /** ...and the steering gain there, per radian — a slalom is turned
-   * twice a second, never eased into — and how far over the speed its line
-   * allows it skids, m/s: a slalom is carved, and a skid between two poles
-   * is a skier sliding past the next. */
-  slalomGain: number;
+  /** ...and how far over the speed its line allows it skids, m/s: a
+   * slalom is carved, and a skid between two poles is a skier sliding past
+   * the next. */
   slalomSkidOver: number;
-  /** ...and the model a way of steering is skied forward on there: over
-   * how many seconds, how fast round the skis can turn at most, rad/s, how
-   * long the edge takes to come to what is asked, s, and how far outside a
-   * turning pole the feet are planned past it, m — the model's carve read
-   * `slalomBite` times the sidecut's own, as the skis turn on the snow. */
+  /** ...and the model a way of steering is skied forward on there, the
+   * skis CUT HARD as a racer skis a slalom (`TUNING.carve`): over how many
+   * seconds, and how far outside a turning pole the feet are planned past
+   * it, m. */
   slalomHorizon: number;
-  slalomTurn: number;
-  slalomBite: number;
   slalomClear: number;
-  /** The share of `slalomTurn` the line's bend is planned at — the rest is
-   * the edge rolling from one turn into the next. */
+  /** The share of that cut-hard corner grip the line's bend is planned at
+   * — the rest is the edge rolling from one turn into the next, where the
+   * skis carve tighter than the line's mean bend to make up for it. */
   slalomPace: number;
 };
 
@@ -143,13 +143,10 @@ export const RIDER_BOT: BotProfile = {
   skidOver: 1.5,
   slalomLook: 2,
   slalomLookPerSpeed: 0.35,
-  slalomGain: 1,
   slalomSkidOver: 0.5,
   slalomHorizon: 0.6,
-  slalomTurn: 1.3,
-  slalomBite: 1.25,
   slalomClear: 0.3,
-  slalomPace: 0.35,
+  slalomPace: 0.5,
 };
 
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
@@ -334,6 +331,7 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
   const level = state.level;
   const spec = state.skier.spec;
   const aLat = cornerGrip(spec, 1) * profile.cornerShare;
+  const T = techniqueOf(state.rules);
   const decel = brakeDecel(spec, 1) * profile.brakeShare;
   const reach = (speed * speed) / (2 * decel) + 30;
   const y0 = trackPointAt(level, s, pc).y;
@@ -356,13 +354,18 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     const weave = weaveAt(level, s + d).curvature;
     const k = bendAt(level, s + d, profile.bendSpan) + weave;
     if (k < 1e-4) continue;
-    // A slalom's line, as fast as the skis can come round it and roll from
-    // edge to edge between two poles.
+    // A slalom's line (and the piste's bend under it), as fast as the skis
+    // CUT HARD can come round it and roll from edge to edge between two
+    // poles — the grip read once at a standstill and once more at the speed
+    // that gives (`cutGrip` falls with speed as the edge's lock does).
     if (level.slalom && state.rules.course && weave > 1e-4) {
-      allowed = Math.min(
-        allowed,
-        Math.sqrt(((profile.slalomTurn * profile.slalomPace) / weave) ** 2 + room),
-      );
+      // ...on the snow lying there (`pc` is the piste at s + d, read for
+      // its drop above): new snow fallen on the course holds less.
+      const packed = packedUnder(level.packedAt(pc.x, pc.z), state.fresh);
+      const first = Math.sqrt((cutGrip(spec, 0, T, packed) * profile.slalomPace) / k);
+      const v = Math.sqrt((cutGrip(spec, first, T, packed) * profile.slalomPace) / k);
+      allowed = Math.min(allowed, Math.sqrt(v * v + room));
+      continue;
     }
     // The bend's speed at the grip of a standstill, then once more at the
     // grip left at THAT speed — the chatter takes some of it off the top.
@@ -401,18 +404,22 @@ function weaveAt(level: Level, s: number): { offset: number; curvature: number }
 }
 
 /** THE STEER ON A SLALOM (R31), chosen the way a racer reads the next
- * gates: a few ways of steering over the next second — one edge now, then
- * another — skied forward on a plain model of the skis (the carve the edge
- * buys, `carveCurvature`, no tighter than the skis hold at this speed and
- * no faster round than `slalomTurn` rad/s, the edge reaching its target over
- * `slalomLag` s), each scored by how far it strays from the course's line
- * and, far more, by reaching the gate owed on the wrong side of its turning
- * pole; the first edge of the best is the one given. Pure: it reads the
- * state and writes nothing. */
-const STEERS = [-1, -0.5, 0, 0.5, 1];
+ * gates: a few ways of steering over the next moments — one edge now, then
+ * another — skied forward on a plain model of his skis as he works them
+ * (`technique.ts`: the edge rolled at his rate up to the lock he cuts
+ * them to, the carve that edge buys, `carveCurvature` tightened by the
+ * cut, no tighter than the corner grip at that edge holds at this speed),
+ * each scored by how far it strays from the course's line and, far more,
+ * by reaching the gate owed on the wrong side of its turning pole; the
+ * first edge of the best is the one given. Pure: it reads the state and
+ * writes nothing. */
+const STEERS = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1];
 function slalomSteer(state: GameState, s: number, profile: BotProfile): number {
   const level = state.level;
   const c = state.skier;
+  const spec = c.spec;
+  const T = techniqueOf(state.rules);
+  const CV = TUNING.carve;
   const speed = Math.max(3, hypot(c.vx, c.vz));
   const here = trackPointAt(level, s, pc);
   const rx = Math.cos(here.heading);
@@ -420,14 +427,28 @@ function slalomSteer(state: GameState, s: number, profile: BotProfile): number {
   const y0 = (c.x - here.x) * rx + (c.z - here.z) * rz;
   const going = hypot(c.vx, c.vz) > 1 ? Math.atan2(c.vx, c.vz) : c.heading;
   const psi0 = angleDiff(here.heading, going);
-  // The edge he stands on now, how fast it rolls (`steer.edgeRate` as his
-  // pair rolls it) and the edge the skis hold at this speed.
-  const rate = TUNING.steer.edgeRate * footprintOf(c.spec).edgeRate;
-  const held = Math.max(0.2, Math.min(c.spec.edgeMax, edgeLockAt(c.spec, speed)));
-  const turnMost = profile.slalomTurn / speed;
-  const bendOf = (edge: number): number =>
-    Math.sign(edge) *
-    Math.min(turnMost, profile.slalomBite * carveCurvature(c.spec, Math.abs(edge)));
+  // The edge he stands on now, how fast he rolls it, the lock he cuts the
+  // skis to at this speed, and the bend each edge up to it carves, tabled
+  // once (the grip at an edge is the dear part).
+  const rate = TUNING.steer.edgeRate * footprintOf(spec).edgeRate * T.edgeRate;
+  const held = Math.max(
+    0.2,
+    Math.min(edgeMostOf(spec, T), edgeLockAt(spec, speed, T) * (1 + CV.edge * c.carve)),
+  );
+  const tight = (1 - TUNING.steer.tipLoad * c.lean) * (1 + CV.tighten * c.carve);
+  const reach = ((1 + CV.grip * c.carve) * TUNING.steer.pathShare) / (speed * speed);
+  for (let i = 0; i <= BEND_STEPS; i++) {
+    const e = (held * i) / BEND_STEPS;
+    bends[i] = Math.min(
+      carveCurvature(spec, e) * tight,
+      cornerGrip(spec, c.packed, speed, e, T) * reach,
+    );
+  }
+  const bendOf = (edge: number): number => {
+    const f = Math.min(BEND_STEPS, (Math.abs(edge) / held) * BEND_STEPS);
+    const i = Math.min(BEND_STEPS - 1, Math.floor(f));
+    return Math.sign(edge) * (bends[i] + (bends[i + 1] - bends[i]) * (f - i));
+  };
   // The gate owed: where its turning pole stands across the piste, and on
   // which side of it his feet must pass.
   const p = state.progress;
@@ -442,6 +463,15 @@ function slalomSteer(state: GameState, s: number, profile: BotProfile): number {
     pole = across + turn * (gate.width / 2);
     side = -turn;
     gateS = gate.s;
+  } else if (gate?.pole === "closed") {
+    // A CLOSED gate is crossed from one side of its poles' line to the
+    // other between its top and its foot: judged at its foot, on the side
+    // the course's line leaves it by.
+    const half = gate.width / 2;
+    const into = slalomLineFast(level, gate.s - half)?.offset ?? 0;
+    const out = slalomLineFast(level, gate.s + half)?.offset ?? 0;
+    side = Math.sign(out - into);
+    gateS = gate.s + half - CLOSED_EARLY;
   }
   const dt = profile.slalomHorizon / SLALOM_STEPS;
   const switchAt = Math.round(SLALOM_STEPS * 0.4);
@@ -485,9 +515,15 @@ function slalomSteer(state: GameState, s: number, profile: BotProfile): number {
 }
 
 /** How many steps the slalom's model skis a way of steering over, and the
- * line under each. */
+ * line under each; the edges it tables its carve at, from flat to the edge
+ * held, and the bend at each. */
 const SLALOM_STEPS = 12;
+/** How far above a closed gate's foot pole the crossing of its line is
+ * judged by, m. */
+const CLOSED_EARLY = 0.8;
 const ahead = new Float64Array(SLALOM_STEPS);
+const BEND_STEPS = 12;
+const bends = new Float64Array(BEND_STEPS + 1);
 
 /** Move the aim off a trunk standing in the line from the skier to it. */
 function dodgeTrees(
@@ -636,8 +672,12 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // ON A SLALOM'S LINE the skis are steered off the line itself rather than
   // a point on it: the bend it makes a moment ahead, and the heading and
   // the place it asks of him now.
-  if (poles && p.started && on.distance <= halfWidth + 2) {
+  // A racer skis it CUT HARD (`TUNING.carve`): the skis stood further over
+  // and pressed into the groove, every turn.
+  const racing = poles && p.started && on.distance <= halfWidth + 2;
+  if (racing) {
     input.steer = slalomSteer(state, on.s, profile);
+    input.carve = true;
   }
   // OUT OF A SKID WITH THE SKIS FLAT: while they are pivoted, or still
   // sliding across their line, the edge is held under what catches
@@ -669,7 +709,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   }
   const reach = hypot(tx - c.x, tz - c.z);
   const bend = (2 * Math.abs(Math.sin(angleDiff(c.heading, bearing)))) / Math.max(reach, 1);
-  if (bend > 1e-3) {
+  if (bend > 1e-3 && !racing) {
     const grip = cornerGrip(c.spec, c.packed, speed) * profile.cornerShare;
     allowed = Math.min(allowed, Math.max(profile.crawl, Math.sqrt(grip / bend)));
   }

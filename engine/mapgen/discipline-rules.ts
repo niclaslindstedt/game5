@@ -60,8 +60,9 @@
 //       `slalom.drop.grade` over its first `slalom.drop.length` metres, the
 //       line `slalom.finishWidth` metres wide at the least, every
 //       kicker on the piste within `slalom.clearance` of the stretch
-//       levelled, and every tree within `slalom.clear` metres of the course
-//       and in the finish arena cleared. Its gates are POLE GATES, red and
+//       levelled, the piste groomed hard from the hut to the end of the
+//       run-out whatever drift lay across it, and every tree within
+//       `slalom.clear` metres of the course and in the finish arena cleared. Its gates are POLE GATES, red and
 //       blue alternately, as many direction changes as `slalom.changes` of
 //       the vertical (spaced `slalom.spacing` metres apart down the piste,
 //       which wins where the two disagree): OPEN gates across the hill — the

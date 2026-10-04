@@ -29,7 +29,7 @@ touches. Load **`skill-reflection`** at both ends of the session.
 
 | Piece | Role |
 | --- | --- |
-| `scripts/screenshot.mjs` | The capture harness — serves `pwa/dist`, opens `?start=race&seed=&t=&shot=1` (or a card's own URL with `--surface`), waits for `window.__SH_READY__` (a card waits on its DOM instead), captures at 1280×720 (desktop landscape), 390×844 (phone portrait) and 844×390 (phone LANDSCAPE) to `previews/`; `--viewport` names one, `all` is every one |
+| `scripts/screenshot.mjs` | The capture harness — serves `pwa/dist`, opens `?start=slalom&seed=&t=&shot=1` (or a card's own URL with `--surface`), waits for `window.__SH_READY__` (a card waits on its DOM instead), captures at 1280×720 (desktop landscape), 390×844 (phone portrait) and 844×390 (phone LANDSCAPE) to `previews/`; `--viewport` names one, `all` is every one |
 | `make screenshots SCENE=<name>` | Runs it for one moment of a race (`grid`, `go`, `race`, `late`, `all`) against the BUILT app (`make build` first); `ARGS="--surface all"` for every card, `ARGS=--update` for the new-build button; `CHROMIUM_PATH=/opt/pw-browsers/chromium` in web sessions |
 | Read tool on the PNGs | The evaluation itself — every judgement is made on a screenshot, not on source |
 | `npm run dev` | Headed spot-checks (the lights' timing, touch behaviour in devtools emulation) |

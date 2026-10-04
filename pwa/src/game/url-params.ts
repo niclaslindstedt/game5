@@ -7,8 +7,9 @@
 //   ?seed=<n>       pin the map: the front door's RACE and TIME TRIAL ride
 //                   this seed rather than a campaign map off the level card,
 //                   and the race the menu stands over is built on it too.
-//   ?start=race     boot straight into a race on the start line (the splash and
-//                   the front door skipped). `start=1` is the same.
+//   ?start=slalom   boot straight into a slalom in its start house (the splash
+//                   and the front door skipped). `start=race` and `start=1`
+//                   are the same.
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the

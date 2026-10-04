@@ -57,7 +57,7 @@ export function splashReady(elapsedMs: number, warm: boolean): boolean {
 
 /**
  * True when the app is being DRIVEN and no card belongs in front of it: the
- * screenshot tool and a link into a race (`?start=race`, `?shot=1`,
+ * screenshot tool and a link into a race (`?start=slalom`, `?shot=1`,
  * `?paused=1`) want the game, not the house's name, and a link that names
  * the front door (`?menu=`) wants the door. `?splash=1` forces it back for
  * looking at the card itself; `?splash=0` clears it off an ordinary visit.

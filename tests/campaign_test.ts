@@ -350,20 +350,25 @@ describe("a stored board", () => {
 });
 
 describe("which map a run is on", () => {
-  it("rides every pinned map as a race or a time trial, and none as a free ride", () => {
+  it("times every pinned map, sets a slalom only on the campaign's slalom maps, and frees none", () => {
     for (const level of CAMPAIGN_LEVELS) {
-      expect(fitsMode(level, "slalom")).toBe(true);
+      expect(fitsMode(level, "slalom")).toBe(level.mode === "slalom");
       expect(fitsMode(level, "timeTrial")).toBe(true);
       expect(fitsMode(level, "free")).toBe(false);
       expect(fitsMode(level, "tricks")).toBe(false);
     }
   });
 
-  it("puts a measured run on the chosen map, the first rung by default, and a link on its seed", () => {
-    expect(pinnedFor(null, "slalom", null)).toBe(CAMPAIGN_LEVELS[0]);
+  it("puts a measured run on the chosen map, the first that fits by default, and a link on its seed", () => {
+    const firstSlalom = CAMPAIGN_LEVELS.find((l) => l.mode === "slalom")!;
+    expect(firstSlalom.grade).not.toBe("blue");
+    expect(pinnedFor(null, "slalom", null)).toBe(firstSlalom);
+    expect(pinnedFor(null, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
     const late = SHELVES[3].levels[1].id;
     expect(pinnedFor(late, "timeTrial", null)?.id).toBe(late);
-    expect(pinnedFor("nowhere-2", "slalom", null)).toBe(CAMPAIGN_LEVELS[0]);
+    // A trial's map asked of a slalom is not a slalom's: the first that fits.
+    expect(pinnedFor(CAMPAIGN_LEVELS[0].id, "slalom", null)).toBe(firstSlalom);
+    expect(pinnedFor("nowhere-2", "slalom", null)).toBe(firstSlalom);
     expect(pinnedFor(late, "free", null)).toBeNull();
     expect(pinnedFor(late, "slalom", 38)).toBeNull();
   });

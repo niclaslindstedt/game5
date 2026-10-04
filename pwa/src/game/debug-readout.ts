@@ -63,7 +63,7 @@ const round = (v: number, dp: number): number => Number(v.toFixed(dp));
  * is a link they want to land IN the frame. */
 export function reproQuery(f: ReproFacts): string {
   const q = new URLSearchParams();
-  q.set("start", f.mode === "free" ? "free" : "race");
+  q.set("start", f.mode === "free" ? "free" : "slalom");
   q.set("seed", String(f.seed));
   if (f.mode === "timeTrial") q.set("mode", "trial");
   if (f.mode === "tricks") q.set("mode", "tricks");

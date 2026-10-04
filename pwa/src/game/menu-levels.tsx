@@ -26,6 +26,7 @@ import { useState } from "preact/hooks";
 
 import {
   findLevel,
+  fitsMode,
   reachedShelf,
   shelfUnlocked,
   type CampaignLevel,
@@ -103,7 +104,9 @@ export function LevelsPage({
     stood && shelfUnlocked(stood.shelf, progress) ? stood.shelf : reachedShelf(progress),
   );
   const open = shelfUnlocked(shown, progress);
-  const pick = open ? (shown.levels.find((level) => level.id === chosen) ?? shown.levels[0]) : null;
+  // Only the maps the mode can ride: a slalom only where the campaign sets one.
+  const maps = shown.levels.filter((level) => fitsMode(level, mode));
+  const pick = open ? (maps.find((level) => level.id === chosen) ?? maps[0] ?? null) : null;
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead
@@ -133,7 +136,7 @@ export function LevelsPage({
         />
         {open ? (
           <div class="menu-levels">
-            {shown.levels.map((level) => (
+            {maps.map((level) => (
               <LevelBox
                 key={level.id}
                 level={level}

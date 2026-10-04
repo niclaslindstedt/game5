@@ -136,7 +136,7 @@ whether it is stepped at all.
   and Space already press it; `menu-nav.ts` is wired for directions and back
   only, or a row is pressed twice.
 - **Anything reachable from a card is reachable as a URL** (`?splash=1`,
-  `?menu=root|options|keys|skis|start|campaign|gallery|dev`, `?start=race|trial|free|tricks`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
+  `?menu=root|options|keys|skis|start|campaign|gallery|dev`, `?start=slalom|free`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
   frame handable to somebody else, and how `make screenshots` reaches it.
 
 ## The loop

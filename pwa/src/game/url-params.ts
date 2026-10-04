@@ -37,6 +37,10 @@
 //                   a TIME TRIAL — alone, against the record and the ghost —
 //                   rather than a race; ?mode=tricks, a TRICKS run on the
 //                   seed's trick field.
+//   ?run=2          a slalom link boots into its SECOND RUN: the first
+//                   skied by the bot to the flag, then the second stood up
+//                   off it (`pinned-run.ts`'s `secondRunOff`) — what the
+//                   finish plate's SECOND RUN press reaches.
 //   ?bot=1          the player's own skis skied by the bot for the whole
 //                   run, not just the pre-roll — a race watched to its
 //                   finish plate with nobody's hands on it.
@@ -176,6 +180,8 @@ export type UrlParams = {
   mode: GameMode;
   /** The bot rides the player's skis for the whole run. */
   bot: boolean;
+  /** Which run of a slalom a link boots into. */
+  run: 1 | 2;
   /** The player's poles for this visit — false without, true with, null
    * the stored OPTIONS row's. */
   poles: boolean | null;
@@ -281,6 +287,7 @@ export function readParams(search: string): UrlParams {
             ? "tricks"
             : "slalom",
     bot: q.get("bot") === "1",
+    run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
 
     menu: q.get("menu") !== null,

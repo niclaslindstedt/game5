@@ -17,6 +17,7 @@ import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
+import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -69,6 +70,8 @@ export const STRINGS = {
   ...DEV_STRINGS,
   /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
   ...BODY_STRINGS,
+  /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
+  ...SLALOM_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",

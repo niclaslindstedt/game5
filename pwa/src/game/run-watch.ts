@@ -109,14 +109,27 @@ export type NewsFeed = {
   step(state: GameState): NewsLine[];
 };
 
+/** How long a knocked pole keeps the next one out of the news, s. */
+const POLE_QUIET = 8;
+
 export function createNewsFeed(): NewsFeed {
   const watch = createRunWatch();
+  let seen: GameState | null = null;
+  let poleAt = -Infinity;
   return {
     step(state) {
+      if (state !== seen || state.t < poleAt) {
+        seen = state;
+        poleAt = -Infinity;
+      }
       const out: NewsLine[] = [];
       for (const e of state.events) {
+        // A pole knocked is news SPARINGLY: one line, then quiet a while.
+        if (e.kind === "pole" && state.t - poleAt < POLE_QUIET) continue;
         const line = newsFor(e, state);
-        if (line) out.push(line);
+        if (!line) continue;
+        if (e.kind === "pole") poleAt = state.t;
+        out.push(line);
       }
       const run = watch.step(state);
       if (run) out.push({ text: runNewsText(state.level, run), tone: "info" });

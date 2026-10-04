@@ -38,6 +38,11 @@
 //   - ICE: a hard surface lengthens every risk (the cruciate's odds twelve
 //     times on an icy slope) — which is the snow's `give` doing it here, not
 //     a rule of its own.
+//   - THE CRACK beside the break: a hairline (an undisplaced fracture) of
+//     the same bone at four fifths of the break's dose and a rank under it
+//     (never under 1) — the scale's own step between a fracture that
+//     holds and one that does not (a linear skull fracture is AIS 2, a
+//     depressed one 3–4; a femoral crack 2, the shaft broken 3).
 // The SEVERITY of each injury is its Abbreviated Injury Scale rank (AIS):
 // 1 minor, 2 moderate, 3 serious, 4 severe, 5 critical. Six — unsurvivable
 // — is not on any ladder: this is a game, and the worst it says is
@@ -70,6 +75,68 @@ export const BODY_PARTS = [
 
 export type BodyPart = (typeof BODY_PARTS)[number];
 
+/** THE BONES the body is drawn with (`hud-body.tsx`) — every bone of a
+ * front view large enough to paint, the small ones kept as their group
+ * (the hand, the foot, the ribs, the vertebrae of a region): a kind, and
+ * the paired ones once a side. */
+export const BONE_KINDS = [
+  "skull",
+  "mandible",
+  "cervical",
+  "clavicle",
+  "scapula",
+  "sternum",
+  "ribs",
+  "thoracic",
+  "lumbar",
+  "pelvis",
+  "humerus",
+  "radius",
+  "ulna",
+  "hand",
+  "femur",
+  "patella",
+  "tibia",
+  "fibula",
+  "foot",
+] as const;
+
+export type BoneKind = (typeof BONE_KINDS)[number];
+
+/** The kinds there are two of, one a side. */
+const PAIRED = [
+  "clavicle",
+  "scapula",
+  "humerus",
+  "radius",
+  "ulna",
+  "hand",
+  "femur",
+  "patella",
+  "tibia",
+  "fibula",
+  "foot",
+] as const satisfies readonly BoneKind[];
+
+type PairedKind = (typeof PAIRED)[number];
+
+/** One bone: a midline kind, or a paired kind and its side. */
+export type Bone = Exclude<BoneKind, PairedKind> | `${PairedKind}${"L" | "R"}`;
+
+/** Whether a bone kind is one a side. */
+export function pairedBone(kind: BoneKind): kind is PairedKind {
+  return (PAIRED as readonly BoneKind[]).includes(kind);
+}
+
+/** THE BONES, in the order every per-bone array keeps them: each kind in
+ * turn, a paired one left then right. */
+export const BONES: readonly Bone[] = BONE_KINDS.flatMap((k): Bone[] =>
+  pairedBone(k) ? [`${k}L`, `${k}R`] : [k as Exclude<BoneKind, PairedKind>],
+);
+
+/** WHAT A FRACTURE IS: a `hairline` crack that holds, or a `break`. */
+export type Fracture = "hairline" | "break";
+
 /** HOW A LOAD MEETS A PART: `blunt` a blow on it (g at the part, off the
  * stop it is brought to), `load` the landing's own load through the legs
  * and the spine (g), `drawer` the same landing taken in the back seat or
@@ -85,13 +152,20 @@ export type Facing = "front" | "back" | "left" | "right";
 
 /** ONE INJURY a part can take: its severity (AIS), the mechanism that does
  * it, the dose of that mechanism with an even chance of it (`at`), and —
- * for the trunk's organs — the side the blow must come from. */
+ * for the trunk's organs — the side the blow must come from. A FRACTURE
+ * names the bones it cracks or breaks (on a paired part, the part's side
+ * of each) and which (`fracture`): the body drawn shows it on the bone and
+ * says nothing of it in words — unless it is more than the bone (`organ`,
+ * the spinal cord), which is said. */
 export type InjuryDef = {
   part: BodyPart | "arm" | "hand" | "shoulder" | "thigh" | "knee" | "shin" | "foot";
   ais: 1 | 2 | 3 | 4 | 5;
   mech: Mechanism;
   at: number;
   face?: Facing;
+  bones?: readonly BoneKind[];
+  fracture?: Fracture;
+  organ?: true;
 };
 
 /** THE INJURIES, by name — the engine names them and never says them
@@ -103,26 +177,137 @@ export const INJURIES = {
   headBump: { part: "head", ais: 1, mech: "blunt", at: 45 },
   concussion: { part: "head", ais: 2, mech: "blunt", at: 95 },
   knockedOut: { part: "head", ais: 3, mech: "blunt", at: 150 },
-  skullFracture: { part: "head", ais: 4, mech: "blunt", at: 230 },
+  skullFracture: {
+    part: "head",
+    ais: 4,
+    mech: "blunt",
+    at: 230,
+    bones: ["skull"],
+    fracture: "break",
+  },
+  crackedSkull: {
+    part: "head",
+    ais: 2,
+    mech: "blunt",
+    at: 184,
+    bones: ["skull"],
+    fracture: "hairline",
+  },
+  // The jaw, by a blow to the face.
+  brokenJaw: {
+    part: "head",
+    ais: 2,
+    mech: "blunt",
+    at: 125,
+    face: "front",
+    bones: ["mandible"],
+    fracture: "break",
+  },
+  crackedJaw: {
+    part: "head",
+    ais: 1,
+    mech: "blunt",
+    at: 100,
+    face: "front",
+    bones: ["mandible"],
+    fracture: "hairline",
+  },
   brainInjury: { part: "head", ais: 5, mech: "blunt", at: 320 },
   // THE NECK, whipped by the head's blow (`share`) and by a landing.
   whiplash: { part: "neck", ais: 1, mech: "blunt", at: 24 },
   neckSprain: { part: "neck", ais: 2, mech: "blunt", at: 45 },
-  neckFracture: { part: "neck", ais: 3, mech: "blunt", at: 80 },
-  brokenNeck: { part: "neck", ais: 5, mech: "blunt", at: 130 },
+  neckFracture: {
+    part: "neck",
+    ais: 3,
+    mech: "blunt",
+    at: 80,
+    bones: ["cervical"],
+    fracture: "hairline",
+  },
+  brokenNeck: {
+    part: "neck",
+    ais: 5,
+    mech: "blunt",
+    at: 130,
+    bones: ["cervical"],
+    fracture: "break",
+  },
   // THE CHEST — the ribs and the lungs behind them.
   bruisedRibs: { part: "chest", ais: 1, mech: "blunt", at: 24 },
-  brokenRibs: { part: "chest", ais: 2, mech: "blunt", at: 52 },
+  crackedRibs: {
+    part: "chest",
+    ais: 1,
+    mech: "blunt",
+    at: 42,
+    bones: ["ribs"],
+    fracture: "hairline",
+  },
+  brokenRibs: { part: "chest", ais: 2, mech: "blunt", at: 52, bones: ["ribs"], fracture: "break" },
+  crackedSternum: {
+    part: "chest",
+    ais: 1,
+    mech: "blunt",
+    at: 58,
+    face: "front",
+    bones: ["sternum"],
+    fracture: "hairline",
+  },
+  brokenSternum: {
+    part: "chest",
+    ais: 2,
+    mech: "blunt",
+    at: 72,
+    face: "front",
+    bones: ["sternum"],
+    fracture: "break",
+  },
   collapsedLung: { part: "chest", ais: 3, mech: "blunt", at: 85 },
-  flailChest: { part: "chest", ais: 4, mech: "blunt", at: 130 },
+  flailChest: {
+    part: "chest",
+    ais: 4,
+    mech: "blunt",
+    at: 130,
+    bones: ["ribs", "sternum"],
+    fracture: "break",
+  },
   // THE BACK — the thoracolumbar spine, by a blow on it and by the axial
   // load of a landing the legs did not take.
   bruisedBack: { part: "back", ais: 1, mech: "blunt", at: 24 },
   backStrain: { part: "back", ais: 1, mech: "load", at: 13 },
-  compressedVertebra: { part: "back", ais: 2, mech: "load", at: 15.5 },
-  brokenBack: { part: "back", ais: 3, mech: "load", at: 21 },
-  brokenBackBlow: { part: "back", ais: 3, mech: "blunt", at: 75 },
-  spinalCord: { part: "back", ais: 5, mech: "load", at: 30 },
+  compressedVertebra: {
+    part: "back",
+    ais: 2,
+    mech: "load",
+    at: 15.5,
+    bones: ["lumbar"],
+    fracture: "hairline",
+  },
+  brokenBack: { part: "back", ais: 3, mech: "load", at: 21, bones: ["lumbar"], fracture: "break" },
+  brokenBackBlow: {
+    part: "back",
+    ais: 3,
+    mech: "blunt",
+    at: 75,
+    bones: ["thoracic"],
+    fracture: "break",
+  },
+  crackedVertebra: {
+    part: "back",
+    ais: 1,
+    mech: "blunt",
+    at: 60,
+    bones: ["thoracic"],
+    fracture: "hairline",
+  },
+  spinalCord: {
+    part: "back",
+    ais: 5,
+    mech: "load",
+    at: 30,
+    bones: ["lumbar"],
+    fracture: "break",
+    organ: true,
+  },
   // THE ABDOMEN — winded from any side; the kidneys from behind, the
   // spleen from the left and the liver from the right.
   winded: { part: "abdomen", ais: 1, mech: "blunt", at: 20 },
@@ -134,25 +319,136 @@ export const INJURIES = {
   lacerated: { part: "abdomen", ais: 4, mech: "blunt", at: 105, face: "front" },
   // THE PELVIS — the hip pointer of a fall on the side, and the ring.
   bruisedHip: { part: "pelvis", ais: 1, mech: "blunt", at: 18 },
-  crackedPelvis: { part: "pelvis", ais: 2, mech: "blunt", at: 48 },
-  brokenPelvis: { part: "pelvis", ais: 3, mech: "blunt", at: 75 },
+  crackedPelvis: {
+    part: "pelvis",
+    ais: 2,
+    mech: "blunt",
+    at: 48,
+    bones: ["pelvis"],
+    fracture: "hairline",
+  },
+  brokenPelvis: {
+    part: "pelvis",
+    ais: 3,
+    mech: "blunt",
+    at: 75,
+    bones: ["pelvis"],
+    fracture: "break",
+  },
   // THE SHOULDER — a point load on it, and the fall on the arm.
   bruisedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 15 },
   separatedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 24 },
   dislocatedShoulder: { part: "shoulder", ais: 2, mech: "blunt", at: 31 },
-  brokenCollarbone: { part: "shoulder", ais: 2, mech: "blunt", at: 38 },
+  crackedCollarbone: {
+    part: "shoulder",
+    ais: 1,
+    mech: "blunt",
+    at: 30,
+    bones: ["clavicle"],
+    fracture: "hairline",
+  },
+  brokenCollarbone: {
+    part: "shoulder",
+    ais: 2,
+    mech: "blunt",
+    at: 38,
+    bones: ["clavicle"],
+    fracture: "break",
+  },
+  // The shoulder blade, which takes a hard blow to break.
+  crackedScapula: {
+    part: "shoulder",
+    ais: 1,
+    mech: "blunt",
+    at: 46,
+    bones: ["scapula"],
+    fracture: "hairline",
+  },
+  brokenScapula: {
+    part: "shoulder",
+    ais: 2,
+    mech: "blunt",
+    at: 58,
+    bones: ["scapula"],
+    fracture: "break",
+  },
   // THE ARM — the elbow and the bones either side of it.
   bruisedElbow: { part: "arm", ais: 1, mech: "blunt", at: 16 },
   dislocatedElbow: { part: "arm", ais: 2, mech: "blunt", at: 36 },
-  brokenArm: { part: "arm", ais: 2, mech: "blunt", at: 46 },
+  crackedArm: {
+    part: "arm",
+    ais: 1,
+    mech: "blunt",
+    at: 37,
+    bones: ["humerus"],
+    fracture: "hairline",
+  },
+  brokenArm: { part: "arm", ais: 2, mech: "blunt", at: 46, bones: ["humerus"], fracture: "break" },
+  crackedForearm: {
+    part: "arm",
+    ais: 1,
+    mech: "blunt",
+    at: 33,
+    bones: ["ulna"],
+    fracture: "hairline",
+  },
+  brokenForearm: {
+    part: "arm",
+    ais: 2,
+    mech: "blunt",
+    at: 41,
+    bones: ["radius", "ulna"],
+    fracture: "break",
+  },
   // THE HAND — the skier's thumb, then the wrist.
   sprainedThumb: { part: "hand", ais: 1, mech: "blunt", at: 12 },
   sprainedWrist: { part: "hand", ais: 1, mech: "blunt", at: 17 },
   skiersThumb: { part: "hand", ais: 2, mech: "blunt", at: 21 },
-  brokenWrist: { part: "hand", ais: 2, mech: "blunt", at: 28 },
+  // The wrist's crack is the scaphoid's, among the hand's bones; its break
+  // the radius's end above them.
+  crackedWrist: {
+    part: "hand",
+    ais: 1,
+    mech: "blunt",
+    at: 22,
+    bones: ["hand"],
+    fracture: "hairline",
+  },
+  crackedRadius: {
+    part: "hand",
+    ais: 1,
+    mech: "blunt",
+    at: 24,
+    bones: ["radius"],
+    fracture: "hairline",
+  },
+  brokenWrist: {
+    part: "hand",
+    ais: 2,
+    mech: "blunt",
+    at: 28,
+    bones: ["radius"],
+    fracture: "break",
+  },
+  brokenHand: { part: "hand", ais: 2, mech: "blunt", at: 33, bones: ["hand"], fracture: "break" },
   // THE THIGH — a dead leg, and the femur, which takes a trunk to break.
   deadLeg: { part: "thigh", ais: 1, mech: "blunt", at: 26 },
-  brokenFemur: { part: "thigh", ais: 3, mech: "blunt", at: 90 },
+  crackedFemur: {
+    part: "thigh",
+    ais: 2,
+    mech: "blunt",
+    at: 72,
+    bones: ["femur"],
+    fracture: "hairline",
+  },
+  brokenFemur: {
+    part: "thigh",
+    ais: 3,
+    mech: "blunt",
+    at: 90,
+    bones: ["femur"],
+    fracture: "break",
+  },
   // THE KNEE — skiing's own injury: sprained by a hard landing, the
   // medial ligament by the twist, the cruciate by the twist and by the
   // back seat, the meniscus behind it, and the kneecap by a blow.
@@ -162,15 +458,85 @@ export const INJURIES = {
   tornAcl: { part: "knee", ais: 2, mech: "drawer", at: 15 },
   tornAclTwist: { part: "knee", ais: 2, mech: "twist", at: 11.5 },
   tornMeniscus: { part: "knee", ais: 2, mech: "twist", at: 13 },
-  brokenKneecap: { part: "knee", ais: 2, mech: "blunt", at: 60 },
+  crackedKneecap: {
+    part: "knee",
+    ais: 1,
+    mech: "blunt",
+    at: 48,
+    bones: ["patella"],
+    fracture: "hairline",
+  },
+  brokenKneecap: {
+    part: "knee",
+    ais: 2,
+    mech: "blunt",
+    at: 60,
+    bones: ["patella"],
+    fracture: "break",
+  },
   // THE SHIN — bruised by a trunk, broken over the boot's rim.
   bruisedShin: { part: "shin", ais: 1, mech: "blunt", at: 22 },
-  bootTop: { part: "shin", ais: 2, mech: "bend", at: 20 },
-  brokenShin: { part: "shin", ais: 2, mech: "blunt", at: 95 },
+  crackedBootTop: {
+    part: "shin",
+    ais: 1,
+    mech: "bend",
+    at: 16,
+    bones: ["tibia"],
+    fracture: "hairline",
+  },
+  bootTop: {
+    part: "shin",
+    ais: 2,
+    mech: "bend",
+    at: 20,
+    bones: ["tibia", "fibula"],
+    fracture: "break",
+  },
+  crackedShin: {
+    part: "shin",
+    ais: 1,
+    mech: "blunt",
+    at: 76,
+    bones: ["tibia"],
+    fracture: "hairline",
+  },
+  brokenShin: {
+    part: "shin",
+    ais: 2,
+    mech: "blunt",
+    at: 95,
+    bones: ["tibia", "fibula"],
+    fracture: "break",
+  },
   // THE FOOT, in a boot that takes most of what reaches it.
   bruisedFoot: { part: "foot", ais: 1, mech: "blunt", at: 28 },
   sprainedAnkle: { part: "foot", ais: 1, mech: "blunt", at: 45 },
-  brokenAnkle: { part: "foot", ais: 2, mech: "blunt", at: 70 },
+  // The ankle's break is the fibula's end (the outer ankle bone).
+  crackedAnkle: {
+    part: "foot",
+    ais: 1,
+    mech: "blunt",
+    at: 56,
+    bones: ["fibula"],
+    fracture: "hairline",
+  },
+  brokenAnkle: {
+    part: "foot",
+    ais: 2,
+    mech: "blunt",
+    at: 70,
+    bones: ["fibula"],
+    fracture: "break",
+  },
+  crackedFoot: {
+    part: "foot",
+    ais: 1,
+    mech: "blunt",
+    at: 68,
+    bones: ["foot"],
+    fracture: "hairline",
+  },
+  brokenFoot: { part: "foot", ais: 2, mech: "blunt", at: 85, bones: ["foot"], fracture: "break" },
 } as const satisfies Record<string, InjuryDef>;
 
 export type InjuryKind = keyof typeof INJURIES;

@@ -29,6 +29,7 @@ import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
 import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
 import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
@@ -403,13 +404,14 @@ export function freeSpawn(level: Level, x: number, z: number): Spawn {
   return { x: px, z: pz, heading: along.heading };
 }
 
-/** `reset`: back on the piste at the last gate taken. */
+/** `reset`: back on the piste at the last gate taken — and healed. */
 export function resetSkier(state: GameState, events: GameEvent[], auto: boolean): void {
   const pose = resetPose(state);
   standSkier(state, pose.x, pose.z, pose.heading);
   // Stood up anywhere, a skier led off a lift is let go: the lead would
   // steer him for a place on a run he is no longer near.
   if (state.skier.lift?.phase === "lead") state.skier.lift = null;
+  mendBody(state.skier.body);
   state.progress.lastResetAt = state.progress.time;
   events.push({ kind: "reset", t: state.t, checkpoint: pose.checkpoint, auto });
 }

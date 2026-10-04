@@ -43,8 +43,14 @@ Three modules answer it, and the split matters:
   the twenty parts reads its LADDER (`defs/anatomy.ts`'s `INJURIES`) against
   the doses of each mechanism (`blunt`, `load`, `drawer`, `twist`, `bend`)
   on a log-logistic risk curve (`riskOf`) drawn off a hash; `severityOf`
-  sums the whole body. The HUD's half is `body-tile.ts` (DOM-free),
-  `hud-body.tsx` and `hud-gforce.tsx`. Knobs in `TUNING.injury`.
+  sums the whole body. Every fracture names its BONES (`BONES`,
+  `bonesOf`) and whether it is a hairline or a break (`fracturesOf`);
+  `saidOf` keeps a fracture out of the HUD's words, since the figure shows
+  it on the bone. A reset MENDS the body (`mendBody`, from `resetSkier`).
+  The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the
+  generated `body-bones.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
+  with `make damage`, the bones re-traced and checked with `make anatomy`.
+  Knobs in `TUNING.injury`.
 
 `run.ts` is where they meet the step: with the skier off, the skis are
 stepped under the neutral input, his body under `stepThrown`, the course

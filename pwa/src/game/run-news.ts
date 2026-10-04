@@ -24,10 +24,6 @@ import { STRINGS } from "./strings.ts";
 /** How near a save must have come to a fall to be said (`Save.size`). */
 const SAVE_SAID = 0.6;
 
-/** The least AIS rank an injury must have to be said: a bruise is the
- * body panel's, a torn ligament is news. */
-const INJURY_SAID = 2;
-
 export type HudFlash = { id: number; text: string; tone: "good" | "bad" | "info" };
 
 export type NewsLine = Omit<HudFlash, "id">;
@@ -76,16 +72,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     }
     case "damage":
       return { text: STRINGS.newsDamage(e.part), tone: "bad" };
-    case "injury": {
-      // What the body took, in plain words (`body.ts`) — a moderate injury
-      // or worse, and only the worst a step's blows did: a body thrown into
-      // a trunk takes a dozen at once, and the body panel lists them all.
-      if (e.ais < INJURY_SAID) return null;
-      let top = 0;
-      for (const o of state.events) if (o.kind === "injury" && o.ais > top) top = o.ais;
-      const first = state.events.find((o) => o.kind === "injury" && o.ais === top);
-      return first === e ? { text: STRINGS.newsInjury(e.injury, e.part), tone: "bad" } : null;
-    }
+    case "injury":
+      // What the body took is the body panel's to show (`hud-body.tsx`),
+      // never a line of news.
+      return null;
     case "combo":
       return e.sketchy
         ? { text: `${STRINGS.comboSketchy} ${STRINGS.comboBanked(e.points)}`, tone: "info" }

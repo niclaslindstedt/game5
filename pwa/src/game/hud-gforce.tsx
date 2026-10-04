@@ -3,8 +3,8 @@
 // snow, a trunk or another skier lands a blow worth billing (`body.ts`) AND
 // someone goes down on it — he, or the skier he shouldered — its peak in g goes up over the skier in big figures, SHAKING by how hard
 // it was — a jolt barely trembles, a blow past what a body takes whole
-// rattles the number — and fades out over the hold. Under it, what took it
-// from what. Keyed on the blow's number, so a harder one arriving in the
+// rattles the number — and fades out over the hold. The number alone: what
+// was struck is lit on the body panel (`hud-body.tsx`). Keyed on the blow's number, so a harder one arriving in the
 // hold lands with its own shake; a softer one waits its turn in the engine.
 // Every figure is the engine's; nothing here decides what a blow was.
 
@@ -33,7 +33,6 @@ export function GForce({ blow }: { blow: BlowTile }): JSX.Element {
         <span class="hud-gforce-num">{STRINGS.gForce(blow.g)}</span>
         <span class="hud-gforce-unit">{STRINGS.gUnit}</span>
       </span>
-      <span class="hud-gforce-what">{STRINGS.gWhat(blow.source, blow.part)}</span>
     </div>
   );
 }

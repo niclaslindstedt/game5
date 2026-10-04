@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet damage anatomy gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -105,6 +105,29 @@ skate-turns:
 # a candidate beside the committed model.
 helmet:
 	npm run helmet -- $(if $(SLOTS),--slots $(SLOTS),) $(ARGS)
+
+# THE DAMAGE LAB: the HUD's body panel and g meter as the player reads
+# them, drawn by the game's own components and stylesheets over staged
+# bodies (sound, bruises, hairlines, breaks, organs, a trunk, every bone
+# cracked, every bone broken) and ride-lab crashes skied through the
+# engine (the body at its worst, before the reset mends it) — the panel's
+# strip of a 1280×720 frame (previews/damage-panels.png), one body at the
+# three reference viewports (damage-viewports.png, CASE=id) and the figure
+# enlarged (damage-plate.png); ARGS="--refs=DIR" lays local references
+# under it (damage-refs.png). Its own one-off bundle; needs a Chromium.
+damage:
+	npm run damage -- $(if $(CASE),--case $(CASE),) $(ARGS)
+
+# THE ANATOMY LAB: the HUD body's bones traced off the public-domain
+# skeleton plate (references/anatomy/skeleton-front.svg) and laid into the
+# traced figure joint by joint (pwa/src/tools/anatomy-map.ts) — the plate's
+# own drawing of every bone warped by that bone's map, our bones over it
+# (previews/anatomy-overlay.png), every bone alone beside the plate's
+# drawing of it (anatomy-bones.png), and a table of how much of each bone
+# falls outside the flesh and the figure's proportions.
+# ARGS=--write writes the GENERATED pwa/src/game/body-bones.ts.
+anatomy:
+	npm run anatomy -- $(ARGS)
 
 # THE GEAR LAB: the skier in every piece of his kit — the catalog's
 # jackets, pants, helmets, gloves and poles and both bodies, cut on the

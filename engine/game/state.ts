@@ -324,7 +324,7 @@ export type Thrown = {
  * part (its AIS rank, 0 sound … 5 critical, in `BODY_PARTS` order), every
  * injury in the order it was taken, the last blow worth billing on the g
  * meter, the run's hardest blow, g, and the hardest he FELL on — the one
- * the HUD bills. A reset does not mend it; a new run does. */
+ * the HUD bills. A reset mends it (`mendBody`), keeping the two peaks. */
 export type BodyState = {
   worst: number[];
   injuries: Injury[];

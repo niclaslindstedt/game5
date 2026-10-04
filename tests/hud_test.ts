@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BODY_PARTS,
+  BONES,
   INJURIES,
   NEUTRAL_INPUT,
   TUNING,
@@ -25,6 +26,14 @@ import {
   type GameState,
 } from "@engine";
 
+import {
+  BONE_ORDER,
+  BONE_SHAPES,
+  FIGURE,
+  OUTLINE_POINTS,
+  REGIONS,
+  crackPath,
+} from "../pwa/src/game/body-figure.ts";
 import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import { AIR_SHOWN, gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
@@ -188,6 +197,8 @@ describe("the body and the g meter (body-tile.ts)", () => {
     const tile = takeSnapshot(race()).body;
     expect(tile.parts).toHaveLength(BODY_PARTS.length);
     expect(tile.parts.every((t) => t === "ok")).toBe(true);
+    expect(tile.bones).toHaveLength(BONES.length);
+    expect(tile.bones.every((t) => t === "sound")).toBe(true);
     expect(tile.condition).toBe("sound");
     expect(tile.blow).toBe(null);
   });
@@ -206,12 +217,16 @@ describe("the body and the g meter (body-tile.ts)", () => {
     take("pelvis", "brokenPelvis", 4);
     take("shinL", "bruisedShin", 5);
     const tile = bodyTile(body, 5.5);
-    expect(tile.lines.map((l) => l.kind)).toEqual(["brokenPelvis", "concussion", "tornAcl"]);
+    // The broken pelvis is the bone's to show, never a line or a paint.
+    expect(tile.lines.map((l) => l.kind)).toEqual(["concussion", "tornAcl", "bruisedShin"]);
     expect(tile.lines).toHaveLength(LINES);
-    expect(tile.more).toBe(2);
+    expect(tile.more).toBe(1);
     expect(tile.lines[0].fresh).toBe(true);
-    expect(tile.lines[2].fresh).toBe(false);
-    expect(tile.parts[BODY_PARTS.indexOf("pelvis")]).toBe("dead");
+    expect(tile.lines[1].fresh).toBe(false);
+    expect(tile.parts[BODY_PARTS.indexOf("pelvis")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("kneeR")]).toBe("spent");
+    expect(tile.bones[BONES.indexOf("pelvis")]).toBe("break");
+    expect(tile.bones.filter((b) => b !== "sound")).toHaveLength(1);
     // Pelvis 3 (limbs), head 2, nothing else: 9 + 4.
     expect(tile.severity).toBe(13);
     expect(tile.condition).toBe("injured");
@@ -359,9 +374,8 @@ describe("the news column (run-news.ts)", () => {
     expect(line({ kind: "count", t: 1, left: 3 })).toBe(null);
   });
 
-  it("says a moderate injury or worse — the worst of its step — and leaves a bruise to the body", () => {
+  it("leaves every injury to the body panel — no news line, however bad", () => {
     const hurt = createGame({ level: syntheticLevel(), rivals: 0, quiet: true });
-    const acl: GameEvent = { kind: "injury", t: 1, part: "kneeL", injury: "tornAcl", ais: 2 };
     const pelvis: GameEvent = {
       kind: "injury",
       t: 1,
@@ -369,24 +383,42 @@ describe("the news column (run-news.ts)", () => {
       injury: "brokenPelvis",
       ais: 3,
     };
-    const bruise: GameEvent = {
-      kind: "injury",
-      t: 1,
-      part: "shinL",
-      injury: "bruisedShin",
-      ais: 1,
-    };
-    hurt.events.push(bruise);
-    expect(newsFor(bruise, hurt)).toBe(null);
-    hurt.events.push(acl);
-    expect(newsFor(acl, hurt)).toEqual({
-      text: STRINGS.newsInjury("tornAcl", "kneeL"),
-      tone: "bad",
-    });
-    expect(STRINGS.newsInjury("tornAcl", "kneeL")).toBe("TORN LEFT ACL");
     hurt.events.push(pelvis);
-    expect(newsFor(acl, hurt)).toBe(null);
-    expect(newsFor(pelvis, hurt)?.text).toBe(STRINGS.newsInjury("brokenPelvis", "pelvis"));
+    expect(newsFor(pelvis, hurt)).toBe(null);
+  });
+});
+
+describe("the body as drawn (body-figure.ts)", () => {
+  it("cuts every part but the back out of the one outline, and draws every bone once", () => {
+    expect(Object.keys(REGIONS).sort()).toEqual(BODY_PARTS.filter((p) => p !== "back").sort());
+    expect(Object.keys(BONE_SHAPES).sort()).toEqual([...BONES].sort());
+    expect([...BONE_ORDER].sort()).toEqual([...BONES].sort());
+    for (const bone of BONES) {
+      const b = BONE_SHAPES[bone];
+      expect(b.fill.length, bone).toBeGreaterThan(0);
+      for (const d of [...b.fill, ...b.shade]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+      expect(crackPath(b.mark, 1), bone).toMatch(/^M[\d.,-]+(L[\d.,-]+)+$/);
+    }
+  });
+
+  it("keeps every bone's mark inside the traced outline, his right on the viewer's left", () => {
+    // Even-odd ray cast against the outline's corners.
+    const inside = (x: number, y: number): boolean => {
+      let hit = false;
+      const P = OUTLINE_POINTS;
+      for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+        const [xi, yi] = P[i];
+        const [xj, yj] = P[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+      }
+      return hit;
+    };
+    for (const bone of BONES) {
+      const m = BONE_SHAPES[bone].mark;
+      expect(inside(m.x, m.y), bone).toBe(true);
+      if (bone.endsWith("R")) expect(m.x, bone).toBeLessThan(FIGURE.w / 2);
+      if (bone.endsWith("L")) expect(m.x, bone).toBeGreaterThan(FIGURE.w / 2);
+    }
   });
 });
 

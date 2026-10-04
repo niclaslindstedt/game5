@@ -47,15 +47,19 @@
 // abdomen, the limbs and the pelvis), 0 … 75.
 //
 // IT IS A READOUT: nothing in the physics reads it, and it draws nothing
-// from the stream. A reset does not mend it; a new run does.
+// from the stream. A reset MENDS it (`mendBody`): the skier stood back up
+// on the piste is a sound one — only the run's hardest blow is kept.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
   BODY_PARTS,
+  BONES,
   INJURIES,
+  pairedBone,
   type BodyPart,
+  type Bone,
   type Facing,
   type InjuryDef,
   type InjuryKind,
@@ -112,6 +116,14 @@ export function freshBody(): BodyState {
     fallPeak: 0,
     blows: 0,
   };
+}
+
+/** HEALED: every injury gone, as a reset stands him back up
+ * (`course.ts`' `resetSkier`). The run's hardest blows and the meter's
+ * count are the run's, and stay. */
+export function mendBody(body: BodyState): void {
+  body.worst.fill(0);
+  body.injuries.length = 0;
 }
 
 /** THE BLOW, g: the peak deceleration of a part met at `v` m/s and
@@ -598,6 +610,39 @@ export function markFall(state: GameState): void {
 const REGION: number[] = BODY_PARTS.map((p) =>
   p === "head" || p === "neck" ? 0 : p === "chest" || p === "back" ? 1 : p === "abdomen" ? 2 : 3,
 );
+
+/** THE BONES an injury cracks or breaks — on a paired part, its side of
+ * each — or none. */
+export function bonesOf(kind: InjuryKind, part: BodyPart): Bone[] {
+  const def = INJURIES[kind] as InjuryDef;
+  if (!def.bones) return [];
+  const side = part.endsWith("L") ? "L" : part.endsWith("R") ? "R" : "";
+  return def.bones.map((b) => (pairedBone(b) ? `${b}${side}` : b) as Bone);
+}
+
+/** Whether an injury is SAID in words: anything but a bone's fracture,
+ * which the body drawn shows on the bone — the spinal cord, more than its
+ * vertebra, is said. */
+export function saidOf(kind: InjuryKind): boolean {
+  const def = INJURIES[kind] as InjuryDef;
+  return !def.fracture || def.organ === true;
+}
+
+/** EVERY BONE'S STATE, in `BONES` order: 0 sound, 1 a hairline crack, 2
+ * broken — the worst any injury on the body did to it. */
+export function fracturesOf(body: BodyState): number[] {
+  const out = new Array<number>(BONES.length).fill(0);
+  for (const h of body.injuries) {
+    const def = INJURIES[h.kind] as InjuryDef;
+    if (!def.fracture) continue;
+    const grade = def.fracture === "break" ? 2 : 1;
+    for (const b of bonesOf(h.kind, h.part)) {
+      const i = BONES.indexOf(b);
+      if (grade > out[i]) out[i] = grade;
+    }
+  }
+  return out;
+}
 
 /** THE INJURY SEVERITY SCORE: the squares of the worst AIS in each of the
  * three worst-hurt regions, summed — 0 unhurt, 16 and up major trauma, 75

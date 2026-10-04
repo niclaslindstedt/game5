@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE BODY, AS AN ANATOMY PLATE — how the skier is, in one glance at the
 // left edge of the frame. The classic figure FROM THE FRONT (`body-figure.ts`,
-// traced): his right on the viewer's left, the flesh of every part painted
-// by its worst injury that is not a bone's — green sound, yellow a minor
-// injury, orange a moderate one, red serious and worse (`body-tile.ts`) —
-// and over it, as an X-ray shows them, the BONES: ivory and whole when
-// sound; on a hairline yellow, a fissure cut into the bone; broken red, cut
-// through and its fragment displaced (`fractureOf`) — the bone itself
-// fractured, never a mark drawn on it. The part the last blow struck is lit while the g meter holds it.
+// made from a whole body's CT; `side="back"` draws him from behind): his
+// right on the viewer's left, the flesh of every part painted by its worst
+// injury that is not a bone's — green sound, yellow a minor injury, orange a
+// moderate one, red serious and worse (`body-tile.ts`) — and over it, as an
+// X-ray shows them, the BONES, lit and shaded as they lie: bone grey and
+// whole when sound; on a hairline yellow, a fissure cut into the bone;
+// broken red, cut through and its fragment displaced (`fractureOf`) — the
+// bone itself fractured, never a mark drawn on it. The part the last blow
+// struck is lit while the g meter holds it.
 //
 // Under the figure, the WORD for the whole body and the worst injuries the
 // figure cannot show, in plain words — the organs, the ligaments, the
@@ -16,16 +18,15 @@
 
 import type { JSX } from "preact";
 
-import { BODY_PARTS, BONES, type Bone } from "@engine";
+import { BODY_PARTS, BONES, type Bone as BoneName } from "@engine";
 
 import {
-  BACK,
-  BONE_ORDER,
-  BONE_SHAPES,
+  EVERYWHERE,
   FIGURE,
-  OUTLINE,
-  REGIONS,
+  figureView,
   fractureOf,
+  type BoneDraw,
+  type FigureSide,
 } from "./body-figure.ts";
 import type { BodyTile, BodyTone, BoneTone } from "./body-tile.ts";
 import { STRINGS } from "./strings.ts";
@@ -42,13 +43,16 @@ function worstOf(parts: BodyTone[], bones: BoneTone[]): BodyTone {
   );
 }
 
-/** A bone's own shapes, filled even-odd round their holes. */
-function Fills({ bone }: { bone: Bone }): JSX.Element {
+/** A bone as it lies: its shapes filled even-odd round their holes, and
+ * over them its shading — the lit faces, the shadowed ones and the
+ * recesses — in the bone's own colour, whatever that is. */
+function Bone({ draw }: { draw: BoneDraw }): JSX.Element {
   return (
     <>
-      {BONE_SHAPES[bone].fill.map((d, i) => (
-        <path key={i} class="hud-bone-fill" d={d} fill-rule="evenodd" />
-      ))}
+      <path class="hud-bone-fill" d={draw.fill} fill-rule="evenodd" />
+      {draw.shadow && <path class="hud-bone-shadow" d={draw.shadow} fill-rule="evenodd" />}
+      {draw.deep && <path class="hud-bone-deep" d={draw.deep} fill-rule="evenodd" />}
+      {draw.light && <path class="hud-bone-light" d={draw.light} fill-rule="evenodd" />}
     </>
   );
 }
@@ -58,25 +62,27 @@ function Fills({ bone }: { bone: Bone }): JSX.Element {
  * HAIRLINE: a fissure cut into it from one edge. A BREAK: cut through,
  * the far fragment displaced and angulated, a long bone's butterfly
  * fragment knocked out of the break. */
-function BoneMark({ bone, tone }: { bone: Bone; tone: BoneTone }): JSX.Element {
-  const b = BONE_SHAPES[bone];
-  const body = (
-    <>
-      <Fills bone={bone} />
-      {b.shade.map((d, i) => (
-        <path key={`s${i}`} class="hud-bone-shade" d={d} />
-      ))}
-    </>
-  );
+function BoneMark({
+  bone,
+  tone,
+  side,
+}: {
+  bone: BoneName;
+  tone: BoneTone;
+  side: FigureSide;
+}): JSX.Element {
+  const draw = figureView(side).bones[bone];
+  if (!draw.fill) return <g />;
+  const body = <Bone draw={draw} />;
   if (tone === "sound") return <g class="hud-bone hud-bone-sound">{body}</g>;
-  const fr = fractureOf(bone);
-  const id = `hud-bone-${bone}`;
+  const fr = fractureOf(bone, side);
+  const id = `hud-bone-${side}-${bone}`;
   if (tone === "hairline") {
     return (
       <g class="hud-bone hud-bone-hairline">
         <defs>
           <clipPath id={`${id}-whole`}>
-            <path d={`M-20,-20H112V231H-20Z${fr.fissure}`} clip-rule="evenodd" />
+            <path d={`${EVERYWHERE}${fr.fissure}`} clip-rule="evenodd" />
           </clipPath>
         </defs>
         <g clip-path={`url(#${id}-whole)`}>{body}</g>
@@ -111,7 +117,15 @@ function BoneMark({ bone, tone }: { bone: Bone; tone: BoneTone }): JSX.Element {
   );
 }
 
-export function BodyPanel({ tile }: { tile: BodyTile }): JSX.Element {
+export function BodyPanel({
+  tile,
+  side = "front",
+}: {
+  tile: BodyTile;
+  side?: FigureSide;
+}): JSX.Element {
+  const view = figureView(side);
+  const skinId = `hud-body-skin-${side}`;
   const worst = worstOf(tile.parts, tile.bones);
   const word = STRINGS.conditions[tile.condition];
   const injuries = tile.lines.length + tile.more;
@@ -125,28 +139,27 @@ export function BodyPanel({ tile }: { tile: BodyTile }): JSX.Element {
     >
       <svg class="hud-body-figure" viewBox={`0 0 ${FIGURE.w} ${FIGURE.h}`} aria-hidden="true">
         <defs>
-          <clipPath id="hud-body-skin">
-            <path d={OUTLINE} />
+          <clipPath id={skinId}>
+            <path d={view.outline} clip-rule="evenodd" />
           </clipPath>
         </defs>
         {/* THE FLESH: each part cut out of the one outline. */}
-        <g clip-path="url(#hud-body-skin)">
-          {BODY_PARTS.map((part, i) =>
-            part === "back" ? null : (
-              <path
-                key={part}
-                class={`hud-body-part hud-hp-${tile.parts[i]}${lit(part)}`}
-                d={REGIONS[part]}
-              />
-            ),
+        <g clip-path={`url(#${skinId})`}>
+          {BODY_PARTS.map((part, i) => {
+            const d = view.regions[part];
+            return d ? (
+              <path key={part} class={`hud-body-part hud-hp-${tile.parts[i]}${lit(part)}`} d={d} />
+            ) : null;
+          })}
+          {view.strip && (
+            <path class={`hud-body-back hud-hp-${tile.parts[back]}${lit("back")}`} d={view.strip} />
           )}
-          <path class={`hud-body-back hud-hp-${tile.parts[back]}${lit("back")}`} d={BACK} />
         </g>
-        <path class="hud-body-skin" d={OUTLINE} />
+        <path class="hud-body-skin" d={view.outline} fill-rule="evenodd" />
         {/* THE BONES, back to front, inside the flesh. */}
-        <g clip-path="url(#hud-body-skin)">
-          {BONE_ORDER.map((bone) => (
-            <BoneMark key={bone} bone={bone} tone={tile.bones[BONES.indexOf(bone)]} />
+        <g clip-path={`url(#${skinId})`}>
+          {view.order.map((bone) => (
+            <BoneMark key={bone} bone={bone} side={side} tone={tile.bones[BONES.indexOf(bone)]} />
           ))}
         </g>
       </svg>

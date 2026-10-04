@@ -13,6 +13,24 @@ is finished (see `README.md`).
    `make ride` scenario before anything else.
 3. Research the to-do below into `docs/disciplines.md` before writing R36.
 
+## Watch out (from the slalom)
+
+Read `README.md`'s *Lessons from the slalom* first; for speed skiing in
+particular:
+
+- **Nothing in the engine has been proven at these speeds.** The slalom ran
+  ~40 km/h; speed skiing is several times that. Before any feature, write
+  `make ride` scenarios for the straight at 150, 200 and 250 km/h and check
+  the step, the snow's contacts, the drag and a fall.
+- **The result is a speed, so drag is everything:** the tuck's drag area,
+  the suit and the helmet (`docs/disciplines.md`'s tuck section is the
+  start; the speed-skiing tuck needs its own research), and the ski's
+  friction at speed.
+- **The technique row is nearly all tuck:** almost no edge, tiny
+  corrections; keep the default row the identity so nothing else moves.
+- **Chatter and stability:** `ski-chatter.ts` and the edge's catch were
+  tuned at slalom and free-ride speeds — check them on the straight.
+
 ## What it is
 
 Straight down the fall line as fast as a skier can go: no gates, no turns.

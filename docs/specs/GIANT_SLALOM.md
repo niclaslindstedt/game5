@@ -12,6 +12,32 @@ slalom is finished (see `README.md`).
    what to factor out into a shared setter.
 3. Research the to-do below into `docs/disciplines.md` before writing R32.
 
+## Watch out (from the slalom)
+
+Read `README.md`'s *Lessons from the slalom* first; for a giant slalom in
+particular:
+
+- **The ski's geometry sets the turn.** The giant slalom pair is now built to
+  the rules (193 cm, 65 mm, 30 m sidecut); at 68° it carves R ≈ 30 · cos 68° ≈
+  11 m, and the research's typical turn is ~20 m (least ~13 m). The
+  technique lab's TURNS sheet showed 10 m — the technique row (its most edge,
+  its transition: cross-under on the flat, cross-over on the steep) has to
+  bring it into the band, not the ski.
+- **Run the technique lab before and after every change** (`make technique
+  ARGS="--techniques=giantSlalom"`), and give the giant slalom its own
+  course in the lab (`--course`): on the open piste the bot follows the
+  centreline and the giant slalom's numbers there mean nothing.
+- **The bot runs wide on bends with long skis** (the downhill pair missed
+  gates in `make sim ARGS="--skis all"` until the bot read the carve as
+  sidecut · cos(edge)); make sure `turn-model.ts` reads the giant slalom row.
+- **Panels change the gate.** A panel gate is knocked differently from a
+  bare flex pole (`gate-poles.ts`), and the cross-block is the hands and
+  arms, not the slalom's punch (`technique-pose.ts`'s GS row exists).
+- **Generalize, don't copy:** the slalom's setter, par and board were
+  written for one discipline; factor what the giant slalom shares out of
+  `slalom.ts`, `par.ts` and `field.ts` first, with the slalom's tests green
+  the whole way.
+
 ## What it is
 
 The technical speed discipline between the slalom and the speed events:

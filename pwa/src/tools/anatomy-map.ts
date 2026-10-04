@@ -67,10 +67,16 @@ const PLATE = {
   kneeL: [227.5, 589],
   ankleR: [182.5, 765],
   ankleL: [217.5, 765],
-  bigToeR: [167.5, 817.5],
-  littleToeR: [132.5, 807.5],
-  bigToeL: [236, 815],
-  littleToeL: [272.5, 807.5],
+  mtBaseR: [180, 777.5],
+  mt1HeadR: [170, 800],
+  mt5HeadR: [150.5, 792],
+  bigToeR: [155, 818.75],
+  littleToeR: [131.25, 805.6],
+  mtBaseL: [225, 777.5],
+  mt1HeadL: [233.75, 801.25],
+  mt5HeadL: [255, 793.75],
+  bigToeL: [243.75, 820],
+  littleToeL: [267.5, 805],
   orbitR: [186.5, 72],
   orbitL: [218.5, 72],
   chin: [202.5, 125],
@@ -117,18 +123,20 @@ export const FIGURE_JOINTS = {
   kneeL: [59.6, 153.0],
   ankleR: [36.0, 191.5],
   ankleL: [60.6, 191.5],
-  tarsusTopR: [36.0, 193.0],
-  tarsusTopL: [60.6, 193.0],
-  tarsusOutR: [32.8, 199.0],
-  tarsusInR: [39.4, 199.4],
-  tarsusOutL: [64.4, 199.0],
-  tarsusInL: [57.8, 199.4],
-  footBaseR: [36.0, 200.4],
-  footBaseL: [61.0, 200.4],
-  bigToeR: [40.0, 207.3],
-  littleToeR: [30.2, 206.6],
-  bigToeL: [57.0, 207.6],
-  littleToeL: [67.0, 206.8],
+  tarsusTopR: [36.0, 191.8],
+  tarsusTopL: [60.6, 191.8],
+  tarsusOutR: [33.5, 196.0],
+  tarsusInR: [39.0, 196.2],
+  tarsusOutL: [63.7, 196.0],
+  tarsusInL: [58.2, 196.2],
+  mtBaseR: [36.2, 197.0],
+  mt1HeadR: [38.7, 202.6],
+  mt5HeadR: [33.2, 201.8],
+  toesR: [36.0, 207.6],
+  mtBaseL: [60.8, 197.0],
+  mt1HeadL: [58.3, 202.6],
+  mt5HeadL: [63.8, 201.8],
+  toesL: [61.0, 207.6],
   acromionR: [25.2, 42.2],
   sternalR: [43.6, 39.8],
   acromionL: [66.0, 42.2],
@@ -343,11 +351,6 @@ function hand(t: Traced, s: "R" | "L"): Piece[] {
 
 const SIDE = { R: "Right", L: "Left" } as const;
 const tarsals = (t: Traced, s: "R" | "L"): Comp[] => t[`Tarsals${SIDE[s]}`];
-const rays = (t: Traced, s: "R" | "L"): Comp[] => [
-  ...t[`Metatarsals${SIDE[s]}`],
-  ...t[`PhalangesFoot${SIDE[s]}`],
-];
-
 /** A foot's tarsus at its outer (−1) or inner (+1) side, at the height of
  * its middle: the edge of its box that way. */
 function sideOf(cs: Comp[], s: "R" | "L", way: number): Pt {
@@ -363,16 +366,6 @@ function crownOf(cs: Comp[]): Pt {
   const ps = cs.flatMap((c) => c.outer);
   const xs = ps.map((p) => p[0]);
   return [(Math.min(...xs) + Math.max(...xs)) / 2, Math.min(...ps.map((p) => p[1]))];
-}
-
-/** The middle of a group's top edge: the mean of its highest tenth. */
-function topOf(cs: Comp[]): Pt {
-  const ps = cs.flatMap((c) => c.outer).sort((a, b) => a[1] - b[1]);
-  const top = ps.slice(0, Math.max(1, ps.length >> 3));
-  return [
-    top.reduce((a, p) => a + p[0], 0) / top.length,
-    top.reduce((a, p) => a + p[1], 0) / top.length,
-  ];
 }
 
 /** EVERY BONE'S PIECES, off the traced plate. */
@@ -411,9 +404,24 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
       fore: compose(segment(el, wr, F[`elbow${s}`], F[`wrist${s}`], G * WIDE.fore), flip),
     };
   };
-  const leg = (s: "R" | "L"): { thigh: Matrix; shin: Matrix; tarsus: Matrix; foot: Matrix } => {
+  const leg = (
+    s: "R" | "L",
+  ): { thigh: Matrix; shin: Matrix; tarsus: Matrix; meta: Matrix; toes: Matrix } => {
     const P = PLATE;
     const ankle = P[`ankle${s}`];
+    const half = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const heads = half(P[`mt1Head${s}`], P[`mt5Head${s}`]);
+    const tips = half(P[`bigToe${s}`], P[`littleToe${s}`]);
+    const figHeads = half(F[`mt1Head${s}`], F[`mt5Head${s}`]);
+    const spread =
+      Math.hypot(
+        F[`mt1Head${s}`][0] - F[`mt5Head${s}`][0],
+        F[`mt1Head${s}`][1] - F[`mt5Head${s}`][1],
+      ) /
+      Math.hypot(
+        P[`mt1Head${s}`][0] - P[`mt5Head${s}`][0],
+        P[`mt1Head${s}`][1] - P[`mt5Head${s}`][1],
+      );
     // The foot is seen end on and splayed: laid by its ankle and the tips
     // of its big and little toes.
     return {
@@ -426,11 +434,14 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
         [sideOf(tarsals(t, s), s, -1), F[`tarsusOut${s}`]],
         [sideOf(tarsals(t, s), s, 1), F[`tarsusIn${s}`]],
       ]),
-      foot: affine([
-        [topOf(rays(t, s)), F[`footBase${s}`]],
-        [P[`bigToe${s}`], F[`bigToe${s}`]],
-        [P[`littleToe${s}`], F[`littleToe${s}`]],
-      ]),
+      // The metatarsals from their bases to their heads, fanning a little;
+      // the toes from the heads down, short and side by side — a foot seen
+      // end on, not the plate's splayed one seen from above.
+      // Each along one axis and never sheared, so a bone keeps its form:
+      // the plate's run foreshortened to the figure's, the heads' spread
+      // the width.
+      meta: segment(P[`mtBase${s}`], heads, F[`mtBase${s}`], figHeads, spread),
+      toes: segment(heads, tips, figHeads, F[`toes${s}`], spread),
     };
   };
   const aR = arm("R");
@@ -492,11 +503,13 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
     fibulaL: one(t.FibulaLeft, lL.shin),
     footR: [
       { comps: tarsals(t, "R"), m: lR.tarsus },
-      { comps: rays(t, "R"), m: lR.foot },
+      { comps: t.MetatarsalsRight, m: lR.meta },
+      { comps: t.PhalangesFootRight, m: lR.toes },
     ],
     footL: [
       { comps: tarsals(t, "L"), m: lL.tarsus },
-      { comps: rays(t, "L"), m: lL.foot },
+      { comps: t.MetatarsalsLeft, m: lL.meta },
+      { comps: t.PhalangesFootLeft, m: lL.toes },
     ],
   };
 }
@@ -549,11 +562,7 @@ export function markSpots(): Record<Bone, { p: Pt; a: number }> {
     out[`scapula${s}`] = along(F[`scapTop${s}`], F[`scapAngle${s}`], 0.8);
     const [mb, mk] = digit(s, 2);
     out[`hand${s}`] = along(mb, mk, 0.5);
-    const toes: Pt = [
-      (F[`bigToe${s}`][0] + F[`littleToe${s}`][0]) / 2,
-      (F[`bigToe${s}`][1] + F[`littleToe${s}`][1]) / 2,
-    ];
-    out[`foot${s}`] = along(F[`ankle${s}`], toes, 0.55);
+    out[`foot${s}`] = along(F[`mtBase${s}`], F[`mt1Head${s}`], 0.5);
   }
   out.skull = across([49.2, 8.0], -0.5);
   out.mandible = across([48.6, 28.6], 0.4);

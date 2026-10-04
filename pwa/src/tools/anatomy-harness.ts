@@ -304,8 +304,8 @@ function mapBones(traced: Traced): Mapped[] {
   const plan = planBones(traced);
   const spots = markSpots();
   return BONES.map((bone) => {
-    const comps = plan[bone].flatMap((p) =>
-      p.comps.map((c) => ({
+    const comps = plan[bone].flatMap((p, k) => {
+      const laid = p.comps.map((c) => ({
         outer: ring(
           c.outer.map((q) => apply(p.m, q)),
           0.08,
@@ -318,13 +318,19 @@ function mapBones(traced: Traced): Mapped[] {
               0.08,
             ),
           )
-          .filter((r) => ringArea(r) > 0.6),
-      })),
-    );
+          // ...and not a sliver: a gap between two bones narrower than a
+          // hair reads as a crack in a healthy bone (its mean width,
+          // twice its area over its rim).
+          .filter((r) => ringArea(r) > 0.6 && (2 * ringArea(r)) / rimOf(r) > 0.5),
+      }));
+      const own = FUSED_PIECES.get(bone);
+      // ...and solid: the gaps it closed leave no opening worth drawing.
+      return own && own[0] === k ? fuse(laid, own[1]).map((c) => ({ ...c, holes: [] })) : laid;
+    });
     // A bone the plate draws in pieces (the hip bones, the sacrum and the
     // pubic rami; the manubrium and the sternum) is fused into one shape,
     // or the seams between its pieces read as fractures.
-    if (FUSED.has(bone)) comps.splice(0, comps.length, ...fuse(comps));
+    if (FUSED.has(bone)) comps.splice(0, comps.length, ...fuse(comps, FUSED.get(bone)!));
     const shade =
       bone === "skull"
         ? [
@@ -382,14 +388,24 @@ function onBone(comps: Mapped["comps"], p: Pt): Pt {
 }
 
 /** The bones fused out of their plate pieces. */
-const FUSED = new Set<Bone>(["pelvis", "sternum"]);
+const FUSED = new Map<Bone, number>([
+  ["pelvis", 4],
+  ["sternum", 4],
+]);
+
+/** The PIECES fused on their own (the bone's index of piece, the closing):
+ * the foot's metatarsals, whose open gaps read as cracks at the HUD's
+ * size, closed without touching the toes or the tarsus beside them. */
+const FUSED_PIECES = new Map<Bone, [number, number]>([
+  ["footL", [1, 8]],
+  ["footR", [1, 8]],
+]);
 
 /** FUSE a bone's rings: drawn together at `FUSE_PX` a unit, closed over
- * `FUSE_CLOSE` pixels (a dilation, then an erosion) so the seams between
- * pieces fill, and traced again with its holes. */
+ * `close` pixels (a dilation, then an erosion) so the seams between pieces
+ * fill, and traced again with its holes. */
 const FUSE_PX = 24;
-const FUSE_CLOSE = 4;
-function fuse(comps: Mapped["comps"]): Mapped["comps"] {
+function fuse(comps: Mapped["comps"], close: number): Mapped["comps"] {
   const all = comps.flatMap((c) => c.outer);
   const [x0, y0, bw, bh] = boxOf(all, 1);
   const W = Math.ceil(bw * FUSE_PX);
@@ -406,7 +422,7 @@ function fuse(comps: Mapped["comps"]): Mapped["comps"] {
   for (let i = 0; i < W * H; i++) m[i] = d[4 * i + 3] > 127 ? 1 : 0;
   const morph = (src: Uint8Array, grow: boolean): Uint8Array => {
     const out = new Uint8Array(W * H);
-    const r = FUSE_CLOSE;
+    const r = close;
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         let v = grow ? 0 : 1;
@@ -447,6 +463,16 @@ function fuse(comps: Mapped["comps"]): Mapped["comps"] {
     if (k >= 0) out[k].holes.push(back(contour(bg.lab, W, H, hole.id, hole.start)));
   }
   return out;
+}
+
+/** A ring's rim, units. */
+function rimOf(r: Pt[]): number {
+  let l = 0;
+  for (let i = 0; i < r.length; i++) {
+    const q = r[(i + 1) % r.length];
+    l += Math.hypot(q[0] - r[i][0], q[1] - r[i][1]);
+  }
+  return l;
 }
 
 /** A ring's area, units². */

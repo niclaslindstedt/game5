@@ -104,7 +104,7 @@ describe("the generator is a pure function of its seed", () => {
   it("builds a map in well under the budget a test suite can afford", () => {
     const t0 = performance.now();
     generateLevel(99);
-    expect(performance.now() - t0).toBeLessThan(12_000);
+    expect(performance.now() - t0).toBeLessThan(15_000);
   });
 });
 

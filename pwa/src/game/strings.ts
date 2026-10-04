@@ -129,6 +129,8 @@ export const STRINGS = {
 
   /** Printed across the finish arch's span (gates.ts). */
   archLine: "FINISH",
+  /** The start house's banner. */
+  startLine: "START",
 
   /* ── THE NEWS COLUMN (run-news.ts) ─────────────────────────────────── */
   newsCheckpoint: (index: number, seconds: number): string =>

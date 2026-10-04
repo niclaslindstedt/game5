@@ -40,9 +40,10 @@
 // laid on this map's own ground here.
 
 import * as THREE from "three";
-import { gradeOf, type Checkpoint, type Level } from "@engine";
+import { gradeOf, type Checkpoint, type GameState, type Level } from "@engine";
 
 import { PALETTE } from "../identity.ts";
+import { bannerTexture } from "./banner-texture.ts";
 import { glow } from "./glow-sprite.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -59,8 +60,9 @@ import {
 } from "./mark-shapes.ts";
 import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
+import { createSlalomPoles } from "./slalom-poles.ts";
+import { createStartHouse } from "./start-house.ts";
 import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
-import { STRINGS } from "./strings.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 /** A PANEL GATE's measure, m: the poles' height and their gap along the
@@ -98,58 +100,15 @@ export type Gates = {
   group: THREE.Group;
   /** The finish arena's floodlights, for the snow shader's lamp slots. */
   floods: Flood[];
-  /** Highlight checkpoint `next`; `t` is seconds, for the breathing. */
-  update(next: number, t: number): void;
+  /** The run's moment: the owed gate highlighted and breathing, a slalom's
+   * poles as knocked, its start clock. */
+  update(state: GameState): void;
   /** The night's lights at `level` (0 off … 1): the floods' glow, the
    * edge poles' reflectors and the piste lights along every run, with
    * `pixels` the lens's focal length in pixels. */
   setLamps(level: number, pixels: number): void;
   dispose(): void;
 };
-
-/** The banner printed across the span: the word on the arch's own red,
- * a checkered block at each end, a white rule top and bottom — and the
- * word SIZED TO THE PANEL, measured, never a guessed font over a guessed
- * box. `aspect` is the panel's width over its height. */
-function bannerTexture(aspect: number): THREE.CanvasTexture {
-  const h = 128;
-  const w = Math.min(2048, Math.round(h * aspect));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const g = canvas.getContext("2d")!;
-  g.fillStyle = PALETTE.flag;
-  g.fillRect(0, 0, w, h);
-  const rule = 8;
-  const sq = (h - rule * 2) / 3;
-  const cols = 4;
-  for (const x0 of [rule, w - rule - sq * cols]) {
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < cols; c++) {
-        g.fillStyle = (r + c) % 2 === 0 ? "#15181c" : "#f6f8fa";
-        g.fillRect(x0 + c * sq, rule + r * sq, sq, sq);
-      }
-    }
-  }
-  g.fillStyle = "#f6f8fa";
-  g.fillRect(0, 0, w, rule * 0.6);
-  g.fillRect(0, h - rule * 0.6, w, rule * 0.6);
-  const room = w - 2 * (rule + sq * cols) - 2 * sq;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  let size = 84;
-  g.font = `900 ${size}px sans-serif`;
-  const wide = g.measureText(STRINGS.archLine).width;
-  if (wide > room) {
-    size = Math.floor((size * room) / wide);
-    g.font = `900 ${size}px sans-serif`;
-  }
-  g.fillText(STRINGS.archLine, w / 2, h / 2 + size * 0.04);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
-}
 
 /** The line dyed across the snow: two squares of the checker, repeated. */
 function bandTexture(): THREE.CanvasTexture {
@@ -297,6 +256,13 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     "edge-reflector",
   );
 
+  // A SLALOM's pole gates (R31) are flex poles of their own, and its start
+  // a start house over the course.
+  const slalomPoles = createSlalomPoles(level, haze);
+  const house = createStartHouse(level, haze);
+  if (slalomPoles) group.add(slalomPoles.group);
+  if (house) group.add(house.group);
+
   const placeGate = (cp: Checkpoint, index: number) => {
     const fx = Math.sin(cp.heading);
     const fz = Math.cos(cp.heading);
@@ -309,6 +275,15 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     const own: THREE.Vector3[] = [];
     const first = index === 0;
     const last = index === gates - 1;
+    // A pole gate's poles are `slalom-poles.ts`'s; its marker rides over
+    // its turning pole.
+    if (cp.pole !== undefined) {
+      for (let k = 0; k < 4; k++) poles.setMatrixAt(index * 4 + k, m4.compose(at, q, none));
+      for (let k = 0; k < 2; k++) panels.setMatrixAt(index * 2 + k, m4.compose(at, q, none));
+      const top = slalomPoles?.top(index);
+      tops.push(top ? [top] : []);
+      return;
+    }
     [-1, 1].forEach((side, k) => {
       const cx = cp.x + rx * half * side;
       const cz = cp.z + rz * half * side;
@@ -334,7 +309,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       own.push(new THREE.Vector3(cx, y + PANEL.pole + 1.2, cz));
     });
     tops.push(own);
-    if (first) hutAt(cp, rx, rz, fx, fz);
+    if (first && !house) hutAt(cp, rx, rz, fx, fz);
     if (last) finish(cp, fx, fz);
   };
 
@@ -488,7 +463,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       "finish-net",
     );
     const pts = level.track.points;
-    const from = Math.max(0, cp.s - NET.before);
+    // On a slalom the nets line the whole course, start to finish.
+    const from = level.slalom ? level.slalom.from - 2 : Math.max(0, cp.s - NET.before);
     const to = Math.min(level.track.length, cp.s + NET.after);
     for (const side of [-1, 1]) {
       const pos: number[] = [];
@@ -643,7 +619,11 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   return {
     group,
     floods,
-    update(next, t) {
+    update(state) {
+      const next = state.progress.nextCheckpoint;
+      const t = state.t;
+      slalomPoles?.update(state);
+      house?.update(state);
       if (next !== lit) {
         if (lit >= 0 && tops[lit]) {
           panels.setColorAt(lit * 2, muted(colours[lit]));
@@ -656,12 +636,12 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
           if (top) m.position.copy(top);
         });
       }
-      if (tops[lit]) {
+      if (tops[lit] && level.checkpoints[lit]?.pole === undefined) {
         breathing.copy(colours[lit]).multiplyScalar(1 + 0.35 * (0.5 + 0.5 * Math.sin(t * 4)));
         panels.setColorAt(lit * 2, breathing);
         panels.setColorAt(lit * 2 + 1, breathing);
-        for (const m of markers) m.rotation.y = t * 1.5;
       }
+      for (const m of markers) m.rotation.y = t * 1.5;
       if (panels.instanceColor) panels.instanceColor.needsUpdate = true;
     },
     setLamps(level, pixels) {
@@ -683,6 +663,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       bands.dispose();
       signs.dispose();
       lights.dispose();
+      slalomPoles?.dispose();
+      house?.dispose();
       for (const t of texs) t.dispose();
     },
   };

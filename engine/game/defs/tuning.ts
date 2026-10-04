@@ -14,6 +14,7 @@
 import { TRICKS } from "./tricks.ts";
 import { INJURY } from "./anatomy.ts";
 import { CRASH } from "./crash.ts";
+import { FLEX, START_PUSH } from "./race.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -33,6 +34,52 @@ export const TUNING = {
 
   /** THE AIR: density at −8 °C at two thousand metres up, kg/m³ (ISA). */
   airDensity: 1.05,
+
+  /** THE WEATHER'S WIND ON THE SKIER (`wind.ts`'s `airAt`, `air.ts`). R19
+   * deals a mean wind at the standard 10 m over open ground; what a skier
+   * meets is that air brought down to his body, more of it high on the
+   * mountain than in the valley, and taken off it by the woods round him. */
+  wind: {
+    /** The height R19's wind is stated at, m (the meteorological 10 m). */
+    refHeight: 10,
+    /** THE SNOW'S AERODYNAMIC ROUGHNESS, m: the log law's z0, the height
+     * the profile u ∝ ln(z / z0) runs out at. Measured fresh snow lies near
+     * 0.25 mm, a skied, rutted slope a few mm; 1 mm puts a skier's body
+     * (about 1 m up) in three quarters of the 10 m wind. */
+    roughness: 0.001,
+    /** EXPOSURE: the 10 m wind on the valley floor and on the summit, as
+     * shares of the dealt mean — the flow squeezed over a ridge runs
+     * faster, the valley lies in the lee. Linear in height up the
+     * mountain's vertical. */
+    valley: 0.7,
+    summit: 1.3,
+    /** THE WOODS' SHELTER: the air under a closed canopy keeps barely a
+     * quarter of the open wind at a skier's height (the trunk space of a
+     * dense conifer stand measures 10–30 %), a glade or a lane through the
+     * woods some of it. `cover` is the crowns' share of the ground within
+     * `radius` m (about two trees' heights — the shelter a wood throws),
+     * read off a grid of `cell` m baked once a map; at `full` cover and
+     * over, `most` of the wind is gone. R14's woods grow in clumps with
+     * lanes between, and at their thickest their crowns cover some 0.3–0.4
+     * of the ground (a quarter in an ordinary stretch of wood), so a wood
+     * that thick is a closed wood here. */
+    shelter: { radius: 30, cell: 10, full: 0.3, most: 0.75 },
+    /** THE SIDE-ON DRAG AREA, as a share of the frontal (`dragAreaOf`) at
+     * the same crouch. A standing body shows the wind about two thirds as
+     * much of itself side-on as face-on; folded into a tuck the frontal
+     * area shrinks to a ball but the profile — back, thighs and shins laid
+     * along the way — stays long, so side-on is the larger. Wind-tunnel
+     * work on skiers finds the side force climbing with the yaw angle
+     * while the drag barely moves inside 15°, which a body with these two
+     * areas does. */
+    sideUpright: 0.7,
+    sideTuck: 1.2,
+    /** A ski AT REST grips the snow this many times as hard as it slides
+     * on it (a waxed base's static friction on cold snow is some 0.1–0.3
+     * against 0.02–0.08 sliding), so a skier stood still is blown along
+     * only by a wind that beats that: a storm's gust, not a breeze. */
+    still: 3,
+  },
 
   /** THE SNOW — a ski's water. Powder lets a ski SINK, and how far is a
    * function of speed exactly as a planing hull's draft is: at rest the ski
@@ -695,52 +742,9 @@ export const TUNING = {
     cell: 12,
   },
 
-  /** THE START PUSH out of a slalom's start house (`start-push.ts`): the
-   * racer held in the hut on his planted poles after GO until he goes,
-   * then ONE push — both poles, both skis together, a hop over the wand —
-   * and no skating or poling after it: a slalom racer is at speed by the
-   * first gate on the pitch below the hut. */
-  start: {
-    /** How long the push lasts, s, the speed it sends him out at, m/s, and
-     * the hop he springs off it with, m/s up. */
-    push: 0.35,
-    speed: 4.2,
-    hop: 0.9,
-    /** How far the tuck must be held to throw him out, 0..1. */
-    press: 0.5,
-    /** How long the figure is told of the push after it, s. */
-    shown: 1.2,
-  },
-
-  /** THE FLEX POLES of a slalom's gates (R31, `gate-poles.ts`): a pole on
-   * a hinge at the snow that a racer knocks over and that stands itself
-   * back up — the turning pole is one by rule (at least 1.8 m over the
-   * snow, its hinge's resistance at least 4 N·m a metre up) — and what
-   * knocking one costs him. */
-  flex: {
-    /** The pole's height over the snow, m. */
-    height: 1.8,
-    /** The hinge as a damped spring on the tilt: its stiffness, 1/s² (a
-     * pole springing back up at about 2.5 Hz), and its damping, 1/s. */
-    stiff: 247,
-    damp: 7.5,
-    /** The furthest a pole lies over, rad — on its hinge, short of the
-     * snow. */
-    most: 1.35,
-    /** THE BODY that knocks it, as a plan line from his feet to his
-     * shoulders `shoulder` m up the body from the CoG, `reach` m either
-     * side of it — the shin guards, the knees, the hands and the arm a
-     * racer clears a pole with. */
-    shoulder: 0.55,
-    reach: 0.24,
-    /** What a knock costs: this share of the speed he drives into the
-     * pole, and never more than `loss` m/s at a blow — a flex pole tips
-     * at a few newtons against a skier's whole weight. */
-    share: 0.05,
-    loss: 0.25,
-    /** A knock is reported at this closing speed, m/s. */
-    knock: 0.4,
-  },
+  /** THE START PUSH and THE FLEX POLES, a race's own (`race.ts`). */
+  start: START_PUSH,
+  flex: FLEX,
 
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
    * push that grows over `soft` m. */
@@ -763,10 +767,6 @@ export const TUNING = {
     /** A reset stands the skier this far PAST the last gate he took, m (or
      * this far short of the start gate before he has taken one). */
     resetAhead: 3,
-    /** A FREE RIDE's reset within this far of the foot of the run he is
-     * nearest — the finish line and its arena, where nothing is left to
-     * ski — is the lift back up: the start line, m. */
-    footReach: 30,
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

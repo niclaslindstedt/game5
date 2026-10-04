@@ -20,6 +20,7 @@ import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
 import { status } from "@niclaslindstedt/oss-game-framework/core/output";
 import { freeSpawn, freshProgress, standSkier } from "./course.ts";
+import { nearestPiste, noteRun, pisteHead } from "./skied.ts";
 import {
   FULL_ASSIST,
   MODE_RULES,
@@ -114,7 +115,9 @@ export type CreateGameOptions = {
    * ride starts). */
   byLift?: boolean;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
-   * down (`freeRunOf`); ignored with a `spawn`. */
+   * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
+   * it is stood at (`pisteHead`: the restart's top of the slope); ignored
+   * with a `spawn`. */
   run?: string;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's. 1 when left out. */
@@ -132,7 +135,8 @@ export type CreateGameOptions = {
    * held to daylight, and wins over `day.hour` when both are given — so a
    * race can be stood in the dark. The map itself — the ground, the loop,
    * the trees — is the seed's either way; what the physics feels of a sky
-   * is only the new snow a fall lays over the run (`snowfall.ts`). */
+   * is the new snow a fall lays over the run (`snowfall.ts`) and its wind
+   * (`air.ts`). */
   sky?: SkyOverride;
 };
 
@@ -209,12 +213,18 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     events: [],
     gatePoles: freshGatePoles(level),
   };
+  const free = options.mode === "free";
+  // A FREE RIDE STARTED AGAIN stands at the top of the run named.
+  const head =
+    free && !options.spawn && !options.byLift && options.run !== undefined
+      ? pisteHead(level, options.run)
+      : null;
   const at =
-    options.mode === "free" && options.spawn
+    free && options.spawn
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
-      : gridSlot(state, 0);
+      : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
-  if (options.mode === "free" && options.byLift) {
+  if (free && options.byLift) {
     if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
     // With no spot, up the lift to the top of the run picked — the one the
     // start card marks — whatever kind of lift serves it.
@@ -225,6 +235,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
         level.spawn.z,
         freeRunOf(level, { run: options.run, grade: options.grade }),
       );
+  }
+  // ...and the run it is stood up on is the first it has skied: the one the
+  // lift leads him onto, the one he stands at the top of, or the piste
+  // nearest where he stands — so a reset before he has skied anything has
+  // somewhere to go.
+  if (free) {
+    const lead = state.skier.lift?.lead;
+    const onto = lead ? level.resort?.runs[lead.run]?.id : head ? options.run : undefined;
+    noteRun(state, onto ?? nearestPiste(level, state.skier.x, state.skier.z));
   }
   if (rules.rivals > 0) {
     if (rules.start === "interval") createField(state, rules.rivals, options.heat);

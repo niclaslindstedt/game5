@@ -80,7 +80,8 @@ export const STRINGS = {
   brake: "SKID",
   cut: "CUT",
   /** THE WIND METER beside the speed (`hud-wind.tsx`): the felt wind's
-   * caption, the weather's own wind under it, and both said aloud. */
+   * caption, the weather's wind where he stands under it, and both said
+   * aloud. */
   windLabel: "WIND",
   windAir: (kmh: number): string => `WEATHER ${Math.round(kmh)}`,
   windAria: (felt: number, air: number): string =>
@@ -103,13 +104,15 @@ export const STRINGS = {
   air: (seconds: number): string => `${seconds.toFixed(1)}s`,
   airLabel: "AIR",
   airBest: "BEST",
-  /** THE FREE RIDE's readouts in place of the run's: the longest flight
-   * so far, how far has been skied, and the map's seed. */
+  /** THE FREE RIDE's figures, billed on the pause card (never over the
+   * snow — a free ride is no contest): the longest flight so far and how
+   * far has been skied. */
   bestAirLabel: "BEST AIR",
   distance: (metres: number): string =>
     metres < 1000 ? `${Math.round(metres)} M` : `${(metres / 1000).toFixed(2)} KM`,
   distanceLabel: "SKIED",
-  /** Under the free ride's map seed, so a picture of it names its mountain. */
+  /** Under the free ride's map seed — its one figure over the snow — so a
+   * picture of it names its mountain. */
   seedLabel: "SEED",
   /** THE LIGHTS: the whole second still to run, and the word after. */
   count: (left: number): string => String(left),

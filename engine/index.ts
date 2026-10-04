@@ -177,6 +177,7 @@ export {
   type Impact,
   type ImpactSource,
   type Thrown,
+  type LoneSki,
   type GameEvent,
   type GamePhase,
   type GameState,
@@ -200,7 +201,8 @@ export {
   type TrickPose,
   type TrickState,
 } from "./game/state.ts";
-export { freshSkier, skidAngleAt, dragAreaOf, derive } from "./game/skier.ts";
+export { freshSkier, skidAngleAt, derive } from "./game/skier.ts";
+export { airForce, dragAreaOf, sideAreaOf, type AirForce } from "./game/air.ts";
 export {
   probesOf,
   hullOf,
@@ -308,6 +310,15 @@ export {
   slalom,
   standSkier,
 } from "./game/course.ts";
+export {
+  lastPiste,
+  nearestPiste,
+  noteRun,
+  pisteHead,
+  runUnder,
+  skiedResetPoint,
+  TRACK_RUN,
+} from "./game/skied.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export {
   clipRiders,
@@ -363,7 +374,21 @@ export {
 export { poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
 export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
-export { airflowAt, windAt, type Airflow, type Wind } from "./game/wind.ts";
+export {
+  BODY_HEIGHT,
+  airAt,
+  airflowAt,
+  downhillFrom,
+  exposureAt,
+  profileAt,
+  shelterAt,
+  windAt,
+  windFromOf,
+  type AirLevel,
+  type AirRider,
+  type Airflow,
+  type Wind,
+} from "./game/wind.ts";
 export { freshRate, freshStep, snowAt, visibilityIn, type Fall } from "./game/snowfall.ts";
 export {
   TOP_SPEED_PITCH,

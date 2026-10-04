@@ -112,8 +112,22 @@ describe("the crowd skis", () => {
   const seen = new Map<number, string[]>();
   let speed = 0;
   let samples = 0;
-  for (let s = 0; s < 12; s++) {
-    ride(state, 10);
+  // How long each has been held in a stop, slowed past a crawl but still
+  // sliding, s, and the longest any one was.
+  const creep = new Map<number, number>();
+  let creepMost = 0;
+  // Three minutes: long enough for a lift's round — queued, carried up,
+  // skated across the top, perhaps stopped for the group — to come round
+  // whatever the crowd was dealt; two left that a coin toss.
+  for (let s = 0; s < 180; s++) {
+    ride(state, 1);
+    for (const a of state.crowd!.amateurs) {
+      const sliding = a.speed >= CROWD.stand && a.speed < CROWD.crawl.speed;
+      const held = a.mode === "stop" && sliding ? (creep.get(a.id) ?? 0) + 1 : 0;
+      creep.set(a.id, held);
+      creepMost = Math.max(creepMost, held);
+    }
+    if ((s + 1) % 10) continue;
     for (const a of state.crowd!.amateurs) {
       const modes = seen.get(a.id) ?? [];
       if (modes[modes.length - 1] !== a.mode) modes.push(a.mode);
@@ -142,9 +156,8 @@ describe("the crowd skis", () => {
       expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.01);
     }
     expect(speed / samples).toBeGreaterThan(2);
-    // Someone has ridden a lift and come off it onto a run — the group's
-    // leader may stop just off it to wait for the rest (`crowd.ts`'s
-    // regroup) before they ski.
+    // Someone has ridden a lift and come off it onto a run — skated across
+    // to it, perhaps stopped there for the rest of the group, then skied.
     const round = [...seen.values()].filter((m) => /ride,(skate,)?(stop,)?ski/.test(m.join(",")));
     expect(round.length).toBeGreaterThan(5);
     // ...and someone has come down to a lift's foot and queued for it.
@@ -155,6 +168,13 @@ describe("the crowd skis", () => {
     const all = [...seen.values()].map((m) => m.join(","));
     expect(all.filter((m) => m.includes("stop")).length).toBeGreaterThan(10);
     expect(all.filter((m) => m.includes("down")).length).toBeGreaterThan(3);
+  });
+
+  it("a stop is stood still and over on its clock, however steep the pitch", () => {
+    // A brake eased off as he slowed met the fall on a steep pitch at a
+    // creep, and the stop's clock waited on a standstill that never came:
+    // he slid on in it for minutes, and his group waited for him.
+    expect(creepMost).toBeLessThanOrEqual(3);
   });
 
   it("on a map with no resort, down its piste", () => {

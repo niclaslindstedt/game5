@@ -23,6 +23,10 @@
 //                   "slalom"
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
+//
+// The bench is skied in STILL AIR (`S.STILL_AIR`); the `wind-*` scenarios
+// deal a sky with a wind in it (`windy`), stated at 10 m as R19 states it —
+// some three quarters of it reaches the skier's body.
 
 import {
   TUCK,
@@ -52,27 +56,8 @@ import {
   schussStrip,
   TOP,
   onPitch,
-  rhythmOf,
 } from "./ride-helpers.mjs";
-
-/** A RHYTHM OF TURNS, read after the first two seconds: how long a turn
- * is (the edge from one side to the other), its peak edge, the radius a
- * tenth of the frames turn tighter than, the most yaw, the mean speed, and
- * the skid angle — the skis' line off the way — on the mean and at its
- * most. */
-function rhythm(run) {
-  const r = rhythmOf(run.frames.filter((f) => f.t >= 2));
-  return [
-    ["turn s", fmt(r.turnS)],
-    ["edge peak deg", fmt((r.edgePeak ?? 0) * 57.3, 0)],
-    ["radius m", r.radius === null ? "—" : fmt(r.radius, 1)],
-    ["yaw most rad/s", fmt(r.yawMost, 2)],
-    ["speed km/h", fmt(r.speed * 3.6, 1)],
-    ["skid deg", fmt(r.skid * 57.3, 1)],
-    ["skid most deg", fmt(r.skidMost * 57.3, 1)],
-    ["thrown", r.thrown ? "yes" : "no"],
-  ];
-}
+import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
 
 /** The fastest the snow slid across the skis over a run, m/s. */
 const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
@@ -296,35 +281,8 @@ export const SCENARIOS = [
     input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
     measure: turn,
   },
-  {
-    id: "slalom-cut",
-    title: "full edge cut hard at 45 km/h down the 20° pitch, the slalom racer's technique",
-    level: (S) => schussStrip(S),
-    place: () => onPitch(45),
-    seconds: 3,
-    view: "plan",
-    technique: "slalom",
-    input: (t) => ({ ...TUCK, tuck: 0.3, steer: t >= 0.3 ? 1 : 0, carve: t >= 0.3 }),
-    measure: turn,
-  },
-  {
-    id: "slalom-rhythm",
-    title:
-      "a turn every 0.9 s cut hard from 40 km/h down the 20° pitch, the slalom racer's technique",
-    level: (S) => schussStrip(S),
-    place: () => onPitch(40),
-    seconds: 9,
-    view: "plan",
-    technique: "slalom",
-    // Full edge one way, then the other, every 0.9 s — and back toward the
-    // fall line whenever he has come more than 50° off it.
-    input: (t, st) => {
-      const side = Math.floor(t / 0.9) % 2 === 0 ? 1 : -1;
-      const h = st.skier.heading;
-      return { ...TUCK, tuck: 0.3, steer: Math.abs(h) > 0.9 ? -Math.sign(h) : side, carve: true };
-    },
-    measure: rhythm,
-  },
+  // The slalom racer's technique (`ride-slalom.mjs`).
+  ...SLALOM_SCENARIOS,
   {
     id: "jump-tap",
     title: "the jump tapped at 50 km/h on flat packed snow",
@@ -894,5 +852,109 @@ export const SCENARIOS = [
     measure: tricked,
   },
 ];
+
+/** A map under a clear sky with `wind` m/s at 10 m blowing FROM `from`
+ * (0 from +z, so in the face of a skier faced down the strip; π behind
+ * him; −π/2 toward his right). */
+const windy = (S, level, wind, from) => ({
+  ...level,
+  weather: { ...S.STILL_AIR, wind, windFrom: from },
+});
+
+/** Degrees the heading has come round by the end of a run. */
+const turnedDeg = (run) => fmt((run.frames[run.frames.length - 1].heading * 180) / Math.PI, 1);
+
+/** A full-edge turn to the right from 95 km/h on the flat under `from`. */
+const windTurn = (id, title, from) => ({
+  id,
+  title,
+  level: (S) => windy(S, S.flatLevel({ packed: 1 }), 18, from),
+  place: () => ({ x: 1500, z: 200, heading: 0, speed: 95 / 3.6 }),
+  seconds: 1.5,
+  view: "plan",
+  input: () => ({ ...IDLE, steer: 1 }),
+  measure: (run) => {
+    const f = run.frames[run.frames.length - 1];
+    return [
+      ["turned in 1.5 s deg", turnedDeg(run)],
+      ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ["roll deg", fmt(f.roll * 57.3, 1)],
+    ];
+  },
+});
+
+SCENARIOS.push(
+  {
+    // The wind never blows up the mountain (`wind.ts`'s `downhillFrom`): one
+    // DEALT straight up the pitch is folded down it, so this rides the same
+    // as `wind-tail` — the fold measured, not a headwind.
+    id: "wind-up",
+    title: "a tuck down the 20° pitch, 12 m/s dealt up it — folded down it",
+    level: (S) => windy(S, schussStrip(S, 1), 12, 0),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-tail",
+    title: "a tuck down the 20° pitch with a 12 m/s tailwind",
+    level: (S) => windy(S, schussStrip(S, 1), 12, Math.PI),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-cross",
+    title: "hands off on the flat at 70 km/h, 15 m/s blowing from his left",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 15, -Math.PI / 2),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6 }),
+    seconds: 4,
+    view: "plan",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const settled = run.frames.filter((k) => k.t > 1);
+      const lean = settled.reduce((m, k) => m + k.roll, 0) / settled.length;
+      return [
+        ["blown aside m", fmt(f.x - 1500, 2)],
+        ["leaned into it deg", fmt(-lean * 57.3, 1)],
+        ["heading deg", turnedDeg(run)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+  windTurn(
+    "wind-turn-into",
+    "full edge right from 95 km/h, 18 m/s blowing into the turn",
+    -Math.PI / 2,
+  ),
+  windTurn(
+    "wind-turn-out",
+    "full edge right from 95 km/h, 18 m/s blowing out of the turn",
+    Math.PI / 2,
+  ),
+  {
+    id: "wind-stood",
+    title: "stood still on the flat, a 32 m/s storm at his back",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 32, Math.PI),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 8,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const moved = run.frames.find((k) => k.speed > 0.2);
+      return [
+        ["started at s", moved ? fmt(moved.t, 2) : "—"],
+        ["blown m", fmt(f.dist, 1)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+);
 
 export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);

@@ -272,11 +272,22 @@ export function freeGameOptions(
   };
 }
 
-/** THE FREE RIDE STARTED AGAIN (the pause card's restart): the options it
- * was stood up with, on the map `level` it built. The day and the sky are
+/** THE FREE RIDE STARTED AGAIN: the options it was stood up with, on the map `level` it built. The day and the sky are
  * already in that map, so they are dropped rather than laid on again —
  * `withSky` makes a new map of any map it is handed, and a new map is one
  * the renderer has not built, which it would never draw. */
 export function freeAgainOptions(options: CreateGameOptions, level: Level): CreateGameOptions {
   return { ...options, level, day: undefined, sky: undefined };
+}
+
+/** THE FREE RIDE'S RESTART: the ride `again` (`freeAgainOptions`) stood at
+ * the TOP OF THE SLOPE — the head of the piste `run`, the last it skied
+ * (`lastPiste`) — on the snow, neither at the spot it was first stood on nor
+ * carried up a lift; the start line where it has skied no piste of a ski
+ * area. */
+export function freeTopOptions(
+  again: CreateGameOptions,
+  run: string | undefined,
+): CreateGameOptions {
+  return { ...again, spawn: undefined, byLift: false, run };
 }

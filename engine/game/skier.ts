@@ -56,8 +56,9 @@ import {
   unrotate,
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { airForce, type AirForce } from "./air.ts";
 import { riderOf } from "./defs/riders.ts";
-import { SKIS, inertiaOf, totalMass, type SkiSpec } from "./defs/skis.ts";
+import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
 import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
@@ -99,7 +100,6 @@ import {
   stoodStill,
   strideOn,
 } from "./poles.ts";
-import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import type { Level } from "../mapgen/types.ts";
@@ -113,6 +113,7 @@ const ARC = TUNING.arcade;
 const CV = TUNING.carve;
 const J = TUNING.jump;
 const P = TUNING.poles;
+const W = TUNING.wind;
 
 /** The stop's rate and damping as multiples of the leg's own, and the most
  * any one station may ever push, as a multiple of the load it carries at
@@ -169,15 +170,11 @@ export function skidAngleAt(speed: number): number {
   return S.skidAngle - (S.skidAngle - S.skidFast) * clamp(Math.abs(speed) / S.skidFadeSpeed, 0, 1);
 }
 
-/** The body's drag area at `crouch` 0..1, m². */
-export function dragAreaOf(spec: SkiSpec, crouch: number): number {
-  return spec.cdAUpright + (spec.cdATuck - spec.cdAUpright) * clamp(crouch, 0, 1);
-}
-
 // Scratch, reused every step: the engine allocates nothing per station.
 const grip: Grip = { edge: 0, base: 0 };
 const normal: Vec3 = { x: 0, y: 1, z: 0 };
 const torque: Vec3 = { x: 0, y: 0, z: 0 };
+const air: AirForce = { x: 0, y: 0, z: 0, side: 0 };
 
 function cross(ax: number, ay: number, az: number, bx: number, by: number, bz: number): Vec3 {
   return { x: ay * bz - az * by, y: az * bx - ax * bz, z: ax * by - ay * bx };
@@ -416,6 +413,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // The snow's grip across the skis, summed — what the turn's balance is
   // read off (`SkierState.balance`).
   let lateral = 0;
+  // THE AIR on him this step (`air.ts`): summed below, and its push shared
+  // out over the stations by their loads for the standstill's hold.
+  airForce(state, c, m, air);
+  const gripAtRest = W.still * m * g;
   for (let i = 0; i < probes.length; i++) {
     const p = probes[i];
     const contact = c.contacts[i];
@@ -653,18 +654,23 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // edge's own hold is all there is across. This station's share of the
     // pull (its load times the slope's tangent), over what it holds, an
     // ellipse between the two ways.
+    // So does the WIND's push on it, its share by load, over a grip at rest
+    // `wind.still` times the sliding one's: a breeze cannot start him, a
+    // storm's gust can.
+    let pa = (load * (air.x * tx + air.y * ty + air.z * tz)) / gripAtRest;
+    let ps = (load * (air.x * side.x + air.y * side.y + air.z * side.z)) / gripAtRest;
     const fall = Math.sqrt(Math.max(0, 1 - normal.y * normal.y));
     if (fall > 1e-6) {
       const pull = (load * fall) / normal.y;
       const ux = (normal.x * normal.y) / fall;
       const uy = (normal.y * normal.y - 1) / fall;
       const uz = (normal.z * normal.y) / fall;
-      const da =
-        (pull * (ux * tx + uy * ty + uz * tz)) / Math.max(1e-9, drag + S.skidDrag * c.skid * load);
-      const ds =
-        (ice * pull * (ux * side.x + uy * side.y + uz * side.z)) / Math.max(1e-9, hold * load);
-      strain += load * hypot(da, ds);
+      pa += pull * (ux * tx + uy * ty + uz * tz);
+      ps += pull * (ux * side.x + uy * side.y + uz * side.z);
     }
+    const da = pa / Math.max(1e-9, drag + S.skidDrag * c.skid * load);
+    const ds = (ice * ps) / Math.max(1e-9, hold * load);
+    strain += load * hypot(da, ds);
     strained += load;
     // THE DRIVE pushes along the skis, under the boots, at a crawl.
     if (p.station === "mid")
@@ -735,19 +741,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     torque.z += -shift.x * skierW;
   }
 
-  // ── The air ───────────────────────────────────────────────────────────
-  // ...which in a wind tunnel moves along it (R30, `wind-tunnel.ts`), and
-  // the tunnel's blowers thrust him on and hold him to its line.
-  const tunnels = level.resort?.tunnels;
-  const wind = tunnelWind(c, tunnels);
-  const ax = c.vx - wind.x;
-  const az = c.vz - wind.z;
-  const v = hypot3(ax, c.vy, az);
-  const drag = 0.5 * TUNING.airDensity * dragAreaOf(spec, c.crouch) * v;
-  const blow = tunnelBlow(c, tunnels);
-  fx += m * blow.x - drag * ax;
-  fy -= drag * c.vy;
-  fz += m * blow.z - drag * az;
+  // ── The air: its drag against the wind where he is (`air.ts`) ─────────
+  fx += air.x;
+  fy += air.y;
+  fz += air.z;
 
   // ── Into the body frame, with the skier's own torques ─────────────────
   const tb = unrotate(q, torque);
@@ -757,7 +754,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // its balance, committed on toward the next — stiffly, and giving out
     // past what he holds.
     const packed = c.packed;
-    const target = inclineTarget(c, spec, T, speed0, pressed, goal);
+    // The balance he leans to (`incline.ts`), the wind's push across him
+    // held by the edges too, so he leans INTO it (`air.side`).
+    const target = inclineTarget(c, spec, T, speed0, pressed, goal, air.side);
     const hold = rollHeld(rollRel, T);
     // Stated on the reference pair and scaled by this one's weight times
     // its height: the moment a bend puts on a body goes as both.
@@ -800,10 +799,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // way it is actually going.
     const way = c.way;
     const flat = hypot(c.vx, c.vz);
-    const reach =
-      Math.abs(way) > 1
-        ? (cornerGrip(spec, packed, speed0, c.edge, T) * pressed * S.pathShare) / Math.abs(way)
-        : 0;
+    // A wind across him into the turn bends the path with the edges, one
+    // out of it takes from what they can turn it by (`air.side`).
+    const held = cornerGrip(spec, packed, speed0, c.edge, T) * pressed;
+    const helped = air.side * Math.sign(way * kappa);
+    const reach = Math.abs(way) > 1 ? Math.max(0, held * S.pathShare + helped) / Math.abs(way) : 0;
     const carved = clamp(way * kappa, -reach, reach);
     // ...and at a crawl, the turn he STEPS on top of what the edge carves.
     const asked = carved + stepped;

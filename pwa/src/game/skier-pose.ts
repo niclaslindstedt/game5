@@ -110,6 +110,7 @@ export {
   inStartGate,
   leadOf,
   pitchHeld,
+  restSkierSpring,
   stepSkierSpring,
   type SkierSpring,
 } from "./skier-spring.ts";

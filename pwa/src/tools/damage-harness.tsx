@@ -38,6 +38,7 @@ import {
 } from "@engine";
 
 import { bodyTile } from "../game/body-tile.ts";
+import type { FigureSide } from "../game/body-figure.ts";
 import { BodyPanel } from "../game/hud-body.tsx";
 import { GForce } from "../game/hud-gforce.tsx";
 import { STRINGS } from "../game/strings.ts";
@@ -220,10 +221,14 @@ if (params.has("frame")) {
         table: [table[lab.cases.indexOf(c)]],
       };
     }
-    if (name === "plate") {
+    if (name === "plate" || name === "back") {
       const ids = ["sound", "all-hairline", "all-break", "tree"];
-      render(<Plate cases={ids.map((id) => lab.cases.find((x) => x.id === id)!)} />, root);
-      return { note: "the figure enlarged", table };
+      const side = name === "back" ? "back" : "front";
+      render(
+        <Plate cases={ids.map((id) => lab.cases.find((x) => x.id === id)!)} side={side} />,
+        root,
+      );
+      return { note: `the figure enlarged, from the ${side}`, table };
     }
     render(<Refs refs={refs} c={lab.cases.find((x) => x.id === "sound")!} />, root);
     await Promise.all(
@@ -307,22 +312,22 @@ function Viewports({ c }: { c: Case }): JSX.Element {
 }
 
 /** THE FIGURE ENLARGED: the panel itself, its figure sized to `px`. */
-function Big({ c, px }: { c: Case; px: number }): JSX.Element {
+function Big({ c, px, side }: { c: Case; px: number; side: FigureSide }): JSX.Element {
   return (
     <div class="hud damage-big" style={{ position: "relative", inset: "auto" }}>
       <style>{`.damage-big .hud-body{position:static;transform:none;max-width:none}.damage-big .hud-body-figure{height:${px}px}`}</style>
-      <BodyPanel tile={bodyTile(c.body, c.t)} />
+      <BodyPanel tile={bodyTile(c.body, c.t)} side={side} />
     </div>
   );
 }
 
-function Plate({ cases }: { cases: Case[] }): JSX.Element {
+function Plate({ cases, side }: { cases: Case[]; side: FigureSide }): JSX.Element {
   return (
     <div style={{ display: "flex", gap: "18px", alignItems: "flex-start" }}>
       {cases.map((c) => (
         <div key={c.id} style={{ background: BACKDROP, padding: "10px", width: "400px" }}>
           <div style={{ color: "#0b1116" }}>{c.title}</div>
-          <Big c={c} px={880} />
+          <Big c={c} px={880} side={side} />
         </div>
       ))}
     </div>

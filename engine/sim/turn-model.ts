@@ -45,7 +45,8 @@ import { TUNING } from "../game/defs/tuning.ts";
 import { footprintOf } from "../game/footprint.ts";
 import { leanMostOf } from "../game/incline.ts";
 import { carveCurvature, carveMost, cornerGrip, edgeLockAt, edgeMostOf } from "../game/limits.ts";
-import { dragAreaOf, skidAngleAt } from "../game/skier.ts";
+import { dragAreaOf } from "../game/air.ts";
+import { skidAngleAt } from "../game/skier.ts";
 import { totalMass } from "../game/defs/skis.ts";
 import type { GameState } from "../game/state.ts";
 

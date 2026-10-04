@@ -38,7 +38,7 @@
     "skis": "node scripts/skis-preview.mjs",
     "helmet": "node scripts/helmet-preview.mjs",
     "damage": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/damage-preview.mjs",
-    "anatomy": "node scripts/anatomy-preview.mjs",
+    "hud-body": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/hud-body.mjs",
     "gear": "node scripts/gear-preview.mjs",
     "skier": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-preview.mjs",
     "skier-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-metrics.mjs",
@@ -73,7 +73,7 @@
     "native:android": "npm --prefix native run android"
   },
   "dependencies": {
-    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.0"
+    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

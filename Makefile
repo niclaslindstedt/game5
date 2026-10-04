@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage anatomy gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -118,16 +118,18 @@ helmet:
 damage:
 	npm run damage -- $(if $(CASE),--case $(CASE),) $(ARGS)
 
-# THE ANATOMY LAB: the HUD body's bones traced off the public-domain
-# skeleton plate (references/anatomy/skeleton-front.svg) and laid into the
-# traced figure joint by joint (pwa/src/tools/anatomy-map.ts) — the plate's
-# own drawing of every bone warped by that bone's map, our bones over it
-# (previews/anatomy-overlay.png), every bone alone beside the plate's
-# drawing of it (anatomy-bones.png), and a table of how much of each bone
-# falls outside the flesh and the figure's proportions.
-# ARGS=--write writes the GENERATED pwa/src/game/body-bones.ts.
-anatomy:
-	npm run anatomy -- $(ARGS)
+# THE HUD BODY LAB: the HUD's anatomy figure made from a whole 3D body —
+# one man's CT (BodyParts3D, fetched on first use into the gitignored
+# previews/.bodyparts3d/), every bone and the skin a mesh of its own — the
+# feet turned so the toes show, the trunk cut along the spine into a FRONT
+# and a BACK, each seen orthographically, lit, and traced: the outline, the
+# parts cut at the body's seams, every bone's silhouette and its shading,
+# the order the depths say, a crack's mark. The model lit beside the figure
+# traced (previews/hud-body-front.png, hud-body-back.png) and a table of
+# every bone. ARGS=--write writes the GENERATED pwa/src/game/body-model.ts.
+# Pure Node; needs curl and unzip the first time.
+hud-body:
+	npm run hud-body -- $(ARGS)
 
 # THE GEAR LAB: the skier in every piece of his kit — the catalog's
 # jackets, pants, helmets, gloves and poles and both bodies, cut on the

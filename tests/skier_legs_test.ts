@@ -6,15 +6,18 @@
 // lifting his hips; a landing folds him and he comes back up; a hop off a
 // crest is not a flight — his stroke and his stance ride on over it —
 // while a jump he springs himself is, and carries his body with it; and
-// his trunk keeps its pitch while the skis rock under him.
+// his trunk keeps its pitch while the skis rock under him. The climb his
+// own skate makes across a side slope is not a bump, and a skier thrown
+// is stood back up at rest.
 
 import { describe, expect, it } from "vitest";
-import { NEUTRAL_INPUT, TUNING, createGame, placeRun, step } from "@engine";
+import { NEUTRAL_INPUT, TUNING, createGame, placeRun, step, type GameState } from "@engine";
 
 import { flying, gaitOf } from "../pwa/src/game/skier-gait.ts";
 import {
   createSkierSpring,
   pitchHeld,
+  restSkierSpring,
   skierPose,
   stepSkierSpring,
 } from "../pwa/src/game/skier-pose.ts";
@@ -87,7 +90,66 @@ function overRollers(height: number, length: number, kmh: number) {
   return { feet: flat(feet), cog: flat(cog), body: flat(body), fold, at };
 }
 
+/** `seconds` skied with `tuck` held off a standstill, the body's spring
+ * stepped at 60 Hz as the game steps it (`skis-body.ts`: at rest while he
+ * is thrown) — the fold of his legs at every frame past `from` s. */
+function folds(
+  state: GameState,
+  seconds: number,
+  from = 0,
+  legs = createSkierSpring(),
+  input = { ...NEUTRAL_INPUT, tuck: 1 },
+) {
+  const c = state.skier;
+  const out: number[] = [];
+  for (let i = 0; i < seconds * TUNING.physicsHz; i++) {
+    step(state, i === 0 ? input : { ...input, reset: false });
+    if (i % 2) continue;
+    if (c.thrown) restSkierSpring(legs);
+    else
+      stepSkierSpring(legs, c.vy, c.airborne, 2 * TUNING.dt, 0, c, false, undefined, legsLift(c));
+    if (i >= from * TUNING.physicsHz) out.push(legs.bump);
+  }
+  return { legs, out };
+}
+
 describe("his legs are springs", () => {
+  it("skates across a side slope standing as he does on the flat, every stride alike", () => {
+    // Across the fall line his skate glides UP on one arm of the V and down
+    // on the other: his legs push him there, so his body goes with them —
+    // taken as a bump, he sat deep on every uphill stride and stood tall on
+    // every downhill one, some 17 cm between them.
+    const level = flatLevel({ packed: 1, grade: 0.2, slopeFrom: 100, size: 3000 });
+    const state = createGame({ level, rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: 1500, z: 1400, heading: Math.PI / 2, speed: 1 });
+    const { out } = folds(state, 3, 1);
+    expect(state.skier.drive).toBeGreaterThan(0.9);
+    expect(Math.max(...out.map(Math.abs))).toBeLessThan(0.01);
+  });
+
+  it("stands back up at rest after a fall, not in the fold he went down in", () => {
+    const state = createGame({
+      level: flatLevel({ packed: 1 }),
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+    });
+    placeRun(state, { x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9 });
+    const { legs } = folds(state, 3, 3);
+    expect(state.skier.thrown).not.toBeNull();
+    // Reset, and away off the poles at once.
+    step(state, { ...NEUTRAL_INPUT, reset: true });
+    expect(state.skier.thrown).toBeNull();
+    const { out } = folds(state, 1, 0, legs);
+    expect(Math.max(...out.map(Math.abs))).toBeLessThan(0.01);
+    // ...and the rest is a fresh spring on his own clock.
+    const s = createSkierSpring(2);
+    s.bump = 0.3;
+    s.lastVy = -9;
+    s.clock = 7;
+    restSkierSpring(s);
+    expect(s).toEqual({ ...createSkierSpring(7) });
+  });
   it("takes rollers in the knees while his body rides on", () => {
     const r = overRollers(0.15, 4, 35);
     const b = (v: number[]) => bounce(v, r.at, 4);

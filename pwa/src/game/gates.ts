@@ -616,6 +616,17 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     group,
     floods,
     update(state) {
+      // A FREE RIDE races no course: its red and blue gates — the panels, a
+      // slalom's flex poles and the markers over the owed gate — are left
+      // off the mountain; the start, the finish, the edge poles, the signs
+      // and the lights stay, as a ski area keeps them. Asked of the state
+      // every frame, because a map standing is reused by the next run on it
+      // whatever its mode.
+      const raced = state.rules.course || state.rules.tricks;
+      poles.visible = raced;
+      panels.visible = raced;
+      markers.forEach((m, k) => (m.visible = raced && tops[lit]?.[k] !== undefined));
+      if (slalomPoles) slalomPoles.group.visible = raced;
       const next = state.progress.nextCheckpoint;
       const t = state.t;
       slalomPoles?.update(state);
@@ -628,7 +639,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
         lit = next;
         markers.forEach((m, k) => {
           const top = tops[lit]?.[k];
-          m.visible = top !== undefined;
+          m.visible = raced && top !== undefined;
           if (top) m.position.copy(top);
         });
       }

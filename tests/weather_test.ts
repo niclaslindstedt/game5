@@ -11,6 +11,7 @@ import {
   analyzeLevel,
   createGame,
   dealWeather,
+  downhillFrom,
   generateLevel,
   moonAt,
   sunAtRun,
@@ -18,8 +19,8 @@ import {
   sunsetOf,
   weatherFor,
   weatherOf,
-  airflowAt,
   windAt,
+  windFromOf,
   withSky,
   type WeatherKind,
 } from "@engine";
@@ -167,49 +168,41 @@ describe("the wind", () => {
     expect(hi - lo).toBeGreaterThan(4);
   });
 
+  it("never blows up the mountain, and blows down it from anywhere in that half", () => {
+    // The fall line is the world's +z: the air may move across it or down
+    // it, never against it — whatever bearing R19 dealt, at every moment.
+    let straightDown = Infinity;
+    for (let i = 0; i < 72; i++) {
+      const windFrom = (i / 72) * 2 * Math.PI;
+      const level = withSky(levelFor(LEVEL_SEEDS[2]), { weather: { kind: "storm", windFrom } });
+      for (let t = 0; t < 120; t += 1.5) {
+        const w = windAt(level, t);
+        expect(w.z).toBeGreaterThanOrEqual(-1e-9);
+      }
+      // A bearing dealt across or down the slope is left as it was dealt.
+      if (Math.cos(windFrom) <= 0) expect(windFromOf(level)).toBeCloseTo(windFrom, 12);
+      const mean = windFromOf(level);
+      straightDown = Math.min(straightDown, Math.abs(mean - Math.PI));
+    }
+    // Straight down the fall line is one of the ways it can come.
+    expect(straightDown).toBeLessThan(0.1);
+    expect(downhillFrom(0)).toBeCloseTo(Math.PI, 12);
+    expect(downhillFrom(Math.PI / 2)).toBeCloseTo(Math.PI / 2, 12);
+  });
+
+  it("keeps the map's own bearing under a sky picked by kind", () => {
+    const level = levelFor(LEVEL_SEEDS[2]);
+    expect(weatherOf(withSky(level, { weather: "storm" })).windFrom).toBe(
+      weatherOf(level).windFrom,
+    );
+  });
+
   it("draws nothing from the run's stream", () => {
     const game = createGame({ seed: LEVEL_SEEDS[0], quiet: true });
     const before = game.rng.next();
     const again = createGame({ seed: LEVEL_SEEDS[0], quiet: true });
     for (let t = 0; t < 30; t++) windAt(again.level, t);
     expect(again.rng.next()).toBe(before);
-  });
-});
-
-describe("the apparent wind (airflowAt)", () => {
-  const level = withSky(levelFor(LEVEL_SEEDS[1]), { weather: { kind: "storm", wind: 28 } });
-  const t = 31.5;
-  const w = windAt(level, t);
-  const ux = w.x / w.speed;
-  const uz = w.z / w.speed;
-
-  it("is the weather's own wind on a skier at rest", () => {
-    const f = airflowAt(level, t, 0, 0, 0, 0);
-    expect(f.x).toBeCloseTo(w.x, 9);
-    expect(f.z).toBeCloseTo(w.z, 9);
-    expect(f.speed).toBeCloseTo(w.speed, 9);
-  });
-
-  it("adds a headwind to the speed and takes a tailwind from it", () => {
-    // Skiing at 28 m/s straight into it: the two added, all of it in his face.
-    const into = Math.atan2(-ux, -uz);
-    const head = airflowAt(level, t, -ux * 28, 0, -uz * 28, into);
-    expect(head.speed).toBeCloseTo(w.speed + 28, 6);
-    expect(head.head).toBeCloseTo(head.speed, 6);
-    expect(head.across).toBeCloseTo(0, 6);
-    // Skiing with it as fast as it blows: a calm.
-    const tail = airflowAt(level, t, w.x, 0, w.z, Math.atan2(ux, uz));
-    expect(tail.speed).toBeCloseTo(0, 9);
-    // Falling through still air is wind too.
-    expect(airflowAt(level, t, w.x, -10, w.z, 0).speed).toBeCloseTo(10, 9);
-  });
-
-  it("reads a wind across him on the heading's right as positive", () => {
-    // Faced so the wind blows toward his right, (cos h, -sin h).
-    const h = Math.atan2(-uz, ux);
-    const f = airflowAt(level, t, 0, 0, 0, h);
-    expect(f.across).toBeCloseTo(w.speed, 6);
-    expect(f.head).toBeCloseTo(0, 6);
   });
 });
 

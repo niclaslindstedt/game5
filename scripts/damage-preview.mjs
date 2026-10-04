@@ -44,7 +44,7 @@ import { SCENARIOS, SCENARIO_IDS } from "./lib/ride-scenarios.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".damage-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["panels", "viewports", "plate", "refs"];
+const SHEETS = ["panels", "viewports", "plate", "back", "refs"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -68,7 +68,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
+  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs" || args.refs);

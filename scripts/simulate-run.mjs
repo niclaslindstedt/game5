@@ -44,6 +44,7 @@ const {
   REGION_IDS,
   isPisteGrade,
   PISTE_GRADES,
+  WEATHER_KINDS,
 } = await import(join(root, "engine/index.ts"));
 
 const args = parseArgs(
@@ -75,13 +76,22 @@ const args = parseArgs(
       kind: "string",
       help: `the piste grade each map is built to (R23: ${PISTE_GRADES.join(", ")}); the seed's own when left out`,
     },
+    weather: {
+      kind: "string",
+      help: `ski every map under this sky (R19: ${WEATHER_KINDS.join(", ")}); the seed's own when left out`,
+    },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);
+  process.exit(2);
+}
+
+if (args.weather !== undefined && !WEATHER_KINDS.includes(args.weather)) {
+  console.error(`unknown weather "${args.weather}" (${WEATHER_KINDS.join(", ")})`);
   process.exit(2);
 }
 
@@ -120,7 +130,8 @@ console.log(
     (args.tricks ? " · trick field" : "") +
     (args["no-poles"] ? " · no poles" : "") +
     (args.region !== "alpine" ? ` · ${args.region}` : "") +
-    (args.grade ? ` · ${args.grade}` : ""),
+    (args.grade ? ` · ${args.grade}` : "") +
+    (args.weather ? ` · ${args.weather}` : ""),
 );
 const header = [
   pad("seed", 5),
@@ -161,6 +172,7 @@ for (const spec of roster) {
       poles: !args["no-poles"],
       region: args.region === "alpine" ? undefined : args.region,
       grade: args.grade,
+      weather: args.weather,
     });
     rows.push(r);
     console.log(

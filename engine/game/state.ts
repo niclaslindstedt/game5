@@ -328,6 +328,35 @@ export type Thrown = {
    * by `body.ts`; nothing in the fall reads them back. */
   impacts: number[];
   struck: number[];
+  /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
+   * body from the moment its binding releases. */
+  skis: LoneSki[];
+};
+
+/** ONE SKI WITHOUT ITS SKIER (`lone-skis.ts`): a stick the length of the
+ * ski, its two ends meeting the snow and the trunks on their own, turned
+ * about its length by `up`. Written by `stepLoneSkis` only; the renderer
+ * lays the ski on it. */
+export type LoneSki = {
+  /** −1 the left ski, +1 the right. */
+  side: number;
+  /** Seconds left in its binding: while held it goes with his foot. */
+  held: number;
+  /** Where the boot stood along it, a share of its length from the tail. */
+  mount: number;
+  /** The tip and the tail of its base, x y z each, world frame, m, and
+   * where they were a step ago — the velocity is the difference. */
+  ends: number[];
+  last: number[];
+  /** The wrench it leaves its binding with, each end's, m a step — handed
+   * to the held one when it lets go. */
+  kick: number[];
+  /** Out of its topsheet, unit, world frame: square to the tail-to-tip. */
+  up: number[];
+  /** Its turn about its own length, rad/s (right-handed about the tip). */
+  spin: number;
+  /** Which end is on the snow, one bit each: 1 the tip, 2 the tail. */
+  touching: number;
 };
 
 /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): the worst injury on each
@@ -510,6 +539,10 @@ export type Progress = {
   /** How far the skier has skied, m of plan distance — a reset's jump not
    * counted. The free ride's odometer; a race keeps it too. */
   distance: number;
+  /** THE RUNS A FREE RIDE HAS SKIED (`skied.ts`), by id — the ski area's
+   * runs (R27), or the map's own piste off one — the one skied last LAST.
+   * Where its reset and its restart stand the skier; a race keeps it empty. */
+  skied: string[];
   /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */

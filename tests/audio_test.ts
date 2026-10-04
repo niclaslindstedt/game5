@@ -19,7 +19,15 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createGame, placeRun, withSky, type GameEvent, type GameState } from "@engine";
+import {
+  TUNING,
+  createGame,
+  placeRun,
+  step,
+  withSky,
+  type GameEvent,
+  type GameState,
+} from "@engine";
 
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";
 import {
@@ -32,7 +40,8 @@ import {
 } from "../pwa/src/game/audio/wind-voice.ts";
 import { LISTENERS, listenerFor } from "../pwa/src/game/audio/listener.ts";
 import { DEFAULT_VOLUME, playDef } from "@niclaslindstedt/oss-game-framework/audio/play";
-import { createRideBed } from "../pwa/src/game/audio/ride-bed.ts";
+import { createRideBed, plantVoice } from "../pwa/src/game/audio/ride-bed.ts";
+import { gaitOf } from "../pwa/src/game/skier-gait.ts";
 import { heardFrom, soundForEvent, soundsForStep, trunkAt } from "../pwa/src/game/audio/route.ts";
 import {
   NEUTRAL_SKI,
@@ -54,7 +63,7 @@ import {
   type Synth,
   type ToneOptions,
 } from "@niclaslindstedt/oss-game-framework/audio/voice";
-import { syntheticLevel } from "./support/synthetic.ts";
+import { flatLevel, syntheticLevel } from "./support/synthetic.ts";
 
 /** One layer the recorder built: what it was made of, every target it was
  * steered to, and whether it is still standing. */
@@ -608,6 +617,85 @@ describe("the ride bed (ride-bed.ts)", () => {
     bed.update(state, 1 / 60);
     expect(bed.ground().new + bed.ground().wet).toBeGreaterThan(0.5);
     expect(bed.ground().groomed).toBe(0);
+  });
+
+  it("hears a pole plant off the snow it goes into: a tick, a pat, then nothing", () => {
+    // The groomer: the tip's tick alone.
+    expect(plantVoice(1, 0)).toEqual({ tick: 1, pat: 0, muffle: 1 });
+    // A hand of loose snow: a pat, muffled; deeper, quieter and darker.
+    const shallow = plantVoice(0, 0.1);
+    const deeper = plantVoice(0, 0.4);
+    expect(shallow.tick).toBe(0);
+    expect(shallow.pat).toBeGreaterThan(deeper.pat);
+    expect(deeper.pat).toBeGreaterThan(0);
+    expect(deeper.muffle).toBeLessThan(shallow.muffle);
+    // Deep powder swallows it.
+    expect(plantVoice(0, 1)).toMatchObject({ tick: 0, pat: 0 });
+  });
+
+  /** Skating off a standstill on the flat with the tuck held, the bed fed
+   * every step: the one-shots it played. */
+  function plants(packed: number, depth = 1, poles = true) {
+    const rec = recorder();
+    const bed = createRideBed(rec);
+    const state = createGame({
+      level: flatLevel({ packed }),
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+      snowDepth: depth,
+      poles,
+    });
+    placeRun(state, { x: 1500, z: 200, heading: 0, speed: 1 });
+    for (let i = 0; i < 4 * TUNING.physicsHz; i++) {
+      step(state, { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false });
+      bed.update(state, TUNING.dt);
+    }
+    return { rec, bed, state };
+  }
+
+  it("plants a pole where the figure plants one, and sounds the snow it goes into", () => {
+    const groomer = plants(1);
+    expect(groomer.state.skier.stride).toBeGreaterThan(2);
+    // A tick (its sine) for every stroke the gait draws, and only those.
+    expect(groomer.rec.tones.length).toBeGreaterThanOrEqual(
+      Math.floor(groomer.state.skier.stride) - 1,
+    );
+    expect(groomer.rec.tones.length).toBeLessThanOrEqual(Math.floor(groomer.state.skier.stride));
+    // Deep powder: the basket goes in without a sound.
+    const deep = plants(0, 2.5);
+    expect(deep.state.skier.stride).toBeGreaterThan(1);
+    expect(deep.rec.tones.length + deep.rec.noises.length).toBe(0);
+    // No poles, no plants.
+    const bare = plants(1, 1, false);
+    expect(bare.rec.tones.length + bare.rec.noises.length).toBe(0);
+  });
+
+  it("plants nothing while the arms have given the poles up, working or not", () => {
+    // A way under the push's fade but past where a stroke keeps up with
+    // the snow: he is still driving, and the figure has stopped poling.
+    const keepAt = (w: number) =>
+      gaitOf({ drive: 1, stride: 0.1, speed: w, way: w, airborne: false, thrown: null, pitch: 0 })
+        .keep;
+    let way = 1;
+    while (keepAt(way) > 0.001 && way < TUNING.poles.fade) way += 0.05;
+    expect(way).toBeLessThan(TUNING.poles.fade - 0.1);
+    const rec = recorder();
+    const bed = createRideBed(rec);
+    const state = going(way);
+    const c = state.skier;
+    c.vx = 0;
+    c.vz = way;
+    c.way = c.speed = way;
+    c.drive = 1;
+    c.crouch = 0;
+    c.pitch = 0;
+    for (const p of c.contacts) p.touching = true;
+    for (let i = 0; i < 120; i++) {
+      c.stride += 0.05;
+      bed.update(state, 1 / 60);
+    }
+    expect(rec.tones.length + rec.noises.length).toBe(0);
   });
 
   it("scales the whole bed by the duck under a card", () => {

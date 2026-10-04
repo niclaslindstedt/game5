@@ -90,6 +90,15 @@ export function snapInput(input: SkierInput): SkierInput {
   input.lean = snapAxis(input.lean, TAPE.lean);
   input.tuck = snapAxis(input.tuck, TAPE.tuck);
   input.brake = snapAxis(input.brake, TAPE.brake);
+  // A helicopter flown (`heli.ts`) on the same grid: a free ride keeps no
+  // tape, but the figure the engine flies on is still the figure snapped.
+  const h = input.heli;
+  if (h) {
+    h.collective = snapAxis(h.collective, "lever");
+    h.pitch = snapAxis(h.pitch, "signed");
+    h.roll = snapAxis(h.roll, "signed");
+    h.pedal = snapAxis(h.pedal, "signed");
+  }
   return input;
 }
 

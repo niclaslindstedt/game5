@@ -21,6 +21,11 @@
 // arrows and Escape on their way here — and the arrows are the edge,
 // which is exactly what somebody on this page is most likely to be binding.
 //
+// THE HELICOPTER HAS A TABLE OF ITS OWN (`settings-heli-keys.ts`), its rows
+// under their own heading: flying it is another game on the same keyboard,
+// read only while he sits on the skid, so a key may serve the skier and the
+// helicopter both without a clash.
+//
 // A KEY MAY SERVE TWO ACTIONS, and the manager applies every action a code
 // carries — but a key quietly doing two jobs is the one thing this page must
 // not hide, so the row says ALSO and the caption says what it means.
@@ -38,10 +43,21 @@ import {
   freshKeys,
   type KeyAction,
 } from "./settings-input.ts";
+import {
+  HELI_KEY_ACTIONS,
+  bindHeliKey,
+  freshHeliKeys,
+  heliClashesWith,
+  type HeliAction,
+} from "./settings-heli-keys.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What each action is called, for the note on a row that shares its key. */
 const LABELS = new Map(KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
+const HELI_LABELS = new Map(HELI_KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
+
+/** The row listening for its key: one of the skier's, or the helicopter's. */
+type Listening = { table: "ski"; id: KeyAction } | { table: "heli"; id: HeliAction };
 
 export function KeysPage({
   settings,
@@ -52,7 +68,7 @@ export function KeysPage({
   onSettings: (settings: Settings) => void;
   onBack: () => void;
 }) {
-  const [listening, setListening] = useState<KeyAction | null>(null);
+  const [listening, setListening] = useState<Listening | null>(null);
   const [hint, setHint] = useState<Hint | null>(null);
 
   // A LAYOUT effect, so the capture is armed in the same commit that draws
@@ -70,7 +86,13 @@ export function KeysPage({
       e.stopPropagation();
       setListening(null);
       if (e.code === "Escape") return;
-      onSettings({ ...settings, keys: bindKey(settings.keys, listening, e.code) });
+      if (listening.table === "ski")
+        onSettings({ ...settings, keys: bindKey(settings.keys, listening.id, e.code) });
+      else
+        onSettings({
+          ...settings,
+          heliKeys: bindHeliKey(settings.heliKeys, listening.id, e.code),
+        });
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
@@ -92,7 +114,7 @@ export function KeysPage({
                 key={entry.id}
                 label={entry.label}
                 bound={boundLabel(settings.keys[entry.id])}
-                listening={listening === entry.id}
+                listening={listening?.table === "ski" && listening.id === entry.id}
                 clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
                 hint={
                   clash.length > 0
@@ -101,7 +123,37 @@ export function KeysPage({
                 }
                 // A second press on a row that is already listening is how a
                 // player who changed their mind says so, with no key bound.
-                onListen={() => setListening(listening === entry.id ? null : entry.id)}
+                onListen={() =>
+                  setListening(
+                    listening?.table === "ski" && listening.id === entry.id
+                      ? null
+                      : { table: "ski", id: entry.id },
+                  )
+                }
+                onHint={setHint}
+              />
+            );
+          })}
+        </div>
+        <h3 class="knob-section">{STRINGS.keysHeliTitle}</h3>
+        <div class="knob-binds">
+          {HELI_KEY_ACTIONS.map((entry) => {
+            const clash = heliClashesWith(settings.heliKeys, entry.id);
+            const others = clash.map((id) => HELI_LABELS.get(id) ?? id).join(", ");
+            const on = listening?.table === "heli" && listening.id === entry.id;
+            return (
+              <BindRow
+                key={entry.id}
+                label={entry.label}
+                bound={boundLabel(settings.heliKeys[entry.id])}
+                listening={on}
+                clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
+                hint={
+                  clash.length > 0
+                    ? STRINGS.keysClashHint(entry.label, others)
+                    : STRINGS.keysRowHint(entry.label)
+                }
+                onListen={() => setListening(on ? null : { table: "heli", id: entry.id })}
                 onHint={setHint}
               />
             );
@@ -112,7 +164,7 @@ export function KeysPage({
         <button
           type="button"
           class="opt-reset"
-          onClick={() => onSettings({ ...settings, keys: freshKeys() })}
+          onClick={() => onSettings({ ...settings, keys: freshKeys(), heliKeys: freshHeliKeys() })}
         >
           {STRINGS.keysRestore}
         </button>

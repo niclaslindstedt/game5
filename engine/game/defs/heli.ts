@@ -36,29 +36,29 @@ export const HELI = {
   rotor: { radius: 5.35, blades: 3, rpm: 390, hub: 3.15, at: 0.15 },
   /** THE TAIL ROTOR: radius, m; blades; rpm; its hub (x right of the
    * boom's end — this class's tail rotor is on the right — y up, z aft), m. */
-  tail: { radius: 0.93, blades: 2, rpm: 2050, hub: { x: 0.36, y: 1.65, z: -6.55 } },
+  tail: { radius: 0.93, blades: 2, rpm: 2050, hub: { x: 0.36, y: 2.0, z: -5.9 } },
   /** THE AIRFRAME as the drawing and the crash read it, m: the nose's and
    * the tail fin's reach along z, the cabin's width and its roof, the
    * boom's height — and every point the crash tests against the snow
    * (`strike`, body frame). */
   body: {
     nose: 3.7,
-    tail: -6.88,
+    tail: -7.2,
     width: 1.86,
     floor: 0.72,
-    roof: 2.35,
-    boom: 1.75,
+    roof: 2.49,
+    boom: 1.88,
     strike: [
-      { x: 0, y: 0.75, z: 3.6 }, // the chin bubble
-      { x: 0, y: 1.2, z: -6.7 }, // the tail fin's foot
-      { x: 0, y: 2.5, z: -6.85 }, // the fin's top
-      { x: 0, y: 1.2, z: -4.0 }, // the boom's belly
-      { x: 0, y: 0.72, z: -6.55 }, // the tail rotor's lowest tip
+      { x: 0, y: 1.0, z: 3.5 }, // the chin bubble
+      { x: 0, y: 1.15, z: -6.75 }, // the ventral fin's foot
+      { x: 0, y: 3.37, z: -7.1 }, // the fin's top
+      { x: 0, y: 1.5, z: -4.0 }, // the boom's belly
+      { x: 0.36, y: 1.07, z: -5.9 }, // the tail rotor's lowest tip
     ],
   },
   /** THE SKIDS: the track between them, their fore and aft ends and the
    * tube's centre height above the datum, m, and the two cross tubes' z. */
-  skid: { track: 2.2, front: 1.6, back: -1.5, y: 0.04, tube: 0.04, cross: [0.95, -0.8] },
+  skid: { track: 2.2, front: 1.6, back: -1.5, y: 0.04, tube: 0.04, cross: [0.95, -0.55] },
   /** WHERE THE SKIER SITS, body frame, m: on the right skid's tube between
    * the cross tubes, facing out over it (+x). */
   seat: { x: 1.1, y: 0.08, z: 0.1 },
@@ -84,46 +84,73 @@ export const HELI = {
    * slip — the weathervane the pedals hold against. */
   vane: 0.002,
 
-  /** THE ARCADE PILOT — what the controls ask of the attitude and the
-   * collective, and the stabilisation that flies it there:
-   *   * `pitch` the nose down the tuck asks (and `back` up the brake asks),
-   *     rad;
-   *   * `bank` the most it rolls into a turn, rad; `turn` the yaw rate full
-   *     steer asks at the hover and `turnFast` at speed, rad/s (`turnAt`
-   *     the speed between, m/s);
-   *   * `climb` and `sink` the vertical speeds the lean asks, m/s — the
-   *     sink held to `sinkSlow` near the hover, where a faster descent
-   *     would settle the rotor into its own wash (the vortex ring, which
-   *     sets in at a quarter to a half of the hover's induced velocity);
-   *   * `attitude` the stabilisation's natural frequency, rad/s, and its
-   *     damping; `hold` the collective's gain on a vertical speed missed,
-   *     1/s;
-   *   * `lag` the collective's and the rotor's answer to a change, s;
-   *   * `coordinate` the share of the side slip the fin and the pilot's
-   *     feet take out each second, 1/s — the arcade's hand that keeps the
-   *     helicopter going the way it points. */
-  pilot: {
-    pitch: 0.36,
-    back: 0.22,
-    bank: 0.62,
-    turn: 1.0,
-    turnFast: 0.42,
-    turnAt: 35,
-    climb: 10,
-    sink: 9,
-    sinkSlow: 3,
-    attitude: 3.2,
-    damping: 0.85,
-    hold: 2.2,
+  /** THE FLIGHT, BY HAND — the rotor's authority and the airframe's own
+   * answer, with nothing of an autopilot between them (`heli.ts`):
+   *   * THE DISC. The cyclic tilts the rotor disc, and the thrust goes
+   *     where the disc points. `cyclic` is the pitch and roll acceleration
+   *     full cyclic gives the disc at full rpm, rad/s², and `damping` the
+   *     rotor's damping of a pitch and a roll rate, 1/s — so the cyclic
+   *     sets a rate, and let go the disc stays where it was left: neutral,
+   *     never levelling itself. `flapback` is the disc blown back by the
+   *     air through it, rad/s² per m/s: nose up in forward flight, away
+   *     from a sideways one — held off with the cyclic.
+   *   * THE FUSELAGE hangs under the hub like a pendulum (`hang`: its
+   *     natural frequency, rad/s, and its damping ratio) — swinging under
+   *     the disc as it is thrown about, and hanging off the centre line by
+   *     the weight of the skier on its skid.
+   *   * THE PEDALS. `pedal` is the yaw acceleration full pedal gives, rad/s²,
+   *     and `yawDamping` the tail rotor's and the fin's damping, 1/s; the
+   *     main rotor's TORQUE turns the nose left by `torque` rad/s² for
+   *     every share of the hover's thrust it pulls over it (and right as it
+   *     is lowered) — so the collective wants the pedals with it.
+   *   * THE COLLECTIVE is the thrust's share of what the rotor can give,
+   *     answered in `lag` s.
+   * `discMost` is the disc's tilt the angles are held inside, rad (an
+   * attitude past it is a machine already lost). */
+  flight: {
+    cyclic: { pitch: 1.6, roll: 2.2 },
+    damping: { pitch: 2.0, roll: 2.6 },
+    flapback: 0.004,
+    hang: { frequency: 4.5, damping: 0.35 },
+    pedal: 1.8,
+    yawDamping: 1.5,
+    torque: 1.2,
     lag: 0.3,
-    coordinate: 0.9,
+    discMost: 1.4,
+  },
+
+  /** THE BOT'S HANDS on the same controls (`heli-pilot.ts`) — what a link's
+   * pre-roll, a card's run behind it, the labs and the pilot flying home
+   * fly with:
+   *   * `cruise` the speed it makes for, m/s, `brake` how hard it plans to
+   *     slow, m/s², and `tilt` the most it tilts the disc for either, rad;
+   *   * `climb` and `sink` the vertical speeds it flies at most, m/s — the
+   *     sink held to `sinkSlow` near the hover, under the vortex ring's
+   *     onset (a quarter to half the hover's induced velocity);
+   *   * `attitude` its hands' natural frequency on the disc, rad/s, and
+   *     their damping ratio; `hold` its gain on a vertical speed missed, 1/s;
+   *   * `clear` the height over the snow it flies at with nothing asked, m,
+   *     and `settle` the sink it sets down at, m/s. */
+  pilot: {
+    cruise: 40,
+    brake: 1.6,
+    tilt: 0.35,
+    climb: 8,
+    sink: 6,
+    sinkSlow: 2.5,
+    attitude: 3,
+    damping: 0.9,
+    hold: 1.5,
+    clear: 45,
+    settle: 0.8,
   },
 
   /** THE ROTOR SPOOLED UP and down, its share of the full rpm a second. */
   spool: 0.22,
 
   /** ON THE SNOW AND INTO IT (`heli.ts`'s crash):
-   *   * `sink` the vertical speed the skids take on landing, m/s, and
+   *   * `sink` the vertical speed the skids take on landing, m/s (the gear
+   *     is certified for 2.5 with a reserve to 3.1), and
    *     `slide` the speed along the snow, m/s — past either it is a crash;
    *   * `tilt` the most the airframe may stand off the snow's own lean, and
    *     `slope` the steepest snow it can be landed on, rad (past it the
@@ -134,7 +161,7 @@ export const HELI = {
    *     crown, m;
    *   * `wreck` the seconds the wreck burns before the ride starts again
    *     from the pad. */
-  crash: { sink: 4.5, slide: 7, tilt: 0.2, slope: 0.16, clear: 0.15, wreck: 4.5 },
+  crash: { sink: 3.2, slide: 5, tilt: 0.2, slope: 0.16, clear: 0.15, wreck: 4.5 },
 
   /** BOARDING AT THE PAD: how near the seat a skier rides in to be taken
    * on, m, the fastest he may be going, m/s, and the seconds he is sat on
@@ -147,11 +174,10 @@ export const HELI = {
    * m, and the steepest snow it may stand on, rad. */
   pad: { radius: 14, slope: 0.08 },
 
-  /** THE PILOT FLYING HOME after the drop (`heli.ts`'s autopilot): the
-   * height over the snow he keeps, m, the speed he cruises at, m/s, and
-   * the distance out from the pad he comes down from, m, how hard he slows
-   * for it, m/s², and the beat he holds it level after the drop, s. */
-  home: { clear: 70, cruise: 45, approach: 120, brake: 1.6, beat: 1 },
+  /** THE PILOT FLYING HOME after the drop (`heli.ts`, on the bot's hands):
+   * the height over the snow he keeps, m, and the beat the controls stay
+   * where the skier left them before he takes them, s. */
+  home: { clear: 70, beat: 1 },
 
   /** THE ROTOR'S WASH (`washAt`): what momentum theory says comes off a
    * hovering disc — the induced velocity √(T / 2ρA), doubled in the far

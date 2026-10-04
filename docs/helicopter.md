@@ -1,6 +1,6 @@
 # The helicopter
 
-A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who rides in beside its right skid is sat on the skid, and then the player flies it anywhere on the mountain and as high as they like. Jumping pushes the skier off the skid, the skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes and burns where it came down, the skier on it is thrown, and a few seconds later the ride starts again from the pad.
+A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who rides in beside its right skid is sat on the skid, and then the player flies it by hand — every control theirs, nothing holding it — anywhere on the mountain and as high as they like. They land it and step off, or, where it cannot land, push off the skid. The skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes and burns where it came down, the skier on it is thrown, and a few seconds later the ride starts again from the pad.
 
 It is reached two ways:
 
@@ -41,7 +41,7 @@ The frame is the skier's: x right, y up, z forward. The origin is the SKID DATUM
 
 ## The flight
 
-The model is a rigid airframe hung under a thrust along its own up axis.
+The model is a rigid airframe hung under a rotor whose thrust points along its disc.
 
 **The thrust the rotor can give** comes from momentum theory (`thrustMost`). The power that reaches the induced flow, `HELI.power` (300 kW), buys thrust T at P = T·(v_c + v_i). The induced velocity comes from Glauert's forward-flight relation, v_i = v_h² / √(V² + (v_c + v_i)²), with v_h = √(T / 2ρA). So:
 
@@ -57,29 +57,36 @@ The air's density is held at 1.0 kg/m³ whatever the height. A real machine of t
 
 **The skier on the right skid** is weight off the centre line. His rolling moment leaves a hang of a few degrees to his side, which the stabilisation trims against. He is also mass the collective is lifting. When he jumps, the collective (which answers in `pilot.lag`, 0.3 s) is still lifting him, so the machine lurches up and rolls back off his side before the pilot takes it out.
 
-**The attitude** is flown by a stability augmentation: a damped spring (`pilot.attitude` rad/s, `pilot.damping`) onto the attitude the controls ask for. **The collective** holds the vertical speed asked, within what the rotor can give. The arcade's one extra hand is `pilot.coordinate`, which takes the side slip out so the machine goes where it points.
+**It is flown by hand, and nothing flies it for you** (`HELI.flight`). There is no stability augmentation, no height hold, no heading hold and no turn coordination: it is a mode of its own inside the ski game, and it is meant to be hard.
+
+- **The collective** is a lever. It sets the thrust's share of what the rotor can give, answered in `flight.lag` (0.3 s), and it stays where it is left. The height held is your hand's. About 0.7 hovers; ground effect helps near the snow.
+- **The cyclic tilts the rotor disc**, and the thrust goes where the disc points. It sets a rate against the rotor's damping. Let go, and the disc stays where it was left: it never levels itself. The air through the disc blows it back (the flapback, `flight.flapback`), so the nose comes up as the speed builds and forward flight needs forward cyclic held.
+- **The fuselage hangs under the hub** as a damped pendulum (`flight.hang`), swinging under the disc as it is thrown about. The skier's weight on the skid hangs it a degree or two to his side: his share of the mass over the hub's height above the centre of gravity. When he jumps it swings back, and the collective, still lifting his weight, lurches it up.
+- **The pedals** turn it against the tail rotor's and the fin's damping. The main rotor's torque swings the nose left as the collective comes up (`flight.torque`), so every change of collective wants the pedals with it. The fin turns the nose into a crosswind.
+- **The air** drags on the front, side and plan areas against the weather's wind where it flies. Nothing takes the side slip out.
+
+**The bot's hands** (`heli-pilot.ts`) are the proof that it can be flown. They are a cascade on the same four controls the player has, flying the bare physics: position to velocity to acceleration to disc tilt to cyclic, height to climb to collective, and the way it is going to heading to pedals. They fly a link's pre-roll, a card's run behind it, the labs' scenes, and the machine home after the drop.
 
 ## The controls
 
-The controls are the skier's own, read as an arcade pilot's (`controlsOf`). `input-model.ts`'s `sampleInput` is told the skier is flying, so nothing leans off the tuck key in the air and the edge thumb pulled down is not the back key.
+Flying has a key table of its own (`settings-heli-keys.ts`, `Settings.heliKeys`, rebindable under OPTIONS ▸ KEYS ▸ HELICOPTER). The input manager reads it, and not the skier's, while the skier sits on the skid (`input.ts`, `input-model.ts`'s `sampleHeli`, `SkierInput.heli`).
 
-| | Keys | Touch | Does |
-| --- | --- | --- | --- |
-| Tuck | W | the lever (a thumb on it) | noses down, flies forward |
-| Back key | S | the lever slid up past its shut mark | noses up, slows and stops |
-| Edges | A / D, ← / → | the edge thumb across | turns it, banked as a coordinated turn (tan φ = Vω / g) |
-| Lean forward | ↑, Q, Z | the edge thumb pushed up | climbs, to 10 m/s |
-| Lean back | ↓, E, Shift | the edge thumb pulled down | sinks, held to 3 m/s near the hover (the vortex ring sets in at a quarter to half the hover's induced velocity) and to 9 m/s at speed |
-| Jump | Space | a double tap on either thumb's zone | pushes the skier off the skid |
-| Reset | R | the reset press | back on the pad |
+| | Keys | Touch |
+| --- | --- | --- |
+| Collective up / down | ↑ / ↓, Shift / Z | the left thumb pushed up / pulled down (moves the lever while held) |
+| Cyclic fore and aft | W / S | the right thumb's stick up / down |
+| Cyclic left and right | A / D | the right thumb's stick left / right |
+| Pedals | Q / E, ← / → | the left thumb left / right |
+| Jump off | Space | a double tap on either thumb |
+| Back to the pad | R | the reset press |
 
-The drone's left-stick layout is the same idea: one thumb owns the height and the turn, the other the speed. On the snow, the tuck or a steer alone lifts the machine into a low hover, so pressing forward takes off.
+On touch, the right thumb's zone becomes a sprung cyclic stick (`StickZone`) while flying, and the left thumb works the collective and the pedals, as a drone's two sticks do. The HUD reads like a cockpit (`hud-heli.tsx`): the DROP under the skids and the climb, an artificial horizon, and the collective's gauge.
 
 ## The pad, the drop and the pilot
 
 **The pad** (`helipadOf`) is a level patch of the hub's open snow (R29), as near the village as one lies. The rotor's sweep plus a margin must be clear of every trunk, every lift line and bottom station, and both wind tunnels. A map with no hub puts it beside the finish.
 
-**The drop** sends the skier off the seat with the machine's velocity plus `HELI.drop` (out over the skid and a little up). He faces the way it was flying, or out over the skid at the hover. From there he is an ordinary skier in the air: the flight, the landing load (`flight.ts`), the wipeout, the ragdoll and the injuries (`crash.ts`, `body.ts`) are the game's own. Deep powder gives more than a groomer, and a skier who leaves the skid high enough reaches the snow at the speed of a long fall.
+**Landing is the ordinary way off.** Set it down on snow flat enough (`crash.slope`, about 9°), slowly enough (`crash.sink`, 3.2 m/s; the gear is certified for 2.5) and level enough, and press the jump to step off onto the snow. The pilot shuts down where it stands. Where the snow is too steep to land on, **the drop** is the way off: it sends the skier off the seat with the machine's velocity plus `HELI.drop` (out over the skid and a little up). He faces the way it was flying, or out over the skid at the hover. From there he is an ordinary skier in the air: the flight, the landing load (`flight.ts`), the wipeout, the ragdoll and the injuries (`crash.ts`, `body.ts`) are the game's own. Deep powder gives more than a groomer, and a skier who leaves the skid high enough reaches the snow at the speed of a long fall.
 
 **The pilot** holds the machine level for a beat (`home.beat`). He then climbs to `home.clear` over the snow ahead, flies home at `home.cruise`, slows in time to stop over the pad, comes down onto it and shuts down. A parked machine can be boarded again.
 
@@ -89,11 +96,11 @@ A crash ends the flight. It happens when, while the player flies:
 
 - the rotor disc's rim meets the snow, or meets a crown it sweeps (a tree's cone at the disc's height);
 - the chin, the boom or the fin meets the snow;
-- the skids touch down faster than `crash.sink` (4.5 m/s; the gear is certified for 2.5) or `crash.slide` along the snow;
+- the skids touch down faster than `crash.sink` (3.2 m/s; the gear is certified for 2.5 with a reserve to 3.1) or `crash.slide` along the snow;
 - the airframe stands more than `crash.tilt` off the snow's lean;
-- the snow is steeper than `crash.slope`. A flight manual's slope limits are 6–10°, and a machine pivoting on one skid is past saving at 5–8°. Both are held a little wider here for the arcade.
+- the snow is steeper than `crash.slope`. A flight manual's slope limits are 6–10°, and a machine pivoting on one skid is past saving at 5–8°. Both are held a little wider here.
 
-The wreck burns for `crash.wreck` seconds. A skier aboard is thrown by the blast (the `heli` crash cause, with its own tumble in `defs/crash.ts`). Then the ride starts again on the pad. A machine that crashes with nobody on it never happens: only the player's flying is tested against the mountain.
+The wreck burns for `crash.wreck` seconds. A skier aboard is thrown by the blast (the `heli` crash cause, with its own tumble in `defs/crash.ts`). Then the ride starts again on the pad. The pilot flying home is tested against the mountain too. If he ever flies it in, a fresh machine waits on the pad when the fire is out.
 
 ## The wash
 
@@ -132,3 +139,4 @@ The sound is `docs/audio.md`'s. In brief:
 
 - `npx vitest run tests/heli_test.ts`: the thrust against momentum theory, the climb with no ceiling, the hang toward the skier, the turn, the drop and the lurch, the pilot home, the boarding, the crash and the restart, the wash, and determinism.
 - `make screenshots ARGS="--surface heli-pad,heli-wash,heli"` (after `make build`): the machine on its pad, lifting off into its wash, and flown up the mountain by the pre-roll's pilot (`pilotInput`).
+- `make heli`: the helicopter lab — every event staged deterministically on the game's own renderer and laid out on contact sheets.

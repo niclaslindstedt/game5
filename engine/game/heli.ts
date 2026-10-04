@@ -1,55 +1,46 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HELICOPTER — a free ride's way up the mountain with no lift at all
 // (`RunRules.heli`, `docs/helicopter.md`). It stands on its pad on the
-// valley floor (`heli-pad.ts`); a skier who rides in beside its right skid
-// is sat on the skid, and then the PLAYER FLIES IT, anywhere and as high as
-// he likes — there is no ceiling, by design — until he pushes off the skid
-// (the jump), when the skis are his again and the pilot flies the machine
-// home to its pad. Flown into the snow, a crown or a slope too steep to set
-// down on, it CRASHES: it burns where it came down, the skier on it is
-// thrown, and a few seconds later the ride starts again from the pad.
+// valley floor (`heli-pad.ts`); a skier who rides in beside its skid is sat
+// on the skid, and then the PLAYER FLIES IT — by hand, every control his
+// and nothing between him and the rotor — anywhere and as high as he likes
+// (there is no ceiling, by design). He lands it where the snow lets him and
+// steps off, or pushes off the skid (the jump) where it cannot land; the
+// skis are his again, and the machine is flown home by its pilot. Flown
+// into the snow, a crown or a slope too steep to set down on, it CRASHES:
+// it burns where it came down, the skier on it is thrown, and a few
+// seconds later the ride starts again from the pad.
 //
-// THE FLIGHT IS MOMENTUM THEORY UNDER AN ARCADE PILOT. The physics is a
-// rigid airframe hung under a thrust along its own up axis:
-//   * the THRUST the rotor can give is what the engine's power buys through
-//     the induced flow (`thrustMost`): P = T·(v_c + v_i), the induced
-//     velocity off Glauert's forward-flight relation v_i = v_h² / √(V² +
-//     (v_c + v_i)²), v_h = √(T / 2ρA) — so it gives more in forward flight
-//     (the translational lift) and less climbing — less the parasite power
-//     ½ρfV³ at speed, and more again in GROUND EFFECT (Cheeseman & Bennett,
-//     1 / (1 − (R / 4z)²));
-//   * the AIR drags on the airframe's front, side and plan areas, against
-//     the weather's wind where it flies (`windAt`, brought to its height by
-//     the log law, `profileAt`), and turns its nose into a crosswind (the
-//     fin's weathervane), so a gust moves it and the pilot holds it;
-//   * THE SKIER on the right skid is weight off the centre line: a rolling
-//     moment the stabilisation trims against with a hang of a few degrees
-//     to that side, and an extra mass that leaves it the moment he jumps —
-//     the helicopter lurches up and away from him;
-//   * the ATTITUDE is flown by a stability augmentation — a damped spring
-//     onto the attitude the controls ask (`HELI.pilot.attitude`) — and the
-//     COLLECTIVE holds the vertical speed asked, within what the rotor
-//     can give.
-// The controls ask what an arcade pilot asks (`controlsOf`): the tuck noses
-// it down and away, the back key noses it up to stop, the steer turns it
-// (banked into a coordinated turn), and the lean climbs (forward) or sinks
-// (back) — and the arcade's hand takes the side slip out, so it goes where
-// it points.
+// THE FLIGHT (the numbers in `HELI.flight`):
+//   * THE COLLECTIVE is the thrust's share of what the rotor can give
+//     (`thrustMost`: momentum theory — the power through the induced flow,
+//     the translational lift, the parasite power, ground effect), answered
+//     in a fraction of a second. A lever: it stays where it is left.
+//   * THE CYCLIC tilts THE ROTOR DISC, and the thrust goes where the disc
+//     points. It sets a rate against the rotor's damping; let go, the disc
+//     stays where it was left — never levelling itself — and the air
+//     through it blows it back (the flapback), nose up as the speed comes.
+//   * THE FUSELAGE hangs under the hub as a damped pendulum, swinging under
+//     the disc as it is thrown about, and off the centre line by the weight
+//     of the skier on the skid; when he jumps it swings back, and the
+//     collective — still lifting him — lurches it up.
+//   * THE PEDALS turn it against the tail rotor's and the fin's damping; the
+//     main rotor's TORQUE swings the nose left as the collective comes up;
+//     the fin turns the nose into a crosswind.
+//   * THE AIR drags on the airframe's front, side and plan areas against the
+//     weather's wind where it flies — nothing takes the side slip out.
+// What a skier's input means sat on the skid is the app's
+// (`SkierInput.heli`); the bot's hands on the same four controls are
+// `heli-pilot.ts`'s.
 //
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run whose rules carry no helicopter never comes in here.
 
+import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
-  angleDiff,
-  clamp,
-  hypot,
-  hypot3,
-  smoothstep,
-} from "@niclaslindstedt/oss-game-framework/core/math";
-import {
+  fromAxisAngle,
   fromEuler,
   multiply,
-  fromAxisAngle,
   rotate,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { treesNear } from "./collision.ts";
@@ -59,25 +50,29 @@ import { HELI } from "./defs/heli.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { helipadOf } from "./heli-pad.ts";
+import { pilotControls } from "./heli-pilot.ts";
+import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
 import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
 import { profileAt, windAt, type Wind } from "./wind.ts";
-import type { GameEvent, GameState, HeliPhaseEvent, HeliState, SkierInput } from "./state.ts";
+import type {
+  GameEvent,
+  GameState,
+  HeliControls,
+  HeliPhaseEvent,
+  HeliState,
+  SkierInput,
+} from "./state.ts";
+
+export { heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
+export { pilotInput, type HeliAim } from "./heli-pilot.ts";
 
 const K = HELI;
-const P = HELI.pilot;
-/** THE SEAT IN THE BODY FRAME. `HELI` states the machine as it is built
- * and drawn — x to its own right as a pilot sits in it, the side its tail
- * rotor is on and the skid opposite its ski basket. The engine's body x
- * runs the other way round on the screen (the renderer's frame mirrors the
- * map — `input-model.ts`'s `SCREEN_TO_ENGINE`), so a point off `HELI`
- * comes into the body frame with its x turned. */
-const SEAT = { x: -K.seat.x, y: K.seat.y, z: K.seat.z };
+const F = HELI.flight;
 /** The way out over the seat's skid, body frame (unit), and the turn from
  * the machine's heading to the way he faces sat there, rad. */
 const OUT = { x: Math.sign(SEAT.x), y: 0, z: 0 };
 const FACE = (Math.sign(SEAT.x) * Math.PI) / 2;
-const AREA = Math.PI * K.rotor.radius ** 2;
 /** The rotor's turn a second at full rpm, rad/s; the tail's. */
 const OMEGA = (K.rotor.rpm / 60) * 2 * Math.PI;
 const TAIL_OMEGA = (K.tail.rpm / 60) * 2 * Math.PI;
@@ -87,6 +82,8 @@ const TAIL_OMEGA = (K.tail.rpm / 60) * 2 * Math.PI;
  * what the seated pose reads back (`seatHang`). */
 export const HANG_GROUND = 0.92;
 export const HANG_AIR = 0.55;
+/** The controls let go: the collective down, the rest centred. */
+const DOWN: HeliControls = { collective: 0, pitch: 0, roll: 0, pedal: 0 };
 
 /** A helicopter parked on `level`'s pad, the rotor still. */
 export function freshHeli(state: GameState): HeliState {
@@ -100,9 +97,10 @@ export function freshHeli(state: GameState): HeliState {
     vy: 0,
     vz: 0,
     heading: pad.heading,
-    aim: pad.heading,
     pitch: 0,
     roll: 0,
+    disc: { pitch: 0, roll: 0, pitchRate: 0, rollRate: 0 },
+    controls: { ...DOWN },
     yawRate: 0,
     pitchRate: 0,
     rollRate: 0,
@@ -121,23 +119,8 @@ export function freshHeli(state: GameState): HeliState {
   };
 }
 
-/** The helicopter's orientation, body to world. */
-export function heliQuat(h: HeliState) {
-  return fromEuler(h.heading, h.pitch, h.roll);
-}
-
-/** A point of the airframe, body frame (x right, y up, z forward, off the
- * skid datum), in the world. */
-export function heliPoint(
-  h: HeliState,
-  p: { x: number; y: number; z: number },
-): { x: number; y: number; z: number } {
-  const w = rotate(heliQuat(h), p);
-  return { x: h.x + w.x, y: h.y + w.y, z: h.z + w.z };
-}
-
-/** THE SEAT on the right skid, in the world, and the way he faces — out
- * over the skid — as an orientation. */
+/** THE SEAT on the skid, in the world, and the way he faces — out over the
+ * skid — as an orientation. */
 function seatFrame(h: HeliState) {
   const q = heliQuat(h);
   const top = heliPoint(h, SEAT);
@@ -184,16 +167,17 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   // The rotor up to speed with a rider on, down without.
   const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
   h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
-  const ask = h.mode === "flown" ? controlsOf(h, input) : h.mode === "home" ? homeward(run) : PARK;
-  fly(run, h, ask, events);
+  h.controls = controlsFor(run, h, input);
+  fly(run, h, h.controls, events);
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);
   h.tailRotor = (h.tailRotor + TAIL_OMEGA * h.spool * dt) % (2 * Math.PI);
-  if (h.mode === "flown") strike(run, h, events);
+  if (h.mode === "flown" || h.mode === "home") strike(run, h, events);
   if (!h.rider) {
     h.jumpWas = !!input.jump;
     return false;
   }
-  // THE DROP: the jump's press pushes him off the skid.
+  // THE DROP: the jump's press pushes him off the skid — or, landed, he
+  // steps off it onto the snow.
   const press = !!input.jump && !h.jumpWas;
   h.jumpWas = !!input.jump;
   if (press && h.mode === "flown") {
@@ -204,121 +188,42 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   return true;
 }
 
-/** What the controls ask of the airframe: the pitch and roll to hold, rad,
- * the yaw rate, rad/s, and the vertical speed, m/s. */
-type Ask = { pitch: number; roll: number; yaw: number; climb: number };
-
-const PARK: Ask = { pitch: 0, roll: 0, yaw: 0, climb: -2 };
-
-/** THE ARCADE PILOT: the tuck noses down for speed, the back key (the
- * brake, or the edge cut harder) noses up to stop, the steer turns —
- * banked as a coordinated turn at the speed it is going, tan φ = Vω / g —
- * and the lean climbs (forward, negative) or sinks (back), the sink held
- * slow near the hover. On the snow the tuck or the steer alone lifts it
- * off into a low hover. */
-function controlsOf(h: HeliState, input: SkierInput): Ask {
-  const fwd = Math.sin(h.heading) * h.vx + Math.cos(h.heading) * h.vz;
-  const flat = hypot(h.vx, h.vz);
-  const back = Math.max(input.brake, input.carve ? 1 : 0);
-  const pitch = back > 0.05 ? P.back * back : -P.pitch * input.tuck;
-  const turnMost = P.turn + (P.turnFast - P.turn) * smoothstep(0, P.turnAt, flat);
-  // With the steer let go the pilot's feet hold the heading it was left on
-  // against the fin's weathervane in a crosswind.
-  if (Math.abs(input.steer) > 0.05) h.aim = h.heading;
-  const yaw =
-    Math.abs(input.steer) > 0.05
-      ? clamp(input.steer, -1, 1) * turnMost
-      : clamp(angleDiff(h.heading, h.aim) * 2, -P.turnFast, P.turnFast);
-  const roll = clamp(Math.atan((Math.max(0, fwd) * yaw) / TUNING.g), -P.bank, P.bank);
-  const sinkMost = P.sinkSlow + (P.sink - P.sinkSlow) * smoothstep(5, 20, flat);
-  let climb = input.lean < 0 ? -input.lean * P.climb : -input.lean * sinkMost;
-  if (h.grounded && climb <= 0 && (input.tuck > 0.1 || Math.abs(input.steer) > 0.1)) climb = 2;
-  return { pitch, roll, yaw, climb };
-}
-
-/** THE PILOT FLYING HOME: up to a safe height over the snow ahead, across
- * to the pad at a cruise, slowed on the approach and set down on it. */
-function homeward(run: GameState): Ask {
-  const h = run.heli!;
-  // A beat to take the skier's weight off the controls, holding what it had.
-  if (h.t < K.home.beat) return { pitch: 0, roll: 0, yaw: 0, climb: 0 };
-  const pad = helipadOf(run.level);
-  const dx = pad.x - h.x;
-  const dz = pad.z - h.z;
-  const d = hypot(dx, dz);
-  const bearing = Math.atan2(dx, dz);
-  const fwd = Math.sin(h.heading) * h.vx + Math.cos(h.heading) * h.vz;
-  // The snow along the way, a few hundred metres out, and under it.
-  let high = run.level.groundAt(h.x, h.z);
-  const look = Math.min(d, 400);
-  for (let s = 40; s <= look; s += 40) {
-    high = Math.max(high, run.level.groundAt(h.x + (dx / d) * s, h.z + (dz / d) * s));
+/** THE CONTROLS THIS STEP: the player's, flying it; the pilot's flying it
+ * home — after a beat with the controls where the skier left them, which is
+ * the lurch as his weight leaves the skid; and on the pad, let go. */
+function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliControls {
+  if (h.mode === "flown") {
+    const c = input.heli ?? DOWN;
+    return {
+      collective: clamp(c.collective, 0, 1),
+      pitch: clamp(c.pitch, -1, 1),
+      roll: clamp(c.roll, -1, 1),
+      pedal: clamp(c.pedal, -1, 1),
+    };
   }
-  // Slowed in time to stop over the pad (`home.brake` m/s² of it), and
-  // slowed too while it is still turned off its way.
-  const off = angleDiff(h.heading, bearing);
-  const want =
-    Math.min(K.home.cruise, Math.sqrt(2 * K.home.brake * Math.max(0, d - 6))) *
-    Math.max(0.15, Math.cos(Math.min(Math.PI / 2, Math.abs(off))));
-  const flat = hypot(h.vx, h.vz);
-  const final = d < 18 && flat < 6;
-  const cruise = high + K.home.clear * smoothstep(20, K.home.approach, d) + 8;
-  const climb = final
-    ? -clamp((h.agl - K.rotor.hub) * 0.3, 1.2, P.sinkSlow)
-    : clamp((cruise - h.y) * 0.4, -P.sinkSlow, P.climb);
-  const turn = P.turn + (P.turnFast - P.turn) * smoothstep(0, P.turnAt, flat);
-  const yaw = d > 6 ? clamp(off * 1.5, -turn, turn) : 0;
-  const pitch = clamp((fwd - want) * 0.05, -P.pitch, P.back);
-  return {
-    pitch,
-    roll: clamp(Math.atan((Math.max(0, fwd) * yaw) / TUNING.g), -0.4, 0.4),
-    yaw,
-    climb,
-  };
-}
-
-/** WHAT THE ROTOR CAN GIVE, N, at full rpm: the thrust momentum theory
- * says the power buys going `along` m/s through the air and climbing `vc`
- * m/s (Glauert's induced velocity, the parasite power at speed taken off
- * first), in ground effect `over` m of hub height over the snow. */
-export function thrustMost(along: number, vc: number, over: number): number {
-  const rho = K.density;
-  const avail = Math.max(K.power * 0.25, K.power - 0.5 * rho * K.flatPlate * along ** 3);
-  let t = K.mass * TUNING.g * 1.3;
-  for (let k = 0; k < 6; k++) {
-    const vh2 = t / (2 * rho * AREA);
-    // Below a descent of v_h the momentum stream reverses (the vortex ring):
-    // the relation is held at its edge.
-    const c = Math.max(vc, -Math.sqrt(vh2));
-    let vi = Math.sqrt(vh2);
-    for (let j = 0; j < 4; j++) vi = vh2 / Math.max(0.5, hypot(along, c + vi));
-    const need = t * Math.max(0.5, c + vi);
-    t *= (avail / need) ** (2 / 3);
+  if (h.mode === "home") {
+    if (h.t < K.home.beat) return h.controls;
+    const pad = helipadOf(run.level);
+    return pilotControls(run, { x: pad.x, z: pad.z, height: K.home.clear, land: true });
   }
-  const R = K.rotor.radius;
-  const z = Math.max(over, (R / 4) * 1.05);
-  const ground = Math.min(K.groundMost, 1 / (1 - (R / (4 * z)) ** 2));
-  return t * ground;
+  return { ...DOWN };
 }
 
 const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
-/** The mass flown: the machine and, while he is on its skid, the skier. */
-function massOf(run: GameState): number {
-  return K.mass + (run.heli!.rider ? totalMass(run.skier.spec) : 0);
-}
-
-/** ONE STEP OF FLIGHT: the attitude flown onto what is asked, the thrust
- * the collective holds the climb with, the air, the skids on the snow. */
-function fly(run: GameState, h: HeliState, ask: Ask, events: GameEvent[]): void {
+/** ONE STEP OF FLIGHT on `c`: the thrust off the collective along the disc,
+ * the air, the disc tilted by the cyclic, the fuselage swung under it, the
+ * pedals and the torque, and the skids on the snow. */
+function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[]): void {
   const dt = TUNING.dt;
   const level = run.level;
-  const m = massOf(run);
+  const m = heliMass(run);
   const g = TUNING.g;
   const q = heliQuat(h);
-  const up = rotate(q, { x: 0, y: 1, z: 0 });
   const right = rotate(q, { x: 1, y: 0, z: 0 });
   const fwd = rotate(q, { x: 0, y: 0, z: 1 });
+  const up = rotate(q, { x: 0, y: 1, z: 0 });
+  const thrustUp = rotate(discQuat(h), { x: 0, y: 1, z: 0 });
   const hub = heliPoint(h, { x: 0, y: K.rotor.hub, z: K.rotor.at });
   const ground = level.groundAt(h.x, h.z);
   h.agl = hub.y - level.groundAt(hub.x, hub.z);
@@ -338,49 +243,66 @@ function fly(run: GameState, h: HeliState, ask: Ask, events: GameEvent[]): void 
   let fx = fwd.x * df + right.x * ds + up.x * du;
   let fy = fwd.y * df + right.y * ds + up.y * du;
   let fz = fwd.z * df + right.z * ds + up.z * du;
-  // THE ARCADE'S HAND: the side slip over the snow taken out.
-  const slip = h.vx * right.x + h.vz * right.z;
-  fx -= m * P.coordinate * slip * right.x;
-  fz -= m * P.coordinate * slip * right.z;
-  // THE COLLECTIVE: the thrust that holds the climb asked, as far as the
-  // rotor gives (`thrustMost`, at the rotor's speed squared).
+  // THE COLLECTIVE: its share of what the rotor gives (at the rotor's speed
+  // squared), answered in `flight.lag` — so a skier pushing off the skid
+  // leaves a machine lifting for his weight too.
   const along = hypot(ax, az);
   const most = thrustMost(along, Math.max(-20, ay), h.agl) * h.spool * h.spool;
-  const wantAy = P.hold * (ask.climb - h.vy);
-  let thrust = (m * (g + wantAy) - fy) / Math.max(0.4, up.y);
-  if (h.grounded && ask.climb <= 0) thrust = Math.min(thrust, m * g * 0.5);
-  // The collective and the rotor answer in a fraction of a second, not at
-  // once: so a skier pushing off the skid leaves a machine lifting for his
-  // weight too, and it lurches up off him before the pilot takes it out.
-  thrust = clamp(h.thrust + (thrust - h.thrust) * (1 - Math.exp(-dt / P.lag)), 0, most);
+  const want = c.collective * most;
+  const thrust = clamp(h.thrust + (want - h.thrust) * (1 - Math.exp(-dt / F.lag)), 0, most);
   h.thrust = thrust;
   h.collective = most > 0 ? thrust / most : 0;
-  fx += up.x * thrust;
-  fy += up.y * thrust - m * g;
-  fz += up.z * thrust;
+  fx += thrustUp.x * thrust;
+  fy += thrustUp.y * thrust - m * g;
+  fz += thrustUp.z * thrust;
   h.vx += (fx / m) * dt;
   h.vy += (fy / m) * dt;
   h.vz += (fz / m) * dt;
-  // THE ATTITUDE: a damped spring onto what is asked, with the rider's
-  // weight off the centre line rolling it to his side and the fin turning
-  // the nose into the relative wind.
-  const w2 = P.attitude * P.attitude;
-  const damp = 2 * P.damping * P.attitude;
-  const riderRoll = h.rider ? (totalMass(run.skier.spec) * g * SEAT.x) / K.inertia.roll : 0;
-  let pitchTo = ask.pitch;
-  let rollTo = ask.roll;
-  if (h.grounded) {
-    // On the snow it stands as the snow lies.
-    const lie = lieOf(run, h);
-    pitchTo = Math.max(lie.pitch, Math.min(lie.pitch + 0.03, pitchTo));
-    rollTo = lie.roll;
+  // ON THE SNOW, a machine sat on its skids stands as the snow lies, its
+  // disc with it; light on them it turns on its pedals.
+  const light = h.grounded && thrust > 0.6 * m * g;
+  const sat = h.grounded && thrust < 0.5 * m * g;
+  const lie = h.grounded ? lieOf(run, h) : null;
+  // THE DISC, flown by the cyclic against its damping and its flapback.
+  const d = h.disc;
+  const spool2 = h.spool * h.spool;
+  if (sat && lie) {
+    d.pitch = lie.pitch;
+    d.roll = lie.roll;
+    d.pitchRate = d.rollRate = 0;
+  } else {
+    d.pitchRate +=
+      (-F.cyclic.pitch * spool2 * c.pitch - F.damping.pitch * d.pitchRate + F.flapback * af) * dt;
+    d.rollRate +=
+      (F.cyclic.roll * spool2 * c.roll - F.damping.roll * d.rollRate - F.flapback * as) * dt;
+    d.pitch = clamp(d.pitch + d.pitchRate * dt, -F.discMost, F.discMost);
+    d.roll = clamp(d.roll + d.rollRate * dt, -F.discMost, F.discMost);
   }
-  h.pitchRate += (w2 * (pitchTo - h.pitch) - damp * h.pitchRate) * dt;
-  h.rollRate += (w2 * (rollTo - h.roll) - damp * h.rollRate + riderRoll) * dt;
-  const vane = K.vane * as * Math.min(40, Math.abs(af) + Math.abs(as));
-  h.yawRate += (3 * (ask.yaw - h.yawRate) + vane) * dt;
-  h.pitch += h.pitchRate * dt;
-  h.roll += h.rollRate * dt;
+  // THE FUSELAGE swung under the disc, hanging off the centre line by the
+  // skier's weight on the skid (his share of the mass, over the hub's
+  // height over the centre of gravity).
+  const w = F.hang.frequency;
+  const z2 = 2 * F.hang.damping * w;
+  const hang = h.rider
+    ? Math.atan2((totalMass(run.skier.spec) / m) * SEAT.x, K.rotor.hub - K.cog)
+    : 0;
+  if (lie && !light) {
+    h.pitch = lie.pitch;
+    h.roll = lie.roll;
+    h.pitchRate = h.rollRate = 0;
+  } else {
+    h.pitchRate += (w * w * (d.pitch - h.pitch) - z2 * h.pitchRate) * dt;
+    h.rollRate += (w * w * (d.roll + hang - h.roll) - z2 * h.rollRate) * dt;
+    h.pitch += h.pitchRate * dt;
+    h.roll += h.rollRate * dt;
+  }
+  // THE PEDALS, the torque, the fin.
+  if (h.grounded && !light) h.yawRate = 0;
+  else {
+    const torque = F.torque * (thrust / (m * g) - 1);
+    const vane = K.vane * as * Math.min(40, Math.abs(af) + Math.abs(as));
+    h.yawRate += (F.pedal * spool2 * c.pedal - F.yawDamping * h.yawRate - torque + vane) * dt;
+  }
   h.heading += h.yawRate * dt;
   if (h.heading > Math.PI) h.heading -= 2 * Math.PI;
   if (h.heading <= -Math.PI) h.heading += 2 * Math.PI;
@@ -394,20 +316,21 @@ function fly(run: GameState, h: HeliState, ask: Ask, events: GameEvent[]): void 
     const sink = -h.vy;
     const slide = hypot(h.vx, h.vz);
     h.y = under;
-    if (!was && h.mode === "flown" && landedHard(run, h, sink, slide)) {
+    if (!was && (h.mode === "flown" || h.mode === "home") && landedHard(run, h, sink, slide)) {
       crash(run, h, events, Math.max(sink, slide));
       return;
     }
     h.vy = Math.max(0, h.vy);
     // Skids on snow under a machine sat on them: held where they stand.
-    const hold = Math.exp(-6 * dt);
-    h.vx *= hold;
-    h.vz *= hold;
+    const held = Math.exp(-6 * dt);
+    h.vx *= held;
+    h.vz *= held;
     h.grounded = true;
     if (!was) {
       h.yawRate *= 0.2;
       say(run, events, "land", sink);
-      if (h.mode === "home") park(run, h, events);
+      const pad = helipadOf(level);
+      if (h.mode === "home" && hypot(h.x - pad.x, h.z - pad.z) < 15) park(run, h, events);
     }
   } else if (h.y > under + 0.05) {
     h.grounded = false;
@@ -504,9 +427,11 @@ function crash(run: GameState, h: HeliState, events: GameEvent[], speed: number)
   }
   h.vx = h.vy = h.vz = 0;
   h.yawRate = h.pitchRate = h.rollRate = 0;
+  h.disc.pitchRate = h.disc.rollRate = 0;
   h.spool = 0;
   h.thrust = 0;
   h.collective = 0;
+  h.controls = { ...DOWN };
 }
 
 /** Set down home on the pad: the pilot shuts down. */
@@ -576,7 +501,9 @@ function drop(run: GameState, h: HeliState, events: GameEvent[]): void {
     standSkier(run, c.x, c.z, Math.atan2(c.vx, c.vz) || h.heading);
   }
   say(run, events, "drop", hypot3(h.vx, h.vy, h.vz));
-  h.mode = "home";
+  // Landed, the pilot shuts down where it stands — there is nobody left to
+  // fly; in the air he takes the controls and flies it home.
+  h.mode = h.grounded ? "parked" : "home";
   h.t = 0;
 }
 
@@ -611,24 +538,6 @@ export function startAgain(run: GameState, events: GameEvent[]): void {
   mendBody(c.body);
   hold(run, h);
   say(run, events, "restart");
-}
-
-/** THE BOT'S HANDS ON THE HELICOPTER: up off the pad to a safe height over
- * the snow, then on up the mountain (−z, the face) at a steady clip,
- * climbing with it — what a card's run behind it and a link's pre-roll
- * fly. Never the jump: that is the player's. */
-export function pilotInput(run: GameState): SkierInput {
-  const h = run.heli!;
-  const over = h.y - run.level.groundAt(h.x, h.z);
-  const ahead = run.level.groundAt(h.x, h.z - 120) - run.level.groundAt(h.x, h.z);
-  const want = 45 + Math.max(0, ahead);
-  return {
-    steer: clamp(angleDiff(h.heading, Math.PI) * 1.5, -1, 1),
-    tuck: over > 25 ? 0.6 : 0,
-    brake: 0,
-    lean: clamp((over - want) * 0.08, -1, 1),
-    reset: false,
-  };
 }
 
 /** THE SEATED SKIER'S HANG: how far his body origin stands over the skid's

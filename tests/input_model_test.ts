@@ -33,7 +33,13 @@ import {
   leverTuck,
   neutralTouch,
   rampToward,
+  sampleHeli,
   sampleInput,
+  COLLECTIVE_KEY_RATE,
+  COLLECTIVE_THUMB_RATE,
+  NO_HELI_KEYS,
+  createHeliModel,
+  type HeliKeysHeld,
   type KeysHeld,
 } from "../pwa/src/game/input-model.ts";
 import { DEFAULT_KEYS, isHeldAction, type KeyAction } from "../pwa/src/game/settings-input.ts";
@@ -357,37 +363,49 @@ describe("the jump", () => {
   });
 });
 
-describe("the controls sat on the helicopter's skid (flying)", () => {
-  const fly = (keys: Partial<KeysHeld>, touch = neutralTouch(), steps = 60) => {
-    const model = createInputModel();
-    const held = { ...NO_KEYS, ...keys };
-    let input = sampleInput(model, held, touch, DT, false, false, true);
-    for (let i = 1; i < steps; i++) input = sampleInput(model, held, touch, DT, false, false, true);
-    return input;
+describe("the helicopter flown by hand (sampleHeli)", () => {
+  const run = (
+    keys: Partial<HeliKeysHeld>,
+    touch = neutralTouch(),
+    seconds = 1,
+    model = createHeliModel(),
+  ) => {
+    const held = { ...NO_HELI_KEYS, ...keys };
+    let out = sampleHeli(model, held, touch, DT);
+    for (let i = 1; i < Math.round(seconds / DT); i++) out = sampleHeli(model, held, touch, DT);
+    return { out, model };
   };
 
-  it("read the lean keys as the collective: forward climbs, back sinks", () => {
-    expect(fly({ leanForward: true }).lean).toBeLessThan(-0.9);
-    expect(fly({ leanBack: true }).lean).toBeGreaterThan(0.9);
+  it("works the collective as a lever: it moves while held and stays where it is left", () => {
+    const { out, model } = run({ collectiveUp: true }, neutralTouch(), 1);
+    expect(out.collective).toBeCloseTo(COLLECTIVE_KEY_RATE, 1);
+    const left = run({}, neutralTouch(), 2, model).out;
+    expect(left.collective).toBeCloseTo(out.collective, 5);
+    expect(run({ collectiveDown: true }, neutralTouch(), 5, model).out.collective).toBe(0);
   });
 
-  it("never lean off the tuck key, which stays the tuck", () => {
-    const w = fly({ tuck: true }, neutralTouch(), 240);
-    expect(w.lean).toBe(0);
-    expect(w.tuck).toBeGreaterThan(0.9);
+  it("ramps the cyclic and the pedals off their keys, the side axes through the flip", () => {
+    const { out } = run({ cyclicForward: true, cyclicRight: true, pedalRight: true });
+    expect(out.pitch).toBeGreaterThan(0.95);
+    expect(out.roll).toBeLessThan(-0.95);
+    expect(out.pedal).toBeLessThan(-0.95);
+    expect(Math.sign(out.roll)).toBe(SCREEN_TO_ENGINE);
   });
 
-  it("read the edge thumb pulled down as the sink, never the back key", () => {
-    const touch = { ...neutralTouch(), bar: true, lean: 0.8 };
-    const input = fly({}, touch);
-    expect(input.lean).toBeCloseTo(0.8);
-    expect(input.brake).toBe(0);
-  });
-
-  it("jump on a double tap on either zone, and only flying", () => {
-    const touch = { ...neutralTouch(), bar: true, tap2: true };
-    expect(fly({}, touch, 1).jump).toBe(true);
-    const model = createInputModel();
-    expect(sampleInput(model, NO_KEYS, touch, DT, false, false, false).jump).toBe(false);
+  it("reads the thumbs: the stick for the cyclic, the edge thumb for the pedals and the lever", () => {
+    const touch = {
+      ...neutralTouch(),
+      stick: true,
+      stickX: 0.5,
+      stickY: -0.25,
+      bar: true,
+      steer: -0.4,
+      lean: -1,
+    };
+    const { out } = run({}, touch, 1);
+    expect(out.pitch).toBeCloseTo(-0.25);
+    expect(out.roll).toBeCloseTo(0.5 * SCREEN_TO_ENGINE);
+    expect(out.pedal).toBeCloseTo(-0.4 * SCREEN_TO_ENGINE);
+    expect(out.collective).toBeCloseTo(COLLECTIVE_THUMB_RATE, 1);
   });
 });

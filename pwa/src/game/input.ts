@@ -34,13 +34,18 @@ import {
   type KeyBindings,
 } from "./settings-input.ts";
 import {
+  NO_HELI_KEYS,
   NO_KEYS,
+  createHeliModel,
   createInputModel,
   neutralTouch,
+  sampleHeli,
   sampleInput,
+  type HeliKeysHeld,
   type KeysHeld,
   type TouchChannel,
 } from "./input-model.ts";
+import { DEFAULT_HELI_KEYS, type HeliAction, type HeliBindings } from "./settings-heli-keys.ts";
 
 export type { InputAction };
 
@@ -57,9 +62,10 @@ export type InputManager = {
   requestReset: () => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
-  /** Ride on a new keyboard (OPTIONS ▸ KEYS). Every held key is let go:
-   * a key down under the old layout has no keyup under the new one. */
-  setBindings: (bindings: KeyBindings) => void;
+  /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
+   * helicopter's (`settings-heli-keys.ts`). Every held key is let go: a key
+   * down under the old layout has no keyup under the new one. */
+  setBindings: (bindings: { keys: KeyBindings; heliKeys?: HeliBindings }) => void;
   dispose: () => void;
 };
 
@@ -79,6 +85,19 @@ export function createInputManager(
 ): InputManager {
   const model = createInputModel();
   const keys: KeysHeld = { ...NO_KEYS };
+  // THE HELICOPTER'S HAND: its own table and its own held keys, read only
+  // while he sits on the skid — and the collective lever, put back down
+  // whenever he is off it.
+  const heli = createHeliModel();
+  const heliKeys: HeliKeysHeld = { ...NO_HELI_KEYS };
+  const heliByCode = new Map<string, HeliAction[]>();
+  const indexHeli = (next: HeliBindings): void => {
+    heliByCode.clear();
+    for (const [action, codes] of Object.entries(next) as [HeliAction, string[]][]) {
+      for (const code of codes) heliByCode.set(code, [...(heliByCode.get(code) ?? []), action]);
+    }
+  };
+  indexHeli(DEFAULT_HELI_KEYS);
   const touch = neutralTouch();
   let reset = false;
   let onAction: (action: InputAction) => void = () => {};
@@ -108,13 +127,23 @@ export function createInputManager(
    * the gap between two steps (a slow frame, a quick finger) is still the
    * push off the helicopter's skid, still a pop off the snow. */
   let jumped = false;
+  let heliJumped = false;
 
   const onKeyDown = (e: KeyboardEvent): void => {
-    const actions = byCode.get(e.code);
-    if (!actions) return;
     // A browser shortcut on its way past is not a press on the skis.
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     let took = false;
+    for (const action of heliByCode.get(e.code) ?? []) {
+      if (!claiming()) continue;
+      heliKeys[action] = true;
+      if (action === "jump" && !e.repeat) heliJumped = true;
+      took = true;
+    }
+    const actions = byCode.get(e.code);
+    if (!actions) {
+      if (took) e.preventDefault();
+      return;
+    }
     for (const action of actions) {
       if (isHeldAction(action)) {
         if (!claiming()) continue;
@@ -143,11 +172,13 @@ export function createInputManager(
     for (const action of byCode.get(e.code) ?? []) {
       if (isHeldAction(action)) keys[action] = false;
     }
+    for (const action of heliByCode.get(e.code) ?? []) heliKeys[action] = false;
   };
   // A key held while the window loses focus never sends its keyup: the skis
   // would ride off at full tuck behind a dialog.
   const onBlur = (): void => {
     for (const k of Object.keys(keys) as (keyof KeysHeld)[]) keys[k] = false;
+    for (const k of Object.keys(heliKeys) as HeliAction[]) heliKeys[k] = false;
   };
 
   target.addEventListener("keydown", onKeyDown);
@@ -160,8 +191,15 @@ export function createInputManager(
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
+      if (flying) {
+        // Sat on the skid the helicopter's table is the hand: its four
+        // controls, and its own jump.
+        input.heli = sampleHeli(heli, heliKeys, touch, dt);
+        input.jump = heliKeys.jump || heliJumped || touch.tap2;
+      } else heli.collective = 0;
       reset = false;
       jumped = false;
+      heliJumped = false;
       touch.tap2 = false;
       return input;
     },
@@ -174,7 +212,8 @@ export function createInputManager(
     },
     setBindings: (next) => {
       onBlur();
-      index(next);
+      index(next.keys);
+      indexHeli(next.heliKeys ?? DEFAULT_HELI_KEYS);
     },
     dispose: () => {
       target.removeEventListener("keydown", onKeyDown);

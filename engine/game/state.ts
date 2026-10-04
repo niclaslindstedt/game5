@@ -50,7 +50,25 @@ export type SkierInput = {
    * held on the snow, and springs off them the step it is let go, the
    * higher the longer it was held (`TUNING.jump`). Left out, it is off. */
   jump?: boolean;
+  /** THE HELICOPTER'S CONTROLS (`heli.ts`), while he sits on its skid and
+   * flies it — the skier's own axes mean nothing there. Left out, the
+   * controls are where they were let go: the collective down, the cyclic
+   * and the pedals centred. */
+  heli?: HeliControls;
 };
+
+/** THE CONTROLS OF A HELICOPTER, flown by hand with nothing between the
+ * pilot and the rotor:
+ *   * `collective` — the lever, 0 (down: the blades flat, no lift) … 1 (all
+ *     the pitch the power can turn): the thrust's share of what the rotor
+ *     can give. A lever, not a spring: it stays where it is left;
+ *   * `pitch` — the cyclic fore and aft, −1..1, forward positive: the disc
+ *     tilted forward, the nose pitched down;
+ *   * `roll` — the cyclic side to side, −1..1, toward the right side
+ *     positive (the engine's right, `steer`'s);
+ *   * `pedal` — the pedals, −1..1, the tail rotor's thrust turning the nose
+ *     right (clockwise) positive. */
+export type HeliControls = { collective: number; pitch: number; roll: number; pedal: number };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 
@@ -748,11 +766,16 @@ export type HeliState = {
   vy: number;
   vz: number;
   heading: number;
-  /** The heading the pilot's feet hold with the steer let go, rad. */
-  aim: number;
+  /** The airframe's attitude — the fuselage, hung under its rotor. */
   pitch: number;
   roll: number;
-  /** The attitude's rates, rad/s: the heading's, the pitch's, the roll's. */
+  /** THE ROTOR DISC, which the cyclic flies and the thrust points along:
+   * its pitch and roll (the airframe's conventions) and their rates. */
+  disc: { pitch: number; roll: number; pitchRate: number; rollRate: number };
+  /** The controls the machine was flown on this step (`HeliControls`) —
+   * the player's, or the bot's flying it home. */
+  controls: HeliControls;
+  /** The rates, rad/s: the heading's, and the fuselage's pitch and roll. */
   yawRate: number;
   pitchRate: number;
   rollRate: number;

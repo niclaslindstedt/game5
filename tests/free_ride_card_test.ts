@@ -383,7 +383,8 @@ describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
     });
     const snap = takeSnapshot(s);
     expect(snap.heli?.kind).toBe("flown");
-    for (let i = 0; i < 600; i++) step(s, { ...NEUTRAL_INPUT, lean: -1 });
+    for (let i = 0; i < 600; i++)
+      step(s, { ...NEUTRAL_INPUT, heli: { collective: 0.95, pitch: 0, roll: 0, pedal: 0 } });
     const up = takeSnapshot(s).heli;
     expect(up?.kind === "flown" && up.height > 20).toBe(true);
   });

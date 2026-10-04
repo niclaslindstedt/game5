@@ -247,9 +247,9 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  // The keys and the picture reach the manager and the renderer the same
-  // way: the moment they are pressed, over the live race.
-  useEffect(() => input?.setBindings(settings.keys), [input, settings.keys]);
+  // The keys (the skier's, the helicopter's) reach the manager as pressed.
+  const { keys: skiKeys, heliKeys } = settings;
+  useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();

@@ -163,7 +163,18 @@ export type HudSnapshot = {
  * the snow (the fall a jump off them is), m, and its climb, m/s — or
  * waiting on its pad `pad` m from him. */
 export type HudHeli =
-  | { kind: "flown"; height: number; climb: number; landed: boolean }
+  | {
+      kind: "flown";
+      height: number;
+      climb: number;
+      landed: boolean;
+      /** The collective lever, 0..1, and the disc's attitude as the
+       * horizon shows it: nose-up pitch and the bank as SCREEN rad (right
+       * side down positive as the player sees it), rad. */
+      collective: number;
+      pitch: number;
+      bank: number;
+    }
   | { kind: "waiting"; pad: number };
 
 /** How near the waiting helicopter the HUD points him at it, m. */
@@ -179,6 +190,9 @@ export function heliOf(state: GameState): HudHeli | null {
       height: Math.max(0, h.y - state.level.groundAt(h.x, h.z)),
       climb: h.vy,
       landed: h.grounded,
+      collective: h.controls.collective,
+      pitch: h.pitch,
+      bank: h.roll * SCREEN_TO_ENGINE,
     };
   }
   const c = state.skier;

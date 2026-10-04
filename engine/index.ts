@@ -81,13 +81,21 @@ export {
   freeRules,
   isGameMode,
   openRules,
-  raceRules,
+  fieldRules,
+  slalomRules,
+  SLALOM,
+  DISCIPLINES,
   timeTrialRules,
   tricksRules,
   type Assist,
+  type Discipline,
   type GameMode,
   type RunRules,
 } from "./game/defs/modes.ts";
+export { FIELD, createField, fieldOrderOf, fieldPlace, type Heat } from "./game/field.ts";
+export { PAR, slalomPar, type Par } from "./game/par.ts";
+export { stepStrict } from "./game/strict.ts";
+export { freshGatePoles, polePlan, stepGatePoles } from "./game/gate-poles.ts";
 export {
   SKIS,
   SKI_CATALOG,
@@ -155,6 +163,10 @@ export {
   type GamePhase,
   type GameState,
   type Progress,
+  type Field,
+  type FieldRun,
+  type GamePoles,
+  type RunOut,
   type Rival,
   type Amateur,
   type AmateurMode,
@@ -265,6 +277,8 @@ export {
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";
 export {
   bearingToNext,
+  finishRun,
+  outRun,
   crossedCheckpoint,
   crossedLine,
   crossingsToFinish,

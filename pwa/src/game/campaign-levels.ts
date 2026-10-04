@@ -90,9 +90,10 @@
 
 import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind } from "@engine";
 
-/** The two games a campaign map is played as. A free ride measures nothing,
- * so it is never a rung. */
-export type CampaignMode = "race" | "timeTrial";
+/** The two games a campaign map is played as: a SLALOM, set on the map's
+ * steepest stretch (R31), or the TIME TRIAL down its whole course. A free
+ * ride measures nothing, so it is never a rung. */
+export type CampaignMode = "slalom" | "timeTrial";
 
 /** The three medals a time trial pays, worst first. */
 export const MEDALS = ["bronze", "silver", "gold"] as const;
@@ -165,7 +166,7 @@ const RIME_WOODS: CampaignShelf = {
       name: "Fog Opener",
       blurb: "The one blue: wide turns through the rimed firs in a valley fog, one kicker",
       seed: 4,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "4a43faec",
@@ -195,7 +196,7 @@ const RIME_WOODS: CampaignShelf = {
       name: "Flurry Line",
       blurb: "A short red raced through flurries, four kickers between the firs",
       seed: 4,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "0fc67945",
@@ -210,7 +211,7 @@ const RIME_WOODS: CampaignShelf = {
       blurb:
         "A short red in the late afternoon sun under fair-weather cloud, three kickers down to the village",
       seed: 4,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "5b92d38a",
@@ -240,7 +241,7 @@ const RIME_WOODS: CampaignShelf = {
       name: "Storm Red",
       blurb: "The last red race into a storm, five kickers and the next gate lost in the spindrift",
       seed: 4,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "2974386e",
@@ -266,7 +267,7 @@ const HIGH_CIRQUE: CampaignShelf = {
       name: "Long Traverse",
       blurb: "Three kilometres of red on a clear morning, long traverses across the face",
       seed: 8,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "10c41001",
@@ -295,7 +296,7 @@ const HIGH_CIRQUE: CampaignShelf = {
       name: "Morning Fog",
       blurb: "A red raced into the morning fog, three kickers looming out of it",
       seed: 8,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "26604e7f",
@@ -309,7 +310,7 @@ const HIGH_CIRQUE: CampaignShelf = {
       name: "Six Kickers",
       blurb: "Six hundred metres of red through the flurries, six kickers to take air off",
       seed: 8,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "593596c8",
@@ -338,7 +339,7 @@ const HIGH_CIRQUE: CampaignShelf = {
       name: "Cirque Wall",
       blurb: "Nine hundred metres of black off the top, three drops on the steepest pitch",
       seed: 8,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "4815a9a4",
@@ -364,7 +365,7 @@ const FROST_BASIN: CampaignShelf = {
       name: "Cold Morning",
       blurb: "A clear, cold morning and a short red to open the basin, four kickers",
       seed: 10,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "85ea3ae9",
@@ -394,7 +395,7 @@ const FROST_BASIN: CampaignShelf = {
       blurb:
         "Three kilometres of red under high cloud, seven kickers on eight hundred metres of drop",
       seed: 10,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "52ed07a8",
@@ -408,7 +409,7 @@ const FROST_BASIN: CampaignShelf = {
       name: "Four Drops",
       blurb: "A black through the flurries, four drops across the piste and seven kickers",
       seed: 10,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "b27c5ffc",
@@ -437,7 +438,7 @@ const FROST_BASIN: CampaignShelf = {
       name: "Basin Wall",
       blurb: "The last race off the top of the basin: a thousand metres of black and seven drops",
       seed: 10,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "a99433e3",
@@ -463,7 +464,7 @@ const COLD_CREST: CampaignShelf = {
       name: "Crest Opener",
       blurb: "A short red to open the crest, three kickers under fair-weather cloud",
       seed: 77,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "27f341ad",
@@ -494,7 +495,7 @@ const COLD_CREST: CampaignShelf = {
       blurb:
         "The one long red, raced in falling snow: three and a half kilometres and seven kickers",
       seed: 77,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "9586af74",
@@ -509,7 +510,7 @@ const COLD_CREST: CampaignShelf = {
       blurb:
         "A black raced into a storm, four drops across the piste and the next gate lost in the spindrift",
       seed: 77,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "6c263fb2",
@@ -541,7 +542,7 @@ const COLD_CREST: CampaignShelf = {
       blurb:
         "The last race: nearly twelve hundred metres of black off the crest, five kickers and two drops",
       seed: 77,
-      mode: "race",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "77ce73da",

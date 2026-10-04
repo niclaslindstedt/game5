@@ -17,7 +17,6 @@
 
 import {
   generateLevel,
-  type GameMode,
   type GeneratorVersion,
   type Level,
   type RegionId,
@@ -52,11 +51,12 @@ export type BenchmarkPlan = {
    * A graded map re-rolls the seed, and a sweep of the graded ones found
    * none with both the woods and a flight in its first thirty seconds. */
   version: GeneratorVersion;
-  /** THE RACE, because it is the heaviest thing the game does: four skis
-   * drawn, and — the part no screenshot shows — four whole runs stepped at
-   * 120 Hz, each ridden by the bot deciding on every step. A benchmark that
-   * rode alone would be reporting the renderer and calling it the game. */
-  mode: GameMode;
+  /** THE FIELD ON THE START LINE (`fieldRules`, the run that names no
+   * mode), because it is the heaviest thing the game does: four skis drawn,
+   * and — the part no screenshot shows — four whole runs stepped at 120 Hz,
+   * each ridden by the bot deciding on every step. A benchmark that rode
+   * alone would be reporting the renderer and calling it the game. */
+  mode: "field";
   /** The view. CHASE is what a skier actually rides, which makes the score a
    * statement about playing the game rather than about a camera nobody uses. */
   camera: CameraRung;
@@ -82,7 +82,7 @@ export const BENCHMARK: BenchmarkPlan = {
   seed: 20,
   region: "maritime",
   version: 1,
-  mode: "race",
+  mode: "field",
   camera: "chase",
   sky: { weather: "fair", hour: 11 },
   step: 1 / 60,

@@ -57,6 +57,14 @@ export interface Checkpoint {
   offset?: number;
   /** A slalom gate's piste: its width there, m. */
   span?: number;
+  /** A POLE GATE (R31, a slalom's), drawn as two poles and no panel:
+   * `"open"` across the hill, its TURNING pole at the end `turn` names
+   * (−1 the skier's left as he comes down the piste, +1 his right) and its
+   * OUTSIDE pole at the other; `"closed"` with its two poles one above the
+   * other down the fall line, crossed sideways — `heading` the way across.
+   * Absent: a gate of flags (R11, R28). */
+  pole?: "open" | "closed";
+  turn?: -1 | 1;
 }
 
 export interface TrackPoint {
@@ -164,6 +172,33 @@ export interface Level {
   /** THE SKI AREA (R25–R28) on a map built by a generator from the resorts
    * on: every run, lift and course, and which course `track` is. */
   resort?: Resort;
+  /** A SLALOM set on the map (R31, `setSlalom`): its gates are this map's
+   * `checkpoints`, its start hut the `spawn`. Absent on every map the
+   * generator builds — a slalom is set over one. */
+  slalom?: SlalomCourse;
+}
+
+/** A SLALOM COURSE (R31) as it was set over a built map. */
+export interface SlalomCourse {
+  /** Which run of the two (R31) — each set afresh on the same stretch. */
+  run: 1 | 2;
+  /** The map it was set over, before any slalom: what a run's other course
+   * is set over again. */
+  base: Level;
+  /** The stretch of the piste it is set on: the start gate's arc (the
+   * wand) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** How many of each combination it carries. */
+  hairpins: number;
+  verticals: number;
+  delays: number;
+  /** THE LINE A RACER TAKES (`slalomLineAt`): points down the course, each
+   * an arc and how far right of the piste's centreline, m — just outside
+   * every turning pole, across the middle of every closed gate. */
+  line: { s: number; x: number }[];
 }
 
 /** The skies R19 deals, lightest first. Three of them SNOW — a few flakes

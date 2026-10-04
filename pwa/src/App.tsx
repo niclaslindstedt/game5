@@ -319,7 +319,7 @@ export function App() {
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-        return raceOrFallback(1, { ...skierOf(s), mode: "race", laps: s.trialLaps });
+        return raceOrFallback(1, { ...skierOf(s), mode: "slalom", laps: s.trialLaps });
       }
     };
     // A race a link boots into is the player's, with the player's help; the
@@ -896,7 +896,7 @@ export function App() {
             seed: trialSeed,
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,
           }}
-          onRace={() => campaign.openCard("race", params.seed === null ? "levels" : "skis")}
+          onRace={() => campaign.openCard("slalom", params.seed === null ? "levels" : "skis")}
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}

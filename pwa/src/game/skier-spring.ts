@@ -574,14 +574,22 @@ const GATE_CREEP = 0.6;
 
 /** IN THE START GATE: under the lights, or just after GO and still held
  * there on the brake, standing, not yet pushing — what `stepSkierSpring`'s
- * `waiting` is handed for a run. */
+ * `waiting` is handed for a run; `"house"` for a slalom's start house,
+ * held there until he goes. */
 export function inStartGate(run: {
   phase: string;
   t: number;
-  rules: { countdown: number };
+  rules: { countdown: number; start?: string; course?: boolean };
   input: { brake: number };
-  skier: { drive: number; speed: number };
-}): boolean {
+  skier: { drive: number; speed: number; launch?: number };
+  progress?: { started: boolean };
+}): boolean | "house" {
+  // A slalom's start house (`start-push.ts`): his poles hold him there
+  // until he throws himself out.
+  if (run.rules.start === "interval" && run.rules.course) {
+    const gone = run.progress?.started === true || (run.skier.launch ?? -1) >= 0;
+    return run.phase !== "finished" && !gone ? "house" : false;
+  }
   if (run.phase === "countdown") return true;
   return (
     run.phase === "racing" &&

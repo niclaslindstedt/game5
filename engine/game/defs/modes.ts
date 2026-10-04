@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODES, and the rules a run is played by. A mode is a named bundle of
-// rules (`MODE_RULES`): the RACE against a field down the map's piste, the
-// TIME TRIAL, the same piste alone against the clock, and the FREE RIDE,
-// the whole mountain to explore with no course counted at all. The rules
+// rules (`MODE_RULES`): a RACE in one of the real disciplines — the SLALOM
+// today (R31), the field skiing the course one at a time out of the start
+// hut under the international rules, two runs on combined time — the TIME
+// TRIAL, the map's piste alone against the clock, the FREE RIDE, the whole
+// mountain to explore with no course counted at all, and TRICKS. The rules
 // are a plain record on the state (`GameState.rules`) read by every system
 // that answers to one, and nothing below the app branches on a mode's
 // name. `openRules` is what a measurement skis: no lights and nobody else
 // out there, so a simulated run's digest carries the skier and nothing in
-// front of him.
+// front of him; `fieldRules` what a run that names no mode is dealt — the
+// field four abreast on the start line under the lights, the suite's and
+// the labs' and the benchmark's run.
+//
+// THE DISCIPLINES (`DISCIPLINES`) are the races the game names: the slalom,
+// the giant slalom, the super-G, the downhill, the ski cross and the speed
+// run. Only the slalom is BUILT; the others are named so the app can bill
+// them as coming, and each becomes a mode — its own rules here and its own
+// course rule (R31 onward) — when it is.
 
 import { CROWD } from "./crowd.ts";
 import { TUNING } from "./tuning.ts";
@@ -48,6 +58,21 @@ export type RunRules = {
    * a lift's load zone is carried to its top. On a FREE RIDE only — a race
    * is one run down, and a lift ridden would be a run off the course. */
   lifts: boolean;
+  /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
+   * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
+   * the start hut: the field has skied it before the player, and its times
+   * are what he races (`field.ts`). On an interval start the run clock
+   * waits for the racer to open the wand. */
+  start: "line" | "interval";
+  /** THE GATES' LAW: `"arcade"` — a gate skied past is owed again (or, a
+   * slalom gate of R28, charged on the clock) and the reset stands him
+   * back on the course; `"strict"` — the international rules (R31): a gate
+   * missed or straddled DISQUALIFIES, a racer stopped by a fall is out, and
+   * he must be away within `window` seconds of GO. */
+  gates: "arcade" | "strict";
+  /** THE START WINDOW, s after GO: a racer not through the start gate by
+   * then is disqualified; 0 is no window. */
+  window: number;
 };
 
 /** HOW MUCH HELP THE SKIER IS GIVEN — the arcade's two hands on him, each
@@ -66,7 +91,7 @@ export type Assist = {
  * what a run asks for when it names nothing. */
 export const FULL_ASSIST: Readonly<Assist> = { yaw: 1, air: 1 };
 
-/** THE RACE'S NUMBERS. */
+/** THE FIELD'S NUMBERS — every race's, however it starts. */
 export const RACE = {
   /** Three rivals: four on the start line with the player. */
   rivals: 3,
@@ -97,9 +122,11 @@ export const RACE = {
   bump: { radius: 0.6, offset: 0.5, restitution: 0.3, speed: 1.5, cooldown: 0.5 },
 } as const;
 
-/** The race as a skier is dealt it: the field, the lights, contact on. The
- * run count is the level's own (one) and is filled in by `createGame`. */
-export function raceRules(laps: number): RunRules {
+/** THE FIELD ON THE START LINE: four abreast, the lights, contact on —
+ * what a run that names no mode is dealt (the suite, the labs, the
+ * benchmark), and no mode the player picks. The run count is the level's
+ * own (one) and is filled in by `createGame`. */
+export function fieldRules(laps: number): RunRules {
   return {
     rivals: RACE.rivals,
     laps,
@@ -111,6 +138,46 @@ export function raceRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    start: "line",
+    gates: "arcade",
+    window: 0,
+  };
+}
+
+/** THE SLALOM'S NUMBERS (R31 sets its course). */
+export const SLALOM = {
+  /** The start list: the racers on the board beside the player. */
+  field: 29,
+  /** "READY" … "GO": the starter's two words, s apart. */
+  countdown: 4,
+  /** Away within this of GO, s, or disqualified. */
+  window: 10,
+  /** Two runs, on combined time. */
+  runs: 2,
+  /** The best of the first run start the second, in reverse order. */
+  qualify: 30,
+  /** The pair the field races on: the slalom ski — every racer in a
+   * slalom skis one, by rule as by sense. */
+  skis: "swift",
+} as const;
+
+/** THE SLALOM as a skier is dealt it (R31): the start list skied before
+ * him one at a time, the starter's word, the strict gates, the window. */
+export function slalomRules(laps: number): RunRules {
+  return {
+    rivals: SLALOM.field,
+    laps,
+    countdown: SLALOM.countdown,
+    contact: false,
+    course: true,
+    tricks: false,
+    limit: 0,
+    airGravity: TUNING.air.gravity,
+    crowd: 0,
+    lifts: false,
+    start: "interval",
+    gates: "strict",
+    window: SLALOM.window,
   };
 }
 
@@ -127,6 +194,9 @@ export function openRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    start: "line",
+    gates: "arcade",
+    window: 0,
   };
 }
 
@@ -145,6 +215,9 @@ export function freeRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: CROWD.count,
     lifts: true,
+    start: "line",
+    gates: "arcade",
+    window: 0,
   };
 }
 
@@ -176,9 +249,9 @@ export function clampResilience(r: number | undefined): number {
  * (`MODE_RULES`) and nothing below the app branches on it: the engine reads
  * the rules, and the app reads the name to decide which card is up and which
  * row of the record book a run is filed under. */
-export type GameMode = "race" | "timeTrial" | "free" | "tricks";
+export type GameMode = "slalom" | "timeTrial" | "free" | "tricks";
 
-export const GAME_MODES: readonly GameMode[] = ["race", "timeTrial", "free", "tricks"];
+export const GAME_MODES: readonly GameMode[] = ["slalom", "timeTrial", "free", "tricks"];
 
 export function isGameMode(value: unknown): value is GameMode {
   return typeof value === "string" && (GAME_MODES as readonly string[]).includes(value);
@@ -204,6 +277,9 @@ export function timeTrialRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    start: "line",
+    gates: "arcade",
+    window: 0,
   };
 }
 
@@ -235,13 +311,31 @@ export function tricksRules(laps: number): RunRules {
     airGravity: TRICKS_RUN.airGravity,
     crowd: 0,
     lifts: false,
+    start: "line",
+    gates: "arcade",
+    window: 0,
   };
 }
 
 /** EVERY MODE'S RULES by its name — the one place a name becomes a bundle. */
 export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> = {
-  race: raceRules,
+  slalom: slalomRules,
   timeTrial: timeTrialRules,
   free: freeRules,
   tricks: tricksRules,
 };
+
+/** THE RACE DISCIPLINES the game names, in the order a race card lists
+ * them. */
+export type Discipline = "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki";
+
+/** Each discipline, and the mode that races it where it is BUILT — null
+ * where it is named and not built yet. */
+export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] = [
+  { id: "slalom", mode: "slalom" },
+  { id: "giantSlalom", mode: null },
+  { id: "superG", mode: null },
+  { id: "downhill", mode: null },
+  { id: "skiCross", mode: null },
+  { id: "speedSki", mode: null },
+];

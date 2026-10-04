@@ -211,6 +211,16 @@ export function soundForEvent(
     case "missed":
       return { id: "missed" };
 
+    // OUT OF THE RACE (R31): the board's verdict and the arena's groan.
+    case "out":
+      return { id: "out" };
+
+    // A FLEX POLE KNOCKED: the guard's clack, harder the harder the knock.
+    case "pole": {
+      const hard = ramp(event.speed, 0.5, 4);
+      return { id: "pole", shape: { gain: 0.6 + 0.6 * hard, pitch: 1.05 - 0.15 * hard } };
+    }
+
     case "reset":
       return { id: "reset" };
 

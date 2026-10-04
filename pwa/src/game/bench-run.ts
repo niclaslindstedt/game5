@@ -125,7 +125,6 @@ export function createBenchRun(world: BenchWorld): BenchRun {
         createGame({
           seed: BENCHMARK.seed,
           level: benchmarkLevel(),
-          mode: BENCHMARK.mode,
           sky: BENCHMARK.sky,
         }),
       camera: BENCHMARK.camera,

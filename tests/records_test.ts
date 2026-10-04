@@ -5,7 +5,15 @@
 // could have written it.
 import { describe, expect, it } from "vitest";
 
-import { GAME_MODES, MODE_RULES, TIME_TRIAL, botInput, createGame, step } from "@engine";
+import {
+  GAME_MODES,
+  MODE_RULES,
+  TIME_TRIAL,
+  fieldRules,
+  botInput,
+  createGame,
+  step,
+} from "@engine";
 import {
   beats,
   bestFor,
@@ -44,9 +52,9 @@ describe("the modes", () => {
     expect(run.phase).toBe("countdown");
   });
 
-  it("a race is still what createGame deals when no mode is named", () => {
+  it("the field on the start line is what createGame deals when no mode is named", () => {
     const run = createGame({ level: syntheticLevel(), quiet: true });
-    expect(run.rules).toEqual(MODE_RULES.race(run.level.laps));
+    expect(run.rules).toEqual(fieldRules(run.level.laps));
   });
 
   it("the trial is always one run top to bottom; a stored length is read back as one", () => {
@@ -63,7 +71,7 @@ describe("what names a row", () => {
     const id = recordId(KEY);
     expect(recordId({ ...KEY, seed: 39 })).not.toBe(id);
     expect(recordId({ ...KEY, skis: "hare" })).not.toBe(id);
-    expect(recordId({ ...KEY, mode: "race" })).not.toBe(id);
+    expect(recordId({ ...KEY, mode: "slalom" })).not.toBe(id);
     expect(recordId({ ...KEY, laps: 2 })).not.toBe(id);
     expect(recordId({ ...KEY })).toBe(id);
   });
@@ -79,7 +87,7 @@ describe("what beats a row", () => {
   it("is a lower time, and a standing row with nothing on it is beaten by any time", () => {
     expect(beats("timeTrial", 99.99, row(100))).toBe(true);
     expect(beats("timeTrial", 100.01, row(100))).toBe(false);
-    expect(beats("race", 90, row(100))).toBe(true);
+    expect(beats("slalom", 90, row(100))).toBe(true);
     expect(beats("timeTrial", 500, null)).toBe(true);
   });
 
@@ -139,13 +147,13 @@ describe("the HUD's reading of it", () => {
     const bare = takeSnapshot(run);
     expect(bare.gap).toBeNull();
     expect(bare.best).toBeNull();
-    expect(bare.mode).toBe("race");
+    expect(bare.mode).toBe("slalom");
   });
 
   it("a link names the mode", () => {
     expect(readParams("?start=race&mode=trial").mode).toBe("timeTrial");
-    expect(readParams("?start=race").mode).toBe("race");
-    expect(readParams("?mode=nonsense").mode).toBe("race");
+    expect(readParams("?start=race").mode).toBe("slalom");
+    expect(readParams("?mode=nonsense").mode).toBe("slalom");
   });
 });
 

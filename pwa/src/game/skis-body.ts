@@ -57,6 +57,8 @@ import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
+import { launchGait } from "./skier-gait.ts";
+import { slalomStart } from "./slalom-start.ts";
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
@@ -134,8 +136,9 @@ export type SkisModel = {
     trick?: TrickPose | null,
     dt?: number,
     body?: Thrown | null,
-    /** In the start gate under the lights. */
-    waiting?: boolean,
+    /** In the start gate under the lights; `"house"` in a slalom's start
+     * house. */
+    waiting?: boolean | "house",
   ): void;
   setSkierVisible(visible: boolean): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
@@ -178,7 +181,8 @@ export function groundOf(skier: SkierState, legs: ReturnType<typeof createSkierS
 }
 
 /** The engine's readings as the pose wants them, for one frame —
- * `waiting` in the start gate under the lights; `stand` where the skis
+ * `waiting` in the start gate under the lights (`"house"` in a slalom's
+ * start house, and out of it on his one push); `stand` where the skis
  * stand on the snow (`ski-stand.ts`, worked out off `legs` when left
  * out). */
 export function poseInputOf(
@@ -186,7 +190,7 @@ export function poseInputOf(
   legs: ReturnType<typeof createSkierSpring>,
   mounts: Mounts,
   trick: TrickPose | null,
-  waiting = false,
+  waiting: boolean | "house" = false,
   stand: Stand = standOf(
     skier,
     groundOf(skier, legs),
@@ -195,6 +199,8 @@ export function poseInputOf(
     drawnSkiAngle(legs, skier),
   ),
 ): SkierPoseInput {
+  // A slalom's start house: the slalom start clip, in it and out of it.
+  const clip = slalomStart(waiting === "house", skier.launch);
   // The inclination the skis are tipped against beyond the world's roll —
   // carried onto the body's own eased roll.
   const onSnow = stand.incline - groundOf(skier, legs) * skier.roll;
@@ -236,7 +242,10 @@ export function poseInputOf(
     // THE GAIT at a crawl — the skate and the double pole — in time with
     // the engine's own push (`poles.ts`).
     // ...how much he works the poles as his arms carry it.
-    gait: Number.isNaN(legs.keep) ? gaitOf(skier) : { ...gaitOf(skier), keep: legs.keep },
+    // Out of a slalom's start house, his one push is the whole gait.
+    gait:
+      launchGait(skier.launch, TUNING.start.push) ??
+      (Number.isNaN(legs.keep) ? gaitOf(skier) : { ...gaitOf(skier), keep: legs.keep }),
     // The snow passed since the stroke's plant, as the view kept it.
     poled: Number.isNaN(legs.poledStride) ? undefined : legs.poled,
     air: legs.air,
@@ -256,7 +265,8 @@ export function poseInputOf(
     mounts,
     // IN THE START GATE under the lights, as his body has settled into it
     // — or, before the spring has read a ride, as the lights say.
-    ready: Number.isNaN(legs.hip) ? (waiting ? 1 : 0) : legs.ready,
+    ready: clip ? clip.weight : Number.isNaN(legs.hip) ? (waiting ? 1 : 0) : legs.ready,
+    house: clip?.shape,
     // STOOD STILL, he waits alive: his own clock, faded in below a walk.
     idle: {
       t: legs.clock,
@@ -414,7 +424,7 @@ export function createSkisModel(
           dt,
           skier.jumpLoad / TUNING.jump.full,
           skier,
-          waiting,
+          waiting !== false,
           fall
             ? {
                 read: skier.airborne

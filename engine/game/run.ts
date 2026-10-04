@@ -19,7 +19,7 @@
 
 import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
-import { resetSkier, stepCourse } from "./course.ts";
+import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
@@ -27,6 +27,8 @@ import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
+import { stepGatePoles } from "./gate-poles.ts";
+import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -46,7 +48,7 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (stepLift(run, given, events)) return;
   const input = leadInput(run, given, events);
   if (input.reset && racing) {
-    resetSkier(run, events, false);
+    standUp(run, events, false);
     return;
   }
   const c = run.skier;
@@ -61,11 +63,14 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   const tricks = run.rules.tricks && held === input;
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
+  // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
+  const housed = heldInHouse(run);
+  stepStartPush(run, input);
   stepSkier(run, tricks ? poseInput(run, held) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
-  if (run.phase === "countdown" && !off) {
+  if ((run.phase === "countdown" || (housed && c.launch < 0)) && !off) {
     c.x = x0;
     c.z = z0;
     c.vx = 0;
@@ -75,6 +80,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (tricks) stepStrokes(run, input);
   collideTrees(run, events);
+  // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
+  stepGatePoles(run, events, off !== null);
   keepInBounds(run);
   if (off) {
     stepThrown(run, off);
@@ -95,7 +102,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (!racing) return;
   const p = run.progress;
   if (p.finished) return;
-  p.time += TUNING.dt;
+  // On an interval start the clock waits for the wand.
+  if (p.started || run.rules.start !== "interval") p.time += TUNING.dt;
   p.distance += hypot(c.x - x0, c.z - z0);
   // THE BUZZER (`RunRules.limit`): the run is over wherever it stands.
   if (run.rules.limit > 0 && p.time >= run.rules.limit) {
@@ -108,7 +116,7 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   if (off) {
     // A thrown skier takes no gate; he is stood back up once he has lain
     // long enough.
-    if (crashOver(off)) resetSkier(run, events, true);
+    if (crashOver(off)) standUp(run, events, true);
     return;
   }
   if (run.rules.course) stepCourse(run, x0, z0, events);
@@ -116,5 +124,15 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   const R = TUNING.reset;
   // Bogged, the skier is given the time to work out (`trench.ts`).
   const stuck = c.trench > 0 ? c.trenchFor >= TUNING.trench.holdFor : c.stuckFor >= R.stuckFor;
-  if (c.overFor >= R.overFor || stuck) resetSkier(run, events, true);
+  if (c.overFor >= R.overFor || stuck) standUp(run, events, true);
+}
+
+/** THE RESET — or, under the strict gates (R31), where nobody is stood
+ * back on the course, the end of the run: a racer stopped is out. */
+function standUp(run: GameState, events: GameEvent[], auto: boolean): void {
+  if (run.rules.gates === "strict" && run.rules.course && !run.progress.finished) {
+    outRun(run, events, { status: "dnf", why: "fall", gate: run.progress.nextCheckpoint });
+    return;
+  }
+  resetSkier(run, events, auto);
 }

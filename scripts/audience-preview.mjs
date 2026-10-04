@@ -65,7 +65,7 @@ const VIEWS = [
   "overview",
   "chase",
 ];
-const MODES = ["race", "timeTrial", "tricks", "free"];
+const MODES = ["slalom", "timeTrial", "tricks", "free"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -82,7 +82,7 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      default: "race",
+      default: "slalom",
       help: `the run the race sheet skis (${MODES.join(", ")})`,
     },
     views: {
@@ -196,7 +196,7 @@ for (const sheet of sheets) {
       { width: args.width, height: args.height },
     );
     const ordered = await page.evaluate((v) => globalThis.__aud.order(v), views);
-    const tag = args.mode === "race" ? "" : `-${args.mode}`;
+    const tag = args.mode === "slalom" ? "" : `-${args.mode}`;
     for (const view of ordered) {
       const note = await page.evaluate((v) => globalThis.__aud.shoot(v), view);
       const out = join(outDir, `audience-race-${args.seed}${tag}-${view}.png`);

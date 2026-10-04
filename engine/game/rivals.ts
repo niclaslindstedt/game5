@@ -50,9 +50,12 @@ import {
   NEUTRAL_INPUT,
   type GameEvent,
   type GameState,
+  type Rival,
   type SkierInput,
   type SkierState,
 } from "./state.ts";
+import { fieldOrderOf, fieldPlace } from "./field.ts";
+import { freshGatePoles } from "./gate-poles.ts";
 import { stepRun } from "./run.ts";
 import { freshSkier } from "./skier.ts";
 import { freshTricks } from "./tricks.ts";
@@ -100,9 +103,16 @@ export function gridSlot(state: GameState, slot: number): Spawn {
 
 /** STAND THE FIELD: `count` rivals, each on its slot with its pace, its
  * skis and its start dealt. Called once, from `createGame`, and only for a
- * run with rivals in it. */
+ * run with rivals on its start line. */
 export function createRivals(state: GameState, count: number): void {
-  state.rivals = [];
+  state.rivals = dealRivals(state, count, (i) => gridSlot(state, i + 1));
+}
+
+/** DEAL THE START LINE: `count` rivals, each stood where `at` says, his pace
+ * and his skis off the run's stream, his resilience off a stream of its own
+ * and his start off the start's. */
+export function dealRivals(state: GameState, count: number, at: (i: number) => Spawn): Rival[] {
+  const out: Rival[] = [];
   const start = createRng((state.seed ^ START_SALT) >>> 0);
   const grit = createRng((state.seed ^ GRIT_SALT) >>> 0);
   for (let i = 0; i < count; i++) {
@@ -123,10 +133,13 @@ export function createRivals(state: GameState, count: number): void {
       rivals: [],
       // The crowd is the world's, stepped once, never a rival's own.
       crowd: undefined,
+      field: undefined,
+      // Every racer knocks his own poles.
+      gatePoles: freshGatePoles(state.level),
       events: [],
     };
-    const at = gridSlot(state, i + 1);
-    standSkier(run, at.x, at.z, at.heading);
+    const spot = at(i);
+    standSkier(run, spot.x, spot.z, spot.heading);
     // The stride count's whole part is the leg, its fraction the phase —
     // somewhere in the PUSH: a racer goes on his reaction, and a skate
     // stride is long enough that one dealt into its glide stood a second
@@ -134,15 +147,34 @@ export function createRivals(state: GameState, count: number): void {
     const dealt = start.range(0, 2);
     run.skier.stride = Math.floor(dealt) + (dealt - Math.floor(dealt)) * TUNING.poles.duty;
     run.skier.resilience = resilience;
-    state.rivals.push({
+    out.push({
       id: i,
       run,
       pace,
       resilience,
       react: start.range(RACE.reactBand.min, RACE.reactBand.max),
-      lane: laneOf(state, i + 1),
+      lane: laneAcross(state.level, spot.x, spot.z),
     });
   }
+  return out;
+}
+
+/** The controls a rival's bot gives him this step: nothing under the
+ * lights or past the flag, the skis held across in the gate until he
+ * reacts to GO, then the bot's, its tuck held to his pace. */
+export function rivalInput(run: GameState, rival: Rival, sinceGo: number): SkierInput {
+  const input =
+    run.phase !== "racing"
+      ? NEUTRAL_INPUT
+      : sinceGo < rival.react
+        ? IN_GATE
+        : botInput(run, RIDER_BOT, rival.lane);
+  run.input.steer = input.steer;
+  run.input.tuck = Math.min(input.tuck, rival.pace);
+  run.input.brake = input.brake;
+  run.input.lean = input.lean;
+  run.input.reset = input.reset;
+  return run.input;
 }
 
 /** Step every rival by the step the world has just taken: the bot skis
@@ -163,18 +195,7 @@ export function stepRivals(state: GameState): void {
         ? "countdown"
         : "racing";
     run.events.length = 0;
-    const input =
-      run.phase !== "racing"
-        ? NEUTRAL_INPUT
-        : sinceGo < rival.react
-          ? IN_GATE
-          : botInput(run, RIDER_BOT, rival.lane);
-    run.input.steer = input.steer;
-    run.input.tuck = Math.min(input.tuck, rival.pace);
-    run.input.brake = input.brake;
-    run.input.lean = input.lean;
-    run.input.reset = input.reset;
-    stepRun(run, run.input, run.events);
+    stepRun(run, rivalInput(run, rival, sinceGo), run.events);
   }
 }
 
@@ -255,12 +276,14 @@ export function raceProgress(run: GameState): number {
  * down. A run home is never asked how far down it is. */
 function standing(run: GameState): Standing {
   const p = run.progress;
+  if (p.out) return { finished: false, time: p.time, progress: -Infinity };
   return { finished: p.finished, time: p.time, progress: p.finished ? 0 : raceProgress(run) };
 }
 
 /** THE WHOLE FIELD IN ORDER, best first: every rival's id, and `null`
  * where the player stands among them. */
 export function fieldOrder(state: GameState): (number | null)[] {
+  if (state.field) return fieldOrderOf(state);
   const runs: { id: number | null; run: GameState }[] = [
     { id: null, run: state },
     ...state.rivals.map((r) => ({ id: r.id, run: r.run })),
@@ -270,6 +293,7 @@ export function fieldOrder(state: GameState): (number | null)[] {
 
 /** THE PLAYER'S PLACE, 1-based: one more than the rivals ahead of him. */
 export function racePlace(state: GameState): number {
+  if (state.field) return fieldPlace(state);
   return placeAmong(
     standing(state),
     state.rivals.map((r) => standing(r.run)),

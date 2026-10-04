@@ -248,7 +248,13 @@ export function readParams(search: string): UrlParams {
   const skis = q.get("skis");
   return {
     seed: seedOf(q.get("seed")),
-    rides: start === "race" || start === "free" || start === "1" || paused || q.get("shot") === "1",
+    rides:
+      start === "race" ||
+      start === "slalom" ||
+      start === "free" ||
+      start === "1" ||
+      paused ||
+      q.get("shot") === "1",
     free: start === "free",
     t: Number.isFinite(t) && t > 0 ? Math.min(t, 600) : 0,
     pose: readPose(q.get("pose")),
@@ -273,7 +279,7 @@ export function readParams(search: string): UrlParams {
           ? "timeTrial"
           : q.get("mode") === "tricks"
             ? "tricks"
-            : "race",
+            : "slalom",
     bot: q.get("bot") === "1",
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
 

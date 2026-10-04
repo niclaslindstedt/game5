@@ -6,18 +6,17 @@
 //   terrain.ts      the ground: a clipmap round the lens, shaded as snow
 //   trail-map.ts    every furrow any skier has cut, lowering that snow
 //   forest.ts       the snow-loaded conifers, two bands and their casters
-//   gates.ts        the gates' poles and panels, the start hut, the finish
+//   gates.ts        the gates (a slalom's flex poles), the start, the finish
 //                   arena and its floodlights, the piste's edge poles
 //   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the edge's sheet, the skid's wall and the landing puff
-//   snow-cloud.ts   the fine powder they raise: the plume, the hanging cloud
-//   snowpack.ts     what kind of snow lies where (both, and the trails)
+//   snow-cloud.ts   the fine powder they raise; snowpack.ts, the kinds of snow
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
-//   camera.ts      the ladder of lenses and the hand-over between them
+//   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
 //
 // WHAT IT COSTS is the picture it is handed (`settings-video.ts`): every
 // module above is built or tuned off one `VideoSettings`, and `setVideo` is
@@ -54,6 +53,7 @@ import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts"
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
+import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createLifts, type Lifts } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
@@ -748,7 +748,8 @@ export function createWorldRenderer(
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
-        dead;
+        dead ??
+        frameStart(startMoment(state, d), ladder);
       if (planted) {
         const cam = lens.camera;
         cam.position.set(planted.eye.x, planted.eye.y, planted.eye.z);
@@ -810,7 +811,7 @@ export function createWorldRenderer(
         if (!hidden.has("hero")) hero.render(gl, scene, heroModels, env.shadow());
         timer.pop();
       }
-      gates?.update(state.progress.nextCheckpoint, state.t);
+      gates?.update(state);
       lifts?.update(state.t, skier.lift, player.drawn, lens.camera.position);
       // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
       dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);

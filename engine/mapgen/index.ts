@@ -107,6 +107,14 @@ export { PARK_VERSION } from "./trick-field.ts";
 // THE RESORT (R25–R30): its rule book, and the scoreboard that holds a
 // whole ski area to it — R29's access report among it.
 export { RESORT_RULES, type ResortRules } from "./resort-rules.ts";
+export { DISCIPLINE_RULES } from "./discipline-rules.ts";
+export {
+  setSlalom,
+  slalomLineAt,
+  slalomLineFast,
+  slalomStretch,
+  type SlalomStretch,
+} from "./slalom.ts";
 export {
   accessReport,
   analyzeResort,

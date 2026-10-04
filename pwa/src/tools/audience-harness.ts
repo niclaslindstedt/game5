@@ -68,8 +68,8 @@ declare global {
 const params = new URLSearchParams(location.search);
 const sheet = params.get("sheet") ?? "moves";
 const seed = Number(params.get("seed") ?? 38);
-const modeParam = params.get("mode") ?? "race";
-const mode = isGameMode(modeParam) ? modeParam : "race";
+const modeParam = params.get("mode") ?? "slalom";
+const mode = isGameMode(modeParam) ? modeParam : "slalom";
 
 const CELL_W = 170;
 const CELL_H = 230;
@@ -216,7 +216,7 @@ function moveCells(): Cell[] {
 }
 
 function dealt(n: number): Fan[] {
-  const plan = planSpectators(createGame({ seed, mode: "race", quiet: true }).level);
+  const plan = planSpectators(createGame({ seed, mode: "slalom", quiet: true }).level);
   const step = Math.max(1, Math.floor(plan.fans.length / n));
   return plan.fans.filter((_, i) => i % step === 0).slice(0, n);
 }

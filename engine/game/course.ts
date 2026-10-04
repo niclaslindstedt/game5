@@ -33,7 +33,9 @@ import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
 import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
-import type { GameEvent, GameState, Progress } from "./state.ts";
+import type { GameEvent, GameState, Progress, RunOut } from "./state.ts";
+import { stepStrict } from "./strict.ts";
+import { fieldPlace } from "./field.ts";
 
 const K = TUNING.course;
 
@@ -63,6 +65,7 @@ export function freshProgress(level: Level): Progress {
     lastResetAt: 0,
     bestAir: 0,
     distance: 0,
+    out: null,
   };
 }
 
@@ -108,11 +111,41 @@ export function crossingsToFinish(state: GameState): number {
   return state.level.checkpoints.length * state.rules.laps;
 }
 
+/** THE FINISH LINE crossed: the run is done, and placed. */
+export function finishRun(state: GameState, events: GameEvent[]): void {
+  const p = state.progress;
+  p.lap += 1;
+  const runTime = p.time - p.lapStart;
+  p.lapTimes.push(runTime);
+  p.nextCheckpoint = state.level.checkpoints.length - 1;
+  events.push({ kind: "lap", t: state.t, lap: p.lap, time: runTime });
+  p.finished = true;
+  p.missed = null;
+  state.phase = "finished";
+  events.push({ kind: "finish", t: state.t, time: p.time, place: placeOf(state) });
+}
+
+/** OUT OF THE RACE (R31): the run over where it stands, with no time to
+ * rank — disqualified or did not finish (`RunOut`). */
+export function outRun(state: GameState, events: GameEvent[], out: RunOut): void {
+  const p = state.progress;
+  if (p.finished) return;
+  p.out = out;
+  p.finished = true;
+  p.missed = null;
+  state.phase = "finished";
+  events.push({ kind: "out", t: state.t, out });
+}
+
 /** Check the move the skier just made against the gate the run owes. The
  * clock is run by `run.ts`, not here. */
 export function stepCourse(state: GameState, x0: number, z0: number, events: GameEvent[]): void {
   const p = state.progress;
   if (p.finished) return;
+  if (state.rules.gates === "strict") {
+    stepStrict(state, x0, z0, events);
+    return;
+  }
   const cps = state.level.checkpoints;
   const n = cps.length;
   const c = state.skier;
@@ -130,16 +163,7 @@ export function stepCourse(state: GameState, x0: number, z0: number, events: Gam
       p.lapStart = p.time;
     }
     if (owed === n - 1) {
-      // THE FINISH LINE: the run is done.
-      p.lap += 1;
-      const runTime = p.time - p.lapStart;
-      p.lapTimes.push(runTime);
-      p.nextCheckpoint = n - 1;
-      events.push({ kind: "lap", t: state.t, lap: p.lap, time: runTime });
-      p.finished = true;
-      p.missed = null;
-      state.phase = "finished";
-      events.push({ kind: "finish", t: state.t, time: p.time, place: placeOf(state) });
+      finishRun(state, events);
       return;
     }
     p.nextCheckpoint = owed + 1;
@@ -237,6 +261,7 @@ export function gateLineAt(level: Level, s: number): { offset: number; curvature
  * already home. A rival's own run has no field, so it reads 1 here and the
  * standings are the player's to work out (`racePlace`). */
 function placeOf(state: GameState): number {
+  if (state.field) return fieldPlace(state);
   let ahead = 0;
   for (const r of state.rivals) if (r.run.progress.finished) ahead += 1;
   return ahead + 1;

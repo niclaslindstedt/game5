@@ -235,8 +235,8 @@ function gradeOfLevel(level: Level): PisteGrade {
   return grade;
 }
 
-/** A run with no book behind it: a race, measured against nothing. */
-const NO_LEDGER: RunLedger = { mode: "race", standing: null };
+/** A run with no book behind it: a slalom, measured against nothing. */
+const NO_LEDGER: RunLedger = { mode: "slalom", standing: null };
 
 export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): HudSnapshot {
   const c = state.skier;

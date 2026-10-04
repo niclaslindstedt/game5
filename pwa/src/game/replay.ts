@@ -81,6 +81,16 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     damage: state.damage,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,
+    // A slalom's second run: the first run carried in again, so the course
+    // and the board are the second run's.
+    heat:
+      state.field?.run === 2
+        ? {
+            run: 2,
+            player: state.field.before,
+            field: state.field.runs.map((r) => ({ ...r, time: r.before })),
+          }
+        : undefined,
     quiet: true,
   };
 }
@@ -96,9 +106,10 @@ export function keepsReplay(mode: GameMode): boolean {
 export function startPrint(state: GameState): string {
   const r = (v: number): string => v.toFixed(4);
   const s = state.skier;
-  const field = state.rivals
-    .map((v) => `${v.run.skier.spec.id}:${r(v.pace)}:${r(v.react)}`)
-    .join(",");
+  const field =
+    state.rivals.map((v) => `${v.run.skier.spec.id}:${r(v.pace)}:${r(v.react)}`).join(",") +
+    (state.field?.runs.map((f) => `${f.id}:${f.time === null ? "out" : r(f.time)}`).join(",") ??
+      "");
   return [
     state.seed,
     state.skier.spec.id,

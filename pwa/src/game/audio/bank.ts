@@ -317,6 +317,68 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  out: {
+    description:
+      "OUT OF THE RACE — a gate missed, a pole straddled, a fall: the " +
+      "timing board's verdict, one long low driven square sagging a " +
+      "semitone under a dark lowpass, and the arena's groan under it, a " +
+      "slow swell of brown noise. Nothing rings: it is over.",
+    voices: [
+      {
+        call: "tone",
+        type: "square",
+        from: 196,
+        to: 185,
+        durationMs: 620,
+        volume: 0.03,
+        drive: 0.5,
+        holdMs: 200,
+        filter: { type: "lowpass", frequency: 900 },
+      },
+      {
+        call: "noise",
+        durationMs: 900,
+        volume: 0.022,
+        color: "brown",
+        attackMs: 220,
+        filter: { type: "bandpass", frequency: 420, to: 300, q: 0.7 },
+      },
+    ],
+  },
+
+  pole: {
+    description:
+      "A FLEX POLE KNOCKED: the hollow plastic clack of a guard on a slalom " +
+      "pole — a short bright bandpassed burst with a pitched knock under it " +
+      "— and the pole's rattle on its hinge as it springs back, a second " +
+      "fainter clack a beat later.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 40,
+        volume: 0.045,
+        color: "white",
+        filter: { type: "bandpass", frequency: 2600, q: 2.5 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 520,
+        to: 380,
+        durationMs: 60,
+        volume: 0.03,
+      },
+      {
+        call: "noise",
+        durationMs: 30,
+        volume: 0.018,
+        color: "white",
+        delayMs: 140,
+        filter: { type: "bandpass", frequency: 2200, q: 2.5 },
+      },
+    ],
+  },
+
   reset: {
     description:
       "The skier stood back on the piste at the last gate: a soft " +

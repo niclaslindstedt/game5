@@ -94,7 +94,7 @@ describe("a staged backflip", () => {
   });
 
   it("is not a stroke on a run that does not count tricks", () => {
-    const state = staged("race");
+    const state = staged("timeTrial");
     ride(state, 0.5, BACKFLIP);
     expect(state.tricks.pumped).toBe(0);
     // The lean's own torque still pitches it: it is the air control.
@@ -250,7 +250,7 @@ describe("the tricks run", () => {
   });
 
   it("every other mode keeps no buzzer and turns no tricks", () => {
-    for (const mode of ["race", "timeTrial", "free"] as const) {
+    for (const mode of ["slalom", "timeTrial", "free"] as const) {
       const state = createGame({ level: flatLevel(), mode, quiet: true });
       expect(state.rules.tricks).toBe(false);
       expect(state.rules.limit).toBe(0);
@@ -475,7 +475,7 @@ describe("the score as read (strings.ts, trick-tile.ts)", () => {
   });
 
   it("is up on a tricks run only, with the combo in hand and then what it paid", () => {
-    expect(comboTile(staged("race"))).toBeNull();
+    expect(comboTile(staged("timeTrial"))).toBeNull();
     const state = staged();
     ride(state, 1.8, BACKFLIP);
     const inAir = comboTile(state);

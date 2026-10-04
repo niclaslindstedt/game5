@@ -170,7 +170,7 @@ function LevelBox({
               {STRINGS.campaignPoints(points)}
             </span>
           )}
-          {level.mode === "race" && (
+          {level.mode === "slalom" && (
             <span
               class={`menu-level-mark${result.place <= POINTS.length ? " menu-level-mark-lit" : ""}`}
             >

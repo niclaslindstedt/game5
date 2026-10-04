@@ -47,6 +47,11 @@ const args = parseArgs(
       default: "",
       help: "the free ride's spot, x,z (m) — the chair whose run passes nearest it; the start when left out",
     },
+    run: {
+      kind: "string",
+      default: "",
+      help: "the run to ride up to by its id (`freeRunOf`), on whatever lift serves it — a drag's, a gondola's; the map's own when left out",
+    },
     camera: {
       kind: "string",
       default: "chase",
@@ -54,7 +59,7 @@ const args = parseArgs(
     },
     at: {
       kind: "string",
-      default: "-12,-6,-3,-1.5,-0.5,0.5,1.5,3,4.5,6,8,11",
+      default: "-2.5,-1.5,-0.5,0.5,1.5,3,5,8,12,16,20,25",
       help: "the moments photographed, s round the unload (negative on the chair)",
     },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
@@ -66,7 +71,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--camera=rung] [--at=s,…] [--skip-build]",
+  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--camera=rung] [--at=s,…] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -149,6 +154,7 @@ const query = new URLSearchParams({
   cols: String(args.cols),
   scale: String(args.scale),
   ...(args.spot ? { spot: args.spot } : {}),
+  ...(args.run ? { run: args.run } : {}),
 }).toString();
 await page.goto(`${server.url}lift-ride-preview.html?${query}`);
 await page.waitForFunction("window.__liftRide !== undefined");

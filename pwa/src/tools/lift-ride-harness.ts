@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE LIFT RIDE LAB's page (`scripts/lift-ride-preview.mjs`): a free ride
-// stood up on the chairlift as the app stands one up (`createGame`'s
+// stood up on a lift (the chair, or the lift serving `?run=`) as the app
+// stands one up (`createGame`'s
 // `mode: "free"`, `byLift`), carried to the top, stood off on the ramp and
 // led away onto its run — drawn through the game's own renderer and camera
 // every sixtieth of a second, so the lens's springs are the springs a player
@@ -35,8 +36,10 @@ const tier = (TIERS as readonly string[]).includes(params.get("quality") ?? "")
 const rung = (params.get("camera") ?? "chase") as Rung;
 /** A spot to ride up to (`x,z`), the map's start when left out. */
 const spot = (params.get("spot") ?? "").split(",").map(Number);
-/** Seconds round the unload to photograph at: negative on the chair. */
-const moments = (params.get("at") ?? "-12,-6,-3,-1.5,-0.5,0.5,1.5,3,4.5,6,8,11")
+/** The run to ride up to (`freeRunOf`), on whatever lift serves it. */
+const run = params.get("run") ?? undefined;
+/** Seconds round the unload to photograph at: negative on the lift. */
+const moments = (params.get("at") ?? "-2.5,-1.5,-0.5,0.5,1.5,3,5,8,12,16,20,25")
   .split(",")
   .map(Number)
   .filter(Number.isFinite);
@@ -63,6 +66,7 @@ function standUp(): GameState {
     region,
     mode: "free",
     byLift: true,
+    run,
     quiet: true,
     ...(spot.length === 2 && spot.every(Number.isFinite)
       ? { spawn: { x: spot[0], z: spot[1] } }
@@ -123,7 +127,7 @@ async function sheet(): Promise<{ note: string; tiles: number }> {
   }
   canvas.style.display = "none";
   return {
-    note: `seed ${seed}${region ? ` ${region}` : ""}, ${rung}, unloaded at ${off.toFixed(1)} s`,
+    note: `seed ${seed}${region ? ` ${region}` : ""}${run ? ` run ${run}` : ""}, ${rung}, unloaded at ${off.toFixed(1)} s`,
     tiles: times.length,
   };
 }

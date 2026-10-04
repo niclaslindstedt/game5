@@ -3,10 +3,12 @@
 // rides into a lift's load zone is carried to its top — a chair seated and
 // stood up over the ramp on its pad, a gondola inside its cabin and walked
 // out facing down the mountain, a drag pulled up its track on his skis —
-// and a free ride begun on a lift arrives at the top of the lift serving the
-// first run of the course its colour chose (or, given a spot, the chair whose
-// run passes nearest it) and is led onto that run until he takes the
-// controls. A race never boards one.
+// and a free ride begun on a lift rides the last seconds of the lift serving
+// the run picked (`freeRunOf`: the run named, else the first of the colour
+// asked, else the course's first — or, given a spot, the chair whose run
+// passes nearest it) and is led onto that run — skated across to it where
+// it starts above the top — until he takes the controls. A race never
+// boards one.
 
 import { describe, expect, it } from "vitest";
 
@@ -17,9 +19,13 @@ import {
   NEUTRAL_INPUT,
   TUNING,
   angleDiff,
+  arrivalOf,
   chairLane,
   createGame,
+  freeRunOf,
+  freeRuns,
   liftPlans,
+  resetSkier,
   standSkier,
   stationHouses,
   step,
@@ -89,7 +95,7 @@ describe("riding a lift on a free ride", () => {
           inclined = Math.max(inclined, Math.abs(c.incline));
         }
       }
-      return c.lift === null;
+      return r.events.some((e) => e.kind === "lift" && e.phase === "off");
     });
     const off = events.find((e) => e.kind === "lift" && e.phase === "off");
     expect(off).toBeDefined();
@@ -115,7 +121,7 @@ describe("riding a lift on a free ride", () => {
       const c = r.skier;
       if (c.lift?.phase === "ride")
         worst = Math.max(worst, Math.abs(c.y - level.groundAt(c.x, c.z) - c.spec.cogHeight));
-      return c.lift === null;
+      return r.events.some((e) => e.kind === "lift" && e.phase === "off");
     });
     expect(worst).toBeLessThan(0.6);
     const c = run.skier;
@@ -127,7 +133,7 @@ describe("riding a lift on a free ride", () => {
   it("takes a gondola's rider in at its door and walks him out facing down", () => {
     const plan = of("gondola")!;
     const run = atEntry(plan);
-    ride(run, 900, (r) => r.skier.lift === null);
+    ride(run, 900, (r) => r.events.some((e) => e.kind === "lift" && e.phase === "off"));
     const c = run.skier;
     expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(20);
     expect(Math.abs(angleDiff(c.heading, plan.heading + Math.PI))).toBeLessThan(0.2);
@@ -166,7 +172,8 @@ describe("riding a lift on a free ride", () => {
     const run = atEntry(plan);
     ride(run, 3, (r) => r.skier.lift?.phase === "ride");
     step(run, { ...NEUTRAL_INPUT, reset: true });
-    expect(run.skier.lift).toBeNull();
+    // Off the chair: let go, or making for a run off this top (`crossingOff`).
+    expect(run.skier.lift === null || run.skier.lift.phase === "lead").toBe(true);
     expect(Math.hypot(run.skier.x - plan.lift.top.x, run.skier.z - plan.lift.top.z)).toBeLessThan(
       plan.look.off + plan.look.gauge + 2,
     );
@@ -197,8 +204,18 @@ describe("a free ride begun on a lift", () => {
     expect(lift.phase).toBe("ride");
     expect(lift.id).toBe(target.from);
     expect(resort.runs[lift.lead!.run].from).toBe(target.from);
-    const plan = plans[lift.index];
-    expect(plan.length - lift.u).toBeGreaterThan(50);
+  });
+
+  it("rides only the last seconds of the lift, the top close ahead", () => {
+    const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
+    expect(arrivalOf(plans[run.skier.lift!.index]).u).toBe(run.skier.lift!.u);
+    let at = -1;
+    ride(run, 30, (r) => {
+      if (r.events.some((e) => e.kind === "lift" && e.phase === "off")) at = r.t;
+      return at >= 0;
+    });
+    expect(at).toBeGreaterThan(TUNING.lift.arrive - 0.05);
+    expect(at).toBeLessThan(TUNING.lift.arrive + 0.05);
   });
 
   it("is stood off at the top, led over the lip and onto the run, then let go", () => {
@@ -258,7 +275,8 @@ describe("a free ride begun on a lift", () => {
 
   it("hands the skis back at the first touch of a control", () => {
     const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
-    ride(run, 120, (r) => r.skier.lift?.phase === "lead");
+    // Once on his way down — a skate across to the run is the lift's.
+    ride(run, 120, (r) => r.skier.lift?.phase === "lead" && !r.skier.lift.lead?.cross);
     expect(run.skier.lift?.phase).toBe("lead");
     step(run, { ...NEUTRAL_INPUT, steer: 1 });
     expect(run.skier.lift).toBeNull();
@@ -295,4 +313,89 @@ describe("a free ride begun on a lift with no spot", () => {
       expect(run.skier.thrown).toBeNull();
     });
   }
+});
+
+describe("which run a free ride by lift starts down", () => {
+  const map = generateLevel(1);
+  const runs = freeRuns(map);
+
+  it("is the run named, of those leaving a lift's top, in id order", () => {
+    expect(runs.length).toBeGreaterThan(2);
+    expect(runs.map((r) => Number(r.id))).toEqual(
+      [...runs.map((r) => Number(r.id))].sort((a, b) => a - b),
+    );
+    for (const r of runs) expect(freeRunOf(map, { run: r.id, grade: "green" })).toBe(r.id);
+  });
+
+  it("is the first of the colour asked, even where no course of it reaches the valley", () => {
+    for (const grade of PISTE_GRADES) {
+      const first = runs.find((r) => r.grade === grade);
+      if (first) expect(freeRunOf(map, { grade })).toBe(first.id);
+    }
+    const run = createGame({
+      level: map,
+      mode: "free",
+      byLift: true,
+      run: runs[1].id,
+      quiet: true,
+    });
+    expect(map.resort!.runs[run.skier.lift!.lead!.run].id).toBe(runs[1].id);
+  });
+
+  it("is the course's first run where nothing is asked", () => {
+    const resort = map.resort!;
+    const course = resort.courses.find((c) => c.id === resort.course)!;
+    expect(freeRunOf(map, {})).toBe(course.runs[0]);
+  });
+});
+
+describe("the way from a lift's top onto its run", () => {
+  // A run leaves its top along the contour (R27) and may start well above
+  // the pad; a rider is skated across to it rather than left below it.
+  const map = levelFor(LEVEL_SEEDS[0]);
+  for (const r of freeRuns(map)) {
+    it(`brings him onto run ${r.id} (${r.grade}) without a reset or a fall`, () => {
+      const run = createGame({ level: map, mode: "free", byLift: true, run: r.id, quiet: true });
+      const events = ride(run, 90, (g) => g.skier.lift === null);
+      expect(run.skier.lift).toBeNull();
+      expect(events.some((e) => e.kind === "reset")).toBe(false);
+      expect(run.skier.thrown).toBeNull();
+      const c = run.skier;
+      expect(Math.min(...r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z)))).toBeLessThan(5);
+    });
+  }
+
+  it("skates a drag's rider of his own across to a run off its top", () => {
+    const plan = plans.find(
+      (p) =>
+        p.lift.kind === "drag" &&
+        !level.resort!.runs.some(
+          (r) => r.from === p.lift.id && p.lift.ramps?.some((q) => q.run === r.id),
+        ),
+    )!;
+    const run = atEntry(plan);
+    const events = ride(run, 600, (r) => r.skier.lift === null);
+    expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
+    const c = run.skier;
+    const near = Math.min(
+      ...level
+        .resort!.runs.filter((r) => r.from === plan.lift.id && r.kind === "piste")
+        .flatMap((r) => r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z))),
+    );
+    expect(near).toBeLessThan(5);
+  });
+
+  it("lets go of a skier the moment he is reset", () => {
+    const run = createGame({
+      level: map,
+      mode: "free",
+      byLift: true,
+      run: freeRuns(map)[0].id,
+      quiet: true,
+    });
+    ride(run, 60, (r) => r.skier.lift?.phase === "lead");
+    expect(run.skier.lift?.phase).toBe("lead");
+    resetSkier(run, [], true);
+    expect(run.skier.lift).toBeNull();
+  });
 });

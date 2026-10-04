@@ -23,7 +23,9 @@
 import {
   DEFAULT_REGION,
   TIMES_OF_DAY,
+  freeRuns,
   isPisteGrade,
+  pickFreeRun,
   isRegionId,
   snowCoverOf,
   type PisteGrade,
@@ -36,6 +38,8 @@ import {
   type Level,
   type SkiSpec,
 } from "@engine";
+
+import { runNumbers } from "./run-names.ts";
 
 /** THE SEASON ROW'S STOPS, each a day as a count off Jan 1 (so December
  * runs through New Year without a seam; the engine folds it, `dayOfYearOf`):
@@ -92,6 +96,10 @@ export type FreeRide = {
   /** The piste grade the map is built to (R23); null is the one the seed
    * deals. */
   grade: PisteGrade | null;
+  /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
+   * of, on the seed and in the country it was picked on; null is the first
+   * of the GRADE row's colour (`pickFreeRun`). */
+  run: { seed: number; region: RegionId; id: string } | null;
 };
 
 export function freshRide(): FreeRide {
@@ -104,6 +112,7 @@ export function freshRide(): FreeRide {
     weather: null,
     region: DEFAULT_REGION,
     grade: null,
+    run: null,
   };
 }
 
@@ -137,6 +146,16 @@ export function mergeRide(blob: unknown): FreeRide {
   }
   if (isRegionId(b.region)) out.region = b.region;
   if (isPisteGrade(b.grade)) out.grade = b.grade;
+  const run = b.run as Record<string, unknown> | null | undefined;
+  if (
+    run &&
+    typeof run === "object" &&
+    isNumber(run.seed) &&
+    isRegionId(run.region) &&
+    typeof run.id === "string"
+  ) {
+    out.run = { seed: run.seed, region: run.region, id: run.id };
+  }
   const spot = b.spot as Record<string, unknown> | null | undefined;
   if (
     spot &&
@@ -153,6 +172,66 @@ export function mergeRide(blob: unknown): FreeRide {
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
+}
+
+/** The run picked on `seed` in the ride's country, or null for the first
+ * of the GRADE row's colour. THE RUN BELONGS TO ITS MAP, as the spot does:
+ * a run's id on one seed or country is another run, or none, on the next. */
+export function runOn(ride: FreeRide, seed: number): string | null {
+  return ride.run !== null && ride.run.seed === seed && ride.run.region === ride.region
+    ? ride.run.id
+    : null;
+}
+
+/** A RUN AS THE START CARD BILLS IT: the number the piste map signs it with
+ * and its colour, its length and its drop, m, and its head — the
+ * top a ride by lift is carried to (`freeRuns`, in their order). */
+export type FreeRunInfo = {
+  id: string;
+  number: string;
+  grade: PisteGrade;
+  length: number;
+  vertical: number;
+  head: { x: number; y: number; z: number; heading: number };
+};
+
+/** Every run of `level` a free ride can be carried to the top of, billed
+ * (`FreeRunInfo`), and the run that is when nothing is asked — the first
+ * of the course the map is raced on. */
+export function freeRunList(level: Level): { runs: FreeRunInfo[]; fallback: string | null } {
+  const numbers = runNumbers(level);
+  const runs = freeRuns(level).map((r): FreeRunInfo => {
+    const top = r.points[0];
+    const foot = r.points[r.points.length - 1];
+    return {
+      id: r.id,
+      number: numbers.get(r.id) ?? r.id,
+      grade: r.grade,
+      length: r.length,
+      vertical: Math.max(0, top.y - foot.y),
+      head: { x: top.x, y: top.y, z: top.z, heading: top.heading },
+    };
+  });
+  const resort = level.resort;
+  const fallback = resort?.courses.find((c) => c.id === resort.course)?.runs[0] ?? null;
+  return { runs, fallback };
+}
+
+/** THE RUN THE CARD MARKS, of the runs its chart was sent: the one picked
+ * on this map, else the first of the GRADE row's colour, else the map's
+ * own — the engine's own rule (`pickFreeRun`), so the run marked is the run
+ * ridden. Null off a resort. */
+export function markedRun(
+  ride: FreeRide,
+  seed: number,
+  list: { runs: readonly FreeRunInfo[]; fallback: string | null },
+): FreeRunInfo | null {
+  const id = pickFreeRun(
+    list.runs,
+    { run: runOn(ride, seed), grade: ride.grade },
+    list.fallback ?? undefined,
+  );
+  return list.runs.find((r) => r.id === id) ?? null;
 }
 
 /** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on his
@@ -173,6 +252,7 @@ export function freeGameOptions(
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,
+    run: runOn(ride, seed) ?? undefined,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's

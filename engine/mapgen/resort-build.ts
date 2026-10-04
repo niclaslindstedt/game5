@@ -80,6 +80,7 @@ import {
   type WalkedRun,
 } from "./network.ts";
 import { gradeRun, networkStamp, onCore, stampRun } from "./network-build.ts";
+import { placeStart } from "./run-start.ts";
 import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
@@ -179,78 +180,6 @@ function scaledRow(row: GradeRow, length: number): GradeRow {
 const RUN_SALT = 0x2b1d5e7;
 const DAY_SALT = 0x0dae5a1;
 
-/** The start heading a run can be raced off (R12): the fall of the first
- * stretch no steeper than its colour's start, and on a black at least its
- * floor — tried about the wanted heading, the first that holds; null where
- * none does. */
-function fairHeading(
-  ground: Heightfield,
-  x: number,
-  z: number,
-  want: number,
-  row: GradeRow,
-): number | null {
-  const run = R.grid.back + R.track.step + R.spawn.run;
-  const { maxSlope, minSlope } = row.spawn;
-  for (const d of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.05, -1.05, 1.3, -1.3, 1.55, -1.55]) {
-    const h = want + d;
-    if (Math.abs(h) > 1.3) continue;
-    let steepest = 0;
-    let climb = 0;
-    for (let u = 0; u + R.track.gradeWindow <= run; u += 5) {
-      const a = sampleField(ground, x + Math.sin(h) * u, z + Math.cos(h) * u);
-      const b = sampleField(
-        ground,
-        x + Math.sin(h) * (u + R.track.gradeWindow),
-        z + Math.cos(h) * (u + R.track.gradeWindow),
-      );
-      const fall = (a - b) / R.track.gradeWindow;
-      steepest = Math.max(steepest, fall);
-      climb = Math.max(climb, -fall);
-    }
-    const end = sampleField(ground, x + Math.sin(h) * run, z + Math.cos(h) * run);
-    const mean = (sampleField(ground, x, z) - end) / run;
-    if (steepest > maxSlope * 0.85 || climb > 0.06) continue;
-    if (minSlope > 0 && mean < minSlope * 1.2) continue;
-    return h;
-  }
-  return null;
-}
-
-/** How far along the contour from its top station a run's start is looked
- * for, m a step and steps: a red off a peak whose face falls too steeply
- * for one starts where the ridge has carried it to a pitch it can leave on,
- * as a ridge run does. */
-const START_STEP = 30;
-const START_STEPS = 12;
-
-/** How far apart along the contour two runs off one top start, m. */
-const SIBLING_APART = 80;
-
-/** R12, R27 — where on the contour by its top station a run starts, and
- * the heading it leaves on: the first spot, out from the station on the
- * side the run leans to and then the other, a start of its colour can be
- * raced off. Null where there is none within reach. */
-function placeStart(
-  ground: Heightfield,
-  spec: RunSpec,
-  lean: number,
-  siblings: readonly number[],
-  clear: (x: number, z: number, heading: number) => boolean,
-): RunSpec | null {
-  const dir = lean >= 0 ? 1 : -1;
-  for (let k = 0; k <= START_STEPS; k++) {
-    for (const sgn of k === 0 ? [1] : [dir, -dir]) {
-      const x = spec.x + sgn * k * START_STEP;
-      if (Math.abs(x - R.world.size / 2) > RR.massif.flank.inner - 160) continue;
-      if (siblings.some((sx) => Math.abs(sx - x) < SIBLING_APART)) continue;
-      const heading = fairHeading(ground, x, spec.z, spec.heading, spec.row);
-      if (heading !== null && clear(x, spec.z, heading)) return { ...spec, x, heading };
-    }
-  }
-  return null;
-}
-
 /** How far down its heading a start must be clear of every run but its
  * top's (R12, R27), m, and by how much more than the clearance: a run that
  * began beside another would merge into it off the gate. */
@@ -299,7 +228,8 @@ export function attemptResort(
   const ground = bakeMassif(plan);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
-  const shape = padShape(generatorTraits(version).levelPads);
+  const traits = generatorTraits(version);
+  const shape = padShape(traits.levelPads);
   const pads = pressPads(ground, liftPlans, shape);
   /** Every station standing as the runs are walked — a lift's two ends,
    * the valley floor's aside (the runs finish among them in the hub, and
@@ -381,7 +311,15 @@ export function attemptResort(
         }
         return true;
       };
-      fair = placeStart(ground, spec, spec.lean, siblings, clear);
+      const top = liftPlans.find((l) => l.id === spec.from)?.top;
+      fair = placeStart(
+        ground,
+        spec,
+        spec.lean,
+        siblings,
+        clear,
+        top && !traits.startsAcrossTop ? sampleField(ground, top.x, top.z) : null,
+      );
       // Never over a drag lift's line (R26): its track is ridden on the snow.
       // The runs off a drag's own top, which leave beside it and would
       // otherwise wander across it all the way down.

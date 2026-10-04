@@ -29,8 +29,15 @@
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
 //   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
-//           green, a blue, a red or a black built to its band — the chart
-//           under it bills the colour that came out with its sign.
+//           green, a blue, a red or a black built to its band — and the RUN
+//           row brought to the first run of that colour.
+//
+//   RUN     which run of the ski area the ride starts down, by the number
+//           the piste map signs it with: the GRADE row's colour's runs
+//           stepped through (`markedRun`, the engine's `pickFreeRun`). The
+//           lift up to its top carries the skier the last few seconds, and
+//           the chart marks its head with a pulse; the line under the chart
+//           bills it.
 //
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
@@ -53,7 +60,7 @@ import {
 } from "@engine";
 import { useState } from "preact/hooks";
 
-import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, markedRun, spotOn, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
@@ -117,6 +124,20 @@ export function StartPage({
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
   const chart = useSeedPreview(seed, ride.region, ride.grade);
+  // THE RUNS ON THIS MAP: a ski area's runs are the seed's and the
+  // country's, whatever colour is asked of it, so the answer for another
+  // grade still names them while the fresh one is drawn.
+  const shown = chart.shown;
+  const list =
+    shown !== null && shown.ok && shown.seed === seed && shown.region === ride.region
+      ? shown
+      : null;
+  const marked = list ? markedRun(ride, seed, list) : null;
+  // The RUN row walks the runs of the GRADE row's colour — every run where
+  // it stands on AS DEALT, or where the map has none of the colour.
+  const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
+  const walked = graded.length > 0 ? graded : (list?.runs ?? []);
+  const runStops = walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) }));
 
   return (
     <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
@@ -166,12 +187,24 @@ export function StartPage({
                 hint={STRINGS.startGradeHint}
                 stops={GRADE_STOPS}
                 value={ride.grade ?? "dealt"}
-                onPick={(id) => setRide({ grade: id === "dealt" ? null : id, spot: null })}
+                onPick={(id) =>
+                  setRide({ grade: id === "dealt" ? null : id, spot: null, run: null })
+                }
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startRun}
+                hint={STRINGS.startRunHint}
+                stops={runStops}
+                value={marked?.id ?? ""}
+                extra={STRINGS.startRunWaiting}
+                onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
                 onHint={setHint}
               />
             </div>
             <SeedPreview
               chart={chart}
+              entry={marked}
               spot={spotOn(ride, seed)}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />

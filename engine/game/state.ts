@@ -537,8 +537,9 @@ export type TunnelRide = {
  * carried, his grip `u` m of plan up the line at `speed` m/s, his chair or
  * cabin swung `swing` rad about the rope (its foot toward the top
  * positive) at `swingRate` rad/s; `lead`: stood off it at the top of the
- * free ride's lift and led toward the run he picked (`lead`), until he
- * takes the controls. `t` is seconds in the phase; `tower` the next of its
+ * free ride's lift and led toward the run he picked (`lead`) — skated
+ * across to it first where it lies above him — until he takes the
+ * controls. `t` is seconds in the phase; `tower` the next of its
  * supports he has still to pass over. */
 export type LiftRide = {
   index: number;
@@ -556,8 +557,21 @@ export type LiftRide = {
   from: { x: number; y: number; z: number; heading: number };
   /** The run he is led to, his arc along it, the arc he is let go at and
    * the seconds the lead may take (`lift.leadFor`, longer to a run that
-   * starts far off the pad). */
-  lead: { run: number; s: number; until: number; time: number } | null;
+   * starts far off the pad) — and, where no point of the run can be glided
+   * to downhill from where he was let go, the point of it he is first
+   * skated ACROSS to, how fast, and whether he is out of a chair's lane
+   * (`cross`, null once there). */
+  lead: {
+    run: number;
+    s: number;
+    until: number;
+    time: number;
+    cross?: { x: number; z: number; s: number; pace: number; laned?: boolean } | null;
+    /** Where he last was `lift.stallMove` m on from, and when (the lead's
+     * own clock) — a lead that leaves him there `lift.stallFor` s has
+     * stalled. */
+    stall?: { x: number; z: number; t: number } | null;
+  } | null;
 };
 
 export type GameEvent =

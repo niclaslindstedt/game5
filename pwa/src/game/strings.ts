@@ -94,12 +94,14 @@ export const STRINGS = {
   air: (seconds: number): string => `${seconds.toFixed(1)}s`,
   airLabel: "AIR",
   airBest: "BEST",
-  /** THE FREE RIDE's two readouts in place of the run's: the longest
-   * flight so far, and how far has been skied. */
+  /** THE FREE RIDE's readouts in place of the run's: the longest flight
+   * so far, how far has been skied, and the map's seed. */
   bestAirLabel: "BEST AIR",
   distance: (metres: number): string =>
     metres < 1000 ? `${Math.round(metres)} M` : `${(metres / 1000).toFixed(2)} KM`,
   distanceLabel: "SKIED",
+  /** Under the free ride's map seed, so a picture of it names its mountain. */
+  seedLabel: "SEED",
   /** THE LIGHTS: the whole second still to run, and the word after. */
   count: (left: number): string => String(left),
   go: "GO!",
@@ -350,12 +352,20 @@ export const STRINGS = {
     "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
-  startGrid: "FROM THE START GATE",
-  startCaption: "Tap the chart to start anywhere on the mountain · the arrows are kickers",
+  startRun: "RUN",
+  startRunHint:
+    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here.",
+  /** A RUN row's stop: the number the piste map signs it with. */
+  startRunWord: (number: string): string => number,
+  /** The RUN row before the chart has said what runs there are. */
+  startRunWaiting: "…",
+  startGrid: "FROM THE LIFT",
+  startCaption:
+    "The pulsing mark is where you start · tap the chart to start anywhere else · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
   seedRefused: "NO PISTE ON THIS SEED",
-  /** The line under the chart: the piste's grade and length, its vertical
-   * and its kickers. */
+  /** The line under the chart: the run's (or the piste's) grade and
+   * length, its vertical and the map's kickers. */
   seedRead: (grade: string, piste: number, drop: number, kickers: number): string =>
     `${grade} · ${(piste / 1000).toFixed(1)} KM · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
   seedChart: (seed: number, kickers: number): string =>

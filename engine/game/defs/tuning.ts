@@ -782,16 +782,28 @@ export const TUNING = {
    * turned `ramp` rad off the line to the up rope's side (a step out of
    * the chair's way into the lane straight on off the ramp, `chairLane`),
    * a cabin walks him out with, m/s, and how far short of the top the
-   * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the chair's ride
-   * starts `before` m short of its last tower, held to `rideLeast`..
-   * `rideMost` m below the top; the lead gives the controls back past
-   * `leadNear`..`leadFar` m down the run (as far as the spot picked) or
-   * after `leadFor` s, joins the run at its nearest point `drop` m or more
-   * below him (within `joinFar` m — the free ride picks a run off a chair
+   * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the ride
+   * starts `arrive` s of carrying short of where the carrier lets him go —
+   * the last of the climb, the top station close ahead; the lead gives the
+   * controls back past `leadNear`..`leadFar` m down the run (as far as the
+   * spot picked) or after `leadFor` s, joins the run at the nearest point
+   * of it within `joinFar` m a straight line from where he was let go
+   * glides to (`drop` m or more and `glide` of the way below him, the
+   * ground along it, read every `reachStep` m, never `rise` m over the
+   * lowest it has come to nor falling steeper than `lip`, no trunk within
+   * `clear` m of it, and at least
+   * `groomed` packed all the way or falling `steepGlide` of it) — else he
+   * is skated across to its nearest point at `crossPace` m/s (faster where
+   * that would take over `crossMost` s) and led on from there — as he is
+   * from wherever a lead leaves him short of `stallMove` m on in `stallFor` s;
+   * down a ramp off a top (R26) he is checked to `rampSpeed` m/s, and on
+   * the run to `leadMost` m/s
+   * (a run leaving a top along the contour may start above it, R27); the
+   * chair a free ride with a spot picked is seated on is the one whose run
+   * passes nearest it among those joined `drop` m or more below its top
+   * (within `joinFar` m — the free ride picks a run off a chair
    * it can be joined from, a metres-off-the-spot penalty `noJoin` on any
-   * other; a run pinned by its colour, off whatever lift, is made for
-   * within `joinReach` m where it cannot be joined nearer, the lead given
-   * a second more for every `leadPace` m past `joinFar`), aims `aim` m on down it, steers `steer` per rad
+   * other; a run is skated across to within `joinReach` m), aims `aim` m on down it, steers `steer` per rad
    * off it, pushes on the poles under `push` m/s and reads the run `window`
    * m on and `back` m back of his last place; a control past `touch` takes
    * it; it rounds a station house with `houseGap` m to spare, and off a
@@ -818,14 +830,11 @@ export const TUNING = {
     ramp: 0.3,
     walkOut: 1.5,
     door: 10,
-    before: 30,
-    rideLeast: 60,
-    rideMost: 130,
+    arrive: 3,
     leadNear: 40,
     drop: 2,
     joinFar: 120,
-    joinReach: 320,
-    leadPace: 2,
+    joinReach: 480,
     noJoin: 2000,
     leadFar: 90,
     leadFor: 26,
@@ -842,6 +851,19 @@ export const TUNING = {
     laneSpeed: 3,
     lanePush: 1.5,
     cutHarder: 0.4,
+    rise: 0.3,
+    reachStep: 2,
+    clear: 3.5,
+    glide: 0.05,
+    groomed: 0.5,
+    steepGlide: 0.12,
+    lip: 0.5,
+    crossPace: 4.5,
+    crossMost: 25,
+    stallMove: 2,
+    stallFor: 2,
+    rampSpeed: 7,
+    leadMost: 10,
   },
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */

@@ -20,7 +20,9 @@
 // THE CHART IS ALSO A CONTROL. A press on it is where the ride starts
 // (`seed-chart.ts`'s `fromChart` is the one mapping back to the snow, and
 // the engine's `freeSpawn` holds the point out of the trees and inside the
-// edge); the start line's own mark is where it starts until then.
+// edge); until then it starts at the head of the run the RUN row picked,
+// where the lift sets the skier down. Wherever it starts is marked with a
+// beating pulse (`EntryMark`), the one mark on the plate that moves.
 //
 // THE WORK IS THE WORKER'S (`seed-preview-worker.ts`). What is left here is
 // the DOM, and the rules about how the picture behaves while the worker is
@@ -41,9 +43,16 @@
 import type { PisteGrade, RegionId } from "@engine";
 import { useEffect, useRef, useState } from "preact/hooks";
 
+import type { FreeRunInfo } from "./free-ride.ts";
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
-import { PANORAMA_VIEW, fromPanorama, spotInPanorama, type PanoramaSchematic } from "./panorama.ts";
+import {
+  PANORAMA_VIEW,
+  fromPanorama,
+  spotInPanorama,
+  toPanorama,
+  type PanoramaSchematic,
+} from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
 import type { PreviewPicture, PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
 import { GradeMark } from "./grade-mark.tsx";
@@ -191,7 +200,15 @@ const BADGE = 7;
 type Drawn = Extract<SeedAnswer, { ok: true }>;
 
 /** The plan: the ground from above, summit-up (`seed-chart.ts`). */
-function PlanLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }) {
+function PlanLayers({
+  drawn,
+  at,
+  entry,
+}: {
+  drawn: Drawn;
+  at: [number, number] | null;
+  entry: boolean;
+}) {
   return (
     <>
       {/* THE GROUND, baked with its rows along +z (the summit's row first,
@@ -217,11 +234,13 @@ function PlanLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }
           transform={`translate(${k.x.toFixed(1)} ${k.y.toFixed(1)}) rotate(${degrees(k.angle).toFixed(0)})`}
         />
       ))}
-      <path
-        class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
-        d={GRID_MARK}
-        transform={`translate(${drawn.schematic.grid.x.toFixed(1)} ${drawn.schematic.grid.y.toFixed(1)}) rotate(${degrees(drawn.schematic.grid.angle).toFixed(0)})`}
-      />
+      {!entry && (
+        <path
+          class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
+          d={GRID_MARK}
+          transform={`translate(${drawn.schematic.grid.x.toFixed(1)} ${drawn.schematic.grid.y.toFixed(1)}) rotate(${degrees(drawn.schematic.grid.angle).toFixed(0)})`}
+        />
+      )}
     </>
   );
 }
@@ -231,7 +250,15 @@ function PlanLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }
  * dotted faintly under the lot, then the seen ones cased in white, the
  * course raced the widest; the lifts over the runs, as they hang over them;
  * the kickers, the numbers, the start and the finish on top. */
-function PanoramaLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | null }) {
+function PanoramaLayers({
+  drawn,
+  at,
+  entry,
+}: {
+  drawn: Drawn;
+  at: [number, number] | null;
+  entry: boolean;
+}) {
   const pano: PanoramaSchematic = drawn.panorama.schematic;
   const stroke = (grade: PisteGrade): string => GRADE_LOOK[grade].paint;
   return (
@@ -317,7 +344,7 @@ function PanoramaLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | nu
           height={2.8}
         />
       )}
-      {pano.start && (
+      {pano.start && !entry && (
         <path
           class={`seed-preview-grid${at ? " seed-preview-grid-off" : ""}`}
           d={GRID_MARK}
@@ -328,12 +355,36 @@ function PanoramaLayers({ drawn, at }: { drawn: Drawn; at: [number, number] | nu
   );
 }
 
+/** WHERE THE RIDE STARTS, marked so it cannot be missed: a dot in the
+ * run's colour with rings beating out of it — at the spot tapped, or at
+ * the head of the run the lift carries the skier to. */
+function EntryMark({ at, grade }: { at: [number, number]; grade: PisteGrade | null }) {
+  const look = grade ? GRADE_LOOK[grade] : null;
+  return (
+    <g class="seed-preview-entry" transform={`translate(${at[0].toFixed(1)} ${at[1].toFixed(1)})`}>
+      <circle class="seed-preview-pulse" r={2.4} />
+      <circle class="seed-preview-pulse seed-preview-pulse-late" r={2.4} />
+      <circle class="seed-preview-entry-ring" r={3.2} />
+      <circle
+        class="seed-preview-entry-dot"
+        r={1.7}
+        fill={look?.paint}
+        stroke={look ? look.rim : undefined}
+      />
+    </g>
+  );
+}
+
 export function SeedPreview({
   chart,
+  entry,
   spot,
   onSpot,
 }: {
   chart: SeedChart;
+  /** The run the lift carries the skier to (`markedRun`); null off a ski
+   * area, or before the chart has named the runs. */
+  entry: FreeRunInfo | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
@@ -362,6 +413,14 @@ export function SeedPreview({
         ? toChart(drawn.schematic.size, spot.x, spot.z)
         : spotInPanorama(drawn.panorama.view, drawn.panorama.pick, spot.x, spot.z)
       : null;
+  // The head of the run picked, where the lift sets him down — drawn even
+  // where a ridge hides it from the valley, since it is where he starts.
+  const head =
+    drawn && entry
+      ? view === "plan"
+        ? toChart(drawn.schematic.size, entry.head.x, entry.head.z)
+        : toPanorama(drawn.panorama.view, entry.head.x, entry.head.y, entry.head.z)
+      : null;
   const label = drawn
     ? view === "plan"
       ? STRINGS.seedChart(drawn.seed, drawn.schematic.kickers.length)
@@ -383,18 +442,14 @@ export function SeedPreview({
             onClick={pick}
           >
             {view === "plan" ? (
-              <PlanLayers drawn={drawn} at={at} />
+              <PlanLayers drawn={drawn} at={at} entry={head !== null} />
             ) : (
-              <PanoramaLayers drawn={drawn} at={at} />
+              <PanoramaLayers drawn={drawn} at={at} entry={head !== null} />
             )}
-            {at && (
-              <g
-                class="seed-preview-spot"
-                transform={`translate(${at[0].toFixed(1)} ${at[1].toFixed(1)})`}
-              >
-                <circle r={3.2} />
-                <circle r={1.1} />
-              </g>
+            {at ? (
+              <EntryMark at={at} grade={null} />
+            ) : (
+              head && <EntryMark at={head} grade={entry?.grade ?? null} />
             )}
           </svg>
         ) : (
@@ -416,12 +471,12 @@ export function SeedPreview({
       {/* Always rendered, empty until there is a reading: the line holds its
           own height, so the chart's arrival adds nothing under the plate. */}
       <p class="seed-preview-read">
-        {drawn && <GradeMark grade={drawn.colour} className="seed-preview-grade" />}
+        {drawn && <GradeMark grade={entry?.grade ?? drawn.colour} className="seed-preview-grade" />}
         {drawn
           ? STRINGS.seedRead(
-              STRINGS.gradeNames[drawn.colour],
-              drawn.length,
-              drawn.vertical,
+              STRINGS.gradeNames[entry?.grade ?? drawn.colour],
+              entry?.length ?? drawn.length,
+              entry?.vertical ?? drawn.vertical,
               drawn.schematic.kickers.length,
             )
           : ""}

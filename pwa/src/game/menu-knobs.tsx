@@ -146,6 +146,9 @@ export function StepRow<T extends string>({
   const current = at < 0 ? null : stops[at];
   const describe = (): void => onHint?.(says(label, hint));
   const step = (dir: 1 | -1): void => {
+    // A ladder with no stops yet (one waiting on what it can offer) steps
+    // nowhere.
+    if (stops.length === 0) return;
     // Off the ladder, the first press lands on an END of it rather than on
     // whatever index arithmetic on −1 happens to produce.
     const to = at < 0 ? (dir > 0 ? 0 : stops.length - 1) : (at + dir + stops.length) % stops.length;

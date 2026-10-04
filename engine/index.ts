@@ -92,7 +92,14 @@ export {
   type GameMode,
   type RunRules,
 } from "./game/defs/modes.ts";
-export { FIELD, createField, fieldOrderOf, fieldPlace, type Heat } from "./game/field.ts";
+export {
+  FIELD,
+  createField,
+  fieldOrderOf,
+  fieldPlace,
+  startNumbers,
+  type Heat,
+} from "./game/field.ts";
 export { PAR, slalomPar, type Par } from "./game/par.ts";
 export { stepStrict } from "./game/strict.ts";
 export { freshGatePoles, polePlan, stepGatePoles } from "./game/gate-poles.ts";

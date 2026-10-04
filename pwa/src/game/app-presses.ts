@@ -19,6 +19,8 @@ export type Presses = {
   /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
   pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
   restart: () => void;
+  /** A slalom's SECOND RUN, off the first run's plate (`pinned-run.ts`). */
+  second: () => void;
   pause: () => void;
   resume: () => void;
   toMenu: () => void;
@@ -34,6 +36,7 @@ export const NO_PRESSES: Presses = {
   tricks: () => {},
   pinned: () => {},
   restart: () => {},
+  second: () => {},
   pause: () => {},
   resume: () => {},
   toMenu: () => {},

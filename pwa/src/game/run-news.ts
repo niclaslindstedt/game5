@@ -8,13 +8,18 @@
 // tree met, a landing the legs could not take, a wipeout and what caused
 // it, an injury and what it was, the skier bogged, an edge dulled or a
 // knee hurt, a reset, the skier
-// blown into a wind tunnel, the finish.
+// blown into a wind tunnel, the finish. On a SLALOM a gate comes every
+// second, so only its two intermediates are billed, with the gap to the
+// leader there; a gate pole driven over hard is news (a brush is not — a
+// racer clears a pole at nearly every gate), and so is going OUT — the
+// disqualification or the fall, and why.
 // What the HUD already shows in its own corner every frame — the speed, the
 // place — is not news, and neither is a landing the skis simply rode away
 // from.
 
 import { TUNING, type GameEvent, type GameState } from "@engine";
 
+import { gapAt, timingGates } from "./slalom-board.ts";
 import { gatesTaken } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -23,6 +28,11 @@ import { STRINGS } from "./strings.ts";
  * under it. */
 /** How near a save must have come to a fall to be said (`Save.size`). */
 const SAVE_SAID = 0.6;
+
+/** How hard a gate pole must be driven into to be said, m/s of closing
+ * speed — a racer clearing a pole with his shin and his guard closes on it
+ * at a couple; one skied straight over closes at most of his speed. */
+export const POLE_SAID = 6;
 
 export type HudFlash = { id: number; text: string; tone: "good" | "bad" | "info" };
 
@@ -37,6 +47,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // the `finish` event says better.
       if (e.index === 0) return { text: STRINGS.newsStart, tone: "info" };
       if (e.index >= state.level.checkpoints.length - 1) return null;
+      if (state.field) {
+        const point = timingGates(state.level).indexOf(e.index);
+        if (point < 0) return null;
+        const gap = gapAt(state, e.index);
+        return {
+          text: STRINGS.newsTiming(point + 1, e.split, gap),
+          tone: gap !== null && gap > 0 ? "bad" : "good",
+        };
+      }
       return { text: STRINGS.newsCheckpoint(e.index, e.split), tone: "good" };
     case "lap":
       // A piste is one run: the finish line ends it, and the `finish`
@@ -82,15 +101,18 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         : { text: STRINGS.comboBanked(e.points), tone: "good" };
     case "bail":
       return { text: STRINGS.comboBailed(e.lost), tone: "bad" };
-    case "finish":
+    case "pole":
+      return e.speed >= POLE_SAID ? { text: STRINGS.newsPole(e.gate), tone: "info" } : null;
+    case "out":
+      return { text: STRINGS.newsOut(e.out), tone: "bad" };
+    case "finish": {
       // A tricks run is its score; a run alone has no place, only a time.
       if (state.rules.tricks)
         return { text: STRINGS.newsTricksFinish(state.tricks.score), tone: "good" };
-      if (state.rivals.length === 0) return { text: STRINGS.newsFinishAlone(e.time), tone: "good" };
-      return {
-        text: STRINGS.newsFinish(e.place, state.rivals.length + 1, e.time),
-        tone: "good",
-      };
+      const field = state.field?.runs.length ?? state.rivals.length;
+      if (field === 0) return { text: STRINGS.newsFinishAlone(e.time), tone: "good" };
+      return { text: STRINGS.newsFinish(e.place, field + 1, e.time), tone: "good" };
+    }
     case "tunnel":
       // Blown into a wind tunnel; coming out of the far end is not news,
       // the run carrying on.

@@ -468,9 +468,22 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
  * stretch, as a map whose checkpoints are its gates and whose spawn is the
  * start hut. Setting one over a map that already carries a slalom sets it
  * over the map under that one, so a run's other course is set over the
- * same mountain and a slalom is never set twice. */
+ * same mountain and a slalom is never set twice — and over a map that
+ * already carries THIS run's course it is that map, the very object: a
+ * restart or a replay stands on the map the renderer has already built,
+ * rather than on a copy it would have to build again. The course keeps the
+ * day and the sky of the map it was set over (`withDay`, `withSky`), so a
+ * second run is skied under the first run's sun. */
 export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
-  const original = level.slalom?.base ?? level;
+  if (level.slalom?.run === run) return level;
+  const course = courseOver(level.slalom?.base ?? level, run);
+  return course.sun === level.sun && course.weather === level.weather
+    ? course
+    : { ...course, sun: level.sun, weather: level.weather };
+}
+
+/** Run `run`'s course set over `original`, a map with no slalom on it. */
+function courseOver(original: Level, run: 1 | 2): Level {
   const stretch = slalomStretch(original);
   const base = levelStretch(original, stretch);
   const laid = fitBends(layGates(base, stretch, run));

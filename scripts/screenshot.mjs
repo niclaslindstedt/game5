@@ -22,6 +22,7 @@
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
 //   ?mode=trial      the run is a TIME TRIAL rather than a race (--trial).
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
+//   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
 //   ?splash=1 / ?menu=root   the attract card / the front door;
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
 //   ?menu=skis[&skis=id]     the ski card RACE opens, on a pair.
@@ -253,6 +254,7 @@ const args = parseArgs(
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     trial: { kind: "flag", help: "a time trial rather than a race (?mode=trial)" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
+    run2: { kind: "flag", help: "a slalom's second run, the first skied by the bot (?run=2)" },
     "no-poles": { kind: "flag", help: "the player skis without poles, the hard mode (?poles=0)" },
     viewport: {
       kind: "string",
@@ -262,7 +264,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -460,11 +462,12 @@ if (args.surface) {
         if (args.grade !== undefined) params.grade = String(args.grade);
         if (args.trial) params.mode = "trial";
         if (args.tricks) params.mode = "tricks";
+        if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

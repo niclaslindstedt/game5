@@ -38,6 +38,10 @@
   --hud-good: #e8412c;
   --hud-bad: #ff5a4e;
   --hud-info: #cfe6f7;
+  /* AHEAD ON THE CLOCK: the one green in the chrome, kept for a gap that is
+     going the racer's way — against the record or the leader — beside the
+     alarm's red for one that is not, as a timing board shows it. */
+  --hud-ahead: #4fdc7c;
   /* THE TOP-RIGHT CLUSTER'S WIDTH — the minimap and the row of presses under
      it, sized to be
      found at a glance from the corner of an eye that is on the track. The
@@ -1199,6 +1203,44 @@ canvas {
   }
 }
 
+/* THE STARTER'S WORD on a slalom (hud.tsx): READY, then GO, small at the
+   top centre. The count itself is the start clock's in the house, and the
+   start is a television shot the big lights would cover — so this is a
+   caption, not a light: the HUD's condensed capitals in a dark pill, GO in
+   the flag's colour. */
+.hud-starter {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hud-starter > span {
+  display: block;
+  padding: 0.2rem 0.9rem;
+  border-radius: 999px;
+  background: rgb(var(--hud-plate) / 70%);
+  border: 1px solid var(--hud-edge);
+  font-size: clamp(0.85rem, 2.6vmin, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #fff;
+  animation: hud-air-in 300ms ease-out backwards;
+}
+
+.hud-starter > .hud-starter-go {
+  color: var(--hud-good);
+}
+
+/* A phone held upright wraps the top-left readouts across the top centre,
+   so the word drops under them, clear of the map's corner. */
+@media (orientation: portrait) {
+  .hud-starter {
+    top: 20%;
+  }
+}
+
 /* THE RESULT PLATE — the tab-away card's plate with the finish's own lines on
    it and a row of presses under them (hud-result.tsx), and a gold rim on the
    day the book gains a row.
@@ -1397,8 +1439,13 @@ canvas {
   color: var(--hud-good);
 }
 
-/* THE GAP to the record at the same crossing: the flag's colour ahead of
-   it, the warning's behind — the one chip whose colour IS the reading. */
+/* THE GAP to the record (or, on a slalom, the leader) at the same
+   crossing: green ahead of it, the warning's red behind — the one chip
+   whose colour IS the reading. */
+.hud-gap.hud-gap-ahead > span:first-child {
+  color: var(--hud-ahead);
+}
+
 .hud-gap.hud-gap-behind > span:first-child {
   color: var(--hud-bad);
 }
@@ -1455,6 +1502,171 @@ canvas {
 
 .hud-standing-time {
   text-align: right;
+}
+
+/* THE SLALOM'S BOARD on the finish plate (hud-board.tsx): a results sheet
+   of thirty — place, start number, the player's word, the times, the gap —
+   in a fixed grid so every column lines up down the sheet, a head row of
+   captions over it. The LIST is the one part of the plate that scrolls:
+   thirty rows are more than a phone on its side can stand, and the rest of
+   the plate (the verdict, the ways on) never moves. */
+.hud-board {
+  width: 100%;
+  margin-top: 0.4rem;
+  font-size: clamp(0.72rem, 2.1vmin, 0.95rem);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  max-height: min(15rem, 30vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hud-board-row {
+  display: grid;
+  grid-template-columns: 1.7em 2.2em minmax(2.4em, 1fr) 5.2em 4.2em;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.3rem;
+  background: rgb(var(--hud-plate) / 35%);
+  white-space: nowrap;
+}
+
+/* On the second run, the first run's time and the total beside this one. */
+.hud-board[data-second] .hud-board-row {
+  grid-template-columns: 1.7em 2.2em minmax(2.4em, 1fr) 5.2em 5.2em 5.2em 4.2em;
+}
+
+.hud-board-head {
+  background: none;
+  font-size: 0.8em;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.hud-board-head > span:nth-child(n + 4),
+.hud-board-place,
+.hud-board-time,
+.hud-board-gap {
+  text-align: right;
+}
+
+.hud-board-place {
+  font-weight: 700;
+}
+
+.hud-board-bib {
+  color: var(--hud-info);
+}
+
+.hud-board-gap {
+  color: var(--hud-info);
+}
+
+/* A racer with no time: why, across the columns his times would be in. */
+.hud-board-status {
+  grid-column: 4 / -1;
+  text-align: right;
+  color: var(--hud-info);
+}
+
+.hud-board-out .hud-board-status {
+  color: var(--hud-bad);
+}
+
+.hud-board-you {
+  color: var(--hud-good);
+  background: rgb(var(--hud-plate) / 75%);
+  outline: 1px solid var(--hud-good);
+}
+
+/* On a phone held upright the second run's sheet drops the first run's
+   column: the total carries it, and seven columns do not fit 390 px. */
+@media (max-width: 30rem) {
+  .hud-board[data-second] .hud-board-row {
+    grid-template-columns: 1.7em 2.2em minmax(2em, 1fr) 4.9em 4.9em 3.8em;
+  }
+  .hud-board[data-second] .hud-board-row > :nth-child(4) {
+    display: none;
+  }
+}
+
+/* THE SLALOM'S PLATE ON A PHONE: upright, the list gives up rows before the
+   plate gives up its presses; on its side — 390 px of height for a verdict,
+   a sheet of thirty and the ways on — the plate turns into two columns, the
+   verdict and the presses on the left and the board filling the right to
+   exactly the left's height (`contain: size` keeps thirty rows from asking
+   for more), its list scrolling inside it. */
+@media (max-width: 30rem) {
+  .hud-board-list {
+    max-height: 22vh;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .hud-card.hud-result-boarded {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    column-gap: 1rem;
+    row-gap: 0;
+    align-content: center;
+    justify-items: center;
+    max-width: min(52rem, calc(100vw - 2rem));
+    max-height: calc(100% - 1rem);
+    padding: 0.6rem 1rem;
+    overflow: hidden;
+  }
+  .hud-result-boarded > * {
+    grid-column: 1;
+    margin-block: 0.1rem;
+  }
+  .hud-result-boarded > .hud-board {
+    grid-column: 2;
+    grid-row: 1 / span 14;
+    align-self: stretch;
+    contain: size;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+  }
+  .hud-result-boarded .hud-board-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  .hud-result-boarded .hud-result-acts {
+    margin-top: 0.3rem;
+  }
+}
+
+/* A RUN THAT WENT OUT: the plate's rim and its verdict in the warning's
+   colour — the one plate whose colour IS the reading. */
+.hud-card.hud-result-out {
+  border-color: var(--hud-bad);
+}
+
+.hud-result-verdict {
+  color: var(--hud-bad);
+}
+
+.hud-result-why {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* Where the player stands against the leader: green leading. */
+.hud-result-lead[data-lead] {
+  color: var(--hud-ahead);
 }
 
 /* ── THE TOUCH CONTROLS ──────────────────────────────────────────────────

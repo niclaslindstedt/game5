@@ -140,11 +140,11 @@ const SURFACES = {
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },
-  // ...and the free ride itself, twenty seconds in, held still: the HUD's
-  // best air and distance where the race's place and laps would be.
+  // ...and the free ride itself, twenty seconds in, held still: no run's
+  // figures over it — the map's seed alone at the top left.
   free: {
     params: { start: "free", t: "20", shot: "1" },
-    wait: ".hud-best-air",
+    wait: ".hud-seed",
     settle: 1500,
   },
   // THE FREE RIDE'S ARRIVAL BY LIFT (`lift-ride.ts`): seated on the chair
@@ -152,17 +152,17 @@ const SURFACES = {
   // off the pad.
   "free-chair": {
     params: { start: "free", t: "1", shot: "1" },
-    wait: ".hud-best-air",
+    wait: ".hud-seed",
     settle: 1500,
   },
   "free-top": {
     params: { start: "free", t: "3", shot: "1" },
-    wait: ".hud-best-air",
+    wait: ".hud-seed",
     settle: 1500,
   },
   "free-off": {
     params: { start: "free", t: "8", shot: "1" },
-    wait: ".hud-best-air",
+    wait: ".hud-seed",
     settle: 1500,
   },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a

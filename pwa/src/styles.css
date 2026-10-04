@@ -4864,12 +4864,6 @@ canvas {
   }
 }
 
-/* THE FREE RIDE'S BEST AIR: keyed on its value, so a new best lands with the
-   place chip's thump, in the flag's colour so it reads as news. */
-.hud-best-air {
-  animation: hud-score-bank 340ms cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-
 /* ── THE TRICKS RUN (hud-combo.tsx) ──────────────────────────────────────
    THE COMBO OVER THE NOSE: a column on the centreline, a little under the
    air clock, so the seconds, what was turned in them and what they are

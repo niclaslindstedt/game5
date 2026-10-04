@@ -57,6 +57,7 @@ import {
   botInput,
   createGame,
   error,
+  lastPiste,
   placeRun,
   skisById,
   step,
@@ -77,7 +78,7 @@ import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
-import { freeAgainOptions, freeGameOptions } from "./game/free-ride.ts";
+import { freeAgainOptions, freeGameOptions, freeTopOptions } from "./game/free-ride.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -490,11 +491,11 @@ export function App() {
      * trails and its spray clean — so no card, just the lights again. */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again from where it was stood up; every other
-      // run from the start line, on the same map, in its mode.
+      // A free ride starts again at the top of the last piste it skied;
+      // every other run from the start line, on the same map, in its mode.
       const next =
         !state.rules.course && !state.rules.tricks && freeAgain
-          ? createGame(freeAgain)
+          ? createGame(freeTopOptions(freeAgain, lastPiste(state)))
           : (pinned.again() ?? playerGame(state.level, state.seed));
       adopt(next, ticketFor(next));
       frozen = false;

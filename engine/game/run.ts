@@ -8,7 +8,7 @@
 // (`body.ts`),
 // the air record, the clock and the odometer, the buzzer
 // (`RunRules.limit`), the course (when the rules count one — a free ride
-// does not) and the automatic reset, in that order, for ONE run: the
+// does not, and notes the runs it skies instead) and the automatic reset, in that order, for ONE run: the
 // player's, or one of the rivals' (`rivals.ts`), which is a run of its own
 // over the same map. The field is stepped by this same function — a rival
 // that skied a different step would be a rival in a different game.
@@ -28,6 +28,7 @@ import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepGatePoles } from "./gate-poles.ts";
+import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -120,6 +121,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
     return;
   }
   if (run.rules.course) stepCourse(run, x0, z0, events);
+  // A FREE RIDE remembers the runs it skies instead (`skied.ts`).
+  else noteSkied(run);
   if (p.finished) return;
   const R = TUNING.reset;
   // Bogged, the skier is given the time to work out (`trench.ts`).

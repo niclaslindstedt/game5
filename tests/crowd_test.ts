@@ -112,8 +112,19 @@ describe("the crowd skis", () => {
   const seen = new Map<number, string[]>();
   let speed = 0;
   let samples = 0;
-  for (let s = 0; s < 12; s++) {
-    ride(state, 10);
+  // How long each has been held in a stop, slowed past a crawl but still
+  // sliding, s, and the longest any one was.
+  const creep = new Map<number, number>();
+  let creepMost = 0;
+  for (let s = 0; s < 120; s++) {
+    ride(state, 1);
+    for (const a of state.crowd!.amateurs) {
+      const sliding = a.speed >= CROWD.stand && a.speed < CROWD.crawl.speed;
+      const held = a.mode === "stop" && sliding ? (creep.get(a.id) ?? 0) + 1 : 0;
+      creep.set(a.id, held);
+      creepMost = Math.max(creepMost, held);
+    }
+    if ((s + 1) % 10) continue;
     for (const a of state.crowd!.amateurs) {
       const modes = seen.get(a.id) ?? [];
       if (modes[modes.length - 1] !== a.mode) modes.push(a.mode);
@@ -154,6 +165,13 @@ describe("the crowd skis", () => {
     const all = [...seen.values()].map((m) => m.join(","));
     expect(all.filter((m) => m.includes("stop")).length).toBeGreaterThan(10);
     expect(all.filter((m) => m.includes("down")).length).toBeGreaterThan(3);
+  });
+
+  it("a stop is stood still and over on its clock, however steep the pitch", () => {
+    // A brake eased off as he slowed met the fall on a steep pitch at a
+    // creep, and the stop's clock waited on a standstill that never came:
+    // he slid on in it for minutes, and his group waited for him.
+    expect(creepMost).toBeLessThanOrEqual(3);
   });
 
   it("on a map with no resort, down its piste", () => {

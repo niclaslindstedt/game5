@@ -452,6 +452,9 @@ export const CROWD = {
    * and his skating give him: the speed, m/s, and the push, m/s². */
   brake: 3.5,
   crawl: { speed: 2.6, push: 0.9 },
+  /** The speed a stop is stood at, m/s: below it he holds on his edges,
+   * still, however steep the pitch under him. */
+  stand: 0.3,
   /** The lean a turn is read as begun past, rad — so a drunk's sway or a
    * straight line's chatter starts none (the player's view reads his edge
    * past 0.14 the same way). */

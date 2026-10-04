@@ -130,8 +130,10 @@ describe("the side-on drag area", () => {
 
 // ── The skier in the wind, on the bench ──────────────────────────────────
 // The strip runs along +z, so a skier faced down it has +x on his right.
-// A wind FROM `from` moves toward `from + π` (`windAt`): from 0 is in his
-// face, from π behind him, from −π/2 blows toward his right.
+// A wind FROM `from` moves toward `from + π` (`windAt`): from π is behind
+// him, from −π/2 blows toward his right — and from 0, which would blow up
+// the strip into his face, is folded down it (`downhillFrom`): the wind
+// never blows up the mountain.
 
 const PITCH = Math.tan((20 * Math.PI) / 180);
 
@@ -139,9 +141,12 @@ function under(level: Level, wind: number, from: number): Level {
   return wind === 0 ? level : withSky(level, { weather: { kind: "clear", wind, windFrom: from } });
 }
 
-function run(level: Level, at: { x: number; z: number; speed: number }): GameState {
+function run(
+  level: Level,
+  at: { x: number; z: number; speed: number; heading?: number },
+): GameState {
   const state = createGame({ level, seed: 5, rivals: 0, countdown: 0, quiet: true });
-  placeRun(state, { x: at.x, z: at.z, heading: 0, speed: at.speed });
+  placeRun(state, { x: at.x, z: at.z, heading: at.heading ?? 0, speed: at.speed });
   return state;
 }
 
@@ -160,13 +165,28 @@ describe("the wind on the skier (air.ts)", () => {
     return state.skier.speed;
   };
 
-  it("slows him into a headwind and carries him with a tailwind", () => {
+  it("carries him with a tailwind, and a wind dealt up the pitch blows down it", () => {
     const still = schuss(0, 0);
-    const head = schuss(12, 0);
     const tail = schuss(12, Math.PI);
+    const dealtUp = schuss(12, 0);
     // Some 9 m/s of air at his body: his terminal speed moves by about that.
-    expect(head).toBeLessThan(still - 4);
     expect(tail).toBeGreaterThan(still + 4);
+    // Folded down the mountain, the wind that would have been in his face
+    // carries him as the tailwind does.
+    expect(dealtUp).toBeGreaterThan(still + 4);
+    expect(Math.abs(dealtUp - tail)).toBeLessThan(1);
+  });
+
+  it("slows him into a headwind — faced up the mountain, the wind blowing down it", () => {
+    const flat = flatLevel({ packed: 1 });
+    /** His speed after 4 s coasting up the strip (−z) from 70 km/h. */
+    const coast = (wind: number): number => {
+      const at = { x: 1500, z: 1500, speed: 70 / 3.6, heading: Math.PI };
+      const state = run(under(flat, wind, Math.PI), at);
+      ride(state, 4, NEUTRAL_INPUT);
+      return state.skier.speed;
+    };
+    expect(coast(15)).toBeLessThan(coast(0) - 1);
   });
 
   it("pushes him off a straight line in a crosswind, and he leans into it", () => {

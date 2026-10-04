@@ -36,6 +36,7 @@ import {
   totalMass,
   weatherOf,
   windAt,
+  windFromOf,
   withSky,
   type GameState,
   type Level,
@@ -797,11 +798,11 @@ export function createWorldRenderer(
       const look = skyLookAt(sky, state.t);
       windAt(sky, state.t, wind);
       // The cloud goes with the MEAN wind — its gusts are the air down here.
-      const weather = weatherOf(sky);
-      const carried = (weather.wind * state.t) / CLOUD_HEIGHT;
+      const carried = (weatherOf(sky).wind * state.t) / CLOUD_HEIGHT;
+      const from = windFromOf(sky);
       env.update(look, lens.camera, d.y, {
-        x: -Math.sin(weather.windFrom) * carried,
-        z: -Math.cos(weather.windFrom) * carried,
+        x: -Math.sin(from) * carried,
+        z: -Math.cos(from) * carried,
       });
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {

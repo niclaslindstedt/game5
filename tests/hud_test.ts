@@ -173,8 +173,12 @@ describe("the wind meter (snapshot.ts)", () => {
   });
 
   it("points a wind in his face down, at the player, and adds it to his speed", () => {
-    // From +z, dead ahead of a skier facing +z.
-    const snap = takeSnapshot(under(20, 0, 28));
+    // From −z (down the mountain), dead ahead of a skier turned to face −z:
+    // a wind is never dealt up the mountain into a skier facing down it.
+    const state = under(20, Math.PI, 0);
+    state.skier.heading = Math.PI;
+    state.skier.vz = -28;
+    const snap = takeSnapshot(state);
     expect(snap.wind.feltKmh).toBeCloseTo(snap.wind.airKmh + 28 * 3.6, -1);
     expect(Math.abs(snap.wind.feltAngle)).toBeGreaterThan(Math.PI - 0.3);
   });

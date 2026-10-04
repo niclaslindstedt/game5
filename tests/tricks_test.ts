@@ -27,6 +27,7 @@ import {
   nearestTrackPoint,
   step,
   trackPointAt,
+  withSky,
   type GameEvent,
   type GameMode,
   type GameState,
@@ -332,7 +333,12 @@ describe("the landing, judged", () => {
   });
 
   it("is what the park's built landings are for: the high lip landed whole at speed", () => {
-    const level = generateLevel(1, { tricks: true, ...PARK });
+    // Skied in STILL AIR: the landing's shape is the subject, and the storm
+    // this seed deals would carry a flight past it (or short of it) by its
+    // own bearing.
+    const level = withSky(generateLevel(1, { tricks: true, ...PARK }), {
+      weather: { kind: "clear", wind: 0 },
+    });
     const high = (level.kickers ?? []).find((k) => k.size === "high");
     expect(high).toBeDefined();
     const k = high as NonNullable<typeof high>;

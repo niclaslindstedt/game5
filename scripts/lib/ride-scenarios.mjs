@@ -879,8 +879,11 @@ const windTurn = (id, title, from) => ({
 
 SCENARIOS.push(
   {
-    id: "wind-head",
-    title: "a tuck down the 20° pitch into a 12 m/s headwind",
+    // The wind never blows up the mountain (`wind.ts`'s `downhillFrom`): one
+    // DEALT straight up the pitch is folded down it, so this rides the same
+    // as `wind-tail` — the fold measured, not a headwind.
+    id: "wind-up",
+    title: "a tuck down the 20° pitch, 12 m/s dealt up it — folded down it",
     level: (S) => windy(S, schussStrip(S, 1), 12, 0),
     place: () => TOP,
     seconds: 30,

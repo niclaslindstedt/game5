@@ -37,7 +37,7 @@
 // crust is painted as a crust and not as the groomer).
 
 import * as THREE from "three";
-import { LEVEL_RULES, bermProfile, regionOf, weatherOf, type Level } from "@engine";
+import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
@@ -278,7 +278,7 @@ export function createTerrain(
   const tex = groundTextures(level);
   const f = level.ground;
   const look = regionLookOf(regionOf(level).id);
-  const wind = weatherOf(level).windFrom;
+  const wind = windFromOf(level);
   const shared = {
     uHeight: { value: tex.height },
     uGround: { value: tex.ground },

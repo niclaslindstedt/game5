@@ -146,11 +146,17 @@ export function dealWeather(
  * well refuse the hour it names. */
 export function withSky<L extends Level>(level: L, sky: SkyOverride): L {
   let weather = weatherOf(level);
-  if (typeof sky.weather === "string") weather = weatherFor(sky.weather);
+  // A sky picked by kind keeps the bearing the map's own wind was dealt
+  // (R19's even draw round the compass) unless it names one: a picked storm
+  // blows from wherever that map's wind does, never always the one way.
+  const windFrom = weather.windFrom;
+  if (typeof sky.weather === "string") weather = weatherFor(sky.weather, { windFrom });
   else if (sky.weather) {
     const kind = sky.weather.kind ?? weather.kind;
     weather =
-      kind === weather.kind ? { ...weather, ...sky.weather, kind } : weatherFor(kind, sky.weather);
+      kind === weather.kind
+        ? { ...weather, ...sky.weather, kind }
+        : weatherFor(kind, { windFrom, ...sky.weather });
   }
   const sun = sky.hour === undefined ? level.sun : { ...level.sun, hour: sky.hour };
   return { ...level, sun, weather };

@@ -67,16 +67,6 @@ const PLATE = {
   kneeL: [227.5, 589],
   ankleR: [182.5, 765],
   ankleL: [217.5, 765],
-  mtBaseR: [180, 777.5],
-  mt1HeadR: [170, 800],
-  mt5HeadR: [150.5, 792],
-  bigToeR: [155, 818.75],
-  littleToeR: [131.25, 805.6],
-  mtBaseL: [225, 777.5],
-  mt1HeadL: [233.75, 801.25],
-  mt5HeadL: [255, 793.75],
-  bigToeL: [243.75, 820],
-  littleToeL: [267.5, 805],
   orbitR: [186.5, 72],
   orbitL: [218.5, 72],
   chin: [202.5, 125],
@@ -125,18 +115,10 @@ export const FIGURE_JOINTS = {
   ankleL: [60.6, 191.5],
   tarsusTopR: [36.0, 191.8],
   tarsusTopL: [60.6, 191.8],
-  tarsusOutR: [33.5, 196.0],
-  tarsusInR: [39.0, 196.2],
-  tarsusOutL: [63.7, 196.0],
-  tarsusInL: [58.2, 196.2],
-  mtBaseR: [36.2, 197.0],
-  mt1HeadR: [38.7, 202.6],
-  mt5HeadR: [33.2, 201.8],
-  toesR: [36.0, 207.6],
-  mtBaseL: [60.8, 197.0],
-  mt1HeadL: [58.3, 202.6],
-  mt5HeadL: [63.8, 201.8],
-  toesL: [61.0, 207.6],
+  tarsusOutR: [33.4, 196.6],
+  tarsusInR: [38.8, 196.6],
+  tarsusOutL: [64.2, 196.6],
+  tarsusInL: [58.4, 196.6],
   acromionR: [25.2, 42.2],
   sternalR: [43.6, 39.8],
   acromionL: [66.0, 42.2],
@@ -179,10 +161,53 @@ function digit(s: "R" | "L", i: number): [Pt, Pt, Pt] {
   return [base, [web[0] - (tip[0] - web[0]) * KNUCKLE, web[1] - (tip[1] - web[1]) * KNUCKLE], tip];
 }
 
+/** THE FEET'S RAYS on the plate, big toe first (read off a 1-unit grid
+ * over its feet): each metatarsal's base and head and its toe's tip. The
+ * plate draws the five metatarsals as one overlapping shape and four toes
+ * as another; the lab cuts them apart ray by ray along these axes, so every
+ * metatarsal and every toe is a bone of its own. */
+export const PLATE_RAYS: Record<"R" | "L", { base: Pt; head: Pt; tip: Pt }[]> = {
+  R: [
+    { base: [187.5, 781.25], head: [165, 797.5], tip: [155.6, 818.75] },
+    { base: [180, 776.25], head: [156.25, 796.25], tip: [145, 816.9] },
+    { base: [175, 775.6], head: [149.4, 795], tip: [140, 815] },
+    { base: [168.75, 776.25], head: [143.75, 793.1], tip: [134.4, 811.25] },
+    { base: [161.25, 777.5], head: [141.25, 791.25], tip: [131.25, 806.25] },
+  ],
+  L: [
+    { base: [212.5, 782.5], head: [233.75, 801.25], tip: [243.75, 820] },
+    { base: [220, 777.5], head: [241.25, 798.75], tip: [255, 816.25] },
+    { base: [226.25, 776.25], head: [247.5, 796.25], tip: [260.6, 815] },
+    { base: [233.75, 775], head: [252.5, 793.75], tip: [265, 811.25] },
+    { base: [240, 776.25], head: [256.25, 792.5], tip: [268.1, 805.6] },
+  ],
+};
+
+/** THE SAME RAYS IN THE FIGURE, off the photograph of the feet on a half-
+ * unit grid: each metatarsal's base at the tarsus, its head under the
+ * toe's knuckle, and the toe's tip — the foot seen end on, so the toes are
+ * short and the metatarsals shorter. */
+const FIGURE_RAYS: Record<"R" | "L", { base: Pt; head: Pt; tip: Pt }[]> = {
+  R: [
+    { base: [37.4, 200.4], head: [36.4, 203.9], tip: [35.7, 207.6] },
+    { base: [36.0, 200.0], head: [33.7, 203.7], tip: [33.4, 207.5] },
+    { base: [34.6, 200.0], head: [31.9, 203.6], tip: [31.65, 207.2] },
+    { base: [33.2, 200.2], head: [30.6, 203.5], tip: [30.4, 206.9] },
+    { base: [31.8, 200.6], head: [29.3, 203.3], tip: [29.2, 206.5] },
+  ],
+  L: [
+    { base: [59.2, 200.4], head: [60.0, 203.8], tip: [60.7, 207.2] },
+    { base: [60.6, 200.0], head: [62.6, 203.6], tip: [62.9, 207.0] },
+    { base: [62.0, 200.0], head: [64.3, 203.5], tip: [64.6, 206.7] },
+    { base: [63.4, 200.2], head: [66.0, 203.3], tip: [66.3, 206.3] },
+    { base: [64.8, 200.6], head: [67.6, 203.0], tip: [67.9, 205.8] },
+  ],
+};
+
 /** How wide each limb's bones are kept, of the plate's (by `G`): the
  * figure is a slimmer man than the plate's, slimmest at the forearm and
  * the ankle. */
-const WIDE = { arm: 0.86, fore: 0.82, carpus: 0.8, thigh: 0.92, shin: 0.8 };
+const WIDE = { arm: 0.86, fore: 0.82, carpus: 0.8, thigh: 0.92, shin: 0.8, ray: 0.62, toe: 0.66 };
 /** The jaw's width, of the plate's (see `mandible`). */
 const JAW = 0.9;
 /** A finger's width, of its length's scale. */
@@ -368,6 +393,19 @@ function crownOf(cs: Comp[]): Pt {
   return [(Math.min(...xs) + Math.max(...xs)) / 2, Math.min(...ps.map((p) => p[1]))];
 }
 
+/** A FOOT'S TEN BONES, each its own piece: every metatarsal laid from its
+ * base to its head, every toe from the head to its tip (the lab has cut
+ * them apart: `Meta<side><i>`, `Toe<side><i>`). */
+function rays(t: Traced, s: "R" | "L"): Piece[] {
+  return PLATE_RAYS[s].flatMap((p, i) => {
+    const f = FIGURE_RAYS[s][i];
+    return [
+      { comps: t[`Meta${s}${i}`] ?? [], m: segment(p.base, p.head, f.base, f.head, G * WIDE.ray) },
+      { comps: t[`Toe${s}${i}`] ?? [], m: segment(p.head, p.tip, f.head, f.tip, G * WIDE.toe) },
+    ];
+  });
+}
+
 /** EVERY BONE'S PIECES, off the traced plate. */
 export function planBones(t: Traced): Record<Bone, Piece[]> {
   const thorax0 = affine([
@@ -404,24 +442,9 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
       fore: compose(segment(el, wr, F[`elbow${s}`], F[`wrist${s}`], G * WIDE.fore), flip),
     };
   };
-  const leg = (
-    s: "R" | "L",
-  ): { thigh: Matrix; shin: Matrix; tarsus: Matrix; meta: Matrix; toes: Matrix } => {
+  const leg = (s: "R" | "L"): { thigh: Matrix; shin: Matrix; tarsus: Matrix } => {
     const P = PLATE;
     const ankle = P[`ankle${s}`];
-    const half = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const heads = half(P[`mt1Head${s}`], P[`mt5Head${s}`]);
-    const tips = half(P[`bigToe${s}`], P[`littleToe${s}`]);
-    const figHeads = half(F[`mt1Head${s}`], F[`mt5Head${s}`]);
-    const spread =
-      Math.hypot(
-        F[`mt1Head${s}`][0] - F[`mt5Head${s}`][0],
-        F[`mt1Head${s}`][1] - F[`mt5Head${s}`][1],
-      ) /
-      Math.hypot(
-        P[`mt1Head${s}`][0] - P[`mt5Head${s}`][0],
-        P[`mt1Head${s}`][1] - P[`mt5Head${s}`][1],
-      );
     // The foot is seen end on and splayed: laid by its ankle and the tips
     // of its big and little toes.
     return {
@@ -437,11 +460,6 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
       // The metatarsals from their bases to their heads, fanning a little;
       // the toes from the heads down, short and side by side — a foot seen
       // end on, not the plate's splayed one seen from above.
-      // Each along one axis and never sheared, so a bone keeps its form:
-      // the plate's run foreshortened to the figure's, the heads' spread
-      // the width.
-      meta: segment(P[`mtBase${s}`], heads, F[`mtBase${s}`], figHeads, spread),
-      toes: segment(heads, tips, figHeads, F[`toes${s}`], spread),
     };
   };
   const aR = arm("R");
@@ -501,16 +519,8 @@ export function planBones(t: Traced): Record<Bone, Piece[]> {
     tibiaL: one(t.TibiaLeft, lL.shin),
     fibulaR: one(t.FibulaRight, lR.shin),
     fibulaL: one(t.FibulaLeft, lL.shin),
-    footR: [
-      { comps: tarsals(t, "R"), m: lR.tarsus },
-      { comps: t.MetatarsalsRight, m: lR.meta },
-      { comps: t.PhalangesFootRight, m: lR.toes },
-    ],
-    footL: [
-      { comps: tarsals(t, "L"), m: lL.tarsus },
-      { comps: t.MetatarsalsLeft, m: lL.meta },
-      { comps: t.PhalangesFootLeft, m: lL.toes },
-    ],
+    footR: [{ comps: tarsals(t, "R"), m: lR.tarsus }, ...rays(t, "R")],
+    footL: [{ comps: tarsals(t, "L"), m: lL.tarsus }, ...rays(t, "L")],
   };
 }
 
@@ -562,7 +572,7 @@ export function markSpots(): Record<Bone, { p: Pt; a: number }> {
     out[`scapula${s}`] = along(F[`scapTop${s}`], F[`scapAngle${s}`], 0.8);
     const [mb, mk] = digit(s, 2);
     out[`hand${s}`] = along(mb, mk, 0.5);
-    out[`foot${s}`] = along(F[`mtBase${s}`], F[`mt1Head${s}`], 0.5);
+    out[`foot${s}`] = along(FIGURE_RAYS[s][1].base, FIGURE_RAYS[s][1].head, 0.5);
   }
   out.skull = across([49.2, 8.0], -0.5);
   out.mandible = across([48.6, 28.6], 0.4);

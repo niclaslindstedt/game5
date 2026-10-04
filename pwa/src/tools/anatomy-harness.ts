@@ -31,6 +31,7 @@ import { BodyPanel } from "../game/hud-body.tsx";
 import {
   FIGURE_JOINTS,
   ORBITS,
+  PLATE_RAYS,
   apply,
   markSpots,
   planBones,
@@ -286,6 +287,66 @@ async function trace(svg: string): Promise<Traced> {
   return traced;
 }
 
+/** THE FEET, BONE BY BONE: the plate's metatarsal and toe groups are each
+ * a handful of paths, the bone's own silhouette in the base bone colour and
+ * its shading over it. Every base path is traced alone — one metatarsal, or
+ * one or two phalanges — and given to the ray (`PLATE_RAYS`) whose axis it
+ * lies nearest: `Meta<side><i>` the metatarsal, `Toe<side><i>` the toe's
+ * phalanges. So the five metatarsals and five toes are separate bones, each
+ * exactly as the plate draws it, never fused. */
+const BONE_FILL = "#f3d48c";
+async function traceRays(svg: string, traced: Traced): Promise<void> {
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  const W = Math.ceil(PLATE_W * K);
+  const H = Math.ceil(PLATE_H * K);
+  const only = (sel: string): string =>
+    `svg *{visibility:hidden} ${sel}{visibility:visible} text,tspan{display:none!important}`;
+  const seg = (p: Pt, a: Pt, b: Pt): number => {
+    const ex = b[0] - a[0];
+    const ey = b[1] - a[1];
+    const t = Math.max(
+      0,
+      Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (ex * ex + ey * ey)),
+    );
+    return Math.hypot(p[0] - a[0] - ex * t, p[1] - a[1] - ey * t);
+  };
+  for (const s of ["R", "L"] as const) {
+    const side = s === "R" ? "Right" : "Left";
+    for (const [group, key, ends] of [
+      [`Metatarsals${side}`, `Meta${s}`, (r: (typeof PLATE_RAYS)["R"][number]) => [r.base, r.head]],
+      [`PhalangesFoot${side}`, `Toe${s}`, (r: (typeof PLATE_RAYS)["R"][number]) => [r.head, r.tip]],
+    ] as const) {
+      const ids = [...doc.querySelectorAll(`#${group} path`)]
+        .filter((el) => (el.getAttribute("style") ?? "").includes(`fill:${BONE_FILL}`))
+        .map((el) => el.id)
+        .filter(Boolean);
+      for (let k = 0; k < PLATE_RAYS[s].length; k++) traced[`${key}${k}`] = [];
+      for (const id of ids) {
+        const d = await raster(svg, only(`#${id}`), W, H);
+        const m = new Uint8Array(W * H);
+        for (let i = 0; i < W * H; i++) m[i] = d[4 * i + 3] > 100 ? 1 : 0;
+        const { lab, comps } = components(m, W, H, 30);
+        for (const c of comps) {
+          const comp: Comp = {
+            outer: ring(contour(lab, W, H, c.id, c.start), 1.6).map(
+              ([x, y]) => [x / K, y / K] as Pt,
+            ),
+            holes: [],
+            c: [c.c[0] / K, c.c[1] / K],
+            area: c.n / K / K,
+          };
+          let best = 0;
+          const axes = PLATE_RAYS[s].map(ends);
+          for (let r = 1; r < axes.length; r++)
+            if (seg(comp.c, axes[r][0], axes[r][1]) < seg(comp.c, axes[best][0], axes[best][1]))
+              best = r;
+          traced[`${key}${best}`].push(comp);
+        }
+      }
+    }
+  }
+}
+
 // ── 2. MAP ───────────────────────────────────────────────────────────────
 
 /** One bone in the figure: its components' rings (each with its holes),
@@ -304,7 +365,7 @@ function mapBones(traced: Traced): Mapped[] {
   const plan = planBones(traced);
   const spots = markSpots();
   return BONES.map((bone) => {
-    const comps = plan[bone].flatMap((p, k) => {
+    const comps = plan[bone].flatMap((p) => {
       const laid = p.comps.map((c) => ({
         outer: ring(
           c.outer.map((q) => apply(p.m, q)),
@@ -323,9 +384,7 @@ function mapBones(traced: Traced): Mapped[] {
           // twice its area over its rim).
           .filter((r) => ringArea(r) > 0.6 && (2 * ringArea(r)) / rimOf(r) > 0.5),
       }));
-      const own = FUSED_PIECES.get(bone);
-      // ...and solid: the gaps it closed leave no opening worth drawing.
-      return own && own[0] === k ? fuse(laid, own[1]).map((c) => ({ ...c, holes: [] })) : laid;
+      return laid;
     });
     // A bone the plate draws in pieces (the hip bones, the sacrum and the
     // pubic rami; the manubrium and the sternum) is fused into one shape,
@@ -391,14 +450,6 @@ function onBone(comps: Mapped["comps"], p: Pt): Pt {
 const FUSED = new Map<Bone, number>([
   ["pelvis", 4],
   ["sternum", 4],
-]);
-
-/** The PIECES fused on their own (the bone's index of piece, the closing):
- * the foot's metatarsals, whose open gaps read as cracks at the HUD's
- * size, closed without touching the toes or the tarsus beside them. */
-const FUSED_PIECES = new Map<Bone, [number, number]>([
-  ["footL", [1, 8]],
-  ["footR", [1, 8]],
 ]);
 
 /** FUSE a bone's rings: drawn together at `FUSE_PX` a unit, closed over
@@ -734,6 +785,7 @@ window.__anatomy = {
     const holder = document.getElementById("plate")!;
     holder.innerHTML = svg.replace(/<\?xml[^>]*>/, "");
     const traced = await trace(svg);
+    await traceRays(svg, traced);
     const mapped = mapBones(traced);
     const fit = containment(mapped);
     overlaySheet(mapped, document.getElementById("sheet-overlay")!);

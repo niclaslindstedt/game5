@@ -44,6 +44,7 @@ import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { standOf } from "../game/ski-stand.ts";
 import { hourAt } from "./stage.ts";
+import { drawTurns, type Shapes } from "./technique-turns.ts";
 
 type Course = "slalom" | "piste";
 type Row = { technique: TechniqueId; skis: string; course: Course };
@@ -66,6 +67,8 @@ declare global {
       /** Ski and photograph every row; resolves to what each run did. */
       run(): Promise<{ technique: string; end: number; turn: string }[]>;
       /** Lay one sheet out on the page; resolves to its size. */
+      /** The turn-shape runs, measured in Node, for the `turns` sheet. */
+      setShapes(shapes: Shapes): void;
       sheet(name: string): { w: number; h: number; note: string };
     };
   }
@@ -509,6 +512,20 @@ async function shootRow(row: Row): Promise<Drawn> {
     ctx.arc(px, py, 7, 0, Math.PI * 2);
     ctx.stroke();
   }
+  // A SCALE BAR in the panel's foot: panels of the slalom and of the piste
+  // stand at different scales, and a bar is what keeps them from being
+  // read as one.
+  const bar = [5, 10, 20, 25, 50, 100, 200].find((m) => m * plan.pxPerM >= pathW / 4) ?? 200;
+  const barPx = bar * plan.pxPerM;
+  ctx.fillStyle = "rgba(11,17,22,0.75)";
+  ctx.fillRect(6, pathH - 30, barPx + 64, 24);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(12, pathH - 16, barPx, 3);
+  ctx.fillRect(12, pathH - 21, 1, 12);
+  ctx.fillRect(12 + barPx - 1, pathH - 21, 1, 12);
+  ctx.font = "12px monospace";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`${bar} m`, 18 + barPx, pathH - 15);
   const pathNote = [
     `${spans[row.course]} m of the ${row.course} from ${s0.toFixed(0)} m`,
     `${strobes.length} strobes · ${plan.pxPerM.toFixed(1)} px/m`,
@@ -542,6 +559,7 @@ function facingOnPanel(plan: ReturnType<typeof planOf>, heading: number): [numbe
 }
 
 const drawn: Drawn[] = [];
+let shapes: Shapes | null = null;
 
 const rowTitle = (r: Row) => `${r.technique.toUpperCase()} · ${r.skis} · ${r.course}`;
 
@@ -619,7 +637,11 @@ window.__tech = {
     }
     return drawn.map((d) => ({ technique: d.row.technique, end: d.end, turn: d.turn }));
   },
+  setShapes(s) {
+    shapes = s;
+  },
   sheet(name) {
+    if (name === "turns") return drawTurns(sheetEl, shapes!);
     if (name === "behind") {
       return gridSheet(
         `TECHNIQUE · BEHIND · seed ${seed} · a TV lens up the course behind him through one turn · ${tier}`,
@@ -638,6 +660,7 @@ window.__tech = {
       `TECHNIQUE · PATH · seed ${seed} · from straight above, the start of the stretch at the top`,
       `the skier strobed every ${strobe} s · yellow his centre of gravity · white where he faces`,
       "rings the turning poles in their colour · a magenta cross the apex the other sheets show",
+      "a scale bar in each panel's foot — the slalom's panels and the piste's stand at different scales",
     ];
     const headH = 18 + head.length * 14 + 20;
     const footH = 40;

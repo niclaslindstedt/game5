@@ -23,7 +23,15 @@
 //   over the line he draws, a panel a technique side by side; BEHIND — a TV
 //   lens up the course behind him at the transition, the edge set, the apex
 //   and the exit of one turn, a row a technique; SIDE — that apex from his
-//   outside, the front and his inside.
+//   outside, the front and his inside; TURNS — how SHARP each turns (below);
+//
+//   THE TURN SHAPES (`scripts/lib/technique-shape.mjs`): every technique
+//   skied down ONE COMMON open slope with no gates, a scripted rhythm at its
+//   own researched turn time and turn speed (`SHAPE_DRIVE`) rather than the
+//   bot, so the physics shows what each does with a linked carve; drawn from
+//   above at ONE scale side by side, the line coloured by its radius, each
+//   apex labelled with its radius, turn time and peak edge, the target
+//   radius drawn at one; the medians as the table's `shape …` rows.
 //
 // THE COURSE (`--course`): `slalom` skis every row down seed's slalom (R31,
 // under its strict gates — a row that straddles or misses a gate is out
@@ -65,16 +73,25 @@ import {
   skiRow,
   statsOf,
   tableOf,
+  TARGETS,
 } from "./lib/technique-measure.mjs";
+import {
+  SHAPE_COURSE,
+  SHAPE_DRIVE,
+  shapeOf,
+  shapeSeconds,
+  skiShape,
+} from "./lib/technique-shape.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".technique-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["path", "behind", "side"];
+const SHEETS = ["path", "behind", "side", "turns"];
 const COURSES = ["auto", "slalom", "piste"];
 
 aliasEngine(root);
 const E = await import(join(root, "engine", "index.ts"));
+const S = await import(join(root, "tests", "support", "synthetic.ts"));
 const IDS = Object.keys(E.TECHNIQUES);
 const PAIRS = E.SKI_CATALOG.map((s) => s.id);
 
@@ -156,6 +173,12 @@ for (const row of rows) {
   row.result = result;
   row.stats = statsOf(frames);
 }
+// THE TURN SHAPES, every row down the common slope for the same time.
+const shapeFor = shapeSeconds(rows.map((r) => r.technique));
+for (const row of rows) {
+  row.shape = shapeOf(skiShape(E, S, row, shapeFor));
+  Object.assign(row.stats, row.shape.stats);
+}
 const slalom = courses.slalom.slalom;
 console.log(
   `technique lab — engine ${E.engineVersion} · seed ${args.seed} · course ${args.course} ` +
@@ -235,7 +258,23 @@ await page.goto(`${server.url}technique-preview.html?${query}`);
 await page.waitForFunction("window.__tech !== undefined");
 await page.evaluate("window.__tech.ready");
 if (crashed) process.exit(1);
-const ran = await page.evaluate(() => globalThis.__tech.run());
+// The turn shapes are measured here and handed to the page to draw.
+await page.evaluate((d) => globalThis.__tech.setShapes(d), {
+  course: SHAPE_COURSE,
+  seconds: shapeFor,
+  rows: rows.map((r) => ({
+    technique: r.technique,
+    skis: r.skis,
+    drive: SHAPE_DRIVE[r.technique],
+    line: r.shape.line,
+    turns: r.shape.turns,
+    thrown: r.shape.thrown,
+    band: TARGETS[r.technique].shapeRadius ?? null,
+  })),
+});
+const ran = sheets.some((s) => s !== "turns")
+  ? await page.evaluate(() => globalThis.__tech.run())
+  : [];
 if (crashed) process.exit(1);
 console.log("");
 ran.forEach((r, i) => {

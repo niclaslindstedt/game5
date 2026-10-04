@@ -51,6 +51,38 @@ export function slideOf(c) {
  * turns are counted, rad (10°): a flat ski between two turns flips nothing. */
 export const TURN_EDGE = 0.17;
 
+/** THE TURNS in recorded `frames` (each carrying `t` and `edge`): every
+ * stretch from one flip of the edge past `TURN_EDGE` to the next — `from`
+ * and `to` the frames' indices (the next flip's frame not in it), `t0` and
+ * `t1` their times, `side` +1 a right turn (the edge positive), `peak` its
+ * most edge (rad) on `peakAt`. The stretch before the first flip is not a
+ * turn. The rhythm below and the technique lab's turn shapes count turns
+ * by it. */
+export function turnsOf(frames) {
+  const turns = [];
+  let side = 0;
+  let start = -1;
+  let peak = 0;
+  let peakAt = -1;
+  frames.forEach((f, i) => {
+    const now = f.edge > TURN_EDGE ? 1 : f.edge < -TURN_EDGE ? -1 : 0;
+    if (Math.abs(f.edge) > peak) {
+      peak = Math.abs(f.edge);
+      peakAt = i;
+    }
+    if (now !== 0 && now !== side) {
+      if (side !== 0) {
+        turns.push({ from: start, to: i, t0: frames[start].t, t1: f.t, side, peak, peakAt });
+      }
+      side = now;
+      start = i;
+      peak = 0;
+      peakAt = i;
+    }
+  });
+  return turns;
+}
+
 /** A RHYTHM OF TURNS as numbers, over recorded `frames` (each carrying
  * `t`, `edge`, `wy`, `speed`, `slide` and `thrown`): how long a turn is —
  * the edge from one side past `TURN_EDGE` to the other, between the first
@@ -61,22 +93,9 @@ export const TURN_EDGE = 0.17;
  * whether he was thrown. Null where there is too little to say. The ride
  * lab's `slalom-rhythm` and the technique lab both read it. */
 export function rhythmOf(frames) {
-  const flips = [];
-  const peaks = [];
-  let side = 0;
-  let peak = 0;
-  for (const f of frames) {
-    const now = f.edge > TURN_EDGE ? 1 : f.edge < -TURN_EDGE ? -1 : 0;
-    peak = Math.max(peak, Math.abs(f.edge));
-    if (now !== 0 && now !== side) {
-      if (side !== 0) {
-        flips.push(f.t);
-        peaks.push(peak);
-      }
-      side = now;
-      peak = 0;
-    }
-  }
+  const turns = turnsOf(frames);
+  const flips = turns.map((t) => t.t1);
+  const peaks = turns.map((t) => t.peak);
   const radii = frames
     .filter((f) => Math.abs(f.wy) > 0.3)
     .map((f) => f.speed / Math.abs(f.wy))

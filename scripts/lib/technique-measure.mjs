@@ -56,6 +56,12 @@ export const METRICS = [
   { key: "skidMost", label: "max skid", unit: "°", digits: 1 },
   { key: "forcePeak", label: "peak force", unit: "BW", digits: 2 },
   { key: "tuck", label: "tucked", unit: "%", digits: 0 },
+  // The TURN-SHAPE run (`technique-shape.mjs`): each technique's own turn
+  // on the common open slope, read turn by turn — the medians.
+  { key: "shapeRadius", label: "shape radius", unit: "m", digits: 1 },
+  { key: "shapeTurn", label: "shape turn", unit: "s", digits: 2 },
+  { key: "shapeEdge", label: "shape edge", unit: "°", digits: 0 },
+  { key: "shapeSpeed", label: "shape speed", unit: "km/h", digits: 0 },
 ];
 
 /** THE RESEARCH TARGETS, a band per metric per discipline (`lo`..`hi`,
@@ -136,6 +142,23 @@ export const TARGETS = {
     tuck: { lo: 30, hi: 45 },
   },
 };
+
+/** A NATURAL TURN'S RADIUS at its apex, m — the turn-shape run's target
+ * (the "For a technique row" table's preferred radius, ~5 / ~20 / ~45 /
+ * ~52 m): the slalom's least 3.96 ± 0.23 and 4.94 ± 0.59 m; the giant
+ * slalom's ~20 m typical and 12–15 m tightest; the super-G's 35 ± 16 m
+ * tightest and ~45 m typical; the downhill's ~52 m typical. Its turn time
+ * and peak edge are the course's own bands. */
+const SHAPE_RADIUS = {
+  slalom: { lo: 4, hi: 6 },
+  giantSlalom: { lo: 13, hi: 22, est: true },
+  superG: { lo: 30, hi: 50, est: true },
+  downhill: { lo: 40, hi: 65, est: true },
+};
+for (const [id, band] of Object.entries(SHAPE_RADIUS)) {
+  const t = TARGETS[id];
+  Object.assign(t, { shapeRadius: band, shapeTurn: t.turnS, shapeEdge: t.edgePeak });
+}
 
 /** The two courses a row can ski on seed `seed`'s mountain: the SLALOM set
  * over it (R31; a slalom's seed is built to a red piste) and the open

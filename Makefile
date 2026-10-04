@@ -254,8 +254,12 @@ turns:
 # targets of docs/disciplines.md, marked outside them; and three sheets
 # through the game's own renderer — previews/technique-<seed>-path.png (a
 # stretch from above, strobed over his line), -behind.png (a TV lens through
-# one turn) and -side.png (its apex from outside, front and inside). The
-# course: auto (the slalom for the slalom and free rows, the open piste for
+# one turn), -side.png (its apex from outside, front and inside) and
+# -turns.png (every technique's own linked carve down one open slope by a
+# scripted rhythm, from above at one scale, the line coloured by its radius,
+# each apex labelled — how sharp each turns; its medians are the table's
+# `shape` rows). The course of the other sheets: auto (the slalom for the
+# slalom and free rows, the open piste for
 # the speed events), slalom or piste. Its own one-off bundle from
 # pwa/technique-preview.html (never deployed); needs a Chromium like `world`
 # — ARGS=--sheets=none is the table alone, in seconds, no browser.

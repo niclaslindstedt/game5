@@ -110,9 +110,11 @@ strategy made no significant difference [1].
 28.4 ± 0.3 s [2]. Slalom skis are at least ~157–165 cm by category, on a
 sidecut of ~11–13 m.
 
-**In the game**: the course is `engine/mapgen/slalom.ts` (`setSlalom`), the
-gate verdicts `engine/game/strict.ts`, the board `engine/game/field.ts` and
-`par.ts`, the flex poles `gate-poles.ts`, the start `start-push.ts`; the
+**In the game**: the course is `engine/mapgen/slalom.ts` (`setSlalom`; the
+hill prepared under it — kickers levelled, groomed hard, its relief combed
+smooth), the line a racer skis round its poles `engine/game/race-line.ts`
+(rounded out on a steep pitch), the gate verdicts `engine/game/strict.ts`,
+the board `engine/game/field.ts` and `par.ts`, the flex poles `gate-poles.ts`, the start `start-push.ts`; the
 house, the shots and the clip `pwa/src/game/start-house*.ts`,
 `camera-start.ts`, `slalom-start.ts`.
 

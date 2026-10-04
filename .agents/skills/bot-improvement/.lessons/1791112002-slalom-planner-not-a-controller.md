@@ -15,5 +15,4 @@ them, the gate's side penalised) tracks within ~0.2 m. Its failures were
 at VERTICALS: the racing line crossed each closed gate only ±0.25 m either
 side, and a skier 0.3 m late crossed past the foot pole — a straddle or no
 crossing at all. A closed gate judged in the planner at its foot pole, and
-the line swung ±0.5 m (`LINE.across`), took 16 of 16 seeds through. The
-outcomes are chaotic seed by seed: sweep 16 seeds per knob, never 8.
+the line swung ±0.5 m (`LINE.across`), took 16 of 16 seeds through.

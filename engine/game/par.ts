@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE PAR OF A SLALOM (R31) — how long a good racer takes down the course,
 // and the clock at each of its gates, worked out off the course itself
-// rather than skied: the line round the poles (`slalomLineFast`), the pitch
-// under it and what a pair can do on it (`limits.ts`). The field's times
+// rather than skied: the line a racer takes round the poles (`race-line.ts`
+// — the setter's line, rounded out on a steep pitch), the pitch under it and what a pair can do on it (`limits.ts`). The field's times
 // are dealt about it (`field.ts`), so a racer of the field is never skied
 // by anyone — only one racer is ever on a slalom course, and what the
 // player races is the board.
@@ -16,15 +16,17 @@
 // to what he can gather from the hut (`PAR.push`, then the pitch) and shed
 // before a bend (`PAR.brake`). The clock is that profile integrated, and
 // `PAR.scale` is the measured share of it the bot's own slalom takes over
-// seeds 1–8 and 38 (the field's best is dealt about par, so par is a good
+// the campaign's fourteen slaloms and seeds 1–16, every one within 5 % of
+// it (the field's best is dealt about par, so par is a good
 // racer's clean run, and the bot one of the field).
 
-import { slalomLineFast, trackPointAt } from "../mapgen/index.ts";
+import { trackPointAt } from "../mapgen/index.ts";
 import type { Level } from "../mapgen/types.ts";
 import { totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { SLALOM_TECHNIQUE } from "./defs/technique.ts";
 import { cutGrip } from "./limits.ts";
+import { raceLineAt } from "./race-line.ts";
 
 /** The par's numbers. Metres, seconds. */
 export const PAR = {
@@ -34,16 +36,17 @@ export const PAR = {
    * the rest is the edge rolling between two turns (the bot's own
    * `slalomPace`). */
   pace: 0.5,
-  /** How far up out of the tuck a slalom racer skis, 0 tall … 1 folded. */
+  /** How far up out of the tuck a slalom racer skis, 0 tall … 1 folded
+   * (the bot's own `slalomStance`). */
   crouch: 0.3,
   /** Out of the hut: the speed the push gives, m/s, and the share of the
    * pitch's pull he keeps between the poles. */
   push: 3,
-  pull: 0.75,
+  pull: 0.9,
   /** The most he sheds before a bend, m/s². */
   brake: 4,
   /** A good racer's time as a share of the line's own. */
-  scale: 1.11,
+  scale: 1.12,
 } as const;
 
 /** A slalom's par: the whole run, s, and the clock at each checkpoint —
@@ -74,7 +77,7 @@ export function slalomPar(level: Level, spec: SkiSpec): Par | null {
     const y1 = trackPointAt(level, s + 2).y;
     const grade = Math.atan((y0 - y1) / 2);
     let v = Infinity;
-    const k = slalomLineFast(level, s)?.curvature ?? 0;
+    const k = raceLineAt(level, s)?.curvature ?? 0;
     if (k > 1e-4) {
       // The grip read once at a standstill and once more at the speed that
       // gives: the edge's lock eases with speed.

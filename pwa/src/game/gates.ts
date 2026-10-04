@@ -61,6 +61,7 @@ import {
 import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
+import { netStretch, NETS } from "./spectator-plan.ts";
 import { createStartHouse } from "./start-house.ts";
 import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
 import { LOOSE } from "./trail-stamp.ts";
@@ -83,10 +84,6 @@ const HUT = { width: 2.4, depth: 2.2, height: 2.1, out: 2.5 };
 /** THE WAND: two posts either side of the start gate's centre and the bar
  * between them, at a racer's knee. */
 const WAND = { gap: 1.2, height: 0.45, post: 0.6 };
-
-/** THE FINISH ARENA'S NETS, m: how far up the piste from the line they
- * fence, how far past it, their height and how far outside the edge. */
-const NET = { before: 60, after: 30, height: 1.3, out: 1.2, post: 8 };
 
 /** THE FLOODLIGHTS: the masts' height, m, how far the lamp head is dipped
  * below level aiming up the piste, rad, and each lamp's glow at night, m
@@ -454,8 +451,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     });
 
     // THE NETS either side of the last stretch: orange mesh on posts,
-    // laid along the piste's edge as it runs, from `NET.before` up the
-    // piste to `NET.after` past the line.
+    // laid along the piste's edge as it runs, from `NETS.before` up the
+    // piste to `NETS.after` past the line.
     const netTex = netTexture();
     texs.push(netTex);
     const netMat = std(
@@ -464,8 +461,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     );
     const pts = level.track.points;
     // On a slalom the nets line the whole course, start to finish.
-    const from = level.slalom ? level.slalom.from - 2 : Math.max(0, cp.s - NET.before);
-    const to = Math.min(level.track.length, cp.s + NET.after);
+    const { from, to } = netStretch(level, cp);
     for (const side of [-1, 1]) {
       const pos: number[] = [];
       const uv: number[] = [];
@@ -474,15 +470,15 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       let run = 0;
       for (const p of pts) {
         if (p.s < from || p.s > to) continue;
-        const px = p.x + Math.cos(p.heading) * side * (p.width / 2 + NET.out);
-        const pz = p.z - Math.sin(p.heading) * side * (p.width / 2 + NET.out);
+        const px = p.x + Math.cos(p.heading) * side * (p.width / 2 + NETS.out);
+        const pz = p.z - Math.sin(p.heading) * side * (p.width / 2 + NETS.out);
         const py = level.groundAt(px, pz);
-        pos.push(px, py - 0.05, pz, px, py + NET.height, pz);
-        uv.push(run / 0.5, 0, run / 0.5, NET.height / 0.5);
+        pos.push(px, py - 0.05, pz, px, py + NETS.height, pz);
+        uv.push(run / 0.5, 0, run / 0.5, NETS.height / 0.5);
         if (n > 0) idx.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n, 2 * n - 1, 2 * n + 1);
-        if (n % Math.round(NET.post / 2) === 0) {
-          const post = new THREE.CylinderGeometry(0.03, 0.03, NET.height + 0.3, 5);
-          post.translate(px, py + NET.height / 2, pz);
+        if (n % Math.round(NETS.post / 2) === 0) {
+          const post = new THREE.CylinderGeometry(0.03, 0.03, NETS.height + 0.3, 5);
+          post.translate(px, py + NETS.height / 2, pz);
           geos.push(post);
           group.add(new THREE.Mesh(post, dark));
         }

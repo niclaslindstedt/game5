@@ -63,23 +63,38 @@ function startList(seed: number, count: number): Racer[] {
   return out;
 }
 
+/** THE FIRST RUN'S START ORDER of a field of `count` off `seed`: the best
+ * seeds drawn among themselves, then the rest by skill. */
+function firstRun(seed: number, count: number): Racer[] {
+  const order = createRng((seed ^ FIELD_SALT ^ 0x51) >>> 0);
+  const ranked = startList(seed, count).sort((a, b) => b.skill - a.skill || a.id - b.id);
+  const seeds = ranked.slice(0, FIELD.seeds);
+  for (let i = seeds.length - 1; i > 0; i--) {
+    const j = order.int(0, i);
+    [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
+  }
+  return [...seeds, ...ranked.slice(FIELD.seeds)];
+}
+
+/** EVERY RACER'S START NUMBER — his place in the first run's order, from 1,
+ * kept for the second — by his id; the player's is `count + 1`, the last
+ * of the first run. */
+export function startNumbers(seed: number, count: number): number[] {
+  const bibs: number[] = [];
+  firstRun(seed, count).forEach((r, i) => (bibs[r.id] = i + 1));
+  return bibs;
+}
+
 /** DEAL THE FIELD: the start list, the order it goes in, and every run of
  * it about the course's par — the field put on the state. Called once,
  * from `createGame`, before the player's run has taken a step. */
 export function createField(state: GameState, count: number, heat?: Heat): void {
   const run = heat ? 2 : 1;
   const list = startList(state.seed, count);
-  const order = createRng((state.seed ^ FIELD_SALT ^ 0x51) >>> 0);
   let starters: Racer[];
   let slot: number;
   if (!heat) {
-    const ranked = [...list].sort((a, b) => b.skill - a.skill || a.id - b.id);
-    const seeds = ranked.slice(0, FIELD.seeds);
-    for (let i = seeds.length - 1; i > 0; i--) {
-      const j = order.int(0, i);
-      [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
-    }
-    starters = [...seeds, ...ranked.slice(FIELD.seeds)];
+    starters = firstRun(state.seed, count);
     slot = starters.length;
   } else {
     // The first run's finishers, the player among them.

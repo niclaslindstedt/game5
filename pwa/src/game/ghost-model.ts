@@ -12,7 +12,7 @@
 // ghost's own `GameState`, which the rig steps beside the player's.
 
 import * as THREE from "three";
-import { flightGravity, type GameState, type SkiSpec } from "@engine";
+import type { GameState, SkiSpec } from "@engine";
 
 import { createTrack, observe, sample, type Pose, type PoseTrack } from "./interp.ts";
 import { DEFAULT_OUTFIT } from "./outfit.ts";
@@ -84,7 +84,7 @@ export function createGhostModel(
       m.root.visible = true;
       observe(track, run.skier, run.tick);
       sample(track, alpha, drawn);
-      m.setGround(run.level, flightGravity(run.rules));
+      m.setRun(run);
       m.pose(run.skier, drawn, 0, null, 1 / 60);
     },
     dispose: drop,

@@ -50,8 +50,10 @@
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
 //   R31 THE SLALOM COURSE. A slalom is set on a built map's piste, on the
-//       steepest stretch of it that drops `slalom.vertical` metres (the
-//       first of `slalom.drops` the piste has) between a START and a
+//       stretch of it that drops one of `slalom.drops` metres, the
+//       steepest to the top level's gradient and then the longest drop
+//       (`slalom.pick`; a drop under `slalom.pick.least` only where none
+//       over it fits), between a START and a
 //       FINISH, no longer than `slalom.maxLength`, nowhere narrower than
 //       `slalom.minWidth`, crossing no drop on the piste, its finish on a
 //       gentler run-out (no steeper than `slalom.outrun` over the
@@ -60,8 +62,10 @@
 //       `slalom.drop.grade` over its first `slalom.drop.length` metres, the
 //       line `slalom.finishWidth` metres wide at the least, every
 //       kicker on the piste within `slalom.clearance` of the stretch
-//       levelled, and every tree within `slalom.clear` metres of the course
-//       and in the finish arena cleared. Its gates are POLE GATES, red and
+//       levelled, the piste groomed hard from the hut to the end of the
+//       run-out whatever drift lay across it and its relief combed smooth
+//       over `slalom.comb`, and every tree within
+//       `slalom.clear` metres of the course and in the finish arena cleared. Its gates are POLE GATES, red and
 //       blue alternately, as many direction changes as `slalom.changes` of
 //       the vertical (spaced `slalom.spacing` metres apart down the piste,
 //       which wins where the two disagree): OPEN gates across the hill — the
@@ -87,6 +91,13 @@ export const DISCIPLINE_RULES = {
     /** The vertical drops a slalom is set to, m, tried in order: the top
      * level's, then a lower race's, then an entry league's. */
     drops: [190, 160, 140, 110, 80] as readonly number[],
+    /** Which stretch wins: its gradient, counted to the top level's
+     * steepest (`steep`), then `vertical` a metre of drop and `low` for
+     * the foot of the piste — so a steep 140 m beats a gentle 190 m, and a
+     * slalom is never set on an easy hill where the piste has a hard one.
+     * The drops from `least` up compete so; a shorter one is tried only
+     * where none of those fits. */
+    pick: { steep: 0.45, vertical: 0.0004, low: 0.03, least: 140 },
     vertical: { min: 140, max: 220 } as Band,
     /** The longest a slalom runs down the piste, m: a top-level slalom
      * hill is about 590 m long. */
@@ -106,6 +117,12 @@ export const DISCIPLINE_RULES = {
     /** How far the stretch keeps from a drop on the piste, m, and how far
      * either side of it a kicker on the piste is levelled away. */
     clearance: 30,
+    /** THE HILL COMBED SMOOTH: the ground under the course and its banks
+     * taken to its own mean over a square this many metres either side of
+     * each point — the length of the lips a black's face carries (one every
+     * 5–7 m), so they go and the pitch stays — and how far past the piste's
+     * edge the combing eases out, m. */
+    comb: { reach: 6, ease: 6 },
     /** The direction changes as a share of the vertical, and the ± on it. */
     changes: { min: 0.3, max: 0.35, slack: 3 },
     /** The spacing of the gates down the piste, m (plan). */

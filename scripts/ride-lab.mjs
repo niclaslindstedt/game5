@@ -34,6 +34,7 @@ import process from "node:process";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { drawRun } from "./lib/ride-draw.mjs";
+import { slideOf } from "./lib/ride-helpers.mjs";
 import { SCENARIOS, SCENARIO_IDS } from "./lib/ride-scenarios.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -100,6 +101,7 @@ function record(scenario, spec) {
   const state = E.createGame({
     level,
     mode: scenario.mode,
+    technique: scenario.technique,
     snowDepth: scenario.snow,
     rivals: 0,
     countdown: 0,
@@ -145,6 +147,8 @@ function record(scenario, spec) {
       crouch: c.crouch,
       sideSlip: c.sideSlip,
       heading: c.heading,
+      // The skid angle: the skis' line off the way he is going, rad.
+      slide: slideOf(c),
       // The run's hardest blow so far, g (`body.ts`).
       peakG: c.body.peak,
       wy: c.wy,

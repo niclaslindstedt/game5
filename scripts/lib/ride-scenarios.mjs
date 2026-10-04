@@ -18,6 +18,9 @@
 //                   off the recorded run (see `ride-lab.mjs`'s `record`)
 //   mode            optional: the mode whose rules the run is dealt — the
 //                   trick scenarios ride "tricks", so the strokes are read
+//   technique       optional: how the skier works the ski (`technique.ts`)
+//                   over the mode's own — the slalom scenarios ride
+//                   "slalom"
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
 //
@@ -54,6 +57,7 @@ import {
   TOP,
   onPitch,
 } from "./ride-helpers.mjs";
+import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
 
 /** The fastest the snow slid across the skis over a run, m/s. */
 const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
@@ -277,6 +281,8 @@ export const SCENARIOS = [
     input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
     measure: turn,
   },
+  // The slalom racer's technique (`ride-slalom.mjs`).
+  ...SLALOM_SCENARIOS,
   {
     id: "jump-tap",
     title: "the jump tapped at 50 km/h on flat packed snow",

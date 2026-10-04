@@ -740,6 +740,9 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
     if (stopping) {
       // Slowed to a walk, he stands on his edges; the stop's clock runs
       // from a crawl, so no pitch can keep him in it for good.
+      // Below a crawl he sets his edges: the pitch no longer runs him on,
+      // and the brake takes the rest off whatever the fall.
+      if (v < C.crawl.speed) v = Math.max(0, v - C.brake * dt);
       if (v < C.stand) v = 0;
       if (v < C.crawl.speed) {
         a.timer -= dt;

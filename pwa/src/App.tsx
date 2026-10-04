@@ -83,7 +83,7 @@ import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
 import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts";
-import { keepsRecords, pairKey } from "./game/records.ts";
+import { keepsRecords, pairKey, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { ResultPlate } from "./game/hud-result.tsx";
@@ -103,7 +103,7 @@ import { SkisCards } from "./game/menu-dress.tsx";
 import { StartPage } from "./game/menu-start.tsx";
 import { PauseMenu } from "./game/menu-pause.tsx";
 import { PinnedCards } from "./game/menu-pinned.tsx";
-import { createPinnedRuns, skisBack } from "./game/pinned-run.ts";
+import { createPinnedRuns, secondRunOff, skisBack } from "./game/pinned-run.ts";
 import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { createRunActions } from "./game/run-actions.ts";
@@ -205,7 +205,6 @@ export function App() {
   /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`,
    * otherwise dealt fresh after every race stood up. */
   const [nextSeed, setNextSeed] = useState(() => params.seed ?? dealSeed());
-  const [skiers, setSkiers] = useState(4);
   /** THE MAP THE MENU IS STANDING OVER — what the TIME TRIAL tile rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
@@ -338,6 +337,8 @@ export function App() {
             : null,
           linkWorld(params),
         );
+    // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
+    if (params.rides && params.run === 2) state = secondRunOff(state);
     /** The mode the player's runs are ridden in, until a tile says otherwise. */
     let mode: GameMode = params.mode;
     /** The run the player is about to ski, in `mode`, on the pair they
@@ -356,18 +357,7 @@ export function App() {
      * from the line (`?bot=1`), which is nobody's time, and nothing for a
      * mode that keeps no book (a free ride, `keepsRecords`). */
     const ticketFor = (s: GameState): RunTicket | null =>
-      params.bot || !keepsRecords(mode)
-        ? null
-        : {
-            key: {
-              seed: s.seed,
-              course: s.level.resort?.course,
-              ...pairKey(s.skier.spec),
-              mode,
-              laps: s.rules.laps,
-            },
-            assist: { ...s.assist },
-          };
+      params.bot || !keepsRecords(mode) ? null : { key: runKey(s, mode), assist: { ...s.assist } };
     const drawable = (): boolean => standing !== null && standing === state.level;
     let frozen = params.shot;
     let preroll = false;
@@ -406,8 +396,6 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
       audio.reset();
       runRumble.reset();
-      // The RACE tile's line reads a race's field, never a trial's.
-      if (next.rules.rivals > 0) setSkiers(next.rivals.length + 1);
     };
 
     /** What this step is ridden on: the player's hands on a run, and the BOT
@@ -570,6 +558,7 @@ export function App() {
       tricks: pinned.tricks,
       pinned: pinned.press,
       restart,
+      second: pinned.second,
       pause: () => {
         if (canPause(shellRef.current)) setShellNow("pause");
         else if (watching(shellRef.current)) pressRef.current.toMenu();
@@ -870,6 +859,7 @@ export function App() {
         campaign={shell === "run" ? campaign.rig.plate() : null}
         onNext={(next) => pressRef.current.pinned((campaign.rung.current = next), next.mode, true)}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
+        onSecond={() => pressRef.current.second()}
       />
       {shell === "pause" && snap !== null && (
         <PauseMenu
@@ -892,7 +882,6 @@ export function App() {
           onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}
-          skiers={skiers}
           trial={{
             seed: trialSeed,
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,

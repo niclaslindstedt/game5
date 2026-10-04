@@ -5,14 +5,14 @@
 // nothing kept of a pick), each pattern's decals inside the ski's outline;
 // and every traced look carried onto its spec without a stretch, the tail
 // and the tip where the spec's length puts them, the boots under the
-// skier's feet.
+// skier's feet, and the widths drawing the sidecut the spec carves.
 
 import { describe, expect, it } from "vitest";
 import { SKI_CATALOG, isSkiId } from "@engine";
 
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { PATTERNS, TOPSHEETS } from "../pwa/src/game/ski-topsheets.ts";
-import { SKI_LOOKS, lookFrame } from "../pwa/src/game/ski-looks.ts";
+import { SKI_LOOKS, halfWidth, lookFrame } from "../pwa/src/game/ski-looks.ts";
 import { MOUNTS } from "../pwa/src/game/skier-pose.ts";
 
 describe("the topsheets", () => {
@@ -78,6 +78,29 @@ describe("the traced looks", () => {
       expect(look.tip.length + look.tail.length).toBeLessThan(s.length);
       expect(look.boot.length).toBeGreaterThan(0);
       expect(look.pole.length).toBeGreaterThan(0.8);
+    }
+  });
+
+  it("draw the sidecut the spec carves: the circle through the widths", () => {
+    // The edge between the drawn plan's widest points — the shoulder near
+    // the tip, the corner near the tail — bows in by the side depth, and
+    // the circle through the three is R ≈ c² / 8d. A race pair is cut to
+    // its radius within a few per cent; the rockered and twin-tipped pairs
+    // run a little off it, and none by more than a sixth.
+    for (const s of SKI_CATALOG) {
+      const look = SKI_LOOKS[s.id];
+      const widest = (from: number, to: number): number => {
+        let best = from;
+        for (let x = from; x <= to; x += 0.001) {
+          if (halfWidth(s, look, x) > halfWidth(s, look, best)) best = x;
+        }
+        return best;
+      };
+      const chord = widest(s.length / 2, s.length) - widest(0, s.length / 2);
+      const depth = ((s.tipWidth + s.tailWidth) / 2 - s.waist) / 2;
+      const radius = (chord * chord) / (8 * depth);
+      expect(radius / s.sidecut, s.id).toBeGreaterThan(0.85);
+      expect(radius / s.sidecut, s.id).toBeLessThan(1.15);
     }
   });
 

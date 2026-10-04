@@ -5,17 +5,28 @@
 // dealt the same every time off the map's seed and never moving the map.
 
 import { describe, expect, it } from "vitest";
-import { MODE_RULES, GAME_MODES, levelDigest, nearestTrackPoint, type Level } from "@engine";
+import {
+  createGame,
+  MODE_RULES,
+  GAME_MODES,
+  levelDigest,
+  nearestTrackPoint,
+  type Level,
+} from "@engine";
 
 import {
   FAN_HATS,
   FAN_STYLES,
   FANS,
   hasSpectators,
+  NETS,
+  netStretch,
   planSpectators,
   turns,
   type SpectatorPlan,
 } from "../pwa/src/game/spectator-plan.ts";
+import { combinations, SLALOM_FANS } from "../pwa/src/game/spectator-slalom.ts";
+import { startHousePlan } from "../pwa/src/game/start-house-plan.ts";
 import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
 
 const SEEDS = LEVEL_SEEDS.slice(0, 3);
@@ -116,6 +127,10 @@ describe("the spectators' plan", () => {
     expect(new Set(fans.map((f) => f.dress[0])).size).toBeGreaterThanOrEqual(8);
   });
 
+  it("stands the spectator fence two metres or more behind the safety nets", () => {
+    expect(FANS.fence - NETS.out).toBeGreaterThanOrEqual(2);
+  });
+
   it("parts the fans into banks that hold every one of them once", () => {
     for (const seed of SEEDS) {
       const p = planFor(seed);
@@ -126,6 +141,97 @@ describe("the spectators' plan", () => {
         next = b.to;
       }
       expect(next).toBe(p.fans.length);
+    }
+  });
+});
+
+describe("a slalom's audience", () => {
+  const SLALOMS = [38, 7].map((seed) => {
+    const level = createGame({ seed, mode: "slalom", quiet: true }).level;
+    return { seed, level, plan: planSpectators(level) };
+  });
+  const ARENA = new Set(["stand", "back"]);
+
+  it("is numerous, inside its budget, and keeps the finish arena", () => {
+    for (const { seed, plan } of SLALOMS) {
+      expect(plan.fans.length, `seed ${seed}`).toBeGreaterThan(2000);
+      expect(plan.fans.length, `seed ${seed}`).toBeLessThanOrEqual(FANS.cap);
+      expect(plan.arena, `seed ${seed}`).not.toBeNull();
+      expect(plan.banks.some((b) => b.kind === "jump" || b.kind === "line")).toBe(false);
+    }
+  });
+
+  it("stands nobody on the course or inside its nets, and nobody in the run-out", () => {
+    for (const { seed, level, plan } of SLALOMS) {
+      const finish = level.checkpoints[level.checkpoints.length - 1];
+      const nets = netStretch(level, finish);
+      expect(nets.from).toBe(level.slalom!.from - 2);
+      for (const f of plan.fans) {
+        if (ARENA.has(f.kind)) continue;
+        const hit = nearestTrackPoint(level, f.x, f.z);
+        const out = hit.distance - level.track.points[hit.index].width / 2;
+        if (hit.s >= nets.from && hit.s <= nets.to) {
+          expect(out, `seed ${seed} ${f.kind} at ${hit.s.toFixed(0)} m`).toBeGreaterThanOrEqual(
+            NETS.out + 2,
+          );
+        }
+        if (f.kind !== "start") {
+          expect(hit.s, `seed ${seed} ${f.kind}`).toBeLessThanOrEqual(finish.s);
+        }
+      }
+    }
+  });
+
+  it("is thick at the finish, thin at the start, and thicker down the course", () => {
+    for (const { seed, level, plan } of SLALOMS) {
+      const start = level.checkpoints[0];
+      const finish = level.checkpoints[level.checkpoints.length - 1];
+      const within = (p: { x: number; z: number }, r: number) =>
+        plan.fans.filter((f) => Math.hypot(f.x - p.x, f.z - p.z) < r).length;
+      expect(within(finish, 120), `seed ${seed}`).toBeGreaterThan(10 * within(start, 120));
+      // The top and the bottom three tenths of the course, the arena aside.
+      const third = 0.3 * (finish.s - start.s);
+      let upper = 0;
+      let lower = 0;
+      for (const f of plan.fans) {
+        if (ARENA.has(f.kind)) continue;
+        const s = nearestTrackPoint(level, f.x, f.z).s;
+        if (s < start.s + third) upper++;
+        else if (s > finish.s - third) lower++;
+      }
+      expect(lower, `seed ${seed}`).toBeGreaterThan(4 * upper);
+    }
+  });
+
+  it("lines both sides of the course, and crowds its combinations on both", () => {
+    for (const { seed, level, plan } of SLALOMS) {
+      const sides = [0, 0];
+      for (const f of plan.fans) {
+        if (ARENA.has(f.kind) || f.kind === "start") continue;
+        sides[nearestTrackPoint(level, f.x, f.z).lateral > 0 ? 1 : 0]++;
+      }
+      const all = sides[0] + sides[1];
+      expect(Math.min(...sides) / all, `seed ${seed}`).toBeGreaterThan(0.3);
+      if (combinations(level).length === 0) continue;
+      const combo = new Set(
+        plan.banks
+          .filter((b) => b.kind === "combo")
+          .map((b) => Math.sign(nearestTrackPoint(level, b.x, b.z).lateral)),
+      );
+      expect(combo.size, `seed ${seed}`).toBe(2);
+    }
+  });
+
+  it("keeps a few by the start house, never in front of its door", () => {
+    for (const { seed, level, plan } of SLALOMS) {
+      const house = startHousePlan(level)!;
+      const knot = plan.fans.filter((f) => f.kind === "start");
+      expect(knot.length, `seed ${seed}`).toBeGreaterThan(0);
+      expect(knot.length, `seed ${seed}`).toBeLessThanOrEqual(SLALOM_FANS.start.count);
+      for (const f of knot) {
+        const along = (f.x - house.x) * house.fx + (f.z - house.z) * house.fz;
+        expect(along, `seed ${seed}`).toBeLessThan(0);
+      }
     }
   });
 });

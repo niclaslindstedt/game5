@@ -92,7 +92,25 @@ export {
   type GameMode,
   type RunRules,
 } from "./game/defs/modes.ts";
-export { FIELD, createField, fieldOrderOf, fieldPlace, type Heat } from "./game/field.ts";
+export {
+  DOWNHILL_TECHNIQUE,
+  FREE,
+  GIANT_SLALOM_TECHNIQUE,
+  SLALOM_TECHNIQUE,
+  SUPER_G_TECHNIQUE,
+  TECHNIQUES,
+  techniqueOf,
+  type Technique,
+  type TechniqueId,
+} from "./game/defs/technique.ts";
+export {
+  FIELD,
+  createField,
+  fieldOrderOf,
+  fieldPlace,
+  startNumbers,
+  type Heat,
+} from "./game/field.ts";
 export { PAR, slalomPar, type Par } from "./game/par.ts";
 export { stepStrict } from "./game/strict.ts";
 export { freshGatePoles, polePlan, stepGatePoles } from "./game/gate-poles.ts";
@@ -376,10 +394,14 @@ export {
   TOP_SPEED_PITCH,
   brakeDecel,
   carveCurvature,
+  carveMost,
   chatterHold,
   chatterOf,
   cornerGrip,
+  cutEdgeAt,
+  cutGrip,
   edgeLockAt,
+  edgeMostOf,
   flightGravity,
   harshSpeedOf,
   lockAt,

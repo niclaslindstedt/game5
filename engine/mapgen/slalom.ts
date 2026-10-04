@@ -4,8 +4,9 @@
 // sets over it is a COURSE — where on the piste the start hut stands and
 // where the finish line is, the pole gates down the stretch between, the
 // line a racer takes through them — and what the organisers prepare for
-// it: the piste's kickers on the stretch levelled away, and the trees cut
-// for the course and its finish arena.
+// it: the piste's kickers on the stretch levelled away, the course groomed
+// hard over any drift, and the trees cut for the course and its finish
+// arena.
 //
 // THE STRETCH is found first and is the same for both runs: the steepest
 // stretch of the piste that drops the vertical a slalom asks for, wide
@@ -30,6 +31,7 @@ import { clamp, smoothstep } from "@niclaslindstedt/oss-game-framework/core/math
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { DISCIPLINE_RULES } from "./discipline-rules.ts";
 import { kickerProfile } from "./kickers.ts";
+import { LEVEL_RULES } from "./rules.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import { startGateArc } from "./spawn.ts";
 import type { Checkpoint, Kicker, Level, SlalomCourse, Spawn, TrackPoint, Vec3 } from "./types.ts";
@@ -40,7 +42,7 @@ const S = DISCIPLINE_RULES.slalom;
  * turning pole as he passes it — over it, near enough, his feet carried
  * further out by the turn — and this far either side of a closed gate's
  * poles from its top to its foot. */
-const LINE = { outside: 0.6, across: 0.25 };
+const LINE = { outside: 0.6, across: 0.5 };
 
 /** How far down the piste a combination stands from the open gates either
  * side of it, m. */
@@ -55,9 +57,10 @@ export type SlalomStretch = { from: number; to: number; vertical: number };
 
 const stretches = new WeakMap<Level, SlalomStretch>();
 
-/** R31 — THE STRETCH: the steepest stretch of the piste that drops the
- * first of `slalom.drops` the piste has, wide enough, clear of its drops,
- * its finish on a gentler run-out. A pure function of the map, kept per
+/** R31 — THE STRETCH: the stretch of the piste that drops one of
+ * `slalom.drops`, wide enough, clear of its drops, its finish on a gentler
+ * run-out — the steepest to the top level's gradient, then the longest
+ * drop (`slalom.pick`). A pure function of the map, kept per
  * map. */
 export function slalomStretch(level: Level): SlalomStretch {
   const known = stretches.get(level);
@@ -74,8 +77,10 @@ export function slalomStretch(level: Level): SlalomStretch {
   const step = L / Math.max(1, n - 1);
   const at = (s: number): number => clamp(Math.round(s / step), 0, n - 1);
   let found: SlalomStretch | null = null;
+  let best = -Infinity;
   for (const drop of S.drops) {
-    let best = -Infinity;
+    // The top level's drops compete; a shorter one only where none fits.
+    if (found && drop < S.pick.least) break;
     for (let b = n - 1; b > 0; b -= 5) {
       const sB = pts[b].s;
       const yB = pts[b].y;
@@ -101,15 +106,17 @@ export function slalomStretch(level: Level): SlalomStretch {
       if (narrow) continue;
       if (blocked.some(([lo, hi]) => hi > sA - 20 && lo < sB + S.outrunLength)) continue;
       const vertical = pts[a].y - yB;
-      // The steepest, to the top level's gradient; lower down the mountain
-      // where two are as steep, nearer the village people walk up from.
-      const score = Math.min(vertical / (sB - sA), 0.42) + 0.03 * (sB / L);
+      // The steepest, to the top level's gradient — a slalom hill is never
+      // an easy one — then the most vertical; lower down the mountain where
+      // two are alike, nearer the village people walk up from.
+      const P = S.pick;
+      const score =
+        Math.min(vertical / (sB - sA), P.steep) + P.vertical * vertical + P.low * (sB / L);
       if (score > best) {
         best = score;
         found = { from: sA, to: sB, vertical };
       }
     }
-    if (found) break;
   }
   // A piste with no stretch to set one on: its last few hundred metres.
   if (!found) {
@@ -369,8 +376,9 @@ function startDrop(level: Level, stretch: SlalomStretch): Cut | null {
  * within `slalom.clearance` of the stretch LEVELLED — its profile taken back
  * out of the piste's line and the ground under it, across the piste and
  * eased out over the shoulders — so a racer meets the hill the piste was
- * graded on rather than a jump; and the START DROP cut out of the door the
- * same way. The rest of the mountain is the map's own.
+ * graded on rather than a jump; the START DROP cut out of the door the
+ * same way; the snow groomed hard; and the relief under the course COMBED
+ * smooth (`combStretch`). The rest of the mountain is the map's own.
  * Kept per map, so both runs stand on one prepared hill. */
 const prepared = new WeakMap<Level, Level>();
 function levelStretch(level: Level, stretch: SlalomStretch): Level {
@@ -395,10 +403,10 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
   }
   const drop = startDrop(level, stretch);
   if (drop) cuts.push(drop);
-  if (cuts.length === 0) {
-    prepared.set(level, level);
-    return level;
-  }
+  const packed = groomStretch(level, stretch);
+  const snow = packed
+    ? { packed, packedAt: (x: number, z: number) => sampleField(packed, x, z) }
+    : {};
   const field = level.ground;
   const ground: Heightfield = { ...field, data: new Float32Array(field.data) };
   const points = level.track.points.map((p) => ({ ...p }));
@@ -438,6 +446,7 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
       }
     }
   }
+  combStretch(level, stretch, ground, points);
   const scratch = new Float64Array(3);
   const out: Level = {
     ...level,
@@ -454,18 +463,180 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
     },
     track: { ...level.track, points },
     kickers: kept,
+    ...snow,
   };
   prepared.set(level, out);
   return out;
+}
+
+/** THE HILL COMBED SMOOTH (R31): a slalom is never set on a mogul field.
+ * Some faces — a black's, most of all — carry a lip every 5–7 m down the
+ * piste, and at a slalom's pace each one throws a racer off the snow for a
+ * fifth to a half of a second: a third of the course flown, no edge on the
+ * snow to turn on, and a racer landed on his side out of a turn. So the
+ * ground under the course and its banks, from the hut to halfway down the
+ * run-out, is taken to its own mean over `slalom.comb.reach` metres either
+ * side of each cell — a box twice a lip's length, so the lips go and the
+ * pitch, a straight slope under any mean, stays — eased out over
+ * `slalom.comb.ease` past the piste's edge and over its first and last
+ * metres down it. The piste's own heights follow the ground under them.
+ * Writes `ground` and `points`. */
+function combStretch(
+  level: Level,
+  stretch: SlalomStretch,
+  ground: Heightfield,
+  points: TrackPoint[],
+): void {
+  const C = S.comb;
+  const src = new Float32Array(ground.data);
+  const reach = Math.max(1, Math.round(C.reach / ground.cell));
+  const lo = stretch.from - S.stand;
+  const hi = stretch.to + S.outrunLength / 2;
+  const fade = C.ease;
+  const seen = new Uint8Array(ground.data.length);
+  // A box at a time down the stretch, so a long course on the skew never
+  // walks the whole map's grid.
+  const STEP = 16;
+  for (let s0 = lo; s0 < hi; s0 += STEP) {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (let s = s0; s <= Math.min(hi, s0 + STEP); s += 2) {
+      const p = trackPointAt(level, s);
+      const r = p.width / 2 + C.ease + 2;
+      x0 = Math.min(x0, p.x - r);
+      x1 = Math.max(x1, p.x + r);
+      z0 = Math.min(z0, p.z - r);
+      z1 = Math.max(z1, p.z + r);
+    }
+    const c0 = clamp(
+      Math.floor((x0 - ground.originX) / ground.cell),
+      reach,
+      ground.cols - 1 - reach,
+    );
+    const c1 = clamp(
+      Math.ceil((x1 - ground.originX) / ground.cell),
+      reach,
+      ground.cols - 1 - reach,
+    );
+    const r0 = clamp(
+      Math.floor((z0 - ground.originZ) / ground.cell),
+      reach,
+      ground.rows - 1 - reach,
+    );
+    const r1 = clamp(
+      Math.ceil((z1 - ground.originZ) / ground.cell),
+      reach,
+      ground.rows - 1 - reach,
+    );
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const i = r * ground.cols + c;
+        if (seen[i] === 1) continue;
+        seen[i] = 1;
+        const hit = nearestTrackPoint(
+          level,
+          ground.originX + c * ground.cell,
+          ground.originZ + r * ground.cell,
+        );
+        if (hit.s <= lo || hit.s >= hi) continue;
+        const half = (level.track.points[hit.index]?.width ?? 0) / 2;
+        const weight =
+          (1 - smoothstep(half, half + C.ease, hit.distance)) *
+          smoothstep(lo, lo + fade, hit.s) *
+          (1 - smoothstep(hi - fade, hi, hit.s));
+        if (weight <= 0) continue;
+        let sum = 0;
+        for (let dr = -reach; dr <= reach; dr++) {
+          const row = (r + dr) * ground.cols + c;
+          for (let dc = -reach; dc <= reach; dc++) sum += src[row + dc];
+        }
+        const mean = sum / ((2 * reach + 1) * (2 * reach + 1));
+        ground.data[i] = src[i] + weight * (mean - src[i]);
+      }
+    }
+  }
+  const before: Heightfield = { ...ground, data: src };
+  for (const p of points) {
+    if (p.s <= lo || p.s >= hi) continue;
+    p.y += sampleField(ground, p.x, p.z) - sampleField(before, p.x, p.z);
+  }
+}
+
+/** THE COURSE PREPARED HARD: a slalom is raced on a piste groomed and set
+ * firm from the start hut to the end of the run-out, whatever drift (R17)
+ * the wind laid across it — the packed field (R10) brought back to the
+ * groomer's across the piste and its shoulders over that stretch, and the
+ * rest of the mountain left as it lies. Null when the map carries no
+ * packed field or the course already lies on the groomer. */
+function groomStretch(level: Level, stretch: SlalomStretch): Heightfield | null {
+  const field = level.packed;
+  if (!field) return null;
+  const fade = LEVEL_RULES.track.shoulder.packed;
+  const lo = stretch.from - S.stand - 4;
+  const hi = stretch.to + S.outrunLength;
+  let data: Float32Array | null = null;
+  // A box at a time down the stretch, so a long course on the skew never
+  // walks the whole map's grid.
+  const STEP = 16;
+  for (let s0 = lo; s0 < hi; s0 += STEP) {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (let s = s0; s <= Math.min(hi, s0 + STEP); s += 2) {
+      const p = trackPointAt(level, s);
+      const r = p.width / 2 + fade + 1;
+      x0 = Math.min(x0, p.x - r);
+      x1 = Math.max(x1, p.x + r);
+      z0 = Math.min(z0, p.z - r);
+      z1 = Math.max(z1, p.z + r);
+    }
+    const c0 = clamp(Math.floor((x0 - field.originX) / field.cell), 0, field.cols - 1);
+    const c1 = clamp(Math.ceil((x1 - field.originX) / field.cell), 0, field.cols - 1);
+    const r0 = clamp(Math.floor((z0 - field.originZ) / field.cell), 0, field.rows - 1);
+    const r1 = clamp(Math.ceil((z1 - field.originZ) / field.cell), 0, field.rows - 1);
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const hit = nearestTrackPoint(
+          level,
+          field.originX + c * field.cell,
+          field.originZ + r * field.cell,
+        );
+        if (hit.s < lo || hit.s > hi) continue;
+        const half = (level.track.points[hit.index]?.width ?? 0) / 2;
+        const firm = 1 - smoothstep(half, half + fade, hit.distance);
+        const i = r * field.cols + c;
+        if (firm <= (data ?? field.data)[i]) continue;
+        data ??= new Float32Array(field.data);
+        data[i] = firm;
+      }
+    }
+  }
+  return data ? { ...field, data } : null;
 }
 
 /** R31 — A SLALOM SET OVER `level`: run `run`'s course down the slalom
  * stretch, as a map whose checkpoints are its gates and whose spawn is the
  * start hut. Setting one over a map that already carries a slalom sets it
  * over the map under that one, so a run's other course is set over the
- * same mountain and a slalom is never set twice. */
+ * same mountain and a slalom is never set twice — and over a map that
+ * already carries THIS run's course it is that map, the very object: a
+ * restart or a replay stands on the map the renderer has already built,
+ * rather than on a copy it would have to build again. The course keeps the
+ * day and the sky of the map it was set over (`withDay`, `withSky`), so a
+ * second run is skied under the first run's sun. */
 export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
-  const original = level.slalom?.base ?? level;
+  if (level.slalom?.run === run) return level;
+  const course = courseOver(level.slalom?.base ?? level, run);
+  return course.sun === level.sun && course.weather === level.weather
+    ? course
+    : { ...course, sun: level.sun, weather: level.weather };
+}
+
+/** Run `run`'s course set over `original`, a map with no slalom on it. */
+function courseOver(original: Level, run: 1 | 2): Level {
   const stretch = slalomStretch(original);
   const base = levelStretch(original, stretch);
   const laid = fitBends(layGates(base, stretch, run));

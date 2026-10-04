@@ -112,12 +112,14 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
   return level.sky;
 }
 
-/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: every one of them takes the
- * SLALOM (set on its steepest stretch, R31) and the TIME TRIAL — a map
- * carries no discipline of its own, the piste is the piste — and none takes
+/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: the TIME TRIAL rides any
+ * of them — the piste is the piste — but a SLALOM only the maps the
+ * campaign sets one on, the reds and blacks whose slalom stretch (R31) is a
+ * slalom hill, because a slalom is never set on an easy one; and none takes
  * the FREE RIDE, the one mode allowed a seed and a day of its own. */
-export function fitsMode(_level: CampaignLevel, mode: GameMode): boolean {
-  return mode === "slalom" || mode === "timeTrial";
+export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
+  if (mode === "slalom") return level.mode === "slalom";
+  return mode === "timeTrial";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
@@ -130,7 +132,7 @@ export function levelForMode(id: string | null, mode: GameMode): CampaignLevel |
 
 /** THE PINNED MAP A MEASURED RUN IS ON, or null where it is choosing its
  * own. A RACE and a TIME TRIAL ride the map the level card last picked
- * (`Settings.level`) — or the first rung, on a fresh app — so two figures in
+ * (`Settings.level`) — or the first rung that fits, on a fresh app — so two figures in
  * the record book are two figures down the same piste. Two answers are null:
  * a FREE RIDE, the mode that picks a seed; and a LINK that names a seed
  * (`?seed=`), which takes the pinned map off for that visit so a lab or a
@@ -140,8 +142,9 @@ export function pinnedFor(
   mode: GameMode,
   linkSeed: number | null,
 ): CampaignLevel | null {
-  if (linkSeed !== null || !fitsMode(CAMPAIGN_LEVELS[0], mode)) return null;
-  return levelForMode(chosen, mode) ?? CAMPAIGN_LEVELS[0];
+  const first = CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
+  if (linkSeed !== null || !first) return null;
+  return levelForMode(chosen, mode) ?? first;
 }
 
 /** WHAT A RIDE PRESS STANDS UP ON A PINNED MAP, as the arguments of the

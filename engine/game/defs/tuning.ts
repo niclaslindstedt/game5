@@ -14,6 +14,7 @@
 import { TRICKS } from "./tricks.ts";
 import { INJURY } from "./anatomy.ts";
 import { CRASH } from "./crash.ts";
+import { FLEX, START_PUSH } from "./race.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -203,6 +204,18 @@ export const TUNING = {
      * edge angle, `skier.ts`). */
     edgePacked: 0.95,
     flatShare: 0.3,
+    /** THE PLATFORM (`snow.ts`'s `platformOf`): past `from` rad of edge
+     * a ski bent into reverse camber has cut a shelf as long as itself
+     * and stands on it, and the snow's reaction is square to the base, so
+     * what it holds across grows as tan θ — the reaction's share across
+     * the slope over its share into it. `share` of that growth past
+     * `from`, as a multiple of the edge's own bite: a racer on 65–70° of
+     * edge on a hard groomer carries 2.5–3 g round a slalom pole (the
+     * measured loads are 2.5–3 body weights), where a sharp edge biting
+     * by friction alone holds about one. Only a pair that stands so far
+     * over reaches it (`SkiSpec.edgeMax`, `edgeLockAt`): the race skis,
+     * cut hard, at a slalom's pace. */
+    platform: { from: 0.95, share: 0.6 },
     /** ...and in powder, where the edge is buried and the ski turns on its
      * BASE: what the base holds sideways, as a coefficient on the load. */
     basePowder: 0.45,
@@ -348,13 +361,44 @@ export const TUNING = {
      * as far as the edge sends them only once the bend it asks for pulls
      * this many g; under it, that share of the way. */
     hangG: 0.35,
-    /** THE INCLINATION INTO A TURN: the most the whole rolls into a carve,
-     * rad — on packed snow, where the bend's own load asks for it (a
-     * bicycle's lean, atan(v²κ / g)) and this is the cap, 40°, the whole
-     * body of a strong carver laid over (a racer goes past 60°); and in
-     * powder, where the roll is the whole of how a ski turns. Read by
-     * `tipLimit` too. */
+    /** THE INCLINATION INTO A TURN on packed snow follows THE TURN'S
+     * BALANCE (`SkierState.balance`): the angle at which the snow's
+     * reaction — its grip across the skis over its push along its normal,
+     * tan θ = a_lat / g on the level — passes through his centre of mass,
+     * as a bicycle leans. Eased over `balanceLag`, s (the body is a mass
+     * on his legs, and the snow's grip shakes step to step), and laid over
+     * no further than `inclineMost`, rad: 50°, a strong free skier's
+     * carve at 1.2 g (a technique floors it higher — a racer's 52–63°,
+     * `Technique.incline`). The edge he stands on past it is his
+     * angulation's. */
+    inclineMost: 0.87,
+    balanceLag: 0.06,
+    /** ...and the share of the way from that balance to the one his edge
+     * asks for that he leans as he commits to a turn, 0..1 (an arcade
+     * dial, argued against `make skier-metrics`' turn entries: at 0 the
+     * body rolls a turn late, at 1 a skidding skier lies down for a turn
+     * he is not getting). */
+    commit: 0.5,
+    /** THE ANGULATION'S REACH, rad: how far past the body's inclination
+     * the ankles, knees and hips can stand a ski on its edge — a racer's
+     * hip angulation is 10–20° at a slalom apex and his knees add to it;
+     * a skier stood up tips his skis to some 35° with his knees alone. */
+    angulateMost: 0.6,
+    /** ...and the old turn's load, over g (tan of its balance), under which
+     * he crosses over into the next: past it the turn he is still making
+     * holds him in it — a body thrown into the next turn against a 2 g load
+     * is a skier over his edges. An arcade dial, argued against `make
+     * technique`'s turn shapes: at tan(angulateMost) (0.68) a 0.9 s rhythm
+     * missed every other cross-over and turned on its angulation alone;
+     * unbounded, a downhiller at 90 km/h went over his edges. */
+    crossLoad: 1.3,
+    /** THE TIPPING POINT'S ROLL, rad: the whole's inclination the tipping
+     * point (`limits.ts`'s `tipLimit`, the most lateral load a carve can
+     * put on him before it throws him over) is reckoned on — 40°, plus his
+     * angulation, times the arcade's `hangOff`. */
     rollPacked: 0.7,
+    /** IN POWDER the roll is the whole of how a ski turns: the edge asks
+     * for this much of it outright, rad. */
     rollPowder: 0.5,
     /** The righting the skier and his legs together hold that roll with,
      * N·m per rad, the damping on the roll rate, N·m·s, and the most it can
@@ -698,52 +742,9 @@ export const TUNING = {
     cell: 12,
   },
 
-  /** THE START PUSH out of a slalom's start house (`start-push.ts`): the
-   * racer held in the hut on his planted poles after GO until he goes,
-   * then ONE push — both poles, both skis together, a hop over the wand —
-   * and no skating or poling after it: a slalom racer is at speed by the
-   * first gate on the pitch below the hut. */
-  start: {
-    /** How long the push lasts, s, the speed it sends him out at, m/s, and
-     * the hop he springs off it with, m/s up. */
-    push: 0.35,
-    speed: 4.2,
-    hop: 0.9,
-    /** How far the tuck must be held to throw him out, 0..1. */
-    press: 0.5,
-    /** How long the figure is told of the push after it, s. */
-    shown: 1.2,
-  },
-
-  /** THE FLEX POLES of a slalom's gates (R31, `gate-poles.ts`): a pole on
-   * a hinge at the snow that a racer knocks over and that stands itself
-   * back up — the turning pole is one by rule (at least 1.8 m over the
-   * snow, its hinge's resistance at least 4 N·m a metre up) — and what
-   * knocking one costs him. */
-  flex: {
-    /** The pole's height over the snow, m. */
-    height: 1.8,
-    /** The hinge as a damped spring on the tilt: its stiffness, 1/s² (a
-     * pole springing back up at about 2.5 Hz), and its damping, 1/s. */
-    stiff: 247,
-    damp: 7.5,
-    /** The furthest a pole lies over, rad — on its hinge, short of the
-     * snow. */
-    most: 1.35,
-    /** THE BODY that knocks it, as a plan line from his feet to his
-     * shoulders `shoulder` m up the body from the CoG, `reach` m either
-     * side of it — the shin guards, the knees, the hands and the arm a
-     * racer clears a pole with. */
-    shoulder: 0.55,
-    reach: 0.24,
-    /** What a knock costs: this share of the speed he drives into the
-     * pole, and never more than `loss` m/s at a blow — a flex pole tips
-     * at a few newtons against a skier's whole weight. */
-    share: 0.05,
-    loss: 0.25,
-    /** A knock is reported at this closing speed, m/s. */
-    knock: 0.4,
-  },
+  /** THE START PUSH and THE FLEX POLES, a race's own (`race.ts`). */
+  start: START_PUSH,
+  flex: FLEX,
 
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
    * push that grows over `soft` m. */

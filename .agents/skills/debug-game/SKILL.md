@@ -13,7 +13,7 @@ and locked in with a test. Prefer that route over clicking around in a
 browser.
 
 **The URL is the repro's first ingredient.** `?seed=` names the map, and
-`?start=race&seed=&t=` stands the app on a run with `t` seconds already
+`?start=slalom&seed=&t=` stands the app on a run with `t` seconds already
 skied by the bot (`url-params.ts`); a bug report's address bar and the
 seconds on its HUD clock are most of a repro. The developer page's REPRO
 line (`debug-tools`) writes the whole of one — seed, mode, skis, time,

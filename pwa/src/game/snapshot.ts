@@ -8,8 +8,10 @@
 // Nothing in here decides anything: the speed is the engine's `speed`, the
 // edge is the engine's own edge against the pair's full edge, the gate
 // count is the progress the engine keeps, the place is `racePlace` and the
-// standings are `fieldOrder`. A number that decided an outcome would be a
-// rule in the shell (§23.2), and there are none.
+// standings are `fieldOrder` — on a SLALOM the board of the field skied
+// before him (`slalom-board.ts`), never `state.rivals`, which a slalom
+// leaves empty. A number that decided an outcome would be a rule in the
+// shell (§23.2), and there are none.
 
 import {
   airflowAt,
@@ -17,6 +19,7 @@ import {
   fieldOrder,
   gradeOf,
   racePlace,
+  SLALOM,
   trenched,
   type GameState,
   type Level,
@@ -24,6 +27,9 @@ import {
   type Airflow,
   type AirRider,
   type Progress,
+  type RunOut,
+  edgeMostOf,
+  techniqueOf,
 } from "@engine";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
@@ -31,6 +37,8 @@ import { SCREEN_TO_ENGINE } from "./input-model.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
 import { courseName } from "./run-names.ts";
+import { boardOf, timingSplit } from "./slalom-board.ts";
+import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -51,16 +59,49 @@ export const AIR_SHOWN = 0.5;
 
 /** One skier on the finish plate's table. */
 export type Standing = {
-  /** 1-based, in `fieldOrder`'s order. */
-  place: number;
+  /** 1-based, in `fieldOrder`'s order — null on the slalom's board for a
+   * racer with no time to rank (out of it, on the course, still to come). */
+  place: number | null;
   /** Start-line slot, 1-based: the player is 1, the rivals 2… — what a
-   * rival is called on the table (`strings.ts`). */
+   * rival is called on the table (`strings.ts`); on the slalom's board the
+   * start number. */
   slot: number;
   you: boolean;
   /** The run clock at the finish, or null while still out on the piste. */
   time: number | null;
   /** Gates taken, for a skier still out. */
   taken: number;
+  /** THE SLALOM'S BOARD (`slalom-board.ts`) — absent on any other table:
+   * the start number; the first run's time on the second run (null on the
+   * first); the combined time; the gap to the leader, s; how the racer
+   * went out; and whether he has still to come down. */
+  bib?: number;
+  before?: number | null;
+  total?: number | null;
+  gap?: number | null;
+  out?: RunOut | null;
+  waiting?: boolean;
+};
+
+/** THE SLALOM as the HUD reads it — null on any other run. */
+export type SlalomHud = {
+  /** Which run of how many (R31). */
+  run: 1 | 2;
+  runs: number;
+  /** THE STARTER'S WORD, small at the top while the start clock in the
+   * house carries the count: READY through the countdown, GO from then
+   * until a moment after the wand opens — null otherwise. */
+  word: "ready" | "go" | null;
+  /** THE INTERMEDIATE TIME while fresh: the timing point (1, 2), the run
+   * clock there and the gap to the leader (negative ahead). */
+  timing: { point: number; time: number; gap: number | null } | null;
+  /** The player's first-run time on the second run, s; 0 on the first. */
+  before: number;
+  /** OUT OF IT (R31): disqualified or did not finish, why and where. */
+  out: RunOut | null;
+  /** THE SECOND RUN the first run's plate offers, or why not; null on any
+   * other plate. */
+  second: SecondRun | null;
 };
 
 export type HudSnapshot = {
@@ -127,9 +168,13 @@ export type HudSnapshot = {
   /** THE FINISH: the player's own result once he is through the finish,
    * and the whole field's table under it — live, because the field is
    * still coming down behind him. `time` carries the slalom gates' charge
-   * (`penalty`, s) already. Null until then. */
+   * (`penalty`, s) already. Null until then — and on a run that went OUT
+   * (`slalom.out`), which has no time and no place, while the table still
+   * comes up under its plate. */
   result: { place: number; time: number; penalty: number } | null;
   standings: Standing[] | null;
+  /** THE SLALOM's own readouts (`SlalomHud`), null on any other run. */
+  slalom: SlalomHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -195,15 +240,19 @@ export function windOf(state: GameState): HudWind {
 
 /** Gates taken so far, the start gate counted as the first, and never
  * more than the piste has: before the start gate none; through the finish,
- * all of them. */
+ * all of them; out of the race (R31), the gates he had taken. */
 export function gatesTaken(p: Progress, gates: number): number {
-  if (p.finished) return gates;
+  if (p.finished && !p.out) return gates;
   if (!p.started) return 0;
+  // Out, he skis on down and past gates that no longer count.
+  if (p.out) return Math.min(gates, p.passed, p.out.gate);
   return Math.min(gates, p.passed);
 }
 
-/** THE TABLE: every skier in `fieldOrder`'s order. */
+/** THE TABLE: every skier in `fieldOrder`'s order — on an interval start,
+ * the board of the field skied before him (`boardOf`). */
 export function standingsOf(state: GameState): Standing[] {
+  if (state.field) return boardOf(state);
   const gates = state.level.checkpoints.length;
   return fieldOrder(state).map((id, i) => {
     const rival = id === null ? null : state.rivals.find((r) => r.id === id);
@@ -244,6 +293,28 @@ function gradeOfLevel(level: Level): PisteGrade {
 /** A run with no book behind it: a slalom, measured against nothing. */
 const NO_LEDGER: RunLedger = { mode: "slalom", standing: null };
 
+/** The slalom's readouts at this step, or null off an interval start. */
+export function slalomOf(state: GameState): SlalomHud | null {
+  const f = state.field;
+  if (!f) return null;
+  const p = state.progress;
+  const word =
+    state.phase === "countdown"
+      ? "ready"
+      : !p.finished && (!p.started || p.time < GO_HOLD)
+        ? "go"
+        : null;
+  return {
+    run: f.run,
+    runs: SLALOM.runs,
+    word,
+    timing: timingSplit(state),
+    before: f.before,
+    out: p.out,
+    second: secondRunOf(state),
+  };
+}
+
 export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): HudSnapshot {
   const c = state.skier;
   const p = state.progress;
@@ -251,22 +322,31 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
   const airTime = c.airborne && c.airTime > AIR_SHOWN ? c.airTime : 0;
+  // A slalom is timed at its intermediates (`slalom.timing`), never gate by
+  // gate — its gates come a second apart.
   const split =
-    Number.isFinite(lastAt) && p.time - lastAt < SPLIT_HOLD && !p.finished ? lastAt : null;
+    Number.isFinite(lastAt) && p.time - lastAt < SPLIT_HOLD && !p.finished && !state.field
+      ? lastAt
+      : null;
   const standing = ledger.standing;
   const owed = p.missed !== null ? bearingToNext(state) : null;
+  const slalom = slalomOf(state);
+  // THE BIG LIGHTS are the line start's: a slalom's count is the start
+  // clock's in the house, and its word the small one at the top.
+  const lights = state.rules.countdown > 0 && !slalom;
   return {
     speedKmh: c.speed * 3.6,
-    edge: (c.edge / c.spec.edgeMax) * SCREEN_TO_ENGINE,
+    // Against the most edge he can use — a slalom racer's past the ski's own.
+    edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
     braking: c.brake > BRAKE_SHOWN,
     cutting: c.carve > BRAKE_SHOWN,
     time: p.time,
     finished: p.finished,
-    countdown: state.phase === "countdown" ? Math.ceil(state.countdown) : 0,
-    go: state.rules.countdown > 0 && state.phase !== "countdown" && p.time < GO_HOLD,
+    countdown: lights && state.phase === "countdown" ? Math.ceil(state.countdown) : 0,
+    go: lights && state.phase !== "countdown" && p.time < GO_HOLD,
     place: racePlace(state),
-    skiers: state.rivals.length + 1,
+    skiers: (state.field?.runs.length ?? state.rivals.length) + 1,
     taken: gatesTaken(p, n),
     gates: n,
     dropped: droppedOf(state),
@@ -285,8 +365,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     free: !state.rules.course,
     bestAir: p.bestAir > AIR_SHOWN ? p.bestAir : 0,
     distance: p.distance,
-    result: p.finished ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
+    result:
+      p.finished && !p.out ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,
+    slalom,
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,

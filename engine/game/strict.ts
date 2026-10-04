@@ -68,14 +68,20 @@ function judged(cp: Checkpoint, lateral: number): boolean {
 }
 
 /** THE VERDICT at a pole gate the body has just crossed: passed, missed
- * or straddled, by where his two feet are. */
+ * or straddled, by where his two feet are. A station off the snow keeps
+ * the place it last touched (`SkierState.contacts`) — metres back up the
+ * hill once he has flown off a roller — so a foot in the air is taken
+ * under the body, which is where it is. */
 function verdictAt(state: GameState, cp: Checkpoint): "pass" | "missed" | "straddle" {
+  const c = state.skier;
   let feet = 0;
   let through = 0;
-  for (const contact of state.skier.contacts) {
+  for (const contact of c.contacts) {
     if (contact.station !== "mid") continue;
     feet += 1;
-    if (footIn(cp, lateralOf(cp, contact.x, contact.z))) through += 1;
+    const x = contact.touching ? contact.x : c.x;
+    const z = contact.touching ? contact.z : c.z;
+    if (footIn(cp, lateralOf(cp, x, z))) through += 1;
   }
   if (feet === 0) return "pass";
   return through === feet ? "pass" : through === 0 ? "missed" : "straddle";

@@ -116,7 +116,10 @@ describe("the crowd skis", () => {
   // sliding, s, and the longest any one was.
   const creep = new Map<number, number>();
   let creepMost = 0;
-  for (let s = 0; s < 120; s++) {
+  // Three minutes: long enough for a lift's round — queued, carried up,
+  // skated across the top, perhaps stopped for the group — to come round
+  // whatever the crowd was dealt; two left that a coin toss.
+  for (let s = 0; s < 180; s++) {
     ride(state, 1);
     for (const a of state.crowd!.amateurs) {
       const sliding = a.speed >= CROWD.stand && a.speed < CROWD.crawl.speed;

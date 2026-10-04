@@ -157,6 +157,18 @@ export const TUNING = {
      * edge angle, `skier.ts`). */
     edgePacked: 0.95,
     flatShare: 0.3,
+    /** THE PLATFORM (`snow.ts`'s `platformOf`): past `from` rad of edge
+     * a ski bent into reverse camber has cut a shelf as long as itself
+     * and stands on it, and the snow's reaction is square to the base, so
+     * what it holds across grows as tan θ — the reaction's share across
+     * the slope over its share into it. `share` of that growth past
+     * `from`, as a multiple of the edge's own bite: a racer on 65–70° of
+     * edge on a hard groomer carries 2.5–3 g round a slalom pole (the
+     * measured loads are 2.5–3 body weights), where a sharp edge biting
+     * by friction alone holds about one. Only a pair that stands so far
+     * over reaches it (`SkiSpec.edgeMax`, `edgeLockAt`): the race skis,
+     * cut hard, at a slalom's pace. */
+    platform: { from: 0.95, share: 0.6 },
     /** ...and in powder, where the edge is buried and the ski turns on its
      * BASE: what the base holds sideways, as a coefficient on the load. */
     basePowder: 0.45,

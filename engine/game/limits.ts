@@ -7,9 +7,10 @@
 import { riderOf } from "./defs/riders.ts";
 import { SKIS, totalMass, type SkiSpec } from "./defs/skis.ts";
 import type { RunRules } from "./defs/modes.ts";
+import { FREE, type Technique } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { footprintOf } from "./footprint.ts";
-import { gripAt, type Grip } from "./snow.ts";
+import { gripAt, platformOf, type Grip } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
 
 const scratch: Grip = { edge: 0, base: 0 };
@@ -37,11 +38,21 @@ export function terminalSpeed(spec: SkiSpec, grade: number, crouch = 1): number 
   return Math.sqrt((2 * m * pull) / (TUNING.airDensity * cdA));
 }
 
-/** The full edge the skis can be put on at `speed` m/s, rad: the spec's
- * at a standstill, two thirds of it by `steer.fadeSpeed`. Read by the
- * physics AND the bot. */
-export function edgeLockAt(spec: SkiSpec, speed: number): number {
-  return spec.edgeMax / (1 + Math.abs(speed) / (2 * TUNING.steer.fadeSpeed));
+/** The most edge a skier skiing `technique` stands the skis on, rad: the
+ * spec's own, or the technique's floor under it (`Technique.edgeMax`). */
+export function edgeMostOf(spec: SkiSpec, technique: Technique = FREE): number {
+  return Math.max(spec.edgeMax, technique.edgeMax);
+}
+
+/** The full edge the skis can be put on at `speed` m/s, rad: the most
+ * (`edgeMostOf`) at a standstill, two thirds of it by `steer.fadeSpeed` —
+ * as long again as the technique holds its edge (`Technique.fade`). Read by
+ * the physics AND the bot. */
+export function edgeLockAt(spec: SkiSpec, speed: number, technique: Technique = FREE): number {
+  return (
+    edgeMostOf(spec, technique) /
+    (1 + Math.abs(speed) / (2 * TUNING.steer.fadeSpeed * technique.fade))
+  );
 }
 
 /** The full edge at a speed, rad (`edgeLockAt` under the name the bot and
@@ -91,14 +102,51 @@ export function chatterHold(spec: SkiSpec, speed: number): number {
 }
 
 /** HOW HARD A SKIER CAN CORNER, m/s², on snow `packed` 0..1 at `speed`
- * m/s: the edges' (or in powder the bases') sideways grip over the whole
- * weight — the edges' less what the CHATTER costs them at that speed — or
- * the tipping point, whichever comes first. That is what a skier holding a
- * carve can call on; the bot reads it to judge a bend's speed. */
-export function cornerGrip(spec: SkiSpec, packed: number, speed = 0): number {
+ * m/s with his skis `edge` rad over: the edges' (or in powder the bases')
+ * sideways grip over the whole weight — the edges' less what the CHATTER
+ * costs them at that speed, and with the PLATFORM a racer's angle stands
+ * on (`platformOf`, by how far his `technique` stands on it: none at a
+ * moderate edge, nor for the free skier) — or the tipping point,
+ * whichever comes first. That is what a skier holding a carve can call
+ * on; the bot reads it to judge a bend's speed. */
+export function cornerGrip(
+  spec: SkiSpec,
+  packed: number,
+  speed = 0,
+  edge = 0,
+  technique: Technique = FREE,
+): number {
   const grip = gripAt(packed, scratch, footprintOf(spec));
-  const hold = grip.edge * chatterHold(spec, speed) * packed + grip.base * (1 - packed);
+  const hold =
+    grip.edge * chatterHold(spec, speed) * (1 + platformOf(edge, technique.platform)) * packed +
+    grip.base * (1 - packed);
   return TUNING.g * Math.min(hold * TUNING.arcade.sideGrip, tipLimit(spec));
+}
+
+/** THE EDGE CUT HARD at `speed` m/s, rad: the back key held after the edge
+ * (`TUNING.carve`) stands the skis `carve.edge` further over than the
+ * speed's own lock, never past the most he stands them on — the edge the
+ * physics puts a skier cutting hard on. */
+export function cutEdgeAt(spec: SkiSpec, speed: number, technique: Technique = FREE): number {
+  return Math.min(
+    edgeMostOf(spec, technique),
+    edgeLockAt(spec, speed, technique) * (1 + TUNING.carve.edge),
+  );
+}
+
+/** HOW HARD A SKIER CUTTING HARD CAN CORNER on snow `packed` 0..1 at
+ * `speed` m/s, m/s²: the corner grip at the edge cut hard (the platform
+ * with it, for a technique that stands on it) and the pressed edge's
+ * `carve.grip` — how a racer skis a slalom. Read by the bot's slalom and
+ * the par. */
+export function cutGrip(
+  spec: SkiSpec,
+  speed: number,
+  technique: Technique = FREE,
+  packed = 1,
+): number {
+  const edge = cutEdgeAt(spec, speed, technique);
+  return cornerGrip(spec, packed, speed, edge, technique) * (1 + TUNING.carve.grip);
 }
 
 /** THE PULL ON A SKIER IN FLIGHT under `rules`, m/s² — the run's own

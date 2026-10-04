@@ -93,6 +93,17 @@ export {
   type RunRules,
 } from "./game/defs/modes.ts";
 export {
+  DOWNHILL_TECHNIQUE,
+  FREE,
+  GIANT_SLALOM_TECHNIQUE,
+  SLALOM_TECHNIQUE,
+  SUPER_G_TECHNIQUE,
+  TECHNIQUES,
+  techniqueOf,
+  type Technique,
+  type TechniqueId,
+} from "./game/defs/technique.ts";
+export {
   FIELD,
   createField,
   fieldOrderOf,
@@ -361,7 +372,10 @@ export {
   chatterHold,
   chatterOf,
   cornerGrip,
+  cutEdgeAt,
+  cutGrip,
   edgeLockAt,
+  edgeMostOf,
   flightGravity,
   harshSpeedOf,
   lockAt,

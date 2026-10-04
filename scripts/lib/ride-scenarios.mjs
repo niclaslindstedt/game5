@@ -18,6 +18,9 @@
 //                   off the recorded run (see `ride-lab.mjs`'s `record`)
 //   mode            optional: the mode whose rules the run is dealt — the
 //                   trick scenarios ride "tricks", so the strokes are read
+//   technique       optional: how the skier works the ski (`technique.ts`)
+//                   over the mode's own — the slalom scenarios ride
+//                   "slalom"
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
 
@@ -50,6 +53,50 @@ import {
   TOP,
   onPitch,
 } from "./ride-helpers.mjs";
+
+/** A RHYTHM OF TURNS, read after the first two seconds: how long a turn
+ * is (the edge from one side to the other), its peak edge, the radius a
+ * tenth of the frames turn tighter than, the most yaw, the mean speed, and
+ * the skid angle — the skis' line off the way — on the mean and at its
+ * most. */
+function rhythm(run) {
+  const fs = run.frames.filter((f) => f.t >= 2);
+  const flips = [];
+  const peaks = [];
+  let side = 0;
+  let peak = 0;
+  for (const f of fs) {
+    const now = f.edge > 0.17 ? 1 : f.edge < -0.17 ? -1 : 0;
+    peak = Math.max(peak, Math.abs(f.edge));
+    if (now !== 0 && now !== side) {
+      if (side !== 0) {
+        flips.push(f.t);
+        peaks.push(peak);
+      }
+      side = now;
+      peak = 0;
+    }
+  }
+  const turnS = flips.length > 1 ? (flips[flips.length - 1] - flips[0]) / (flips.length - 1) : null;
+  const radii = fs
+    .filter((f) => Math.abs(f.wy) > 0.3)
+    .map((f) => f.speed / Math.abs(f.wy))
+    .sort((a, b) => a - b);
+  const mean = (g) => fs.reduce((sum, f) => sum + g(f), 0) / Math.max(1, fs.length);
+  return [
+    ["turn s", fmt(turnS)],
+    [
+      "edge peak deg",
+      fmt((peaks.reduce((a, b) => a + b, 0) / Math.max(1, peaks.length)) * 57.3, 0),
+    ],
+    ["radius m", radii.length ? fmt(radii[Math.floor(radii.length * 0.1)], 1) : "—"],
+    ["yaw most rad/s", fmt(Math.max(...fs.map((f) => Math.abs(f.wy))), 2)],
+    ["speed km/h", fmt(mean((f) => f.speed) * 3.6, 1)],
+    ["skid deg", fmt(mean((f) => Math.abs(f.slide)) * 57.3, 1)],
+    ["skid most deg", fmt(Math.max(...fs.map((f) => Math.abs(f.slide))) * 57.3, 1)],
+    ["thrown", fs.some((f) => f.thrown) ? "yes" : "no"],
+  ];
+}
 
 /** The fastest the snow slid across the skis over a run, m/s. */
 const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
@@ -272,6 +319,35 @@ export const SCENARIOS = [
     view: "plan",
     input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
     measure: turn,
+  },
+  {
+    id: "slalom-cut",
+    title: "full edge cut hard at 45 km/h down the 20° pitch, the slalom racer's technique",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(45),
+    seconds: 3,
+    view: "plan",
+    technique: "slalom",
+    input: (t) => ({ ...TUCK, tuck: 0.3, steer: t >= 0.3 ? 1 : 0, carve: t >= 0.3 }),
+    measure: turn,
+  },
+  {
+    id: "slalom-rhythm",
+    title:
+      "a turn every 0.9 s cut hard from 40 km/h down the 20° pitch, the slalom racer's technique",
+    level: (S) => schussStrip(S),
+    place: () => onPitch(40),
+    seconds: 9,
+    view: "plan",
+    technique: "slalom",
+    // Full edge one way, then the other, every 0.9 s — and back toward the
+    // fall line whenever he has come more than 50° off it.
+    input: (t, st) => {
+      const side = Math.floor(t / 0.9) % 2 === 0 ? 1 : -1;
+      const h = st.skier.heading;
+      return { ...TUCK, tuck: 0.3, steer: Math.abs(h) > 0.9 ? -Math.sign(h) : side, carve: true };
+    },
+    measure: rhythm,
   },
   {
     id: "jump-tap",

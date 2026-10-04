@@ -16,9 +16,16 @@
 // and the runs leaving one lift's top together, are one SIGN TREE: one post
 // among them, its boards stacked, the pistes over the lanes, green to black,
 // each arrow pointing its own run's way.
+//
+// AT A CHAIR'S TOP, where the way off parts (`chairLane`), a post of its own
+// faces the rider coming down the lane: a board a run he can ski onto from
+// the pad (`signsOf`), each plank CUT AS AN ARROW pointing the way the run
+// leaves — the same wood, the same mark and the same burned name.
 
 import {
   LIFT_LOOK,
+  chairLane,
+  liftPlans,
   trackPointAt,
   type Level,
   type PisteGrade,
@@ -27,6 +34,7 @@ import {
 } from "@engine";
 
 import { runName, runNumber } from "./run-names.ts";
+import { signsOf } from "./station-plan.ts";
 
 /** The sign's measure, m: how far down the run it stands; how far off the
  * line (half the run's width less a metre, held between `side`'s bounds —
@@ -46,6 +54,8 @@ export const SIGN = {
   lane: { width: 1.8, height: 0.45 },
   foot: 1.45,
   gap: 0.07,
+  /** An arrow board's point: how far it reaches past the plank, m. */
+  tip: 0.5,
 };
 
 /** The way a sign's arrow points, as the skier reading it looks. */
@@ -63,6 +73,10 @@ export type SignBoard = {
   width: number;
   height: number;
   y: number;
+  /** A board CUT AS AN ARROW pointing the reader's left or right (a chair
+   * top's, its point `SIGN.tip` of its width), its arrow the board itself;
+   * absent on a plank with its arrow burned on. */
+  point?: "left" | "right";
 };
 
 /** One post and the boards on it. `heading` is the way the skier reading
@@ -277,5 +291,39 @@ export function signPlan(level: Level): readonly SignPost[] {
     return { x, z, y: level.groundAt(x, z), heading, boards: placed };
   });
   cache.set(level, posts);
+  return posts;
+}
+
+/** THE ARROW BOARDS AT EVERY CHAIR'S TOP: a post across the far side of the
+ * way off (`chairLane`), facing a rider coming down it, a board cut as an
+ * arrow for every run he can ski onto from the pad (`signsOf`) — those to
+ * the lane's side above. The lane's side, the engine's +v, is the reader's
+ * LEFT as the picture shows him (`beside`). They stand in the station on
+ * purpose, where the way off parts, and are drawn with the piste-head signs
+ * (`run-signs.ts`). */
+export function summitSigns(level: Level): SignPost[] {
+  const runs = level.resort?.runs ?? [];
+  const posts: SignPost[] = [];
+  for (const plan of liftPlans(level)) {
+    if (plan.lift.kind !== "chair") continue;
+    const signs = signsOf(level, plan);
+    if (signs.length === 0) continue;
+    const lane = chairLane(plan);
+    const x = plan.lift.bottom.x + plan.dx * lane.signs + plan.dz * lane.v;
+    const z = plan.lift.bottom.z + plan.dz * lane.signs - plan.dx * lane.v;
+    const boards = signs.flatMap((sign) => {
+      const run = runs.find((r) => r.id === sign.run);
+      if (!run) return [];
+      const point = sign.way === 1 ? ("left" as const) : ("right" as const);
+      return [{ ...boardOf(level, run, point), point }];
+    });
+    let foot = SIGN.foot;
+    const placed: SignBoard[] = [];
+    for (let i = boards.length - 1; i >= 0; i--) {
+      placed.unshift({ ...boards[i], y: foot });
+      foot += boards[i].height + SIGN.gap;
+    }
+    posts.push({ x, z, y: level.groundAt(x, z), heading: plan.heading, boards: placed });
+  }
   return posts;
 }

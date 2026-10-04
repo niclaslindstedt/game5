@@ -6,19 +6,29 @@
 //
 // A boom that leans its arm up the slope behind a skier reads a steep face
 // as gentler than it is, which is what it is for on the way down. At the
-// top it is the opposite of what is wanted: standing on the level pad and
-// pushing off over its lip, the lens should stay LEVEL, so the face falls
-// away under the horizon as near to straight down as it looks from the top
-// of a real one — the drop felt in the stomach. So the share is whole on
-// a station's pad and over its lip, and fades out as he drops below it and
-// gets away from it, the boom leaning back in with the mountain as he
-// commits to the face.
+// top it is the opposite of what is wanted: sliding off the pad toward its
+// lip, the lens should stand LOW behind him and LEVEL (`SUMMIT_LOOK`), so
+// the pad's edge is the edge of the world and the face beyond it is out of
+// sight under the horizon — a lip that reads as a cliff, whatever colour
+// the run off it. So the share is whole on a station's pad and down the
+// RAMP off it (R26, `Lift.ramps`) to its LIP (`rampLip`: the ramp's foot
+// where it falls evenly onto a steeper run, the knee where it rolls over
+// into its own drop), and fades out over the first few metres he drops
+// below that, the lens hanging a beat at the top and tipping down after him
+// as the boom leans back in with the mountain.
 
-import type { Level } from "@engine";
+import { rampFrame, rampHeight, rampLip, type Level } from "@engine";
 
 /** Whole within `near` m of a top station and fading out by `far`; whole
- * down to `drop.from` m under its pad and gone by `drop.to`. */
-export const SUMMIT = { near: 45, far: 110, drop: { from: 6, to: 45 } } as const;
+ * down to `drop.from` m under its deck (its rim stands about 2 m under it,
+ * R26) and gone by `drop.to` — and on a ramp off it, `beside` m either side
+ * of the ramp's width, under its lip the same. */
+export const SUMMIT = {
+  near: 45,
+  far: 110,
+  drop: { from: 2.5, to: 14 },
+  beside: 6,
+} as const;
 
 function fade(a: number, b: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -38,6 +48,18 @@ export function summitShare(level: Level, x: number, z: number): number {
     if (near <= 0) continue;
     const below = fade(SUMMIT.drop.from, SUMMIT.drop.to, l.top.y - y);
     most = Math.max(most, near * below);
+  }
+  for (const l of lifts) {
+    for (const r of l.ramps ?? []) {
+      const f = rampFrame(r, x, z);
+      if (f.t < 0 || f.d > r.width / 2 + SUMMIT.beside) continue;
+      // Whole down to the lip, and under it as far as he has dropped.
+      const lip = rampLip(r);
+      if (f.t * f.length > lip.at + SUMMIT.near) continue;
+      const edge = rampHeight(r, lip.at / lip.length);
+      const below = f.t * f.length <= lip.at ? 1 : fade(SUMMIT.drop.from, SUMMIT.drop.to, edge - y);
+      most = Math.max(most, below);
+    }
   }
   return most;
 }

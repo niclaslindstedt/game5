@@ -20,7 +20,9 @@ import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
-import type { Level, Run } from "../mapgen/types.ts";
+import type { Level, Lift, Run } from "../mapgen/types.ts";
+import { generatorTraits } from "../mapgen/versions.ts";
+import { liftPlans, ropeShortfall } from "../game/lift-line.ts";
 import { accessOf } from "./access.ts";
 import { holdDrags, holdHub, holdTunnels } from "./hub.ts";
 import type { Finding, Severity } from "./index.ts";
@@ -95,11 +97,12 @@ const PAD_TOLERANCE = 0.3;
 /** How near a run's line the pad is that run's snow, m. */
 const PAD_LINE = 10;
 
-/** R26 — a top station's pad as the finished ground reads: how far it falls
- * over rings out to near its rim (round a chair's unload mound, and off any
- * run's line across it), and the
- * mound's height over it — null for a drag, whose top is held by
- * `lift.drag.padGrade`. */
+/** R26 — a top station's pad as the finished ground reads: how far it
+ * stands off the surface R26 cuts it to — level on a v4 map; from v5 its
+ * deck along the line level and the pad leaning off it to both sides
+ * (`lift.top`) — over rings out to near its rim (round a chair's unload
+ * mound, and off any run's line across it), and the mound's height over it
+ * — null for a drag, whose top is held by `lift.drag.padGrade`. */
 function padReading(
   level: Level,
   l: { kind: string; bottom: { x: number; z: number }; top: { x: number; y: number; z: number } },
@@ -109,9 +112,15 @@ function padReading(
   const back = RR.lift.unload.at / len;
   const ux = l.top.x + (l.bottom.x - l.top.x) * back;
   const uz = l.top.z + (l.bottom.z - l.top.z) * back;
+  const dx = (l.top.x - l.bottom.x) / len;
+  const dz = (l.top.z - l.bottom.z) / len;
   const chair = l.kind === "chair";
+  const levelPads = generatorTraits(level.version).levelPads === true;
+  const pad = levelPads ? RR.lift.pad : RR.lift.top.pad;
+  const deck = levelPads ? Infinity : RR.lift.top.deck;
+  const lean = levelPads ? 0 : RR.lift.top.lean;
   // A run's line crossing the pad is the snow it was graded to (R27).
-  const reach = RR.lift.pad / 2 + PAD_LINE + 4;
+  const reach = pad / 2 + PAD_LINE + 4;
   const lines = (level.resort?.runs ?? []).flatMap((r) =>
     r.points.filter((p) => hypot(p.x - l.top.x, p.z - l.top.z) < reach),
   );
@@ -119,12 +128,22 @@ function padReading(
   let hi = -Infinity;
   for (let a = 0; a < 24; a++) {
     const t = (a / 24) * Math.PI * 2;
-    for (const r of [0, 0.15, 0.3, 0.45].map((k) => k * RR.lift.pad)) {
+    for (const r of [0, 0.15, 0.3, 0.45].map((k) => k * pad)) {
       const x = l.top.x + Math.sin(t) * r;
       const z = l.top.z + Math.cos(t) * r;
       if (chair && hypot(x - ux, z - uz) < RR.lift.unload.reach + 1) continue;
+      // From v5 the ground under the line's way in is cut away (R26).
+      if (!levelPads) {
+        const back = (l.top.x - x) * dx + (l.top.z - z) * dz;
+        const v = Math.abs((x - l.top.x) * dz - (z - l.top.z) * dx);
+        const A = RR.lift.top.approach;
+        const k = chair ? "chair" : "gondola";
+        if (back > A.from[k] - A.ease && v < A.half[k] + A.blend) continue;
+      }
       if (lines.some((p) => hypot(x - p.x, z - p.z) < PAD_LINE)) continue;
-      const g = level.groundAt(x, z);
+      // The lean off the deck taken back out: what is left is level.
+      const v = Math.abs((x - l.top.x) * dz - (z - l.top.z) * dx);
+      const g = level.groundAt(x, z) + lean * Math.max(0, v - deck);
       lo = Math.min(lo, g);
       hi = Math.max(hi, g);
     }
@@ -132,6 +151,43 @@ function padReading(
   const ramp = chair ? level.groundAt(ux, uz) - level.groundAt(l.top.x, l.top.z) : null;
   return { spread: hi - lo, ramp };
 }
+
+/** What is wrong with a ramp off a top (R26) as the ground reads it, or
+ * null: it leaves its pad's rim, comes down to its run, and falls all the
+ * way to its foot — never climbing over any `RAMP_STEP` m of it, and never
+ * steeper than `lift.top.ramp.lip`. */
+function rampFault(
+  level: Level,
+  l: { top: { x: number; y: number; z: number } },
+  r: NonNullable<Lift["ramps"]>[number],
+): string | null {
+  const rim = hypot(r.from.x - l.top.x, r.from.z - l.top.z);
+  if (Math.abs(rim - RR.lift.top.pad / 2) > 0.5) return `leaves ${rim.toFixed(1)} m off its top`;
+  const run = level.resort?.runs.find((q) => q.id === r.run);
+  if (!run) return "comes down to no run";
+  const length = hypot(r.to.x - r.from.x, r.to.z - r.from.z);
+  let last = level.groundAt(r.from.x, r.from.z);
+  // Short of its foot, where the run's own shoulder and windrow begin.
+  for (let u = RAMP_STEP; u <= length - RAMP_STEP; u += RAMP_STEP) {
+    const k = u / length;
+    const y = level.groundAt(
+      r.from.x + (r.to.x - r.from.x) * k,
+      r.from.z + (r.to.z - r.from.z) * k,
+    );
+    if (y > last + RAMP_SLACK) return `climbs at ${u.toFixed(0)} m`;
+    if ((last - y) / RAMP_STEP > RR.lift.top.ramp.lip + RAMP_SLACK)
+      return `falls at ${((last - y) / RAMP_STEP).toFixed(2)} at ${u.toFixed(0)} m`;
+    last = y;
+  }
+  return null;
+}
+
+/** How far a rope may fall short of its clearance and still clear, m. */
+const ROPE_SLACK = 0.25;
+
+/** The step a ramp is read at, m, and the slack its fall is read with. */
+const RAMP_STEP = 4;
+const RAMP_SLACK = 0.05;
 
 /** How near its lift's bottom station a link lane must end (R27), m. */
 const LINK_END = 24;
@@ -195,9 +251,30 @@ export function analyzeResort(level: Level): ResortAnalysis {
       const pad = padReading(level, l);
       if (!pad) continue;
       if (pad.spread > PAD_TOLERANCE)
-        add("R26", "error", `${l.id}'s top pad falls ${pad.spread.toFixed(2)} m across it`);
+        add("R26", "error", `${l.id}'s top pad stands ${pad.spread.toFixed(2)} m off its cut`);
       if (pad.ramp !== null && pad.ramp < RR.lift.unload.height * 0.8)
         add("R26", "error", `${l.id}'s unload ramp stands only ${pad.ramp.toFixed(2)} m`);
+    }
+    // R26 — every lift's rope clear of the snow by what it owes, all the way
+    // to its wheels (from v5, whose approaches are cut for it).
+    if (!generatorTraits(level.version).levelPads) {
+      for (const plan of liftPlans(level)) {
+        const short = ropeShortfall(level, plan);
+        if (short.lack > ROPE_SLACK)
+          add(
+            "R26",
+            "error",
+            `${plan.lift.id}'s rope runs ${short.lack.toFixed(2)} m into its clearance ${(plan.length - short.u).toFixed(0)} m short of its top`,
+          );
+      }
+    }
+    // R26 — every ramp off a top: off its pad's rim, down to its run, never
+    // climbing and never steeper than its lip's drop.
+    for (const l of resort.lifts) {
+      for (const r of l.ramps ?? []) {
+        const why = rampFault(level, l, r);
+        if (why) add("R26", "error", `${l.id}'s ramp to run ${r.run} ${why}`);
+      }
     }
     // R26 — every bottom station, and a drag's top, beside the runs; no
     // drag lift across a piste.

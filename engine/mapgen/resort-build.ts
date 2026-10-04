@@ -60,7 +60,8 @@ import { routeLane } from "./lanes.ts";
 import { planLifts, settleDrags, type DragGround } from "./drags.ts";
 import { clearStations, nearLine, type StationGround } from "./station-clear.ts";
 import { reckonAccess } from "./access-build.ts";
-import { groomPads, pressPads, relevelPads } from "./station-pad.ts";
+import { groomPads, padShape, pressPads, relevelPads } from "./station-pad.ts";
+import { groomRamps, layRamps, offRamp } from "./summit-ramps.ts";
 import { trimDrifts } from "./drift-trim.ts";
 import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.ts";
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
@@ -106,7 +107,7 @@ import type {
   Vec3,
   WindTunnel,
 } from "./types.ts";
-import type { GeneratorVersion } from "./versions.ts";
+import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 
 /** A run as the resort keeps it: walked, built, and what it carries — its
  * kickers and drops by ITS OWN arc. */
@@ -255,18 +256,20 @@ function placeStart(
  * began beside another would merge into it off the gate. */
 const START_CLEAR = R.track.hold + 100;
 /** How far a run's start and its first stretch keep off a station pad's
- * middle (R26), m: the pad, and the margin a pad pressed again yields to a
- * run's line by (`PAD_LINE`) and a little. */
-const PAD_KEEP = RR.lift.pad / 2 + 10;
+ * middle past its radius (R26), m: the margin a pad pressed again yields to
+ * a run's line by (`PAD_LINE`) and a little. */
+const PAD_KEEP = 10;
 /** How far past its half-width a run's start and first stretch keep off a
  * station's wheel (R26), m: its footprint's reach and a margin. */
 const STATION_KEEP = 14;
-/** How far a lane's route keeps off a station pad's middle (R26), m: a lane
- * may cross the ground eased into a pad, never the pad. */
-const LANE_KEEP = RR.lift.pad / 2 + 12;
+/** How far past its radius a lane's route keeps off a station pad's middle
+ * (R26), m: a lane may cross the ground eased into a pad, never the pad. */
+const LANE_KEEP = 12;
 /** How near a run's line a pad pressed again yields to the run, m: its
  * line is the one it was graded to (R27). */
 const PAD_LINE = 8;
+/** How far past a run's edge a ramp's grooming stops (R10's powder). */
+const RAMP_GROOM = R.track.shoulder.packed + 4;
 /** How far off a drag lift's line a piste keeps its edge, m (R26). */
 const DRAG_ROOM = 6;
 const START_ROOM = 12;
@@ -289,13 +292,15 @@ export function attemptResort(
   attempt: number,
   sub: number,
   region: Region,
+  version: GeneratorVersion,
 ): BuiltResort | string {
   const rng = createRng(sub);
   const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
-  const pads = pressPads(ground, liftPlans);
+  const shape = padShape(generatorTraits(version).levelPads);
+  const pads = pressPads(ground, liftPlans, shape);
   /** Every station standing as the runs are walked — a lift's two ends,
    * the valley floor's aside (the runs finish among them in the hub, and
    * they are stood clear of them once every run stands) (R26). */
@@ -318,7 +323,7 @@ export function attemptResort(
   };
   /** Whether a lane would cross a station's pad (R26). */
   const onPad = (x: number, z: number): boolean => {
-    for (const p of pads) if (hypot(x - p.x, z - p.z) < LANE_KEEP) return true;
+    for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + LANE_KEEP) return true;
     return false;
   };
 
@@ -359,8 +364,8 @@ export function attemptResort(
           const pz = z + Math.cos(h) * u;
           // Off every station's pad and the ground eased into it (R26): the
           // runs leave from its edges, never across it.
-          if (u <= PAD_KEEP) {
-            for (const p of pads) if (hypot(px - p.x, pz - p.z) < PAD_KEEP) return false;
+          if (u <= shape.r + PAD_KEEP) {
+            for (const p of pads) if (hypot(px - p.x, pz - p.z) < p.r + PAD_KEEP) return false;
             // Its corridor off every station standing (R26): the runs leave
             // beside a top, and pass beside a bottom.
             for (const p of stations)
@@ -591,6 +596,11 @@ export function attemptResort(
   for (const w of kept)
     net.add(w.points, rankOf(w.spec), w.into?.run ?? -1, w.mergeStart, w.spec.kind === "road");
   const hit = netHit();
+  // ── 4a. THE RAMPS OFF THE TOPS (R26), off a run's snow and a station ──
+  const runAt = (x: number, z: number, past = 0): boolean => net.covers(x, z, past, hit);
+  const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
+  const ramps = layRamps(ground, pads, runs, runAt, liftPlans);
+  const allRamps = [...ramps.values()].flat();
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
   // R29 again on the colours the pressed runs measure and the runs that
@@ -662,8 +672,8 @@ export function attemptResort(
     const h = net.nearest(x, z, 400, never, hit);
     let d = h.distance - Math.max(0, h.width - R.track.width.max) / 2;
     // A station's pad, eased out, is kept off as a run is (R26).
-    for (const p of pads)
-      d = Math.min(d, hypot(x - p.x, z - p.z) - RR.lift.pad / 2 - RR.lift.padBlend);
+    for (const p of pads) d = Math.min(d, hypot(x - p.x, z - p.z) - p.r - RR.lift.padBlend);
+    for (const r of allRamps) d = Math.min(d, offRamp(r, x, z));
     return d;
   };
   const offKickers = layOffKickers(rng, plan, ground, null, distanceTo);
@@ -687,7 +697,8 @@ export function attemptResort(
   // whole width, and the drift cut back to the fresh snow left of it (R17,
   // R29) — the hub laid round where the stations now stand.
   for (const b of built) trimDrifts(b, packed, unhubbed);
-  groomPads(pads, packed, (x, z) => net.covers(x, z, 0, hit));
+  groomPads(pads, packed, runAt);
+  groomRamps(packed, ramps, pads, (x, z) => runAt(x, z, RAMP_GROOM));
   const tunnels = layTunnels(hubPlan, ground);
 
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
@@ -696,6 +707,7 @@ export function attemptResort(
     kind: l.kind,
     bottom: { x: l.bottom.x, z: l.bottom.z, y: sampleField(ground, l.bottom.x, l.bottom.z) },
     top: { x: l.top.x, z: l.top.z, y: sampleField(ground, l.top.x, l.top.z) },
+    ...(ramps.has(l.id) ? { ramps: ramps.get(l.id) } : {}),
   }));
   const village: Vec3 = { x: v.x, z: v.z, y: sampleField(ground, v.x, v.z) };
   const baseY = village.y;
@@ -704,8 +716,8 @@ export function attemptResort(
   const clear = (x: number, z: number): boolean => {
     if (hubClear(hubPlan.hub, sub, x, z)) return true;
     for (const l of lifts) if (nearLine(l, x, z) < RR.lift.clear) return true;
-    for (const p of pads)
-      if (hypot(x - p.x, z - p.z) < RR.lift.pad / 2 + RR.lift.clear) return true;
+    for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + RR.lift.clear) return true;
+    for (const r of allRamps) if (offRamp(r, x, z) < 0) return true;
     // Off every run's corridor, not only the nearest's (R14).
     return net.covers(x, z, R.forest.corridor, hit);
   };
@@ -780,13 +792,14 @@ export function buildResort(
   attempts: number,
   subSeed: (seed: number, attempt: number) => number,
   accept: (built: BuiltResort) => string | null,
+  version: GeneratorVersion,
 ): BuiltResort {
   const region = regionRow(regionId);
-  const key = `${seed}:${region.id}:${attempts}`;
+  const key = `${seed}:${region.id}:${attempts}:${version}`;
   if (cache && cache.key === key) return cache.built;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptResort(seed, a, subSeed(seed, a), region);
+    const built = attemptResort(seed, a, subSeed(seed, a), region, version);
     if (typeof built === "string") {
       debug(`resort ${seed}#${a}: refused — ${built}`);
       reasons.push(`#${a}: ${built}`);

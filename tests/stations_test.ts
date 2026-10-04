@@ -12,11 +12,18 @@ import {
   carrierAt,
   carrierCount,
   chairLane,
+  LIFT_LOOK,
   liftPlans,
+  rampHeight,
+  rampLip,
+  RESORT_RULES,
+  ropeShortfall,
+  runsOffTop,
   stationHouses,
   TUNING,
 } from "@engine";
 import { summitShare } from "../pwa/src/game/camera-summit.ts";
+import { summitSigns } from "../pwa/src/game/run-sign-plan.ts";
 import { MOUNTS, skierPose } from "../pwa/src/game/skier-pose.ts";
 import { CHAIR_SEAT, seatedPose } from "../pwa/src/game/skier-seat.ts";
 import { layStations, signsOf } from "../pwa/src/game/station-plan.ts";
@@ -62,8 +69,8 @@ describe("the stations laid out", () => {
 
   it("stands every piece on the snow it is over", () => {
     for (const q of layout.parts) {
-      // A hood and a canopy are hung at the wheel; a sign on its post.
-      if (q.kind === "hood" || q.kind === "canopy" || q.kind === "sign") continue;
+      // A hood and a canopy are hung at the wheel.
+      if (q.kind === "hood" || q.kind === "canopy") continue;
       expect(Math.abs(q.y - level.groundAt(q.x, q.z))).toBeLessThan(1e-6);
     }
   });
@@ -93,7 +100,7 @@ describe("the way off a chair's top", () => {
       const lane = chairLane(p);
       const from = p.length - p.look.off;
       for (const q of layout.parts) {
-        if (q.kind === "hood" || q.kind === "sign" || q.kind === "signpost") continue;
+        if (q.kind === "hood") continue;
         const c = frame(p, q.x, q.z);
         if (c.u < from || c.u > lane.exit) continue;
         expect(Math.abs(c.v - lane.v)).toBeGreaterThan(2);
@@ -112,28 +119,33 @@ describe("the way off a chair's top", () => {
     }
   });
 
-  it("signs every run off the top across the far side of the way, pointing the way it leaves", () => {
+  it("fences nothing at the top: no netting and no stop gate across the way off", () => {
+    for (const p of chairs) {
+      for (const f of layout.fences) {
+        const c = frame(p, f.a.x, f.a.z);
+        expect(Math.hypot(c.u - p.length, c.v)).toBeGreaterThan(40);
+      }
+    }
+  });
+
+  it("signs every run the pad drops onto, on wooden arrow boards pointing the way it leaves", () => {
     for (const p of chairs) {
       const lane = chairLane(p);
-      const runs = level.resort!.runs.filter((r) => r.from === p.lift.id);
+      const runs = runsOffTop(level, p).map((j) => level.resort!.runs[j.run]);
       const signs = signsOf(level, p);
       expect(signs.map((s) => s.run).sort()).toEqual(runs.map((r) => r.id).sort());
-      const post = layout.parts.find(
-        (q) =>
-          q.kind === "signpost" &&
-          Math.hypot(frame(p, q.x, q.z).u - lane.signs, frame(p, q.x, q.z).v - lane.v) < 0.01,
+      // Every run joined lies below the pad.
+      for (const r of runs) expect(r.points.some((q) => q.y < p.lift.top.y - 2)).toBe(true);
+      if (signs.length === 0) continue;
+      const post = summitSigns(level).find(
+        (q) => Math.hypot(frame(p, q.x, q.z).u - lane.signs, frame(p, q.x, q.z).v - lane.v) < 0.01,
       );
       expect(post).toBeDefined();
-      const boards = layout.parts.filter(
-        (q) => q.kind === "sign" && Math.hypot(q.x - post!.x, q.z - post!.z) < 0.01,
-      );
-      expect(boards).toHaveLength(runs.length);
+      expect(post!.boards.map((b) => b.run)).toEqual(signs.map((s) => s.run));
       signs.forEach((s, i) => {
-        expect(boards[i].grade).toBe(s.grade);
-        // A board points its +x: across the line's frame, +v for `1`.
-        const ux = Math.cos(boards[i].yaw);
-        const uz = -Math.sin(boards[i].yaw);
-        expect(Math.sign(ux * p.dz - uz * p.dx)).toBe(s.way);
+        expect(post!.boards[i].grade).toBe(s.grade);
+        // The lane's side (+v) is the reader's left as the picture shows it.
+        expect(post!.boards[i].point).toBe(s.way === 1 ? "left" : "right");
       });
     }
   });
@@ -162,6 +174,75 @@ describe("the summit as the lens reads it", () => {
     const top = plans.find((p) => p.lift.kind === "chair")!.lift.top;
     expect(summitShare(level, top.x, top.z)).toBeCloseTo(1, 6);
     expect(summitShare(level, level.spawn.x, level.size - 100)).toBe(0);
+  });
+
+  it("holds whole down a ramp off a top to its lip", () => {
+    const ramps = plans.flatMap((p) => p.lift.ramps ?? []);
+    expect(ramps.length).toBeGreaterThan(0);
+    for (const r of ramps) {
+      const lip = rampLip(r);
+      const k = (lip.at * 0.9) / lip.length;
+      const x = r.from.x + (r.to.x - r.from.x) * k;
+      const z = r.from.z + (r.to.z - r.from.z) * k;
+      expect(summitShare(level, x, z)).toBeCloseTo(1, 6);
+    }
+  });
+});
+
+describe("the ramps off a top (R26)", () => {
+  const RT = RESORT_RULES.lift.top;
+  it("leave the pad's rim and come down to their run's snow, on the ground they were cut to", () => {
+    for (const p of plans) {
+      for (const r of p.lift.ramps ?? []) {
+        const run = level.resort!.runs.find((q) => q.id === r.run)!;
+        expect(run.from).toBe(p.lift.id);
+        expect(Math.hypot(r.from.x - p.lift.top.x, r.from.z - p.lift.top.z)).toBeCloseTo(
+          RT.pad / 2,
+          3,
+        );
+        expect(r.to.y).toBeLessThan(r.from.y);
+        expect(rampHeight(r, 0)).toBeCloseTo(r.from.y, 6);
+        expect(rampHeight(r, 1)).toBeCloseTo(r.to.y, 6);
+        // The ground down its line is its own profile.
+        for (const t of [0.2, 0.4, 0.6, 0.8]) {
+          const x = r.from.x + (r.to.x - r.from.x) * t;
+          const z = r.from.z + (r.to.z - r.from.z) * t;
+          expect(Math.abs(level.groundAt(x, z) - rampHeight(r, t))).toBeLessThan(0.3);
+        }
+        // Never steeper than its lip's drop.
+        const lip = rampLip(r);
+        for (let t = 0; t < 1; t += 0.05) {
+          const fall = (rampHeight(r, t) - rampHeight(r, t + 0.05)) / (0.05 * lip.length);
+          expect(fall).toBeLessThan(RT.ramp.lip + 0.05);
+        }
+      }
+    }
+  });
+
+  it("are what a rider stood off the top is led down and the signs point to", () => {
+    for (const p of plans) {
+      for (const r of p.lift.ramps ?? []) {
+        const off = runsOffTop(level, p).find((j) => level.resort!.runs[j.run].id === r.run);
+        expect(off).toBeDefined();
+        expect(off!.at.x).toBeCloseTo(r.from.x, 6);
+        expect(off!.at.s).toBeCloseTo(r.to.s, 6);
+      }
+    }
+  });
+});
+
+describe("the rope over the snow (R26)", () => {
+  it("carries every chair and cabin clear of the snow out of its load and unload zones", () => {
+    for (const p of plans) expect(ropeShortfall(level, p).lack, p.lift.id).toBeLessThan(0.3);
+  });
+
+  it("cuts a top's approach to the lift's own measures (its restated copy of LIFT_LOOK)", () => {
+    const A = RESORT_RULES.lift.top.approach;
+    for (const k of ["chair", "gondola"] as const) {
+      expect(A.wheel[k]).toBe(LIFT_LOOK[k].wheel);
+      expect(A.tower[k]).toBe(LIFT_LOOK[k].tower);
+      expect(A.hang[k]).toBe(LIFT_LOOK[k].hang);
+    }
   });
 });
 

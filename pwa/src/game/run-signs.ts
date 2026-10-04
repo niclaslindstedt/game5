@@ -11,7 +11,10 @@
 // black in the country's own hand, measured to the board, and an ARROW
 // burned at the right the way the run goes from where the sign stands. A
 // lane's board is the same plank, smaller. The board has a thickness of end
-// grain round it and a bare back; the post is a square timber.
+// grain round it and a bare back; the post is a square timber. A chair
+// top's board is CUT AS AN ARROW (`SignBoard.point`): the plank pointed at
+// one end and standing off its post that way, the board its own arrow, so
+// nothing is burned at its point.
 //
 // LIT AS WOOD IS LIT: nothing on a board glows. The print is the albedo and,
 // read again by its red channel, the BUMP — the burned letters and the grain
@@ -31,7 +34,7 @@ import type { Level } from "@engine";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import { signPlan, type SignArrow, type SignBoard } from "./run-sign-plan.ts";
+import { SIGN, signPlan, summitSigns, type SignArrow, type SignBoard } from "./run-sign-plan.ts";
 import { SIGN_FALLBACK, signLookOf, type SignLook } from "./sign-look.ts";
 
 /** One board's cell in the atlas, px — the boards' own 4 : 1. */
@@ -130,22 +133,54 @@ function grain(
   g.globalAlpha = 1;
 }
 
+/** How far into a board's cell its point reaches, px — none on a plank. */
+function tipPx(b: SignBoard): number {
+  return b.point ? (CELL.w * SIGN.tip) / b.width : 0;
+}
+
+/** A board's outline in its cell at (x0, y0): the plank, or the plank cut
+ * to a point at its `point` end. */
+function outline(b: SignBoard, x0: number, y0: number): Path2D {
+  const { w, h } = CELL;
+  const t = tipPx(b);
+  const p = new Path2D();
+  if (b.point === "right") {
+    p.moveTo(x0, y0);
+    p.lineTo(x0 + w - t, y0);
+    p.lineTo(x0 + w, y0 + h / 2);
+    p.lineTo(x0 + w - t, y0 + h);
+    p.lineTo(x0, y0 + h);
+  } else if (b.point === "left") {
+    p.moveTo(x0 + t, y0);
+    p.lineTo(x0 + w, y0);
+    p.lineTo(x0 + w, y0 + h);
+    p.lineTo(x0 + t, y0 + h);
+    p.lineTo(x0, y0 + h / 2);
+  } else p.rect(x0, y0, w, h);
+  p.closePath();
+  return p;
+}
+
 /** The plank: its tone, the grain wandering along it, a knot or two, and
- * the edges browned where the iron went round them. */
+ * the edges browned where the iron went round them — round its point too,
+ * on an arrow board. */
 function plank(
   g: CanvasRenderingContext2D,
   look: SignLook,
   rng: Rng,
+  b: SignBoard,
   x0: number,
   y0: number,
 ): void {
   const { w, h } = CELL;
+  const shape = outline(b, x0, y0);
   g.save();
   g.beginPath();
   g.rect(x0, y0, w, h);
   g.clip();
   g.fillStyle = look.wood;
   g.fillRect(x0, y0, w, h);
+  g.clip(shape);
   grain(g, look, rng, x0, y0, w, h, 1);
   g.strokeStyle = look.grain;
   // A knot, its rings, now and then.
@@ -161,13 +196,19 @@ function plank(
     }
   }
   g.globalAlpha = 1;
-  // The scorched rim: a wide dark stroke just outside the cell, its blur
-  // browning the plank's edge inwards.
+  // The scorched rim: a dark stroke along the edge, its blur browning the
+  // plank inwards — just outside the cell on a plank, on the outline itself
+  // where it is cut to a point.
   g.shadowColor = SCORCH;
   g.shadowBlur = 16;
   g.strokeStyle = "#3a1c0a";
-  g.lineWidth = 10;
-  g.strokeRect(x0 - 4, y0 - 4, w + 8, h + 8);
+  if (b.point) {
+    g.lineWidth = 4;
+    g.stroke(shape);
+  } else {
+    g.lineWidth = 10;
+    g.strokeRect(x0 - 4, y0 - 4, w + 8, h + 8);
+  }
   g.restore();
 }
 
@@ -207,14 +248,18 @@ function printBoard(
   y0: number,
 ): void {
   const { w, h } = CELL;
-  plank(g, look, createRng(seed), x0, y0);
+  plank(g, look, createRng(seed), b, x0, y0);
+  // An arrow board's print keeps off its point.
+  const t = tipPx(b);
+  const lo = x0 + (b.point === "left" ? t * 0.75 : 0);
+  const hi = x0 + w - (b.point === "right" ? t * 0.75 : 0);
 
   // THE MARK: the grade's shape painted from its 24-unit path, ringed with
   // the iron, the number on it in white.
   const pad = 12;
   const grade = GRADE_LOOK[b.grade];
   const box = h - pad * 2;
-  const mx = x0 + pad + 2;
+  const mx = lo + pad + 2;
   const my = y0 + pad;
   const path = new Path2D(gradePath(grade.shape));
   const onMark = (draw: () => void): void => {
@@ -257,16 +302,16 @@ function printBoard(
   g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();
 
-  // THE ARROW at the right.
+  // THE ARROW at the right — the board's own point, on an arrow board.
   const s = h * 0.3;
-  const ax = x0 + w - pad - s * 0.9;
+  const ax = hi - pad - s * 0.9;
   const ay = y0 + h / 2;
-  arrow(g, ax, ay, s, b.arrow);
+  if (!b.point) arrow(g, ax, ay, s, b.arrow);
 
   // THE NAME between them, as big as the room lets it be, centred on its
   // own ink rather than on the face's em box — each hand sits differently.
   const left = mx + box + 16;
-  const room = ax - s * 0.75 - 14 - left;
+  const room = (b.point ? hi - pad : ax - s * 0.75 - 14) - left;
   const text = look.caps ? b.name.toUpperCase() : b.name;
   let size = h * 0.9;
   g.font = `${size}px ${font}`;
@@ -293,7 +338,7 @@ export type RunSigns = { group: THREE.Group; dispose(): void };
 /** Every piste-head sign of `level`'s ski area; an empty group off one. */
 export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   const group = new THREE.Group();
-  const posts = signPlan(level);
+  const posts = [...signPlan(level), ...summitSigns(level)];
   const boards = posts.flatMap((p) => p.boards.map((b) => ({ post: p, board: b })));
   if (boards.length === 0) return { group, dispose: () => {} };
   const look = signLookOf(level.region);
@@ -342,33 +387,74 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
     const hw = board.width / 2;
     const y0 = post.y + board.y;
     const y1 = y0 + board.height;
+    // An arrow board stands off its post the way it points.
+    const shift = board.point ? (board.point === "right" ? 1 : -1) * (hw - POST.half * 2) : 0;
     const at = (depth: number, side: number, y: number): number[] => [
-      post.x - fx * depth + sx * side,
+      post.x - fx * depth + sx * (side + shift),
       y,
-      post.z - fz * depth + sz * side,
+      post.z - fz * depth + sz * (side + shift),
     ];
     const pad = 0.5;
     const u0 = (col * CELL.w + pad) / W;
     const u1 = ((col + 1) * CELL.w - pad) / W;
     const vTop = 1 - (row * CELL.h + pad) / H;
     const vBot = 1 - ((row + 1) * CELL.h - pad) / H;
+    // The board's outline across his view, (side, y), anticlockwise from
+    // its foot at the left — cut to a point at its `point` end.
+    const tip = board.point ? SIGN.tip : 0;
+    const ym = (y0 + y1) / 2;
+    const shape: [number, number][] =
+      board.point === "right"
+        ? [
+            [-hw, y0],
+            [hw - tip, y0],
+            [hw, ym],
+            [hw - tip, y1],
+            [-hw, y1],
+          ]
+        : board.point === "left"
+          ? [
+              [-hw + tip, y0],
+              [hw, y0],
+              [hw, y1],
+              [-hw + tip, y1],
+              [-hw, ym],
+            ]
+          : [
+              [-hw, y0],
+              [hw, y0],
+              [hw, y1],
+              [-hw, y1],
+            ];
     const base = front.pos.length / 3;
-    front.pos.push(
-      ...at(FACE, -hw, y0),
-      ...at(FACE, hw, y0),
-      ...at(FACE, hw, y1),
-      ...at(FACE, -hw, y1),
-    );
-    front.uv.push(u0, vBot, u1, vBot, u1, vTop, u0, vTop);
-    for (let k = 0; k < 4; k++) front.nrm.push(-fx, 0, -fz);
-    front.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    // The back and the four edges of end grain.
+    for (const [side, y] of shape) {
+      front.pos.push(...at(FACE, side, y));
+      front.uv.push(
+        u0 + ((side + hw) / (2 * hw)) * (u1 - u0),
+        vBot + ((y - y0) / (y1 - y0)) * (vTop - vBot),
+      );
+      front.nrm.push(-fx, 0, -fz);
+    }
+    for (let k = 1; k + 1 < shape.length; k++) front.idx.push(base, base + k, base + k + 1);
+    // The back, and the edges of end grain all round.
     const b = FACE - THICK;
-    quad(at(b, hw, y0), at(b, -hw, y0), at(b, -hw, y1), at(b, hw, y1), [fx, 0, fz]);
-    quad(at(FACE, -hw, y1), at(FACE, hw, y1), at(b, hw, y1), at(b, -hw, y1), [0, 1, 0]);
-    quad(at(b, -hw, y0), at(b, hw, y0), at(FACE, hw, y0), at(FACE, -hw, y0), [0, -1, 0]);
-    quad(at(b, hw, y0), at(b, hw, y1), at(FACE, hw, y1), at(FACE, hw, y0), [sx, 0, sz]);
-    quad(at(FACE, -hw, y0), at(FACE, -hw, y1), at(b, -hw, y1), at(b, -hw, y0), [-sx, 0, -sz]);
+    const back = wood.pos.length / 3;
+    for (const [side, y] of shape) {
+      wood.pos.push(...at(b, side, y));
+      wood.nrm.push(fx, 0, fz);
+    }
+    for (let k = 1; k + 1 < shape.length; k++) wood.idx.push(back, back + k + 1, back + k);
+    shape.forEach(([sa, ya], k) => {
+      const [sb, yb] = shape[(k + 1) % shape.length];
+      const len = Math.hypot(sb - sa, yb - ya) || 1;
+      const ns = (yb - ya) / len;
+      const ny = -(sb - sa) / len;
+      quad(at(FACE, sb, yb), at(FACE, sa, ya), at(b, sa, ya), at(b, sb, yb), [
+        sx * ns,
+        ny,
+        sz * ns,
+      ]);
+    });
   });
 
   const tex = new THREE.CanvasTexture(canvas);

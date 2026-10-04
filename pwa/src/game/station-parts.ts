@@ -2,15 +2,13 @@
 // THE STATIONS' PIECES AS BUILT — every piece `station-plan.ts` sets down,
 // built in boxes like the rest of the lifts and coloured per vertex, ONE
 // INSTANCED DRAW A KIND for the whole resort: the terminal hoods, the
-// operators' booths, the stop gates, the wind masts, the patrol hut, the map
-// board, the run signs at a chair top's parting, the load lines, the stations' doors and canopies, the drag huts,
-// and the fences — the orange netting and the corrals' rope lines on their
-// poles.
+// operators' booths, the wind masts, the patrol hut, the map board, the load
+// lines, the stations' doors and canopies, the drag huts, and the corrals'
+// rope lines on their poles.
 
 import * as THREE from "three";
 
-import { GRADE_LOOK } from "./grade-look.ts";
-import type { Fence, Part, PartKind, StationLayout } from "./station-plan.ts";
+import type { Part, PartKind, StationLayout } from "./station-plan.ts";
 
 /** The paints, sRGB. */
 export const STATION_PAINT = {
@@ -23,7 +21,6 @@ export const STATION_PAINT = {
   timber: 0x6b4a2e,
   roof: 0x2f3338,
   load: 0x2f6fd6,
-  net: 0xf06a1a,
   pole: 0xe8c23a,
   rope: 0x1d1f22,
   patrol: 0xc22a26,
@@ -89,23 +86,18 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
       box(1.01, 0.22, 10.02, 0, 0.45, 0, P.stripe),
     ]),
   // The operator's booth: a timber base, glass all round above it, a door
-  // on its back, the roof overhanging, the radio mast.
+  // on its back, the roof overhanging, the radio mast. Its timber flanks
+  // stand a couple of centimetres proud of the glass, never flush with it:
+  // two faces in one plane flicker as the depth buffer picks between them.
   booth: () =>
     merged([
       box(2.4, 1.05, 2.4, 0, 0.52, 0, P.timber),
       box(2.42, 1.15, 2.42, 0, 1.6, 0, P.glass),
-      box(0.12, 1.15, 2.44, -1.15, 1.6, 0, P.timber),
-      box(0.12, 1.15, 2.44, 1.15, 1.6, 0, P.timber),
+      box(0.16, 1.15, 2.46, -1.17, 1.6, 0, P.timber),
+      box(0.16, 1.15, 2.46, 1.17, 1.6, 0, P.timber),
       box(0.9, 2.0, 0.06, 0.5, 1.0, -1.22, P.dark),
       box(3.0, 0.28, 3.0, 0, 2.32, 0, P.roof),
       box(0.05, 1.4, 0.05, 1.0, 3.1, -1.0, P.dark),
-    ]),
-  // The stop gate: a post and a light bar reaching across the lane.
-  gate: () =>
-    merged([
-      box(0.12, 1.5, 0.12, 0, 0.75, 0, P.dark),
-      box(0.06, 0.06, 1.5, 0, 1.3, 0.75, P.pole),
-      box(0.07, 0.07, 0.2, 0, 1.3, 1.1, P.dark),
     ]),
   // The wind mast: a slender column, the cups on their arm and the vane.
   mast: () =>
@@ -138,18 +130,11 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
       box(0.12, 2.6, 0.12, 1.15, 1.3, 0, P.timber),
       box(2.4, 1.5, 0.08, 0, 1.85, 0.08, P.white),
       box(2.1, 0.25, 0.02, 0, 2.3, 0.13, P.board),
-      box(0.12, 1.0, 0.02, -0.6, 1.8, 0.13, P.load),
-      box(0.12, 1.0, 0.02, 0, 1.8, 0.13, P.stripe),
-      box(0.12, 1.0, 0.02, 0.6, 1.8, 0.13, P.dark),
+      box(0.12, 0.9, 0.02, -0.6, 1.7, 0.13, P.load),
+      box(0.12, 0.9, 0.02, 0, 1.7, 0.13, P.stripe),
+      box(0.12, 0.9, 0.02, 0.6, 1.7, 0.13, P.dark),
       box(2.6, 0.12, 0.3, 0, 2.66, 0.05, P.roof),
     ]),
-  // The signs' post at the parting off a chair's top.
-  signpost: () =>
-    merged([box(0.16, 3.0, 0.16, 0, 1.5, 0, P.timber), box(0.32, 0.06, 0.32, 0, 3.02, 0, P.roof)]),
-  // A run's sign, white and two-faced: the arrow pointing its +x off the
-  // post. Its board in the run's grade's colour is laid on per grade
-  // (`signBoard`).
-  sign: () => signBoard(P.white),
   // The load line: a blue board laid across the lane, flush with the snow.
   load: () => merged([box(1, 0.04, 0.35, 0, 0.02, 0, P.load)]),
   // A station's door: the dark doorway and its frame, standing proud of
@@ -173,29 +158,13 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
     ]),
 };
 
-/** A run's arrow board in `paint`, standing off its post along +x at the
- * part's height: the board, its arrowhead stepped down to a point, a white
- * shaft across both faces. */
-function signBoard(paint: number): THREE.BufferGeometry {
-  return merged([
-    box(1.4, 0.42, 0.06, 0.82, 0, 0, paint),
-    box(0.18, 0.32, 0.06, 1.61, 0, 0, paint),
-    box(0.14, 0.2, 0.06, 1.77, 0, 0, paint),
-    box(0.08, 0.1, 0.06, 1.88, 0, 0, paint),
-    box(0.9, 0.08, 0.072, 0.8, 0, 0, P.white),
-    box(0.14, 0.22, 0.072, 1.3, 0, 0, P.white),
-    box(0.08, 0.11, 0.072, 1.41, 0, 0, P.white),
-  ]);
-}
-
 /** A hood, a canopy and a load line are scaled across to their width. */
 const WIDE: ReadonlySet<PartKind> = new Set(["hood", "canopy", "load"]);
 
-/** A fence's poles: every so far along it, m, and how tall; the netting's
- * height and the rope's. */
+/** A fence's poles: every so far along it, m, and how tall; the rope's
+ * height. */
 const POLE_EVERY = 2.2;
 const POLE = 1.25;
-const NET = { low: 0.15, high: 1.15 };
 const ROPE_AT = 0.95;
 
 /** Every station's pieces and fences as instanced meshes, added to
@@ -231,19 +200,15 @@ export function buildStations(
     meshes.push(mesh);
     group.add(mesh);
   };
-  // A run's sign is drawn in its grade's colour: one set per grade.
-  const byKind = new Map<string, Part[]>();
+  const byKind = new Map<PartKind, Part[]>();
   for (const part of layout.parts) {
-    const key = part.kind === "sign" && part.grade ? `sign:${part.grade}` : part.kind;
-    const list = byKind.get(key) ?? [];
+    const list = byKind.get(part.kind) ?? [];
     list.push(part);
-    byKind.set(key, list);
+    byKind.set(part.kind, list);
   }
-  for (const list of byKind.values()) {
-    const kind = list[0].kind;
-    const grade = list[0].grade;
+  for (const [kind, list] of byKind) {
     add(
-      kind === "sign" && grade ? signBoard(GRADE_LOOK[grade].stake) : BUILD[kind](),
+      BUILD[kind](),
       list.map((p) => ({
         p: at.clone().set(p.x, p.y, p.z),
         yaw: p.yaw,
@@ -252,13 +217,10 @@ export function buildStations(
       kind !== "load",
     );
   }
-  // THE FENCES: a panel of netting or a rope stretched between each pair
-  // of poles, every pole on the snow under it.
+  // THE FENCES: a rope stretched between each pair of poles, every pole on
+  // the snow under it.
   const poles: { p: THREE.Vector3; yaw: number; s: THREE.Vector3 }[] = [];
-  const spans: Record<Fence["kind"], { p: THREE.Vector3; yaw: number; s: THREE.Vector3 }[]> = {
-    net: [],
-    rope: [],
-  };
+  const spans: { p: THREE.Vector3; yaw: number; s: THREE.Vector3 }[] = [];
   for (const f of layout.fences) {
     const dx = f.b.x - f.a.x;
     const dz = f.b.z - f.a.z;
@@ -276,7 +238,7 @@ export function buildStations(
       if (i === n) continue;
       const mx = f.a.x + (dx * (i + 0.5)) / n;
       const mz = f.a.z + (dz * (i + 0.5)) / n;
-      spans[f.kind].push({
+      spans.push({
         p: new THREE.Vector3(mx, groundAt(mx, mz), mz),
         yaw,
         s: new THREE.Vector3(len / n, 1, 1),
@@ -284,10 +246,5 @@ export function buildStations(
     }
   }
   add(merged([box(0.05, POLE, 0.05, 0, POLE / 2, 0, P.pole)]), poles, false);
-  add(
-    merged([box(1, NET.high - NET.low, 0.02, 0, (NET.high + NET.low) / 2, 0, P.net)]),
-    spans.net,
-    false,
-  );
-  add(merged([box(1, 0.035, 0.035, 0, ROPE_AT, 0, P.rope)]), spans.rope, false);
+  add(merged([box(1, 0.035, 0.035, 0, ROPE_AT, 0, P.rope)]), spans, false);
 }

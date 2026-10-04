@@ -100,7 +100,8 @@ describe("the wildlife never moves a map or a run", () => {
 /** The maps of each region, built once for the file: the alpine's two off
  * the corpus, one of each other region's — a whole ski area (R25) deals
  * most of a region's roster on its own, though one can come out nearly
- * bare of a sparse roster (the fell's): seed 39 is one that does not. */
+ * bare of a sparse roster (the fell's, the maritime's): seed 42 is one
+ * that does not. */
 const maps = new Map<RegionId, Level[]>();
 const mapsOf = (region: RegionId): Level[] => {
   let hit = maps.get(region);
@@ -108,7 +109,7 @@ const mapsOf = (region: RegionId): Level[] => {
     hit =
       region === "alpine"
         ? [levelFor(LEVEL_SEEDS[0]), levelFor(LEVEL_SEEDS[1])]
-        : [generateLevel(39, { region })];
+        : [generateLevel(42, { region })];
     maps.set(region, hit);
   }
   return hit;

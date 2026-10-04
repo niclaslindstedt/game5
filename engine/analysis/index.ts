@@ -240,6 +240,16 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
       at += run.length - from;
       from = run.into.s;
     }
+    // ...and where a ramp off a top comes down onto it (R26): its foot and
+    // the ground eased into it either side are the ramp's.
+    const feet = resort.lifts.flatMap((l) => l.ramps ?? []);
+    const ease = RR.lift.top.ramp.blend;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      for (const r of feet) {
+        if (hypot(p.x - r.to.x, p.z - r.to.z) <= r.width / 2 + ease + p.width / 2) junction[i] = 1;
+      }
+    }
   }
   const atJunction = (i: number): boolean => junction[i] === 1;
 

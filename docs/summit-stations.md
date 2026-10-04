@@ -30,7 +30,7 @@ Past the ramp, the station's ground:
   way down; a skier coming off a chair needs a few metres of nearly flat snow
   before anything steeper. On a peak it is cut into the slope above and
   filled below, so its downhill edge is a LIP: level snow rolling over onto
-  the face. R26 already asked for one (`lift.pad`, 30 m across).
+  the face. R26 asks for one (`lift.top`: 48 m across, leaning off its deck).
 - **The DISPERSAL AREA** — the pad's downhill edge, where the runs leave. The
   piste signs stand here, pointing at each run, its colour on the sign. The
   runs fan out from it rather than from the unload: a rider is never asked to
@@ -55,33 +55,64 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
 
 ## What the game builds
 
-- **The pad (generator v4, `station-pad.ts`)** — every top station off the
-  valley floor stands on a level pad 30 m across (R26), cut more than filled
-  into the slope (a quarter of the fill a level-at-the-middle pad would need)
-  and eased into the mountain over 22 m; a chair's pad carries the unload
-  ramp as a low mound of packed snow under the unload point, 1.2 m high and
-  7 m in reach — 16 % — so a rider stood up there slides off it whichever way
-  he turns. The runs off a top leave from the pad's EDGES — their starts and
-  first stretch keep 25 m off its middle, and a lane's route keeps off it.
-  Every map builds it, the campaign's included (generator v4).
+- **The pad (generator v5, `station-pad.ts`)** — every top station off the
+  valley floor stands on a pad 48 m across (R26, `lift.top`), cut more than
+  filled into the slope (a quarter of the fill a level-at-the-middle pad would
+  need) and eased into the mountain over 22 m. It is not flat: its DECK, 7 m
+  either side of the line — the wheel, the ramp and the way off — is level,
+  and from the deck the pad LEANS off to both sides at 11 % to its rim, about
+  2 m under the deck, so a rider who turns off the way slides toward his run
+  gathering speed, with room to turn about, and the rim is the lip he drops
+  over onto the face. A chair's pad carries the unload ramp as a low mound of
+  packed snow under the unload point, 1.2 m high and 7 m in reach — 16 % — so
+  a rider stood up there slides off it whichever way he turns. The runs off a
+  top leave from beyond the pad's rim — their starts and first stretch keep
+  10 m past it, and a lane's route 12 m. The campaign's maps stand on
+  generator v4, whose pads are level and 30 m across (`levelPads`).
+- **The ramps off a top (generator v5, `summit-ramps.ts`)** — from the pad's
+  rim a RAMP 26 m wide, groomed, comes down to every run the top serves, so
+  the way from the lift to the slope is one wide run-out rather than the raw
+  face. It leaves from whichever point of the rim reaches the run most
+  gently and ends where it meets the run's shoulder, at that ground's height
+  — never onto a run's first 50 m (its start and windrows), never across
+  another run, a station, another ramp or under a lift's line. Where it can
+  fall no more than 20 % it is even all the way and the run's own head is
+  the LIP onto the run's pitch; where it must fall more it runs out at 12 %
+  and rolls over a LIP into a drop of up to 65 % down to the run. The ramps
+  are published on the lift (`Lift.ramps`): the signs point down them, the
+  lead off a free ride's chair skis down them, and the lens holds its summit
+  look to the lip.
+- **The approach under the line (generator v5)** — a chair's bullwheel
+  stands 3.8 m over the deck and the chairs come down to the unload ramp,
+  so a mountain that stays level, or bulges, under the last of the line
+  stands up into the chairs: a rider is dragged up through the snow. So the
+  ground under the last 90 m of every line, from just past the unload, is
+  cut away beneath the rope's way in (a straight line from the wheel to a
+  tower) by a carrier's hang and 0.8 m more, and the analyzer holds every
+  lift to it: out of the load and unload zones no carrier's lowest point
+  meets the snow (`ropeShortfall`).
 - **The way off a chair's top (`chairLane`, `CHAIR_EXIT`)** — the rider
   stands up at the unload point and slides STRAIGHT ON down the ramp, a step
   out of the chair's way into a LANE 2.4 m outside the up rope, clear of the
   chairs swinging round the wheel. The machine house stands on the lane's
   outer side, 2.2 m clear of it, ending a step short of the PARTING 3 m past
-  the wheel, where the paths go off either way across the pad. Across the far
-  side of the way, 14 m past the wheel and facing up it, stand the RUN SIGNS
-  (`signsOf`): a post and an arrow board a run off the top, in its grade's
-  colour, pointing the way it leaves — those to the house's side above those
-  across the line. Nobody picks a run on the ramp; the signs are read coming
-  down the lane.
+  the wheel, where the paths go off either way across the pad. Nothing stands
+  across the way: no stop gate and no netting, so a rider slides straight on
+  down the ramp and through the parting. Across the far side of the way, 14 m
+  past the wheel and facing up it, stand the RUN SIGNS (`signsOf`,
+  `run-sign-plan.ts`): a post and a board a run a rider can ski onto from the
+  pad (`runsOffTop` — a run below the pad near enough to join; a lane leaving
+  up the contour above it is not one), each the piste signs' own weathered
+  plank with the run's mark and its name burned in, CUT AS AN ARROW pointing
+  the way the run leaves — those to the house's side above those across the
+  line. Nobody picks a run on the ramp; the signs are read coming down the
+  lane.
 - **The stations drawn (`station-plan.ts`, `station-parts.ts`, `lifts.ts`)** —
   at a chair's top the terminal's hood over the wheel, the machine house beside
-  the way off, the operator's booth behind it with glass all round, the stop
-  gate's bar hung over the chairs' path short of the wheel (for a rider who
-  did not get off, clear of the lane), the orange netting between the lane and
-  the wheel and on its other side, the run signs, the wind mast on the house's
-  far corner; on the highest top the patrol hut and the map board. At a chair's foot the hood, the booth by the load
+  the way off, the operator's booth behind it with glass all round, the run
+  signs, the wind mast on the house's far corner — no stop gate and no
+  netting, which a game's rider only skis into; on the highest top the patrol
+  hut and the map board. At a chair's foot the hood, the booth by the load
   line, the blue load line across the up rope's lane and the roped corral
   bringing a skier in on the diagonal past the house; a gondola's station door
   with its canopy and corral; a drag's hut, corral and track board.
@@ -106,19 +137,25 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   the chair whose run passes nearest the spot picked (among the runs a rider
   can drop onto from its pad), then LED — down the lane at a glide, turned at
   the parting the way his run's sign points, round the house if the run lies
-  behind it, across the pad and over its lip onto that run — and from the
-  first touch of a control the skis are his.
+  behind it, let run down the pad's lean and its ramp gathering speed and
+  over the lip onto that run — and from the first touch of a control the
+  skis are his.
 - **The lens on a lift (`camera-lift.ts`)** — carried up a chair the chase
   boom comes in close behind him and a little over his head, level, the
   chair's back and hanger in the frame's foot and the rope running on up to
-  the top station ahead; it holds there through the stand-up, the ramp and
-  the lane, and opens out to the chase over the lead onto the run. The empty
+  the top station ahead; it holds there through the stand-up and the ramp,
+  and hands him to the chase a couple of seconds into the lead — on the pad
+  the summit's own low look. The empty
   chair is left out of the frame while it stands between the lens and him.
   `make lift-ride` rides the whole sequence unbroken at sixty frames a second
   and photographs it round the unload.
 - **The drop (`camera-summit.ts`, `camera-rigs.ts`)** — on a top station's
-  pad and over its lip the chase lens is held near level instead of leaning
-  with the face, its height hung on the softer in-flight spring and its fov
-  opened a little, so the slope falls away under the horizon and reads as
-  straight down; the lean is handed back as he drops below the pad and away
-  from it.
+  pad the chase lens comes down and in behind him, LOW and LEVEL (`SUMMIT_LOOK`:
+  3.4 m back and under a metre over him, his figure near the middle of the
+  frame) instead of standing up behind him and leaning with the face, so the
+  pad's edge ahead is the edge of the world and the face beyond it is out of
+  sight — the lip reads as a cliff, whatever colour the run off it. Its
+  height hangs on the softer in-flight spring, so as he drops over the lip
+  the lens holds a beat at the top and TIPS DOWN after him; the chase's own
+  height and lean are handed back over the first dozen metres he drops below
+  the deck — or, down a ramp off the top, below the ramp's lip (`rampLip`).

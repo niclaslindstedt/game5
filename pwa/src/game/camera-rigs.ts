@@ -579,9 +579,15 @@ export function frameRig(
   const fov = look ? chased + (look.fov - chased) * ride : chased;
   const half = (d: number) => Math.tan((d * Math.PI) / 360);
   const arm = 1 - rig.hold * (1 - half(rig.fov) / half(chased));
-  const far = (rig.dist + rig.distPerSpeed * pose.speed) * arm + surge;
+  // ON A SUMMIT'S PAD the chase comes down and in behind him — low and
+  // level, the pad's edge ahead the edge of the world — where a lift's own
+  // look does not have him.
+  const top = summit * rig.ride * (1 - ride);
+  const far =
+    ((rig.dist + rig.distPerSpeed * pose.speed) * arm + surge) * (1 - top) + SUMMIT_LOOK.dist * top;
   const dist = look ? far + (look.dist - far) * ride : far;
-  const rise = look ? rig.height * arm + (look.height - rig.height * arm) * ride : rig.height * arm;
+  const high = rig.height * arm * (1 - top) + SUMMIT_LOOK.height * top;
+  const rise = look ? high + (look.height - high) * ride : high;
   // THE INCLINE: the arm swung up the slope behind by its share of the
   // fall line's pitch, about the skier — the lens keeps its height over
   // the snow it stands above instead of meeting it.
@@ -620,7 +626,8 @@ export function frameRig(
   // over a roller moves HIM in the frame rather than the horizon — and
   // chased on its own spring, so the head has weight.
   const halfAngle = (fov * Math.PI) / 360;
-  const place = look ? rig.place + (look.place - rig.place) * ride : rig.place;
+  const placeOwn = rig.place + (SUMMIT_LOOK.place - rig.place) * top;
+  const place = look ? placeOwn + (look.place - placeOwn) * ride : placeOwn;
   const placed = Math.atan(place * Math.tan(halfAngle));
   const back = Math.hypot(pose.x - eye.x, pose.z - eye.z);
   // Carried up a lift the look tips up with the climb, the rope and the
@@ -646,8 +653,19 @@ export function frameRig(
 /** THE LOOK AT A SUMMIT (`camera-summit.ts`): the share of the boom's
  * lean with the mountain taken out (all but a little), the share past which
  * its height hangs on the air's softer spring, and the degrees the fov opens
- * by — the face under the horizon, and the drop off the lip felt. */
-export const SUMMIT_LOOK = { level: 0.9, soft: 0.5, fov: 6 } as const;
+ * by — the face under the horizon, and the drop off the lip felt; and the
+ * chase's arm on the pad (`RIGS.chase.ride`): its standoff and height, m,
+ * and where he stands in the frame — low behind him, the pad's edge ahead
+ * and nothing beyond it but the far side of the valley, until he is over
+ * the lip and the lens tips down after him. */
+export const SUMMIT_LOOK = {
+  level: 0.9,
+  soft: 0.5,
+  fov: 6,
+  dist: 3.4,
+  height: 0.95,
+  place: 0.16,
+} as const;
 
 /** THE FALL LINE's reading: metres behind the skier it starts, the least
  * it reaches ahead, m, and the pitch it is held between, rad (a short rise

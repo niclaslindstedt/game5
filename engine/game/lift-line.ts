@@ -202,6 +202,29 @@ function owed(look: LiftLook, kind: LiftKind, length: number, u: number): number
   return Math.min(look.hang + look.under, look.wheel * 0.8 + near * 0.15);
 }
 
+/** HOW FAR A CARRIER RUNS INTO THE SNOW anywhere along a planned lift, m,
+ * and where (`u` up the line) — 0 where every carrier's lowest point
+ * (`hang` under the rope; a drag's bar `DRAG_HOLD`) clears the snow, out of
+ * the load and unload zones at either end (`off` + `ZONE` m of a wheel),
+ * where it comes down to the skier on purpose (R26). */
+export function ropeShortfall(level: Level, plan: LiftPlan): { lack: number; u: number } {
+  const need = plan.lift.kind === "drag" ? DRAG_HOLD : plan.look.hang;
+  const zone = plan.look.off + ZONE;
+  let worst = { lack: 0, u: 0 };
+  for (let u = zone; u < plan.length - zone; u += PROBE / 2) {
+    const x = plan.lift.bottom.x + plan.dx * u;
+    const z = plan.lift.bottom.z + plan.dz * u;
+    const lack = need - (ropeAt(plan, u) - level.groundAt(x, z));
+    if (lack > worst.lack) worst = { lack, u };
+  }
+  return worst;
+}
+
+/** How far past a station's load or unload point a carrier is held clear
+ * of the snow, m, and the rope a drag's skier is pulled under, m. */
+const ZONE = 4;
+const DRAG_HOLD = 1;
+
 /** THE PLAN of one lift: its towers spread evenly near `spacing`, each slid
  * off a groomed run where it can be, then a tower put in under the worst
  * crest of every span the rope would not clear — and a tower raised where

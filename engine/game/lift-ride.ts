@@ -39,7 +39,8 @@ import {
   type LiftPlan,
   type StationHouse,
 } from "./lift-line.ts";
-import type { Level } from "../mapgen/types.ts";
+import { rampFrame } from "../mapgen/summit-ramps.ts";
+import type { Level, SummitRamp } from "../mapgen/types.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState, LiftRide, SkierInput } from "./state.ts";
 
@@ -214,7 +215,7 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     const p = along(plan, off, upRope(plan));
     setOff(run, p.x, p.z, plan.heading + K.ramp, K.standUp);
   }
-  if (ride.lead && joinRun(run, ride.lead)) {
+  if (ride.lead && joinRun(run, plan, ride.lead)) {
     ride.phase = "lead";
     ride.t = 0;
   } else c.lift = null;
@@ -222,14 +223,20 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
 
 /** Where the lead joins the run picked (`joinOf` from where he stands), and
  * how far down it it hands the controls back. False where it joins none. */
-function joinRun(run: GameState, lead: NonNullable<LiftRide["lead"]>): boolean {
+function joinRun(run: GameState, plan: LiftPlan, lead: NonNullable<LiftRide["lead"]>): boolean {
   const c = run.skier;
   const r = run.level.resort?.runs[lead.run];
   const y = c.y - c.spec.cogHeight;
-  // A run starting further off along the contour (a gondola's or a drag's,
+  // Down the ramp off the top (R26) where one comes down to the run; else a
+  // run starting further off along the contour (a gondola's or a drag's,
   // pinned by its colour) is made for from farther — at its head, the first
   // of it below the pad, never its nearest point a long way down it.
-  const join = r ? (joinOf(r.points, c.x, y, c.z) ?? headOf(r.points, c.x, y, c.z)) : null;
+  const ramp = r && rampOf(plan, r.id);
+  const join = ramp
+    ? { s: ramp.to.s, distance: hypot(ramp.to.x - c.x, ramp.to.z - c.z) }
+    : r
+      ? (joinOf(r.points, c.x, y, c.z) ?? headOf(r.points, c.x, y, c.z))
+      : null;
   if (!join) return false;
   lead.s = join.s;
   lead.until = Math.max(lead.until, join.s + K.leadNear);
@@ -264,14 +271,45 @@ function joinOf(
   x: number,
   y: number,
   z: number,
-): { s: number; distance: number } | null {
-  let best: { s: number; distance: number } | null = null;
+): { s: number; x: number; z: number; distance: number } | null {
+  let best: { s: number; x: number; z: number; distance: number } | null = null;
   for (const p of points) {
     if (p.y > y - K.drop) continue;
     const d = hypot(p.x - x, p.z - z);
-    if (d <= K.joinFar && (!best || d < best.distance)) best = { s: p.s, distance: d };
+    if (d <= K.joinFar && (!best || d < best.distance))
+      best = { s: p.s, x: p.x, z: p.z, distance: d };
   }
   return best;
+}
+
+/** THE RUNS A RIDER STOOD OFF A LIFT'S TOP CAN SKI ONTO: every run leaving
+ * it (R27) that a ramp comes down to from its pad (R26, `Lift.ramps`), or
+ * that drops below its pad near enough to join (`joinOf`) — a lane off the
+ * top that starts up the contour above the pad and stays over it is not
+ * one — each with the way he goes for it: the ramp's head on the pad's rim,
+ * or the point it is joined at; and the arc it is joined at. What the signs at a
+ * chair's top point at, and what the lead off one goes to. */
+export function runsOffTop(
+  level: Level,
+  plan: LiftPlan,
+): { run: number; at: { x: number; z: number; s: number } }[] {
+  const top = plan.lift.top;
+  const out: { run: number; at: { x: number; z: number; s: number } }[] = [];
+  (level.resort?.runs ?? []).forEach((r, i) => {
+    if (r.from !== plan.lift.id) return;
+    const ramp = rampOf(plan, r.id);
+    const j = ramp
+      ? { x: ramp.from.x, z: ramp.from.z, s: ramp.to.s }
+      : joinOf(r.points, top.x, top.y, top.z);
+    if (j) out.push({ run: i, at: { x: j.x, z: j.z, s: j.s } });
+  });
+  return out;
+}
+
+/** The ramp down off a lift's top to a run (R26, `Lift.ramps`), if it has
+ * one: where a rider stood off it skis down to that run. */
+function rampOf(plan: LiftPlan, run: string): SummitRamp | undefined {
+  return plan.lift.ramps?.find((q) => q.run === run);
 }
 
 /** The rider where his carrier holds him: on a chair's seat, in a cabin —
@@ -358,11 +396,15 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
     return input;
   };
   if (!r || touched(input) || c.thrown || ride.t > ride.lead.time) return free();
-  // His place along the run, looked for about the last.
+  // Down the ramp off the top (R26) until he is past its foot, then the run.
+  const ramp = rampOf(liftPlans(run.level)[ride.index], r.id);
+  const f = ramp ? rampFrame(ramp, c.x, c.z) : null;
+  const onRamp = !!f && f.t < 1;
+  // His place along the run, looked for about the last — once he is on it.
   const pts = r.points;
   let best = Infinity;
   let s = ride.lead.s;
-  for (const p of pts) {
+  for (const p of onRamp ? [] : pts) {
     if (p.s < ride.lead.s - K.back || p.s > ride.lead.s + K.window) continue;
     const d = hypot(p.x - c.x, p.z - c.z);
     if (d < best) {
@@ -378,16 +420,20 @@ export function leadInput(run: GameState, input: SkierInput, events: GameEvent[]
   if (ride.lead.s >= ride.lead.until) return free();
   const want = ride.lead.s + K.aim;
   const lane = laneAim(run, ride);
-  const aim =
-    lane ?? round(run.level, c.x, c.z, pts.find((p) => p.s >= want) ?? pts[pts.length - 1]);
+  const onRun =
+    ramp && f && onRamp
+      ? rampPoint(ramp, Math.min(1, Math.max(0, f.t) + K.aim / f.length))
+      : (pts.find((p) => p.s >= want) ?? pts[pts.length - 1]);
+  const aim = lane ?? round(run.level, c.x, c.z, onRun);
   const bearing = Math.atan2(aim.x - c.x, aim.z - c.z);
-  // Down the lane and across the pad at a glide, checked to `laneSpeed`
-  // for the turn at the parting and round the station; then on, over the
-  // lip. At a crawl the tuck is the poles pushing him on (`poles.ts`).
-  const top = liftPlans(run.level)[ride.index].lift.top;
-  const near = lane || hypot(c.x - top.x, c.z - top.z) < K.padNear;
-  const most = near ? K.laneSpeed : Infinity;
+  // Down the lane at a glide, checked to `laneSpeed` for the turn at the
+  // parting, round a station house and while he is still turned off his
+  // way (past `cutHarder`); then let run off the pad's lean and over its
+  // lip, gathering speed. At a crawl the tuck is the poles pushing him on
+  // (`poles.ts`).
   const off = angleDiff(c.heading, bearing);
+  const near = lane !== null || aim !== onRun || Math.abs(off) > K.cutHarder;
+  const most = near ? K.laneSpeed : Infinity;
   return {
     steer: clamp(off * K.steer, -1, 1),
     tuck: c.speed < (near ? K.lanePush : K.push) ? 1 : 0.25,
@@ -415,6 +461,11 @@ function laneAim(run: GameState, ride: LiftRide): { x: number; z: number } | nul
   const inLane = Math.abs(v - lane.v) < K.laneWide && u > offAt(plan) - K.laneWide;
   if (!inLane || u >= lane.exit - K.turnIn) return null;
   return along(plan, Math.min(u + K.laneAim, lane.exit + K.laneAim / 2), lane.v);
+}
+
+/** The point `t` (0..1) down a ramp's line. */
+function rampPoint(r: SummitRamp, t: number): { x: number; z: number } {
+  return { x: r.from.x + (r.to.x - r.from.x) * t, z: r.from.z + (r.to.z - r.from.z) * t };
 }
 
 /** Every station house of a map, once per map: the lead steers round them. */

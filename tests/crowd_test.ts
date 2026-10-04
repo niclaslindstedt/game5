@@ -27,8 +27,8 @@ import {
 import { levelFor } from "./support/levels.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 
-/** Seed 7's resort has every colour on it. */
-const SEED = 7;
+/** Seed 3's resort has every colour on it. */
+const SEED = 3;
 const level = levelFor(SEED);
 const free = (crowd?: number): GameState =>
   createGame({ level, seed: SEED, mode: "free", quiet: true, crowd });

@@ -63,7 +63,15 @@ import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
-import { easeBalance, edgeWithin, inclineTarget, rollHeld, rollHold } from "./incline.ts";
+import {
+  crossFall,
+  easeBalance,
+  edgeWithin,
+  inclineTarget,
+  retractionOf,
+  rollHeld,
+  rollHold,
+} from "./incline.ts";
 import {
   bodyPlough,
   bottomlessOf,
@@ -88,6 +96,7 @@ import {
   edgeMostOf,
   flightGravity,
   harshSpeedOf,
+  skidAngleAt,
 } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
@@ -164,12 +173,6 @@ const INPUT_RATE = 8;
 
 export { freshSkier } from "./skier-fresh.ts";
 
-/** THE SKID ANGLE the speed allows, rad: a snowplough's at a crawl,
- * narrowing to `steer.skidFast` by `steer.skidFadeSpeed`. */
-export function skidAngleAt(speed: number): number {
-  return S.skidAngle - (S.skidAngle - S.skidFast) * clamp(Math.abs(speed) / S.skidFadeSpeed, 0, 1);
-}
-
 // Scratch, reused every step: the engine allocates nothing per station.
 const grip: Grip = { edge: 0, base: 0 };
 const normal: Vec3 = { x: 0, y: 1, z: 0 };
@@ -215,8 +218,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // STOOD STILL, a steer is no edge: it steps him round on the spot.
   const still = stoodStill(c, speed0);
   const goal = (still ? 0 : c.steer) * lock + skiPull(c);
-  // ...no further than he is laid over plus his angulation (`incline.ts`).
-  c.edge = approach(c.edge, edgeWithin(c, goal), S.edgeRate * fit.edgeRate * T.edgeRate * dt);
+  // ...no further than he is laid over plus his angulation, or than his
+  // legs stand the skis under him where he crosses under (`incline.ts`).
+  const fall = crossFall(level, c, T);
+  const reach = edgeWithin(c, goal, fall, T);
+  c.edge = approach(c.edge, reach, S.edgeRate * fit.edgeRate * T.edgeRate * dt);
   // THE SKID: the skis pivoted across the way by the brake — toward the
   // side the edge is on for a hockey stop, and with the skis straight a
   // snowplough, which pivots nothing and only scrubs.
@@ -350,6 +356,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const rollRel = Math.asin(
     clamp(-(right.x * normal.x + right.y * normal.y + right.z * normal.z), -1, 1),
   );
+  // THE LEGS FOLDED: the tuck's, and through a cross-under the skis drawn up
+  // under a body swung upright between two turns (`retractionOf`).
+  const fold = drop + retractionOf(T, rollRel, c.wz, fall);
   // THE STANCE STANDS ON THE SNOW. A skier's legs are two, and his skis
   // stay on the snow whatever his body does above them: inclined 40° into
   // a carve, the outside leg is long and the inside one short, and both
@@ -856,7 +865,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, drop);
+  const hullHit = chassisContacts(c, level, depth, state.fresh, fold);
   const hullTouch = hullHit > 0;
   if (hullHit > impact) impact = hullHit;
   // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his

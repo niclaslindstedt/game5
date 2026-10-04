@@ -100,9 +100,11 @@ export {
   SUPER_G_TECHNIQUE,
   TECHNIQUES,
   techniqueOf,
+  type Crossing,
   type Technique,
   type TechniqueId,
 } from "./game/defs/technique.ts";
+export { crossUnderOf, edgeReach } from "./game/incline.ts";
 export {
   FIELD,
   createField,
@@ -205,7 +207,7 @@ export {
   type TrickPose,
   type TrickState,
 } from "./game/state.ts";
-export { freshSkier, skidAngleAt, derive } from "./game/skier.ts";
+export { freshSkier, derive } from "./game/skier.ts";
 export { airForce, dragAreaOf, sideAreaOf, type AirForce } from "./game/air.ts";
 export {
   probesOf,
@@ -425,6 +427,7 @@ export {
   flightGravity,
   harshSpeedOf,
   lockAt,
+  skidAngleAt,
   terminalSpeed,
   topSpeedOf,
   tipLimit,

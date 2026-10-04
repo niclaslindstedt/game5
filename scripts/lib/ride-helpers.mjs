@@ -40,6 +40,63 @@ export function tail(run, from, f) {
 
 export const fmt = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
 
+/** THE SKID ANGLE: the skis' line off the way a skier `c` is going, rad,
+ * signed — what a recorded frame carries as `slide`. */
+export function slideOf(c) {
+  const d = Math.atan2(c.vx, c.vz) - c.heading;
+  return Math.atan2(Math.sin(d), Math.cos(d));
+}
+
+/** The edge past which a ski counts as on one side or the other when the
+ * turns are counted, rad (10°): a flat ski between two turns flips nothing. */
+export const TURN_EDGE = 0.17;
+
+/** A RHYTHM OF TURNS as numbers, over recorded `frames` (each carrying
+ * `t`, `edge`, `wy`, `speed`, `slide` and `thrown`): how long a turn is —
+ * the edge from one side past `TURN_EDGE` to the other, between the first
+ * flip and the last — the mean of each turn's peak edge (rad), the radius a
+ * tenth of the turning frames turn tighter than (m; speed over yaw where
+ * the yaw is over 0.3 rad/s), the most yaw (rad/s), the mean speed (m/s),
+ * the skid angle on the mean and at its most (rad), the turns counted and
+ * whether he was thrown. Null where there is too little to say. The ride
+ * lab's `slalom-rhythm` and the technique lab both read it. */
+export function rhythmOf(frames) {
+  const flips = [];
+  const peaks = [];
+  let side = 0;
+  let peak = 0;
+  for (const f of frames) {
+    const now = f.edge > TURN_EDGE ? 1 : f.edge < -TURN_EDGE ? -1 : 0;
+    peak = Math.max(peak, Math.abs(f.edge));
+    if (now !== 0 && now !== side) {
+      if (side !== 0) {
+        flips.push(f.t);
+        peaks.push(peak);
+      }
+      side = now;
+      peak = 0;
+    }
+  }
+  const radii = frames
+    .filter((f) => Math.abs(f.wy) > 0.3)
+    .map((f) => f.speed / Math.abs(f.wy))
+    .sort((a, b) => a - b);
+  const n = Math.max(1, frames.length);
+  const mean = (g) => frames.reduce((sum, f) => sum + g(f), 0) / n;
+  const most = (g) => frames.reduce((m, f) => Math.max(m, g(f)), 0);
+  return {
+    turnS: flips.length > 1 ? (flips[flips.length - 1] - flips[0]) / (flips.length - 1) : null,
+    turns: Math.max(0, flips.length - 1),
+    edgePeak: peaks.length ? peaks.reduce((a, b) => a + b, 0) / peaks.length : null,
+    radius: radii.length ? radii[Math.floor(radii.length * 0.1)] : null,
+    yawMost: most((f) => Math.abs(f.wy)),
+    speed: mean((f) => f.speed),
+    skid: mean((f) => Math.abs(f.slide)),
+    skidMost: most((f) => Math.abs(f.slide)),
+    thrown: frames.some((f) => f.thrown),
+  };
+}
+
 export function schuss(run) {
   const top = Math.max(...run.frames.map((f) => f.speed));
   const t100 = timeTo(run, 100);

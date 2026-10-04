@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet damage anatomy gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage anatomy gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -245,6 +245,24 @@ cloud-metrics:
 # ARGS="--where=meadow --moves=carve".
 turns:
 	npm run turns -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE TECHNIQUE LAB: how each riding technique (defs/technique.ts — free,
+# slalom, giant slalom, super-G, downhill) LOOKS and MEASURES, skied by the
+# bot down one course on one seed, each on its discipline's own pair. A
+# TABLE (peak and most edge, turn time, the tightest tenth's radius, yaw,
+# speed, skid, peak force in body weights, share tucked) beside the research
+# targets of docs/disciplines.md, marked outside them; and three sheets
+# through the game's own renderer — previews/technique-<seed>-path.png (a
+# stretch from above, strobed over his line), -behind.png (a TV lens through
+# one turn) and -side.png (its apex from outside, front and inside). The
+# course: auto (the slalom for the slalom and free rows, the open piste for
+# the speed events), slalom or piste. Its own one-off bundle from
+# pwa/technique-preview.html (never deployed); needs a Chromium like `world`
+# — ARGS=--sheets=none is the table alone, in seconds, no browser.
+# SEED=n; ARGS="--techniques=slalom,free --skis=swift --course=slalom";
+# ARGS="--json=a.json" / "--compare=a.json".
+technique:
+	npm run technique -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE WILDLIFE LAB: every bird over the woods and every animal in the snow
 # side by side, three poses each (each in the next of its forms: an old

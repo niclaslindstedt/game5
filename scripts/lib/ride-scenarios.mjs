@@ -52,6 +52,7 @@ import {
   schussStrip,
   TOP,
   onPitch,
+  rhythmOf,
 } from "./ride-helpers.mjs";
 
 /** A RHYTHM OF TURNS, read after the first two seconds: how long a turn
@@ -60,41 +61,16 @@ import {
  * the skid angle — the skis' line off the way — on the mean and at its
  * most. */
 function rhythm(run) {
-  const fs = run.frames.filter((f) => f.t >= 2);
-  const flips = [];
-  const peaks = [];
-  let side = 0;
-  let peak = 0;
-  for (const f of fs) {
-    const now = f.edge > 0.17 ? 1 : f.edge < -0.17 ? -1 : 0;
-    peak = Math.max(peak, Math.abs(f.edge));
-    if (now !== 0 && now !== side) {
-      if (side !== 0) {
-        flips.push(f.t);
-        peaks.push(peak);
-      }
-      side = now;
-      peak = 0;
-    }
-  }
-  const turnS = flips.length > 1 ? (flips[flips.length - 1] - flips[0]) / (flips.length - 1) : null;
-  const radii = fs
-    .filter((f) => Math.abs(f.wy) > 0.3)
-    .map((f) => f.speed / Math.abs(f.wy))
-    .sort((a, b) => a - b);
-  const mean = (g) => fs.reduce((sum, f) => sum + g(f), 0) / Math.max(1, fs.length);
+  const r = rhythmOf(run.frames.filter((f) => f.t >= 2));
   return [
-    ["turn s", fmt(turnS)],
-    [
-      "edge peak deg",
-      fmt((peaks.reduce((a, b) => a + b, 0) / Math.max(1, peaks.length)) * 57.3, 0),
-    ],
-    ["radius m", radii.length ? fmt(radii[Math.floor(radii.length * 0.1)], 1) : "—"],
-    ["yaw most rad/s", fmt(Math.max(...fs.map((f) => Math.abs(f.wy))), 2)],
-    ["speed km/h", fmt(mean((f) => f.speed) * 3.6, 1)],
-    ["skid deg", fmt(mean((f) => Math.abs(f.slide)) * 57.3, 1)],
-    ["skid most deg", fmt(Math.max(...fs.map((f) => Math.abs(f.slide))) * 57.3, 1)],
-    ["thrown", fs.some((f) => f.thrown) ? "yes" : "no"],
+    ["turn s", fmt(r.turnS)],
+    ["edge peak deg", fmt((r.edgePeak ?? 0) * 57.3, 0)],
+    ["radius m", r.radius === null ? "—" : fmt(r.radius, 1)],
+    ["yaw most rad/s", fmt(r.yawMost, 2)],
+    ["speed km/h", fmt(r.speed * 3.6, 1)],
+    ["skid deg", fmt(r.skid * 57.3, 1)],
+    ["skid most deg", fmt(r.skidMost * 57.3, 1)],
+    ["thrown", r.thrown ? "yes" : "no"],
   ];
 }
 

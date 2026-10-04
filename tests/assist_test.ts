@@ -58,8 +58,11 @@ describe("the assist dials", () => {
     const turn: SkierInput = { ...NEUTRAL_INPUT, tuck: 0.6, steer: 0.5 };
     const held = stage(FULL_ASSIST);
     const bare = stage({ yaw: 0, air: 1 });
-    ride(held, 1.5, turn);
-    ride(bare, 1.5, turn);
+    // A second of it: with no hand on, the bare physics' yaw runs up even
+    // on half an edge once he is laid into the bend (by 1.5 s it has spun
+    // him through the skid — what the hand is for).
+    ride(held, 1, turn);
+    ride(bare, 1, turn);
     // Both still turn the way the bars say — the hold is help, not the steering.
     expect(Math.sign(held.skier.heading)).toBe(1);
     expect(Math.sign(bare.skier.heading)).toBe(1);

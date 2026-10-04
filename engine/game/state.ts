@@ -110,6 +110,12 @@ export type SkierState = {
    * the drawn skis read it to stay there (`ski-stand.ts`). A readout, as
    * `roll` is: nothing integrates it. */
   incline: number;
+  /** THE TURN'S BALANCE, rad, right side down positive: the inclination at
+   * which the snow's reaction under his skis — its grip across them over
+   * its push along its normal — passes through his centre of mass, eased
+   * over `skier.balanceLag`. What his inclination is held toward on the
+   * groomer (`skier.ts`); kept through a flight. */
+  balance: number;
   /** |v|, m/s, vertical included — what the speedo reads. Written once at
    * the end of the step. */
   speed: number;

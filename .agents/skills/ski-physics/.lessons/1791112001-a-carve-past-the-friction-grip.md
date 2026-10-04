@@ -13,9 +13,10 @@ hold (`rollMax` × `hangOff`, ~1260 N·m) cannot carry 2.5 g of that moment.
 What worked: the PLATFORM (`platformOf`, tan θ past 54°) and its share of
 each station's force pushed at the station lifted to the CoG's height along
 the normal — it turns him (the yaw lever along the ski is kept) and rolls
-him nothing. A larger inclination target (`Technique.incline` 0.95 rad)
-then overshot at every edge change (the target swings ±54° and the clamped
-hold cannot brake the roll): 0.8 is the most that held. Scope it through a
+him nothing. A larger inclination target then overshot at every edge
+change while the target swung with the edge (±54° at once): the target
+now follows the turn's balance and the edge the body
+(`1791130000-the-lean-is-an-attitude`), and the slalom is let in to 1.1. Scope it through a
 `Technique` row whose identity row multiplies by exactly 1 / adds exactly 0
 (`x * 1`, `max(edgeMax, 0)`, `platformOf(…, 0) = 0` guarded with a branch),
 then prove `make ride`, `make ride --card`, `make sim` and

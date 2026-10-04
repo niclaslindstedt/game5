@@ -39,9 +39,11 @@ export function terminalSpeed(spec: SkiSpec, grade: number, crouch = 1): number 
 }
 
 /** The most edge a skier skiing `technique` stands the skis on, rad: the
- * spec's own, or the technique's floor under it (`Technique.edgeMax`). */
+ * technique's own where it names one (`Technique.edgeMax` — a racer stands
+ * his ski at his discipline's angle, whichever pair is under him), the
+ * spec's where it does not. */
 export function edgeMostOf(spec: SkiSpec, technique: Technique = FREE): number {
-  return Math.max(spec.edgeMax, technique.edgeMax);
+  return technique.edgeMax > 0 ? technique.edgeMax : spec.edgeMax;
 }
 
 /** The full edge the skis can be put on at `speed` m/s, rad: the most
@@ -64,9 +66,21 @@ export function lockAt(spec: SkiSpec, speed: number): number {
 /** THE CURVATURE a ski on `edge` rad carves, 1/m: the sidecut's arc bent
  * into the snow tightens as the ski is tipped, `tan(edge) / sidecut`, so
  * 45° of edge carves about the sidecut radius and a ski laid flat runs
- * straight. */
+ * straight. That is sin(edge) of the GEOMETRIC carve (`carveMost`) — a ski
+ * tipped part way is bent part way into the snow — and within a tenth of
+ * it at a racer's 60–70°. */
 export function carveCurvature(spec: SkiSpec, edge: number): number {
   return Math.tan(edge) / spec.sidecut;
+}
+
+/** THE TIGHTEST A SKI ON `edge` rad CAN CARVE, 1/m: bent until its whole
+ * edge lies on the snow, a ski of sidecut radius R carves an arc of
+ * R · cos(edge) (the sidecut's geometry — a 13 m slalom ski at 70° carves
+ * ~4.4 m, a 30 m giant slalom ski at 68° ~11 m). Nothing a skier does
+ * with his weight bends a carving ski tighter: a line turned tighter than
+ * this is a skid. */
+export function carveMost(spec: SkiSpec, edge: number): number {
+  return 1 / (spec.sidecut * Math.max(0.05, Math.cos(edge)));
 }
 
 /** THE TIPPING POINT, as a lateral acceleration over g: past it the skier

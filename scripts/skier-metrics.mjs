@@ -88,8 +88,16 @@ const moves = args.move
  * skier's, not the model's. */
 const CUFF_LEAN = (0.22 * 180) / Math.PI;
 const grounded = (f) => !f.skier.airborne && !f.skier.thrown;
+/** Carving: the hips hung into a turn on the snow, upright out of no
+ * tuck or skid — and the body inclined into it (a body still inclined into
+ * the last turn while the edges and the hips have changed is crossing over,
+ * not carving). */
 const carving = (f) =>
-  grounded(f) && Math.abs(f.skier.hipRight) > 0.12 && f.skier.crouch < 0.5 && f.skier.skid < 0.3;
+  grounded(f) &&
+  Math.abs(f.skier.hipRight) > 0.12 &&
+  f.skier.incline * Math.sign(f.skier.hipRight) > 0 &&
+  f.skier.crouch < 0.5 &&
+  f.skier.skid < 0.3;
 const stopping = (f) =>
   grounded(f) && f.skier.skid >= 0.3 && f.skier.crouch < 0.5 && Math.abs(f.skier.edge) > 0.3;
 /** Upright on the snow: inclined into no turn (an edge change still

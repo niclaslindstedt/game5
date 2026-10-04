@@ -47,8 +47,9 @@ export type { InputAction };
 export type InputManager = {
   /** Produce this step's input; advances the ramps by `dt`. `airborne` is
    * whether the player's skis is off the snow, where the tuck and brake
-   * keys lean (`input-model.ts`'s `airLean`). */
-  sample: (dt: number, airborne?: boolean) => SkierInput;
+   * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
+   * the helicopter's skid, flying it (`heliControls`). */
+  sample: (dt: number, airborne?: boolean, flying?: boolean) => SkierInput;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -103,6 +104,11 @@ export function createInputManager(
     target instanceof Element &&
     target.closest("button, input, select, textarea, a[href]") !== null;
 
+  /** THE JUMP'S PRESS, kept until a step has seen it: a tap shorter than
+   * the gap between two steps (a slow frame, a quick finger) is still the
+   * push off the helicopter's skid, still a pop off the snow. */
+  let jumped = false;
+
   const onKeyDown = (e: KeyboardEvent): void => {
     const actions = byCode.get(e.code);
     if (!actions) return;
@@ -113,6 +119,7 @@ export function createInputManager(
       if (isHeldAction(action)) {
         if (!claiming()) continue;
         keys[action] = true;
+        if (action === "jump" && !e.repeat) jumped = true;
         took = true;
       } else if (!e.repeat) {
         // A key pressed ON A CONTROL off the race is that control's: ENTER is
@@ -149,9 +156,13 @@ export function createInputManager(
   target.document.addEventListener("visibilitychange", onBlur);
 
   return {
-    sample: (dt, airborne = false) => {
-      const input = sampleInput(model, keys, touch, dt, reset, airborne);
+    sample: (dt, airborne = false, flying = false) => {
+      // A jump pressed and let go between two steps still reaches one.
+      const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
+      const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
       reset = false;
+      jumped = false;
+      touch.tap2 = false;
       return input;
     },
     touch,

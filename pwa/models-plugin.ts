@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, emitted into the
+// `models/<id>.glb` and the heli-ski helicopter's as `models/heli.glb`,
+// emitted into the
 // bundle (so the service worker precaches them with everything else) and
 // served the same way by the dev server. They are COMMITTED, in
 // `pwa/models/`, made there by `make models` (Blender, off the game's own
 // data — the `blender-assets` skill), with a stamp of the sources they were
 // made from (`sources.json`), which `tests/models_test.ts` holds to the
 // sources as they stand: a model older than its sources fails the suite.
+// Each KIND is stamped apart (`MODEL_HALVES`), so a change to the
+// helicopter's sources asks for the helicopter alone to be made again.
 // Nothing else the game draws is a model: the skier is dressed in code
 // (`src/game/skier-dress.ts`, his outfit cut on the rig), and the trees,
 // the birds, the animals and the course's marks are built in code,
@@ -14,7 +17,8 @@
 // `beast-shapes.ts`, `mark-shapes.ts`).
 //
 // A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
-// `src/game/model-switch.ts`) packs none of them.
+// `src/game/model-switch.ts`) packs none of them; `VITE_MODEL_HELI=0` packs
+// no helicopter (`src/game/heli-view.ts` draws its code-built stand-in).
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -24,17 +28,23 @@ import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
 
-export type ModelSwitches = { skis: boolean };
+export type ModelSwitches = { skis: boolean; heli: boolean };
 
 /** Every switch on — what a build draws unless told otherwise. */
-export const ALL_MODELS: ModelSwitches = { skis: true };
+export const ALL_MODELS: ModelSwitches = { skis: true, heli: true };
 
 /** Where the committed models are, from the repository's root. */
 export const MODELS_DIR = "pwa/models";
 
-/** Every file a build with these switches packs, by its published name. */
-export function modelFiles(on: ModelSwitches): string[] {
-  return on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : [];
+/** The helicopter's one file (`make blender KIND=heli`'s LOD0). */
+export const HELI_FILE = "heli.glb";
+
+/** Every file a build with these switches packs, by its published name —
+ * or only one half's (`MODEL_HALVES`). */
+export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
+  const skis =
+    on.skis && (!half || half === "sources") ? SKI_CATALOG.map((s) => `${s.id}.glb`) : [];
+  return [...skis, ...(on.heli && (!half || half === "heli") ? [HELI_FILE] : [])];
 }
 
 /** WHAT A MODEL IS MADE FROM: the Blender builder and its driver, and the
@@ -52,9 +62,21 @@ export const MODEL_SOURCES = [
   "pwa/src/game/ski-topsheets.ts",
 ];
 
-/** Every half's stamp in `sources.json`, and the sources it hashes — one
- * half today, the skis. */
-export const MODEL_HALVES = { sources: MODEL_SOURCES } as const;
+/** WHAT THE HELICOPTER IS MADE FROM: its builder, its data module, the
+ * shelf and the driver, and `HELI` — the table the engine flies and the
+ * builder reads every dimension off. */
+export const HELI_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/heli.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/heli.py",
+  "engine/game/defs/heli.ts",
+];
+
+/** Every half's stamp in `sources.json`, and the sources it hashes: the
+ * skis (`sources`, its name from when they were the only models) and the
+ * helicopter (`heli`). */
+export const MODEL_HALVES = { sources: MODEL_SOURCES, heli: HELI_SOURCES } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
 /** The sources' hash, from the repository's `root` (line endings as
@@ -68,18 +90,18 @@ export function sourcesHash(root: string, sources: readonly string[] = MODEL_SOU
   return h.digest("hex");
 }
 
-export function skiModels(on: ModelSwitches, root: string): Plugin {
+export function gameModels(on: ModelSwitches, root: string): Plugin {
   const dir = join(root, MODELS_DIR);
   const files = modelFiles(on);
   return {
-    name: "ski-models",
+    name: "game-models",
     buildStart() {
       const gone = files.filter((f) => !existsSync(join(dir, f)));
       if (gone.length) {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0)",
+            "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0)",
         );
       }
     },

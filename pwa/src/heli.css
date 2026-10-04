@@ -1,0 +1,78 @@
+/* THE HELICOPTER'S READOUT (`hud-heli.tsx`): top centre, in the air clock's
+   place — the drop under the skids big, the climb and the way to jump under
+   it; and, while it waits on its pad, the call to ride to it. */
+.hud-heli {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-heli-num {
+  font-size: clamp(1.6rem, 6vmin, 3rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-heli-sub {
+  margin-top: 0.2rem;
+  font-size: clamp(0.72rem, 2.3vmin, 1rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+
+.hud-heli-hint {
+  margin-top: 0.45rem;
+  font-size: clamp(0.66rem, 2vmin, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0.85;
+}
+
+.hud-heli-call {
+  top: 22%;
+  animation: hud-heli-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.hud-heli-word {
+  font-size: clamp(0.9rem, 3vmin, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+@keyframes hud-heli-pulse {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* A PHONE HELD UPRIGHT: the top is the clock's and the map's, so the
+   readout stands under the map, clear of both. */
+@media (orientation: portrait) and (max-width: 700px) {
+  .hud-heli {
+    top: 31vh;
+  }
+
+  .hud-heli-call {
+    top: 36vh;
+  }
+
+  .hud-heli-word {
+    white-space: normal;
+    max-width: 80vw;
+  }
+}

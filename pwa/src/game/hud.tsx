@@ -58,6 +58,7 @@ import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
+import { HeliReadout } from "./hud-heli.tsx";
 
 export type { HudFlash };
 
@@ -298,6 +299,10 @@ export function Hud({
           </div>
         </div>
       )}
+
+      {/* THE HELICOPTER (`hud-heli.tsx`): the drop under its skids while he
+          rides it, the call to it while it waits on its pad near him. */}
+      {snap.heli && snap.airTime === 0 && <HeliReadout heli={snap.heli} touch={touch} />}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}

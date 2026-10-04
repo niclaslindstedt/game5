@@ -110,6 +110,8 @@ export function BarZone({
   const barRef = useRef<HTMLDivElement>(null);
   const rotorRef = useRef<SVGGElement>(null);
   const originRef = useRef({ x: 0, y: 0 });
+  // A double tap here too is the push off the helicopter's skid.
+  const tapRef = useRef(createJumpTap());
 
   const write = (steer: number, lean: number): void => {
     touch.steer = steer;
@@ -130,6 +132,7 @@ export function BarZone({
    * the guard can call it from a window event or an unmount just as safely
    * as the pointerup does. */
   const letGo = (): void => {
+    jumpTapUp(tapRef.current, performance.now() / 1000);
     touch.bar = false;
     write(0, 0);
     if (barRef.current) barRef.current.style.display = "none";
@@ -159,6 +162,8 @@ export function BarZone({
           bar.style.display = "block";
         }
         touch.bar = true;
+        // A double tap stays down until a step has taken it (`input.ts`).
+        if (jumpTapDown(tapRef.current, performance.now() / 1000)) touch.tap2 = true;
         write(0, 0);
       }}
       onPointerMove={(e) => {
@@ -278,6 +283,7 @@ export function LeverZone({
         }
         touch.lever = true;
         touch.jump = jumpTapDown(tapRef.current, performance.now() / 1000);
+        if (touch.jump) touch.tap2 = true;
         lever?.classList.toggle("hud-lever-jump", touch.jump);
         write(leverTuck(0, feel), leverBrake(0, feel));
       }}

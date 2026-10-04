@@ -58,6 +58,10 @@ export type RunRules = {
    * a lift's load zone is carried to its top. On a FREE RIDE only — a race
    * is one run down, and a lift ridden would be a run off the course. */
   lifts: boolean;
+  /** WHETHER A HELICOPTER WAITS ON ITS PAD (`heli.ts`): ridden into, it is
+   * the player's to fly anywhere on the mountain and push off. On a FREE
+   * RIDE only. */
+  heli: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
@@ -138,6 +142,7 @@ export function fieldRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    heli: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -175,6 +180,7 @@ export function slalomRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    heli: false,
     start: "interval",
     gates: "strict",
     window: SLALOM.window,
@@ -194,6 +200,7 @@ export function openRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    heli: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -215,6 +222,7 @@ export function freeRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: CROWD.count,
     lifts: true,
+    heli: true,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -277,6 +285,7 @@ export function timeTrialRules(laps: number): RunRules {
     airGravity: TUNING.air.gravity,
     crowd: 0,
     lifts: false,
+    heli: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -295,6 +304,7 @@ export const TRICKS_RUN = {
    * would land a backflip before it had come round. */
   airGravity: 1,
   lifts: false,
+  heli: false,
 } as const;
 
 /** A tricks run as a skier is dealt it: the lights, the strokes read, the
@@ -311,6 +321,7 @@ export function tricksRules(laps: number): RunRules {
     airGravity: TRICKS_RUN.airGravity,
     crowd: 0,
     lifts: false,
+    heli: false,
     start: "line",
     gates: "arcade",
     window: 0,

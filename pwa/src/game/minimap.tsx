@@ -171,6 +171,8 @@ const PAINT = {
   runWidth: 1.5,
   runAlpha: 0.85,
   lift: "#1d2126",
+  /** The helicopter and its pad: the pad's painted yellow. */
+  heli: "#f2c418",
   liftWidth: 0.8,
   tunnelWidth: 2.6,
   arrow: "#ffffff",
@@ -324,6 +326,20 @@ function paint(
     ctx.moveTo(m.a[0], m.a[1]);
     ctx.lineTo(m.b[0], m.b[1]);
     ctx.stroke();
+  }
+
+  // THE HELIPAD and THE HELICOPTER: a ring where it is kept, and the
+  // machine itself wherever it is — on its pad, or flying.
+  if (map.heli) {
+    ctx.strokeStyle = PAINT.heli;
+    ctx.lineWidth = PAINT.liftWidth * 1.6 * css;
+    ctx.beginPath();
+    ctx.arc(map.heli.pad.x, map.heli.pad.z, map.dot * 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = PAINT.heli;
+    ctx.beginPath();
+    ctx.arc(map.heli.x, map.heli.z, map.dot * 0.9, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.strokeStyle = hud.plate(PAINT.rivalEdgeAlpha);

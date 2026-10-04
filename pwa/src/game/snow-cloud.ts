@@ -341,6 +341,9 @@ export type SnowCloud = {
     size: number,
     snow: SnowProps,
   ): void;
+  /** A PUFF BLOWN by a helicopter's rotor wash (`heli-view.ts`): one
+   * puff of loose snow at a point, thrown at (vx, vy, vz), `size` m. */
+  blow(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number): void;
   /** Fly every puff and sort them for the lens. */
   update(dt: number, look: SkyLook, level: Level, wind: Wind, eye: THREE.Vector3): void;
   /** The skier the lens is looking at, and how thin his plume is drawn
@@ -540,6 +543,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const wall = emptyRecipe();
   const ski = emptyRecipe();
   const puff = emptyRecipe();
+  const blown: CloudRecipe = {
+    ...emptyRecipe(),
+    hang: 4.5,
+    settle: 0.35,
+    tau: 1.4,
+    opacity: 0.55,
+    sparkle: 0.4,
+  };
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
   const shares: [number, number] = [0.5, 0.5];
 
@@ -674,6 +685,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
           groundOf(x, z),
         );
       }
+    },
+    blow(x, y, z, vx, vy, vz, size) {
+      // The wash's snow: big, slow-settling puffs that hang and drift — a
+      // whiteout is the air full of them.
+      blown.size = size;
+      blown.grow = size * 2.2;
+      if (random() > share) return;
+      spawn(x, y, z, vx, vy, vz, blown, groundOf(x, z));
     },
     update(dt, look, level, wind, eye) {
       levelRef = level;

@@ -8,7 +8,7 @@ import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv } from "vite";
 
-import { skiModels } from "./models-plugin.ts";
+import { gameModels } from "./models-plugin.ts";
 import { modelSwitch } from "./src/game/model-switch.ts";
 import { appPwa } from "./pwa-plugin.ts";
 
@@ -55,7 +55,10 @@ export default defineConfig(({ mode }) => {
   // on unless the environment or the root `.env` switches it back
   // (`src/game/model-switch.ts`).
   const env = { ...loadEnv(mode, envDir, "VITE_"), ...process.env };
-  const models = { skis: modelSwitch(env.VITE_MODEL_SKIS) };
+  const models = {
+    skis: modelSwitch(env.VITE_MODEL_SKIS),
+    heli: modelSwitch(env.VITE_MODEL_HELI),
+  };
   return {
     base,
     envDir,
@@ -84,12 +87,12 @@ export default defineConfig(({ mode }) => {
     // `preact/jsx-runtime` and aliases `react` / `react-dom` onto
     // `preact/compat`, so the pre-built framework chunks resolve to Preact.
     //
-    // `skiModels` comes before `appPwa`, so the models it emits are in the
+    // `gameModels` comes before `appPwa`, so the models it emits are in the
     // bundle the worker's precache list is read off.
     plugins: [
       preact(),
       tailwindcss(),
-      skiModels(models, here("..")),
+      gameModels(models, here("..")),
       appPwa({ base, version, ignorePaths }),
     ],
   };

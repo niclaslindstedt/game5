@@ -356,3 +356,38 @@ describe("the jump", () => {
     expect(jumpTapDown(tap, 7.2 + JUMP_TAP_GAP * 2)).toBe(false);
   });
 });
+
+describe("the controls sat on the helicopter's skid (flying)", () => {
+  const fly = (keys: Partial<KeysHeld>, touch = neutralTouch(), steps = 60) => {
+    const model = createInputModel();
+    const held = { ...NO_KEYS, ...keys };
+    let input = sampleInput(model, held, touch, DT, false, false, true);
+    for (let i = 1; i < steps; i++) input = sampleInput(model, held, touch, DT, false, false, true);
+    return input;
+  };
+
+  it("read the lean keys as the collective: forward climbs, back sinks", () => {
+    expect(fly({ leanForward: true }).lean).toBeLessThan(-0.9);
+    expect(fly({ leanBack: true }).lean).toBeGreaterThan(0.9);
+  });
+
+  it("never lean off the tuck key, which stays the tuck", () => {
+    const w = fly({ tuck: true }, neutralTouch(), 240);
+    expect(w.lean).toBe(0);
+    expect(w.tuck).toBeGreaterThan(0.9);
+  });
+
+  it("read the edge thumb pulled down as the sink, never the back key", () => {
+    const touch = { ...neutralTouch(), bar: true, lean: 0.8 };
+    const input = fly({}, touch);
+    expect(input.lean).toBeCloseTo(0.8);
+    expect(input.brake).toBe(0);
+  });
+
+  it("jump on a double tap on either zone, and only flying", () => {
+    const touch = { ...neutralTouch(), bar: true, tap2: true };
+    expect(fly({}, touch, 1).jump).toBe(true);
+    const model = createInputModel();
+    expect(sampleInput(model, NO_KEYS, touch, DT, false, false, false).jump).toBe(false);
+  });
+});

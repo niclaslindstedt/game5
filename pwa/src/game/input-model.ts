@@ -242,10 +242,23 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
+  /** A DOUBLE TAP on either thumb's zone, set on the second touch and kept
+   * until a step has taken it — what pushes the skier off the helicopter's
+   * skid. */
+  tap2: boolean;
 };
 
 export function neutralTouch(): TouchChannel {
-  return { steer: 0, lean: 0, bar: false, tuck: 0, brake: 0, lever: false, jump: false };
+  return {
+    steer: 0,
+    lean: 0,
+    bar: false,
+    tuck: 0,
+    brake: 0,
+    lever: false,
+    jump: false,
+    tap2: false,
+  };
 }
 
 /** The keyboard's ramped axes, screen-space. Advanced once per STEP (§37.1)
@@ -334,14 +347,15 @@ export function sampleInput(
   dt: number,
   reset: boolean,
   airborne = false,
+  flying = false,
 ): SkierInput {
-  const keyAir = airLean(model, keys, airborne);
+  const keyAir = airLean(model, keys, airborne && !flying);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   model.steer = rampToward(model.steer, steerTarget, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
   model.tuck = rampToward(model.tuck, keys.tuck ? 1 : 0, dt, KEY_TUCK_ATTACK, KEY_TUCK_RELEASE);
   // THE BACK KEY, the key or the edge thumb dragged down on the snow, and
   // which of its two meanings it went down as.
-  const thumbBack = touch.bar && !airborne && touch.lean >= BACK_TOUCH;
+  const thumbBack = touch.bar && !airborne && !flying && touch.lean >= BACK_TOUCH;
   const back = backMode(
     model,
     (keys.brake && !model.brakeLeans) || thumbBack,
@@ -376,6 +390,6 @@ export function sampleInput(
     reset,
     trick: keys.trick,
     carve: back === "carve",
-    jump: keys.jump || (touch.lever && touch.jump),
+    jump: keys.jump || (touch.lever && touch.jump) || (flying && touch.tap2),
   });
 }

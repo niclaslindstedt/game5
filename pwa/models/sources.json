@@ -1,4 +1,5 @@
 {
   "sources": "c1f451767f7311ea454ad1e238e25360b5ad97dc05b6ff803efc49a69b653432",
-  "blender": "4.2.0"
+  "blender": "4.2.0",
+  "heli": "b4aa30dd0ed295f158a125bcef77503d5bae1bf4d05b9eb564bf3ef74a8d04e2"
 }

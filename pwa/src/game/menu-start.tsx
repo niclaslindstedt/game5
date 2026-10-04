@@ -37,7 +37,9 @@
 //           stepped through (`markedRun`, the engine's `pickFreeRun`). The
 //           lift up to its top carries the skier the last few seconds, and
 //           the chart marks its head with a pulse; the line under the chart
-//           bills it.
+//           bills it. Its LAST stop is no run but the HELICOPTER: the ride
+//           begun sat on the skid of the helicopter on its pad on the valley
+//           floor, flown up the mountain and pushed off (`heli.ts`).
 //
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
@@ -60,7 +62,15 @@ import {
 } from "@engine";
 import { useState } from "preact/hooks";
 
-import { SEASONS, SNOW_STOPS, markedRun, spotOn, type FreeRide } from "./free-ride.ts";
+import {
+  HELI_RUN,
+  SEASONS,
+  SNOW_STOPS,
+  heliOn,
+  markedRun,
+  spotOn,
+  type FreeRide,
+} from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
@@ -132,12 +142,17 @@ export function StartPage({
     shown !== null && shown.ok && shown.seed === seed && shown.region === ride.region
       ? shown
       : null;
-  const marked = list ? markedRun(ride, seed, list) : null;
+  const heli = heliOn(ride, seed);
+  const marked = list && !heli ? markedRun(ride, seed, list) : null;
   // The RUN row walks the runs of the GRADE row's colour — every run where
   // it stands on AS DEALT, or where the map has none of the colour.
   const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
   const walked = graded.length > 0 ? graded : (list?.runs ?? []);
-  const runStops = walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) }));
+  // ...and, LAST, the helicopter on its pad on the valley floor.
+  const runStops = [
+    ...walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) })),
+    ...(list ? [{ id: HELI_RUN, label: STRINGS.startRunHeli }] : []),
+  ];
 
   return (
     <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
@@ -196,7 +211,7 @@ export function StartPage({
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}
                 stops={runStops}
-                value={marked?.id ?? ""}
+                value={heli ? HELI_RUN : (marked?.id ?? "")}
                 extra={STRINGS.startRunWaiting}
                 onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
                 onHint={setHint}
@@ -205,7 +220,7 @@ export function StartPage({
             <SeedPreview
               chart={chart}
               entry={marked}
-              spot={spotOn(ride, seed)}
+              spot={heli ? null : spotOn(ride, seed)}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />
           </div>

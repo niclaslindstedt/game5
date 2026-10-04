@@ -98,6 +98,17 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "lift":
       // Taken onto a lift: which kind, and that the top is where it goes.
       return e.phase === "board" ? { text: STRINGS.newsLift(e.lift), tone: "info" } : null;
+    case "heli":
+      // The helicopter: sat on, pushed off (from how high over the snow),
+      // flown into the mountain, and the ride begun again on the pad.
+      if (e.phase === "board") return { text: STRINGS.newsHeliBoard, tone: "info" };
+      if (e.phase === "drop")
+        return {
+          text: STRINGS.newsHeliDrop(e.y - state.level.groundAt(e.x, e.z)),
+          tone: "good",
+        };
+      if (e.phase === "crash") return { text: STRINGS.newsHeliCrash, tone: "bad" };
+      return e.phase === "restart" ? { text: STRINGS.newsHeliRestart, tone: "info" } : null;
     default:
       return null;
   }

@@ -21,6 +21,12 @@
 // Loaded once, before the renderer's kit is handed out (`use-render-kit.ts`),
 // so every builder finds them waiting; a model that fails to load leaves
 // that pair to the code.
+//
+// THE HELICOPTER is a model too (`models/heli.glb`, `make models KIND=heli`,
+// three rigid nodes: `HELI_NODES`), switched by `VITE_MODEL_HELI`; it is
+// not fetched with the skis — only a free ride with the helicopter wants
+// it — so `heliModelUrl()` is where its drawer (`heli-view.ts`) fetches it
+// from, `null` when the build packs none.
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -38,7 +44,27 @@ const ENV = (import.meta as { env?: Record<string, string | boolean | undefined>
 
 /** Which models this build draws (a build-time switch, ON unless turned
  * off — `model-switch.ts`). */
-export const MODELS = { skis: modelSwitch(ENV.VITE_MODEL_SKIS) };
+export const MODELS = {
+  skis: modelSwitch(ENV.VITE_MODEL_SKIS),
+  heli: modelSwitch(ENV.VITE_MODEL_HELI),
+};
+
+/** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
+ * the airframe (its origin the skid datum), the main rotor (its origin the
+ * hub; it turns clockwise seen from above, about its local +y — a NEGATIVE
+ * angle in three.js) and the tail rotor (its origin the tail rotor's hub;
+ * it turns about its local +x, the top blade going aft). */
+export const HELI_NODES = {
+  body: "heli_body",
+  rotor: "heli_rotor",
+  tail: "heli_tail_rotor",
+} as const;
+
+/** Where this build serves the helicopter's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_HELI=0`) and the build packs none. */
+export function heliModelUrl(): string | null {
+  return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/heli.glb` : null;
+}
 
 const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };
 let loading: Promise<void> | null = null;

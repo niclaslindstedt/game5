@@ -31,6 +31,7 @@
 // line against the push, and past their grip the path drifts downwind and
 // the nose follows it.
 
+import { washAt, type Wash } from "./heli-wash.ts";
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 import { TUNING } from "./defs/tuning.ts";
@@ -64,17 +65,21 @@ export type AirForce = {
 };
 
 const AIR: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
+const WASH: Wash = { x: 0, y: 0, z: 0 };
 
 /** THE AIR ON `c` this step, of mass `m`: the drag against the air where he
- * is, and in a wind tunnel its blowers' thrust and hold (R30). */
+ * is — the weather's, a helicopter's wash over it — and in a wind tunnel its
+ * blowers' thrust and hold (R30). */
 export function airForce(state: GameState, c: SkierState, m: number, out: AirForce): AirForce {
   const level = state.level;
   const tunnels = level.resort?.tunnels;
   // The air: in a tunnel the tunnel's, out of it the weather's at his body.
   const w = c.tunnel ? tunnelWind(c, tunnels) : airAt(level, state.t, c.x, c.z, BODY_HEIGHT, AIR);
-  const ax = c.vx - w.x;
-  const ay = c.vy;
-  const az = c.vz - w.z;
+  // ...and a helicopter's rotor wash over it, near one (`heli-wash.ts`).
+  const wash = washAt(level, state.heli, c.x, c.y, c.z, WASH);
+  const ax = c.vx - w.x - wash.x;
+  const ay = c.vy - wash.y;
+  const az = c.vz - w.z - wash.z;
   const fx = Math.sin(c.heading);
   const fz = Math.cos(c.heading);
   // Along his heading and across it to his right (cos h, −sin h).

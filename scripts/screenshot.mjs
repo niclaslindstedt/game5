@@ -22,6 +22,7 @@
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
 //   ?mode=trial      the run is a TIME TRIAL rather than a race (--trial).
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
+//   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?splash=1 / ?menu=root   the attract card / the front door;
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
 //   ?menu=skis[&skis=id]     the ski card RACE opens, on a pair.
@@ -163,6 +164,24 @@ const SURFACES = {
   "free-off": {
     params: { start: "free", t: "8", shot: "1" },
     wait: ".hud-seed",
+    settle: 1500,
+  },
+  // THE FREE RIDE'S HELICOPTER (`heli.ts`, `?heli=1`): sat on its skid on
+  // the pad, lifting off into its own wash, and flown up the mountain by the
+  // pre-roll's pilot.
+  "heli-pad": {
+    params: { start: "free", heli: "1", t: "0.5", shot: "1" },
+    wait: ".hud-heli",
+    settle: 1500,
+  },
+  "heli-wash": {
+    params: { start: "free", heli: "1", t: "4", shot: "1" },
+    wait: ".hud-heli",
+    settle: 1500,
+  },
+  heli: {
+    params: { start: "free", heli: "1", t: "30", shot: "1" },
+    wait: ".hud-heli",
     settle: 1500,
   },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a

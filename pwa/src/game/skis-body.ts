@@ -149,6 +149,10 @@ export type SkisModel = {
     waiting?: boolean | "house",
   ): void;
   setSkierVisible(visible: boolean): void;
+  /** SAT ON A HELICOPTER'S SKID (`heli.ts`): the skid's top in his body
+   * frame, m (minus the engine's `HeliState.hang`), or null off it — read
+   * at the next pose. */
+  setPerch(y: number | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -450,6 +454,9 @@ export function createSkisModel(
   const BOUND = bound.radius;
   // How seated he is drawn, eased down as he stands off a chair.
   let seated = 0;
+  // The helicopter's skid he is sat on, if any (`setPerch`).
+  let perch: number | null = null;
+  let lastPerch: number | null = null;
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
 
@@ -537,10 +544,14 @@ export function createSkisModel(
         const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
+        // ...or ON A HELICOPTER'S SKID, sat on its tube.
         const sat = skier.lift?.kind === "chair" && skier.lift.phase !== "lead";
-        const share = sat ? seatedShare(skier.lift!) : 0;
+        const share = perch !== null ? 1 : sat ? seatedShare(skier.lift!) : 0;
         seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
-        const seat = seated > 0 ? { share: seated, y: TUNING.lift.seat - CHAIR_SEAT } : null;
+        const seatY = perch ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
+        if (perch !== null) lastPerch = perch;
+        else if (sat) lastPerch = null;
+        const seat = seated > 0 ? { share: seated, y: seatY } : null;
         figure.pose(input, seat);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
@@ -587,6 +598,9 @@ export function createSkisModel(
     },
     setGround(ground, gravity) {
       fall = ground ? { ground, gravity } : null;
+    },
+    setPerch(y) {
+      perch = y;
     },
     setSkierVisible(v) {
       if (figure.group.visible === v) return;

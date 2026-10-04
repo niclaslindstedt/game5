@@ -175,23 +175,42 @@ export const STRINGS = {
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under. */
-  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier"): string =>
-    cause === "tree"
-      ? "YARD SALE! TREE"
-      : cause === "skier"
-        ? "YARD SALE! TAKEN OUT"
-        : cause === "nose"
-          ? "OVER THE TIPS"
-          : cause === "roll"
-            ? "YARD SALE"
-            : cause === "landing"
-              ? "CRASH LANDING"
-              : "EDGE CAUGHT",
+  newsWipeout: (
+    cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli",
+  ): string =>
+    cause === "heli"
+      ? "THROWN CLEAR!"
+      : cause === "tree"
+        ? "YARD SALE! TREE"
+        : cause === "skier"
+          ? "YARD SALE! TAKEN OUT"
+          : cause === "nose"
+            ? "OVER THE TIPS"
+            : cause === "roll"
+              ? "YARD SALE"
+              : cause === "landing"
+                ? "CRASH LANDING"
+                : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** The player into one of the crowd on a free ride (`crowd.ts`): a
    * shoulder he rode through, or one that put the other skier down. */
   newsCrowdBump: "OI! WATCH IT",
   newsCrowdDown: "SKIER DOWN! SORRY",
+  /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
+   * machine flown into the mountain, and the ride begun again. */
+  newsHeliBoard: "ON THE SKID! FLY HER UP",
+  newsHeliDrop: (metres: number): string => `DROPPED FROM ${Math.round(metres)} M!`,
+  newsHeliCrash: "MAYDAY! SHE'S GONE DOWN",
+  newsHeliRestart: "BACK ON THE PAD",
+  /** THE HELICOPTER'S HUD (`hud-heli.tsx`): the height its skids are over
+   * the snow, its climb, how to jump off it, and the way to it. */
+  heliHeight: "DROP",
+  heliMetres: (m: number): string => `${Math.round(m)} M`,
+  heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
+  heliJump: (touch: boolean): string => (touch ? "DOUBLE TAP TO JUMP" : "SPACE TO JUMP"),
+  heliLanded: "ON THE SNOW — FLY ON OR JUMP OFF",
+  heliCall: "HELICOPTER — RIDE IN BESIDE THE SKID",
+  heliPad: (m: number): string => `${Math.round(m)} M`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
@@ -365,7 +384,9 @@ export const STRINGS = {
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   startRun: "RUN",
   startRunHint:
-    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here.",
+    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last stop is the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off.",
+  /** The RUN row's last stop: the ride begun on the helicopter (`heli.ts`). */
+  startRunHeli: "HELICOPTER",
   /** A RUN row's stop: the number the piste map signs it with. */
   startRunWord: (number: string): string => number,
   /** The RUN row before the chart has said what runs there are. */

@@ -176,6 +176,9 @@ export {
   type SkierInput,
   type SkierState,
   type LiftRide,
+  type HeliMode,
+  type HeliPhaseEvent,
+  type HeliState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -312,6 +315,20 @@ export {
   stepRivals,
 } from "./game/rivals.ts";
 export { stepRun } from "./game/run.ts";
+export { HELI } from "./game/defs/heli.ts";
+export {
+  HANG_AIR,
+  HANG_GROUND,
+  freshHeli,
+  heliPoint,
+  heliQuat,
+  seatHang,
+  startAgain,
+  stepHeli,
+  thrustMost,
+} from "./game/heli.ts";
+export { helipadOf, type Helipad } from "./game/heli-pad.ts";
+export { inducedOf, washAt, type Wash } from "./game/heli-wash.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

@@ -23,6 +23,11 @@
 //     over a race nobody is skiing, so the wind is a thread under a card
 //     that is ducked anyway (`shell.ts`'s `soundsLive`).
 //
+// A MACHINE out in the world — the free ride's helicopter — is heard from
+// where the skier is (its distance is the bed's own, `heli-bed.ts`); the
+// seat only leans on it: loudest with the ear in the helmet on its skid,
+// thinner from the boom.
+//
 // DOM-free, three-free, so the tests can read it and the audition page can
 // switch seats without a renderer.
 
@@ -43,6 +48,9 @@ export type Listener = {
   /** A pitch multiplier on those one-shots. Below 1 moves every filter down
    * with it: a landing heard from a crane is a duller landing. */
   muffle: number;
+  /** A machine out in the world — the helicopter's rotor, turbine, wash and
+   * fire — on top of its own distance. */
+  machine: number;
 };
 
 export const LISTENERS: Record<CameraRung, Listener> = {
@@ -53,6 +61,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 1.4,
     events: 1.1,
     muffle: 1,
+    machine: 1,
   },
   helmet: {
     wind: 1.45,
@@ -61,6 +70,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 1.05,
     events: 1,
     muffle: 1,
+    machine: 1.1,
   },
   chase: {
     wind: 0.85,
@@ -69,6 +79,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 1.05,
     events: 1,
     muffle: 1,
+    machine: 1,
   },
   far: {
     wind: 0.4,
@@ -77,6 +88,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 0.8,
     events: 0.9,
     muffle: 0.95,
+    machine: 0.85,
   },
   high: {
     wind: 0.2,
@@ -85,6 +97,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 0.6,
     events: 0.8,
     muffle: 0.9,
+    machine: 0.75,
   },
   orbit: {
     wind: 0.12,
@@ -93,6 +106,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     snow: 0.5,
     events: 0.6,
     muffle: 0.8,
+    machine: 0.5,
   },
 };
 

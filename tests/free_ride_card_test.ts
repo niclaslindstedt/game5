@@ -30,6 +30,8 @@ import {
   freeRunList,
   freeTopOptions,
   freshRide,
+  HELI_RUN,
+  heliOn,
   markedRun,
   mergeRide,
   runOn,
@@ -348,5 +350,41 @@ describe("the HUD over a free ride (snapshot.ts, minimap-view.ts)", () => {
     const snap = takeSnapshot(state);
     expect(snap.free).toBe(false);
     expect(snap.minimap.checkpoints.length).toBe(state.level.checkpoints.length);
+  });
+});
+
+describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
+  it("stands the ride up on the helicopter, never by lift or at a spot", () => {
+    const ride = {
+      ...freshRide(),
+      run: { seed: 7, region: freshRide().region, id: HELI_RUN },
+      spot: { seed: 7, x: 100, z: 100 },
+    };
+    expect(heliOn(ride, 7)).toBe(true);
+    expect(heliOn(ride, 8)).toBe(false);
+    const options = freeGameOptions(ride, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(options.heli).toBe(true);
+    expect(options.byLift).toBe(false);
+    expect(options.spawn).toBeUndefined();
+    expect(options.run).toBeUndefined();
+    // Kept through a stored blob.
+    expect(heliOn(mergeRide(JSON.parse(JSON.stringify(ride))), 7)).toBe(true);
+  });
+
+  it("is a link's too, and the HUD reads it while he rides", () => {
+    expect(readParams("?start=free&heli=1").heli).toBe(true);
+    expect(readParams("?start=free").heli).toBe(false);
+    const s = createGame({
+      level: syntheticLevel(),
+      mode: "free",
+      heli: true,
+      crowd: 0,
+      quiet: true,
+    });
+    const snap = takeSnapshot(s);
+    expect(snap.heli?.kind).toBe("flown");
+    for (let i = 0; i < 600; i++) step(s, { ...NEUTRAL_INPUT, lean: -1 });
+    const up = takeSnapshot(s).heli;
+    expect(up?.kind === "flown" && up.height > 20).toBe(true);
   });
 });

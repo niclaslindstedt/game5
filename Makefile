@@ -164,17 +164,20 @@ skier-metrics:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, game quality (no
-# stills), made by Blender and published into the COMMITTED pwa/models/
-# with a stamp of their sources — tests/models_test.ts fails when a model
-# is older than what it is made from. Needs Blender (or the bpy module:
-# scripts/bpy-blender.sh). A build draws them unless switched back
-# (VITE_MODEL_SKIS=0). The skier (dressed in code, `make gear`), the
-# trees, the wildlife and the course's marks are built in code and have no
-# models; `make blender KIND=skier` still models the skier for the labs.
+# The models the game ships: every pair of skis and the heli-ski
+# helicopter, game quality (no stills), made by Blender and published into
+# the COMMITTED pwa/models/ with a stamp of their sources a kind —
+# tests/models_test.ts fails when a model is older than what it is made
+# from. KIND=skis or KIND=heli makes and publishes that kind alone. Needs
+# Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
+# unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0). The skier
+# (dressed in code, `make gear`), the trees, the wildlife and the course's
+# marks are built in code and have no models; `make blender KIND=skier`
+# still models the skier for the labs.
 models:
-	npm run blender -- --id all --quality=game --views=none
-	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs
+	$(if $(filter-out heli,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
+	$(if $(filter-out skis,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # Switch the models on or off for every CI build — the repository
 # VARIABLE the workflows hand the build (needs gh, and the right to set

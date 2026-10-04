@@ -416,7 +416,7 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(TUNING.dt, state.skier.airborne);
+        : manager.sample(TUNING.dt, state.skier.airborne, !!state.heli?.rider);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {

@@ -169,6 +169,16 @@ export function mergeRide(blob: unknown): FreeRide {
   return out;
 }
 
+/** THE RUN ROW'S LAST STOP: no run at all, but the HELICOPTER on its pad
+ * on the valley floor (`heli.ts`) — the ride begun sat on its skid. Kept
+ * as a run id of its own, so it belongs to its map as a run does. */
+export const HELI_RUN = "heli";
+
+/** Whether the ride on `seed` begins on the helicopter. */
+export function heliOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === HELI_RUN;
+}
+
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
@@ -243,7 +253,8 @@ export function freeGameOptions(
   seed: number,
   skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
 ): CreateGameOptions {
-  const spot = spotOn(ride, seed);
+  const heli = heliOn(ride, seed);
+  const spot = heli ? null : spotOn(ride, seed);
   return {
     seed,
     spec: skier.spec,
@@ -252,7 +263,9 @@ export function freeGameOptions(
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,
-    run: runOn(ride, seed) ?? undefined,
+    run: heli ? undefined : (runOn(ride, seed) ?? undefined),
+    // THE HELICOPTER: sat on its skid on the pad, the rotor turning.
+    heli,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's
@@ -268,7 +281,7 @@ export function freeGameOptions(
     // there, never carried up a lift to the top of the run beside it. With no
     // spot it comes onto the mountain BY CHAIR (`lift-ride.ts`): up the lift
     // whose run passes nearest the start line, led off its top onto that run.
-    byLift: spot === null,
+    byLift: spot === null && !heli,
   };
 }
 

@@ -27,14 +27,7 @@ import {
   type GameState,
 } from "@engine";
 
-import {
-  BONE_ORDER,
-  BONE_SHAPES,
-  FIGURE,
-  OUTLINE_POINTS,
-  REGIONS,
-  fractureOf,
-} from "../pwa/src/game/body-figure.ts";
+import { FIGURE, figureView, fractureOf } from "../pwa/src/game/body-figure.ts";
 import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import {
@@ -431,66 +424,90 @@ describe("the news column (run-news.ts)", () => {
 });
 
 describe("the body as drawn (body-figure.ts)", () => {
-  it("cuts every part but the back out of the one outline, and draws every bone once", () => {
-    expect(Object.keys(REGIONS).sort()).toEqual(BODY_PARTS.filter((p) => p !== "back").sort());
-    expect(Object.keys(BONE_SHAPES).sort()).toEqual([...BONES].sort());
-    expect([...BONE_ORDER].sort()).toEqual([...BONES].sort());
-    for (const bone of BONES) {
-      const b = BONE_SHAPES[bone];
-      expect(b.fill.length, bone).toBeGreaterThan(0);
-      for (const d of [...b.fill, ...b.shade]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
-      const fr = fractureOf(bone);
-      for (const d of [fr.fissure, fr.piece]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
-      expect(fr.move, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
-    }
-  });
-
-  it("puts every bone's crack ON the bone: its mark inside the bone's own shape", () => {
-    // Even-odd over every ring of the bone's fill.
-    const rings = (d: string): number[][][] =>
-      d
-        .split("Z")
-        .filter(Boolean)
-        .map((r) =>
-          r
-            .replace(/^M/, "")
-            .split("L")
-            .map((p) => p.split(",").map(Number)),
-        );
-    for (const bone of BONES) {
-      const b = BONE_SHAPES[bone];
-      let hit = false;
-      for (const r of b.fill.flatMap(rings))
-        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
-          const [xi, yi] = r[i];
-          const [xj, yj] = r[j];
-          if (
-            yi > b.mark.y !== yj > b.mark.y &&
-            b.mark.x < ((xj - xi) * (b.mark.y - yi)) / (yj - yi) + xi
-          )
-            hit = !hit;
-        }
-      expect(hit, bone).toBe(true);
-    }
-  });
-
-  it("keeps every bone's mark inside the traced outline, his right on the viewer's left", () => {
-    // Even-odd ray cast against the outline's corners.
-    const inside = (x: number, y: number): boolean => {
-      let hit = false;
-      const P = OUTLINE_POINTS;
-      for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
-        const [xi, yi] = P[i];
-        const [xj, yj] = P[j];
+  /** Even-odd over every ring of a path's fill. */
+  const rings = (d: string): number[][][] =>
+    d
+      .split("Z")
+      .filter(Boolean)
+      .map((r) =>
+        r
+          .replace(/^M/, "")
+          .split("L")
+          .map((p) => p.split(",").map(Number)),
+      );
+  const inRings = (
+    rs: readonly (readonly (readonly number[])[])[],
+    x: number,
+    y: number,
+  ): boolean => {
+    let hit = false;
+    for (const r of rs)
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i];
+        const [xj, yj] = r[j];
         if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
       }
-      return hit;
-    };
-    for (const bone of BONES) {
-      const m = BONE_SHAPES[bone].mark;
-      expect(inside(m.x, m.y), bone).toBe(true);
-      if (bone.endsWith("R")) expect(m.x, bone).toBeLessThan(FIGURE.w / 2);
-      if (bone.endsWith("L")) expect(m.x, bone).toBeGreaterThan(FIGURE.w / 2);
+    return hit;
+  };
+  const SIDES = ["front", "back"] as const;
+
+  it("cuts every part out of the one outline, the back a strip from the front and the trunk from behind", () => {
+    const front = figureView("front");
+    const back = figureView("back");
+    expect(Object.keys(front.regions).sort()).toEqual(
+      BODY_PARTS.filter((p) => p !== "back").sort(),
+    );
+    expect(front.strip).toMatch(/^(M[\d.,L-]+Z)+$/);
+    expect(Object.keys(back.regions).sort()).toEqual(
+      BODY_PARTS.filter((p) => p !== "chest" && p !== "abdomen").sort(),
+    );
+    expect(back.strip).toBeUndefined();
+  });
+
+  it("draws every bone once in each view, shaded, and fractures each", () => {
+    for (const side of SIDES) {
+      const view = figureView(side);
+      expect([...view.order].sort(), side).toEqual([...BONES].sort());
+      expect(Object.keys(view.bones).sort(), side).toEqual([...BONES].sort());
+      for (const bone of BONES) {
+        const b = view.bones[bone];
+        for (const d of [b.fill, b.light, b.shadow, b.deep].filter(Boolean))
+          expect(d, `${side} ${bone}`).toMatch(/^(M[\d.,L-]+Z)+$/);
+        const fr = fractureOf(bone, side);
+        for (const d of [fr.fissure, fr.piece]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+        expect(fr.move, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
+      }
+    }
+  });
+
+  it("shows from the front the bones a man shows from the front, and the rest from behind", () => {
+    // Every bone the front draws has something to draw; the shoulder
+    // blades are the back's.
+    const area = (side: "front" | "back", bone: (typeof BONES)[number]): number =>
+      figureView(side).bones[bone].fill.length;
+    for (const bone of BONES)
+      if (!bone.startsWith("scapula")) expect(area("front", bone), bone).toBeGreaterThan(0);
+    for (const bone of BONES)
+      if (bone !== "sternum") expect(area("back", bone), bone).toBeGreaterThan(0);
+  });
+
+  it("puts every bone's crack ON the bone, inside the outline, on its own side", () => {
+    for (const side of SIDES) {
+      const view = figureView(side);
+      const skin = rings(view.outline);
+      for (const bone of BONES) {
+        const b = view.bones[bone];
+        if (!b.fill) continue;
+        expect(inRings(rings(b.fill), b.mark.x, b.mark.y), `${side} ${bone}`).toBe(true);
+        expect(inRings(skin, b.mark.x, b.mark.y), `${side} ${bone}`).toBe(true);
+        // His right is on the viewer's left from the front, and on the
+        // viewer's right from behind.
+        const right = (side === "front") === bone.endsWith("R");
+        if (/[RL]$/.test(bone)) {
+          if (right) expect(b.mark.x, `${side} ${bone}`).toBeLessThan(FIGURE.w / 2);
+          else expect(b.mark.x, `${side} ${bone}`).toBeGreaterThan(FIGURE.w / 2);
+        }
+      }
     }
   });
 });

@@ -95,10 +95,12 @@
   stroke-linejoin: round;
 }
 
-/* THE BONES: ivory when sound, the HUD's yellow cracked, its red broken —
-   every shape outlined a hair darker so a bone reads over the flesh. */
+/* THE BONES: bone grey when sound, the HUD's yellow cracked, its red broken
+   — every shape outlined a hair darker so a bone reads over the flesh, and
+   shaded as it lies (lit faces, shadowed ones, recesses) in grey over
+   whatever colour it is. */
 .hud-bone {
-  --bone: #eee6d1;
+  --bone: #c9c6be;
 }
 
 .hud-bone-hairline {
@@ -116,9 +118,16 @@
   stroke-linejoin: round;
 }
 
-/* The skull's orbits and openings, darker in the bone. */
-.hud-bone-shade {
-  fill: rgb(60 40 24 / 45%);
+.hud-bone-light {
+  fill: rgb(255 255 255 / 42%);
+}
+
+.hud-bone-shadow {
+  fill: rgb(28 30 34 / 30%);
+}
+
+.hud-bone-deep {
+  fill: rgb(18 20 24 / 42%);
 }
 
 /* A BROKEN BONE glows its red, so a thin one (a fibula, a rib) is found at

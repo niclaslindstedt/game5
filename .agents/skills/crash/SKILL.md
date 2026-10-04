@@ -48,8 +48,9 @@ Three modules answer it, and the split matters:
   `saidOf` keeps a fracture out of the HUD's words, since the figure shows
   it on the bone. A reset MENDS the body (`mendBody`, from `resetSkier`).
   The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the
-  generated `body-bones.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
-  with `make damage`, the bones re-traced and checked with `make anatomy`.
+  generated `body-model.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
+  with `make damage`, the figure made again from the 3D body with
+  `make hud-body`.
   Knobs in `TUNING.injury`.
 
 `run.ts` is where they meet the step: with the skier off, the skis are

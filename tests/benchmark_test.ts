@@ -111,7 +111,8 @@ describe("what the benchmark runs (benchmark-plan.ts)", () => {
   });
 
   it("is the pinned sky, in daylight from the green to the last frame", () => {
-    expect(weatherOf(ride.state.level).kind).toBe(BENCHMARK.sky.weather);
+    expect(weatherOf(ride.state.level).kind).toBe(BENCHMARK.sky.weather.kind);
+    expect(weatherOf(ride.state.level).wind).toBe(0);
     expect(sunAtRun(ride.state.level).elevation).toBeGreaterThan(0.1);
   });
 

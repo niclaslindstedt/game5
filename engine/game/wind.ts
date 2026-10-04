@@ -5,17 +5,17 @@
 // A PURE FUNCTION OF (level, t). The gusts are a sum of slow sines whose
 // phases are hashed from the map's own seed, so the same map at the same
 // second has the same wind on every machine and in every replay — and the
-// field draws NOTHING from `state.rng`, so no run's stream, and no sim
-// digest, knows it exists. Nothing in the physics reads it: it is what the
-// falling snow, the spindrift off the ridges and the clouds are carried by,
-// and it is stated here, in the engine, so whatever lets the skier feel it
-// reads the same air the picture shows: `airflowAt` below, the wind a moving
-// skier meets, is what he hears and what the HUD's wind meter reads.
+// field draws NOTHING from `state.rng`, so no run's stream knows it exists.
+// It is what the falling snow, the spindrift off the ridges and the clouds
+// are carried by — and, brought down to a skier's body where he is
+// (`airAt`), what his drag is against (`air.ts`), what he hears and what the
+// HUD's wind meter reads (`airflowAt`): one air for all of them.
 
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
-import type { Level } from "../mapgen/index.ts";
+import type { Level, TreeDef } from "../mapgen/index.ts";
 import { weatherOf } from "../mapgen/index.ts";
+import { TUNING } from "./defs/tuning.ts";
 
 /** The air at a moment: which way it moves and how fast. */
 export type Wind = {
@@ -72,11 +72,142 @@ export function windAt(
   return out;
 }
 
-/** THE AIR AS A MOVING SKIER MEETS IT — the APPARENT wind: the weather's
- * air less his own velocity. Skiing at 28 m/s into a 28 m/s headwind is
- * 56 m/s in the face; the same wind behind him is a calm. Pure, like
- * `windAt`, and read by the presentation alone (the wind he hears and the
- * HUD's wind meter) — nothing in the physics reads it. */
+// ── THE AIR WHERE A SKIER IS ────────────────────────────────────────────
+// `windAt` is the weather's mean wind as R19 states it: at 10 m over open
+// ground. A skier is a metre or so off the snow, somewhere on a mountain,
+// often among trees, and the air there is less (`TUNING.wind`):
+//   * THE LOG LAW. Over a surface of roughness z0 the mean wind grows as
+//     ln(z / z0) with height, so the wind at the body is ln(h / z0) over
+//     ln(10 / z0) of the 10 m wind — three quarters at a metre over snow.
+//   * EXPOSURE. The flow is squeezed over the ridge and lies in the lee of
+//     the valley: the 10 m wind itself runs from `valley` to `summit` of the
+//     dealt mean, linearly up the mountain's vertical.
+//   * THE WOODS. Under a closed canopy the trunk space keeps a fraction of
+//     the open wind; a lane through the woods, a glade, a lone tree keep
+//     more. The crowns' share of the ground round him (`shelterAt`, off a
+//     grid baked once a map from its trees) takes up to `shelter.most` off.
+// All of it a pure function of the map, the place and the clock, so the
+// physics, the sound and the HUD meet the same air, and a replay its own.
+
+const W = TUNING.wind;
+
+/** The crowns' share of the ground, baked once per tree list. */
+type ShelterGrid = { n: number; cell: number; cover: Float32Array };
+
+const shelters = new WeakMap<readonly TreeDef[], ShelterGrid>();
+
+/** How tall a tree must be to throw its whole shelter, m — krummholz and a
+ * sapling break the wind at a skier's knees, not at his head. */
+const SHELTER_TALL = 6;
+
+function shelterOf(trees: readonly TreeDef[], size: number): ShelterGrid {
+  const had = shelters.get(trees);
+  if (had) return had;
+  const cell = W.shelter.cell;
+  const n = Math.max(2, Math.ceil(size / cell) + 1);
+  // Each crown's area splatted into the cell its trunk stands in…
+  const crowns = new Float64Array(n * n);
+  for (const t of trees) {
+    const i = Math.min(n - 1, Math.max(0, Math.round(t.x / cell)));
+    const j = Math.min(n - 1, Math.max(0, Math.round(t.z / cell)));
+    crowns[j * n + i] += Math.PI * t.crown * t.crown * Math.min(1, t.height / SHELTER_TALL);
+  }
+  // …summed over a square of the shelter's reach round every cell, through
+  // a summed-area table, and taken as a share of the ground in it.
+  const sat = new Float64Array((n + 1) * (n + 1));
+  for (let j = 0; j < n; j++) {
+    let row = 0;
+    for (let i = 0; i < n; i++) {
+      row += crowns[j * n + i];
+      sat[(j + 1) * (n + 1) + i + 1] = sat[j * (n + 1) + i + 1] + row;
+    }
+  }
+  const k = Math.max(1, Math.round(W.shelter.radius / cell));
+  const cover = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) {
+    const j0 = Math.max(0, j - k);
+    const j1 = Math.min(n, j + k + 1);
+    for (let i = 0; i < n; i++) {
+      const i0 = Math.max(0, i - k);
+      const i1 = Math.min(n, i + k + 1);
+      const sum =
+        sat[j1 * (n + 1) + i1] -
+        sat[j0 * (n + 1) + i1] -
+        sat[j1 * (n + 1) + i0] +
+        sat[j0 * (n + 1) + i0];
+      cover[j * n + i] = Math.min(1, sum / ((i1 - i0) * (j1 - j0) * cell * cell));
+    }
+  }
+  const grid = { n, cell, cover };
+  shelters.set(trees, grid);
+  return grid;
+}
+
+/** What share of the open wind the woods leave at (x, z), 0..1 — 1 in the
+ * open, `1 − shelter.most` under a closed canopy. */
+export function shelterAt(level: Pick<Level, "trees" | "size">, x: number, z: number): number {
+  if (level.trees.length === 0) return 1;
+  const { n, cell, cover } = shelterOf(level.trees, level.size);
+  const u = Math.min(n - 1.001, Math.max(0, x / cell));
+  const v = Math.min(n - 1.001, Math.max(0, z / cell));
+  const i = Math.floor(u);
+  const j = Math.floor(v);
+  const fu = u - i;
+  const fv = v - j;
+  const a = cover[j * n + i] + (cover[j * n + i + 1] - cover[j * n + i]) * fu;
+  const b = cover[(j + 1) * n + i] + (cover[(j + 1) * n + i + 1] - cover[(j + 1) * n + i]) * fu;
+  const share = a + (b - a) * fv;
+  return 1 - W.shelter.most * Math.min(1, share / W.shelter.full);
+}
+
+/** The share of the 10 m wind left at `height` m over the snow (the log
+ * law over the snow's roughness). */
+export function profileAt(height: number): number {
+  const z0 = W.roughness;
+  return Math.log(Math.max(2 * z0, height) / z0) / Math.log(W.refHeight / z0);
+}
+
+/** What a map's place on the mountain does to the 10 m wind: `valley` on
+ * the valley floor to `summit` at the top. A map without a mountain is
+ * all one height. */
+export function exposureAt(
+  level: Pick<Level, "mountain" | "groundAt">,
+  x: number,
+  z: number,
+): number {
+  const m = level.mountain;
+  if (!m || m.vertical <= 0) return 1;
+  const up = Math.min(1, Math.max(0, (level.groundAt(x, z) - m.base.y) / m.vertical));
+  return W.valley + (W.summit - W.valley) * up;
+}
+
+/** The levels `airAt` reads. */
+export type AirLevel = Pick<Level, "seed" | "weather" | "trees" | "size" | "mountain" | "groundAt">;
+
+/** THE AIR AT (x, z), `height` m over the snow, at run time `t`: the
+ * weather's wind brought down to the height, exposed on the mountain and
+ * sheltered by the woods. `gust` is the weather's own. */
+export function airAt(
+  level: AirLevel,
+  t: number,
+  x: number,
+  z: number,
+  height: number,
+  out: Wind = { x: 0, z: 0, speed: 0, gust: 0 },
+): Wind {
+  windAt(level, t, out);
+  const k = profileAt(height) * exposureAt(level, x, z) * shelterAt(level, x, z);
+  out.x *= k;
+  out.z *= k;
+  out.speed *= k;
+  return out;
+}
+
+/** THE AIR AS A MOVING SKIER MEETS IT — the APPARENT wind: the air where
+ * he is (`airAt`) less his own velocity. Skiing at 28 m/s into a 28 m/s
+ * headwind is 56 m/s in the face; the same wind behind him is a calm. The
+ * wind he hears and the HUD's wind meter; the physics' drag is the same
+ * air (`air.ts`). */
 export type Airflow = {
   /** Velocity of the air past the skier, m/s, world frame. */
   x: number;
@@ -94,26 +225,36 @@ export type Airflow = {
   across: number;
 };
 
+/** Where a skier is and how he is moving — all `airflowAt` asks of one. */
+export type AirRider = {
+  x: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  heading: number;
+};
+
+/** The height the wind is felt at, m: a skier's body, about a metre up. */
+export const BODY_HEIGHT = 1;
+
 const AIR: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
-/** The apparent wind on a skier on `heading` moving at (vx, vy, vz) on
- * `level` at run time `t`. A skier at rest feels the weather's own wind. */
+/** The apparent wind on `rider` on `level` at run time `t`. A skier at
+ * rest feels the air where he stands. */
 export function airflowAt(
-  level: Pick<Level, "seed" | "weather">,
+  level: AirLevel,
   t: number,
-  vx: number,
-  vy: number,
-  vz: number,
-  heading: number,
+  rider: AirRider,
   out: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 },
 ): Airflow {
-  const w = windAt(level, t, AIR);
-  out.x = w.x - vx;
-  out.y = -vy;
-  out.z = w.z - vz;
+  const w = airAt(level, t, rider.x, rider.z, BODY_HEIGHT, AIR);
+  out.x = w.x - rider.vx;
+  out.y = -rider.vy;
+  out.z = w.z - rider.vz;
   out.speed = hypot3(out.x, out.y, out.z);
-  const fx = Math.sin(heading);
-  const fz = Math.cos(heading);
+  const fx = Math.sin(rider.heading);
+  const fz = Math.cos(rider.heading);
   out.head = -(out.x * fx + out.z * fz);
   out.across = out.x * fz - out.z * fx;
   return out;

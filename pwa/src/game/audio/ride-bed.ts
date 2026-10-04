@@ -135,12 +135,13 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       const pace = c.speed / topSpeedOf(spec);
 
       // ── The wind ─────────────────────────────────────────────────────
-      // THE APPARENT WIND (`airflowAt`): the weather's air less his own
+      // THE APPARENT WIND (`airflowAt`): the air where he is — the
+      // weather's, down at his body, sheltered by the woods — less his own
       // velocity — a headwind adds to his speed, a tailwind takes from it,
       // and a storm is heard standing still. Across him it is heard on the
       // side it comes from: a wind toward the engine's right comes from his
       // left, which the screen's one flip turns into the ear it lands on.
-      airflowAt(state.level, state.t, c.vx, c.vy, c.vz, c.heading, flow);
+      airflowAt(state.level, state.t, c, flow);
       wind = follow(wind, flow.speed, frame, WIND_TAU);
       const across = flow.speed > 1 ? -flow.across / flow.speed : 0;
       side = follow(side, across * SCREEN_TO_ENGINE * listener.side, frame, WIND_TAU);

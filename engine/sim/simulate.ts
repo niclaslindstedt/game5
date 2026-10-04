@@ -14,7 +14,7 @@ import { PARK_VERSION } from "../mapgen/trick-field.ts";
 import type { GameEvent } from "../game/state.ts";
 import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
-import type { Level } from "../mapgen/types.ts";
+import type { Level, WeatherKind } from "../mapgen/types.ts";
 import { botInput, RIDER_BOT, type BotProfile } from "./bot.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -42,6 +42,9 @@ export type SimOptions = {
   /** Ski the seed's map as built to this piste grade (R23); the one the
    * seed deals when left out. Ignored when `level` is given. */
   grade?: PisteGrade;
+  /** Ski the map under this sky (`withSky`) rather than the one R19 dealt
+   * it — the bot in a storm's wind, say. */
+  weather?: WeatherKind;
   /** Ski WITHOUT POLES (`SkierState.poles` — the player's hard mode); with
    * them when left out. */
   poles?: boolean;
@@ -119,6 +122,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     countdown: 0,
     spec: options.spec,
     poles: options.poles,
+    sky: options.weather ? { weather: options.weather } : undefined,
     quiet: true,
   });
   const events: GameEvent[] = [];

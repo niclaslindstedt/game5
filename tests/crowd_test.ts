@@ -142,8 +142,9 @@ describe("the crowd skis", () => {
       expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.01);
     }
     expect(speed / samples).toBeGreaterThan(2);
-    // Someone has ridden a lift and come off it onto a run.
-    const round = [...seen.values()].filter((m) => /ride,(skate,)?ski/.test(m.join(",")));
+    // Someone has ridden a lift and come off it onto a run — skated across
+    // to it, perhaps stopped there for the rest of the group, then skied.
+    const round = [...seen.values()].filter((m) => /ride,(skate,)?(stop,)?ski/.test(m.join(",")));
     expect(round.length).toBeGreaterThan(5);
     // ...and someone has come down to a lift's foot and queued for it.
     expect(

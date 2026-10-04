@@ -128,7 +128,8 @@ export type CreateGameOptions = {
    * held to daylight, and wins over `day.hour` when both are given — so a
    * race can be stood in the dark. The map itself — the ground, the loop,
    * the trees — is the seed's either way; what the physics feels of a sky
-   * is only the new snow a fall lays over the run (`snowfall.ts`). */
+   * is the new snow a fall lays over the run (`snowfall.ts`) and its wind
+   * (`air.ts`). */
   sky?: SkyOverride;
 };
 

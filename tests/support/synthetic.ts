@@ -19,8 +19,13 @@
 // powder, an optional grade FALLING along +z past `slopeFrom` and an
 // optional run of ROLLERS across it (`bumps`), with a straight piste down
 // its middle only so the Level is whole.
+//
+// Both are skied in STILL AIR (`STILL_AIR`): a figure taken on the bench is
+// the skier's own, with no wind in it. A test that wants the wind asks for
+// it with `withSky`.
 
 import {
+  CLEAR_WEATHER,
   createHeightfield,
   fillField,
   sampleField,
@@ -30,7 +35,11 @@ import {
   type Spawn,
   type TrackPoint,
   type TreeDef,
+  type Weather,
 } from "@engine";
+
+/** The bench's sky: clear, and not a breath of wind. */
+export const STILL_AIR: Readonly<Weather> = { ...CLEAR_WEATHER, wind: 0 };
 
 /** The slope's geometry, m. */
 export const SLOPE = {
@@ -184,6 +193,7 @@ function levelFrom(
     grid,
     trees,
     sun: { hour: 13, dayOfYear: 60, latitude: 46 },
+    weather: STILL_AIR,
     laps: 1,
   };
 }

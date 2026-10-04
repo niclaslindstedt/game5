@@ -38,6 +38,16 @@ describe("the bot on generated maps", () => {
     });
   }
 
+  it("gets down in a storm, the gale in its face on the traverses and all", () => {
+    // Seed 5's storm blows up a long traverse: the bot crawls it into the
+    // wind at a skater's pace, and must neither stall nor give up on it.
+    const r = simulateRun(5, { weather: "storm" });
+    expect(r.finished).toBe(true);
+    expect(r.checkpoints).toBe(r.crossings);
+    expect(r.resets).toBe(0);
+    expect(r.wipeouts).toBe(0);
+  });
+
   it("races a field and finishes on the podium or behind it, never lost", () => {
     const r = simulateRun(2, { rivals: 3 });
     expect(r.finished).toBe(true);

@@ -20,6 +20,10 @@
 //                   trick scenarios ride "tricks", so the strokes are read
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
+//
+// The bench is skied in STILL AIR (`S.STILL_AIR`); the `wind-*` scenarios
+// deal a sky with a wind in it (`windy`), stated at 10 m as R19 states it —
+// some three quarters of it reaches the skier's body.
 
 import {
   TUCK,
@@ -842,5 +846,106 @@ export const SCENARIOS = [
     measure: tricked,
   },
 ];
+
+/** A map under a clear sky with `wind` m/s at 10 m blowing FROM `from`
+ * (0 from +z, so in the face of a skier faced down the strip; π behind
+ * him; −π/2 toward his right). */
+const windy = (S, level, wind, from) => ({
+  ...level,
+  weather: { ...S.STILL_AIR, wind, windFrom: from },
+});
+
+/** Degrees the heading has come round by the end of a run. */
+const turnedDeg = (run) => fmt((run.frames[run.frames.length - 1].heading * 180) / Math.PI, 1);
+
+/** A full-edge turn to the right from 95 km/h on the flat under `from`. */
+const windTurn = (id, title, from) => ({
+  id,
+  title,
+  level: (S) => windy(S, S.flatLevel({ packed: 1 }), 18, from),
+  place: () => ({ x: 1500, z: 200, heading: 0, speed: 95 / 3.6 }),
+  seconds: 1.5,
+  view: "plan",
+  input: () => ({ ...IDLE, steer: 1 }),
+  measure: (run) => {
+    const f = run.frames[run.frames.length - 1];
+    return [
+      ["turned in 1.5 s deg", turnedDeg(run)],
+      ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ["roll deg", fmt(f.roll * 57.3, 1)],
+    ];
+  },
+});
+
+SCENARIOS.push(
+  {
+    id: "wind-head",
+    title: "a tuck down the 20° pitch into a 12 m/s headwind",
+    level: (S) => windy(S, schussStrip(S, 1), 12, 0),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-tail",
+    title: "a tuck down the 20° pitch with a 12 m/s tailwind",
+    level: (S) => windy(S, schussStrip(S, 1), 12, Math.PI),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-cross",
+    title: "hands off on the flat at 70 km/h, 15 m/s blowing from his left",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 15, -Math.PI / 2),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6 }),
+    seconds: 4,
+    view: "plan",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const settled = run.frames.filter((k) => k.t > 1);
+      const lean = settled.reduce((m, k) => m + k.roll, 0) / settled.length;
+      return [
+        ["blown aside m", fmt(f.x - 1500, 2)],
+        ["leaned into it deg", fmt(-lean * 57.3, 1)],
+        ["heading deg", turnedDeg(run)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+  windTurn(
+    "wind-turn-into",
+    "full edge right from 95 km/h, 18 m/s blowing into the turn",
+    -Math.PI / 2,
+  ),
+  windTurn(
+    "wind-turn-out",
+    "full edge right from 95 km/h, 18 m/s blowing out of the turn",
+    Math.PI / 2,
+  ),
+  {
+    id: "wind-stood",
+    title: "stood still on the flat, a 32 m/s storm at his back",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 32, Math.PI),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 8,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const moved = run.frames.find((k) => k.speed > 0.2);
+      return [
+        ["started at s", moved ? fmt(moved.t, 2) : "—"],
+        ["blown m", fmt(f.dist, 1)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+);
 
 export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);

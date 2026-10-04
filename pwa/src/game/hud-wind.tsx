@@ -2,9 +2,10 @@
 // THE WIND METER — beside the speed, the air the skier is skiing through.
 // A dial turned heading-up like the minimap (the top of it is the way he
 // faces) with two arrows on it, each pointing the way the air MOVES: a faint
-// one for the WEATHER's wind over the snow, and a bold one for the wind he
-// FEELS — that wind less his own velocity (`airflowAt`), which is what the
-// wind bed plays. At speed in still air the bold arrow points straight
+// one for the WEATHER's wind where he is — down at his body, sheltered by the
+// woods (`airAt`) — and a bold one for the wind he FEELS — that wind less his
+// own velocity (`airflowAt`), which is what the wind bed plays and what his
+// drag is against. At speed in still air the bold arrow points straight
 // down, at the player: the air streaming back past him. Into a headwind it
 // points down and the number is the two added; with a tailwind as fast as
 // he is, the number falls to nothing. The number is the felt wind, km/h,

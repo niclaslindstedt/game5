@@ -125,12 +125,16 @@ describe("the ladder", () => {
     expect(blacks[blacks.length - 1]).toBeGreaterThan(blacks[0]);
   });
 
-  it("opens and closes every shelf on a race, with two trials between", () => {
+  it("sets every slalom on a red or a black, and mixes slaloms and trials on every shelf", () => {
     for (const shelf of SHELVES) {
-      expect(shelf.levels[0].mode).toBe("slalom");
-      expect(shelf.levels[shelf.levels.length - 1].mode).toBe("slalom");
-      expect(shelf.levels.filter((l) => l.mode === "timeTrial")).toHaveLength(2);
+      const slaloms = shelf.levels.filter((l) => l.mode === "slalom");
+      for (const l of slaloms) expect(["red", "black"]).toContain(l.grade);
+      expect(slaloms.length).toBeGreaterThanOrEqual(3);
+      expect(shelf.levels.length - slaloms.length).toBeGreaterThanOrEqual(2);
     }
+    // The one blue warms up against the clock.
+    expect(FIRST.levels[0].grade).toBe("blue");
+    expect(FIRST.levels[0].mode).toBe("timeTrial");
   });
 
   it("skis every rung as one run top to bottom, and prices every trial gold under silver under bronze", () => {
@@ -226,17 +230,19 @@ describe("the locks", () => {
   });
 
   it("opens the next map on a podium, and not on fourth", () => {
-    const level = FIRST.levels[0];
-    const fourth = recordRun(EMPTY_PROGRESS, level, {
+    // The first shelf won, so the second (which opens on a slalom) is open.
+    const opened = winShelf(EMPTY_PROGRESS);
+    const level = SECOND.levels[0];
+    const fourth = recordRun(opened, level, {
       time: 1,
       skis: "hare",
       order: orderWith(4),
     });
     expect(levelCleared(fourth, level)).toBe(false);
-    expect(levelUnlocked(FIRST, 1, fourth)).toBe(false);
+    expect(levelUnlocked(SECOND, 1, fourth)).toBe(false);
     const third = recordRun(fourth, level, { time: 1, skis: "hare", order: orderWith(3) });
     expect(levelCleared(third, level)).toBe(true);
-    expect(levelUnlocked(FIRST, 1, third)).toBe(true);
+    expect(levelUnlocked(SECOND, 1, third)).toBe(true);
   });
 
   it("clears a trial on bronze and not without a medal", () => {
@@ -413,19 +419,23 @@ describe("which map a run is on", () => {
 
 describe("the finish plate on a rung", () => {
   it("pays the podium and says what opened", () => {
-    const level = FIRST.levels[0];
-    const after = recordRun(EMPTY_PROGRESS, level, { time: 1, skis: "hare", order: orderWith(1) });
-    const plate = campaignPlateFor(level, 1, 1, EMPTY_PROGRESS, after);
+    // The first shelf won, so the second (which opens on a slalom) is open.
+    const opened = winShelf(EMPTY_PROGRESS);
+    const level = SECOND.levels[0];
+    const after = recordRun(opened, level, { time: 1, skis: "hare", order: orderWith(1) });
+    const plate = campaignPlateFor(level, 1, 1, opened, after);
     expect(plate.cleared).toBe(true);
     expect(plate.award).toContain("3");
-    expect(plate.next).toBe(FIRST.levels[1]);
-    expect(plate.ladder).toContain(FIRST.levels[1].name.toUpperCase());
+    expect(plate.next).toBe(SECOND.levels[1]);
+    expect(plate.ladder).toContain(SECOND.levels[1].name.toUpperCase());
   });
 
   it("says a fourth place clears nothing and offers no next map", () => {
-    const level = FIRST.levels[0];
-    const after = recordRun(EMPTY_PROGRESS, level, { time: 1, skis: "hare", order: orderWith(4) });
-    const plate = campaignPlateFor(level, 1, 4, EMPTY_PROGRESS, after);
+    // The first shelf won, so the second (which opens on a slalom) is open.
+    const opened = winShelf(EMPTY_PROGRESS);
+    const level = SECOND.levels[0];
+    const after = recordRun(opened, level, { time: 1, skis: "hare", order: orderWith(4) });
+    const plate = campaignPlateFor(level, 1, 4, opened, after);
     expect(plate.cleared).toBe(false);
     expect(plate.next).toBeNull();
     expect(plate.ladder).not.toBeNull();

@@ -204,7 +204,6 @@ export function App() {
   /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`,
    * otherwise dealt fresh after every race stood up. */
   const [nextSeed, setNextSeed] = useState(() => params.seed ?? dealSeed());
-  const [skiers, setSkiers] = useState(4);
   /** THE MAP THE MENU IS STANDING OVER — what the TIME TRIAL tile rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
@@ -405,8 +404,6 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
       audio.reset();
       runRumble.reset();
-      // The RACE tile's line reads a race's field, never a trial's.
-      if (next.rules.rivals > 0) setSkiers(next.rivals.length + 1);
     };
 
     /** What this step is ridden on: the player's hands on a run, and the BOT
@@ -891,7 +888,6 @@ export function App() {
           onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}
-          skiers={skiers}
           trial={{
             seed: trialSeed,
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,

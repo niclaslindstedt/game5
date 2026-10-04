@@ -16,7 +16,9 @@
 // so a time in the record book is a time down a piste somebody else can
 // ride. The map is ON the tile — the name the level card last picked. A link
 // that pinned a seed says so instead, because that visit rides the seed.
-// The race is one run top to bottom against three skiers; the trial is the
+// The SLALOM is two runs against a field of thirty, one on the course at a
+// time; under it the disciplines named and not built yet, dimmed and not
+// pressable (`DISCIPLINES`). The trial is the
 // same piste alone against the clock, the record book's row for that
 // mountain and pair, and the ghost of the run that set it (`ghost-run.ts`).
 // TRICKS beside them: two minutes on the map's trick field (R20), alone, the
@@ -34,6 +36,7 @@
 // of one.
 
 import { useEffect, useRef } from "preact/hooks";
+import { DISCIPLINES, SLALOM } from "@engine";
 
 import { APP_NAME, REPO_URL } from "../identity.ts";
 import { MarkTrails } from "./mark-trails.tsx";
@@ -71,7 +74,6 @@ export function MainMenu({
   trialMap,
   seed,
   pinned,
-  skiers,
   trial,
   onRace,
   onFree,
@@ -95,7 +97,6 @@ export function MainMenu({
   seed: number;
   /** Whether a link pinned it. */
   pinned: boolean;
-  skiers: number;
   /** The TIME TRIAL tile: its seed and the row standing. */
   trial: { seed: number; best: { time: number; skis: string } | null };
   onRace: () => void;
@@ -155,12 +156,20 @@ export function MainMenu({
               <span class="menu-tile-name">{STRINGS.menuRace}</span>
               <span class="menu-tile-line">
                 {raceMap === null
-                  ? STRINGS.menuRaceLine(seed, skiers)
+                  ? STRINGS.menuRaceLine(seed, SLALOM.field + 1)
                   : STRINGS.menuPinnedLine(raceMap)}
               </span>
               {pinned && <span class="menu-tile-line">{STRINGS.menuRacePinned}</span>}
             </span>
           </button>
+          <div class="menu-disciplines" aria-disabled="true">
+            {DISCIPLINES.filter((d) => d.mode === null).map((d) => (
+              <span key={d.id} class="menu-discipline">
+                {STRINGS.disciplines[d.id]}
+              </span>
+            ))}
+            <span class="menu-discipline-soon">{STRINGS.menuComing}</span>
+          </div>
           <button
             type="button"
             class="menu-tile menu-tile-wide"

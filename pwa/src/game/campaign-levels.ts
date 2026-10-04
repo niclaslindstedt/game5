@@ -33,7 +33,11 @@
 //
 // THE CAMPAIGN RACES RED AND BLACK. The greens and the blues are the free
 // ride's; a rung is a red or a black, with ONE blue to warm up on — the
-// very first rung of the first shelf. The shelves blacken as they climb,
+// very first rung of the first shelf, a time trial, because A SLALOM IS
+// NEVER SET ON AN EASY HILL: every slalom rung is a red or a black whose
+// slalom stretch (R31) is a real slalom hill, and a map whose stretch is
+// gentle, or cut short by its drops, is raced against the clock instead.
+// The shelves blacken as they climb,
 // and every rung is ordered by how hard it really is on the rating's index
 // (`make rate CAMPAIGN=1`) — the steepest pitch, the drop, the air, the
 // drops across the piste, the sky — because two blacks can be a world
@@ -68,9 +72,13 @@
 // the shelves the share of black climbs (0, 2, 3, 4) and so does the
 // shelf's mean ask.
 //
-// THE RUNG ORDER is a race, a time trial, two races, a time trial and a race
-// — six rungs, so four races around two trials, and the race both OPENS and
-// CLOSES a shelf.
+// THE RUNG ORDER mixes slaloms and time trials, the slalom on the maps
+// whose stretch is a slalom hill: HIGH CIRQUE a slalom, a trial, two
+// slaloms, a trial and a slalom, the slalom opening and closing it; RIME
+// WOODS opens on its blue against the clock and closes on two slaloms;
+// FROST BASIN closes on two trials, its last black cut up by its drops;
+// COLD CREST puts its storm black against the clock and its steep wall to a
+// slalom, four slaloms round two trials.
 //
 // EVERY MAP IS SKIED ON THE HOUR, THE SEASON AND THE SKY ITS COURSE WAS
 // DEALT (R15, R19 — each course of a resort is dealt a day of its own) —
@@ -164,9 +172,9 @@ const RIME_WOODS: CampaignShelf = {
     {
       id: "rime-1",
       name: "Fog Opener",
-      blurb: "The one blue: wide turns through the rimed firs in a valley fog, one kicker",
+      blurb: "The one blue, against the clock: wide turns through the rimed firs in a valley fog",
       seed: 4,
-      mode: "slalom",
+      mode: "timeTrial",
       laps: 1,
       version: 4,
       digest: "4a43faec",
@@ -174,14 +182,14 @@ const RIME_WOODS: CampaignShelf = {
       grade: "blue",
       course: "4",
       day: { weather: "fog", hour: 12.65 },
+      medals: { gold: 149, silver: 157, bronze: 172 },
     },
     {
       id: "rime-2",
       name: "First Red",
-      blurb:
-        "Against the clock down the first red, five kickers and four hundred metres of drop in the sun",
+      blurb: "The first slalom, set on the steepest of the first red in the sun",
       seed: 4,
-      mode: "timeTrial",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "fbe8009e",
@@ -189,14 +197,13 @@ const RIME_WOODS: CampaignShelf = {
       grade: "red",
       course: "11",
       day: { weather: "clear", hour: 14.29 },
-      medals: { gold: 180, silver: 189, bronze: 206 },
     },
     {
       id: "rime-3",
       name: "Flurry Line",
-      blurb: "A short red raced through flurries, four kickers between the firs",
+      blurb: "Against the clock down a short red through flurries, four kickers between the firs",
       seed: 4,
-      mode: "slalom",
+      mode: "timeTrial",
       laps: 1,
       version: 4,
       digest: "0fc67945",
@@ -204,14 +211,14 @@ const RIME_WOODS: CampaignShelf = {
       grade: "red",
       course: "3",
       day: { weather: "flurries", hour: 15.16 },
+      medals: { gold: 121, silver: 127, bronze: 138 },
     },
     {
       id: "rime-4",
       name: "Late Sun",
-      blurb:
-        "A short red in the late afternoon sun under fair-weather cloud, three kickers down to the village",
+      blurb: "The clock down a short red in the late sun under fair-weather cloud, to the village",
       seed: 4,
-      mode: "slalom",
+      mode: "timeTrial",
       laps: 1,
       version: 4,
       digest: "5b92d38a",
@@ -220,13 +227,14 @@ const RIME_WOODS: CampaignShelf = {
       course: "5",
       sky: { weather: "fair" },
       day: { weather: "fair", hour: 16.87 },
+      medals: { gold: 114, silver: 119, bronze: 130 },
     },
     {
       id: "rime-5",
-      name: "Top to Village",
-      blurb: "The clock over three kilometres of red, from the top lift to the village",
+      name: "Village Face",
+      blurb: "A slalom on the steep face above the village, a hundred and ninety metres of it",
       seed: 4,
-      mode: "timeTrial",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "db8b3a93",
@@ -234,7 +242,6 @@ const RIME_WOODS: CampaignShelf = {
       grade: "red",
       course: "7",
       day: { weather: "clear", hour: 15.3 },
-      medals: { gold: 265, silver: 278, bronze: 304 },
     },
     {
       id: "rime-6",
@@ -436,9 +443,10 @@ const FROST_BASIN: CampaignShelf = {
     {
       id: "basin-6",
       name: "Basin Wall",
-      blurb: "The last race off the top of the basin: a thousand metres of black and seven drops",
+      blurb:
+        "The last word off the top of the basin: the clock down a thousand metres of black and seven drops",
       seed: 10,
-      mode: "slalom",
+      mode: "timeTrial",
       laps: 1,
       version: 4,
       digest: "a99433e3",
@@ -446,6 +454,7 @@ const FROST_BASIN: CampaignShelf = {
       grade: "black",
       course: "9",
       day: { weather: "high", hour: 9.4 },
+      medals: { gold: 235, silver: 247, bronze: 270 },
     },
   ],
 };
@@ -508,9 +517,9 @@ const COLD_CREST: CampaignShelf = {
       id: "crest-4",
       name: "Storm Black",
       blurb:
-        "A black raced into a storm, four drops across the piste and the next gate lost in the spindrift",
+        "Against the clock down a black into a storm, four drops and the next one lost in the spindrift",
       seed: 77,
-      mode: "slalom",
+      mode: "timeTrial",
       laps: 1,
       version: 4,
       digest: "6c263fb2",
@@ -518,14 +527,14 @@ const COLD_CREST: CampaignShelf = {
       grade: "black",
       course: "11",
       day: { weather: "storm", hour: 10.97 },
+      medals: { gold: 159, silver: 167, bronze: 182 },
     },
     {
       id: "crest-5",
       name: "Falling Snow",
-      blurb:
-        "Against the clock down a black of six kickers in falling snow, every roll hard to read",
+      blurb: "A slalom on the steepest wall of the crest in falling snow, every gate hard to read",
       seed: 77,
-      mode: "timeTrial",
+      mode: "slalom",
       laps: 1,
       version: 4,
       digest: "140db917",
@@ -534,7 +543,6 @@ const COLD_CREST: CampaignShelf = {
       course: "12",
       sky: { weather: "snow" },
       day: { weather: "snow", hour: 9.26 },
-      medals: { gold: 165, silver: 173, bronze: 189 },
     },
     {
       id: "crest-6",

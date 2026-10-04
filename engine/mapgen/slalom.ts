@@ -55,9 +55,10 @@ export type SlalomStretch = { from: number; to: number; vertical: number };
 
 const stretches = new WeakMap<Level, SlalomStretch>();
 
-/** R31 — THE STRETCH: the steepest stretch of the piste that drops the
- * first of `slalom.drops` the piste has, wide enough, clear of its drops,
- * its finish on a gentler run-out. A pure function of the map, kept per
+/** R31 — THE STRETCH: the stretch of the piste that drops one of
+ * `slalom.drops`, wide enough, clear of its drops, its finish on a gentler
+ * run-out — the steepest to the top level's gradient, then the longest
+ * drop (`slalom.pick`). A pure function of the map, kept per
  * map. */
 export function slalomStretch(level: Level): SlalomStretch {
   const known = stretches.get(level);
@@ -74,8 +75,10 @@ export function slalomStretch(level: Level): SlalomStretch {
   const step = L / Math.max(1, n - 1);
   const at = (s: number): number => clamp(Math.round(s / step), 0, n - 1);
   let found: SlalomStretch | null = null;
+  let best = -Infinity;
   for (const drop of S.drops) {
-    let best = -Infinity;
+    // The top level's drops compete; a shorter one only where none fits.
+    if (found && drop < S.pick.least) break;
     for (let b = n - 1; b > 0; b -= 5) {
       const sB = pts[b].s;
       const yB = pts[b].y;
@@ -101,15 +104,17 @@ export function slalomStretch(level: Level): SlalomStretch {
       if (narrow) continue;
       if (blocked.some(([lo, hi]) => hi > sA - 20 && lo < sB + S.outrunLength)) continue;
       const vertical = pts[a].y - yB;
-      // The steepest, to the top level's gradient; lower down the mountain
-      // where two are as steep, nearer the village people walk up from.
-      const score = Math.min(vertical / (sB - sA), 0.42) + 0.03 * (sB / L);
+      // The steepest, to the top level's gradient — a slalom hill is never
+      // an easy one — then the most vertical; lower down the mountain where
+      // two are alike, nearer the village people walk up from.
+      const P = S.pick;
+      const score =
+        Math.min(vertical / (sB - sA), P.steep) + P.vertical * vertical + P.low * (sB / L);
       if (score > best) {
         best = score;
         found = { from: sA, to: sB, vertical };
       }
     }
-    if (found) break;
   }
   // A piste with no stretch to set one on: its last few hundred metres.
   if (!found) {

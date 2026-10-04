@@ -58,7 +58,7 @@ import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
 import { launchGait } from "./skier-gait.ts";
-import { slalomStart } from "./slalom-start.ts";
+import { kickStand, slalomStart } from "./slalom-start.ts";
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
@@ -446,6 +446,8 @@ export function createSkisModel(
       // the same stand).
       stepChatter(chatter, skier, dt);
       shakeStand(stand, skier, ground, chatter);
+      // ...and out of a slalom's start house, the heels kicked.
+      kickStand(stand, skier.launch);
       pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {

@@ -2606,6 +2606,31 @@ canvas {
   color: rgb(255 255 255 / 82%);
 }
 
+/* THE DISCIPLINES NOT BUILT YET, under SLALOM: a dim row of their names
+   across the grid and a COMING tag — words, not tiles, because nothing in it
+   can be pressed. */
+.menu-disciplines {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.9rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: rgb(255 255 255 / 45%);
+  pointer-events: none;
+}
+
+.menu-discipline-soon {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 0.25rem;
+  color: rgb(255 255 255 / 60%);
+}
+
 /* THE SHEEN — a bar of light travelling the hero, the one moving thing on a
    card that stands over moving snow. It is a transform and an opacity and
    nothing else, so it is composited rather than repainted: this card is up

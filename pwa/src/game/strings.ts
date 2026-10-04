@@ -230,9 +230,19 @@ export const STRINGS = {
   splashPress: "PRESS ANY KEY TO START",
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
-  menuRace: "RACE",
+  menuRace: "SLALOM",
   menuRaceLine: (seed: number, skiers: number): string =>
-    `SEED ${seed} · TOP TO BOTTOM · ${skiers} SKIERS`,
+    `SEED ${seed} · TWO RUNS · ${skiers} SKIERS`,
+  /** THE DISCIPLINES the game names and has not built yet, under SLALOM. */
+  menuComing: "COMING",
+  disciplines: {
+    slalom: "SLALOM",
+    giantSlalom: "GIANT SLALOM",
+    superG: "SUPER-G",
+    downhill: "DOWNHILL",
+    skiCross: "SKI CROSS",
+    speedSki: "SPEED SKIING",
+  },
   menuRacePinned: "PINNED BY THE LINK",
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",

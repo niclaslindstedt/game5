@@ -50,8 +50,10 @@
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
 //   R31 THE SLALOM COURSE. A slalom is set on a built map's piste, on the
-//       steepest stretch of it that drops `slalom.vertical` metres (the
-//       first of `slalom.drops` the piste has) between a START and a
+//       stretch of it that drops one of `slalom.drops` metres, the
+//       steepest to the top level's gradient and then the longest drop
+//       (`slalom.pick`; a drop under `slalom.pick.least` only where none
+//       over it fits), between a START and a
 //       FINISH, no longer than `slalom.maxLength`, nowhere narrower than
 //       `slalom.minWidth`, crossing no drop on the piste, its finish on a
 //       gentler run-out (no steeper than `slalom.outrun` over the
@@ -87,6 +89,13 @@ export const DISCIPLINE_RULES = {
     /** The vertical drops a slalom is set to, m, tried in order: the top
      * level's, then a lower race's, then an entry league's. */
     drops: [190, 160, 140, 110, 80] as readonly number[],
+    /** Which stretch wins: its gradient, counted to the top level's
+     * steepest (`steep`), then `vertical` a metre of drop and `low` for
+     * the foot of the piste — so a steep 140 m beats a gentle 190 m, and a
+     * slalom is never set on an easy hill where the piste has a hard one.
+     * The drops from `least` up compete so; a shorter one is tried only
+     * where none of those fits. */
+    pick: { steep: 0.45, vertical: 0.0004, low: 0.03, least: 140 },
     vertical: { min: 140, max: 220 } as Band,
     /** The longest a slalom runs down the piste, m: a top-level slalom
      * hill is about 590 m long. */

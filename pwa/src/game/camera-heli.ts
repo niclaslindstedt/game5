@@ -30,7 +30,7 @@ export const HELI_LOOK = {
   high: { dist: 10, distPerSpeed: 0.1, height: 42, ahead: 4, fov: 64 },
   /** The rider's eye: over his seat by `up` m, out over the skid by `out`
    * m; the look out and down, and its fov. */
-  eye: { up: 1.05, out: 0.25, lookOut: 6, lookFwd: 3, lookDown: 4.5, fov: 78 },
+  eye: { up: 1.05, out: 0.25, lookOut: 6, lookFwd: 3, lookDown: 3, fov: 80 },
   /** How briskly the boom swings after the heading, 1/s, and the share of
    * the way it is going it leans toward at speed. */
   yaw: 2.2,

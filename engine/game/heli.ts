@@ -113,6 +113,7 @@ export function freshHeli(state: GameState): HeliState {
     agl: K.rotor.hub,
     rider: false,
     t: 0,
+    away: true,
     jumpWas: false,
     wreck: null,
     hang: HANG_GROUND,
@@ -428,6 +429,10 @@ function crash(run: GameState, h: HeliState, events: GameEvent[], speed: number)
   h.vx = h.vy = h.vz = 0;
   h.yawRate = h.pitchRate = h.rollRate = 0;
   h.disc.pitchRate = h.disc.rollRate = 0;
+  // Down onto the snow, whatever it struck on the way — a crown leaves no
+  // machine hanging in it.
+  h.y = run.level.groundAt(h.x, h.z);
+  h.grounded = true;
   h.spool = 0;
   h.thrust = 0;
   h.collective = 0;
@@ -501,6 +506,7 @@ function drop(run: GameState, h: HeliState, events: GameEvent[]): void {
     standSkier(run, c.x, c.z, Math.atan2(c.vx, c.vz) || h.heading);
   }
   say(run, events, "drop", hypot3(h.vx, h.vy, h.vz));
+  h.away = false;
   // Landed, the pilot shuts down where it stands — there is nobody left to
   // fly; in the air he takes the controls and flies it home.
   h.mode = h.grounded ? "parked" : "home";
@@ -514,7 +520,13 @@ function boardAt(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
   if (c.thrown || c.lift || c.tunnel) return;
   const seat = heliPoint(h, SEAT);
-  if (hypot(c.x - seat.x, c.z - seat.z) > K.board.reach || c.speed > K.board.fastest) return;
+  const off = hypot(c.x - seat.x, c.z - seat.z);
+  // Stepped off, he has to go before he can come back.
+  if (!h.away) {
+    if (off > K.board.reach + 2) h.away = true;
+    return;
+  }
+  if (off > K.board.reach || c.speed > K.board.fastest) return;
   h.rider = true;
   h.mode = "flown";
   h.t = 0;

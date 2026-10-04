@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -295,6 +295,22 @@ audience:
 # like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE HELICOPTER LAB: the free ride's helicopter staged at every event it
+# has and photographed through the game's renderer — parked on its pad and
+# lit up for a skier riding in, boarded (the rotor spooling, the rider on
+# the skid close up), lifting off and hovering in its wash over deep powder,
+# cruising and banked, the rider's eye, set down on a summit flat and
+# stepped off, the drop over a steep face and the fall into the powder, the
+# machine flying home, the crash's explosion frame by frame and the burning
+# wreck, the restart, the night, and the model alone on a turntable — one
+# contact sheet a group, previews/heli-<group>.png, and every frame alone,
+# previews/heli-<view>-<label>.png. Its own one-off bundle from
+# pwa/heli-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n REGION=id; ARGS="--sheet=crash,drop"; ARGS="--views=wash,impact";
+# ARGS="--weather=clear --sheets-only".
+heli:
+	npm run heli -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

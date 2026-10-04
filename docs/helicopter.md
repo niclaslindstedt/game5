@@ -21,6 +21,8 @@ There is no ceiling, by design. That is the point of the game it makes: climb, p
 | The machine as drawn (the model, the rotor blur disc, the lights, the pad and the wind sock, the wreck, the wash's snow) | `pwa/src/game/heli-view.ts` |
 | The explosion and the fire on the wreck | `pwa/src/game/explosion.ts` |
 | The lens while riding it | `pwa/src/game/camera-heli.ts` |
+| The rider's legs and skis swinging off the skid | `pwa/src/game/skier-dangle.ts` (fed by `heli-scene.ts`'s `perch`) |
+| The screenshot lab | `make heli` — `scripts/heli-preview.mjs` over `pwa/src/tools/heli-harness.ts`, `heli-scenes.ts`, `heli-spots.ts` |
 | Everything the renderer holds it by | `pwa/src/game/heli-scene.ts` |
 | The HUD's readout | `pwa/src/game/hud-heli.tsx`, `pwa/src/heli.css` |
 | The sound | `pwa/src/game/audio/heli-*.ts` (see `docs/audio.md`) |
@@ -124,6 +126,8 @@ While the skier rides it, the helicopter takes the lens (`camera-heli.ts`):
 - FAR: the same, further out;
 - HIGH: high over it, looking down at the drop;
 - TIPS and HELMET: the RIDER'S EYE, out over his skis at the snow below.
+
+THE RIDER on the skid is not a statue (`skier-dangle.ts`): each leg — shin, boot and ski, hung at the knee — is a damped pendulum, swung by gravity less the machine's acceleration (so the legs keep hanging toward the snow as the machine tilts and trail as it brakes), blown downwind by the air past his boots (the weather's wind and the rotor's wash, less his own way), shaken at the rotor's blade-passage rate, and kicked now and then by his own idle swing; the two legs are a little unlike, so they drift out of step. On the snow the dangle fades out as his skis come down to rest.
 
 The explosion (`explosion.ts`) is a fireball rather than a blast, because a light helicopter's fuel deflagrates. It is a swelling ball of fire rising into a column of black smoke, with a flash, the airframe's debris flung out and bouncing on the snow, a ring of thrown snow, and then the wreck left burning.
 

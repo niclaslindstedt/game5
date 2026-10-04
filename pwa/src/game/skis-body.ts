@@ -76,7 +76,15 @@ import {
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
-import { CHAIR_SEAT } from "./skier-seat.ts";
+import { CHAIR_SEAT, seatedPose, type Seat } from "./skier-seat.ts";
+import {
+  createDangle,
+  resetDangle,
+  stepDangle,
+  swingLegs,
+  swingOf,
+  type Perch,
+} from "./skier-dangle.ts";
 
 /** How long a rider takes to stand up off a chair, s. */
 const STAND_UP = 0.35;
@@ -150,9 +158,9 @@ export type SkisModel = {
   ): void;
   setSkierVisible(visible: boolean): void;
   /** SAT ON A HELICOPTER'S SKID (`heli.ts`): the skid's top in his body
-   * frame, m (minus the engine's `HeliState.hang`), or null off it — read
-   * at the next pose. */
-  setPerch(y: number | null): void;
+   * frame and what his dangling legs feel there (`skier-dangle.ts`), or
+   * null off it — read at the next pose. */
+  setPerch(perch: Perch | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -454,9 +462,11 @@ export function createSkisModel(
   const BOUND = bound.radius;
   // How seated he is drawn, eased down as he stands off a chair.
   let seated = 0;
-  // The helicopter's skid he is sat on, if any (`setPerch`).
-  let perch: number | null = null;
+  // The helicopter's skid he is sat on, if any (`setPerch`), and his legs
+  // dangling off it (`skier-dangle.ts`).
+  let perch: Perch | null = null;
   let lastPerch: number | null = null;
+  const dangle = createDangle();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
 
@@ -505,14 +515,17 @@ export function createSkisModel(
       // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
       // feet, so the drawn origin goes inside the turn by the legs' length
       // times the sine of the inclination.
-      const angle = drawnSkiAngle(legs, skier);
+      // Hanging off a skid the skis are neither pivoted nor edged.
+      const hung = perch !== null && !off;
+      const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off ? 0 : groundOf(skier, legs);
       standOf(skier, ground, stand, inclineAt(skier, at.q), angle);
+      if (hung) stand.tilt = 0;
       // ...and SHAKEN at speed: each ski hopping, flapping and rocking on
       // the snow passing under it, the knees taking it (the boots stand on
       // the same stand).
       stepChatter(chatter, skier, dt);
-      shakeStand(stand, skier, ground, chatter);
+      shakeStand(stand, skier, hung ? 0 : ground, chatter);
       pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
@@ -541,28 +554,58 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        const input = poseInputOf(skier, legs, mounts, trick, waiting, stand);
+        const pose = poseInputOf(skier, legs, mounts, trick, waiting, stand);
+        // Hung, the stand is moved with the boots below, after the figure's
+        // input has read it: the input keeps the stand as it stood.
+        const input = hung
+          ? {
+              ...pose,
+              skiAngle: 0,
+              body: undefined,
+              lift: [stand.lift[0], stand.lift[1]] as const,
+              spread: [stand.out[0], stand.out[1]] as const,
+              fore: [stand.fore[0], stand.fore[1]] as const,
+            }
+          : pose;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
         const sat = skier.lift?.kind === "chair" && skier.lift.phase !== "lead";
         const share = perch !== null ? 1 : sat ? seatedShare(skier.lift!) : 0;
         seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
-        const seatY = perch ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
-        if (perch !== null) lastPerch = perch;
+        const seatY = perch?.y ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
+        if (perch !== null) lastPerch = perch.y;
         else if (sat) lastPerch = null;
-        const seat = seated > 0 ? { share: seated, y: seatY } : null;
+        const seat: Seat | null = seated > 0 ? { share: seated, y: seatY } : null;
+        if (hung && seat) {
+          // HIS LEGS DANGLING off the skid (`skier-dangle.ts`), swung by the
+          // machine, the air and himself — the figure's lower legs turned
+          // about the knees, and each ski moved and turned with its boot
+          // on the stand both the code's skis and the model's stand on.
+          stepDangle(dangle, perch!, dt);
+          const swing = swingOf(dangle, perch!);
+          const { skis } = swingLegs(seatedPose(input, seat), swing, mounts);
+          seat.legs = swing;
+          for (let i = 0; i < 2; i++) {
+            stand.out[i] += skis[i].dx;
+            stand.lift[i] += skis[i].dy;
+            stand.fore[i] += skis[i].dz;
+            stand.pitch[i] += skis[i].pitch;
+            stand.rock[i] += skis[i].rock;
+          }
+        } else resetDangle(dangle);
         figure.pose(input, seat);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
       gear.pose(skier, sink, angle, stand);
-      // The chatter's flap and rock on the code's skis, about each ski's
-      // own across and length (tips up a negative turn about +x).
+      // The chatter's (and a dangling leg's) flap and rock on the code's
+      // skis, about each ski's own across and then its length (tips up a
+      // negative turn about +x) — the order the model's rig turns them in.
       for (let i = 0; i < 2; i++) {
         if (stand.pitch[i] === 0 && stand.rock[i] === 0) continue;
         gear.skis[i].quaternion.multiply(
-          flap.setFromEuler(shook.set(-stand.pitch[i], 0, -stand.rock[i])),
+          flap.setFromEuler(shook.set(-stand.pitch[i], 0, -stand.rock[i], "ZYX")),
         );
       }
       // THE SKIS LET GO (`lone-skis.ts`): each laid where its own body
@@ -599,8 +642,8 @@ export function createSkisModel(
     setGround(ground, gravity) {
       fall = ground ? { ground, gravity } : null;
     },
-    setPerch(y) {
-      perch = y;
+    setPerch(p) {
+      perch = p;
     },
     setSkierVisible(v) {
       if (figure.group.visible === v) return;

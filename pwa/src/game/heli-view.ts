@@ -28,6 +28,7 @@ import {
   type Wash,
 } from "@engine";
 
+import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { heliModelUrl } from "./skier-models.ts";
 
@@ -38,6 +39,8 @@ const LIGHT_UP = 90;
  * hover; the radius band they rise in, rotor radii. */
 const WASH_RATE = 70;
 const WASH_BAND = [0.6, 2.4] as const;
+/** What a burnt airframe goes to: soot. */
+const SOOT = new THREE.Color(0.035, 0.032, 0.03);
 
 /** A puff the wash throws: where, its velocity, its size, m. */
 export type WashPuff = (
@@ -239,13 +242,33 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   machine.add(disc);
   const marks = padMarks(level);
   group.add(marks.group);
-  // THE BEACON: a red flash on the tail fin's top, and a white strobe.
-  const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 8, 6),
-    new THREE.MeshBasicMaterial({ color: 0xff2010 }),
-  );
-  beacon.position.set(0, 2.55, -6.8);
-  machine.add(beacon);
+  // THE LIGHTS as haloes, in the model's own frame (the glTF's: x its
+  // right, y up, z aft): the red anti-collision beacons on the fin's top and
+  // the belly, the nav lights at the stabiliser's tips — red to port, green
+  // to starboard — and the white strobe that calls a skier to it.
+  const lights = new THREE.Group();
+  lights.rotation.y = Math.PI;
+  machine.add(lights);
+  const halo = (colour: number, x: number, y: number, z: number, size: number) => {
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glow(),
+        color: colour,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        fog: false,
+      }),
+    );
+    sprite.position.set(x, y, z);
+    sprite.scale.set(size, size, 1);
+    sprite.renderOrder = 9;
+    lights.add(sprite);
+    return sprite;
+  };
+  const beacons = [halo(0xff2a10, 0, 2.62, 6.75, 2.2), halo(0xff2a10, 0, 0.42, 0.6, 2)];
+  const navs = [halo(0xff3020, -1.2, 1.45, 5.55, 1.2), halo(0x30ff60, 1.2, 1.45, 5.55, 1.2)];
+  const strobe = halo(0xe8f4ff, 0, 2.1, 1.0, 6);
   let disposed = false;
 
   const adopt = (root: THREE.Object3D): void => {
@@ -296,8 +319,20 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   };
   const wash: Wash = { x: 0, y: 0, z: 0 };
 
+  /** Each material's finish as built, put back when a wreck is cleared. */
+  const finish = new Map<THREE.MeshStandardMaterial, { rough: number; metal: number }>();
+
+  /** THE WRECK: every surface burnt — dark, sooted, matte — and back. */
   function blacken(on: boolean): void {
-    for (const [m, c] of originals) m.color.copy(c).multiplyScalar(on ? 0.12 : 1);
+    for (const [m, c] of originals) {
+      if (!finish.has(m)) finish.set(m, { rough: m.roughness, metal: m.metalness });
+      const f = finish.get(m)!;
+      m.color.copy(c).multiplyScalar(on ? 0.05 : 1);
+      if (on) m.color.lerp(SOOT, 0.6);
+      m.roughness = on ? 1 : f.rough;
+      m.metalness = on ? 0 : f.metal;
+      if (m instanceof THREE.MeshPhysicalMaterial) m.clearcoat = on ? 0 : m.clearcoat;
+    }
     wrecked = on;
   }
 
@@ -325,9 +360,13 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       const wreck = h.mode === "wreck";
       if (wreck !== wrecked) blacken(wreck);
       if (wreck) {
-        // Down on its side, the rotor stopped and bent.
+        // Down on its side, the rotor stopped, its mast bent over.
         machine.rotateZ(0.55);
         machine.rotateX(0.12);
+      }
+      if (rotor) {
+        rotor.rotation.x = wreck ? 0.32 : 0;
+        rotor.rotation.z = wreck ? -0.22 : 0;
       }
       // THE ROTORS: the blades drawn at a strobed turn as they come up to
       // speed, the disc thickening over them.
@@ -343,12 +382,17 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       const near = Math.hypot(player.x - h.x, player.z - h.z);
       const waiting = h.mode === "parked" && !h.rider && near < LIGHT_UP;
       const pulse = 0.5 + 0.5 * Math.sin(clock * 5);
-      beacon.visible = (s > 0.05 || waiting) && clock % 1 < 0.12;
+      // The beacons flash once a second while the rotor turns or it waits
+      // for him; the nav lights burn steady with the engine running; the
+      // strobe double-flashes over a machine waiting for a skier.
+      const live = !wrecked && (s > 0.05 || waiting);
+      const flash = clock % 1 < 0.12;
+      for (const b of beacons) b.visible = live && flash;
+      for (const n of navs) n.visible = live;
+      const beat = clock % 1.2;
+      strobe.visible = !wrecked && waiting && (beat < 0.06 || (beat > 0.16 && beat < 0.22));
       for (const m of lampMats) {
-        m.emissiveIntensity = waiting ? 1 + 2 * pulse : s > 0.05 ? 0.8 : 0.15;
-      }
-      for (const [m] of originals) {
-        if (!wrecked) m.emissive.setRGB(0.08, 0.2, 0.3).multiplyScalar(waiting ? pulse * 0.6 : 0);
+        m.emissiveIntensity = live ? (flash ? 1.2 : 0.4) : 0.1;
       }
       marks.glow.opacity = waiting ? 0.25 + 0.5 * pulse : 0;
       marks.lamps.color.setRGB(0.2, waiting ? 0.6 + 0.4 * pulse : 0.45, 0.3);
@@ -378,14 +422,16 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
         if (random() > 0.25 + 0.75 * snow) continue;
         const g = state.level.groundAt(px, pz);
         washAt(state.level, h, px, g + 0.4, pz, wash);
+        // Off the snow by its own size, so a puff's edge never cuts on it.
+        const size = 1 + random() * 1.5;
         puff(
           px,
-          g + 0.3,
+          g + 0.5 + size * 0.6,
           pz,
           wash.x * 0.7 + h.vx * 0.2,
           1 + random() * (1 + vi * 0.25),
           wash.z * 0.7 + h.vz * 0.2,
-          1 + random() * 1.5,
+          size,
         );
       }
     },

@@ -65,7 +65,7 @@ export type Explosion = {
 /** A soft round sprite drawn once on a canvas: a hot core for the fire, a
  * lumpy grey for the smoke. */
 function discTexture(kind: "fire" | "smoke"): THREE.Texture {
-  const n = 64;
+  const n = 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = n;
   const ctx = canvas.getContext("2d")!;
@@ -76,12 +76,31 @@ function discTexture(kind: "fire" | "smoke"): THREE.Texture {
     g.addColorStop(0.6, "rgba(230,90,20,0.55)");
     g.addColorStop(1, "rgba(120,20,0,0)");
   } else {
-    g.addColorStop(0, "rgba(255,255,255,0.85)");
-    g.addColorStop(0.55, "rgba(255,255,255,0.45)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
+    // Smoke is lumpy: a dozen soft blobs piled into a billow, so a column of
+    // them reads as rolling smoke rather than a stack of discs.
+    ctx.clearRect(0, 0, n, n);
+    let seed = 7;
+    const rand = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 14; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = rand() * n * 0.22;
+      const cx = n / 2 + Math.cos(a) * r;
+      const cy = n / 2 + Math.sin(a) * r;
+      const rad = n * (0.14 + rand() * 0.16);
+      const b = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      b.addColorStop(0, "rgba(255,255,255,0.5)");
+      b.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = b;
+      ctx.fillRect(0, 0, n, n);
+    }
+    return finishTexture(canvas);
   }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, n, n);
+  return finishTexture(canvas);
+}
+
+function finishTexture(canvas: HTMLCanvasElement): THREE.Texture {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -126,10 +145,13 @@ export function createExplosion(): Explosion {
   const fire = pool(FIRE, "fire");
   const smoke = pool(SMOKE, "smoke");
   const debrisGeo = new THREE.BoxGeometry(1, 1, 1);
-  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x1b1918, roughness: 0.9 });
-  mats.push(debrisMat);
-  const pieces: Piece[] = Array.from({ length: DEBRIS }, () => {
-    const mesh = new THREE.Mesh(debrisGeo, debrisMat);
+  // The airframe's own pieces: burnt, its paint, its belly's white, metal.
+  const debrisMats = [0x1b1918, 0x2a2624, 0x7a1612, 0x8d8a86, 0x3a3f44].map(
+    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.85 }),
+  );
+  mats.push(...debrisMats);
+  const pieces: Piece[] = Array.from({ length: DEBRIS }, (_, i) => {
+    const mesh = new THREE.Mesh(debrisGeo, debrisMats[i % debrisMats.length]);
     mesh.visible = false;
     group.add(mesh);
     return { mesh, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: new THREE.Vector3(), live: false };
@@ -146,6 +168,7 @@ export function createExplosion(): Explosion {
     const q = list[at];
     Object.assign(q, { age: 0 }, p);
     q.sprite.visible = true;
+    (q.sprite.material as THREE.SpriteMaterial).rotation = random() * Math.PI * 2;
     return (at + 1) % list.length;
   }
 
@@ -186,7 +209,8 @@ export function createExplosion(): Explosion {
   return {
     group,
     burst(x, y, z, speed) {
-      const big = 1 + Math.min(1, speed / 40) * 0.5;
+      // A light helicopter's tanks going up: a fireball a rotor across.
+      const big = 1.7 + Math.min(1, speed / 40) * 0.6;
       // THE FIREBALL: swelling out from the tanks, rising as it burns.
       for (let i = 0; i < FIRE; i++) {
         const a = random() * Math.PI * 2;
@@ -220,8 +244,9 @@ export function createExplosion(): Explosion {
           live: true,
         });
         p.spin.set(random() * 12 - 6, random() * 12 - 6, random() * 12 - 6);
-        const s = 0.2 + random() * 0.9;
-        p.mesh.scale.set(s, s * (0.2 + random() * 0.5), s * (0.5 + random()));
+        // Panels and spars: thin and long, never cubes.
+        const s = 0.25 + random() * 0.8;
+        p.mesh.scale.set(s, s * (0.04 + random() * 0.12), s * (0.6 + random() * 1.8));
         p.mesh.visible = true;
       }
       flash.position.set(x, y + 3, z);

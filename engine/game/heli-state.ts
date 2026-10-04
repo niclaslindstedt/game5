@@ -69,6 +69,10 @@ export type HeliState = {
   rider: boolean;
   /** Seconds in this mode (the wreck's clock, the boarding's). */
   t: number;
+  /** Whether the skier has been clear of the boarding reach since he last
+   * stepped off — a skier stood beside the skid he has just stepped off is
+   * not sat straight back on it. */
+  away: boolean;
   /** The jump key as the last step had it — a drop is taken on the press. */
   jumpWas: boolean;
   /** Where the wreck came down, how hard, m/s, and whether the skier was

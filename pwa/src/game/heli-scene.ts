@@ -7,13 +7,25 @@
 // Built per map with the rest of the world, on a free ride only.
 
 import * as THREE from "three";
-import type { GameState, Level } from "@engine";
+import {
+  HANG_AIR,
+  HANG_GROUND,
+  TUNING,
+  airAt,
+  treesNear,
+  unrotate,
+  washAt,
+  type GameState,
+  type Level,
+  type Wash,
+} from "@engine";
 
 import { createHeliCam, frameHeli } from "./camera-heli.ts";
 import type { LensPose } from "./camera-rigs.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
+import type { Perch } from "./skier-dangle.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -32,17 +44,64 @@ export type HeliScene = {
     cloud: SnowCloud | null,
     snowAt: (x: number, z: number) => SnowProps,
   ): LensPose | null;
-  /** The figure sat on the skid: the skid's top in his body frame, m, or
-   * null off it (`SkisModel.setPerch`). */
-  perch(state: GameState): number | null;
+  /** The figure sat on the skid (`SkisModel.setPerch`): the skid's top in
+   * his body frame and what his dangling legs feel there (`skier-dangle.ts`
+   * — the gravity less the seat's acceleration, the air past him, the
+   * rotor), or null off it. */
+  perch(state: GameState): Perch | null;
   dispose(): void;
 };
 
 /** Where the crash's lens stands off the wreck, m: back along the way it
- * was flying, out to the side, and up. */
-const CRASH_LENS = { back: 42, side: 16, up: 14 };
+ * was flying, out to the side, and up — and how high over the woods it
+ * goes where no bearing sees the wreck clear. */
+const CRASH_LENS = { back: 42, side: 16, up: 14, over: 45 };
+const trunks: number[] = [];
+
+/** WHERE THE CRASH'S LENS STANDS: back off the wreck along the way it was
+ * flying and out to the side (`CRASH_LENS`) — or, where a trunk stands on
+ * that line of sight, turned round the wreck an eighth at a time to the
+ * first bearing that sees it clear; lifted high over the woods where none
+ * does. */
+function crashLens(
+  level: Level,
+  at: { x: number; y: number; z: number },
+  heading: number,
+): { x: number; y: number; z: number } {
+  const reach = Math.hypot(CRASH_LENS.back, CRASH_LENS.side);
+  const base = heading + Math.PI + Math.atan2(CRASH_LENS.side, CRASH_LENS.back);
+  for (let k = 0; k < 16; k++) {
+    const a = base + (k % 2 === 0 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 8);
+    const ex = at.x + Math.sin(a) * reach;
+    const ez = at.z + Math.cos(a) * reach;
+    const ey = Math.max(at.y + CRASH_LENS.up, level.groundAt(ex, ez) + 3);
+    let clear = true;
+    for (let t = 0.05; t < 0.95 && clear; t += 0.05) {
+      const px = ex + (at.x - ex) * t;
+      const pz = ez + (at.z - ez) * t;
+      const py = ey + (at.y + 2 - ey) * t;
+      for (const i of treesNear(level, px, pz, 2.5, trunks)) {
+        const tree = level.trees[i];
+        if (tree.y + tree.height > py) clear = false;
+      }
+    }
+    if (clear) return { x: ex, y: ey, z: ez };
+  }
+  const ex = at.x - Math.sin(heading) * CRASH_LENS.back;
+  const ez = at.z - Math.cos(heading) * CRASH_LENS.back;
+  return { x: ex, y: Math.max(at.y, level.groundAt(ex, ez)) + CRASH_LENS.over, z: ez };
+}
+
 /** How long the drop's lens is held after the push, s. */
 const DROP_HOLD = 1.6;
+/** How quickly the seat's acceleration is followed, s — the steps'
+ * difference of its velocity smoothed of their jitter. */
+const ACCEL_LAG = 0.06;
+/** How far under his body origin his boots hang, m, where the air is read,
+ * and the height over the snow his skis rest at below which they are laid
+ * down on it rather than dangled, m. */
+const FEET = 0.9;
+const REST = 0.15;
 
 export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const group = new THREE.Group();
@@ -62,6 +121,12 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
    * airframe — and the seconds since the push. */
   let lastLens: LensPose | null = null;
   let since = Infinity;
+  // THE SEAT'S ACCELERATION, world frame, m/s²: its velocity differenced
+  // between the engine's steps (the tick it was read at, and the velocity).
+  const accel = { x: 0, y: 0, z: 0 };
+  const lastV = { x: 0, y: 0, z: 0 };
+  let lastTick = -1;
+  const wash: Wash = { x: 0, y: 0, z: 0 };
   return {
     group,
     frame(state, alpha, dt, player, rung, cloud, snowAt) {
@@ -76,14 +141,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         // shock.
         boom.burst(h.wreck.x, h.wreck.y, h.wreck.z, h.wreck.speed);
         const { x, y, z } = h.wreck;
-        const back = { x: -Math.sin(h.heading), z: -Math.cos(h.heading) };
-        const ex = x + back.x * CRASH_LENS.back - back.z * CRASH_LENS.side;
-        const ez = z + back.z * CRASH_LENS.back + back.x * CRASH_LENS.side;
-        crashEye = {
-          x: ex,
-          y: Math.max(y + CRASH_LENS.up, state.level.groundAt(ex, ez) + 3),
-          z: ez,
-        };
+        crashEye = crashLens(state.level, h.wreck, h.heading);
         for (let i = 0; i < 3; i++) cloud?.burst(x, y + 0.5, z, 0, 0, 2.5, snowAt(x, z));
       }
       if (!wreck && wasWreck) {
@@ -120,7 +178,50 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     },
     perch(state) {
       const h = state.heli;
-      return h?.rider ? -h.hang : null;
+      if (!h?.rider) {
+        lastTick = -1;
+        return null;
+      }
+      const c = state.skier;
+      if (state.tick !== lastTick) {
+        const span = (state.tick - lastTick) * TUNING.dt;
+        if (lastTick >= 0 && span > 0) {
+          const k = 1 - Math.exp(-span / ACCEL_LAG);
+          accel.x += ((c.vx - lastV.x) / span - accel.x) * k;
+          accel.y += ((c.vy - lastV.y) / span - accel.y) * k;
+          accel.z += ((c.vz - lastV.z) / span - accel.z) * k;
+        } else accel.x = accel.y = accel.z = 0;
+        lastTick = state.tick;
+        lastV.x = c.vx;
+        lastV.y = c.vy;
+        lastV.z = c.vz;
+      }
+      // The air at his boots: the weather's wind at their height over the
+      // snow and the rotor's wash there, less his own way.
+      const level = state.level;
+      const feet = c.y - FEET;
+      const over = feet - level.groundAt(c.x, c.z);
+      const wind = airAt(level, state.t, c.x, c.z, Math.max(0.5, over));
+      washAt(level, h, c.x, feet, c.z, wash);
+      const air = unrotate(c.q, {
+        x: wind.x + wash.x - c.vx,
+        y: wash.y - c.vy,
+        z: wind.z + wash.z - c.vz,
+      });
+      const gravity = unrotate(c.q, { x: -accel.x, y: -TUNING.g - accel.y, z: -accel.z });
+      // His skis hang free as the engine lowers them off the snow, and are
+      // laid back down on it near the snow.
+      const hang = (HANG_GROUND - h.hang) / (HANG_GROUND - HANG_AIR);
+      const near = (over - REST) / 0.5;
+      return {
+        y: -h.hang,
+        gravity,
+        air,
+        spool: h.spool,
+        rotor: h.rotor,
+        hanging: Math.max(0, Math.min(1, hang, near)),
+        t: state.t,
+      };
     },
     dispose() {
       view.dispose();

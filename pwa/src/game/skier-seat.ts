@@ -13,7 +13,9 @@
 // carried with them and stood up off its lean, the knees solved again over
 // the cuffs and the arms brought in to the thighs. `share` blends it in, so
 // a chair scooping him off the load line sits him down rather than
-// teleporting him.
+// teleporting him. Sat on a helicopter's skid, his legs dangle
+// (`skier-dangle.ts`): the seat carries their swing and the lower legs are
+// turned to it about the knees.
 
 import {
   BODY,
@@ -23,6 +25,7 @@ import {
   type SkierPose,
   type SkierPoseInput,
 } from "./skier-pose.ts";
+import { swingLegs, type LegSwing } from "./skier-dangle.ts";
 import { solveLimb } from "./skier-limbs.ts";
 import type { Mounts } from "./skier-mounts.ts";
 import type { V3 } from "./skier-vec.ts";
@@ -33,9 +36,10 @@ import type { V3 } from "./skier-vec.ts";
 export const CHAIR_SEAT = 2.4;
 export const CHAIR_BACK = -0.335;
 
-/** The seat as the pose needs it: how seated he is, 0..1, and the seat's
- * top in the body frame, m. */
-export type Seat = { share: number; y: number };
+/** The seat as the pose needs it: how seated he is, 0..1, the seat's top
+ * in the body frame, m, and — dangling off a helicopter's skid — each
+ * leg's swing (`skier-dangle.ts`). */
+export type Seat = { share: number; y: number; legs?: readonly [LegSwing, LegSwing] };
 
 /** The hip joints over the seat's top, m — the pelvis sat on it; how far
  * ahead of the backrest's face the hips sit, m (the seat and the back of
@@ -132,8 +136,12 @@ export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
 }
 
 /** The pose for `input`, sat on a chair's seat when there is one — what the
- * code's figure and the model are both posed by. */
+ * code's figure and the model are both posed by — its legs swung when the
+ * seat dangles them. */
 export function seatedPose(input: SkierPoseInput, seat: Seat | null): SkierPose {
   const p = skierPose(input);
-  return seat && seat.share > 0 ? seatPose(p, seat, input.mounts ?? MOUNTS) : p;
+  if (!seat || seat.share <= 0) return p;
+  const M = input.mounts ?? MOUNTS;
+  const sat = seatPose(p, seat, M);
+  return seat.legs ? swingLegs(sat, seat.legs, M).pose : sat;
 }

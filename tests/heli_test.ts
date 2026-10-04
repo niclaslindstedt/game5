@@ -166,6 +166,9 @@ describe("the helicopter", () => {
     expect(events.some((e) => e.kind === "heli" && e.phase === "drop")).toBe(true);
     expect(s.skier.airborne).toBe(false);
     expect(s.heli!.mode).toBe("parked");
+    // Stood beside the skid he stepped off, he is not sat straight back on it.
+    fly(s, 1, ask());
+    expect(s.heli!.rider).toBe(false);
   });
 
   it("lets the skier go on the jump with its way, and lurches up lighter", () => {

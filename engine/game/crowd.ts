@@ -724,7 +724,9 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
       C.drag.air * v * v -
       C.drag.scrub * Math.abs(a.yaw) * (1 - k.skill * 0.6);
     if (v > cap) {
-      braking = clamp((v - cap) / 2, 0, 1);
+      // A stop is the whole brake, never eased off as he slows — or on a
+      // steep pitch the brake and the fall meet at a creep he never ends.
+      braking = stopping ? 1 : clamp((v - cap) / 2, 0, 1);
       acc -= C.brake * braking;
     }
     if (!stopping && v < C.crawl.speed && acc < C.crawl.push) {
@@ -735,9 +737,14 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
     }
     if (a.mode === "air") acc = -C.drag.air * v * v;
     v = Math.max(0, v + acc * dt);
-    if (stopping && v < 0.3) {
-      a.timer -= dt;
-      if (a.timer <= 0) a.mode = "ski";
+    if (stopping) {
+      // Slowed to a walk, he stands on his edges; the stop's clock runs
+      // from a crawl, so no pitch can keep him in it for good.
+      if (v < C.stand) v = 0;
+      if (v < C.crawl.speed) {
+        a.timer -= dt;
+        if (a.timer <= 0) a.mode = "ski";
+      }
     }
   }
   a.speed = v;

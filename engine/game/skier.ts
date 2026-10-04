@@ -228,6 +228,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     save: null,
     resilience: 1,
     poles: true,
+    launch: -1,
     thrown: null,
     damage: { ski: [0, 0], legs: 0 },
     body: freshBody(),
@@ -328,8 +329,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // (`stepWork`: the skate and the walk), who pushes all the way through.
   const bent = clamp((Math.abs(c.steer) - P.edgeFrom) / (P.edgeGone - P.edgeFrom), 0, 1);
   const straight = 1 - bent * (1 - stepWork(1, speed0, c.poles));
+  // ...and never out of a start house (`start-push.ts`): one push, then
+  // he skis.
+  const housed = state.rules.start === "interval" && state.rules.course;
   const working =
-    going && !c.airborne && c.thrown === null && c.jumpLoad === 0 ? (1 - c.brake) * straight : 0;
+    going && !c.airborne && c.thrown === null && c.jumpLoad === 0 && !housed
+      ? (1 - c.brake) * straight
+      : 0;
   c.drive = approach(c.drive, working, P.rate * dt);
   // The strides, the step turn and the line he glides on (`strideOn`), and
   // the turn he steps this step, which the yaw is asked for below.

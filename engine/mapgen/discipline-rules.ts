@@ -56,7 +56,9 @@
 //       `slalom.minWidth`, crossing no drop on the piste, its finish on a
 //       gentler run-out (no steeper than `slalom.outrun` over the
 //       `slalom.outrunLength` past the line) — the start a hut over the
-//       piste, the line `slalom.finishWidth` metres wide at the least, every
+//       piste, the snow out of its door cut into a START DROP as steep as
+//       `slalom.drop.grade` over its first `slalom.drop.length` metres, the
+//       line `slalom.finishWidth` metres wide at the least, every
 //       kicker on the piste within `slalom.clearance` of the stretch
 //       levelled, and every tree within `slalom.clear` metres of the course
 //       and in the finish arena cleared. Its gates are POLE GATES, red and
@@ -143,5 +145,13 @@ export const DISCIPLINE_RULES = {
     /** The start: the racer stood this far above the wand's line, m —
      * his boots just behind it, his poles planted over it. */
     stand: 1.1,
+    /** THE START DROP: a slalom is the best skiers in the world on a hill
+     * with no easy metre on it, and its start falls away out of the house
+     * so they are at speed in a push. The snow below the wand is cut down:
+     * level for `lip` m (where the boots go through), then steepened to
+     * `grade` at its steepest over the next `length` m — never by more than
+     * `most` m deep — and eased back onto the hill over `ease` m, the cut's
+     * banks `shoulder` m wide either side of the piste. */
+    drop: { lip: 0.6, length: 8, grade: 0.75, most: 3.5, ease: 40, shoulder: 10 },
   },
 } as const;

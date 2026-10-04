@@ -326,3 +326,20 @@ export function gaitOf(
     pivot: 0,
   };
 }
+
+/** How long his arms take to come onto the poles out of the hold, s. */
+const LAUNCH_ARMS = 0.12;
+
+/** THE START PUSH as drawn (`start-push.ts`): one double pole — the push
+ * through over `push` s as his weight goes out over the wand, then the
+ * arms recovering through `recover` s more — or null when he is not
+ * making it. Out of the house he works nothing else. */
+export function launchGait(launch: number, push: number, recover = 0.45): Gait | null {
+  if (launch < 0 || launch >= push + recover) return null;
+  const duty = STILL_GAIT.duty;
+  const phase =
+    launch < push ? (launch / push) * duty : duty + ((launch - push) / recover) * (1 - duty);
+  // The arms come onto the poles as his chest goes out over the wand.
+  const on = Math.min(1, launch / LAUNCH_ARMS);
+  return { ...STILL_GAIT, pole: launch < push ? on : 1 - (launch - push) / recover, phase };
+}

@@ -5,8 +5,8 @@
 // the race's red along the top carrying the word, panels of the woods'
 // green either side, white boards flanking a narrow DOORWAY that is dark
 // inside — the racer in it on the snow; at the door's foot the WAND
-// between its two short posts, and on the snow in front the two dark
-// MATS his poles are planted on; inside the door's left jamb, facing him,
+// between its two short posts, and just outside them on the snow the two
+// holes trodden where every racer plants his poles; inside the door's left jamb, facing him,
 // the START CLOCK, its light red until GO and green after, its digits
 // counting the starter's word down.
 //
@@ -24,6 +24,15 @@ import { HOUSE, startHousePlan } from "./start-house-plan.ts";
 import { STRINGS } from "./strings.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
 
+/** THE WAND'S SWING, rad about its hinge, `t` s after his shins opened it:
+ * thrown round a quarter turn in a tenth of a second or so, rocking once on
+ * its stop and then standing out down the course. */
+function wandOpen(t: number): number {
+  const k = Math.min(1, t / 0.12);
+  const settle = t > 0.12 ? 0.12 * Math.sin((t - 0.12) * 28) * Math.exp(-(t - 0.12) * 9) : 0;
+  return (Math.PI / 2) * (1 - (1 - k) * (1 - k)) - settle;
+}
+
 const colour = (hex: THREE.ColorRepresentation): THREE.Color => new THREE.Color(hex);
 const PANEL = colour(PALETTE.pine);
 const SHELL = colour(0x3a4048);
@@ -33,7 +42,8 @@ const ROOF = colour(0x2a2f36);
 const SNOW = colour(0xf1f4f7);
 const POST = colour(0x15181c);
 const ALLOY = colour(0xc4cacf);
-const MAT = colour(0x1d2024);
+const TRODDEN = colour(0xd5dde6);
+const PIT = colour(0xbfcad6);
 
 export type StartHouse = {
   group: THREE.Group;
@@ -209,27 +219,24 @@ export function createStartHouse(level: Level, haze: HazeUniforms): StartHouse |
       POST,
     );
   }
-  s.tube(
-    [-door + 0.12, wy + W.height, 0.05],
-    [door - 0.12, wy + W.height, 0.05],
-    0.012,
-    0.012,
-    4,
-    ALLOY,
-  );
-  // THE MATS the poles are planted on.
-  const M = HOUSE.mats;
+  // THE POLE HOLES outside the posts: the snow trodden down into a dish,
+  // a shade greyer than the snow round it — a rim and a floor.
+  const H = HOUSE.holes;
+  const ring = 8;
   for (const side of [-1, 1]) {
-    const cx = (side * M.apart) / 2;
-    const cz = M.out;
-    const corners: [number, number][] = [
-      [cx - M.width / 2, cz - M.length / 2],
-      [cx + M.width / 2, cz - M.length / 2],
-      [cx + M.width / 2, cz + M.length / 2],
-      [cx - M.width / 2, cz + M.length / 2],
-    ];
-    const v = corners.map(([x, z]) => [x, snowAt(x, z) + 0.03, z] as V3);
-    s.quad(v[0], v[3], v[2], v[1], MAT, [0, 1, 0]);
+    const cx = (side * H.apart) / 2;
+    const cz = H.out;
+    const rim = (k: number, f: number): V3 => {
+      const a = (k / ring) * Math.PI * 2;
+      const x = cx + Math.cos(a) * (H.width / 2) * f;
+      const z = cz + Math.sin(a) * (H.length / 2) * f;
+      return [x, snowAt(x, z) + 0.015 - H.depth * (1 - f), z];
+    };
+    const floor: V3 = [cx, snowAt(cx, cz) + 0.015 - H.depth, cz];
+    for (let k = 0; k < ring; k++) {
+      s.quad(rim(k, 1), rim(k, 0.55), rim(k + 1, 0.55), rim(k + 1, 1), TRODDEN, [0, 1, 0]);
+      s.tri(rim(k, 0.55), floor, rim(k + 1, 0.55), PIT, [0, 1, 0]);
+    }
   }
   const body = s.geometry();
   geos.push(body);
@@ -262,6 +269,19 @@ export function createStartHouse(level: Level, haze: HazeUniforms): StartHouse |
       group.add(b);
     }
   }
+
+  // THE WAND: one bar hinged on the post at his left as drawn, across the
+  // door at shin height. His shins push it open as he goes — it swings out
+  // down the course and stays there, standing out forward (`update`).
+  const reach = 2 * (door - 0.12);
+  const barGeo = new THREE.CylinderGeometry(0.014, 0.014, reach, 6);
+  barGeo.rotateZ(Math.PI / 2);
+  barGeo.translate(-reach / 2, 0, 0);
+  geos.push(barGeo);
+  const wand = new THREE.Group();
+  wand.add(new THREE.Mesh(barGeo, std({ color: ALLOY, roughness: 0.35, metalness: 0.6 }, "wand")));
+  wand.position.set(door - 0.12, wy + W.height, 0.05);
+  group.add(wand);
 
   // THE START CLOCK inside the left jamb, facing the racer: a box with a
   // face drawn on a canvas, redrawn when the figure on it changes.
@@ -320,6 +340,7 @@ export function createStartHouse(level: Level, haze: HazeUniforms): StartHouse |
       const counting = state.phase === "countdown";
       const left = Math.min(9, Math.ceil(state.countdown));
       draw(counting ? `0:0${left}` : state.progress.started ? "" : STRINGS.go, !counting);
+      wand.rotation.y = state.progress.started ? wandOpen(state.progress.time) : 0;
     },
     dispose() {
       for (const g of geos) g.dispose();

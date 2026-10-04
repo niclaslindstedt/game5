@@ -12,8 +12,8 @@
 // boards flanking a narrow DOORWAY, dark inside. The racer stands in the
 // doorway on the snow, his boots just behind the WAND — a bar at shin
 // height between two short posts at the door's foot that starts his clock
-// as his legs push it open — his poles planted over it on two dark mats
-// on the snow outside. The broadcast films him from over the door at an
+// as his legs push it open — his poles planted over it, outside the posts,
+// in the two holes every racer before him has trodden in the snow. The broadcast films him from over the door at an
 // angle, looking down on him leaning out over the wand, then cuts inside
 // the house behind him: his back, the posts and the course below through
 // the doorway — the shot he goes on.
@@ -37,9 +37,10 @@ export const HOUSE = {
   /** THE WAND: its height over the snow, between two posts this tall at
    * the door's foot. */
   wand: { height: 0.42, post: 0.75 },
-  /** THE MATS the poles are planted on: how far out, how far apart, and
-   * their size. */
-  mats: { out: 0.9, apart: 0.95, width: 0.55, length: 0.7 },
+  /** THE POLE HOLES: where every racer plants his poles, just outside the
+   * wand's posts and out beyond them, the snow trodden down into a dish —
+   * how far out of the door, how far apart, their size and how deep. */
+  holes: { out: 0.5, apart: 1.75, width: 0.5, length: 0.6, depth: 0.06 },
   /** THE START CLOCK inside the doorway's left jamb, facing the racer:
    * its centre's height, and its face's width and height. */
   clock: { height: 1.7, width: 0.5, tall: 0.34 },
@@ -51,10 +52,12 @@ export const HOUSE = {
  * skis behind the wand and his poles planted beyond it (`aim` m out of the
  * door, `low` m up); and BEHIND — inside the house at his
  * back, looking out through the doorway past him, the wand's posts and his
- * planted poles, down the course. */
+ * planted poles, down the course: held nearly LEVEL, dipped `dip` rad, so
+ * the start drop falls away out of the bottom of the door — a lens tipped
+ * down to the snow flattens the steepest hill. */
 export const START_SHOT = {
   over: { back: 0.45, side: 0.4, high: 2.75, aim: 0.35, low: 0.15, fov: 62 },
-  behind: { back: 2.1, high: 1.55, ahead: 12, aim: 0.3, fov: 52 },
+  behind: { back: 2.1, high: 1.7, ahead: 12, dip: 0.1, fov: 52 },
 } as const;
 
 /** A point on the plan: x, z on the map and y its height. */
@@ -140,7 +143,10 @@ export function startHousePlan(level: Level): HousePlan | null {
       },
       behind: {
         lens: { ...at(-back - S.behind.back, 0, 0), y: feet + S.behind.high },
-        aim: at(S.behind.ahead, 0, S.behind.aim),
+        aim: {
+          ...at(S.behind.ahead, 0, 0),
+          y: feet + S.behind.high - S.behind.ahead * Math.tan(S.behind.dip),
+        },
       },
     },
   };

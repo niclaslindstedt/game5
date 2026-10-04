@@ -114,6 +114,7 @@ export {
 
 export type { V3 } from "./skier-vec.ts";
 import type { SkierPose } from "./skier-joints.ts";
+import type { GateShape } from "./slalom-start.ts";
 export type { SkierPose } from "./skier-joints.ts";
 import { MOUNTS, type Mounts } from "./skier-mounts.ts";
 export { MOUNTS, mountsFor, type Mounts } from "./skier-mounts.ts";
@@ -276,6 +277,9 @@ export type SkierPoseInput = {
   /** IN THE START GATE under the lights, 0..1 (`SkierSpring.ready`):
    * crouched with his poles planted over the wand ahead of his boots. */
   ready?: number;
+  /** ...and that gate a slalom's start house: the slalom start clip's
+   * shape this frame (`slalom-start.ts`). */
+  house?: GateShape;
   /** A TRICKS run's grab held in the air (`strokes.ts`), or none. */
   trick?: TrickPose | null;
   /** THE SAVE his body is making (`skier-save.ts`), or none. */
@@ -312,7 +316,7 @@ const PLANT_FLARE = 0.35;
  * the centre the baskets are planted, m — ahead of the boots, over the
  * wand, as far ahead as the poles reach from the fists. The crouch a
  * racer waits in before he falls forward onto the poles at GO. */
-const GATE = { sink: 0.1, back: 0.03, pitch: 0.3, basket: 0.36 };
+const GATE: GateShape = { sink: 0.1, back: 0.03, pitch: 0.3, basket: 0.36 };
 /** WAITING: the breath's lift of the chest (rad off the trunk's pitch),
  * the weight's shift from ski to ski (m), the glance about (rad of the
  * head's turn) and the hands working the grips (m) — at their fullest. */
@@ -350,6 +354,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const carve = clamp01(input.carve ?? 0);
   // In the start gate the brake is the wand holding him, not a skid to draw.
   const ready = clamp01(input.ready ?? 0) * (1 - clamp01(input.air ?? 0));
+  const G = input.house ?? GATE;
   const bare = input.poles === false;
   const skid = clamp01(input.skid ?? 0) * (1 - ready);
   const J = input.jolt ?? NO_JOLT;
@@ -513,7 +518,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     0.06 * load -
     POLE_BODY.back * crunch +
     POLE_BODY.forward * tall -
-    GATE.back * ready -
+    G.back * ready -
     legH * tip;
   const pc = Math.cos(skiAngle);
   const ps = Math.sin(skiAngle);
@@ -529,7 +534,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       gait.sink -
       POLE_BODY.sink * crunch +
       POLE_BODY.rise * tall -
-      GATE.sink * ready +
+      G.sink * ready +
       0.08 * pop -
       LOAD_SINK * load * tucked -
       J.sink +
@@ -586,7 +591,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     fold * 1.4 +
     POLE_FOLD * crunch +
     POLE_BODY.lean * arms +
-    GATE.pitch * ready * (1 - arms) +
+    G.pitch * ready * (1 - arms) +
     gait.pitch +
     0.15 * gait.stride +
     0.25 * load -
@@ -940,7 +945,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       // In the gate, planted ahead: the basket on the snow as far ahead of
       // the fist as the rod reaches, the pole leant forward to it.
       const h = hands[i];
-      const x = side * GATE.basket;
+      const x = side * G.basket;
       const reach = M.pole * M.pole - (h.y - ground) ** 2 - (x - h.x) ** 2;
       const ahead = norm(sub({ x, y: ground, z: h.z + Math.sqrt(Math.max(0, reach)) }, h));
       const w = ready * (1 - arms);

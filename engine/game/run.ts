@@ -28,6 +28,7 @@ import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepGatePoles } from "./gate-poles.ts";
+import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -62,11 +63,14 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   const tricks = run.rules.tricks && held === input;
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
+  // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
+  const housed = heldInHouse(run);
+  stepStartPush(run, input);
   stepSkier(run, tricks ? poseInput(run, held) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
-  if (run.phase === "countdown" && !off) {
+  if ((run.phase === "countdown" || (housed && c.launch < 0)) && !off) {
     c.x = x0;
     c.z = z0;
     c.vx = 0;

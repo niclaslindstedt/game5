@@ -158,7 +158,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     generateLevel(options.seed ?? 1, {
       tricks,
       region: options.region,
-      grade: options.grade,
+      // A slalom is never set on an easy hill: a seed of its own is built
+      // to a RED piste unless a grade is asked for — a red's steepest
+      // pitch (R23) is a slalom hill's 33–45 %, and a black's drops across
+      // the piste are what no slalom may cross.
+      grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
       version: tricks ? PARK_VERSION : undefined,
     });
   // A SLALOM is set over the map (R31) — run one's course, or the second

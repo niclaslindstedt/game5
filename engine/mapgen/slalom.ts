@@ -337,11 +337,40 @@ function across(p: TrackPoint, by: number): { x: number; z: number } {
   return { x: p.x + Math.cos(p.heading) * by, z: p.z - Math.sin(p.heading) * by };
 }
 
+/** A cut down into the snow along the piste: how deep, m, `u` m down it
+ * from `at`, between `from` and `to`, its banks `ease` m wide either side. */
+type Cut = { at: number; from: number; to: number; ease: number; depth: (u: number) => number };
+
+/** R31 — THE START DROP below `stretch`'s wand (`slalom.drop`): as deep as
+ * steepens its first metres to the rule's grade, or null where the hill
+ * is already that steep. */
+function startDrop(level: Level, stretch: SlalomStretch): Cut | null {
+  const D = S.drop;
+  const top = trackPointAt(level, stretch.from + D.lip).y;
+  const low = trackPointAt(level, stretch.from + D.lip + D.length).y;
+  const natural = (top - low) / D.length;
+  // A smoothstep's steepest is 1.5 times its mean.
+  const deep = Math.min(D.most, (Math.max(0, D.grade - natural) * D.length) / 1.5);
+  if (deep < 0.05) return null;
+  const knee = D.lip + D.length;
+  return {
+    at: stretch.from,
+    from: D.lip,
+    to: knee + D.ease,
+    ease: D.shoulder,
+    depth: (u) =>
+      u < knee
+        ? deep * smoothstep(D.lip, knee, u)
+        : deep * (1 - smoothstep(knee, knee + D.ease, u)),
+  };
+}
+
 /** The map with its slalom stretch prepared: every kicker on the piste
  * within `slalom.clearance` of the stretch LEVELLED — its profile taken back
  * out of the piste's line and the ground under it, across the piste and
  * eased out over the shoulders — so a racer meets the hill the piste was
- * graded on rather than a jump. The rest of the mountain is the map's own.
+ * graded on rather than a jump; and the START DROP cut out of the door the
+ * same way. The rest of the mountain is the map's own.
  * Kept per map, so both runs stand on one prepared hill. */
 const prepared = new WeakMap<Level, Level>();
 function levelStretch(level: Level, stretch: SlalomStretch): Level {
@@ -349,35 +378,43 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
   if (known) return known;
   const lo = stretch.from - S.clearance;
   const hi = stretch.to + S.clearance + S.outrunLength;
-  const gone: Kicker[] = [];
   const kept: Kicker[] = [];
+  const cuts: Cut[] = [];
   for (const k of level.kickers ?? []) {
     const on = k.onTrack && k.s !== undefined && k.s + k.landing > lo && k.s - k.ramp < hi;
-    (on ? gone : kept).push(k);
+    if (!on) kept.push(k);
+    else {
+      cuts.push({
+        at: k.s ?? 0,
+        from: -k.ramp,
+        to: k.landing,
+        ease: 6,
+        depth: (u) => kickerProfile(k.height, k.ramp, k.landing, u, k.shape),
+      });
+    }
   }
-  if (gone.length === 0) {
+  const drop = startDrop(level, stretch);
+  if (drop) cuts.push(drop);
+  if (cuts.length === 0) {
     prepared.set(level, level);
     return level;
   }
   const field = level.ground;
   const ground: Heightfield = { ...field, data: new Float32Array(field.data) };
   const points = level.track.points.map((p) => ({ ...p }));
-  const ease = 6;
-  for (const k of gone) {
-    const s0 = k.s ?? 0;
+  for (const cut of cuts) {
     for (const p of points) {
-      const u = p.s - s0;
-      if (u > -k.ramp && u < k.landing)
-        p.y -= kickerProfile(k.height, k.ramp, k.landing, u, k.shape);
+      const u = p.s - cut.at;
+      if (u > cut.from && u < cut.to) p.y -= cut.depth(u);
     }
     // The ground under it, a cell at a time over the box round its line.
     let x0 = Infinity;
     let x1 = -Infinity;
     let z0 = Infinity;
     let z1 = -Infinity;
-    for (let s = s0 - k.ramp; s <= s0 + k.landing; s += 2) {
+    for (let s = cut.at + cut.from; s <= cut.at + cut.to; s += 2) {
       const p = trackPointAt(level, s);
-      const r = p.width / 2 + ease + 2;
+      const r = p.width / 2 + cut.ease + 2;
       x0 = Math.min(x0, p.x - r);
       x1 = Math.max(x1, p.x + r);
       z0 = Math.min(z0, p.z - r);
@@ -392,13 +429,12 @@ function levelStretch(level: Level, stretch: SlalomStretch): Level {
         const x = field.originX + c * field.cell;
         const z = field.originZ + r * field.cell;
         const hit = nearestTrackPoint(level, x, z);
-        const u = hit.s - s0;
-        if (u <= -k.ramp || u >= k.landing) continue;
-        const half = (level.track.points[hit.index]?.width ?? k.width) / 2;
-        const weight = 1 - smoothstep(half, half + ease, hit.distance);
+        const u = hit.s - cut.at;
+        if (u <= cut.from || u >= cut.to) continue;
+        const half = (level.track.points[hit.index]?.width ?? 0) / 2;
+        const weight = 1 - smoothstep(half, half + cut.ease, hit.distance);
         if (weight <= 0) continue;
-        ground.data[r * field.cols + c] -=
-          weight * kickerProfile(k.height, k.ramp, k.landing, u, k.shape);
+        ground.data[r * field.cols + c] -= weight * cut.depth(u);
       }
     }
   }

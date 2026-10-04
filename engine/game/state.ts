@@ -228,6 +228,10 @@ export type SkierState = {
    * he keeps less of his balance and rocks out of a bog worse
    * (`TUNING.poles.bare`). Read, never written, during a run. */
   poles: boolean;
+  /** THE START PUSH out of a slalom's start house (`start-push.ts`): the
+   * seconds since he threw himself out over the wand, or −1 before he has
+   * — what the figure times the push and the hop by. */
+  launch: number;
   /** THE SKIER THROWN OFF HIS SKIS, or null while he is on them
    * (`crash.ts`). */
   thrown: Thrown | null;

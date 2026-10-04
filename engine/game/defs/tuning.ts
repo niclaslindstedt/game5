@@ -652,6 +652,23 @@ export const TUNING = {
     cell: 12,
   },
 
+  /** THE START PUSH out of a slalom's start house (`start-push.ts`): the
+   * racer held in the hut on his planted poles after GO until he goes,
+   * then ONE push — both poles, both skis together, a hop over the wand —
+   * and no skating or poling after it: a slalom racer is at speed by the
+   * first gate on the pitch below the hut. */
+  start: {
+    /** How long the push lasts, s, the speed it sends him out at, m/s, and
+     * the hop he springs off it with, m/s up. */
+    push: 0.35,
+    speed: 4.2,
+    hop: 0.9,
+    /** How far the tuck must be held to throw him out, 0..1. */
+    press: 0.5,
+    /** How long the figure is told of the push after it, s. */
+    shown: 1.2,
+  },
+
   /** THE FLEX POLES of a slalom's gates (R31, `gate-poles.ts`): a pole on
    * a hinge at the snow that a racer knocks over and that stands itself
    * back up — the turning pole is one by rule (at least 1.8 m over the

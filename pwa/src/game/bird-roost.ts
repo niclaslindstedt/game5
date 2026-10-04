@@ -23,7 +23,7 @@
 // allowed to live out of sight of the loop, because it is only ever seen in
 // the air over it.
 
-import { TAU, createRng, regionOf, weatherOf, type Level, type Rng } from "@engine";
+import { TAU, createRng, regionOf, windFromOf, type Level, type Rng } from "@engine";
 
 import { BIRDS, type Band, type BirdId, type BirdSpec } from "./bird-defs.ts";
 import { CROSSING_INTERVAL, walkLoop, type BirdPlan, type Flock, type Roost } from "./bird-plan.ts";
@@ -110,7 +110,7 @@ export function planBirds(level: Level): BirdPlan {
   const ground = wildGround(level);
   const km = level.track.length / 1000;
   const perches = ground.tallTrees(PERCH_TREE);
-  const facing = weatherOf(level).windFrom;
+  const facing = windFromOf(level);
   const flocks: Flock[] = [];
   const region = regionOf(level).id;
 

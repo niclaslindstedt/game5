@@ -10,6 +10,16 @@
 // are carried by — and, brought down to a skier's body where he is
 // (`airAt`), what his drag is against (`air.ts`), what he hears and what the
 // HUD's wind meter reads (`airflowAt`): one air for all of them.
+//
+// THE WIND NEVER BLOWS UP THE MOUNTAIN. R19 deals a bearing anywhere round
+// the compass, and a gale straight up the fall line is a wall in a skier's
+// face that all but stops him — no fun to ski. So a bearing that would
+// carry the air up the slope (against the world's +z, the fall line) is
+// mirrored across it (`downhillFrom`): an even deal over the whole compass
+// becomes an even deal over the half that blows across or down the
+// mountain, straight down it as likely as any other way. The fold is taken
+// here, at run time, rather than in the deal, so no map a seed builds moves
+// (the dealt bearing stays in `Level.weather` and in the digest).
 
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -38,6 +48,23 @@ const GUSTS: readonly { period: number; share: number }[] = [
 /** The most the wind veers either side of its mean bearing, rad. */
 const VEER = 0.22;
 
+/** The bearing a wind FROM `from` really blows from: unchanged when it
+ * blows across or down the fall line, mirrored across the slope when it
+ * would blow up it. Continuous, so a wind veering through the line folds
+ * back smoothly instead of jumping. */
+export function downhillFrom(from: number): number {
+  // From `from` the air moves toward `from + π`, whose +z part is
+  // −cos(from): up the mountain while cos(from) > 0.
+  return Math.cos(from) > 0 ? Math.PI - from : from;
+}
+
+/** The MEAN bearing the wind on `level` blows from, folded down the
+ * mountain (`downhillFrom`) — what the cloud drifts with, the crust was
+ * carved by and the birds face into. Read this, never `weather.windFrom`. */
+export function windFromOf(level: Pick<Level, "weather">): number {
+  return downhillFrom(weatherOf(level).windFrom);
+}
+
 /** A phase in [0, 2π) hashed from a seed and a salt. */
 function phase(seed: number, salt: number): number {
   let h = Math.imul((seed ^ salt) >>> 0, 0x9e3779b1) >>> 0;
@@ -63,8 +90,9 @@ export function windAt(
   }
   const speed = Math.max(0, w.wind * (1 + g));
   const veer = VEER * Math.sin((2 * Math.PI * t) / 41 + phase(level.seed, 9));
-  // The air moves TOWARD the heading opposite the one it blows from.
-  const toward = w.windFrom + Math.PI + veer;
+  // The air moves TOWARD the heading opposite the one it blows from — the
+  // veer folded with the mean, so even a crosswind never swings uphill.
+  const toward = downhillFrom(w.windFrom + veer) + Math.PI;
   out.x = Math.sin(toward) * speed;
   out.z = Math.cos(toward) * speed;
   out.speed = speed;

@@ -766,10 +766,6 @@ export const TUNING = {
     /** A reset stands the skier this far PAST the last gate he took, m (or
      * this far short of the start gate before he has taken one). */
     resetAhead: 3,
-    /** A FREE RIDE's reset within this far of the foot of the run he is
-     * nearest — the finish line and its arena, where nothing is left to
-     * ski — is the lift back up: the start line, m. */
-    footReach: 30,
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

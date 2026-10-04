@@ -504,6 +504,10 @@ export type Progress = {
   /** How far the skier has skied, m of plan distance — a reset's jump not
    * counted. The free ride's odometer; a race keeps it too. */
   distance: number;
+  /** THE RUNS A FREE RIDE HAS SKIED (`skied.ts`), by id — the ski area's
+   * runs (R27), or the map's own piste off one — the one skied last LAST.
+   * Where its reset and its restart stand the skier; a race keeps it empty. */
+  skied: string[];
   /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */

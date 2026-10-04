@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import {
   SKIS,
   createGame,
+  lastPiste,
   freeRunOf,
   freeRuns,
   generateLevel,
@@ -27,6 +28,7 @@ import {
   freeAgainOptions,
   freeGameOptions,
   freeRunList,
+  freeTopOptions,
   freshRide,
   markedRun,
   mergeRide,
@@ -216,6 +218,24 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(again.level.weather?.kind).toBe("storm");
     expect(again.skier.x).toBeCloseTo(first.skier.x, 9);
     expect(again.skier.z).toBeCloseTo(first.skier.z, 9);
+  });
+
+  it("restarts at the top of the slope: on the snow, never at the spot or up a lift", () => {
+    const ride = { ...freshRide(), spot: { seed: 9, x: 400, z: 700 } };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const top = freeTopOptions(freeAgainOptions(opts, first.level), lastPiste(first));
+    expect(top.spawn).toBeUndefined();
+    expect(top.byLift).toBe(false);
+    const again = createGame(top);
+    expect(again.level).toBe(first.level);
+    // The map's one piste: its top is the start line.
+    const slot = first.level.grid[0];
+    expect(again.skier.x).toBeCloseTo(slot.x, 5);
+    expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 });
 

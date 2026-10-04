@@ -291,6 +291,15 @@ export {
   slalom,
   standSkier,
 } from "./game/course.ts";
+export {
+  lastPiste,
+  nearestPiste,
+  noteRun,
+  pisteHead,
+  runUnder,
+  skiedResetPoint,
+  TRACK_RUN,
+} from "./game/skied.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export {
   clipRiders,

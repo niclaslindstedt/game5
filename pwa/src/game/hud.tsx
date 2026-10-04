@@ -116,6 +116,8 @@ export function Hud({
   bare?: boolean;
 }) {
   const lit = snap.missed !== null || snap.down;
+  // A free ride is leisure; a tricks run is scored like a contest.
+  const leisure = snap.free && !snap.tricks;
   const thumbs = touch && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
@@ -142,89 +144,71 @@ export function Hud({
       data-finished={snap.finished ? "1" : undefined}
       data-touch={touch ? "1" : undefined}
     >
-      <div class="hud-top">
-        <div class="hud-top-row">
-          <div class="hud-clock">
-            <span class="hud-clock-time">{formatTime(snap.time)}</span>
-            <span class="hud-chip-sub">{STRINGS.clockLabel}</span>
-          </div>
-          {/* THE FREE RIDE'S TWO: the longest flight so far — keyed on it,
-              so a new best lands with its own beat — and the odometer. */}
-          {/* A TRICKS RUN'S TWO in their place: the score and the buzzer. */}
-          {snap.tricks && <TricksChips tile={snap.tricks} />}
-          {snap.free && !snap.tricks && (
-            <div class="hud-chip hud-best-air" key={snap.bestAir}>
-              <span>{STRINGS.air(snap.bestAir)}</span>
-              <span class="hud-chip-sub">{STRINGS.bestAirLabel}</span>
+      {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
+          contest's, and a FREE RIDE is no contest: it skis without them. */}
+      {!leisure && (
+        <div class="hud-top">
+          <div class="hud-top-row">
+            <div class="hud-clock">
+              <span class="hud-clock-time">{formatTime(snap.time)}</span>
+              <span class="hud-chip-sub">{STRINGS.clockLabel}</span>
             </div>
-          )}
-          {snap.free && !snap.tricks && (
-            <div class="hud-chip">
-              <span>{STRINGS.distance(snap.distance)}</span>
-              <span class="hud-chip-sub">{STRINGS.distanceLabel}</span>
-            </div>
-          )}
-          {/* THE MAP'S SEED, so a picture of a free ride says which mountain
-              it was taken on — the one number that brings it back. */}
-          {snap.free && !snap.tricks && (
-            <div class="hud-chip hud-seed">
-              <span>{snap.seed}</span>
-              <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
-            </div>
-          )}
-          {/* THE PLACE — the one number a racer reads more than the clock.
+            {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
+            {snap.tricks && <TricksChips tile={snap.tricks} />}
+            {/* THE PLACE — the one number a racer reads more than the clock.
               Keyed on the place, so a pass lands with its own beat. Left
               out of a race alone, where 1 / 1 says nothing. */}
-          {!snap.free && snap.skiers > 1 ? (
-            <div class="hud-chip hud-place" key={snap.place}>
-              <span>{STRINGS.place(snap.place, snap.skiers)}</span>
-              <span class="hud-chip-sub">{STRINGS.placeLabel}</span>
-            </div>
-          ) : null}
-          {!snap.free && (
-            <div class="hud-chip hud-gates">
-              <span>{STRINGS.gates(snap.taken, snap.gates)}</span>
-              <span class="hud-chip-sub">
-                {/* THE PISTE'S SIGN (R23) beside its gates: the colour of
+            {!snap.free && snap.skiers > 1 ? (
+              <div class="hud-chip hud-place" key={snap.place}>
+                <span>{STRINGS.place(snap.place, snap.skiers)}</span>
+                <span class="hud-chip-sub">{STRINGS.placeLabel}</span>
+              </div>
+            ) : null}
+            {!snap.free && (
+              <div class="hud-chip hud-gates">
+                <span>{STRINGS.gates(snap.taken, snap.gates)}</span>
+                <span class="hud-chip-sub">
+                  {/* THE PISTE'S SIGN (R23) beside its gates: the colour of
                     the run, the whole way down. */}
-                <GradeMark grade={snap.grade} className="hud-grade" />
-                {STRINGS.gatesLabel}
-              </span>
-            </div>
-          )}
-          {/* THE VERTICAL: how far down the mountain the run has got — the
+                  <GradeMark grade={snap.grade} className="hud-grade" />
+                  {STRINGS.gatesLabel}
+                </span>
+              </div>
+            )}
+            {/* THE VERTICAL: how far down the mountain the run has got — the
               one figure a descent has that a loop never did. */}
-          {!snap.free && (
-            <div class="hud-chip">
-              <span>{STRINGS.dropped(snap.dropped)}</span>
-              <span class="hud-chip-sub">{STRINGS.droppedLabel}</span>
-            </div>
-          )}
-        </div>
-        {/* THE SPLIT, under the row it belongs to: the clock as it stood at
-            the gate just taken, held for a few seconds and then gone,
-            so a stale figure is never read as a fresh one. Keyed on the
-            figure so a new split lands with the beat. */}
-        {snap.split !== null && (
-          <div class="hud-top-row">
-            <div class="hud-chip hud-split" key={snap.split}>
-              <span>{STRINGS.split(snap.split)}</span>
-              <span class="hud-chip-sub">{STRINGS.splitLabel}</span>
-            </div>
-            {/* ...and beside it, against the record at the same crossing:
-                green ahead, red behind. */}
-            {snap.gap !== null && (
-              <div
-                class={`hud-chip hud-split hud-gap ${snap.gap < 0 ? "hud-gap-ahead" : "hud-gap-behind"}`}
-                key={`gap-${snap.split}`}
-              >
-                <span>{STRINGS.gap(snap.gap)}</span>
-                <span class="hud-chip-sub">{STRINGS.gapLabel}</span>
+            {!snap.free && (
+              <div class="hud-chip">
+                <span>{STRINGS.dropped(snap.dropped)}</span>
+                <span class="hud-chip-sub">{STRINGS.droppedLabel}</span>
               </div>
             )}
           </div>
-        )}
-      </div>
+          {/* THE SPLIT, under the row it belongs to: the clock as it stood at
+            the gate just taken, held for a few seconds and then gone,
+            so a stale figure is never read as a fresh one. Keyed on the
+            figure so a new split lands with the beat. */}
+          {snap.split !== null && (
+            <div class="hud-top-row">
+              <div class="hud-chip hud-split" key={snap.split}>
+                <span>{STRINGS.split(snap.split)}</span>
+                <span class="hud-chip-sub">{STRINGS.splitLabel}</span>
+              </div>
+              {/* ...and beside it, against the record at the same crossing:
+                green ahead, red behind. */}
+              {snap.gap !== null && (
+                <div
+                  class={`hud-chip hud-split hud-gap ${snap.gap < 0 ? "hud-gap-ahead" : "hud-gap-behind"}`}
+                  key={`gap-${snap.split}`}
+                >
+                  <span>{STRINGS.gap(snap.gap)}</span>
+                  <span class="hud-chip-sub">{STRINGS.gapLabel}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* The map first and the presses UNDER it: the map is read at a
           glance from the top of the corner — and pressed, to hold the race —

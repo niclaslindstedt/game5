@@ -38,7 +38,8 @@
   --hud-good: #e8412c;
   --hud-bad: #ff5a4e;
   --hud-info: #cfe6f7;
-  /* THE TOP-RIGHT CLUSTER'S WIDTH — the row of three presses, sized to be
+  /* THE TOP-RIGHT CLUSTER'S WIDTH — the minimap and the row of presses under
+     it, sized to be
      found at a glance from the corner of an eye that is on the track. The
      rem FLOOR carries a phone on its side, where vmin is the short edge. */
   --hud-cluster: clamp(8rem, 24vmin, 11rem);
@@ -179,8 +180,9 @@ canvas {
   --hud-edge: rgb(255 255 255 / 65%);
   --hud-track: rgb(255 255 255 / 70%);
 
-  /* THE THREE PRESSES' DIAMETER, and the one statement of it: a third of
-     the cluster's width less the gaps. Declared HERE rather than in `:root`
+  /* THE PRESSES' DIAMETER, and the one statement of it: a third of the
+     cluster's width less the gaps — room for three, the most the row ever
+     holds (hud-actions.tsx). Declared HERE rather than in `:root`
      because two subtrees need it — the buttons and `.hud-zone`'s clearance
      over them — and a `var()` inside a custom property is substituted
      against the element it is DECLARED on; `.hud` is the element the
@@ -294,21 +296,31 @@ canvas {
   right: max(0.8rem, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  /* CENTRED, NOT FLUSH RIGHT: the row of presses is the cluster's width and
+     the map is narrower on a phone on its side (`--hud-map`), so a column
+     pushed to its right edge leaves the presses centred on a different line
+     from the plate over them. Centred, the two share one axis at every size,
+     and the column is still the cluster's width against the corner. */
+  align-items: center;
   gap: 0.5rem;
 }
 
-/* THE MINIMAP: a round plate under the presses, as wide as their row, with
+/* THE MINIMAP: a round plate over the presses, as wide as their row, with
    the map turned heading-up about the skier (minimap.tsx). Round because the
    map turns: a square window would swing its corners through the country
-   every bend. It takes no pointer — a thumb landing here on a phone held
-   sideways belongs to the lever's zone under it. The plate's own ground is
-   the grey of rock past the map's edge, which is what the corners of the
-   baked picture give way to. */
+   every bend. IT IS THE PAUSE PRESS — a button, said the way the discs under
+   it say it: the rim goes to full ink under the pointer and the plate sinks
+   a pixel under a thumb. The plate's own ground is the grey of rock past the
+   map's edge, which is what the corners of the baked picture give way to. */
 .hud-minimap {
   position: relative;
+  display: block;
+  flex: none;
   width: var(--hud-map, var(--hud-cluster));
   height: var(--hud-map, var(--hud-cluster));
+  padding: 0;
+  font: inherit;
+  color: inherit;
   border-radius: 50%;
   overflow: hidden;
   background: #5d6670;
@@ -316,7 +328,27 @@ canvas {
   box-shadow:
     0 2px 0 rgb(var(--hud-plate) / 60%),
     inset 0 0 0.6rem rgb(var(--hud-plate) / 45%);
-  pointer-events: none;
+  cursor: pointer;
+  /* As the discs: no double-tap wait, no gesture claimed mid-press. */
+  touch-action: manipulation;
+  transition:
+    transform 110ms ease,
+    border-color 110ms ease,
+    box-shadow 110ms ease;
+}
+
+.hud-minimap:hover,
+.hud-minimap:focus-visible {
+  outline: none;
+  border-color: var(--hud-ink);
+  box-shadow:
+    0 2px 0 rgb(var(--hud-plate) / 60%),
+    inset 0 0 0.6rem rgb(var(--hud-plate) / 45%),
+    0 0 10px rgb(255 255 255 / 20%);
+}
+
+.hud-minimap:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 /* The world is painted on a canvas (minimap.tsx — the pose, its glide
@@ -363,10 +395,13 @@ canvas {
   z-index: 1600;
 }
 
-/* THE THREE PRESSES, side by side in the top-right corner: targets a thumb
-   finds without leaving the snow, in the corner the skier glances at between
-   checkpoints (hud-actions.tsx). The row is the cluster's width and the discs
-   share it, so a press added or taken out is one edit to `--hud-press`. */
+/* THE PRESSES, side by side in the top-right corner under the map: targets a
+   thumb finds without leaving the snow, in the corner the skier glances at
+   between checkpoints (hud-actions.tsx). The row is the cluster's width and
+   the discs are a THIRD of it whether two stand there (the reset and the
+   camera, the map being the pause) or three (the pause disc heading the row
+   with the readouts off), so the discs never change size as the HUD comes
+   and goes; two sit centred under the plate. */
 .hud-action-stack {
   display: flex;
   align-items: flex-start;

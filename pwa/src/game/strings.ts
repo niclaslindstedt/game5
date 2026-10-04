@@ -118,7 +118,7 @@ export const STRINGS = {
   damageSkiLeft: "Left edge",
   damageSkiRight: "Right edge",
   damageLegs: "Legs",
-  /** The three presses in the corner. */
+  /** The presses in the corner (the pause is the minimap's own). */
   resetTitle: "Back to the last gate you took (R)",
   cameraTitle: "Next camera (C)",
   pauseTitle: "Pause (Esc)",

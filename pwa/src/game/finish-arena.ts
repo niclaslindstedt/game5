@@ -370,7 +370,14 @@ export function createFinishArena(
     screenTex = new THREE.CanvasTexture(canvas);
     screenTex.colorSpace = THREE.SRGBColorSpace;
     texs.push(screenTex);
-    const glass = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
+    // THE SCREEN IS LIGHT, NOT PAINT — unlit, so the sun, the shade and the
+    // night leave it bright — but it stands in the same air as the stand it
+    // hangs over: the haze, the mist and a storm's or a fog's closed view
+    // fade it with everything else at its distance. And it goes
+    // through the same tone curve as the rest of the frame, because the
+    // haze it fades into is tone-mapped (`HAZE_FRAGMENT`): a screen kept off
+    // the curve would fade into a brighter grey than the air round it.
+    const glass = hazeMaterial(new THREE.MeshBasicMaterial({ map: screenTex }), haze, "video-wall");
     mats.push(glass);
     const plane = new THREE.PlaneGeometry(s.width, s.height);
     geos.push(plane);

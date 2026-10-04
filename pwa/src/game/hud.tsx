@@ -9,9 +9,9 @@
 //                 them the SPLIT at the last gate while it is fresh. On a
 //                 FREE RIDE, which has no run to read, the clock, the BEST
 //                 AIR, the distance SKIED and the map's SEED
-//   top right     the three presses: PAUSE, RESET and CAMERA, and under
-//                 them the MINIMAP — the piste, the field and the gate
-//                 owed, turned heading-up about the skier (minimap.tsx)
+//   top right     the MINIMAP — the piste, the field and the gate owed,
+//                 turned heading-up about the skier, and PRESSED to pause
+//                 (minimap.tsx) — and under it two presses, RESET and CAMERA
 //   top centre    the AIR CLOCK while the skis are off the snow — the one
 //                 number a skier is trying to make go up, where he is
 //                 already looking to aim the landing
@@ -30,7 +30,8 @@
 //
 // WITH THE READOUTS OFF (H, OPTIONS ▸ HUD) it is `data-bare`: the thumbs and
 // the corner presses stay — a skier still has to steer and still has to get
-// out — and everything that READS goes, so the snow is clear for a look or
+// out, so with the map gone a PAUSE disc heads the row — and everything that
+// READS goes, so the snow is clear for a look or
 // a picture (the framework's `shots/shot-hud` then leaves the chrome out of the frame).
 //
 // The thumb zones it hangs under all that are next door in hud-touch.tsx:
@@ -112,14 +113,7 @@ export function Hud({
   /** The readouts are off: the presses and the thumbs alone. */
   bare?: boolean;
 }) {
-  const actions = (
-    <HudActions
-      onPause={onPause}
-      onReset={onReset}
-      onCamera={onCamera}
-      lit={snap.missed !== null || snap.down}
-    />
-  );
+  const lit = snap.missed !== null || snap.down;
   const thumbs = touch && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
@@ -132,7 +126,9 @@ export function Hud({
   if (bare) {
     return (
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
-        <div class="hud-topright">{actions}</div>
+        <div class="hud-topright">
+          <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
+        </div>
         {thumbs}
       </div>
     );
@@ -228,12 +224,13 @@ export function Hud({
         )}
       </div>
 
-      {/* The map first and the three presses UNDER it: the map is read at a
-          glance from the top of the corner, and the presses sit a thumb's
-          reach lower, nearer the hands. */}
+      {/* The map first and the presses UNDER it: the map is read at a
+          glance from the top of the corner — and pressed, to hold the race —
+          and the reset and the camera sit a thumb's reach lower, nearer the
+          hands. */}
       <div class="hud-topright">
-        <Minimap map={snap.minimap} />
-        {actions}
+        <Minimap map={snap.minimap} onPause={onPause} />
+        <HudActions onReset={onReset} onCamera={onCamera} lit={lit} />
       </div>
 
       {/* THE MISSED GATE, centred in the upper quarter where the eye can

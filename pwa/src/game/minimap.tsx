@@ -21,16 +21,26 @@
 // picture the same way everywhere: the ground is one `drawImage` under the
 // pose, and every hairline is stroked at a width in CSS pixels.
 //
-// Not a button: nothing is pressed here, and the lever's thumb may land on
-// the plate on a phone held sideways, so it takes no pointer at all.
+// AND IT IS THE PAUSE. The plate is the one thing in the corner a skier
+// already looks at, so it is the press that holds the race (Escape on the
+// keys) — one target fewer in the row under it, and the biggest target in
+// the corner for the press made least in a hurry. It is pressed through the
+// POINTER events like the discs under it (the framework's `input/hud-press`),
+// because a skier steering with one thumb is handed no `click` for a second.
+// The lever's glass starts below the whole cluster (`.hud-zone`), and a
+// thumb already dragging the lever keeps its capture over the plate, so
+// steering never pauses the race.
 
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Level } from "@engine";
+
+import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 
 import { bakeMinimap, mapPxFor, minimapSource } from "./minimap-bake.ts";
 import { VIEW, type HudMinimap, type SkierMark } from "./minimap-view.ts";
 import type { BakeReply, BakeRequest } from "./minimap-worker.ts";
 import { skierCss } from "./skier-colours.ts";
+import { STRINGS } from "./strings.ts";
 
 /** The baked ground as something a canvas draws: a bitmap the worker made,
  * or a canvas the raw pixels were put into. */
@@ -336,9 +346,10 @@ const PLINTH = 7.4;
 /** The owed gate's chevron on the rim. */
 const CHEVRON = "M 0 -4.4 L 3.6 2 L 0 0.4 L -3.6 2 Z";
 
-export function Minimap({ map }: { map: HudMinimap }) {
+export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void }) {
   const ground = useGround(map.level);
-  const plateRef = useRef<HTMLDivElement>(null);
+  const press = useMemo(createHudPress, []);
+  const plateRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** What the canvas shows and where it is gliding to: the pose and the
    * field drawn last, the snapshot's own, and when the glide began. */
@@ -410,14 +421,18 @@ export function Minimap({ map }: { map: HudMinimap }) {
   }, [map, ground]);
 
   return (
-    <div
+    <button
+      type="button"
       class="hud-minimap"
       ref={plateRef}
-      aria-hidden="true"
+      title={STRINGS.pauseTitle}
+      aria-label={STRINGS.pauseTitle}
       data-ground={ground ? "1" : undefined}
+      {...pressHandlers(press, onPause)}
+      onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
     >
-      <canvas class="hud-minimap-world" ref={canvasRef} />
-      <svg class="hud-minimap-face" viewBox={`0 0 ${VIEW} ${VIEW}`}>
+      <canvas class="hud-minimap-world" ref={canvasRef} aria-hidden="true" />
+      <svg class="hud-minimap-face" viewBox={`0 0 ${VIEW} ${VIEW}`} aria-hidden="true">
         {map.chevron !== null && (
           <path
             class={`hud-minimap-chevron${map.chevron.missed ? " hud-minimap-chevron-missed" : ""}`}
@@ -432,6 +447,6 @@ export function Minimap({ map }: { map: HudMinimap }) {
           <path class="hud-minimap-skier" d={SKIER} style={{ fill: skierCss(0) }} />
         </g>
       </svg>
-    </div>
+    </button>
   );
 }

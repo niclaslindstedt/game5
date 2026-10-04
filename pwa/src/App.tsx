@@ -247,7 +247,6 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  // The keys (the skier's, the helicopter's) reach the manager as pressed.
   const { keys: skiKeys, heliKeys } = settings;
   useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
 

@@ -14,6 +14,30 @@ is finished (see `README.md`).
    generator's whole piste already is (`make level SEED=38`).
 4. Research the to-do below into `docs/disciplines.md` before writing R34.
 
+## Watch out (from the slalom)
+
+Read `README.md`'s *Lessons from the slalom* first; for a downhill in
+particular:
+
+- **Everything the super-G learns about jumps, drag and the tuck applies
+  doubly:** air drag is ~51 % of a downhill's lost energy and racers tuck
+  ~37 % of the run. Get the drag areas from `docs/disciplines.md` into the
+  model and the tuck policy into the technique row before tuning anything
+  else.
+- **The downhill pair is now built to the rules** (218 cm, 65 mm, 50 m
+  sidecut); its widths used to draw a 33 m ski. At 55° it carves
+  R ≈ 50 · cos 55° ≈ 29 m against the research's ~52 m typical turn, so a
+  downhill turn is mostly not a full carve — the technique row has to say
+  how much edge a downhiller actually uses (45–60°).
+- **Check the engine at speed first:** the 120 Hz step, the collision and a
+  landing at 120+ km/h (`make ride` scenarios) — the slalom never went past
+  ~55 km/h, so nothing here has been proven fast.
+- **Training runs and the speed trap are new machinery** with no slalom
+  equivalent; keep them DOM-free and tested like `slalom-heat.ts` and
+  `slalom-board.ts`.
+- **The old race's course** (the whole piste, gates every hundred metres) is
+  close to a downhill's shape — read it in `make level` before writing R34.
+
 ## What it is
 
 The fastest discipline: the longest course and the most vertical, few

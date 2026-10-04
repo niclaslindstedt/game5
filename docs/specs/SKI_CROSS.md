@@ -15,6 +15,25 @@ is finished (see `README.md`).
 3. Research the to-do below into `docs/disciplines.md` before writing R35;
    the format (qualifying and the bracket) is a DOM-free module of its own.
 
+## Watch out (from the slalom)
+
+Read `README.md`'s *Lessons from the slalom* first; for a ski cross in
+particular:
+
+- **The field is skied, side by side** — the opposite of the slalom's board.
+  Every rival is a bot run on the same course at once, so the bot's
+  fragility (one run in thirty lost to a ±20 % knob) becomes a heat lost;
+  sweep heats, not runs.
+- **Determinism gets harder with contact.** The crowd's tests turned
+  marginal because one shared random stream re-deals everything when the
+  player's run changes; skier-against-skier contact will do the same to the
+  field. Give the heats' draws streams of their own.
+- **Built features are terrain.** The slalom's setter edits a COPY of the
+  ground (levelling kickers, cutting the start drop, smoothing lips); berms,
+  rollers and step-downs are the same tool used the other way — reuse it.
+- **Landings and contacts in the air:** judge an airborne skier where his
+  body is, not by a stale contact (`strict.ts`'s fix).
+
 ## What it is
 
 The one discipline where racers are on the course TOGETHER: four (sometimes

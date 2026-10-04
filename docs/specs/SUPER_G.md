@@ -13,6 +13,29 @@ is finished (see `README.md`).
    tuck in `engine/game/skier.ts` first.
 4. Research the to-do below into `docs/disciplines.md` before writing R33.
 
+## Watch out (from the slalom)
+
+Read `README.md`'s *Lessons from the slalom* first; for a super-G in
+particular:
+
+- **Jumps are part of the course here,** where the slalom levelled them.
+  The slalom found that a racer over a closed gate was judged by a foot's
+  stale contact (fixed in `strict.ts`) and that a field of lips under a
+  course put the bot in the air a third of the way — decide which kickers a
+  super-G keeps, and smooth the rest.
+- **Speed is drag.** Air drag is ~35 % of the energy a super-G loses; the
+  tuck's drag areas are in `docs/disciplines.md` (standing ~0.65 m², tuck
+  ~0.23, low tuck ~0.17–0.18). The tuck policy (~16 % of the course) belongs
+  in the technique row — the slalom bot tucked where it shouldn't, so the
+  speed bot can as easily not tuck where it should.
+- **Sweep the downhill pair with `make sim ARGS="--skis all"`.** Its misses
+  were the first sign the bot couldn't plan a long-ski bend.
+- **A crash at speed matters more:** check the wipeout and the body's blows
+  (`make ride`'s crash scenarios) at super-G speed before trusting a course.
+- **The lab's piste course isn't a super-G.** Until the super-G has a course
+  of its own, the technique lab's numbers for it come from the open piste or
+  the TURNS sheet's scripted rhythm — label them as such.
+
 ## What it is
 
 The speed discipline with gates turned: one run (no second), a course with

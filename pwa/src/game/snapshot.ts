@@ -27,6 +27,8 @@ import {
   type Airflow,
   type Progress,
   type RunOut,
+  edgeMostOf,
+  techniqueOf,
 } from "@engine";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
@@ -328,7 +330,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const lights = state.rules.countdown > 0 && !slalom;
   return {
     speedKmh: c.speed * 3.6,
-    edge: (c.edge / c.spec.edgeMax) * SCREEN_TO_ENGINE,
+    // Against the most edge he can use — a slalom racer's past the ski's own.
+    edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
     braking: c.brake > BRAKE_SHOWN,
     cutting: c.carve > BRAKE_SHOWN,

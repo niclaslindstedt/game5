@@ -77,7 +77,8 @@ export const STRINGS = {
   brake: "SKID",
   cut: "CUT",
   /** THE WIND METER beside the speed (`hud-wind.tsx`): the felt wind's
-   * caption, the weather's own wind under it, and both said aloud. */
+   * caption, the weather's wind where he stands under it, and both said
+   * aloud. */
   windLabel: "WIND",
   windAir: (kmh: number): string => `WEATHER ${Math.round(kmh)}`,
   windAria: (felt: number, air: number): string =>

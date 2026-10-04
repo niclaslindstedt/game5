@@ -35,6 +35,7 @@ npm run sim -- --skis all          # the catalog: every pair's table, then who w
 npm run sim -- --tricks            # each seed's map of one piste with its terrain park laid (R20)
 npm run sim -- --no-poles          # the bot skis without poles (the player's hard mode)
 npm run sim -- --region fell       # each seed's map built in another kind of snow country (R21)
+npm run sim -- --weather storm     # every map under one sky (R19) — the bot in a storm's wind
 npm run sim -- --json out.json
 ```
 
@@ -43,16 +44,16 @@ It exits non-zero when the bot finishes NO seed at all — a skier that cannot g
 ```
 sim — engine 0.1.0 at 120 Hz · skis chamois · seeds 1,2,3,4,5,6,7,8 · laps map · rivals 0 · max 600 s
  seed  fin    time            splits     cps    len  pow  grade  mean   top   air  best  jmp hrsh tree wipe  rst auto miss  plc  score    digest
-    1  yes   278.2               275   41/41   3629   9%   blue    49    72   1.3   0.5    3    0    0    0    0    0    0    1    155  9425c254
-    2  yes   156.5               154   23/23   1976   5%   blue    47    69   0.4   0.4    1    0    0    0    0    0    0    1     19  83e10c97
-    3  yes    96.7                94   13/13   1052  11%  green    40    55   0.0   0.0    0    0    0    0    0    0    0    1      0  1026b4df
-    4  yes    95.4                93   12/12    994  16%  green    39    57   0.0   0.0    0    0    0    0    0    0    0    1      0  a4be564d
-    5  yes   118.8               116   17/17   1460  24%    red    45    76   0.6   0.6    1    0    0    0    0    0    0    1    135  bd50e92a
-    6  yes   107.8               105   13/13   1056  11%  green    36    55   0.0   0.0    0    0    0    0    0    0    0    1      0  b90851cc
-    7  yes   242.9               241   28/30   2683  16%  black    47   101   7.8   0.9   12    2    0    2    2    2    2    1    510  a2bb3175
-    8  yes   193.5               192   27/27   2372  17%  black    45    85   4.0   0.6    7    0    0    0    0    0    0    1    301  7a7e70a0
+    1  yes   144.2               142   19/19   1634  10%   blue    42    64   0.0   0.1    0    0    0    0    0    0    0    1      0  0d0b75fa
+    2  yes   145.3               143   20/20   1762   5%   blue    47    64   0.5   0.5    1    0    0    0    0    0    0    1     25  cf6b1c42
+    3  yes   112.9               110   13/13   1102  11%  green    38    58   0.0   0.0    0    0    0    0    0    0    0    1      0  c133db6a
+    4  yes    97.0                94   11/11    916  17%  green    35    61   0.0   0.0    0    0    0    0    0    0    0    1      0  01baad7e
+    5  yes   129.3               127   16/16   1360  16%    red    38    78   1.0   0.6    2    0    0    0    0    0    0    1    113  ed194d26
+    6  yes    95.0                92   11/11    920  10%  green    36    61   0.0   0.0    0    0    0    0    0    0    0    1      0  0305631c
+    7  yes   160.4               158   18/18   1504  19%    red    35    68   0.0   0.3    0    0    0    0    0    0    0    1      5  f9c1c05d
+    8  yes   174.5               172   21/21   1794  14%    red    38    73   1.0   0.5    2    0    0    0    0    0    0    1    148  95fb03e4
 
-8/8 finished · mean 43 km/h · top 101 km/h · air 1.8 s/run · jumps 24 · harsh 2 · trees 0 · wipeouts 2 · resets 2 (auto 2) · missed 2 · score 140/run
+8/8 finished · mean 39 km/h · top 78 km/h · air 0.3 s/run · jumps 5 · harsh 0 · trees 0 · wipeouts 0 · resets 0 (auto 0) · missed 0 · score 36/run
 ```
 
 And the race, `make sim ARGS="--rivals 3"`:
@@ -60,16 +61,16 @@ And the race, `make sim ARGS="--rivals 3"`:
 ```
 sim — engine 0.1.0 at 120 Hz · skis chamois · seeds 1,2,3,4,5,6,7,8 · laps map · rivals 3 · max 600 s
  seed  fin    time            splits     cps    len  pow  grade  mean   top   air  best  jmp hrsh tree wipe  rst auto miss  plc  score    digest
-    1  yes   282.2               280   41/41   3629   9%   blue    49    73   1.3   0.5    3    0    0    0    0    0    0    2    177  46cdc629
-    2  yes   163.2               161   23/23   1976   5%   blue    45    67   0.4   0.4    1    0    0    0    0    0    0    2     19  dc77f280
-    3  yes   111.2               109   13/13   1052  11%  green    35    49   0.0   0.0    0    0    0    0    0    0    0    3      0  34ae06ea
-    4  yes   104.9               102   12/12    994  16%  green    35    51   0.0   0.0    0    0    0    0    0    0    0    2      0  fc7762c5
-    5  yes   119.1               117   17/17   1460  24%    red    45    71   0.9   0.6    2    0    0    0    0    0    0    1    152  af51150e
-    6  yes   124.8               122   13/13   1056  11%  green    31    47   0.0   0.0    0    0    0    0    0    0    0    4      0  a8cf7a49
-    7  yes   221.7               220   28/30   2683  16%  black    45   101   6.8   1.0   10    2    0    1    1    1    2    2    500  6793b797
-    8  yes   197.5               196   26/27   2372  17%  black    45    85   4.0   0.6    7    0    0    0    0    0    1    1    331  023d25d0
+    1  yes   144.2               142   19/19   1634  10%   blue    42    64   0.0   0.1    0    0    0    0    0    0    0    1      0  0d0b75fa
+    2  yes   151.7               149   20/20   1762   5%   blue    45    63   0.0   0.0    0    0    0    0    0    0    0    2      0  181d0492
+    3  yes   112.9               110   13/13   1102  11%  green    38    58   0.0   0.0    0    0    0    0    0    0    0    1      0  c133db6a
+    4  yes    97.0                94   11/11    916  17%  green    35    61   0.0   0.0    0    0    0    0    0    0    0    1      0  01baad7e
+    5  yes   129.1               127   16/16   1360  16%    red    39    78   0.9   0.6    2    0    0    0    0    0    0    1    124  e8a56dfd
+    6  yes    95.0                92   11/11    920  10%  green    36    61   0.0   0.0    0    0    0    0    0    0    0    1      0  0305631c
+    7  yes   160.4               158   18/18   1504  19%    red    35    68   0.0   0.3    0    0    0    0    0    0    0    1      5  f9c1c05d
+    8  yes   174.8               172   21/21   1794  14%    red    38    73   1.0   0.5    2    0    0    0    0    0    0    1     44  f209645a
 
-8/8 finished · mean 41 km/h · top 101 km/h · air 1.7 s/run · jumps 23 · harsh 2 · trees 0 · wipeouts 1 · resets 1 (auto 1) · missed 3 · score 147/run
+8/8 finished · mean 38 km/h · top 78 km/h · air 0.2 s/run · jumps 4 · harsh 0 · trees 0 · wipeouts 0 · resets 0 (auto 0) · missed 0 · score 22/run
 ```
 
 ## Reading the table
@@ -97,6 +98,6 @@ A deterministic skier that reads the same `GameState` the HUD reads and produces
 - **How fast**: for every bend within braking reach, the speed its curvature allows at `cornerShare` of the corner grip, less what skidding at `brakeShare` of the grip can take off before it; for every on-piste KICKER, the speed its lip is taken at; a tuck where nothing needs the edge.
 - **In the air**: levels the pitch to the slope it is going to land on, with the lean.
 - **Trees**: moves its aim off a trunk standing in its line.
-- **Giving up**: asks to be reset after `giveUpAfter` seconds without a gate.
+- **Giving up**: asks to be reset after `giveUpAfter` seconds without a gate — `patience` times as long while it is still moving at `stillGoing` m/s or more, because a gale in its face on a traverse slows a skier to a skater's pace, not to nowhere.
 
 A RIVAL is the same bot on a run of its own, its tuck capped at the pace it was dealt at the start line (`RACE.paceBand`).

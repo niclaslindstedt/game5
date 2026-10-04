@@ -22,6 +22,7 @@ import {
   type Level,
   type PisteGrade,
   type Airflow,
+  type AirRider,
   type Progress,
 } from "@engine";
 
@@ -155,21 +156,23 @@ export type HudSnapshot = {
   wind: HudWind;
 };
 
-/** THE WIND as the meter reads it: the air the skier FEELS — the weather's
- * wind less his own velocity (`airflowAt`), what he hears — and the
- * weather's own wind, each as a speed and the way it MOVES as a SCREEN angle
- * (rad clockwise from straight ahead, so a wind in his face points down,
- * at the player). */
+/** THE WIND as the meter reads it: the air the skier FEELS — the air where
+ * he is less his own velocity (`airflowAt`), what he hears and what drags
+ * on him — and that air itself, the weather's wind down at his body and
+ * sheltered by the woods round him, each as a speed and the way it MOVES as
+ * a SCREEN angle (rad clockwise from straight ahead, so a wind in his face
+ * points down, at the player). */
 export type HudWind = {
   /** The apparent wind, km/h. */
   feltKmh: number;
   feltAngle: number;
-  /** The weather's wind over the snow, km/h. */
+  /** The air where he is, standing still in it, km/h. */
   airKmh: number;
   airAngle: number;
 };
 
 const FLOW: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 };
+const STILL: AirRider = { x: 0, z: 0, vx: 0, vy: 0, vz: 0, heading: 0 };
 
 /** The way a flow moves past the skier as a screen angle, through the one
  * flip the input model owns. */
@@ -180,10 +183,13 @@ function flowAngle(f: Airflow): number {
 /** The wind meter's reading for the player at this step. */
 export function windOf(state: GameState): HudWind {
   const c = state.skier;
-  airflowAt(state.level, state.t, 0, 0, 0, c.heading, FLOW);
+  STILL.x = c.x;
+  STILL.z = c.z;
+  STILL.heading = c.heading;
+  airflowAt(state.level, state.t, STILL, FLOW);
   const airKmh = FLOW.speed * 3.6;
   const airAngle = flowAngle(FLOW);
-  airflowAt(state.level, state.t, c.vx, c.vy, c.vz, c.heading, FLOW);
+  airflowAt(state.level, state.t, c, FLOW);
   return { feltKmh: FLOW.speed * 3.6, feltAngle: flowAngle(FLOW), airKmh, airAngle };
 }
 

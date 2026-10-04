@@ -76,8 +76,13 @@ export type BotProfile = {
   treeLook: number;
   treeCorridor: number;
   dodge: number;
-  /** Seconds without a gate before it asks to be reset. */
+  /** Seconds without a gate before it asks to be reset — and how much
+   * longer it gives a skier still MOVING at `stillGoing` m/s or more (a
+   * gale in his face on a traverse slows him to a skater's pace, not to
+   * nowhere). */
   giveUpAfter: number;
+  stillGoing: number;
+  patience: number;
   /** The least speed any turn is planned at, m/s — a skier slower than
    * this turns poorly and bogs in powder. */
   crawl: number;
@@ -136,6 +141,8 @@ export const RIDER_BOT: BotProfile = {
   treeCorridor: 1.4,
   dodge: 4,
   giveUpAfter: 35,
+  stillGoing: 1.2,
+  patience: 3,
   crawl: 6,
   kickerMargin: 0.85,
   entryRadius: 12,
@@ -541,9 +548,10 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)
+  const waited = p.time - Math.max(p.lastPassedAt, p.lastResetAt);
   if (
     state.rules.course &&
-    p.time - Math.max(p.lastPassedAt, p.lastResetAt) > profile.giveUpAfter
+    waited > profile.giveUpAfter * (c.speed >= profile.stillGoing ? profile.patience : 1)
   ) {
     return { ...NEUTRAL_INPUT, reset: true };
   }

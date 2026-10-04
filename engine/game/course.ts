@@ -376,6 +376,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.crouch = 0;
   c.hipRight = 0;
   c.hipAft = 0;
+  c.balance = 0;
   c.packed = packed;
   c.sideSlip = 0;
   c.airborne = false;

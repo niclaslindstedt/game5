@@ -62,6 +62,7 @@ import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
+import { easeBalance, edgeWithin, inclineTarget, rollHeld, rollHold } from "./incline.ts";
 import {
   bodyPlough,
   bottomlessOf,
@@ -78,6 +79,7 @@ import {
 } from "./snow.ts";
 import {
   carveCurvature,
+  carveMost,
   chatterHold,
   chatterOf,
   cornerGrip,
@@ -137,6 +139,9 @@ const MAX_SPIN = 25;
 /** The body's down axis must point at least this far toward the ground for
  * a station to be read at all — a skier on his side has no legs under him. */
 const PROBE_MIN_DOWN = 0.25;
+/** The most inclination whose balance the stations' grip is carried
+ * through, rad — past it a body is on its side, not carving. */
+const LEAN_MOST = 1.3;
 /** Below this speed along its line a station's resistance fades out, m/s,
  * so a skier at rest is not pushed back and forth through zero. */
 const DRAG_FADE = 0.3;
@@ -212,11 +217,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
   // STOOD STILL, a steer is no edge: it steps him round on the spot.
   const still = stoodStill(c, speed0);
-  c.edge = approach(
-    c.edge,
-    (still ? 0 : c.steer) * lock + skiPull(c),
-    S.edgeRate * fit.edgeRate * T.edgeRate * dt,
-  );
+  const goal = (still ? 0 : c.steer) * lock + skiPull(c);
+  // ...no further than he is laid over plus his angulation (`incline.ts`).
+  c.edge = approach(c.edge, edgeWithin(c, goal), S.edgeRate * fit.edgeRate * T.edgeRate * dt);
   // THE SKID: the skis pivoted across the way by the brake — toward the
   // side the edge is on for a hockey stop, and with the skis straight a
   // snowplough, which pivots nothing and only scrubs.
@@ -284,8 +287,17 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // edge says. In powder his weight is how the skis are turned and held
   // up (`snow.ts`'s deep snow), and it goes where the edge sends it at any
   // pace.
+  // The tips loaded and the edge cut hard tighten the arc — as far as the
+  // sidecut's geometry bends (`carveMost`), and never past it: the rest of
+  // a line turned tighter is the skid's.
   const kappa =
-    carveCurvature(spec, c.edge) * (1 - S.tipLoad * c.lean) * (1 + CV.tighten * c.carve);
+    Math.sign(c.edge) *
+    Math.min(
+      Math.abs(carveCurvature(spec, c.edge)) *
+        (1 - S.tipLoad * c.lean) *
+        (1 + CV.tighten * c.carve),
+      carveMost(spec, c.edge),
+    );
   // A pressed edge holds more (`carve.grip`).
   const pressed = 1 + CV.grip * c.carve;
   const bend = c.way * c.way * Math.abs(kappa);
@@ -362,6 +374,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const legX = normal.x;
   const legY = normal.y;
   const legZ = normal.z;
+  // What his inclination balances: a body laid `rollRel` over carries a
+  // grip across his skis of up to tan(rollRel) of their load through his
+  // centre of mass (below, at each station).
+  const leanTan = Math.tan(clamp(rollRel, -LEAN_MOST, LEAN_MOST));
 
   // ── The legs and the grip, station by station ─────────────────────────
   const probes = probesOf(spec);
@@ -397,6 +413,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // (`grip.stillSpeed`).
   let strain = 0;
   let strained = 0;
+  // The snow's grip across the skis, summed — what the turn's balance is
+  // read off (`SkierState.balance`).
+  let lateral = 0;
   for (let i = 0; i < probes.length; i++) {
     const p = probes[i];
     const contact = c.contacts[i];
@@ -527,17 +546,28 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // groomer only: in powder the edge is buried and the ski bends into
     // its float, not its sidecut. The whole ski's pivot is the skid's.
     // Skating, the line is the gliding ski's (`glide`).
+    // The ski's line is turned IN THE SNOW'S PLANE: the skis' heading laid
+    // into it, then the toe about the snow's own normal — an edge tips a
+    // ski about its length and turns its line not at all, so a body
+    // inclined 60° into a carve has the same toe-in under it as one stood
+    // up (turned about the body's up and laid flat after, the toe would
+    // shrink by the cosine of the inclination).
     const toe = c.skiAngle + c.glide + kappa * packed * p.bz;
-    const skiDir = rotate(q, { x: Math.sin(toe), y: 0, z: Math.cos(toe) });
-    // The tangent frame along this station's line of travel.
-    const dn = skiDir.x * normal.x + skiDir.y * normal.y + skiDir.z * normal.z;
-    let tx = skiDir.x - dn * normal.x;
-    let ty = skiDir.y - dn * normal.y;
-    let tz = skiDir.z - dn * normal.z;
-    const tl = hypot3(tx, ty, tz) || 1;
-    tx /= tl;
-    ty /= tl;
-    tz /= tl;
+    const fn = fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z;
+    let fx0 = fwd.x - fn * normal.x;
+    let fy0 = fwd.y - fn * normal.y;
+    let fz0 = fwd.z - fn * normal.z;
+    const fl = hypot3(fx0, fy0, fz0) || 1;
+    fx0 /= fl;
+    fy0 /= fl;
+    fz0 /= fl;
+    const ct = Math.cos(toe);
+    const st = Math.sin(toe);
+    // The tangent frame along this station's line of travel: the heading
+    // turned `toe` toward the snow's right (normal × forward).
+    const tx = fx0 * ct + (normal.y * fz0 - normal.z * fy0) * st;
+    const ty = fy0 * ct + (normal.z * fx0 - normal.x * fz0) * st;
+    const tz = fz0 * ct + (normal.x * fy0 - normal.y * fx0) * st;
     const side = cross(normal.x, normal.y, normal.z, tx, ty, tz);
     const vf = pvx * tx + pvy * ty + pvz * tz;
     const vl = pvx * side.x + pvy * side.y + pvz * side.z;
@@ -557,21 +587,55 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       pressed *
       (1 - c.skid * (1 - G.skidHold) * clamp(speed0 / G.skidBite, 0, 1));
     let across = -hold * load * Math.tanh(vl / G.sideRef);
+    // ...of which THE TURN'S is the grip the way and the yaw ask for: the
+    // body's roll rate swings the stations across the snow about his
+    // centre of mass (the legs hang from it), and the grip against that
+    // sweep damps his roll — it is no load of the turn's, so it neither
+    // moves his balance nor is carried through him.
+    const sweep = cross(fwd.x, fwd.y, fwd.z, rx, ry, rz);
+    const turned =
+      -hold *
+      load *
+      Math.tanh((vl - c.wz * (sweep.x * side.x + sweep.y * side.y + sweep.z * side.z)) / G.sideRef);
+    lateral += turned;
     // THE SHELF'S SHARE of it (`platformOf`) is the snow's reaction square
     // to a base stood on the shelf it has cut, and runs up the inclined leg
     // through his hips: it turns him as any edge's hold does, from where
     // the station stands along the ski, and rolls him no further.
+    let through = 0;
     if (platform > 0) {
-      const shelf = (across * edgeHold * platform) / (edgeShare * (edgeHold + grip.base));
+      through = (across * edgeHold * platform) / (edgeShare * (edgeHold + grip.base));
+      across -= through;
+    }
+    // THE INCLINATION CARRIES ITS SHARE. The legs are cast down the snow's
+    // normal from under his hips, so the stations stand straight under
+    // him however far he inclines — but a real skier laid θ over stands on
+    // feet out to the side of him, and the snow's push along its normal
+    // there, against its grip across, is a moment that cancels the grip's
+    // up to tan θ of the load: the resultant through his centre of mass,
+    // which is what an inclination is FOR. So that much of the grip runs
+    // through him, rolling him nothing, and only a grip past what he is
+    // inclined for tips him out of the turn — against his hold, below. A
+    // body laid over further than the turn asks would fall into it; that
+    // he catches himself and his hold stands him back up alone is the
+    // simplification (at an edge change the balance swings across in a
+    // tenth of a second, and the inverted pendulum's moment on top of his
+    // hold laid him into the old turn's inside).
+    if (across * leanTan > 0 && turned * leanTan > 0) {
+      const carried =
+        Math.sign(across) * Math.min(Math.abs(across), Math.abs(turned), load * Math.abs(leanTan));
+      across -= carried;
+      through += carried;
+    }
+    if (through !== 0) {
       const lift = rx * normal.x + ry * normal.y + rz * normal.z;
-      across -= shelf;
       push(
         cx - lift * normal.x,
         cy - lift * normal.y,
         cz - lift * normal.z,
-        side.x * shelf,
-        side.y * shelf,
-        side.z * shelf,
+        side.x * through,
+        side.y * through,
+        side.z * through,
       );
     }
     // THE CARVE IN POWDER: a ski rolled over in soft snow turns toward the
@@ -640,6 +704,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     loadSum > 0 ? packedLoad / loadSum : packedUnder(level.packedAt(c.x, c.z), state.fresh);
   c.sideSlip = touching > 0 ? slipWorst : 0;
   const grounded = touching > 0;
+  // THE TURN'S BALANCE: the lean at which the snow's grip across the skis
+  // and its push along its normal sum to a force through him.
+  if (grounded) easeBalance(c, lateral, loadSum, dt);
   // THE CHATTER AS IT SHOWS: the speed's share on the packed snow under
   // him, most with the bend's load on the edge — a readout for the view.
   const CH = TUNING.chatter;
@@ -686,25 +753,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const tb = unrotate(q, torque);
   if (grounded) {
     // THE INCLINATION INTO A CARVE, held by the skier and his legs together
-    // against the ground: toward the lean the bend's own load asks for —
-    // atan(v²κ / g), the way a bicycle leans — and no further than
-    // `skier.rollPacked` (or the technique's, `Technique.incline`); in
-    // powder toward the roll the edge asks for
-    // outright, which is the whole turn there. Stiffly, and giving out past
-    // a radian — a skier well over is going over and nothing holds him.
+    // against the ground toward the lean `incline.ts` reads off the turn —
+    // its balance, committed on toward the next — stiffly, and giving out
+    // past what he holds.
     const packed = c.packed;
-    // The load the bend actually puts on him: what the edge asks for, and
-    // never more than the grip can hold — a ski over-edged at speed skids,
-    // and a skier does not lay himself down for a turn he is not getting.
-    const lateral = Math.min(
-      c.way * c.way * Math.abs(kappa),
-      cornerGrip(spec, packed, speed0, c.edge, T) * pressed,
-    );
-    const incline = Math.atan2(lateral, g) * Math.sign(c.edge);
-    const leanMost = Math.max(K.rollPacked, T.incline);
-    const target =
-      clamp(incline, -leanMost, leanMost) * packed + c.steer * K.rollPowder * (1 - packed);
-    const hold = clamp((1.3 - Math.abs(rollRel)) / 0.4, 0, 1);
+    const target = inclineTarget(c, spec, T, speed0, pressed, goal);
+    const hold = rollHeld(rollRel, T);
     // Stated on the reference pair and scaled by this one's weight times
     // its height: the moment a bend puts on a body goes as both.
     const heave = (m * spec.cogHeight) / (totalMass(SKIS) * SKIS.cogHeight);
@@ -727,15 +781,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     if (loose > 0 && moving > 0) {
       tb.z -= K.deepTip * loose * moving * m * g * spec.cogHeight * Math.sin(rollRel) * hold;
     }
-    tb.z +=
-      clamp(
-        K.rollStiff * (rollRel - target) - K.rollDamp * c.wz,
-        -K.rollMax * ARC.hangOff,
-        K.rollMax * ARC.hangOff,
-      ) *
-      heave *
-      hold *
-      firm;
+    tb.z += rollHold(rollRel, target, c.wz, T) * heave * hold * firm;
     // THE FORE-AFT BALANCE (`skier.pitchStiff`): the body held square to
     // the slope under him — toward the lean the thumb asks — against the
     // brake's and the snow's pull at his feet, which would otherwise fold

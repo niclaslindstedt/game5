@@ -159,10 +159,12 @@ describe("the skier at rest", () => {
   });
 
   it("ends a hockey stop on a steep pitch stood, not side-slipping", () => {
-    // 27°, from 40 km/h down the fall line: the edge set at the end of it.
+    // 27°, from 40 km/h down the fall line: the edge set at the end of it
+    // — and the body, laid back against the stop on the way, stood back
+    // up off its inclination once the snow is pushing it nowhere.
     const steep = flatLevel({ packed: 1, grade: 0.5, slopeFrom: 0 });
     const state = stage(steep, 11);
-    ride(state, 10, { ...NEUTRAL_INPUT, brake: 1, steer: 1 });
+    ride(state, 12, { ...NEUTRAL_INPUT, brake: 1, steer: 1 });
     expect(state.skier.speed).toBeLessThan(1e-6);
     const x0 = state.skier.x;
     const z0 = state.skier.z;

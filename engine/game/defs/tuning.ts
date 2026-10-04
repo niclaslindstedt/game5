@@ -314,13 +314,44 @@ export const TUNING = {
      * as far as the edge sends them only once the bend it asks for pulls
      * this many g; under it, that share of the way. */
     hangG: 0.35,
-    /** THE INCLINATION INTO A TURN: the most the whole rolls into a carve,
-     * rad — on packed snow, where the bend's own load asks for it (a
-     * bicycle's lean, atan(v²κ / g)) and this is the cap, 40°, the whole
-     * body of a strong carver laid over (a racer goes past 60°); and in
-     * powder, where the roll is the whole of how a ski turns. Read by
-     * `tipLimit` too. */
+    /** THE INCLINATION INTO A TURN on packed snow follows THE TURN'S
+     * BALANCE (`SkierState.balance`): the angle at which the snow's
+     * reaction — its grip across the skis over its push along its normal,
+     * tan θ = a_lat / g on the level — passes through his centre of mass,
+     * as a bicycle leans. Eased over `balanceLag`, s (the body is a mass
+     * on his legs, and the snow's grip shakes step to step), and laid over
+     * no further than `inclineMost`, rad: 50°, a strong free skier's
+     * carve at 1.2 g (a technique floors it higher — a racer's 52–63°,
+     * `Technique.incline`). The edge he stands on past it is his
+     * angulation's. */
+    inclineMost: 0.87,
+    balanceLag: 0.06,
+    /** ...and the share of the way from that balance to the one his edge
+     * asks for that he leans as he commits to a turn, 0..1 (an arcade
+     * dial, argued against `make skier-metrics`' turn entries: at 0 the
+     * body rolls a turn late, at 1 a skidding skier lies down for a turn
+     * he is not getting). */
+    commit: 0.5,
+    /** THE ANGULATION'S REACH, rad: how far past the body's inclination
+     * the ankles, knees and hips can stand a ski on its edge — a racer's
+     * hip angulation is 10–20° at a slalom apex and his knees add to it;
+     * a skier stood up tips his skis to some 35° with his knees alone. */
+    angulateMost: 0.6,
+    /** ...and the old turn's load, over g (tan of its balance), under which
+     * he crosses over into the next: past it the turn he is still making
+     * holds him in it — a body thrown into the next turn against a 2 g load
+     * is a skier over his edges. An arcade dial, argued against `make
+     * technique`'s turn shapes: at tan(angulateMost) (0.68) a 0.9 s rhythm
+     * missed every other cross-over and turned on its angulation alone;
+     * unbounded, a downhiller at 90 km/h went over his edges. */
+    crossLoad: 1.3,
+    /** THE TIPPING POINT'S ROLL, rad: the whole's inclination the tipping
+     * point (`limits.ts`'s `tipLimit`, the most lateral load a carve can
+     * put on him before it throws him over) is reckoned on — 40°, plus his
+     * angulation, times the arcade's `hangOff`. */
     rollPacked: 0.7,
+    /** IN POWDER the roll is the whole of how a ski turns: the edge asks
+     * for this much of it outright, rad. */
     rollPowder: 0.5,
     /** The righting the skier and his legs together hold that roll with,
      * N·m per rad, the damping on the roll rate, N·m·s, and the most it can

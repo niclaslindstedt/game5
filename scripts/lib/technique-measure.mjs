@@ -62,6 +62,10 @@ export const METRICS = [
   { key: "shapeTurn", label: "shape turn", unit: "s", digits: 2 },
   { key: "shapeEdge", label: "shape edge", unit: "°", digits: 0 },
   { key: "shapeSpeed", label: "shape speed", unit: "km/h", digits: 0 },
+  // ...and at each apex how far he is laid over, beside the lean the turn
+  // he is making balances (tan θ = a_lat / g).
+  { key: "shapeIncline", label: "shape incl", unit: "°", digits: 0 },
+  { key: "shapeBalance", label: "shape balance", unit: "°", digits: 0 },
 ];
 
 /** THE RESEARCH TARGETS, a band per metric per discipline (`lo`..`hi`,
@@ -149,6 +153,16 @@ export const TARGETS = {
  * slalom's ~20 m typical and 12–15 m tightest; the super-G's 35 ± 16 m
  * tightest and ~45 m typical; the downhill's ~52 m typical. Its turn time
  * and peak edge are the course's own bands. */
+/** THE INCLINATION AT A TURN'S APEX, °: the slalom's 45–55° beside 10–20°
+ * of hip angulation at 65–70° of edge, to ~60–65° balanced at its 2.5–3 g
+ * (est.); the giant slalom's ~59°, the super-G's ~52°, the downhill's
+ * ~53°, each derived off its measured speed and radius (est.). */
+const SHAPE_INCLINE = {
+  slalom: { lo: 45, hi: 65 },
+  giantSlalom: { lo: 52, hi: 64, est: true },
+  superG: { lo: 45, hi: 58, est: true },
+  downhill: { lo: 46, hi: 60, est: true },
+};
 const SHAPE_RADIUS = {
   slalom: { lo: 4, hi: 6 },
   giantSlalom: { lo: 13, hi: 22, est: true },
@@ -157,7 +171,12 @@ const SHAPE_RADIUS = {
 };
 for (const [id, band] of Object.entries(SHAPE_RADIUS)) {
   const t = TARGETS[id];
-  Object.assign(t, { shapeRadius: band, shapeTurn: t.turnS, shapeEdge: t.edgePeak });
+  Object.assign(t, {
+    shapeRadius: band,
+    shapeTurn: t.turnS,
+    shapeEdge: t.edgePeak,
+    shapeIncline: SHAPE_INCLINE[id],
+  });
 }
 
 /** The two courses a row can ski on seed `seed`'s mountain: the SLALOM set

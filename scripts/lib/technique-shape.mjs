@@ -87,6 +87,9 @@ export function skiShape(E, S, row, seconds) {
       vx: c.vx,
       vz: c.vz,
       edge: c.edge,
+      incline: c.incline,
+      balance: c.balance,
+      airborne: c.airborne,
       wy: c.wy,
       speed: c.speed,
       slide: slideOf(c),
@@ -149,6 +152,10 @@ export function shapeOf(frames) {
         radius: radii[apex],
         time: t.t1 - t.t0,
         edge: (t.peak * 180) / Math.PI,
+        // How far he is laid over there, and the lean the turn he is making
+        // balances (`SkierState.incline`, `.balance`), °.
+        incline: (Math.abs(f.incline) * 180) / Math.PI,
+        balance: (Math.abs(f.balance) * 180) / Math.PI,
         kmh: f.speed * 3.6,
       };
     });
@@ -161,6 +168,8 @@ export function shapeOf(frames) {
       shapeRadius: median(turns.map((t) => t.radius)),
       shapeTurn: median(turns.map((t) => t.time)),
       shapeEdge: median(turns.map((t) => t.edge)),
+      shapeIncline: median(turns.map((t) => t.incline)),
+      shapeBalance: median(turns.map((t) => t.balance)),
       shapeSpeed: (after.reduce((s, f) => s + f.speed, 0) / Math.max(1, after.length)) * 3.6,
     },
   };

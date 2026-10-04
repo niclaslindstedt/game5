@@ -25,10 +25,13 @@ export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhi
 export type Technique = {
   id: TechniqueId;
   /** HOW FAST HE ROLLS FROM EDGE TO EDGE, as a multiple of
-   * `steer.edgeRate` (on top of the pair's own `Footprint.edgeRate`). */
+   * `steer.edgeRate` (on top of the pair's own `Footprint.edgeRate`) — and,
+   * past 1, how much stiffer and further he holds the roll he lays himself
+   * over with, his edge being his inclination and his angulation
+   * (`skier.ts`). */
   edgeRate: number;
-  /** THE MOST EDGE HE STANDS THE SKI ON, rad — a floor under the pair's
-   * own `edgeMax` (0: the pair's). */
+  /** THE MOST EDGE HE STANDS THE SKI ON, rad — his discipline's, in place
+   * of the pair's own `edgeMax` (0: the pair's). */
   edgeMax: number;
   /** HOW LONG HE HOLDS HIS EDGE AS HE GOES FASTER: a multiple of
    * `steer.fadeSpeed`, the speed by which the edge's lock has eased to two
@@ -39,8 +42,9 @@ export type Technique = {
    * held inside and his weight square on the base; 0 — the edge's bite
    * alone. */
   platform: number;
-  /** THE MOST HIS WHOLE BODY INCLINES INTO A CARVE on the groomer, rad — a
-   * floor under `skier.rollPacked` (0: that cap). */
+  /** THE MOST HIS WHOLE BODY INCLINES INTO A CARVE on the groomer, rad —
+   * how far he lays himself over to the turn's balance (`skier.ts`), a
+   * floor under `skier.inclineMost` (0: that cap). */
   incline: number;
 };
 
@@ -64,33 +68,33 @@ export const FREE: Technique = {
  * — the model's own rate is an arcade's, quicker than the measured one on
  * every row, and the slalom keeps its lead over the others), stood at up
  * to 70°, held there to a slalom's pace (the lock's fade four times as
- * slow), the whole shelf stood on, and the body let in to 46° — further,
- * and a full edge thrown from one side to the other every 0.9 s on the 20°
- * strip rolled him in past what he could hold at every change of edge
- * (`make ride SCENARIO=slalom-rhythm`). */
+ * slow), the whole shelf stood on, and the body let in as far as 63° —
+ * a slalom apex's 2.5–3 g balanced (tan θ = a_lat / g) is 68–72°, the
+ * last of it the hips' angulation. */
 export const SLALOM_TECHNIQUE: Technique = {
   id: "slalom",
   edgeRate: 1.6,
   edgeMax: 1.22,
   fade: 4,
   platform: 1,
-  incline: 0.8,
+  incline: 1.1,
 };
 
 /** THE GIANT SLALOM RACER — data, no mode yet. A turn every ~1.45 s on a
  * preferred radius of ~20 m (13 m at the tightest, est.), 65–72° of edge
  * at the peak (est.) rolled at ~90°/s (est.), a skid of 8° at most, 61–70
  * km/h on the mean and 80 at the peak, 3.2 body weights. So: the edge
- * rolled 0.6 of the slalom's rate (0.96 of the shared), stood at up to 69°,
+ * rolled 0.6 of the slalom's rate (0.96 of the shared), stood at up to 68°,
  * held to 70–80 km/h (the fade two and a half times as slow), the whole
- * shelf, the body let in to 46°. */
+ * shelf, the body let in to 59° (the apex's balance at 18 m/s on ~20 m,
+ * est.). */
 export const GIANT_SLALOM_TECHNIQUE: Technique = {
   id: "giantSlalom",
   edgeRate: 0.96,
-  edgeMax: 1.2,
+  edgeMax: 1.19,
   fade: 2.5,
   platform: 1,
-  incline: 0.8,
+  incline: 1.03,
 };
 
 /** THE SUPER-G RACER — data, no mode yet. A turn every 2.0–2.3 s on a
@@ -98,16 +102,16 @@ export const GIANT_SLALOM_TECHNIQUE: Technique = {
  * peak (est.) rolled at ~55°/s (est.), a skid of 5° at most, a tuck on a
  * sixth of the course, 80–87 km/h on the mean and 100–110 at the peak,
  * 2.4–2.8 body weights. So: the edge rolled 0.37 of the slalom's rate,
- * the pair's own most edge (a super-G or downhill pair's 60–66° is the
- * band), held a little longer (the fade one and a half times as slow),
- * most of the shelf, the body inclined no further than the shared cap. */
+ * stood at up to 60°, held a little longer (the fade one and a half times
+ * as slow), most of the shelf, the body let in to 52° (the apex's balance
+ * at 24 m/s on ~45 m, est.). */
 export const SUPER_G_TECHNIQUE: Technique = {
   id: "superG",
   edgeRate: 0.6,
-  edgeMax: 0,
+  edgeMax: 1.05,
   fade: 1.5,
   platform: 0.8,
-  incline: 0,
+  incline: 0.91,
 };
 
 /** THE DOWNHILL RACER — data, no mode yet. A turn every 2.4–2.6 s on a
@@ -115,16 +119,17 @@ export const SUPER_G_TECHNIQUE: Technique = {
  * ~45°/s (est.), a skid of 5° at most, a tuck on 37 % of the course (a
  * drag area of 0.17–0.24 m² in it against 0.63–0.66 stood up), 86–95
  * km/h on the mean and 120–150 at the peak, 2–2.5 body weights. So: the
- * edge rolled 0.3 of the slalom's rate, the pair's own most edge, the
- * shared fade (a downhiller stands his skis flatter the faster he goes),
- * half the shelf, the shared cap on his inclination. */
+ * edge rolled 0.3 of the slalom's rate, stood at up to 55°, the shared
+ * fade (a downhiller stands his skis flatter the faster he goes), half the
+ * shelf, the body let in to 53° (the apex's balance at 26 m/s on ~52 m,
+ * est.). */
 export const DOWNHILL_TECHNIQUE: Technique = {
   id: "downhill",
   edgeRate: 0.48,
-  edgeMax: 0,
+  edgeMax: 0.96,
   fade: 1,
   platform: 0.5,
-  incline: 0,
+  incline: 0.92,
 };
 
 export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {

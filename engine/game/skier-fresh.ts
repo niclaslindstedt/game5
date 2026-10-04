@@ -42,6 +42,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     pitch: 0,
     roll: 0,
     incline: 0,
+    balance: 0,
     speed: 0,
     way: 0,
     tuck: 0,

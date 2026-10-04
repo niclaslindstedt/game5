@@ -233,8 +233,8 @@ export const STRINGS = {
   menuRace: "SLALOM",
   menuRaceLine: (seed: number, skiers: number): string =>
     `SEED ${seed} · TWO RUNS · ${skiers} SKIERS`,
-  /** THE DISCIPLINES the game names and has not built yet, under SLALOM. */
-  menuComing: "COMING",
+  /** THE DISCIPLINES the game names and has not built yet, on SLALOM. */
+  menuComing: (names: readonly string[]): string => `COMING · ${names.join(" · ")}`,
   disciplines: {
     slalom: "SLALOM",
     giantSlalom: "GIANT SLALOM",

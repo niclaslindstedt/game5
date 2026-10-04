@@ -2631,6 +2631,15 @@ canvas {
   color: rgb(255 255 255 / 60%);
 }
 
+/* THE DISCIPLINES NOT BUILT YET, on SLALOM's second line: smaller and
+   dimmer than a tile's line, because nothing in it can be pressed. */
+.menu-tile-soon {
+  font-size: 0.56em;
+  letter-spacing: 0.06em;
+  text-indent: 0;
+  color: rgb(255 255 255 / 50%);
+}
+
 /* THE SHEEN — a bar of light travelling the hero, the one moving thing on a
    card that stands over moving snow. It is a transform and an opacity and
    nothing else, so it is composited rather than repainted: this card is up

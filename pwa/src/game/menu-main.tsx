@@ -17,7 +17,7 @@
 // ride. The map is ON the tile — the name the level card last picked. A link
 // that pinned a seed says so instead, because that visit rides the seed.
 // The SLALOM is two runs against a field of thirty, one on the course at a
-// time; under it the disciplines named and not built yet, dimmed and not
+// time; on it the disciplines named and not built yet, dimmed and not
 // pressable (`DISCIPLINES`). The trial is the
 // same piste alone against the clock, the record book's row for that
 // mountain and pair, and the ghost of the run that set it (`ghost-run.ts`).
@@ -159,17 +159,19 @@ export function MainMenu({
                   ? STRINGS.menuRaceLine(seed, SLALOM.field + 1)
                   : STRINGS.menuPinnedLine(raceMap)}
               </span>
-              {pinned && <span class="menu-tile-line">{STRINGS.menuRacePinned}</span>}
+              {pinned ? (
+                <span class="menu-tile-line">{STRINGS.menuRacePinned}</span>
+              ) : (
+                <span class="menu-tile-line menu-tile-soon">
+                  {STRINGS.menuComing(
+                    DISCIPLINES.filter((d) => d.mode === null).map(
+                      (d) => STRINGS.disciplines[d.id],
+                    ),
+                  )}
+                </span>
+              )}
             </span>
           </button>
-          <div class="menu-disciplines" aria-disabled="true">
-            {DISCIPLINES.filter((d) => d.mode === null).map((d) => (
-              <span key={d.id} class="menu-discipline">
-                {STRINGS.disciplines[d.id]}
-              </span>
-            ))}
-            <span class="menu-discipline-soon">{STRINGS.menuComing}</span>
-          </div>
           <button
             type="button"
             class="menu-tile menu-tile-wide"

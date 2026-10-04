@@ -296,7 +296,12 @@ canvas {
   right: max(0.8rem, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  /* CENTRED, NOT FLUSH RIGHT: the row of presses is the cluster's width and
+     the map is narrower on a phone on its side (`--hud-map`), so a column
+     pushed to its right edge leaves the presses centred on a different line
+     from the plate over them. Centred, the two share one axis at every size,
+     and the column is still the cluster's width against the corner. */
+  align-items: center;
   gap: 0.5rem;
 }
 

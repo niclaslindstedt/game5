@@ -19,12 +19,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createGame, placeRun, type GameEvent, type GameState } from "@engine";
+import { createGame, placeRun, withSky, type GameEvent, type GameState } from "@engine";
 
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";
 import {
   WIND_FULL,
   WIND_LAYERS,
+  WIND_TOP,
   windTargets,
   type WindLayer,
   type WindVoice,
@@ -287,9 +288,34 @@ describe("the wind bed (wind-voice.ts)", () => {
     const fast = windTargets(voice({ wind: 30 }), mix);
     expect(fast.rush.level).toBeGreaterThan(slow.rush.level);
     expect(fast.rush.cutoff!).toBeGreaterThan(slow.rush.cutoff!);
-    expect(windTargets(voice({ wind: WIND_FULL * 2 }), mix).rush.level).toBe(
-      windTargets(voice({ wind: WIND_FULL }), mix).rush.level,
+  });
+
+  it("keeps climbing past a schuss, because a gale in the face IS that loud", () => {
+    // 100 km/h of wind in the face of a skier doing 100 km/h is 200 km/h of
+    // air: louder than any schuss in still air, and the buffet under it.
+    const schuss = windTargets(voice({ wind: WIND_FULL }), mix);
+    const gale = windTargets(voice({ wind: 200 / 3.6 }), mix);
+    expect(gale.rush.level).toBeGreaterThan(schuss.rush.level * 1.8);
+    expect(gale.buffet.level).toBeGreaterThan(schuss.buffet.level * 4);
+    expect(windTargets(voice({ wind: 20 }), mix).buffet.level).toBe(0);
+    // …and holds past the top, short of the limiter.
+    expect(windTargets(voice({ wind: WIND_TOP * 2 }), mix).rush.level).toBe(
+      windTargets(voice({ wind: WIND_TOP }), mix).rush.level,
     );
+  });
+
+  it("is heard on the side a crosswind comes from, and flaps the suit", () => {
+    const ahead = windTargets(voice({}), mix);
+    const left = windTargets(voice({ side: -1 }), mix);
+    const right = windTargets(voice({ side: 1 }), mix);
+    expect(ahead.rush.pan).toBe(0);
+    expect(left.rush.pan!).toBeLessThan(0);
+    expect(right.whistle.pan!).toBeGreaterThan(right.rush.pan!);
+    expect(right.flutter.level).toBeGreaterThan(ahead.flutter.level * 1.5);
+    expect(left.flutter.level).toBeCloseTo(right.flutter.level, 12);
+    for (const name of Object.keys(right) as WindLayer[]) {
+      expect(Math.abs(right[name].pan ?? 0), name).toBeLessThanOrEqual(1);
+    }
   });
 
   it("roars in the tuck and flutters stood up", () => {
@@ -311,7 +337,7 @@ describe("the wind bed (wind-voice.ts)", () => {
   });
 
   it("keeps every cutoff under the headset's Nyquist and every level non-negative", () => {
-    for (const wind of [0, 5, 15, 30, 45, 80]) {
+    for (const wind of [0, 5, 15, 30, 45, 80, 200]) {
       for (const crouch of [0, 0.5, 1]) {
         for (const airborne of [false, true]) {
           const t = windTargets(voice({ wind, crouch, airborne }), mix);
@@ -536,6 +562,27 @@ describe("the ride bed (ride-bed.ts)", () => {
     expect(rec.layers.every((l) => l.stopped)).toBe(true);
     bed.update(state, 1 / 60);
     expect(bed.live()).toBe(LAYERS);
+  });
+
+  it("hears the APPARENT wind: a headwind adds to the speed, a tailwind takes it away", () => {
+    /** The rush's last level, skiing at 20 m/s along +x under `windFrom`. */
+    const rushUnder = (sky: Parameters<typeof withSky>[1], speed = 20): number => {
+      const voice = recorder();
+      const bed = createRideBed(recorder(), voice);
+      const state = going(speed);
+      state.level = withSky(state.level, sky);
+      for (let i = 0; i < 60; i++) bed.update(state, 1 / 60);
+      const rush = voice.layers[Object.keys(WIND_LAYERS).indexOf("rush")];
+      return rush.sets[rush.sets.length - 1].level;
+    };
+    const calm = rushUnder({ weather: { kind: "fog", wind: 0 } });
+    // Facing +x: a wind FROM +x is in his face, one from -x is behind him.
+    const head = rushUnder({ weather: { kind: "storm", wind: 20, windFrom: Math.PI / 2 } });
+    const tail = rushUnder({ weather: { kind: "storm", wind: 20, windFrom: -Math.PI / 2 } });
+    expect(head).toBeGreaterThan(calm * 2.5);
+    expect(tail).toBeLessThan(calm * 0.5);
+    // A storm is heard standing still.
+    expect(rushUnder({ weather: { kind: "storm", wind: 20, windFrom: 0 } }, 0)).toBeGreaterThan(0);
   });
 
   it("plays the wind through its own fader's view and the snow through the other", () => {

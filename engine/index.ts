@@ -331,7 +331,7 @@ export {
 export { poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
 export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
-export { windAt, type Wind } from "./game/wind.ts";
+export { airflowAt, windAt, type Airflow, type Wind } from "./game/wind.ts";
 export { freshRate, freshStep, snowAt, visibilityIn, type Fall } from "./game/snowfall.ts";
 export {
   TOP_SPEED_PITCH,

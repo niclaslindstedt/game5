@@ -22,6 +22,7 @@ import {
   freshBody,
   placeRun,
   step,
+  withSky,
   type GameEvent,
   type GameState,
 } from "@engine";
@@ -36,7 +37,13 @@ import {
 } from "../pwa/src/game/body-figure.ts";
 import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
-import { AIR_SHOWN, gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
+import {
+  AIR_SHOWN,
+  gatesTaken,
+  standingsOf,
+  takeSnapshot,
+  windOf,
+} from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
@@ -149,6 +156,41 @@ describe("the snapshot (snapshot.ts)", () => {
     expect(snap.result!.time).toBe(181.5);
     expect(snap.result!.penalty).toBe(6);
     expect(new Set(table.map((s) => s.slot)).size).toBe(4);
+  });
+});
+
+describe("the wind meter (snapshot.ts)", () => {
+  /** A skier facing +z, at `speed` m/s along it, under a wind from `from`. */
+  function under(wind: number, from: number, speed: number): GameState {
+    const state = race();
+    state.level = withSky(state.level, { weather: { kind: "storm", wind, windFrom: from } });
+    const c = state.skier;
+    c.heading = 0;
+    c.vx = 0;
+    c.vy = 0;
+    c.vz = speed;
+    return state;
+  }
+
+  it("reads the weather's wind at rest, and the felt wind is the same", () => {
+    const at = windOf(under(20, 0, 0));
+    expect(at.feltKmh).toBeCloseTo(at.airKmh, 9);
+    expect(at.feltAngle).toBeCloseTo(at.airAngle, 9);
+    expect(at.airKmh).toBeGreaterThan(20 * 3.6 * 0.4);
+  });
+
+  it("points a wind in his face down, at the player, and adds it to his speed", () => {
+    // From +z, dead ahead of a skier facing +z.
+    const snap = takeSnapshot(under(20, 0, 28));
+    expect(snap.wind.feltKmh).toBeCloseTo(snap.wind.airKmh + 28 * 3.6, -1);
+    expect(Math.abs(snap.wind.feltAngle)).toBeGreaterThan(Math.PI - 0.3);
+  });
+
+  it("turns a wind toward the engine's +x to the screen's LEFT, as the chase camera sees it", () => {
+    // Air moving toward +x (from -x), the skier at rest facing +z.
+    const at = windOf(under(20, -Math.PI / 2, 0));
+    expect(at.airAngle).toBeLessThan(-Math.PI / 2 + 0.3);
+    expect(at.airAngle).toBeGreaterThan(-Math.PI / 2 - 0.3);
   });
 });
 

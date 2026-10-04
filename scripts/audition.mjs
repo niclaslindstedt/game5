@@ -6,8 +6,10 @@
 // self-contained page that plays the ACTUAL shipped audio: the same synth,
 // the same bank, the same beds. Three sections:
 //
-//   THE WIND   the skier's own wind under sliders — the airspeed, how far
-//              into the tuck he is — and a switch for the air, because the
+//   THE WIND   the skier's own wind under sliders — the APPARENT wind (his
+//              speed and the weather's together), the side a crosswind
+//              comes from, how far into the tuck he is — and a switch for
+//              the air, because the
 //              rush comes up with the snow gone, and a row of SEATS, because
 //              the mix moves with the camera.
 //   THE SNOW   the skis on the snow: the pace, how PACKED the snow is (the
@@ -426,7 +428,8 @@ window.__ear = { seat };
 const rush = { airborne: false };
 window.__ear.rush = rush;
 const rushSliders = document.getElementById("rushSliders");
-sliderRow(rushSliders, rush, "wind", "Wind", 16, 0, 45, " m/s");
+sliderRow(rushSliders, rush, "wind", "Wind", 16, 0, 75, " m/s");
+sliderRow(rushSliders, rush, "side", "From the side", 0, -1, 1);
 sliderRow(rushSliders, rush, "crouch", "Tuck", 0);
 toggle(rushSliders, rush, "airborne", "In the air");
 switchRow(rushSliders, "Seat", Object.keys(LISTENERS), "chase", (s) => (seat.view = s));
@@ -457,7 +460,7 @@ rushBtn.addEventListener("click", () => {
     const ear = listenerFor(seat.view);
     rack.apply(
       windTargets(
-        { wind: rush.wind, crouch: rush.crouch, airborne: rush.airborne },
+        { wind: rush.wind, crouch: rush.crouch, airborne: rush.airborne, side: rush.side },
         { wind: ear.wind, tone: ear.tone },
       ),
     );
@@ -698,6 +701,21 @@ const PRESETS = [
     name: "in the air",
     rush: { wind: 30, crouch: 0.4, airborne: true },
     snow: on("groomed", { pace: 0.9, edge: 0, skid: 0, airborne: true }),
+  },
+  {
+    name: "standing in a storm",
+    rush: { wind: 22, crouch: 0, airborne: false, side: 0.6 },
+    snow: on("new", { pace: 0, edge: 0, skid: 0, airborne: false }),
+  },
+  {
+    name: "a gale in the face, tucked",
+    rush: { wind: 56, crouch: 1, airborne: false },
+    snow: on("groomed", { pace: 0.85, edge: 0.1, skid: 0, airborne: false }),
+  },
+  {
+    name: "a crosswind at speed",
+    rush: { wind: 32, crouch: 0.3, airborne: false, side: -0.8 },
+    snow: on("groomed", { pace: 0.75, edge: 0.2, skid: 0, airborne: false }),
   },
   {
     name: "blown down a wind tunnel",

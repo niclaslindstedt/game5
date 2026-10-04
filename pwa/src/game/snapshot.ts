@@ -12,6 +12,7 @@
 // rule in the shell (§23.2), and there are none.
 
 import {
+  airflowAt,
   bearingToNext,
   fieldOrder,
   gradeOf,
@@ -20,6 +21,7 @@ import {
   type GameState,
   type Level,
   type PisteGrade,
+  type Airflow,
   type Progress,
 } from "@engine";
 
@@ -149,7 +151,41 @@ export type HudSnapshot = {
   tricks: TrickTile | null;
   /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
   grade: PisteGrade;
+  /** THE WIND METER beside the speed (`windOf`). */
+  wind: HudWind;
 };
+
+/** THE WIND as the meter reads it: the air the skier FEELS — the weather's
+ * wind less his own velocity (`airflowAt`), what he hears — and the
+ * weather's own wind, each as a speed and the way it MOVES as a SCREEN angle
+ * (rad clockwise from straight ahead, so a wind in his face points down,
+ * at the player). */
+export type HudWind = {
+  /** The apparent wind, km/h. */
+  feltKmh: number;
+  feltAngle: number;
+  /** The weather's wind over the snow, km/h. */
+  airKmh: number;
+  airAngle: number;
+};
+
+const FLOW: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 };
+
+/** The way a flow moves past the skier as a screen angle, through the one
+ * flip the input model owns. */
+function flowAngle(f: Airflow): number {
+  return Math.atan2(f.across * SCREEN_TO_ENGINE, -f.head);
+}
+
+/** The wind meter's reading for the player at this step. */
+export function windOf(state: GameState): HudWind {
+  const c = state.skier;
+  airflowAt(state.level, state.t, 0, 0, 0, c.heading, FLOW);
+  const airKmh = FLOW.speed * 3.6;
+  const airAngle = flowAngle(FLOW);
+  airflowAt(state.level, state.t, c.vx, c.vy, c.vz, c.heading, FLOW);
+  return { feltKmh: FLOW.speed * 3.6, feltAngle: flowAngle(FLOW), airKmh, airAngle };
+}
 
 /** Gates taken so far, the start gate counted as the first, and never
  * more than the piste has: before the start gate none; through the finish,
@@ -258,5 +294,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     body: bodyTile(c.body, state.t),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
+    wind: windOf(state),
   };
 }

@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { createGame, placeRun, type GameEvent, type Level } from "@engine";
 
 import { createRideBed } from "../pwa/src/game/audio/ride-bed.ts";
+import { WIND_LAYERS } from "../pwa/src/game/audio/wind-voice.ts";
 import { TUNNEL_HEARD, tunnelTargets, tunnelVoiceAt } from "../pwa/src/game/audio/tunnel-voice.ts";
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";
 import { soundForEvent } from "../pwa/src/game/audio/route.ts";
@@ -256,8 +257,8 @@ describe("the tunnel's gale (audio/tunnel-voice.ts, ride-bed.ts)", () => {
     });
     placeRun(state, { x: 300, z: ROW, heading: Math.PI / 2, speed: 20 });
     bed.update(state, 1 / 60);
-    // The wind's four and the gale's three, through the wind's fader.
-    expect(voice.layers.length).toBe(7);
+    // The wind's layers and the gale's three, through the wind's fader.
+    expect(voice.layers.length).toBe(Object.keys(WIND_LAYERS).length + 3);
   });
 
   it("builds nothing of it on a map without a tunnel", () => {
@@ -266,6 +267,6 @@ describe("the tunnel's gale (audio/tunnel-voice.ts, ride-bed.ts)", () => {
       createGame({ level: syntheticLevel(), seed: 3, quiet: true }),
       1 / 60,
     );
-    expect(voice.layers.length).toBe(4);
+    expect(voice.layers.length).toBe(Object.keys(WIND_LAYERS).length);
   });
 });

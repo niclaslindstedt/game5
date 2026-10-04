@@ -23,6 +23,7 @@ import {
   type CrashLimit,
   type GameEvent,
   type GameState,
+  type LoneSki,
   type RunMoment,
   type SkierInput,
   type Thrown,
@@ -204,6 +205,57 @@ describe("the wipeout", () => {
     ride(state, 0.5, TUCK);
     expect(state.skier.tuck).toBeLessThan(0.05);
     expect(state.progress.passed).toBe(passed);
+  });
+
+  it("the skis come off one by one, apart, and slide on down the pitch without bouncing or sinking", () => {
+    const state = staged(PITCH, {
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 60 / 3.6,
+      height: 2.5,
+      vy: -3,
+      pitch: -1.4,
+    });
+    const events = ride(state, 0.6, NEUTRAL_INPUT);
+    expect(wipeouts(events)).toHaveLength(1);
+    const b = state.skier.thrown!;
+    const [left, right] = b.skis;
+    // One binding let go before the other.
+    expect(left.held === 0 || right.held === 0).toBe(true);
+    const mid = (s: LoneSki, k: number) => (s.ends[k] + s.ends[k + 3]) / 2;
+    const above = (s: LoneSki) => mid(s, 1) - state.level.groundAt(mid(s, 0), mid(s, 2));
+    const landed = [false, false];
+    const rise = [0, 0];
+    let gap = 0;
+    let buried = 0;
+    for (let i = 0; i < 4 * 120 && state.skier.thrown; i++) {
+      step(state, NEUTRAL_INPUT);
+      b.skis.forEach((s, k) => {
+        // A ski is built to rise: no end of it, and not its middle, under
+        // the snow.
+        for (const at of [0, s.mount, 1]) {
+          const x = s.ends[3] + (s.ends[0] - s.ends[3]) * at;
+          const y = s.ends[4] + (s.ends[1] - s.ends[4]) * at;
+          const z = s.ends[5] + (s.ends[2] - s.ends[5]) * at;
+          buried = Math.max(buried, state.level.groundAt(x, z) - y);
+        }
+        if (s.held === 0 && s.touching === 3) landed[k] = true;
+        else if (landed[k]) rise[k] = Math.max(rise[k], above(s));
+      });
+      gap = Math.max(gap, Math.hypot(mid(left, 0) - mid(right, 0), mid(left, 2) - mid(right, 2)));
+    }
+    expect(landed).toEqual([true, true]);
+    expect(buried).toBeLessThan(0.005);
+    // Once it lies on the snow, a ski stays on it: nothing hands its fall
+    // back.
+    expect(Math.max(...rise)).toBeLessThan(0.1);
+    // Not a pair any more.
+    expect(gap).toBeGreaterThan(1.5);
+    // A ski on its base on the groomed pitch is still on its way.
+    const way = (s: LoneSki) => Math.hypot(s.ends[0] - s.last[0], s.ends[2] - s.last[2]) * 120;
+    const sliding = b.skis.filter((s) => s.up[1] > 0 && way(s) > 1);
+    expect(sliding.length).toBeGreaterThan(0);
   });
 
   it("a landing taken steep on the tips goes over them; less steep, or level, is ridden away", () => {

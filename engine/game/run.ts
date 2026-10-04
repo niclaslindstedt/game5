@@ -23,6 +23,7 @@ import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
+import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
@@ -67,7 +68,9 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
   const housed = heldInHouse(run);
   stepStartPush(run, input);
-  stepSkier(run, tricks ? poseInput(run, held) : held, events);
+  // Thrown, there is no pair on legs to step: the skis are each their own
+  // (`lone-skis.ts`), stepped with his body below.
+  if (!off) stepSkier(run, tricks ? poseInput(run, held) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
@@ -80,12 +83,14 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (tricks) stepStrokes(run, input);
-  collideTrees(run, events);
+  if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
   keepInBounds(run);
   if (off) {
     stepThrown(run, off);
+    followSkis(run, c, off.skis);
+    derive(c, run.level);
     quietClocks(c);
   } else {
     const cause = wipeoutCause(run, events, speed0);

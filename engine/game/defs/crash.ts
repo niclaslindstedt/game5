@@ -210,6 +210,56 @@ export const CRASH = {
    * them, rad/s per m/s of impact, capped. */
   skiKick: 0.35,
   skiKickMax: 5,
+  /** THE SKIS LET GO (`lone-skis.ts`): each its own body once its binding
+   * releases, so a pair comes apart in every fall. */
+  skis: {
+    /** The one under him — on the side he goes down on — is held in its
+     * binding this long, s, going with his foot, before it lets go; the
+     * other releases at once. Scaled by how hard the fall is. */
+    hold: 0.22,
+    /** ...and let go with his foot's way, no more than this off his
+     * body's own, m/s. */
+    fling: 1.5,
+    /** The wrench each ski is let go with at full speed (`kickSpeed`,
+     * m/s; less below it): turned about the snow's up, rad/s; popped up
+     * off the snow, m/s; spun about its own length, rad/s; and the two
+     * thrown apart across the way, m/s. Each between its `…Min` share and
+     * the whole, off a hash of the moment — the two never alike. */
+    kickSpeed: 15,
+    yaw: 5,
+    yawMin: 0.35,
+    pop: 2.2,
+    popMin: 0.3,
+    spin: 9,
+    spinMin: 0.3,
+    spread: 1.2,
+    /** THE SNOW UNDER A LONE SKI. Nothing bounces: the way into the snow
+     * is taken and the way out of it kept no faster than `pushOut`, m/s.
+     * Coulomb along its base: `base` on wax, `top` on its topsheet, and
+     * `edge` across it, the steel scraping sideways. The `brake` is added
+     * to both at the tail end of a ski on its base, where the brake's arms
+     * drop into the snow once the boot is out — so a ski held harder at
+     * the tail swings tip first down the fall line, and slides away on any
+     * pitch steeper than about 9°. A ski is built to rise: it never sinks
+     * into the snow, and in powder it shoves through the cover at `plough`
+     * 1/s per unit of depth across, a quarter of that along — a ski
+     * planes. */
+    pushOut: 0.2,
+    base: 0.05,
+    brake: 0.22,
+    top: 0.3,
+    edge: 0.3,
+    plough: 2,
+    /** On the snow a ski on its side flops flat at this rate, 1/s; in the air its
+     * spin about its length fades at `spinFade`, 1/s. */
+    settle: 14,
+    /** ...onto its base unless it lies further over onto its back than
+     * this, the cosine of its up against the snow's taken negative (0.5:
+     * 120° over): the binding stands proud of the topsheet, and a ski
+     * propped on it rolls back onto its base. */
+    right: 0.5,
+    spinFade: 0.3,
+  },
   /** How long he lies before the reset stands him up, s: at least
    * `lieMin` off the skis and `lieStill` lain still (under `restSpeed`
    * m/s, on the snow) — the beat the death cam rises over him on — and

@@ -48,11 +48,12 @@
 // a pure function of the moment it started, so a run replays wipeout for
 // wipeout.
 //
-// THE SKIS go on without him — the yard sale: the controls let go
-// (`run.ts`), the bindings released, the skis sliding on down the slope
-// whatever the hull makes of the ground — and a landing over the tips is
-// given the tip-over the tips digging in would put into them. He takes no
-// gate while he is off them; the race clock runs.
+// THE SKIS go on without him — the yard sale: each binding lets go on its
+// own and each ski is a body of its own (`lone-skis.ts`), the one under him
+// held a moment longer, the two wrenched apart and sliding on down the
+// slope rather than bouncing — and a landing over the tips is given the
+// tip-over the tips digging in would put into them. He takes no gate while
+// he is off them; the race clock runs.
 //
 // THE RESET comes once he has been off `lieMin` s and has lain still for
 // `lieStill` of them, or at `lieMax` whatever he is doing — the engine's
@@ -63,6 +64,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { envelopeOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
 
@@ -312,7 +314,8 @@ export function throwRider(
   const how = K.over[cause];
   const spin = Math.min(K.maxSpin, (flat * K.keep) / K.tumbleRadius);
   const pitch = how.pitch * spin;
-  const roll = -fallSide(state, cause, heading, events) * how.side * Math.max(K.topple, spin);
+  const side = fallSide(state, cause, heading, events);
+  const roll = -side * how.side * Math.max(K.topple, spin);
   const turn = hypot(pitch, roll);
   const cap = turn > K.maxSpin ? K.maxSpin / turn : 1;
   const own = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz });
@@ -345,6 +348,7 @@ export function throwRider(
     still: 0,
     impacts: new Array<number>(RAGDOLL.count).fill(0),
     struck: new Array<number>(RAGDOLL.count).fill(0),
+    skis: [],
   };
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a
@@ -353,15 +357,18 @@ export function throwRider(
     const impact = e && e.kind === "land" ? e.impact : 0;
     c.wx += Math.min(K.skiKickMax, K.skiKick * impact);
   }
+  // ...and the bindings let go, each ski its own body from here.
+  thrown.skis = letGo(state, c, side, speed);
   c.thrown = thrown;
   events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
   return thrown;
 }
 
-/** One step of the skier's own body on the snow. */
+/** One step of the skier's own body on the snow, and of the skis he left. */
 export function stepThrown(state: GameState, b: Thrown): void {
   b.t += dt;
   stepRagdoll(state, b);
+  stepLoneSkis(state, b);
 }
 
 /** Whether the skier has lain long enough for the reset to stand him up. */

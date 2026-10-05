@@ -297,9 +297,11 @@ void main() {
   col += uKeyCol * glint * (3.0 + hg);
 
   // THE LAMPS: a floodlight's cone, a headlamp's beam, lights what it
-  // passes through — brightest seen looking back up it.
+  // passes through — brightest seen looking back up it. The slots are dealt
+  // in order (\`dealLamps\`), so the first empty one ends them: by day the
+  // loop is one test, not six.
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
-    if (uLampOn[i] <= 0.0) continue;
+    if (uLampOn[i] <= 0.0) break;
     vec3 back = uLampPos[i] - vWorld;
     float gap = length(back);
     float toward = 0.5 + 0.5 * pow(max(0.0, dot(-toEye, uLampDir[i])), 3.0);

@@ -210,6 +210,8 @@ function fill(
  * player's lamp first (`skiers[0]`: it lights what he skis into), then
  * the finish arena's floods, then the field's lamps within reach of the
  * lens, as far as the slots go. The floods' own glow is `gates.ts`'s.
+ * Every slot dealt is lit (its power over 0) and comes before every empty
+ * one: the shaders' lamp loops stop at the first empty slot (`haze.ts`).
  */
 export function dealLamps(
   u: HazeUniforms,

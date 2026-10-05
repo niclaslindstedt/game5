@@ -5,8 +5,8 @@
 //
 //   ENGINE  one engine step (`step`) and the bot's decision (`botInput`),
 //           per step, on the runs a player actually takes: the benchmark's
-//           pinned race (four whole runs), a free ride (the crowd), a
-//           slalom and a downhill. The app takes two steps a frame at 60 Hz.
+//           pinned race (four whole runs), a free ride (the crowd), the
+//           free ride on the snowmobile, a slalom and a downhill. The app takes two steps a frame at 60 Hz.
 //   VIEWS   the three.js side of the renderer that is CPU work — a view's
 //           per-frame `update`, which fills instance buffers and needs no
 //           WebGL: the FOREST's band refill along the benchmark race behind
@@ -132,15 +132,15 @@ function hashInstances(group) {
 
 const rows = [];
 
-function engineRun(name, make) {
+function engineRun(name, make, hands = E.botInput) {
   const state = make();
   // A warm-up the JIT settles in, untimed.
-  for (let i = 0; i < 240; i++) E.step(state, E.botInput(state));
+  for (let i = 0; i < 240; i++) E.step(state, hands(state));
   const bot = [];
   const step = [];
   for (let i = 0; i < args.steps; i++) {
     const a = wall();
-    const input = E.botInput(state);
+    const input = hands(state);
     const b = wall();
     E.step(state, input);
     step.push(wall() - b);
@@ -182,6 +182,13 @@ if (suites.includes("engine")) {
     });
   engineRun("benchmark race", bench);
   engineRun("free ride", () => E.createGame({ seed: 7, mode: "free", quiet: true }));
+  // The free ride on the snowmobile, the bot's hands riding it up the mountain.
+  const { sledPilot } = await import(join(root, "engine/game/sled-pilot.ts"));
+  engineRun(
+    "free ride sled",
+    () => E.createGame({ seed: 7, mode: "free", sled: true, quiet: true }),
+    (state) => sledPilot(state),
+  );
   engineRun("slalom", () => E.createGame({ seed: 38, mode: "slalom", quiet: true }));
   engineRun("downhill", () => E.createGame({ seed: 38, mode: "downhill", quiet: true }));
 }

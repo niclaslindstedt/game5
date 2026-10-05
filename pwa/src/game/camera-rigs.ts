@@ -153,6 +153,9 @@ export type BoltedRig = {
   eye: Vec3;
   /** How far ahead along the body's forward axis it looks, m. */
   look: number;
+  /** How far the look is pitched down off the body's forward axis, rad —
+   * a lens over a machine tipped to show its hood under the snow ahead. */
+  down?: number;
   fov: number;
   fovPerSpeed: number;
   /** Share of the skier's roll the horizon keeps, 0..1. */
@@ -528,7 +531,8 @@ export function frameRig(
     // Bolted on, the tremor swings the aim: the whole world buzzes.
     const shake = tremorAt(st, pose, rig.tremor, dt);
     const swing = rig.look * PACE.tremor.aim;
-    const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing, z: rig.look });
+    const dip = rig.look * Math.tan(rig.down ?? 0);
+    const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
     const target = { x: eye.x + fwd.x, y: eye.y + fwd.y, z: eye.z + fwd.z };
     st.fresh = false;
     return {

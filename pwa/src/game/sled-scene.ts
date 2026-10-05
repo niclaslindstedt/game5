@@ -43,6 +43,8 @@ export type SledScene = {
   ): void;
   /** The skier stood on the boards (`SkisModel.setSled`), or null off it. */
   stand(state: GameState): SledStand | null;
+  /** The machine as drawn this frame (its centre and attitude), or null. */
+  drawn(): ReturnType<SledView["drawn"]>;
   /** Dress the racked pair in the rider's topsheet colours. */
   dressRack(body: number, trim: number): void;
   dispose(): void;
@@ -312,6 +314,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
     dressRack(body, trim) {
       view.dressRack(body, trim);
     },
+    drawn: () => view.drawn(),
     dispose() {
       view.dispose();
     },

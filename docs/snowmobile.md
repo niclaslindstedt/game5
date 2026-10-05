@@ -21,6 +21,7 @@ It is reached two ways:
 | The class's traced side profile | `pwa/src/game/sled-look.ts` |
 | The machine as drawn (the model posed off the engine, the rack, the lamp, the halo) | `pwa/src/game/sled-view.ts` |
 | The tracks, the roost, the rider stood on the boards | `pwa/src/game/sled-scene.ts`, held with the helicopter by `machines.ts` |
+| The camera while he rides it: the ladder framed off the machine on rows of its own | `pwa/src/game/camera-sled.ts` (`SLED_RIGS`, `sledRigPose`) |
 | The rider's stance over the bars | `pwa/src/game/skier-sled.ts` (`boardPose`), read through `skier-seat.ts` |
 | The HUD's tachometer and its call | `pwa/src/game/hud-sled.tsx`, `pwa/src/sled.css` |
 | The sound | `pwa/src/game/audio/sled-*.ts` (see `docs/audio.md`) |
@@ -109,6 +110,15 @@ The rider stands on the boards (`skier-sled.ts`'s `boardPose`): a boot on each b
 
 **The roost.** A mountain sled's paddles throw the powder they cannot bite back off the belt's end, high and long behind it when the belt spins. The heavy clumps go into the spray and the fine snow into the snow cloud, where it hangs and drifts. The skis throw powder off their tips, a nose buried in deep snow pushes a bow wave, and a landing bursts.
 
+**The camera.** The camera ladder is built round a skier: the TIPS lens a hand's height off the snow ahead of his boots, the HELMET lens at his eyes, the booms a few metres behind his back. Stood on the boards of a machine three metres long, those rows put the tips lens inside its hood. So while he rides it the ladder is framed off the machine itself — its centre as drawn, its attitude, its way and its own flight — on rows of its own (`camera-sled.ts`'s `SLED_RIGS`), and the lens is flown across from one ladder to the other as he steps on and off (a ride begun on the boards cuts straight to it):
+
+- TIPS: the bumper — a lens bolted low ahead of the nose, the snow rushing at it and the lamp's pool on it;
+- HELMET: the rider's eye over the bars, tipped down so the bars and the hood stand at the foot of the frame;
+- CHASE: behind and over his head, the whole machine and its roost in the frame;
+- FAR and HIGH: the same further out, and high over it.
+
+The booms keep everything the skier's have (the springs, the lean with the face, the stretch with speed, the trunks pushed off); only their sizes are the machine's. `tests/camera_sled_test.ts` holds every lens clear of the machine.
+
 ## The sound
 
 Eight layers (`docs/audio.md`), the sibling sled game's engine voice for its 850 two-stroke:
@@ -124,6 +134,6 @@ It is heard from the skier: under him on the boards, and going away down the sno
 ## Measuring it
 
 - `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, getting on and off on the machine press, the crash and the remount, determinism, and the voice.
-- `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, and the model alone, on contact sheets.
+- `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, the model alone, and every camera rung riding it (`ARGS=--sheet=lenses`), on contact sheets.
 - `make screenshots ARGS="--surface sled-park,sled-go,sled"` (after `make build`): the built app stood on its boards at the bottom, riding away, and riding up the mountain on the pre-roll's hands (`sledPilot`).
 - `make audition ARGS=--meter`: the snowmobile's presets (idling, pinned in powder, cruising, high-marking, off a crest, idling 60 m off) and its one-shots, levelled against the rest of the game.

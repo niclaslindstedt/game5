@@ -8,7 +8,16 @@
 
 import { describe, expect, it } from "vitest";
 
-import { clearOfLifts, type GameState, type Level, type RegionId, type Run } from "@engine";
+import {
+  clearOfLifts,
+  createGame,
+  nearestTrackPoint,
+  raceCourseOf,
+  type GameState,
+  type Level,
+  type RegionId,
+  type Run,
+} from "@engine";
 
 import {
   courseName,
@@ -19,7 +28,9 @@ import {
   runNumber,
   runNumbers,
 } from "../pwa/src/game/run-names.ts";
-import { SIGN, signPlan } from "../pwa/src/game/run-sign-plan.ts";
+import { buildCampaignLevel } from "../pwa/src/game/campaign.ts";
+import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
+import { SIGN, onCourse, signPlan, summitSigns } from "../pwa/src/game/run-sign-plan.ts";
 import { createRunWatch } from "../pwa/src/game/run-watch.ts";
 import { RUN_NAMES, RUN_WORDS, type NameForm } from "../pwa/src/game/strings-run-names.ts";
 import { levelFor } from "./support/levels.ts";
@@ -211,6 +222,34 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
       }
       expect(runs.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("the piste-head signs keep off a race course", () => {
+  it("takes down the lane's sign standing on the super-G's course (superG-5, seed 38)", () => {
+    const map = RACE_MAPS.superG!.find((m) => m.id === "superG-5")!;
+    const built = buildCampaignLevel(map);
+    const level = createGame({ seed: map.seed, level: built, mode: map.mode, quiet: true }).level;
+    const course = raceCourseOf(level)!;
+    // The map unraced keeps it: the lane's junction sign on the piste, a
+    // couple of hundred metres down the course.
+    const on = signPlan(built).filter((p) => {
+      const hit = nearestTrackPoint(built, p.x, p.z);
+      const width = built.track.points[hit.index].width;
+      return hit.s > course.from && hit.s < course.to && hit.distance < width / 2;
+    });
+    expect(on.length).toBeGreaterThan(0);
+    // Raced, no post stands inside the nets, and the rest still stand.
+    const raced = [...signPlan(level), ...summitSigns(level)];
+    for (const p of raced) expect(onCourse(level, p.x, p.z), p.boards[0].name).toBe(false);
+    expect(raced.length).toBeGreaterThan(0);
+    // The course itself is on the course, down its whole length.
+    for (let s = course.from; s < course.to; s += 50) {
+      const p = level.track.points[Math.round(s / 2)];
+      expect(onCourse(level, p.x, p.z)).toBe(true);
+    }
+    // A map with no race set keeps every sign.
+    expect(signPlan(built).some((p) => onCourse(built, p.x, p.z))).toBe(false);
   });
 });
 

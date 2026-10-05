@@ -25,12 +25,21 @@
 // one he wants straight down its ramp onto its run. A map from before the
 // ramps keeps a post at a chair's parting (`chairLane`) instead, each
 // plank CUT AS AN ARROW the way its run leaves (`signsOf`).
+//
+// ON A RACE DAY the course is closed and cleared: no sign stands inside a
+// race's nets (`onCourse`), from just above its start house to past its
+// finish line — a lane's junction sign on the course a racer would ski
+// into, a run's head sign on the start drop — nor in a speed track's
+// safety margin.
 
 import {
+  DISCIPLINE_RULES,
   RESORT_RULES,
   chairLane,
   clearOfLifts,
   liftPlans,
+  nearestTrackPoint,
+  raceCourseOf,
   trackPointAt,
   type Level,
   type LiftPlan,
@@ -40,6 +49,7 @@ import {
 } from "@engine";
 
 import { runName, runNumber } from "./run-names.ts";
+import { NETS, netShape } from "./spectator-plan.ts";
 import { signsOf } from "./station-plan.ts";
 
 /** The sign's measure, m: how far down the run it stands; how far off the
@@ -62,6 +72,10 @@ export const SIGN = {
   gap: 0.07,
   /** An arrow board's point: how far it reaches past the plank, m. */
   tip: 0.5,
+  /** On a race day, how far above the start a sign is taken down, and how
+   * far outside the nets a post must stand, m (`onCourse`). */
+  house: 20,
+  clear: 1,
 };
 
 /** The way a sign's arrow points, as the skier reading it looks. */
@@ -207,6 +221,19 @@ function spotOf(level: Level, run: Run, runs: readonly Run[]): Spot | null {
   };
 }
 
+/** Whether (x, z) stands on `level`'s race course: inside its nets (a
+ * speed track's safety margin), between just above its start house and the
+ * nets' end past its finish line. Never on a map with no race set. */
+export function onCourse(level: Level, x: number, z: number): boolean {
+  const course = raceCourseOf(level);
+  if (!course) return false;
+  const hit = nearestTrackPoint(level, x, z);
+  if (hit.s < course.from - SIGN.house || hit.s > course.to + NETS.after) return false;
+  const width = level.track.points[hit.index]?.width ?? 0;
+  const out = level.speedSki ? DISCIPLINE_RULES.speedSki.margin : netShape(level).out;
+  return hit.distance < width / 2 + out + SIGN.clear;
+}
+
 const RANK: Readonly<Record<PisteGrade, number>> = { green: 0, blue: 1, red: 2, black: 3 };
 
 /** The order boards stack in, top first: the pistes over the lanes, then
@@ -239,7 +266,7 @@ export function signPlan(level: Level): readonly SignPost[] {
     if (near) near.push(spot);
     else groups.push([spot]);
   }
-  const posts = groups.map((g): SignPost => {
+  const posts = groups.flatMap((g): SignPost[] => {
     // A lone sign stands where it was put. A SIGN TREE stands among the
     // runs it points to, turned to their mean way down — where that is
     // clear of the lift, or where its first board's own sign would have.
@@ -268,7 +295,8 @@ export function signPlan(level: Level): readonly SignPost[] {
       placed.unshift({ ...boards[i], y: foot });
       foot += boards[i].height + SIGN.gap;
     }
-    return { x, z, y: level.groundAt(x, z), heading, boards: placed };
+    if (onCourse(level, x, z)) return [];
+    return [{ x, z, y: level.groundAt(x, z), heading, boards: placed }];
   });
   cache.set(level, posts);
   return posts;
@@ -333,7 +361,7 @@ export function summitSigns(level: Level): SignPost[] {
     }
     posts.push({ x, z, y: level.groundAt(x, z), heading: plan.heading, boards: placed });
   }
-  return posts;
+  return posts.filter((p) => !onCourse(level, p.x, p.z));
 }
 
 /** Where a ramp's sign stands at its head, m: in from the pad's rim, and

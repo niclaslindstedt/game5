@@ -22,7 +22,7 @@ import { APP_SHORT_NAME } from "../identity.ts";
 import type { PreviewPainted } from "./seed-preview-worker.ts";
 
 /** Bumped whenever what is kept (`PreviewPainted`) changes shape. */
-const FORMAT = 1;
+const FORMAT = 2;
 
 /** What names this build's store. */
 const STAMP = `${CURRENT_GENERATOR_VERSION}.${FORMAT}.${__APP_VERSION__}`;

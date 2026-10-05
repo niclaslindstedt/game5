@@ -237,22 +237,73 @@ export class Shape {
       const d = dir(k);
       return [d[0], d[1] + 0.1, d[2]];
     };
+    // The rings turn counter-clockwise about the axis, so a quad wound foot,
+    // next foot, next head faces OUT: the trees' material draws front faces
+    // only, and a tube wound the other way is a shell the far wall's inside
+    // shows through.
     for (let k = 0; k < sides; k++) {
       this.push(ring(a, ra, k), ca, out(k), a, gw);
-      this.push(ring(b, rb, k + 1), cb, out(k + 1), b, gw);
       this.push(ring(a, ra, k + 1), ca, out(k + 1), a, gw);
-      this.push(ring(a, ra, k), ca, out(k), a, gw);
-      this.push(ring(b, rb, k), cb, out(k), b, gw);
       this.push(ring(b, rb, k + 1), cb, out(k + 1), b, gw);
+      this.push(ring(a, ra, k), ca, out(k), a, gw);
+      this.push(ring(b, rb, k + 1), cb, out(k + 1), b, gw);
+      this.push(ring(b, rb, k), cb, out(k), b, gw);
     }
   }
-  /** A stem up a list of joints, each its radius and colour: one tube a
-   * span, every ring tagged as trunk. */
-  stemUp(joints: readonly { at: V3; r: number; c: THREE.Color }[], sides: number, girth = 1): void {
-    for (let i = 0; i + 1 < joints.length; i++) {
+  /** A stem up a list of joints, each its radius and colour, as ONE
+   * SOLID: a ring at every joint, level in plan and turned the same way,
+   * SHARED by the span under it and the span over it — the same corners and
+   * the same girth weight — so the trunk is unbroken from the foot to the
+   * crown however the tree's girth widens it. (A tube a span, each ring
+   * square to its own span's axis and turned its own way, leaves notches at
+   * every joint the inside shows through.) Every span is coloured from its
+   * foot joint's colour to its head's, or flat in `band(span)` when given. */
+  stemUp(
+    joints: readonly { at: V3; r: number; c: THREE.Color }[],
+    sides: number,
+    girth = 1,
+    band?: (span: number) => THREE.Color,
+  ): void {
+    const n = joints.length;
+    if (n < 2) return;
+    // How plumb the stem runs at each joint (the spans either side of it,
+    // averaged): a leaning stem is widened the less, as `tube` has it.
+    const plumb = joints.map((_, j) => {
+      const a = joints[Math.max(0, j - 1)].at;
+      const b = joints[Math.min(n - 1, j + 1)].at;
+      const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      return Math.abs(d[1]) / (Math.hypot(d[0], d[1], d[2]) || 1);
+    });
+    // Right-handed about the vertical, so a quad wound foot, next foot,
+    // next head faces out.
+    const dir = (k: number): V3 => {
+      const t = (k / sides) * Math.PI * 2;
+      return [Math.cos(t), 0, -Math.sin(t)];
+    };
+    const corner = (j: number, k: number): V3 => {
+      const d = dir(k);
+      const { at, r } = joints[j];
+      return [at[0] + d[0] * r, at[1], at[2] + d[2] * r];
+    };
+    const out = (k: number): V3 => {
+      const d = dir(k);
+      return [d[0], 0.1, d[2]];
+    };
+    for (let i = 0; i + 1 < n; i++) {
       const a = joints[i];
       const b = joints[i + 1];
-      this.tube(a.at, b.at, a.r, b.r, sides, a.c, b.c, girth, i * 0.5);
+      const ca = band ? band(i) : a.c;
+      const cb = band ? band(i) : b.c;
+      const ga = girth * plumb[i] * plumb[i];
+      const gb = girth * plumb[i + 1] * plumb[i + 1];
+      for (let k = 0; k < sides; k++) {
+        this.push(corner(i, k), ca, out(k), a.at, ga);
+        this.push(corner(i, k + 1), ca, out(k + 1), a.at, ga);
+        this.push(corner(i + 1, k + 1), cb, out(k + 1), b.at, gb);
+        this.push(corner(i, k), ca, out(k), a.at, ga);
+        this.push(corner(i + 1, k + 1), cb, out(k + 1), b.at, gb);
+        this.push(corner(i + 1, k), cb, out(k), b.at, gb);
+      }
     }
   }
   /** A thin FIN from `root` to `tip`, `w` wide at the root and `fan` of

@@ -563,16 +563,23 @@ function broadleaf(v: TreeVariant, form: BirchForm, p: KindPaint, lod: TreeLod, 
     const bands = lod === 0 ? (stems > 2 ? 2 : 4) : lod === 1 ? 2 : 1;
     const crownTop = 0.82 * height;
     s.facet = 0.25;
+    // One unbroken stem through every band, each band flat in its tone.
+    const tones: THREE.Color[] = [];
+    const heights = [0];
     for (let b = 0; b < bands; b++) {
-      const y0 = b === 0 ? 0 : b === 1 && bands > 2 ? BREAST : (b / bands) * crownTop;
-      const y1 = b === 0 && bands > 2 ? BREAST : ((b + 1) / bands) * crownTop;
-      const tone = jitter(seed * 13 + b * 7 + st) < form.marks ? p.marks : p.bark;
-      const at0 = along(y0);
-      const at1 = along(y1);
-      const r0 = TRUNK_REF * share * trunkProfile(y0, crownTop, 0.3);
-      const r1 = TRUNK_REF * share * trunkProfile(y1, crownTop, 0.3);
-      s.tube(at0, at1, r0, r1, TRUNK_SIDES[lod], tone, tone, 1, b * 0.5);
+      heights.push(b === 0 && bands > 2 ? BREAST : ((b + 1) / bands) * crownTop);
+      tones.push(jitter(seed * 13 + b * 7 + st) < form.marks ? p.marks : p.bark);
     }
+    s.stemUp(
+      heights.map((y) => ({
+        at: along(y),
+        r: TRUNK_REF * share * trunkProfile(y, crownTop, 0.3),
+        c: p.bark,
+      })),
+      TRUNK_SIDES[lod],
+      1,
+      (span) => tones[span],
+    );
     // THE LIMBS: forking off the stem up the crown, the lowest reaching
     // furthest, each a crooked tube of two spans with a second branch off
     // its elbow — the wood a winter crown is.

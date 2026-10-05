@@ -41,7 +41,7 @@
 // none of them is switched on by riding closer to its tree.
 
 import * as THREE from "three";
-import { regionOf, type Level } from "@engine";
+import { regionOf, type Level, type Vec3 } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
@@ -51,6 +51,7 @@ import { regionLookOf } from "./region-look.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
+import { treeTilt } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -112,12 +113,23 @@ export const LENS_CLEAR = 2.4;
  * one the lens is passing through, stays drawn. */
 export const LENS_BEHIND = 1;
 
-/** Whether the lens, `d` m from the trunk in plan at height `y`, is within
- * `LENS_CLEAR` of the tree as drawn — its variant's crown at that height,
- * or its bare trunk under the lowest bough. */
-function atLens(t: Level["trees"][number], v: TreeVariant, d: number, y: number): boolean {
+/** Whether the lens at `x`, `z`, `y` is within `LENS_CLEAR` of the tree as
+ * drawn — its variant's crown at that height, or its bare trunk under the
+ * lowest bough — round its axis as it LEANS (`lx`, `lz`: the axis's shift
+ * in plan a metre up). */
+function atLens(
+  t: Level["trees"][number],
+  v: TreeVariant,
+  x: number,
+  z: number,
+  y: number,
+  lx: number,
+  lz: number,
+): boolean {
   const f = (y - t.y) / t.height;
   if (f > 1.05) return false;
+  const up = Math.max(0, y - t.y);
+  const d = Math.hypot(x - t.x - lx * up, z - t.z - lz * up);
   const crown = t.crown * 0.95 * crownAt(v, Math.max(0, f));
   return d - Math.max(t.radius, crown) < LENS_CLEAR;
 }
@@ -157,16 +169,30 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
    * this is under `farShare`, so a thinner wood is a subset of a thicker
    * one and walking the row never swaps one tree for another. */
   const thin = new Float32Array(count);
+  /** Each tree's LEAN as the shift of its axis in plan a metre up. */
+  const leans = new Float32Array(count * 2);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
+  const lean = new THREE.Quaternion();
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  const across = new THREE.Vector3();
+  const ground: Vec3 = { x: 0, y: 1, z: 0 };
   for (let i = 0; i < count; i++) {
     const t = trees[i];
     const h = hash(t.x, t.z);
     thin[i] = hash(t.x * 1.7 + 11, t.z * 0.6 - 5);
-    q.setFromAxisAngle(up, h * Math.PI * 2);
+    // Turned about its own axis, then LEANT off plumb about its foot
+    // (`tree-tilt.ts`): mostly a few degrees, mostly down the slope.
+    level.normalAt(t.x, t.z, ground);
+    const tilt = treeTilt(t.x, t.z, leadVariant(t.kind ?? "spruce").shape.form, ground.x, ground.z);
+    across.set(tilt.dz, 0, -tilt.dx);
+    lean.setFromAxisAngle(across, tilt.angle);
+    q.setFromAxisAngle(up, h * Math.PI * 2).premultiply(lean);
+    const reach = Math.tan(tilt.angle);
+    leans[i * 2] = tilt.dx * reach;
+    leans[i * 2 + 1] = tilt.dz * reach;
     // The crown the generator gives is the collision's idea of it; drawn a
     // touch narrower so a wood keeps gaps between its trees — and every tree
     // a little broader or slimmer and a little oval, off a hash of its
@@ -176,8 +202,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     s.set(t.crown * 0.95 * broad * oval, t.height, (t.crown * 0.95 * broad) / oval);
     girths[i * 2] = t.radius / (TRUNK_REF * s.x);
     girths[i * 2 + 1] = t.radius / (TRUNK_REF * s.z);
-    // Sunk a little, so a tree on a slope stands in the snow.
-    p.set(t.x, t.y - 0.3, t.z);
+    // Sunk a little, so a tree on a slope stands in the snow — and a leaning
+    // one by as much again as its flared foot rises on the side it leans
+    // from.
+    p.set(t.x, t.y - 0.3 - t.radius * 1.45 * Math.sin(tilt.angle), t.z);
     m.compose(p, q, s).toArray(matrices, i * 16);
     const tone = 0.9 + hash(t.z, t.x) * 0.2;
     colours[i * 3] = tone;
@@ -194,10 +222,16 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   }
   const binTop = new Float32Array(cols * cols).fill(-Infinity);
   const binLow = new Float32Array(cols * cols).fill(Infinity);
+  /** How far a crown in each cell leans out past its trunk, m. */
+  const binLean = new Float32Array(cols * cols);
   for (let b = 0; b < bins.length; b++) {
     for (const i of bins[b]) {
       binTop[b] = Math.max(binTop[b], trees[i].y + trees[i].height);
       binLow[b] = Math.min(binLow[b], trees[i].y);
+      binLean[b] = Math.max(
+        binLean[b],
+        trees[i].height * Math.hypot(leans[i * 2], leans[i * 2 + 1]),
+      );
     }
   }
 
@@ -398,7 +432,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   let tallest = 0;
   for (const t of trees) tallest = Math.max(tallest, t.height);
   let widest = 0;
-  for (const t of trees) widest = Math.max(widest, t.crown);
+  trees.forEach((t, i) => {
+    widest = Math.max(widest, t.crown + t.height * Math.hypot(leans[i * 2], leans[i * 2 + 1]));
+  });
 
   const frustum = new THREE.Frustum();
   const box = new THREE.Box3();
@@ -466,7 +502,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         for (let c = cMin; c <= cMax; c++) {
           for (const i of bins[row * cols + c]) {
             const t = trees[i];
-            if (!castsInto(shadow, t.x, t.z, t.height, t.crown)) continue;
+            const crown = t.crown + t.height * Math.hypot(leans[i * 2], leans[i * 2 + 1]);
+            if (!castsInto(shadow, t.x, t.z, t.height, crown)) continue;
             const sh = into.shape[i];
             const k = n[sh]++;
             const mat = into.mats[sh];
@@ -549,8 +586,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         for (let c = Math.max(0, c0 - reach); c <= Math.min(cols - 1, c0 + reach); c++) {
           const b = r * cols + c;
           if (bins[b].length === 0) continue;
-          box.min.set(c * CELL - 8, binLow[b] - 2, r * CELL - 8);
-          box.max.set((c + 1) * CELL + 8, binTop[b] + 2, (r + 1) * CELL + 8);
+          const pad = 8 + binLean[b];
+          box.min.set(c * CELL - pad, binLow[b] - 2, r * CELL - pad);
+          box.max.set((c + 1) * CELL + pad, binTop[b] + 2, (r + 1) * CELL + pad);
           const dx = Math.max(box.min.x - cx, 0, cx - box.max.x);
           const dz = Math.max(box.min.z - cz, 0, cz - box.max.z);
           if (dx * dx + dz * dz > far2) continue;
@@ -569,7 +607,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             if (
               e2 < lens2 &&
               (t.x - cx) * ux + (t.z - cz) * uz < -LENS_BEHIND &&
-              atLens(t, shapes.variantOf[i], Math.sqrt(e2), cy)
+              atLens(t, shapes.variantOf[i], cx, cz, cy, leans[i * 2], leans[i * 2 + 1])
             )
               continue;
             const inFar = thin[i] < options.farShare;

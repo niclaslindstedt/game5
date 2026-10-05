@@ -99,6 +99,11 @@ blind at race pace, which is why the course reads from the gates.
       what a body can take at race speed (`flight.ts`'s landing load).
 - [ ] **Mode and rules**: `GameMode` row, one run, interval start, strict
       gates, start window, the pair.
+- [ ] **The jury's weather**: `jury: JURY.superG` in its `RunRules` — the row
+      is already in `defs/modes.ts` (50 km/h of gust at the start, no heavier
+      than a steady fall); `createGame` eases the map to it (`jury.ts`'s
+      `juryDay`). The research is `docs/disciplines.md` § *The jury's
+      weather*.
 - [ ] **Technique row**: long arcs, lower edge angles, a tuck between turns,
       the pre-jump and absorption, stability at speed.
 - [ ] **The skis**: is a super-G pair its own class (length, sidecut)? If

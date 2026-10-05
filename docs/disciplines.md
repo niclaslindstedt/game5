@@ -407,6 +407,49 @@ women's and an under-21 course band.
 Sources (continued): [22] doi:10.1371/journal.pone.0118119 ·
 [23] doi:10.1111/sms.12300 · [24] PMID 19945979.
 
+## The jury's weather (every discipline)
+
+A race is only run in the weather its jury allows. In the sport's rules the
+jury may hold a race for the course crew, interrupt it while the weather or
+the snow is unfair or inconsistent (restarting it only once a fair race can
+be assured, and calling it off when the same reason stops it twice, or when
+a run would last past four hours), lower the start, shorten the course, or
+call the race off beforehand when the snow is unfit. The alpine rules set
+**no wind speed**: strong wind sits beside heavy snowfall, high humidity and
+heat in the list of weather that lets the jury postpone or cancel, and heavy
+snowfall and storm are named among what makes a homologated downhill course
+unfit on the day. What juries do in practice is on the record: top-level
+downhills have had their start lowered, been held and then called off at
+gusts of some **65–72 km/h at the top** of the course *(press reports)*.
+**Speed skiing is the one discipline with a number**: an anemometer at the
+course's edge level with the top of the timing zone, windsocks visible from
+the start, and a run stopped at **15 km/h** of wind — **10 km/h** where the
+expected speed is 200 km/h and more, **20 km/h** for a steady wind straight
+down the track — restarted only once it drops back under. The ski cross's
+rules let the officials interrupt or cancel for wind without a number.
+
+The game's jury (`JURY` in `engine/game/defs/modes.ts`, applied by
+`engine/game/jury.ts`'s `juryDay`) reads the strongest GUST at 10 m over the
+course's START gate — where the anemometer stands, high on the mountain where
+the flow is fastest (`exposureAt`), every swell of the gusts at its crest
+(`GUST_PEAK`) — and a day whose gusts would pass its row is a race held for a
+calmer hour: the same sky, its wind eased to the row, its bearing kept.
+
+| Discipline | Strongest gust at the start | Heaviest fall | Why |
+| --- | --- | --- | --- |
+| Slalom, giant slalom | 60 km/h *(est.)* | any | slower, barely off the snow; raced in falling snow — the course crew packs or clears what falls during the race |
+| Super-G, downhill | 50 km/h *(est.)* | a steady fall (0.75) | below the gusts that held real speed races; flown off crests at over 100 km/h; not run in a storm |
+| Ski cross | 50 km/h *(est.)* | a steady fall (0.75) | its jumps, taken four abreast; as a speed race |
+| Speed skiing | 10 km/h | flurries (0.3) | its own rule's strictest reading (200 km/h and more); its racers must see the track to its end |
+
+A storm whose fall is eased is the steady fall it has become. On a race the
+SNOW is the jury's too: the course is groomed hard from the house to the end
+of the run-out whatever drift lay across it (`course-prep.ts`), side-slipped
+clean before every racer (`GameState.fresh` is 0 when each run — a training
+run, a slalom's first and second — is stood up), and the snow that falls
+during the racer's own run is all that lies on it: at a storm's full fall,
+8 cm an hour, under 3 mm over a two-minute run (`tests/jury_test.ts`).
+
 ## Ski cross
 
 *Not researched yet.* The to-do list is in `docs/specs/SKI_CROSS.md`; the

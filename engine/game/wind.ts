@@ -48,6 +48,10 @@ const GUSTS: readonly { period: number; share: number }[] = [
 /** The most the wind veers either side of its mean bearing, rad. */
 const VEER = 0.22;
 
+/** THE STRONGEST GUST, as a multiple of the mean: every swell of
+ * `GUSTS` at its crest at once. */
+export const GUST_PEAK = 1 + GUSTS.reduce((sum, k) => sum + k.share, 0);
+
 /** The bearing a wind FROM `from` really blows from: unchanged when it
  * blows across or down the fall line, mirrored across the slope when it
  * would blow up it. Continuous, so a wind veering through the line folds

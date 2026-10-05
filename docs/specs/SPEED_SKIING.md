@@ -61,6 +61,14 @@ with heats over several runs (research the format).
       speeds.
 - [ ] **Mode and rules**: `GameMode` row; interval start; no gates; the
       format (runs, heats, eliminations — research).
+- [ ] **The jury's weather**: `jury: JURY.speedSki` in its `RunRules` — the
+      row is already in `defs/modes.ts` (10 km/h, its own rule's strictest
+      reading, in no more than flurries — and its rule reads the wind at the
+      TOP OF THE TIMING ZONE, not the start, with a looser 20 km/h for a
+      steady wind straight down the track: move `startGustOf`'s point and
+      decide whether to take the looser case); `createGame` eases the map to
+      it (`jury.ts`'s `juryDay`). The research is `docs/disciplines.md` § *The
+      jury's weather*.
 - [ ] **Physics at the extreme**: air drag of a speed-skiing tuck and suit
       (measured drag areas), ski-snow friction at very high speed, stability
       (the ski's chatter, the edge), what a fall at that speed does — check

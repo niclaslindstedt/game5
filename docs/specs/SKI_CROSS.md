@@ -77,6 +77,11 @@ is SKIED, side by side, so the bot and skier-against-skier contact matter.
       contact and what is a DSQ (research).
 - [ ] **Mode and rules**: `GameMode` row; start "line" (side by side);
       gates (course gates/flags marking the course — research), contact on.
+- [ ] **The jury's weather**: `jury: JURY.skiCross` in its `RunRules` — the
+      row is already in `defs/modes.ts` (50 km/h of gust at the start, no
+      heavier than a steady fall — check it against the ski cross's own
+      research); `createGame` eases the map to it (`jury.ts`'s `juryDay`). The
+      research is `docs/disciplines.md` § *The jury's weather*.
 - [ ] **Technique row**: pumping rollers, absorbing jumps low, carving the
       berms, the start's pull on the gate and its skating.
 - [ ] **Bot**: races the course with rivals, chooses lines in the berms,

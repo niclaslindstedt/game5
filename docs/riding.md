@@ -221,6 +221,8 @@ All of it a pure function of the map, the place and the clock, drawing nothing f
 - **Across a turn, it tightens or widens it.** The yaw the hand holds is no faster than the grip can turn his way at — and a wind blowing into the turn bends the way with the edges, one out of it takes from what they can (`reach`). On full edge from 95 km/h with 18 m/s across, he is 47° round in 1.5 s with it blowing into the turn and 36° with it blowing out of it (42° in still air).
 - **Stood still**, the wind's push is part of what the standstill's hold weighs (above): a storm at his back (32 m/s) starts him at once and blows him 85 m down the flat in 8 s.
 
+**A race is run in the wind its jury allows** (`jury.ts`'s `juryDay`, `JURY` in `defs/modes.ts`; the research is `docs/disciplines.md`'s *The jury's weather*): the strongest gust at 10 m over the course's start gate is held to 60 km/h on a slalom and 50 km/h on a downhill — a windier day is a race held for a calmer hour, the same sky with its wind eased, its bearing kept — and a downhill is not run in a storm (its fall eased to a steady one). A free ride, a time trial and a tricks run keep whatever the sky deals.
+
 The bot (`sim/bot.ts`) skis in the same wind with no knowledge of it — it reads only what the wind does to him — and its patience for a gate is three times as long while he is still moving at a skater's pace (`stillGoing`), because a gale in the face on a traverse slows a skier to a crawl, not to nowhere. `npm run sim -- --weather storm` rides every map in a storm.
 
 ## The wind tunnels (`wind-tunnel.ts`)

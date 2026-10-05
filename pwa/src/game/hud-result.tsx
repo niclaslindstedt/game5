@@ -39,7 +39,7 @@
 // (`secondRunOf`: out of the first run, or outside the qualifying places).
 // A run that went OUT — in any race discipline — is no finish: the plate
 // says DISQUALIFIED or DID NOT FINISH, why under it in plain words, and the
-// restart press, and nothing else.
+// TRY AGAIN press, and nothing else.
 //
 // A DOWNHILL'S PLATE says whether it was the TRAINING run or the RACE, its
 // speed through the trap and the field's fastest, and after a training run
@@ -277,7 +277,7 @@ export function ResultPlate({
 }
 
 /** THE PLATE OVER A RUN THAT WENT OUT (R31): the verdict, why under it, and
- * the restart — nothing else. A run that is out has no place, no time and
+ * TRY AGAIN — nothing else. A run that is out has no place, no time and
  * nothing to weigh, so the plate says what happened and offers the one press
  * a racer wants then; the front door is the pause card's. */
 function OutPlate({ snap, onAgain }: { snap: HudSnapshot; onAgain: () => void }) {
@@ -292,7 +292,7 @@ function OutPlate({ snap, onAgain }: { snap: HudSnapshot; onAgain: () => void })
           <span class="hud-card-note hud-result-why">{STRINGS.outWhy(out)}</span>
           <div class="hud-result-acts">
             <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
-              {raceAgain(race)}
+              {STRINGS.outAgain}
             </button>
           </div>
         </div>

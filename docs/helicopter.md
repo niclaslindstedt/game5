@@ -1,6 +1,6 @@
 # The helicopter
 
-A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who stops beside its right skid and presses **Enter** (a double tap on touch) is sat on the skid, and then the player flies it by hand — every control theirs, nothing holding it — anywhere on the mountain and as high as they like. They land it and step off, or, where it cannot land, push off the skid — Enter again either way. The skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes and burns where it came down, the skier on it is thrown, and a few seconds later the ride starts again from the pad.
+A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who stops beside its right skid and presses **Enter** (a double tap on touch) is sat on the skid, and then the player flies it by hand — every control theirs, nothing holding it — anywhere on the mountain and as high as they like. They land it and step off, or, where it cannot land, push off the skid — Enter again either way. The skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes: the airframe is torn apart in a fireball, the skier on it is flung clear by the blast, and once the wreck has burned for a few seconds the ride starts again from the pad.
 
 It is reached two ways:
 
@@ -19,8 +19,11 @@ There is no ceiling, by design. That is the point of the game it makes: climb, p
 | The rotor's wash, as air | `engine/game/heli-wash.ts` (`washAt`, `inducedOf`), read by `air.ts` and the renderer |
 | The state and its events | `HeliState`, the `heli` event, `RunRules.heli`, `GameState.heli` in `engine/game/state.ts` |
 | The machine as drawn (the model, the rotors as an eye sees them spool up — `rotor-look.ts` —, the lights, the pad and the wind sock, the wreck, the wash's snow) | `pwa/src/game/heli-view.ts` |
-| The explosion and the fire on the wreck | `pwa/src/game/explosion.ts` |
-| The lens while riding it | `pwa/src/game/camera-heli.ts` |
+| The airframe torn into its pieces and flung | `pwa/src/game/heli-shatter.ts` |
+| The fireball (its size, life, lobes, lift-off) | `pwa/src/game/fireball.ts` |
+| The explosion: the flash, the sparks and embers, the shards, the scorch, the pool fire and its smoke | `pwa/src/game/explosion.ts`, `sparks.ts`, drawn in one sorted batch by `billboards.ts` |
+| The lens while riding it, and flown onto it and off it | `pwa/src/game/camera-heli.ts`, `heli-scene.ts` |
+| The lens on a crash | `pwa/src/game/camera-crash.ts` |
 | The rider's legs and skis swinging off the skid | `pwa/src/game/skier-dangle.ts` (fed by `heli-scene.ts`'s `perch`) |
 | The screenshot lab | `make heli` — `scripts/heli-preview.mjs` over `pwa/src/tools/heli-harness.ts`, `heli-scenes.ts`, `heli-spots.ts` |
 | Everything the renderer holds it by | `pwa/src/game/heli-scene.ts` |
@@ -102,7 +105,7 @@ A crash ends the flight. It happens when, while the player flies:
 - the airframe stands more than `crash.tilt` off the snow's lean;
 - the snow is steeper than `crash.slope`. A flight manual's slope limits are 6–10°, and a machine pivoting on one skid is past saving at 5–8°. Both are held a little wider here.
 
-The wreck burns for `crash.wreck` seconds. A skier aboard is thrown by the blast (the `heli` crash cause, with its own tumble in `defs/crash.ts`). Then the ride starts again on the pad. The pilot flying home is tested against the mountain too. If he ever flies it in, a fresh machine waits on the pad when the fire is out.
+The wreck burns for `crash.wreck` seconds (7). A skier aboard is flung off the skid by the blast (`crash.blast`: 15 m/s out from the machine's side and 10 m/s up, on top of its way along the snow — the snow stops its fall and his), tumbling tens of metres (the `heli` crash cause, with its own tumble in `defs/crash.ts`). Accident reports put an occupant thrown in a crash at 5–20 m/s. He lies where he fell — the reset does not stand him up while the wreck burns — and then the ride starts again on the pad. The pilot flying home is tested against the mountain too. If he ever flies it in, a fresh machine waits on the pad when the fire is out.
 
 ## The wash
 
@@ -125,11 +128,21 @@ While the skier rides it, the helicopter takes the lens (`camera-heli.ts`):
 - CHASE: behind and over the machine;
 - FAR: the same, further out;
 - HIGH: high over it, looking down at the drop;
-- TIPS and HELMET: the RIDER'S EYE, out over his skis at the snow below.
+- TIPS: THE NOSE — a lens bolted under the chin, ahead of the airframe, looking out along the nose; it pitches, rolls and shakes with the machine;
+- HELMET: the nose LOOKING DOWN — the same place on a level mount, turned only with the heading and tipped down at the snow ahead, the lens a landing or a drop is aimed with.
+
+Every change of lens is FLOWN, never cut, over the same 0.6 s the skier's ladder takes — and round the machine rather than through it (`orbitBlend`: the eye swung about the airframe's middle, kept clear of the rotor's tips half-way), since a straight line from the chase to the nose runs through the cabin. The lens is flown onto the helicopter the same way as he sits on the skid, from the skier's own ladder; after the drop it is held on him for a beat, turning down after him, and flown back to his ladder. Only a new run and the ride begun again after a crash cut to it.
 
 THE RIDER on the skid is not a statue (`skier-dangle.ts`): each leg — shin, boot and ski, hung at the knee — is a damped pendulum, swung by gravity less the machine's acceleration (so the legs keep hanging toward the snow as the machine tilts and trail as it brakes), blown downwind by the air past his boots (the weather's wind and the rotor's wash, less his own way), shaken at the rotor's blade-passage rate, and kicked now and then by his own idle swing; the two legs are a little unlike, so they drift out of step. On the snow the dangle fades out as his skis come down to rest.
 
-The explosion (`explosion.ts`) is a fireball rather than a blast, because a light helicopter's fuel deflagrates. It is a swelling ball of fire rising into a column of black smoke, with a flash, the airframe's debris flung out and bouncing on the snow, a ring of thrown snow, and then the wreck left burning.
+THE CRASH is drawn off the research on fuel fireballs and helicopter accident sites:
+
+- **The airframe comes apart** (`heli-shatter.ts`). The machine's own meshes are cut once into the pieces an airframe breaks into: the cabin's shell in panels, the nose, the skids and their cross tubes, the tail boom whole with its fin (a boom most often survives in one piece), the tail rotor, and each main blade broken at its root and again along its span. The moment it goes down every piece is flung from where it was drawn: off the blast at the fuel cells, with the machine's own way, the blade sections slung on along their turn (a tip turns at some 210 m/s; the sections land 20–100 m off). The pieces tumble, strike the snow with sparks and a puff, and slide to rest. About half of them burn as they fly, trailing fire and smoke, and burn on in the snow. They char as the wreck burns.
+- **The fireball** (`fireball.ts`) is a fireball rather than a blast, because a light helicopter's fuel deflagrates. Filmed fuel impacts burn only a tenth to a quarter of the fuel in the ball. A hydrocarbon fireball is about 5.8 M^⅓ m across and lives about 0.45 M^⅓ s (M the fuel it burns, kg), which is some 28 m for two seconds here. It reaches its size in the first third of its life, a dome hugging the snow, and is a cauliflower of bulging cells drawn out along the way the wreck was sliding. It is white-yellow at its heart for a beat, then a deep orange, with soot pockets darkening inside it and black smoke rolling off its skin. Then it lifts off, rising at 15–20 m/s, and rolls up into a black mushroom. Smaller balls light along the fuel's spray.
+- **Around it** (`explosion.ts`): a flash lighting the snow; a shower of white-hot sparks and lofted embers (`sparks.ts`); small shards of the skin; a ring of snow thrown up and out; the snow under it scorched dark; and the wreck left burning as a **pool fire** of the spilled fuel. Some 30–45 MW of kerosene in a pool a few metres across burns 10–12 m tall by the flame-height correlation, PUFFING at about 0.65 Hz, under a column of black smoke that stands 80 m and more after ten seconds.
+- **The lens** (`camera-crash.ts`) starts exactly where the lens stood when it struck, whichever rung it was on. It pulls back from there, up over the snow and a little round the wreck, its look coming off what it was aimed at onto the fireball and the skier the blast threw, until the whole of it is in the frame. The look rises after the smoke. A lens that was at the impact itself (the nose lens) is thrown back out of the fireball at once. The shock reaches the lens at the speed of sound and shakes it. A lens with a trunk in the way rises until it sees over it.
+
+The fire and the smoke are one depth-sorted batch of billboards, one draw call for hundreds of puffs. They are tinted a little over white so the tone map keeps them glowing without washing them out, since fire only added on is lost against snow.
 
 The sound is `docs/audio.md`'s. In brief:
 
@@ -143,4 +156,5 @@ The sound is `docs/audio.md`'s. In brief:
 
 - `npx vitest run tests/heli_test.ts`: the thrust against momentum theory, the climb with no ceiling, the hang toward the skier, the turn, the drop and the lurch, the pilot home, the boarding, the crash and the restart, the wash, and determinism.
 - `make screenshots ARGS="--surface heli-pad,heli-wash,heli"` (after `make build`): the machine on its pad, lifting off into its wash, and flown up the mountain by the pre-roll's pilot (`pilotInput`).
-- `make heli`: the helicopter lab — every event staged deterministically on the game's own renderer and laid out on contact sheets.
+- `npx vitest run tests/heli_camera_test.ts`: the nose lens, a change of rung flown round the machine and never through it, the crash's lens taking over from the lens on screen and pulling back from it, and the fireball's size and life off its fuel.
+- `make heli`: the helicopter lab — every event staged deterministically on the game's own renderer and laid out on contact sheets (`ARGS=--sheet=crash`: the crash frame by frame from the chase, from the nose and at speed, and the thrown rider from the side; `ARGS=--sheet=handover`: a change of rung in flight).

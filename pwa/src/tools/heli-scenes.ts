@@ -54,8 +54,10 @@ export type Stage = {
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   /** One engine step with `input`, and a frame drawn unseen. */
   once(state: GameState, input: SkierInput): void;
-  /** The camera rung the run is seen through from here on. */
+  /** The camera rung the run is seen through from here on, cut to. */
   camera(rung: CameraRung): void;
+  /** The camera rung flown to, as a press of the camera key is. */
+  fly(rung: CameraRung): void;
   /** Photograph the run as it stands, as `label`, through `lens`. */
   shoot(state: GameState, label: string, lens?: Lens): void;
   /** The sky the picture is drawn under (`withSky`); null for the lab's
@@ -209,14 +211,35 @@ function approachStart(st: Stage, s: GameState): void {
   place(s, from, top, back + Math.PI);
 }
 
-/** Into the snow: `height` m over the meadow, falling at 15 m/s and going
- * 6 m/s forward — and on until it goes up. */
-function crashed(st: Stage): GameState {
+/** Into the snow: `height` m over the meadow, falling at `vy` m/s and
+ * going `speed` m/s forward, seen through `rung` — and on until it goes
+ * up. */
+function crashed(
+  st: Stage,
+  rung: CameraRung = "chase",
+  speed = 6,
+  vy = -15,
+  height = 6,
+): GameState {
   const s = st.fresh(true);
-  st.camera("chase");
-  place(s, st.spots.meadow, 6, s.heli!.heading, 6, -15);
+  st.camera(rung);
+  place(s, st.spots.meadow, height, s.heli!.heading, speed, vy);
+  st.run(s, 0.5, (q) => ({
+    ...letGo(q),
+    heli: { collective: 0.35, pitch: 0.1, roll: 0, pedal: 0 },
+  }));
   st.until(s, (q) => q.heli!.mode === "wreck", 4, letGo);
   return s;
+}
+
+/** The crash seen through the game's own lens at each of `times` s. */
+function crashFrames(st: Stage, s: GameState, rung: CameraRung, times: readonly number[]): void {
+  let t = 0;
+  for (const at of times) {
+    st.run(s, at - t, still);
+    t = at;
+    st.shoot(s, `${at}s`, rung);
+  }
 }
 
 /** The skier pushed off over `spot` from `height` m; the step of the push. */
@@ -472,12 +495,60 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
 
   crash(st) {
     const s = crashed(st);
+    crashFrames(st, s, "chase", [0, 0.1, 0.25, 0.5, 0.8, 1.2, 1.8, 2.6, 4, 6]);
+  },
+
+  thrown(st) {
+    // The rider the blast throws, followed from the side of his flight.
+    const s = crashed(st);
+    const w = s.heli!.wreck!;
+    const c = s.skier;
+    const side = Math.atan2(c.vx, c.vz) + Math.PI / 2;
+    const rider = (q: GameState): Spot => {
+      const t = q.skier.thrown;
+      return t ? { x: t.x, y: t.y, z: t.z } : skierAt(q);
+    };
+    const mid = (q: GameState): Spot => {
+      const r = rider(q);
+      return { x: (r.x + w.x) / 2, y: (r.y + w.y) / 2 + 2, z: (r.z + w.z) / 2 };
+    };
     let t = 0;
-    for (const at of [0, 0.1, 0.3, 0.6, 1, 2, 4]) {
+    for (const at of [0.3, 0.8, 1.4, 2.2]) {
       st.run(s, at - t, still);
       t = at;
-      st.shoot(s, `${at}s`, "chase");
+      st.shoot(s, `${at}s`, (q) => outside(st.level, mid(q), side, 45, 4, -Infinity, 55));
     }
+    st.shoot(s, "2.2s-close", (q) => outside(st.level, rider(q), side, 9, 1.5, -Infinity, 45));
+  },
+
+  "crash-nose"(st) {
+    const s = crashed(st, "tips");
+    crashFrames(st, s, "tips", [0, 0.15, 0.5, 1, 2, 4]);
+  },
+
+  "crash-fast"(st) {
+    const s = crashed(st, "far", 32, -6, 5);
+    crashFrames(st, s, "far", [0, 0.3, 0.8, 1.5, 3, 6]);
+  },
+
+  handover(st) {
+    // A press of the camera key mid-flight: chase to the nose, and on to
+    // the far lens — each flown, never cut.
+    st.camera("chase");
+    const s = cruising(st, 45, 5);
+    const { flat } = st.spots;
+    const on = flyTo({ x: flat.x, z: flat.z, height: 45 });
+    st.shoot(s, "chase", "chase");
+    st.fly("tips");
+    let t = 0;
+    for (const at of [0.1, 0.25, 0.4, 0.6]) {
+      st.run(s, at - t, on);
+      t = at;
+      st.shoot(s, `to-tips-${at}s`, "tips");
+    }
+    st.fly("far");
+    st.run(s, 0.3, on);
+    st.shoot(s, "to-far-0.3s", "far");
   },
 
   wreck(st) {
@@ -557,7 +628,8 @@ export const GROUPS: Record<string, readonly string[]> = {
   flight: ["cruise", "turn", "eye"],
   land: ["land", "landed"],
   drop: ["drop", "fall", "impact", "home"],
-  crash: ["crash", "wreck", "restart"],
+  crash: ["crash", "thrown", "crash-nose", "crash-fast", "wreck", "restart"],
+  handover: ["handover"],
   night: ["night"],
   turntable: ["turntable"],
 };

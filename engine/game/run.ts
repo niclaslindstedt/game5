@@ -38,7 +38,7 @@ import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
-import { stepHeli } from "./heli.ts";
+import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { stepNets } from "./nets.ts";
@@ -188,8 +188,9 @@ export function stepRun(
   }
   if (off) {
     // A thrown skier takes no gate; he is stood back up once he has lain
-    // long enough — the player longer.
-    if (crashOver(off, player)) standUp(run, events, true);
+    // long enough — the player longer — unless a helicopter he rode down is
+    // burning, which stands him up on its pad when it is done (`heli.ts`).
+    if (crashOver(off, player) && !heliDown(run)) standUp(run, events, true);
     return;
   }
   if (run.rules.course) {

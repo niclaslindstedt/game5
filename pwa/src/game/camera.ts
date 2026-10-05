@@ -34,6 +34,9 @@ export type Lens = {
   set(rung: Rung, cut?: boolean): void;
   /** Snap the booms onto the skier on the next frame (a new run, a reset). */
   snap(): void;
+  /** Whether a change of rung is being flown rather than cut — what a
+   * machine's own lens (`camera-heli.ts`) follows. */
+  flying(): boolean;
   /** `clear` keeps the booms out of the course's posts (and whatever else
    * it calls solid); `trunks` is what they are pushed off (`camera-rigs.ts`);
    * `ladder` the rows the rungs are framed on (the skier's, or a machine's). */
@@ -84,6 +87,7 @@ export function createLens(near: number, far: number): Lens {
       current = rung;
       if (cut) stateOf(table, rung).fresh = true;
     },
+    flying: () => previous !== null,
     snap() {
       for (const states of ladders.values()) for (const s of states.values()) s.fresh = true;
       since = HANDOVER;

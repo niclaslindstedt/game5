@@ -8,8 +8,10 @@
 // anti-collision beacon and the nav lights; the PAD it
 // stands on, painted on the valley's snow (a ring and an H) with a wind
 // sock beside it — and, while it waits there for a skier, the machine and
-// its pad LIT UP for him to ride to; the WRECK, black and broken where it
-// came down (`explosion.ts` burns it); and THE WASH it drives into the
+// its pad LIT UP for him to ride to; the WRECK, the airframe TORN APART
+// the moment it goes down (`heli-shatter.ts`: its own meshes cut into the
+// pieces it comes apart in and flung off the blast, charring as they fly;
+// `explosion.ts` burns them); and THE WASH it drives into the
 // snow under it, thrown up as cloud (`heli-wash.ts`'s field, the snow
 // cloud's puffs), which turns a hover over powder into a whiteout.
 //
@@ -31,20 +33,25 @@ import {
 
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createShatter, type ShatterHooks } from "./heli-shatter.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { createRotorEye, type RotorLook } from "./rotor-look.ts";
 import { heliModelUrl } from "./skier-models.ts";
 
 const R = HELI.rotor.radius;
 const TR = HELI.tail.radius;
+/** The main rotor's turn at full speed, rad/s. */
+const ROTOR_OMEGA = (HELI.rotor.rpm / 60) * 2 * Math.PI;
 /** How near the parked machine a skier has to be for it to light up, m. */
 const LIGHT_UP = 90;
 /** The wash's puffs a second at full thrust over loose snow, under the
  * hover; the radius band they rise in, rotor radii. */
 const WASH_RATE = 70;
 const WASH_BAND = [0.6, 2.4] as const;
-/** What a burnt airframe goes to: soot. */
+/** What a burnt airframe goes to: soot — and how long its paint takes to
+ * char in the fire, s. */
 const SOOT = new THREE.Color(0.035, 0.032, 0.03);
+const CHAR = 1.6;
 
 /** A puff the wash throws: where, its velocity, its size, m. */
 export type WashPuff = (
@@ -62,9 +69,18 @@ export type HeliView = {
   /** Draw the helicopter at the state's last step (eased toward it by
    * `alpha` from the step before); `player` is where the skier is drawn,
    * for the pad's lighting up. */
-  update(state: GameState, alpha: number, dt: number, player: { x: number; z: number }): void;
+  update(
+    state: GameState,
+    alpha: number,
+    dt: number,
+    player: { x: number; z: number },
+    hooks: ShatterHooks,
+  ): void;
   /** The machine as drawn this frame — what the lens frames. */
-  drawn(): { x: number; y: number; z: number; heading: number } | null;
+  drawn(): { x: number; y: number; z: number; heading: number; q: THREE.Quaternion } | null;
+  /** The way it was going before it went down, m/s (the engine stops a
+   * wreck dead). */
+  way(): THREE.Vector3;
   /** Throw this frame's wash into the snow cloud. */
   blow(state: GameState, dt: number, puff: WashPuff, loose: (x: number, z: number) => number): void;
   dispose(): void;
@@ -351,6 +367,9 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   group.add(machine);
   let rotor: THREE.Object3D | null = null;
   let tail: THREE.Object3D | null = null;
+  let model: THREE.Object3D | null = null;
+  const shatter = createShatter();
+  group.add(shatter.group);
   let lampMats: THREE.MeshStandardMaterial[] = [];
   const allMats: THREE.Material[] = [];
   const originals = new Map<THREE.MeshStandardMaterial, THREE.Color>();
@@ -459,6 +478,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       }
     });
     machine.add(root);
+    model = root;
   };
   // The Blender model where the build packs it (`heliModelUrl`), the code's
   // stand-in where it is switched off or will not load.
@@ -479,9 +499,15 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   // skid he sits on never parts from under him between frames.
   const track = createTrack();
   const at: Pose = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
-  let shown: { x: number; y: number; z: number; heading: number } | null = null;
+  let shown: { x: number; y: number; z: number; heading: number; q: THREE.Quaternion } | null =
+    null;
   let clock = 0;
   let wrecked = false;
+  // The way the machine was going and its rotor's turn before it went
+  // down, for the pieces it comes apart in (the engine stops it dead).
+  const vel = new THREE.Vector3();
+  let spinWas = 0;
+  let charred = 0;
   let washDebt = 0;
   // A stream of the wash's own, so a lab's frame is the same frame twice.
   let seed = 0x4e11;
@@ -492,40 +518,69 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   const wash: Wash = { x: 0, y: 0, z: 0 };
 
   /** Each material's finish as built, put back when a wreck is cleared. */
-  const finish = new Map<THREE.MeshStandardMaterial, { rough: number; metal: number }>();
+  const finish = new Map<
+    THREE.MeshStandardMaterial,
+    { rough: number; metal: number; clear: number }
+  >();
 
-  /** THE WRECK: every surface burnt — dark, sooted, matte — and back. */
-  function blacken(on: boolean): void {
+  /** THE WRECK: every surface burnt `k` of the way — dark, sooted, matte
+   * at 1 — and back at 0. The pieces share these materials. */
+  function blacken(k: number): void {
+    if (k === charred) return;
     for (const [m, c] of originals) {
-      if (!finish.has(m)) finish.set(m, { rough: m.roughness, metal: m.metalness });
+      if (!finish.has(m)) {
+        const clear = m instanceof THREE.MeshPhysicalMaterial ? m.clearcoat : 0;
+        finish.set(m, { rough: m.roughness, metal: m.metalness, clear });
+      }
       const f = finish.get(m)!;
-      m.color.copy(c).multiplyScalar(on ? 0.05 : 1);
-      if (on) m.color.lerp(SOOT, 0.6);
-      m.roughness = on ? 1 : f.rough;
-      m.metalness = on ? 0 : f.metal;
-      if (m instanceof THREE.MeshPhysicalMaterial) m.clearcoat = on ? 0 : m.clearcoat;
+      m.color.copy(c).multiplyScalar(1 - 0.95 * k);
+      m.color.lerp(SOOT, 0.6 * k);
+      m.roughness = f.rough + (1 - f.rough) * k;
+      m.metalness = f.metal * (1 - k);
+      if (m instanceof THREE.MeshPhysicalMaterial) m.clearcoat = f.clear * (1 - k);
     }
-    wrecked = on;
+    charred = k;
   }
 
   return {
     group,
-    update(state, alpha, dt, player) {
+    update(state, alpha, dt, player, hooks) {
       const h = state.heli;
       group.visible = !!h;
       if (!h) return;
       clock += dt;
+      const wreck = h.mode === "wreck";
+      if (wreck && !wrecked && model) {
+        // IT COMES APART, from where it was last drawn in the air: the
+        // machine as it stood, torn into its pieces and flung.
+        machine.updateMatrixWorld(true);
+        shatter.burst(machine, model, vel, spinWas);
+      }
+      if (!wreck && wrecked) {
+        shatter.clear();
+        blacken(0);
+      }
+      if (wreck !== wrecked) {
+        wrecked = wreck;
+        track.tick = -1;
+      }
+      // Charring as it burns.
+      if (wreck) blacken(Math.min(1, h.t / CHAR));
+      machine.visible = !wreck || !model;
+      shatter.update(dt, (px, pz) => level.groundAt(px, pz), hooks);
       observe(track, { x: h.x, y: h.y, z: h.z, q: heliQuat(h) }, state.tick);
       sample(track, alpha, at);
       const { x, y, z } = at;
+      if (!wreck) {
+        vel.set(h.vx, h.vy, h.vz);
+        spinWas = -h.spool * ROTOR_OMEGA;
+      }
       machine.position.set(x, y, z);
       q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       machine.quaternion.copy(q);
-      shown = { x, y, z, heading: h.heading };
-      const wreck = h.mode === "wreck";
-      if (wreck !== wrecked) blacken(wreck);
-      if (wreck) {
-        // Down on its side, the rotor stopped, its mast bent over.
+      shown = { x, y, z, heading: h.heading, q };
+      if (wreck && !model) {
+        // The stand-in, should no model have loaded: down on its side.
         machine.rotateZ(0.55);
         machine.rotateX(0.12);
       }
@@ -542,8 +597,10 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       const back = tailEye.step(s, dt);
       if (rotor) rotor.rotation.y = -main.phase;
       if (tail) tail.rotation.x = back.phase;
-      fadeBlades(mainBlades, main);
-      fadeBlades(tailBlades, back);
+      // A wreck's blades are broken pieces (`heli-shatter.ts` shares their
+      // materials), never a smear: drawn solid.
+      fadeBlades(mainBlades, wreck ? { ...main, blades: 1 } : main);
+      fadeBlades(tailBlades, wreck ? { ...back, blades: 1 } : back);
       lookDisc(disc, main, !wreck);
       lookDisc(tailDisc, back, !wreck);
       // THE LIGHTS: the beacon flashing while the rotor turns — and the
@@ -570,6 +627,9 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
     },
     drawn() {
       return shown;
+    },
+    way() {
+      return vel;
     },
     blow(state, dt, puff, loose) {
       const h: HeliState | undefined = state.heli;
@@ -610,6 +670,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
       });
       for (const m of allMats) m.dispose();
+      shatter.dispose();
       (disc.material as THREE.Material).dispose();
       (tailDisc.material as THREE.Material).dispose();
       lampMats = [];

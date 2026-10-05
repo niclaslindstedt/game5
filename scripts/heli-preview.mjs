@@ -25,9 +25,15 @@
 //   drop       drop (pushed off over a face too steep to land on: 0, 0.5, 1,
 //              2 s), fall and impact (40 m into deep powder), home (the
 //              machine flying home, seen from the skier on the snow)
-//   crash      crash (into the snow: the explosion at 0, 0.1, 0.3, 0.6, 1,
-//              2, 4 s through the planted crash lens), wreck (burning, from
-//              the snow), restart (back on the pad)
+//   crash      crash (into the snow: the airframe torn apart and the
+//              fireball at 0 … 6 s through the game's own crash lens,
+//              pulled back from the chase), thrown (the rider the blast
+//              flings, followed from the side), crash-nose (the same from the
+//              nose lens), crash-fast (flown in at 32 m/s, from the far
+//              lens), wreck (burning, from the snow), restart (back on the
+//              pad)
+//   handover   a press of the camera key mid-flight: chase to the nose
+//              lens, frame by frame, and on to the far lens
 //   night      night (the pad calling, a hover, a burst for the beacon,
 //              cruising — under the stars at 21:00)
 //   turntable  turntable (the model alone: 8 angles close, 8 at chase
@@ -68,12 +74,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, night, turntable); every one when left out",
+      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, handover, night, turntable); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, fall, impact, home, crash, wreck, restart, night, turntable)",
+      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, fall, impact, home, crash, thrown, crash-nose, crash-fast, wreck, restart, handover, night, turntable)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

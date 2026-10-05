@@ -724,7 +724,7 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
-      const heliLens = machines?.frame(state, alpha, dt, simDt, d, lens.rung(), marks) ?? null;
+      machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state);
       player.model.setSkierVisible(lens.rung() !== "tips" && lens.rung() !== "helmet");
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
@@ -748,7 +748,7 @@ export function createWorldRenderer(
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
-        heliLens ??
+        machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
         frameStart(startMoment(state, d), ladder);
       if (planted) {

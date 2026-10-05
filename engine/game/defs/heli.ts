@@ -160,8 +160,21 @@ export const HELI = {
    *   * `clear` the gap the rotor's tips must keep from the snow and a
    *     crown, m;
    *   * `wreck` the seconds the wreck burns before the ride starts again
-   *     from the pad. */
-  crash: { sink: 3.2, slide: 5, tilt: 0.2, slope: 0.16, clear: 0.15, wreck: 4.5 },
+   *     from the pad — long enough to watch the fireball rise and the
+   *     pieces come down, the skier it threw lying where he fell until
+   *     then;
+   *   * `blast` the push the blast throws the skier on the skid off it
+   *     with, m/s, out from the machine's side and up, on top of the way
+   *     it was going — a man flung tens of metres. */
+  crash: {
+    sink: 3.2,
+    slide: 5,
+    tilt: 0.2,
+    slope: 0.16,
+    clear: 0.15,
+    wreck: 7,
+    blast: { out: 15, up: 10 },
+  },
 
   /** BOARDING AT THE PAD: how near the seat a skier rides in to be taken
    * on, m, the fastest he may be going, m/s, and the seconds he is sat on

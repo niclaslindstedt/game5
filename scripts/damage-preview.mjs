@@ -25,6 +25,8 @@
 //              harder, a wedge, shattered, shattered hard
 //   closeup    the force ladder up close, a window a row: the shoulder and
 //              arm, the pelvis and thighs, the shins
+//   snap       the bones' snap frame by frame: a simple break, a wedge and
+//              two shatters, the legs up close, frozen at 0 … 460 ms
 //   blows      HIGH-G CRASHES skied through the engine, the figure enlarged
 //              over each: a trunk head-on and a trunk on the shoulder at
 //              rising speeds, a fall onto his side from rising heights, a
@@ -55,7 +57,17 @@ import { SCENARIOS, SCENARIO_IDS } from "./lib/ride-scenarios.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".damage-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["panels", "viewports", "plate", "back", "force", "closeup", "blows", "refs"];
+const SHEETS = [
+  "panels",
+  "viewports",
+  "plate",
+  "back",
+  "force",
+  "closeup",
+  "snap",
+  "blows",
+  "refs",
+];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -79,7 +91,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,force,closeup,blows,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
+  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,force,closeup,snap,blows,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs" || args.refs);

@@ -273,6 +273,17 @@ if (params.has("frame")) {
         table: cases.map((c) => table[lab.cases.indexOf(c)]),
       };
     }
+    if (name === "snap") {
+      const cases = SNAP.map((id) => lab.cases.find((x) => x.id === id)!);
+      render(<Snaps cases={cases} />, root);
+      await new Promise((r) => requestAnimationFrame(r));
+      freeze(root);
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        note: `the bones' snap frozen at ${SNAP_AT.join(", ")} ms, the legs up close`,
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
     if (name === "blows") {
       const cases = ridden.length ? ridden : lab.cases.filter((c) => c.id === "shattered");
       render(<Plate cases={cases} side="front" px={620} width={290} wrap facts />, root);
@@ -314,8 +325,8 @@ async function framesDrawn(root: HTMLElement): Promise<void> {
         }),
     ),
   );
-  // Fonts and a frame's layout.
-  await new Promise((r) => setTimeout(r, 300));
+  // Fonts, a frame's layout, and the bones' snaps settled.
+  await new Promise((r) => setTimeout(r, 900));
 }
 
 const label = (title: string, sub: string): JSX.Element => (
@@ -372,10 +383,32 @@ function Viewports({ c }: { c: Case }): JSX.Element {
 }
 
 /** THE FIGURE ENLARGED: the panel itself, its figure sized to `px`. */
-function Big({ c, px, side }: { c: Case; px: number; side: FigureSide }): JSX.Element {
+function Big({
+  c,
+  px,
+  side,
+  at = null,
+}: {
+  c: Case;
+  px: number;
+  side: FigureSide;
+  /** Frozen this many ms into the bones' snap; null settled. */
+  at?: number | null;
+}): JSX.Element {
+  // Settled: every snap and flash taken to its end. Frozen: the page seeks
+  // every one `at` ms in and commits it (`freeze`).
+  const still =
+    at === null
+      ? "animation:none!important;transition:none!important"
+      : "transition:none!important";
+  const cls = at === null ? "damage-settled" : `damage-at-${at}`;
   return (
-    <div class="hud damage-big" style={{ position: "relative", inset: "auto" }}>
-      <style>{`.damage-big .hud-body{position:static;transform:none;max-width:none}.damage-big .hud-body-figure{height:${px}px}`}</style>
+    <div
+      class={`hud damage-big ${cls}`}
+      data-at={at ?? undefined}
+      style={{ position: "relative", inset: "auto" }}
+    >
+      <style>{`.damage-big .hud-body{position:static;transform:none;max-width:none}.damage-big .hud-body-figure{height:${px}px}.${cls} .hud-bone,.${cls} .hud-bone-move{${still}}`}</style>
       <BodyPanel tile={bodyTile(c.body, c.t)} side={side} />
     </div>
   );
@@ -458,6 +491,75 @@ function Closeups({ cases }: { cases: Case[] }): JSX.Element {
                 }}
               >
                 <Big c={c} px={px} side="front" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** FROZEN FRAMES: every animation under each `data-at` figure — the
+ * stylesheet's own snaps and flashes, their timing and stagger the game's —
+ * seeked `at` ms in and written down as a still style, then let go. A page
+ * of paused animations instead puts every piece on a layer of its own, which
+ * is more than the rasterizer paints. */
+function freeze(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-at]")) {
+    const at = Number(el.dataset.at);
+    for (const a of el.getAnimations({ subtree: true })) {
+      a.pause();
+      a.currentTime = at;
+      try {
+        a.commitStyles();
+      } catch {
+        // An element no longer rendered keeps no frame.
+      }
+      a.cancel();
+    }
+  }
+}
+
+/** THE SNAP: which bodies, and the moments of it. */
+const SNAP = ["force-simple", "force-wedge", "force-shatter", "force-most"];
+const SNAP_AT = [0, 50, 100, 160, 240, 340, 460];
+
+/** THE BONES' SNAP frame by frame: a row a body, a column a moment, each a
+ * window onto the legs (the pelvis to the ankles) drawn at 1200 px. */
+function Snaps({ cases }: { cases: Case[] }): JSX.Element {
+  const px = 1200;
+  const k = px / 211;
+  const [x, y, w, h] = [16, 90, 60, 98];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "8px", paddingLeft: "130px" }}>
+        {SNAP_AT.map((t) => (
+          <div key={t} style={{ width: `${Math.round(w * k)}px` }}>{`${t} ms`}</div>
+        ))}
+      </div>
+      {cases.map((c) => (
+        <div key={c.id} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ width: "122px" }}>{c.title}</div>
+          {SNAP_AT.map((t) => (
+            <div
+              key={t}
+              style={{
+                width: `${Math.round(w * k)}px`,
+                height: `${Math.round(h * k)}px`,
+                overflow: "hidden",
+                position: "relative",
+                background: BACKDROP,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${-x * k}px`,
+                  top: `${-y * k}px`,
+                }}
+              >
+                <Big c={c} px={px} side="front" at={t} />
               </div>
             </div>
           ))}

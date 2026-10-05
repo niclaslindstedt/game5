@@ -450,6 +450,7 @@ export {
   QUEUE_GAP,
   planLift,
   ropeShortfall,
+  ruledLiftPlans,
   ropeAt,
   upRope,
   type LiftKind,

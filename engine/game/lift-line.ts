@@ -249,7 +249,8 @@ function owed(look: LiftLook, kind: LiftKind, length: number, u: number): number
   // Along the top's rail the unload ramp is raised to the chair's seat.
   if (length - u <= look.rail) return 0;
   // Coming down off the last tower onto the rail, a carrier's clearance.
-  if (near < look.off + 6 || length - u < look.rail + 8) return kind === "drag" ? 0 : look.hang;
+  const rail = look.rail > 0 && length - u < look.rail + 8;
+  if (near < look.off + 6 || rail) return kind === "drag" ? 0 : look.hang;
   return Math.min(look.hang + look.under, look.wheel * 0.8 + near * 0.15);
 }
 
@@ -281,8 +282,7 @@ const DRAG_HOLD = 1;
  * crest of every span the rope would not clear — and a tower raised where
  * a span is too short to split. Pure: the same lift on the same map plans
  * the same. */
-export function planLift(level: Level, lift: Lift): LiftPlan {
-  const look = LIFT_LOOK[lift.kind];
+export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]): LiftPlan {
   const ex = lift.top.x - lift.bottom.x;
   const ez = lift.top.z - lift.bottom.z;
   const length = Math.max(1, hypot(ex, ez));
@@ -480,6 +480,30 @@ export function clearOfLifts(level: Level, x: number, z: number): boolean {
     if (v < across && ((u <= 0 && u > -reach) || (u >= len && u < len + reach))) return false;
   }
   return true;
+}
+
+/** THE LIFTS AS R26'S ROPE CHECK WAS RULED ON (generator v6): the towers
+ * as they stood then — lower, with no tall last tower and no terminal
+ * rail. The analyzer, which the generator accepts a map on, holds the
+ * ground under every line to THIS rope, so the towers the game hangs (a
+ * picture, taller) move no map a seed builds; the rope it does hang is held
+ * to the same clearance by the suite (`tests/lifts_test.ts`). */
+const RULED: Readonly<Record<LiftKind, LiftLook>> = {
+  gondola: { ...LIFT_LOOK.gondola, tower: 16, towerMax: 30, in: { back: 0, fall: 0 }, rail: 0 },
+  chair: { ...LIFT_LOOK.chair, tower: 11, towerMax: 22, in: { back: 0, fall: 0 }, rail: 0 },
+  drag: LIFT_LOOK.drag,
+};
+
+const ruled = new WeakMap<Level, LiftPlan[]>();
+/** Every lift of a map planned as R26's rope check was ruled on (`RULED`),
+ * once per map — the analyzer's, never the game's. */
+export function ruledLiftPlans(level: Level): readonly LiftPlan[] {
+  let out = ruled.get(level);
+  if (!out) {
+    out = (level.resort?.lifts ?? []).map((l) => planLift(level, l, RULED[l.kind]));
+    ruled.set(level, out);
+  }
+  return out;
 }
 
 /** Every lift of a map's resort planned, once per map: a skier riding one

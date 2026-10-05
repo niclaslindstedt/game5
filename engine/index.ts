@@ -305,10 +305,13 @@ export { crashLimit, crashOver, noseDown, wipeoutCause, type CrashLimit } from "
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
+  FRACTURE_GRADE,
   PART,
   baseOf,
   blowOf,
   bonesOf,
+  energyOver,
+  fractureEnergyOf,
   fracturesOf,
   feelBumps,
   freshBody,

@@ -20,6 +20,16 @@
 //   viewports  one body (`--case`) at 1280×720, 390×844 and 844×390, whole
 //   plate      the figure enlarged: sound, every bone cracked, every bone
 //              broken, a trunk at speed
+//   force      the figure enlarged with every bone fractured at one energy
+//              a column: a hairline, a simple break struck lightly and
+//              harder, a wedge, shattered, shattered hard
+//   closeup    the force ladder up close, a window a row: the shoulder and
+//              arm, the pelvis and thighs, the shins
+//   blows      HIGH-G CRASHES skied through the engine, the figure enlarged
+//              over each: a trunk head-on and a trunk on the shoulder at
+//              rising speeds, a fall onto his side from rising heights, a
+//              drop flat onto the skis — every fracture printed with the
+//              energy that did it over its even chance's
 //   refs       the enlarged figure over every image in `--refs=DIR`, each
 //              cropped to the figure's box (92 × 211, head up) — the way to
 //              check a trace. References stay LOCAL: never committed.
@@ -27,6 +37,7 @@
 //   node scripts/damage-preview.mjs                          every sheet
 //   node scripts/damage-preview.mjs --sheet=panels --scenarios=tree,drop-big
 //   node scripts/damage-preview.mjs --sheet=viewports --case=broken
+//   node scripts/damage-preview.mjs --sheet=force,blows
 //   node scripts/damage-preview.mjs --sheet=refs --refs=/path/to/crops
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
@@ -44,7 +55,7 @@ import { SCENARIOS, SCENARIO_IDS } from "./lib/ride-scenarios.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".damage-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["panels", "viewports", "plate", "back", "refs"];
+const SHEETS = ["panels", "viewports", "plate", "back", "force", "closeup", "blows", "refs"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -68,7 +79,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
+  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,force,closeup,blows,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs" || args.refs);
@@ -90,9 +101,8 @@ if (unknown) {
 aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const S = await import(join(root, "tests/support/synthetic.ts"));
-const ridden = [];
-for (const id of wanted) {
-  const scenario = SCENARIOS.find((s) => s.id === id);
+/** One scenario skied, the body at its worst. */
+function ride(id, title, scenario) {
   const state = E.createGame({
     level: scenario.level(S),
     mode: scenario.mode,
@@ -111,15 +121,59 @@ for (const id of wanted) {
     E.step(state, scenario.input(state.t - t0, state));
     const b = state.skier.body;
     const r = [E.severityOf(b), b.injuries.length];
-    if (r[0] > rank[0] || (r[0] === rank[0] && r[1] > rank[1])) {
+    // A worse body, or the same one with a fracture struck harder since.
+    if (r[0] > rank[0] || (r[0] === rank[0] && r[1] > rank[1]) || harder(b, best)) {
       rank = r;
       best = structuredClone(b);
     }
   }
   // Read a second after the last injury, so nothing is still blinking.
   const last = best.injuries.reduce((m, h) => Math.max(m, h.t), 0);
-  ridden.push({ id: `ride:${id}`, title: `RIDDEN: ${id}`, body: best, t: last + 5 });
+  return { id, title, body: best, t: last + 5, peak: state.skier.body.fallPeak };
 }
+
+/** Whether `b` is `was` with a fracture struck harder. */
+function harder(b, was) {
+  if (b.injuries.length !== was.injuries.length) return false;
+  return b.injuries.some((h, i) => (h.energy ?? 1) > (was.injuries[i].energy ?? 1));
+}
+
+const ridden = wanted.map((id) =>
+  ride(
+    `ride:${id}`,
+    `RIDDEN: ${id}`,
+    SCENARIOS.find((s) => s.id === id),
+  ),
+);
+
+// THE HIGH-G CRASHES: the ride lab's own scenarios, harder and harder.
+const by = (id) => SCENARIOS.find((s) => s.id === id);
+const BLOWS = [
+  ...[50, 80, 110, 140].map((kmh) => [
+    `trunk-${kmh}`,
+    `A TRUNK HEAD-ON AT ${kmh} KM/H`,
+    { ...by("tree"), place: (S) => ({ ...by("tree").place(S), speed: kmh / 3.6 }) },
+  ]),
+  ...[5, 9, 13].map((ms) => [
+    `shoulder-${ms}`,
+    `A TRUNK ON THE SHOULDER AT ${Math.round(ms * 3.6)} KM/H SIDEWAYS`,
+    { ...by("shoulder"), prepare: (st) => void (st.skier.vx = ms) },
+  ]),
+  ...[2.5, 6, 12].map((h) => [
+    `side-${h}`,
+    `ONTO HIS SIDE FROM ${h} M AT 70 KM/H`,
+    { ...by("drop-side"), place: () => ({ ...by("drop-side").place(), height: h }) },
+  ]),
+  ...[8, 16].map((h) => [
+    `drop-${h}`,
+    `FLAT ONTO THE SKIS FROM ${h} M`,
+    { ...by("drop-big"), place: () => ({ ...by("drop-big").place(), height: h + 1 }) },
+  ]),
+];
+const blows = sheets.includes("blows")
+  ? BLOWS.map(([id, title, scenario]) => ride(`blow:${id}`, title, scenario))
+  : [];
+for (const b of blows) console.log(`  ${b.id.padEnd(16)} hardest fall ${b.peak.toFixed(0)} g`);
 
 mkdirSync(outDir, { recursive: true });
 if (!args["skip-build"] || !existsSync(join(buildDir, "damage-preview.html"))) {
@@ -177,7 +231,8 @@ for (const sheet of sheets) {
     `${server.url}damage-preview.html?sheet=${sheet}&case=${encodeURIComponent(args.case)}`,
   );
   await page.waitForFunction("window.__damage !== undefined");
-  const drawn = await page.evaluate(([r, f]) => globalThis.__damage.build(r, f), [ridden, refs]);
+  const cases = sheet === "blows" ? blows : ridden;
+  const drawn = await page.evaluate(([r, f]) => globalThis.__damage.build(r, f), [cases, refs]);
   if (crashed) process.exit(1);
   const box = await page.locator("#sheet").boundingBox();
   if (box) {

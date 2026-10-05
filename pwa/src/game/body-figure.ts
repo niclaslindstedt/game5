@@ -26,6 +26,7 @@
 
 import type { Bone } from "@engine";
 
+import { FORCE_MOST } from "./body-tile.ts";
 import { FIGURE } from "./body-frame.ts";
 import { BACK_VIEW, FRONT_VIEW, type BoneDraw, type FigureView } from "./body-model.ts";
 
@@ -53,17 +54,24 @@ function poly(points: readonly Pt[]): string {
 const LONG = /^(humerus|radius|ulna|femur|tibia|fibula|clavicle)/;
 
 /** HOW A BONE FRACTURES — the bone's own geometry cut, never a mark drawn
- * on it; deterministic per bone. Every fracture runs along one irregular
- * line across the bone at its mark, skewed as a real fracture line runs:
+ * on it; deterministic per bone, and thrown further apart the harder it was
+ * struck (`force`, 0 a break at the least dose that does one … 1 the
+ * energy that shatters it … 1.5). Every fracture runs along irregular lines
+ * across the bone at its mark, skewed as a real fracture line runs:
  *   - a HAIRLINE is an incomplete crack: a fissure (`fissure`) cut into the
  *     bone from one edge along that line, tapering shut short of the far
- *     edge — the flesh shows through it;
+ *     edge — deeper and wider the harder it was struck;
  *   - a BREAK is complete: the bone cut along the line, its far side
  *     (`piece`, a long bone's whole far end, a flat or small bone's only
  *     near the line) displaced and angulated (`move`), with the bone less
- *     that piece (`rest`, filled even-odd) left where it was; and a long
- *     bone's break knocks out a butterfly fragment (`chip`) that is set
- *     apart on its own (`chipMove`). */
+ *     that piece (`rest`, filled even-odd) left where it was;
+ *   - a WEDGE is a break that knocks out a butterfly fragment as well
+ *     (`chip`, cut out of the piece even-odd), set apart on its own
+ *     (`chipMove`) — larger, and thrown further, the harder the blow;
+ *   - SHATTERED (`shatter`) is multifragmentary: two lines either side of
+ *     the mark, the far end beyond the second displaced the furthest, and
+ *     the segment between them broken into polygonal fragments (`shards`),
+ *     each thrown out from the point of impact and turned. */
 export type FractureDraw = {
   fissure: string;
   piece: string;
@@ -71,6 +79,12 @@ export type FractureDraw = {
   move: string;
   chip: string;
   chipMove: string;
+  shatter: {
+    rest: string;
+    piece: string;
+    move: string;
+    shards: { clip: string; move: string }[];
+  };
 };
 
 /** A small, fixed sequence of numbers in [0, 1) off a bone's name. */
@@ -88,10 +102,14 @@ function jitter(bone: Bone): () => number {
 /** The plane outside everything, for a complement filled even-odd. */
 export const EVERYWHERE = `M-20,-20H${FIGURE.w + 20}V${FIGURE.h + 20}H-20Z`;
 
-export function fractureOf(bone: Bone, side: FigureSide = "front"): FractureDraw {
+export function fractureOf(bone: Bone, side: FigureSide = "front", force = 0.5): FractureDraw {
   const m = figureView(side).bones[bone].mark;
   const rnd = jitter(bone);
   const long = LONG.test(bone);
+  const hard = Math.min(FORCE_MOST, Math.max(0, force));
+  // How far the pieces are thrown: half today's at the least, twice at the
+  // most.
+  const k = 0.5 + hard;
   // Across the bone, and along it.
   const skew = (rnd() - 0.5) * 0.8;
   const u: Pt = [Math.cos(m.a + Math.PI / 2 + skew), Math.sin(m.a + Math.PI / 2 + skew)];
@@ -108,50 +126,146 @@ export function fractureOf(bone: Bone, side: FigureSide = "front"): FractureDraw
     zs.push((rnd() - 0.5) * 2 * zig);
   }
   const pts = ts.map((t, i) => at(t, zs[i]));
-  // THE FISSURE: from the near edge (well outside it) along the line to a
-  // little past the mark, as wide as a hair at its mouth and shut at its
-  // end.
-  const k = Math.round(N * 0.72);
-  const mouth = Math.min(0.62, 0.3 + m.r * 0.1);
-  const wid = (i: number): number => (mouth * (k - i)) / k;
+  // THE FISSURE: from the near edge (well outside it) along the line to
+  // past the mark — the further the harder — as wide as a hair at its
+  // mouth and shut at its end.
+  const deep = Math.min(1, hard / 0.6);
+  const kf = Math.round(N * (0.6 + 0.22 * deep));
+  const mouth = Math.min(0.62, 0.3 + m.r * 0.1) * (0.75 + 0.5 * deep);
+  const wid = (i: number): number => (mouth * (kf - i)) / kf;
   const fissure = poly([
-    ...pts.slice(0, k + 1).map((_, i) => at(ts[i], zs[i] + wid(i) / 2)),
+    ...pts.slice(0, kf + 1).map((_, i) => at(ts[i], zs[i] + wid(i) / 2)),
     ...pts
-      .slice(0, k + 1)
+      .slice(0, kf + 1)
       .map((_, i) => at(ts[i], zs[i] - wid(i) / 2))
       .reverse(),
   ]);
   // THE BREAK: everything past the line, as far as the piece reaches.
   const reach = long ? 60 : Math.max(2.4, m.r * 2.6);
-  const far = (p: Pt): Pt => [p[0] + v[0] * reach, p[1] + v[1] * reach];
   const wide = long ? half + 40 : half;
-  const piece = poly([
-    at(-wide, zs[0]),
-    ...pts,
-    at(wide, zs[N]),
-    far(at(wide, zs[N])),
-    far(at(-wide, zs[0])),
-  ]);
+  const beyond = (line: Pt[], z0: number, z1: number, by: number): string => {
+    const far = (p: Pt): Pt => [p[0] + v[0] * by, p[1] + v[1] * by];
+    return poly([at(-wide, z0), ...line, at(wide, z1), far(at(wide, z1)), far(at(-wide, z0))]);
+  };
+  const piece = beyond(pts, zs[0], zs[N], reach);
   const sign = rnd() < 0.5 ? -1 : 1;
   // Displaced as a broken bone is: shifted across by about half its width,
   // the ends drawn a little apart, and angulated.
-  const slide = 0.4 + m.r * 0.2;
-  const sideways = (0.3 + m.r * 0.55) * sign;
-  const turn = sign * (6 + rnd() * 6);
-  const move = `translate(${f(v[0] * slide + u[0] * sideways)} ${f(v[1] * slide + u[1] * sideways)}) rotate(${f(turn)} ${f(m.x)} ${f(m.y)})`;
+  const slide = (0.4 + m.r * 0.2) * k;
+  const sideways = (0.3 + m.r * 0.55) * sign * k;
+  const turn = sign * (6 + rnd() * 6) * k;
+  const shift = (a: number, b: number, deg: number, cx: number, cy: number): string =>
+    `translate(${f(a)} ${f(b)}) rotate(${f(deg)} ${f(cx)} ${f(cy)})`;
+  const move = shift(
+    v[0] * slide + u[0] * sideways,
+    v[1] * slide + u[1] * sideways,
+    turn,
+    m.x,
+    m.y,
+  );
   // THE BUTTERFLY: a wedge of the far side, its base on the line about the
-  // mark, knocked out the other way.
+  // mark, knocked out the other way — growing with the blow.
   const c = N >> 1;
-  const apex = at(ts[c] + (rnd() - 0.5) * m.r * 0.4, zs[c] + m.r * 0.95 + 0.3);
-  const chip = long ? poly([pts[c - 2], pts[c - 1], pts[c], pts[c + 1], apex]) : "";
-  const kick = -sign * (0.4 + m.r * 0.3);
-  const chipMove = `translate(${f(u[0] * kick + v[0] * slide * 0.4)} ${f(u[1] * kick + v[1] * slide * 0.4)}) rotate(${f(-turn * 2)} ${f(apex[0])} ${f(apex[1])})`;
+  const tall = (m.r * 1.3 + 0.5) * (0.8 + 0.4 * Math.min(1, hard));
+  const apex = at(ts[c] + (rnd() - 0.5) * m.r * 0.4, zs[c] + tall);
+  const chip = poly([pts[c - 3], pts[c - 2], pts[c - 1], pts[c], pts[c + 1], pts[c + 2], apex]);
+  const kick = -sign * (0.6 + m.r * 0.45) * k;
+  const chipMove = shift(
+    u[0] * kick + v[0] * slide * 0.4,
+    u[1] * kick + v[1] * slide * 0.4,
+    -turn * 2,
+    apex[0],
+    apex[1],
+  );
   return {
     fissure,
-    piece: chip ? `${piece}${chip}` : piece,
+    piece,
     rest: `${EVERYWHERE}${piece}`,
     move,
     chip,
     chipMove,
+    shatter: shatterOf(m, at, rnd, { half, wide, reach, zig, long, k, sign, turn, slide }),
   };
+}
+
+/** SHATTERED: a jittered grid of fragments over the segment either side of
+ * the mark — two rows along the bone (three struck harder, `k` past 1.7),
+ * `COLS` across it, the outer columns reaching past the bone's edges — and
+ * the far end beyond it. Each fragment is drawn a little smaller than the
+ * hole it came out of (`SHRINK`), so the flesh shows between the pieces. */
+const COLS = 3;
+const SHRINK = 0.86;
+
+function shatterOf(
+  m: { x: number; y: number; r: number },
+  at: (t: number, z: number) => Pt,
+  rnd: () => number,
+  o: {
+    half: number;
+    wide: number;
+    reach: number;
+    zig: number;
+    long: boolean;
+    k: number;
+    sign: number;
+    turn: number;
+    slide: number;
+  },
+): FractureDraw["shatter"] {
+  // The segment's half-length along the bone: a long bone's splinters run
+  // well along the shaft, a flat bone's stay about the blow.
+  const L = (o.long ? m.r * 1.3 + 0.9 : m.r * 0.9 + 0.5) * (0.8 + 0.25 * o.k);
+  const ROWS = o.k > 1.7 ? 3 : 2;
+  const grid: Pt[][] = [];
+  for (let r = 0; r <= ROWS; r++) {
+    const z = -L + (2 * L * r) / ROWS;
+    const row: Pt[] = [];
+    for (let c = 0; c <= COLS; c++) {
+      const edge = c === 0 || c === COLS;
+      const t = edge
+        ? (c === 0 ? -1 : 1) * o.wide
+        : -o.half * 0.6 + (1.2 * o.half * c) / COLS + (rnd() - 0.5) * o.half * 0.3;
+      const inner = r > 0 && r < ROWS;
+      const jz = (rnd() - 0.5) * 2 * (inner ? L * (0.7 / ROWS) : o.zig * 1.4);
+      row.push(at(t, z + jz));
+    }
+    grid.push(row);
+  }
+  // The near line and the far one, across the bone's width.
+  const far = (p: Pt, by: number): Pt => [p[0] + (at(0, by)[0] - m.x), p[1] + (at(0, by)[1] - m.y)];
+  const near = grid[0];
+  const last = grid[ROWS];
+  const outside = poly([...near, ...near.map((p) => far(p, o.reach + 2 * L)).reverse()]);
+  const piece = poly([...last, ...last.map((p) => far(p, o.reach)).reverse()]);
+  // The far end: displaced further than a simple break's.
+  // A long bone's far end is the limb below it: shifted well across and
+  // drawn up along the shaft, but turned no further than a simple break's,
+  // or the limb would cross its neighbour.
+  const fx = at(o.sign * (0.5 + m.r * 0.8) * o.k, o.slide * (o.long ? -0.6 : 1.6));
+  const turn = o.long ? o.turn * 0.6 : o.turn * 1.4;
+  const move = `translate(${f(fx[0] - m.x)} ${f(fx[1] - m.y)}) rotate(${f(turn)} ${f(m.x)} ${f(m.y)})`;
+  // The fragments, each thrown out from the mark along the way to its
+  // middle (read inside the bone's width) and turned about it.
+  const shards: { clip: string; move: string }[] = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = [grid[r][c], grid[r][c + 1], grid[r + 1][c + 1], grid[r + 1][c]];
+      const mid = at(
+        (-o.half * 0.6 + (1.2 * o.half * (c + 0.5)) / COLS) * 0.8,
+        -L + (2 * L * (r + 0.5)) / ROWS,
+      );
+      const dx = mid[0] - m.x;
+      const dy = mid[1] - m.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      const throwBy = (0.35 + m.r * 0.45) * o.k * (0.6 + rnd() * 0.8);
+      const deg = (rnd() - 0.5) * 50 * o.k;
+      const cx = mid[0] + (dx / dl) * throwBy;
+      const cy = mid[1] + (dy / dl) * throwBy;
+      shards.push({
+        clip: poly(cell),
+        move: `translate(${f(cx)} ${f(cy)}) rotate(${f(deg)}) scale(${SHRINK}) translate(${f(-mid[0])} ${f(-mid[1])})`,
+      });
+    }
+  }
+  return { rest: `${EVERYWHERE}${outside}`, piece, move, shards };
 }

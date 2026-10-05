@@ -28,7 +28,16 @@ import {
 } from "@engine";
 
 import { FIGURE, figureView, fractureOf } from "../pwa/src/game/body-figure.ts";
-import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
+import {
+  FORCE_MOST,
+  SCALE_SOUND,
+  bodyTile,
+  conditionOf,
+  forceOf,
+  LINES,
+  scaleOf,
+  toneOf,
+} from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import {
   AIR_SHOWN,
@@ -271,6 +280,46 @@ describe("the body and the g meter (body-tile.ts)", () => {
     expect(tile.condition).toBe("injured");
   });
 
+  it("is half its size sound and grows with the hurt to its full size", () => {
+    expect(scaleOf(0)).toBe(SCALE_SOUND);
+    expect(SCALE_SOUND).toBe(0.5);
+    const scores = [0, 1, 4, 9, 16, 25, 50, 75];
+    const sizes = scores.map(scaleOf);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    expect(scaleOf(1)).toBeGreaterThan(SCALE_SOUND);
+    expect(scaleOf(25)).toBe(1);
+    expect(scaleOf(75)).toBe(1);
+    const body = freshBody();
+    expect(bodyTile(body, 0).scale).toBe(SCALE_SOUND);
+    body.injuries.push({ part: "head", kind: "concussion", ais: 2, t: 0 });
+    body.worst[BODY_PARTS.indexOf("head")] = 2;
+    expect(bodyTile(body, 0).scale).toBe(scaleOf(4));
+  });
+
+  it("paints a break by the energy that did it, and throws its pieces by it", () => {
+    const C = TUNING.injury.comminute;
+    expect(forceOf(0)).toBe(0);
+    expect(forceOf(0.5)).toBe(0);
+    expect(forceOf(C.shatter)).toBeCloseTo(1);
+    expect(forceOf(50)).toBe(FORCE_MOST);
+    const body = freshBody();
+    const take = (part: (typeof BODY_PARTS)[number], kind: keyof typeof INJURIES, e: number) =>
+      body.injuries.push({ part, kind, ais: INJURIES[kind].ais, t: 0, energy: e });
+    take("thighL", "brokenFemur", 1);
+    take("armR", "brokenArm", C.wedge);
+    take("pelvis", "brokenPelvis", C.shatter + 1);
+    take("shinR", "crackedShin", 1);
+    const tile = bodyTile(body, 10);
+    const at = (b: (typeof BONES)[number]) => BONES.indexOf(b);
+    expect(tile.bones[at("femurL")]).toBe("break");
+    expect(tile.bones[at("humerusR")]).toBe("wedge");
+    expect(tile.bones[at("pelvis")]).toBe("shatter");
+    expect(tile.bones[at("tibiaR")]).toBe("hairline");
+    expect(tile.force[at("femurR")]).toBe(0);
+    expect(tile.force[at("pelvis")]).toBeGreaterThan(tile.force[at("humerusR")]);
+    expect(tile.force[at("humerusR")]).toBeGreaterThan(tile.force[at("femurL")]);
+  });
+
   it("holds the blow on the meter for the engine's hold, and lights the part it struck", () => {
     const body = freshBody();
     body.impact = {
@@ -478,8 +527,16 @@ describe("the body as drawn (body-figure.ts)", () => {
         for (const d of [b.fill, b.light, b.shadow, b.deep].filter(Boolean))
           expect(d, `${side} ${bone}`).toMatch(/^(M[\d.,L-]+Z)+$/);
         const fr = fractureOf(bone, side);
-        for (const d of [fr.fissure, fr.piece]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
-        expect(fr.move, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
+        for (const d of [fr.fissure, fr.piece, fr.chip, fr.shatter.piece])
+          expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+        for (const m of [fr.move, fr.chipMove, fr.shatter.move])
+          expect(m, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
+        // Shattered: in pieces, and more of them struck harder.
+        expect(fr.shatter.shards.length, bone).toBeGreaterThanOrEqual(6);
+        expect(fractureOf(bone, side, FORCE_MOST).shatter.shards.length).toBeGreaterThan(
+          fr.shatter.shards.length,
+        );
+        for (const s of fr.shatter.shards) expect(s.clip, bone).toMatch(/^M[\d.,L-]+Z$/);
       }
     }
   });

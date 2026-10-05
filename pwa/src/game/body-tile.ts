@@ -3,7 +3,8 @@
 // (`SkierState.body`, `body.ts`) folded into what an anatomical figure and
 // three lines under it can say, and the blow the g meter shows: the flesh
 // of each part painted by its worst injury that is NOT a fracture, every
-// bone by its own (`fracturesOf`: sound, a hairline crack, broken), and the
+// bone by its own (`fracturesOf`: sound, a hairline crack, a simple break,
+// a wedge, shattered — thrown apart by the energy that did it), and the
 // lines saying only what the bones cannot show (`saidOf` — the organs, the
 // ligaments, the sprains).
 // DOM-free on purpose: the drawing is next door (`hud-body.tsx`,
@@ -16,11 +17,17 @@
 // ward's own lines: 16 and up is major trauma. The g is billed only off a
 // FALL — he went down, or the skier he shouldered did (`Impact.fall`): a
 // landing ridden out or a shoulder both stood up from shows no number.
+//
+// THE PANEL'S SIZE is the hurt: half its full size on a sound body, growing
+// with the severity score to its full size at 25, where major trauma is
+// well past (`scaleOf`) — the figure keeps out of the way until there is
+// something on it to read.
 
 import {
   BODY_PARTS,
   PART,
   TUNING,
+  fractureEnergyOf,
   fracturesOf,
   saidOf,
   severityOf,
@@ -36,8 +43,9 @@ import type { BodyCondition } from "./strings-body.ts";
  * — the same four the rally game's car schematic is painted in. */
 export type BodyTone = "ok" | "hurt" | "spent" | "dead";
 
-/** A bone's paint: sound, cracked (a hairline), broken. */
-export type BoneTone = "sound" | "hairline" | "break";
+/** A bone's paint: sound, cracked (a hairline), broken simply, broken with
+ * a butterfly fragment knocked out (a wedge), shattered. */
+export type BoneTone = "sound" | "hairline" | "break" | "wedge" | "shatter";
 
 /** One line under the figure: an injury, and whether it is new enough to
  * be marked as news. */
@@ -60,6 +68,13 @@ export type BodyTile = {
   parts: BodyTone[];
   /** Every bone's paint, in `BONES` order. */
   bones: BoneTone[];
+  /** How hard each bone's fracture was struck, in `BONES` order: 0 a
+   * fracture at the least dose that does one, 1 at the energy that
+   * shatters a bone, up to `FORCE_MOST` — how far its pieces are thrown
+   * (`body-figure.ts`' `fractureOf`); 0 a sound bone. */
+  force: number[];
+  /** The panel's size, 0.5 sound … 1 badly hurt (`scaleOf`). */
+  scale: number;
   /** The part the blow on the meter struck, while it is fresh — drawn lit. */
   struck: BodyPart | null;
   condition: BodyCondition;
@@ -82,7 +97,33 @@ export const LINES = 3;
 /** How long an injury is marked as news, s of the engine's clock. */
 const FRESH = 3;
 
-const BONE_TONES: BoneTone[] = ["sound", "hairline", "break"];
+const BONE_TONES: BoneTone[] = ["sound", "hairline", "break", "wedge", "shatter"];
+
+/** The panel's size on a sound body, of its full size. */
+export const SCALE_SOUND = 0.5;
+
+/** The severity score the panel is at its full size from. */
+const SCALE_FULL = 25;
+
+/** THE PANEL'S SIZE off the injury severity score: half on a sound body,
+ * full from `SCALE_FULL`, growing as the square root of the score between
+ * — which is to say with the worst AIS rank on him, so a first minor
+ * injury already shows. */
+export function scaleOf(severity: number): number {
+  return SCALE_SOUND + (1 - SCALE_SOUND) * Math.min(1, Math.sqrt(severity / SCALE_FULL));
+}
+
+/** The most force a fracture is drawn with. */
+export const FORCE_MOST = 1.5;
+
+/** THE FORCE a fracture is drawn with off its energy over its even chance
+ * (`Injury.energy`): 0 at half the even chance's energy — the least that
+ * draws one at all — 1 at the energy that shatters, `FORCE_MOST` at most. */
+export function forceOf(energy: number): number {
+  if (energy <= 0) return 0;
+  const shatter = TUNING.injury.comminute.shatter;
+  return Math.min(FORCE_MOST, Math.max(0, (energy - 0.5) / (shatter - 0.5)));
+}
 
 /** A part's paint off its worst AIS rank. */
 export function toneOf(ais: number): BodyTone {
@@ -130,6 +171,8 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
   return {
     parts: flesh.map(toneOf),
     bones: fracturesOf(body).map((g) => BONE_TONES[g]),
+    force: fractureEnergyOf(body).map(forceOf),
+    scale: scaleOf(severity),
     struck: blow ? blow.part : null,
     condition: conditionOf(severity),
     severity,

@@ -16,8 +16,11 @@ import {
   NEUTRAL_INPUT,
   SKI_CATALOG,
   TUNING,
+  FRACTURE_GRADE,
   blowOf,
   bonesOf,
+  energyOver,
+  fractureEnergyOf,
   fracturesOf,
   createGame,
   freshBody,
@@ -187,6 +190,61 @@ describe("the bones", () => {
     expect(saidOf("brokenFemur")).toBe(false);
     expect(saidOf("tornAcl")).toBe(true);
     expect(saidOf("spinalCord")).toBe(true);
+  });
+});
+
+describe("how a break breaks", () => {
+  it("a blow's energy goes as its g, a twist's or a bend's as its speed squared", () => {
+    expect(energyOver("blunt", 90, 60)).toBeCloseTo(1.5);
+    expect(energyOver("load", 30, 15)).toBeCloseTo(2);
+    expect(energyOver("bend", 30, 20)).toBeCloseTo(2.25);
+    expect(energyOver("twist", 11, 11)).toBeCloseTo(1);
+  });
+
+  it("grades a break simple, wedge or shattered by the energy that did it", () => {
+    const C = I.comminute;
+    expect(C.wedge).toBeGreaterThan(1);
+    // The pendulum study: comminuted at 2.3 times the energy of a simple break.
+    expect(C.shatter).toBeCloseTo(2.3);
+    const graded = (energy: number | undefined, kind: InjuryKind = "brokenFemur") => {
+      const body = freshBody();
+      body.injuries.push({ part: "thighL", kind, ais: INJURIES[kind].ais, t: 0, energy });
+      const i = BONES.indexOf("femurL");
+      return [fracturesOf(body)[i], fractureEnergyOf(body)[i]];
+    };
+    expect(graded(undefined)).toEqual([FRACTURE_GRADE.simple, 1]);
+    expect(graded(C.wedge - 0.01)[0]).toBe(FRACTURE_GRADE.simple);
+    expect(graded(C.wedge)[0]).toBe(FRACTURE_GRADE.wedge);
+    expect(graded(C.shatter)).toEqual([FRACTURE_GRADE.shatter, C.shatter]);
+    // A crack stays a crack however hard it was struck.
+    expect(graded(5, "crackedFemur")[0]).toBe(FRACTURE_GRADE.hairline);
+  });
+
+  it("a trunk met faster breaks his bones worse", () => {
+    const worst = (kmh: number) => {
+      const state = staged(syntheticLevel(), {
+        x: LONE_TREE.x + 0.4,
+        z: LONE_TREE.z - 40,
+        heading: 0,
+        speed: kmh / 3.6,
+      });
+      // Read every step, since the reset that stands him up mends him.
+      let grade = 0;
+      let energy = 0;
+      for (let i = 0; i < 6 * TUNING.physicsHz; i++) {
+        step(state, TUCK);
+        for (const h of state.skier.body.injuries) {
+          if ((INJURIES[h.kind] as InjuryDef).fracture) expect(h.energy, h.kind).toBeGreaterThan(0);
+        }
+        grade = Math.max(grade, ...fracturesOf(state.skier.body));
+        energy = Math.max(energy, ...fractureEnergyOf(state.skier.body));
+      }
+      return { grade, energy };
+    };
+    const slow = worst(40);
+    const fast = worst(110);
+    expect(fast.energy).toBeGreaterThan(slow.energy);
+    expect(fast.grade).toBe(FRACTURE_GRADE.shatter);
   });
 });
 

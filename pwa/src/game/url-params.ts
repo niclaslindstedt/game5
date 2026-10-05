@@ -33,7 +33,7 @@
 //   ?paused=1       ...or held under the pause card.
 //   ?camera=<rung>  the run's camera (tips, helmet, chase, far, high).
 //   ?skis=<id>      the player's pair for this visit (chamois, swift,
-//                   chough, eagle, marmot, hare), over the stored one and
+//                   chough, falcon, eagle, marmot, hare), over the stored one and
 //                   never written back — how a lab photographs a pair it did
 //                   not pick.
 //   ?mode=trial     the run a link boots into (or the next one pressed) is

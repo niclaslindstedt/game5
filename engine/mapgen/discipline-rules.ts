@@ -416,21 +416,21 @@ export const DISCIPLINE_RULES = {
      * brushes it with his shins at the top level; the game's line keeps a
      * margin the bot can hold at 100 km/h. */
     pass: 3.5,
-    /** THE FIRST GATES out of the house, skied at a crawl on the downhill
-     * ski — which stands on no more edge than its lean lets it there —
+    /** THE FIRST GATES out of the house, skied at a crawl on a speed ski
+     * — which stands on no more edge than its lean lets it there —
      * swing this share of their own, gate by gate. */
     opening: [0.35, 0.7] as readonly number[],
     /** ...and a gate on a GENTLE stretch — the piste falling less than `to`
      * over the `over` m above it — swings less, down to `least` of its own
-     * at `from`: a racer comes onto a flat slowly, and the downhill ski at
-     * 40 km/h carves no super-G turn. */
+     * at `from`: a racer comes onto a flat slowly, and a 45–50 m speed
+     * ski at 40 km/h carves no super-G turn. */
     flat: { over: 80, from: 0.08, to: 0.2, least: 0.35 },
     /** THE SWING: how far the line swings across the piste to a gate's side,
      * m, either side of the line that bends the least — the measured 13 m
      * across between two gates, as a line swung round the poles — dealt
      * between its least and most a gate; and the tightest it may bend for
-     * it, m of radius (the measured least turn's 35 m — and what the
-     * downhill ski carves at a super-G's pace, `SUPER_G_TECHNIQUE`). */
+     * it, m of radius (the measured least turn's 35 m — and what a speed
+     * ski carves at a super-G's pace, `SUPER_G_TECHNIQUE`). */
     swing: { min: 2.5, max: 5.5 } as Band,
     bend: 50,
     /** THE GATE BEFORE A JUMP is set straight: one within `approach` m of a

@@ -503,10 +503,27 @@ where they can be reached; the rest of the course is closed *(press
 reports)*.
 
 **The skis.** Men at least 2.10 m (2.05 at a lower level) and 45 m of
-sidecut, women 2.05 m (2.00) and 40 m; waist at most 65 mm, shoulder 95 mm;
-youth 1.83 m and 30 m. A downhill ski (2.18 m, 50 m) meets the rule, which
-is why the game's field races the Eagle (`SUPER_G.skis`) — the game has no
-super-G pair of its own.
+sidecut, women 2.05 m (2.00) and 40 m; the current edition also caps the
+length, at 2.18 m for men and 2.15 for women; youth 1.83 m and 30 m;
+masters may ski a giant slalom ski. Waist at most 65 mm, shoulder 95 mm (a
+giant slalom ski's may be 103), the tip raised at least 30 mm (50 on a
+giant slalom ski), the tail at most 10; the stand from the base to the
+boot's sole at most 50 mm; a ski with its plate and binding at most 5.1 kg
+for a man (5.3 a downhill ski) [26]. Race stock as the makers publish it:
+men's 2.10–2.13 m (a lower level's 2.05–2.08, women's 2.05–2.07) on 45–45.5
+m (women's and youth 40), widths 93.5–95 / 65 / 78–81 mm, a wood core
+under three sheets of metal with full sidewalls, full camber or a slight
+early rise in the shovel only, the metal stopped short of the shovel so
+the tip and tail flex softer than the middle; the ski ~2.3 kg alone, a
+plate 0.6–0.8 kg and a binding 1.2–1.6 kg, ~4.3–4.9 kg a ski in all
+*(makers' specifications)*. Between its neighbours it is quicker edge to
+edge and easier to tip than a downhill ski and steadier in a tuck and on
+the straights than a giant slalom ski *(trade press)*; top racers keep a
+quiver of each. Poles are bent round the body in a tuck and longer than a
+slalom pole. The game's super-G pair is the **Falcon** (`defs/skis.ts`):
+2.10 m, 45 m, 94 / 65 / 79 mm, stiff, no rocker, on a plate, the speed
+events' bent poles — built to the men's least, as the giant slalom and
+downhill pairs are, and the pair its field races (`SUPER_G.skis`).
 
 **In the game** (R33, `engine/mapgen/super-g.ts`): the ski area's course
 with the most vertical — the downhill's hill — its START LOWERED down the
@@ -537,7 +554,9 @@ set down the fall line, no combination, and no B-net; no inspection is
 skied; the course takes the downhill's hill rather than one of its own
 where the area has a run in the band.
 
-Sources (continued): [25] doi:10.1038/s41598-021-83133-z.
+Sources (continued): [25] doi:10.1038/s41598-021-83133-z ·
+[26] the international equipment rules for alpine competition, 2024/25
+and 2026/27 editions.
 
 ## The jury's weather (every discipline)
 

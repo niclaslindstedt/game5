@@ -294,10 +294,9 @@ export const SUPER_G = {
   /** One run, and no training: the course is inspected, never skied
    * before the race. */
   runs: 1,
-  /** The pair the field races on: the downhill ski, which meets the
-   * super-G's rule (at least 2.10 m and 45 m of sidecut) — the game has no
-   * super-G pair of its own. */
-  skis: "eagle",
+  /** The pair the field races on: the super-G ski, built to the rule
+   * (at least 2.10 m and 45 m of sidecut). */
+  skis: "falcon",
 } as const;
 
 /** THE SUPER-G as a skier is dealt it (R33): the start list skied before

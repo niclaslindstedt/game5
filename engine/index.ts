@@ -142,6 +142,7 @@ export {
   SWIFT,
   CHOUGH,
   EAGLE,
+  FALCON,
   MARMOT,
   HARE,
   skisById,

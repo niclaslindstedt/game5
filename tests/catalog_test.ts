@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CATALOG: six pairs of skis, each an answer to a kind of snow and none
-// a point on one scale. Every pair is held to its own documented expectation
+// THE CATALOG: seven pairs of skis, each an answer to a kind of snow and
+// none a point on one scale. Every pair is held to its own documented expectation
 // (`topSpeed`) down the reference pitch; then each is held to what its row
 // CLAIMS — the downhill ski flat out fastest, the slalom ski quickest onto
-// an edge, the giant slalom ski holding the groomer hardest, the powder ski
+// an edge, the giant slalom ski holding the groomer hardest, the super-G ski
+// the hardest bend at speed, the powder ski
 // floating, the park ski taking the landing the others fold on — and the
 // reference pair's footprint to being exactly the one every shared number
 // was tuned on. Staged on the synthetic drag strips with `placeRun`.
@@ -13,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHOUGH,
   EAGLE,
+  FALCON,
   HARE,
   MARMOT,
   NEUTRAL_INPUT,
@@ -84,11 +86,12 @@ function restSink(spec: SkiSpec): number {
 }
 
 describe("the catalog", () => {
-  it("is six pairs with their own ids, the chamois the default", () => {
+  it("is seven pairs with their own ids, the chamois the default", () => {
     expect(SKI_CATALOG.map((s) => s.id)).toEqual([
       "chamois",
       "swift",
       "chough",
+      "falcon",
       "eagle",
       "marmot",
       "hare",
@@ -133,10 +136,11 @@ describe("the catalog", () => {
   it("builds the speed-event pairs to their discipline's competition rules", () => {
     // The men's top-level rules (docs/disciplines.md, "The skis"): giant
     // slalom at least 1.93 m and a 30 m sidecut, at most a 65 mm waist and
-    // a 103 mm shoulder; downhill at least 2.18 m and 50 m, at most 65 mm
-    // and 95 mm.
+    // a 103 mm shoulder; super-G at least 2.10 m and 45 m, at most 65 mm
+    // and 95 mm; downhill at least 2.18 m and 50 m, at most 65 mm and 95 mm.
     const rules = [
       { ski: CHOUGH, length: 1.93, sidecut: 30, shoulder: 0.103 },
+      { ski: FALCON, length: 2.1, sidecut: 45, shoulder: 0.095 },
       { ski: EAGLE, length: 2.18, sidecut: 50, shoulder: 0.095 },
     ];
     for (const r of rules) {
@@ -171,7 +175,7 @@ describe("every pair, down the reference pitch", () => {
   }
 });
 
-describe("six answers to a kind of snow", () => {
+describe("seven answers to a kind of snow", () => {
   it("the downhill ski is the quickest flat out; the powder and park skis the slowest", () => {
     const tops = new Map(SKI_CATALOG.map((s) => [s.id, topOn(s, SCHUSS)]));
     expect(Math.max(...tops.values())).toBe(tops.get("eagle"));
@@ -183,6 +187,7 @@ describe("six answers to a kind of snow", () => {
     const grips = SKI_CATALOG.map((s) => cornerGrip(s, 1));
     expect(Math.max(...grips)).toBe(cornerGrip(EAGLE, 1));
     expect(cornerGrip(CHOUGH, 1)).toBeGreaterThan(cornerGrip(SKIS, 1));
+    expect(cornerGrip(FALCON, 1)).toBeGreaterThan(cornerGrip(CHOUGH, 1));
     expect(Math.min(...grips)).toBe(cornerGrip(MARMOT, 1));
   });
 
@@ -198,7 +203,7 @@ describe("six answers to a kind of snow", () => {
     expect(restSink(MARMOT)).toBeLessThan(TUNING.snow.powderSink * 0.85);
     const times = SKI_CATALOG.map((s) => timeTo(s, DEEP_SCHUSS, 50));
     expect(Math.min(...times)).toBe(timeTo(MARMOT, DEEP_SCHUSS, 50));
-    for (const s of [SWIFT, CHOUGH, EAGLE]) {
+    for (const s of [SWIFT, CHOUGH, FALCON, EAGLE]) {
       expect(footprintOf(s).sink).toBeGreaterThan(1);
     }
   });

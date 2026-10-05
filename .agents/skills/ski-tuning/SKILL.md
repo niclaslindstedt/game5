@@ -1,13 +1,13 @@
 ---
 name: ski-tuning
-description: "Use when changing A PAIR'S OWN NUMBERS — the spec in `engine/game/defs/skis.ts` (the skier's mass and the gear's, the length, the waist, the tip and the tail, the sidecut radius, the flex, the rocker, the most edge, the stance and the mount, the legs' spring, the drag area upright and in a tuck, the CoG and the crouch, the poles' reach and push), the documented expectation a test holds the physics to (`topSpeed`), what separates one rival from another in the field (`Rival.pace`), or adding a pair to the catalog of six. Owns what every per-pair knob buys, the real-class bands each number must stay inside, and the `make ride` + `make sim` sweep that is the only honest test of a retune. Not the LOOK of the skis (`ski-design`) and not the shared model every pair inherits (`ski-physics`)."
+description: "Use when changing A PAIR'S OWN NUMBERS — the spec in `engine/game/defs/skis.ts` (the skier's mass and the gear's, the length, the waist, the tip and the tail, the sidecut radius, the flex, the rocker, the most edge, the stance and the mount, the legs' spring, the drag area upright and in a tuck, the CoG and the crouch, the poles' reach and push), the documented expectation a test holds the physics to (`topSpeed`), what separates one rival from another in the field (`Rival.pace`), or adding a pair to the catalog of seven. Owns what every per-pair knob buys, the real-class bands each number must stay inside, and the `make ride` + `make sim` sweep that is the only honest test of a retune. Not the LOOK of the skis (`ski-design`) and not the shared model every pair inherits (`ski-physics`)."
 ---
 
 # Tuning the skis
 
 This skill owns **two questions**: is each pair a believable ski of its kind
 — does it run, carve, skid, float and land the way its numbers say it will?
-And is each of the six an ANSWER to a kind of snow rather than a point on one
+And is each of the seven an ANSWER to a kind of snow rather than a point on one
 scale with a winner?
 
 The answer is measured, never asserted. **Any change to `defs/skis.ts` owes
@@ -25,11 +25,11 @@ The answer is measured, never asserted. **Any change to `defs/skis.ts` owes
 
 ## The catalog
 
-SIX pairs, `SKI_CATALOG` in `defs/skis.ts`, in the order the ski card turns
+SEVEN pairs, `SKI_CATALOG` in `defs/skis.ts`, in the order the ski card turns
 through them — best all-round first, the one that asks most of a skier last:
 `SKIS` (the CHAMOIS, an all-mountain ski — the reference every shared number
 in `TUNING` was tuned on, and the default), `SWIFT` (slalom), `CHOUGH`
-(giant slalom), `EAGLE` (downhill), `MARMOT` (powder) and `HARE` (park).
+(giant slalom), `FALCON` (super-G), `EAGLE` (downhill), `MARMOT` (powder) and `HARE` (park).
 Each is a real CLASS, named for an animal of the high country that moves the
 way it skis, and the Chamois's row spread with what differs. Every host reads
 them through `@engine` (`SKI_CATALOG`, `skisById`, `isSkiId`); ids are the
@@ -40,16 +40,17 @@ animal names.
 | Chamois (all-mountain) | the middle of every band, best at nothing | 178 cm, an 88 mm waist, an 18 m sidecut, medium flex, a little rocker — every `footprint.ts` multiplier exactly 1 |
 | Swift (slalom) | quickest edge to edge, bites a tight groomed bend, nervous at speed, sinks in powder | 165 cm on a 66 mm waist, a 13 m sidecut, no rocker, the most edge |
 | Chough (giant slalom) | holds an edge on ice, carries speed through a long bend, skids a tight one | 193 cm on a 65 mm waist, stiff, a 30 m sidecut (the men's competition minimums), no rocker, a stiffer leg |
+| Falcon (super-G) | holds the hardest bend at a super-G's ~100 km/h, between the giant slalom ski's quickness and the downhill ski's top end | 210 cm on a 65 mm waist, a 45 m sidecut (the men's competition minimums), a 94 mm shoulder over a short low shovel, stiff, the second-smallest tuck (0.38 m²) |
 | Eagle (downhill) | fastest flat out, lands a downhill's jumps on its length, hates a bend | 218 cm on a 65 mm waist, the stiffest ski, a 50 m sidecut (the men's competition minimums), the smallest tuck (0.35 m²), the heaviest gear |
 | Marmot (powder) | floats where the others sink, turns on its base, vague and slow on the groomer | a 116 mm waist, a 22 m sidecut, soft, a rockered tip |
 | Hare (park) | spins and lands anything softly, slow in a tuck and loose on an edge | a soft twin-tip on a centre mount, the softest leg with the most travel, the biggest tuck |
 
 Real-class BANDS (a band, never a make and a model — the router's rule):
 slalom skis 155–165 cm on 63–70 mm waists with 11–13 m sidecuts; giant slalom
-193–195 cm and 30–35 m on at most 65 mm, downhill 218–223 cm and 50–55 m on
+193–195 cm and 30–35 m on at most 65 mm, super-G 210–213 cm and 45–45.5 m on at most 65 mm under a 93.5–95 mm shoulder, downhill 218–223 cm and 50–55 m on
 at most 65 mm — the race pairs are built to the competition rules'
 men's minimums (`docs/disciplines.md`, "The skis": giant slalom ≥ 193 cm,
-≥ 30 m, a shoulder ≤ 103 mm; downhill ≥ 218 cm, ≥ 50 m, ≤ 95 mm); all-mountain 170–185
+≥ 30 m, a shoulder ≤ 103 mm; super-G ≥ 210 cm, ≥ 45 m, ≤ 95 mm; downhill ≥ 218 cm, ≥ 50 m, ≤ 95 mm); all-mountain 170–185
 cm on 85–105 mm; powder 100–125 mm; park twin-tips 85–100 mm on a centre
 mount; a pair of adult skis with bindings, boots and poles 7–10 kg; a
 racer's tuck 0.25–0.35 m² of drag area, upright 0.6–0.9; a carve stood at
@@ -144,7 +145,8 @@ field that is too fast or too slow is a `RACE` / pace change measured with
 
 `make sim ARGS="--skis all" COUNT=12` is the verdict: NO pair best
 everywhere — the Marmot wins the powder-heavy seeds (a high `pow`), the
-Chough and the Swift the groomed ones by their bends, the Eagle a long
+Chough and the Swift the groomed ones by their bends, the Falcon a fast
+one of long bends, the Eagle a long
 straight one, and every pair wins somewhere or has a reason in its blurb not
 to (the Chamois is best at nothing by design, the Eagle hates a bend, the
 Hare is slow in a tuck). A retune that makes one pair sweep the table has
@@ -156,16 +158,19 @@ about each row alone.
 The ski card (`menu-skis.tsx`) bills each pair off `ski-stats.ts`, and EVERY
 number there is derived: the figures are the row's own `topSpeed`, `length`,
 `waist` and `sidecut`; the bars are the engine's own answers —
-`cornerGrip(spec, 1)`, the footprint's float over its sink, `harshSpeedOf`,
+the bend the edge carves clean at race pace and at a super-G's
+(`carveOf`, `speedCarveOf`: the sidecut's arc against `cornerGrip(spec,
+1)`), the footprint's float over its sink, `harshSpeedOf`,
 `terminalSpeed` on the reference pitch — each scaled across the catalog's
 spread. So a retune is billed correctly the moment it lands, and
 `tests/ski_card_test.ts` holds the sheet to the catalog's claim: every
 specialist best at something, the all-mountain ski in the middle of every
-band, the powder ski best in powder and the slalom ski worst. A retune that
+band, the powder ski best in powder and the slalom ski worst, the giant
+slalom ski's carve best at 72 km/h and the super-G ski's at 108. A retune that
 breaks one of those has changed what a pair IS, and its `blurb` moves with
 it.
 
-## Adding a seventh pair
+## Adding a pair
 
 A row spread from `SKIS` with what differs, added to `SKI_CATALOG` (the card
 turns through it in that order — by goodness) and to `SkiId`, with a traced

@@ -334,6 +334,7 @@ export const STRINGS = {
   skisBars: {
     top: "TOP SPEED",
     edge: "EDGE HOLD",
+    speed: "SPEED CARVE",
     quick: "QUICKNESS",
     float: "FLOAT",
     flex: "FORGIVENESS",

@@ -18,13 +18,14 @@ import { rhythmOf, slideOf } from "./ride-helpers.mjs";
 
 /** The pair each technique skis when none is asked for: its discipline's
  * own class of ski (`defs/skis.ts`) — the slalom on the slalom pair, the
- * giant slalom on the giant slalom pair, the speed events on the downhill
- * pair, the free skier on the all-mountain pair. */
+ * giant slalom on the giant slalom pair, the super-G on the super-G pair,
+ * the downhill on the downhill pair, the free skier on the all-mountain
+ * pair. */
 export const NATURAL_SKIS = {
   free: "chamois",
   slalom: "swift",
   giantSlalom: "chough",
-  superG: "eagle",
+  superG: "falcon",
   downhill: "eagle",
 };
 

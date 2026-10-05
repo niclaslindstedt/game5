@@ -6,7 +6,7 @@
 // mountain — the generator is a pure function of it — and on a resort the
 // COURSE is which of its pistes was raced (R28), so two runs on one seed and
 // course are two runs down the same piste. The pair is in the key rather than merely written on the row,
-// because the six pairs are six answers to the snow — a slalom ski's time
+// because the seven pairs are seven answers to the snow — a slalom ski's time
 // down a groomed piste is not a powder ski's to beat — and the run count is
 // (always one on a piste, kept so the key's shape is the sibling games'),
 // because a one-run trial and a three-run one would be two different

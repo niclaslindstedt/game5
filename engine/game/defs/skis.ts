@@ -6,7 +6,8 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// SIX PAIRS, SIX ANSWERS TO A KIND OF SNOW — never six points on one scale.
+// SEVEN PAIRS, SEVEN ANSWERS TO A KIND OF SNOW — never seven points on one
+// scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
 // bands:
@@ -17,6 +18,10 @@
 //           quickest thing edge to edge, chattering and nervous at speed.
 //   CHOUGH  a GIANT SLALOM ski — long, stiff, a 30 m sidecut: the carving
 //           racer, holding an edge on ice a slalom ski skids off.
+//   FALCON  a SUPER-G ski — longer than the giant slalom ski, a 45 m
+//           sidecut: the edge that holds the hardest bend at a hundred
+//           kilometres an hour, where one ski chatters and the other will
+//           not bend.
 //   EAGLE   a DOWNHILL ski — the longest and stiffest here, a 50 m sidecut:
 //           flat out in a tuck it outruns everything, and it hates a bend.
 //   MARMOT  a POWDER ski — wide under foot and rockered at the tip: floats
@@ -26,7 +31,7 @@
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
-// The two speed-event pairs stand inside their discipline's COMPETITION
+// The three speed-event pairs stand inside their discipline's COMPETITION
 // RULES at the top level (`docs/disciplines.md`, "The skis"), the men's
 // least length and sidecut radius and the most waist and shoulder.
 //
@@ -58,7 +63,7 @@ export type LegSpec = {
   travel: number;
 };
 
-export type SkiId = "chamois" | "swift" | "chough" | "eagle" | "marmot" | "hare";
+export type SkiId = "chamois" | "swift" | "chough" | "falcon" | "eagle" | "marmot" | "hare";
 
 export type SkiSpec = {
   id: SkiId;
@@ -74,7 +79,8 @@ export type SkiSpec = {
    * of adult skis with race boots). */
   gearMass: number;
   /** The ski's length, m (slalom 1.55–1.65; giant slalom 1.93–1.95, the
-   * rule's least 1.93 for men and 1.88 for women; downhill 2.18–2.23, the
+   * rule's least 1.93 for men and 1.88 for women; super-G 2.10–2.13, the
+   * least 2.10 for men and 2.05 for women; downhill 2.18–2.23, the
    * least 2.18 for men; all-mountain 1.70–1.85). */
   length: number;
   /** The widths, m: under the boot, at the tip, at the tail — the waist is
@@ -84,7 +90,8 @@ export type SkiSpec = {
   tailWidth: number;
   /** THE SIDECUT RADIUS, m — the arc the ski's edge is cut to, and the
    * turn it carves at 45° of edge (`skier.ts`). Slalom 11–13; giant slalom
-   * 30–35, the rule's least 30; downhill 50–55, the least 50; all-mountain
+   * 30–35, the rule's least 30; super-G 45–50, the least 45 for men and 40
+   * for women; downhill 50–55, the least 50; all-mountain
    * 15–20. */
   sidecut: number;
   /** How stiff the ski is, 0 (a soft park ski) … 1 (a downhill ski): a
@@ -223,6 +230,43 @@ export const CHOUGH: SkiSpec = {
   topSpeed: 126,
 };
 
+/** THE FALCON — a SUPER-G ski: the speed event whose gates turn the racer,
+ * built to the men's top-level rule. 210 cm (the least the rule allows a
+ * man, where racers ski 210–213; 205 is the women's and a lower level's)
+ * on a 65 mm waist (the most it allows) with a 45 m sidecut (the least it
+ * allows; the class is skied on 45–45.5, 40 for women), a 94 mm shoulder
+ * (at most 95; the class runs 93.5–95) and a 79 mm tail (78–81) — 11 mm
+ * of side depth over the 1.97 m its short, low shovel leaves between the
+ * widest points, which is 45 m. Stiff underfoot under three sheets of
+ * metal, a little softer at the ends, no rocker, on a race plate. Its
+ * answer is a long bend at a hundred kilometres an hour:
+ * there its 45 m arc asks about all its edge can hold, where the giant
+ * slalom ski's tighter arc asks more than it holds and chatters, and the
+ * downhill ski's longer one never asks enough to use its edge. Slower than
+ * the downhill ski flat out, slower than the giant slalom ski edge to
+ * edge. */
+export const FALCON: SkiSpec = {
+  ...SKIS,
+  id: "falcon",
+  name: "Falcon",
+  kind: "Super-G",
+  blurb: "Long and stiff on a 45 m sidecut: holds the hardest bend at a hundred km/h.",
+  gearMass: 9.5,
+  length: 2.1,
+  waist: 0.065,
+  tipWidth: 0.094,
+  tailWidth: 0.079,
+  sidecut: 45,
+  flex: 0.9,
+  rocker: 0,
+  edgeMax: 1.12,
+  mount: 0.455,
+  legs: { rate: 8000, bump: 540, rebound: 960, travel: 0.45 },
+  cdAUpright: 0.9,
+  cdATuck: 0.38,
+  topSpeed: 132,
+};
+
 /** THE EAGLE — a DOWNHILL ski: the fastest thing here in a straight line,
  * built to the men's top-level rule. 218 cm (the least the rule allows a
  * man) on a 65 mm waist (the most it allows) with a 50 m sidecut (the least
@@ -309,10 +353,11 @@ export const HARE: SkiSpec = {
 
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
- * most of him last: the all-mountain ski that refuses nothing, the slalom
- * ski, the giant slalom ski, the downhill ski, the powder ski and the park
- * ski. (`make sim ARGS="--skis all"` is the measure.) */
-export const SKI_CATALOG: readonly SkiSpec[] = [SKIS, SWIFT, CHOUGH, EAGLE, MARMOT, HARE];
+ * most of him last: the all-mountain ski that refuses nothing, the race
+ * skis from the shortest to the longest (slalom, giant slalom, super-G,
+ * downhill), the powder ski and the park ski. (`make sim ARGS="--skis
+ * all"` is the measure.) */
+export const SKI_CATALOG: readonly SkiSpec[] = [SKIS, SWIFT, CHOUGH, FALCON, EAGLE, MARMOT, HARE];
 
 /** The pair with this id, or the all-mountain ski for one this build does
  * not carry (a stored pick from another version, or a hand-typed link). */

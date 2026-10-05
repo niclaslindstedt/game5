@@ -293,7 +293,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
     skis: {
       kind: "string",
-      help: "the player's pair for the run (?skis=: chamois, swift, chough, eagle, marmot, hare)",
+      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, marmot, hare)",
     },
     downhill: {
       kind: "flag",

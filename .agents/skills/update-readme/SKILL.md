@@ -42,7 +42,7 @@ description: "Use when README.md may be stale. Discovers commits since the last 
 | Changed files / scope | README section(s) to update |
 | --- | --- |
 | `package.json` scripts, `Makefile` targets (a lab added or renamed: `sim`, `level`, `analyze`, `ride`, `world`, `audition`, `screenshots`, `profile`, the `tauri*` and `native-*` targets) | **Usage** table — and `AGENTS.md`'s labs table moves with it |
-| `engine/game/defs/skis.ts` | **What** (the six pairs and what each is) |
+| `engine/game/defs/skis.ts` | **What** (the seven pairs and what each is) |
 | `pwa/src/game/settings-input.ts`, `input.ts`, `input-model.ts`, `hud.tsx`, `hud-touch.tsx` | **Controls** (the keys, the edge thumb and the tuck lever) |
 | `pwa/src/identity.ts`, `pwa/public/CNAME` | Links, badges, **What**, **Usage** (install) |
 | `engine/mapgen/rules.ts`, `engine/game/snow.ts` | **What** / **Why** (the generator and the snow claims) |

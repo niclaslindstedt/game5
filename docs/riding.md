@@ -6,22 +6,22 @@ Every number below is quoted with its unit as `TUNING` or `SKIS` states it; the 
 
 ## The pair (`defs/skis.ts`)
 
-SIX pairs of skis, each a real CLASS and an answer to a kind of snow rather than a point on one scale (`SKI_CATALOG`, in the order the ski card turns through them — best all-round first; `skisById`). Each is named for an animal of the high country that moves the way it skis, and every number is kept inside the class's measured band, never a make and a model:
+SEVEN pairs of skis, each a real CLASS and an answer to a kind of snow rather than a point on one scale (`SKI_CATALOG`, in the order the ski card turns through them — best all-round first; `skisById`). Each is named for an animal of the high country that moves the way it skis, and every number is kept inside the class's measured band, never a make and a model:
 
-|                          | Chamois (`SKIS`) — all-mountain | Swift — slalom | Chough — giant slalom | Eagle — downhill | Marmot — powder | Hare — park    |
-| ------------------------ | ------------------------------- | -------------- | --------------------- | ---------------- | --------------- | -------------- |
-| length                   | 1.78 m                          | 1.65 m         | 1.93 m                | 2.18 m           | 1.86 m          | 1.74 m         |
-| waist / tip / tail       | 88 / 130 / 114 mm               | 66 / 122 / 104 | 65 / 98 / 80          | 65 / 90 / 75     | 116 / 142 / 130 | 90 / 122 / 120 |
-| sidecut radius           | 18 m                            | 13 m           | 30 m                  | 50 m             | 22 m            | 17 m           |
-| flex / rocker            | 0.5 / 0.25                      | 0.6 / 0        | 0.8 / 0               | 1.0 / 0          | 0.4 / 0.7       | 0.2 / 0.35     |
-| most edge (`edgeMax`)    | 1.05 rad (60°)                  | 1.15           | 1.15                  | 1.1              | 0.95            | 1.0            |
-| mount (from the tail)    | 0.46                            | 0.47           | 0.46                  | 0.45             | 0.47            | 0.5 (centre)   |
-| gear                     | 8.5 kg                          | 8.5            | 8.5                   | 10               | 9.5             | 8              |
-| legs (rate / travel)     | 7500 N/m / 0.45 m               | 7500 / 0.45    | 7800 / 0.45           | 8200 / 0.45      | 7500 / 0.45     | 6800 / 0.48    |
-| drag area, tall / tucked | 0.9 / 0.48 m²                   | 0.88 / 0.53    | 0.9 / 0.42            | 0.9 / 0.35       | 0.9 / 0.57      | 0.9 / 0.59     |
-| `topSpeed`               | 118 km/h                        | 112            | 126                   | 138              | 108             | 106            |
+|                          | Chamois (`SKIS`) — all-mountain | Swift — slalom | Chough — giant slalom | Falcon — super-G | Eagle — downhill | Marmot — powder | Hare — park    |
+| ------------------------ | ------------------------------- | -------------- | --------------------- | ---------------- | ---------------- | --------------- | -------------- |
+| length                   | 1.78 m                          | 1.65 m         | 1.93 m                | 2.10 m           | 2.18 m           | 1.86 m          | 1.74 m         |
+| waist / tip / tail       | 88 / 130 / 114 mm               | 66 / 122 / 104 | 65 / 98 / 80          | 65 / 94 / 79     | 65 / 90 / 75     | 116 / 142 / 130 | 90 / 122 / 120 |
+| sidecut radius           | 18 m                            | 13 m           | 30 m                  | 45 m             | 50 m             | 22 m            | 17 m           |
+| flex / rocker            | 0.5 / 0.25                      | 0.6 / 0        | 0.8 / 0               | 0.9 / 0          | 1.0 / 0          | 0.4 / 0.7       | 0.2 / 0.35     |
+| most edge (`edgeMax`)    | 1.05 rad (60°)                  | 1.15           | 1.15                  | 1.12             | 1.1              | 0.95            | 1.0            |
+| mount (from the tail)    | 0.46                            | 0.47           | 0.46                  | 0.455            | 0.45             | 0.47            | 0.5 (centre)   |
+| gear                     | 8.5 kg                          | 8.5            | 8.5                   | 9.5              | 10               | 9.5             | 8              |
+| legs (rate / travel)     | 7500 N/m / 0.45 m               | 7500 / 0.45    | 7800 / 0.45           | 8000 / 0.45      | 8200 / 0.45      | 7500 / 0.45     | 6800 / 0.48    |
+| drag area, tall / tucked | 0.9 / 0.48 m²                   | 0.88 / 0.53    | 0.9 / 0.42            | 0.9 / 0.38       | 0.9 / 0.35       | 0.9 / 0.57      | 0.9 / 0.59     |
+| `topSpeed`               | 118 km/h                        | 112            | 126                   | 132              | 138              | 108             | 106            |
 
-The two speed-event pairs are built to their discipline's competition rules at the top level (`docs/disciplines.md`, "The skis"): the Chough at the men's least giant slalom length (1.93 m) and sidecut (30 m) on the most waist (65 mm) under a 98 mm shoulder (at most 103), the Eagle at the men's least downhill length (2.18 m) and sidecut (50 m) on the most waist under a 90 mm shoulder (at most 95). Every pair's widths and sidecut are stated together: the edge between the drawn plan's widest points (a chord c) bows in by the side depth d = ((tip + tail) / 2 − waist) / 2, and the circle through the three, R ≈ c² / 8d, is the spec's sidecut to within a sixth — a race pair's to a few per cent (`tests/topsheet_test.ts`).
+The three speed-event pairs are built to their discipline's competition rules at the top level (`docs/disciplines.md`, "The skis"): the Chough at the men's least giant slalom length (1.93 m) and sidecut (30 m) on the most waist (65 mm) under a 98 mm shoulder (at most 103), the Falcon at the men's least super-G length (2.10 m) and sidecut (45 m) on the most waist under a 94 mm shoulder (at most 95) — its shovel short and low, as the class's is, so its sidecut runs 1.97 m between the widest points — the Eagle at the men's least downhill length (2.18 m) and sidecut (50 m) on the most waist under a 90 mm shoulder (at most 95). Every pair's widths and sidecut are stated together: the edge between the drawn plan's widest points (a chord c) bows in by the side depth d = ((tip + tail) / 2 − waist) / 2, and the circle through the three, R ≈ c² / 8d, is the spec's sidecut to within a sixth — a race pair's to a few per cent (`tests/topsheet_test.ts`).
 
 Every pair carries a `skierMass` = 80 kg skier in his kit, standing `cogHeight` = 1.0 m over the snow (skier and skis together, the body frame's origin), his boots `stance` = 0.3 m apart, his hips able to hang `hipReach` = 0.35 m inside a turn, a full tuck dropping him `crouchDrop` = 0.3 m, his poles reaching `poleReach` = 0.9 m ahead and pushing `polePush` = 260 N a plant. A racer's tuck is 0.25–0.35 m² of drag area and a recreational skier's half-tuck 0.45–0.6; standing tall on a piste 0.6–0.9.
 
@@ -290,21 +290,22 @@ The top speeds, every pair, a tuck down the 20° groomed pitch (`scripts/_smoke.
 | Chamois | 117 km/h | 118      | 117      |
 | Swift   | 112      | 112      | 112      |
 | Chough  | 125      | 126      | 126      |
+| Falcon  | 131      | 132      | 133      |
 | Eagle   | 138      | 138      | 139      |
 | Marmot  | 108      | 108      | 108      |
 | Hare    | 106      | 106      | 106      |
 
 And where the roster parts (`npm run ride -- --card`):
 
-| Figure                                  | Chamois   | Swift   | Chough  | Eagle   | Marmot  | Hare    |
-| --------------------------------------- | --------- | ------- | ------- | ------- | ------- | ------- |
-| top in a tuck, the 20° groomer          | 117 km/h  | 111     | 125     | 137     | 108     | 105     |
-| 0–100 km/h down it                      | 12.2 s    | 13.4    | 11.2    | 10.2    | 14.6    | 16.0    |
-| 0–50 km/h in powder, planes at          | 5.5 s, 28 | 7.0, 36 | 5.8, 33 | 5.3, 31 | 5.1, 23 | 5.6, 28 |
-| g a second after a full edge at 80 km/h | 0.78      | 0.89    | 1.00    | 0.87    | 0.64    | 0.64    |
-| to nine tenths of the yaw               | 0.08 s    | 0.06    | 0.17    | 0.25    | 0.09    | 0.06    |
-| g on a 0.6 edge in powder at 50 km/h    | 0.56      | 0.41    | 0.42    | 0.31    | 0.51    | 0.58    |
-| a hockey stop from 60 km/h              | 20 m      | 18      | 17      | 17      | 23      | 22      |
-| the kicker at 75 km/h, landing          | whole     | whole   | whole   | whole   | whole   | whole   |
+| Figure                                  | Chamois   | Swift   | Chough  | Falcon  | Eagle   | Marmot  | Hare    |
+| --------------------------------------- | --------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| top in a tuck, the 20° groomer          | 117 km/h  | 111     | 125     | 131     | 137     | 108     | 105     |
+| 0–100 km/h down it                      | 12.2 s    | 13.4    | 11.2    | 10.6    | 10.2    | 14.6    | 16.0    |
+| 0–50 km/h in powder, planes at          | 5.5 s, 28 | 7.0, 36 | 5.8, 33 | 5.4, 31 | 5.3, 31 | 5.1, 23 | 5.6, 28 |
+| g a second after a full edge at 80 km/h | 0.80      | 0.92    | 1.00    | 0.96    | 0.87    | 0.66    | 0.65    |
+| to nine tenths of the yaw               | 0.08 s    | 0.06    | 0.17    | 0.24    | 0.25    | 0.09    | 0.06    |
+| g on a 0.6 edge in powder at 50 km/h    | 0.56      | 0.41    | 0.42    | 0.33    | 0.31    | 0.51    | 0.58    |
+| a hockey stop from 60 km/h              | 20 m      | 18      | 17      | 17      | 17      | 23      | 22      |
+| the kicker at 75 km/h, landing          | whole     | whole   | whole   | whole   | whole   | whole   | whole   |
 
 On the synthetic slope (`scripts/_smoke.mjs slope`) the bot on the Chamois skis the 1.1 km piste in 62.5 s at a top of 110 km/h, every gate taken, no reset. What the bot makes of it on generated maps is `npm run sim`'s (`--skis all` for the roster), and `docs/simulation.md` says how to read it.

@@ -147,6 +147,9 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   chamois: sheet("Ember", 0xd5361f, 0xf2f2f2, "twin", { pole: 0xd5361f }),
   swift: sheet("Pollen", 0xf2c21b, 0x17191c, "race", { boot: 0xf2c21b }),
   chough: sheet("Coal", 0x20242a, 0xf2f2f2, "race", { boot: 0xe9ecef }),
+  // A super-G pair in violet with a white block: a dark ski reads against
+  // the snow, and the colour no other pair wears.
+  falcon: sheet("Stoop", 0x4b2a8c, 0xf2f2f2, "race", { boot: 0x4b2a8c, pole: 0xf2f2f2 }),
   // A downhill pair in deep cobalt, never white: a white ski is gone
   // against the snow at the chase camera's range.
   eagle: sheet("Speed", 0x1f4fb8, 0xf2c21b, "race", { boot: 0x1f4fb8, pole: 0xf2c21b }),

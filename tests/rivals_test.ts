@@ -93,9 +93,11 @@ describe("the start line", () => {
 
   it("deals the start beside the field, leaving its paces and skis as they were", () => {
     // Seed 7's field as it was dealt before the start was: the start is
-    // drawn off a stream of its own, so no rival's pair or pace moved.
+    // drawn off a stream of its own, so no rival's pair or pace moved. (The
+    // pairs are dealt off the seven of the catalog since the super-G ski
+    // joined it; the paces are the draws they always were.)
     const state = createGame({ level: syntheticLevel(), seed: 7, quiet: true });
-    expect(state.rivals.map((r) => r.run.skier.spec.id)).toEqual(["chamois", "marmot", "chough"]);
+    expect(state.rivals.map((r) => r.run.skier.spec.id)).toEqual(["chamois", "eagle", "chough"]);
     expect(state.rivals.map((r) => r.pace)).toEqual([
       0.8023409506306053, 0.995381526555866, 0.9042890537064523,
     ]);

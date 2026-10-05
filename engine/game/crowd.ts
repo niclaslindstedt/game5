@@ -875,6 +875,10 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   // Carried by a lift the player is the lift's, as an amateur on one is
   // (`onLift`): nobody shoulders him.
   if (c.lift) return;
+  // ...and so is he sat on a helicopter's skid (`heli.ts`). Stood on a
+  // snowmobile's boards he is shouldered like a skier, and a blow that
+  // throws him leaves the machine without him (`sled.ts`).
+  if (state.heli?.rider) return;
   const net = crowdNet(state.level);
   const B = RACE.bump;
   const mp = totalMass(c.spec);

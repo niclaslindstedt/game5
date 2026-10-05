@@ -182,6 +182,13 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
     remount(run, s, events);
     return true;
   }
+  // THROWN OFF IT BY SOMETHING ELSE — an amateur shouldered too hard
+  // (`crowd.ts`'s `clipCrowd`) after the machine's own step: it goes on
+  // without him, and he is the ragdoll's until he is stood up.
+  if (s.rider && c.thrown) {
+    leave(run, s, events, s.speed);
+    return false;
+  }
   if (!s.rider) {
     // Taken on: the press that does it is spent on it, never read again as
     // the hop off on the same step.
@@ -415,13 +422,19 @@ function throwOff(
   c.y = at.y;
   c.z = at.z;
   c.q = s.q;
+  leave(run, s, events, speed);
+  throwRider(run, "sled", v0, events);
+}
+
+/** The machine left to itself with its rider thrown: down, the controls
+ * let go, waiting for him to be stood up. */
+function leave(run: GameState, s: SledState, events: GameEvent[], speed: number): void {
   s.rider = false;
   s.mode = "down";
   s.thrown = true;
   s.t = 0;
   s.controls = { ...IDLE };
   say(run, events, "crash", speed);
-  throwRider(run, "sled", v0, events);
 }
 
 /** Back on the machine where it lies, stood on its belt again. */

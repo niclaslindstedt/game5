@@ -89,6 +89,8 @@ The rider is thrown (the `sled` crash cause, its tumble in `defs/crash.ts`) when
 - stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.6 s): rolled or looped;
 - lands closing harder than `crash.landing` (9 m/s).
 
+An amateur on a free ride shouldered hard enough to throw a skier (`crowd.ts`'s `clipCrowd`) throws him off the boards too, with the `skier` cause.
+
 The machine goes on without him and lies where it comes to rest. When he is stood up (the reset), he is back on it, standing it on its belt again.
 
 ## The look
@@ -101,7 +103,7 @@ The model is made in Blender off `SLED` and the class's traced profile (`make mo
 - the paddles, run round the loop at the belt's speed by one morph;
 - the ski rack, carrying the rider's pair in his topsheet's colours while he rides.
 
-The rider stands on the boards (`skier-sled.ts`'s `boardPose`): a boot on each board wherever his weight has moved him, the trunk leant over the bars, more on the throttle and less leaning back, his hands on the grips turned with the bars. His skis are drawn as his boots alone (the pair is on the rack) and his poles are stowed.
+The rider stands on the boards (`skier-sled.ts`'s `boardPose`): a boot on each board, his figure stood over their middle, and his weight hung where the engine has it — his hips part of the way across and back, the knees solved again so the inside one bends and the outside one is let long, and his trunk leant into the turn for the rest — the trunk leant over the bars, more on the throttle and less leaning back, his hands on the grips turned with the bars. Every joint is a smooth function of the hang, so a turn ridden from side to side never jumps him up or down (`tests/skier_sled_test.ts`). His skis are drawn as his boots alone (the pair is on the rack) and his poles are stowed.
 
 **The tracks.** The belt cuts a wide trench as deep as it sinks, or as its paddles chew, and each ski cuts its own groove beside it. Both are stamped into the trail map the skiers' furrows are (`sled-scene.ts`), so a climb up a powder face stays written on it.
 

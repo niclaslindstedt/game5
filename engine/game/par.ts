@@ -155,10 +155,12 @@ export const DOWNHILL_PAR = {
 
 /** THE SUPER-G'S PAR NUMBERS (R33): the downhill's way of reading a
  * speed course, its time and trap shares the bot's own super-G's over seeds
- * 1–16 (`make sim ARGS="--mode superG --skis eagle --count 16"`): its time
+ * 1–16 (`make sim ARGS="--mode superG --skis falcon --count 16"`): its time
  * within −5 … +10 % of the profile's on every seed it finished and 1.03 of
  * it on the mean — the gates' swing the profile reads as the line's bend
- * and no more — its trap speed the profile's within a few per cent. */
+ * and no more — its trap speed the profile's within a few per cent. On the
+ * super-G ski the nine race maps' bot runs −3 … +5 % of par (`make rate
+ * RACE=superG`), as close as it ran on the downhill ski. */
 export const SUPER_G_PAR = {
   ...DOWNHILL_PAR,
   scale: 1.03,

@@ -155,6 +155,12 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
+  // ...and on the super-G pair, the one SPEED CARVE fills.
+  "skis-superg": {
+    params: { menu: "skis", skis: "falcon" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
   // THE DRESS CARD: the skier on the same stand, framed on him.
   dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map

@@ -2,8 +2,8 @@
 // ONE SKIER'S STEP — the helicopter he rides (`heli.ts`), the snowmobile
 // (`sled.ts`), the lift that carries him, if any (`lift-ride.ts`),
 // the wind tunnel he rides (`wind-tunnel.ts`),
-// the skier (and, on a tricks run, the strokes thrown in
-// the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
+// the skier (and, on a run that lets him trick the mountain, the strokes
+// thrown in the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
 // tumble once he is thrown, `crash.ts` — or what he nearly fell to and
 // rode out), the damage it cost (`damage.ts`) and what his body took
 // (`body.ts`),
@@ -99,7 +99,7 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
         ? HOLD
         : runOut(run)
       : input;
-  const tricks = run.rules.tricks && held === input;
+  const stunts = run.rules.stunts && held === input;
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
@@ -107,7 +107,7 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   stepStartPush(run, input);
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
-  if (!off) stepSkier(run, tricks ? poseInput(run, held) : held, events);
+  if (!off) stepSkier(run, stunts ? poseInput(run, held) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
@@ -119,7 +119,7 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
     derive(c, run.level);
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
-  if (tricks) stepStrokes(run, input);
+  if (stunts) stepStrokes(run, input);
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);

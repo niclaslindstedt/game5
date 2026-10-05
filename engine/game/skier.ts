@@ -42,13 +42,7 @@
 // go progressively — and past that an edge standing well over CATCHES
 // (`crash.ts` reads `sideSlip`).
 
-import {
-  angleDiff,
-  approach,
-  clamp,
-  hypot,
-  hypot3,
-} from "@niclaslindstedt/oss-game-framework/core/math";
+import { approach, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   integrate,
   rotate,
@@ -111,6 +105,7 @@ import {
 } from "./poles.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
+import { heldSlip, switchSteer } from "./switch.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 
@@ -199,7 +194,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.tuck = approach(c.tuck, clamp(input.tuck, 0, 1), INPUT_RATE * dt);
   c.brake = approach(c.brake, clamp(input.brake, 0, 1), INPUT_RATE * dt);
   c.carve = approach(c.carve, input.carve === true ? 1 : 0, INPUT_RATE * dt);
-  c.steer = clamp(input.steer, -1, 1);
+  // ...and the steer, read the way he is going when he rides SWITCH.
+  c.steer = switchSteer(state, input);
   c.lean = approach(c.lean, clamp(input.lean, -1, 1), dt / K.lag);
   const speed0 = hypot3(c.vx, c.vy, c.vz);
   // THE EDGE the skis are rolled onto: the full lock eases with speed, a
@@ -246,9 +242,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
-  // loading a jump, in the air or off his skis; the stride's phase runs
-  // only while he is working.
-  const going = c.way > DRIVE_FROM || c.tuck > 0.05;
+  // loading a jump, riding switch, in the air or off his skis; the stride's
+  // phase runs only while he is working.
+  const going = !c.switched && (c.way > DRIVE_FROM || c.tuck > 0.05);
   // ...and, once rolling, on a straight: the skis stood on edge in a bend
   // take it away — but not from a skier who can step his skis round it
   // (`stepWork`: the skate and the walk), who pushes all the way through.
@@ -816,9 +812,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const carved = clamp(way * kappa, -reach, reach);
     // ...and at a crawl, the turn he STEPS on top of what the edge carves.
     const asked = carved + stepped;
-    // ...the way the skis point: skating, the gliding ski's line.
-    const slip =
-      flat > S.slipFrom && way > 0 ? angleDiff(Math.atan2(c.vx, c.vz), c.heading + c.glide) : 0;
+    // ...the way the skis point (`heldSlip`): skating, the gliding ski's line.
+    const slip = heldSlip(c, flat, way);
     // Stated in N·m on the reference pair and scaled by this one's yaw
     // inertia: a hand on the yaw is an ACCELERATION.
     const heft = I.y / inertiaOf(SKIS).y;
@@ -838,7 +833,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       hold *
       state.assist.yaw;
   } else {
-    airTorque(c, tb, state.assist.air, landingAhead(c, level, flightGravity(state.rules)));
+    const back = state.rules.stunts && c.way < 0;
+    airTorque(c, tb, state.assist.air, landingAhead(c, level, flightGravity(state.rules)), back);
   }
   // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
   // snow: a skier in the air is no rigid rod — he holds his shape with his
@@ -949,6 +945,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
         normal,
         c.vx,
         c.vz,
+        state.rules.stunts,
       );
       events.push({
         kind: "land",

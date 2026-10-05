@@ -40,6 +40,12 @@
 //    ×2, and a multiplier that always says ×2 says nothing. It adds no base
 //    — the seconds are already paid.
 //
+// 2b. HALF A TURN LANDED IS AN ELEMENT TOO: a flight that comes down with
+//    half a revolution about the up axis over its whole ones — the skis
+//    backward, ridden away switch (`strokes.ts`'s twirl, once) — wins the
+//    180, half a 360's base and one step, judged at the touchdown, since a
+//    360 passes through it on the way round.
+//
 // 4. BOTH AXES IN ONE FLIGHT ARE A THIRD THING: THE TWIST, won as the second
 //    comes round and once a flight. What it prices is the combination.
 //
@@ -129,16 +135,14 @@ export function freshTricks(): TrickState {
     pose: null,
     poseTime: 0,
     posed: [],
-    pumped: 0,
-    twirled: 0,
     flipCrossed: 0,
     spinCrossed: 0,
-    tricking: false,
-    flipWind: 0,
-    spinWind: 0,
-    flipPay: 0,
-    spinPay: 0,
-    spinSide: 0,
+    flipGoal: 0,
+    spinGoal: 0,
+    flipDone: 0,
+    spinDone: 0,
+    flipHeld: false,
+    spinHeld: false,
     inAir: false,
     parts: [],
     flight: 0,
@@ -249,9 +253,14 @@ function countTurns(state: GameState, events: GameEvent[], slack: number): void 
   }
 }
 
-/** The turns a clean touchdown finished. */
+/** The turns a clean touchdown finished — and the half turn over them a
+ * skier who came down backward has turned (rule 2b). */
 function turnsLanded(state: GameState, events: GameEvent[]): void {
   countTurns(state, events, T.landSlack);
+  const k = state.tricks;
+  if (Math.abs(k.yaw) - k.turns * TAU + T.landSlack >= Math.PI) {
+    win(state, events, "half", 1, T.spinPoints / 2);
+  }
 }
 
 /** HOW HARD A LANDING WAS, as the share of what the legs of the skier who
@@ -264,12 +273,13 @@ export function landingGrade(c: SkierState, impact: number): number {
 }
 
 /** How far the skier is turned from the way he is going over the snow,
- * rad, 0 … π. */
-function slipOf(c: SkierState): number {
+ * rad, 0 … π — from the nearer end of his skis where he may ride switch
+ * (`switchOk`), so a 180 ridden away backward is a landing along his line. */
+function slipOf(c: SkierState, switchOk: boolean): number {
   const v = hypot(c.vx, c.vz);
   if (v < 1) return 0;
   const along = (c.vx * Math.sin(c.heading) + c.vz * Math.cos(c.heading)) / v;
-  return Math.acos(Math.max(-1, Math.min(1, along)));
+  return Math.acos(Math.max(-1, Math.min(1, switchOk ? Math.abs(along) : along)));
 }
 
 /** A LANDING TAKEN WHOLE, judged (rule 7): a clean or a perfect one is an
@@ -279,7 +289,7 @@ function landed(state: GameState, events: GameEvent[], impact: number, tricked: 
   const k = state.tricks;
   const c = state.skier;
   const grade = landingGrade(c, impact);
-  if (grade > T.cleanLanding || slipOf(c) > T.landSlip) return;
+  if (grade > T.cleanLanding || slipOf(c, state.rules.stunts) > T.landSlip) return;
   const tier = grade <= T.perfectLanding ? 2 : 1;
   const points = T.landPoints * (1 - grade / T.cleanLanding);
   k.base += points;

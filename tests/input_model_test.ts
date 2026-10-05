@@ -279,6 +279,16 @@ describe("the tuck and the brake keys in the air", () => {
     return input;
   }
 
+  it("a quick tap in the air reaches a stroke's gate, where on the snow it would not", () => {
+    // A 50 ms tap: six steps at 120 Hz.
+    const tapped = (keys: Partial<KeysHeld>, airborne: boolean) =>
+      ride(createInputModel(), keys, airborne, 6);
+    const T = TUNING.tricks;
+    expect(Math.abs(tapped({ left: true }, true).steer)).toBeGreaterThanOrEqual(T.spinGate);
+    expect(tapped({ leanBack: true }, true).lean).toBeGreaterThanOrEqual(T.flipGate);
+    expect(Math.abs(tapped({ left: true }, false).steer)).toBeLessThan(T.spinGate);
+  });
+
   it("never lean on the snow", () => {
     const model = createInputModel();
     expect(ride(model, { tuck: true }, false).lean).toBe(0);

@@ -135,6 +135,13 @@ export type SkierState = {
   speed: number;
   /** The way made good along the skis' own line, flattened, m/s — signed. */
   way: number;
+  /** RIDING SWITCH: the skis going down the hill backward, tails first
+   * (`RunRules.stunts` only — never on a race). Decided on the snow, with a
+   * margin either way of a standstill (`TUNING.switch.from`), and held
+   * through a flight: a skier spinning a 360 is not switch half way round.
+   * The steer is read the way he is GOING while he is (`skier.ts`), and the
+   * lens stands behind the way he is going (`camera-rigs.ts`). */
+  switched: boolean;
   /** The inputs as the body has them, after their lags: the tuck 0..1, the
    * brake 0..1, the edge -1..1 and the lean -1..1. */
   tuck: number;
@@ -434,7 +441,8 @@ export type SkierDamage = {
  * - `spin` — a revolution about the skier's own up axis (the 360);
  * - `twist` — a flip and a spin both come round in ONE flight;
  * - the three GRABS (`TrickPose`), the skier's body held off the controls. */
-export type TrickKind = "air" | "backflip" | "frontflip" | "spin" | "twist" | "landing" | TrickPose;
+export type TrickKind =
+  "air" | "backflip" | "frontflip" | "spin" | "half" | "twist" | "landing" | TrickPose;
 
 /** THE SKIER'S GRABS, picked with the trick button held in the air by what
  * the lean and the edge say (`strokes.ts`'s `poseOf`): the DAFFY, one ski
@@ -478,25 +486,23 @@ export type TrickState = {
   pose: TrickPose | null;
   poseTime: number;
   posed: TrickPose[];
-  /** THE STROKES: rad/s already spent this flight on each axis, which way
-   * each input is still across its gate from the last stroke (0 back at
-   * trim, ±1 the side it crossed to), and whether this flight is a trick
-   * (a first stroke thrown going up latches it). */
-  pumped: number;
-  twirled: number;
+  /** THE STROKES (`strokes.ts`): which way each input is still across its
+   * gate from the last stroke (0 back at trim, ±1 the side it crossed
+   * to); on each axis the angle the strokes of this flight have asked for
+   * and not yet seen turned, rad, signed the way they went (tips up and
+   * clockwise from above positive) — 0 when nothing is owed — and how far
+   * the body has turned toward it since. */
   flipCrossed: number;
   spinCrossed: number;
-  tricking: boolean;
-  /** THE THROW BEING PAID OUT (`strokes.ts`): on each axis the rate a
-   * stroke has bought and the skier has not been given yet, rad/s, signed
-   * the way the stroke went, and how fast it is being paid now, rad/s²;
-   * and the side the edge was last thrown to while it is still held
-   * there (0 once let go) — a 360 held is a 360 still carried. */
-  flipWind: number;
-  spinWind: number;
-  flipPay: number;
-  spinPay: number;
-  spinSide: number;
+  flipGoal: number;
+  spinGoal: number;
+  flipDone: number;
+  spinDone: number;
+  /** Whether the lean and the edge are still held across their gates from
+   * a stroke they bought — the throw's, not the air control's, until let
+   * go (`strokes.ts`'s `poseInput`). */
+  flipHeld: boolean;
+  spinHeld: boolean;
   /** The skier was in the air at the last step this module saw. */
   inAir: boolean;
   /** The combo's elements, and which flight of it this is. */

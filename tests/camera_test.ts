@@ -183,3 +183,43 @@ describe("the springs a boom hangs on", () => {
     expect(s.y).toBeGreaterThan(3);
   });
 });
+
+describe("the chase behind a skier riding switch", () => {
+  const chase = RIGS.chase as BoomRig;
+  /** Down a flat run along +z at 12 m/s for two seconds, the skis pointing
+   * `heading`, read as `switched` or not. */
+  const run = (heading: number, switched: boolean) => {
+    const st = createBoomState();
+    let lens: LensPose | null = null;
+    for (let i = 0; i < 2 / DT; i++) {
+      const pose: RigPose = {
+        x: 0,
+        y: 1,
+        z: 12 * i * DT,
+        heading,
+        pitch: 0,
+        roll: 0,
+        vx: 0,
+        vy: 0,
+        vz: 12,
+        speed: 12,
+        airborne: false,
+        switched,
+        packed: 1,
+        q: { x: 0, y: Math.sin(heading / 2), z: 0, w: Math.cos(heading / 2) },
+      };
+      lens = frameRig(chase, pose, st, DT, () => 0);
+    }
+    return lens!;
+  };
+
+  it("stands behind the way he is going, so he is seen skiing backward at the lens", () => {
+    const forward = run(0, false);
+    const back = run(Math.PI, true);
+    // Both lenses up the hill behind him, looking down it.
+    expect(forward.eye.z).toBeLessThan(forward.target.z);
+    expect(back.eye.z).toBeLessThan(back.target.z);
+    expect(back.eye.z).toBeCloseTo(forward.eye.z, 1);
+    expect(back.eye.x).toBeCloseTo(forward.eye.x, 1);
+  });
+});

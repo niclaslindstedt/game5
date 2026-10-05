@@ -181,6 +181,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     contact: options.contact ?? base.contact,
     course: base.course,
     tricks: base.tricks,
+    stunts: base.stunts,
     limit: base.limit,
     airGravity: base.airGravity,
     crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),

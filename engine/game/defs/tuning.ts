@@ -769,6 +769,32 @@ export const TUNING = {
     resetAhead: 3,
   },
 
+  /** RIDING SWITCH (`RunRules.stunts`): the skis going down the hill
+   * backward, tails first — come down off a 180 (`strokes.ts`) or turned
+   * round on the spot and let go. */
+  switch: {
+    /** The way along the skis, m/s, past which a skier on the snow is
+     * going backward (`SkierState.switched`), and forward again past its
+     * negative — a margin either side of a standstill, so a skier sliding
+     * to a stop does not flicker between the two. */
+    from: 1,
+    /** THE TAIL DUG IN (`crash.ts`): the loose snow lying in front of the
+     * leading tail, m — the loose cover over the base where it is not
+     * pressed (`snow.cover` of the run's depth, by the share of it under
+     * him that is not packed), less what a turned-up tail rides over
+     * (`TAIL_RISE`: all of it on a twin-tip, none on a race ski's
+     * square tail) — past which the tail dives and throws him, at
+     * `digSpeed` m/s or more backward: riding, not drifting — a skier slid
+     * back at a walk after a stall ploughs to a stop. A ski in powder is held up by its
+     * shovel; ridden tail first a flat tail is a blade into it. On the
+     * groomer there is nothing in front of it to dig, and every pair runs
+     * backward; a dusting of fresh snow over it a race ski still carries.
+     * An arcade's numbers: 6 cm takes a square tail, 9 cm an
+     * all-mountain's little kick, 12 the powder ski's. */
+    tailDig: 0.06,
+    digSpeed: 5,
+  },
+
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */
   crash: CRASH,
 

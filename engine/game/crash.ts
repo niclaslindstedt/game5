@@ -66,19 +66,23 @@ import { envelopeOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
+import { tailDug } from "./switch.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
 
 const K = TUNING.crash;
 const dt = TUNING.dt;
 const n: Vec3 = { x: 0, y: 1, z: 0 };
 
-/** How far the skis' tips point DOWN against the snow under them, rad —
- * negative for tips up off the slope. */
+/** How far the skis' LEADING END points DOWN against the snow under them,
+ * rad — negative for it up off the slope. The tips, but for a skier going
+ * tails first on a run that lets him ride switch (`RunRules.stunts`),
+ * whose leading end is his tails. */
 export function noseDown(state: GameState): number {
   const c = state.skier;
   state.level.normalAt(c.x, c.z, n);
   const f = rotate(c.q, { x: 0, y: 0, z: 1 });
-  return Math.asin(clamp(-(f.x * n.x + f.y * n.y + f.z * n.z), -1, 1));
+  const ends = state.rules.stunts && c.vx * f.x + c.vz * f.z < 0 ? -1 : 1;
+  return Math.asin(clamp(-(f.x * n.x + f.y * n.y + f.z * n.z) * ends, -1, 1));
 }
 
 /** A threshold the crash reads, as the skier's own resilience sets it. */
@@ -170,6 +174,14 @@ export function wipeoutCause(
     c.sideSlip >= crashLimit(c, "catchSlip")
   )
     return "catch";
+  // THE TAIL DUG IN, riding switch through loose snow (`switch.ts`): the
+  // leading end dives and he goes over it, as over the tips — and he is
+  // going tails first, whether or not the snow has yet said so (a 180 that
+  // digs on the step it lands), which is how the news tells the two apart.
+  if (tailDug(state)) {
+    c.switched = true;
+    return "nose";
+  }
   return null;
 }
 

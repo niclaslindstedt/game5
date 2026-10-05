@@ -18,7 +18,10 @@
 // that pinned a seed says so instead, because that visit rides the seed.
 // The SLALOM is two runs against a field of thirty, one on the course at a
 // time; on it the disciplines named and not built yet, dimmed and not
-// pressable (`DISCIPLINES`). The trial is the
+// pressable (`DISCIPLINES`). The DOWNHILL is the whole course in one run
+// after a training run on it, against a field of thirty, the speed trap and
+// the board — on a black course off the level card. The two races stand side
+// by side, the disciplines to come named on a line under them. The trial is the
 // same piste alone against the clock, the record book's row for that
 // mountain and pair, and the ghost of the run that set it (`ghost-run.ts`).
 // TRICKS beside them: two minutes on the map's trick field (R20), alone, the
@@ -36,7 +39,7 @@
 // of one.
 
 import { useEffect, useRef } from "preact/hooks";
-import { DISCIPLINES, SLALOM } from "@engine";
+import { DISCIPLINES, DOWNHILL, SLALOM } from "@engine";
 
 import { APP_NAME, REPO_URL } from "../identity.ts";
 import { MarkTrails } from "./mark-trails.tsx";
@@ -71,11 +74,13 @@ export function MainMenu({
   campaign,
   onCampaign,
   raceMap,
+  downhillMap,
   trialMap,
   seed,
   pinned,
   trial,
   onRace,
+  onDownhill,
   onFree,
   onTrial,
   onOptions,
@@ -92,6 +97,7 @@ export function MainMenu({
   /** The pinned map the RACE and the TIME TRIAL ride, by name — null where
    * a link pinned a seed instead. */
   raceMap: string | null;
+  downhillMap: string | null;
   trialMap: string | null;
   /** The seed RACE will build. */
   seed: number;
@@ -100,6 +106,7 @@ export function MainMenu({
   /** The TIME TRIAL tile: its seed and the row standing. */
   trial: { seed: number; best: { time: number; skis: string } | null };
   onRace: () => void;
+  onDownhill: () => void;
   onTrial: () => void;
   /** Onto the free ride's start card. */
   onFree: () => void;
@@ -150,28 +157,42 @@ export function MainMenu({
               </span>
             </span>
           </button>
-          <button type="button" class="menu-tile menu-tile-wide" data-menu="race" onClick={onRace}>
+          {/* THE RACES, side by side: a discipline a tile, its map (or the
+              seed) and its format under its name. */}
+          <button type="button" class="menu-tile menu-tile-race" data-menu="race" onClick={onRace}>
             <Glyph name="flag" />
             <span class="menu-tile-words">
               <span class="menu-tile-name">{STRINGS.menuRace}</span>
               <span class="menu-tile-line">
-                {raceMap === null
-                  ? STRINGS.menuRaceLine(seed, SLALOM.field + 1)
-                  : STRINGS.menuPinnedLine(raceMap)}
+                {raceMap === null ? STRINGS.menuRaceSeed(seed) : raceMap.toUpperCase()}
               </span>
-              {pinned ? (
-                <span class="menu-tile-line">{STRINGS.menuRacePinned}</span>
-              ) : (
-                <span class="menu-tile-line menu-tile-soon">
-                  {STRINGS.menuComing(
-                    DISCIPLINES.filter((d) => d.mode === null).map(
-                      (d) => STRINGS.disciplines[d.id],
-                    ),
-                  )}
-                </span>
-              )}
+              <span class="menu-tile-line">{STRINGS.menuRaceFormat(SLALOM.field + 1)}</span>
             </span>
           </button>
+          <button
+            type="button"
+            class="menu-tile menu-tile-race"
+            data-menu="downhill"
+            onClick={onDownhill}
+          >
+            <Glyph name="flag" />
+            <span class="menu-tile-words">
+              <span class="menu-tile-name">{STRINGS.menuDownhill}</span>
+              <span class="menu-tile-line">
+                {downhillMap === null ? STRINGS.menuRaceSeed(seed) : downhillMap.toUpperCase()}
+              </span>
+              <span class="menu-tile-line">{STRINGS.menuDownhillFormat(DOWNHILL.field + 1)}</span>
+            </span>
+          </button>
+          {/* ...and under them the disciplines still to come — or, where a
+              link pinned the seed, that it did. */}
+          <span class="menu-tiles-soon">
+            {pinned
+              ? STRINGS.menuRacePinned
+              : STRINGS.menuComing(
+                  DISCIPLINES.filter((d) => d.mode === null).map((d) => STRINGS.disciplines[d.id]),
+                )}
+          </span>
           <button
             type="button"
             class="menu-tile menu-tile-wide"

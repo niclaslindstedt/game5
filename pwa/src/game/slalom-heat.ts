@@ -11,21 +11,32 @@
 // starts where — that is the engine's `createField`; this only says whether
 // the player is among them and hands the first run over.
 //
+// A downhill has no second run; what its plate offers after its training run
+// is its race (`downhill-run.ts`), and `secondRunOf` says so beside the
+// slalom's offer, so the plate asks one function what comes next.
+//
 // DOM-free and storage-free: `tests/slalom_hud_test.ts` reads it.
 
 import { SLALOM, fieldPlace, type GameState, type Heat } from "@engine";
 
 /** WHAT THE FINISH PLATE OFFERS after a slalom's first run: the second run
  * (`go`), or why not — out of the first (`out`), or home outside the
- * qualifying places (`short`), at `place`. */
+ * qualifying places (`short`), at `place` — and after a DOWNHILL'S
+ * TRAINING run, home or out, its race (`race`, `downhill-run.ts`). */
 export type SecondRun =
-  { kind: "go"; place: number } | { kind: "out" } | { kind: "short"; place: number };
+  | { kind: "go"; place: number }
+  | { kind: "out" }
+  | { kind: "short"; place: number }
+  | { kind: "race" };
 
 /** The plate's offer, or null on any run that is not a slalom's first run
- * over — a second run, any other mode, a run still on the course. */
+ * or a downhill's training run over — a second run, a downhill's race, any
+ * other mode, a run still on the course. */
 export function secondRunOf(state: GameState): SecondRun | null {
   const f = state.field;
-  if (!f || f.run !== 1 || !state.progress.finished) return null;
+  if (!f || !state.progress.finished) return null;
+  if (state.level.downhill) return f.training ? { kind: "race" } : null;
+  if (f.run !== 1) return null;
   if (state.progress.out) return { kind: "out" };
   const place = fieldPlace(state);
   return place <= SLALOM.qualify ? { kind: "go", place } : { kind: "short", place };

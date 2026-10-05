@@ -426,6 +426,52 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  trap: {
+    description:
+      "Through a downhill's speed trap: the photocells' two quick chirps, " +
+      "high and dry, a beat apart — the timing's own voice, and the speed up " +
+      "on the board before the second has rung down.",
+    voices: [
+      { call: "tone", type: "sine", from: 1760, durationMs: 60, volume: 0.022 },
+      { call: "tone", type: "sine", from: 2093, durationMs: 80, volume: 0.022, delayMs: 90 },
+    ],
+  },
+
+  net: {
+    description:
+      "Into the A-nets beside a downhill: a body caught in netting — a long " +
+      "soft rush of pink noise sagging down as the mesh takes him, the " +
+      "cables' twang under it (a triangle bending low), and the slip " +
+      "sheet's hiss after. Big and soft: nothing hard was hit.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 520,
+        volume: 0.05,
+        color: "pink",
+        attackMs: 10,
+        filter: { type: "lowpass", frequency: 1800, to: 500 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 140,
+        to: 70,
+        durationMs: 380,
+        volume: 0.04,
+        drive: 0.3,
+        filter: { type: "lowpass", frequency: 900, to: 300 },
+      },
+      {
+        call: "noise",
+        durationMs: 360,
+        volume: 0.018,
+        delayMs: 160,
+        filter: { type: "bandpass", frequency: 3200, q: 0.8 },
+      },
+    ],
+  },
+
   count: {
     description:
       "One light of the countdown: a single short sine, dry and plain, so " +

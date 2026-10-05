@@ -72,6 +72,7 @@ import { connectOutput } from "./output-bridge.ts";
 import { onShellCommand } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
+import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
 import { carriesPoles } from "./game/outfit.ts";
@@ -350,13 +351,17 @@ export function App() {
         ...linkWorld(params),
         mode,
         laps: mode === "timeTrial" ? settingsRef.current.trialLaps : undefined,
+        training: mode === "downhill" ? true : undefined,
         ...skierOf(settingsRef.current),
       });
     /** What a player's run is filed under — nothing for a run the bot rides
-     * from the line (`?bot=1`), which is nobody's time, and nothing for a
-     * mode that keeps no book (a free ride, `keepsRecords`). */
+     * from the line (`?bot=1`), which is nobody's time, nothing for a mode
+     * that keeps no book (a free ride, `keepsRecords`), and nothing for a
+     * downhill's training, which counts for nothing. */
     const ticketFor = (s: GameState): RunTicket | null =>
-      params.bot || !keepsRecords(mode) ? null : { key: runKey(s, mode), assist: { ...s.assist } };
+      params.bot || !keepsRecords(mode) || isTraining(s)
+        ? null
+        : { key: runKey(s, mode), assist: { ...s.assist } };
     const drawable = (): boolean => standing !== null && standing === state.level;
     let frozen = params.shot;
     let preroll = false;
@@ -886,6 +891,7 @@ export function App() {
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,
           }}
           onRace={() => campaign.openCard("slalom", params.seed === null ? "levels" : "skis")}
+          onDownhill={() => campaign.openCard("downhill", params.seed === null ? "levels" : "skis")}
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}

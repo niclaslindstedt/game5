@@ -60,7 +60,8 @@ export const CAMPAIGN_STRINGS = {
   campaignWins: (wins: number): string => plural(wins, "WIN", "WINS"),
   /** What a box is: the game, and the run it always is — the piste once,
    * top to bottom. */
-  campaignBilling: (trial: boolean): string => `${trial ? "TIME TRIAL" : "RACE"} · TOP TO BOTTOM`,
+  campaignBilling: (mode: "slalom" | "downhill" | "timeTrial"): string =>
+    `${mode === "timeTrial" ? "TIME TRIAL" : mode === "downhill" ? "DOWNHILL" : "RACE"} · TOP TO BOTTOM`,
   /** The day a run is skied in, under its name: the sky and the start hour. */
   campaignDay: (sky: string, hour: number): string => `${sky} · ${clockOf(hour)}`,
   campaignSky: {
@@ -80,6 +81,7 @@ export const CAMPAIGN_STRINGS = {
 
   /* ── THE LEVEL CARD (menu-levels.tsx) ──────────────────────────────── */
   levelsRace: "RACE ON",
+  levelsDownhill: "DOWNHILL ON",
   levelsTrial: "TIME TRIAL ON",
   levelsShelfLocked: "OPENED BY THE CAMPAIGN",
   levelsNoBest: "NO TIME SET YET",

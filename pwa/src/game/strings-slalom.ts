@@ -20,6 +20,8 @@ function outWhy(why: RunOut["why"], gate: number): string {
       return `STRADDLED GATE ${gate}`;
     case "start":
       return "LATE OUT OF THE START";
+    case "net":
+      return `INTO THE NETS BELOW GATE ${gate}`;
     default:
       return `FELL AT GATE ${gate}`;
   }
@@ -80,7 +82,7 @@ export const SLALOM_STRINGS = {
   boardOut: (out: RunOut): string =>
     out.why === "start"
       ? "DSQ · START"
-      : `${out.status === "dsq" ? "DSQ" : "DNF"} · ${out.why === "missed" ? "MISSED" : out.why === "straddle" ? "STRADDLE" : "FALL"} ${out.gate}`,
+      : `${out.status === "dsq" ? "DSQ" : "DNF"} · ${out.why === "missed" ? "MISSED" : out.why === "straddle" ? "STRADDLE" : out.why === "net" ? "NETS" : "FALL"} ${out.gate}`,
   boardWaiting: "TO START",
   boardOnCourse: "ON COURSE",
 

@@ -14,7 +14,8 @@
 // once he is home — so until then they are billed as waiting.
 //
 // THE TIMING POINTS are the gates nearest a third and two thirds of the
-// course's length, as a slalom is timed: two intermediates and the finish.
+// course's length, as a slalom is timed: two intermediates and the finish —
+// and on a downhill four, a fifth of the way apart.
 // The gap there is against the LEADER — the best combined time among the
 // racers already down — at the same gate, as television shows it: negative
 // is ahead.
@@ -23,6 +24,7 @@
 // outcome; every figure is the engine's.
 
 import {
+  DISCIPLINE_RULES,
   fieldOrderOf,
   startNumbers,
   type Field,
@@ -56,18 +58,21 @@ const TIMING = new WeakMap<Level, number[]>();
 
 /** THE INTERMEDIATE TIMING POINTS: the checkpoint indices of the gates
  * nearest a third and two thirds of the way from the start gate to the
- * finish, by length along the piste — never the start or the finish, never
- * the same gate twice. Empty on a map too short to have two. */
+ * finish — on a downhill (R32) its `downhill.timing` points, evenly — by
+ * length along the piste, never the start or the finish, never the same
+ * gate twice. Empty on a map too short to have them. */
 export function timingGates(level: Level): number[] {
   const hit = TIMING.get(level);
   if (hit) return hit;
   const cps = level.checkpoints;
   const n = cps.length;
   const out: number[] = [];
-  if (n >= 5) {
+  const points = level.downhill ? DISCIPLINE_RULES.downhill.timing : 2;
+  if (n >= points + 3) {
     const from = cps[0].s;
     const to = cps[n - 1].s;
-    for (const share of [1 / 3, 2 / 3]) {
+    for (let k = 1; k <= points; k++) {
+      const share = k / (points + 1);
       const want = from + (to - from) * share;
       let best = -1;
       for (let i = 1; i < n - 1; i++) {

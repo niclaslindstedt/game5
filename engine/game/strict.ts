@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE STRICT GATES — the international rules a slalom is judged by (R31),
-// on a run whose rules ask for them (`RunRules.gates`).
+// THE STRICT GATES — the international rules a slalom (R31) and a downhill
+// (R32) are judged by, on a run whose rules ask for them
+// (`RunRules.gates`).
 //
 // A POLE GATE IS PASSED when both feet cross its gate line between its
 // poles: the line from the turning pole to the outside pole of an open
@@ -11,6 +12,8 @@
 // side, the pole between the skis, a STRADDLE. Either disqualifies at
 // once: a racer may no longer climb back to a gate. So does skipping a
 // gate — crossing the next one's line while this one is still owed.
+// A downhill's SPEED GATE is passed the same way, both feet between its
+// inner poles, and missed with either foot outside them.
 //
 // THE START: the run clock waits for the wand (the start gate), and a
 // racer not through it within `RunRules.window` seconds of GO is
@@ -35,8 +38,10 @@ const POLE = 0.05;
 const OUTER = 1;
 /** How far beyond a gate's poles a crossing of its line is still that
  * gate's — taken past it rather than nowhere near it, m: past an open
- * gate's turning pole, past its outside pole, past a closed gate's ends. */
-const REACH = { turn: 12, outside: 5, closed: 1.2 };
+ * gate's turning pole, past its outside pole, past a closed gate's ends,
+ * past either end of a downhill's speed gate (the piste is some 30 m wide,
+ * and a racer anywhere on it has gone past the gate). */
+const REACH = { turn: 12, outside: 5, closed: 1.2, panels: 20 };
 
 /** How far along a gate's line a point stands from its centre, m —
  * positive to the right of the way it is crossed. */
@@ -50,7 +55,7 @@ function lateralOf(cp: Checkpoint, x: number, z: number): number {
  * `0` on the wrong side of a pole, and how far off the gate it is. */
 function footIn(cp: Checkpoint, lateral: number): boolean {
   const half = cp.width / 2;
-  if (cp.pole === "closed") return Math.abs(lateral) <= half + POLE;
+  if (cp.pole === "closed" || cp.panels) return Math.abs(lateral) <= half + POLE;
   // From the turning pole toward the outside pole.
   const turn = cp.turn ?? -1;
   const inward = (lateral - turn * half) * -turn;
@@ -62,6 +67,7 @@ function footIn(cp: Checkpoint, lateral: number): boolean {
 function judged(cp: Checkpoint, lateral: number): boolean {
   const half = cp.width / 2;
   if (cp.pole === "closed") return Math.abs(lateral) <= half + REACH.closed;
+  if (cp.panels) return Math.abs(lateral) <= half + REACH.panels;
   const turn = cp.turn ?? -1;
   const inward = (lateral - turn * half) * -turn;
   return inward >= -REACH.turn && inward <= cp.width + REACH.outside;
@@ -124,13 +130,16 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
     return;
   }
   const lateral = crossedLine(cp, x0, z0, c.x, c.z);
-  if (lateral !== null && (cp.pole === undefined || judged(cp, lateral))) {
-    const verdict =
-      cp.pole === undefined
-        ? Math.abs(lateral) <= cp.width / 2 + K.grace
-          ? "pass"
-          : "missed"
-        : verdictAt(state, cp);
+  const poled = cp.pole !== undefined || cp.panels === true;
+  if (lateral !== null && (!poled || judged(cp, lateral))) {
+    let verdict = !poled
+      ? Math.abs(lateral) <= cp.width / 2 + K.grace
+        ? "pass"
+        : "missed"
+      : verdictAt(state, cp);
+    // A speed gate has no pole between the feet to straddle: a foot
+    // outside its inner poles is the gate missed.
+    if (verdict === "straddle" && cp.panels) verdict = "missed";
     if (verdict === "pass") {
       credit(state, events, owed);
       p.nextCheckpoint = owed + 1;

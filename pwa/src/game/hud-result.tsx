@@ -41,6 +41,10 @@
 // FINISH and why, in plain words, with no time and no place, over the same
 // board.
 //
+// A DOWNHILL'S PLATE says whether it was the TRAINING run or the RACE, its
+// speed through the trap and the field's fastest, and after the training —
+// home or out of it — the RACE press first (`downhill-run.ts`).
+//
 // ITS OWN LAYER, drawn by App.tsx outside the HUD, and gated here: it is up
 // over a finished race and down under the pause card, which offers its own.
 
@@ -52,7 +56,7 @@ import { SLALOM } from "@engine";
 import type { CampaignLevel } from "./campaign.ts";
 import type { CampaignPlate } from "./campaign-run.ts";
 import { SlalomBoard } from "./hud-board.tsx";
-import type { HudSnapshot } from "./snapshot.ts";
+import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 
 export function ResultPlate({
@@ -87,16 +91,25 @@ export function ResultPlate({
   onSecond?: (() => void) | null;
 }) {
   if (!snap?.standings) return null;
-  const { result, standings, best, slalom } = snap;
+  const { result, standings, best, race: slalom } = snap;
   const out = slalom?.out ?? null;
   if (!result && !out) return null;
   if (!result)
-    return <OutPlate snap={snap} onAgain={onAgain} onMenu={onMenu} onReplay={onReplay} />;
+    return (
+      <OutPlate
+        snap={snap}
+        onAgain={onAgain}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
   const trial = snap.mode === "timeTrial";
   const record = best === null || result.time < best.time;
   const gold = snap.tricks ? false : trial ? record : result.place === 1;
   const mine = standings.find((s) => s.you);
   const second = slalom?.second ?? null;
+  const onward = (second?.kind === "go" || second?.kind === "race") && onSecond !== null;
   const skisName = (id: string): string => (isSkiId(id) ? skisById(id).name : id);
   return (
     <div class="hud hud-result-layer">
@@ -110,7 +123,7 @@ export function ResultPlate({
               : trial
                 ? STRINGS.resultTrialTitle
                 : slalom
-                  ? STRINGS.resultSlalomTitle(slalom.run)
+                  ? raceTitle(slalom)
                   : STRINGS.resultTitle}
           </span>
           {snap.course && <span class="hud-card-note">{snap.course}</span>}
@@ -134,6 +147,13 @@ export function ResultPlate({
           {slalom && mine?.gap !== null && mine?.gap !== undefined && (
             <span class="hud-card-note hud-result-lead" data-lead={mine.gap <= 0 ? "1" : undefined}>
               {STRINGS.resultLead(mine.gap)}
+            </span>
+          )}
+          {/* A DOWNHILL'S SPEED TRAP: his speed through it, the field's
+              fastest beside it. */}
+          {slalom?.trap?.speed != null && (
+            <span class="hud-card-note hud-result-trap">
+              {STRINGS.resultTrap(slalom.trap.speed, slalom.trap.best)}
             </span>
           )}
           {/* What the time owes the slalom gates skied past — already in
@@ -167,7 +187,7 @@ export function ResultPlate({
             <span class="hud-card-note hud-result-ladder">{campaign.ladder}</span>
           )}
           {/* THE SECOND RUN, or why there is none. */}
-          {second && second.kind !== "go" && (
+          {(second?.kind === "out" || second?.kind === "short") && (
             <span class="hud-card-note hud-result-penalty">
               {second.kind === "out"
                 ? STRINGS.secondOut
@@ -176,6 +196,10 @@ export function ResultPlate({
           )}
           {second?.kind === "go" && onSecond && (
             <span class="hud-card-note">{STRINGS.secondNote(SLALOM.qualify)}</span>
+          )}
+          {/* A downhill's training counts for nothing: the race is next. */}
+          {second?.kind === "race" && onSecond && (
+            <span class="hud-card-note">{STRINGS.raceNote}</span>
           )}
           {/* THE SLALOM'S BOARD: the whole start list, the player's row lit. */}
           {slalom && <SlalomBoard rows={standings} second={slalom.run === 2} />}
@@ -201,27 +225,28 @@ export function ResultPlate({
           {/* THE WAYS ON. Racing again first — it is what a skier wants most
               of the time and the only one with a key behind it. */}
           <div class="hud-result-acts">
-            {/* A slalom's SECOND RUN first: after a first run it is the way on. */}
-            {second?.kind === "go" && onSecond && (
+            {/* A slalom's SECOND RUN — a downhill's RACE after its training —
+                first: it is the way on. */}
+            {onward && (
               <button
                 type="button"
                 class="hud-mini hud-result-act hud-result-second"
                 data-nav-next
                 onClick={onSecond}
               >
-                {STRINGS.secondRun}
+                {second.kind === "race" ? STRINGS.raceRun : STRINGS.secondRun}
               </button>
             )}
             <button
               type="button"
               class="hud-mini hud-result-act"
-              data-nav-next={second?.kind === "go" && onSecond ? undefined : true}
+              data-nav-next={onward ? undefined : true}
               onClick={onAgain}
             >
               {trial || snap.tricks
                 ? STRINGS.resultTrialAgain
                 : slalom
-                  ? STRINGS.runAgain(slalom.run)
+                  ? raceAgain(slalom)
                   : STRINGS.resultAgain}
             </button>
             {campaign ? (
@@ -267,30 +292,49 @@ function OutPlate({
   onAgain,
   onMenu,
   onReplay,
+  onSecond,
 }: {
   snap: HudSnapshot;
   onAgain: () => void;
   onMenu: () => void;
   onReplay: (() => void) | null;
+  /** A downhill's RACE, after a training run that went out. */
+  onSecond: (() => void) | null;
 }) {
-  const slalom = snap.slalom;
+  const slalom = snap.race;
   const out = slalom?.out;
   if (!slalom || !out || !snap.standings) return null;
   return (
     <div class="hud hud-result-layer">
       <div class="hud-center">
         <div class="hud-card hud-result hud-result-out hud-result-boarded">
-          <span class="hud-card-note hud-result-label">
-            {STRINGS.resultSlalomTitle(slalom.run)}
-          </span>
+          <span class="hud-card-note hud-result-label">{raceTitle(slalom)}</span>
           {snap.course && <span class="hud-card-note">{snap.course}</span>}
           <span class="hud-card-title hud-result-verdict">{STRINGS.outTitle(out.status)}</span>
           <span class="hud-card-note hud-result-why">{STRINGS.outWhy(out)}</span>
           {slalom.second?.kind === "out" && <span class="hud-card-note">{STRINGS.secondOut}</span>}
+          {slalom.second?.kind === "race" && onSecond && (
+            <span class="hud-card-note">{STRINGS.raceNote}</span>
+          )}
           <SlalomBoard rows={snap.standings} second={slalom.run === 2} />
           <div class="hud-result-acts">
-            <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
-              {STRINGS.runAgain(slalom.run)}
+            {slalom.second?.kind === "race" && onSecond && (
+              <button
+                type="button"
+                class="hud-mini hud-result-act hud-result-second"
+                data-nav-next
+                onClick={onSecond}
+              >
+                {STRINGS.raceRun}
+              </button>
+            )}
+            <button
+              type="button"
+              class="hud-mini hud-result-act"
+              data-nav-next={slalom.second?.kind === "race" && onSecond ? undefined : true}
+              onClick={onAgain}
+            >
+              {raceAgain(slalom)}
             </button>
             {onReplay && (
               <button type="button" class="hud-mini hud-result-act" onClick={onReplay}>
@@ -305,4 +349,18 @@ function OutPlate({
       </div>
     </div>
   );
+}
+
+/** A race's plate title: the slalom's run, the downhill's training or race. */
+function raceTitle(race: RaceHud): string {
+  return race.discipline === "downhill"
+    ? STRINGS.resultDownhillTitle(race.training)
+    : STRINGS.resultSlalomTitle(race.run);
+}
+
+/** The press that skis this race's run again. */
+function raceAgain(race: RaceHud): string {
+  return race.discipline === "downhill"
+    ? STRINGS.downhillAgain(race.training)
+    : STRINGS.runAgain(race.run);
 }

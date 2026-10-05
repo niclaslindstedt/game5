@@ -97,7 +97,7 @@ export function dayLine(level: CampaignLevel): string {
 
 /** What a box is: the game and its length. */
 export function billing(level: CampaignLevel): string {
-  return STRINGS.campaignBilling(level.mode === "timeTrial");
+  return STRINGS.campaignBilling(level.mode);
 }
 
 function LevelBox({

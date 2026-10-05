@@ -30,6 +30,8 @@ import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepHeli } from "./heli.ts";
 import { stepGatePoles } from "./gate-poles.ts";
+import { stepNets } from "./nets.ts";
+import { stepTrap } from "./speed-trap.ts";
 import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
@@ -91,6 +93,8 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
   keepInBounds(run);
+  // THE A-NETS beside a downhill (`nets.ts`): held on them, or out.
+  stepNets(run, events);
   if (off) {
     stepThrown(run, off);
     followSkis(run, c, off.skis);
@@ -129,7 +133,10 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
     if (crashOver(off)) standUp(run, events, true);
     return;
   }
-  if (run.rules.course) stepCourse(run, x0, z0, events);
+  if (run.rules.course) {
+    stepCourse(run, x0, z0, events);
+    stepTrap(run, x0, z0, events);
+  }
   // A FREE RIDE remembers the runs it skies instead (`skied.ts`).
   else noteSkied(run);
   if (p.finished) return;

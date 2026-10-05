@@ -52,6 +52,7 @@ import {
 
 import { createControlRecorder, readControls, type ControlRecorder } from "./ghost.ts";
 import { keepsRecords } from "./records.ts";
+import { trainingOf } from "./downhill-run.ts";
 import { heatOf } from "./slalom-heat.ts";
 import {
   createShotCollector,
@@ -85,6 +86,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     // A slalom's second run: the first run carried in again, so the course
     // and the board are the second run's.
     heat: heatOf(state),
+    // A downhill's training run or its race (`downhill-run.ts`).
+    training: trainingOf(state),
     quiet: true,
   };
 }

@@ -26,8 +26,8 @@
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
-import type { Checkpoint, Level, Spawn } from "../mapgen/types.ts";
+import { downhillLineAt, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
+import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
@@ -68,6 +68,8 @@ export function freshProgress(level: Level): Progress {
     distance: 0,
     skied: [],
     out: null,
+    trap: null,
+    trapAt: null,
   };
 }
 
@@ -241,7 +243,10 @@ function slalomReach(cp: Checkpoint): number {
  * so it stands on every gate's centre, crosses straight between two set
  * either side, and turns hardest round each gate, as a skier does. Zero on
  * a piste whose gates span it. */
-export function gateLineAt(level: Level, s: number): { offset: number; curvature: number } {
+export function gateLineAt(
+  level: Level,
+  s: number,
+): { offset: number; curvature: number; bend: number } {
   const cps = level.checkpoints;
   let i = 0;
   while (i + 1 < cps.length && cps[i + 1].s < s) i++;
@@ -249,14 +254,34 @@ export function gateLineAt(level: Level, s: number): { offset: number; curvature
   const b = cps[Math.min(cps.length - 1, i + 1)];
   const oa = a?.offset ?? 0;
   const ob = b?.offset ?? 0;
-  if (!a || b === a || oa === ob) return { offset: oa, curvature: 0 };
+  if (!a || b === a || oa === ob) return { offset: oa, curvature: 0, bend: 0 };
   const span = Math.max(1, b.s - a.s);
   const t = Math.min(1, Math.max(0, (s - a.s) / span));
   const w = Math.PI / span;
+  const bend = ((ob - oa) * w * w * Math.cos(Math.PI * t)) / 2;
   return {
     offset: oa + ((ob - oa) * (1 - Math.cos(Math.PI * t))) / 2,
-    curvature: Math.abs(((ob - oa) * w * w * Math.cos(Math.PI * t)) / 2),
+    curvature: Math.abs(bend),
+    bend,
   };
+}
+
+const la: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+const lb: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+
+/** HOW SHARPLY THE LINE THROUGH THE GATES TURNS `s` metres down the piste,
+ * 1/m, signed (positive to the right): on a downhill its racing line's own
+ * (`downhillLineAt`, R32); elsewhere the piste's own bend there, read over
+ * `span` metres either side, and the gate line's swing across it
+ * (`gateLineAt`) — with their signs, so a line that cuts to the inside of
+ * a bend at its apex turns LESS than the piste does, as a racer's line
+ * does. What a downhill's line is read by (the bot, its par). */
+export function lineBendAt(level: Level, s: number, span: number): number {
+  const dh = downhillLineAt(level, s);
+  if (dh) return dh.bend;
+  trackPointAt(level, s - span, la);
+  trackPointAt(level, s + span, lb);
+  return angleDiff(la.heading, lb.heading) / (2 * span) + gateLineAt(level, s).bend;
 }
 
 /** Where a run that has just finished stands: one more than the rivals

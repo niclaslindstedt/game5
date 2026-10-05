@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE FIELD OF AN INTERVAL START — a slalom's start list (R31). Only one
-// racer is ever on a slalom course, so the field is never skied: by the
+// THE FIELD OF AN INTERVAL START — a slalom's start list (R31), or a
+// downhill's (R32). Only one racer is ever on the course, so the field is
+// never skied: by the
 // time the player stands in the hut its racers have been down, and what he
 // races is the BOARD — their times, the clock at every gate, who went out
 // and where. Every figure on it is dealt here, off the map's seed on
@@ -20,11 +21,18 @@
 // order — the player among them in his own place (`Field.slot`); the
 // racers after him come down once he is home. The standings are the
 // combined time.
+//
+// A DOWNHILL is one run, its field closer together than a slalom's — the
+// thirtieth some 1.5–2.5 s off the winner over two minutes, the last 6–10 s
+// — and rarely out of it (none to a tenth of a field), almost always by a
+// fall (`DOWNHILL_FIELD`); every racer's speed through the trap is dealt
+// about par's there. Its TRAINING run is the same course and the same
+// order, slower and further apart — a racer in training learns the line and
+// stands up before the finish — and counts for nothing.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { SLALOM } from "./defs/modes.ts";
-import { skisById } from "./defs/skis.ts";
-import { slalomPar } from "./par.ts";
+import { DOWNHILL, SLALOM } from "./defs/modes.ts";
+import { raceParOf } from "./par.ts";
 import type { FieldRun, GameState, RunOut } from "./state.ts";
 
 /** What the field's streams are seeded with beside the map's seed. */
@@ -44,6 +52,25 @@ export const FIELD = {
   why: { missed: 0.45, straddle: 0.25, fall: 0.3 },
   /** The best seeds, drawn among themselves at the head of the first run. */
   seeds: 7,
+} as const;
+
+/** A DOWNHILL'S FIELD (R32), over `FIELD`'s shape: a speed event's tight
+ * spread and its rare outs — a fall nearly always, a gate missed now and
+ * then, no straddle on a gate eight metres wide — and how far a racer's
+ * trap speed strays. */
+export const DOWNHILL_FIELD = {
+  spread: 0.025,
+  noise: 0.004,
+  best: -0.004,
+  out: { best: 0.01, worst: 0.1 },
+  why: { missed: 0.15, straddle: 0, fall: 0.85 },
+  /** The trap: the weakest racer's speed under par's there, as a share,
+   * and how much it strays either way. */
+  trap: { spread: 0.06, noise: 0.015 },
+  /** TRAINING: every run this much slower again as a share of par, and
+   * this much more scattered — a racer learning the line, standing up
+   * early — and its outs a fall only. */
+  training: { slower: 0.025, noise: 0.012 },
 } as const;
 
 /** THE FIRST RUN, carried into the second: the player's time and the
@@ -88,7 +115,7 @@ export function startNumbers(seed: number, count: number): number[] {
 /** DEAL THE FIELD: the start list, the order it goes in, and every run of
  * it about the course's par — the field put on the state. Called once,
  * from `createGame`, before the player's run has taken a step. */
-export function createField(state: GameState, count: number, heat?: Heat): void {
+export function createField(state: GameState, count: number, heat?: Heat, training = false): void {
   const run = heat ? 2 : 1;
   const list = startList(state.seed, count);
   let starters: Racer[];
@@ -112,52 +139,76 @@ export function createField(state: GameState, count: number, heat?: Heat): void 
   const before = new Map((heat?.field ?? []).map((r) => [r.id, r.time ?? 0]));
   state.field = {
     run,
-    runs: starters.map((r) => dealRun(state, r, run, before.get(r.id) ?? 0)),
+    runs: starters.map((r) => dealRun(state, r, run, before.get(r.id) ?? 0, training)),
     before: heat?.player ?? 0,
     slot,
+    training,
   };
 }
 
 /** One racer's run about par: home in his time with the clock at every
  * gate, or out at a gate. */
-function dealRun(state: GameState, racer: Racer, run: 1 | 2, before: number): FieldRun {
+function dealRun(
+  state: GameState,
+  racer: Racer,
+  run: 1 | 2,
+  before: number,
+  training: boolean,
+): FieldRun {
   const rng = createRng(
-    (state.seed ^ FIELD_SALT ^ Math.imul(run, 0x9e3779b1) ^ Math.imul(racer.id + 1, 0x85ebca6b)) >>>
+    (state.seed ^
+      FIELD_SALT ^
+      Math.imul(run, 0x9e3779b1) ^
+      Math.imul(racer.id + 1, 0x85ebca6b) ^
+      (training ? 0x7a1e : 0)) >>>
       0,
   );
   const level = state.level;
-  const par = slalomPar(level, skisById(SLALOM.skis));
+  const downhill = level.downhill !== undefined;
+  const F = downhill ? DOWNHILL_FIELD : FIELD;
+  const par = raceParOf(level);
   const n = level.checkpoints.length;
   const weak = 1 - racer.skill;
+  const learn = training ? DOWNHILL_FIELD.training : { slower: 0, noise: 0 };
   const share =
     1 +
-    FIELD.best +
-    (FIELD.spread - FIELD.best) * weak +
-    FIELD.noise * (rng.next() + rng.next() - 1);
+    F.best +
+    learn.slower +
+    (F.spread - F.best) * weak +
+    (F.noise + learn.noise) * (rng.next() + rng.next() - 1);
   const parSplits = par?.splits ?? level.checkpoints.map((_, i) => i * 1.2);
   const splits = parSplits.map((t) => t * share);
-  const risk =
-    FIELD.out.best + (FIELD.out.worst - FIELD.out.best) * (0.6 * weak + 0.4 * (1 - racer.grit));
+  const risk = F.out.best + (F.out.worst - F.out.best) * (0.6 * weak + 0.4 * (1 - racer.grit));
   let out: RunOut | null = null;
   if (rng.next() < risk) {
     const pick = rng.next();
     const why: RunOut["why"] =
-      pick < FIELD.why.missed
-        ? "missed"
-        : pick < FIELD.why.missed + FIELD.why.straddle
-          ? "straddle"
-          : "fall";
+      training || pick >= F.why.missed + F.why.straddle
+        ? "fall"
+        : pick < F.why.missed
+          ? "missed"
+          : "straddle";
     const gate = 1 + Math.min(n - 3, Math.floor(rng.next() * (n - 2)));
     out = { status: why === "fall" ? "dnf" : "dsq", why, gate };
     for (let i = gate; i < n; i++) splits[i] = Number.NaN;
   }
+  // THE TRAP, about par's speed there — a stronger racer a little faster.
+  const D = DOWNHILL_FIELD.trap;
+  const trapGate = downhill
+    ? level.checkpoints.findIndex((c) => c.s >= (level.downhill?.trap.s ?? 0))
+    : -1;
+  const trap =
+    par && par.trap > 0 && !(out && trapGate >= out.gate)
+      ? par.trap * (1 - D.spread * weak + D.noise * (rng.next() + rng.next() - 1))
+      : null;
   return {
     id: racer.id,
-    skis: SLALOM.skis,
+    skis: downhill ? DOWNHILL.skis : SLALOM.skis,
     time: out ? null : splits[n - 1],
     out,
     splits,
     before,
+    trap,
   };
 }
 

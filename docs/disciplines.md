@@ -27,7 +27,7 @@ How a discipline's research is recorded here:
 | Slalom | `slalom` | R31 | built — see below |
 | Giant slalom | — | — | researched (technique, skis, course); to build — `docs/specs/GIANT_SLALOM.md` |
 | Super-G | — | — | researched (technique, skis, course); to build — `docs/specs/SUPER_G.md` |
-| Downhill | — | — | researched (technique, skis, course); to build — `docs/specs/DOWNHILL.md` |
+| Downhill | `downhill` | R32 | built — see below |
 | Ski cross | — | — | to research — `docs/specs/SKI_CROSS.md` |
 | Speed skiing | — | — | to research — `docs/specs/SPEED_SKIING.md` |
 
@@ -137,8 +137,8 @@ Sources: [1] PMID 30317917 · [2] PMC7739813 · [3] doi:10.3390/app14041427 ·
 ## Giant slalom, super-G and downhill
 
 Researched together, against the slalom, for the technique rows and the
-courses still to build (`docs/specs/GIANT_SLALOM.md`, `SUPER_G.md`,
-`DOWNHILL.md`). Numbers are measured unless marked *(est.)*; an inclination
+courses (`docs/specs/GIANT_SLALOM.md`, `SUPER_G.md`; the downhill is
+built, below). Numbers are measured unless marked *(est.)*; an inclination
 marked *(est.)* is derived as tan θ = v²/(gR) off a measured speed and
 radius, and a carve radius as R ≈ R_sidecut · cos(edge).
 
@@ -283,6 +283,129 @@ Sources (continued): [7] PMID 32341022 · [8] PMID 22983120 ·
 [17] PMC8042208 · [18] doi:10.3389/fspor.2022.829195 ·
 [19] doi:10.3390/app12020902 · [20] J. Biomech. 2021, pii
 S002192902100107X · [21] doi:10.1007/s12283-022-00385-2.
+
+## Downhill
+
+Restated from the international competition rules for alpine skiing (the
+downhill's own articles and the general ones on starting, gates and
+timing), result sheets of top-level races, the timing and net makers'
+published specifications, and broadcast production write-ups. The speeds,
+the technique and the skis are under *Giant slalom, super-G and downhill*
+above.
+
+**The course.** A men's top-level downhill drops 800–1100 m (750 m by
+exception), a lower race 450–1100 m, a women's 450–800 m, an under-21 race
+up to 700 m; a two-run downhill 350–450 m. No length is set: the length
+is measured and printed. Measured top-level courses run a median 3499 m
+over 859 m of vertical with 41.5 gates, 79 m between gates along the
+course and 29 m across [22]; one top-level course measured 3312 m over
+860 m with 33 gates, another 3442 m over 1023 m. The course is about
+30 m wide (narrower where the course before and after allows), its fall
+zones on the outside of the curves, its obstacles behind high safety nets,
+its speed controlled on the approach to every lip, drop and jump by how the
+gates are set; not every section need be skiable flat out.
+
+**The gates.** Four poles and two panels — a pair of poles at each end,
+each pair holding a panel about 0.75 m wide by 0.5 m high, wind-permeable,
+holding a brush and releasing a racer caught in it. At least 8 m between
+the inner poles. Red, blue only for the extra gates of a second course on
+the same hill (orange may stand in for red against nets of the same
+colour). Rigid poles unless the jury asks for flex ones. No least spacing:
+the gates MARK the line.
+
+**Passing a gate**: both tips and both feet across the gate line, the line
+between the turning pole and the outside pole at the snow. A racer who
+misses a gate may not go on through the gates (disqualified); one who comes
+to a complete stop may not either (did not finish); a fall without a stop
+and without a gate missed goes on. The finish line is at least 15 m wide,
+crossed on two skis, one ski, or after a fall between the last gate and
+the line (the clock stopped on any part of the body), and the run-out past
+it wide, gentle and fenced.
+
+**The format.** ONE race run, preceded by official TRAINING: three days of
+inspection and training scheduled, at least one training run held (times
+taken on at least one of the last two days), every entered racer drawn in
+it and none allowed to start the race without having started a timed
+training run. Training times are posted and count for nothing; a racer who
+falls, stops or is overtaken in training leaves the line and goes down the
+edge. Training starts in bib order, its first group drawn again each day.
+
+**The start.** An interval start, normally 60 s apart (never under 40 s);
+the starter calls "ten seconds", counts five to one and gives GO, an
+audible start clock mandatory at the top level; a start is valid from 5 s
+before to 5 s after the racer's time, a DSQ outside it. The racer plants
+his poles ahead of the line and may push off with his poles only; the
+clock starts as his lower leg crosses the line. The ramp is built to let
+him reach full speed quickly (no gradient is set) — on one top course a
+racer reaches 100 km/h about 8.5 s out of the house *(est. from a course
+description)*.
+
+**Safety.** A-NETS: permanent, 4–6 m tall *(est.)*, on cables between steel
+posts, slip sheets along their foot, placed on the course's homologation
+plan. B-NETS: mobile, about 2 m tall on poles every 2 m, in 20 m sections,
+one to three rows by the danger — a row rated for an 80 kg skier at
+60 km/h at up to 60°, two rows 2–4 m apart for 100 km/h; at least 4 m from
+the hazard, 60 m of net a hazard (40 m of it uphill), and 6 m from a
+turning gate to the first row. No jump length or speed limit is set; a
+landing's harm is driven by the take-off angle and speed and the
+steepness of the landing [23]. Downhill injures 17.2 racers a thousand
+runs against 4.9 in slalom [24].
+
+**The speed trap and the timing.** A top-level result sheet carries seven
+intermediate times and FIVE speed traps — a pair of photocells a known
+distance apart (or a radar), the speed between them — at fast and slow
+points alike: 96–109, 96–113, 90–98, 76–88 (a slow turn) and 130–143 km/h
+on the last schuss before the finish, the course average 97–103 km/h. The
+broadcast's headline trap is the fastest schuss, usually the last.
+
+**The field.** Top-level fields start ~50–65 racers. In one race of 58
+starters all finished, the winner in 1:56.16, second +0.23 s (6.5 m),
+tenth +0.74 s, thirtieth +1.54 s, fiftieth +2.60 s, last +6.24 s; in two
+championships thirtieth was +1.91 s and +2.40 s on 1:39–1:41, the last
++10.4 s, 5–9 % out. So ~1.5–2.5 s from first to thirtieth on a two-minute
+run (~1.5–2 %), 0–10 % out, almost always by a fall.
+
+**Jumps.** ~4.2 a downhill [12]; a well-built one 40–50 m into flat
+ground *(est.)*, the biggest on a steep (~85 %) pitch carrying racers some
+80 m off ~120 km/h; air ~1.2–1.6 s for 40–50 m at 30–33 m/s and ~2.5 s for
+80 m *(est., ballistics)*.
+
+**Television and the crowd.** A top downhill's production runs some fifty
+cameras — a dozen high-speed slow-motion cameras, cranes, pole cameras and
+drones — long lenses on towers built over the A-nets, handheld operators
+behind barriers on the slope, microphones at gates and landings; small
+racing drones chase racers down the steep sections and traverses (never
+over the finish), and a crane gives the big jump's ride. The order a
+broadcast cuts *(est.)*: the start house, a long lens down the first
+schuss, the big jump from the side and in slow motion, a tower over the
+traverse, the last schuss with the trap's speed, the finish. Spectators
+pack the finish arena's stands, the big jumps and the steepest pitch, and
+line the nets of the last schuss *(est.)*.
+
+**In the game** (R32, `engine/mapgen/downhill.ts`): the WHOLE piste of the
+ski area's course with the most vertical — the black from under the
+summit, ~2.7–3.2 km over 900–1100 m — prepared as a slalom's hill is
+(`course-prep.ts`: kickers levelled, groomed hard, combed) and its crests
+shaved round so a racer flown off one lands on its downslope; a RACING LINE
+that bends the least inside the piste, its speed gates (10 m, red) centred
+on it about every 80 m; A-NETS along both edges that catch a racer and put
+him out (`nets.ts`); ONE SPEED TRAP on the course's late fast straight
+(`speed-trap.ts`) and four intermediate timing points; the board dealt
+about par (`par.ts`'s `downhillPar`) to a downhill's tight spread
+(`field.ts`'s `DOWNHILL_FIELD`), a TRAINING run's board slower and
+counting for nothing; the start clock's five beeps and GO, a 5 s window;
+the downhill technique row (`defs/technique.ts`) and the bot's line-follower
+(`sim/downhill-steer.ts`).
+
+**Not built yet**: one training run where the sport holds up to three (and
+no ghost of it); one speed trap where a top-level sheet carries five; the
+B-nets in front of a hazard (the A-nets stand the length of both edges);
+a broadcast cut of the downhill's own (the replay's broadcast camera is
+every mode's: the jump from the side in slow motion, the finish); a
+women's and an under-21 course band.
+
+Sources (continued): [22] doi:10.1371/journal.pone.0118119 ·
+[23] doi:10.1111/sms.12300 · [24] PMID 19945979.
 
 ## Ski cross
 

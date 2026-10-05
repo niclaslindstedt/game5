@@ -138,6 +138,13 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
       return { ms: 40 + 50 * hard, strength: 0.25 + 0.3 * hard };
     }
 
+    // INTO THE A-NETS (R32): a long soft heave, the mesh taking him — the
+    // harder he drove into it, the longer and fuller.
+    case "net": {
+      const hard = ramp(event.speed, 1, HIT_FULL);
+      return { ms: 160 + 200 * hard, strength: 0.4 + 0.4 * hard };
+    }
+
     // THE WAND — one short tap, so a skier looking at the piste
     // rather than the count still knows the tuck is his.
     case "go":

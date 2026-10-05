@@ -261,6 +261,16 @@ export function soundForEvent(
       return { id: "pole", shape: { gain: 0.6 + 0.6 * hard, pitch: 1.05 - 0.15 * hard } };
     }
 
+    // A DOWNHILL'S SPEED TRAP (R32): the photocells' chirp.
+    case "trap":
+      return { id: "trap" };
+
+    // INTO THE A-NETS (R32): the mesh taking him, bigger the harder.
+    case "net": {
+      const hard = ramp(event.speed, 1, 12);
+      return { id: "net", shape: { gain: 0.6 + 0.6 * hard, stretch: 0.85 + 0.4 * hard } };
+    }
+
     case "reset":
       return { id: "reset" };
 

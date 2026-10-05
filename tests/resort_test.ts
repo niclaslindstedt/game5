@@ -600,6 +600,10 @@ describe("the slalom gates as skied (R28)", () => {
     expect(gateLineAt(level, a.s + 1).curvature).toBeGreaterThan(mid.curvature);
     // A piste whose gates span it has no weave.
     const plain = syntheticLevel({ noTrees: true, noKicker: true });
-    expect(gateLineAt(plain, plain.checkpoints[2].s + 30)).toEqual({ offset: 0, curvature: 0 });
+    expect(gateLineAt(plain, plain.checkpoints[2].s + 30)).toEqual({
+      offset: 0,
+      curvature: 0,
+      bend: 0,
+    });
   });
 });

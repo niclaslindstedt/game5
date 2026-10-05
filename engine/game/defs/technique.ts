@@ -16,8 +16,8 @@
 // never a branch on a mode: the physics reads the row it is handed. The
 // numbers are the measured ones of each discipline at the top level
 // (`docs/disciplines.md`), turned into the model's terms; *(est.)* marks
-// an estimate. The giant slalom, super-G and downhill rows are DATA until
-// their disciplines are built: no mode deals them yet.
+// an estimate. The giant slalom and super-G rows are DATA until their
+// disciplines are built: no mode deals them yet.
 
 /** The techniques the engine knows. */
 export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhill";
@@ -86,7 +86,7 @@ export type Crossing = {
 const CROSS_OVER: Crossing = { under: 0, retract: 0, steep: 0 };
 
 /** THE FREE SKIER — every number the identity: the shared model as it is.
- * Every mode but the slalom skis with it. */
+ * Every mode but the race disciplines skis with it. */
 export const FREE: Technique = {
   id: "free",
   edgeRate: 1,
@@ -161,20 +161,21 @@ export const SUPER_G_TECHNIQUE: Technique = {
   cross: CROSS_OVER,
 };
 
-/** THE DOWNHILL RACER — data, no mode yet. A turn every 2.4–2.6 s on a
- * preferred radius of ~52 m, 45–60° of edge at the peak (est.) rolled at
- * ~45°/s (est.), a skid of 5° at most, a tuck on 37 % of the course (a
- * drag area of 0.17–0.24 m² in it against 0.63–0.66 stood up), 86–95
- * km/h on the mean and 120–150 at the peak, 2–2.5 body weights. So: the
- * edge rolled 0.3 of the slalom's rate, stood at up to 55°, the shared
- * fade (a downhiller stands his skis flatter the faster he goes), half the
- * shelf, the body let in to 53° (the apex's balance at 26 m/s on ~52 m,
- * est.), crossing over with little unweighting. */
+/** THE DOWNHILL RACER (R32). A turn every 2.4–2.6 s on a preferred radius
+ * of ~52 m, 45–60° of edge at the peak (est.) rolled at ~45°/s (est.), a
+ * skid of 5° at most, a tuck on 37 % of the course (a drag area of
+ * 0.17–0.24 m² in it against 0.63–0.66 stood up), 86–95 km/h on the mean
+ * and 120–150 at the peak, turns taken at 26 ± 4 m/s, 2–2.5 body weights.
+ * So: the edge rolled 0.3 of the slalom's rate, stood at up to 60°, HELD
+ * at speed — a ~52 m turn carved at 26 m/s asks some 45° of a 50 m ski
+ * there, so the lock's fade two and a half times as slow, a giant slalom
+ * racer's — half the shelf, the body let in to 53° (the apex's balance at
+ * 26 m/s on ~52 m, est.), crossing over with little unweighting. */
 export const DOWNHILL_TECHNIQUE: Technique = {
   id: "downhill",
   edgeRate: 0.48,
-  edgeMax: 0.96,
-  fade: 1,
+  edgeMax: 1.05,
+  fade: 2.5,
   platform: 0.5,
   incline: 0.92,
   cross: CROSS_OVER,

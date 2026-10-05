@@ -17,6 +17,7 @@ import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
+import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
@@ -72,6 +73,7 @@ export const STRINGS = {
   ...BODY_STRINGS,
   /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
   ...SLALOM_STRINGS,
+  ...DOWNHILL_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -258,8 +260,9 @@ export const STRINGS = {
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
   menuRace: "SLALOM",
-  menuRaceLine: (seed: number, skiers: number): string =>
-    `SEED ${seed} · TWO RUNS · ${skiers} SKIERS`,
+  /** A race tile's map line where a link pinned a seed, and its format. */
+  menuRaceSeed: (seed: number): string => `SEED ${seed}`,
+  menuRaceFormat: (skiers: number): string => `TWO RUNS · ${skiers}`,
   /** THE DISCIPLINES the game names and has not built yet, on SLALOM. */
   menuComing: (names: readonly string[]): string => `COMING · ${names.join(" · ")}`,
   disciplines: {

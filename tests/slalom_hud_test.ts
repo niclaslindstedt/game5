@@ -103,12 +103,12 @@ describe("the board (slalom-board.ts, snapshot.ts)", () => {
     const snap = takeSnapshot(state);
     expect(snap.finished).toBe(true);
     expect(snap.result).toBe(null);
-    expect(snap.slalom!.out).toEqual({ status: "dsq", why: "straddle", gate: 7 });
+    expect(snap.race!.out).toEqual({ status: "dsq", why: "straddle", gate: 7 });
     expect(snap.standings).not.toBe(null);
     const mine = snap.standings!.find((r) => r.you)!;
     expect(mine.place).toBe(null);
     expect(mine.out?.why).toBe("straddle");
-    expect(snap.slalom!.second).toEqual({ kind: "out" });
+    expect(snap.race!.second).toEqual({ kind: "out" });
     // The gates he had taken, never the whole course.
     expect(snap.taken).toBeLessThan(snap.gates);
   });
@@ -143,21 +143,21 @@ describe("the starter and the intermediates (snapshot.ts)", () => {
     const at = takeSnapshot(state);
     expect(at.countdown).toBe(0);
     expect(at.go).toBe(false);
-    expect(at.slalom!.word).toBe("ready");
-    expect(at.slalom!.run).toBe(1);
-    expect(at.slalom!.runs).toBe(2);
+    expect(at.race!.word).toBe("ready");
+    expect(at.race!.run).toBe(1);
+    expect(at.race!.runs).toBe(2);
     const steps = Math.round((state.rules.countdown + 0.2) * TUNING.physicsHz);
     for (let i = 0; i < steps; i++) step(state, NEUTRAL_INPUT);
     // GO while he is held in the house...
-    expect(takeSnapshot(state).slalom!.word).toBe("go");
+    expect(takeSnapshot(state).race!.word).toBe("go");
     // ...and gone once he is a while out of it.
     state.progress.started = true;
     state.progress.time = 2;
-    expect(takeSnapshot(state).slalom!.word).toBe(null);
+    expect(takeSnapshot(state).race!.word).toBe(null);
     // Any other run keeps the big lights.
     const race = createGame({ level: BASE, seed: 5, quiet: true });
     expect(takeSnapshot(race).countdown).toBeGreaterThan(0);
-    expect(takeSnapshot(race).slalom).toBe(null);
+    expect(takeSnapshot(race).race).toBe(null);
   });
 
   it("times two intermediates near a third and two thirds of the course", () => {
@@ -188,7 +188,7 @@ describe("the starter and the intermediates (snapshot.ts)", () => {
     p.splits[g1] = leader.splits[g1] - 0.25;
     p.lastCheckpoint = g1;
     p.time = p.splits[g1] + 0.5;
-    const t = takeSnapshot(state).slalom!.timing!;
+    const t = takeSnapshot(state).race!.timing!;
     expect(t.point).toBe(1);
     expect(t.time).toBe(p.splits[g1]);
     expect(t.gap).toBeCloseTo(-0.25, 9);

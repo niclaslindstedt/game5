@@ -6,12 +6,40 @@ is finished (see `README.md`).
 ## Start here
 
 1. Follow `README.md`'s *Starting a discipline in a new session*.
-2. Build after (or with) the GIANT SLALOM if it is not done: the panel
-   gates and the shared setter come from there (`GIANT_SLALOM.md`).
-3. The new parts are the jumps kept in a race course, the safety nets, one
-   run, and speed — read `engine/game/flight.ts` (`landingLoad`) and the
-   tuck in `engine/game/skier.ts` first.
-4. Research the to-do below into `docs/disciplines.md` before writing R33.
+2. The DOWNHILL is built (R32) and is the closest thing: a speed event of
+   one run on panel gates, its jumps kept and its crests shaved, A-nets
+   both sides, a racing line, a forward par and a line-following bot. Read
+   `engine/mapgen/downhill.ts`, `course-prep.ts`, `engine/game/nets.ts`,
+   `par.ts`'s `downhillPar` and `engine/sim/downhill-steer.ts` before
+   anything else; a super-G is mostly the downhill's machinery on a
+   shorter, turnier course with more gates and no training run.
+3. What is new is the turns: a super-G's gates MAKE turns (a downhill's only
+   mark the line), so the gate spacing and the line's bend come from its
+   research, and the bot's line-follower must hold tighter, faster bends
+   than the downhill's — measure it with `make sim ARGS="--mode superG"`
+   (add the mode to the flag) before tuning.
+4. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R33 after the downhill's R32; the ids run contiguous (`tests/docs_rules_test.ts`).
+
+## Watch out (from the downhill)
+
+Read `README.md`'s *Lessons from the downhill* — it was written for this
+discipline. In short:
+
+- **Reuse, don't rebuild:** `prepareCourse` over a `CoursePrep` row of its
+  own (the crest radius tuned to super-G speed), `Checkpoint.panels` under
+  the strict gates, `stepNets`, `raceParOf` (add a branch), the field per
+  discipline (`field.ts`), `RaceHud` and the plate's union, `raceCourseOf`.
+  The research to-do's nets and broadcast items are answered in
+  `docs/disciplines.md` § Downhill.
+- **A super-G has no training run** — only an inspection (the open
+  question below). The downhill's `Field.training` and the plate's RACE
+  press are the shape if the answer is a practice run.
+- **The front door has no room for a third race tile** on a phone; decide
+  with the user where the super-G goes before building the tile.
+- **`App.tsx` is at its line cap**: move the race-run plumbing out first.
+- **Check the technique row at its own speed** (`edgeLockAt` at ~25 m/s)
+  before blaming the bot — the downhill's researched row could not hold its
+  line until its `fade` was raised.
 
 ## Watch out (from the slalom)
 
@@ -59,7 +87,7 @@ blind at race pace, which is why the course reads from the gates.
 
 ## What it needs to be complete
 
-- [ ] **Course rule (R33)**: vertical drop band, gate count as a share of
+- [ ] **Course rule (the next free R-rule)**: vertical drop band, gate count as a share of
       the vertical, minimum gates, distance between turning poles, gate
       width, panels, the use of terrain (jumps, rolls, traverses), the course
       line's safety margins (run-outs, nets — research).
@@ -78,8 +106,9 @@ blind at race pace, which is why the course reads from the gates.
 - [ ] **Bot**: skis the line at speed, tucks, takes the jumps; finishes every
       seed.
 - [ ] **Par and board**: one run; spread and DNF rates for a speed event.
-- [ ] **Safety netting**: speed events are lined with high safety nets
-      (A-nets) — drawn along the course, and a collision with them.
+- [ ] **Safety netting**: built for the downhill (`nets.ts`, drawn by
+      `gates.ts` off `spectator-plan.ts`'s `netStretch`) — check it reads a
+      super-G course through `raceCourseOf`.
 - [ ] **HUD**: the board (one run), splits, the speed trap (research
       whether super-G uses one), the out plate.
 - [ ] **Cameras**: broadcast angles for speed (the jump shot, the long lens

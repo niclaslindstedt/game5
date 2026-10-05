@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODES, and the rules a run is played by. A mode is a named bundle of
 // rules (`MODE_RULES`): a RACE in one of the real disciplines — the SLALOM
-// today (R31), the field skiing the course one at a time out of the start
-// hut under the international rules, two runs on combined time — the TIME
+// (R31), the field skiing the course one at a time out of the start hut
+// under the international rules, two runs on combined time, and the
+// DOWNHILL (R32), the whole piste in one run after a training run — the TIME
 // TRIAL, the map's piste alone against the clock, the FREE RIDE, the whole
 // mountain to explore with no course counted at all, and TRICKS. The rules
 // are a plain record on the state (`GameState.rules`) read by every system
@@ -15,9 +16,9 @@
 //
 // THE DISCIPLINES (`DISCIPLINES`) are the races the game names: the slalom,
 // the giant slalom, the super-G, the downhill, the ski cross and the speed
-// run. Only the slalom is BUILT; the others are named so the app can bill
-// them as coming, and each becomes a mode — its own rules here and its own
-// course rule (R31 onward) — when it is.
+// run. The slalom and the downhill are BUILT; the others are named so the
+// app can bill them as coming, and each becomes a mode — its own rules here
+// and its own course rule (R31 onward) — when it is.
 
 import { CROWD } from "./crowd.ts";
 import type { TechniqueId } from "./technique.ts";
@@ -79,7 +80,8 @@ export type RunRules = {
    * then is disqualified; 0 is no window. */
   window: number;
   /** HOW THE SKIER WORKS THE SKI (`technique.ts`): the slalom racer's on
-   * a slalom; left out, the free skier's — the shared model as it is. */
+   * a slalom, the downhiller's on a downhill; left out, the free skier's —
+   * the shared model as it is. */
   technique?: TechniqueId;
 };
 
@@ -192,6 +194,44 @@ export function slalomRules(laps: number): RunRules {
   };
 }
 
+/** THE DOWNHILL'S NUMBERS (R32 sets its course). */
+export const DOWNHILL = {
+  /** The start list: the racers on the board beside the player. */
+  field: 29,
+  /** The start clock's last five seconds, beeped, then GO. */
+  countdown: 5,
+  /** A start is valid until this long after GO, s, or disqualified. */
+  window: 5,
+  /** One race run — after a training run on the same course. */
+  runs: 1,
+  /** The pair the field races on: the downhill ski. */
+  skis: "eagle",
+} as const;
+
+/** THE DOWNHILL as a skier is dealt it (R32): the start list skied before
+ * him one at a time, the start clock, the strict gates, the window. A
+ * TRAINING run is the same rules over a board of its own
+ * (`CreateGameOptions.training`). */
+export function downhillRules(laps: number): RunRules {
+  return {
+    rivals: DOWNHILL.field,
+    laps,
+    countdown: DOWNHILL.countdown,
+    contact: false,
+    course: true,
+    tricks: false,
+    limit: 0,
+    airGravity: TUNING.air.gravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    start: "interval",
+    gates: "strict",
+    window: DOWNHILL.window,
+    technique: "downhill",
+  };
+}
+
 /** What a measurement skis: the level's run, no lights, nobody else. */
 export function openRules(laps: number): RunRules {
   return {
@@ -262,9 +302,15 @@ export function clampResilience(r: number | undefined): number {
  * (`MODE_RULES`) and nothing below the app branches on it: the engine reads
  * the rules, and the app reads the name to decide which card is up and which
  * row of the record book a run is filed under. */
-export type GameMode = "slalom" | "timeTrial" | "free" | "tricks";
+export type GameMode = "slalom" | "downhill" | "timeTrial" | "free" | "tricks";
 
-export const GAME_MODES: readonly GameMode[] = ["slalom", "timeTrial", "free", "tricks"];
+export const GAME_MODES: readonly GameMode[] = [
+  "slalom",
+  "downhill",
+  "timeTrial",
+  "free",
+  "tricks",
+];
 
 export function isGameMode(value: unknown): value is GameMode {
   return typeof value === "string" && (GAME_MODES as readonly string[]).includes(value);
@@ -336,6 +382,7 @@ export function tricksRules(laps: number): RunRules {
 /** EVERY MODE'S RULES by its name — the one place a name becomes a bundle. */
 export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> = {
   slalom: slalomRules,
+  downhill: downhillRules,
   timeTrial: timeTrialRules,
   free: freeRules,
   tricks: tricksRules,
@@ -351,7 +398,7 @@ export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] =
   { id: "slalom", mode: "slalom" },
   { id: "giantSlalom", mode: null },
   { id: "superG", mode: null },
-  { id: "downhill", mode: null },
+  { id: "downhill", mode: "downhill" },
   { id: "skiCross", mode: null },
   { id: "speedSki", mode: null },
 ];

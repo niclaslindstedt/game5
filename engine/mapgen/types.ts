@@ -65,6 +65,10 @@ export interface Checkpoint {
    * Absent: a gate of flags (R11, R28). */
   pole?: "open" | "closed";
   turn?: -1 | 1;
+  /** A SPEED GATE (R32, a downhill's): four poles, a pair at each end of
+   * its line holding a panel, `width` m between the inner poles — passed
+   * with both feet between them. Absent: any other gate. */
+  panels?: true;
 }
 
 export interface TrackPoint {
@@ -176,6 +180,34 @@ export interface Level {
    * `checkpoints`, its start hut the `spawn`. Absent on every map the
    * generator builds — a slalom is set over one. */
   slalom?: SlalomCourse;
+  /** A DOWNHILL set on the map (R32, `setDownhill`): its gates are this
+   * map's `checkpoints`, its start house the `spawn`. Absent on every map
+   * the generator builds — a downhill is set over one. */
+  downhill?: DownhillCourse;
+}
+
+/** A DOWNHILL COURSE (R32) as it was set over a built map. */
+export interface DownhillCourse {
+  /** The map it was set over, before any course. */
+  base: Level;
+  /** The stretch of the piste it is set on — the whole of it: the start
+   * gate's arc (the wand) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** THE SPEED TRAP: its arc down the piste, m, and its line across it
+   * (a point on the piste's centreline and the way down it there). */
+  trap: { s: number; x: number; z: number; heading: number; width: number };
+  /** THE A-NETS along both edges: their line this far outside the piste's
+   * edge, m, this tall, m, from arc `from` to `to`. */
+  nets: { gap: number; height: number; from: number; to: number };
+  /** The jumps the course keeps (its drops, by arc), m. */
+  jumps: number[];
+  /** THE RACING LINE (`downhillLineAt`): points down the course every few
+   * metres, each an arc and how far right of the piste's centreline, m —
+   * the line that bends the least inside the piste, which the gates mark. */
+  line: { s: number; x: number }[];
 }
 
 /** A SLALOM COURSE (R31) as it was set over a built map. */

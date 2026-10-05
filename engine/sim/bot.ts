@@ -21,14 +21,15 @@
 import { pilotInput } from "../game/heli.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { arcAhead, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
+import { arcAhead, downhillLineAt, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
 import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "../game/collision.ts";
-import { gateLineAt } from "../game/course.ts";
+import { gateLineAt, lineBendAt } from "../game/course.ts";
 import {
   brakeDecel,
   carveSpeedOf,
   cornerGrip,
+  cutGrip,
   edgeLockAt,
   edgeMostOf,
   flightGravity,
@@ -37,6 +38,7 @@ import {
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "../game/race-line.ts";
 import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
+import { DOWNHILL_STEER, downhillSteer } from "./downhill-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -376,11 +378,11 @@ function flownSpeed(
 function speedAllowed(state: GameState, s: number, speed: number, profile: BotProfile): number {
   const level = state.level;
   const spec = state.skier.spec;
-  const aLat = cornerGrip(spec, 1) * profile.cornerShare;
   const T = techniqueOf(state.rules);
   const decel = brakeDecel(spec, 1) * profile.brakeShare;
   const reach = (speed * speed) / (2 * decel) + 30;
   const y0 = trackPointAt(level, s, pc).y;
+  const downhill = level.downhill !== undefined && state.rules.course;
   let allowed = Infinity;
   for (let d = 0; d <= reach; d += 4) {
     // THE SKIDDING ROOM, less what the fall of the piste gives back: a skid
@@ -398,7 +400,12 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     // The bend, and the weave round the gates on it (R28) — or the line
     // round a slalom's poles (R31).
     const weave = weaveAt(level, s + d).curvature;
-    const k = bendAt(level, s + d, profile.bendSpan) + weave;
+    // On a downhill the line's swing through the gates and the piste's own
+    // bend are read with their signs (`lineBendAt`): its gates cut the
+    // inside of the bends.
+    const k = downhill
+      ? Math.abs(lineBendAt(level, s + d, profile.bendSpan))
+      : bendAt(level, s + d, profile.bendSpan) + weave;
     if (k < 1e-4) continue;
     // A slalom's line (and the piste's bend under it), as fast as the skis
     // CUT HARD can come round it with the run from one edge to the next
@@ -413,9 +420,14 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
       continue;
     }
     // The bend's speed at the grip of a standstill, then once more at the
-    // grip left at THAT speed — the chatter takes some of it off the top.
-    const still = Math.sqrt(aLat / k);
-    let corner = Math.sqrt((cornerGrip(spec, 1, still) * profile.cornerShare) / k);
+    // grip left at THAT speed — the chatter takes some of it off the top;
+    // on a downhill at the grip the skis CUT HARD hold.
+    const grip = (v: number): number =>
+      downhill
+        ? cutGrip(spec, v, T, packedUnder(level.packedAt(pc.x, pc.z), state.fresh))
+        : cornerGrip(spec, 1, v);
+    const still = Math.sqrt((grip(0) * profile.cornerShare) / k);
+    let corner = Math.sqrt((grip(still) * profile.cornerShare) / k);
     // ...and no faster than the pair's sidecut can still carve it — the
     // edge's lock eases with speed, and a long ski's runs out first.
     const carve = carveSpeedOf(spec, k, T);
@@ -445,11 +457,31 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
   return allowed;
 }
 
-/** THE WEAVE the course asks of a skier `s` metres down the piste: the line
- * a racer takes round a slalom's poles (R31, `race-line.ts`) where one is
- * set, else the line through a course's gates (R28). */
+/** THE WEAVE the course asks of a skier `s` metres down the piste: a
+ * downhill's racing line (R32), the line a racer takes round a slalom's
+ * poles (R31, `race-line.ts`) where one is set, else the line through a
+ * course's gates (R28). */
 function weaveAt(level: Level, s: number): { offset: number; curvature: number } {
+  const dh = downhillLineAt(level, s);
+  if (dh) return { offset: dh.offset, curvature: Math.abs(dh.bend) };
   return raceLineAt(level, s) ?? gateLineAt(level, s);
+}
+
+/** How long until a skier in the air comes down, s: his flight carried on
+ * under the run's gravity until it meets the snow — two seconds at the
+ * most. */
+function landingAhead(state: GameState): number {
+  const c = state.skier;
+  const g = flightGravity(state.rules);
+  let y = c.y;
+  let vy = c.vy;
+  const dt = 0.02;
+  for (let t = dt; t < 2; t += dt) {
+    vy -= g * dt;
+    y += vy * dt;
+    if (y <= state.level.groundAt(c.x + c.vx * t, c.z + c.vz * t) + 0.9) return t;
+  }
+  return 2;
 }
 
 /** Move the aim off a trunk standing in the line from the skier to it. */
@@ -545,13 +577,20 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // THE GATE LINE (R28): on a course of slalom gates the line through
   // them, weaving either side of the centreline; and THE LANE, that far
   // right of it — inside a slalom gate's own width where there is one.
-  const weave = state.rules.course ? weaveAt(level, aimS).offset : 0;
+  // ON A DOWNHILL, the line of the speed gate owed is held until it is
+  // taken: a racer reads the next gate only once through this one — the
+  // line beyond it, read early, cuts inside a gate set on a bend.
+  const owedGate = cps[p.nextCheckpoint];
+  const lineS =
+    owedGate?.panels && p.started && state.rules.course ? Math.min(aimS, owedGate.s) : aimS;
+  const weave = state.rules.course ? weaveAt(level, lineS).offset : 0;
   if (lane !== 0 || weave !== 0) {
     // A slalom's line is the gates' own, inside the piste by the setter's
     // rule; anywhere else the lane keeps clear of the edge.
-    const room = poles
-      ? aim.width / 2
-      : Math.max(0, aim.width / 2 - LANE_MARGIN - LANE_DRIFT * speed);
+    // (Held to a speed gate's line, the room is the piste's at the gate,
+    // which is where that line was set.)
+    const wide = lineS < aimS ? trackPointAt(level, lineS, pc).width : aim.width;
+    const room = poles ? wide / 2 : Math.max(0, wide / 2 - LANE_MARGIN - LANE_DRIFT * speed);
     const gate = cps[Math.min(cps.length - 1, p.nextCheckpoint)];
     const inGate = poles
       ? 0
@@ -577,8 +616,11 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     const hs = hypot(c.vx, c.vz);
     const ux = hs > 0.5 ? c.vx / hs : Math.sin(c.heading);
     const uz = hs > 0.5 ? c.vz / hs : Math.cos(c.heading);
-    const ax = c.x + c.vx * 0.5;
-    const az = c.z + c.vz * 0.5;
+    // ...on a downhill, where he will actually come down: at its speed a
+    // flight off a roller lands thirty metres on, far past any half second.
+    const ahead = level.downhill ? landingAhead(state) : 0.5;
+    const ax = c.x + c.vx * ahead;
+    const az = c.z + c.vz * ahead;
     const slope =
       (level.groundAt(ax + ux * 2, az + uz * 2) - level.groundAt(ax - ux * 2, az - uz * 2)) / 4;
     const target = Math.atan(slope);
@@ -600,6 +642,12 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     bearing,
   );
   input.steer = clamp(profile.steerGain * (1 - powder * profile.powderEase) * error, -1, 1);
+  // ON A DOWNHILL'S LINE the line's own bend is fed forward
+  // (`downhill-steer.ts`): a point chased ahead lags it through a long turn
+  // by the width of a gate.
+  if (level.downhill && state.rules.course && p.started && on.distance <= halfWidth + 2) {
+    input.steer = downhillSteer(state, on) ?? input.steer;
+  }
   // ON A SLALOM'S LINE the skis are steered off the line itself rather than
   // a point on it: the bend it makes a moment ahead, and the heading and
   // the place it asks of him now.
@@ -631,7 +679,17 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   }
   // Past the finish nothing is owed but a stop: stand up and skid.
   if (p.finished) allowed = 0;
-  if (speed > allowed + (poles ? profile.slalomSkidOver : profile.skidOver)) {
+  // A DOWNHILLER on his line checks with a light skid at the most, and
+  // carves cut hard (`downhill-steer.ts`).
+  const downhillLine = level.downhill !== undefined && state.rules.course && p.started && onTrack;
+  if (downhillLine) {
+    const D = DOWNHILL_STEER;
+    input.carve = true;
+    if (speed > allowed + profile.skidOver) {
+      input.tuck = 0;
+      input.brake = clamp((speed - allowed) / D.checkPer, 0.1, D.check);
+    } else if (speed > allowed + profile.standOver) input.tuck = 0;
+  } else if (speed > allowed + (poles ? profile.slalomSkidOver : profile.skidOver)) {
     input.tuck = 0;
     input.brake = clamp((speed - allowed) / 3, racing ? profile.slalomSkid : 0.25, 1);
   } else if (speed > allowed + profile.standOver) {
@@ -682,9 +740,10 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // that held a slalom racer's edge under the shelf it cuts
   // (`grip.platform`) all down a steep course — the turn the planner chose
   // was never the one he skied, and he ran wide of gate after gate.
-  const capped = racing
-    ? c.sideSlip > K.slipSpeed && c.skid < profile.slalomSkidHeld
-    : c.skid > 0.1 || c.sideSlip > K.slipSpeed * 0.5;
+  const capped =
+    racing || downhillLine
+      ? c.sideSlip > K.slipSpeed && c.skid < profile.slalomSkidHeld
+      : c.skid > 0.1 || c.sideSlip > K.slipSpeed * 0.5;
   if (capped) {
     // ...against the lock the physics stands his skis to (`skier.ts`).
     const T = techniqueOf(state.rules);

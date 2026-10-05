@@ -79,13 +79,8 @@ import { foldSurface, layCrust } from "./surface.ts";
 import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./track.ts";
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
-import {
-  buildResort,
-  chooseCourse,
-  resortCached,
-  resortLevel,
-  type BuiltResort,
-} from "./resort-build.ts";
+import { buildResort, chooseCourse, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { resortCached } from "./resort-cache.ts";
 import { analyzeResort } from "../analysis/resort.ts";
 
 /** How many pistes an attempt walks before it gives up on its mountain. */

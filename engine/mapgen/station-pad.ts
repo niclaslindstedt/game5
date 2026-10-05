@@ -73,6 +73,37 @@ export function padded(kind: Lift["kind"]): boolean {
   return kind !== "drag";
 }
 
+/** A DRAG'S TOP as the ramps off it read it (R26): the ground a rider is
+ * let go on, `lift.drag.rim` m round the point `lift.drag.letGo` m short of
+ * its top wheel, at that ground's height (`height`) — never pressed, a
+ * drag's top standing on ground level enough to step off onto
+ * (`lift.drag.padGrade`). */
+export function dragTop(
+  l: { id: string; bottom: { x: number; z: number }; top: { x: number; z: number } },
+  height: (x: number, z: number) => number,
+): StationPad {
+  const D = RR.lift.drag;
+  const len = Math.max(1, hypot(l.top.x - l.bottom.x, l.top.z - l.bottom.z));
+  const dx = (l.top.x - l.bottom.x) / len;
+  const dz = (l.top.z - l.bottom.z) / len;
+  const x = l.top.x - dx * D.letGo;
+  const z = l.top.z - dz * D.letGo;
+  return {
+    r: D.rim,
+    deck: D.rim,
+    lean: 0,
+    lift: l.id,
+    kind: "drag",
+    x,
+    z,
+    y: height(x, z),
+    dx,
+    dz,
+    length: len - D.letGo,
+    unload: null,
+  };
+}
+
 /** Where a chair's rider stands up: `lift.unload.at` metres short of its
  * top, down its line. */
 export function unloadPoint(
@@ -221,13 +252,28 @@ function levelPad(
       const i = row * ground.cols + col;
       const w = 1 - smoothstep(r, reach, d);
       let h = ground.data[i] * (1 - w) + padSurface(p, px, pz) * w;
-      if (p.unload) {
-        const du = hypot(px - p.unload.x, pz - p.unload.z);
-        h += L.unload.height * (1 - smoothstep(0, L.unload.reach, du));
-      }
+      if (p.unload) h += L.unload.height * unloadRise(p, p.unload, px, pz);
       ground.data[i] = h;
     }
   }
+}
+
+/** A chair's UNLOAD RAMP at (x, z), a share of its height: on a level pad
+ * (v4) a mound falling off the unload point every way over
+ * `lift.unload.reach`; on a leaning one a RAMP — whole under the chair and
+ * the lane beside it up to the unload point, and falling from it on up the
+ * line over `lift.unload.reach`, so a rider stood up there slides on ahead
+ * of the chair and never back into the cut under its way in. */
+function unloadRise(p: StationPad, at: { x: number; z: number }, x: number, z: number): number {
+  const U = RR.lift.unload;
+  if (p.lean === 0) return 1 - smoothstep(0, U.reach, hypot(x - at.x, z - at.z));
+  const along = (x - at.x) * p.dx + (z - at.z) * p.dz;
+  const across = Math.abs((x - at.x) * p.dz - (z - at.z) * p.dx);
+  return (
+    (1 - smoothstep(0, U.reach, along)) *
+    (1 - smoothstep(U.half, U.half + U.edge, across)) *
+    smoothstep(-U.back - U.edge, -U.back, along)
+  );
 }
 
 /** R26 — groom every pad and the ground eased into it — up to a run's edge

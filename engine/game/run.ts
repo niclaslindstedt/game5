@@ -27,7 +27,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
-import { leadInput, stepLift } from "./lift-ride.ts";
+import { stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
@@ -48,18 +48,16 @@ const COAST: SkierInput = { ...NEUTRAL_INPUT, brake: 0.6 };
 
 /** Advance one skier's run by the step the world has just taken. `events`
  * is the run's own list, already cleared for this step. */
-export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]): void {
+export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]): void {
   const racing = run.phase === "racing";
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
-  if (stepHeli(run, given, events)) return;
+  if (stepHeli(run, input, events)) return;
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
-  if (stepSled(run, given, events)) return;
-  // THE LIFT (`lift-ride.ts`): while one carries him the step is its own;
-  // stood off the free ride's lift, he is led until he takes the controls.
-  if (stepLift(run, given, events)) return;
-  const input = leadInput(run, given, events);
+  if (stepSled(run, input, events)) return;
+  // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
+  if (stepLift(run, input, events)) return;
   if (input.reset && racing) {
     standUp(run, events, false);
     return;
@@ -146,7 +144,7 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   else noteSkied(run);
   if (p.finished) return;
   const R = TUNING.reset;
-  // Bogged, the skier is given the time to work out (`trench.ts`).
+  // Bogged, the skier is input the time to work out (`trench.ts`).
   const stuck = c.trench > 0 ? c.trenchFor >= TUNING.trench.holdFor : c.stuckFor >= R.stuckFor;
   if (c.overFor >= R.overFor || stuck) standUp(run, events, true);
 }

@@ -16,6 +16,7 @@
 import { generateLevel, gradeOf, type PisteGrade, type RegionId } from "@engine";
 
 import { freeRunList, type FreeRunInfo } from "./free-ride.ts";
+import { boardKey } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
 import {
   fitPanorama,
@@ -63,6 +64,9 @@ export type PreviewReply =
       vertical: number;
       /** The colour the piste came out (R23, `gradeOf`). */
       colour: PisteGrade;
+      /** What names the map built (`boardKey`): the boards at its lifts'
+       * tops are painted with this panorama. */
+      board: string;
       /** The runs a ride by lift can start down, and the map's own. */
       runs: FreeRunInfo[];
       fallback: string | null;
@@ -123,6 +127,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
         colour: gradeOf(level),
+        board: boardKey(level),
         ...freeRunList(level),
       },
       transfer,

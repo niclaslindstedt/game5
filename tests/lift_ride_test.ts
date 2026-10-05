@@ -6,9 +6,9 @@
 // and a free ride begun on a lift rides the last seconds of the lift serving
 // the run picked (`freeRunOf`: the run named, else the first of the colour
 // asked, else the course's first — or, given a spot, the chair whose run
-// passes nearest it) and is led onto that run — skated across to it where
-// it starts above the top — until he takes the controls. A race never
-// boards one.
+// passes nearest it). Stood off at the top the skis are his at once —
+// nothing leads him — and a rider who follows a run's sign down its ramp
+// slides onto that run and never climbs to it. A race never boards one.
 
 import { describe, expect, it } from "vitest";
 
@@ -25,9 +25,7 @@ import {
   freeRunOf,
   freeRuns,
   liftPlans,
-  resetSkier,
   standSkier,
-  stationHouses,
   step,
   type GameEvent,
   type GameState,
@@ -67,6 +65,69 @@ function atEntry(plan: LiftPlan): GameState {
 
 const plans = liftPlans(level);
 const of = (kind: LiftPlan["lift"]["kind"]) => plans.find((p) => p.lift.kind === kind);
+
+/** A RIDER WHO FOLLOWS THE SIGN off a top to run `id`: off a chair on down
+ * its lane to the parting, then for the ramp's head on the pad's rim and
+ * down the ramp until he is on the run's snow — poling at a crawl, checked
+ * over `CHECK` m/s (`make lift-tops` is the same rider). How far he
+ * climbed over the lowest he had come down to, m, and whether he got there. */
+function followSign(
+  run: GameState,
+  plan: LiftPlan,
+  id: string,
+  seconds = 90,
+): { climbed: number; arrived: boolean; events: GameEvent[] } {
+  const map = run.level;
+  const r = map.resort!.runs.find((q) => q.id === id)!;
+  const ramp = plan.lift.ramps?.find((q) => q.run === id);
+  const lane = plan.lift.kind === "chair" ? chairLane(plan) : null;
+  const way = [
+    ...(lane
+      ? [
+          {
+            x: plan.lift.bottom.x + plan.dx * (lane.exit + 2) + plan.dz * lane.v,
+            z: plan.lift.bottom.z + plan.dz * (lane.exit + 2) - plan.dx * lane.v,
+          },
+        ]
+      : []),
+    ...(ramp ? [ramp.from, ramp.to] : [r.points[0]]),
+  ];
+  // On the run's snow, once making for where the ramp meets it.
+  const onRun = (x: number, z: number): boolean =>
+    r.points.some((p) => Math.hypot(p.x - x, p.z - z) < p.width / 2);
+  let k = 0;
+  let low = Infinity;
+  let climbed = 0;
+  const events: GameEvent[] = [];
+  for (let i = 0; i < seconds * 120 && k < way.length; i++) {
+    const c = run.skier;
+    if (!c.lift) {
+      low = Math.min(low, c.y);
+      climbed = Math.max(climbed, c.y - low);
+    }
+    const aim = way[k];
+    if (!c.lift && k === way.length - 1 && onRun(c.x, c.z)) k = way.length;
+    if (k >= way.length) break;
+    if (Math.hypot(aim.x - c.x, aim.z - c.z) < REACHED) {
+      k++;
+      continue;
+    }
+    const off = angleDiff(c.heading, Math.atan2(aim.x - c.x, aim.z - c.z));
+    step(run, {
+      ...NEUTRAL_INPUT,
+      steer: c.lift ? 0 : Math.max(-1, Math.min(1, off * 2.2)),
+      tuck: c.lift ? 0 : c.speed < 5 ? 1 : 0.25,
+      brake: c.lift ? 0 : Math.max(0, Math.min(1, c.speed - CHECK)),
+    });
+    events.push(...run.events);
+  }
+  return { climbed, arrived: k >= way.length, events };
+}
+
+/** How near a mark the rider who follows the sign makes for counts as
+ * there, m; the speed he checks to, m/s. */
+const REACHED = 4;
+const CHECK = 12;
 
 describe("riding a lift on a free ride", () => {
   it("has a chair, a gondola and a drag on the map", () => {
@@ -167,13 +228,12 @@ describe("riding a lift on a free ride", () => {
     expect(run.skier.lift).toBeNull();
   });
 
-  it("puts a skier who will not wait at the top", () => {
+  it("puts a skier who will not wait at the top, and lets him go there", () => {
     const plan = of("chair")!;
     const run = atEntry(plan);
     ride(run, 3, (r) => r.skier.lift?.phase === "ride");
     step(run, { ...NEUTRAL_INPUT, reset: true });
-    // Off the chair: let go, or making for a run off this top (`crossingOff`).
-    expect(run.skier.lift === null || run.skier.lift.phase === "lead").toBe(true);
+    expect(run.skier.lift).toBeNull();
     expect(Math.hypot(run.skier.x - plan.lift.top.x, run.skier.z - plan.lift.top.z)).toBeLessThan(
       plan.look.off + plan.look.gauge + 2,
     );
@@ -203,7 +263,7 @@ describe("a free ride begun on a lift", () => {
     const lift = run.skier.lift!;
     expect(lift.phase).toBe("ride");
     expect(lift.id).toBe(target.from);
-    expect(resort.runs[lift.lead!.run].from).toBe(target.from);
+    expect(resort.runs.find((r) => r.id === run.progress.skied.at(-1))!.from).toBe(target.from);
   });
 
   it("rides only the last seconds of the lift, the top close ahead", () => {
@@ -218,68 +278,29 @@ describe("a free ride begun on a lift", () => {
     expect(at).toBeLessThan(TUNING.lift.arrive + 0.05);
   });
 
-  it("is stood off at the top, led over the lip and onto the run, then let go", () => {
+  it("is stood off at the top and the skis are his at once — nothing leads him", () => {
     const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
-    const pad = run.skier.lift!;
-    const plan = plans[pad.index];
-    const padY = plan.lift.top.y;
-    const events = ride(run, 120, (r) => r.skier.lift === null);
+    const plan = plans[run.skier.lift!.index];
+    const events = ride(run, 30, (r) => r.skier.lift === null);
     expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
-    expect(events.some((e) => e.kind === "lift" && e.phase === "free")).toBe(true);
-    // Down off the pad, on the run he picked.
+    expect(run.skier.lift).toBeNull();
+    // Let be, he slides off the ramp onto the deck and no further: nothing
+    // steers him for a run.
+    ride(run, 20, () => false);
     const c = run.skier;
-    expect(c.y).toBeLessThan(padY - 3);
-    const r = resort.runs[pad.lead!.run];
-    const near = Math.min(...r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z)));
-    expect(near).toBeLessThan(25);
+    expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(RR_PAD / 2 + 4);
     expect(c.thrown).toBeNull();
   });
 
-  it("leads him straight down the lane off the ramp, then the way the signs point, never through the house", () => {
+  it("follows the sign down his run's ramp onto it, never climbing", () => {
     const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
-    const lead = run.skier.lift!;
-    const plan = plans[lead.index];
-    const lane = chairLane(plan);
-    const houses = plans.flatMap((p) => stationHouses(level, p));
-    const frame = (x: number, z: number) => ({
-      u: (x - plan.lift.bottom.x) * plan.dx + (z - plan.lift.bottom.z) * plan.dz,
-      v: (x - plan.lift.bottom.x) * plan.dz - (z - plan.lift.bottom.z) * plan.dx,
-    });
-    const way = signsOf(level, plan).find((s) => s.run === resort.runs[lead.lead!.run].id)!.way;
-    let laned = 0;
-    let parted = false;
-    let turned = 0;
-    ride(run, 120, (r) => {
-      const c = r.skier;
-      if (c.lift?.phase !== "lead") return c.lift === null;
-      // Never inside a station house.
-      for (const h of houses) {
-        const a = (c.x - h.x) * h.plan.dx + (c.z - h.z) * h.plan.dz;
-        const b = (c.x - h.x) * h.plan.dz - (c.z - h.z) * h.plan.dx;
-        expect(Math.max(Math.abs(a) - h.halfLength, Math.abs(b) - h.halfWidth)).toBeGreaterThan(0);
-      }
-      const { u, v } = frame(c.x, c.z);
-      // Down the lane to the parting…
-      if (u >= lane.exit - TUNING.lift.turnIn) parted = true;
-      if (!parted && u > plan.length) {
-        expect(Math.abs(v - lane.v)).toBeLessThan(1.5);
-        laned++;
-      }
-      // …and off it the way his run's sign points.
-      if (turned === 0 && Math.abs(v - lane.v) > 6) turned = Math.sign(v - lane.v);
-      return false;
-    });
-    expect(laned).toBeGreaterThan(0);
-    expect(turned).toBe(way);
-  });
-
-  it("hands the skis back at the first touch of a control", () => {
-    const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
-    // Once on his way down — a skate across to the run is the lift's.
-    ride(run, 120, (r) => r.skier.lift?.phase === "lead" && !r.skier.lift.lead?.cross);
-    expect(run.skier.lift?.phase).toBe("lead");
-    step(run, { ...NEUTRAL_INPUT, steer: 1 });
-    expect(run.skier.lift).toBeNull();
+    const plan = plans[run.skier.lift!.index];
+    const id = run.progress.skied.at(-1)!;
+    expect(signsOf(level, plan).some((s) => s.run === id)).toBe(true);
+    const { climbed, arrived, events } = followSign(run, plan, id);
+    expect(events.some((e) => e.kind === "reset" || e.kind === "wipeout")).toBe(false);
+    expect(climbed).toBeLessThan(CLIMB);
+    expect(arrived).toBe(true);
   });
 
   it("replays to the figure", () => {
@@ -304,13 +325,24 @@ describe("a free ride begun on a lift with no spot", () => {
       const lift = run.skier.lift!;
       expect(lift.phase).toBe("ride");
       const first = resort.runs.find((r) => r.id === course.runs[0])!;
-      expect(resort.runs[lift.lead!.run].id).toBe(first.id);
+      expect(run.progress.skied.at(-1)).toBe(first.id);
       expect(lift.id).toBe(first.from);
       expect(lift.kind).toBe(resort.lifts.find((l) => l.id === first.from)!.kind);
-      // Off the top and led toward the run, never thrown on the way.
-      const events = ride(run, 120, (r) => r.skier.lift === null);
+      // Off the top and down to the run past its sign, never thrown on the
+      // way and never climbing — where a ramp comes down to it (a drag's
+      // top has one only where it fits).
+      const plan = liftPlans(map)[lift.index];
+      if (plan.lift.kind === "drag") {
+        const events = ride(run, 30, (r) => r.skier.lift === null);
+        expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
+        expect(plan.lift.kind).toBe("drag");
+        return;
+      }
+      const { climbed, arrived, events } = followSign(run, plan, first.id);
       expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
-      expect(run.skier.thrown).toBeNull();
+      expect(events.some((e) => e.kind === "reset" || e.kind === "wipeout")).toBe(false);
+      expect(climbed).toBeLessThan(CLIMB);
+      expect(arrived).toBe(true);
     });
   }
 });
@@ -339,7 +371,7 @@ describe("which run a free ride by lift starts down", () => {
       run: runs[1].id,
       quiet: true,
     });
-    expect(map.resort!.runs[run.skier.lift!.lead!.run].id).toBe(runs[1].id);
+    expect(run.progress.skied.at(-1)).toBe(runs[1].id);
   });
 
   it("is the course's first run where nothing is asked", () => {
@@ -350,52 +382,36 @@ describe("which run a free ride by lift starts down", () => {
 });
 
 describe("the way from a lift's top onto its run", () => {
-  // A run leaves its top along the contour (R27) and may start well above
-  // the pad; a rider is skated across to it rather than left below it.
+  // Every run off a chair's or a gondola's top lies under it, a ramp down
+  // to it off the pad's rim (R26, R27): a rider who follows its sign slides
+  // onto it. A drag's top, unpressed, has a ramp only where one fits.
   const map = levelFor(LEVEL_SEEDS[0]);
-  for (const r of freeRuns(map)) {
-    it(`brings him onto run ${r.id} (${r.grade}) without a reset or a fall`, () => {
+  const all = liftPlans(map);
+  const ramped = (r: { id: string; from: string }): boolean =>
+    all.some((p) => p.lift.id === r.from && !!p.lift.ramps?.some((q) => q.run === r.id));
+  it("has a ramp down to every run off a chair's or a gondola's top", () => {
+    for (const r of freeRuns(map)) {
+      const kind = all.find((p) => p.lift.id === r.from)!.lift.kind;
+      if (kind !== "drag") expect(ramped(r)).toBe(true);
+    }
+  });
+  const padded = (r: { from: string }): boolean =>
+    all.find((p) => p.lift.id === r.from)!.lift.kind !== "drag";
+  for (const r of freeRuns(map).filter((q) => ramped(q) && padded(q))) {
+    it(`brings a rider who follows its sign onto run ${r.id} (${r.grade}), never climbing`, () => {
       const run = createGame({ level: map, mode: "free", byLift: true, run: r.id, quiet: true });
-      const events = ride(run, 90, (g) => g.skier.lift === null);
-      expect(run.skier.lift).toBeNull();
-      expect(events.some((e) => e.kind === "reset")).toBe(false);
+      const plan = all[run.skier.lift!.index];
+      const { climbed, arrived, events } = followSign(run, plan, r.id);
+      expect(events.some((e) => e.kind === "reset" || e.kind === "wipeout")).toBe(false);
       expect(run.skier.thrown).toBeNull();
-      const c = run.skier;
-      expect(Math.min(...r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z)))).toBeLessThan(5);
+      expect(climbed).toBeLessThan(CLIMB);
+      expect(arrived).toBe(true);
     });
   }
-
-  it("skates a drag's rider of his own across to a run off its top", () => {
-    const plan = plans.find(
-      (p) =>
-        p.lift.kind === "drag" &&
-        !level.resort!.runs.some(
-          (r) => r.from === p.lift.id && p.lift.ramps?.some((q) => q.run === r.id),
-        ),
-    )!;
-    const run = atEntry(plan);
-    const events = ride(run, 600, (r) => r.skier.lift === null);
-    expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
-    const c = run.skier;
-    const near = Math.min(
-      ...level
-        .resort!.runs.filter((r) => r.from === plan.lift.id && r.kind === "piste")
-        .flatMap((r) => r.points.map((p) => Math.hypot(p.x - c.x, p.z - c.z))),
-    );
-    expect(near).toBeLessThan(5);
-  });
-
-  it("lets go of a skier the moment he is reset", () => {
-    const run = createGame({
-      level: map,
-      mode: "free",
-      byLift: true,
-      run: freeRuns(map)[0].id,
-      quiet: true,
-    });
-    ride(run, 60, (r) => r.skier.lift?.phase === "lead");
-    expect(run.skier.lift?.phase).toBe("lead");
-    resetSkier(run, [], true);
-    expect(run.skier.lift).toBeNull();
-  });
 });
+
+/** The pad's width across, m; the most a rider following a sign may rise
+ * over the lowest he has come down to, m — a roll of the snow, never a
+ * climb. */
+const RR_PAD = 48;
+const CLIMB = 0.6;

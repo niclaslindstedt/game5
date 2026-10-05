@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE LIFT AS THE LENS RIDES IT (`pwa/src/game/camera-lift.ts`): the chase
-// boom comes in close behind a skier carried up a lift, holds there through
-// the stand-up, the ramp and the lane off a chair's top, and opens out to
-// the chase over the lead onto his run — or eases out where the lift lets
-// him go with no lead.
+// boom comes in close behind a skier carried up a lift and eases out to the
+// chase once the lift lets him go at the top.
 
 import { describe, expect, it } from "vitest";
 
@@ -28,23 +26,14 @@ function ride(phase: LiftRide["phase"], t = 0, kind: LiftRide["kind"] = "chair")
     t,
     tower: 1,
     from: { x: 0, y: 0, z: 0, heading: 0 },
-    lead: phase === "lead" ? { run: 0, s: 0, until: 40, time: 26 } : null,
   };
 }
 
 describe("the lift's look", () => {
-  it("is whole while he boards and rides, and let out over the lead", () => {
+  it("is whole while he boards and rides, and nothing once he is let go", () => {
     expect(rideTarget(null)).toBe(0);
     expect(rideTarget(ride("board"))).toBe(1);
     expect(rideTarget(ride("ride"))).toBe(1);
-    expect(rideTarget(ride("lead", LIFT_LOOK.lead.hold - 0.1))).toBe(1);
-    expect(rideTarget(ride("lead", LIFT_LOOK.lead.out + 0.1))).toBe(0);
-    let last = 1;
-    for (let t = 0; t <= LIFT_LOOK.lead.out; t += 0.25) {
-      const k = rideTarget(ride("lead", t));
-      expect(k).toBeLessThanOrEqual(last);
-      last = k;
-    }
   });
 
   it("eases in once he is taken, and snaps to it on a new run", () => {
@@ -59,14 +48,7 @@ describe("the lift's look", () => {
     expect(snapped.dist).toBe(LIFT_LOOK.gondola.dist);
   });
 
-  it("follows the lead's own curve, and eases out where the lift lets him go", () => {
-    const mem = createRideMemory();
-    stepRideLook(mem, ride("ride"), 1 / 60, true);
-    const mid = (LIFT_LOOK.lead.hold + LIFT_LOOK.lead.out) / 2;
-    expect(stepRideLook(mem, ride("lead", mid), 1 / 60)!.share).toBeCloseTo(
-      rideTarget(ride("lead", mid)),
-      9,
-    );
+  it("eases out where the lift lets him go", () => {
     const free = createRideMemory();
     stepRideLook(free, ride("ride"), 1 / 60, true);
     const after = stepRideLook(free, null, 1 / 60)!;

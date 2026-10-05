@@ -91,8 +91,8 @@ export type GeneratorTraits = {
   /** STARTS ACROSS THE TOP (v4): a run's start is looked for along the line
    * across the face through its top station, at whatever height that finds
    * — tens of metres above the station, often, so a rider off the lift had
-   * to climb to it. From v5 every start is slid down the fall line onto
-   * the top's contour, just below the station (R27). */
+   * to climb to it. From v5 every start is slid down the fall line
+   * under the top (R27), so a rider glides down to it. */
   startsAcrossTop?: boolean;
 };
 
@@ -121,24 +121,26 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "and thinning through the ecotone to the tree line (R14); every gondola's and " +
       "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
       "the face and a chair's unload ramp on it, every station stands beside the runs, " +
-      "never on one, and no drag lift crosses a piste (R26). v5 cuts every gondola's and " +
-      "chair's top wider and LEANING off its deck to both sides instead of level; this " +
+      "never on one, and no drag lift crosses a piste (R26). From v5 on every gondola's and " +
+      "chair's top is cut wider and LEANING off its deck to both sides instead of level; this " +
       "row keeps the level pad 30 m across, and every run's start found along the line " +
       "across the face through its top, at whatever height that is.",
     levelPads: true,
     startsAcrossTop: true,
   },
   {
-    version: 5,
+    version: 6,
     note:
-      "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
-      "deck along the line level and the pad leaning off it to both sides to its rim, so a " +
-      "rider stood off a chair slides away to his run gathering speed; a wide groomed RAMP " +
-      "comes down off the rim to every run the top serves, gentle and rolling over a LIP " +
-      "where it must fall further; the ground under the last of every line is cut away " +
-      "beneath the rope's way in, so no carrier ever runs into the snow (R26); and every " +
-      "run starts on its top's contour just BELOW the station, slid down the fall line to " +
-      "it, so a rider off any lift — a drag's too — glides to his run, never climbs (R27).",
+      "The tops above their runs: every gondola's and chair's top stands on a pad 48 m " +
+      "across, its deck along the line level and the pad leaning off it to both sides to " +
+      "its rim; the ground under the last of every line is cut away beneath the rope's " +
+      "way in, so no carrier ever runs into the snow (R26); and every run off a top STARTS " +
+      "UNDER IT by 4 m and a tenth of the way from the rim to it, within reach of a ramp " +
+      "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
+      "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
+      "pad slides down to his run and never climbs. v5, the leaning tops with their runs " +
+      "started on the top's contour 4 m under it and a ramp only where one reached a run's " +
+      "snow past its head, was retired: no campaign map named it.",
   },
 ];
 

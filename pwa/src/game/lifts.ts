@@ -31,6 +31,7 @@ import * as THREE from "three";
 import { TUNING, type Level, type LiftRide } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createMapBoards } from "./map-board.ts";
 import {
   DRAG_ARM,
   carrierAt,
@@ -175,8 +176,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   const lifts = level.resort?.lifts ?? [];
   const tunnels = createWindTunnels(level, haze, budget);
   group.add(tunnels.group);
+  let disposeBoards = (): void => {};
   const dispose = () => {
     tunnels.dispose();
+    disposeBoards();
     for (const g of geos) g.dispose();
     for (const m of mats) m.dispose();
     for (const m of meshes) m.dispose();
@@ -336,7 +339,17 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
 
   // THE STATIONS' OWN (`station-plan.ts`): the hoods, the booths, the
   // gates, the masts, the doors, the load lines and the fences.
-  buildStations(layStations(level, plans), level.groundAt, painted, group, geos, meshes);
+  const layout = layStations(level, plans);
+  buildStations(layout, level.groundAt, painted, group, geos, meshes);
+  // THE PISTE MAP BOARDS' FACES (`map-board.ts`), each marked at its top.
+  const boards = createMapBoards(
+    level,
+    layout.parts.filter((q) => q.kind === "board"),
+    plans.map((p) => p.lift.top),
+    haze,
+  );
+  group.add(boards.group);
+  disposeBoards = boards.dispose;
 
   // THE ROPES, every lift's as one set of line segments: a vertex every few
   // metres down each span (the sag is a curve), and the turn round each

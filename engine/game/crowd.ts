@@ -872,9 +872,9 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   const crowd = state.crowd;
   const c = state.skier;
   if (!crowd || c.thrown) return;
-  // Carried by a lift, or skated across to his run off its top, the player
-  // is the lift's, as an amateur on one is (`onLift`): nobody shoulders him.
-  if (c.lift && (c.lift.phase !== "lead" || c.lift.lead?.cross)) return;
+  // Carried by a lift the player is the lift's, as an amateur on one is
+  // (`onLift`): nobody shoulders him.
+  if (c.lift) return;
   const net = crowdNet(state.level);
   const B = RACE.bump;
   const mp = totalMass(c.spec);

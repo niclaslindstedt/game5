@@ -139,7 +139,9 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     speed: 3,
     slow: 3,
     entry: { at: 4, along: 4, side: 1.2, across: 1.6, fastest: 6, turned: 0.9, board: 0.8 },
-    off: 6,
+    // Let go short of the top wheel, where the ramps off its top leave
+    // from (R26).
+    off: RR.lift.drag.letGo,
   },
 };
 

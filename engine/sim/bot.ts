@@ -380,6 +380,18 @@ function flownSpeed(
   return best;
 }
 
+/** How a pitch is read under a bend, m either side; the share of its pull
+ * down the fall line taken off the grip he turns on, and the least of the
+ * grip left him. */
+const PITCH_SPAN = 6;
+const PITCH_PULL = 0.5;
+const PITCH_FLOOR = 0.35;
+const pt: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+
+/** The slowest a bend owed room on a pitch asks him to go, m/s: a skier
+ * checks to a crawl over a pitch the brake cannot hold, never to a stop. */
+const CRAWL = 4;
+
 /** The fastest the skier may be going NOW for every bend and kicker within
  * skidding reach to be taken at its own speed, m/s. */
 function speedAllowed(state: GameState, s: number, speed: number, profile: BotProfile): number {
@@ -399,7 +411,10 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     // (`steer.scrub`), so a skier who planned for the brake alone on a
     // steep pitch arrives at the bend still carrying the pitch.
     const drop = Math.max(0, y0 - trackPointAt(level, s + d, pc).y);
-    const room = Math.max(0, 2 * decel * Math.max(0, d - 6) - 2 * TUNING.g * drop);
+    // Below nothing: a pitch steeper than the brake can hold is room the
+    // skier OWES — he must come to it slower than the bend's own speed.
+    const owed = 2 * decel * Math.max(0, d - 6) - 2 * TUNING.g * drop;
+    const room = Math.max(0, owed);
     // The room alone already allows what is allowed: no bend this far on,
     // however tight, can lower it — nor any further on, the room only ever
     // growing on a piste that never climbs faster than the brake bites.
@@ -433,13 +448,24 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
       downhill
         ? cutGrip(spec, v, T, packedUnder(level.packedAt(pc.x, pc.z), state.fresh))
         : cornerGrip(spec, 1, v);
-    const still = Math.sqrt((grip(0) * profile.cornerShare) / k);
-    let corner = Math.sqrt((grip(still) * profile.cornerShare) / k);
+    // On a steep pitch the fall line pulls him out of a turn across it: the
+    // slope's own pull, a share of it, is taken off the grip he turns on.
+    const pitch = Math.max(
+      0,
+      (trackPointAt(level, s + d - PITCH_SPAN, pt).y -
+        trackPointAt(level, s + d + PITCH_SPAN, pt).y) /
+        (2 * PITCH_SPAN),
+    );
+    const pull = TUNING.g * (pitch / hypot(1, pitch)) * PITCH_PULL;
+    const turnOn = (v: number): number =>
+      Math.max(grip(v) * profile.cornerShare - pull, grip(v) * profile.cornerShare * PITCH_FLOOR);
+    const still = Math.sqrt(turnOn(0) / k);
+    let corner = Math.sqrt(turnOn(still) / k);
     // ...and no faster than the pair's sidecut can still carve it — the
     // edge's lock eases with speed, and a long ski's runs out first.
     const carve = carveSpeedOf(spec, k, T);
     if (carve > 0) corner = Math.min(corner, carve);
-    const now = Math.sqrt(corner * corner + room);
+    const now = Math.sqrt(Math.max(CRAWL * CRAWL, corner * corner + owed));
     if (now < allowed) allowed = now;
   }
   for (const k of level.kickers ?? []) {

@@ -277,26 +277,27 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (state.heli && options.heli) startAgain(state, []);
-  else if (state.sled && options.sled) startSled(state, []);
-  else if (free && options.byLift) {
-    if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
-    // With no spot, up the lift to the top of the run picked — the one the
-    // start card marks — whatever kind of lift serves it.
-    else
-      arriveByLift(
-        state,
-        level.spawn.x,
-        level.spawn.z,
-        freeRunOf(level, { run: options.run, grade: options.grade }),
-      );
-  }
+  if (state.sled && options.sled && !(state.heli && options.heli)) startSled(state, []);
+  // Up a lift: to the chair whose run passes nearest the spot, or with no
+  // spot to the top of the run picked — the one the start card marks —
+  // whatever kind of lift serves it.
+  const lifted =
+    free && options.byLift && !(state.heli && options.heli) && !(state.sled && options.sled)
+      ? options.spawn
+        ? arriveByLift(state, options.spawn.x, options.spawn.z)
+        : arriveByLift(
+            state,
+            level.spawn.x,
+            level.spawn.z,
+            freeRunOf(level, { run: options.run, grade: options.grade }),
+          )
+      : null;
   // ...and the run it is stood up on is the first it has skied: the one the
-  // lift leads him onto, the one he stands at the top of, or the piste
-  // nearest where he stands — so a reset before he has skied anything has
-  // somewhere to go.
+  // lift carries him to the top of, the one he stands at the top of, or the
+  // piste nearest where he stands — so a reset before he has skied anything
+  // has somewhere to go.
   if (free) {
-    const lead = state.skier.lift?.lead;
-    const onto = lead ? level.resort?.runs[lead.run]?.id : head ? options.run : undefined;
+    const onto = lifted ?? (head ? options.run : undefined);
     noteRun(state, onto ?? nearestPiste(level, state.skier.x, state.skier.z));
   }
   if (rules.rivals > 0) {

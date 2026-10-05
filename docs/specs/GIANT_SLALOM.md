@@ -100,8 +100,12 @@ in reverse order of the first's best, the combined time ranked.
 - [ ] **Audience**: placement along a giant slalom (research — likely like
       the slalom's, along longer stretches).
 - [ ] **Sound**: the panels knocked, the edge at speed.
-- [ ] **Campaign**: which maps carry a giant slalom (steep enough, wide
-      enough), rungs, blurbs.
+- [ ] **Its nine pinned maps** (`docs/specs/RACE_MAPS.md`):
+      `RACE_MAPS.giantSlalom`, nine seeds whose course makes a GOOD giant
+      slalom (its vertical band, steep enough, wide enough for its gates;
+      the bot home on both runs), swept, looked at, rated and laddered;
+      held by `tests/race_maps_test.ts`. The campaign's rungs are optional
+      and later.
 - [ ] **Front door**: the discipline turned on in `DISCIPLINES` and on the
       SLALOM tile's coming line / its own tile.
 - [ ] **Labs**: the technique lab's giant slalom column; `make level` /

@@ -120,8 +120,18 @@ blind at race pace, which is why the course reads from the gates.
       down the course) — research.
 - [ ] **Audience**: along the course and at the jumps (research).
 - [ ] **Sound**: the wind at speed, the landing, the panels.
-- [ ] **Campaign**, **front door**, **labs**, **tests**, **docs** as for the
-      giant slalom; delete this spec.
+- [ ] **Its nine pinned maps** (`docs/specs/RACE_MAPS.md` — built for the
+      slalom and the downhill first; if not yet, build it there first):
+      `RACE_MAPS.superG`, nine seeds whose course makes a GOOD super-G —
+      350–650 m of vertical (`docs/disciplines.md`), a turny course with a
+      jump or two the setter keeps and lands safely, the bot home with no
+      net and no out — swept with `make sim ARGS="--mode superG --count
+      64"`, looked at, rated and laddered; their digests held by
+      `tests/race_maps_test.ts`, their routes by `make routes`. The
+      SUPER-G's level card is the discipline page that test and module
+      feed; the campaign is optional (a rung or two, later).
+- [ ] **Front door**, **labs**, **tests**, **docs** as for the giant
+      slalom; delete this spec.
 
 ## Research to-do
 

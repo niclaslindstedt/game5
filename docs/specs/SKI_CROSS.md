@@ -91,7 +91,11 @@ is SKIED, side by side, so the bot and skier-against-skier contact matter.
 - [ ] **Cameras**: a ski cross broadcast follows the pack — research.
 - [ ] **Audience**: along a built course, at the jumps and the finish.
 - [ ] **Sound**: the start gate's bars, contact, landings.
-- [ ] **Campaign**, **front door**, **labs** (a course lab for the built
+- [ ] **Its nine pinned maps** (`docs/specs/RACE_MAPS.md`):
+      `RACE_MAPS.skiCross`, nine seeds whose slope takes a GOOD built
+      course (its features, its width for four abreast), swept, looked at
+      and laddered; held by `tests/race_maps_test.ts`.
+- [ ] **Front door**, **labs** (a course lab for the built
       features), **tests**, **docs** (`docs/disciplines.md` first); delete this spec.
 
 ## Research to-do

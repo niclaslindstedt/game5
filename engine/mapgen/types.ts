@@ -446,6 +446,10 @@ export type SummitRamp = {
   from: Vec3;
   to: Vec3 & { s: number };
   width: number;
+  /** A ramp generator v5 laid (`looseTops`), which may roll over a LIP
+   * into a drop down to its run (`summit-ramps-v5.ts`); absent, it falls
+   * evenly all the way. */
+  lip?: boolean;
 };
 
 /** A course (R28): the line from a run's top station down the network to

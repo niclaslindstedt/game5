@@ -85,9 +85,21 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
   metres in from the rim on the pad's circle (offset round the rim, not
   straight sideways, or it lands past the rim), stands under the deck and
   the unload: the rider sees it in front of him, below, and follows it.
-- **A green's ramp is a green.** A ramp is held to the run's colour (even,
-  no more than 20 %, to a green or a blue); only a red's or a black's may
-  roll over a lip.
+- **A green's ramp is a green, and no ramp has a lip.** A ramp is held to
+  the run's colour (no more than 20 % to a green or a blue, 48 % to a red or
+  a black) and falls EVENLY: a ramp that ran out gentle and rolled over a lip
+  into its drop threw the rider who followed the sign off it on every red.
+- **Aim for the run's snow, not an angle onto it.** Asking a ramp to meet
+  its run within some angle of the run's own heading refused most tops; the
+  rider who follows the sign only needs to arrive on the run's snow, and the
+  lab checks exactly that.
+- **An older version's code reads the rule book too.** Maps pinned on an
+  older generator (the campaign, the trick maps, the race maps) are rebuilt
+  by that version's trait over the SAME `RESORT_RULES`, so a number moved
+  for the new version (here a ramp's reach) moves them unless the legacy
+  module restates the old number. Run the pinned suites
+  (`generator_version_test`, `race_maps_test`, `race_maps_downhill_test`)
+  after every rule number you touch, not only at the end.
 - **The drags are re-laid after their runs are walked**, so a drag's top
   ends up wherever access put it — often far above its nursery runs. Ramps
   off a drag's top are laid after the drags settle, where they fit; a cut

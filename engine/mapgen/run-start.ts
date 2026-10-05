@@ -70,7 +70,15 @@ const SIBLING_APART = 80;
 /** A run's top as its start is placed under it: where it stands, its
  * snow's height, and the radius of the ground a rider is let go on (a
  * pad's rim; a drag's let-go). */
-export type StartTop = { x: number; z: number; y: number; rim: number };
+export type StartTop = {
+  x: number;
+  z: number;
+  y: number;
+  rim: number;
+  /** v5's starts (`looseTops`): on the top's contour `drop` m under it,
+   * at whatever distance. */
+  loose?: boolean;
+};
 
 /** A lift's top as the starts under it read it: its snow's height off
  * `ground`, and the rim of the pad it stands on (`rim` m; a drag's top has
@@ -79,9 +87,10 @@ export function startTop(
   ground: Heightfield,
   lift: { kind: string; top: { x: number; z: number } },
   rim: number,
+  loose = false,
 ): StartTop {
   const y = sampleField(ground, lift.top.x, lift.top.z);
-  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim };
+  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim, loose };
 }
 
 /** The fall line a start is slid along, m a step and steps. */
@@ -95,6 +104,7 @@ const HEAD_SLIDES = 60;
  * down it. */
 function headBelow(top: StartTop, x: number, z: number): number {
   const K = RR.lift.top.ramp;
+  if (top.loose) return K.drop;
   return K.drop + K.fall * Math.max(0, hypot(x - top.x, z - top.z) - top.rim);
 }
 
@@ -113,7 +123,7 @@ export function headOnContour(
 ): number | null {
   const under = (z: number): boolean => sampleField(ground, x, z) <= top.y - headBelow(top, x, z);
   const near = (z: number): boolean =>
-    hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
+    top.loose === true || hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
   if (!under(z0)) {
     for (let k = 1; k <= HEAD_SLIDES; k++) {
       const z = z0 + k * HEAD_SLIDE;
@@ -157,8 +167,9 @@ export function placeStart(
   const dir = lean >= 0 ? 1 : -1;
   // Under a top, at half the step along the contour and a little further
   // down the fall line at each, for the ramp's room as much as the start's.
-  const split = top === null ? 1 : 2;
-  const downs = top === null ? [0] : HEAD_DOWNS;
+  const close = top !== null && !top.loose;
+  const split = close ? 2 : 1;
+  const downs = close ? HEAD_DOWNS : [0];
   for (let k = 0; k <= START_STEPS * split; k++) {
     for (const sgn of k === 0 ? [1] : [dir, -dir]) {
       const x = spec.x + (sgn * k * START_STEP) / split;
@@ -168,7 +179,7 @@ export function placeStart(
       if (z0 === null) continue;
       for (const down of downs) {
         const z = z0 + down;
-        if (top && hypot(x - top.x, z - top.z) > RR.lift.top.ramp.far - REACH_SPARE) break;
+        if (top && close && hypot(x - top.x, z - top.z) > RR.lift.top.ramp.far - REACH_SPARE) break;
         const heading = fairHeading(ground, x, z, spec.heading, spec.row);
         if (heading !== null && clear(x, z, heading)) return { ...spec, x, z, heading };
       }

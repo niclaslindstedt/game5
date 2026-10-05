@@ -94,6 +94,17 @@ export type GeneratorTraits = {
    * to climb to it. From v5 every start is slid down the fall line
    * under the top (R27), so a rider glides down to it. */
   startsAcrossTop?: boolean;
+  /** THE TOPS LEFT TO THE CONTOUR (v5): every run off a top starts on the
+   * top's contour 4 m under its snow, at whatever distance, a lane where
+   * its slot puts it; a ramp comes down off a pad's rim only where one
+   * reaches a run's snow past its head, met at its shoulder, rolling over a
+   * lip where it must fall far (`summit-ramps-v5.ts`); a chair's unload is
+   * a mound falling every way, the cut under its way in starting 11 m
+   * short of the top, and a drag's top has no ramps. From v6 every run off a
+   * top starts UNDER it where a ramp has room, every ramp lands on its
+   * run's own snow falling all the way and evenly, a chair's unload falls
+   * ahead of the rider and the cut starts behind his tails. */
+  looseTops?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -129,6 +140,18 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     startsAcrossTop: true,
   },
   {
+    version: 5,
+    note:
+      "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
+      "deck along the line level and the pad leaning off it to both sides to its rim; a " +
+      "wide groomed RAMP comes down off the rim to a run where one reaches its snow; the " +
+      "ground under the last of every line is cut away beneath the rope's way in (R26); and " +
+      "every run starts on its top's contour 4 m under the station (R27). v6 starts every " +
+      "run off a top UNDER it where a ramp has room and lays that ramp onto the run's own " +
+      "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
+    looseTops: true,
+  },
+  {
     version: 6,
     note:
       "The tops above their runs: every gondola's and chair's top stands on a pad 48 m " +
@@ -138,9 +161,8 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "UNDER IT by 4 m and a tenth of the way from the rim to it, within reach of a ramp " +
       "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
       "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
-      "pad slides down to his run and never climbs. v5, the leaning tops with their runs " +
-      "started on the top's contour 4 m under it and a ramp only where one reached a run's " +
-      "snow past its head, was retired: no campaign map named it.",
+      "pad slides down to his run and never climbs; a chair's unload ramp falls ahead of " +
+      "the rider, and a drag's top has ramps off where it lets go, where they fit.",
   },
 ];
 

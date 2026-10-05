@@ -304,7 +304,7 @@ re-rated and re-timed; and a version no campaign map names any more is deleted, 
 branches together. A red digest is never fixed by writing the new one down unless the map was
 meant to move.
 
-Today there are three:
+Today there are four:
 
 - **v1** is the generator as Fall Line launched with it — R1–R22, no grades — kept for the six
   trick maps that stand on it (`pwa/src/game/trick-maps.ts`). Its trait `ungraded` builds every map
@@ -330,6 +330,12 @@ Today there are three:
   floor has no room. The analyzer holds all of it (R26). Every campaign map builds on it, its trait
   `levelPads` keeping those level 30 m pads and `startsAcrossTop` its runs' starts. It lays no terrain park (R20): a TRICKS run off a seed
   is built on v1's one piste, as the trick maps are (`createGame`).
+- **v5** is v4 with LEANING TOPS left to the contour, kept for the race maps that stand on it
+  (`pwa/src/game/race-maps.ts`). Its trait `looseTops` builds v6's leaning pad but keeps v5's rest:
+  every run off a top started on the top's contour 4 m under it wherever that lay, a ramp only where
+  one reached a run's snow past its head and within 180 m, met at the run's shoulder and rolling over
+  a LIP into a drop where it had to fall far (`summit-ramps-v5.ts`), a chair's unload a mound, and
+  the cut under a chair's way in from 11 m behind its unload.
 - **v6** is the current rules: v4 with LEANING TOPS ABOVE THEIR RUNS. Every gondola's and chair's top stands on a pad
   48 m across (`lift.top`), its DECK 7 m either side of the line — the wheel, the unload ramp and
   the way off — level, and the pad falling off the deck to both sides at 11 % to its rim, about 2 m
@@ -353,8 +359,6 @@ Today there are three:
   and unload zones (`ropeShortfall`). Every free ride, every race off a link and every lab builds on
   it; v4's trait `startsAcrossTop` keeps a campaign map's starts where they were.
 
-v5 — the leaning tops with their runs started on the top's contour 4 m under it and a ramp only where
-one reached a run's snow past its head — was retired with v6: no campaign map named it.
 
 v2 — the graded generator of one piste down one face (R23, R24) — was retired when the campaign
 moved onto the ski areas, and v3 — the ski areas before their stations stood beside the runs — when

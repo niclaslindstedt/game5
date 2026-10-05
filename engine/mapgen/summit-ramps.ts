@@ -38,6 +38,7 @@ import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { GRADES } from "./grades.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { padded, type StationPad } from "./station-pad.ts";
+import { heightOfV5, lipOfV5 } from "./summit-ramps-v5.ts";
 import type { SummitRamp } from "./types.ts";
 
 const K = RR.lift.top.ramp;
@@ -56,6 +57,7 @@ function evenFall(t: number): number {
  * falls evenly to its foot, where the run takes over — its lip, the run's
  * own head onto the run's pitch. */
 export function rampLip(r: SummitRamp): { at: number; length: number } {
+  if (r.lip) return lipOfV5(r);
   const length = Math.max(1, hypot(r.to.x - r.from.x, r.to.z - r.from.z));
   return { at: length, length };
 }
@@ -63,6 +65,7 @@ export function rampLip(r: SummitRamp): { at: number; length: number } {
 /** A ramp's surface at `t` (0..1) along it: eased off the pad, even on
  * down to its foot. */
 export function rampHeight(r: SummitRamp, t: number): number {
+  if (r.lip) return heightOfV5(r, t);
   return r.from.y - (r.from.y - r.to.y) * evenFall(t);
 }
 

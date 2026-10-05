@@ -115,7 +115,14 @@ function padReading(
   const dx = (l.top.x - l.bottom.x) / len;
   const dz = (l.top.z - l.bottom.z) / len;
   const chair = l.kind === "chair";
-  const levelPads = generatorTraits(level.version).levelPads === true;
+  const traits = generatorTraits(level.version);
+  const levelPads = traits.levelPads === true;
+  // v4's and v5's chair unloads are mounds, v5's cut 11 m short of the top.
+  const mound = levelPads || traits.looseTops === true;
+  const from = {
+    chair: traits.looseTops ? 11 : RR.lift.top.approach.from.chair,
+    gondola: RR.lift.top.approach.from.gondola,
+  };
   const pad = levelPads ? RR.lift.pad : RR.lift.top.pad;
   const deck = levelPads ? Infinity : RR.lift.top.deck;
   const lean = levelPads ? 0 : RR.lift.top.lean;
@@ -131,14 +138,14 @@ function padReading(
     for (const r of [0, 0.15, 0.3, 0.45].map((k) => k * pad)) {
       const x = l.top.x + Math.sin(t) * r;
       const z = l.top.z + Math.cos(t) * r;
-      if (chair && onUnload(x - ux, z - uz, dx, dz, levelPads)) continue;
+      if (chair && onUnload(x - ux, z - uz, dx, dz, mound)) continue;
       // From v5 the ground under the line's way in is cut away (R26).
       if (!levelPads) {
         const back = (l.top.x - x) * dx + (l.top.z - z) * dz;
         const v = Math.abs((x - l.top.x) * dz - (z - l.top.z) * dx);
         const A = RR.lift.top.approach;
         const k = chair ? "chair" : "gondola";
-        if (back > A.from[k] - A.ease && v < A.half[k] + A.blend) continue;
+        if (back > from[k] - A.ease && v < A.half[k] + A.blend) continue;
       }
       if (lines.some((p) => hypot(x - p.x, z - p.z) < PAD_LINE)) continue;
       // The lean off the deck taken back out: what is left is level.
@@ -155,9 +162,9 @@ function padReading(
 /** Whether a point (rx, rz) from a chair's unload point is on its unload
  * ramp (R26): a level pad's mound round it, a leaning pad's ramp along the
  * line beside it (`lift.unload`), with a metre to spare. */
-function onUnload(rx: number, rz: number, dx: number, dz: number, levelPads: boolean): boolean {
+function onUnload(rx: number, rz: number, dx: number, dz: number, mound: boolean): boolean {
   const U = RR.lift.unload;
-  if (levelPads) return hypot(rx, rz) < U.reach + 1;
+  if (mound) return hypot(rx, rz) < U.reach + 1;
   const along = rx * dx + rz * dz;
   const across = Math.abs(rx * dz - rz * dx);
   return along > -U.back - U.edge - 1 && along < U.reach + 1 && across < U.half + U.edge + 1;
@@ -187,7 +194,8 @@ function rampFault(
   const run = level.resort?.runs.find((q) => q.id === r.run);
   if (!run) return "comes down to no run";
   const length = hypot(r.to.x - r.from.x, r.to.z - r.from.z);
-  if (r.from.y - r.to.y < RR.lift.top.ramp.fall * length - RAMP_SLACK)
+  // v5's ramp (`lip`) need only fall, and rolls over its lip at 0.65.
+  if (!r.lip && r.from.y - r.to.y < RR.lift.top.ramp.fall * length - RAMP_SLACK)
     return `falls only ${((r.from.y - r.to.y) / length).toFixed(2)} to its run`;
   let last = level.groundAt(r.from.x, r.from.z);
   // Short of its foot, where the run's own shoulder and windrow begin.
@@ -198,7 +206,7 @@ function rampFault(
       r.from.z + (r.to.z - r.from.z) * k,
     );
     if (y > last + RAMP_SLACK) return `climbs at ${u.toFixed(0)} m`;
-    if ((last - y) / RAMP_STEP > RAMP_MOST + RAMP_SLACK)
+    if ((last - y) / RAMP_STEP > (r.lip ? V5_LIP : RAMP_MOST) + RAMP_SLACK)
       return `falls at ${((last - y) / RAMP_STEP).toFixed(2)} at ${u.toFixed(0)} m`;
     last = y;
   }
@@ -215,6 +223,7 @@ const START_SLACK = 1.5;
 /** The steepest a ramp falls anywhere along it: its steepest overall, eased
  * off the pad over its first `ease` share and even after. */
 const RAMP_MOST = RR.lift.top.ramp.steep / (1 - RR.lift.top.ramp.ease / 2);
+const V5_LIP = 0.65;
 
 /** The step a ramp is read at, m, and the slack its fall is read with. */
 const RAMP_STEP = 4;
@@ -308,7 +317,8 @@ export function analyzeResort(level: Level): ResortAnalysis {
         const why = rampFault(level, l, r);
         if (why) add("R26", "error", `${l.id}'s ramp to run ${r.run} ${why}`);
       }
-      if (l.kind === "drag" || generatorTraits(level.version).levelPads) continue;
+      const old = generatorTraits(level.version);
+      if (l.kind === "drag" || old.levelPads || old.looseTops) continue;
       for (const r of runs) {
         if (r.from !== l.id) continue;
         if (r.kind === "piste" && !l.ramps?.some((q) => q.run === r.id))

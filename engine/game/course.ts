@@ -368,6 +368,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.z = z;
   c.y = level.groundAt(x, z) - midSink + c.spec.cogHeight;
   c.vx = c.vy = c.vz = 0;
+  c.switched = false;
   c.q = fromEuler(heading, pitch, roll);
   c.wx = c.wy = c.wz = 0;
   c.tuck = 0;

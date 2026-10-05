@@ -30,6 +30,7 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
   backflip: "BACKFLIP",
   frontflip: "FRONT FLIP",
   spin: "360",
+  half: "180",
   twist: "TWIST",
   landing: "CLEAN LANDING",
   daffy: "DAFFY",
@@ -40,10 +41,10 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
 /** How a revolution's count reads in front of a flip. */
 const TIMES = ["", "", "DOUBLE ", "TRIPLE "];
 
-/** One element as read: a flip by its count, a spin by its degrees, a
- * landing by its tier. */
-function trickWord(kind: TrickKind, spins: number): string {
-  if (kind === "spin") return String(360 * spins);
+/** One element as read: a flip by its count, a spin by its degrees (and
+ * the half turn landed over it, `half`), a landing by its tier. */
+function trickWord(kind: TrickKind, spins: number, half = false): string {
+  if (kind === "spin") return String(360 * spins + (half ? 180 : 0));
   if (kind === "landing" && spins > 1) return "PERFECT LANDING";
   if (kind === "backflip" || kind === "frontflip") {
     return `${TIMES[spins] ?? `${spins}× `}${TRICK_WORDS[kind]}`;
@@ -53,15 +54,22 @@ function trickWord(kind: TrickKind, spins: number): string {
 
 /** THE COMBO AS ONE LINE: its elements in the order they were won, a
  * revolution's later index read INTO its first (a backflip that came round
- * twice in one flight is one DOUBLE BACKFLIP, not two words). */
+ * twice in one flight is one DOUBLE BACKFLIP, not two words), and a half
+ * turn landed over a flight's 360s read into them (a 540, not 360 + 180). */
 export function comboLine(parts: readonly TrickPart[]): string {
-  const merged: { kind: TrickKind; spins: number; flight: number }[] = [];
+  const merged: { kind: TrickKind; spins: number; flight: number; half: boolean }[] = [];
   for (const p of parts) {
+    const spun =
+      p.kind === "half" && merged.find((m) => m.kind === "spin" && m.flight === p.flight);
+    if (spun) {
+      spun.half = true;
+      continue;
+    }
     const same = p.spins > 1 && merged.find((m) => m.kind === p.kind && m.flight === p.flight);
     if (same) same.spins = Math.max(same.spins, p.spins);
-    else merged.push({ ...p });
+    else merged.push({ ...p, half: false });
   }
-  return merged.map((m) => trickWord(m.kind, m.spins)).join(" + ");
+  return merged.map((m) => trickWord(m.kind, m.spins, m.half)).join(" + ");
 }
 
 /** Metres of vertical, as the HUD and the cards print them. */
@@ -205,6 +213,9 @@ export const STRINGS = {
                   ? "CRASH LANDING"
                   : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
+  /** Riding switch into loose snow on tails that do not ride over it
+   * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
+  newsTailDug: "TAILS DUG IN",
   /** The player into one of the crowd on a free ride (`crowd.ts`): a
    * shoulder he rode through, or one that put the other skier down. */
   newsCrowdBump: "OI! WATCH IT",

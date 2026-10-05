@@ -379,7 +379,9 @@ export function trick(id, title, input) {
     id,
     title,
     mode: "tricks",
-    level: (S) => S.flatLevel({ packed: 1 }),
+    // A landing slope falling 24° from just short of where the flight comes
+    // down, as a park kicker's built landing has it.
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.45, slopeFrom: 230 }),
     place: () => LAUNCH,
     seconds: 4,
     view: "profile",
@@ -396,3 +398,28 @@ export const schussStrip = (S, packed = 1) =>
 export const TOP = { x: 2000, z: 210, heading: 0, speed: 3 };
 /** Down the pitch already, at `kmh`. */
 export const onPitch = (kmh) => ({ x: 2000, z: 600, heading: 0, speed: kmh / 3.6 });
+
+/** RIDING SWITCH (`switch.ts`) on a free ride: stood on a 14° slope falling
+ * toward +z FACING UP IT and let go, then the edge to the right from 3 s —
+ * on the groomer (`packed` 1) or the ordinary powder (0). */
+export function switchRide(id, title, packed) {
+  return {
+    id,
+    title,
+    mode: "free",
+    level: (S) => S.flatLevel({ packed, grade: 0.25, slopeFrom: 0 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, pitch: Math.atan(0.25) }),
+    seconds: 5,
+    view: "plan",
+    input: (t) => ({ ...IDLE, steer: t > 3 && t < 4 ? 1 : 0 }),
+    measure: (run) => {
+      const last = run.frames[run.frames.length - 1];
+      const out = run.events.find((e) => e.kind === "wipeout");
+      return [
+        ["way km/h", fmt(last.way * 3.6, 1)],
+        ["went right m", fmt(last.x - 1500, 2)],
+        ["wipeout", out ? `${out.cause} at ${fmt(out.t, 2)} s` : "none"],
+      ];
+    },
+  };
+}

@@ -47,6 +47,13 @@ export const KEY_BRAKE_RELEASE = 30;
  * do it in; coming back to centre is quicker still. */
 export const KEY_LEAN_ATTACK = 10;
 export const KEY_LEAN_RELEASE = 14;
+/** ...and both the edge and the lean keys' attack IN THE AIR, 1/s: there a
+ * tap is a STROKE (`strokes.ts` — half a turn on the edge, a loop on the
+ * lean, on a run that lets him trick) and only counts once the axis is
+ * carried past its gate, so the quickest tap a finger makes — 50 ms — must
+ * get there: at this rate the edge's gate is reached in 30 ms and the
+ * lean's in 55. */
+export const KEY_AIR_ATTACK = 30;
 
 /** Walk `value` toward `target` at `attack` per second when the target is
  * away from centre and `release` when it is centre, over `dt` seconds. A
@@ -406,9 +413,11 @@ export function sampleInput(
   airborne = false,
   flying = false,
 ): SkierInput {
-  const keyAir = airLean(model, keys, airborne && !flying);
+  const aloft = airborne && !flying;
+  const keyAir = airLean(model, keys, aloft);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  model.steer = rampToward(model.steer, steerTarget, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  const steerAttack = aloft ? KEY_AIR_ATTACK : KEY_STEER_ATTACK;
+  model.steer = rampToward(model.steer, steerTarget, dt, steerAttack, KEY_STEER_RELEASE);
   model.tuck = rampToward(model.tuck, keys.tuck ? 1 : 0, dt, KEY_TUCK_ATTACK, KEY_TUCK_RELEASE);
   // THE BACK KEY, the key or the edge thumb dragged down on the snow, and
   // which of its two meanings it went down as.
@@ -429,7 +438,8 @@ export function sampleInput(
     keys.leanBack || keys.leanForward
       ? (keys.leanBack ? 1 : 0) - (keys.leanForward ? 1 : 0)
       : keyAir;
-  model.lean = rampToward(model.lean, leanTarget, dt, KEY_LEAN_ATTACK, KEY_LEAN_RELEASE);
+  const leanAttack = aloft ? KEY_AIR_ATTACK : KEY_LEAN_ATTACK;
+  model.lean = rampToward(model.lean, leanTarget, dt, leanAttack, KEY_LEAN_RELEASE);
 
   const steer = touch.bar ? touch.steer : model.steer;
   // A thumb dragged down as the back key is not also leaning him back.

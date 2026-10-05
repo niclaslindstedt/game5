@@ -31,6 +31,7 @@
 import {
   TUCK,
   IDLE,
+  switchRide,
   hold,
   tail,
   fmt,
@@ -827,14 +828,33 @@ export const SCENARIOS = [
     }),
     measure: balance,
   },
-  trick("backflip", "a backflip off a staged launch over flat snow", (t) => ({
-    lean: t < 1.2 ? 1 : 0,
+  trick(
+    "backflip",
+    "a backflip off a staged launch onto a landing slope: one tap of the lean back",
+    (t) => ({
+      lean: t < 0.1 ? 1 : 0,
+    }),
+  ),
+  trick("frontflip", "a front flip onto a landing slope: one tap of the lean forward", (t) => ({
+    lean: t < 0.1 ? -1 : 0,
   })),
-  trick("frontflip", "a front flip over flat snow: the weight thrown forward", (t) => ({
-    lean: t < 1.2 ? -1 : 0,
+  trick("spin", "a 360 onto a landing slope: the edge tapped over twice", (t) => ({
+    steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0,
   })),
-  trick("spin", "a 360 over flat snow: the edge thrown over", (t) => ({ steer: t < 0.4 ? 1 : 0 })),
-  trick("pose", "a spread over flat snow, let go before the landing", (t) => ({
+  trick(
+    "half",
+    "a 180 onto a landing slope: the edge tapped over once, ridden away switch",
+    (t) => ({
+      steer: t < 0.05 ? 1 : 0,
+    }),
+  ),
+  switchRide("switch", "turned round on a 14° groomer, ridden backward, then steered right", 1),
+  switchRide(
+    "switch-powder",
+    "the same in the ordinary powder: the tails dig, but a twin-tip's",
+    0,
+  ),
+  trick("pose", "a spread onto a landing slope, let go before the landing", (t) => ({
     trick: t < 0.8,
     lean: t < 0.8 ? 1 : 0,
   })),
@@ -846,12 +866,9 @@ export const SCENARIOS = [
     place: (S) => atKicker(S, 70, 75),
     seconds: 6,
     view: "profile",
-    // The lean held from the foot of the ramp — one stroke at the lip — and
-    // let go past half a turn; the weight forward checks the last quarter.
-    input: (t, st) => {
-      const turned = st.tricks.rotation;
-      return { ...TUCK, lean: turned < 3.5 && t < 3.2 ? 1 : turned > 5 ? -1 : 0 };
-    },
+    // The lean held from the foot of the ramp — one stroke at the lip,
+    // however long it is held — and let go past half the loop.
+    input: (t, st) => ({ ...TUCK, lean: st.tricks.rotation < 3 && t < 3.2 ? 1 : 0 }),
     measure: tricked,
   },
 ];

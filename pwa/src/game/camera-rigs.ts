@@ -107,6 +107,11 @@ export type RigPose = {
   vz: number;
   speed: number;
   airborne: boolean;
+  /** RIDING SWITCH (`SkierState.switched`): going down the hill tails
+   * first, so the boom stands behind the way he is GOING — the skier seen
+   * from his front, skiing backward at the lens. Decided on the snow and
+   * held through a flight, so a 360 does not swing the boom round twice. */
+  switched?: boolean;
   /** The packed share under the skis, 0 powder .. 1 groomed. */
   packed: number;
   /** Body → world (the framework's `core/quat` convention). */
@@ -544,11 +549,14 @@ export function frameRig(
     st.fresh = false;
     return { eye, target: { x: pose.x, y: pose.y + 0.6, z: pose.z }, fov: rig.fov, roll: 0 };
   }
-  // THE BOOM. Its yaw follows a blend of the nose and the travel.
+  // THE BOOM. Its yaw follows a blend of the nose and the travel — the
+  // nose the end of the skis that leads, the tails when he rides switch,
+  // and the boom swung round behind them on its own spring when he starts.
   const snap = st.fresh;
   const plan = Math.hypot(pose.vx, pose.vz);
-  const travel = plan > 2 ? Math.atan2(pose.vx, pose.vz) : pose.heading;
-  const want = pose.heading + turn(pose.heading, travel) * rig.slipWeight;
+  const nose = pose.heading + (pose.switched ? Math.PI : 0);
+  const travel = plan > 2 ? Math.atan2(pose.vx, pose.vz) : nose;
+  const want = nose + turn(nose, travel) * rig.slipWeight;
   const yaw = snap ? settle(st.yaw, want) : followAngle(st.yaw, rig.yaw, want, dt);
   const lx = Math.sin(yaw);
   const lz = Math.cos(yaw);

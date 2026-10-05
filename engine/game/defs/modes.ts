@@ -48,13 +48,20 @@ export type RunRules = {
    * kept on every run (`tricks.ts`), but only a run with this on can turn
    * anything. */
   tricks: boolean;
+  /** WHETHER THE SKIER MAY TRICK THE MOUNTAIN: the strokes thrown in the
+   * air (`strokes.ts` — a tap on the edge half a turn about his up axis, a
+   * tap on the lean a whole one nose over tail) and riding SWITCH, the
+   * skis backward down the hill (`skier.ts`, `flight.ts`, `crash.ts`). On
+   * the FREE RIDE and on TRICKS; never on a race, whose skier goes down the
+   * hill facing it. */
+  stunts: boolean;
   /** THE BUZZER, s of run clock: the run ends there, whatever it was doing;
    * 0 is no buzzer at all. */
   limit: number;
   /** THE PULL ON A SKIER IN FLIGHT, as a multiple of `TUNING.g`: the arcade's
    * heavier air (`TUNING.air.gravity`) on a race, and the real g on a tricks
-   * run, whose strokes and combos are timed to a real hang (`limits.ts`'s
-   * `flightGravity`). */
+   * run and a free ride, whose strokes and combos are timed to a real hang
+   * (`limits.ts`'s `flightGravity`). */
   airGravity: number;
   /** THE CROWD: how many amateurs are out on the ski area (`crowd.ts`) —
    * the free ride's resort full of people; 0 on every measured run, which
@@ -207,6 +214,7 @@ export function fieldRules(laps: number): RunRules {
     contact: true,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -246,6 +254,7 @@ export function slalomRules(laps: number): RunRules {
     contact: false,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -286,6 +295,7 @@ export function downhillRules(laps: number): RunRules {
     contact: false,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -327,6 +337,7 @@ export function superGRules(laps: number): RunRules {
     contact: false,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -395,6 +406,7 @@ export function openRules(laps: number): RunRules {
     contact: true,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -408,8 +420,11 @@ export function openRules(laps: number): RunRules {
 }
 
 /** THE FREE RIDE: no field, no lights, and no course — the whole mountain
- * to ski, the clock running only as a record of the outing, and the ski
- * area full of other people skiing it (`CROWD.count` of them). */
+ * to ski, the clock running only as a record of the outing, the ski area
+ * full of other people skiing it (`CROWD.count` of them), and the mountain
+ * his to trick: the strokes in the air and riding switch, under the real g
+ * a tricks run flies in, so the jump key's own pop holds him up long
+ * enough to come round. */
 export function freeRules(laps: number): RunRules {
   return {
     rivals: 0,
@@ -418,8 +433,9 @@ export function freeRules(laps: number): RunRules {
     contact: true,
     course: false,
     tricks: false,
+    stunts: true,
     limit: 0,
-    airGravity: TUNING.air.gravity,
+    airGravity: TRICKS_RUN.airGravity,
     crowd: CROWD.count,
     lifts: true,
     heli: true,
@@ -491,6 +507,7 @@ export function timeTrialRules(laps: number): RunRules {
     contact: true,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,
@@ -529,6 +546,7 @@ export function tricksRules(laps: number): RunRules {
     contact: true,
     course: false,
     tricks: true,
+    stunts: true,
     limit: TRICKS_RUN.limit,
     airGravity: TRICKS_RUN.airGravity,
     crowd: 0,

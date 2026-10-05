@@ -78,6 +78,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // A near fall ridden out is worth a word only when it was near.
       return e.size >= SAVE_SAID ? { text: STRINGS.newsSave(e.save), tone: "good" } : null;
     case "wipeout":
+      // Over the leading end riding switch is over the TAILS (`switch.ts`).
+      if (e.cause === "nose" && state.skier.switched)
+        return { text: STRINGS.newsTailDug, tone: "bad" };
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
       return { text: STRINGS.newsStuck, tone: "bad" };

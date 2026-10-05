@@ -39,6 +39,7 @@ export function airTorque(
   out: { x: number; y: number; z: number },
   level = 1,
   landing: Landing | null = null,
+  backward = false,
 ): void {
   out.x += -A.leanTorque * c.lean;
   out.y += A.steerTorque * c.steer;
@@ -66,7 +67,9 @@ export function airTorque(
   // It gives way to the lean (a skier leaning is flying himself — a flip
   // is a lean carried round) and gives up past `pitchGiveUp`, and it is
   // never more than `pitchLevelMax`.
-  const path = Math.atan2(c.vy, hypot(c.vx, c.vz));
+  // Flying tails first (`backward`, a 180 on a run that lets him), the
+  // tails are what rises along the path: the tips aim the other way.
+  const path = Math.atan2(c.vy, hypot(c.vx, c.vz)) * (backward ? -1 : 1);
   const look = landing ? clamp(1 - landing.t / A.landLook, 0, 1) : 0;
   const aim = clamp(
     path * 0.5 * (1 - look) + (landing ? landing.slope : 0) * look,
@@ -162,30 +165,37 @@ export function landingTolerance(g: number): number {
 }
 
 /** HOW FAR OFF TRUE the skis come down, as a share of what a clean landing
- * forgives (1 is the edge of it): the worst of the tips into the slope, the
- * tails first, the roll across it and the slide sideways to the way. The
- * skis' `fwd` and `right` and the ground's `normal` in the world frame,
- * and the velocity. */
+ * forgives (1 is the edge of it): the worst of the leading end into the
+ * slope, the trailing end first, the roll across it and the slide sideways
+ * to the way. The skis' `fwd` and `right` and the ground's `normal` in the
+ * world frame, and the velocity. `switchOk` (`RunRules.stunts`) lets him
+ * come down BACKWARD: the skis are then judged against the way he is
+ * going tails first, the tails the end that must not dig. */
 export function landingOff(
   fwd: { x: number; y: number; z: number },
   right: { x: number; y: number; z: number },
   normal: { x: number; y: number; z: number },
   vx: number,
   vz: number,
+  switchOk = false,
 ): number {
-  const pitch = Math.asin(clamp(-(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z), -1, 1));
+  const flat = hypot(vx, vz);
+  const tailsFirst = flat > 1 && fwd.x * vx + fwd.z * vz < 0;
+  const ends = switchOk && tailsFirst ? -1 : 1;
+  const pitch = Math.asin(
+    clamp(-(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z) * ends, -1, 1),
+  );
   const roll = Math.asin(
     clamp(right.x * normal.x + right.y * normal.y + right.z * normal.z, -1, 1),
   );
-  const flat = hypot(vx, vz);
   const slide =
     flat > 1
       ? Math.abs(
           Math.asin(clamp((fwd.x * vz - fwd.z * vx) / (flat * (hypot(fwd.x, fwd.z) || 1)), -1, 1)),
         )
       : 0;
-  // Landing backwards is landing sideways twice over.
-  const back = flat > 1 && fwd.x * vx + fwd.z * vz < 0 ? Math.PI / 2 : 0;
+  // Landing backwards is landing sideways twice over — unless he may.
+  const back = tailsFirst && ends > 0 ? Math.PI / 2 : 0;
   return Math.max(
     pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,
     Math.abs(roll) / LD.rolled,

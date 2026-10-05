@@ -718,14 +718,14 @@ export function createWorldRenderer(
       rigPose.vz = skier.vz;
       rigPose.speed = skier.speed;
       rigPose.airborne = skier.airborne;
+      rigPose.switched = skier.switched;
       rigPose.packed = skier.packed;
       rigPose.summit = summitShare(level, d.x, d.z);
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       const inside = lens.rung() === "tips" || lens.rung() === "helmet";
       player.model.setSkierVisible(!inside);
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks);
-      // THE DEATH CAM (`camera-death.ts`) takes the lens off the ladder while
-      // the player is off his skis — at full speed, the run never slowed.
+      // THE DEATH CAM (`camera-death.ts`): the lens off the ladder while he is off his skis.
       let dead: LensPose | null = null;
       if (deathOn && !override && !shot && lens.rung() !== "orbit") {
         dead = frameDeath(

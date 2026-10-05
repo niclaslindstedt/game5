@@ -163,6 +163,9 @@ export type SpringRide = {
   /** How long he has been in the air, s, and his body's rates, rad/s
    * (`SkierState`) — what the fall is staged by. */
   airTime?: number;
+  /** The lean as the body has it (`SkierState.lean`), −1..1 — in the air,
+   * how committed he is to his line (`skier-flight.ts`). */
+  lean?: number;
   /** Seconds since he last sprang a jump (`SkierState.popped`). */
   popped?: number;
   /** Stepping round on the spot (`SkierState.pivot`), ±1 or 0. */
@@ -493,6 +496,7 @@ export function stepSkierSpring(
     Math.hypot(ride?.wx ?? 0, ride?.wy ?? 0, ride?.wz ?? 0),
     dt,
     fall?.gravity,
+    ride?.lean,
   );
   // A HOP is not a flight (`flying`): he goes compact only once he is
   // really flying.

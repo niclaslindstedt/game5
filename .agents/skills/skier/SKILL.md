@@ -139,7 +139,7 @@ when the skis he stands on are what moves.
 | `scripts/skate-turns-lab.mjs` | THE TURN AT A CRAWL (`make skate-turns`): how far and how fast he comes round stepping his skis (the skate turned into the turn — `Gait.splay` led by the engine's `step`), the table and the turning moves' path and strip sheets |
 | `scripts/turns-preview.mjs`, `pwa/src/tools/turns-harness.ts` | THE TURNS LAB (`make turns`): one turn, linked carves, a skidded turn and a hockey stop at several speeds through the game's own renderer, each cell printing the load split and each ski's gap |
 | `scripts/technique-preview.mjs`, `scripts/lib/technique-measure.mjs`, `pwa/src/tools/technique-harness.ts` | THE TECHNIQUE LAB (`make technique`): each riding technique skied by the bot down one course — a table against the research targets (`docs/disciplines.md`), and the run strobed from above, a TV lens through one turn and its apex from outside, the front and inside; and the TURN SHAPES (`scripts/lib/technique-shape.mjs`, `pwa/src/tools/technique-turns.ts`): each technique's own linked carve down one open slope, from above at one scale, coloured by radius |
-| `pwa/src/game/skier-flight.ts` | THE FALL: the fall clock, SET → SPOT → WINDMILL → REACH, the arms' angle wound round and braked home, `flightRead` (how high, how soon the snow), `flightShape` (what the pose lays on); `tests/skier_flight_test.ts` |
+| `pwa/src/game/skier-flight.ts` | THE FALL: the fall clock, SET → SPOT → WINDMILL → REACH (and COMMITTED: a lean held cancels the windmill), the arms' angle wound round and braked home, `flightRead` (how high, how soon the snow), `flightShape` (what the pose lays on); `tests/skier_flight_test.ts` |
 | `pwa/src/game/skier-spring.ts` | The view's own state between frames: the upper body as a mass on the legs (`LEGS`: kicked by the pair's climb, damped against the line he rides, the legs' reach), the trunk's pitch held off the skis' rocking (`pitchHeld`), the air and a jump's load eased, the hips, edge, roll and the skid's pivot followed (`drawnSkiAngle` — the skis are drawn on it too), the start gate's stance eased in and out (`ready`, off `inStartGate`), his own clock |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
 | `tests/world_render_test.ts`, `tests/skier_pose_test.ts` | The pose held: boots in the bindings, each shin in its boot, hands on the grips, the carve an inclined column hinged at the hips, the eyes toward the horizon, the back rounded in the tuck, compact in the air, alive stood still; the half bones turn half way and the hands close round the poles |
@@ -202,9 +202,14 @@ when the skis he stands on are what moves.
    (`skier-flight.ts`, `SkierSpring.flight`) on a FALL CLOCK that runs only
    while he is HIGH over the snow: SET (compact, quiet), SPOT (hands
    forward and wide, chest over the knees, head on the landing), a
-   measured forward WINDMILL on a cliff (both arms on one circle round
-   their shoulders, a beat apart, a circle a second — wound up from the
-   spot and braked home into it, never hurried), and REACH over the last
+   measured forward WINDMILL on a cliff (the fists on a circle IN FRONT of
+   the shoulders, a beat apart, a circle a second — wound up from the
+   spot and braked home into it, never hurried, never swung behind him;
+   the poles held BACK, OUT AND DOWN inside the grip's cone, `POLE` — a
+   gripped shaft stands 95–150° off the forearm, so a straight arm swung
+   behind him would have to point its pole forward), never while he holds a LEAN — COMMITTED, the arms set forward
+   and still: a lean is a line chosen through the air, circling arms are a
+   skier fighting one he did not choose — and REACH over the last
    half second (`flightRead`: the flight's ballistics over the map, which
    each model is handed by `setGround`) — arms forward and down, legs long
    by the size of the fall. Never panicked: a professional's. The arms are

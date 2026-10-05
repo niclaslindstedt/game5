@@ -2,12 +2,13 @@
 // THE STATIONS' PIECES AS BUILT — every piece `station-plan.ts` sets down,
 // built in boxes like the rest of the lifts and coloured per vertex, ONE
 // INSTANCED DRAW A KIND for the whole resort: the terminal hoods, the
-// operators' booths, the wind masts, the patrol hut, the map board, the load
+// operators' booths, the wind masts, the map boards' frames, the load
 // lines, the stations' doors and canopies, the drag huts, and the corrals'
 // rope lines on their poles.
 
 import * as THREE from "three";
 
+import { BOARD_FACE } from "./map-board.ts";
 import type { Part, PartKind, StationLayout } from "./station-plan.ts";
 
 /** The paints, sRGB. */
@@ -23,9 +24,7 @@ export const STATION_PAINT = {
   load: 0x2f6fd6,
   pole: 0xe8c23a,
   rope: 0x1d1f22,
-  patrol: 0xc22a26,
   white: 0xf4f4f2,
-  board: 0x3f7d3a,
 } as const;
 const P = STATION_PAINT;
 
@@ -109,32 +108,25 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
       box(0.05, 0.05, 0.9, 0, 8.7, -0.3, P.dark),
       box(0.03, 0.3, 0.3, 0, 8.7, -0.75, P.stripe),
     ]),
-  // The patrol's hut: red walls, a white cross on both flanks, a dark roof
-  // and a rescue sled stood against its front.
-  patrol: () =>
-    merged([
-      box(4, 2.6, 3, 0, 1.3, 0, P.patrol),
-      box(4.6, 0.3, 3.6, 0, 2.75, 0, P.roof),
-      box(0.04, 1.0, 0.3, 2.02, 1.5, 0, P.white),
-      box(0.04, 0.3, 1.0, 2.02, 1.5, 0, P.white),
-      box(0.04, 1.0, 0.3, -2.02, 1.5, 0, P.white),
-      box(0.04, 0.3, 1.0, -2.02, 1.5, 0, P.white),
-      box(1.1, 2.0, 0.06, -0.8, 1.0, 1.52, P.dark),
-      box(0.7, 1.8, 0.2, 1.2, 0.9, 1.7, P.stripe),
-    ]),
-  // The piste map board at the head of the dispersal area: two posts and a
-  // panel of the mountain, its runs as bands of their colours.
-  board: () =>
-    merged([
-      box(0.12, 2.6, 0.12, -1.15, 1.3, 0, P.timber),
-      box(0.12, 2.6, 0.12, 1.15, 1.3, 0, P.timber),
-      box(2.4, 1.5, 0.08, 0, 1.85, 0.08, P.white),
-      box(2.1, 0.25, 0.02, 0, 2.3, 0.13, P.board),
-      box(0.12, 0.9, 0.02, -0.6, 1.7, 0.13, P.load),
-      box(0.12, 0.9, 0.02, 0, 1.7, 0.13, P.stripe),
-      box(0.12, 0.9, 0.02, 0.6, 1.7, 0.13, P.dark),
-      box(2.6, 0.12, 0.3, 0, 2.66, 0.05, P.roof),
-    ]),
+  // The piste map board: two stout posts, a timber frame round the face
+  // (`map-board.ts` paints it, `BOARD_FACE`), a dark back and a little
+  // pitched roof to keep the snow off it.
+  board: () => {
+    const F = BOARD_FACE;
+    const w = F.width / 2;
+    const top = F.foot + F.height;
+    const z = F.front;
+    return merged([
+      box(0.16, top + 0.45, 0.16, -(w + 0.14), (top + 0.45) / 2, 0, P.timber),
+      box(0.16, top + 0.45, 0.16, w + 0.14, (top + 0.45) / 2, 0, P.timber),
+      box(F.width + 0.1, F.height + 0.1, 0.06, 0, F.foot + F.height / 2, z - 0.05, P.dark),
+      box(F.width + 0.3, 0.12, 0.1, 0, F.foot - 0.06, z, P.timber),
+      box(F.width + 0.3, 0.12, 0.1, 0, top + 0.06, z, P.timber),
+      box(0.12, F.height + 0.24, 0.1, -(w + 0.09), F.foot + F.height / 2, z, P.timber),
+      box(0.12, F.height + 0.24, 0.1, w + 0.09, F.foot + F.height / 2, z, P.timber),
+      box(F.width + 0.7, 0.1, 0.75, 0, top + 0.42, z - 0.1, P.roof),
+    ]);
+  },
   // The load line: a blue board laid across the lane, flush with the snow.
   load: () => merged([box(1, 0.04, 0.35, 0, 0.02, 0, P.load)]),
   // A station's door: the dark doorway and its frame, standing proud of

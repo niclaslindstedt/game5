@@ -17,17 +17,23 @@
 // among them, its boards stacked, the pistes over the lanes, green to black,
 // each arrow pointing its own run's way.
 //
-// AT A CHAIR'S TOP, where the way off parts (`chairLane`), a post of its own
-// faces the rider coming down the lane: a board a run he can ski onto from
-// the pad (`signsOf`), each plank CUT AS AN ARROW pointing the way the run
-// leaves — the same wood, the same mark and the same burned name.
+// AT A LIFT'S TOP, every run a rider let go there can ski onto has a sign
+// at the HEAD OF ITS RAMP (R26, `Lift.ramps`): on the pad a few steps short
+// of the rim, at the ramp's right-hand edge, turned to face back up across
+// the pad — so it stands LOWER than he came off the lift, down the pad's
+// lean, in front of him as he looks for his way down, and he follows the
+// one he wants straight down its ramp onto its run. A map from before the
+// ramps keeps a post at a chair's parting (`chairLane`) instead, each
+// plank CUT AS AN ARROW the way its run leaves (`signsOf`).
 
 import {
   LIFT_LOOK,
+  RESORT_RULES,
   chairLane,
   liftPlans,
   trackPointAt,
   type Level,
+  type LiftPlan,
   type PisteGrade,
   type Run,
   type TrackPoint,
@@ -294,17 +300,45 @@ export function signPlan(level: Level): readonly SignPost[] {
   return posts;
 }
 
-/** THE ARROW BOARDS AT EVERY CHAIR'S TOP: a post across the far side of the
- * way off (`chairLane`), facing a rider coming down it, a board cut as an
- * arrow for every run he can ski onto from the pad (`signsOf`) — those to
- * the lane's side above. The lane's side, the engine's +v, is the reader's
- * LEFT as the picture shows him (`beside`). They stand in the station on
- * purpose, where the way off parts, and are drawn with the piste-head signs
+/** THE SIGNS AT EVERY LIFT'S TOP: a post at the head of every ramp off it
+ * (R26) — `SUMMIT.in` m in from the rim onto the pad and `SUMMIT.edge` m in
+ * from the ramp's right-hand edge, a skier reading it looking down the
+ * ramp — with its run's board, its arrow pointing down the ramp to the
+ * run. A chair's top on a map from before the ramps keeps one post across
+ * the far side of its way off (`chairLane`) with an arrow board a run
+ * (`signsOf`), those to the lane's side above — the lane's side, the
+ * engine's +v, the reader's LEFT. Drawn with the piste-head signs
  * (`run-signs.ts`). */
 export function summitSigns(level: Level): SignPost[] {
   const runs = level.resort?.runs ?? [];
   const posts: SignPost[] = [];
   for (const plan of liftPlans(level)) {
+    if (plan.lift.ramps?.length) {
+      for (const ramp of plan.lift.ramps) {
+        const run = runs.find((r) => r.id === ramp.run);
+        if (!run) continue;
+        const heading = Math.atan2(ramp.to.x - ramp.from.x, ramp.to.z - ramp.from.z);
+        // Round the pad clockwise from the ramp's head — a ramp leaves out
+        // off the rim, so that is to the reader's right — to its edge, in
+        // from the rim.
+        const mid = padMiddle(plan);
+        const r = Math.hypot(ramp.from.x - mid.x, ramp.from.z - mid.z) - SUMMIT.in;
+        const head = Math.atan2(ramp.from.x - mid.x, ramp.from.z - mid.z);
+        const at = head + (ramp.width / 2 - SUMMIT.edge) / r;
+        const x = mid.x + Math.sin(at) * r;
+        const z = mid.z + Math.cos(at) * r;
+        const to = { x: ramp.to.x, z: ramp.to.z } as TrackPoint;
+        const board = boardOf(level, run, arrowTo(x, z, heading, to));
+        posts.push({
+          x,
+          z,
+          y: level.groundAt(x, z),
+          heading,
+          boards: [{ ...board, y: SIGN.foot }],
+        });
+      }
+      continue;
+    }
     if (plan.lift.kind !== "chair") continue;
     const signs = signsOf(level, plan);
     if (signs.length === 0) continue;
@@ -326,4 +360,15 @@ export function summitSigns(level: Level): SignPost[] {
     posts.push({ x, z, y: level.groundAt(x, z), heading: plan.heading, boards: placed });
   }
   return posts;
+}
+
+/** Where a ramp's sign stands at its head, m: in from the pad's rim, and
+ * in from the ramp's right-hand edge. */
+const SUMMIT = { in: 3, edge: 2 };
+
+/** The middle of the ground a lift's ramps leave from (R26): a pad's, at
+ * its top; a drag's, where it lets its rider go. */
+function padMiddle(plan: LiftPlan): { x: number; z: number } {
+  const back = plan.lift.kind === "drag" ? RESORT_RULES.lift.drag.letGo : 0;
+  return { x: plan.lift.top.x - plan.dx * back, z: plan.lift.top.z - plan.dz * back };
 }

@@ -637,7 +637,7 @@ export function createSkisModel(
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
-        const sat = skier.lift?.kind === "chair" && skier.lift.phase !== "lead";
+        const sat = skier.lift?.kind === "chair";
         const share = perch !== null ? 1 : sat ? seatedShare(skier.lift!) : 0;
         seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
         const seatY = perch?.y ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;

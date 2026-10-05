@@ -45,6 +45,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 import type { FreeRunInfo } from "./free-ride.ts";
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
+import { rememberBoard } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import {
   PANORAMA_VIEW,
@@ -142,6 +143,8 @@ export function useSeedPreview(
         keep(reply);
         return;
       }
+      // The panorama for the boards at this map's lift tops, if it is ridden.
+      rememberBoard(reply.board, reply.panorama);
       // Keep the schematic at once and each picture as it becomes a URL —
       // at once from a worker with a canvas, a moment later from one without.
       let answer: SeedAnswer = { ...reply, url: null, panoUrl: null };

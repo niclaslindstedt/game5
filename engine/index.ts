@@ -434,7 +434,6 @@ export {
   arrivalOf,
   freeRunOf,
   freeRuns,
-  leadInput,
   pickFreeRun,
   runsOffTop,
   seatedShare,

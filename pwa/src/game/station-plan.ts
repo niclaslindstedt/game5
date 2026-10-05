@@ -11,11 +11,12 @@
 // ramp and up the line; and the WIND MAST on the far corner of the house.
 // Nothing stands across the way off — no stop gate, no netting: a rider
 // stood up slides straight on down the ramp, through the parting and off
-// the pad's lean to his run. The SIGNS at the parting, an arrow board a run
-// he can ski onto from the pad (`signsOf`), are the piste signs' own wooden
-// boards (`run-sign-plan.ts`). On the highest top of the mountain the
-// PATROL HUT up behind the top and the PISTE MAP BOARD beside the signs
-// at the parting.
+// the pad's lean to his run. Straight ahead of him past the parting stands
+// the PISTE MAP BOARD, the ski area painted as the start card paints it
+// (`map-board.ts`), and down at the head of every ramp off the pad, lower
+// than he came off the chair, that run's SIGN (`run-sign-plan.ts`'s
+// `summitSigns`). A GONDOLA'S TOP has its board too, facing the rider
+// walked out of its door.
 //
 // AT A CHAIR'S FOOT: the hood, the booth by the load line, the LOAD LINE
 // itself painted across the up rope's lane, and the roped CORRAL bringing a
@@ -40,8 +41,7 @@ import {
   type PisteGrade,
 } from "@engine";
 
-export type PartKind =
-  "hood" | "booth" | "mast" | "patrol" | "board" | "load" | "door" | "canopy" | "hut";
+export type PartKind = "hood" | "booth" | "mast" | "board" | "load" | "door" | "canopy" | "hut";
 
 /** One piece set down: where (its foot on the snow, or `y` given), turned
  * `yaw` (its +z), sized as its builder reads it. */
@@ -76,16 +76,18 @@ const BOOTH_OUT = 3.6;
 const BOOTH_LANE = 2.4;
 const BOOTH_BACK = 5;
 const LANE = 1.4;
-/** The patrol's hut, m up the line past the wheel and across it; the map
- * board, m beside the signs' post (or up past a gondola's wheel). */
-const PATROL = { u: 20, v: 8 };
-const BOARD = { u: 12, v: 4 };
+/** The map board at a gondola's top: m down the line from its wheel past
+ * the door its rider is walked out of, and across it — off the cut under
+ * the way in. */
+const BOARD = { u: 14, v: 14 };
+/** Where a gondola's rider is walked out onto the pad, m short of its
+ * wheel (`TUNING.lift.door`). */
+const DOOR_OUT = 10;
 
 /** Every station of the map laid out. */
 export function layStations(level: Level, plans: readonly LiftPlan[]): StationLayout {
   const parts: Part[] = [];
   const fences: Fence[] = [];
-  const peak = plans.reduce((m, p) => Math.max(m, p.lift.top.y), -Infinity);
   for (const p of plans) {
     const L = p.length;
     const g = p.look.gauge / 2;
@@ -141,18 +143,16 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
         size: 1,
       });
     }
-    // THE HIGHEST TOP: the patrol's hut up behind the top, where no way off
-    // the pad goes, and the map board beside the signs at the parting —
-    // both off the pad's lean, which a rider slides down to his run.
-    if (p.lift.kind !== "drag" && p.lift.top.y === peak) {
-      put("patrol", L + PATROL.u, -(g + PATROL.v), side);
-      const at = p.lift.kind === "chair" ? chairLane(p) : null;
-      put(
-        "board",
-        at ? at.signs : L + BOARD.u,
-        at ? at.v + BOARD.v : g + BOARD.v,
-        p.heading + Math.PI,
-      );
+    // THE PISTE MAP BOARD, facing where the rider is let go: at a chair's
+    // top straight ahead of him past the parting, at a gondola's beside its
+    // door.
+    if (p.lift.kind !== "drag") {
+      const lane = p.lift.kind === "chair" ? chairLane(p) : null;
+      const at = lane ? { u: lane.signs, v: lane.v } : { u: L - BOARD.u, v: g + BOARD.v };
+      const off = lane ? { u: lane.exit, v: lane.v } : { u: L - DOOR_OUT, v: 0 };
+      const from = up(at.u, at.v);
+      const to = up(off.u, off.v);
+      put("board", at.u, at.v, Math.atan2(to.x - from.x, to.z - from.z));
     }
   }
   return { parts, fences };
@@ -163,8 +163,8 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
  * from the pad (`runsOffTop` — a lane leaving up the contour above the pad
  * is not one), to the up rope's side or across the line as the point it is
  * joined at lies — those to the lane's side first, each side's in the order
- * the runs are listed. What the signs point and the lead off a free ride's
- * chair turns by. */
+ * the runs are listed. What a map from before the ramps signs at the
+ * parting (`summitSigns`). */
 export function signsOf(level: Level, plan: LiftPlan): Sign[] {
   const lane = chairLane(plan);
   const runs = level.resort?.runs ?? [];

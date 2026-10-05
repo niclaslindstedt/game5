@@ -874,34 +874,12 @@ export const TUNING = {
    * a cabin walks him out with, m/s, and how far short of the top the
    * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the ride
    * starts `arrive` s of carrying short of where the carrier lets him go —
-   * the last of the climb, the top station close ahead; the lead gives the
-   * controls back past `leadNear`..`leadFar` m down the run (as far as the
-   * spot picked) or after `leadFor` s, joins the run at the nearest point
-   * of it within `joinFar` m a straight line from where he was let go
-   * glides to (`drop` m or more and `glide` of the way below him, the
-   * ground along it, read every `reachStep` m, never `rise` m over the
-   * lowest it has come to nor falling steeper than `lip`, no trunk within
-   * `clear` m of it, and at least
-   * `groomed` packed all the way or falling `steepGlide` of it) — else he
-   * is skated across to its nearest point at `crossPace` m/s (faster where
-   * that would take over `crossMost` s) and led on from there — as he is
-   * from wherever a lead leaves him short of `stallMove` m on in `stallFor` s;
-   * down a ramp off a top (R26) he is checked to `rampSpeed` m/s, and on
-   * the run to `leadMost` m/s
-   * (a run leaving a top along the contour may start above it, R27); the
-   * chair a free ride with a spot picked is seated on is the one whose run
-   * passes nearest it among those joined `drop` m or more below its top
-   * (within `joinFar` m — the free ride picks a run off a chair
-   * it can be joined from, a metres-off-the-spot penalty `noJoin` on any
-   * other; a run is skated across to within `joinReach` m), aims `aim` m on down it, steers `steer` per rad
-   * off it, pushes on the poles under `push` m/s and reads the run `window`
-   * m on and `back` m back of his last place; a control past `touch` takes
-   * it; it rounds a station house with `houseGap` m to spare, and off a
-   * chair keeps him in the way off's lane (`chairLane`, `laneWide` m either
-   * side of its line) aiming `laneAim` m
-   * on down it at a glide (poled under `lanePush` m/s, checked over
-   * `laneSpeed` m/s — and so round a station house), turning for his run
-   * `turnIn` m short of the parting and let run off the pad's lean */
+   * the last of the climb, the top station close ahead — on the chair whose
+   * run passes nearest the spot picked among those a rider stood off its
+   * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
+   * the ramps the run's nearest point `drop` m or more under the top
+   * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
+   * other. Stood off it, the skis are his: nothing leads him off a top. */
   lift: {
     decel: 0.8,
     accel: 1.2,
@@ -921,39 +899,9 @@ export const TUNING = {
     walkOut: 1.5,
     door: 10,
     arrive: 3,
-    leadNear: 40,
     drop: 2,
     joinFar: 120,
-    joinReach: 480,
     noJoin: 2000,
-    leadFar: 90,
-    leadFor: 26,
-    aim: 14,
-    steer: 2.2,
-    push: 6,
-    window: 40,
-    back: 6,
-    touch: 0.15,
-    houseGap: 2,
-    laneAim: 6,
-    laneWide: 3,
-    turnIn: 1,
-    laneSpeed: 3,
-    lanePush: 1.5,
-    cutHarder: 0.4,
-    rise: 0.3,
-    reachStep: 2,
-    clear: 3.5,
-    glide: 0.05,
-    groomed: 0.5,
-    steepGlide: 0.12,
-    lip: 0.5,
-    crossPace: 4.5,
-    crossMost: 25,
-    stallMove: 2,
-    stallFor: 2,
-    rampSpeed: 7,
-    leadMost: 10,
   },
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */

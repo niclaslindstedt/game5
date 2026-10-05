@@ -426,9 +426,6 @@ export function freeSpawn(level: Level, x: number, z: number): Spawn {
 export function resetSkier(state: GameState, events: GameEvent[], auto: boolean): void {
   const pose = resetPose(state);
   standSkier(state, pose.x, pose.z, pose.heading);
-  // Stood up anywhere, a skier led off a lift is let go: the lead would
-  // steer him for a place on a run he is no longer near.
-  if (state.skier.lift?.phase === "lead") state.skier.lift = null;
   mendBody(state.skier.body);
   state.progress.lastResetAt = state.progress.time;
   events.push({ kind: "reset", t: state.t, checkpoint: pose.checkpoint, auto });

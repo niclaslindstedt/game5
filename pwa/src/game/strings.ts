@@ -374,6 +374,10 @@ export const STRINGS = {
   /** THE PISTE GRADES (R23), as a sign names them: the GRADE row's stops,
    * the mark's name, the loading card's line. */
   gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK" },
+  /** The piste map board at a lift's top (`map-board.ts`): its header, and
+   * the mark at the top it stands on. */
+  mapBoardTitle: "PISTE MAP",
+  mapBoardHere: "YOU ARE HERE",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",

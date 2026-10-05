@@ -614,16 +614,14 @@ export type TunnelRide = {
  * rode into its load zone (`from`) to where it carries him off; `ride`:
  * carried, his grip `u` m of plan up the line at `speed` m/s, his chair or
  * cabin swung `swing` rad about the rope (its foot toward the top
- * positive) at `swingRate` rad/s; `lead`: stood off it at the top of the
- * free ride's lift and led toward the run he picked (`lead`) — skated
- * across to it first where it lies above him — until he takes the
- * controls. `t` is seconds in the phase; `tower` the next of its
+ * positive) at `swingRate` rad/s — and stood off at the top, he is the
+ * lift's no more. `t` is seconds in the phase; `tower` the next of its
  * supports he has still to pass over. */
 export type LiftRide = {
   index: number;
   id: string;
   kind: "gondola" | "chair" | "drag";
-  phase: "board" | "ride" | "lead";
+  phase: "board" | "ride";
   u: number;
   speed: number;
   swing: number;
@@ -633,23 +631,6 @@ export type LiftRide = {
   /** Where he came into the zone from (`board`), or where the carrier
    * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
   from: { x: number; y: number; z: number; heading: number };
-  /** The run he is led to, his arc along it, the arc he is let go at and
-   * the seconds the lead may take (`lift.leadFor`, longer to a run that
-   * starts far off the pad) — and, where no point of the run can be glided
-   * to downhill from where he was let go, the point of it he is first
-   * skated ACROSS to, how fast, and whether he is out of a chair's lane
-   * (`cross`, null once there). */
-  lead: {
-    run: number;
-    s: number;
-    until: number;
-    time: number;
-    cross?: { x: number; z: number; s: number; pace: number; laned?: boolean } | null;
-    /** Where he last was `lift.stallMove` m on from, and when (the lead's
-     * own clock) — a lead that leaves him there `lift.stallFor` s has
-     * stalled. */
-    stall?: { x: number; z: number; t: number } | null;
-  } | null;
 };
 
 export type GameEvent =
@@ -732,14 +713,13 @@ export type GameEvent =
    * of it. */
   | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
-   * carrier run over a tower's sheaves, stood off it at the top, or the
-   * controls handed back after the free ride's lead. */
+   * carrier run over a tower's sheaves, or stood off it at the top. */
   | {
       kind: "lift";
       t: number;
       id: string;
       lift: "gondola" | "chair" | "drag";
-      phase: "board" | "tower" | "off" | "free";
+      phase: "board" | "tower" | "off";
     }
   /** THE HELICOPTER (`heli.ts`): the skier taken onto its skid, lifted off,
    * set down, dropped off it, the pilot home on the pad, the machine

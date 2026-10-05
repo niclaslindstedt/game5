@@ -45,6 +45,7 @@ import { BENCHMARK } from "../pwa/src/game/benchmark-plan.ts";
 import { CAMPAIGN_LEVELS, buildCampaignLevel, campaignSky } from "../pwa/src/game/campaign.ts";
 import { CAMPAIGN_ROUTES } from "../pwa/src/game/campaign-routes.ts";
 import { routeOf } from "../pwa/src/game/route-shape.ts";
+import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
@@ -55,6 +56,7 @@ import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 const pinned = new Set([
   ...CAMPAIGN_LEVELS.map((level) => level.version),
   ...TRICK_MAPS.map((map) => map.version),
+  ...Object.values(RACE_MAPS).flatMap((maps) => maps.map((map) => map.version)),
   BENCHMARK.version,
 ]);
 

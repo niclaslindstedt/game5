@@ -414,6 +414,8 @@ export function createWorldRenderer(
   }
 
   const breathe = () => new Promise<void>((done) => setTimeout(done, 0));
+  /** Loads begun: one superseded stops at its next breath, adding nothing. */
+  let loads = 0;
 
   /** The trail maps and the ground that reads them, built for the picture in
    * force. One step, because the ground's shader holds the maps' uniforms by
@@ -534,14 +536,17 @@ export function createWorldRenderer(
   const api: WorldRendererExt = {
     gl,
     async load(state) {
+      const mine = ++loads;
       unload();
       level = state.level;
       skyLevel = skyOverride ? withSky(level, skyOverride) : level;
       const lv = level;
       trail = buildTrail(lv);
       await breathe();
+      if (mine !== loads) return;
       terrain = buildTerrain(lv, trail);
       await breathe();
+      if (mine !== loads) return;
       forest = createForest(lv, env.haze, forestOptions());
       forest.group.name = "forest";
       scene.add(forest.group);
@@ -582,17 +587,15 @@ export function createWorldRenderer(
       lastState = null;
       lens.snap();
       await breathe();
+      if (mine !== loads) return;
       // Compile every program now rather than on the first frame of the run.
       const skier = state.skier;
       lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
       lens.camera.lookAt(skier.x, skier.y, skier.z);
       terrain.follow(skier.x, skier.z);
-      // Asynchronously where the driver can; three warns and falls back to
-      // a blocking compile anyway where it cannot, so ask first. Against the
-      // target the frame will be drawn into: a graded region's programs are
-      // compiled for linear output, not the canvas's.
-      // The trail maps' passes are compiled beside the scene: they are drawn
-      // on the first frame too, and are not in it.
+      // Asynchronously where the driver can (three blocks where it cannot),
+      // against the target the frame is drawn into (a graded region's are
+      // linear), and the trail maps' passes, not in the scene, beside it.
       gl.setRenderTarget(picture.load(lv));
       // THE MOUNTAIN'S SHADOW is baked off the thread meanwhile, for the
       // key the run opens under.
@@ -603,6 +606,7 @@ export function createWorldRenderer(
         gl.compile(scene, lens.camera);
         await Promise.all([trail.compile(gl), shade]);
       }
+      if (mine === loads) env.warmShadows(gl, scene, lv.size);
       gl.setRenderTarget(null);
     },
 
@@ -789,7 +793,7 @@ export function createWorldRenderer(
       timer.pop();
       env.haze.uFresh.value = state.fresh;
       const trailed = performance.now();
-      terrain.follow(lens.camera.position.x, lens.camera.position.z);
+      terrain.follow(lens.camera.position.x, lens.camera.position.z, lens.camera);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);
       windAt(sky, state.t, wind);

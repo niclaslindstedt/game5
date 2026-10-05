@@ -112,7 +112,8 @@ This project is tuned by measuring and LOOKING, not guessing. Each lab below is 
 | A sound: a bed, a one-shot, the listener, the mix | `audition`, `audition ARGS=--meter` | `sound-effects` |
 | The camera, anything about the FEEL | `ride`, `world`, `screenshots` | `game-feel` |
 | The replay: what is recorded, what the broadcast cuts to, what runs slow | `screenshots ARGS="--surface pause"`, a race watched back by hand | `menu-system`, `game-feel` |
-| Anything a FRAME costs — a pass, a material, a mesh | `profile`, then DEVELOPER ▸ BENCHMARK twice (its COPY DEBUG REPORT in the PR — off a device when the change is about one; `bench` is the headless run) | `write-code`, `debug-tools` |
+| Anything a FRAME costs — a pass, a material, a mesh | `profile`, then DEVELOPER ▸ BENCHMARK twice (its COPY DEBUG REPORT in the PR — off a device when the change is about one; `bench` is the headless run) | `write-code`, `debug-tools`, `perf-optimization` |
+| A ROUND OF OPTIMIZATION — the frame rate, long frames, a stall mid-run; anything the PROCESSOR pays a frame (an engine step, a view's `update`, the riders' pose) | `cpu-cost` (with `--json` before and `--compare` after: the p50s and the hashes, which must match for a change that changes nothing), `profile`, and on a machine with a GPU `bench ARGS="--gpu --ab"` | `perf-optimization`, `write-code` |
 | The desktop app, the store app, the seam with the page | `tauri-test`, `native-typecheck`, the three seam tests | `platform-shells` |
 | A lab or a script under `scripts/` | the tool's own `--help`, then the lab it registers | `lab-tooling` |
 | Does it LOOK and READ right at speed | `world`, `screenshots` | `playtest` |
@@ -465,6 +466,7 @@ Skills live in `.agents/skills/` (`.claude/skills` and `.gemini/skills` symlink 
 - **`snow-look`** — the snow as DRAWN: the shader, the glitter, the groomed piste and its corduroy, the trail map and the grooves it lowers.
 - **`visual-effects`** — what the skis throw and leave and what the skier feels: the spray, the tracks' stamping, the vibration table; event → effect, presentation only.
 - **`platform-shells`** — the desktop app (`tauri/`: two crates, decisions and effects) and the store app (`native/`: the WebView, the local server, the haptics bridge), the `__SH_SHELL__` seam and the names stated twice.
+- **`perf-optimization`** — making the game run faster and steadier, a round at a time: the cost map of a frame (the engine, the renderer's CPU phases, the GPU's passes), priorities off the price list, `make cpu-cost` (the processor's half timed in Node with a hash of what it filled), which meter needs a real GPU, the proofs a speed-up owes, and the ledger of what each round bought and what is still open.
 - **`picture-pricing`** — what every stop of every PICTURE row COSTS a frame (measured, `make bench ARGS="--gpu --costs"`, from the race and the vista) and is WORTH to the look (argued), the price list `picture-fit.ts` fits PRESET ▸ AUTO by, and the rule that a stop added to a ladder owes a price.
 - **`lab-tooling`** — how a lab or a script is built here: the framework's `tooling/*` shelf and `scripts/lib/`, pure-Node versus browser-driven, the harness page, the URL contract, and registering a tool. Load it BEFORE writing a one-off script.
 - **`hud-and-menus`** — the HUD's readouts, the three presses, the edge thumb and the tuck lever, the keys — what is drawn over a RUN.

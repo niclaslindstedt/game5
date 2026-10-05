@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -540,6 +540,14 @@ profile:
 # `make bench` · `make bench ARGS="--width 640 --height 360 --video low"`
 bench:
 	npm run bench -- $(ARGS)
+
+# WHAT THE PROCESSOR PAYS A FRAME, in plain Node — no build, no browser, no
+# GPU: one engine step per mode, and the renderer's CPU work that needs no
+# WebGL (the forest's refill, the lifts, the crowd, the riders' pose), each
+# with a hash of what it filled so a speed-up is proved to change nothing.
+# `make cpu-cost` · `make cpu-cost ARGS="--suite forest --json previews/cpu-before.json"`
+cpu-cost:
+	npm run cpu-cost -- $(ARGS)
 
 shellcheck:
 	shellcheck scripts/*.sh .githooks/*

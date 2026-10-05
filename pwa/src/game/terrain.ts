@@ -61,17 +61,37 @@ export type TerrainOptions = TerrainLook;
 
 export type Terrain = {
   group: THREE.Group;
-  /** Re-centre every level on the lens. */
-  follow(x: number, z: number): void;
+  /** Re-centre every level on the lens at (`x`, `z`) — and, given the lens
+   * itself, draw only the parts of each level its view can reach. */
+  follow(x: number, z: number, lens?: THREE.Camera): void;
   dispose(): void;
 };
 
+/** EACH LEVEL IS CUT INTO SECTORS, this many a side, and a sector out of the
+ * lens's view is not drawn. A level is a ring all round the lens, and with
+ * the frustum culling three cannot do (the vertices are placed in the
+ * shader, so no bound is the mesh's own) every one of them ran the ground's
+ * vertex shader — a dozen texture reads apiece — though the most of a ring
+ * is behind or beside the lens. Two a side keeps the draw calls few: a
+ * level is four, of which the view reaches two or three. */
+export const TERRAIN_SECTORS = 2;
+
 /** A level's grid: `(n + 1)²` vertices at integer (x, z), with the cells
- * from `holeFrom` to `holeTo` (exclusive) on both axes left out. */
-export function clipmapIndices(n: number, holeFrom: number, holeTo: number): Uint32Array {
+ * from `holeFrom` to `holeTo` (exclusive) on both axes left out — and only
+ * the cells in `[i0, i1) × [j0, j1)` (one sector), the whole grid unless
+ * asked. */
+export function clipmapIndices(
+  n: number,
+  holeFrom: number,
+  holeTo: number,
+  i0 = 0,
+  i1 = n,
+  j0 = 0,
+  j1 = n,
+): Uint32Array {
   const out: number[] = [];
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
       if (i >= holeFrom && i < holeTo && j >= holeFrom && j < holeTo) continue;
       const a = j * (n + 1) + i;
       const b = a + 1;
@@ -83,7 +103,12 @@ export function clipmapIndices(n: number, holeFrom: number, holeTo: number): Uin
   return new Uint32Array(out);
 }
 
-function gridGeometry(n: number, hole: boolean): THREE.BufferGeometry {
+/** One sector of a level's grid: its geometry and the cells it spans. */
+type Sector = { geometry: THREE.BufferGeometry; i0: number; i1: number; j0: number; j1: number };
+
+/** A level's grid cut into `TERRAIN_SECTORS`² sectors, every one sharing the
+ * one buffer of vertices and holding its own cells' triangles. */
+function gridSectors(n: number, hole: boolean): Sector[] {
   const pos = new Float32Array((n + 1) * (n + 1) * 3);
   let k = 0;
   for (let j = 0; j <= n; j++) {
@@ -93,11 +118,22 @@ function gridGeometry(n: number, hole: boolean): THREE.BufferGeometry {
       pos[k++] = j;
     }
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const idx = hole ? clipmapIndices(n, n / 4 + 1, (3 * n) / 4 - 1) : clipmapIndices(n, 0, 0);
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  return g;
+  const position = new THREE.BufferAttribute(pos, 3);
+  const [from, to] = hole ? [n / 4 + 1, (3 * n) / 4 - 1] : [0, 0];
+  const step = n / TERRAIN_SECTORS;
+  const out: Sector[] = [];
+  for (let sj = 0; sj < TERRAIN_SECTORS; sj++) {
+    for (let si = 0; si < TERRAIN_SECTORS; si++) {
+      const [i0, i1, j0, j1] = [si * step, (si + 1) * step, sj * step, (sj + 1) * step];
+      const idx = clipmapIndices(n, from, to, i0, i1, j0, j1);
+      if (idx.length === 0) continue;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", position);
+      geometry.setIndex(new THREE.BufferAttribute(idx, 1));
+      out.push({ geometry, i0, i1, j0, j1 });
+    }
+  }
+  return out;
 }
 
 /** The forest's density on the ground's grid, 0..1: every crown splatted
@@ -297,11 +333,22 @@ export function createTerrain(
     uGridHalf: { value: options.n / 2 },
     uBaseSpacing: { value: options.spacing },
   };
-  const full = gridGeometry(options.n, false);
-  const ring = gridGeometry(options.n, true);
+  const full = gridSectors(options.n, false);
+  const ring = gridSectors(options.n, true);
+  // How high a sector can stand, m: the map's lowest and highest ground,
+  // a furrow under the one and the rim's rise (`rimRise`, under 370 m) and
+  // the loose cover over the other.
+  let low = Infinity;
+  let high = -Infinity;
+  for (const y of f.data) {
+    low = Math.min(low, y);
+    high = Math.max(high, y);
+  }
+  low -= 5;
+  high += 380;
 
   type LevelMesh = {
-    mesh: THREE.Mesh;
+    meshes: { mesh: THREE.Mesh; sector: Sector }[];
     spacing: number;
     centre: THREE.Vector2;
     hole: THREE.Vector4;
@@ -348,18 +395,29 @@ export function createTerrain(
           `#include <lights_fragment_end>\n${SNOW_FRAGMENT_LIGHT}`,
         );
     });
-    const mesh = new THREE.Mesh(l === 0 ? full : ring, material);
-    mesh.frustumCulled = false;
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.matrixAutoUpdate = false;
-    group.add(mesh);
-    levels.push({ mesh, spacing, centre, hole });
+    const meshes = (l === 0 ? full : ring).map((sector) => {
+      const mesh = new THREE.Mesh(sector.geometry, material);
+      mesh.frustumCulled = false;
+      mesh.receiveShadow = true;
+      mesh.castShadow = false;
+      mesh.matrixAutoUpdate = false;
+      group.add(mesh);
+      return { mesh, sector };
+    });
+    levels.push({ meshes, spacing, centre, hole });
   }
 
+  const frustum = new THREE.Frustum();
+  const view = new THREE.Matrix4();
+  const box = new THREE.Box3();
+  const half = options.n / 2;
   return {
     group,
-    follow(x, z) {
+    follow(x, z, lens) {
+      if (lens) {
+        view.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(view);
+      }
       for (let l = 0; l < levels.length; l++) {
         const lv = levels[l];
         const snap = lv.spacing * 2;
@@ -373,12 +431,31 @@ export function createTerrain(
           // rounding between two grids opens pinholes along the seam.
           lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2 - 0.5) * finer.spacing, 1);
         }
+        // A sector the view cannot reach is not drawn: its cells' plan, a
+        // cell wider each way for the rim's morph, over the heights the
+        // ground can have. Without a lens, every sector (the compile's).
+        for (const { mesh, sector: q } of lv.meshes) {
+          if (!lens) {
+            mesh.visible = true;
+            continue;
+          }
+          box.min.set(
+            lv.centre.x + (q.i0 - half - 1) * lv.spacing,
+            low,
+            lv.centre.y + (q.j0 - half - 1) * lv.spacing,
+          );
+          box.max.set(
+            lv.centre.x + (q.i1 - half + 1) * lv.spacing,
+            high,
+            lv.centre.y + (q.j1 - half + 1) * lv.spacing,
+          );
+          mesh.visible = frustum.intersectsBox(box);
+        }
       }
     },
     dispose() {
-      full.dispose();
-      ring.dispose();
-      for (const lv of levels) (lv.mesh.material as THREE.Material).dispose();
+      for (const q of [...full, ...ring]) q.geometry.dispose();
+      for (const lv of levels) (lv.meshes[0].mesh.material as THREE.Material).dispose();
       tex.height.dispose();
       tex.ground.dispose();
       tex.dir.dispose();

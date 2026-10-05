@@ -18,7 +18,7 @@ There is no ceiling, by design. That is the point of the game it makes: climb, p
 | Where the pad stands | `engine/game/heli-pad.ts` (`helipadOf`) |
 | The rotor's wash, as air | `engine/game/heli-wash.ts` (`washAt`, `inducedOf`), read by `air.ts` and the renderer |
 | The state and its events | `HeliState`, the `heli` event, `RunRules.heli`, `GameState.heli` in `engine/game/state.ts` |
-| The machine as drawn (the model, the rotor blur disc, the lights, the pad and the wind sock, the wreck, the wash's snow) | `pwa/src/game/heli-view.ts` |
+| The machine as drawn (the model, the rotors as an eye sees them spool up — `rotor-look.ts` —, the lights, the pad and the wind sock, the wreck, the wash's snow) | `pwa/src/game/heli-view.ts` |
 | The explosion and the fire on the wreck | `pwa/src/game/explosion.ts` |
 | The lens while riding it | `pwa/src/game/camera-heli.ts` |
 | The rider's legs and skis swinging off the skid | `pwa/src/game/skier-dangle.ts` (fed by `heli-scene.ts`'s `perch`) |
@@ -118,7 +118,7 @@ Dry snow starts to blow at 4–11 m/s of wind, so a hover over powder blows snow
 
 ## The look and the sound
 
-The model is made in Blender off `HELI` (`make models`). The renderer hangs it on the skid datum and spins `heli_rotor` and `heli_tail_rotor`. As the rotor comes up to speed, its blades are drawn at a strobed turn under a streaked BLUR DISC, the way an eye or a camera sees a rotor turning six times a second.
+The model is made in Blender off `HELI` (`make models`). The renderer hangs it on the skid datum and spins `heli_rotor` and `heli_tail_rotor`. Both rotors are drawn the way an eye or a camera sees a rotor spool up (`rotor-look.ts`, held by `tests/rotor_look_test.ts`). Each picture is gathered over an exposure (1/30 s), and a blade sweeps its speed times that while it is: at a crawl the model's blades are sharp; as they come up they are handed over to a drawn SMEAR, each blade's darkness spread over the arc it swept, so they widen into pale wedges and thin away into a haze — darkest at the root, with the painted tips a ring at the rim. Pictures also come at a rate (20.25 a second, just under the main rotor's blade-pass rate of 19.5 at full rpm), and a three-bladed rotor looks the same every third of a turn, so the pattern is drawn at the true turn folded into a sixth of a turn either way a picture — the wagon-wheel effect. Spooling up, the rotor turns forward and quickens, dissolves into an even haze where forward and back are equally near, and comes back as a ghost turning BACKWARDS, fast at first and slowing to a slow creep at full rpm, as a rotor does on film. The pattern is stepped on the frame's own time, so it stands still behind the pause card.
 
 While the skier rides it, the helicopter takes the lens (`camera-heli.ts`):
 

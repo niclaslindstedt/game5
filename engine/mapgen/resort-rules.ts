@@ -200,8 +200,9 @@
 //       more than `tunnel.grade` over any `tunnel.window`, inside the hub,
 //       crossing a run only square and groomed under, no tree within
 //       `lift.clear` metres of its edge; its wind blows at `tunnel.speed`
-//       m/s. A skier who stands into the wind inside one is carried along it
-//       at its speed (TUNING.tunnel) and let go at its exit, his way kept.
+//       m/s. A skier who stands into the wind inside one is blown along it
+//       to its speed and on past it, with no ceiling (TUNING.tunnel), and
+//       let go at its exit, his way kept.
 
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";

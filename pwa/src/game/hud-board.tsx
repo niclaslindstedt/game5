@@ -13,6 +13,7 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import type { Standing } from "./snapshot.ts";
+import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
 
 const time = (t: number | null | undefined): string =>
@@ -26,7 +27,28 @@ function statusOf(r: Standing): string | null {
   return null;
 }
 
-export function SlalomBoard({ rows, second }: { rows: Standing[]; second: boolean }) {
+export function SlalomBoard({
+  rows,
+  second,
+  zone = null,
+}: {
+  rows: Standing[];
+  second: boolean;
+  /** A SPEED RACE's timing zone, m (R34): every time read as a speed. */
+  zone?: number | null;
+}) {
+  // A speed race's board in km/h, its gap the speed short of the leader's.
+  const figure = (t: number | null | undefined): string => {
+    if (zone === null) return time(t);
+    const v = speedOf(t, zone);
+    return v === null ? "" : STRINGS.boardSpeed(v);
+  };
+  const gapOf = (r: Standing): string => {
+    if (r.gap === null || r.gap === undefined) return "";
+    if (zone === null) return STRINGS.boardGap(r.gap);
+    const dv = speedGapOf(r.total ?? r.time, r.gap, zone);
+    return dv === null ? "" : STRINGS.boardSpeedGap(dv);
+  };
   const list = useRef<HTMLOListElement>(null);
   const mine = rows.findIndex((r) => r.you);
   // Opened on the player's row, and again only when his row moves — never
@@ -48,7 +70,7 @@ export function SlalomBoard({ rows, second }: { rows: Standing[]; second: boolea
         <span>{head.bib}</span>
         <span>{head.name}</span>
         {second && <span>{head.first}</span>}
-        <span>{second ? head.second : head.time}</span>
+        <span>{second ? head.second : zone !== null ? STRINGS.boardSpeedHead : head.time}</span>
         {second && <span>{head.total}</span>}
         <span>{head.gap}</span>
       </div>
@@ -68,11 +90,9 @@ export function SlalomBoard({ rows, second }: { rows: Standing[]; second: boolea
                 <span class="hud-board-status">{status}</span>
               ) : (
                 <>
-                  <span class="hud-board-time">{time(r.time)}</span>
+                  <span class="hud-board-time">{figure(r.time)}</span>
                   {second && <span class="hud-board-time">{time(r.total)}</span>}
-                  <span class="hud-board-gap">
-                    {r.gap === null || r.gap === undefined ? "" : STRINGS.boardGap(r.gap)}
-                  </span>
+                  <span class="hud-board-gap">{gapOf(r)}</span>
                 </>
               )}
             </li>

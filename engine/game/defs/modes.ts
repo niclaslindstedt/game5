@@ -5,7 +5,8 @@
 // under the international rules, two runs on combined time, and the
 // DOWNHILL (R32), the whole piste in one run after a training run, and the
 // SUPER-G (R33), one run unseen on the downhill's hill from a lower start,
-// its gates turning him — the TIME
+// its gates turning him, and SPEED SKIING (R34), a straight track of its
+// own, a qualification and a final timed through a 100 m zone — the TIME
 // TRIAL, the map's piste alone against the clock, the FREE RIDE, the whole
 // mountain to explore with no course counted at all, and TRICKS. The rules
 // are a plain record on the state (`GameState.rules`) read by every system
@@ -18,8 +19,8 @@
 //
 // THE DISCIPLINES (`DISCIPLINES`) are the races the game names: the slalom,
 // the giant slalom, the super-G, the downhill, the ski cross and the speed
-// run. The slalom, the super-G and the downhill are BUILT; the others are named so the
-// app can bill them as coming, and each becomes a mode — its own rules here
+// run. The slalom, the super-G, the downhill and the speed run are BUILT;
+// the others are named so the app can bill them as coming, and each becomes a mode — its own rules here
 // and its own course rule (R31 onward) — when it is.
 
 import { CROWD } from "./crowd.ts";
@@ -88,7 +89,7 @@ export type RunRules = {
   window: number;
   /** HOW THE SKIER WORKS THE SKI (`technique.ts`): the slalom racer's on
    * a slalom, the downhiller's on a downhill, the super-G racer's on a
-   * super-G; left out, the free skier's —
+   * super-G, the speed skier's on a speed track; left out, the free skier's —
    * the shared model as it is. */
   technique?: TechniqueId;
   /** THE JURY'S WEATHER (`jury.ts`): the most wind and the heaviest fall
@@ -340,6 +341,51 @@ export function superGRules(laps: number): RunRules {
   };
 }
 
+/** SPEED SKIING'S NUMBERS (R34 sets its track). */
+export const SPEED_SKI = {
+  /** The start list: the racers on the board beside the player — a top
+   * class's tour field of 25–35. */
+  field: 29,
+  /** The start clock's last five seconds, beeped, then GO. */
+  countdown: 5,
+  /** A racer has this long after GO to start, s. */
+  window: 60,
+  /** Two runs: the QUALIFICATION from a lowered start, and the FINAL from
+   * the top — the sport's programme of qualifying runs, a semi-final and a
+   * final folded to its two ends. */
+  runs: 2,
+  /** The best of the qualification start the final, in increasing order of
+   * their speed — on a tour event some twenty of thirty reach it. */
+  qualify: 20,
+  /** The pair the field races on: the speed ski, the top class's. */
+  skis: "peregrine",
+} as const;
+
+/** SPEED SKIING as a skier is dealt it (R34): the start list down the
+ * track before him one at a time, the start clock, the window, the timing
+ * zone's two lines — the clock runs between them — and a fall a run out. */
+export function speedSkiRules(laps: number): RunRules {
+  return {
+    rivals: SPEED_SKI.field,
+    laps,
+    countdown: SPEED_SKI.countdown,
+    contact: false,
+    course: true,
+    tricks: false,
+    limit: 0,
+    airGravity: TUNING.air.gravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    sled: false,
+    start: "interval",
+    gates: "strict",
+    window: SPEED_SKI.window,
+    technique: "speedSki",
+    jury: JURY.speedSki,
+  };
+}
+
 /** What a measurement skis: the level's run, no lights, nobody else. */
 export function openRules(laps: number): RunRules {
   return {
@@ -412,12 +458,14 @@ export function clampResilience(r: number | undefined): number {
  * (`MODE_RULES`) and nothing below the app branches on it: the engine reads
  * the rules, and the app reads the name to decide which card is up and which
  * row of the record book a run is filed under. */
-export type GameMode = "slalom" | "downhill" | "superG" | "timeTrial" | "free" | "tricks";
+export type GameMode =
+  "slalom" | "downhill" | "superG" | "speedSki" | "timeTrial" | "free" | "tricks";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
   "downhill",
   "superG",
+  "speedSki",
   "timeTrial",
   "free",
   "tricks",
@@ -498,6 +546,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   slalom: slalomRules,
   downhill: downhillRules,
   superG: superGRules,
+  speedSki: speedSkiRules,
   timeTrial: timeTrialRules,
   free: freeRules,
   tricks: tricksRules,
@@ -515,5 +564,5 @@ export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] =
   { id: "superG", mode: "superG" },
   { id: "downhill", mode: "downhill" },
   { id: "skiCross", mode: null },
-  { id: "speedSki", mode: null },
+  { id: "speedSki", mode: "speedSki" },
 ];

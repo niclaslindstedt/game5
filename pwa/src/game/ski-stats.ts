@@ -10,22 +10,24 @@
 // and `topSpeed`, the documented expectation `tests/skier_test.ts` holds
 // the physics to — and the bars the catalog cannot put a number on are the
 // engine's own answers: the carve the edge holds at race pace and again at
-// a super-G's (`cornerGrip` against `carveCurvature` on the full edge), the
+// a super-G's and a downhill's (`cornerGrip` against `carveCurvature` on the
+// full edge), the
 // footprint's
 // float in powder (`footprintOf`), how fast the pair rolls onto its edge,
 // and the hardest landing it takes whole (`harshSpeedOf`) — the same
 // arithmetic the physics and the bot run at 120 Hz.
 //
-// SEVEN AXES, because the catalog is seven answers to a kind of snow and
+// EIGHT AXES, because the catalog is eight answers to a kind of snow and
 // the snow has two kinds: what a pair does on the GROOMER (the top end, the
-// edge's hold at race pace and at speed, how quickly it goes edge to edge)
+// edge's hold at race pace, at a super-G's and at a downhill's, how quickly
+// it goes edge to edge)
 // and what it does OFF it
 // (the float, how forgiving it is, the landing). Every pair is best at
 // something on this sheet and none is best at everything, which is the
 // card's whole argument.
 //
-// The bars are RELATIVE TO THE ROSTER, not absolute: seven pairs within a
-// few percent of each other on an axis scaled from zero are seven identical
+// The bars are RELATIVE TO THE ROSTER, not absolute: eight pairs within a
+// few percent of each other on an axis scaled from zero are eight identical
 // full bars, which is a picture of nothing. The roster's own spread is the
 // scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.
@@ -56,6 +58,10 @@ const RACE_PACE = 20;
  * `docs/disciplines.md`). */
 const SPEED_PACE = 30;
 
+/** The pace FAST BEND is read at, m/s (130 km/h): a downhill's fastest
+ * bends (its peak 120–150 km/h, turns taken at 26 ± 4 m/s and faster). */
+const DOWNHILL_PACE = 36;
+
 /** HOW MUCH BEND IT HOLDS AT RACE PACE, m/s² of lateral acceleration: the
  * arc the sidecut carves on the full edge at that speed (`carveCurvature`
  * on `edgeLockAt`) asks `v² × κ` of the snow, and the edge holds up to
@@ -75,6 +81,14 @@ export function carveOf(spec: SkiSpec, pace = RACE_PACE): number {
  * grip are matched at this pace, which is that whole class. */
 export function speedCarveOf(spec: SkiSpec): number {
   return carveOf(spec, SPEED_PACE);
+}
+
+/** HOW MUCH BEND IT HOLDS FLAT OUT, m/s²: `carveOf` at a downhill's pace,
+ * where every pair's arc asks more than its edge holds but the speed ski's,
+ * whose straight edge carves no bend at all — so the grip of a stiff,
+ * flat, long race ski decides it, which is the downhill class. */
+export function fastCarveOf(spec: SkiSpec): number {
+  return carveOf(spec, DOWNHILL_PACE);
 }
 
 /** HOW WELL IT FLOATS, dimensionless: the reciprocal of the footprint's
@@ -113,6 +127,7 @@ const AXES: readonly Axis[] = [
   { key: "top", of: (spec) => spec.topSpeed },
   { key: "edge", of: (spec) => carveOf(spec) },
   { key: "speed", of: speedCarveOf },
+  { key: "fast", of: fastCarveOf },
   { key: "quick", of: quicknessOf },
   { key: "float", of: floatOf },
   { key: "flex", of: forgivenessOf },

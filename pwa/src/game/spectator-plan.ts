@@ -48,6 +48,7 @@ import {
   createRng,
   nearestTrackPoint,
   raceCourseOf,
+  speedSkiLines,
   speedCourseOf,
   trackPointAt,
   type Checkpoint,
@@ -76,7 +77,9 @@ export const NETS = { before: 60, after: 30, height: 1.3, out: 1.2, post: 8 } as
  * super-G's) the
  * whole course, from just above its start house. */
 export function netStretch(level: Level, finish: Checkpoint): { from: number; to: number } {
-  const course = raceCourseOf(level);
+  // A speed track is fenced only round its finish enclosure: its sides are
+  // the safety margin, clear of everything (R34).
+  const course = level.speedSki ? null : raceCourseOf(level);
   return {
     from: course ? course.from - 2 : Math.max(0, finish.s - NETS.before),
     to: Math.min(level.track.length, finish.s + NETS.after),
@@ -487,7 +490,9 @@ export function planSpectators(level: Level): SpectatorPlan {
   };
 
   // THE FINISH ARENA.
-  const finishCp = level.checkpoints[level.checkpoints.length - 1];
+  // On a speed track the arena is the finish enclosure at the run-out's
+  // end, where the racers come to a stop (R34).
+  const finishCp = speedSkiLines(level)?.finish ?? level.checkpoints[level.checkpoints.length - 1];
   let arena: Arena | null = null;
   if (finishCp) {
     const h = finishCp.heading;
@@ -633,8 +638,11 @@ export function planSpectators(level: Level): SpectatorPlan {
     // THE FINISH SLOPE: rows deep at the line, thinning up the hill. A
     // slalom's is laid with its course.
     if (!level.slalom) {
-      const top = length - FANS.slope;
-      const end = length - st.before - 2;
+      // ...up from the line — on a speed track from the finish enclosure's,
+      // where the racers come to a stop, short of the track's end.
+      const foot = level.speedSki ? finishCp.s : length;
+      const top = foot - FANS.slope;
+      const end = foot - st.before - 2;
       const rows = (s: number): number => {
         const k = Math.max(0, Math.min(1, (s - top) / (end - top)));
         return Math.round(FANS.shallow + (FANS.deep - FANS.shallow) * k * k);
@@ -662,6 +670,11 @@ export function planSpectators(level: Level): SpectatorPlan {
     });
     return { fans, banks, stands, fences, arena };
   }
+
+  // A SPEED TRACK (R34) is watched from its BOTTOM alone: the crowd in the
+  // finish enclosure and up its slope, where the racers have shed their
+  // speed — its sides are the safety margin, closed and clear.
+  if (level.speedSki) return { fans, banks, stands, fences, arena };
 
   // ON THE MOUNTAIN: the jumps, the hard turns, the steep pitches.
   const busy: { s: number; side: number }[] = [];

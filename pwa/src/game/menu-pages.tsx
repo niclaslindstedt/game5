@@ -59,6 +59,7 @@ export function MenuPages(p: {
             slalom: seedLine ?? pins.raceMap ?? undefined,
             superG: seedLine ?? pins.superGMap ?? undefined,
             downhill: seedLine ?? pins.downhillMap ?? undefined,
+            speedSki: seedLine ?? pins.speedSkiMap ?? undefined,
           }}
           chosen={p.mode}
           onBack={back}
@@ -68,7 +69,8 @@ export function MenuPages(p: {
     );
   }
   // A race's level card goes back to the race card.
-  const race = p.mode === "slalom" || p.mode === "superG" || p.mode === "downhill";
+  const race =
+    p.mode === "slalom" || p.mode === "superG" || p.mode === "downhill" || p.mode === "speedSki";
   return (
     <div class="menu">
       {page === "campaign" || page === "levels" || page === "tricks" ? (

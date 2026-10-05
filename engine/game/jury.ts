@@ -7,7 +7,8 @@
 // the same sky, its wind and its fall eased to the row.
 //
 // THE WIND is read where the jury's anemometer stands, at the course's START
-// gate: the mean wind there at 10 m (`exposureAt` — the start is high on
+// gate — on a SPEED TRACK (R34) at the top of its timing zone, where that
+// sport's rules stand it: the mean wind there at 10 m (`exposureAt` — the start is high on
 // the mountain, where the flow runs fastest) with every gust at its crest
 // (`GUST_PEAK`) is held to the row, so no gust anywhere down the course,
 // lower and in the lee, passes it either. THE FALL is held the same way,
@@ -24,9 +25,10 @@ import { weatherOf, withSky } from "../mapgen/index.ts";
 import type { Jury } from "./defs/modes.ts";
 import { exposureAt, GUST_PEAK } from "./wind.ts";
 
-/** The strongest gust at the course's start under `weather`, m/s at 10 m. */
+/** The strongest gust at the course's start under `weather`, m/s at 10 m —
+ * a speed track's at the top of its timing zone. */
 export function startGustOf(level: Level, weather: Weather = weatherOf(level)): number {
-  const gate = level.checkpoints[0] ?? level.spawn;
+  const gate = (level.speedSki ? level.checkpoints[1] : level.checkpoints[0]) ?? level.spawn;
   return weather.wind * GUST_PEAK * exposureAt(level, gate.x, gate.z);
 }
 

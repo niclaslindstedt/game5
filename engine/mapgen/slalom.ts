@@ -351,7 +351,11 @@ function across(p: TrackPoint, by: number): { x: number; z: number } {
 export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
   if (level.slalom?.run === run) return level;
   const course = courseOver(
-    level.slalom?.base ?? level.downhill?.base ?? level.superG?.base ?? level,
+    level.slalom?.base ??
+      level.downhill?.base ??
+      level.superG?.base ??
+      level.speedSki?.base ??
+      level,
     run,
   );
   return course.sun === level.sun && course.weather === level.weather

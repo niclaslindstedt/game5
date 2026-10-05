@@ -38,6 +38,7 @@ import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { DISCIPLINE_RULES } from "../mapgen/index.ts";
 
 /** What the skier holds under the lights: the skis across the slope, and
  * nothing else. */
@@ -45,6 +46,27 @@ const HOLD: SkierInput = { ...NEUTRAL_INPUT, brake: 1 };
 /** What a finished skier does: checks his speed down to a stop in the
  * arena — a skier left to himself would go on working (`poles.ts`). */
 const COAST: SkierInput = { ...NEUTRAL_INPUT, brake: 0.6 };
+const RUN_OUT: SkierInput = { ...NEUTRAL_INPUT };
+
+/** PAST A SPEED TRACK'S TIMING ZONE (R34): a racer home at 200 km/h does not
+ * skid — he UNTUCKS, slowly, over the first `speedSki.untuck` metres past
+ * the zone's bottom line, so the wind's 1 g on his chest comes on him a
+ * little at a time; then he rides stood up into it, the arms in, and only
+ * past the BRAKING LINE, slow, does he skid to a stop. */
+function runOut(run: GameState): SkierInput {
+  const sk = run.level.speedSki;
+  if (!sk) return COAST;
+  const c = run.skier;
+  const head = run.level.track.points[0];
+  const along = (c.x - head.x) * Math.sin(head.heading) + (c.z - head.z) * Math.cos(head.heading);
+  const R = DISCIPLINE_RULES.speedSki.runOut;
+  // Below the line he skids it all off, the skis right across.
+  // A racer out of it stands up and stops wherever he is.
+  const past = run.progress.out ? Infinity : along - sk.zone.to;
+  RUN_OUT.tuck = Math.max(0, Math.min(1, 1 - past / R.untuck));
+  RUN_OUT.brake = past > R.brake && c.speed < R.below ? 1 : 0;
+  return RUN_OUT;
+}
 
 /** Advance one skier's run by the step the world has just taken. `events`
  * is the run's own list, already cleared for this step. */
@@ -70,7 +92,13 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   // THE WIPEOUT (`crash.ts`): with the skier thrown, the skis go on with
   // the controls let go, and he tumbles on his own.
   const off = c.thrown;
-  const held = off ? NEUTRAL_INPUT : !racing ? (run.phase === "countdown" ? HOLD : COAST) : input;
+  const held = off
+    ? NEUTRAL_INPUT
+    : !racing
+      ? run.phase === "countdown"
+        ? HOLD
+        : runOut(run)
+      : input;
   const tricks = run.rules.tricks && held === input;
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);

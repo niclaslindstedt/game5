@@ -96,7 +96,9 @@ if (wanted && !SCENARIO_IDS.includes(wanted)) {
 const chosen = wanted ? SCENARIOS.filter((s) => s.id === wanted) : SCENARIOS;
 
 /** Ski a scenario and keep a frame every step. */
-function record(scenario, spec) {
+function record(scenario, asked) {
+  // A scenario of a discipline's own pair skis it whatever the lab asked.
+  const spec = scenario.skis ? E.skisById(scenario.skis) : asked;
   const level = scenario.level(S);
   const state = E.createGame({
     level,

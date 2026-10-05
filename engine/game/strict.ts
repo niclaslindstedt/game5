@@ -23,9 +23,16 @@
 //
 // A FALL that stops him is a DID NOT FINISH (`run.ts`): under these rules
 // nobody is stood back on the course.
+//
+// ON A SPEED TRACK (R34) the gates are the start gate and the TIMING ZONE'S
+// two lines, each across the track and its margins: the clock is started
+// again at the zone's top line and stopped at its bottom one, both read to
+// the fraction of the step the leg crossed in (`crossingShare`), and the
+// run's time is the time through the zone — his speed (`Progress.trap`) its
+// length over that time.
 
 import { TUNING } from "./defs/tuning.ts";
-import { crossedCheckpoint, crossedLine, finishRun, outRun } from "./course.ts";
+import { crossedCheckpoint, crossedLine, crossingShare, finishRun, outRun } from "./course.ts";
 import type { Checkpoint } from "../mapgen/types.ts";
 import type { GameEvent, GameState, RunOut } from "./state.ts";
 
@@ -123,8 +130,17 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
     }
     return;
   }
+  const zone = state.level.speedSki?.zone;
   if (owed === n - 1) {
     if (crossedCheckpoint(cp, x0, z0, c.x, c.z) !== null) {
+      // The zone's bottom line: the clock stopped where in the step he
+      // crossed it, and his speed through it.
+      if (zone) {
+        p.time -= (1 - crossingShare(cp, x0, z0, c.x, c.z)) * TUNING.dt;
+        p.trap = zone.length / Math.max(1e-6, p.time);
+        p.trapAt = p.time;
+        events.push({ kind: "trap", t: state.t, speed: p.trap });
+      }
       credit(state, events, owed);
       finishRun(state, events);
     }
@@ -142,6 +158,9 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
     // outside its inner poles is the gate missed.
     if (verdict === "straddle" && cp.panels) verdict = "missed";
     if (verdict === "pass") {
+      // The zone's top line: the clock started again from where in the step
+      // he crossed it.
+      if (zone && owed === 1) p.time = (1 - crossingShare(cp, x0, z0, c.x, c.z)) * TUNING.dt;
       credit(state, events, owed);
       p.nextCheckpoint = owed + 1;
     } else {

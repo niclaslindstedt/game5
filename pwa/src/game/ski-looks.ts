@@ -118,6 +118,21 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.3, basket: 0.04, bent: true },
   },
+  // THE SPEED SKI: the longest by far, a long low shovel and a square
+  // tail, thick and heavy through its length to damp it, nearly flat
+  // under the boot; its binding raised no more than the rule's 2.5 cm and
+  // on no plate; the poles bent round the body and short — the rule's
+  // least is a metre.
+  peregrine: {
+    tip: { rise: 0.045, length: 0.16 },
+    tail: { rise: 0.005, length: 0.04, twin: false },
+    point: 0.5,
+    thick: { boot: 0.03, end: 0.013 },
+    camber: 0.006,
+    binding: { length: 0.36, height: 0.025, plate: false },
+    boot: BOOT,
+    pole: { length: 1.1, basket: 0.035, bent: true },
+  },
   // THE POWDER SKI: a big round shovel rising early and high, a rockered
   // tail lifted a little too, no camber to speak of, wide baskets.
   marmot: {

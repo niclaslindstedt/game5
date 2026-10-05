@@ -184,12 +184,35 @@ export const DOWNHILL_POSE: TechniquePose = {
   tuck: { low: 1.45, high: 1.0 },
 };
 
+/** THE SPEED SKIER (R34). No turn: the tuck held rigid all the way down —
+ * the head low and the SEAT HIGH to press the skis down, the trunk folded
+ * past level and the hands in front of the helmet, carried some 20 cm
+ * ahead of it as the speed builds (the leading edge and a rudder), together;
+ * the bent poles braced under the arms; the skis flat, a little closer
+ * than hip width; no counter, no angulation to speak of, no plant. */
+export const SPEED_SKI_POSE: TechniquePose = {
+  id: "speedSki",
+  twist: 0.04,
+  pitch: 0.45,
+  angulate: 0.2,
+  lead: 0.8,
+  hands: { x: -0.08, y: 0.08, z: 0.2 },
+  plant: { share: 0, reach: 1 },
+  underArm: 1,
+  block: { hand: "outside", weight: 0 },
+  stance: -0.02,
+  legs: { kneeMost: 2.0, hike: 1, hold: 0 },
+  transition: { retract: 0, level: 0.5 },
+  tuck: { low: 1.55, high: 1.4 },
+};
+
 export const TECHNIQUE_POSES: Readonly<Record<TechniqueId, TechniquePose>> = {
   free: FREE_POSE,
   slalom: SLALOM_POSE,
   giantSlalom: GIANT_SLALOM_POSE,
   superG: SUPER_G_POSE,
   downhill: DOWNHILL_POSE,
+  speedSki: SPEED_SKI_POSE,
 };
 
 /** The pose row a run's skier carries himself by: its technique's (the

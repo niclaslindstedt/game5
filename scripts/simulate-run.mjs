@@ -82,11 +82,11 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      help: "race a discipline: slalom (R31), downhill (R32) or superG (R33) — its course set over each seed's map, out of the start house under the strict gates; the open rules when left out",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33) or speedSki (R34, its qualification; time is through the timing zone) — its course set over each seed's map, out of the start house under the strict gates; the open rules when left out",
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|downhill|superG] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|downhill|superG|speedSki] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -94,8 +94,8 @@ if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   process.exit(2);
 }
 
-if (args.mode !== undefined && !["slalom", "downhill", "superG"].includes(args.mode)) {
-  console.error(`unknown mode "${args.mode}" (slalom, downhill, superG)`);
+if (args.mode !== undefined && !["slalom", "downhill", "superG", "speedSki"].includes(args.mode)) {
+  console.error(`unknown mode "${args.mode}" (slalom, downhill, superG, speedSki)`);
   process.exit(2);
 }
 

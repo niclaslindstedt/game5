@@ -3,12 +3,14 @@
 // discipline is set to on a map that is already built (R1–R30). The map is
 // the mountain; a discipline is how a race uses it: where on the piste its
 // course starts and finishes, which gates stand down it and what passing
-// one means. The SLALOM (R31) and the DOWNHILL (R32) are set today; the
-// giant slalom, the super-G, the ski cross and the speed run are named by
-// the game and not set yet, and each will be a rule here when it is.
+// one means. The SLALOM (R31), the DOWNHILL (R32), the SUPER-G (R33) and
+// the SPEED-SKIING TRACK (R34 — a track of its own down the face rather
+// than a course on the piste) are set today; the giant slalom and the ski
+// cross are named by the game and not set yet, and each will be a rule
+// here when it is.
 //
 // THE RESEARCH BEHIND THE NUMBERS — the international alpine competition
-// rules, by article and never by event:
+// rules, and speed skiing's own, by article and never by event:
 //
 //   slalom.vertical 140–220 m     a slalom hill's vertical drop at the top
 //                                 level (men 180–220, women 140–220; lower
@@ -114,6 +116,35 @@
 //                                 slipping down beside its gates, never
 //                                 skied through them
 //
+//   speedSki.track                three zones down the fall line: a
+//                                 LAUNCHING area (300–400 m on a typical
+//                                 track, 800–900 m on the fastest two), the
+//                                 TIMING ZONE — its last 100 m — and a
+//                                 RUN-OUT long enough for the speed, its
+//                                 slope decreasing progressively (325–840 m
+//                                 measured); the trap itself on 5–15°, the
+//                                 speed carried into it from the steep
+//   speedSki.width ≥ 30 m         from 100 m above the trap to the run-out's
+//                                 end, narrower toward the top; a SAFETY
+//                                 MARGIN clear of every obstacle along both
+//                                 sides, 25 m wide about the trap on a
+//                                 course past 180 km/h
+//   speedSki.starts               at least three start points, a
+//                                 neighbouring pair no more than 15 km/h
+//                                 apart; every run from a start higher
+//                                 than the last
+//   speedSki.timing               photocells at the top and the bottom of
+//                                 the 100 m zone; the speed is 100 m over
+//                                 the time between them, to 0.01 km/h
+//   speedSki.markings             the launch area's sides in intermittent
+//                                 blue, the zone's in red every 15 m, its
+//                                 end a red line across, the run-out's end
+//                                 a green line across — no braking before it
+//   speedSki.format               qualifying runs, a semi-final and a
+//                                 final, the start raised each round; the
+//                                 later runs in increasing order of the last
+//                                 run's speed; the FINAL'S speed the result
+//
 // The rules, in prose (each realized by `slalom.ts`, asserted in
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
@@ -213,6 +244,38 @@
 //       the course's last `superG.trap.late` share, and the course is timed
 //       at `superG.timing` intermediates besides. A super-G is one RUN, with
 //       no training run.
+//
+//   R34 THE SPEED-SKIING TRACK. A speed track is cut STRAIGHT down a built
+//       map's face, its own line and not the piste: a straight line from a
+//       column of the face (`speedSki.search`), its bearing within a few
+//       degrees of the fall line, whose GRADED PROFILE — the ground across
+//       the track's width taken to its mean along it over `speedSki.smooth`
+//       metres, never rising, every crest rounded to no tighter than
+//       `speedSki.crest` metres of radius and every knee to no tighter than
+//       `speedSki.knee` — lies within `speedSki.cut` metres of the ground
+//       under its middle. Down it, from `speedSki.platform` metres above the
+//       final's start house: a LAUNCH of one of `speedSki.launch` metres
+//       along the snow, the TIMING ZONE of `speedSki.trap` metres along the
+//       snow, and a RUN-OUT that stops a racer stood up into the wind and
+//       skidding past its braking line (`speedSki.stop`, `speedSki.runOut`)
+//       before the line leaves the map, the track running `speedSki.past`
+//       metres beyond to the finish enclosure. Of the lines and launches that
+//       fit, the one whose final the top class skis nearest the speed the
+//       map's track is built for — dealt off its seed in `speedSki.speed.aim`
+//       — (inside `speedSki.speed` where one is) wins, its
+//       trap on a gentle stretch, its launch near a typical track's and its
+//       run-out no longer than a real one's (`speedSki.fit`), then the least
+//       graded. The track is `speedSki.width` metres wide, graded to its
+//       profile across that width and eased out over `speedSki.ease`,
+//       groomed hard, every tree within `speedSki.margin` metres of its
+//       edges — the safety margin — and in the finish enclosure
+//       (`speedSki.arena`) cleared, and the piste's kickers and drops in the
+//       cut taken out; no lift station stands within `speedSki.stations`
+//       metres of it. Its gates are the START GATE under the house and the
+//       timing zone's two LINES across the track and its margins. A race is
+//       two RUNS: the QUALIFICATION from a start lowered down the track
+//       until it gives `speedSki.qualify` km/h less, and the FINAL from the
+//       top.
 
 import type { Band } from "./rules.ts";
 
@@ -468,5 +531,109 @@ export const DISCIPLINE_RULES = {
     trap: { run: 200, straight: 300, span: 25, late: 0.5, end: 60 },
     /** The intermediate timing points. */
     timing: 3,
+  },
+  /** R34 — the speed-skiing track. */
+  speedSki: {
+    /** The track's width, m — the rule's least from above the trap to the
+     * run-out's end — and the SAFETY MARGIN cleared of every tree either
+     * side of it, m (25 about the trap on a course past 180 km/h). */
+    width: 30,
+    margin: 25,
+    /** How far past the track's edge its grading eases out, m. */
+    ease: 14,
+    /** THE LAUNCHES tried from the final's start to the timing zone's top
+     * line, m along the snow — a typical track's 300–400 m to the fastest
+     * tracks' 800–900. */
+    launch: [300, 400, 500, 600, 700, 800, 900] as readonly number[],
+    /** THE TIMING ZONE, m along the snow. */
+    trap: 100,
+    /** The final's speed through the trap, km/h: the band a track is held
+     * in — the top class's tour events, their winners 180–230 km/h (the
+     * record 255) — and the band the speed a track is BUILT FOR is dealt in
+     * off its map's seed, so one track is a slow one and another a fast. */
+    speed: { min: 180, max: 240, aim: { min: 185, max: 235 } },
+    /** THE QUALIFICATION'S START, lowered down the track until it gives
+     * this much less, km/h — inside the 15 km/h a neighbouring pair of
+     * start points may differ by. */
+    qualify: 12,
+    /** THE PROFILE: the ground's mean across the track taken along it over
+     * this many metres either side; every crest rounded to no tighter than
+     * `crest` m of radius — a racer at 65 m/s leaves the snow over a crest
+     * tighter than v²/(g cos θ), some 480 m on the steep; every KNEE where
+     * the steep meets the gentle filled to no tighter than `knee` m — at 55
+     * m/s some 0.9 g on the legs over the transition's hundred metres, a
+     * compression a racer holds his tuck through; and no point of
+     * the profile more than `cut` m from the ground under the track's
+     * middle. */
+    smooth: 30,
+    crest: 600,
+    knee: 350,
+    cut: 9,
+    /** How far the track runs on up the slope above the final's start, m —
+     * the house stands on it; a speed skier starts on the pitch itself,
+     * stood across it and jumping round to face down — and how far above
+     * the wand the racer stands, m. */
+    platform: 10,
+    stand: 1.1,
+    /** THE STOP the run-out is sized for: a racer of the top class (the
+     * speed pair's 107 kg and the drag areas of its tuck and of a body
+     * stood up into the wind, m² — `tests/speed_ski_test.ts` holds them to
+     * the pair) stood up past the trap, skidding at `skid` g once under
+     * `below` m/s past the braking line (`runOut`), stopped at `rest` m/s;
+     * the base's friction and the air as the physics' (`TUNING`). The
+     * skid is what the physics' full skid adds to the air and the base on
+     * the speed ski at 20–40 m/s, a little under it (0.13–0.28 g
+     * measured). */
+    stop: {
+      mass: 107,
+      tuck: 0.08,
+      stood: 0.6,
+      friction: 0.035,
+      air: 1.05,
+      skid: 0.15,
+      below: 40,
+      rest: 3,
+    },
+    /** WHICH FIT WINS beside the speed (each a km/h's worth of miss): the
+     * trap on a gentle stretch — `trap` a unit of grade past `trapGrade`,
+     * the speed carried into it off the steep as on a real track, whose trap
+     * lies on 5–15° — a launch near `launchAim` (`launch` a metre off it), a
+     * run-out no longer than `outrunMost` (`outrun` a metre past it — real
+     * ones run 325–840 m), and the least grading (`cut` a metre). */
+    fit: {
+      trap: 100,
+      trapGrade: 0.3,
+      launch: 0.01,
+      launchAim: 400,
+      outrun: 0.02,
+      outrunMost: 800,
+      cut: 0.5,
+    },
+    /** THE RUN-OUT as a racer home rides it: untucking over the first
+     * `untuck` m past the zone's bottom line — a body stood straight up at
+     * 216 km/h takes ~1 g on its chest, so he opens up gradually — and
+     * skidding hard only past the BRAKING LINE `brake` m past it (no
+     * braking and no turning before the line, by rule) and under `below`
+     * m/s — the speed under which a racer can turn and skid, ~160 km/h. */
+    runOut: { untuck: 120, brake: 150, below: 40 },
+    /** How far the track runs past the stop, m — the finish enclosure. */
+    past: 120,
+    /** THE SEARCH: the columns tried across the face, `stride` m apart and
+     * `edge` m in from the map's sides; the bearings tried either side of
+     * the fall line, degrees; where on the face a line is read from, m
+     * down the world from its top edge; the step it is read in, m; and every
+     * how many steps a start is tried. */
+    search: {
+      stride: 50,
+      edge: 150,
+      bearings: [-20, -15, -10, -5, 0, 5, 10, 15, 20] as readonly number[],
+      top: 250,
+      step: 4,
+      starts: 6,
+    },
+    /** No lift station within this of the track's edge, m. */
+    stations: 40,
+    /** The finish enclosure's box past the stop, m: along, back up, across. */
+    arena: { past: 90, before: 40, half: 45 },
   },
 } as const;

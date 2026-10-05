@@ -108,13 +108,18 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     // A DOWNHILL'S SPEED TRAP, and the A-nets (R32): the out that follows a
     // drive into them says the rest.
     case "trap":
-      return { text: STRINGS.newsTrap(e.speed * 3.6), tone: "info" };
+      // ...and a speed track's timing zone, whose speed is the result (R34).
+      return state.level.speedSki
+        ? { text: STRINGS.newsSpeed(e.speed * 3.6), tone: "good" }
+        : { text: STRINGS.newsTrap(e.speed * 3.6), tone: "info" };
     case "net":
       return state.progress.out ? null : { text: STRINGS.newsNet, tone: "bad" };
     case "finish": {
       // A tricks run is its score; a run alone has no place, only a time.
       if (state.rules.tricks)
         return { text: STRINGS.newsTricksFinish(state.tricks.score), tone: "good" };
+      // A speed race's result is the speed its zone timed, said above.
+      if (state.level.speedSki) return null;
       const field = state.field?.runs.length ?? state.rivals.length;
       if (field === 0) return { text: STRINGS.newsFinishAlone(e.time), tone: "good" };
       return { text: STRINGS.newsFinish(e.place, field + 1, e.time), tone: "good" };

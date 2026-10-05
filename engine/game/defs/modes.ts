@@ -24,6 +24,7 @@
 
 import { CROWD } from "./crowd.ts";
 import type { TechniqueId } from "./technique.ts";
+import type { SkiId } from "./skis.ts";
 import { TUNING } from "./tuning.ts";
 
 export type RunRules = {
@@ -172,6 +173,14 @@ export const RACE = {
    * so a field does not push off on one step and skate out of the gate in
    * step. */
   reactBand: { min: 0.15, max: 0.7 },
+  /** THE PAIRS A RIVAL IS DEALT, one off the run's stream: the catalog as
+   * the start line was first dealt from — every class but the super-G ski,
+   * which joined it later. A pair added to the catalog is not added here,
+   * because the field on this line is the suite's, the labs' and the
+   * benchmark's race (`benchmark-plan.ts`): a longer list deals every seed a
+   * different field, and the benchmark's history and every lab's digests
+   * would stop comparing with the runs before it. */
+  skis: ["chamois", "swift", "chough", "eagle", "marmot", "hare"] as readonly SkiId[],
   /** HOW ONE SKIER LEANS ON ANOTHER: each is two circles down his skis'
    * length of `radius` m, `offset` m ahead and behind the CoG — the radius
    * is the skier's own half-width with his arms and his poles out, so two

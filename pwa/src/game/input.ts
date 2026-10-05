@@ -14,6 +14,8 @@
 //   A / ←  D / → steer                ↓ / E / Shift   lean back (nose up)
 //   ↑ / Q / Z    lean forward         R               back to the checkpoint
 //   (and in the air, W and S pressed there lean too — `airLean`)
+//   (and DOWN off the skis, W pressed or a tap anywhere stands him up —
+//   the engine lets it go inside `crash.getUp`)
 //   B            restart the race     C               next camera
 //   Escape       hold the race under the pause card (menu-pause.tsx);
 //                pressing it again over the card resumes, because the card's
@@ -53,8 +55,10 @@ export type InputManager = {
   /** Produce this step's input; advances the ramps by `dt`. `airborne` is
    * whether the player's skis is off the snow, where the tuck and brake
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
-   * the helicopter's skid, flying it (`heliControls`). */
-  sample: (dt: number, airborne?: boolean, flying?: boolean) => SkierInput;
+   * the helicopter's skid, flying it (`heliControls`); `down` whether he is
+   * thrown off his skis, where the tuck key pressed or a tap anywhere is
+   * the reset (`crash.getUp` says when the engine takes it). */
+  sample: (dt: number, airborne?: boolean, flying?: boolean, down?: boolean) => SkierInput;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -129,6 +133,10 @@ export function createInputManager(
    * the gap between two steps (a slow frame, a quick finger) is still a pop
    * off the snow. */
   let jumped = false;
+  /** THE GET-UP PRESS: the tuck key gone down, or a tap anywhere on the
+   * picture, kept until a step has seen it — a reset only while he is
+   * down. A key held down from before is no press: it has to go down. */
+  let rise = false;
 
   const onKeyDown = (e: KeyboardEvent): void => {
     // A browser shortcut on its way past is not a press on the skis.
@@ -149,6 +157,7 @@ export function createInputManager(
         if (!claiming()) continue;
         keys[action] = true;
         if (action === "jump" && !e.repeat) jumped = true;
+        if (action === "tuck" && !e.repeat) rise = true;
         took = true;
       } else if (!e.repeat) {
         // A key pressed ON A CONTROL off the race is that control's: ENTER is
@@ -176,6 +185,12 @@ export function createInputManager(
     }
     for (const action of heliByCode.get(e.code) ?? []) heliKeys[action] = false;
   };
+  // A TAP ANYWHERE — on the glass, the thumb zones included, taken on the
+  // way down before a zone keeps it — but never on one of the HUD's own
+  // buttons, which answer for themselves.
+  const onPointerDown = (e: PointerEvent): void => {
+    if (claiming() && !onControl(e.target)) rise = true;
+  };
   // A key held while the window loses focus never sends its keyup: the skis
   // would ride off at full tuck behind a dialog.
   const onBlur = (): void => {
@@ -186,10 +201,11 @@ export function createInputManager(
   target.addEventListener("keydown", onKeyDown);
   target.addEventListener("keyup", onKeyUp);
   target.addEventListener("blur", onBlur);
+  target.addEventListener("pointerdown", onPointerDown, true);
   target.document.addEventListener("visibilitychange", onBlur);
 
   return {
-    sample: (dt, airborne = false, flying = false) => {
+    sample: (dt, airborne = false, flying = false, down = false) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
@@ -199,7 +215,10 @@ export function createInputManager(
       else heli.collective = 0;
       // On or off a machine: ENTER, or the double tap on touch.
       if (machine || touch.tap2) input.machine = true;
+      // Down off his skis, the get-up press is the reset.
+      if (down && rise) input.reset = true;
       reset = false;
+      rise = false;
       machine = false;
       jumped = false;
       touch.tap2 = false;
@@ -221,6 +240,7 @@ export function createInputManager(
       target.removeEventListener("keydown", onKeyDown);
       target.removeEventListener("keyup", onKeyUp);
       target.removeEventListener("blur", onBlur);
+      target.removeEventListener("pointerdown", onPointerDown, true);
       target.document.removeEventListener("visibilitychange", onBlur);
     },
   };

@@ -362,7 +362,7 @@ export function step(state: GameState, input: SkierInput): GameState {
     }
   }
 
-  stepRun(state, input, events);
+  stepRun(state, input, events, true);
   // THE SCORE is the player's, kept on every run (`tricks.ts`).
   stepTricks(state, events);
   stepRivals(state);

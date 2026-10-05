@@ -62,7 +62,10 @@
 // THE RESET comes once he has been off `lieMin` s and has lain still for
 // `lieStill` of them, or at `lieMax` whatever he is doing — the engine's
 // reset, reported `auto`. The still beat is the one the app's death cam
-// (`camera-death.ts`) rises into the sky over him on.
+// (`camera-death.ts`) rises into the sky over him on. THE PLAYER is held
+// down longer: `lieFor` s before the engine stands him up, and `getUp` s
+// before a press of his own may (`mayGetUp`) — his fall is there to be
+// watched, and the HUD's body read, not cut away from.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
@@ -392,10 +395,18 @@ export function stepThrown(state: GameState, b: Thrown): void {
   stepLoneSkis(state, b);
 }
 
-/** Whether the skier has lain long enough for the reset to stand him up. */
-export function crashOver(b: Thrown): boolean {
+/** Whether the skier has lain long enough for the reset to stand him up —
+ * the player (`player`) at `lieFor` s, a rival once he has lain still. */
+export function crashOver(b: Thrown, player = false): boolean {
+  if (player) return b.t >= K.lieFor;
   if (b.t >= K.lieMax) return true;
   return b.t >= K.lieMin && b.still >= K.lieStill;
+}
+
+/** Whether a press of the player's own may stand him up yet: not before
+ * `getUp` s off the skis — a press inside them is let go, not kept. */
+export function mayGetUp(b: Thrown | null): boolean {
+  return b === null || b.t >= K.getUp;
 }
 
 /** The skis' share of the step's bookkeeping with nobody on them: nothing

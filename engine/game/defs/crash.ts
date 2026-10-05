@@ -283,4 +283,11 @@ export const CRASH = {
   restSpeed: 0.6,
   lieStill: 1,
   lieMax: 6.5,
+  /** THE PLAYER DOWN is held longer than a rival: the fall is his to
+   * watch — the death cam over him, the HUD's body showing what it did —
+   * not cut away from. No press of his own stands him up before `getUp` s
+   * off the skis (the reset, or the app's tap and tuck key on a crash),
+   * and the engine stands him up at `lieFor` s, however he lies. */
+  getUp: 3,
+  lieFor: 6,
 };

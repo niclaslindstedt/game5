@@ -105,6 +105,7 @@ export function Hud({
   onPause,
   bare = false,
   machineKey,
+  tuckKey,
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -127,8 +128,11 @@ export function Hud({
   /** The machine key as bound (`settings-input.ts`), as the player reads it
    * — what the snowmobile's and the helicopter's prompts name. */
   machineKey: string;
+  /** The tuck key as bound — what stands a fallen skier up past the first
+   * seconds of his fall, with a tap anywhere on touch. */
+  tuckKey: string;
 }) {
-  const lit = snap.missed !== null || snap.down;
+  const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
   const flown = snap.heli?.kind === "flown" ? snap.heli : null;
@@ -370,6 +374,16 @@ export function Hud({
         <div class="hud-missed hud-stuck" role="status">
           <span class="hud-missed-title">{STRINGS.stuck}</span>
           <span class="hud-missed-distance">{STRINGS.stuckHow}</span>
+        </div>
+      )}
+
+      {/* DOWN, past the first seconds of the fall (`crash.getUp`): what
+          stands him up. Before them the fall and the body's plate have the
+          screen to themselves; the engine stands him up itself at
+          `crash.lieFor`. */}
+      {snap.getUp && snap.missed === null && (
+        <div class="hud-missed hud-stuck hud-get-up" role="status">
+          <span class="hud-missed-distance">{STRINGS.getUp(touch, tuckKey)}</span>
         </div>
       )}
 

@@ -180,7 +180,7 @@ describe("the reset", () => {
     state.skier.q = fromEuler(0, 0, Math.PI);
     state.skier.y += 1;
     const events: GameEvent[] = [];
-    for (let i = 0; i < 5 * TUNING.physicsHz; i++) {
+    for (let i = 0; i < (TUNING.crash.lieFor + 2) * TUNING.physicsHz; i++) {
       step(state, NEUTRAL_INPUT);
       events.push(...state.events);
     }

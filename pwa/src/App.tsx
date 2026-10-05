@@ -412,7 +412,12 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(TUNING.dt, state.skier.airborne, !!state.heli?.rider);
+        : manager.sample(
+            TUNING.dt,
+            state.skier.airborne,
+            !!state.heli?.rider,
+            state.skier.thrown !== null,
+          );
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {
@@ -842,6 +847,7 @@ export function App() {
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}
           machineKey={boundLabel(settings.keys.machine)}
+          tuckKey={boundLabel(settings.keys.tuck)}
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands

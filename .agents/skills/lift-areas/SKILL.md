@@ -26,7 +26,7 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
 | What holds it: every piste off a chair's or a gondola's top has a ramp, every ramp falls, no run off one starts against it | `engine/analysis/resort.ts` (R26, R27) |
 | Stood off the lift and let go — no lead | `engine/game/lift-ride.ts` (`stepCarried`, `runsOffTop`, `arriveByLift`) |
 | The signs at the ramps' heads | `pwa/src/game/run-sign-plan.ts`'s `summitSigns`, drawn by `run-signs.ts` |
-| The map board: where it stands, its frame, its face and the picture handed over from the start card | `station-plan.ts`, `station-parts.ts`, `map-board.ts`, `map-board-picture.ts` (the worker names the map, `seed-preview.tsx` keeps it) |
+| The map board: where it stands, its frame, its face and the picture handed over from the start card | `station-plan.ts`, `station-parts.ts`, `map-board.ts`, `map-board-picture.ts` (the worker names the map, `seed-maps.ts` keeps it) |
 | The research | `docs/summit-stations.md` |
 
 ## The loop

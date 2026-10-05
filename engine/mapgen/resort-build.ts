@@ -819,6 +819,17 @@ export function buildResort(
   );
 }
 
+/** Whether `buildResort` would answer this seed off the resort it built
+ * last, without raising a mountain. */
+export function resortCached(
+  seed: number,
+  regionId: RegionId | undefined,
+  attempts: number,
+  version: GeneratorVersion,
+): boolean {
+  return cache !== null && cache.key === `${seed}:${regionRow(regionId).id}:${attempts}:${version}`;
+}
+
 /** The last resort built, for a lab that reads what its build did. */
 export function lastResort(): BuiltResort | null {
   return cache?.built ?? null;

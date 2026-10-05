@@ -24,9 +24,11 @@
 // where the lift sets the skier down. Wherever it starts is marked with a
 // beating pulse (`EntryMark`), the one mark on the plate that moves.
 //
-// THE WORK IS THE WORKER'S (`seed-preview-worker.ts`). What is left here is
-// the DOM, and the rules about how the picture behaves while the worker is
-// busy, which are game3's:
+// THE WORK IS THE WORKER'S (`seed-preview-worker.ts`), and which map it
+// builds when is `seed-maps.ts`'s — the next mountain built before it is
+// asked for, the charts kept between visits. What is left here is the DOM,
+// and the rules about how the picture behaves while the worker is busy,
+// which are game3's:
 //
 //   - THE LAST PICTURE STAYS UP while the next is being drawn, dimmed. A
 //     box that emptied on every press would strobe through a walk down the
@@ -41,12 +43,10 @@
 //     already aimed at a button.
 
 import type { PisteGrade, RegionId } from "@engine";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 
 import type { FreeRunInfo } from "./free-ride.ts";
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
-import { rememberBoard } from "./map-board-picture.ts";
-import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import {
   PANORAMA_VIEW,
   fromPanorama,
@@ -55,136 +55,48 @@ import {
   type PanoramaSchematic,
 } from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
-import type { PreviewPicture, PreviewReply, PreviewRequest } from "./seed-preview-worker.ts";
+import { askKey, onSeedMaps, seedAnswer, wantSeed, type SeedAnswer } from "./seed-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
+
+export type { SeedAnswer } from "./seed-maps.ts";
 
 /** How long the arrows have to be still before a map is built, ms. */
 const SETTLE_MS = 220;
 
-/** How many answers are kept — two small JPEGs, a schematic of a few
- * kilobytes and a pick grid of sixty-odd, and a skier walks tens of seeds,
- * not thousands. */
-const KEPT = 40;
-
-/** An answer as the card keeps it: the reply, with its two pictures as URLs
- * an `<image>` takes (null until each has been made one). */
-export type SeedAnswer =
-  | (Extract<PreviewReply, { ok: true }> & { url: string | null; panoUrl: string | null })
-  | Extract<PreviewReply, { ok: false }>;
-
 /** The chart as the card holds it: the last answer that arrived, and
  * whether it is the answer for the seed on screen. */
 export type SeedChart = { shown: SeedAnswer | null; fresh: boolean };
-
-/** Raw pixels as a picture URL — for a worker with no canvas of its own. */
-function pixelsToUrl(
-  px: number,
-  rgba: Uint8ClampedArray<ArrayBuffer>,
-  done: (url: string) => void,
-): void {
-  const canvas = document.createElement("canvas");
-  canvas.width = px;
-  canvas.height = px;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.putImageData(new ImageData(rgba, px, px), 0, 0);
-  canvas.toBlob((blob) => blob && done(URL.createObjectURL(blob)), MAP_TYPE, MAP_QUALITY);
-}
-
-/** A worker's picture as a URL: a finished one at once, raw pixels once
- * this thread has drawn them. */
-function asUrl(picture: PreviewPicture, done: (url: string) => void): void {
-  if (picture instanceof Blob) done(URL.createObjectURL(picture));
-  else pixelsToUrl(picture.px, picture.rgba, done);
-}
-
-const revoke = (a: Extract<SeedAnswer, { ok: true }>): void => {
-  if (a.url) URL.revokeObjectURL(a.url);
-  if (a.panoUrl) URL.revokeObjectURL(a.panoUrl);
-};
-
-/** What names an answer: the seed, in its region (R21), to its grade (R23). */
-const keyOf = (a: { seed: number; region: RegionId; grade: PisteGrade | null }): string =>
-  `${a.region}:${a.grade ?? "dealt"}:${a.seed}`;
 
 export function useSeedPreview(
   seed: number,
   region: RegionId,
   grade: PisteGrade | null,
 ): SeedChart {
-  const [shown, setShown] = useState<SeedAnswer | null>(null);
-  const cache = useRef(new Map<string, SeedAnswer>());
-  const worker = useRef<Worker | null>(null);
-  /** The map on screen RIGHT NOW, for the reply handler — a ref, because
-   * the handler outlives the render it was created in. */
-  const wanted = useRef(keyOf({ seed, region, grade }));
-  wanted.current = keyOf({ seed, region, grade });
+  const ask = { seed, region, grade };
+  const key = askKey(ask);
+  const [shown, setShown] = useState<SeedAnswer | null>(() => seedAnswer(ask));
 
   useEffect(() => {
-    const kept = cache.current;
-    const w = new Worker(new URL("./seed-preview-worker.ts", import.meta.url), {
-      type: "module",
-    });
-    const keep = (answer: SeedAnswer): void => {
-      // An answer kept again (its picture landed) takes no other's place.
-      if (!kept.has(keyOf(answer)) && kept.size >= KEPT) {
-        const oldest = kept.keys().next().value as string;
-        const out = kept.get(oldest);
-        if (out?.ok) revoke(out);
-        kept.delete(oldest);
-      }
-      kept.set(keyOf(answer), answer);
-      if (keyOf(answer) === wanted.current) setShown(answer);
+    const show = (): void => {
+      const answer = seedAnswer({ seed, region, grade });
+      if (answer) setShown(answer);
     };
-    w.onmessage = (e: MessageEvent<PreviewReply>) => {
-      const reply = e.data;
-      if (!reply.ok) {
-        keep(reply);
-        return;
-      }
-      // The panorama for the boards at this map's lift tops, if it is ridden.
-      rememberBoard(reply.board, reply.panorama);
-      // Keep the schematic at once and each picture as it becomes a URL —
-      // at once from a worker with a canvas, a moment later from one without.
-      let answer: SeedAnswer = { ...reply, url: null, panoUrl: null };
-      keep(answer);
-      const land = (field: "url" | "panoUrl", picture: PreviewPicture): void =>
-        asUrl(picture, (url) => {
-          if (kept.get(keyOf(reply)) !== answer) {
-            URL.revokeObjectURL(url);
-            return;
-          }
-          answer = { ...answer, [field]: url };
-          keep(answer);
-        });
-      land("url", reply.picture);
-      land("panoUrl", reply.panorama.picture);
-    };
-    worker.current = w;
+    show();
+    const off = onSeedMaps(show);
+    // A chart already kept is shown at once and its map asked for at once;
+    // anything else once the arrows have been still for a moment.
+    const timer = window.setTimeout(
+      () => wantSeed({ seed, region, grade }),
+      seedAnswer({ seed, region, grade }) ? 0 : SETTLE_MS,
+    );
     return () => {
-      w.terminate();
-      worker.current = null;
-      for (const a of kept.values()) if (a.ok) revoke(a);
-      kept.clear();
+      off();
+      window.clearTimeout(timer);
     };
-  }, []);
-
-  useEffect(() => {
-    const kept = cache.current.get(keyOf({ seed, region, grade }));
-    if (kept) {
-      setShown(kept);
-      return;
-    }
-    const ask: PreviewRequest = { seed, region, grade };
-    const timer = window.setTimeout(() => worker.current?.postMessage(ask), SETTLE_MS);
-    return () => window.clearTimeout(timer);
   }, [seed, region, grade]);
 
-  return {
-    shown,
-    fresh: shown !== null && keyOf(shown) === keyOf({ seed, region, grade }),
-  };
+  return { shown, fresh: shown !== null && askKey(shown) === key };
 }
 
 /** A kicker's mark: a chevron pointing the way it throws, at its lip. */

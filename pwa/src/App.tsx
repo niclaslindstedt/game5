@@ -79,7 +79,14 @@ import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
-import { freeAgainOptions, freeGameOptions, freeTopOptions } from "./game/free-ride.ts";
+import {
+  FIRST_FREE_SEED,
+  freeAgainOptions,
+  freeGameOptions,
+  freeTopOptions,
+  standingFor,
+} from "./game/free-ride.ts";
+import { freeAsk, freeRideLevel, quietSeedMaps } from "./game/seed-maps.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -198,9 +205,11 @@ export function App() {
     ...(params.video ? withPreset(s.video, params.video) : s.video),
     ...params.picture,
   });
-  /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`,
-   * otherwise dealt fresh after every race stood up. */
-  const [nextSeed, setNextSeed] = useState(() => params.seed ?? dealSeed());
+  /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`; the
+   * free ride's first mountain on a fresh visit — so the front door stands on
+   * the map the start card opens on, and a free ride on it is stood up off
+   * the ski area already built — and dealt fresh after every race stood up. */
+  const [nextSeed, setNextSeed] = useState(() => params.seed ?? FIRST_FREE_SEED);
   /** THE MAP THE MENU IS STANDING OVER — what the TIME TRIAL tile rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
@@ -304,7 +313,7 @@ export function App() {
      * not build, the race fallback's map. */
     const freeBoot = (): GameState => {
       const s = settingsRef.current;
-      const seed = params.seed ?? s.ride.seed ?? raceSeed;
+      const seed = params.seed ?? s.ride.seed ?? FIRST_FREE_SEED;
       const ride = freeGameOptions(s.ride, seed, skierOf(s));
       // A link's sky (`?weather=` / `?hour=`) and region over the card's.
       const opts = overLink(ride, params);
@@ -542,11 +551,16 @@ export function App() {
       free: (options) => {
         mode = "free";
         pinned.clear();
+        // The map standing, or the one the start card's worker built — or
+        // is building — for this seed (`seed-maps.ts`); built here only
+        // where there is neither.
+        const made = freeRideLevel(freeAsk(options));
+        quietSeedMaps(freeAsk(options));
         loader.begin({
+          ready: made.ready,
           build: () => {
-            const reuse =
-              state.level.seed === options.seed && state.rules.course ? state.level : undefined;
-            const game = createGame({ ...options, level: reuse });
+            const level = standingFor(state.level, state.rules, options) ?? made.level();
+            const game = createGame({ ...options, level });
             freeAgain = freeAgainOptions(options, game.level);
             return game;
           },
@@ -800,8 +814,9 @@ export function App() {
     laps: settings.trialLaps,
   });
 
-  /** The map on the start card: the one it stored, or the front door's. */
-  const startSeed = settings.ride.seed ?? nextSeed;
+  /** The map on the start card: the one it stored, or the first of the
+   * free ride's own mountains (`FREE_SEEDS`). */
+  const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
   /** Onto the snow on a FREE RIDE: the start card's map, day and snow, on
    * the pair the ski card holds. */
   const freeRide = (): void => {

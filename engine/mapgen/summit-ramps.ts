@@ -219,7 +219,8 @@ function rampTo(
     if (station(x, z, run.id)) return null;
     const near = cover(x, z, SHOULDER + LINE_SPARE);
     if (near >= 0 && near !== own) return null;
-    if (cover(x, z, 0) !== own) continue;
+    // No run's ground out past its shoulder here is no run's snow either.
+    if (near < 0 || cover(x, z, 0) !== own) continue;
     let best = Infinity;
     let s = 0;
     for (const a of run.points) {
@@ -427,6 +428,47 @@ export function nearRoom(r: RampRoom, x: number, z: number): number {
   return hypot(x - (r.from.x + ex * k), z - (r.from.z + ez * k)) - K.width / 2 - K.blend;
 }
 
+/** Whether `hypot(dx, dz) < r`, bit for bit: a point a whole `r` off along
+ * either axis is never that near (the hypot is never under the larger of
+ * its two legs), so the box is asked first and the hypot only inside it. */
+function within(dx: number, dz: number, r: number): boolean {
+  return Math.abs(dx) < r && Math.abs(dz) < r && hypot(dx, dz) < r;
+}
+
+/** Every run's head point, hashed by where it stands, and the one question
+ * a ramp's line asks of them every metre and a half: whether any head
+ * (that `may`) reaches (x, z) — its half-width and `past` m beyond. */
+function headIndex(heads: { x: number; z: number; width: number; run: string }[]): {
+  near: (x: number, z: number, past: number, may: (h: { run: string }) => boolean) => boolean;
+} {
+  const CELL = 32;
+  const cells = new Map<number, typeof heads>();
+  let widest = 0;
+  for (const h of heads) {
+    const key = Math.floor(h.x / CELL) * 8192 + Math.floor(h.z / CELL);
+    const list = cells.get(key);
+    if (list) list.push(h);
+    else cells.set(key, [h]);
+    widest = Math.max(widest, h.width / 2);
+  }
+  return {
+    near: (x, z, past, may) => {
+      const reach = Math.ceil((widest + past) / CELL);
+      const qc = Math.floor(x / CELL);
+      const qr = Math.floor(z / CELL);
+      for (let c = qc - reach; c <= qc + reach; c++) {
+        for (let r = qr - reach; r <= qr + reach; r++) {
+          const list = cells.get(c * 8192 + r);
+          if (!list) continue;
+          for (const h of list)
+            if (may(h) && within(x - h.x, z - h.z, h.width / 2 + past)) return true;
+        }
+      }
+      return false;
+    },
+  };
+}
+
 /** How much more than `fall` a start is asked to lie under a ramp's head,
  * and the step its line is read at, m. */
 const ROOM_SPARE = 1;
@@ -453,12 +495,12 @@ export function layRamps(
   // A station's footprint, and every run's first `head` metres (its start,
   // its windrows) — but the run a ramp comes down onto, whose head it is
   // making for.
-  const heads = runs.flatMap((r) =>
-    r.points.filter((q) => q.s <= K.head).map((q) => ({ ...q, run: r.id })),
+  const heads = headIndex(
+    runs.flatMap((r) => r.points.filter((q) => q.s <= K.head).map((q) => ({ ...q, run: r.id }))),
   );
   const station = (x: number, z: number, more = 0, own = ""): boolean =>
-    lifts.some((l) => hypot(x - l.bottom.x, z - l.bottom.z) < STATION_KEEP + more) ||
-    heads.some((h) => h.run !== own && hypot(x - h.x, z - h.z) < h.width / 2 + SHOULDER + more);
+    lifts.some((l) => within(x - l.bottom.x, z - l.bottom.z, STATION_KEEP + more)) ||
+    heads.near(x, z, SHOULDER + more, (h) => h.run !== own);
   // The line is kept a couple of cells further off than the pressing is,
   // so no cell it is read over is one left unpressed.
   const margin = ground.cell * 2;

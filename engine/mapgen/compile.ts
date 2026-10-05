@@ -54,15 +54,13 @@ export type LevelParts = {
   crust: Heightfield | null;
 };
 
-/** Bind the parts into a level. */
-export function compileLevel(parts: LevelParts): GeneratedLevel {
-  const { ground, packed } = parts;
+/** The level's three queries: bilinear reads of its two grids. */
+function queriesOf(
+  ground: Heightfield,
+  packed: Heightfield,
+): Pick<Level, "groundAt" | "normalAt" | "packedAt"> {
   const scratch = new Float64Array(3);
   return {
-    seed: parts.seed,
-    size: parts.size,
-    cell: ground.cell,
-    ground,
     groundAt: (x, z) => sampleField(ground, x, z),
     normalAt: (x: number, z: number, out: Vec3) => {
       sampleFieldGradient(ground, x, z, scratch);
@@ -74,6 +72,41 @@ export function compileLevel(parts: LevelParts): GeneratedLevel {
       out.z = nz * inv;
     },
     packedAt: (x, z) => sampleField(packed, x, z),
+  };
+}
+
+/** A LEVEL AS IT CROSSES A THREAD: everything a map is but its queries,
+ * which are closures over its grids and cannot be posted. Plain data — the
+ * grids are typed arrays — so a worker that generated a map can hand it to
+ * the page rather than the page generating it again. */
+export type PortableLevel = Omit<GeneratedLevel, "groundAt" | "normalAt" | "packedAt" | "iceAt">;
+
+/** `level` without its queries, to be posted (`boundLevel` takes it back). */
+export function portableLevel(level: GeneratedLevel): PortableLevel {
+  const out: Partial<GeneratedLevel> = { ...level };
+  delete out.groundAt;
+  delete out.normalAt;
+  delete out.packedAt;
+  delete out.iceAt;
+  return out as PortableLevel;
+}
+
+/** A posted level made a level again: its queries bound to its own grids,
+ * the very ones `compileLevel` binds, so it reads exactly as the map it was
+ * posted from. */
+export function boundLevel(p: PortableLevel): GeneratedLevel {
+  return { ...p, ...queriesOf(p.ground, p.packed) };
+}
+
+/** Bind the parts into a level. */
+export function compileLevel(parts: LevelParts): GeneratedLevel {
+  const { ground, packed } = parts;
+  return {
+    seed: parts.seed,
+    size: parts.size,
+    cell: ground.cell,
+    ground,
+    ...queriesOf(ground, packed),
     track: { points: parts.points, length: parts.length, closed: false },
     checkpoints: parts.checkpoints,
     spawn: parts.spawn,

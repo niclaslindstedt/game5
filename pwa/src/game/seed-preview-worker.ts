@@ -4,16 +4,29 @@
 // against it, off the thread the snow is drawn on.
 //
 // IT IS A WORKER FOR ONE REASON. Generating a map is the most expensive
-// thing this engine does — hundreds of milliseconds, and every rejected
-// sub-seed another basin raised and thrown away — and the front door's whole
-// design is that THE SNOW NEVER STOPS behind a card. A seed stepped on the
-// main thread would freeze the race behind the card for a third of a second
-// per press; here it does not miss a frame and the chart arrives when it
-// arrives. The engine is framework-free and `minimap-bake.ts`,
-// `seed-chart.ts` and `panorama.ts` are DOM-free, so all of them run here
-// unchanged.
+// thing this engine does — seconds, and every rejected sub-seed another
+// basin raised and thrown away — and the front door's whole design is that
+// THE SNOW NEVER STOPS behind a card. A seed stepped on the main thread
+// would freeze the race behind the card while it builds; here it does not
+// miss a frame and the chart arrives when it arrives. The engine is
+// framework-free and `minimap-bake.ts`, `seed-chart.ts` and `panorama.ts`
+// are DOM-free, so all of them run here unchanged.
+//
+// THE MAP COMES BACK TOO (`portableLevel`): the page keeps it, and a free
+// ride stood up on that seed rides it rather than building it again on the
+// loading card (`seed-maps.ts`). A job whose pictures the page already has
+// (`paint` off) builds the map alone, and one the page already had is
+// handed in (`level`) to be painted and never built.
 
-import { generateLevel, gradeOf, type PisteGrade, type RegionId } from "@engine";
+import {
+  boundLevel,
+  generateLevel,
+  gradeOf,
+  portableLevel,
+  type PisteGrade,
+  type PortableLevel,
+  type RegionId,
+} from "@engine";
 
 import { freeRunList, type FreeRunInfo } from "./free-ride.ts";
 import { boardKey } from "./map-board-picture.ts";
@@ -43,35 +56,64 @@ export type PreviewPanorama = {
 };
 
 /** What the card asks for: one seed, in one kind of snow country (R21), to
- * one grade (R23) — null the one the seed deals. */
-export type PreviewRequest = { seed: number; region: RegionId; grade: PisteGrade | null };
+ * one grade (R23) — null the one the seed deals — and whether its pictures
+ * are wanted, or only the map. */
+export type PreviewRequest = {
+  seed: number;
+  region: RegionId;
+  grade: PisteGrade | null;
+  paint: boolean;
+  /** The map itself, where the page already had it: painted, not built. */
+  level?: PortableLevel;
+};
 
-/** What comes back. A seed the generator refuses is an answer too: the
- * card says so rather than sitting on a spinner forever. */
+/** What the card is shown: everything but the map itself. */
+export type PreviewPainted = {
+  seed: number;
+  region: RegionId;
+  grade: PisteGrade | null;
+  ok: true;
+  /** The plan's ground. */
+  picture: PreviewPicture;
+  schematic: SeedSchematic;
+  panorama: PreviewPanorama;
+  /** The loop, m. */
+  length: number;
+  /** The mountain's vertical, m — the summit to the base (R2). */
+  vertical: number;
+  /** The colour the piste came out (R23, `gradeOf`). */
+  colour: PisteGrade;
+  /** What names the map built (`boardKey`): the boards at its lifts'
+   * tops are painted with this panorama. */
+  board: string;
+  /** The runs a ride by lift can start down, and the map's own. */
+  runs: FreeRunInfo[];
+  fallback: string | null;
+};
+
+/** A seed the generator refuses is an answer too: the card says so rather
+ * than sitting on a spinner forever. */
+export type PreviewRefused = {
+  seed: number;
+  region: RegionId;
+  grade: PisteGrade | null;
+  ok: false;
+  error: string;
+};
+
+/** What comes back: the pictures (null on a job that asked for none) and
+ * the map, or the refusal. */
 export type PreviewReply =
   | {
       seed: number;
       region: RegionId;
       grade: PisteGrade | null;
       ok: true;
-      /** The plan's ground. */
-      picture: PreviewPicture;
-      schematic: SeedSchematic;
-      panorama: PreviewPanorama;
-      /** The loop, m. */
-      length: number;
-      /** The mountain's vertical, m — the summit to the base (R2). */
-      vertical: number;
-      /** The colour the piste came out (R23, `gradeOf`). */
-      colour: PisteGrade;
-      /** What names the map built (`boardKey`): the boards at its lifts'
-       * tops are painted with this panorama. */
-      board: string;
-      /** The runs a ride by lift can start down, and the map's own. */
-      runs: FreeRunInfo[];
-      fallback: string | null;
+      painted: PreviewPainted | null;
+      /** Null where the page handed the map in. */
+      level: PortableLevel | null;
     }
-  | { seed: number; region: RegionId; grade: PisteGrade | null; ok: false; error: string };
+  | PreviewRefused;
 
 const post = (reply: PreviewReply, transfer: Transferable[] = []): void =>
   (self as unknown as Worker).postMessage(reply, transfer);
@@ -96,27 +138,30 @@ async function encode(
 }
 
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
-  const { seed, region, grade } = e.data;
+  const { seed, region, grade, paint, level: given } = e.data;
   try {
-    const level = generateLevel(seed, { region, grade: grade ?? undefined });
+    const level = given
+      ? boundLevel(given)
+      : generateLevel(seed, { region, grade: grade ?? undefined });
     const transfer: Transferable[] = [];
-    const picture = await encode(
-      CHART_PX,
-      bakeMinimap(minimapSource(level), CHART_PX, CHART_LIGHT),
-      transfer,
-    );
-    const view = fitPanorama(level);
-    const painted = renderPanorama(level, view);
-    const pick = pickGrid(view, painted.depth);
-    transfer.push(pick.buffer);
-    const panorama: PreviewPanorama = {
-      picture: await encode(view.px, painted.rgba, transfer),
-      view,
-      schematic: panoramaSchematic(level, view, painted.depth),
-      pick,
-    };
-    post(
-      {
+    let painted: PreviewPainted | null = null;
+    if (paint) {
+      const picture = await encode(
+        CHART_PX,
+        bakeMinimap(minimapSource(level), CHART_PX, CHART_LIGHT),
+        transfer,
+      );
+      const view = fitPanorama(level);
+      const drawn = renderPanorama(level, view);
+      const pick = pickGrid(view, drawn.depth);
+      transfer.push(pick.buffer);
+      const panorama: PreviewPanorama = {
+        picture: await encode(view.px, drawn.rgba, transfer),
+        view,
+        schematic: panoramaSchematic(level, view, drawn.depth),
+        pick,
+      };
+      painted = {
         seed,
         region,
         grade,
@@ -129,7 +174,13 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         colour: gradeOf(level),
         board: boardKey(level),
         ...freeRunList(level),
-      },
+      };
+    }
+    // The map is copied, not transferred: this worker's own last resort
+    // (`buildResort`'s cache) holds the very same grids, and a grade
+    // stepped on this seed is built off them.
+    post(
+      { seed, region, grade, ok: true, painted, level: given ? null : portableLevel(level) },
       transfer,
     );
   } catch (err) {

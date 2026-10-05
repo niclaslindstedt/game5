@@ -171,6 +171,8 @@ SwiftShader's time.
 | 1 | THE WHOLE SCENE, TWICE (every mode, whenever a run was begun while the front door's scenery was still loading — the benchmark always) | 2 → 1 of every group: 1.34M → ~0.92M triangles a frame on the benchmark, every draw call and every view's `update` halved | `renderer.load` is async; a superseded load now stops at its next breath instead of adding its terrain, woods, lifts, crowd and riders after the newer load's `unload`. |
 | 1 | A shadow program linked mid-run (a slalom's finish, ~32 s in) | 1 → 0 programs linked after the card lifts (`?start=slalom&t=40`); 7 more linked on the card | `warmShadows`: one pass of the sun's map over the whole map with every caster shown, behind the loading card. |
 | 1 | THE GROUND'S VERTICES | 410k → ~212k triangles a frame along the benchmark race at TERRAIN/DISTANCE HIGH (`make cpu-cost ARGS="--suite terrain"`), for 0.04 ms of processor | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound). A ring's triangles are laid in 16 wedges (`TERRAIN_WEDGES`), twice round, and the ring draws the one range holding every wedge whose box meets the frustum: still one draw a level. Level 0, which the lens stands in, is drawn whole. Pixel-identical at chase, far, high and a summit pad. Two tries that culled nothing first: quarters (every quarter meets at the centre where the lens is), then wedges boxed over the whole map's heights (a box a kilometre tall passes the frustum's test from any side) — each box now spans the ground under it, off a min/max grid of 32-sample blocks. |
+| 2 | GENERATING A FREE RIDE'S MAP (`generateLevel`, seeds 2, 3, 4, current generator) | 4.57 → 3.04 s a map; twelve maps over every version and region 56.5 → 36.5 s, every float the same | The run index (`net-index.ts`) kept in flat arrays with a grid, its ring scan stopped at the true border of the square scanned and `skip` asked after the distance test; the massif baked with what z decides read once a row; the summit ramps' keep-off off a hash of the runs' heads, a box before every hypot, and the run's snow asked only where its shoulder is; the drags' and stations' cheap checks first. |
+| 2 | A FREE RIDE BUILT TWICE (the start card's worker for the chart, the loading card again on RIDE) | 2 builds → 1: the worker hands the map back (`portableLevel`, ~90 ms to clone and bind) and the ride stands on it, or waits for the worker building it | `seed-maps.ts`; and the start card opens on the front door's own map (`FREE_SEEDS`), whose ski area the main thread already holds (`levelIsCached`), so that one is painted, never built, in the worker. |
 
 ## Open leads, ranked
 
@@ -194,11 +196,16 @@ Each is a real cost found in a round and not taken, with why:
   reads a pixel inside the shadow's reach — on every lit material. A
   comparing sampler would do it in four, but it is three's shadow system,
   not ours: a change there is a graft as big as the haze's.
-- **Map generation on the loading card.** A free ride's map took 8.5 s in
-  Node, most of it the ski area (`net-index.ts`'s `scan`, `network-build.ts`,
-  `station-clear.ts`). It moves no frame, but it is the wait every run
-  starts with; a speed-up there must pass `write-code`'s bit-exact proof,
-  because every pinned map's digest stands on it.
+- **Map generation, what is left of it** (round 2 took a third off, below).
+  A free ride's map is ~3 s in Node, nearly all of it the ski area: the
+  massif's bake (~0.55 s, fifteen noise reads a cell over 2.25 M cells),
+  `stampRun` (~0.33 s; order-dependent through its float32 distances, so
+  not prunable bit for bit — `.lessons/`), the run walks' `nearest` and
+  `chooseHeading`, the lanes' raster. Any speed-up must pass `write-code`'s
+  bit-exact proof, because every pinned map's digest stands on it. And the
+  front door's own map is still generated ON THE MAIN THREAD when the app
+  mounts (`raceOrFallback`), seconds before the first frame on a phone: a
+  worker could build it and hand it over as the start card's does.
 - **The riders' matrices are composed twice a frame**: `posed-merge.ts`'s
   `update` forces the root's subtree, and the scene's own walk composes it
   again. ~76 objects a rider, so small.

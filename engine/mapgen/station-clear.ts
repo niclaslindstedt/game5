@@ -80,16 +80,17 @@ function clearBottom(g: StationGround, kind: LiftPlan["kind"], bottom: Point, to
   const len = hypot(top.x - bottom.x, top.z - bottom.z) || 1;
   const dir = { x: (top.x - bottom.x) / len, z: (top.z - bottom.z) / len };
   const pts = footprint(kind, bottom, dir);
+  // Its level first — reads of the ground, where the runs are a search.
   let lo = Infinity;
   let hi = -Infinity;
   for (const p of pts) {
-    if (g.onRun(p.x, p.z, MARGIN)) return false;
     const y = g.height(p.x, p.z);
     lo = Math.min(lo, y);
     hi = Math.max(hi, y);
   }
   const F = RR.lift.footprint[kind];
-  return (hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= LEVEL;
+  if (!((hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= LEVEL)) return false;
+  return pts.every((p) => !g.onRun(p.x, p.z, MARGIN));
 }
 
 /** Whether a drag's line crosses no piste, climbs, keeps to a drag's
@@ -99,17 +100,18 @@ function clearDrag(g: StationGround, bottom: Point, top: Point, banded: boolean)
   const D = RR.lift.drag;
   const len = hypot(top.x - bottom.x, top.z - bottom.z) || 1;
   if (banded && (len < D.length.min || len > D.length.max)) return false;
-  for (let u = 0; u <= len; u += READ) {
-    const t = u / len;
-    if (g.onPiste(bottom.x + (top.x - bottom.x) * t, bottom.z + (top.z - bottom.z) * t, MARGIN))
-      return false;
-  }
-  // Never steeper than a rope pulls a skier on his skis (R26).
+  // Never steeper than a rope pulls a skier on his skis (R26) — asked
+  // first, being a few reads of the ground where the pistes are a search.
   const at = (u: number): number =>
     g.height(bottom.x + ((top.x - bottom.x) * u) / len, bottom.z + ((top.z - bottom.z) * u) / len);
   if (at(len) - at(0) < RISE) return false;
   for (let u = 0; banded && u + D.pitchWindow <= len; u += READ) {
     if ((at(u + D.pitchWindow) - at(u)) / D.pitchWindow > D.pitch * PITCH_MARGIN) return false;
+  }
+  for (let u = 0; u <= len; u += READ) {
+    const t = u / len;
+    if (g.onPiste(bottom.x + (top.x - bottom.x) * t, bottom.z + (top.z - bottom.z) * t, MARGIN))
+      return false;
   }
   const down = { x: (bottom.x - top.x) / len, z: (bottom.z - top.z) / len };
   return footprint("drag", top, down).every((p) => !g.onRun(p.x, p.z, MARGIN));

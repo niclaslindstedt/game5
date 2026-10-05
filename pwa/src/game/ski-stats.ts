@@ -9,25 +9,24 @@
 // numbers — the length, the waist, the sidecut radius, the pair's weight,
 // and `topSpeed`, the documented expectation `tests/skier_test.ts` holds
 // the physics to — and the bars the catalog cannot put a number on are the
-// engine's own answers: the carve the edge holds at race pace and again at
-// a super-G's and a downhill's (`cornerGrip` against `carveCurvature` on the
-// full edge), the
-// footprint's
+// engine's own answers: the carve the edge holds at race pace, round a
+// ski cross's berm, and again at a super-G's and a downhill's (`cornerGrip`
+// against `carveCurvature` on the full edge), the footprint's
 // float in powder (`footprintOf`), how fast the pair rolls onto its edge,
 // and the hardest landing it takes whole (`harshSpeedOf`) — the same
 // arithmetic the physics and the bot run at 120 Hz.
 //
-// EIGHT AXES, because the catalog is eight answers to a kind of snow and
+// NINE AXES, because the catalog is nine answers to a kind of snow and
 // the snow has two kinds: what a pair does on the GROOMER (the top end, the
-// edge's hold at race pace, at a super-G's and at a downhill's, how quickly
-// it goes edge to edge)
+// edge's hold at race pace, round a berm, at a super-G's and at a
+// downhill's, how quickly it goes edge to edge)
 // and what it does OFF it
 // (the float, how forgiving it is, the landing). Every pair is best at
 // something on this sheet and none is best at everything, which is the
 // card's whole argument.
 //
-// The bars are RELATIVE TO THE ROSTER, not absolute: eight pairs within a
-// few percent of each other on an axis scaled from zero are eight identical
+// The bars are RELATIVE TO THE ROSTER, not absolute: nine pairs within a
+// few percent of each other on an axis scaled from zero are nine identical
 // full bars, which is a picture of nothing. The roster's own spread is the
 // scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.
@@ -53,6 +52,11 @@ const BAR_FLOOR = 0.3;
  * speed, where the difference between the classes is the difference. */
 const RACE_PACE = 20;
 
+/** The pace BERM is read at, m/s (65 km/h): a ski cross's banked turn,
+ * taken at the low end of the 60–80 km/h a heat runs at (`docs/
+ * disciplines.md` § Ski cross). */
+const BERM_PACE = 18;
+
 /** The pace SPEED CARVE is read at, m/s (108 km/h): a super-G's bend near
  * the top of its speed (a run's ~86 km/h mean, ~110 at its fastest —
  * `docs/disciplines.md`). */
@@ -72,6 +76,15 @@ const DOWNHILL_PACE = 36;
 export function carveOf(spec: SkiSpec, pace = RACE_PACE): number {
   const asked = pace * pace * carveCurvature(spec, edgeLockAt(spec, pace));
   return Math.min(asked, cornerGrip(spec, 1));
+}
+
+/** HOW MUCH BEND IT HOLDS ROUND A BERM, m/s²: `carveOf` at a ski cross's
+ * pace. There the slalom ski's tight arc has long since asked more than
+ * its edge holds and the giant slalom ski's 30 m arc does not yet ask all
+ * of its own; the ski-cross ski's 24 m arc asks all its grip there, and
+ * that grip is more than the slalom ski's — which is that whole class. */
+export function bermCarveOf(spec: SkiSpec): number {
+  return carveOf(spec, BERM_PACE);
 }
 
 /** HOW MUCH BEND IT HOLDS AT SPEED, m/s²: `carveOf` at a super-G's pace.
@@ -126,6 +139,7 @@ type Axis = { key: AxisKey; of: (spec: SkiSpec) => number };
 const AXES: readonly Axis[] = [
   { key: "top", of: (spec) => spec.topSpeed },
   { key: "edge", of: (spec) => carveOf(spec) },
+  { key: "berm", of: bermCarveOf },
   { key: "speed", of: speedCarveOf },
   { key: "fast", of: fastCarveOf },
   { key: "quick", of: quicknessOf },

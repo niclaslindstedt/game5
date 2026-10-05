@@ -82,11 +82,15 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      help: "race a discipline: slalom (R31), downhill (R32), superG (R33) or speedSki (R34, its qualification; time is through the timing zone) — its course set over each seed's map, out of the start house under the strict gates; the open rules when left out",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four) — its course set over each seed's map under the strict gates; the open rules when left out",
+    },
+    heat: {
+      kind: "flag",
+      help: "on --mode skiCross, ski a heat of four out of the start gate, the field skied beside the bot (R35)",
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|downhill|superG|speedSki] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|downhill|superG|speedSki|skiCross] [--heat] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -94,8 +98,11 @@ if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   process.exit(2);
 }
 
-if (args.mode !== undefined && !["slalom", "downhill", "superG", "speedSki"].includes(args.mode)) {
-  console.error(`unknown mode "${args.mode}" (slalom, downhill, superG, speedSki)`);
+if (
+  args.mode !== undefined &&
+  !["slalom", "downhill", "superG", "speedSki", "skiCross"].includes(args.mode)
+) {
+  console.error(`unknown mode "${args.mode}" (slalom, downhill, superG, speedSki, skiCross)`);
   process.exit(2);
 }
 
@@ -186,6 +193,7 @@ for (const spec of roster) {
       grade: args.grade,
       weather: args.weather,
       mode: args.mode,
+      heat: args.heat,
     });
     rows.push(r);
     console.log(

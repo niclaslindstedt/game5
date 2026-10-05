@@ -40,12 +40,15 @@ const plans = new WeakMap<Level, PolePlan>();
 export function polePlan(level: Level): PolePlan {
   const known = plans.get(level);
   if (known) return known;
-  const gates = level.checkpoints.filter((c) => c.pole !== undefined);
+  // A ski cross's turning gate is a flag on a stubby, not a flex pole a
+  // racer knocks (R35): only pole gates of flex poles are planned.
+  const flexed = (c: Level["checkpoints"][number]): boolean => c.pole !== undefined && !c.flags;
+  const gates = level.checkpoints.filter(flexed);
   const xz = new Float64Array(gates.length * 4);
   const gate = new Int32Array(gates.length * 2);
   let k = 0;
   level.checkpoints.forEach((c, index) => {
-    if (c.pole === undefined) return;
+    if (!flexed(c)) return;
     // The gate's line runs across the way it is crossed: right is the
     // heading turned a quarter clockwise.
     const rx = Math.cos(c.heading);

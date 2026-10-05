@@ -31,7 +31,9 @@
 // A SLALOM is watched otherwise — its course is short, netted from the
 // start house to past the line, and every metre of it is a viewpoint:
 // `spectator-slalom.ts` lays its banks behind the nets either side, the
-// finish arena kept as it is here.
+// finish arena kept as it is here. So is a SKI CROSS, fenced its whole
+// length and watched where it is built to be watched — its jumps, the
+// outside of its berms, its finish area (`spectator-cross.ts`).
 //
 // And they CARRY what ski fans carry — COWBELLS, flags on poles, a board
 // held over the head, a horn, a phone held up — and wear what a cold day
@@ -47,6 +49,7 @@
 import {
   createRng,
   nearestTrackPoint,
+  netsOf,
   raceCourseOf,
   speedSkiLines,
   speedCourseOf,
@@ -58,6 +61,7 @@ import {
   type TrackPoint,
 } from "@engine";
 
+import { planCrossBanks } from "./spectator-cross.ts";
 import { planSlalomBanks } from "./spectator-slalom.ts";
 import { wildGround } from "./wild-ground.ts";
 
@@ -88,9 +92,10 @@ export function netStretch(level: Level, finish: Checkpoint): { from: number; to
 
 /** HOW THE NETS STAND: how far outside the piste's edge, and how tall, m —
  * the B-nets' (`NETS`), and on a DOWNHILL or a SUPER-G its A-nets (R32,
- * R33, `SpeedCourse.nets`), the engine's own line a racer is caught on. */
+ * R33, `SpeedCourse.nets`) and on a SKI CROSS its fence (R35) — the
+ * engine's own line a racer is caught on (`netsOf`). */
 export function netShape(level: Level): { out: number; height: number } {
-  const nets = speedCourseOf(level)?.nets;
+  const nets = netsOf(level);
   return nets ? { out: nets.gap, height: nets.height } : { out: NETS.out, height: NETS.height };
 }
 
@@ -636,8 +641,8 @@ export function planSpectators(level: Level): SpectatorPlan {
     };
 
     // THE FINISH SLOPE: rows deep at the line, thinning up the hill. A
-    // slalom's is laid with its course.
-    if (!level.slalom) {
+    // slalom's and a ski cross's are laid with their courses.
+    if (!level.slalom && !level.skiCross) {
       // ...up from the line — on a speed track from the finish enclosure's,
       // where the racers come to a stop, short of the track's end.
       const foot = level.speedSki ? finishCp.s : length;
@@ -652,9 +657,10 @@ export function planSpectators(level: Level): SpectatorPlan {
   }
 
   // A SLALOM: its course lined behind the nets from the start house to
-  // the finish slope, and nothing of a downhill's.
-  if (level.slalom && finishCp) {
-    planSlalomBanks({
+  // the finish slope, and nothing of a downhill's — and a SKI CROSS: its
+  // fenced course watched at its features (`spectator-cross.ts`).
+  if ((level.slalom || level.skiCross) && finishCp) {
+    const dealer: FanDealer = {
       level,
       rng,
       fans,
@@ -667,7 +673,9 @@ export function planSpectators(level: Level): SpectatorPlan {
         return true;
       },
       close,
-    });
+    };
+    if (level.slalom) planSlalomBanks(dealer);
+    else planCrossBanks(dealer);
     return { fans, banks, stands, fences, arena };
   }
 

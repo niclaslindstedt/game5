@@ -118,6 +118,20 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.3, basket: 0.04, bent: true },
   },
+  // THE SKI-CROSS SKI: a giant slalom ski's shape cut down — a shorter,
+  // a little higher shovel for the rollers and the landings, a little rise
+  // at the tail, a hard camber on a plate as high as the rule's 50 mm
+  // allows; the race poles straight, for the start's pull and the skating.
+  wolverine: {
+    tip: { rise: 0.05, length: 0.14 },
+    tail: { rise: 0.012, length: 0.05, twin: false },
+    point: 0.55,
+    thick: { boot: 0.024, end: 0.009 },
+    camber: 0.013,
+    binding: { length: 0.36, height: 0.05, plate: true },
+    boot: BOOT,
+    pole: { length: 1.22, basket: 0.04, bent: false },
+  },
   // THE SPEED SKI: the longest by far, a long low shovel and a square
   // tail, thick and heavy through its length to damp it, nearly flat
   // under the boot; its binding raised no more than the rule's 2.5 cm and

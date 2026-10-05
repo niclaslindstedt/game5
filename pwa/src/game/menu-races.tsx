@@ -10,7 +10,15 @@
 // (`frontDoorPins`) — or the seed a link pinned instead. The card wears the
 // level card's silhouette and classes, as the trick map card does.
 
-import { DISCIPLINES, DOWNHILL, SLALOM, SPEED_SKI, SUPER_G, type GameMode } from "@engine";
+import {
+  DISCIPLINES,
+  DOWNHILL,
+  SKI_CROSS,
+  SLALOM,
+  SPEED_SKI,
+  SUPER_G,
+  type GameMode,
+} from "@engine";
 
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -20,6 +28,7 @@ import { STRINGS } from "./strings.ts";
 function formatOf(mode: GameMode): string {
   if (mode === "superG") return STRINGS.racesSuperG(SUPER_G.field + 1);
   if (mode === "speedSki") return STRINGS.racesSpeedSki(SPEED_SKI.field + 1);
+  if (mode === "skiCross") return STRINGS.racesSkiCross(SKI_CROSS.heat);
   if (mode === "downhill") return STRINGS.racesDownhill(DOWNHILL.field + 1);
   return STRINGS.racesSlalom(SLALOM.field + 1);
 }

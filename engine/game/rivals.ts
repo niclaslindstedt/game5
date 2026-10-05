@@ -45,7 +45,7 @@ import { botInput, RIDER_BOT } from "../sim/bot.ts";
 import type { Spawn } from "../mapgen/types.ts";
 import { freshProgress, laneAcross, standSkier } from "./course.ts";
 import { FULL_ASSIST, RACE } from "./defs/modes.ts";
-import { skisById } from "./defs/skis.ts";
+import { skisById, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
   NEUTRAL_INPUT,
@@ -58,6 +58,7 @@ import {
 import { fieldOrderOf, fieldPlace } from "./field.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { stepRun } from "./run.ts";
+import { crossLane, judgeContact } from "./cross-heat.ts";
 import { freshSkier } from "./skier.ts";
 import { freshTricks } from "./tricks.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -119,36 +120,9 @@ export function dealRivals(state: GameState, count: number, at: (i: number) => S
   for (let i = 0; i < count; i++) {
     const resilience = grit.range(RACE.resilienceBand.min, RACE.resilienceBand.max);
     const pace = state.rng.range(RACE.paceBand.min, RACE.paceBand.max);
-    const run: GameState = {
-      ...state,
-      skier: freshSkier(skisById(state.rng.pick(RACE.skis))),
-      input: { ...NEUTRAL_INPUT },
-      // The player's help is the player's: the bot skis every rival with
-      // every hand on, so a harder setting is harder skiing, not a slower
-      // field.
-      assist: { ...FULL_ASSIST },
-      // ...and so is his damage: a rival's edges are never dulled.
-      damage: false,
-      progress: freshProgress(state.level),
-      tricks: freshTricks(),
-      rivals: [],
-      // The crowd is the world's, stepped once, never a rival's own.
-      crowd: undefined,
-      field: undefined,
-      // Every racer knocks his own poles, and his own stakes.
-      gatePoles: freshGatePoles(state.level),
-      stakes: undefined,
-      events: [],
-    };
+    const spec = skisById(state.rng.pick(RACE.skis));
     const spot = at(i);
-    standSkier(run, spot.x, spot.z, spot.heading);
-    // The stride count's whole part is the leg, its fraction the phase —
-    // somewhere in the PUSH: a racer goes on his reaction, and a skate
-    // stride is long enough that one dealt into its glide stood a second
-    // after GO before he moved.
-    const dealt = start.range(0, 2);
-    run.skier.stride = Math.floor(dealt) + (dealt - Math.floor(dealt)) * TUNING.poles.duty;
-    run.skier.resilience = resilience;
+    const run = rivalRun(state, spec, spot, start.range(0, 2), resilience);
     out.push({
       id: i,
       run,
@@ -161,16 +135,62 @@ export function dealRivals(state: GameState, count: number, at: (i: number) => S
   return out;
 }
 
+/** A RIVAL'S RUN: a whole run of its own over the player's world, on
+ * `spec`, stood at `spot`, his first stride `dealt` (its whole part the
+ * leg, its fraction the phase) and his `resilience` his own. */
+export function rivalRun(
+  state: GameState,
+  spec: SkiSpec,
+  spot: Spawn,
+  dealt: number,
+  resilience: number,
+): GameState {
+  const run: GameState = {
+    ...state,
+    skier: freshSkier(spec),
+    input: { ...NEUTRAL_INPUT },
+    // The player's help is the player's: the bot skis every rival with
+    // every hand on, so a harder setting is harder skiing, not a slower
+    // field.
+    assist: { ...FULL_ASSIST },
+    // ...and so is his damage: a rival's edges are never dulled.
+    damage: false,
+    progress: freshProgress(state.level),
+    tricks: freshTricks(),
+    rivals: [],
+    // The crowd is the world's, stepped once, never a rival's own.
+    crowd: undefined,
+    field: undefined,
+    // Every racer knocks his own poles, and his own stakes.
+    gatePoles: freshGatePoles(state.level),
+    stakes: undefined,
+    events: [],
+  };
+  standSkier(run, spot.x, spot.z, spot.heading);
+  // The stride count's whole part is the leg, its fraction the phase —
+  // somewhere in the PUSH: a racer goes on his reaction, and a skate
+  // stride is long enough that one dealt into its glide stood a second
+  // after GO before he moved.
+  run.skier.stride = Math.floor(dealt) + (dealt - Math.floor(dealt)) * TUNING.poles.duty;
+  run.skier.resilience = resilience;
+  return run;
+}
+
 /** The controls a rival's bot gives him this step: nothing under the
  * lights or past the flag, the skis held across in the gate until he
  * reacts to GO, then the bot's, its tuck held to his pace. */
-export function rivalInput(run: GameState, rival: Rival, sinceGo: number): SkierInput {
+export function rivalInput(
+  run: GameState,
+  rival: Rival,
+  sinceGo: number,
+  lane: number = rival.lane,
+): SkierInput {
   const input =
     run.phase !== "racing"
       ? NEUTRAL_INPUT
       : sinceGo < rival.react
         ? IN_GATE
-        : botInput(run, RIDER_BOT, rival.lane);
+        : botInput(run, RIDER_BOT, lane);
   run.input.steer = input.steer;
   run.input.tuck = Math.min(input.tuck, rival.pace);
   run.input.brake = input.brake;
@@ -197,7 +217,9 @@ export function stepRivals(state: GameState): void {
         ? "countdown"
         : "racing";
     run.events.length = 0;
-    stepRun(run, rivalInput(run, rival, sinceGo), run.events);
+    // In a ski-cross heat the lane is the pack's to read (`crossLane`).
+    const lane = state.cross ? crossLane(state, rival) : rival.lane;
+    stepRun(run, rivalInput(run, rival, sinceGo, lane), run.events);
   }
 }
 
@@ -247,20 +269,37 @@ function clipPair(a: SkierState, b: SkierState): number {
 }
 
 /** Every skier against every other, once a step, after all have moved.
- * The player's own contacts are reported (`bump`). */
+ * The player's own contacts are reported (`bump`); in a ski-cross heat
+ * (`RunRules.knock`) each one is judged as well (`judgeContact`). */
 export function clipRiders(state: GameState, events: GameEvent[]): void {
   const n = state.rivals.length;
   if (n === 0) return;
   const me = state.skier;
+  const knock = state.rules.knock === true;
+  const mine = { run: state, events };
   for (let i = 0; i < n; i++) {
     const r = state.rivals[i];
+    const va = knock ? velocityOf(me) : null;
+    const vb = knock ? velocityOf(r.run.skier) : null;
     const closing = clipPair(me, r.run.skier);
     if (closing >= RACE.bump.speed && me.bumpCooldown <= 0) {
       me.bumpCooldown = RACE.bump.cooldown;
       events.push({ kind: "bump", t: state.t, rival: r.id, speed: closing });
     }
-    for (let k = i + 1; k < n; k++) clipPair(r.run.skier, state.rivals[k].run.skier);
+    const theirs = { run: r.run, events: r.run.events };
+    if (va && vb) judgeContact(mine, theirs, closing, va, vb);
+    for (let k = i + 1; k < n; k++) {
+      const o = state.rivals[k];
+      const v1 = knock ? velocityOf(r.run.skier) : null;
+      const v2 = knock ? velocityOf(o.run.skier) : null;
+      const shoulder = clipPair(r.run.skier, o.run.skier);
+      if (v1 && v2) judgeContact(theirs, { run: o.run, events: o.run.events }, shoulder, v1, v2);
+    }
   }
+}
+
+function velocityOf(c: SkierState): { x: number; y: number; z: number } {
+  return { x: c.vx, y: c.vy, z: c.vz };
 }
 
 /** HOW FAR DOWN THE RUN A SKIER IS: gates credited, plus a share of the way

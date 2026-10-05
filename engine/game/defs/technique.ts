@@ -20,7 +20,8 @@
 // no mode deals it yet.
 
 /** The techniques the engine knows. */
-export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "speedSki";
+export type TechniqueId =
+  "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki";
 
 export type Technique = {
   id: TechniqueId;
@@ -185,6 +186,27 @@ export const DOWNHILL_TECHNIQUE: Technique = {
   cross: CROSS_OVER,
 };
 
+/** THE SKI-CROSS RACER (R35). A giant slalom racer's carve on a shorter
+ * ski, turned through BERMS of 20–30 m at 50–70 km/h — the bank carrying
+ * a share of the turn, the edge the rest — and in between the rollers
+ * pumped, the jumps absorbed low and the straights tucked (est.,
+ * `docs/disciplines.md` § Ski cross). So: the edge rolled at the shared
+ * rate (a racer comes off a landing straight into a berm), stood at up to
+ * 64°, held to 70 km/h (the lock's fade twice as slow), most of the shelf,
+ * the body let in to 55° (a 25 m berm at 17 m/s balanced on the snow is
+ * 50°, the bank taking some of it), crossing under on the flat — the legs
+ * tipping the skis to 40° under a trunk kept quiet for the next feature —
+ * and over on a steep pitch, past 19°. */
+export const SKI_CROSS_TECHNIQUE: Technique = {
+  id: "skiCross",
+  edgeRate: 1,
+  edgeMax: 1.12,
+  fade: 2,
+  platform: 0.8,
+  incline: 0.96,
+  cross: { under: 0.7, retract: 0.05, steep: 0.33 },
+};
+
 /** THE SPEED SKIER (R34). No turn at all: straight down the fall line in a
  * tuck held rigid, the skis absolutely FLAT on the snow, the seat high to
  * press them down, balance kept with small movements of the hands and the
@@ -209,6 +231,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   giantSlalom: GIANT_SLALOM_TECHNIQUE,
   superG: SUPER_G_TECHNIQUE,
   downhill: DOWNHILL_TECHNIQUE,
+  skiCross: SKI_CROSS_TECHNIQUE,
   speedSki: SPEED_SKI_TECHNIQUE,
 };
 

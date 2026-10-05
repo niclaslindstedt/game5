@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CATALOG: eight pairs of skis, each an answer to a kind of snow and
+// THE CATALOG: nine pairs of skis, each an answer to a kind of snow and
 // none a point on one scale. Every pair is held to its own documented expectation
 // (`topSpeed`) down the reference pitch; then each is held to what its row
 // CLAIMS — the speed ski flat out fastest and the downhill ski the fastest
 // that turns, the slalom ski quickest onto an edge, the giant slalom ski
 // holding the groomer hardest, the super-G ski the hardest bend at speed,
-// the powder ski
+// the ski-cross ski landing softest of the race skis, the powder ski
 // floating, the park ski taking the landing the others fold on — and the
 // reference pair's footprint to being exactly the one every shared number
 // was tuned on. Staged on the synthetic drag strips with `placeRun`.
@@ -35,10 +35,12 @@ import {
   tipLimit,
   TOP_SPEED_PITCH,
   TUNING,
+  WOLVERINE,
   type GameState,
   type Level,
   type SkiSpec,
 } from "@engine";
+import { SKI_LOOKS } from "../pwa/src/game/ski-looks.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
 const SCHUSS = flatLevel({
@@ -88,13 +90,14 @@ function restSink(spec: SkiSpec): number {
 }
 
 describe("the catalog", () => {
-  it("is eight pairs with their own ids, the chamois the default", () => {
+  it("is nine pairs with their own ids, the chamois the default", () => {
     expect(SKI_CATALOG.map((s) => s.id)).toEqual([
       "chamois",
       "swift",
       "chough",
       "falcon",
       "eagle",
+      "wolverine",
       "peregrine",
       "marmot",
       "hare",
@@ -174,6 +177,23 @@ describe("the catalog", () => {
     expect(s.skierMass).toBe(SKIS.skierMass);
   });
 
+  it("builds the ski-cross ski to its class's band", () => {
+    // § Ski cross: the rules set no length, width or radius — only a
+    // binding plate at most 50 mm high; the class is a giant-slalom-type
+    // race ski cut down, some 1.80–1.95 m on a 21–27 m arc (est.). Shorter
+    // and tighter than the giant slalom ski, and still a race ski's waist.
+    const s = WOLVERINE;
+    expect(s.length).toBeGreaterThanOrEqual(1.8);
+    expect(s.length).toBeLessThanOrEqual(1.95);
+    expect(s.sidecut).toBeGreaterThanOrEqual(21);
+    expect(s.sidecut).toBeLessThanOrEqual(27);
+    expect(s.length).toBeLessThan(CHOUGH.length);
+    expect(s.sidecut).toBeLessThan(CHOUGH.sidecut);
+    expect(s.waist).toBeLessThan(SKIS.waist);
+    expect(SKI_LOOKS.wolverine.binding.plate).toBe(true);
+    expect(SKI_LOOKS.wolverine.binding.height).toBeLessThanOrEqual(0.05);
+  });
+
   it("prices the reference pair's footprint at exactly one on every axis", () => {
     const fit = footprintOf(SKIS);
     expect(fit.sink).toBe(1);
@@ -212,7 +232,7 @@ describe("every pair, down the reference pitch", () => {
   });
 });
 
-describe("eight answers to a kind of snow", () => {
+describe("nine answers to a kind of snow", () => {
   it("the speed ski is the quickest flat out, then the downhill ski; the powder and park skis the slowest", () => {
     const tops = new Map(SKI_CATALOG.map((s) => [s.id, topOn(s, SCHUSS)]));
     expect(Math.max(...tops.values())).toBe(tops.get("peregrine"));
@@ -247,7 +267,7 @@ describe("eight answers to a kind of snow", () => {
     const times = SKI_CATALOG.filter((s) => s !== PEREGRINE).map((s) => timeTo(s, DEEP_SCHUSS, 50));
     expect(Math.min(...times)).toBe(timeTo(MARMOT, DEEP_SCHUSS, 50));
     // (The speed ski's 2.40 m of 94 mm spreads its load: it floats.)
-    for (const s of [SWIFT, CHOUGH, FALCON, EAGLE]) {
+    for (const s of [SWIFT, CHOUGH, FALCON, EAGLE, WOLVERINE]) {
       expect(footprintOf(s).sink).toBeGreaterThan(1);
     }
   });
@@ -258,6 +278,12 @@ describe("eight answers to a kind of snow", () => {
     expect(Math.min(...harsh)).toBe(harshSpeedOf(PEREGRINE));
     const alpine = SKI_CATALOG.filter((s) => s !== PEREGRINE).map(harshSpeedOf);
     expect(Math.min(...alpine)).toBe(harshSpeedOf(EAGLE));
+  });
+
+  it("the ski-cross ski lands softer than every other race ski — a course of jumps on a race ski", () => {
+    for (const s of [SWIFT, CHOUGH, FALCON, EAGLE, PEREGRINE]) {
+      expect(harshSpeedOf(WOLVERINE), s.id).toBeGreaterThan(harshSpeedOf(s));
+    }
   });
 
   it("a low tuck tips later than a tall stance", () => {

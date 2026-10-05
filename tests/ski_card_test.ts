@@ -17,6 +17,7 @@ import {
   skisBars,
   speedCarveOf,
   fastCarveOf,
+  bermCarveOf,
   skisFacts,
 } from "../pwa/src/game/ski-stats.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -77,6 +78,10 @@ describe("the spec sheet", () => {
     expect(by(fastCarveOf)[0]).toBe("eagle");
     expect(by((s) => s.topSpeed)[0]).toBe("peregrine");
     expect(by((s) => carveOf(s))[0]).toBe("chough");
+    // Round a ski cross's berm the slalom ski is at its grip and the giant
+    // slalom ski's arc does not yet ask all of its own: the ski-cross
+    // ski's arc asks all of a grip greater than the slalom ski's.
+    expect(by(bermCarveOf)[0]).toBe("wolverine");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);
     expect(forgivenessOf(SKIS)).toBeCloseTo(1, 9);

@@ -63,7 +63,12 @@ const set = new WeakMap<Level, Level>();
  * the day and the sky of the map it was set over. */
 export function setDownhill(level: Level): Level {
   if (level.downhill) return level;
-  const original = level.slalom?.base ?? level.superG?.base ?? level.speedSki?.base ?? level;
+  const original =
+    level.slalom?.base ??
+    level.superG?.base ??
+    level.speedSki?.base ??
+    level.skiCross?.base ??
+    level;
   let course = set.get(original);
   if (!course) {
     course = courseOver(original);

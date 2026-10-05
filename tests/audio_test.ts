@@ -278,6 +278,22 @@ describe("what a skier meets and comes down into (route.ts's Contact)", () => {
     expect(inPowder.stretch!).toBeGreaterThan(onPiste.stretch!);
   });
 
+  it("drops a ski cross's gate at GO, and counts no lights down on a heat", () => {
+    const qualifying = { start: { gate: true, heat: false } };
+    const heat = { start: { gate: true, heat: true } };
+    // Its doors are the GO, the qualification's and a heat's alike.
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.go, qualifying)!.id).toBe("gate_drop");
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.go, heat)!.id).toBe("gate_drop");
+    expect(RUN_BANK.gate_drop).toBeDefined();
+    // The qualification is counted down as every race is; a heat is
+    // started on the starter's word, the drop's moment never told.
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.count, qualifying)!.id).toBe("count");
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.count, heat)).toBe(null);
+    // Every other start is the hut's beeps.
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.go)!.id).toBe("go");
+    expect(soundForEvent(EVERY_EVENT_BY_KIND.count)!.id).toBe("count");
+  });
+
   it("hands every event of a step its contact", () => {
     const seen: string[] = [];
     soundsForStep([EVERY_EVENT_BY_KIND.hit, EVERY_EVENT_BY_KIND.land], (e) => {

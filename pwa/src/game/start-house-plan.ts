@@ -84,13 +84,14 @@ export type HousePlan = {
 
 const plans = new WeakMap<Level, HousePlan | null>();
 
-/** THE START HOUSE of `level`'s slalom, or null on a map with none. Kept
- * per map. */
+/** THE START HOUSE of `level`'s race, or null on a map with none — and on
+ * a ski cross, whose racers start out of a gate of doors instead
+ * (`cross-gate-plan.ts`). Kept per map. */
 export function startHousePlan(level: Level): HousePlan | null {
   if (plans.has(level)) return plans.get(level) ?? null;
   const sl = raceCourseOf(level);
   const start = level.checkpoints[0];
-  if (!sl || !start) {
+  if (!sl || !start || level.skiCross) {
     plans.set(level, null);
     return null;
   }

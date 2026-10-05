@@ -52,6 +52,9 @@ import { DISCIPLINE_RULES } from "../mapgen/index.ts";
 /** What the skier holds under the lights: the skis across the slope, and
  * nothing else. */
 const HOLD: SkierInput = { ...NEUTRAL_INPUT, brake: 1 };
+/** ...and behind a ski cross's start gate (R35): stood square to the doors
+ * on the ramp's lip, his hands on the handles — the doors hold him. */
+const AT_THE_DOORS: SkierInput = { ...NEUTRAL_INPUT };
 /** What a finished skier does: checks his speed down to a stop in the
  * arena — a skier left to himself would go on working (`poles.ts`). */
 const COAST: SkierInput = { ...NEUTRAL_INPUT, brake: 0.6 };
@@ -113,7 +116,9 @@ export function stepRun(
     ? NEUTRAL_INPUT
     : !racing
       ? run.phase === "countdown"
-        ? HOLD
+        ? run.rules.start === "gate"
+          ? AT_THE_DOORS
+          : HOLD
         : runOut(run)
       : input;
   const stunts = run.rules.stunts && held === input;

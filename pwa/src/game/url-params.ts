@@ -13,6 +13,8 @@
 //   ?start=downhill ...or into a DOWNHILL's training run in its start house.
 //   ?start=superg   ...or into a SUPER-G's one run in its start house.
 //   ?start=speedski ...or into a SPEED RACE's qualification on its track.
+//   ?start=skicross ...or into a SKI CROSS's qualification (`run=2` its
+//                   first heat, four out of the start gate).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -34,14 +36,15 @@
 //   ?paused=1       ...or held under the pause card.
 //   ?camera=<rung>  the run's camera (tips, helmet, chase, far, high).
 //   ?skis=<id>      the player's pair for this visit (chamois, swift,
-//                   chough, falcon, eagle, peregrine, marmot, hare), over the stored one and
-//                   never written back — how a lab photographs a pair it did
-//                   not pick.
+//                   chough, falcon, eagle, wolverine, peregrine, marmot,
+//                   hare), over the stored one and never written back —
+//                   how a lab photographs a pair it did not pick.
 //   ?mode=trial     the run a link boots into (or the next one pressed) is
 //                   a TIME TRIAL — alone, against the record and the ghost —
 //                   rather than a race; ?mode=tricks, a TRICKS run on the
 //                   seed's trick field; ?mode=downhill, a DOWNHILL;
-//                   ?mode=superg, a SUPER-G; ?mode=speedski, a SPEED RACE.
+//                   ?mode=superg, a SUPER-G; ?mode=speedski, a SPEED RACE;
+//                   ?mode=skicross, a SKI CROSS.
 //   ?run=2          a slalom link boots into its SECOND RUN: the first
 //                   skied by the bot to the flag, then the second stood up
 //                   off it (`pinned-run.ts`'s `secondRunOff`) — what the
@@ -277,6 +280,7 @@ export function readParams(search: string): UrlParams {
       start === "downhill" ||
       start === "superg" ||
       start === "speedski" ||
+      start === "skicross" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -307,11 +311,13 @@ export function readParams(search: string): UrlParams {
             ? "superG"
             : start === "speedski" || q.get("mode") === "speedski"
               ? "speedSki"
-              : q.get("mode") === "trial"
-                ? "timeTrial"
-                : q.get("mode") === "tricks"
-                  ? "tricks"
-                  : "slalom",
+              : start === "skicross" || q.get("mode") === "skicross"
+                ? "skiCross"
+                : q.get("mode") === "trial"
+                  ? "timeTrial"
+                  : q.get("mode") === "tricks"
+                    ? "tricks"
+                    : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

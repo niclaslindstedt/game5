@@ -16,14 +16,14 @@ a second, stale copy of the truth.
 | [GIANT_SLALOM.md](GIANT_SLALOM.md) | Giant slalom | draft — research first |
 | — | Super-G | built — spec retired; its research is `docs/disciplines.md` § Super-G |
 | — | Downhill | built — spec retired; its research is `docs/disciplines.md` § Downhill |
-| [SKI_CROSS.md](SKI_CROSS.md) | Ski cross | draft — research first |
+| — | Ski cross | built — spec retired; its research is `docs/disciplines.md` § Ski cross |
 | — | Speed skiing | built — spec retired; its research is `docs/disciplines.md` § Speed skiing |
 
 Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G, the downhill and speed skiing; the shape every later discipline fills in |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G, the downhill, speed skiing and the ski cross; the shape the giant slalom fills in |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
@@ -560,6 +560,65 @@ a tenth of a km/h.
 - **The programme** is two runs; the sport runs four to six with a cut
   after each.
 
+## Lessons from the ski cross
+
+The ski cross was the fifth discipline and the first whose field is SKIED
+beside the player and whose course is BUILT rather than found. The race
+machinery carried over almost whole; the new work was the course's shape,
+the format around the runs and four racers on one course.
+
+### The course
+
+- **A course built in the snow is a line of its own.** The ski cross weaves
+  down the piste's corridor as its own `track` (the speed track's trick),
+  so the physics, the bot, the gates and the minimap ask the course with no
+  change. Lay the corners as waypoints and round them with arcs of a
+  dealt radius; a turn is then exactly the radius it was dealt.
+- **A feature is an offset over a profile — but a TABLE must be level in
+  absolute terms.** A kicker profile written relative to the base line
+  leaves its table falling with the slope, and the lip throws a racer flat:
+  0.2 s of air at 50 km/h. The jump is its own profile: the ramp relative
+  to the line, the table level, the landing dug back to the line.
+- **Shape a jump for the race's own air.** Under the races' 1.5 g flight
+  gravity a racer at 45–60 km/h flies 9–15 m, not a real course's 15–35;
+  a landing sized for real air is overshot onto the flat. Search the shape
+  offline (a point mass over the profile, its impact against `harshSpeed`)
+  for the speed band the bot actually carries, then build it.
+- **The bot's kicker speed stops at the first unsafe landing.** On a table
+  that is the knuckle, and the bot slows to land on the table; a long
+  landing that is safe from 10 to 20 m/s lets it carry its speed.
+- **A seed of its own wants a course chosen**, as the downhill's does:
+  the piste the map was built on may be a green half a kilometre long.
+  `skiCrossCourseOf` picks the ski area's course to build on.
+
+### The race
+
+- **Give every draw of a heat a stream of its own.** A heat's rivals are
+  the start list's, their paces their skills, their reactions and the
+  doors' release off the heat's own stream — so a restart, a replay and a
+  test stand up the same heat, and nothing else's digest moved
+  (`make sim`, `--mode slalom` and `--mode downhill` unchanged to the bit).
+- **Carry the competition on the run.** The bracket rides each run as
+  `GameState.bracket`, so the plate, a restart and a replay read one thing
+  and nothing in the app keeps a second copy.
+- **Contact needs a "behind".** Read it off the course's arc where the two
+  met, never off the gates credited — a racer teleported in a test, or one
+  who crossed a gate a step earlier, is not "ahead" for it. And in a
+  rear-end both take the same blow: the racer behind is braced for it, or
+  both go down and the card never comes.
+- **Lanes, not a centreline.** Four bots on one centreline pile up: each
+  holds his door's lane closing onto the line, and pulls out to pass a
+  slower racer close ahead. A fence is not powder — the lane margin on a
+  ski cross is a fence's, not a piste's.
+
+### The app
+
+- **A heat's start has no count.** "Skiers ready", "attention", then the
+  doors drop with no word: the lights and their beeps are off on a heat,
+  and the starter's word sits where a slalom's does.
+- **A DNF in a heat is not an out plate.** A racer who fell can still be in
+  the first two; the ski cross's plate is its own (`hud-cross.tsx`).
+
 ## The labs, and when to reach for each
 
 Every lab writes to `previews/` (gitignored). `make <lab> ARGS=--help` lists
@@ -571,7 +630,7 @@ cloud session; `screenshots` needs `make build` first.
 | `make technique` | Each riding technique skied by the bot on one course: PATH (strobed from above, gates drawn, a scale bar), BEHIND (TV frames at transition, edge-set, apex, exit), SIDE (the apex), TURNS (every technique's natural linked carve on one open slope at one scale, the line coloured by radius, each apex labelled radius/time/edge, the researched radius drawn), and a TABLE against the research targets (`--json` to save, `--compare` to diff) | THE loop for a technique row and its pose: run before and after every physics or pose change. `--techniques=slalom` and `--sheets=none` give the table in seconds; `--course=slalom|piste` |
 | `make ride` | Scripted scenarios on synthetic slopes, each a table and a picture; `slalom-cut` and `slalom-rhythm` measure a technique's carve and rhythm without the bot | A new technique gets its own scenarios (`scripts/lib/ride-slalom.mjs` is the pattern); `ARGS=--card` is every pair's card |
 | `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode — save its table before the first edit |
-| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`, `speedSki`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
+| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`, `speedSki`, `skiCross` — `--heat` a ski-cross heat): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
 | `make sim ARGS="--skis all"` | Every pair down every seed | A pair's retune (the downhill pair's misses showed here) |
 | `make level` / `make analyze` | One map's piste, gates, kickers and grades; the rule book's verdict | The course rule and its setter; `make resort` for the ski area |
 | `make rate CAMPAIGN=1` | Every campaign rung rated, with the bot's time and a trial's medals | Curating a discipline's rungs and setting medals (gold 0.98×, silver 1.03×, bronze 1.125× the bot) |

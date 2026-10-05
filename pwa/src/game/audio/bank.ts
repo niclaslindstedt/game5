@@ -500,6 +500,68 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  gate_drop: {
+    description:
+      "A SKI CROSS'S START GATE DROPPING: the latch let go — a dry white " +
+      "tick — then the four steel doors slamming down onto their stops a " +
+      "few milliseconds apart, a driven square knock bending down under " +
+      "two bursts of bright grit, the frame left ringing on two inharmonic " +
+      "partials with the slope's echo behind it. The GO of a gate start.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 18,
+        volume: 0.035,
+        color: "white",
+        filter: { type: "bandpass", frequency: 3600, q: 3 },
+      },
+      {
+        call: "tone",
+        type: "square",
+        from: 230,
+        to: 115,
+        durationMs: 150,
+        volume: 0.05,
+        drive: 0.6,
+        delayMs: 70,
+        filter: { type: "lowpass", frequency: 1900, to: 450 },
+      },
+      {
+        call: "noise",
+        durationMs: 55,
+        volume: 0.055,
+        color: "white",
+        delayMs: 70,
+        filter: { type: "bandpass", frequency: 2100, q: 1.4 },
+      },
+      {
+        call: "noise",
+        durationMs: 45,
+        volume: 0.035,
+        color: "white",
+        delayMs: 92,
+        filter: { type: "bandpass", frequency: 1700, q: 1.4 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 742,
+        durationMs: 380,
+        volume: 0.016,
+        delayMs: 75,
+        echo: 0.2,
+      },
+      {
+        call: "tone",
+        type: "sine",
+        from: 1187,
+        durationMs: 300,
+        volume: 0.012,
+        delayMs: 78,
+      },
+    ],
+  },
+
   finish: {
     description:
       "The finish line: the arena's HORN — a driven sawtooth a fifth over " +

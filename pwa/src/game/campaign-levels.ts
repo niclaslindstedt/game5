@@ -108,7 +108,7 @@ import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind }
  * TRIAL down
  * its whole course alone. A free ride measures nothing, so it is never a
  * rung. */
-export type CampaignMode = "slalom" | "downhill" | "superG" | "speedSki" | "timeTrial";
+export type CampaignMode = "slalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "timeTrial";
 
 /** The three medals a time trial pays, worst first. */
 export const MEDALS = ["bronze", "silver", "gold"] as const;

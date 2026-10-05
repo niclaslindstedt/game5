@@ -245,10 +245,31 @@ export function Hud({
                       ? STRINGS.superGRun
                       : snap.race.discipline === "speedSki"
                         ? STRINGS.speedSkiRun(snap.race.run)
-                        : STRINGS.runOf(snap.race.run, snap.race.runs)}
+                        : snap.race.discipline === "skiCross"
+                          ? STRINGS.crossRound("qualify")
+                          : STRINGS.runOf(snap.race.run, snap.race.runs)}
                 </span>
                 <span class="hud-chip-sub">{STRINGS.runLabel}</span>
               </div>
+            ) : snap.cross ? (
+              /* A SKI-CROSS HEAT: its round, and his place in the pack of
+               four — the first two go through. */
+              <>
+                <div class="hud-chip hud-run">
+                  <span>{STRINGS.crossRound(snap.cross.round)}</span>
+                  <span class="hud-chip-sub">
+                    {STRINGS.crossHeat(snap.cross.heat, snap.cross.round) ||
+                      STRINGS.crossRoundLabel}
+                  </span>
+                </div>
+                <div
+                  class={`hud-chip hud-place${snap.place <= snap.cross.through ? " hud-place-through" : ""}`}
+                  key={snap.place}
+                >
+                  <span>{STRINGS.place(snap.place, snap.skiers)}</span>
+                  <span class="hud-chip-sub">{STRINGS.placeLabel}</span>
+                </div>
+              </>
             ) : !snap.free && snap.skiers > 1 ? (
               <div class="hud-chip hud-place" key={snap.place}>
                 <span>{STRINGS.place(snap.place, snap.skiers)}</span>
@@ -267,8 +288,9 @@ export function Hud({
               </div>
             )}
             {/* THE VERTICAL: how far down the mountain the run has got — the
-              one figure a descent has that a loop never did. */}
-            {!snap.free && (
+              one figure a descent has that a loop never did; a ski-cross
+              heat's place in the pack says more, and has the room. */}
+            {!snap.free && !(snap.cross && snap.cross.round !== "qualify") && (
               <div class="hud-chip">
                 <span>{STRINGS.dropped(snap.dropped)}</span>
                 <span class="hud-chip-sub">{STRINGS.droppedLabel}</span>
@@ -410,6 +432,19 @@ export function Hud({
         <div class="hud-starter" role="status" key={snap.race.word}>
           <span class={snap.race.word === "go" ? "hud-starter-go" : undefined}>
             {snap.race.word === "go" ? STRINGS.starterGo : STRINGS.starterReady}
+          </span>
+        </div>
+      )}
+      {/* A SKI-CROSS HEAT'S START: "skiers ready", "attention" — and the
+          doors drop at a moment nobody is told, GO only once they have. */}
+      {snap.cross?.word && (
+        <div class="hud-starter" role="status" key={snap.cross.word}>
+          <span class={snap.cross.word === "go" ? "hud-starter-go" : undefined}>
+            {snap.cross.word === "go"
+              ? STRINGS.crossGo
+              : snap.cross.word === "attention"
+                ? STRINGS.crossAttention
+                : STRINGS.crossReady}
           </span>
         </div>
       )}

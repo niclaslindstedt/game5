@@ -261,6 +261,11 @@ function bendAt(level: Level, s: number, span: number): number {
  * powder. So the field holds its slots out of the gate and closes on the
  * racing line as it gathers pace. */
 const LANE_MARGIN = 3;
+/** ...on a ski cross (R35), whose edges are its fence and whose racers
+ * ride four abreast in fourteen metres: the margin a racer keeps off the
+ * fence, m, and how much further in per m/s. */
+const CROSS_MARGIN = 1.6;
+const CROSS_DRIFT = 0.05;
 /** How far inside a slalom gate's edge a rival's lane is held, m. */
 const SLALOM_MARGIN = 2.5;
 const LANE_DRIFT = 0.25;
@@ -663,7 +668,11 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     // (Held to a speed gate's line, the room is the piste's at the gate,
     // which is where that line was set.)
     const wide = lineS < aimS ? trackPointAt(level, lineS, pc).width : aim.width;
-    const room = poles ? wide / 2 : Math.max(0, wide / 2 - LANE_MARGIN - LANE_DRIFT * speed);
+    const room = poles
+      ? wide / 2
+      : level.skiCross
+        ? Math.max(0, wide / 2 - CROSS_MARGIN - CROSS_DRIFT * speed)
+        : Math.max(0, wide / 2 - LANE_MARGIN - LANE_DRIFT * speed);
     const gate = cps[Math.min(cps.length - 1, p.nextCheckpoint)];
     const inGate = poles
       ? 0

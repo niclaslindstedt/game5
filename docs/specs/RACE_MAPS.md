@@ -1,12 +1,12 @@
 # Race maps — every discipline's own pinned maps
 
-**Built for the slalom, the super-G, the downhill and speed skiing**
-(`pwa/src/game/race-maps.ts`, `tests/race_maps_test.ts`,
+**Built for the slalom, the super-G, the downhill, speed skiing and the ski
+cross** (`pwa/src/game/race-maps.ts`, `tests/race_maps_test.ts`,
 `race_maps_downhill_test.ts`, `race_maps_superg_test.ts`,
-`race_maps_speedski_test.ts` — a speed race's box draws its track, the
-final's, and quotes the final's figures). What stays here is the SHAPE a
-discipline built later (the giant slalom, the ski cross) fills in as part of
-being built — its spec says so —
+`race_maps_speedski_test.ts`, `race_maps_skicross_test.ts` — a speed race's
+box draws its track, the final's, and quotes the final's figures). What
+stays here is the SHAPE a discipline built later (the giant slalom) fills in
+as part of being built — its spec says so —
 and the one tool still to write (*To do*). Delete this file with the last
 discipline's nine.
 
@@ -127,6 +127,13 @@ the PR.
   Prefer variety — a glider's course of long straights, a technical one of
   linked bends, one with big air — and the hardest maps the longest and
   fastest.
+- **Ski cross (R35).** The ski area's courses whose gentlest long stretch
+  builds a ski cross of 780 m and more over 120–250 m, at least four berms
+  and two jumps or step-downs; the bot home in the qualification with no
+  harsh landing and no out, and home in a heat of four. Spread across the
+  four countries (the fell's gentle blues are the gentlest), the sky the
+  speed races' jury allows (no storm), one under the floodlights; the
+  hardest a black.
 - **Every later discipline** writes its own criteria here (or in its spec)
   from its course rule, before the sweep.
 
@@ -241,3 +248,32 @@ permanent.
   podium on the first six)? Decided open for now.
 - Should the time trial get its own nine too, or keep the campaign's?
   Decided: keeps the campaign's.
+
+### How the ski cross's nine were picked
+
+Seeds 11–40 swept in all four countries on generator v6: each country's ski
+area built, up to four of its courses with 140 m of drop and more built as
+a ski cross (`setSkiCross`), the bot down the qualification and a heat of
+four (`simulateRun` with `mode: "skiCross"`, `heat`), and the course's
+figures beside it — about 380 courses, 168 of them clean by the criteria
+above. The nine, gentlest first:
+
+| Ski cross | Seed | Country | Course | Length | Drop | Berms | Jumps + steps | Bot (qualifying) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Fell Rollers | 24 | fell | blue 8 | 830 m | 128 m | 6 | 3 + 2 | 69.1 s |
+| Sea Berms | 12 | maritime | blue 4 | 796 m | 129 m | 4 | 6 + 0 | 67.7 s |
+| High Fell | 34 | fell | blue 5 | 790 m | 154 m | 4 | 3 + 0 | 54.5 s |
+| Afternoon Cross | 16 | alpine | red 13 | 793 m | 159 m | 4 | 4 + 1 | 57.9 s |
+| Roller Coast | 17 | maritime | red 4 | 835 m | 172 m | 7 | 3 + 0 | 66.0 s |
+| Long Haul | 27 | continental | red 7 | 983 m | 198 m | 8 | 4 + 2 | 76.0 s |
+| Big Air Alley | 25 | alpine | red 3 | 933 m | 188 m | 5 | 4 + 1 | 71.7 s |
+| Night Cross | 21 | continental | red 3 | 903 m | 183 m | 7 | 5 + 2 | 70.6 s |
+| Black Cross | 30 | continental | black 8 | 880 m | 189 m | 7 | 3 + 1 | 63.2 s |
+
+The figures are re-measured on the course's final shape (longer legs
+between the berms, the rollers 14–16 m crest to crest), which came after
+the sweep: every map kept its stretch and its drop and moved its features.
+The bot is home in the qualification and in a heat on all nine; Night
+Cross's bot is thrown off one roller crest onto the next one's face at the
+end of a long straight (one harsh landing in each run), its only one on
+the nine.

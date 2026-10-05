@@ -27,7 +27,16 @@
 //           frame as the racer goes by), `finish` (down the last stretch to
 //           the arch), `stand` (a grandstand from the line), `arena` (the
 //           finish circle from behind the video wall), `overview` and
-//           `chase` (the game's own camera).
+//           `chase` (the game's own camera). On a SKI CROSS (`?mode=skiCross`,
+//           `?heat=1` a heat of four out of the gate together) the start
+//           gate as well: `doors` (from down the start ramp under the
+//           starter's word), `doors-back` (behind the racers in it),
+//           `doors-go` (from beside it as the doors drop) and `doors-out`
+//           (a moment later, the racers out of it), `berm` (a turning
+//           gate's flag on the inside of the first berm, the crowd on its
+//           outside), `corridor` (the first corridor gate's two flags) and
+//           `fence` (along the course's fence) and `finish-line` (the red
+//           line under the arch).
 //
 // Sets `window.__done` when a sheet is on screen; the race sheet sets it
 // once loaded and answers `__aud.order(views)` (the views in the order the
@@ -39,9 +48,12 @@ import {
   createGame,
   isGameMode,
   nearestTrackPoint,
+  SKI_CROSS,
+  skisById,
   step,
   trackPointAt,
   type GameState,
+  type WeatherKind,
 } from "@engine";
 
 import { createHazeUniforms } from "../game/haze.ts";
@@ -70,6 +82,9 @@ const sheet = params.get("sheet") ?? "moves";
 const seed = Number(params.get("seed") ?? 38);
 const modeParam = params.get("mode") ?? "slalom";
 const mode = isGameMode(modeParam) ? modeParam : "slalom";
+/** A ski cross's heat of four out of the gate together, rather than its
+ * qualification alone. */
+const heat = params.get("heat") === "1";
 
 const CELL_W = 170;
 const CELL_H = 230;
@@ -308,9 +323,36 @@ async function race(): Promise<void> {
     preserveDrawingBuffer: true,
   });
   renderer.resize(width, height, 1);
-  const state: GameState = createGame({ seed, mode, quiet: true });
+  const cross = mode === "skiCross";
+  const state: GameState = createGame({
+    seed,
+    mode,
+    quiet: true,
+    ...(cross ? { spec: skisById(SKI_CROSS.skis) } : {}),
+    ...(cross && heat
+      ? {
+          cross: {
+            round: "quarter" as const,
+            index: 0,
+            racers: [
+              { id: null, rank: 1 },
+              { id: 0, rank: 8 },
+              { id: 1, rank: 9 },
+              { id: 2, rank: 16 },
+            ],
+          },
+        }
+      : {}),
+  });
   const hour = Number(params.get("hour"));
-  if (params.get("hour") !== null && Number.isFinite(hour)) renderer.setSky({ hour });
+  const weather = params.get("weather");
+  const hourSet = params.get("hour") !== null && Number.isFinite(hour);
+  if (hourSet || weather) {
+    renderer.setSky({
+      ...(hourSet ? { hour } : {}),
+      ...(weather ? { weather: weather as WeatherKind } : {}),
+    });
+  }
   await renderer.load(state);
   const level = state.level;
   // The finish line's arc: the piste's end on a downhill, short of it on
@@ -396,6 +438,33 @@ async function race(): Promise<void> {
   PASS.forEach((ds, k) => {
     at[`pass-${k}`] = () => (passBank ? passBank.s + ds : null);
   });
+
+  // A SKI CROSS's own views: the start gate under the starter's word and as
+  // its doors drop — held to the run's clock, s after GO (`when`), ahead of
+  // every arc — and the course's flags and fence.
+  const xc = level.skiCross;
+  const go = state.rules.countdown;
+  const when: Record<string, number> = { "doors-go": go + 0.1, "doors-out": go + 0.9 };
+  const firstOf = (kind: "berm" | "corridor") => {
+    if (!xc) return null;
+    if (kind === "berm") {
+      const b = xc.features.find((f) => f.kind === "berm");
+      const cp = level.checkpoints.find((c) => c.flags && c.pole && b && c.s >= b.from - 2);
+      return b && cp ? { s: cp.s, side: b.side ?? 1, cp } : null;
+    }
+    const cp = level.checkpoints.find((c) => c.flags && !c.pole && c.s > 60);
+    return cp ? { s: cp.s, side: 1, cp } : null;
+  };
+  if (xc) {
+    at.doors = () => -4;
+    at["doors-back"] = () => -3;
+    at["doors-go"] = () => -2;
+    at["doors-out"] = () => -1;
+    at.berm = () => (firstOf("berm")?.s ?? 0) - 20;
+    at.corridor = () => (firstOf("corridor")?.s ?? 0) - 25;
+    at.fence = () => (xc.from + xc.to) / 2 - 30;
+    at["finish-line"] = () => xc.to - 30;
+  }
 
   const shots: Record<string, () => string> = {
     start() {
@@ -519,6 +588,63 @@ async function race(): Promise<void> {
       return "the video wall and the leader's platform from the finish circle";
     },
   };
+  /** A point `ahead` m down the course from arc `s` and `side` m to its
+   * right, on the snow, `up` m over it. */
+  const point = (s: number, side: number, up: number): [number, number, number] => {
+    const p = trackPointAt(level, s);
+    const x = p.x + Math.cos(p.heading) * side;
+    const z = p.z - Math.sin(p.heading) * side;
+    return [x, level.groundAt(x, z) + up, z];
+  };
+  if (xc) {
+    const doors = xc.from;
+    shots.doors = () => {
+      look(point(doors + 16, 0, 2.2), point(doors - 1, 0, 1.4), 55);
+      return "the start gate from down its ramp, the racers behind their doors";
+    };
+    shots["doors-back"] = () => {
+      const p = trackPointAt(level, 0);
+      const fx = Math.sin(p.heading);
+      const fz = Math.cos(p.heading);
+      const ex = p.x - fx * 5;
+      const ez = p.z - fz * 5;
+      look([ex, level.groundAt(ex, ez) + 3.4, ez], point(doors + 30, 0, -2), 60);
+      return "behind the racers in the gate, down the start ramp";
+    };
+    shots["doors-go"] = () => {
+      look(point(doors + 5, 11, 2.4), point(doors, 0, 0.6), 50);
+      return `the doors dropping, ${(state.t - go).toFixed(2)} s after GO`;
+    };
+    shots["doors-out"] = () => {
+      look(point(doors + 5, 11, 2.4), point(doors + 2, 0, 0.6), 55);
+      return `out of the gate, ${(state.t - go).toFixed(2)} s after GO`;
+    };
+    shots.berm = () => {
+      const b = firstOf("berm");
+      if (!b) return "no berm on this course";
+      // From the inside of the turn, its flag in front, the wall and its
+      // crowd across the course behind it.
+      const half = xc.width / 2;
+      look(point(b.s - 14, b.side * (half - 1), 1.8), point(b.s + 4, -b.side * half, 1.5), 60);
+      return `the first berm's turning gate at ${b.s.toFixed(0)} m, its crowd on the outside`;
+    };
+    shots.corridor = () => {
+      const c = firstOf("corridor");
+      if (!c) return "no corridor gate on this course";
+      look(point(c.s - 16, 0, 2.4), point(c.s, 0, 0.8), 55);
+      return `a corridor gate at ${c.s.toFixed(0)} m, a flag at each end`;
+    };
+    shots["finish-line"] = () => {
+      look(point(xc.to - 14, -3, 2.2), point(xc.to + 2, 0, 0.5), 60);
+      return "the finish line and its arch from the last metres";
+    };
+    shots.fence = () => {
+      const s0 = (xc.from + xc.to) / 2;
+      const half = xc.width / 2;
+      look(point(s0 - 30, half - 0.5, 1.6), point(s0 + 10, half + 1, 0.8), 55);
+      return `along the fence at ${s0.toFixed(0)} m`;
+    };
+  }
   PASS.forEach((ds, k) => {
     shots[`pass-${k}`] = () => {
       if (!passBank) return "no finish slope";
@@ -541,13 +667,16 @@ async function race(): Promise<void> {
       // Ride the bot on to the moment, a frame drawn now and then so the
       // tracks keep up.
       let n = 0;
+      const until = when[view] ?? -1;
+      while (state.t < until) step(state, botInput(state));
       while (want !== null && racerS() < want && state.t < 600) {
         for (let i = 0; i < 2; i++) step(state, botInput(state));
         if (n++ % 3 === 0) renderer.draw(state, 0, FRAME, false);
       }
-      // A few frames drawn as they come, so the lens and the crowd settle.
+      // A few frames drawn as they come, so the lens and the crowd settle —
+      // drawn without stepping where the view is held to the clock.
       for (let i = 0; i < 4; i++) {
-        for (let k = 0; k < 2; k++) step(state, botInput(state));
+        if (until < 0) for (let k = 0; k < 2; k++) step(state, botInput(state));
         renderer.draw(state, 0, FRAME, false);
       }
       const what = shoot();

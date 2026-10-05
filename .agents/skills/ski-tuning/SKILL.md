@@ -25,11 +25,12 @@ The answer is measured, never asserted. **Any change to `defs/skis.ts` owes
 
 ## The catalog
 
-SEVEN pairs, `SKI_CATALOG` in `defs/skis.ts`, in the order the ski card turns
+NINE pairs, `SKI_CATALOG` in `defs/skis.ts`, in the order the ski card turns
 through them — best all-round first, the one that asks most of a skier last:
 `SKIS` (the CHAMOIS, an all-mountain ski — the reference every shared number
 in `TUNING` was tuned on, and the default), `SWIFT` (slalom), `CHOUGH`
-(giant slalom), `FALCON` (super-G), `EAGLE` (downhill), `MARMOT` (powder) and `HARE` (park).
+(giant slalom), `FALCON` (super-G), `EAGLE` (downhill), `WOLVERINE` (ski
+cross), `PEREGRINE` (speed ski), `MARMOT` (powder) and `HARE` (park).
 Each is a real CLASS, named for an animal of the high country that moves the
 way it skis, and the Chamois's row spread with what differs. Every host reads
 them through `@engine` (`SKI_CATALOG`, `skisById`, `isSkiId`); ids are the
@@ -42,6 +43,7 @@ animal names.
 | Chough (giant slalom) | holds an edge on ice, carries speed through a long bend, skids a tight one | 193 cm on a 65 mm waist, stiff, a 30 m sidecut (the men's competition minimums), no rocker, a stiffer leg |
 | Falcon (super-G) | holds the hardest bend at a super-G's ~100 km/h, between the giant slalom ski's quickness and the downhill ski's top end | 210 cm on a 65 mm waist, a 45 m sidecut (the men's competition minimums), a 94 mm shoulder over a short low shovel, stiff, the second-smallest tuck (0.38 m²) |
 | Eagle (downhill) | fastest flat out, lands a downhill's jumps on its length, hates a bend | 218 cm on a 65 mm waist, the stiffest ski, a 50 m sidecut (the men's competition minimums), the smallest tuck (0.35 m²), the heaviest gear |
+| Wolverine (ski cross) | holds the hardest bend round a berm at 65 km/h, lands softer than every other race ski | 188 cm on a 68 mm waist, a 24 m sidecut (the class's 21–27 m, est.), flex 0.7 with a touch of tip rocker, on a plate at the rule's 50 mm |
 | Marmot (powder) | floats where the others sink, turns on its base, vague and slow on the groomer | a 116 mm waist, a 22 m sidecut, soft, a rockered tip |
 | Hare (park) | spins and lands anything softly, slow in a tuck and loose on an edge | a soft twin-tip on a centre mount, the softest leg with the most travel, the biggest tuck |
 

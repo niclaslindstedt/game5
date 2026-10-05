@@ -17,9 +17,11 @@ import {
   PARK_VERSION,
   downhillCourseOf,
   superGCourseOf,
+  skiCrossCourseOf,
   setSuperG,
   generateLevel,
   setDownhill,
+  setSkiCross,
   setSpeedSki,
   setSlalom,
   withDay,
@@ -37,6 +39,7 @@ import {
   MODE_RULES,
   RACE,
   fieldRules,
+  skiCrossHeatRules,
   clampResilience,
   clampSnowDepth,
   type Assist,
@@ -48,6 +51,8 @@ import type { TechniqueId } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
+import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
+import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
@@ -86,6 +91,16 @@ export type CreateGameOptions = {
    * SKIING the FINAL (R34): the qualification carried in, its best
    * starting from the top of the track, the standings the final's speed. */
   heat?: Heat;
+  /** A SKI-CROSS HEAT (R35, `cross-bracket.ts`): its round and its four
+   * racers in seed order, the player among them — raced four abreast out
+   * of the start gate under the heat's rules. The QUALIFICATION, one timed
+   * run alone against the start list's board, when left out. */
+  cross?: CrossHeat;
+  /** THE SKI CROSS SO FAR (R35, `cross-bracket.ts`): the qualification
+   * ranked and every heat raced before this run — carried between the runs
+   * of one race, its heat the player's next (`nextHeat`) where `cross` asks
+   * for none. The engine never reads it otherwise. */
+  bracket?: Bracket;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -170,10 +185,21 @@ export type CreateGameOptions = {
   sky?: SkyOverride;
 };
 
+/** The ski-cross heat a run asks for: named, or its bracket's next. */
+function crossOf(options: CreateGameOptions): CrossHeat | undefined {
+  return options.cross ?? (options.bracket ? (nextHeat(options.bracket) ?? undefined) : undefined);
+}
+
 /** The rules a run is dealt from what it asked for. */
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   const laps = options.laps ?? level.laps;
-  const base = options.mode ? MODE_RULES[options.mode](laps) : fieldRules(laps);
+  const cross = crossOf(options);
+  const base =
+    options.mode === "skiCross" && cross
+      ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
+      : options.mode
+        ? MODE_RULES[options.mode](laps)
+        : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -189,6 +215,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     heli: base.heli,
     sled: base.sled,
     start: base.start,
+    dealt: base.dealt,
+    knock: base.knock,
     gates: base.gates,
     window: base.window,
     technique: options.technique ?? base.technique,
@@ -215,23 +243,30 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   let built = options.level ?? generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with
   // the most vertical (R32) — the same resort, built once (`buildResort`).
-  // A SUPER-G the same hill's, its start lowered into its band (R33).
-  if ((downhill || superG) && !options.level && options.grade === undefined) {
-    const id = downhill ? downhillCourseOf(built) : superGCourseOf(built);
+  // A SUPER-G the same hill's, its start lowered into its band (R33); a SKI
+  // CROSS on the course a ski cross is built on best (R35).
+  const cross = options.mode === "skiCross";
+  if ((downhill || superG || cross) && !options.level && options.grade === undefined) {
+    const id = downhill
+      ? downhillCourseOf(built)
+      : superG
+        ? superGCourseOf(built)
+        : skiCrossCourseOf(built);
     if (id !== null && id !== built.resort?.course) {
       built = generateLevel(options.seed ?? 1, { ...ask, course: id });
     }
   }
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
-  // lowered start (R33), SPEED SKIING down its own track (R34), and any
-  // other mode skis the map under any course
-  // set over it.
+  // lowered start (R33), SPEED SKIING down its own track (R34), a SKI CROSS
+  // on the course built for it (R35), and any other mode skis the map
+  // under any course set over it.
   const original =
     built.slalom?.base ??
     built.downhill?.base ??
     built.superG?.base ??
     built.speedSki?.base ??
+    built.skiCross?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's.
@@ -244,7 +279,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
           ? setSuperG(built)
           : options.mode === "speedSki"
             ? setSpeedSki(built, options.heat?.run ?? 1)
-            : original;
+            : options.mode === "skiCross"
+              ? setSkiCross(built)
+              : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -315,10 +352,12 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     noteRun(state, onto ?? nearestPiste(level, state.skier.x, state.skier.z));
   }
   if (rules.rivals > 0) {
-    if (rules.start === "interval") {
+    if (rules.start === "interval" || rules.dealt) {
       createField(state, rules.rivals, options.heat, options.training === true);
-    } else createRivals(state, rules.rivals);
+    } else if (rules.knock && crossOf(options)) createHeat(state, crossOf(options) as CrossHeat);
+    else createRivals(state, rules.rivals);
   }
+  if (options.bracket) state.bracket = options.bracket;
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {
     status(
@@ -362,6 +401,8 @@ export function step(state: GameState, input: SkierInput): GameState {
     }
   }
 
+  // THE DRAFT in a ski-cross heat (`cross-heat.ts`), off where the four are.
+  if (state.cross) stepDrafts(state);
   stepRun(state, input, events, true);
   // THE SCORE is the player's, kept on every run (`tricks.ts`).
   stepTricks(state, events);

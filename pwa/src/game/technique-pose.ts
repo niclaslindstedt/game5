@@ -184,6 +184,29 @@ export const DOWNHILL_POSE: TechniquePose = {
   tuck: { low: 1.45, high: 1.0 },
 };
 
+/** THE SKI-CROSS RACER (R35). A giant slalom racer's stance a little
+ * lower and wider for the rollers and the landings *(est.)*: the trunk bent
+ * forward, countered a little through the berms; the hands forward and
+ * wide for balance in the pack, the poles planted only out of the gate and
+ * on the flats; the inside knee deep in a berm, the outside long; a
+ * cross-under on the flat; a glider's low tuck on the straights and a high
+ * one over the features. */
+export const SKI_CROSS_POSE: TechniquePose = {
+  id: "skiCross",
+  twist: 0.22,
+  pitch: 0.45,
+  angulate: 0.55,
+  lead: 0.95,
+  hands: { x: 0.1, y: 0.04, z: 0.08 },
+  plant: { share: 0.1, reach: 0.8 },
+  underArm: 0.3,
+  block: { hand: "outside", weight: 0 },
+  stance: 0.02,
+  legs: { kneeMost: 2.06, hike: 1.2, hold: 0.36 },
+  transition: { retract: 0.05, level: 0.35 },
+  tuck: { low: 1.35, high: 1.05 },
+};
+
 /** THE SPEED SKIER (R34). No turn: the tuck held rigid all the way down —
  * the head low and the SEAT HIGH to press the skis down, the trunk folded
  * past level and the hands in front of the helmet, carried some 20 cm
@@ -212,6 +235,7 @@ export const TECHNIQUE_POSES: Readonly<Record<TechniqueId, TechniquePose>> = {
   giantSlalom: GIANT_SLALOM_POSE,
   superG: SUPER_G_POSE,
   downhill: DOWNHILL_POSE,
+  skiCross: SKI_CROSS_POSE,
   speedSki: SPEED_SKI_POSE,
 };
 

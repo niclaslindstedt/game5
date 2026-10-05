@@ -37,6 +37,10 @@ export type Contact = {
   /** Where the ear is — the player's skier — for a sound made somewhere
    * else on the mountain (the helicopter's): heard by its distance. */
   ear?: { x: number; y: number; z: number };
+  /** HOW THE RUN STARTS, for the starter's sounds: out of a ski cross's
+   * START GATE (`gate`, R35) — its doors the GO — and whether it is a HEAT,
+   * four racers out of it on the starter's word with no lights to beep. */
+  start?: { gate: boolean; heat: boolean };
 };
 
 export type Trunk = { radius: number; snag: boolean };
@@ -298,11 +302,13 @@ export function soundForEvent(
 
     // THE START HUT'S BEEPS: one a count, and the last of them — GO, the
     // wand's — an octave up and held, so the ear knows which one it was
-    // without counting.
+    // without counting. A ski cross's GO is its gate's doors dropping, and
+    // its heats are started on the starter's word, the drop's moment never
+    // told: no beeps to count it down.
     case "count":
-      return { id: "count" };
+      return contact.start?.heat ? null : { id: "count" };
     case "go":
-      return { id: "go" };
+      return { id: contact.start?.gate ? "gate_drop" : "go" };
 
     // THE SCORE (`tricks.ts`): an element won is the gate's slap,
     // pitched up a step for every step of multiplier the combo now stands

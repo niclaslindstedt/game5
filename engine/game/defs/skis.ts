@@ -6,7 +6,7 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// EIGHT PAIRS, EIGHT ANSWERS TO A KIND OF SNOW — never eight points on one
+// NINE PAIRS, NINE ANSWERS TO A KIND OF SNOW — never nine points on one
 // scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
@@ -25,6 +25,9 @@
 //   EAGLE   a DOWNHILL ski — the longest and stiffest alpine ski here, a
 //           50 m sidecut: flat out in a tuck it outruns every pair but one,
 //           and it hates a bend.
+//   WOLVERINE a SKI-CROSS ski — a giant slalom ski cut down for a course
+//           built in the snow: shorter, a 24 m sidecut for its berms, a
+//           softer shovel for its rollers and landings, on a high plate.
 //   PEREGRINE a SPEED SKI — the speed-skiing class: 2.40 m of heavy, damped
 //           ski with next to no sidecut, under a racer in an airtight suit
 //           and calf fairings: straight down the fall line nothing comes
@@ -71,7 +74,15 @@ export type LegSpec = {
 };
 
 export type SkiId =
-  "chamois" | "swift" | "chough" | "falcon" | "eagle" | "peregrine" | "marmot" | "hare";
+  | "chamois"
+  | "swift"
+  | "chough"
+  | "falcon"
+  | "eagle"
+  | "wolverine"
+  | "peregrine"
+  | "marmot"
+  | "hare";
 
 export type SkiSpec = {
   id: SkiId;
@@ -306,6 +317,41 @@ export const EAGLE: SkiSpec = {
   topSpeed: 138,
 };
 
+/** THE WOLVERINE — a SKI-CROSS ski (named for the fiercest small thing in
+ * the high country, which gives way to nothing): a race ski for a course
+ * built in the snow (R35), skied four abreast. The ski-cross rules set no
+ * length, width or sidecut — only a binding plate no higher than 50 mm — so
+ * the class is what racers ski: a GIANT-SLALOM-TYPE ski cut down, some
+ * 1.80–1.95 m on a 21–27 m arc (est., `docs/disciplines.md` § Ski cross).
+ * 188 cm on a 68 mm waist with a 24 m sidecut, a 105 mm shoulder and a
+ * 91 mm tail — 15 mm of side depth over its chord, which is 24 m — stiff
+ * underfoot under its plate with a softer shovel for the rollers and the
+ * landings, a touch of tip rocker, on a race suit's tuck. Its answer is a
+ * berm taken at 60 km/h and a landing taken without a bobble: it turns
+ * tighter than the giant slalom ski, holds more at speed than the slalom
+ * ski, and lands what a stiffer race ski folds on. */
+export const WOLVERINE: SkiSpec = {
+  ...SKIS,
+  id: "wolverine",
+  name: "Wolverine",
+  kind: "Ski cross",
+  blurb: "A race ski cut down for berms and jumps: turns hard, lands clean, gives no ground.",
+  gearMass: 9.5,
+  length: 1.88,
+  waist: 0.068,
+  tipWidth: 0.105,
+  tailWidth: 0.091,
+  sidecut: 24,
+  flex: 0.7,
+  rocker: 0.1,
+  edgeMax: 1.12,
+  mount: 0.46,
+  legs: { rate: 7600, bump: 500, rebound: 900, travel: 0.47 },
+  cdAUpright: 0.9,
+  cdATuck: 0.44,
+  topSpeed: 122,
+};
+
 /** THE PEREGRINE — a SPEED SKI, the speed-skiing class (named for the
  * fastest thing in the sky, in its stoop): built to the top class's rule —
  * 2.40 m (the most it allows; the class runs 2.20–2.40), under 10 cm wide
@@ -402,9 +448,10 @@ export const HARE: SkiSpec = {
 
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
- * most of him last: the all-mountain ski that refuses nothing, the race
- * skis from the shortest to the longest (slalom, giant slalom, super-G,
- * downhill, the speed ski), the powder ski and the park ski. (`make sim ARGS="--skis
+ * most of him last: the all-mountain ski that refuses nothing, the alpine
+ * race skis from the shortest to the longest (slalom, giant slalom, super-G,
+ * downhill), the ski-cross ski, the speed ski, the powder ski and the park
+ * ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkiSpec[] = [
   SKIS,
@@ -412,6 +459,7 @@ export const SKI_CATALOG: readonly SkiSpec[] = [
   CHOUGH,
   FALCON,
   EAGLE,
+  WOLVERINE,
   PEREGRINE,
   MARMOT,
   HARE,

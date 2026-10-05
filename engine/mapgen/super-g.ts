@@ -158,7 +158,12 @@ const set = new WeakMap<Level, Level>();
  * over. */
 export function setSuperG(level: Level): Level {
   if (level.superG) return level;
-  const original = level.slalom?.base ?? level.downhill?.base ?? level.speedSki?.base ?? level;
+  const original =
+    level.slalom?.base ??
+    level.downhill?.base ??
+    level.speedSki?.base ??
+    level.skiCross?.base ??
+    level;
   let course = set.get(original);
   if (!course) {
     course = courseOver(original);

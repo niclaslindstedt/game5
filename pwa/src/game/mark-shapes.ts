@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE COURSE'S MARKS, BUILT — the gate pole and its panel, the edge stake
-// and its band, the marker over the owed gate, the start hut, and the
-// inflatable arch with its skirts and blowers: every one PROCEDURALLY, on
+// THE COURSE'S MARKS, BUILT — the gate pole and its panel, a ski cross's
+// stubby pole and triangular flag, the edge stake and its band, the marker
+// over the owed gate, the start hut, and the inflatable arch with its
+// skirts and blowers: every one PROCEDURALLY, on
 // the trees' bench (`tree-mesh.ts`), in the same chunky, faceted, low-poly
 // look as the woods and the wildlife around them. `gates.ts` places and
 // colours them; the measures are `start-arch.ts`'s (`ARCH`, `GATE`) and
@@ -327,5 +328,73 @@ export function archBlower(): THREE.BufferGeometry {
   s.quad(p(1, 0, 1), p(1, 0, -1), p(1, 1, -1), p(1, 1, 1), dark, [1, 0, 0]);
   s.quad(p(-1, 0, -1), p(-1, 0, 1), p(-1, 1, 1), p(-1, 1, -1), dark, [-1, 0, 0]);
   s.quad(p(-1, 1, 1), p(1, 1, 1), p(1, 1, -1), p(-1, 1, -1), dark, [0, 1, 0]);
+  return s.geometry();
+}
+
+/** A SKI-CROSS GATE'S STUBBY POLE: the short flex turning pole a racer
+ * skis past and knocks, padded fat in foam over a dark spring hinge at
+ * the snow, rounded off at `height`. White: the instance's colour is the
+ * gate's. */
+export function stubbyPole(height: number, radius: number): THREE.BufferGeometry {
+  const s = bench();
+  const hinge = colour(0x3a3e44);
+  post(
+    s,
+    [
+      { y: 0, r: radius * 0.7, c: hinge },
+      { y: 0.07, r: radius * 0.7, c: hinge },
+      { y: 0.09, r: radius, c: WHITE },
+      { y: height - radius * 0.6, r: radius, c: WHITE },
+      { y: height, r: radius * 0.55, c: WHITE },
+    ],
+    6,
+    radius * 0.2,
+  );
+  return s.geometry();
+}
+
+/** A SKI-CROSS GATE'S TRIANGULAR FLAG: the panel between the stubby pole
+ * at x = 0 and the long outside pole at x = `base`, its foot `foot` over
+ * the snow, its short side `low` high at the stubby and its long side
+ * `high` at the outside pole — the top edge falling toward the course —
+ * bellied a little by the wind, a sleeve down each side. In the xy plane,
+ * facing z. White: the instance's colour is the gate's. */
+export function crossFlag(
+  base: number,
+  foot: number,
+  low: number,
+  high: number,
+): THREE.BufferGeometry {
+  const s = bench(0.75);
+  const cols = 3;
+  const rows = 2;
+  const belly = base * 0.04;
+  const at = (i: number, j: number): V3 => {
+    const u = i / cols;
+    const v = j / rows;
+    const top = foot + low + (high - low) * u;
+    const z = Math.sin(u * Math.PI) * Math.sin(v * Math.PI) * belly;
+    return [u * base, foot + (top - foot) * v, z];
+  };
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      s.quad(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1), WHITE, [0, 0, 1]);
+    }
+  }
+  const sleeve = colour(0xd8dadc);
+  for (const [x, top] of [
+    [0, foot + low],
+    [base, foot + high],
+  ] as const) {
+    const r = 0.028;
+    s.loft(
+      [ring(x, foot, 0, r, 4, Math.PI / 4), ring(x, top + 0.02, 0, r, 4, Math.PI / 4)],
+      [
+        [x, foot, 0],
+        [x, top, 0],
+      ],
+      () => sleeve,
+    );
+  }
   return s.geometry();
 }

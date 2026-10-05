@@ -10,6 +10,7 @@ import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import type { GameMode } from "../game/defs/modes.ts";
+import type { CrossHeat } from "../game/cross-bracket.ts";
 import { generateLevel } from "../mapgen/generate.ts";
 import { PARK_VERSION } from "../mapgen/trick-field.ts";
 import type { GameEvent } from "../game/state.ts";
@@ -56,7 +57,10 @@ export type SimOptions = {
    * — skied out of the start house under the
    * strict gates, against the field's board. The open rules when left out.
    * Ignored with `tricks`. */
-  mode?: Extract<GameMode, "slalom" | "downhill" | "superG" | "speedSki">;
+  mode?: Extract<GameMode, "slalom" | "downhill" | "superG" | "speedSki" | "skiCross">;
+  /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
+   * bot in the first seed's lane beside three of the start list, skied. */
+  heat?: boolean;
 };
 
 export type RunReport = {
@@ -115,6 +119,19 @@ export type RunReport = {
  * piste at a crawl. It catches a skier who has STOPPED. */
 export const SIM_SECONDS = 600;
 
+/** THE HEAT the sim skis a ski cross's bot in (`SimOptions.heat`): the
+ * first seed's, three of the start list beside him. */
+const SIM_HEAT: CrossHeat = {
+  round: "quarter",
+  index: 0,
+  racers: [
+    { id: null, rank: 1 },
+    { id: 0, rank: 8 },
+    { id: 1, rank: 9 },
+    { id: 2, rank: 16 },
+  ],
+};
+
 /** Ski one map headlessly with the bot. */
 export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   const profile = options.profile ?? RIDER_BOT;
@@ -137,6 +154,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
           })
         : undefined),
     laps: options.laps,
+    cross: race === "skiCross" && options.heat ? SIM_HEAT : undefined,
     rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
     spec: options.spec,

@@ -28,7 +28,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
-import { stepLift } from "./lift-ride.ts";
+import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
@@ -135,8 +135,12 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
     derive(c, run.level);
     quietClocks(c);
   } else {
-    const cause = wipeoutCause(run, events, speed0);
-    if (cause) throwRider(run, cause, v0, events);
+    // THE EMPTY CHAIR behind him off a lift (`lift-ride.ts`), if he stood
+    // in its way; else whatever else threw him.
+    const swept = chairStrike(run);
+    const cause = swept ? null : wipeoutCause(run, events, speed0);
+    if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
+    else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
   }
   takeDamage(run, events);

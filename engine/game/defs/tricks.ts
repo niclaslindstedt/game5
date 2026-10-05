@@ -148,4 +148,10 @@ export const TRICKS = {
    * least this fast, m/s, and has been up `air.counts` — a skier dropping off
    * a crest is not a launch. */
   launch: 0.5,
+  /** ON A FREE RIDE, a flight is one the skier MEANT only if he left the
+   * snow off a kicker's ramp or within this long of popping the jump, s —
+   * a knee taken at speed throws him without asking, and the edge he
+   * steers across it is his steering (`TrickState.meant`). A tricks run
+   * means every flight. */
+  popWindow: 0.3,
 } as const;

@@ -37,7 +37,11 @@
 // is one stroke at the lip: the skier set the trick up. Held anywhere else
 // on the snow — leaning back to float through powder, which every skier
 // does — the crossing is marked as already made, and the same hold off a
-// crest buys nothing until he lets it go and throws it again.
+// crest buys nothing until he lets it go and throws it again. And on a
+// FREE RIDE a flight takes a stroke only if he MEANT it — off a kicker, or
+// in a pop of his own (`popWindow`): a knee or a roller taken at speed
+// throws him without asking, and the edge he steers across it then is his
+// steering, never a 180 (`TrickState.meant`).
 //
 // THE GRABS. With the trick button held in the air the skier's body is off
 // the controls and into a grab: one ski kicked forward and one back, the
@@ -168,6 +172,10 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
       const ramp = onRamp(state);
       k.flipCrossed = ramp ? 0 : flip;
       k.spinCrossed = ramp ? 0 : spin;
+      // The flight he leaves the snow on next is MEANT if he leaves it off
+      // a kicker or in his own pop; off a knee or a lip he did not jump, a
+      // free ride's flight is a fall he steers, and nothing is thrown.
+      k.meant = ramp || c.popped <= T.popWindow;
     }
     return;
   }
@@ -186,10 +194,11 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
   const down = landingAhead(c, state.level, flightGravity(state.rules));
   const left = (down ? down.t : Infinity) - T.finish;
 
-  if (k.pose !== null) {
+  if (k.pose !== null || !(k.meant || state.rules.tricks)) {
     // Grabbing: the body is busy, and whatever the axes are doing is the
     // grab's — nothing is thrown, though a throw already owed is still
-    // turned below. Let go, they must be thrown afresh.
+    // turned below. Let go, they must be thrown afresh. And a flight he
+    // never meant (`TrickState.meant`) is steered, never thrown.
     k.flipCrossed = flip;
     k.spinCrossed = spin;
   } else {

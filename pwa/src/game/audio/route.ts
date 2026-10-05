@@ -223,8 +223,14 @@ export function soundForEvent(
     case "wipeout": {
       const hard = ramp(event.speed, 6, HIT_FULL);
       return {
-        // A stake's fall is a balance lost: the high-side's sound.
-        id: event.cause === "stake" ? "wipeout_catch" : `wipeout_${event.cause}`,
+        // A stake's fall is a balance lost: the high-side's sound; a chair
+        // run into him a padded body knocked down, the shoulder's.
+        id:
+          event.cause === "stake"
+            ? "wipeout_catch"
+            : event.cause === "chair"
+              ? "wipeout_skier"
+              : `wipeout_${event.cause}`,
         shape: intoSnow(
           { gain: 0.9 + 0.4 * hard, pitch: 1 - 0.15 * hard, stretch: 1 + 0.35 * hard },
           ground,

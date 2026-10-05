@@ -138,6 +138,9 @@ export const CRASH = {
     // A stake caught on a ski: the leg snatched back, pitched forward and
     // round onto the side it caught.
     stake: { pitch: 0.75, side: 0.5, up: 0.9 },
+    // An empty chair run into the backs of his legs on the unload ramp:
+    // the legs swept out forward, down on his back and over onto a side.
+    chair: { pitch: -0.6, side: 0.5, up: 0.5 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

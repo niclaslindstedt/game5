@@ -27,7 +27,7 @@ import { summitShare } from "../pwa/src/game/camera-summit.ts";
 import { summitSigns } from "../pwa/src/game/run-sign-plan.ts";
 import { MOUNTS, skierPose } from "../pwa/src/game/skier-pose.ts";
 import { CHAIR_SEAT, seatedPose } from "../pwa/src/game/skier-seat.ts";
-import { layStations } from "../pwa/src/game/station-plan.ts";
+import { layStations, mapBoardOf } from "../pwa/src/game/station-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -144,33 +144,32 @@ describe("the way off a chair's top", () => {
     }
   });
 
-  it("signs every run off its top at the head of its ramp, lower than the rider came off", () => {
+  it("signs every run off its top beside the map board, on the side its ramp leaves, turned to him", () => {
     for (const p of chairs) {
       const runs = runsOffTop(level, p).map((j) => level.resort!.runs[j.run]);
       const ramps = p.lift.ramps ?? [];
       expect(ramps.map((r) => r.run).sort()).toEqual(runs.map((r) => r.id).sort());
       // Every run joined lies below the pad.
       for (const r of runs) expect(r.points.some((q) => q.y < p.lift.top.y - 2)).toBe(true);
-      const unload = level.groundAt(
-        p.lift.bottom.x + p.dx * (p.length - p.look.off) + p.dz * chairLane(p).v,
-        p.lift.bottom.z + p.dz * (p.length - p.look.off) - p.dx * chairLane(p).v,
-      );
+      const board = mapBoardOf(p)!;
+      const look = Math.atan2(board.x - board.off.x, board.z - board.off.z);
+      // The reader's right as the picture shows it, looking at the board.
+      const right = (x: number, z: number) =>
+        -(x - board.x) * Math.cos(look) + (z - board.z) * Math.sin(look);
       for (const ramp of ramps) {
-        const post = summitSigns(level).find(
-          (q) => Math.hypot(q.x - ramp.from.x, q.z - ramp.from.z) < ramp.width / 2 + 4,
-        );
+        const post = summitSigns(level).find((q) => q.boards.some((b) => b.run === ramp.run));
         expect(post).toBeDefined();
-        expect(post!.boards.map((b) => b.run)).toEqual([ramp.run]);
-        // On the pad, never over its deck, and under the unload he came
-        // off the chair at.
-        expect(Math.hypot(post!.x - p.lift.top.x, post!.z - p.lift.top.z)).toBeLessThan(
-          RESORT_RULES.lift.top.pad / 2,
+        // Beside the board, a sign's breadth off it, on the ramp's side.
+        const apart = Math.hypot(post!.x - board.x, post!.z - board.z);
+        expect(apart).toBeGreaterThan(2.5);
+        expect(apart).toBeLessThan(4);
+        expect(Math.sign(right(post!.x, post!.z))).toBe(
+          right(ramp.from.x, ramp.from.z) >= 0 ? 1 : -1,
         );
-        expect(post!.y).toBeLessThan(p.lift.top.y + 0.05);
-        expect(post!.y).toBeLessThan(unload - 1);
-        // Read looking down the ramp.
-        const down = Math.atan2(ramp.to.x - ramp.from.x, ramp.to.z - ramp.from.z);
-        expect(Math.abs(angleDiff(post!.heading, down))).toBeLessThan(1e-9);
+        // Turned to him where he comes off the chair, at the lane's parting:
+        // read as he stands up, never edge on.
+        const seen = Math.atan2(post!.x - board.off.x, post!.z - board.off.z);
+        expect(Math.abs(angleDiff(post!.heading, seen))).toBeLessThan(1e-9);
       }
     }
   });
@@ -275,7 +274,10 @@ describe("the rope over the snow (R26)", () => {
     const A = RESORT_RULES.lift.top.approach;
     for (const k of ["chair", "gondola"] as const) {
       expect(A.wheel[k]).toBe(LIFT_LOOK[k].wheel);
-      expect(A.tower[k]).toBe(LIFT_LOOK[k].tower);
+      // Cut under a rope no higher than the lift hangs its own, so deep
+      // enough: the towers have grown since the cut was ruled (v6), and
+      // the last one before a top stands tall over it (`LiftLook.in`).
+      expect(A.tower[k]).toBeLessThanOrEqual(LIFT_LOOK[k].tower);
       expect(A.hang[k]).toBe(LIFT_LOOK[k].hang);
     }
   });

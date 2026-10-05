@@ -315,7 +315,9 @@ export const RESORT_RULES = {
        * to `length` m, the ground cut `hang` + `clear` m under the rope's
        * way in — straight from the bullwheel `wheel` m over the deck to a
        * tower `tower` m over the ground at `length` — `half` m either side
-       * of the line, eased out over `blend` (`LIFT_LOOK`'s measures). */
+       * of the line, eased out over `blend` (`LIFT_LOOK`'s measures as v6
+       * ruled them — its towers have only grown since, so the cut is deep
+       * enough). */
       approach: {
         length: 90,
         from: { chair: 13, gondola: 4 },

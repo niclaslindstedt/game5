@@ -461,6 +461,8 @@ export {
 export {
   arriveByLift,
   arrivalOf,
+  chairStrike,
+  emptyChairAt,
   freeRunOf,
   freeRuns,
   pickFreeRun,

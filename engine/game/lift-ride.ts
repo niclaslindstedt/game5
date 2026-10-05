@@ -204,12 +204,64 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     setOff(run, p.x, p.z, plan.heading + Math.PI, K.walkOut);
   } else if (plan.lift.kind === "chair") {
     // Down the ramp on the diagonal, off to the up rope's side, clear of
-    // the chairs swinging round the wheel.
+    // the chairs swinging round the wheel — and the chair he sat on runs
+    // on empty behind him.
     const p = along(plan, off, upRope(plan));
     setOff(run, p.x, p.z, plan.heading + K.ramp, K.standUp);
+    c.chairLeft = { index: ride.index, u: off, t: run.t };
   }
   // Stood off it, the skis are his.
   c.lift = null;
+}
+
+/** A CHAIR'S BOX under its grip, m: half its depth along the line (the
+ * hanger behind the back to the footrest in front), half its width across
+ * it, and how far under the rope its lowest bar hangs — `lifts.ts`'s chair
+ * as drawn. And how far round a skier his body reaches, m, and how high
+ * over the snow under him his legs stand, m: what a chair's bars sweep. */
+const CHAIR_BOX = { halfAlong: 0.55, halfAcross: 1.2, drop: 2.95 };
+const LEGS = { reach: 0.3, high: 1.2 };
+
+/** WHERE THE EMPTY CHAIR IS, m up its line: the one a rider stood up off
+ * (`SkierState.chairLeft`) running on at the terminal's speed from where
+ * it let him go, over the unload ramp to the wheel — null once it is round
+ * it, into the hood, as every chair goes. Pure over the clock. */
+export function emptyChairAt(
+  plan: LiftPlan,
+  left: { u: number; t: number },
+  t: number,
+): number | null {
+  const u = left.u + plan.look.slow * Math.max(0, t - left.t);
+  return u < plan.length - 1 ? u : null;
+}
+
+/** THE EMPTY CHAIR RUN INTO HIM: a skier still in its way as it comes on
+ * over the ramp — stopped on the unload, or skied back under the line — is
+ * swept off his feet, and what it carries him off with is returned (null
+ * when it misses him) — the chair running on over him, and forgotten
+ * once it is round the wheel. Run each step he is on his skis. */
+export function chairStrike(run: GameState): { x: number; z: number } | null {
+  const c = run.skier;
+  const left = c.chairLeft;
+  if (!left) return null;
+  const plan = liftPlans(run.level)[left.index];
+  const u = plan ? emptyChairAt(plan, left, run.t) : null;
+  if (!plan || u === null) {
+    c.chairLeft = null;
+    return null;
+  }
+  if (c.lift || c.thrown || c.airborne) return null;
+  const rx = c.x - plan.lift.bottom.x;
+  const rz = c.z - plan.lift.bottom.z;
+  const su = rx * plan.dx + rz * plan.dz;
+  const sv = rx * plan.dz - rz * plan.dx;
+  if (Math.abs(su - u) > CHAIR_BOX.halfAlong + LEGS.reach) return null;
+  if (Math.abs(sv - upRope(plan)) > CHAIR_BOX.halfAcross + LEGS.reach) return null;
+  // Over his head on the line's way in, not yet down to his legs.
+  if (ropeAt(plan, u) - CHAIR_BOX.drop > run.level.groundAt(c.x, c.z) + LEGS.high) return null;
+  // Going on up the line faster than the chair, he is clear of it.
+  if (c.vx * plan.dx + c.vz * plan.dz > plan.look.slow) return null;
+  return { x: plan.dx * plan.look.slow, z: plan.dz * plan.look.slow };
 }
 
 /** WHERE A RUN IS JOINED from a top at (x, y, z) with no ramp off it — a

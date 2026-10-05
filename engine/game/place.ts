@@ -60,6 +60,7 @@ export function placeRun(state: GameState, moment: RunMoment): void {
   standSkier(state, moment.x, moment.z, moment.heading);
   // Stood at a moment, off any lift (`lift-ride.ts`).
   state.skier.lift = null;
+  state.skier.chairLeft = null;
   const speed = moment.speed ?? 0;
   const pitch = moment.pitch ?? c.pitch;
   const roll = moment.roll ?? c.roll;

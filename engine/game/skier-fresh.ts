@@ -91,6 +91,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     body: freshBody(),
     tunnel: null,
     lift: null,
+    chairLeft: null,
     hitCooldown: 0,
     bumpCooldown: 0,
     sinks: probes.map(() => 0),

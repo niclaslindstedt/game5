@@ -12,7 +12,7 @@ A chairlift's top terminal, walked in the order a rider meets it:
 
 | Part                 | What it is                                                                                                                                                                                                                                                                          | The band                                    |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| The last tower       | A tower a span or less from the terminal, its sheave train the last the rope rides over. A chair rocks as its grip runs over the sheaves — the lurch every rider knows.                                                                                                             | 30–80 m before the wheel                    |
+| The last tower       | A tower a span or less from the terminal, its sheave train the last the rope rides over, standing tall so the rope comes DOWN from it into the terminal. A chair rocks as its grip runs over the sheaves — the lurch every rider knows.                                            | 30–80 m before the wheel                    |
 | The approach         | The rope comes down toward the bullwheel and the chair down toward the snow, the seat a little over knee height above the ramp's top at the unload point.                                                                                                                           | seat 0.4–0.6 m over the snow                |
 | The UNLOAD POINT     | Where the rider stands up. A marked line (a board or paint) a few metres before the wheel.                                                                                                                                                                                          | 5–8 m before the wheel                      |
 | The UNLOAD RAMP      | A short pitched ramp of packed snow the rider slides down off the chair, clear of the chair turning round the wheel. It runs straight ahead or diagonally off to one side.                                                                                                          | 12–25 % pitch, 6–10 m long, 1–1.5 m of drop |
@@ -93,8 +93,12 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   let go at a crawl gathers speed down it, and EVENLY to its foot, the run's
   own head its LIP — never a knee a rider following the sign is thrown off:
   to a green or a blue no more than 20 %, to a red or a black 48 %. The ramps are published on the lift
-  (`Lift.ramps`): each run's sign stands at its head, a rider skis down
-  them, and the lens holds its summit look to the lip. A DRAG'S top has
+  (`Lift.ramps`): the runs' signs stand beside the piste map board, the
+  runs whose ramps leave to the rider's left at its left and the rest at
+  its right, turned to where he comes off the lift (a drag's top, with no
+  board, signs each ramp at its head), and the run's own sign a dozen
+  metres past its foot, turned up the ramp to him as he comes onto the run; a rider skis
+  down them, and the lens holds its summit look to the lip. A DRAG'S top has
   ramps too, from the ground round where it lets its rider go (12 m), laid
   once the drags have settled — but only where they fit: the nursery drag is
   re-laid after its runs are walked and its top often ends up too far above
@@ -157,25 +161,37 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   its station's door (in a cabin, out of sight, and walked out of the top
   station onto the pad facing down), a drag from the head of its track
   (pulled up it standing on the skis and let go short of the top wheel).
+- **The way in (`lift-line.ts`, `LiftLook.in` and `.rail`)** — the last
+  tower stands past the pad's rim, 30 m short of a chair's top wheel (34 m
+  of a gondola's) and slid on back off any groomed snow, as tall as it must
+  be for the rope to FALL into the terminal at least 22 % — so a chair comes
+  in over the cut under the line from above and settles onto the terminal's
+  level rail over the unload ramp, the last ten metres at the wheel's
+  height, never dragged up the snow. The towers stand 13 m (a chair's) and
+  18 m (a gondola's) to the rope on columns most of a metre across, the last
+  one up to 28 m and 34 m.
 - **The ride up** — a chair rides at line speed, its hanger a pendulum: a
   lurch of a few degrees as the grip runs over each tower's sheaves, a swing
   forward as it slows into the top terminal, coming down to the ramp with his
   skis just on the snow, never through it; the rider sits back against the
   chair's backrest, and is stood up at the unload point and sent straight on
-  down the ramp into the lane. The chair he got off runs on empty round to
-  the wheel. A free ride STARTS on one: the last three seconds of the lift
-  serving the run picked on the start card (`freeRunOf`, `lift.arrive`), the
-  top station close ahead. Stood off it — at a chair's unload, out of a
-  gondola's door, off a drag's T-bar — the skis are his at once: NOTHING
+  down the ramp into the lane. The chair he got off runs on empty over the
+  ramp to the wheel at the terminal's speed (`SkierState.chairLeft`,
+  `emptyChairAt`), never hidden — and a skier who stops in its way is swept
+  off his feet by it (`chairStrike`, the `chair` wipeout). A free ride
+  STARTS on one: the last eight seconds of the lift serving the run picked
+  on the start card (`freeRunOf`, `lift.arrive`), the chair over the last
+  tower and down onto the terminal's rail. Stood off it — at a chair's
+  unload, out of a gondola's door, off a drag's T-bar — the skis are his at
+  once: NOTHING
   LEADS HIM OFF A TOP. The way down is the ground's: the unload ramp, the
   pad's lean, his run's sign and its ramp.
 - **The lens on a lift (`camera-lift.ts`)** — carried up a chair the chase
   boom comes in close behind him and a little over his head, level, the
   chair's back and hanger in the frame's foot and the rope running on up to
   the top station ahead, and once the lift lets him go it eases out to the
-  chase — on the pad the summit's own low look. The empty
-  chair is left out of the frame while it stands between the lens and him.
-  `make lift-ride` rides the whole sequence unbroken at sixty frames a second
+  chase — on the pad the summit's own low look. The empty chair stays in
+  the frame as it runs on behind him. `make lift-ride` rides the whole sequence unbroken at sixty frames a second
   and photographs it round the unload.
 - **The drop (`camera-summit.ts`, `camera-rigs.ts`)** — on a top station's
   pad the chase lens comes down and in behind him, LOW and LEVEL (`SUMMIT_LOOK`:

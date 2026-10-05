@@ -22,6 +22,7 @@ import {
   arrivalOf,
   chairLane,
   createGame,
+  emptyChairAt,
   freeRunOf,
   freeRuns,
   liftPlans,
@@ -290,6 +291,20 @@ describe("a free ride begun on a lift", () => {
     const c = run.skier;
     expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(RR_PAD / 2 + 4);
     expect(c.thrown).toBeNull();
+  });
+
+  it("leaves the chair he stood up off running on, and it sweeps him over if he stops in its way", () => {
+    const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
+    const plan = plans[run.skier.lift!.index];
+    ride(run, 30, (r) => r.skier.lift === null);
+    const left = run.skier.chairLeft!;
+    expect(left.index).toBe(plans.indexOf(plan));
+    // Running on toward the wheel at the terminal's speed, then gone round it.
+    expect(emptyChairAt(plan, left, run.t + 1)).toBeCloseTo(left.u + plan.look.slow, 6);
+    expect(emptyChairAt(plan, left, run.t + 60)).toBeNull();
+    // Stopped dead on the unload ramp, the chair comes on into his legs.
+    const events = ride(run, 6, (r) => r.skier.thrown !== null, { ...NEUTRAL_INPUT, brake: 1 });
+    expect(events.some((e) => e.kind === "wipeout" && e.cause === "chair")).toBe(true);
   });
 
   it("follows the sign down his run's ramp onto it, never climbing", () => {

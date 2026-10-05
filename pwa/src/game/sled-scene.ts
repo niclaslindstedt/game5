@@ -91,11 +91,14 @@ export function createSledScene(haze: HazeUniforms): SledScene {
 
   const q = new THREE.Quaternion();
   const v = new THREE.Vector3();
-  const world = (s: SledState, x: number, y: number, z: number): THREE.Vector3 =>
-    v
-      .set(x, y, z)
-      .applyQuaternion(q.set(s.q.x, s.q.y, s.q.z, s.q.w))
-      .add(new THREE.Vector3(s.x, s.y, s.z));
+  const back = new THREE.Vector3();
+  const world = (s: SledState, x: number, y: number, z: number): THREE.Vector3 => {
+    v.set(x, y, z).applyQuaternion(q.set(s.q.x, s.q.y, s.q.z, s.q.w));
+    v.x += s.x;
+    v.y += s.y;
+    v.z += s.z;
+    return v;
+  };
 
   /** One stamp line from where its pen was to (x, z). */
   const line = (
@@ -186,7 +189,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
       const ex = end.x;
       const ey = end.y;
       const ez = end.z;
-      const back = new THREE.Vector3(0, 0, -1).applyQuaternion(q.set(s.q.x, s.q.y, s.q.z, s.q.w));
+      back.set(0, 0, -1).applyQuaternion(q.set(s.q.x, s.q.y, s.q.z, s.q.w));
       const snow = fx.snowAt(ex, ez);
       const loose = Math.min(1, snow.loose * 4) * (1 - s.packed * 0.85);
       // The belt over the snow: its spin, and the drive's work at speed.
@@ -224,10 +227,13 @@ export function createSledScene(haze: HazeUniforms): SledScene {
         }
       }
       // ── THE SKIS' POWDER and THE BOW WAVE ─────────────────────────────
-      const skiDeep = Math.max(
-        ...s.contacts.filter((c) => c.kind === "ski" && c.touching).map((c) => c.sink),
-        0,
-      );
+      let skiDeep = 0;
+      let nose = 0;
+      for (const c of s.contacts) {
+        if (!c.touching) continue;
+        if (c.kind === "ski") skiDeep = Math.max(skiDeep, c.sink);
+        else if (c.station === "front") nose = Math.max(nose, c.sink);
+      }
       owed.ski +=
         SKI_RATE * Math.min(1, skiDeep / 0.15) * Math.min(1, s.speed / 10) * loose * simDt;
       while (owed.ski >= 1) {
@@ -247,8 +253,6 @@ export function createSledScene(haze: HazeUniforms): SledScene {
         );
       }
       // The nose ploughing deep snow: a wave off the cowl's belly.
-      const front = s.contacts.filter((c) => c.kind === "tread" && c.station === "front");
-      const nose = front.reduce((a, c) => Math.max(a, c.touching ? c.sink : 0), 0);
       owed.bow += BOW_RATE * Math.min(1, nose / 0.25) * Math.min(1, s.speed / 6) * loose * simDt;
       while (owed.bow >= 1) {
         owed.bow -= 1;

@@ -62,6 +62,8 @@ export function createMachines(
     const top = TOPSHEETS[state.skier.spec.id];
     sled.dressRack(top.body, top.trim);
   }
+  // What the snowmobile is handed a frame: the snow, and this frame's stamps.
+  const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
     group,
     seat(model, s) {
@@ -69,7 +71,8 @@ export function createMachines(
       model.setSled(sled ? sled.stand(s) : null);
     },
     frame(s, alpha, dt, simDt, player, rung, stamps) {
-      sled?.frame(s, alpha, dt, simDt, player, { ...fx, stamps });
+      sledFx.stamps = stamps;
+      sled?.frame(s, alpha, dt, simDt, player, sledFx);
       return heli?.frame(s, alpha, dt, player, rung, fx.cloud, fx.snowAt) ?? null;
     },
     dispose() {

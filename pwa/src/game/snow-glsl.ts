@@ -469,6 +469,7 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
   vec3 lampLit = vec3(0.0);
   vec3 lampGlint = vec3(0.0);
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+    if (uLampOn[i] <= 0.0) break;
     if (uLampOn[i] <= 0.001) continue;
     vec3 L = uLampPos[i] - vSnowWorld;
     float d = length(L);

@@ -77,6 +77,84 @@ function standIn(haze: HazeUniforms): THREE.Group {
   return g;
 }
 
+/**
+ * ONE SHADOW A PART, NOT ONE A PRIMITIVE. The model is a primitive per
+ * material on each of its seven moving nodes (39 in all), and every one of
+ * them was a draw into the sun's shadow map each frame on top of its draw in
+ * the picture. Each node's opaque primitives are merged here into one
+ * position-only CASTER hung on the node (so it moves and hides with it) and
+ * the primitives stop casting: the same triangles in the same place, so the
+ * same map, in a draw a node. Three walks a shadow caster into the picture
+ * too, so the caster's draw range is opened for the shadow pass alone
+ * (`onBeforeShadow` / `onAfterShadow`) and is empty in the picture, where it
+ * draws no triangle and writes no pixel. A morphed mesh (the paddles) and
+ * one a shadow is cut out of by a texture keep their own.
+ */
+function mergeCasters(node: THREE.Object3D, made: THREE.Material[]): void {
+  node.updateMatrix();
+  const parts = new Map<
+    string,
+    { side: THREE.Side; shadow: THREE.Side | null; meshes: THREE.Mesh[] }
+  >();
+  for (const o of node.children) {
+    if (!(o instanceof THREE.Mesh) || !o.castShadow || Array.isArray(o.material)) continue;
+    const m = o.material as THREE.Material;
+    const g = o.geometry as THREE.BufferGeometry;
+    if (o.morphTargetInfluences?.length || m.alphaTest > 0 || m.alphaToCoverage) continue;
+    if (!g.attributes.position || g.drawRange.count !== Infinity || g.drawRange.start !== 0)
+      continue;
+    // Three takes a caster's side off its material; a caster per kind of side.
+    const key = `${m.side}:${m.shadowSide}`;
+    const at = parts.get(key) ?? { side: m.side, shadow: m.shadowSide, meshes: [] };
+    at.meshes.push(o);
+    parts.set(key, at);
+  }
+  for (const { side, shadow, meshes } of parts.values()) {
+    if (meshes.length < 2) continue;
+    let verts = 0;
+    let indices = 0;
+    for (const o of meshes) {
+      const g = o.geometry as THREE.BufferGeometry;
+      verts += g.attributes.position.count;
+      indices += g.index ? g.index.count : g.attributes.position.count;
+    }
+    const position = new Float32Array(verts * 3);
+    const index = new Uint32Array(indices);
+    const p = new THREE.Vector3();
+    let v = 0;
+    let i = 0;
+    for (const o of meshes) {
+      const g = o.geometry as THREE.BufferGeometry;
+      o.updateMatrix();
+      const from = g.attributes.position;
+      for (let k = 0; k < from.count; k++) {
+        p.fromBufferAttribute(from, k).applyMatrix4(o.matrix);
+        position[(v + k) * 3] = p.x;
+        position[(v + k) * 3 + 1] = p.y;
+        position[(v + k) * 3 + 2] = p.z;
+      }
+      if (g.index) for (let k = 0; k < g.index.count; k++) index[i++] = v + g.index.getX(k);
+      else for (let k = 0; k < from.count; k++) index[i++] = v + k;
+      v += from.count;
+      o.castShadow = false;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
+    geometry.setIndex(new THREE.BufferAttribute(index, 1));
+    geometry.computeBoundingSphere();
+    geometry.setDrawRange(0, 0);
+    const material = new THREE.MeshBasicMaterial({ side, colorWrite: false, depthWrite: false });
+    material.shadowSide = shadow;
+    made.push(material);
+    const caster = new THREE.Mesh(geometry, material);
+    caster.name = `${node.name}-caster`;
+    caster.castShadow = true;
+    caster.onBeforeShadow = () => geometry.setDrawRange(0, Infinity);
+    caster.onAfterShadow = () => geometry.setDrawRange(0, 0);
+    node.add(caster);
+  }
+}
+
 export function createSledView(haze: HazeUniforms): SledView {
   const group = new THREE.Group();
   group.name = "snowmobile";
@@ -160,6 +238,10 @@ export function createSledView(haze: HazeUniforms): SledView {
         }
       }
     });
+    for (const key of Object.keys(SLED_NODES) as (keyof typeof SLED_NODES)[]) {
+      const node = nodes[key];
+      if (node) mergeCasters(node, allMats);
+    }
     frame.add(root);
     if (dressed) paintRack(dressed.body, dressed.trim);
   };

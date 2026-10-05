@@ -217,6 +217,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
           * max(pow(wide / (len + wide), ${SMEAR_SPREAD.toFixed(2)}), 0.15);
         vCol = uLit;
         for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+          if (uLampOn[i] <= 0.0) break;
           if (uLampOn[i] <= 0.001) continue;
           vec3 L = uLampPos[i] - head;
           float d = length(L);

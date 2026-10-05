@@ -78,7 +78,8 @@ make every timing beside them worthless.
 ## `make cpu-cost`
 
 `scripts/cpu-cost.mjs`: the engine per mode (the benchmark race, a free
-ride with its crowd, a slalom, a downhill) per step, and the views — the
+ride with its crowd, the free ride on the snowmobile, a slalom, a downhill)
+per step, and the views — the
 FOREST's refill along the benchmark race behind a chase lens at any
 FOREST/DISTANCE/SHADOWS stop, the GROUND's cull (the triangles it leaves
 drawn of the whole clipmap's), the LIFTS, the free ride's CROWD and the four
@@ -173,6 +174,8 @@ SwiftShader's time.
 | 1 | THE GROUND'S VERTICES | 410k → ~212k triangles a frame along the benchmark race at TERRAIN/DISTANCE HIGH (`make cpu-cost ARGS="--suite terrain"`), for 0.04 ms of processor | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound). A ring's triangles are laid in 16 wedges (`TERRAIN_WEDGES`), twice round, and the ring draws the one range holding every wedge whose box meets the frustum: still one draw a level. Level 0, which the lens stands in, is drawn whole. Pixel-identical at chase, far, high and a summit pad. Two tries that culled nothing first: quarters (every quarter meets at the centre where the lens is), then wedges boxed over the whole map's heights (a box a kilometre tall passes the frustum's test from any side) — each box now spans the ground under it, off a min/max grid of 32-sample blocks. |
 | 2 | GENERATING A FREE RIDE'S MAP (`generateLevel`, seeds 2, 3, 4, current generator) | 4.57 → 3.04 s a map; twelve maps over every version and region 56.5 → 36.5 s, every float the same | The run index (`net-index.ts`) kept in flat arrays with a grid, its ring scan stopped at the true border of the square scanned and `skip` asked after the distance test; the massif baked with what z decides read once a row; the summit ramps' keep-off off a hash of the runs' heads, a box before every hypot, and the run's snow asked only where its shoulder is; the drags' and stations' cheap checks first. |
 | 2 | A FREE RIDE BUILT TWICE (the start card's worker for the chart, the loading card again on RIDE) | 2 builds → 1: the worker hands the map back (`portableLevel`, ~90 ms to clone and bind) and the ride stands on it, or waits for the worker building it | `seed-maps.ts`; and the start card opens on the front door's own map (`FREE_SEEDS`), whose ski area the main thread already holds (`levelIsCached`), so that one is painted, never built, in the worker. Under SwiftShader, front door settled, against `main`: first chart 9.0 → 3.9 s, ANOTHER MOUNTAIN 10–16 s → 0.1 s (built ahead), the card again 10.9 s → 11 ms, after a reload 11.7 → 0.3 s (IndexedDB), RIDE's "raising the mountain" 8.2 → 0.3 s. |
+| 3 | THE SNOWMOBILE'S SHADOW (a free ride on it, the sled in the sun's box) | 39 → 7 draws into the sun's map, the frame's draws on the ride 267 → 241, every frame byte-identical | The model is a primitive per material on each of its seven nodes. Each node's primitives are merged once into a position-only caster hung on the node; the caster's draw range is opened by `onBeforeShadow` and shut by `onAfterShadow`, so in the picture it is an empty draw (`sled-view.ts`). |
+| 3 | THE LAMP LOOPS BY DAY (the snow, every lit material, the snow cloud, the falling snow) | the cloud's pixel 385 → 283 ms a frame of 120 veiled puffs under software GL; every frame byte-identical | `dealLamps` deals the slots in order, so every loop now `break`s at the first empty slot instead of `continue`-ing over six. A real GPU skips a uniform `continue` cheaply; software GL ran the body masked at its full price. Owes a GPU A/B. |
 
 ## Open leads, ranked
 
@@ -206,6 +209,21 @@ Each is a real cost found in a round and not taken, with why:
   front door's own map is still generated ON THE MAIN THREAD when the app
   mounts (`raceOrFallback`), seconds before the first frame on a phone: a
   worker could build it and hand it over as the start card's does.
+- **The snow cloud's FILL on a snowmobile.** Its roost and bow wave throw
+  the heli wash's whiteout recipe (big, slow, 4.5 s) back at the chase
+  lens: up to 200 puffs live in powder, and behind the chase lens 1.15
+  screens of cloud a frame on average, 4 at p95 and 12 at worst (a scratch
+  probe of the puffs' quads against the lens). Nearly all of it is puffs the
+  lens's VEIL thins to 12% — almost invisible, shaded in full. Cheapening a
+  faint puff's shading (skipping its relief reads) bought ~1.5% under
+  software GL and could not be shown to buy more, so it was not shipped.
+  What would cut it is fewer of those pixels: a lighter recipe for the
+  roost, or a veil that drops what it thins. Either changes the look, so it
+  is a design call, not a speed-up.
+- **The sled's 39 primitives in the picture.** The shadow pass is merged
+  (round 3); the picture still draws a primitive per material per node.
+  Merging needs the materials folded into vertex data (colour, roughness,
+  metalness, the lamp's emissive), and the rack's dress repainted into it.
 - **The riders' matrices are composed twice a frame**: `posed-merge.ts`'s
   `update` forces the root's subtree, and the scene's own walk composes it
   again. ~76 objects a rider, so small.

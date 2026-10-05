@@ -214,7 +214,12 @@ float mistBand(vec3 dir) {
  * from it, `toLamp` the unit way back to the lamp — its spot and the wide
  * flood round it (`uLampBeam`), falling off with the square of the
  * distance, and faded out within a metre of the lens, so a headlamp never
- * floods the helmet it is strapped to. And `pisteLight(at)`: the PISTE
+ * floods the helmet it is strapped to. The slots are DEALT IN ORDER
+ * (`headlamp.ts`'s `dealLamps`: every lamp lit has a slot before any empty
+ * one), so a loop over them breaks at the first empty slot — by day, when
+ * none is lit, it is one test rather than six (software GL runs a body it
+ * skips with `continue` masked, at the whole body's price). And
+ * `pisteLight(at)`: the PISTE
  * LIGHTS' vector irradiance at a world point, in the same units — the light
  * on a surface of normal n is `max(dot(n, v), 0)`, and `length(v)` all of
  * it, for what has no one face (a flake, the cloud). */
@@ -251,6 +256,7 @@ const LAMP_FRAGMENT = /* glsl */ `
   vec3 lpN = inverseTransformDirection(normal, viewMatrix);
   vec3 lpLit = vec3(0.0);
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+    if (uLampOn[i] <= 0.0) break;
     if (uLampOn[i] <= 0.001) continue;
     vec3 L = uLampPos[i] - vHazeWorld;
     float d = length(L);

@@ -223,7 +223,8 @@ export function soundForEvent(
     case "wipeout": {
       const hard = ramp(event.speed, 6, HIT_FULL);
       return {
-        id: `wipeout_${event.cause}`,
+        // A stake's fall is a balance lost: the high-side's sound.
+        id: event.cause === "stake" ? "wipeout_catch" : `wipeout_${event.cause}`,
         shape: intoSnow(
           { gain: 0.9 + 0.4 * hard, pitch: 1 - 0.15 * hard, stretch: 1 + 0.35 * hard },
           ground,
@@ -259,6 +260,17 @@ export function soundForEvent(
     case "pole": {
       const hard = ramp(event.speed, 0.5, 4);
       return { id: "pole", shape: { gain: 0.6 + 0.6 * hard, pitch: 1.05 - 0.15 * hard } };
+    }
+
+    // AN EDGE STAKE (`edge-stakes.ts`): the same clack off a plastic pole,
+    // louder and lower where it snapped.
+    case "stake": {
+      const hard = ramp(event.speed, 0.5, 8);
+      const snap = event.broke ? 1 : 0;
+      return {
+        id: "pole",
+        shape: { gain: 0.5 + 0.5 * hard + 0.4 * snap, pitch: 1.15 - 0.15 * hard - 0.2 * snap },
+      };
     }
 
     // A DOWNHILL'S SPEED TRAP (R32): the photocells' chirp.

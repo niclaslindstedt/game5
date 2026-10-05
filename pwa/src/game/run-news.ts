@@ -66,7 +66,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // what it cost.
       return { text: STRINGS.newsMissed(e.index, e.penalty), tone: "bad" };
     case "hit":
-      return { text: STRINGS.newsTree, tone: "bad" };
+      return { text: e.post ? STRINGS.newsPost : STRINGS.newsTree, tone: "bad" };
+    case "stake":
+      // A stake bent over is nothing to say; one snapped is.
+      return e.broke ? { text: STRINGS.newsStake, tone: "info" } : null;
     case "land":
       // A landing the legs paid for, or one that loaded them past what a
       // clean landing asks (`TUNING.landing.clean`): its load, in g.

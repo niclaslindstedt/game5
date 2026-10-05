@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { GameState, Level, RegionId, Run } from "@engine";
+import { clearOfLifts, type GameState, type Level, type RegionId, type Run } from "@engine";
 
 import {
   courseName,
@@ -19,7 +19,7 @@ import {
   runNumber,
   runNumbers,
 } from "../pwa/src/game/run-names.ts";
-import { SIGN, clearOfLifts, signPlan } from "../pwa/src/game/run-sign-plan.ts";
+import { SIGN, signPlan } from "../pwa/src/game/run-sign-plan.ts";
 import { createRunWatch } from "../pwa/src/game/run-watch.ts";
 import { RUN_NAMES, RUN_WORDS, type NameForm } from "../pwa/src/game/strings-run-names.ts";
 import { levelFor } from "./support/levels.ts";

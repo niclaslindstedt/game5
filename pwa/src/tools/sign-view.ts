@@ -10,10 +10,10 @@
 // The lens stands clear of the lifts as the signs do (`clearOfLifts`), so a
 // station house is never the picture.
 
-import type { Level } from "@engine";
+import { clearOfLifts, type Level } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
-import { clearOfLifts, signPlan, type SignPost } from "../game/run-sign-plan.ts";
+import { signPlan, type SignPost } from "../game/run-sign-plan.ts";
 
 /** Up the run from `post`, looking past it down the way it faces. */
 function lensOn(level: Level, post: SignPost): LensPose {

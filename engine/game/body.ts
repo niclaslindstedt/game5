@@ -71,7 +71,7 @@ import { CROWD_SIZE } from "./defs/crowd.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
-import { treesNear } from "./collision.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedUnder } from "./snow.ts";
 import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown } from "./state.ts";
 
@@ -350,9 +350,10 @@ function ragdollBlows(state: GameState, b: Thrown): void {
       let best = Infinity;
       let ux = 0;
       let uz = 0;
-      treesNear(level, x, z, 2, near);
+      solidsNear(level, x, z, 2, near);
+      const solids = solidsOf(level);
       for (const k of near) {
-        const tree = level.trees[k];
+        const tree = solids[k];
         const dx = x - tree.x;
         const dz = z - tree.z;
         const d = hypot(dx, dz);

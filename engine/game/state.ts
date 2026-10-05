@@ -20,6 +20,7 @@ import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from 
 import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
+import type { StakeState } from "./edge-stakes.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type * from "./sled-state.ts";
@@ -291,12 +292,13 @@ export type SkierState = {
  * his legs — another skier taken out at speed (`crowd.ts`), or flung off the
  * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
  * rolled, looped, landed too hard or run into a trunk (`sled.ts`). */
-export type CrashCause = "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled";
+export type CrashCause =
+  "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake";
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
- * up off, an edge that bit and was held. */
-export type SaveKind = "landing" | "tree" | "body" | "edge";
+ * up off, an edge that bit and was held, a stake run into. */
+export type SaveKind = "landing" | "tree" | "body" | "edge" | "stake";
 
 /** THE SAVE — the moment a skier rode out something that came near to
  * throwing him, kept for the figure to play (`skier-save.ts`): which, how
@@ -668,7 +670,7 @@ export type GameEvent =
       off: number;
     }
   /** A trunk met at `speed` m/s closing. */
-  | { kind: "hit"; t: number; speed: number; x: number; z: number }
+  | { kind: "hit"; t: number; speed: number; x: number; z: number; post?: true }
   /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
    * which, and how near it came, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }
@@ -704,6 +706,7 @@ export type GameEvent =
   /** A FLEX POLE KNOCKED (`gate-poles.ts`): the gate it belongs to, and
    * how hard he drove into it, m/s. */
   | { kind: "pole"; t: number; gate: number; speed: number }
+  | { kind: "stake"; t: number; speed: number; broke: boolean; x: number; z: number }
   /** Stood back on the piste at `checkpoint` (-1: at the start line);
    * `auto` when the engine did it rather than the skier. */
   | { kind: "reset"; t: number; checkpoint: number; auto: boolean }
@@ -949,6 +952,9 @@ export type GameState = {
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;
+  /** THE EDGE STAKES (`edge-stakes.ts`) as this run has knocked them —
+   * from the first one touched; absent until then. */
+  stakes?: StakeState;
   /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
    * whose rules ask for one (the free ride); absent everywhere else. */
   crowd?: CrowdState;

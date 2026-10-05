@@ -135,8 +135,9 @@ export function dealRivals(state: GameState, count: number, at: (i: number) => S
       // The crowd is the world's, stepped once, never a rival's own.
       crowd: undefined,
       field: undefined,
-      // Every racer knocks his own poles.
+      // Every racer knocks his own poles, and his own stakes.
       gatePoles: freshGatePoles(state.level),
+      stakes: undefined,
       events: [],
     };
     const spot = at(i);

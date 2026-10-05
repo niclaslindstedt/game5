@@ -33,42 +33,33 @@
 //     in place of the 1000–2000 W metal-halide or sodium lamps it replaced;
 //     one to four on a mast; NEUTRAL WHITE, 4000–5000 K.
 //
-// THE MASTS ARE SCENERY, not obstacles: like the edge poles they stand
-// past the piste's edge and nothing in the engine knows they are there.
+// WHERE EACH MAST STANDS is the engine's (`piste-masts.ts`'s `pisteMasts`
+// and `PISTE_MAST`): a skier meets a mast's pole as he meets a trunk
+// (`posts.ts`). What it carries and the light it lays is this file's.
 
-import { trackPointAt, treesNear, type Level, type TrackPoint } from "@engine";
+import {
+  mastLines,
+  pisteMasts,
+  PISTE_MAST,
+  trackPointAt,
+  type Level,
+  type TrackPoint,
+} from "@engine";
 
-import { clearOfLifts } from "./run-sign-plan.ts";
-
-/** The layout, as the research has it.
+/** The layout, as the research has it — where the masts stand is the
+ * engine's `PISTE_MAST` (`every`, `first`, `out`, `height`, `bothSides`,
+ * `clear`, `pole`), and on top of it:
  *   * `lux`: the mean the masts are sized for, lx, and the class they are
  *     held to (`classIII`: mean and minimum over the piste).
- *   * `every`: from one mast to the next down the run, m; `first` the first
- *     mast's arc down from the run's head (half the edge poles' 25 m, so
- *     the two never stand side by side).
- *   * `out`: the mast's foot past the piste's edge, m — beyond the edge
- *     poles' 1.5 m.
- *   * `height`: the light point over the snow, m: `base` + `perWidth` × the
- *     piste's width, held to `[min, max]`.
- *   * `bothSides`: a piste wider than this, m, is lit from both edges, the
- *     masts staggered.
  *   * `lumens`: one lamp's flux, lm (a 400 W LED at 140 lm/W), and the most
  *     lamps one mast carries. The masts' flux is the target over the area a
  *     mast serves over `utilisation`, the share of a lamp's light that lands
- *     on the piste.
- *   * `clear`: how close two masts may stand (two runs side by side), m;
- *     how far a trunk keeps from the foot; how far from the finish line and
- *     the start line a mast stands (the arena has its own floods). */
+ *     on the piste. */
 export const PISTE_LIGHT = {
+  ...PISTE_MAST,
   lux: { target: 30, classIII: { mean: 20, min: 4 } },
-  every: 50,
-  first: 12.5,
-  out: 3.5,
-  height: { base: 8, perWidth: 0.15, min: 10, max: 18 },
-  bothSides: 70,
   lumens: { lamp: 56_000, most: 3 },
   utilisation: 0.7,
-  clear: { mast: 25, tree: 1.6, finish: 40, start: 20 },
 } as const;
 
 /** THE BEAM: an ASYMMETRIC sports floodlight's distribution, as a slope
@@ -177,156 +168,68 @@ export function intensityOf(l: PisteLamp, px: number, py: number, pz: number): n
   return l.peak * beamShare(l.aim, gamma, bearing);
 }
 
-/** The lines a ski area's masts stand along: every run of the area, or the
- * one piste of a map that has none. */
-function linesOf(level: Level): { id: string; points: TrackPoint[]; length: number }[] {
-  if (level.resort) return level.resort.runs;
-  return [{ id: "piste", points: level.track.points, length: level.track.length }];
-}
-
-/** The light point's height over the snow beside a piste `width` m wide. */
-export function mastHeight(width: number): number {
-  const H = PISTE_LIGHT.height;
-  return Math.min(H.max, Math.max(H.min, H.base + H.perWidth * width));
-}
-
-/** A small FNV hash of a run's id: which side its masts stand on. */
-function sideOf(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  return (h >>> 0) % 2 === 0 ? 1 : -1;
-}
-
 /**
- * WHERE THE MASTS STAND on `level`: down every run from `first` m every
- * `every` m, `out` m past the edge on the run's own side (both sides,
- * staggered, where it is wider than `bothSides`), each carrying as many
- * lamps as the area it serves needs for `lux.target`, each lamp aimed down
- * the run and across it. A mast that would stand in a lift's line or
- * station, on another run's snow, in a trunk, or close by another mast is
- * nudged down and up the run, and left out where no nudge clears it.
+ * THE MASTS of `level` as lit: every mast the engine stands
+ * (`pisteMasts`), each carrying as many lamps as the area it serves needs
+ * for `lux.target`, each lamp aimed down the run and across it.
  */
 export function planPisteLights(level: Level): PisteMast[] {
   const P = PISTE_LIGHT;
-  const masts: PisteMast[] = [];
-  const many = linesOf(level).length > 1;
-  const near: number[] = [];
-  const cps = level.checkpoints;
-  const finish = cps.length > 0 ? cps[cps.length - 1] : null;
-  // A hash of the masts stood so far, a cell per `clear.mast`.
-  const cells = new Map<string, PisteMast[]>();
-  const cellKey = (x: number, z: number): string =>
-    `${Math.floor(x / P.clear.mast)},${Math.floor(z / P.clear.mast)}`;
-  const crowded = (x: number, z: number): boolean => {
-    const cx = Math.floor(x / P.clear.mast);
-    const cz = Math.floor(z / P.clear.mast);
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        for (const m of cells.get(`${cx + i},${cz + j}`) ?? []) {
-          if (Math.hypot(m.x - x, m.z - z) < P.clear.mast) return true;
-        }
-      }
-    }
-    return false;
-  };
-  const clearAt = (x: number, z: number): boolean => {
-    if (x < 0 || z < 0 || x > level.size || z > level.size) return false;
-    if (many && level.packedAt(x, z) > 0.5) return false;
-    if (!clearOfLifts(level, x, z)) return false;
-    if (treesNear(level, x, z, P.clear.tree, near).length > 0) return false;
-    if (finish && Math.hypot(finish.x - x, finish.z - z) < P.clear.finish) return false;
-    if (Math.hypot(level.spawn.x - x, level.spawn.z - z) < P.clear.start) return false;
-    return !crowded(x, z);
-  };
-  const at: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+  const lines = mastLines(level);
   const aim: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
-  // Nudged along the run, nearest first.
-  const NUDGE = [0, 5, -5, 10, -10];
-
-  for (const run of linesOf(level)) {
+  return pisteMasts(level).map((site) => {
+    const run = lines[site.line];
     const line = { track: { points: run.points, length: run.length } };
-    const own = sideOf(run.id);
-    for (let s0 = P.first, k = 0; s0 < run.length - 5; s0 += P.every / 2, k++) {
-      trackPointAt(line, s0, at);
-      const wide = at.width > P.bothSides;
-      // Every other half-step is a mast on the run's own side; the ones
-      // between stand on the far side where the piste is wide enough.
-      const side = k % 2 === 0 ? own : -own;
-      if (k % 2 === 1 && !wide) continue;
-      let placed: { s: number; x: number; z: number } | null = null;
-      for (const ds of NUDGE) {
-        const s = s0 + ds;
-        if (s < 0 || s > run.length) continue;
-        trackPointAt(line, s, at);
-        const off = at.width / 2 + P.out;
-        const x = at.x + Math.cos(at.heading) * side * off;
-        const z = at.z - Math.sin(at.heading) * side * off;
-        if (clearAt(x, z)) {
-          placed = { s, x, z };
-          break;
-        }
-      }
-      if (!placed) continue;
-      trackPointAt(line, placed.s, at);
-      const width = at.width;
-      const height = mastHeight(width);
-      const y = level.groundAt(placed.x, placed.z);
-      // The area this mast serves: the stretch to the next on its side,
-      // the whole width (half of it where both sides are lit).
-      const served = P.every * (wide ? width / 2 : width);
-      const flux = (P.lux.target * served) / P.utilisation;
-      const count = Math.max(1, Math.min(P.lumens.most, Math.round(flux / P.lumens.lamp)));
-      const mast: PisteMast = {
-        x: placed.x,
-        y,
-        z: placed.z,
-        height,
-        side,
-        // Facing in across the run: the heading turned toward the centreline.
-        heading: at.heading - (side * Math.PI) / 2,
-        lamps: [],
-      };
-      for (let i = 0; i < count; i++) {
-        // Lamp by lamp down the stretch the mast serves, each laid across
-        // the piste past its centreline (the near side takes the spill).
-        const ahead = P.every * ((i + 0.6) / count) * 0.7;
-        trackPointAt(line, Math.min(run.length, placed.s + ahead), aim);
-        const across = wide ? 0.3 : 0.42;
-        const tx = aim.x - Math.cos(aim.heading) * side * aim.width * across;
-        const tz = aim.z + Math.sin(aim.heading) * side * aim.width * across;
-        const ty = level.groundAt(tx, tz);
-        // Side by side on the mast's crossarm, 0.7 m apart.
-        const spread = (i - (count - 1) / 2) * 0.7;
-        const lx = placed.x + Math.cos(mast.heading) * spread;
-        const lz = placed.z - Math.sin(mast.heading) * spread;
-        const ly = y + height;
-        const ax = tx - lx;
-        const ay = ty - ly;
-        const az = tz - lz;
-        const n = Math.hypot(ax, ay, az);
-        const lumens = flux / count;
-        const aimAt = Math.atan2(Math.hypot(ax, az), -ay);
-        mast.lamps.push({
-          x: lx,
-          y: ly,
-          z: lz,
-          dx: ax / n,
-          dy: ay / n,
-          dz: az / n,
-          aim: aimAt,
-          bearing: Math.atan2(ax, az),
-          lumens,
-          peak: lumens / solidOf(aimAt),
-        });
-      }
-      masts.push(mast);
-      const key = cellKey(mast.x, mast.z);
-      const list = cells.get(key);
-      if (list) list.push(mast);
-      else cells.set(key, [mast]);
+    const { side, width, wide } = site;
+    // The area this mast serves: the stretch to the next on its side,
+    // the whole width (half of it where both sides are lit).
+    const served = P.every * (wide ? width / 2 : width);
+    const flux = (P.lux.target * served) / P.utilisation;
+    const count = Math.max(1, Math.min(P.lumens.most, Math.round(flux / P.lumens.lamp)));
+    const mast: PisteMast = {
+      x: site.x,
+      y: site.y,
+      z: site.z,
+      height: site.height,
+      side,
+      heading: site.heading,
+      lamps: [],
+    };
+    for (let i = 0; i < count; i++) {
+      // Lamp by lamp down the stretch the mast serves, each laid across
+      // the piste past its centreline (the near side takes the spill).
+      const ahead = P.every * ((i + 0.6) / count) * 0.7;
+      trackPointAt(line, Math.min(run.length, site.s + ahead), aim);
+      const across = wide ? 0.3 : 0.42;
+      const tx = aim.x - Math.cos(aim.heading) * side * aim.width * across;
+      const tz = aim.z + Math.sin(aim.heading) * side * aim.width * across;
+      const ty = level.groundAt(tx, tz);
+      // Side by side on the mast's crossarm, 0.7 m apart.
+      const spread = (i - (count - 1) / 2) * 0.7;
+      const lx = site.x + Math.cos(mast.heading) * spread;
+      const lz = site.z - Math.sin(mast.heading) * spread;
+      const ly = site.y + site.height;
+      const ax = tx - lx;
+      const ay = ty - ly;
+      const az = tz - lz;
+      const n = Math.hypot(ax, ay, az);
+      const lumens = flux / count;
+      const aimAt = Math.atan2(Math.hypot(ax, az), -ay);
+      mast.lamps.push({
+        x: lx,
+        y: ly,
+        z: lz,
+        dx: ax / n,
+        dy: ay / n,
+        dz: az / n,
+        aim: aimAt,
+        bearing: Math.atan2(ax, az),
+        lumens,
+        peak: lumens / solidOf(aimAt),
+      });
     }
-  }
-  return masts;
+    return mast;
+  });
 }
 
 /** The light on the ground, baked: a grid of `cols` × `rows` texels `cell`

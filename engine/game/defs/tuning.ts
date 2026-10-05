@@ -15,6 +15,7 @@ import { TRICKS } from "./tricks.ts";
 import { INJURY } from "./anatomy.ts";
 import { CRASH } from "./crash.ts";
 import { FLEX, START_PUSH } from "./race.ts";
+import { STAKES } from "./stakes.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -745,6 +746,10 @@ export const TUNING = {
   /** THE START PUSH and THE FLEX POLES, a race's own (`race.ts`). */
   start: START_PUSH,
   flex: FLEX,
+
+  /** THE EDGE STAKES (`edge-stakes.ts`), stated next door
+   * (`defs/stakes.ts`). */
+  stakes: STAKES,
 
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
    * push that grows over `soft` m. */

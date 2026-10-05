@@ -20,7 +20,8 @@
 //     — green, blue, red or black, as a piste is marked), the right-hand ones banded
 //     orange at the top (the convention that tells a skier in fog which
 //     side he is on), with a reflector that catches the floods and the moon
-//     at night.
+//     at night — each where the engine stands it (`stakePlan`), bent over
+//     or snapped as this run has knocked it (`edge-stakes.ts`).
 //   * THE SIGNS: a board on a post at the head of every run and where a
 //     lane leaves one — its mark, its number, its name, an arrow
 //     (`run-signs.ts`).
@@ -40,15 +41,7 @@
 // laid on this map's own ground here.
 
 import * as THREE from "three";
-import {
-  gradeOf,
-  speedSkiLines,
-  type Checkpoint,
-  type GameState,
-  type Level,
-  type PisteGrade,
-  type TrackPoint,
-} from "@engine";
+import { speedSkiLines, stakePlan, type Checkpoint, type GameState, type Level } from "@engine";
 
 import { PALETTE } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
@@ -80,11 +73,6 @@ import { LOOSE } from "./trail-stamp.ts";
  * deep at the top. */
 const PANEL = { pole: 1.85, gap: 1.05, drop: 0.5, radius: 0.017 };
 
-/** THE EDGE POLES, m: their spacing down the piste, their height, the
- * orange band's height at the top of a right-hand one, and how far outside
- * the piste's edge they stand. */
-const EDGE = { every: 25, height: 2.2, band: 0.45, out: 1.5, radius: 0.02 };
-
 /** THE START HUT, m: its footprint and height, and where it stands — off
  * the line's left edge. */
 const HUT = { width: 2.4, depth: 2.2, height: 2.1, out: 2.5 };
@@ -106,7 +94,7 @@ export type Gates = {
   /** The finish arena's floodlights, for the snow shader's lamp slots. */
   floods: Flood[];
   /** The run's moment: the owed gate highlighted and breathing, a slalom's
-   * poles as knocked, its start clock. */
+   * poles and the edge stakes as knocked, its start clock. */
   update(state: GameState): void;
   /** The night's lights at `level` (0 off … 1): the floods' glow, the
    * edge poles' reflectors and the piste lights along every run, with
@@ -589,78 +577,66 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   panels.instanceMatrix.needsUpdate = true;
 
   // THE EDGE POLES down both sides of every run on the mountain, each in
-  // its own colour (R23, R27) — on a map of a resort the other runs are
-  // marked as the raced one is — the right-hand ones banded orange at the
-  // top. A pole that would stand on another run's groomed snow (a junction,
-  // a lane across a piste) is left out.
-  const stakeGeo = edgeStake(EDGE.height, EDGE.radius);
-  const bandGeo = edgeBand(EDGE.height, EDGE.band, EDGE.radius);
+  // its own colour (R23, R27), the right-hand ones banded orange at the
+  // top — where the engine stands them (`stakePlan`), which a skier knocks
+  // over and snaps (`edge-stakes.ts`), tipped here as this run has.
+  const plan = stakePlan(level);
+  const stakeGeo = edgeStake(plan.height, plan.radius);
+  const bandGeo = edgeBand(plan.height, plan.band, plan.radius);
   geos.push(stakeGeo, bandGeo);
   const stakeMat = std({ color: 0xffffff, roughness: 0.55 }, "edge-stake");
-  type Edged = {
-    points: readonly TrackPoint[];
-    length: number;
-    grade: PisteGrade;
-    /** A speed track's own marks: this far apart, every one stood. */
-    every?: number;
-  };
-  const lines: Edged[] = level.resort
-    ? [...level.resort.runs]
-    : [{ points: level.track.points, length: level.track.length, grade: gradeOf(level) }];
-  // A SPEED TRACK's sides (R34): its launch marked in BLUE, its timing zone
-  // in RED every 15 m, its run-out in blue again — the marks a racer reads
-  // his speed off.
-  const sk = level.speedSki;
-  if (sk) {
-    const part = (from: number, to: number, grade: PisteGrade, every: number): Edged => {
-      const points = level.track.points.filter((p) => p.s >= from && p.s <= to);
-      return { points, length: to - from, grade, every };
-    };
-    lines.push(
-      part(0, sk.zone.from, "blue", EDGE.every),
-      part(sk.zone.from, sk.zone.to, "red", 15),
-      part(sk.zone.to, level.track.length, "blue", EDGE.every),
-    );
-  }
-  const edgeCount = lines.reduce(
-    (sum, r) => sum + Math.ceil(r.length / (r.every ?? EDGE.every)) + 1,
-    0,
-  );
-  const stakes = new THREE.InstancedMesh(stakeGeo, stakeMat, edgeCount * 2);
-  const bands = new THREE.InstancedMesh(bandGeo, reflectorMat, edgeCount);
+  const bandOf = new Int32Array(plan.count).fill(-1);
+  let bandCount = 0;
+  for (let i = 0; i < plan.count; i++) if (plan.banded[i]) bandOf[i] = bandCount++;
+  const stakes = new THREE.InstancedMesh(stakeGeo, stakeMat, Math.max(1, plan.count));
+  const bands = new THREE.InstancedMesh(bandGeo, reflectorMat, Math.max(1, bandCount));
   stakes.castShadow = true;
   group.add(stakes, bands);
-  let si = 0;
-  let bi = 0;
   const paint = new THREE.Color();
-  for (const run of lines) {
-    paint.set(GRADE_LOOK[run.grade].stake);
-    let nextS = run.points[0]?.s ?? 0;
-    for (const p of run.points) {
-      if (p.s < nextS) continue;
-      nextS += run.every ?? EDGE.every;
-      for (const side of [-1, 1]) {
-        const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + EDGE.out);
-        const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + EDGE.out);
-        if (run.every === undefined && lines.length > 1 && level.packedAt(x, z) > 0.5) continue;
-        const y = level.groundAt(x, z) - 0.1;
-        if (si < stakes.count) {
-          stakes.setColorAt(si, paint);
-          stakes.setMatrixAt(si++, m4.compose(at.set(x, y, z), q.identity(), one));
-        }
-        // The skier's right going down AS DRAWN is the engine's left: the
-        // renderer's frame mirrors the map (`input-model.ts`).
-        if (side < 0 && bi < bands.count) {
-          bands.setMatrixAt(bi++, m4.compose(at.set(x, y, z), q.identity(), one));
-        }
-      }
-    }
+  const stakeAxis = new THREE.Vector3();
+  /** Stand stake `i` at its foot, `tilt` rad over toward (dx, dz). */
+  const placeStake = (i: number, tilt: number, dx: number, dz: number): void => {
+    const p = plan.stakes[i];
+    if (tilt === 0) q.identity();
+    else q.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt);
+    m4.compose(at.set(p.x, p.y - 0.1, p.z), q, one);
+    stakes.setMatrixAt(i, m4);
+    if (bandOf[i] >= 0) bands.setMatrixAt(bandOf[i], m4);
+  };
+  for (let i = 0; i < plan.count; i++) {
+    stakes.setColorAt(i, paint.set(GRADE_LOOK[plan.grade[i]].stake));
+    placeStake(i, 0, 1, 0);
   }
-  for (let i = si; i < stakes.count; i++) stakes.setMatrixAt(i, m4.compose(at, q, none));
-  for (let i = bi; i < bands.count; i++) bands.setMatrixAt(i, m4.compose(at, q, none));
+  if (plan.count === 0) {
+    stakes.setMatrixAt(0, m4.compose(at, q, none));
+    bands.setMatrixAt(0, m4.compose(at, q, none));
+  }
   stakes.instanceMatrix.needsUpdate = true;
   if (stakes.instanceColor) stakes.instanceColor.needsUpdate = true;
   bands.instanceMatrix.needsUpdate = true;
+  /** The tilt each stake is drawn at, so a frame redraws only the ones
+   * that moved — and stands them all back up for a run that has touched
+   * none. */
+  const drawnTilt = new Float32Array(plan.count);
+  let anyTipped = false;
+  const tipStakes = (state: GameState): void => {
+    const own = state.stakes;
+    if (!own && !anyTipped) return;
+    let moved = false;
+    anyTipped = false;
+    for (let i = 0; i < plan.count; i++) {
+      const tilt = own ? own.tilt[i] : 0;
+      if (tilt !== 0) anyTipped = true;
+      if (tilt === drawnTilt[i]) continue;
+      drawnTilt[i] = tilt;
+      placeStake(i, tilt, own ? own.dirX[i] : 1, own ? own.dirZ[i] : 0);
+      moved = true;
+    }
+    if (moved) {
+      stakes.instanceMatrix.needsUpdate = true;
+      bands.instanceMatrix.needsUpdate = true;
+    }
+  };
 
   // THE SIGNS at the head of every run and where a lane leaves one.
   const signs = createRunSigns(level, haze);
@@ -691,6 +667,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       const t = state.t;
       slalomPoles?.update(state);
       house?.update(state);
+      tipStakes(state);
       if (next !== lit) {
         if (lit >= 0 && tops[lit]) {
           panels.setColorAt(lit * 2, muted(colours[lit]));

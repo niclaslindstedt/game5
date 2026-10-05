@@ -49,6 +49,11 @@ export type LiftLook = {
    * crest a split could not. */
   tower: number;
   towerMax: number;
+  /** A tower's (and a bullwheel's post's) square steel column: half its
+   * width across the flats at its foot, m — what a skier meets of it
+   * (`standing.ts`), the column tapering to `COLUMN_TAPER` of it at its
+   * head. */
+  column: number;
   /** The rope's height over the snow at each station's bullwheel. */
   wheel: number;
   /** How far apart the up and the down rope run; one rope where 0. */
@@ -94,6 +99,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     minSpan: 40,
     tower: 16,
     towerMax: 30,
+    column: 0.74,
     wheel: 6,
     gauge: 6,
     sag: 0.02,
@@ -111,6 +117,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     minSpan: 35,
     tower: 11,
     towerMax: 22,
+    column: 0.54,
     wheel: 3.8,
     gauge: 5,
     sag: 0.025,
@@ -129,6 +136,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     minSpan: 30,
     tower: 7,
     towerMax: 12,
+    column: 0.24,
     wheel: 4,
     gauge: 0,
     sag: 0.02,
@@ -144,6 +152,9 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     off: RR.lift.drag.letGo,
   },
 };
+
+/** A tower's column at its head as a share of its foot. */
+export const COLUMN_TAPER = 0.625;
 
 /** One thing the rope is carried by: a station's bullwheel (at either end)
  * or a tower — how far up the line, m of plan, where, the snow's height
@@ -379,6 +390,35 @@ export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
       wheel: s,
     };
   });
+}
+
+/** What a thing stood beside a lift keeps clear of, m: past a station
+ * house's walls, and either side of the line (its ropes, its towers, its
+ * drag track). */
+const LIFT_CLEAR = { house: 3, line: 3.5 };
+
+/** Whether (x, z) stands clear of every lift of the area — its two station
+ * houses (behind each wheel, along the line, as `LIFT_LOOK` measures them)
+ * and the line from wheel to wheel. What a sign, a light mast and a lens
+ * are stood by. */
+export function clearOfLifts(level: Level, x: number, z: number): boolean {
+  for (const lift of level.resort?.lifts ?? []) {
+    const look = LIFT_LOOK[lift.kind];
+    const ex = lift.top.x - lift.bottom.x;
+    const ez = lift.top.z - lift.bottom.z;
+    const len = Math.max(1, hypot(ex, ez));
+    const dx = ex / len;
+    const dz = ez / len;
+    // Along the line from the bottom wheel, and across it.
+    const u = (x - lift.bottom.x) * dx + (z - lift.bottom.z) * dz;
+    const v = Math.abs((x - lift.bottom.x) * dz - (z - lift.bottom.z) * dx);
+    if (u > -LIFT_CLEAR.line && u < len + LIFT_CLEAR.line && v < look.gauge / 2 + LIFT_CLEAR.line)
+      return false;
+    const reach = look.house.length + 1.5 + LIFT_CLEAR.house;
+    const across = (look.house.width + look.gauge) / 2 + LIFT_CLEAR.house;
+    if (v < across && ((u <= 0 && u > -reach) || (u >= len && u < len + reach))) return false;
+  }
+  return true;
 }
 
 /** Every lift of a map's resort planned, once per map: a skier riding one

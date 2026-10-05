@@ -33,6 +33,7 @@ import { TUNING, type Level, type LiftRide } from "@engine";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createMapBoards } from "./map-board.ts";
 import {
+  COLUMN_TAPER,
   DRAG_ARM,
   carrierAt,
   carrierCount,
@@ -47,9 +48,9 @@ import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
-/** A tower's column across its foot, m, and how far it is sunk into the
- * snow so a slope never shows its base. */
-const COLUMN: Readonly<Record<LiftKind, number>> = { gondola: 1.3, chair: 0.95, drag: 0.42 };
+/** How far a tower's column is sunk into the snow, m, so a slope never
+ * shows its base. Its girth is the plan's (`LiftLook.column`, which a
+ * skier meets). */
 const SINK = 1.2;
 
 /** A drag's bar rides this high over the snow, m — a skier's hips. */
@@ -249,13 +250,15 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
 
   // THE COLUMNS: one tapered square tube for every tower and every
   // bullwheel's post, scaled to its height and its kind's girth.
-  const column = new THREE.CylinderGeometry(0.5, 0.8, 1, 4, 1);
+  // A four-sided cylinder turned an eighth: a square tube 2 m across its
+  // flats at its foot (a corner at √2), tapered to its head.
+  const column = new THREE.CylinderGeometry(Math.SQRT2 * COLUMN_TAPER, Math.SQRT2, 1, 4, 1);
   column.rotateY(Math.PI / 4);
   column.translate(0, 0.5, 0);
   const supports = plans.reduce((n, p) => n + p.supports.length, 0);
   instanced(column, steel, supports, (set) => {
     for (const p of plans) {
-      const w = COLUMN[p.lift.kind];
+      const w = p.look.column;
       for (const s of p.supports) {
         // A station's post stands under its wheel, a tower's under its
         // crossarm, both sunk into the snow.

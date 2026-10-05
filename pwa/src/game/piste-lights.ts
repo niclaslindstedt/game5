@@ -5,8 +5,8 @@
 //   * THE MASTS stand by day and by night: a galvanised pole, a crossarm
 //     at its head and one to three floodlights on it, each turned to where
 //     the plan aims it — all of them four instanced draws for the whole
-//     ski area. Like the edge poles they are scenery the engine does not
-//     know.
+//     ski area. Each stands where the engine planted it
+//     (`piste-masts.ts`), and a skier meets its pole as he meets a trunk.
 //   * THE LIGHT is baked ONCE A MAP (`bakePisteLight`, the vector
 //     irradiance on the ground over the whole map) the first time the
 //     lamps come on, uploaded as one half-float texture, and read by every
@@ -24,7 +24,7 @@
 // floods and every headlamp.
 
 import * as THREE from "three";
-import type { Level } from "@engine";
+import { PISTE_MAST, type Level } from "@engine";
 
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import {
@@ -39,10 +39,9 @@ import {
  * reads 0.2 there, so the two kinds of lamp light the snow on one scale. */
 export const LUX_TO_LAMP = 1 / 110;
 
-/** The pole's girth at its foot and its head, m, and how far its foot is
- * sunk in the snow; the crossarm's section and its overhang past the
- * outer lamps; the floodlight's housing (across, tall, deep) and its glass. */
-const POLE = { foot: 0.12, head: 0.065, sunk: 0.4 };
+/** The crossarm's section and its overhang past the outer lamps; the
+ * floodlight's housing (across, tall, deep) and its glass. The pole's
+ * girth is the engine's (`PISTE_MAST.pole`), which a skier meets. */
 const ARM = { section: 0.08, over: 0.25, below: 0.15, spread: 0.7 };
 const LAMP = { w: 0.6, h: 0.4, d: 0.14, glass: 0.9 };
 
@@ -175,11 +174,14 @@ export function createPisteLights(level: Level, haze: HazeUniforms): PisteLights
   // The pole from its foot (y 0) to its head (y 1), stretched per mast; the
   // crossarm across its head (x −½…½), stretched to its lamps; the housing
   // with its glass on its face (+z), turned per lamp to its aim.
-  const poleGeo = new THREE.CylinderGeometry(POLE.head, POLE.foot, 1, 6, 1, true).translate(
-    0,
-    0.5,
-    0,
-  );
+  const poleGeo = new THREE.CylinderGeometry(
+    PISTE_MAST.pole.head,
+    PISTE_MAST.pole.foot,
+    1,
+    6,
+    1,
+    true,
+  ).translate(0, 0.5, 0);
   const armGeo = new THREE.BoxGeometry(1, ARM.section, ARM.section);
   const lampGeo = new THREE.BoxGeometry(LAMP.w, LAMP.h, LAMP.d);
   const glassGeo = new THREE.PlaneGeometry(LAMP.w * LAMP.glass, LAMP.h * LAMP.glass).translate(
@@ -205,8 +207,8 @@ export function createPisteLights(level: Level, haze: HazeUniforms): PisteLights
   let li = 0;
   masts.forEach((m, i) => {
     q.setFromAxisAngle(up, m.heading);
-    at.set(m.x, m.y - POLE.sunk, m.z);
-    poles.setMatrixAt(i, m4.compose(at, q, size.set(1, m.height + POLE.sunk, 1)));
+    at.set(m.x, m.y - PISTE_MAST.pole.sunk, m.z);
+    poles.setMatrixAt(i, m4.compose(at, q, size.set(1, m.height + PISTE_MAST.pole.sunk, 1)));
     // The arm runs across the mast's face (the run's way), at its head.
     const reach = (m.lamps.length - 1) * ARM.spread + 2 * ARM.over + LAMP.w;
     q.setFromAxisAngle(up, m.heading + Math.PI / 2);

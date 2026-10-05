@@ -5,7 +5,7 @@
 // under 4 — while the snow past the edge stays dark.
 
 import { describe, expect, it } from "vitest";
-import { trackPointAt, type Level, type TrackPoint } from "@engine";
+import { clearOfLifts, trackPointAt, type Level, type TrackPoint } from "@engine";
 
 import {
   bakePisteLight,
@@ -16,7 +16,6 @@ import {
   PISTE_LIGHT,
   type PisteMast,
 } from "../pwa/src/game/piste-light-plan.ts";
-import { clearOfLifts } from "../pwa/src/game/run-sign-plan.ts";
 import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 

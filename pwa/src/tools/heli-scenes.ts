@@ -282,6 +282,29 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.shoot(s, "helmet", "helmet");
   },
 
+  spool(st) {
+    // THE ROTOR SPOOLING UP, from above the machine's quarter where the
+    // whole disc shows: the blades turning, smeared, gone to a haze, and
+    // the strobed ghost drifting back. Three frames a moment, 1/60 s apart,
+    // so the way the pattern moves can be read off the sheet.
+    const s = st.fresh(true);
+    s.heli!.spool = 0;
+    s.heli!.thrust = 0;
+    const h = s.heli!;
+    const mid = { ...heliMiddle(s), y: h.y + HELI.rotor.hub };
+    const lens = outside(st.level, mid, h.heading + Math.PI * 0.75, 8, 0, 6, 60);
+    let t = 0;
+    for (const at of [0.4, 1, 1.6, 2.2, 2.8, 3.6, 5]) {
+      st.run(s, at - t, still);
+      t = at;
+      for (let k = 0; k < 3; k++) {
+        if (k) st.run(s, 1 / 60, still);
+        st.shoot(s, `${at}s-${k}`, lens);
+      }
+      t += 2 / 60;
+    }
+  },
+
   liftoff(st) {
     const s = st.fresh(true);
     const { pad } = st.spots;
@@ -529,7 +552,7 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
 /** The sheets, each a group of views shot onto one page. */
 export const GROUPS: Record<string, readonly string[]> = {
   pad: ["pad", "call"],
-  board: ["board"],
+  board: ["board", "spool"],
   lift: ["liftoff", "wash"],
   flight: ["cruise", "turn", "eye"],
   land: ["land", "landed"],

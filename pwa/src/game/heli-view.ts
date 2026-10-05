@@ -2,9 +2,10 @@
 // THE HELICOPTER AS DRAWN (`heli.ts`) — the Blender model (`make models`,
 // `models/heli.glb`: `heli_body`, `heli_rotor` spun about its own up,
 // `heli_tail_rotor` about its own right) hung on the engine's skid datum
-// and attitude; the main rotor's blades thinning into a BLUR DISC as they
-// come up to speed, the way an eye and a camera see a rotor turning six
-// times a second; the anti-collision beacon and the nav lights; the PAD it
+// and attitude; both rotors as an eye sees them spool up (`rotor-look.ts`):
+// the blades turning, smeared thin into a haze as they come up to speed,
+// and the strobed ghost of them creeping backwards at full rpm; the
+// anti-collision beacon and the nav lights; the PAD it
 // stands on, painted on the valley's snow (a ring and an H) with a wind
 // sock beside it — and, while it waits there for a skier, the machine and
 // its pad LIT UP for him to ride to; the WRECK, black and broken where it
@@ -31,9 +32,11 @@ import {
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
+import { createRotorEye, type RotorLook } from "./rotor-look.ts";
 import { heliModelUrl } from "./skier-models.ts";
 
 const R = HELI.rotor.radius;
+const TR = HELI.tail.radius;
 /** How near the parked machine a skier has to be for it to light up, m. */
 const LIGHT_UP = 90;
 /** The wash's puffs a second at full thrust over loose snow, under the
@@ -97,11 +100,18 @@ function standIn(haze: HazeUniforms): THREE.Group {
     skid.position.set((side * HELI.skid.track) / 2, HELI.skid.y, 0.05);
     body.add(skid);
   }
+  // The blades' own material, named as the model's is, so the hand-over to
+  // the drawn smear fades them alone.
+  const blades = hazeMaterial(
+    new THREE.MeshStandardMaterial({ color: 0x0d0e10, roughness: 0.55, name: "rotor" }),
+    haze,
+    "heli",
+  );
   const rotor = new THREE.Group();
   rotor.name = "heli_rotor";
   rotor.position.set(0, HELI.rotor.hub, HELI.rotor.at);
   for (let i = 0; i < HELI.rotor.blades; i++) {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, R), dark);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, R), blades);
     blade.position.z = R / 2;
     const arm = new THREE.Group();
     arm.rotation.y = (i / HELI.rotor.blades) * Math.PI * 2;
@@ -111,7 +121,7 @@ function standIn(haze: HazeUniforms): THREE.Group {
   const tail = new THREE.Group();
   tail.name = "heli_tail_rotor";
   tail.position.set(HELI.tail.hub.x, HELI.tail.hub.y, HELI.tail.hub.z);
-  const tb = new THREE.Mesh(new THREE.BoxGeometry(0.03, HELI.tail.radius * 2, 0.15), dark);
+  const tb = new THREE.Mesh(new THREE.BoxGeometry(0.03, TR * 2, 0.15), blades);
   tail.add(tb);
   // The model's own frame faces +z already here: wrap it as the glTF is.
   const turned = new THREE.Group();
@@ -121,30 +131,111 @@ function standIn(haze: HazeUniforms): THREE.Group {
   return g;
 }
 
-/** THE BLUR DISC: a faint, streaked disc over the rotor's sweep, darker
- * toward the tips where the blades sweep fastest. */
-function rotorDisc(): THREE.Mesh {
+/** A rotor's blades as the shader draws them, in the rotor's own frame. */
+type DiscSpec = {
+  /** The tip's radius and where the blades start, m. */
+  radius: number;
+  root: number;
+  /** The chord, m, and the share of it the tip tapers off, from `tipFrom`
+   * (a share of the radius) out. */
+  chord: number;
+  taper: number;
+  tipFrom: number;
+  /** Where the painted tip band starts, a share of the radius (past 1 for
+   * none). */
+  band: number;
+  blades: number;
+  /** Blade 0's angle in the disc's plane, rad, and the way the smear
+   * trails it: +1 toward a larger angle. */
+  first: number;
+  trail: 1 | -1;
+};
+
+const MAIN_DISC: DiscSpec = {
+  radius: R,
+  root: 0.5,
+  chord: 0.35,
+  taper: 0.4,
+  tipFrom: (R - 0.35) / R,
+  band: (R - 0.32) / R,
+  blades: HELI.rotor.blades,
+  first: -Math.PI / 2,
+  trail: 1,
+};
+const TAIL_DISC: DiscSpec = {
+  radius: TR,
+  root: 0.1,
+  chord: 0.18,
+  taper: 0.11,
+  tipFrom: 0,
+  band: 2,
+  blades: HELI.tail.blades,
+  first: Math.PI / 2,
+  trail: -1,
+};
+
+/** THE SMEAR: each blade's ink spread over the arc it sweeps in one
+ * picture (`RotorLook.smear`), the pattern faded toward an even haze as the
+ * strobe dissolves it (`contrast`). A blade covers its own width of disc
+ * whatever it is smeared over, so the wedges thin as they widen and a rotor
+ * at speed is a faint haze — darkest at the root, where the blade is widest
+ * for its radius, with the painted tips a ring at its rim. */
+function rotorDisc(d: DiscSpec): THREE.Mesh {
+  const f = (v: number): string => v.toFixed(5);
   const material = new THREE.ShaderMaterial({
-    uniforms: { uOpacity: { value: 0 }, uTurn: { value: 0 } },
+    uniforms: {
+      uOpacity: { value: 0 },
+      uSmear: { value: 0 },
+      uContrast: { value: 1 },
+      uBlade: { value: new THREE.Color(0.05, 0.052, 0.056) },
+      uTip: { value: new THREE.Color(0.5, 0.05, 0.06) },
+    },
     vertexShader: /* glsl */ `
-      varying vec2 vUv;
+      varying vec2 vAt;
       void main() {
-        vUv = position.xy / ${R.toFixed(2)};
+        vAt = position.xy;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
       uniform float uOpacity;
-      uniform float uTurn;
-      varying vec2 vUv;
+      uniform float uSmear;
+      uniform float uContrast;
+      uniform vec3 uBlade;
+      uniform vec3 uTip;
+      varying vec2 vAt;
+      const float GAP = ${f((2 * Math.PI) / d.blades)};
       void main() {
-        float r = length(vUv);
-        if (r > 1.0 || r < 0.08) discard;
-        float a = atan(vUv.y, vUv.x);
-        // Three blades' worth of streak, smeared round the disc.
-        float streak = 0.55 + 0.45 * pow(0.5 + 0.5 * sin(3.0 * a - uTurn), 6.0);
-        float tip = smoothstep(0.15, 0.95, r) * (1.0 - smoothstep(0.97, 1.0, r));
-        gl_FragColor = vec4(vec3(0.07, 0.075, 0.08), uOpacity * streak * (0.25 + 0.75 * tip));
+        float m = length(vAt);
+        float r = m / ${f(d.radius)};
+        if (r > 1.0 || m < ${f(d.root)}) discard;
+        // Where this point is behind the nearest blade, along the way the
+        // smear trails it.
+        float a = atan(vAt.y, vAt.x);
+        float behind = mod(${f(d.trail)} * (a - ${f(d.first)}), GAP);
+        float chord = ${f(d.chord)} * (1.0 - ${f(d.taper)} * smoothstep(${f(d.tipFrom)}, 1.0, r));
+        float hw = 0.5 * chord / m;
+        // A blade narrower than a pixel is drawn a pixel wide and as much
+        // fainter, so a far rotor neither shimmers nor vanishes.
+        float pixel = length(fwidth(vAt));
+        float drawn = max(hw, 0.7 * pixel / m);
+        float smear = max(uSmear, 1e-4);
+        // Each blade's width swept over [0, smear] behind it: the share of
+        // the picture this point is under a blade — the blade's own, and
+        // the trails of the blades ahead where the smear reaches them.
+        float cover = 0.0;
+        for (int k = -1; k <= 2; k++) {
+          float b = behind + float(k) * GAP;
+          cover += max(min(b + drawn, smear) - max(b - drawn, 0.0), 0.0);
+        }
+        cover *= hw / (drawn * smear);
+        cover = mix(2.0 * hw / GAP, cover, uContrast);
+        float rim = 1.0 - smoothstep(1.0 - pixel / ${f(d.radius)}, 1.0, r);
+        // Read stronger than the ink alone, as a disc reads against the
+        // snow: a blade's share of a picture lifted and eased, so the haze
+        // at speed is a grey sheet and its ghost wedges still show.
+        float alpha = uOpacity * rim * pow(clamp(2.5 * cover, 0.0, 1.0), 0.6);
+        gl_FragColor = vec4(r > ${f(d.band)} ? uTip : uBlade, alpha);
         #include <colorspace_fragment>
       }
     `,
@@ -152,10 +243,35 @@ function rotorDisc(): THREE.Mesh {
     depthWrite: false,
     side: THREE.DoubleSide,
   });
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 64), material);
-  disc.rotation.x = -Math.PI / 2;
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(d.radius, 96), material);
   disc.renderOrder = 5;
+  disc.visible = false;
   return disc;
+}
+
+/** Sets a disc to this frame's look. */
+function lookDisc(disc: THREE.Mesh, look: RotorLook, on: boolean): void {
+  const u = (disc.material as THREE.ShaderMaterial).uniforms;
+  u.uOpacity.value = look.disc;
+  u.uSmear.value = Math.min(look.smear, 9);
+  u.uContrast.value = look.contrast;
+  disc.visible = on && look.disc > 0.01;
+}
+
+/** The model's blades drawn as solid as `look.blades` says. */
+function fadeBlades(meshes: THREE.Mesh[], look: RotorLook): void {
+  const o = look.blades;
+  for (const mesh of meshes) {
+    const m = mesh.material as THREE.MeshStandardMaterial;
+    const see = o < 0.999;
+    if (m.transparent !== see) {
+      m.transparent = see;
+      m.needsUpdate = true;
+    }
+    m.opacity = o;
+    mesh.visible = o > 0.01;
+    mesh.castShadow = o > 0.5;
+  }
 }
 
 /** THE PAD: a painted ring and an H on the snow, lamps round its rim, a
@@ -238,9 +354,27 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   let lampMats: THREE.MeshStandardMaterial[] = [];
   const allMats: THREE.Material[] = [];
   const originals = new Map<THREE.MeshStandardMaterial, THREE.Color>();
-  const disc = rotorDisc();
-  disc.position.set(0, HELI.rotor.hub + 0.05, HELI.rotor.at);
-  machine.add(disc);
+  // The smears ride their rotors, turned with them: the main's flat under
+  // its hub, the tail's in the plane its blades turn in.
+  const disc = rotorDisc(MAIN_DISC);
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = -0.02;
+  const tailDisc = rotorDisc(TAIL_DISC);
+  tailDisc.rotation.y = Math.PI / 2;
+  // The eye on each rotor: a blade's width as read two thirds of the way
+  // out, where the eye reads a rotor's turn.
+  const mainEye = createRotorEye({
+    blades: HELI.rotor.blades,
+    rpm: HELI.rotor.rpm,
+    width: MAIN_DISC.chord / (0.6 * R),
+  });
+  const tailEye = createRotorEye({
+    blades: HELI.tail.blades,
+    rpm: HELI.tail.rpm,
+    width: TAIL_DISC.chord / (0.6 * TR),
+  });
+  let mainBlades: THREE.Mesh[] = [];
+  let tailBlades: THREE.Mesh[] = [];
   const marks = padMarks(level);
   group.add(marks.group);
   // THE LIGHTS as haloes, in the model's own frame (the glTF's: x its
@@ -279,11 +413,39 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   const strobe = halo(0xe8f4ff, 0, 2.1, 1.0, 6);
   let disposed = false;
 
+  /** A rotor's blades (the `rotor` and the tip bands' `paint`), each on a
+   * material of its own — the body shares them in the model — so they can
+   * be faded as the smear takes over. */
+  const bladesOf = (node: THREE.Object3D): THREE.Mesh[] => {
+    const out: THREE.Mesh[] = [];
+    node.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
+      const m = o.material;
+      if (!(m instanceof THREE.MeshStandardMaterial) || !/^(rotor|paint)/i.test(m.name)) return;
+      if (/^paint/i.test(m.name)) {
+        (disc.material as THREE.ShaderMaterial).uniforms.uTip.value.copy(m.color);
+      }
+      o.material = m.clone();
+      out.push(o);
+    });
+    return out;
+  };
+
   const adopt = (root: THREE.Object3D): void => {
+    root.traverse((o) => {
+      if (o.name === "heli_rotor") {
+        mainBlades = bladesOf(o);
+        o.add(disc);
+      }
+      if (o.name === "heli_tail_rotor") {
+        tailBlades = bladesOf(o);
+        o.add(tailDisc);
+      }
+    });
     root.traverse((o) => {
       if (o.name === "heli_rotor") rotor = o;
       if (o.name === "heli_tail_rotor") tail = o;
-      if (o instanceof THREE.Mesh) {
+      if (o instanceof THREE.Mesh && o !== disc && o !== tailDisc) {
         o.castShadow = true;
         const list = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of list) {
@@ -371,15 +533,19 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
         rotor.rotation.x = wreck ? 0.32 : 0;
         rotor.rotation.z = wreck ? -0.22 : 0;
       }
-      // THE ROTORS: the blades drawn at a strobed turn as they come up to
-      // speed, the disc thickening over them.
+      // THE ROTORS as the eye sees them (`rotor-look.ts`): each turned to
+      // its strobed pattern, its blades handed over to the smear as they
+      // blur. The pattern is the eye's, so it is stepped on the frame's
+      // time, and stands still behind the pause card.
       const s = wreck ? 0 : h.spool;
-      if (rotor) rotor.rotation.y = -(h.rotor * (1 - 0.93 * s * s));
-      if (tail) tail.rotation.x = h.tailRotor * (1 - 0.9 * s);
-      const dm = disc.material as THREE.ShaderMaterial;
-      dm.uniforms.uOpacity.value = 0.55 * s * s;
-      dm.uniforms.uTurn.value = clock * 9;
-      disc.visible = s > 0.05;
+      const main = mainEye.step(s, dt);
+      const back = tailEye.step(s, dt);
+      if (rotor) rotor.rotation.y = -main.phase;
+      if (tail) tail.rotation.x = back.phase;
+      fadeBlades(mainBlades, main);
+      fadeBlades(tailBlades, back);
+      lookDisc(disc, main, !wreck);
+      lookDisc(tailDisc, back, !wreck);
       // THE LIGHTS: the beacon flashing while the rotor turns — and the
       // machine and its pad lit up for a skier near it with no rider on.
       const near = Math.hypot(player.x - h.x, player.z - h.z);
@@ -445,6 +611,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       });
       for (const m of allMats) m.dispose();
       (disc.material as THREE.Material).dispose();
+      (tailDisc.material as THREE.Material).dispose();
       lampMats = [];
     },
   };

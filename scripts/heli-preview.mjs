@@ -12,7 +12,9 @@
 //              and its pad lit up inside 90 m — and taken on at the skid)
 //   board      board (sat on the skid on the pad as the rotor spools up;
 //              the rider close up from the side, the front and a quarter,
-//              and his own eye)
+//              and his own eye), spool (the rotor spooling up from above:
+//              the blades, their smear, the haze, the strobed ghost — three
+//              frames 1/60 s apart at each moment)
 //   lift       liftoff (off the pad at 0.5 … 8 s), wash (hovering 3, 8, 15
 //              and 30 m over deep powder, the snow cloud built up for 3 s,
 //              from the chase lens and from the snow 40 m off)
@@ -71,7 +73,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (pad, call, board, liftoff, wash, cruise, turn, eye, land, landed, drop, fall, impact, home, crash, wreck, restart, night, turntable)",
+      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, fall, impact, home, crash, wreck, restart, night, turntable)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

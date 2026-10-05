@@ -351,6 +351,25 @@ landing's harm is driven by the take-off angle and speed and the
 steepness of the landing [23]. Downhill injures 17.2 racers a thousand
 runs against 4.9 in slalom [24].
 
+**A crash into the nets.** What race footage and crash reports show: a
+racer who leaves the course at speed goes into the A-net skis first and
+goes down in it — the mesh billows back a metre or two between its posts
+and closes round him, he is carried a short way along it, and he ends
+tangled in it at its foot rather than thrown back onto the piste. The
+skis come off and very often stay caught in the mesh, hanging from a tip
+or a tail; a ski trapped in a coarse net while still on the racer's foot
+once killed a racer, and the meshes were made finer so a tip could not so
+easily go through. Impacts with the snow, a gate or a net are the
+commonest cause of injury in alpine racing (over half of injuries in one
+youth survey) *(est.)*. In the game (`nets.ts`): a drive into the net
+past `crash.netSpeed` across it is a wipeout (`net`), the body sinks into
+the mesh up to the course's `nets.give` against a spring and a damper,
+the mesh drags out his way along it and up it, he drops to its foot and
+stays in the pocket his weight leaves; each ski let go has one
+`DOWNHILL_NETS.skiCatch` chance (three in four) of hooking by the end
+that reaches the mesh first and hanging there; the drawn net bulges round
+whatever it holds (`net-bulge.ts`).
+
 **The speed trap and the timing.** A top-level result sheet carries seven
 intermediate times and FIVE speed traps — a pair of photocells a known
 distance apart (or a radar), the speed between them — at fast and slow
@@ -389,7 +408,8 @@ summit, ~2.7–3.2 km over 900–1100 m — prepared as a slalom's hill is
 shaved round so a racer flown off one lands on its downslope; a RACING LINE
 that bends the least inside the piste, its speed gates (10 m, red) centred
 on it about every 80 m; A-NETS along both edges that catch a racer and put
-him out (`nets.ts`); ONE SPEED TRAP on the course's late fast straight
+him out — driven in hard, down in them with his skis hung in the mesh
+(`nets.ts`); ONE SPEED TRAP on the course's late fast straight
 (`speed-trap.ts`) and four intermediate timing points; the board dealt
 about par (`par.ts`'s `downhillPar`) to a downhill's tight spread
 (`field.ts`'s `DOWNHILL_FIELD`), a TRAINING run's board slower and

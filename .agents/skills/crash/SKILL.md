@@ -163,6 +163,19 @@ the woods and a wipeout there is honest.
   stands its edge down from `skier.slipSpeed` / `.slipEdge`, well short). A threshold on
   the slip alone throws every skier who skids; on the edge alone every skier
   who carves.
+- **WHAT CATCHES A BODY KEEPS IT.** A downhill's A-net (`nets.ts`) is the
+  one thing on the mountain that catches a thrown skier rather than
+  stopping him: a drive past `crash.netSpeed` across it is the `net`
+  wipeout, and `catchInNets` (run after `stepThrown`, so its correction is
+  the step's last word) takes every ragdoll point and ski end past the line
+  into the mesh — a spring and damper over the course's `nets.give`, a drag
+  along it and UP it, nothing down it (the throw already dropped his fall
+  down the slope, so a drag on the vertical floats him level while the
+  ground falls away), a sag back no further than `pocket`. A ski gets ONE
+  hook chance, by the end that reaches the mesh first (`LoneSki.hooked`,
+  `lone-skis.ts` holds that end and swings the other); both ends hooked
+  freezes it flat in mid-air. LOOK with `make world ARGS="--downhill
+  --views=net-0.4,net-1,net-3"`.
 - **THE SKIER CARRIES THE WAY HE HAD BEFORE THE BLOW.** A trunk stops the
   skis in one step; the velocity the skier leaves with is the one from
   before that step (`run.ts` keeps it), times `keep`. Read after the trunk,

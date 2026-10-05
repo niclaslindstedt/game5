@@ -4,7 +4,7 @@
 //
 // A PROFESSIONAL'S RESILIENCE: he goes down only when the body physically
 // cannot stay up — and everything short of that he rides out, the save
-// kept for the figure to play (`noteSave`, `SkierState.save`). SEVEN WAYS
+// kept for the figure to play (`noteSave`, `SkierState.save`). EIGHT WAYS
 // OFF, each a threshold on something the step has already measured, and
 // each well past anything a clean run meets (`TUNING.crash`):
 //   - a TRUNK met hard — the `hit` event's closing speed past `treeSpeed`
@@ -38,7 +38,10 @@
 //   - an EDGE STAKE run into — the `stake` event's closing speed past
 //     `stakeSpeed` (`edge-stakes.ts`): light as it is, caught on a tip, a
 //     boot or a pole at that pace it snatches the limb back and he loses
-//     his balance.
+//     his balance;
+//   - a downhill's A-NET driven into — the `net` event's speed across it
+//     past `netSpeed` (`nets.ts`): the mesh takes the skis and he goes
+//     over them into it, where it holds him (`catchInNets`).
 //
 // THE SKIER THROWN is a body of his own (`Thrown`): a RAGDOLL
 // (`ragdoll.ts`) — the hips, the shoulders, the head and the four limbs as
@@ -69,6 +72,8 @@
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { nearestTrackPoint } from "../mapgen/index.ts";
+import type { TrackHit } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
@@ -79,6 +84,7 @@ import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } f
 const K = TUNING.crash;
 const dt = TUNING.dt;
 const n: Vec3 = { x: 0, y: 1, z: 0 };
+const onPiste: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
 
 /** How far the skis' LEADING END points DOWN against the snow under them,
  * rad — negative for it up off the slope. The tips, but for a skier going
@@ -143,6 +149,7 @@ export function wipeoutCause(
       if (e.speed >= trunkAt(c, e.x, e.z).limit) return "tree";
     }
     if (e.kind === "stake" && e.speed >= crashLimit(c, "stakeSpeed")) return "stake";
+    if (e.kind === "net" && e.speed >= crashLimit(c, "netSpeed")) return "net";
     if (e.kind !== "land") continue;
     landed = true;
     // Only the touchdown that ends a real flight: the rebound hop off a
@@ -303,6 +310,11 @@ function fallSide(
       return (hit.x - c.x) * rx + (hit.z - c.z) * rz > 0 ? -1 : 1;
     }
   }
+  if (cause === "net") {
+    // Toward the net — the side of the piste he left it by.
+    nearestTrackPoint(state.level, c.x, c.z, onPiste);
+    return (c.x - onPiste.x) * rx + (c.z - onPiste.z) * rz > 0 ? 1 : -1;
+  }
   const side = c.bodySide || rolledSide(state).side;
   const r = rotate(c.q, { x: side, y: 0, z: 0 });
   const along = r.x * rx + r.z * rz;
@@ -372,6 +384,7 @@ export function throwRider(
     still: 0,
     impacts: new Array<number>(RAGDOLL.count).fill(0),
     struck: new Array<number>(RAGDOLL.count).fill(0),
+    netted: 0,
     skis: [],
   };
   if (cause === "nose") {

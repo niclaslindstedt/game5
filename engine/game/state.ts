@@ -18,12 +18,15 @@ import type { SkiId, SkiSpec } from "./defs/skis.ts";
 import type { Assist, RunRules } from "./defs/modes.ts";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
 import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
+import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
+import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
+export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type * from "./sled-state.ts";
 
 export type SkierInput = {
@@ -301,10 +304,11 @@ export type SkierState = {
  * up out of — come down on his side, his back or his head, or too hard for
  * his legs — another skier taken out at speed (`crowd.ts`), or flung off the
  * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
- * rolled, looped, landed too hard or run into a trunk (`sled.ts`), or swept
- * off his feet by the empty chair he stood up off (`lift-ride.ts`). */
-export type CrashCause =
-  "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake" | "chair";
+ * rolled, looped, landed too hard or run into a trunk (`sled.ts`), swept
+ * off his feet by the empty chair he stood up off (`lift-ride.ts`), or
+ * driven into a downhill's A-nets (`nets.ts`) — one name a row of
+ * `crash.over`, which says how each throws him. */
+export type CrashCause = keyof typeof CRASH.over;
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
@@ -318,82 +322,6 @@ export type SaveKind = "landing" | "tree" | "body" | "edge" | "stake";
  * and, for a landing, which way it threw him (1 over the tips, −1 onto
  * the tails). Written by `crash.ts` only, read by nothing in the physics. */
 export type Save = { kind: SaveKind; t: number; size: number; side: number; fore: number };
-
-/** THE SKIER THROWN — a body of his own from the moment he leaves his skis
- * until the reset stands him back on the piste (`crash.ts`): a RAGDOLL
- * (`ragdoll.ts`), thirteen points held together at the joints and each
- * meeting the snow and the trunks on its own, so he flops, slides and
- * comes to rest the way a body does. Written by `stepThrown` only; the
- * renderer hangs the figure on `points` and stamps the snow where he is
- * `touching`. */
-export type Thrown = {
-  cause: CrashCause;
-  /** Seconds since he left the skis. */
-  t: number;
-  /** His centre of mass, world frame, m, and its velocity, m/s — what the
-   * camera follows and the reset waits on. */
-  x: number;
-  y: number;
-  z: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  /** The bearing he was thrown along, rad (0 = +z, clockwise), and how far
-   * his spine has turned in all since, rad — the tumble, counted. */
-  heading: number;
-  tumble: number;
-  /** The body's points (`RAGDOLL` order), x y z each, world frame, m, and
-   * where they were a step ago — the velocity is the difference. */
-  points: number[];
-  last: number[];
-  /** Some part of him on the snow this step — and which, one bit a point
-   * in `RAGDOLL` order: a limb planted in the snow yields, and the muscles
-   * leave it be (`ragdoll.ts`). */
-  touching: boolean;
-  planted: number;
-  /** Seconds since his trunk — the hips, the shoulders or the head — first
-   * came down on the snow, or −1 while it has not: what the muscles' brace
-   * gives way on (`crash.tone`). */
-  down: number;
-  /** Seconds he has lain STILL on the snow — every point under
-   * `crash.restSpeed`, touching — without a break: what the reset waits on. */
-  still: number;
-  /** THE BLOWS THIS STEP, one per point in `RAGDOLL` order, m/s: the way
-   * each point brought into the snow it was put back on, and into the
-   * trunk it was pushed out of — 0 for none. Written by `stepRagdoll`, read
-   * by `body.ts`; nothing in the fall reads them back. */
-  impacts: number[];
-  struck: number[];
-  /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
-   * body from the moment its binding releases. */
-  skis: LoneSki[];
-};
-
-/** ONE SKI WITHOUT ITS SKIER (`lone-skis.ts`): a stick the length of the
- * ski, its two ends meeting the snow and the trunks on their own, turned
- * about its length by `up`. Written by `stepLoneSkis` only; the renderer
- * lays the ski on it. */
-export type LoneSki = {
-  /** −1 the left ski, +1 the right. */
-  side: number;
-  /** Seconds left in its binding: while held it goes with his foot. */
-  held: number;
-  /** Where the boot stood along it, a share of its length from the tail. */
-  mount: number;
-  /** The tip and the tail of its base, x y z each, world frame, m, and
-   * where they were a step ago — the velocity is the difference. */
-  ends: number[];
-  last: number[];
-  /** The wrench it leaves its binding with, each end's, m a step — handed
-   * to the held one when it lets go. */
-  kick: number[];
-  /** Out of its topsheet, unit, world frame: square to the tail-to-tip. */
-  up: number[];
-  /** Its turn about its own length, rad/s (right-handed about the tip). */
-  spin: number;
-  /** Which end is on the snow, one bit each: 1 the tip, 2 the tail. */
-  touching: number;
-};
 
 /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): the worst injury on each
  * part (its AIS rank, 0 sound … 5 critical, in `BODY_PARTS` order), every

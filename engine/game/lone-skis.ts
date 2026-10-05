@@ -118,6 +118,9 @@ export function letGo(state: GameState, c: SkierState, fall: number, speed: numb
       up: [u.x, u.y, u.z],
       spin: -sign * S.spin * draw(3, S.spinMin) * hard,
       touching: 0,
+      hooked: 0,
+      hook: [0, 0, 0, 0, 0, 0],
+      tried: 0,
     };
   });
 }
@@ -185,8 +188,12 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
     P[1] -= g;
     P[4] -= g;
   }
-  // The stick held at its length, both ends alike.
-  holdLength(P, length);
+  // An end HOOKED in a net's mesh (`nets.ts`) stays where it caught, and
+  // the ski hangs off it.
+  pin(ski);
+  // The stick held at its length, both ends alike — or all of it on the
+  // free end, the other hooked.
+  holdLength(P, length, ski.hooked);
   const depth = depthUnder(state.snowDepth, state.fresh);
   for (let e = 0; e < 2; e++) {
     const j = 3 * e;
@@ -209,6 +216,7 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
   let touching = 0;
   for (let e = 0; e < 2; e++) {
     const j = 3 * e;
+    if (ski.hooked & (1 << e)) continue;
     P[j] = clamp(P[j], lo, hi);
     P[j + 2] = clamp(P[j + 2], lo, hi);
     for (const t of near) {
@@ -238,9 +246,10 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
   // through it. The last pass leaves it on the snow, not in it.
   const m = ski.mount;
   for (let k = 0; k < SNOW_PASSES; k++) {
-    if (k > 0) holdLength(P, length);
+    if (k > 0) holdLength(P, length, ski.hooked);
     for (let e = 0; e < 2; e++) {
       const j = 3 * e;
+      if (ski.hooked & (1 << e)) continue;
       if (P[j + 1] < floor[e]) {
         P[j + 1] = floor[e];
         touching |= 1 << e;
@@ -249,7 +258,7 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
     const mx = P[3] + (P[0] - P[3]) * m;
     const mz = P[5] + (P[2] - P[5]) * m;
     const under = level.groundAt(mx, mz) - (P[4] + (P[1] - P[4]) * m);
-    if (under > 0) {
+    if (under > 0 && !ski.hooked) {
       P[1] += under;
       P[4] += under;
       touching = 3;
@@ -330,6 +339,7 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
     L[j + 2] = P[j + 2] - vz * dt;
   }
   ski.touching = touching;
+  pin(ski);
   // ITS TURN ABOUT ITS LENGTH: carried in the air, and on the snow laid
   // flat onto the face it lies on.
   const up = ski.up;
@@ -355,19 +365,35 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
   turnAbout(up, fx, fy, fz, ski.spin * dt);
 }
 
-/** Hold the two ends `length` apart, moving each half the error. */
-function holdLength(P: number[], length: number): void {
+/** Hold the two ends `length` apart, moving each half the error — or the
+ * whole of it on the one end not `pinned` (bits as `LoneSki.hooked`), and
+ * none with both. */
+function holdLength(P: number[], length: number, pinned = 0): void {
+  if (pinned === 3) return;
   const dx = P[0] - P[3];
   const dy = P[1] - P[4];
   const dz = P[2] - P[5];
   const d = hypot3(dx, dy, dz) || 1e-9;
   const k = (d - length) / (2 * d);
-  P[0] -= dx * k;
-  P[1] -= dy * k;
-  P[2] -= dz * k;
-  P[3] += dx * k;
-  P[4] += dy * k;
-  P[5] += dz * k;
+  const tip = pinned === 1 ? 0 : pinned === 2 ? 2 : 1;
+  const tail = 2 - tip;
+  P[0] -= dx * k * tip;
+  P[1] -= dy * k * tip;
+  P[2] -= dz * k * tip;
+  P[3] += dx * k * tail;
+  P[4] += dy * k * tail;
+  P[5] += dz * k * tail;
+}
+
+/** Every hooked end of `ski` put back where it caught, and still. */
+function pin(ski: LoneSki): void {
+  for (let e = 0; e < 2; e++) {
+    if (!(ski.hooked & (1 << e))) continue;
+    for (let a = 3 * e; a < 3 * e + 3; a++) {
+      ski.ends[a] = ski.hook[a];
+      ski.last[a] = ski.hook[a];
+    }
+  }
 }
 
 /** Turn `up` by `angle` rad about the unit (`fx`, `fy`, `fz`), then square

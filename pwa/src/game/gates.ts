@@ -65,6 +65,7 @@ import {
 } from "./mark-shapes.ts";
 import { createCrossFlags } from "./cross-flags.ts";
 import { createCrossGate } from "./cross-gate.ts";
+import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
@@ -128,6 +129,10 @@ function bandTexture(red = false): THREE.CanvasTexture {
   tex.anisotropy = 8;
   return tex;
 }
+
+/** The rows an A-net's sheet is hung in, up its height — enough for a
+ * pocket round a body to read. */
+const NET_ROWS = 6;
 
 /** A safety net's mesh: an orange grid on a translucent sheet — the
  * spectators' fences are hung with it too (`finish-arena.ts`). */
@@ -193,6 +198,11 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
   const texs: THREE.Texture[] = [];
+  // The A-nets' sheets as hung, and what bulges them (`bulgeNets`).
+  const sheets: { geo: THREE.BufferGeometry; base: Float32Array; rows: number }[] = [];
+  const dents: NetDent[] = [];
+  const push = { by: 0, ux: 0, uz: 0 };
+  let netHeight = 0;
   const std = (p: THREE.MeshStandardMaterialParameters, name: string) => {
     const m = hazeMaterial(new THREE.MeshStandardMaterial(p), haze, name);
     mats.push(m);
@@ -474,6 +484,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     // piste to `NETS.after` past the line.
     const netTex = netTexture();
     texs.push(netTex);
+    netHeight = netShape(level).height;
     const netMat = std(
       { map: netTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.9 },
       "finish-net",
@@ -495,6 +506,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     for (const p of pts) if (p.s >= from && p.s <= to) postCount += 1;
     const posts = new THREE.InstancedMesh(postGeo, dark, 2 * Math.ceil(postCount / postEvery) + 2);
     let postAt = 0;
+    // A downhill's A-nets are hung in rows, so the sheet can bulge round a
+    // racer driven into it (`net-bulge.ts`); the B-nets are one strip.
+    const rows = hasNets(level) ? NET_ROWS : 1;
     for (const side of [-1, 1]) {
       const pos: number[] = [];
       const uv: number[] = [];
@@ -506,9 +520,18 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
         const px = p.x + Math.cos(p.heading) * side * (p.width / 2 + shape.out);
         const pz = p.z - Math.sin(p.heading) * side * (p.width / 2 + shape.out);
         const py = level.groundAt(px, pz);
-        pos.push(px, py - 0.05, pz, px, py + shape.height, pz);
-        uv.push(run / 0.5, 0, run / 0.5, shape.height / 0.5);
-        if (n > 0) idx.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n, 2 * n - 1, 2 * n + 1);
+        for (let r = 0; r <= rows; r++) {
+          const h = (r / rows) * (shape.height + 0.05);
+          pos.push(px, py - 0.05 + h, pz);
+          uv.push(run / 0.5, (h - 0.05) / 0.5);
+        }
+        const k = (rows + 1) * n;
+        if (n > 0) {
+          for (let r = 0; r < rows; r++) {
+            const a = k - rows - 1 + r;
+            idx.push(a, a + 1, k + r, k + r, a + 1, k + r + 1);
+          }
+        }
         if (n % postEvery === 0 && postAt < posts.count) {
           posts.setMatrixAt(postAt++, m4.compose(at.set(px, py, pz), q.identity(), one));
         }
@@ -523,6 +546,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       g.computeVertexNormals();
       geos.push(g);
       group.add(new THREE.Mesh(g, netMat));
+      if (rows > 1) sheets.push({ geo: g, base: Float32Array.from(pos), rows });
     }
     posts.count = postAt;
     posts.instanceMatrix.needsUpdate = true;
@@ -662,6 +686,33 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
 
   const breathing = new THREE.Color();
   let lit = -1;
+  let bulged = false;
+  /** THE A-NETS BULGING round whatever of the skier is in them, and
+   * back flat once nothing is. */
+  const bulgeNets = (state: GameState): void => {
+    netDents(state, dents);
+    if (dents.length === 0 && !bulged) return;
+    for (const sheet of sheets) {
+      const attr = sheet.geo.getAttribute("position") as THREE.BufferAttribute;
+      const arr = attr.array as Float32Array;
+      arr.set(sheet.base);
+      if (dents.length > 0) {
+        const stride = sheet.rows + 1;
+        for (let v = 0; v < arr.length / 3; v++) {
+          const j = 3 * v;
+          const foot = sheet.base[3 * (v - (v % stride)) + 1] + 0.05;
+          const up = arr[j + 1] - foot;
+          bulgeAt(arr[j], arr[j + 1], arr[j + 2], up, netHeight, dents, push);
+          if (push.by <= 0) continue;
+          arr[j] += push.ux * push.by;
+          arr[j + 2] += push.uz * push.by;
+        }
+      }
+      attr.needsUpdate = true;
+      sheet.geo.computeVertexNormals();
+    }
+    bulged = dents.length > 0;
+  };
   return {
     group,
     floods,
@@ -684,6 +735,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       house?.update(state);
       tipStakes(state);
       crossGate?.update(state);
+      if (sheets.length > 0) bulgeNets(state);
       if (next !== lit) {
         if (lit >= 0 && tops[lit]) {
           panels.setColorAt(lit * 2, muted(colours[lit]));

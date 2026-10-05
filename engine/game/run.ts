@@ -41,7 +41,7 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
 import { stepGatePoles } from "./gate-poles.ts";
-import { stepNets } from "./nets.ts";
+import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
 import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
@@ -152,6 +152,8 @@ export function stepRun(
   stepNets(run, events);
   if (off) {
     stepThrown(run, off);
+    // ...and what of him and his skis has gone into an A-net, held in it.
+    catchInNets(run, off);
     followSkis(run, c, off.skis);
     derive(c, run.level);
     quietClocks(c);

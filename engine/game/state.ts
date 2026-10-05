@@ -284,9 +284,8 @@ export type SkierState = {
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;
-  /** THE DRAFT (`cross-heat.ts`'s `stepDrafts`): the share of his frontal
-   * drag a rival close ahead of him in a ski-cross heat takes off, 0..1 —
-   * written each step of a heat, absent everywhere else. */
+  /** THE DRAFT (`stepDrafts`): the share of his frontal drag a rival close
+   * ahead takes off in a ski-cross heat, 0..1; absent everywhere else. */
   draft?: number;
   /** The support depth each probe has settled to, m — the snow's own lag
    * (`snow.ts`), one per `contacts` entry. */
@@ -970,13 +969,9 @@ export type GameState = {
    * before the player, one at a time, and what each one did — on a run
    * whose rules start that way (the slalom); absent everywhere else. */
   field?: Field;
-  /** A SKI-CROSS HEAT (R35, `cross-heat.ts`): its round and its four
-   * racers in seed order — the rivals' ids theirs on the qualification's
-   * start list, the player `null` — on a heat; absent everywhere else. */
+  /** A SKI-CROSS HEAT (R35): its round and four racers, the player `null`. */
   cross?: CrossHeat;
-  /** THE SKI CROSS SO FAR (`CreateGameOptions.bracket`): the qualification
-   * ranked and the heats raced before this one — carried for the app, never
-   * read by a step. */
+  /** The ski cross so far, carried for the app; never read by a step. */
   bracket?: Bracket;
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */

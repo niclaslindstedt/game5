@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WIND TUNNEL (R30, `wind-tunnel.ts`): a skier stood into the wind
-// inside one is blown along it at its speed without skiing, held to its
+// inside one is blown along it without skiing — to its speed in a few
+// seconds and on past it with no ceiling, ever more slowly — held to its
 // line, and let go at its exit with his way kept; a skier crossing one is
 // left alone. Staged on the flat drag strip with a hand-made tunnel laid
 // across it, nothing the generator built.
@@ -76,26 +77,47 @@ describe("the wind tunnel (R30)", () => {
     expect(state.t).toBeLessThan(5);
   });
 
-  it("carries him along it at its speed, without skiing, to its exit", () => {
+  it("blows him on past its speed with no ceiling, more slowly the faster he goes", () => {
     const state = stage(FROM + 10, Z, Math.PI / 2);
-    ride(state, 8);
-    expect(state.skier.vx).toBeGreaterThan(SPEED * 0.95);
-    expect(state.skier.vx).toBeLessThan(SPEED * 1.05);
+    // 150 km/h in a few seconds and a few hundred metres of the lane.
+    ride(state, 8, (s) => s.skier.vx > 150 / 3.6);
+    expect(state.skier.vx).toBeGreaterThan(150 / 3.6);
+    expect(state.t).toBeLessThan(6);
+    expect(state.skier.x - FROM).toBeLessThan(150);
+    // ...and on: every second faster than the last, by less each time.
+    const gains: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const was = state.skier.vx;
+      ride(state, 1);
+      gains.push(state.skier.vx - was);
+    }
+    expect(state.skier.tunnel?.id).toBe("W1");
+    expect(state.skier.thrown).toBeNull();
+    for (let i = 1; i < gains.length; i++) {
+      expect(gains[i]).toBeGreaterThan(0);
+      expect(gains[i]).toBeLessThan(gains[i - 1]);
+    }
     expect(Math.abs(state.skier.vz)).toBeLessThan(1);
   });
 
   it("lets him go at its exit with his way kept", () => {
     const state = stage(FROM + 10, Z, Math.PI / 2);
-    const events = ride(state, 80, (s) => s.skier.tunnel === null && s.skier.x > TO - 20);
+    let last = 0;
+    const events = ride(state, 80, (s) => {
+      if (s.skier.tunnel === null && s.skier.x > TO - 20) return true;
+      last = s.skier.vx;
+      return false;
+    });
     expect(events.map((e) => (e.kind === "tunnel" ? e.phase : ""))).toEqual(["in", "out"]);
     expect(state.skier.x).toBeGreaterThan(TO - 10);
     const at = state.skier.vx;
-    expect(at).toBeGreaterThan(SPEED * 0.9);
+    expect(at).toBeGreaterThan(SPEED * 2);
+    expect(at).toBeGreaterThan(last * 0.99);
     // Past the exit nothing blows: he runs on, slowing only as the snow and
-    // the still air slow him.
+    // the still air slow him — hard, at the speed the lane let him go at.
     ride(state, 1);
     expect(state.skier.tunnel).toBeNull();
-    expect(state.skier.vx).toBeGreaterThan(at * 0.85);
+    expect(state.skier.vx).toBeGreaterThan(SPEED);
     expect(state.skier.vx).toBeLessThan(at);
   });
 

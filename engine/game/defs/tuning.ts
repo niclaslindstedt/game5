@@ -836,13 +836,15 @@ export const TUNING = {
 
   /** THE WIND TUNNEL (R30, `wind-tunnel.ts`): a horizontal lift along the
    * hub that blows a skier from its entrance to its exit without his
-   * skiing. The air inside moves along it at the tunnel's own speed, so the
-   * drag a skier feels there is against THAT air — it pushes him on while
-   * he is slower, and costs him nothing once he rides at its speed — and
-   * the blowers THRUST him along over it: `thrust` m/s² while he is
-   * `soft` m/s or more under the wind's speed, easing to nothing at it
-   * (and a quarter of it back past it), so a skier stood at the entrance
-   * is at the wind's speed in a few seconds. Across it he is CENTRED,
+   * skiing. The air inside moves along it at the tunnel's own speed — or
+   * at his, once he is past it — so the drag a skier feels there is
+   * against THAT air: it pushes him on while he is slower and never holds
+   * him back. The blowers THRUST him along over it, `thrust` m/s² up to
+   * the wind's speed and past it the same POWER (thrust × speed over his
+   * speed), so there is NO TOP SPEED: the push falls as 1/v and never to
+   * nothing. On a 28 m/s tunnel a skier stood at its entrance is at the
+   * wind's speed in some 3 s and 45 m and at 150 km/h in some 5 s and
+   * 110 m. Across it he is CENTRED,
    * `centre` m/s² a metre off its line, `damp` /s of his sideways way
    * taken out. He is taken in where he stands inside its width with his
    * skis within `capture` rad of the way it blows — a skier crossing it
@@ -850,8 +852,6 @@ export const TUNING = {
    * way kept, or thrown. */
   tunnel: {
     thrust: 9,
-    soft: 4,
-    back: 0.25,
     centre: 0.8,
     damp: 1.5,
     capture: 0.7,

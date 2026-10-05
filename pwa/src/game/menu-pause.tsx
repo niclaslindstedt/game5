@@ -177,6 +177,17 @@ export function PauseMenu({
                   ? STRINGS.pauseSubFree(snap.seed)
                   : STRINGS.pauseSub(snap.seed, snap.taken, snap.gates)}
             </div>
+            {/* THE MOUNTAIN, as the free ride raises it again: its seed, its
+                country and its grade off the start card's own rows. */}
+            {!snap.free && !snap.tricks && (
+              <div class="menu-sub menu-pause-mountain">
+                {STRINGS.pauseMountain(
+                  snap.seed,
+                  STRINGS.regionNames[snap.region],
+                  STRINGS.gradeNames[snap.grade],
+                )}
+              </div>
+            )}
           </div>
           {/* HOW THE RACE HAS GONE, in one row across: the figure over its
               caption, the HUD's own arrangement. */}

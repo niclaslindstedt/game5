@@ -37,6 +37,7 @@ import { TUNING, botInput, createGame, step, type GameMode, type GameState } fro
 import type { Loader } from "./app-load.ts";
 import {
   isPinnedMap,
+  NO_PICKS,
   pinnedFor,
   pinnedRun,
   type CampaignLevel,
@@ -214,5 +215,5 @@ export function skisBack(
   if (mode === "free") return "start";
   if (rung) return "campaign";
   if (mode === "tricks") return linkSeed === null ? "tricks" : "root";
-  return pinnedFor(null, mode, linkSeed) ? "levels" : "root";
+  return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

@@ -33,12 +33,13 @@
 // shape of the thing — see the shelf, then go back for the wins it costs to
 // leave it — and it is why a map already cleared is still worth riding.
 //
-// THE PINNED MAPS ARE THE GAME'S MEASURED MAPS, not the campaign's alone. A
-// RACE and a TIME TRIAL off the front door pick one of these maps rather
-// than a seed — the same snow, the same day, ridden for the record book
-// instead of for points (`menu-levels.tsx`, `pinnedFor`) — and what the
-// level card offers is gated on the campaign having OPENED that shelf. A
-// seed of your own is the FREE RIDE's, and a link's (`?seed=`).
+// A TIME TRIAL off the front door rides one of THESE maps rather than a
+// seed — the same snow, the same day, ridden for the record book instead of
+// for points (`menu-levels.tsx`, `pinnedFor`) — and what its level card
+// offers is gated on the campaign having OPENED that shelf. A RACE (the
+// slalom, the downhill) is raced on its discipline's own nine
+// (`race-maps.ts`), all open, chosen for the discipline. A seed of your own
+// is the FREE RIDE's, and a link's (`?seed=`).
 //
 // Two halves, the way `records.ts` is split: everything above the storage
 // line is PURE — a map built, a run booked, a lock read — so
@@ -69,6 +70,7 @@ import {
   type CampaignShelf,
   type Medal,
 } from "./campaign-levels.ts";
+import { disciplineOf, raceMapFor, raceMapsOf, type RacePicks } from "./race-maps.ts";
 
 export { CAMPAIGN_LEVELS, MEDALS, SHELVES } from "./campaign-levels.ts";
 export type { CampaignLevel, CampaignMode, CampaignShelf, Medal } from "./campaign-levels.ts";
@@ -139,21 +141,35 @@ export function levelForMode(id: string | null, mode: GameMode): CampaignLevel |
   return found && fitsMode(found.level, mode) ? found.level : null;
 }
 
+/** WHAT THE LEVEL CARDS LAST PICKED, as the settings keep it: the time
+ * trial's campaign map (`Settings.level`) and each discipline's race map
+ * (`Settings.raceMap`). */
+export type PinnedPicks = { level: string | null; raceMap: RacePicks };
+
+/** No card has picked anything yet: every mode's first map. */
+export const NO_PICKS: PinnedPicks = { level: null, raceMap: {} };
+
 /** THE PINNED MAP A MEASURED RUN IS ON, or null where it is choosing its
- * own. A RACE and a TIME TRIAL ride the map the level card last picked
- * (`Settings.level`) — or the first rung that fits, on a fresh app — so two figures in
- * the record book are two figures down the same piste. Two answers are null:
- * a FREE RIDE, the mode that picks a seed; and a LINK that names a seed
- * (`?seed=`), which takes the pinned map off for that visit so a lab or a
- * shared link rides exactly the seed it names. */
+ * own. A RACE rides the race map its discipline's level card last picked
+ * (`Settings.raceMap`, `race-maps.ts`) and a TIME TRIAL the campaign map
+ * its card last picked (`Settings.level`) — or the first that fits, on a
+ * fresh app — so two figures in the record book are two figures down the
+ * same piste. Two answers are null: a FREE RIDE, the mode that picks a
+ * seed; and a LINK that names a seed (`?seed=`), which takes the pinned map
+ * off for that visit so a lab or a shared link rides exactly the seed it
+ * names. */
 export function pinnedFor(
-  chosen: string | null,
+  picks: PinnedPicks,
   mode: GameMode,
   linkSeed: number | null,
 ): CampaignLevel | null {
+  if (linkSeed !== null) return null;
+  const races = raceMapsOf(mode);
+  const discipline = disciplineOf(mode);
+  if (races && discipline) return raceMapFor(mode, picks.raceMap[discipline]) ?? races[0];
   const first = CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
-  if (linkSeed !== null || !first) return null;
-  return levelForMode(chosen, mode) ?? first;
+  if (!first) return null;
+  return levelForMode(picks.level, mode) ?? first;
 }
 
 /** WHAT A RIDE PRESS STANDS UP ON A PINNED MAP, as the arguments of the
@@ -162,7 +178,7 @@ export function pinnedFor(
  * choosing its own seed. */
 export function pinnedPress(
   rung: CampaignLevel | null,
-  chosen: string | null,
+  chosen: PinnedPicks,
   mode: GameMode,
   linkSeed: number | null,
 ): [CampaignLevel, CampaignLevel["mode"], boolean] | null {
@@ -511,11 +527,11 @@ export function campaignStanding(progress: CampaignProgress): { cleared: number;
 }
 
 /** THE FRONT DOOR'S PINNED FACES: the campaign tile's (how far up the ladder
- * and the rung it would pick next) and the map the RACE and TIME TRIAL tiles
- * ride — null where a link pinned a seed instead. */
+ * and the rung it would pick next) and the map the SLALOM, DOWNHILL and TIME
+ * TRIAL tiles ride — null where a link pinned a seed instead. */
 export function frontDoorPins(
   progress: CampaignProgress,
-  chosen: string | null,
+  chosen: PinnedPicks,
   linkSeed: number | null,
 ): {
   campaign: { cleared: number; of: number; next: string | null };

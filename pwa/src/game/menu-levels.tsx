@@ -2,20 +2,24 @@
 // THE LEVEL CARD — which of the pinned maps a RACE or a TIME TRIAL is ridden
 // on.
 //
-// THE GAME'S MEASURED MAPS ARE THE CAMPAIGN'S, all of them. A time is only
-// worth measuring against somebody else's if the two were skied down the
-// same piste on the same day, and a seed dealt at random is a mountain
-// nobody else has ever seen — so the two modes that keep a record book pick a MAP here,
-// and a seed of one's own stays where nothing is measured (the FREE RIDE's
-// start card, and a link's `?seed=`).
+// THE GAME'S MEASURED MAPS ARE PINNED. A time is only worth measuring
+// against somebody else's if the two were skied down the same piste on the
+// same day, and a seed dealt at random is a mountain nobody else has ever
+// seen — so the modes that keep a record book pick a MAP here, and a seed of
+// one's own stays where nothing is measured (the FREE RIDE's start card, and
+// a link's `?seed=`).
 //
-// WHAT IS OPEN IS WHAT THE CAMPAIGN HAS OPENED, a whole shelf at a time
-// (`shelfUnlocked`). Not map by map: this is not a second ladder to climb,
-// it is the shelves you have been given, and a skier who has skied the
-// glacier should be able to time any of it. The first shelf holding a map
-// the mode can ride is open on a fresh app (`shelfOpenFor`) — the first
-// shelf for most, the first with a black for a downhill — so the card is
-// never empty and always has its SKI press.
+// A RACE — a slalom, a downhill — picks one of ITS DISCIPLINE'S NINE
+// (`race-maps.ts`), every one open: nine maps chosen for the discipline, one
+// page of boxes, the course's drop and length on each.
+//
+// A TIME TRIAL picks one of the CAMPAIGN'S maps, and what is open is what
+// the campaign has opened, a whole shelf at a time (`shelfUnlocked`). Not
+// map by map: this is not a second ladder to climb, it is the shelves you
+// have been given, and a skier who has skied the glacier should be able to
+// time any of it. The first shelf holding a map the mode can ride is open
+// on a fresh app (`shelfOpenFor`), so the card is never empty and always
+// has its SKI press.
 //
 // The card wears the campaign's own silhouette and classes — the shelf tabs,
 // the boxes, the piste behind each — because a map should look like itself
@@ -36,6 +40,7 @@ import {
   type CampaignShelf,
 } from "./campaign.ts";
 import { CourseMap, ShelfTabs, dayLine } from "./menu-campaign.tsx";
+import { raceMapsOf, type RaceMap } from "./race-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
@@ -53,7 +58,7 @@ function LevelBox({
   chosen,
   onPick,
 }: {
-  level: CampaignLevel;
+  level: CampaignLevel | RaceMap;
   mode: GameMode;
   /** The best this map has seen in THIS mode, as the record book reads it. */
   best: string | null;
@@ -78,6 +83,11 @@ function LevelBox({
       </span>
       <span class="menu-level-name">{level.name}</span>
       <span class="menu-level-day">{dayLine(level)}</span>
+      {"figures" in level && (
+        <span class="menu-level-day">
+          {STRINGS.levelsFigures(level.figures.vertical, level.figures.length)}
+        </span>
+      )}
       <span class="menu-level-marks">
         <span class={`menu-level-mark${best === null ? "" : " menu-level-mark-lit"}`}>
           {best ?? STRINGS.levelsNoBest}
@@ -106,6 +116,114 @@ export function LevelsPage({
   /** On to the skis card, which is where RIDE is. */
   onPick: (level: CampaignLevel) => void;
 }) {
+  const races = raceMapsOf(mode);
+  if (races) {
+    return (
+      <RaceMapsPage
+        mode={mode}
+        maps={races}
+        chosen={chosen}
+        best={best}
+        onBack={onBack}
+        onPick={onPick}
+      />
+    );
+  }
+  return (
+    <ShelvesPage
+      mode={mode}
+      progress={progress}
+      chosen={chosen}
+      best={best}
+      onBack={onBack}
+      onPick={onPick}
+    />
+  );
+}
+
+/** The title over a level card, by the mode it picks a map for. */
+function levelsTitle(mode: GameMode): string {
+  return mode === "timeTrial"
+    ? STRINGS.levelsTrial
+    : mode === "downhill"
+      ? STRINGS.levelsDownhill
+      : STRINGS.levelsRace;
+}
+
+/** THE RIDE PRESS in a level card's head: on to the skis card. */
+function RidePress({ onPick }: { onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      class="menu-item menu-item-start menu-head-go"
+      data-menu="skis"
+      onClick={onPick}
+    >
+      <span class="menu-item-name">{STRINGS.campaignRide}</span>
+    </button>
+  );
+}
+
+/** A DISCIPLINE'S NINE, on one page, every one open. */
+function RaceMapsPage({
+  mode,
+  maps,
+  chosen,
+  best,
+  onBack,
+  onPick,
+}: {
+  mode: GameMode;
+  maps: readonly RaceMap[];
+  chosen: string | null;
+  best: (level: CampaignLevel) => string | null;
+  onBack: () => void;
+  onPick: (level: CampaignLevel) => void;
+}) {
+  const pick = maps.find((map) => map.id === chosen) ?? maps[0];
+  return (
+    <div class="menu-card menu-card-levels">
+      <MenuHead
+        back={onBack}
+        backLabel={STRINGS.menuBack}
+        title={levelsTitle(mode)}
+        action={<RidePress onPick={() => onPick(pick)} />}
+      />
+      <MenuBody>
+        <p class="menu-sub">{STRINGS.levelsRaceMaps}</p>
+        <div class="menu-levels">
+          {maps.map((map) => (
+            <LevelBox
+              key={map.id}
+              level={map}
+              mode={mode}
+              best={best(map)}
+              chosen={map === pick}
+              onPick={() => onPick(map)}
+            />
+          ))}
+        </div>
+      </MenuBody>
+    </div>
+  );
+}
+
+/** THE CAMPAIGN'S SHELVES, as the time trial picks a map off them. */
+function ShelvesPage({
+  mode,
+  progress,
+  chosen,
+  best,
+  onBack,
+  onPick,
+}: {
+  mode: GameMode;
+  progress: CampaignProgress;
+  chosen: string | null;
+  best: (level: CampaignLevel) => string | null;
+  onBack: () => void;
+  onPick: (level: CampaignLevel) => void;
+}) {
   const stood = chosen === null ? null : findLevel(chosen);
   const offered = (shelf: CampaignShelf): boolean => shelfOpenFor(shelf, mode, progress);
   const [shown, setShown] = useState<CampaignShelf>(() =>
@@ -124,25 +242,8 @@ export function LevelsPage({
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={
-          mode === "timeTrial"
-            ? STRINGS.levelsTrial
-            : mode === "downhill"
-              ? STRINGS.levelsDownhill
-              : STRINGS.levelsRace
-        }
-        action={
-          pick ? (
-            <button
-              type="button"
-              class="menu-item menu-item-start menu-head-go"
-              data-menu="skis"
-              onClick={() => onPick(pick)}
-            >
-              <span class="menu-item-name">{STRINGS.campaignRide}</span>
-            </button>
-          ) : undefined
-        }
+        title={levelsTitle(mode)}
+        action={pick ? <RidePress onPick={() => onPick(pick)} /> : undefined}
       />
       <MenuBody>
         <ShelfTabs

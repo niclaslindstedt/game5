@@ -37,6 +37,7 @@ import {
   levelUnlocked,
   medalFor,
   mergeProgress,
+  NO_PICKS,
   pinnedFor,
   pinnedGameOptions,
   pinnedRun,
@@ -239,10 +240,9 @@ describe("the locks", () => {
       expect(shelf.levels.some((level) => fitsMode(level, mode))).toBe(true);
     }
     // The first shelf has no black: the downhill lands on the first that does,
-    // the map `pinnedFor` already rides — and opens no other shelf.
+    // and opens no other shelf.
     const downhill = reachedShelfFor("downhill", EMPTY_PROGRESS);
     expect(downhill).toBe(SHELVES.find((s) => s.levels.some((l) => fitsMode(l, "downhill"))));
-    expect(downhill.levels).toContain(pinnedFor(null, "downhill", null));
     expect(shelfOpenFor(SECOND, "slalom", EMPTY_PROGRESS)).toBe(false);
     expect(SHELVES.filter((s) => shelfOpenFor(s, "downhill", EMPTY_PROGRESS))).toHaveLength(
       downhill === FIRST ? 1 : 2,
@@ -388,18 +388,17 @@ describe("which map a run is on", () => {
     }
   });
 
-  it("puts a measured run on the chosen map, the first that fits by default, and a link on its seed", () => {
-    const firstSlalom = CAMPAIGN_LEVELS.find((l) => l.mode === "slalom")!;
-    expect(firstSlalom.grade).not.toBe("blue");
-    expect(pinnedFor(null, "slalom", null)).toBe(firstSlalom);
-    expect(pinnedFor(null, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
+  it("puts a time trial on the chosen map, the first by default, and a link on its seed", () => {
+    const pick = (level: string | null) => ({ ...NO_PICKS, level });
+    expect(pinnedFor(NO_PICKS, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
     const late = SHELVES[3].levels[1].id;
-    expect(pinnedFor(late, "timeTrial", null)?.id).toBe(late);
-    // A trial's map asked of a slalom is not a slalom's: the first that fits.
-    expect(pinnedFor(CAMPAIGN_LEVELS[0].id, "slalom", null)).toBe(firstSlalom);
-    expect(pinnedFor("nowhere-2", "slalom", null)).toBe(firstSlalom);
-    expect(pinnedFor(late, "free", null)).toBeNull();
-    expect(pinnedFor(late, "slalom", 38)).toBeNull();
+    expect(pinnedFor(pick(late), "timeTrial", null)?.id).toBe(late);
+    expect(pinnedFor(pick("nowhere-2"), "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
+    expect(pinnedFor(pick(late), "free", null)).toBeNull();
+    expect(pinnedFor(pick(late), "timeTrial", 38)).toBeNull();
+    // A campaign map is never a race's: a race rides its discipline's nine.
+    const firstSlalom = CAMPAIGN_LEVELS.find((l) => l.mode === "slalom")!;
+    expect(pinnedFor(pick(firstSlalom.id), "slalom", null)?.id).not.toBe(firstSlalom.id);
   });
 
   it("stands a rung up in its own mode and laps, with nobody leaning on anybody", () => {
@@ -421,10 +420,11 @@ describe("which map a run is on", () => {
 
   it("bills the front door off the board and the chosen map", () => {
     const pick = THIRD.levels[3];
-    const pins = frontDoorPins(EMPTY_PROGRESS, pick.id, null);
+    const pins = frontDoorPins(EMPTY_PROGRESS, { ...NO_PICKS, level: pick.id }, null);
     expect(pins.campaign).toEqual({ cleared: 0, of: 24, next: FIRST.levels[0].name });
-    expect(pins.raceMap).toBe(pick.name);
-    expect(frontDoorPins(EMPTY_PROGRESS, null, 7).raceMap).toBeNull();
+    expect(pins.trialMap).toBe(pick.name);
+    expect(frontDoorPins(EMPTY_PROGRESS, NO_PICKS, 7).trialMap).toBeNull();
+    expect(frontDoorPins(EMPTY_PROGRESS, NO_PICKS, 7).raceMap).toBeNull();
   });
 
   it("keeps the level card's pick between visits, and only a map this ladder has", () => {

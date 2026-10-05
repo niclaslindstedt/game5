@@ -786,7 +786,7 @@ export function App() {
   const race = (): void => {
     setPage("root");
     // A RUNG off the campaign card, or a PINNED map off the level card.
-    const pin = pinnedPress(campaign.rung.current, settings.level, modeRef.current, params.seed);
+    const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
     if (modeRef.current === "tricks" && params.seed === null) {
@@ -855,7 +855,7 @@ export function App() {
         touch={touch}
         onAgain={() => pressRef.current.restart()}
         onNew={() => {
-          if (!pinnedFor(settings.level, modeRef.current, params.seed)) return race();
+          if (!pinnedFor(settings, modeRef.current, params.seed)) return race();
           pressRef.current.toMenu();
           setPage("levels");
         }}
@@ -882,7 +882,7 @@ export function App() {
       )}
       {shell === "menu" && page === "root" && (
         <MainMenu
-          {...frontDoorPins(campaign.progress, settings.level, params.seed)}
+          {...frontDoorPins(campaign.progress, settings, params.seed)}
           onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}

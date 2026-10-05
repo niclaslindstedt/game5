@@ -53,8 +53,10 @@ export type InputManager = {
   /** Produce this step's input; advances the ramps by `dt`. `airborne` is
    * whether the player's skis is off the snow, where the tuck and brake
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
-   * the helicopter's skid, flying it (`heliControls`). */
-  sample: (dt: number, airborne?: boolean, flying?: boolean) => SkierInput;
+   * the helicopter's skid, flying it (`heliControls`); `riding` whether he
+   * stands on the snowmobile's boards, where the double tap is the way off
+   * (`SkierInput.sledOff`). */
+  sample: (dt: number, airborne?: boolean, flying?: boolean, riding?: boolean) => SkierInput;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -187,7 +189,7 @@ export function createInputManager(
   target.document.addEventListener("visibilitychange", onBlur);
 
   return {
-    sample: (dt, airborne = false, flying = false) => {
+    sample: (dt, airborne = false, flying = false, riding = false) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
@@ -197,6 +199,10 @@ export function createInputManager(
         input.heli = sampleHeli(heli, heliKeys, touch, dt);
         input.jump = heliKeys.jump || heliJumped || touch.tap2;
       } else heli.collective = 0;
+      // On the snowmobile's boards the skier's own keys ride it; the double
+      // tap is the way off (a double press of the jump key is the
+      // engine's own to see).
+      if (riding && touch.tap2) input.sledOff = true;
       reset = false;
       jumped = false;
       heliJumped = false;

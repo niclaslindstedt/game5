@@ -19,8 +19,10 @@ import type { Assist, RunRules } from "./defs/modes.ts";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
 import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
+import type { SledEvent, SledState } from "./sled-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
+export type * from "./sled-state.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -58,6 +60,9 @@ export type SkierInput = {
    * controls are where they were let go: the collective down, the cyclic
    * and the pedals centred. */
   heli?: HeliControls;
+  /** EDGE-TRIGGERED: off the snowmobile (`sled.ts`) — the app's double tap.
+   * A double press of the jump does the same on the keys. */
+  sledOff?: boolean;
 };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
@@ -276,8 +281,9 @@ export type SkierState = {
  * the snow), a high-side (an edge caught), a landing he could not stand
  * up out of — come down on his side, his back or his head, or too hard for
  * his legs — another skier taken out at speed (`crowd.ts`), or flung off the
- * skid of a helicopter that crashed (`heli.ts`). */
-export type CrashCause = "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli";
+ * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
+ * rolled, looped, landed too hard or run into a trunk (`sled.ts`). */
+export type CrashCause = "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled";
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
@@ -747,7 +753,8 @@ export type GameEvent =
       /** How hard: the closing speed into the snow or a crown, m/s (a
        * crash), the helicopter's speed (a drop), 0 otherwise. */
       speed: number;
-    };
+    }
+  | SledEvent;
 
 /** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
  * piste, down in the snow after a fall, in the air off a kicker, or up a
@@ -961,6 +968,9 @@ export type GameState = {
   /** THE HELICOPTER (`heli.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   heli?: HeliState;
+  /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
+   * ride); absent everywhere else. */
+  sled?: SledState;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

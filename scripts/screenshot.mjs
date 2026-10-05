@@ -26,6 +26,7 @@
 //                    --run2 its race).
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
+//   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
 //   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
 //   ?splash=1 / ?menu=root   the attract card / the front door;
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
@@ -192,6 +193,25 @@ const SURFACES = {
   heli: {
     params: { start: "free", heli: "1", t: "30", shot: "1" },
     wait: ".hud-heli",
+    settle: 1500,
+  },
+  // THE FREE RIDE'S SNOWMOBILE (`sled.ts`, `?sled=1`): stood on its boards
+  // at the bottom with the skis racked, riding away up the valley throwing
+  // its roost, and climbing the mountain on the pre-roll's hands
+  // (`sledPilot`).
+  "sled-park": {
+    params: { start: "free", sled: "1", t: "0.5", shot: "1" },
+    wait: ".hud-sled",
+    settle: 1500,
+  },
+  "sled-go": {
+    params: { start: "free", sled: "1", t: "3", shot: "1" },
+    wait: ".hud-sled",
+    settle: 1500,
+  },
+  sled: {
+    params: { start: "free", sled: "1", t: "20", shot: "1" },
+    wait: ".hud-sled",
     settle: 1500,
   },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a

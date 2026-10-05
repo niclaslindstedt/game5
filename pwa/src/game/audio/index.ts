@@ -23,6 +23,7 @@ import { RUN_BANK } from "./bank.ts";
 import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
+import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
@@ -60,6 +61,9 @@ export function createRunAudio(): RunAudio {
   // THE FREE RIDE'S HELICOPTER (`heli-bed.ts`), heard from the skier: built
   // only on a run that has one.
   const heli: HeliBed = createHeliBed(sfx);
+  // THE FREE RIDE'S SNOWMOBILE (`sled-bed.ts`), heard from the skier,
+  // through the effects' fader as the helicopter is.
+  const sled: SledBed = createSledBed(sfx);
   let ear: Listener = listenerFor("chase");
 
   return {
@@ -71,7 +75,7 @@ export function createRunAudio(): RunAudio {
         const ground = bed.ground();
         // The helicopter is somewhere else on the mountain: heard from the
         // skier's head.
-        if (event.kind === "heli" && state) {
+        if ((event.kind === "heli" || event.kind === "sled") && state) {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
         }
@@ -87,6 +91,7 @@ export function createRunAudio(): RunAudio {
       bed.update(state, dt, duck);
       birds.update(state, dt, duck);
       heli.update(state, dt, duck);
+      sled.update(state, dt, duck);
     },
 
     setView(view) {
@@ -94,18 +99,21 @@ export function createRunAudio(): RunAudio {
       bed.setView(view);
       birds.setView(view);
       heli.setView(view);
+      sled.setView(view);
     },
 
     silence() {
       bed.silence();
       birds.silence();
       heli.silence();
+      sled.silence();
     },
 
     reset() {
       bed.reset();
       birds.reset();
       heli.reset();
+      sled.reset();
     },
   };
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// ONE SKIER'S STEP — the helicopter he rides (`heli.ts`), the lift that carries him, if any (`lift-ride.ts`),
+// ONE SKIER'S STEP — the helicopter he rides (`heli.ts`), the snowmobile
+// (`sled.ts`), the lift that carries him, if any (`lift-ride.ts`),
 // the wind tunnel he rides (`wind-tunnel.ts`),
 // the skier (and, on a tricks run, the strokes thrown in
 // the air, `strokes.ts`), the trees and the edge, the wipeout (or his own
@@ -29,6 +30,7 @@ import { poseInput, stepStrokes } from "./strokes.ts";
 import { leadInput, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { stepHeli } from "./heli.ts";
+import { stepSled } from "./sled.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -51,6 +53,9 @@ export function stepRun(run: GameState, given: SkierInput, events: GameEvent[]):
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
   if (stepHeli(run, given, events)) return;
+  // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
+  // — and while he stands on its boards the step is its own.
+  if (stepSled(run, given, events)) return;
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own;
   // stood off the free ride's lift, he is led until he takes the controls.
   if (stepLift(run, given, events)) return;

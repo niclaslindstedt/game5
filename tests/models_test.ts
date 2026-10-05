@@ -29,7 +29,13 @@ import {
   sourcesHash,
 } from "../pwa/models-plugin.ts";
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
-import { dressOf, HELI_NODES, heliModelUrl } from "../pwa/src/game/skier-models.ts";
+import {
+  dressOf,
+  HELI_NODES,
+  heliModelUrl,
+  SLED_NODES,
+  sledModelUrl,
+} from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
 
@@ -42,16 +48,22 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, and the helicopter", () => {
-    expect([...all].sort()).toEqual([...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb"].sort());
-    expect(modelFiles({ skis: false, heli: true })).toEqual(["heli.glb"]);
-    expect(modelFiles({ skis: true, heli: false })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
-    expect(modelFiles({ skis: false, heli: false })).toEqual([]);
+  it("are every pair under its id, the helicopter and the snowmobile", () => {
+    expect([...all].sort()).toEqual(
+      [...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb", "sled.glb"].sort(),
+    );
+    expect(modelFiles({ skis: false, heli: true, sled: false })).toEqual(["heli.glb"]);
+    expect(modelFiles({ skis: false, heli: false, sled: true })).toEqual(["sled.glb"]);
+    expect(modelFiles({ skis: true, heli: false, sled: false })).toEqual(
+      SKI_CATALOG.map((s) => `${s.id}.glb`),
+    );
+    expect(modelFiles({ skis: false, heli: false, sled: false })).toEqual([]);
     expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
+    expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis and the helicopter — the skier is dressed in code", () => {
+  it("are nothing but the skis, the helicopter and the snowmobile — the skier is dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -59,7 +71,7 @@ describe("the models the game ships", () => {
     const stamp = JSON.parse(
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
-    expect(Object.keys(stamp).sort()).toEqual(["blender", "heli", "sources"]);
+    expect(Object.keys(stamp).sort()).toEqual(["blender", "heli", "sled", "sources"]);
   });
 
   it("are all committed, each within its budget", () => {
@@ -77,9 +89,10 @@ describe("the models the game ships", () => {
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as Record<string, string>;
     for (const [half, sources] of Object.entries(MODEL_HALVES)) {
+      const kind = half === "sources" ? "skis" : half;
       expect(
         stamp[half],
-        `a source of the ${half === "heli" ? "helicopter" : "skis"} moved since it was made — run \`make models${half === "heli" ? " KIND=heli" : ""}\` and commit pwa/models/`,
+        `a source of the ${kind} moved since it was made — run \`make models KIND=${kind}\` and commit pwa/models/`,
       ).toBe(sourcesHash(root, sources));
     }
     expect(sourcesHash(root)).toBe(sourcesHash(root, MODEL_HALVES.sources));
@@ -172,5 +185,47 @@ describe("a model's dress", () => {
     expect(dressOf("lens", null, kit)).toEqual({ colour: kit.visor });
     expect(dressOf("skin", null, kit)).toEqual({ colour: kit.skin });
     expect(dressOf("paint", null, kit)).toBeNull();
+  });
+});
+
+describe("the snowmobile model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "sled.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: { name: string; mesh?: number; children?: number[] }[];
+    materials: { name: string }[];
+    meshes: { primitives: { indices: number; targets?: unknown[] }[] }[];
+    accessors: { count: number }[];
+  };
+  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+  const builder = readFileSync(join(root, "scripts", "blender", "sled.py"), "utf8");
+
+  it("carries every node its drawer is told of, each a rigid mesh", () => {
+    for (const name of Object.values(SLED_NODES)) {
+      expect(builder, `sled.py names ${name}`).toContain(`"${name}"`);
+      expect(node(name)?.mesh, name).toBeTypeOf("number");
+    }
+    expect(sledModelUrl()).toBe("/models/sled.glb");
+  });
+
+  it("runs its paddles round the belt on one morph", () => {
+    const lugs = gltf.meshes[node(SLED_NODES.lugs)!.mesh!];
+    for (const p of lugs.primitives) expect(p.targets?.length).toBe(1);
+  });
+
+  it("names its materials as the builder does, the rack's among them", () => {
+    const named = new Set(matNames("sled.py"));
+    for (const n of ["paint", "rubber", "lamp", "rack_ski", "rack_trim", "rack_base"]) {
+      expect(named.has(n), `sled.py names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((m) => m.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 20k: the cowl's creased loft, the belt and its paddles, the front
+    // end's arms and springs, the rack and its pair.
+    expect(tris).toBeLessThan(20_000);
   });
 });

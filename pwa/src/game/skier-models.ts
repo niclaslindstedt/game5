@@ -47,6 +47,7 @@ const ENV = (import.meta as { env?: Record<string, string | boolean | undefined>
 export const MODELS = {
   skis: modelSwitch(ENV.VITE_MODEL_SKIS),
   heli: modelSwitch(ENV.VITE_MODEL_HELI),
+  sled: modelSwitch(ENV.VITE_MODEL_SLED),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -59,6 +60,27 @@ export const HELI_NODES = {
   rotor: "heli_rotor",
   tail: "heli_tail_rotor",
 } as const;
+
+/** The snowmobile model's nodes, as `scripts/blender/sled.py` names them
+ * (each in the TRACE's frame, glTF-turned): the chassis, the bars (turned
+ * about the post), each ski (its origin the spindle's foot), the rear
+ * suspension (its origin the drive), the paddles (the track's child, with
+ * the `run` morph) and the ski rack. */
+export const SLED_NODES = {
+  body: "sled_body",
+  bars: "sled_bars",
+  skiL: "sled_ski_l",
+  skiR: "sled_ski_r",
+  track: "sled_track",
+  lugs: "sled_lugs",
+  rack: "sled_rack",
+} as const;
+
+/** Where this build serves the snowmobile's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_SLED=0`). */
+export function sledModelUrl(): string | null {
+  return MODELS.sled ? `${String(ENV.BASE_URL ?? "/")}models/sled.glb` : null;
+}
 
 /** Where this build serves the helicopter's glTF, or `null` when it is
  * switched off (`VITE_MODEL_HELI=0`) and the build packs none. */

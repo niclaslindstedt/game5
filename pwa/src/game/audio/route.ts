@@ -315,6 +315,29 @@ export function soundForEvent(
       if (event.phase === "off") return { id: "lift_off" };
       return null;
 
+    // THE SNOWMOBILE (`sled-bank.ts`), heard from where the ear is: the
+    // boots on the boards and the engine starting, the boots off them, the
+    // machine heaved back up, and the crash of it going over.
+    case "sled": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      switch (event.phase) {
+        case "board":
+        case "restart":
+          return { id: "sled_board", shape: heard };
+        case "hop":
+          return { id: "sled_hop", shape: heard };
+        case "right":
+          return { id: "sled_right", shape: heard };
+        case "crash":
+          return {
+            id: "sled_crash",
+            shape: { ...heard, gain: heard.gain! * (0.7 + 0.5 * ramp(event.speed, 0, 20)) },
+          };
+        default:
+          return null;
+      }
+    }
+
     // THE HELICOPTER (`heli-bank.ts`), heard from where the ear is: the
     // boots on the skid, the skids lifting and landing, the drop's clack
     // and rush — and the CRASH, the biggest sound in the game, carrying a

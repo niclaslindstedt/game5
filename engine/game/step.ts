@@ -49,6 +49,7 @@ import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshHeli, startAgain } from "./heli.ts";
+import { freshSled, startSled } from "./sled.ts";
 import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -133,6 +134,11 @@ export type CreateGameOptions = {
    * helicopter's. Wins over `byLift` and `spawn`. Ignored by every mode
    * without a helicopter. */
   heli?: boolean;
+  /** A FREE RIDE begun ON THE SNOWMOBILE (`sled.ts`): stood on its boards
+   * on its spot at the bottom, the engine running, the controls the
+   * sled's. Wins over `byLift` and `spawn` (never over `heli`). Ignored by
+   * every mode without a snowmobile. */
+  sled?: boolean;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
    * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
    * it is stood at (`pisteHead`: the restart's top of the slope); ignored
@@ -175,6 +181,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
     lifts: base.lifts,
     heli: base.heli,
+    sled: base.sled,
     start: base.start,
     gates: base.gates,
     window: base.window,
@@ -261,7 +268,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
   if (rules.heli) state.heli = freshHeli(state);
+  if (rules.sled) state.sled = freshSled(state);
   if (state.heli && options.heli) startAgain(state, []);
+  else if (state.sled && options.sled) startSled(state, []);
   else if (free && options.byLift) {
     if (options.spawn) arriveByLift(state, options.spawn.x, options.spawn.z);
     // With no spot, up the lift to the top of the run picked — the one the

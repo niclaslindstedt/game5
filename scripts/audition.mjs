@@ -20,6 +20,9 @@
 //   THE HELICOPTER the free ride's machine: its spool and collective, the
 //              slap, the wash, how far off and how fast it closes, the
 //              wreck's fire.
+//   THE SNOWMOBILE the free ride's other machine: its revs, the thumb, how
+//              hard it works, the belt's speed and slip, the loose snow
+//              under the paddles, and how far off it idles.
 //   THE BANK   every discrete sound in the game, one button each, with the
 //              description it was written against printed beside it.
 //
@@ -46,6 +49,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
+
+import { NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -95,6 +100,7 @@ const RUNTIME = [
   "pwa/src/game/audio/snow-voice.ts",
   "pwa/src/game/audio/tunnel-voice.ts",
   "pwa/src/game/audio/heli-voice.ts",
+  "pwa/src/game/audio/sled-voice.ts",
 ];
 
 /** Compile the runtime modules to plain JS and return one concatenated blob. */
@@ -165,7 +171,7 @@ function compileRuntime() {
 const { RUN_BANK } = await import(join(root, "pwa/src/game/audio/bank.ts"));
 const { WIND_LAYERS } = await import(join(root, "pwa/src/game/audio/wind-voice.ts"));
 const { SNOW_LAYERS } = await import(join(root, "pwa/src/game/audio/snow-voice.ts"));
-const { HELI, SKIS, SKI_CATALOG, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const { HELI, SKIS, SKI_CATALOG, SLED, topSpeedOf } = await import(join(root, "engine/index.ts"));
 const { rotorsOf } = await import(join(root, "pwa/src/game/audio/heli-voice.ts"));
 const { APP_NAME } = await import(join(root, "pwa/src/identity.ts"));
 const spec = SKIS;
@@ -178,6 +184,8 @@ const data = JSON.stringify({
   // The helicopter's blade passages off the engine's own rotors — the page
   // has no engine in it.
   rotors: rotorsOf(HELI),
+  // The snowmobile's engine band, off the engine's own table.
+  sled: { idle: SLED.idleRpm, max: SLED.maxRpm },
   skis: { name: spec.name, top: topSpeedOf(spec) },
   catalog: SKI_CATALOG.map((s) => ({
     name: s.name,
@@ -356,6 +364,19 @@ const page = `<!doctype html>
   <div class="panel">
     <div class="switches"><button id="heli" class="primary" type="button">Start the helicopter</button></div>
     <div id="heliSliders"></div>
+  </div>
+
+  <h2>The snowmobile</h2>
+  <p class="sub">
+    The free ride's mountain sled: <b>revs</b> is the crank's share of its band (the note,
+    the pipe coming on past a third), <b>thumb</b> the throttle, <b>load</b> how hard it works
+    (none in the air), <b>belt</b> the track's speed (its whine), <b>slip</b> how much faster
+    it runs than the snow (the churn and the roost), <b>loose</b> how much powder the paddles
+    are in. <b>Distance</b> is from the ear — 0 is stood on its boards.
+  </p>
+  <div class="panel">
+    <div class="switches"><button id="sled" class="primary" type="button">Start the snowmobile</button></div>
+    <div id="sledSliders"></div>
   </div>
 
   <div id="bank"></div>
@@ -658,6 +679,56 @@ heliBtn.addEventListener("click", () => {
   heliRack = { timer, rack };
 });
 
+// ── The snowmobile ─────────────────────────────────────────────────────────
+const sled = {};
+window.__ear.sled = sled;
+const sledSliders = document.getElementById("sledSliders");
+sliderRow(sledSliders, sled, "rev", "Revs", 0);
+sliderRow(sledSliders, sled, "throttle", "Thumb", 0);
+sliderRow(sledSliders, sled, "load", "Load", 0);
+sliderRow(sledSliders, sled, "belt", "Belt", 0, 0, 45, " m/s");
+sliderRow(sledSliders, sled, "slip", "Slip", 0, 0, 30, " m/s");
+sliderRow(sledSliders, sled, "loose", "Loose snow", 0);
+sliderRow(sledSliders, sled, "distance", "Distance", 0, 0, 400, " m");
+let sledRack = null;
+const sledBtn = document.getElementById("sled");
+sledBtn.addEventListener("click", () => {
+  synth.unlock();
+  refreshState();
+  if (sledRack !== null) {
+    clearInterval(sledRack.timer);
+    sledRack.rack.stop();
+    sledRack = null;
+    sledBtn.className = "primary";
+    sledBtn.textContent = "Start the snowmobile";
+    return;
+  }
+  sledBtn.className = "primary on";
+  sledBtn.textContent = "Stop the snowmobile";
+  const rack = createRack(synth, SLED_LAYERS, SLED_GLIDE);
+  const timer = setInterval(() => {
+    if (synth.now() === null) return;
+    const ear = listenerFor(seat.view);
+    const heard = sled.distance > 0 ? sledHeard(sled.distance) : { gain: 1, bright: 1 };
+    const machine = ear.machine * heard.gain;
+    rack.apply(
+      sledTargets(
+        {
+          rpm: DATA.sled.idle + sled.rev * (DATA.sled.max - DATA.sled.idle),
+          rev: sled.rev,
+          throttle: sled.throttle,
+          load: sled.load,
+          treadSpeed: sled.belt,
+          slip: sled.slip,
+          loose: sled.loose,
+        },
+        { engine: machine, exhaust: machine * (sled.distance > 0 ? 1 : 0.85), tone: heard.bright },
+      ),
+    );
+  }, 33);
+  sledRack = { timer, rack };
+});
+
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -708,144 +779,6 @@ console.log(
 /* global window, document, AudioNode, AudioDestinationNode -- the functions
    handed to `page.addInitScript` and `page.evaluate` run in the PAGE, not in
    Node; these are the page's globals, named so the linter knows. */
-
-/** The moments the beds are metered at — a ladder from a skier stood in
- * the start gate to the whole mix flat out in a tuck, and the ones the ear
- * finds faults at: the push off into powder, a hockey stop and the air. */
-/** The snow as a preset writes it: one kind of snow, every other slider at
- * zero, so a preset never inherits the last one's mix. */
-const on = (kind, rest) => ({
-  groomed: 0,
-  hard: 0,
-  soft: 0,
-  new: 0,
-  wet: 0,
-  ice: 0,
-  [kind]: 1,
-  ski: "Chamois",
-  ...rest,
-});
-
-/** A helicopter preset: the skier stood still (or carried by it, `aloft`)
- * in `wind` m/s of air, and the machine as `heli` sets it over silence. */
-const heliAt = (name, wind, aloft, heli) => ({
-  name,
-  rush: { wind, crouch: 0, airborne: aloft },
-  snow: on("groomed", { pace: 0, edge: 0, skid: 0, airborne: aloft }),
-  heli,
-});
-/** The pilot cruising home, going away. */
-const HOME = { spool: 1, collective: 0.6, slap: 0.2, closing: -40 };
-
-const PRESETS = [
-  {
-    name: "in the start gate",
-    rush: { wind: 0, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0, edge: 0, skid: 0, airborne: false }),
-  },
-  {
-    name: "pushing off into powder",
-    rush: { wind: 3, crouch: 0, airborne: false },
-    snow: on("soft", { pace: 0.08, edge: 0, skid: 0, airborne: false }),
-  },
-  {
-    name: "cruising the piste",
-    rush: { wind: 18, crouch: 0.2, airborne: false },
-    snow: on("groomed", { pace: 0.55, edge: 0.3, skid: 0, airborne: false }),
-  },
-  {
-    name: "flat out in a tuck",
-    rush: { wind: 36, crouch: 1, airborne: false },
-    snow: on("groomed", { pace: 1, edge: 0.1, skid: 0, airborne: false }),
-  },
-  {
-    name: "carving on ice",
-    rush: { wind: 25, crouch: 0.3, airborne: false },
-    snow: on("ice", { pace: 0.7, edge: 0.9, skid: 0, airborne: false }),
-  },
-  {
-    name: "hockey stop",
-    rush: { wind: 12, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0.4, edge: 0.4, skid: 1, airborne: false }),
-  },
-  {
-    name: "across the crust",
-    rush: { wind: 15, crouch: 0.1, airborne: false },
-    snow: on("hard", { pace: 0.45, edge: 0.4, skid: 0.2, airborne: false }),
-  },
-  {
-    name: "deep in new snow",
-    rush: { wind: 10, crouch: 0, airborne: false },
-    snow: on("new", { pace: 0.3, edge: 0.2, skid: 0, airborne: false, ski: "Marmot" }),
-  },
-  {
-    name: "spring slush",
-    rush: { wind: 10, crouch: 0, airborne: false },
-    snow: on("wet", { pace: 0.3, edge: 0.3, skid: 0.3, airborne: false }),
-  },
-  {
-    name: "slalom ski on ice",
-    rush: { wind: 20, crouch: 0.2, airborne: false },
-    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Swift" }),
-  },
-  {
-    name: "park ski on ice",
-    rush: { wind: 20, crouch: 0.2, airborne: false },
-    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Hare" }),
-  },
-  {
-    name: "in the air",
-    rush: { wind: 30, crouch: 0.4, airborne: true },
-    snow: on("groomed", { pace: 0.9, edge: 0, skid: 0, airborne: true }),
-  },
-  {
-    name: "standing in a storm",
-    rush: { wind: 22, crouch: 0, airborne: false, side: 0.6 },
-    snow: on("new", { pace: 0, edge: 0, skid: 0, airborne: false }),
-  },
-  {
-    name: "a gale in the face, tucked",
-    rush: { wind: 56, crouch: 1, airborne: false },
-    snow: on("groomed", { pace: 0.85, edge: 0.1, skid: 0, airborne: false }),
-  },
-  {
-    name: "a crosswind at speed",
-    rush: { wind: 32, crouch: 0.3, airborne: false, side: -0.8 },
-    snow: on("groomed", { pace: 0.75, edge: 0.2, skid: 0, airborne: false }),
-  },
-  {
-    name: "blown down a wind tunnel",
-    rush: { wind: 28, crouch: 0.3, airborne: false },
-    snow: on("groomed", { pace: 0.75, edge: 0, skid: 0, airborne: false }),
-    tunnel: { presence: 1, fan: 0.3 },
-  },
-  {
-    name: "beside a wind tunnel",
-    rush: { wind: 8, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0.2, edge: 0, skid: 0, airborne: false }),
-    tunnel: { presence: 0.2, fan: 0 },
-  },
-  // THE HELICOPTER: on its skid (the skier's own wind as the machine
-  // carries him), spooling up beside it, flying home and burning.
-  heliAt("spooling up on the pad", 0, false, { spool: 0.35, rise: 1, collective: 0.1, wash: 0.25 }),
-  heliAt("on the skid, hovering", 6, true, { spool: 1, collective: 0.65, wash: 0.8 }),
-  heliAt("on the skid, diving", 40, true, { spool: 1, collective: 0.4, slap: 0.9 }),
-  heliAt("flying home, 300 m off", 2, false, { ...HOME, distance: 300 }),
-  heliAt("flying home, 1.5 km off", 2, false, { ...HOME, distance: 1500 }),
-  heliAt("beside the burning wreck", 0, false, { distance: 15, fire: 1 }),
-];
-
-/** A preset that says nothing of the helicopter has none. */
-const NO_HELI = {
-  spool: 0,
-  rise: 0,
-  collective: 0,
-  slap: 0,
-  wash: 0,
-  distance: 3,
-  closing: 0,
-  fire: 0,
-};
 
 /** How long a bed is given to reach its targets before it is read, ms, and
  * how long it is then read for. The glides run to a sixth of a second. */
@@ -942,14 +875,16 @@ async function meter() {
         Object.assign(window.__ear.snow, p.snow);
         Object.assign(window.__ear.tunnel, p.tunnel ?? { presence: 0, fan: 0 });
         Object.assign(window.__ear.heli, p.noHeli, p.heli ?? {});
+        Object.assign(window.__ear.sled, p.noSled, p.sled ?? {});
       },
-      { ...preset, noHeli: NO_HELI },
+      { ...preset, noHeli: NO_HELI, noSled: NO_SLED },
     );
   await set(PRESETS[0]);
   await page.click("#rush");
   await page.click("#snow");
   await page.click("#tunnel");
   await page.click("#heli");
+  await page.click("#sled");
   for (const preset of PRESETS) {
     await set(preset);
     await page.waitForTimeout(SETTLE_MS);
@@ -960,6 +895,7 @@ async function meter() {
   await page.click("#snow");
   await page.click("#tunnel");
   await page.click("#heli");
+  await page.click("#sled");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");

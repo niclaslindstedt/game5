@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled trees forest build test lint fmt fmt-check release clean install icons sim level resort analyze rate difficulty routes ride audition screenshots profile bench hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -164,19 +164,21 @@ skier-metrics:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis and the heli-ski
-# helicopter, game quality (no stills), made by Blender and published into
+# The models the game ships: every pair of skis, the heli-ski helicopter
+# and the mountain snowmobile, game quality (no stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis or KIND=heli makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli or KIND=sled makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
-# unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0). The skier
+# unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
+# VITE_MODEL_SLED=0). The skier
 # (dressed in code, `make gear`), the trees, the wildlife and the course's
 # marks are built in code and have no models; `make blender KIND=skier`
 # still models the skier for the labs.
 models:
-	$(if $(filter-out heli,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
-	$(if $(filter-out skis,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
+	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # Switch the models on or off for every CI build — the repository
@@ -333,6 +335,18 @@ lift-ride:
 # ARGS="--weather=clear --sheets-only".
 heli:
 	npm run heli -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SNOWMOBILE LAB: the free ride's snowmobile staged at every moment it
+# has — parked and calling, boarded, on the groomer, in powder (sunk, the
+# launch, the roost off a spinning belt, a carve onto its side), up a steep
+# face, the tracks it leaves, hopped off, rolled over, at night, the model
+# alone — through the game's own renderer. One contact sheet a group,
+# previews/sled-<group>.png, and every frame alone,
+# previews/sled-<view>-<label>.png. Its own one-off bundle from
+# pwa/sled-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--sheet=powder,climb" a few sheets, "--views=roost" a few views.
+sled:
+	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

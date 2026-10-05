@@ -58,6 +58,7 @@ export default defineConfig(({ mode }) => {
   const models = {
     skis: modelSwitch(env.VITE_MODEL_SKIS),
     heli: modelSwitch(env.VITE_MODEL_HELI),
+    sled: modelSwitch(env.VITE_MODEL_SLED),
   };
   return {
     base,

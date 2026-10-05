@@ -54,7 +54,8 @@ import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
 import { GradeMark } from "./grade-mark.tsx";
 import { EdgeBar } from "./hud-dial.tsx";
-import { BarZone, LeverZone, StickZone, type ZoneSide } from "./hud-touch.tsx";
+import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
+import { StickZone } from "./hud-heli-pad.tsx";
 import type { TouchFeel } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
 import { Minimap } from "./minimap.tsx";
@@ -124,12 +125,18 @@ export function Hud({
   const lit = snap.missed !== null || snap.down;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
-  const flown = snap.heli?.kind === "flown";
+  const flown = snap.heli?.kind === "flown" ? snap.heli : null;
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
   const leverZone = flown ? (
-    <StickZone touch={input.touch} feel={feel} side={lever} role="power" />
+    <StickZone
+      touch={input.touch}
+      feel={feel}
+      side={lever}
+      role="power"
+      collective={flown.collective}
+    />
   ) : (
     <LeverZone touch={input.touch} feel={feel} side={lever} />
   );

@@ -247,7 +247,7 @@ export type TouchChannel = {
    * skid. */
   tap2: boolean;
   /** THE CYCLIC STICK, the edge thumb's glass while he flies the
-   * helicopter (`hud-touch.tsx`'s `StickZone`, `role="cyclic"`): −1..1
+   * helicopter (`hud-heli-pad.tsx`'s `StickZone`, `role="cyclic"`): −1..1
    * right and −1..1 pushed up (forward), screen-space, and whether a thumb
    * is on it. */
   stickX: number;

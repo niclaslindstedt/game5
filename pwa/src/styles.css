@@ -1752,22 +1752,6 @@ canvas {
   fill: var(--hud-good);
 }
 
-/* The helicopter's two pads (hud-touch.tsx's `StickZone`): the ways each
-   one moves marked round its reach ring — four chevrons on the cyclic, the
-   collective's track up and down and the pedals' arcs on the power pad. */
-.hud-stick-mark {
-  fill: none;
-  stroke: rgb(255 255 255 / 55%);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hud-stick-track {
-  stroke: var(--hud-track);
-  stroke-width: 4;
-}
-
 /* The tuck lever: a track UP the glass from the anchor (wide open) to
    the shut mark and the brake past it, the knob on the thumb, the fill how
    open the tuck is. */

@@ -202,11 +202,12 @@ when the skis he stands on are what moves.
    (`skier-flight.ts`, `SkierSpring.flight`) on a FALL CLOCK that runs only
    while he is HIGH over the snow: SET (compact, quiet), SPOT (hands
    forward and wide, chest over the knees, head on the landing), a
-   measured forward WINDMILL on a cliff (both arms on one circle round
-   their shoulders, a beat apart, a circle a second — wound up from the
-   spot and braked home into it, never hurried; each pole TURNED WITH ITS
-   FIST at the grip it hung in, `POLE` — never run out along the arm like
-   a lance), never while he holds a LEAN — COMMITTED, the arms set forward
+   measured forward WINDMILL on a cliff (the fists on a circle IN FRONT of
+   the shoulders, a beat apart, a circle a second — wound up from the
+   spot and braked home into it, never hurried, never swung behind him;
+   the poles held BACK, OUT AND DOWN inside the grip's cone, `POLE` — a
+   gripped shaft stands 95–150° off the forearm, so a straight arm swung
+   behind him would have to point its pole forward), never while he holds a LEAN — COMMITTED, the arms set forward
    and still: a lean is a line chosen through the air, circling arms are a
    skier fighting one he did not choose — and REACH over the last
    half second (`flightRead`: the flight's ballistics over the map, which

@@ -15,12 +15,16 @@
 //     forward and wider at chest height, the chest over the knees, the head
 //     down on the landing he is spotting, the hands working the balance in
 //     small slow corrections.
-//   * THE WINDMILL (a cliff, a second and more of real height): the arms
-//     circled from the shoulders, steadily, both together a beat apart —
-//     forward over the top and down in front, the way a long jumper cycles
-//     his arms, to soak up the forward rotation a lip throws a skier into
-//     and keep the tips from dropping. Never flung: a measured circle a
-//     second, wound up from the spot and wound down into the landing.
+//   * THE WINDMILL (a cliff, a second and more of real height, ridden
+//     without a lean): the fists circled IN FRONT of him, steadily, both
+//     together a beat apart — forward over the top and down in front, to
+//     soak up the forward rotation a lip throws a skier into and keep the
+//     tips from dropping. Never flung and never swung round behind him: a
+//     skier with poles in his hands keeps his arms where he can see them,
+//     and a straight arm swung behind him would point its pole forward (a
+//     hand cannot aim a pole further back than square to its forearm). A
+//     measured circle a second, wound up from the spot and wound down into
+//     the landing.
 //   * COMMITTED (a lean held, at any height): a skier driving his body
 //     over the skis — or back on them — has chosen his line through the
 //     air, and the arms say so: set forward and quiet, a little lower and
@@ -136,7 +140,12 @@ const COMMIT = { from: 0.1, full: 0.3 };
 const ARMS = {
   spot: { a: 1.2, out: 0.42, span: 0.8 },
   reach: { a: 0.9, out: 0.3, span: 0.84 },
-  mill: { out: 0.45, span: 0.9 },
+  /** Circling: out from the body's plane, rad, and THE CIRCLE the fists
+   * trace in front of the shoulders — its radius in arm lengths, and the
+   * way its centre lies from the fists' home (up, forward; a unit pair):
+   * up and ahead, so the fist rises in front of him, goes forward over the
+   * top and comes down in front, never behind his shoulder. */
+  mill: { out: 0.38, r: 0.3, up: 0.6, fwd: 0.8 },
   /** Committed: set forward under the shoulders, a little narrower — the
    * hands where he can see them and nothing moving. */
   commit: { a: 1.0, out: 0.3, span: 0.8 },
@@ -172,17 +181,21 @@ const BODY = {
   /** …and committed, the chest driven a little further over the knees. */
   commit: 0.06,
 };
-/** THE POLE IN THE FIST while the arms circle: a closed fist holds the rod
- * across the forearm with the wrist set, so the rod turns WITH the arm,
- * keeping the grip he spotted with — hung back and down past his hip with
- * the arm forward, back with it down, up behind his shoulder with it back,
- * forward over his head with it up — never run on out of the arm like a
- * lance, and never swung round the fist on its own. `grip` is the rod's
- * angle behind the arm in the circle's plane, rad (where the spotting
- * hang has it, so the circle starts and ends on the pole as it hangs);
- * `splay` how far it is turned out from the body's plane, rad, so the tip
- * passes wide of his skis and his head. */
-const POLE = { grip: 1.95, splay: 0.38, off: 1.2 };
+/** THE POLE IN THE FIST while the arms circle, as far as a hand can turn
+ * it. A power grip lays a handle obliquely across the palm, some 65° off
+ * the line of the hand, so the shaft leaves the little finger's side
+ * slanting back toward the elbow — about 115° off the forearm's line with
+ * the wrist straight. The wrist's sideways tilt moves that only 20° toward
+ * the thumb and 35° toward the little finger, so the shaft always stands
+ * 95–150° off the forearm (`cone`, rad) and can never be pointed on out
+ * along the arm. Round the forearm, though, the hand is nearly free: the
+ * forearm rolls 70° one way and 85° the other, and the shoulder turns the
+ * whole arm on top of that. So a skier circling his fists in front of him
+ * holds his poles where he wants them inside that cone: BACK, OUT AND DOWN
+ * (`aim`, in the pair's frame, x out from his side) — trailing past his
+ * hips and wide of his skis, the hand turning the shaft only when the arm
+ * comes up far enough to need it. */
+const POLE = { cone: [1.66, 2.62] as const, aim: { x: 0.6, y: -0.5, z: -0.8 } };
 
 /** One value followed on a critically damped spring of `w` rad/s. */
 function follow(v: number, rate: number, to: number, dt: number, w: number): [number, number] {
@@ -311,16 +324,12 @@ export type FlightShape = {
   /** How much of the arms the fall has, 0..1. */
   w: number;
   /** Each arm's angle (rad from hanging down, forward positive), how far
-   * out of the body's plane, rad, and its fist's share of the arm. */
+   * out of the body's plane, rad, and each fist's share of the arm. */
   arm: [number, number];
   out: number;
-  span: number;
+  span: [number, number];
   /** How far round the circle the poles are thrown, 0..1. */
   mill: number;
-  /** How much of each pole the circle turns with its fist, 0..1: the
-   * windmill's, and as much as the arm is still off home while it is
-   * wound down — so the rod is let go of only where it hangs anyway. */
-  pole: [number, number];
   /** The trunk's extra pitch, rad, the head's bow and the hips' rise, m. */
   pitch: number;
   nod: number;
@@ -336,27 +345,33 @@ export function flightShape(f: Flight, clock: number, air: number): FlightShape 
   const sway = ARMS.sway * spot * (1 - f.mill) * (1 - f.reach) * (1 - f.commit);
   const rock = Math.sin(2 * Math.PI * ARMS.swayHz * clock);
   const mix = (a: number, b: number, k: number) => a + (b - a) * k;
-  const arm: [number, number] = [f.arm + ARMS.lag * f.mill - sway * rock, f.arm + sway * rock];
   const home = homeAngle(f.reach, f.commit);
-  const off = (a: number) => {
-    const d = Math.abs(a - home) % (2 * Math.PI);
-    return smooth(Math.min(d, 2 * Math.PI - d) / POLE.off);
+  const reachOf = mix(mix(ARMS.spot.span, ARMS.commit.span, f.commit), ARMS.reach.span, f.reach);
+  // THE CIRCLE IN FRONT: the arms' turning angle is the circle's phase (it
+  // turns down through the circles, so the phase runs up), and each fist is
+  // its home in the pair's vertical plane carried round a circle through it
+  // — as wide as the windmill is — then read back as an angle and a reach.
+  const C = ARMS.mill;
+  const at = (turned: number, rock: number): [number, number] => {
+    const phase = home - turned;
+    const th = Math.atan2(-C.fwd, -C.up);
+    const r = C.r * f.mill;
+    const y = -Math.cos(home) * reachOf + r * (Math.cos(th + phase) - Math.cos(th));
+    const z = Math.sin(home) * reachOf + r * (Math.sin(th + phase) - Math.sin(th));
+    return [Math.atan2(z, -y) + rock, Math.hypot(y, z)];
   };
+  const [a0, s0] = at(f.arm + ARMS.lag * f.mill, -sway * rock);
+  const [a1, s1] = at(f.arm, sway * rock);
   return {
     w: Math.max(f.spot, f.reach),
-    arm,
+    arm: [a0, a1],
     out: mix(
       mix(mix(ARMS.spot.out, ARMS.commit.out, f.commit), ARMS.mill.out, f.mill),
       ARMS.reach.out,
       f.reach,
     ),
-    span: mix(
-      mix(mix(ARMS.spot.span, ARMS.commit.span, f.commit), ARMS.mill.span, f.mill),
-      ARMS.reach.span,
-      f.reach,
-    ),
+    span: [s0, s1],
     mill,
-    pole: [Math.max(mill, off(arm[0]) * air), Math.max(mill, off(arm[1]) * air)],
     // The chest and the head let go of on their own springs, never in the
     // step the snow comes: he lands over his knees and looks up out of it.
     pitch: BODY.spot * f.spot + BODY.commit * f.commit * f.spot + BODY.reachPitch * f.reach,
@@ -379,7 +394,7 @@ function armDir(side: number, a: number, out: number): V3 {
 export function flightHands(F: FlightShape, shoulders: [V3, V3], hands: V3[], arm: number): void {
   if (F.w <= 0) return;
   for (const i of [0, 1]) {
-    const at = add(shoulders[i], scale(armDir(i ? 1 : -1, F.arm[i], F.out), arm * F.span));
+    const at = add(shoulders[i], scale(armDir(i ? 1 : -1, F.arm[i], F.out), arm * F.span[i]));
     const h = hands[i];
     hands[i] = {
       x: h.x + (at.x - h.x) * F.w,
@@ -389,16 +404,14 @@ export function flightHands(F: FlightShape, shoulders: [V3, V3], hands: V3[], ar
   }
 }
 
-/** THE POLES CARRIED ROUND with the windmill (`POLE`): each rod turned
- * with its fist at the grip it was hanging in, turned out wide of him, so
- * it sweeps clear of his skis and his head as a held rod does. */
+/** THE POLES CARRIED ROUND with the windmill (`POLE`): each rod held back,
+ * out and down, as far as the hand can turn it on the forearm, so it
+ * trails clear of his skis and his head. */
 export function flightPole(F: FlightShape, i: number, hand: V3, tip: V3, pole: number): V3 {
-  const k = F.pole[i];
+  const k = F.mill;
   if (k <= 0) return tip;
   const side = i ? 1 : -1;
-  const p = F.arm[i] - POLE.grip;
-  const c = Math.cos(POLE.splay);
-  const swept = { x: side * Math.sin(POLE.splay), y: -Math.cos(p) * c, z: Math.sin(p) * c };
+  const swept = poleInHand(armDir(side, F.arm[i], F.out), side);
   const now = norm({ x: tip.x - hand.x, y: tip.y - hand.y, z: tip.z - hand.z });
   return add(
     hand,
@@ -411,4 +424,17 @@ export function flightPole(F: FlightShape, i: number, hand: V3, tip: V3, pole: n
       pole,
     ),
   );
+}
+
+/** Where a hand holds its pole for an arm pointing `arm` (unit, the pair's
+ * frame) on `side` (−1 left): `POLE.aim`, turned toward or away from the
+ * arm only as far as it takes to bring it inside the grip's cone. */
+export function poleInHand(arm: V3, side: number): V3 {
+  const aim = norm({ x: side * POLE.aim.x, y: POLE.aim.y, z: POLE.aim.z });
+  const cos = aim.x * arm.x + aim.y * arm.y + aim.z * arm.z;
+  const off = Math.acos(Math.max(-1, Math.min(1, cos)));
+  const to = Math.max(POLE.cone[0], Math.min(POLE.cone[1], off));
+  if (to === off) return aim;
+  const across = norm(add(aim, scale(arm, -cos)));
+  return add(scale(arm, Math.cos(to)), scale(across, Math.sin(to)));
 }

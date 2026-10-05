@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FALL, AS A PROFESSIONAL RIDES IT (`skier-flight.ts`): a kicker's air
 // and a flight low over a pitch ridden compact and secure; a drop spotted;
-// a cliff windmilled — forward over the top, measured, never flung — and
+// a cliff windmilled — the fists circled in front of him, forward over the
+// top, measured, never flung, the poles trailing back — and
 // wound home before the snow, the arms forward and the legs reached long
 // for it; nothing jumps on the way; and the snow is seen coming off the
 // flight's own ballistics.
@@ -102,8 +103,8 @@ describe("the fall", () => {
     const { frames, land } = fall(18);
     const flight = frames.slice(0, land);
     expect(Math.max(...flight.map((f) => f.s.flight.mill))).toBeGreaterThan(0.7);
-    // Forward over the top: the arms' angle turns DOWN through at least one
-    // most of a circle (a long jumper's cycle), at a measured pace.
+    // Forward over the top: the circle's phase (the arms' turning angle)
+    // turns DOWN through most of a circle at least, at a measured pace.
     const turned = flight[0].s.flight.arm - Math.min(...flight.map((f) => f.s.flight.arm));
     expect(turned).toBeGreaterThan(1.5 * Math.PI);
     const fastest = Math.max(...flight.map((f) => Math.abs(f.s.flight.armRate)));
@@ -142,10 +143,12 @@ describe("the fall", () => {
     }
   });
 
-  it("carries each pole round the windmill turned with its fist, never swung round it", () => {
+  it("circles the fists in front of him and holds each pole back and out through the windmill", () => {
     const { frames, land } = fall(18);
     let worst = 0;
     let wide = Infinity;
+    let ahead = -Infinity;
+    let behind = Infinity;
     for (let i = 1; i < land; i++) {
       for (const k of [0, 1]) {
         const dir = (f: (typeof frames)[number]) => {
@@ -157,13 +160,21 @@ describe("the fall", () => {
         const [a, b] = [dir(frames[i - 1]), dir(frames[i])];
         const turn = Math.acos(Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
         worst = Math.max(worst, turn);
-        if (frames[i].s.flight.mill > 0.5) wide = Math.min(wide, (k ? 1 : -1) * b.x);
+        if (frames[i].s.flight.mill > 0.5) {
+          wide = Math.min(wide, (k ? 1 : -1) * b.x);
+          ahead = Math.max(ahead, b.z);
+          const p = frames[i].pose;
+          behind = Math.min(behind, p.hands[k].z - p.shoulders[k].z);
+        }
       }
     }
-    // A circle a second turns the rod some 0.11 rad a frame at 60 Hz: never
-    // a flip, and always turned out from his body, clear of his skis.
+    // Never a flip; always turned out from his body, clear of his skis, and
+    // trailing back — a hand cannot aim a pole further back than square to
+    // its forearm, so the fists stay ahead of the shoulders.
     expect(worst).toBeLessThan(0.16);
     expect(wide).toBeGreaterThan(0.2);
+    expect(ahead).toBeLessThan(0);
+    expect(behind).toBeGreaterThan(0.2);
   });
 
   it("moves every joint smoothly through the fall and the landing", () => {

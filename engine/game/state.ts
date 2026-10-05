@@ -400,8 +400,11 @@ export type BodyState = {
 };
 
 /** ONE INJURY: the part, which, its AIS rank, and the run clock it came at
- * (the engine's own, `GameState.t`). */
-export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number };
+ * (the engine's own, `GameState.t`) — and the ENERGY that did it, over the
+ * energy of the injury's even chance (`body.ts`' `energyOver`; 1 when left
+ * out), raised by every harder blow on the part after it: what grades a
+ * break simple, wedge or shattered (`fracturesOf`). */
+export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number; energy?: number };
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier. */

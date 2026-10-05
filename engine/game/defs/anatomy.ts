@@ -38,6 +38,14 @@
 //   - ICE: a hard surface lengthens every risk (the cruciate's odds twelve
 //     times on an icy slope) — which is the snow's `give` doing it here, not
 //     a rule of its own.
+//   - HOW A BREAK BREAKS (Cohen et al. 2016, long bones struck by a
+//     pendulum): at 21 J a simple transverse break and no fragment; at
+//     47 J — 2.3 times — 95 % of the bones came apart comminuted, a double
+//     butterfly of polygonal fragments; at 60 J the chip knocked out at
+//     the point of impact twice the size. The more energy a bone takes past
+//     what breaks it, the more fracture surface it has to make: the AO/OTA's
+//     simple (A), wedge (B) and multifragmentary (C) patterns, in order of
+//     the energy that made them (`comminute`);
 //   - THE CRACK beside the break: a hairline (an undisplaced fracture) of
 //     the same bone at four fifths of the break's dose and a rank under it
 //     (never under 1) — the scale's own step between a fracture that
@@ -627,6 +635,11 @@ export const INJURY = {
   /** The most new injuries one step's blows do — the worst of what was
    * drawn. */
   perBlow: 3,
+  /** HOW A BREAK BREAKS, by its ENERGY over the energy of its even chance
+   * (`body.ts`' `energyOver`): a SIMPLE break under `wedge`, a WEDGE — a
+   * butterfly fragment knocked out of it — under `shatter`, and past that
+   * MULTIFRAGMENTARY, the bone shattered (the pendulum study's 2.3 times). */
+  comminute: { wedge: 1.6, shatter: 2.3 },
   /** THE FALLS that are a mechanism rather than a blow: a caught edge
    * twists the knee of the ski that caught at the slide's speed; a fall at
    * speed twists it at `rollTwist` of the speed; a fall over the tips

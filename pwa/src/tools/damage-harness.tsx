@@ -14,8 +14,14 @@
 // The sheets: `panels` (every case at 1280×720, the panel's strip of it),
 // `viewports` (one case at the three reference viewports, whole), `plate`
 // (the figure enlarged, sound, every bone cracked, every bone broken, a
-// mixed body), `refs` (the enlarged figure over each reference image the
-// driver copied in — local, never committed).
+// mixed body), `force` (the figure enlarged with every bone fractured at
+// one energy a column — a hairline, a simple break struck lightly and
+// harder, a wedge, shattered, shattered hard), `blows` (the figure enlarged
+// over each HIGH-G crash the driver skied through the engine — a trunk
+// head-on and on the shoulder at rising speeds, a fall onto his side from
+// rising heights — every fracture with the energy that did it), `refs` (the
+// enlarged figure over each reference image the driver copied in — local,
+// never committed).
 
 import "../styles.css";
 import "../body.css";
@@ -25,8 +31,10 @@ import { render, type JSX } from "preact";
 import {
   BODY_PARTS,
   BONES,
+  FRACTURE_GRADE,
   INJURIES,
   PART,
+  fractureEnergyOf,
   fracturesOf,
   freshBody,
   saidOf,
@@ -47,12 +55,12 @@ import { STRINGS } from "../game/strings.ts";
 type Case = { id: string; title: string; body: BodyState; t: number };
 
 /** A body built injury by injury: `[kind, part]` each, ranked as the
- * catalog ranks it. */
-function staged(id: string, title: string, list: [InjuryKind, BodyPart][]): Case {
+ * catalog ranks it, every one done at `energy` times its even chance's. */
+function staged(id: string, title: string, list: [InjuryKind, BodyPart][], energy = 1): Case {
   const body = freshBody();
   for (const [kind, part] of list) {
     const ais = (INJURIES[kind] as InjuryDef).ais;
-    body.injuries.push({ part, kind, ais, t: 0 });
+    body.injuries.push({ part, kind, ais, t: 0, energy });
     body.worst[PART[part]] = Math.max(body.worst[PART[part]], ais);
   }
   return { id, title, body, t: 100 };
@@ -116,7 +124,32 @@ const STAGED: Case[] = [
   ]),
   staged("all-hairline", "EVERY BONE CRACKED", everyFracture("hairline")),
   staged("all-break", "EVERY BONE BROKEN", everyFracture("break")),
+  staged(
+    "shattered",
+    "SHATTERED BY A TRUNK",
+    [
+      ["brokenFemur", "thighR"],
+      ["brokenCollarbone", "shoulderL"],
+      ["flailChest", "chest"],
+      ["brokenPelvis", "pelvis"],
+      ["brokenArm", "armL"],
+      ["brokenShin", "shinR"],
+    ],
+    2.9,
+  ),
 ];
+
+/** THE FORCE LADDER: every bone fractured at one energy over its even
+ * chance's a column — the `force` sheet. */
+const FORCE: [string, string, "hairline" | "break", number][] = [
+  ["force-crack", "HAIRLINE ×1.0", "hairline", 1],
+  ["force-simple", "SIMPLE BREAK ×1.0", "break", 1],
+  ["force-harder", "SIMPLE BREAK ×1.4", "break", 1.4],
+  ["force-wedge", "WEDGE ×1.9", "break", 1.9],
+  ["force-shatter", "SHATTERED ×2.4", "break", 2.4],
+  ["force-most", "SHATTERED ×3.4", "break", 3.4],
+];
+for (const [id, title, grade, e] of FORCE) STAGED.push(staged(id, title, everyFracture(grade), e));
 
 // A blow on the meter for the tree's frame.
 {
@@ -150,11 +183,14 @@ declare global {
 
 const params = new URLSearchParams(location.search);
 
+const GRADE_NAMES = Object.keys(FRACTURE_GRADE);
+
 /** One case's facts, for the label and the table: the severity, what the
  * bones show, what the lines say. */
 function factsOf(c: Case): string {
+  const energy = fractureEnergyOf(c.body);
   const bones = fracturesOf(c.body)
-    .map((g, i) => (g ? `${BONES[i]}:${g === 2 ? "break" : "crack"}` : ""))
+    .map((g, i) => (g ? `${BONES[i]}:${GRADE_NAMES[g]}×${energy[i].toFixed(1)}` : ""))
     .filter(Boolean);
   const said = c.body.injuries
     .filter((h) => saidOf(h.kind))
@@ -221,6 +257,41 @@ if (params.has("frame")) {
         table: [table[lab.cases.indexOf(c)]],
       };
     }
+    if (name === "force") {
+      const cases = FORCE.map(([id]) => lab.cases.find((x) => x.id === id)!);
+      render(<Plate cases={cases} side="front" px={720} width={330} />, root);
+      return {
+        note: "every bone fractured at one energy a column",
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
+    if (name === "closeup") {
+      const cases = FORCE.map(([id]) => lab.cases.find((x) => x.id === id)!);
+      render(<Closeups cases={cases} />, root);
+      return {
+        note: "the force ladder up close: the shoulder and arm, the pelvis and thighs, the shins",
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
+    if (name === "snap") {
+      const cases = SNAP.map((id) => lab.cases.find((x) => x.id === id)!);
+      render(<Snaps cases={cases} />, root);
+      await new Promise((r) => requestAnimationFrame(r));
+      freeze(root);
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        note: `the bones' snap frozen at ${SNAP_AT.join(", ")} ms, the legs up close`,
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
+    if (name === "blows") {
+      const cases = ridden.length ? ridden : lab.cases.filter((c) => c.id === "shattered");
+      render(<Plate cases={cases} side="front" px={620} width={290} wrap facts />, root);
+      return {
+        note: `${cases.length} high-g crashes skied through the engine`,
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
     if (name === "plate" || name === "back") {
       const ids = ["sound", "all-hairline", "all-break", "tree"];
       const side = name === "back" ? "back" : "front";
@@ -254,8 +325,8 @@ async function framesDrawn(root: HTMLElement): Promise<void> {
         }),
     ),
   );
-  // Fonts and a frame's layout.
-  await new Promise((r) => setTimeout(r, 300));
+  // Fonts, a frame's layout, and the bones' snaps settled.
+  await new Promise((r) => setTimeout(r, 900));
 }
 
 const label = (title: string, sub: string): JSX.Element => (
@@ -312,22 +383,186 @@ function Viewports({ c }: { c: Case }): JSX.Element {
 }
 
 /** THE FIGURE ENLARGED: the panel itself, its figure sized to `px`. */
-function Big({ c, px, side }: { c: Case; px: number; side: FigureSide }): JSX.Element {
+function Big({
+  c,
+  px,
+  side,
+  at = null,
+}: {
+  c: Case;
+  px: number;
+  side: FigureSide;
+  /** Frozen this many ms into the bones' snap; null settled. */
+  at?: number | null;
+}): JSX.Element {
+  // Settled: every snap and flash taken to its end. Frozen: the page seeks
+  // every one `at` ms in and commits it (`freeze`).
+  const still =
+    at === null
+      ? "animation:none!important;transition:none!important"
+      : "transition:none!important";
+  const cls = at === null ? "damage-settled" : `damage-at-${at}`;
   return (
-    <div class="hud damage-big" style={{ position: "relative", inset: "auto" }}>
-      <style>{`.damage-big .hud-body{position:static;transform:none;max-width:none}.damage-big .hud-body-figure{height:${px}px}`}</style>
+    <div
+      class={`hud damage-big ${cls}`}
+      data-at={at ?? undefined}
+      style={{ position: "relative", inset: "auto" }}
+    >
+      <style>{`.damage-big .hud-body{position:static;transform:none;max-width:none}.damage-big .hud-body-figure{height:${px}px}.${cls} .hud-bone,.${cls} .hud-bone-move{${still}}`}</style>
       <BodyPanel tile={bodyTile(c.body, c.t)} side={side} />
     </div>
   );
 }
 
-function Plate({ cases, side }: { cases: Case[]; side: FigureSide }): JSX.Element {
+function Plate({
+  cases,
+  side,
+  px = 880,
+  width = 400,
+  wrap = false,
+  facts = false,
+}: {
+  cases: Case[];
+  side: FigureSide;
+  px?: number;
+  width?: number;
+  wrap?: boolean;
+  facts?: boolean;
+}): JSX.Element {
   return (
-    <div style={{ display: "flex", gap: "18px", alignItems: "flex-start" }}>
+    <div
+      style={{
+        display: "flex",
+        gap: "18px",
+        alignItems: "flex-start",
+        flexWrap: wrap ? "wrap" : "nowrap",
+        maxWidth: wrap ? `${5 * (width + 38)}px` : "none",
+      }}
+    >
       {cases.map((c) => (
-        <div key={c.id} style={{ background: BACKDROP, padding: "10px", width: "400px" }}>
+        <div key={c.id} style={{ background: BACKDROP, padding: "10px", width: `${width}px` }}>
           <div style={{ color: "#0b1116" }}>{c.title}</div>
-          <Big c={c} px={880} side={side} />
+          {facts && <div style={{ color: "#33414c", fontSize: "10px" }}>{factsOf(c)}</div>}
+          <Big c={c} px={px} side={side} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** THE WINDOWS a close-up looks through, in the figure's own units (92 ×
+ * 211, head up): the left shoulder and upper arm, the pelvis and the
+ * thighs, the shins. */
+const WINDOWS: [string, number, number, number, number][] = [
+  ["shoulder and arm", 50, 28, 40, 48],
+  ["pelvis and thighs", 18, 92, 56, 52],
+  ["shins", 18, 140, 56, 46],
+];
+
+/** THE FORCE LADDER UP CLOSE: each column one energy, each row a window
+ * onto the figure drawn at 2400 px. */
+function Closeups({ cases }: { cases: Case[] }): JSX.Element {
+  const px = 2400;
+  const k = px / 211;
+  return (
+    <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+      {cases.map((c) => (
+        <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div>{c.title}</div>
+          {WINDOWS.map(([name, x, y, w, h]) => (
+            <div
+              key={name}
+              title={name}
+              style={{
+                width: `${Math.round(w * k * 0.5)}px`,
+                height: `${Math.round(h * k * 0.5)}px`,
+                overflow: "hidden",
+                position: "relative",
+                background: BACKDROP,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${-x * k * 0.5}px`,
+                  top: `${-y * k * 0.5}px`,
+                  transform: "scale(0.5)",
+                  transformOrigin: "0 0",
+                }}
+              >
+                <Big c={c} px={px} side="front" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** FROZEN FRAMES: every animation under each `data-at` figure — the
+ * stylesheet's own snaps and flashes, their timing and stagger the game's —
+ * seeked `at` ms in and written down as a still style, then let go. A page
+ * of paused animations instead puts every piece on a layer of its own, which
+ * is more than the rasterizer paints. */
+function freeze(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-at]")) {
+    const at = Number(el.dataset.at);
+    for (const a of el.getAnimations({ subtree: true })) {
+      a.pause();
+      a.currentTime = at;
+      try {
+        a.commitStyles();
+      } catch {
+        // An element no longer rendered keeps no frame.
+      }
+      a.cancel();
+    }
+  }
+}
+
+/** THE SNAP: which bodies, and the moments of it. */
+const SNAP = ["force-simple", "force-wedge", "force-shatter", "force-most"];
+const SNAP_AT = [0, 50, 100, 160, 240, 340, 460];
+
+/** THE BONES' SNAP frame by frame: a row a body, a column a moment, each a
+ * window onto the legs (the pelvis to the ankles) drawn at 1200 px. */
+function Snaps({ cases }: { cases: Case[] }): JSX.Element {
+  const px = 1200;
+  const k = px / 211;
+  const [x, y, w, h] = [16, 90, 60, 98];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "8px", paddingLeft: "130px" }}>
+        {SNAP_AT.map((t) => (
+          <div key={t} style={{ width: `${Math.round(w * k)}px` }}>{`${t} ms`}</div>
+        ))}
+      </div>
+      {cases.map((c) => (
+        <div key={c.id} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ width: "122px" }}>{c.title}</div>
+          {SNAP_AT.map((t) => (
+            <div
+              key={t}
+              style={{
+                width: `${Math.round(w * k)}px`,
+                height: `${Math.round(h * k)}px`,
+                overflow: "hidden",
+                position: "relative",
+                background: BACKDROP,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${-x * k}px`,
+                  top: `${-y * k}px`,
+                }}
+              >
+                <Big c={c} px={px} side="front" at={t} />
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

@@ -44,7 +44,10 @@ Three modules answer it, and the split matters:
   the doses of each mechanism (`blunt`, `load`, `drawer`, `twist`, `bend`)
   on a log-logistic risk curve (`riskOf`) drawn off a hash; `severityOf`
   sums the whole body. Every fracture names its BONES (`BONES`,
-  `bonesOf`) and whether it is a hairline or a break (`fracturesOf`);
+  `bonesOf`) and whether it is a hairline or a break (`fracturesOf`) — a
+  break graded simple, wedge or shattered by the ENERGY that did it over
+  its even chance's (`Injury.energy`, `energyOver`, `injury.comminute`),
+  raised by every harder blow on the part after it;
   `saidOf` keeps a fracture out of the HUD's words, since the figure shows
   it on the bone. A reset MENDS the body (`mendBody`, from `resetSkier`).
   The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the

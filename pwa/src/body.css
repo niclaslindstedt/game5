@@ -34,8 +34,17 @@
 
 /* THE BODY, at the left edge halfway down — clear of the run's row at the
    top and the speed at the foot, and of every thumb: it is read, never
-   pressed, so the glass under it stays the thumb zone's. */
+   pressed, so the glass under it stays the thumb zone's.
+
+   ITS SIZE IS THE HURT: `--body-scale` (body-tile.ts' `scaleOf`) is half on
+   a sound body and grows to one as the injuries mount; the figure follows
+   it whole and the words under it most of the way (`--body-text`), so a
+   line stays readable on the smallest panel. It grows over a moment, never
+   in a frame. */
 .hud-body {
+  --body-scale: 1;
+  --body-text: calc(0.6 + 0.4 * var(--body-scale));
+
   position: absolute;
   top: 50%;
   left: max(0.8rem, env(safe-area-inset-left));
@@ -43,7 +52,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.08rem;
-  max-width: clamp(9rem, 40vmin, 14rem);
+  max-width: calc(clamp(9rem, 40vmin, 14rem) * var(--body-text));
   line-height: 1.15;
   pointer-events: none;
   transform: translateY(-45%);
@@ -57,11 +66,20 @@
 }
 
 .hud-body-figure {
+  display: block;
   width: auto;
-  height: clamp(8.5rem, 38vmin, 17rem);
+  height: calc(clamp(8.5rem, 38vmin, 17rem) * var(--body-scale));
   margin-bottom: 0.15rem;
   overflow: visible;
   filter: drop-shadow(0 1px 1.5px var(--hud-shadow));
+  transition: height 700ms cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+/* THE SHAKE: the figure thrown about by the blow he goes down on —
+   played by hud-body.tsx (`shakeFrames`) on this wrapper, about the
+   figure's chest. */
+.hud-body-shake {
+  transform-origin: 50% 35%;
 }
 
 /* THE FLESH: a wash of the part's paint, faint while sound, the seams
@@ -111,6 +129,78 @@
   --bone: var(--hud-hp-dead);
 }
 
+/* A BONE'S PAINT is a registered colour, so a bone that cracks or breaks
+   turns from bone to yellow or red over a moment rather than in a frame,
+   and FLASHES white as it goes — each grade on a keyframe of its own, so a
+   break that becomes a wedge or a shatter flashes again. */
+@property --bone {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c9c6be;
+}
+
+.hud-bone {
+  transition: --bone 250ms ease-out;
+}
+
+.hud-bone-hairline {
+  animation: hud-bone-crack 500ms ease-out;
+}
+
+.hud-bone-break {
+  animation: hud-bone-snap-flash 600ms ease-out;
+}
+
+.hud-bone-wedge {
+  animation-name: hud-bone-wedge-flash;
+}
+
+.hud-bone-shatter {
+  animation-name: hud-bone-shatter-flash;
+}
+
+@keyframes hud-bone-crack {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-snap-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-wedge-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-shatter-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+/* A PIECE OF A BROKEN BONE (`moveCss`: `--to` its place, its own
+   transform-origin): it mounts where the bone lay and SNAPS to its place,
+   overshooting a hair and settling; a harder blow later moves it on from
+   there. The box is the figure's view box, so a CSS pixel is a figure
+   unit. */
+.hud-bone-move {
+  transform: var(--to);
+  transform-box: view-box;
+  transition: transform 380ms cubic-bezier(0.2, 1.5, 0.4, 1);
+  animation: hud-bone-snap 420ms cubic-bezier(0.2, 1.5, 0.4, 1) backwards;
+}
+
+@keyframes hud-bone-snap {
+  from {
+    transform: none;
+  }
+}
+
 .hud-bone-fill {
   fill: var(--bone);
   stroke: rgb(30 24 18 / 55%);
@@ -131,9 +221,13 @@
 }
 
 /* A BROKEN BONE glows its red, so a thin one (a fibula, a rib) is found at
-   a glance. */
+   a glance — a shattered one the brighter, its pieces lit round. */
 .hud-bone-break {
   filter: drop-shadow(0 0 0.9px var(--hud-hp-dead));
+}
+
+.hud-bone-shatter {
+  filter: drop-shadow(0 0 1.2px var(--hud-hp-dead));
 }
 
 /* THE PART THE BLOW STRUCK, lit white and cooling to its paint. */
@@ -150,14 +244,14 @@
 
 .hud-body-word {
   color: var(--hp);
-  font-size: clamp(0.72rem, 2.3vmin, 1.05rem);
+  font-size: calc(clamp(0.72rem, 2.3vmin, 1.05rem) * var(--body-text));
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
 .hud-body-line {
   color: var(--hp);
-  font-size: clamp(0.58rem, 1.85vmin, 0.86rem);
+  font-size: calc(clamp(0.58rem, 1.85vmin, 0.86rem) * var(--body-text));
   font-weight: 700;
   letter-spacing: 0.05em;
 }
@@ -292,7 +386,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hud-gforce-read,
-  .hud-body-fresh {
+  .hud-body-fresh,
+  .hud-bone,
+  .hud-bone-move {
     animation: none;
+  }
+
+  .hud-body-figure,
+  .hud-bone,
+  .hud-bone-move {
+    transition: none;
   }
 }

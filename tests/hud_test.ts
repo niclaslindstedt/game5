@@ -27,8 +27,24 @@ import {
   type GameState,
 } from "@engine";
 
-import { FIGURE, figureView, fractureOf } from "../pwa/src/game/body-figure.ts";
-import { bodyTile, conditionOf, LINES, toneOf } from "../pwa/src/game/body-tile.ts";
+import {
+  FIGURE,
+  figureView,
+  fractureOf,
+  moveCss,
+  moveSvg,
+  type Move,
+} from "../pwa/src/game/body-figure.ts";
+import {
+  FORCE_MOST,
+  SCALE_SOUND,
+  bodyTile,
+  conditionOf,
+  forceOf,
+  LINES,
+  scaleOf,
+  toneOf,
+} from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import {
   AIR_SHOWN,
@@ -271,6 +287,46 @@ describe("the body and the g meter (body-tile.ts)", () => {
     expect(tile.condition).toBe("injured");
   });
 
+  it("is half its size sound and grows with the hurt to its full size", () => {
+    expect(scaleOf(0)).toBe(SCALE_SOUND);
+    expect(SCALE_SOUND).toBe(0.5);
+    const scores = [0, 1, 4, 9, 16, 25, 50, 75];
+    const sizes = scores.map(scaleOf);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    expect(scaleOf(1)).toBeGreaterThan(SCALE_SOUND);
+    expect(scaleOf(25)).toBe(1);
+    expect(scaleOf(75)).toBe(1);
+    const body = freshBody();
+    expect(bodyTile(body, 0).scale).toBe(SCALE_SOUND);
+    body.injuries.push({ part: "head", kind: "concussion", ais: 2, t: 0 });
+    body.worst[BODY_PARTS.indexOf("head")] = 2;
+    expect(bodyTile(body, 0).scale).toBe(scaleOf(4));
+  });
+
+  it("paints a break by the energy that did it, and throws its pieces by it", () => {
+    const C = TUNING.injury.comminute;
+    expect(forceOf(0)).toBe(0);
+    expect(forceOf(0.5)).toBe(0);
+    expect(forceOf(C.shatter)).toBeCloseTo(1);
+    expect(forceOf(50)).toBe(FORCE_MOST);
+    const body = freshBody();
+    const take = (part: (typeof BODY_PARTS)[number], kind: keyof typeof INJURIES, e: number) =>
+      body.injuries.push({ part, kind, ais: INJURIES[kind].ais, t: 0, energy: e });
+    take("thighL", "brokenFemur", 1);
+    take("armR", "brokenArm", C.wedge);
+    take("pelvis", "brokenPelvis", C.shatter + 1);
+    take("shinR", "crackedShin", 1);
+    const tile = bodyTile(body, 10);
+    const at = (b: (typeof BONES)[number]) => BONES.indexOf(b);
+    expect(tile.bones[at("femurL")]).toBe("break");
+    expect(tile.bones[at("humerusR")]).toBe("wedge");
+    expect(tile.bones[at("pelvis")]).toBe("shatter");
+    expect(tile.bones[at("tibiaR")]).toBe("hairline");
+    expect(tile.force[at("femurR")]).toBe(0);
+    expect(tile.force[at("pelvis")]).toBeGreaterThan(tile.force[at("humerusR")]);
+    expect(tile.force[at("humerusR")]).toBeGreaterThan(tile.force[at("femurL")]);
+  });
+
   it("holds the blow on the meter for the engine's hold, and lights the part it struck", () => {
     const body = freshBody();
     body.impact = {
@@ -478,8 +534,78 @@ describe("the body as drawn (body-figure.ts)", () => {
         for (const d of [b.fill, b.light, b.shadow, b.deep].filter(Boolean))
           expect(d, `${side} ${bone}`).toMatch(/^(M[\d.,L-]+Z)+$/);
         const fr = fractureOf(bone, side);
-        for (const d of [fr.fissure, fr.piece]) expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
-        expect(fr.move, bone).toMatch(/^translate\([-\d. ]+\) rotate\([-\d. ]+\)$/);
+        for (const d of [fr.fissure, fr.piece, fr.chip, fr.shatter.piece])
+          expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+        for (const m of [fr.move, fr.chipMove, fr.shatter.move]) {
+          expect(moveSvg(m), bone).toMatch(
+            /^translate\([-\d. ]+\) rotate\([-\d.]+\) translate\([-\d. ]+\)$/,
+          );
+          expect(moveCss(m).transform, bone).toMatch(
+            /^translate\([-\d.]+px, [-\d.]+px\) rotate\([-\d.]+deg\)$/,
+          );
+        }
+        // Shattered: in pieces, and more of them struck harder.
+        expect(fr.shatter.shards.length, bone).toBeGreaterThanOrEqual(6);
+        expect(fractureOf(bone, side, FORCE_MOST).shatter.shards.length).toBeGreaterThan(
+          fr.shatter.shards.length,
+        );
+        for (const s of fr.shatter.shards) expect(s.clip, bone).toMatch(/^M[\d.,L-]+Z$/);
+      }
+    }
+  });
+
+  it("breaks a long bone between its joints: both ends stay where the joints hold them", () => {
+    // Where a move puts a point.
+    const moved = (m: Move, x: number, y: number): [number, number] => {
+      const r = (m.deg * Math.PI) / 180;
+      const dx = (x - m.ox) * m.s;
+      const dy = (y - m.oy) * m.s;
+      return [
+        m.ox + m.x + dx * Math.cos(r) - dy * Math.sin(r),
+        m.oy + m.y + dx * Math.sin(r) + dy * Math.cos(r),
+      ];
+    };
+    const LONG = /^(humerus|radius|ulna|femur|tibia|fibula|clavicle)/;
+    for (const side of SIDES) {
+      for (const bone of BONES.filter((b) => LONG.test(b))) {
+        const b = figureView(side).bones[bone];
+        if (!b.fill) continue;
+        const pts = (b.fill.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+        const v = [Math.cos(b.mark.a), Math.sin(b.mark.a)];
+        const along = (i: number) => (pts[i] - b.mark.x) * v[0] + (pts[i + 1] - b.mark.y) * v[1];
+        let lo = 0;
+        let hi = 0;
+        for (let i = 0; i + 1 < pts.length; i += 2) {
+          lo = Math.min(lo, along(i));
+          hi = Math.max(hi, along(i));
+        }
+        const A: [number, number] = [b.mark.x + v[0] * lo, b.mark.y + v[1] * lo];
+        const B: [number, number] = [b.mark.x + v[0] * hi, b.mark.y + v[1] * hi];
+        for (const force of [0, 1, FORCE_MOST]) {
+          const fr = fractureOf(bone, side, force);
+          for (const [near, far] of [
+            [fr.restMove, fr.move],
+            [fr.shatter.restMove, fr.shatter.move],
+          ] as const) {
+            expect(near, bone).not.toBe(null);
+            const a = moved(near!, ...A);
+            const z = moved(far, ...B);
+            expect(Math.hypot(a[0] - A[0], a[1] - A[1]), `${side} ${bone} near`).toBeLessThan(1e-6);
+            expect(Math.hypot(z[0] - B[0], z[1] - B[1]), `${side} ${bone} far`).toBeLessThan(1e-6);
+            // ... and the ends at the break are shoved apart.
+            const n = moved(near!, b.mark.x, b.mark.y);
+            const f = moved(far, b.mark.x, b.mark.y);
+            expect(Math.hypot(n[0] - f[0], n[1] - f[1]), bone).toBeGreaterThan(0.1);
+          }
+        }
+        // Harder struck, shoved further.
+        const gap = (force: number) => {
+          const fr = fractureOf(bone, side, force);
+          const n = moved(fr.restMove!, b.mark.x, b.mark.y);
+          const f = moved(fr.move, b.mark.x, b.mark.y);
+          return Math.hypot(n[0] - f[0], n[1] - f[1]);
+        };
+        expect(gap(1), bone).toBeGreaterThan(gap(0));
       }
     }
   });

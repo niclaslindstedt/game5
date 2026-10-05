@@ -113,8 +113,14 @@ helmet:
 # engine (the body at its worst, before the reset mends it) — the panel's
 # strip of a 1280×720 frame (previews/damage-panels.png), one body at the
 # three reference viewports (damage-viewports.png, CASE=id) and the figure
-# enlarged (damage-plate.png); ARGS="--refs=DIR" lays local references
-# under it (damage-refs.png). Its own one-off bundle; needs a Chromium.
+# enlarged (damage-plate.png), every bone fractured at one energy a column
+# from a hairline to shattered (damage-force.png, and up close in
+# damage-closeup.png), the bones' snap frame by frame (damage-snap.png),
+# and HIGH-G CRASHES skied through the engine — a
+# trunk head-on and on the shoulder at rising speeds, falls from rising
+# heights — each with the energy behind every fracture (damage-blows.png);
+# ARGS="--refs=DIR" lays local references under it (damage-refs.png). Its
+# own one-off bundle; needs a Chromium.
 damage:
 	npm run damage -- $(if $(CASE),--case $(CASE),) $(ARGS)
 

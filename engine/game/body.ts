@@ -144,6 +144,15 @@ export function snowGive(state: GameState, x: number, z: number): number {
   return give + (I.snow.ice - give) * ice;
 }
 
+/** THE ENERGY of a dose `d` over that of an injury's even-chance dose
+ * `at`: a blow's or a load's g is its energy over the stop it is given
+ * (v² / 2s), so it goes as the dose; a twist's or a bend's is a speed, so
+ * as its square. */
+export function energyOver(mech: Mechanism, d: number, at: number): number {
+  const r = d / at;
+  return mech === "twist" || mech === "bend" ? r * r : r;
+}
+
 /** The chance of an injury of even-chance dose `at` at a dose `d`. */
 export function riskOf(d: number, at: number): number {
   if (d < I.floor * at) return 0;
@@ -489,6 +498,17 @@ function judge(state: GameState, events: GameEvent[]): void {
     if (billG > body.peak) body.peak = billG;
     if (fall && billG > body.fallPeak) body.fallPeak = billG;
   }
+  // A FRACTURE STRUCK AGAIN breaks worse: every one already on the body
+  // takes the energy of this step's dose on its part, if harder.
+  for (const h of body.injuries) {
+    const def = INJURIES[h.kind] as InjuryDef;
+    if (!def.fracture) continue;
+    const p = PART[h.part];
+    const d = dose[p * MECHS.length + MECHS.indexOf(def.mech)];
+    if (d <= 0 || (def.face && (faced[p] < 0 || FACES[faced[p]] !== def.face))) continue;
+    const e = energyOver(def.mech, d, def.at * (1 - I.weaken * body.worst[p]));
+    if (e > (h.energy ?? 1)) h.energy = e;
+  }
   // Every part's worst injury drawn this step, then the worst `perBlow`
   // of them taken: one blow does a few things, and a body thrown into a
   // trunk is not every risk drawn at once.
@@ -505,21 +525,21 @@ function judge(state: GameState, events: GameEvent[]): void {
       const at = def.at * (1 - I.weaken * worst);
       const u = hash2(state.tick, p * 64 + index, (state.seed ^ SALT) | 0);
       if (u >= riskOf(d, at)) continue;
-      found.push({ p, kind, ais: def.ais });
+      found.push({ p, kind, ais: def.ais, energy: energyOver(def.mech, d, at) });
       break;
     }
   }
   found.sort((a, b) => b.ais - a.ais || a.p - b.p);
   for (let k = 0; k < Math.min(found.length, I.perBlow); k++) {
-    const { p, kind, ais } = found[k];
+    const { p, kind, ais, energy } = found[k];
     const part = BODY_PARTS[p];
-    body.injuries.push({ part, kind, ais, t: state.t });
+    body.injuries.push({ part, kind, ais, t: state.t, energy });
     if (ais > body.worst[p]) body.worst[p] = ais;
     events.push({ kind: "injury", t: state.t, part, injury: kind, ais });
   }
 }
 
-const found: { p: number; kind: InjuryKind; ais: number }[] = [];
+const found: { p: number; kind: InjuryKind; ais: number; energy: number }[] = [];
 
 /** ONE STEP OF THE BODY, after the run's own (`run.ts`): `off` is the body
  * he was thrown on at the start of the step — its ragdoll stepped — or
@@ -629,20 +649,52 @@ export function saidOf(kind: InjuryKind): boolean {
   return !def.fracture || def.organ === true;
 }
 
-/** EVERY BONE'S STATE, in `BONES` order: 0 sound, 1 a hairline crack, 2
- * broken — the worst any injury on the body did to it. */
-export function fracturesOf(body: BodyState): number[] {
-  const out = new Array<number>(BONES.length).fill(0);
+/** WHAT A FRACTURE SHOWS on its bone: sound, a HAIRLINE crack, a SIMPLE
+ * break, a WEDGE (a butterfly fragment knocked out) or SHATTERED
+ * (multifragmentary) — the last three a break graded by the energy that
+ * did it (`injury.comminute`). */
+export const FRACTURE_GRADE = { sound: 0, hairline: 1, simple: 2, wedge: 3, shatter: 4 } as const;
+
+/** One injury's grade on its bones. */
+function gradeOf(def: InjuryDef, energy: number): number {
+  if (def.fracture !== "break") return FRACTURE_GRADE.hairline;
+  const C = I.comminute;
+  if (energy >= C.shatter) return FRACTURE_GRADE.shatter;
+  return energy >= C.wedge ? FRACTURE_GRADE.wedge : FRACTURE_GRADE.simple;
+}
+
+/** Every bone's grade and the energy of the fracture behind it. */
+function boneFractures(body: BodyState): { grade: number[]; energy: number[] } {
+  const grade = new Array<number>(BONES.length).fill(0);
+  const energy = new Array<number>(BONES.length).fill(0);
   for (const h of body.injuries) {
     const def = INJURIES[h.kind] as InjuryDef;
     if (!def.fracture) continue;
-    const grade = def.fracture === "break" ? 2 : 1;
+    const e = h.energy ?? 1;
+    const g = gradeOf(def, e);
     for (const b of bonesOf(h.kind, h.part)) {
       const i = BONES.indexOf(b);
-      if (grade > out[i]) out[i] = grade;
+      if (g > grade[i] || (g === grade[i] && e > energy[i])) {
+        grade[i] = g;
+        energy[i] = e;
+      }
     }
   }
-  return out;
+  return { grade, energy };
+}
+
+/** EVERY BONE'S STATE, in `BONES` order (`FRACTURE_GRADE`): 0 sound, 1 a
+ * hairline crack, 2 a simple break, 3 a wedge, 4 shattered — the worst any
+ * injury on the body did to it. */
+export function fracturesOf(body: BodyState): number[] {
+  return boneFractures(body).grade;
+}
+
+/** EVERY BONE'S FRACTURE ENERGY, in `BONES` order: the energy of the
+ * fracture it shows over that fracture's even chance (0 sound) — how far
+ * the drawing throws its pieces apart. */
+export function fractureEnergyOf(body: BodyState): number[] {
+  return boneFractures(body).energy;
 }
 
 /** THE INJURY SEVERITY SCORE: the squares of the worst AIS in each of the

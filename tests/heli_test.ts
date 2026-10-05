@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   HELI,
   NEUTRAL_INPUT,
+  TUNING,
   createGame,
   helipadOf,
   heliWithin,
@@ -244,6 +245,49 @@ describe("the helicopter", () => {
     expect(events.some((e) => e.kind === "heli" && e.phase === "restart")).toBe(true);
     expect(s.heli!.rider).toBe(true);
     expect(s.heli!.grounded).toBe(true);
+    expect(s.skier.thrown).toBeNull();
+  });
+
+  it("flings the skier on the skid clear of the blast, and leaves him lying until it burns out", () => {
+    const s = ride();
+    fly(s, 6, hands({ collective: 0.95 }));
+    for (let i = 0; i < 40 * 120 && s.heli!.mode !== "wreck"; i++)
+      step(s, hands({ collective: 0.1 }));
+    const w = s.heli!.wreck!;
+    expect(w.aboard).toBe(true);
+    // Off the skid at the blast's push, on top of the way it was going.
+    const t0 = s.skier.thrown!;
+    expect(Math.hypot(t0.vx, t0.vz)).toBeGreaterThan(HELI.crash.blast.out * 0.75);
+    expect(t0.vy).toBeGreaterThan(HELI.crash.blast.up * 0.75);
+    let far = 0;
+    const events: GameEvent[] = [];
+    while (s.heli!.mode === "wreck") {
+      step(s, ask());
+      events.push(...s.events);
+      const t = s.skier.thrown;
+      if (s.heli!.mode === "wreck") expect(t).not.toBeNull();
+      if (t) far = Math.max(far, Math.hypot(t.x - w.x, t.z - w.z));
+    }
+    // Thrown tens of metres, and stood up only by the ride begun again.
+    expect(far).toBeGreaterThan(15);
+    expect(events.some((e) => e.kind === "reset")).toBe(false);
+    expect(s.heli!.rider).toBe(true);
+  });
+
+  it("starts the ride again on the player's press to get up while the wreck burns", () => {
+    const s = ride();
+    fly(s, 6, hands({ collective: 0.95 }));
+    for (let i = 0; i < 40 * 120 && s.heli!.mode !== "wreck"; i++)
+      step(s, hands({ collective: 0.1 }));
+    // A press inside the beat he must lie is let go...
+    fly(s, 0.5, ask());
+    fly(s, 1 / 120, { ...ask(), reset: true });
+    expect(s.heli!.mode).toBe("wreck");
+    // ...and one after it puts him back on the pad.
+    fly(s, TUNING.crash.getUp, ask());
+    const events = fly(s, 1 / 120, { ...ask(), reset: true });
+    expect(events.some((e) => e.kind === "heli" && e.phase === "restart")).toBe(true);
+    expect(s.heli!.rider).toBe(true);
     expect(s.skier.thrown).toBeNull();
   });
 

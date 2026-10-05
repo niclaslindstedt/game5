@@ -46,7 +46,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { treesNear } from "./collision.ts";
 import { standSkier } from "./course.ts";
-import { throwRider } from "./crash.ts";
+import { mayGetUp, throwRider } from "./crash.ts";
 import { HELI } from "./defs/heli.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -149,7 +149,10 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   const dt = TUNING.dt;
   h.t += dt;
   if (h.mode === "wreck") {
-    if (h.t < K.crash.wreck) return false;
+    // The player's own press to get up, once it is his (`mayGetUp`), starts
+    // the ride again rather than standing him by the fire.
+    const up = !!h.wreck?.aboard && input.reset && !!run.skier.thrown && mayGetUp(run.skier.thrown);
+    if (h.t < K.crash.wreck && !up) return false;
     if (h.wreck?.aboard) startAgain(run, events);
     else {
       // Dropped off before it went down: a fresh machine waits on the pad.
@@ -411,17 +414,20 @@ function strike(run: GameState, h: HeliState, events: GameEvent[]): void {
 }
 
 /** THE CRASH: the machine burns where it came down, and the skier on its
- * skid is thrown — flung by the blast. */
+ * skid is thrown — flung off it by the blast (`crash.blast`). */
 function crash(run: GameState, h: HeliState, events: GameEvent[], speed: number): void {
   h.mode = "wreck";
   h.t = 0;
   h.wreck = { x: h.x, y: h.y, z: h.z, speed, aboard: h.rider };
   say(run, events, "crash", speed);
   if (h.rider) {
-    const out = rotate(heliQuat(h), OUT);
-    release(run, h, 7, 6);
+    // The snow stops the machine's fall, and his with it: he leaves with
+    // its way along the snow and the blast's push out and up.
+    const climb = Math.max(0, h.vy);
+    release(run, h, K.crash.blast.out, K.crash.blast.up);
     const c = run.skier;
-    throwRider(run, "heli", { x: c.vx + out.x, y: c.vy, z: c.vz + out.z }, events);
+    c.vy = climb + K.crash.blast.up;
+    throwRider(run, "heli", { x: c.vx, y: c.vy, z: c.vz }, events);
   }
   h.vx = h.vy = h.vz = 0;
   h.yawRate = h.pitchRate = h.rollRate = 0;
@@ -548,6 +554,14 @@ export function startAgain(run: GameState, events: GameEvent[]): void {
   mendBody(c.body);
   hold(run, h);
   say(run, events, "restart");
+}
+
+/** WHETHER THE SKIER IS LYING WHERE A CRASHED HELICOPTER THREW HIM: the
+ * wreck he rode down still burning — he is not stood back up until the
+ * ride starts again from the pad. */
+export function heliDown(run: GameState): boolean {
+  const h = run.heli;
+  return !!h && h.mode === "wreck" && !!h.wreck?.aboard;
 }
 
 /** THE SEATED SKIER'S HANG: how far his body origin stands over the skid's

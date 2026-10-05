@@ -164,6 +164,9 @@ const stage: Stage = {
   camera(rung) {
     if (renderer.camera() !== rung) renderer.setCamera(rung, true);
   },
+  fly(rung) {
+    renderer.setCamera(rung, false);
+  },
   shoot(state, label, lens: Lens = "chase") {
     if (typeof lens === "string") {
       stage.camera(lens);

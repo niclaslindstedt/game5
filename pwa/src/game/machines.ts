@@ -6,7 +6,7 @@
 // figure seated on the skid or stood on the boards, each drawn every frame
 // — the snowmobile's tracks stamped with the skiers' furrows and its roost
 // thrown, the helicopter's wash blown — and the helicopter's lens while he
-// rides it.
+// rides it, flown onto it and off it.
 
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
@@ -30,7 +30,8 @@ export type Machines = {
   seat(model: SkisModel, state: GameState): void;
   /** One frame of both: the snowmobile drawn with its tracks (into
    * `stamps`, when the trails are drawn) and its roost, the helicopter
-   * drawn — and the lens the helicopter asks for, or null. */
+   * drawn and the lens it wants on `rung` worked out — a change of rung
+   * flown while `flying`, as the skier's ladder flies it, else cut. */
   frame(
     state: GameState,
     alpha: number,
@@ -38,8 +39,12 @@ export type Machines = {
     simDt: number,
     player: { x: number; z: number },
     rung: CameraRung,
+    flying: boolean,
     stamps: Stamp[] | null,
-  ): LensPose | null;
+  ): void;
+  /** THE HELICOPTER'S LENS, flown in from the skier's `ladder` and back
+   * out to it (`heli-scene.ts`), or null while the ladder has it whole. */
+  lens(ladder: LensPose, dt: number): LensPose | null;
   /** WHILE HE RIDES THE SNOWMOBILE, the ladder the lens is framed on —
    * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
    * this frame (so call it after `frame`); otherwise nothing, the pose left. */
@@ -76,10 +81,13 @@ export function createMachines(
       model.setPerch(heli ? heli.perch(s) : null);
       model.setSled(sled ? sled.stand(s) : null);
     },
-    frame(s, alpha, dt, simDt, player, rung, stamps) {
+    frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
-      return heli?.frame(s, alpha, dt, player, rung, fx.cloud, fx.snowAt) ?? null;
+      heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
+    },
+    lens(ladder, dt) {
+      return heli?.lens(ladder, dt) ?? null;
     },
     ladder(pose, s) {
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;

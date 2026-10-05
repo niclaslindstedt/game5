@@ -16,8 +16,8 @@
 // never a branch on a mode: the physics reads the row it is handed. The
 // numbers are the measured ones of each discipline at the top level
 // (`docs/disciplines.md`), turned into the model's terms; *(est.)* marks
-// an estimate. The giant slalom and super-G rows are DATA until their
-// disciplines are built: no mode deals them yet.
+// an estimate. The giant slalom row is DATA until its discipline is built:
+// no mode deals it yet.
 
 /** The techniques the engine knows. */
 export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhill";
@@ -143,19 +143,23 @@ export const GIANT_SLALOM_TECHNIQUE: Technique = {
   cross: { under: 0.8, retract: 0.05, steep: 0.33 },
 };
 
-/** THE SUPER-G RACER — data, no mode yet. A turn every 2.0–2.3 s on a
- * preferred radius of ~45 m (35 at the tightest), 55–65° of edge at the
- * peak (est.) rolled at ~55°/s (est.), a skid of 5° at most, a tuck on a
- * sixth of the course, 80–87 km/h on the mean and 100–110 at the peak,
- * 2.4–2.8 body weights. So: the edge rolled 0.37 of the slalom's rate,
- * stood at up to 60°, held a little longer (the fade one and a half times
- * as slow), most of the shelf, the body let in to 52° (the apex's balance
- * at 24 m/s on ~45 m, est.), crossing over with little unweighting. */
+/** THE SUPER-G RACER (R33). A turn every 2.0–2.3 s on a preferred radius
+ * of ~45 m (35 ± 16 at the tightest, measured at 24 ± 3 m/s), 55–65° of
+ * edge at the peak (est.) rolled at ~55°/s (est.), a skid of 5° at most, a
+ * tuck on a sixth of the course, 80–87 km/h on the mean and 100–110 at the
+ * peak, 2.4–2.8 body weights. So: the edge rolled 0.37 of the slalom's
+ * rate, stood at up to 63° (a 35 m turn asks 55° of a 50 m ski, R =
+ * sidecut / tan(edge)), HELD at speed — the lock's fade four times as slow,
+ * the slalom racer's: at the downhill's 2.5 the downhill ski carved a 40 m
+ * turn only under 80 km/h and the bot ran wide of gate after gate; at four
+ * it holds 40 m to 120 km/h and 35 m to 70 — most of the shelf, the body
+ * let in to 52° (the apex's balance at 24 m/s on ~45 m, est.), crossing
+ * over with little unweighting. */
 export const SUPER_G_TECHNIQUE: Technique = {
   id: "superG",
-  edgeRate: 0.6,
-  edgeMax: 1.05,
-  fade: 1.5,
+  edgeRate: 0.9,
+  edgeMax: 1.1,
+  fade: 5,
   platform: 0.8,
   incline: 0.91,
   cross: CROSS_OVER,

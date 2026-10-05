@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE STRICT GATES — the international rules a slalom (R31) and a downhill
-// (R32) are judged by, on a run whose rules ask for them
+// THE STRICT GATES — the international rules a slalom (R31), a downhill
+// (R32) and a super-G (R33) are judged by, on a run whose rules ask for them
 // (`RunRules.gates`).
 //
 // A POLE GATE IS PASSED when both feet cross its gate line between its
@@ -12,8 +12,9 @@
 // side, the pole between the skis, a STRADDLE. Either disqualifies at
 // once: a racer may no longer climb back to a gate. So does skipping a
 // gate — crossing the next one's line while this one is still owed.
-// A downhill's SPEED GATE is passed the same way, both feet between its
-// inner poles, and missed with either foot outside them.
+// A downhill's SPEED GATE, and a super-G's panelled gate, is passed the
+// same way, both feet between its inner poles, and missed with either foot
+// outside them.
 //
 // THE START: the run clock waits for the wand (the start gate), and a
 // racer not through it within `RunRules.window` seconds of GO is

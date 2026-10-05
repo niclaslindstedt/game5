@@ -184,6 +184,11 @@ describe("the URL (url-params.ts, splash.ts)", () => {
     expect(readParams("?t=-4").t).toBe(0);
     expect(readParams("?start=race&bot=1").bot).toBe(true);
     expect(readParams("?start=race").bot).toBe(false);
+    // A SUPER-G (R33): booted into, or the mode the next press rides, and
+    // the race card the front door's RACE tile opens.
+    expect(readParams("?start=superg")).toMatchObject({ rides: true, mode: "superG" });
+    expect(readParams("?menu=levels&mode=superg")).toMatchObject({ rides: false, mode: "superG" });
+    expect(readParams("?menu=races").page).toBe("races");
     expect(readParams("?menu=root")).toMatchObject({ menu: true, page: "root" });
     expect(readParams("?menu=options").page).toBe("options");
     expect(readParams("?menu=keys").page).toBe("keys");

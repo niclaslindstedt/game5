@@ -14,7 +14,7 @@ slalom is finished (see `README.md`).
    (`Checkpoint.panels`), a race HUD every discipline reads (`RaceHud`) and
    `make sim ARGS="--mode …"` — read `README.md`'s *Lessons from the
    downhill* and start from those.
-3. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R33 after the downhill's R32; the ids run contiguous (`tests/docs_rules_test.ts`).
+3. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R34 after the super-G's R33; the ids run contiguous (`tests/docs_rules_test.ts`).
 
 ## Watch out (from the slalom)
 

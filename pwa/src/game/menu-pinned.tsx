@@ -21,6 +21,7 @@ export function PinnedCards({
   page,
   mode,
   settings,
+  chosen,
   skis,
   progress,
   standing,
@@ -34,6 +35,8 @@ export function PinnedCards({
   /** The trial's length off the front door's chip, and the map the level
    * card last picked (`Settings.level`). */
   settings: Settings;
+  /** The map the level card last picked for this mode (`chosenFor`). */
+  chosen: string | null;
   /** The machine the skis card holds — a record book row is one skis's. */
   skis: SkiId;
   progress: CampaignProgress;
@@ -59,7 +62,7 @@ export function PinnedCards({
     <LevelsPage
       mode={mode}
       progress={progress}
-      chosen={settings.level}
+      chosen={chosen}
       best={(level) => {
         const row = standing({ seed: level.seed, course: level.course, skis, mode, laps });
         return row ? STRINGS.levelsBest(row.value, skisById(row.skis).name) : null;

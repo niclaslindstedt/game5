@@ -48,6 +48,7 @@ import {
   createRng,
   nearestTrackPoint,
   raceCourseOf,
+  speedCourseOf,
   trackPointAt,
   type Checkpoint,
   type Level,
@@ -71,7 +72,8 @@ export const FAN_SALT = 0x5ec7;
 export const NETS = { before: 60, after: 30, height: 1.3, out: 1.2, post: 8 } as const;
 
 /** WHERE THE NETS RUN down the piste, as arcs: the last stretch to the
- * line and past it — on a race's course (a slalom's, a downhill's) the
+ * line and past it — on a race's course (a slalom's, a downhill's, a
+ * super-G's) the
  * whole course, from just above its start house. */
 export function netStretch(level: Level, finish: Checkpoint): { from: number; to: number } {
   const course = raceCourseOf(level);
@@ -82,10 +84,10 @@ export function netStretch(level: Level, finish: Checkpoint): { from: number; to
 }
 
 /** HOW THE NETS STAND: how far outside the piste's edge, and how tall, m —
- * the B-nets' (`NETS`), and on a DOWNHILL its A-nets (R32,
- * `DownhillCourse.nets`), the engine's own line a racer is caught on. */
+ * the B-nets' (`NETS`), and on a DOWNHILL or a SUPER-G its A-nets (R32,
+ * R33, `SpeedCourse.nets`), the engine's own line a racer is caught on. */
 export function netShape(level: Level): { out: number; height: number } {
-  const nets = level.downhill?.nets;
+  const nets = speedCourseOf(level)?.nets;
   return nets ? { out: nets.gap, height: nets.height } : { out: NETS.out, height: NETS.height };
 }
 
@@ -665,9 +667,11 @@ export function planSpectators(level: Level): SpectatorPlan {
   const busy: { s: number; side: number }[] = [];
   const near = (s: number, side: number, gap: number) =>
     busy.some((b) => b.side === side && Math.abs(b.s - s) < gap) || s > length - FANS.slope - 20;
-  // A downhill's jumps are the drops it keeps (R32) — its kickers levelled.
-  const jumps: { s: number; landing: number; height: number }[] = level.downhill
-    ? level.downhill.jumps.map((s) => ({ s, landing: 30, height: 1 }))
+  // A speed course's jumps are the ones it keeps (R32, R33) — its kickers
+  // levelled.
+  const speed = speedCourseOf(level);
+  const jumps: { s: number; landing: number; height: number }[] = speed
+    ? speed.jumps.map((s) => ({ s, landing: 30, height: 1 }))
     : (level.kickers ?? [])
         .filter((k) => k.onTrack && k.s !== undefined)
         .map((k) => ({ s: k.s ?? 0, landing: k.landing, height: k.height }))

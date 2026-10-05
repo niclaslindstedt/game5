@@ -86,6 +86,8 @@ export {
   SLALOM,
   DOWNHILL,
   downhillRules,
+  SUPER_G,
+  superGRules,
   DISCIPLINES,
   JURY,
   timeTrialRules,
@@ -113,13 +115,23 @@ export { crossUnderOf, edgeReach } from "./game/incline.ts";
 export {
   DOWNHILL_FIELD,
   FIELD,
+  SUPER_G_FIELD,
   createField,
   fieldOrderOf,
   fieldPlace,
   startNumbers,
   type Heat,
 } from "./game/field.ts";
-export { DOWNHILL_PAR, PAR, downhillPar, raceParOf, slalomPar, type Par } from "./game/par.ts";
+export {
+  DOWNHILL_PAR,
+  PAR,
+  SUPER_G_PAR,
+  downhillPar,
+  raceParOf,
+  slalomPar,
+  superGPar,
+  type Par,
+} from "./game/par.ts";
 export { stepStrict } from "./game/strict.ts";
 export { stepTrap } from "./game/speed-trap.ts";
 export { DOWNHILL_NETS, stepNets } from "./game/nets.ts";

@@ -17,6 +17,10 @@
 // shelf for most, the first with a black for a downhill — so the card is
 // never empty and always has its SKI press.
 //
+// A DISCIPLINE WITH MAPS OF ITS OWN (`race-maps.ts` — the super-G's nine)
+// shows them on one page instead, every one open from the first visit: they
+// are the record book's maps for that race, not a second ladder.
+//
 // The card wears the campaign's own silhouette and classes — the shelf tabs,
 // the boxes, the piste behind each — because a map should look like itself
 // wherever it is offered. What is INSIDE a box is each card's own: the ladder
@@ -32,9 +36,11 @@ import {
   reachedShelfFor,
   shelfOpenFor,
   type CampaignLevel,
+  type CampaignMode,
   type CampaignProgress,
   type CampaignShelf,
 } from "./campaign.ts";
+import { raceMapsFor } from "./race-maps.ts";
 import { CourseMap, ShelfTabs, dayLine } from "./menu-campaign.tsx";
 import { GradeMark } from "./grade-mark.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -42,8 +48,16 @@ import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The measured mode's own billing word: the slalom's for any other. */
-function billedMode(mode: GameMode): "slalom" | "downhill" | "timeTrial" {
-  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
+function billedMode(mode: GameMode): CampaignMode {
+  return mode === "timeTrial" || mode === "downhill" || mode === "superG" ? mode : "slalom";
+}
+
+/** The card's title, by the mode it picks a map for. */
+function titleOf(mode: GameMode): string {
+  if (mode === "timeTrial") return STRINGS.levelsTrial;
+  if (mode === "downhill") return STRINGS.levelsDownhill;
+  if (mode === "superG") return STRINGS.levelsSuperG;
+  return STRINGS.levelsRace;
 }
 
 function LevelBox({
@@ -106,17 +120,21 @@ export function LevelsPage({
   /** On to the skis card, which is where RIDE is. */
   onPick: (level: CampaignLevel) => void;
 }) {
-  const stood = chosen === null ? null : findLevel(chosen);
-  const offered = (shelf: CampaignShelf): boolean => shelfOpenFor(shelf, mode, progress);
-  const [shown, setShown] = useState<CampaignShelf>(() =>
-    stood && fitsMode(stood.level, mode) && offered(stood.shelf)
+  // A DISCIPLINE WITH MAPS OF ITS OWN (`race-maps.ts`): its nine on one
+  // page, every one open — no shelves, nothing to earn.
+  const own = raceMapsFor(mode);
+  const [shownShelf, setShown] = useState<CampaignShelf>(() => {
+    const stood = chosen === null ? null : findLevel(chosen);
+    return stood && fitsMode(stood.level, mode) && shelfOpenFor(stood.shelf, mode, progress)
       ? stood.shelf
-      : reachedShelfFor(mode, progress),
-  );
-  const open = offered(shown);
+      : reachedShelfFor(mode, progress);
+  });
+  const shown = shownShelf;
+  const offered = (shelf: CampaignShelf): boolean => shelfOpenFor(shelf, mode, progress);
+  const open = own !== null || offered(shown);
   // Only the maps the mode can ride: a slalom only where the campaign sets
   // one, a downhill on a downhill's course (`fitsMode`).
-  const maps = shown.levels.filter((level) => fitsMode(level, mode));
+  const maps = own ?? shown.levels.filter((level) => fitsMode(level, mode));
   const billed = billedMode(mode);
   const pick = open ? (maps.find((level) => level.id === chosen) ?? maps[0] ?? null) : null;
   return (
@@ -124,13 +142,7 @@ export function LevelsPage({
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={
-          mode === "timeTrial"
-            ? STRINGS.levelsTrial
-            : mode === "downhill"
-              ? STRINGS.levelsDownhill
-              : STRINGS.levelsRace
-        }
+        title={titleOf(mode)}
         action={
           pick ? (
             <button
@@ -145,13 +157,15 @@ export function LevelsPage({
         }
       />
       <MenuBody>
-        <ShelfTabs
-          shown={shown}
-          open={offered}
-          line={(shelf) => shelf.blurb}
-          hint={STRINGS.levelsShelfLocked}
-          onPick={setShown}
-        />
+        {own === null && (
+          <ShelfTabs
+            shown={shown}
+            open={offered}
+            line={(shelf) => shelf.blurb}
+            hint={STRINGS.levelsShelfLocked}
+            onPick={setShown}
+          />
+        )}
         {open && maps.length === 0 ? (
           <p class="menu-empty">{STRINGS.levelsNoneHere(billed)}</p>
         ) : open ? (

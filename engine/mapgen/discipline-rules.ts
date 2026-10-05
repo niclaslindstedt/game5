@@ -81,6 +81,39 @@
 //                                 started in one; its times count for
 //                                 nothing
 //
+//   superG.vertical 350–650 m     a super-G's vertical drop: the men's top
+//                                 level 400–650, the women's 400–600, any
+//                                 other race 350–650 (youth 250–450);
+//                                 measured top-level courses 598 ± 38 m
+//                                 over 2293 ± 204 m
+//   superG.changes ≥ 7 %          the direction changes: at least 7 % of the
+//                                 vertical drop in metres (6 % at some
+//                                 levels) — 42 on 600 m; measured 44 ± 3
+//   superG.spacing ≥ 25 m         turning pole to turning pole of two
+//                                 successive gates (15 m only inside a
+//                                 rare combination); measured 49.5 ± 5.7 m
+//                                 along the course, 12–13 m across
+//   superG.width 6–8 m            a gate is FOUR flex poles and TWO panels,
+//                                 the turning pair and the outside pair, 6–8
+//                                 m between the inner poles (8–12 for a
+//                                 gate set down the fall line); red and
+//                                 blue in turn
+//   superG.setting                the terrain used, long and medium turns
+//                                 varied, never set only down the fall
+//                                 line; jumps where the terrain allows; the
+//                                 course about 30 m wide, prepared as a
+//                                 downhill's
+//   superG.passing                both tips and both feet across the gate
+//                                 line; a gate missed disqualifies, a racer
+//                                 stopped does not finish
+//   superG.start                  one run on an interval start (60 s, never
+//                                 under 40), the downhill's start: the start
+//                                 clock, poles only, a start valid 5 s
+//                                 either side
+//   superG.inspection             NO training run: the course is inspected
+//                                 slipping down beside its gates, never
+//                                 skied through them
+//
 // The rules, in prose (each realized by `slalom.ts`, asserted in
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
@@ -146,6 +179,40 @@
 //       course is timed at `downhill.timing` intermediates besides. A
 //       downhill is one RUN, preceded by a TRAINING run on the same
 //       course.
+//
+//   R33 THE SUPER-G COURSE. A super-G is set on the piste of the ski
+//       area's course with the most vertical, from a START LOWERED down it
+//       until the drop to the finish line is `superG.target` metres at the
+//       most (`superG.vertical` the band it is held to where the piste has
+//       one) — prepared as a downhill's is: the start a house over the
+//       piste, the snow out of its door cut into a START DROP as steep as
+//       `superG.drop.grade`, every kicker on the piste levelled, the piste
+//       groomed hard and combed smooth over `superG.comb`, every crest
+//       sharper than `superG.crest` metres of radius shaved round, every
+//       tree within `superG.clear` metres of the piste and in the finish
+//       arena cleared, and A-NETS along both edges `superG.nets.gap` metres
+//       outside the piste. Its JUMPS are its drops and the crests a racer
+//       leaves the snow on (the profile still bending over tighter than
+//       `superG.takeoff` metres). Its gates TURN the racer: as many as
+//       `superG.changes` of the vertical in metres and `superG.spacing`
+//       metres apart down the piste give, whichever is more, each strayed
+//       off the even spacing by `superG.rhythm`, none within `superG.jump`
+//       metres before a jump nor `superG.landing` after it. Its RACING LINE
+//       is the line that bends the least kept `superG.line.margin` metres
+//       inside the piste and `superG.line.most` off its middle, SWUNG to
+//       each gate's side in turn by `superG.swing` metres — no further than
+//       bends it tighter than `superG.bend` metres, nor leaves the gate off
+//       the snow; `superG.opening` of it at the first gates, the
+//       `superG.straight` share before a jump, and less on a gentle stretch
+//       (`superG.flat`) — eased from one gate's apex to the next. Each gate
+//       is FOUR poles and TWO panels, red and blue in turn, `superG.width`
+//       metres between the inner poles, its turning pole `superG.pass`
+//       metres inside the line's apex and every pole `superG.inside` metres
+//       inside the piste. The finish line is `superG.finishWidth` metres
+//       wide at the least; the SPEED TRAP stands as a downhill's does, in
+//       the course's last `superG.trap.late` share, and the course is timed
+//       at `superG.timing` intermediates besides. A super-G is one RUN, with
+//       no training run.
 
 import type { Band } from "./rules.ts";
 
@@ -300,5 +367,106 @@ export const DISCIPLINE_RULES = {
     trap: { run: 250, straight: 400, span: 30, late: 0.6, end: 60 },
     /** The intermediate timing points. */
     timing: 4,
+  },
+  /** R33 — the super-G course. */
+  superG: {
+    /** The vertical a super-G is held to, m: every race's band past the
+     * youth's (the men's top level 400–650, the women's 400–600, any other
+     * 350–650). Set on the ski area's course with the most vertical, its
+     * START LOWERED down the piste until the drop to the finish is
+     * `target` at the most — the measured top-level courses' 598 ± 38. */
+    vertical: { min: 350, max: 650 } as Band,
+    target: 600,
+    /** The start: the racer stood this far above the wand's line, m. */
+    stand: 1.1,
+    /** THE START DROP: the speed events' ramp, a little shorter — a
+     * super-G turns from its first gates. */
+    drop: { lip: 0.6, length: 10, grade: 0.55, most: 3, ease: 45, shoulder: 10 },
+    /** Every kicker on the piste levelled, and how far past its ends, m. */
+    clearance: 30,
+    /** The finish's run-out groomed with the course, m. */
+    outrunLength: 60,
+    /** The hill combed smooth of its short lips. */
+    comb: { reach: 6, ease: 6 },
+    /** THE CRESTS SHAVED, m of radius: a super-G is flown off its crests at
+     * 25–28 m/s, where a racer leaves the snow over a crest tighter than
+     * v²/g — some 65–80 m — so a crest is rounded to land him on its
+     * downslope, as the downhill's are at its higher speed. */
+    crest: 65,
+    /** Trees cleared within this of the piste's edge, m, and the arena. */
+    clear: 12,
+    arena: { past: 90, before: 30, half: 45 },
+    /** THE A-NETS, as the downhill's. */
+    nets: { gap: 3, height: 5, give: 2 },
+    /** THE DIRECTION CHANGES: at least this share of the vertical in
+     * metres (the top level's 7 %). */
+    changes: 0.07,
+    /** The gates down the piste, m: the least (the rule's 25 m turning pole
+     * to turning pole, and the measured least 32), the most, and the
+     * spacing aimed at (the measured 49.5 ± 5.7 m along the course). */
+    spacing: { min: 32, max: 75, target: 49 },
+    /** How much a gate's spacing strays from the even one either way, as a
+     * share — a course's rhythm changes. */
+    rhythm: 0.18,
+    /** Between the inner poles of a gate, m — the rule's 6–8 — and how far
+     * inside the piste's edge every pole stands, m. */
+    width: 8,
+    inside: 2,
+    /** How far outside the turning pole the line passes, m — a racer
+     * brushes it with his shins at the top level; the game's line keeps a
+     * margin the bot can hold at 100 km/h. */
+    pass: 3.5,
+    /** THE FIRST GATES out of the house, skied at a crawl on the downhill
+     * ski — which stands on no more edge than its lean lets it there —
+     * swing this share of their own, gate by gate. */
+    opening: [0.35, 0.7] as readonly number[],
+    /** ...and a gate on a GENTLE stretch — the piste falling less than `to`
+     * over the `over` m above it — swings less, down to `least` of its own
+     * at `from`: a racer comes onto a flat slowly, and the downhill ski at
+     * 40 km/h carves no super-G turn. */
+    flat: { over: 80, from: 0.08, to: 0.2, least: 0.35 },
+    /** THE SWING: how far the line swings across the piste to a gate's side,
+     * m, either side of the line that bends the least — the measured 13 m
+     * across between two gates, as a line swung round the poles — dealt
+     * between its least and most a gate; and the tightest it may bend for
+     * it, m of radius (the measured least turn's 35 m — and what the
+     * downhill ski carves at a super-G's pace, `SUPER_G_TECHNIQUE`). */
+    swing: { min: 2.5, max: 5.5 } as Band,
+    bend: 50,
+    /** THE GATE BEFORE A JUMP is set straight: one within `approach` m of a
+     * jump's lip swings this share of its own. */
+    approach: 70,
+    straight: 0.3,
+    /** THE RACING LINE the swing is laid about: the downhill's, held
+     * further inside the piste's edges so a gate swung either side of it
+     * stands on the snow, and never more than `most` m off the piste's
+     * middle — a super-G is set down the middle of a course some 30 m
+     * wide, the gates swinging it either side, where a wide resort piste
+     * would let the least-bending line wander twenty metres to a side. */
+    line: {
+      step: 4,
+      margin: 9,
+      most: 5,
+      ease: 0.1,
+      passes: 60,
+      strides: [64, 32, 16, 8, 4, 2, 1] as readonly number[],
+    },
+    /** THE JUMPS: a crest is one where the shaved profile still bends over
+     * tighter than `takeoff` m of radius, read over `crestSpan` m either
+     * side (a lip's length) — a racer at 25–30 m/s leaves the
+     * snow there — and no gate stands within `jump` m before a jump's lip
+     * or a drop's edge, nor `landing` m after it, where he is still in the
+     * air or just down: a gate in the air judges a foot nowhere near the
+     * snow. */
+    takeoff: 110,
+    crestSpan: 10,
+    jump: 25,
+    landing: 45,
+    /** The finish line's least width, m. */
+    finishWidth: 20,
+    /** THE SPEED TRAP, as the downhill's. */
+    trap: { run: 200, straight: 300, span: 25, late: 0.5, end: 60 },
+    /** The intermediate timing points. */
+    timing: 3,
   },
 } as const;

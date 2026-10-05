@@ -54,6 +54,7 @@ import {
   regionOf,
   type Assist,
   type CreateGameOptions,
+  type Discipline,
   type GameMode,
   type Level,
   type SkyOverride,
@@ -69,6 +70,7 @@ import {
   type CampaignShelf,
   type Medal,
 } from "./campaign-levels.ts";
+import { disciplineOf, raceMapsFor } from "./race-maps.ts";
 
 export { CAMPAIGN_LEVELS, MEDALS, SHELVES } from "./campaign-levels.ts";
 export type { CampaignLevel, CampaignMode, CampaignShelf, Medal } from "./campaign-levels.ts";
@@ -120,6 +122,7 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
  * downhill's vertical under them; and none takes the FREE RIDE, the one mode
  * allowed a seed and a day of its own. */
 export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
+  if (mode === "superG") return level.mode === "superG";
   if (mode === "slalom") return level.mode === "slalom";
   if (mode === "downhill") return level.mode === "downhill" || level.grade === "black";
   return mode === "timeTrial";
@@ -128,20 +131,37 @@ export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
 /** The campaign's own name for a measured mode: the mode itself where a
  * rung can be one, the slalom's otherwise. */
 function measuredMode(mode: GameMode): CampaignLevel["mode"] {
-  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
+  return mode === "timeTrial" || mode === "downhill" || mode === "superG" ? mode : "slalom";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
  * null on anything else, so a stale stored id is simply not a map. */
 export function levelForMode(id: string | null, mode: GameMode): CampaignLevel | null {
   if (id === null) return null;
+  // A discipline with maps of its own rides only those (`race-maps.ts`).
+  const own = raceMapsFor(mode);
+  if (own) return own.find((row) => row.id === id) ?? null;
   const found = findLevel(id);
   return found && fitsMode(found.level, mode) ? found.level : null;
 }
 
+/** WHAT THE LEVEL CARD HAS PICKED, as the settings keep it: the campaign
+ * map a race or a trial last rode (`Settings.level`), and each discipline's
+ * own race map (`Settings.raceMap`). */
+export type Picks = { level: string | null; raceMap: Partial<Record<Discipline, string>> };
+
+/** The id the level card last picked for `mode`: a discipline with maps of
+ * its own its own pick (`race-maps.ts`), any other the campaign's. */
+export function chosenFor(picks: Picks, mode: GameMode): string | null {
+  const d = disciplineOf(mode);
+  return d && raceMapsFor(mode) ? (picks.raceMap[d] ?? null) : picks.level;
+}
+
 /** THE PINNED MAP A MEASURED RUN IS ON, or null where it is choosing its
  * own. A RACE and a TIME TRIAL ride the map the level card last picked
- * (`Settings.level`) — or the first rung that fits, on a fresh app — so two figures in
+ * (`chosenFor`) — a discipline with maps of its own one of those
+ * (`race-maps.ts`), any other the campaign's — or the first that fits, on
+ * a fresh app — so two figures in
  * the record book are two figures down the same piste. Two answers are null:
  * a FREE RIDE, the mode that picks a seed; and a LINK that names a seed
  * (`?seed=`), which takes the pinned map off for that visit so a lab or a
@@ -151,7 +171,7 @@ export function pinnedFor(
   mode: GameMode,
   linkSeed: number | null,
 ): CampaignLevel | null {
-  const first = CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
+  const first = raceMapsFor(mode)?.[0] ?? CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
   if (linkSeed !== null || !first) return null;
   return levelForMode(chosen, mode) ?? first;
 }
@@ -515,12 +535,13 @@ export function campaignStanding(progress: CampaignProgress): { cleared: number;
  * ride — null where a link pinned a seed instead. */
 export function frontDoorPins(
   progress: CampaignProgress,
-  chosen: string | null,
+  picks: Picks,
   linkSeed: number | null,
 ): {
   campaign: { cleared: number; of: number; next: string | null };
   raceMap: string | null;
   downhillMap: string | null;
+  superGMap: string | null;
   trialMap: string | null;
 } {
   return {
@@ -528,9 +549,10 @@ export function frontDoorPins(
       ...campaignStanding(progress),
       next: continueAt(reachedShelf(progress), progress)?.name ?? null,
     },
-    raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
-    downhillMap: pinnedFor(chosen, "downhill", linkSeed)?.name ?? null,
-    trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
+    raceMap: pinnedFor(chosenFor(picks, "slalom"), "slalom", linkSeed)?.name ?? null,
+    downhillMap: pinnedFor(chosenFor(picks, "downhill"), "downhill", linkSeed)?.name ?? null,
+    superGMap: pinnedFor(chosenFor(picks, "superG"), "superG", linkSeed)?.name ?? null,
+    trialMap: pinnedFor(chosenFor(picks, "timeTrial"), "timeTrial", linkSeed)?.name ?? null,
   };
 }
 

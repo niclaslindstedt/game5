@@ -188,7 +188,7 @@ export function secondRunOff(first: GameState): GameState {
   if (trainingOf(first) === true) {
     return createGame({ ...recipeOf(first, "downhill"), training: false });
   }
-  if (first.field?.run !== 1 || first.level.downhill) return first;
+  if (first.field?.run !== 1 || first.level.downhill || first.level.superG) return first;
   for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
     step(first, botInput(first));
   }

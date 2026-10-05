@@ -21,6 +21,7 @@ import {
   type CampaignProgress,
 } from "./campaign.ts";
 import { createCampaignRig, type CampaignRig } from "./campaign-run.ts";
+import { disciplineOf, findRaceMap } from "./race-maps.ts";
 import type { Settings } from "./settings.ts";
 import type { TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
@@ -74,7 +75,12 @@ export function useCampaign(world: {
     },
     choose: (level, isRung) => {
       rung.current = isRung ? level : null;
-      if (!isRung) world.setSettings((s) => ({ ...s, level: level.id }));
+      // A discipline's own race map is kept as its pick; a campaign map as
+      // the one the races without maps of their own and the trial ride.
+      const d = findRaceMap(level.id) ? disciplineOf(level.mode) : null;
+      if (!isRung && d)
+        world.setSettings((s) => ({ ...s, raceMap: { ...s.raceMap, [d]: level.id } }));
+      else if (!isRung) world.setSettings((s) => ({ ...s, level: level.id }));
       world.setPage("skis");
     },
     chooseTrick: (map) => {

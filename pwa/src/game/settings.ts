@@ -27,11 +27,13 @@ import {
   skisById,
   withRider,
   type Assist,
+  type Discipline,
   type SkiId,
   type SkiSpec,
 } from "@engine";
 
 import { findLevel } from "./campaign.ts";
+import { disciplineOf, findRaceMap } from "./race-maps.ts";
 import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
@@ -128,6 +130,9 @@ export type Settings = {
    * (`menu-levels.tsx`, `pinnedFor`) — a campaign run's id, or null for
    * the first rung. */
   level: string | null;
+  /** THE LEVEL CARD's answer for a discipline with race maps of its own
+   * (`race-maps.ts`): the id of the one its race last rode, by discipline. */
+  raceMap: Partial<Record<Discipline, string>>;
   /** THE TRICK MAP CARD's answer: the park a TRICKS run skis
    * (`trick-maps.ts`) — its id, or null for the first. */
   trickMap: string | null;
@@ -178,6 +183,7 @@ export function freshSettings(): Settings {
     trialLaps: TIME_TRIAL.laps[0],
     ride: freshRide(),
     level: null,
+    raceMap: {},
     trickMap: null,
     hud: true,
     developer: false,
@@ -250,6 +256,14 @@ export function mergeSettings(parsed: unknown): Settings {
   }
   out.ride = mergeRide(blob.ride);
   if (typeof blob.level === "string" && findLevel(blob.level) !== null) out.level = blob.level;
+  // ...each discipline's race map, where it still names one of its rows.
+  if (blob.raceMap !== null && typeof blob.raceMap === "object") {
+    for (const [d, id] of Object.entries(blob.raceMap as Record<string, unknown>)) {
+      if (typeof id !== "string") continue;
+      const row = findRaceMap(id);
+      if (row && disciplineOf(row.mode) === d) out.raceMap = { ...out.raceMap, [d]: id };
+    }
+  }
   if (isTrickMap(blob.trickMap)) out.trickMap = blob.trickMap;
   if (typeof blob.hud === "boolean") out.hud = blob.hud;
   if (typeof blob.developer === "boolean") out.developer = blob.developer;

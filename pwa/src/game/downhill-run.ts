@@ -10,13 +10,14 @@
 // whichever of the two the run on the snow is (`trainingOf`, read in
 // `recipeOf`), so a restart never drops a racer back into training.
 //
-// THE TRAP: the player's speed through it and the field's — the fastest
+// THE TRAP — a downhill's, and a super-G's (R33), which has one too: the
+// player's speed through it and the field's — the fastest
 // of the racers already down, and where his stands among theirs. The
 // field's are the engine's own (`FieldRun.trap`, dealt about par's).
 //
 // DOM-free and storage-free: `tests/downhill_hud_test.ts` reads it.
 
-import type { Field, FieldRun, GameState } from "@engine";
+import { speedCourseOf, type Field, type FieldRun, type GameState } from "@engine";
 
 /** Whether the run on the snow is a downhill's training run. */
 export function isTraining(state: GameState): boolean {
@@ -44,7 +45,7 @@ export type TrapReading = { speed: number | null; best: number | null; rank: num
 
 export function trapOf(state: GameState): TrapReading | null {
   const f = state.field;
-  if (!state.level.downhill || !f) return null;
+  if (!speedCourseOf(state.level) || !f) return null;
   const mine = state.progress.trap;
   const theirs = downAlready(f, state.progress.finished)
     .map((r) => r.trap)

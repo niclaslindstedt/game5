@@ -51,10 +51,11 @@ export type SimOptions = {
   poles?: boolean;
   /** RACE A DISCIPLINE (`MODE_RULES`): the seed's map with its course set
    * over it — a slalom's stretch (R31), a downhill's whole piste on the ski
-   * area's biggest course (R32) — skied out of the start house under the
+   * area's biggest course (R32), a super-G down the same from its lowered
+   * start (R33) — skied out of the start house under the
    * strict gates, against the field's board. The open rules when left out.
    * Ignored with `tricks`. */
-  mode?: Extract<GameMode, "slalom" | "downhill">;
+  mode?: Extract<GameMode, "slalom" | "downhill" | "superG">;
 };
 
 export type RunReport = {
@@ -95,7 +96,7 @@ export type RunReport = {
   /** OUT OF THE RACE under the strict gates (a discipline's run): how —
    * `dsq` or `dnf` and why — or null. */
   out: string | null;
-  /** His speed through a downhill's speed trap (R32), m/s, or null. */
+  /** His speed through a speed course's trap (R32, R33), m/s, or null. */
   trap: number | null;
   /** Where the bot finished against the field (1 on a solo run). */
   place: number;

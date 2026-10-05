@@ -2663,56 +2663,6 @@ canvas {
   gap: 0.5rem;
 }
 
-/* THE RACES: half the card's width each, side by side — the mark beside the
-   words, as the wide tiles are, smaller. */
-.menu-tile.menu-tile-race {
-  flex-direction: row;
-  justify-content: flex-start;
-  gap: 0.6rem;
-  min-height: 0;
-  padding: 0.55rem 0.8rem;
-  text-align: left;
-}
-
-.menu-tile-race .menu-glyph {
-  flex: none;
-  width: 2em;
-  height: 2em;
-}
-
-.menu-tile-race .menu-tile-name {
-  font-size: 1.1em;
-}
-
-/* The disciplines still to come, on a line under the races. */
-.menu-tiles-soon {
-  grid-column: 1 / -1;
-  margin: -0.25rem 0 -0.1rem;
-  font-size: 0.6em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-transform: uppercase;
-  color: rgb(255 255 255 / 50%);
-}
-
-/* On a phone held upright half the card is too narrow for the mark AND the
-   longer name: the mark goes, and the letters close up. */
-@media (max-width: 30rem) {
-  .menu-tile.menu-tile-race {
-    padding: 0.55rem 0.7rem;
-  }
-
-  .menu-tile-race .menu-glyph {
-    display: none;
-  }
-
-  .menu-tile-race .menu-tile-name,
-  .menu-tile-race .menu-tile-line {
-    letter-spacing: 0.06em;
-  }
-}
-
 /* One tile. `position: relative` so RACE's hold fill has something to be
    clipped by, and `overflow: hidden` so the fill wears the tile's own rounded
    corners rather than squaring them off.

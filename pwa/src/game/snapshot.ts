@@ -21,6 +21,7 @@ import {
   racePlace,
   DOWNHILL,
   SLALOM,
+  SUPER_G,
   trenched,
   type GameState,
   type Level,
@@ -85,14 +86,14 @@ export type Standing = {
   waiting?: boolean;
 };
 
-/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's or a
- * downhill's — null on any other run. */
+/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's, a
+ * downhill's or a super-G's — null on any other run. */
 export type RaceHud = {
   /** Which discipline, and — on a downhill — whether this is its TRAINING
    * run (`downhill-run.ts`), which counts for nothing. */
-  discipline: "slalom" | "downhill";
+  discipline: "slalom" | "downhill" | "superG";
   training: boolean;
-  /** Which run of how many (R31; a downhill is one). */
+  /** Which run of how many (R31; a downhill and a super-G are one). */
   run: 1 | 2;
   runs: number;
   /** THE STARTER'S WORD, small at the top while the start clock in the
@@ -109,7 +110,7 @@ export type RaceHud = {
   /** WHAT THE PLATE OFFERS NEXT — a slalom's SECOND RUN, or why not; a
    * downhill's RACE after its training — null on any other plate. */
   second: SecondRun | null;
-  /** A DOWNHILL'S SPEED TRAP (R32, `trapOf`): his speed through it and the
+  /** A SPEED COURSE'S TRAP (R32, R33, `trapOf`): his speed through it and the
    * field's best, km/h, and his place among them — null off a course with
    * one. `trapFresh` while it has just been taken (`TIMING_HOLD`). */
   trap: TrapReading | null;
@@ -357,7 +358,11 @@ export function raceOf(state: GameState): RaceHud | null {
   const f = state.field;
   if (!f) return null;
   const p = state.progress;
-  const downhill = state.level.downhill !== undefined;
+  const discipline: RaceHud["discipline"] = state.level.downhill
+    ? "downhill"
+    : state.level.superG
+      ? "superG"
+      : "slalom";
   const word =
     state.phase === "countdown"
       ? "ready"
@@ -365,10 +370,15 @@ export function raceOf(state: GameState): RaceHud | null {
         ? "go"
         : null;
   return {
-    discipline: downhill ? "downhill" : "slalom",
+    discipline,
     training: f.training,
     run: f.run,
-    runs: downhill ? DOWNHILL.runs : SLALOM.runs,
+    runs:
+      discipline === "downhill"
+        ? DOWNHILL.runs
+        : discipline === "superG"
+          ? SUPER_G.runs
+          : SLALOM.runs,
     word,
     timing: timingSplit(state),
     before: f.before,

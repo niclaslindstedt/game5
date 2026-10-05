@@ -18,6 +18,7 @@ import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
+import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
@@ -74,6 +75,7 @@ export const STRINGS = {
   /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
   ...SLALOM_STRINGS,
   ...DOWNHILL_STRINGS,
+  ...SUPER_G_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -259,12 +261,9 @@ export const STRINGS = {
   splashPress: "PRESS ANY KEY TO START",
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
-  menuRace: "SLALOM",
-  /** A race tile's map line where a link pinned a seed, and its format. */
+  /** A race's map line where a link pinned a seed. */
   menuRaceSeed: (seed: number): string => `SEED ${seed}`,
-  menuRaceFormat: (skiers: number): string => `TWO RUNS · ${skiers}`,
-  /** THE DISCIPLINES the game names and has not built yet, on SLALOM. */
-  menuComing: (names: readonly string[]): string => `COMING · ${names.join(" · ")}`,
+  /** THE DISCIPLINES the game names, by their id. */
   disciplines: {
     slalom: "SLALOM",
     giantSlalom: "GIANT SLALOM",
@@ -273,7 +272,6 @@ export const STRINGS = {
     skiCross: "SKI CROSS",
     speedSki: "SPEED SKIING",
   },
-  menuRacePinned: "PINNED BY THE LINK",
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",
   /* ── THE TRICKS RUN (menu-main.tsx, hud-combo.tsx, hud-result.tsx) ── */

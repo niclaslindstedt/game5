@@ -21,11 +21,16 @@
 // racer's clean run, and the bot one of the field).
 
 import { trackPointAt } from "../mapgen/index.ts";
-import type { Level, TrackPoint } from "../mapgen/types.ts";
-import { DOWNHILL, SLALOM } from "./defs/modes.ts";
+import type { Level, SpeedCourse, TrackPoint } from "../mapgen/types.ts";
+import { DOWNHILL, SLALOM, SUPER_G } from "./defs/modes.ts";
 import { skisById, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { DOWNHILL_TECHNIQUE, SLALOM_TECHNIQUE } from "./defs/technique.ts";
+import {
+  DOWNHILL_TECHNIQUE,
+  SLALOM_TECHNIQUE,
+  SUPER_G_TECHNIQUE,
+  type Technique,
+} from "./defs/technique.ts";
 import { lineBendAt } from "./course.ts";
 import { brakeDecel, carveSpeedOf, cutGrip } from "./limits.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "./race-line.ts";
@@ -148,7 +153,22 @@ export const DOWNHILL_PAR = {
   trap: 0.97,
 } as const;
 
+/** THE SUPER-G'S PAR NUMBERS (R33): the downhill's way of reading a
+ * speed course, its time and trap shares the bot's own super-G's over seeds
+ * 1–16 (`make sim ARGS="--mode superG --skis eagle --count 16"`): its time
+ * within −5 … +10 % of the profile's on every seed it finished and 1.03 of
+ * it on the mean — the gates' swing the profile reads as the line's bend
+ * and no more — its trap speed the profile's within a few per cent. */
+export const SUPER_G_PAR = {
+  ...DOWNHILL_PAR,
+  scale: 1.03,
+  trap: 0.97,
+} as const;
+
+type SpeedParRule = typeof DOWNHILL_PAR | typeof SUPER_G_PAR;
+
 const downhillPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
+const superGPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
 const qa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
 /** THE PAR of `level`'s downhill on `spec` (R32): the speed down the
@@ -163,16 +183,33 @@ const qa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
  * none. */
 export function downhillPar(level: Level, spec: SkiSpec): Par | null {
   const dh = level.downhill;
-  if (!dh) return null;
-  let bySpec = downhillPars.get(level);
+  return dh ? speedPar(level, dh, spec, DOWNHILL_TECHNIQUE, DOWNHILL_PAR, downhillPars) : null;
+}
+
+/** THE PAR of `level`'s super-G on `spec` (R33): the downhill's forward
+ * reckoning (`downhillPar`) down the super-G's swung line, under the
+ * super-G racer's technique. A map with no super-G has none. */
+export function superGPar(level: Level, spec: SkiSpec): Par | null {
+  const sg = level.superG;
+  return sg ? speedPar(level, sg, spec, SUPER_G_TECHNIQUE, SUPER_G_PAR, superGPars) : null;
+}
+
+/** A speed course's par, worked out once a map and pair. */
+function speedPar(
+  level: Level,
+  dh: SpeedCourse,
+  spec: SkiSpec,
+  T: Technique,
+  P: SpeedParRule,
+  pars: WeakMap<Level, WeakMap<SkiSpec, Par>>,
+): Par {
+  let bySpec = pars.get(level);
   if (!bySpec) {
     bySpec = new WeakMap();
-    downhillPars.set(level, bySpec);
+    pars.set(level, bySpec);
   }
   const known = bySpec.get(spec);
   if (known) return known;
-  const P = DOWNHILL_PAR;
-  const T = DOWNHILL_TECHNIQUE;
   const ds = P.step;
   const n = Math.max(2, Math.ceil((dh.to - dh.from) / ds) + 1);
   const cap = new Float64Array(n);
@@ -240,9 +277,11 @@ export function downhillPar(level: Level, spec: SkiSpec): Par | null {
   return par;
 }
 
-/** THE PAR OF THE RACE SET ON `level` — a slalom's or a downhill's — on
- * the pair its field races on; null on a map with no course set. */
+/** THE PAR OF THE RACE SET ON `level` — a slalom's, a downhill's or a
+ * super-G's — on the pair its field races on; null on a map with no course
+ * set. */
 export function raceParOf(level: Level): Par | null {
   if (level.downhill) return downhillPar(level, skisById(DOWNHILL.skis));
+  if (level.superG) return superGPar(level, skisById(SUPER_G.skis));
   return slalomPar(level, skisById(SLALOM.skis));
 }

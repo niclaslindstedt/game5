@@ -1,7 +1,14 @@
 # Race maps — every discipline's own pinned maps
 
-**Decided, not built.** Delete this file once every built discipline carries
-its nine maps and the standing docs say so (see `README.md`). A discipline
+**Built for the super-G; the slalom and the downhill still ride the
+campaign's maps.** `pwa/src/game/race-maps.ts` (`RACE_MAPS`, `raceMapsFor`,
+`findRaceMap`), the pick per discipline (`Settings.raceMap`, `chosenFor`),
+the level card's page of nine, `make rate RACE=…`, `make routes` over them
+and `tests/race_maps_test.ts` are in; the super-G's nine are pinned. A
+discipline with no rows keeps the campaign's maps, so the slalom's and the
+downhill's nine can land one discipline at a time. Delete this file once
+every built discipline carries its nine, the pause card's line is in, and
+the standing docs say so (see `README.md`). A discipline
 built after that (the super-G, the giant slalom, the ski cross, speed
 skiing) carries its own nine as part of being built — its spec says so, and
 the shape below is what it fills in.
@@ -166,19 +173,19 @@ the PR.
 
 ## To do
 
-- [ ] `race-maps.ts`: the type, the table, `raceMapFor`, `isRaceMap`,
-      `buildRaceMap`, `raceGameOptions` (the trick maps' set of helpers).
+- [x] `race-maps.ts`: the table and its finders — rows in the campaign's
+      own shape (`CampaignLevel`), so `buildCampaignLevel` and the pinned
+      run's helpers serve them unchanged.
+- [x] Curate the SUPER-G's nine.
 - [ ] Curate the SLALOM's nine (sweep, shortlist, look, rate, write rows).
 - [ ] Curate the DOWNHILL's nine.
-- [ ] `pinnedFor` / `pinnedPress` / `frontDoorPins` / `isPinnedMap` read
-      `RACE_MAPS` for a discipline; `fitsMode` stays the campaign's and the
-      time trial's.
-- [ ] `Settings.raceMap` and its merge; the app's pick handler.
-- [ ] The level card's discipline page.
+- [x] `pinnedFor` / `pinnedPress` / `frontDoorPins` read `RACE_MAPS` for a
+      discipline (`raceMapsFor`, `chosenFor`).
+- [x] `Settings.raceMap` and its merge; the app's pick handler.
+- [x] The level card's discipline page.
 - [ ] The pause card's map line.
-- [ ] `make rate RACE=…`, `make routes` over the race maps.
-- [ ] `tests/race_maps_test.ts`; the campaign, settings and level-card
-      tests adjusted.
+- [x] `make rate RACE=…`, `make routes` over the race maps.
+- [x] `tests/race_maps_test.ts`.
 - [ ] Docs: `docs/getting-started.md` (the level card, the pause card),
       `docs/configuration.md` (`Settings.raceMap`), `AGENTS.md` (the
       router's rows: where it lives, what is stated once — *which map a

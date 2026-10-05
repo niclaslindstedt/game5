@@ -421,10 +421,10 @@ describe("which map a run is on", () => {
 
   it("bills the front door off the board and the chosen map", () => {
     const pick = THIRD.levels[3];
-    const pins = frontDoorPins(EMPTY_PROGRESS, pick.id, null);
+    const pins = frontDoorPins(EMPTY_PROGRESS, { level: pick.id, raceMap: {} }, null);
     expect(pins.campaign).toEqual({ cleared: 0, of: 24, next: FIRST.levels[0].name });
     expect(pins.raceMap).toBe(pick.name);
-    expect(frontDoorPins(EMPTY_PROGRESS, null, 7).raceMap).toBeNull();
+    expect(frontDoorPins(EMPTY_PROGRESS, { level: null, raceMap: {} }, 7).raceMap).toBeNull();
   });
 
   it("keeps the level card's pick between visits, and only a map this ladder has", () => {

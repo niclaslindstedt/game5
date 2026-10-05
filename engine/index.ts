@@ -87,13 +87,16 @@ export {
   DOWNHILL,
   downhillRules,
   DISCIPLINES,
+  JURY,
   timeTrialRules,
   tricksRules,
   type Assist,
   type Discipline,
   type GameMode,
+  type Jury,
   type RunRules,
 } from "./game/defs/modes.ts";
+export { juryDay, startGustOf } from "./game/jury.ts";
 export {
   DOWNHILL_TECHNIQUE,
   FREE,
@@ -404,6 +407,7 @@ export { placeRun, type RunMoment } from "./game/place.ts";
 export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
 export {
   BODY_HEIGHT,
+  GUST_PEAK,
   airAt,
   airflowAt,
   downhillFrom,

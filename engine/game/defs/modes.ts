@@ -83,6 +83,52 @@ export type RunRules = {
    * a slalom, the downhiller's on a downhill; left out, the free skier's —
    * the shared model as it is. */
   technique?: TechniqueId;
+  /** THE JURY'S WEATHER (`jury.ts`): the most wind and the heaviest fall
+   * the race is run in. A race's jury holds, lowers or calls off a start
+   * the weather makes unsafe or unfair, so a race is only ever run on a
+   * day inside its discipline's `JURY` row; left out, the run is skied in
+   * whatever the sky deals. */
+  jury?: Jury;
+};
+
+/** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,
+ * stated at the course's START, where the jury's anemometer stands. */
+export type Jury = {
+  /** The strongest GUST, m/s at the standard 10 m over the start, the race
+   * is run in: a mean wind whose gusts would pass it is a race held for a
+   * calmer hour, and the race is skied in that calmer wind. */
+  wind: number;
+  /** The heaviest fall it is run in (`Weather.snowfall`, 0..1): past it the
+   * course is unfit to race on — a speed race is not run in a blizzard. */
+  fall: number;
+};
+
+/** THE JURY, discipline by discipline. The alpine rule book sets NO wind
+ * speed: the jury interrupts, lowers the start or calls the race off when
+ * the weather makes it unsafe or unfair (the international rules' jury
+ * powers and their interruption and termination articles), and lists heavy
+ * snowfall and storm among what makes a downhill course unfit on the day.
+ * What it does in practice is on the record: top-level speed races have
+ * been held, their starts lowered and then called off at gusts of some
+ * 65–72 km/h at the top, so the game's jury runs a SPEED race (the
+ * downhill, the super-G, the ski cross over its jumps) in gusts under
+ * 50 km/h, and a TECHNICAL one (the slalom, the giant slalom — slower,
+ * barely off the snow) under 60 km/h. SPEED SKIING is the one discipline
+ * with a number in its rules: a run is stopped at 15 km/h of wind at the
+ * timing zone (10 km/h where the expected speed is 200 km/h and more, 20
+ * km/h for a steady wind straight down the track) — its strictest reading
+ * is its row. A slalom is raced in falling snow (its rules have the course
+ * crew pack or clear what falls during the race); a speed race is not run
+ * in a storm, so its heaviest fall is the top of a steady fall's band
+ * (R19's `snow`), and a speed-skiing run, whose racers must see the track
+ * to its end, no more than flurries. */
+export const JURY: Readonly<Record<Discipline, Jury>> = {
+  slalom: { wind: 60 / 3.6, fall: 1 },
+  giantSlalom: { wind: 60 / 3.6, fall: 1 },
+  superG: { wind: 50 / 3.6, fall: 0.75 },
+  downhill: { wind: 50 / 3.6, fall: 0.75 },
+  skiCross: { wind: 50 / 3.6, fall: 0.75 },
+  speedSki: { wind: 10 / 3.6, fall: 0.3 },
 };
 
 /** HOW MUCH HELP THE SKIER IS GIVEN — the arcade's two hands on him, each
@@ -191,6 +237,7 @@ export function slalomRules(laps: number): RunRules {
     gates: "strict",
     window: SLALOM.window,
     technique: "slalom",
+    jury: JURY.slalom,
   };
 }
 
@@ -229,6 +276,7 @@ export function downhillRules(laps: number): RunRules {
     gates: "strict",
     window: DOWNHILL.window,
     technique: "downhill",
+    jury: JURY.downhill,
   };
 }
 

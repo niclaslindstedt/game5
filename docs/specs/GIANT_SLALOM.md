@@ -83,6 +83,10 @@ in reverse order of the first's best, the combined time ranked.
       gates, both runs.
 - [ ] **Mode and rules**: `GameMode` row, `RunRules` (interval start,
       strict gates, start window), the pair it is skied on.
+- [ ] **The jury's weather**: `jury: JURY.giantSlalom` in its `RunRules` — the
+      row is already in `defs/modes.ts` (60 km/h of gust at the start, raced
+      in any fall); `createGame` eases the map to it (`jury.ts`'s `juryDay`).
+      The research is `docs/disciplines.md` § *The jury's weather*.
 - [ ] **Technique row**: the edge roll rate, the edge angle used, long-radius
       bias, carve-over-skid, the transition, the stance — off research.
 - [ ] **Bot**: skis the giant slalom line at race pace; finishes every seed

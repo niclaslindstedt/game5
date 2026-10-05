@@ -49,6 +49,7 @@ import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshHeli, startAgain } from "./heli.ts";
+import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
@@ -178,6 +179,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     gates: base.gates,
     window: base.window,
     technique: options.technique ?? base.technique,
+    jury: base.jury,
   };
 }
 
@@ -216,9 +218,12 @@ export function createGame(options: CreateGameOptions = {}): GameState {
         ? setDownhill(built)
         : original;
   const dayed = options.day ? withDay(course, options.day) : course;
-  const level = options.sky ? withSky(dayed, options.sky) : dayed;
+  const skied = options.sky ? withSky(dayed, options.sky) : dayed;
+  const rules = rulesFor(options, skied);
+  // A RACE is run only in the weather its jury allows (`jury.ts`) — a sky
+  // picked by hand included.
+  const level = rules.jury ? juryDay(skied, rules.jury) : skied;
   const seed = options.seed ?? level.seed;
-  const rules = rulesFor(options, level);
   const state: GameState = {
     seed,
     rng: createRng(seed),

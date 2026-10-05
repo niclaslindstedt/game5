@@ -26,6 +26,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { swingLegs, type LegSwing } from "./skier-dangle.ts";
+import { boardPose, type Board } from "./skier-sled.ts";
 import { solveLimb } from "./skier-limbs.ts";
 import type { Mounts } from "./skier-mounts.ts";
 import type { V3 } from "./skier-vec.ts";
@@ -39,7 +40,14 @@ export const CHAIR_BACK = -0.335;
 /** The seat as the pose needs it: how seated he is, 0..1, the seat's top
  * in the body frame, m, and — dangling off a helicopter's skid — each
  * leg's swing (`skier-dangle.ts`). */
-export type Seat = { share: number; y: number; legs?: readonly [LegSwing, LegSwing] };
+export type Seat = {
+  share: number;
+  y: number;
+  legs?: readonly [LegSwing, LegSwing];
+  /** STOOD ON A SNOWMOBILE'S BOARDS instead (`skier-sled.ts`): no seat at
+   * all, but the trunk over the bars and the hands on the grips. */
+  board?: Board;
+};
 
 /** The hip joints over the seat's top, m — the pelvis sat on it; how far
  * ahead of the backrest's face the hips sit, m (the seat and the back of
@@ -142,6 +150,7 @@ export function seatedPose(input: SkierPoseInput, seat: Seat | null): SkierPose 
   const p = skierPose(input);
   if (!seat || seat.share <= 0) return p;
   const M = input.mounts ?? MOUNTS;
+  if (seat.board) return boardPose(p, seat.board, M, seat.share);
   const sat = seatPose(p, seat, M);
   return seat.legs ? swingLegs(sat, seat.legs, M).pose : sat;
 }

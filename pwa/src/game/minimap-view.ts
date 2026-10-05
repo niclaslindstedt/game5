@@ -146,6 +146,9 @@ export type HudMinimap = {
   /** THE HELICOPTER (`heli.ts`) on a free ride: where it is and where its
    * pad stands, world metres; null on a run with none. */
   heli: { x: number; z: number; pad: { x: number; z: number } } | null;
+  /** THE SNOWMOBILE (`sled.ts`) on a free ride, where it was left — null
+   * while he rides it (he is the dot) and on a run with none. */
+  sled: { x: number; z: number } | null;
 };
 
 /** The zoom where it has got to, and the turn: frame state keyed by the map
@@ -334,5 +337,6 @@ export function buildMinimap(state: GameState): HudMinimap {
     dot: DOT / scale,
     chevron: chevronFor(state, pose),
     heli: state.heli ? { x: state.heli.x, z: state.heli.z, pad: helipadOf(level) } : null,
+    sled: state.sled && !state.sled.rider ? { x: state.sled.x, z: state.sled.z } : null,
   };
 }

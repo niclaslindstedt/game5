@@ -243,8 +243,9 @@ export type TouchChannel = {
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
   /** A DOUBLE TAP on either thumb's zone, set on the second touch and kept
-   * until a step has taken it — what pushes the skier off the helicopter's
-   * skid. */
+   * until a step has taken it — the MACHINE press on touch
+   * (`SkierInput.machine`): on to the snowmobile or the helicopter beside
+   * him, or off the one he rides. */
   tap2: boolean;
   /** THE CYCLIC STICK, the edge thumb's glass while he flies the
    * helicopter (`hud-heli-pad.tsx`'s `StickZone`, `role="cyclic"`): −1..1
@@ -409,7 +410,7 @@ export function sampleInput(
     reset,
     trick: keys.trick,
     carve: back === "carve",
-    jump: keys.jump || (touch.lever && touch.jump) || (flying && touch.tap2),
+    jump: keys.jump || (touch.lever && touch.jump),
   });
 }
 
@@ -425,7 +426,6 @@ export type HeliKeysHeld = {
   cyclicRight: boolean;
   pedalLeft: boolean;
   pedalRight: boolean;
-  jump: boolean;
 };
 
 export const NO_HELI_KEYS: HeliKeysHeld = {
@@ -437,7 +437,6 @@ export const NO_HELI_KEYS: HeliKeysHeld = {
   cyclicRight: false,
   pedalLeft: false,
   pedalRight: false,
-  jump: false,
 };
 
 /** THE COLLECTIVE'S TRAVEL, shares of the lever a second: a key held moves

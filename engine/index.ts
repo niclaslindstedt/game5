@@ -208,6 +208,11 @@ export {
   type HeliMode,
   type HeliPhaseEvent,
   type HeliState,
+  type SledContact,
+  type SledControls,
+  type SledMode,
+  type SledPhaseEvent,
+  type SledState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -351,6 +356,7 @@ export {
   HANG_GROUND,
   freshHeli,
   heliPoint,
+  heliWithin,
   heliQuat,
   seatHang,
   startAgain,
@@ -361,6 +367,32 @@ export { pilotControls, pilotInput, type HeliAim } from "./game/heli-pilot.ts";
 export { discQuat, heliMass, ROTOR_AREA, SEAT as HELI_SEAT } from "./game/heli-rotor.ts";
 export { helipadOf, type Helipad } from "./game/heli-pad.ts";
 export { inducedOf, washAt, type Wash } from "./game/heli-wash.ts";
+export {
+  SLED,
+  SLED_PROBES,
+  sledInertia,
+  sledMass,
+  type SledProbe,
+  type SledSuspension,
+} from "./game/defs/sled.ts";
+export {
+  freshSled,
+  riderFrame,
+  sledControls,
+  sledWithin,
+  standSled,
+  startSled,
+  stepSled,
+} from "./game/sled.ts";
+export { deriveSled, rideSled, sledLockAt } from "./game/sled-body.ts";
+export {
+  driveForce as sledDriveForce,
+  maxDriveForce as sledMaxDrive,
+  powerShare as sledPowerShare,
+  rpmGoal as sledRpmGoal,
+} from "./game/sled-drive.ts";
+export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
+export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

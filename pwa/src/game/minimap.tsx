@@ -173,6 +173,8 @@ const PAINT = {
   lift: "#1d2126",
   /** The helicopter and its pad: the pad's painted yellow. */
   heli: "#f2c418",
+  /** The snowmobile left somewhere: a square in its own orange. */
+  sled: "#ff7a1a",
   liftWidth: 0.8,
   tunnelWidth: 2.6,
   arrow: "#ffffff",
@@ -340,6 +342,15 @@ function paint(
     ctx.beginPath();
     ctx.arc(map.heli.x, map.heli.z, map.dot * 0.9, 0, Math.PI * 2);
     ctx.fill();
+  }
+  // THE SNOWMOBILE where it was left: a square, edged so it reads on snow.
+  if (map.sled) {
+    const r = map.dot * 1.1;
+    ctx.fillStyle = PAINT.sled;
+    ctx.strokeStyle = hud.plate(PAINT.rivalEdgeAlpha);
+    ctx.lineWidth = PAINT.liftWidth * css;
+    ctx.fillRect(map.sled.x - r, map.sled.z - r, 2 * r, 2 * r);
+    ctx.strokeRect(map.sled.x - r, map.sled.z - r, 2 * r, 2 * r);
   }
 
   ctx.strokeStyle = hud.plate(PAINT.rivalEdgeAlpha);

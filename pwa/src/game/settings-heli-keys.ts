@@ -15,9 +15,10 @@
 //            arrows;
 //   ↑ ↓      the COLLECTIVE up and down — and SHIFT and Z beside the left
 //            hand. A LEVER, not a spring: it moves while the key is held
-//            and stays where it is let go;
-//   SPACE    the JUMP: off the skid, or off onto the snow where it has
-//            landed.
+//            and stays where it is let go.
+// Off the skid — or off onto the snow where it has landed — is the skier's
+// own MACHINE key (ENTER, `settings-input.ts`), the press that sat him on
+// it, so it has no row here.
 // Never Ctrl, which beside W closes the tab.
 
 import type { HeliKeysHeld } from "./input-model.ts";
@@ -37,7 +38,6 @@ export const HELI_KEY_ACTIONS: readonly { id: HeliAction; label: string }[] = [
   { id: "cyclicRight", label: STRINGS.keyCyclicRight },
   { id: "pedalLeft", label: STRINGS.keyPedalLeft },
   { id: "pedalRight", label: STRINGS.keyPedalRight },
-  { id: "jump", label: STRINGS.keyHeliJump },
 ];
 
 export const DEFAULT_HELI_KEYS: HeliBindings = {
@@ -49,7 +49,6 @@ export const DEFAULT_HELI_KEYS: HeliBindings = {
   cyclicRight: ["KeyD"],
   pedalLeft: ["KeyQ", "ArrowLeft"],
   pedalRight: ["KeyE", "ArrowRight"],
-  jump: ["Space"],
 };
 
 /** The shipped bindings as lists nothing else shares. */

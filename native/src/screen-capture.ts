@@ -2,7 +2,7 @@
 // THE PHONE'S OWN SHUTTER, HEARD — the effect half of the screenshot bridge,
 // and the only file in the shell that touches expo-screen-capture.
 //
-// The website owns the feature, as always: ENTER (or the pause card's TAKE
+// The website owns the feature, as always: P (or the pause card's TAKE
 // PICTURE) takes the picture, composites the HUD into it, stamps the mark and
 // files it in the gallery (pwa/src/game/screenshots.ts). What a phone adds is a SECOND shutter — the
 // hardware's, two buttons on the side — which fires without the page ever

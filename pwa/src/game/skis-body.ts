@@ -79,6 +79,7 @@ import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 import { CHAIR_SEAT, seatedPose, type Seat } from "./skier-seat.ts";
+import type { Board } from "./skier-sled.ts";
 import {
   createDangle,
   resetDangle,
@@ -164,6 +165,11 @@ export type SkisModel = {
    * frame and what his dangling legs feel there (`skier-dangle.ts`), or
    * null off it — read at the next pose. */
   setPerch(perch: Perch | null): void;
+  /** STOOD ON A SNOWMOBILE'S BOARDS (`sled.ts`): his skis and poles on its
+   * rack — the pair drawn as his boots alone — his boots on the boards and
+   * his hands on the grips (`skier-sled.ts`), or null off it — read at the
+   * next pose. */
+  setSled(sled: SledStand | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -186,6 +192,11 @@ export type SkisModel = {
   poseSkier(input: SkierPoseInput): void;
   dispose(): void;
 };
+
+/** THE SKIER ON A SNOWMOBILE as his model is handed it: where each boot
+ * stands on the boards, across off half his stance and forward, m (his
+ * body frame), and the grips and his lean (`Board`). */
+export type SledStand = { out: [number, number]; fore: number; board: Board };
 
 /** The mounts a pair carries its skier on (`skier-pose.ts`): its stance
  * and centre of gravity, its boots' cuff over the snow, its poles. */
@@ -441,6 +452,28 @@ export function createSkisModel(
     });
   }
   merged.update();
+  // THE PAIR RACKED (on a snowmobile, `setSled`): every part of the skis
+  // that is not a boot — the skis, the bindings, the plates — hidden, the
+  // code's (out of the merged draw) or the model's (each material its own
+  // mesh), so he stands on the boards in his boots.
+  const skiParts: THREE.Mesh[] = [];
+  if (models?.skis) {
+    for (const m of models.meshes) {
+      const named = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => x.name);
+      if (!named.includes("boot")) skiParts.push(m);
+    }
+  } else {
+    for (const g of gear.skis) {
+      g.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.material !== boot) skiParts.push(o);
+      });
+    }
+  }
+  const rack = (on: boolean): void => {
+    if (on === racked) return;
+    racked = on;
+    for (const m of skiParts) m.visible = !on;
+  };
   // Hung after the merge, so it stays out of the one draw: a lamp of its
   // own, on whichever helmet he wears.
   const lamp = buildHeadlamp(figure.head, mat, (g) => {
@@ -480,6 +513,10 @@ export function createSkisModel(
   // The helicopter's skid he is sat on, if any (`setPerch`), and his legs
   // dangling off it (`skier-dangle.ts`).
   let perch: Perch | null = null;
+  // The snowmobile's boards he stands on, if any (`setSled`), and whether
+  // his pair is drawn racked — his boots alone.
+  let sled: SledStand | null = null;
+  let racked = false;
   let lastPerch: number | null = null;
   const dangle = createDangle();
   // Whether his legs' spring has been set back to rest since he was thrown.
@@ -532,6 +569,8 @@ export function createSkisModel(
       // times the sine of the inclination.
       // Hanging off a skid the skis are neither pivoted nor edged.
       const hung = perch !== null && !off;
+      const boarded = sled !== null && !off;
+      rack(boarded);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off ? 0 : groundOf(skier, legs);
       standOf(skier, ground, stand, inclineAt(skier, at.q), angle);
@@ -547,6 +586,13 @@ export function createSkisModel(
       // never on the skid, where his legs hang.
       const riding = run && !hung ? ridingOf(run, skier) : undefined;
       if (riding) widenStand(stand, riding.style.stance, angle, skier.skid, skier.speed);
+      // ON THE BOARDS: a boot on each, wherever his weight has moved him.
+      if (boarded) {
+        for (let i = 0; i < 2; i++) {
+          stand.out[i] += sled!.out[i];
+          stand.fore[i] += sled!.fore;
+        }
+      }
       pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
@@ -597,7 +643,11 @@ export function createSkisModel(
         const seatY = perch?.y ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
         if (perch !== null) lastPerch = perch.y;
         else if (sat) lastPerch = null;
-        const seat: Seat | null = seated > 0 ? { share: seated, y: seatY } : null;
+        const seat: Seat | null = boarded
+          ? { share: 1, y: 0, board: sled!.board }
+          : seated > 0
+            ? { share: seated, y: seatY }
+            : null;
         if (hung && seat) {
           // HIS LEGS DANGLING off the skid (`skier-dangle.ts`), swung by the
           // machine, the air and himself — the figure's lower legs turned
@@ -662,6 +712,9 @@ export function createSkisModel(
     },
     setGround(ground, gravity) {
       fall = ground ? { ground, gravity } : null;
+    },
+    setSled(s) {
+      sled = s;
     },
     setPerch(p) {
       perch = p;

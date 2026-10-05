@@ -39,7 +39,7 @@ const args = parseArgs(
     kind: {
       kind: "string",
       default: "all",
-      help: "publish only this kind (skis, heli) — the other's files and stamp are kept",
+      help: "publish only this kind (skis, heli, sled) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -47,7 +47,7 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|sled] [--from=previews/blender]",
 );
 
 const out = join(root, MODELS_DIR);
@@ -66,7 +66,7 @@ if (args.check) {
 }
 
 /** Which stamp a kind is (`MODEL_HALVES`): the skis' predates the split. */
-const HALF_OF = { skis: "sources", heli: "heli" };
+const HALF_OF = { skis: "sources", heli: "heli", sled: "sled" };
 if (args.kind !== "all" && !HALF_OF[args.kind]) {
   console.error(`unknown kind "${args.kind}" (all, ${Object.keys(HALF_OF).join(", ")})`);
   process.exit(2);

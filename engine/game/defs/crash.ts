@@ -126,6 +126,8 @@ export const CRASH = {
     // Flung off a crashing helicopter's skid by the blast: head over heels
     // and over onto a side, and up.
     heli: { pitch: 0.8, side: 0.6, up: 3 },
+    // Thrown off a snowmobile: over the bars and off the side.
+    sled: { pitch: 0.7, side: 0.7, up: 1.4 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

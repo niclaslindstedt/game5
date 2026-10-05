@@ -18,6 +18,7 @@ import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
+import { SLED_STRINGS } from "./strings-sled.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
@@ -74,6 +75,7 @@ export const STRINGS = {
   /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
   ...SLALOM_STRINGS,
   ...DOWNHILL_STRINGS,
+  ...SLED_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -181,21 +183,23 @@ export const STRINGS = {
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under. */
   newsWipeout: (
-    cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli",
+    cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled",
   ): string =>
     cause === "heli"
       ? "THROWN CLEAR!"
-      : cause === "tree"
-        ? "YARD SALE! TREE"
-        : cause === "skier"
-          ? "YARD SALE! TAKEN OUT"
-          : cause === "nose"
-            ? "OVER THE TIPS"
-            : cause === "roll"
-              ? "YARD SALE"
-              : cause === "landing"
-                ? "CRASH LANDING"
-                : "EDGE CAUGHT",
+      : cause === "sled"
+        ? "OFF THE SLED!"
+        : cause === "tree"
+          ? "YARD SALE! TREE"
+          : cause === "skier"
+            ? "YARD SALE! TAKEN OUT"
+            : cause === "nose"
+              ? "OVER THE TIPS"
+              : cause === "roll"
+                ? "YARD SALE"
+                : cause === "landing"
+                  ? "CRASH LANDING"
+                  : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** The player into one of the crowd on a free ride (`crowd.ts`): a
    * shoulder he rode through, or one that put the other skier down. */
@@ -212,12 +216,19 @@ export const STRINGS = {
   heliHeight: "DROP",
   heliMetres: (m: number): string => `${Math.round(m)} M`,
   heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
-  heliJump: (touch: boolean): string => (touch ? "DOUBLE TAP TO JUMP" : "SPACE TO JUMP"),
-  heliLanded: "LANDED — JUMP TO STEP OFF",
+  /** How to get off — the machine key (`key`, as bound), a double tap on
+   * touch: off the skid in the air, onto the snow where it has landed. */
+  heliJump: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO JUMP" : `${key} TO JUMP`,
+  heliLanded: (touch: boolean, key: string): string =>
+    `LANDED — ${touch ? "DOUBLE TAP" : key} TO STEP OFF`,
   heliCollective: "Collective",
   heliCollectiveShort: "COL",
-  heliCall: "HELICOPTER — RIDE IN BESIDE THE SKID",
+  heliCall: "HELICOPTER",
   heliPad: (m: number): string => `${Math.round(m)} M`,
+  /** Stood beside its skid: how to get on. */
+  heliTake: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO FLY" : `${key} TO FLY`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
@@ -402,7 +413,7 @@ export const STRINGS = {
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   startRun: "RUN",
   startRunHint:
-    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last stop is the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off.",
+    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last two stops are machines waiting at the bottom: the SNOWMOBILE — start stood on its boards with your skis racked, ride it anywhere on the mountain and press the jump twice to ski off — and the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off.",
   /** The RUN row's last stop: the ride begun on the helicopter (`heli.ts`). */
   startRunHeli: "HELICOPTER",
   /** A RUN row's stop: the number the piste map signs it with. */
@@ -537,12 +548,13 @@ export const STRINGS = {
   keyCyclicRight: "CYCLIC RIGHT",
   keyPedalLeft: "PEDAL LEFT",
   keyPedalRight: "PEDAL RIGHT",
-  keyHeliJump: "JUMP OFF",
   keyLeft: "LEFT",
   keyRight: "RIGHT",
   keyLeanBack: "LEAN BACK",
   keyLeanForward: "LEAN FORWARD",
   keyReset: "RESET",
+  /** On to the snowmobile or the helicopter, and off again. */
+  keyMachine: "GET ON / OFF",
   keyRestart: "RESTART",
   keyCamera: "CAMERA",
   keyPause: "PAUSE",

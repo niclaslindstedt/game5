@@ -100,6 +100,8 @@ export function createInputManager(
   indexHeli(DEFAULT_HELI_KEYS);
   const touch = neutralTouch();
   let reset = false;
+  /** THE MACHINE PRESS (ENTER), kept until a step has seen it. */
+  let machine = false;
   let onAction: (action: InputAction) => void = () => {};
 
   /** The index every keystroke is answered from: one code, the actions on
@@ -124,10 +126,9 @@ export function createInputManager(
     target.closest("button, input, select, textarea, a[href]") !== null;
 
   /** THE JUMP'S PRESS, kept until a step has seen it: a tap shorter than
-   * the gap between two steps (a slow frame, a quick finger) is still the
-   * push off the helicopter's skid, still a pop off the snow. */
+   * the gap between two steps (a slow frame, a quick finger) is still a pop
+   * off the snow. */
   let jumped = false;
-  let heliJumped = false;
 
   const onKeyDown = (e: KeyboardEvent): void => {
     // A browser shortcut on its way past is not a press on the skis.
@@ -136,7 +137,6 @@ export function createInputManager(
     for (const action of heliByCode.get(e.code) ?? []) {
       if (!claiming()) continue;
       heliKeys[action] = true;
-      if (action === "jump" && !e.repeat) heliJumped = true;
       took = true;
     }
     const actions = byCode.get(e.code);
@@ -152,12 +152,14 @@ export function createInputManager(
         took = true;
       } else if (!e.repeat) {
         // A key pressed ON A CONTROL off the race is that control's: ENTER is
-        // the shutter and also the browser's confirm, and a press taken here
-        // (and its default prevented) is the focused button never pressed.
+        // the machine key and also the browser's confirm, and a press taken
+        // here (and its default prevented) is the focused button never
+        // pressed.
         if (action !== "pause" && !claiming() && onControl(e.target)) continue;
-        if (action === "reset") {
+        if (action === "reset" || action === "machine") {
           if (!claiming()) continue;
-          reset = true;
+          if (action === "reset") reset = true;
+          else machine = true;
         } else onAction(action);
         took = true;
       }
@@ -191,15 +193,15 @@ export function createInputManager(
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
-      if (flying) {
-        // Sat on the skid the helicopter's table is the hand: its four
-        // controls, and its own jump.
-        input.heli = sampleHeli(heli, heliKeys, touch, dt);
-        input.jump = heliKeys.jump || heliJumped || touch.tap2;
-      } else heli.collective = 0;
+      // Sat on the skid the helicopter's table is the hand: its four
+      // controls.
+      if (flying) input.heli = sampleHeli(heli, heliKeys, touch, dt);
+      else heli.collective = 0;
+      // On or off a machine: ENTER, or the double tap on touch.
+      if (machine || touch.tap2) input.machine = true;
       reset = false;
+      machine = false;
       jumped = false;
-      heliJumped = false;
       touch.tap2 = false;
       return input;
     },

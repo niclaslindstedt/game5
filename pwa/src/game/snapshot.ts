@@ -22,6 +22,9 @@ import {
   regionOf,
   DOWNHILL,
   SLALOM,
+  SLED,
+  heliWithin,
+  sledWithin,
   trenched,
   type GameState,
   type Level,
@@ -220,11 +223,46 @@ export type HudSnapshot = {
   /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
    * it while it waits for him, or null. */
   heli: HudHeli | null;
+  /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
+   * while it waits for him, or null. */
+  sled: HudSled | null;
 };
+
+/** THE SNOWMOBILE as the HUD reads it: ridden — the engine's rpm as a share
+ * of its limiter, the thumb, and whether the belt is spinning in the snow —
+ * or waiting `away` m from him, `near` when he stands where the machine
+ * press takes him on (`sledWithin`). */
+export type HudSled =
+  | { kind: "ridden"; rpm: number; rev: number; throttle: number; spin: boolean }
+  | { kind: "waiting"; away: number; near: boolean };
+
+/** How near the waiting snowmobile the HUD points him at it, m. */
+const SLED_CALL = 60;
+
+/** The snowmobile's readout for the player at this step. */
+export function sledOf(state: GameState): HudSled | null {
+  const s = state.sled;
+  if (!s) return null;
+  if (s.rider) {
+    return {
+      kind: "ridden",
+      rpm: s.rpm,
+      rev: Math.min(1, s.rpm / SLED.maxRpm),
+      throttle: s.controls.throttle,
+      spin: s.slip > 4,
+    };
+  }
+  const c = state.skier;
+  const away = Math.hypot(s.x - c.x, s.z - c.z);
+  return away < SLED_CALL && c.thrown === null && !state.heli?.rider && !c.lift
+    ? { kind: "waiting", away, near: sledWithin(state) }
+    : null;
+}
 
 /** THE HELICOPTER as the HUD reads it: flown — how high its skids are over
  * the snow (the fall a jump off them is), m, and its climb, m/s — or
- * waiting on its pad `pad` m from him. */
+ * waiting on its pad `pad` m from him, `near` when he stands where the
+ * machine press sits him on its skid (`heliWithin`). */
 export type HudHeli =
   | {
       kind: "flown";
@@ -238,7 +276,7 @@ export type HudHeli =
       pitch: number;
       bank: number;
     }
-  | { kind: "waiting"; pad: number };
+  | { kind: "waiting"; pad: number; near: boolean };
 
 /** How near the waiting helicopter the HUD points him at it, m. */
 const HELI_CALL = 120;
@@ -260,8 +298,9 @@ export function heliOf(state: GameState): HudHeli | null {
   }
   const c = state.skier;
   const pad = Math.hypot(h.x - c.x, h.z - c.z);
-  return h.mode === "parked" && pad < HELI_CALL && c.thrown === null
-    ? { kind: "waiting", pad }
+  // Riding the snowmobile, the helicopter does not call him.
+  return h.mode === "parked" && pad < HELI_CALL && c.thrown === null && !state.sled?.rider
+    ? { kind: "waiting", pad, near: heliWithin(state) }
     : null;
 }
 
@@ -454,5 +493,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     region: regionOf(state.level).id,
     wind: windOf(state),
     heli: heliOf(state),
+    sled: sledOf(state),
   };
 }

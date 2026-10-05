@@ -179,6 +179,16 @@ export function heliOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === HELI_RUN;
 }
 
+/** THE RUN ROW'S OTHER VEHICLE STOP: the SNOWMOBILE parked at the bottom
+ * (`sled.ts`) — the ride begun stood on its boards, the skis racked, the
+ * engine running. A run id of its own, as the helicopter's is. */
+export const SLED_RUN = "sled";
+
+/** Whether the ride on `seed` begins on the snowmobile. */
+export function sledOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === SLED_RUN;
+}
+
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
@@ -254,7 +264,9 @@ export function freeGameOptions(
   skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
-  const spot = heli ? null : spotOn(ride, seed);
+  const sled = sledOn(ride, seed);
+  const vehicle = heli || sled;
+  const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
     spec: skier.spec,
@@ -263,9 +275,11 @@ export function freeGameOptions(
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,
-    run: heli ? undefined : (runOn(ride, seed) ?? undefined),
+    run: vehicle ? undefined : (runOn(ride, seed) ?? undefined),
     // THE HELICOPTER: sat on its skid on the pad, the rotor turning.
     heli,
+    // THE SNOWMOBILE: stood on its boards at the bottom, the engine running.
+    sled,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's
@@ -281,7 +295,7 @@ export function freeGameOptions(
     // there, never carried up a lift to the top of the run beside it. With no
     // spot it comes onto the mountain BY CHAIR (`lift-ride.ts`): up the lift
     // whose run passes nearest the start line, led off its top onto that run.
-    byLift: spot === null && !heli,
+    byLift: spot === null && !vehicle,
   };
 }
 

@@ -77,6 +77,21 @@ export type Spray = {
     size: number,
     snow?: SnowProps,
   ): void;
+  /** ONE GRAIN OR CLUMP FLUNG from a point at (vx, vy, vz) — a
+   * snowmobile's roost off its paddles (`sled-scene.ts`): living `life` s,
+   * `size` m across, `hard` 0 a grain puff … 1 a clump. Thinned by the
+   * SPRAY row's share. */
+  fling(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    life: number,
+    size: number,
+    hard: number,
+  ): void;
   update(dt: number, look: SkyLook, level: Level): void;
   /** Pixels per metre at one metre from the lens (the projection's scale). */
   setScale(pixelsPerMetre: number): void;
@@ -206,6 +221,10 @@ export function createSpray(haze: HazeUniforms): Spray {
 
   return {
     points,
+    fling(x, y, z, vx, vy, vz, lifetime, s, h) {
+      if (random() > share) return;
+      spawn(x, y, z, vx, vy, vz, lifetime, s, h);
+    },
     emit(skier, level, dt, landed, snow) {
       let owed = debt.get(skier);
       if (!owed) {

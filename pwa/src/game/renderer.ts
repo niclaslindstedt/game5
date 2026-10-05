@@ -11,7 +11,7 @@
 //   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
-//   heli-scene.ts   the free ride's helicopter, its wash and its explosion
+//   machines.ts     the free ride's helicopter and snowmobile
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
@@ -59,7 +59,7 @@ import { createLifts, type Lifts } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
-import { createHeliScene, type HeliScene } from "./heli-scene.ts";
+import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
 import { hazeMaterial } from "./haze.ts";
 import { dealLamps } from "./headlamp.ts";
@@ -298,7 +298,7 @@ export function createWorldRenderer(
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
-  let heli: HeliScene | null = null;
+  let machines: Machines | null = null;
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
@@ -381,7 +381,7 @@ export function createWorldRenderer(
     cloud?.dispose();
     wildlife?.dispose();
     crowd?.dispose();
-    heli?.dispose();
+    machines?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -392,7 +392,7 @@ export function createWorldRenderer(
       cloud?.mesh,
       wildlife?.group,
       crowd?.group,
-      heli?.group,
+      machines?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -400,7 +400,7 @@ export function createWorldRenderer(
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
-    cloud = heli = null;
+    cloud = machines = null;
     pack = null;
     wildlife = crowd = null;
     clear = undefined;
@@ -566,8 +566,6 @@ export function createWorldRenderer(
       scene.add(wildlife.group);
       crowd = createPeopleView(lv, env.haze, state.rules);
       scene.add(crowd.group);
-      heli = state.rules.heli ? createHeliScene(lv, env.haze) : null;
-      if (heli) scene.add(heli.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
@@ -576,6 +574,8 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
+      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow });
+      scene.add(machines.group);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -659,7 +659,7 @@ export function createWorldRenderer(
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
         r.model.setRun(run);
-        r.model.setPerch(i === 0 && heli ? heli.perch(state) : null);
+        if (i === 0) machines?.seat(r.model, state);
         r.model.pose(
           skier,
           r.drawn,
@@ -736,8 +736,9 @@ export function createWorldRenderer(
       } else if (death.active) {
         dropDeathCam(death);
       }
-      // THE HELICOPTER (`heli-scene.ts`): drawn, and its lens while he rides it.
-      const heliLens = heli?.frame(state, alpha, dt, d, lens.rung(), cloud, sampleSnow) ?? null;
+      // THE MACHINES (`machines.ts`), and the helicopter's lens while he rides it.
+      const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
+      const heliLens = machines?.frame(state, alpha, dt, simDt, d, lens.rung(), marks) ?? null;
       // The ladder is framed underneath either way, so a lens planted for a
       // moment hands back to a boom that is already where it should be.
       const planted =

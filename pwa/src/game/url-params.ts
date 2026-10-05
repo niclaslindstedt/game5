@@ -86,6 +86,8 @@
 //                   `?seed=` link boots into; never a campaign map.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
+//   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
+//                   bottom (`sled.ts`), over the start card's RUN row.
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -209,6 +211,8 @@ export type UrlParams = {
   grade: PisteGrade | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
+  /** A free ride begun on the snowmobile, over the card's RUN row. */
+  sled: boolean;
 };
 
 /** The sky a link names, if any. */
@@ -309,6 +313,7 @@ export function readParams(search: string): UrlParams {
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
     heli: q.get("heli") === "1",
+    sled: q.get("sled") === "1",
   };
 }
 
@@ -323,12 +328,13 @@ export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "r
   };
 }
 
-/** A free ride's options with a link's sky, region, grade and helicopter
- * laid over the card's. */
+/** A free ride's options with a link's sky, region, grade, helicopter and
+ * snowmobile laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   return {
     ...ride,
     heli: params.heli || ride.heli,
+    sled: !params.heli && (params.sled || ride.sled),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,

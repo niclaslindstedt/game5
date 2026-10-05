@@ -194,9 +194,11 @@ export type SkisModel = {
 };
 
 /** THE SKIER ON A SNOWMOBILE as his model is handed it: where each boot
- * stands on the boards, across off half his stance and forward, m (his
- * body frame), and the grips and his lean (`Board`). */
-export type SledStand = { out: [number, number]; fore: number; board: Board };
+ * stands on the boards, across off half his stance, m (his body frame),
+ * and the grips, his lean and where his weight hangs (`Board`) — his figure
+ * stood over the boards' middle, `board.hang` back from where the engine
+ * has his weight. */
+export type SledStand = { out: [number, number]; board: Board };
 
 /** The mounts a pair carries its skier on (`skier-pose.ts`): its stance
  * and centre of gravity, its boots' cuff over the snow, its poles. */
@@ -586,14 +588,13 @@ export function createSkisModel(
       // never on the skid, where his legs hang.
       const riding = run && !hung ? ridingOf(run, skier) : undefined;
       if (riding) widenStand(stand, riding.style.stance, angle, skier.skid, skier.speed);
-      // ON THE BOARDS: a boot on each, wherever his weight has moved him.
-      if (boarded) {
-        for (let i = 0; i < 2; i++) {
-          stand.out[i] += sled!.out[i];
-          stand.fore[i] += sled!.fore;
-        }
-      }
-      pivot.set(stand.pivot.x, stand.pivot.y, 0).applyQuaternion(root.quaternion);
+      // ON THE BOARDS: a boot on each, his figure stood over their middle
+      // (`skier-sled.ts` hangs his weight where the engine has it).
+      if (boarded) for (let i = 0; i < 2; i++) stand.out[i] += sled!.out[i];
+      const hang = boarded ? sled!.board.hang : null;
+      pivot
+        .set(stand.pivot.x - (hang?.x ?? 0), stand.pivot.y, -(hang?.z ?? 0))
+        .applyQuaternion(root.quaternion);
       root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
       if (off) {
         // THE SKIER THROWN (`crash.ts`): off his skis, his figure hung on

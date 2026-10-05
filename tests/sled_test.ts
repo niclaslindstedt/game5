@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import {
   NEUTRAL_INPUT,
   SLED,
+  clipCrowd,
   createGame,
   helipadOf,
   sledDriveForce,
@@ -235,6 +236,43 @@ describe("riding it", () => {
     step(s, ask({ reset: true }));
     ride(s, 0.5, ask());
     expect(s.skier.thrown).toBe(null);
+    expect(s.sled!.rider).toBe(true);
+  });
+
+  it("is left by a rider an amateur throws off it, and he is stood back on it", () => {
+    const lv = levelFor(38);
+    const s = createGame({ level: lv, mode: "free", sled: true, crowd: 40, quiet: true });
+    ride(s, 2, ask({ tuck: 1 }));
+    // An amateur stood in his way at 20 m/s — the shoulder too hard to ride.
+    const c = s.skier;
+    const a = s.crowd!.amateurs.find(
+      (o) =>
+        o.mode !== "down" &&
+        o.mode !== "queue" &&
+        o.mode !== "ride" &&
+        o.mode !== "skate" &&
+        o.mode !== "lift",
+    )!;
+    a.x = c.x + Math.sin(c.heading) * 0.4;
+    a.z = c.z + Math.cos(c.heading) * 0.4;
+    a.y = c.y - c.spec.cogHeight;
+    a.vx = a.vz = 0;
+    c.vx = Math.sin(c.heading) * 20;
+    c.vz = Math.cos(c.heading) * 20;
+    const events: GameEvent[] = [];
+    clipCrowd(s, events);
+    expect(c.thrown).not.toBe(null);
+    // The machine goes on without him, and he tumbles on the snow.
+    const y0 = c.y;
+    ride(s, 1, ask(), events);
+    expect(s.sled!.rider).toBe(false);
+    expect(events.some((e) => e.kind === "sled" && e.phase === "crash")).toBe(true);
+    expect(c.y).not.toBe(y0);
+    // Stood up again (the reset), he is back on the machine.
+    ride(s, 12, ask());
+    step(s, ask({ reset: true }));
+    ride(s, 0.5, ask());
+    expect(c.thrown).toBe(null);
     expect(s.sled!.rider).toBe(true);
   });
 

@@ -281,11 +281,10 @@ export function createSledScene(haze: HazeUniforms): SledScene {
       const s = state.sled;
       if (!s?.rider || state.skier.thrown) return null;
       const c = state.skier;
-      // His origin in the sled's frame (`riderFrame`): his boots stand on
-      // the boards' middle and his weight where he has moved it.
-      const ox = s.riderRight * 0.5;
+      // The boards' middle in the sled's frame, which his figure is stood
+      // over, and where the engine has his weight off it (`riderFrame`).
       const oy = SLED.boards.y + c.spec.cogHeight;
-      const oz = SLED.boards.z - s.riderAft * 0.5;
+      const hang = { x: s.riderRight * 0.5, z: -s.riderAft * 0.5 };
       // The grips turned with the bars about the post.
       const post = sledFrame(SLED_LOOK.post);
       const a = s.skiAngle * 0.8;
@@ -295,18 +294,18 @@ export function createSledScene(haze: HazeUniforms): SledScene {
         const gx = side * SLED.grips.x;
         const gz = SLED.grips.z - post[0];
         return {
-          x: gx * ca + gz * sa - ox,
+          x: gx * ca + gz * sa,
           y: SLED.grips.y - oy,
-          z: post[0] + gz * ca - gx * sa - oz,
+          z: post[0] + gz * ca - gx * sa - SLED.boards.z,
         };
       };
       const half = c.spec.stance / 2;
       return {
-        out: [-(SLED.boards.x - half) - ox, SLED.boards.x - half - ox],
-        fore: s.riderAft * 0.5,
+        out: [-(SLED.boards.x - half), SLED.boards.x - half],
         board: {
           grips: [grip(-1), grip(1)],
           lean: 0.42 - 0.3 * s.controls.lean + 0.15 * s.controls.throttle,
+          hang,
         },
       };
     },

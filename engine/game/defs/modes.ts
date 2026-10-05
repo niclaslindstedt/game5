@@ -21,9 +21,8 @@
 //
 // THE DISCIPLINES (`DISCIPLINES`) are the races the game names: the slalom,
 // the giant slalom, the super-G, the downhill, the ski cross and the speed
-// run. All but the giant slalom are BUILT; it is named so the app can bill
-// it as coming, and becomes a mode — its own rules here and its own course
-// rule (R31 onward) — when it is.
+// run — every one BUILT, each a mode with its own rules here and its own
+// course rule (R31–R36).
 
 import { CROWD } from "./crowd.ts";
 import type { TechniqueId } from "./technique.ts";
@@ -370,6 +369,49 @@ export function superGRules(laps: number): RunRules {
   };
 }
 
+/** THE GIANT SLALOM'S NUMBERS (R36 sets its course). */
+export const GIANT_SLALOM = {
+  /** The start list: the racers on the board beside the player. */
+  field: 29,
+  /** The start clock's last five seconds, beeped, then GO. */
+  countdown: 5,
+  /** A start is valid until this long after GO, s, or disqualified. */
+  window: 5,
+  /** Two runs, on combined time. */
+  runs: 2,
+  /** The best of the first run start the second, in reverse order. */
+  qualify: 30,
+  /** The pair the field races on: the giant slalom ski, built to the rule
+   * (at least 1.93 m and 30 m of sidecut). */
+  skis: "chough",
+} as const;
+
+/** THE GIANT SLALOM as a skier is dealt it (R36): the start list skied
+ * before him one at a time, the start clock, the strict gates, the window
+ * — two runs on two courses set on the same hill. */
+export function giantSlalomRules(laps: number): RunRules {
+  return {
+    rivals: GIANT_SLALOM.field,
+    laps,
+    countdown: GIANT_SLALOM.countdown,
+    contact: false,
+    course: true,
+    tricks: false,
+    stunts: false,
+    limit: 0,
+    airGravity: TUNING.air.gravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    sled: false,
+    start: "interval",
+    gates: "strict",
+    window: GIANT_SLALOM.window,
+    technique: "giantSlalom",
+    jury: JURY.giantSlalom,
+  };
+}
+
 /** SPEED SKIING'S NUMBERS (R34 sets its track). */
 export const SPEED_SKI = {
   /** The start list: the racers on the board beside the player — a top
@@ -558,10 +600,19 @@ export function clampResilience(r: number | undefined): number {
  * the rules, and the app reads the name to decide which card is up and which
  * row of the record book a run is filed under. */
 export type GameMode =
-  "slalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "timeTrial" | "free" | "tricks";
+  | "slalom"
+  | "giantSlalom"
+  | "downhill"
+  | "superG"
+  | "speedSki"
+  | "skiCross"
+  | "timeTrial"
+  | "free"
+  | "tricks";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
+  "giantSlalom",
   "downhill",
   "superG",
   "speedSki",
@@ -648,6 +699,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   slalom: slalomRules,
   downhill: downhillRules,
   superG: superGRules,
+  giantSlalom: giantSlalomRules,
   speedSki: speedSkiRules,
   skiCross: skiCrossRules,
   timeTrial: timeTrialRules,
@@ -661,6 +713,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slalom: SLALOM.skis,
   superG: SUPER_G.skis,
+  giantSlalom: GIANT_SLALOM.skis,
   downhill: DOWNHILL.skis,
   skiCross: SKI_CROSS.skis,
   speedSki: SPEED_SKI.skis,
@@ -678,10 +731,14 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * his weight) and still jump, so the SOLID build's legs; speed skiing is
  * the tuck alone, straight down with nothing to land, so the HEAVY one. A
  * ski cross is the solid build's too: the shoulder in the pack and the
- * glide down the straights pay weight, the jumps and the berms the legs. */
+ * glide down the straights pay weight, the jumps and the berms the legs. A
+ * giant slalom's too: its racers are the heaviest of the technical events
+ * (est.), its long turns at 70 km/h paying a heavier skier's glide and the
+ * 3 body weights at the apex the solid build's legs. */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
+  giantSlalom: "solid",
   downhill: "solid",
   skiCross: "solid",
   speedSki: "heavy",
@@ -699,7 +756,7 @@ export type Discipline = "slalom" | "giantSlalom" | "superG" | "downhill" | "ski
  * where it is named and not built yet. */
 export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] = [
   { id: "slalom", mode: "slalom" },
-  { id: "giantSlalom", mode: null },
+  { id: "giantSlalom", mode: "giantSlalom" },
   { id: "superG", mode: "superG" },
   { id: "downhill", mode: "downhill" },
   { id: "skiCross", mode: "skiCross" },

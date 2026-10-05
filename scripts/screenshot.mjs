@@ -25,6 +25,8 @@
 //   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
 //                    --run2 its race).
 //   ?mode=superg     ...or a SUPER-G's one run (--superg).
+//   ?mode=gs         ...or a GIANT SLALOM's first run (--gs; with --run2
+//                    its second).
 //   ?mode=skicross   ...or a SKI CROSS's qualification (--skicross; with
 //                    --run2 its first heat, four out of the start gate).
 //   ?mode=speedski   ...or a SPEED RACE's qualification (--speedski; with
@@ -136,6 +138,12 @@ const SURFACES = {
   // the front door's RACE tile opens (`?menu=races`).
   "superg-levels": {
     params: { menu: "levels", mode: "superg" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
+  // ...the GIANT SLALOM's nine (`?menu=levels&mode=gs`).
+  "gs-levels": {
+    params: { menu: "levels", mode: "gs" },
     wait: ".menu-card-levels",
     settle: 900,
   },
@@ -354,6 +362,7 @@ const args = parseArgs(
       help: "a downhill's training run (?mode=downhill; with --run2 its race)",
     },
     superg: { kind: "flag", help: "a super-G's one run (?mode=superg)" },
+    gs: { kind: "flag", help: "a giant slalom's first run (?mode=gs; --run2 its second)" },
     skicross: {
       kind: "flag",
       help: "a ski cross's qualification (?mode=skicross; --run2 its first heat)",
@@ -372,7 +381,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--skicross] [--speedski] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -572,6 +581,7 @@ if (args.surface) {
         if (args.tricks) params.mode = "tricks";
         if (args.downhill) params.mode = "downhill";
         if (args.superg) params.mode = "superg";
+        if (args.gs) params.mode = "gs";
         if (args.speedski) params.mode = "speedski";
         if (args.skicross) params.mode = "skicross";
         if (args.skis !== undefined) params.skis = String(args.skis);
@@ -580,7 +590,7 @@ if (args.surface) {
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

@@ -103,7 +103,12 @@ export function netPocket(
 /** How far a body sinks into the net before its posts and cables hold, m
  * — its discipline's `nets.give`. */
 function giveOf(level: Level): number {
-  return (level.downhill ? DISCIPLINE_RULES.downhill : DISCIPLINE_RULES.superG).nets.give;
+  const R = level.downhill
+    ? DISCIPLINE_RULES.downhill
+    : level.giantSlalom
+      ? DISCIPLINE_RULES.giantSlalom
+      : DISCIPLINE_RULES.superG;
+  return R.nets.give;
 }
 
 /** Hold whatever of the skier has gone past a net on the net — his body,

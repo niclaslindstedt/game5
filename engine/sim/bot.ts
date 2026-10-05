@@ -45,7 +45,7 @@ import {
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "../game/race-line.ts";
 import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
-import { DOWNHILL_STEER, SUPER_G_STEER, downhillSteer } from "./downhill-steer.ts";
+import { downhillSteer, steerOf } from "./downhill-steer.ts";
 import { speedSkiInput } from "./speed-ski-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
@@ -398,6 +398,11 @@ const pt: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
  * checks to a crawl over a pitch the brake cannot hold, never to a stop. */
 const CRAWL = 4;
 
+/** The share of a giant slalom's cut grip the bot turns on: a turn every
+ * twenty-odd metres leaves no straight to win back a line run wide, so he
+ * takes each one a little under what the edge would hold. */
+const GIANT_SLALOM_CORNER = 0.85;
+
 /** The fastest the skier may be going NOW for every bend and kicker within
  * skidding reach to be taken at its own speed, m/s. */
 function speedAllowed(state: GameState, s: number, speed: number, profile: BotProfile): number {
@@ -463,8 +468,9 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
         (2 * PITCH_SPAN),
     );
     const pull = TUNING.g * (pitch / hypot(1, pitch)) * PITCH_PULL;
+    const share = profile.cornerShare * (level.giantSlalom ? GIANT_SLALOM_CORNER : 1);
     const turnOn = (v: number): number =>
-      Math.max(grip(v) * profile.cornerShare - pull, grip(v) * profile.cornerShare * PITCH_FLOOR);
+      Math.max(grip(v) * share - pull, grip(v) * share * PITCH_FLOOR);
     const still = Math.sqrt(turnOn(0) / k);
     let corner = Math.sqrt(turnOn(still) / k);
     // ...and no faster than the pair's sidecut can still carve it — the
@@ -773,7 +779,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // carves cut hard (`downhill-steer.ts`).
   const downhillLine = speedCourseOf(level) !== null && state.rules.course && p.started && onTrack;
   if (downhillLine) {
-    const D = level.superG ? SUPER_G_STEER : DOWNHILL_STEER;
+    const D = steerOf(level);
     input.carve = true;
     if (speed > allowed + profile.skidOver) {
       input.tuck = 0;

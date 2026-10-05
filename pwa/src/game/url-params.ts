@@ -12,6 +12,7 @@
 //                   are the same.
 //   ?start=downhill ...or into a DOWNHILL's training run in its start house.
 //   ?start=superg   ...or into a SUPER-G's one run in its start house.
+//   ?start=gs       ...or into a GIANT SLALOM's first run in its start house.
 //   ?start=speedski ...or into a SPEED RACE's qualification on its track.
 //   ?start=skicross ...or into a SKI CROSS's qualification (`run=2` its
 //                   first heat, four out of the start gate).
@@ -43,9 +44,11 @@
 //                   a TIME TRIAL — alone, against the record and the ghost —
 //                   rather than a race; ?mode=tricks, a TRICKS run on the
 //                   seed's trick field; ?mode=downhill, a DOWNHILL;
-//                   ?mode=superg, a SUPER-G; ?mode=speedski, a SPEED RACE;
+//                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
+//                   ?mode=speedski, a SPEED RACE;
 //                   ?mode=skicross, a SKI CROSS.
-//   ?run=2          a slalom link boots into its SECOND RUN: the first
+//   ?run=2          a slalom or a giant slalom link boots into its SECOND
+//                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
 //                   off it (`pinned-run.ts`'s `secondRunOff`) — what the
 //                   finish plate's SECOND RUN press reaches; a downhill
@@ -279,6 +282,7 @@ export function readParams(search: string): UrlParams {
       start === "slalom" ||
       start === "downhill" ||
       start === "superg" ||
+      start === "gs" ||
       start === "speedski" ||
       start === "skicross" ||
       start === "free" ||
@@ -309,15 +313,17 @@ export function readParams(search: string): UrlParams {
           ? "downhill"
           : start === "superg" || q.get("mode") === "superg"
             ? "superG"
-            : start === "speedski" || q.get("mode") === "speedski"
-              ? "speedSki"
-              : start === "skicross" || q.get("mode") === "skicross"
-                ? "skiCross"
-                : q.get("mode") === "trial"
-                  ? "timeTrial"
-                  : q.get("mode") === "tricks"
-                    ? "tricks"
-                    : "slalom",
+            : start === "gs" || q.get("mode") === "gs"
+              ? "giantSlalom"
+              : start === "speedski" || q.get("mode") === "speedski"
+                ? "speedSki"
+                : start === "skicross" || q.get("mode") === "skicross"
+                  ? "skiCross"
+                  : q.get("mode") === "trial"
+                    ? "timeTrial"
+                    : q.get("mode") === "tricks"
+                      ? "tricks"
+                      : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

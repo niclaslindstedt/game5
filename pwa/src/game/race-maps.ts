@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RACE MAPS — every race discipline's own NINE pinned maps, the ones a
-// SLALOM, a SUPER-G, a DOWNHILL, a SPEED RACE or a SKI CROSS off the race
-// card is raced on, picked on the level card (`menu-levels.tsx`) its tile
-// opens.
+// SLALOM, a GIANT SLALOM, a SUPER-G, a DOWNHILL, a SPEED RACE or a SKI CROSS
+// off the race card is raced on, picked on the level card
+// (`menu-levels.tsx`) its tile opens.
 //
 // A discipline's measured maps are chosen for the DISCIPLINE: nine seeds
 // whose course makes a good race of it, out of a sweep of the generator's
@@ -748,9 +748,149 @@ const SKI_CROSS_MAPS: readonly RaceMap[] = [
   },
 ];
 
+/** THE GIANT SLALOM'S NINE (R36), the gentlest first: the reds, then the
+ * blacks, each from a start lowered down the ski area's biggest course to
+ * some 400 m of vertical — every one raced by the bot clean on both runs,
+ * within −4 … +4 % of par, across the alpine, the continental and the
+ * maritime, one at dusk. */
+const GIANT_SLALOM_MAPS: readonly RaceMap[] = [
+  {
+    id: "giantSlalom-1",
+    name: "Long Fall",
+    blurb: "A maritime red in the afternoon: long even turns from the first gate",
+    seed: 21,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "5e5f9d44",
+    region: "maritime",
+    grade: "red",
+    course: "8",
+    day: { weather: "fair", hour: 13.13 },
+    figures: { vertical: 398, length: 1852 },
+  },
+  {
+    id: "giantSlalom-2",
+    name: "Long Shadows",
+    blurb: "A maritime red under a low afternoon sun",
+    seed: 27,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "79794319",
+    region: "maritime",
+    grade: "red",
+    course: "9",
+    day: { weather: "fair", hour: 15.03 },
+    figures: { vertical: 399, length: 1880 },
+  },
+  {
+    id: "giantSlalom-3",
+    name: "Morning Rhythm",
+    blurb: "A short alpine red early in the morning, the rhythm quick",
+    seed: 16,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "49fbed65",
+    grade: "red",
+    course: "8",
+    day: { weather: "clear", hour: 9.22 },
+    figures: { vertical: 400, length: 1570 },
+  },
+  {
+    id: "giantSlalom-4",
+    name: "Dusk Turns",
+    blurb: "A maritime red raced at dusk under the floodlights",
+    seed: 20,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "3a823d25",
+    region: "maritime",
+    grade: "red",
+    course: "9",
+    day: { weather: "fair", hour: 18.14 },
+    figures: { vertical: 400, length: 2006 },
+  },
+  {
+    id: "giantSlalom-5",
+    name: "Steep Opener",
+    blurb: "A short alpine black: steep from the house, turn after turn",
+    seed: 2,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "f5ccc53b",
+    grade: "black",
+    course: "7",
+    day: { weather: "fair", hour: 13.9 },
+    figures: { vertical: 400, length: 1668 },
+  },
+  {
+    id: "giantSlalom-6",
+    name: "Thin Cloud",
+    blurb: "An alpine black under high cloud, two crests to carry",
+    seed: 7,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "e2ffe22f",
+    grade: "black",
+    course: "9",
+    day: { weather: "high", hour: 13.3 },
+    figures: { vertical: 400, length: 1862 },
+  },
+  {
+    id: "giantSlalom-7",
+    name: "Grey Hill",
+    blurb: "An alpine black in the flat light of an overcast, three crests on it",
+    seed: 18,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "bffa7ac3",
+    grade: "black",
+    course: "9",
+    day: { weather: "overcast", hour: 16.35 },
+    figures: { vertical: 399, length: 1782 },
+  },
+  {
+    id: "giantSlalom-8",
+    name: "Fog Gates",
+    blurb: "A continental black in the valley fog, gate after gate out of the murk",
+    seed: 25,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "6f65eb84",
+    region: "continental",
+    grade: "black",
+    course: "10",
+    day: { weather: "fog", hour: 17.19 },
+    figures: { vertical: 400, length: 1652 },
+  },
+  {
+    id: "giantSlalom-9",
+    name: "Short Fuse",
+    blurb: "The shortest and steepest: a continental black with three jumps",
+    seed: 26,
+    mode: "giantSlalom",
+    laps: 1,
+    version: 6,
+    digest: "616334e4",
+    region: "continental",
+    grade: "black",
+    course: "11",
+    day: { weather: "fair", hour: 14.22 },
+    figures: { vertical: 399, length: 1536 },
+  },
+];
+
 /** EVERY DISCIPLINE'S NINE. A discipline built later adds its row here. */
 export const RACE_MAPS: RaceMaps = {
   slalom: SLALOM_MAPS,
+  giantSlalom: GIANT_SLALOM_MAPS,
   superG: SUPER_G_MAPS,
   downhill: DOWNHILL_MAPS,
   speedSki: SPEED_SKI_MAPS,

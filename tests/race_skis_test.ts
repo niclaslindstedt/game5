@@ -13,6 +13,7 @@ import {
   SLALOM,
   SPEED_SKI,
   SUPER_G,
+  GIANT_SLALOM,
   isSkiId,
   raceSkisOf,
   skisById,
@@ -20,6 +21,7 @@ import {
 
 const CLASS = {
   slalom: "Slalom",
+  giantSlalom: "Giant slalom",
   superG: "Super-G",
   downhill: "Downhill",
   skiCross: "Ski cross",
@@ -39,6 +41,7 @@ describe("a race's own pair", () => {
 
   it("is the pair the field races on", () => {
     expect(raceSkisOf("slalom")).toBe(SLALOM.skis);
+    expect(raceSkisOf("giantSlalom")).toBe(GIANT_SLALOM.skis);
     expect(raceSkisOf("superG")).toBe(SUPER_G.skis);
     expect(raceSkisOf("downhill")).toBe(DOWNHILL.skis);
     expect(raceSkisOf("skiCross")).toBe(SKI_CROSS.skis);

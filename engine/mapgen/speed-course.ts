@@ -12,10 +12,10 @@ import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math"
 import { trackPointAt } from "./query.ts";
 import type { Level, SpeedCourse, TrackPoint } from "./types.ts";
 
-/** The speed course set on `level` — a downhill's or a super-G's — or null
- * on a map with neither. */
+/** The course on a racing line set on `level` — a downhill's, a super-G's
+ * or a giant slalom's — or null on a map with none. */
 export function speedCourseOf(level: Level): SpeedCourse | null {
-  return level.downhill ?? level.superG ?? null;
+  return level.downhill ?? level.superG ?? level.giantSlalom ?? null;
 }
 
 /** How a racing line is laid (a discipline rule's `line` row): a station

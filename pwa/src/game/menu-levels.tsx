@@ -52,6 +52,7 @@ function billedMode(mode: GameMode): CampaignMode {
   return mode === "timeTrial" ||
     mode === "downhill" ||
     mode === "superG" ||
+    mode === "giantSlalom" ||
     mode === "speedSki" ||
     mode === "skiCross"
     ? mode
@@ -156,11 +157,13 @@ function levelsTitle(mode: GameMode): string {
       ? STRINGS.levelsDownhill
       : mode === "superG"
         ? STRINGS.levelsSuperG
-        : mode === "speedSki"
-          ? STRINGS.levelsSpeedSki
-          : mode === "skiCross"
-            ? STRINGS.levelsSkiCross
-            : STRINGS.levelsRace;
+        : mode === "giantSlalom"
+          ? STRINGS.levelsGiantSlalom
+          : mode === "speedSki"
+            ? STRINGS.levelsSpeedSki
+            : mode === "skiCross"
+              ? STRINGS.levelsSkiCross
+              : STRINGS.levelsRace;
 }
 
 /** THE RIDE PRESS in a level card's head: on to the skis card. */

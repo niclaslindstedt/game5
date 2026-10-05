@@ -4,7 +4,8 @@
 // its grade, the day and the loop its box bills, and the course set over it
 // held to the figures the box quotes and to its discipline's rule. Shared by
 // `race_maps_test.ts` (the slalom's), `race_maps_downhill_test.ts`,
-// `race_maps_superg_test.ts`, `race_maps_speedski_test.ts` and
+// `race_maps_superg_test.ts`, `race_maps_giantslalom_test.ts`,
+// `race_maps_speedski_test.ts` and
 // `race_maps_skicross_test.ts`, one
 // discipline a file, because building a map is the dearest thing the engine
 // does and twenty-seven of them in one file would be the slowest file in the
@@ -34,7 +35,7 @@ function raced(map: RaceMap) {
 }
 
 export function holdRaceMaps(
-  discipline: "slalom" | "superG" | "downhill" | "speedSki" | "skiCross",
+  discipline: "slalom" | "giantSlalom" | "superG" | "downhill" | "speedSki" | "skiCross",
 ): void {
   describe(`the ${discipline}'s maps, built`, () => {
     for (const map of RACE_MAPS[discipline] ?? []) {
@@ -82,12 +83,12 @@ export function holdRaceMaps(
           expect(set!.vertical).toBeGreaterThanOrEqual(min);
           expect(set!.vertical).toBeLessThanOrEqual(max);
         }
-        // A super-G turns the racer at least as often as its rule asks.
-        if (level.superG) {
-          const G = DISCIPLINE_RULES.superG;
-          expect(level.superG.turns).toBeGreaterThanOrEqual(
-            Math.ceil(G.changes * level.superG.vertical),
-          );
+        // A super-G and a giant slalom turn the racer at least as often as
+        // its rule asks.
+        const turning = level.superG ?? level.giantSlalom;
+        if (turning) {
+          const G = DISCIPLINE_RULES[level.superG ? "superG" : "giantSlalom"];
+          expect(turning.turns).toBeGreaterThanOrEqual(Math.ceil(G.changes * turning.vertical));
         }
       });
     }

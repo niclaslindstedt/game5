@@ -22,7 +22,8 @@
 //                                        rung ask more than the one before,
 //                                        is any pair the same map twice
 //   make rate RACE=superG                a discipline's nine race maps (slalom,
-//                                        superG, downhill, speedSki)
+//                                        giantSlalom, superG, downhill,
+//                                        speedSki, skiCross)
 //                                        (race-maps.ts), audited the same
 //                                        way: the digest, the rating, the
 //                                        course's figures, the bot's time
@@ -55,10 +56,7 @@ const {
   rateLadder,
   rateLevel,
   simulateRun,
-  SUPER_G,
-  SPEED_SKI,
-  DOWNHILL,
-  SLALOM,
+  RACE_SKIS,
   createGame,
   raceCourseOf,
   raceParOf,
@@ -82,7 +80,7 @@ const args = parseArgs(
     campaign: { kind: "flag", help: "audit the committed campaign ladder (campaign-levels.ts)" },
     race: {
       kind: "string",
-      help: "audit a discipline's nine race maps (race-maps.ts): slalom, superG, downhill, speedSki",
+      help: "audit a discipline's nine race maps (race-maps.ts): slalom, giantSlalom, superG, downhill, speedSki, skiCross",
     },
     region: {
       kind: "string",
@@ -293,14 +291,7 @@ async function auditRace(discipline) {
   for (const pinned of rowsOf) {
     const level = buildCampaignLevel(pinned);
     // Each discipline on its field's own pair.
-    const skis =
-      pinned.mode === "speedSki"
-        ? SPEED_SKI.skis
-        : pinned.mode === "downhill"
-          ? DOWNHILL.skis
-          : pinned.mode === "slalom"
-            ? SLALOM.skis
-            : SUPER_G.skis;
+    const skis = RACE_SKIS[pinned.mode];
     const run = simulateRun(level.seed, { level, mode: pinned.mode, spec: skisById(skis) });
     const raced = createGame({
       seed: level.seed,

@@ -118,6 +118,7 @@ export {
 } from "./slalom.ts";
 export { downhillCourseOf, setDownhill } from "./downhill.ts";
 export { setSuperG, superGCourseOf, superGStart } from "./super-g.ts";
+export { giantSlalomCourseOf, giantSlalomStart, setGiantSlalom } from "./giant-slalom.ts";
 export { setSpeedSki, speedSkiAim, speedSkiLines } from "./speed-ski.ts";
 export { LINE_STEP, speedCourseOf, speedLineAt } from "./speed-course.ts";
 export { netsOf, raceCourseOf, type RaceCourse } from "./race-course.ts";

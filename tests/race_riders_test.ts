@@ -27,6 +27,7 @@ describe("a race's own build", () => {
 
   it("is the build each discipline asks for", () => {
     expect(raceRiderOf("slalom")).toBe("medium");
+    expect(raceRiderOf("giantSlalom")).toBe("solid");
     expect(raceRiderOf("superG")).toBe("solid");
     expect(raceRiderOf("downhill")).toBe("solid");
     expect(raceRiderOf("skiCross")).toBe("solid");
@@ -34,6 +35,8 @@ describe("a race's own build", () => {
   });
 
   it("grows heavier the more a race is the tuck alone", () => {
+    expect(massOf("slalom")).toBeLessThan(massOf("giantSlalom"));
+    expect(massOf("giantSlalom")).toBeLessThanOrEqual(massOf("superG"));
     expect(massOf("slalom")).toBeLessThan(massOf("superG"));
     expect(massOf("superG")).toBeLessThanOrEqual(massOf("downhill"));
     expect(massOf("downhill")).toBeLessThan(massOf("speedSki"));

@@ -66,6 +66,7 @@ export function setDownhill(level: Level): Level {
   const original =
     level.slalom?.base ??
     level.superG?.base ??
+    level.giantSlalom?.base ??
     level.speedSki?.base ??
     level.skiCross?.base ??
     level;

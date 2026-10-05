@@ -1,14 +1,14 @@
 # Race maps — every discipline's own pinned maps
 
-**Built for the slalom, the super-G, the downhill, speed skiing and the ski
-cross** (`pwa/src/game/race-maps.ts`, `tests/race_maps_test.ts`,
+**Built for every discipline `DISCIPLINES` names** — the slalom, the giant
+slalom, the super-G, the downhill, speed skiing and the ski cross
+(`pwa/src/game/race-maps.ts`, `tests/race_maps_test.ts`,
 `race_maps_downhill_test.ts`, `race_maps_superg_test.ts`,
-`race_maps_speedski_test.ts`, `race_maps_skicross_test.ts` — a speed race's
-box draws its track, the final's, and quotes the final's figures). What
-stays here is the SHAPE a discipline built later (the giant slalom) fills in
-as part of being built — its spec says so —
-and the one tool still to write (*To do*). Delete this file with the last
-discipline's nine.
+`race_maps_giantslalom_test.ts`, `race_maps_speedski_test.ts`,
+`race_maps_skicross_test.ts` — a speed race's box draws its track, the
+final's, and quotes the final's figures). What stays here is the SHAPE a
+discipline added later fills in as part of being built, the criteria each
+discipline's nine were curated by, and the tooling (*The tooling*).
 
 ## What it is
 
@@ -134,6 +134,12 @@ the PR.
   four countries (the fell's gentle blues are the gentlest), the sky the
   speed races' jury allows (no storm), one under the floodlights; the
   hardest a black.
+- **Giant slalom (R36).** The ski area's course with the most vertical
+  (`giantSlalomCourseOf`), its lowered start inside the 250–450 m band and
+  as near the 400 m target as the seed gives, wide enough for its swing;
+  the bot home on BOTH runs on the giant slalom pair with no DSQ, no harsh
+  landing and no tower near its line. Spread across the countries with
+  race terrain and the sky its jury allows, one under the floodlights.
 - **Every later discipline** writes its own criteria here (or in its spec)
   from its course rule, before the sweep.
 

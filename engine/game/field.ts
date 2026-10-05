@@ -30,6 +30,10 @@
 // order, slower and further apart — a racer in training learns the line and
 // stands up before the finish — and counts for nothing.
 //
+// A GIANT SLALOM is two runs as a slalom is, the second the first's best
+// `GIANT_SLALOM.qualify` in reverse, on combined time — its field closer
+// than a slalom's and out of a run less often (`GIANT_SLALOM_FIELD`).
+//
 // A SUPER-G is one run with no training: further apart than a downhill —
 // the thirtieth some 2.5–5 s off the winner over a minute and a half — and
 // far more often out of it, a sixth to a quarter of a field on most days,
@@ -52,7 +56,7 @@
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { speedCourseOf } from "../mapgen/index.ts";
-import { DOWNHILL, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, GIANT_SLALOM, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { raceParOf } from "./par.ts";
 import type { FieldRun, GameState, RunOut } from "./state.ts";
 
@@ -107,6 +111,20 @@ export const SUPER_G_FIELD = {
   out: { best: 0.05, worst: 0.33 },
   why: { missed: 0.5, straddle: 0, fall: 0.5 },
   trap: DOWNHILL_FIELD.trap,
+} as const;
+
+/** A GIANT SLALOM'S FIELD (R36), over `FIELD`'s shape: two runs of some
+ * 70–80 s, the tenth ~2 % and the thirtieth ~4–5 % off the winner on a
+ * run (est., off top-level sheets), closer than a slalom's and wider than
+ * a downhill's; out of a run a tenth to a quarter of the starters (est.)
+ * — a gate missed or a fall nearly always, a straddle rare on a gate with
+ * panels. */
+export const GIANT_SLALOM_FIELD = {
+  spread: 0.05,
+  noise: 0.008,
+  best: -0.006,
+  out: { best: 0.04, worst: 0.25 },
+  why: { missed: 0.45, straddle: 0.05, fall: 0.5 },
 } as const;
 
 /** SPEED SKIING'S FIELD (R34), over `FIELD`'s shape: a share of par's
@@ -244,11 +262,13 @@ function dealRun(
     ? DOWNHILL_FIELD
     : level.superG
       ? SUPER_G_FIELD
-      : level.speedSki
-        ? SPEED_SKI_FIELD
-        : level.skiCross
-          ? SKI_CROSS_FIELD
-          : FIELD;
+      : level.giantSlalom
+        ? GIANT_SLALOM_FIELD
+        : level.speedSki
+          ? SPEED_SKI_FIELD
+          : level.skiCross
+            ? SKI_CROSS_FIELD
+            : FIELD;
   const par = raceParOf(level);
   const n = level.checkpoints.length;
   const weak = 1 - racer.skill;
@@ -277,7 +297,8 @@ function dealRun(
   }
   // THE TRAP, about par's speed there — a stronger racer a little faster.
   const D = DOWNHILL_FIELD.trap;
-  const trapGate = speed ? level.checkpoints.findIndex((c) => c.s >= speed.trap.s) : -1;
+  const trapS = speed?.trap?.s;
+  const trapGate = trapS !== undefined ? level.checkpoints.findIndex((c) => c.s >= trapS) : -1;
   // ...and on a speed track the trap IS the zone: its length over his time.
   const zone = level.speedSki?.zone;
   const trap = zone
@@ -293,11 +314,13 @@ function dealRun(
       ? DOWNHILL.skis
       : level.superG
         ? SUPER_G.skis
-        : level.speedSki
-          ? SPEED_SKI.skis
-          : level.skiCross
-            ? SKI_CROSS.skis
-            : SLALOM.skis,
+        : level.giantSlalom
+          ? GIANT_SLALOM.skis
+          : level.speedSki
+            ? SPEED_SKI.skis
+            : level.skiCross
+              ? SKI_CROSS.skis
+              : SLALOM.skis,
     time: out ? null : splits[n - 1],
     out,
     splits,

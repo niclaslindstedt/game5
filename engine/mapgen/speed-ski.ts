@@ -515,6 +515,7 @@ function gradeTrack(original: Level): Graded {
     slalom: undefined,
     downhill: undefined,
     superG: undefined,
+    giantSlalom: undefined,
     skiCross: undefined,
   };
   // The arcs on the built track: the final's wand at the platform's lip,
@@ -565,6 +566,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.slalom?.base ??
     level.downhill?.base ??
     level.superG?.base ??
+    level.giantSlalom?.base ??
     level.skiCross?.base ??
     level;
   let mine = runs.get(original);

@@ -123,6 +123,7 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
  * allowed a seed and a day of its own. */
 export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
   if (mode === "superG") return level.mode === "superG";
+  if (mode === "giantSlalom") return level.mode === "giantSlalom";
   if (mode === "speedSki") return level.mode === "speedSki";
   if (mode === "skiCross") return level.mode === "skiCross";
   if (mode === "slalom") return level.mode === "slalom";
@@ -136,6 +137,7 @@ function measuredMode(mode: GameMode): CampaignLevel["mode"] {
   return mode === "timeTrial" ||
     mode === "downhill" ||
     mode === "superG" ||
+    mode === "giantSlalom" ||
     mode === "speedSki" ||
     mode === "skiCross"
     ? mode
@@ -547,6 +549,7 @@ export function frontDoorPins(
   raceMap: string | null;
   downhillMap: string | null;
   superGMap: string | null;
+  giantSlalomMap: string | null;
   speedSkiMap: string | null;
   skiCrossMap: string | null;
   trialMap: string | null;
@@ -559,6 +562,7 @@ export function frontDoorPins(
     raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
     downhillMap: pinnedFor(chosen, "downhill", linkSeed)?.name ?? null,
     superGMap: pinnedFor(chosen, "superG", linkSeed)?.name ?? null,
+    giantSlalomMap: pinnedFor(chosen, "giantSlalom", linkSeed)?.name ?? null,
     speedSkiMap: pinnedFor(chosen, "speedSki", linkSeed)?.name ?? null,
     skiCrossMap: pinnedFor(chosen, "skiCross", linkSeed)?.name ?? null,
     trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,

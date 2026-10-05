@@ -190,7 +190,7 @@ export function createPinnedRuns(world: {
       }
       const heat = heatAfter(now);
       if (!heat) return;
-      // A slalom's second run, or a speed race's final.
+      // A slalom's or a giant slalom's second run, or a speed race's final.
       const mode = twoRunMode(now);
       world.setMode(mode);
       world.loader.begin({

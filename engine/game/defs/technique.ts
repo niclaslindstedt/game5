@@ -16,8 +16,7 @@
 // never a branch on a mode: the physics reads the row it is handed. The
 // numbers are the measured ones of each discipline at the top level
 // (`docs/disciplines.md`), turned into the model's terms; *(est.)* marks
-// an estimate. The giant slalom row is DATA until its discipline is built:
-// no mode deals it yet.
+// an estimate.
 
 /** The techniques the engine knows. */
 export type TechniqueId =
@@ -124,7 +123,7 @@ export const SLALOM_TECHNIQUE: Technique = {
   cross: { under: 1.0, retract: 0.11, steep: 0 },
 };
 
-/** THE GIANT SLALOM RACER — data, no mode yet. A turn every ~1.45 s on a
+/** THE GIANT SLALOM RACER (R36). A turn every ~1.45 s on a
  * preferred radius of ~20 m (13 m at the tightest, est.), 65–72° of edge
  * at the peak (est.) rolled at ~90°/s (est.), a skid of 8° at most, 61–70
  * km/h on the mean and 80 at the peak, 3.2 body weights. So: the edge

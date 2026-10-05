@@ -513,6 +513,7 @@ export function setSkiCross(level: Level): Level {
     level.slalom?.base ??
     level.downhill?.base ??
     level.superG?.base ??
+    level.giantSlalom?.base ??
     level.speedSki?.base ??
     level;
   let course = set.get(original);
@@ -685,6 +686,7 @@ function courseOver(original: Level): Level {
     slalom: undefined,
     downhill: undefined,
     superG: undefined,
+    giantSlalom: undefined,
     speedSki: undefined,
   };
   // THE GATES: a turning gate on the inside of every berm, a corridor gate

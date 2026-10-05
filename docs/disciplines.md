@@ -25,7 +25,7 @@ How a discipline's research is recorded here:
 | Discipline | Mode | Course rule | State |
 | --- | --- | --- | --- |
 | Slalom | `slalom` | R31 | built — see below |
-| Giant slalom | — | — | researched (technique, skis, course); to build — `docs/specs/GIANT_SLALOM.md` |
+| Giant slalom | `giantSlalom` | R36 | built — see below |
 | Super-G | `superG` | R33 | built — see below |
 | Downhill | `downhill` | R32 | built — see below |
 | Ski cross | `skiCross` | R35 | built — see below |
@@ -137,8 +137,8 @@ Sources: [1] PMID 30317917 · [2] PMC7739813 · [3] doi:10.3390/app14041427 ·
 ## Giant slalom, super-G and downhill
 
 Researched together, against the slalom, for the technique rows and the
-courses (`docs/specs/GIANT_SLALOM.md`; the downhill and the super-G are
-built, below). Numbers are measured unless marked *(est.)*; an inclination
+courses (each discipline's own section below carries its rules and what the
+game builds). Numbers are measured unless marked *(est.)*; an inclination
 marked *(est.)* is derived as tan θ = v²/(gR) off a measured speed and
 radius, and a carve radius as R ≈ R_sidecut · cos(edge).
 
@@ -283,6 +283,88 @@ Sources (continued): [7] PMID 32341022 · [8] PMID 22983120 ·
 [17] PMC8042208 · [18] doi:10.3389/fspor.2022.829195 ·
 [19] doi:10.3390/app12020902 · [20] J. Biomech. 2021, pii
 S002192902100107X · [21] doi:10.1007/s12283-022-00385-2.
+
+## Giant slalom
+
+Restated from the international competition rules for alpine skiing (the
+giant slalom's own articles and the general ones on starting, gates and
+timing), measured courses and result sheets of top-level races. The
+speeds, the technique and the skis are under *Giant slalom, super-G and
+downhill* above.
+
+**The course.** A giant slalom drops 250–450 m at the men's top level,
+250–400 m at the women's, 200–400 m at a lower race and 200–350 m for the
+youth. The direction changes are 11–15 % of the vertical in metres — some
+51 on a top race's 400 m. Turning poles of two successive gates stand at
+least 10 m apart; measured courses set them 26–27 m apart down the hill and
+6.8 ± 2.4 m across, the offset wider on the steep (5.8 m on the flat, 7.4 m
+on the steep) [7, 8]. The course on a top race's hill is some 40 m wide;
+the gates are set to use the terrain — big and medium turns, rhythm
+changes, traverses and the fall line's changes — never only straight down
+it. A run takes ~77 s at 18 ± 2 m/s through the turns, ~61–70 km/h on the
+mean and ~80 at the peak [9, 10].
+
+**The gates.** Four flex poles in two pairs, a panel between each pair
+(about 0.75 m wide by 0.5 m high): the turning pair and the outside pair,
+4–8 m apart, red and blue in turn. No closed gates and no combinations —
+the slalom's hairpins and verticals have no place on a giant slalom
+course.
+
+**Passing a gate**: both tips and both feet across the gate line between
+the turning poles, as on a super-G; a gate missed disqualifies, a fall that
+ends the run does not finish.
+
+**The format.** TWO RUNS on two courses set on the same hill, the second
+set afresh between the runs; the first run's best thirty start the second
+in reverse order of their first-run times, the leader last, and the
+combined time is ranked. An interval start off the start clock, as the
+slalom's and the super-G's.
+
+**The field.** Top-level sheets *(est.)*: runs of some 70–80 s, the tenth
+~2 % and the thirtieth ~4–5 % off the winner on a run — closer than a
+slalom's, wider than a downhill's — and a tenth to a quarter of the
+starters out of a run, nearly always for a gate missed or a fall, a
+straddle rare on a gate with panels. Giant slalom injures 9.2 racers a
+thousand runs [24].
+
+**The skis** (above): men at least 1.93 m and 30 m of sidecut. The game's
+giant slalom pair is the **Chough** (`defs/skis.ts`), built to the men's
+least on a 65 mm waist, and the pair its field races (`GIANT_SLALOM.skis`).
+
+**In the game** (R36, `engine/mapgen/giant-slalom.ts` over
+`turn-course.ts`, the turning course the super-G is set by too): the ski
+area's course with the most vertical — the super-G's hill — its START
+LOWERED down the piste until the drop to the finish is 400 m at the most
+(the 250–450 m band held where the piste has one), prepared as a super-G's
+(the start house and drop, kickers levelled, groomed hard and combed,
+crests shaved, trees cut) with nets along both edges; its gates ~13 % of
+the vertical in direction changes and 18–42 m apart down the hill (27
+aimed at), whichever gives more, strayed off the even spacing by a rhythm
+dealt off the seed and kept clear of a jump's lip and its landing; a
+RACING LINE that bends the least inside the piste, SWUNG 2.5–4.5 m to each
+gate's side in turn — eased half a cosine from apex to apex, never tighter
+than a 22 m bend — each gate two panelled pairs 6 m apart, red and blue,
+its turning pole 3 m inside the line's apex; the line held 4 m off any lift
+tower standing on the piste, eased over 30 m either side (a tower can stand
+in the middle of a race piste, and the racer's padding and the setter keep
+him off the steel); two intermediates and no speed trap. TWO runs, the
+second set afresh on the same stretch off a salt of the run's own, the
+first run's best thirty into it in reverse, on combined time; the field
+dealt about par to a giant slalom's spread and outs (`field.ts`'s
+`GIANT_SLALOM_FIELD`), par the downhill's forward reckoning down the swung
+line under the giant slalom technique scaled 1.11 by the bot's own median
+(`par.ts`'s `giantSlalomPar`); the super-G's line-follower read closer
+still (`sim/downhill-steer.ts`'s `GIANT_SLALOM_STEER`), each turn taken at
+0.85 of the grip the cut would hold. The bot finishes every first run of
+seeds 1–16, none out, at 67 km/h on the mean and 90 at the most.
+
+**Where the game is narrower than the sport**: the line is a swing of half
+cosines between gate apexes, passing 3 m outside the turning pole where a
+racer brushes it with his shin and shoulder; its panelled gates stand
+rigid, never knocked and springing back as the slalom's bare poles do; no
+gate is set down the fall line and no traverse is set across it on
+purpose; the course takes the super-G's hill, lowered, rather than a run of
+its own where the area has one in the band.
 
 ## Downhill
 

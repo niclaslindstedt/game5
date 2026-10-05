@@ -19,6 +19,7 @@ import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
+import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
 import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
@@ -87,6 +88,7 @@ export const STRINGS = {
   ...SLALOM_STRINGS,
   ...DOWNHILL_STRINGS,
   ...SUPER_G_STRINGS,
+  ...GIANT_SLALOM_STRINGS,
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,

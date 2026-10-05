@@ -23,11 +23,12 @@
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { trackPointAt } from "../mapgen/index.ts";
 import type { Level, SpeedCourse, TrackPoint } from "../mapgen/types.ts";
-import { DOWNHILL, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, GIANT_SLALOM, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { skisById, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
   DOWNHILL_TECHNIQUE,
+  GIANT_SLALOM_TECHNIQUE,
   SLALOM_TECHNIQUE,
   SUPER_G_TECHNIQUE,
   type Technique,
@@ -171,10 +172,23 @@ export const SUPER_G_PAR = {
   trap: 0.97,
 } as const;
 
-type SpeedParRule = typeof DOWNHILL_PAR | typeof SUPER_G_PAR;
+/** THE GIANT SLALOM'S PAR NUMBERS (R36): the super-G's way of reading a
+ * course on a racing line, its time share the bot's own giant slalom's
+ * over seeds 1–16 (`make sim ARGS="--mode giantSlalom --skis chough
+ * --count 16"`): the bot's time 1.03–1.15 of the profile's, 1.11 on the
+ * median — a turn every twenty-odd metres scrubs more than the profile's
+ * bends read. It has no speed trap. */
+export const GIANT_SLALOM_PAR = {
+  ...DOWNHILL_PAR,
+  scale: 1.11,
+  trap: 0,
+} as const;
+
+type SpeedParRule = typeof DOWNHILL_PAR | typeof SUPER_G_PAR | typeof GIANT_SLALOM_PAR;
 
 const downhillPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
 const superGPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
+const giantSlalomPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
 const qa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
 /** THE PAR of `level`'s downhill on `spec` (R32): the speed down the
@@ -198,6 +212,17 @@ export function downhillPar(level: Level, spec: SkiSpec): Par | null {
 export function superGPar(level: Level, spec: SkiSpec): Par | null {
   const sg = level.superG;
   return sg ? speedPar(level, sg, spec, SUPER_G_TECHNIQUE, SUPER_G_PAR, superGPars) : null;
+}
+
+/** THE PAR of `level`'s giant slalom on `spec` (R36): the downhill's
+ * forward reckoning (`downhillPar`) down the giant slalom's swung line,
+ * under the giant slalom racer's technique. A map with no giant slalom has
+ * none. */
+export function giantSlalomPar(level: Level, spec: SkiSpec): Par | null {
+  const gs = level.giantSlalom;
+  return gs
+    ? speedPar(level, gs, spec, GIANT_SLALOM_TECHNIQUE, GIANT_SLALOM_PAR, giantSlalomPars)
+    : null;
 }
 
 /** A speed course's par, worked out once a map and pair. */
@@ -277,8 +302,15 @@ function speedPar(
     return (clock[i] + (clock[i + 1] - clock[i]) * (f - i)) * P.scale;
   };
   const splits = level.checkpoints.map((c) => at(c.s));
-  const ti = Math.min(n - 1, Math.max(0, Math.round((dh.trap.s - dh.from) / ds)));
-  const par: Par = { time: splits[splits.length - 1], splits, trap: v[ti] * P.trap };
+  // A speed event's trap speed; a giant slalom has no trap.
+  const trapS = dh.trap?.s;
+  const ti =
+    trapS === undefined ? 0 : Math.min(n - 1, Math.max(0, Math.round((trapS - dh.from) / ds)));
+  const par: Par = {
+    time: splits[splits.length - 1],
+    splits,
+    trap: trapS === undefined ? 0 : v[ti] * P.trap,
+  };
   bySpec.set(spec, par);
   return par;
 }
@@ -400,11 +432,13 @@ export function skiCrossPar(level: Level, spec: SkiSpec): Par | null {
 }
 
 /** THE PAR OF THE RACE SET ON `level` — a slalom's, a downhill's, a
- * super-G's, a speed track's or a ski cross's — on the pair its field races on; null on a
+ * super-G's, a giant slalom's, a speed track's or a ski cross's — on the pair its field
+ * races on; null on a
  * map with no course set. */
 export function raceParOf(level: Level): Par | null {
   if (level.downhill) return downhillPar(level, skisById(DOWNHILL.skis));
   if (level.superG) return superGPar(level, skisById(SUPER_G.skis));
+  if (level.giantSlalom) return giantSlalomPar(level, skisById(GIANT_SLALOM.skis));
   if (level.speedSki) return speedSkiPar(level, skisById(SPEED_SKI.skis));
   if (level.skiCross) return skiCrossPar(level, skisById(SKI_CROSS.skis));
   return slalomPar(level, skisById(SLALOM.skis));

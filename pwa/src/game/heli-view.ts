@@ -30,6 +30,7 @@ import {
 
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { heliModelUrl } from "./skier-models.ts";
 
 const R = HELI.rotor.radius;
@@ -312,8 +313,10 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
     });
 
   const q = new THREE.Quaternion();
-  const prev = { x: 0, y: 0, z: 0, tick: -1 };
-  const cur = { x: 0, y: 0, z: 0, tick: -1 };
+  // Drawn between two steps on the RIDER'S own line (`interp.ts`), so the
+  // skid he sits on never parts from under him between frames.
+  const track = createTrack();
+  const at: Pose = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
   let shown: { x: number; y: number; z: number; heading: number } | null = null;
   let clock = 0;
   let wrecked = false;
@@ -350,18 +353,11 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       group.visible = !!h;
       if (!h) return;
       clock += dt;
-      if (cur.tick !== state.tick) {
-        Object.assign(prev, cur);
-        Object.assign(cur, { x: h.x, y: h.y, z: h.z, tick: state.tick });
-        if (prev.tick < 0 || state.tick - prev.tick > 2) Object.assign(prev, cur);
-      }
-      const k = Math.max(0, Math.min(1, alpha));
-      const x = prev.x + (cur.x - prev.x) * k;
-      const y = prev.y + (cur.y - prev.y) * k;
-      const z = prev.z + (cur.z - prev.z) * k;
+      observe(track, { x: h.x, y: h.y, z: h.z, q: heliQuat(h) }, state.tick);
+      sample(track, alpha, at);
+      const { x, y, z } = at;
       machine.position.set(x, y, z);
-      const e = heliQuat(h);
-      q.set(e.x, e.y, e.z, e.w);
+      q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       machine.quaternion.copy(q);
       shown = { x, y, z, heading: h.heading };
       const wreck = h.mode === "wreck";

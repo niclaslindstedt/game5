@@ -128,6 +128,64 @@ holds a key before it reads a clean zero and calls the feature broken.
 - **A lab that draws the WORLD reuses the renderer**, as `make world` does,
   or the picture lies about what a race will show.
 
+## Labs for MOTION: when something "looks hacky" or "isn't smooth"
+
+An animation complaint is a complaint about TIME, and a single frame — a
+screenshot, a contact sheet of poses — cannot show it. Before touching the
+pose, build (or reuse) a lab that draws the motion OVER TIME, several ways at
+once, because each way shows a different fault. The worked examples are
+`make sag` (`scripts/sag-lab.mjs`) and `make lean` (`scripts/lean-lab.mjs`,
+over `scripts/lib/lean-signal.mjs` and `lean-draw.mjs`); start from them.
+
+**Draw the frames the renderer draws, not the engine's steps.** The engine
+steps at 120 Hz and a display draws at 60, 144 or a wobbling rate: feed the
+framework's `loop/run-clock` frame times at `--fps`, draw the body between
+two steps with `interp.ts`'s `observe` / `sample`, step every view-side
+spring by the FRAME's `dt`, and lay and pose the figure line for line as the
+view does it (`skis-body.ts`'s `pose`: the stand at the drawn orientation's
+inclination, the chatter, the kick, the technique's stance, `poseInputOf`,
+`skierPose`, the pivot about the feet). A judder that lives between steps —
+a raw per-step value mixed with an interpolated one — shows only this way,
+and only at a frame rate that does not divide the step rate: always run
+`--fps=144` beside 60.
+
+**Read the motion as CHANNELS, layer by layer, in the order it is made**
+(the engine's reading → the view's eased spring → each drawn part in the
+world). A roughness that appears at one layer and not the one before it is
+that layer's — the table points at the culprit before anyone guesses.
+Measure angles in the WORLD where the eye sees them (the drawn pose stood on
+the drawn orientation and pivot), never in the body frame the engine rolls.
+
+**Number smoothness in terms an eye agrees with** (`lean-signal.mjs`):
+`shiver` (what is left after a ~25 ms Gaussian smoothing, RMS — a frame-rate
+shake in degrees), `rough` (the share of the RATE's power above a few hertz —
+a swing is slow, a kink or a snap is not), turning points per cycle of the
+reference motion (1.00 is one swing a turn; more is a bump inside it), and
+the lag behind the source (the rates' cross-correlation). A peak jerk alone
+is a poor guide: a legitimate quick transition has a big one.
+
+**Draw the alternative views — each catches what the others miss:**
+
+| View | Shows |
+| --- | --- |
+| A ROW A MOMENT (the sag-lab layout): the figure at its WORST frame on the left, its neighbours ±50 ms as grey ghosts, and the trace of the whole moment on the right with the worst frame marked | the one sheet a reviewer reads first: which moment, how bad, what it looks like |
+| TRACES of every channel on one scale, with the course's events (gates, landings) marked | lag, overshoot, a part leaning the wrong way, a rule handing over to another |
+| RATES under them | a kink in the trace is a step in the rate |
+| THE RESIDUE after the shiver's smoothing, magnified ×5 | a regular ripple (a buzz at a fixed frequency) long before the trace shows it |
+| A STROBE of the figure every N frames across the window, from the view the complaint is about (behind, for a lean) | uneven spacing, a jump, a pose that pops for one frame |
+| PHASE PORTRAITS — each channel against its rate over the whole run | a smooth periodic motion is a clean loop; jitter is fuzz, a kink a spike off the loop |
+
+**Give the lab ABLATION flags, so the cause is proven, not guessed:**
+`--without=<stage>` takes one stage the view lays on the pose out (the
+chatter, the lead, the plant, the block, the transition, the spring, the
+interpolation); `--inputs` ranks every number the pose is handed by its own
+roughness; `--ease=<input>` puts one input through a critically damped
+follower before posing — the input whose easing removes the shiver is the
+one carrying it. Report findings as these before/after numbers.
+
+And as every lab: `--json` before, `--compare` after, the inputs printed on
+the picture and the table, pure Node so it runs in seconds on any seed.
+
 ## Registering a tool
 
 A tool exists when a session that has never seen it can find it. One change,

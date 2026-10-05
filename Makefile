@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics sag blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -173,6 +173,22 @@ skier-metrics:
 # "--compare=a.json" a before and after.
 sag:
 	npm run sag -- $(if $(MOMENT),--moment $(MOMENT),) $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE LEAN LAB: how SMOOTHLY the slalom racer leans from turn to turn. A
+# slalom skied by the bot and staged rhythms of turns on the open pitch,
+# every frame drawn as the renderer draws it (the run clock at --fps, the
+# body between two steps, the legs' spring, the pair on the snow, the pose
+# in the world) and read as leans layer by layer — the engine's, the
+# spring's, the drawn legs', trunk's and head's — for how far each swings,
+# how much it shivers, how rough it is above 5 Hz, its bumps a turn and its
+# lag. A table and previews/lean.png (each run's worst frame from behind
+# and its trace) and previews/lean-<row>.png (strips, a strobe, phase
+# portraits). Seconds, no browser. ROW=course,rhythm a subset; SEED=38,7
+# the maps; ARGS="--without=chatter" / "--ease=roll" / "--inputs" to find
+# a roughness's source; ARGS="--json=a.json" / "--compare=a.json" a before
+# and after.
+lean:
+	npm run lean -- $(if $(ROW),--row $(ROW),) $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE BLENDER LAB: a game asset MODELLED in Blender off the game's own data
 # (a pair: its spec and its class's traced look) — studio renders, the

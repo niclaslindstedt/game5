@@ -45,6 +45,7 @@
     "skier": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-preview.mjs",
     "skier-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-metrics.mjs",
     "sag": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sag-lab.mjs",
+    "lean": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lean-lab.mjs",
     "poleless": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/poleless-lab.mjs",
     "skate-turns": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skate-turns-lab.mjs",
     "blender": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/blender.mjs",

@@ -56,7 +56,7 @@ import { GradeMark } from "./grade-mark.tsx";
 import { EdgeBar } from "./hud-dial.tsx";
 import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
 import { StickZone } from "./hud-heli-pad.tsx";
-import type { TouchFeel } from "./input-model.ts";
+import { edgeFeel, type TouchFeel } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
 import { Minimap } from "./minimap.tsx";
 import type { HudFlash } from "./run-news.ts";
@@ -151,7 +151,11 @@ export function Hud({
   const barZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
   ) : (
-    <BarZone touch={input.touch} feel={feel} side={barSide} />
+    <BarZone
+      touch={input.touch}
+      feel={edgeFeel(feel, snap.race?.discipline ?? null)}
+      side={barSide}
+    />
   );
   const thumbs = touch && (
     <div class="hud-touch">

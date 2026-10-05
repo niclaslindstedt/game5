@@ -55,6 +55,7 @@ describe("the technique a run is skied with", () => {
       "free",
       "giantSlalom",
       "slalom",
+      "speedSki",
       "superG",
     ]);
     for (const [id, row] of Object.entries(TECHNIQUES)) expect(row.id).toBe(id);

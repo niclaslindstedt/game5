@@ -1,9 +1,12 @@
 # Race maps — every discipline's own pinned maps
 
-**Built for the slalom, the super-G and the downhill** (`pwa/src/game/race-maps.ts`,
-`tests/race_maps_test.ts`, `race_maps_downhill_test.ts`,
-`race_maps_superg_test.ts`). What stays here is the SHAPE a discipline built
-later (the giant slalom, the ski cross, speed skiing) fills in as part of being built — its spec says so —
+**Built for the slalom, the super-G, the downhill and speed skiing**
+(`pwa/src/game/race-maps.ts`, `tests/race_maps_test.ts`,
+`race_maps_downhill_test.ts`, `race_maps_superg_test.ts`,
+`race_maps_speedski_test.ts` — a speed race's box draws its track, the
+final's, and quotes the final's figures). What stays here is the SHAPE a
+discipline built later (the giant slalom, the ski cross) fills in as part of
+being built — its spec says so —
 and the one tool still to write (*To do*). Delete this file with the last
 discipline's nine.
 

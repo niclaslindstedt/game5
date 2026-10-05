@@ -25,6 +25,8 @@
 //   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
 //                    --run2 its race).
 //   ?mode=superg     ...or a SUPER-G's one run (--superg).
+//   ?mode=speedski   ...or a SPEED RACE's qualification (--speedski; with
+//                    --run2 its final).
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
@@ -135,6 +137,12 @@ const SURFACES = {
     wait: ".menu-card-levels",
     settle: 900,
   },
+  // ...SPEED SKIING's nine (`?menu=levels&mode=speedski`).
+  "speedski-levels": {
+    params: { menu: "levels", mode: "speedski" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
   races: { params: { menu: "races" }, wait: ".menu-card-races", settle: 900 },
   // THE TRICK MAP CARD a TRICKS run picks its map on (`?menu=tricks`).
   tricks: { params: { menu: "tricks", mode: "tricks" }, wait: ".menu-card-levels", settle: 900 },
@@ -159,6 +167,12 @@ const SURFACES = {
   // ...and on the super-G pair, the one SPEED CARVE fills.
   "skis-superg": {
     params: { menu: "skis", skis: "falcon" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
+  // ...and on the speed ski, the one TOP SPEED fills.
+  "skis-speed": {
+    params: { menu: "skis", skis: "peregrine" },
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
@@ -326,6 +340,10 @@ const args = parseArgs(
       help: "a downhill's training run (?mode=downhill; with --run2 its race)",
     },
     superg: { kind: "flag", help: "a super-G's one run (?mode=superg)" },
+    speedski: {
+      kind: "flag",
+      help: "a speed race's qualification (?mode=speedski; --run2 its final)",
+    },
     run2: { kind: "flag", help: "a slalom's second run, the first skied by the bot (?run=2)" },
     "no-poles": { kind: "flag", help: "the player skis without poles, the hard mode (?poles=0)" },
     viewport: {
@@ -336,7 +354,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--speedski] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -536,13 +554,14 @@ if (args.surface) {
         if (args.tricks) params.mode = "tricks";
         if (args.downhill) params.mode = "downhill";
         if (args.superg) params.mode = "superg";
+        if (args.speedski) params.mode = "speedski";
         if (args.skis !== undefined) params.skis = String(args.skis);
         if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.speedski ? "-speedski" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

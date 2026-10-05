@@ -61,6 +61,7 @@ import type { InputManager } from "./input.ts";
 import { Minimap } from "./minimap.tsx";
 import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
+import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
@@ -201,10 +202,27 @@ export function Hud({
       {!leisure && (
         <div class="hud-top">
           <div class="hud-top-row">
-            <div class="hud-clock">
-              <span class="hud-clock-time">{formatTime(snap.time)}</span>
-              <span class="hud-chip-sub">{STRINGS.clockLabel}</span>
-            </div>
+            {/* A SPEED RACE reads its SPEED where every other run reads its
+              clock — what he carries, then what the zone timed (R34). */}
+            {snap.race?.zone ? (
+              <div class="hud-clock hud-clock-speed">
+                <span class="hud-clock-time">
+                  {snap.finished && snap.result
+                    ? STRINGS.speedSkiTimed(speedOf(snap.result.time, snap.race.zone) ?? 0)
+                    : STRINGS.speedSkiNow(snap.speedKmh)}
+                </span>
+                <span class="hud-chip-sub">
+                  {snap.finished && snap.result
+                    ? STRINGS.speedSkiTimedLabel
+                    : STRINGS.speedSkiLabel}
+                </span>
+              </div>
+            ) : (
+              <div class="hud-clock">
+                <span class="hud-clock-time">{formatTime(snap.time)}</span>
+                <span class="hud-chip-sub">{STRINGS.clockLabel}</span>
+              </div>
+            )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
             {snap.tricks && <TricksChips tile={snap.tricks} />}
             {/* THE PLACE — the one number a racer reads more than the clock.
@@ -221,7 +239,9 @@ export function Hud({
                     ? STRINGS.downhillRun(snap.race.training)
                     : snap.race.discipline === "superG"
                       ? STRINGS.superGRun
-                      : STRINGS.runOf(snap.race.run, snap.race.runs)}
+                      : snap.race.discipline === "speedSki"
+                        ? STRINGS.speedSkiRun(snap.race.run)
+                        : STRINGS.runOf(snap.race.run, snap.race.runs)}
                 </span>
                 <span class="hud-chip-sub">{STRINGS.runLabel}</span>
               </div>

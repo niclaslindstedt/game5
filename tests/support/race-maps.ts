@@ -3,15 +3,23 @@
 // each built on the generator it names and held to its digest, its course,
 // its grade, the day and the loop its box bills, and the course set over it
 // held to the figures the box quotes and to its discipline's rule. Shared by
-// `race_maps_test.ts` (the slalom's), `race_maps_downhill_test.ts` and
-// `race_maps_superg_test.ts`, one
+// `race_maps_test.ts` (the slalom's), `race_maps_downhill_test.ts`,
+// `race_maps_superg_test.ts` and `race_maps_speedski_test.ts`, one
 // discipline a file, because building a map is the dearest thing the engine
 // does and twenty-seven of them in one file would be the slowest file in the
 // suite.
 
 import { describe, expect, it } from "vitest";
 
-import { DISCIPLINE_RULES, createGame, levelDigest, weatherOf, withSky } from "@engine";
+import {
+  DISCIPLINE_RULES,
+  createGame,
+  levelDigest,
+  setSpeedSki,
+  speedSkiAim,
+  weatherOf,
+  withSky,
+} from "@engine";
 import { buildCampaignLevel, campaignSky } from "../../pwa/src/game/campaign.ts";
 import { CAMPAIGN_ROUTES } from "../../pwa/src/game/campaign-routes.ts";
 import { RACE_MAPS, type RaceMap } from "../../pwa/src/game/race-maps.ts";
@@ -24,7 +32,7 @@ function raced(map: RaceMap) {
   return { built, level: state.level };
 }
 
-export function holdRaceMaps(discipline: "slalom" | "superG" | "downhill"): void {
+export function holdRaceMaps(discipline: "slalom" | "superG" | "downhill" | "speedSki"): void {
   describe(`the ${discipline}'s maps, built`, () => {
     for (const map of RACE_MAPS[discipline] ?? []) {
       it(`${map.id} (seed ${map.seed}) builds the map it was pinned on, with a ${discipline} on it`, () => {
@@ -39,9 +47,22 @@ export function holdRaceMaps(discipline: "slalom" | "superG" | "downhill"): void
         const day = sky ? withSky(built, sky) : built;
         expect(weatherOf(day).kind, `${map.id}'s box bills the wrong sky`).toBe(map.day.weather);
         expect(day.sun.hour, `${map.id}'s box bills the wrong hour`).toBeCloseTo(map.day.hour, 1);
+        // A speed race's box draws its track — the final's, top to bottom.
+        const drawn = discipline === "speedSki" ? setSpeedSki(built, 2) : built;
         expect(CAMPAIGN_ROUTES[map.id], `${map.id}'s line — run \`make routes\``).toBe(
-          routeOf(built),
+          routeOf(drawn),
         );
+        if (discipline === "speedSki") {
+          // The FINAL's track its box bills, its speed inside the band.
+          const final = drawn.speedSki!;
+          expect(final.vertical).toBeCloseTo(map.figures.vertical, 0);
+          expect(final.to - final.from).toBeCloseTo(map.figures.length, 0);
+          const { min, max } = DISCIPLINE_RULES.speedSki.speed;
+          expect(speedSkiAim(drawn)).toBeGreaterThanOrEqual(min);
+          expect(speedSkiAim(drawn)).toBeLessThanOrEqual(max);
+          expect(level.speedSki?.run).toBe(1);
+          return;
+        }
         // The course its box bills, set over it inside its rule.
         const set = discipline === "slalom" ? level.slalom : level[discipline];
         expect(set, `${map.id} carries no ${discipline}`).toBeDefined();

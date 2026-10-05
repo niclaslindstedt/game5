@@ -94,6 +94,24 @@ export function crossedLine(
   return (cx - cp.x) * fz - (cz - cp.z) * fx;
 }
 
+/** WHEN IN THE STEP the move from (x0, z0) to (x1, z1) crossed the gate's
+ * line: the share of the move made before it, 0..1 (1 where it did not
+ * cross). A clock read to the step alone is 1/120 s coarse — half a km/h
+ * through a speed-skiing trap — so the timing zone reads it finer. */
+export function crossingShare(
+  cp: Checkpoint,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+): number {
+  const fx = Math.sin(cp.heading);
+  const fz = Math.cos(cp.heading);
+  const s0 = (x0 - cp.x) * fx + (z0 - cp.z) * fz;
+  const s1 = (x1 - cp.x) * fx + (z1 - cp.z) * fz;
+  return s0 < 0 && s1 >= 0 ? s0 / (s0 - s1) : 1;
+}
+
 /** Whether the move went THROUGH the gate — inside its width and the
  * grace, and `extra` metres more — returning the offset, or null. */
 export function crossedCheckpoint(

@@ -21,7 +21,8 @@
 //                                        medals against it), does every
 //                                        rung ask more than the one before,
 //                                        is any pair the same map twice
-//   make rate RACE=superG                a discipline's nine race maps
+//   make rate RACE=superG                a discipline's nine race maps (slalom,
+//                                        superG, downhill, speedSki)
 //                                        (race-maps.ts), audited the same
 //                                        way: the digest, the rating, the
 //                                        course's figures, the bot's time
@@ -55,6 +56,9 @@ const {
   rateLevel,
   simulateRun,
   SUPER_G,
+  SPEED_SKI,
+  DOWNHILL,
+  SLALOM,
   createGame,
   raceCourseOf,
   raceParOf,
@@ -76,7 +80,10 @@ const args = parseArgs(
     sim: { kind: "flag", help: "ski each map with the bot and rate its run as the time axis" },
     stats: { kind: "flag", help: "print the population per axis instead of the rows" },
     campaign: { kind: "flag", help: "audit the committed campaign ladder (campaign-levels.ts)" },
-    race: { kind: "string", help: "audit a discipline's nine race maps (race-maps.ts): superG" },
+    race: {
+      kind: "string",
+      help: "audit a discipline's nine race maps (race-maps.ts): slalom, superG, downhill, speedSki",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -285,7 +292,16 @@ async function auditRace(discipline) {
   printHeader();
   for (const pinned of rowsOf) {
     const level = buildCampaignLevel(pinned);
-    const run = simulateRun(level.seed, { level, mode: pinned.mode, spec: skisById(SUPER_G.skis) });
+    // Each discipline on its field's own pair.
+    const skis =
+      pinned.mode === "speedSki"
+        ? SPEED_SKI.skis
+        : pinned.mode === "downhill"
+          ? DOWNHILL.skis
+          : pinned.mode === "slalom"
+            ? SLALOM.skis
+            : SUPER_G.skis;
+    const run = simulateRun(level.seed, { level, mode: pinned.mode, spec: skisById(skis) });
     const raced = createGame({
       seed: level.seed,
       level,
@@ -309,7 +325,11 @@ async function auditRace(discipline) {
       `  "${pinned.name}" — ${pinned.region ?? "alpine"} ${pinned.grade}, course ${pinned.course}: ` +
         `${f(course?.vertical ?? 0, 0)} m over ${f((course?.to ?? 0) - (course?.from ?? 0), 0)} m, ` +
         `${raced.level.checkpoints.length - 2} gates · the bot ${bot} against par ${f(par?.time ?? NaN, 1)} s` +
-        (run.trap ? ` · trap ${f(run.trap * 3.6, 0)} km/h` : ""),
+        (run.trap
+          ? raced.level.speedSki
+            ? ` · timed ${f(run.trap * 3.6, 2)} km/h against par's ${f((par?.trap ?? 0) * 3.6, 2)}`
+            : ` · trap ${f(run.trap * 3.6, 0)} km/h`
+          : ""),
     );
     if (levelDigest(level) !== pinned.digest) {
       moved += 1;

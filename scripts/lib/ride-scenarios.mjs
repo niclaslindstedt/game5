@@ -58,6 +58,7 @@ import {
   onPitch,
 } from "./ride-helpers.mjs";
 import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
+import { SPEED_SCENARIOS } from "./ride-speed.mjs";
 
 /** The fastest the snow slid across the skis over a run, m/s. */
 const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
@@ -283,6 +284,8 @@ export const SCENARIOS = [
   },
   // The slalom racer's technique (`ride-slalom.mjs`).
   ...SLALOM_SCENARIOS,
+  // The speed skier's, on the speed ski (`ride-speed.mjs`, R34).
+  ...SPEED_SCENARIOS,
   {
     id: "jump-tap",
     title: "the jump tapped at 50 km/h on flat packed snow",

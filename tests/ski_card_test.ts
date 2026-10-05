@@ -16,6 +16,7 @@ import {
   quicknessOf,
   skisBars,
   speedCarveOf,
+  fastCarveOf,
   skisFacts,
 } from "../pwa/src/game/ski-stats.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -71,6 +72,10 @@ describe("the spec sheet", () => {
     // the super-G ski carves the hardest bend clean there, the giant
     // slalom ski at race pace.
     expect(by(speedCarveOf)[0]).toBe("falcon");
+    // ...and at a downhill's, every arc asks more than its edge holds but
+    // the speed ski's, and the downhill ski's grip holds the most.
+    expect(by(fastCarveOf)[0]).toBe("eagle");
+    expect(by((s) => s.topSpeed)[0]).toBe("peregrine");
     expect(by((s) => carveOf(s))[0]).toBe("chough");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);

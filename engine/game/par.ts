@@ -20,9 +20,10 @@
 // it (the field's best is dealt about par, so par is a good
 // racer's clean run, and the bot one of the field).
 
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { trackPointAt } from "../mapgen/index.ts";
 import type { Level, SpeedCourse, TrackPoint } from "../mapgen/types.ts";
-import { DOWNHILL, SLALOM, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { skisById, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
@@ -34,6 +35,8 @@ import {
 import { lineBendAt } from "./course.ts";
 import { brakeDecel, carveSpeedOf, cutGrip } from "./limits.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "./race-line.ts";
+import { NEUTRAL_INPUT, type SkierInput } from "./state.ts";
+import { createGame, step } from "./step.ts";
 
 /** The par's numbers. Metres, seconds. */
 export const PAR = {
@@ -279,11 +282,86 @@ function speedPar(
   return par;
 }
 
-/** THE PAR OF THE RACE SET ON `level` — a slalom's, a downhill's or a
- * super-G's — on the pair its field races on; null on a map with no course
- * set. */
+/** SPEED SKIING'S PAR NUMBERS (R34): the most a par run is skied for, s,
+ * and the step the profile is walked in where it cannot be skied, m. */
+export const SPEED_SKI_PAR = {
+  limit: 90,
+  step: 0.5,
+} as const;
+
+const speedSkiPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
+const TUCKED: SkierInput = { ...NEUTRAL_INPUT, tuck: 1 };
+
+/** THE PAR of `level`'s speed-skiing run on `spec` (R34): the run itself,
+ * SKIED — out of the house in a full tuck, the skis flat, straight down the
+ * track to the timing zone's bottom line, in the run's own weather and its
+ * wind and over the new snow it lays — which is the cleanest run there is,
+ * a racer's whole craft on a speed track being to hold it. Nothing a
+ * profile can be walked by sees what the physics does to him in a
+ * compression at 55 m/s or in a headwind, and the race is decided by tenths
+ * of a km/h. The splits are the start gate's 0, the zone's top line's 0
+ * (the clock started again there) and the time through it; the trap its
+ * length over that time. A map with no speed track has none. */
+export function speedSkiPar(level: Level, spec: SkiSpec): Par | null {
+  const sk = level.speedSki;
+  if (!sk) return null;
+  let bySpec = speedSkiPars.get(level);
+  if (!bySpec) {
+    bySpec = new WeakMap();
+    speedSkiPars.set(level, bySpec);
+  }
+  const known = bySpec.get(spec);
+  if (known) return known;
+  const run = createGame({
+    level,
+    seed: level.seed,
+    mode: "speedSki",
+    spec,
+    rivals: 0,
+    countdown: 0,
+    quiet: true,
+    // The final's track is the final's.
+    heat: sk.run === 2 ? { run: 2, player: 0, field: [] } : undefined,
+  });
+  for (let i = 0; i < SPEED_SKI_PAR.limit * TUNING.physicsHz && !run.progress.finished; i++) {
+    step(run, TUCKED);
+  }
+  const p = run.progress;
+  const time = p.finished && !p.out ? p.time : profileTime(level, spec);
+  const par: Par = { time, splits: [0, 0, time], trap: sk.zone.length / time };
+  bySpec.set(spec, par);
+  return par;
+}
+
+/** The time through `level`'s timing zone of a full tuck walked down the
+ * profile — the pitch's pull less the air's drag and the base's friction —
+ * where the track cannot be skied clean. */
+function profileTime(level: Level, spec: SkiSpec): number {
+  const sk = level.speedSki;
+  if (!sk) return 0;
+  const ds = SPEED_SKI_PAR.step;
+  const tucked = (0.5 * TUNING.airDensity * spec.cdATuck) / totalMass(spec);
+  let v: number = TUNING.start.speed;
+  let zone = 0;
+  let y0 = trackPointAt(level, sk.from, qa).y;
+  for (let s = sk.from; s < sk.zone.to - 1e-9; s += ds) {
+    const y1 = trackPointAt(level, s + ds, qa).y;
+    const len = hypot(ds, y0 - y1);
+    const pull = TUNING.g * ((y0 - y1 - TUNING.snow.crrPacked * ds) / len);
+    const v1 = Math.sqrt(Math.max(0.01, v * v + 2 * len * (pull - tucked * v * v)));
+    if (s >= sk.zone.from) zone += (2 * len) / (v + v1);
+    v = v1;
+    y0 = y1;
+  }
+  return Math.max(zone, 1e-3);
+}
+
+/** THE PAR OF THE RACE SET ON `level` — a slalom's, a downhill's, a
+ * super-G's or a speed track's — on the pair its field races on; null on a
+ * map with no course set. */
 export function raceParOf(level: Level): Par | null {
   if (level.downhill) return downhillPar(level, skisById(DOWNHILL.skis));
   if (level.superG) return superGPar(level, skisById(SUPER_G.skis));
+  if (level.speedSki) return speedSkiPar(level, skisById(SPEED_SKI.skis));
   return slalomPar(level, skisById(SLALOM.skis));
 }

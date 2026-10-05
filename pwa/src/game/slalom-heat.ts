@@ -13,11 +13,14 @@
 //
 // A downhill has no second run; what its plate offers after its training run
 // is its race (`downhill-run.ts`), and `secondRunOf` says so beside the
-// slalom's offer, so the plate asks one function what comes next.
+// slalom's offer, so the plate asks one function what comes next. A SPEED
+// RACE's second run is its FINAL (R34): the qualification's best
+// `SPEED_SKI.qualify` start it from the top of the track, and its board is
+// the final's alone.
 //
 // DOM-free and storage-free: `tests/slalom_hud_test.ts` reads it.
 
-import { SLALOM, fieldPlace, type GameState, type Heat } from "@engine";
+import { SLALOM, SPEED_SKI, fieldPlace, type GameState, type Heat } from "@engine";
 
 /** WHAT THE FINISH PLATE OFFERS after a slalom's first run: the second run
  * (`go`), or why not — out of the first (`out`), or home outside the
@@ -42,7 +45,19 @@ export function secondRunOf(state: GameState): SecondRun | null {
   if (f.run !== 1) return null;
   if (state.progress.out) return { kind: "out" };
   const place = fieldPlace(state);
-  return place <= SLALOM.qualify ? { kind: "go", place } : { kind: "short", place };
+  return place <= qualifyOf(state) ? { kind: "go", place } : { kind: "short", place };
+}
+
+/** THE MODE OF A TWO-RUN RACE on the snow — a slalom's, or a speed race's
+ * (R34) — what its second run, and either run again, is stood up as. */
+export function twoRunMode(state: GameState): "slalom" | "speedSki" {
+  return state.level.speedSki ? "speedSki" : "slalom";
+}
+
+/** HOW MANY OF THE FIRST RUN START THE SECOND: a slalom's best thirty, a
+ * speed race's finalists. */
+export function qualifyOf(state: GameState): number {
+  return state.level.speedSki ? SPEED_SKI.qualify : SLALOM.qualify;
 }
 
 /** THE HEAT AFTER THE FIRST RUN: the player's time and the field as it

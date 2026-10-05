@@ -15,7 +15,9 @@
 //
 // THE TIMING POINTS are the gates nearest a third and two thirds of the
 // course's length, as a slalom is timed: two intermediates and the finish —
-// and on a downhill four, a fifth of the way apart.
+// and on a downhill four, a fifth of the way apart. A speed track has none:
+// its one figure is the timing zone's, and its board ranks a final on the
+// final alone (R34).
 // The gap there is against the LEADER — the best combined time among the
 // racers already down — at the same gate, as television shows it: negative
 // is ahead.
@@ -43,7 +45,7 @@ const BIBS = new WeakMap<Field, number[]>();
 function bibsOf(state: GameState, field: Field): number[] {
   let bibs = BIBS.get(field);
   if (!bibs) {
-    bibs = startNumbers(state.seed, state.rules.rivals);
+    bibs = startNumbers(state.seed, state.rules.rivals, state.level.speedSki !== undefined);
     BIBS.set(field, bibs);
   }
   return bibs;
@@ -156,20 +158,26 @@ export function boardOf(state: GameState): Standing[] {
   const p = state.progress;
   const gates = state.level.checkpoints.length;
   const bibs = bibsOf(state, f);
-  const second = f.run === 2;
+  // A speed race's final is ranked on the final alone (R34): its board
+  // carries the run's time and no first run, no total.
+  const speed = state.level.speedSki !== undefined;
+  const second = f.run === 2 && !speed;
+  const before = speed ? 0 : f.before;
+  const standingOf = (r: FieldRun): number | null =>
+    r.time === null ? null : (speed ? 0 : r.before) + r.time;
   const over = p.finished;
   const byId = new Map(f.runs.map((r, i) => [r.id, { run: r, order: i }]));
   const mine = p.out || !over ? null : p.time;
   const totals: number[] = [];
   for (const r of f.runs) {
-    const t = totalOf(r);
+    const t = standingOf(r);
     if (t !== null && (over || byId.get(r.id)!.order < f.slot)) totals.push(t);
   }
-  if (mine !== null) totals.push(f.before + mine);
+  if (mine !== null) totals.push(before + mine);
   const lead = totals.length > 0 ? Math.min(...totals) : null;
   const rows = fieldOrderOf(state).map((id): Standing => {
     if (id === null) {
-      const total = mine === null ? null : f.before + mine;
+      const total = mine === null ? null : before + mine;
       return {
         place: null,
         slot: playerBib(state),
@@ -186,7 +194,7 @@ export function boardOf(state: GameState): Standing[] {
     }
     const { run: r, order } = byId.get(id)!;
     const waiting = !over && order >= f.slot;
-    const total = waiting ? null : totalOf(r);
+    const total = waiting ? null : standingOf(r);
     return {
       place: null,
       slot: bibs[id] ?? id + 1,

@@ -29,6 +29,7 @@ const { CAMPAIGN_LEVELS, buildCampaignLevel } = await import(
 const { TRICK_MAPS, buildTrickMap } = await import(join(root, "pwa/src/game/trick-maps.ts"));
 const { RACE_MAPS } = await import(join(root, "pwa/src/game/race-maps.ts"));
 const { routeOf } = await import(join(root, "pwa/src/game/route-shape.ts"));
+const { setSpeedSki } = await import(join(root, "engine/index.ts"));
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -41,7 +42,14 @@ const pinnedMaps = [
   ...CAMPAIGN_LEVELS.map((pinned) => ({ pinned, build: () => buildCampaignLevel(pinned) })),
   ...Object.values(RACE_MAPS)
     .flat()
-    .map((pinned) => ({ pinned, build: () => buildCampaignLevel(pinned) })),
+    .map((pinned) => ({
+      pinned,
+      // A speed race's box draws its track (R34), the final's.
+      build: () =>
+        pinned.mode === "speedSki"
+          ? setSpeedSki(buildCampaignLevel(pinned), 2)
+          : buildCampaignLevel(pinned),
+    })),
   ...TRICK_MAPS.map((pinned) => ({ pinned, build: () => buildTrickMap(pinned) })),
 ];
 const rows = pinnedMaps.map(({ pinned, build }) => {

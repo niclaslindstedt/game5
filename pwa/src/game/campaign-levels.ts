@@ -103,10 +103,12 @@ import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind }
 /** The games a pinned map is played as: a SLALOM, set on the map's
  * steepest stretch (R31), a DOWNHILL down its whole course out of a start
  * house against a field (R32), a SUPER-G from a start lowered down it (R33
- * — a race map's, `race-maps.ts`, never a rung yet), or the TIME TRIAL down
+ * — a race map's, `race-maps.ts`, never a rung yet), a SPEED RACE down a
+ * track cut straight down the face (R34 — a race map's too), or the TIME
+ * TRIAL down
  * its whole course alone. A free ride measures nothing, so it is never a
  * rung. */
-export type CampaignMode = "slalom" | "downhill" | "superG" | "timeTrial";
+export type CampaignMode = "slalom" | "downhill" | "superG" | "speedSki" | "timeTrial";
 
 /** The three medals a time trial pays, worst first. */
 export const MEDALS = ["bronze", "silver", "gold"] as const;

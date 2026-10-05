@@ -188,6 +188,39 @@ export interface Level {
    * `checkpoints`, its start house the `spawn`. Absent on every map the
    * generator builds — a super-G is set over one. */
   superG?: SuperGCourse;
+  /** A SPEED-SKIING TRACK set on the map (R34, `setSpeedSki`): its `track`
+   * is the straight speed track cut down the fall line, its checkpoints
+   * the start gate and the TIMING ZONE's two lines, its start house the
+   * `spawn`. Absent on every map the generator builds — a speed track is
+   * set over one. */
+  speedSki?: SpeedSkiCourse;
+}
+
+/** A SPEED-SKIING TRACK (R34) as it was set over a built map: a straight
+ * cut down the fall line, graded smooth and groomed hard, its own `track`
+ * — the map's piste is not skied. Every arc is down this track. */
+export interface SpeedSkiCourse {
+  /** Which run of the two (R34): the QUALIFICATION from a lowered start
+   * (1), or the FINAL from the top (2). */
+  run: 1 | 2;
+  /** The map it was set over, before any course. */
+  base: Level;
+  /** The run's start gate's arc (the wand), m, and the timing zone's end —
+   * where the run is measured to. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** THE TIMING ZONE: its two lines' arcs, m, and its length along the
+   * snow, m — the speed is that length over the time between them. */
+  zone: { from: number; to: number; length: number };
+  /** The final's start, at the top of the track, m — a qualification
+   * starts lower. */
+  top: number;
+  /** The run-out's end, m: where the track stops, on the valley floor. */
+  stop: number;
+  /** The track's width, m. */
+  width: number;
 }
 
 /** A SPEED EVENT'S COURSE as it was set over a built map — a downhill's

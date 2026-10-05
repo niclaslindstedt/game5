@@ -35,10 +35,19 @@
 // far more often out of it, a sixth to a quarter of a field on most days,
 // as often by a gate missed as by a fall (`SUPER_G_FIELD`); its trap as
 // the downhill's.
+//
+// SPEED SKIING (R34) is timed through its zone, and its board is the time
+// there as a SPEED: tight at the top — the first four within some 1.3 km/h
+// of 180, the tenth 2 % off the winner, the twentieth 6 % and the last 15
+// % — and hardly ever out of it, a fall the only way (four in 450 runs at
+// one event); its start list run 1 in the ranking's order, the best
+// fifteen drawn among themselves (`SPEED_SKI_FIELD`). Its FINAL is the
+// qualification's best `SPEED_SKI.qualify`, in increasing order of their
+// speed — the fastest last — and ranked on the FINAL alone, never combined.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { speedCourseOf } from "../mapgen/index.ts";
-import { DOWNHILL, SLALOM, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { raceParOf } from "./par.ts";
 import type { FieldRun, GameState, RunOut } from "./state.ts";
 
@@ -95,6 +104,21 @@ export const SUPER_G_FIELD = {
   trap: DOWNHILL_FIELD.trap,
 } as const;
 
+/** SPEED SKIING'S FIELD (R34), over `FIELD`'s shape: a share of par's
+ * time through the zone — a speed's share the other way up. Its best
+ * racers come through a hair under a clean run held in a full tuck from
+ * the top (`best`), so a perfect run wins and anything less is places
+ * behind; it is out only by a fall; the best `seeds` of the list are drawn
+ * among themselves at the head of the first run. */
+export const SPEED_SKI_FIELD = {
+  spread: 0.09,
+  noise: 0.004,
+  best: 0.003,
+  out: { best: 0.005, worst: 0.03 },
+  why: { missed: 0, straddle: 0, fall: 1 },
+  seeds: 15,
+} as const;
+
 /** THE FIRST RUN, carried into the second: the player's time and the
  * field as it finished. */
 export type Heat = { run: 2; player: number; field: readonly FieldRun[] };
@@ -113,25 +137,32 @@ function startList(seed: number, count: number): Racer[] {
 }
 
 /** THE FIRST RUN'S START ORDER of a field of `count` off `seed`: the best
- * seeds drawn among themselves, then the rest by skill. */
-function firstRun(seed: number, count: number): Racer[] {
+ * `seeds` drawn among themselves, then the rest by skill. */
+function firstRun(seed: number, count: number, seeded: number = FIELD.seeds): Racer[] {
   const order = createRng((seed ^ FIELD_SALT ^ 0x51) >>> 0);
   const ranked = startList(seed, count).sort((a, b) => b.skill - a.skill || a.id - b.id);
-  const seeds = ranked.slice(0, FIELD.seeds);
+  const seeds = ranked.slice(0, seeded);
   for (let i = seeds.length - 1; i > 0; i--) {
     const j = order.int(0, i);
     [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
   }
-  return [...seeds, ...ranked.slice(FIELD.seeds)];
+  return [...seeds, ...ranked.slice(seeded)];
 }
 
 /** EVERY RACER'S START NUMBER — his place in the first run's order, from 1,
  * kept for the second — by his id; the player's is `count + 1`, the last
- * of the first run. */
-export function startNumbers(seed: number, count: number): number[] {
+ * of the first run. A speed race's first run draws its best fifteen. */
+export function startNumbers(seed: number, count: number, speedSki = false): number[] {
   const bibs: number[] = [];
-  firstRun(seed, count).forEach((r, i) => (bibs[r.id] = i + 1));
+  const seeded = speedSki ? SPEED_SKI_FIELD.seeds : FIELD.seeds;
+  firstRun(seed, count, seeded).forEach((r, i) => (bibs[r.id] = i + 1));
   return bibs;
+}
+
+/** WHETHER A RACE IS RANKED ON THE RUNS COMBINED — a slalom's two — or on
+ * the run alone: a speed race's final. */
+function combined(state: GameState): boolean {
+  return state.level.speedSki === undefined;
 }
 
 /** DEAL THE FIELD: the start list, the order it goes in, and every run of
@@ -139,11 +170,12 @@ export function startNumbers(seed: number, count: number): number[] {
  * from `createGame`, before the player's run has taken a step. */
 export function createField(state: GameState, count: number, heat?: Heat, training = false): void {
   const run = heat ? 2 : 1;
+  const speedSki = state.level.speedSki !== undefined;
   const list = startList(state.seed, count);
   let starters: Racer[];
   let slot: number;
   if (!heat) {
-    starters = firstRun(state.seed, count);
+    starters = firstRun(state.seed, count, speedSki ? SPEED_SKI_FIELD.seeds : FIELD.seeds);
     slot = starters.length;
   } else {
     // The first run's finishers, the player among them.
@@ -154,7 +186,11 @@ export function createField(state: GameState, count: number, heat?: Heat, traini
       .map((r) => ({ racer: r, time: carried.get(r.id)?.time ?? 0 }));
     home.push({ racer: null, time: heat.player });
     home.sort((a, b) => a.time - b.time || (a.racer?.id ?? -1) - (b.racer?.id ?? -1));
-    const go = [...home.slice(0, SLALOM.qualify).reverse(), ...home.slice(SLALOM.qualify)];
+    // A slalom's second run: the best thirty in reverse, the rest after
+    // them; a speed race's final: its best alone, the slowest first.
+    const go = speedSki
+      ? home.slice(0, SPEED_SKI.qualify).reverse()
+      : [...home.slice(0, SLALOM.qualify).reverse(), ...home.slice(SLALOM.qualify)];
     slot = go.findIndex((r) => r.racer === null);
     starters = go.flatMap((r) => (r.racer ? [r.racer] : []));
   }
@@ -188,7 +224,13 @@ function dealRun(
   const level = state.level;
   const downhill = level.downhill !== undefined;
   const speed = speedCourseOf(level);
-  const F = downhill ? DOWNHILL_FIELD : level.superG ? SUPER_G_FIELD : FIELD;
+  const F = downhill
+    ? DOWNHILL_FIELD
+    : level.superG
+      ? SUPER_G_FIELD
+      : level.speedSki
+        ? SPEED_SKI_FIELD
+        : FIELD;
   const par = raceParOf(level);
   const n = level.checkpoints.length;
   const weak = 1 - racer.skill;
@@ -218,13 +260,24 @@ function dealRun(
   // THE TRAP, about par's speed there — a stronger racer a little faster.
   const D = DOWNHILL_FIELD.trap;
   const trapGate = speed ? level.checkpoints.findIndex((c) => c.s >= speed.trap.s) : -1;
-  const trap =
-    par && par.trap > 0 && !(out && trapGate >= out.gate)
+  // ...and on a speed track the trap IS the zone: its length over his time.
+  const zone = level.speedSki?.zone;
+  const trap = zone
+    ? out
+      ? null
+      : zone.length / splits[n - 1]
+    : par && par.trap > 0 && !(out && trapGate >= out.gate)
       ? par.trap * (1 - D.spread * weak + D.noise * (rng.next() + rng.next() - 1))
       : null;
   return {
     id: racer.id,
-    skis: downhill ? DOWNHILL.skis : level.superG ? SUPER_G.skis : SLALOM.skis,
+    skis: downhill
+      ? DOWNHILL.skis
+      : level.superG
+        ? SUPER_G.skis
+        : level.speedSki
+          ? SPEED_SKI.skis
+          : SLALOM.skis,
     time: out ? null : splits[n - 1],
     out,
     splits,
@@ -233,9 +286,10 @@ function dealRun(
   };
 }
 
-/** A racer's standing: the combined time, or none when he is out. */
-function totalOf(r: FieldRun): number | null {
-  return r.time === null ? null : r.before + r.time;
+/** A racer's standing: the combined time — on a speed race's final the
+ * run's alone — or none when he is out. */
+export function fieldTimeOf(state: GameState, r: FieldRun): number | null {
+  return r.time === null ? null : (combined(state) ? r.before : 0) + r.time;
 }
 
 /** THE PLAYER'S PLACE against the field: one more than the racers whose
@@ -244,10 +298,10 @@ function totalOf(r: FieldRun): number | null {
 export function fieldPlace(state: GameState): number {
   const f = state.field;
   if (!f) return 1;
-  const mine = f.before + state.progress.time;
+  const mine = (combined(state) ? f.before : 0) + state.progress.time;
   let ahead = 0;
   for (const r of f.runs) {
-    const total = totalOf(r);
+    const total = fieldTimeOf(state, r);
     if (total !== null && total < mine) ahead += 1;
   }
   return ahead + 1;
@@ -262,10 +316,11 @@ export function fieldOrderOf(state: GameState): (number | null)[] {
   const p = state.progress;
   const rows: { id: number | null; total: number | null; order: number }[] = f.runs.map((r, i) => ({
     id: r.id,
-    total: totalOf(r),
+    total: fieldTimeOf(state, r),
     order: i,
   }));
-  rows.push({ id: null, total: p.out ? null : f.before + p.time, order: f.runs.length });
+  const before = combined(state) ? f.before : 0;
+  rows.push({ id: null, total: p.out ? null : before + p.time, order: f.runs.length });
   rows.sort((a, b) => {
     if (a.total === null || b.total === null) {
       return a.total === null && b.total === null ? a.order - b.order : a.total === null ? 1 : -1;

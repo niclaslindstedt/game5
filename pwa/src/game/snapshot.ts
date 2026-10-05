@@ -23,6 +23,7 @@ import {
   DOWNHILL,
   SLALOM,
   SUPER_G,
+  SPEED_SKI,
   SLED,
   heliWithin,
   sledWithin,
@@ -92,11 +93,11 @@ export type Standing = {
 };
 
 /** AN INTERVAL START'S RACE as the HUD reads it — a slalom's, a
- * downhill's or a super-G's — null on any other run. */
+ * downhill's, a super-G's or a speed race's — null on any other run. */
 export type RaceHud = {
   /** Which discipline, and — on a downhill — whether this is its TRAINING
    * run (`downhill-run.ts`), which counts for nothing. */
-  discipline: "slalom" | "downhill" | "superG";
+  discipline: "slalom" | "downhill" | "superG" | "speedSki";
   training: boolean;
   /** Which run of how many (R31; a downhill and a super-G are one). */
   run: 1 | 2;
@@ -120,6 +121,10 @@ export type RaceHud = {
    * one. `trapFresh` while it has just been taken (`TIMING_HOLD`). */
   trap: TrapReading | null;
   trapFresh: boolean;
+  /** A SPEED TRACK'S TIMING ZONE (R34): its length along the snow, m —
+   * what every time the race keeps is read against as a speed
+   * (`speed-ski-run.ts`) — null on every other race. */
+  zone: number | null;
 };
 
 export type HudSnapshot = {
@@ -406,7 +411,9 @@ export function raceOf(state: GameState): RaceHud | null {
     ? "downhill"
     : state.level.superG
       ? "superG"
-      : "slalom";
+      : state.level.speedSki
+        ? "speedSki"
+        : "slalom";
   const word =
     state.phase === "countdown"
       ? "ready"
@@ -422,7 +429,9 @@ export function raceOf(state: GameState): RaceHud | null {
         ? DOWNHILL.runs
         : discipline === "superG"
           ? SUPER_G.runs
-          : SLALOM.runs,
+          : discipline === "speedSki"
+            ? SPEED_SKI.runs
+            : SLALOM.runs,
     word,
     timing: timingSplit(state),
     before: f.before,
@@ -430,6 +439,7 @@ export function raceOf(state: GameState): RaceHud | null {
     second: secondRunOf(state),
     trap: trapOf(state),
     trapFresh: p.trapAt !== null && p.time - p.trapAt < TIMING_HOLD && !p.finished,
+    zone: state.level.speedSki?.zone.length ?? null,
   };
 }
 

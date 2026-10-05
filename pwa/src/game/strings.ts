@@ -19,6 +19,7 @@ import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
+import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 
@@ -77,6 +78,7 @@ export const STRINGS = {
   ...SLALOM_STRINGS,
   ...DOWNHILL_STRINGS,
   ...SUPER_G_STRINGS,
+  ...SPEED_SKI_STRINGS,
   ...SLED_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
@@ -346,6 +348,7 @@ export const STRINGS = {
     top: "TOP SPEED",
     edge: "EDGE HOLD",
     speed: "SPEED CARVE",
+    fast: "FAST BEND",
     quick: "QUICKNESS",
     float: "FLOAT",
     flex: "FORGIVENESS",

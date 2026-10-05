@@ -153,6 +153,9 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   // A downhill pair in deep cobalt, never white: a white ski is gone
   // against the snow at the chase camera's range.
   eagle: sheet("Speed", 0x1f4fb8, 0xf2c21b, "race", { boot: 0x1f4fb8, pole: 0xf2c21b }),
+  // A speed pair in signal orange with a white block: seen from a long
+  // lens down a white track at 200 km/h.
+  peregrine: sheet("Tracer", 0xf2541b, 0xf2f2f2, "race", { boot: 0x17191c, pole: 0xf2f2f2 }),
   marmot: sheet("Pine", 0x2c5a3a, 0xf2f2f2, "swoosh", { boot: 0x2c5a3a }),
   hare: sheet("Candy", 0xf05a8a, 0x17191c, "split", { boot: 0xf05a8a }),
 };

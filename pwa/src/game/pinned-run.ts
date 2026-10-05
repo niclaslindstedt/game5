@@ -47,7 +47,7 @@ import type { CampaignRig } from "./campaign-run.ts";
 import { recipeOf } from "./replay.ts";
 import type { Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
-import { heatAfter, heatOf, secondRunOf } from "./slalom-heat.ts";
+import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -159,11 +159,13 @@ export function createPinnedRuns(world: {
       }
       const heat = heatAfter(now);
       if (!heat) return;
-      world.setMode("slalom");
+      // A slalom's second run, or a speed race's final.
+      const mode = twoRunMode(now);
+      world.setMode(mode);
       world.loader.begin({
         build: () => {
           world.rig.arm(null);
-          return createGame({ ...recipeOf(now, "slalom"), heat });
+          return createGame({ ...recipeOf(now, mode), heat });
         },
         camera: world.settings().camera,
         done: world.done,
@@ -194,13 +196,13 @@ export function secondRunOff(first: GameState): GameState {
     step(first, botInput(first));
   }
   const heat = heatAfter(first);
-  return heat ? createGame({ ...recipeOf(first, "slalom"), heat }) : first;
+  return heat ? createGame({ ...recipeOf(first, twoRunMode(first)), heat }) : first;
 }
 
 /** A SLALOM'S SECOND RUN AGAIN from the start house: the same course, the
  * same board, the same heat — or null on a run that is not a second run. */
 export function secondRunAgain(state: GameState): GameState | null {
-  return heatOf(state) ? createGame(recipeOf(state, "slalom")) : null;
+  return heatOf(state) ? createGame(recipeOf(state, twoRunMode(state))) : null;
 }
 
 /** Where BACK on the skis card goes: the card that opened it — the free

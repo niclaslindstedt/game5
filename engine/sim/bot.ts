@@ -46,6 +46,7 @@ import type { SkiSpec } from "../game/defs/skis.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "../game/race-line.ts";
 import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
 import { DOWNHILL_STEER, SUPER_G_STEER, downhillSteer } from "./downhill-steer.ts";
+import { speedSkiInput } from "./speed-ski-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -584,6 +585,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   }
   const speed = c.speed;
   const on = locate(state);
+  // DOWN A SPEED TRACK (R34): tucked and straight, nothing else.
+  const straight = speedSkiInput(state, on);
+  if (straight) return straight;
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;

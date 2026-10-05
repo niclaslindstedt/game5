@@ -29,7 +29,7 @@ How a discipline's research is recorded here:
 | Super-G | `superG` | R33 | built — see below |
 | Downhill | `downhill` | R32 | built — see below |
 | Ski cross | — | — | to research — `docs/specs/SKI_CROSS.md` |
-| Speed skiing | — | — | to research — `docs/specs/SPEED_SKIING.md` |
+| Speed skiing | `speedSki` | R34 | built — see below |
 
 ## Slalom
 
@@ -608,5 +608,222 @@ findings land here.
 
 ## Speed skiing
 
-*Not researched yet.* The to-do list is in `docs/specs/SPEED_SKIING.md`;
-the findings land here.
+Restated from the international speed-skiing competition rules (the autumn
+2025 edition: the categories, the track, the timing, the equipment, the
+programme and the jury), the 2025 top-level tour's result sheets, a 2024
+CFD and wind-tunnel study made with a national speed-ski team, and the
+snow-friction and aerodynamics literature listed at the foot. Straight down
+the fall line as fast as a body can go: no gates, no turns, and the result a
+SPEED.
+
+**The categories.** The top class (S1) races on speed-skiing equipment of its
+own — the only class that scores the tour's points and the world titles; a
+second class (S2, once the "production" class) races on downhill equipment
+and feeds the first; a junior class races as the second. All race on the same
+days on the same track, in groups by class and sex. A racer comes to the top
+class from the second, or with points in an alpine or ski-cross ranking.
+
+**The track** has three zones, top to bottom:
+
+- **The launching area** — at least three fenced START POINTS with waiting
+  areas, a neighbouring pair no more than 15 km/h apart in the top speed
+  they give. Typically 300–400 m long (the start "300–400 m above the first
+  timing light"); top speed comes in under 400 m. On the two fastest tracks
+  the launch runs some 800–900 m.
+- **The timing zone** — the last 100 m of the competition track.
+- **The run-out** — "long enough for the speeds reached", its slope
+  DECREASING PROGRESSIVELY. No braking and no turning before the line that
+  ends it.
+
+Real tracks *(measured profiles)*: the record track 1400 m long over 435 m
+of vertical, its steepest 98 % (45°) and its mean 52.5 %, the launch some 900
+m and the braking 500 m; a second track past 250 km/h 1740 m over 565 m, its
+steepest 76 %, a launch of 800 m and a braking zone of 840 m; a slower track
+215 m of vertical at a 55 % mean with a braking slope of 13.9 % over 325 m;
+the smallest 80 m of vertical, a 110 m launch and a 100 m run-out. A typical
+track is about a kilometre: 300–400 m of launch, the 100 m trap, ~500 m of
+run-out. The racer sees 20–35° in the first ~15 s, then the slope flattens
+steadily: **the trap itself lies on only 5–15°** — the speed is carried into
+it from the steep, and at 255 km/h with a speed tuck the drag holds on about
+11° *(est., arithmetic below)*. About thirty tracks exist; two are cleared
+past 250 km/h, and a tour track must give at least 170 km/h.
+
+**Width and margins.** The track is at least 30 m wide from 100 m above the
+trap to the end of the run-out, narrower toward the top. A SAFETY MARGIN runs
+along both sides, closed and clear of every obstacle: 25 m wide at the trap
+and for 100 m either side of it on a course past 180 km/h (20 m below), never
+under 3 m higher up. The jury, the coaches and television stand outside it.
+It runs straight down the fall line and is prepared as smooth as it can be;
+racers pick the smoothest line to the trap. It is groomed hard *(est.: no
+rule on injection was found)*.
+
+**The markings.** The launch area's sides marked in INTERMITTENT BLUE — broken
+on purpose, to heighten the sense of speed; the timing zone's in red pennants
+every 15 m, its end a RED LINE across the full width at least 50 cm wide with
+red marks either side; the run-out's end a green (or blue, or red) line across
+the full width, then marks every 15 m.
+
+**The timing.** Photocells at the top and the bottom of the 100 m zone, a
+second set just above each, the lower the reference, mounted low so a LEG
+breaks the beam rather than a hand; two clocks reading to a thousandth of a
+second. The cells stand at least 10 m outside the track behind a snow berm
+no more than 80 cm high and 3 m long, on supports weakened to break away.
+THE SPEED is 100 m over the time between the cells, shown to 0.01 km/h:
+1.80 s at 200 km/h, 1.44 s at 250. Stretching the arms out leaving the trap
+disqualifies.
+
+**The format.** An optional training day, then the runs, each from a START
+HIGHER than the last (about 10 km/h a round; one racer's training climbed
+160 → 180 → 200 → 220 → 240 km/h before the top start): on an event below 200
+km/h two runs on the first day and a SEMI-FINAL and a FINAL on the second; on
+an event past 200 km/h two more qualifying runs. The first race run starts
+low enough that the top class cannot pass 180 km/h (the second class 150; no
+limit at a world championship). Run 1 goes in the last season's ranking order,
+the best fifteen drawn among themselves; every later run in INCREASING ORDER
+OF THE LAST RUN'S SPEED — the slowest first, the fastest last. After each run
+the jury cuts the racers who showed too little: no fixed number — on a 2025
+tour event past 200 km/h 32 men were classified, 20 skied all four runs, 4
+stopped after three, 7 after two and 1 after one. A racer has 60 s after GO to
+start. **The result is the FINAL'S speed alone**; the racers who did not reach
+it rank below by their best speed. The tour's points go to 30 places.
+*Measured fields (2025):* an event past 200 km/h, 32 men from 229.13 km/h to
+the 20th's 215.53 and the last's ~187–195, 9 women 225.73 to 204.02; a slower
+event on the same track, 27 men from 180.88 (the 10th 177.43, the 20th 169.73)
+— the first four within 1.3 km/h; another round 32 men from 189.95 to 173.34;
+a slow northern track 19 men topped by 159.82. Records: the top class 255.5
+km/h (men), 248.27 (women), the second class 211.02 and 202.58.
+
+**The equipment** (the top class; the second class races downhill skis of
+210–225 cm, the downhill suit with its air-permeability test, no fairings):
+
+- **Skis** 2.20–2.40 m long, at most 15 kg a pair with the bindings, no
+  aerodynamic add-on, at most 10 cm wide; stiff and heavily damped to keep the
+  tips down, run flat on the base, with almost no sidecut — "essentially
+  impossible to turn". Bindings with working brakes, raised at most 2.5 cm,
+  nothing faired over them.
+- **Poles** at least 1 m long, at most 2 kg a pair, baskets compulsory, no
+  straps, no aero parts; bent round the body to brace under the arms.
+- **Boots** a standard model, at most 6 kg a pair, their cuffs worked for a
+  sharp forward lean.
+- **The suit** plastic-coated and essentially AIRTIGHT, so slippery it must
+  be covered until the waiting area; underwear over the body and three
+  quarters of the limbs, a back protector (or a ski airbag), nothing thicker
+  than 4.5 cm, gloves.
+- **The helmet** a full-face inner helmet under an optional aero shell that
+  BREAKS OFF in a fall, the whole through a 40 cm circle, at most 2 kg;
+  some carry a fin on top for stability.
+- **Fairings** behind the calves under the suit, at most 1 kg each and 30 cm
+  deep, pliable.
+
+**The physics.** *Drag:* a top-class racer in the open is CdA ≈ 0.08 m² (the
+study's baseline 0.0818; good to poor racers 0.06–0.09 on a frontal area of
+~0.30 m², Cd 0.20–0.27; one racer back-calculated at 0.074), against an alpine
+downhill tuck's 0.17–0.23 and 0.65 stood up [27, 28]; the lower legs are 40–50
+% of a low tuck's drag, which is what the fairings are for; a tunnel rig in
+place of the skis nearly doubles the number. Rules of thumb from the study:
+−0.010 m² of CdA ≈ +7 km/h, −10 kg ≈ −4 km/h. The air is over 80 % of the
+resistance at the trap [29]. *Friction:* measured μ 0.023–0.139 (mean ~0.054)
+at 5–15 m/s, the fastest snow 0.026–0.037, rising on new snow with speed [30];
+the study took 0.0005·v (≈0.035 at 70 m/s). *Air:* ρ ≈ 1.0 at the 2000 m and
+more the fastest tracks stand at. *Mass:* the study's racer 90 kg with 15 kg of
+skis, 6 of boots, 2 of helmet, 2 of poles and 2 of fairings — ~117 kg in all;
+heavier is faster. *Time:* "under 15 s to 225+ km/h, the whole run about 20
+s"; the claims of 0–200 in 6–7 s are optimistic (g·sin 45° alone needs 8 s).
+*The trap's slope (est.):* at 255 km/h with CdA 0.08, ρ 1.01 and μ 0.02 the
+drag is ~203 N and the friction ~23 N, held by gravity on ~11°.
+*The run-out (est.):* stopping from 200 km/h in 500 m is ~0.3 g on the mean;
+stood straight up at 216 km/h a racer would take ~1 g on his chest, so he
+opens up GRADUALLY.
+
+**Safety and the fall.** Braking and turning are banned until the run-out's
+line; a racer stands up into the wind as his brake (below ~160 km/h at once;
+at ~225 km/h he must untuck slowly "to dirty the aerodynamics"), then carves
+very wide turns, and skids or snowploughs into the finish enclosure — the most
+dangerous part of the run, racers say. A fall slides on the near-frictionless
+suit: friction burns first, then concussion and broken limbs; one racer down
+at over 200 km/h rolled onto his back protector and slid to rest near the
+finish. The outer helmet and the timing posts break away. Four falls in 450
+runs at a demonstration event.
+
+**The technique.** Across the fall line in the start, then a jump round to
+face down it and a push on the poles — no skating on a steep start *(est.)*.
+The tuck: head low, SEAT HIGH to press the skis down, skis absolutely FLAT,
+the hands in front of the helmet and, as the speed builds, some 20 cm ahead
+of it as the leading edge and a rudder; forearms ~20–25°; the poles bent and
+braced under the arms. Straight down the fall line, small corrections of
+balance, the head and the hands steering; a crosswind managed. "The skis flop
+wildly", the cells pass with a jet-engine roar. After the trap: arms in,
+untuck progressively, brake past the run-out's line.
+
+**Broadcast and the crowd.** Speeds and times on a BOARD at the bottom of the
+track as each run ends — racers glance up at it while braking; the LEADER'S
+BOARD (at least 2 × 2.4 m) behind the exit gate, the leader in front of it on
+camera; television and the press in the finish area, outside the margins.
+Spectators gather at the BOTTOM, where the racers have used about half the
+run-out to slow before reaching them. Cameras *(est.)*: side-on and low at
+the trap from behind the margin, a long lens from the run-out up the fall
+line, one at the start, and onboard cameras where announced.
+
+**The weather** (the jury's section above): windsocks visible from the start
+and an anemometer at the track's edge level with the TOP OF THE TIMING ZONE; a
+run stopped at 15 km/h of wind, 10 km/h where the speed expected is 200 km/h
+and more, 20 km/h for a steady wind straight down the track. Good conditions
+last about an hour and a half of a day, February to April; records are some
+60 % track and weather.
+
+### What the game models
+
+- **The track (R34)** is cut STRAIGHT down the fall line of a built
+  mountain, its own line rather than the map's piste: every column of the
+  face and nine bearings within 20° of the fall line are read down the
+  face, the ground across the track's 30 m taken to its mean along it,
+  never rising, every crest cut round to 600 m of radius (a racer at 65
+  m/s leaves the snow over anything tighter than v²/(g cos θ), some 480 m)
+  and every knee filled to 350 m (some 0.9 g on the legs at 55 m/s), and
+  held within 9 m of the ground. Down each line every start is skied by a
+  point mass of the speed pair (its tuck to the trap, then stood up into
+  the wind and skidding past the braking line, the skid the physics' own
+  measured 0.13–0.28 g): the track is the line and launch (300–900 m along
+  the snow) whose final comes nearest the speed that map's track is BUILT
+  FOR — dealt off its seed between 185 and 235 km/h, so one track is a slow
+  one and another a fast — its trap on a gentle stretch, its run-out no
+  longer than 800 m where it can be, then the least graded. A 25 m margin
+  is cleared of trees either side, and the finish enclosure at the
+  run-out's foot. Real tracks put the trap on 5–15°; the game's faces are
+  concave, so its traps lie on 14–31 % — a little steeper *(est.)*.
+- **The format** is the programme folded to TWO runs: a QUALIFICATION from
+  a start lowered down the track until it gives 12 km/h less (inside the
+  15 km/h a neighbouring pair of start points may differ by), and the
+  FINAL from the top for the best twenty, in increasing order of the
+  qualification's speed; the final's speed is the result. The game's board
+  of the final carries the finalists alone.
+- **The pair** is a speed ski of its own (the Peregrine): 2.40 m, under 10
+  cm wide, a ~285 m arc of sidecut, 27 kg of kit, the airtight suit and
+  fairings' 0.08 m² of tuck and 0.6 m² stood up; its racer the catalog's
+  80 kg skier, the heavy build the class's heavy men. Its documented top
+  speed is the terminal one (316 km/h on the 20° pitch), which no track
+  is long enough to reach.
+- **The technique**: the skis held flat, 20° of edge at the most and
+  rolled at a fifth of the shared rate — the small corrections a speed
+  skier makes; a full edge at 200 km/h is a wide arc, never a turn.
+- **The clock** runs from the timing zone's top line to its bottom line,
+  each crossing read to the fraction of the step it fell in (a step is
+  half a km/h at 200); the board, the plate and the record book keep that
+  time, and every one is shown as the speed it is.
+- **Par** is the clean run SKIED: the engine itself takes the racer out of
+  the house in a full tuck, straight, in the race's own weather, its wind
+  and its new snow, to the zone's bottom line — a profile walked by a
+  point mass missed the compressions and the wind by up to 3 %, where the
+  race is decided by tenths of a km/h. The field's best come through a
+  hair under it; the bot runs within 0.2 % of it on every map.
+- **The run-out**: past the zone a racer home UNTUCKS over 120 m (stood
+  straight up at 200 km/h the air takes 0.9 g off him, the ride lab's
+  `speed-stand`), rides the wind stood up and skids only past the BRAKING
+  LINE 150 m on, under 144 km/h; the run-out stops him some 450–550 m past
+  the zone on the race maps.
+
+Sources (continued): [27] the international speed-skiing competition rules,
+autumn 2025 edition, and the 2025 tour's result sheets · [28] a 2024 CFD and
+wind-tunnel study of the speed-skiing tuck made with a national team;
+doi:10.3390/proceedings2060310 (the alpine tuck's drag) · [29]
+doi:10.1046/j.1460-2687.2001.00072.x · [30] doi:10.3389/fmech.2021.728722.

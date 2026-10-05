@@ -17,13 +17,13 @@ a second, stale copy of the truth.
 | — | Super-G | built — spec retired; its research is `docs/disciplines.md` § Super-G |
 | — | Downhill | built — spec retired; its research is `docs/disciplines.md` § Downhill |
 | [SKI_CROSS.md](SKI_CROSS.md) | Ski cross | draft — research first |
-| [SPEED_SKIING.md](SPEED_SKIING.md) | Speed skiing | draft — research first |
+| — | Speed skiing | built — spec retired; its research is `docs/disciplines.md` § Speed skiing |
 
 Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G and the downhill; the shape every later discipline fills in |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G, the downhill and speed skiing; the shape every later discipline fills in |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
@@ -473,6 +473,93 @@ in the turns.
 - **Run the suite and a browser lab apart.** Both at once restarted the
   worker in a cloud session.
 
+## Lessons from speed skiing
+
+Speed skiing was the fourth discipline and the first whose course is not on
+the piste at all. Most of the race machinery carried over; the new work was
+the track, the clock and getting a whole field's worth of speeds honest to
+a tenth of a km/h.
+
+### The course
+
+- **A course can be a track of its own.** A speed track is straight; no
+  piste is. `setSpeedSki` searches a straight line down the face, grades
+  the ground to its profile and hands back a `Level` whose `track` IS the
+  speed track — everything that asks the piste (the physics' queries, the
+  minimap, the trees cleared, the snow groomed) then asks the track with
+  no change. The map's kickers and drops keep their place but are marked
+  off any track (`onTrack: false`, no arc), since their arcs were the old
+  piste's.
+- **Round the knees as well as the crests.** A crest cut to v²/g keeps the
+  racer on the snow; the knee where the steep meets the gentle, left
+  sharp, is a compression the legs' damping eats 1–3 % of the speed in.
+  Both are hulls of the profile and a parabola (`hullOf`), exact and O(n)
+  — the iterative relaxation the downhill's crest shave uses was the
+  setter's whole cost here, run over five hundred lines.
+- **Interpolate a graded profile smoothly.** A profile read linearly
+  between 4 m samples leaves a slope kink every 4 m, and a racer at 55
+  m/s rides every one (a Catmull-Rom between them does not).
+- **Deal what the race is built for.** Aiming every track at one speed
+  made nine maps within 2 km/h of each other; the speed a track is built
+  for is dealt off its seed in the band, so the nine make a ladder.
+- **Start on the slope.** A level start platform held the racer still: the
+  start hold's skid had his skis across and the push died before the lip.
+  A speed skier starts on the pitch, and the game's does.
+
+### The physics and the clock
+
+- **The engine holds at 250 km/h.** On the reference pitch it matches a
+  point mass to the decimal at 300 km/h, every station on the snow; 120 Hz
+  is 0.6 m a step and nothing needed changing (`make ride SCENARIO=speed-250`).
+- **A step is too coarse a clock for a speed.** 1/120 s is half a km/h
+  through 100 m at 200. Each zone line's crossing is read to the fraction
+  of the step it fell in (`crossingShare`), and only on a speed track, so
+  no other mode's clock or digest moved.
+- **Read every time as a speed, keep every time as a time.** The board,
+  the record book, the ghost and the field all rank lower-is-better; a
+  speed race keeps the time through the zone and turns it round only where
+  it is drawn (`speed-ski-run.ts`).
+- **A finished racer is the engine's.** After the finish the input is a
+  coast, and the old coast (a 0.6 skid) at 200 km/h ran a racer off the
+  end of the track into the trees. A speed track's coast untucks, rides
+  the wind and skids only past its braking line (`runOut`).
+- **Skid physics on a slope is weak** (0.13–0.28 g beyond the air's at
+  20–40 m/s); size a run-out on what the engine does, measured, not on
+  the research's ~0.3 g mean.
+
+### Par and the field
+
+- **When the race is decided by tenths, ski the par.** A profile walked by
+  a point mass missed the compressions, the wind and the new snow by up to
+  3 % map to map, which is a whole field. Par is now the engine's own clean
+  run down the track (`speedSkiPar`), and the bot lands within 0.2 % of it
+  on every map. The cost is a few thousand steps, once per map and pair.
+- **A perfect run should just win.** The field's best is dealt a hair
+  slower than par (`SPEED_SKI_FIELD.best`): a racer who holds his tuck
+  from the house wins, and anything less is places behind.
+- **A final ranked alone**: the slalom's combined time is a `combined`
+  question in `field.ts` and `slalom-board.ts`, not a second code path.
+
+### The app
+
+- **The renderer's "finish" is the last checkpoint; a speed track's is
+  not.** Its last checkpoint is the zone's bottom line, which a racer
+  crosses at 200 km/h; the arch, the arena and the crowd stand at the
+  run-out's foot (`speedSkiLines`), and the audience nowhere else — the
+  margin is closed.
+- **A rebuild names its mode.** The second-run plumbing rebuilt every
+  two-run race as a slalom; `twoRunMode` names it.
+
+### Left to do
+
+- **The kit**: the airtight suit and the aero helmet are in the drag
+  (`PEREGRINE.cdATuck`) but not in the wardrobe — a `skier-gear` piece.
+- **A fall at 200 km/h** slides the body ~185 m on the pitch, which is
+  right, but the ragdoll tumbles on the way and the injury tally is a
+  bad crash's; a suit's slide is a `crash` question.
+- **The programme** is two runs; the sport runs four to six with a cut
+  after each.
+
 ## The labs, and when to reach for each
 
 Every lab writes to `previews/` (gitignored). `make <lab> ARGS=--help` lists
@@ -484,7 +571,7 @@ cloud session; `screenshots` needs `make build` first.
 | `make technique` | Each riding technique skied by the bot on one course: PATH (strobed from above, gates drawn, a scale bar), BEHIND (TV frames at transition, edge-set, apex, exit), SIDE (the apex), TURNS (every technique's natural linked carve on one open slope at one scale, the line coloured by radius, each apex labelled radius/time/edge, the researched radius drawn), and a TABLE against the research targets (`--json` to save, `--compare` to diff) | THE loop for a technique row and its pose: run before and after every physics or pose change. `--techniques=slalom` and `--sheets=none` give the table in seconds; `--course=slalom|piste` |
 | `make ride` | Scripted scenarios on synthetic slopes, each a table and a picture; `slalom-cut` and `slalom-rhythm` measure a technique's carve and rhythm without the bot | A new technique gets its own scenarios (`scripts/lib/ride-slalom.mjs` is the pattern); `ARGS=--card` is every pair's card |
 | `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode — save its table before the first edit |
-| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
+| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`, `speedSki`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
 | `make sim ARGS="--skis all"` | Every pair down every seed | A pair's retune (the downhill pair's misses showed here) |
 | `make level` / `make analyze` | One map's piste, gates, kickers and grades; the rule book's verdict | The course rule and its setter; `make resort` for the ski area |
 | `make rate CAMPAIGN=1` | Every campaign rung rated, with the bot's time and a trial's medals | Curating a discipline's rungs and setting medals (gold 0.98×, silver 1.03×, bronze 1.125× the bot) |

@@ -6,7 +6,7 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// SEVEN PAIRS, SEVEN ANSWERS TO A KIND OF SNOW — never seven points on one
+// EIGHT PAIRS, EIGHT ANSWERS TO A KIND OF SNOW — never eight points on one
 // scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
@@ -22,8 +22,13 @@
 //           sidecut: the edge that holds the hardest bend at a hundred
 //           kilometres an hour, where one ski chatters and the other will
 //           not bend.
-//   EAGLE   a DOWNHILL ski — the longest and stiffest here, a 50 m sidecut:
-//           flat out in a tuck it outruns everything, and it hates a bend.
+//   EAGLE   a DOWNHILL ski — the longest and stiffest alpine ski here, a
+//           50 m sidecut: flat out in a tuck it outruns every pair but one,
+//           and it hates a bend.
+//   PEREGRINE a SPEED SKI — the speed-skiing class: 2.40 m of heavy, damped
+//           ski with next to no sidecut, under a racer in an airtight suit
+//           and calf fairings: straight down the fall line nothing comes
+//           near it, and it will not turn.
 //   MARMOT  a POWDER ski — wide under foot and rockered at the tip: floats
 //           where the others sink, vague and slow on the groomer.
 //   HARE    a PARK ski — a soft twin-tip: spins, lands anything softly,
@@ -33,7 +38,9 @@
 // (`footprint.ts` prices every one), and what the skier can do on them.
 // The three speed-event pairs stand inside their discipline's COMPETITION
 // RULES at the top level (`docs/disciplines.md`, "The skis"), the men's
-// least length and sidecut radius and the most waist and shoulder.
+// least length and sidecut radius and the most waist and shoulder; the
+// speed ski inside speed skiing's (§ Speed skiing: 2.20–2.40 m, at most
+// 10 cm wide and 15 kg a pair).
 //
 // THE SIDECUT IS THE WIDTHS' GEOMETRY. A ski's edge between its widest
 // points (the shoulder at the tip, the tail's corner — a chord `c`, about
@@ -63,7 +70,8 @@ export type LegSpec = {
   travel: number;
 };
 
-export type SkiId = "chamois" | "swift" | "chough" | "falcon" | "eagle" | "marmot" | "hare";
+export type SkiId =
+  "chamois" | "swift" | "chough" | "falcon" | "eagle" | "peregrine" | "marmot" | "hare";
 
 export type SkiSpec = {
   id: SkiId;
@@ -298,6 +306,47 @@ export const EAGLE: SkiSpec = {
   topSpeed: 138,
 };
 
+/** THE PEREGRINE — a SPEED SKI, the speed-skiing class (named for the
+ * fastest thing in the sky, in its stoop): built to the top class's rule —
+ * 2.40 m (the most it allows; the class runs 2.20–2.40), under 10 cm wide
+ * (the most it allows) and next to no sidecut, a ~285 m arc over the 2.15 m
+ * between the widest points — heavy and damped to keep its tips down, run
+ * flat on its base: "essentially impossible to turn". The racer on it is in
+ * the class's kit — an airtight suit with fairings behind his calves and an
+ * aero shell over his helmet, 15 kg of skis, 6 of boots and 6 of helmet,
+ * poles and fairings — and folds into a tuck of 0.08 m² of drag area (the
+ * measured top class's 0.06–0.09; 0.65 stood up in race clothes, a little
+ * less in the suit). He is the catalog's 80 kg skier, as on every pair; the
+ * class's heavy men — heavier is faster — are the HEAVY build
+ * (`riders.ts`), some 140 kg with the kit. Straight down a
+ * fall line nothing comes near it; it carves no bend, chatters on nothing,
+ * and in powder its weight sinks it. */
+export const PEREGRINE: SkiSpec = {
+  ...SKIS,
+  id: "peregrine",
+  name: "Peregrine",
+  kind: "Speed ski",
+  blurb:
+    "Two and a half metres of damped ski and an airtight suit: it goes straight, and only straight.",
+  gearMass: 27,
+  length: 2.4,
+  waist: 0.094,
+  tipWidth: 0.099,
+  tailWidth: 0.097,
+  sidecut: 285,
+  flex: 1,
+  rocker: 0,
+  edgeMax: 0.9,
+  mount: 0.45,
+  legs: { rate: 9000, bump: 620, rebound: 1040, travel: 0.42 },
+  cdAUpright: 0.6,
+  cdATuck: 0.08,
+  crouchDrop: 0.36,
+  poleReach: 0.6,
+  polePush: 240,
+  topSpeed: 316,
+};
+
 /** THE MARMOT — a POWDER ski: wide under foot and rockered at the tip.
  * 186 cm on a 116 mm waist (the class is 105–125) with a 22 m sidecut and
  * a soft, lifted tip: it floats up out of powder the others sink in and
@@ -355,9 +404,18 @@ export const HARE: SkiSpec = {
  * skier should pick them in, best all-round first and the one that asks
  * most of him last: the all-mountain ski that refuses nothing, the race
  * skis from the shortest to the longest (slalom, giant slalom, super-G,
- * downhill), the powder ski and the park ski. (`make sim ARGS="--skis
+ * downhill, the speed ski), the powder ski and the park ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
-export const SKI_CATALOG: readonly SkiSpec[] = [SKIS, SWIFT, CHOUGH, FALCON, EAGLE, MARMOT, HARE];
+export const SKI_CATALOG: readonly SkiSpec[] = [
+  SKIS,
+  SWIFT,
+  CHOUGH,
+  FALCON,
+  EAGLE,
+  PEREGRINE,
+  MARMOT,
+  HARE,
+];
 
 /** The pair with this id, or the all-mountain ski for one this build does
  * not carry (a stored pick from another version, or a hand-typed link). */

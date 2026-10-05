@@ -52,10 +52,11 @@ export type SimOptions = {
   /** RACE A DISCIPLINE (`MODE_RULES`): the seed's map with its course set
    * over it — a slalom's stretch (R31), a downhill's whole piste on the ski
    * area's biggest course (R32), a super-G down the same from its lowered
-   * start (R33) — skied out of the start house under the
+   * start (R33), a speed track cut down the face, its qualification (R34)
+   * — skied out of the start house under the
    * strict gates, against the field's board. The open rules when left out.
    * Ignored with `tricks`. */
-  mode?: Extract<GameMode, "slalom" | "downhill" | "superG">;
+  mode?: Extract<GameMode, "slalom" | "downhill" | "superG" | "speedSki">;
 };
 
 export type RunReport = {
@@ -96,7 +97,8 @@ export type RunReport = {
   /** OUT OF THE RACE under the strict gates (a discipline's run): how —
    * `dsq` or `dnf` and why — or null. */
   out: string | null;
-  /** His speed through a speed course's trap (R32, R33), m/s, or null. */
+  /** His speed through a speed course's trap (R32, R33) — on a speed
+   * track (R34) through its timing zone — m/s, or null. */
   trap: number | null;
   /** Where the bot finished against the field (1 on a solo run). */
   place: number;
@@ -211,7 +213,9 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     crossings: state.level.checkpoints.length * state.rules.laps,
     trackLength: state.level.track.length,
     topSpeed,
-    meanSpeed: p.time > 0 ? distance / p.time : 0,
+    // A speed track's clock runs only through its timing zone: its mean is
+    // the zone's, the speed through it.
+    meanSpeed: state.level.speedSki ? (p.trap ?? 0) : p.time > 0 ? distance / p.time : 0,
     airTime,
     bestAir: p.bestAir,
     jumps,

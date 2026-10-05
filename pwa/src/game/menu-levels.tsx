@@ -49,7 +49,9 @@ import { STRINGS } from "./strings.ts";
 
 /** The measured mode's own billing word: the slalom's for any other. */
 function billedMode(mode: GameMode): CampaignMode {
-  return mode === "timeTrial" || mode === "downhill" || mode === "superG" ? mode : "slalom";
+  return mode === "timeTrial" || mode === "downhill" || mode === "superG" || mode === "speedSki"
+    ? mode
+    : "slalom";
 }
 
 function LevelBox({
@@ -150,7 +152,9 @@ function levelsTitle(mode: GameMode): string {
       ? STRINGS.levelsDownhill
       : mode === "superG"
         ? STRINGS.levelsSuperG
-        : STRINGS.levelsRace;
+        : mode === "speedSki"
+          ? STRINGS.levelsSpeedSki
+          : STRINGS.levelsRace;
 }
 
 /** THE RIDE PRESS in a level card's head: on to the skis card. */

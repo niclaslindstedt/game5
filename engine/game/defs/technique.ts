@@ -20,7 +20,7 @@
 // no mode deals it yet.
 
 /** The techniques the engine knows. */
-export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhill";
+export type TechniqueId = "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "speedSki";
 
 export type Technique = {
   id: TechniqueId;
@@ -185,12 +185,31 @@ export const DOWNHILL_TECHNIQUE: Technique = {
   cross: CROSS_OVER,
 };
 
+/** THE SPEED SKIER (R34). No turn at all: straight down the fall line in a
+ * tuck held rigid, the skis absolutely FLAT on the snow, the seat high to
+ * press them down, balance kept with small movements of the hands and the
+ * head; an edge stood on at 200 km/h is a racer off the track. So: the edge
+ * rolled at a fifth of the shared rate and never past 20° — the small
+ * corrections he holds his line with — the lock's fade the shared one (he
+ * never needs it at speed), no shelf, the body barely let in (17°, the
+ * balance of the widest arc he carves on the run-out), crossing over. */
+export const SPEED_SKI_TECHNIQUE: Technique = {
+  id: "speedSki",
+  edgeRate: 0.2,
+  edgeMax: 0.35,
+  fade: 1,
+  platform: 0,
+  incline: 0.3,
+  cross: CROSS_OVER,
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   free: FREE,
   slalom: SLALOM_TECHNIQUE,
   giantSlalom: GIANT_SLALOM_TECHNIQUE,
   superG: SUPER_G_TECHNIQUE,
   downhill: DOWNHILL_TECHNIQUE,
+  speedSki: SPEED_SKI_TECHNIQUE,
 };
 
 /** The technique a run is skied with: its rules' own, the free skier's when

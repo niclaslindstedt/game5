@@ -20,6 +20,7 @@ import {
   setSuperG,
   generateLevel,
   setDownhill,
+  setSpeedSki,
   setSlalom,
   withDay,
   withSky,
@@ -81,7 +82,9 @@ export type CreateGameOptions = {
   mode?: GameMode;
   /** A SLALOM's SECOND RUN (`field.ts`): the first run carried in — the
    * course set afresh (R31), only the first run's finishers starting, the
-   * standings on combined time. The first run when left out. */
+   * standings on combined time. The first run when left out. On SPEED
+   * SKIING the FINAL (R34): the qualification carried in, its best
+   * starting from the top of the track, the standings the final's speed. */
   heat?: Heat;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
@@ -220,9 +223,17 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   }
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
-  // lowered start (R33), and any other mode skis the map under any course
+  // lowered start (R33), SPEED SKIING down its own track (R34), and any
+  // other mode skis the map under any course
   // set over it.
-  const original = built.slalom?.base ?? built.downhill?.base ?? built.superG?.base ?? built;
+  const original =
+    built.slalom?.base ??
+    built.downhill?.base ??
+    built.superG?.base ??
+    built.speedSki?.base ??
+    built;
+  // SPEED SKIING cuts a track of its own down the face (R34): the
+  // qualification's, or the final's.
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
@@ -230,7 +241,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
         ? setDownhill(built)
         : superG
           ? setSuperG(built)
-          : original;
+          : options.mode === "speedSki"
+            ? setSpeedSki(built, options.heat?.run ?? 1)
+            : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);

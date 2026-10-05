@@ -40,7 +40,15 @@
 // laid on this map's own ground here.
 
 import * as THREE from "three";
-import { gradeOf, type Checkpoint, type GameState, type Level } from "@engine";
+import {
+  gradeOf,
+  speedSkiLines,
+  type Checkpoint,
+  type GameState,
+  type Level,
+  type PisteGrade,
+  type TrackPoint,
+} from "@engine";
 
 import { PALETTE } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
@@ -260,6 +268,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   if (slalomPoles) group.add(slalomPoles.group);
   if (house) group.add(house.group);
 
+  // A SPEED TRACK's run-out (R34): where its arch and its arena stand.
+  const runOut = speedSkiLines(level);
+
   const placeGate = (cp: Checkpoint, index: number) => {
     const fx = Math.sin(cp.heading);
     const fz = Math.cos(cp.heading);
@@ -286,8 +297,11 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       const cz = cp.z + rz * half * side;
       const y = level.groundAt(cx, cz) - 0.15;
       // The start and the finish carry no panels: the hut and the arch
-      // are their marks.
-      const scale = first || last ? none : one;
+      // are their marks. A speed track's last gate is its timing zone's
+      // bottom line, marked as its top line is — the photocells' posts
+      // either side of the track's margin — and its arch is over the
+      // run-out's end.
+      const scale = first || (last && !runOut) ? none : one;
       for (const along of [-1, 1]) {
         const x = cx + rx * along * (PANEL.gap / 2);
         const z = cz + rz * along * (PANEL.gap / 2);
@@ -302,12 +316,15 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
         j,
         m4.compose(at.set(cx, y, cz), q.setFromAxisAngle(up, cp.heading), scale),
       );
-      panels.setColorAt(j, last ? colour : muted(colour));
+      panels.setColorAt(j, last || runOut ? colour : muted(colour));
       own.push(new THREE.Vector3(cx, y + PANEL.pole + 1.2, cz));
     });
     tops.push(own);
     if (first && !house) hutAt(cp, rx, rz, fx, fz);
-    if (last) finish(cp, fx, fz);
+    if (last) {
+      const end = runOut?.finish ?? cp;
+      finish(end, Math.sin(end.heading), Math.cos(end.heading));
+    }
   };
 
   // THE START HUT off the line's left edge, a timber box under a gabled
@@ -559,8 +576,12 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     group.add(band);
 
     // The finish has no panels of its own: its markers ride over the
-    // arch's legs instead.
-    tops[tops.length - 1] = a.feet.map((f) => new THREE.Vector3(f.x, a.top + ARCH.tube + 1.1, f.z));
+    // arch's legs instead — but a speed track's last gate keeps its posts'.
+    if (!runOut) {
+      tops[tops.length - 1] = a.feet.map(
+        (f) => new THREE.Vector3(f.x, a.top + ARCH.tube + 1.1, f.z),
+      );
+    }
   };
 
   level.checkpoints.forEach(placeGate);
@@ -576,10 +597,35 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const bandGeo = edgeBand(EDGE.height, EDGE.band, EDGE.radius);
   geos.push(stakeGeo, bandGeo);
   const stakeMat = std({ color: 0xffffff, roughness: 0.55 }, "edge-stake");
-  const lines = level.resort
-    ? level.resort.runs
+  type Edged = {
+    points: readonly TrackPoint[];
+    length: number;
+    grade: PisteGrade;
+    /** A speed track's own marks: this far apart, every one stood. */
+    every?: number;
+  };
+  const lines: Edged[] = level.resort
+    ? [...level.resort.runs]
     : [{ points: level.track.points, length: level.track.length, grade: gradeOf(level) }];
-  const edgeCount = lines.reduce((sum, r) => sum + Math.ceil(r.length / EDGE.every) + 1, 0);
+  // A SPEED TRACK's sides (R34): its launch marked in BLUE, its timing zone
+  // in RED every 15 m, its run-out in blue again — the marks a racer reads
+  // his speed off.
+  const sk = level.speedSki;
+  if (sk) {
+    const part = (from: number, to: number, grade: PisteGrade, every: number): Edged => {
+      const points = level.track.points.filter((p) => p.s >= from && p.s <= to);
+      return { points, length: to - from, grade, every };
+    };
+    lines.push(
+      part(0, sk.zone.from, "blue", EDGE.every),
+      part(sk.zone.from, sk.zone.to, "red", 15),
+      part(sk.zone.to, level.track.length, "blue", EDGE.every),
+    );
+  }
+  const edgeCount = lines.reduce(
+    (sum, r) => sum + Math.ceil(r.length / (r.every ?? EDGE.every)) + 1,
+    0,
+  );
   const stakes = new THREE.InstancedMesh(stakeGeo, stakeMat, edgeCount * 2);
   const bands = new THREE.InstancedMesh(bandGeo, reflectorMat, edgeCount);
   stakes.castShadow = true;
@@ -589,14 +635,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const paint = new THREE.Color();
   for (const run of lines) {
     paint.set(GRADE_LOOK[run.grade].stake);
-    let nextS = 0;
+    let nextS = run.points[0]?.s ?? 0;
     for (const p of run.points) {
       if (p.s < nextS) continue;
-      nextS += EDGE.every;
+      nextS += run.every ?? EDGE.every;
       for (const side of [-1, 1]) {
         const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + EDGE.out);
         const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + EDGE.out);
-        if (lines.length > 1 && level.packedAt(x, z) > 0.5) continue;
+        if (run.every === undefined && lines.length > 1 && level.packedAt(x, z) > 0.5) continue;
         const y = level.groundAt(x, z) - 0.1;
         if (si < stakes.count) {
           stakes.setColorAt(si, paint);

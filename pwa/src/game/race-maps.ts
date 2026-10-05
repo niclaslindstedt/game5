@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RACE MAPS — every race discipline's own NINE pinned maps, the ones a
-// SLALOM, a SUPER-G or a DOWNHILL off the race card is raced on, picked on the level
-// card (`menu-levels.tsx`) its tile opens.
+// SLALOM, a SUPER-G, a DOWNHILL or a SPEED RACE off the race card is raced
+// on, picked on the level card (`menu-levels.tsx`) its tile opens.
 //
 // A discipline's measured maps are chosen for the DISCIPLINE: nine seeds
 // whose course makes a good race of it, out of a sweep of the generator's
@@ -465,11 +465,157 @@ const SUPER_G_MAPS: readonly RaceMap[] = [
   },
 ];
 
+/** SPEED SKIING'S NINE (R34), the slowest track first: nine faces a
+ * straight track was cut down whose final the bot, held in a full tuck,
+ * comes through the timing zone at 187–225 km/h — the top class's tour
+ * band, a slow northern track at its foot and a fast one at its head —
+ * across the fell, the alpine, the continental and the maritime, under
+ * the clear, fair, high and flurried skies a speed race is run in (its
+ * jury runs none in a storm), the bot home on both runs within a few
+ * tenths of par (the clean run, skied), every map built in seconds. Each
+ * box draws the track, and its figures are the FINAL's: the start house
+ * at the top to the timing zone's bottom line. */
+const SPEED_SKI_MAPS: readonly RaceMap[] = [
+  {
+    id: "speedSki-1",
+    name: "Short Fell",
+    blurb: "A short fell track under a fair sky: 200 m of fall, the winners through at 185",
+    seed: 21,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "7bd46dad",
+    region: "fell",
+    grade: "red",
+    course: "8",
+    day: { weather: "fair", hour: 13.13 },
+    figures: { vertical: 203, length: 564 },
+  },
+  {
+    id: "speedSki-2",
+    name: "High Haze",
+    blurb: "An alpine track under high cloud, timed past 195 km/h",
+    seed: 32,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "6c574886",
+    grade: "blue",
+    course: "5",
+    day: { weather: "high", hour: 14.83 },
+    figures: { vertical: 226, length: 553 },
+  },
+  {
+    id: "speedSki-3",
+    name: "Late Flurries",
+    blurb: "A fell track in the last of the day, flurries in the air: 200 km/h",
+    seed: 13,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "61718aed",
+    region: "fell",
+    grade: "blue",
+    course: "11",
+    day: { weather: "flurries", hour: 17.97 },
+    figures: { vertical: 248, length: 653 },
+  },
+  {
+    id: "speedSki-4",
+    name: "Cold Glass",
+    blurb: "A continental track under a clear sky, steep off the start and fast through the trap",
+    seed: 20,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "60d95991",
+    region: "continental",
+    grade: "red",
+    course: "5",
+    day: { weather: "clear", hour: 14.29 },
+    figures: { vertical: 256, length: 538 },
+  },
+  {
+    id: "speedSki-5",
+    name: "Long Run-out",
+    blurb: "A continental track down a black face: 210 km/h and a long way to stop",
+    seed: 23,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "a580d06e",
+    region: "continental",
+    grade: "black",
+    course: "10",
+    day: { weather: "clear", hour: 15.12 },
+    figures: { vertical: 284, length: 634 },
+  },
+  {
+    id: "speedSki-6",
+    name: "Morning Drop",
+    blurb: "An alpine track in the morning sun, 300 m down to the trap at 218",
+    seed: 26,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "31f256ee",
+    grade: "green",
+    course: "1",
+    day: { weather: "fair", hour: 10.8 },
+    figures: { vertical: 299, length: 630 },
+  },
+  {
+    id: "speedSki-7",
+    name: "Noon Steep",
+    blurb: "An alpine track at noon under a clear sky, past 220 km/h",
+    seed: 19,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "ce28de62",
+    grade: "black",
+    course: "8",
+    day: { weather: "clear", hour: 12.51 },
+    figures: { vertical: 305, length: 626 },
+  },
+  {
+    id: "speedSki-8",
+    name: "Wet Air",
+    blurb: "A maritime track under high cloud: 316 m of fall and 223 km/h",
+    seed: 15,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "35579761",
+    region: "maritime",
+    grade: "blue",
+    course: "7",
+    day: { weather: "high", hour: 12.84 },
+    figures: { vertical: 316, length: 732 },
+  },
+  {
+    id: "speedSki-9",
+    name: "The Long Launch",
+    blurb: "The fastest: a fell face with a 740 m launch, 225 km/h through the trap",
+    seed: 28,
+    mode: "speedSki",
+    laps: 1,
+    version: 6,
+    digest: "0240ffe1",
+    region: "fell",
+    grade: "red",
+    course: "8",
+    day: { weather: "fair", hour: 13.75 },
+    figures: { vertical: 323, length: 839 },
+  },
+];
+
 /** EVERY DISCIPLINE'S NINE. A discipline built later adds its row here. */
 export const RACE_MAPS: RaceMaps = {
   slalom: SLALOM_MAPS,
   superG: SUPER_G_MAPS,
   downhill: DOWNHILL_MAPS,
+  speedSki: SPEED_SKI_MAPS,
 };
 
 /** The discipline a mode races, where it races one. */

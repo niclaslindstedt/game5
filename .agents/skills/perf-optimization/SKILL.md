@@ -80,7 +80,8 @@ make every timing beside them worthless.
 `scripts/cpu-cost.mjs`: the engine per mode (the benchmark race, a free
 ride with its crowd, a slalom, a downhill) per step, and the views — the
 FOREST's refill along the benchmark race behind a chase lens at any
-FOREST/DISTANCE/SHADOWS stop, the LIFTS, the free ride's CROWD and the four
+FOREST/DISTANCE/SHADOWS stop, the GROUND's cull (the triangles it leaves
+drawn of the whole clipmap's), the LIFTS, the free ride's CROWD and the four
 riders' POSE — per frame, each with a HASH of what it filled (every drawn
 instance's bytes, every skinned mesh's bones). `performance.now()` is pinned
 to the frame inside the lab, so a dissolve or anything else on the wall
@@ -157,7 +158,7 @@ Measured on a four-core cloud container in Node 22, `make cpu-cost`, p50
 per frame, before → after; the GPU rows are argued from structure and owe a
 real GPU's A/B. The benchmark under SwiftShader, 320×180, every row at its
 top, before → after round 1: draw calls 345 → 266, triangles 1.34M →
-~0.75M with the scene single and fewer again with the ground culled (see the round-1 PR), programs 58 → 46, textures 89 → 50, the renderer's processor half
+0.75M with the scene single (and the ground's ~200k culled after that), programs 58 → 46, textures 89 → 50, the renderer's processor half
 16.9 → 12.3 ms (`submit` 10.6 → 6.4), the sun's shadow pass 68 → 29 ms of
 SwiftShader's time.
 
@@ -169,7 +170,7 @@ SwiftShader's time.
 | 1 | Every lit material's program re-derived every frame under SHADOWS HIGH (three's `getParameters`, `getProgram` and its cache key: the second-dearest JS in the browser profile after the forest's refill) | every frame → never | three keys a render's lights by how many of each it sees and re-derives every lit material's program when that key moves; the riders' passes saw no light and moved it twice a frame. Every light now carries the passes' layers and the groups holding one stay in their walk. |
 | 1 | THE WHOLE SCENE, TWICE (every mode, whenever a run was begun while the front door's scenery was still loading — the benchmark always) | 2 → 1 of every group: 1.34M → ~0.92M triangles a frame on the benchmark, every draw call and every view's `update` halved | `renderer.load` is async; a superseded load now stops at its next breath instead of adding its terrain, woods, lifts, crowd and riders after the newer load's `unload`. |
 | 1 | A shadow program linked mid-run (a slalom's finish, ~32 s in) | 1 → 0 programs linked after the card lifts (`?start=slalom&t=40`); 7 more linked on the card | `warmShadows`: one pass of the sun's map over the whole map with every caster shown, behind the loading card. |
-| 1 | THE GROUND'S VERTICES | every level's whole ring → the wedges the lens can see (`TERRAIN_WEDGES`, 16 a ring; one draw a level still) | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound). A ring's triangles are laid wedge by wedge twice round, each wedge's box over the map's heights plus the rim's rise is tested against the frustum, and the ring draws the one range holding every wedge seen. Level 0, which the lens stands in, is drawn whole. Pixel-identical at chase, far and high. A first try cut each level in four quarters: every quarter meets at the level's centre, where the lens is, so every quarter always touched the frustum and nothing was culled — the tally caught it. |
+| 1 | THE GROUND'S VERTICES | 410k → ~212k triangles a frame along the benchmark race at TERRAIN/DISTANCE HIGH (`make cpu-cost ARGS="--suite terrain"`), for 0.04 ms of processor | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound). A ring's triangles are laid in 16 wedges (`TERRAIN_WEDGES`), twice round, and the ring draws the one range holding every wedge whose box meets the frustum: still one draw a level. Level 0, which the lens stands in, is drawn whole. Pixel-identical at chase, far, high and a summit pad. Two tries that culled nothing first: quarters (every quarter meets at the centre where the lens is), then wedges boxed over the whole map's heights (a box a kilometre tall passes the frustum's test from any side) — each box now spans the ground under it, off a min/max grid of 32-sample blocks. |
 
 ## Open leads, ranked
 

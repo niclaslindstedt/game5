@@ -366,15 +366,54 @@ export function createTerrain(
   const wedges = ringWedges(n, n / 4 + 1, (3 * n) / 4 - 1);
   const ringIndex = new THREE.BufferAttribute(wedges.index, 1);
   const W = TERRAIN_WEDGES;
-  // How high a wedge can stand, m: the map's lowest and highest ground, a
-  // furrow under the one, and the rim's rise (`rimRise`, under 370 m) and
-  // the loose cover over the other.
-  let low = Infinity;
-  let high = -Infinity;
-  for (const y of f.data) {
-    low = Math.min(low, y);
-    high = Math.max(high, y);
+  // HOW HIGH THE GROUND UNDER A WEDGE STANDS: the lowest and highest of the
+  // heightfield over blocks of `BLOCK` samples, so a wedge's box spans the
+  // ground under it and not the whole mountain's kilometre — a box that
+  // tall passes the frustum's test whichever way the lens looks.
+  const BLOCK = 32;
+  const bc = Math.ceil(f.cols / BLOCK);
+  const br = Math.ceil(f.rows / BLOCK);
+  const blockLow = new Float32Array(bc * br).fill(Infinity);
+  const blockHigh = new Float32Array(bc * br).fill(-Infinity);
+  for (let r = 0; r < f.rows; r++) {
+    for (let c = 0; c < f.cols; c++) {
+      const b = Math.floor(r / BLOCK) * bc + Math.floor(c / BLOCK);
+      const y = f.data[r * f.cols + c];
+      blockLow[b] = Math.min(blockLow[b], y);
+      blockHigh[b] = Math.max(blockHigh[b], y);
+    }
   }
+  const span = { low: 0, high: 0 };
+  /** The ground's heights over the plan [x0, x1] × [z0, z1], m, with a
+   * furrow's depth under them and the loose cover over them — and, where
+   * the plan runs off the map, the rim's rise over the edge (`rimRise`,
+   * under 370 m). */
+  const heightsOver = (x0: number, z0: number, x1: number, z1: number): typeof span => {
+    // The samples either side of each edge: the ground between two is
+    // their blend, never outside them.
+    const cell = (v: number, origin: number, count: number, up: number): number =>
+      Math.min(count - 1, Math.max(0, Math.floor((v - origin) / f.cell) + up));
+    const c0 = cell(x0, f.originX, f.cols, 0);
+    const c1 = cell(x1, f.originX, f.cols, 1);
+    const r0 = cell(z0, f.originZ, f.rows, 0);
+    const r1 = cell(z1, f.originZ, f.rows, 1);
+    span.low = Infinity;
+    span.high = -Infinity;
+    for (let r = Math.floor(r0 / BLOCK); r <= Math.floor(r1 / BLOCK); r++) {
+      for (let c = Math.floor(c0 / BLOCK); c <= Math.floor(c1 / BLOCK); c++) {
+        span.low = Math.min(span.low, blockLow[r * bc + c]);
+        span.high = Math.max(span.high, blockHigh[r * bc + c]);
+      }
+    }
+    const off =
+      x0 < f.originX ||
+      z0 < f.originZ ||
+      x1 > f.originX + (f.cols - 1) * f.cell ||
+      z1 > f.originZ + (f.rows - 1) * f.cell;
+    span.low -= 5;
+    span.high += off ? 380 : 5;
+    return span;
+  };
 
   type LevelMesh = {
     mesh: THREE.Mesh;
@@ -444,8 +483,8 @@ export function createTerrain(
   const half = n / 2;
   const seen: boolean[] = new Array<boolean>(W).fill(true);
   /** Draw only the wedges of a ring the view reaches — each one's cells'
-   * plan, a cell wider each way for the rim's morph, over the heights the
-   * ground can have — as the one run of wedges round the ring that holds
+   * plan, a cell wider each way for the rim's morph, over the heights of
+   * the ground under it — as the one run of wedges round the ring that holds
    * them all: the ring less its longest unseen stretch. Without a lens,
    * the ring whole (the compile's). */
   const aim = (lv: LevelMesh, lens: THREE.Camera | undefined): void => {
@@ -462,16 +501,13 @@ export function createTerrain(
         seen[w] = false;
         continue;
       }
-      box.min.set(
-        lv.centre.x + (b[w * 4] - half - 1) * lv.spacing,
-        low - 5,
-        lv.centre.y + (b[w * 4 + 2] - half - 1) * lv.spacing,
-      );
-      box.max.set(
-        lv.centre.x + (b[w * 4 + 1] - half + 1) * lv.spacing,
-        high + 380,
-        lv.centre.y + (b[w * 4 + 3] - half + 1) * lv.spacing,
-      );
+      const x0 = lv.centre.x + (b[w * 4] - half - 1) * lv.spacing;
+      const x1 = lv.centre.x + (b[w * 4 + 1] - half + 1) * lv.spacing;
+      const z0 = lv.centre.y + (b[w * 4 + 2] - half - 1) * lv.spacing;
+      const z1 = lv.centre.y + (b[w * 4 + 3] - half + 1) * lv.spacing;
+      const { low, high } = heightsOver(x0, z0, x1, z1);
+      box.min.set(x0, low, z0);
+      box.max.set(x1, high, z1);
       seen[w] = frustum.intersectsBox(box);
       any ||= seen[w];
     }

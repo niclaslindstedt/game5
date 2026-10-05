@@ -11,7 +11,9 @@
 //           per-frame `update`, which fills instance buffers and needs no
 //           WebGL: the FOREST's band refill along the benchmark race behind
 //           a chase lens (the FOREST and DISTANCE rows' processor half), the
-//           LIFTS' carriers and the free ride's CROWD; and the POSE — every
+//           LIFTS' carriers and the free ride's CROWD; the GROUND's cull to
+//           the lens (`terrain.ts`'s `follow`), with the triangles it leaves
+//           drawn beside the whole clipmap's; and the POSE — every
 //           rider of the benchmark race posed off his run, the renderer's
 //           `pose` phase (`skis-body.ts`'s `pose` and the merge it drives).
 //
@@ -45,7 +47,7 @@ import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 aliasEngine(root);
 
-const SUITES = ["engine", "pose", "forest", "lifts", "crowd"];
+const SUITES = ["engine", "pose", "forest", "terrain", "lifts", "crowd"];
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -57,6 +59,7 @@ const args = parseArgs(
     },
     steps: { kind: "number", default: 2400, help: "steps timed per engine run" },
     forest: { kind: "string", default: "high", help: "the FOREST row (low, medium, high)" },
+    terrain: { kind: "string", default: "high", help: "the TERRAIN row (low, medium, high)" },
     distance: {
       kind: "string",
       default: "high",
@@ -265,6 +268,35 @@ if (suites.includes("forest")) {
   );
   rows.at(-1).name =
     `forest ${args.forest}/${args.distance}/${args.shadows} (${level.trees.length} trees)`;
+}
+
+if (suites.includes("terrain")) {
+  const { createTerrain } = await import(join(root, "pwa/src/game/terrain.ts"));
+  const { createTrailMap } = await import(join(root, "pwa/src/game/trail-map.ts"));
+  const level = benchmarkLevel();
+  const state = E.createGame({ seed: BENCHMARK.seed, level, sky: BENCHMARK.sky, quiet: true });
+  const look = V.terrainLook(args.terrain, V.DISTANCE_LOOK[args.distance].view);
+  const trail = createTrailMap(level.size, V.TRAIL_LOOK.high);
+  const ground = createTerrain(level, createHazeUniforms(), trail.uniforms, look);
+  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 4000);
+  let drawn = 0;
+  let frames = 0;
+  viewRun(
+    "terrain",
+    state,
+    () => {
+      chaseLens(cam, state.skier);
+      ground.follow(cam.position.x, cam.position.z, cam);
+      for (const m of ground.group.children) {
+        if (m.visible) drawn += Math.min(m.geometry.drawRange.count, m.geometry.index.count) / 3;
+      }
+      frames += 1;
+    },
+    ground.group,
+  );
+  const row = rows.at(-1);
+  row.name = `terrain ${args.terrain}/${args.distance}: ${Math.round(drawn / frames)} of ${V.terrainTriangles(look)} tris`;
+  delete row.hash;
 }
 
 if (suites.includes("lifts") || suites.includes("crowd")) {

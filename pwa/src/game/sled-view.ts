@@ -17,6 +17,7 @@ import { SLED, type GameState, type SledState } from "@engine";
 
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { SLED_LOOK } from "./sled-look.ts";
 import { SLED_NODES, sledModelUrl } from "./skier-models.ts";
 
@@ -182,8 +183,10 @@ export function createSledView(haze: HazeUniforms): SledView {
       }
     });
 
-  const prev = { x: 0, y: 0, z: 0, q: new THREE.Quaternion(), tick: -1 };
-  const cur = { x: 0, y: 0, z: 0, q: new THREE.Quaternion(), tick: -1 };
+  // Drawn between two steps on the RIDER'S own line (`interp.ts`), so the
+  // boards he stands on never part from under him between frames.
+  const track = createTrack();
+  const at: Pose = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
   const q = new THREE.Quaternion();
   const turn = new THREE.Quaternion();
   let shown: { x: number; y: number; z: number; q: THREE.Quaternion } | null = null;
@@ -213,29 +216,10 @@ export function createSledView(haze: HazeUniforms): SledView {
       group.visible = !!s;
       if (!s) return;
       clock += dt;
-      if (cur.tick !== state.tick) {
-        prev.x = cur.x;
-        prev.y = cur.y;
-        prev.z = cur.z;
-        prev.q.copy(cur.q);
-        prev.tick = cur.tick;
-        cur.x = s.x;
-        cur.y = s.y;
-        cur.z = s.z;
-        cur.q.set(s.q.x, s.q.y, s.q.z, s.q.w);
-        cur.tick = state.tick;
-        if (prev.tick < 0 || state.tick - prev.tick > 2) {
-          prev.x = cur.x;
-          prev.y = cur.y;
-          prev.z = cur.z;
-          prev.q.copy(cur.q);
-        }
-      }
-      const k = Math.max(0, Math.min(1, alpha));
-      const x = prev.x + (cur.x - prev.x) * k;
-      const y = prev.y + (cur.y - prev.y) * k;
-      const z = prev.z + (cur.z - prev.z) * k;
-      q.slerpQuaternions(prev.q, cur.q, k);
+      observe(track, s, state.tick);
+      sample(track, alpha, at);
+      const { x, y, z } = at;
+      q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       machine.position.set(x, y, z);
       machine.quaternion.copy(q);
       shown = { x, y, z, q };

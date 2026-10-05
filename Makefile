@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -347,6 +347,18 @@ heli:
 # ARGS="--sheet=powder,climb" a few sheets, "--views=roost" a few views.
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
+# helicopter) and its rider are DRAWN from frame to frame — the bot rides
+# it, the app's run clock is fed frames at each frame rate with a display's
+# wobble, both bodies are drawn by the game's own interp.ts, and each frame
+# is held to the engine's poses either side of it: the machine's error, the
+# rider's slide off his place on it, the jump between frames. A row a frame
+# rate and previews/judder-<machine>-<seed>.png. Pure Node, seconds.
+# `make judder` · `make judder MACHINE=heli SEED=7` ·
+# ARGS="--fps=60,45 --at=25"; ARGS="--json=a.json" / "--compare=a.json".
+judder:
+	npm run judder -- $(if $(SEED),--seed $(SEED),) $(if $(MACHINE),--machine $(MACHINE),) $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

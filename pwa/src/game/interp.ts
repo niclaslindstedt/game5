@@ -11,7 +11,7 @@
 //
 // Three-free, so the suite reads it (`tests/world_render_test.ts`).
 
-import type { Quat, SkierState, Thrown } from "@engine";
+import type { Quat, Thrown } from "@engine";
 
 export type Pose = {
   x: number;
@@ -65,8 +65,10 @@ export function nlerp(a: Quat, b: Quat, t: number, out: Quat): Quat {
  * cut, never swept across the map. */
 const CUT = 8;
 
-/** Take in the skier as the state has it at `tick`. */
-export function observe(track: PoseTrack, skier: SkierState, tick: number): void {
+/** Take in a body as the state has it at `tick` — a skier, or a machine
+ * (`sled-view.ts`, `heli-view.ts`) drawn on the same steps as its rider, so
+ * the two never part between them. */
+export function observe(track: PoseTrack, skier: Pose, tick: number): void {
   if (tick === track.tick) return;
   const k = tick - track.tick;
   const jumped =

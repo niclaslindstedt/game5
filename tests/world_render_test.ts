@@ -6,8 +6,18 @@
 // (`interp.ts`). The shaders and the meshes are judged by LOOKING
 // (`make world`); what can be said in numbers is said here.
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { createGame, placeRun, step, NEUTRAL_INPUT, TUNING, type SnowContact } from "@engine";
+import {
+  createGame,
+  placeRun,
+  sledPilot,
+  step,
+  unrotate,
+  NEUTRAL_INPUT,
+  TUNING,
+  type SnowContact,
+} from "@engine";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 import {
@@ -670,6 +680,37 @@ describe("drawing between two steps", () => {
     // One of the two steps back, on the line from the last frame's pose.
     expect(before).toBeCloseTo((x0 + game.skier.x) / 2, 9);
     expect(Math.hypot(out.q.x, out.q.y, out.q.z, out.q.w)).toBeCloseTo(1, 9);
+  });
+
+  it("keeps a machine under its rider, however many steps a frame takes", () => {
+    // The snowmobile and its rider drawn on the same line between the same
+    // two steps: his place on the boards as drawn is the engine's at every
+    // alpha, on a frame of one step or four (a view that kept its own
+    // previous frame shook the machine under him at the frame rate).
+    const game = createGame({ seed: 38, mode: "free", sled: true, crowd: 0, quiet: true });
+    for (let i = 0; i < 240; i++) step(game, sledPilot(game));
+    const rider = createTrack();
+    const machine = createTrack();
+    const r = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
+    const m = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
+    const onBoards = (a: typeof r, b: typeof r) =>
+      unrotate(b.q, { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+    for (const k of [2, 3, 2, 3, 1, 4, 2, 3]) {
+      for (let i = 0; i < k; i++) step(game, sledPilot(game));
+      observe(rider, game.skier, game.tick);
+      observe(machine, game.sled!, game.tick);
+      const truth = onBoards(game.skier, game.sled!);
+      for (const alpha of [0, 0.5, 1]) {
+        const on = onBoards(sample(rider, alpha, r), sample(machine, alpha, m));
+        expect(Math.hypot(on.x - truth.x, on.y - truth.y, on.z - truth.z)).toBeLessThan(0.005);
+      }
+    }
+    // And both machines ARE drawn on that line.
+    for (const view of ["sled-view.ts", "heli-view.ts"]) {
+      const src = readFileSync(new URL(`../pwa/src/game/${view}`, import.meta.url), "utf8");
+      expect(src).toMatch(/observe\(track, /);
+      expect(src).toMatch(/sample\(track, alpha, /);
+    }
   });
 
   it("blends quaternions the short way round", () => {

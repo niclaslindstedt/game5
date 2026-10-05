@@ -336,25 +336,48 @@ export function LeverZone({
   );
 }
 
-/** THE CYCLIC STICK's reach, px: the thumb travel that is full cyclic, both
+/** A flying pad's reach, px: the thumb travel that is the whole of both
  * axes, and the ring it is drawn at. */
 const STICK_REACH_PX = 80;
 
-/** THE CYCLIC STICK — the lever's glass, while he flies the helicopter
- * (`heli.ts`): a thumb anywhere anchors a stick under it, and the thumb's
- * travel off the anchor tilts the disc — up is forward (the nose down), to
- * a side is that side — full at `STICK_REACH_PX`, centred the moment the
- * thumb lifts, as a sprung stick is. A double tap here, as on the edge
- * thumb, is the jump off the skid. The maths of the four controls is
- * input-model.ts's `sampleHeli`. */
+/** Which of the helicopter's two pads a zone is: the CYCLIC on the edge
+ * thumb's glass, the POWER PAD (the collective and the pedals) on the
+ * lever's. */
+export type StickRole = "cyclic" | "power";
+
+/** A chevron pointing up, drawn at the ring's top: rotated round the
+ * centre for the other three ways. */
+const CHEVRON = "M -6 -33 L 0 -39 L 6 -33";
+/** The pedals' mark: a DOUBLE chevron pointing right at the ring's side —
+ * the cyclic's single ones are its bank, so the two pads never read alike
+ * — mirrored for the left. */
+const YAW_MARK = "M 27 -6 L 33 0 L 27 6 M 33 -6 L 39 0 L 33 6";
+
+/** THE HELICOPTER'S TWO PADS, while he flies it (`heli.ts`): a thumb
+ * anywhere anchors a pad under it, and its travel off the anchor is full at
+ * `STICK_REACH_PX`.
+ *
+ * - THE CYCLIC (`role="cyclic"`, the edge thumb's glass): up tilts the disc
+ *   forward (the nose down, away), down tilts it back, to a side banks it
+ *   that way — centred the moment the thumb lifts, as a sprung stick is.
+ * - THE POWER PAD (`role="power"`, the lever's glass): up works the
+ *   collective up and the machine climbs, down works it down — a lever
+ *   moved while the thumb is held off the anchor and LEFT where it is when
+ *   the thumb lifts; across is the pedals, the tail rotor turning the nose
+ *   that way, sprung back to centre.
+ *
+ * A double tap on either, as on the edge thumb, is the jump off the skid.
+ * The maths of the four controls is input-model.ts's `sampleHeli`. */
 export function StickZone({
   touch,
   feel,
   side,
+  role,
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
+  role: StickRole;
 }) {
   const stickRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<SVGCircleElement>(null);
@@ -362,16 +385,22 @@ export function StickZone({
   const tapRef = useRef(createJumpTap());
   const reach = STICK_REACH_PX / feel.sensitivity;
 
-  const write = (x: number, y: number): void => {
-    touch.stickX = x;
-    touch.stickY = y;
+  const write = (x: number, y: number, down: boolean): void => {
+    if (role === "cyclic") {
+      touch.stickX = x;
+      touch.stickY = y;
+      touch.stick = down;
+    } else {
+      touch.powerX = x;
+      touch.powerY = y;
+      touch.power = down;
+    }
     knobRef.current?.setAttribute("cx", (x * 40).toFixed(1));
     knobRef.current?.setAttribute("cy", (-y * 40).toFixed(1));
   };
   const letGo = (): void => {
     jumpTapUp(tapRef.current, performance.now() / 1000);
-    touch.stick = false;
-    write(0, 0);
+    write(0, 0, false);
     if (stickRef.current) stickRef.current.style.display = "none";
   };
   const letGoRef = useRef(letGo);
@@ -382,7 +411,7 @@ export function StickZone({
   return (
     <div
       class={`hud-zone hud-zone-${side}`}
-      data-touch="stick"
+      data-touch={role === "cyclic" ? "stick" : "power"}
       onPointerDown={(e) => {
         capturePointer(e);
         if (!guard.claim(e.pointerId, stillDown(e.currentTarget))) return;
@@ -394,22 +423,38 @@ export function StickZone({
           stick.style.top = `${e.clientY - box.top}px`;
           stick.style.display = "block";
         }
-        touch.stick = true;
         if (jumpTapDown(tapRef.current, performance.now() / 1000)) touch.tap2 = true;
-        write(0, 0);
+        write(0, 0, true);
       }}
       onPointerMove={(e) => {
         if (!guard.owns(e.pointerId)) return;
         const clip = (v: number): number => Math.max(-1, Math.min(1, v / reach));
-        write(clip(e.clientX - originRef.current.x), clip(originRef.current.y - e.clientY));
+        write(clip(e.clientX - originRef.current.x), clip(originRef.current.y - e.clientY), true);
       }}
       onPointerUp={(e) => guard.release(e.pointerId)}
       onPointerCancel={(e) => guard.release(e.pointerId)}
       onLostPointerCapture={(e) => guard.release(e.pointerId)}
     >
-      <div ref={stickRef} class="hud-bar hud-stick" aria-hidden="true">
+      <div ref={stickRef} class={`hud-bar hud-stick hud-stick-${role}`} aria-hidden="true">
         <svg class="hud-bar-svg" viewBox="-50 -50 100 100" overflow="visible">
           <circle cx="0" cy="0" r="44" class="hud-bar-reach" />
+          {role === "cyclic" ? (
+            <g class="hud-stick-mark">
+              {[0, 90, 180, 270].map((deg) => (
+                <path key={deg} d={CHEVRON} transform={`rotate(${deg})`} />
+              ))}
+            </g>
+          ) : (
+            <g class="hud-stick-mark">
+              {/* The collective's track up and down the pad, a chevron at
+                  each end; the pedals' double chevrons either side. */}
+              <line x1="0" y1="-30" x2="0" y2="30" class="hud-stick-track" />
+              <path d={CHEVRON} />
+              <path d={CHEVRON} transform="rotate(180)" />
+              <path d={YAW_MARK} />
+              <path d={YAW_MARK} transform="scale(-1 1)" />
+            </g>
+          )}
           <circle ref={knobRef} cx="0" cy="0" r="14" class="hud-lever-knob" />
         </svg>
       </div>

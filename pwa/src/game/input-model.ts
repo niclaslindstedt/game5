@@ -246,12 +246,19 @@ export type TouchChannel = {
    * until a step has taken it — what pushes the skier off the helicopter's
    * skid. */
   tap2: boolean;
-  /** THE CYCLIC STICK, the right thumb's while he flies the helicopter
-   * (`hud-touch.tsx`'s `StickZone`): −1..1 right and −1..1 pushed up
-   * (forward), screen-space, and whether a thumb is on it. */
+  /** THE CYCLIC STICK, the edge thumb's glass while he flies the
+   * helicopter (`hud-touch.tsx`'s `StickZone`, `role="cyclic"`): −1..1
+   * right and −1..1 pushed up (forward), screen-space, and whether a thumb
+   * is on it. */
   stickX: number;
   stickY: number;
   stick: boolean;
+  /** THE POWER PAD, the lever's glass while he flies (`role="power"`):
+   * pushed up −1..1 works the collective up and down, across −1..1 is the
+   * pedals, screen-space, and whether a thumb is on it. */
+  powerX: number;
+  powerY: number;
+  power: boolean;
 };
 
 export function neutralTouch(): TouchChannel {
@@ -267,6 +274,9 @@ export function neutralTouch(): TouchChannel {
     stickX: 0,
     stickY: 0,
     stick: false,
+    powerX: 0,
+    powerY: 0,
+    power: false,
   };
 }
 
@@ -432,11 +442,26 @@ export const NO_HELI_KEYS: HeliKeysHeld = {
 
 /** THE COLLECTIVE'S TRAVEL, shares of the lever a second: a key held moves
  * it at `COLLECTIVE_KEY_RATE` (from the stop to the hover's ~0.7 in a
- * second and a half), the left thumb pushed all the way at
+ * second and a half), the power pad pushed all the way at
  * `COLLECTIVE_THUMB_RATE`. A lever moves while it is worked and stays where
  * it is left: the height held is the hand's, never the machine's. */
 export const COLLECTIVE_KEY_RATE = 0.45;
 export const COLLECTIVE_THUMB_RATE = 0.6;
+
+/** THE POWER PAD'S DEAD BAND, a share of its reach either side of the
+ * anchor: the collective is a RATE on the pad (held up it keeps rising), so
+ * a thumb working the pedals across must not creep the lever up or down by
+ * the little it strays — and a thumb working the collective must not kick
+ * the tail. Past the band the axis is rescaled, so the full reach is still
+ * the whole of it. */
+export const POWER_PAD_DEAD = 0.15;
+
+/** One of the power pad's axes past its dead band, −1..1. */
+export function powerAxis(v: number): number {
+  const past = Math.abs(v) - POWER_PAD_DEAD;
+  if (past <= 0) return 0;
+  return Math.sign(v) * clamp(past / (1 - POWER_PAD_DEAD), 0, 1);
+}
 
 /** The flying hand's memory: the collective lever where it was left, and
  * the cyclic's and the pedals' keyboard ramps, screen-space. */
@@ -447,12 +472,16 @@ export function createHeliModel(): HeliModel {
 }
 
 /**
- * ONE STEP OF THE HELICOPTER'S CONTROLS off the keys and the thumbs:
- *   * the COLLECTIVE lever worked up and down by its keys, or by the edge
- *     thumb's vertical travel (pushed up raises it), and left where it is;
- *   * the CYCLIC off the stick keys (ramped like the edge) or the right
- *     thumb's stick, which owns both its axes while it is down;
- *   * the PEDALS off their keys, or the edge thumb's sideways travel.
+ * ONE STEP OF THE HELICOPTER'S CONTROLS off the keys and the thumbs — on
+ * touch two pads, the CYCLIC on the edge thumb's side and the POWER PAD on
+ * the lever's:
+ *   * the COLLECTIVE lever worked up and down by its keys, or by the power
+ *     pad's vertical travel (pushed up raises it, at a rate), and left where
+ *     it is;
+ *   * the CYCLIC off the stick keys (ramped like the edge) or the cyclic
+ *     stick, which owns both its axes while it is down;
+ *   * the PEDALS off their keys, or the power pad's sideways travel, which
+ *     owns them while it is down and is sprung back to centre after.
  * The side-to-side axes go through the one screen-to-engine flip.
  */
 export function sampleHeli(
@@ -462,7 +491,7 @@ export function sampleHeli(
   dt: number,
 ): HeliControls {
   const lift = (keys.collectiveUp ? 1 : 0) - (keys.collectiveDown ? 1 : 0);
-  const thumbLift = touch.bar ? -touch.lean : 0;
+  const thumbLift = touch.power ? powerAxis(touch.powerY) : 0;
   model.collective = clamp(
     model.collective + (lift * COLLECTIVE_KEY_RATE + thumbLift * COLLECTIVE_THUMB_RATE) * dt,
     0,
@@ -476,7 +505,7 @@ export function sampleHeli(
   model.pedal = rampToward(model.pedal, yaw, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
   const pitch = touch.stick ? touch.stickY : model.pitch;
   const roll = touch.stick ? touch.stickX : model.roll;
-  const pedal = touch.bar ? touch.steer : model.pedal;
+  const pedal = touch.power ? powerAxis(touch.powerX) : model.pedal;
   const flip = (v: number): number => (v === 0 ? 0 : clamp(v, -1, 1) * SCREEN_TO_ENGINE);
   return {
     collective: model.collective,

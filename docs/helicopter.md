@@ -75,14 +75,14 @@ Flying has a key table of its own (`settings-heli-keys.ts`, `Settings.heliKeys`,
 
 | | Keys | Touch |
 | --- | --- | --- |
-| Collective up / down | ↑ / ↓, Shift / Z | the left thumb pushed up / pulled down (moves the lever while held) |
-| Cyclic fore and aft | W / S | the right thumb's stick up / down |
-| Cyclic left and right | A / D | the right thumb's stick left / right |
-| Pedals | Q / E, ← / → | the left thumb left / right |
+| Collective up / down | ↑ / ↓, Shift / Z | the right pad pushed up / pulled down (moves the lever while held, and it stays where it is left) |
+| Cyclic fore and aft | W / S | the left pad up / down |
+| Cyclic left and right | A / D | the left pad left / right |
+| Pedals | Q / E, ← / → | the right pad left / right |
 | Jump off | Space | a double tap on either thumb |
 | Back to the pad | R | the reset press |
 
-On touch, the right thumb's zone becomes a sprung cyclic stick (`StickZone`) while flying, and the left thumb works the collective and the pedals, as a drone's two sticks do. The HUD reads like a cockpit (`hud-heli.tsx`): the DROP under the skids and the climb, an artificial horizon, and the collective's gauge.
+On touch, both thumbs become pads while flying (`StickZone`): the edge thumb's glass (the left, as it ships) a sprung CYCLIC stick — up tilts the helicopter forward, down back, across banks it — and the lever's glass (the right) the POWER PAD — up and down work the collective at a rate and leave it where it is let go, across is the pedals, sprung back to centre. The power pad's axes each have a dead band (`POWER_PAD_DEAD`), so working the pedals never creeps the collective. A left-handed skier who has moved the lever to the left gets the pads swapped with it. The HUD reads like a cockpit (`hud-heli.tsx`): the DROP under the skids and the climb, an artificial horizon, and the collective's gauge.
 
 ## The pad, the drop and the pilot
 

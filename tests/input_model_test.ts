@@ -34,6 +34,8 @@ import {
   neutralTouch,
   rampToward,
   sampleHeli,
+  POWER_PAD_DEAD,
+  powerAxis,
   sampleInput,
   COLLECTIVE_KEY_RATE,
   COLLECTIVE_THUMB_RATE,
@@ -392,20 +394,47 @@ describe("the helicopter flown by hand (sampleHeli)", () => {
     expect(Math.sign(out.roll)).toBe(SCREEN_TO_ENGINE);
   });
 
-  it("reads the thumbs: the stick for the cyclic, the edge thumb for the pedals and the lever", () => {
+  it("reads the thumbs: the cyclic pad for the disc, the power pad for the lever and the pedals", () => {
     const touch = {
       ...neutralTouch(),
       stick: true,
       stickX: 0.5,
       stickY: -0.25,
-      bar: true,
-      steer: -0.4,
-      lean: -1,
+      power: true,
+      powerX: -1,
+      powerY: 1,
     };
     const { out } = run({}, touch, 1);
     expect(out.pitch).toBeCloseTo(-0.25);
     expect(out.roll).toBeCloseTo(0.5 * SCREEN_TO_ENGINE);
-    expect(out.pedal).toBeCloseTo(-0.4 * SCREEN_TO_ENGINE);
+    expect(out.pedal).toBeCloseTo(-1 * SCREEN_TO_ENGINE);
     expect(out.collective).toBeCloseTo(COLLECTIVE_THUMB_RATE, 1);
+  });
+
+  it("leaves the collective where the power pad left it, and springs the pedals back", () => {
+    const up = { ...neutralTouch(), power: true, powerY: 1 };
+    const { out, model } = run({}, up, 1);
+    const after = run({}, neutralTouch(), 2, model).out;
+    expect(after.collective).toBeCloseTo(out.collective, 5);
+    expect(after.pedal).toBe(0);
+    const down = { ...neutralTouch(), power: true, powerY: -1 };
+    expect(run({}, down, 3, model).out.collective).toBe(0);
+  });
+
+  it("holds the power pad's dead band, so the pedals never creep the collective", () => {
+    const across = { ...neutralTouch(), power: true, powerX: 1, powerY: POWER_PAD_DEAD * 0.9 };
+    const { out } = run({}, across, 2);
+    expect(out.collective).toBe(0);
+    expect(out.pedal).toBeCloseTo(SCREEN_TO_ENGINE);
+    expect(powerAxis(-POWER_PAD_DEAD)).toBe(0);
+    expect(powerAxis(-1)).toBe(-1);
+    expect(powerAxis(0.5)).toBeCloseTo((0.5 - POWER_PAD_DEAD) / (1 - POWER_PAD_DEAD));
+  });
+
+  it("ignores the skier's edge thumb while flying", () => {
+    const touch = { ...neutralTouch(), bar: true, steer: 1, lean: -1 };
+    const { out } = run({}, touch, 1);
+    expect(out.collective).toBe(0);
+    expect(out.pedal).toBe(0);
   });
 });

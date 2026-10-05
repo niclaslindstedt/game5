@@ -124,16 +124,27 @@ export function Hud({
   const lit = snap.missed !== null || snap.down;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
-  const Right = snap.heli?.kind === "flown" ? StickZone : LeverZone;
+  const flown = snap.heli?.kind === "flown";
+  const barSide: ZoneSide = lever === "left" ? "right" : "left";
+  // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
+  // the cyclic, the lever's the collective and the pedals.
+  const leverZone = flown ? (
+    <StickZone touch={input.touch} feel={feel} side={lever} role="power" />
+  ) : (
+    <LeverZone touch={input.touch} feel={feel} side={lever} />
+  );
+  const barZone = flown ? (
+    <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
+  ) : (
+    <BarZone touch={input.touch} feel={feel} side={barSide} />
+  );
   const thumbs = touch && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
           whichever of the two it is. */}
-      {/* FLYING THE HELICOPTER the lever's glass is the cyclic stick, and
-          the edge thumb works the collective and the pedals. */}
-      {lever === "left" && <Right touch={input.touch} feel={feel} side="left" />}
-      <BarZone touch={input.touch} feel={feel} side={lever === "left" ? "right" : "left"} />
-      {lever === "right" && <Right touch={input.touch} feel={feel} side="right" />}
+      {lever === "left" && leverZone}
+      {barZone}
+      {lever === "right" && leverZone}
     </div>
   );
   if (bare) {

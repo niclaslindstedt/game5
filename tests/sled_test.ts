@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SNOWMOBILE (`engine/game/sled.ts`, its body `sled-body.ts`, its drive
 // `sled-drive.ts`): a free ride's mountain sled parked at the bottom,
-// boarded by skiing into it, ridden on the rider's own controls — the
-// tuck the thumb, the skid the brake, the edge the bars, the lean his
-// weight — hopped off on a double press, and thrown off. The physics on the
+// taken on the machine press stood beside it, ridden on the rider's own
+// controls — the tuck the thumb, the skid the brake, the edge the bars, the
+// lean his weight — hopped off on the same press, and thrown off. The physics on the
 // drag strip (`flatLevel`: a grade of one's own, all packed or all
 // powder), the parking and the boarding on one generated mountain.
 
 import { describe, expect, it } from "vitest";
 import {
-  HOP_WINDOW,
   NEUTRAL_INPUT,
   SLED,
   createGame,
@@ -19,6 +18,7 @@ import {
   sledPowerShare,
   sledPilot,
   sledSpotOf,
+  sledWithin,
   standSkier,
   standSled,
   step,
@@ -176,46 +176,45 @@ describe("riding it", () => {
     expect(s.skier.y).toBeGreaterThan(k.y);
   });
 
-  it("is taken by skiing into it slowly, never at speed", () => {
+  it("is taken on the machine press stood beside it, never by skiing into it or at speed", () => {
     const s = createGame({ level, mode: "free", crowd: 0, quiet: true });
     const k = s.sled!;
     const events: GameEvent[] = [];
-    // Stood a few metres off, coasting at a walk: taken on.
+    // Stood a few metres off, coasting at a walk: nothing until he asks.
     standSkier(s, k.x + 1.6, k.z, k.heading);
     ride(s, 0.5, ask(), events);
+    expect(s.sled!.rider).toBe(false);
+    expect(sledWithin(s)).toBe(true);
+    ride(s, 1 / 120, ask({ machine: true }), events);
     expect(s.sled!.rider).toBe(true);
     expect(events.some((e) => e.kind === "sled" && e.phase === "board")).toBe(true);
-    // Fast past it, nothing.
+    // Fast past it, the press does nothing.
     const t = createGame({ level, mode: "free", crowd: 0, quiet: true });
     standSkier(t, t.sled!.x + 1.6, t.sled!.z, t.sled!.heading);
     t.skier.vx = SLED.board.fastest + 4;
-    step(t, ask());
+    expect(sledWithin(t)).toBe(false);
+    step(t, ask({ machine: true }));
     expect(t.sled!.rider).toBe(false);
   });
 
-  it("is hopped off on a DOUBLE press of the jump — a single press does nothing", () => {
+  it("is hopped off on the machine press — the jump does nothing on the boards", () => {
     const s = createGame({ level, mode: "free", sled: true, crowd: 0, quiet: true });
     ride(s, 0.5, ask());
-    ride(s, 0.05, ask({ jump: true }));
-    ride(s, HOP_WINDOW + 0.2, ask());
+    for (let i = 0; i < 3; i++) {
+      ride(s, 0.05, ask({ jump: true }));
+      ride(s, 0.1, ask());
+    }
     expect(s.sled!.rider).toBe(true);
     const events: GameEvent[] = [];
-    ride(s, 0.05, ask({ jump: true }), events);
-    ride(s, 0.1, ask(), events);
-    ride(s, 0.05, ask({ jump: true }), events);
+    ride(s, 1 / 120, ask({ machine: true }), events);
     expect(s.sled!.rider).toBe(false);
     expect(events.some((e) => e.kind === "sled" && e.phase === "hop")).toBe(true);
-    // On his skis beside it, and not straight back on.
+    // On his skis beside it, and not back on until he asks.
     ride(s, 1, ask());
     expect(s.sled!.rider).toBe(false);
     expect(Math.hypot(s.skier.x - s.sled!.x, s.skier.z - s.sled!.z)).toBeGreaterThan(0.6);
-  });
-
-  it("is hopped off on the app's double tap too", () => {
-    const s = createGame({ level, mode: "free", sled: true, crowd: 0, quiet: true });
-    ride(s, 0.5, ask());
-    step(s, ask({ sledOff: true }));
-    expect(s.sled!.rider).toBe(false);
+    ride(s, 1 / 120, ask({ machine: true }));
+    expect(s.sled!.rider).toBe(true);
   });
 
   it("throws its rider off into a trunk at speed, and puts him back on when he stands", () => {

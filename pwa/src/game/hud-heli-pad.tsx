@@ -87,7 +87,9 @@ const TURN = (() => {
  *   that way, sprung back to centre. `collective` is the lever as the HUD
  *   last read it, drawn down the upright.
  *
- * A double tap on either, as on the edge thumb, is the jump off the skid.
+ * A double tap on either, as on the edge thumb, is the machine press: off
+ * the skid.
+ *
  * The maths of the four controls is input-model.ts's `sampleHeli`. */
 export function StickZone({
   touch,

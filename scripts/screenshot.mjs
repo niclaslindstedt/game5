@@ -218,12 +218,12 @@ const SURFACES = {
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.
   gallery: { params: { menu: "gallery" }, wait: ".menu-card-gallery", settle: 700 },
-  // ...and with a picture in it: a race ridden fourteen seconds, ENTER pressed
+  // ...and with a picture in it: a race ridden fourteen seconds, P pressed
   // (the whole shutter — the grab, the HUD layer, the stamp, the encode, the
   // roll), and the gallery opened in the same tab, so the store is the one
   // the picture was filed in.
   "gallery-roll": {
-    prime: { params: { start: "race", t: "14", shot: "1" }, key: "Enter" },
+    prime: { params: { start: "race", t: "14", shot: "1" }, key: "KeyP" },
     params: { menu: "gallery" },
     wait: ".gallery-img",
     settle: 900,

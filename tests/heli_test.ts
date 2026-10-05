@@ -10,6 +10,7 @@ import {
   NEUTRAL_INPUT,
   createGame,
   helipadOf,
+  heliWithin,
   pilotInput,
   standSkier,
   step,
@@ -162,21 +163,25 @@ describe("the helicopter", () => {
 
   it("lets the skier step off where it has landed, and shuts down there", () => {
     const s = ride();
-    const events = fly(s, 1 / 120, { ...hands(), jump: true });
+    const events = fly(s, 1 / 120, { ...hands(), machine: true });
     expect(events.some((e) => e.kind === "heli" && e.phase === "drop")).toBe(true);
     expect(s.skier.airborne).toBe(false);
     expect(s.heli!.mode).toBe("parked");
-    // Stood beside the skid he stepped off, he is not sat straight back on it.
+    // Stood beside the skid he stepped off, he stays off it until he asks;
+    // the same press sits him back on.
     fly(s, 1, ask());
     expect(s.heli!.rider).toBe(false);
+    const again = fly(s, 1 / 120, ask({ machine: true }));
+    expect(again.some((e) => e.kind === "heli" && e.phase === "board")).toBe(true);
+    expect(s.heli!.rider).toBe(true);
   });
 
-  it("lets the skier go on the jump with its way, and lurches up lighter", () => {
+  it("lets the skier go on the machine press with its way, and lurches up lighter", () => {
     const s = ride();
     pilot(s, 7, { x: s.heli!.x, z: s.heli!.z - 300, height: 50 });
     const h = s.heli!;
     const v = { x: h.vx, z: h.vz };
-    const events = fly(s, 1 / 120, { ...pilotInput(s), jump: true });
+    const events = fly(s, 1 / 120, { ...pilotInput(s), machine: true });
     expect(events.some((e) => e.kind === "heli" && e.phase === "drop")).toBe(true);
     expect(h.rider).toBe(false);
     expect(h.mode).toBe("home");
@@ -196,7 +201,7 @@ describe("the helicopter", () => {
   it("is flown home and set down on its pad by its pilot", () => {
     const s = ride();
     pilot(s, 12);
-    fly(s, 1 / 120, { ...pilotInput(s), jump: true });
+    fly(s, 1 / 120, { ...pilotInput(s), machine: true });
     const events: GameEvent[] = [];
     for (let i = 0; i < 150 * 120 && s.heli!.mode !== "parked"; i++) {
       step(s, NEUTRAL_INPUT);
@@ -208,12 +213,16 @@ describe("the helicopter", () => {
     expect(Math.hypot(s.heli!.x - pad.x, s.heli!.z - pad.z)).toBeLessThan(10);
   });
 
-  it("takes a skier on who rides in beside its skid", () => {
+  it("takes a skier on who gives the machine press beside its skid, never one who skis past", () => {
     const s = createGame({ level, mode: "free", crowd: 0, quiet: true });
     const h = s.heli!;
     const side = { x: -Math.cos(h.heading), z: Math.sin(h.heading) };
     standSkier(s, h.x + side.x * 2.2, h.z + side.z * 2.2, h.heading);
-    const events = fly(s, 0.1, ask());
+    // Stood beside it, nothing: the press is the player's to make.
+    fly(s, 0.5, ask());
+    expect(h.rider).toBe(false);
+    expect(heliWithin(s)).toBe(true);
+    const events = fly(s, 1 / 120, ask({ machine: true }));
     expect(events.some((e) => e.kind === "heli" && e.phase === "board")).toBe(true);
     expect(h.rider).toBe(true);
     expect(h.mode).toBe("flown");

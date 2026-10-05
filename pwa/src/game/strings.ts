@@ -216,12 +216,19 @@ export const STRINGS = {
   heliHeight: "DROP",
   heliMetres: (m: number): string => `${Math.round(m)} M`,
   heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
-  heliJump: (touch: boolean): string => (touch ? "DOUBLE TAP TO JUMP" : "SPACE TO JUMP"),
-  heliLanded: "LANDED — JUMP TO STEP OFF",
+  /** How to get off — the machine key (`key`, as bound), a double tap on
+   * touch: off the skid in the air, onto the snow where it has landed. */
+  heliJump: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO JUMP" : `${key} TO JUMP`,
+  heliLanded: (touch: boolean, key: string): string =>
+    `LANDED — ${touch ? "DOUBLE TAP" : key} TO STEP OFF`,
   heliCollective: "Collective",
   heliCollectiveShort: "COL",
-  heliCall: "HELICOPTER — RIDE IN BESIDE THE SKID",
+  heliCall: "HELICOPTER",
   heliPad: (m: number): string => `${Math.round(m)} M`,
+  /** Stood beside its skid: how to get on. */
+  heliTake: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO FLY" : `${key} TO FLY`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
@@ -541,12 +548,13 @@ export const STRINGS = {
   keyCyclicRight: "CYCLIC RIGHT",
   keyPedalLeft: "PEDAL LEFT",
   keyPedalRight: "PEDAL RIGHT",
-  keyHeliJump: "JUMP OFF",
   keyLeft: "LEFT",
   keyRight: "RIGHT",
   keyLeanBack: "LEAN BACK",
   keyLeanForward: "LEAN FORWARD",
   keyReset: "RESET",
+  /** On to the snowmobile or the helicopter, and off again. */
+  keyMachine: "GET ON / OFF",
   keyRestart: "RESTART",
   keyCamera: "CAMERA",
   keyPause: "PAUSE",

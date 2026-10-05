@@ -18,6 +18,7 @@ import {
   NEUTRAL_INPUT,
   SNOW_DIAL,
   snowCoverOf,
+  standSkier,
   step,
 } from "@engine";
 
@@ -426,8 +427,19 @@ describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
     const going = takeSnapshot(s).sled;
     expect(going?.kind === "ridden" && going.rev > 0.5).toBe(true);
     // Off it, it calls him back while he is near.
-    step(s, { ...NEUTRAL_INPUT, sledOff: true });
+    step(s, { ...NEUTRAL_INPUT, machine: true });
     for (let i = 0; i < 120; i++) step(s, { ...NEUTRAL_INPUT, brake: 1 });
     expect(takeSnapshot(s).sled?.kind).toBe("waiting");
+  });
+
+  it("offers the machine key only to a skier stood beside it", () => {
+    const s = createGame({ level: syntheticLevel(), mode: "free", crowd: 0, quiet: true });
+    const k = s.sled!;
+    standSkier(s, k.x + 20, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: false });
+    standSkier(s, k.x + 1.6, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: true });
   });
 });

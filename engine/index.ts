@@ -356,6 +356,7 @@ export {
   HANG_GROUND,
   freshHeli,
   heliPoint,
+  heliWithin,
   heliQuat,
   seatHang,
   startAgain,
@@ -375,10 +376,10 @@ export {
   type SledSuspension,
 } from "./game/defs/sled.ts";
 export {
-  HOP_WINDOW,
   freshSled,
   riderFrame,
   sledControls,
+  sledWithin,
   standSled,
   startSled,
   stepSled,

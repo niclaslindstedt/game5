@@ -100,7 +100,7 @@ export const SHELL_COMMAND = "sh-shell-command";
 /** What a menu row may ask the game to do. Every word is a key the player
  * can already press without a menu bar: B stands the race back up on the
  * grid, R puts the skier back at the last checkpoint, Escape holds the race
- * under the pause card, C walks the camera ladder, ENTER takes a picture.
+ * under the pause card, C walks the camera ladder, P takes a picture.
  * `tauri/shell/src/menu.rs` spells the same five and `tests/tauri_test.ts`
  * holds the two lists together — a word added on one side alone is a row
  * that does nothing. The store app presses `shot` too, when the phone takes

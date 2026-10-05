@@ -113,14 +113,6 @@ export type SledState = {
   rider: boolean;
   /** Seconds in this mode. */
   t: number;
-  /** Whether the skier has been clear of the boarding reach since he last
-   * stepped off — a skier stood beside the boards he has just hopped off
-   * is not stood straight back on them. */
-  away: boolean;
-  /** The jump key as the last step had it, and the run's clock at its last
-   * press (−1 none) — the hop off is a DOUBLE press. */
-  jumpWas: boolean;
-  lastPress: number;
   /** Whether the rider was thrown off it — he is put back on it where it
    * lies once he is stood up. */
   thrown: boolean;

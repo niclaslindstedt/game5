@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HELICOPTER — a free ride's way up the mountain with no lift at all
 // (`RunRules.heli`, `docs/helicopter.md`). It stands on its pad on the
-// valley floor (`heli-pad.ts`); a skier who rides in beside its skid is sat
+// valley floor (`heli-pad.ts`); a skier stood beside its skid who gives THE
+// MACHINE PRESS (`SkierInput.machine`: ENTER, a double tap on touch) is sat
 // on the skid, and then the PLAYER FLIES IT — by hand, every control his
 // and nothing between him and the rotor — anywhere and as high as he likes
 // (there is no ceiling, by design). He lands it where the snow lets him and
-// steps off, or pushes off the skid (the jump) where it cannot land; the
+// steps off, or pushes off the skid where it cannot land — the same press; the
 // skis are his again, and the machine is flown home by its pilot. Flown
 // into the snow, a crown or a slope too steep to set down on, it CRASHES:
 // it burns where it came down, the skier on it is thrown, and a few
@@ -113,8 +114,6 @@ export function freshHeli(state: GameState): HeliState {
     agl: K.rotor.hub,
     rider: false,
     t: 0,
-    away: true,
-    jumpWas: false,
     wreck: null,
     hang: HANG_GROUND,
   };
@@ -164,7 +163,10 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
     startAgain(run, events);
     return true;
   }
-  if (!h.rider && h.mode === "parked") boardAt(run, events);
+  // Sat on the skid: the press that did it is spent, never read again as
+  // the drop on the same step.
+  const boarded = !!input.machine && heliWithin(run);
+  if (boarded) board(run, events);
   // The rotor up to speed with a rider on, down without.
   const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
   h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
@@ -173,15 +175,10 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);
   h.tailRotor = (h.tailRotor + TAIL_OMEGA * h.spool * dt) % (2 * Math.PI);
   if (h.mode === "flown" || h.mode === "home") strike(run, h, events);
-  if (!h.rider) {
-    h.jumpWas = !!input.jump;
-    return false;
-  }
-  // THE DROP: the jump's press pushes him off the skid — or, landed, he
+  if (!h.rider) return false;
+  // THE DROP: the machine press pushes him off the skid — or, landed, he
   // steps off it onto the snow.
-  const press = !!input.jump && !h.jumpWas;
-  h.jumpWas = !!input.jump;
-  if (press && h.mode === "flown") {
+  if (input.machine && !boarded && h.mode === "flown") {
     drop(run, h, events);
     return false;
   }
@@ -506,27 +503,28 @@ function drop(run: GameState, h: HeliState, events: GameEvent[]): void {
     standSkier(run, c.x, c.z, Math.atan2(c.vx, c.vz) || h.heading);
   }
   say(run, events, "drop", hypot3(h.vx, h.vy, h.vz));
-  h.away = false;
   // Landed, the pilot shuts down where it stands — there is nobody left to
   // fly; in the air he takes the controls and flies it home.
   h.mode = h.grounded ? "parked" : "home";
   h.t = 0;
 }
 
-/** Into the boarding reach of the parked helicopter's seat, slow enough:
- * sat on the skid, the rotor spooling up, and the controls the player's. */
-function boardAt(run: GameState, events: GameEvent[]): void {
-  const h = run.heli!;
+/** WHETHER THE MACHINE PRESS SITS HIM ON THE SKID: a skier on his skis,
+ * off any lift, tunnel or snowmobile, within `HELI.board.reach` of the
+ * parked helicopter's seat and slower than `HELI.board.fastest`. What the
+ * HUD offers the press on (`snapshot.ts`) is this same question. */
+export function heliWithin(run: GameState): boolean {
+  const h = run.heli;
   const c = run.skier;
-  if (c.thrown || c.lift || c.tunnel) return;
+  if (!h || h.rider || h.mode !== "parked") return false;
+  if (c.thrown || c.lift || c.tunnel || run.sled?.rider) return false;
   const seat = heliPoint(h, SEAT);
-  const off = hypot(c.x - seat.x, c.z - seat.z);
-  // Stepped off, he has to go before he can come back.
-  if (!h.away) {
-    if (off > K.board.reach + 2) h.away = true;
-    return;
-  }
-  if (off > K.board.reach || c.speed > K.board.fastest) return;
+  return hypot(c.x - seat.x, c.z - seat.z) <= K.board.reach && c.speed <= K.board.fastest;
+}
+
+/** Sat on the skid: the rotor spooling up, and the controls the player's. */
+function board(run: GameState, events: GameEvent[]): void {
+  const h = run.heli!;
   h.rider = true;
   h.mode = "flown";
   h.t = 0;

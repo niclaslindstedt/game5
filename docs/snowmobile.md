@@ -1,11 +1,11 @@
 # The snowmobile
 
-A free ride's way up the mountain on the snow itself. A deep-snow mountain sled is parked at the bottom of the mountain, beside the village. A skier who rides into it slowly is taken on: his skis and poles go into the rack on its tunnel and he stands on its running boards in his boots. Then the player rides it — the thumb throttle, the brake, the bars and his weight — anywhere on the mountain, up the faces no lift reaches. A **double press of the jump** (a double tap on either thumb on touch) steps him off: his skis are on his feet again and the machine stays where he left it, idling a while and then shut off, to be ridden into again. Rolled over, looped off a drop, landed too hard or run into a trunk, it throws its rider; stood back up, he is back on it, the machine back on its belt.
+A free ride's way up the mountain on the snow itself. A deep-snow mountain sled is parked at the bottom of the mountain, beside the village. A skier who stops beside it and presses **Enter** (a double tap on either thumb on touch) is taken on: his skis and poles go into the rack on its tunnel and he stands on its running boards in his boots. Then the player rides it — the thumb throttle, the brake, the bars and his weight — anywhere on the mountain, up the faces no lift reaches. **Enter** again steps him off: his skis are on his feet again and the machine stays where he left it, idling a while and then shut off, to be taken again. Rolled over, looped off a drop, landed too hard or run into a trunk, it throws its rider; stood back up, he is back on it, the machine back on its belt.
 
 It is reached two ways:
 
 - **The start card's RUN row**, whose second-last stop is SNOWMOBILE (`free-ride.ts`'s `SLED_RUN`). The ride begins stood on its boards at the bottom, the engine running. `?start=free&sled=1` is the same ride from a link.
-- **Riding into it.** On every free ride it waits at the bottom (`sled-pad.ts`'s `sledSpotOf`). Within 60 m of it the HUD calls the skier to it and a halo over it pulses; within 45 m it lights up (`snapshot.ts`'s `sledOf`, `sled-view.ts`). Riding into its boards within `SLED.board.reach`, slower than `SLED.board.fastest`, takes him on. A machine left anywhere on the mountain is taken the same way, and one lying on its side is stood back on its belt as he takes it.
+- **Getting on where it stands.** On every free ride it waits at the bottom (`sled-pad.ts`'s `sledSpotOf`). Within 60 m of it the HUD calls the skier to it and a halo over it pulses; within 45 m it lights up (`snapshot.ts`'s `sledOf`, `sled-view.ts`). Stood within `SLED.board.reach` of it, slower than `SLED.board.fastest` (`sledWithin`), the call says **ENTER TO RIDE**, and the MACHINE press (`SkierInput.machine`: Enter, the skier's `machine` key in `settings-input.ts`, or a double tap on touch) takes him on. Skiing into it never does. A machine left anywhere on the mountain is taken the same way, and one lying on its side is stood back on its belt as he takes it.
 
 ## Where it lives
 
@@ -74,10 +74,10 @@ There is no key table of its own: the skier's keys ride it (`sled.ts`'s `sledCon
 | Brake | the back key (S) | the lever pushed up |
 | Bars | the edge (A / D, ← / →) | the edge thumb across |
 | Weight forward / back | the leans (↑ Q Z / ↓ E Shift) | the edge thumb up and down |
-| Ski off | the jump pressed TWICE within `HOP_WINDOW` (0.45 s) | a double tap on either thumb |
+| Get on / ski off | Enter (the machine key) | a double tap on either thumb |
 | Stand it back on its belt, stopped | the reset (R) | the reset press |
 
-A single press of the jump does nothing on the boards, so a jump key held out of habit never throws a skier off his machine. Stepped off, he stands beside it on its left (the rack's side) on his skis, with its way if it was moving.
+The jump does nothing on the boards, so a jump key pressed out of habit never throws a skier off his machine, and the press that takes him on is never read as the one that takes him off. Stepped off, he stands beside it on its left (the rack's side) on his skis, with its way if it was moving.
 
 ## The machine left, and the crash
 
@@ -121,7 +121,7 @@ It is heard from the skier: under him on the boards, and going away down the sno
 
 ## Measuring it
 
-- `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, boarding, the double-press hop, the crash and the remount, determinism, and the voice.
+- `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, getting on and off on the machine press, the crash and the remount, determinism, and the voice.
 - `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, and the model alone, on contact sheets.
 - `make screenshots ARGS="--surface sled-park,sled-go,sled"` (after `make build`): the built app stood on its boards at the bottom, riding away, and riding up the mountain on the pre-roll's hands (`sledPilot`).
 - `make audition ARGS=--meter`: the snowmobile's presets (idling, pinned in powder, cruising, high-marking, off a crest, idling 60 m off) and its one-shots, levelled against the rest of the game.

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SNOWMOBILE — a free ride's way up the mountain on the snow itself
 // (`RunRules.sled`, `docs/snowmobile.md`). A deep-snow MOUNTAIN sled waits
-// parked at the bottom (`sled-pad.ts`); a skier who rides into it, slowly
-// enough, racks his skis and poles on it and stands on its running boards,
-// and the player RIDES IT — the thumb throttle, the brake, the bars and his
-// weight — anywhere on the mountain, up the faces the lifts never reach.
-// A DOUBLE PRESS of the jump (a double tap on touch) hops him off: his skis
-// are on his feet again and the machine stays where he left it, to be
-// ridden into again. Rolled over, looped off a drop, thrown into a trunk or
+// parked at the bottom (`sled-pad.ts`); a skier stood beside it, slowly
+// enough, who gives THE MACHINE PRESS (`SkierInput.machine`: ENTER, a double
+// tap on touch) racks his skis and poles on it and stands on its running
+// boards, and the player RIDES IT — the thumb throttle, the brake, the bars
+// and his weight — anywhere on the mountain, up the faces the lifts never
+// reach. The same press hops him off: his skis are on his feet again and
+// the machine stays where he left it, to be taken again. Rolled over, looped off a drop, thrown into a trunk or
 // landed too hard, the RIDER IS THROWN (the `sled` crash cause) and the
 // machine lies where it came to rest; stood back up, he is back on it,
 // the machine on its belt.
@@ -46,9 +46,6 @@ const K = SLED.crash;
  * brake on, so it sits on a slope rather than freewheeling down it. */
 const IDLE: SledControls = { throttle: 0, brake: 0, steer: 0, lean: 0 };
 const PARKED: SledControls = { ...IDLE, brake: 1 };
-/** THE DOUBLE PRESS: the second press of the jump within this many
- * seconds of the first hops him off. */
-export const HOP_WINDOW = 0.45;
 /** How long a flight must last to be called one, s, and reported. */
 const AIR_COUNTS = 0.25;
 /** A trunk met slower than this is a nudge, not a hit worth saying, m/s. */
@@ -95,9 +92,6 @@ function parkedAt(state: GameState, x: number, z: number, heading: number): Sled
     airTime: 0,
     rider: false,
     t: 0,
-    away: true,
-    jumpWas: false,
-    lastPress: -1,
     thrown: false,
     overFor: 0,
     hitCooldown: 0,
@@ -189,16 +183,18 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
     return true;
   }
   if (!s.rider) {
-    if (!s.thrown) boardAt(run, s, events);
-    if (!s.rider) {
-      // Left to itself: it settles where it stands on its parking brake,
-      // the engine idling down — stepped like any body, so a machine left
-      // in powder sits down into it.
-      drive(run, s, PARKED, events, false);
-      if (s.running && (s.mode === "down" || s.t > SLED.idleFor)) s.running = false;
-      s.jumpWas = !!input.jump;
-      return false;
+    // Taken on: the press that does it is spent on it, never read again as
+    // the hop off on the same step.
+    if (input.machine && sledWithin(run)) {
+      board(run, s, events);
+      return true;
     }
+    // Left to itself: it settles where it stands on its parking brake, the
+    // engine idling down — stepped like any body, so a machine left in
+    // powder sits down into it.
+    drive(run, s, PARKED, events, false);
+    if (s.running && (s.mode === "down" || s.t > SLED.idleFor)) s.running = false;
+    return false;
   }
   // RIGHTED AND DUG OUT: the reset press stands the machine back on its
   // belt where it is, stopped — a rider rocking a stuck sled out.
@@ -206,17 +202,8 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
     standSled(run, s, s.x, s.z, s.heading);
     say(run, events, "right");
   }
-  // THE HOP OFF: a double press of the jump (or the app's double tap).
-  const press = !!input.jump && !s.jumpWas;
-  s.jumpWas = !!input.jump;
-  if (press) {
-    if (s.lastPress >= 0 && run.t - s.lastPress <= HOP_WINDOW) {
-      hop(run, s, events);
-      return false;
-    }
-    s.lastPress = run.t;
-  }
-  if (input.sledOff) {
+  // THE HOP OFF: the machine press again.
+  if (input.machine) {
     hop(run, s, events);
     return false;
   }
@@ -399,8 +386,6 @@ function letGo(run: GameState, s: SledState, out: number, up: number): void {
   c.airborne = up > 0;
   derive(c, run.level);
   s.rider = false;
-  s.away = false;
-  s.lastPress = -1;
 }
 
 /** THE HOP OFF: the rider steps off to its left onto his skis, the machine
@@ -454,8 +439,6 @@ function mount(run: GameState, s: SledState): void {
   s.rider = true;
   s.mode = "ridden";
   s.t = 0;
-  s.lastPress = -1;
-  s.jumpWas = true;
   s.running = true;
   s.rpm = Math.max(s.rpm, SLED.idleRpm);
   c.lift = null;
@@ -463,21 +446,27 @@ function mount(run: GameState, s: SledState): void {
   hold(run, s);
 }
 
-/** Into the boarding reach of the machine's boards, slowly enough: his
- * skis on the rack and his boots on the boards. A machine lying on its
- * side is stood back on its belt as he takes it. */
-function boardAt(run: GameState, s: SledState, events: GameEvent[]): void {
+/** WHETHER THE MACHINE PRESS TAKES HIM ON: a skier on his skis, off any
+ * lift, tunnel or helicopter, within `SLED.board.reach` of a machine that
+ * is standing still, slower than `SLED.board.fastest` — a machine he was
+ * thrown off waits for him to be stood up. What the HUD offers the press
+ * on (`snapshot.ts`) is this same question. */
+export function sledWithin(run: GameState): boolean {
+  const s = run.sled;
   const c = run.skier;
-  if (c.thrown || c.lift || c.tunnel || run.heli?.rider) return;
-  const off = hypot(c.x - s.x, c.z - s.z);
-  if (!s.away) {
-    if (off > SLED.board.reach + 2) s.away = true;
-    return;
-  }
-  if (off > SLED.board.reach || hypot3(c.vx, c.vy, c.vz) > SLED.board.fastest || s.speed > 1)
-    return;
+  if (!s || s.rider || s.thrown) return false;
+  if (c.thrown || c.lift || c.tunnel || run.heli?.rider) return false;
+  return (
+    hypot(c.x - s.x, c.z - s.z) <= SLED.board.reach &&
+    hypot3(c.vx, c.vy, c.vz) <= SLED.board.fastest &&
+    s.speed <= 1
+  );
+}
+
+/** Taken on: the skis racked, on the boards — a machine lying on its side
+ * stood back on its belt first. */
+function board(run: GameState, s: SledState, events: GameEvent[]): void {
   if (s.overFor > 0 || s.mode === "down") standSled(run, s, s.x, s.z, s.heading);
-  s.thrown = false;
   mount(run, s);
   say(run, events, "board");
 }

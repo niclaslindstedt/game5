@@ -20,14 +20,19 @@ export const SLED_STRINGS = {
   sledRpmValue: (rpm: number): string => `${(rpm / 1000).toFixed(1)}K`,
   /** The belt spinning in the snow. */
   sledSpin: "TRACK SPINNING",
-  /** How to get off: a double press of the jump, a double tap on touch. */
-  sledOff: (touch: boolean): string => (touch ? "DOUBLE TAP TO SKI OFF" : "SPACE TWICE TO SKI OFF"),
-  /** The way to it, from a skier near it on a free ride. */
-  sledCall: "SNOWMOBILE — RIDE IN TO TAKE IT",
+  /** How to get off: the machine key (`key`, as bound), a double tap on
+   * touch. */
+  sledOff: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO SKI OFF" : `${key} TO SKI OFF`,
+  /** The way to it, from a skier near it on a free ride; and how to take
+   * it, stood beside it. */
+  sledCall: "SNOWMOBILE",
   sledAway: (m: number): string => `${Math.round(m)} M`,
+  sledTake: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO RIDE" : `${key} TO RIDE`,
   /** OPTIONS ▸ KEYS: the snowmobile's section, and how the skier's keys
    * work on the boards. */
   keysSledTitle: "SNOWMOBILE",
   sledKeysNote:
-    "On the snowmobile the same keys ride it: the tuck is the throttle, the skid the brake, the edge the bars and the lean your weight. Press the jump twice to ski off.",
+    "On the snowmobile the same keys ride it: the tuck is the throttle, the skid the brake, the edge the bars and the lean your weight. The machine key gets you on beside it and off again onto your skis.",
 };

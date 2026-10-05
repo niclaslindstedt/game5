@@ -36,11 +36,14 @@ the REPLAY (`replay` and `bench` are the two extra surfaces — `watching` and
 `appDraws` in `shell.ts`), and the GALLERY (`menu-gallery.tsx` over the
 framework's `shots/shot-store`, the policy in its `shots/shot-roll`;
 `?menu=gallery`), reached from a CHIP on the front door's foot — it is not a
-way onto the snow, so it does not wear a tile's shape. The shutter is ENTER,
+way onto the snow, so it does not wear a tile's shape. The shutter is P,
 or the phone's own screenshot in the store app — never a menu row, as in the
 sibling games. The roll is IndexedDB and never load-bearing; `--surface
 gallery` photographs the empty state a fresh browser sees, `--surface
-gallery-roll` skis a run, presses ENTER and opens the roll in the same tab.
+gallery-roll` skis a run, presses P and opens the roll in the same tab.
+(ENTER, in a run, is the MACHINE key — on and off the free ride's
+snowmobile and helicopter, `SkierInput.machine` — and over a card it is the
+focused row's, as ever.)
 The sibling `game4` has every one of these and its `menu-system` skill the
 rules they were built under; port from there, and never add a row whose
 setting nothing reads (below). OPTIONS is built — ported from the siblings',

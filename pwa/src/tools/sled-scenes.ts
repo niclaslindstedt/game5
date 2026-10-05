@@ -14,6 +14,7 @@ import {
   SLED,
   treesNear,
   standSkier,
+  sledWithin,
   standSled,
   startSled,
   type GameState,
@@ -243,7 +244,10 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     standSkier(s, from.x, from.z, bearing(from, k));
     st.run(s, 0.2, still);
     st.shoot(s, "riding-in", "chase");
-    st.until(s, (q) => !!q.sled?.rider, 12, ride({ tuck: 0.4 }));
+    // Skated up to it, then the machine press beside it.
+    st.until(s, sledWithin, 12, ride({ tuck: 0.4 }));
+    st.until(s, sledWithin, 3, ride({ brake: 1 }));
+    st.once(s, { ...NEUTRAL_INPUT, machine: true });
     st.run(s, 0.3, still);
     st.shoot(s, "aboard", "chase");
   },
@@ -338,9 +342,7 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
   hop(st) {
     const s = st.fresh(true);
     st.run(s, 0.5, still);
-    st.once(s, { ...NEUTRAL_INPUT, jump: true });
-    st.run(s, 0.15, still);
-    st.once(s, { ...NEUTRAL_INPUT, jump: true });
+    st.once(s, { ...NEUTRAL_INPUT, machine: true });
     st.shoot(s, "off", around(3, 1.4, 4, 50, 0, 0.8));
     st.run(s, 1, still);
     st.shoot(s, "skis-on", "chase");

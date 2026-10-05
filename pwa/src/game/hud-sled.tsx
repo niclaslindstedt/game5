@@ -5,7 +5,8 @@
 // the two-stroke's rpm swept round an arc, the band where the clutch has
 // engaged and the pipe comes on marked, the needle red past the peak, and
 // a word when the belt is spinning in the snow. Under it, how to ski off.
-// And while it waits near him, the word that it is there and how far.
+// And while it waits near him, the word that it is there and how far — and
+// stood beside it, the machine key that takes it.
 // Every figure is the snapshot's (`sledOf`).
 
 import { SLED } from "@engine";
@@ -25,12 +26,23 @@ function arc(from: number, to: number, r: number): string {
   return `M ${at(from, r)} A ${r} ${r} 0 ${large} 1 ${at(to, r)}`;
 }
 
-export function SledReadout({ sled, touch }: { sled: HudSled; touch: boolean }) {
+export function SledReadout({
+  sled,
+  touch,
+  machineKey,
+}: {
+  sled: HudSled;
+  touch: boolean;
+  /** The machine key as bound, as the player reads it off the keyboard. */
+  machineKey: string;
+}) {
   if (sled.kind === "waiting") {
     return (
       <div class="hud-sled hud-sled-call" role="status">
         <span class="hud-sled-word">{STRINGS.sledCall}</span>
-        <span class="hud-sled-sub">{STRINGS.sledAway(sled.away)}</span>
+        <span class="hud-sled-sub">
+          {sled.near ? STRINGS.sledTake(touch, machineKey) : STRINGS.sledAway(sled.away)}
+        </span>
       </div>
     );
   }
@@ -57,7 +69,7 @@ export function SledReadout({ sled, touch }: { sled: HudSled; touch: boolean }) 
         </text>
       </svg>
       <span class="hud-sled-sub">{sled.spin ? STRINGS.sledSpin : STRINGS.sledRpm}</span>
-      <span class="hud-sled-hint">{STRINGS.sledOff(touch)}</span>
+      <span class="hud-sled-hint">{STRINGS.sledOff(touch, machineKey)}</span>
     </div>
   );
 }

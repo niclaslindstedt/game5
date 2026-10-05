@@ -25,7 +25,7 @@ there.
 
 **The shutter is built** (`shot-request.ts`, `screenshots.ts`, the
 framework's `shots/shot-hud`; `menu-system` owns the roll and the gallery):
-ENTER and H are two of `InputAction`'s presses, and the HUD's `bare` form
+P and H are two of `InputAction`'s presses, and the HUD's `bare` form
 (`data-bare`) keeps the thumbs and the corner presses with the readouts down
 — which is also what tells `readHudLayer` to leave the chrome out of a
 picture. A new HUD element is in every picture from the day it lands; an
@@ -59,7 +59,7 @@ how the thumbs read (`TouchFeel`, the lever's side).
 | Surface | Where |
 | --- | --- |
 | What a key or a touch MEANS, as maths | `pwa/src/game/input-model.ts` — DOM-free: the key ramps, the lever's drag → tuck/brake, the thumb's travel → steer (the edge)/lean, and the ONE sign flip between screen and engine; `tests/input_model_test.ts` |
-| WHICH KEY DOES WHAT | `pwa/src/game/settings-input.ts` — rebound on OPTIONS ▸ KEYS and handed to the manager through `setBindings`; as it SHIPS, `DEFAULT_KEYS` (W tuck, S/Space brake, A D/← → edge, ↓/E/Shift lean back, ↑/Q/Z lean forward — and W/S pressed in the air lean too, `input-model.ts`'s `airLean` — F/X the grab, R reset, B restart, C camera, H HUD, Enter the shutter, Escape pause) and why each key is where it is; `HeldAction` is `keyof KeysHeld`, so a new held key does not compile until it is named |
+| WHICH KEY DOES WHAT | `pwa/src/game/settings-input.ts` — rebound on OPTIONS ▸ KEYS and handed to the manager through `setBindings`; as it SHIPS, `DEFAULT_KEYS` (W tuck, S/Space brake, A D/← → edge, ↓/E/Shift lean back, ↑/Q/Z lean forward — and W/S pressed in the air lean too, `input-model.ts`'s `airLean` — F/X the grab, R reset, Enter the MACHINE key — on and off the free ride's snowmobile and helicopter, `SkierInput.machine`, like R an edge the ENGINE is handed — B restart, C camera, H HUD, P the shutter, Escape pause) and why each key is where it is; `HeldAction` is `keyof KeysHeld`, so a new held key does not compile until it is named |
 | Listening to the DOM | `pwa/src/game/input.ts` — keys and the thumb zones into one `SkierInput`, sampled once per STEP; the reset edge banked between steps |
 | Touch: the EDGE THUMB | `pwa/src/game/hud-touch.tsx`, lower LEFT — sideways travel tips the skis onto an edge, vertical travel leans |
 | Touch: the TUCK LEVER | `hud-touch.tsx`, lower RIGHT — anchored in a FULL TUCK where the thumb lands; slid UP stands him up, further UP is the brake (the skid) |

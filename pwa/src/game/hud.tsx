@@ -103,6 +103,7 @@ export function Hud({
   onCamera,
   onPause,
   bare = false,
+  machineKey,
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -122,11 +123,17 @@ export function Hud({
   onPause: () => void;
   /** The readouts are off: the presses and the thumbs alone. */
   bare?: boolean;
+  /** The machine key as bound (`settings-input.ts`), as the player reads it
+   * — what the snowmobile's and the helicopter's prompts name. */
+  machineKey: string;
 }) {
   const lit = snap.missed !== null || snap.down;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
   const flown = snap.heli?.kind === "flown" ? snap.heli : null;
+  // The snowmobile's readout over the helicopter's call: ridden, or stood
+  // beside it, it is the one the machine key is about.
+  const sledFirst = snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
@@ -382,13 +389,16 @@ export function Hud({
       )}
 
       {/* THE HELICOPTER (`hud-heli.tsx`): the drop under its skids while he
-          rides it, the call to it while it waits on its pad near him. */}
-      {snap.heli && snap.airTime === 0 && <HeliReadout heli={snap.heli} touch={touch} />}
+          rides it, the call to it while it waits on its pad near him — but
+          the snowmobile's word wins while he rides it or stands beside it. */}
+      {snap.heli && !sledFirst && snap.airTime === 0 && (
+        <HeliReadout heli={snap.heli} touch={touch} machineKey={machineKey} />
+      )}
 
       {/* THE SNOWMOBILE (`hud-sled.tsx`): the tachometer while he rides it,
           the call to it while it waits near him. */}
-      {snap.sled && !snap.heli && snap.airTime === 0 && (
-        <SledReadout sled={snap.sled} touch={touch} />
+      {snap.sled && (sledFirst || !snap.heli) && snap.airTime === 0 && (
+        <SledReadout sled={snap.sled} touch={touch} machineKey={machineKey} />
       )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the

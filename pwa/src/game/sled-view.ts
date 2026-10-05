@@ -46,7 +46,7 @@ export type SledView = {
 };
 
 /** A code-built stand-in, should the model not load: a cowl, a tunnel, a
- * belt and two skis — so a missing file is a plain sled to ride into. */
+ * belt and two skis — so a missing file is still a sled to take. */
 function standIn(haze: HazeUniforms): THREE.Group {
   const g = new THREE.Group();
   const paint = hazeMaterial(

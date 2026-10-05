@@ -60,9 +60,10 @@ export type SkierInput = {
    * controls are where they were let go: the collective down, the cyclic
    * and the pedals centred. */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: off the snowmobile (`sled.ts`) — the app's double tap.
-   * A double press of the jump does the same on the keys. */
-  sledOff?: boolean;
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the snowmobile (`sled.ts`)
+   * or the helicopter (`heli.ts`) he stands beside, or off the one he
+   * rides. ENTER on the keys, a double tap on touch. */
+  machine?: boolean;
 };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };

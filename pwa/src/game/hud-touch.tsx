@@ -48,7 +48,7 @@ import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thum
 /** Capture the pointer so a drag that leaves the zone keeps steering; a
  * pointer that cannot be captured (synthetic, already released) is fine —
  * the zone still tracks it by id. */
-function capturePointer(e: { currentTarget: EventTarget | null; pointerId: number }): void {
+export function capturePointer(e: { currentTarget: EventTarget | null; pointerId: number }): void {
   try {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   } catch {
@@ -59,7 +59,7 @@ function capturePointer(e: { currentTarget: EventTarget | null; pointerId: numbe
 /** Ask the DOM whether a finger is still on the glass. Capture is the only
  * one who knows: the browser drops it the moment a touch ends, whether or
  * not it ever told us the touch ended. */
-function stillDown(zone: EventTarget | null): (pointerId: number) => boolean {
+export function stillDown(zone: EventTarget | null): (pointerId: number) => boolean {
   const el = zone as HTMLElement | null;
   return (pointerId) => el?.hasPointerCapture(pointerId) ?? false;
 }
@@ -330,87 +330,6 @@ export function LeverZone({
           <g ref={knobRef}>
             <circle class="hud-lever-knob" cx="0" cy="0" r="15" />
           </g>
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-/** THE CYCLIC STICK's reach, px: the thumb travel that is full cyclic, both
- * axes, and the ring it is drawn at. */
-const STICK_REACH_PX = 80;
-
-/** THE CYCLIC STICK — the lever's glass, while he flies the helicopter
- * (`heli.ts`): a thumb anywhere anchors a stick under it, and the thumb's
- * travel off the anchor tilts the disc — up is forward (the nose down), to
- * a side is that side — full at `STICK_REACH_PX`, centred the moment the
- * thumb lifts, as a sprung stick is. A double tap here, as on the edge
- * thumb, is the jump off the skid. The maths of the four controls is
- * input-model.ts's `sampleHeli`. */
-export function StickZone({
-  touch,
-  feel,
-  side,
-}: {
-  touch: InputManager["touch"];
-  feel: TouchFeel;
-  side: ZoneSide;
-}) {
-  const stickRef = useRef<HTMLDivElement>(null);
-  const knobRef = useRef<SVGCircleElement>(null);
-  const originRef = useRef({ x: 0, y: 0 });
-  const tapRef = useRef(createJumpTap());
-  const reach = STICK_REACH_PX / feel.sensitivity;
-
-  const write = (x: number, y: number): void => {
-    touch.stickX = x;
-    touch.stickY = y;
-    knobRef.current?.setAttribute("cx", (x * 40).toFixed(1));
-    knobRef.current?.setAttribute("cy", (-y * 40).toFixed(1));
-  };
-  const letGo = (): void => {
-    jumpTapUp(tapRef.current, performance.now() / 1000);
-    touch.stick = false;
-    write(0, 0);
-    if (stickRef.current) stickRef.current.style.display = "none";
-  };
-  const letGoRef = useRef(letGo);
-  letGoRef.current = letGo;
-  const guard = useMemo(() => createThumbGuard(() => letGoRef.current(), window), []);
-  useEffect(() => () => guard.dispose(), [guard]);
-
-  return (
-    <div
-      class={`hud-zone hud-zone-${side}`}
-      data-touch="stick"
-      onPointerDown={(e) => {
-        capturePointer(e);
-        if (!guard.claim(e.pointerId, stillDown(e.currentTarget))) return;
-        originRef.current = { x: e.clientX, y: e.clientY };
-        const stick = stickRef.current;
-        if (stick) {
-          const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          stick.style.left = `${e.clientX - box.left}px`;
-          stick.style.top = `${e.clientY - box.top}px`;
-          stick.style.display = "block";
-        }
-        touch.stick = true;
-        if (jumpTapDown(tapRef.current, performance.now() / 1000)) touch.tap2 = true;
-        write(0, 0);
-      }}
-      onPointerMove={(e) => {
-        if (!guard.owns(e.pointerId)) return;
-        const clip = (v: number): number => Math.max(-1, Math.min(1, v / reach));
-        write(clip(e.clientX - originRef.current.x), clip(originRef.current.y - e.clientY));
-      }}
-      onPointerUp={(e) => guard.release(e.pointerId)}
-      onPointerCancel={(e) => guard.release(e.pointerId)}
-      onLostPointerCapture={(e) => guard.release(e.pointerId)}
-    >
-      <div ref={stickRef} class="hud-bar hud-stick" aria-hidden="true">
-        <svg class="hud-bar-svg" viewBox="-50 -50 100 100" overflow="visible">
-          <circle cx="0" cy="0" r="44" class="hud-bar-reach" />
-          <circle ref={knobRef} cx="0" cy="0" r="14" class="hud-lever-knob" />
         </svg>
       </div>
     </div>

@@ -155,7 +155,11 @@ price-list row:
 
 Measured on a four-core cloud container in Node 22, `make cpu-cost`, p50
 per frame, before → after; the GPU rows are argued from structure and owe a
-real GPU's A/B.
+real GPU's A/B. The benchmark under SwiftShader, 320×180, every row at its
+top, before → after round 1: draw calls 345 → 266, triangles 1.34M →
+~0.75M with the scene single and fewer again with the ground culled (see the round-1 PR), programs 58 → 46, textures 89 → 50, the renderer's processor half
+16.9 → 12.3 ms (`submit` 10.6 → 6.4), the sun's shadow pass 68 → 29 ms of
+SwiftShader's time.
 
 | Round | What | Before → after | How |
 | --- | --- | --- | --- |
@@ -165,7 +169,7 @@ real GPU's A/B.
 | 1 | Every lit material's program re-derived every frame under SHADOWS HIGH (three's `getParameters`, `getProgram` and its cache key: the second-dearest JS in the browser profile after the forest's refill) | every frame → never | three keys a render's lights by how many of each it sees and re-derives every lit material's program when that key moves; the riders' passes saw no light and moved it twice a frame. Every light now carries the passes' layers and the groups holding one stay in their walk. |
 | 1 | THE WHOLE SCENE, TWICE (every mode, whenever a run was begun while the front door's scenery was still loading — the benchmark always) | 2 → 1 of every group: 1.34M → ~0.92M triangles a frame on the benchmark, every draw call and every view's `update` halved | `renderer.load` is async; a superseded load now stops at its next breath instead of adding its terrain, woods, lifts, crowd and riders after the newer load's `unload`. |
 | 1 | A shadow program linked mid-run (a slalom's finish, ~32 s in) | 1 → 0 programs linked after the card lifts (`?start=slalom&t=40`); 7 more linked on the card | `warmShadows`: one pass of the sun's map over the whole map with every caster shown, behind the loading card. |
-| 1 | THE GROUND'S VERTICES | every level's whole ring → the quadrants the lens can see (2×2 a level, `TERRAIN_SECTORS`) | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound); a quadrant's box over the map's heights plus the rim's rise is now tested against the frustum. |
+| 1 | THE GROUND'S VERTICES | every level's whole ring → the wedges the lens can see (`TERRAIN_WEDGES`, 16 a ring; one draw a level still) | Each level drew all round the lens with culling off (the shader places the vertices, so three has no bound). A ring's triangles are laid wedge by wedge twice round, each wedge's box over the map's heights plus the rim's rise is tested against the frustum, and the ring draws the one range holding every wedge seen. Level 0, which the lens stands in, is drawn whole. Pixel-identical at chase, far and high. A first try cut each level in four quarters: every quarter meets at the level's centre, where the lens is, so every quarter always touched the frustum and nothing was culled — the tally caught it. |
 
 ## Open leads, ranked
 

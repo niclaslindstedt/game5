@@ -67,31 +67,77 @@ export type Terrain = {
   dispose(): void;
 };
 
-/** EACH LEVEL IS CUT INTO SECTORS, this many a side, and a sector out of the
- * lens's view is not drawn. A level is a ring all round the lens, and with
- * the frustum culling three cannot do (the vertices are placed in the
- * shader, so no bound is the mesh's own) every one of them ran the ground's
+/** EACH RING IS CUT INTO WEDGES round its centre, and the wedges out of
+ * the lens's view are not drawn. A level is a ring all round the lens, and
+ * with the frustum culling three cannot do (the vertices are placed in the
+ * shader, so no bound is the mesh's own) every vertex of it ran the ground's
  * vertex shader — a dozen texture reads apiece — though the most of a ring
- * is behind or beside the lens. Two a side keeps the draw calls few: a
- * level is four, of which the view reaches two or three. */
-export const TERRAIN_SECTORS = 2;
+ * is behind or beside the lens. A ring never reaches its centre (the finer
+ * levels fill the hole), so a wedge behind the lens stands clear of the
+ * view, where a quarter of the grid would always touch it. The ring's
+ * triangles are laid wedge by wedge, twice round, so the wedges the view
+ * reaches are ONE range of the index whichever way the lens looks: a level
+ * is still one draw. Level 0, which the lens stands in, is drawn whole. */
+export const TERRAIN_WEDGES = 16;
+
+/** The wedge cell (`i`, `j`) of an `n` grid falls in, by the bearing of its
+ * centre from the grid's. */
+export function wedgeOf(n: number, i: number, j: number): number {
+  const a = Math.atan2(j + 0.5 - n / 2, i + 0.5 - n / 2);
+  return Math.min(TERRAIN_WEDGES - 1, Math.floor(((a + Math.PI) / (2 * Math.PI)) * TERRAIN_WEDGES));
+}
+
+/** A ring's triangles laid out by wedge. */
+export type RingWedges = {
+  /** Every wedge's triangles in turn, and all of them again: a run of
+   * wedges round the ring, across where it closes, is one range. */
+  index: Uint32Array;
+  /** Where wedge `k` starts in `index`, for `k` up to twice round
+   * (`2 · TERRAIN_WEDGES + 1` entries; the last is the index's end). */
+  starts: number[];
+  /** Each wedge's cells' extent in grid units: `i0, i1, j0, j1` a wedge. */
+  bounds: Float64Array;
+};
+
+/** The ring of an `n` grid with the cells from `holeFrom` to `holeTo`
+ * left out, laid out by wedge (`TERRAIN_WEDGES`). */
+export function ringWedges(n: number, holeFrom: number, holeTo: number): RingWedges {
+  const W = TERRAIN_WEDGES;
+  const lists: number[][] = Array.from({ length: W }, () => []);
+  const bounds = new Float64Array(W * 4);
+  for (let w = 0; w < W; w++) bounds.set([Infinity, -Infinity, Infinity, -Infinity], w * 4);
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      if (i >= holeFrom && i < holeTo && j >= holeFrom && j < holeTo) continue;
+      const w = wedgeOf(n, i, j);
+      const a = j * (n + 1) + i;
+      const c = a + n + 1;
+      lists[w].push(a, c, a + 1, a + 1, c, c + 1);
+      bounds[w * 4] = Math.min(bounds[w * 4], i);
+      bounds[w * 4 + 1] = Math.max(bounds[w * 4 + 1], i + 1);
+      bounds[w * 4 + 2] = Math.min(bounds[w * 4 + 2], j);
+      bounds[w * 4 + 3] = Math.max(bounds[w * 4 + 3], j + 1);
+    }
+  }
+  const lap = lists.reduce((sum, l) => sum + l.length, 0);
+  const index = new Uint32Array(2 * lap);
+  const starts: number[] = [];
+  let at = 0;
+  for (const list of [...lists, ...lists]) {
+    starts.push(at);
+    index.set(list, at);
+    at += list.length;
+  }
+  starts.push(at);
+  return { index, starts, bounds };
+}
 
 /** A level's grid: `(n + 1)²` vertices at integer (x, z), with the cells
- * from `holeFrom` to `holeTo` (exclusive) on both axes left out — and only
- * the cells in `[i0, i1) × [j0, j1)` (one sector), the whole grid unless
- * asked. */
-export function clipmapIndices(
-  n: number,
-  holeFrom: number,
-  holeTo: number,
-  i0 = 0,
-  i1 = n,
-  j0 = 0,
-  j1 = n,
-): Uint32Array {
+ * from `holeFrom` to `holeTo` (exclusive) on both axes left out. */
+export function clipmapIndices(n: number, holeFrom: number, holeTo: number): Uint32Array {
   const out: number[] = [];
-  for (let j = j0; j < j1; j++) {
-    for (let i = i0; i < i1; i++) {
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
       if (i >= holeFrom && i < holeTo && j >= holeFrom && j < holeTo) continue;
       const a = j * (n + 1) + i;
       const b = a + 1;
@@ -103,12 +149,8 @@ export function clipmapIndices(
   return new Uint32Array(out);
 }
 
-/** One sector of a level's grid: its geometry and the cells it spans. */
-type Sector = { geometry: THREE.BufferGeometry; i0: number; i1: number; j0: number; j1: number };
-
-/** A level's grid cut into `TERRAIN_SECTORS`² sectors, every one sharing the
- * one buffer of vertices and holding its own cells' triangles. */
-function gridSectors(n: number, hole: boolean): Sector[] {
+/** The `(n + 1)²` vertices every level of an `n` grid shares. */
+function gridVertices(n: number): THREE.BufferAttribute {
   const pos = new Float32Array((n + 1) * (n + 1) * 3);
   let k = 0;
   for (let j = 0; j <= n; j++) {
@@ -118,22 +160,7 @@ function gridSectors(n: number, hole: boolean): Sector[] {
       pos[k++] = j;
     }
   }
-  const position = new THREE.BufferAttribute(pos, 3);
-  const [from, to] = hole ? [n / 4 + 1, (3 * n) / 4 - 1] : [0, 0];
-  const step = n / TERRAIN_SECTORS;
-  const out: Sector[] = [];
-  for (let sj = 0; sj < TERRAIN_SECTORS; sj++) {
-    for (let si = 0; si < TERRAIN_SECTORS; si++) {
-      const [i0, i1, j0, j1] = [si * step, (si + 1) * step, sj * step, (sj + 1) * step];
-      const idx = clipmapIndices(n, from, to, i0, i1, j0, j1);
-      if (idx.length === 0) continue;
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", position);
-      geometry.setIndex(new THREE.BufferAttribute(idx, 1));
-      out.push({ geometry, i0, i1, j0, j1 });
-    }
-  }
-  return out;
+  return new THREE.BufferAttribute(pos, 3);
 }
 
 /** The forest's density on the ground's grid, 0..1: every crown splatted
@@ -333,10 +360,14 @@ export function createTerrain(
     uGridHalf: { value: options.n / 2 },
     uBaseSpacing: { value: options.spacing },
   };
-  const full = gridSectors(options.n, false);
-  const ring = gridSectors(options.n, true);
-  // How high a sector can stand, m: the map's lowest and highest ground,
-  // a furrow under the one and the rim's rise (`rimRise`, under 370 m) and
+  const n = options.n;
+  const vertices = gridVertices(n);
+  const fullIndex = new THREE.BufferAttribute(clipmapIndices(n, 0, 0), 1);
+  const wedges = ringWedges(n, n / 4 + 1, (3 * n) / 4 - 1);
+  const ringIndex = new THREE.BufferAttribute(wedges.index, 1);
+  const W = TERRAIN_WEDGES;
+  // How high a wedge can stand, m: the map's lowest and highest ground, a
+  // furrow under the one, and the rim's rise (`rimRise`, under 370 m) and
   // the loose cover over the other.
   let low = Infinity;
   let high = -Infinity;
@@ -344,11 +375,9 @@ export function createTerrain(
     low = Math.min(low, y);
     high = Math.max(high, y);
   }
-  low -= 5;
-  high += 380;
 
   type LevelMesh = {
-    meshes: { mesh: THREE.Mesh; sector: Sector }[];
+    mesh: THREE.Mesh;
     spacing: number;
     centre: THREE.Vector2;
     hole: THREE.Vector4;
@@ -395,22 +424,75 @@ export function createTerrain(
           `#include <lights_fragment_end>\n${SNOW_FRAGMENT_LIGHT}`,
         );
     });
-    const meshes = (l === 0 ? full : ring).map((sector) => {
-      const mesh = new THREE.Mesh(sector.geometry, material);
-      mesh.frustumCulled = false;
-      mesh.receiveShadow = true;
-      mesh.castShadow = false;
-      mesh.matrixAutoUpdate = false;
-      group.add(mesh);
-      return { mesh, sector };
-    });
-    levels.push({ meshes, spacing, centre, hole });
+    // Every level its own geometry over the shared buffers, so each can
+    // draw its own range of the wedges.
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", vertices);
+    geometry.setIndex(l === 0 ? fullIndex : ringIndex);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+    levels.push({ mesh, spacing, centre, hole });
   }
 
   const frustum = new THREE.Frustum();
   const view = new THREE.Matrix4();
   const box = new THREE.Box3();
-  const half = options.n / 2;
+  const half = n / 2;
+  const seen: boolean[] = new Array<boolean>(W).fill(true);
+  /** Draw only the wedges of a ring the view reaches — each one's cells'
+   * plan, a cell wider each way for the rim's morph, over the heights the
+   * ground can have — as the one run of wedges round the ring that holds
+   * them all: the ring less its longest unseen stretch. Without a lens,
+   * the ring whole (the compile's). */
+  const aim = (lv: LevelMesh, lens: THREE.Camera | undefined): void => {
+    const geometry = lv.mesh.geometry;
+    lv.mesh.visible = true;
+    if (!lens) {
+      geometry.setDrawRange(0, wedges.starts[W]);
+      return;
+    }
+    let any = false;
+    for (let w = 0; w < W; w++) {
+      const b = wedges.bounds;
+      if (!(b[w * 4] < b[w * 4 + 1])) {
+        seen[w] = false;
+        continue;
+      }
+      box.min.set(
+        lv.centre.x + (b[w * 4] - half - 1) * lv.spacing,
+        low - 5,
+        lv.centre.y + (b[w * 4 + 2] - half - 1) * lv.spacing,
+      );
+      box.max.set(
+        lv.centre.x + (b[w * 4 + 1] - half + 1) * lv.spacing,
+        high + 380,
+        lv.centre.y + (b[w * 4 + 3] - half + 1) * lv.spacing,
+      );
+      seen[w] = frustum.intersectsBox(box);
+      any ||= seen[w];
+    }
+    if (!any) {
+      lv.mesh.visible = false;
+      return;
+    }
+    // The longest run of unseen wedges, round the ring's close.
+    let gap = 0;
+    let gapEnd = -1;
+    for (let w = 0, run = 0; w < 2 * W; w++) {
+      run = seen[w % W] ? 0 : run + 1;
+      if (run > gap && run <= W) {
+        gap = run;
+        gapEnd = w % W;
+      }
+    }
+    const from = gap === 0 ? 0 : (gapEnd + 1) % W;
+    const to = from + W - gap;
+    geometry.setDrawRange(wedges.starts[from], wedges.starts[to] - wedges.starts[from]);
+  };
   return {
     group,
     follow(x, z, lens) {
@@ -431,31 +513,14 @@ export function createTerrain(
           // rounding between two grids opens pinholes along the seam.
           lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2 - 0.5) * finer.spacing, 1);
         }
-        // A sector the view cannot reach is not drawn: its cells' plan, a
-        // cell wider each way for the rim's morph, over the heights the
-        // ground can have. Without a lens, every sector (the compile's).
-        for (const { mesh, sector: q } of lv.meshes) {
-          if (!lens) {
-            mesh.visible = true;
-            continue;
-          }
-          box.min.set(
-            lv.centre.x + (q.i0 - half - 1) * lv.spacing,
-            low,
-            lv.centre.y + (q.j0 - half - 1) * lv.spacing,
-          );
-          box.max.set(
-            lv.centre.x + (q.i1 - half + 1) * lv.spacing,
-            high,
-            lv.centre.y + (q.j1 - half + 1) * lv.spacing,
-          );
-          mesh.visible = frustum.intersectsBox(box);
-        }
+        if (l > 0) aim(lv, lens);
       }
     },
     dispose() {
-      for (const q of [...full, ...ring]) q.geometry.dispose();
-      for (const lv of levels) (lv.meshes[0].mesh.material as THREE.Material).dispose();
+      for (const lv of levels) {
+        lv.mesh.geometry.dispose();
+        (lv.mesh.material as THREE.Material).dispose();
+      }
       tex.height.dispose();
       tex.ground.dispose();
       tex.dir.dispose();

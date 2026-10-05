@@ -25,6 +25,7 @@
 
 import { CROWD } from "./crowd.ts";
 import type { TechniqueId } from "./technique.ts";
+import type { RiderId } from "./riders.ts";
 import type { SkiId } from "./skis.ts";
 import { TUNING } from "./tuning.ts";
 
@@ -583,6 +584,24 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
   return RACE_SKIS[mode] ?? null;
+}
+
+/** THE BUILD A RACE IS RACED AT: the weight (`defs/riders.ts`) that suits
+ * its discipline — what the dress card is opened on for that race — or null
+ * for a mode that is no race. The slalom asks for quickness from gate to
+ * gate, the reference build's; the super-G and the downhill pay a heavier
+ * skier's speed in a tuck (the terminal speed climbs as the fourth root of
+ * his weight) and still jump, so the SOLID build's legs; speed skiing is
+ * the tuck alone, straight down with nothing to land, so the HEAVY one. */
+export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
+  slalom: "medium",
+  superG: "solid",
+  downhill: "solid",
+  speedSki: "heavy",
+};
+
+export function raceRiderOf(mode: GameMode): RiderId | null {
+  return RACE_RIDERS[mode] ?? null;
 }
 
 /** THE RACE DISCIPLINES the game names, in the order a race card lists

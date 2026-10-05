@@ -94,6 +94,8 @@ export {
   JURY,
   RACE_SKIS,
   raceSkisOf,
+  RACE_RIDERS,
+  raceRiderOf,
   timeTrialRules,
   tricksRules,
   type Assist,

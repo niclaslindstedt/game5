@@ -115,11 +115,20 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
 /** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: the TIME TRIAL rides any
  * of them — the piste is the piste — but a SLALOM only the maps the
  * campaign sets one on, the reds and blacks whose slalom stretch (R31) is a
- * slalom hill, because a slalom is never set on an easy one; and none takes
- * the FREE RIDE, the one mode allowed a seed and a day of its own. */
+ * slalom hill, because a slalom is never set on an easy one; a DOWNHILL
+ * (R32) the campaign's downhill rungs and every black, the courses with a
+ * downhill's vertical under them; and none takes the FREE RIDE, the one mode
+ * allowed a seed and a day of its own. */
 export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
   if (mode === "slalom") return level.mode === "slalom";
+  if (mode === "downhill") return level.mode === "downhill" || level.grade === "black";
   return mode === "timeTrial";
+}
+
+/** The campaign's own name for a measured mode: the mode itself where a
+ * rung can be one, the slalom's otherwise. */
+function measuredMode(mode: GameMode): CampaignLevel["mode"] {
+  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
@@ -159,7 +168,7 @@ export function pinnedPress(
 ): [CampaignLevel, CampaignLevel["mode"], boolean] | null {
   if (rung) return [rung, rung.mode, true];
   const pin = pinnedFor(chosen, mode, linkSeed);
-  return pin ? [pin, mode === "timeTrial" ? "timeTrial" : "slalom", false] : null;
+  return pin ? [pin, measuredMode(mode), false] : null;
 }
 
 /** Whether `level` is the very map `pin` builds — the same seed on the same
@@ -333,7 +342,7 @@ export function recordRun(
     medal: stood === undefined ? medal : bestMedal(stood.medal, medal),
   };
   const results = { ...progress.results, [level.id]: result };
-  if (level.mode !== "slalom") return { results, points: progress.points };
+  if (level.mode === "timeTrial") return { results, points: progress.points };
   const scored: LevelScores = {};
   run.order.forEach((id, i) => {
     scored[skierKey(id)] = pointsFor(i + 1);
@@ -446,7 +455,7 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
 export function continueAt(shelf: CampaignShelf, progress: CampaignProgress): CampaignLevel | null {
   const open = shelf.levels.filter((_l, index) => levelUnlocked(shelf, index, progress));
   const spent = (level: CampaignLevel): boolean =>
-    level.mode === "slalom"
+    level.mode !== "timeTrial"
       ? (progress.points[level.id]?.[PLAYER_ID] ?? 0) === POINTS[0]
       : progress.results[level.id]?.medal === MEDALS[MEDALS.length - 1];
   return (
@@ -484,6 +493,7 @@ export function frontDoorPins(
 ): {
   campaign: { cleared: number; of: number; next: string | null };
   raceMap: string | null;
+  downhillMap: string | null;
   trialMap: string | null;
 } {
   return {
@@ -492,6 +502,7 @@ export function frontDoorPins(
       next: continueAt(reachedShelf(progress), progress)?.name ?? null,
     },
     raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
+    downhillMap: pinnedFor(chosen, "downhill", linkSeed)?.name ?? null,
     trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
   };
 }
@@ -541,6 +552,10 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
   const out: CampaignProgress = { results: {}, points: {} };
   if (typeof parsed !== "object" || parsed === null) return out;
   const known = new Set(CAMPAIGN_LEVELS.map((l) => l.id));
+  // The rungs raced as a DOWNHILL now, which were trials once: a row there
+  // with a medal on it is a trial's — kept as the clear it paid (a trial's
+  // place is 1st), its time down the unset course dropped.
+  const downhills = new Set(CAMPAIGN_LEVELS.filter((l) => l.mode === "downhill").map((l) => l.id));
   const blob = parsed as { results?: unknown; points?: unknown };
   if (typeof blob.results === "object" && blob.results !== null) {
     for (const [id, row] of Object.entries(blob.results as Record<string, unknown>)) {
@@ -548,6 +563,10 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
       const r = row as Partial<LevelResult>;
       if (!Number.isInteger(r.place) || (r.place as number) < 1) continue;
       const medal = MEDALS.find((m) => m === r.medal) ?? null;
+      if (downhills.has(id) && medal !== null) {
+        out.results[id] = { place: 1, medal: null };
+        continue;
+      }
       const kept: LevelResult = { place: r.place as number, medal };
       // The time and the skis come as a pair or not at all.
       const timed = typeof r.best === "number" && Number.isFinite(r.best) && r.best >= 0;

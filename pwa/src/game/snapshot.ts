@@ -8,9 +8,9 @@
 // Nothing in here decides anything: the speed is the engine's `speed`, the
 // edge is the engine's own edge against the pair's full edge, the gate
 // count is the progress the engine keeps, the place is `racePlace` and the
-// standings are `fieldOrder` — on a SLALOM the board of the field skied
-// before him (`slalom-board.ts`), never `state.rivals`, which a slalom
-// leaves empty. A number that decided an outcome would be a rule in the
+// standings are `fieldOrder` — on a SLALOM or a DOWNHILL the board of the
+// field skied before him (`slalom-board.ts`), never `state.rivals`, which
+// an interval start leaves empty. A number that decided an outcome would be a rule in the
 // shell (§23.2), and there are none.
 
 import {
@@ -19,6 +19,7 @@ import {
   fieldOrder,
   gradeOf,
   racePlace,
+  DOWNHILL,
   SLALOM,
   trenched,
   type GameState,
@@ -37,7 +38,8 @@ import { SCREEN_TO_ENGINE } from "./input-model.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
 import { courseName } from "./run-names.ts";
-import { boardOf, timingSplit } from "./slalom-board.ts";
+import { trapOf, type TrapReading } from "./downhill-run.ts";
+import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
@@ -83,25 +85,35 @@ export type Standing = {
   waiting?: boolean;
 };
 
-/** THE SLALOM as the HUD reads it — null on any other run. */
-export type SlalomHud = {
-  /** Which run of how many (R31). */
+/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's or a
+ * downhill's — null on any other run. */
+export type RaceHud = {
+  /** Which discipline, and — on a downhill — whether this is its TRAINING
+   * run (`downhill-run.ts`), which counts for nothing. */
+  discipline: "slalom" | "downhill";
+  training: boolean;
+  /** Which run of how many (R31; a downhill is one). */
   run: 1 | 2;
   runs: number;
   /** THE STARTER'S WORD, small at the top while the start clock in the
    * house carries the count: READY through the countdown, GO from then
    * until a moment after the wand opens — null otherwise. */
   word: "ready" | "go" | null;
-  /** THE INTERMEDIATE TIME while fresh: the timing point (1, 2), the run
+  /** THE INTERMEDIATE TIME while fresh: the timing point (1, 2 …), the run
    * clock there and the gap to the leader (negative ahead). */
   timing: { point: number; time: number; gap: number | null } | null;
   /** The player's first-run time on the second run, s; 0 on the first. */
   before: number;
   /** OUT OF IT (R31): disqualified or did not finish, why and where. */
   out: RunOut | null;
-  /** THE SECOND RUN the first run's plate offers, or why not; null on any
-   * other plate. */
+  /** WHAT THE PLATE OFFERS NEXT — a slalom's SECOND RUN, or why not; a
+   * downhill's RACE after its training — null on any other plate. */
   second: SecondRun | null;
+  /** A DOWNHILL'S SPEED TRAP (R32, `trapOf`): his speed through it and the
+   * field's best, km/h, and his place among them — null off a course with
+   * one. `trapFresh` while it has just been taken (`TIMING_HOLD`). */
+  trap: TrapReading | null;
+  trapFresh: boolean;
 };
 
 export type HudSnapshot = {
@@ -173,8 +185,9 @@ export type HudSnapshot = {
    * comes up under its plate. */
   result: { place: number; time: number; penalty: number } | null;
   standings: Standing[] | null;
-  /** THE SLALOM's own readouts (`SlalomHud`), null on any other run. */
-  slalom: SlalomHud | null;
+  /** AN INTERVAL START'S RACE — a slalom's or a downhill's — its own
+   * readouts (`RaceHud`), null on any other run. */
+  race: RaceHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -339,11 +352,12 @@ function gradeOfLevel(level: Level): PisteGrade {
 /** A run with no book behind it: a slalom, measured against nothing. */
 const NO_LEDGER: RunLedger = { mode: "slalom", standing: null };
 
-/** The slalom's readouts at this step, or null off an interval start. */
-export function slalomOf(state: GameState): SlalomHud | null {
+/** The race's readouts at this step, or null off an interval start. */
+export function raceOf(state: GameState): RaceHud | null {
   const f = state.field;
   if (!f) return null;
   const p = state.progress;
+  const downhill = state.level.downhill !== undefined;
   const word =
     state.phase === "countdown"
       ? "ready"
@@ -351,13 +365,17 @@ export function slalomOf(state: GameState): SlalomHud | null {
         ? "go"
         : null;
   return {
+    discipline: downhill ? "downhill" : "slalom",
+    training: f.training,
     run: f.run,
-    runs: SLALOM.runs,
+    runs: downhill ? DOWNHILL.runs : SLALOM.runs,
     word,
     timing: timingSplit(state),
     before: f.before,
     out: p.out,
     second: secondRunOf(state),
+    trap: trapOf(state),
+    trapFresh: p.trapAt !== null && p.time - p.trapAt < TIMING_HOLD && !p.finished,
   };
 }
 
@@ -376,10 +394,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
       : null;
   const standing = ledger.standing;
   const owed = p.missed !== null ? bearingToNext(state) : null;
-  const slalom = slalomOf(state);
-  // THE BIG LIGHTS are the line start's: a slalom's count is the start
-  // clock's in the house, and its word the small one at the top.
-  const lights = state.rules.countdown > 0 && !slalom;
+  const race = raceOf(state);
+  // THE BIG LIGHTS are the line start's: a race's count out of the house is
+  // the start clock's, and its word the small one at the top.
+  const lights = state.rules.countdown > 0 && !race;
   return {
     speedKmh: c.speed * 3.6,
     // Against the most edge he can use — a slalom racer's past the ski's own.
@@ -414,7 +432,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     result:
       p.finished && !p.out ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,
-    slalom,
+    race,
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,

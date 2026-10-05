@@ -25,6 +25,12 @@
 // heat read back off it (`heatOf`, in `recipeOf`) — so a restart never drops
 // a racer back into the first. The second run books no campaign rung: the
 // rung is booked at the first run's flag.
+//
+// A DOWNHILL stands up as its TRAINING run (every racer starts one before
+// he may race, `downhill-run.ts`), and the plate over it — home or out —
+// stands up its RACE through the same press. A campaign rung is booked at
+// the RACE's flag, never the training's: the rig is armed for the rung only
+// when the race is stood up.
 
 import { TUNING, botInput, createGame, step, type GameMode, type GameState } from "@engine";
 
@@ -39,7 +45,8 @@ import {
 import type { CampaignRig } from "./campaign-run.ts";
 import { recipeOf } from "./replay.ts";
 import type { Settings } from "./settings.ts";
-import { heatAfter, heatOf } from "./slalom-heat.ts";
+import { trainingOf } from "./downhill-run.ts";
+import { heatAfter, heatOf, secondRunOf } from "./slalom-heat.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -78,6 +85,9 @@ export function createPinnedRuns(world: {
   done: () => void;
 }): PinnedRuns {
   let last: ReturnType<typeof pinnedRun> | null = null;
+  /** The campaign rung a downhill's training was stood up for — armed when
+   * its race is. */
+  let rungOf: CampaignLevel | null = null;
   return {
     press: (pin, mode, rung) => {
       world.setMode(mode);
@@ -85,10 +95,13 @@ export function createPinnedRuns(world: {
       const skier = world.skier(s);
       world.loader.begin({
         build: () => {
-          world.rig.arm(rung ? pin : null);
+          // A downhill's training books nothing: the rung waits for its race.
+          const training = mode === "downhill";
+          rungOf = rung ? pin : null;
+          world.rig.arm(training ? null : rungOf);
           const now = world.current();
           const built = now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
-          const opts = pinnedRun(pin, mode, rung, skier, s.trialLaps, built);
+          const opts = { ...pinnedRun(pin, mode, rung, skier, s.trialLaps, built), training };
           const game = createGame(opts);
           last = { ...opts, level: game.level };
           return game;
@@ -117,12 +130,32 @@ export function createPinnedRuns(world: {
     again: () => {
       const now = world.current();
       if (heatOf(now)) return secondRunAgain(now);
+      // A downhill again as the run it is: its training, or its race.
+      const training = trainingOf(now);
+      if (training !== undefined) {
+        world.rig.arm(training ? null : world.rig.riding());
+        return createGame(recipeOf(now, "downhill"));
+      }
       if (!last) return null;
       world.rig.arm(world.rig.riding());
       return createGame(last);
     },
     second: () => {
       const now = world.current();
+      // A DOWNHILL'S RACE, after its training: the same course, the rung
+      // armed now.
+      if (secondRunOf(now)?.kind === "race") {
+        world.setMode("downhill");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(rungOf);
+            return createGame({ ...recipeOf(now, "downhill"), training: false });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
       const heat = heatAfter(now);
       if (!heat) return;
       world.setMode("slalom");
@@ -137,6 +170,7 @@ export function createPinnedRuns(world: {
     },
     clear: () => {
       last = null;
+      rungOf = null;
       world.rig.arm(null);
     },
   };
@@ -147,9 +181,14 @@ const FIRST_RUN_CAP = 600;
 
 /** A LINK'S SECOND RUN (`?run=2`): `first` skied by the bot to its flag
  * in place, then the second run off it — or `first` as it stands where the
- * bot went out of it and there is no second run to stand up. */
+ * bot went out of it and there is no second run to stand up. On a
+ * downhill, its RACE off its training. */
 export function secondRunOff(first: GameState): GameState {
-  if (first.field?.run !== 1) return first;
+  // A downhill's: its race, off its training — nothing skied first.
+  if (trainingOf(first) === true) {
+    return createGame({ ...recipeOf(first, "downhill"), training: false });
+  }
+  if (first.field?.run !== 1 || first.level.downhill) return first;
   for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
     step(first, botInput(first));
   }

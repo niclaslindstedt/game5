@@ -22,6 +22,9 @@
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
 //   ?mode=trial      the run is a TIME TRIAL rather than a race (--trial).
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
+//   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
+//                    --run2 its race).
+//   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
 //   ?splash=1 / ?menu=root   the attract card / the front door;
@@ -117,6 +120,12 @@ const SURFACES = {
   // straight off the URL (`?menu=campaign|levels`).
   campaign: { params: { menu: "campaign" }, wait: ".menu-card-campaign", settle: 900 },
   levels: { params: { menu: "levels" }, wait: ".menu-card-levels", settle: 900 },
+  // ...and the one a DOWNHILL picks its black on (`?menu=levels&mode=downhill`).
+  "downhill-levels": {
+    params: { menu: "levels", mode: "downhill" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
   // THE TRICK MAP CARD a TRICKS run picks its map on (`?menu=tricks`).
   tricks: { params: { menu: "tricks", mode: "tricks" }, wait: ".menu-card-levels", settle: 900 },
   // OPTIONS and its KEYS page, straight off the URL (`?menu=options|keys`).
@@ -273,6 +282,14 @@ const args = parseArgs(
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     trial: { kind: "flag", help: "a time trial rather than a race (?mode=trial)" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
+    skis: {
+      kind: "string",
+      help: "the player's pair for the run (?skis=: chamois, swift, chough, eagle, marmot, hare)",
+    },
+    downhill: {
+      kind: "flag",
+      help: "a downhill's training run (?mode=downhill; with --run2 its race)",
+    },
     run2: { kind: "flag", help: "a slalom's second run, the first skied by the bot (?run=2)" },
     "no-poles": { kind: "flag", help: "the player skis without poles, the hard mode (?poles=0)" },
     viewport: {
@@ -283,7 +300,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -481,12 +498,14 @@ if (args.surface) {
         if (args.grade !== undefined) params.grade = String(args.grade);
         if (args.trial) params.mode = "trial";
         if (args.tricks) params.mode = "tricks";
+        if (args.downhill) params.mode = "downhill";
+        if (args.skis !== undefined) params.skis = String(args.skis);
         if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

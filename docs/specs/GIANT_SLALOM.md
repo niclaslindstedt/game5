@@ -8,9 +8,13 @@ slalom is finished (see `README.md`).
 1. Follow `README.md`'s *Starting a discipline in a new session*.
 2. The closest thing built is the SLALOM: two runs, interval start, strict
    gates — the giant slalom is mostly new NUMBERS on the same machinery,
-   plus panel gates. Start by reading `engine/mapgen/slalom.ts` and deciding
-   what to factor out into a shared setter.
-3. Research the to-do below into `docs/disciplines.md` before writing R32.
+   plus panel gates. The downhill (built) already factored the setter's
+   preparation out (`engine/mapgen/course-prep.ts`, a `CoursePrep` row a
+   discipline) and added panel gates under the strict rules
+   (`Checkpoint.panels`), a race HUD every discipline reads (`RaceHud`) and
+   `make sim ARGS="--mode …"` — read `README.md`'s *Lessons from the
+   downhill* and start from those.
+3. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R33 after the downhill's R32; the ids run contiguous (`tests/docs_rules_test.ts`).
 
 ## Watch out (from the slalom)
 
@@ -65,7 +69,7 @@ in reverse order of the first's best, the combined time ranked.
 
 ## What it needs to be complete
 
-- [ ] **Course rule (R32)** in `engine/mapgen/discipline-rules.ts`, mirrored
+- [ ] **Course rule (the next free R-rule)** in `engine/mapgen/discipline-rules.ts`, mirrored
       in `docs/level-generator.md`: vertical drop band, direction changes as
       a share of the vertical, gate distance band, gate width, panels, how
       the course uses the terrain (rolls, traverses, fall-line changes), the

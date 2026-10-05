@@ -13,7 +13,15 @@
 // amateurs down their runs, and the player against them.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { PARK_VERSION, generateLevel, setSlalom, withDay, withSky } from "../mapgen/index.ts";
+import {
+  PARK_VERSION,
+  downhillCourseOf,
+  generateLevel,
+  setDownhill,
+  setSlalom,
+  withDay,
+  withSky,
+} from "../mapgen/index.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
@@ -71,6 +79,10 @@ export type CreateGameOptions = {
    * course set afresh (R31), only the first run's finishers starting, the
    * standings on combined time. The first run when left out. */
   heat?: Heat;
+  /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
+   * the board the field's training times — slower and further apart than
+   * a race's, and counted for nothing. The race when left out. */
+  training?: boolean;
   /** How many rivals stand on the start line (`RACE.rivals` when left out;
    * 0 is a solo run — what the sim and the labs ski). */
   rivals?: number;
@@ -173,24 +185,36 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // A tricks run is ridden on the seed's map with its trick field laid (R20)
   // — a map of one piste (`PARK_VERSION`): a resort (R25) lays no park.
   const tricks = options.mode === "tricks";
-  const built =
-    options.level ??
-    generateLevel(options.seed ?? 1, {
-      tricks,
-      region: options.region,
-      // A slalom is never set on an easy hill: a seed of its own is built
-      // to a RED piste unless a grade is asked for — a red's steepest
-      // pitch (R23) is a slalom hill's 33–45 %, and a black's drops across
-      // the piste are what no slalom may cross.
-      grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
-      version: tricks ? PARK_VERSION : undefined,
-    });
+  const downhill = options.mode === "downhill";
+  const ask = {
+    tricks,
+    region: options.region,
+    // A slalom is never set on an easy hill: a seed of its own is built
+    // to a RED piste unless a grade is asked for — a red's steepest
+    // pitch (R23) is a slalom hill's 33–45 %, and a black's drops across
+    // the piste are what no slalom may cross.
+    grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
+    version: tricks ? PARK_VERSION : undefined,
+  };
+  let built = options.level ?? generateLevel(options.seed ?? 1, ask);
+  // A DOWNHILL off a seed of its own is raced on the ski area's course with
+  // the most vertical (R32) — the same resort, built once (`buildResort`).
+  if (downhill && !options.level && options.grade === undefined) {
+    const id = downhillCourseOf(built);
+    if (id !== null && id !== built.resort?.course) {
+      built = generateLevel(options.seed ?? 1, { ...ask, course: id });
+    }
+  }
   // A SLALOM is set over the map (R31) — run one's course, or the second
-  // run's — and any other mode skis the map under a slalom set over it.
+  // run's — a DOWNHILL down its whole piste (R32), and any other mode skis
+  // the map under any course set over it.
+  const original = built.slalom?.base ?? built.downhill?.base ?? built;
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
-      : (built.slalom?.base ?? built);
+      : downhill
+        ? setDownhill(built)
+        : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const level = options.sky ? withSky(dayed, options.sky) : dayed;
   const seed = options.seed ?? level.seed;
@@ -255,8 +279,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     noteRun(state, onto ?? nearestPiste(level, state.skier.x, state.skier.z));
   }
   if (rules.rivals > 0) {
-    if (rules.start === "interval") createField(state, rules.rivals, options.heat);
-    else createRivals(state, rules.rivals);
+    if (rules.start === "interval") {
+      createField(state, rules.rivals, options.heat, options.training === true);
+    } else createRivals(state, rules.rivals);
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {

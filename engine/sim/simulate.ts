@@ -9,6 +9,7 @@
 import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
+import type { GameMode } from "../game/defs/modes.ts";
 import { generateLevel } from "../mapgen/generate.ts";
 import { PARK_VERSION } from "../mapgen/trick-field.ts";
 import type { GameEvent } from "../game/state.ts";
@@ -48,6 +49,12 @@ export type SimOptions = {
   /** Ski WITHOUT POLES (`SkierState.poles` — the player's hard mode); with
    * them when left out. */
   poles?: boolean;
+  /** RACE A DISCIPLINE (`MODE_RULES`): the seed's map with its course set
+   * over it — a slalom's stretch (R31), a downhill's whole piste on the ski
+   * area's biggest course (R32) — skied out of the start house under the
+   * strict gates, against the field's board. The open rules when left out.
+   * Ignored with `tricks`. */
+  mode?: Extract<GameMode, "slalom" | "downhill">;
 };
 
 export type RunReport = {
@@ -85,6 +92,11 @@ export type RunReport = {
   /** Times the skier was thrown (`crash.ts`) — 0 on every clean run. */
   wipeouts: number;
   missed: number;
+  /** OUT OF THE RACE under the strict gates (a discipline's run): how —
+   * `dsq` or `dnf` and why — or null. */
+  out: string | null;
+  /** His speed through a downhill's speed trap (R32), m/s, or null. */
+  trap: number | null;
   /** Where the bot finished against the field (1 on a solo run). */
   place: number;
   /** THE SCORE the run banked (`tricks.ts`). The bot turns nothing, so this
@@ -104,11 +116,15 @@ export const SIM_SECONDS = 600;
 export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   const profile = options.profile ?? RIDER_BOT;
   const maxSeconds = options.maxSeconds ?? SIM_SECONDS;
+  const race = options.tricks ? undefined : options.mode;
   const state = createGame({
     seed,
+    mode: race,
+    region: race ? options.region : undefined,
+    grade: race ? options.grade : undefined,
     level:
       options.level ??
-      (options.tricks || options.region || options.grade
+      (!race && (options.tricks || options.region || options.grade)
         ? generateLevel(seed, {
             tricks: options.tricks,
             region: options.region,
@@ -118,7 +134,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
           })
         : undefined),
     laps: options.laps,
-    rivals: options.rivals ?? 0,
+    rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
     spec: options.spec,
     poles: options.poles,
@@ -186,7 +202,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     skis: (options.spec ?? SKIS).id,
     powder: soft / pts.length,
     grade: gradeOf(state.level),
-    finished: p.finished,
+    finished: p.finished && p.out === null,
     time: p.time,
     laps: p.lap,
     lapTimes: p.lapTimes,
@@ -205,6 +221,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     autoResets,
     wipeouts,
     missed,
+    out: p.out ? `${p.out.status} ${p.out.why}@${p.out.gate}` : null,
+    trap: p.trap,
     place,
     score: state.tricks.score,
     events,

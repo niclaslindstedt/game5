@@ -18,7 +18,7 @@
 // the house behind him: his back, the posts and the course below through
 // the doorway — the shot he goes on.
 
-import type { Level } from "@engine";
+import { raceCourseOf, type Level } from "@engine";
 
 /** The house's measure, m. */
 export const HOUSE = {
@@ -88,7 +88,7 @@ const plans = new WeakMap<Level, HousePlan | null>();
  * per map. */
 export function startHousePlan(level: Level): HousePlan | null {
   if (plans.has(level)) return plans.get(level) ?? null;
-  const sl = level.slalom;
+  const sl = raceCourseOf(level);
   const start = level.checkpoints[0];
   if (!sl || !start) {
     plans.set(level, null);

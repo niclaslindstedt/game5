@@ -198,11 +198,16 @@ export function Hud({
             {/* THE PLACE — the one number a racer reads more than the clock.
               Keyed on the place, so a pass lands with its own beat. Left
               out of a race alone, where 1 / 1 says nothing. */}
-            {snap.slalom ? (
-              /* A SLALOM'S RUN in its place: a racer on an interval start is
-               alone on the course, and his place is the board's at the flag. */
+            {snap.race ? (
+              /* THE RUN in its place: a racer on an interval start is alone
+               on the course, and his place is the board's at the flag — a
+               slalom's run of two, a downhill's training or its race. */
               <div class="hud-chip hud-run">
-                <span>{STRINGS.runOf(snap.slalom.run, snap.slalom.runs)}</span>
+                <span>
+                  {snap.race.discipline === "downhill"
+                    ? STRINGS.downhillRun(snap.race.training)
+                    : STRINGS.runOf(snap.race.run, snap.race.runs)}
+                </span>
                 <span class="hud-chip-sub">{STRINGS.runLabel}</span>
               </div>
             ) : !snap.free && snap.skiers > 1 ? (
@@ -231,24 +236,34 @@ export function Hud({
               </div>
             )}
           </div>
-          {/* A SLALOM'S INTERMEDIATE: the clock at the timing point and the
+          {/* A RACE'S INTERMEDIATE: the clock at the timing point and the
             gap to the leader there — green ahead, red behind, as television
             shows it. */}
-          {snap.slalom?.timing && (
+          {snap.race?.timing && (
             <div class="hud-top-row">
-              <div class="hud-chip hud-split" key={`t-${snap.slalom.timing.point}`}>
-                <span>{STRINGS.split(snap.slalom.timing.time)}</span>
-                <span class="hud-chip-sub">{STRINGS.timingLabel(snap.slalom.timing.point)}</span>
+              <div class="hud-chip hud-split" key={`t-${snap.race.timing.point}`}>
+                <span>{STRINGS.split(snap.race.timing.time)}</span>
+                <span class="hud-chip-sub">{STRINGS.timingLabel(snap.race.timing.point)}</span>
               </div>
-              {snap.slalom.timing.gap !== null && (
+              {snap.race.timing.gap !== null && (
                 <div
-                  class={`hud-chip hud-split hud-gap ${snap.slalom.timing.gap < 0 ? "hud-gap-ahead" : "hud-gap-behind"}`}
-                  key={`tg-${snap.slalom.timing.point}`}
+                  class={`hud-chip hud-split hud-gap ${snap.race.timing.gap < 0 ? "hud-gap-ahead" : "hud-gap-behind"}`}
+                  key={`tg-${snap.race.timing.point}`}
                 >
-                  <span>{STRINGS.gap(snap.slalom.timing.gap)}</span>
+                  <span>{STRINGS.gap(snap.race.timing.gap)}</span>
                   <span class="hud-chip-sub">{STRINGS.leaderGapLabel}</span>
                 </div>
               )}
+            </div>
+          )}
+          {/* A DOWNHILL'S SPEED TRAP, fresh: his speed through it and where
+            it stands among the field's. */}
+          {snap.race?.trapFresh && snap.race.trap?.speed != null && (
+            <div class="hud-top-row">
+              <div class="hud-chip hud-split hud-trap" key="trap">
+                <span>{STRINGS.trapSpeed(snap.race.trap.speed)}</span>
+                <span class="hud-chip-sub">{STRINGS.trapLabel(snap.race.trap.rank)}</span>
+              </div>
             </div>
           )}
           {/* THE SPLIT, under the row it belongs to: the clock as it stood at
@@ -342,10 +357,10 @@ export function Hud({
           start clock in the house carries the count, and the television
           shot of the start is not to be covered. Keyed on the word, so GO
           lands with its own beat. */}
-      {snap.slalom?.word && (
-        <div class="hud-starter" role="status" key={snap.slalom.word}>
-          <span class={snap.slalom.word === "go" ? "hud-starter-go" : undefined}>
-            {snap.slalom.word === "go" ? STRINGS.starterGo : STRINGS.starterReady}
+      {snap.race?.word && (
+        <div class="hud-starter" role="status" key={snap.race.word}>
+          <span class={snap.race.word === "go" ? "hud-starter-go" : undefined}>
+            {snap.race.word === "go" ? STRINGS.starterGo : STRINGS.starterReady}
           </span>
         </div>
       )}

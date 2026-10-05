@@ -84,6 +84,8 @@ export {
   fieldRules,
   slalomRules,
   SLALOM,
+  DOWNHILL,
+  downhillRules,
   DISCIPLINES,
   timeTrialRules,
   tricksRules,
@@ -106,6 +108,7 @@ export {
 } from "./game/defs/technique.ts";
 export { crossUnderOf, edgeReach } from "./game/incline.ts";
 export {
+  DOWNHILL_FIELD,
   FIELD,
   createField,
   fieldOrderOf,
@@ -113,8 +116,10 @@ export {
   startNumbers,
   type Heat,
 } from "./game/field.ts";
-export { PAR, slalomPar, type Par } from "./game/par.ts";
+export { DOWNHILL_PAR, PAR, downhillPar, raceParOf, slalomPar, type Par } from "./game/par.ts";
 export { stepStrict } from "./game/strict.ts";
+export { stepTrap } from "./game/speed-trap.ts";
+export { DOWNHILL_NETS, stepNets } from "./game/nets.ts";
 export { freshGatePoles, polePlan, stepGatePoles } from "./game/gate-poles.ts";
 export {
   SKIS,
@@ -311,6 +316,7 @@ export {
   freeSpawn,
   freshProgress,
   gateLineAt,
+  lineBendAt,
   resetPose,
   resetSkier,
   slalom,

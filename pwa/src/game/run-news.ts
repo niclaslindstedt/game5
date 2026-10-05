@@ -105,6 +105,12 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return e.speed >= POLE_SAID ? { text: STRINGS.newsPole(e.gate), tone: "info" } : null;
     case "out":
       return { text: STRINGS.newsOut(e.out), tone: "bad" };
+    // A DOWNHILL'S SPEED TRAP, and the A-nets (R32): the out that follows a
+    // drive into them says the rest.
+    case "trap":
+      return { text: STRINGS.newsTrap(e.speed * 3.6), tone: "info" };
+    case "net":
+      return state.progress.out ? null : { text: STRINGS.newsNet, tone: "bad" };
     case "finish": {
       // A tricks run is its score; a run alone has no place, only a time.
       if (state.rules.tricks)

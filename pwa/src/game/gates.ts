@@ -61,7 +61,7 @@ import {
 import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
-import { netStretch, NETS } from "./spectator-plan.ts";
+import { netShape, netStretch, NETS } from "./spectator-plan.ts";
 import { createStartHouse } from "./start-house.ts";
 import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
 import { LOOSE } from "./trail-stamp.ts";
@@ -460,8 +460,22 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       "finish-net",
     );
     const pts = level.track.points;
-    // On a slalom the nets line the whole course, start to finish.
+    // On a race course (a slalom, a downhill) the nets line the whole of
+    // it, start to finish.
     const { from, to } = netStretch(level, cp);
+    // ...and on a downhill they are its A-nets, tall and out at the line a
+    // racer is caught on (`netShape`).
+    const shape = netShape(level);
+    // THE POSTS, one instanced draw for both sides however long the course
+    // (a downhill's nets run three kilometres).
+    const postEvery = Math.round(NETS.post / 2);
+    const postGeo = new THREE.CylinderGeometry(0.03, 0.03, shape.height + 0.3, 5);
+    postGeo.translate(0, shape.height / 2, 0);
+    geos.push(postGeo);
+    let postCount = 0;
+    for (const p of pts) if (p.s >= from && p.s <= to) postCount += 1;
+    const posts = new THREE.InstancedMesh(postGeo, dark, 2 * Math.ceil(postCount / postEvery) + 2);
+    let postAt = 0;
     for (const side of [-1, 1]) {
       const pos: number[] = [];
       const uv: number[] = [];
@@ -470,17 +484,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       let run = 0;
       for (const p of pts) {
         if (p.s < from || p.s > to) continue;
-        const px = p.x + Math.cos(p.heading) * side * (p.width / 2 + NETS.out);
-        const pz = p.z - Math.sin(p.heading) * side * (p.width / 2 + NETS.out);
+        const px = p.x + Math.cos(p.heading) * side * (p.width / 2 + shape.out);
+        const pz = p.z - Math.sin(p.heading) * side * (p.width / 2 + shape.out);
         const py = level.groundAt(px, pz);
-        pos.push(px, py - 0.05, pz, px, py + NETS.height, pz);
-        uv.push(run / 0.5, 0, run / 0.5, NETS.height / 0.5);
+        pos.push(px, py - 0.05, pz, px, py + shape.height, pz);
+        uv.push(run / 0.5, 0, run / 0.5, shape.height / 0.5);
         if (n > 0) idx.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n, 2 * n - 1, 2 * n + 1);
-        if (n % Math.round(NETS.post / 2) === 0) {
-          const post = new THREE.CylinderGeometry(0.03, 0.03, NETS.height + 0.3, 5);
-          post.translate(px, py + NETS.height / 2, pz);
-          geos.push(post);
-          group.add(new THREE.Mesh(post, dark));
+        if (n % postEvery === 0 && postAt < posts.count) {
+          posts.setMatrixAt(postAt++, m4.compose(at.set(px, py, pz), q.identity(), one));
         }
         n++;
         run += 2;
@@ -494,6 +505,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       geos.push(g);
       group.add(new THREE.Mesh(g, netMat));
     }
+    posts.count = postAt;
+    posts.instanceMatrix.needsUpdate = true;
+    group.add(posts);
 
     // THE LINE ON THE SNOW: a checkered band dyed across the piste, laid
     // on the snow as it lies, lifted a hair so it never flickers in and

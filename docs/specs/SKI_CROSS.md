@@ -12,7 +12,7 @@ is finished (see `README.md`).
    `fieldRules` in `defs/modes.ts`), skier against skier
    (`engine/game/collision.ts`) — and the terrain park's kickers
    (`engine/mapgen/trick-field.ts`) for the built features.
-3. Research the to-do below into `docs/disciplines.md` before writing R35;
+3. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R33 after the downhill's R32; the ids run contiguous (`tests/docs_rules_test.ts`);
    the format (qualifying and the bracket) is a DOM-free module of its own.
 
 ## Watch out (from the slalom)
@@ -59,7 +59,7 @@ is SKIED, side by side, so the bot and skier-against-skier contact matter.
 
 ## What it needs to be complete
 
-- [ ] **Course rule (R35)**: a BUILT course on a piste: its width, length and
+- [ ] **Course rule (the next free R-rule)**: a BUILT course on a piste: its width, length and
       vertical, its features in a rhythm (banked turns/berms, rollers in
       series, jumps, step-downs, a wu-tang/spine? — research the feature
       vocabulary), its start ramp and finish; mirrored in the docs.

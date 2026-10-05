@@ -72,11 +72,13 @@
 // the shelves the share of black climbs (0, 2, 3, 4) and so does the
 // shelf's mean ask.
 //
-// THE RUNG ORDER mixes slaloms and time trials, the slalom on the maps
-// whose stretch is a slalom hill: HIGH CIRQUE a slalom, a trial, two
-// slaloms, a trial and a slalom, the slalom opening and closing it; RIME
+// THE RUNG ORDER mixes slaloms, downhills and time trials, the slalom on
+// the maps whose stretch is a slalom hill and the DOWNHILL (R32) on a black
+// whose whole course is a downhill's: HIGH CIRQUE a slalom, a trial, two
+// slaloms, a downhill and a slalom, the slalom opening and closing it; RIME
 // WOODS opens on its blue against the clock and closes on two slaloms;
-// FROST BASIN closes on two trials, its last black cut up by its drops;
+// FROST BASIN closes on a trial and a downhill down a thousand metres of
+// black, cut up by its drops;
 // COLD CREST puts its storm black against the clock and its steep wall to a
 // slalom, four slaloms round two trials.
 //
@@ -98,10 +100,11 @@
 
 import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind } from "@engine";
 
-/** The two games a campaign map is played as: a SLALOM, set on the map's
- * steepest stretch (R31), or the TIME TRIAL down its whole course. A free
- * ride measures nothing, so it is never a rung. */
-export type CampaignMode = "slalom" | "timeTrial";
+/** The games a campaign map is played as: a SLALOM, set on the map's
+ * steepest stretch (R31), a DOWNHILL down its whole course out of a start
+ * house against a field (R32), or the TIME TRIAL down its whole course
+ * alone. A free ride measures nothing, so it is never a rung. */
+export type CampaignMode = "slalom" | "downhill" | "timeTrial";
 
 /** The three medals a time trial pays, worst first. */
 export const MEDALS = ["bronze", "silver", "gold"] as const;
@@ -329,9 +332,9 @@ const HIGH_CIRQUE: CampaignShelf = {
     {
       id: "cirque-5",
       name: "First Black",
-      blurb: "The first black, against the clock in a storm: seven kickers and two drops",
+      blurb: "The first black, a downhill in a storm: a training run, then the race over two drops",
       seed: 8,
-      mode: "timeTrial",
+      mode: "downhill",
       laps: 1,
       version: 4,
       digest: "6e786204",
@@ -339,7 +342,6 @@ const HIGH_CIRQUE: CampaignShelf = {
       grade: "black",
       course: "10",
       day: { weather: "storm", hour: 11.17 },
-      medals: { gold: 181, silver: 190, bronze: 207 },
     },
     {
       id: "cirque-6",
@@ -444,9 +446,9 @@ const FROST_BASIN: CampaignShelf = {
       id: "basin-6",
       name: "Basin Wall",
       blurb:
-        "The last word off the top of the basin: the clock down a thousand metres of black and seven drops",
+        "The last word off the top of the basin: a downhill down a thousand metres of black and seven drops",
       seed: 10,
-      mode: "timeTrial",
+      mode: "downhill",
       laps: 1,
       version: 4,
       digest: "a99433e3",
@@ -454,7 +456,6 @@ const FROST_BASIN: CampaignShelf = {
       grade: "black",
       course: "9",
       day: { weather: "high", hour: 9.4 },
-      medals: { gold: 235, silver: 247, bronze: 270 },
     },
   ],
 };

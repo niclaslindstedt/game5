@@ -115,6 +115,9 @@ export {
   slalomStretch,
   type SlalomStretch,
 } from "./slalom.ts";
+export { downhillCourseOf, downhillLineAt, setDownhill } from "./downhill.ts";
+export { raceCourseOf, type RaceCourse } from "./race-course.ts";
+export { type CoursePrep } from "./course-prep.ts";
 export {
   accessReport,
   analyzeResort,

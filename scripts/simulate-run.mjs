@@ -80,13 +80,22 @@ const args = parseArgs(
       kind: "string",
       help: `ski every map under this sky (R19: ${WEATHER_KINDS.join(", ")}); the seed's own when left out`,
     },
+    mode: {
+      kind: "string",
+      help: "race a discipline: slalom (R31) or downhill (R32) — its course set over each seed's map, out of the start house under the strict gates; the open rules when left out",
+    },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|downhill] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);
+  process.exit(2);
+}
+
+if (args.mode !== undefined && args.mode !== "slalom" && args.mode !== "downhill") {
+  console.error(`unknown mode "${args.mode}" (slalom, downhill)`);
   process.exit(2);
 }
 
@@ -131,7 +140,8 @@ console.log(
     (args["no-poles"] ? " · no poles" : "") +
     (args.region !== "alpine" ? ` · ${args.region}` : "") +
     (args.grade ? ` · ${args.grade}` : "") +
-    (args.weather ? ` · ${args.weather}` : ""),
+    (args.weather ? ` · ${args.weather}` : "") +
+    (args.mode ? ` · ${args.mode}` : ""),
 );
 const header = [
   pad("seed", 5),
@@ -156,6 +166,8 @@ const header = [
   pad("plc", 4),
   pad("score", 6),
   pad("digest", 9),
+  // A discipline's run: the speed trap and how it went out of the race.
+  ...(args.mode ? [pad("trap", 5), " out"] : []),
 ].join(" ");
 
 const rows = [];
@@ -173,6 +185,7 @@ for (const spec of roster) {
       region: args.region === "alpine" ? undefined : args.region,
       grade: args.grade,
       weather: args.weather,
+      mode: args.mode,
     });
     rows.push(r);
     console.log(
@@ -199,6 +212,7 @@ for (const spec of roster) {
         pad(r.place, 4),
         pad(r.score, 6),
         pad(r.digest, 9),
+        ...(args.mode ? [pad(r.trap === null ? "-" : kmh(r.trap), 5), ` ${r.out ?? "-"}`] : []),
       ].join(" "),
     );
   }

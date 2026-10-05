@@ -3,9 +3,9 @@
 // discipline is set to on a map that is already built (R1–R30). The map is
 // the mountain; a discipline is how a race uses it: where on the piste its
 // course starts and finishes, which gates stand down it and what passing
-// one means. Only the SLALOM is set today; the giant slalom, the super-G,
-// the downhill, the ski cross and the speed run are named by the game and
-// not set yet, and each will be a rule here when it is.
+// one means. The SLALOM (R31) and the DOWNHILL (R32) are set today; the
+// giant slalom, the super-G, the ski cross and the speed run are named by
+// the game and not set yet, and each will be a rule here when it is.
 //
 // THE RESEARCH BEHIND THE NUMBERS — the international alpine competition
 // rules, by article and never by event:
@@ -46,6 +46,41 @@
 //   slalom.runs                   two runs on two courses set on the same
 //                                 slope, the combined time ranked
 //
+//   downhill.vertical 450–1100 m  a downhill's vertical drop: the men's top
+//                                 level 800–1100, the women's 450–800, every
+//                                 other race 450–1100 (a two-run downhill
+//                                 350–450); no length is set — measured
+//                                 courses run ~3.5 km (median 3499 m over
+//                                 859 m, 41.5 gates)
+//   downhill.width ≥ 8 m          a gate is FOUR poles and TWO panels, a
+//                                 pair of poles holding a panel at each end,
+//                                 at least 8 m between the inner poles;
+//                                 red (blue only for a second course's
+//                                 extra gates); rigid poles unless the jury
+//                                 asks for flex ones
+//   downhill.spacing ~80 m        no least spacing is set; the gates mark
+//                                 the racing line, and check the speed
+//                                 before a hard jump or passage (measured:
+//                                 79 m along the course, 29 m across,
+//                                 median)
+//   downhill.course ~30 m         the course's width, fall zones on the
+//                                 outside of the curves, the obstacles
+//                                 behind high safety nets (A-nets, 4–6 m)
+//   downhill.passing              both tips and both feet across the gate
+//                                 line; a gate missed, or a racer stopped
+//                                 by a fall, may not go on through the
+//                                 gates — disqualified, did not finish
+//   downhill.finish ≥ 15 m        the finish line's width, a wide, gentle,
+//                                 fenced run-out past it
+//   downhill.start                one race run on an interval start, the
+//                                 racer pushing off with his poles only;
+//                                 "ten seconds", then five to one, then GO,
+//                                 a start valid from 5 s before to 5 s after
+//   downhill.training             at least one timed training run on the
+//                                 course before the race, every racer
+//                                 started in one; its times count for
+//                                 nothing
+//
 // The rules, in prose (each realized by `slalom.ts`, asserted in
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
@@ -82,6 +117,35 @@
 //       `slalom.inside` metres inside the piste, and the last gate is
 //       `slalom.last` metres above the line and aims at its middle. A slalom
 //       is two RUNS on the same stretch, the second set afresh.
+//
+//   R32 THE DOWNHILL COURSE. A downhill is set on a built map's WHOLE
+//       piste, from its start gate to its finish line, on the course of
+//       the ski area with the most vertical (`downhill.vertical` the band
+//       it is held to where the area has one) — the start a house over the
+//       piste, the snow out of its door cut into a START DROP as steep as
+//       `downhill.drop.grade` over its first `downhill.drop.length`
+//       metres, every kicker on the piste levelled, the piste groomed hard
+//       from the house to the end of the run-out whatever drift lay across
+//       it and its relief combed smooth over `downhill.comb` — its
+//       rollers and its drops kept as the course's JUMPS, every crest
+//       sharper than `downhill.crest` metres of radius shaved round so a
+//       racer at speed comes down on the slope below it — every tree
+//       within `downhill.clear` metres of the piste and in the finish
+//       arena cleared, and A-NETS along both edges of it `downhill.nets.gap`
+//       metres outside the piste from the house to the finish arena. Its
+//       RACING LINE is the line down the piste that bends the least,
+//       kept `downhill.line.margin` metres inside its edges, and its
+//       gates MARK it: SPEED GATES — four poles and two red panels,
+//       `downhill.width` metres between the inner poles, centred on the
+//       line — every `downhill.spacing` metres down the piste, none within
+//       `downhill.jump` metres of a jump. The finish line is
+//       `downhill.finishWidth` metres
+//       wide at the least. The SPEED TRAP stands where the piste has
+//       fallen the most over the `downhill.trap.run` metres before it, on
+//       a straight, in the course's last `downhill.trap.late` share; the
+//       course is timed at `downhill.timing` intermediates besides. A
+//       downhill is one RUN, preceded by a TRAINING run on the same
+//       course.
 
 import type { Band } from "./rules.ts";
 
@@ -171,5 +235,70 @@ export const DISCIPLINE_RULES = {
      * `most` m deep — and eased back onto the hill over `ease` m, the cut's
      * banks `shoulder` m wide either side of the piste. */
     drop: { lip: 0.6, length: 8, grade: 0.75, most: 3.5, ease: 40, shoulder: 10 },
+  },
+  /** R32 — the downhill course. */
+  downhill: {
+    /** The vertical a downhill is held to, m: the women's floor to the
+     * men's top. The ski area's course with the most vertical is the one
+     * a downhill is set on, the band or not. */
+    vertical: { min: 450, max: 1100 } as Band,
+    /** The start: the racer stood this far above the wand's line, m. */
+    stand: 1.1,
+    /** THE START DROP: a speed event leaves its house down a ramp built
+     * to reach full speed quickly — gentler than a slalom's cut (no
+     * gradient is set for it), and longer. */
+    drop: { lip: 0.6, length: 12, grade: 0.55, most: 3, ease: 50, shoulder: 10 },
+    /** Every kicker on the piste levelled, and how far past its ends, m. */
+    clearance: 30,
+    /** The finish's run-out groomed with the course, m. */
+    outrunLength: 60,
+    /** The hill combed smooth of its short lips (the slalom's reach: the
+     * lips of a black's face go; its rollers and drops, longer, stay). */
+    comb: { reach: 6, ease: 6 },
+    /** THE CRESTS SHAVED: no crest down the course sharper than this
+     * radius, m — a racer flown off a knoll at 100+ km/h comes down on its
+     * downslope, as a downhill's jumps are built to land him. */
+    crest: 80,
+    /** Trees cleared within this of the piste's edge along the course, m —
+     * past the nets — and the finish arena's box: along, back up, across. */
+    clear: 12,
+    arena: { past: 90, before: 30, half: 45 },
+    /** THE A-NETS: their line outside the piste's edge, m, how tall they
+     * stand, m, and how far a racer driven into one sinks into it before
+     * it holds him, m. */
+    nets: { gap: 3, height: 5, give: 2 },
+    /** The gates down the piste, m: the least, the most and the spacing
+     * aimed at (the measured median's 79 m). */
+    spacing: { min: 55, max: 110, target: 80 },
+    /** Between the inner poles, m — the rule's 8 at the least — and how far
+     * inside the piste's edge every pole stands, m. */
+    width: 10,
+    inside: 3,
+    /** THE RACING LINE: laid a station every `step` m, kept `margin` m
+     * inside the piste's edges — a gate's half-width and its poles' own
+     * room — where the room it is held in opens and closes no faster than
+     * `ease` m a metre down the piste (a piste that widens all at once
+     * does not throw the line into a corner), and bending the least it
+     * can between them (relaxed over `passes` at each of the strides
+     * `strides`, coarse to fine). */
+    line: {
+      step: 4,
+      margin: 8,
+      ease: 0.1,
+      passes: 60,
+      strides: [64, 32, 16, 8, 4, 2, 1] as readonly number[],
+    },
+    /** No gate within this of a jump's lip or a drop's edge, m, before or
+     * after: a racer goes straight over a jump. */
+    jump: 25,
+    /** The finish line's least width, m. */
+    finishWidth: 20,
+    /** THE SPEED TRAP: where the piste has fallen the most over the `run` m
+     * before it, on a straight (no bend tighter than `straight` m of
+     * radius within `span` m either side), in the last `late` share of the
+     * course and `end` m short of the finish at the least. */
+    trap: { run: 250, straight: 400, span: 30, late: 0.6, end: 60 },
+    /** The intermediate timing points. */
+    timing: 4,
   },
 } as const;

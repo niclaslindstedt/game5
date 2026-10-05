@@ -203,6 +203,8 @@ export function raceOrFallback(
           poles: skier.poles,
           mode: skier.mode,
           laps: skier.mode === "timeTrial" ? skier.laps : undefined,
+          // A downhill is stood up as its training run (`downhill-run.ts`).
+          training: skier.mode === "downhill" ? true : undefined,
         }
       : {}),
     ...world,

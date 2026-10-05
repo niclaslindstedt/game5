@@ -15,7 +15,7 @@ a second, stale copy of the truth.
 | — | Slalom | built — spec retired; its research is `docs/disciplines.md` § Slalom |
 | [GIANT_SLALOM.md](GIANT_SLALOM.md) | Giant slalom | draft — research first |
 | [SUPER_G.md](SUPER_G.md) | Super-G | draft — research first |
-| [DOWNHILL.md](DOWNHILL.md) | Downhill | draft — research first |
+| — | Downhill | built — spec retired; its research is `docs/disciplines.md` § Downhill |
 | [SKI_CROSS.md](SKI_CROSS.md) | Ski cross | draft — research first |
 | [SPEED_SKIING.md](SPEED_SKIING.md) | Speed skiing | draft — research first |
 
@@ -41,9 +41,10 @@ history behind it, works in this order:
    research so far, and the SLALOM section as the worked example of what a
    finished discipline's research looks like), and
    `engine/mapgen/discipline-rules.ts` (R31, the slalom's course rule — the
-   shape the next rule follows), and — before writing a line — *Lessons from
-   the slalom* and *The labs* below: what the first discipline got wrong and
-   the tools that caught it.
+   shape the next rule follows; R32, the downhill's, beside it), and —
+   before writing a line — *Lessons from the slalom*, *Lessons from the
+   downhill* and *The labs* below: what the first two disciplines got wrong
+   and the tools that caught it.
 2. **Load the skills** the work touches: `start-work` and `write-code`
    always; `engine-system` (a new mode), `mapgen-improvement` (the course
    rule and its setter), `ski-physics` / `ski-tuning` (the technique row,
@@ -89,6 +90,25 @@ the board dealt about par (`engine/game/field.ts`, `par.ts`), flex poles
 `slalom-heat.ts`, `hud-board.tsx`), the slalom audience
 (`spectator-slalom.ts`), the riding technique table (`engine/game/defs/`).
 
+What the downhill added on top, for every discipline after it: the course
+preparation shared by every setter (`engine/mapgen/course-prep.ts`'s
+`prepareCourse` over a `CoursePrep` row — the start drop, the comb, the
+grooming, the trees cleared, the crests shaved), the one question "which
+race is set on this map" (`race-course.ts`'s `raceCourseOf`), a racing line
+relaxed to the least curvature with gates centred on it
+(`mapgen/downhill.ts`'s `racingLine`, `downhillLineAt`), PANEL gates under
+the strict rules (`Checkpoint.panels`, `strict.ts`), the A-nets
+(`engine/game/nets.ts`, `NETS` in `spectator-plan.ts`, drawn by `gates.ts`),
+the speed trap (`speed-trap.ts`), a field dealt per discipline with a
+training run (`field.ts`'s `DOWNHILL_FIELD`, `Field.training`), a par
+reckoned forward down a line (`par.ts`'s `downhillPar`, `raceParOf`), a
+line-follower for the bot at speed (`sim/downhill-steer.ts`), `make sim
+ARGS="--mode <discipline>"` (the bot down a discipline's course, its trap and
+out columns), and on the app's side the race HUD every discipline reads
+(`snapshot.ts`'s `RaceHud` — `snap.race` — with `discipline` on it), a run
+before the race (`downhill-run.ts`, `slalom-heat.ts`'s `{ kind: "race" }`),
+and the front door's race row.
+
 ## Lessons from the slalom
 
 The slalom was the first discipline built, and it was built twice over: a
@@ -116,8 +136,9 @@ next discipline pays less. Every point names where it bit.
   on the steepest campaign rungs. A setting is only good when every campaign
   rung of the discipline AND generator seeds 1–16 finish — nudging a bot knob
   ±20 % routinely drops one run in thirty, so sweep after every change.
-  `make sim` does NOT ski a slalom (it runs the open race rules), so a
-  discipline needs its own sweep: a scratch test over `SHELVES` built with
+  `make sim` on its own runs the open race rules; `--mode slalom|downhill`
+  skis a discipline's course (since the downhill), and the campaign's rungs
+  still need their own sweep: a scratch test over `SHELVES` built with
   `buildCampaignLevel` plus seeds 1–16, stepped with `botInput`, printing
   time, mean/peak speed, result and par (see `tests/technique_test.ts` for
   the shape; delete the scratch file after).
@@ -250,6 +271,131 @@ next discipline pays less. Every point names where it bit.
 - **A squash-merged PR's branch is spent.** Follow-up work starts on a fresh
   branch from `main`; carry over only the new commits.
 
+## Lessons from the downhill
+
+The downhill was the second discipline, built in one long session straight
+after the slalom's lessons were written — and built BEFORE the super-G and
+the giant slalom, though its spec said after. Most of what those two specs
+call new (jumps kept in a race course, the nets, one run, speed, panel
+gates) is built now; read it before writing it again.
+
+### How to work
+
+- **Save the sim's table before the first edit** (`make sim >
+  before.txt`), and diff the digests at the end. The downhill touched
+  `bot.ts`, `course.ts`, `field.ts`, `par.ts`, `state.ts` and the slalom's
+  setter, and the default table did not move a digest — the only proof
+  that the other modes were left alone.
+- **`make sim ARGS="--mode downhill --skis eagle --count 16"` IS the sweep
+  now.** The slalom's lesson says `make sim` skis no discipline; it does
+  since this branch (`--mode slalom|downhill`, with `trap` and `out`
+  columns). Add the next discipline to the flag's list on the first day,
+  and sweep the campaign's rungs of it with a scratch test as before.
+- **Scratch experiments are files in the tree** (`scripts/_exp*.ts`) and
+  temporary `export`s on private functions to reach them; both leaked to
+  the gate here. Delete them and revert the exports before `make lint` —
+  an unused variable left by an experiment failed it.
+- **R-rule ids run contiguous** (`tests/docs_rules_test.ts`): the downhill's
+  spec said R34 and it is R32, the next free id. Whatever the spec says, the
+  next rule takes the next number.
+- **Rebasing mid-work is routine**; keep the work in a WIP commit and a
+  backup branch so a conflict (here `defs/technique.ts`, where `main` had
+  added the transition row) is a three-way merge and never lost work.
+- **Write the lessons in the same session that learned them.**
+
+### The course
+
+- **On a resort map the "whole piste" is a course the ski area built.** A
+  downhill takes the resort's course with the most VERTICAL
+  (`downhillCourseOf`) and the map is built again on it
+  (`createGame`, `GenerateOptions.course`; the resort cache makes the
+  second build cheap). On some seeds the biggest course is a blue or a red;
+  the level card offers a downhill only the blacks (`fitsMode`), and a seed
+  link takes what it gets.
+- **Factor the setter's preparation BEFORE writing the second setter.**
+  `course-prep.ts` came out of `slalom.ts` with every slalom number moved
+  into a `CoursePrep` row and the slalom's tests and digests unchanged; the
+  downhill's setter is then a third the size. Do the super-G's on the same
+  row.
+- **Crests launch a racer at 100+ km/h.** A headwall's lip that a slalom
+  skier rolls over throws a downhiller twenty metres onto the flat — harsh
+  landings until the setter SHAVED the course's convexity to a radius
+  (`CoursePrep.crest`, 80 m, `shaveCrests`) so every jump lands on the
+  downslope. A super-G keeps its jumps too: start from the same shave and
+  tune the radius to its speed.
+- **Set the gates on the racing line, not the piste's middle.** Gates on
+  the centreline made the bot weave at 35 m/s. The line is the middle
+  relaxed to the least curvature inside the corridor (coarse-to-fine
+  strides, the room eased toward the edges), the gates centred on it every
+  ~80 m and never within 25 m of a jump's lip — a gate in the air judges a
+  foot nowhere near the snow.
+
+### The physics and the technique
+
+- **The research's first guess of a technique row can be unskiable.**
+  The downhill row as researched (the shared fade, 55° at most) let the
+  edge lock collapse at 30 m/s, so no pair could hold a ~50 m bend at race
+  speed and the bot ran off the line. `fade` = 2.5 and 60° hold it; the
+  numbers it was tuned to (a 52 m turn at 26 m/s asks ~45° of a 50 m ski)
+  are in the row's comment. Check a speed row's lock at ITS speed
+  (`edgeLockAt`, `carveSpeedOf`) before the bot is blamed.
+- **The engine holds at 45 m/s.** 120 Hz is 0.37 m a step at the
+  downhill's peak; the gates, the nets and the landings were judged
+  correctly there with no change to the step.
+- **Only the race pair holds a race line.** On the all-mountain pair the
+  bot cannot hold a downhill's fast bends; the mode bills the Eagle, and the
+  labs and screenshots pass `--skis eagle`.
+
+### The bot
+
+- **A look-ahead steer lags at speed.** The slalom's planner and a pure
+  pursuit both ran wide at 35 m/s. What holds the line is a FEED-FORWARD
+  of the line's own bend a moment ahead (the edge that bend asks at this
+  speed) plus a small correction onto the line (`downhill-steer.ts`).
+- **Never look past the owed gate.** Reading the line beyond it cut the
+  corner and missed it; hold the owed gate's line and its width as the
+  room until it is taken.
+- **Read a bend with its sign.** The line's swing and the piste's bend
+  summed as magnitudes doubled the curvature where the gates cut a bend's
+  inside, and the bot crawled; `lineBendAt` reads them signed.
+- **Do not skid at 120 km/h.** A check that scrubs speed slides the skis
+  off the line; a downhiller checks lightly (at most a tenth of the brake)
+  and plans its speed earlier instead.
+- **In the air, steer for the landing** (`landingAhead`), not the line.
+
+### Par and the field
+
+- **Reckon a speed event's par FORWARD**, capped by the grip the pair cuts
+  hard (`cutGrip`) and the sidecut's speed (`carveSpeedOf`), and stood up
+  where the bot stands up (the drag tucked against stood). A backward
+  braking pass made par far slower than the bot, which barely brakes.
+  Bot and par agree within about a tenth on every seed and rung.
+- **A new discipline draws on its own streams.** The field's training run
+  is dealt off the seed xor a salt, and the slalom's draws kept their
+  order, so no slalom board moved.
+
+### The app
+
+- **Generalize the slalom's HUD once, not per discipline.** `SlalomHud`
+  became `RaceHud` (`snap.race`, with `discipline`), the plate's press a
+  union (`secondRunOf`: a slalom's `second`, a downhill's `race`), and the
+  map's race one question (`raceCourseOf`). The next discipline adds a row,
+  not a copy.
+- **Every event kind needs an audio sample** in `tests/audio_test.ts`, and
+  every result path the out case and now the training case.
+- **The front door is full.** A third race tile does not fit: the races are
+  a row of half tiles with the disciplines to come on a strip under them,
+  and on a phone held upright the half tiles lose their glyph (under
+  30rem) so DOWNHILL fits. A super-G or a giant slalom tile needs a
+  decision — three across will not fit a phone; a race card of its own off
+  one RACE tile is the likely shape. Ask before building it.
+- **`App.tsx` is at 994 lines.** The next discipline's app work must move
+  something out of it first (the race-run plumbing is the obvious block).
+- **Converting a campaign rung changes what its stored board means.** Two
+  time trials became downhills; a medal kept from the trial still reads as
+  the rung cleared and its time is dropped (`mergeProgress`), so nobody's
+  ladder relocks. Do the same, or bump the board's key on purpose.
+
 ## The labs, and when to reach for each
 
 Every lab writes to `previews/` (gitignored). `make <lab> ARGS=--help` lists
@@ -260,11 +406,12 @@ cloud session; `screenshots` needs `make build` first.
 | --- | --- | --- |
 | `make technique` | Each riding technique skied by the bot on one course: PATH (strobed from above, gates drawn, a scale bar), BEHIND (TV frames at transition, edge-set, apex, exit), SIDE (the apex), TURNS (every technique's natural linked carve on one open slope at one scale, the line coloured by radius, each apex labelled radius/time/edge, the researched radius drawn), and a TABLE against the research targets (`--json` to save, `--compare` to diff) | THE loop for a technique row and its pose: run before and after every physics or pose change. `--techniques=slalom` and `--sheets=none` give the table in seconds; `--course=slalom|piste` |
 | `make ride` | Scripted scenarios on synthetic slopes, each a table and a picture; `slalom-cut` and `slalom-rhythm` measure a technique's carve and rhythm without the bot | A new technique gets its own scenarios (`scripts/lib/ride-slalom.mjs` is the pattern); `ARGS=--card` is every pair's card |
-| `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode; it does not ski a discipline — sweep that yourself (above) |
+| `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode — save its table before the first edit |
+| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
 | `make sim ARGS="--skis all"` | Every pair down every seed | A pair's retune (the downhill pair's misses showed here) |
 | `make level` / `make analyze` | One map's piste, gates, kickers and grades; the rule book's verdict | The course rule and its setter; `make resort` for the ski area |
 | `make rate CAMPAIGN=1` | Every campaign rung rated, with the bot's time and a trial's medals | Curating a discipline's rungs and setting medals (gold 0.98×, silver 1.03×, bronze 1.125× the bot) |
-| `make screenshots` | The built game at a moment: `--t s`, `--seed`, `--run2` (the second run's plate), `--hold kmh --move m --hold-for s` (forces a run — a DSQ plate), `--surface menu,…` for cards | The start (t≈1, 3, 5), mid-run, the plates, the front door at `--viewport desktop,phone,landscape` |
+| `make screenshots` | The built game at a moment: `--t s`, `--seed`, `--run2` (the second run's plate), `--downhill --skis eagle` (a downhill's training; `--run2` its race), `--hold kmh --move m --hold-for s` (forces a run — a DSQ plate), `--surface menu,…` for cards | The start (t≈1, 3, 5), mid-run, the plates, the front door at `--viewport desktop,phone,landscape` |
 | `make audience` | The crowd's moves, looks and cuts, and a race skied past them (`--mode=slalom`, views incl. `course`, `combo`, `arena`, `stand`) | A discipline's spectator placement |
 | `make skier-metrics` | The pose measured against a skier's bands, frames at fault (`--json` / `--compare`) | Any pose change — the pose row per technique |
 | `make skier`, `make turns` | Every move posed from five sides; turns from low and side | The figure's look in a turn |

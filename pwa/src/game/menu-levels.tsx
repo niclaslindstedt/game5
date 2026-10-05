@@ -67,7 +67,9 @@ function LevelBox({
       <span class="menu-level-head">
         <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name={mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
-        <span class="menu-level-billing">{STRINGS.campaignBilling(mode === "timeTrial")}</span>
+        <span class="menu-level-billing">
+          {STRINGS.campaignBilling(mode === "timeTrial" || mode === "downhill" ? mode : "slalom")}
+        </span>
       </span>
       <span class="menu-level-name">{level.name}</span>
       <span class="menu-level-day">{dayLine(level)}</span>
@@ -104,7 +106,8 @@ export function LevelsPage({
     stood && shelfUnlocked(stood.shelf, progress) ? stood.shelf : reachedShelf(progress),
   );
   const open = shelfUnlocked(shown, progress);
-  // Only the maps the mode can ride: a slalom only where the campaign sets one.
+  // Only the maps the mode can ride: a slalom only where the campaign sets
+  // one, a downhill on a downhill's course (`fitsMode`).
   const maps = shown.levels.filter((level) => fitsMode(level, mode));
   const pick = open ? (maps.find((level) => level.id === chosen) ?? maps[0] ?? null) : null;
   return (
@@ -112,7 +115,13 @@ export function LevelsPage({
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={mode === "timeTrial" ? STRINGS.levelsTrial : STRINGS.levelsRace}
+        title={
+          mode === "timeTrial"
+            ? STRINGS.levelsTrial
+            : mode === "downhill"
+              ? STRINGS.levelsDownhill
+              : STRINGS.levelsRace
+        }
         action={
           pick ? (
             <button

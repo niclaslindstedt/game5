@@ -140,7 +140,8 @@ describe("the ladder", () => {
   it("skis every rung as one run top to bottom, and prices every trial gold under silver under bronze", () => {
     for (const level of CAMPAIGN_LEVELS) {
       expect(level.laps).toBe(1);
-      if (level.mode === "slalom") {
+      // A race (a slalom, a downhill) pays places, never medals.
+      if (level.mode !== "timeTrial") {
         expect(level.medals).toBeUndefined();
       } else {
         const m = level.medals!;
@@ -326,6 +327,15 @@ describe("a stored board", () => {
   it("survives a round trip", () => {
     const won = winShelf(EMPTY_PROGRESS);
     expect(mergeProgress(JSON.parse(JSON.stringify(won)))).toEqual(won);
+  });
+
+  it("keeps a trial's medal on a rung raced as a downhill now as the clear it paid, and drops its time", () => {
+    const rung = CAMPAIGN_LEVELS.find((level) => level.mode === "downhill")!;
+    const out = mergeProgress({
+      results: { [rung.id]: { best: 190, skis: "eagle", place: 1, medal: "silver" } },
+    });
+    expect(out.results[rung.id]).toEqual({ place: 1, medal: null });
+    expect(levelCleared(out, rung)).toBe(true);
   });
 
   it("drops anything this ladder does not have or cannot read", () => {

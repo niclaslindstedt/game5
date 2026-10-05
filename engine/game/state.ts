@@ -556,14 +556,20 @@ export type Progress = {
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */
   out: RunOut | null;
+  /** THE SPEED TRAP (R32, `speed-trap.ts`): his speed through it, m/s —
+   * null until he has been through, and on a course with none. */
+  trap: number | null;
+  /** ...and the run clock there, s — null until. */
+  trapAt: number | null;
 };
 
 /** How a racer goes out under the strict gates (R31): DISQUALIFIED for a
  * gate MISSED, a pole STRADDLED or a START outside the window — or DID NOT
- * FINISH, stopped by a FALL. `gate` is the checkpoint it happened at. */
+ * FINISH, stopped by a FALL or caught in the A-NETS beside a downhill
+ * (R32). `gate` is the checkpoint it happened at. */
 export type RunOut = {
   status: "dsq" | "dnf";
-  why: "missed" | "straddle" | "start" | "fall";
+  why: "missed" | "straddle" | "start" | "fall" | "net";
   gate: number;
 };
 
@@ -696,6 +702,11 @@ export type GameEvent =
   | { kind: "finish"; t: number; time: number; place: number }
   /** OUT OF THE RACE (R31): disqualified or did not finish — the run over. */
   | { kind: "out"; t: number; out: RunOut }
+  /** THROUGH THE SPEED TRAP (R32): his speed there, m/s. */
+  | { kind: "trap"; t: number; speed: number }
+  /** INTO THE A-NETS beside a downhill (R32, `nets.ts`): how hard he drove
+   * into them, m/s, and where. */
+  | { kind: "net"; t: number; speed: number; x: number; z: number }
   /** A FLEX POLE KNOCKED (`gate-poles.ts`): the gate it belongs to, and
    * how hard he drove into it, m/s. */
   | { kind: "pole"; t: number; gate: number; speed: number }
@@ -873,8 +884,8 @@ export type GamePoles = {
 
 /** One racer of an interval start's field (`field.ts`): his slot (as a
  * rival's id), the skis he was on, this run's time — null when he went
- * out — and how, the clock at every gate, and the time he carried in from
- * the first run (0 on the first). */
+ * out — and how, the clock at every gate, the time he carried in from the
+ * first run (0 on the first), and his speed through a downhill's trap. */
 export type FieldRun = {
   id: number;
   skis: SkiId;
@@ -882,6 +893,9 @@ export type FieldRun = {
   out: RunOut | null;
   splits: number[];
   before: number;
+  /** His speed through the speed trap (R32), m/s — null where the course
+   * has none or he went out above it. */
+  trap: number | null;
 };
 
 /** AN INTERVAL START'S FIELD: which run of the race this is, every racer
@@ -893,6 +907,9 @@ export type Field = {
   runs: FieldRun[];
   before: number;
   slot: number;
+  /** A downhill's TRAINING run (R32): the field's training times, counted
+   * for nothing. */
+  training: boolean;
 };
 
 /** `countdown` is the lights: the field stands in the start gate, nothing

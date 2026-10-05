@@ -11,7 +11,7 @@ is finished (see `README.md`).
    (`terminalSpeed`), the tuck's drag, `docs/riding.md`'s measured table,
    and check the 120 Hz step and the collision hold at those speeds with a
    `make ride` scenario before anything else.
-3. Research the to-do below into `docs/disciplines.md` before writing R36.
+3. Research the to-do below into `docs/disciplines.md` before writing the next free R-rule — R33 after the downhill's R32; the ids run contiguous (`tests/docs_rules_test.ts`).
 
 ## Watch out (from the slalom)
 
@@ -52,7 +52,7 @@ with heats over several runs (research the format).
 
 ## What it needs to be complete
 
-- [ ] **Course rule (R36)**: the track — its length, the gradient of the
+- [ ] **Course rule (the next free R-rule)**: the track — its length, the gradient of the
       start zone, the timing zone and the run-out, its width, how straight
       it must be, and how the generator finds or grades it (a straight cut
       down the fall line, groomed hard).

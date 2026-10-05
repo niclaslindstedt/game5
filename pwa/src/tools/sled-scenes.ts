@@ -53,6 +53,7 @@ export type Stage = {
 };
 
 const still: Drive = () => NEUTRAL_INPUT;
+const RUNGS = ["tips", "helmet", "chase", "far", "high"] as const;
 const ride =
   (o: Partial<SkierInput>): Drive =>
   () => ({ ...NEUTRAL_INPUT, ...o });
@@ -271,6 +272,31 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.run(s, 1.5, ride({ tuck: 0.7, steer: 1 }));
     st.shoot(s, "turn", "chase");
   },
+  // ── THE LADDER ON THE MACHINE ──────────────────────────────────────────
+  // Every rung of the game's own camera while he rides, each ridden from
+  // the same start to the same moment so the rungs compare frame for frame.
+  lenses(st) {
+    for (const rung of RUNGS) {
+      const s = st.fresh(true);
+      st.camera(rung);
+      st.run(s, 2.4, ride({ tuck: 1 }));
+      st.shoot(s, rung, rung);
+    }
+    st.camera("chase");
+  },
+  "lenses-powder"(st) {
+    const m = st.spots.meadow;
+    const h = openWay(st.level, m);
+    for (const rung of RUNGS) {
+      const s = st.fresh(true);
+      place(s, behind(m, h, 60), h, 8);
+      st.camera(rung);
+      st.run(s, 1.5, ride({ tuck: 1 }));
+      st.run(s, 1.2, ride({ tuck: 0.8, steer: 0.8 }));
+      st.shoot(s, `${rung}-turn`, rung);
+    }
+    st.camera("chase");
+  },
   // ── IN POWDER ──────────────────────────────────────────────────────────
   powder(st) {
     const s = st.fresh(true);
@@ -397,4 +423,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   crash: ["crash"],
   night: ["night"],
   turntable: ["turntable"],
+  lenses: ["lenses", "lenses-powder"],
 };

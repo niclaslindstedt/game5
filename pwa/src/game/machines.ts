@@ -11,7 +11,9 @@
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
-import type { LensPose } from "./camera-rigs.ts";
+import type { Ladder } from "./camera.ts";
+import type { LensPose, RigPose } from "./camera-rigs.ts";
+import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -38,6 +40,10 @@ export type Machines = {
     rung: CameraRung,
     stamps: Stamp[] | null,
   ): LensPose | null;
+  /** WHILE HE RIDES THE SNOWMOBILE, the ladder the lens is framed on —
+   * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
+   * this frame (so call it after `frame`); otherwise nothing, the pose left. */
+  ladder(pose: RigPose, state: GameState): Ladder | undefined;
   dispose(): void;
 };
 
@@ -74,6 +80,11 @@ export function createMachines(
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       return heli?.frame(s, alpha, dt, player, rung, fx.cloud, fx.snowAt) ?? null;
+    },
+    ladder(pose, s) {
+      if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
+      sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
+      return SLED_RIGS;
     },
     dispose() {
       heli?.dispose();

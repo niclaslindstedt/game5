@@ -308,35 +308,26 @@ bool shadowGone() {
 
 /** The skiers' own shadows (`shadow-box.ts`, `hero-shadow.ts`), each looked
  * up in its quadrant of the atlas and taken with the wide map's, the
- * darkest of them. Four compares blended bilinearly per tap and nine taps a
- * texel and a quarter apart: an edge a few millimetres soft, as the sun's
- * own disc makes it, that slides smoothly rather than stepping a texel at a
- * time; the taps are held inside the quadrant, so a neighbour never bleeds
- * in. Only the pixels inside a skier's box pay for his. Needs three's
- * `packing` chunk, so it goes in after `shadowmap_pars_fragment`. */
+ * darkest of them. The atlas is a DEPTH texture read through a comparing
+ * sampler, so one tap is the GPU's own four compares blended bilinearly —
+ * what this did by hand in four reads and a mix — and nine taps a texel and
+ * a quarter apart make an edge a few millimetres soft, as the sun's own disc
+ * makes it, that slides smoothly rather than stepping a texel at a time; the
+ * taps are held inside the quadrant, so a neighbour never bleeds in. Only
+ * the pixels inside a skier's box pay for his, and every lit pixel carries
+ * the code, so it is kept short. Goes in after `shadowmap_pars_fragment`. */
 const HERO_SHADOW_GLSL = /* glsl */ `
 #ifdef USE_SHADOWMAP
-uniform sampler2D uHeroMap;
+uniform sampler2DShadow uHeroMap;
 uniform mat4 uHeroMatrix[${HERO_SLOTS}];
 uniform vec4 uHeroOn;
 uniform vec4 uHeroBias;
 uniform vec4 uHero;
-float heroLit(vec2 uv, float z) {
-  return step(z, unpackRGBAToDepth(texture2D(uHeroMap, uv)));
-}
 // \`uv\` in the quadrant's own 0..1; \`corner\` where it sits in the atlas.
 float heroLerp(vec2 uv, vec2 corner, float z) {
   float t = uHero.y;
   uv = clamp(uv, vec2(0.5 * t), vec2(1.0 - 1.5 * t));
-  vec2 st = uv / t - 0.5;
-  vec2 f = fract(st);
-  vec2 at = corner + 0.5 * (floor(st) + 0.5) * t;
-  float h = 0.5 * t;
-  float a = heroLit(at, z);
-  float b = heroLit(at + vec2(h, 0.0), z);
-  float c = heroLit(at + vec2(0.0, h), z);
-  float d = heroLit(at + vec2(h, h), z);
-  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  return texture(uHeroMap, vec3(corner + 0.5 * uv, z));
 }
 float heroSlot(vec3 n, mat4 m, float normalBias, vec2 corner) {
   vec4 hc = m * vec4(vHazeWorld + n * normalBias, 1.0);

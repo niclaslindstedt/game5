@@ -232,8 +232,24 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   });
   const paint = treePaint(regionLookOf(regionOf(level).id));
 
-  type Band = { meshes: THREE.InstancedMesh[]; fill: number[]; shape: Uint8Array };
-  type Casters = { meshes: THREE.InstancedMesh[]; shape: Uint8Array };
+  /** A band's meshes, and each one's instance arrays held once: a refill
+   * writes thousands of trees a frame, and an attribute looked up or a
+   * subarray made per tree was half of what the refill cost. */
+  type Band = {
+    meshes: THREE.InstancedMesh[];
+    fill: number[];
+    shape: Uint8Array;
+    mats: Float32Array[];
+    tints: Float32Array[];
+    girths: Float32Array[];
+    fades: Float32Array[];
+  };
+  type Casters = {
+    meshes: THREE.InstancedMesh[];
+    shape: Uint8Array;
+    mats: Float32Array[];
+    girths: Float32Array[];
+  };
   type Shapes = {
     variants: number;
     /** Each tree's variant, for the lens to clear it by. */
@@ -318,15 +334,22 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         group.add(im);
         return im;
       });
-      return { meshes, fill: geos.map(() => 0), shape };
+      return {
+        meshes,
+        fill: geos.map(() => 0),
+        shape,
+        mats: meshes.map((im) => im.instanceMatrix.array as Float32Array),
+        tints: meshes.map((im) => im.instanceColor!.array as Float32Array),
+        girths: meshes.map((im) => girthOf(im).array as Float32Array),
+        fades: meshes.map((im) => fadeOf(im).array as Float32Array),
+      };
     };
     const makeCasters = (
       geos: THREE.BufferGeometry[],
       shape: Uint8Array,
       room: number[],
-    ): Casters => ({
-      shape,
-      meshes: geos.map((g, k) => {
+    ): Casters => {
+      const meshes = geos.map((g, k) => {
         const im = new THREE.InstancedMesh(withGirth(g, room[k]), casterMaterial, room[k]);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         im.castShadow = true;
@@ -338,8 +361,14 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         im.visible = false;
         group.add(im);
         return im;
-      }),
-    });
+      });
+      return {
+        shape,
+        meshes,
+        mats: meshes.map((im) => im.instanceMatrix.array as Float32Array),
+        girths: meshes.map((im) => girthOf(im).array as Float32Array),
+      };
+    };
     return {
       variants,
       variantOf,
@@ -386,12 +415,17 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   function place(band: Band, i: number, lo: number, hi: number) {
     if (hi <= lo) return;
     const sh = band.shape[i];
-    const im = band.meshes[sh];
     const k = band.fill[sh]++;
-    (im.instanceMatrix.array as Float32Array).set(matrices.subarray(i * 16, i * 16 + 16), k * 16);
-    (im.instanceColor!.array as Float32Array).set(colours.subarray(i * 3, i * 3 + 3), k * 3);
-    (girthOf(im).array as Float32Array).set(girths.subarray(i * 2, i * 2 + 2), k * 2);
-    const fade = fadeOf(im).array as Float32Array;
+    const mat = band.mats[sh];
+    for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
+    const tint = band.tints[sh];
+    tint[k * 3] = colours[i * 3];
+    tint[k * 3 + 1] = colours[i * 3 + 1];
+    tint[k * 3 + 2] = colours[i * 3 + 2];
+    const girth = band.girths[sh];
+    girth[k * 2] = girths[i * 2];
+    girth[k * 2 + 1] = girths[i * 2 + 1];
+    const fade = band.fades[sh];
     fade[k * 2] = lo;
     fade[k * 2 + 1] = hi;
   }
@@ -435,14 +469,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             if (!castsInto(shadow, t.x, t.z, t.height, t.crown)) continue;
             const sh = into.shape[i];
             const k = n[sh]++;
-            (into.meshes[sh].instanceMatrix.array as Float32Array).set(
-              matrices.subarray(i * 16, i * 16 + 16),
-              k * 16,
-            );
-            (girthOf(into.meshes[sh]).array as Float32Array).set(
-              girths.subarray(i * 2, i * 2 + 2),
-              k * 2,
-            );
+            const mat = into.mats[sh];
+            for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
+            const girth = into.girths[sh];
+            girth[k * 2] = girths[i * 2];
+            girth[k * 2 + 1] = girths[i * 2 + 1];
           }
         }
       }
@@ -555,18 +586,23 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
           const n = b.fill[k];
           im.count = n;
           im.visible = n > 0;
+          // Nothing of an empty shape is drawn, so nothing of it is sent.
+          if (n === 0) return;
           // Upload only what is used: a whole band's buffer is megabytes.
           im.instanceMatrix.clearUpdateRanges();
-          im.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16);
+          im.instanceMatrix.addUpdateRange(0, n * 16);
           im.instanceMatrix.needsUpdate = true;
           im.instanceColor!.clearUpdateRanges();
-          im.instanceColor!.addUpdateRange(0, Math.max(1, n) * 3);
+          im.instanceColor!.addUpdateRange(0, n * 3);
           im.instanceColor!.needsUpdate = true;
-          for (const a of [girthOf(im), fadeOf(im)]) {
-            a.clearUpdateRanges();
-            a.addUpdateRange(0, Math.max(1, n) * 2);
-            a.needsUpdate = true;
-          }
+          const girth = girthOf(im);
+          girth.clearUpdateRanges();
+          girth.addUpdateRange(0, n * 2);
+          girth.needsUpdate = true;
+          const fade = fadeOf(im);
+          fade.clearUpdateRanges();
+          fade.addUpdateRange(0, n * 2);
+          fade.needsUpdate = true;
         });
       }
     },

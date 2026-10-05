@@ -53,8 +53,57 @@ export type Environment = {
   setGround(ground: Heightfield | null, key: Dir | null): Promise<void>;
   /** Resolves once the mountain's shadow for the key last seen is drawn. */
   shadeSettled(): Promise<void>;
+  /** Link every program the sun's shadow pass can ask for, now, behind the
+   * loading card: one pass of its map over `span` m round the scene with
+   * every caster shown (`warmShadows`). */
+  warmShadows(gl: THREE.WebGLRenderer, scene: THREE.Scene, span: number): void;
   dispose(): void;
 };
+
+/**
+ * THE SHADOW PASS'S PROGRAMS, LINKED BEFORE THE RUN. three's `compile`
+ * builds every mesh's own program but none of the depth programs its
+ * shadow pass draws casters with — one a caster's side, packing and kind
+ * (instanced, skinned) — so a caster of a kind not yet in the sun's box (the
+ * finish arena's double-sided banners, a slalom's last gates) linked its
+ * program the frame it first came in: a stall of tens of milliseconds
+ * mid-run on a phone, where the driver links on the thread that draws. One
+ * pass of the map, its box opened over the whole map and every caster
+ * switched on for it, links them all while the card is still up; what was
+ * hidden is hidden again and the box put back.
+ */
+function warmShadows(
+  gl: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  sun: THREE.DirectionalLight,
+  span: number,
+): void {
+  if (!sun.castShadow || !gl.shadowMap.enabled) return;
+  const shown: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!(o as THREE.Mesh).isMesh || !o.castShadow) return;
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+      if (p.visible) continue;
+      p.visible = true;
+      shown.push(p);
+    }
+  });
+  const cam = sun.shadow.camera;
+  const { left, right, top, bottom, near, far } = cam;
+  cam.left = cam.bottom = -span;
+  cam.right = cam.top = span;
+  cam.near = -2 * span;
+  cam.far = 2 * span;
+  cam.updateProjectionMatrix();
+  scene.updateMatrixWorld();
+  const wanted = gl.shadowMap.needsUpdate;
+  gl.shadowMap.needsUpdate = true;
+  gl.shadowMap.render([sun], scene, cam);
+  gl.shadowMap.needsUpdate = wanted;
+  Object.assign(cam, { left, right, top, bottom, near, far });
+  cam.updateProjectionMatrix();
+  for (const p of shown) p.visible = false;
+}
 
 export function createEnvironment(
   scene: THREE.Scene,
@@ -163,6 +212,7 @@ export function createEnvironment(
       return terrain.setGround(ground, key, sun.castShadow);
     },
     shadeSettled: () => terrain.settled(),
+    warmShadows: (gl, scene, span) => warmShadows(gl, scene, sun, span),
     dispose() {
       terrain.dispose();
       dome.dispose();

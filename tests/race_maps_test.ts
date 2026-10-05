@@ -1,111 +1,103 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE RACE MAPS (`pwa/src/game/race-maps.ts`): every discipline with maps of
-// its own carries nine, each its own seed — none a campaign shelf's or a
-// trick map's — each held to its digest, its version, its country, its grade
-// and its drawn line like a campaign map, its course set inside the
-// discipline's band; a measured run of the discipline is on the one its
-// level card picked, a fresh app on the first; and the pick is remembered,
-// a stale one not.
+// THE RACE MAPS (`pwa/src/game/race-maps.ts`): every built discipline's
+// nine, each held to its digest, its course and its drawn loop like a
+// campaign map; the discipline's course set on every one inside its rule's
+// bands and billed by the figures its box quotes; the card's answer per
+// discipline remembered, a stale one not; which map a measured run is on;
+// and the pause card's line that raises the mountain again in a free ride.
 
 import { describe, expect, it } from "vitest";
 
+import { CAMPAIGN_LEVELS, NO_PICKS, pinnedFor } from "../pwa/src/game/campaign.ts";
 import {
-  DISCIPLINE_RULES,
-  createGame,
-  levelDigest,
-  regionOf,
-  superGCourseOf,
-  weatherOf,
-} from "@engine";
-import {
-  CAMPAIGN_LEVELS,
-  buildCampaignLevel,
-  campaignSky,
-  chosenFor,
-  pinnedFor,
-  pinnedPress,
-} from "../pwa/src/game/campaign.ts";
-import { CAMPAIGN_ROUTES } from "../pwa/src/game/campaign-routes.ts";
-import { RACE_MAPS, findRaceMap, raceMapsFor } from "../pwa/src/game/race-maps.ts";
-import { routeOf } from "../pwa/src/game/route-shape.ts";
+  RACE_MAPS,
+  disciplineOf,
+  findRaceMap,
+  mergeRacePicks,
+  raceMapsOf,
+} from "../pwa/src/game/race-maps.ts";
 import { mergeSettings } from "../pwa/src/game/settings.ts";
+import { STRINGS } from "../pwa/src/game/strings.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
+import { holdRaceMaps } from "./support/race-maps.ts";
 
-const SUPER_G = RACE_MAPS.superG ?? [];
+const BUILT = ["slalom", "superG", "downhill"] as const;
+
+/** Seeds the campaign's shelves and the trick maps already race. */
 const TAKEN = new Set([...CAMPAIGN_LEVELS.map((l) => l.seed), ...TRICK_MAPS.map((m) => m.seed)]);
 
-describe("the race maps", () => {
-  it("are nine a discipline, each its own seed, none the campaign's or a trick map's", () => {
-    for (const [discipline, rows] of Object.entries(RACE_MAPS)) {
-      expect(rows, discipline).toHaveLength(9);
-      expect(new Set(rows!.map((r) => r.id)).size).toBe(9);
-      expect(new Set(rows!.map((r) => r.seed)).size).toBe(9);
-      for (const row of rows!) {
-        expect(row.mode).toBe(discipline);
-        expect(TAKEN.has(row.seed), `${row.id}'s seed ${row.seed} is taken`).toBe(false);
+describe("every built discipline's nine", () => {
+  for (const discipline of BUILT) {
+    const maps = RACE_MAPS[discipline] ?? [];
+    it(`${discipline}: nine, each its own seed and none the campaign's or a trick map's`, () => {
+      expect(maps).toHaveLength(9);
+      expect(new Set(maps.map((m) => m.id)).size).toBe(9);
+      expect(new Set(maps.map((m) => m.seed)).size).toBe(9);
+      for (const map of maps) {
+        expect(map.id.startsWith(`${discipline}-`), map.id).toBe(true);
+        expect(map.mode, map.id).toBe(discipline);
+        expect(map.laps, map.id).toBe(1);
+        expect(TAKEN.has(map.seed), `${map.id}'s seed ${map.seed} is raced elsewhere`).toBe(false);
+        expect(findRaceMap(map.id)).toBe(map);
       }
-    }
-    // Spread over the race countries and the day.
-    expect(new Set(SUPER_G.map((r) => r.region ?? "alpine")).size).toBeGreaterThanOrEqual(3);
-    expect(SUPER_G.some((r) => r.day.hour >= 18 || r.day.hour < 6)).toBe(true);
-  });
-
-  for (const row of SUPER_G) {
-    it(`${row.id} builds the map it was pinned on, its super-G inside the band`, () => {
-      const built = buildCampaignLevel(row);
-      expect(built.version).toBe(row.version);
-      expect(levelDigest(built), `${row.id}'s digest moved`).toBe(row.digest);
-      expect(regionOf(built).id).toBe(row.region ?? "alpine");
-      expect(built.grade).toBe(row.grade);
-      expect(built.resort?.course).toBe(row.course);
-      // The course a super-G off this seed would choose for itself.
-      expect(superGCourseOf(built)).toBe(row.course);
-      expect(CAMPAIGN_ROUTES[row.id], `${row.id}'s line — run \`make routes\``).toBe(
-        routeOf(built),
-      );
-      const state = createGame({
-        seed: row.seed,
-        level: built,
-        mode: "superG",
-        sky: campaignSky(row),
-        quiet: true,
-      });
-      const sg = state.level.superG!;
-      const G = DISCIPLINE_RULES.superG;
-      expect(sg.vertical).toBeGreaterThanOrEqual(G.vertical.min);
-      expect(sg.vertical).toBeLessThanOrEqual(G.vertical.max);
-      expect(sg.turns).toBeGreaterThanOrEqual(Math.ceil(G.changes * sg.vertical));
-      expect(state.level.sun.hour).toBeCloseTo(row.day.hour, 1);
-      // The jury may ease the wind; the sky stays the row's.
-      expect(weatherOf(state.level).kind).toBe(row.day.weather);
+      // More than one country, and more than one sky.
+      expect(new Set(maps.map((m) => m.region ?? "alpine")).size).toBeGreaterThan(1);
+      expect(new Set(maps.map((m) => m.day.weather)).size).toBeGreaterThan(2);
     });
   }
+  it("are the nine a mode's level card offers, and the time trial keeps the campaign's", () => {
+    expect(raceMapsOf("slalom")).toBe(RACE_MAPS.slalom);
+    expect(raceMapsOf("downhill")).toBe(RACE_MAPS.downhill);
+    expect(raceMapsOf("superG")).toBe(RACE_MAPS.superG);
+    expect(raceMapsOf("timeTrial")).toBeNull();
+    expect(raceMapsOf("free")).toBeNull();
+    expect(disciplineOf("downhill")).toBe("downhill");
+    expect(disciplineOf("tricks")).toBeNull();
+  });
 });
 
-describe("a measured super-G", () => {
-  it("is on the map its level card picked, a fresh app on the first", () => {
-    const picks = { level: null, raceMap: {} };
-    expect(raceMapsFor("superG")).toBe(SUPER_G);
-    expect(pinnedFor(chosenFor(picks, "superG"), "superG", null)).toBe(SUPER_G[0]);
-    const third = SUPER_G[2];
-    const chosen = chosenFor({ level: null, raceMap: { superG: third.id } }, "superG");
-    expect(pinnedFor(chosen, "superG", null)).toBe(third);
-    expect(pinnedPress(null, chosen, "superG", null)).toEqual([third, "superG", false]);
-    // ...a campaign id is not one of its maps, and a link's seed takes the pin off.
-    expect(pinnedFor(CAMPAIGN_LEVELS[0].id, "superG", null)).toBe(SUPER_G[0]);
-    expect(pinnedFor(third.id, "superG", 38)).toBeNull();
-    // The slalom keeps the campaign's maps, and the campaign's pick.
-    expect(
-      chosenFor({ level: CAMPAIGN_LEVELS[0].id, raceMap: { superG: third.id } }, "slalom"),
-    ).toBe(CAMPAIGN_LEVELS[0].id);
+// Each map built and held to its row: the slalom's here, the downhill's in
+// `race_maps_downhill_test.ts` and the super-G's in
+// `race_maps_superg_test.ts`, so no file waits on all twenty-seven.
+holdRaceMaps("slalom");
+
+describe("the level card's answer, per discipline", () => {
+  const [slalom1, slalom2] = RACE_MAPS.slalom ?? [];
+  const downhill3 = (RACE_MAPS.downhill ?? [])[2];
+
+  it("puts a race on its discipline's pick, its first by default, and a link on its seed", () => {
+    expect(pinnedFor(NO_PICKS, "slalom", null)).toBe(slalom1);
+    expect(pinnedFor(NO_PICKS, "downhill", null)).toBe((RACE_MAPS.downhill ?? [])[0]);
+    const picks = { level: null, raceMap: { slalom: slalom2.id, downhill: downhill3.id } };
+    expect(pinnedFor(picks, "slalom", null)).toBe(slalom2);
+    expect(pinnedFor(picks, "downhill", null)).toBe(downhill3);
+    // One discipline's map is never another's.
+    expect(pinnedFor({ level: null, raceMap: { slalom: downhill3.id } }, "slalom", null)).toBe(
+      slalom1,
+    );
+    expect(pinnedFor(picks, "slalom", 38)).toBeNull();
+    // The time trial still rides the campaign's maps.
+    expect(pinnedFor(picks, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
   });
 
-  it("is remembered by discipline, and a stale pick is not", () => {
-    const id = SUPER_G[4].id;
-    expect(findRaceMap(id)).toBe(SUPER_G[4]);
-    expect(mergeSettings({ raceMap: { superG: id } }).raceMap).toEqual({ superG: id });
-    expect(mergeSettings({ raceMap: { superG: "nowhere-3" } }).raceMap).toEqual({});
-    expect(mergeSettings({ raceMap: { slalom: id } }).raceMap).toEqual({});
+  it("is remembered per discipline, and a stale or misplaced one is not", () => {
     expect(mergeSettings({}).raceMap).toEqual({});
+    const kept = mergeSettings({ raceMap: { slalom: slalom2.id, downhill: downhill3.id } });
+    expect(kept.raceMap).toEqual({ slalom: slalom2.id, downhill: downhill3.id });
+    expect(mergeRacePicks({ slalom: downhill3.id, downhill: "nowhere-1" })).toEqual({});
+    expect(mergeRacePicks("slalom-1")).toEqual({});
+  });
+
+  it("bills a box with the course's drop and length", () => {
+    expect(STRINGS.levelsFigures(181.6, 523)).toBe("182 M DROP · 523 M");
+    expect(STRINGS.levelsFigures(1033, 2866)).toBe("1033 M DROP · 2.9 KM");
+  });
+});
+
+describe("the pause card's mountain", () => {
+  it("names the seed, the country and the grade the free ride raises it with", () => {
+    expect(STRINGS.pauseMountain(46, STRINGS.regionNames.continental, STRINGS.gradeNames.red)).toBe(
+      "FREE RIDE IT · SEED 46 · CONTINENTAL · RED",
+    );
   });
 });

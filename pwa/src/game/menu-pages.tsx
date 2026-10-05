@@ -9,7 +9,7 @@
 import type { GameMode, SkiId } from "@engine";
 
 import type { CampaignApp } from "./campaign-app.ts";
-import { chosenFor, frontDoorPins } from "./campaign.ts";
+import { frontDoorPins } from "./campaign.ts";
 import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
 import { SkisCards } from "./menu-dress.tsx";
@@ -76,7 +76,6 @@ export function MenuPages(p: {
           page={page}
           mode={p.mode}
           settings={settings}
-          chosen={chosenFor(settings, p.mode)}
           skis={p.skis}
           progress={campaign.progress}
           standing={p.standing}

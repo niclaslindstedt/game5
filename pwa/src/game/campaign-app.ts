@@ -33,8 +33,8 @@ export type CampaignApp = {
   rung: { current: CampaignLevel | null };
   /** A front-door tile: the mode its cards are for, and no rung. */
   openCard: (mode: GameMode, page: MenuPage) => void;
-  /** A map picked, on to the skis card: a campaign RUNG, or a map off the
-   * level card — which is kept as the one the RACE and TIME TRIAL ride. */
+  /** A map picked, on to the skis card: a campaign RUNG, or a map off a
+   * level card — kept as the one its discipline, or the TIME TRIAL, rides. */
   choose: (level: CampaignLevel, rung: boolean) => void;
   /** A trick map picked on the trick map card, kept as the one the TRICKS
    * run rides, on to the skis card. */
@@ -75,12 +75,12 @@ export function useCampaign(world: {
     },
     choose: (level, isRung) => {
       rung.current = isRung ? level : null;
-      // A discipline's own race map is kept as its pick; a campaign map as
-      // the one the races without maps of their own and the trial ride.
-      const d = findRaceMap(level.id) ? disciplineOf(level.mode) : null;
-      if (!isRung && d)
-        world.setSettings((s) => ({ ...s, raceMap: { ...s.raceMap, [d]: level.id } }));
-      else if (!isRung) world.setSettings((s) => ({ ...s, level: level.id }));
+      // A race map is kept as its discipline's pick, a campaign map as the
+      // time trial's.
+      const discipline = findRaceMap(level.id) ? disciplineOf(level.mode) : null;
+      if (discipline) {
+        world.setSettings((s) => ({ ...s, raceMap: { ...s.raceMap, [discipline]: level.id } }));
+      } else if (!isRung) world.setSettings((s) => ({ ...s, level: level.id }));
       world.setPage("skis");
     },
     chooseTrick: (map) => {

@@ -74,13 +74,7 @@ import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
-import {
-  chosenFor,
-  frontDoorPins,
-  pinnedFor,
-  pinnedPress,
-  type PinnedSkier,
-} from "./game/campaign.ts";
+import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
@@ -786,8 +780,7 @@ export function App() {
   const race = (): void => {
     setPage("root");
     // A RUNG off the campaign card, or a PINNED map off the level card.
-    const mode = modeRef.current;
-    const pin = pinnedPress(campaign.rung.current, chosenFor(settings, mode), mode, params.seed);
+    const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
     if (modeRef.current === "tricks" && params.seed === null) {
@@ -856,8 +849,7 @@ export function App() {
         touch={touch}
         onAgain={() => pressRef.current.restart()}
         onNew={() => {
-          if (!pinnedFor(chosenFor(settings, modeRef.current), modeRef.current, params.seed))
-            return race();
+          if (!pinnedFor(settings, modeRef.current, params.seed)) return race();
           pressRef.current.toMenu();
           setPage("levels");
         }}

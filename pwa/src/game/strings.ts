@@ -566,6 +566,10 @@ export const STRINGS = {
     `SEED ${seed} · GATE ${taken} OF ${gates}`,
   /** ...over a free ride, where there is no gate to count. */
   pauseSubFree: (seed: number): string => `SEED ${seed} · FREE RIDE`,
+  /** ...and under a measured run's, the mountain it is raced on as the free
+   * ride's start card raises it again: `FREE RIDE IT · SEED 8 · ALPINE · RED`. */
+  pauseMountain: (seed: number, country: string, grade: string): string =>
+    `FREE RIDE IT · SEED ${seed} · ${country} · ${grade}`,
   pauseResume: "RESUME",
   pauseRestart: "RESTART",
   pauseRestartFree: "START AGAIN",

@@ -1,29 +1,23 @@
 # Race maps — every discipline's own pinned maps
 
-**Built for the super-G; the slalom and the downhill still ride the
-campaign's maps.** `pwa/src/game/race-maps.ts` (`RACE_MAPS`, `raceMapsFor`,
-`findRaceMap`), the pick per discipline (`Settings.raceMap`, `chosenFor`),
-the level card's page of nine, `make rate RACE=…`, `make routes` over them
-and `tests/race_maps_test.ts` are in; the super-G's nine are pinned. A
-discipline with no rows keeps the campaign's maps, so the slalom's and the
-downhill's nine can land one discipline at a time. Delete this file once
-every built discipline carries its nine, the pause card's line is in, and
-the standing docs say so (see `README.md`). A discipline
-built after that (the super-G, the giant slalom, the ski cross, speed
-skiing) carries its own nine as part of being built — its spec says so, and
-the shape below is what it fills in.
+**Built for the slalom, the super-G and the downhill** (`pwa/src/game/race-maps.ts`,
+`tests/race_maps_test.ts`, `race_maps_downhill_test.ts`,
+`race_maps_superg_test.ts`). What stays here is the SHAPE a discipline built
+later (the giant slalom, the ski cross, speed skiing) fills in as part of being built — its spec says so —
+and the one tool still to write (*To do*). Delete this file with the last
+discipline's nine.
 
 ## What it is
 
-Today a SLALOM and a DOWNHILL off the front door are skied on the
+Before this, a SLALOM and a DOWNHILL off the front door were skied on the
 CAMPAIGN's maps: the level card shows the campaign's shelves, filtered by
 `fitsMode` (a slalom only the rungs the campaign set a slalom on, a downhill
 the downhill rungs and every black) and gated on the shelves the campaign
-has opened. So a discipline's measured maps are whatever the campaign
-happened to need, a slalom has a handful of maps and a fresh app has fewer,
+has opened. So a discipline's measured maps were whatever the campaign
+happened to need, a slalom had a handful of maps and a fresh app fewer,
 and a map's fitness for the DISCIPLINE was never what chose it.
 
-From here, **every race discipline carries its own NINE pinned maps**,
+Now, **every race discipline carries its own NINE pinned maps**,
 curated for that discipline alone: nine seeds whose course makes a GOOD
 slalom (or downhill, or super-G…), a ladder from the gentlest to the
 hardest, all of them open from the first visit. The level card a
@@ -42,9 +36,11 @@ rest of it.
   sky and character; few enough to curate honestly and to show on one card
   without tabs.
 - **All nine open.** No locks: these are the record book's maps, not a
-  second ladder (the campaign is the ladder). Ordered by the rating's index
-  (`make rate`), the gentlest first; the card's cursor starts on the last
-  one picked, or the first.
+  second ladder (the campaign is the ladder). Ordered the gentlest first —
+  by the COURSE (its drop, its steepest pitch, its length, its air), since
+  the rating's index reads the whole piste and barely separates nine maps
+  of one discipline; the card's cursor starts on the last one picked, or
+  the first.
 - **The TIME TRIAL stays on the campaign's maps** — it is not a discipline,
   it rides any piste, and its level card is unchanged (shelves, gated on
   what the campaign opened). Only the disciplines move.
@@ -54,22 +50,13 @@ rest of it.
   `slalom` and `downhill` now; `superG`, `giantSlalom`, `skiCross` and
   `speedSki` as each is built — a `Partial<Record<Discipline, …>>`, and a
   discipline is offered its card only where it has rows), nine rows each,
-  in the card's order. A row:
-
-  ```ts
-  type RaceMap = {
-    id: string;          // "slalom-1" … "slalom-9"
-    name: string;        // named for what it is like, never where it is
-    blurb: string;       // one line on its box
-    seed: number;
-    version: GeneratorVersion; // written out on every row, never shared
-    digest: string;      // levelDigest of the built map
-    region?: RegionId;   // the alpine when left out
-    grade: PisteGrade;
-    course: string;      // the resort's course (R28) the race is set on
-    sky?: SkyOverride;   // a sky or hour laid over the dealt day, rarely
-  };
-  ```
+  in the card's order. A row is a campaign map's shape (`CampaignLevel`:
+  id `slalom-1` … `slalom-9`, name, blurb, seed, mode, laps, version,
+  digest, region, grade, course, sky, the day its box bills) plus the
+  course's `figures` (its drop and its length, m) — so every question
+  already asked of a pinned map (what it builds, its sky, whether the map
+  standing is it, the run stood up on it, its record-book row) is asked of
+  a race map the same way.
 
   Like a campaign map, each names the generator that built it and the
   digest of what came out, and a test rebuilds every row and holds it to
@@ -106,13 +93,13 @@ rest of it.
   `seed.course`; rows set on the campaign's maps stay in the book under
   their ids and are simply no longer offered on the card. The ghosts the
   same.
-- **The pause card's line on a pinned run** names the map and how to find
-  it again: `HIGH WALL · SEED 123 · ALPINE · BLACK` over the card's usual
-  progress line (`STRINGS.pauseSub…`). On a free ride and a link's seed it
-  stays as today (`SEED n · FREE RIDE`) plus the country and grade when
-  they are not the defaults. A press that opens the free ride's start card
-  already set to that seed, country and grade is a welcome follow-up, not
-  part of this work.
+- **The pause card's line on a measured run** (a slalom, a downhill, a
+  time trial — on a link's seed too) says how to find the mountain again,
+  small under the card's usual line: `FREE RIDE IT · SEED 123 · ALPINE ·
+  BLACK` (`STRINGS.pauseMountain`, off the snapshot's `seed`, `region` and
+  `grade`). A free ride and a tricks run keep their line as it was. A
+  press that opens the free ride's start card already set to that seed,
+  country and grade is a welcome follow-up, not part of this work.
 
 ## The curation, per discipline
 
@@ -140,31 +127,82 @@ the PR.
 - **Every later discipline** writes its own criteria here (or in its spec)
   from its course rule, before the sweep.
 
+### How the first eighteen were picked
+
+Seeds 1–60 swept in the alpine, the continental and the maritime on
+generator v5: each country's ski area built, every red and black course
+(the slalom) or `downhillCourseOf`'s course (the downhill) set as the
+discipline with `createGame`, the bot down it (`simulateRun` with `mode`,
+the Swift or the Eagle), and the course's figures printed beside it — the
+set's vertical and length, its steepest 30 m, its gates and combinations
+or jumps, the trap, the bot's time against par, harsh landings and
+wipeouts, the dealt sky and hour. About 250 slalom courses and 55 downhill
+courses came back. A slalom stretch's drop comes in steps (110, 140, 160,
+190 m); everything under 140 m fails R31's band and was dropped, and so
+was every course the bot did not finish. The maritime has no black, so the
+downhill's nine are alpine and continental. The shortlist was then built
+once more as a row, both slalom runs skied by the bot (`secondRunOff`) and
+the downhill's race (training off), and every one came home.
+
+| Slalom | Seed | Country | Drop | Steepest | Bot run 1 / 2 |
+| --- | --- | --- | --- | --- | --- |
+| 1 Soft Rhythm | 2 | maritime | 160 m | 36 % | 61.4 / 63.8 s |
+| 2 Afternoon Hill | 1 | alpine | 140 m | 38 % | 49.8 / 50.9 s |
+| 3 Long Pitch | 17 | alpine | 191 m | 45 % | 61.9 / 61.5 s |
+| 4 Thin Light | 33 | continental | 160 m | 49 % | 55.3 / 56.0 s |
+| 5 Snow Gates | 3 | maritime | 161 m | 49 % | 57.9 / 58.1 s |
+| 6 Floodlit (20:00) | 31 | continental | 190 m | 50 % | 61.3 / 61.8 s |
+| 7 Clear Wall | 34 | maritime | 191 m | 50 % | 66.8 / 66.8 s |
+| 8 Black Pitch | 46 | alpine (black) | 140 m | 58 % | 52.8 / 52.9 s |
+| 9 Headwall | 47 | continental (black) | 191 m | 63 % | 50.8 / 49.4 s |
+
+| Downhill | Seed | Country | Drop | Length | Jumps | Trap | Bot |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Short Course | 55 | alpine | 552 m | 2.0 km | 4 | 78 km/h | 80.2 s |
+| 2 Glider | 48 | continental | 873 m | 2.6 km | 3 | 104 km/h | 94.3 s |
+| 3 Air Time | 16 | continental | 792 m | 2.5 km | 6 | 121 km/h | 92.4 s |
+| 4 Grey Day | 18 | alpine | 949 m | 2.7 km | 3 | 77 km/h | 101.1 s |
+| 5 January | 36 | alpine | 941 m | 2.6 km | 1 | 112 km/h | 101.3 s |
+| 6 Night Run (20:00) | 38 | alpine | 1033 m | 2.9 km | 4 | 96 km/h | 113.2 s |
+| 7 Five Jumps | 53 | continental | 1032 m | 2.8 km | 5 | 108 km/h | 114.0 s |
+| 8 Long Morning | 41 | alpine | 1056 m | 3.0 km | 2 | 98 km/h | 116.3 s |
+| 9 The Wall | 52 | continental | 1088 m | 2.8 km | 5 | 114 km/h | 106.0 s |
+
+The sweep was a scratch script over `@engine` (the generator, `createGame`,
+`simulateRun`, `raceParOf`), a minute or two a seed in three countries —
+run it in four slices in parallel. The lab below is that script made
+permanent.
+
 ## The tooling
 
-- `make rate` gets `RACE=<discipline>` (`--race <discipline>`): the
+- **Still to write:** `make rate` gets `RACE=<discipline>` (`--race <discipline>`): the
   committed nine audited the way `CAMPAIGN=1` audits the ladder — the
   digest that builds today against the row's, the rating, the course's
   figures, the bot's time and par.
+  A sweep flag beside it (`--race <discipline> --count n`, the candidates
+  of every country printed as above) would make the next discipline's
+  curation one command.
 - `make routes` writes every race map's line too (into
   `campaign-routes.ts`, keyed by the map's id, as the trick maps' are), so
   a box draws its piste without building the map.
 - `tests/race_maps_test.ts`: nine rows per built discipline, unique ids,
-  unique seeds within a discipline, none of them a campaign or trick seed;
-  every row rebuilt matches its digest, version, region and grade; the
-  discipline's course is set on it (`Level.slalom` / `Level.downhill`) and
-  inside its rule's bands. The bot's finish is the sweep's (`make sim`),
-  not the suite's — keep the file under a minute and add its row to
-  `SHARD_WEIGHTS`.
+  unique seeds within a discipline, none of them a campaign or trick seed,
+  more than one country and sky; which map a run is on; the picks kept;
+  the words. Every row rebuilt and held to its digest, course, grade, day,
+  loop and figures, its course inside its rule's band, is
+  `tests/support/race-maps.ts`'s `holdRaceMaps(discipline)` — called once
+  a discipline, a FILE a discipline (`race_maps_test.ts` the slalom's,
+  `race_maps_downhill_test.ts` the downhill's), because nine builds are
+  about fifty seconds and the suite keeps a file under a minute. A new
+  discipline adds `race_maps_<discipline>_test.ts` and its row in
+  `SHARD_WEIGHTS`. The bot's finish is the sweep's, not the suite's.
 
 ## The app
 
 - **The level card** for a discipline: one page of nine boxes (three
   across on a desktop, a column on a phone), no shelf tabs; each box the
-  map's piste (its route), its grade mark, country, day line, the
-  discipline's figures (a slalom: the stretch's vertical, gates and
-  steepest pitch; a downhill: length, vertical, the trap) and the best
-  time in the record book. The campaign's box classes are reused; the
+  map's piste (its route), its grade mark, day line, the course's drop and
+  length (`STRINGS.levelsFigures`) and the best time in the record book. The campaign's box classes are reused; the
   time trial's card is unchanged.
 - **The front door's tiles** bill the picked map's name, as today
   (`frontDoorPins`), now read off `RACE_MAPS`.
@@ -173,24 +211,26 @@ the PR.
 
 ## To do
 
-- [x] `race-maps.ts`: the table and its finders — rows in the campaign's
-      own shape (`CampaignLevel`), so `buildCampaignLevel` and the pinned
-      run's helpers serve them unchanged.
-- [x] Curate the SUPER-G's nine.
-- [ ] Curate the SLALOM's nine (sweep, shortlist, look, rate, write rows).
-- [ ] Curate the DOWNHILL's nine.
+- [x] `race-maps.ts`: the type, the table, `raceMapsOf`, `raceMapFor`,
+      `findRaceMap`, `mergeRacePicks` (the build and the run are
+      `campaign.ts`'s, since a row is a campaign map's shape).
+- [x] Curate the SLALOM's nine.
+- [x] Curate the DOWNHILL's nine.
+- [x] Curate the SUPER-G's nine (with the super-G).
 - [x] `pinnedFor` / `pinnedPress` / `frontDoorPins` read `RACE_MAPS` for a
-      discipline (`raceMapsFor`, `chosenFor`).
+      discipline (`PinnedPicks`); `fitsMode` stays the campaign's and the
+      time trial's.
 - [x] `Settings.raceMap` and its merge; the app's pick handler.
 - [x] The level card's discipline page.
-- [ ] The pause card's map line.
-- [x] `make rate RACE=…`, `make routes` over the race maps.
-- [x] `tests/race_maps_test.ts`.
-- [ ] Docs: `docs/getting-started.md` (the level card, the pause card),
-      `docs/configuration.md` (`Settings.raceMap`), `AGENTS.md` (the
-      router's rows: where it lives, what is stated once — *which map a
-      measured run is on*), the `campaign` skill (the race maps are not the
-      campaign's), a changeset fragment; delete this spec.
+- [x] The pause card's map line.
+- [x] `make routes` over the race maps.
+- [x] `make rate RACE=…` (the nine audited: digest, rating, the course, the
+      bot against par); a sweep flag still to write (*The tooling*).
+- [x] `tests/race_maps_test.ts`, `race_maps_downhill_test.ts`; the
+      campaign tests adjusted.
+- [x] Docs: `docs/getting-started.md`, `docs/configuration.md`,
+      `AGENTS.md`, the `campaign` skill, a changeset fragment.
+- [ ] Each later discipline's nine, with its spec.
 
 ## Open questions for the user
 

@@ -2391,6 +2391,14 @@ canvas {
   color: var(--hud-good);
 }
 
+/* THE MOUNTAIN as the free ride raises it again: a footnote to the line
+   over it, small enough to stay one line on a phone. */
+.menu-pause-head .menu-pause-mountain {
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
 /* HOW THE HELD RUN HAS GONE (`pause-stats.ts`): up to four figures in one
    row, each over its caption — the HUD's own chip, because the skier reading
    this card was reading those chips a second ago.

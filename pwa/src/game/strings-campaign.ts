@@ -96,6 +96,14 @@ export const CAMPAIGN_STRINGS = {
   levelsDownhill: "DOWNHILL ON",
   levelsTrial: "TIME TRIAL ON",
   levelsShelfLocked: "OPENED BY THE CAMPAIGN",
+  /** Over a discipline's nine: what they are. */
+  levelsRaceMaps: "NINE MOUNTAINS PICKED FOR THIS RACE · THE GENTLEST FIRST",
+  /** A race map's course on its box: the drop and the length — a slalom's in
+   * metres, a speed course's in kilometres. */
+  levelsFigures: (vertical: number, length: number): string =>
+    `${Math.round(vertical)} M DROP · ${
+      length < 1000 ? `${Math.round(length)} M` : `${(length / 1000).toFixed(1)} KM`
+    }`,
   levelsNoBest: "NO TIME SET YET",
   /** An open shelf with no map the mode can ride (no black for a downhill). */
   levelsNoneHere: (mode: CampaignMode): string => `NO ${modeWord(mode)} ON THIS SHELF`,

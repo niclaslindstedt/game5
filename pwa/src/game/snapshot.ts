@@ -19,6 +19,7 @@ import {
   fieldOrder,
   gradeOf,
   racePlace,
+  regionOf,
   DOWNHILL,
   SLALOM,
   SUPER_G,
@@ -26,6 +27,7 @@ import {
   type GameState,
   type Level,
   type PisteGrade,
+  type RegionId,
   type Airflow,
   type AirRider,
   type Progress,
@@ -211,6 +213,9 @@ export type HudSnapshot = {
   tricks: TrickTile | null;
   /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
   grade: PisteGrade;
+  /** THE COUNTRY the mountain is raised in (R21) — with the seed and the
+   * grade, what the free ride's start card needs to raise it again. */
+  region: RegionId;
   /** THE WIND METER beside the speed (`windOf`). */
   wind: HudWind;
   /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
@@ -456,6 +461,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     body: bodyTile(c.body, state.t),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
+    region: regionOf(state.level).id,
     wind: windOf(state),
     heli: heliOf(state),
   };

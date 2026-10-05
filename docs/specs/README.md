@@ -23,7 +23,7 @@ Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the super-G (`race-maps.ts`); the slalom's and the downhill's nine and the pause card's line still to do |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G and the downhill; the shape every later discipline fills in |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
@@ -464,11 +464,12 @@ in the turns.
   front door is four wide tiles in both orientations.
 - **App.tsx was at its cap.** The front door's pages moved out whole into
   `menu-pages.tsx` (−47 lines) before anything was added.
-- **The race maps are campaign-shaped rows** (`CampaignLevel` with a
-  discipline's mode), so the level card, the record book, the routes, the
-  run stood up and the rating's audit read them unchanged; what is new is
-  only which list a mode reads (`raceMapsFor`) and which pick it keeps
-  (`chosenFor`, `Settings.raceMap`).
+- **The race maps landed on `main` while the super-G was being built** —
+  the same idea from both sides. The merge kept `main`'s shape (`RaceMap`
+  with its quoted figures, `PinnedPicks`, `holdRaceMaps`) and added the
+  super-G's row and file; a discipline built later adds a row to
+  `RACE_MAPS` and a `race_maps_<discipline>_test.ts`, nothing more. Fetch
+  `main` before building a shared piece the spec says is still to do.
 - **Run the suite and a browser lab apart.** Both at once restarted the
   worker in a cloud session.
 

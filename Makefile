@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns helmet damage hud-body gear skier-metrics sag blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -160,6 +160,19 @@ gear:
 # ARGS="--json=a.json" / "--compare=a.json" a before and after.
 skier-metrics:
 	npm run skier-metrics -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
+# out onto the flat, a stop down a pitch, rollers, a tuck, and generated
+# maps skied fast by the bot — posed with the legs' spring and again
+# without it, so what the spring adds to his forward lean is read apart
+# (the fold's share and the held pitch's), against bands: never bowed past
+# level with the slope, the trunk following the shins, the weight over the
+# boots. A table and previews/sag.png (the worst frame of each, and its
+# trace). Seconds, no browser. MOMENT=drop-1,runout a subset; SEED=7,38
+# the maps; ARGS="--worst" the worst frames; ARGS="--json=a.json" /
+# "--compare=a.json" a before and after.
+sag:
+	npm run sag -- $(if $(MOMENT),--moment $(MOMENT),) $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE BLENDER LAB: a game asset MODELLED in Blender off the game's own data
 # (a pair: its spec and its class's traced look) — studio renders, the

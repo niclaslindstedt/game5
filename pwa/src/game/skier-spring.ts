@@ -31,8 +31,11 @@ export type SkierSpring = {
   /** The pair's climb at the last frame, m/s, or NaN before the first. */
   lastVy: number;
   /** THE LINE HE RIDES: the pair's climb taken slowly (`LEGS.line`), m/s
-   * — what the body is damped toward (NaN before the first frame). */
+   * — what the body is damped toward (NaN before the first frame) — and
+   * its trend, m/s², so a climb changing steadily (a stop, a run gathering
+   * speed, a long compression) is followed without a lag. */
   slope: number;
+  slopeRate: number;
   /** How far into the AIR his body is, 0 on the snow to 1 in flight —
    * eased, so leaving the snow and meeting it again are motions, not a
    * pose swapped in a frame. */
@@ -282,6 +285,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     rate: 0,
     lastVy: Number.NaN,
     slope: Number.NaN,
+    slopeRate: 0,
     air: 0,
     airRate: 0,
     load: 0,
@@ -535,12 +539,33 @@ function stepLegs(
   // pitch, which the air eases onto the landing slope (`flight.ts`) — not
   // against the fall he came down on. With no ride read, the climb he
   // has once he is back on the snow.
+  //
+  // Taken by a lag alone, a climb changing steadily is followed a lag
+  // behind for as long as it changes — and the body, damped toward a line
+  // that far off the skis' own, sank by it: braking down a pitch at a
+  // seventh of a g pinned his legs at their deepest fold. So the line
+  // follows the climb's TREND too (`slopeRate`), and a steady change is
+  // ridden on it exactly: what is left is the body's own sag under the
+  // push, the legs' spring's (`LEGS.omega`), a few centimetres a tenth
+  // of a g.
   const read = ride?.way !== undefined && ride.pitch !== undefined;
-  if (airborne && !read) s.slope = Number.NaN;
-  else if (airborne && (ride?.airTime ?? 0) > LEGS.flight) {
+  if (airborne && !read) {
+    s.slope = Number.NaN;
+    s.slopeRate = 0;
+  } else if (airborne && (ride?.airTime ?? 0) > LEGS.flight) {
     s.slope = ride!.way! * Math.sin(ride!.pitch!);
-  } else if (Number.isNaN(s.slope)) s.slope = vy;
-  else s.slope += (vy - s.slope) * Math.min(1, dt / LEGS.line);
+    s.slopeRate = 0;
+  } else if (Number.isNaN(s.slope)) {
+    s.slope = vy;
+    s.slopeRate = 0;
+  } else {
+    // Critically damped and of the second order, at the lag's own rate:
+    // any faster and the body follows the rollers he should ride over.
+    const w = 1 / LEGS.line;
+    const miss = vy - s.slope;
+    s.slopeRate += w * w * miss * dt;
+    s.slope += (s.slopeRate + 2 * w * miss) * dt;
+  }
   // The pair's change of climb since the last frame is a push the body
   // does not share: it keeps going the way it was — spread over the frame
   // it came in. (In the air the two fall together; and a JUMP is his own

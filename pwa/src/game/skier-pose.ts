@@ -487,16 +487,16 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // instead, and the trunk folds forward at the hips by as much below.
   // ...his technique's inside knee folded as far as it folds in a carve.
   const kneeMost = KNEE_MOST.bent + (S.legs.kneeMost - KNEE_MOST.bent) * (1 - skid);
-  const raise = kneeRoom(
-    hips,
-    pelvis,
-    feet,
-    crouch,
-    BODY.hip,
-    BODY.thigh,
-    SHIN_ABOVE_CUFF,
-    kneeMost,
-  );
+  const roomAt = (at: V3): number =>
+    kneeRoom(at, pelvis, feet, crouch, BODY.hip, BODY.thigh, SHIN_ABOVE_CUFF, kneeMost);
+  const raise = roomAt(hips);
+  // THE FOLD THE LEGS CANNOT TAKE IS NOT TAKEN AT THE WAIST: the legs'
+  // spring sinks him by `fold`, but knees already folded as far as they go
+  // (a tuck's) have none of it left — the hips are lifted back by that
+  // much and nothing more, the trunk bowed only for his stance's own drop.
+  // Bowed for it, a compression in a tuck put his face down to his skis.
+  const raiseStood = fold > 0 ? roomAt({ x: hips.x, y: hips.y + fold, z: hips.z }) : raise;
+  const taken = Math.max(0, fold - Math.max(0, raise - raiseStood));
   // THE OUTSIDE LEG HELD LONG through the share of the turn his technique
   // holds it: the hips lifted over it, as far as it reaches and its boot
   // still holds both shins — a carve's, never a skid's.
@@ -541,6 +541,11 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   } else if (pull < 0) {
     hips = { x: hips.x, y: hips.y + Math.min(-pull, Math.max(0, -cuffOver(hips))), z: hips.z };
   }
+  // THE TRUNK HELD while the skis rock under him (`pitchHeld`) — but
+  // never further forward from a tuck: there his chest rides on his thighs
+  // and goes with them, and on top of the tuck's own bow a skier held
+  // forward goes over with his face to his skis.
+  const heldPitch = Math.min(input.pitchHeld ?? 0, (input.pitchHeld ?? 0) * (1 - crouch));
   // THE TRUNK'S PITCH: his technique's stood up, its low tuck on a
   // straight and its high one in a turn, back with the lean, folded further
   // by a landing, over the poles on a double pole's push and into a
@@ -550,7 +555,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     S.pitch +
     (tuckPitch(S, inTurn) - S.pitch) * crouch -
     0.3 * lean * (1 - crouch) +
-    fold * 1.4 +
+    taken * 1.4 +
     POLE_FOLD * crunch +
     POLE_BODY.lean * arms +
     G.pitch * ready * (1 - arms) +
@@ -562,8 +567,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     breath +
     J.lurch +
     (F?.pitch ?? 0) +
-    (input.pitchHeld ?? 0) +
-    Math.asin(Math.min(1, raise / BODY.spine));
+    heldPitch +
+    Math.asin(Math.min(1, Math.min(raise, raiseStood) / BODY.spine));
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
   // into the turn with a hinge at the hips — the legs lean in with the
   // skis, and the trunk leans in too, but by `ANGULATE_SHARE` less (more
@@ -606,7 +611,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     SPINE_ROUND.stand +
     SPINE_ROUND.tuck * crouch +
     SPINE_ROUND.pole * crunch +
-    SPINE_ROUND.fold * Math.min(1, fold / 0.15);
+    SPINE_ROUND.fold * Math.min(1, taken / 0.15);
   const lumbar = BODY.spine * LUMBAR;
   const thoracic = BODY.spine - lumbar;
   const bendAxis = norm({ x: Math.cos(roll), y: -Math.sin(roll), z: 0 });

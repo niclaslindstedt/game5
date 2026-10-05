@@ -323,7 +323,10 @@ export function bumpAt(b: Bumps, z: number): number {
 
 /** THE DRAG STRIP: flat snow `size` m square, packed everywhere (`packed`
  * 1) or powder everywhere (0), with an optional slope FALLING along +z at
- * `grade` (m/m) past z = `slopeFrom`, optional ROLLERS across it (`bumps`,
+ * `grade` (m/m) past z = `slopeFrom` — RUN OUT onto the level again past
+ * z = `runOut.at`, the grade easing off over `runOut.bend` m (a
+ * compression of a constant curvature, `grade / bend` per metre) —
+ * optional ROLLERS across it (`bumps`,
  * on a metre grid — keep `size` small with them), and a straight piste
  * down its middle from z = 100 to z = size − 100. */
 export function flatLevel(
@@ -332,6 +335,7 @@ export function flatLevel(
     size?: number;
     grade?: number;
     slopeFrom?: number;
+    runOut?: { at: number; bend: number };
     bumps?: Bumps;
   } = {},
 ): Level {
@@ -340,8 +344,16 @@ export function flatLevel(
   const grade = options.grade ?? 0;
   const from = options.slopeFrom ?? size;
   const bumps = options.bumps;
-  const height = (_x: number, z: number): number =>
-    (z > from ? -(z - from) * grade : 0) + (bumps ? bumpAt(bumps, z) : 0);
+  const out = options.runOut;
+  // How far the strip has fallen by `z`: the grade's own, eased off to the
+  // level over the run-out's bend.
+  const fallen = (z: number): number => {
+    if (z <= from) return 0;
+    if (!out || z <= out.at) return (z - from) * grade;
+    const u = Math.min(z - out.at, out.bend);
+    return grade * (out.at - from + u - (u * u) / (2 * out.bend));
+  };
+  const height = (_x: number, z: number): number => -fallen(z) + (bumps ? bumpAt(bumps, z) : 0);
   const m = 100;
   const length = size - 2 * m;
   const n = Math.round(length / 2);

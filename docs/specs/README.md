@@ -19,6 +19,12 @@ a second, stale copy of the truth.
 | [SKI_CROSS.md](SKI_CROSS.md) | Ski cross | draft — research first |
 | [SPEED_SKIING.md](SPEED_SKIING.md) | Speed skiing | draft — research first |
 
+Beside the disciplines, one spec cuts across all of them:
+
+| Spec | Feature | State |
+| --- | --- | --- |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | decided — building for the slalom and the downhill |
+
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
 board, flex poles, the start house, the television start, the per-run
@@ -66,7 +72,11 @@ history behind it, works in this order:
    technique row, the gate rules (`strict.ts`), the board and par
    (`field.ts`, `par.ts`), the bot; tests in `tests/<topic>_test.ts`. Then
    the app: the gates drawn, the start, the cameras, the HUD board, the
-   front door, the audience, the sounds, the campaign rungs.
+   front door, the audience, the sounds — and the discipline's NINE PINNED
+   MAPS (`RACE_MAPS.md`: a sweep of seeds for the ones whose course makes a
+   good race of this discipline, rows in `race-maps.ts`, held by
+   `tests/race_maps_test.ts`), which is what its level card offers.
+   Campaign rungs are optional and come after.
 5. **Measure and look**: the labs the spec names and the router's labs
    table owes — `make sim` before and after (the bot finishes every seed),
    `make ride`, `make level` / `make analyze` for the course, the technique

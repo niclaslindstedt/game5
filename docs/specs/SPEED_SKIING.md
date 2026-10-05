@@ -85,7 +85,11 @@ with heats over several runs (research the format).
       research.
 - [ ] **Audience**: along the run-out and the finish (research).
 - [ ] **Sound**: the wind and the suit at 150+ km/h, the skis' chatter.
-- [ ] **Campaign**, **front door**, **labs** (the technique lab's speed
+- [ ] **Its nine pinned maps** (`docs/specs/RACE_MAPS.md`):
+      `RACE_MAPS.speedSki`, nine seeds whose fall line takes a GOOD track
+      (its length, its steepest pitch, its run-out), swept, looked at and
+      laddered; held by `tests/race_maps_test.ts`.
+- [ ] **Front door**, **labs** (the technique lab's speed
       column; a `ride` scenario on the straight), **tests**, **docs** (`docs/disciplines.md` first); delete
       this spec.
 

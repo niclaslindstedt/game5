@@ -7,7 +7,8 @@
 // number the whole game of it is played against — with its climb under it;
 // THE HORIZON, the airframe's pitch and bank; and THE COLLECTIVE, the
 // lever where it was left. And while it waits on its pad near him, the word
-// that it is there and how far. Every figure is the snapshot's (`heliOf`).
+// that it is there and how far — and stood beside its skid, the machine key
+// that sits him on it. Every figure is the snapshot's (`heliOf`).
 
 import type { HudHeli } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -15,12 +16,23 @@ import { STRINGS } from "./strings.ts";
 /** The horizon's pitch scale, px of the dial per rad. */
 const PITCH_PX = 60;
 
-export function HeliReadout({ heli, touch }: { heli: HudHeli; touch: boolean }) {
+export function HeliReadout({
+  heli,
+  touch,
+  machineKey,
+}: {
+  heli: HudHeli;
+  touch: boolean;
+  /** The machine key as bound, as the player reads it off the keyboard. */
+  machineKey: string;
+}) {
   if (heli.kind === "waiting") {
     return (
       <div class="hud-heli hud-heli-call" role="status">
         <span class="hud-heli-word">{STRINGS.heliCall}</span>
-        <span class="hud-heli-sub">{STRINGS.heliPad(heli.pad)}</span>
+        <span class="hud-heli-sub">
+          {heli.near ? STRINGS.heliTake(touch, machineKey) : STRINGS.heliPad(heli.pad)}
+        </span>
       </div>
     );
   }
@@ -59,7 +71,7 @@ export function HeliReadout({ heli, touch }: { heli: HudHeli; touch: boolean }) 
         </div>
       </div>
       <span class="hud-heli-hint">
-        {heli.landed ? STRINGS.heliLanded : STRINGS.heliJump(touch)}
+        {heli.landed ? STRINGS.heliLanded(touch, machineKey) : STRINGS.heliJump(touch, machineKey)}
       </span>
     </div>
   );

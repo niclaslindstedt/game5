@@ -350,7 +350,7 @@ describe("the keys page (settings-input.ts)", () => {
     const old = mergeKeys({
       tuck: ["KeyW", "ArrowUp"],
       brake: ["KeyS", "ArrowDown", "Space"],
-      leanBack: ["KeyP"],
+      leanBack: ["KeyO"],
     });
     // ArrowUp is the lean forward's own, and the blob does not carry it.
     expect(old.tuck).toEqual(["KeyW"]);
@@ -364,7 +364,12 @@ describe("the keys page (settings-input.ts)", () => {
       "Space",
     ]);
     expect(old.leanForward).toEqual(freshKeys().leanForward);
-    expect(old.leanBack).toEqual(["KeyP"]);
+    expect(old.leanBack).toEqual(["KeyO"]);
+    // A layout saved when ENTER was the shutter: the machine key, newer than
+    // the blob, takes ENTER back, and the shutter falls to its shipped P.
+    const shutter = mergeKeys({ shot: ["Enter"], reset: ["KeyR"] });
+    expect(shutter.machine).toEqual(["Enter"]);
+    expect(shutter.shot).toEqual(["KeyP"]);
     expect(mergeKeys(null)).toEqual(freshKeys());
     const merged = mergeKeys({ tuck: ["KeyI", 4, "KeyI"], hover: ["KeyH"], brake: "KeyK" });
     expect(merged.tuck).toEqual(["KeyI"]);

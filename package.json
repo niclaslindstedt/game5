@@ -56,6 +56,7 @@
     "audience": "node scripts/audience-preview.mjs",
     "lift-ride": "node scripts/lift-ride-preview.mjs",
     "heli": "node scripts/heli-preview.mjs",
+    "sled": "node scripts/sled-preview.mjs",
     "trees": "node scripts/trees-preview.mjs",
     "forest": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/forest-lab.mjs",
     "tauri": "npm --prefix tauri run start --",

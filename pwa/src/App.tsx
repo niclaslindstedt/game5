@@ -116,6 +116,7 @@ import {
   type Settings,
 } from "./game/settings.ts";
 import { withPreset, type VideoSettings } from "./game/settings-video.ts";
+import { boundLabel } from "./game/settings-input.ts";
 import {
   appDraws,
   cameraFor,
@@ -825,6 +826,7 @@ export function App() {
           onCamera={() => pressRef.current.camera()}
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}
+          machineKey={boundLabel(settings.keys.machine)}
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands

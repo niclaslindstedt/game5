@@ -18,6 +18,7 @@ import {
   NEUTRAL_INPUT,
   SNOW_DIAL,
   snowCoverOf,
+  standSkier,
   step,
 } from "@engine";
 
@@ -35,6 +36,8 @@ import {
   markedRun,
   mergeRide,
   runOn,
+  SLED_RUN,
+  sledOn,
   spotOn,
 } from "../pwa/src/game/free-ride.ts";
 import {
@@ -387,5 +390,56 @@ describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
       step(s, { ...NEUTRAL_INPUT, heli: { collective: 0.95, pitch: 0, roll: 0, pedal: 0 } });
     const up = takeSnapshot(s).heli;
     expect(up?.kind === "flown" && up.height > 20).toBe(true);
+  });
+});
+
+describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
+  it("stands the ride up on the snowmobile, never by lift or at a spot", () => {
+    const ride = {
+      ...freshRide(),
+      run: { seed: 7, region: freshRide().region, id: SLED_RUN },
+      spot: { seed: 7, x: 100, z: 100 },
+    };
+    expect(sledOn(ride, 7)).toBe(true);
+    expect(sledOn(ride, 8)).toBe(false);
+    expect(heliOn(ride, 7)).toBe(false);
+    const options = freeGameOptions(ride, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(options.sled).toBe(true);
+    expect(options.heli).toBe(false);
+    expect(options.byLift).toBe(false);
+    expect(options.spawn).toBeUndefined();
+    expect(options.run).toBeUndefined();
+    expect(sledOn(mergeRide(JSON.parse(JSON.stringify(ride))), 7)).toBe(true);
+  });
+
+  it("is a link's too, and the HUD reads its engine while he rides", () => {
+    expect(readParams("?start=free&sled=1").sled).toBe(true);
+    expect(readParams("?start=free").sled).toBe(false);
+    const s = createGame({
+      level: syntheticLevel(),
+      mode: "free",
+      sled: true,
+      crowd: 0,
+      quiet: true,
+    });
+    expect(takeSnapshot(s).sled?.kind).toBe("ridden");
+    for (let i = 0; i < 240; i++) step(s, { ...NEUTRAL_INPUT, tuck: 1 });
+    const going = takeSnapshot(s).sled;
+    expect(going?.kind === "ridden" && going.rev > 0.5).toBe(true);
+    // Off it, it calls him back while he is near.
+    step(s, { ...NEUTRAL_INPUT, machine: true });
+    for (let i = 0; i < 120; i++) step(s, { ...NEUTRAL_INPUT, brake: 1 });
+    expect(takeSnapshot(s).sled?.kind).toBe("waiting");
+  });
+
+  it("offers the machine key only to a skier stood beside it", () => {
+    const s = createGame({ level: syntheticLevel(), mode: "free", crowd: 0, quiet: true });
+    const k = s.sled!;
+    standSkier(s, k.x + 20, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: false });
+    standSkier(s, k.x + 1.6, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: true });
   });
 });

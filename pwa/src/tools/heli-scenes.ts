@@ -111,10 +111,10 @@ function place(
   });
 }
 
-/** The jump's press: the skier pushed off the skid, the pilot's hands on
+/** The machine press: the skier pushed off the skid, the pilot's hands on
  * the controls through the step. */
 function push(st: Stage, s: GameState, aim?: HeliAim): void {
-  st.once(s, { ...(s.heli?.rider ? pilotInput(s, aim) : NEUTRAL_INPUT), jump: true });
+  st.once(s, { ...(s.heli?.rider ? pilotInput(s, aim) : NEUTRAL_INPUT), machine: true });
 }
 
 const bearing = (from: { x: number; z: number }, to: { x: number; z: number }): number =>
@@ -253,13 +253,15 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     const s = rideIn(st, 30, 0);
     st.run(s, 0.4);
     st.shoot(s, "lit-quarter", outside(st.level, heliMiddle(s), s.heli!.heading - Math.PI / 4, 18));
-    // Ridden in beside the seat, slow: taken on.
+    // Ridden in beside the seat, slow, and the machine press: taken on.
     const b = st.fresh(false);
     const h = b.heli!;
     const seat = heliPoint(h, { x: -HELI.seat.x, y: 0, z: HELI.seat.z });
     const out = bearing(h, seat);
     standAt(b, seat.x + Math.sin(out) * 1.4, seat.z + Math.cos(out) * 1.4, out + Math.PI, 1);
-    st.run(b, 0.8);
+    st.run(b, 0.3);
+    st.once(b, { ...NEUTRAL_INPUT, machine: true });
+    st.run(b, 0.5);
     st.shoot(b, "boarded", "chase");
   },
 

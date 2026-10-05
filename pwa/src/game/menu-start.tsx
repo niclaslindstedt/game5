@@ -37,9 +37,12 @@
 //           stepped through (`markedRun`, the engine's `pickFreeRun`). The
 //           lift up to its top carries the skier the last few seconds, and
 //           the chart marks its head with a pulse; the line under the chart
-//           bills it. Its LAST stop is no run but the HELICOPTER: the ride
-//           begun sat on the skid of the helicopter on its pad on the valley
-//           floor, flown up the mountain and pushed off (`heli.ts`).
+//           bills it. Its LAST two stops are no run but a machine at the
+//           bottom: the SNOWMOBILE — the ride begun stood on its boards, the
+//           skis racked, ridden up the mountain and hopped off (`sled.ts`) —
+//           and the HELICOPTER: the ride begun sat on the skid of the
+//           helicopter on its pad on the valley floor, flown up the mountain
+//           and pushed off (`heli.ts`).
 //
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
@@ -64,9 +67,11 @@ import { useState } from "preact/hooks";
 
 import {
   HELI_RUN,
+  SLED_RUN,
   SEASONS,
   SNOW_STOPS,
   heliOn,
+  sledOn,
   markedRun,
   spotOn,
   type FreeRide,
@@ -143,15 +148,23 @@ export function StartPage({
       ? shown
       : null;
   const heli = heliOn(ride, seed);
-  const marked = list && !heli ? markedRun(ride, seed, list) : null;
+  const sled = sledOn(ride, seed);
+  const vehicle = heli || sled;
+  const marked = list && !vehicle ? markedRun(ride, seed, list) : null;
   // The RUN row walks the runs of the GRADE row's colour — every run where
   // it stands on AS DEALT, or where the map has none of the colour.
   const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
   const walked = graded.length > 0 ? graded : (list?.runs ?? []);
-  // ...and, LAST, the helicopter on its pad on the valley floor.
+  // ...and, LAST, the two machines at the bottom: the snowmobile parked
+  // beside the village and the helicopter on its pad.
   const runStops = [
     ...walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) })),
-    ...(list ? [{ id: HELI_RUN, label: STRINGS.startRunHeli }] : []),
+    ...(list
+      ? [
+          { id: SLED_RUN, label: STRINGS.startRunSled },
+          { id: HELI_RUN, label: STRINGS.startRunHeli },
+        ]
+      : []),
   ];
 
   return (
@@ -211,7 +224,7 @@ export function StartPage({
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}
                 stops={runStops}
-                value={heli ? HELI_RUN : (marked?.id ?? "")}
+                value={heli ? HELI_RUN : sled ? SLED_RUN : (marked?.id ?? "")}
                 extra={STRINGS.startRunWaiting}
                 onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
                 onHint={setHint}
@@ -220,7 +233,7 @@ export function StartPage({
             <SeedPreview
               chart={chart}
               entry={marked}
-              spot={heli ? null : spotOn(ride, seed)}
+              spot={vehicle ? null : spotOn(ride, seed)}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />
           </div>

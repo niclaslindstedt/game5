@@ -67,6 +67,10 @@ export type RunRules = {
    * the player's to fly anywhere on the mountain and push off. On a FREE
    * RIDE only. */
   heli: boolean;
+  /** WHETHER A SNOWMOBILE WAITS AT THE BOTTOM (`sled.ts`): ridden into, it
+   * is the player's to ride anywhere on the mountain and hop off. On a FREE
+   * RIDE only. */
+  sled: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
@@ -207,6 +211,7 @@ export function fieldRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -245,6 +250,7 @@ export function slalomRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "interval",
     gates: "strict",
     window: SLALOM.window,
@@ -284,6 +290,7 @@ export function downhillRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "interval",
     gates: "strict",
     window: DOWNHILL.window,
@@ -324,6 +331,7 @@ export function superGRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "interval",
     gates: "strict",
     window: SUPER_G.window,
@@ -346,6 +354,7 @@ export function openRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -368,6 +377,7 @@ export function freeRules(laps: number): RunRules {
     crowd: CROWD.count,
     lifts: true,
     heli: true,
+    sled: true,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -438,6 +448,7 @@ export function timeTrialRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -457,6 +468,7 @@ export const TRICKS_RUN = {
   airGravity: 1,
   lifts: false,
   heli: false,
+  sled: false,
 } as const;
 
 /** A tricks run as a skier is dealt it: the lights, the strokes read, the
@@ -474,6 +486,7 @@ export function tricksRules(laps: number): RunRules {
     crowd: 0,
     lifts: false,
     heli: false,
+    sled: false,
     start: "line",
     gates: "arcade",
     window: 0,

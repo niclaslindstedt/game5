@@ -1,11 +1,11 @@
 # The helicopter
 
-A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who rides in beside its right skid is sat on the skid, and then the player flies it by hand — every control theirs, nothing holding it — anywhere on the mountain and as high as they like. They land it and step off, or, where it cannot land, push off the skid. The skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes and burns where it came down, the skier on it is thrown, and a few seconds later the ride starts again from the pad.
+A free ride's way up the mountain with no lift at all. A helicopter stands on its pad on the valley floor. A skier who stops beside its right skid and presses **Enter** (a double tap on touch) is sat on the skid, and then the player flies it by hand — every control theirs, nothing holding it — anywhere on the mountain and as high as they like. They land it and step off, or, where it cannot land, push off the skid — Enter again either way. The skis are theirs again, and the pilot flies the machine home to its pad. Flown into the snow, into a crown or onto a slope too steep to land on, it crashes and burns where it came down, the skier on it is thrown, and a few seconds later the ride starts again from the pad.
 
 It is reached two ways:
 
 - **The start card's RUN row**, whose last stop is HELICOPTER (`free-ride.ts`'s `HELI_RUN`). The ride begins sat on the skid on the pad with the rotor turning. `?start=free&heli=1` is the same ride from a link.
-- **Riding into it.** On every free ride it waits on its pad. Within 90 m of it, the machine and the painted pad light up and the HUD calls the skier to it (`snapshot.ts`'s `heliOf`). Riding in within `HELI.board.reach` of the right skid, slower than `HELI.board.fastest`, takes the skier on.
+- **Getting on at the pad.** On every free ride it waits on its pad. Within 90 m of it, the machine and the painted pad light up and the HUD calls the skier to it (`snapshot.ts`'s `heliOf`). Stood within `HELI.board.reach` of the right skid, slower than `HELI.board.fastest` (`heliWithin`), the call says **ENTER TO FLY**, and the MACHINE press (`SkierInput.machine`: Enter, the skier's `machine` key in `settings-input.ts`, or a double tap on touch) sits him on the skid. Skiing past it never does.
 
 There is no ceiling, by design. That is the point of the game it makes: climb, push off, and see what the damage meter and the anatomy plate say when the snow comes.
 
@@ -71,7 +71,7 @@ The air's density is held at 1.0 kg/m³ whatever the height. A real machine of t
 
 ## The controls
 
-Flying has a key table of its own (`settings-heli-keys.ts`, `Settings.heliKeys`, rebindable under OPTIONS ▸ KEYS ▸ HELICOPTER). The input manager reads it, and not the skier's, while the skier sits on the skid (`input.ts`, `input-model.ts`'s `sampleHeli`, `SkierInput.heli`).
+Flying has a key table of its own (`settings-heli-keys.ts`, `Settings.heliKeys`, rebindable under OPTIONS ▸ KEYS ▸ HELICOPTER). The input manager reads it for the four controls while the skier sits on the skid (`input.ts`, `input-model.ts`'s `sampleHeli`, `SkierInput.heli`). The way off is the skier's own MACHINE key, the press that sat him on it, so the helicopter's table has no row for it.
 
 | | Keys | Touch |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ Flying has a key table of its own (`settings-heli-keys.ts`, `Settings.heliKeys`,
 | Cyclic fore and aft | W / S | the left pad up / down |
 | Cyclic left and right | A / D | the left pad left / right |
 | Pedals | Q / E, ← / → | the right pad left / right |
-| Jump off | Space | a double tap on either thumb |
+| Jump off, or step off where it has landed | Enter (the machine key) | a double tap on either thumb |
 | Back to the pad | R | the reset press |
 
 On touch, both thumbs become pads while flying (`StickZone`): the edge thumb's glass (the left, as it ships) a sprung CYCLIC stick — up tilts the helicopter forward, down back, across banks it — and the lever's glass (the right) the POWER PAD — up and down work the collective at a rate and leave it where it is let go, across is the pedals, sprung back to centre. The power pad's axes each have a dead band (`POWER_PAD_DEAD`), so working the pedals never creeps the collective. A left-handed skier who has moved the lever to the left gets the pads swapped with it. Each pad is drawn under the thumb as a d-pad's cross (`hud-heli-pad.tsx`), every arm's arrow lit by how hard the thumb leans that way: the cyclic's knob is the helicopter seen from behind, banking with the stick; the power pad's is its rotor seen from above, turning with the pedals, with turn arrows on its side arms and the collective's gauge down its upright. The HUD reads like a cockpit (`hud-heli.tsx`): the DROP under the skids and the climb, an artificial horizon, and the collective's gauge.
@@ -88,7 +88,7 @@ On touch, both thumbs become pads while flying (`StickZone`): the edge thumb's g
 
 **The pad** (`helipadOf`) is a level patch of the hub's open snow (R29), as near the village as one lies. The rotor's sweep plus a margin must be clear of every trunk, every lift line and bottom station, and both wind tunnels. A map with no hub puts it beside the finish.
 
-**Landing is the ordinary way off.** Set it down on snow flat enough (`crash.slope`, about 9°), slowly enough (`crash.sink`, 3.2 m/s; the gear is certified for 2.5) and level enough, and press the jump to step off onto the snow. The pilot shuts down where it stands. Where the snow is too steep to land on, **the drop** is the way off: it sends the skier off the seat with the machine's velocity plus `HELI.drop` (out over the skid and a little up). He faces the way it was flying, or out over the skid at the hover. From there he is an ordinary skier in the air: the flight, the landing load (`flight.ts`), the wipeout, the ragdoll and the injuries (`crash.ts`, `body.ts`) are the game's own. Deep powder gives more than a groomer, and a skier who leaves the skid high enough reaches the snow at the speed of a long fall.
+**Landing is the ordinary way off.** Set it down on snow flat enough (`crash.slope`, about 9°), slowly enough (`crash.sink`, 3.2 m/s; the gear is certified for 2.5) and level enough, and press Enter to step off onto the snow. The pilot shuts down where it stands. Where the snow is too steep to land on, **the drop** is the way off: it sends the skier off the seat with the machine's velocity plus `HELI.drop` (out over the skid and a little up). He faces the way it was flying, or out over the skid at the hover. From there he is an ordinary skier in the air: the flight, the landing load (`flight.ts`), the wipeout, the ragdoll and the injuries (`crash.ts`, `body.ts`) are the game's own. Deep powder gives more than a groomer, and a skier who leaves the skid high enough reaches the snow at the speed of a long fall.
 
 **The pilot** holds the machine level for a beat (`home.beat`). He then climbs to `home.clear` over the snow ahead, flies home at `home.cruise`, slows in time to stop over the pad, comes down onto it and shuts down. A parked machine can be boarded again.
 

@@ -75,6 +75,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "the main rotor, the tail rotor); the code's stand-in is a cabin, a boom, the skids and the rotors",
   },
   {
+    asset: "Snowmobile",
+    ids: ["sled"],
+    source: "blender",
+    code: ["pwa/src/game/sled-view.ts"],
+    drawnBy: "pwa/src/game/sled-view.ts",
+    blender: {
+      builder: "scripts/blender/sled.py",
+      files: ["sled.glb"],
+      pattern: "sled.glb",
+      switch: "VITE_MODEL_SLED",
+    },
+    note:
+      "the free ride's mountain sled, built off `SLED` and the class's trace: rigid nodes (the " +
+      "chassis, the bars, each ski, the rear suspension, the paddles with their run morph, the " +
+      "ski rack); the code's stand-in is a cowl, a tunnel, a belt and two skis",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

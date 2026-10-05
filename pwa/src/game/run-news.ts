@@ -137,6 +137,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         };
       if (e.phase === "crash") return { text: STRINGS.newsHeliCrash, tone: "bad" };
       return e.phase === "restart" ? { text: STRINGS.newsHeliRestart, tone: "info" } : null;
+    case "sled":
+      // The snowmobile: taken, hopped off, the rider thrown, back on it.
+      // The crash is the wipeout's line, said by the wipeout itself.
+      if (e.phase === "board") return { text: STRINGS.newsSledBoard, tone: "info" };
+      if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
+      if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
+      return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
     default:
       return null;
   }

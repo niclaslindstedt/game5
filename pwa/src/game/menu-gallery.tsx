@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE GALLERY — the pictures the player took, looked at inside the game and
 // sent on from there. Reached from the front door's GALLERY chip, and the
-// other half of the shutter: ENTER (or the phone's own screenshot) files a
+// other half of the shutter: P (or the phone's own screenshot) files a
 // picture (screenshots.ts) and this is the only place one is ever shown.
 //
 // A VIEWER, NOT A GRID. A player has a handful of pictures and wants to look

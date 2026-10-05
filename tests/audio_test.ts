@@ -145,6 +145,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   tunnel: { kind: "tunnel", t: 1, id: "W1", phase: "in" },
   lift: { kind: "lift", t: 1, id: "C1", lift: "chair", phase: "tower" },
   heli: { kind: "heli", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
+  sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
 };
 
 /** The kinds the bank says nothing about, with the reason: the lip is the

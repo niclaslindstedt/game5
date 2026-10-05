@@ -46,7 +46,44 @@ export type Technique = {
    * how far he lays himself over to the turn's balance (`skier.ts`), a
    * floor under `skier.inclineMost` (0: that cap). */
   incline: number;
+  /** THE EDGE CHANGE — how he gets from one turn's edge onto the next's
+   * (`incline.ts`). A CROSS-OVER takes the whole body over the skis into
+   * the next turn as the old one lets him go, the edge never further over
+   * than the body is laid plus his angulation: the shared model. A
+   * CROSS-UNDER (a retraction) flexes both legs and tips the skis from
+   * edge to edge UNDER a body that stays quiet: the new edge bites while
+   * the body is still coming over, far sooner than a body rolled over the
+   * skis would let it. */
+  cross: Crossing;
 };
+
+/** How a technique changes its edge (`Technique.cross`); every number a
+ * floor or a multiple on the shared model, its identity the free skier's. */
+export type Crossing = {
+  /** THE EDGE THE LEGS ALONE STAND THE SKIS ON, rad, whatever the body
+   * above them is doing — the skis tipped onto the new edge under a body
+   * still level, or still laid toward the old turn; past it an edge needs
+   * the body laid over to its side (`skier.angulateMost` past the
+   * inclination, `incline.ts`'s `edgeReach`). 0: none of its own, the
+   * cross-over's skis rolled over with the body. */
+  under: number;
+  /** THE RETRACTION, m: how far both legs are pulled up together as the
+   * skis swing under him — the skis' own points hung that much higher on
+   * him (as the tuck folds them), so a body swung upright on legs still
+   * bent by the old turn's load neither digs his skis' tips in nor is
+   * sprung off the snow by the load let go. 0: none, the cross-over's
+   * legs stretched as he rises over his skis. */
+  retract: number;
+  /** THE PITCH, rad, past which he gives the cross-under up for a
+   * cross-over (`incline.ts`'s `crossUnderOf`, over the next 0.1 rad): a
+   * giant slalom racer's legs tip the skis under a still trunk on the flat
+   * and his whole body crosses over them on a steep complete turn. 0: he
+   * crosses under on any pitch. */
+  steep: number;
+};
+
+/** The shared model's edge change: a cross-over, every number its own. */
+const CROSS_OVER: Crossing = { under: 0, retract: 0, steep: 0 };
 
 /** THE FREE SKIER — every number the identity: the shared model as it is.
  * Every mode but the slalom skis with it. */
@@ -57,6 +94,7 @@ export const FREE: Technique = {
   fade: 1,
   platform: 0,
   incline: 0,
+  cross: CROSS_OVER,
 };
 
 /** THE SLALOM RACER (R31). A turn every 0.8–1.0 s on a preferred radius of
@@ -70,7 +108,11 @@ export const FREE: Technique = {
  * to 70°, held there to a slalom's pace (the lock's fade four times as
  * slow), the whole shelf stood on, and the body let in as far as 63° —
  * a slalom apex's 2.5–3 g balanced (tan θ = a_lat / g) is 68–72°, the
- * last of it the hips' angulation. */
+ * last of it the hips' angulation. He CROSSES UNDER, the legs retracting
+ * and extending as one: the skis stood on up to 57° of the new edge before
+ * his body has come over (a turn every 0.9 s made where crossing over
+ * missed every other one) and drawn up 11 cm as they swing under him
+ * (est.), on any pitch. */
 export const SLALOM_TECHNIQUE: Technique = {
   id: "slalom",
   edgeRate: 1.6,
@@ -78,6 +120,7 @@ export const SLALOM_TECHNIQUE: Technique = {
   fade: 4,
   platform: 1,
   incline: 1.1,
+  cross: { under: 1.0, retract: 0.11, steep: 0 },
 };
 
 /** THE GIANT SLALOM RACER — data, no mode yet. A turn every ~1.45 s on a
@@ -87,7 +130,9 @@ export const SLALOM_TECHNIQUE: Technique = {
  * rolled 0.6 of the slalom's rate (0.96 of the shared), stood at up to 68°,
  * held to 70–80 km/h (the fade two and a half times as slow), the whole
  * shelf, the body let in to 59° (the apex's balance at 18 m/s on ~20 m,
- * est.). */
+ * est.); crossing under on the flatter ground — the trunk still, the legs
+ * tipping the skis to 46° and drawn up half the slalom's — and over on a
+ * steep complete turn, past 19° of pitch (est.). */
 export const GIANT_SLALOM_TECHNIQUE: Technique = {
   id: "giantSlalom",
   edgeRate: 0.96,
@@ -95,6 +140,7 @@ export const GIANT_SLALOM_TECHNIQUE: Technique = {
   fade: 2.5,
   platform: 1,
   incline: 1.03,
+  cross: { under: 0.8, retract: 0.05, steep: 0.33 },
 };
 
 /** THE SUPER-G RACER — data, no mode yet. A turn every 2.0–2.3 s on a
@@ -104,7 +150,7 @@ export const GIANT_SLALOM_TECHNIQUE: Technique = {
  * 2.4–2.8 body weights. So: the edge rolled 0.37 of the slalom's rate,
  * stood at up to 60°, held a little longer (the fade one and a half times
  * as slow), most of the shelf, the body let in to 52° (the apex's balance
- * at 24 m/s on ~45 m, est.). */
+ * at 24 m/s on ~45 m, est.), crossing over with little unweighting. */
 export const SUPER_G_TECHNIQUE: Technique = {
   id: "superG",
   edgeRate: 0.6,
@@ -112,6 +158,7 @@ export const SUPER_G_TECHNIQUE: Technique = {
   fade: 1.5,
   platform: 0.8,
   incline: 0.91,
+  cross: CROSS_OVER,
 };
 
 /** THE DOWNHILL RACER — data, no mode yet. A turn every 2.4–2.6 s on a
@@ -122,7 +169,7 @@ export const SUPER_G_TECHNIQUE: Technique = {
  * edge rolled 0.3 of the slalom's rate, stood at up to 55°, the shared
  * fade (a downhiller stands his skis flatter the faster he goes), half the
  * shelf, the body let in to 53° (the apex's balance at 26 m/s on ~52 m,
- * est.). */
+ * est.), crossing over with little unweighting. */
 export const DOWNHILL_TECHNIQUE: Technique = {
   id: "downhill",
   edgeRate: 0.48,
@@ -130,6 +177,7 @@ export const DOWNHILL_TECHNIQUE: Technique = {
   fade: 1,
   platform: 0.5,
   incline: 0.92,
+  cross: CROSS_OVER,
 };
 
 export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {

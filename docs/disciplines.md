@@ -119,7 +119,17 @@ house, the shots and the clip `pwa/src/game/start-house*.ts`,
 `camera-start.ts`, `slalom-start.ts`; how each technique is STOOD — the
 counter-rotation, the hands and the poles, the cross-block at the turning
 pole, the legs, the retraction, the tuck — `pwa/src/game/technique-pose.ts`
-(a row a discipline, off the numbers on this page).
+(a row a discipline, off the numbers on this page). The racer CROSSES
+UNDER (`engine/game/defs/technique.ts`'s `Crossing`): his legs stand the
+skis on the new edge — up to 57° — before his body has come over, and draw
+them up under him as they swing across (`incline.ts`), so a 0.9 s rhythm
+makes every turn. The bot skis the campaign's slaloms and seeds 1–16 at
+~33 km/h on the mean (~36 on seed 38) and ~50 at the most, its runs 43–79 s,
+a turn every ~1.0 s, ~48° of edge at a turn's peak on the mean (70° at the
+most), a tenth of its turns tighter than ~7.8 m, ~3.5 BW at the peak and the
+skis up to ~40° off the way at the end of a turn: slower, rounder and
+skiddier than the research, the line round the poles bending no tighter than
+8 m (R31's `slalom.bend`). The finish lunge is not drawn yet.
 
 Sources: [1] PMID 30317917 · [2] PMC7739813 · [3] doi:10.3390/app14041427 ·
 [4] PMC7739787 · [5] PMC12575998 · [6] KoreaScience JAKO201721242144242.

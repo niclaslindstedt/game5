@@ -23,6 +23,8 @@ import {
   TECHNIQUES,
   TUNING,
   botInput,
+  crossUnderOf,
+  edgeReach,
   carveCurvature,
   cornerGrip,
   createGame,
@@ -68,6 +70,42 @@ describe("the technique a run is skied with", () => {
           expect(cornerGrip(spec, 1, v, edge, FREE)).toBe(cornerGrip(spec, 1, v));
         }
       }
+    }
+  });
+});
+
+describe("how a technique changes its edge", () => {
+  it("crosses over on the free skier's row: the edge no further than the lean plus the angulation", () => {
+    expect(FREE.cross).toEqual({ under: 0, retract: 0, steep: 0 });
+    const A = TUNING.skier.angulateMost;
+    for (const lean of [-0.6, 0, 0.3, 0.8]) {
+      const reach = A + Math.max(0, lean);
+      expect(edgeReach(lean, 1.2, 1, 0, FREE)).toBe(Math.min(1.2, reach));
+    }
+  });
+
+  it("lets the slalom racer's legs stand the new edge under a body still laid the old way", () => {
+    const A = TUNING.skier.angulateMost;
+    const under = SLALOM_TECHNIQUE.cross.under;
+    expect(under).toBeGreaterThan(A);
+    // Upright, or still laid 20° into the old turn: the cross-under's edge.
+    expect(edgeReach(0, 1.22, 1, 0, SLALOM_TECHNIQUE)).toBe(under);
+    expect(edgeReach(-0.35, 1.22, 1, 0, SLALOM_TECHNIQUE)).toBe(under);
+    expect(edgeReach(0, -1.22, 1, 0, SLALOM_TECHNIQUE)).toBe(-under);
+    // Laid well into the new turn, the body's reach takes over, as ever.
+    expect(edgeReach(0.7, 1.22, 1, 0, SLALOM_TECHNIQUE)).toBeCloseTo(Math.min(1.22, A + 0.7), 12);
+    // On any pitch.
+    expect(crossUnderOf(SLALOM_TECHNIQUE, 0.6)).toBe(1);
+  });
+
+  it("crosses under on the flat and over on the steep for the giant slalom, and over for the speed events", () => {
+    const gs = TECHNIQUES.giantSlalom;
+    expect(crossUnderOf(gs, 0.2)).toBe(1);
+    expect(crossUnderOf(gs, gs.cross.steep + 0.2)).toBe(0);
+    expect(edgeReach(0, 1.2, 1, 0.6, gs)).toBe(TUNING.skier.angulateMost);
+    for (const id of ["superG", "downhill"] as const) {
+      expect(TECHNIQUES[id].cross.under).toBe(0);
+      expect(TECHNIQUES[id].cross.retract).toBe(0);
     }
   });
 });
@@ -145,14 +183,14 @@ describe("the bot's slalom", () => {
     expect(p.finished).toBe(true);
     // A slalom's pace: a real one is 45–65 s down 140–220 m of vertical at
     // ~40 km/h on the mean, 50–60 at the most, the edge past 60°. The bot
-    // skis it slower — some 30 km/h, about 70 s here — because a racer
-    // laid into one turn crosses into the next only as its load lets him
-    // go (`incline.ts`), and the speed it plans leaves room for that
-    // crossing (`lineSpeed`); faster, it misses gates.
+    // skis it a little slower — some 36 km/h, about 63 s here — because
+    // the speed it plans leaves room for the crossing between two turns
+    // (`lineSpeed`), the skis swung under him onto the new edge
+    // (`Technique.cross`); faster, it misses gates.
     expect(p.time).toBeGreaterThan(45);
     expect(p.time).toBeLessThan(80);
     const mean = (state.level.slalom!.to - state.level.slalom!.from) / p.time;
-    expect(mean * 3.6).toBeGreaterThan(28);
+    expect(mean * 3.6).toBeGreaterThan(32);
     expect(top * 3.6).toBeGreaterThan(45);
     expect(edge).toBeGreaterThan(60 / 57.3);
     const par = slalomPar(state.level, SWIFT)!;

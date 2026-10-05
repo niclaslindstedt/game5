@@ -132,8 +132,9 @@ export type BotProfile = {
    * skis carve tighter than the line's mean bend to make up for it. */
   slalomPace: number;
   /** ...and how long he runs between two turns crossing from one edge to
-   * the next, s (`lineSpeed`): the old turn's lean let go, the skis
-   * swung through his way, the body laid into the new one. */
+   * the next, s (`lineSpeed`): the skis swung through his way and onto the
+   * new edge under him (the racer's cross-under, `Technique.cross`) while
+   * his body comes over. */
   slalomCross: number;
   /** ...and THE RACING STANCE: the most of the tuck he folds into between
    * the poles, 0..1 — a slalom racer skis half up and never tucks (the
@@ -185,9 +186,9 @@ export const RIDER_BOT: BotProfile = {
   slalomClear: 0.4,
   slalomHeading: 2,
   slalomSpeed: 1,
-  slalomChange: 4,
-  slalomPace: 0.6,
-  slalomCross: 0.3,
+  slalomChange: 6,
+  slalomPace: 0.65,
+  slalomCross: 0.15,
   slalomStance: 0.3,
   slalomSkid: 0.4,
   slalomSkidHeld: 0.55,

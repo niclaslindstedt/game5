@@ -88,8 +88,9 @@ human's (`tests/simulation_test.ts`, `determinism_test.ts`).
 7. **Giving up**: asks for a reset after `giveUpAfter` s without a gate.
 8. **On a slalom**: a forward-search planner (`slalom-plan.ts`) over a model
    of a carved turn (`turn-model.ts`) that reads the physics' limits — the
-   edge no further over than the lean plus the angulation, the carve no
-   tighter than R·cos edge, the way turned through the skis' slip, the lean
+   edge no further over than the lean plus the angulation or than the
+   technique's cross-under stands it (`incline.ts`'s `edgeReach`, the
+   physics' own function), the carve no tighter than R·cos edge, the way turned through the skis' slip, the lean
    crossing over only as the old turn lets go, the check's pivot — choosing
    the steer and the check together; its speed is `lineSpeed` (the par's).
 

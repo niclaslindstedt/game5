@@ -194,6 +194,14 @@ export function brakeDecel(spec: SkiSpec, packed: number): number {
   return TUNING.g * (S.skidDrag + hold * TUNING.grip.skidHold * Math.sin(S.skidFast) * 0.5);
 }
 
+/** THE SKID ANGLE the speed allows, rad: a snowplough's at a crawl,
+ * narrowing to `steer.skidFast` by `steer.skidFadeSpeed` — what the brake
+ * pivots the skis by (`skier.ts`), and the bot's model of it. */
+export function skidAngleAt(speed: number): number {
+  const S = TUNING.steer;
+  return S.skidAngle - (S.skidAngle - S.skidFast) * Math.min(1, Math.abs(speed) / S.skidFadeSpeed);
+}
+
 const harsh = new WeakMap<SkiSpec, number>();
 
 /** THE HARDEST LANDING A SKIER TAKES WHOLE, m/s into the slope. A leg

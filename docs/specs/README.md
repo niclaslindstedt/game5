@@ -12,7 +12,7 @@ a second, stale copy of the truth.
 
 | Spec | Discipline | State |
 | --- | --- | --- |
-| [SLALOM.md](SLALOM.md) | Slalom | building |
+| — | Slalom | built — spec retired; its research is `docs/disciplines.md` § Slalom |
 | [GIANT_SLALOM.md](GIANT_SLALOM.md) | Giant slalom | draft — research first |
 | [SUPER_G.md](SUPER_G.md) | Super-G | draft — research first |
 | [DOWNHILL.md](DOWNHILL.md) | Downhill | draft — research first |
@@ -154,8 +154,11 @@ next discipline pays less. Every point names where it bit.
 - **How the edge changes is technique.** With the lean model, a skier whose
   whole body must swing through between turns loses ~0.3 s a transition; a
   slalom racer's legs tip the skis UNDER a level body (the cross-under). A
-  discipline's technique row has to say how its transition works, or its
-  turn rhythm can't be reached.
+  discipline's technique row says how its transition works
+  (`Technique.cross`: the edge the legs alone stand the skis on, the
+  retraction, the pitch past which a cross-under gives way to a
+  cross-over), or its turn rhythm can't be reached: crossing over, the 0.9 s
+  rhythm missed every other turn; crossing under, it makes every one.
 - **The edge lock faded with speed** (to ~55° at 12 m/s) and the roll hold
   capped the turning load at ~1.8 g — both had to become technique-dependent
   (`edgeLockAt`, the technique's `fade`).
@@ -180,7 +183,10 @@ next discipline pays less. Every point names where it bit.
 - **The line's tightest bend caps the edge a racer needs.** A 10 m bend
   needs only ~44° of edge, so the slalom never reached its 65–70°. But
   tightening the bend alone only cost finishes, because the transition was
-  the limit. Fix the technique first, then the line.
+  the limit. Fix the technique first, then the line: with the cross-under
+  in, `slalom.bend` went to 8 m with every run still finishing — and the
+  bot's tightest tenth of turns moved only from ~8.1 to ~7.9 m, because it
+  rounds the line out on a steep pitch and plans its speed off the grip.
 - **Black maps carry drops across the piste,** which a gated race can't
   cross; a slalom off a bare seed is built red. A speed event that keeps
   jumps must say how it treats a drop.

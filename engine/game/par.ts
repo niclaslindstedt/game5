@@ -34,10 +34,10 @@ export const PAR = {
   /** The share of the cut-hard corner grip a line's bend is skied at —
    * the rest is the edge rolling between two turns (the bot's own
    * `slalomPace`). */
-  pace: 0.6,
+  pace: 0.65,
   /** ...and the time he runs between two turns crossing from one edge to
    * the next, s (the bot's own `slalomCross`). */
-  cross: 0.3,
+  cross: 0.15,
   /** How far up out of the tuck a slalom racer skis, 0 tall … 1 folded
    * (the bot's own `slalomStance`). */
   crouch: 0.3,
@@ -48,7 +48,7 @@ export const PAR = {
   /** The most he sheds before a bend, m/s². */
   brake: 4,
   /** A good racer's time as a share of the line's own. */
-  scale: 1.12,
+  scale: 1.14,
 } as const;
 
 /** A slalom's par: the whole run, s, and the clock at each checkpoint —

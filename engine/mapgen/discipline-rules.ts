@@ -141,10 +141,11 @@ export const DISCIPLINE_RULES = {
     closed: { min: 4.8, max: 5.6 } as Band,
     gap: { min: 0.75, max: 1 } as Band,
     /** THE TIGHTEST THE LINE ROUND THE POLES MAY BEND, m: a slalom ski's
-     * carve at race pace, with its edge's change between two turns
-     * (`limits.ts`) — so an open gate's turning pole stands no further
-     * across than the gates either side of it leave room to swing to. */
-    bend: 10,
+     * carve at race pace, with its edge's change between two turns — the
+     * racer's cross-under (`Technique.cross`, `limits.ts`) — so an open
+     * gate's turning pole stands no further across than the gates either
+     * side of it leave room to swing to. */
+    bend: 8,
     /** How many of each combination a course carries. */
     hairpins: { min: 3, max: 4 } as Band,
     verticals: { min: 1, max: 2 } as Band,

@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GAME_MODES,
   LEVEL_RULES,
   NEUTRAL_INPUT,
   TUNING,
@@ -282,7 +283,7 @@ describe("the tricks run", () => {
   });
 
   it("the strokes and riding switch are the free ride's and the tricks run's alone", () => {
-    for (const mode of ["slalom", "downhill", "superG", "timeTrial", "free", "tricks"] as const) {
+    for (const mode of GAME_MODES) {
       const rules = createGame({ level: flatLevel(), mode, quiet: true }).rules;
       expect(rules.stunts).toBe(mode === "free" || mode === "tricks");
     }

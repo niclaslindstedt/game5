@@ -383,6 +383,7 @@ export function speedSkiRules(laps: number): RunRules {
     contact: false,
     course: true,
     tricks: false,
+    stunts: false,
     limit: 0,
     airGravity: TUNING.air.gravity,
     crowd: 0,

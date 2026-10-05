@@ -12,15 +12,16 @@
 import type { SkiId, SkiSpec } from "./skis.ts";
 
 /** HOW FAR THE TAIL IS TURNED UP, 0 (a race ski's flat tail, cut square)
- * … 1 (a twin-tip's, turned up as high as its tip): the race skis none, the
- * all-mountain ski a little kick, the powder ski a raised tail, the park
- * ski its twin tips. */
+ * … 1 (a twin-tip's, turned up as high as its tip): the race skis and the
+ * speed ski none, the all-mountain ski a little kick, the powder ski a
+ * raised tail, the park ski its twin tips. */
 export const TAIL_RISE: Readonly<Record<SkiId, number>> = {
   chamois: 0.3,
   swift: 0,
   chough: 0,
   falcon: 0,
   eagle: 0,
+  peregrine: 0,
   marmot: 0.5,
   hare: 1,
 };

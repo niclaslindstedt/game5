@@ -22,6 +22,8 @@ import {
   boundLevel,
   generateLevel,
   gradeOf,
+  helipadOf,
+  sledSpotOf,
   portableLevel,
   type PisteGrade,
   type PortableLevel,
@@ -89,6 +91,10 @@ export type PreviewPainted = {
   /** The runs a ride by lift can start down, and the map's own. */
   runs: FreeRunInfo[];
   fallback: string | null;
+  /** Where the RUN row's two machines wait on the valley floor — the
+   * helicopter's pad (`helipadOf`) and the snowmobile's spot
+   * (`sledSpotOf`) — the place the card marks when one is picked. */
+  machines: Record<"heli" | "sled", { x: number; y: number; z: number }>;
 };
 
 /** A seed the generator refuses is an answer too: the card says so rather
@@ -137,6 +143,8 @@ async function encode(
   return { px, rgba };
 }
 
+const placeOf = ({ x, y, z }: { x: number; y: number; z: number }) => ({ x, y, z });
+
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   const { seed, region, grade, paint, level: given } = e.data;
   try {
@@ -174,6 +182,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         colour: gradeOf(level),
         board: boardKey(level),
         ...freeRunList(level),
+        machines: { heli: placeOf(helipadOf(level)), sled: placeOf(sledSpotOf(level)) },
       };
     }
     // The map is copied, not transferred: this worker's own last resort

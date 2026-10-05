@@ -233,6 +233,7 @@ export function StartPage({
             <SeedPreview
               chart={chart}
               entry={marked}
+              machine={heli ? "heli" : sled ? "sled" : null}
               spot={vehicle ? null : spotOn(ride, seed)}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />

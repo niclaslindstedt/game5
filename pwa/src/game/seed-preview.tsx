@@ -293,6 +293,7 @@ function EntryMark({ at, grade }: { at: [number, number]; grade: PisteGrade | nu
 export function SeedPreview({
   chart,
   entry,
+  machine = null,
   spot,
   onSpot,
 }: {
@@ -300,6 +301,9 @@ export function SeedPreview({
   /** The run the lift carries the skier to (`markedRun`); null off a ski
    * area, or before the chart has named the runs. */
   entry: FreeRunInfo | null;
+  /** The machine the ride begins on, when the RUN row picked one: marked
+   * where it waits on the valley floor rather than at any run's head. */
+  machine?: "heli" | "sled" | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
@@ -328,13 +332,15 @@ export function SeedPreview({
         ? toChart(drawn.schematic.size, spot.x, spot.z)
         : spotInPanorama(drawn.panorama.view, drawn.panorama.pick, spot.x, spot.z)
       : null;
-  // The head of the run picked, where the lift sets him down — drawn even
-  // where a ridge hides it from the valley, since it is where he starts.
+  // The head of the run picked, where the lift sets him down — or the
+  // machine he begins on, at the bottom — drawn even where a ridge hides it
+  // from the valley, since it is where he starts.
+  const start = drawn && machine ? drawn.machines[machine] : (entry?.head ?? null);
   const head =
-    drawn && entry
+    drawn && start
       ? view === "plan"
-        ? toChart(drawn.schematic.size, entry.head.x, entry.head.z)
-        : toPanorama(drawn.panorama.view, entry.head.x, entry.head.y, entry.head.z)
+        ? toChart(drawn.schematic.size, start.x, start.z)
+        : toPanorama(drawn.panorama.view, start.x, start.y, start.z)
       : null;
   const label = drawn
     ? view === "plan"
@@ -364,7 +370,7 @@ export function SeedPreview({
             {at ? (
               <EntryMark at={at} grade={null} />
             ) : (
-              head && <EntryMark at={head} grade={entry?.grade ?? null} />
+              head && <EntryMark at={head} grade={machine ? null : (entry?.grade ?? null)} />
             )}
           </svg>
         ) : (

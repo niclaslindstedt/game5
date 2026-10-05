@@ -6,7 +6,9 @@
 // lifting his hips; a landing folds him and he comes back up; a hop off a
 // crest is not a flight — his stroke and his stance ride on over it —
 // while a jump he springs himself is, and carries his body with it; and
-// his trunk keeps its pitch while the skis rock under him. The climb his
+// his trunk keeps its pitch while the skis rock under him. A steady change
+// of climb (a stop) is ridden on its line, and a fold his knees have no
+// room for (a tuck's) is never bowed at the waist. The climb his
 // own skate makes across a side slope is not a bump, and a skier thrown
 // is stood back up at rest.
 
@@ -198,6 +200,32 @@ describe("his legs are springs", () => {
     expect(at).toBeLessThan(0.25);
     // ...and stood back up a second and a half on.
     expect(Math.abs(s.bump)).toBeLessThan(0.02);
+  });
+
+  it("rides a steady change of climb on its line, not sunk to his deepest fold by it", () => {
+    // Braking down a pitch: the fall taken out of him at half a metre a
+    // second every second, for six seconds. The legs' spring sags a couple
+    // of centimetres under that push (a/ω²) — a line followed a lag behind
+    // pinned them at their deepest fold for as long as it lasted.
+    const s = createSkierSpring();
+    for (let i = 0; i <= 360; i++) stepSkierSpring(s, -5 + (3 * i) / 360, false, 1 / 60, 0, RIDE);
+    expect(s.bump).toBeGreaterThan(0);
+    expect(s.bump).toBeLessThan(0.04);
+  });
+
+  it("takes a fold his knees have no room for in his hips, never bowed to his skis", () => {
+    // Stood up, the knees take a fold and the trunk follows the shins.
+    const stood = skierPose(base);
+    const sunk = skierPose({ ...base, bump: 0.15 });
+    expect(sunk.hips.y).toBeLessThan(stood.hips.y - 0.1);
+    expect(sunk.pitch).toBeGreaterThan(stood.pitch + 0.1);
+    // In a tuck they are folded as far as knees go: the compression is not
+    // taken by bowing at the waist, his head kept over his hips.
+    const tuck = { ...base, crouch: 1, tuck: 1 };
+    const low = skierPose(tuck);
+    const pressed = skierPose({ ...tuck, bump: 0.3 });
+    expect(pressed.pitch).toBeLessThan(low.pitch + 0.1);
+    expect(pressed.head.y - pressed.hips.y).toBeGreaterThan(0.2);
   });
 
   it("carries his body with a jump he springs himself", () => {

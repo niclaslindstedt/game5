@@ -28,13 +28,21 @@ MASS OF ITS OWN (`SkierSpring.bump`, `LEGS` in `skier-spring.ts`, stepped
 with the frame's `dt` in `skis-body.ts`): every change in the engine's climb
 (`SkierState.vy`) is a push it does not share, and the legs' spring (about
 1 Hz) brings it back damped against THE LINE HE RIDES (`slope`: the pair's
-climb taken slowly) — never against the skis' every bump — so over rollers
+climb taken slowly, WITH ITS TREND — `slopeRate` — so a climb changing
+steadily, a stop down a pitch or a run gathering speed, is ridden on the
+line and sags him a few centimetres, never pins him at his deepest fold)
+— never against the skis' every bump — so over rollers
 the skis go up and down with the snow, the knees fold and let out, and the
 head rides on with about a third of the bounce; a landing leaves the torso
 coming down until the knees have taken it (stiffening over the last of
 their reach, `LEGS.stop`, never past it — the engine's compression spent
 first), and he stands back up within the second. The trunk HOLDS ITS
-PITCH while the skis rock fore and aft under him (`pitchHeld`). A HOP is
+PITCH while the skis rock fore and aft under him (`pitchHeld`). THE FOLD IS
+TAKEN IN THE KNEES: the trunk pitches with the part of it the knees have
+room for (the shins and the trunk go over together), and the part they have
+none for — a tuck's knees are folded as far as knees go — lifts the hips
+back and is NEVER bowed at the waist: bowed, every compression in a tuck
+put his face down to his skis (`make sag` measures it). A HOP is
 not a flight (`flying` in `skier-gait.ts`): skis skimming off a crest for
 a tenth of a second leave his stroke and his stance as they were; a jump
 he springs himself carries his body with it. The numbers are measured
@@ -141,6 +149,7 @@ when the skis he stands on are what moves.
 | `scripts/technique-preview.mjs`, `scripts/lib/technique-measure.mjs`, `pwa/src/tools/technique-harness.ts` | THE TECHNIQUE LAB (`make technique`): each riding technique skied by the bot down one course — a table against the research targets (`docs/disciplines.md`), and the run strobed from above, a TV lens through one turn and its apex from outside, the front and inside; and the TURN SHAPES (`scripts/lib/technique-shape.mjs`, `pwa/src/tools/technique-turns.ts`): each technique's own linked carve down one open slope, from above at one scale, coloured by radius |
 | `pwa/src/game/skier-flight.ts` | THE FALL: the fall clock, SET → SPOT → WINDMILL → REACH (and COMMITTED: a lean held cancels the windmill), the arms' angle wound round and braked home, `flightRead` (how high, how soon the snow), `flightShape` (what the pose lays on); `tests/skier_flight_test.ts` |
 | `pwa/src/game/skier-spring.ts` | The view's own state between frames: the upper body as a mass on the legs (`LEGS`: kicked by the pair's climb, damped against the line he rides, the legs' reach), the trunk's pitch held off the skis' rocking (`pitchHeld`), the air and a jump's load eased, the hips, edge, roll and the skid's pivot followed (`drawnSkiAngle` — the skis are drawn on it too), the start gate's stance eased in and out (`ready`, off `inStartGate`), his own clock |
+| `scripts/sag-lab.mjs` | THE SAG LAB (`make sag`): the body PULLED DOWN onto his legs — landings, a pitch run out onto the flat, a stop, rollers, a tuck, a generated map skied fast by the bot — posed with the legs' spring and again without it, so the forward lean the spring adds (the fold's share and `pitchHeld`'s) is read apart, held to bands (`bow`: never past level with the slope; `waist`: the trunk following the shins; `tipsy`), and `previews/sag.png` (each moment's worst frame in the side view, spring over no spring, and its trace) |
 | `scripts/skier-metrics.mjs`, `scripts/lib/skier-measure.mjs` | THE METRICS LAB: the pose measured (angles, the shins in their boots, the centre of mass over the feet, angulation, the head against the horizon, limbs through limbs, snaps) and held to bands |
 | `tests/world_render_test.ts`, `tests/skier_pose_test.ts` | The pose held: boots in the bindings, each shin in its boot, hands on the grips, the carve an inclined column hinged at the hips, the eyes toward the horizon, the back rounded in the tuck, compact in the air, alive stood still; the half bones turn half way and the hands close round the poles |
 
@@ -260,6 +269,10 @@ intent from physics deltas.
    the pose measured against a skier's bands, frame by frame, in seconds.
    `ARGS=--faults` lists every fault. Read the `skier-improvement` skill for
    what each band means and how a fault is chased.
+   For the BODY ON ITS LEGS (the spring, the line, what the fold does to
+   the trunk): `make sag ARGS="--json=previews/sag-before.json"` before and
+   `ARGS="--compare=previews/sag-before.json"` after — the staged pulls
+   down and a fast bot run on a real map, the spring's lean read apart.
 0. `make skier` (`MOVE=skate,jump` a subset; `ARGS=--code` the code's
    figure) — the skier IN MOTION: `previews/skier-<move>.png`, a column a
    moment across the move's window and a row a view (behind, the rear

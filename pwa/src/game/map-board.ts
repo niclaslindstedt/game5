@@ -38,6 +38,14 @@ import { STRINGS } from "./strings.ts";
  * frame is built round it. */
 export const BOARD_FACE = { width: 2.6, height: 3.09, foot: 1.0, front: 0.1 } as const;
 
+/** THE PRINT IS PAPER, NOT SNOW: what its whitest white reflects (linear),
+ * the paint scaled under it. The face is painted in screen colours — the
+ * enamel and the panorama's sky near 0.9–0.95 — and a print's white gives
+ * back about 0.8 where snow gives 0.9, so a board in the same light as the
+ * snow round it reads a little under it rather than glowing out of it. Matte
+ * (`roughness`), as the run signs are: no sheen of its own. */
+const PRINT_WHITE = new THREE.Color().setScalar(0.84);
+
 /** The face as painted, px: the panorama square, the header over it and
  * the legend under it. */
 const PX = { w: 512, head: 64, foot: 32 } as const;
@@ -228,7 +236,7 @@ export function createMapBoards(
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
     const mat = hazeMaterial(
-      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ map: tex, color: PRINT_WHITE, roughness: 0.85 }),
       haze,
       "map-board",
     );

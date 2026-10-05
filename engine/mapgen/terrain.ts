@@ -306,11 +306,22 @@ export function descentAt(plan: TerrainPlan, z: number): number {
 /** R2 — how far up a side ridge a point stands: 0 on the face, 1 at the
  * flank's full height. Read off the warp's noise at (x, z). */
 export function flankOf(plan: TerrainPlan, noise: number, x: number, z: number): number {
+  return flankAcross(plan, noise, x, flankOpen(plan, z));
+}
+
+/** How open the side ridges are at `z` — `flankOf`'s half that depends on
+ * z alone, for a bake that reads it once a row. */
+export function flankOpen(plan: TerrainPlan, z: number): number {
+  const F = R.mountain.flank;
+  return 1 - smoothstep(F.open.min, F.open.max, descentAt(plan, z));
+}
+
+/** `flankOf` with its row's `flankOpen` already read. */
+export function flankAcross(plan: TerrainPlan, noise: number, x: number, open: number): number {
   const F = R.mountain.flank;
   const band = plan.flankBand ?? F;
   const warp = (noise * 2 - 1) * F.warp;
   const across = Math.abs(x - R.world.size / 2) + warp;
-  const open = 1 - smoothstep(F.open.min, F.open.max, descentAt(plan, z));
   return smoothstep(band.inner, band.outer, across) * open;
 }
 

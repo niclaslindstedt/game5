@@ -23,7 +23,8 @@ import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
-import { dealSeed, type MenuPage } from "./url-params.ts";
+import { nextFreeSeed } from "./free-ride.ts";
+import type { MenuPage } from "./url-params.ts";
 
 export function MenuPages(p: {
   page: Exclude<MenuPage, "root">;
@@ -105,7 +106,10 @@ export function MenuPages(p: {
           seed={p.startSeed}
           onSettings={setSettings}
           onReroll={() =>
-            setSettings((s) => ({ ...s, ride: { ...s.ride, seed: dealSeed(), spot: null } }))
+            setSettings((s) => ({
+              ...s,
+              ride: { ...s.ride, seed: nextFreeSeed(p.startSeed), spot: null },
+            }))
           }
           onBack={back}
           onNext={() => setPage("skis")}

@@ -48,6 +48,10 @@ export type LoadPlan = {
    * what ends the load and puts the refusal on the card (`advanceLoad`) — a
    * race somebody asked for must never quietly fall back to another map. */
   build: () => GameState;
+  /** Whether `build` may run yet — false while the map it builds on is
+   * still coming from elsewhere (a free ride's, from the start card's
+   * worker: `seed-maps.ts`). Always, when left off. */
+  ready?: () => boolean;
   /** The rung the camera opens on once the card lifts. */
   camera: CameraRung;
   /** Run on the frame the card lifts. */
@@ -78,9 +82,11 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
       id: "level",
       label: STRINGS.loadLevel,
       run: () => {
+        if (plan.ready && !plan.ready()) return true;
         built = plan.build();
         return false;
       },
+      waiting: () => plan.ready !== undefined && !plan.ready(),
     },
     {
       id: "scene",

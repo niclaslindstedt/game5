@@ -3,7 +3,8 @@
 // it; nothing outside `mapgen/` should reach past this file.
 
 export * from "./types.ts";
-export { generateLevel, subSeed } from "./generate.ts";
+export { generateLevel, levelIsCached, subSeed } from "./generate.ts";
+export { boundLevel, portableLevel, type PortableLevel } from "./compile.ts";
 export { LEVEL_RULES, bendFloor, inBand, withinBand, type Band } from "./rules.ts";
 export { bermCrest, bermProfile } from "./berm.ts";
 export {

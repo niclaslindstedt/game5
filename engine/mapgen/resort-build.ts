@@ -92,6 +92,7 @@ import { headOnContour, placeStart, startTop } from "./run-start.ts";
 import { groomRampsV5, layRampsV5 } from "./summit-ramps-v5.ts";
 import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
+import { cachedResort, keepResort, resortKey } from "./resort-cache.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { WOODS, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
@@ -785,7 +786,10 @@ export function attemptResort(
   };
 }
 
-/** The resort a seed builds in a region: the first attempt that stands. */
+export { lastResort } from "./resort-cache.ts";
+
+/** The resort a seed builds in a region: the first attempt that stands
+ * (kept, and built once: `resort-cache.ts`). */
 export function buildResort(
   seed: number,
   regionId: RegionId | undefined,
@@ -795,8 +799,9 @@ export function buildResort(
   version: GeneratorVersion,
 ): BuiltResort {
   const region = regionRow(regionId);
-  const key = `${seed}:${region.id}:${attempts}:${version}`;
-  if (cache && cache.key === key) return cache.built;
+  const key = resortKey(seed, regionId, attempts, version);
+  const kept = cachedResort(key);
+  if (kept) return kept;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
     const built = attemptResort(seed, a, subSeed(seed, a), region, version);
@@ -811,23 +816,13 @@ export function buildResort(
       reasons.push(`#${a}: ${why}`);
       continue;
     }
-    cache = { key, built };
+    keepResort(key, built);
     return built;
   }
   throw new Error(
     `resort ${seed}: no clean resort in ${attempts} attempts — ${reasons.join("; ")}`,
   );
 }
-
-/** The last resort built, for a lab that reads what its build did. */
-export function lastResort(): BuiltResort | null {
-  return cache?.built ?? null;
-}
-
-/** The last resort built: every map of one resort is the same mountain, so
- * the campaign's six maps of it and a lab's sweep of its courses build it
- * once. */
-let cache: { key: string; built: BuiltResort } | null = null;
 
 /** R15, R19 — a course's day: its own stream's day of the year and hour,
  * turned to the face (the sun within `sun.facing` of the face's bearing at

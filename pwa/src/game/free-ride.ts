@@ -21,6 +21,7 @@
 // picked on and read only while that is still the seed on the card.
 
 import {
+  CURRENT_GENERATOR_VERSION,
   DEFAULT_REGION,
   TIMES_OF_DAY,
   freeRuns,
@@ -36,10 +37,39 @@ import {
   type Assist,
   type CreateGameOptions,
   type Level,
+  type RunRules,
   type SkiSpec,
+  regionOf,
 } from "@engine";
 
 import { runNumbers } from "./run-names.ts";
+
+/** THE FREE RIDE'S MOUNTAINS, IN ORDER: the map the start card opens on
+ * for every skier, and the ones ANOTHER MOUNTAIN steps to after it, the same
+ * for everyone — so the map a skier is shown first is one the game has
+ * usually built already (the front door stands on the first, and the card
+ * builds the next in the background while the last is looked at), and a
+ * map's chart is kept between visits (`seed-store.ts`). A seed typed or
+ * stepped on the MAP row is a mountain of the skier's own.
+ *
+ * Each is a ski area the current generator builds first time (no attempt
+ * refused, so the quickest to build), with five lifts or more and courses
+ * of several colours; ordered so the colours the seeds deal alternate. */
+export const FREE_SEEDS: readonly number[] = [
+  2, 6, 12, 18, 21, 3, 27, 15, 30, 24, 22, 4, 14, 38, 8, 11,
+];
+
+/** The free ride's first mountain: the start card's when nothing was
+ * picked, and the one the front door stands on. */
+export const FIRST_FREE_SEED = FREE_SEEDS[0];
+
+/** The mountain ANOTHER MOUNTAIN deals after `seed`: the next of
+ * {@link FREE_SEEDS}, round to the first after the last — and the first
+ * after a seed of the skier's own. */
+export function nextFreeSeed(seed: number): number {
+  const at = FREE_SEEDS.indexOf(seed);
+  return FREE_SEEDS[(at + 1) % FREE_SEEDS.length];
+}
 
 /** THE SEASON ROW'S STOPS, each a day as a count off Jan 1 (so December
  * runs through New Year without a seam; the engine folds it, `dayOfYearOf`):
@@ -317,4 +347,28 @@ export function freeTopOptions(
   run: string | undefined,
 ): CreateGameOptions {
   return { ...again, spawn: undefined, byLift: false, run };
+}
+
+/** THE MAP ALREADY STANDING, if a free ride asked for with `options` is
+ * ridden on exactly it: the same seed under this generator, in the same
+ * country, down the course the seed deals (no grade asked), and nothing
+ * set over it or eased for a race — the front door's own map, which stands
+ * on the first free ride mountain (`FIRST_FREE_SEED`). Riding the very map
+ * the renderer has built spares the loading card building it again. */
+export function standingFor(
+  level: Level,
+  rules: RunRules,
+  options: CreateGameOptions,
+): Level | undefined {
+  const same =
+    level.seed === options.seed &&
+    level.version === CURRENT_GENERATOR_VERSION &&
+    regionOf(level).id === (options.region ?? DEFAULT_REGION) &&
+    options.grade === undefined &&
+    rules.course &&
+    rules.jury === undefined &&
+    !level.slalom &&
+    !level.downhill &&
+    !level.superG;
+  return same ? level : undefined;
 }

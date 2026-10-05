@@ -59,11 +59,25 @@
      writes them here in px. Both are 0 whenever the browser is showing the
      whole page, which is nearly always — so `--shell-visible` is then the
      viewport's own height and every box below is laid out exactly as it would
-     be without any of this. */
+     be without any of this.
+
+     `--shell-seen` is the visible window's own height, measured beside the
+     offsets, and it is a FLOOR: the shell is never shorter than the window
+     the player is looking at. The offsets are read against a layout viewport
+     that can be stale — an installed iOS app turned from upright onto its
+     side can read its window slid most of the way down a layout that has not
+     caught up, and the unit less that offset is a sliver along the top of
+     the screen over `body`'s blue. The unit caps it, so a window read too
+     tall is no taller than the viewport. 0 until measured, which is no
+     opinion. */
   --shell-top: 0px;
   --shell-bottom: 0px;
+  --shell-seen: 0px;
   --shell-height: 100%;
-  --shell-visible: calc(var(--shell-height) - var(--shell-top) - var(--shell-bottom));
+  --shell-visible: min(
+    var(--shell-height),
+    max(calc(var(--shell-height) - var(--shell-top) - var(--shell-bottom)), var(--shell-seen))
+  );
 }
 
 html,

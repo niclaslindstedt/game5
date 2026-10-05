@@ -11,7 +11,7 @@
 // the next render draws. The board is written down on every change
 // (`saveProgress`), which is the one place it is.
 
-import { raceSkisOf, type GameMode } from "@engine";
+import { raceRiderOf, raceSkisOf, type GameMode } from "@engine";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import {
@@ -63,11 +63,14 @@ export function useCampaign(world: {
     }),
   );
   useEffect(() => saveProgress(progress), [progress]);
-  // A RACE opens the ski card on its discipline's pair; the player may
-  // still take another, and every other mode keeps the pair last picked.
+  // A RACE opens the ski card on its discipline's pair and the dress card
+  // on its build; the player may still take another, and every other mode
+  // keeps the pair and the build last picked.
   const raceSkis = (mode: GameMode): void => {
     const pair = raceSkisOf(mode);
     if (pair) world.setSettings((s) => ({ ...s, skis: pair }));
+    const weight = raceRiderOf(mode);
+    if (weight) world.setSettings((s) => ({ ...s, outfit: { ...s.outfit, weight } }));
   };
   return {
     progress,

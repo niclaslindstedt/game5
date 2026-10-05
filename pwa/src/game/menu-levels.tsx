@@ -12,8 +12,10 @@
 // WHAT IS OPEN IS WHAT THE CAMPAIGN HAS OPENED, a whole shelf at a time
 // (`shelfUnlocked`). Not map by map: this is not a second ladder to climb,
 // it is the shelves you have been given, and a skier who has skied the
-// glacier should be able to time any of it. The first shelf is open on a
-// fresh app, so the card is never empty.
+// glacier should be able to time any of it. The first shelf holding a map
+// the mode can ride is open on a fresh app (`shelfOpenFor`) — the first
+// shelf for most, the first with a black for a downhill — so the card is
+// never empty and always has its SKI press.
 //
 // The card wears the campaign's own silhouette and classes — the shelf tabs,
 // the boxes, the piste behind each — because a map should look like itself
@@ -27,8 +29,8 @@ import { useState } from "preact/hooks";
 import {
   findLevel,
   fitsMode,
-  reachedShelf,
-  shelfUnlocked,
+  reachedShelfFor,
+  shelfOpenFor,
   type CampaignLevel,
   type CampaignProgress,
   type CampaignShelf,
@@ -38,6 +40,11 @@ import { GradeMark } from "./grade-mark.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
+
+/** The measured mode's own billing word: the slalom's for any other. */
+function billedMode(mode: GameMode): "slalom" | "downhill" | "timeTrial" {
+  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
+}
 
 function LevelBox({
   level,
@@ -67,9 +74,7 @@ function LevelBox({
       <span class="menu-level-head">
         <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name={mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
-        <span class="menu-level-billing">
-          {STRINGS.campaignBilling(mode === "timeTrial" || mode === "downhill" ? mode : "slalom")}
-        </span>
+        <span class="menu-level-billing">{STRINGS.campaignBilling(billedMode(mode))}</span>
       </span>
       <span class="menu-level-name">{level.name}</span>
       <span class="menu-level-day">{dayLine(level)}</span>
@@ -102,13 +107,17 @@ export function LevelsPage({
   onPick: (level: CampaignLevel) => void;
 }) {
   const stood = chosen === null ? null : findLevel(chosen);
+  const offered = (shelf: CampaignShelf): boolean => shelfOpenFor(shelf, mode, progress);
   const [shown, setShown] = useState<CampaignShelf>(() =>
-    stood && shelfUnlocked(stood.shelf, progress) ? stood.shelf : reachedShelf(progress),
+    stood && fitsMode(stood.level, mode) && offered(stood.shelf)
+      ? stood.shelf
+      : reachedShelfFor(mode, progress),
   );
-  const open = shelfUnlocked(shown, progress);
+  const open = offered(shown);
   // Only the maps the mode can ride: a slalom only where the campaign sets
   // one, a downhill on a downhill's course (`fitsMode`).
   const maps = shown.levels.filter((level) => fitsMode(level, mode));
+  const billed = billedMode(mode);
   const pick = open ? (maps.find((level) => level.id === chosen) ?? maps[0] ?? null) : null;
   return (
     <div class="menu-card menu-card-levels">
@@ -138,12 +147,14 @@ export function LevelsPage({
       <MenuBody>
         <ShelfTabs
           shown={shown}
-          open={(shelf) => shelfUnlocked(shelf, progress)}
+          open={offered}
           line={(shelf) => shelf.blurb}
           hint={STRINGS.levelsShelfLocked}
           onPick={setShown}
         />
-        {open ? (
+        {open && maps.length === 0 ? (
+          <p class="menu-empty">{STRINGS.levelsNoneHere(billed)}</p>
+        ) : open ? (
           <div class="menu-levels">
             {maps.map((level) => (
               <LevelBox

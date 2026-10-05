@@ -41,7 +41,9 @@ import {
   pinnedGameOptions,
   pinnedRun,
   pointsFor,
+  reachedShelfFor,
   recordRun,
+  shelfOpenFor,
   skierKey,
   shelfStandings,
   shelfUnlocked,
@@ -228,6 +230,23 @@ describe("the locks", () => {
     expect(levelUnlocked(FIRST, 0, EMPTY_PROGRESS)).toBe(true);
     expect(levelUnlocked(FIRST, 1, EMPTY_PROGRESS)).toBe(false);
     expect(levelUnlocked(SECOND, 0, EMPTY_PROGRESS)).toBe(false);
+  });
+
+  it("offers every measured mode a map on a fresh board, so the level card has its SKI press", () => {
+    for (const mode of ["slalom", "downhill", "timeTrial"] as const) {
+      const shelf = reachedShelfFor(mode, EMPTY_PROGRESS);
+      expect(shelfOpenFor(shelf, mode, EMPTY_PROGRESS)).toBe(true);
+      expect(shelf.levels.some((level) => fitsMode(level, mode))).toBe(true);
+    }
+    // The first shelf has no black: the downhill lands on the first that does,
+    // the map `pinnedFor` already rides — and opens no other shelf.
+    const downhill = reachedShelfFor("downhill", EMPTY_PROGRESS);
+    expect(downhill).toBe(SHELVES.find((s) => s.levels.some((l) => fitsMode(l, "downhill"))));
+    expect(downhill.levels).toContain(pinnedFor(null, "downhill", null));
+    expect(shelfOpenFor(SECOND, "slalom", EMPTY_PROGRESS)).toBe(false);
+    expect(SHELVES.filter((s) => shelfOpenFor(s, "downhill", EMPTY_PROGRESS))).toHaveLength(
+      downhill === FIRST ? 1 : 2,
+    );
   });
 
   it("opens the next map on a podium, and not on fourth", () => {

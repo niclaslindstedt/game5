@@ -448,6 +448,33 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
   return shelfWon(SHELVES[index - 1], progress);
 }
 
+/** WHETHER THE LEVEL CARD OFFERS A SHELF TO `mode`: every shelf the campaign
+ * has opened, and the FIRST shelf holding a map the mode can ride, opened or
+ * not — so the card is never empty. The first shelf carries no black, so
+ * without it a DOWNHILL would have nowhere to go on a fresh app; it is the
+ * map `pinnedFor` already puts a fresh app's downhill on. */
+export function shelfOpenFor(
+  shelf: CampaignShelf,
+  mode: GameMode,
+  progress: CampaignProgress,
+): boolean {
+  return shelfUnlocked(shelf, progress) || shelf === SHELVES.find((s) => holdsMode(s, mode));
+}
+
+/** Where the level card lands for `mode`: the furthest shelf it offers that
+ * holds a map the mode can ride. */
+export function reachedShelfFor(mode: GameMode, progress: CampaignProgress): CampaignShelf {
+  let reached = SHELVES[0];
+  for (const shelf of SHELVES) {
+    if (holdsMode(shelf, mode) && shelfOpenFor(shelf, mode, progress)) reached = shelf;
+  }
+  return reached;
+}
+
+function holdsMode(shelf: CampaignShelf, mode: GameMode): boolean {
+  return shelf.levels.some((level) => fitsMode(level, mode));
+}
+
 /** WHERE THE CAMPAIGN PICKS BACK UP on a shelf. Forward first: the next open
  * map never ridden. Then back to the first open race not WON or trial
  * without its gold — which is the whole shape of a points campaign. Null

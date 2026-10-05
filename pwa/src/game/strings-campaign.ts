@@ -85,6 +85,9 @@ export const CAMPAIGN_STRINGS = {
   levelsTrial: "TIME TRIAL ON",
   levelsShelfLocked: "OPENED BY THE CAMPAIGN",
   levelsNoBest: "NO TIME SET YET",
+  /** An open shelf with no map the mode can ride (no black for a downhill). */
+  levelsNoneHere: (mode: "slalom" | "downhill" | "timeTrial"): string =>
+    `NO ${mode === "timeTrial" ? "TIME TRIAL" : mode === "downhill" ? "DOWNHILL" : "RACE"} ON THIS SHELF`,
   levelsBest: (seconds: number, skis: string): string =>
     `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
 

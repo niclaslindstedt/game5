@@ -23,7 +23,15 @@ import { collideTrees, keepInBounds } from "./collision.ts";
 import { stepStakes } from "./edge-stakes.ts";
 import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
-import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
+import {
+  crashOver,
+  mayGetUp,
+  noteSave,
+  quietClocks,
+  stepThrown,
+  throwRider,
+  wipeoutCause,
+} from "./crash.ts";
 import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
@@ -70,8 +78,15 @@ function runOut(run: GameState): SkierInput {
 }
 
 /** Advance one skier's run by the step the world has just taken. `events`
- * is the run's own list, already cleared for this step. */
-export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]): void {
+ * is the run's own list, already cleared for this step. `player` is the
+ * player's own run, whose fall is held longer than a rival's (`crash.getUp`,
+ * `.lieFor`). */
+export function stepRun(
+  run: GameState,
+  input: SkierInput,
+  events: GameEvent[],
+  player = false,
+): void {
   const racing = run.phase === "racing";
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
@@ -81,7 +96,8 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   if (stepSled(run, input, events)) return;
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
   if (stepLift(run, input, events)) return;
-  if (input.reset && racing) {
+  // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
+  if (input.reset && racing && (!player || mayGetUp(run.skier.thrown))) {
     standUp(run, events, false);
     return;
   }
@@ -167,8 +183,8 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   }
   if (off) {
     // A thrown skier takes no gate; he is stood back up once he has lain
-    // long enough.
-    if (crashOver(off)) standUp(run, events, true);
+    // long enough — the player longer.
+    if (crashOver(off, player)) standUp(run, events, true);
     return;
   }
   if (run.rules.course) {

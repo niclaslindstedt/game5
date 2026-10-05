@@ -26,6 +26,7 @@ import {
   SPEED_SKI,
   SLED,
   heliWithin,
+  mayGetUp,
   sledWithin,
   trenched,
   type GameState,
@@ -205,10 +206,12 @@ export type HudSnapshot = {
   /** BOGGED: the skier is sunk to the knees in powder (`trench.ts`) and
    * must pole out — the standing hint, up while he is. */
   stuck: boolean;
-  /** DOWN: the skier is off his skis (`crash.ts`'s `Thrown`) — the reset
-   * lit from the step he is thrown, so a skier who wants to be back on the
-   * piste at once sees the press that does it. */
+  /** DOWN: the skier is off his skis (`crash.ts`'s `Thrown`). */
   down: boolean;
+  /** ...and may GET UP: down past `crash.getUp`, when a press of his own
+   * stands him up (`mayGetUp`) — the reset lit and the hint up from then,
+   * the first seconds left to the fall and the body's plate. */
+  getUp: boolean;
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
@@ -500,6 +503,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
+    getUp: c.thrown !== null && mayGetUp(c.thrown),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],

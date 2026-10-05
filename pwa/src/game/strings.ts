@@ -141,6 +141,10 @@ export const STRINGS = {
    * (`trench.ts`). */
   stuck: "BOGGED",
   stuckHow: "POLE OUT: TUCK AND ROCK",
+  /** Down past the first seconds of a fall (`crash.getUp`): what stands
+   * him up — a tap anywhere, or the tuck key as bound. */
+  getUp: (touch: boolean, key: string): string =>
+    touch ? "TAP TO GET UP" : `PRESS ${key} TO GET UP`,
   /** THE DAMAGE INSTRUMENT: its caption, and what each part is called. */
   damageLabel: "DAMAGE",
   damageSkiLeft: "Left edge",

@@ -13,7 +13,15 @@
 // is stood back up at rest.
 
 import { describe, expect, it } from "vitest";
-import { NEUTRAL_INPUT, TUNING, createGame, placeRun, step, type GameState } from "@engine";
+import {
+  NEUTRAL_INPUT,
+  TUNING,
+  createGame,
+  mayGetUp,
+  placeRun,
+  step,
+  type GameState,
+} from "@engine";
 
 import { flying, gaitOf } from "../pwa/src/game/skier-gait.ts";
 import {
@@ -139,7 +147,8 @@ describe("his legs are springs", () => {
     placeRun(state, { x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 9 });
     const { legs } = folds(state, 3, 3);
     expect(state.skier.thrown).not.toBeNull();
-    // Reset, and away off the poles at once.
+    // Reset once he may get up, and away off the poles at once.
+    while (!mayGetUp(state.skier.thrown)) step(state, NEUTRAL_INPUT);
     step(state, { ...NEUTRAL_INPUT, reset: true });
     expect(state.skier.thrown).toBeNull();
     const { out } = folds(state, 1, 0, legs);

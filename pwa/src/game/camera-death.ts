@@ -11,11 +11,12 @@
 // swaying, until the reset stands him up and the picture cuts back to the
 // ladder.
 //
-// THE FALL RUNS AT FULL SPEED. There is no slow motion: a crash is over in
-// a couple of seconds, and the player wants to see it and be back on his
-// skis — the reset is lit on the HUD the moment he is thrown — not to wait
-// through it. (The replay's director still slows its own moments,
-// `replay-shots.ts`.)
+// THE FALL RUNS AT FULL SPEED. There is no slow motion: the fall is the
+// player's to watch, and the engine holds him down for it — no press of his
+// stands him up for `crash.getUp` s, and the engine does at `crash.lieFor`
+// — so the lens has seconds over him to fill, and climbs slowly enough to
+// keep him in the frame through them. (The replay's director still slows
+// its own moments, `replay-shots.ts`.)
 //
 // EVERY MOVE IS EASED, NOTHING IS CUT IN. The lens, its aim and its zoom
 // chase what the phase wants at their own rates from wherever the ladder
@@ -51,7 +52,7 @@ export const DEATH = {
    * down); the lens's pace up there; the zoom it opens to. */
   top: 24,
   rise: 1.2,
-  climb: 2.5,
+  climb: 1,
   over: 3,
   riseRate: 3,
   fovRise: 48,

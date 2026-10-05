@@ -305,7 +305,14 @@ export {
   landingTolerance,
   type Landing,
 } from "./game/flight.ts";
-export { crashLimit, crashOver, noseDown, wipeoutCause, type CrashLimit } from "./game/crash.ts";
+export {
+  crashLimit,
+  crashOver,
+  mayGetUp,
+  noseDown,
+  wipeoutCause,
+  type CrashLimit,
+} from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {

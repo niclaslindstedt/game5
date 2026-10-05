@@ -11,7 +11,9 @@ import { describe, expect, it } from "vitest";
 import {
   botInput,
   crashLimit,
+  crashOver,
   createGame,
+  mayGetUp,
   NEUTRAL_INPUT,
   placeRun,
   RAGDOLL,
@@ -87,7 +89,7 @@ describe("the wipeout", () => {
     let first: GameState["skier"]["thrown"] = null;
     const tree = state.level.trees.find((t) => t.x === LONE_TREE.x)!;
     let closest = Infinity;
-    for (let i = 0; i < 8 * TUNING.physicsHz; i++) {
+    for (let i = 0; i < 12 * TUNING.physicsHz; i++) {
       step(state, TUCK);
       events.push(...state.events);
       if (state.skier.thrown) {
@@ -116,9 +118,38 @@ describe("the wipeout", () => {
     expect(Math.abs(spineUp(off!))).toBeLessThan(0.35);
     const reset = events.find((e) => e.kind === "reset");
     expect(reset && reset.kind === "reset" && reset.auto).toBe(true);
-    expect(reset!.t - w[0].t).toBeGreaterThanOrEqual(TUNING.crash.lieMin - 1e-9);
-    expect(reset!.t - w[0].t).toBeLessThanOrEqual(TUNING.crash.lieMax + TUNING.dt);
+    // The player's fall is his to watch: the engine stands him up at
+    // `lieFor`, never sooner.
+    expect(reset!.t - w[0].t).toBeGreaterThanOrEqual(TUNING.crash.lieFor - TUNING.dt);
+    expect(reset!.t - w[0].t).toBeLessThanOrEqual(TUNING.crash.lieFor + TUNING.dt);
     expect(state.skier.thrown).toBeNull();
+  });
+
+  it("lets the player's own press stand him up only past `getUp`", () => {
+    const state = atTree(0.3, 50);
+    for (let i = 0; i < 6 * TUNING.physicsHz && !state.skier.thrown; i++) step(state, TUCK);
+    expect(state.skier.thrown).not.toBeNull();
+    const press = { ...NEUTRAL_INPUT, reset: true };
+    // Pressed inside the first seconds: let go, and he lies on.
+    step(state, press);
+    expect(state.skier.thrown).not.toBeNull();
+    while (state.skier.thrown!.t < TUNING.crash.getUp - TUNING.dt) {
+      step(state, NEUTRAL_INPUT);
+      expect(mayGetUp(state.skier.thrown)).toBe(state.skier.thrown!.t >= TUNING.crash.getUp);
+    }
+    step(state, NEUTRAL_INPUT);
+    expect(mayGetUp(state.skier.thrown)).toBe(true);
+    // ...and past them it answers at once.
+    step(state, press);
+    expect(state.skier.thrown).toBeNull();
+    expect(state.events.some((e) => e.kind === "reset" && !e.auto)).toBe(true);
+  });
+
+  it("stands a rival up off his rest, the player off the clock", () => {
+    const lain = { t: TUNING.crash.lieMin, still: TUNING.crash.lieStill } as Thrown;
+    expect(crashOver(lain)).toBe(true);
+    expect(crashOver(lain, true)).toBe(false);
+    expect(crashOver({ ...lain, t: TUNING.crash.lieFor }, true)).toBe(true);
   });
 
   it("lies down in the snow as a body does — and deep powder stops him soonest", () => {
@@ -413,7 +444,7 @@ describe("the wipeout", () => {
   it("on a free ride, the reset after a wipeout stands him on the nearest piste", () => {
     const state = createGame({ level: syntheticLevel(), mode: "free", quiet: true });
     placeRun(state, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 30, heading: 0, speed: 50 / 3.6 });
-    const events = ride(state, 6, TUCK);
+    const events = ride(state, 10, TUCK);
     expect(wipeouts(events)).toHaveLength(1);
     expect(events.some((e) => e.kind === "reset" && e.auto)).toBe(true);
     expect(state.level.packedAt(state.skier.x, state.skier.z)).toBe(1);

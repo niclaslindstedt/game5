@@ -25,7 +25,7 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
 | The ramps off a pad's rim down onto the runs (falling at least `fall`, a green's and a blue's even and gentle, landing on the run's own snow at its height); a drag's top's, where they fit | `engine/mapgen/summit-ramps.ts` (`planRamps`, `layRamps`, `rampRoom`, `nearRoom`), `station-pad.ts`'s `dragTop`, `Lift.ramps` |
 | What holds it: every piste off a chair's or a gondola's top has a ramp, every ramp falls, no run off one starts against it | `engine/analysis/resort.ts` (R26, R27) |
 | Stood off the lift and let go — no lead | `engine/game/lift-ride.ts` (`stepCarried`, `runsOffTop`, `arriveByLift`) |
-| The signs at the ramps' heads | `pwa/src/game/run-sign-plan.ts`'s `summitSigns`, drawn by `run-signs.ts` |
+| The signs beside the map board (a drag's at its ramps' heads), and each run's own past its ramp's foot | `pwa/src/game/run-sign-plan.ts`'s `summitSigns` / `spotOf`, drawn by `run-signs.ts`; the board's place is `station-plan.ts`'s `mapBoardOf` |
 | The map board: where it stands, its frame, its face and the picture handed over from the start card | `station-plan.ts`, `station-parts.ts`, `map-board.ts`, `map-board-picture.ts` (the worker names the map, `seed-maps.ts` keeps it) |
 | The research | `docs/summit-stations.md` |
 
@@ -81,10 +81,20 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
   him, and the cut under the chairs must start behind his tails: a mound
   centred on the unload point with the cut a metre behind it stood him on a
   ridge, and he slid backwards down under the chairs.
-- **Signs on the pad, not across the lane.** A sign at the ramp's head, a few
-  metres in from the rim on the pad's circle (offset round the rim, not
-  straight sideways, or it lands past the rim), stands under the deck and
-  the unload: the rider sees it in front of him, below, and follows it.
+- **Signs where he looks, turned to him.** A sign at the ramp's head on the
+  rim, turned down its ramp, was read edge on from the unload whenever the
+  ramp left sideways — the player never saw it. The runs' signs stand beside
+  the piste map board he faces coming off the lift (`mapBoardOf`), on the
+  side each ramp leaves, turned to where he is let go; and the run's own
+  sign stands again a dozen metres past the ramp's foot, turned up the ramp,
+  so it is named as he comes over the lip onto it.
+- **The chair runs on and the rope comes in from above.** The chair a rider
+  stood up off is the engine's (`SkierState.chairLeft`): it runs on over the
+  ramp and sweeps a skier stopped in its way off his feet — never hidden.
+  The last tower stands past the pad's rim, tall enough that the rope falls
+  into the terminal (`LiftLook.in`), and the carriers ride a level rail
+  over the unload (`LiftLook.rail`) — before that the chair skimmed the
+  pad's rim for the whole of the free ride's arrival.
 - **A green's ramp is a green, and no ramp has a lip.** A ramp is held to
   the run's colour (no more than 20 % to a green or a blue, 48 % to a red or
   a black) and falls EVENLY: a ramp that ran out gentle and rolled over a lip

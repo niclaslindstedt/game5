@@ -813,7 +813,7 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state);
-      lifts?.update(state.t, skier.lift, player.drawn, lens.camera.position);
+      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft);
       // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
       dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
       const h = gl.domElement.height;

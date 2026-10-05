@@ -28,7 +28,7 @@
 // mountain's lifts, however many towers.
 
 import * as THREE from "three";
-import { TUNING, type Level, type LiftRide } from "@engine";
+import { TUNING, type Level, type LiftRide, type SkierState } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createMapBoards } from "./map-board.ts";
@@ -37,6 +37,7 @@ import {
   DRAG_ARM,
   carrierAt,
   carrierCount,
+  emptyChairAt,
   planLift,
   ropeAt,
   stationHouses,
@@ -81,26 +82,20 @@ export type Lifts = {
   /** Move what moves — the chairs, the cabins and the T-bars on the rope,
    * the wind tunnels' fans, streaks and lights — to the engine's clock;
    * with the player on a lift (`SkierState.lift`), his own chair hung
-   * under him where he is drawn — and once he is off it, running on empty,
-   * left out of the frame while it stands between the lens (`eye`) and
-   * him. */
+   * under him where he is drawn — and once he is off it, running on empty
+   * over the ramp to the wheel where the engine has it
+   * (`SkierState.chairLeft`, the chair that sweeps a skier stopped in its
+   * way off his feet). */
   update(
     t: number,
     rider?: LiftRide | null,
     drawn?: RiderPose | null,
-    eye?: { x: number; y: number; z: number },
+    left?: SkierState["chairLeft"],
   ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
   dispose(): void;
 };
-
-/** A chair's box under its grip, m: half its depth and width, and how far
- * it hangs (`chairGeometry`). */
-const CHAIR_BOX = { halfAlong: 0.55, halfAcross: 1.2, drop: 2.95 };
-/** Where on him the lens looks, m over his origin, for whether the empty
- * chair stands in the way; the samples along that sight. */
-const SIGHT = { up: 0.4, samples: 12 };
 
 /** Where the rider is drawn between two steps: his origin and his turn. */
 export type RiderPose = {
@@ -154,10 +149,10 @@ function headGeometry(kind: LiftKind, gauge: number): THREE.BufferGeometry {
   }
   const train = kind === "gondola" ? 3.2 : 2.4;
   return merged([
-    box(gauge + 1.4, 0.42, 0.42, 0, -0.62, 0, PAINT.steel),
-    box(0.3, 0.3, train, -gauge / 2, -0.2, 0, PAINT.dark),
-    box(0.3, 0.3, train, gauge / 2, -0.2, 0, PAINT.dark),
-    box(0.9, 0.5, 0.9, 0, -0.9, 0, PAINT.steel),
+    box(gauge + 1.8, 0.56, 0.56, 0, -0.66, 0, PAINT.steel),
+    box(0.36, 0.36, train, -gauge / 2, -0.22, 0, PAINT.dark),
+    box(0.36, 0.36, train, gauge / 2, -0.22, 0, PAINT.dark),
+    box(1.3, 0.7, 1.3, 0, -1.0, 0, PAINT.steel),
   ]);
 }
 
@@ -536,65 +531,29 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   }
   moveCarriers(0, null);
 
-  // THE CHAIR HE GOT OFF runs on empty round to the wheel at the terminal's
-  // slow speed — the clock's chairs stay hidden about it — and is gone
-  // where every chair is, into the hood short of the wheel.
-  let seatedOn: { index: number; u: number } | null = null;
-  let empty: { index: number; u: number; t: number } | null = null;
-  const emptyAt = (t: number): { plan: LiftPlan; u: number } | null => {
-    if (!empty) return null;
-    const plan = plans[empty.index];
-    const u = empty.u + plan.look.slow * (t - empty.t);
-    return u < plan.length - 2 && t >= empty.t ? { plan, u } : null;
-  };
-  /** Whether the sight from `eye` to (x, y, z) passes through the chair
-   * hung from a grip at (gx, gy, gz) facing up `plan`'s line. */
-  const blocks = (
-    eye: { x: number; y: number; z: number },
-    x: number,
-    y: number,
-    z: number,
-    plan: LiftPlan,
-    gx: number,
-    gy: number,
-    gz: number,
-  ): boolean => {
-    for (let i = 1; i < SIGHT.samples; i++) {
-      const k = i / SIGHT.samples;
-      const px = eye.x + (x - eye.x) * k - gx;
-      const py = eye.y + (y - eye.y) * k;
-      const pz = eye.z + (z - eye.z) * k - gz;
-      const along = px * plan.dx + pz * plan.dz;
-      const across = px * plan.dz - pz * plan.dx;
-      if (
-        py < gy &&
-        py > gy - CHAIR_BOX.drop &&
-        Math.abs(along) < CHAIR_BOX.halfAlong &&
-        Math.abs(across) < CHAIR_BOX.halfAcross
-      )
-        return true;
-    }
-    return false;
+  // THE CHAIR HE GOT OFF runs on empty over the ramp to the wheel at the
+  // terminal's slow speed (`emptyChairAt`, the engine's — a skier stopped
+  // in its way is swept off his feet by it); the clock's chairs stay
+  // hidden about it, and it is gone where every chair is, into the hood.
+  const emptyAt = (
+    left: SkierState["chairLeft"] | undefined,
+    t: number,
+  ): { plan: LiftPlan; u: number; index: number } | null => {
+    const plan = left ? plans[left.index] : undefined;
+    const u = left && plan ? emptyChairAt(plan, left, t) : null;
+    return plan && left && u !== null ? { plan, u, index: left.index } : null;
   };
 
-  done.update = (t, rider, drawn, eye) => {
+  done.update = (t, rider, drawn, left) => {
     tunnels.update(t);
     const sat = rider?.kind === "chair" && rider.phase === "ride";
-    if (sat) {
-      seatedOn = { index: rider.index, u: rider.u };
-      empty = null;
-    } else if (seatedOn) {
-      empty = { ...seatedOn, t };
-      seatedOn = null;
-    }
-    const runOn = emptyAt(t);
-    if (!runOn) empty = null;
+    const runOn = sat ? null : emptyAt(left, t);
     moveCarriers(
       t,
       rider?.phase === "ride" || rider?.phase === "board"
         ? rider
-        : runOn && empty
-          ? { index: empty.index, u: runOn.u }
+        : runOn
+          ? { index: runOn.index, u: runOn.u }
           : null,
     );
     // His own T-bar on a drag: the grip on the rope straight over him, the
@@ -635,8 +594,6 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
       const y = ropeAt(plan, u);
       ridden.position.set(x, y, z);
       ridden.quaternion.setFromAxisAngle(up, plan.heading);
-      if (eye && drawn && blocks(eye, drawn.x, drawn.y + SIGHT.up, drawn.z, plan, x, y, z))
-        ridden.visible = false;
     }
   };
 

@@ -55,7 +55,8 @@ function staged(
   moment: RunMoment = LAUNCH,
   ground: Parameters<typeof flatLevel>[0] = { packed: 1 },
 ): GameState {
-  const state = createGame({ level: flatLevel(ground), mode, countdown: 0, quiet: true });
+  // Nobody else out on the snow: a free ride's crowd skis these strips too.
+  const state = createGame({ level: flatLevel(ground), mode, countdown: 0, quiet: true, crowd: 0 });
   placeRun(state, moment);
   return state;
 }
@@ -129,6 +130,37 @@ describe("a staged backflip", () => {
     });
     ride(state, 0.3, tap);
     expect(Math.abs(state.tricks.flipGoal)).toBeCloseTo(TUNING.tricks.flipMost, 6);
+  });
+});
+
+describe("a free ride's flight that was never meant", () => {
+  /** On the groomer at 65 km/h. */
+  const ROLLING: RunMoment = { x: 1500, z: 200, heading: 0, speed: 18 };
+  /** The edge tapped across its gate once he has been up a while. */
+  const tapAloft = (state: GameState) => (): Partial<SkierInput> => ({
+    steer: state.skier.airborne && state.skier.airTime > 0.25 ? 1 : 0,
+  });
+
+  it("throws nothing off a crest he never jumped: the edge he steers in the air is steering", () => {
+    // Thrown off a roller's crest climbing — the flight a kicker would
+    // have thrown, but nothing set it up.
+    const state = staged("free", LAUNCH, LANDING);
+    const events = ride(state, 3, tapAloft(state));
+    expect(tricksOf(events)).not.toContain("half");
+    expect(state.tricks.spinGoal).toBe(0);
+    expect(state.skier.switched).toBe(false);
+  });
+
+  it("throws a 180 in a flight he popped himself", () => {
+    const state = staged("free", ROLLING);
+    // The jump held to its full load and let go: an ollie off the flat.
+    const full = TUNING.jump.full;
+    const events = ride(state, full + 2.5, (t) => ({
+      jump: t < full,
+      steer: state.skier.airborne && state.skier.airTime > 0.25 && t < full + 0.6 ? 1 : 0,
+    }));
+    expect(events.some((e) => e.kind === "jump")).toBe(true);
+    expect(tricksOf(events)).toContain("half");
   });
 });
 

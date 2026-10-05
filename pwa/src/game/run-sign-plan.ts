@@ -8,8 +8,12 @@
 // AS A SKI AREA SIGNS ITS RUNS: a sign stands a few metres down from the
 // head, on the skier's right going down (the side the orange-banded stakes
 // stand on), turned to face a skier at the top so he reads it looking down
-// the run — and clear of the lift he came up: never in its station, under
-// its line or on its drag track, but further down or across the run. Where a LANE branches off, its sign stands on the
+// the run — or, on a run a ramp comes down to off a lift's top (R26), a
+// few metres past the ramp's foot where it meets the run, turned to the
+// skier coming down the ramp, so the run is named as he comes onto it —
+// and clear of the lift he came up: never in its station, under its line
+// or on its drag track, but further down or across the run. Where a LANE
+// branches off, its sign stands on the
 // run it leaves, a little above the junction, on the side the lane turns
 // off to, facing up THAT run — the junction sign a skier reads before he
 // has to choose. Signs that would stand within a few metres of each other,
@@ -17,14 +21,17 @@
 // among them, its boards stacked, the pistes over the lanes, green to black,
 // each arrow pointing its own run's way.
 //
-// AT A LIFT'S TOP, every run a rider let go there can ski onto has a sign
-// at the HEAD OF ITS RAMP (R26, `Lift.ramps`): on the pad a few steps short
-// of the rim, at the ramp's right-hand edge, turned to face back up across
-// the pad — so it stands LOWER than he came off the lift, down the pad's
-// lean, in front of him as he looks for his way down, and he follows the
-// one he wants straight down its ramp onto its run. A map from before the
-// ramps keeps a post at a chair's parting (`chairLane`) instead, each
-// plank CUT AS AN ARROW the way its run leaves (`signsOf`).
+// AT A LIFT'S TOP, every run a rider let go there can ski onto down a
+// ramp (R26, `Lift.ramps`) is signed BESIDE THE PISTE MAP BOARD he sees
+// straight ahead as he comes off the lift (`mapBoardOf`): the runs whose
+// ramps leave to his left on a post at the board's left, those to his
+// right at its right, each post turned to where he comes off — the chair's
+// lane, the gondola's door — so he reads them as he stands up, never edge
+// on, each arrow pointing at its ramp's head; and the run's own sign stands
+// again where the ramp meets it, past the lip. A drag's top, with no
+// board, has a post at the head of each ramp, turned to its let-go. A map
+// from before the ramps keeps a post at a chair's parting (`chairLane`)
+// instead, each plank CUT AS AN ARROW the way its run leaves (`signsOf`).
 //
 // ON A RACE DAY the course is closed and cleared: no sign stands inside a
 // race's nets (`onCourse`), from just above its start house to past its
@@ -35,6 +42,7 @@
 import {
   DISCIPLINE_RULES,
   RESORT_RULES,
+  TUNING,
   chairLane,
   clearOfLifts,
   liftPlans,
@@ -50,9 +58,10 @@ import {
 
 import { runName, runNumber } from "./run-names.ts";
 import { NETS, netShape } from "./spectator-plan.ts";
-import { signsOf } from "./station-plan.ts";
+import { mapBoardOf, signsOf } from "./station-plan.ts";
 
-/** The sign's measure, m: how far down the run it stands; how far off the
+/** The sign's measure, m: how far down the run it stands — and, on a run a
+ * ramp comes down to off its top, how far past the ramp's foot; how far off the
  * line (half the run's width less a metre, held between `side`'s bounds —
  * at the edge of a narrow run, on the groomed snow of a wide one, where a
  * skier at the top has it in view); how far above a junction a lane's sign
@@ -61,6 +70,7 @@ import { signsOf } from "./station-plan.ts";
  * lowest board's foot over the snow, the gap between two boards. */
 export const SIGN = {
   down: 10,
+  lip: 12,
   side: { min: 4, max: 5.5 },
   junction: 20,
   look: 45,
@@ -206,6 +216,28 @@ function spotOf(level: Level, run: Run, runs: readonly Run[]): Spot | null {
       board: boardOf(level, run, arrowTo(at.x, at.z, p.heading, to)),
     };
   }
+  // A run a ramp comes down to off its top (R26): its sign stands where
+  // the ramp's foot meets it — the lip the rider comes over onto its
+  // slope — a little down it, turned to him coming down the ramp.
+  const ramp = liftPlans(level)
+    .find((p) => p.lift.id === run.from)
+    ?.lift.ramps?.find((q) => q.run === run.id);
+  if (ramp) {
+    const s0 = Math.min(run.length / 2, ramp.to.s + SIGN.lip);
+    const tries = [1, -1].flatMap((k) => [0, 5, 10, 15].map((d) => [s0 + d, k] as const));
+    const { p, at } = clearSpot(level, run, tries);
+    const heading = Math.atan2(at.x - ramp.from.x, at.z - ramp.from.z);
+    const to = trackPointAt({ track: run }, Math.min(run.length, p.s + SIGN.look));
+    return {
+      ...at,
+      heading,
+      to,
+      // Its own: the runs off one top are read at their own ramps' feet.
+      top: null,
+      head: p,
+      board: boardOf(level, run, arrowTo(at.x, at.z, heading, to)),
+    };
+  }
   const down = Math.min(SIGN.down, run.length / 4);
   const steps = [0, 5, 10, 15, 20, 30].map((d) => down + d);
   const tries = [1, -1].flatMap((k) => steps.map((s) => [s, k] as const));
@@ -302,11 +334,13 @@ export function signPlan(level: Level): readonly SignPost[] {
   return posts;
 }
 
-/** THE SIGNS AT EVERY LIFT'S TOP: a post at the head of every ramp off it
- * (R26) — `SUMMIT.in` m in from the rim onto the pad and `SUMMIT.edge` m in
- * from the ramp's right-hand edge, a skier reading it looking down the
- * ramp — with its run's board, its arrow pointing down the ramp to the
- * run. A chair's top on a map from before the ramps keeps one post across
+/** THE SIGNS AT EVERY LIFT'S TOP: beside a chair's or a gondola's piste
+ * map board, a post either side for the ramps (R26) that leave that way
+ * (`besideBoard`); at a drag's top a post at the head of every ramp off it
+ * — `SUMMIT.in` m in from the rim and `SUMMIT.edge` m in from the ramp's
+ * right-hand edge, turned to a skier reading it where he is let go
+ * (`offPoint`), its arrow pointing on to the ramp's foot. A chair's top on
+ * a map from before the ramps keeps one post across
  * the far side of its way off (`chairLane`) with an arrow board a run
  * (`signsOf`), those to the lane's side above — the lane's side, the
  * engine's +v, the reader's LEFT. Drawn with the piste-head signs
@@ -315,11 +349,16 @@ export function summitSigns(level: Level): SignPost[] {
   const runs = level.resort?.runs ?? [];
   const posts: SignPost[] = [];
   for (const plan of liftPlans(level)) {
+    const mapBoard = mapBoardOf(plan);
+    if (plan.lift.ramps?.length && mapBoard) {
+      posts.push(...besideBoard(level, plan, mapBoard));
+      continue;
+    }
     if (plan.lift.ramps?.length) {
+      // A drag's top, with no board: a post at the head of every ramp.
       for (const ramp of plan.lift.ramps) {
         const run = runs.find((r) => r.id === ramp.run);
         if (!run) continue;
-        const heading = Math.atan2(ramp.to.x - ramp.from.x, ramp.to.z - ramp.from.z);
         // Round the pad clockwise from the ramp's head — a ramp leaves out
         // off the rim, so that is to the reader's right — to its edge, in
         // from the rim.
@@ -329,6 +368,11 @@ export function summitSigns(level: Level): SignPost[] {
         const at = head + (ramp.width / 2 - SUMMIT.edge) / r;
         const x = mid.x + Math.sin(at) * r;
         const z = mid.z + Math.cos(at) * r;
+        // Turned to the rider coming off the lift — read as he stands up off
+        // the chair, walks out of the cabin or lets go of the bar, never
+        // edge on — its arrow pointing from there to the ramp's foot.
+        const off = offPoint(plan);
+        const heading = Math.atan2(x - off.x, z - off.z);
         const to = { x: ramp.to.x, z: ramp.to.z } as TrackPoint;
         const board = boardOf(level, run, arrowTo(x, z, heading, to));
         posts.push({
@@ -364,9 +408,73 @@ export function summitSigns(level: Level): SignPost[] {
   return posts.filter((p) => !onCourse(level, p.x, p.z));
 }
 
+/** THE SIGNS BESIDE A TOP'S PISTE MAP BOARD (`mapBoardOf`): the runs whose
+ * ramps leave to the reader's left on one post at the board's left, those
+ * to his right on one at its right — the reader standing where the lift
+ * let him go, looking at the board — each post turned to him, its boards
+ * stacked green to black, each arrow pointing at its ramp's head. */
+function besideBoard(
+  level: Level,
+  plan: LiftPlan,
+  board: { x: number; z: number; off: { x: number; z: number } },
+): SignPost[] {
+  const runs = level.resort?.runs ?? [];
+  const look = Math.atan2(board.x - board.off.x, board.z - board.off.z);
+  const sides = new Map<number, { board: Omit<SignBoard, "y">; to: TrackPoint }[]>();
+  for (const ramp of plan.lift.ramps ?? []) {
+    const run = runs.find((r) => r.id === ramp.run);
+    if (!run) continue;
+    // The reader's right as the picture shows it (`arrowTo`), from the board.
+    const dx = ramp.from.x - board.x;
+    const dz = ramp.from.z - board.z;
+    const side = -dx * Math.cos(look) + dz * Math.sin(look) >= 0 ? 1 : -1;
+    const to = { x: ramp.from.x, z: ramp.from.z } as TrackPoint;
+    const list = sides.get(side) ?? [];
+    list.push({ board: boardOf(level, run, "ahead"), to });
+    sides.set(side, list);
+  }
+  const posts: SignPost[] = [];
+  for (const [side, list] of sides) {
+    const x = board.x - Math.cos(look) * SUMMIT.beside * side;
+    const z = board.z + Math.sin(look) * SUMMIT.beside * side;
+    const heading = Math.atan2(x - board.off.x, z - board.off.z);
+    const boards = [...list]
+      .sort((a, b) => stackOrder(a.board, b.board))
+      .map((s) => ({ ...s.board, arrow: arrowTo(x, z, heading, s.to) }));
+    let foot = SIGN.foot;
+    const placed: SignBoard[] = [];
+    for (let i = boards.length - 1; i >= 0; i--) {
+      placed.unshift({ ...boards[i], y: foot });
+      foot += boards[i].height + SIGN.gap;
+    }
+    posts.push({ x, z, y: level.groundAt(x, z), heading, boards: placed });
+  }
+  return posts;
+}
+
 /** Where a ramp's sign stands at its head, m: in from the pad's rim, and
- * in from the ramp's right-hand edge. */
-const SUMMIT = { in: 3, edge: 2 };
+ * in from the ramp's right-hand edge; and how far short of its top a
+ * gondola's door lets its rider out (`TUNING.lift.door`'s); and how far
+ * either side of a piste map board's middle the signs beside it stand —
+ * half the board, a gap and half a sign. */
+const SUMMIT = { in: 3, edge: 2, door: TUNING.lift.door, beside: 3.2 };
+
+/** Where a rider comes off a lift, the place the signs on its top are read
+ * from: a chair's lane at the parting past the wheel (`chairLane`), a
+ * gondola's door, a drag's let-go. */
+function offPoint(plan: LiftPlan): { x: number; z: number } {
+  const v = plan.lift.kind === "chair" ? chairLane(plan).v : 0;
+  const u =
+    plan.lift.kind === "chair"
+      ? chairLane(plan).exit
+      : plan.lift.kind === "gondola"
+        ? plan.length - SUMMIT.door
+        : plan.length - RESORT_RULES.lift.drag.letGo;
+  return {
+    x: plan.lift.bottom.x + plan.dx * u + plan.dz * v,
+    z: plan.lift.bottom.z + plan.dz * u - plan.dx * v,
+  };
+}
 
 /** The middle of the ground a lift's ramps leave from (R26): a pad's, at
  * its top; a drag's, where it lets its rider go. */

@@ -13,9 +13,8 @@
 // stood up slides straight on down the ramp, through the parting and off
 // the pad's lean to his run. Straight ahead of him past the parting stands
 // the PISTE MAP BOARD, the ski area painted as the start card paints it
-// (`map-board.ts`), and down at the head of every ramp off the pad, lower
-// than he came off the chair, that run's SIGN (`run-sign-plan.ts`'s
-// `summitSigns`). A GONDOLA'S TOP has its board too, facing the rider
+// (`map-board.ts`), and beside it, on the side each run lies, the runs'
+// SIGNS (`run-sign-plan.ts`'s `summitSigns`). A GONDOLA'S TOP has its board too, facing the rider
 // walked out of its door.
 //
 // AT A CHAIR'S FOOT: the hood, the booth by the load line, the LOAD LINE
@@ -143,19 +142,33 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
         size: 1,
       });
     }
-    // THE PISTE MAP BOARD, facing where the rider is let go: at a chair's
-    // top straight ahead of him past the parting, at a gondola's beside its
-    // door.
-    if (p.lift.kind !== "drag") {
-      const lane = p.lift.kind === "chair" ? chairLane(p) : null;
-      const at = lane ? { u: lane.signs, v: lane.v } : { u: L - BOARD.u, v: g + BOARD.v };
-      const off = lane ? { u: lane.exit, v: lane.v } : { u: L - DOOR_OUT, v: 0 };
-      const from = up(at.u, at.v);
-      const to = up(off.u, off.v);
-      put("board", at.u, at.v, Math.atan2(to.x - from.x, to.z - from.z));
+    // THE PISTE MAP BOARD, facing where the rider is let go.
+    const board = mapBoardOf(p);
+    if (board) {
+      parts.push({ kind: "board", ...board, y: level.groundAt(board.x, board.z), size: 1 });
     }
   }
   return { parts, fences };
+}
+
+/** WHERE A TOP'S PISTE MAP BOARD STANDS, turned (`yaw`) to where its rider
+ * is let go (`off`): at a chair's top straight ahead of him past the
+ * parting (`chairLane`), at a gondola's beside its door; a drag's top has
+ * none. The run signs off the top stand beside it (`summitSigns`). */
+export function mapBoardOf(
+  p: LiftPlan,
+): { x: number; z: number; yaw: number; off: { x: number; z: number } } | null {
+  if (p.lift.kind === "drag") return null;
+  const L = p.length;
+  const g = p.look.gauge / 2;
+  const up = (u: number, v: number) => ({
+    x: p.lift.bottom.x + p.dx * u + p.dz * v,
+    z: p.lift.bottom.z + p.dz * u - p.dx * v,
+  });
+  const lane = p.lift.kind === "chair" ? chairLane(p) : null;
+  const at = lane ? up(lane.signs, lane.v) : up(L - BOARD.u, g + BOARD.v);
+  const off = lane ? up(lane.exit, lane.v) : up(L - DOOR_OUT, 0);
+  return { x: at.x, z: at.z, yaw: Math.atan2(off.x - at.x, off.z - at.z), off };
 }
 
 /** WHICH WAY EACH RUN OFF A CHAIR'S TOP LEAVES from the parting at the end

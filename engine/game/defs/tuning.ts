@@ -905,7 +905,8 @@ export const TUNING = {
    * a cabin walks him out with, m/s, and how far short of the top the
    * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the ride
    * starts `arrive` s of carrying short of where the carrier lets him go —
-   * the last of the climb, the top station close ahead — on the chair whose
+   * the last of the climb, over the last tower and down onto the top
+   * station's rail ahead (`LiftLook.in`) — on the chair whose
    * run passes nearest the spot picked among those a rider stood off its
    * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
    * the ramps the run's nearest point `drop` m or more under the top
@@ -929,7 +930,7 @@ export const TUNING = {
     ramp: 0.3,
     walkOut: 1.5,
     door: 10,
-    arrive: 3,
+    arrive: 8,
     drop: 2,
     joinFar: 120,
     noJoin: 2000,

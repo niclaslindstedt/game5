@@ -143,6 +143,7 @@ export function freshTricks(): TrickState {
     spinDone: 0,
     flipHeld: false,
     spinHeld: false,
+    meant: false,
     inAir: false,
     parts: [],
     flight: 0,

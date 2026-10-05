@@ -11,14 +11,18 @@
 // of a crossarm — the rope going up on one side and coming back down on the
 // other. A tower stands every hundred-odd metres and more often where the
 // ground rolls over, since a rope is straight between two towers save for
-// its sag and a crest under it would meet the cabins. A GONDOLA is the
+// its sag and a crest under it would meet the cabins. The LAST tower
+// before a top stands a couple of dozen metres short of it and tall, so the
+// rope comes DOWN into the terminal over the cut under its way in: a chair
+// or a cabin arrives from above and settles onto the unload, never
+// dragged up the snow to it. A GONDOLA is the
 // tallest and the widest-spaced, its cabins far apart; a CHAIR is lower,
 // its chairs every couple of dozen metres; a DRAG is a short line of low
 // poles and one rope, its T-bars hung on cords that reach down to a
 // skier's hips.
 //
 // The numbers are a class's measured bands, not any one lift's: towers of
-// 7–16 m, a span of 80–150 m, a sag of two or three hundredths of a span; a
+// 8–25 m on tubular columns most of a metre across, a span of 80–150 m, a sag of two or three hundredths of a span; a
 // detachable chair's rope at 5 m/s and its chairs slowed to about 1 m/s
 // through a terminal, a gondola's at 6 m/s and its cabins through a station
 // at a walk, a T-bar's at 3 m/s (`docs/summit-stations.md`).
@@ -49,6 +53,19 @@ export type LiftLook = {
    * crest a split could not. */
   tower: number;
   towerMax: number;
+  /** THE WAY IN to the top station: the last tower stands `in.back` m short
+   * of the top wheel — past the rim of the pad it stands on (R26), and slid
+   * on back down the line off any groomed snow, a ramp's or a run's — tall
+   * enough that the rope FALLS from it into the
+   * terminal at `in.fall` m per m at the least — the carriers come down
+   * onto the unload from above, never climb up the snow to it. 0 for a
+   * drag, whose rope runs along its track. */
+  in: { back: number; fall: number };
+  /** THE TERMINAL'S RAIL at the top: the last `rail` m short of the top
+   * wheel the carriers ride level at the wheel's height — a chair over its
+   * unload ramp at seat height, a cabin through the station — and the rope
+   * comes down from the last tower onto the rail's mouth. */
+  rail: number;
   /** A tower's (and a bullwheel's post's) square steel column: half its
    * width across the flats at its foot, m — what a skier meets of it
    * (`standing.ts`), the column tapering to `COLUMN_TAPER` of it at its
@@ -97,9 +114,11 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
   gondola: {
     spacing: 140,
     minSpan: 40,
-    tower: 16,
-    towerMax: 30,
-    column: 0.74,
+    tower: 18,
+    towerMax: 34,
+    in: { back: 34, fall: 0.22 },
+    rail: 8,
+    column: 0.9,
     wheel: 6,
     gauge: 6,
     sag: 0.02,
@@ -115,9 +134,11 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
   chair: {
     spacing: 110,
     minSpan: 35,
-    tower: 11,
-    towerMax: 22,
-    column: 0.54,
+    tower: 13,
+    towerMax: 28,
+    in: { back: 30, fall: 0.22 },
+    rail: RR.lift.unload.at + 3,
+    column: 0.68,
     wheel: 3.8,
     gauge: 5,
     sag: 0.025,
@@ -136,7 +157,9 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     minSpan: 30,
     tower: 7,
     towerMax: 12,
-    column: 0.24,
+    in: { back: 0, fall: 0 },
+    rail: 0,
+    column: 0.28,
     wheel: 4,
     gauge: 0,
     sag: 0.02,
@@ -192,7 +215,19 @@ export function ropeAt(plan: LiftPlan, u: number): number {
   const s = plan.supports;
   let i = 0;
   while (i + 2 < s.length && s[i + 1].u < u) i++;
-  return ropeBetween(s[i], s[i + 1], plan.look.sag, u);
+  return spanRope(s, i, plan.look, u);
+}
+
+/** The rope `u` m up the line in the span from support `i` to the next:
+ * straight save for its sag — and into the top, along the terminal's level
+ * rail (`LiftLook.rail`), the span ending at the rail's mouth. */
+function spanRope(s: readonly Support[], i: number, look: LiftLook, u: number): number {
+  const b = s[i + 1];
+  if (i + 2 < s.length || look.rail <= 0) return ropeBetween(s[i], b, look.sag, u);
+  const wheel = b.ground + b.rope;
+  const mouth = b.u - look.rail;
+  if (u >= mouth || mouth <= s[i].u) return u >= mouth ? wheel : ropeBetween(s[i], b, look.sag, u);
+  return ropeBetween(s[i], { ...b, u: mouth, ground: wheel, rope: 0 }, look.sag, u);
 }
 
 function ropeBetween(a: Support, b: Support, sag: number, u: number): number {
@@ -211,7 +246,11 @@ function owed(look: LiftLook, kind: LiftKind, length: number, u: number): number
   // Over the load line and the unload ramp the carriers come down to a
   // skier's height on purpose — a chair's seat or a cabin's floor to the
   // snow, never through it; a drag's rope only ever over it.
-  if (near < look.off + 6) return kind === "drag" ? 0 : look.hang;
+  // Along the top's rail the unload ramp is raised to the chair's seat.
+  if (length - u <= look.rail) return 0;
+  // Coming down off the last tower onto the rail, a carrier's clearance.
+  const rail = look.rail > 0 && length - u < look.rail + 8;
+  if (near < look.off + 6 || rail) return kind === "drag" ? 0 : look.hang;
   return Math.min(look.hang + look.under, look.wheel * 0.8 + near * 0.15);
 }
 
@@ -243,8 +282,7 @@ const DRAG_HOLD = 1;
  * crest of every span the rope would not clear — and a tower raised where
  * a span is too short to split. Pure: the same lift on the same map plans
  * the same. */
-export function planLift(level: Level, lift: Lift): LiftPlan {
-  const look = LIFT_LOOK[lift.kind];
+export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]): LiftPlan {
   const ex = lift.top.x - lift.bottom.x;
   const ez = lift.top.z - lift.bottom.z;
   const length = Math.max(1, hypot(ex, ez));
@@ -274,6 +312,29 @@ export function planLift(level: Level, lift: Lift): LiftPlan {
   }
   supports.push(at(length, true));
   supports.sort((a, b) => a.u - b.u);
+  // THE WAY IN: the towers short of the top give way to one standing
+  // `in.back` m short of it, its rope over the top wheel's by the fall
+  // into the terminal — tall where the mountain climbs to the top, and
+  // raised further below if the span still meets a shoulder.
+  const into = look.in.back;
+  if (into > 0 && length - into - SLIDE > look.minSpan) {
+    let u = length - into;
+    for (let d = 0; d <= SLIDE; d += 2) {
+      const v = length - into - d;
+      if (level.packedAt(lift.bottom.x + dx * v, lift.bottom.z + dz * v) < 0.3) {
+        u = v;
+        break;
+      }
+    }
+    for (let i = supports.length - 2; i > 0; i--) {
+      if (supports[i].u > u - look.minSpan) supports.splice(i, 1);
+    }
+    const last = at(u);
+    const wheel = supports[supports.length - 1];
+    const want = wheel.ground + wheel.rope + (length - u) * look.in.fall - last.ground;
+    last.rope = Math.min(look.towerMax, Math.max(look.tower, want));
+    supports.splice(supports.length - 1, 0, last);
+  }
 
   // Every span the rope would not clear gets a tower under its worst crest
   // (or, too short to split, its towers raised by what it lacks).
@@ -288,7 +349,7 @@ export function planLift(level: Level, lift: Lift): LiftPlan {
       if (given.has(a)) continue;
       for (let u = a.u + PROBE; u < b.u; u += PROBE) {
         const lack =
-          owed(look, lift.kind, length, u) - (ropeBetween(a, b, look.sag, u) - at(u).ground);
+          owed(look, lift.kind, length, u) - (spanRope(supports, i, look, u) - at(u).ground);
         if (lack > worst) {
           worst = lack;
           where = u;
@@ -419,6 +480,30 @@ export function clearOfLifts(level: Level, x: number, z: number): boolean {
     if (v < across && ((u <= 0 && u > -reach) || (u >= len && u < len + reach))) return false;
   }
   return true;
+}
+
+/** THE LIFTS AS R26'S ROPE CHECK WAS RULED ON (generator v6): the towers
+ * as they stood then — lower, with no tall last tower and no terminal
+ * rail. The analyzer, which the generator accepts a map on, holds the
+ * ground under every line to THIS rope, so the towers the game hangs (a
+ * picture, taller) move no map a seed builds; the rope it does hang is held
+ * to the same clearance by the suite (`tests/lifts_test.ts`). */
+const RULED: Readonly<Record<LiftKind, LiftLook>> = {
+  gondola: { ...LIFT_LOOK.gondola, tower: 16, towerMax: 30, in: { back: 0, fall: 0 }, rail: 0 },
+  chair: { ...LIFT_LOOK.chair, tower: 11, towerMax: 22, in: { back: 0, fall: 0 }, rail: 0 },
+  drag: LIFT_LOOK.drag,
+};
+
+const ruled = new WeakMap<Level, LiftPlan[]>();
+/** Every lift of a map planned as R26's rope check was ruled on (`RULED`),
+ * once per map — the analyzer's, never the game's. */
+export function ruledLiftPlans(level: Level): readonly LiftPlan[] {
+  let out = ruled.get(level);
+  if (!out) {
+    out = (level.resort?.lifts ?? []).map((l) => planLift(level, l, RULED[l.kind]));
+    ruled.set(level, out);
+  }
+  return out;
 }
 
 /** Every lift of a map's resort planned, once per map: a skier riding one

@@ -450,6 +450,7 @@ export {
   QUEUE_GAP,
   planLift,
   ropeShortfall,
+  ruledLiftPlans,
   ropeAt,
   upRope,
   type LiftKind,
@@ -461,6 +462,8 @@ export {
 export {
   arriveByLift,
   arrivalOf,
+  chairStrike,
+  emptyChairAt,
   freeRunOf,
   freeRuns,
   pickFreeRun,

@@ -274,6 +274,12 @@ export type SkierState = {
   tunnel: TunnelRide | null;
   /** THE LIFT he is riding (`lift-ride.ts`), or null — on a free ride. */
   lift: LiftRide | null;
+  /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
+   * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
+   * the lift, how far up its line it let him go, m, and when, s — null
+   * once it is round the wheel, or he never rode one. A skier stopped in
+   * its way is knocked down by it. */
+  chairLeft: { index: number; u: number; t: number } | null;
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;
@@ -291,9 +297,10 @@ export type SkierState = {
  * up out of — come down on his side, his back or his head, or too hard for
  * his legs — another skier taken out at speed (`crowd.ts`), or flung off the
  * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
- * rolled, looped, landed too hard or run into a trunk (`sled.ts`). */
+ * rolled, looped, landed too hard or run into a trunk (`sled.ts`), or swept
+ * off his feet by the empty chair he stood up off (`lift-ride.ts`). */
 export type CrashCause =
-  "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake";
+  "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake" | "chair";
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
@@ -508,6 +515,12 @@ export type TrickState = {
    * go (`strokes.ts`'s `poseInput`). */
   flipHeld: boolean;
   spinHeld: boolean;
+  /** Whether this flight was LAUNCHED ON PURPOSE — off a kicker's ramp, or
+   * the jump popped just before the snow was left. On a free ride only
+   * such a flight takes a stroke — the edge steered across a knee the
+   * skier never meant to leave the snow over is his steering, never a 180;
+   * on a tricks run every flight does. */
+  meant: boolean;
   /** The skier was in the air at the last step this module saw. */
   inAir: boolean;
   /** The combo's elements, and which flight of it this is. */

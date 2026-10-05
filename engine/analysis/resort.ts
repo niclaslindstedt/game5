@@ -22,7 +22,7 @@ import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
 import type { Level, Lift, Run } from "../mapgen/types.ts";
 import { generatorTraits } from "../mapgen/versions.ts";
-import { liftPlans, ropeShortfall } from "../game/lift-line.ts";
+import { ropeShortfall, ruledLiftPlans } from "../game/lift-line.ts";
 import { accessOf } from "./access.ts";
 import { holdDrags, holdHub, holdTunnels } from "./hub.ts";
 import type { Finding, Severity } from "./index.ts";
@@ -298,7 +298,9 @@ export function analyzeResort(level: Level): ResortAnalysis {
     // R26 — every lift's rope clear of the snow by what it owes, all the way
     // to its wheels (from v5, whose approaches are cut for it).
     if (!generatorTraits(level.version).levelPads) {
-      for (const plan of liftPlans(level)) {
+      // The rope as the rule was set (`ruledLiftPlans`): the ground is held
+      // to it, so the towers the game draws move no map.
+      for (const plan of ruledLiftPlans(level)) {
         const short = ropeShortfall(level, plan);
         if (short.lack > ROPE_SLACK)
           add(

@@ -5,9 +5,10 @@
 // course starts and finishes, which gates stand down it and what passing
 // one means. The SLALOM (R31), the DOWNHILL (R32), the SUPER-G (R33) and
 // the SPEED-SKIING TRACK (R34 — a track of its own down the face rather
-// than a course on the piste) are set today; the giant slalom and the ski
-// cross are named by the game and not set yet, and each will be a rule
-// here when it is.
+// than a course on the piste) and the SKI CROSS (R35 — a course BUILT in
+// the snow, its turns banked and its jumps shaped, weaving down the
+// piste's corridor) are set today; the giant slalom is named by the game
+// and not set yet, and will be a rule here when it is.
 //
 // THE RESEARCH BEHIND THE NUMBERS — the international alpine competition
 // rules, and speed skiing's own, by article and never by event:
@@ -145,6 +146,39 @@
 //                                 later runs in increasing order of the last
 //                                 run's speed; the FINAL'S speed the result
 //
+//   skiCross.length 800–1300 m    a ski-cross course's length at the top
+//                                 level (at least 600 m and 450 m lower
+//                                 down), its vertical drop 100–250 m, its
+//                                 mean angle 7–11° (about 12–20 %)
+//   skiCross.width 6–16 m         the course's width, by format and level;
+//                                 the track 20 m wide on the mean; the
+//                                 course entirely fenced, its edges painted
+//                                 blue
+//   skiCross.start                a start device in the middle of the
+//                                 course, one door per racer, all dropping
+//                                 together at a random moment 1–4 s after
+//                                 "attention"; a platform at least 6 m long
+//                                 and 12 m (±4) wide; 100 m from the start
+//                                 to the first direction change
+//   skiCross.features             berms, rollers, jumps and other
+//                                 freestyle terrain — the rules set no
+//                                 sizes (the game's are estimates)
+//   skiCross.gates                a stubby turning pole and a long outside
+//                                 pole joined by a triangular flag; gates on
+//                                 both sides of every feature and of the
+//                                 finish, a single turning gate on the
+//                                 inside of a turn, none in a landing
+//   skiCross.passing              both tips and both feet across the gate
+//                                 line; a gate missed, the course left or a
+//                                 complete stop is a DID NOT FINISH
+//   skiCross.finish               the line 15 m (±5) wide, straight and red;
+//                                 the finish area 60 m (±10) long and at
+//                                 least 30 m wide
+//   skiCross.format               a timed qualification, then heats of
+//                                 four, the first two through; the small
+//                                 final for fifth to eighth, the big final
+//                                 for the podium
+//
 // The rules, in prose (each realized by `slalom.ts`, asserted in
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
 //
@@ -276,6 +310,51 @@
 //       two RUNS: the QUALIFICATION from a start lowered down the track
 //       until it gives `speedSki.qualify` km/h less, and the FINAL from the
 //       top.
+//
+//   R35 THE SKI-CROSS COURSE. A ski cross is BUILT on a built map's piste
+//       — on a seed of its own, the ski area's course at least
+//       `skiCross.course.length` metres long whose mean gradient comes
+//       nearest `skiCross.course.grade` — on the stretch of it,
+//       `skiCross.axis` metres long, whose course
+//       comes nearest `skiCross.grade.aim` of mean gradient (inside
+//       `skiCross.grade` and `skiCross.vertical` where one does), the
+//       fewest drops across it and then the lowest. Its course is a line
+//       of its own WEAVING down that stretch: a START STRAIGHT of
+//       `skiCross.start.straight` metres down the piste, then LEGS swung
+//       either side of the piste's line in turn, `skiCross.swing` metres
+//       across and `skiCross.leg` metres apart down it, each corner
+//       rounded into a TURN of `skiCross.turn.radius` metres (tighter only
+//       where the legs leave no room), and a FINISH STRAIGHT back onto
+//       the piste's line. Its PROFILE is the ground across the course's
+//       width taken to its mean along it over `skiCross.smooth` metres,
+//       never rising, its crests rounded to no tighter than
+//       `skiCross.crest` and its knees to `skiCross.knee` metres of radius;
+//       the start a PLATFORM level for `skiCross.start.platform` metres,
+//       the snow below its doors cut into a START RAMP as steep as
+//       `skiCross.start.ramp.grade`. Down it the setter BUILDS its
+//       features: every turn of more than `skiCross.turn.least` degrees a
+//       BERM, its outside banked up to `skiCross.turn.bank` degrees; on
+//       the straights between them as many features as fit,
+//       `skiCross.between` metres apart and dealt off the map's seed by
+//       `skiCross.weights` — a series of ROLLERS (`skiCross.rollers`), a JUMP
+//       with a table and a landing (`skiCross.jump`), a STEP-DOWN onto a
+//       lower landing (`skiCross.step`) — none within `skiCross.clear`
+//       metres before a turn nor `skiCross.exit` after one, a jump on the
+//       start straight (`skiCross.start.jump`) and a FINISH JUMP on the
+//       last straight, each straight's set centred on it. The
+//       course is `skiCross.width` metres wide (the start's
+//       `skiCross.start.width`), graded to its profile across that width,
+//       every berm's wall carried `skiCross.turn.wall` metres past its
+//       edge, the grading eased out over `skiCross.ease`, groomed hard,
+//       FENCED along both edges `skiCross.fence.gap` metres outside them,
+//       every tree within `skiCross.clearTrees` metres of its edges and in
+//       the finish area cleared, and the piste's kickers and drops in it taken
+//       out. Its GATES are triangular flags: a TURNING GATE on the inside
+//       of every berm, a CORRIDOR GATE across the course before every
+//       feature, none in a landing, red and blue in turn; the START GATE is
+//       `skiCross.start.lanes` doors abreast `skiCross.start.lane` metres
+//       apart, and the FINISH LINE is `skiCross.finish.width` metres wide
+//       with `skiCross.finish.area` metres of finish area past it.
 
 import type { Band } from "./rules.ts";
 
@@ -635,5 +714,129 @@ export const DISCIPLINE_RULES = {
     stations: 40,
     /** The finish enclosure's box past the stop, m: along, back up, across. */
     arena: { past: 90, before: 40, half: 45 },
+  },
+  /** R35 — the ski-cross course. */
+  skiCross: {
+    /** THE STRETCH: the piste's length it is built on, m (plan), tried in
+     * `step` m strides — a course weaving down it is some 15–25 % longer
+     * — and the band its course's MEAN GRADIENT (the drop over its length
+     * along the snow) is held to with the one aimed at: the top level's
+     * 7–11°, about 12–20 %, a little steeper since the game's faces are
+     * steep and its berms and rollers take speed off; the vertical drop's
+     * band, m; and what a drop across the stretch costs, a share of grade. */
+    axis: { min: 600, max: 1000, step: 25 },
+    /** THE COURSE of the ski area a seed of its own is built on: one at
+     * least `length` m long, its mean gradient nearest `grade` — the
+     * stretch picked off it gentler. */
+    course: { length: 900, grade: 0.25 },
+    grade: { min: 0.12, max: 0.24, aim: 0.18 },
+    vertical: { min: 100, max: 250 } as Band,
+    length: { min: 800, max: 1300 } as Band,
+    drop: 0.1,
+    /** The course's width, m — the rule's 6–16, wide enough for four
+     * abreast out of the gate and a pass in a berm. */
+    width: 14,
+    /** THE START: the platform level for `platform` m (the rule's 6 at the
+     * least) and `width` m wide (12 ± 4); `lanes` doors abreast `lane` m
+     * apart, the racer stood `stand` m behind his door; the START RAMP cut
+     * below it to `ramp.grade` at its steepest over `ramp.length` m (never
+     * more than `ramp.most` m deep) and eased back over `ramp.ease`; the
+     * START STRAIGHT down the piste to the first direction change, m along
+     * the snow (the rule's 100 m at the top level); and a jump at its
+     * foot — a racer comes out of the gate into a first feature. */
+    start: {
+      platform: 6,
+      width: 12,
+      lanes: 4,
+      lane: 2.2,
+      stand: 0.9,
+      ramp: { length: 18, grade: 0.55, most: 4, ease: 30 },
+      straight: 100,
+      jump: true,
+    },
+    /** THE LEGS: how far across the piste's line each is swung, m, either
+     * side in turn, and how far apart down the piste's line, m — dealt a
+     * leg at a time off the map's seed. */
+    swing: { min: 16, max: 26 } as Band,
+    leg: { min: 80, max: 120 } as Band,
+    /** THE TURNS: each corner rounded to a radius dealt in `radius`, m (and
+     * no tighter than `tightest`, the legs shortened round it), a BERM where
+     * it turns more than `least` degrees, its outside banked up to `bank`
+     * degrees at the apex (eased in over `ease` m before and after it) — the
+     * research's 30–45° on a 15–30 m turn, eased for a racer turning on
+     * the snow and the bank together — and its wall carried `wall` m past
+     * the course's outside edge. */
+    turn: {
+      radius: { min: 22, max: 32 } as Band,
+      tightest: 16,
+      least: 20,
+      bank: 28,
+      ease: 12,
+      wall: 3,
+    },
+    /** THE PROFILE: the ground's mean across the course taken along it
+     * over this many metres either side; no crest tighter than `crest` m of
+     * radius — a racer at 15–20 m/s leaves the snow over anything tighter
+     * than v²/g, some 25–40 m, and the course's jumps are its own — and no
+     * knee tighter than `knee`. */
+    smooth: 14,
+    crest: 45,
+    knee: 30,
+    /** How far past the course's edge its grading eases out, m. */
+    ease: 8,
+    /** No feature within `clear` m before a turn's start nor `exit` m
+     * after its end — a racer comes out of a berm onto his line before he
+     * takes off — and two features on one straight `between` m apart. */
+    clear: 8,
+    exit: 16,
+    between: 8,
+    /** ROLLERS: a series of `count` crests `spacing` m apart, each
+     * `height` m over the course's line. */
+    rollers: {
+      count: { min: 3, max: 5 } as Band,
+      spacing: { min: 14, max: 16 } as Band,
+      height: { min: 0.6, max: 0.9 } as Band,
+    },
+    /** A JUMP: a kicker `height` m over the line at its lip up a ramp of
+     * `ramp` m, a short level table `deck` m long, and a LONG landing slope
+     * of `fall` m dug `dig` m under the line, with `out` m of run-out back
+     * up onto it — shaped so a racer at 12–18 m/s (43–65 km/h) lands on the
+     * slope, not the table's knuckle nor the flat past it, his impact under
+     * what folds the legs (`air.harshSpeed`) under the race's flight
+     * gravity: thrown some 9–15 m at 50–58 km/h (the research's 15–35 m is
+     * a real course's at its speed in real air). */
+    jump: {
+      height: { min: 1.3, max: 1.6 } as Band,
+      ramp: { min: 7.5, max: 8.5 } as Band,
+      deck: { min: 1.5, max: 2.5 } as Band,
+      fall: { min: 28, max: 32 } as Band,
+      dig: 1.5,
+      out: 8,
+    },
+    /** A STEP-DOWN: the line raised `drop` m at the lip over an approach of
+     * `approach` m, a lip `deck` m long, and a landing of `fall` m back
+     * down onto it. */
+    step: {
+      drop: { min: 1.6, max: 2.4 } as Band,
+      approach: 40,
+      deck: 2,
+      fall: { min: 11, max: 14 } as Band,
+    },
+    /** What each straight is dealt, by weight. */
+    weights: { rollers: 0.4, jump: 0.35, step: 0.25 },
+    /** THE FENCE: its line outside the course's edge, m, how tall it
+     * stands, m. */
+    fence: { gap: 1.5, height: 1.4 },
+    /** Trees cleared within this of the course's edges, m — the fence and
+     * the spill zones beyond it — and in the finish area. */
+    clearTrees: 12,
+    /** A corridor gate before a feature, m short of its foot; the gates'
+     * flags this far inside the course's edges, m. */
+    gateBefore: 4,
+    /** THE FINISH: the line's width, m (15 ± 5), and the finish area past
+     * it, m (60 ± 10), its box for the trees: back up, across; and the
+     * FINISH STRAIGHT above the area, m of the piste's line, a finish
+     * jump's room after the last turn. */
+    finish: { width: 15, area: 60, before: 20, half: 30, straight: 120 },
   },
 } as const;

@@ -5186,3 +5186,16 @@ canvas {
     animation: none;
   }
 }
+
+/* A SKI CROSS (hud-cross.tsx, hud.tsx): the first two of a heat — over the
+   line, or holding the place on the course — lit as going THROUGH. */
+.hud-place-through > span:first-child,
+.hud-cross-through .hud-standing-place,
+.hud-cross-mark {
+  color: var(--hud-good);
+}
+
+.hud-cross-mark {
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+}

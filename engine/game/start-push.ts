@@ -12,6 +12,11 @@
 // AND NO MORE WORKING: on such a run the drive at a crawl — the skate and
 // the double pole (`poles.ts`) — is off from the start; he is on a slalom's
 // pitch at speed by the first gate and skis it, nothing else.
+//
+// OUT OF A SKI CROSS'S START GATE (R35, `RunRules.start` "gate") the same
+// push is the PULL on the handles as the doors drop: thrown out over the
+// ramp's lip the moment he goes, within `start.gate` s of GO — and then he
+// skates and poles away down the start ramp like any skier.
 
 import { TUNING } from "./defs/tuning.ts";
 import type { GameState, SkierInput } from "./state.ts";
@@ -33,14 +38,27 @@ export function heldInHouse(state: GameState): boolean {
   );
 }
 
+/** Whether the racer stands at a ski cross's start gate with its doors
+ * just dropped — the moment his pull on the handles throws him out. */
+function atTheDoors(state: GameState): boolean {
+  return (
+    state.rules.start === "gate" &&
+    state.rules.course &&
+    state.phase === "racing" &&
+    state.skier.launch < 0 &&
+    state.t - state.rules.countdown < K.gate
+  );
+}
+
 /** One step of the start push: thrown out when the tuck asks, and then the
  * push itself, its share of the speed each step and the hop at its end. */
 export function stepStartPush(state: GameState, input: SkierInput): void {
-  if (!pushStart(state)) return;
+  if (!pushStart(state) && state.rules.start !== "gate") return;
+  const doors = atTheDoors(state);
   const c = state.skier;
   const dt = TUNING.dt;
   if (c.launch < 0) {
-    if (heldInHouse(state) && c.thrown === null && input.tuck >= K.press) c.launch = 0;
+    if ((heldInHouse(state) || doors) && c.thrown === null && input.tuck >= K.press) c.launch = 0;
     else return;
   }
   const before = c.launch;

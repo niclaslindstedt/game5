@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RACE MAPS — every race discipline's own NINE pinned maps, the ones a
-// SLALOM, a SUPER-G, a DOWNHILL or a SPEED RACE off the race card is raced
-// on, picked on the level card (`menu-levels.tsx`) its tile opens.
+// SLALOM, a SUPER-G, a DOWNHILL, a SPEED RACE or a SKI CROSS off the race
+// card is raced on, picked on the level card (`menu-levels.tsx`) its tile
+// opens.
 //
 // A discipline's measured maps are chosen for the DISCIPLINE: nine seeds
 // whose course makes a good race of it, out of a sweep of the generator's
@@ -610,12 +611,150 @@ const SPEED_SKI_MAPS: readonly RaceMap[] = [
   },
 ];
 
+/** THE SKI CROSS'S NINE, the gentlest first. */
+const SKI_CROSS_MAPS: readonly RaceMap[] = [
+  {
+    id: "skiCross-1",
+    name: "Fell Rollers",
+    blurb: "A gentle fell blue in flurries as the light goes",
+    seed: 24,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "f6bc378d",
+    region: "fell",
+    grade: "blue",
+    course: "8",
+    day: { weather: "flurries", hour: 17.92 },
+    figures: { vertical: 128, length: 830 },
+  },
+  {
+    id: "skiCross-2",
+    name: "Sea Berms",
+    blurb: "A maritime blue to learn the berms on",
+    seed: 12,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "fefdf046",
+    region: "maritime",
+    grade: "blue",
+    course: "4",
+    day: { weather: "fair", hour: 10.69 },
+    figures: { vertical: 129, length: 796 },
+  },
+  {
+    id: "skiCross-3",
+    name: "High Fell",
+    blurb: "Three jumps on a fell blue under high cloud",
+    seed: 34,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "60f95f99",
+    region: "fell",
+    grade: "blue",
+    course: "5",
+    day: { weather: "high", hour: 11.7 },
+    figures: { vertical: 154, length: 790 },
+  },
+  {
+    id: "skiCross-4",
+    name: "Afternoon Cross",
+    blurb: "A short alpine red in the afternoon sun",
+    seed: 16,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "b7578bb3",
+    grade: "red",
+    course: "13",
+    day: { weather: "fair", hour: 14.64 },
+    figures: { vertical: 159, length: 793 },
+  },
+  {
+    id: "skiCross-5",
+    name: "Roller Coast",
+    blurb: "Three sets of rollers on a maritime red",
+    seed: 17,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "05f472fc",
+    region: "maritime",
+    grade: "red",
+    course: "4",
+    day: { weather: "fair", hour: 10.38 },
+    figures: { vertical: 172, length: 835 },
+  },
+  {
+    id: "skiCross-6",
+    name: "Long Haul",
+    blurb: "Nearly a kilometre of continental course under high cloud",
+    seed: 27,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "d313cb13",
+    region: "continental",
+    grade: "red",
+    course: "7",
+    day: { weather: "high", hour: 14.75 },
+    figures: { vertical: 198, length: 983 },
+  },
+  {
+    id: "skiCross-7",
+    name: "Big Air Alley",
+    blurb: "Four jumps and a step-down on a clear alpine red",
+    seed: 25,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "f43c0412",
+    grade: "red",
+    course: "3",
+    day: { weather: "clear", hour: 14.17 },
+    figures: { vertical: 188, length: 933 },
+  },
+  {
+    id: "skiCross-8",
+    name: "Night Cross",
+    blurb: "Five jumps under the floodlights on a continental red",
+    seed: 21,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "cf5bee60",
+    region: "continental",
+    grade: "red",
+    course: "3",
+    day: { weather: "fair", hour: 20.2 },
+    figures: { vertical: 183, length: 903 },
+  },
+  {
+    id: "skiCross-9",
+    name: "Black Cross",
+    blurb: "A continental black of seven tight berms",
+    seed: 30,
+    mode: "skiCross",
+    laps: 1,
+    version: 6,
+    digest: "4da5deb0",
+    region: "continental",
+    grade: "black",
+    course: "8",
+    day: { weather: "fair", hour: 9.94 },
+    figures: { vertical: 189, length: 880 },
+  },
+];
+
 /** EVERY DISCIPLINE'S NINE. A discipline built later adds its row here. */
 export const RACE_MAPS: RaceMaps = {
   slalom: SLALOM_MAPS,
   superG: SUPER_G_MAPS,
   downhill: DOWNHILL_MAPS,
   speedSki: SPEED_SKI_MAPS,
+  skiCross: SKI_CROSS_MAPS,
 };
 
 /** The discipline a mode races, where it races one. */

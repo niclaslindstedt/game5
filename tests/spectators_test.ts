@@ -2,7 +2,9 @@
 // THE SPECTATORS' PLAN (`pwa/src/game/spectator-plan.ts`): who watches a
 // race and where they stand — numerous, varied, off the piste and clear
 // of the trunks, most of them round the finish, on the inside of a turn,
-// dealt the same every time off the map's seed and never moving the map.
+// dealt the same every time off the map's seed and never moving the map;
+// a slalom's along both sides of its course, a ski cross's at its jumps
+// and on the outside of its berms.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -25,7 +27,9 @@ import {
   turns,
   type SpectatorPlan,
 } from "../pwa/src/game/spectator-plan.ts";
+import { CROSS_FANS } from "../pwa/src/game/spectator-cross.ts";
 import { combinations, SLALOM_FANS } from "../pwa/src/game/spectator-slalom.ts";
+import { crossGatePlan } from "../pwa/src/game/cross-gate-plan.ts";
 import { startHousePlan } from "../pwa/src/game/start-house-plan.ts";
 import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
 
@@ -230,6 +234,88 @@ describe("a slalom's audience", () => {
       expect(knot.length, `seed ${seed}`).toBeLessThanOrEqual(SLALOM_FANS.start.count);
       for (const f of knot) {
         const along = (f.x - house.x) * house.fx + (f.z - house.z) * house.fz;
+        expect(along, `seed ${seed}`).toBeLessThan(0);
+      }
+    }
+  });
+});
+
+describe("a ski cross's audience", () => {
+  const CROSSES = [8, 7].map((seed) => {
+    const level = createGame({ seed, mode: "skiCross", quiet: true }).level;
+    return { seed, level, plan: planSpectators(level) };
+  });
+  const ARENA = new Set(["stand", "back"]);
+
+  it("is numerous, inside its budget, keeps the finish arena, and watches the features", () => {
+    for (const { seed, plan } of CROSSES) {
+      expect(plan.fans.length, `seed ${seed}`).toBeGreaterThan(2000);
+      expect(plan.fans.length, `seed ${seed}`).toBeLessThanOrEqual(FANS.cap);
+      expect(plan.arena, `seed ${seed}`).not.toBeNull();
+      const kinds = new Set(plan.banks.map((b) => b.kind));
+      for (const k of ["finish", "jump", "turn", "start"] as const) {
+        expect(kinds.has(k), `seed ${seed} ${k}`).toBe(true);
+      }
+      expect(kinds.has("pitch") || kinds.has("line"), `seed ${seed}`).toBe(false);
+    }
+  });
+
+  it("stands nobody on the course or inside its fence", () => {
+    for (const { seed, level, plan } of CROSSES) {
+      const xc = level.skiCross!;
+      const finish = level.checkpoints[level.checkpoints.length - 1];
+      for (const f of plan.fans) {
+        if (ARENA.has(f.kind)) continue;
+        const hit = nearestTrackPoint(level, f.x, f.z);
+        // Behind the start platform's back, or past the line, is no longer
+        // beside the course.
+        if (hit.s > finish.s || hit.s <= 0) continue;
+        const out = hit.distance - level.track.points[hit.index].width / 2;
+        expect(out, `seed ${seed} ${f.kind} at ${hit.s.toFixed(0)} m`).toBeGreaterThanOrEqual(
+          xc.nets.gap + 1.5,
+        );
+      }
+    }
+  });
+
+  it("stands a berm's crowd on its outside, and a jump's round its lip", () => {
+    for (const { seed, level, plan } of CROSSES) {
+      const xc = level.skiCross!;
+      const berms = xc.features.filter((f) => f.kind === "berm");
+      let outside = 0;
+      let all = 0;
+      for (const f of plan.fans) {
+        if (f.kind !== "turn") continue;
+        const hit = nearestTrackPoint(level, f.x, f.z);
+        const berm = berms.find(
+          (b) =>
+            hit.s >= b.from - CROSS_FANS.berm.ease - 1 && hit.s <= b.to + CROSS_FANS.berm.ease + 1,
+        );
+        all++;
+        if (berm && hit.lateral * (berm.side ?? 0) < 0) outside++;
+      }
+      expect(all, `seed ${seed}`).toBeGreaterThan(0);
+      expect(outside / all, `seed ${seed}`).toBeGreaterThan(0.9);
+      const lips = xc.features.filter((f) => f.lip !== undefined).map((f) => f.lip!);
+      for (const b of plan.banks.filter((k) => k.kind === "jump")) {
+        const s = nearestTrackPoint(level, b.x, b.z).s;
+        const near = Math.min(...lips.map((l) => Math.abs(l - s)));
+        expect(near, `seed ${seed} jump bank at ${s.toFixed(0)} m`).toBeLessThan(
+          CROSS_FANS.jump.after,
+        );
+      }
+    }
+  });
+
+  it("keeps a few by the start gate, never in front of its doors", () => {
+    for (const { seed, level, plan } of CROSSES) {
+      const gate = crossGatePlan(level)!;
+      expect(startHousePlan(level), `seed ${seed}`).toBeNull();
+      const knot = plan.fans.filter((f) => f.kind === "start");
+      expect(knot.length, `seed ${seed}`).toBeGreaterThan(0);
+      expect(knot.length, `seed ${seed}`).toBeLessThanOrEqual(CROSS_FANS.start.count);
+      for (const f of knot) {
+        const along = (f.x - gate.x) * gate.fx + (f.z - gate.z) * gate.fz;
         expect(along, `seed ${seed}`).toBeLessThan(0);
       }
     }

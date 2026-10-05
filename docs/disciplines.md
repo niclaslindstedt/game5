@@ -28,7 +28,7 @@ How a discipline's research is recorded here:
 | Giant slalom | — | — | researched (technique, skis, course); to build — `docs/specs/GIANT_SLALOM.md` |
 | Super-G | `superG` | R33 | built — see below |
 | Downhill | `downhill` | R32 | built — see below |
-| Ski cross | — | — | to research — `docs/specs/SKI_CROSS.md` |
+| Ski cross | `skiCross` | R35 | built — see below |
 | Speed skiing | `speedSki` | R34 | built — see below |
 
 ## Slalom
@@ -603,8 +603,214 @@ during the racer's own run is all that lies on it: at a storm's full fall,
 
 ## Ski cross
 
-*Not researched yet.* The to-do list is in `docs/specs/SKI_CROSS.md`; the
-findings land here.
+Restated from the ski-cross chapter of the international snowboard,
+freestyle, freeski and ski-cross competition rules (the spring 2025 edition:
+the field of play, the start device, the gates, the heat, the interference
+articles, the formats, the start commands), the same federation's
+equipment specifications for those sports, its 2024–25 article on how a
+ski-cross course is designed, and the general literature on the sport. The
+one discipline whose racers are on the course TOGETHER: four (on some
+formats six) start side by side out of one gate and race head to head down
+a built course of turns, jumps and rollers; the first two over the line go
+through.
+
+**The course** [31, 32] (the top level's recommendations):
+
+| | Top level | Lower levels |
+| --- | --- | --- |
+| Length | 800–1300 m | at least 600 m, 450 m |
+| Mean angle | 7–11° (about 12–20 %) | 5–11° |
+| Vertical drop | 100–250 m | at least 60 m, 45 m |
+| Track width (mean) | 20 m | |
+| Course width | 6–16 m, by format and level | |
+| Start to the first direction change | 100 m | 80 m, 60 m |
+| Start platform | at least 6 m long, 12 m (±4) wide | |
+| Finish line | 15 m (±5) wide | |
+| Finish area | 60 m (±10) long, at least 30 m wide | |
+
+The course "must allow competitors to complete a course with features as
+speedily as possible", with overtaking chances from start to finish: BERMS
+(banked turns), ROLLERS, JUMPS and other freestyle terrain, the natural
+relief (gullies, changes of pitch) worked in. It is entirely FENCED, its
+lateral edges marked in blue paint, the jumps' take-offs and landings painted
+at the jury's word, the finish line a straight red line between two posts. A
+flatter layout gives the setter more room for features; one course can run
+six seconds faster or slower on the day's snow and weather [32]. *Feature
+sizes (est., the rules set none):* berms banked some 30–45° on a radius of
+15–30 m; rollers 0.6–1.5 m high, 8–16 m crest to crest, in series of three to
+six; jumps (tables and kickers) with a lip 1.5–2.5 m over the landing's line —
+"big air" features up to 5–7 m high on the biggest courses — flown 15–35 m;
+STEP-DOWNS, a take-off onto a landing a few metres lower; a FINISH JUMP on the
+last straight.
+
+**The gates** [31]. A ski-cross gate is one short flex STUBBY pole (the
+turning pole, under 45 cm over its hinge) and one long rigid OUTSIDE pole
+joined by a TRIANGULAR FLAG (a base of 1.0–1.3 m, its long side 0.8–1.1 m
+high, its short side 45 cm), in two colours. Gates stand at right angles to
+the line, on BOTH SIDES of every feature — the rollers, a jump's take-off —
+and of the finish; in a turn, banked or not, a single turning gate on its
+inside and no outside gate; never in a blind spot such as a landing.
+Numbered top to bottom; the start and the finish are not gates. A gate is
+passed when both ski tips and both feet cross its line — between two
+turning poles where two gates stand. A gate missed, a ski lost, the course's
+boundary left or a complete stop is a DID NOT FINISH; a racer who missed a
+gate may no longer go through the gates after it, nor climb back.
+
+**The start** [31]. A START DEVICE in the middle of the course: one door per
+racer, all opening together, none a racer can open or hold shut; the
+platform built so a racer stands relaxed in the gate and reaches race speed
+quickly — the racers hold HANDLES and catapult themselves out, pulling and
+then skating. The commands of a heat: "proceed to the start gate", "enter the
+start gate" (about 30 s before), "skiers ready", "attention" — and the doors
+drop at a RANDOM moment 1–4 s later, with no word (an electronic release is
+mandatory at the top level). A FALSE START is no longer a jump of the gun: the
+closed doors hold every racer, and a racer is sanctioned only for
+manipulating the device or for his skis crossing the start line before the
+doors open; a gate that sticks or opens unevenly is a re-run. A TIMED run
+(the qualification) is started like an alpine racer's: "10 seconds", 5 to 1,
+GO, at intervals of 20–60 s, and timed from the leg breaking the beam or the
+door opening. Lanes in a heat are CHOSEN in qualification order — the best
+seed first; four jerseys mark the seeds (red, green, blue, yellow, by the
+heat's seeding).
+
+**The format** [31]. A QUALIFICATION, then a knock-out. The qualification is
+usually one TIMED run alone (by time; a tie goes to the racer who started
+later), or heats of its own on bigger formats; the best 32 — 16 where fewer
+start — are seeded into a BRACKET of heats of four (rounds of 128, 64, 32,
+16, 8 and 4; or of six). In each heat the FIRST TWO GO THROUGH. The semi-
+finals' third and fourth race the SMALL FINAL (fifth to eighth), its first
+two the BIG FINAL (first to fourth). The rank in a heat is decided by the
+first part of the body over the line (a finish camera is mandatory); a tie
+before the finals goes to the better qualifier, and in a final stays a tie. A
+racer who DID NOT FINISH is ranked by how far down the course his correct
+passage went — the more gates taken, the better — and one who is in the first
+two still goes through; RANKED AS LAST (a yellow card) is last of his heat
+and out; a tie among these goes to the better qualifier. At least one
+training run on the day, after an inspection slipped through the course.
+Intermediate times every 20–30 s at the top level, for information.
+*Run times (est.):* a heat on a top-level course runs some 40–80 s; speeds
+reach 60–80 km/h and, on the fastest courses, 100 km/h [32].
+
+**Contact** [31]. "Contact in ski cross is common", and every action in it a
+deliberate race decision; the jury judges INTERFERENCE — a hand or an arm
+pulling, pushing or blocking; contact from the side or from BEHIND; a line
+deviated into a rival — as intentional or involuntary, and by whether it
+gained the offender something and changed another racer's result: an official
+WARNING (involuntary, no result changed; a second one is a yellow card), a
+YELLOW CARD, ranked as last (involuntary but a result changed, or intentional
+with none changed), a RED CARD, disqualified (intentional, and another's
+result changed). Every card is decided before the next heat starts and is
+not open to protest. A racer stopped by interference stops at once and
+reports; a re-run is never granted on interference alone.
+
+**The skis** [31]. The rules set NO length, width or radius for a ski-cross
+ski — only a working release binding, ski stoppers, and a binding plate at
+most 50 mm high. In practice *(est.)* the class is a GIANT-SLALOM-TYPE race
+ski, a little shorter and more forgiving: some 1.80–1.95 m, a 21–27 m arc of
+sidecut, a damp, stiff-tailed ski with a softer shovel for the landings and
+the rollers, on a high plate.
+
+**The technique** *(est., from coaching material)*: the START — a pull on the
+handles, then three or four skating strides and a double pole, decisive
+because passing is hard; the ROLLERS pumped — the legs absorbing each crest
+and pushing down its back — or the crests taken in one jump from one back to
+the next; the JUMPS absorbed low, kept short, the skis back on the snow as
+soon as the landing allows (time in the air is time not accelerating); the
+BERMS carved high or low, the inside line short and the outside fast; a
+GLIDER'S TUCK on every straight; DRAFTING in a rival's slipstream and a pass
+set up a feature or a berm ahead.
+
+**Broadcast and the crowd** *(est.)*: cameras along the whole fenced course
+— the start from the side and from behind, the first jump and its landing
+side-on, a camera high over each big berm, a cable camera or a drone
+(jury-approved) running above the pack, the finish jump head-on — the
+picture follows the PACK, not one racer. Spectators stand along the lower
+course and crowd the FINISH ZONE (its stands, the tower, the mixed zone) and
+the last jumps, where the passes are made.
+
+**The weather.** The rules let the officials stop the start for wind or fog
+(the "start stop" and its yellow flags) without a number; the game's jury
+takes a speed race's row (the jury's section above).
+
+### What the game models
+
+- **The course (R35)** is BUILT over a built map, its own line rather than
+  the piste's — the map's `track` from then on. The stretch is the piste's
+  600–1000 m (plan) whose course comes nearest an 18 % mean grade, the
+  fewest drops across it and then the lowest; a seed of its own is built on
+  the ski area's course at least 900 m long whose mean grade is nearest 25 %
+  (`skiCrossCourseOf`). Down it: a 6 m level PLATFORM under four DOORS 2.2 m
+  apart (12 m wide), a START RAMP cut to 55 % below them, a 100 m START
+  STRAIGHT, then LEGS swung 16–26 m either side of the piste's line and
+  80–120 m apart, every corner rounded to 22–32 m and a BERM wherever it
+  turns past 20°, banked to 28° at the apex (half that on a sweeping one) —
+  the research's 30–45°, eased for a racer who also turns on his edges. On
+  the straights as many features as fit, dealt off the seed: ROLLERS (three
+  to five crests 10–14 m apart, 0.6–1.0 m high), JUMPS (a 1.3–1.6 m kicker
+  up an 8 m ramp, a short level table and a 28–32 m landing dug 1.5 m under
+  the line) and STEP-DOWNS (the line raised 1.6–2.4 m over a 40 m approach
+  to a short lip); a jump on the start straight and a FINISH JUMP on the
+  last. The course is 14 m wide, graded to its profile, groomed, FENCED
+  1.5 m outside its edges (a racer driven into it is out of the course, as
+  into a downhill's A-nets), its trees cleared for 12 m. Its courses come
+  out 800–990 m over 130–200 m at 15–22 % *(measured on the race maps)*.
+- **The jumps are shorter than a real course's.** The race's flight gravity
+  (1.5 g, the arcade's) and its 45–60 km/h throw a racer 9–15 m off a jump
+  shaped to land him on its slope; a real one flies 15–35 m at its speed in
+  real air. Every jump lands the bot clean on every race map. The rollers
+  sit 14–16 m crest to crest, the long end of the measured band, so a racer
+  carried onto a series at 65 km/h and more is not thrown from one crest
+  onto the next one's face; it still happens now and then (once on the nine
+  race maps, a set of rollers at the end of a long straight).
+- **The gates** are triangular flags: a TURNING GATE on every berm's
+  inside, a CORRIDOR GATE across the course before every feature, none in a
+  landing. Passing is the rule's — both feet through — and a gate missed is
+  a DID NOT FINISH.
+- **The format** is the rule's knock-out folded to sixteen: a timed
+  QUALIFICATION alone against a board of twenty-nine dealt about par (the
+  bot's own clean run; the field some 4–5 % deep, a fall now and then),
+  the best SIXTEEN seeded into four QUARTER-FINALS (1-8-9-16, 4-5-12-13,
+  3-6-11-14, 2-7-10-15), two SEMI-FINALS, the SMALL FINAL and the BIG
+  FINAL, the first two of each heat through. The player SKIS his heats; a
+  heat he is not in is dealt off the race's seed — each racer's skill on
+  the start list, the day's noise, a fall or a card now and then — so a
+  bracket is the same every time it is raced to the same results. The
+  final ranking: the finals' places, the quarter-finals' thirds 9–12 and
+  fourths 13–16 by qualification, the rest by qualification.
+- **A heat**: "skiers ready", "attention" 1.6 s later, and the doors drop at
+  a moment dealt 1–4 s after it with no word — a racer cannot anticipate
+  it, so there is no false start to judge, as with the rule's closed
+  device; the tuck held pulls him out over the ramp. His three rivals are
+  the start list's own, their paces their skills, their reactions 0.12–0.3
+  s, each in his door's lane, closing onto the course's line over the start
+  straight and pulling out to pass a slower racer close ahead. Ranked by
+  the order over the line; a racer who did not finish by the gates he took,
+  and through if that is in the first two.
+- **The draft**: a racer tucked in behind a rival — within 6 m of him down
+  the course and 1.2 m across — has up to 30 % of his frontal drag taken
+  off, the most a metre behind *(est.: a body in another's slipstream; the
+  share is the cycling and speed-skating literature's order, not a
+  measurement on skis)* — so the racer behind pulls up on a straight and
+  sets up his pass. At a ski cross's speed the air is a third or more of
+  what holds a racer back, which is why the pack bunches on the glides.
+- **Contact**: every shoulder pushes the two apart, shared by their weights.
+  One past 0.38 of what a trunk on the shoulder takes puts the racer it
+  lands on DOWN (the racer behind braced for it, 1.6 times as much); a
+  knock-down from BEHIND is the RED CARD for the racer behind,
+  disqualified — the rule's intentional interference that changed another's
+  result. The yellow card and the warning are not modelled.
+- **The pair** is the Wolverine: a giant-slalom-type ski cut down, 1.88 m
+  on a 68 mm waist and a 24 m sidecut, a softer shovel, on a race plate.
+- **The technique**: a giant slalom racer's carve through berms (the edge
+  at the shared rate, up to 64°, held to 70 km/h), crossing under on the
+  flat. Pumping the rollers and absorbing the jumps low are the player's;
+  the bot rides them.
+
+Sources (continued): [31] the international snowboard, freestyle, freeski
+and ski-cross competition rules, spring 2025 edition (the ski-cross
+chapter), and the federation's equipment specifications for those sports,
+2022–23 edition · [32] the federation's 2024–25 article on the science of
+ski-cross course design.
 
 ## Speed skiing
 

@@ -120,7 +120,7 @@ export { downhillCourseOf, setDownhill } from "./downhill.ts";
 export { setSuperG, superGCourseOf, superGStart } from "./super-g.ts";
 export { setSpeedSki, speedSkiAim, speedSkiLines } from "./speed-ski.ts";
 export { LINE_STEP, speedCourseOf, speedLineAt } from "./speed-course.ts";
-export { raceCourseOf, type RaceCourse } from "./race-course.ts";
+export { netsOf, raceCourseOf, type RaceCourse } from "./race-course.ts";
 export { type CoursePrep } from "./course-prep.ts";
 export {
   accessReport,
@@ -132,3 +132,4 @@ export {
   type RunAccess,
 } from "../analysis/resort.ts";
 export { offRamp, rampFrame, rampHeight, rampLip } from "./summit-ramps.ts";
+export { setSkiCross, skiCrossCourseOf } from "./ski-cross.ts";

@@ -66,7 +66,7 @@ type Fit = {
  * `c` the other way: the lower convex hull of y + c·x²/2 less the parabola
  * again (no crest sharper than 1/c, only ever cut), or the upper concave
  * hull of y − c·x²/2 plus it (no knee sharper, only ever filled). In place. */
-function hullOf(y: Float64Array, step: number, c: number, below: boolean): void {
+export function hullOf(y: Float64Array, step: number, c: number, below: boolean): void {
   const n = y.length;
   const k = below ? c / 2 : -c / 2;
   const lift = (i: number): number => y[i] + k * (i * step) ** 2;
@@ -515,6 +515,7 @@ function gradeTrack(original: Level): Graded {
     slalom: undefined,
     downhill: undefined,
     superG: undefined,
+    skiCross: undefined,
   };
   // The arcs on the built track: the final's wand at the platform's lip,
   // the zone along the snow from it.
@@ -564,6 +565,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.slalom?.base ??
     level.downhill?.base ??
     level.superG?.base ??
+    level.skiCross?.base ??
     level;
   let mine = runs.get(original);
   if (!mine) {

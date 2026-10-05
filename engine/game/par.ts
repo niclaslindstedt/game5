@@ -23,7 +23,7 @@
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { trackPointAt } from "../mapgen/index.ts";
 import type { Level, SpeedCourse, TrackPoint } from "../mapgen/types.ts";
-import { DOWNHILL, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { skisById, totalMass, type SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
@@ -37,6 +37,7 @@ import { brakeDecel, carveSpeedOf, cutGrip } from "./limits.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "./race-line.ts";
 import { NEUTRAL_INPUT, type SkierInput } from "./state.ts";
 import { createGame, step } from "./step.ts";
+import { botInput } from "../sim/bot.ts";
 
 /** The par's numbers. Metres, seconds. */
 export const PAR = {
@@ -356,12 +357,55 @@ function profileTime(level: Level, spec: SkiSpec): number {
   return Math.max(zone, 1e-3);
 }
 
+/** THE SKI CROSS'S PAR: the most a qualification run is given, s, before it
+ * is called a run that will not come home. */
+export const SKI_CROSS_PAR = {
+  limit: 200,
+} as const;
+
+const skiCrossPars = new WeakMap<Level, WeakMap<SkiSpec, Par>>();
+
+/** THE PAR of `level`'s ski cross on `spec` (R35): a clean qualification
+ * run, SKIED — out of the start gate, through its berms, over its rollers
+ * and its jumps, alone, in the race's weather — by the bot, the field's
+ * own stand-in: no profile walks a banked turn or a table's landing the
+ * way the physics does. The splits are the clock at every gate. A map
+ * with no ski cross has none; one whose run did not come home has none. */
+export function skiCrossPar(level: Level, spec: SkiSpec): Par | null {
+  if (!level.skiCross) return null;
+  let bySpec = skiCrossPars.get(level);
+  if (!bySpec) {
+    bySpec = new WeakMap();
+    skiCrossPars.set(level, bySpec);
+  }
+  const known = bySpec.get(spec);
+  if (known) return known;
+  const run = createGame({
+    level,
+    seed: level.seed,
+    mode: "skiCross",
+    spec,
+    rivals: 0,
+    countdown: 0,
+    quiet: true,
+  });
+  for (let i = 0; i < SKI_CROSS_PAR.limit * TUNING.physicsHz && !run.progress.finished; i++) {
+    step(run, botInput(run));
+  }
+  const p = run.progress;
+  if (!p.finished || p.out) return null;
+  const par: Par = { time: p.time, splits: [...p.splits], trap: 0 };
+  bySpec.set(spec, par);
+  return par;
+}
+
 /** THE PAR OF THE RACE SET ON `level` — a slalom's, a downhill's, a
- * super-G's or a speed track's — on the pair its field races on; null on a
+ * super-G's, a speed track's or a ski cross's — on the pair its field races on; null on a
  * map with no course set. */
 export function raceParOf(level: Level): Par | null {
   if (level.downhill) return downhillPar(level, skisById(DOWNHILL.skis));
   if (level.superG) return superGPar(level, skisById(SUPER_G.skis));
   if (level.speedSki) return speedSkiPar(level, skisById(SPEED_SKI.skis));
+  if (level.skiCross) return skiCrossPar(level, skisById(SKI_CROSS.skis));
   return slalomPar(level, skisById(SLALOM.skis));
 }

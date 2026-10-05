@@ -84,6 +84,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };
+      // In a ski-cross heat a rival's shoulder put him down in the pack.
+      if (state.cross && e.cause === "skier") return { text: STRINGS.newsKnocked, tone: "bad" };
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
       return { text: STRINGS.newsStuck, tone: "bad" };
@@ -110,7 +112,11 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "pole":
       return e.speed >= POLE_SAID ? { text: STRINGS.newsPole(e.gate), tone: "info" } : null;
     case "out":
-      return { text: STRINGS.newsOut(e.out), tone: "bad" };
+      // A red card in a ski-cross heat: the jury's word for it.
+      return {
+        text: e.out.why === "contact" ? STRINGS.newsCard : STRINGS.newsOut(e.out),
+        tone: "bad",
+      };
     // A DOWNHILL'S SPEED TRAP, and the A-nets (R32): the out that follows a
     // drive into them says the rest.
     case "trap":

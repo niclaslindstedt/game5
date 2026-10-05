@@ -26,6 +26,11 @@
 // a racer back into the first. The second run books no campaign rung: the
 // rung is booked at the first run's flag.
 //
+// A SKI CROSS stands up as its QUALIFICATION, and the plate over each of its
+// runs stands up the player's NEXT HEAT (`ski-cross-run.ts`'s
+// `nextBracket`): the run read back off its first step with the bracket as
+// it now stands handed over — the heat it names his. A heat books no rung.
+//
 // A DOWNHILL stands up as its TRAINING run (every racer starts one before
 // he may race, `downhill-run.ts`), and the plate over it — home or out —
 // stands up its RACE through the same press. A campaign rung is booked at
@@ -48,6 +53,7 @@ import { recipeOf } from "./replay.ts";
 import type { Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
+import { nextBracket } from "./ski-cross-run.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -131,6 +137,11 @@ export function createPinnedRuns(world: {
     again: () => {
       const now = world.current();
       if (heatOf(now)) return secondRunAgain(now);
+      // A ski-cross heat again: the same heat of the same bracket.
+      if (now.cross) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "skiCross"));
+      }
       // A downhill again as the run it is: its training, or its race.
       const training = trainingOf(now);
       if (training !== undefined) {
@@ -151,6 +162,26 @@ export function createPinnedRuns(world: {
           build: () => {
             world.rig.arm(rungOf);
             return createGame({ ...recipeOf(now, "downhill"), training: false });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A SKI CROSS's next heat, off the bracket as this run left it.
+      const bracket = nextBracket(now);
+      if (bracket) {
+        world.setMode("skiCross");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({
+              ...recipeOf(now, "skiCross"),
+              cross: undefined,
+              bracket,
+              rivals: undefined,
+              countdown: undefined,
+            });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -185,7 +216,8 @@ const FIRST_RUN_CAP = 600;
 /** A LINK'S SECOND RUN (`?run=2`): `first` skied by the bot to its flag
  * in place, then the second run off it — or `first` as it stands where the
  * bot went out of it and there is no second run to stand up. On a
- * downhill, its RACE off its training. */
+ * downhill, its RACE off its training; on a ski cross, its first HEAT off
+ * its qualification. */
 export function secondRunOff(first: GameState): GameState {
   // A downhill's: its race, off its training — nothing skied first.
   if (trainingOf(first) === true) {
@@ -194,6 +226,19 @@ export function secondRunOff(first: GameState): GameState {
   if (first.field?.run !== 1 || first.level.downhill || first.level.superG) return first;
   for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
     step(first, botInput(first));
+  }
+  // A SKI CROSS: its first heat, off the qualification the bot skied.
+  if (first.level.skiCross) {
+    const bracket = nextBracket(first);
+    return bracket
+      ? createGame({
+          ...recipeOf(first, "skiCross"),
+          cross: undefined,
+          bracket,
+          rivals: undefined,
+          countdown: undefined,
+        })
+      : first;
   }
   const heat = heatAfter(first);
   return heat ? createGame({ ...recipeOf(first, twoRunMode(first)), heat }) : first;

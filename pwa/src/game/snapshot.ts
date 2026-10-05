@@ -49,6 +49,7 @@ import { courseName } from "./run-names.ts";
 import { trapOf, type TrapReading } from "./downhill-run.ts";
 import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
+import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -98,7 +99,7 @@ export type Standing = {
 export type RaceHud = {
   /** Which discipline, and — on a downhill — whether this is its TRAINING
    * run (`downhill-run.ts`), which counts for nothing. */
-  discipline: "slalom" | "downhill" | "superG" | "speedSki";
+  discipline: "slalom" | "downhill" | "superG" | "speedSki" | "skiCross";
   training: boolean;
   /** Which run of how many (R31; a downhill and a super-G are one). */
   run: 1 | 2;
@@ -200,6 +201,10 @@ export type HudSnapshot = {
   /** AN INTERVAL START'S RACE — a slalom's or a downhill's — its own
    * readouts (`RaceHud`), null on any other run. */
   race: RaceHud | null;
+  /** A SKI CROSS's readouts (`ski-cross-run.ts`) — its round, the start
+   * gate's commands, the heat's order and what comes next — null on any
+   * other run. */
+  cross: CrossHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -416,7 +421,9 @@ export function raceOf(state: GameState): RaceHud | null {
       ? "superG"
       : state.level.speedSki
         ? "speedSki"
-        : "slalom";
+        : state.level.skiCross
+          ? "skiCross"
+          : "slalom";
   const word =
     state.phase === "countdown"
       ? "ready"
@@ -434,7 +441,9 @@ export function raceOf(state: GameState): RaceHud | null {
           ? SUPER_G.runs
           : discipline === "speedSki"
             ? SPEED_SKI.runs
-            : SLALOM.runs,
+            : discipline === "skiCross"
+              ? 1
+              : SLALOM.runs,
     word,
     timing: timingSplit(state),
     before: f.before,
@@ -463,8 +472,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const owed = p.missed !== null ? bearingToNext(state) : null;
   const race = raceOf(state);
   // THE BIG LIGHTS are the line start's: a race's count out of the house is
-  // the start clock's, and its word the small one at the top.
-  const lights = state.rules.countdown > 0 && !race;
+  // the start clock's, and its word the small one at the top — and a ski
+  // cross's heat has the start gate's commands and no count at all.
+  const cross = crossOf(state);
+  const lights = state.rules.countdown > 0 && !race && !state.cross;
   return {
     speedKmh: c.speed * 3.6,
     // Against the most edge he can use — a slalom racer's past the ski's own.
@@ -500,6 +511,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
       p.finished && !p.out ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,
     race,
+    cross,
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,

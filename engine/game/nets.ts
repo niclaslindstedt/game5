@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE A-NETS (R32, R33) — the tall safety nets along both edges of a
-// downhill or a super-G,
+// downhill or a super-G — and a ski cross's FENCE (R35), the course closed
+// off along both its edges, which a racer carried into is out of the course
+// as surely,
 // strung on cables between steel posts a few metres outside the piste,
 // that catch a racer who leaves the course at speed before the trees do.
 //
@@ -14,7 +16,7 @@
 // metres out, read off the piste where he is (`nearestTrackPoint`), from
 // the house to the finish arena. Nothing here draws from any stream.
 
-import { nearestTrackPoint, speedCourseOf } from "../mapgen/index.ts";
+import { nearestTrackPoint, netsOf } from "../mapgen/index.ts";
 import type { TrackHit } from "../mapgen/types.ts";
 import { outRun } from "./course.ts";
 import type { GameEvent, GameState } from "./state.ts";
@@ -40,7 +42,7 @@ function pastNet(
   z: number,
 ): { ux: number; uz: number; past: number } | null {
   const level = state.level;
-  const nets = speedCourseOf(level)?.nets;
+  const nets = netsOf(level);
   if (!nets) return null;
   nearestTrackPoint(level, x, z, hit);
   if (hit.s < nets.from || hit.s > nets.to || hit.distance < 1e-6) return null;
@@ -52,7 +54,7 @@ function pastNet(
 
 /** Hold whatever of the skier has gone past a net on the net. */
 export function stepNets(state: GameState, events: GameEvent[]): void {
-  if (!speedCourseOf(state.level)) return;
+  if (!netsOf(state.level)) return;
   const c = state.skier;
   const off = c.thrown;
   if (off) {

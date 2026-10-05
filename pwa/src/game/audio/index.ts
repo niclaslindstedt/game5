@@ -79,6 +79,11 @@ export function createRunAudio(): RunAudio {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
         }
+        // The starter's sounds hear how the run starts.
+        if ((event.kind === "count" || event.kind === "go") && state) {
+          const gate = state.rules.start === "gate";
+          return { ground, start: { gate, heat: gate && state.rules.dealt !== true } };
+        }
         if (event.kind !== "hit" || !level) return { ground };
         return { ground, trunk: trunkAt(level, event.x, event.z) ?? undefined };
       };

@@ -26,7 +26,9 @@ const modeWord = (mode: CampaignMode): string =>
         ? "SUPER-G"
         : mode === "speedSki"
           ? "SPEED SKIING"
-          : "RACE";
+          : mode === "skiCross"
+            ? "SKI CROSS"
+            : "RACE";
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -79,7 +81,9 @@ export const CAMPAIGN_STRINGS = {
       ? "SUPER-G · ONE RUN"
       : mode === "speedSki"
         ? "SPEED SKIING · TWO RUNS"
-        : `${modeWord(mode)} · TOP TO BOTTOM`,
+        : mode === "skiCross"
+          ? "SKI CROSS · FOUR ABREAST"
+          : `${modeWord(mode)} · TOP TO BOTTOM`,
   /** The day a run is skied in, under its name: the sky and the start hour. */
   campaignDay: (sky: string, hour: number): string => `${sky} · ${clockOf(hour)}`,
   campaignSky: {

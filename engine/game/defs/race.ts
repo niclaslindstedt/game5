@@ -18,6 +18,9 @@ export const START_PUSH = {
   press: 0.5,
   /** How long the figure is told of the push after it, s. */
   shown: 1.2,
+  /** OUT OF A SKI CROSS'S START GATE: how long after the doors drop the
+   * pull on the handles can still throw him out, s. */
+  gate: 1.5,
 } as const;
 
 /** THE FLEX POLES of a slalom's gates (R31, `gate-poles.ts`): a pole on

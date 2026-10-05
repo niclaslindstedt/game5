@@ -14,7 +14,10 @@
 // gate — crossing the next one's line while this one is still owed.
 // A downhill's SPEED GATE, and a super-G's panelled gate, is passed the
 // same way, both feet between its inner poles, and missed with either foot
-// outside them.
+// outside them — and so is a ski cross's CORRIDOR GATE (R35), between its
+// two flags; its TURNING GATE is an open gate round the flag on the inside
+// of a berm. On a ski cross a gate missed is a DID NOT FINISH, its racer
+// ranked by how far down the course he got.
 //
 // THE START: the run clock waits for the wand (the start gate), and a
 // racer not through it within `RunRules.window` seconds of GO is
@@ -63,7 +66,9 @@ function lateralOf(cp: Checkpoint, x: number, z: number): number {
  * `0` on the wrong side of a pole, and how far off the gate it is. */
 function footIn(cp: Checkpoint, lateral: number): boolean {
   const half = cp.width / 2;
-  if (cp.pole === "closed" || cp.panels) return Math.abs(lateral) <= half + POLE;
+  if (cp.pole === "closed" || ((cp.panels || cp.flags) && cp.pole === undefined)) {
+    return Math.abs(lateral) <= half + POLE;
+  }
   // From the turning pole toward the outside pole.
   const turn = cp.turn ?? -1;
   const inward = (lateral - turn * half) * -turn;
@@ -75,7 +80,9 @@ function footIn(cp: Checkpoint, lateral: number): boolean {
 function judged(cp: Checkpoint, lateral: number): boolean {
   const half = cp.width / 2;
   if (cp.pole === "closed") return Math.abs(lateral) <= half + REACH.closed;
-  if (cp.panels) return Math.abs(lateral) <= half + REACH.panels;
+  if (cp.panels || (cp.flags && cp.pole === undefined)) {
+    return Math.abs(lateral) <= half + REACH.panels;
+  }
   const turn = cp.turn ?? -1;
   const inward = (lateral - turn * half) * -turn;
   return inward >= -REACH.turn && inward <= cp.width + REACH.outside;
@@ -101,9 +108,11 @@ function verdictAt(state: GameState, cp: Checkpoint): "pass" | "missed" | "strad
   return through === feet ? "pass" : through === 0 ? "missed" : "straddle";
 }
 
-/** Out of the race at gate `gate`. */
+/** Out of the race at gate `gate` — disqualified, or on a ski cross, where
+ * a gate missed is a race not finished, did not finish. */
 function disqualify(state: GameState, events: GameEvent[], why: RunOut["why"], gate: number): void {
-  outRun(state, events, { status: "dsq", why, gate });
+  const status = state.level.skiCross && why !== "start" ? "dnf" : "dsq";
+  outRun(state, events, { status, why, gate });
 }
 
 /** Check the move the skier just made against the gate the run owes, by
@@ -147,7 +156,7 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
     return;
   }
   const lateral = crossedLine(cp, x0, z0, c.x, c.z);
-  const poled = cp.pole !== undefined || cp.panels === true;
+  const poled = cp.pole !== undefined || cp.panels === true || cp.flags === true;
   if (lateral !== null && (!poled || judged(cp, lateral))) {
     let verdict = !poled
       ? Math.abs(lateral) <= cp.width / 2 + K.grace
@@ -156,7 +165,7 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
       : verdictAt(state, cp);
     // A speed gate has no pole between the feet to straddle: a foot
     // outside its inner poles is the gate missed.
-    if (verdict === "straddle" && cp.panels) verdict = "missed";
+    if (verdict === "straddle" && (cp.panels || cp.flags)) verdict = "missed";
     if (verdict === "pass") {
       // The zone's top line: the clock started again from where in the step
       // he crossed it.

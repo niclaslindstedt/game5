@@ -9,6 +9,7 @@ import {
   DISCIPLINES,
   DOWNHILL,
   GAME_MODES,
+  SKI_CROSS,
   SLALOM,
   SPEED_SKI,
   SUPER_G,
@@ -21,6 +22,7 @@ const CLASS = {
   slalom: "Slalom",
   superG: "Super-G",
   downhill: "Downhill",
+  skiCross: "Ski cross",
   speedSki: "Speed ski",
 } as const;
 
@@ -39,6 +41,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("slalom")).toBe(SLALOM.skis);
     expect(raceSkisOf("superG")).toBe(SUPER_G.skis);
     expect(raceSkisOf("downhill")).toBe(DOWNHILL.skis);
+    expect(raceSkisOf("skiCross")).toBe(SKI_CROSS.skis);
     expect(raceSkisOf("speedSki")).toBe(SPEED_SKI.skis);
   });
 

@@ -361,9 +361,10 @@ export function App() {
     /** What a player's run is filed under — nothing for a run the bot rides
      * from the line (`?bot=1`), which is nobody's time, nothing for a mode
      * that keeps no book (a free ride, `keepsRecords`), and nothing for a
-     * downhill's training, which counts for nothing. */
+     * downhill's training, which counts for nothing, or a ski cross's heat,
+     * which is a race for places — its qualification is the timed run. */
     const ticketFor = (s: GameState): RunTicket | null =>
-      params.bot || !keepsRecords(mode) || isTraining(s)
+      params.bot || !keepsRecords(mode) || isTraining(s) || s.cross !== undefined
         ? null
         : { key: runKey(s, mode), assist: { ...s.assist } };
     const drawable = (): boolean => standing !== null && standing === state.level;

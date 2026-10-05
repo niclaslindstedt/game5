@@ -44,10 +44,15 @@
 // fifteen drawn among themselves (`SPEED_SKI_FIELD`). Its FINAL is the
 // qualification's best `SPEED_SKI.qualify`, in increasing order of their
 // speed — the fastest last — and ranked on the FINAL alone, never combined.
+//
+// A SKI CROSS's QUALIFICATION (R35) is one timed run alone out of the start
+// gate, its field close — the thirtieth some 4–5 % off the best — and
+// seldom out of it (`SKI_CROSS_FIELD`); its racers go on to the heats
+// (`cross-bracket.ts`) with the skill and the grit dealt here.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { speedCourseOf } from "../mapgen/index.ts";
-import { DOWNHILL, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
+import { DOWNHILL, SKI_CROSS, SLALOM, SPEED_SKI, SUPER_G } from "./defs/modes.ts";
 import { raceParOf } from "./par.ts";
 import type { FieldRun, GameState, RunOut } from "./state.ts";
 
@@ -119,17 +124,28 @@ export const SPEED_SKI_FIELD = {
   seeds: 15,
 } as const;
 
+/** A SKI CROSS'S QUALIFICATION (R35), over `FIELD`'s shape: one timed run
+ * alone, a field some 4–5 % deep over a minute (est.), out of it now and
+ * then — a fall far oftener than a gate missed. */
+export const SKI_CROSS_FIELD = {
+  spread: 0.045,
+  noise: 0.006,
+  best: -0.004,
+  out: { best: 0.02, worst: 0.1 },
+  why: { missed: 0.3, straddle: 0, fall: 0.7 },
+} as const;
+
 /** THE FIRST RUN, carried into the second: the player's time and the
  * field as it finished. */
 export type Heat = { run: 2; player: number; field: readonly FieldRun[] };
 
 /** One racer of the start list: his slot (a rival's id), his skill and his
  * grit. */
-type Racer = { id: number; skill: number; grit: number };
+export type Racer = { id: number; skill: number; grit: number };
 
 /** THE START LIST: `count` racers, each dealt off the field's stream — the
- * same list on both runs of a race. */
-function startList(seed: number, count: number): Racer[] {
+ * same list on both runs of a race, and through a ski cross's heats. */
+export function startList(seed: number, count: number): Racer[] {
   const rng = createRng((seed ^ FIELD_SALT) >>> 0);
   const out: Racer[] = [];
   for (let id = 0; id < count; id++) out.push({ id, skill: rng.next(), grit: rng.next() });
@@ -230,7 +246,9 @@ function dealRun(
       ? SUPER_G_FIELD
       : level.speedSki
         ? SPEED_SKI_FIELD
-        : FIELD;
+        : level.skiCross
+          ? SKI_CROSS_FIELD
+          : FIELD;
   const par = raceParOf(level);
   const n = level.checkpoints.length;
   const weak = 1 - racer.skill;
@@ -277,7 +295,9 @@ function dealRun(
         ? SUPER_G.skis
         : level.speedSki
           ? SPEED_SKI.skis
-          : SLALOM.skis,
+          : level.skiCross
+            ? SKI_CROSS.skis
+            : SLALOM.skis,
     time: out ? null : splits[n - 1],
     out,
     splits,

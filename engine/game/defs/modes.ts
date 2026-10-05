@@ -5,8 +5,10 @@
 // under the international rules, two runs on combined time, and the
 // DOWNHILL (R32), the whole piste in one run after a training run, and the
 // SUPER-G (R33), one run unseen on the downhill's hill from a lower start,
-// its gates turning him, and SPEED SKIING (R34), a straight track of its
-// own, a qualification and a final timed through a 100 m zone — the TIME
+// its gates turning him, SPEED SKIING (R34), a straight track of its
+// own, a qualification and a final timed through a 100 m zone, and the SKI
+// CROSS (R35), a course built in the snow raced four abreast — a timed
+// qualification, then heats of four out of one start gate — the TIME
 // TRIAL, the map's piste alone against the clock, the FREE RIDE, the whole
 // mountain to explore with no course counted at all, and TRICKS. The rules
 // are a plain record on the state (`GameState.rules`) read by every system
@@ -19,9 +21,9 @@
 //
 // THE DISCIPLINES (`DISCIPLINES`) are the races the game names: the slalom,
 // the giant slalom, the super-G, the downhill, the ski cross and the speed
-// run. The slalom, the super-G, the downhill and the speed run are BUILT;
-// the others are named so the app can bill them as coming, and each becomes a mode — its own rules here
-// and its own course rule (R31 onward) — when it is.
+// run. All but the giant slalom are BUILT; it is named so the app can bill
+// it as coming, and becomes a mode — its own rules here and its own course
+// rule (R31 onward) — when it is.
 
 import { CROWD } from "./crowd.ts";
 import type { TechniqueId } from "./technique.ts";
@@ -84,8 +86,23 @@ export type RunRules = {
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
    * are what he races (`field.ts`). On an interval start the run clock
-   * waits for the racer to open the wand. */
-  start: "line" | "interval";
+   * waits for the racer to open the wand. `"gate"` — A SKI CROSS'S START
+   * GATE (R35): every racer behind a door of his own, the doors dropping
+   * together at GO, each racer pulling himself out on the handles and
+   * skating away; the clock runs from GO. */
+  start: "line" | "interval" | "gate";
+  /** THE FIELD DEALT, NOT SKIED (`field.ts`): the rivals are a BOARD of
+   * times dealt about par, raced one at a time before the player — an
+   * interval start's always, and a ski cross's qualification out of its
+   * gate. Left out: a field on an interval start is dealt, any other is
+   * skied. */
+  dealt?: boolean;
+  /** CONTACT THAT PUTS A RACER DOWN (R35's heats): a shoulder hard enough
+   * throws the skier it lands on, and a racer who knocks down the one
+   * ahead of him from behind is disqualified by the jury
+   * (`cross-contact.ts`). Left out: skiers lean on each other and nobody
+   * goes down for it. */
+  knock?: boolean;
   /** THE GATES' LAW: `"arcade"` — a gate skied past is owed again (or, a
    * slalom gate of R28, charged on the clock) and the reset stands him
    * back on the course; `"strict"` — the international rules (R31): a gate
@@ -399,6 +416,70 @@ export function speedSkiRules(laps: number): RunRules {
   };
 }
 
+/** THE SKI CROSS'S NUMBERS (R35 builds its course). */
+export const SKI_CROSS = {
+  /** The qualification's start list: the racers on its board beside the
+   * player. */
+  field: 29,
+  /** The qualification's start: "10 seconds", 5 to 1, GO. */
+  countdown: 5,
+  /** THE BRACKET: the best `qualify` of the qualification go into it, in
+   * heats of `heat`, the first `through` of each going on to the next
+   * round. */
+  qualify: 16,
+  heat: 4,
+  through: 2,
+  /** A HEAT'S START COMMANDS, s: "skiers ready", "attention" `ready` s
+   * later, and the doors dropping at a moment dealt `release` s after it —
+   * the rule's random 1–4 s, with no word. */
+  ready: 1.6,
+  release: { min: 1, max: 4 },
+  /** The pair the field races on: the ski-cross ski. */
+  skis: "wolverine",
+} as const;
+
+/** THE SKI CROSS'S QUALIFICATION as a skier is dealt it (R35): one timed
+ * run alone out of the start gate, the start list's times a board dealt
+ * about par, the strict gates. */
+export function skiCrossRules(laps: number): RunRules {
+  return {
+    rivals: SKI_CROSS.field,
+    laps,
+    countdown: SKI_CROSS.countdown,
+    contact: false,
+    course: true,
+    tricks: false,
+    stunts: false,
+    limit: 0,
+    airGravity: TUNING.air.gravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    sled: false,
+    start: "gate",
+    dealt: true,
+    gates: "strict",
+    window: 0,
+    technique: "skiCross",
+    jury: JURY.skiCross,
+  };
+}
+
+/** A SKI-CROSS HEAT as a skier is dealt it (R35): four out of the start
+ * gate together, the doors dropping after "attention" (`countdown` the
+ * whole sequence, dealt per heat by `createGame`), the field SKIED beside
+ * him, contact on and judged, the strict gates. */
+export function skiCrossHeatRules(laps: number, countdown: number): RunRules {
+  return {
+    ...skiCrossRules(laps),
+    rivals: SKI_CROSS.heat - 1,
+    countdown,
+    contact: true,
+    dealt: false,
+    knock: true,
+  };
+}
+
 /** What a measurement skis: the level's run, no lights, nobody else. */
 export function openRules(laps: number): RunRules {
   return {
@@ -477,13 +558,14 @@ export function clampResilience(r: number | undefined): number {
  * the rules, and the app reads the name to decide which card is up and which
  * row of the record book a run is filed under. */
 export type GameMode =
-  "slalom" | "downhill" | "superG" | "speedSki" | "timeTrial" | "free" | "tricks";
+  "slalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "timeTrial" | "free" | "tricks";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
   "downhill",
   "superG",
   "speedSki",
+  "skiCross",
   "timeTrial",
   "free",
   "tricks",
@@ -567,6 +649,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   downhill: downhillRules,
   superG: superGRules,
   speedSki: speedSkiRules,
+  skiCross: skiCrossRules,
   timeTrial: timeTrialRules,
   free: freeRules,
   tricks: tricksRules,
@@ -579,6 +662,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slalom: SLALOM.skis,
   superG: SUPER_G.skis,
   downhill: DOWNHILL.skis,
+  skiCross: SKI_CROSS.skis,
   speedSki: SPEED_SKI.skis,
 };
 
@@ -592,11 +676,14 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * gate, the reference build's; the super-G and the downhill pay a heavier
  * skier's speed in a tuck (the terminal speed climbs as the fourth root of
  * his weight) and still jump, so the SOLID build's legs; speed skiing is
- * the tuck alone, straight down with nothing to land, so the HEAVY one. */
+ * the tuck alone, straight down with nothing to land, so the HEAVY one. A
+ * ski cross is the solid build's too: the shoulder in the pack and the
+ * glide down the straights pay weight, the jumps and the berms the legs. */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
   downhill: "solid",
+  skiCross: "solid",
   speedSki: "heavy",
 };
 
@@ -615,6 +702,6 @@ export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] =
   { id: "giantSlalom", mode: null },
   { id: "superG", mode: "superG" },
   { id: "downhill", mode: "downhill" },
-  { id: "skiCross", mode: null },
+  { id: "skiCross", mode: "skiCross" },
   { id: "speedSki", mode: "speedSki" },
 ];

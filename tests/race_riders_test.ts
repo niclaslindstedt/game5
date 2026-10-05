@@ -29,6 +29,7 @@ describe("a race's own build", () => {
     expect(raceRiderOf("slalom")).toBe("medium");
     expect(raceRiderOf("superG")).toBe("solid");
     expect(raceRiderOf("downhill")).toBe("solid");
+    expect(raceRiderOf("skiCross")).toBe("solid");
     expect(raceRiderOf("speedSki")).toBe("heavy");
   });
 

@@ -88,6 +88,9 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     heat: heatOf(state),
     // A downhill's training run or its race (`downhill-run.ts`).
     training: trainingOf(state),
+    // A ski cross's heat and the bracket it was raced in (`ski-cross-run.ts`).
+    cross: state.cross,
+    bracket: state.bracket,
     quiet: true,
   };
 }

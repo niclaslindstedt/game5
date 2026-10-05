@@ -69,6 +69,12 @@ export interface Checkpoint {
    * its line holding a panel, `width` m between the inner poles — passed
    * with both feet between them. Absent: any other gate. */
   panels?: true;
+  /** A SKI-CROSS GATE (R35): triangular flags, each a stubby turning pole
+   * and a long outside pole joined by the flag. With `pole: "open"` a
+   * TURNING GATE, one flag on the inside of a berm at the `turn` end;
+   * alone a CORRIDOR GATE, a flag at each end of its line, passed with both
+   * feet between them. Absent: any other gate. */
+  flags?: true;
 }
 
 export interface TrackPoint {
@@ -194,6 +200,46 @@ export interface Level {
    * `spawn`. Absent on every map the generator builds — a speed track is
    * set over one. */
   speedSki?: SpeedSkiCourse;
+  /** A SKI-CROSS COURSE built on the map (R35, `setSkiCross`): its `track`
+   * is the course weaving down the piste's corridor, its ground graded and
+   * its features built in the snow, its checkpoints the start gate, the
+   * flags and the finish line, its `grid` the start gate's lanes. Absent on
+   * every map the generator builds — a ski cross is built over one. */
+  skiCross?: SkiCrossCourse;
+}
+
+/** One of a ski-cross course's BUILT FEATURES (R35), by its arcs down the
+ * course, m: a BERM (a banked turn, `side` the inside: −1 left, +1 right),
+ * a series of ROLLERS, a JUMP (`lip` its take-off's arc, `height` the lip
+ * over the line) or a STEP-DOWN (the same, onto a lower landing). */
+export interface CrossFeature {
+  kind: "berm" | "rollers" | "jump" | "step";
+  from: number;
+  to: number;
+  side?: -1 | 1;
+  lip?: number;
+  height?: number;
+}
+
+/** A SKI-CROSS COURSE (R35) as it was built over a map: its own `track`,
+ * the piste's corridor it weaves down, its features and its fence. */
+export interface SkiCrossCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc (its doors) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The course's width, m. */
+  width: number;
+  /** Every built feature, in the order they are skied. */
+  features: CrossFeature[];
+  /** THE FENCE along both edges: its line this far outside the course's
+   * edge, m, this tall, m, from arc `from` to `to`. */
+  nets: { gap: number; height: number; from: number; to: number };
+  /** The stretch of the piste it was built on, m of the piste's own arc. */
+  axis: { from: number; to: number };
 }
 
 /** A SPEED-SKIING TRACK (R34) as it was set over a built map: a straight

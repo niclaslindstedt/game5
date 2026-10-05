@@ -40,8 +40,9 @@ export function secondRunOf(state: GameState): SecondRun | null {
   const f = state.field;
   if (!f || !state.progress.finished) return null;
   if (state.level.downhill) return f.training ? { kind: "race" } : null;
-  // A super-G is one run, never trained on: nothing after it.
-  if (state.level.superG) return null;
+  // A super-G is one run, never trained on: nothing after it — and a ski
+  // cross's next run is a heat, which `ski-cross-run.ts` offers.
+  if (state.level.superG || state.level.skiCross) return null;
   if (f.run !== 1) return null;
   if (state.progress.out) return { kind: "out" };
   const place = fieldPlace(state);

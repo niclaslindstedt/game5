@@ -86,7 +86,8 @@ export function airForce(state: GameState, c: SkierState, m: number, out: AirFor
   const along = ax * fx + az * fz;
   const across = ax * fz - az * fx;
   const half = 0.5 * TUNING.airDensity * hypot3(ax, ay, az);
-  const front = half * dragAreaOf(c.spec, c.crouch);
+  // ...less what a racer close ahead takes off it in a ski-cross heat.
+  const front = half * dragAreaOf(c.spec, c.crouch) * (1 - (c.draft ?? 0));
   const side = half * sideAreaOf(c.spec, c.crouch);
   const fAlong = -front * along;
   const fAcross = -side * across;

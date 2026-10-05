@@ -9,6 +9,10 @@
 //   * THE START: a START HUT at the top of the piste, off the line's left
 //     edge, and the WAND across the start gate — two posts and a bar at
 //     the knee, the thing a racer's shins push through to start the clock.
+//     A race's start house over its course instead (`start-house.ts`), and
+//     a SKI CROSS's start gate of four doors (`cross-gate.ts`).
+//   * A SKI CROSS's gates are triangular flags and its edges dyed blue
+//     (`cross-flags.ts`), and its finish line a red line across the snow.
 //   * THE FINISH: an inflatable ARCH over the last gate carrying the word,
 //     the line dyed checkered across the snow under it (`start-arch.ts`
 //     says where and how big), safety NETS fencing the last stretch either
@@ -59,6 +63,8 @@ import {
   gatePole,
   startHut,
 } from "./mark-shapes.ts";
+import { createCrossFlags } from "./cross-flags.ts";
+import { createCrossGate } from "./cross-gate.ts";
 import { createPisteLights } from "./piste-lights.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
@@ -103,15 +109,16 @@ export type Gates = {
   dispose(): void;
 };
 
-/** The line dyed across the snow: two squares of the checker, repeated. */
-function bandTexture(): THREE.CanvasTexture {
+/** The line dyed across the snow: two squares of the checker, repeated —
+ * or a SKI CROSS's straight red line (R35). */
+function bandTexture(red = false): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 2;
   canvas.height = 2;
   const g = canvas.getContext("2d")!;
-  g.fillStyle = "#1b1f25";
+  g.fillStyle = red ? "#d8262f" : "#1b1f25";
   g.fillRect(0, 0, 2, 2);
-  g.fillStyle = "#f4f6f8";
+  g.fillStyle = red ? "#d8262f" : "#f4f6f8";
   g.fillRect(0, 0, 1, 1);
   g.fillRect(1, 1, 1, 1);
   const tex = new THREE.CanvasTexture(canvas);
@@ -250,11 +257,16 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   );
 
   // A SLALOM's pole gates (R31) are flex poles of their own, and its start
-  // a start house over the course.
-  const slalomPoles = createSlalomPoles(level, haze);
+  // a start house over the course; a SKI CROSS's gates are flags and its
+  // start a gate of doors (R35).
+  const crossFlags = createCrossFlags(level, haze);
+  const crossGate = createCrossGate(level, haze);
+  const slalomPoles = crossFlags ? null : createSlalomPoles(level, haze);
   const house = createStartHouse(level, haze);
   if (slalomPoles) group.add(slalomPoles.group);
   if (house) group.add(house.group);
+  if (crossFlags) group.add(crossFlags.group);
+  if (crossGate) group.add(crossGate.group);
 
   // A SPEED TRACK's run-out (R34): where its arch and its arena stand.
   const runOut = speedSkiLines(level);
@@ -271,13 +283,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     const own: THREE.Vector3[] = [];
     const first = index === 0;
     const last = index === gates - 1;
-    // A pole gate's poles are `slalom-poles.ts`'s; its marker rides over
-    // its turning pole.
-    if (cp.pole !== undefined) {
+    // A ski cross's flags are `cross-flags.ts`'s, a pole gate's poles
+    // `slalom-poles.ts`'s; the marker rides over the outside poles, or the
+    // turning pole.
+    if (cp.flags || cp.pole !== undefined) {
       for (let k = 0; k < 4; k++) poles.setMatrixAt(index * 4 + k, m4.compose(at, q, none));
       for (let k = 0; k < 2; k++) panels.setMatrixAt(index * 2 + k, m4.compose(at, q, none));
       const top = slalomPoles?.top(index);
-      tops.push(top ? [top] : []);
+      tops.push(cp.flags ? (crossFlags?.tops(index) ?? []) : top ? [top] : []);
       return;
     }
     [-1, 1].forEach((side, k) => {
@@ -307,8 +320,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       panels.setColorAt(j, last || runOut ? colour : muted(colour));
       own.push(new THREE.Vector3(cx, y + PANEL.pole + 1.2, cz));
     });
-    tops.push(own);
-    if (first && !house) hutAt(cp, rx, rz, fx, fz);
+    // A ski cross's start gate is its own mark: no marker over its doors.
+    tops.push(first && crossGate ? [] : own);
+    if (first && !house && !crossGate) hutAt(cp, rx, rz, fx, fz);
     if (last) {
       const end = runOut?.finish ?? cp;
       finish(end, Math.sin(end.heading), Math.cos(end.heading));
@@ -517,7 +531,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     // THE LINE ON THE SNOW: a checkered band dyed across the piste, laid
     // on the snow as it lies, lifted a hair so it never flickers in and
     // out of the snow.
-    const bandTex = bandTexture();
+    const bandTex = bandTexture(level.skiCross !== undefined);
     texs.push(bandTex);
     const dye = std(
       {
@@ -663,11 +677,13 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       panels.visible = raced;
       markers.forEach((m, k) => (m.visible = raced && tops[lit]?.[k] !== undefined));
       if (slalomPoles) slalomPoles.group.visible = raced;
+      if (crossFlags) crossFlags.group.visible = raced;
       const next = state.progress.nextCheckpoint;
       const t = state.t;
       slalomPoles?.update(state);
       house?.update(state);
       tipStakes(state);
+      crossGate?.update(state);
       if (next !== lit) {
         if (lit >= 0 && tops[lit]) {
           panels.setColorAt(lit * 2, muted(colours[lit]));
@@ -680,7 +696,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
           if (top) m.position.copy(top);
         });
       }
-      if (tops[lit] && level.checkpoints[lit]?.pole === undefined) {
+      crossFlags?.update(state, next);
+      const owed = level.checkpoints[lit];
+      if (tops[lit] && owed?.pole === undefined && !owed?.flags) {
         breathing.copy(colours[lit]).multiplyScalar(1 + 0.35 * (0.5 + 0.5 * Math.sin(t * 4)));
         panels.setColorAt(lit * 2, breathing);
         panels.setColorAt(lit * 2 + 1, breathing);
@@ -709,6 +727,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       lights.dispose();
       slalomPoles?.dispose();
       house?.dispose();
+      crossFlags?.dispose();
+      crossGate?.dispose();
       for (const t of texs) t.dispose();
     },
   };

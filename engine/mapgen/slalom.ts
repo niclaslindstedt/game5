@@ -355,6 +355,7 @@ export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
       level.downhill?.base ??
       level.superG?.base ??
       level.speedSki?.base ??
+      level.skiCross?.base ??
       level,
     run,
   );

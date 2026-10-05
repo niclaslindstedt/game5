@@ -41,6 +41,10 @@
 // says DISQUALIFIED or DID NOT FINISH, why under it in plain words, and the
 // TRY AGAIN press, and nothing else.
 //
+// A SKI CROSS'S PLATE is its own (`hud-cross.tsx`): the qualification's
+// place and board, or a heat's four in their order and who goes through,
+// and the press on to the next round.
+//
 // A DOWNHILL'S PLATE says whether it was the TRAINING run or the RACE, its
 // speed through the trap and the field's fastest, and after a training run
 // home the RACE press first (`downhill-run.ts`).
@@ -56,6 +60,7 @@ import { SLALOM, SPEED_SKI } from "@engine";
 import type { CampaignLevel } from "./campaign.ts";
 import type { CampaignPlate } from "./campaign-run.ts";
 import { SlalomBoard } from "./hud-board.tsx";
+import { CrossPlate } from "./hud-cross.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -92,6 +97,20 @@ export function ResultPlate({
   onSecond?: (() => void) | null;
 }) {
   if (!snap?.standings) return null;
+  // A SKI CROSS's plate is its own: a heat's order and who goes through.
+  if (snap.cross) {
+    return (
+      <CrossPlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
   const { result, standings, best, race: slalom } = snap;
   const out = slalom?.out ?? null;
   if (!result && !out) return null;

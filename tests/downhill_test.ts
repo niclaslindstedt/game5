@@ -211,10 +211,13 @@ describe("the downhill as a run", () => {
     expect(seen.some((e) => e.kind === "net")).toBe(true);
     expect(state.progress.out?.why).toBe("net");
     expect(state.progress.out?.status).toBe("dnf");
-    // Held on the net, never through it.
+    // Driven in this hard he goes down into it (`nets_test.ts` has the
+    // rest)...
+    expect(seen.some((e) => e.kind === "wipeout" && e.cause === "net")).toBe(true);
+    // ...and is held in it, never through it.
     const at = nearestTrackPoint(state.level, state.skier.x, state.skier.z);
     const half = (state.level.track.points[at.index]?.width ?? 0) / 2;
-    expect(at.distance).toBeLessThanOrEqual(half + dh.nets.gap + 0.05);
+    expect(at.distance).toBeLessThanOrEqual(half + dh.nets.gap + D.nets.give + 0.05);
   });
 
   it("takes a racer's speed through the trap, once", () => {

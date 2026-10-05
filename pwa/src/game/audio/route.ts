@@ -228,13 +228,17 @@ export function soundForEvent(
       const hard = ramp(event.speed, 6, HIT_FULL);
       return {
         // A stake's fall is a balance lost: the high-side's sound; a chair
-        // run into him a padded body knocked down, the shoulder's.
+        // run into him a padded body knocked down, the shoulder's. A fall
+        // into the A-nets is the mesh's own (the `net` event's, beside
+        // this one) and a body going over into it.
         id:
           event.cause === "stake"
             ? "wipeout_catch"
             : event.cause === "chair"
               ? "wipeout_skier"
-              : `wipeout_${event.cause}`,
+              : event.cause === "net"
+                ? "wipeout_roll"
+                : `wipeout_${event.cause}`,
         shape: intoSnow(
           { gain: 0.9 + 0.4 * hard, pitch: 1 - 0.15 * hard, stretch: 1 + 0.35 * hard },
           ground,

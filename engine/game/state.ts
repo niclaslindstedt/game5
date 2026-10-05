@@ -301,10 +301,21 @@ export type SkierState = {
  * up out of — come down on his side, his back or his head, or too hard for
  * his legs — another skier taken out at speed (`crowd.ts`), or flung off the
  * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
- * rolled, looped, landed too hard or run into a trunk (`sled.ts`), or swept
- * off his feet by the empty chair he stood up off (`lift-ride.ts`). */
+ * rolled, looped, landed too hard or run into a trunk (`sled.ts`), swept
+ * off his feet by the empty chair he stood up off (`lift-ride.ts`), or
+ * driven into a downhill's A-nets (`nets.ts`). */
 export type CrashCause =
-  "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake" | "chair";
+  | "tree"
+  | "nose"
+  | "roll"
+  | "catch"
+  | "landing"
+  | "skier"
+  | "heli"
+  | "sled"
+  | "stake"
+  | "chair"
+  | "net";
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
@@ -364,6 +375,10 @@ export type Thrown = {
    * by `body.ts`; nothing in the fall reads them back. */
   impacts: number[];
   struck: number[];
+  /** Which of his points are in a downhill's A-net this step, one bit a
+   * point in `RAGDOLL` order (`nets.ts`'s `catchInNets`) — what the drawn
+   * net bulges round. */
+  netted: number;
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
   skis: LoneSki[];
@@ -393,6 +408,12 @@ export type LoneSki = {
   spin: number;
   /** Which end is on the snow, one bit each: 1 the tip, 2 the tail. */
   touching: number;
+  /** THE NET (`nets.ts`): which end is HOOKED in an A-net's mesh, one bit
+   * each as `touching` — held where it caught, `hook` (x y z each end) —
+   * and the end the mesh had its one chance at the ski by, 0 before. */
+  hooked: number;
+  hook: number[];
+  tried: number;
 };
 
 /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): the worst injury on each

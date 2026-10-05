@@ -33,6 +33,7 @@ import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { markView } from "./mark-view.ts";
+import { intoNet, netLens } from "./net-view.ts";
 import { signView } from "./sign-view.ts";
 import {
   DEFAULT_VIDEO,
@@ -93,10 +94,14 @@ const renderer = createWorldRenderer(canvas, {
 renderer.resize(width, height, 1);
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
+/** A DOWNHILL set over the seed (`?downhill=1`) — its A-nets for the
+ * `net-<s>` views. */
+const downhill = params.get("downhill") === "1";
 const state: GameState = createGame({
   seed,
   region,
   grade,
+  ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
 /** The sun's solar hour (`withSky`), the map's own unless named: a low sun
@@ -561,6 +566,33 @@ function intoTrunk(): void {
   });
 }
 
+/** INTO THE A-NETS AS A SEQUENCE (the views `net-<s>`, on a
+ * `?downhill=1` run): `net-view.ts` stands the player and plants the lens;
+ * this rides the crash on to `t` s off his skis and draws it. */
+function netAt(t: number): string {
+  if (!state.skier.thrown) {
+    if (!intoNet(state)) return "no downhill on this run (--downhill)";
+    const until = state.t + 3;
+    while (!state.skier.thrown && state.t < until) {
+      for (let i = 0; i < 2; i++) step(state, NEUTRAL_INPUT);
+      renderer.draw(state, 0, FRAME, false);
+    }
+    if (!state.skier.thrown) return "never reached the net";
+  }
+  while (state.skier.thrown && state.skier.thrown.t < t - 1e-9) {
+    step(state, NEUTRAL_INPUT);
+    if (state.tick % 2 === 0) renderer.draw(state, 0, FRAME, false);
+  }
+  const off = state.skier.thrown;
+  const lens = netLens(state);
+  if (!off || !lens) return "already stood back up";
+  renderer.setOverride(lens);
+  still();
+  renderer.setOverride(null);
+  const hooked = off.skis.filter((k) => k.hooked).length;
+  return `${off.cause}, ${off.t.toFixed(2)} s off, ${hooked} of 2 skis hooked in the net`;
+}
+
 /** How far the lens stands off the skier's origin, m — so a boom pulled in
  * against the slope shows in the note, not only in the picture. */
 function standoff(): string {
@@ -922,11 +954,14 @@ window.__world = {
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
+    const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const run = chase
       ? () => chaseAt(Number(chase[1]))
       : fall
         ? () => fallAt(Number(fall[2]), fall[1] === "yard")
-        : shots[name];
+        : net
+          ? () => netAt(Number(net[1]))
+          : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

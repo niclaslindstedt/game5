@@ -174,7 +174,7 @@ export {
 } from "./game/cross-bracket.ts";
 export { CROSS_HEAT, crossCountdown, heatResult, stepDrafts } from "./game/cross-heat.ts";
 export { stepTrap } from "./game/speed-trap.ts";
-export { DOWNHILL_NETS, stepNets } from "./game/nets.ts";
+export { DOWNHILL_NETS, catchInNets, netPocket, stepNets } from "./game/nets.ts";
 export { freshGatePoles, polePlan, stepGatePoles } from "./game/gate-poles.ts";
 export {
   SKIS,

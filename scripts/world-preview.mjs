@@ -42,7 +42,10 @@
 // `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
 // crash drawn from one lens planted square to his line, the frames of one
 // fall, and `yard-<s>` the same fall from over it, pulled back to take in
-// both skis he left; then the wildlife:
+// both skis he left; with `--downhill`, `net-<s>` (`net-0.3,net-1,net-3`):
+// the player driven into the A-nets half way down the course, from the
+// piste — the pocket the mesh makes round him and the skis hooked in it;
+// then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
 // on a fox's round, the player stood off it so the fine trail map is over it);
@@ -166,10 +169,14 @@ const args = parseArgs(
       default: 0,
       help: "after the views, time this many drawn frames and print ms/frame",
     },
+    downhill: {
+      kind: "flag",
+      help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -253,6 +260,7 @@ const query = new URLSearchParams({
   ...(args.shadows ? { shadows: args.shadows } : {}),
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
+  ...(args.downhill ? { downhill: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),
@@ -276,16 +284,23 @@ const chases = wanted.filter(isChase).sort((a, b) => Number(a.slice(6)) - Number
 // the order of its clock: the frames of one fall.
 const isFall = (v) => /^(fall|yard)-\d+(\.\d+)?$/.test(v);
 const falls = wanted.filter(isFall).sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)));
-const order = VIEWS.flatMap((v) =>
-  v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
-);
+// A net view (`net-0.6`, on a `--downhill`) is staged after everything
+// else, in the order of its clock: the frames of one crash into the nets.
+const isNet = (v) => /^net-\d+(\.\d+)?$/.test(v);
+const nets = wanted.filter(isNet).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+const order = [
+  ...VIEWS.flatMap((v) =>
+    v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
+  ),
+  ...nets,
+];
 for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();
   const shot = await page.evaluate((name) => globalThis.__world.shoot(name), view);
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

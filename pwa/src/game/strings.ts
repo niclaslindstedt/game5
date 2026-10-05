@@ -206,7 +206,8 @@ export const STRINGS = {
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under, a stake hit fast,
-   * the empty chair off a lift run into his legs. */
+   * the empty chair off a lift run into his legs, a downhill's A-nets
+   * driven into. */
   newsWipeout: (
     cause:
       | "tree"
@@ -218,27 +219,30 @@ export const STRINGS = {
       | "heli"
       | "sled"
       | "stake"
-      | "chair",
+      | "chair"
+      | "net",
   ): string =>
     cause === "heli"
       ? "THROWN CLEAR!"
       : cause === "chair"
         ? "SWEPT BY THE CHAIR!"
-        : cause === "stake"
-          ? "YARD SALE! STAKE"
-          : cause === "sled"
-            ? "OFF THE SLED!"
-            : cause === "tree"
-              ? "YARD SALE! TREE"
-              : cause === "skier"
-                ? "YARD SALE! TAKEN OUT"
-                : cause === "nose"
-                  ? "OVER THE TIPS"
-                  : cause === "roll"
-                    ? "YARD SALE"
-                    : cause === "landing"
-                      ? "CRASH LANDING"
-                      : "EDGE CAUGHT",
+        : cause === "net"
+          ? "INTO THE NETS!"
+          : cause === "stake"
+            ? "YARD SALE! STAKE"
+            : cause === "sled"
+              ? "OFF THE SLED!"
+              : cause === "tree"
+                ? "YARD SALE! TREE"
+                : cause === "skier"
+                  ? "YARD SALE! TAKEN OUT"
+                  : cause === "nose"
+                    ? "OVER THE TIPS"
+                    : cause === "roll"
+                      ? "YARD SALE"
+                      : cause === "landing"
+                        ? "CRASH LANDING"
+                        : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */

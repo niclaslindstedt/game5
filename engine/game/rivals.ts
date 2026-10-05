@@ -10,8 +10,9 @@
 // exactly as the player would. What tells one from the next is two draws
 // off the run's own stream at the start line, so the same seed deals the
 // same field: the tuck its bot is allowed (`Rival.pace`), and the skis it
-// is on — any of the catalog's (`SKI_CATALOG`), so a powder map has a
-// powder ski in the field as often as a groomed one has a race ski. And
+// is on — any of the start line's (`RACE.skis`, the catalog as the line
+// was first dealt from), so a powder map has a powder ski in the field as
+// often as a groomed one has a race ski. And
 // how much each can take before he goes down (`Rival.resilience`,
 // `RACE.resilienceBand`), off a stream of its own (`GRIT_SALT`) so that
 // neither the run's stream nor the start's moves for it.
@@ -44,7 +45,7 @@ import { botInput, RIDER_BOT } from "../sim/bot.ts";
 import type { Spawn } from "../mapgen/types.ts";
 import { freshProgress, laneAcross, standSkier } from "./course.ts";
 import { FULL_ASSIST, RACE } from "./defs/modes.ts";
-import { SKI_CATALOG } from "./defs/skis.ts";
+import { skisById } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
   NEUTRAL_INPUT,
@@ -120,7 +121,7 @@ export function dealRivals(state: GameState, count: number, at: (i: number) => S
     const pace = state.rng.range(RACE.paceBand.min, RACE.paceBand.max);
     const run: GameState = {
       ...state,
-      skier: freshSkier(state.rng.pick(SKI_CATALOG)),
+      skier: freshSkier(skisById(state.rng.pick(RACE.skis))),
       input: { ...NEUTRAL_INPUT },
       // The player's help is the player's: the bot skis every rival with
       // every hand on, so a harder setting is harder skiing, not a slower

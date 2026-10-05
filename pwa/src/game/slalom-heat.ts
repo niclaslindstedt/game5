@@ -30,12 +30,15 @@ export type SecondRun =
   | { kind: "race" };
 
 /** The plate's offer, or null on any run that is not a slalom's first run
- * or a downhill's training run over — a second run, a downhill's race, any
+ * or a downhill's training run over — a second run, a downhill's race, a
+ * super-G, any
  * other mode, a run still on the course. */
 export function secondRunOf(state: GameState): SecondRun | null {
   const f = state.field;
   if (!f || !state.progress.finished) return null;
   if (state.level.downhill) return f.training ? { kind: "race" } : null;
+  // A super-G is one run, never trained on: nothing after it.
+  if (state.level.superG) return null;
   if (f.run !== 1) return null;
   if (state.progress.out) return { kind: "out" };
   const place = fieldPlace(state);

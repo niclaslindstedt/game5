@@ -21,7 +21,7 @@ import { STRINGS } from "../pwa/src/game/strings.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { holdRaceMaps } from "./support/race-maps.ts";
 
-const BUILT = ["slalom", "downhill"] as const;
+const BUILT = ["slalom", "superG", "downhill"] as const;
 
 /** Seeds the campaign's shelves and the trick maps already race. */
 const TAKEN = new Set([...CAMPAIGN_LEVELS.map((l) => l.seed), ...TRICK_MAPS.map((m) => m.seed)]);
@@ -48,6 +48,7 @@ describe("every built discipline's nine", () => {
   it("are the nine a mode's level card offers, and the time trial keeps the campaign's", () => {
     expect(raceMapsOf("slalom")).toBe(RACE_MAPS.slalom);
     expect(raceMapsOf("downhill")).toBe(RACE_MAPS.downhill);
+    expect(raceMapsOf("superG")).toBe(RACE_MAPS.superG);
     expect(raceMapsOf("timeTrial")).toBeNull();
     expect(raceMapsOf("free")).toBeNull();
     expect(disciplineOf("downhill")).toBe("downhill");
@@ -56,7 +57,8 @@ describe("every built discipline's nine", () => {
 });
 
 // Each map built and held to its row: the slalom's here, the downhill's in
-// `race_maps_downhill_test.ts`, so neither file waits on all eighteen.
+// `race_maps_downhill_test.ts` and the super-G's in
+// `race_maps_superg_test.ts`, so no file waits on all twenty-seven.
 holdRaceMaps("slalom");
 
 describe("the level card's answer, per discipline", () => {

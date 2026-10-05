@@ -91,6 +91,21 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.25, basket: 0.04, bent: false },
   },
+  // THE SUPER-G SKI: a short, low shovel (the rule asks 30 mm of tip
+  // rise of a speed ski, 50 of a giant slalom ski) whose widest point
+  // stands close to the tip, so the sidecut runs nearly the whole ski; a
+  // square tail, a hard camber on a plate; the speed events' bent poles,
+  // a little shorter than a downhill's.
+  falcon: {
+    tip: { rise: 0.038, length: 0.08 },
+    tail: { rise: 0.005, length: 0.04, twin: false },
+    point: 0.58,
+    thick: { boot: 0.025, end: 0.0095 },
+    camber: 0.014,
+    binding: RACE_BINDING,
+    boot: BOOT,
+    pole: { length: 1.28, basket: 0.04, bent: true },
+  },
   // THE DOWNHILL SKI: the longest here, a low long shovel, a square tail,
   // on a plate; the poles bent round the body for the tuck.
   eagle: {

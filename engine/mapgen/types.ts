@@ -184,14 +184,22 @@ export interface Level {
    * map's `checkpoints`, its start house the `spawn`. Absent on every map
    * the generator builds — a downhill is set over one. */
   downhill?: DownhillCourse;
+  /** A SUPER-G set on the map (R33, `setSuperG`): its gates are this map's
+   * `checkpoints`, its start house the `spawn`. Absent on every map the
+   * generator builds — a super-G is set over one. */
+  superG?: SuperGCourse;
 }
 
-/** A DOWNHILL COURSE (R32) as it was set over a built map. */
-export interface DownhillCourse {
+/** A SPEED EVENT'S COURSE as it was set over a built map — a downhill's
+ * (R32) or a super-G's (R33): the stretch, the nets along it, the trap,
+ * the jumps it keeps and the racing line its gates are set on
+ * (`speed-course.ts`). */
+export interface SpeedCourse {
   /** The map it was set over, before any course. */
   base: Level;
-  /** The stretch of the piste it is set on — the whole of it: the start
-   * gate's arc (the wand) and the finish line's, m. */
+  /** The stretch of the piste it is set on — a downhill's the whole of it,
+   * a super-G's from a start lowered into the band: the start gate's arc
+   * (the wand) and the finish line's, m. */
   from: number;
   to: number;
   /** The vertical between them, m. */
@@ -204,10 +212,21 @@ export interface DownhillCourse {
   nets: { gap: number; height: number; from: number; to: number };
   /** The jumps the course keeps (its drops, by arc), m. */
   jumps: number[];
-  /** THE RACING LINE (`downhillLineAt`): points down the course every few
-   * metres, each an arc and how far right of the piste's centreline, m —
-   * the line that bends the least inside the piste, which the gates mark. */
+  /** THE RACING LINE (`speedLineAt`): points down the course every few
+   * metres, each an arc and how far right of the piste's centreline, m — a
+   * downhill's the line that bends the least inside the piste, which its
+   * gates mark; a super-G's that line swung round its turning poles. */
   line: { s: number; x: number }[];
+}
+
+/** A DOWNHILL COURSE (R32) as it was set over a built map. */
+export type DownhillCourse = SpeedCourse;
+
+/** A SUPER-G COURSE (R33) as it was set over a built map: a speed course
+ * whose gates TURN the racer. */
+export interface SuperGCourse extends SpeedCourse {
+  /** The direction changes its gates make. */
+  turns: number;
 }
 
 /** A SLALOM COURSE (R31) as it was set over a built map. */

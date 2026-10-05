@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT ON A DOWNHILL'S LINE (R32) — how a racer holds the racing line
-// (`downhillLineAt`) through gates eight to ten metres wide at a hundred
-// kilometres an hour.
+// THE BOT ON A SPEED COURSE'S LINE (R32, R33) — how a racer holds the
+// racing line (`speedLineAt`) through a downhill's gates eight to ten
+// metres wide at a hundred kilometres an hour, and round a super-G's
+// turning poles at ninety.
 //
 // A point chased ahead on the line lags it through every long turn: by the
 // time the skier's heading has come round to the point, the line has bent
@@ -20,7 +21,7 @@
 
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { downhillLineAt, trackPointAt } from "../mapgen/index.ts";
+import { speedLineAt, trackPointAt } from "../mapgen/index.ts";
 import type { TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { edgeLockAt, edgeMostOf } from "../game/limits.ts";
@@ -46,30 +47,40 @@ export const DOWNHILL_STEER = {
   checkPer: 8,
 } as const;
 
+/** THE SUPER-G RACER'S HOLD (R33): the downhiller's, the line's bend and
+ * his own turn read half as far ahead. A line swung round a turning pole
+ * every fifty metres, its bend fed forward as far as a downhiller's, was
+ * cut 1.3 m inside on the median gate and three at the worst — he turned
+ * for the next swing before this one's apex; read at 0.15 s the median is
+ * 0.7 (seeds 1–8). */
+export const SUPER_G_STEER = {
+  ...DOWNHILL_STEER,
+  lead: 0.15,
+  yawLead: 0.15,
+} as const;
+
 const pt: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
-/** The steer that holds `state`'s skier on the downhill's racing line, −1..1
- * — or null on a map with no downhill. `on` is where he stands on the
+/** The steer that holds `state`'s skier on the speed course's racing line,
+ * −1..1 — or null on a map with neither a downhill nor a super-G. `on` is where he stands on the
  * piste. */
 export function downhillSteer(state: GameState, on: TrackHit): number | null {
   const level = state.level;
-  const here = downhillLineAt(level, on.s);
+  const here = speedLineAt(level, on.s);
   if (!here) return null;
   const offset = here.offset;
   const c = state.skier;
-  const K = DOWNHILL_STEER;
+  const K = level.superG ? SUPER_G_STEER : DOWNHILL_STEER;
   const v = Math.max(5, c.speed);
   // The line's own heading here: the piste's, turned by how fast the line
   // moves across it.
   const slope =
-    ((downhillLineAt(level, on.s + 1)?.offset ?? 0) -
-      (downhillLineAt(level, on.s - 1)?.offset ?? 0)) /
-    2;
+    ((speedLineAt(level, on.s + 1)?.offset ?? 0) - (speedLineAt(level, on.s - 1)?.offset ?? 0)) / 2;
   const heading = trackPointAt(level, on.s, pt).heading + Math.atan(slope);
   const yaw = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz }).y;
   const off = on.lateral - offset;
   const turned = angleDiff(heading, c.heading + yaw * K.yawLead);
-  const bend = downhillLineAt(level, on.s + v * K.lead)?.bend ?? 0;
+  const bend = speedLineAt(level, on.s + v * K.lead)?.bend ?? 0;
   const look = K.lookBase + K.lookPerSpeed * v;
   const want = bend - (2 * turned) / look - off / (look * look);
   const spec = c.spec;

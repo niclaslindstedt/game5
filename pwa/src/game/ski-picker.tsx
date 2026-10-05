@@ -103,8 +103,8 @@ export function SkisPicker({
         </button>
       </div>
       {/* The name, the class of ski it is, and where it stands in the
-          catalog, as ONE plate across the head of the picture: six pairs
-          turning one at a time is a carousel with no edges, and `2 / 6` is
+          catalog, as ONE plate across the head of the picture: seven pairs
+          turning one at a time is a carousel with no edges, and `2 / 7` is
           the whole catalog in five characters. */}
       <div class="skis-pick-id">
         <span class="skis-pick-name">{spec.name.toUpperCase()}</span>

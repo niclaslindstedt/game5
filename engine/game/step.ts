@@ -16,6 +16,8 @@ import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   PARK_VERSION,
   downhillCourseOf,
+  superGCourseOf,
+  setSuperG,
   generateLevel,
   setDownhill,
   setSlalom,
@@ -195,6 +197,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // — a map of one piste (`PARK_VERSION`): a resort (R25) lays no park.
   const tricks = options.mode === "tricks";
   const downhill = options.mode === "downhill";
+  const superG = options.mode === "superG";
   const ask = {
     tricks,
     region: options.region,
@@ -208,22 +211,26 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   let built = options.level ?? generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with
   // the most vertical (R32) — the same resort, built once (`buildResort`).
-  if (downhill && !options.level && options.grade === undefined) {
-    const id = downhillCourseOf(built);
+  // A SUPER-G the same hill's, its start lowered into its band (R33).
+  if ((downhill || superG) && !options.level && options.grade === undefined) {
+    const id = downhill ? downhillCourseOf(built) : superGCourseOf(built);
     if (id !== null && id !== built.resort?.course) {
       built = generateLevel(options.seed ?? 1, { ...ask, course: id });
     }
   }
   // A SLALOM is set over the map (R31) — run one's course, or the second
-  // run's — a DOWNHILL down its whole piste (R32), and any other mode skis
-  // the map under any course set over it.
-  const original = built.slalom?.base ?? built.downhill?.base ?? built;
+  // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
+  // lowered start (R33), and any other mode skis the map under any course
+  // set over it.
+  const original = built.slalom?.base ?? built.downhill?.base ?? built.superG?.base ?? built;
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
       : downhill
         ? setDownhill(built)
-        : original;
+        : superG
+          ? setSuperG(built)
+          : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);

@@ -22,7 +22,13 @@ import { pilotInput } from "../game/heli.ts";
 import { sledPilot } from "../game/sled-pilot.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { arcAhead, downhillLineAt, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
+import {
+  arcAhead,
+  nearestTrackPoint,
+  speedCourseOf,
+  speedLineAt,
+  trackPointAt,
+} from "../mapgen/index.ts";
 import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "../game/collision.ts";
 import { gateLineAt, lineBendAt } from "../game/course.ts";
@@ -39,7 +45,7 @@ import {
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "../game/race-line.ts";
 import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
-import { DOWNHILL_STEER, downhillSteer } from "./downhill-steer.ts";
+import { DOWNHILL_STEER, SUPER_G_STEER, downhillSteer } from "./downhill-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -383,7 +389,7 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
   const decel = brakeDecel(spec, 1) * profile.brakeShare;
   const reach = (speed * speed) / (2 * decel) + 30;
   const y0 = trackPointAt(level, s, pc).y;
-  const downhill = level.downhill !== undefined && state.rules.course;
+  const downhill = speedCourseOf(level) !== null && state.rules.course;
   let allowed = Infinity;
   for (let d = 0; d <= reach; d += 4) {
     // THE SKIDDING ROOM, less what the fall of the piste gives back: a skid
@@ -463,8 +469,8 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
  * poles (R31, `race-line.ts`) where one is set, else the line through a
  * course's gates (R28). */
 function weaveAt(level: Level, s: number): { offset: number; curvature: number } {
-  const dh = downhillLineAt(level, s);
-  if (dh) return { offset: dh.offset, curvature: Math.abs(dh.bend) };
+  const line = speedLineAt(level, s);
+  if (line) return { offset: line.offset, curvature: Math.abs(line.bend) };
   return raceLineAt(level, s) ?? gateLineAt(level, s);
 }
 
@@ -622,7 +628,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     const uz = hs > 0.5 ? c.vz / hs : Math.cos(c.heading);
     // ...on a downhill, where he will actually come down: at its speed a
     // flight off a roller lands thirty metres on, far past any half second.
-    const ahead = level.downhill ? landingAhead(state) : 0.5;
+    const ahead = speedCourseOf(level) ? landingAhead(state) : 0.5;
     const ax = c.x + c.vx * ahead;
     const az = c.z + c.vz * ahead;
     const slope =
@@ -649,7 +655,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // ON A DOWNHILL'S LINE the line's own bend is fed forward
   // (`downhill-steer.ts`): a point chased ahead lags it through a long turn
   // by the width of a gate.
-  if (level.downhill && state.rules.course && p.started && on.distance <= halfWidth + 2) {
+  if (speedCourseOf(level) && state.rules.course && p.started && on.distance <= halfWidth + 2) {
     input.steer = downhillSteer(state, on) ?? input.steer;
   }
   // ON A SLALOM'S LINE the skis are steered off the line itself rather than
@@ -685,9 +691,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   if (p.finished) allowed = 0;
   // A DOWNHILLER on his line checks with a light skid at the most, and
   // carves cut hard (`downhill-steer.ts`).
-  const downhillLine = level.downhill !== undefined && state.rules.course && p.started && onTrack;
+  const downhillLine = speedCourseOf(level) !== null && state.rules.course && p.started && onTrack;
   if (downhillLine) {
-    const D = DOWNHILL_STEER;
+    const D = level.superG ? SUPER_G_STEER : DOWNHILL_STEER;
     input.carve = true;
     if (speed > allowed + profile.skidOver) {
       input.tuck = 0;

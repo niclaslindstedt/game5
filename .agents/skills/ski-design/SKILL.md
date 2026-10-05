@@ -66,7 +66,7 @@ at both ends, and `write-code` beside this skill for any code change.
 5. **`make profile`** — the skis are four pairs on the start line; a part
    that added a draw call added four.
 
-**A NEW TRACE** is taken the way the six were: a clean studio side view and
+**A NEW TRACE** is taken the way the others were: a clean studio side view and
 a top view of a real ski of the class (kept out of the repository, and
 nothing about it named), pixel picks cropped and zoomed, scaled by a
 published length, the polyline drawn back over the photograph and LOOKED at
@@ -83,7 +83,7 @@ before a number is kept, then the widths read into the spec.
   planks with no tip has lost a line.
 - **Six classes told apart at a glance.** The downhill ski is LONG and narrow
   with a low tip, the slalom ski short, the powder ski fat with a lifted
-  tip, the park ski turned up at both ends. Judge the six side by side on the
+  tip, the park ski turned up at both ends. Judge the seven side by side on the
   `pairs` sheet from above.
 - **Four slots, told apart at a hundred metres against white.** The player's
   red, and three rivals chosen for contrast against snow and pine — never

@@ -480,7 +480,7 @@ analyze:
 # its own version and held to its digest, the bot's time, the climb).
 # `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate CAMPAIGN=1`
 rate:
-	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(CAMPAIGN),--campaign,) $(ARGS)
+	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(CAMPAIGN),--campaign,) $(if $(RACE),--race $(RACE),) $(ARGS)
 
 # THE DIFFICULTY SCHEMATIC: one map from above with what makes it hard drawn
 # over it — the corners, the climbs, the drifts, the walled woods — and the

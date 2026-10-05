@@ -34,6 +34,7 @@ describe("the start line", () => {
       expect(r.pace).toBeGreaterThanOrEqual(RACE.paceBand.min);
       expect(r.pace).toBeLessThanOrEqual(RACE.paceBand.max);
       expect(SKI_CATALOG).toContain(r.run.skier.spec);
+      expect(RACE.skis).toContain(r.run.skier.spec.id);
     }
   });
 

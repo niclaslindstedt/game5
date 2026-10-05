@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WORDS OF THE DOWNHILL (R32) — a block of the one strings table
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
-// the same names, as the slalom's are (`strings-slalom.ts`): the front
-// door's tile, the run on the HUD (the training and the race), the speed
+// the same names, as the slalom's are (`strings-slalom.ts`): the run on
+// the HUD (the training and the race), the speed
 // trap, the plate's titles and its RACE press, the nets.
 
 import { ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 
 export const DOWNHILL_STRINGS = {
-  /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
-  menuDownhill: "DOWNHILL",
-  /** Its format on the tile, as the slalom's is billed: one race run (the
-   * training before it said on the HUD and the plate). */
-  menuDownhillFormat: (skiers: number): string => `ONE RUN · ${skiers}`,
-
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   /** Which of a downhill's two runs this is. */
   downhillRun: (training: boolean): string => (training ? "TRAINING" : "RACE"),

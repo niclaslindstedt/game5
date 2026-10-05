@@ -10,10 +10,12 @@ import { SKIS, SKI_CATALOG, skisById } from "@engine";
 
 import { mergeSettings, freshSettings } from "../pwa/src/game/settings.ts";
 import {
+  carveOf,
   floatOf,
   forgivenessOf,
   quicknessOf,
   skisBars,
+  speedCarveOf,
   skisFacts,
 } from "../pwa/src/game/ski-stats.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -64,6 +66,12 @@ describe("the spec sheet", () => {
     expect(by(floatOf)[0]).toBe("marmot");
     expect(by(quicknessOf)[0]).toBe("swift");
     expect(by(forgivenessOf)[0]).toBe("hare");
+    // At a super-G's pace the giant slalom ski's arc asks more than its
+    // edge holds and the downhill ski's asks less than its edge could:
+    // the super-G ski carves the hardest bend clean there, the giant
+    // slalom ski at race pace.
+    expect(by(speedCarveOf)[0]).toBe("falcon");
+    expect(by((s) => carveOf(s))[0]).toBe("chough");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);
     expect(forgivenessOf(SKIS)).toBeCloseTo(1, 9);

@@ -26,7 +26,7 @@
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { downhillLineAt, nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
+import { nearestTrackPoint, speedLineAt, trackPointAt } from "../mapgen/index.ts";
 import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { mendBody } from "./body.ts";
@@ -270,15 +270,15 @@ const la: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 const lb: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
 /** HOW SHARPLY THE LINE THROUGH THE GATES TURNS `s` metres down the piste,
- * 1/m, signed (positive to the right): on a downhill its racing line's own
- * (`downhillLineAt`, R32); elsewhere the piste's own bend there, read over
+ * 1/m, signed (positive to the right): on a speed course its racing line's
+ * own (`speedLineAt`, R32, R33); elsewhere the piste's own bend there, read over
  * `span` metres either side, and the gate line's swing across it
  * (`gateLineAt`) — with their signs, so a line that cuts to the inside of
  * a bend at its apex turns LESS than the piste does, as a racer's line
- * does. What a downhill's line is read by (the bot, its par). */
+ * does. What a speed course's line is read by (the bot, its par). */
 export function lineBendAt(level: Level, s: number, span: number): number {
-  const dh = downhillLineAt(level, s);
-  if (dh) return dh.bend;
+  const line = speedLineAt(level, s);
+  if (line) return line.bend;
   trackPointAt(level, s - span, la);
   trackPointAt(level, s + span, lb);
   return angleDiff(la.heading, lb.heading) / (2 * span) + gateLineAt(level, s).bend;

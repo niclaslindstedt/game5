@@ -9,7 +9,7 @@
 // one's own stays where nothing is measured (the FREE RIDE's start card, and
 // a link's `?seed=`).
 //
-// A RACE — a slalom, a downhill — picks one of ITS DISCIPLINE'S NINE
+// A RACE — a slalom, a super-G, a downhill — picks one of ITS DISCIPLINE'S NINE
 // (`race-maps.ts`), every one open: nine maps chosen for the discipline, one
 // page of boxes, the course's drop and length on each.
 //
@@ -36,6 +36,7 @@ import {
   reachedShelfFor,
   shelfOpenFor,
   type CampaignLevel,
+  type CampaignMode,
   type CampaignProgress,
   type CampaignShelf,
 } from "./campaign.ts";
@@ -47,8 +48,8 @@ import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The measured mode's own billing word: the slalom's for any other. */
-function billedMode(mode: GameMode): "slalom" | "downhill" | "timeTrial" {
-  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
+function billedMode(mode: GameMode): CampaignMode {
+  return mode === "timeTrial" || mode === "downhill" || mode === "superG" ? mode : "slalom";
 }
 
 function LevelBox({
@@ -147,7 +148,9 @@ function levelsTitle(mode: GameMode): string {
     ? STRINGS.levelsTrial
     : mode === "downhill"
       ? STRINGS.levelsDownhill
-      : STRINGS.levelsRace;
+      : mode === "superG"
+        ? STRINGS.levelsSuperG
+        : STRINGS.levelsRace;
 }
 
 /** THE RIDE PRESS in a level card's head: on to the skis card. */

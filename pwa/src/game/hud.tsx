@@ -209,12 +209,15 @@ export function Hud({
             {snap.race ? (
               /* THE RUN in its place: a racer on an interval start is alone
                on the course, and his place is the board's at the flag — a
-               slalom's run of two, a downhill's training or its race. */
+               slalom's run of two, a downhill's training or its race, a
+               super-G's one run. */
               <div class="hud-chip hud-run">
                 <span>
                   {snap.race.discipline === "downhill"
                     ? STRINGS.downhillRun(snap.race.training)
-                    : STRINGS.runOf(snap.race.run, snap.race.runs)}
+                    : snap.race.discipline === "superG"
+                      ? STRINGS.superGRun
+                      : STRINGS.runOf(snap.race.run, snap.race.runs)}
                 </span>
                 <span class="hud-chip-sub">{STRINGS.runLabel}</span>
               </div>

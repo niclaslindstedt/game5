@@ -14,7 +14,7 @@ import {
   TUNING,
   createGame,
   downhillCourseOf,
-  downhillLineAt,
+  speedLineAt,
   downhillPar,
   nearestTrackPoint,
   placeRun,
@@ -69,7 +69,7 @@ describe("the downhill course (R32)", () => {
       expect(g.colour).toBe("red");
       expect(g.width).toBe(D.width);
       expect(g.width).toBeGreaterThanOrEqual(8);
-      const line = downhillLineAt(COURSE, g.s)!.offset;
+      const line = speedLineAt(COURSE, g.s)!.offset;
       expect(g.offset).toBeCloseTo(line, 6);
       const half = trackPointAt(COURSE, g.s).width / 2;
       // Both inner poles inside the piste, at a pole's room from its edge
@@ -95,9 +95,9 @@ describe("the downhill course (R32)", () => {
       const a = trackPointAt(COURSE, s - 8);
       const b = trackPointAt(COURSE, s + 8);
       pisteBend += Math.abs(b.heading - a.heading) / 16;
-      lineBend += Math.abs(downhillLineAt(COURSE, s)!.bend);
+      lineBend += Math.abs(speedLineAt(COURSE, s)!.bend);
       const half = trackPointAt(COURSE, s).width / 2;
-      expect(Math.abs(downhillLineAt(COURSE, s)!.offset)).toBeLessThanOrEqual(
+      expect(Math.abs(speedLineAt(COURSE, s)!.offset)).toBeLessThanOrEqual(
         Math.max(0, half - D.line.margin) + 1e-6,
       );
     }

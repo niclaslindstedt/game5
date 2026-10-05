@@ -26,7 +26,7 @@ How a discipline's research is recorded here:
 | --- | --- | --- | --- |
 | Slalom | `slalom` | R31 | built — see below |
 | Giant slalom | — | — | researched (technique, skis, course); to build — `docs/specs/GIANT_SLALOM.md` |
-| Super-G | — | — | researched (technique, skis, course); to build — `docs/specs/SUPER_G.md` |
+| Super-G | `superG` | R33 | built — see below |
 | Downhill | `downhill` | R32 | built — see below |
 | Ski cross | — | — | to research — `docs/specs/SKI_CROSS.md` |
 | Speed skiing | — | — | to research — `docs/specs/SPEED_SKIING.md` |
@@ -137,7 +137,7 @@ Sources: [1] PMID 30317917 · [2] PMC7739813 · [3] doi:10.3390/app14041427 ·
 ## Giant slalom, super-G and downhill
 
 Researched together, against the slalom, for the technique rows and the
-courses (`docs/specs/GIANT_SLALOM.md`, `SUPER_G.md`; the downhill is
+courses (`docs/specs/GIANT_SLALOM.md`; the downhill and the super-G are
 built, below). Numbers are measured unless marked *(est.)*; an inclination
 marked *(est.)* is derived as tan θ = v²/(gR) off a measured speed and
 radius, and a carve radius as R ≈ R_sidecut · cos(edge).
@@ -406,6 +406,157 @@ women's and an under-21 course band.
 
 Sources (continued): [22] doi:10.1371/journal.pone.0118119 ·
 [23] doi:10.1111/sms.12300 · [24] PMID 19945979.
+
+## Super-G
+
+Restated from the international competition rules for alpine skiing (the
+super-G's own articles and the general ones on starting, gates, timing and
+the jury), the competition equipment rules, measured courses and result
+sheets of top-level races. The speeds, the technique and the skis are under
+*Giant slalom, super-G and downhill* above.
+
+**The course.** A super-G drops 400–650 m at the men's top level, 400–600 m
+at the women's, 350–650 m (350–600 m women) at any other international race,
+250–450 m for the youth and 300–500 m in an entry league. The direction
+changes are at least 7 % of the vertical in metres (6 % at some levels, 8–12
+% for the youth): 42 on 600 m. Turning poles of two successive gates stand
+at least 25 m apart (15 m inside a combination, allowed only in small
+numbers). The terrain should be undulating and hilly; the course is normally
+about 30 m wide, prepared as a downhill's with its turning sections prepared
+as a slalom's; the gates are set to use the terrain, varying long and medium
+turns, never only down the fall line, and leave the racer free to choose his
+line; jumps may be set where the terrain allows. Measured top-level men's
+courses [22]: 44.3 ± 3.3 gates (7.4 % of the vertical), 2293 ± 204 m over
+598 ± 38 m, 49.5 ± 5.7 m between gates along the course, 12.4 ± 10.1 m
+across, a mean slope of 16.6 ± 6.9°, 23.8 m/s on the mean; speed rose with
+the slope and the gate distance and not with the offset. 192 measured turns
+[25]: 50.3 ± 8.5 m between gates along the line (32–148), 13.3 ± 7.5 m of
+offset, 47.8 ± 9.1 m down the fall line, 19.0 ± 5.5° of slope, 24.2 ± 2.6 m/s
+into the turn, a least radius of 35.2 ± 15.7 m and 2.38 ± 0.57 body weights
+at the peak; cutting 0.5 m/s by a 51 % wider offset tightened the turn 19 %
+and raised its impulse 27 %, where a 13 % shorter fall-line distance did
+the same with almost no load — the safer lever. Two lower-level sheets:
+1822 m over 570 m with 42 gates (7.4 %), 1290 m over 380 m with 33.
+
+**The gates.** Four flex poles in two pairs, a panel between each pair (about
+0.75 m wide by 0.5 m high, its lower edge about 1 m above the snow, tearing
+away from a pole that catches a racer): the turning pair and the outside
+pair. Open gates 6–8 m between the inner poles, gates set down the fall line
+8–12 m. Red and blue in turn (the jury may change a colour that does not
+show against its background). Pine needles or dye lines mark the line and
+warn of the jumps.
+
+**Passing a gate**: both tips and both feet across the gate line — the
+shortest line at the snow between the turning pole and the outside pole,
+its original line still counting where a pole was knocked out first; with a
+ski lost, the remaining tip and both feet. A gate missed disqualifies, and
+the racer may not go on through the gates; a racer whose skis come to a
+complete stop may not either (did not finish). The finish line is at least
+15 m wide.
+
+**The format.** ONE run — there are no official training runs. The racers
+INSPECT the course after the jury, top to bottom, slipping down beside it or
+side-slipping through the gates, never skiing through them or making
+practice turns beside them, bibs on, off the course when the inspection
+ends; free skiing the closed hill before the setting is recommended where
+it can be done. (A super-G run is also a speed event's leg of a combined; a
+two-run super-G is a youth format only.) At the top level one coach sets
+the course with the race director, the jury approving it.
+
+**The start.** An interval start, normally 60 s apart, never under 40 s
+(longer gaps and television breaks at the top level); the start clock's
+countdown, the poles planted ahead of the line and the push off them only,
+the clock started by the leg below the knee crossing the line, a start valid
+5 s either side of the racer's time; the start ramp built so he can stand
+relaxed and reach speed quickly. At the top level the ten best-ranked are
+drawn into bibs 6–15, the next ten into 1–5 and 16–20.
+
+**Safety.** The homologation inspector places the A-nets, the B-nets and the
+air mattresses on a speed course; no number is set (the downhill's figures
+above). No limit is set on a jump's take-off or length; a landing's load is
+driven by the take-off angle, the speed and the landing's steepness, and
+the remedy is the take-off or the approach speed [23]. Super-G injures 11.0
+racers a thousand runs, against 17.2 in downhill, 9.2 in giant slalom and
+4.9 in slalom [24].
+
+**Jumps.** ~2.3 a run against the downhill's 4.2, only ~21 % shorter and ~6 %
+less airtime [12].
+
+**The field.** Top-level sheets: winners in 1:20–1:38 (a youth race's 1:04),
+second +0.01 to +0.6 s, tenth +0.5 to +1.7 s, thirtieth +2.5 to +5 s (+8.2
+on a hard women's course); 5–37 % of the starters out of it, 10–30 % the
+common case — a run skied blind loses racers to the line as often as to a
+fall. A run as skied [9]: 93 ± 10 s, 41 turns of 2.28 s, 79 % of it turning,
+~16 % tucked, ~20 % straight; ~86 km/h on the mean, ~110 at the top, 2.6–2.8
+body weights at the peak.
+
+**Timing and television.** No number of intermediates is set; top-level
+sheets carry three or four, and championship sheets a speed through a trap;
+lower-level sheets neither. A top production runs some thirty cameras on
+scaffolds along the slope, each following its own stretch, slow-motion and
+ultra-slow-motion cameras, wireless cameras at the start and the finish,
+and at championships cable cameras, cranes, a helicopter and drones chasing
+the racer; the cut runs from the start house down the course camera by
+camera to a camera facing up the slope at the finish and the leader's area.
+Spectators fill the finish arena and gather at the jumps and the key turns
+where they can be reached; the rest of the course is closed *(press
+reports)*.
+
+**The skis.** Men at least 2.10 m (2.05 at a lower level) and 45 m of
+sidecut, women 2.05 m (2.00) and 40 m; the current edition also caps the
+length, at 2.18 m for men and 2.15 for women; youth 1.83 m and 30 m;
+masters may ski a giant slalom ski. Waist at most 65 mm, shoulder 95 mm (a
+giant slalom ski's may be 103), the tip raised at least 30 mm (50 on a
+giant slalom ski), the tail at most 10; the stand from the base to the
+boot's sole at most 50 mm; a ski with its plate and binding at most 5.1 kg
+for a man (5.3 a downhill ski) [26]. Race stock as the makers publish it:
+men's 2.10–2.13 m (a lower level's 2.05–2.08, women's 2.05–2.07) on 45–45.5
+m (women's and youth 40), widths 93.5–95 / 65 / 78–81 mm, a wood core
+under three sheets of metal with full sidewalls, full camber or a slight
+early rise in the shovel only, the metal stopped short of the shovel so
+the tip and tail flex softer than the middle; the ski ~2.3 kg alone, a
+plate 0.6–0.8 kg and a binding 1.2–1.6 kg, ~4.3–4.9 kg a ski in all
+*(makers' specifications)*. Between its neighbours it is quicker edge to
+edge and easier to tip than a downhill ski and steadier in a tuck and on
+the straights than a giant slalom ski *(trade press)*; top racers keep a
+quiver of each. Poles are bent round the body in a tuck and longer than a
+slalom pole. The game's super-G pair is the **Falcon** (`defs/skis.ts`):
+2.10 m, 45 m, 94 / 65 / 79 mm, stiff, no rocker, on a plate, the speed
+events' bent poles — built to the men's least, as the giant slalom and
+downhill pairs are, and the pair its field races (`SUPER_G.skis`).
+
+**In the game** (R33, `engine/mapgen/super-g.ts`): the ski area's course
+with the most vertical — the downhill's hill — its START LOWERED down the
+piste until the drop to the finish is 600 m at the most, prepared as a
+downhill's (`course-prep.ts`: kickers levelled, groomed hard, combed, its
+crests shaved to 65 m of radius for a super-G's 25–28 m/s); its jumps its
+drops and the crests a racer leaves the snow on; ~42 gates on 600 m (at
+least 7 % of the vertical, ~49 m apart, strayed off the even spacing by a
+rhythm dealt off the seed), none within 25 m before a jump nor 45 m after
+it; a RACING LINE that bends the least inside the piste, held within 5 m of
+its middle, SWUNG 2.5–5.5 m to each gate's side in turn — never tighter
+than a 50 m bend, a third at the first gate, less on a gentle stretch, a
+third before a jump — each gate 8 m between its inner poles, red and blue,
+its turning pole 3.5 m inside the line's apex; A-nets along both edges; a
+speed trap and three intermediates; ONE run under the strict gates, the
+field dealt about par to a super-G's spread and outs (`field.ts`'s
+`SUPER_G_FIELD`), the super-G technique row and the downhill's
+line-follower read closer (`sim/downhill-steer.ts`'s `SUPER_G_STEER`). The
+bot finishes ~95 % of generated seeds (38 of 1–40); its misses are gates
+where it runs 3 m inside the line at 100+ km/h.
+
+**Where the game is narrower than the sport**: the line is a swing of half
+cosines between gate apexes, so its turning poles stand closer across (some
+8–10 m between two) than the measured 13 m, and it passes 3.5 m outside the
+turning pole where a racer brushes it; the swing eases on a gentle stretch
+for the downhill ski, which carves no super-G turn at 40 km/h; no gate is
+set down the fall line, no combination, and no B-net; no inspection is
+skied; the course takes the downhill's hill rather than one of its own
+where the area has a run in the band.
+
+Sources (continued): [25] doi:10.1038/s41598-021-83133-z ·
+[26] the international equipment rules for alpine competition, 2024/25
+and 2026/27 editions.
 
 ## The jury's weather (every discipline)
 

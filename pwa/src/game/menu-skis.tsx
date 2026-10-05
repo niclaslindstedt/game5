@@ -3,9 +3,9 @@
 // between the skier and the start line.
 //
 // A ROW OF NAMES CANNOT ASK THIS QUESTION. "HARE / FOX / IBEX / STOAT /
-// MARMOT / HARE" asks a skier to choose between six pairs they have
-// never seen by picking one of six words, and the catalog is six answers to
-// a kind of snow. So it takes a card, the way the sibling games give the car and
+// MARMOT / HARE" asks a skier to choose between seven pairs they have
+// never seen by picking one of seven words, and the catalog is seven
+// answers to a kind of snow. So it takes a card, the way the sibling games give the car and
 // the pair theirs: the skis turning on their rack, drawn by the builder
 // the race draws with, with the numbers beside it.
 //

@@ -149,7 +149,7 @@ export function ResultPlate({
               {STRINGS.resultLead(mine.gap)}
             </span>
           )}
-          {/* A DOWNHILL'S SPEED TRAP: his speed through it, the field's
+          {/* A SPEED COURSE'S TRAP: his speed through it, the field's
               fastest beside it. */}
           {slalom?.trap?.speed != null && (
             <span class="hud-card-note hud-result-trap">
@@ -351,8 +351,10 @@ function OutPlate({
   );
 }
 
-/** A race's plate title: the slalom's run, the downhill's training or race. */
+/** A race's plate title: the slalom's run, the downhill's training or race,
+ * the super-G. */
 function raceTitle(race: RaceHud): string {
+  if (race.discipline === "superG") return STRINGS.resultSuperGTitle;
   return race.discipline === "downhill"
     ? STRINGS.resultDownhillTitle(race.training)
     : STRINGS.resultSlalomTitle(race.run);
@@ -360,6 +362,7 @@ function raceTitle(race: RaceHud): string {
 
 /** The press that skis this race's run again. */
 function raceAgain(race: RaceHud): string {
+  if (race.discipline === "superG") return STRINGS.superGAgain;
   return race.discipline === "downhill"
     ? STRINGS.downhillAgain(race.training)
     : STRINGS.runAgain(race.run);

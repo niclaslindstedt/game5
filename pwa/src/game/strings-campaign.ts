@@ -14,6 +14,18 @@
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 
+import type { CampaignMode } from "./campaign-levels.ts";
+
+/** A measured mode's word on a box. */
+const modeWord = (mode: CampaignMode): string =>
+  mode === "timeTrial"
+    ? "TIME TRIAL"
+    : mode === "downhill"
+      ? "DOWNHILL"
+      : mode === "superG"
+        ? "SUPER-G"
+        : "RACE";
+
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 /** A solar hour as a clock: `13:44`. */
@@ -60,8 +72,8 @@ export const CAMPAIGN_STRINGS = {
   campaignWins: (wins: number): string => plural(wins, "WIN", "WINS"),
   /** What a box is: the game, and the run it always is — the piste once,
    * top to bottom. */
-  campaignBilling: (mode: "slalom" | "downhill" | "timeTrial"): string =>
-    `${mode === "timeTrial" ? "TIME TRIAL" : mode === "downhill" ? "DOWNHILL" : "RACE"} · TOP TO BOTTOM`,
+  campaignBilling: (mode: CampaignMode): string =>
+    mode === "superG" ? "SUPER-G · ONE RUN" : `${modeWord(mode)} · TOP TO BOTTOM`,
   /** The day a run is skied in, under its name: the sky and the start hour. */
   campaignDay: (sky: string, hour: number): string => `${sky} · ${clockOf(hour)}`,
   campaignSky: {
@@ -94,8 +106,7 @@ export const CAMPAIGN_STRINGS = {
     }`,
   levelsNoBest: "NO TIME SET YET",
   /** An open shelf with no map the mode can ride (no black for a downhill). */
-  levelsNoneHere: (mode: "slalom" | "downhill" | "timeTrial"): string =>
-    `NO ${mode === "timeTrial" ? "TIME TRIAL" : mode === "downhill" ? "DOWNHILL" : "RACE"} ON THIS SHELF`,
+  levelsNoneHere: (mode: CampaignMode): string => `NO ${modeWord(mode)} ON THIS SHELF`,
   levelsBest: (seconds: number, skis: string): string =>
     `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
 

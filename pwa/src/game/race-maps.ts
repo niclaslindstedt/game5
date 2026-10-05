@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RACE MAPS — every race discipline's own NINE pinned maps, the ones a
-// SLALOM or a DOWNHILL off the front door is raced on, picked on the level
+// SLALOM, a SUPER-G or a DOWNHILL off the race card is raced on, picked on the level
 // card (`menu-levels.tsx`) its tile opens.
 //
 // A discipline's measured maps are chosen for the DISCIPLINE: nine seeds
@@ -322,9 +322,153 @@ const DOWNHILL_MAPS: readonly RaceMap[] = [
   },
 ];
 
+/** THE SUPER-G'S NINE (R33), the gentlest first by the rating's index —
+ * curated off a sweep of seeds 1–64 in the alpine and 1–34 in the
+ * continental and the maritime (108 of 114 skied home by the bot): three
+ * reds and six blacks, three in each country, 430–600 m of vertical from a
+ * start lowered down the area's biggest course, every sky the jury races in
+ * but a storm and one race at night — the bot home on every one with no
+ * gate missed, no net and no harsh landing, within −5 … +7 % of par, and
+ * every map built cold in seconds. */
+const SUPER_G_MAPS: readonly RaceMap[] = [
+  {
+    id: "superG-1",
+    name: "Long Reach",
+    blurb: "A maritime red under a clear sky: long open turns over 550 m and no jump",
+    seed: 33,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "ca2ed4b9",
+    region: "maritime",
+    grade: "red",
+    course: "12",
+    day: { weather: "clear", hour: 11.16 },
+    figures: { vertical: 547, length: 2332 },
+  },
+  {
+    id: "superG-2",
+    name: "High Veil",
+    blurb: "A short maritime red under high cloud, turn after turn down 430 m",
+    seed: 12,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "62f6538d",
+    region: "maritime",
+    grade: "red",
+    course: "11",
+    day: { weather: "high", hour: 13.01 },
+    figures: { vertical: 429, length: 2192 },
+  },
+  {
+    id: "superG-3",
+    name: "Grey Lid",
+    blurb: "An alpine red under an overcast, the flat light hiding its one roll: 600 m",
+    seed: 30,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "1664fbed",
+    grade: "red",
+    course: "6",
+    day: { weather: "overcast", hour: 12.74 },
+    figures: { vertical: 600, length: 2620 },
+  },
+  {
+    id: "superG-4",
+    name: "Dry Cold",
+    blurb: "The first black: cold dry snow on the continental face, a clear sky, 565 m",
+    seed: 25,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "8d26c0ab",
+    region: "continental",
+    grade: "black",
+    course: "9",
+    day: { weather: "clear", hour: 11.71 },
+    figures: { vertical: 565, length: 2079 },
+  },
+  {
+    id: "superG-5",
+    name: "Long Air",
+    blurb: "Clear and fast: 600 m of black over three jumps, the biggest air of the nine",
+    seed: 38,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "b5a34ea8",
+    grade: "black",
+    course: "8",
+    day: { weather: "clear", hour: 11.07 },
+    figures: { vertical: 599, length: 2224 },
+  },
+  {
+    id: "superG-6",
+    name: "Snowline",
+    blurb: "Raced in a steady snowfall: 600 m of maritime red and fifty-four gates",
+    seed: 3,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "662bd11e",
+    region: "maritime",
+    grade: "red",
+    course: "7",
+    day: { weather: "snow", hour: 11.4 },
+    figures: { vertical: 600, length: 2678 },
+  },
+  {
+    id: "superG-7",
+    name: "Flurry Wall",
+    blurb: "A continental black, flurries out of a sunny sky, two jumps in under two kilometres",
+    seed: 29,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "fc0efe73",
+    region: "continental",
+    grade: "black",
+    course: "8",
+    day: { weather: "flurries", hour: 14.32 },
+    figures: { vertical: 599, length: 1956 },
+  },
+  {
+    id: "superG-8",
+    name: "Floodlit",
+    blurb: "The night race: 600 m of black under the floodlights, two jumps in the dark",
+    seed: 44,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "18b31f4e",
+    grade: "black",
+    course: "9",
+    day: { weather: "fair", hour: 19.54 },
+    figures: { vertical: 599, length: 2098 },
+  },
+  {
+    id: "superG-9",
+    name: "Grey Out",
+    blurb: "The hardest: a continental black in the valley fog, the gates coming out of the grey",
+    seed: 1,
+    mode: "superG",
+    laps: 1,
+    version: 5,
+    digest: "de6b74c7",
+    region: "continental",
+    grade: "black",
+    course: "7",
+    day: { weather: "fog", hour: 13.98 },
+    figures: { vertical: 599, length: 2098 },
+  },
+];
+
 /** EVERY DISCIPLINE'S NINE. A discipline built later adds its row here. */
 export const RACE_MAPS: RaceMaps = {
   slalom: SLALOM_MAPS,
+  superG: SUPER_G_MAPS,
   downhill: DOWNHILL_MAPS,
 };
 

@@ -1,9 +1,9 @@
 # Race maps — every discipline's own pinned maps
 
-**Built for the slalom and the downhill** (`pwa/src/game/race-maps.ts`,
-`tests/race_maps_test.ts`, `race_maps_downhill_test.ts`). What stays here is
-the SHAPE a discipline built later (the super-G, the giant slalom, the ski
-cross, speed skiing) fills in as part of being built — its spec says so —
+**Built for the slalom, the super-G and the downhill** (`pwa/src/game/race-maps.ts`,
+`tests/race_maps_test.ts`, `race_maps_downhill_test.ts`,
+`race_maps_superg_test.ts`). What stays here is the SHAPE a discipline built
+later (the giant slalom, the ski cross, speed skiing) fills in as part of being built — its spec says so —
 and the one tool still to write (*To do*). Delete this file with the last
 discipline's nine.
 
@@ -216,6 +216,7 @@ permanent.
       `campaign.ts`'s, since a row is a campaign map's shape).
 - [x] Curate the SLALOM's nine.
 - [x] Curate the DOWNHILL's nine.
+- [x] Curate the SUPER-G's nine (with the super-G).
 - [x] `pinnedFor` / `pinnedPress` / `frontDoorPins` read `RACE_MAPS` for a
       discipline (`PinnedPicks`); `fitsMode` stays the campaign's and the
       time trial's.
@@ -223,7 +224,8 @@ permanent.
 - [x] The level card's discipline page.
 - [x] The pause card's map line.
 - [x] `make routes` over the race maps.
-- [ ] `make rate RACE=…` and a sweep flag (*The tooling*).
+- [x] `make rate RACE=…` (the nine audited: digest, rating, the course, the
+      bot against par); a sweep flag still to write (*The tooling*).
 - [x] `tests/race_maps_test.ts`, `race_maps_downhill_test.ts`; the
       campaign tests adjusted.
 - [x] Docs: `docs/getting-started.md`, `docs/configuration.md`,

@@ -3,9 +3,10 @@
 // each built on the generator it names and held to its digest, its course,
 // its grade, the day and the loop its box bills, and the course set over it
 // held to the figures the box quotes and to its discipline's rule. Shared by
-// `race_maps_test.ts` (the slalom's) and `race_maps_downhill_test.ts`, one
+// `race_maps_test.ts` (the slalom's), `race_maps_downhill_test.ts` and
+// `race_maps_superg_test.ts`, one
 // discipline a file, because building a map is the dearest thing the engine
-// does and eighteen of them in one file would be the slowest file in the
+// does and twenty-seven of them in one file would be the slowest file in the
 // suite.
 
 import { describe, expect, it } from "vitest";
@@ -23,7 +24,7 @@ function raced(map: RaceMap) {
   return { built, level: state.level };
 }
 
-export function holdRaceMaps(discipline: "slalom" | "downhill"): void {
+export function holdRaceMaps(discipline: "slalom" | "superG" | "downhill"): void {
   describe(`the ${discipline}'s maps, built`, () => {
     for (const map of RACE_MAPS[discipline] ?? []) {
       it(`${map.id} (seed ${map.seed}) builds the map it was pinned on, with a ${discipline} on it`, () => {
@@ -42,7 +43,7 @@ export function holdRaceMaps(discipline: "slalom" | "downhill"): void {
           routeOf(built),
         );
         // The course its box bills, set over it inside its rule.
-        const set = discipline === "slalom" ? level.slalom : level.downhill;
+        const set = discipline === "slalom" ? level.slalom : level[discipline];
         expect(set, `${map.id} carries no ${discipline}`).toBeDefined();
         expect(set!.vertical).toBeCloseTo(map.figures.vertical, 0);
         expect(set!.to - set!.from).toBeCloseTo(map.figures.length, 0);
@@ -53,9 +54,16 @@ export function holdRaceMaps(discipline: "slalom" | "downhill"): void {
           );
           expect(set!.vertical).toBeLessThanOrEqual(max);
         } else {
-          const { min, max } = DISCIPLINE_RULES.downhill.vertical;
+          const { min, max } = DISCIPLINE_RULES[discipline].vertical;
           expect(set!.vertical).toBeGreaterThanOrEqual(min);
           expect(set!.vertical).toBeLessThanOrEqual(max);
+        }
+        // A super-G turns the racer at least as often as its rule asks.
+        if (level.superG) {
+          const G = DISCIPLINE_RULES.superG;
+          expect(level.superG.turns).toBeGreaterThanOrEqual(
+            Math.ceil(G.changes * level.superG.vertical),
+          );
         }
       });
     }

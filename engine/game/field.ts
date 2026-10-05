@@ -29,9 +29,16 @@
 // about par's there. Its TRAINING run is the same course and the same
 // order, slower and further apart — a racer in training learns the line and
 // stands up before the finish — and counts for nothing.
+//
+// A SUPER-G is one run with no training: further apart than a downhill —
+// the thirtieth some 2.5–5 s off the winner over a minute and a half — and
+// far more often out of it, a sixth to a quarter of a field on most days,
+// as often by a gate missed as by a fall (`SUPER_G_FIELD`); its trap as
+// the downhill's.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { DOWNHILL, SLALOM } from "./defs/modes.ts";
+import { speedCourseOf } from "../mapgen/index.ts";
+import { DOWNHILL, SLALOM, SUPER_G } from "./defs/modes.ts";
 import { raceParOf } from "./par.ts";
 import type { FieldRun, GameState, RunOut } from "./state.ts";
 
@@ -71,6 +78,21 @@ export const DOWNHILL_FIELD = {
    * this much more scattered — a racer learning the line, standing up
    * early — and its outs a fall only. */
   training: { slower: 0.025, noise: 0.012 },
+} as const;
+
+/** A SUPER-G'S FIELD (R33), over `FIELD`'s shape: one run unseen, so a
+ * wider spread than the downhill's (top-level sheets: tenth 0.5–1.7 s and
+ * thirtieth 2.5–5 s off a winner's 80–95 s) and the most outs of any
+ * speed event (a tenth to a third of the starters, 10–30 % the common
+ * case) — half of them a gate missed on a line skied blind, half a fall;
+ * no straddle on a gate seven metres wide. Its trap as the downhill's. */
+export const SUPER_G_FIELD = {
+  spread: 0.045,
+  noise: 0.008,
+  best: -0.006,
+  out: { best: 0.05, worst: 0.33 },
+  why: { missed: 0.5, straddle: 0, fall: 0.5 },
+  trap: DOWNHILL_FIELD.trap,
 } as const;
 
 /** THE FIRST RUN, carried into the second: the player's time and the
@@ -165,7 +187,8 @@ function dealRun(
   );
   const level = state.level;
   const downhill = level.downhill !== undefined;
-  const F = downhill ? DOWNHILL_FIELD : FIELD;
+  const speed = speedCourseOf(level);
+  const F = downhill ? DOWNHILL_FIELD : level.superG ? SUPER_G_FIELD : FIELD;
   const par = raceParOf(level);
   const n = level.checkpoints.length;
   const weak = 1 - racer.skill;
@@ -194,16 +217,14 @@ function dealRun(
   }
   // THE TRAP, about par's speed there — a stronger racer a little faster.
   const D = DOWNHILL_FIELD.trap;
-  const trapGate = downhill
-    ? level.checkpoints.findIndex((c) => c.s >= (level.downhill?.trap.s ?? 0))
-    : -1;
+  const trapGate = speed ? level.checkpoints.findIndex((c) => c.s >= speed.trap.s) : -1;
   const trap =
     par && par.trap > 0 && !(out && trapGate >= out.gate)
       ? par.trap * (1 - D.spread * weak + D.noise * (rng.next() + rng.next() - 1))
       : null;
   return {
     id: racer.id,
-    skis: downhill ? DOWNHILL.skis : SLALOM.skis,
+    skis: downhill ? DOWNHILL.skis : level.superG ? SUPER_G.skis : SLALOM.skis,
     time: out ? null : splits[n - 1],
     out,
     splits,

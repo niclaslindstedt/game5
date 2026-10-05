@@ -14,7 +14,7 @@ a second, stale copy of the truth.
 | --- | --- | --- |
 | — | Slalom | built — spec retired; its research is `docs/disciplines.md` § Slalom |
 | [GIANT_SLALOM.md](GIANT_SLALOM.md) | Giant slalom | draft — research first |
-| [SUPER_G.md](SUPER_G.md) | Super-G | draft — research first |
+| — | Super-G | built — spec retired; its research is `docs/disciplines.md` § Super-G |
 | — | Downhill | built — spec retired; its research is `docs/disciplines.md` § Downhill |
 | [SKI_CROSS.md](SKI_CROSS.md) | Ski cross | draft — research first |
 | [SPEED_SKIING.md](SPEED_SKIING.md) | Speed skiing | draft — research first |
@@ -23,7 +23,7 @@ Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom and the downhill; the shape every later discipline fills in |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G and the downhill; the shape every later discipline fills in |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
@@ -106,7 +106,7 @@ preparation shared by every setter (`engine/mapgen/course-prep.ts`'s
 grooming, the trees cleared, the crests shaved), the one question "which
 race is set on this map" (`race-course.ts`'s `raceCourseOf`), a racing line
 relaxed to the least curvature with gates centred on it
-(`mapgen/downhill.ts`'s `racingLine`, `downhillLineAt`), PANEL gates under
+(`mapgen/speed-course.ts`'s `racingLine`, `speedLineAt`), PANEL gates under
 the strict rules (`Checkpoint.panels`, `strict.ts`), the A-nets
 (`engine/game/nets.ts`, `NETS` in `spectator-plan.ts`, drawn by `gates.ts`),
 the speed trap (`speed-trap.ts`), a field dealt per discipline with a
@@ -406,6 +406,73 @@ gates) is built now; read it before writing it again.
   the rung cleared and its time is dropped (`mergeProgress`), so nobody's
   ladder relocks. Do the same, or bump the board's key on purpose.
 
+## Lessons from the super-G
+
+The super-G was the third discipline and the first built off the race
+maps' shape. Its course is mostly the downhill's machinery, and the work was
+in the turns.
+
+### The course
+
+- **Share the speed course, don't copy it.** The downhill's line, its
+  reader, the trap's place and the gate spacing moved into
+  `mapgen/speed-course.ts` (`speedCourseOf`, `racingLine`, `speedLineAt`,
+  `trapArc`, `gateArcs`) with the arithmetic untouched: `make sim` and the
+  downhill's and the slalom's sweeps kept every digest. A rule row the
+  shared code reads takes its numbers as parameters (`LineRule`,
+  `TrapRule`, `SpacingRule`), and a constant two rows must agree on is
+  stated once and held by a test (`LINE_STEP`).
+- **A wide resort piste lets a least-bending line wander twenty metres to
+  a side** — fine for a downhill's gates centred on it, fatal for gates
+  swung either side of it. Cap the base line's room (`line.most`) before
+  adding the swing.
+- **Gates must sit where the racer is on the snow.** The downhill keeps
+  gates off its DROPS; a super-G at 100 km/h also flies off the shaved
+  crests, so the jumps a setter avoids are the drops AND the crests still
+  tighter than v²/g (`crestsOf`, read over a lip's length, not a 2 m
+  station — that one found a crest every forty metres), with a landing
+  clearance after the lip longer than the one before it.
+- **The downhill ski carves no super-G turn at a crawl.** The edge is held
+  to the lean plus angulation, so at 40 km/h a 50 m ski will not swing
+  eight metres in fifty. The first gates out of the house and the gates on
+  a gentle stretch swing less (`superG.opening`, `superG.flat`).
+- **Check generation time when pinning a map.** One candidate took 27 s to
+  build cold (seven rejected attempts) — a loading card nobody would wait
+  through. Time every pinned map cold (`generateLevel` in a fresh process).
+
+### The physics and the bot
+
+- **The researched technique row was unskiable again.** With the
+  downhill's fade the Eagle carved a 40 m turn only under 46 km/h; fade 5
+  and 63° hold 40 m to 150 km/h. Print `carveSpeedOf` for the course's
+  radii at the row's speed before touching the bot.
+- **The downhill's line-follower cuts a swung line.** Fed forward 0.3 s it
+  turned for the next swing before this one's apex — 1.3 m inside on the
+  median gate, 3 m at the worst. Half the lead (`SUPER_G_STEER`) halved it.
+  Measure the bot's crossing of every gate against the line (signed,
+  outward positive) across sixteen seeds, not the misses alone.
+- **A firmer check made it worse** (13/16 from 15/16): the downhill's
+  lesson holds at a super-G's speed too.
+- **Pass the turning pole with the margin the bot can hold.** The line
+  passes 3.5 m outside it on an 8 m gate; the bot's p99 outward error is
+  +1 m, its p1 inward −2.4 m.
+
+### The app
+
+- **One RACE tile and a card behind it** replaced the half tiles: the race
+  card (`menu-races.tsx`) takes every discipline, built or coming, and the
+  front door is four wide tiles in both orientations.
+- **App.tsx was at its cap.** The front door's pages moved out whole into
+  `menu-pages.tsx` (−47 lines) before anything was added.
+- **The race maps landed on `main` while the super-G was being built** —
+  the same idea from both sides. The merge kept `main`'s shape (`RaceMap`
+  with its quoted figures, `PinnedPicks`, `holdRaceMaps`) and added the
+  super-G's row and file; a discipline built later adds a row to
+  `RACE_MAPS` and a `race_maps_<discipline>_test.ts`, nothing more. Fetch
+  `main` before building a shared piece the spec says is still to do.
+- **Run the suite and a browser lab apart.** Both at once restarted the
+  worker in a cloud session.
+
 ## The labs, and when to reach for each
 
 Every lab writes to `previews/` (gitignored). `make <lab> ARGS=--help` lists
@@ -417,7 +484,7 @@ cloud session; `screenshots` needs `make build` first.
 | `make technique` | Each riding technique skied by the bot on one course: PATH (strobed from above, gates drawn, a scale bar), BEHIND (TV frames at transition, edge-set, apex, exit), SIDE (the apex), TURNS (every technique's natural linked carve on one open slope at one scale, the line coloured by radius, each apex labelled radius/time/edge, the researched radius drawn), and a TABLE against the research targets (`--json` to save, `--compare` to diff) | THE loop for a technique row and its pose: run before and after every physics or pose change. `--techniques=slalom` and `--sheets=none` give the table in seconds; `--course=slalom|piste` |
 | `make ride` | Scripted scenarios on synthetic slopes, each a table and a picture; `slalom-cut` and `slalom-rhythm` measure a technique's carve and rhythm without the bot | A new technique gets its own scenarios (`scripts/lib/ride-slalom.mjs` is the pattern); `ARGS=--card` is every pair's card |
 | `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode — save its table before the first edit |
-| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
+| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
 | `make sim ARGS="--skis all"` | Every pair down every seed | A pair's retune (the downhill pair's misses showed here) |
 | `make level` / `make analyze` | One map's piste, gates, kickers and grades; the rule book's verdict | The course rule and its setter; `make resort` for the ski area |
 | `make rate CAMPAIGN=1` | Every campaign rung rated, with the bot's time and a trial's medals | Curating a discipline's rungs and setting medals (gold 0.98×, silver 1.03×, bronze 1.125× the bot) |

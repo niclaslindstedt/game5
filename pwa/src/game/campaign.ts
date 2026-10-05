@@ -37,7 +37,7 @@
 // seed — the same snow, the same day, ridden for the record book instead of
 // for points (`menu-levels.tsx`, `pinnedFor`) — and what its level card
 // offers is gated on the campaign having OPENED that shelf. A RACE (the
-// slalom, the downhill) is raced on its discipline's own nine
+// slalom, the super-G, the downhill) is raced on its discipline's own nine
 // (`race-maps.ts`), all open, chosen for the discipline. A seed of your own
 // is the FREE RIDE's, and a link's (`?seed=`).
 //
@@ -122,6 +122,7 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
  * downhill's vertical under them; and none takes the FREE RIDE, the one mode
  * allowed a seed and a day of its own. */
 export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
+  if (mode === "superG") return level.mode === "superG";
   if (mode === "slalom") return level.mode === "slalom";
   if (mode === "downhill") return level.mode === "downhill" || level.grade === "black";
   return mode === "timeTrial";
@@ -130,7 +131,7 @@ export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
 /** The campaign's own name for a measured mode: the mode itself where a
  * rung can be one, the slalom's otherwise. */
 function measuredMode(mode: GameMode): CampaignLevel["mode"] {
-  return mode === "timeTrial" || mode === "downhill" ? mode : "slalom";
+  return mode === "timeTrial" || mode === "downhill" || mode === "superG" ? mode : "slalom";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
@@ -537,6 +538,7 @@ export function frontDoorPins(
   campaign: { cleared: number; of: number; next: string | null };
   raceMap: string | null;
   downhillMap: string | null;
+  superGMap: string | null;
   trialMap: string | null;
 } {
   return {
@@ -546,6 +548,7 @@ export function frontDoorPins(
     },
     raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
     downhillMap: pinnedFor(chosen, "downhill", linkSeed)?.name ?? null,
+    superGMap: pinnedFor(chosen, "superG", linkSeed)?.name ?? null,
     trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
   };
 }

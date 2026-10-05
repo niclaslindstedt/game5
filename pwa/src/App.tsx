@@ -94,17 +94,11 @@ import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
 import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
-import { DevPages } from "./game/menu-dev.tsx";
-import { KeysPage } from "./game/menu-keys.tsx";
 import { MainMenu } from "./game/menu-main.tsx";
+import { MenuPages } from "./game/menu-pages.tsx";
 import { createMenuNav, walkCardsOnKeys } from "./game/menu-nav.ts";
-import { GalleryPage } from "./game/menu-gallery.tsx";
-import { OptionsPage } from "./game/menu-options.tsx";
-import { SkisCards } from "./game/menu-dress.tsx";
-import { StartPage } from "./game/menu-start.tsx";
 import { PauseMenu } from "./game/menu-pause.tsx";
-import { PinnedCards } from "./game/menu-pinned.tsx";
-import { createPinnedRuns, secondRunOff, skisBack } from "./game/pinned-run.ts";
+import { createPinnedRuns, secondRunOff } from "./game/pinned-run.ts";
 import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { createRunActions } from "./game/run-actions.ts";
@@ -892,8 +886,7 @@ export function App() {
             seed: trialSeed,
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,
           }}
-          onRace={() => campaign.openCard("slalom", params.seed === null ? "levels" : "skis")}
-          onDownhill={() => campaign.openCard("downhill", params.seed === null ? "levels" : "skis")}
+          onRace={() => setPage("races")}
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
@@ -906,72 +899,24 @@ export function App() {
         />
       )}
       {shell === "menu" && page !== "root" && (
-        <div class="menu">
-          {page === "campaign" || page === "levels" || page === "tricks" ? (
-            <PinnedCards
-              page={page}
-              mode={modeRef.current}
-              settings={settings}
-              skis={specOf(settings).id}
-              progress={campaign.progress}
-              standing={(key) => bookRef.current?.standing(key) ?? null}
-              onBack={() => setPage("root")}
-              onChoose={campaign.choose}
-              onTrick={campaign.chooseTrick}
-            />
-          ) : page === "skis" || page === "dress" ? (
-            <SkisCards
-              page={page}
-              skis={specOf(settings).id}
-              settings={settings}
-              onSettings={setSettings}
-              onLink={() => setLinkSkis(null)}
-              onPage={setPage}
-              onBack={() => setPage(skisBack(campaign.rung.current, modeRef.current, params.seed))}
-              onRide={modeRef.current === "free" ? freeRide : race}
-            />
-          ) : page === "start" ? (
-            <StartPage
-              settings={settings}
-              seed={startSeed}
-              onSettings={setSettings}
-              onReroll={() =>
-                setSettings((s) => ({ ...s, ride: { ...s.ride, seed: dealSeed(), spot: null } }))
-              }
-              onBack={() => setPage("root")}
-              onNext={() => setPage("skis")}
-            />
-          ) : page === "gallery" ? (
-            <GalleryPage onBack={() => setPage("root")} />
-          ) : page === "dev" || page === "unlocks" || page === "benchHistory" ? (
-            <DevPages
-              page={page}
-              settings={settings}
-              progress={campaign.progress}
-              repro={() => dev.rig.current?.repro() ?? ""}
-              onSettings={setSettings}
-              onProgress={campaign.setProgress}
-              onPage={setPage}
-              onBack={() => setPage("root")}
-              onBenchmark={() => dev.rig.current?.startBench()}
-            />
-          ) : page === "options" ? (
-            <OptionsPage
-              settings={settings}
-              keys={keys}
-              touch={touch}
-              onSettings={setSettings}
-              onBack={() => setPage("root")}
-              onKeys={() => setPage("keys")}
-            />
-          ) : (
-            <KeysPage
-              settings={settings}
-              onSettings={setSettings}
-              onBack={() => setPage("options")}
-            />
-          )}
-        </div>
+        <MenuPages
+          page={page}
+          setPage={setPage}
+          mode={modeRef.current}
+          settings={settings}
+          setSettings={setSettings}
+          skis={specOf(settings).id}
+          campaign={campaign}
+          standing={(key) => bookRef.current?.standing(key) ?? null}
+          linkSeed={params.seed}
+          startSeed={startSeed}
+          dev={dev}
+          keys={keys}
+          touch={touch}
+          onLinkSkis={() => setLinkSkis(null)}
+          onRide={race}
+          onFreeRide={freeRide}
+        />
       )}
       {(shell === "loading" || loadLeaving) && (
         <LoadingScreen

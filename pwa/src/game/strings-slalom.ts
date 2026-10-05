@@ -50,6 +50,8 @@ export const SLALOM_STRINGS = {
   outTitle: (status: RunOut["status"]): string =>
     status === "dsq" ? "DISQUALIFIED" : "DID NOT FINISH",
   outWhy: (out: RunOut): string => outWhy(out.why, out.gate),
+  /** The out plate's one press: the run again. */
+  outAgain: "TRY AGAIN",
   /** The second run's figures on its plate. */
   resultRuns: (first: number, second: number): string =>
     `RUN 1 ${formatTime(first)} · RUN 2 ${formatTime(second)}`,

@@ -37,13 +37,13 @@
 // it the BOARD (`hud-board.tsx`) — the whole start list, the player's row
 // lit — and after the first run the SECOND RUN press, or why there is none
 // (`secondRunOf`: out of the first run, or outside the qualifying places).
-// A run that went OUT is no finish: the plate says DISQUALIFIED or DID NOT
-// FINISH and why, in plain words, with no time and no place, over the same
-// board.
+// A run that went OUT — in any race discipline — is no finish: the plate
+// says DISQUALIFIED or DID NOT FINISH, why under it in plain words, and the
+// TRY AGAIN press, and nothing else.
 //
 // A DOWNHILL'S PLATE says whether it was the TRAINING run or the RACE, its
-// speed through the trap and the field's fastest, and after the training —
-// home or out of it — the RACE press first (`downhill-run.ts`).
+// speed through the trap and the field's fastest, and after a training run
+// home the RACE press first (`downhill-run.ts`).
 //
 // ITS OWN LAYER, drawn by App.tsx outside the HUD, and gated here: it is up
 // over a finished race and down under the pause card, which offers its own.
@@ -94,16 +94,7 @@ export function ResultPlate({
   const { result, standings, best, race: slalom } = snap;
   const out = slalom?.out ?? null;
   if (!result && !out) return null;
-  if (!result)
-    return (
-      <OutPlate
-        snap={snap}
-        onAgain={onAgain}
-        onMenu={onMenu}
-        onReplay={onReplay}
-        onSecond={onSecond}
-      />
-    );
+  if (!result) return <OutPlate snap={snap} onAgain={onAgain} />;
   const trial = snap.mode === "timeTrial";
   const record = best === null || result.time < best.time;
   const gold = snap.tricks ? false : trial ? record : result.place === 1;
@@ -285,64 +276,23 @@ export function ResultPlate({
   );
 }
 
-/** THE PLATE OVER A RUN THAT WENT OUT (R31): the verdict and why, the board
- * under it, and the ways on — the run again, the replay, the front door. */
-function OutPlate({
-  snap,
-  onAgain,
-  onMenu,
-  onReplay,
-  onSecond,
-}: {
-  snap: HudSnapshot;
-  onAgain: () => void;
-  onMenu: () => void;
-  onReplay: (() => void) | null;
-  /** A downhill's RACE, after a training run that went out. */
-  onSecond: (() => void) | null;
-}) {
-  const slalom = snap.race;
-  const out = slalom?.out;
-  if (!slalom || !out || !snap.standings) return null;
+/** THE PLATE OVER A RUN THAT WENT OUT (R31): the verdict, why under it, and
+ * TRY AGAIN — nothing else. A run that is out has no place, no time and
+ * nothing to weigh, so the plate says what happened and offers the one press
+ * a racer wants then; the front door is the pause card's. */
+function OutPlate({ snap, onAgain }: { snap: HudSnapshot; onAgain: () => void }) {
+  const race = snap.race;
+  const out = race?.out;
+  if (!race || !out) return null;
   return (
     <div class="hud hud-result-layer">
       <div class="hud-center">
-        <div class="hud-card hud-result hud-result-out hud-result-boarded">
-          <span class="hud-card-note hud-result-label">{raceTitle(slalom)}</span>
-          {snap.course && <span class="hud-card-note">{snap.course}</span>}
+        <div class="hud-card hud-result hud-result-out">
           <span class="hud-card-title hud-result-verdict">{STRINGS.outTitle(out.status)}</span>
           <span class="hud-card-note hud-result-why">{STRINGS.outWhy(out)}</span>
-          {slalom.second?.kind === "out" && <span class="hud-card-note">{STRINGS.secondOut}</span>}
-          {slalom.second?.kind === "race" && onSecond && (
-            <span class="hud-card-note">{STRINGS.raceNote}</span>
-          )}
-          <SlalomBoard rows={snap.standings} second={slalom.run === 2} />
           <div class="hud-result-acts">
-            {slalom.second?.kind === "race" && onSecond && (
-              <button
-                type="button"
-                class="hud-mini hud-result-act hud-result-second"
-                data-nav-next
-                onClick={onSecond}
-              >
-                {STRINGS.raceRun}
-              </button>
-            )}
-            <button
-              type="button"
-              class="hud-mini hud-result-act"
-              data-nav-next={slalom.second?.kind === "race" && onSecond ? undefined : true}
-              onClick={onAgain}
-            >
-              {raceAgain(slalom)}
-            </button>
-            {onReplay && (
-              <button type="button" class="hud-mini hud-result-act" onClick={onReplay}>
-                {STRINGS.replayWatch}
-              </button>
-            )}
-            <button type="button" class="hud-mini hud-result-act" onClick={onMenu}>
-              {STRINGS.pauseMainMenu}
+            <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
+              {STRINGS.outAgain}
             </button>
           </div>
         </div>

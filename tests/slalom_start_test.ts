@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SLALOM START CLIP (`pwa/src/game/slalom-start.ts`): the held crouch,
 // the fall out over the wand, the kick in the feet and the settle — keyed by
-// the engine's own clock of the launch, the same for every racer.
+// the engine's own clock of the launch, the same for every racer — and the
+// start shot's move off the roof down behind him (`camera-start.ts`).
 
 import { describe, expect, it } from "vitest";
 
+import { settleShot } from "../pwa/src/game/camera-start.ts";
 import { emptyStand } from "../pwa/src/game/ski-stand.ts";
 import { SLALOM_KICK, SLALOM_START, kickStand, slalomStart } from "../pwa/src/game/slalom-start.ts";
 
@@ -40,6 +42,49 @@ describe("the slalom start clip", () => {
       const still = emptyStand();
       kickStand(still, t);
       expect(still).toEqual(emptyStand());
+    }
+  });
+});
+
+describe("the start shot's move", () => {
+  // The two shots as `start-house-plan.ts` places them: over the door
+  // looking down on his skis, and behind him looking out down the course.
+  const over = { lens: { x: 0.4, y: 2.75, z: -0.45 }, aim: { x: 0, y: 0.15, z: 0.35 } };
+  const behind = { lens: { x: 0, y: 1.7, z: -2.1 }, aim: { x: 0, y: 0.5, z: 12 } };
+  const close = (a: { x: number; y: number; z: number }, b: typeof a): void => {
+    expect(a.x).toBeCloseTo(b.x, 6);
+    expect(a.y).toBeCloseTo(b.y, 6);
+    expect(a.z).toBeCloseTo(b.z, 6);
+  };
+  const look = (s: typeof over): { x: number; y: number; z: number } => {
+    const d = { x: s.aim.x - s.lens.x, y: s.aim.y - s.lens.y, z: s.aim.z - s.lens.z };
+    const r = Math.hypot(d.x, d.y, d.z);
+    return { x: d.x / r, y: d.y / r, z: d.z / r };
+  };
+
+  it("starts on the overhead shot and settles on the shot from behind", () => {
+    close(settleShot(over, behind, 0).lens, over.lens);
+    close(settleShot(over, behind, 0).aim, over.aim);
+    close(settleShot(over, behind, 1).lens, behind.lens);
+    close(settleShot(over, behind, 1).aim, behind.aim);
+  });
+
+  it("moves the lens and turns its look a little a frame — never a cut", () => {
+    const frames = 84; // the move's 1.4 s at sixty frames a second
+    let was = settleShot(over, behind, 0);
+    for (let i = 1; i <= frames; i++) {
+      const now = settleShot(over, behind, i / frames);
+      const a = look(was);
+      const b = look(now);
+      const turn = Math.acos(Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
+      expect(turn).toBeLessThan(0.05);
+      const step = Math.hypot(
+        now.lens.x - was.lens.x,
+        now.lens.y - was.lens.y,
+        now.lens.z - was.lens.z,
+      );
+      expect(step).toBeLessThan(0.1);
+      was = now;
     }
   });
 });

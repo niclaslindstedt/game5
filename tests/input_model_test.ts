@@ -25,6 +25,10 @@ import {
   barLean,
   barReachPx,
   barSteer,
+  edgeFeel,
+  edgeReachPx,
+  SLALOM_EDGE_REACH,
+  trailAnchor,
   createInputModel,
   createJumpTap,
   jumpTapDown,
@@ -182,6 +186,39 @@ describe("the thumbs' feel (OPTIONS ▸ CONTROLS)", () => {
     expect(barLean(-BAR_REACH_PX, flipped)).toBeGreaterThan(0);
     expect(barSteer(40, flipped)).toBe(barSteer(40));
     expect(leverTuck(-25, flipped)).toBe(leverTuck(-25));
+  });
+});
+
+describe("the edge on a slalom", () => {
+  it("reaches full edge on a shorter throw, and leaves the lean its own", () => {
+    const slalom = edgeFeel({ sensitivity: 1, invertLean: false }, "slalom");
+    const reach = BAR_REACH_PX * SLALOM_EDGE_REACH;
+    expect(edgeReachPx(slalom)).toBeCloseTo(reach);
+    expect(barSteer(reach, slalom)).toBeCloseTo(1);
+    expect(barSteer(-reach, slalom)).toBeCloseTo(-1);
+    expect(barSteer(reach)).toBeLessThan(1);
+    expect(barLean(BAR_REACH_PX / 2, slalom)).toBe(barLean(BAR_REACH_PX / 2));
+    expect(barReachPx(slalom)).toBe(barReachPx());
+  });
+
+  it("stacks on the player's sensitivity, and only on a slalom", () => {
+    const quick = { sensitivity: 1.5, invertLean: false };
+    expect(edgeReachPx(edgeFeel(quick, "slalom"))).toBeCloseTo(
+      (BAR_REACH_PX * SLALOM_EDGE_REACH) / 1.5,
+    );
+    expect(edgeFeel(quick, "downhill")).toBe(quick);
+    expect(edgeFeel(quick, null)).toBe(quick);
+  });
+
+  it("trails the anchor behind a thumb past full edge, so the way back is one throw", () => {
+    const reach = edgeReachPx();
+    expect(trailAnchor(100, 150, reach)).toBe(100);
+    // Swept an inch past the ring to the right: the anchor follows...
+    const anchor = trailAnchor(100, 100 + reach + 40, reach);
+    expect(anchor).toBe(140);
+    // ...and two throws back from there is full edge the other way.
+    expect(barSteer(100 + reach + 40 - 2 * reach - anchor)).toBe(-1);
+    expect(trailAnchor(100, 100 - reach - 30, reach)).toBe(70);
   });
 });
 

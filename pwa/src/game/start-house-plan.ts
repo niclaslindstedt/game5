@@ -14,7 +14,7 @@
 // height between two short posts at the door's foot that starts his clock
 // as his legs push it open — his poles planted over it, outside the posts,
 // in the two holes every racer before him has trodden in the snow. The broadcast films him from over the door at an
-// angle, looking down on him leaning out over the wand, then cuts inside
+// angle, looking down on him leaning out over the wand, then moves down inside
 // the house behind him: his back, the posts and the course below through
 // the doorway — the shot he goes on.
 

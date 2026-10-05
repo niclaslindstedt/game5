@@ -34,7 +34,7 @@ const base = { hipRight: 0, hipAft: 0, lean: 0, steer: 0, crouch: 0, landing: 5 
  * frame's spring and pose. The legs' spring is handed no climb: a fall
  * this hard stopped dead in a step is not one the engine lets him ride
  * (`crash.ts`), and the landing's own kick is the legs' case. */
-function fall(height: number, after = 0.6, spin = 0) {
+function fall(height: number, after = 0.6, spin = 0, lean = 0) {
   const s = createSkierSpring();
   const frames: { s: SkierSpring; pose: SkierPose; read: FlightRead | null }[] = [];
   const c = { x: 0, y: height + 1, z: 0, vx: 0, vy: 0, vz: 12 };
@@ -43,7 +43,7 @@ function fall(height: number, after = 0.6, spin = 0) {
   for (; t < land + after; t += DT) {
     const airborne = t < land;
     const read = airborne ? flightRead(FLAT, c, 1, G) : null;
-    stepSkierSpring(s, 0, airborne, DT, 0, { ...RIDE, airTime: t, wx: spin }, false, {
+    stepSkierSpring(s, 0, airborne, DT, 0, { ...RIDE, airTime: t, wx: spin, lean }, false, {
       read,
       gravity: G,
     });
@@ -52,6 +52,7 @@ function fall(height: number, after = 0.6, spin = 0) {
       airborne,
       air: s.air,
       flight: flightShape(s.flight, s.clock, s.air),
+      poles: true,
     });
     frames.push({ s: structuredClone(s), pose, read });
     if (airborne) {
@@ -123,6 +124,46 @@ describe("the fall", () => {
   it("never windmills a body he is turning on purpose", () => {
     const { frames } = fall(18, 0.6, 4);
     expect(Math.max(...frames.map((f) => f.s.flight.mill))).toBeLessThan(0.01);
+  });
+
+  it("never windmills a skier committed to a lean: the arms set forward and still", () => {
+    for (const lean of [0.4, -0.4]) {
+      const { frames, land } = fall(18, 0.6, 0, lean);
+      const flight = frames.slice(0, land);
+      expect(Math.max(...flight.map((f) => f.s.flight.mill))).toBeLessThan(0.01);
+      const late = flight.slice(Math.round(0.8 / DT));
+      const arms = late.map((f) => f.s.flight.arm);
+      expect(Math.max(...arms) - Math.min(...arms)).toBeLessThan(0.4);
+      for (const f of late) {
+        for (const i of [0, 1]) {
+          expect(f.pose.hands[i].z).toBeGreaterThan(f.pose.shoulders[i].z + 0.2);
+        }
+      }
+    }
+  });
+
+  it("carries each pole round the windmill turned with its fist, never swung round it", () => {
+    const { frames, land } = fall(18);
+    let worst = 0;
+    let wide = Infinity;
+    for (let i = 1; i < land; i++) {
+      for (const k of [0, 1]) {
+        const dir = (f: (typeof frames)[number]) => {
+          const h = f.pose.hands[k];
+          const t = f.pose.poles![k];
+          const d = Math.hypot(t.x - h.x, t.y - h.y, t.z - h.z);
+          return { x: (t.x - h.x) / d, y: (t.y - h.y) / d, z: (t.z - h.z) / d };
+        };
+        const [a, b] = [dir(frames[i - 1]), dir(frames[i])];
+        const turn = Math.acos(Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
+        worst = Math.max(worst, turn);
+        if (frames[i].s.flight.mill > 0.5) wide = Math.min(wide, (k ? 1 : -1) * b.x);
+      }
+    }
+    // A circle a second turns the rod some 0.11 rad a frame at 60 Hz: never
+    // a flip, and always turned out from his body, clear of his skis.
+    expect(worst).toBeLessThan(0.16);
+    expect(wide).toBeGreaterThan(0.2);
   });
 
   it("moves every joint smoothly through the fall and the landing", () => {

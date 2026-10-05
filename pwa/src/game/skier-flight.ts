@@ -21,6 +21,14 @@
 //     his arms, to soak up the forward rotation a lip throws a skier into
 //     and keep the tips from dropping. Never flung: a measured circle a
 //     second, wound up from the spot and wound down into the landing.
+//   * COMMITTED (a lean held, at any height): a skier driving his body
+//     over the skis — or back on them — has chosen his line through the
+//     air, and the arms say so: set forward and quiet, a little lower and
+//     narrower than a spot, the chest over them. He never windmills while
+//     he leans: a circle of the arms is a skier fighting a rotation he did
+//     not ask for, and a lean is one he did. Letting go of the lean high
+//     over a cliff lets the windmill back in; taking it mid-circle brakes
+//     the arms home into the set.
 //   * REACH (the last few tenths before the snow, every flight): the arms
 //     brought forward and down ahead of the knees, the legs extended toward
 //     the snow so they have the stroke to take it — further the bigger the
@@ -31,7 +39,9 @@
 // table, a drop skied along the line) stays as secure as a kicker, and a
 // long fall plays further into it — a small drop never reaches the
 // windmill, a big cliff winds it up and keeps it going until the snow
-// comes. The reach is timed off where his flight meets the snow
+// comes. The lean (`SkierState.lean`, after its lag) is read as the
+// commitment: the further it is held the less of the spot's sway and the
+// windmill is left. The reach is timed off where his flight meets the snow
 // (`flightRead`: the engine's own ballistics marched over the map), never
 // guessed off the clock.
 
@@ -62,6 +72,9 @@ export type Flight = {
   millRate: number;
   reach: number;
   reachRate: number;
+  /** How COMMITTED he is — the lean he holds, eased, 0..1. */
+  commit: number;
+  commitRate: number;
   /** How big a fall this is, 0..1 — what the reach extends the legs by. */
   size: number;
   /** THE ARMS' ANGLE in the pair's own vertical plane, rad from hanging
@@ -83,6 +96,8 @@ export function createFlight(): Flight {
     millRate: 0,
     reach: 0,
     reachRate: 0,
+    commit: 0,
+    commitRate: 0,
     size: 0,
     arm: ARMS.spot.a,
     armRate: 0,
@@ -108,6 +123,10 @@ const SIZE = 0.9;
 /** A body turning faster than this, rad/s, is turning on purpose (a flip,
  * a spin on a tricks run) and does not windmill; past `full` not at all. */
 const SPIN = { from: 1.5, full: 3 };
+/** A LEAN held this far (the engine's lean after its lag, either way) is a
+ * skier committed to his line: from `from` the windmill and the sway give
+ * way, at `full` they are gone. */
+const COMMIT = { from: 0.1, full: 0.3 };
 /** THE ARMS on the sphere their shoulders swing them round: the angle
  * from straight down (rad, forward positive), how far out from the body's
  * plane (rad) and how much of the arm's length the fist is from the
@@ -118,6 +137,9 @@ const ARMS = {
   spot: { a: 1.2, out: 0.42, span: 0.8 },
   reach: { a: 0.9, out: 0.3, span: 0.84 },
   mill: { out: 0.45, span: 0.9 },
+  /** Committed: set forward under the shoulders, a little narrower — the
+   * hands where he can see them and nothing moving. */
+  commit: { a: 1.0, out: 0.3, span: 0.8 },
   /** Circles a second at full windmill — measured, never a flail — and
    * how far the left arm runs behind the right, rad. */
   hz: 1.05,
@@ -135,12 +157,32 @@ const ARMS = {
  * reach let go of on the snow more gently than it was taken, so the arms
  * come down out of it as he absorbs — and how fast the circling gets up
  * to speed and the braking into home is taken up, 1/s. */
-const FOLLOW = { spot: 9, mill: 8, reach: 14, settle: 8, speed: 6, home: 12 };
+const FOLLOW = { spot: 9, mill: 8, reach: 14, settle: 8, speed: 6, home: 12, commit: 7 };
 /** What the stages do to the body: the trunk pitched over the knees, rad,
  * the head bowed to the landing (its forward lean), and the legs —
  * gathered while spotting, m, reached long for the snow by `reach` +
  * `reachBig` × the size of the fall, m. */
-const BODY = { spot: 0.14, reachPitch: 0.1, nod: 0.3, gather: 0.03, reach: 0.03, reachBig: 0.11 };
+const BODY = {
+  spot: 0.14,
+  reachPitch: 0.1,
+  nod: 0.3,
+  gather: 0.03,
+  reach: 0.03,
+  reachBig: 0.11,
+  /** …and committed, the chest driven a little further over the knees. */
+  commit: 0.06,
+};
+/** THE POLE IN THE FIST while the arms circle: a closed fist holds the rod
+ * across the forearm with the wrist set, so the rod turns WITH the arm,
+ * keeping the grip he spotted with — hung back and down past his hip with
+ * the arm forward, back with it down, up behind his shoulder with it back,
+ * forward over his head with it up — never run on out of the arm like a
+ * lance, and never swung round the fist on its own. `grip` is the rod's
+ * angle behind the arm in the circle's plane, rad (where the spotting
+ * hang has it, so the circle starts and ends on the pole as it hangs);
+ * `splay` how far it is turned out from the body's plane, rad, so the tip
+ * passes wide of his skis and his head. */
+const POLE = { grip: 1.95, splay: 0.38, off: 1.2 };
 
 /** One value followed on a critically damped spring of `w` rad/s. */
 function follow(v: number, rate: number, to: number, dt: number, w: number): [number, number] {
@@ -192,6 +234,7 @@ export function stepFlight(
   spin: number,
   dt: number,
   gravity = 14.7,
+  lean = 0,
 ): void {
   if (!(dt > 0)) return;
   const clearance = read ? read.clearance : 0.5 * gravity * airTime * airTime;
@@ -200,7 +243,13 @@ export function stepFlight(
   else f.t = 0;
   const reachTo = airborne ? 1 - smooth((ahead - REACH.at) / REACH.over) : 0;
   const spotTo = airborne ? smooth((f.t - SPOT.from) / (SPOT.to - SPOT.from)) : 0;
-  const calm = 1 - smooth((spin - SPIN.from) / (SPIN.full - SPIN.from));
+  const commitTo = airborne
+    ? smooth((Math.abs(lean) - COMMIT.from) / (COMMIT.full - COMMIT.from))
+    : 0;
+  [f.commit, f.commitRate] = follow(f.commit, f.commitRate, commitTo, dt, FOLLOW.commit);
+  f.commit = clamp01(f.commit);
+  // Turning on purpose (a flip, a spin) or leaning on purpose: no windmill.
+  const calm = (1 - smooth((spin - SPIN.from) / (SPIN.full - SPIN.from))) * (1 - smooth(commitTo));
   const wind = airborne ? smooth((ahead - WIND.at) / WIND.over) : 0;
   const circling = smooth((f.t - MILL.from) / (MILL.to - MILL.from)) * calm;
   const millTo = circling * wind;
@@ -223,7 +272,7 @@ export function stepFlight(
   // — the circle finished at its own pace and braked into home ahead of
   // him (or back a little, if they have only just passed it), never
   // hurried round faster than they circled.
-  const home = homeAngle(f.reach);
+  const home = homeAngle(f.reach, f.commit);
   const pace = 2 * Math.PI * ARMS.hz;
   const take = 1 - Math.exp(-FOLLOW.speed * dt);
   if (circling > 0.05 && wind > 0.5) {
@@ -249,10 +298,12 @@ export function stepFlight(
   }
 }
 
-/** Where the arms rest when they are not circling: spotting forward, or
- * reaching down ahead of the knees for the landing. */
-function homeAngle(reach: number): number {
-  return ARMS.spot.a + (ARMS.reach.a - ARMS.spot.a) * reach;
+/** Where the arms rest when they are not circling: spotting forward (set
+ * a little lower when committed), or reaching down ahead of the knees for
+ * the landing. */
+function homeAngle(reach: number, commit: number): number {
+  const set = ARMS.spot.a + (ARMS.commit.a - ARMS.spot.a) * commit;
+  return set + (ARMS.reach.a - set) * reach;
 }
 
 /** THE FALL as the pose reads it (`SkierPoseInput.flight`). */
@@ -266,6 +317,10 @@ export type FlightShape = {
   span: number;
   /** How far round the circle the poles are thrown, 0..1. */
   mill: number;
+  /** How much of each pole the circle turns with its fist, 0..1: the
+   * windmill's, and as much as the arm is still off home while it is
+   * wound down — so the rod is let go of only where it hangs anyway. */
+  pole: [number, number];
   /** The trunk's extra pitch, rad, the head's bow and the hips' rise, m. */
   pitch: number;
   nod: number;
@@ -278,18 +333,33 @@ export function flightShape(f: Flight, clock: number, air: number): FlightShape 
   const reach = f.reach * air;
   const spot = f.spot * air;
   const mill = f.mill * air;
-  const sway = ARMS.sway * spot * (1 - f.mill) * (1 - f.reach);
+  const sway = ARMS.sway * spot * (1 - f.mill) * (1 - f.reach) * (1 - f.commit);
   const rock = Math.sin(2 * Math.PI * ARMS.swayHz * clock);
   const mix = (a: number, b: number, k: number) => a + (b - a) * k;
+  const arm: [number, number] = [f.arm + ARMS.lag * f.mill - sway * rock, f.arm + sway * rock];
+  const home = homeAngle(f.reach, f.commit);
+  const off = (a: number) => {
+    const d = Math.abs(a - home) % (2 * Math.PI);
+    return smooth(Math.min(d, 2 * Math.PI - d) / POLE.off);
+  };
   return {
     w: Math.max(f.spot, f.reach),
-    arm: [f.arm + ARMS.lag * f.mill - sway * rock, f.arm + sway * rock],
-    out: mix(mix(ARMS.spot.out, ARMS.mill.out, f.mill), ARMS.reach.out, f.reach),
-    span: mix(mix(ARMS.spot.span, ARMS.mill.span, f.mill), ARMS.reach.span, f.reach),
+    arm,
+    out: mix(
+      mix(mix(ARMS.spot.out, ARMS.commit.out, f.commit), ARMS.mill.out, f.mill),
+      ARMS.reach.out,
+      f.reach,
+    ),
+    span: mix(
+      mix(mix(ARMS.spot.span, ARMS.commit.span, f.commit), ARMS.mill.span, f.mill),
+      ARMS.reach.span,
+      f.reach,
+    ),
     mill,
+    pole: [Math.max(mill, off(arm[0]) * air), Math.max(mill, off(arm[1]) * air)],
     // The chest and the head let go of on their own springs, never in the
     // step the snow comes: he lands over his knees and looks up out of it.
-    pitch: BODY.spot * f.spot + BODY.reachPitch * f.reach,
+    pitch: BODY.spot * f.spot + BODY.commit * f.commit * f.spot + BODY.reachPitch * f.reach,
     nod: BODY.nod * Math.max(f.spot, f.reach),
     lift: (BODY.reach + BODY.reachBig * f.size) * reach - BODY.gather * spot * (1 - f.reach),
   };
@@ -319,19 +389,17 @@ export function flightHands(F: FlightShape, shoulders: [V3, V3], hands: V3[], ar
   }
 }
 
-/** THE POLES CARRIED ROUND with the windmill: each rod run on out of its
- * arm and trailing the circle, so it sweeps clear of him and his skis. */
+/** THE POLES CARRIED ROUND with the windmill (`POLE`): each rod turned
+ * with its fist at the grip it was hanging in, turned out wide of him, so
+ * it sweeps clear of his skis and his head as a held rod does. */
 export function flightPole(F: FlightShape, i: number, hand: V3, tip: V3, pole: number): V3 {
-  if (F.mill <= 0) return tip;
+  const k = F.pole[i];
+  if (k <= 0) return tip;
   const side = i ? 1 : -1;
-  const a = F.arm[i];
-  const out = armDir(side, a, F.out);
-  const c = Math.cos(F.out);
-  // The circle runs down through the angle: it trails toward a larger one.
-  const trail = { x: 0, y: Math.sin(a) * c, z: Math.cos(a) * c };
-  const swept = norm(add(out, scale(trail, 0.5)));
+  const p = F.arm[i] - POLE.grip;
+  const c = Math.cos(POLE.splay);
+  const swept = { x: side * Math.sin(POLE.splay), y: -Math.cos(p) * c, z: Math.sin(p) * c };
   const now = norm({ x: tip.x - hand.x, y: tip.y - hand.y, z: tip.z - hand.z });
-  const k = F.mill;
   return add(
     hand,
     scale(

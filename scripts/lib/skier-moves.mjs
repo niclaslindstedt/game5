@@ -311,6 +311,15 @@ export const MOVES = [
     input: () => IDLE,
   },
   {
+    id: "cliff-lean",
+    title: "the same 12 m cliff ridden committed — a forward lean held: the arms set, no windmill",
+    level: (S) => S.flatLevel({ packed: 1, grade: CLIFF, slopeFrom: 200, size: 4000 }),
+    place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6, height: 13 }),
+    seconds: 1.95,
+    window: [0, 1.88],
+    input: () => ({ ...IDLE, lean: 0.4 }),
+  },
+  {
     id: "wipeout",
     title: "dropped 8 m at 70 km/h onto the groomer: the legs buckle",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -354,6 +363,7 @@ export const MOMENTS = [
   { id: "stopping", move: "hockey", t: 0.95, say: "a hockey stop at its hardest" },
   { id: "spot", move: "ledge", t: 0.7, say: "spotting the landing off a 3 m drop" },
   { id: "windmill", move: "cliff", t: 1.35, say: "windmilling down a 12 m cliff" },
+  { id: "committed", move: "cliff-lean", t: 1.35, say: "committed down a 12 m cliff, a lean held" },
   { id: "reach", move: "cliff", t: 1.75, say: "reaching for the snow at the foot of a cliff" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
   { id: "pivot", move: "pivot", t: 0.25, say: "a step turn on the spot: the inside ski stepped" },

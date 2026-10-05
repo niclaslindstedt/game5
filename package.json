@@ -76,7 +76,7 @@
     "native:android": "npm --prefix native run android"
   },
   "dependencies": {
-    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.1"
+    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

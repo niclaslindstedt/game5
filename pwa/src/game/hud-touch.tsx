@@ -36,10 +36,12 @@ import {
   barReachPx,
   barSteer,
   createJumpTap,
+  edgeReachPx,
   jumpTapDown,
   jumpTapUp,
   leverBrake,
   leverTuck,
+  trailAnchor,
   type TouchFeel,
 } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
@@ -68,8 +70,9 @@ export function stillDown(zone: EventTarget | null): (pointerId: number) => bool
 const BAR_LOCK_DEG = 28;
 /** The bar's drawing is this many px across (styles.css `.hud-bar-svg`),
  * mapped onto a hundred-unit box — so the reach ring can be drawn at the
- * thumb's real travel (`barReachPx`, which the sensitivity moves: the
- * drawing lets a wider ring overhang its box). */
+ * thumb's real travel (`edgeReachPx` across, `barReachPx` up and down,
+ * both of which the sensitivity moves: the drawing lets a wider ring
+ * overhang its box). */
 const BAR_SVG_PX = 200;
 /** Half the drawn bar's own height, units: the crossbar's top edge to the
  * base grip's bottom. The art is drawn CENTRED on the box (that is what the
@@ -95,8 +98,10 @@ export function BarZone({
   feel: TouchFeel;
   side: ZoneSide;
 }) {
-  /** The reach ring's radius in the drawing's own units... */
+  /** The reach ring's half-height in the drawing's own units — the lean's
+   * throw — and its half-width, the edge's (shorter on a slalom)... */
   const reachUnits = (barReachPx(feel) / BAR_SVG_PX) * 100;
+  const edgeUnits = (edgeReachPx(feel) / BAR_SVG_PX) * 100;
   /** ...so the bar slides this far at full lean: right up against the reach
    * ring and no further, at BOTH ends of the axis.
    *
@@ -168,6 +173,14 @@ export function BarZone({
       }}
       onPointerMove={(e) => {
         if (!guard.owns(e.pointerId)) return;
+        // A thumb past full edge drags the anchor (and the drawing) along.
+        const origin = originRef.current;
+        const x = trailAnchor(origin.x, e.clientX, edgeReachPx(feel));
+        if (x !== origin.x) {
+          const bar = barRef.current;
+          if (bar) bar.style.left = `${parseFloat(bar.style.left) + x - origin.x}px`;
+          origin.x = x;
+        }
         write(
           barSteer(e.clientX - originRef.current.x, feel),
           barLean(e.clientY - originRef.current.y, feel),
@@ -181,8 +194,9 @@ export function BarZone({
     >
       <div ref={barRef} class="hud-bar" aria-hidden="true">
         <svg class="hud-bar-svg" viewBox="0 0 100 100" overflow="visible">
-          {/* The reach ring: how far the thumb can go for full lock. */}
-          <circle cx="50" cy="50" r={reachUnits} class="hud-bar-reach" />
+          {/* The reach ring: how far the thumb can go for full edge across
+              and full lean up and down. */}
+          <ellipse cx="50" cy="50" rx={edgeUnits} ry={reachUnits} class="hud-bar-reach" />
           <g ref={rotorRef}>
             {/* THE SKIS under the thumb, seen from above — drawn CENTRED
                 on the box, so that a lean slides them the same distance

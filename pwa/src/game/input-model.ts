@@ -85,7 +85,13 @@ export const LEVER_BRAKE_PX = 60;
  * pushed AWAY as the lean back, the way a flight stick does. The keys never
  * pass through it — a key is a whole press either way, and the binding page
  * is how a key is turned round. */
-export type TouchFeel = { sensitivity: number; invertLean: boolean };
+export type TouchFeel = {
+  sensitivity: number;
+  invertLean: boolean;
+  /** The share of `BAR_REACH_PX` the EDGE's throw spans on this run, 1 when
+   * absent — shorter on a slalom (`edgeFeel`). The lean keeps its own. */
+  edgeReach?: number;
+};
 export const PLAIN_FEEL: TouchFeel = { sensitivity: 1, invertLean: false };
 
 /** How deep the tuck is for a thumb `dyPx` below its anchor (screen y
@@ -177,10 +183,41 @@ export const LEAN_DEAD_PX = 14;
  * the reach ring is drawn, as the steer does. */
 export const LEAN_REACH_PX = BAR_REACH_PX - LEAN_DEAD_PX;
 
+/** THE EDGE THROW ON A SLALOM, as a share of `BAR_REACH_PX`. A slalom
+ * gate comes round every second or so and each one asks the edge thrown
+ * from full on one side to full on the other: at the whole reach that is a
+ * thumb swept 180 px a second, which no thumb keeps up gate after gate. At
+ * this share the swing is half that, and the lean — which a slalom barely
+ * asks for — keeps its whole travel, so a quick swing that strays a little
+ * up or down neither leans him nor throws the back key. */
+export const SLALOM_EDGE_REACH = 0.55;
+
+/** How the thumbs read on a run of `discipline` (a race's, or null): the
+ * player's own feel, with the edge's throw shortened on a slalom. */
+export function edgeFeel(feel: TouchFeel, discipline: string | null): TouchFeel {
+  return discipline === "slalom" ? { ...feel, edgeReach: SLALOM_EDGE_REACH } : feel;
+}
+
+/** The thumb travel that IS full edge, px, for a feel: the reach ring's
+ * width, and how far the anchor trails a thumb past it (`trailAnchor`). */
+export function edgeReachPx(feel: TouchFeel = PLAIN_FEEL): number {
+  return (BAR_REACH_PX * (feel.edgeReach ?? 1)) / feel.sensitivity;
+}
+
 /** Screen-space steer, -1..1, for a thumb `dxPx` right of its anchor. */
 export function barSteer(dxPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  const travel = clamp((dxPx * feel.sensitivity) / BAR_REACH_PX, -1, 1);
+  const travel = clamp(dxPx / edgeReachPx(feel), -1, 1);
   return Math.sign(travel) * Math.abs(travel) ** BAR_THROW_CURVE;
+}
+
+/** THE ANCHOR TRAILS A THUMB PAST FULL EDGE, sideways only: a thumb swept
+ * past the ring drags the anchor along behind it, so the way back is never
+ * longer than the throw. Without it a thumb that overshot by an inch had
+ * that inch to come back before the edge even began to come off, and the
+ * swing to full edge the other way fell short by it — gate after gate, as
+ * the overshoots added up. The anchor's x for a thumb at `thumbX`. */
+export function trailAnchor(anchorX: number, thumbX: number, reachPx: number): number {
+  return clamp(anchorX, thumbX - reachPx, thumbX + reachPx);
 }
 
 /** Lean, -1..1, for a thumb `dyPx` below its anchor: pulling the control
@@ -194,9 +231,9 @@ export function barLean(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
   return clamp((Math.sign(dy) * beyond) / LEAN_REACH_PX, -1, 1);
 }
 
-/** Where the edge control's reach ring is drawn for a feel, px: the thumb
- * travel that IS full edge, so the circle a player sees is still the
- * control's whole extent at any sensitivity. */
+/** How far the lean's throw reaches for a feel, px: the reach ring's
+ * height, so the ring a player sees is still the control's whole extent at
+ * any sensitivity (its width is the edge's, `edgeReachPx`). */
 export function barReachPx(feel: TouchFeel = PLAIN_FEEL): number {
   return BAR_REACH_PX / feel.sensitivity;
 }

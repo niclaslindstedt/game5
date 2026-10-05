@@ -18,6 +18,7 @@ import type { SkiId, SkiSpec } from "./defs/skis.ts";
 import type { Assist, RunRules } from "./defs/modes.ts";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
 import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
+import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
@@ -303,19 +304,9 @@ export type SkierState = {
  * skid of a helicopter that crashed (`heli.ts`), or thrown off a snowmobile
  * rolled, looped, landed too hard or run into a trunk (`sled.ts`), swept
  * off his feet by the empty chair he stood up off (`lift-ride.ts`), or
- * driven into a downhill's A-nets (`nets.ts`). */
-export type CrashCause =
-  | "tree"
-  | "nose"
-  | "roll"
-  | "catch"
-  | "landing"
-  | "skier"
-  | "heli"
-  | "sled"
-  | "stake"
-  | "chair"
-  | "net";
+ * driven into a downhill's A-nets (`nets.ts`) — one name a row of
+ * `crash.over`, which says how each throws him. */
+export type CrashCause = keyof typeof CRASH.over;
 
 /** WHAT HE NEARLY FELL TO (`crash.ts`): a hard landing ridden out, a trunk
  * taken on the shoulder, a hand or a hip down on the snow and pushed back
@@ -375,9 +366,7 @@ export type Thrown = {
    * by `body.ts`; nothing in the fall reads them back. */
   impacts: number[];
   struck: number[];
-  /** Which of his points are in a downhill's A-net this step, one bit a
-   * point in `RAGDOLL` order (`nets.ts`'s `catchInNets`) — what the drawn
-   * net bulges round. */
+  /** Which of his points are in an A-net this step, a bit each (`catchInNets`). */
   netted: number;
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
@@ -408,9 +397,8 @@ export type LoneSki = {
   spin: number;
   /** Which end is on the snow, one bit each: 1 the tip, 2 the tail. */
   touching: number;
-  /** THE NET (`nets.ts`): which end is HOOKED in an A-net's mesh, one bit
-   * each as `touching` — held where it caught, `hook` (x y z each end) —
-   * and the end the mesh had its one chance at the ski by, 0 before. */
+  /** Which end is HOOKED in an A-net (bits as `touching`), held at `hook`;
+   * `tried`, the end the mesh had its one chance by, 0 before (`nets.ts`). */
   hooked: number;
   hook: number[];
   tried: number;

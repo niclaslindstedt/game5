@@ -27,9 +27,9 @@
 // plank CUT AS AN ARROW the way its run leaves (`signsOf`).
 
 import {
-  LIFT_LOOK,
   RESORT_RULES,
   chairLane,
+  clearOfLifts,
   liftPlans,
   trackPointAt,
   type Level,
@@ -143,32 +143,6 @@ function boardOf(level: Level, run: Run, arrow: SignArrow): Omit<SignBoard, "y">
     width: size.width,
     height: size.height,
   };
-}
-
-/** What a sign keeps clear of at a lift, m: past a station house's walls,
- * and either side of the line (its ropes, its towers, its drag track). */
-const CLEAR = { house: 3, line: 3.5 };
-
-/** Whether (x, z) stands clear of every lift of the area — its two station
- * houses (as `lifts.ts` stands them: behind each wheel, along the line, as
- * `LIFT_LOOK` measures them) and the line from wheel to wheel. */
-export function clearOfLifts(level: Level, x: number, z: number): boolean {
-  for (const lift of level.resort?.lifts ?? []) {
-    const look = LIFT_LOOK[lift.kind];
-    const ex = lift.top.x - lift.bottom.x;
-    const ez = lift.top.z - lift.bottom.z;
-    const len = Math.max(1, Math.hypot(ex, ez));
-    const dx = ex / len;
-    const dz = ez / len;
-    // Along the line from the bottom wheel, and across it.
-    const u = (x - lift.bottom.x) * dx + (z - lift.bottom.z) * dz;
-    const v = Math.abs((x - lift.bottom.x) * dz - (z - lift.bottom.z) * dx);
-    if (u > -CLEAR.line && u < len + CLEAR.line && v < look.gauge / 2 + CLEAR.line) return false;
-    const reach = look.house.length + 1.5 + CLEAR.house;
-    const across = (look.house.width + look.gauge) / 2 + CLEAR.house;
-    if (v < across && ((u <= 0 && u > -reach) || (u >= len && u < len + reach))) return false;
-  }
-  return true;
 }
 
 /** Whether (x, z) stands clear of every trunk by a couple of metres. */

@@ -20,6 +20,7 @@
 
 import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
+import { stepStakes } from "./edge-stakes.ts";
 import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
@@ -123,6 +124,8 @@ export function stepRun(run: GameState, input: SkierInput, events: GameEvent[]):
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
+  // THE EDGE STAKES (`edge-stakes.ts`): bent over, snapped, whipping back.
+  stepStakes(run, events, off !== null);
   keepInBounds(run);
   // THE A-NETS beside a downhill (`nets.ts`): held on them, or out.
   stepNets(run, events);

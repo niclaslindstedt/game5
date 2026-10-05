@@ -30,7 +30,7 @@ import {
   trackPointAt,
 } from "../mapgen/index.ts";
 import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
-import { treesNear } from "../game/collision.ts";
+import { solidsNear, solidsOf } from "../game/posts.ts";
 import { gateLineAt, lineBendAt } from "../game/course.ts";
 import {
   brakeDecel,
@@ -518,7 +518,13 @@ function landingAhead(state: GameState): number {
   return 2;
 }
 
-/** Move the aim off a trunk standing in the line from the skier to it. */
+/** How far ahead along the way he is actually going the bot looks for a
+ * trunk or a post, s at his speed — the drift its aim does not show. */
+const TRAVEL_LOOK = 1.2;
+
+/** Move the aim off a trunk or a post (`posts.ts`) standing in the line
+ * from the skier to it — or, with that line clear, in the way he is
+ * actually going, which a skier drifting wide of his aim runs into. */
 function dodgeTrees(
   state: GameState,
   tx: number,
@@ -531,12 +537,41 @@ function dodgeTrees(
   const len = hypot(dx, dz) || 1;
   const ux = dx / len;
   const uz = dz / len;
-  const look = Math.min(len, profile.treeLook);
-  treesNear(state.level, c.x + (ux * look) / 2, c.z + (uz * look) / 2, look / 2 + 2, near);
+  const side = blockedSide(state, ux, uz, Math.min(len, profile.treeLook), profile);
+  if (side !== 0) return [tx + uz * side * profile.dodge, tz - ux * side * profile.dodge];
+  const speed = hypot(c.vx, c.vz);
+  if (speed < 1) return [tx, tz];
+  const vx = c.vx / speed;
+  const vz = c.vz / speed;
+  const drift = blockedSide(
+    state,
+    vx,
+    vz,
+    Math.min(profile.treeLook, speed * TRAVEL_LOOK),
+    profile,
+  );
+  if (drift === 0) return [tx, tz];
+  // Right of travel is (vz, −vx).
+  return [tx + vz * drift * profile.dodge, tz - vx * drift * profile.dodge];
+}
+
+/** Which side to pass the nearest trunk or post standing within the
+ * corridor `look` m along (ux, uz) from the skier: −1 left, 1 right, 0
+ * when the way is clear. */
+function blockedSide(
+  state: GameState,
+  ux: number,
+  uz: number,
+  look: number,
+  profile: BotProfile,
+): number {
+  const c = state.skier;
+  solidsNear(state.level, c.x + (ux * look) / 2, c.z + (uz * look) / 2, look / 2 + 2, near);
+  const solids = solidsOf(state.level);
   let bestAlong = Infinity;
   let side = 0;
   for (const i of near) {
-    const t = state.level.trees[i];
+    const t = solids[i];
     const rx = t.x - c.x;
     const rz = t.z - c.z;
     const along = rx * ux + rz * uz;
@@ -550,9 +585,7 @@ function dodgeTrees(
       side = across >= 0 ? -1 : 1;
     }
   }
-  if (side === 0) return [tx, tz];
-  // Right of travel is (uz, −ux).
-  return [tx + uz * side * profile.dodge, tz - ux * side * profile.dodge];
+  return side;
 }
 
 /** The bot's controls for this step. `lane` is the line it holds down the
@@ -648,6 +681,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     aim.z += Math.cos(aim.heading) * Math.max(0, over);
   }
   const [tx, tz] = dodgeTrees(state, aim.x, aim.z, profile);
+  const dodging = tx !== aim.x || tz !== aim.z;
 
   const input: SkierInput = { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false };
   if (c.airborne) {
@@ -684,8 +718,15 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   input.steer = clamp(profile.steerGain * (1 - powder * profile.powderEase) * error, -1, 1);
   // ON A DOWNHILL'S LINE the line's own bend is fed forward
   // (`downhill-steer.ts`): a point chased ahead lags it through a long turn
-  // by the width of a gate.
-  if (speedCourseOf(level) && state.rules.course && p.started && on.distance <= halfWidth + 2) {
+  // by the width of a gate — unless a post stands on the line (a lift's
+  // tower on the course's snow), when he goes round it first.
+  if (
+    speedCourseOf(level) &&
+    state.rules.course &&
+    p.started &&
+    on.distance <= halfWidth + 2 &&
+    !dodging
+  ) {
     input.steer = downhillSteer(state, on) ?? input.steer;
   }
   // ON A SLALOM'S LINE the skis are steered off the line itself rather than

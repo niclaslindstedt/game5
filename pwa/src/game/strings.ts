@@ -175,6 +175,10 @@ export const STRINGS = {
         ? `MISSED GATE ${index}  +${Number(penalty.toFixed(1))} s`
         : `MISSED GATE ${index}`,
   newsTree: "TREE!",
+  /** A lift's tower or a floodlight mast met (`posts.ts`), and an edge
+   * stake snapped off (`edge-stakes.ts`). */
+  newsPost: "POST!",
+  newsStake: "STAKE DOWN",
   /** A landing the legs paid for, and a big one ridden away — its load in
    * g (`flight.ts`'s `landingLoad`). */
   newsHarsh: (g: number): string => `HARD LANDING · ${g.toFixed(1)} G`,
@@ -182,36 +186,40 @@ export const STRINGS = {
   newsReset: "BACK ON THE PISTE",
   /** THE SAVE (`crash.ts`): a near fall ridden out, by what nearly put
    * the skier down — a hard landing, a trunk on the shoulder, the body on
-   * the snow and back up, an edge that bit. */
-  newsSave: (kind: "landing" | "tree" | "body" | "edge"): string =>
+   * the snow and back up, an edge that bit, a stake run through. */
+  newsSave: (kind: "landing" | "tree" | "body" | "edge" | "stake"): string =>
     kind === "landing"
       ? "SAVED THE LANDING"
       : kind === "tree"
         ? "SHRUGGED OFF THE TREE"
         : kind === "body"
           ? "BACK UP!"
-          : "HELD THE EDGE",
+          : kind === "stake"
+            ? "STAYED UP!"
+            : "HELD THE EDGE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
    * landing taken over the tips, a fall at speed, an edge caught, a
-   * landing on the body or one the legs folded under. */
+   * landing on the body or one the legs folded under, a stake hit fast. */
   newsWipeout: (
-    cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled",
+    cause: "tree" | "nose" | "roll" | "catch" | "landing" | "skier" | "heli" | "sled" | "stake",
   ): string =>
     cause === "heli"
       ? "THROWN CLEAR!"
-      : cause === "sled"
-        ? "OFF THE SLED!"
-        : cause === "tree"
-          ? "YARD SALE! TREE"
-          : cause === "skier"
-            ? "YARD SALE! TAKEN OUT"
-            : cause === "nose"
-              ? "OVER THE TIPS"
-              : cause === "roll"
-                ? "YARD SALE"
-                : cause === "landing"
-                  ? "CRASH LANDING"
-                  : "EDGE CAUGHT",
+      : cause === "stake"
+        ? "YARD SALE! STAKE"
+        : cause === "sled"
+          ? "OFF THE SLED!"
+          : cause === "tree"
+            ? "YARD SALE! TREE"
+            : cause === "skier"
+              ? "YARD SALE! TAKEN OUT"
+              : cause === "nose"
+                ? "OVER THE TIPS"
+                : cause === "roll"
+                  ? "YARD SALE"
+                  : cause === "landing"
+                    ? "CRASH LANDING"
+                    : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */

@@ -47,7 +47,7 @@
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
-import { treesNear } from "./collision.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedUnder } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
 
@@ -247,7 +247,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     );
   }
   const com0 = centreOf(P);
-  treesNear(level, com0.x, com0.z, 2, near);
+  solidsNear(level, com0.x, com0.z, 2, near);
+  const solids = solidsOf(level);
   // The blows this step (`Thrown.impacts`, `.struck`), for `body.ts`.
   const hit = b.impacts;
   const struck = b.struck;
@@ -268,7 +269,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
       P[j] = clamp(P[j], lo, hi);
       P[j + 2] = clamp(P[j + 2], lo, hi);
       for (const t of near) {
-        const tree = level.trees[t];
+        const tree = solids[t];
         if (P[j + 1] > tree.y + tree.height) continue;
         const dx = P[j] - tree.x;
         const dz = P[j + 2] - tree.z;

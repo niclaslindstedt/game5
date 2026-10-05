@@ -24,6 +24,8 @@ for staging exact contacts.
 | --- | --- |
 | Trunks: a vertical cylinder per tree, the skier as three plan circles down the skis' length (`trees.bodyRadius`), push-out along the line of centres, restitution, the scrub along the trunk, the lever that turns him; hashed per level (`treesNear`); the `hit` event | `engine/game/collision.ts` (`collideTrees`) |
 | The map's edge: a soft push over the last `bounds.soft`, a hard stop `bounds.margin` inside | `engine/game/collision.ts` (`keepInBounds`) |
+| POSTS: every lift tower's column and bullwheel post, every floodlight mast — met as a trunk is, one list with the trunks (`solidsOf`, trunks first) that the skier, the ragdoll, the loose skis, the snowmobile and both bots read; a `hit` with `post` | `engine/game/posts.ts`, `piste-masts.ts` (where the masts stand), `upright-grid.ts` (the hash), `LiftLook.column` |
+| EDGE STAKES: the marker poles down both run edges — bent over and whipping back, snapped past `stakes.snap`, a little speed and a twist, a throw past `crash.stakeSpeed`; a run's own (`GameState.stakes`); the `stake` event | `engine/game/edge-stakes.ts` (`stakePlan`, `stepStakes`), `TUNING.stakes` (`defs/stakes.ts`) |
 | The body on the snow: the hips, the shoulders, the helmet, the knees, the skis' tips and tails — impulses when the legs run out | `engine/game/chassis.ts` (the `ski-physics` skill) |
 | Gates: a line across the piste crossed in its facing direction within its width plus `course.grace` (the START GATE with `startGrace` more); ONE LIVE AT A TIME; the finish | `engine/game/course.ts` (`crossedCheckpoint`, `crossedLine`, `stepCourse`) |
 | The arrow to the owed gate | `bearingToNext` in `course.ts` — the HUD and the bot both read it |
@@ -40,8 +42,9 @@ for staging exact contacts.
 
 | Event | Fires when | Carries |
 | --- | --- | --- |
-| `hit` | A body circle met a trunk at `trees.hitSpeed` closing or more, at most once per `trees.cooldown` | the closing speed, where |
+| `hit` | A body circle met a trunk or a post at `trees.hitSpeed` closing or more, at most once per `trees.cooldown` | the closing speed, where, `post` on a post |
 | `bump` | The player met a rival | which rival, the speed |
+| `stake` | An edge stake swept over, met standing, at `stakes.knock` closing or more | the speed, whether it snapped, where |
 | `air` | The skier has been off the snow `air.counts` s | the climb he left with, the speed |
 | `land` | Back on the snow after `air` | air time, impact INTO the slope, `harsh`, the share `lost` |
 | `checkpoint` | The owed gate's line crossed, facing, within its width + grace | index, lap (always 0), split |

@@ -363,6 +363,16 @@ export {
   TRACK_RUN,
 } from "./game/skied.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
+export { uprightsNear, type Upright } from "./game/upright-grid.ts";
+export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
+export {
+  mastHeight,
+  mastLines,
+  pisteMasts,
+  PISTE_MAST,
+  type MastSite,
+} from "./game/piste-masts.ts";
 export {
   clipRiders,
   createRivals,
@@ -425,6 +435,8 @@ export {
   CHAIR_EXIT,
   chairLane,
   liftPlans,
+  clearOfLifts,
+  COLUMN_TAPER,
   stationHouses,
   queueLane,
   queueSpot,

@@ -4,7 +4,7 @@
 //
 // A PROFESSIONAL'S RESILIENCE: he goes down only when the body physically
 // cannot stay up — and everything short of that he rides out, the save
-// kept for the figure to play (`noteSave`, `SkierState.save`). SIX WAYS
+// kept for the figure to play (`noteSave`, `SkierState.save`). SEVEN WAYS
 // OFF, each a threshold on something the step has already measured, and
 // each well past anything a clean run meets (`TUNING.crash`):
 //   - a TRUNK met hard — the `hit` event's closing speed past `treeSpeed`
@@ -34,7 +34,11 @@
 //   - a CAUGHT EDGE, the high-side — a ski stood well over on its edge
 //     (`catchEdge`) while the snow slides past across it faster than
 //     `catchSlip`: the edge bites all at once and the body is thrown over
-//     it.
+//     it;
+//   - an EDGE STAKE run into — the `stake` event's closing speed past
+//     `stakeSpeed` (`edge-stakes.ts`): light as it is, caught on a tip, a
+//     boot or a pole at that pace it snatches the limb back and he loses
+//     his balance.
 //
 // THE SKIER THROWN is a body of his own (`Thrown`): a RAGDOLL
 // (`ragdoll.ts`) — the hips, the shoulders, the head and the four limbs as
@@ -135,6 +139,7 @@ export function wipeoutCause(
     if (e.kind === "hit") {
       if (e.speed >= trunkAt(c, e.x, e.z).limit) return "tree";
     }
+    if (e.kind === "stake" && e.speed >= crashLimit(c, "stakeSpeed")) return "stake";
     if (e.kind !== "land") continue;
     landed = true;
     // Only the touchdown that ends a real flight: the rebound hop off a
@@ -208,6 +213,8 @@ export function noteSave(state: GameState, events: GameEvent[]): void {
     if (e.kind === "hit") {
       const at = trunkAt(c, e.x, e.z);
       offer("tree", e.speed / at.limit, at.side);
+    } else if (e.kind === "stake") {
+      offer("stake", e.speed / crashLimit(c, "stakeSpeed"), trunkAt(c, e.x, e.z).side);
     } else if (e.kind === "land" && e.airTime >= TUNING.landing.air) {
       const tip = noseDown(state);
       const roll = Math.abs(sideOf.roll);
@@ -287,9 +294,11 @@ function fallSide(
   const c = state.skier;
   const rx = Math.cos(heading);
   const rz = -Math.sin(heading);
-  if (cause === "tree") {
-    const hit = events.find((e) => e.kind === "hit");
-    if (hit && hit.kind === "hit") return (hit.x - c.x) * rx + (hit.z - c.z) * rz > 0 ? -1 : 1;
+  if (cause === "tree" || cause === "stake") {
+    const hit = events.find((e) => e.kind === (cause === "tree" ? "hit" : "stake"));
+    if (hit && (hit.kind === "hit" || hit.kind === "stake")) {
+      return (hit.x - c.x) * rx + (hit.z - c.z) * rz > 0 ? -1 : 1;
+    }
   }
   const side = c.bodySide || rolledSide(state).side;
   const r = rotate(c.q, { x: side, y: 0, z: 0 });

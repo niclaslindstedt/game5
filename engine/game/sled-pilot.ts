@@ -12,10 +12,10 @@
 // Pure over the state; draws nothing from the stream.
 
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { treesNear } from "./collision.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
-/** How far ahead the bot looks for trunks, m, and how wide a lane it wants
+/** How far ahead the bot looks for trunks and posts (`posts.ts`), m, and how wide a lane it wants
  * clear of them either side of the machine's centre line, m. */
 const LOOK = 24;
 const LANE = 2.4;
@@ -30,8 +30,9 @@ function dodge(run: GameState): { steer: number; slow: number } {
   const fz = Math.cos(s.heading);
   let steer = 0;
   let slow = 0;
-  for (const i of treesNear(run.level, s.x, s.z, LOOK, near)) {
-    const t = run.level.trees[i];
+  const solids = solidsOf(run.level);
+  for (const i of solidsNear(run.level, s.x, s.z, LOOK, near)) {
+    const t = solids[i];
     const dx = t.x - s.x;
     const dz = t.z - s.z;
     const along = dx * fx + dz * fz;

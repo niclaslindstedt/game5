@@ -60,13 +60,19 @@ export const CRASH = {
   catchEdge: 0.85,
   catchSlip: 9,
   catchSkid: 0.5,
+  /** AN EDGE STAKE RUN INTO (`edge-stakes.ts`) at this closing speed or
+   * more, m/s (54 km/h): it gives, but caught on a tip, a boot or a pole
+   * at that pace it snatches the limb back faster than the body can
+   * follow, and he loses his balance. */
+  stakeSpeed: 15,
   /** THE CLUB SKIER: the same thresholds for a skier of resilience 0
    * (`SkierState.resilience`) — the professional's above are 1, and a
    * skier between is the blend (`crash.ts`'s `crashLimit`). A trunk on
    * the tips at 18 km/h and on the shoulder at 22, the tips digging at
    * 25° in loose snow and 32° on the groomer, down from a body drop of
    * five centimetres, the legs folding at 10 g, a hand down held for an
-   * eighth of a second, an edge caught at 40° and 22 km/h across it. */
+   * eighth of a second, an edge caught at 40° and 22 km/h across it, a
+   * stake run into at 32 km/h. */
   club: {
     treeSpeed: 5,
     treeShoulder: 6,
@@ -77,6 +83,7 @@ export const CRASH = {
     rollHold: 0.12,
     catchEdge: 0.7,
     catchSlip: 6,
+    stakeSpeed: 9,
   },
   /** THE SAVE (`SkierState.save`): how near a thing came to throwing him
    * is a share of its threshold, and a save is kept from `saveFrom` of
@@ -128,6 +135,9 @@ export const CRASH = {
     heli: { pitch: 0.8, side: 0.6, up: 3 },
     // Thrown off a snowmobile: over the bars and off the side.
     sled: { pitch: 0.7, side: 0.7, up: 1.4 },
+    // A stake caught on a ski: the leg snatched back, pitched forward and
+    // round onto the side it caught.
+    stake: { pitch: 0.75, side: 0.5, up: 0.9 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

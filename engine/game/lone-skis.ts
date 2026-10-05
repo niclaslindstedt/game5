@@ -30,7 +30,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { fromEuler, rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
-import { treesNear } from "./collision.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { depthUnder, packedUnder } from "./snow.ts";
 import type { GameState, LoneSki, SkierState, Thrown } from "./state.ts";
@@ -202,7 +202,8 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
   }
   // The trunks and the map's edge, then the snow: no end inside a trunk,
   // none under the surface.
-  treesNear(level, (P[0] + P[3]) / 2, (P[2] + P[5]) / 2, length, near);
+  solidsNear(level, (P[0] + P[3]) / 2, (P[2] + P[5]) / 2, length, near);
+  const solids = solidsOf(level);
   const lo = TUNING.bounds.margin;
   const hi = level.size - TUNING.bounds.margin;
   let touching = 0;
@@ -211,7 +212,7 @@ function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
     P[j] = clamp(P[j], lo, hi);
     P[j + 2] = clamp(P[j + 2], lo, hi);
     for (const t of near) {
-      const tree = level.trees[t];
+      const tree = solids[t];
       if (P[j + 1] > tree.y + tree.height) continue;
       const dx = P[j] - tree.x;
       const dz = P[j + 2] - tree.z;

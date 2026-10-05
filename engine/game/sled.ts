@@ -20,7 +20,7 @@
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { treesNear } from "./collision.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
 import { SLED, SLED_PROBES, sledMass } from "./defs/sled.ts";
@@ -270,18 +270,19 @@ function drive(
 
 const near: number[] = [];
 
-/** THE TRUNKS against the machine's plan — a capsule down its length —
- * pushed out of, the closing speed taken off and a little back. Returns
- * the hardest closing speed met, m/s. */
+/** THE TRUNKS AND THE POSTS (`posts.ts`) against the machine's plan — a
+ * capsule down its length — pushed out of, the closing speed taken off and
+ * a little back. Returns the hardest closing speed met, m/s. */
 function trees(run: GameState, s: SledState): number {
   const level = run.level;
-  if (level.trees.length === 0) return 0;
-  treesNear(level, s.x, s.z, HALF_L + 1, near);
+  const solids = solidsOf(level);
+  if (solids.length === 0) return 0;
+  solidsNear(level, s.x, s.z, HALF_L + 1, near);
   const fx = Math.sin(s.heading);
   const fz = Math.cos(s.heading);
   let worst = 0;
   for (const i of near) {
-    const t = level.trees[i];
+    const t = solids[i];
     if (s.y < t.y - 1 || s.y > t.y + t.height) continue;
     // The nearest point on the machine's spine to the trunk.
     const rx = t.x - s.x;

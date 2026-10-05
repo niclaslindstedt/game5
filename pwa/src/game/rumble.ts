@@ -138,6 +138,13 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
       return { ms: 40 + 50 * hard, strength: 0.25 + 0.3 * hard };
     }
 
+    // AN EDGE STAKE bent over or snapped: the same knock, a little more
+    // where it broke.
+    case "stake": {
+      const hard = ramp(event.speed, 2, POLE_FULL);
+      return { ms: 40 + 50 * hard, strength: 0.2 + 0.3 * hard + (event.broke ? 0.15 : 0) };
+    }
+
     // INTO THE A-NETS (R32): a long soft heave, the mesh taking him — the
     // harder he drove into it, the longer and fuller.
     case "net": {

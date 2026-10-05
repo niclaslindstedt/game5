@@ -14,80 +14,42 @@
 // speed along the trunk is scrubbed, and the push's lever about the CoG
 // turns the skier — which is why a clipped tip spins a skier round and a
 // trunk met dead centre stops him. The trunks are hashed once per level, so
-// a step reads the handful near the skier rather than the forest.
+// a step reads the handful near the skier rather than the forest
+// (`upright-grid.ts`).
+//
+// A POST is met the same way: a lift tower's steel column or a floodlight
+// mast's pole (`posts.ts`) is a cylinder from the snow to its head, as
+// solid as any trunk and reported as the same `hit`.
 //
 // THE EDGE is a soft push back toward the middle over the last `bounds.soft`
 // metres and a hard wall `bounds.margin` inside the map's own edge.
 
-import { cellKey, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { Level, TreeDef } from "../mapgen/types.ts";
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { envelopeOf, inertiaOf, totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import type { GameEvent, GameState } from "./state.ts";
+import { treesNear } from "./upright-grid.ts";
+
+export { treesNear };
 
 const K = TUNING.trees;
 const dt = TUNING.dt;
-
-type TreeGrid = { cells: Map<number, number[]>; maxRadius: number };
-
-const grids = new WeakMap<readonly TreeDef[], TreeGrid>();
-
-function gridOf(trees: readonly TreeDef[]): TreeGrid {
-  let grid = grids.get(trees);
-  if (grid) return grid;
-  const cells = new Map<number, number[]>();
-  let maxRadius = 0;
-  for (let i = 0; i < trees.length; i++) {
-    const t = trees[i];
-    const key = cellKey(Math.floor(t.x / K.cell), Math.floor(t.z / K.cell));
-    const list = cells.get(key);
-    if (list) list.push(i);
-    else cells.set(key, [i]);
-    if (t.radius > maxRadius) maxRadius = t.radius;
-  }
-  grid = { cells, maxRadius };
-  grids.set(trees, grid);
-  return grid;
-}
-
-/** Every tree whose trunk comes within `r` m of (x, z) in plan, by index
- * into `level.trees`, into `out` (cleared first). */
-export function treesNear(level: Level, x: number, z: number, r: number, out: number[]): number[] {
-  out.length = 0;
-  const trees = level.trees;
-  const grid = gridOf(trees);
-  const reach = r + grid.maxRadius;
-  const c0 = Math.floor((x - reach) / K.cell);
-  const c1 = Math.floor((x + reach) / K.cell);
-  const r0 = Math.floor((z - reach) / K.cell);
-  const r1 = Math.floor((z + reach) / K.cell);
-  for (let c = c0; c <= c1; c++) {
-    for (let rr = r0; rr <= r1; rr++) {
-      const list = grid.cells.get(cellKey(c, rr));
-      if (!list) continue;
-      for (const i of list) {
-        const t = trees[i];
-        const d = hypot(t.x - x, t.z - z) - t.radius;
-        if (d <= r) out.push(i);
-      }
-    }
-  }
-  return out;
-}
 
 /** Where the three footprint circles stand along the skis, m forward of
  * the CoG, as shares of their half-length. */
 const CIRCLES = [0.8, 0, -0.8];
 const near: number[] = [];
 
-/** Push the skier out of every trunk he has run into this step, and report
- * the hit. */
+/** Push the skier out of every trunk and every post (a lift's column, a
+ * floodlight mast) he has run into this step, and report the hit. */
 export function collideTrees(state: GameState, events: GameEvent[]): void {
   const c = state.skier;
   const level = state.level;
-  if (level.trees.length === 0) return;
+  const solids = solidsOf(level);
+  if (solids.length === 0) return;
   const half = envelopeOf(c.spec).length / 2;
-  treesNear(level, c.x, c.z, half + K.bodyRadius, near);
+  solidsNear(level, c.x, c.z, half + K.bodyRadius, near);
   if (near.length === 0) return;
   const m = totalMass(c.spec);
   const Iy = inertiaOf(c.spec).y;
@@ -97,8 +59,9 @@ export function collideTrees(state: GameState, events: GameEvent[]): void {
   let worst = 0;
   let hitX = 0;
   let hitZ = 0;
+  let post = false;
   for (const i of near) {
-    const t = level.trees[i];
+    const t = solids[i];
     if (c.y < t.y - 1 || c.y > t.y + t.height) continue;
     for (const share of CIRCLES) {
       const ox = fx * share * half;
@@ -133,12 +96,20 @@ export function collideTrees(state: GameState, events: GameEvent[]): void {
         worst = closing;
         hitX = t.x;
         hitZ = t.z;
+        post = i >= level.trees.length;
       }
     }
   }
   if (worst >= K.hitSpeed && c.hitCooldown <= 0) {
     c.hitCooldown = K.cooldown;
-    events.push({ kind: "hit", t: state.t, speed: worst, x: hitX, z: hitZ });
+    events.push({
+      kind: "hit",
+      t: state.t,
+      speed: worst,
+      x: hitX,
+      z: hitZ,
+      ...(post ? { post: true as const } : {}),
+    });
   }
 }
 

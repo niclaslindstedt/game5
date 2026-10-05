@@ -62,7 +62,7 @@ export const NO_JOLT: Readonly<Jolt> = {
 export const JOLT_KEYS = Object.keys(NO_JOLT) as (keyof Jolt)[];
 
 /** How long each save plays, s, and how long it takes to come on. */
-const LENGTH = { landing: 0.8, tree: 0.75, body: 0.85, edge: 0.9 };
+const LENGTH = { landing: 0.8, tree: 0.75, body: 0.85, edge: 0.9, stake: 0.9 };
 const RISE = 0.08;
 /** The edge's wobble: its period, s. */
 const WOBBLE = 0.36;
@@ -112,6 +112,8 @@ export function joltOf(save: Save | null | undefined): Jolt {
       j.reachR = side > 0 ? k : 0;
       fling(side > 0 ? 0.6 : 0, side < 0 ? 0.6 : 0);
       break;
+    // A stake run through rocks him as an edge that bit does.
+    case "stake":
     case "edge": {
       // Thrown toward the edge that bit, back over it and out again,
       // dying away.

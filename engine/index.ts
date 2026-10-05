@@ -92,6 +92,8 @@ export {
   speedSkiRules,
   DISCIPLINES,
   JURY,
+  RACE_SKIS,
+  raceSkisOf,
   timeTrialRules,
   tricksRules,
   type Assist,

@@ -571,6 +571,20 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   tricks: tricksRules,
 };
 
+/** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
+ * skis — what the ski card is opened on for that race — or null for a mode
+ * that is no race (the time trial, the free ride, the tricks run). */
+export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
+  slalom: SLALOM.skis,
+  superG: SUPER_G.skis,
+  downhill: DOWNHILL.skis,
+  speedSki: SPEED_SKI.skis,
+};
+
+export function raceSkisOf(mode: GameMode): SkiId | null {
+  return RACE_SKIS[mode] ?? null;
+}
+
 /** THE RACE DISCIPLINES the game names, in the order a race card lists
  * them. */
 export type Discipline = "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki";

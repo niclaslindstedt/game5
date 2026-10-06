@@ -6,12 +6,11 @@
 //   terrain.ts      the ground: a clipmap round the lens, shaded as snow
 //   trail-map.ts    every furrow any skier has cut, lowering that snow
 //   forest.ts       the snow-loaded conifers, two bands and their casters
-//   gates.ts        the gates (a slalom's flex poles), the start, the finish
-//                   arena and its floodlights, the piste's edge poles
+//   gates.ts        the gates and flex poles, the start, the arena, the edge poles
 //   lifts.ts        the resort's lifts, its wind tunnels and its cabins (cabins-view.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
-//   machines.ts     the free ride's helicopter and snowmobile
+//   machines.ts     the free ride's helicopter, snowmobile and piste machines
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
@@ -553,8 +552,8 @@ export function createWorldRenderer(
       gates = createGates(lv, env.haze);
       castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
-      clear = createLineClear(lv);
-      boomClear = createLineClear(lv, { trees: false });
+      clear = createLineClear(lv, { movers: () => machines?.solids() ?? [] });
+      boomClear = createLineClear(lv, { trees: false, movers: () => machines?.solids() ?? [] });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
       lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
@@ -814,8 +813,9 @@ export function createWorldRenderer(
       }
       gates?.update(state);
       lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
-      // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
-      dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
+      // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
+      const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);
+      dealLamps(env.haze, look.lamps, riders, floods ?? gates?.floods ?? [], lens.camera.position);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

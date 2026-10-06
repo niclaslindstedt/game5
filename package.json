@@ -67,6 +67,7 @@
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
+    "groomer": "node scripts/groomer-preview.mjs",
     "judder": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/judder-lab.mjs",
     "trees": "node scripts/trees-preview.mjs",
     "cabins": "node scripts/cabins-preview.mjs",

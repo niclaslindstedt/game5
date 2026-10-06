@@ -710,7 +710,8 @@ export function createGates(skied: Level, haze: HazeUniforms): Gates {
   // A HALFPIPE'S WALLS, drawn off the engine's own section (`pipe-view.ts`).
   const pipe = createPipe(level, std);
   if (pipe) group.add(pipe.group);
-  // A MOGULS COURSE'S SNOW, drawn off the engine's own field (`mogul-view.ts`).
+  // A MOGULS COURSE'S SNOW — or an AERIALS SITE'S — drawn off the engine's
+  // own field (`mogul-view.ts`).
   const bumps = createMoguls(level, std);
   if (bumps) group.add(bumps.group);
 

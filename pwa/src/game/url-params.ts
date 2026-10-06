@@ -29,6 +29,9 @@
 //   ?start=dual     ...or into a DUAL MOGULS contest's qualification run
 //                   (`run=2` its first dual, off the qualification skied
 //                   by the bot).
+//   ?start=aerials  ...or into an AERIALS contest's qualification jump
+//                   (`run=2` its next jump, off the first jumped by the
+//                   bot); `?plan=bLF` the jump it declares.
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -69,7 +72,9 @@
 //                   pipe cut into the seed's map; ?mode=moguls, a MOGULS
 //                   contest's first run, its course built over the map;
 //                   ?mode=dual, a DUAL MOGULS contest's qualification, its
-//                   course of two lanes built over the map.
+//                   course of two lanes built over the map; ?mode=aerials,
+//                   an AERIALS contest's first jump, its site built over
+//                   the map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -151,6 +156,7 @@
 
 import {
   WEATHER_KINDS,
+  isAerialCode,
   isPisteGrade,
   isRegionId,
   isSkiId,
@@ -258,6 +264,9 @@ export type UrlParams = {
   region: RegionId | null;
   /** The piste grade a seed's map is built to, over the card's. */
   grade: PisteGrade | null;
+  /** The jump an AERIALS link's first jump declares (`?plan=bLF`), or null
+   * for the contest's own. */
+  plan: string | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
@@ -341,6 +350,7 @@ export function readParams(search: string): UrlParams {
       start === "halfpipe" ||
       start === "moguls" ||
       start === "dual" ||
+      start === "aerials" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -393,7 +403,9 @@ export function readParams(search: string): UrlParams {
                                   ? "moguls"
                                   : start === "dual" || q.get("mode") === "dual"
                                     ? "dualMoguls"
-                                    : "slalom",
+                                    : start === "aerials" || q.get("mode") === "aerials"
+                                      ? "aerials"
+                                      : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
@@ -406,6 +418,7 @@ export function readParams(search: string): UrlParams {
     sky: skyOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
+    plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
     sled: q.get("sled") === "1",
@@ -419,11 +432,15 @@ export function readParams(search: string): UrlParams {
 /** WHAT A LINK SAYS ABOUT THE WORLD a seed's run is stood up in: its sky,
  * its region and its grade, as options `createGame` takes — nothing where it
  * names none. */
-export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "region" | "grade"> {
+export function linkWorld(
+  params: UrlParams,
+): Pick<CreateGameOptions, "sky" | "region" | "grade" | "plan"> {
   return {
     sky: params.sky ?? undefined,
     region: params.region ?? undefined,
     grade: params.grade ?? undefined,
+    // An aerials link's declared jump (the other modes declare none).
+    plan: params.plan ?? undefined,
   };
 }
 

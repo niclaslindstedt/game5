@@ -19,6 +19,7 @@ import {
   fastCarveOf,
   bermCarveOf,
   bumpsOf,
+  spinOf,
   skisFacts,
 } from "../pwa/src/game/ski-stats.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -89,6 +90,9 @@ describe("the spec sheet", () => {
     // The mogul ski's short length on legs that fold quickest takes a
     // mogul line best.
     expect(by(bumpsOf)[0]).toBe("ibex");
+    // The aerials ski, the shortest and lightest pair, swings the least
+    // weight round a flip and a twist.
+    expect(by(spinOf)[0]).toBe("kestrel");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);
     expect(forgivenessOf(SKIS)).toBeCloseTo(1, 9);

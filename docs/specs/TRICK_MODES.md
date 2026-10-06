@@ -1,8 +1,11 @@
 # The trick modes — draft spec (what every format shares)
 
-**Draft. Research done, nothing built.** The one TRICKS mode today (two
-minutes of arcade score on a terrain park) is to be replaced by the real
-freestyle formats, each a mode of its own with a spec beside this one:
+**Built in part.** Every format below is built (R37–R44), each a mode of
+its own with a spec beside this one, and the arcade TRICKS run kept as the
+trick card's PARK RUN. What is still open of the shared pieces is
+unticked below — more grabs, the jibs' balance held, the judges' marks
+shown one by one, and each venue's own audience and broadcast camera — and
+each format's own spec keeps its own open boxes.
 
 | Spec | Format | Kind |
 | --- | --- | --- |
@@ -17,8 +20,8 @@ freestyle formats, each a mode of its own with a spec beside this one:
 
 This file is what they all stand on: the pieces no one format owns, built
 once. The research every number here comes from is `docs/freestyle.md`
-(the judged park formats' shared section first). Delete this file when the
-last format is built, as the race specs were (`README.md`).
+(the judged park formats' shared section first). Delete this file when
+every shared piece below is built, as the race specs were (`README.md`).
 
 ## Start here
 
@@ -129,13 +132,13 @@ medium build.
 
 ## The shared pieces it needs
 
-- [ ] **THE TRICK CARD.** The front door's TRICKS tile opens a card of the
+- [x] **THE TRICK CARD.** The front door's TRICKS tile opens a card of the
       formats, as the RACE tile opens the race card — one box a format,
       the built ones lit (`menu-races.tsx` is the pattern, a `FREESTYLE`
       list beside `DISCIPLINES` in `defs/modes.ts`), each opening its own
       level card of pinned maps (or venues), then the ski card. Each
       format a `GameMode` row and a `RunRules` bundle in `MODE_RULES`.
-- [ ] **THE TRICK READER** (an engine module, pure, no words in it): every
+- [x] **THE TRICK READER** (an engine module, pure, no words in it): every
       flight and every jib read back as the sport NAMES it — the spin in
       degrees about the up axis (180 steps), the flips, the axis (straight,
       CORK, RODEO, MISTY, FLATSPIN), the direction (left, right, switch
@@ -146,7 +149,7 @@ medium build.
       its degrees on and off, swaps, pretzels, blind. One record a trick,
       kept on the run (`GameState`), read by every judge, the HUD's line
       and the replay. The WORDS are `strings.ts`'s (`TRICK_WORDS` grows).
-- [ ] **ROTATIONS THE FORMATS NEED.** The strokes must reach the research:
+- [x] **ROTATIONS THE FORMATS NEED.** The strokes must reach the research:
       spins to 1620 (pipe), 2160 (big air); flips to a triple with up to
       five or six twists in it (aerials); OFF-AXIS rotation (a cork —
       both axes thrown together about a tilted axis); a TWIST inside a
@@ -155,12 +158,16 @@ medium build.
       is) and check `rateMost` against the air: a 1620 in ~2 s is ~14
       rad/s, a 2160 in ~3 s ~13 rad/s, a five-twist triple in ~3 s some
       10 rad/s of twist. How the input asks for a cork is a design
-      decision (open question).
+      decision (open question). *Built: the ceilings per format
+      (`RunRules.spinMost` / `.flipMost`), the cork (big air), and the
+      twist inside a flip — aerials' own flight (`aerial-flight.ts`), up
+      to three flips and six twists.*
 - [ ] **MORE GRABS.** The vocabulary's MUTE, SAFETY, JAPAN, TAIL,
       CRITICAL, OCTO and BLUNT where today there are three poses — mapped
       onto the keys the grab already reads, drawn by the pose
-      (`skier-pose.ts`), held for a time the reader measures.
-- [ ] **THE JUDGE** (an engine module, pure, its draws off a stream of
+      (`skier-pose.ts`), held for a time the reader measures. *Open:
+      the three poses are still all there are.*
+- [x] **THE JUDGE** (an engine module, pure, its draws off a stream of
       its own): a PANEL of N judges scoring 0–100 by OVERALL IMPRESSION
       off the reader's records — difficulty (a table over the trick
       vocabulary), amplitude (height and distance in control), execution
@@ -173,7 +180,7 @@ medium build.
       judge, × DD) and MOGULS (turns, air × DD, speed off the pace). A
       score is a RANK made a number — the judge scores a run against the
       dealt field's, so it holds its scale for the day.
-- [ ] **THE FIELD.** One rider on the feature at a time in every format but
+- [x] **THE FIELD.** One rider on the feature at a time in every format but
       the duals and the jams' shared feature: the rivals' scores DEALT as
       a board about a par (`field.ts`'s shape) — the par here a SCORE the
       bot earns, not a time; a phase's start order (random, then reverse
@@ -181,7 +188,7 @@ medium build.
       Dual moguls SKI the rival side by side (`cross-heat.ts`'s shape). A
       jam's rivals are dealt session impressions, their hits shown on the
       board as they come.
-- [ ] **THE BOT FREESTYLES.** Every format needs the bot to ski it (the
+- [x] **THE BOT FREESTYLES.** Every format needs the bot to ski it (the
       sim, the labs, par): to pick a trick it can land off the speed it
       carries (the strokes already refuse what the air cannot turn), to
       take a pipe's walls, a rail, a mogul line. `make sim ARGS="--mode
@@ -197,30 +204,36 @@ medium build.
       (`jib.ts`, `jibs-view.ts`): a rail or a box as a polyline ridden as
       a bead on a wire, mounted by meeting its end along it (no ollie
       onto it from the side yet), a 50-50 or a slide, swaps, presses,
-      the turn-out, the pop; the balance across it is not yet held.*
-- [ ] **THE COURSES.** Each format's terrain is a rule (the next free R)
+      the turn-out, the pop; the balance across it is not yet held —
+      still open.*
+- [x] **THE COURSES.** Each format's terrain is a rule (the next free R)
       and a setter over a built map, as a race course is: the PIPE cut
       into the slope, the SLOPESTYLE course's sections, the BIG AIR jump
       (the knuckle huck rides the same), the AERIALS site, the MOGUL
       course, the RAIL set. Built in a copy of the ground as the race
       setters build (`course-prep.ts`), held by the analyzer, mirrored in
       `docs/level-generator.md`.
-- [ ] **THE PAIRS.** The Hare for the park formats; a MOGUL pair (160–175
+- [x] **THE PAIRS.** The Hare for the park formats; a MOGUL pair (160–175
       cm, 60–66 mm underfoot) and an AERIALS pair are new catalog rows
       (`ski-tuning`), with the class's traced look and topsheet
-      (`ski-design`) and the Blender model (`make models`).
+      (`ski-design`) and the Blender model (`make models`). *Built: the
+      Hare, the Raven, the Ibex and the Kestrel.*
 - [ ] **THE HUD AND THE PLATE.** The trick named as it lands (the
       reader's words), the judges' scores coming up one by one after a
       run (the high and low struck out), the board, the phase, the run
-      that counts; per format below.
+      that counts; per format below. *Built for every format but the
+      judges' marks coming up one by one — the plates show the parts.*
 - [ ] **THE AUDIENCE AND THE CAMERAS.** Every venue's crowd placed
       (`spectator-plan.ts`: along a pipe's decks, at a jump's landing and
       the finish, a moguls course's sides), and a broadcast camera per
       venue (side-on to a jump, down a pipe, from below a mogul course).
-- [ ] **WHAT HAPPENS TO TODAY'S TRICKS MODE**: its arcade score, its
+      *Open: every judged run is watched by the race audience's plan
+      (`hasSpectators`), not a venue's own, and there is no venue camera.*
+- [x] **WHAT HAPPENS TO TODAY'S TRICKS MODE**: its arcade score, its
       two-minute buzzer and its six maps — retired, or kept as one box on
       the card (open question). The free ride's strokes and arcade score
-      stay as they are either way (`RunRules.stunts`).
+      stay as they are either way (`RunRules.stunts`). *Kept: the PARK RUN
+      box on the trick card.*
 
 ## Build order (the default)
 
@@ -243,8 +256,10 @@ shared piece it first needs:
    scorer, the clock, a mogul pair.
    *Built in part (R42).*
 7. **Dual moguls** — moguls side by side, the bracket.
+   *Built in part (R43).*
 8. **Aerials** — the declared flight plan, twisting flips, the formal
    scorer with DD, an aerials pair.
+   *Built in part (R44).*
 
 ## Open questions for the user
 

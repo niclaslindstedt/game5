@@ -10,8 +10,9 @@
 // with a row of rails and boxes side by side) and the HALFPIPE (R41 — a U
 // cut down the slope) and the MOGULS COURSE (R42 — a mogul track down a
 // steep pitch with two air bumps in it) and the DUAL MOGULS COURSE (R43 —
-// R42's course with two lanes side by side) are built today; aerials is a
-// rule here when it is built (`docs/specs/TRICK_MODES.md`).
+// R42's course with two lanes side by side) and the AERIALS SITE (R44 — an
+// in-run, one steep kicker on a level table, a 37° landing hill) are built
+// — every format the freestyle rules name (`docs/freestyle.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
 // chapter and a championship jump as its builders describe it, by article
@@ -227,6 +228,31 @@
 //       `dualMoguls.gates` CONTROL GATES as wide as the lane spaced evenly
 //       down it, and its FINISH LINE at the course's foot; the start
 //       platform carries both lanes' start gates side by side.
+//
+//   R44 THE AERIALS SITE. An aerials site is BUILT as R37's jump is,
+//       straight down a built map's face on a line searched the same way
+//       (`aerials.search`, `aerials.fit`), `aerials.width` metres wide,
+//       graded, groomed and cleared, with ONE KICKER of the three the rule
+//       names (`aerials.kickers`: the single, the double and the triple),
+//       the one the jump declared is assigned. Its PROFILE is built against
+//       the horizontal, in order: a START PLATFORM level for
+//       `aerials.platform` metres; an IN-RUN rolled over to `aerials.inRun`
+//       degrees within `aerials.roll` metres of radius and as long as
+//       brings the rule's skier (`aerials.skier`, tucked from the start
+//       gate) to the kicker's lip at its row's speed, brought round within
+//       `aerials.toFlat` metres onto the level TABLE; `aerials.flat` metres
+//       along it, the KICKER, curved up on its row's radius to its row's
+//       take-off, its back falling at `aerials.back` degrees to the table
+//       again; the table running on level to the KNOLL its row's `table`
+//       metres past the lip; the knoll rounded over on `aerials.knoll`
+//       metres of radius onto a LANDING HILL of `aerials.steepest` degrees
+//       held for `aerials.slope` metres; a transition of `aerials.round`
+//       metres of radius onto a level OUT-RUN falling at
+//       `aerials.outrun.grade` degrees for `aerials.outrun.length` metres.
+//       The site is an analytic surface, not the map's grid, and the grid
+//       under it is cut to the same surface, never above it. Its gates are
+//       the START GATE at the platform's lip and the FINISH LINE
+//       `aerials.finish` metres into the out-run.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -799,3 +825,78 @@ export const DUAL_MOGULS_RULE: MogulsRule & {
   /** The course graded across, m (20–24). */
   width: 24,
 };
+
+/** ONE KICKER of an aerials site (R44): its curve, m of radius, its
+ * take-off, degrees, the speed off its lip the in-run is sized for, m/s,
+ * and the table from its lip to the knoll, m. */
+export type AerialKickerRow = {
+  readonly radius: number;
+  readonly kick: number;
+  readonly speed: number;
+  readonly table: number;
+};
+
+/** R44 — the aerials site (`docs/freestyle.md` § *Aerials*: an in-run of
+ * 70–80 m at 20–25°, a level table of 20–25 m, a landing hill of 25–30 m
+ * at 36–38°, a level out-run of 30 m, all 22 m wide; a single kicker
+ * 3.9–4.0 m long to 52–55° with its lip 2.0–2.1 m up, a double 5.8–6.7 m
+ * to 64–66° and 3.5–3.65 m, a triple 7.2–8.0 m to 71° and 4.0–4.2 m;
+ * 58–66 km/h at the in-run's foot for a triple). */
+export const AERIALS_RULE = {
+  platform: 6,
+  /** The in-run, degrees (20–25°), and the radius it is rolled over on, m. */
+  inRun: 23,
+  roll: 20,
+  /** The radius the in-run meets the table on, m: a skier at 60 km/h
+   * pressed into it under 1 g. */
+  toFlat: 35,
+  /** The table before the kicker's foot, m. */
+  flat: 4,
+  /** THE KICKERS. A circular curve of `radius` to `kick` stands its lip
+   * `radius × (1 − cos kick)` over the table over an arc of `radius ×
+   * kick` — the single's 2.1 m on 4.8 m of curve, the double's 3.6 m on
+   * 7.0 m, the triple's 4.1 m on 7.5 m. The lip speeds (est.) are what
+   * the foot's ~55, ~62 and ~67 km/h leave a tucked skier after the climb;
+   * the table to the knoll is where a skier off each comes down 2–4 m past
+   * it (est., measured off the engine's own flight with the light build on
+   * the aerials ski). */
+  kickers: {
+    single: { radius: 5.2, kick: 53, speed: 11.9, table: 13 },
+    double: { radius: 6.2, kick: 65, speed: 13.4, table: 11.5 },
+    triple: { radius: 6.1, kick: 71, speed: 15.2, table: 10.8 },
+  } as Readonly<Record<"single" | "double" | "triple", AerialKickerRow>>,
+  /** The kicker's back, degrees: it falls from the lip to the table. */
+  back: 55,
+  /** The knoll's radius, m — tight, so the hill is near its steepest two
+   * metres past the knoll, where a jump comes down — the landing hill
+   * (36–38°, 25–30 m) and the radius it meets the out-run on, m. */
+  knoll: 4,
+  steepest: 37,
+  slope: 28,
+  round: 25,
+  /** The out-run (level, 30 m), and the finish line, m into it. */
+  outrun: { grade: 1, length: 40 },
+  finish: 22,
+  /** The skier the in-run is sized for, tucked from the start gate — the
+   * light build an aerials field skis at (`docs/freestyle.md`), his drag
+   * area and the snow's friction fitted so the in-run's foot speed is the
+   * engine's own within a few tenths of a metre a second — and THE
+   * KICKER'S COST: the share of his speed's square his legs give up for
+   * each radian it turns him (est.), the loss the kicker is ridden with
+   * (`aerial-kicker.ts`). */
+  skier: { mass: 65, tuck: 0.45, air: 1.0, friction: 0.1, compression: 0.05 },
+  /** The site's width (22 m), its ease and the trees cleared, m. */
+  width: 22,
+  ease: 12,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 15, past: 30, half: 30 },
+} as const;

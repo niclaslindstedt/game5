@@ -6,7 +6,7 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// ELEVEN PAIRS, ELEVEN ANSWERS TO A KIND OF SNOW — never nine points on one
+// TWELVE PAIRS, TWELVE ANSWERS TO A KIND OF SNOW — never nine points on one
 // scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
@@ -42,6 +42,10 @@
 //   IBEX    a MOGUL ski — short, narrow and straight, soft in the forebody:
 //           pivots on a mogul's shoulder and folds over its crest, nervous
 //           anywhere it can run.
+//   KESTREL an AERIALS ski — short, narrow, light and nearly straight,
+//           stiff underfoot: holds a dead straight line into a 71°
+//           kicker and swings round three flips and five twists, and
+//           little else.
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
@@ -90,7 +94,8 @@ export type SkiId =
   | "marmot"
   | "hare"
   | "raven"
-  | "ibex";
+  | "ibex"
+  | "kestrel";
 
 export type SkiSpec = {
   id: SkiId;
@@ -529,12 +534,49 @@ export const IBEX: SkiSpec = {
   topSpeed: 106,
 };
 
+/** THE KESTREL — an AERIALS ski (named for the falcon that hangs on the
+ * wind and drops): the class an aerials jump is skied on
+ * (`docs/freestyle.md` § *Aerials*, "The skis"). The rules set no length,
+ * width or sidecut; the class the athletes ride is SHORT — 150–160 cm, to
+ * the shoulder — NARROW, some 65 mm underfoot, with LITTLE SIDECUT and a
+ * long arc (no turn is skied on it: the in-run is straight), light
+ * (carbon, for the swing of three flips) and stiff underfoot for the
+ * kicker's load. 158 cm on a 65 mm waist, 85 mm tip and 79 mm tail — 8.5
+ * mm of side depth over its chord, a 30 m arc — flat-tailed, mounted near
+ * its middle, stiff (`flex` 0.75), and the legs of a skier set for a
+ * landing from ten metres and more onto a 37° hill. It is the LIGHTEST
+ * and SHORTEST pair — the least swing weight to turn in the air, its bar
+ * on the card (`ski-stats.ts`'s `spinOf`). Its answer is the straight
+ * line into a 71° kicker at 55 km/h and the twist about its own length in
+ * the air; it is slow in a tuck, vague on an edge and sinks in powder. */
+export const KESTREL: SkiSpec = {
+  ...SKIS,
+  id: "kestrel",
+  name: "Kestrel",
+  kind: "Aerials",
+  blurb: "Short, narrow, light and straight: dead straight into the kicker, and round in the air.",
+  gearMass: 6.5,
+  length: 1.58,
+  waist: 0.065,
+  tipWidth: 0.085,
+  tailWidth: 0.079,
+  sidecut: 30,
+  flex: 0.75,
+  rocker: 0,
+  edgeMax: 1.0,
+  mount: 0.47,
+  legs: { rate: 7400, bump: 560, rebound: 900, travel: 0.52 },
+  cdAUpright: 0.88,
+  cdATuck: 0.56,
+  topSpeed: 106,
+};
+
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
  * most of him last: the all-mountain ski that refuses nothing, the alpine
  * race skis from the shortest to the longest (slalom, giant slalom, super-G,
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
- * ski, the big-air ski and the mogul ski. (`make sim ARGS="--skis
+ * ski, the big-air ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkiSpec[] = [
   SKIS,
@@ -548,6 +590,7 @@ export const SKI_CATALOG: readonly SkiSpec[] = [
   HARE,
   RAVEN,
   IBEX,
+  KESTREL,
 ];
 
 /** The pair with this id, or the all-mountain ski for one this build does

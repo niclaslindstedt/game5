@@ -167,4 +167,8 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   // A mogul pair in glacier cyan split with white: the knees and the skis
   // are what a turn judge watches from below, and cyan reads on the snow.
   ibex: sheet("Glacier", 0x1aa3d8, 0xf2f2f2, "split", { boot: 0x1aa3d8, pole: 0xf2f2f2 }),
+  // An aerials pair in a kestrel's rufous over cream: the skis are what
+  // the judges follow through the twists, and a warm red turns against the
+  // sky where black and white blur.
+  kestrel: sheet("Rufous", 0xc2552b, 0xf4ead2, "split", { boot: 0xf4ead2 }),
 };

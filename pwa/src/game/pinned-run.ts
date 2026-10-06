@@ -59,6 +59,7 @@ import { nextContest } from "./big-air-run.ts";
 import { nextSlopeContest } from "./slopestyle-run.ts";
 import { nextPipeContest } from "./halfpipe-run.ts";
 import { nextMogulsContest } from "./moguls-run.ts";
+import { nextAerialsContest } from "./aerials-run.ts";
 import { nextDualContest } from "./dual-moguls-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
@@ -83,7 +84,8 @@ export type PinnedRuns = {
       | "railJam"
       | "halfpipe"
       | "moguls"
-      | "dualMoguls",
+      | "dualMoguls"
+      | "aerials",
   ) => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
@@ -152,7 +154,9 @@ export function createPinnedRuns(world: {
           const same =
             now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
           const opts = trickGameOptions(map, skier, same ? now.level : undefined);
-          return createGame(mode === "tricks" ? opts : { ...opts, mode });
+          // An aerials contest's first jump declares the jump the card picked.
+          const plan = mode === "aerials" ? s.aerialPlan : undefined;
+          return createGame(mode === "tricks" ? opts : { ...opts, mode, plan });
         },
         camera: s.camera,
         done: world.done,
@@ -176,6 +180,11 @@ export function createPinnedRuns(world: {
       if (now.dualMoguls) {
         world.rig.arm(null);
         return createGame(recipeOf(now, "dualMoguls"));
+      }
+      // An aerials jump again: the same jump of the same contest.
+      if (now.aerials) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "aerials"));
       }
       // A moguls run again: the same run of the same contest.
       if (now.moguls) {
@@ -260,6 +269,20 @@ export function createPinnedRuns(world: {
           build: () => {
             world.rig.arm(null);
             return createGame({ ...recipeOf(now, "dualMoguls"), dualMoguls: dual });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // An AERIALS contest's next final, off the contest as this one left it.
+      const jumps = nextAerialsContest(now);
+      if (jumps) {
+        world.setMode("aerials");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({ ...recipeOf(now, "aerials"), aerials: jumps });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -376,6 +399,15 @@ export function secondRunOff(first: GameState): GameState {
     }
     const contest = nextDualContest(first);
     return contest ? createGame({ ...recipeOf(first, "dualMoguls"), dualMoguls: contest }) : first;
+  }
+  // An AERIALS contest's next jump, off the first jumped by the bot.
+  if (first.aerials) {
+    for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
+      if (first.progress.finished || first.progress.out) break;
+      step(first, botInput(first));
+    }
+    const contest = nextAerialsContest(first);
+    return contest ? createGame({ ...recipeOf(first, "aerials"), aerials: contest }) : first;
   }
   // A MOGULS contest's next run, off the first skied by the bot.
   if (first.moguls) {

@@ -7,6 +7,7 @@
 // formats are one choice — which contest — before the map.
 
 import {
+  AERIALS,
   BIG_AIR,
   FREESTYLE,
   HALFPIPE,
@@ -38,6 +39,9 @@ function formatOf(mode: GameMode): string {
   }
   if (mode === "moguls") {
     return STRINGS.freestyleMoguls(MOGULS.field + 1, MOGULS.final1, MOGULS.final2);
+  }
+  if (mode === "aerials") {
+    return STRINGS.freestyleAerials(AERIALS.field + 1, AERIALS.final1, AERIALS.final2);
   }
   if (mode === "dualMoguls") {
     return STRINGS.freestyleDual(DUAL_MOGULS.field + 1, DUAL_MOGULS.ladder);

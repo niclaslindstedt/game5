@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AERIALS,
   DISCIPLINES,
   BIG_AIR,
   HALFPIPE,
@@ -47,6 +48,8 @@ const CLASS = {
   moguls: "Moguls",
   // Dual moguls: the same skiers on the same mogul ski.
   dualMoguls: "Moguls",
+  // Aerials ride the aerials ski: short, narrow, light and straight.
+  aerials: "Aerials",
 } as const;
 
 describe("a race's own pair", () => {
@@ -73,6 +76,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
     expect(raceSkisOf("moguls")).toBe(MOGULS.skis);
     expect(raceSkisOf("dualMoguls")).toBe(MOGULS.skis);
+    expect(raceSkisOf("aerials")).toBe(AERIALS.skis);
   });
 
   it("is none for a mode that is no race and no freestyle format", () => {

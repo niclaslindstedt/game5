@@ -38,6 +38,8 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
+import { aerialInput, stepAerial } from "./aerial-flight.ts";
+import { stepKicker } from "./aerial-kicker.ts";
 import { butterInput, stepButter } from "./butter.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
@@ -154,14 +156,16 @@ export function stepRun(
   const stunts = run.rules.stunts && asked === input && !rigged;
   // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip;
   // hung under a paramotor's wing, his skis do nothing (`para.ts`).
-  const held = off ? asked : paraHeld(run, inRunInput(run, asked));
+  // ...and off an aerials kicker the body is the flight's (`aerial-flight.ts`).
+  const held = off ? asked : aerialInput(run, paraHeld(run, inRunInput(run, asked)));
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
   const housed = heldInHouse(run);
   stepStartPush(run, input);
   // ON A JIB (`jib.ts`): a bead on a wire, and the snow's step is not his.
-  const railed = !off && stepJib(run, held, events);
+  // ...or up an aerials kicker, a bead on a wire too (`aerial-kicker.ts`).
+  const railed = !off && (stepJib(run, held, events) || stepKicker(run));
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
   if (!off && !railed) {
@@ -184,6 +188,8 @@ export function stepRun(
   if (run.para) stepPara(run, asked, events);
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (stunts && !railed) stepStrokes(run, input);
+  // THE AERIALS FLIGHT (`aerial-flight.ts`): flips and twists flown together.
+  if (run.aerial) stepAerial(run, input);
   // OFF A PIPE'S WALL (`pipe-air.ts`): the lip's push and the turn round.
   if (!off && !railed) stepPipeAir(run, flightGravity(run.rules));
   // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.

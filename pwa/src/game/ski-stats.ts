@@ -13,21 +13,22 @@
 // ski cross's berm, and again at a super-G's and a downhill's (`cornerGrip`
 // against `carveCurvature` on the full edge), the footprint's
 // float in powder (`footprintOf`), how fast the pair rolls onto its edge,
-// the hardest landing it takes whole (`harshSpeedOf`) and how its legs take
-// a mogul line (`bumpsOf`) — the same arithmetic the physics and the bot
-// run at 120 Hz.
+// the hardest landing it takes whole (`harshSpeedOf`), how its legs take
+// a mogul line (`bumpsOf`) and how little the pair weighs on a turn in the
+// air (`spinOf`) — the same arithmetic the physics and the bot run at
+// 120 Hz.
 //
-// TEN AXES, because the catalog is eleven answers to a kind of snow and
+// ELEVEN AXES, because the catalog is twelve answers to a kind of snow and
 // the snow has two kinds: what a pair does on the GROOMER (the top end, the
 // edge's hold at race pace, round a berm, at a super-G's and at a
 // downhill's, how quickly it goes edge to edge)
 // and what it does OFF it
-// (the float, how forgiving it is, the landing, the bumps). Every pair is best at
+// (the float, how forgiving it is, the landing, the bumps, the spin). Every pair is best at
 // something on this sheet and none is best at everything, which is the
 // card's whole argument.
 //
-// The bars are RELATIVE TO THE ROSTER, not absolute: eleven pairs within
-// a few percent of each other on an axis scaled from zero are eleven identical
+// The bars are RELATIVE TO THE ROSTER, not absolute: twelve pairs within
+// a few percent of each other on an axis scaled from zero are twelve identical
 // full bars, which is a picture of nothing. The roster's own spread is the
 // scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.
@@ -142,6 +143,15 @@ export function bumpsOf(spec: SkiSpec): number {
   return (spec.legs.travel * spec.legs.rate) / spec.legs.bump / spec.length;
 }
 
+/** HOW EASILY THE PAIR TURNS IN THE AIR, 1/(kg·m²): the inverse of its
+ * SWING WEIGHT — the pair's mass over its length squared, the inertia two
+ * skis add about the body to every flip and every twist. A short, light
+ * aerials ski is turned three times over and twisted inside each turn; a
+ * speed ski's 27 kg over 2.4 m is not turned at all. */
+export function spinOf(spec: SkiSpec): number {
+  return 1 / (spec.gearMass * spec.length * spec.length);
+}
+
 type AxisKey = keyof typeof STRINGS.skisBars;
 type Axis = { key: AxisKey; of: (spec: SkiSpec) => number };
 
@@ -158,6 +168,7 @@ const AXES: readonly Axis[] = [
   { key: "flex", of: forgivenessOf },
   { key: "landing", of: harshSpeedOf },
   { key: "bumps", of: bumpsOf },
+  { key: "spin", of: spinOf },
 ];
 
 export type SkisBar = {

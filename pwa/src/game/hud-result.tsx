@@ -66,6 +66,7 @@ import { JamPlate } from "./hud-knuckle.tsx";
 import { SlopestylePlate } from "./hud-slopestyle.tsx";
 import { HalfpipePlate } from "./hud-halfpipe.tsx";
 import { MogulsPlate } from "./hud-moguls.tsx";
+import { AerialsPlate } from "./hud-aerials.tsx";
 import { DualPlate } from "./hud-dual.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
@@ -135,6 +136,21 @@ export function ResultPlate({
   if (snap?.dualMoguls) {
     return (
       <DualPlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
+  // An AERIALS jump's plate is its own: the three parts × the DD and the
+  // board.
+  if (snap?.aerials?.judged) {
+    return (
+      <AerialsPlate
         snap={snap}
         touch={touch}
         onAgain={onAgain}

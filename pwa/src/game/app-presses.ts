@@ -26,7 +26,8 @@ export type Presses = {
       | "railJam"
       | "halfpipe"
       | "moguls"
-      | "dualMoguls",
+      | "dualMoguls"
+      | "aerials",
   ) => void;
   /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
   pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;

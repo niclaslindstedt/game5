@@ -8,7 +8,9 @@
 // so from the start gate to the lip the tuck is held, the brake let go and
 // his weight kept over his feet, whatever is pressed; the edge and the
 // jump stay his own, and in the air and past the lip every control is
-// again.
+// again. An AERIALS site's in-run (R44) is ridden the same way to its
+// kicker, and STRAIGHT: the edge and the jump are held too — a 71° kicker
+// is met square and taken as it throws him, never popped.
 
 import { nearestTrackPoint } from "../mapgen/index.ts";
 import type { GameState, SkierInput } from "./state.ts";
@@ -16,11 +18,14 @@ import type { GameState, SkierInput } from "./state.ts";
 /** The controls the skier rides this step on: `held`, tucked, unbraked and
  * centred on a big air in-run. */
 export function inRunInput(run: GameState, held: SkierInput): SkierInput {
-  const jump = run.level.bigAir;
+  const jump = run.level.bigAir ?? run.level.aerials;
   if (!run.rules.inRun || !jump || run.phase !== "racing") return held;
-  if (held.tuck === 1 && held.brake === 0 && held.lean === 0) return held;
+  const site = run.level.aerials !== undefined;
+  if (held.tuck === 1 && held.brake === 0 && held.lean === 0 && !site) return held;
   const c = run.skier;
   if (c.airborne) return held;
-  if (nearestTrackPoint(run.level, c.x, c.z).s >= jump.lip) return held;
+  const s = nearestTrackPoint(run.level, c.x, c.z).s;
+  if (s >= jump.lip || (site && s >= jump.foot)) return held;
+  if (site) return { ...held, tuck: 1, brake: 0, lean: 0, steer: 0, jump: false };
   return { ...held, tuck: 1, brake: 0, lean: 0 };
 }

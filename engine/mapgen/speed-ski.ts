@@ -526,6 +526,7 @@ function gradeTrack(original: Level): Graded {
     railJam: undefined,
     halfpipe: undefined,
     moguls: undefined,
+    aerials: undefined,
     bumps: undefined,
     normalNear: undefined,
     pipe: undefined,

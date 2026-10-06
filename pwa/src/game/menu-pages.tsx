@@ -107,6 +107,7 @@ export function MenuPages(p: {
           }
           onChoose={campaign.choose}
           onTrick={campaign.chooseTrick}
+          onSettings={setSettings}
         />
       ) : page === "skis" || page === "dress" ? (
         <SkisCards
@@ -126,6 +127,7 @@ export function MenuPages(p: {
               p.mode === "railJam" ||
               p.mode === "halfpipe" ||
               p.mode === "moguls" ||
+              p.mode === "aerials" ||
               p.mode === "dualMoguls";
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}

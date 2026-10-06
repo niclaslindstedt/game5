@@ -10,6 +10,7 @@ import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { judgeSlopeRun } from "../game/slopestyle-contest.ts";
 import { judgePipeRun } from "../game/halfpipe-contest.ts";
 import { judgeMogulsRun } from "../game/moguls-contest.ts";
+import { judgeAerialRun } from "../game/aerials-contest.ts";
 import { freshDual, type DualContest } from "../game/dual-bracket.ts";
 import { duelOn, judgeDuel, qualifyingRun } from "../game/duel.ts";
 import { MOGULS } from "../game/defs/moguls.ts";
@@ -82,7 +83,11 @@ export type SimOptions = {
     | "halfpipe"
     | "moguls"
     | "dualMoguls"
+    | "aerials"
   >;
+  /** On aerials (R44), the jump the bot declares and throws (a code of the
+   * chart, `defs/aerial-jumps.ts`) — the contest's default when left out. */
+  plan?: string;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied.
    * On dual moguls, a DUAL (R43): the bot the first seed in the blue lane
@@ -192,6 +197,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     laps: options.laps,
     cross: race === "skiCross" && options.heat ? SIM_HEAT : undefined,
     dualMoguls: race === "dualMoguls" && options.heat ? simDual(seed) : undefined,
+    plan: race === "aerials" ? options.plan : undefined,
     rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
     spec: options.spec,
@@ -290,7 +296,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`).
     // A RAIL JAM's is the panel's mark for the session (`jam.ts`), a
     // HALFPIPE's the panel's for the run (`halfpipe-judge.ts`), MOGULS'
-    // the formal score (`moguls-judge.ts`); DUAL MOGULS' the votes the bot
+    // the formal score (`moguls-judge.ts`), AERIALS' the jump's (`aerials-
+    // judge.ts`); DUAL MOGULS' the votes the bot
     // took in his dual, or his qualification's moguls score.
     score: dual
       ? dual.votes.votes[state.duel?.lane ?? 0]
@@ -298,13 +305,15 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
         ? (qualifyingRun(state)?.score ?? 0)
         : state.moguls
           ? (judgeMogulsRun(state)?.score ?? 0)
-          : state.slopestyle
-            ? (judgeSlopeRun(state)?.score ?? 0)
-            : state.halfpipe
-              ? (judgePipeRun(state)?.score ?? 0)
-              : state.level.railJam && state.jam
-                ? sessionScore(state.seed, -1, state.jam.hits)
-                : state.tricks.score,
+          : state.aerials
+            ? (judgeAerialRun(state)?.score ?? 0)
+            : state.slopestyle
+              ? (judgeSlopeRun(state)?.score ?? 0)
+              : state.halfpipe
+                ? (judgePipeRun(state)?.score ?? 0)
+                : state.level.railJam && state.jam
+                  ? sessionScore(state.seed, -1, state.jam.hits)
+                  : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

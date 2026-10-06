@@ -16,7 +16,9 @@
 // the cursor lands and what RIDE in the head takes.
 
 import {
+  AERIALS,
   BIG_AIR,
+  aerialJump,
   HALFPIPE,
   KNUCKLE_HUCK,
   RAIL_JAM,
@@ -27,7 +29,8 @@ import {
 
 import { CourseMap } from "./menu-campaign.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
-import { MenuBody, MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
+import { AERIAL_PICKS } from "./aerials-run.ts";
 import { STRINGS } from "./strings.ts";
 import { TRICK_MAPS, trickDayLine, trickMapFor, type TrickMap } from "./trick-maps.ts";
 
@@ -67,9 +70,18 @@ function TrickBox({
   );
 }
 
+/** THE JUMPS the picker steps through, easiest first, each its code and DD
+ * (`AERIAL_PICKS`). */
+const JUMP_STOPS = AERIAL_PICKS.map((code) => ({
+  id: code,
+  label: STRINGS.aerialsJumpCode(code, aerialJump(code)?.men ?? 0),
+}));
+
 export function TrickMapsPage({
   mode,
   chosen,
+  plan = AERIALS.plan,
+  onPlan,
   onBack,
   onPick,
 }: {
@@ -80,6 +92,9 @@ export function TrickMapsPage({
   mode: GameMode;
   /** The map the settings already stand on, if any. */
   chosen: string | null;
+  /** AERIALS: the jump its first jump declares, and the picker's press. */
+  plan?: string;
+  onPlan?: (plan: string) => void;
   onBack: () => void;
   /** On to the skis card, which is where RIDE is. */
   onPick: (map: TrickMap) => void;
@@ -92,6 +107,7 @@ export function TrickMapsPage({
   const pipe = mode === "halfpipe";
   const bumps = mode === "moguls";
   const dual = mode === "dualMoguls";
+  const aerials = mode === "aerials";
   const billing = bigAir
     ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
     : knuckle
@@ -106,7 +122,9 @@ export function TrickMapsPage({
               ? STRINGS.mogulsBilling
               : dual
                 ? STRINGS.dualBilling
-                : STRINGS.tricksBilling(TRICKS_RUN.limit);
+                : aerials
+                  ? STRINGS.aerialsBilling
+                  : STRINGS.tricksBilling(TRICKS_RUN.limit);
   const title = bigAir
     ? STRINGS.bigAirOn
     : knuckle
@@ -121,7 +139,9 @@ export function TrickMapsPage({
               ? STRINGS.mogulsOn
               : dual
                 ? STRINGS.dualOn
-                : STRINGS.tricksOn;
+                : aerials
+                  ? STRINGS.aerialsOn
+                  : STRINGS.tricksOn;
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead
@@ -140,6 +160,15 @@ export function TrickMapsPage({
         }
       />
       <MenuBody>
+        {aerials && onPlan && (
+          <StepRow
+            label={STRINGS.aerialsJumpLabel}
+            stops={JUMP_STOPS}
+            value={plan}
+            hint={STRINGS.aerialsJumpWords(plan)}
+            onPick={onPlan}
+          />
+        )}
         <div class="menu-levels">
           {TRICK_MAPS.map((map) => (
             <TrickBox

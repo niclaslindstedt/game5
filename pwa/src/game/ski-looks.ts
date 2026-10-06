@@ -197,6 +197,19 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.12, basket: 0.04, bent: false },
   },
+  // THE AERIALS SKI: short and narrow, a low round shovel, a flat tail with
+  // the least kick, thin and light (carbon), a little camber, on a low race
+  // plate; aerials are jumped without poles, the pair's are short.
+  kestrel: {
+    tip: { rise: 0.045, length: 0.15 },
+    tail: { rise: 0.012, length: 0.06, twin: false },
+    point: 0.35,
+    thick: { boot: 0.019, end: 0.007 },
+    camber: 0.008,
+    binding: RACE_BINDING,
+    boot: BOOT,
+    pole: { length: 1.1, basket: 0.04, bent: false },
+  },
 };
 
 /** The look for a pair, its class's. */

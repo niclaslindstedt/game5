@@ -46,6 +46,7 @@ import type { PisteGrade } from "../mapgen/grades.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "./collision.ts";
 import {
+  brushQueue,
   dealQueued,
   dealRiding,
   joinQueue,
@@ -646,19 +647,33 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
   }
 
   // ROOM: the one ahead on his run, or the player — he gives them a berth
-  // and, unless he is the kind that does not, their pace.
+  // and, unless he is the kind that does not, their pace. One level with
+  // him counts too, for the one dealt later: nobody skis inside another,
+  // not even his own group — and in a school's snake, where a berth would
+  // break the track, he drops back into his place instead.
   const look = CROWD.room.ahead + a.speed * CROWD.room.time;
+  const snake = crowd.groups[a.group].keep === "track";
   const fx = Math.sin(a.heading);
   const fz = Math.cos(a.heading);
   let dodge = 0;
   let pace = Infinity;
+  let held = Infinity;
   for (const o of onRun[a.run]) {
-    if (o === a || o.mode === "lift" || o.group === a.group) continue;
+    if (o === a || o.mode === "lift") continue;
     const ahead = o.s - a.s;
-    if (ahead <= 0 || ahead > look || Math.abs(o.d - a.d) > CROWD.room.berth) continue;
+    const first = ahead > 0 || (ahead > -CROWD.room.level && o.id < a.id);
+    if (!first || ahead > look || !(Math.abs(o.d - a.d) <= CROWD.room.berth)) continue;
+    if (snake && o.group === a.group) {
+      held = Math.min(held, o.speed * (ahead < CROWD.room.ahead / 2 ? CROWD.room.back : 1));
+      continue;
+    }
     dodge = o.d >= a.d ? -1 : 1;
     pace = Math.min(pace, o.speed);
   }
+  // Never below a crawl: a pace held off one stood still would stand him
+  // still too, and the run behind him after.
+  const crawl = CROWD.crawl.speed;
+  a.cap = Math.min(a.cap, Math.max(held, crawl));
   const me = state.skier;
   const px = me.x - a.x;
   const pz = me.z - a.z;
@@ -670,7 +685,7 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
   }
   if (dodge !== 0) {
     a.centre = clamp(a.centre + dodge * (CROWD.room.berth + 0.5), -half + 1, half - 1);
-    if (k.aggression < 0.6) a.cap = Math.min(a.cap, pace);
+    if (k.aggression < 0.6) a.cap = Math.min(a.cap, Math.max(pace, crawl));
   }
 }
 
@@ -889,8 +904,12 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   const c = state.skier;
   if (!crowd || c.thrown) return;
   // Carried by a lift the player is the lift's, as an amateur on one is
-  // (`onLift`): nobody shoulders him.
-  if (c.lift) return;
+  // (`onLift`): nobody shoulders him — but skating up a queue to it, or
+  // stood on a drag's track for his bar, he shoulders them aside.
+  if (c.lift) {
+    if (c.lift.phase !== "ride") brushQueue(state, crowd, events);
+    return;
+  }
   // ...and so is he sat on a helicopter's skid (`heli.ts`). Stood on a
   // snowmobile's boards he is shouldered like a skier, and a blow that
   // throws him leaves the machine without him (`sled.ts`).

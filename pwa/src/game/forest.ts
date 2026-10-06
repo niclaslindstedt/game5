@@ -157,8 +157,42 @@ export type Forest = {
 export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
   let options = { ...initial };
   const group = new THREE.Group();
-  const trees = level.trees;
-  const count = trees.length;
+  const count = level.trees.length;
+  // Binned by cell — and every tree NUMBERED in bin order, so a cell's
+  // trees and everything held for them stand side by side in memory: the
+  // refill walks thousands of trees a frame, and reading each one's place
+  // and matrix scattered across the map's whole list was most of its cost.
+  // A cell keeps the generator's order inside it, so the bands are filled
+  // in exactly the order they were.
+  const cols = Math.ceil(level.size / CELL);
+  const binOf = (t: Level["trees"][number]): number => {
+    const c = Math.min(cols - 1, Math.max(0, Math.floor(t.x / CELL)));
+    const r = Math.min(cols - 1, Math.max(0, Math.floor(t.z / CELL)));
+    return r * cols + c;
+  };
+  /** Where each cell's trees start in the bin order; a cell is
+   * `[binStart[b], binStart[b + 1])`. */
+  const binStart = new Int32Array(cols * cols + 1);
+  for (const t of level.trees) binStart[binOf(t) + 1]++;
+  for (let b = 0; b < cols * cols; b++) binStart[b + 1] += binStart[b];
+  const trees: Level["trees"] = new Array(count);
+  /** Each of the generator's trees' number in the bin order. */
+  const rank = new Int32Array(count);
+  {
+    const at = binStart.slice(0, cols * cols);
+    level.trees.forEach((t, k) => {
+      const i = at[binOf(t)]++;
+      trees[i] = t;
+      rank[k] = i;
+    });
+  }
+  /** Every tree's place in plan, read once a tree a refill. */
+  const xs = new Float64Array(count);
+  const zs = new Float64Array(count);
+  for (let i = 0; i < count; i++) {
+    xs[i] = trees[i].x;
+    zs[i] = trees[i].z;
+  }
   // Every tree's matrix, once.
   const matrices = new Float32Array(count * 16);
   const colours = new Float32Array(count * 3);
@@ -212,20 +246,12 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     colours[i * 3 + 1] = tone;
     colours[i * 3 + 2] = tone;
   }
-  // Binned by cell.
-  const cols = Math.ceil(level.size / CELL);
-  const bins: number[][] = Array.from({ length: cols * cols }, () => []);
-  for (let i = 0; i < count; i++) {
-    const c = Math.min(cols - 1, Math.max(0, Math.floor(trees[i].x / CELL)));
-    const r = Math.min(cols - 1, Math.max(0, Math.floor(trees[i].z / CELL)));
-    bins[r * cols + c].push(i);
-  }
   const binTop = new Float32Array(cols * cols).fill(-Infinity);
   const binLow = new Float32Array(cols * cols).fill(Infinity);
   /** How far a crown in each cell leans out past its trunk, m. */
   const binLean = new Float32Array(cols * cols);
-  for (let b = 0; b < bins.length; b++) {
-    for (const i of bins[b]) {
+  for (let b = 0; b < cols * cols; b++) {
+    for (let i = binStart[b]; i < binStart[b + 1]; i++) {
       binTop[b] = Math.max(binTop[b], trees[i].y + trees[i].height);
       binLow[b] = Math.min(binLow[b], trees[i].y);
       binLean[b] = Math.max(
@@ -277,6 +303,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     tints: Float32Array[];
     girths: Float32Array[];
     fades: Float32Array[];
+    /** The tree in each slot, as last sent to the card (-1: none yet). */
+    who: Int32Array[];
+    /** The first slot this refill wrote anything new into. */
+    from: number[];
   };
   type Casters = {
     meshes: THREE.InstancedMesh[];
@@ -336,7 +366,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       n[k]++;
       return k;
     };
-    for (let i = 0; i < count; i++) {
+    // In the generator's order, so every shape keeps the mesh it had.
+    for (let k = 0; k < count; k++) {
+      const i = rank[k];
       const t = trees[i];
       const kind = t.kind ?? "spruce";
       const v = treeVariant(kind, t.x, t.z, variants);
@@ -376,6 +408,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         tints: meshes.map((im) => im.instanceColor!.array as Float32Array),
         girths: meshes.map((im) => girthOf(im).array as Float32Array),
         fades: meshes.map((im) => fadeOf(im).array as Float32Array),
+        who: room.map((n) => new Int32Array(Math.max(1, n)).fill(-1)),
+        from: geos.map(() => 0),
       };
     };
     const makeCasters = (
@@ -447,23 +481,34 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const lastShadow: ShadowBox = { x: Infinity, y: 0, z: 0, reach: 0, sx: 0, sy: 0, sz: 0 };
   let castersOn = false;
 
-  /** Tree `i` into `band`, keeping the dither window `[lo, hi)`. */
+  /** Tree `i` into `band`, keeping the dither window `[lo, hi)`. A slot
+   * still holding the tree it held when last sent keeps its matrix, tint
+   * and girth; only what is new is written, and only from the first new
+   * slot on is sent — while the lens runs on, most of a band is the same
+   * trees in the same slots, frame after frame. */
   function place(band: Band, i: number, lo: number, hi: number) {
     if (hi <= lo) return;
     const sh = band.shape[i];
     const k = band.fill[sh]++;
-    const mat = band.mats[sh];
-    for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
-    const tint = band.tints[sh];
-    tint[k * 3] = colours[i * 3];
-    tint[k * 3 + 1] = colours[i * 3 + 1];
-    tint[k * 3 + 2] = colours[i * 3 + 2];
-    const girth = band.girths[sh];
-    girth[k * 2] = girths[i * 2];
-    girth[k * 2 + 1] = girths[i * 2 + 1];
     const fade = band.fades[sh];
+    const who = band.who[sh];
+    if (who[k] !== i) {
+      who[k] = i;
+      const mat = band.mats[sh];
+      for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
+      const tint = band.tints[sh];
+      tint[k * 3] = colours[i * 3];
+      tint[k * 3 + 1] = colours[i * 3 + 1];
+      tint[k * 3 + 2] = colours[i * 3 + 2];
+      const girth = band.girths[sh];
+      girth[k * 2] = girths[i * 2];
+      girth[k * 2 + 1] = girths[i * 2 + 1];
+    } else if (fade[k * 2] === lo && fade[k * 2 + 1] === hi) {
+      return;
+    }
     fade[k * 2] = lo;
     fade[k * 2 + 1] = hi;
+    if (k < band.from[sh]) band.from[sh] = k;
   }
   /** Every tree's cut and its dissolve into the next (`tree-bands.ts`). */
   const hand = createHandOver(count);
@@ -500,7 +545,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       n = into.meshes.map(() => 0);
       for (let row = rMin; row <= rMax; row++) {
         for (let c = cMin; c <= cMax; c++) {
-          for (const i of bins[row * cols + c]) {
+          const b = row * cols + c;
+          for (let i = binStart[b]; i < binStart[b + 1]; i++) {
             const t = trees[i];
             const crown = t.crown + t.height * Math.hypot(leans[i * 2], leans[i * 2 + 1]);
             if (!castsInto(shadow, t.x, t.z, t.height, crown)) continue;
@@ -569,7 +615,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const cy = camera.position.y;
       const cz = camera.position.z;
       const { full, mid, far } = shapes;
-      for (const b of [full, mid, far]) b.fill.fill(0);
+      for (const b of [full, mid, far]) {
+        b.fill.fill(0);
+        b.from.fill(Infinity);
+      }
       const reach = Math.ceil(options.far / CELL) + 1;
       const c0 = Math.floor(cx / CELL);
       const r0 = Math.floor(cz / CELL);
@@ -585,7 +634,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       for (let r = Math.max(0, r0 - reach); r <= Math.min(cols - 1, r0 + reach); r++) {
         for (let c = Math.max(0, c0 - reach); c <= Math.min(cols - 1, c0 + reach); c++) {
           const b = r * cols + c;
-          if (bins[b].length === 0) continue;
+          const lo = binStart[b];
+          const hi = binStart[b + 1];
+          if (lo === hi) continue;
           const pad = 8 + binLean[b];
           box.min.set(c * CELL - pad, binLow[b] - 2, r * CELL - pad);
           box.max.set((c + 1) * CELL + pad, binTop[b] + 2, (r + 1) * CELL + pad);
@@ -593,9 +644,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
           const dz = Math.max(box.min.z - cz, 0, cz - box.max.z);
           if (dx * dx + dz * dz > far2) continue;
           if (!frustum.intersectsBox(box)) continue;
-          for (const i of bins[b]) {
-            const t = trees[i];
-            const e2 = (t.x - cx) ** 2 + (t.z - cz) ** 2;
+          for (let i = lo; i < hi; i++) {
+            const e2 = (xs[i] - cx) ** 2 + (zs[i] - cz) ** 2;
             // THE TREES AT THE LENS are drawn while they come at it and while
             // it passes through them — the boughs across the frame are the
             // woods closing round a skier off the piste (the booms keep only
@@ -606,8 +656,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             // not light up as the lens goes by.
             if (
               e2 < lens2 &&
-              (t.x - cx) * ux + (t.z - cz) * uz < -LENS_BEHIND &&
-              atLens(t, shapes.variantOf[i], cx, cz, cy, leans[i * 2], leans[i * 2 + 1])
+              (xs[i] - cx) * ux + (zs[i] - cz) * uz < -LENS_BEHIND &&
+              atLens(trees[i], shapes.variantOf[i], cx, cz, cy, leans[i * 2], leans[i * 2 + 1])
             )
               continue;
             const inFar = thin[i] < options.farShare;
@@ -624,22 +674,25 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
           const n = b.fill[k];
           im.count = n;
           im.visible = n > 0;
-          // Nothing of an empty shape is drawn, so nothing of it is sent.
-          if (n === 0) return;
-          // Upload only what is used: a whole band's buffer is megabytes.
+          // Nothing of an empty shape is drawn, so nothing of it is sent;
+          // nor of one whose slots all hold what they held.
+          const from = b.from[k];
+          if (n === 0 || from >= n) return;
+          // Upload only what is new and used: a whole band's buffer is
+          // megabytes.
           im.instanceMatrix.clearUpdateRanges();
-          im.instanceMatrix.addUpdateRange(0, n * 16);
+          im.instanceMatrix.addUpdateRange(from * 16, (n - from) * 16);
           im.instanceMatrix.needsUpdate = true;
           im.instanceColor!.clearUpdateRanges();
-          im.instanceColor!.addUpdateRange(0, n * 3);
+          im.instanceColor!.addUpdateRange(from * 3, (n - from) * 3);
           im.instanceColor!.needsUpdate = true;
           const girth = girthOf(im);
           girth.clearUpdateRanges();
-          girth.addUpdateRange(0, n * 2);
+          girth.addUpdateRange(from * 2, (n - from) * 2);
           girth.needsUpdate = true;
           const fade = fadeOf(im);
           fade.clearUpdateRanges();
-          fade.addUpdateRange(0, n * 2);
+          fade.addUpdateRange(from * 2, (n - from) * 2);
           fade.needsUpdate = true;
         });
       }

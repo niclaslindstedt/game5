@@ -69,6 +69,8 @@ import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
+import { GroomerReadout } from "./hud-groomer.tsx";
+import { ParaReadout } from "./hud-para.tsx";
 
 export type { HudFlash };
 
@@ -143,7 +145,11 @@ export function Hud({
   const flown = snap.heli?.kind === "flown" ? snap.heli : null;
   // The snowmobile's readout over the helicopter's call: ridden, or stood
   // beside it, it is the one the machine key is about.
-  const sledFirst = snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
+  // A piste machine's over both: driven, or stood beside it.
+  const groomerFirst =
+    snap.groomer !== null && (snap.groomer.kind === "driven" || snap.groomer.near);
+  const sledFirst =
+    !groomerFirst && snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
@@ -513,7 +519,7 @@ export function Hud({
       {/* THE HELICOPTER (`hud-heli.tsx`): the drop under its skids while he
           rides it, the call to it while it waits on its pad near him — but
           the snowmobile's word wins while he rides it or stands beside it. */}
-      {snap.heli && !sledFirst && snap.airTime === 0 && (
+      {snap.heli && !sledFirst && !groomerFirst && !snap.para && snap.airTime === 0 && (
         <HeliReadout
           heli={snap.heli}
           live={live}
@@ -525,14 +531,35 @@ export function Hud({
 
       {/* THE SNOWMOBILE (`hud-sled.tsx`): the tachometer while he rides it,
           the call to it while it waits near him. */}
-      {snap.sled && (sledFirst || !snap.heli) && snap.airTime === 0 && (
-        <SledReadout
-          sled={snap.sled}
-          touch={touch}
-          machineKey={machineKey}
-          onBoard={input.requestMachine}
-        />
-      )}
+      {snap.sled &&
+        !groomerFirst &&
+        (sledFirst || !snap.heli) &&
+        !snap.para &&
+        snap.airTime === 0 && (
+          <SledReadout
+            sled={snap.sled}
+            touch={touch}
+            machineKey={machineKey}
+            onBoard={input.requestMachine}
+          />
+        )}
+
+      {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
+          on him — in the air clock's place, which a flight never shows. */}
+      {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
+      {/* THE PISTE MACHINE (`hud-groomer.tsx`): driven, or the call to one
+          working near him when nothing else is calling. */}
+      {snap.groomer &&
+        (groomerFirst || (!snap.sled && !snap.heli)) &&
+        !snap.para &&
+        snap.airTime === 0 && (
+          <GroomerReadout
+            groomer={snap.groomer}
+            touch={touch}
+            machineKey={machineKey}
+            onBoard={input.requestMachine}
+          />
+        )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}

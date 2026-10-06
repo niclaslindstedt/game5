@@ -51,6 +51,7 @@ export function railJamRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,

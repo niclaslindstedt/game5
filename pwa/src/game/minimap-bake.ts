@@ -6,8 +6,9 @@
 // region's own rock and slopes, `region-look.ts`, as the snow shader shows
 // it), the packed snow of the track in the groomer's grey, the WOODS as a
 // green mass over the ground they stand on, and every tree a dark dot its
-// crown's size inside it — the country a skier reads off the plate, not only
-// the runs drawn over it.
+// crown's size inside it, and every CABIN (`cabinsOf`) as a roof the way a
+// piste map marks a building — the country a skier reads off the plate, not
+// only the runs drawn over it.
 //
 // ONCE PER MAP, AND OFF THE THREAD THE SNOW IS DRAWN ON. Nothing on the
 // ground changes during a race — the trails are the snow's, not the map's —
@@ -20,7 +21,16 @@
 // z = (j + ½)·size/px — row j runs along +z — so the picture laid at
 // (0, 0, size, size) in world metres is the map, unrotated.
 
-import { regionOf, sampleField, sampleFieldGradient, type Heightfield, type Level } from "@engine";
+import {
+  CABINS,
+  cabinsOf,
+  regionOf,
+  sampleField,
+  sampleFieldGradient,
+  type CabinKind,
+  type Heightfield,
+  type Level,
+} from "@engine";
 
 import { regionLookOf, type Tone } from "./region-look.ts";
 
@@ -62,6 +72,10 @@ export type MinimapSource = {
   rock: { tone: [number, number, number]; from: number; to: number } | null;
   /** A wood's colour as a mass, sRGB 0..255. */
   wood: [number, number, number];
+  /** Every cabin's roof as (x, z, half its width, half its depth, heading,
+   * ridge) sextuples, m and radians — the roof's own centre, its reach in;
+   * the ridge 1 across its front, 2 front to back, 0 a lean-to's none. */
+  cabins: Float32Array;
 };
 
 type Rgb = [number, number, number];
@@ -92,6 +106,25 @@ export function minimapSource(level: Level): MinimapSource {
     trees[i * 3 + 2] = t.crown;
   });
   const look = regionLookOf(regionOf(level).id);
+  const houses = cabinsOf(level);
+  const cabins = new Float32Array(houses.length * 6);
+  houses.forEach((c, i) => {
+    const d = CABINS[c.kind];
+    // The roof's centre sits off the walls' by half the difference between
+    // its reach to the front and to the back.
+    const off = (d.reach.front - d.reach.back) / 2;
+    cabins.set(
+      [
+        c.x + Math.sin(c.heading) * off,
+        c.z + Math.cos(c.heading) * off,
+        d.width / 2 + d.reach.side,
+        d.depth / 2 + (d.reach.front + d.reach.back) / 2,
+        c.heading,
+        RIDGE[c.kind],
+      ],
+      i * 6,
+    );
+  });
   return {
     size: level.size,
     ground: level.ground,
@@ -103,6 +136,7 @@ export function minimapSource(level: Level): MinimapSource {
       to: look.rock.to,
     },
     wood: woodOf(look.needle),
+    cabins,
   };
 }
 
@@ -115,6 +149,20 @@ const SNOW_HIGH = [250, 251, 255];
 const PACKED = [150, 146, 150];
 const CONTOUR = [70, 98, 136];
 const TREE = [30, 70, 52];
+/** A cabin's roof on the chart: a dark timber brown under a rim darker
+ * still, so it stands off the woods' green and the snow alike. */
+const ROOF = [112, 66, 44];
+const ROOF_RIM = [52, 32, 24];
+const ROOF_RIDGE = [214, 190, 170];
+/** A roof is drawn this much larger than it stands, as a piste map marks a
+ * building, and never less than `ROOF_LEAST` pixels from its centre to its
+ * edge — a hut is a mark at any zoom. */
+const ROOF_GROW = 1.5;
+const ROOF_LEAST = 4.2;
+/** Which way each kind's ridge runs (`MinimapSource.cabins`): a cabin's
+ * along its front, a hut's and a chalet's gable to the front, a shed's
+ * lean-to none. */
+const RIDGE: Readonly<Record<CabinKind, number>> = { cabin: 1, hut: 2, chalet: 2, shed: 0 };
 /** How strongly the woods' mass is laid over the snow at its thickest, and
  * how far round each tree it reaches, as a share of its crown — wide
  * enough that the trees of one clump run together into a wood, while a
@@ -224,6 +272,7 @@ export function bakeMinimap(
   }
   stampWoods(out, px, step, src.trees, src.wood);
   stampTrees(out, px, step, src.trees);
+  stampCabins(out, px, step, src.cabins);
   return out;
 }
 
@@ -287,6 +336,46 @@ function stampTrees(out: Uint8ClampedArray, px: number, step: number, trees: Flo
         out[k] += (TREE[0] - out[k]) * a;
         out[k + 1] += (TREE[1] - out[k + 1]) * a;
         out[k + 2] += (TREE[2] - out[k + 2]) * a;
+      }
+    }
+  }
+}
+
+/** Every cabin as its roof seen from above: the rectangle turned to its
+ * heading, filled in the roof's brown inside a darker rim a pixel wide with
+ * its ridge drawn light along it, soft by half a pixel at its edge. */
+function stampCabins(out: Uint8ClampedArray, px: number, step: number, cabins: Float32Array): void {
+  for (let n = 0; n < cabins.length; n += 6) {
+    const cx = cabins[n] / step - 0.5;
+    const cz = cabins[n + 1] / step - 0.5;
+    const ridge = cabins[n + 5];
+    // A woodshed (no ridge) is a mark smaller than the house beside it.
+    const least = ridge === 0 ? ROOF_LEAST * 0.6 : ROOF_LEAST;
+    const hw = Math.max(least, (cabins[n + 2] * ROOF_GROW) / step);
+    const hd = Math.max(least, (cabins[n + 3] * ROOF_GROW) / step);
+    const fx = Math.sin(cabins[n + 4]);
+    const fz = Math.cos(cabins[n + 4]);
+    const r = Math.hypot(hw, hd) + 1;
+    const i0 = Math.max(0, Math.floor(cx - r));
+    const i1 = Math.min(px - 1, Math.ceil(cx + r));
+    const j0 = Math.max(0, Math.floor(cz - r));
+    const j1 = Math.min(px - 1, Math.ceil(cz + r));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - cx;
+        const dz = j - cz;
+        // Into the building's frame: x across its front, z the way it faces.
+        const lx = Math.abs(dx * fz - dz * fx);
+        const lz = Math.abs(dx * fx + dz * fz);
+        const inside = Math.min(hw - lx, hd - lz);
+        const a = Math.min(1, Math.max(0, inside + 0.5));
+        if (a <= 0) continue;
+        const onRidge = (ridge === 1 && lz < 0.95) || (ridge === 2 && lx < 0.95);
+        const tone = inside < 1 ? ROOF_RIM : onRidge ? ROOF_RIDGE : ROOF;
+        const k = (j * px + i) * 4;
+        out[k] += (tone[0] - out[k]) * a;
+        out[k + 1] += (tone[1] - out[k + 1]) * a;
+        out[k + 2] += (tone[2] - out[k + 2]) * a;
       }
     }
   }

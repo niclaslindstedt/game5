@@ -23,6 +23,8 @@ import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
 import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
+import { PARA_STRINGS } from "./strings-para.ts";
+import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 import { KNUCKLE_STRINGS } from "./strings-knuckle.ts";
@@ -98,6 +100,8 @@ export const STRINGS = {
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,
+  ...PARA_STRINGS,
+  ...GROOMER_STRINGS,
   ...BIG_AIR_STRINGS,
   ...KNUCKLE_STRINGS,
   ...SLOPESTYLE_STRINGS,
@@ -221,7 +225,7 @@ export const STRINGS = {
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under, a stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
-   * driven into, the grimbear. */
+   * driven into, the grimbear, a piste machine ridden into. */
   newsWipeout: (
     cause:
       | "tree"
@@ -235,31 +239,34 @@ export const STRINGS = {
       | "stake"
       | "chair"
       | "net"
-      | "maul",
+      | "maul"
+      | "groomer",
   ): string =>
     cause === "maul"
       ? "TAKEN BY THE GRIMBEAR"
-      : cause === "heli"
-        ? "THROWN CLEAR!"
-        : cause === "chair"
-          ? "SWEPT BY THE CHAIR!"
-          : cause === "net"
-            ? "INTO THE NETS!"
-            : cause === "stake"
-              ? "YARD SALE! STAKE"
-              : cause === "sled"
-                ? "OFF THE SLED!"
-                : cause === "tree"
-                  ? "YARD SALE! TREE"
-                  : cause === "skier"
-                    ? "YARD SALE! TAKEN OUT"
-                    : cause === "nose"
-                      ? "OVER THE TIPS"
-                      : cause === "roll"
-                        ? "YARD SALE"
-                        : cause === "landing"
-                          ? "CRASH LANDING"
-                          : "EDGE CAUGHT",
+      : cause === "groomer"
+        ? "BONK! PISTE MACHINE"
+        : cause === "heli"
+          ? "THROWN CLEAR!"
+          : cause === "chair"
+            ? "SWEPT BY THE CHAIR!"
+            : cause === "net"
+              ? "INTO THE NETS!"
+              : cause === "stake"
+                ? "YARD SALE! STAKE"
+                : cause === "sled"
+                  ? "OFF THE SLED!"
+                  : cause === "tree"
+                    ? "YARD SALE! TREE"
+                    : cause === "skier"
+                      ? "YARD SALE! TAKEN OUT"
+                      : cause === "nose"
+                        ? "OVER THE TIPS"
+                        : cause === "roll"
+                          ? "YARD SALE"
+                          : cause === "landing"
+                            ? "CRASH LANDING"
+                            : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
@@ -301,6 +308,7 @@ export const STRINGS = {
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
   newsLift: (kind: "gondola" | "chair" | "drag"): string =>
     kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
+  newsLiftTaken: "HOLD TUCK TO SKIP UP · ENTER OR DOUBLE TAP TO JUMP OFF",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>

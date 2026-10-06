@@ -61,12 +61,13 @@ export function freshGrimbear(seed: number, ask: GrimbearAsk): GrimbearState {
 
 /** Whether the skier is out on the snow on his own skis — the only skier
  * the beast waits for or runs at: not thrown, not on a lift, a machine, a
- * tunnel's wind or a rail. */
+ * tunnel's wind or a rail, nor hung under a paramotor's wing. */
 function skiing(state: GameState): boolean {
   const c = state.skier;
   if (c.thrown || c.lift || c.tunnel || c.jib) return false;
   if (state.heli?.rider) return false;
   if (state.sled?.mode === "ridden") return false;
+  if (state.para && state.para.mode !== "dropped") return false;
   return true;
 }
 

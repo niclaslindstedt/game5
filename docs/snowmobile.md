@@ -1,6 +1,6 @@
 # The snowmobile
 
-A free ride's way up the mountain on the snow itself. A deep-snow mountain sled is parked at the bottom of the mountain, beside the village. A skier who stops beside it and presses **Enter** (a double tap on either thumb on touch) is taken on: his skis and poles go into the rack on its tunnel and he stands on its running boards in his boots. Then the player rides it — the thumb throttle, the brake, the bars and his weight — anywhere on the mountain, up the faces no lift reaches. **Enter** again steps him off: his skis are on his feet again and the machine stays where he left it, idling a while and then shut off, to be taken again. Rolled over, looped off a drop, landed too hard or run into a trunk, it throws its rider; stood back up, he is back on it, the machine back on its belt.
+A free ride's way up the mountain on the snow itself. A deep-snow mountain sled is parked at the bottom of the mountain, beside the village. A skier who stops beside it and presses **Enter** (a double tap on either thumb on touch) is taken on: his skis and poles go into the rack on its tunnel and he stands on its running boards in his boots. Then the player rides it — the thumb throttle, the brake, the bars and his weight — anywhere on the mountain, up the faces no lift reaches. **Enter** again steps him off: his skis are on his feet again and the machine stays where he left it, idling a while and then shut off, to be taken again. Rolled over, looped, landed on its side or its nose, dropped off a height, ridden into a rock wall or run into a trunk, it throws its rider — bumps, jumps and drops onto snow it rides out; stood back up, he is back on it, the machine back on its belt.
 
 It is reached two ways:
 
@@ -88,7 +88,11 @@ The rider is thrown (the `sled` crash cause, its tumble in `defs/crash.ts`) when
 
 - meets a trunk harder than `SLED.crash.tree` (7 m/s);
 - stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.6 s): rolled or looped;
-- lands closing harder than `crash.landing` (9 m/s).
+- comes down into the snow, along the snow's normal, harder than `crash.landing` (15 m/s) on the groomer, up to `crash.landingPowder` (19 m/s) in deep powder — a drop of some 7.6 m and 12 m at the flight's gravity — so a kicker onto the flat, a ledge into powder or the edge of a face ridden over are ridden out, and a cliff is not;
+- comes down more than `crash.tilt` (40°) off its belt, on its side or its nose, any harder than `crash.tiltFrom` (4 m/s);
+- has the way it was going stopped `crash.wall` (8 m/s) in one step — a rock wall or a cliff band ridden into at speed. Ridden into at a crawl, it just stops.
+
+Nothing else on snow throws him. In the air the rider levels the roll with his body, but only so hard (`air.rollMost`): a lip tipped a little is levelled, one tipped hard comes down on its side. And the machine SETS ITS NOSE for the landing (`air.setStiff`, the run's `assist.air`): pitched toward the snow it will come down on, a little nose high, so a jump does not land on its tail or its nose — let go to the rider the moment he leans or brakes, so a nose he drops or throws back is his own. `make sled-land` rides every one of these as a table, and `tests/sled_landing_test.ts` holds it.
 
 An amateur on a free ride shouldered hard enough to throw a skier (`crowd.ts`'s `clipCrowd`) throws him off the boards too, with the `skier` cause.
 
@@ -133,6 +137,7 @@ It is heard from the skier: under him on the boards, and going away down the sno
 
 ## Measuring it
 
+- `make sled-land` and `npx vitest run tests/sled_landing_test.ts`: rollers, whoops, hard turns, a sidehill, kickers, drops, a cliff, a bank and a wall, each ridden out or thrown as a rider expects.
 - `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, getting on and off on the machine press, the crash and the remount, determinism, and the voice.
 - `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, the model alone, and every camera rung riding it (`ARGS=--sheet=lenses`), on contact sheets.
 - `make screenshots ARGS="--surface sled-park,sled-go,sled"` (after `make build`): the built app stood on its boards at the bottom, riding away, and riding up the mountain on the pre-roll's hands (`sledPilot`).

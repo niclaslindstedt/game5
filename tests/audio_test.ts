@@ -116,6 +116,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   trap: { kind: "trap", t: 40, speed: 36 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
+  groomer: { kind: "groomer", t: 40, phase: "strike", id: 0, x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
   jump: { kind: "jump", t: 1, pop: 4, held: 1 },
   land: {
@@ -148,6 +149,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   lift: { kind: "lift", t: 1, id: "C1", lift: "chair", phase: "tower" },
   heli: { kind: "heli", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
+  para: { kind: "para", t: 1, phase: "drop", x: 0, y: 0, z: 0, speed: 14 },
   jam: { kind: "jam", t: 1, hit: 1, fell: false },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
 };

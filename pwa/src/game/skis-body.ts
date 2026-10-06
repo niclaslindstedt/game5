@@ -92,6 +92,8 @@ import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 
 /** How long a rider takes to stand up off a chair, s. */
 const STAND_UP = 0.35;
+/** A gondola cabin's floor under its rider's origin, m (`lifts.ts`). */
+const CABIN_FLOOR = -1.0;
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -520,6 +522,8 @@ export function createSkisModel(
   const BOUND = bound.radius;
   // How seated he is drawn, eased down as he stands off a chair.
   let seated = 0;
+  // How far he is drawn sat back onto a T-bar, eased off as it lets go.
+  let towing = 0;
   // The helicopter's skid he is sat on, if any (`setPerch`), and his legs
   // dangling off it (`skier-dangle.ts`).
   let perch: Perch | null = null;
@@ -543,8 +547,6 @@ export function createSkisModel(
       return out;
     },
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
-      // IN A GONDOLA'S CABIN he is out of sight, skis and all.
-      root.visible = !(skier.lift?.kind === "gondola" && skier.lift.phase === "ride");
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // His legs' spring first: how far he stands on the snow is its own —
@@ -580,7 +582,9 @@ export function createSkisModel(
       // Hanging off a skid the skis are neither pivoted nor edged.
       const hung = perch !== null && !off;
       const boarded = sled !== null && !off;
-      rack(boarded);
+      // IN A GONDOLA'S CABIN his skis ride in the rack on its door.
+      const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride";
+      rack(boarded || cabin);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
@@ -651,17 +655,25 @@ export function createSkisModel(
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
-        const sat = skier.lift?.kind === "chair";
-        const share = perch !== null ? 1 : sat ? seatedShare(skier.lift!) : 0;
+        // ...or IN A GONDOLA'S CABIN, sat on the bench along its back wall
+        // at a chair's height, the poles stood on its floor; or TOWED BY A
+        // T-BAR, sat back onto the bar as it takes him.
+        const lift = skier.lift;
+        const sat = lift?.phase === "ride" && (lift.kind === "chair" || lift.kind === "gondola");
+        const towed = lift?.kind === "drag" && lift.phase === "ride";
+        const share = perch !== null ? 1 : sat ? seatedShare(lift) : 0;
         seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
+        towing = towed ? seatedShare(lift) : Math.max(0, towing - dt / STAND_UP);
         const seatY = perch?.y ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
         if (perch !== null) lastPerch = perch.y;
         else if (sat) lastPerch = null;
         const seat: Seat | null = boarded
           ? { share: 1, y: 0, board: sled!.board }
           : seated > 0
-            ? { share: seated, y: seatY }
-            : null;
+            ? { share: seated, y: seatY, ...(cabin ? { floor: CABIN_FLOOR } : {}) }
+            : towing > 0
+              ? { share: towing, y: 0, tow: true }
+              : null;
         if (hung && seat) {
           // HIS LEGS DANGLING off the skid (`skier-dangle.ts`), swung by the
           // machine, the air and himself — the figure's lower legs turned

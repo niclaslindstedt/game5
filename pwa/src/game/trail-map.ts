@@ -30,10 +30,20 @@
 // in both maps — whole steps of the byte encoding at a time, the remainder
 // carried — so an hour's storm leaves the morning's trails as soft dents,
 // and the trail cut a minute ago crisp beside them.
+//
+// THE PISTE MACHINES' SWATHS (`groomer.ts`) go into the same maps by a pass
+// of their own: under a swath every furrow and berm is wiped (no blending —
+// the texel is written whole), the blue channel set to 1 (GROOMED) and the
+// alpha to the way the comb runs (the swath's axis over π). A skier's stamp
+// leaves both alone (its MAX keeps them), and new snow takes the blue down
+// as it lands (`fill`), the swath buried under `FRESH_LOOK` m of it. The
+// terrain reads them through `trailGroomAt`; `uWorked` is 1 once a machine
+// has groomed anything this run — the night the rest of the piste reads as
+// the day's skied-up snow.
 
 import * as THREE from "three";
 
-import { recentre, TRAIL, type Stamp } from "./trail-stamp.ts";
+import { FRESH_LOOK, recentre, TRAIL, type Stamp } from "./trail-stamp.ts";
 
 /** The maps' sizes — a TRAILS stop, `TRAIL_LOOK` in `settings-video.ts`. */
 export type TrailOptions = {
@@ -56,6 +66,8 @@ export type TrailUniforms = {
   uCoarseTexel: { value: number };
   uMapSize: { value: number };
   uTrailScale: { value: THREE.Vector2 };
+  /** 1 once a piste machine has groomed anything this run, else 0. */
+  uWorked: { value: number };
 };
 
 /** The GLSL every surface that reads the trail map needs: `trailAt(p)` is
@@ -71,6 +83,7 @@ uniform float uFineTexel;
 uniform float uCoarseTexel;
 uniform float uMapSize;
 uniform vec2 uTrailScale;
+uniform float uWorked;
 
 float trailFineWeight(vec2 p) {
   vec2 u = (p - uFineOrigin) / uFineSpan;
@@ -87,6 +100,16 @@ vec2 trailAt(vec2 p) {
     v = mix(coarse, fine, w);
   }
   return v * uTrailScale;
+}
+
+// THE GROOMED SWATH at \`p\`: how freshly groomed (x, 0 none … 1 just
+// now) and the comb's axis (y, over π).
+vec2 trailGroomAt(vec2 p) {
+  vec2 coarse = textureLod(uTrailCoarse, p / uMapSize, 0.0).ba;
+  float w = trailFineWeight(p);
+  if (w <= 0.0) return coarse;
+  vec2 fine = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).ba;
+  return mix(coarse, fine, w);
 }
 
 // How far the snow at \`p\` stands off its untouched surface, m: down by
@@ -172,7 +195,24 @@ void main() {
   float press = u < 1.0 ? 1.0 - pow(u, k) : 0.0;
   float v = (u - 0.8) / ${TRAIL.bermReach.toFixed(2)};
   float berm = (v > 0.0 && v < 1.0) ? sin(3.14159265 * v) : 0.0;
-  gl_FragColor = vec4(press * vShape.y, berm * vShape.z, 0.0, 1.0);
+  gl_FragColor = vec4(press * vShape.y, berm * vShape.z, 0.0, 0.0);
+}
+`;
+
+// A SWATH: the capsule's inside written whole — no furrow, no berm, groomed,
+// the comb along the segment.
+const GROOM_FRAGMENT = /* glsl */ `
+varying vec2 vP;
+varying vec4 vSeg;
+varying vec4 vShape;
+void main() {
+  vec2 a = vSeg.xy;
+  vec2 ab = vSeg.zw - a;
+  float h = clamp(dot(vP - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
+  if (length(vP - a - ab * h) > vShape.x) discard;
+  float axis = atan(ab.x, ab.y);
+  if (axis < 0.0) axis += 3.14159265;
+  gl_FragColor = vec4(0.0, 0.0, 1.0, clamp(axis / 3.14159265, 0.0, 1.0));
 }
 `;
 
@@ -211,6 +251,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     uCoarseTexel: { value: coarseTexel },
     uMapSize: { value: mapSize },
     uTrailScale: { value: new THREE.Vector2(TRAIL.maxDepth, TRAIL.maxBerm) },
+    uWorked: { value: 0 },
   };
 
   // THE STAMP PASS.
@@ -239,6 +280,15 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     blendEquationAlpha: THREE.MaxEquation,
     blendSrc: THREE.OneFactor,
     blendDst: THREE.OneFactor,
+    depthTest: false,
+    depthWrite: false,
+  });
+  // THE SWATH PASS: the same quads, written whole.
+  const groomMaterial = new THREE.ShaderMaterial({
+    uniforms: stampMaterial.uniforms,
+    vertexShader: STAMP_VERTEX,
+    fragmentShader: GROOM_FRAGMENT,
+    blending: THREE.NoBlending,
     depthTest: false,
     depthWrite: false,
   });
@@ -276,13 +326,13 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
   // subtraction — the byte clamps at zero, so a trail fills to the snow
   // round it and never past.
   const fillMaterial = new THREE.ShaderMaterial({
-    uniforms: { uStep: { value: new THREE.Vector2() } },
+    uniforms: { uStep: { value: new THREE.Vector3() } },
     vertexShader: /* glsl */ `
       void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
     `,
     fragmentShader: /* glsl */ `
-      uniform vec2 uStep;
-      void main() { gl_FragColor = vec4(uStep, 0.0, 0.0); }
+      uniform vec3 uStep;
+      void main() { gl_FragColor = vec4(uStep, 0.0); }
     `,
     blending: THREE.CustomBlending,
     blendEquation: THREE.ReverseSubtractEquation,
@@ -364,31 +414,47 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     withTarget(renderer, rt, () => renderer.render(stampScene, lens));
   }
 
+  /** Draw `list` into both maps, a batch at a time, by the material on. */
+  function draw(renderer: THREE.WebGLRenderer, list: readonly Stamp[], o: THREE.Vector2) {
+    for (let from = 0; from < list.length; from += BATCH) {
+      const n = Math.min(BATCH, list.length - from);
+      const sa = seg.array as Float32Array;
+      const sh = shape.array as Float32Array;
+      for (let i = 0; i < n; i++) {
+        const s = list[from + i];
+        sa[i * 4] = s.ax;
+        sa[i * 4 + 1] = s.az;
+        sa[i * 4 + 2] = s.bx;
+        sa[i * 4 + 3] = s.bz;
+        sh[i * 4] = s.half;
+        sh[i * 4 + 1] = s.depth / TRAIL.maxDepth;
+        sh[i * 4 + 2] = s.berm / TRAIL.maxBerm;
+        sh[i * 4 + 3] = s.wall ?? TRAIL.wall;
+      }
+      seg.needsUpdate = true;
+      shape.needsUpdate = true;
+      drawStamps(renderer, coarse, 0, 0, mapSize, coarseTexel * 0.75, n);
+      drawStamps(renderer, fine, o.x, o.y, span, fineTexel * 0.75, n);
+    }
+  }
+  const groomed: Stamp[] = [];
+  const furrows: Stamp[] = [];
+
   return {
     uniforms,
     update(renderer, stamps, px, pz) {
       follow(renderer, px, pz);
       const o = uniforms.uFineOrigin.value;
-      for (let from = 0; from < stamps.length; from += BATCH) {
-        const n = Math.min(BATCH, stamps.length - from);
-        const sa = seg.array as Float32Array;
-        const sh = shape.array as Float32Array;
-        for (let i = 0; i < n; i++) {
-          const s = stamps[from + i];
-          sa[i * 4] = s.ax;
-          sa[i * 4 + 1] = s.az;
-          sa[i * 4 + 2] = s.bx;
-          sa[i * 4 + 3] = s.bz;
-          sh[i * 4] = s.half;
-          sh[i * 4 + 1] = s.depth / TRAIL.maxDepth;
-          sh[i * 4 + 2] = s.berm / TRAIL.maxBerm;
-          sh[i * 4 + 3] = s.wall ?? TRAIL.wall;
-        }
-        seg.needsUpdate = true;
-        shape.needsUpdate = true;
-        drawStamps(renderer, coarse, 0, 0, mapSize, coarseTexel * 0.75, n);
-        drawStamps(renderer, fine, o.x, o.y, span, fineTexel * 0.75, n);
+      // The swaths first, so a furrow cut this frame over one stays cut.
+      groomed.length = 0;
+      furrows.length = 0;
+      for (const st of stamps) (st.groom ? groomed : furrows).push(st);
+      if (groomed.length > 0) uniforms.uWorked.value = 1;
+      for (const list of [groomed, furrows]) {
+        stampMesh.material = list === groomed ? groomMaterial : stampMaterial;
+        draw(renderer, list, o);
       }
+      stampMesh.material = stampMaterial;
     },
     fill(renderer, metres) {
       pending += Math.max(0, metres);
@@ -398,15 +464,18 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       const metresNow = steps * depthStep;
       // The berm's channel is finer: the same metres are more of its bytes.
       const berm = Math.min(255, Math.round((metresNow / TRAIL.maxBerm) * 255));
-      (fillMaterial.uniforms.uStep.value as THREE.Vector2).set(
+      // ...and a swath is buried under `FRESH_LOOK` of it.
+      (fillMaterial.uniforms.uStep.value as THREE.Vector3).set(
         Math.min(255, steps) / 255,
         berm / 255,
+        Math.min(1, metresNow / FRESH_LOOK),
       );
       withTarget(renderer, coarse, () => renderer.render(fillScene, lens));
       withTarget(renderer, fine, () => renderer.render(fillScene, lens));
     },
     clear(renderer) {
       pending = 0;
+      uniforms.uWorked.value = 0;
       wipe(renderer, coarse);
       wipe(renderer, fine);
       wipe(renderer, spare);
@@ -420,7 +489,11 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       // one a map's pass asks for.
       const was = renderer.getRenderTarget();
       renderer.setRenderTarget(coarse);
+      stampMesh.material = groomMaterial;
+      const swath = renderer.compileAsync(stampScene, lens);
+      stampMesh.material = stampMaterial;
       const ready = [stampScene, copyScene, fillScene].map((s) => renderer.compileAsync(s, lens));
+      ready.push(swath);
       renderer.setRenderTarget(was);
       return Promise.all(ready);
     },
@@ -430,6 +503,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       spare.dispose();
       quad.dispose();
       stampMaterial.dispose();
+      groomMaterial.dispose();
       copyMaterial.dispose();
       copyMesh.geometry.dispose();
       fillMaterial.dispose();

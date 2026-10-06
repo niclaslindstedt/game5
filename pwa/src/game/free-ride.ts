@@ -221,6 +221,17 @@ export function sledOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === SLED_RUN;
 }
 
+/** THE RUN ROW'S FIRST VEHICLE STOP: the PARAMOTOR on the summit
+ * (`para.ts`) — the ride begun at the top of the mountain on his skis, the
+ * motor on his back and the wing over him. A run id of its own, as the
+ * machines' are. */
+export const PARA_RUN = "para";
+
+/** Whether the ride on `seed` begins under the paramotor. */
+export function paraOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === PARA_RUN;
+}
+
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
@@ -303,7 +314,8 @@ export function freeGameOptions(
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
-  const vehicle = heli || sled;
+  const para = paraOn(ride, seed);
+  const vehicle = heli || sled || para;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
@@ -318,6 +330,8 @@ export function freeGameOptions(
     heli,
     // THE SNOWMOBILE: stood on its boards at the bottom, the engine running.
     sled,
+    // THE PARAMOTOR: stood on the summit, the wing over him.
+    para,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's
@@ -336,6 +350,8 @@ export function freeGameOptions(
     byLift: spot === null && !vehicle,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
+    // THE PISTE MACHINES, out working the runs if the ride is after dark.
+    groomer: "night",
   };
 }
 

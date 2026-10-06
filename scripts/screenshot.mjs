@@ -312,6 +312,24 @@ const SURFACES = {
     wait: ".hud-sled",
     settle: 1500,
   },
+  // THE FREE RIDE'S PARAMOTOR (`para.ts`, `?para=1`): on the summit with
+  // the wing held overhead, skiing off under it as it flies, and in the air
+  // on the pre-roll's hands (`paraPilot`), the engine run up.
+  "para-ready": {
+    params: { start: "free", para: "1", t: "0.5", shot: "1" },
+    wait: ".hud-para",
+    settle: 1500,
+  },
+  "para-go": {
+    params: { start: "free", para: "1", t: "4", shot: "1" },
+    wait: ".hud-para",
+    settle: 1500,
+  },
+  para: {
+    params: { start: "free", para: "1", t: "20", shot: "1" },
+    wait: ".hud-para",
+    settle: 1500,
+  },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.

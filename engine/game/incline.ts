@@ -32,6 +32,7 @@ import type { Technique } from "./defs/technique.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import { carveCurvature, carveMost, cornerGrip } from "./limits.ts";
 import type { SkierState } from "./state.ts";
+import { snowNormal } from "./snow-normal.ts";
 import type { Level } from "../mapgen/types.ts";
 
 /** THE ROLL HELD is whole up to the most he inclines plus `HOLD_PAST` rad
@@ -82,7 +83,7 @@ const up = { x: 0, y: 1, z: 0 };
  * the flat (`Crossing.steep`) — 0 where it never asks. */
 export function crossFall(level: Level, c: SkierState, T: Technique): number {
   if (T.cross.steep <= 0) return 0;
-  level.normalAt(c.x, c.z, up);
+  snowNormal(level, c, up);
   return Math.acos(clamp(up.y, -1, 1));
 }
 

@@ -235,9 +235,12 @@ export function Hud({
               </div>
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
-            {snap.tricks && !snap.bigAir && !snap.jam && !snap.slopestyle && !snap.halfpipe && (
-              <TricksChips tile={snap.tricks} />
-            )}
+            {snap.tricks &&
+              !snap.bigAir &&
+              !snap.jam &&
+              !snap.slopestyle &&
+              !snap.halfpipe &&
+              !snap.moguls && <TricksChips tile={snap.tricks} />}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
             {snap.slopestyle && (
               <div class="hud-chip hud-run">
@@ -249,6 +252,15 @@ export function Hud({
                     snap.slopestyle.sections,
                     snap.slopestyle.kind,
                   )}
+                </span>
+              </div>
+            )}
+            {/* A MOGULS RUN: its phase, the pace time and the airs so far. */}
+            {snap.moguls && (
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.mogulsPhase(snap.moguls.phase)}</span>
+                <span class="hud-chip-sub">
+                  {STRINGS.mogulsPace(snap.moguls.pace, snap.moguls.airs)}
                 </span>
               </div>
             )}

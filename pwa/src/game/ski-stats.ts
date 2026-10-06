@@ -13,20 +13,21 @@
 // ski cross's berm, and again at a super-G's and a downhill's (`cornerGrip`
 // against `carveCurvature` on the full edge), the footprint's
 // float in powder (`footprintOf`), how fast the pair rolls onto its edge,
-// and the hardest landing it takes whole (`harshSpeedOf`) — the same
-// arithmetic the physics and the bot run at 120 Hz.
+// the hardest landing it takes whole (`harshSpeedOf`) and how its legs take
+// a mogul line (`bumpsOf`) — the same arithmetic the physics and the bot
+// run at 120 Hz.
 //
-// NINE AXES, because the catalog is ten answers to a kind of snow and
+// TEN AXES, because the catalog is eleven answers to a kind of snow and
 // the snow has two kinds: what a pair does on the GROOMER (the top end, the
 // edge's hold at race pace, round a berm, at a super-G's and at a
 // downhill's, how quickly it goes edge to edge)
 // and what it does OFF it
-// (the float, how forgiving it is, the landing). Every pair is best at
+// (the float, how forgiving it is, the landing, the bumps). Every pair is best at
 // something on this sheet and none is best at everything, which is the
 // card's whole argument.
 //
-// The bars are RELATIVE TO THE ROSTER, not absolute: ten pairs within a
-// few percent of each other on an axis scaled from zero are ten identical
+// The bars are RELATIVE TO THE ROSTER, not absolute: eleven pairs within
+// a few percent of each other on an axis scaled from zero are eleven identical
 // full bars, which is a picture of nothing. The roster's own spread is the
 // scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.
@@ -131,6 +132,16 @@ export function forgivenessOf(spec: SkiSpec): number {
   return soft(spec) / soft(ref);
 }
 
+/** HOW WELL IT TAKES A MOGUL LINE, m/s per m: how fast the legs FOLD — their
+ * stroke over the time the knee's give takes to let it go (the spring over
+ * the folding damper, `legs.rate / legs.bump`) — over the length of ski
+ * that has to fit between two bumps. A short ski on legs that give
+ * quickly swallows a mogul every third of a second; a long ski on a speed
+ * skier's legs, held stiff for the tuck, rides over the tops. */
+export function bumpsOf(spec: SkiSpec): number {
+  return (spec.legs.travel * spec.legs.rate) / spec.legs.bump / spec.length;
+}
+
 type AxisKey = keyof typeof STRINGS.skisBars;
 type Axis = { key: AxisKey; of: (spec: SkiSpec) => number };
 
@@ -146,6 +157,7 @@ const AXES: readonly Axis[] = [
   { key: "float", of: floatOf },
   { key: "flex", of: forgivenessOf },
   { key: "landing", of: harshSpeedOf },
+  { key: "bumps", of: bumpsOf },
 ];
 
 export type SkisBar = {

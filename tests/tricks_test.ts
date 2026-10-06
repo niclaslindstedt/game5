@@ -324,7 +324,8 @@ describe("the tricks run", () => {
           mode === "knuckleHuck" ||
           mode === "slopestyle" ||
           mode === "railJam" ||
-          mode === "halfpipe",
+          mode === "halfpipe" ||
+          mode === "moguls",
       );
     }
     expect(createGame({ level: flatLevel(), quiet: true }).rules.stunts).toBe(false);

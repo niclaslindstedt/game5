@@ -25,6 +25,7 @@ import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
+import type { PisteDay } from "./piste-day.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { PressState } from "./butter-state.ts";
@@ -928,6 +929,12 @@ export type GameState = ContestState & {
    * field, and read through `packedUnder` / `depthUnder` wherever the
    * surface is. */
   fresh: number;
+  /** THE PISTE THROUGH THE DAY (`piste-day.ts`): how skied up, softened or
+   * refrozen the runs are at the run's hour, and the loose new snow on them
+   * (which `fresh` starts at) — on a run whose rules have the ski area's
+   * machines (`RunRules.groomer`); absent everywhere else, where the piste
+   * is the map's own. Read, never written, during a run. */
+  piste?: PisteDay;
   /** THE FIELD: every other skier, in start-line order; empty on a solo
    * run — and on an interval start, whose field has already skied. */
   rivals: Rival[];

@@ -15,7 +15,7 @@ import { clamp, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
 import { derive } from "./skier.ts";
-import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
+import { bottomlessOf, depthUnder, looseOf, packedUnder, sinkTarget } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
 import type { GameState } from "./state.ts";
 
@@ -91,7 +91,7 @@ export function placeRun(state: GameState, moment: RunMoment): void {
     c.vz = (tz / tl) * speed;
   }
   c.wx = -(moment.pitchRate ?? 0);
-  const packed = packedUnder(level.packedAt(moment.x, moment.z), state.fresh);
+  const packed = packedUnder(level.packedAt(moment.x, moment.z), state.fresh, looseOf(state));
   const probes = probesOf(c.spec);
   for (let i = 0; i < probes.length; i++)
     c.sinks[i] = sinkTarget(

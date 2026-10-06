@@ -175,6 +175,9 @@ export type Snowpack = {
   fresh: number;
   /** How wet the thaw has made the soft and new snow, 0..1. */
   wet: number;
+  /** THE PISTE THROUGH THE DAY (`GameState.piste`): how skied up, softened
+   * and refrozen the groomer is, each 0..1 — nought on a run not dealt it. */
+  piste: { worn: number; soft: number; hard: number };
   /** The run's snow dial (`GameState.snowDepth`): how much loose snow
    * there is, as a multiple of the ordinary. */
   depth: number;
@@ -190,6 +193,9 @@ export type SnowpackOptions = {
   fresh?: number;
   depth?: number;
   force?: SnowKind | null;
+  /** The run's piste through the day (`GameState.piste`); none when left
+   * out. */
+  piste?: { worn: number; soft: number; hard: number };
 };
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -215,6 +221,11 @@ export function snowpackOf(
     laid: snowing ? NEW_LAID * weather.snowfall : 0,
     fresh: options.fresh ?? 0,
     wet: snowing ? 0 : smooth(THAW.from, THAW.full, sun) * lid,
+    piste: {
+      worn: options.piste?.worn ?? 0,
+      soft: options.piste?.soft ?? 0,
+      hard: options.piste?.hard ?? 0,
+    },
     depth: options.depth ?? 1,
     force: options.force ?? null,
   };
@@ -258,12 +269,20 @@ export function snowMix(pack: Snowpack, x: number, z: number, out: SnowMix = emp
   // THE THAW takes the loose snow wet; the groomer and the slab stay what
   // they are (a sunlit groomer is slush only in April).
   const w = pack.wet;
+  // THE DAY'S PISTE: a share of the groomer skied off into loose heaps, a
+  // share gone to slush under a spring sun, and a share of that frozen
+  // again into a crust that breaks in chunks.
+  const day = pack.piste;
+  const open = g * (1 - coverGroomed);
+  const slush = open * day.soft;
+  const froze = open * day.hard * 0.6;
+  const heaped = (open - slush - froze) * day.worn * 0.25;
   out.ice = ice;
-  out.groomed = g * (1 - coverGroomed);
-  out.hard = hard * under;
-  out.soft = soft * under * (1 - w);
+  out.groomed = open - slush - froze - heaped;
+  out.hard = hard * under + froze;
+  out.soft = soft * under * (1 - w) + heaped;
   out.new = buried * (1 - w);
-  out.wet = (soft * under + buried) * w;
+  out.wet = (soft * under + buried) * w + slush;
   return out;
 }
 

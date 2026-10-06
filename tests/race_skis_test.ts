@@ -10,6 +10,7 @@ import {
   DISCIPLINES,
   BIG_AIR,
   HALFPIPE,
+  MOGULS,
   DOWNHILL,
   FREESTYLE,
   GAME_MODES,
@@ -42,6 +43,8 @@ const CLASS = {
   // The halfpipe rides the stiff competition twin-tip too: a pipe ski is
   // firm and about 85–90 mm underfoot.
   halfpipe: "Big air",
+  // Moguls ride the mogul ski: short, narrow, straight, soft at the tip.
+  moguls: "Moguls",
 } as const;
 
 describe("a race's own pair", () => {
@@ -66,6 +69,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("slopestyle")).toBe(SLOPESTYLE.skis);
     expect(raceSkisOf("railJam")).toBe(RAIL_JAM.skis);
     expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
+    expect(raceSkisOf("moguls")).toBe(MOGULS.skis);
   });
 
   it("is none for a mode that is no race and no freestyle format", () => {

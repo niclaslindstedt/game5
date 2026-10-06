@@ -5,33 +5,38 @@
 //
 // THE CLASS, measured across the current machines of the largest size a ski
 // area runs (the class, never a make): a rubber-belted crawler some 8.9 m
-// long with its blade and tiller on, 4.2 m wide over two tracks 1.65 m
-// across, the cab's roof some 2.9–3.3 m over the snow; 10.8–13.2 t ready to
-// work (with a winch boom on the back, 14.5 t); a twelve-way blade 5.25 m
-// wide open (4.4 m closed) and some 1.2 m tall; a tiller 5.5–6.2 m wide with
-// its finisher flaps, the comb's corduroy behind it; a six-cylinder diesel of
-// some 340 kW; grooming at 10–15 km/h and travelling at about 20–23 km/h at
-// most; and a roof bar and a front of LED work lamps, with an amber beacon
-// on the roof.
+// long with its blade and tiller on (8.9–9.2 m across the class), 2.5 m
+// wide without its tracks and 4.2 m over two tracks 1.65 m across, 0.35 m of
+// ground clearance, 2.9 m tall overall over its roof's lamp bars (3.3 m with
+// a winch boom stowed); 10.8–13.2 t ready to work (with a winch on the back,
+// 14.5 t); a twelve-way blade 5.25–5.95 m wide open (4.4 m closed) and
+// 1.17 m tall; a tiller 5.5–6.4 m wide with its side finishers out, the
+// comb's corduroy behind it; a six-cylinder diesel of 340–390 kW; grooming
+// at 10–15 km/h and travelling at about 20–23 km/h at most; and LED lamps
+// all round — a bar over the screen, headlights on the nose, a pair on the
+// blade, a bar on the back of the roof and a pair on the tiller — with an
+// amber beacon on the roof. How it is DRAWN (the belts' wheels, the cab's
+// glass, every lamp) is `pwa/src/game/groomer-look.ts`, laid over these.
 //
 // The frame is the engine's: x right (the side the screen draws on the
 // driver's left — the renderer's frame mirrors the map), y up, z forward,
 // the origin on the snow under the middle of the tracks.
 
 export const GROOMER = {
-  /** How many machines work a night's ski area, at most: one a run, never
-   * two on the same run. */
-  count: 2,
+  /** HOW MANY MACHINES work a night's ski area: one to every `perRuns` of
+   * its runs long enough to groom, at least `least` and at most `most` (and
+   * never more than there are runs) — one a run, never two on the same. */
+  count: { least: 3, most: 6, perRuns: 4 },
   /** The shortest run one is set to, m. */
   shortest: 250,
   /** THE MACHINE, m: the tracks' run on the snow and their width, the
    * width over both, the blade's face ahead of the middle and its width
    * open, the tiller's end behind the middle and its width with the
-   * finishers out, the cab's roof over the snow. */
+   * finishers out, the machine's top over the snow (the roof's lamp bars). */
   tracks: { length: 4.6, width: 1.65, span: 4.21 },
-  blade: { ahead: 4.0, width: 5.25, height: 1.2 },
+  blade: { ahead: 4.0, width: 5.25, height: 1.17 },
   tiller: { behind: 4.9, width: 5.5 },
-  roof: 3.0,
+  roof: 2.88,
   /** Ready to work, kg. */
   mass: 12000,
   /** THE FOOTPRINT a skier meets, m: from the blade's face to the tiller's
@@ -70,7 +75,7 @@ export const GROOMER = {
    * slower than `fastest` m/s against it. */
   board: { reach: 3, fastest: 4 },
   /** Where the driver sits: over the snow and ahead of the middle, m. */
-  seat: { y: 2.05, z: 0.9 },
+  seat: { y: 1.6, z: 1.45 },
   /** Stepped down out of the cab: this far out to its left, m. */
   hop: 1.4,
   /** RIDDEN INTO: a skier meeting its footprint closing slower than

@@ -31,6 +31,7 @@ import {
   setKnuckleHuck,
   setRailJam,
   setHalfpipe,
+  setMoguls,
   setSlopestyle,
   withDay,
   withSky,
@@ -64,6 +65,8 @@ import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshJam, stepJam } from "./jam.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
+import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
+import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -79,6 +82,7 @@ import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
+import { pisteDayOf } from "./piste-day.ts";
 import { freshTricks, stepTricks } from "./tricks.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
@@ -128,6 +132,8 @@ export type CreateGameOptions = {
   /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), as a
    * slopestyle's. */
   halfpipe?: PipeContest;
+  /** A MOGULS CONTEST so far (R42, `moguls-contest.ts`), as a halfpipe's. */
+  moguls?: MogulsContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -207,8 +213,15 @@ export type CreateGameOptions = {
    * ordinary snow's. 1 when left out. */
   snowDepth?: number;
   /** New snow already lying when the run is stood up, m (`GameState.fresh`)
-   * — a lab's or a test's; 0 when left out. */
+   * — a lab's or a test's; when left out, the loose snow the day has left
+   * on the runs (`piste`), or 0. */
   fresh?: number;
+  /** THE PISTE THROUGH THE DAY (`piste-day.ts`, `GameState.piste`): deal
+   * the runs as the map's hour and sky have left them since the night's
+   * grooming. Left out, a run whose rules have the ski area's machines
+   * (`RunRules.groomer` — the free ride) is dealt it and every other is
+   * not. */
+  piste?: boolean;
   /** The day to ride the map on instead of the one R15 dealt: an hour of
    * solar time or a named time of day (`hourOfTime`), and a day of the
    * year, any of them (`withDay`). */
@@ -333,6 +346,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.slopestyle?.base ??
     built.railJam?.base ??
     built.halfpipe?.base ??
+    built.moguls?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -359,7 +373,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                         ? setRailJam(built)
                         : options.mode === "halfpipe"
                           ? setHalfpipe(built)
-                          : original;
+                          : options.mode === "moguls"
+                            ? setMoguls(built)
+                            : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -367,6 +383,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // picked by hand included.
   const level = rules.jury ? juryDay(skied, rules.jury) : skied;
   const seed = options.seed ?? level.seed;
+  // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
+  // machines work its runs, the runs are as the hour and the sky have left
+  // them since the night's pass — and the loose snow on them is the new
+  // snow the run starts with.
+  const piste = (options.piste ?? rules.groomer) ? pisteDayOf(level) : undefined;
   const state: GameState = {
     seed,
     rng: createRng(seed),
@@ -384,7 +405,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
     snowDepth: clampSnowDepth(options.snowDepth),
-    fresh: Math.max(0, options.fresh ?? 0),
+    fresh: Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
     tricks: freshTricks(),
     countdown: rules.countdown,
@@ -392,6 +413,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     events: [],
     gatePoles: freshGatePoles(level),
   };
+  if (piste) state.piste = piste;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =
@@ -448,6 +470,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
+  if (level.moguls) {
+    state.moguls = options.moguls ?? freshMoguls(state.seed);
+    state.mogulTurns = freshTurns();
+  }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
@@ -507,6 +533,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   stepTricks(state, events);
   // A KNUCKLE HUCK'S JAM (`jam.ts`): a hit over, and back to the platform.
   if (state.jam) stepJam(state, events);
+  // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
+  if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.

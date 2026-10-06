@@ -31,7 +31,7 @@ import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
-import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
+import { bottomlessOf, depthUnder, looseOf, packedUnder, sinkTarget } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
 import type { GameEvent, GameState, Progress, RunOut } from "./state.ts";
 import { stepStrict } from "./strict.ts";
@@ -365,7 +365,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
     level.groundAt(x - fz * W, z + fx * W) - level.groundAt(x + fz * W, z - fx * W),
     2 * W,
   );
-  const packed = packedUnder(level.packedAt(x, z), state.fresh);
+  const packed = packedUnder(level.packedAt(x, z), state.fresh, looseOf(state));
   const depth = depthUnder(state.snowDepth, state.fresh);
   const deep = bottomlessOf(state.snowDepth);
   const probes = probesOf(c.spec);

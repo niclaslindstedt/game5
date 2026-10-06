@@ -124,7 +124,8 @@ export function MenuPages(p: {
               p.mode === "knuckleHuck" ||
               p.mode === "slopestyle" ||
               p.mode === "railJam" ||
-              p.mode === "halfpipe";
+              p.mode === "halfpipe" ||
+              p.mode === "moguls";
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}

@@ -241,6 +241,7 @@ shared piece it first needs:
    *Built in part (R41).*
 6. **Moguls** — a new terrain (moguls), the turns scored, the formal
    scorer, the clock, a mogul pair.
+   *Built in part (R42).*
 7. **Dual moguls** — moguls side by side, the bracket.
 8. **Aerials** — the declared flight plan, twisting flips, the formal
    scorer with DD, an aerials pair.

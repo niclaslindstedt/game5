@@ -72,7 +72,9 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
+  looseOf,
   onIce,
+  pisteIce,
   platformOf,
   packedSnow,
   restSinkOf,
@@ -97,6 +99,7 @@ import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
 import { snowNormal, uprightOn } from "./snow-normal.ts";
 import { castLeg } from "./leg-ray.ts";
+import { riddenLevel } from "./mogul-ride.ts";
 import {
   climbShare,
   driveReach,
@@ -162,7 +165,8 @@ function cross(ax: number, ay: number, az: number, bx: number, by: number, bz: n
 export function stepSkier(state: GameState, input: SkierInput, events: GameEvent[]): void {
   const c = state.skier;
   const spec = c.spec;
-  const level = state.level;
+  // Over a mogul field, the snow the legs leave the body (`mogul-ride.ts`).
+  const level = riddenLevel(state.level, hypot3(c.vx, c.vy, c.vz));
   const m = totalMass(spec);
   const I = inertiaOf(spec);
   const g = TUNING.g;
@@ -438,7 +442,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ay = c.y + fwd.y * p.bz + acrossY * p.bx + dy * -(p.by + drop);
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
-    const ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    let ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    // ...and an evening's refrozen groomer (`piste-day.ts`).
+    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
     const target =
       sinkTarget(packed, speed0, p.sinkScale, p.planeScale, depth, carried, bottomless) + c.trench;
@@ -652,7 +658,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     );
     contact.x = cx;
     contact.z = cz;
-    contact.y = level.groundAt(cx, cz);
+    contact.y = state.level.groundAt(cx, cz);
     contact.sink = sink;
   }
   // On his platforms each ski stands where he set it (`sidestep.ts`).
@@ -825,7 +831,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, give > 0);
+  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, give > 0, looseOf(state));
   const hullTouch = hullHit > 0;
   // ...AND NEVER WHIPS HIM ROUND: on the snow while a landing is absorbed
   // the skis pivot to the slope and the way under him and the body follows

@@ -38,6 +38,7 @@
 //                    with --run2 its second).
 //   ?mode=railjam    ...or a RAIL JAM on its set (--railjam).
 //   ?mode=halfpipe   ...or a HALFPIPE contest's first run (--halfpipe).
+//   ?mode=moguls     ...or a MOGULS contest's qualification run (--moguls).
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
@@ -175,6 +176,12 @@ const SURFACES = {
   // ...a halfpipe contest's (`?menu=tricks&mode=halfpipe`).
   "halfpipe-maps": {
     params: { menu: "tricks", mode: "halfpipe" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
+  // ...a moguls contest's (`?menu=tricks&mode=moguls`).
+  "moguls-maps": {
+    params: { menu: "tricks", mode: "moguls" },
     wait: ".menu-card-levels",
     settle: 900,
   },
@@ -449,6 +456,7 @@ const args = parseArgs(
     knuckle: { kind: "flag", help: "a knuckle huck's jam on its knuckle (?mode=knuckle)" },
     railjam: { kind: "flag", help: "a rail jam on its set (?mode=railjam)" },
     halfpipe: { kind: "flag", help: "a halfpipe contest's first run (?mode=halfpipe)" },
+    moguls: { kind: "flag", help: "a moguls contest's qualification run (?mode=moguls)" },
     slopestyle: {
       kind: "flag",
       help: "a slopestyle contest's first run (?mode=slopestyle; --run2 its second)",
@@ -467,7 +475,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--knuckle] [--slopestyle] [--railjam] [--halfpipe] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--knuckle] [--slopestyle] [--railjam] [--halfpipe] [--moguls] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -675,13 +683,14 @@ if (args.surface) {
         if (args.slopestyle) params.mode = "slopestyle";
         if (args.railjam) params.mode = "railjam";
         if (args.halfpipe) params.mode = "halfpipe";
+        if (args.moguls) params.mode = "moguls";
         if (args.skis !== undefined) params.skis = String(args.skis);
         if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.knuckle ? "-knuckle" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.railjam ? "-railjam" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.knuckle ? "-knuckle" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.railjam ? "-railjam" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

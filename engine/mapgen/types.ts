@@ -3,6 +3,7 @@
 // everything that skis, draws or measures one. Extend it; never rename a
 // field without moving every reader with it.
 import type { PipeFrame } from "./pipe.ts";
+import type { MogulField } from "./mogul-field.ts";
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import type { PisteGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
@@ -129,6 +130,10 @@ export interface Level {
    * `normalAt` and `normalNear` answer off, read by the flight off its
    * walls (`pipe-air.ts`). Absent on every map without one. */
   pipe?: PipeFrame;
+  /** THE MOGUL FIELD laid on the map (R42, `withMoguls`) — the surface
+   * `groundAt` and `normalAt` answer off inside its venue. Absent on every
+   * map without one. */
+  bumps?: MogulField;
   /** 0 = virgin powder … 1 = fully packed piste. */
   packedAt(x: number, z: number): number;
   /** THE PISTE, open: from the start line (s = 0) to the finish (s =
@@ -251,6 +256,14 @@ export interface Level {
    * answered by `groundAt` / `normalAt` / `normalNear`. Absent on every
    * map the generator builds. */
   halfpipe?: HalfpipeCourse;
+  /** A MOGULS COURSE built on the map (R42, `setMoguls`): its `track` the
+   * straight line cut down the face — the platform, the pitch with the
+   * mogul track and the two air bumps in it, the finish area — its
+   * checkpoints the start gate, the control gates and the finish line,
+   * its start platform the `spawn`, its air bumps the map's `kickers`, and
+   * the moguls answered by `groundAt` / `normalAt`. Absent on every map the
+   * generator builds. */
+  moguls?: MogulsCourse;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
    * them (R39, R40). */
@@ -347,6 +360,30 @@ export interface HalfpipeCourse {
   vertical: number;
   /** The pipe: its line, its section and where its walls stand. */
   pipe: PipeFrame;
+}
+
+/** A MOGULS COURSE (R42) as it was built over a map: its own `track`, every
+ * arc down it, m. */
+export interface MogulsCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The control gates' arcs, m, in order down the course. */
+  gates: number[];
+  /** The vertical between the start and the finish, m, and the course's
+   * length down the slope, m. */
+  vertical: number;
+  length: number;
+  /** THE AIR BUMPS: each its kicker's foot and lip and the end of its
+   * landing, m along; and the lip's height over the pitch, m. */
+  airs: { foot: number; lip: number; landed: number }[];
+  airHeight: number;
+  /** The pitch, rad. */
+  pitch: number;
+  /** The mogul field (`Level.bumps`). */
+  field: MogulField;
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every

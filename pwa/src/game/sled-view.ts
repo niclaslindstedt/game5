@@ -94,7 +94,7 @@ function standIn(haze: HazeUniforms): THREE.Group {
  * draws no triangle and writes no pixel. A morphed mesh (the paddles) and
  * one a shadow is cut out of by a texture keep their own.
  */
-function mergeCasters(node: THREE.Object3D, made: THREE.Material[]): void {
+export function mergeCasters(node: THREE.Object3D, made: THREE.Material[]): void {
   node.updateMatrix();
   const parts = new Map<
     string,

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS THE GAME SHIPS, published: the last step of `make models`
-// (which first runs `make blender`'s game quality for every pair and the
-// helicopter). Copies each LOD0 glTF out of the gitignored
+// (which first runs `make blender`'s game quality for every pair, the
+// helicopter, the snowmobile and the piste machine). Copies each LOD0 glTF out of the gitignored
 // `previews/blender/` into the committed `pwa/models/` under the name the
 // build packs it by (`<id>.glb`, `heli.glb`), and writes
 // `pwa/models/sources.json` — the hash of every source they are made from,
@@ -39,7 +39,7 @@ const args = parseArgs(
     kind: {
       kind: "string",
       default: "all",
-      help: "publish only this kind (skis, heli, sled) — the others' files and stamps are kept",
+      help: "publish only this kind (skis, heli, sled, groomer) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -47,7 +47,7 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|sled] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|sled|groomer] [--from=previews/blender]",
 );
 
 const out = join(root, MODELS_DIR);
@@ -66,7 +66,7 @@ if (args.check) {
 }
 
 /** Which stamp a kind is (`MODEL_HALVES`): the skis' predates the split. */
-const HALF_OF = { skis: "sources", heli: "heli", sled: "sled" };
+const HALF_OF = { skis: "sources", heli: "heli", sled: "sled", groomer: "groomer" };
 if (args.kind !== "all" && !HALF_OF[args.kind]) {
   console.error(`unknown kind "${args.kind}" (all, ${Object.keys(HALF_OF).join(", ")})`);
   process.exit(2);

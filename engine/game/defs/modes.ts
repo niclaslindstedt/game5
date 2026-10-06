@@ -36,6 +36,9 @@ import { RAIL_JAM, railJamRules } from "./rail-jam.ts";
 export { RAIL_JAM, railJamRules } from "./rail-jam.ts";
 import { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
 export { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
+import { MOGULS, mogulsRules } from "./moguls.ts";
+import type { Discipline } from "./formats.ts";
+export { MOGULS, mogulsRules } from "./moguls.ts";
 
 export type RunRules = {
   /** How many OTHER skiers start beside the player (`rivals.ts`). */
@@ -639,7 +642,8 @@ export type GameMode =
   | "knuckleHuck"
   | "slopestyle"
   | "railJam"
-  | "halfpipe";
+  | "halfpipe"
+  | "moguls";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -656,6 +660,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "slopestyle",
   "railJam",
   "halfpipe",
+  "moguls",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -868,11 +873,13 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   slopestyle: slopestyleRules,
   railJam: railJamRules,
   halfpipe: halfpipeRules,
+  moguls: mogulsRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
  * skis — what the ski card is opened on for that race — and a trick
- * format's (big air's and slopestyle's the Raven; the knuckle huck's and the rail jam's the Hare — a jam is
+ * format's (big air's, slopestyle's and the halfpipe's the Raven; moguls'
+ * the Ibex; the knuckle huck's and the rail jam's the Hare — a jam is
  * ridden on the soft park twin-tip, its tips and tails giving under a
  * press where the Raven's competition core holds them straight; the two
  * classes share a shape, 118–133/90–100 mm, and differ in the flex), or
@@ -890,6 +897,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slopestyle: SLOPESTYLE.skis,
   railJam: RAIL_JAM.skis,
   halfpipe: HALFPIPE.skis,
+  moguls: MOGULS.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -923,7 +931,10 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * build (`docs/freestyle.md` § *Rail jam*). The HALFPIPE's are the same
  * freeski field, and a pipe pays the legs under five or six landings and
  * a body light enough to spin a 1620 — the MEDIUM build
- * (`docs/freestyle.md` § *Halfpipe*). */
+ * (`docs/freestyle.md` § *Halfpipe*). MOGULS' athletes weigh ~73 kg on
+ * 178 cm (men) and ~60 kg (women) in a national team's measurements, and
+ * a mogul line pays legs that fold and extend three times a second, never
+ * weight: the MEDIUM build (`docs/freestyle.md` § *Moguls*). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -936,48 +947,13 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slopestyle: "medium",
   railJam: "medium",
   halfpipe: "medium",
+  moguls: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {
   return RACE_RIDERS[mode] ?? null;
 }
 
-/** THE RACE DISCIPLINES the game names, in the order a race card lists
- * them. */
-export type Discipline = "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki";
-
-/** Each discipline, and the mode that races it where it is BUILT — null
- * where it is named and not built yet. */
-export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] = [
-  { id: "slalom", mode: "slalom" },
-  { id: "giantSlalom", mode: "giantSlalom" },
-  { id: "superG", mode: "superG" },
-  { id: "downhill", mode: "downhill" },
-  { id: "skiCross", mode: "skiCross" },
-  { id: "speedSki", mode: "speedSki" },
-];
-
-/** THE TRICK FORMATS the game names (`docs/freestyle.md`), in the order the
- * trick card lists them — the build order. */
-export type Freestyle =
-  | "bigAir"
-  | "knuckleHuck"
-  | "slopestyle"
-  | "railJam"
-  | "halfpipe"
-  | "moguls"
-  | "dualMoguls"
-  | "aerials";
-
-/** Each format, and the mode that skis it where it is BUILT — null where it
- * is named and not built yet. */
-export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
-  { id: "bigAir", mode: "bigAir" },
-  { id: "knuckleHuck", mode: "knuckleHuck" },
-  { id: "slopestyle", mode: "slopestyle" },
-  { id: "railJam", mode: "railJam" },
-  { id: "halfpipe", mode: "halfpipe" },
-  { id: "moguls", mode: null },
-  { id: "dualMoguls", mode: null },
-  { id: "aerials", mode: null },
-];
+// THE RACE DISCIPLINES AND THE TRICK FORMATS the game names are stated
+// next door (`formats.ts`), so this file stays under its cap.
+export { DISCIPLINES, FREESTYLE, type Discipline, type Freestyle } from "./formats.ts";

@@ -24,6 +24,7 @@ import { CABINS, CABIN_LAYOUT, type Cabin, type CabinKind, type Level } from "@e
 import { buildCabin, type CabinLod } from "../game/cabin-shapes.ts";
 import { createHazeUniforms, hazeMaterial } from "../game/haze.ts";
 import { driftGeometry, graftGlow } from "../game/cabins-view.ts";
+import { lodgeYardGeometry } from "../game/lodge-yard.ts";
 import { LUX_TO_LAMP } from "../game/piste-lights.ts";
 
 const CELL_W = 300;
@@ -33,7 +34,7 @@ const SLOPE = 0.15;
 
 const query = new URLSearchParams(location.search);
 const want = query.get("kinds");
-const ALL: CabinKind[] = ["hut", "cabin", "chalet", "shed"];
+const ALL: CabinKind[] = ["hut", "cabin", "chalet", "shed", "afterski"];
 const kinds = want ? ALL.filter((k) => want.split(",").includes(k)) : ALL;
 
 /** A view: where the lens stands about the building (azimuth from its
@@ -127,6 +128,11 @@ async function main(): Promise<void> {
     const drift = driftGeometry({ groundAt: (x: number) => groundAt(x) } as unknown as Level, [
       stood,
     ]);
+    // A lodge's steps and racks on the snow before it.
+    const yard =
+      kind === "afterski"
+        ? lodgeYardGeometry({ groundAt: (x: number) => groundAt(x) } as unknown as Level, [stood])
+        : null;
     const size = Math.max(d.width, d.depth, d.ridge);
     VIEWS.forEach((v, col) => {
       const scene = new THREE.Scene();
@@ -163,6 +169,12 @@ async function main(): Promise<void> {
       const bank = new THREE.Mesh(drift, material);
       bank.receiveShadow = true;
       scene.add(bank);
+      if (yard) {
+        const racks = new THREE.Mesh(yard, material);
+        racks.castShadow = true;
+        racks.receiveShadow = true;
+        scene.add(racks);
+      }
       for (let m = -3; m < 3; m++) {
         const band = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.08), m % 2 ? pale : dark);
         const x = m + 0.5;
@@ -187,6 +199,7 @@ async function main(): Promise<void> {
     });
     for (const g of geos) g.dispose();
     drift.dispose();
+    yard?.dispose();
   });
   renderer.dispose();
   cell.remove();

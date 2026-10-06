@@ -18,6 +18,7 @@ import {
   levelDigest,
   lodgesOf,
   NEUTRAL_INPUT,
+  RAGDOLL,
   standSkier,
   step,
   TUNING,
@@ -25,6 +26,10 @@ import {
   type GameState,
   type SkierInput,
 } from "@engine";
+
+import { afterskiOf } from "../pwa/src/game/afterski-hud.ts";
+import { movePoints, type BodyMove } from "../pwa/src/game/party-pose.ts";
+import { BODY } from "../pwa/src/game/skier-mounts.ts";
 
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
@@ -172,5 +177,48 @@ describe("going in", () => {
     ride(state, 6);
     expect(state.skier.buzz!).toBeLessThan(buzz);
     expect(state.skier.buzz!).toBeGreaterThan(buzz - 0.05);
+  });
+});
+
+describe("as the HUD and the figure read it", () => {
+  it("calls the lodge near its door, reads the room inside", () => {
+    const state = atTheDoor();
+    expect(afterskiOf(state)).toMatchObject({ kind: "call", near: true });
+    ride(state, TUNING.dt, ENTER);
+    ride(state, AFTERSKI.beers.first + 0.5);
+    expect(afterskiOf(state)).toMatchObject({ kind: "inside", beers: 1 });
+    const far = atTheDoor();
+    standSkier(far, far.skier.x + 200, far.skier.z, 0);
+    expect(afterskiOf(far)).toBeNull();
+  });
+
+  it("lays every move off the skis on a body of the engine's lengths", () => {
+    const moves: BodyMove[] = [
+      { kind: "rise", t: 0, k: 0 },
+      { kind: "rise", t: 0, k: 0.5 },
+      { kind: "walk", t: 0.7, pace: 1, sway: 1, carry: true },
+      { kind: "pick", t: 0, k: 0.5 },
+      { kind: "clip", t: 0, k: 0.3 },
+      ...[0, 1, 2, 3].map((style) => ({ kind: "dance" as const, t: 1.3, style, sway: 0.5 })),
+      { kind: "drink", t: 2, k: 0.5 },
+    ];
+    const at = (p: number[], i: number) => [p[3 * i], p[3 * i + 1], p[3 * i + 2]];
+    const gap = (p: number[], i: number, j: number) => {
+      const [a, b] = [at(p, i), at(p, j)];
+      return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    };
+    for (const m of moves) {
+      const p = movePoints(m, 0);
+      expect(p.every(Number.isFinite), m.kind).toBe(true);
+      for (const [hip, knee, foot] of [
+        [RAGDOLL.hipL, RAGDOLL.kneeL, RAGDOLL.footL],
+        [RAGDOLL.hipR, RAGDOLL.kneeR, RAGDOLL.footR],
+      ]) {
+        expect(gap(p, hip, knee)).toBeCloseTo(BODY.thigh, 3);
+        expect(gap(p, knee, foot)).toBeCloseTo(BODY.shin, 3);
+        // ...and no foot in the floor.
+        expect(at(p, foot)[1]).toBeGreaterThan(-0.01);
+      }
+    }
   });
 });

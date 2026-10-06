@@ -169,6 +169,22 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       st.shoot(s, `${i * 45}deg`, aroundBeast(Math.sin(a) * 5, 1.5, -Math.cos(a) * 5, 40, 1.1));
     }
   },
+  /** Up close: the face, and every joint bent as far as a move bends it. */
+  closeup(st) {
+    const s = posed(st);
+    const face = aroundBeast(0, 1.95, -1.9, 32, 1.8);
+    pose(s, "leave");
+    st.shoot(s, "face", face);
+    pose(s, "halt", { t: 0.6 });
+    st.shoot(s, "face-roar", aroundBeast(-1, 2.0, -1.7, 34, 1.85));
+    pose(s, "run", { stride: 0.9, speed: 11 });
+    st.shoot(s, "run-side", aroundBeast(-3.2, 1.3, 0, 40, 1.1));
+    st.shoot(s, "run-behind", aroundBeast(-1.6, 1.6, 2.8, 42, 1.1));
+    pose(s, "lurk", { t: 2 });
+    st.shoot(s, "crouch-side", aroundBeast(-3, 1.1, -0.6, 40, 0.9));
+    pose(s, "maul", { t: 0.3 });
+    st.shoot(s, "arms-up", aroundBeast(-2.6, 1.6, -2, 44, 1.6));
+  },
   stride(st) {
     const s = posed(st);
     for (let i = 0; i < 8; i++) {
@@ -275,7 +291,7 @@ function hypot(s: GameState): number {
 }
 
 export const GROUPS: Record<string, readonly string[]> = {
-  figure: ["turntable"],
+  figure: ["turntable", "closeup"],
   gait: ["stride", "walk"],
   moves: ["moves"],
   ambush: ["ambush"],

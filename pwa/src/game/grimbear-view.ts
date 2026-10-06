@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE GRIMBEAR AS DRAWN — a bear's bulk on a man's frame, built in code in
 // the trees' chunky, faceted look: a barrel of a trunk under a grizzled
-// hump, a bear's head with a long pale muzzle and round ears, long arms
-// ending in clawed paws, and a man's legs that run. Hung on a skeleton of
+// hump, a bear's head with a long pale muzzle, round ears, fangs and tusks
+// out of the mouth and wild mismatched eyes, long arms ending in clawed
+// paws, and a man's legs that run — every joint a ball of fur. Hung on a skeleton of
 // groups the pose (`grimbear-pose.ts`) turns once a frame, and shown only
 // while the engine has him out of hiding (`GrimbearState`).
 
@@ -43,7 +44,10 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   const mantle = paint(0x5e4a3a);
   const pale = paint(0x8d7660);
   const horn = paint(0x17120f, { roughness: 0.6 });
-  const eye = paint(0x2a1a08, { emissive: 0xffa526, emissiveIntensity: 1.6 });
+  const white = paint(0xf2e8c8, { emissive: 0x6b5a30, emissiveIntensity: 0.6 });
+  const pupil = paint(0x200400, { emissive: 0xff2008, emissiveIntensity: 2.6 });
+  const ivory = paint(0xe6d8b4, { roughness: 0.5 });
+  const gum = paint(0x3a0c0a);
 
   /** A faceted lump: an icosahedron of radius 1 scaled to (sx, sy, sz). */
   const lump = (sx: number, sy: number, sz: number, detail = 1): THREE.BufferGeometry => {
@@ -52,9 +56,10 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     geometries.push(g);
     return g;
   };
-  /** A limb hanging down from its joint: a six-sided taper `length` long. */
+  /** A limb hanging down from its joint: an eight-sided taper `length`
+   * long, its ends rounded into the balls at the joints. */
   const limb = (top: number, bottom: number, length: number): THREE.BufferGeometry => {
-    const g = new THREE.CylinderGeometry(top, bottom, length, 6);
+    const g = new THREE.CylinderGeometry(top, bottom, length, 8, 2);
     g.translate(0, -length / 2, 0);
     geometries.push(g);
     return g;
@@ -78,6 +83,12 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     return g;
   };
 
+  /** A JOINT'S BALL: a faceted sphere at a pivot, as wide as the limbs that
+   * meet there, so a bent knee or elbow stays one body of fur rather than
+   * two boards hinged at a corner. */
+  const ball = (parent: THREE.Object3D, r: number, material: THREE.Material = fur): void => {
+    parent.add(mesh(lump(r, r, r), material, 0, 0, 0));
+  };
   const group = new THREE.Group();
   group.name = "grimbear";
   group.visible = false;
@@ -121,19 +132,52 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   for (let i = 0; i < 3; i++) shag(trunk, fur, 0, TRUNK * (0.8 - i * 0.22), -0.36, 1.0, -1.2);
   // THE HEAD on a thick neck, slung low and forward of the hump as a
   // bear's is: the broad skull, the brow, the long pale muzzle, the round
-  // ears, the small eyes that catch a light.
+  // ears.
+  trunk.add(mesh(lump(0.22, 0.2, 0.24), fur, 0, TRUNK * 0.86, 0.2));
   const head = joint(0, TRUNK * 0.92, 0.32, trunk);
+  // The neck's root inside the head, so the head can nod off the trunk
+  // without a gap opening at the nape.
+  head.add(mesh(lump(0.19, 0.17, 0.2), fur, 0, -0.02, -0.08));
   head.add(mesh(lump(0.22, 0.2, 0.24), fur, 0, 0.08, 0.04));
   head.add(mesh(lump(0.2, 0.06, 0.1), fur, 0, 0.17, 0.16));
   head.add(mesh(lump(0.12, 0.1, 0.17), pale, 0, 0.03, 0.27));
   head.add(mesh(lump(0.055, 0.04, 0.04, 0), horn, 0, 0.07, 0.44));
   for (const side of [-1, 1]) {
     head.add(mesh(lump(0.07, 0.07, 0.04, 0), fur, side * 0.16, 0.26, -0.02));
-    head.add(mesh(lump(0.026, 0.02, 0.015, 0), eye, side * 0.095, 0.14, 0.21));
     shag(head, fur, side * 0.2, 0.0, -0.02, 0.9, -0.2);
+  }
+  // CRAZY EYES: bulging and mismatched, the left wider than the right,
+  // white all round a small burning pupil that never holds still.
+  const pupils = [-1, 1].map((side) => {
+    const r = side < 0 ? 0.05 : 0.04;
+    const socket = joint(side * 0.1, 0.15 + (side < 0 ? 0.01 : -0.005), 0.25, head);
+    socket.add(mesh(lump(r, r * 1.1, r * 0.8), white, 0, 0, 0));
+    const p = mesh(lump(r * 0.38, r * 0.38, r * 0.3, 0), pupil, 0, 0, r * 0.62);
+    socket.add(p);
+    return { p, r };
+  });
+  // THE MOUTH: a dark gape under the muzzle, two fangs down from the upper
+  // lip and tusks up out of the lower jaw, all poking out shut or open.
+  head.add(mesh(lump(0.09, 0.035, 0.12), gum, 0, -0.03, 0.27));
+  const fang = new THREE.ConeGeometry(0.02, 0.12, 5);
+  fang.rotateX(Math.PI);
+  geometries.push(fang);
+  const tusk = new THREE.ConeGeometry(0.02, 0.1, 5);
+  geometries.push(tusk);
+  for (const side of [-1, 1]) {
+    head.add(mesh(fang, ivory, side * 0.06, -0.08, 0.36));
+    const small = mesh(fang, ivory, side * 0.03, -0.07, 0.4);
+    small.scale.setScalar(0.55);
+    head.add(small);
   }
   const jaw = joint(0, -0.03, 0.14, head);
   jaw.add(mesh(lump(0.1, 0.045, 0.14), pale, 0, -0.02, 0.1));
+  for (const side of [-1, 1]) {
+    const m = mesh(tusk, ivory, side * 0.11, 0.05, 0.2);
+    m.rotation.z = -side * 0.25;
+    m.rotation.x = 0.2;
+    jaw.add(m);
+  }
   // THE ARMS, long and heavy, from wide shoulders: the spread outward, the
   // swing, the elbow, shag down the back of the forearm, a clawed paw.
   const claw = new THREE.ConeGeometry(0.02, 0.13, 4);
@@ -141,11 +185,15 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   geometries.push(claw);
   const arms = [-1, 1].map((side) => {
     const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk);
+    // The shoulder: a ball the arm turns in, rounded into the trunk.
+    ball(spread, 0.18);
     const swing = joint(0, 0, 0, spread);
     swing.add(mesh(limb(0.15, 0.12, UPPER), fur, 0, 0, 0));
     swing.add(mesh(lump(0.14, 0.21, 0.14), fur, 0, -UPPER * 0.4, 0));
     const elbow = joint(0, -UPPER, 0, swing);
+    ball(elbow, 0.125);
     elbow.add(mesh(limb(0.12, 0.1, FORE), fur, 0, 0, 0));
+    elbow.add(mesh(lump(0.1, 0.1, 0.1), fur, 0, -FORE, 0.01));
     for (let i = 0; i < 3; i++) shag(elbow, fur, 0, -0.08 - i * 0.14, -0.1, 0.8, -0.9);
     elbow.add(mesh(lump(0.12, 0.08, 0.13), fur, 0, -FORE - 0.05, 0.02));
     for (let k = 0; k < 4; k++) {
@@ -157,10 +205,15 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   // a bear's heavy hams and shaggy calves, on broad clawed feet.
   const legs = [-1, 1].map((side) => {
     const hip = joint(side * 0.19, 0, 0, hips);
+    ball(hip, 0.2);
     hip.add(mesh(limb(0.19, 0.13, THIGH), fur, 0, 0, 0));
     hip.add(mesh(lump(0.17, 0.24, 0.18), fur, 0, -THIGH * 0.42, 0));
     const knee = joint(0, -THIGH, 0, hip);
+    ball(knee, 0.135);
     knee.add(mesh(limb(0.13, 0.1, SHIN), fur, 0, 0, 0));
+    // The calf's belly behind the shin, so the leg is round, not a plank.
+    knee.add(mesh(lump(0.12, 0.17, 0.13), fur, 0, -SHIN * 0.32, -0.04));
+    knee.add(mesh(lump(0.1, 0.09, 0.11), fur, 0, -SHIN, 0.02));
     for (let i = 0; i < 2; i++) shag(knee, fur, 0, -0.1 - i * 0.16, -0.1, 0.85, -0.7);
     knee.add(mesh(lump(0.12, 0.065, 0.2), fur, 0, -SHIN - 0.02, 0.08));
     for (let k = 0; k < 3; k++) {
@@ -186,6 +239,13 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
       trunk.rotation.x = pose.lean;
       head.rotation.x = pose.look - pose.lean * 0.6;
       jaw.rotation.x = pose.jaw * 0.6;
+      // The pupils dart, each on its own beat, never quite together.
+      const t = state.t;
+      for (let i = 0; i < 2; i++) {
+        const { p, r } = pupils[i];
+        p.position.x = Math.sin(t * (7.3 + i * 2.9) + i) * r * 0.32;
+        p.position.y = Math.sin(t * (5.1 + i * 3.7) + 2 * i) * r * 0.28;
+      }
       for (let i = 0; i < 2; i++) {
         legs[i].hip.rotation.x = -pose.hip[i] - pose.lean * 0.3;
         legs[i].knee.rotation.x = pose.knee[i];

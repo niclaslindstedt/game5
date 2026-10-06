@@ -76,9 +76,9 @@ describe("what names a row", () => {
     expect(recordId({ ...KEY })).toBe(id);
   });
 
-  it("every timed mode keeps a book, and the free ride and the tricks run none", () => {
+  it("every timed mode keeps a book, and the free ride, the tricks run and big air none", () => {
     for (const mode of GAME_MODES)
-      expect(keepsRecords(mode)).toBe(mode !== "free" && mode !== "tricks");
+      expect(keepsRecords(mode)).toBe(mode !== "free" && mode !== "tricks" && mode !== "bigAir");
     expect(beats("free", 10, null)).toBe(false);
   });
 });

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE BUILD A RACE OPENS THE DRESS CARD ON (`raceRiderOf`): every built
-// discipline names a weight that suits it, and a mode that is no race names
-// none, so the build last picked stands.
+// discipline names a weight that suits it — and so does every built
+// freestyle format — and a mode that is neither names none, so the build
+// last picked stands.
 
 import { describe, expect, it } from "vitest";
 
-import { DISCIPLINES, GAME_MODES, RIDERS, isRiderId, raceRiderOf } from "@engine";
+import { DISCIPLINES, FREESTYLE, GAME_MODES, RIDERS, isRiderId, raceRiderOf } from "@engine";
 
 const massOf = (mode: Parameters<typeof raceRiderOf>[0]): number => {
   const id = raceRiderOf(mode);
@@ -16,7 +17,7 @@ const massOf = (mode: Parameters<typeof raceRiderOf>[0]): number => {
 };
 
 describe("a race's own build", () => {
-  for (const { id, mode } of DISCIPLINES) {
+  for (const { id, mode } of [...DISCIPLINES, ...FREESTYLE]) {
     if (mode === null) continue;
     it(`${id} names a build`, () => {
       const rider = raceRiderOf(mode);
@@ -32,6 +33,9 @@ describe("a race's own build", () => {
     expect(raceRiderOf("downhill")).toBe("solid");
     expect(raceRiderOf("skiCross")).toBe("solid");
     expect(raceRiderOf("speedSki")).toBe("heavy");
+    // Big air: the competition field's measured mean (~72 kg) is nearest
+    // the medium build.
+    expect(raceRiderOf("bigAir")).toBe("medium");
   });
 
   it("grows heavier the more a race is the tuck alone", () => {
@@ -42,8 +46,8 @@ describe("a race's own build", () => {
     expect(massOf("downhill")).toBeLessThan(massOf("speedSki"));
   });
 
-  it("is none for a mode that is no race", () => {
-    const races = new Set(DISCIPLINES.map((d) => d.mode));
+  it("is none for a mode that is no race and no freestyle format", () => {
+    const races = new Set([...DISCIPLINES, ...FREESTYLE].map((d) => d.mode));
     for (const mode of GAME_MODES.filter((m) => !races.has(m))) {
       expect(raceRiderOf(mode)).toBeNull();
     }

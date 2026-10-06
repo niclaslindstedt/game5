@@ -24,6 +24,7 @@ import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
+import type { BigAirContest } from "./big-air-contest.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
@@ -464,6 +465,37 @@ export type TrickState = {
   lastAt: number;
   lastBailed: boolean;
   lastParts: TrickPart[];
+  /** EVERY FLIGHT OF THE RUN, as it ended (`tricks.ts`): what a judge reads
+   * (`judge.ts`) — the turns, the grabs, the air, how it came down. The
+   * flight under way is kept in `fromY`, `peak` and `switchIn`: the height
+   * it left the snow at and the highest it has been since, m, and whether
+   * it left the snow riding switch. */
+  flights: FlightRecord[];
+  fromY: number;
+  peak: number;
+  switchIn: boolean;
+};
+
+/** ONE FLIGHT AS IT ENDED: its number in the run, the turns it made on
+ * each axis, rad, signed (tips up and clockwise from above positive), the
+ * grabs held long enough to count, its air, s, its length over the snow
+ * and its height over the take-off, m, whether it left and met the snow
+ * switch, the landing's grade (`landingGrade`, null when the snow was met
+ * by a body rather than the skis) and how it ended — `landed` whole,
+ * `sketchy` (harsh, or still in a grab) or `fell`. */
+export type FlightRecord = {
+  flight: number;
+  flip: number;
+  spin: number;
+  grabs: TrickPose[];
+  air: number;
+  length: number;
+  height: number;
+  switchIn: boolean;
+  switchOut: boolean;
+  landing: number | null;
+  outcome: "landed" | "sketchy" | "fell";
+  t: number;
 };
 
 /** Why a combo was lost (`tricks.ts`): the skier thrown, put back on the
@@ -901,6 +933,10 @@ export type GameState = {
   cross?: CrossHeat;
   /** The ski cross so far, carried for the app; never read by a step. */
   bracket?: Bracket;
+  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`), before this
+   * run's jump — carried for the judges and the app; never read by a
+   * step. */
+  bigAir?: BigAirContest;
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;

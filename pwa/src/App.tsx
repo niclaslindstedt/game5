@@ -804,8 +804,9 @@ export function App() {
     const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    if (modeRef.current === "tricks" && params.seed === null) {
-      return pressRef.current.tricks(trickMapFor(settings.trickMap));
+    // ...and a BIG AIR contest on the same card's map, its jump built over it.
+    if ((modeRef.current === "tricks" || modeRef.current === "bigAir") && params.seed === null) {
+      return pressRef.current.tricks(trickMapFor(settings.trickMap), modeRef.current);
     }
     // The trial and the tricks run are ridden on the map the menu stands over.
     const trial = modeRef.current === "timeTrial" || modeRef.current === "tricks";
@@ -912,7 +913,7 @@ export function App() {
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
-          onTricks={() => campaign.openCard("tricks", params.seed === null ? "tricks" : "skis")}
+          onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
           onGallery={() => setPage("gallery")}
           developer={settings.developer}

@@ -122,6 +122,12 @@ export type RunRules = {
    * day inside its discipline's `JURY` row; left out, the run is skied in
    * whatever the sky deals. */
   jury?: Jury;
+  /** THE MOST A FLIGHT'S STROKES MAY OWE on each axis, rad (`strokes.ts`):
+   * a contest's ceilings over the arcade's (`TUNING.tricks.spinMost` and
+   * `.flipMost`, a 720 and a double) — big air's 2160 and quad. Left out,
+   * the arcade's. */
+  spinMost?: number;
+  flipMost?: number;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,
@@ -608,7 +614,8 @@ export type GameMode =
   | "skiCross"
   | "timeTrial"
   | "free"
-  | "tricks";
+  | "tricks"
+  | "bigAir";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -620,6 +627,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "timeTrial",
   "free",
   "tricks",
+  "bigAir",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -694,6 +702,67 @@ export function tricksRules(laps: number): RunRules {
   };
 }
 
+/** BIG AIR'S NUMBERS (R37 builds its jump; the format is `big-air.ts`'s,
+ * from `docs/freestyle.md` § *Big air*). */
+export const BIG_AIR = {
+  /** The qualification's start list beside the player — a top series'
+   * field of two dozen — and how many of the whole go to the final. */
+  field: 23,
+  finalists: 12,
+  /** The jumps a skier takes in each phase, and how many of the final's
+   * count: the qualification's best one, the final's best TWO, and those
+   * two DIFFERENT tricks. */
+  qualification: 2,
+  final: 3,
+  counting: 2,
+  /** The starter's count, s, and the time after it to drop in, s — a
+   * skier not away is not judged. */
+  countdown: 3,
+  window: 30,
+  /** THE STROKES' CEILINGS: a 2160 (six turns, the most men throw) and a
+   * quad (four inversions), where the arcade stops at a 720 and a double. */
+  spinMost: 12 * Math.PI,
+  flipMost: 8 * Math.PI,
+  /** The pair the field rides: the big-air ski. */
+  skis: "raven",
+  /** THE JURY'S WEATHER (est.): the freestyle rules set no wind speed and
+   * leave a hold or a postponement to the jury, and contests have been
+   * postponed at gusts of 60 km/h and more off a pipe's deck and for a
+   * whiteout. A flight of two or three seconds is blown off its landing
+   * long before a racer is blown off his line, so the jump is held under
+   * 40 km/h of gust, and in no more than a steady fall. */
+  jury: { wind: 40 / 3.6, fall: 0.75 } as Jury,
+} as const;
+
+/** BIG AIR as a skier is dealt it (R37): one skier on the jump, the
+ * starter's count, the window to drop in, a fall the end of the jump (the
+ * strict gates: nobody is stood back on it), the real g in flight, every
+ * flight a trick, and the strokes' ceilings raised to the format's. The
+ * field is the contest's (`big-air.ts`), dealt, never skied. */
+export function bigAirRules(laps: number): RunRules {
+  return {
+    rivals: 0,
+    laps,
+    countdown: BIG_AIR.countdown,
+    contact: false,
+    course: true,
+    tricks: true,
+    stunts: true,
+    limit: 0,
+    airGravity: TRICKS_RUN.airGravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    sled: false,
+    start: "line",
+    gates: "strict",
+    window: BIG_AIR.window,
+    jury: BIG_AIR.jury,
+    spinMost: BIG_AIR.spinMost,
+    flipMost: BIG_AIR.flipMost,
+  };
+}
+
 /** EVERY MODE'S RULES by its name — the one place a name becomes a bundle. */
 export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> = {
   slalom: slalomRules,
@@ -705,11 +774,13 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   timeTrial: timeTrialRules,
   free: freeRules,
   tricks: tricksRules,
+  bigAir: bigAirRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
- * skis — what the ski card is opened on for that race — or null for a mode
- * that is no race (the time trial, the free ride, the tricks run). */
+ * skis — what the ski card is opened on for that race — and a trick
+ * format's (big air's the Raven), or null for a mode that is neither (the
+ * time trial, the free ride, the tricks run). */
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slalom: SLALOM.skis,
   superG: SUPER_G.skis,
@@ -717,6 +788,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   downhill: DOWNHILL.skis,
   skiCross: SKI_CROSS.skis,
   speedSki: SPEED_SKI.skis,
+  bigAir: BIG_AIR.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -734,7 +806,11 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * glide down the straights pay weight, the jumps and the berms the legs. A
  * giant slalom's too: its racers are the heaviest of the technical events
  * (est.), its long turns at 70 km/h paying a heavier skier's glide and the
- * 3 body weights at the apex the solid build's legs. */
+ * 3 body weights at the apex the solid build's legs. BIG AIR's athletes
+ * are lighter than any racer — a study of top male freeskiers put them at
+ * ~72.5 kg on 179 cm, the medium build in his kit — and what it pays for is
+ * the legs under a landing from ten metres up and a body light enough to
+ * spin: the MEDIUM build (`docs/freestyle.md` § *Big air*, "The skier"). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -742,6 +818,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   downhill: "solid",
   skiCross: "solid",
   speedSki: "heavy",
+  bigAir: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {
@@ -761,4 +838,29 @@ export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] =
   { id: "downhill", mode: "downhill" },
   { id: "skiCross", mode: "skiCross" },
   { id: "speedSki", mode: "speedSki" },
+];
+
+/** THE TRICK FORMATS the game names (`docs/freestyle.md`), in the order the
+ * trick card lists them — the build order. */
+export type Freestyle =
+  | "bigAir"
+  | "knuckleHuck"
+  | "slopestyle"
+  | "railJam"
+  | "halfpipe"
+  | "moguls"
+  | "dualMoguls"
+  | "aerials";
+
+/** Each format, and the mode that skis it where it is BUILT — null where it
+ * is named and not built yet. */
+export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
+  { id: "bigAir", mode: "bigAir" },
+  { id: "knuckleHuck", mode: null },
+  { id: "slopestyle", mode: null },
+  { id: "railJam", mode: null },
+  { id: "halfpipe", mode: null },
+  { id: "moguls", mode: null },
+  { id: "dualMoguls", mode: null },
+  { id: "aerials", mode: null },
 ];

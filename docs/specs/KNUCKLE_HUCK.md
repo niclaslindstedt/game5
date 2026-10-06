@@ -78,8 +78,32 @@ many hits as the clock allows, one result for the whole session.
 - [ ] **Sound**: the butter's scrape, the crowd at a landing.
 - [ ] **Labs** (`make ride` butter and knuckle scenarios), **tests**,
       **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): the park twin-tip for butters and presses off a
+      big jump's knuckle — the Hare (soft, presses easily) or the Raven (big
+      air's, the jump's own) — *research which*, and the default build off
+      knuckle-huck athletes (the big air field, ~72 kg for men — the medium
+      build — unless the research says otherwise) — rows in `RACE_SKIS` and
+      `RACE_RIDERS`, so picking the format opens the ski card on its pair
+      and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: the park twin-tip for butters and presses off a big
+      jump's knuckle — the Hare (soft, presses easily) or the Raven (big
+      air's, the jump's own) — *research which*.
+- [ ] **The default player weight**: knuckle-huck athletes (the big air
+      field, ~72 kg for men — the medium build — unless the research says
+      otherwise) — which of the four builds (`RIDERS`), argued from what the
+      format pays weight for.
 
 - [x] What it is, the format, the criteria, the trick vocabulary.
 - [ ] The knuckle's geometry (its radius, the deck's length, the speed it

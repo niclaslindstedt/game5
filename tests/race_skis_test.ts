@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE PAIR A RACE OPENS THE SKI CARD ON (`raceSkisOf`): every built
-// discipline names its own class of ski, the one its field races on, and a
-// mode that is no race names none, so the pair last picked stands.
+// discipline names its own class of ski, the one its field races on — and
+// so does every built freestyle format (`FREESTYLE`) — and a mode that is
+// neither names none, so the pair last picked stands.
 
 import { describe, expect, it } from "vitest";
 
 import {
   DISCIPLINES,
+  BIG_AIR,
   DOWNHILL,
+  FREESTYLE,
   GAME_MODES,
   SKI_CROSS,
   SLALOM,
@@ -26,10 +29,11 @@ const CLASS = {
   downhill: "Downhill",
   skiCross: "Ski cross",
   speedSki: "Speed ski",
+  bigAir: "Big air",
 } as const;
 
 describe("a race's own pair", () => {
-  for (const { id, mode } of DISCIPLINES) {
+  for (const { id, mode } of [...DISCIPLINES, ...FREESTYLE]) {
     if (mode === null) continue;
     it(`${id} opens on its class's pair`, () => {
       const pair = raceSkisOf(mode);
@@ -46,10 +50,11 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("downhill")).toBe(DOWNHILL.skis);
     expect(raceSkisOf("skiCross")).toBe(SKI_CROSS.skis);
     expect(raceSkisOf("speedSki")).toBe(SPEED_SKI.skis);
+    expect(raceSkisOf("bigAir")).toBe(BIG_AIR.skis);
   });
 
-  it("is none for a mode that is no race", () => {
-    const races = new Set(DISCIPLINES.map((d) => d.mode));
+  it("is none for a mode that is no race and no freestyle format", () => {
+    const races = new Set([...DISCIPLINES, ...FREESTYLE].map((d) => d.mode));
     for (const mode of GAME_MODES.filter((m) => !races.has(m))) {
       expect(raceSkisOf(mode)).toBeNull();
     }

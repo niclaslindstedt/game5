@@ -16,6 +16,8 @@
 //   ?start=speedski ...or into a SPEED RACE's qualification on its track.
 //   ?start=skicross ...or into a SKI CROSS's qualification (`run=2` its
 //                   first heat, four out of the start gate).
+//   ?start=bigair   ...or into a BIG AIR contest's first jump (`run=2` the
+//                   next jump, off the first jumped by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -46,7 +48,8 @@
 //                   seed's trick field; ?mode=downhill, a DOWNHILL;
 //                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
 //                   ?mode=speedski, a SPEED RACE;
-//                   ?mode=skicross, a SKI CROSS.
+//                   ?mode=skicross, a SKI CROSS; ?mode=bigair, a BIG AIR
+//                   contest's first jump, built over the seed's map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -148,6 +151,7 @@ export type MenuPage =
   | "keys"
   | "start"
   | "races"
+  | "freestyle"
   | "campaign"
   | "levels"
   | "tricks"
@@ -161,6 +165,7 @@ const MENU_PAGES: readonly MenuPage[] = [
   "keys",
   "start",
   "races",
+  "freestyle",
   "campaign",
   "levels",
   "tricks",
@@ -285,6 +290,7 @@ export function readParams(search: string): UrlParams {
       start === "gs" ||
       start === "speedski" ||
       start === "skicross" ||
+      start === "bigair" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -323,7 +329,9 @@ export function readParams(search: string): UrlParams {
                     ? "timeTrial"
                     : q.get("mode") === "tricks"
                       ? "tricks"
-                      : "slalom",
+                      : start === "bigair" || q.get("mode") === "bigair"
+                        ? "bigAir"
+                        : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

@@ -69,8 +69,29 @@ tricks beat one perfect one.
 - [ ] **Sound**: the rail's ring, the box's slide, the hit of a landing.
 - [ ] **Labs** (`make ride` jib scenarios), **tests**, **docs**; delete
       this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): the softest park twin-tip — the Hare, unless the
+      research finds rail skiers on something else, and the default build
+      off rail-jam athletes (*research*; the jib skiers of the park, likely
+      the medium or light build) — rows in `RACE_SKIS` and `RACE_RIDERS`, so
+      picking the format opens the ski card on its pair and the dress card
+      on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: the softest park twin-tip — the Hare, unless the
+      research finds rail skiers on something else.
+- [ ] **The default player weight**: rail-jam athletes (*research*; the jib
+      skiers of the park, likely the medium or light build) — which of the
+      four builds (`RIDERS`), argued from what the format pays weight for.
 
 - [x] The formats, the judging, the feature sizes, the vocabulary.
 - [ ] A rail's height off the snow, a box's height — sourced (now an

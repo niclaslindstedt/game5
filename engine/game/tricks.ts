@@ -87,6 +87,7 @@ import { harshShare } from "./damage.ts";
 import { harshSpeedOf } from "./limits.ts";
 import type {
   BailCause,
+  FlightRecord,
   GameEvent,
   GameState,
   SkierState,
@@ -151,6 +152,10 @@ export function freshTricks(): TrickState {
     lastAt: 0,
     lastBailed: false,
     lastParts: [],
+    flights: [],
+    fromY: 0,
+    peak: 0,
+    switchIn: false,
   };
 }
 
@@ -177,6 +182,33 @@ function win(
   k.link = T.linkWindow;
   k.parts.push({ kind, spins, flight: k.flight });
   events.push({ kind: "trick", t: state.t, trick: kind, spins, points, mult: k.mult });
+}
+
+/** FILE THE FLIGHT as it ends, for a judge (`judge.ts`): read before
+ * `endFlight` clears it. Kept only for a flight that counted as air. */
+function file(
+  state: GameState,
+  outcome: FlightRecord["outcome"],
+  landing: number | null,
+  air: number,
+): void {
+  const k = state.tricks;
+  const c = state.skier;
+  if (air <= TUNING.air.counts) return;
+  k.flights.push({
+    flight: k.flight,
+    flip: k.rotation,
+    spin: k.yaw,
+    grabs: k.posed.slice(),
+    air,
+    length: hypot(c.x - k.fromX, c.z - k.fromZ),
+    height: Math.max(0, k.peak - k.fromY),
+    switchIn: k.switchIn,
+    switchOut: c.switched,
+    landing,
+    outcome,
+    t: state.t,
+  });
 }
 
 /** Everything that belongs to ONE flight, cleared as the snow comes back. */
@@ -230,6 +262,7 @@ function bail(state: GameState, events: GameEvent[], cause: BailCause): void {
     k.lastBailed = true;
     k.lastParts = k.parts;
   }
+  if (k.inAir) file(state, "fell", null, state.skier.airTime);
   endCombo(k);
   endFlight(k);
 }
@@ -328,7 +361,11 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
       k.inAir = true;
       k.fromX = c.x - c.vx * c.airTime;
       k.fromZ = c.z - c.vz * c.airTime;
+      k.fromY = c.y;
+      k.peak = Math.max(c.y, k.fromY);
+      k.switchIn = c.switched;
     }
+    k.peak = Math.max(k.peak, c.y);
     // HOW FAR THE SKIER HAS TURNED, rad, on each axis he can turn about:
     // tips up positive for the flip (−wx), and about the up axis for
     // the 360. The BODY rates are those axes at any attitude, so summing them
@@ -361,6 +398,10 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
     const posing = k.pose !== null;
     if (land) turnsLanded(state, events);
     const tricked = k.parts.some((p) => p.flight === k.flight && p.kind !== "air");
+    if (land) {
+      const grade = landingGrade(c, land.impact);
+      file(state, land.harsh || posing ? "sketchy" : "landed", grade, land.airTime);
+    }
     endFlight(k);
     if (land && posing) {
       bail(state, events, "pose");

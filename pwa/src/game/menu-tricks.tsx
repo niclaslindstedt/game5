@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TRICK MAP CARD — which of the six trick maps (`trick-maps.ts`) a
-// TRICKS run is ridden on, opened by the front door's TRICKS tile before the
-// skis card.
+// TRICKS run or a BIG AIR contest is ridden on, opened off the tricks card
+// (`menu-freestyle.tsx`) before the skis card. A big air contest builds its
+// jump over the map (R37); the map gives it its mountain, its day and its
+// sky.
 //
 // It wears the level card's silhouette and classes — the boxes, the piste
 // behind each — because a map should look like itself wherever it is
@@ -13,7 +15,7 @@
 // THE RING is on the map the settings stand on (`Settings.trickMap`) — where
 // the cursor lands and what RIDE in the head takes.
 
-import { TRICKS_RUN } from "@engine";
+import { BIG_AIR, TRICKS_RUN, type GameMode } from "@engine";
 
 import { CourseMap } from "./menu-campaign.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
@@ -23,10 +25,13 @@ import { TRICK_MAPS, trickDayLine, trickMapFor, type TrickMap } from "./trick-ma
 
 function TrickBox({
   map,
+  billing,
   chosen,
   onPick,
 }: {
   map: TrickMap;
+  /** What is ridden on it: the park run, or a contest's jumps. */
+  billing: string;
   /** The box the card would ride — where the cursor lands. One per card. */
   chosen: boolean;
   onPick: () => void;
@@ -43,7 +48,7 @@ function TrickBox({
       <CourseMap levelId={map.id} />
       <span class="menu-level-head">
         <Glyph name="flip" className="menu-level-mode" />
-        <span class="menu-level-billing">{STRINGS.tricksBilling(TRICKS_RUN.limit)}</span>
+        <span class="menu-level-billing">{billing}</span>
       </span>
       <span class="menu-level-name">{map.name}</span>
       <span class="menu-level-day">{trickDayLine(map)}</span>
@@ -55,10 +60,14 @@ function TrickBox({
 }
 
 export function TrickMapsPage({
+  mode,
   chosen,
   onBack,
   onPick,
 }: {
+  /** The format the card picks a map for: the park run, or a freestyle
+   * contest (BIG AIR — its jump built over the map, R37). */
+  mode: GameMode;
   /** The map the settings already stand on, if any. */
   chosen: string | null;
   onBack: () => void;
@@ -66,12 +75,16 @@ export function TrickMapsPage({
   onPick: (map: TrickMap) => void;
 }) {
   const pick = trickMapFor(chosen);
+  const bigAir = mode === "bigAir";
+  const billing = bigAir
+    ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
+    : STRINGS.tricksBilling(TRICKS_RUN.limit);
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={STRINGS.tricksOn}
+        title={bigAir ? STRINGS.bigAirOn : STRINGS.tricksOn}
         action={
           <button
             type="button"
@@ -86,7 +99,13 @@ export function TrickMapsPage({
       <MenuBody>
         <div class="menu-levels">
           {TRICK_MAPS.map((map) => (
-            <TrickBox key={map.id} map={map} chosen={map === pick} onPick={() => onPick(map)} />
+            <TrickBox
+              key={map.id}
+              map={map}
+              billing={billing}
+              chosen={map === pick}
+              onPick={() => onPick(map)}
+            />
           ))}
         </div>
       </MenuBody>

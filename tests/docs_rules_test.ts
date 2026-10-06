@@ -9,16 +9,17 @@
 //
 // The ids are read off the code, never listed here — a new rule lands in
 // the rule book and this file asks for its mirror without being edited.
-// The book is three files read as one: `rules.ts` states R1–R24, the
-// resort's rule book (`resort-rules.ts`) R25–R30 and the disciplines'
-// (`discipline-rules.ts`) R31 onward.
+// The book is four files read as one: `rules.ts` states R1–R24, the
+// resort's rule book (`resort-rules.ts`) R25–R30, the disciplines'
+// (`discipline-rules.ts`) R31–R36 and the freestyle venues'
+// (`trick-rules.ts`) R37 onward.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const BOOKS = ["rules.ts", "resort-rules.ts", "discipline-rules.ts"].map((file) =>
+const BOOKS = ["rules.ts", "resort-rules.ts", "discipline-rules.ts", "trick-rules.ts"].map((file) =>
   readFileSync(join(ROOT, "engine", "mapgen", file), "utf8"),
 );
 const doc = readFileSync(join(ROOT, "docs", "level-generator.md"), "utf8");

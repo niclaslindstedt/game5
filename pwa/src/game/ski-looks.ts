@@ -171,6 +171,19 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.15, basket: 0.045, bent: false },
   },
+  // THE BIG-AIR SKI: the park ski's twin tips, a little longer and lower,
+  // thicker under the boot for its stiffness, a touch more camber to pop
+  // off the lip, on a recreational binding with the park's short poles.
+  raven: {
+    tip: { rise: 0.06, length: 0.2 },
+    tail: { rise: 0.055, length: 0.18, twin: true },
+    point: 0.22,
+    thick: { boot: 0.022, end: 0.009 },
+    camber: 0.008,
+    binding: TRAIL_BINDING,
+    boot: BOOT,
+    pole: { length: 1.15, basket: 0.045, bent: false },
+  },
 };
 
 /** The look for a pair, its class's. */

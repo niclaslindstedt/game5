@@ -90,7 +90,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross] [--heat] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir] [--heat] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -100,10 +100,12 @@ if (args.grade !== undefined && !isPisteGrade(args.grade)) {
 
 if (
   args.mode !== undefined &&
-  !["slalom", "giantSlalom", "downhill", "superG", "speedSki", "skiCross"].includes(args.mode)
+  !["slalom", "giantSlalom", "downhill", "superG", "speedSki", "skiCross", "bigAir"].includes(
+    args.mode,
+  )
 ) {
   console.error(
-    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross)`,
+    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir)`,
   );
   process.exit(2);
 }

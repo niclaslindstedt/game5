@@ -55,13 +55,16 @@ import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
+import { nextContest } from "./big-air-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export type PinnedRuns = {
   /** Stand `pin` up as `mode` — a rung of the campaign when `rung`. */
   press: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
-  /** Stand a TRICKS run up on a trick map (`trick-maps.ts`). */
-  tricks: (map: TrickMap) => void;
+  /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
+   * `bigAir`, a BIG AIR contest's first jump with its jump built over it
+   * (R37). */
+  tricks: (map: TrickMap, mode?: "tricks" | "bigAir") => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
    * snow is neither. */
@@ -117,8 +120,8 @@ export function createPinnedRuns(world: {
         done: world.done,
       });
     },
-    tricks: (map) => {
-      world.setMode("tricks");
+    tricks: (map, mode = "tricks") => {
+      world.setMode(mode);
       last = null;
       world.rig.arm(null);
       const s = world.settings();
@@ -128,7 +131,8 @@ export function createPinnedRuns(world: {
           const now = world.current();
           const same =
             now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
-          return createGame(trickGameOptions(map, skier, same ? now.level : undefined));
+          const opts = trickGameOptions(map, skier, same ? now.level : undefined);
+          return createGame(mode === "bigAir" ? { ...opts, mode } : opts);
         },
         camera: s.camera,
         done: world.done,
@@ -137,6 +141,11 @@ export function createPinnedRuns(world: {
     again: () => {
       const now = world.current();
       if (heatOf(now)) return secondRunAgain(now);
+      // A big air jump again: the same jump of the same contest.
+      if (now.bigAir) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "bigAir"));
+      }
       // A ski-cross heat again: the same heat of the same bracket.
       if (now.cross) {
         world.rig.arm(null);
@@ -162,6 +171,20 @@ export function createPinnedRuns(world: {
           build: () => {
             world.rig.arm(rungOf);
             return createGame({ ...recipeOf(now, "downhill"), training: false });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A BIG AIR contest's next jump, off the contest as this one left it.
+      const contest = nextContest(now);
+      if (contest) {
+        world.setMode("bigAir");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({ ...recipeOf(now, "bigAir"), bigAir: contest });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -217,11 +240,20 @@ const FIRST_RUN_CAP = 600;
  * in place, then the second run off it — or `first` as it stands where the
  * bot went out of it and there is no second run to stand up. On a
  * downhill, its RACE off its training; on a ski cross, its first HEAT off
- * its qualification. */
+ * its qualification; on a big air contest, its next jump. */
 export function secondRunOff(first: GameState): GameState {
   // A downhill's: its race, off its training — nothing skied first.
   if (trainingOf(first) === true) {
     return createGame({ ...recipeOf(first, "downhill"), training: false });
+  }
+  // A BIG AIR contest's next jump, off the first jumped by the bot.
+  if (first.bigAir) {
+    for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
+      if (first.progress.finished || first.progress.out) break;
+      step(first, botInput(first));
+    }
+    const contest = nextContest(first);
+    return contest ? createGame({ ...recipeOf(first, "bigAir"), bigAir: contest }) : first;
   }
   if (first.field?.run !== 1 || first.level.downhill || first.level.superG) return first;
   for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
@@ -261,6 +293,6 @@ export function skisBack(
 ): MenuPage {
   if (mode === "free") return "start";
   if (rung) return "campaign";
-  if (mode === "tricks") return linkSeed === null ? "tricks" : "root";
+  if (mode === "tricks" || mode === "bigAir") return linkSeed === null ? "tricks" : "root";
   return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

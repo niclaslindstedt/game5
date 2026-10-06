@@ -410,3 +410,37 @@ export function pipeLevel(): Level {
   };
   return withPipe(base, frame);
 }
+
+/** ANY GROUND ON THE BENCH: a strip `size` m square whose height is
+ * `height(x, z)` on a `cell` m grid, packed to `packed` everywhere, with a
+ * straight piste down its middle along +z — what a lab shapes its own
+ * kicker, drop or cliff with. */
+export function shapedLevel(
+  height: (x: number, z: number) => number,
+  options: { packed?: number; size?: number; cell?: number } = {},
+): Level {
+  const size = options.size ?? 600;
+  const cell = options.cell ?? 0.5;
+  const share = options.packed ?? 1;
+  const m = 50;
+  const length = size - 2 * m;
+  const n = Math.round(length / 2);
+  const points: TrackPoint[] = [];
+  for (let i = 0; i <= n; i++) {
+    const s = Math.min((i * length) / n, length);
+    points.push({ x: size / 2, z: m + s, y: 0, s, heading: 0, width: 20 });
+  }
+  return levelFrom(
+    2,
+    size,
+    cell,
+    height,
+    () => share,
+    points,
+    length,
+    400,
+    8,
+    { x: size / 2, z: m, heading: 0 },
+    [],
+  );
+}

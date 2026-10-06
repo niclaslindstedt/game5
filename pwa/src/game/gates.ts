@@ -55,6 +55,7 @@ import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createJibs } from "./jibs-view.ts";
 import { createPipe } from "./pipe-view.ts";
+import { createMoguls } from "./mogul-view.ts";
 import {
   archBlower,
   archSkirt,
@@ -161,6 +162,14 @@ export function netTexture(): THREE.CanvasTexture {
   tex.anisotropy = 4;
   return tex;
 }
+
+/** The safety net's material, either side of it. */
+export const netLook = (map: THREE.Texture): THREE.MeshStandardMaterialParameters => ({
+  map,
+  transparent: true,
+  alphaTest: 0.3,
+  roughness: 0.9,
+});
 
 /** The arch's tube: up one leg, round the shoulder, across, round, down. */
 function archPath(a: ArchPlan): THREE.CurvePath<THREE.Vector3> {
@@ -488,10 +497,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     const netTex = netTexture();
     texs.push(netTex);
     netHeight = netShape(level).height;
-    const netMat = std(
-      { map: netTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.9 },
-      "finish-net",
-    );
+    // Seen from both sides, and drawn as three draws a see-through two-sided
+    // sheet — its back faces, then its front — but as two meshes with a
+    // side each: one two-sided material has its program re-derived for
+    // each half on every frame.
+    const netMat = {
+      back: std({ ...netLook(netTex), side: THREE.BackSide }, "finish-net"),
+      front: std({ ...netLook(netTex), side: THREE.FrontSide }, "finish-net"),
+    };
     const pts = level.track.points;
     // On a race course (a slalom, a downhill) the nets line the whole of
     // it, start to finish.
@@ -548,7 +561,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       g.setIndex(idx);
       g.computeVertexNormals();
       geos.push(g);
-      group.add(new THREE.Mesh(g, netMat));
+      group.add(new THREE.Mesh(g, netMat.back), new THREE.Mesh(g, netMat.front));
       if (rows > 1) sheets.push({ geo: g, base: Float32Array.from(pos), rows });
     }
     posts.count = postAt;
@@ -694,6 +707,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // A HALFPIPE'S WALLS, drawn off the engine's own section (`pipe-view.ts`).
   const pipe = createPipe(level, std);
   if (pipe) group.add(pipe.group);
+  // A MOGULS COURSE'S SNOW, drawn off the engine's own field (`mogul-view.ts`).
+  const bumps = createMoguls(level, std);
+  if (bumps) group.add(bumps.group);
 
   const breathing = new THREE.Color();
   let lit = -1;
@@ -794,6 +810,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       crossGate?.dispose();
       jibs?.dispose();
       pipe?.dispose();
+      bumps?.dispose();
       for (const t of texs) t.dispose();
     },
   };

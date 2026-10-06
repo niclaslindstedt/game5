@@ -229,6 +229,29 @@ export const SPEED_SKI_POSE: TechniquePose = {
   tuck: { low: 1.55, high: 1.4 },
 };
 
+/** THE MOGUL SKIER (R42). The upper body square to the fall line and
+ * still while the skis turn under it — the most counter-rotation of any
+ * row — the trunk bent well forward over the knees; the hands up, forward
+ * and wide, a pole plant on every turn, short, by the boot; a hip-width
+ * stance; the knees folded deepest of all as a mogul is absorbed and the
+ * outside leg held long only for a moment; a big RETRACTION between turns,
+ * the skis crossed under a level body. Never a tuck. */
+export const MOGULS_POSE: TechniquePose = {
+  id: "moguls",
+  twist: 0.55,
+  pitch: 0.42,
+  angulate: 0.55,
+  lead: 0.45,
+  hands: { x: 0.08, y: 0.12, z: 0.14 },
+  plant: { share: 1, reach: 0.5 },
+  underArm: 0,
+  block: { hand: "outside", weight: 0 },
+  stance: -0.03,
+  legs: { kneeMost: KNEE_MOST.bent, hike: 1.2, hold: 0.08 },
+  transition: { retract: 0.15, level: 0.8 },
+  tuck: { low: 1.15, high: 1.05 },
+};
+
 export const TECHNIQUE_POSES: Readonly<Record<TechniqueId, TechniquePose>> = {
   free: FREE_POSE,
   slalom: SLALOM_POSE,
@@ -237,6 +260,7 @@ export const TECHNIQUE_POSES: Readonly<Record<TechniqueId, TechniquePose>> = {
   downhill: DOWNHILL_POSE,
   skiCross: SKI_CROSS_POSE,
   speedSki: SPEED_SKI_POSE,
+  moguls: MOGULS_POSE,
 };
 
 /** The pose row a run's skier carries himself by: its technique's (the

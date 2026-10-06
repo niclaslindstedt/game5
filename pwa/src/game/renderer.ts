@@ -6,12 +6,11 @@
 //   terrain.ts      the ground: a clipmap round the lens, shaded as snow
 //   trail-map.ts    every furrow any skier has cut, lowering that snow
 //   forest.ts       the snow-loaded conifers, two bands and their casters
-//   gates.ts        the gates (a slalom's flex poles), the start, the finish
-//                   arena and its floodlights, the piste's edge poles
-//   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
+//   gates.ts        the gates and flex poles, the start, the arena, the edge poles
+//   lifts.ts        the resort's lifts, its wind tunnels and its cabins (cabins-view.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
-//   machines.ts     the free ride's helicopter and snowmobile
+//   machines.ts     the free ride's helicopter, snowmobile and piste machines
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
@@ -48,8 +47,8 @@ import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
-import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
-import { freshRigPose } from "./camera-rigs.ts";
+import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
+import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
@@ -61,7 +60,7 @@ import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
-import { hazeMaterial } from "./haze.ts";
+import { hazeMaterial, setRunSnow } from "./haze.ts";
 import { dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
 import {
@@ -248,6 +247,7 @@ export function createWorldRenderer(
   gl.toneMappingExposure = 1.05;
   gl.shadowMap.enabled = SHADOW_LOOK[video.shadows].size > 0;
   gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.setOpaqueSort(byMaterial);
 
   /** The SHADOWS row's stop, its map no bigger than this GPU can hold. */
   const shadowLook = (): ShadowLook => {
@@ -303,7 +303,7 @@ export function createWorldRenderer(
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
   let boomClear: LineClear | undefined;
-  let trunks: TrunksNear | undefined;
+  let trunks: ReturnType<typeof createTrunksNear> | undefined;
   let riders: Rider[] = [];
   let ghost: GhostModel | null = null;
   let ghostRun: GameState | null = null;
@@ -354,7 +354,7 @@ export function createWorldRenderer(
     if (timer.mode === "split" && timer.inScene()) timer.enter(bucket(object));
     direct(camera, sc, geometry, material, object, group);
   };
-  const shadowPass = gl.shadowMap.render.bind(gl.shadowMap);
+  const shadowPass = depthByKind(gl.shadowMap.render.bind(gl.shadowMap));
   gl.shadowMap.render = (lights, sc, camera) => {
     const map = gl.shadowMap;
     const live =
@@ -521,8 +521,7 @@ export function createWorldRenderer(
     }
   }
 
-  /** THE RUN'S SNOWPACK: the map's snow under the sky it is ridden under
-   * (a lab's `setSky` too), the run's dial and its new snow. */
+  /** THE RUN'S SNOWPACK: the map under its sky, the dial, the new snow, the day. */
   function packFor(state: GameState): Snowpack {
     const sky = skyLevel ?? state.level;
     return snowpackOf(sky, {
@@ -530,6 +529,7 @@ export function createWorldRenderer(
       fresh: state.fresh,
       depth: state.snowDepth,
       force: snowForce,
+      piste: state.piste,
     });
   }
 
@@ -553,8 +553,8 @@ export function createWorldRenderer(
       gates = createGates(lv, env.haze);
       castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
-      clear = createLineClear(lv);
-      boomClear = createLineClear(lv, { trees: false });
+      clear = createLineClear(lv, { movers: () => machines?.solids() ?? [] });
+      boomClear = createLineClear(lv, { trees: false, movers: () => machines?.solids() ?? [] });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
       lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
@@ -791,7 +791,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      env.haze.uFresh.value = state.fresh;
+      setRunSnow(env.haze, state.fresh, state.piste);
       const trailed = performance.now();
       terrain.follow(lens.camera.position.x, lens.camera.position.z, lens.camera);
       const sky = skyLevel ?? level;
@@ -813,9 +813,10 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state);
-      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft);
-      // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
-      dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
+      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
+      // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
+      const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);
+      dealLamps(env.haze, look.lamps, riders, floods ?? gates?.floods ?? [], lens.camera.position);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

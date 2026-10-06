@@ -58,6 +58,7 @@ export function halfpipeRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "strict",
     window: HALFPIPE.window,

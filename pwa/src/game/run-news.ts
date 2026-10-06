@@ -96,6 +96,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         : e.phase === "halt"
           ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
           : null;
+    case "groomer":
+      // Into its cab and out of it; ridden into, it is the wipeout's word.
+      return e.phase === "board"
+        ? { text: STRINGS.newsGroomerBoard, tone: "good" }
+        : e.phase === "hop"
+          ? { text: STRINGS.newsGroomerHop, tone: "info" }
+          : null;
     case "bump": {
       // One of the crowd shouldered on a free ride: whether he stayed up.
       if (e.amateur === undefined) return null;
@@ -170,6 +177,16 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
       if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
       return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
+    case "para":
+      // The paramotor: off the summit, in the air, skiing under it, the rig
+      // folded by rough air, dropped or cut away, the ride begun again.
+      if (e.phase === "launch") return { text: STRINGS.newsParaLaunch, tone: "info" };
+      if (e.phase === "takeoff") return { text: STRINGS.newsParaTakeoff, tone: "good" };
+      if (e.phase === "touch") return { text: STRINGS.newsParaTouch, tone: "info" };
+      if (e.phase === "drop") return { text: STRINGS.newsParaDrop, tone: "good" };
+      if (e.phase === "collapse") return { text: STRINGS.newsParaCollapse, tone: "bad" };
+      if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
+      return { text: STRINGS.newsParaRestart, tone: "info" };
     default:
       return null;
   }

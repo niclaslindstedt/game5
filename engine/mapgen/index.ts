@@ -145,6 +145,7 @@ export {
 } from "./big-air.ts";
 export {
   HALFPIPE_RULE,
+  MOGULS_RULE,
   RAIL_JAM_RULE,
   SLOPESTYLE_RULE,
   TRICK_RULES,
@@ -166,3 +167,20 @@ export {
   type PipeFrame,
   type PipeSection,
 } from "./pipe.ts";
+export {
+  mogulsField,
+  mogulsProfile,
+  setMoguls,
+  type AirBump,
+  type MogulsProfile,
+  type MogulsRule,
+} from "./moguls.ts";
+export {
+  fieldCoords,
+  fieldHeight,
+  mogulShare,
+  mogulsAt,
+  withMoguls,
+  type MogulField,
+  type MogulLine,
+} from "./mogul-field.ts";

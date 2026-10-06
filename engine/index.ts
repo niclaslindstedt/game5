@@ -117,6 +117,34 @@ export {
   type PipeRun,
 } from "./game/halfpipe-contest.ts";
 export { PIPE_AIR, pipeHit, pipeLanding, stepPipeAir, type PipeLanding } from "./game/pipe-air.ts";
+export {
+  MOGUL_PANEL,
+  ddOf,
+  judgeMoguls,
+  scoreMoguls,
+  turnQuality,
+  type MogulJump,
+  type MogulScore,
+} from "./game/moguls-judge.ts";
+export {
+  MOGUL_FIELD,
+  MOGUL_PHASES,
+  freshMoguls,
+  judgeMogulsRun,
+  mogulBoard,
+  mogulOrder,
+  mogulPhase,
+  mogulPlace,
+  mogulRivalRun,
+  mogulsContestAfter,
+  paceTimeOf,
+  type MogulPhase,
+  type MogulRow,
+  type MogulRun,
+  type MogulsContest,
+} from "./game/moguls-contest.ts";
+export { TURN_READ, freshTurns, stepMogulTurns, type MogulTurns } from "./game/mogul-turns.ts";
+export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
@@ -151,6 +179,8 @@ export {
   railJamRules,
   HALFPIPE,
   halfpipeRules,
+  MOGULS,
+  mogulsRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
@@ -183,6 +213,7 @@ export {
   SUPER_G_TECHNIQUE,
   SPEED_SKI_TECHNIQUE,
   SKI_CROSS_TECHNIQUE,
+  MOGULS_TECHNIQUE,
   TECHNIQUES,
   techniqueOf,
   type Crossing,
@@ -310,6 +341,7 @@ export {
   MARMOT,
   HARE,
   RAVEN,
+  IBEX,
   skisById,
   isSkiId,
   inertiaOf,
@@ -396,6 +428,12 @@ export {
   type SledMode,
   type SledPhaseEvent,
   type SledState,
+  type ParaControls,
+  type ParaEvent,
+  type ParaMode,
+  type ParaPhaseEvent,
+  type ParaPiece,
+  type ParaState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -431,9 +469,14 @@ export {
   bottomlessOf,
   settleShare,
   packedUnder,
+  packedSnow,
+  looseOf,
+  pisteIce,
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
+export { pisteDayOf, type PisteDay } from "./game/piste-day.ts";
+export { PISTE_DAY } from "./game/defs/piste-day.ts";
 export {
   climbShare,
   driveForce,
@@ -556,9 +599,29 @@ export {
 export { GRIMBEAR } from "./game/defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
 export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
+export { GROOMER } from "./game/defs/groomer.ts";
+export {
+  freshGroomers,
+  groomersOut,
+  groomerStrike,
+  groomerWithin,
+  seatOf,
+  stepGroomers,
+  type GroomerAsk,
+} from "./game/groomer.ts";
+export {
+  freshGroomed,
+  GROOM_CELL,
+  groomCellOf,
+  groomedFresh,
+  groomSegment,
+} from "./game/groomed.ts";
+export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
+export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,
@@ -621,6 +684,17 @@ export {
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
+export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";
+export {
+  freshPara,
+  paraControls,
+  paraRigged,
+  paraStartOf,
+  startPara,
+  stepPara,
+} from "./game/para.ts";
+export { paraPilot } from "./game/para-pilot.ts";
+export { eddyUp, paraAirAt, type ParaAir } from "./game/para-air.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

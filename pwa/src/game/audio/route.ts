@@ -395,6 +395,24 @@ export function soundForEvent(
       }
     }
 
+    // A PISTE MACHINE (`groomer.ts`), heard as the snowmobile's are: the
+    // boots up into the cab and the engine caught, the boots back down on
+    // the snow, and a skier met by twelve tonnes of steel — the machine's
+    // crash, as loud as he came in hard. Its diesel is no bed of its own.
+    case "groomer": {
+      const heard = heardAt(
+        { x: event.x, y: contact.ear?.y ?? 0, z: event.z },
+        contact.ear,
+        HEARD_NEAR,
+      );
+      if (event.phase === "board") return { id: "sled_board", shape: heard };
+      if (event.phase === "hop") return { id: "sled_hop", shape: heard };
+      return {
+        id: "sled_crash",
+        shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 2, 15)) },
+      };
+    }
+
     // THE HELICOPTER (`heli-bank.ts`), heard from where the ear is: the
     // boots on the skid, the skids lifting and landing, the drop's clack
     // and rush — and the CRASH, the biggest sound in the game, carrying a
@@ -427,6 +445,16 @@ export function soundForEvent(
         default:
           return null;
       }
+    }
+
+    // THE PARAMOTOR, on his back: the rig let go is the drop's clack and
+    // rush of the helicopter's skid, the buckles and the cloth away; the
+    // rest of a flight is its engine's bed and the wind.
+    case "para": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      return event.phase === "drop" || event.phase === "collapse"
+        ? { id: "heli_drop", shape: heard }
+        : null;
     }
 
     default:

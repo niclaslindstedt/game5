@@ -47,6 +47,8 @@
 // see a spectator and nothing draws from `state.rng`.
 
 import {
+  CABINS,
+  cabinsOf,
   createRng,
   nearestTrackPoint,
   netsOf,
@@ -840,7 +842,13 @@ export function pitches(points: readonly TrackPoint[], count: number, apart: num
   return out;
 }
 
-/** Where nobody may stand: a lift's stations and the wind tunnels' line. */
+/** The room kept round a cabin, m: past its roof at the sides and the
+ * back, and the yard before its door — nobody stands in its walls or on
+ * its doorstep. */
+const CABIN_ROOM = { round: 1.2, door: 5 };
+
+/** Where nobody may stand: a lift's stations, the wind tunnels' line, and
+ * every cabin with its yard (`cabinsOf`). */
 function blockers(level: Level): (x: number, z: number) => boolean {
   const spots: { x: number; z: number; r: number }[] = [];
   for (const lift of level.resort?.lifts ?? []) {
@@ -853,5 +861,25 @@ function blockers(level: Level): (x: number, z: number) => boolean {
       spots.push({ x: p.x, z: p.z, r: 9 });
     }
   }
-  return (x, z) => spots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < p.r * p.r);
+  const houses = cabinsOf(level).map((c) => {
+    const d = CABINS[c.kind];
+    return {
+      c,
+      fx: Math.sin(c.heading),
+      fz: Math.cos(c.heading),
+      half: d.width / 2 + d.reach.side + CABIN_ROOM.round,
+      back: -d.depth / 2 - d.reach.back - CABIN_ROOM.round,
+      front: d.depth / 2 + d.reach.front + CABIN_ROOM.door,
+    };
+  });
+  const inCabin = (x: number, z: number): boolean =>
+    houses.some((h) => {
+      const dx = x - h.c.x;
+      const dz = z - h.c.z;
+      if (Math.abs(dx) > 30 || Math.abs(dz) > 30) return false;
+      const lx = dx * h.fz - dz * h.fx;
+      const lz = dx * h.fx + dz * h.fz;
+      return Math.abs(lx) < h.half && lz > h.back && lz < h.front;
+    });
+  return (x, z) => spots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < p.r * p.r) || inCabin(x, z);
 }

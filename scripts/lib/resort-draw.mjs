@@ -9,7 +9,8 @@
 //     by height and hillshaded from the upper left, the woods as crowns, the
 //     bare rock where the face is too steep to hold snow, every run drawn in
 //     its colour (a transport lane dashed), its number in a disc of its
-//     colour at its top, every lift a black line between two stations, the
+//     colour at its top, every lift a black line between two stations, every
+//     cabin a brown square (`cabinsOf`), the
 //     village, the HUB along the valley floor (R29) tinted and edged, the
 //     two WIND TUNNELS (R30) with arrows the way they blow, the course the
 //     map is raced on traced with its gates, and a piste R29 finds cannot be
@@ -45,6 +46,8 @@ const FAIL_INK = [210, 30, 170];
 const TREE = [28, 70, 46];
 const ROCK = [128, 120, 112];
 const LIFT = [12, 12, 14];
+/** A cabin on the plan: timber brown. */
+const CABIN = [128, 70, 36];
 
 function halo(canvas, x, y, str, color, scale = 1) {
   for (let dx = -1; dx <= 1; dx++) {
@@ -139,6 +142,7 @@ export function renderResortPlan({
   refused = [],
   hubAt = null,
   failing = new Set(),
+  cabins = [],
 }) {
   const size = level.size;
   const W = Math.ceil(size * scale);
@@ -316,6 +320,14 @@ export function renderResortPlan({
     canvas.disk(px(p.x), py(p.z), 8, WHITE);
     canvas.disk(px(p.x), py(p.z), 7, ink);
     canvas.text(run.id, px(p.x) - (run.id.length > 1 ? 5 : 2), py(p.z) - 3, WHITE, 1);
+  }
+  // Every cabin (`cabinsOf`): a timber-brown square on a white ground, the
+  // first of each group with its id.
+  for (const c of cabins) {
+    canvas.fillRect(px(c.x) - 4, py(c.z) - 4, 9, 9, WHITE);
+    canvas.fillRect(px(c.x) - 3, py(c.z) - 3, 7, 7, CABIN);
+    if (cabins.find((o) => o.group === c.group) === c)
+      halo(canvas, px(c.x) + 7, py(c.z) + 4, c.id, CABIN, 1);
   }
   const v = level.resort?.village;
   if (v) {

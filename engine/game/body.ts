@@ -77,11 +77,12 @@ import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
+import { GROOMER } from "./defs/groomer.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { depthUnder, packedUnder } from "./snow.ts";
+import { depthUnder, looseOf, packedUnder } from "./snow.ts";
 import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 
@@ -149,7 +150,7 @@ export function blowOf(v: number, give: number): number {
  * groomer counted in, and loose snow deeper on a deeper day. */
 export function snowGive(state: GameState, x: number, z: number): number {
   const level = state.level;
-  const p = packedUnder(level.packedAt(x, z), state.fresh);
+  const p = packedUnder(level.packedAt(x, z), state.fresh, looseOf(state));
   const loose = I.snow.soft + I.snow.deep * depthUnder(state.snowDepth, state.fresh);
   const give = p * I.snow.packed + (1 - p) * loose;
   const ice = level.iceAt ? level.iceAt(x, z) : 0;
@@ -493,12 +494,44 @@ function fall(c: SkierState, cause: string, speed: number): void {
     const s = c.roll > 0 ? 1 : -1;
     charge(sided("knee", s), "twist", speed * I.rollTwist);
     charge(sided("knee", -s), "twist", speed * I.rollTwist * 0.5);
+  } else if (cause === "groomer") {
+    steel(speed);
   } else if (cause === "nose") {
     for (const s of [-1, 1]) {
       charge(sided("shin", s), "bend", speed);
       charge(sided("knee", s), "twist", speed * I.noseTwist);
     }
   }
+}
+
+/** RIDDEN INTO A PISTE MACHINE (`groomer.ts`), or met by its blade: the
+ * steel square on — the chest and the belly, the arms flung up before it,
+ * the hips, the legs and the head in its helmet — at `strike.least` m/s at
+ * the least and `strike.hard` times over (twelve tonnes do not give),
+ * against the blade's next to nothing; and three blows' worth of injuries
+ * taken off it rather than one. */
+function steel(speed: number): void {
+  const S = GROOMER.strike;
+  const v = Math.max(S.least, speed) * S.hard;
+  const hit = (part: BodyPart, share: number, face: Facing | null): number => {
+    const g = blow(part, v, S.give, true, share);
+    strike(part, g, face);
+    return g;
+  };
+  const g = hit("chest", 1, "front");
+  hit("abdomen", 0.9, "front");
+  hit("pelvis", 0.8, "front");
+  hit("head", 0.7, "front");
+  hit("neck", I.share.neck, null);
+  for (const s of [-1, 1]) {
+    hit(sided("shoulder", s), 0.9, null);
+    hit(sided("arm", s), 0.8, null);
+    hit(sided("thigh", s), 0.7, null);
+    hit(sided("knee", s), 0.6, null);
+    hit(sided("shin", s), 0.7, null);
+  }
+  cap = I.perBlow * 3;
+  offer(g, "chest", "groomer");
 }
 
 /** READ THIS STEP'S DOSES against every part's ladder: the injuries taken,

@@ -52,12 +52,15 @@ import {
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Level } from "../mapgen/types.ts";
+import type { Assist } from "./defs/modes.ts";
+import type { PisteDay } from "./piste-day.ts";
 import { SLED, SLED_PROBES, sledInertia } from "./defs/sled.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { stepBelt, stepRpm } from "./sled-drive.ts";
 import {
   bottomlessOf,
   depthUnder,
+  looseOf,
   packedUnder,
   powderFloor,
   settleShare,
@@ -141,7 +144,16 @@ const normal: Vec3 = { x: 0, y: 1, z: 0 };
 const torque: Vec3 = { x: 0, y: 0, z: 0 };
 
 /** The snow the run is on: the map, its dial and the new fall. */
-export type SledSnow = { level: Level; snowDepth: number; fresh: number };
+export type SledSnow = {
+  level: Level;
+  snowDepth: number;
+  fresh: number;
+  /** The day's piste (`GameState.piste`), on a run dealt it. */
+  piste?: PisteDay;
+  /** How much the machine helps (the run's `assist`): its `air` sets the
+   * nose for the landing. Every hand on when it is not given. */
+  assist?: Assist;
+};
 
 /** ONE STEP OF THE BODY under `ctl` — the controls as the rider asks, eased
  * through their lags here — for a machine carrying `mass` kg in all. */
@@ -236,7 +248,7 @@ export function rideSled(
     }
     const dx = -up.x;
     const dz = -up.z;
-    const packed = packedUnder(level.packedAt(ax, az), snow.fresh);
+    const packed = packedUnder(level.packedAt(ax, az), snow.fresh, looseOf(snow));
     const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const tread = p.kind === "tread";
     const scale = tread ? SLED.sink.tread : SLED.sink.ski;
@@ -365,7 +377,10 @@ export function rideSled(
   }
   treadSink /= 6;
   c.treadComp = treadN > 0 ? treadComp / treadN : 0;
-  c.packed = loadSum > 0 ? packedLoad / loadSum : packedUnder(level.packedAt(c.x, c.z), snow.fresh);
+  c.packed =
+    loadSum > 0
+      ? packedLoad / loadSum
+      : packedUnder(level.packedAt(c.x, c.z), snow.fresh, looseOf(snow));
   const grounded = touching > 0;
   if (!grounded && c.airborne) fy -= m * g * (FLY_G - 1);
 
@@ -440,7 +455,16 @@ export function rideSled(
     tb.x += -A.lean * k.lean - A.throttle * k.throttle + A.brake * k.brake;
     tb.y += A.steer * k.steer;
     const reach = clamp((1.2 - Math.abs(c.roll)) / 0.3, 0, 1);
-    tb.z += (A.rollLevel * c.roll - A.rollDamp * c.wz) * reach;
+    tb.z += clamp(A.rollLevel * c.roll - A.rollDamp * c.wz, -A.rollMost, A.rollMost) * reach;
+    // THE NOSE SET FOR THE LANDING (the arcade's hand, `assist.air`): the
+    // machine pitched toward the snow it will come down on, a little nose
+    // high — let go to the rider the moment he leans or brakes, so a nose
+    // he drops or throws back is his own.
+    const set = (snow.assist?.air ?? 1) * (1 - Math.max(Math.abs(k.lean), k.brake)) * reach;
+    if (set > 0) {
+      const err = landingPitch(c, level) - c.pitch;
+      tb.x += clamp(-A.setStiff * err - A.setDamp * c.wx, -A.setMost, A.setMost) * set;
+    }
     tb.x -= A.damping * c.wx;
     tb.y -= A.damping * c.wy;
     tb.z -= A.damping * c.wz;
@@ -490,6 +514,22 @@ export function rideSled(
   return { impact, landed };
 }
 
+const under: Vec3 = { x: 0, y: 1, z: 0 };
+
+/** The pitch of the snow the machine will come down on, along its heading,
+ * plus `air.setNose` — where its flight meets the ground, read off its
+ * fall at the flight's gravity. Rad, tips-up positive. */
+function landingPitch(c: SledState, level: Level): number {
+  const gy = TUNING.g * FLY_G;
+  const high = Math.max(0, c.y - SLED.cogHeight - level.groundAt(c.x, c.z));
+  const t = (c.vy + Math.sqrt(c.vy * c.vy + 2 * gy * high)) / gy;
+  level.normalAt(c.x + c.vx * t, c.z + c.vz * t, under);
+  const fx = Math.sin(c.heading);
+  const fz = Math.cos(c.heading);
+  const rise = -(under.x * fx + under.z * fz) / Math.max(0.2, under.y);
+  return Math.atan(rise) + A.setNose;
+}
+
 /** THE HULL ON THE SNOW: every hull point under the snow's floor (the
  * powder's, `powderFloor` — deep snow does not hold a hull up, it is
  * shoved aside by it, down to what the belt has pressed) pushed out with an
@@ -509,7 +549,7 @@ function hullContacts(
     const px = c.x + r.x;
     const py = c.y + r.y;
     const pz = c.z + r.z;
-    const packed = packedUnder(level.packedAt(px, pz), snow.fresh);
+    const packed = packedUnder(level.packedAt(px, pz), snow.fresh, looseOf(snow));
     const floor = level.groundAt(px, pz) - powderFloor(packed, SLED.sink.tread, depth);
     const pen = floor - py;
     if (pen <= 0) continue;

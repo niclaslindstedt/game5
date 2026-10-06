@@ -17,6 +17,7 @@ import {
   EAGLE,
   FALCON,
   HARE,
+  IBEX,
   RAVEN,
   MARMOT,
   NEUTRAL_INPUT,
@@ -91,7 +92,7 @@ function restSink(spec: SkiSpec): number {
 }
 
 describe("the catalog", () => {
-  it("is ten pairs with their own ids, the chamois the default", () => {
+  it("is eleven pairs with their own ids, the chamois the default", () => {
     expect(SKI_CATALOG.map((s) => s.id)).toEqual([
       "chamois",
       "swift",
@@ -103,6 +104,7 @@ describe("the catalog", () => {
       "marmot",
       "hare",
       "raven",
+      "ibex",
     ]);
     expect(SKIS.id).toBe("chamois");
     for (const s of SKI_CATALOG) {
@@ -252,9 +254,12 @@ describe("nine answers to a kind of snow", () => {
     expect(Math.min(...grips)).toBe(cornerGrip(MARMOT, 1));
   });
 
-  it("the slalom ski is the quickest onto an edge, the speed ski the slowest and the downhill ski next", () => {
+  it("the narrow, soft mogul ski is the quickest onto an edge, the slalom ski next; the speed ski the slowest and the downhill ski next", () => {
     const rates = SKI_CATALOG.map((s) => footprintOf(s).edgeRate);
-    expect(Math.max(...rates)).toBe(footprintOf(SWIFT).edgeRate);
+    expect(Math.max(...rates)).toBe(footprintOf(IBEX).edgeRate);
+    expect(
+      Math.max(...SKI_CATALOG.filter((s) => s !== IBEX).map((s) => footprintOf(s).edgeRate)),
+    ).toBe(footprintOf(SWIFT).edgeRate);
     expect(Math.min(...rates)).toBe(footprintOf(PEREGRINE).edgeRate);
     const alpine = SKI_CATALOG.filter((s) => s !== PEREGRINE).map((s) => footprintOf(s).edgeRate);
     expect(Math.min(...alpine)).toBe(footprintOf(EAGLE).edgeRate);

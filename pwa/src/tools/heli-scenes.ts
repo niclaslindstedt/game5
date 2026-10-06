@@ -495,7 +495,7 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
 
   crash(st) {
     const s = crashed(st);
-    crashFrames(st, s, "chase", [0, 0.1, 0.25, 0.5, 0.8, 1.2, 1.8, 2.6, 4, 6]);
+    crashFrames(st, s, "chase", [0, 0.1, 0.25, 0.5, 0.8, 1, 1.2, 1.6, 2, 2.6, 3.2, 4, 6]);
   },
 
   thrown(st) {

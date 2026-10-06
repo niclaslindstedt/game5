@@ -122,11 +122,55 @@ describe("the crash's lens", () => {
     const far = startCrashCam(from, wreck);
     let a = frameCrash(near, wreck, { x: 5, y: 1, z: 0 }, 1 / 60, flat);
     let b = frameCrash(far, wreck, { x: 45, y: 1, z: 0 }, 1 / 60, flat);
-    for (let t = 0; t < CRASH_LOOK.pull; t += 1 / 60) {
-      a = frameCrash(near, wreck, { x: 5, y: 1, z: 0 }, 1 / 60, flat);
-      b = frameCrash(far, wreck, { x: 45, y: 1, z: 0 }, 1 / 60, flat);
+    // Up to the close-in on him, which takes over from the pull-back.
+    for (let t = 0; t < CRASH_LOOK.zoomLate - 0.1; t += 1 / 60) {
+      a = frameCrash(near, wreck, { x: 5, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
+      b = frameCrash(far, wreck, { x: 45, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
     }
-    expect(gap(b.eye, b.target)).toBeGreaterThan(gap(a.eye, a.target) + 20);
+    expect(gap(b.eye, b.target)).toBeGreaterThan(gap(a.eye, a.target) + 10);
+  });
+
+  it("closes in on the skier near his apex and rides his path down", () => {
+    const cam = startCrashCam(from, wreck);
+    const dt = 1 / 60;
+    // Flung up at 12 m/s and out along +x at 14 m/s off the wreck.
+    const at = (t: number) => ({
+      x: 14 * t,
+      y: 2 + 12 * t - 4.9 * t * t,
+      z: 0,
+      vx: 14,
+      vy: 12 - 9.81 * t,
+      vz: 0,
+    });
+    const apex = 12 / 9.81;
+    let lens = from;
+    let wide = Infinity;
+    const fovs: number[] = [];
+    for (let t = dt; t <= 2.3; t += dt) {
+      lens = frameCrash(cam, wreck, at(t), dt, flat);
+      if (t < CRASH_LOOK.zoomFrom) expect(cam.zoomAt).toBeNull();
+      if (Math.abs(t - 0.5) < dt / 2) wide = gap(lens.eye, at(t));
+      if (Math.abs(t - apex) < dt / 2) {
+        // Begun before the apex, and nearer him at it.
+        expect(cam.zoomAt).not.toBeNull();
+        expect(cam.zoomAt!).toBeLessThan(apex);
+        expect(gap(lens.eye, at(t))).toBeLessThan(wide);
+      }
+      if (t > 1.6) fovs.push(lens.fov);
+    }
+    // A tracking shot: close behind him along his way, off to his side,
+    // looking ahead of him down it — carried with him, a little behind.
+    const end = at(2.3);
+    expect(lens.eye.x).toBeLessThan(end.x);
+    expect(end.x - lens.eye.x).toBeLessThan(CRASH_LOOK.back * 2.5);
+    expect(Math.abs(lens.eye.z)).toBeGreaterThan(CRASH_LOOK.side * 0.5);
+    expect(lens.target.x).toBeGreaterThan(end.x);
+    expect(gap(lens.eye, end)).toBeLessThan(15);
+    expect(lens.eye.y).toBeGreaterThan(flat());
+    // Wider and tilted the faster he falls.
+    expect(fovs[fovs.length - 1]).toBeGreaterThan(fovs[0]);
+    expect(fovs[fovs.length - 1]).toBeGreaterThan(CRASH_LOOK.fov);
+    expect(Math.abs(lens.roll)).toBeGreaterThan(0.05);
   });
 
   it("throws a lens at the impact itself back out of the fireball at once", () => {

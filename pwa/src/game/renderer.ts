@@ -45,7 +45,7 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
-import { createLens, type Lens } from "./camera.ts";
+import { createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
 import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
@@ -930,9 +930,8 @@ export function createWorldRenderer(
     setCamera(rung: CameraRung, cut: boolean = false) {
       lens.set(rung, cut);
     },
-    camera() {
-      return lens.rung();
-    },
+    camera: () => lens.rung(),
+    pickRay: (x, y) => lensRay(lens.camera, x, y),
     resize(width, height, pixelRatio) {
       box = { width, height, pixelRatio };
       gl.setPixelRatio(pixelRatio * RESOLUTION_SHARE[video.resolution]);

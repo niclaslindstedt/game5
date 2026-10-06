@@ -521,8 +521,7 @@ export function createWorldRenderer(
     }
   }
 
-  /** THE RUN'S SNOWPACK: the map's snow under the sky it is ridden under
-   * (a lab's `setSky` too), the run's dial and its new snow. */
+  /** THE RUN'S SNOWPACK: the map under its sky, the dial, the new snow, the day. */
   function packFor(state: GameState): Snowpack {
     const sky = skyLevel ?? state.level;
     return snowpackOf(sky, {

@@ -143,10 +143,13 @@ export {
   type JumpProfile,
 } from "./big-air.ts";
 export {
+  RAIL_JAM_RULE,
   SLOPESTYLE_RULE,
   TRICK_RULES,
   type JibRow,
+  type RailJamRow,
   type JumpRule,
   type SlopeJumpRow,
 } from "./trick-rules.ts";
 export { courseSpeed, setSlopestyle, slopestyleProfile, type SlopeProfile } from "./slopestyle.ts";
+export { railJamProfile, railJamSpeed, setRailJam, type RailJamProfile } from "./rail-jam.ts";

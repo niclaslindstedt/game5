@@ -17,7 +17,7 @@
 //             and the far cut at the size the game draws it at 150 m;
 //   moments   the poses BLENDED as the crowd is drawn (`dialsOf` off an
 //             amateur's numbers): a carve each way, the bomber's tuck, the
-//             beginner's wedge, a hockey stop, a side-slip, a double pole, a
+//             beginner's wedge, a hockey stop, a side-slip, skating, a double pole, a
 //             kicker, a drunk's sway;
 //   falls     AN AMATEUR DOWN, frame by frame: a real amateur on `?seed=`'s
 //             mountain thrown three ways — shouldered off his line from the
@@ -311,7 +311,13 @@ const MOMENTS: readonly { name: string; at: Partial<Amateur>; t?: number }[] = [
   { name: "beginner's wedge", at: { crouch: 0.45, plough: 0.9 } },
   { name: "hockey stop", at: { crouch: 0.3, across: 1 } },
   { name: "side-slip", at: { crouch: 0.3, across: 0.85, lean: -0.15 } },
-  { name: "double pole", at: { push: 1, pole: Math.PI / 2 } },
+  // WORKING, by the player's gait: a skate's push off the left, its glide,
+  // a push off the right; a double pole at its plant and its push.
+  { name: "skate, left push", at: { push: 1, speed: 4, pole: 0.2 } },
+  { name: "skate, glide", at: { push: 1, speed: 4, pole: 0.65 } },
+  { name: "skate, right push", at: { push: 1, speed: 4, pole: 1.2 } },
+  { name: "double pole, plant", at: { push: 1, speed: 1, pole: 0.05 } },
+  { name: "double pole, push", at: { push: 1, speed: 1, pole: 0.35 } },
   { name: "off a kicker", at: { mode: "air", airAt: 0.5, airT: 1, crouch: 0.55 } },
   { name: "drunk's sway", at: { lean: 0.35, crouch: 0.1, plough: 0.3 } },
   { name: "pole plant", at: { ...TURNING, turnT: 0.22 } },

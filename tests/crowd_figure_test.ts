@@ -102,6 +102,31 @@ describe("an amateur's weights and kit", () => {
     return { out, mirror, of: (k: (typeof CROWD_POSES)[number]) => out[CROWD_POSES.indexOf(k)] };
   };
 
+  it("working, he skates and poles the player's own stride, never glides still", () => {
+    const sum = (r: ReturnType<typeof w>, name: string) =>
+      CROWD_POSES.filter((k) => k.startsWith(name)).reduce((x, k) => x + r.of(k), 0);
+    const work = { mode: "ski", push: 1, fall: 0, plough: 0, crouch: 0.2, lean: 0 } as const;
+    // Rolling, a skate, wholly; its keys moving through his stride.
+    const seen = new Set<string>();
+    for (let pole = 0; pole < 2; pole += 0.25) {
+      const r = w({ ...work, body: "man", speed: 4, pole });
+      expect(sum(r, "skate")).toBeCloseTo(1, 3);
+      expect(sum(r, "pole")).toBeCloseTo(0, 3);
+      seen.add(
+        CROWD_POSES.filter((k) => k.startsWith("skate")).sort((a, b) => r.of(b) - r.of(a))[0],
+      );
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(5);
+    // At a walk on the flat, a double pole; with no poles, a skate.
+    expect(sum(w({ ...work, body: "man", speed: 1, pole: 0.3 }), "pole")).toBeCloseTo(1, 3);
+    const child = w({ ...work, body: "child", speed: 1, pole: 0.3 });
+    expect(sum(child, "pole")).toBe(0);
+    expect(sum(child, "skate")).toBeGreaterThan(0.5);
+    // Not working, neither.
+    const glide = w({ ...work, push: 0, body: "man", speed: 4, pole: 0.3 });
+    expect(sum(glide, "skate") + sum(glide, "pole")).toBe(0);
+  });
+
   it("a turn each way on its own target, never one run backwards", () => {
     const right = w({ lean: 0.4, fall: 0, fallSide: 1 });
     expect(right.of("lean")).toBeGreaterThan(0.5);

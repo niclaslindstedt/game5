@@ -45,6 +45,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { CHAIR_SEAT, seatedPose } from "./skier-seat.ts";
+import { gaitOf } from "./skier-gait.ts";
 import { PLANT, plantLength } from "./skier-spring.ts";
 import { smooth, TURN_PLANT } from "./skier-stroke.ts";
 
@@ -92,7 +93,15 @@ export const CROWD_POSES = [
   "leanLeft",
   "plough",
   "across",
-  "pole",
+  "skate0",
+  "skate1",
+  "skate2",
+  "skate3",
+  "skate4",
+  "skate5",
+  "pole0",
+  "pole1",
+  "pole2",
   "air",
   "plantLeft",
   "trailLeft",
@@ -104,6 +113,16 @@ export const CROWD_POSES = [
 ] as const;
 export type CrowdPose = (typeof CROWD_POSES)[number];
 
+/** THE STRIDE AS KEYS: the player's own gait (`gaitOf`) at its moments, a
+ * target each — the SKATE over its two strides (a push off each leg),
+ * `SKATE_KEYS` moments of it, at a way he skates wholly at; the DOUBLE
+ * POLE over its one, `POLE_KEYS` of it, at a walk on the flat, where he
+ * poles wholly. `dialsOf` runs an amateur through them by his own stride
+ * count, blending each moment into the next, so he skates and poles the
+ * player's stroke on the player's timing. */
+export const SKATE_KEYS = 6;
+export const POLE_KEYS = 3;
+const STRIDE_AT = { skate: 4, pole: 1 };
 /** A ski as four points: its tail, its tip, its middle on the snow, and a
  * point off its right edge — enough to build it in any pose. */
 export type SkiPoints = { tail: V3; tip: V3; mid: V3; side: V3 };
@@ -163,6 +182,35 @@ const STAND: SkierPoseInput = {
   airborne: false,
   landing: 10,
 };
+/** The player working at full drive at `speed` m/s on the flat, `stride`
+ * strides in. */
+function strideGait(speed: number, stride: number) {
+  return gaitOf({
+    drive: 1,
+    stride,
+    speed,
+    way: speed,
+    airborne: false,
+    thrown: null,
+    pitch: 0,
+  });
+}
+
+/** `count` targets named `name0`… over `strides` strides of the gait at
+ * `speed`. */
+function keyed<N extends "skate" | "pole">(
+  name: N,
+  count: number,
+  speed: number,
+  strides: number,
+): Record<`${N}${0 | 1 | 2 | 3 | 4 | 5}`, SkierPoseInput> {
+  const out: Record<string, SkierPoseInput> = {};
+  for (let k = 0; k < count; k++) {
+    out[`${name}${k}`] = { ...STAND, gait: strideGait(speed, (k / count) * strides) };
+  }
+  return out as Record<`${N}${0 | 1 | 2 | 3 | 4 | 5}`, SkierPoseInput>;
+}
+
 const INPUTS: Readonly<Record<Exclude<CrowdPose, "seat">, SkierPoseInput>> = {
   crouch: { ...STAND, crouch: 1, tuck: 1 },
   lean: {
@@ -197,7 +245,8 @@ const INPUTS: Readonly<Record<Exclude<CrowdPose, "seat">, SkierPoseInput>> = {
     gait: { ...STILL_GAIT, splay: [0.32, -0.32], out: [-0.14, 0.14] },
   },
   across: { ...STAND, skiAngle: 1.05, skid: 1, crouch: 0.2 },
-  pole: { ...STAND, gait: { ...STILL_GAIT, pole: 1, phase: 0, keep: 1 } },
+  ...keyed("skate", SKATE_KEYS, STRIDE_AT.skate, 2),
+  ...keyed("pole", POLE_KEYS, STRIDE_AT.pole, 1),
   air: { ...STAND, airborne: true, air: 1 },
   plantLeft: { ...STAND, plantAt: { side: 0, t: TURN_PLANT.touch, weight: 1 } },
   trailLeft: { ...STAND, plantAt: { side: 0, t: TRAIL, weight: 1 } },
@@ -206,6 +255,9 @@ const INPUTS: Readonly<Record<Exclude<CrowdPose, "seat">, SkierPoseInput>> = {
   idle: { ...STAND, idle: { t: WAIT.one, still: 1 } },
   idleAway: { ...STAND, idle: { t: WAIT.other, still: 1 } },
 };
+
+/** Each target's place in `CROWD_POSES`, the weights' order. */
+const POSE_AT = Object.fromEntries(CROWD_POSES.map((k, i) => [k, i])) as Record<CrowdPose, number>;
 
 /** The pose's dials, each 0 (the stance) … 1 (all the way). Only one is
  * set for a target; the GPU sums them. */
@@ -423,6 +475,7 @@ export function dialsOf(
   a: Pick<
     Amateur,
     | "id"
+    | "body"
     | "crouch"
     | "lean"
     | "plough"
@@ -448,18 +501,49 @@ export function dialsOf(
   const air =
     a.mode === "air" && a.airT > 0 ? Math.sqrt(Math.sin((Math.PI * a.airAt) / a.airT)) : 0;
   const lean = Math.max(-1.3, Math.min(1.3, a.lean / LEAN_ROLL)) * mirror * up;
-  out[0] = crouchDial(a.crouch) * up;
-  out[1] = Math.max(0, lean);
-  out[2] = Math.max(0, -lean);
-  out[3] = a.plough * up;
-  out[4] = a.across * up;
-  out[5] = a.push * (0.5 + 0.5 * Math.sin(a.pole)) * up;
-  out[6] = (air || 0) * up;
+  const at = (k: CrowdPose, w: number): void => {
+    out[POSE_AT[k]] = w;
+  };
+  at("crouch", crouchDial(a.crouch) * up);
+  at("lean", Math.max(0, lean));
+  at("leanLeft", Math.max(0, -lean));
+  at("plough", a.plough * up);
+  at("across", a.across * up);
+  at("air", (air || 0) * up);
+  // WORKING: the player's own gait at his way and his drive, and how much
+  // of it is a skate and how much a double pole (`gaitOf`) — run through
+  // the keys of each at his own place in the stride. The crowd is drawn on
+  // no rise, so the one stride `gaitOf` gives is a skier with no poles
+  // walking off a standstill: he is drawn skating it.
+  for (let k = 0; k < SKATE_KEYS; k++) at(`skate${k}` as CrowdPose, 0);
+  for (let k = 0; k < POLE_KEYS; k++) at(`pole${k}` as CrowdPose, 0);
+  if (a.push > 0 && a.mode !== "air" && seat === 0) {
+    const g = gaitOf({
+      drive: a.push,
+      stride: a.pole,
+      speed: a.speed,
+      way: a.speed,
+      airborne: false,
+      thrown: null,
+      pitch: 0,
+      poles: CROWD_LOOKS[a.body].poles,
+    });
+    const keys = (name: "skate" | "pole", count: number, u: number, w: number): void => {
+      const x = (((u % 1) + 1) % 1) * count;
+      const k = Math.floor(x) % count;
+      const f = x - Math.floor(x);
+      at(`${name}${k}` as CrowdPose, (1 - f) * w * up);
+      at(`${name}${(k + 1) % count}` as CrowdPose, f * w * up);
+    };
+    keys("skate", SKATE_KEYS, a.pole / 2, g.skate + g.stride);
+    keys("pole", POLE_KEYS, a.pole, g.pole);
+  }
   // THE PLANT through its two shapes: swung forward to the touch, trailed
   // back behind it, and home to the stance — on the pole the mirror puts
   // inside his turn.
   const plant = plantOf(a);
-  for (let k = 7; k < 11; k++) out[k] = 0;
+  const PLANTS = ["plantLeft", "trailLeft", "plantRight", "trailRight"] as const;
+  for (const k of PLANTS) at(k, 0);
   if (plant) {
     const u = plant.t;
     const touch = TURN_PLANT.touch;
@@ -468,17 +552,17 @@ export function dialsOf(
     const touchW = u < touch ? smooth(u / touch) : u < TRAIL ? 1 - toTrail : 0;
     const trailW = u < touch ? 0 : u < TRAIL ? toTrail : 1 - smooth((u - TRAIL) / (1 - TRAIL));
     const side = mirror > 0 ? plant.side : 1 - plant.side;
-    out[7 + 2 * side] = touchW * w;
-    out[8 + 2 * side] = trailW * w;
+    at(PLANTS[2 * side], touchW * w);
+    at(PLANTS[2 * side + 1], trailW * w);
   }
   // STOOD STILL, alive: the player's own wait, faded in below a walk and
   // swung from one side to the other on his own clock.
   const still =
     Math.max(0, 1 - a.speed / 1.5) * (1 - a.push) * (a.mode === "air" ? 0 : up) * (1 - seat);
   const wave = Math.sin((2 * Math.PI * t) / WAIT.period + a.id * 2.39);
-  out[11] = still * Math.max(0, wave);
-  out[12] = still * Math.max(0, -wave);
-  out[13] = seat * up;
+  at("idle", still * Math.max(0, wave));
+  at("idleAway", still * Math.max(0, -wave));
+  at("seat", seat * up);
   return mirror;
 }
 

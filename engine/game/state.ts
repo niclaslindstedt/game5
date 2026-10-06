@@ -821,8 +821,8 @@ export type Amateur = {
   /** THE FIGURE: leaned into the turn, rad (positive right); how low, 0..1;
    * the wedge, 0..1; the skis turned across the way (a stop, a slip),
    * 0..1; down in the snow, 0..1, and the side he went down on (−1 left,
-   * 1 right); the arms' stroke at a crawl, rad of its cycle, and how hard
-   * he is working them, 0..1. */
+   * 1 right); his strides skated or poled, counted (a whole one a push),
+   * and how hard he is working, 0..1. */
   lean: number;
   crouch: number;
   plough: number;

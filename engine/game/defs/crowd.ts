@@ -448,10 +448,13 @@ export const CROWD = {
    * air's on the body (a v² drag), and the scrub of a ski turned off the
    * way it goes (per radian). */
   drag: { snow: 0.45, air: 0.0035, scrub: 1.4 },
-  /** How hard he can check his speed, m/s², and at a crawl what his poles
-   * and his skating give him: the speed, m/s, and the push, m/s². */
+  /** How hard he can check his speed, m/s², and what his poles and his
+   * skating give him where the hill does not carry him: the push, m/s²,
+   * eased off over the last `ease` m/s below the speed he means (or the
+   * player's own whole push, `poles.speed`); and the speed under which he
+   * is at a CRAWL, m/s — a stop's clock runs there, and stood he waits. */
   brake: 3.5,
-  crawl: { speed: 2.6, push: 0.9 },
+  crawl: { speed: 2.6, push: 0.9, ease: 1 },
   /** The speed a stop is stood at, m/s: below it he holds on his edges,
    * still, however steep the pitch under him. */
   stand: 0.3,

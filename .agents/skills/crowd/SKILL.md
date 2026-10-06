@@ -69,6 +69,14 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   from `skier-spring.ts` against the turn clock the engine keeps
   (`Amateur.turnSide`, `turnT`, `turnHeld`, begun past `CROWD.turnOn`).
   Never a second timing.
+- **NOBODY GLIDES STILL.** Where the hill will not carry an amateur to the
+  speed he means (up to `TUNING.poles.speed`, the player's own push), the
+  engine has him WORK (`Amateur.push`) and counts his strides at the
+  player's rate (`strideRate`, `Amateur.pole`); `dialsOf` hands both to the
+  player's own `gaitOf` and walks the result through its keys — six of the
+  skate over two strides, three of the double pole over one, each the
+  player's pose at that point of his stride (`STRIDE_AT`) — so the mix of
+  skate and pole at a speed is the player's, and a poleless child skates.
 - **A MORPH IS LINEAR.** A weight below zero extrapolates the target
   backwards (a body run "anti-lean" stretches upward), so a turn each way
   is a target of its own (`lean`, `leanLeft`) and every weight is ≥ 0.

@@ -67,6 +67,7 @@ import {
   type GroupKind,
 } from "./defs/crowd.ts";
 import { RACE } from "./defs/modes.ts";
+import { strideRate } from "./poles.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -286,9 +287,9 @@ function freshAmateur(
     tx: 0,
     tz: 0,
     ts: 0,
-    // His own place in the stroke, off his id rather than the stream: the
-    // whole crowd pushes off at once, and at one phase it poles in step.
-    pole: id * 2.39996,
+    // His own place in the stride, off his id rather than the stream: the
+    // whole crowd pushes off at once, and at one phase it skates in step.
+    pole: id * 0.76393,
     push: 0,
     turnSide: 0,
     turnT: 0,
@@ -737,11 +738,17 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
     braking = stopping ? 1 : clamp((v - cap) / 2, 0, 1);
     acc -= C.brake * braking;
   }
-  if (!stopping && v < C.crawl.speed && acc < C.crawl.push) {
-    // At a crawl he works: skating, poling.
-    a.push = 1 - v / C.crawl.speed;
+  // WHERE THE HILL WILL NOT CARRY HIM to the speed he means, he works for
+  // it — skating, poling, as the player does (`poles.ts`), up to the speed
+  // the player's own push reaches whole: nobody glides to a standstill on
+  // a flat. The push is whole until the last `crawl.ease` m/s of it, and
+  // his stride is counted at the player's own rate (`strideRate`), which
+  // the picture skates him through (`dialsOf`).
+  const work = Math.min(cap, TUNING.poles.speed);
+  if (!stopping && v < work && acc < C.crawl.push) {
+    a.push = clamp((work - v) / C.crawl.ease, 0, 1);
     acc = Math.max(acc, C.crawl.push * a.push);
-    a.pole += dt * (2.2 + v);
+    a.pole += strideRate(v) * a.push * dt;
   }
   if (a.mode === "air") acc = -C.drag.air * v * v;
   v = Math.max(0, v + acc * dt);

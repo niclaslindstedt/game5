@@ -36,7 +36,7 @@ one spec cuts across them all:
 | [BIG_AIR.md](BIG_AIR.md) | Big air | built in part |
 | [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | built in part |
 | [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | built in part |
-| [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | draft — researched |
+| [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | built in part |
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | draft — researched |
 | [MOGULS.md](MOGULS.md) | Moguls | draft — researched |
 | [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | draft — researched |

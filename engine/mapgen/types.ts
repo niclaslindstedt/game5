@@ -228,9 +228,15 @@ export interface Level {
    * kickers among the map's `kickers` and its rails and boxes the `jibs`.
    * Absent on every map the generator builds. */
   slopestyle?: SlopestyleCourse;
+  /** A RAIL JAM'S SET built on the map (R40, `setRailJam`): its `track` the
+   * straight set cut down the face — the platform, the drop-in, the deck
+   * with its row of rails and boxes, the run-out — its checkpoints the
+   * start gate and the finish line, its start platform the `spawn` and its
+   * features the `jibs`. Absent on every map the generator builds. */
+  railJam?: RailJamCourse;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
-   * them (R39). */
+   * them (R39, R40). */
   jibs?: Jib[];
 }
 
@@ -239,17 +245,20 @@ export interface Level {
  * at to the end he leaves by, each point in the world, m; `width` the
  * width of what he stands on (a rail's pipe, a box's top), m. */
 export interface Jib {
-  /** `J<section><L|R>` — the section, and the line's side. */
+  /** `J<section><L|R>` — the section, and the line's side (a rail jam's
+   * `F<feature>`). */
   id: string;
-  /** The rail section it stands in, from 1. */
+  /** The rail section it stands in, from 1 (a rail jam's feature, from 1,
+   * left to right). */
   section: number;
   /** Its line across the course: −1 the left (looking down it), +1 the
-   * right. */
-  line: -1 | 1;
+   * right (a rail jam's −2 to +2, its lines' spacing apart). */
+  line: number;
   kind: "rail" | "box";
   /** Its shape, from the top: `"down"` the slope's own fall all the way,
-   * `"flatDown"` level then down, `"downFlatDown"` down, level and down. */
-  shape: "down" | "flatDown" | "downFlatDown";
+   * `"flatDown"` level then down, `"downFlatDown"` down, level and down,
+   * `"rainbow"` up over an arch and down. */
+  shape: "down" | "flatDown" | "downFlatDown" | "rainbow";
   points: Vec3[];
   width: number;
 }
@@ -286,6 +295,27 @@ export interface SlopestyleCourse {
   lines: number;
   /** The course's width, m. */
   width: number;
+}
+
+/** A RAIL JAM'S SET (R40) as it was built over a map: its own `track`,
+ * every arc down it, m. */
+export interface RailJamCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** Where the deck begins and where its features begin, m. */
+  deck: number;
+  features: number;
+  /** How far apart the features' lines run across the deck, m. */
+  lines: number;
+  /** The set's width, m. */
+  width: number;
+  /** The speed the features are designed to be met at, m/s. */
+  speed: number;
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every

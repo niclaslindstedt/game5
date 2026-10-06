@@ -90,8 +90,8 @@ export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
   const z2 = 2 * P.damping * P.attitude;
   const sp = h.disc.pitchRate;
   const sr = h.disc.rollRate;
-  const wantP = w2 * (pitchTo - h.disc.pitch) - z2 * sp;
-  const wantR = w2 * (rollTo - h.disc.roll) - z2 * sr;
+  const wantP = w2 * angleDiff(h.disc.pitch, pitchTo) - z2 * sp;
+  const wantR = w2 * angleDiff(h.disc.roll, rollTo) - z2 * sr;
   const spool2 = Math.max(0.05, h.spool * h.spool);
   const pitch = clamp(
     -(wantP + F.damping.pitch * sp - F.flapback * airF) / (F.cyclic.pitch * spool2),

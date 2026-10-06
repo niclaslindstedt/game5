@@ -8,6 +8,7 @@
 
 import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { judgeSlopeRun } from "../game/slopestyle-contest.ts";
+import { sessionScore } from "../game/jam.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import type { GameMode } from "../game/defs/modes.ts";
@@ -70,6 +71,7 @@ export type SimOptions = {
     | "bigAir"
     | "knuckleHuck"
     | "slopestyle"
+    | "railJam"
   >;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied. */
@@ -261,7 +263,12 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     trap: p.trap,
     place,
     // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`).
-    score: state.slopestyle ? (judgeSlopeRun(state)?.score ?? 0) : state.tricks.score,
+    // A RAIL JAM's is the panel's mark for the session (`jam.ts`).
+    score: state.slopestyle
+      ? (judgeSlopeRun(state)?.score ?? 0)
+      : state.level.railJam && state.jam
+        ? sessionScore(state.seed, -1, state.jam.hits)
+        : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

@@ -21,6 +21,7 @@
 //   ?start=knuckle  ...or into a KNUCKLE HUCK's jam on its knuckle.
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
+//   ?start=railjam  ...or into a RAIL JAM on its set.
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -56,7 +57,8 @@
 //                   ?mode=slopestyle, a SLOPESTYLE contest's first run,
 //                   its course built over the seed's map;
 //                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
-//                   over it.
+//                   over it; ?mode=railjam, a RAIL JAM, its set built over
+//                   it.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -306,6 +308,7 @@ export function readParams(search: string): UrlParams {
       start === "bigair" ||
       start === "knuckle" ||
       start === "slopestyle" ||
+      start === "railjam" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -350,7 +353,9 @@ export function readParams(search: string): UrlParams {
                           ? "knuckleHuck"
                           : start === "slopestyle" || q.get("mode") === "slopestyle"
                             ? "slopestyle"
-                            : "slalom",
+                            : start === "railjam" || q.get("mode") === "railjam"
+                              ? "railJam"
+                              : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

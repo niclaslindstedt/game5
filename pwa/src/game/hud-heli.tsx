@@ -4,7 +4,8 @@
 // not in the air on his skis). Flown by hand with nothing holding it, the
 // machine is read off three instruments, as a pilot reads one: THE DROP —
 // how high its skids are over the snow, the fall a jump off them is, the
-// number the whole game of it is played against — with its climb under it;
+// number the whole game of it is played against — with its climb under it
+// and its ALTITUDE over the pad it took off from;
 // THE HORIZON, the airframe's pitch and bank; and THE COLLECTIVE, the
 // lever where it was left. And while it waits on its pad near him, the word
 // that it is there and how far — and stood beside its skid, the machine key
@@ -75,8 +76,14 @@ export function HeliReadout({
       </div>
     );
   }
-  const deg = (-heli.bank * 180) / Math.PI;
-  const shift = Math.max(-30, Math.min(30, heli.pitch * PITCH_PX));
+  // Over the top (a loop, a roll past the vertical) the horizon is read the
+  // way a pilot's ball shows it: the pitch back inside a quarter turn and
+  // the dial turned over.
+  const over = Math.abs(heli.pitch) > Math.PI / 2;
+  const pitch = over ? Math.sign(heli.pitch) * Math.PI - heli.pitch : heli.pitch;
+  const bank = over ? heli.bank + Math.PI : heli.bank;
+  const deg = (-bank * 180) / Math.PI;
+  const shift = Math.max(-30, Math.min(30, pitch * PITCH_PX));
   return (
     <div class="hud-heli" role="status">
       <div class="hud-heli-row">
@@ -100,6 +107,7 @@ export function HeliReadout({
           <span class="hud-chip-sub">{STRINGS.heliHeight}</span>
           <span class="hud-heli-num">{STRINGS.heliMetres(heli.height)}</span>
           <span class="hud-heli-sub">{STRINGS.heliClimb(heli.climb)}</span>
+          <span class="hud-heli-sub">{STRINGS.heliAltitude(heli.altitude)}</span>
         </div>
         <CollectiveBar live={live} />
       </div>

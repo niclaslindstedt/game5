@@ -65,11 +65,13 @@ export const HELI = {
 
   /** THE POWER, as momentum theory spends it (`heli.ts`'s `thrustMost`): the
    * shaft power that reaches the induced flow, W (the engine's ~630 kW less
-   * the profile power and the tail rotor, folded into a figure of merit),
+   * the profile power and the tail rotor, folded into a figure of merit
+   * near 0.65 — the generous end, so the lever climbs it briskly: nearly
+   * twice its weight at the hover and its weight alone at ~18 m/s of climb),
    * the air's density the rotor works in, kg/m³ (held: there is no ceiling,
    * by design), and the parasite flat plate, m², whose power at speed
    * (½ρfV³) is taken off what the rotor has. */
-  power: 300e3,
+  power: 420e3,
   density: 1.0,
   flatPlate: 1.4,
   /** GROUND EFFECT (Cheeseman & Bennett): the thrust at a power multiplied
@@ -105,8 +107,8 @@ export const HELI = {
    *     is lowered) — so the collective wants the pedals with it.
    *   * THE COLLECTIVE is the thrust's share of what the rotor can give,
    *     answered in `lag` s.
-   * `discMost` is the disc's tilt the angles are held inside, rad (an
-   * attitude past it is a machine already lost). */
+   * Nothing stops the disc: held over, it carries on past the vertical and
+   * round, so a machine high enough can be rolled and looped. */
   flight: {
     cyclic: { pitch: 1.6, roll: 2.2 },
     damping: { pitch: 2.0, roll: 2.6 },
@@ -116,7 +118,6 @@ export const HELI = {
     yawDamping: 1.5,
     torque: 1.2,
     lag: 0.3,
-    discMost: 1.4,
   },
 
   /** THE BOT'S HANDS on the same controls (`heli-pilot.ts`) — what a link's

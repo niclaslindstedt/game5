@@ -549,6 +549,13 @@ export type Progress = {
    * runs (R27), or the map's own piste off one — the one skied last LAST.
    * Where its reset and its restart stand the skier; a race keeps it empty. */
   skied: string[];
+  /** WHERE A FREE RIDE LAST HAD ITS SKIS ON A RUN (`skied.ts`): the run and
+   * the plan point, noted with `skied` — so once he leaves the runs it is
+   * where he left them, and a reset off every run stands him back there.
+   * Forgotten whenever something other than his skis moves him (a lift, the
+   * helicopter, the snowmobile, a staged moment); null until noted, and on a
+   * race. */
+  lastOnRun: RunMark | null;
   /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */
@@ -564,6 +571,10 @@ export type Progress = {
  * gate MISSED, a pole STRADDLED or a START outside the window — or DID NOT
  * FINISH, stopped by a FALL or caught in the A-NETS beside a downhill
  * (R32). `gate` is the checkpoint it happened at. */
+/** A point on a run of the ski area (R27) — the map's own piste off one —
+ * by the run's id and the plan point (`Progress.lastOnRun`). */
+export type RunMark = { id: string; x: number; z: number };
+
 export type RunOut = {
   status: "dsq" | "dnf";
   why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";

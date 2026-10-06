@@ -164,7 +164,15 @@
    (its opacity written at pointer rate), and the knob carrying what the pad
    works — the machine from behind on the cyclic, its rotor from above on
    the power pad, the collective's gauge down the power pad's upright in the
-   readout's own yellow. */
+   readout's own yellow. Two thirds the edge thumb's size: at its full 200 px
+   a pair of them read too big over the picture. */
+.hud-pad .hud-bar-svg {
+  left: -67px;
+  top: -67px;
+  width: 134px;
+  height: 134px;
+}
+
 .hud-pad-disc {
   fill: rgb(var(--hud-plate) / 15%);
   stroke: rgb(255 255 255 / 30%);

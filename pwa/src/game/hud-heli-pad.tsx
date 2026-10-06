@@ -22,10 +22,12 @@ import type { HudLive } from "./hud-live.ts";
 import { capturePointer, stillDown, type ZoneSide } from "./hud-touch.tsx";
 import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thumb-guard";
 
-/** A pad's reach, px: the thumb travel that is the whole of both axes. */
-const STICK_REACH_PX = 80;
-/** ...and the knob's travel in the drawing's units (200 px over a hundred
- * units, so the knob sits under the thumb at sensitivity one). */
+/** A pad's reach, px: the thumb travel that is the whole of both axes —
+ * two thirds of the edge thumb's, as the pad is drawn two thirds its size. */
+const STICK_REACH_PX = 54;
+/** ...and the knob's travel in the drawing's units (134 px over a hundred
+ * units, `.hud-pad .hud-bar-svg`, so the knob sits under the thumb at
+ * sensitivity one). */
 const KNOB_TRAVEL = 40;
 /** How far the cyclic's helicopter banks at full side stick, deg, and the
  * power pad's rotor turns at full pedal. */

@@ -94,6 +94,8 @@ import {
 } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
+import { snowNormal, uprightOn } from "./snow-normal.ts";
+import { castLeg } from "./leg-ray.ts";
 import {
   climbShare,
   driveReach,
@@ -139,11 +141,9 @@ const STOP_RELEASE = 0.2;
  * before the stop has to catch it. */
 const BOTTOM_ZONE = 0.3;
 const BOTTOM_DAMP = 2;
-/** The fastest the body may turn about any axis, rad/s — a second fuse,
- * over the explicit gyroscopic term, which a tumble would otherwise feed. */
+/** The fastest the body may turn about any axis, rad/s — a fuse a tumble would otherwise feed. */
 const MAX_SPIN = 25;
-/** The body's down axis must point at least this far toward the ground for
- * a station to be read at all — a skier on his side has no legs under him. */
+/** How upright (`uprightOn`) a body must stand for a station to be read at all. */
 const PROBE_MIN_DOWN = 0.25;
 /** The most inclination whose balance the stations' grip is carried
  * through, rad — past it a body is on its side, not carving. */
@@ -151,10 +151,6 @@ const LEAN_MOST = 1.3;
 /** Below this speed along its line a station's resistance fades out, m/s,
  * so a skier at rest is not pushed back and forth through zero. */
 const DRAG_FADE = 0.3;
-/** Newton steps along a station's ray, and how steeply it must meet the
- * snow (the vertical closing per metre of ray) to count as meeting it. */
-const RAY_STEPS = 3;
-const RAY_GRAZE = 0.15;
 /** The least cosine between a leg and the snow's normal the normal force
  * is resolved through — a leg lying along the snow carries it nothing. */
 const TILT_MIN = 0.5;
@@ -214,7 +210,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
   // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
   // a steep slope, his skis set into the hill (`sidestep.ts`).
-  level.normalAt(c.x, c.z, normal);
+  snowNormal(level, c, normal);
   const slide = slideOver(c, normal);
   const still = stoodStill(c, c.sidestep !== 0 ? slide : speed0);
   const goal = (still ? sidestepEdge(c, normal) : c.steer * lock) + skiPull(c);
@@ -266,7 +262,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // the turn he steps this step, which the yaw is asked for below.
   const stepped = strideOn(c, speed0, dt);
   // ...or, stood still with a steer held, a step round or up (`stepSide`).
-  level.normalAt(c.x, c.z, normal);
+  snowNormal(level, c, normal);
   const stepping = stepSide(c, level, normal, stoodStill(c, slide) && c.pivot === 0, dt);
   stepRound(c, normal, still && !stepping, dt);
   // THE CROUCH follows the tuck — or, deeper the longer it is held, the
@@ -353,7 +349,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
 
   // The ground under the CoG: the roll the skier holds is measured against
   // it, and the carve in powder reads it.
-  level.normalAt(c.x, c.z, normal);
+  snowNormal(level, c, normal);
   const rollRel = Math.asin(
     clamp(-(right.x * normal.x + right.y * normal.y + right.z * normal.z), -1, 1),
   );
@@ -446,7 +442,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // them back. So the roll is the body's INCLINATION and nothing else: a
     // skier laid 40° over into a carve stands on two loaded legs. A skier
     // on his side has no legs under him at all.
-    if (up.y < PROBE_MIN_DOWN) {
+    if (uprightOn(level, up, { x: legX, y: legY, z: legZ }) < PROBE_MIN_DOWN) {
       c.comps[i] = 0;
       continue;
     }
@@ -466,30 +462,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.sinks[i] += (target - c.sinks[i]) * Math.min(1, (dt / TUNING.snow.sinkLag) * settle);
     const sink = c.sinks[i];
     if (p.station === "mid") midSink += sink / 2;
-    // Where the ray meets the support: Newton's method along the ray, off
-    // the slope of the snow wherever the last guess landed — a ray at a
-    // grazing angle to a face converges where a vertical guess would
-    // overshoot it. A ray running along the snow meets nothing.
-    let t = (ay - (level.groundAt(ax, az) - sink)) / -dy;
-    let cx = ax + dx * t;
-    let cz = az + dz * t;
-    let grazing = false;
-    for (let it = 0; it < RAY_STEPS; it++) {
-      level.normalAt(cx, cz, normal);
-      const slope = dy + (normal.x * dx + normal.z * dz) / normal.y;
-      if (slope > -RAY_GRAZE) {
-        grazing = true;
-        break;
-      }
-      const gap = ay + dy * t - (level.groundAt(cx, cz) - sink);
-      t -= gap / slope;
-      cx = ax + dx * t;
-      cz = az + dz * t;
-    }
-    if (grazing) {
+    // Where the ray meets the support (`leg-ray.ts`).
+    const t = castLeg(level, ax, ay, az, dx, dy, dz, sink, p.susp.travel + 0.5, normal);
+    if (Number.isNaN(t)) {
       c.comps[i] = 0;
       continue;
     }
+    const cx = ax + dx * t;
+    const cz = az + dz * t;
     const cy = ay + dy * t;
     const comp = p.susp.travel - t;
     const bent = comp;
@@ -840,7 +820,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       state.assist.yaw;
   } else {
     const back = state.rules.stunts && c.way < 0;
-    airTorque(c, tb, state.assist.air, landingAhead(c, level, flightGravity(state.rules)), back);
+    const assist = level.pipe ? 0 : state.assist.air;
+    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back);
   }
   // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
   // snow: a skier in the air is no rigid rod — he holds his shape with his
@@ -884,7 +865,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.drive === 0 &&
     pop === 0
   ) {
-    level.normalAt(c.x, c.z, normal);
+    snowNormal(level, c, normal);
     const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
     const held = strain <= strained || c.sidestep !== 0;
     if (slideOver(c, normal) < G.stillSpeed && strained > 0 && held) {
@@ -900,7 +881,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // THE POP: the legs straightened under him, straight off the snow's own
   // normal — an ollie, not a hop in the world's up.
   if (pop > 0) {
-    level.normalAt(c.x, c.z, normal);
+    snowNormal(level, c, normal);
     c.vx += pop * normal.x;
     c.vy += pop * normal.y;
     c.vz += pop * normal.z;
@@ -930,7 +911,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       const lost = landingLoss(impact, harshSpeedOf(spec) * harshShare(c));
       if (lost > 0) {
         // The legs folded to their stop take it out of the way along the slope.
-        level.normalAt(c.x, c.z, normal);
+        snowNormal(level, c, normal);
         const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
         c.vx = (c.vx - vn * normal.x) * (1 - lost) + vn * normal.x;
         c.vy = (c.vy - vn * normal.y) * (1 - lost) + vn * normal.y;
@@ -941,7 +922,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       // over the legs and whatever loose snow lies under the skis — and how
       // true they came down to the slope, which the load decides is enough
       // or not (`crash.ts`).
-      level.normalAt(c.x, c.z, normal);
+      snowNormal(level, c, normal);
       const loose = TUNING.snow.cover * depth * (1 - c.packed);
       const load = landingLoad(impact, c.crouch, loose, riderOf(spec).hold);
       const off = landingOff(
@@ -951,6 +932,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
         c.vx,
         c.vz,
         state.rules.stunts,
+        level.normalNear ? c.vy : undefined,
       );
       events.push({
         kind: "land",
@@ -968,7 +950,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
 
   derive(c, level);
   // ── The automatic reset's clocks (`run.ts` acts on them) ──────────────
-  const upright = rotate(c.q, { x: 0, y: 1, z: 0 }).y;
+  snowNormal(level, c, normal);
+  const upright = uprightOn(level, rotate(c.q, { x: 0, y: 1, z: 0 }), normal);
   c.overFor = upright < TUNING.reset.overUp ? c.overFor + dt : 0;
   c.stuckFor = input.tuck > 0.5 && c.speed < TUNING.reset.stuckSpeed ? c.stuckFor + dt : 0;
   stepTrench(state, moved, events);
@@ -986,7 +969,7 @@ export function derive(c: SkierState, level?: Level): void {
   c.pitch = e.pitch;
   c.roll = e.roll;
   if (level) {
-    level.normalAt(c.x, c.z, normal);
+    snowNormal(level, c, normal);
     const right = rotate(c.q, { x: 1, y: 0, z: 0 });
     c.incline = Math.asin(
       clamp(-(right.x * normal.x + right.y * normal.y + right.z * normal.z), -1, 1),

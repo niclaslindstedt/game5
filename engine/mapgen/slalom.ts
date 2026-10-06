@@ -361,6 +361,7 @@ export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
       level.knuckleHuck?.base ??
       level.slopestyle?.base ??
       level.railJam?.base ??
+      level.halfpipe?.base ??
       level,
     run,
   );

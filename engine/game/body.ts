@@ -84,6 +84,7 @@ import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedUnder } from "./snow.ts";
 import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown } from "./state.ts";
+import { snowNormal } from "./snow-normal.ts";
 
 const I = TUNING.injury;
 const dt = TUNING.dt;
@@ -441,7 +442,7 @@ function trunkOnSkis(c: SkierState, v: number, tx: number, tz: number): void {
  * positive). */
 function rollOf(state: GameState): number {
   const c = state.skier;
-  state.level.normalAt(c.x, c.z, n);
+  snowNormal(state.level, c, n);
   const r = rotate(c.q, { x: 1, y: 0, z: 0 });
   return Math.asin(clamp(r.x * n.x + r.y * n.y + r.z * n.z, -1, 1));
 }

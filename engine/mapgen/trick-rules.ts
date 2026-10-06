@@ -7,9 +7,9 @@
 // air jump's table and landing, ridden onto from the deck with no kicker)
 // and the SLOPESTYLE COURSE (R39 — three rail sections and three jumps cut
 // on one line) and the RAIL JAM'S SET (R40 — a short drop-in onto a deck
-// with a row of rails and boxes side by side) are built today; the
-// halfpipe, moguls, dual moguls and aerials are each a rule here when they
-// are built
+// with a row of rails and boxes side by side) and the HALFPIPE (R41 — a U
+// cut down the slope) are built today; moguls, dual moguls and aerials are
+// each a rule here when they are built
 // (`docs/specs/TRICK_MODES.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
@@ -152,6 +152,32 @@
 //       `railJam.outrun.length` metres. Its gates are the START GATE at the
 //       platform's lip and the FINISH LINE `railJam.finish` metres into the
 //       run-out; it has no gate between.
+//
+//   R41 THE HALFPIPE. A halfpipe is ridden in a U CUT DOWN THE SLOPE, on a
+//       line searched as R37's is (`halfpipe.search`, `halfpipe.fit`),
+//       `halfpipe.width` metres wide, graded, groomed and cleared. Its
+//       PROFILE is built against the horizontal, in order: a START
+//       PLATFORM level for `halfpipe.platform` metres; a roll of
+//       `halfpipe.roll` metres of radius onto the PIPE'S PITCH of
+//       `halfpipe.pitch` degrees, held for `halfpipe.lead` metres to the
+//       pipe's mouth, its `halfpipe.length` metres and its tail; a
+//       transition of `halfpipe.round` metres of radius onto a RUN-OUT
+//       falling at `halfpipe.outrun.grade` degrees for
+//       `halfpipe.outrun.length` metres. THE PIPE is cut into that pitch
+//       as an analytic surface, not the map's grid: across it, a FLAT
+//       BOTTOM, then each WALL a circular TRANSITION rising to
+//       `halfpipe.vert` degrees and a straight VERT at that angle to the
+//       COPING `halfpipe.height` metres over the flat, the copings
+//       `halfpipe.span` metres apart and the transition's radius whatever
+//       those leave (the vert's own height `halfpipe.vertHeight`); a DECK
+//       `halfpipe.deck` metres wide outside each coping at the pitch's
+//       own height. The walls grow from nothing to their height over the
+//       pipe's MOUTH (`halfpipe.mouth` metres) and shrink back over its
+//       TAIL (`halfpipe.tail` metres), so a skier drops in down its middle
+//       and rides out of its foot. The grid under it is cut to the same
+//       surface, never above it. Its gates are the START GATE at the
+//       platform's lip and the FINISH LINE `halfpipe.finish` metres into
+//       the run-out; it has no gate between.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -579,4 +605,53 @@ export const RAIL_JAM_RULE = {
   },
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 15, past: 30, half: 26 },
+} as const;
+
+/** R41 — the halfpipe (`docs/freestyle.md` § *Halfpipe*: the top level's
+ * pipe — walls 6.7 m from the flat to the coping, 19–22 m coping to coping,
+ * at least 160 m long and 170 m recommended, at least 17° down its centre
+ * and 18° recommended, the top of each wall at 82–83°). */
+export const HALFPIPE_RULE = {
+  platform: 6,
+  /** The roll onto the pitch, m of radius. */
+  roll: 18,
+  /** THE PIPE'S PITCH down its centre, degrees (the recommended 18°). */
+  pitch: 18,
+  /** The pitch before the mouth, m: the drop-in a skier gathers his first
+   * speed on. */
+  lead: 12,
+  /** THE PIPE: its mouth, where the walls grow, its full-height length
+   * (the recommended 170 m) and its tail, m. */
+  mouth: 22,
+  length: 170,
+  tail: 18,
+  /** THE WALLS: floor to coping, m; coping to coping, m; the vert's angle,
+   * degrees, and the height it stands over, m. The transition's radius is
+   * what those leave: (height − vertHeight) / (1 − cos vert), ~7.4 m on the
+   * 22-foot pipe, its flat ~5.3 m wide (est. — the rules set neither). */
+  height: 6.7,
+  span: 20,
+  vert: 83,
+  vertHeight: 0.2,
+  /** The deck outside each coping, m (est., 3–5 m). */
+  deck: 4,
+  /** The radius the pitch meets the run-out on, m; the run-out; the finish
+   * line, m into it. */
+  round: 40,
+  outrun: { grade: 5, length: 50 },
+  finish: 25,
+  /** The venue graded across, m: the pipe and both decks and a margin. */
+  width: 40,
+  ease: 14,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 15, past: 30, half: 30 },
 } as const;

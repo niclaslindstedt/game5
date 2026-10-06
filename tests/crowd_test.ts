@@ -88,8 +88,8 @@ describe("the crowd is dealt", () => {
     const poling = state.crowd!.amateurs.filter((a) => a.push > 0.05);
     expect(poling.length).toBeGreaterThan(20);
     // How bunched their strokes are: 1 all in step, 0 spread round the cycle.
-    const c = poling.reduce((x, a) => x + Math.cos(a.pole), 0) / poling.length;
-    const s = poling.reduce((x, a) => x + Math.sin(a.pole), 0) / poling.length;
+    const c = poling.reduce((x, a) => x + Math.cos(Math.PI * a.pole), 0) / poling.length;
+    const s = poling.reduce((x, a) => x + Math.sin(Math.PI * a.pole), 0) / poling.length;
     expect(Math.hypot(c, s)).toBeLessThan(0.3);
   });
 
@@ -232,6 +232,29 @@ describe("the crowd on the lifts", () => {
   });
 });
 
+describe("nobody skis inside another", () => {
+  it("off a lift, on a run, in a school's snake: a body's room between them", () => {
+    const state = free();
+    const crowd = state.crowd!;
+    // Dealt riding, every one is on his way up — none let go at once.
+    ride(state, 1 / 120);
+    expect(crowd.amateurs.filter((a) => a.mode === "skate")).toHaveLength(0);
+    let close = 0;
+    let pairs = 0;
+    for (let k = 0; k < 20; k++) {
+      ride(state, 2);
+      const out = crowd.amateurs.filter((a) => ["ski", "skate", "stop"].includes(a.mode));
+      for (let i = 0; i < out.length; i++)
+        for (let j = i + 1; j < out.length; j++) {
+          pairs++;
+          if (Math.hypot(out[i].x - out[j].x, out[i].z - out[j].z) < 0.5) close++;
+        }
+    }
+    // A pass or a meeting now and then, never a knot.
+    expect(close).toBeLessThan(pairs * 2e-5 + 10);
+  });
+});
+
 describe("the player meets the crowd", () => {
   /** One amateur stood in front of the player, everyone else up a lift,
    * the player coming at him at `v` m/s. */
@@ -277,6 +300,39 @@ describe("the player meets the crowd", () => {
     expect(taken.a.mode).toBe("down");
     expect(taken.state.skier.thrown?.cause).toBe("skier");
     expect(taken.events.some((e) => e.kind === "wipeout" && e.cause === "skier")).toBe(true);
+  });
+
+  it("knocked down, he goes over on a ragdoll, lies, and gets back up", () => {
+    const { state, a } = meet(6);
+    const body = a.thrown!;
+    expect(body).toBeTruthy();
+    expect(a.rise).toBe(0);
+    // Shouldered from behind, he goes on down the way he was hit.
+    const z0 = body.z;
+    let lay = false;
+    let rose = false;
+    for (let i = 0; i < 120 * 20 && a.mode === "down"; i++) {
+      step(state, NEUTRAL_INPUT);
+      if (a.thrown?.touching && a.thrown.down >= 0) lay = true;
+      if (a.rise > 0) rose = true;
+    }
+    expect(lay).toBe(true);
+    expect(rose).toBe(true);
+    expect(body.z).toBeGreaterThan(z0);
+    // Up on his skis, his body handed back, stood on the snow.
+    expect(a.mode).not.toBe("down");
+    expect(a.thrown).toBeNull();
+    expect(a.fall).toBe(0);
+    expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.05);
+  });
+
+  it("a fall replays body for body, off the crowd's own stream", () => {
+    const one = meet(6);
+    const two = meet(6);
+    ride(one.state, 3);
+    ride(two.state, 3);
+    expect(one.a.thrown!.points).toEqual(two.a.thrown!.points);
+    expect(one.state.crowd!.rng.next()).toBe(two.state.crowd!.rng.next());
   });
 
   it("the g of a shoulder is the HUD's only when somebody went down on it", () => {

@@ -15,7 +15,15 @@
 // THE RING is on the map the settings stand on (`Settings.trickMap`) — where
 // the cursor lands and what RIDE in the head takes.
 
-import { BIG_AIR, KNUCKLE_HUCK, RAIL_JAM, SLOPESTYLE, TRICKS_RUN, type GameMode } from "@engine";
+import {
+  BIG_AIR,
+  HALFPIPE,
+  KNUCKLE_HUCK,
+  RAIL_JAM,
+  SLOPESTYLE,
+  TRICKS_RUN,
+  type GameMode,
+} from "@engine";
 
 import { CourseMap } from "./menu-campaign.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
@@ -81,6 +89,7 @@ export function TrickMapsPage({
   const knuckle = mode === "knuckleHuck";
   const slope = mode === "slopestyle";
   const rail = mode === "railJam";
+  const pipe = mode === "halfpipe";
   const billing = bigAir
     ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
     : knuckle
@@ -89,7 +98,9 @@ export function TrickMapsPage({
         ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
         : rail
           ? STRINGS.railJamBilling(RAIL_JAM.jam)
-          : STRINGS.tricksBilling(TRICKS_RUN.limit);
+          : pipe
+            ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
+            : STRINGS.tricksBilling(TRICKS_RUN.limit);
   const title = bigAir
     ? STRINGS.bigAirOn
     : knuckle
@@ -98,7 +109,9 @@ export function TrickMapsPage({
         ? STRINGS.slopestyleOn
         : rail
           ? STRINGS.railJamOn
-          : STRINGS.tricksOn;
+          : pipe
+            ? STRINGS.halfpipeOn
+            : STRINGS.tricksOn;
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead

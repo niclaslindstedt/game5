@@ -162,6 +162,9 @@ export function KeysPage({
         {/* THE SNOWMOBILE has no table of its own: the skier's keys ride it. */}
         <h3 class="knob-section">{STRINGS.keysSledTitle}</h3>
         <p class="knob-note">{STRINGS.sledKeysNote}</p>
+        {/* ...and neither has the paramotor: the same keys fly the wing. */}
+        <h3 class="knob-section">{STRINGS.keysParaTitle}</h3>
+        <p class="knob-note">{STRINGS.paraKeysNote}</p>
         {/* The page's own restore: a skier who has made a mess of the keys
           wants the keys back, not the whole options page thrown away. */}
         <button

@@ -367,7 +367,7 @@ export function soundForEvent(
     // towers are heard inside it as a chair's are; a drag's is a pull on
     // the snow, and the handing back of the controls says nothing.
     case "lift":
-      if (event.phase === "board") return event.lift === "drag" ? null : { id: "lift_board" };
+      if (event.phase === "take") return event.lift === "drag" ? null : { id: "lift_board" };
       if (event.phase === "tower") return event.lift === "drag" ? null : { id: "lift_tower" };
       if (event.phase === "off") return { id: "lift_off" };
       return null;
@@ -445,6 +445,16 @@ export function soundForEvent(
         default:
           return null;
       }
+    }
+
+    // THE PARAMOTOR, on his back: the rig let go is the drop's clack and
+    // rush of the helicopter's skid, the buckles and the cloth away; the
+    // rest of a flight is its engine's bed and the wind.
+    case "para": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      return event.phase === "drop" || event.phase === "collapse"
+        ? { id: "heli_drop", shape: heard }
+        : null;
     }
 
     default:

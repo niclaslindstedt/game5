@@ -38,6 +38,7 @@ const { generateLevel, steepestSpan, hubAt } = await import(join(root, "engine/m
 const { analyzeLevel } = await import(join(root, "engine/analysis/index.ts"));
 const { analyzeResort, accessReport } = await import(join(root, "engine/analysis/resort.ts"));
 const { lastResort } = await import(join(root, "engine/mapgen/resort-build.ts"));
+const { cabinsOf } = await import(join(root, "engine/game/cabins.ts"));
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -274,6 +275,7 @@ writeFileSync(
     refused,
     hubAt,
     failing: new Set([...access.values()].filter((a) => !a.ok).map((a) => a.id)),
+    cabins: cabinsOf(level),
   }).toPng(),
 );
 if (refused.length > 0) {

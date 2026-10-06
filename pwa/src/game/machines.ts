@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE'S MACHINES IN THE RENDERER — the helicopter on its pad
 // (`heli-scene.ts`), the snowmobile at the bottom (`sled-scene.ts`) and the
+// paramotor's wing over a skier begun under it (`para-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), held
 // together so the renderer holds them by one hand: built per map with the
 // rest of the world (only where a run's rules carry them), the player's
@@ -21,6 +22,8 @@ import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
+import { PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
+import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
@@ -85,7 +88,11 @@ export function createMachines(
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
+  // The paramotor rides every free ride's rules: drawn only while a run
+  // carries the rig (`GameState.para`).
+  const para: ParaScene | null = state.rules.heli ? createParaScene(haze) : null;
   if (heli) group.add(heli.group);
+  if (para) group.add(para.group);
   const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
   if (groomers) group.add(groomers.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
@@ -108,13 +115,14 @@ export function createMachines(
     ]),
     seat(model, s) {
       seated = model;
-      model.setPerch(heli ? heli.perch(s) : null);
+      model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
+      para?.frame(s, alpha);
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now.
@@ -136,6 +144,10 @@ export function createMachines(
         groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
         return GROOMER_RIGS;
       }
+      if (para && underWing(s)) {
+        paraRigPose(pose, para.wing());
+        return PARA_RIGS;
+      }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
       return SLED_RIGS;
@@ -145,6 +157,7 @@ export function createMachines(
       heli?.dispose();
       sled?.dispose();
       groomers?.dispose();
+      para?.dispose();
     },
   };
 }

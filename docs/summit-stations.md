@@ -157,17 +157,24 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   run did, and a skier seated on carrier `k` — a rider of the field, one day —
   is wherever it is.
 - **Boarding in the free ride (`lift-ride.ts`)** — ride slowly into a lift's
-  LOAD ZONE facing up its line and it takes you: a chair from its load line
-  (glided out onto it, scooped up from behind and sat down), a gondola through
-  its station's door (in a cabin, out of sight, and walked out of the top
-  station onto the pad facing down), a drag from the head of its track
-  (pulled up it standing on the skis and let go short of the top wheel).
+  LOAD ZONE facing up its line and it takes you: a chair or a gondola behind
+  the station's FADE — the picture goes black as you reach its load line or
+  its door and comes back with you already sat on the chair leaving the
+  station, or seated in a cabin (glazed, your skis in its rack) — and a drag
+  from the head of its track, where you stand and WAIT for a T-bar of the
+  lift's own to come round; as it passes you sit back onto it and are pulled
+  up the track on your skis, let go short of the top wheel. Carried, the
+  MACHINE press (ENTER, a double tap on touch) lets go wherever you are —
+  dropped off a chair, jumped out of a cabin, the bar let go of — and the
+  TUCK held for three seconds skips you to the top behind a fade.
 - **The boarding ring (`boardingRing`, `boarding-rings.ts`)** — a lit amber
   circle of 3.5 m radius, on the queue's lane a metre past the open
   end of the corral, with a column of light standing out of it (a free
   ride's alone). Ride into it under 14 m/s, facing any way, and you are
-  glided up the queue's lane through the corral (`ringWalk`) to the load
-  zone and boarded as above.
+  SKATED up the queue's lane inside the corral, beside the queue (whoever
+  stands in your way is shouldered aside and staggers, the news column's
+  bump), to the load zone and boarded as above. The gondola's queue walks
+  in through the door rather than vanishing at it.
 - **The way in (`lift-line.ts`, `LiftLook.in` and `.rail`)** — the last
   tower stands past the pad's rim, 30 m short of a chair's top wheel (34 m
   of a gondola's) and slid on back off any groomed snow, as tall as it must

@@ -48,12 +48,12 @@ describe("the crowd is posed by the player's own pose", () => {
     });
   }
 
-  it("every shape stands on its skis on the snow but the fall and the air", () => {
+  it("every shape stands on its skis on the snow but the air", () => {
     for (const body of CROWD_BODIES) {
       const targets = crowdTargets(CROWD_LOOKS[body]);
       targets.forEach((t, k) => {
         const pose = k === 0 ? "stand" : CROWD_POSES[k - 1];
-        if (pose === "down" || pose === "air" || pose === "lean" || pose === "leanLeft") return;
+        if (pose === "air" || pose === "lean" || pose === "leanLeft") return;
         expect(Math.min(t.skiL.mid[1], t.skiR.mid[1]), `${body} ${pose}`).toBeCloseTo(0, 6);
         expect(t.head[1], `${body} ${pose}`).toBeGreaterThan(t.pelvis[1]);
       });
@@ -63,9 +63,6 @@ describe("the crowd is posed by the player's own pose", () => {
       expect(right.head[0]).toBeGreaterThan(0.2 * CROWD_LOOKS[body].height);
       expect(left.skiR.mid[1]).toBeCloseTo(0, 6);
       expect(left.head[0]).toBeLessThan(-0.2 * CROWD_LOOKS[body].height);
-      // Down, he lies on the snow.
-      const down = targets[1 + CROWD_POSES.indexOf("down")];
-      expect(down.pelvis[1]).toBeLessThan(0.25 * CROWD_LOOKS[body].height);
     }
   });
 
@@ -104,6 +101,31 @@ describe("an amateur's weights and kit", () => {
     const mirror = dialsOf(at(over), out);
     return { out, mirror, of: (k: (typeof CROWD_POSES)[number]) => out[CROWD_POSES.indexOf(k)] };
   };
+
+  it("working, he skates and poles the player's own stride, never glides still", () => {
+    const sum = (r: ReturnType<typeof w>, name: string) =>
+      CROWD_POSES.filter((k) => k.startsWith(name)).reduce((x, k) => x + r.of(k), 0);
+    const work = { mode: "ski", push: 1, fall: 0, plough: 0, crouch: 0.2, lean: 0 } as const;
+    // Rolling, a skate, wholly; its keys moving through his stride.
+    const seen = new Set<string>();
+    for (let pole = 0; pole < 2; pole += 0.25) {
+      const r = w({ ...work, body: "man", speed: 4, pole });
+      expect(sum(r, "skate")).toBeCloseTo(1, 3);
+      expect(sum(r, "pole")).toBeCloseTo(0, 3);
+      seen.add(
+        CROWD_POSES.filter((k) => k.startsWith("skate")).sort((a, b) => r.of(b) - r.of(a))[0],
+      );
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(5);
+    // At a walk on the flat, a double pole; with no poles, a skate.
+    expect(sum(w({ ...work, body: "man", speed: 1, pole: 0.3 }), "pole")).toBeCloseTo(1, 3);
+    const child = w({ ...work, body: "child", speed: 1, pole: 0.3 });
+    expect(sum(child, "pole")).toBe(0);
+    expect(sum(child, "skate")).toBeGreaterThan(0.5);
+    // Not working, neither.
+    const glide = w({ ...work, push: 0, body: "man", speed: 4, pole: 0.3 });
+    expect(sum(glide, "skate") + sum(glide, "pole")).toBe(0);
+  });
 
   it("a turn each way on its own target, never one run backwards", () => {
     const right = w({ lean: 0.4, fall: 0, fallSide: 1 });
@@ -160,11 +182,10 @@ describe("an amateur's weights and kit", () => {
     expect(moving.of("idle") + moving.of("idleAway")).toBe(0);
   });
 
-  it("down in the snow, nothing else shows, mirrored to the side he fell on", () => {
+  it("down in the snow, no target shows: he is drawn off his ragdoll", () => {
     const down = w({ fall: 1, fallSide: -1, lean: 0.4, crouch: 0.8, across: 1 });
-    expect(down.of("down")).toBe(1);
     expect(down.mirror).toBe(-1);
-    for (const k of CROWD_POSES) if (k !== "down") expect(down.of(k)).toBe(0);
+    for (const k of CROWD_POSES) expect(down.of(k)).toBe(0);
   });
 
   it("each dealt a kit of his own, the same every time; a ski school in one bib", () => {

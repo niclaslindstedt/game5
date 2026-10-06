@@ -820,8 +820,8 @@ export type Amateur = {
   /** THE FIGURE: leaned into the turn, rad (positive right); how low, 0..1;
    * the wedge, 0..1; the skis turned across the way (a stop, a slip),
    * 0..1; down in the snow, 0..1, and the side he went down on (−1 left,
-   * 1 right); the arms' stroke at a crawl, rad of its cycle, and how hard
-   * he is working them, 0..1. */
+   * 1 right); his strides skated or poled, counted (a whole one a push),
+   * and how hard he is working, 0..1. */
   lean: number;
   crouch: number;
   plough: number;
@@ -840,13 +840,14 @@ export type Amateur = {
   tx: number;
   tz: number;
   ts: number;
-  /** HIS TURNS as his body reads them, for the picture to time his pole
-   * plants on: the side of the one he is in (−1 left, 1 right, 0 none
-   * yet), how long he has been in it, s, and how long the one before it
-   * held, s. */
+  /** HIS TURNS, for the picture's pole plants: the side of the one he is
+   * in (−1, 1, 0 none yet), s in it, and s the one before it held. */
   turnSide: number;
   turnT: number;
   turnHeld: number;
+  /** DOWN (`crowd-down.ts`): his ragdoll (null on skis); s spent getting up. */
+  thrown: Thrown | null;
+  rise: number;
 };
 
 /** A GROUP of the crowd: its kind, its members (leader first) by index

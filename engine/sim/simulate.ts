@@ -7,6 +7,7 @@
 // same seed and level always produce the same digest.
 
 import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
+import { judgeSlopeRun } from "../game/slopestyle-contest.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import type { GameMode } from "../game/defs/modes.ts";
@@ -68,6 +69,7 @@ export type SimOptions = {
     | "skiCross"
     | "bigAir"
     | "knuckleHuck"
+    | "slopestyle"
   >;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied. */
@@ -258,7 +260,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     out: p.out ? `${p.out.status} ${p.out.why}@${p.out.gate}` : null,
     trap: p.trap,
     place,
-    score: state.tricks.score,
+    // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`).
+    score: state.slopestyle ? (judgeSlopeRun(state)?.score ?? 0) : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

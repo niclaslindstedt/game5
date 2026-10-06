@@ -121,6 +121,7 @@ export function lengthPointsPerMetre(metres: number): number {
 export function freshTricks(): TrickState {
   return {
     score: 0,
+    jibs: [],
     base: 0,
     mult: 1,
     link: 0,
@@ -218,6 +219,8 @@ function file(
     outcome,
     t: state.t,
     butter: k.takeoff,
+    x: k.fromX,
+    z: k.fromZ,
   });
 }
 

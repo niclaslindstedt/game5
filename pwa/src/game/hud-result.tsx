@@ -63,6 +63,7 @@ import { SlalomBoard } from "./hud-board.tsx";
 import { CrossPlate } from "./hud-cross.tsx";
 import { BigAirPlate } from "./hud-bigair.tsx";
 import { JamPlate } from "./hud-knuckle.tsx";
+import { SlopestylePlate } from "./hud-slopestyle.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -102,6 +103,20 @@ export function ResultPlate({
   if (snap?.bigAir?.judged) {
     return (
       <BigAirPlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
+  // A SLOPESTYLE run's plate is its own: the sheet and the board.
+  if (snap?.slopestyle?.judged) {
+    return (
+      <SlopestylePlate
         snap={snap}
         touch={touch}
         onAgain={onAgain}

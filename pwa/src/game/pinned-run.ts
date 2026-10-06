@@ -56,6 +56,7 @@ import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
 import { nextContest } from "./big-air-run.ts";
+import { nextSlopeContest } from "./slopestyle-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export type PinnedRuns = {
@@ -63,8 +64,10 @@ export type PinnedRuns = {
   press: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
   /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
    * `bigAir`, a BIG AIR contest's first jump with its jump built over it
-   * (R37), or as `knuckleHuck`, a KNUCKLE HUCK's jam on its knuckle (R38). */
-  tricks: (map: TrickMap, mode?: "tricks" | "bigAir" | "knuckleHuck") => void;
+   * (R37), as `knuckleHuck`, a KNUCKLE HUCK's jam on its knuckle (R38),
+   * or as `slopestyle`, a SLOPESTYLE contest's first run on its course
+   * (R39). */
+  tricks: (map: TrickMap, mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle") => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
    * snow is neither. */
@@ -146,6 +149,11 @@ export function createPinnedRuns(world: {
         world.rig.arm(null);
         return createGame(recipeOf(now, "bigAir"));
       }
+      // A slopestyle run again: the same run of the same contest.
+      if (now.slopestyle) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "slopestyle"));
+      }
       // A knuckle huck again: a fresh jam on the same knuckle.
       if (now.jam) {
         world.rig.arm(null);
@@ -190,6 +198,20 @@ export function createPinnedRuns(world: {
           build: () => {
             world.rig.arm(null);
             return createGame({ ...recipeOf(now, "bigAir"), bigAir: contest });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A SLOPESTYLE contest's next run, off the contest as this one left it.
+      const slope = nextSlopeContest(now);
+      if (slope) {
+        world.setMode("slopestyle");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({ ...recipeOf(now, "slopestyle"), slopestyle: slope });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -260,6 +282,15 @@ export function secondRunOff(first: GameState): GameState {
     const contest = nextContest(first);
     return contest ? createGame({ ...recipeOf(first, "bigAir"), bigAir: contest }) : first;
   }
+  // A SLOPESTYLE contest's next run, off the first skied by the bot.
+  if (first.slopestyle) {
+    for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
+      if (first.progress.finished || first.progress.out) break;
+      step(first, botInput(first));
+    }
+    const contest = nextSlopeContest(first);
+    return contest ? createGame({ ...recipeOf(first, "slopestyle"), slopestyle: contest }) : first;
+  }
   if (first.field?.run !== 1 || first.level.downhill || first.level.superG) return first;
   for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
     step(first, botInput(first));
@@ -298,7 +329,7 @@ export function skisBack(
 ): MenuPage {
   if (mode === "free") return "start";
   if (rung) return "campaign";
-  if (mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck")
+  if (mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck" || mode === "slopestyle")
     return linkSeed === null ? "tricks" : "root";
   return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

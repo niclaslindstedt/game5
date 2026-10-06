@@ -6,7 +6,7 @@
 // coming. The race card's shape (`menu-races.tsx`) for the same reason: the
 // formats are one choice — which contest — before the map.
 
-import { BIG_AIR, FREESTYLE, KNUCKLE_HUCK, TRICKS_RUN, type GameMode } from "@engine";
+import { BIG_AIR, FREESTYLE, KNUCKLE_HUCK, SLOPESTYLE, TRICKS_RUN, type GameMode } from "@engine";
 
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -17,6 +17,9 @@ function formatOf(mode: GameMode): string {
   if (mode === "bigAir") return STRINGS.freestyleBigAir(BIG_AIR.field + 1, BIG_AIR.finalists);
   if (mode === "knuckleHuck") {
     return STRINGS.freestyleKnuckle(KNUCKLE_HUCK.field + 1, KNUCKLE_HUCK.jam);
+  }
+  if (mode === "slopestyle") {
+    return STRINGS.freestyleSlopestyle(SLOPESTYLE.field + 1, SLOPESTYLE.finalists);
   }
   return STRINGS.freestyleParkLine(TRICKS_RUN.limit);
 }

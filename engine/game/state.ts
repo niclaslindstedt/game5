@@ -25,12 +25,17 @@ import type { SledEvent, SledState } from "./sled-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
+import type { SlopeContest } from "./slopestyle-contest.ts";
 import type { JamState } from "./jam.ts";
-import type { ButterRecord, PressState } from "./butter-state.ts";
+import type { PressState } from "./butter-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { ButterRecord, PressEnd, PressState } from "./butter-state.ts";
+import type { JibRecord, JibRide } from "./jib-state.ts";
+export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
+import type { FlightRecord } from "./flight-record.ts";
+export type { FlightRecord } from "./flight-record.ts";
 export type * from "./sled-state.ts";
 
 export type SkierInput = {
@@ -288,6 +293,9 @@ export type SkierState = {
   tunnel: TunnelRide | null;
   /** THE LIFT he is riding (`lift-ride.ts`), or null — on a free ride. */
   lift: LiftRide | null;
+  /** THE JIB he is sliding (`jib.ts`), or null — on a map with rails and
+   * boxes (R39). Left out, he is on none. */
+  jib?: JibRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
    * the lift, how far up its line it let him go, m, and when, s — null
@@ -419,6 +427,8 @@ export type TrickPart = { kind: TrickKind; spins: number; flight: number };
 export type TrickState = PressState & {
   /** Points banked this run. */
   score: number;
+  /** EVERY JIB RIDDEN this run (`jib.ts`), in the order he left them. */
+  jibs: JibRecord[];
   /** The combo in hand: its base, points, and its multiplier. */
   base: number;
   mult: number;
@@ -487,31 +497,6 @@ export type TrickState = PressState & {
   fromY: number;
   peak: number;
   switchIn: boolean;
-};
-
-/** ONE FLIGHT AS IT ENDED: its number in the run, the turns it made on
- * each axis, rad, signed (tips up and clockwise from above positive), the
- * grabs held long enough to count, its air, s, its length over the snow
- * and its height over the take-off, m, whether it left and met the snow
- * switch, the landing's grade (`landingGrade`, null when the snow was met
- * by a body rather than the skis) and how it ended — `landed` whole,
- * `sketchy` (harsh, or still in a grab) or `fell`. */
-export type FlightRecord = {
-  flight: number;
-  flip: number;
-  spin: number;
-  grabs: TrickPose[];
-  air: number;
-  length: number;
-  height: number;
-  switchIn: boolean;
-  switchOut: boolean;
-  landing: number | null;
-  outcome: "landed" | "sketchy" | "fell";
-  t: number;
-  /** The press he left the snow in, on a run with butters — null or left
-   * out for none. */
-  butter?: ButterRecord | null;
 };
 
 /** Why a combo was lost (`tricks.ts`): the skier thrown, put back on the
@@ -723,6 +708,16 @@ export type GameEvent =
   /** A JAM's hit over (`jam.ts`): its number from 1, and the skier stood
    * back on the start platform for the next. */
   | { kind: "jam"; t: number; hit: number; fell: boolean }
+  /** ON A JIB (`jib.ts`): onto a rail or a box by its id, or off it —
+   * `whole` when he rode it to its end. */
+  | {
+      kind: "jib";
+      t: number;
+      id: string;
+      jib: "rail" | "box";
+      phase: "on" | "off";
+      whole: boolean;
+    }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
    * carrier run over a tower's sheaves, or stood off it at the top. */
   | {
@@ -959,6 +954,9 @@ export type GameState = {
    * run's jump — carried for the judges and the app; never read by a
    * step. */
   bigAir?: BigAirContest;
+  /** A SLOPESTYLE CONTEST so far (R39, `slopestyle-contest.ts`), carried
+   * between its runs as big air's is. */
+  slopestyle?: SlopeContest;
   /** A KNUCKLE HUCK'S JAM so far (R38, `jam.ts`): the hits ridden, and
    * where the one under way began — the run's own, stepped with it. */
   jam?: JamState;

@@ -227,7 +227,23 @@ export function Hud({
               </div>
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
-            {snap.tricks && !snap.bigAir && !snap.jam && <TricksChips tile={snap.tricks} />}
+            {snap.tricks && !snap.bigAir && !snap.jam && !snap.slopestyle && (
+              <TricksChips tile={snap.tricks} />
+            )}
+            {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
+            {snap.slopestyle && (
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.slopestyleRun(snap.slopestyle.run, snap.slopestyle.of)}</span>
+                <span class="hud-chip-sub">
+                  {STRINGS.slopestylePhase(snap.slopestyle.phase)} ·{" "}
+                  {STRINGS.slopestyleSection(
+                    snap.slopestyle.section,
+                    snap.slopestyle.sections,
+                    snap.slopestyle.kind,
+                  )}
+                </span>
+              </div>
+            )}
             {/* A KNUCKLE HUCK'S JAM: the session, the clock, the hits. */}
             {snap.jam && <JamChips jam={snap.jam} />}
             {/* A BIG AIR JUMP: its phase, and which of its jumps. */}

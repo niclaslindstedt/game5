@@ -816,10 +816,13 @@ export function App() {
     const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    // ...and a BIG AIR contest or a KNUCKLE HUCK on the same card's map, its
-    // jump built over it.
+    // ...and a BIG AIR contest, a KNUCKLE HUCK or a SLOPESTYLE run on the
+    // same card's map, its venue built over it.
     const m = modeRef.current;
-    if ((m === "tricks" || m === "bigAir" || m === "knuckleHuck") && params.seed === null) {
+    if (
+      (m === "tricks" || m === "bigAir" || m === "knuckleHuck" || m === "slopestyle") &&
+      params.seed === null
+    ) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
     }
     // The trial and the tricks run are ridden on the map the menu stands over.

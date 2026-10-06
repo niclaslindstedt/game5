@@ -22,7 +22,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
 | Halfpipe | judged runs, best run counts | a pipe of its own | researched — spec `HALFPIPE.md` |
-| Slopestyle | judged runs, best run counts | a course of jumps and rails | researched — spec `SLOPESTYLE.md` |
+| Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R39) — spec `SLOPESTYLE.md` |
 | Big air | judged jumps, best two different | one jump | researched — spec `BIG_AIR.md` |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
 | Moguls | turns + air + speed, one run | a mogul course | researched — spec `MOGULS.md` |
@@ -182,6 +182,64 @@ of two or three, score the whole run 0–100 for its flow, line and variety.
 After a fall every later section scores nothing for the trick judges, and
 the composition judges give a set score per section completed (fixed on
 the morning of the contest).
+
+**A top-level course** [6, 41]. The championship courses run 630–700 m
+long over about 150 m of vertical — just over the level-A minimum — with a
+start platform, three rail sections and three jumps. A rail section offers
+four or five features across it (down rails, kinked rails, boxes, a wall
+ride, creative features), so a skier picks one of several lines; a rail
+or a box is 6–12 m long, its top a little above the snow at the near end
+and following a deck of 5–10° *(est.)* [20, 21]. The jumps are big air's
+smaller cousins: kickers 4–5 m high off tables whose landings' sweet spot
+lies 18–22 m past the lip, each jump bigger than the one before it, the
+last the biggest [41]. A skier comes off the rail sections at rail speed
+and must find the jumps' speed with no skating: the course is shaped so
+the fall line gives it to him.
+
+**The panels at the top level** [1, 41]: nine scoring judges — three TRICK
+panels of two, each scoring two consecutive sections, and a COMPOSITION
+panel of three on the whole run. Each section weighs the same (a tenth of
+the score each, the six together the trick judges' 60 %).
+
+**Falls** [1]: a fall ends the run's worth — nothing after it for the trick
+judges — but the run is skied on to the finish line; the best run counts,
+so a fall in one run is answered in the next.
+
+**The snow and the weather** [7, 42]: a course is prepared hard and
+groomed, the jumps' landings and the decks cut to shape and salted when
+warm. Wind is what stops it: a final skied in gusts to about 10 m/s was
+called dangerous by its riders, and finals have been cut short or called
+off for wind — so a jury holds a slopestyle to a lighter wind than a race
+*(est.: about 10 m/s in the gust, the same as big air)*.
+
+**The skis and the skiers** [35, 36, 40]: the same competition twin-tip
+as big air — about 119/90/115 mm, 164–183 cm, a 16–20 m sidecut, stiff
+enough to land a big jump and twin enough to ride and land switch and to
+slide a rail. The riders are big air's: freeskiers of about 70 kg on
+176 cm for the men, about 60 kg for the women.
+
+**What the game builds (R39)**. A course straight down a built map's face
+(`setSlopestyle`): a start platform, three RAIL SECTIONS — each a deck at
+7° with a RAIL and a BOX side by side, the two LINES 12 m apart (a down
+box and a flat-down rail, a down rail and a flat-down box, a
+down-flat-down rail and a down box) — then three JUMPS up a ladder — take-offs of 28, 29 and 30°, tables of 9,
+11 and 13 m, landings shaped to an equivalent fall height — and a finish
+area. The speed is DESIGNED: each
+section's approach is found so the rule's skier meets its rails at about
+23 km/h stood up and its lips at 52–59 km/h tucked. It measures some
+765 m of plan from the start gate to the finish line over about 220 m of
+vertical — longer and deeper than a championship course, the price of
+designing every speed off the fall line alone. The jibs are new physics
+(`jib.ts`): a skier met at a rail's end along it, his feet near its top,
+is put ON it and slides it as a bead on a wire — the steel's or the
+plastic's friction and the air's drag — in a 50-50 or a SLIDE (a quarter
+turn across it), swapped by an edge tap, an end PRESSED on the lean, turned
+out square before the end, popped off it by the jump, and slid off a jib
+he has slowed to a stop on. The judges are the top level's SECTION
+JUDGING: two judges a section on the trick, three on the composition,
+60/40. The format is a qualification of two runs, the best counting, the
+best twelve of thirty to a final of three runs, the best counting; the
+field is dealt.
 
 ## Big air
 
@@ -769,4 +827,8 @@ freeski magazine's 2025 event preview and a men's lifestyle magazine's 2023
 preview of the jump · [39] a ski-review site's and ski retailers' reviews
 and specifications of butter-focused park twin-tips (flex, mount, the
 hinge) · [40] a 2020 exercise-science study of male freeskiers' big air
-landings (their body mass and height, the landing's force).
+landings (their body mass and height, the landing's force) · [41] broadcasters'
+and park builders' descriptions of championship slopestyle courses (the
+length, the vertical, the features a section, the jumps' sizes, the
+panels) · [42] news reports of championship slopestyle finals skied or
+called off in wind.

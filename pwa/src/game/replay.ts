@@ -93,6 +93,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     bracket: state.bracket,
     // A big air jump and the contest it was jumped in (`big-air-run.ts`).
     bigAir: state.bigAir,
+    // A slopestyle run and the contest it was skied in (`slopestyle-run.ts`).
+    slopestyle: state.slopestyle,
     quiet: true,
   };
 }
@@ -101,7 +103,11 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
 export function keepsReplay(mode: GameMode): boolean {
   return (
     isGameMode(mode) &&
-    (keepsRecords(mode) || mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck")
+    (keepsRecords(mode) ||
+      mode === "tricks" ||
+      mode === "bigAir" ||
+      mode === "knuckleHuck" ||
+      mode === "slopestyle")
   );
 }
 

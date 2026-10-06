@@ -118,7 +118,11 @@ export function MenuPages(p: {
           onPage={setPage}
           onBack={() => {
             const to = skisBack(campaign.rung.current, p.mode, p.linkSeed);
-            const trick = p.mode === "tricks" || p.mode === "bigAir" || p.mode === "knuckleHuck";
+            const trick =
+              p.mode === "tricks" ||
+              p.mode === "bigAir" ||
+              p.mode === "knuckleHuck" ||
+              p.mode === "slopestyle";
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}

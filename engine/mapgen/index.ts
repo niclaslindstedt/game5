@@ -142,4 +142,11 @@ export {
   setKnuckleHuck,
   type JumpProfile,
 } from "./big-air.ts";
-export { TRICK_RULES } from "./trick-rules.ts";
+export {
+  SLOPESTYLE_RULE,
+  TRICK_RULES,
+  type JibRow,
+  type JumpRule,
+  type SlopeJumpRow,
+} from "./trick-rules.ts";
+export { courseSpeed, setSlopestyle, slopestyleProfile, type SlopeProfile } from "./slopestyle.ts";

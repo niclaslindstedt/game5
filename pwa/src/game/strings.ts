@@ -26,6 +26,7 @@ import { SLED_STRINGS } from "./strings-sled.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 import { KNUCKLE_STRINGS } from "./strings-knuckle.ts";
+import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -96,6 +97,7 @@ export const STRINGS = {
   ...SLED_STRINGS,
   ...BIG_AIR_STRINGS,
   ...KNUCKLE_STRINGS,
+  ...SLOPESTYLE_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -697,7 +699,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : "RACE"}`,
+    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : mode === "slopestyle" ? "SLOPESTYLE" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

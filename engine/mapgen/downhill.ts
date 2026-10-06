@@ -71,6 +71,7 @@ export function setDownhill(level: Level): Level {
     level.skiCross?.base ??
     level.bigAir?.base ??
     level.knuckleHuck?.base ??
+    level.slopestyle?.base ??
     level;
   let course = set.get(original);
   if (!course) {

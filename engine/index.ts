@@ -66,6 +66,30 @@ export {
 // THE WORLD (engine/mapgen/): the generator, the Level contract, the track
 // queries.
 export * from "./mapgen/index.ts";
+export { jibAt, jibLength, stepJib } from "./game/jib.ts";
+export {
+  SLOPE_JUDGING,
+  jibDifficulty,
+  jibImpression,
+  judgeSlopestyle,
+  type SlopeScore,
+} from "./game/slopestyle-judge.ts";
+export {
+  SLOPE_FIELD,
+  bestRun,
+  freshSlopestyle,
+  judgeSlopeRun,
+  rivalRun,
+  runsIn,
+  slopeBoard,
+  slopeContestAfter,
+  slopePhase,
+  slopePlace,
+  type SlopeContest,
+  type SlopePhase,
+  type SlopeRow,
+  type SlopeRun,
+} from "./game/slopestyle-contest.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -95,6 +119,9 @@ export {
   BIG_AIR,
   bigAirRules,
   KNUCKLE_HUCK,
+  JIBS,
+  SLOPESTYLE,
+  slopestyleRules,
   knuckleHuckRules,
   FREESTYLE,
   type Freestyle,
@@ -334,6 +361,9 @@ export {
   type TrickPose,
   type TrickState,
   type FlightRecord,
+  type JibRecord,
+  type JibRide,
+  type JibStance,
   type ButterRecord,
   type PressEnd,
 } from "./game/state.ts";

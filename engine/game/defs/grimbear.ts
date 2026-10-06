@@ -55,7 +55,7 @@ export const GRIMBEAR = {
   reach: 1.4,
   /** How long he stands over the skier, s, then walks off at `walk` m/s
    * for `leaveFor` s, or until he is `gone` m away. */
-  maulFor: 3,
+  maulFor: 4,
   walk: 1.6,
   leaveFor: 14,
   gone: 60,
@@ -66,6 +66,6 @@ export const GRIMBEAR = {
   lieFor: 9,
   /** What the skier keeps of his own speed when he is taken, and what he
    * is given of the beast's. */
-  keep: 0.35,
-  shove: 0.4,
+  keep: 0.12,
+  shove: 0.12,
 } as const;

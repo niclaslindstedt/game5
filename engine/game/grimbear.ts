@@ -223,10 +223,14 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
         const az = at.z - b.z;
         const d = hypot(ax, az);
         b.heading = Math.atan2(ax, az);
-        if (d > 0.9) {
-          b.speed = Math.min(K.walk * 2, d / dt);
-          move(b);
-        } else b.speed = 0;
+        // He runs on into the tackle and pulls up over him, and follows
+        // the body where it slides.
+        const want = d > 0.9 ? Math.min(K.sprint, d * 2) : 0;
+        b.speed = Math.min(
+          d / dt,
+          b.speed + clamp(want - b.speed, -K.accel * 2 * dt, K.accel * dt),
+        );
+        move(b);
       }
       if (b.t > K.maulFor) enter(b, "leave");
       return;
@@ -257,7 +261,6 @@ function maul(state: GameState, b: GrimbearState, events: GameEvent[]): void {
   throwRider(state, "maul", { x: c.vx * K.keep + fx, y: 0, z: c.vz * K.keep + fz }, events);
   b.hunt = false;
   b.top = true;
-  b.speed = 0;
   enter(b, "maul");
   events.push({ kind: "grimbear", t: state.t, phase: "maul", x: b.x, z: b.z });
 }

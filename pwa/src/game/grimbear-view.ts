@@ -20,11 +20,11 @@ export type GrimbearView = {
 
 /** His measures, m: the hips over the snow, a thigh and a shin, the trunk,
  * the upper arm and the forearm. He stands about 2.3 m to the ears. */
-const HIP = 1.02;
+const HIP = 1.0;
 const THIGH = 0.52;
 const SHIN = 0.5;
 const TRUNK = 0.86;
-const UPPER = 0.46;
+const UPPER = 0.48;
 const FORE = 0.46;
 
 export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearView {
@@ -40,7 +40,7 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     return m;
   };
   const fur = paint(0x3a2a1f);
-  const mantle = paint(0x6e5b47);
+  const mantle = paint(0x5e4a3a);
   const pale = paint(0x8d7660);
   const horn = paint(0x17120f, { roughness: 0.6 });
   const eye = paint(0x2a1a08, { emissive: 0xffa526, emissiveIntensity: 1.6 });
@@ -81,62 +81,90 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   const group = new THREE.Group();
   group.name = "grimbear";
   group.visible = false;
+  /** SHAG: a tuft hanging off a part, its tip pointing down and back. */
+  const tuft = (() => {
+    const g = new THREE.ConeGeometry(0.07, 0.2, 5);
+    g.rotateX(Math.PI);
+    g.translate(0, -0.06, 0);
+    geometries.push(g);
+    return g;
+  })();
+  const shag = (
+    parent: THREE.Object3D,
+    material: THREE.Material,
+    x: number,
+    y: number,
+    z: number,
+    size = 1,
+    tilt = -0.5,
+  ): void => {
+    const m = mesh(tuft, material, x, y, z);
+    m.scale.setScalar(size);
+    m.rotation.x = tilt;
+    m.rotation.z = x * 1.2;
+    parent.add(m);
+  };
   const hips = joint(0, HIP, 0, group);
-  hips.add(mesh(lump(0.3, 0.2, 0.24), fur, 0, 0.02, 0));
-  // THE TRUNK, leant from the hips: the barrel, the grizzled hump over the
-  // shoulders, and a ruff of tufts down the back.
+  hips.add(mesh(lump(0.34, 0.22, 0.27), fur, 0, 0.02, 0));
+  // THE TRUNK, leant from the hips: a bear's pot belly and barrel chest, the
+  // grizzled hump over the shoulders, a ruff at the throat and shag down
+  // the flanks and the back.
   const trunk = joint(0, 0.05, 0, hips);
-  trunk.add(mesh(lump(0.4, 0.48, 0.34), fur, 0, TRUNK * 0.45, 0.02));
-  trunk.add(mesh(lump(0.46, 0.26, 0.36), mantle, 0, TRUNK * 0.8, -0.04));
-  const tuft = lump(0.08, 0.16, 0.08, 0);
-  for (let i = 0; i < 5; i++) {
-    const m = mesh(
-      tuft,
-      mantle,
-      (i % 2 ? 0.12 : -0.12) * (1 - i * 0.15),
-      TRUNK * (0.95 - i * 0.16),
-      -0.3,
-    );
-    m.rotation.x = -0.6;
-    trunk.add(m);
-  }
-  // THE HEAD on a thick neck, set forward of the hump as a bear's is.
-  const head = joint(0, TRUNK * 0.92, 0.2, trunk);
-  head.add(mesh(lump(0.2, 0.19, 0.22), fur, 0, 0.12, 0.04));
-  head.add(mesh(lump(0.11, 0.09, 0.15), pale, 0, 0.07, 0.26));
-  head.add(mesh(lump(0.05, 0.035, 0.035, 0), horn, 0, 0.1, 0.4));
+  trunk.add(mesh(lump(0.44, 0.4, 0.4), fur, 0, TRUNK * 0.32, 0.06));
+  trunk.add(mesh(lump(0.5, 0.38, 0.4), fur, 0, TRUNK * 0.7, 0.02));
+  trunk.add(mesh(lump(0.44, 0.19, 0.34), mantle, 0, TRUNK * 0.9, -0.08));
+  trunk.add(mesh(lump(0.26, 0.16, 0.16), mantle, 0, TRUNK * 0.82, 0.3));
   for (const side of [-1, 1]) {
-    head.add(mesh(lump(0.065, 0.065, 0.035, 0), fur, side * 0.14, 0.3, -0.02));
-    head.add(mesh(lump(0.025, 0.02, 0.015, 0), eye, side * 0.09, 0.18, 0.2));
+    for (let i = 0; i < 3; i++) shag(trunk, fur, side * 0.44, TRUNK * (0.25 + i * 0.22), 0, 1.1);
+    shag(trunk, mantle, side * 0.3, TRUNK * 0.9, -0.36, 1.2, -1);
   }
-  const jaw = joint(0, 0.02, 0.12, head);
-  jaw.add(mesh(lump(0.09, 0.04, 0.13), pale, 0, -0.02, 0.11));
-  // THE ARMS, long, from the shoulders: the spread outward, the swing, the
-  // elbow, a clawed paw.
-  const claw = new THREE.ConeGeometry(0.018, 0.09, 4);
+  for (let i = 0; i < 3; i++) shag(trunk, fur, 0, TRUNK * (0.8 - i * 0.22), -0.36, 1.0, -1.2);
+  // THE HEAD on a thick neck, slung low and forward of the hump as a
+  // bear's is: the broad skull, the brow, the long pale muzzle, the round
+  // ears, the small eyes that catch a light.
+  const head = joint(0, TRUNK * 0.92, 0.32, trunk);
+  head.add(mesh(lump(0.22, 0.2, 0.24), fur, 0, 0.08, 0.04));
+  head.add(mesh(lump(0.2, 0.06, 0.1), fur, 0, 0.17, 0.16));
+  head.add(mesh(lump(0.12, 0.1, 0.17), pale, 0, 0.03, 0.27));
+  head.add(mesh(lump(0.055, 0.04, 0.04, 0), horn, 0, 0.07, 0.44));
+  for (const side of [-1, 1]) {
+    head.add(mesh(lump(0.07, 0.07, 0.04, 0), fur, side * 0.16, 0.26, -0.02));
+    head.add(mesh(lump(0.026, 0.02, 0.015, 0), eye, side * 0.095, 0.14, 0.21));
+    shag(head, fur, side * 0.2, 0.0, -0.02, 0.9, -0.2);
+  }
+  const jaw = joint(0, -0.03, 0.14, head);
+  jaw.add(mesh(lump(0.1, 0.045, 0.14), pale, 0, -0.02, 0.1));
+  // THE ARMS, long and heavy, from wide shoulders: the spread outward, the
+  // swing, the elbow, shag down the back of the forearm, a clawed paw.
+  const claw = new THREE.ConeGeometry(0.02, 0.13, 4);
   claw.rotateX(Math.PI);
   geometries.push(claw);
   const arms = [-1, 1].map((side) => {
-    const spread = joint(side * 0.44, TRUNK * 0.78, 0, trunk);
+    const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk);
     const swing = joint(0, 0, 0, spread);
-    swing.add(mesh(limb(0.13, 0.1, UPPER), fur, 0, 0, 0));
+    swing.add(mesh(limb(0.15, 0.12, UPPER), fur, 0, 0, 0));
+    swing.add(mesh(lump(0.14, 0.21, 0.14), fur, 0, -UPPER * 0.4, 0));
     const elbow = joint(0, -UPPER, 0, swing);
-    elbow.add(mesh(limb(0.1, 0.085, FORE), fur, 0, 0, 0));
-    elbow.add(mesh(lump(0.1, 0.07, 0.11), fur, 0, -FORE - 0.04, 0.02));
+    elbow.add(mesh(limb(0.12, 0.1, FORE), fur, 0, 0, 0));
+    for (let i = 0; i < 3; i++) shag(elbow, fur, 0, -0.08 - i * 0.14, -0.1, 0.8, -0.9);
+    elbow.add(mesh(lump(0.12, 0.08, 0.13), fur, 0, -FORE - 0.05, 0.02));
     for (let k = 0; k < 4; k++) {
-      elbow.add(mesh(claw, horn, (k - 1.5) * 0.04, -FORE - 0.12, 0.08));
+      elbow.add(mesh(claw, horn, (k - 1.5) * 0.045, -FORE - 0.15, 0.09));
     }
     return { spread, swing, elbow, side };
   });
-  // THE LEGS: a man's, to run on, under a bear's thighs and broad feet.
+  // THE LEGS: a man's, to run on — the long thigh, the knee, the shin — in
+  // a bear's heavy hams and shaggy calves, on broad clawed feet.
   const legs = [-1, 1].map((side) => {
-    const hip = joint(side * 0.17, 0, 0, hips);
-    hip.add(mesh(limb(0.15, 0.11, THIGH), fur, 0, 0, 0));
+    const hip = joint(side * 0.19, 0, 0, hips);
+    hip.add(mesh(limb(0.19, 0.13, THIGH), fur, 0, 0, 0));
+    hip.add(mesh(lump(0.17, 0.24, 0.18), fur, 0, -THIGH * 0.42, 0));
     const knee = joint(0, -THIGH, 0, hip);
-    knee.add(mesh(limb(0.11, 0.085, SHIN), fur, 0, 0, 0));
-    knee.add(mesh(lump(0.1, 0.06, 0.17), fur, 0, -SHIN - 0.02, 0.07));
+    knee.add(mesh(limb(0.13, 0.1, SHIN), fur, 0, 0, 0));
+    for (let i = 0; i < 2; i++) shag(knee, fur, 0, -0.1 - i * 0.16, -0.1, 0.85, -0.7);
+    knee.add(mesh(lump(0.12, 0.065, 0.2), fur, 0, -SHIN - 0.02, 0.08));
     for (let k = 0; k < 3; k++) {
-      const m = mesh(claw, horn, (k - 1) * 0.05, -SHIN - 0.05, 0.25);
+      const m = mesh(claw, horn, (k - 1) * 0.06, -SHIN - 0.04, 0.28);
       m.rotation.x = -Math.PI / 2;
       knee.add(m);
     }
@@ -163,7 +191,8 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
         legs[i].knee.rotation.x = pose.knee[i];
         const arm = arms[i];
         arm.spread.rotation.z = arm.side * pose.spread;
-        arm.swing.rotation.x = -pose.shoulder[i];
+        // The shoulder's swing is off the plumb, whatever the trunk's lean.
+        arm.swing.rotation.x = -pose.shoulder[i] - pose.lean;
         arm.elbow.rotation.x = -pose.elbow[i];
       }
     },

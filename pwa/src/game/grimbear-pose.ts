@@ -42,62 +42,65 @@ export function grimbearPose(
   const length = run > 0 ? RUN_STRIDE : WALK_STRIDE;
   const a = (stride / length) * Math.PI * 2;
   const s = Math.sin(a);
-  const legSwing = 0.85 * run + 0.4 * walk;
-  out.hip[0] = s * legSwing;
-  out.hip[1] = -s * legSwing;
+  const c = Math.cos(a);
+  // STOOD, he stands as a bear stands up: the knees soft, the trunk over
+  // them, the arms hanging a little forward of him and out from his bulk.
+  const legSwing = 0.75 * run + 0.4 * walk;
+  out.hip[0] = 0.18 + s * legSwing;
+  out.hip[1] = 0.18 - s * legSwing;
   // The knee folds as the leg comes through, and is long under him.
-  out.knee[0] =
-    (0.15 + Math.max(0, Math.cos(a)) * 1.2) * run + Math.max(0, Math.cos(a)) * 0.3 * walk;
-  out.knee[1] =
-    (0.15 + Math.max(0, -Math.cos(a)) * 1.2) * run + Math.max(0, -Math.cos(a)) * 0.3 * walk;
-  // The arms against the legs, bent at the elbow.
-  const armSwing = 0.9 * run + 0.3 * walk;
-  out.shoulder[0] = -s * armSwing;
-  out.shoulder[1] = s * armSwing;
-  out.elbow[0] = 0.4 + 1.0 * run;
-  out.elbow[1] = 0.4 + 1.0 * run;
-  out.lean = 0.12 + 0.3 * run;
-  out.bob = -Math.abs(Math.cos(a)) * 0.08 * run - 0.04;
-  out.spread = 0.12;
-  out.look = 0.1 - 0.15 * run;
-  out.jaw = 0.1 * run;
+  out.knee[0] = 0.25 + (Math.max(0, c) * 1.25 + 0.1) * run + Math.max(0, c) * 0.35 * walk;
+  out.knee[1] = 0.25 + (Math.max(0, -c) * 1.25 + 0.1) * run + Math.max(0, -c) * 0.35 * walk;
+  // The arms against the legs, a runner's: bent near square, driven back
+  // past his hip and forward to his chin.
+  const armSwing = 0.55 * run + 0.3 * walk;
+  out.shoulder[0] = 0.05 - s * armSwing;
+  out.shoulder[1] = 0.05 + s * armSwing;
+  out.elbow[0] = 0.35 + 0.8 * run + 0.2 * walk;
+  out.elbow[1] = out.elbow[0];
+  out.lean = 0.22 + 0.25 * run;
+  out.bob = -0.06 - Math.abs(c) * 0.07 * run;
+  out.spread = 0.18;
+  out.look = -0.05 - 0.15 * run;
+  out.jaw = 0.12 * run;
   if (phase === "lurk") {
-    // Crouched behind his trunk, breathing.
+    // Crouched behind his trunk, peering round it, breathing.
     const breathe = Math.sin(t * 2.2) * 0.04;
-    out.hip[0] = out.hip[1] = 0.35;
-    out.knee[0] = out.knee[1] = 0.6;
-    out.shoulder[0] = out.shoulder[1] = 0.3;
-    out.elbow[0] = out.elbow[1] = 0.9;
-    out.lean = 0.35 + breathe;
-    out.bob = -0.22;
-    out.look = -0.25;
-    out.jaw = 0.05;
-  } else if (phase === "maul") {
-    // Over the body, the arms coming down in turn.
-    const blow = t * 5;
-    out.hip[0] = out.hip[1] = 0.5;
-    out.knee[0] = out.knee[1] = 0.7;
-    out.shoulder[0] = 2.2 + Math.sin(blow) * 0.9;
-    out.shoulder[1] = 2.2 - Math.sin(blow) * 0.9;
-    out.elbow[0] = 0.6 + Math.max(0, Math.cos(blow)) * 0.6;
-    out.elbow[1] = 0.6 + Math.max(0, -Math.cos(blow)) * 0.6;
-    out.lean = 0.75;
-    out.bob = -0.25;
+    out.hip[0] = out.hip[1] = 0.75;
+    out.knee[0] = out.knee[1] = 1.0;
+    out.shoulder[0] = 0.3;
+    out.shoulder[1] = 0.15;
+    out.elbow[0] = out.elbow[1] = 0.7;
+    out.lean = 0.5 + breathe;
+    out.bob = -0.3;
     out.spread = 0.25;
-    out.look = 0.55;
-    out.jaw = 0.5;
+    out.look = -0.35;
+    out.jaw = 0.08;
+  } else if (phase === "maul") {
+    // Over the body, both arms raised and brought down together, again.
+    const beat = (t * 1.5) % 1;
+    const up = beat < 0.6 ? beat / 0.6 : Math.max(0, 1 - (beat - 0.6) / 0.12);
+    out.hip[0] = out.hip[1] = 0.55;
+    out.knee[0] = out.knee[1] = 0.75;
+    out.shoulder[0] = out.shoulder[1] = 0.5 + up * 2.3;
+    out.elbow[0] = out.elbow[1] = 0.4 + up * 0.5;
+    out.lean = 0.85 - up * 0.35;
+    out.bob = -0.22;
+    out.spread = 0.3;
+    out.look = 0.5 - up * 0.5;
+    out.jaw = 0.4 + up * 0.5;
   } else if (phase === "halt" && speed < 1) {
-    // Pulled up, stood tall, the arms thrown out and roaring.
+    // Pulled up, stood tall, the arms up and out and roaring.
     const heave = Math.sin(t * 3) * 0.05;
-    out.hip[0] = out.hip[1] = 0;
-    out.knee[0] = out.knee[1] = 0.1;
-    out.shoulder[0] = out.shoulder[1] = 1.3 + heave;
-    out.elbow[0] = out.elbow[1] = 0.5;
-    out.lean = -0.1;
+    out.hip[0] = out.hip[1] = 0.05;
+    out.knee[0] = out.knee[1] = 0.12;
+    out.shoulder[0] = out.shoulder[1] = 2.3 + heave;
+    out.elbow[0] = out.elbow[1] = 0.8;
+    out.lean = -0.12;
     out.bob = 0;
     out.spread = 1.0;
-    out.look = -0.45;
-    out.jaw = 0.75;
+    out.look = -0.5;
+    out.jaw = 0.85;
   }
   return out;
 }

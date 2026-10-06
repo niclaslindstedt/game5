@@ -479,7 +479,7 @@ export function planSpectators(level: Level): SpectatorPlan {
       const facing = p.heading + Math.PI + side * -1.15;
       const deep = rows(s);
       const full = typeof fill === "number" ? fill : fill(s);
-      for (let r = 0; r < deep; r++) {
+      for (let r = 0; r < deep && fans.length < FANS.cap; r++) {
         if (!rng.chance(full - r * 0.05)) continue;
         const out = edge + FANS.front + r * FANS.row + rng.range(-0.15, 0.2);
         const jog = rng.range(-0.2, 0.2);

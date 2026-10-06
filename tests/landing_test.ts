@@ -58,6 +58,11 @@ function drop(opts: {
   let bent = 0;
   let bounced = false;
   let whipped = 0;
+  // How long after the touchdown the skis lay flat on the snow, s, and
+  // whether he left it again after they had.
+  let flatIn = Number.POSITIVE_INFINITY;
+  let reflew = false;
+  let since = 0;
   for (let i = 0; i < 4 * TUNING.physicsHz; i++) {
     step(state, TUCK);
     for (const e of state.events) {
@@ -69,9 +74,12 @@ function drop(opts: {
       bent = Math.max(bent, ...c.skiCompression);
       bounced ||= c.airborne;
       whipped = Math.max(whipped, Math.abs(c.wx));
+      if (flatIn === Number.POSITIVE_INFINITY && Math.abs(c.pitch) < 0.05) flatIn = since;
+      if (flatIn < since) reflew ||= c.airborne;
+      since += TUNING.dt;
     }
   }
-  return { land, thrown, save, bent, bounced, whipped };
+  return { land, thrown, save, bent, bounced, whipped, flatIn, reflew };
 }
 
 describe("the landing's load", () => {
@@ -143,6 +151,18 @@ describe("a landing ridden away, or not", () => {
       // never whipped down faster than `rate`.
       const most = pitch > 0 ? TUNING.landing.absorb.follow : TUNING.landing.absorb.rate;
       expect(whipped, `pitch ${pitch}`).toBeLessThanOrEqual(most + 1e-9);
+    }
+  });
+
+  it("snaps the skis down off their tails and lands on them, never bounced back up", () => {
+    for (const height of [1.5, 3, 5]) {
+      for (const pitch of [0.4, 0.6]) {
+        const { thrown, flatIn, reflew } = drop({ packed: 1, height, pitch });
+        const at = `${height} m, pitch ${pitch}`;
+        expect(thrown, at).toBeNull();
+        expect(flatIn, at).toBeLessThan(0.1);
+        expect(reflew, at).toBe(false);
+      }
     }
   });
 

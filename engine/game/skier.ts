@@ -826,12 +826,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, fold);
+  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, give > 0);
   const hullTouch = hullHit > 0;
   // ...AND NEVER WHIPS HIM ROUND: on the snow while a landing is absorbed
   // the skis pivot to the slope and the way under him and the body follows
-  // (`absorb.rate`, `.yaw`).
-  if (give > 0 && (grounded || hullTouch)) settleRates(c, level);
+  // (`absorb.rate`, `.yaw`) — off the snow too in the moment a tail
+  // snapped down leaves it.
+  if (give > 0 && (grounded || hullTouch || c.landing < TUNING.air.counts)) settleRates(c, level);
   if (hullHit > impact) impact = hullHit;
   // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his
   // skis, not working for his speed or springing off them, whose stations

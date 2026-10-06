@@ -92,8 +92,10 @@ export function joltOf(save: Save | null | undefined): Jolt {
   switch (save.kind) {
     case "landing": {
       const fore = Math.max(-1, Math.min(1, save.fore));
-      const w = Math.sin((2 * Math.PI * save.t) / LAND_WOBBLE);
-      j.sink = 0.2 * k;
+      // The rocking grows in once the blow has thrown him down onto his legs.
+      const w =
+        Math.sin((2 * Math.PI * save.t) / LAND_WOBBLE) * smooth((save.t - 2 * RISE) / LAND_WOBBLE);
+      j.sink = 0.16 * k;
       j.lurch = (0.15 + 0.35 * fore) * k;
       j.sway = (0.3 * side + 0.22 * w) * k;
       j.duck = 0.3 * k;

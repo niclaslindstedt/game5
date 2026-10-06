@@ -6,9 +6,9 @@
 // the body sink — eccentric work, the energy spent in the muscle — and it
 // does not fling him back up off the snow when the bend is over. So from
 // the air until `absorb.for` s after a touchdown the legs are SOFTER
-// (`soften` of their rate let go), bend DEEPER before the stop
-// (`deeper` more of their travel) and come back up SLOWLY (`rebound`
-// times their own damping), and the trunk holds its fore-aft and side to
+// (`soften` of their rate let go) and bend DEEPER before the stop
+// (`deeper` more of their travel), the skis met tails first are SNAPPED
+// down flat about the boots (`chassis.ts`), and the trunk holds its fore-aft and side to
 // side square against the slap of a ski meeting the snow end first
 // (`steady`, a damping on the pitch and roll rates). A skier who comes down
 // on his skis on a slope a skier lands on rides it away, sunk deep and
@@ -69,8 +69,7 @@ export function legPush(
   const leg = p.susp;
   const stroke = leg.travel * (1 + AB.deeper * give);
   const deep = clamp((bent / stroke - (1 - BOTTOM_ZONE)) / BOTTOM_ZONE, 0, 1);
-  const damp =
-    rate > 0 ? leg.bump * (1 + BOTTOM_DAMP * deep) : leg.rebound * (1 + AB.rebound * give);
+  const damp = rate > 0 ? leg.bump * (1 + BOTTOM_DAMP * deep) : leg.rebound;
   let spring = leg.rate * soft * (1 - AB.soften * give) * bent + damp * dampen * rate;
   if (bent > stroke) {
     spring +=
@@ -102,13 +101,11 @@ export function settleRates(c: SkierState, level: Level): void {
   level.normalAt(c.x + fx * reach, c.z + fz * reach, ground);
   const slope = Math.atan(-(ground.x * fx + ground.z * fz) / Math.max(0.2, ground.y));
   // That end above it: a rate taking it down (tips down is a positive
-  // `wx`) closes the gap.
-  const above = (c.pitch - slope) * ends > 0;
-  c.wx = clamp(
-    c.wx,
-    above && ends < 0 ? -AB.follow : -AB.rate,
-    above && ends > 0 ? AB.follow : AB.rate,
-  );
+  // `wx`) closes the gap — snapped, and slowed as it closes over the last
+  // `absorb.settle` s so the skis come down flat rather than past it.
+  const gap = (c.pitch - slope) * ends;
+  const down = gap > 0 ? clamp(gap / AB.settle, AB.rate, AB.follow) : AB.rate;
+  c.wx = clamp(c.wx, ends < 0 ? -down : -AB.rate, ends > 0 ? down : AB.rate);
 }
 
 const ground = { x: 0, y: 1, z: 0 };

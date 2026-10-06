@@ -178,6 +178,12 @@ SwiftShader's time.
 | 3 | THE LAMP LOOPS BY DAY (the snow, every lit material, the snow cloud, the falling snow) | the cloud's pixel 385 → 283 ms a frame of 120 veiled puffs under software GL; every frame byte-identical | `dealLamps` deals the slots in order, so every loop now `break`s at the first empty slot instead of `continue`-ing over six. A real GPU skips a uniform `continue` cheaply; software GL ran the body masked at its full price. Owes a GPU A/B. |
 | 4 | BOARDING THE HELICOPTER (the rotor spooling up) | 6 → 0 programs linked after the card lifts; the boarding frame under software GL 1033 → ~230 ms | The model loaded after the load's compile, so the rotor's smear and the blades' faded materials were first seen as he sat on the skid, and the blades' `transparent` was toggled as they spun up (a program of its own each). The machines hand the renderer a `ready` the load waits on, and the blades are transparent for good. |
 | 4 | THE FIRST DRAW OF ANYTHING NEW (the far side of the ski area as the helicopter climbs, the fire, a finish arena) | first uses after the card: 4 → 0 on the boarding probe; the load ~0.5 s longer under software GL | `warmPicture`: after the compile, one draw of the whole scene, every mesh shown and none culled, into one scissored pixel of the run's target, after an empty pass of the skiers' map so the texture it samples exists (else the GL refuses the draw — the round's lesson). |
+| 5 | FOREST refill (MEDIUM, the benchmark race, `make cpu-cost`) | 2.46 → 0.54 ms p50, same hash | The trees are numbered in the order of the bins they sit in (`binStart`, a flat CSR index), so a refill walks memory in order; each band remembers which tree it last sent to every slot (`who`) and skips rewriting it, and sends only from the first slot that changed (`addUpdateRange`). A scratch mirror of the GPU's buffers through the sent ranges over 1500 frames: 0 slots wrong. |
+| 5 | THE SUN'S MAP'S DEPTH PROGRAM (three's one `_depthMaterial` re-derived as instanced, skinned and plain casters alternate) | a program change at nearly every caster → none | `shadow-depth.ts`'s `depthByKind`: every caster is handed, once, the `MeshDepthMaterial` of its kind (instanced, coloured, skinned, morphed), the same depths; a caster three already gives its own variant (an alpha test on a map, clipping, displacement) is left alone. |
+| 5 | THE NETS (the finish and the fans' nets: transparent, two-sided) | 2 program look-ups a net a frame → 0 | three draws a two-sided transparent material back then front and bumps its `version` between them, so its program is looked up twice a frame; each net is now two meshes, back side first, the same draws in the same order. |
+| 5 | THE OPAQUE LIST (three sorts it nearest first only) | the uniforms of a material sent once per run of draws, not per draw | `setOpaqueSort(byMaterial)`: group order, render order, then material, then nearest first. The depth test decides what shows whatever the order. |
+| 5 | THE MODELLED SKIS (six primitives a pair: six draws in the picture, six in the sun's map, six bone textures a frame) | 232 → 200 draws a frame on the benchmark | `model-merge.ts`: the pair's primitives but the boot merged into one skinned mesh over one skeleton, the colour as vertex colour and the metalness, roughness and clearcoat as a vertex attribute read in place of the uniforms. The sled's 39 primitives (below) could take the same. |
+| 5 | THE ROUND, END TO END (no-draw meter, 600 frames, MEDIUM) | processor frame (sim + render) 14.4 → 13.3 ms; draws 232 → 200 | The meter: the benchmark under SwiftShader with every `draw*` call stubbed to nothing (an init script), so the main thread is priced without software rasterising in it. The wall clock did not move there: SwiftShader's own fence (~11 ms) is the frame. What the card gains needs `make bench ARGS="--gpu --ab"` on real hardware. |
 
 ## Open leads, ranked
 
@@ -225,7 +231,13 @@ Each is a real cost found in a round and not taken, with why:
 - **The sled's 39 primitives in the picture.** The shadow pass is merged
   (round 3); the picture still draws a primitive per material per node.
   Merging needs the materials folded into vertex data (colour, roughness,
-  metalness, the lamp's emissive), and the rack's dress repainted into it.
+  metalness, the lamp's emissive), and the rack's dress repainted into it —
+  `model-merge.ts` (round 5) does it for the skis, minus the emissive.
+- **Three's own scene walk** (`updateMatrixWorld` ~0.45 ms, `projectObject`
+  ~1.3 ms of the no-draw frame) and the uniforms it sends per draw are
+  most of what is left of `submit`; static groups could be frozen
+  (`matrixAutoUpdate = false`), but the forest and the gates are ~150 of
+  ~830 objects, so small.
 - **The riders' matrices are composed twice a frame**: `posed-merge.ts`'s
   `update` forces the root's subtree, and the scene's own walk composes it
   again. ~76 objects a rider, so small.

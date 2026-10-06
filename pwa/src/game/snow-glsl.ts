@@ -53,14 +53,14 @@
 
 import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
-import { LOOSE } from "./trail-stamp.ts";
+import { FRESH_LOOK, LOOSE } from "./trail-stamp.ts";
 
 /** How much brighter than white snow's albedo is painted. */
 export const GLARE = 1.12;
 
-/** New snow that buries the groomed track's LOOK outright, m: a few
- * centimetres cover the comb's corduroy and the grey of worked snow. */
-export const FRESH_LOOK = 0.06;
+// New snow that buries the groomed track's LOOK outright, m: stated
+// three-free in `trail-stamp.ts`, where the trail map's fill reads it too.
+export { FRESH_LOOK };
 
 // How far loose powder stands over the groomed track: stated three-free in
 // `trail-stamp.ts`, so what stands ON the snow (the wildlife's feet) reads
@@ -262,6 +262,8 @@ float snowBerm;      // 0 off the plough's berm .. 1 on its crest
 float snowCrust;     // 0 powder .. 1 a wind slab (R21)
 float snowIce;       // 0 snow .. 1 a frozen river's bare ice (R21)
 float snowRock;      // 0 snow .. 1 rock showing through a steep face
+float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailGroomAt)
+float snowWorked;    // 0 .. 1 the day's skied-up piste on a night they groom
 `;
 
 /** Straight after `clipping_planes_fragment`: throw away what the finer
@@ -281,6 +283,19 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // corduroy first, the grey of worked snow by a few centimetres — while
   // the physics still feels the hard base under it (\`packedUnder\`).
   snowPacked = g.b * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh));
+  // A PISTE MACHINE'S SWATH (\`groomer.ts\`): packed through wherever the
+  // tiller went, on the piste or off it, and only the snow since on it. On
+  // a night the machines work, the rest of the piste is the day's: skied
+  // up, scraped and heaped, the comb long gone (\`snowWorked\`).
+  vec2 groom = uWorked > 0.0 ? trailGroomAt(p) : vec2(0.0);
+  // Ramped over half the mark, so the filtered edge of a swath is a soft
+  // line rather than the trail map's texel stairs.
+  snowGroomed = smoothstep(0.0, 0.45, groom.x);
+  if (snowGroomed > 0.0) {
+    float since = (1.0 - groom.x) * ${FRESH_LOOK.toFixed(3)};
+    snowPacked = mix(snowPacked, 1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, since), snowGroomed);
+  }
+  snowWorked = uWorked * (1.0 - snowGroomed) * snowPacked;
   snowForest = g.a;
   vec2 grad = g.rg;
   vec2 surf = texture2D(uSurface, guv).rg;
@@ -328,6 +343,22 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   if (midFade > 0.0 && snowPacked < 1.0) {
     grad += snowNoiseGrad(p * 0.23, 0.35) * 0.23 * 0.35 * midFade * (1.0 - snowPacked);
   }
+  // THE DAY'S PISTE (\`snowWorked\`): scraped swells where the turns have
+  // shoved the snow, heaps of it pushed up between, and the scratches of a
+  // thousand edges along the way.
+  if (snowWorked > 0.01 && midFade > 0.0) {
+    vec4 tw = texture2D(uTrackDir, guv);
+    vec2 dw = tw.xy * 2.0 - 1.0;
+    float tht = 0.5 * atan(dw.y, dw.x);
+    vec2 acr = vec2(cos(tht), -sin(tht));
+    vec2 alg = vec2(acr.y, -acr.x);
+    float k = snowWorked * midFade;
+    grad += snowNoiseGrad(p * 0.55 + 3.1, 0.3) * 0.55 * 0.16 * k;
+    grad += snowNoiseGrad(p * 1.4 + 8.3, 0.25) * 1.4 * 0.05 * k * nearFade;
+    vec2 q = vec2(dot(p, acr) * 5.0, dot(p, alg) * 0.22);
+    vec2 sg = snowNoiseGrad(q, 0.3);
+    grad += (acr * sg.x * 5.0 + alg * sg.y * 0.22) * 0.006 * k * nearFade;
+  }
   // SASTRUGI: the crust carved into ridges across the wind, a few metres
   // apart and a hand high, broken up along their length.
   if (uSastrugi > 0.0 && snowCrust > 0.01) {
@@ -350,11 +381,13 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // unbroken along the way looks the same however fast it is skied; its
   // wear is what streams past.
   vec4 td = texture2D(uTrackDir, guv);
-  snowBerm = td.b;
-  float along = length(td.xy * 2.0 - 1.0);
-  if (snowPacked > 0.05 && along > 0.05) {
+  snowBerm = td.b * (1.0 - snowGroomed);
+  float along = max(length(td.xy * 2.0 - 1.0), snowGroomed);
+  if (snowPacked > 0.05 && along > 0.05 && snowWorked < 0.98) {
     vec2 dd = td.xy * 2.0 - 1.0;
     float th = 0.5 * atan(dd.y, dd.x);
+    // In a swath the comb runs the way the machine went.
+    th = mix(th, groom.y * 3.14159265, step(0.5, snowGroomed));
     vec2 across = vec2(cos(th), -sin(th));
     float phase = dot(p, across) * 6.2831853 / 0.14;
     float aa = 1.0 - smoothstep(0.35, 0.9, fwidth(phase));
@@ -362,7 +395,10 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     k *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
     float worn = smoothstep(0.3, 0.7, snowNoise(p * 0.42 + 11.0));
     float chip = snowNoise(p * 2.6 + 5.0);
-    k *= mix(0.3, 1.0, worn) * mix(0.55, 1.0, chip);
+    // Fresh off the comb it is whole — no wear, no chips — and a touch
+    // deeper; the day's piste has none left.
+    k *= mix(mix(0.3, 1.0, worn) * mix(0.55, 1.0, chip), 1.25, snowGroomed);
+    k *= 1.0 - snowWorked;
     grad += across * cos(phase) * 0.14 * k;
   }
 
@@ -391,6 +427,16 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   vec3 alb = mix(fresh, shade, drift * 0.32);
   // Groomed: greyer and a touch warmer — worked snow on its way to ice.
   alb = mix(alb, vec3(0.7, 0.75, 0.82), snowPacked * 0.9);
+  // Fresh off the tiller: milled snow, a brighter, even sugar-white.
+  alb = mix(alb, vec3(0.86, 0.9, 0.95), snowGroomed * 0.65);
+  // The day's piste: polished grey-blue where it is scraped, white where
+  // the loose snow is heaped.
+  if (snowWorked > 0.01) {
+    float scrape = smoothstep(0.45, 0.75, snowNoise(p * 0.5 + 21.0));
+    float heap = smoothstep(0.55, 0.85, snowNoise(p * 1.1 + 4.0));
+    alb = mix(alb, vec3(0.62, 0.68, 0.78), scrape * 0.45 * snowWorked);
+    alb = mix(alb, vec3(0.93, 0.96, 1.0), heap * 0.5 * snowWorked);
+  }
   // THE GRAIN THAT STREAMS PAST: patches of wind-worked and polished snow
   // a hand to a couple of metres across, a few percent either way — too
   // fine to see from afar, and the thing close in the eye reads pace off.
@@ -428,6 +474,8 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
 /** After `roughnessmap_fragment`: groomed snow is glossier. */
 export const SNOW_FRAGMENT_ROUGHNESS = /* glsl */ `
 roughnessFactor = mix(mix(0.85, 0.55, snowPacked), 0.92, snowBerm) - 0.1 * snowPress;
+roughnessFactor = mix(roughnessFactor, 0.72, snowGroomed);
+roughnessFactor -= 0.15 * snowWorked;
 roughnessFactor = mix(roughnessFactor, 0.62, snowCrust * 0.6);
 roughnessFactor = mix(roughnessFactor, 0.18, snowIce);
 roughnessFactor = mix(roughnessFactor, 0.95, snowRock);

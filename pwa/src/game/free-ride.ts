@@ -36,6 +36,8 @@ import {
   WEATHER_KINDS,
   type Assist,
   type CreateGameOptions,
+  type GrimbearAsk,
+  type GrimbearState,
   type Level,
   type RunRules,
   type SkiSpec,
@@ -219,6 +221,17 @@ export function sledOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === SLED_RUN;
 }
 
+/** THE RUN ROW'S FIRST VEHICLE STOP: the PARAMOTOR on the summit
+ * (`para.ts`) — the ride begun at the top of the mountain on his skis, the
+ * motor on his back and the wing over him. A run id of its own, as the
+ * machines' are. */
+export const PARA_RUN = "para";
+
+/** Whether the ride on `seed` begins under the paramotor. */
+export function paraOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === PARA_RUN;
+}
+
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
@@ -288,14 +301,21 @@ export function markedRun(
  * pair with his help and his poles (with them when left out) — everything
  * but the map itself, which the caller either hands over already built or
  * leaves to the seed. */
+/** THE ODDS THE GRIMBEAR IS OUT (`grimbear.ts`): one free ride in three,
+ * on the average — now two rides running, now five without. The app's draw,
+ * not the engine's: the run is handed the answer and replays from it. */
+export const GRIMBEAR_ODDS = 1 / 3;
+
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
   skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
+  random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
-  const vehicle = heli || sled;
+  const para = paraOn(ride, seed);
+  const vehicle = heli || sled || para;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
@@ -310,6 +330,8 @@ export function freeGameOptions(
     heli,
     // THE SNOWMOBILE: stood on its boards at the bottom, the engine running.
     sled,
+    // THE PARAMOTOR: stood on the summit, the wing over him.
+    para,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's
@@ -326,6 +348,10 @@ export function freeGameOptions(
     // spot it comes onto the mountain BY CHAIR (`lift-ride.ts`): up the lift
     // whose run passes nearest the start line, led off its top onto that run.
     byLift: spot === null && !vehicle,
+    // THE GRIMBEAR, now and then.
+    grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
+    // THE PISTE MACHINES, out working the runs if the ride is after dark.
+    groomer: "night",
   };
 }
 
@@ -345,8 +371,15 @@ export function freeAgainOptions(options: CreateGameOptions, level: Level): Crea
 export function freeTopOptions(
   again: CreateGameOptions,
   run: string | undefined,
+  beast?: GrimbearState,
 ): CreateGameOptions {
-  return { ...again, spawn: undefined, byLift: false, run };
+  return { ...again, spawn: undefined, byLift: false, run, grimbear: grimbearAgain(beast) };
+}
+
+/** THE GRIMBEAR ON A RIDE STARTED AGAIN: still out where he was, and still
+ * owed his one catch if he has not had it — only ever chasing after it. */
+export function grimbearAgain(beast: GrimbearState | undefined): GrimbearAsk | undefined {
+  return beast ? (beast.hunt ? "hunt" : "roam") : undefined;
 }
 
 /** THE MAP ALREADY STANDING, if a free ride asked for with `options` is

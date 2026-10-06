@@ -28,10 +28,13 @@ import {
   CLEAR_WEATHER,
   createHeightfield,
   fillField,
+  pipeSection,
+  withPipe,
   sampleField,
   type Checkpoint,
   type Heightfield,
   type Level,
+  type PipeFrame,
   type Spawn,
   type TrackPoint,
   type TreeDef,
@@ -369,6 +372,70 @@ export function flatLevel(
     bumps ? 1 : 10,
     height,
     () => packedShare,
+    points,
+    length,
+    400,
+    8,
+    { x: size / 2, z: m, heading: 0 },
+    [],
+  );
+}
+
+/** THE PIPE ON THE BENCH: a 22-foot halfpipe (R41's section) cut down an
+ * 18° packed pitch falling along +z on a drag strip, its centre line at x =
+ * `PIPE.x` (+x is across it to the right), its mouth at z = `PIPE.mouth`
+ * and its full walls from `PIPE.from` to `PIPE.to`. No generator built
+ * it: the physics of riding a wall is held to it. */
+export const PIPE = {
+  x: 1500,
+  mouth: 60,
+  from: 82,
+  to: 252,
+  end: 270,
+  grade: Math.tan(0.1 * Math.PI),
+};
+
+export function pipeLevel(): Level {
+  const base = flatLevel({ packed: 1, grade: PIPE.grade, slopeFrom: 0 });
+  const frame: PipeFrame = {
+    x: PIPE.x,
+    z: 0,
+    heading: 0,
+    mouth: PIPE.mouth,
+    from: PIPE.from,
+    to: PIPE.to,
+    end: PIPE.end,
+    section: pipeSection(),
+    yAt: (d) => -Math.max(0, d) * PIPE.grade,
+  };
+  return withPipe(base, frame);
+}
+
+/** ANY GROUND ON THE BENCH: a strip `size` m square whose height is
+ * `height(x, z)` on a `cell` m grid, packed to `packed` everywhere, with a
+ * straight piste down its middle along +z — what a lab shapes its own
+ * kicker, drop or cliff with. */
+export function shapedLevel(
+  height: (x: number, z: number) => number,
+  options: { packed?: number; size?: number; cell?: number } = {},
+): Level {
+  const size = options.size ?? 600;
+  const cell = options.cell ?? 0.5;
+  const share = options.packed ?? 1;
+  const m = 50;
+  const length = size - 2 * m;
+  const n = Math.round(length / 2);
+  const points: TrackPoint[] = [];
+  for (let i = 0; i <= n; i++) {
+    const s = Math.min((i * length) / n, length);
+    points.push({ x: size / 2, z: m + s, y: 0, s, heading: 0, width: 20 });
+  }
+  return levelFrom(
+    2,
+    size,
+    cell,
+    height,
+    () => share,
     points,
     length,
     400,

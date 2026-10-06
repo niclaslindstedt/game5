@@ -442,7 +442,9 @@ describe("the wipeout", () => {
   });
 
   it("on a free ride, the reset after a wipeout stands him on the nearest piste", () => {
-    const state = createGame({ level: syntheticLevel(), mode: "free", quiet: true });
+    // No crowd: an amateur skiing into him once he is back on the piste
+    // is the crowd's business, not the reset's.
+    const state = createGame({ level: syntheticLevel(), mode: "free", crowd: 0, quiet: true });
     placeRun(state, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 30, heading: 0, speed: 50 / 3.6 });
     const events = ride(state, 10, TUCK);
     expect(wipeouts(events)).toHaveLength(1);

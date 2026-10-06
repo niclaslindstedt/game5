@@ -32,9 +32,11 @@ import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { cabinView } from "./cabin-view.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
+import { grimbearShots } from "./grimbear-lab.ts";
 import { signView } from "./sign-view.ts";
 import {
   DEFAULT_VIDEO,
@@ -107,6 +109,7 @@ const state: GameState = createGame({
   grade,
   ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
   ...(free ? { mode: "free" as const } : {}),
+  ...(params.get("grimbear") === "1" ? { grimbear: "hunt" as const } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
 /** The sun's solar hour (`withSky`), the map's own unless named: a low sun
@@ -607,6 +610,7 @@ function standoff(): string {
 }
 
 const shots: Record<string, () => string> = {
+  ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   spawn() {
     rideUntil(() => state.t >= 1.5, 3);
     renderer.setCamera("chase", true);
@@ -824,11 +828,15 @@ const shots: Record<string, () => string> = {
     ]),
   ),
   ...Object.fromEntries(
-    (["gate", "hut", "finish"] as const).map((name) => [
+    (
+      ["gate", "hut", "finish", "cabin", "cabin-2", "cabin-3", "cabin-near", "cabins-air"] as const
+    ).map((name) => [
       name,
       () => {
-        const view = markView(level, name);
-        if (!view) return "no course on this map";
+        const view = name.startsWith("cabin")
+          ? cabinView(level, name)
+          : markView(level, name as "gate");
+        if (!view) return "none on this map";
         renderer.setOverride(view.pose);
         still();
         renderer.setOverride(null);

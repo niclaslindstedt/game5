@@ -1,0 +1,140 @@
+/* THE PARAMOTOR'S INSTRUMENTS (`hud-para.tsx`): top centre, in the air
+   clock's place — the altitude, the vario, the air and the throttle in one
+   strip, the stall's warning and the way out of the harness under it. */
+.hud-para {
+  position: absolute;
+  top: max(0.4rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-para-strip {
+  display: flex;
+  gap: clamp(0.5rem, 2.4vmin, 1.1rem);
+  align-items: flex-end;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 28%);
+}
+
+.hud-para-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 2.6rem;
+}
+
+.hud-para-num {
+  font-size: clamp(1rem, 3.6vmin, 1.5rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-para-sub,
+.hud-para-hint {
+  font-size: clamp(0.55rem, 1.7vmin, 0.72rem);
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.hud-para-word {
+  font-size: clamp(0.7rem, 2.2vmin, 0.95rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.hud-para-bar {
+  position: absolute;
+  top: -0.1rem;
+  left: -0.45rem;
+  width: 0.3rem;
+  height: 2.2rem;
+  border-radius: 0.15rem;
+  background: rgb(255 255 255 / 20%);
+}
+
+.hud-para-up,
+.hud-para-down {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-radius: 0.15rem;
+}
+
+.hud-para-up {
+  bottom: 50%;
+  background: #4fd36a;
+}
+
+.hud-para-down {
+  top: 50%;
+  background: #e2402e;
+}
+
+.hud-para-gauge {
+  position: relative;
+  width: 3.4rem;
+  height: 0.55rem;
+  margin: 0.3rem 0 0.25rem;
+  border-radius: 0.3rem;
+  background: rgb(255 255 255 / 22%);
+  overflow: visible;
+}
+
+.hud-para-rev {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0.3rem;
+  background: rgb(255 255 255 / 75%);
+}
+
+.hud-para-hand {
+  position: absolute;
+  top: -0.2rem;
+  width: 0.2rem;
+  height: 0.95rem;
+  margin-left: -0.1rem;
+  border-radius: 0.1rem;
+  background: #f2c418;
+}
+
+.hud-para-stall {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  background: #e2402e;
+  font-size: clamp(0.75rem, 2.4vmin, 1rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  animation: hud-para-blink 0.5s steps(2) infinite;
+}
+
+@keyframes hud-para-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* The wind cell when the air is rough enough to fold the wing, and the word
+   under the strip. */
+.hud-para-gusty .hud-para-num,
+.hud-para-rough {
+  color: #ffb547;
+}
+
+.hud-para-rough {
+  font-size: clamp(0.7rem, 2.1vmin, 0.9rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}

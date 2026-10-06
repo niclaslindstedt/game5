@@ -8,7 +8,7 @@
 //   forest.ts       the snow-loaded conifers, two bands and their casters
 //   gates.ts        the gates (a slalom's flex poles), the start, the finish
 //                   arena and its floodlights, the piste's edge poles
-//   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
+//   lifts.ts        the resort's lifts, its wind tunnels and its cabins (cabins-view.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
 //   machines.ts     the free ride's helicopter and snowmobile
@@ -813,7 +813,7 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state);
-      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft);
+      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
       // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
       dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
       const h = gl.domElement.height;

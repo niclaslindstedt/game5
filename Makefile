@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
 
 build:
 	npm run build
@@ -386,17 +386,6 @@ heli:
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
-# THE SNOWMOBILE LANDING LAB: every staged ride of
-# tests/support/sled-landings.ts — rollers, whoops, hard turns, a sidehill,
-# kickers onto the flat and onto a landing, the nose dropped or thrown back
-# in the air, a lip banked hard, drops, a cliff, a bank and a wall — ridden
-# by the real engine, one row a ride: thrown or ridden out against what a
-# rider expects, the flight, the landing's speed into the snow, the roll
-# and pitch. Pure Node, seconds; exits non-zero on a row that is not as
-# expected. ARGS="--json=a.json" before, "--compare=a.json" after.
-sled-land:
-	npm run sled-land -- $(ARGS)
-
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and
 # the brakes, the landing and speed riding, the rig dropped and lying on the
@@ -452,6 +441,17 @@ judder:
 # trunk from a sapling to a veteran).
 trees:
 	npm run trees -- $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE CABIN LAB: every kind of log building the ski area keeps beside its
+# runs and lanes (hut, cabin, chalet, woodshed) through the game's own
+# procedural builder and material, terraced on a slope — front and back at
+# three quarters, the side, from the snow, from above, the far cut and at
+# night — previews/cabins.png, with each kind's triangles at both cuts. Its
+# own one-off bundle from pwa/cabins-preview.html (never deployed); needs a
+# Chromium like `world`. ARGS="--kinds=hut,shed" draws a subset. Where they
+# STAND is `make resort`'s plan and `make world ARGS=--views=cabin,cabins-air`.
+cabins:
+	npm run cabins -- $(ARGS)
 
 # THE FOREST LAB: what it is like to be IN a map's woods, from the engine
 # and the tree table alone (pure Node, seconds): the trees and their kinds,

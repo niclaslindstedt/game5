@@ -94,6 +94,7 @@ describe("the baked ground (minimap-bake.ts)", () => {
       trees: new Float32Array(0),
       rock: { tone: [90, 80, 70] as [number, number, number], from: 0.75, to: 1.2 },
       wood: [90, 140, 100] as [number, number, number],
+      cabins: new Float32Array(0),
     };
     const px = 100;
     const rgba = bakeMinimap(src, px);
@@ -108,6 +109,32 @@ describe("the baked ground (minimap-bake.ts)", () => {
     expect(bakeMinimap({ ...src, rock: null }, px)[(50 * px + 80) * 4 + 2]).toBeGreaterThan(
       bakeMinimap({ ...src, rock: null }, px)[(50 * px + 80) * 4],
     );
+  });
+
+  it("paints a cabin's roof in timber brown, turned to its heading, and nothing round it", () => {
+    const size = 400;
+    const ground = createHeightfield(0, 0, 4, 101, 101);
+    fillField(ground, () => 0);
+    const src = {
+      size,
+      ground,
+      packed: null,
+      trees: new Float32Array(0),
+      rock: null,
+      wood: [90, 140, 100] as [number, number, number],
+      // A roof 16 m by 8 m at (200, 200), turned a quarter: long along z.
+      cabins: new Float32Array([200, 200, 8, 4, Math.PI / 2, 1]),
+    };
+    const px = 200;
+    const rgba = bakeMinimap(src, px);
+    const redder = (x: number, z: number): number => {
+      const k = (Math.floor(z / 2) * px + Math.floor(x / 2)) * 4;
+      return rgba[k] - rgba[k + 2];
+    };
+    // Brown (red over blue) where the roof is; the snow's blue round it.
+    expect(redder(200, 200 + 7)).toBeGreaterThan(20);
+    expect(redder(200 + 11, 200)).toBeLessThan(0);
+    expect(redder(240, 240)).toBeLessThan(0);
   });
 
   it("bakes a pixel every metre and a half or so, inside a size every phone decodes", () => {

@@ -49,6 +49,7 @@ import { REPO_URL } from "../identity.ts";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
+import { JamCalled, JamChips } from "./hud-knuckle.tsx";
 import { BodyPanel } from "./hud-body.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
@@ -226,7 +227,9 @@ export function Hud({
               </div>
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
-            {snap.tricks && !snap.bigAir && <TricksChips tile={snap.tricks} />}
+            {snap.tricks && !snap.bigAir && !snap.jam && <TricksChips tile={snap.tricks} />}
+            {/* A KNUCKLE HUCK'S JAM: the session, the clock, the hits. */}
+            {snap.jam && <JamChips jam={snap.jam} />}
             {/* A BIG AIR JUMP: its phase, and which of its jumps. */}
             {snap.bigAir && (
               <div class="hud-chip hud-run">
@@ -499,7 +502,8 @@ export function Hud({
       {snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
-      {snap.tricks && <ComboTile tile={snap.tricks} />}
+      {snap.tricks && !snap.jam && <ComboTile tile={snap.tricks} />}
+      {snap.jam && <JamCalled jam={snap.jam} />}
 
       <div class="hud-right">
         <div class="hud-flashes">

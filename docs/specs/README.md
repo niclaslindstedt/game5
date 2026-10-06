@@ -33,8 +33,8 @@ one spec cuts across them all:
 | Spec | Format | State |
 | --- | --- | --- |
 | [TRICK_MODES.md](TRICK_MODES.md) | What every format shares: the trick card, the trick reader, the judge, the field, more rotation, jibs, the build order | draft |
-| [BIG_AIR.md](BIG_AIR.md) | Big air | draft — researched |
-| [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | draft — researched |
+| [BIG_AIR.md](BIG_AIR.md) | Big air | built in part |
+| [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | built in part |
 | [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | draft — researched |
 | [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | draft — researched |
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | draft — researched |

@@ -128,6 +128,16 @@ export type RunRules = {
    * the arcade's. */
   spinMost?: number;
   flipMost?: number;
+  /** A JAM (R38's knuckle huck, `jam.ts`): no course owed, every hit ridden
+   * from the start platform to the finish line or a fall, and the skier
+   * stood back on the platform for the next, until the buzzer. Left out,
+   * a run is one way down. */
+  jam?: boolean;
+  /** BUTTERS AND PRESSES (`butter.ts`): the lean held hard on the snow
+   * presses the skis onto one end, and the edge then pivots him on it —
+   * the knuckle huck's rotation on the ground. Left out, the lean on the
+   * snow is the weight fore and aft and nothing more. */
+  butters?: boolean;
   /** THE IN-RUN RIDDEN TUCKED (`in-run.ts`): on a big air jump, from the
    * start gate to the lip, the skier holds his tuck, never brakes and
    * never sits back, whatever is pressed — the jump is built for the speed
@@ -622,7 +632,8 @@ export type GameMode =
   | "timeTrial"
   | "free"
   | "tricks"
-  | "bigAir";
+  | "bigAir"
+  | "knuckleHuck";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -635,6 +646,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "free",
   "tricks",
   "bigAir",
+  "knuckleHuck",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -771,6 +783,61 @@ export function bigAirRules(laps: number): RunRules {
   };
 }
 
+/** THE KNUCKLE HUCK'S NUMBERS (R38 builds its knuckle; the jam is
+ * `jam.ts`'s, from `docs/freestyle.md` § *Knuckle huck*). */
+export const KNUCKLE_HUCK = {
+  /** The riders beside the player: a session of eight. */
+  field: 7,
+  /** THE JAM, s: the sport's twenty minutes cut to three — some dozen
+   * hits off the knuckle, where the sport's riders get as many in its
+   * twenty. */
+  jam: 180,
+  /** The starter's count, s. */
+  countdown: 3,
+  /** THE STROKES' CEILINGS: a 1620 (the most a butter has been wound into
+   * off a knuckle) and a double. */
+  spinMost: 9 * Math.PI,
+  flipMost: 4 * Math.PI,
+  /** The pair the field rides: the soft park twin-tip, for the presses. */
+  skis: "hare",
+  /** THE JURY'S WEATHER (est.): no rule is published; the session is run in
+   * the evening under the lights, and has gone ahead on a cold night after
+   * a day's delay — held, as big air is, under 40 km/h of gust and no more
+   * than a steady fall. */
+  jury: { wind: 40 / 3.6, fall: 0.75 } as Jury,
+} as const;
+
+/** THE KNUCKLE HUCK as a skier is dealt it (R38): one rider on the
+ * knuckle, the starter's count, no course owed — a JAM of hits off the
+ * platform until the buzzer, a fall only the end of its hit — the real g,
+ * the strokes' ceilings raised, and BUTTERS on the snow. The field is the
+ * jam's (`jam.ts`), dealt, never skied. */
+export function knuckleHuckRules(laps: number): RunRules {
+  return {
+    rivals: 0,
+    laps,
+    countdown: KNUCKLE_HUCK.countdown,
+    contact: false,
+    course: false,
+    tricks: true,
+    stunts: true,
+    limit: KNUCKLE_HUCK.jam,
+    airGravity: TRICKS_RUN.airGravity,
+    crowd: 0,
+    lifts: false,
+    heli: false,
+    sled: false,
+    start: "line",
+    gates: "arcade",
+    window: 0,
+    jury: KNUCKLE_HUCK.jury,
+    spinMost: KNUCKLE_HUCK.spinMost,
+    flipMost: KNUCKLE_HUCK.flipMost,
+    jam: true,
+    butters: true,
+  };
+}
+
 /** EVERY MODE'S RULES by its name — the one place a name becomes a bundle. */
 export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> = {
   slalom: slalomRules,
@@ -783,12 +850,17 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   free: freeRules,
   tricks: tricksRules,
   bigAir: bigAirRules,
+  knuckleHuck: knuckleHuckRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
  * skis — what the ski card is opened on for that race — and a trick
- * format's (big air's the Raven), or null for a mode that is neither (the
- * time trial, the free ride, the tricks run). */
+ * format's (big air's the Raven; the knuckle huck's the Hare — a jam is
+ * ridden on the soft park twin-tip, its tips and tails giving under a
+ * press where the Raven's competition core holds them straight; the two
+ * classes share a shape, 118–133/90–100 mm, and differ in the flex), or
+ * null for a mode that is neither (the time trial, the free ride, the
+ * tricks run). */
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slalom: SLALOM.skis,
   superG: SUPER_G.skis,
@@ -797,6 +869,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   skiCross: SKI_CROSS.skis,
   speedSki: SPEED_SKI.skis,
   bigAir: BIG_AIR.skis,
+  knuckleHuck: KNUCKLE_HUCK.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -818,7 +891,11 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * are lighter than any racer — a study of top male freeskiers put them at
  * ~72.5 kg on 179 cm, the medium build in his kit — and what it pays for is
  * the legs under a landing from ten metres up and a body light enough to
- * spin: the MEDIUM build (`docs/freestyle.md` § *Big air*, "The skier"). */
+ * spin: the MEDIUM build (`docs/freestyle.md` § *Big air*, "The skier").
+ * THE KNUCKLE HUCK's field is the same freeski field — a national team
+ * measured ~70 kg on 176 cm for the men, ~60 kg for the women — and
+ * nothing a jam pays for favours weight: the MEDIUM build too
+ * (`docs/freestyle.md` § *Knuckle huck*). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -827,6 +904,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   skiCross: "solid",
   speedSki: "heavy",
   bigAir: "medium",
+  knuckleHuck: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {
@@ -864,7 +942,7 @@ export type Freestyle =
  * is named and not built yet. */
 export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
   { id: "bigAir", mode: "bigAir" },
-  { id: "knuckleHuck", mode: null },
+  { id: "knuckleHuck", mode: "knuckleHuck" },
   { id: "slopestyle", mode: null },
   { id: "railJam", mode: null },
   { id: "halfpipe", mode: null },

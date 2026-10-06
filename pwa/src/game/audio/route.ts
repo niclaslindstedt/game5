@@ -327,6 +327,10 @@ export function soundForEvent(
       return event.sketchy ? null : { id: "lap" };
     case "bail":
       return { id: "missed" };
+    // A KNUCKLE HUCK's hit called at the line: the lap's phrase for one
+    // ridden away; a fall is heard as the wipeout it was.
+    case "jam":
+      return event.fell ? null : { id: "lap" };
 
     // A WIND TUNNEL'S MOUTH: sucked in, and let go at the far end
     // (`tunnel-voice.ts`'s two sweeps); the gale between is the bed's.

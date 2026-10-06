@@ -82,7 +82,7 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four) — its course set over each seed's map under the strict gates; the open rules when left out",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump) or knuckleHuck (R38, a whole jam to the buzzer) — its course set over each seed's map under the strict gates; the open rules when left out",
     },
     heat: {
       kind: "flag",
@@ -90,7 +90,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir] [--heat] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|knuckleHuck] [--heat] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -100,12 +100,19 @@ if (args.grade !== undefined && !isPisteGrade(args.grade)) {
 
 if (
   args.mode !== undefined &&
-  !["slalom", "giantSlalom", "downhill", "superG", "speedSki", "skiCross", "bigAir"].includes(
-    args.mode,
-  )
+  ![
+    "slalom",
+    "giantSlalom",
+    "downhill",
+    "superG",
+    "speedSki",
+    "skiCross",
+    "bigAir",
+    "knuckleHuck",
+  ].includes(args.mode)
 ) {
   console.error(
-    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir)`,
+    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir, knuckleHuck)`,
   );
   process.exit(2);
 }

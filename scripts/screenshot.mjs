@@ -33,6 +33,7 @@
 //                    --run2 its final).
 //   ?mode=bigair     ...or a BIG AIR contest's first jump (--bigair; with
 //                    --run2 its second).
+//   ?mode=knuckle    ...or a KNUCKLE HUCK's jam on its knuckle (--knuckle).
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
@@ -161,6 +162,12 @@ const SURFACES = {
   freestyle: { params: { menu: "freestyle" }, wait: ".menu-card-races", settle: 900 },
   "bigair-maps": {
     params: { menu: "tricks", mode: "bigair" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
+  // ...and a knuckle huck's (`?menu=tricks&mode=knuckle`).
+  "knuckle-maps": {
+    params: { menu: "tricks", mode: "knuckle" },
     wait: ".menu-card-levels",
     settle: 900,
   },
@@ -382,6 +389,7 @@ const args = parseArgs(
       kind: "flag",
       help: "a big air contest's first jump (?mode=bigair; --run2 its second)",
     },
+    knuckle: { kind: "flag", help: "a knuckle huck's jam on its knuckle (?mode=knuckle)" },
     speedski: {
       kind: "flag",
       help: "a speed race's qualification (?mode=speedski; --run2 its final)",
@@ -396,7 +404,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--knuckle] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -600,13 +608,14 @@ if (args.surface) {
         if (args.speedski) params.mode = "speedski";
         if (args.skicross) params.mode = "skicross";
         if (args.bigair) params.mode = "bigair";
+        if (args.knuckle) params.mode = "knuckle";
         if (args.skis !== undefined) params.skis = String(args.skis);
         if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.knuckle ? "-knuckle" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

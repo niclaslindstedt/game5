@@ -15,7 +15,7 @@
 // THE RING is on the map the settings stand on (`Settings.trickMap`) — where
 // the cursor lands and what RIDE in the head takes.
 
-import { BIG_AIR, TRICKS_RUN, type GameMode } from "@engine";
+import { BIG_AIR, KNUCKLE_HUCK, TRICKS_RUN, type GameMode } from "@engine";
 
 import { CourseMap } from "./menu-campaign.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
@@ -66,7 +66,8 @@ export function TrickMapsPage({
   onPick,
 }: {
   /** The format the card picks a map for: the park run, or a freestyle
-   * contest (BIG AIR — its jump built over the map, R37). */
+   * contest (BIG AIR — its jump built over the map, R37; a KNUCKLE HUCK —
+   * its knuckle built over it, R38). */
   mode: GameMode;
   /** The map the settings already stand on, if any. */
   chosen: string | null;
@@ -76,15 +77,18 @@ export function TrickMapsPage({
 }) {
   const pick = trickMapFor(chosen);
   const bigAir = mode === "bigAir";
+  const knuckle = mode === "knuckleHuck";
   const billing = bigAir
     ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
-    : STRINGS.tricksBilling(TRICKS_RUN.limit);
+    : knuckle
+      ? STRINGS.knuckleBilling(KNUCKLE_HUCK.jam)
+      : STRINGS.tricksBilling(TRICKS_RUN.limit);
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={bigAir ? STRINGS.bigAirOn : STRINGS.tricksOn}
+        title={bigAir ? STRINGS.bigAirOn : knuckle ? STRINGS.knuckleOn : STRINGS.tricksOn}
         action={
           <button
             type="button"

@@ -3,8 +3,9 @@
 // built to on a map that is already built (R1–R30), beside the races'
 // (`discipline-rules.ts`, R31–R36). A venue is not a course on the piste: it
 // is a thing BUILT in the snow, as a real one is shaped by the snowcats out
-// of a mountain's side. BIG AIR (R37) is built today; the knuckle huck rides
-// the same jump, and slopestyle, the rail jam, the halfpipe, moguls, dual
+// of a mountain's side. BIG AIR (R37) and the KNUCKLE HUCK (R38 — the big
+// air jump's table and landing, ridden onto from the deck with no kicker)
+// are built today; slopestyle, the rail jam, the halfpipe, moguls, dual
 // moguls and aerials are each a rule here when they are built
 // (`docs/specs/TRICK_MODES.md`).
 //
@@ -74,6 +75,71 @@
 //       metres of its edges cleared, and the piste's kickers and drops in
 //       it taken out. Its gates are the START GATE at the platform's lip and
 //       the FINISH LINE `bigAir.finish` metres into the run-out.
+//
+//   R38 THE KNUCKLE. A knuckle huck is ridden on a jump BUILT as R37's is,
+//       on a line searched the same way (`knuckleHuck.search`,
+//       `knuckleHuck.fit`), with NO KICKER: a START PLATFORM level for
+//       `knuckleHuck.platform` metres; a DROP-IN rolled over to
+//       `knuckleHuck.dropIn` degrees within `knuckleHuck.roll` metres of
+//       radius and as long as brings a skier tucked down it from the start
+//       gate (`knuckleHuck.skier`) to the knuckle at `knuckleHuck.speed`
+//       m/s; a transition of `knuckleHuck.toFlat` metres of radius onto a
+//       level DECK of `knuckleHuck.flat` metres; the KNUCKLE, rounded over
+//       on `knuckleHuck.knuckle` metres of radius — sharp enough that a
+//       skier at the design speed leaves the snow off it — down to a
+//       LANDING of `knuckleHuck.steepest` degrees held for
+//       `knuckleHuck.slope` metres, as a big air landing lies below its
+//       knuckle; a transition of `knuckleHuck.round` metres of
+//       radius onto a RUN-OUT falling at `knuckleHuck.outrun.grade` degrees
+//       for `knuckleHuck.outrun.length` metres. The jump is
+//       `knuckleHuck.width` metres wide, graded, groomed, cleared and its
+//       gates set as R37's: the START GATE at the platform's lip and the
+//       FINISH LINE `knuckleHuck.finish` metres into the run-out.
+
+/** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
+ * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
+ * of its deck, and `kick` is the take-off its landing is shaped for. */
+export type JumpRule = {
+  readonly platform: number;
+  readonly dropIn: number;
+  readonly roll: number;
+  readonly toFlat: number;
+  readonly flat: number;
+  readonly kicker: number;
+  readonly kick: number;
+  readonly launch: number;
+  readonly table: number;
+  readonly knuckle: number;
+  readonly fall: number;
+  readonly slope: number;
+  readonly steepest: number;
+  readonly fast: number;
+  readonly past: number;
+  readonly round: number;
+  readonly outrun: { readonly grade: number; readonly length: number };
+  readonly finish: number;
+  readonly speed: number;
+  readonly skier: {
+    readonly mass: number;
+    readonly tuck: number;
+    readonly air: number;
+    readonly friction: number;
+    readonly compression: number;
+  };
+  readonly width: number;
+  readonly ease: number;
+  readonly margin: number;
+  readonly search: {
+    readonly stride: number;
+    readonly bearings: readonly number[];
+    readonly starts: number;
+    readonly step: number;
+    readonly edge: number;
+    readonly top: number;
+  };
+  readonly fit: { readonly deepest: number; readonly stations: number; readonly village: number };
+  readonly arena: { readonly before: number; readonly past: number; readonly half: number };
+};
 
 export const TRICK_RULES = {
   /** R37 — the big air jump. */
@@ -113,6 +179,8 @@ export const TRICK_RULES = {
      * runs, m. `fast` is the share of the design speed it is shaped for —
      * a skier who carries a tenth more is still on it. */
     fall: 0.35,
+    /** Shaped by the fall height, never laid at one grade (R38's is). */
+    slope: 0,
     steepest: 38,
     fast: 1.12,
     past: 6,
@@ -162,4 +230,58 @@ export const TRICK_RULES = {
      * either side of the line, m. */
     arena: { before: 20, past: 40, half: 30 },
   },
-} as const;
+  /** R38 — the knuckle (`docs/freestyle.md` § *Knuckle huck*). */
+  knuckleHuck: {
+    platform: 6,
+    /** A short drop-in onto the deck: the knuckle is hit at a crawl next to
+     * the big air's lip. */
+    dropIn: 24,
+    roll: 15,
+    toFlat: 20,
+    /** THE DECK, m: the run along the table a rider winds a butter up on —
+     * the press set a few metres before the roll. */
+    flat: 18,
+    /** No kicker and no table: the take-off is the knuckle itself. */
+    kicker: 0,
+    table: 0,
+    /** The take-off off the knuckle, degrees: the deck's level — what a
+     * rider adds is his own pop. */
+    kick: 0,
+    /** Off a level deck there is no lip's angle to leave flatter than. */
+    launch: 1,
+    /** The knuckle's radius, m: at the design speed the snow falls away
+     * faster than g can follow (v²/r > g), so a rider leaves it — the
+     * pop is his. */
+    knuckle: 6,
+    /** THE LANDING: not shaped to a fall height but laid as a big air
+     * jump's landing lies below its knuckle — rounded over to `steepest`
+     * degrees and held there for `slope` m (a championship landing's
+     * 34–39°, 20 m and more long). A knuckle's flights are low, and come
+     * down on the steep. */
+    fall: 0.35,
+    slope: 26,
+    steepest: 37,
+    fast: 1.25,
+    past: 6,
+    round: 30,
+    outrun: { grade: 5, length: 45 },
+    finish: 20,
+    /** THE DESIGN SPEED at the knuckle, m/s: 32 km/h, the middle of the
+     * 20–40 km/h a knuckle is hit at. */
+    speed: 8.9,
+    skier: { mass: 85, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.8 },
+    width: 26,
+    ease: 12,
+    margin: 12,
+    search: {
+      stride: 24,
+      bearings: [-12, -6, 0, 6, 12] as readonly number[],
+      starts: 8,
+      step: 2,
+      edge: 120,
+      top: 60,
+    },
+    fit: { deepest: 0.3, stations: 40, village: 160 },
+    arena: { before: 15, past: 30, half: 26 },
+  },
+} as const satisfies Record<string, JumpRule>;

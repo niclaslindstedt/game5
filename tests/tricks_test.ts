@@ -314,10 +314,12 @@ describe("the tricks run", () => {
     }
   });
 
-  it("the strokes and riding switch are the free ride's, the tricks run's and big air's alone", () => {
+  it("the strokes and riding switch are the free ride's, the tricks run's and the contests' alone", () => {
     for (const mode of GAME_MODES) {
       const rules = createGame({ level: flatLevel(), mode, quiet: true }).rules;
-      expect(rules.stunts).toBe(mode === "free" || mode === "tricks" || mode === "bigAir");
+      expect(rules.stunts).toBe(
+        mode === "free" || mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck",
+      );
     }
     expect(createGame({ level: flatLevel(), quiet: true }).rules.stunts).toBe(false);
   });

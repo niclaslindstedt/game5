@@ -69,6 +69,7 @@ import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
+import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { ParaReadout } from "./hud-para.tsx";
 
 export type { HudFlash };
@@ -522,6 +523,18 @@ export function Hud({
           onBoard={input.requestMachine}
         />
       )}
+
+      {/* THE AFTERSKI (`hud-afterski.tsx`): the way to a lodge and in, the
+          room, the skis to fetch — and the BUZZ meter while he has one. */}
+      {snap.afterski && !sledFirst && snap.airTime === 0 && (
+        <AfterskiReadout
+          afterski={snap.afterski}
+          touch={touch}
+          machineKey={machineKey}
+          onPress={input.requestMachine}
+        />
+      )}
+      {snap.buzz > 0.005 && <BuzzMeter buzz={snap.buzz} />}
 
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
           on him — in the air clock's place, which a flight never shows. */}

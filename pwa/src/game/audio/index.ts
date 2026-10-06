@@ -25,6 +25,7 @@ import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
+import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
@@ -67,6 +68,9 @@ export function createRunAudio(): RunAudio {
   const sled: SledBed = createSledBed(sfx);
   // THE FREE RIDE'S PARAMOTOR (`para-bed.ts`), on the skier's back.
   const para: ParaBed = createParaBed(sfx);
+  // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
+  // ride's beds fall silent under it.
+  const room: AfterskiBed = createAfterskiBed(sfx);
   let ear: Listener = listenerFor("chase");
 
   return {
@@ -96,11 +100,13 @@ export function createRunAudio(): RunAudio {
     },
 
     frame(state, dt, duck = 1) {
-      bed.update(state, dt, duck);
-      birds.update(state, dt, duck);
-      heli.update(state, dt, duck);
-      sled.update(state, dt, duck);
-      para.update(state, dt, duck);
+      room.update(state, dt, duck);
+      const outside = state.afterski?.inside ? 0 : duck;
+      bed.update(state, dt, outside);
+      birds.update(state, dt, outside);
+      heli.update(state, dt, outside);
+      sled.update(state, dt, outside);
+      para.update(state, dt, outside);
     },
 
     setView(view) {
@@ -118,6 +124,7 @@ export function createRunAudio(): RunAudio {
       heli.silence();
       sled.silence();
       para.silence();
+      room.silence();
     },
 
     reset() {
@@ -126,6 +133,7 @@ export function createRunAudio(): RunAudio {
       heli.reset();
       sled.reset();
       para.reset();
+      room.reset();
     },
   };
 }

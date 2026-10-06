@@ -1,0 +1,127 @@
+/* THE AFTERSKI ON THE HUD (`hud-afterski.tsx`): the call to a lodge's door,
+   the room's readout while he is in, the skis to fetch after a buzzed fall
+   — top centre, in the air clock's place, as the machines' are — and THE
+   BUZZ METER, a beer glass at the left under the body. */
+.hud-afterski {
+  position: absolute;
+  top: max(0.4rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-afterski-call {
+  top: 22%;
+  animation: hud-afterski-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.hud-afterski-fetch {
+  top: 18%;
+  color: #ffd27a;
+  /* Dark-edged, so the call reads on bright snow. */
+  text-shadow:
+    0 0 3px rgb(40 22 0 / 90%),
+    0 1px 2px rgb(40 22 0 / 90%);
+}
+
+.hud-afterski-room {
+  top: 8%;
+}
+
+.hud-afterski.hud-machine-press {
+  top: auto;
+  bottom: 7%;
+  pointer-events: auto;
+}
+
+.hud-afterski-word {
+  font-size: clamp(0.9rem, 3vmin, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.hud-afterski-sub {
+  margin-top: 0.15rem;
+  font-size: clamp(0.66rem, 2vmin, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hud-afterski-hint {
+  margin-top: 0.35rem;
+  font-size: clamp(0.62rem, 1.9vmin, 0.85rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+}
+
+@keyframes hud-afterski-pulse {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.hud-buzz {
+  position: absolute;
+  right: max(0.6rem, env(safe-area-inset-right));
+  top: 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-buzz-glass {
+  width: clamp(2.2rem, 7vmin, 3.4rem);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 50%));
+}
+
+.hud-buzz-back {
+  fill: rgb(255 255 255 / 14%);
+}
+
+.hud-buzz-beer {
+  fill: #e2a02a;
+}
+
+.hud-buzz-foam {
+  fill: #fbf6ea;
+}
+
+.hud-buzz-rim {
+  fill: none;
+  stroke: rgb(255 255 255 / 85%);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.hud-buzz-label {
+  margin-top: 0.2rem;
+  font-size: clamp(0.55rem, 1.6vmin, 0.75rem);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  opacity: 0.8;
+}
+
+.hud-buzz-word {
+  margin-top: 0.12rem;
+  font-size: clamp(0.62rem, 1.9vmin, 0.85rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ffd27a;
+}

@@ -92,7 +92,7 @@ function restSink(spec: SkiSpec): number {
 }
 
 describe("the catalog", () => {
-  it("is eleven pairs with their own ids, the chamois the default", () => {
+  it("is twelve pairs with their own ids, the chamois the default", () => {
     expect(SKI_CATALOG.map((s) => s.id)).toEqual([
       "chamois",
       "swift",
@@ -105,6 +105,7 @@ describe("the catalog", () => {
       "hare",
       "raven",
       "ibex",
+      "kestrel",
     ]);
     expect(SKIS.id).toBe("chamois");
     for (const s of SKI_CATALOG) {

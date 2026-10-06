@@ -32,7 +32,7 @@ one spec cuts across them all:
 
 | Spec | Format | State |
 | --- | --- | --- |
-| [TRICK_MODES.md](TRICK_MODES.md) | What every format shares: the trick card, the trick reader, the judge, the field, more rotation, jibs, the build order | draft |
+| [TRICK_MODES.md](TRICK_MODES.md) | What every format shares: the trick card, the trick reader, the judge, the field, more rotation, jibs, the build order | built in part — every format built; more grabs, the jibs' balance, the judges' marks one by one, the venues' audience and cameras open |
 | [BIG_AIR.md](BIG_AIR.md) | Big air | built in part |
 | [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | built in part |
 | [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | built in part |
@@ -40,7 +40,7 @@ one spec cuts across them all:
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | built in part |
 | [MOGULS.md](MOGULS.md) | Moguls | built in part |
 | [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | built in part |
-| [AERIALS.md](AERIALS.md) | Aerials | draft — researched |
+| [AERIALS.md](AERIALS.md) | Aerials | built in part |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its

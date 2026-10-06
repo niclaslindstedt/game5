@@ -41,6 +41,8 @@
 //   ?mode=moguls     ...or a MOGULS contest's qualification run (--moguls).
 //   ?mode=dual       ...or a DUAL MOGULS contest's qualification (--dual;
 //                    with --run2 its first dual).
+//   ?mode=aerials    ...or an AERIALS contest's qualification jump
+//                    (--aerials; --plan the jump it declares).
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
@@ -184,6 +186,12 @@ const SURFACES = {
   // ...a dual moguls contest's (`?menu=tricks&mode=dual`).
   "dual-maps": {
     params: { menu: "tricks", mode: "dual" },
+    wait: ".menu-card-levels",
+    settle: 900,
+  },
+  // ...an aerials contest's, with its jump picker (`?menu=tricks&mode=aerials`).
+  "aerials-maps": {
+    params: { menu: "tricks", mode: "aerials" },
     wait: ".menu-card-levels",
     settle: 900,
   },
@@ -465,6 +473,8 @@ const args = parseArgs(
     railjam: { kind: "flag", help: "a rail jam on its set (?mode=railjam)" },
     halfpipe: { kind: "flag", help: "a halfpipe contest's first run (?mode=halfpipe)" },
     moguls: { kind: "flag", help: "a moguls contest's qualification run (?mode=moguls)" },
+    aerials: { kind: "flag", help: "an aerials contest's qualification jump (?mode=aerials)" },
+    plan: { kind: "string", help: "with --aerials, the jump it declares (?plan=bLF)" },
     dual: {
       kind: "flag",
       help: "a dual moguls contest's qualification (?mode=dual; --run2 its first dual)",
@@ -487,7 +497,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--knuckle] [--slopestyle] [--railjam] [--halfpipe] [--moguls] [--dual] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--knuckle] [--slopestyle] [--railjam] [--halfpipe] [--moguls] [--dual] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -697,13 +707,15 @@ if (args.surface) {
         if (args.halfpipe) params.mode = "halfpipe";
         if (args.moguls) params.mode = "moguls";
         if (args.dual) params.mode = "dual";
+        if (args.aerials) params.mode = "aerials";
+        if (args.plan !== undefined) params.plan = String(args.plan);
         if (args.skis !== undefined) params.skis = String(args.skis);
         if (args.run2) params.run = "2";
         if (args["no-poles"]) params.poles = "0";
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.knuckle ? "-knuckle" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.railjam ? "-railjam" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.dual ? "-dual" : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.knuckle ? "-knuckle" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.railjam ? "-railjam" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.dual ? "-dual" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

@@ -20,8 +20,10 @@
 // never throws — a browser with storage turned off plays with the defaults.
 
 import {
+  AERIALS,
   SKIS,
   TIME_TRIAL,
+  isAerialCode,
   isSkiId,
   riderById,
   skisById,
@@ -136,6 +138,9 @@ export type Settings = {
   /** THE TRICK MAP CARD's answer: the park a TRICKS run skis
    * (`trick-maps.ts`) — its id, or null for the first. */
   trickMap: string | null;
+  /** THE JUMP an AERIALS contest's first jump declares, picked on the trick
+   * map card (a code of the chart, `defs/aerial-jumps.ts`). */
+  aerialPlan: string;
   /** Whether the readouts are over the snow (H, OPTIONS ▸ HUD). Off keeps
    * the thumbs and the corner presses, and a picture is then the snow
    * alone (the framework's `shots/shot-hud`). */
@@ -185,6 +190,7 @@ export function freshSettings(): Settings {
     level: null,
     raceMap: {},
     trickMap: null,
+    aerialPlan: AERIALS.plan,
     hud: true,
     developer: false,
     dev: { fps: false, cost: false, physics: false, trails: false, log: false, freefly: false },
@@ -258,6 +264,7 @@ export function mergeSettings(parsed: unknown): Settings {
   if (typeof blob.level === "string" && findLevel(blob.level) !== null) out.level = blob.level;
   out.raceMap = mergeRacePicks(blob.raceMap);
   if (isTrickMap(blob.trickMap)) out.trickMap = blob.trickMap;
+  if (isAerialCode(blob.aerialPlan)) out.aerialPlan = blob.aerialPlan;
   if (typeof blob.hud === "boolean") out.hud = blob.hud;
   if (typeof blob.developer === "boolean") out.developer = blob.developer;
   const dev = record(blob.dev);

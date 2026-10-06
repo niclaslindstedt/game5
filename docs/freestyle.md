@@ -452,9 +452,9 @@ full. bLTF: a triple back, layout, tuck, full. At most three inverted
 flips; the jury may cap the DD (men 3.55 or 4.175, women 3.55) or a
 contest to doubles [1].
 
-**The degree of difficulty** — the rules leave it to a DD chart that is
-not public; these are read off official start lists and result sheets
-[30, 31, 32]:
+**The degree of difficulty** — the rules leave it to a DD chart (now
+published, below); these were read off official start lists and result
+sheets [30, 31, 32]:
 
 | Code | Jump | Men | Women |
 | --- | --- | --- | --- |
@@ -505,6 +505,56 @@ climb is ~14.7 m/s at a 71° lip — 13.9 m/s up, 4.8 m/s on — ~10 m over the
 lip, 2.6–3.3 s of air, landing at 65–70 km/h almost straight down onto the
 37° slope. With skis and boots on, a skier tilted 8° gets about 2.2 twists
 a flip, against 2.0 without [33].
+
+**The chart, now public** [61]: the governing body publishes its aerials
+DD chart (the 2023 edition is the one read here), every jump with a men's
+and a women's value — the singles too: a back tuck or pike 2.000, a back
+layout 2.050, a back full 2.300, a back double full 2.900; the doubles
+from bLT 2.600 to bFtF 4.000; the triples from bLTT 3.200 to bFtFdF 5.775
+(the women's triples × 1.06). The fifteen values read off the sheets
+above are its own. The game's table (`engine/game/defs/aerial-jumps.ts`)
+is the chart's BACK jumps in layout and tuck, single to triple — no pike,
+no front jumps and no uprights yet.
+
+**The skis** [62]: the class is SHORT — 150–160 cm, about the shoulder —
+NARROW, some 65 mm underfoot, with LITTLE SIDECUT (a long arc: nothing is
+turned on it, the in-run is straight), LIGHT (carbon and wood cores, for
+the swing of three flips and up to five twists) and stiff underfoot for
+the kicker's load; flat-tailed, since an aerialist lands forward. The
+rules set no dimension.
+
+**The skier** [63]: aerialists are small and light — measured national
+squads put the men at about 69 kg on 175 cm and the women at about 56 kg
+on 160 cm (another squad's women 58 kg on 162 cm). Light is what the
+format pays for: the flips' inertia and the landing's load both grow with
+the mass, and the take-off asks the legs to hold several g up the kicker.
+
+**The landing** [64, 65]: the drop from the top of the flight to the
+landing hill is over 10 m off a triple and up to some 18 m; measured
+impacts on a triple's landing are 7–8 times body weight. The landing
+hill's snow is CHOPPED and loosened before a contest and between jumps
+(the athletes' own word for it is soft and mashed), so a ski bites into it
+rather than skidding off. The in-run's SPEED is checked by radar on the
+judges' stand and held within about a kilometre an hour of what a kicker
+wants [66].
+
+**What the game builds** *(est. where it is ours)*: R44's site — a 23°
+in-run sized for each kicker's lip speed (some 59, 80 and 103 m of it for
+the single, the double and the triple, so the foot's speed is ~55, ~62 and
+~67 km/h), a 4 m table to the kicker, the three kickers on 5.2, 6.2 and
+6.1 m of radius to 53°, 65° and 71°, the knoll 13, 11.5 and 10.8 m past
+each lip (where the engine's skier comes down 2–4 m past it), a knoll
+rounded on 4 m onto a 37° hill. The jump is DECLARED on the trick map
+card (its code and DD), its kicker assigned by its flips; in the air the
+lean back is a flip and the edge a full twist, asked at any time and paced
+by the flight to the snow: every flip the somersault, every twist inside
+the flip it was asked in (`aerial-flight.ts`). The score is the rules'
+(`aerials-judge.ts`), the panel's eyes dealt off the contest's seed; the
+format the top series' (one qualification jump, finals of twelve and six,
+the finals' jumps different), the field of 23 dealt. Ridden on the
+KESTREL (158 cm, 85/65/79 mm, a 30 m sidecut, the lightest pair) at the
+LIGHT build. A triple's landing is harder than the legs take whole, as it
+is for a real aerialist: it is ridden away, and the landing judged for it.
 
 ## Moguls
 
@@ -1041,4 +1091,11 @@ mogul ranges (lengths, dimensions, radii, the softer-tipped version) ·
 [58] a freestyle coaching page on choosing a mogul ski · [59] a national
 team's six-season physical test database, summarised in a sports science
 journal (height and mass by discipline and sex) · [60] a sports
-biomechanics study of the knee in six top-level mogul skiers.
+biomechanics study of the knee in six top-level mogul skiers ·
+[61] the governing body's published aerials degree-of-difficulty chart
+(2023 edition) · [62] ski makers' and retailers' aerials ski listings
+(lengths, dimensions, cores) · [63] sports science studies of national
+aerials squads (height and mass by sex) · [64] a biomechanics study of
+the landing load on aerials triples · [65] coaching and venue accounts of
+the aerials landing hill (the drop, the snow chopped and loosened) ·
+[66] a national team's account of the radar speed check on the in-run.

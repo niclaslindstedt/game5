@@ -15,7 +15,7 @@ import type { SkiId, SkiSpec } from "./skis.ts";
  * … 1 (a twin-tip's, turned up as high as its tip): the race skis (the
  * ski-cross ski's among them) and the speed ski none, the all-mountain ski a little kick, the powder ski a
  * raised tail, the park ski and the big-air ski their twin tips, the mogul ski a low
- * kick. */
+ * kick, the aerials ski a lower one. */
 export const TAIL_RISE: Readonly<Record<SkiId, number>> = {
   chamois: 0.3,
   swift: 0,
@@ -28,6 +28,7 @@ export const TAIL_RISE: Readonly<Record<SkiId, number>> = {
   hare: 1,
   raven: 1,
   ibex: 0.2,
+  kestrel: 0.12,
 };
 
 /** The tail rise of the pair a spec is (a rider's restatement included). */

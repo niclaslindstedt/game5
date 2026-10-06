@@ -45,6 +45,9 @@ describe("a race's own build", () => {
     expect(raceRiderOf("moguls")).toBe("medium");
     // Dual moguls: the same field, the same build.
     expect(raceRiderOf("dualMoguls")).toBe("medium");
+    // Aerials: national squads' men ~69 kg on 175 cm and women ~56 kg on
+    // 160 cm, the light build.
+    expect(raceRiderOf("aerials")).toBe("light");
   });
 
   it("grows heavier the more a race is the tuck alone", () => {

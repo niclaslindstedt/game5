@@ -33,6 +33,7 @@ import {
   setHalfpipe,
   setMoguls,
   setDualMoguls,
+  setAerials,
   setSlopestyle,
   withDay,
   withSky,
@@ -69,6 +70,10 @@ import { freshJam, stepJam } from "./jam.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
+import { freshAerials, type AerialsContest } from "./aerials-contest.ts";
+import { freshAerial } from "./aerial-flight.ts";
+import { AERIALS } from "./defs/aerials.ts";
+import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
 import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { freshDual, nextDuel, type DualContest, type DualHeat } from "./dual-bracket.ts";
 import { createDuel, duelCountdown, laneIn, stepDuel } from "./duel.ts";
@@ -145,6 +150,13 @@ export type CreateGameOptions = {
    * (`nextDuel`), skied against his rival in the other lane. A fresh one
    * off the seed when a dual moguls run leaves it out. */
   dualMoguls?: DualContest;
+  /** AN AERIALS CONTEST so far (R44, `aerials-contest.ts`): the jumps
+   * scored and the one DECLARED next (`AerialsContest.plan`) — a fresh one
+   * off the seed when an aerials run leaves it out. */
+  aerials?: AerialsContest;
+  /** THE JUMP DECLARED for an aerials run, over the contest's: a code of
+   * the DD chart (`defs/aerial-jumps.ts`); its kicker is built (R44). */
+  plan?: string;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -275,6 +287,13 @@ function laneOfDuel(options: CreateGameOptions): 0 | 1 {
   return duel ? laneIn(duel) : 0;
 }
 
+/** The jump an aerials run declares: the one asked for, the contest's
+ * next, or the default — always a jump of the chart. */
+function planOf(options: CreateGameOptions): string {
+  const asked = options.plan ?? options.aerials?.plan;
+  return isAerialCode(asked) ? asked : AERIALS.plan;
+}
+
 /** The rules a run is dealt from what it asked for. */
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   const laps = options.laps ?? level.laps;
@@ -316,6 +335,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     jam: base.jam,
     butters: base.butters,
     inRun: base.inRun,
+    aerials: base.aerials,
   };
 }
 
@@ -374,6 +394,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.railJam?.base ??
     built.halfpipe?.base ??
     built.moguls?.base ??
+    built.aerials?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -404,7 +425,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                             ? setMoguls(built)
                             : options.mode === "dualMoguls"
                               ? setDualMoguls(built, laneOfDuel(options))
-                              : original;
+                              : options.mode === "aerials"
+                                ? setAerials(built, kickerOf(planOf(options)))
+                                : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -509,6 +532,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
         options.dualMoguls ?? freshDual(state.seed, level.moguls.length / MOGULS.pace);
     } else state.moguls = options.moguls ?? freshMoguls(state.seed);
     state.mogulTurns = freshTurns();
+  }
+  if (level.aerials) {
+    state.aerials = { ...(options.aerials ?? freshAerials(state.seed)), plan: planOf(options) };
+    state.aerial = freshAerial(planOf(options));
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);

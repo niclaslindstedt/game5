@@ -34,6 +34,7 @@ import { RAIL_JAM_STRINGS } from "./strings-railjam.ts";
 import { HALFPIPE_STRINGS } from "./strings-halfpipe.ts";
 import { MOGULS_STRINGS } from "./strings-moguls.ts";
 import { DUAL_MOGULS_STRINGS } from "./strings-dualmoguls.ts";
+import { AERIALS_STRINGS } from "./strings-aerials.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -112,6 +113,7 @@ export const STRINGS = {
   ...HALFPIPE_STRINGS,
   ...MOGULS_STRINGS,
   ...DUAL_MOGULS_STRINGS,
+  ...AERIALS_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -430,6 +432,7 @@ export const STRINGS = {
     flex: "FORGIVENESS",
     landing: "LANDINGS",
     bumps: "BUMPS",
+    spin: "SPIN",
   },
 
   /* ── THE START CARD (menu-start.tsx, seed-preview.tsx) ─────────────── */

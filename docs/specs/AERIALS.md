@@ -1,8 +1,11 @@
 # Aerials — draft spec
 
-**Draft. Researched, not built.** Delete this file when aerials is finished
-(see `README.md`). The shared pieces are `TRICK_MODES.md`'s; aerials is the
-last to build, because it needs the most new flight.
+**Built in part** (R44 — the site and its three kickers, the declared
+jump, twisting flips, the formal scorer, the chart, the format and its
+dealt field, the Kestrel at the light build, the bot, the HUD and the
+plate; what is unticked below is still open). Delete this file when
+aerials is finished (see `README.md`). The shared pieces are
+`TRICK_MODES.md`'s.
 
 ## Start here
 
@@ -65,56 +68,78 @@ qualification, a final of twelve, a final of six — the last jump deciding.
 
 ## What it needs to be complete
 
-- [ ] **The site (the next free R-rule)**: on a built map's slope (or a
+- [x] **The site (the next free R-rule)**: on a built map's slope (or a
       scaffold of the ski area's — open question): an in-run of 70–80 m at
       20–25° with start markers every 2 m, the KICKERS (single, double,
       triple — their lengths, lip heights and take-off angles) set on the
       in-run's foot, a level TABLE of 20–25 m, the KNOLL, a LANDING HILL of
-      25–30 m at 36–38°, a level out-run; 22 m wide.
-- [ ] **The flight plan**: a card to pick the jump (its code, its DD, its
+      25–30 m at 36–38°, a level out-run; 22 m wide. *Built (R44,
+      `mapgen/aerials.ts`): the in-run sized to each kicker's lip speed,
+      the kicker ridden as a guided curve (`aerial-kicker.ts`). Still
+      open: the START MARKERS every 2 m a jumper picks his start height
+      off — the in-run is one length a kicker.*
+- [x] **The flight plan**: a card to pick the jump (its code, its DD, its
       kicker); the plan carried on the run (a `CreateGameOptions` field).
-- [ ] **Twisting flips**: a flip with twists turned inside it, in a
+      *Built: a JUMP row on the trick map card (`Settings.aerialPlan`),
+      `CreateGameOptions.plan`, `?plan=`; the finals declare the same
+      jump unless the rule bars it, when the nearest jump by DD is
+      declared — a card between the phases is still open.*
+- [x] **Twisting flips**: a flip with twists turned inside it, in a
       position (layout, tuck, pike), the flips and twists counted the way
       the code counts them — the strokes extended or a flight of its own
       flown off the plan, the skier's input then the TIMING and the
-      body's form (open question).
-- [ ] **The formal scorer**: five judges' air (take-off 0–1, height and
+      body's form (open question). *Built (`aerial-flight.ts`): a flight
+      of its own — the lean back a flip, the edge a full twist, the
+      trick key the tuck — each twist turned inside the flip it was
+      asked in, the somersault paced to the snow. No pike yet.*
+- [x] **The formal scorer**: five judges' air (take-off 0–1, height and
       distance 0–1), form (per flip, the break bands shrinking with the
       flips, the positions' rules) and landing (the bands: a hand caps
       2.0, the body 1.5), the high and the low of each dropped, × DD, cut
       to two decimals; ties (without the DD, then form, landing, the lower
       DD). Tested against the published examples.
-- [ ] **The DD table**: every jump the game offers with its DD (men's and
+- [x] **The DD table**: every jump the game offers with its DD (men's and
       women's), off the research's table; a jump outside it is a research
-      to-do, not a guess.
-- [ ] **Mode and rules**: a `GameMode` row; one jumper; the plan; a start
-      clock (twenty seconds, a balk costing 0.5 a judge).
-- [ ] **The format**: qualification, final 1 (twelve), final 2 (six), one
+      to-do, not a guess. *Built: the published chart's back jumps in
+      layout and tuck, single to triple (`defs/aerial-jumps.ts`); the
+      pikes, the front jumps and the uprights are not offered yet.*
+- [x] **Mode and rules**: a `GameMode` row; one jumper; the plan; a start
+      clock (twenty seconds, a balk costing 0.5 a judge). *Built: the
+      mode, the strict gates, the twenty-second window (a late start is
+      a no start); the balk's 0.5 is still open.*
+- [x] **The format**: qualification, final 1 (twelve), final 2 (six), one
       jump each, nothing carried over; the championship's two
       qualifications and best-of-two final 1; the jumps that must differ;
-      a DOM-free module.
-- [ ] **The field**: rivals dealt jumps (a plan and a score about its DD)
+      a DOM-free module. *Built: the top series' format
+      (`aerials-contest.ts`); the championship's two qualifications and
+      best-of-two final 1 are still open.*
+- [x] **The field**: rivals dealt jumps (a plan and a score about its DD)
       shown between the player's.
-- [ ] **An aerials pair** (a new catalog row, *research the class*).
-- [ ] **The bot**: picks a start height for the speed, flies the plan,
-      lands it.
-- [ ] **HUD**: the plan announced, the speed at the in-run's foot, the
+- [x] **An aerials pair** (a new catalog row, *research the class*).
+- [x] **The bot**: picks a start height for the speed, flies the plan,
+      lands it. *Built (`sim/aerials-steer.ts`); the in-run has one start,
+      so there is no height to pick.*
+- [x] **HUD**: the plan announced, the speed at the in-run's foot, the
       jump named as flown, the three parts' scores and the DD, the board.
+      *Built but for the speed at the in-run's foot and the five judges'
+      marks shown one by one.*
 - [ ] **Cameras**: side-on to the flight, a wide from the out-run, the
       broadcast's slow motion of the twists (`replay-shots.ts`).
 - [ ] **Audience**: round the out-run (a stadium).
 - [ ] **Sound**: the kicker's thump, the landing, the crowd.
 - [ ] **Its venues**, **labs** (a flight lab: every jump of the table
       flown, its height, its air and its landing load against the legs),
-      **tests**, **docs**; delete this spec.
-- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      **tests**, **docs**; delete this spec. *Tests and docs built; the
+      flight lab is open.*
+- [x] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
       pair and the build*): the aerials pair (a new catalog row: *research
       the class* — its length, its stiffness, the twin or flat tail an
       inverted landing wants), and the default build off aerials athletes —
       small, light gymnasts by reputation (*research*: likely the LIGHT
       build; the flips' inertia and the landing load decide) — rows in
       `RACE_SKIS` and `RACE_RIDERS`, so picking the format opens the ski
-      card on its pair and the dress card on its build.
+      card on its pair and the dress card on its build. *Built: the
+      Kestrel, the light build.*
 
 ## Research to-do
 
@@ -122,14 +147,14 @@ Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
 pair and the build*): several sources for every number that shapes the
 build, written into `docs/freestyle.md`.
 
-- [ ] **The rules and the conditions**, in full: the field of play and a
+- [x] **The rules and the conditions**, in full: the field of play and a
       championship venue's real size, the format, the judging and a fall,
       the snow it is prepared to, the speeds, the wind and light a jury
       holds for.
-- [ ] **The skis**: the aerials pair (a new catalog row: *research the
+- [x] **The skis**: the aerials pair (a new catalog row: *research the
       class* — its length, its stiffness, the twin or flat tail an inverted
       landing wants).
-- [ ] **The default player weight**: aerials athletes — small, light
+- [x] **The default player weight**: aerials athletes — small, light
       gymnasts by reputation (*research*: likely the LIGHT build; the flips'
       inertia and the landing load decide) — which of the four builds
       (`RIDERS`), argued from what the format pays weight for.
@@ -138,14 +163,22 @@ build, written into `docs/freestyle.md`.
       landing bands, the flight plan's code, the format, ties, the mixed
       team.
 - [x] DD values read off official sheets (fifteen jumps).
-- [ ] The DD chart itself (not public) or the formula behind it — the
-      inference in `docs/freestyle.md` is ours.
-- [ ] The singles and the uprights (a single's DD; the upright jumps).
-- [ ] The aerials ski (its length and build) — the class's numbers.
-- [ ] The landing hill's snow (chopped and loosened — unverified) and the
-      landing load a skier takes.
-- [ ] In-run speeds by kicker, sourced (the 58–66 km/h figure is a
-      coach's, unverified).
+- [x] The DD chart itself — published since (`docs/freestyle.md`).
+- [x] The singles' DD.
+- [ ] The upright jumps (no chart value read yet).
+- [x] The aerials ski (its length and build) — the class's numbers.
+- [x] The landing hill's snow (chopped and loosened) and the landing load
+      a skier takes (7–8 times body weight on a triple).
+- [ ] In-run speeds by kicker, sourced (the radar check is sourced; the
+      58–66 km/h figure is still a coach's).
+
+## Defaults taken (the open questions below)
+
+- The plan is picked on a card and FLOWN: the strokes' taps ask the
+  flips and the twists, and the flight is judged against the plan.
+- Every back jump of the chart in layout and tuck is offered, singles
+  to triples, its kicker assigned by its flips.
+- The individual event only; the mixed team is open.
 
 ## Open questions for the user
 

@@ -268,6 +268,14 @@ export interface Level {
    * (`moguls`) of two lanes, and which of them this map is skied in — its
    * `checkpoints`, `spawn` and `grid` that lane's. */
   dualMoguls?: DualMogulsCourse;
+  /** AN AERIALS SITE built on the map (R44, `setAerials`): its `track` the
+   * straight line cut down the face — the platform, the in-run, the table
+   * with its one kicker, the knoll, the landing hill and the out-run — its
+   * checkpoints the start gate and the finish line, its start platform the
+   * `spawn`, its kicker the map's one kicker, and the site answered by
+   * `groundAt` / `normalAt` off its analytic surface (`bumps`, with no
+   * moguls in it). Absent on every map the generator builds. */
+  aerials?: AerialsCourse;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
    * them (R39, R40). */
@@ -432,6 +440,44 @@ export interface BigAirCourse {
   speed: number;
   /** The jump's width, m. */
   width: number;
+}
+
+/** Which of an aerials site's three kickers a jump is assigned (R44). */
+export type AerialKicker = "single" | "double" | "triple";
+
+/** AN AERIALS SITE (R44) as it was built over a map: its own `track`, every
+ * arc down it, m. */
+export interface AerialsCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The kicker it was built with. */
+  kicker: AerialKicker;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The in-run's foot (the table's start), the kicker's foot, its LIP,
+   * the KNOLL (the table's end), the landing hill's foot and the
+   * out-run's start, m. */
+  table: number;
+  foot: number;
+  lip: number;
+  knoll: number;
+  landing: number;
+  outrun: number;
+  /** The lip's height over the table, m, its take-off, rad, and the
+   * landing hill's grade, rad. */
+  height: number;
+  kick: number;
+  slope: number;
+  /** The speed off the lip the in-run is sized for, m/s. */
+  speed: number;
+  /** The site's width, m. */
+  width: number;
+  /** The site's height `d` m of plan along its line, m (the start
+   * platform's back at 0) — the analytic surface. */
+  yAt: (d: number) => number;
 }
 
 /** One of a ski-cross course's BUILT FEATURES (R35), by its arcs down the

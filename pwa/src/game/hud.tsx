@@ -241,6 +241,7 @@ export function Hud({
               !snap.slopestyle &&
               !snap.halfpipe &&
               !snap.moguls &&
+              !snap.aerials &&
               !snap.dualMoguls && <TricksChips tile={snap.tricks} />}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
             {snap.slopestyle && (
@@ -272,6 +273,20 @@ export function Hud({
                         snap.dualMoguls.rival.seed,
                       )
                     : STRINGS.dualAlone}
+                </span>
+              </div>
+            )}
+            {/* AN AERIALS JUMP: its phase, the jump declared, the flips thrown. */}
+            {snap.aerials && (
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.aerialsPhase(snap.aerials.phase)}</span>
+                <span class="hud-chip-sub">
+                  {STRINGS.aerialsDeclared(
+                    snap.aerials.plan,
+                    snap.aerials.dd,
+                    snap.aerials.thrown,
+                    snap.aerials.flips,
+                  )}
                 </span>
               </div>
             )}

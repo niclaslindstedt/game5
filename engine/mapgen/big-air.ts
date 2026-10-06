@@ -102,7 +102,10 @@ function shape(run: number, R: JumpRule): JumpProfile {
 
 /** The speed, m/s, the rule's skier carries tucked from the start gate to
  * the lip of `p` (on a knuckle, to the knuckle). */
-export function lipSpeed(p: JumpProfile, R: JumpRule = B): number {
+export function lipSpeed(
+  p: Pick<JumpProfile, "dx" | "y" | "gate" | "lip" | "finish" | "end">,
+  R: Pick<JumpRule, "skier"> = B,
+): number {
   const S = R.skier;
   const k = (0.5 * S.air * S.tuck) / S.mass;
   const dx = p.dx;

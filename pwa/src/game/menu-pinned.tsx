@@ -28,6 +28,7 @@ export function PinnedCards({
   onBack,
   onChoose,
   onTrick,
+  onSettings,
 }: {
   page: "campaign" | "levels" | "tricks";
   /** The mode the level card picks a map for. */
@@ -46,10 +47,19 @@ export function PinnedCards({
   onChoose: (level: CampaignLevel, rung: boolean) => void;
   /** A trick map picked, on to the skis card. */
   onTrick: (map: TrickMap) => void;
+  /** A setting changed on a card — the jump an aerials contest declares. */
+  onSettings: (next: (s: Settings) => Settings) => void;
 }) {
   if (page === "tricks") {
     return (
-      <TrickMapsPage mode={mode} chosen={settings.trickMap} onBack={onBack} onPick={onTrick} />
+      <TrickMapsPage
+        mode={mode}
+        chosen={settings.trickMap}
+        plan={settings.aerialPlan}
+        onPlan={(plan) => onSettings((s) => ({ ...s, aerialPlan: plan }))}
+        onBack={onBack}
+        onPick={onTrick}
+      />
     );
   }
   if (page === "campaign") {

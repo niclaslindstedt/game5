@@ -144,12 +144,14 @@ export {
   type JumpProfile,
 } from "./big-air.ts";
 export {
+  AERIALS_RULE,
   DUAL_MOGULS_RULE,
   HALFPIPE_RULE,
   MOGULS_RULE,
   RAIL_JAM_RULE,
   SLOPESTYLE_RULE,
   TRICK_RULES,
+  type AerialKickerRow,
   type JibRow,
   type RailJamRow,
   type JumpRule,
@@ -177,6 +179,7 @@ export {
   type MogulsRule,
 } from "./moguls.ts";
 export { laneOf, setDualMoguls } from "./dual-moguls.ts";
+export { aerialsHeightAt, aerialsProfile, setAerials, type AerialsProfile } from "./aerials.ts";
 export {
   fieldCoords,
   fieldHeight,

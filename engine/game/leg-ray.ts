@@ -70,5 +70,8 @@ export function castLeg(
     cx = ax + dx * t;
     cz = az + dz * t;
   }
-  return t;
+  // A root far behind the hips is no snow under the leg: Newton walked the
+  // ray's line backward onto a face above (a kicker's, under a skier high
+  // in the air over its back).
+  return t < -reach ? NaN : t;
 }

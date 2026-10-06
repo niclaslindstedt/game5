@@ -828,6 +828,7 @@ export function App() {
         m === "railJam" ||
         m === "halfpipe" ||
         m === "moguls" ||
+        m === "aerials" ||
         m === "dualMoguls") &&
       params.seed === null
     ) {

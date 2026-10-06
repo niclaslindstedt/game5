@@ -61,6 +61,7 @@ import { jamOf, type JamHud } from "./knuckle-huck-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
+import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
 import { dualMogulsOf, type DualHud } from "./dual-moguls-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
@@ -238,6 +239,9 @@ export type HudSnapshot = {
    * so far, and once scored the sheet, the board and what comes next;
    * null on any other run. */
   moguls: MogulsHud | null;
+  /** An AERIALS jump (`aerials-run.ts`) — its phase, the jump declared and
+   * the flips thrown, and once it is over the formal score and the board. */
+  aerials: AerialsHud | null;
   /** A DUAL MOGULS run (`dual-moguls-run.ts`) — its round, its lanes and
    * the start's call, and once decided the score or the votes and what
    * comes next; null on any other run. */
@@ -646,6 +650,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     slopestyle: slopestyleOf(state),
     halfpipe: halfpipeOf(state),
     moguls: mogulsOf(state),
+    aerials: aerialsOf(state),
     dualMoguls: dualMogulsOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,

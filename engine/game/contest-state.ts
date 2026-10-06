@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREESTYLE CONTESTS A RUN IS PART OF: what `GameState` carries between
-// a contest's runs (big air, slopestyle, the halfpipe, moguls, dual moguls) or steps through a
+// a contest's runs (big air, slopestyle, the halfpipe, moguls, dual moguls, aerials) or steps through a
 // session (a jam). Stated apart so the run's own state stays under its
 // line cap; `GameState` is this and the run.
 
@@ -12,6 +12,8 @@ import type { MogulsContest } from "./moguls-contest.ts";
 import type { MogulTurns } from "./mogul-turns.ts";
 import type { DualContest } from "./dual-bracket.ts";
 import type { Duel } from "./duel.ts";
+import type { AerialFlight } from "./aerial-flight.ts";
+import type { AerialsContest } from "./aerials-contest.ts";
 
 export type ContestState = {
   /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`), before this
@@ -39,4 +41,10 @@ export type ContestState = {
   /** A KNUCKLE HUCK'S JAM so far (R38, `jam.ts`): the hits ridden, and
    * where the one under way began — the run's own, stepped with it. */
   jam?: JamState;
+  /** AN AERIALS CONTEST so far (R44, `aerials-contest.ts`), carried
+   * between its jumps as the moguls' is. */
+  aerials?: AerialsContest;
+  /** THE JUMP UNDER WAY on an aerials site (`aerial-flight.ts`): its
+   * declared plan and the flight flown — the run's own, stepped with it. */
+  aerial?: AerialFlight;
 };

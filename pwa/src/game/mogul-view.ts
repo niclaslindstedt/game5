@@ -2,7 +2,10 @@
 // THE MOGULS COURSE AS DRAWN (R42): the course's own snow surface — its
 // moguls and its two air bumps — built in code off the engine's own
 // surface (`Level.groundAt`, which inside the course's width is
-// `mapgen/mogul-field.ts`'s analytic field, not the 2 m grid).
+// `mapgen/mogul-field.ts`'s analytic field, not the 2 m grid). An AERIALS
+// SITE (R44) is the same field with no moguls on it — its kicker and its
+// landing hill are curves the grid cannot hold either — and is drawn here
+// the same way.
 //
 // The ground's clipmap reads the heightfield, whose 2 m cells cannot hold a
 // mogul every three and a half metres — the grid under the course is cut a

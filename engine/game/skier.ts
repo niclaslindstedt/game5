@@ -71,7 +71,9 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
+  looseOf,
   onIce,
+  pisteIce,
   platformOf,
   packedSnow,
   restSinkOf,
@@ -453,7 +455,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ay = c.y + fwd.y * p.bz + acrossY * p.bx + dy * -(p.by + drop);
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
-    const ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    let ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    // ...and an evening's refrozen groomer (`piste-day.ts`).
+    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
     const target =
       sinkTarget(packed, speed0, p.sinkScale, p.planeScale, depth, carried, bottomless) + c.trench;
@@ -848,7 +852,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, fold);
+  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, looseOf(state));
   const hullTouch = hullHit > 0;
   if (hullHit > impact) impact = hullHit;
   // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his

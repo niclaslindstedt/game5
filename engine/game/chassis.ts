@@ -54,7 +54,8 @@ const BODY_POINTS = 6;
 /** Apply the hull contacts to the skier's velocities, on snow at the run's
  * depth dial (`GameState.snowDepth`, the new snow laid in — `depthUnder`)
  * with `fresh` m of new snow over the groomer, the body's points lowered
- * `drop` m by the tuck. Returns the fastest speed into the snow met this
+ * `drop` m by the tuck, `loose` of the groomer skied up by the day
+ * (`PisteDay.loose`). Returns the fastest speed into the snow met this
  * step, m/s (0 with no point touching). */
 export function chassisContacts(
   c: SkierState,
@@ -62,6 +63,7 @@ export function chassisContacts(
   snowDepth = 1,
   fresh = 0,
   drop = 0,
+  loose = 0,
 ): number {
   const m = totalMass(c.spec);
   const I = inertiaOf(c.spec);
@@ -99,7 +101,7 @@ export function chassisContacts(
     const pz = c.z + r.z;
     const floor =
       level.groundAt(px, pz) -
-      powderFloor(packedUnder(level.packedAt(px, pz), fresh), sink, snowDepth);
+      powderFloor(packedUnder(level.packedAt(px, pz), fresh, loose), sink, snowDepth);
     const pen = floor - py;
     if (pen <= 0) continue;
     touched = true;

@@ -438,9 +438,13 @@ export {
   settleShare,
   packedUnder,
   packedSnow,
+  looseOf,
+  pisteIce,
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
+export { pisteDayOf, type PisteDay } from "./game/piste-day.ts";
+export { PISTE_DAY } from "./game/defs/piste-day.ts";
 export {
   climbShare,
   driveForce,

@@ -78,6 +78,7 @@ import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
+import { pisteDayOf } from "./piste-day.ts";
 import { freshTricks, stepTricks } from "./tricks.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
@@ -199,8 +200,15 @@ export type CreateGameOptions = {
    * ordinary snow's. 1 when left out. */
   snowDepth?: number;
   /** New snow already lying when the run is stood up, m (`GameState.fresh`)
-   * — a lab's or a test's; 0 when left out. */
+   * — a lab's or a test's; when left out, the loose snow the day has left
+   * on the runs (`piste`), or 0. */
   fresh?: number;
+  /** THE PISTE THROUGH THE DAY (`piste-day.ts`, `GameState.piste`): deal
+   * the runs as the map's hour and sky have left them since the night's
+   * grooming. Left out, a run whose rules have the ski area's machines
+   * (`RunRules.groomer` — the free ride) is dealt it and every other is
+   * not. */
+  piste?: boolean;
   /** The day to ride the map on instead of the one R15 dealt: an hour of
    * solar time or a named time of day (`hourOfTime`), and a day of the
    * year, any of them (`withDay`). */
@@ -358,6 +366,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // picked by hand included.
   const level = rules.jury ? juryDay(skied, rules.jury) : skied;
   const seed = options.seed ?? level.seed;
+  // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
+  // machines work its runs, the runs are as the hour and the sky have left
+  // them since the night's pass — and the loose snow on them is the new
+  // snow the run starts with.
+  const piste = (options.piste ?? rules.groomer) ? pisteDayOf(level) : undefined;
   const state: GameState = {
     seed,
     rng: createRng(seed),
@@ -375,7 +388,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
     snowDepth: clampSnowDepth(options.snowDepth),
-    fresh: Math.max(0, options.fresh ?? 0),
+    fresh: Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
     tricks: freshTricks(),
     countdown: rules.countdown,
@@ -383,6 +396,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     events: [],
     gatePoles: freshGatePoles(level),
   };
+  if (piste) state.piste = piste;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =

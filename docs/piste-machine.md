@@ -74,6 +74,8 @@ Every swath segment does two things:
 - **The physics.** The 2 m cells whose middles the tiller covered are marked groomed (`groomed.ts`), each with the new snow there was when it was groomed. `packedSnow` reads a groomed cell as packed through, under only the snow that has fallen since. Anywhere else it is the map's own packed field under the whole fall, exactly as a ride with no machines reads it. On a snowing night the swath is firm groomer while the rest of the piste goes soft under the fall.
 - **The picture.** The renderer stamps the swath into the trail map as a GROOM stamp (`Stamp.groom`). It wipes every furrow under it flat, sets the groomed channel to fresh and keeps the comb's axis. The snow shader draws crisp, unworn corduroy along that axis. The rest of a worked piste is drawn skied-up: scraped swells where the turns shoved the snow, heaps pushed up between them and the scratches of a thousand edges (`snowWorked`). The fresh mark fades as new snow falls on it (`FRESH_LOOK`), the corduroy fading with it.
 
+The rest of the runs are the day the ride is stood up in (`piste-day.ts`, `docs/riding.md`'s *The piste through the day*): the night's work is why the first chair rides whole corduroy, and from then the day skis it up, a snowing sky lays new snow on it and a spring sun slushes it and lets it freeze. A swath the machines lay on the ride is none of that — groomed now, under only the snow that has fallen since.
+
 The belts press their prints ahead of the tiller, and the tiller throws a thin mist of fine snow off its back that hangs in the rear lamps' light.
 
 ## Taken, and driven

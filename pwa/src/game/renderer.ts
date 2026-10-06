@@ -60,7 +60,7 @@ import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
-import { hazeMaterial } from "./haze.ts";
+import { hazeMaterial, setRunSnow } from "./haze.ts";
 import { dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
 import {
@@ -529,6 +529,7 @@ export function createWorldRenderer(
       fresh: state.fresh,
       depth: state.snowDepth,
       force: snowForce,
+      piste: state.piste,
     });
   }
 
@@ -790,7 +791,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      env.haze.uFresh.value = state.fresh;
+      setRunSnow(env.haze, state.fresh, state.piste);
       const trailed = performance.now();
       terrain.follow(lens.camera.position.x, lens.camera.position.z, lens.camera);
       const sky = skyLevel ?? level;

@@ -625,6 +625,9 @@ export type LiftRide = {
   /** Where he came into the zone from (`board`), or where the carrier
    * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
   from: { x: number; y: number; z: number; heading: number };
+  /** Taken from the BOARDING RING (`boardingRing`): the length of the way
+   * up the queue's lane to the carrier, m — he is glided along it. */
+  walk?: number;
 };
 
 export type GameEvent =

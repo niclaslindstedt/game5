@@ -25,7 +25,8 @@
 // station, and the longest from across the face), lift-top, lift-foot,
 // lift-door (a chair's top station from its pad — the hood, the booth, the
 // gate, the netting, the mast — its load line and corral, and the
-// gondola station's door), cliff, cliff-edge,
+// gondola station's door), lift-ring (a chair's boarding ring from up the
+// hill — lit on a `--free` run alone), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
@@ -91,6 +92,7 @@ const VIEWS = [
   "lift-top",
   "lift-foot",
   "lift-door",
+  "lift-ring",
   "cliff",
   "cliff-edge",
   "sign",
@@ -173,10 +175,14 @@ const args = parseArgs(
       kind: "flag",
       help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
     },
+    free: {
+      kind: "flag",
+      help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -261,6 +267,7 @@ const query = new URLSearchParams({
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
   ...(args.downhill ? { downhill: "1" } : {}),
+  ...(args.free ? { free: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),
@@ -300,7 +307,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

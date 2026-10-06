@@ -17,6 +17,11 @@
 //     is pulled up the track standing on his skis and let go short of the
 //     top wheel.
 //
+// Or he rides into its BOARDING RING (`boardingRing`), the lit circle on
+// the snow where the queue starts, just past the open end of its corral:
+// facing any way, slow enough, he is glided up the queue's lane through the
+// corral (`ringWalk`) to the load zone and boarded as above.
+//
 // A FREE RIDE BEGINS ON ONE (`arriveByLift`): the last few seconds of the
 // ride up the lift serving the run it is to start down, the top close
 // ahead — the run picked on the start card, or the first of the colour
@@ -32,7 +37,15 @@ import { angleDiff, clamp, hypot, smoothstep } from "@niclaslindstedt/oss-game-f
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { liftPlans, ropeAt, upRope, type LiftPlan } from "./lift-line.ts";
+import {
+  BOARDING_RING,
+  boardingRing,
+  liftPlans,
+  ringWalk,
+  ropeAt,
+  upRope,
+  type LiftPlan,
+} from "./lift-line.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import { generatorTraits } from "../mapgen/versions.ts";
 import type { Level, Run, SummitRamp } from "../mapgen/types.ts";
@@ -100,7 +113,8 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
   return true;
 }
 
-/** Into a load zone: inside it, slow enough and facing up the line. */
+/** Into a load zone — inside it, slow enough and facing up the line — or
+ * into a boarding ring, slow enough and facing any way. */
 function boardLift(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
   if (c.thrown || c.airborne || c.tunnel) return;
@@ -112,9 +126,18 @@ function boardLift(run: GameState, events: GameEvent[]): void {
     const rz = c.z - plan.lift.bottom.z;
     const u = rx * plan.dx + rz * plan.dz;
     const v = rx * plan.dz - rz * plan.dx;
-    if (Math.abs(u - e.at) > e.along || Math.abs(v - e.side) > e.across) continue;
-    if (c.speed > e.fastest || Math.abs(angleDiff(c.heading, plan.heading)) > e.turned) continue;
-    c.lift = {
+    const zoned =
+      Math.abs(u - e.at) <= e.along &&
+      Math.abs(v - e.side) <= e.across &&
+      c.speed <= e.fastest &&
+      Math.abs(angleDiff(c.heading, plan.heading)) <= e.turned;
+    const ring = boardingRing(plan);
+    const ringed =
+      !zoned &&
+      hypot(c.x - ring.x, c.z - ring.z) <= BOARDING_RING.radius &&
+      c.speed <= BOARDING_RING.fastest;
+    if (!zoned && !ringed) continue;
+    const ride: LiftRide = {
       index: i,
       id: plan.lift.id,
       kind: plan.lift.kind,
@@ -127,29 +150,93 @@ function boardLift(run: GameState, events: GameEvent[]): void {
       tower: 1,
       from: { x: c.x, y: Number.NaN, z: c.z, heading: c.heading },
     };
+    if (ringed) ride.walk = wayLength(walkOf(plan, ride));
+    c.lift = ride;
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "board" });
     return;
   }
 }
 
-/** Taken from where he came into the zone to the carrier: out onto a
- * chair's load line or a drag's track under its rope, or in at a gondola
- * station's door. */
+/** Where boarding takes him: out onto a chair's load line or a drag's track
+ * under its rope, or in at a gondola station's door. */
+function boardAt(plan: LiftPlan, ride: LiftRide): { x: number; z: number } {
+  const e = plan.look.entry;
+  return plan.lift.kind === "gondola" ? along(plan, e.at, 0) : along(plan, ride.u, upRope(plan));
+}
+
+/** The way a rider taken from the boarding ring is glided: from where he
+ * came into it, up the queue's lane, to where he is boarded. */
+function walkOf(plan: LiftPlan, ride: LiftRide): { x: number; z: number }[] {
+  return [{ x: ride.from.x, z: ride.from.z }, ...ringWalk(plan), boardAt(plan, ride)];
+}
+
+function wayLength(way: readonly { x: number; z: number }[]): number {
+  let n = 0;
+  for (let k = 1; k < way.length; k++) n += hypot(way[k].x - way[k - 1].x, way[k].z - way[k - 1].z);
+  return n;
+}
+
+/** The point `s` m along a way, and the way it runs there. */
+function alongWay(
+  way: readonly { x: number; z: number }[],
+  s: number,
+): { x: number; z: number; heading: number } {
+  let left = s;
+  for (let k = 1; k < way.length; k++) {
+    const a = way[k - 1];
+    const b = way[k];
+    const seg = hypot(b.x - a.x, b.z - a.z);
+    if (seg <= 1e-6) continue;
+    if (left <= seg || k + 1 === way.length) {
+      const t = Math.min(1, left / seg);
+      return {
+        x: a.x + (b.x - a.x) * t,
+        z: a.z + (b.z - a.z) * t,
+        heading: Math.atan2(b.x - a.x, b.z - a.z),
+      };
+    }
+    left -= seg;
+  }
+  const end = way[way.length - 1];
+  return { x: end.x, z: end.z, heading: Number.NaN };
+}
+
+/** Taken from where he came into the zone to the carrier — straight from
+ * the load zone, or glided up the queue's lane from the boarding ring —
+ * and faced up the line as he gets there. */
 function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const e = plan.look.entry;
-  const to =
-    plan.lift.kind === "gondola" ? along(plan, e.at, 0) : along(plan, ride.u, upRope(plan));
-  const k = smoothstep(0, 1, Math.min(1, ride.t / e.board));
-  const k0 = smoothstep(0, 1, Math.min(1, (ride.t - TUNING.dt) / e.board));
-  const x = ride.from.x + (to.x - ride.from.x) * k;
-  const z = ride.from.z + (to.z - ride.from.z) * k;
-  const heading = ride.from.heading + angleDiff(ride.from.heading, plan.heading) * k;
-  const way = (hypot(to.x - ride.from.x, to.z - ride.from.z) * (k - k0)) / TUNING.dt;
+  const to = boardAt(plan, ride);
+  const walk = ride.walk ?? 0;
+  const span = Math.max(e.board, walk / BOARDING_RING.glide);
+  const k = smoothstep(0, 1, Math.min(1, ride.t / span));
+  const k0 = smoothstep(0, 1, Math.min(1, (ride.t - TUNING.dt) / span));
+  let x: number;
+  let z: number;
+  let heading: number;
+  let way: number;
+  if (walk > 0) {
+    const path = walkOf(plan, ride);
+    const at = alongWay(path, walk * k);
+    x = at.x;
+    z = at.z;
+    // Along the lane, turned up the line over the last of the way.
+    const lane = Number.isNaN(at.heading) ? plan.heading : at.heading;
+    const last = smoothstep(0.8, 1, k);
+    heading = lane + angleDiff(lane, plan.heading) * last;
+    way = (walk * (k - k0)) / TUNING.dt;
+  } else {
+    x = ride.from.x + (to.x - ride.from.x) * k;
+    z = ride.from.z + (to.z - ride.from.z) * k;
+    heading = ride.from.heading + angleDiff(ride.from.heading, plan.heading) * k;
+    way = (hypot(to.x - ride.from.x, to.z - ride.from.z) * (k - k0)) / TUNING.dt;
+  }
   setOff(run, x, z, heading, way);
-  if (ride.t >= e.board) {
+  if (ride.t >= span) {
     ride.phase = "ride";
     ride.t = 0;
     ride.speed = plan.look.slow;
+    delete ride.walk;
     const c = run.skier;
     ride.from = { x: c.x, y: c.y, z: c.z, heading: plan.heading };
   }

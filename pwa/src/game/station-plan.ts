@@ -31,6 +31,7 @@
 // world here.
 
 import {
+  CORRAL_TAIL,
   chairLane,
   queueLane,
   runsOffTop,
@@ -220,6 +221,3 @@ function corral(
       );
   }
 }
-
-/** How far past the corral's mouth its fences run on, m. */
-const CORRAL_TAIL = 8;

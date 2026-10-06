@@ -33,6 +33,7 @@ import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { markView } from "./mark-view.ts";
+import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
 import { signView } from "./sign-view.ts";
 import {
@@ -97,11 +98,15 @@ const snow = Number(params.get("snow"));
 /** A DOWNHILL set over the seed (`?downhill=1`) — its A-nets for the
  * `net-<s>` views. */
 const downhill = params.get("downhill") === "1";
+/** A FREE RIDE over the seed (`?free=1`) — its lifts' boarding rings, for
+ * the `lift-ring` view. */
+const free = params.get("free") === "1";
 const state: GameState = createGame({
   seed,
   region,
   grade,
   ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
+  ...(free ? { mode: "free" as const } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
 /** The sun's solar hour (`withSky`), the map's own unless named: a low sun
@@ -713,6 +718,14 @@ const shots: Record<string, () => string> = {
       },
     ]),
   ),
+  "lift-ring"() {
+    const pose = ringView(level);
+    if (!pose) return "no chair on this map";
+    renderer.setOverride(pose);
+    still();
+    renderer.setOverride(null);
+    return free ? "a chair's boarding ring" : "a chair's foot (no ring: not a free ride)";
+  },
   forest() {
     renderer.setOverride(forestView());
     still();

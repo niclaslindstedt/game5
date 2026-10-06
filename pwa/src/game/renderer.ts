@@ -557,7 +557,7 @@ export function createWorldRenderer(
       boomClear = createLineClear(lv, { trees: false });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
-      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray]);
+      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";
       scene.add(lifts.group);

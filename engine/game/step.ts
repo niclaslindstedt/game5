@@ -10,7 +10,8 @@
 // skier, the trees, the edge, the clock, the course, the reset); the score
 // (`tricks.ts`); every rival's run by the same function; then every skier
 // against every other; then the crowd on a free ride (`crowd.ts`) — its
-// amateurs down their runs, and the player against them.
+// amateurs down their runs, and the player against them — and the
+// grimbear, on a free ride he was dealt to (`grimbear.ts`).
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -65,6 +66,7 @@ import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
+import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { juryDay } from "./jury.ts";
@@ -200,6 +202,11 @@ export type CreateGameOptions = {
    * is the new snow a fall lays over the run (`snowfall.ts`) and its wind
    * (`air.ts`). */
   sky?: SkyOverride;
+  /** THE GRIMBEAR (`grimbear.ts`) on a FREE RIDE: one that catches the
+   * skier once (`hunt`), or one that only chases him (`roam` — a ride
+   * started again after he was caught). None when left out; the app deals
+   * him to one ride in a few. Ignored by every other mode. */
+  grimbear?: GrimbearAsk;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -404,6 +411,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
+  if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   if (!options.quiet) {
     status(
       `Map ${level.seed}: ${level.checkpoints.length} gates over ${Math.round(
@@ -460,6 +468,8 @@ export function step(state: GameState, input: SkierInput): GameState {
     stepCrowd(state);
     if (state.rules.contact) clipCrowd(state, events);
   }
+  // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
+  if (state.grimbear) stepGrimbear(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE PISTE MACHINES — the big tracked snow groomers that work a ski
 // area's runs at night (`RunRules.groomer`, `docs/piste-machine.md`). On a
-// free ride after dark (`groomersOut`) up to `GROOMER.count` of them are
-// out, each on a run of the resort dealt off its own stream as the ride
-// starts, working it in LANES: down one the width of the tiller, a pivot on
+// free ride after dark (`groomersOut`) a fleet sized to the ski area is
+// out (`groomerCount`: one to every few runs, three to six), each on a run
+// of its own dealt off the machines' own stream as the ride starts, working it in LANES: down one the width of the tiller, a pivot on
 // the tracks at the bottom onto the next, up that one, a pivot at the top,
 // and so across the run and back. Behind the tiller the snow is milled,
 // pressed and combed — the swath it lays (`GroomerState.swath`) is what
@@ -73,6 +73,15 @@ function lanePoint(g: GroomerState, r: NetRun, s: number, lane: number): { x: nu
   return { x: along.x + Math.cos(along.heading) * d, z: along.z - Math.sin(along.heading) * d };
 }
 
+/** HOW MANY MACHINES a ski area with `runs` runs long enough to groom puts
+ * out: one to every `GROOMER.count.perRuns` of them, at least `least` and
+ * at most `most`, and never more than there are runs. A pure function of
+ * the map, so it draws nothing off the machines' stream. */
+export function groomerCount(runs: number): number {
+  const C = K.count;
+  return Math.min(runs, clamp(Math.round(runs / C.perRuns), C.least, C.most));
+}
+
 /** THE MACHINES a night's free ride starts with: each on a run of its own,
  * dealt off their stream, part of its night's work done. */
 export function freshGroomers(state: GameState): GroomerState[] {
@@ -84,7 +93,8 @@ export function freshGroomers(state: GameState): GroomerState[] {
   });
   const out: GroomerState[] = [];
   state.groomed = freshGroomed();
-  while (out.length < K.count && pool.length > 0) {
+  const count = groomerCount(pool.length);
+  while (out.length < count && pool.length > 0) {
     const run = pool.splice(Math.floor(rng.next() * pool.length), 1)[0];
     const r = net.runs[run];
     let width = 0;

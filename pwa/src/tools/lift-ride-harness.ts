@@ -68,6 +68,16 @@ const moments = (
   .split(",")
   .map(Number)
   .filter(Number.isFinite);
+/** A lens planted round the skier in his own frame instead of the game's
+ * camera — `side` (off his left), `rside` (off his right), `back`,
+ * `front` — close enough to judge a pose by. */
+const view = params.get("view") ?? "";
+const VIEWS: Record<string, { x: number; y: number; z: number }> = {
+  side: { x: -2.6, y: 0.4, z: 0.2 },
+  rside: { x: 2.6, y: 0.4, z: 0.2 },
+  back: { x: 0.4, y: 0.6, z: -3 },
+  front: { x: 0.3, y: 0.5, z: 3 },
+};
 /** The lift whose foot is photographed boarding, by kind. */
 const board = (params.get("board") ?? "") as LiftKind | "";
 const width = Number(params.get("w") ?? 1280);
@@ -132,11 +142,11 @@ function atFoot(kind: LiftKind): GameState | null {
   const ov = (b.v - a.v) / len;
   const ox = plan.dx * ou + plan.dz * ov;
   const oz = plan.dz * ou - plan.dx * ov;
-  const out = 3;
+  const out = 7;
   const heading = Math.atan2(-ox, -oz);
   standSkier(state, ring.x + ox * out, ring.z + oz * out, heading);
-  state.skier.vx = -ox * 2.5;
-  state.skier.vz = -oz * 2.5;
+  state.skier.vx = -ox * 3.5;
+  state.skier.vz = -oz * 3.5;
   return state;
 }
 
@@ -158,6 +168,20 @@ async function boardSheet(kind: LiftKind): Promise<{ note: string; tiles: number
       for (const e of state.events) if (e.kind === "lift" && e.phase === "take") took = e.t;
     }
     const due = state.t >= times[next];
+    const planted = VIEWS[view];
+    if (planted) {
+      const c = state.skier;
+      const h = c.heading;
+      const cos = Math.cos(h);
+      const sin = Math.sin(h);
+      // x right, z forward, turned to his heading (0 = +z, clockwise).
+      const eye = {
+        x: c.x + planted.x * cos + planted.z * sin,
+        y: c.y + planted.y,
+        z: c.z - planted.x * sin + planted.z * cos,
+      };
+      renderer.setOverride({ eye, target: { x: c.x, y: c.y - 0.2, z: c.z }, fov: 50, roll: 0 });
+    }
     renderer.draw(state, 0, FRAME, due);
     if (!due) continue;
     const cell = document.createElement("figure");

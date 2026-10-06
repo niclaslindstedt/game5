@@ -291,6 +291,7 @@ export const STRINGS = {
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
   newsLift: (kind: "gondola" | "chair" | "drag"): string =>
     kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
+  newsLiftTaken: "HOLD TUCK TO SKIP UP · ENTER OR DOUBLE TAP TO JUMP OFF",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>

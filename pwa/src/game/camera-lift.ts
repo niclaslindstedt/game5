@@ -19,7 +19,7 @@
 // `release` s to the chase — on the pad the summit's own low look behind him
 // (`camera-summit.ts`), opening out only once he is over the lip.
 
-import type { LiftRide } from "@engine";
+import { TUNING, type LiftRide } from "@engine";
 
 type LiftKind = LiftRide["kind"];
 
@@ -69,7 +69,8 @@ export function rideTarget(lift: LiftRide | null): number {
  * `out` m of his skate up to a gondola's door or a chair's load line, held
  * black `hold` s once he is in his carrier — the lens cut to it there
  * (`liftCut`) — and back in over `in` s on him sat in it as it leaves the
- * station. A T-bar takes him in the open, unfaded. */
+ * station — and the same in, held and out where the tuck held skips him up
+ * the lift. A T-bar takes him in the open, unfaded. */
 export const LIFT_FADE = { out: 2.4, hold: 0.35, in: 0.9 };
 
 function ease(a: number, b: number, x: number): number {
@@ -79,7 +80,10 @@ function ease(a: number, b: number, x: number): number {
 
 /** How black the picture is, 0 clear … 1 black, for the lift `lift`. */
 export function liftFade(lift: LiftRide | null): number {
-  if (!lift || lift.kind === "drag") return 0;
+  if (!lift) return 0;
+  // Skipped up the lift (`TUNING.lift.skip`): out over its fade…
+  if (lift.skip !== undefined) return ease(0, TUNING.lift.skip.fade, lift.skip);
+  if (lift.kind === "drag" && !lift.faded) return 0;
   if (lift.phase === "board" && lift.walk !== undefined && lift.s !== undefined)
     return ease(LIFT_FADE.out, 0.15, lift.walk - lift.s);
   if (lift.phase === "ride" && lift.faded)

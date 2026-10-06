@@ -925,9 +925,13 @@ export const TUNING = {
    * checked down to it at `brake` m/s² from however fast he came in and
    * coming to the load line at `end` m/s, slowing at `stop` m/s²; he
    * looks `ahead` m along the way and turns to it at `turn` rad/s at the
-   * most. */
+   * most. Carried, the machine press lets go of the lift wherever he is —
+   * out of a gondola's door `jumpOut` m clear of its cabin — and the tuck
+   * held `skip.hold` s skips him up it behind a fade of `skip.fade` s. */
   lift: {
     cabinBack: 0.65,
+    jumpOut: 1.3,
+    skip: { hold: 3, fade: 0.5 },
     tee: 0.3,
     board: {
       pace: 3,

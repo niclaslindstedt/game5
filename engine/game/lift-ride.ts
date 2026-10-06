@@ -19,8 +19,18 @@
 //
 // Or he rides into its BOARDING RING (`boardingRing`), the lit circle on
 // the snow where the queue starts, just past the open end of its corral:
-// facing any way, slow enough, he is glided up the queue's lane through the
-// corral (`walkOf`), past the queue standing on it, to the load zone and boarded as above.
+// facing any way, slow enough, he SKATES up the queue's lane through the
+// corral (`walkOf`, `stepBoard`: a skater's pace, his strides counted for
+// the gait), beside the queue standing on it — shouldering aside whoever is
+// in his way (`crowd-lift.ts`'s `brushQueue`) — to the load zone: a chair or
+// a gondola takes him behind the station's fade, already sat in the carrier
+// leaving it; a drag stands him on its track until a T-bar of the lift's own
+// comes round (`stepWait`) and takes him on it.
+//
+// CARRIED, the machine press lets go of the lift wherever he is (`letGo`:
+// dropped off a chair, jumped out of a cabin, the bar let go of), and the
+// tuck held `TUNING.lift.skip.hold` seconds skips him up it behind a fade
+// (`skipUp`) to where he would be let go.
 //
 // A FREE RIDE BEGINS ON ONE (`arriveByLift`): the last few seconds of the
 // ride up the lift serving the run it is to start down, the top close
@@ -110,6 +120,11 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
     ride.tower = plan.supports.length;
     delete ride.faded;
   }
+  if (input.machine) {
+    letGo(run, plan, ride, events);
+    return false;
+  }
+  if (ride.phase === "ride") skipUp(plan, ride, input);
   if (ride.phase === "board") {
     stepBoard(run, plan, ride, events);
     return true;
@@ -121,6 +136,60 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
   // The step he is stood off at the top is the lift's too.
   stepCarried(run, plan, ride, events);
   return true;
+}
+
+/** OFF THE LIFT WHEREVER HE IS, on the machine press: skating up to it or
+ * waiting for his bar he simply skis away; carried, he lets go — off a
+ * T-bar onto the track, off the seat of a chair, out of a gondola's door
+ * on its right side — with the carrier's way, to fall however far there
+ * is under him (`flight.ts` judges the landing). */
+function letGo(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
+  const c = run.skier;
+  c.lift = null;
+  if (ride.phase !== "ride") return;
+  events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
+  if (plan.lift.kind === "gondola") {
+    // Out of the door, clear of the cabin's side.
+    c.x += plan.dz * K.jumpOut;
+    c.z -= plan.dx * K.jumpOut;
+  }
+  if (plan.lift.kind === "drag") return;
+  c.airborne = c.y - run.level.groundAt(c.x, c.z) - c.spec.cogHeight > 0.05;
+  c.airTime = 0;
+  derive(c, run.level);
+}
+
+/** HELD TUCKED FOR `skip.hold` s while carried, the lift goes by in a
+ * moment: the picture fades out over `skip.fade` s, and he is put where a
+ * free ride begun on this lift starts (`arrivalOf`: the top close ahead),
+ * sat in his carrier, the picture fading back in (`faded`). */
+function skipUp(plan: LiftPlan, ride: LiftRide, input: SkierInput): void {
+  const dt = TUNING.dt;
+  if (ride.skip === undefined) {
+    ride.held = input.tuck >= 0.5 ? (ride.held ?? 0) + dt : 0;
+    if (ride.held < K.skip.hold) return;
+    if (arrivalOf(plan).u <= ride.u) {
+      ride.held = 0;
+      return;
+    }
+    ride.skip = 0;
+  }
+  ride.skip += dt;
+  if (ride.skip < K.skip.fade) return;
+  const there = arrivalOf(plan);
+  ride.u = there.u;
+  ride.speed = there.speed;
+  ride.swing = 0;
+  ride.swingRate = 0;
+  ride.tower = Math.max(
+    1,
+    plan.supports.findIndex((p) => p.u > there.u),
+  );
+  ride.t = 0;
+  ride.faded = true;
+  ride.from = { ...ride.from, y: Number.NaN };
+  delete ride.skip;
+  ride.held = 0;
 }
 
 /** Into a load zone — inside it, slow enough and facing up the line — or

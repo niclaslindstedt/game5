@@ -71,6 +71,11 @@ const args = parseArgs(
       default: "",
       help: "the moments photographed, s round the unload (negative on the chair) — or with --board, s from the ring",
     },
+    view: {
+      kind: "string",
+      default: "",
+      help: "with --board, a lens planted close round him instead of the camera: side, rside, back, front",
+    },
     board: {
       kind: "string",
       default: "",
@@ -163,6 +168,7 @@ const query = new URLSearchParams({
   camera: args.camera,
   ...(args.at ? { at: args.at } : {}),
   ...(args.board ? { board: args.board } : {}),
+  ...(args.view ? { view: args.view } : {}),
   quality: args.quality,
   w: String(args.width),
   h: String(args.height),
@@ -179,7 +185,7 @@ const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
 if (crashed) process.exit(1);
 const stem =
   args.out ||
-  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}`;
+  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}`;
 const out = join(outDir, `${stem}.png`);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(

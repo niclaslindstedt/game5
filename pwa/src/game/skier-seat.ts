@@ -64,9 +64,9 @@ export type Seat = {
  * hangs his bar there. */
 export const TOW = {
   hips: { x: 0, y: -0.1, z: -0.14 },
-  bar: { y: -0.22, z: -0.26 },
-  pitch: 0.08,
-  grip: { y: 0.42, z: -0.2 },
+  bar: { y: -0.06, z: -0.12 },
+  pitch: -0.04,
+  grip: { y: 0.3, z: -0.12 },
 };
 
 /** The hip joints over the seat's top, m — the pelvis sat on it; how far
@@ -171,7 +171,10 @@ export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
 export function towPose(p: SkierPose, share: number, M: Mounts, tee: number): SkierPose {
   const k = Math.max(0, Math.min(1, share));
   if (k <= 0) return p;
-  const back = (p.pitch - TOW.pitch) * k;
+  // The trunk's lean as drawn (hips to neck, forward positive), stood up to
+  // the bar's: the gait and the tuck lean him on top of `pitch`.
+  const lean = Math.atan2(p.neck.z - p.hips.z, p.neck.y - p.hips.y);
+  const back = (lean - TOW.pitch) * k;
   const cos = Math.cos(back);
   const sin = Math.sin(back);
   const shift = {

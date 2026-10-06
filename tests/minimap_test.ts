@@ -20,7 +20,15 @@ import {
 
 import { GRADE_LOOK } from "../pwa/src/game/grade-look.ts";
 import { bakeMinimap, mapPxFor, minimapSource } from "../pwa/src/game/minimap-bake.ts";
-import { VIEW, ZOOM, buildMinimap, project, spanFor } from "../pwa/src/game/minimap-view.ts";
+import {
+  AIR_ZOOM,
+  VIEW,
+  ZOOM,
+  airSpanFor,
+  buildMinimap,
+  project,
+  spanFor,
+} from "../pwa/src/game/minimap-view.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { levelFor, LEVEL_SEEDS } from "./support/levels.ts";
 import { LONE_TREE, SLOPE, syntheticLevel } from "./support/synthetic.ts";
@@ -184,6 +192,51 @@ describe("the plate's pose (minimap-view.ts)", () => {
     const next = buildMinimap(state).pose.scale;
     expect(next).toBeLessThan(rest);
     expect(next).toBeGreaterThan(VIEW / ZOOM.far);
+  });
+});
+
+describe("the plate aloft (minimap-view.ts)", () => {
+  it("opens with the helicopter's height, never past the map", () => {
+    expect(airSpanFor(0, 3000)).toBe(0);
+    expect(airSpanFor(AIR_ZOOM.from, 3000)).toBe(0);
+    expect(airSpanFor(100, 3000)).toBeGreaterThan(ZOOM.far);
+    expect(airSpanFor(300, 3000)).toBeGreaterThan(airSpanFor(100, 3000));
+    expect(airSpanFor(5000, 3000)).toBe(3000);
+  });
+
+  /** A race stood still with a helicopter at `agl` over the snow — only the
+   * two fields the plate reads. */
+  function aloft(agl: number, rider: boolean): GameState {
+    const state = race();
+    placeRun(state, { x: 500, z: 500, heading: 0 });
+    state.heli = { agl, rider } as GameState["heli"];
+    return state;
+  }
+
+  it("zooms out as he climbs on the skid and back in as he comes down", () => {
+    const state = aloft(0, true);
+    state.t += 1;
+    const pad = buildMinimap(state).pose.scale;
+    expect(pad).toBeCloseTo(VIEW / ZOOM.close, 6);
+    state.heli!.agl = 200;
+    for (let i = 0; i < 10; i++) {
+      state.t += 1;
+      buildMinimap(state);
+    }
+    const high = buildMinimap(state).pose.scale;
+    expect(high).toBeCloseTo(VIEW / airSpanFor(200, state.level.size), 3);
+    state.heli!.agl = 1;
+    for (let i = 0; i < 10; i++) {
+      state.t += 1;
+      buildMinimap(state);
+    }
+    expect(buildMinimap(state).pose.scale).toBeCloseTo(pad, 3);
+  });
+
+  it("stays on the speedo's window while the machine flies without him", () => {
+    const state = aloft(200, false);
+    state.t += 1;
+    expect(buildMinimap(state).pose.scale).toBeCloseTo(VIEW / ZOOM.close, 6);
   });
 });
 

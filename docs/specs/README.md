@@ -13,7 +13,7 @@ a second, stale copy of the truth.
 | Spec | Discipline | State |
 | --- | --- | --- |
 | — | Slalom | built — spec retired; its research is `docs/disciplines.md` § Slalom |
-| [GIANT_SLALOM.md](GIANT_SLALOM.md) | Giant slalom | draft — research first |
+| — | Giant slalom | built — spec retired; its research is `docs/disciplines.md` § Giant slalom |
 | — | Super-G | built — spec retired; its research is `docs/disciplines.md` § Super-G |
 | — | Downhill | built — spec retired; its research is `docs/disciplines.md` § Downhill |
 | — | Ski cross | built — spec retired; its research is `docs/disciplines.md` § Ski cross |
@@ -23,7 +23,7 @@ Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for the slalom, the super-G, the downhill, speed skiing and the ski cross; the shape the giant slalom fills in |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for every discipline — the slalom, the giant slalom, the super-G, the downhill, speed skiing and the ski cross |
 
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
@@ -618,6 +618,51 @@ the format around the runs and four racers on one course.
   and the starter's word sits where a slalom's does.
 - **A DNF in a heat is not an out plate.** A racer who fell can still be in
   the first two; the ski cross's plate is its own (`hud-cross.tsx`).
+
+## Lessons from the giant slalom
+
+The giant slalom was the sixth discipline and the last one `DISCIPLINES`
+names. It is the super-G's course with a technical race's numbers and the
+slalom's two runs, so most of the work was lifting what the super-G had
+written for itself into a shape two disciplines share — and finding what a
+gate every twenty metres asks that a gate every fifty never did.
+
+### The course
+
+- **Lift the setter before copying it.** The super-G's course setter became
+  the TURNING COURSE (`engine/mapgen/turn-course.ts`: the most-vertical
+  course, the lowered start, the line swung round panelled gates, the
+  nets), each discipline a rule row and a salt — the salt its only other
+  difference — and `super-g.ts` a few lines over it. Run the super-G's sims
+  before and after the lift and compare the digests: they came out
+  identical, which is the proof the lift moved nothing.
+- **A lift tower can stand in the middle of a race piste.** The tower
+  slide only moves a column off packed snow on the map the lift was
+  planned on; a course set over that map later can run straight at one.
+  On seed 13 the bot came off a jump into a tower. The line is now held
+  4 m off any column standing on the piste, eased over 30 m either side
+  (`TurnRule.towers`) — on the giant slalom's row alone, so no super-G
+  course and no super-G digest moved. A rule a second discipline needs is
+  opt-in on the shared row, not a change under the first.
+
+### The race
+
+- **A sweep that stands up a second run hands it the first run's pair.**
+  The second run "failed" on half the seeds — because the sweep stood it up
+  on the default pair rather than the giant slalom ski the first run was
+  skied on. Before reading a second run's numbers, check what it is skied
+  on.
+- **A turn every 20–30 m leaves no straight to win a line back.** The
+  super-G's hold read too far ahead: the bot turned for the next gate
+  before this one's apex. It needed a closer read (the bend and the yaw led
+  by 0.06 s, the look 5 m and 0.22 s per m/s ahead) and to take each turn
+  at 0.85 of the grip the cut would hold — a line run wide at one gate is
+  still wide at the next.
+- **Par is the downhill's reckoning scaled by the bot's median.** The
+  forward pass down the swung line under the giant slalom technique reads
+  the profile's bends, but a turn every twenty metres scrubs more than they
+  read: scale it by the bot's own median share over a sweep (1.11 over
+  seeds 1–16) rather than adding a second model of the turn.
 
 ## The labs, and when to reach for each
 

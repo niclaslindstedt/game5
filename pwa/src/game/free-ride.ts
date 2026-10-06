@@ -369,6 +369,7 @@ export function standingFor(
     rules.jury === undefined &&
     !level.slalom &&
     !level.downhill &&
-    !level.superG;
+    !level.superG &&
+    !level.giantSlalom;
   return same ? level : undefined;
 }

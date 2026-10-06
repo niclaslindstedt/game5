@@ -23,6 +23,7 @@ import {
   DOWNHILL,
   SLALOM,
   SUPER_G,
+  GIANT_SLALOM,
   SPEED_SKI,
   SLED,
   heliWithin,
@@ -94,14 +95,15 @@ export type Standing = {
   waiting?: boolean;
 };
 
-/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's, a
- * downhill's, a super-G's or a speed race's — null on any other run. */
+/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's, a giant
+ * slalom's, a downhill's, a super-G's or a speed race's — null on any other
+ * run. */
 export type RaceHud = {
   /** Which discipline, and — on a downhill — whether this is its TRAINING
    * run (`downhill-run.ts`), which counts for nothing. */
-  discipline: "slalom" | "downhill" | "superG" | "speedSki" | "skiCross";
+  discipline: "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross";
   training: boolean;
-  /** Which run of how many (R31; a downhill and a super-G are one). */
+  /** Which run of how many (R31, R36; a downhill and a super-G are one). */
   run: 1 | 2;
   runs: number;
   /** THE STARTER'S WORD, small at the top while the start clock in the
@@ -419,11 +421,13 @@ export function raceOf(state: GameState): RaceHud | null {
     ? "downhill"
     : state.level.superG
       ? "superG"
-      : state.level.speedSki
-        ? "speedSki"
-        : state.level.skiCross
-          ? "skiCross"
-          : "slalom";
+      : state.level.giantSlalom
+        ? "giantSlalom"
+        : state.level.speedSki
+          ? "speedSki"
+          : state.level.skiCross
+            ? "skiCross"
+            : "slalom";
   const word =
     state.phase === "countdown"
       ? "ready"
@@ -439,11 +443,13 @@ export function raceOf(state: GameState): RaceHud | null {
         ? DOWNHILL.runs
         : discipline === "superG"
           ? SUPER_G.runs
-          : discipline === "speedSki"
-            ? SPEED_SKI.runs
-            : discipline === "skiCross"
-              ? 1
-              : SLALOM.runs,
+          : discipline === "giantSlalom"
+            ? GIANT_SLALOM.runs
+            : discipline === "speedSki"
+              ? SPEED_SKI.runs
+              : discipline === "skiCross"
+                ? 1
+                : SLALOM.runs,
     word,
     timing: timingSplit(state),
     before: f.before,

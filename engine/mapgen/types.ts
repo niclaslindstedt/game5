@@ -194,6 +194,10 @@ export interface Level {
    * `checkpoints`, its start house the `spawn`. Absent on every map the
    * generator builds — a super-G is set over one. */
   superG?: SuperGCourse;
+  /** A GIANT SLALOM set on the map (R36, `setGiantSlalom`): its gates are
+   * this map's `checkpoints`, its start house the `spawn`. Absent on every
+   * map the generator builds — a giant slalom is set over one. */
+  giantSlalom?: GiantSlalomCourse;
   /** A SPEED-SKIING TRACK set on the map (R34, `setSpeedSki`): its `track`
    * is the straight speed track cut down the fall line, its checkpoints
    * the start gate and the TIMING ZONE's two lines, its start house the
@@ -269,8 +273,9 @@ export interface SpeedSkiCourse {
   width: number;
 }
 
-/** A SPEED EVENT'S COURSE as it was set over a built map — a downhill's
- * (R32) or a super-G's (R33): the stretch, the nets along it, the trap,
+/** A COURSE SET ON A RACING LINE over a built map — a downhill's (R32), a
+ * super-G's (R33) or a giant slalom's (R36): the stretch, the nets along
+ * it, the trap (a speed event's),
  * the jumps it keeps and the racing line its gates are set on
  * (`speed-course.ts`). */
 export interface SpeedCourse {
@@ -284,8 +289,9 @@ export interface SpeedCourse {
   /** The vertical between them, m. */
   vertical: number;
   /** THE SPEED TRAP: its arc down the piste, m, and its line across it
-   * (a point on the piste's centreline and the way down it there). */
-  trap: { s: number; x: number; z: number; heading: number; width: number };
+   * (a point on the piste's centreline and the way down it there) — a
+   * speed event's; a giant slalom has none. */
+  trap?: SpeedTrap;
   /** THE A-NETS along both edges: their line this far outside the piste's
    * edge, m, this tall, m, from arc `from` to `to`. */
   nets: { gap: number; height: number; from: number; to: number };
@@ -298,12 +304,26 @@ export interface SpeedCourse {
   line: { s: number; x: number }[];
 }
 
+/** A speed event's SPEED TRAP: its arc down the piste, m, and its line
+ * across it (a point on the piste's centreline and the way down it there). */
+export type SpeedTrap = { s: number; x: number; z: number; heading: number; width: number };
+
 /** A DOWNHILL COURSE (R32) as it was set over a built map. */
-export type DownhillCourse = SpeedCourse;
+export type DownhillCourse = SpeedCourse & { trap: SpeedTrap };
 
 /** A SUPER-G COURSE (R33) as it was set over a built map: a speed course
  * whose gates TURN the racer. */
 export interface SuperGCourse extends SpeedCourse {
+  trap: SpeedTrap;
+  /** The direction changes its gates make. */
+  turns: number;
+}
+
+/** A GIANT-SLALOM COURSE (R36) as it was set over a built map: a course
+ * on a racing line whose gates turn the racer, one of two runs. */
+export interface GiantSlalomCourse extends SpeedCourse {
+  /** Which run of the two — each set afresh on the same stretch. */
+  run: 1 | 2;
   /** The direction changes its gates make. */
   turns: number;
 }

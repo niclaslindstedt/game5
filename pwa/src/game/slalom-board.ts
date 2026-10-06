@@ -61,7 +61,8 @@ const TIMING = new WeakMap<Level, number[]>();
 /** THE INTERMEDIATE TIMING POINTS: the checkpoint indices of the gates
  * nearest a third and two thirds of the way from the start gate to the
  * finish — on a downhill (R32) its `downhill.timing` points, evenly, and on
- * a super-G (R33) its `superG.timing` — by
+ * a super-G (R33) its `superG.timing`, on a giant slalom (R36) its
+ * `giantSlalom.timing` — by
  * length along the piste, never the start or the finish, never the same
  * gate twice. Empty on a map too short to have them. */
 export function timingGates(level: Level): number[] {
@@ -74,7 +75,9 @@ export function timingGates(level: Level): number[] {
     ? DISCIPLINE_RULES.downhill.timing
     : level.superG
       ? DISCIPLINE_RULES.superG.timing
-      : 2;
+      : level.giantSlalom
+        ? DISCIPLINE_RULES.giantSlalom.timing
+        : 2;
   if (n >= points + 3) {
     const from = cps[0].s;
     const to = cps[n - 1].s;

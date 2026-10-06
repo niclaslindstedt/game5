@@ -359,10 +359,11 @@ function OutPlate({ snap, onAgain }: { snap: HudSnapshot; onAgain: () => void })
   );
 }
 
-/** A race's plate title: the slalom's run, the downhill's training or race,
- * the super-G. */
+/** A race's plate title: the slalom's run, the giant slalom's, the
+ * downhill's training or race, the super-G. */
 function raceTitle(race: RaceHud): string {
   if (race.discipline === "superG") return STRINGS.resultSuperGTitle;
+  if (race.discipline === "giantSlalom") return STRINGS.resultGiantSlalomTitle(race.run);
   if (race.discipline === "speedSki") return STRINGS.resultSpeedSkiTitle(race.run);
   return race.discipline === "downhill"
     ? STRINGS.resultDownhillTitle(race.training)

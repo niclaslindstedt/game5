@@ -16,11 +16,13 @@
 // slalom's offer, so the plate asks one function what comes next. A SPEED
 // RACE's second run is its FINAL (R34): the qualification's best
 // `SPEED_SKI.qualify` start it from the top of the track, and its board is
-// the final's alone.
+// the final's alone. A GIANT SLALOM's second run is a slalom's (R36): the
+// first run's best `GIANT_SLALOM.qualify`, the leader last, its gates set
+// afresh.
 //
 // DOM-free and storage-free: `tests/slalom_hud_test.ts` reads it.
 
-import { SLALOM, SPEED_SKI, fieldPlace, type GameState, type Heat } from "@engine";
+import { GIANT_SLALOM, SLALOM, SPEED_SKI, fieldPlace, type GameState, type Heat } from "@engine";
 
 /** WHAT THE FINISH PLATE OFFERS after a slalom's first run: the second run
  * (`go`), or why not — out of the first (`out`), or home outside the
@@ -49,16 +51,21 @@ export function secondRunOf(state: GameState): SecondRun | null {
   return place <= qualifyOf(state) ? { kind: "go", place } : { kind: "short", place };
 }
 
-/** THE MODE OF A TWO-RUN RACE on the snow — a slalom's, or a speed race's
- * (R34) — what its second run, and either run again, is stood up as. */
-export function twoRunMode(state: GameState): "slalom" | "speedSki" {
-  return state.level.speedSki ? "speedSki" : "slalom";
+/** THE MODE OF A TWO-RUN RACE on the snow — a slalom's, a giant slalom's
+ * (R36) or a speed race's (R34) — what its second run, and either run
+ * again, is stood up as. */
+export function twoRunMode(state: GameState): "slalom" | "giantSlalom" | "speedSki" {
+  return state.level.speedSki ? "speedSki" : state.level.giantSlalom ? "giantSlalom" : "slalom";
 }
 
 /** HOW MANY OF THE FIRST RUN START THE SECOND: a slalom's best thirty, a
- * speed race's finalists. */
+ * giant slalom's, a speed race's finalists. */
 export function qualifyOf(state: GameState): number {
-  return state.level.speedSki ? SPEED_SKI.qualify : SLALOM.qualify;
+  return state.level.speedSki
+    ? SPEED_SKI.qualify
+    : state.level.giantSlalom
+      ? GIANT_SLALOM.qualify
+      : SLALOM.qualify;
 }
 
 /** THE HEAT AFTER THE FIRST RUN: the player's time and the field as it

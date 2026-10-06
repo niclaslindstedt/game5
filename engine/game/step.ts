@@ -17,6 +17,8 @@ import {
   PARK_VERSION,
   downhillCourseOf,
   superGCourseOf,
+  giantSlalomCourseOf,
+  setGiantSlalom,
   skiCrossCourseOf,
   setSuperG,
   generateLevel,
@@ -230,6 +232,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const tricks = options.mode === "tricks";
   const downhill = options.mode === "downhill";
   const superG = options.mode === "superG";
+  const giant = options.mode === "giantSlalom";
   const ask = {
     tricks,
     region: options.region,
@@ -243,28 +246,33 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   let built = options.level ?? generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with
   // the most vertical (R32) — the same resort, built once (`buildResort`).
-  // A SUPER-G the same hill's, its start lowered into its band (R33); a SKI
-  // CROSS on the course a ski cross is built on best (R35).
+  // A SUPER-G the same hill's, its start lowered into its band (R33), and
+  // a GIANT SLALOM's into its own (R36); a SKI CROSS on the course a ski
+  // cross is built on best (R35).
   const cross = options.mode === "skiCross";
-  if ((downhill || superG || cross) && !options.level && options.grade === undefined) {
+  if ((downhill || superG || giant || cross) && !options.level && options.grade === undefined) {
     const id = downhill
       ? downhillCourseOf(built)
       : superG
         ? superGCourseOf(built)
-        : skiCrossCourseOf(built);
+        : giant
+          ? giantSlalomCourseOf(built)
+          : skiCrossCourseOf(built);
     if (id !== null && id !== built.resort?.course) {
       built = generateLevel(options.seed ?? 1, { ...ask, course: id });
     }
   }
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
-  // lowered start (R33), SPEED SKIING down its own track (R34), a SKI CROSS
+  // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),
+  // SPEED SKIING down its own track (R34), a SKI CROSS
   // on the course built for it (R35), and any other mode skis the map
   // under any course set over it.
   const original =
     built.slalom?.base ??
     built.downhill?.base ??
     built.superG?.base ??
+    built.giantSlalom?.base ??
     built.speedSki?.base ??
     built.skiCross?.base ??
     built;
@@ -277,11 +285,13 @@ export function createGame(options: CreateGameOptions = {}): GameState {
         ? setDownhill(built)
         : superG
           ? setSuperG(built)
-          : options.mode === "speedSki"
-            ? setSpeedSki(built, options.heat?.run ?? 1)
-            : options.mode === "skiCross"
-              ? setSkiCross(built)
-              : original;
+          : giant
+            ? setGiantSlalom(built, options.heat?.run ?? 1)
+            : options.mode === "speedSki"
+              ? setSpeedSki(built, options.heat?.run ?? 1)
+              : options.mode === "skiCross"
+                ? setSkiCross(built)
+                : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);

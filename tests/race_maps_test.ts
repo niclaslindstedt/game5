@@ -21,7 +21,7 @@ import { STRINGS } from "../pwa/src/game/strings.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { holdRaceMaps } from "./support/race-maps.ts";
 
-const BUILT = ["slalom", "superG", "downhill", "speedSki", "skiCross"] as const;
+const BUILT = ["slalom", "giantSlalom", "superG", "downhill", "speedSki", "skiCross"] as const;
 
 /** Seeds the campaign's shelves and the trick maps already race. */
 const TAKEN = new Set([...CAMPAIGN_LEVELS.map((l) => l.seed), ...TRICK_MAPS.map((m) => m.seed)]);
@@ -49,6 +49,7 @@ describe("every built discipline's nine", () => {
     expect(raceMapsOf("slalom")).toBe(RACE_MAPS.slalom);
     expect(raceMapsOf("downhill")).toBe(RACE_MAPS.downhill);
     expect(raceMapsOf("superG")).toBe(RACE_MAPS.superG);
+    expect(raceMapsOf("giantSlalom")).toBe(RACE_MAPS.giantSlalom);
     expect(raceMapsOf("speedSki")).toBe(RACE_MAPS.speedSki);
     expect(raceMapsOf("skiCross")).toBe(RACE_MAPS.skiCross);
     expect(raceMapsOf("timeTrial")).toBeNull();

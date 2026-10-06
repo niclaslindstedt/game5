@@ -59,6 +59,7 @@ export function MenuPages(p: {
           maps={{
             slalom: seedLine ?? pins.raceMap ?? undefined,
             superG: seedLine ?? pins.superGMap ?? undefined,
+            giantSlalom: seedLine ?? pins.giantSlalomMap ?? undefined,
             downhill: seedLine ?? pins.downhillMap ?? undefined,
             speedSki: seedLine ?? pins.speedSkiMap ?? undefined,
             skiCross: seedLine ?? pins.skiCrossMap ?? undefined,
@@ -74,6 +75,7 @@ export function MenuPages(p: {
   const race =
     p.mode === "slalom" ||
     p.mode === "superG" ||
+    p.mode === "giantSlalom" ||
     p.mode === "downhill" ||
     p.mode === "speedSki" ||
     p.mode === "skiCross";

@@ -7,8 +7,9 @@
 // the SPEED-SKIING TRACK (R34 — a track of its own down the face rather
 // than a course on the piste) and the SKI CROSS (R35 — a course BUILT in
 // the snow, its turns banked and its jumps shaped, weaving down the
-// piste's corridor) are set today; the giant slalom is named by the game
-// and not set yet, and will be a rule here when it is.
+// piste's corridor) and the GIANT SLALOM (R36 — the super-G's machinery
+// with a technical race's numbers: two runs, gates every twenty-odd metres)
+// are set today.
 //
 // THE RESEARCH BEHIND THE NUMBERS — the international alpine competition
 // rules, and speed skiing's own, by article and never by event:
@@ -178,6 +179,32 @@
 //                                 four, the first two through; the small
 //                                 final for fifth to eighth, the big final
 //                                 for the podium
+//
+//   giantSlalom.vertical 250–450  a giant slalom's vertical drop at the top
+//                                 level (men 250–450, women 250–400; lower
+//                                 races 200–400, the youth 200–350)
+//   giantSlalom.changes 11–15 %   the direction changes as a share of the
+//                                 vertical in metres (top races ~51 on
+//                                 400 m)
+//   giantSlalom.turn ≥ 10 m       turning pole to turning pole of two
+//                                 successive gates; measured courses
+//                                 26–27 m apart down the hill, 6.8 ± 2.4 m
+//                                 across, wider on the steep
+//   giantSlalom.width 4–8 m       a gate is FOUR poles and TWO panels — a
+//                                 turning pair and an outside pair, a panel
+//                                 about 0.75 m wide by 0.5 m high between
+//                                 each — red and blue in turn
+//   giantSlalom.setting           big and medium turns that use the
+//                                 terrain, never only down the fall line;
+//                                 the course some 40 m wide on a top
+//                                 race's hill
+//   giantSlalom.passing           both tips and both feet across the gate
+//                                 line between the turning poles; a gate
+//                                 missed is a disqualification
+//   giantSlalom.runs              two runs on two courses set on the same
+//                                 hill, the second the first run's best
+//                                 thirty in reverse, the combined time
+//                                 ranked
 //
 // The rules, in prose (each realized by `slalom.ts`, asserted in
 // tests/slalom_test.ts, and carried VERBATIM by docs/level-generator.md):
@@ -355,6 +382,41 @@
 //       `skiCross.start.lanes` doors abreast `skiCross.start.lane` metres
 //       apart, and the FINISH LINE is `skiCross.finish.width` metres wide
 //       with `skiCross.finish.area` metres of finish area past it.
+//
+//   R36 THE GIANT-SLALOM COURSE. A giant slalom is set on the piste of the
+//       ski area's course with the most vertical, from a START LOWERED down
+//       it until the drop to the finish line is `giantSlalom.target` metres
+//       at the most (`giantSlalom.vertical` the band it is held to where
+//       the piste has one) — prepared as a super-G's is: the start a house
+//       over the piste, the snow out of its door cut into a START DROP as
+//       steep as `giantSlalom.drop.grade`, every kicker on the piste
+//       levelled, the piste groomed hard and combed smooth over
+//       `giantSlalom.comb`, every crest sharper than `giantSlalom.crest`
+//       metres of radius shaved round, every tree within
+//       `giantSlalom.clear` metres of the piste and in the finish arena
+//       cleared, and safety NETS along both edges `giantSlalom.nets.gap`
+//       metres outside the piste. Its gates TURN the racer: as many as
+//       `giantSlalom.changes` of the vertical in metres and
+//       `giantSlalom.spacing` metres apart down the piste give, whichever
+//       is more, each strayed off the even spacing by
+//       `giantSlalom.rhythm`, none within `giantSlalom.jump` metres before
+//       a jump nor `giantSlalom.landing` after it. Its RACING LINE is the
+//       line that bends the least kept `giantSlalom.line.margin` metres
+//       inside the piste and `giantSlalom.line.most` off its middle, SWUNG
+//       to each gate's side in turn by `giantSlalom.swing` metres — no
+//       further than bends it tighter than `giantSlalom.bend` metres, nor
+//       leaves the gate off the snow; `giantSlalom.opening` of it at the
+//       first gates, the `giantSlalom.straight` share before a jump, and
+//       less on a gentle stretch (`giantSlalom.flat`) — eased from one
+//       gate's apex to the next. Each gate is FOUR poles and TWO panels,
+//       red and blue in turn, `giantSlalom.width` metres between the inner
+//       poles, its turning pole `giantSlalom.pass` metres inside the line's
+//       apex and every pole `giantSlalom.inside` metres inside the piste.
+//       The finish line is `giantSlalom.finishWidth` metres wide at the
+//       least, and the course is timed at `giantSlalom.timing`
+//       intermediates. The line is held `giantSlalom.towers.clear`
+//       metres off any lift tower standing on the piste. A giant slalom is two RUNS on the same stretch, the
+//       second's gates and swing dealt afresh.
 
 import type { Band } from "./rules.ts";
 
@@ -838,5 +900,97 @@ export const DISCIPLINE_RULES = {
      * FINISH STRAIGHT above the area, m of the piste's line, a finish
      * jump's room after the last turn. */
     finish: { width: 15, area: 60, before: 20, half: 30, straight: 120 },
+  },
+  /** R36 — the giant-slalom course. */
+  giantSlalom: {
+    /** The vertical a giant slalom is held to, m: the top level's band
+     * (men 250–450, women 250–400). Set on the ski area's course with the
+     * most vertical, its START LOWERED down the piste until the drop to
+     * the finish is `target` at the most. */
+    vertical: { min: 250, max: 450 } as Band,
+    target: 400,
+    /** The start: the racer stood this far above the wand's line, m. */
+    stand: 1.1,
+    /** THE START DROP: shorter and gentler than a speed event's — the
+     * racer skates out of it into his first turn. */
+    drop: { lip: 0.6, length: 8, grade: 0.5, most: 2.5, ease: 35, shoulder: 10 },
+    /** Every kicker on the piste levelled, and how far past its ends, m. */
+    clearance: 30,
+    /** The finish's run-out groomed with the course, m. */
+    outrunLength: 60,
+    /** The hill combed smooth of its short lips. */
+    comb: { reach: 6, ease: 6 },
+    /** THE CRESTS SHAVED, m of radius: a giant slalom is skied at 18–22
+     * m/s, where a racer leaves the snow over a crest tighter than v²/g —
+     * some 35–50 m (est.) — and it is raced on the snow. */
+    crest: 45,
+    /** Trees cleared within this of the piste's edge, m, and the arena. */
+    clear: 12,
+    arena: { past: 80, before: 30, half: 45 },
+    /** THE NETS along both edges where a racer would leave the course at
+     * speed. */
+    nets: { gap: 3, height: 4, give: 2 },
+    /** THE DIRECTION CHANGES: this share of the vertical in metres — the
+     * top level's 11–15 %, at its middle. */
+    changes: 0.13,
+    /** The gates down the piste, m: the least (the rule's 10 m turning
+     * pole to turning pole, and a racer's room to turn at 70 km/h), the
+     * most, and the spacing aimed at (the measured 26–27). */
+    spacing: { min: 18, max: 42, target: 27 },
+    /** How much a gate's spacing strays from the even one either way, as a
+     * share — a course's rhythm changes. */
+    rhythm: 0.2,
+    /** Between the inner poles of a gate, m — the rule's 4–8 — and how far
+     * inside the piste's edge every pole stands, m. */
+    width: 6,
+    inside: 2,
+    /** How far outside the turning pole the line passes, m — a racer's
+     * shins brush it at the top level; the game's line keeps a margin the
+     * bot holds at 70 km/h. */
+    pass: 3,
+    /** THE FIRST GATES out of the house, skied while he gathers speed,
+     * swing this share of their own, gate by gate. */
+    opening: [0.5, 0.8] as readonly number[],
+    /** ...and a gate on a GENTLE stretch — the piste falling less than `to`
+     * over the `over` m above it — swings less, down to `least` of its own
+     * at `from`. */
+    flat: { over: 60, from: 0.08, to: 0.2, least: 0.45 },
+    /** THE SWING: how far the line swings across the piste to a gate's
+     * side, m, either side of the line that bends the least — the measured
+     * 6.8 ± 2.4 m across between two gates, as a line swung round the
+     * poles — dealt a gate; and the tightest it may bend for it, m of
+     * radius (a giant slalom's ~20 m turn, its least ~13 m, est.). */
+    swing: { min: 2.5, max: 4.5 } as Band,
+    bend: 22,
+    /** THE GATE BEFORE A JUMP is set straighter: one within `approach` m
+     * of a jump's lip swings this share of its own. */
+    approach: 40,
+    straight: 0.4,
+    /** THE RACING LINE the swing is laid about: the super-G's, down the
+     * middle of the piste. */
+    line: {
+      step: 4,
+      margin: 9,
+      most: 5,
+      ease: 0.1,
+      passes: 60,
+      strides: [64, 32, 16, 8, 4, 2, 1] as readonly number[],
+    },
+    /** THE JUMPS: a crest is one where the shaved profile still bends over
+     * tighter than `takeoff` m of radius, read over `crestSpan` m either
+     * side; no gate stands within `jump` m before a jump's lip or a drop's
+     * edge, nor `landing` m after it. */
+    takeoff: 60,
+    crestSpan: 8,
+    jump: 20,
+    landing: 35,
+    /** The finish line's least width, m. */
+    finishWidth: 20,
+    /** THE LIFT'S TOWERS: the line kept this far off a column on the
+     * piste, m, eased over `ease` m either side — the racer's shoulder and
+     * the padding round the steel. */
+    towers: { clear: 4, ease: 30 },
+    /** The intermediate timing points. */
+    timing: 2,
   },
 } as const;

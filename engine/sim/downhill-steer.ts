@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT ON A SPEED COURSE'S LINE (R32, R33) — how a racer holds the
+// THE BOT ON A SPEED COURSE'S LINE (R32, R33, R36) — how a racer holds the
 // racing line (`speedLineAt`) through a downhill's gates eight to ten
-// metres wide at a hundred kilometres an hour, and round a super-G's
-// turning poles at ninety.
+// metres wide at a hundred kilometres an hour, round a super-G's turning
+// poles at ninety and a giant slalom's at seventy.
 //
 // A point chased ahead on the line lags it through every long turn: by the
 // time the skier's heading has come round to the point, the line has bent
@@ -22,7 +22,7 @@
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { speedLineAt, trackPointAt } from "../mapgen/index.ts";
-import type { TrackHit, TrackPoint } from "../mapgen/types.ts";
+import type { Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { edgeLockAt, edgeMostOf } from "../game/limits.ts";
 import type { GameState } from "../game/state.ts";
@@ -59,6 +59,24 @@ export const SUPER_G_STEER = {
   yawLead: 0.15,
 } as const;
 
+/** THE GIANT SLALOM RACER'S HOLD (R36): the super-G racer's, read a little
+ * closer still — a turn every twenty-odd metres at 70 km/h comes round in
+ * well under a second. */
+export const GIANT_SLALOM_STEER = {
+  ...SUPER_G_STEER,
+  lead: 0.06,
+  yawLead: 0.06,
+  check: 0.35,
+  checkPer: 5,
+  lookBase: 5,
+  lookPerSpeed: 0.22,
+} as const;
+
+/** The hold a racer keeps on `level`'s line, by its discipline. */
+export function steerOf(level: Level): Readonly<Record<keyof typeof DOWNHILL_STEER, number>> {
+  return level.giantSlalom ? GIANT_SLALOM_STEER : level.superG ? SUPER_G_STEER : DOWNHILL_STEER;
+}
+
 const pt: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
 /** The steer that holds `state`'s skier on the speed course's racing line,
@@ -70,7 +88,7 @@ export function downhillSteer(state: GameState, on: TrackHit): number | null {
   if (!here) return null;
   const offset = here.offset;
   const c = state.skier;
-  const K = level.superG ? SUPER_G_STEER : DOWNHILL_STEER;
+  const K = steerOf(level);
   const v = Math.max(5, c.speed);
   // The line's own heading here: the piste's, turned by how fast the line
   // moves across it.

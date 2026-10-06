@@ -83,7 +83,16 @@ const CROSS_VIEWS = [
   "fence",
   "finish-line",
 ];
-const MODES = ["slalom", "downhill", "superG", "skiCross", "timeTrial", "tricks", "free"];
+const MODES = [
+  "slalom",
+  "giantSlalom",
+  "downhill",
+  "superG",
+  "skiCross",
+  "timeTrial",
+  "tricks",
+  "free",
+];
 
 const args = parseArgs(
   process.argv.slice(2),

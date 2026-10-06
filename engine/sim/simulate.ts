@@ -53,11 +53,15 @@ export type SimOptions = {
   /** RACE A DISCIPLINE (`MODE_RULES`): the seed's map with its course set
    * over it — a slalom's stretch (R31), a downhill's whole piste on the ski
    * area's biggest course (R32), a super-G down the same from its lowered
-   * start (R33), a speed track cut down the face, its qualification (R34)
+   * start (R33), a giant slalom from its own, its first run (R36), a speed
+   * track cut down the face, its qualification (R34)
    * — skied out of the start house under the
    * strict gates, against the field's board. The open rules when left out.
    * Ignored with `tricks`. */
-  mode?: Extract<GameMode, "slalom" | "downhill" | "superG" | "speedSki" | "skiCross">;
+  mode?: Extract<
+    GameMode,
+    "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross"
+  >;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied. */
   heat?: boolean;

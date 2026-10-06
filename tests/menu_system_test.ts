@@ -188,6 +188,9 @@ describe("the URL (url-params.ts, splash.ts)", () => {
     // the race card the front door's RACE tile opens.
     expect(readParams("?start=superg")).toMatchObject({ rides: true, mode: "superG" });
     expect(readParams("?menu=levels&mode=superg")).toMatchObject({ rides: false, mode: "superG" });
+    // A GIANT SLALOM (R36) the same way.
+    expect(readParams("?start=gs")).toMatchObject({ rides: true, mode: "giantSlalom" });
+    expect(readParams("?menu=levels&mode=gs")).toMatchObject({ rides: false, mode: "giantSlalom" });
     expect(readParams("?menu=races").page).toBe("races");
     expect(readParams("?menu=root")).toMatchObject({ menu: true, page: "root" });
     expect(readParams("?menu=options").page).toBe("options");

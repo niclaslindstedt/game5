@@ -64,6 +64,10 @@ export type InputManager = {
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
    * land here. */
   requestReset: () => void;
+  /** Queue the MACHINE press — the HUD's call to the snowmobile or the
+   * helicopter tapped while he stands beside it (`hud-sled.tsx`,
+   * `hud-heli.tsx`) lands here, as ENTER does. */
+  requestMachine: () => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
   /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
@@ -227,6 +231,9 @@ export function createInputManager(
     touch,
     requestReset: () => {
       reset = true;
+    },
+    requestMachine: () => {
+      machine = true;
     },
     onAction: (handler) => {
       onAction = handler;

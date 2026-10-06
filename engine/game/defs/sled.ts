@@ -206,8 +206,9 @@ export const SLED = {
    * shut off, s. */
   idleFor: 25,
   /** BOARDING: within `reach` m of the boards' middle, no faster than
-   * `fastest` m/s. */
-  board: { reach: 2.4, fastest: 6 },
+   * `fastest` m/s — ridden up to and taken at a skier's cruise (about
+   * 43 km/h), never asked to stop dead beside it. */
+  board: { reach: 5, fastest: 12 },
   /** THE HOP OFF the boards (the jump's press): out to the left of the
    * machine, m/s, and a little up. */
   hop: { out: 1.6, up: 1.4 },

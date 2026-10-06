@@ -3,8 +3,10 @@
 // place, the strip a pilot clips to his riser: THE ALTITUDE over the snow
 // under him, THE VARIO (his climb, the bar up green or down red), THE AIR
 // through the wing (the speed that flies it — the HUD's own speedo is his
-// way over the snow), and THE THROTTLE with the engine's rpm. A STALL lit
-// red when the wing is past it. Under it, the way out of the harness —
+// way over the snow), THE WIND at the wing and THE THROTTLE with the
+// engine's rpm. A STALL lit red when the wing is past it, a COLLAPSE when
+// rough air has folded it (which side), and ROUGH AIR when the eddies are
+// strong enough to. Under it, the way out of the harness —
 // and on the summit, how to go. Every figure is the snapshot's (`paraOf`).
 
 import type { HudPara } from "./snapshot.ts";
@@ -12,6 +14,10 @@ import { STRINGS } from "./strings.ts";
 
 /** The vario's bar reads full at this climb or sink, m/s. */
 const VARIO_FULL = 5;
+/** The eddies' sigma the air reads rough at, m/s — where folds begin. */
+const ROUGH = 1.3;
+/** The share of the wing folded the HUD calls a collapse. */
+const FOLDED = 0.08;
 
 export function ParaReadout({
   para,
@@ -54,6 +60,10 @@ export function ParaReadout({
           <span class="hud-para-num">{STRINGS.paraAirValue(para.air)}</span>
           <span class="hud-para-sub">{STRINGS.paraAir}</span>
         </span>
+        <span class={`hud-para-cell${para.rough >= ROUGH ? " hud-para-gusty" : ""}`}>
+          <span class="hud-para-num">{STRINGS.paraWindValue(para.wind)}</span>
+          <span class="hud-para-sub">{STRINGS.paraWind}</span>
+        </span>
         <span class="hud-para-cell hud-para-thr">
           <span class="hud-para-gauge" aria-hidden="true">
             <span class="hud-para-rev" style={{ width: `${(para.rev * 100).toFixed(0)}%` }} />
@@ -64,8 +74,12 @@ export function ParaReadout({
       </div>
       {para.stalled ? (
         <span class="hud-para-stall">{STRINGS.paraStall}</span>
+      ) : para.fold >= FOLDED ? (
+        <span class="hud-para-stall">{STRINGS.paraFold(para.foldSide)}</span>
+      ) : para.kind === "riding" ? (
+        <span class="hud-para-word">{STRINGS.paraRiding}</span>
       ) : (
-        para.kind === "riding" && <span class="hud-para-word">{STRINGS.paraRiding}</span>
+        para.rough >= ROUGH && <span class="hud-para-rough">{STRINGS.paraRough}</span>
       )}
       <span class="hud-para-hint">{STRINGS.paraDrop(touch, machineKey)}</span>
     </div>

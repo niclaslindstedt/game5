@@ -23,7 +23,7 @@ The model has **two bodies on one line**, solved after the skier's own step each
 - **The wing** is a 10 kg point mass: its cloth plus the air held in its cells.
 - **The lines** are a constraint that never stretches: 6 m, a speed wing's short lines. They pull only when the two bodies move apart along them, so a wing that surges forward or collapses can go slack.
 
-**The wing's forces** come from the air through it, the weather's wind included (`airAt`):
+**The wing's forces** come from the air through it, the air described in [The air it flies in](#the-air-it-flies-in) below:
 
 - **The angle of attack** is the trim angle plus the airflow's angle in the plane square to the lines. Trimmed, the wing settles at about 8°.
 - **Lift** climbs at 3.2 per radian from a zero-lift angle of −0.05 rad (its camber). Past the **stall** at 0.3 rad only 0.55 of the lift is left.
@@ -44,7 +44,7 @@ Some behaviour comes out of the model with no special case:
 - **Torque.** At full power the engine's torque turns the wing a little to the left.
 - **Stall recovery.** Let the brakes up after a stall and the canopy surges forward over the pilot as it fills, then dives to pick up speed. Low over the snow, that dive is how a stall ends badly.
 
-**The launch.** On the summit the wing is held inflated overhead, standing a little behind plumb, until the skier is going 8 m/s. Then it is let fly. With the throttle open the skis leave the snow two to three seconds later.
+**The launch.** On the summit the wing is held inflated overhead, standing a little behind plumb, until the air meets it from ahead at 8 m/s. Then it is let fly. In a tailwind the skier has to ski faster than the wind first, because air from behind would only blow the wing down over him. With the throttle open the skis leave the snow two to three seconds later.
 
 **Under the wing on the snow** is speed riding: the skis on the slope, the wing still flying and taking some of the weight. Near the snow the pilot stands up out of the seat, and his skis meet the slope square from 6 m above it, fully by 1.5 m.
 
@@ -85,6 +85,24 @@ The look is built from how real speed wings and foot-launch paramotors are made,
 
 `ARGS="--sheet=gear,turntable"` shoots some; `--views=` some views of them; `SEED=` another map. Run it before and after any change to how the rig looks, and look at both.
 
+## The air it flies in
+
+A wing that flies at 55 km/h is moved bodily by a wind of half that, and it is kept up or pushed down by the air's own rise and fall. So the paramotor flies in an air of its own (`engine/game/para-air.ts`, its numbers in `PARA.air`), much more than the skier's (`wind.ts`'s `airAt`):
+
+- **The mean wind.** The weather's 10 m wind, with its gusts and veer, grows with height by the log law up to 300 m. It is exposed by the altitude of the air itself, so the higher he flies, the harder it blows. The woods shelter it only below their crowns (22 m).
+- **Ridge lift and the lee's sink.** The flow follows the slopes it meets. It rises at the wind's speed times the slope where it blows up one, and sinks where it blows down one. This is read at two scales, a spur's flank (25 m, dying out over 60 m of height) and the whole face (140 m, over 260 m). It is capped at 0.7 of the wind, the share a steep ridge gives. Down a slope the flow separates: 0.55 of the sink is kept as a smooth sink and the rest becomes the lee's rotor. The wind never blows up the fall line, so ridge lift comes from a crosswind meeting a spur or a gully's side.
+- **Turbulence.** Eddies are frozen into the wind and carried down it (Taylor's hypothesis): three octaves, at 18, 55 and 160 m, on a 5/3 law. Their strength is a share of the mean wind: 0.09 in the open air, up to 0.12 more near the snow (fading over 35 m), up to 0.3 more in a lee, and up to 0.14 more over the woods. In a storm all of it is 1.35 times stronger. The vertical part is flattened against the snow below 12 m.
+
+**Folds.** The vertical eddies change the wing's angle of attack, and they are read at both tips, 6.4 m apart (`PARA.fold`):
+
+- When a tip's angle goes under zero, that side **folds** under. It loses lift, drags, rolls the wing and turns it toward the folded side.
+- When the centre goes under, the whole leading edge tucks: a **frontal** collapse that takes most of the lift.
+- The deeper under, the more of the wing folds, from 0.35 to 0.95 of it.
+- It refills on its own in about 1.6 s, faster with the brakes pumped and far slower when the wing has little airspeed.
+- The HUD calls the collapse and which side it is on, and lights the wind cell when the air is rough enough to fold the wing. The bot pumps a fold out on the brakes.
+
+What it comes to: calm air, fog and a clear day's breeze fly clean. A fair or overcast day's 25 km/h folds the wing now and then. A snowfall's 45 km/h folds it often, stalls it and sets it going backwards over the ground when it turns into the wind. A storm's gale throws most flights. Real soft-wing pilots stop flying at about 20 km/h with gusts of 8 km/h, so the game's flyable band is wider on purpose, and still hard at its top end.
+
 ## Where it starts
 
 `paraStartOf(level)` picks the highest head among the ski area's runs, or else the piste's own start, and faces the skier down that run from it.
@@ -96,6 +114,8 @@ Nothing in the paramotor draws from `state.rng`. The wind it flies in is the wea
 ## Tests and labs
 
 - `npx vitest run tests/para_look_test.ts`: the wing's size, aspect ratio, arc and tip curl inside a speed wing's bands, a finite mesh under the brakes, every line hung off one of the eight risers, and the mouths and the tips as painted.
-- `make para`: the lab (above).
+- `make para`: the lab (above). Its `fold` sheet shows a side folded, a deep fold and a frontal collapse.
+- `make para-wind`: what the weather does to a flight, in pure Node. Each of R19's weathers and a sweep of the wind's strength down the face and across it are flown on the bot's hands. It prints the wind at the wing, the ridge lift and the lee's sink, how rough the air was, the folds, the stall, the share of the flight flown backwards, the lowest height and how it ended. Keep `ARGS=--json=previews/para-wind-before.json` before a change and `ARGS=--compare=…` after.
+- `npx vitest run tests/para_wind_test.ts`: ridge lift up a flank and sink off one, the lee rougher, the lift dying with height and the wind growing, still air, the eddies with the wind, the calm flight clean, the storm folding the wing, the tailwind launch, determinism.
 - `npx vitest run tests/para_test.ts`: the launch, the climb and the glide, the turn, the stall and its recovery, the drop and skiing on, the restart, determinism, the start card and the HUD.
 - `make build`, then `make screenshots ARGS="--surface para-ready,para-go,para"`: on the summit under the held wing, skiing off as it flies, and in the air on the bot's hands.

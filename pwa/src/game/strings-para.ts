@@ -15,6 +15,8 @@ export const PARA_STRINGS = {
   newsParaTouch: "SPEED RIDING",
   newsParaDrop: "RIG DROPPED! SKI IT OUT",
   newsParaCollapse: "WING DOWN! RIG CUT AWAY",
+  /** The wing folded in the air by rough air: pump it out. */
+  newsParaFold: "COLLAPSE! PUMP THE BRAKES",
   newsParaRestart: "ON THE SUMMIT",
 
   /* ── THE HUD (hud-para.tsx) ────────────────────────────────────────── */
@@ -25,6 +27,14 @@ export const PARA_STRINGS = {
   paraAir: "AIR",
   paraAirValue: (ms: number): string => `${Math.round(ms * 3.6)}`,
   paraThrottle: "THR",
+  /** The wind at the wing, km/h. */
+  paraWind: "WIND",
+  paraWindValue: (ms: number): string => `${Math.round(ms * 3.6)}`,
+  /** The air rough enough to fold the wing. */
+  paraRough: "ROUGH AIR",
+  /** The wing folded: which side, or its whole leading edge. */
+  paraFold: (side: number): string =>
+    side < 0 ? "LEFT SIDE FOLDED" : side > 0 ? "RIGHT SIDE FOLDED" : "FRONTAL COLLAPSE",
   /** The wing past its stall. */
   paraStall: "STALL",
   /** On the summit, the wing held up: how to go. */

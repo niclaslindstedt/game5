@@ -47,7 +47,7 @@ import { mendBody } from "./body.ts";
 import { freeRuns } from "./lift-ride.ts";
 import { derive } from "./skier.ts";
 import { treesNear } from "./upright-grid.ts";
-import { airAt, type Wind } from "./wind.ts";
+import { eddyUp, paraAirAt, type ParaAir } from "./para-air.ts";
 import type { Level } from "../mapgen/types.ts";
 import type {
   GameEvent,
@@ -73,7 +73,8 @@ const SWING = 0.3;
 const BANK_MOST = 1.15;
 const IDLE: ParaControls = { throttle: 0, brake: 0, steer: 0, bar: 0 };
 const trees: number[] = [];
-const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
+const air: ParaAir = { x: 0, y: 0, z: 0, mean: 0, lift: 0, rough: 0, lee: 0 };
+const F = PARA.fold;
 
 /** WHERE THE RIDE BEGINS: the highest head of the ski area's runs — the top
  * of the mountain a skier can ski off — or, off a resort, the piste's own
@@ -115,6 +116,11 @@ export function freshPara(state: GameState): ParaState {
     airspeed: 0,
     alpha: 0,
     stalled: false,
+    fold: 0,
+    foldSide: 0,
+    wind: 0,
+    lift: 0,
+    rough: 0,
     tension: 0,
     controls: { ...IDLE },
     rpm: PARA.engine.idle,
@@ -232,7 +238,15 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
     // HELD OVERHEAD, inflated, until he has skied off fast enough for it
     // to fly.
     holdOverhead(state, p);
-    if (c.speed >= PARA.launch.release || c.airborne) {
+    // Let fly once the AIR meeting it from ahead is enough to fly it: a
+    // headwind on the summit lifts it with him barely moving, a tailwind
+    // makes him ski faster than the wind first — the air from behind would
+    // only blow it down over him.
+    readAir(state, p);
+    const hx = Math.sin(p.heading);
+    const hz = Math.cos(p.heading);
+    const through = (c.vx - air.x) * hx + (c.vz - air.z) * hz;
+    if (through >= PARA.launch.release || c.airborne) {
       p.mode = "flown";
       p.t = 0;
       say(state, events, "launch");
@@ -241,7 +255,7 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
     return;
   }
 
-  fly(state, p, M);
+  fly(state, p, M, events);
   readPilot(state, p);
   // THE FLIGHT, counted and reported.
   if (c.airborne) {
@@ -264,7 +278,7 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
 
 /** THE WING ON ITS LINES for one step: the air on it, the swing damped, its
  * weight, the line pulled tight on both bodies. */
-function fly(state: GameState, p: ParaState, M: number): void {
+function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): void {
   const c = state.skier;
   const level = state.level;
   const ctl = p.controls;
@@ -282,11 +296,12 @@ function fly(state: GameState, p: ParaState, M: number): void {
     ux = uz = 0;
     uy = 1;
   }
-  // The air through the wing.
-  airAt(level, state.t, p.x, p.z, Math.max(1, p.y - level.groundAt(p.x, p.z)), wind);
-  const ax = p.vx - wind.x;
-  const ay = p.vy;
-  const az = p.vz - wind.z;
+  // The air through the wing: the wind, its rise off the slopes and its
+  // eddies (`para-air.ts`).
+  readAir(state, p);
+  const ax = p.vx - air.x;
+  const ay = p.vy - air.y;
+  const az = p.vz - air.z;
   const V = hypot3(ax, ay, az);
   const down = ax * ux + ay * uy + az * uz;
   // Its way: the air's direction square to the lines (the canopy noses into
@@ -310,12 +325,29 @@ function fly(state: GameState, p: ParaState, M: number): void {
   const alpha = rig + Math.atan2(-down, Math.max(1e-3, ax * fwx + ay * fwy + az * fwz));
   const stall = P.stall - B.stall * ctl.brake;
   p.stalled = alpha > stall;
-  const lift = p.stalled ? P.stalled : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake);
+  // THE TIPS: the eddies across the span meet each tip at its own angle.
+  const rx0 = uy * fwz - uz * fwy;
+  const ry0 = uz * fwx - ux * fwz;
+  const rz0 = ux * fwy - uy * fwx;
+  const half = F.span / 2;
+  const t = state.t;
+  const upR = eddyUp(level, t, p.x + rx0 * half, p.y + ry0 * half, p.z + rz0 * half, air);
+  const upL = eddyUp(level, t, p.x - rx0 * half, p.y - ry0 * half, p.z - rz0 * half, air);
+  const upC = air.y - air.lift;
+  const Vs = Math.max(4, V);
+  const alphaR = alpha + (upR - upC) / Vs;
+  const alphaL = alpha + (upL - upC) / Vs;
+  foldIn(state, p, alpha, alphaL, alphaR, V, events);
+  const frontal = p.foldSide === 0 ? 1 : F.sideLift;
+  const lift =
+    (p.stalled ? P.stalled : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake)) *
+    (1 - F.lift * frontal * p.fold);
   const drag =
     P.drag0 +
     P.induced * lift * lift +
     B.drag * ctl.brake * ctl.brake +
     PARA.turn.drag * Math.abs(ctl.steer) +
+    F.drag * p.fold +
     (p.stalled ? P.stallDrag : 0);
   const qS = 0.5 * TUNING.airDensity * V * V * W.area;
   // Lift square to the air, on the lines' side; drag down the air.
@@ -342,9 +374,9 @@ function fly(state: GameState, p: ParaState, M: number): void {
   }
   // THE TURN: toward the toggle pulled and the weight shifted, and the
   // engine's torque — along the canopy's right, u × f.
-  const rx = uy * fwz - uz * fwy;
-  const ry = uz * fwx - ux * fwz;
-  const rz = ux * fwy - uy * fwx;
+  const rx = rx0;
+  const ry = ry0;
+  const rz = rz0;
   const T = PARA.turn;
   const hx0 = Math.cos(p.heading);
   const hz0 = -Math.sin(p.heading);
@@ -353,7 +385,11 @@ function fly(state: GameState, p: ParaState, M: number): void {
     qS *
     ((T.side + T.weight) * ctl.steer +
       T.torque * (p.thrust / PARA.engine.thrust) -
-      T.righting * banked);
+      T.righting * banked +
+      // The tip lifted the more rolls the canopy toward the other side; a
+      // folded side drags the wing round toward it.
+      F.roll * (alphaL - alphaR) +
+      F.turn * p.foldSide * p.fold);
   fx += side * rx;
   fy += side * ry;
   fz += side * rz;
@@ -429,6 +465,44 @@ function fly(state: GameState, p: ParaState, M: number): void {
   p.airspeed = V;
   p.alpha = alpha;
   derive(c, level);
+}
+
+/** The air at the wing into `air`, and what the rig reads of it. */
+function readAir(state: GameState, p: ParaState): void {
+  paraAirAt(state.level, state.t, p.x, p.y, p.z, air);
+  p.wind = air.mean;
+  p.lift = air.lift;
+  p.rough = air.rough;
+}
+
+/** A FOLD (`PARA.fold`): the leading edge pushed under its angle tucks —
+ * all of it, or the tip pushed under alone — and the wing refills on its
+ * own, the faster with the brakes pumped; one fold at a time, the deeper
+ * taking over. Only once he flies: on the snow the pilot holds it up. */
+function foldIn(
+  state: GameState,
+  p: ParaState,
+  alpha: number,
+  alphaL: number,
+  alphaR: number,
+  V: number,
+  events: GameEvent[],
+): void {
+  if (p.fold > 0) {
+    const rate = (1 + F.pump * p.controls.brake) * (V > F.slow ? 1 : 0.3);
+    p.fold = Math.max(0, p.fold - (rate * dt) / F.refill);
+    if (p.fold < 0.02) p.fold = 0;
+  }
+  if (!p.flying) return;
+  const deepest = Math.min(alpha, alphaL, alphaR);
+  if (deepest >= F.alpha) return;
+  const depth = clamp(F.least + (F.alpha - deepest) * F.deep, F.least, F.most);
+  if (depth <= p.fold) return;
+  const onset = p.fold === 0;
+  p.fold = depth;
+  // A frontal when the middle went under; else the side that did.
+  p.foldSide = alpha < F.alpha ? 0 : alphaL < alphaR ? -1 : 1;
+  if (onset) say(state, events, "fold");
 }
 
 /** THE PILOT IN THE HARNESS, off the snow: turned to the wing's heading,

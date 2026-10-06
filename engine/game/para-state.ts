@@ -14,9 +14,11 @@ export type ParaControls = { throttle: number; brake: number; steer: number; bar
 /** What a `para` event says (`para.ts`): the wing let fly off the summit
  * (`launch`), the skis off the snow (`takeoff`) and back on it under the
  * wing (`touch`), the gear released by the pilot (`drop`), the wing
- * collapsed onto the snow or a crown and cut away (`collapse`), or the
- * ride begun again on the summit (`restart`). */
-export type ParaPhaseEvent = "launch" | "takeoff" | "touch" | "drop" | "collapse" | "restart";
+ * collapsed onto the snow or a crown and cut away (`collapse`), the wing
+ * FOLDED in the air by rough air (`fold`), or the ride begun again on the
+ * summit (`restart`). */
+export type ParaPhaseEvent =
+  "launch" | "takeoff" | "touch" | "drop" | "collapse" | "fold" | "restart";
 
 /** A `para` event (`GameEvent`): where, and the pilot's speed, m/s. */
 export type ParaEvent = {
@@ -73,6 +75,16 @@ export type ParaState = {
   airspeed: number;
   alpha: number;
   stalled: boolean;
+  /** A FOLD in the air (`PARA.fold`): how much of the wing is collapsed,
+   * 0..1, and which side — −1 the left tip, 1 the right, 0 a frontal. */
+  fold: number;
+  foldSide: number;
+  /** The air it flies in (`para-air.ts`): the wind's horizontal speed, its
+   * rise off the slopes, m/s (ridge lift up, the lee's sink down), and how
+   * rough it is (the eddies' sigma, m/s). */
+  wind: number;
+  lift: number;
+  rough: number;
   /** The pull on the lines, N — 0 slack. */
   tension: number;
   /** The controls as they stand after their lags. */

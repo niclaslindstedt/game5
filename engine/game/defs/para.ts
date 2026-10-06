@@ -85,6 +85,74 @@ export const PARA = {
   /** NEAR THE SNOW the pilot stands up out of the seat and his skis meet
    * the slope square: from `stand` m over it, fully by `square` m. */
   flare: { stand: 6, square: 1.5 },
+  /** THE AIR THE WING FLIES IN (`para-air.ts`). The wind's log law runs up
+   * to `top` m over the snow (the surface layer; above it the wind is the
+   * same at every height); the woods shelter it only below their `crowns`,
+   * m. RIDGE LIFT: the flow rises along the slope it meets at the wind's
+   * speed times the slope, read over a spur's flank and over the whole
+   * face (`span` m either side), each `share` of it, dying out over the
+   * ground in `depth` m — on a steep face the rise reaches seven tenths of
+   * the wind, on a shallow one a fifth, and no slope steers it steeper than
+   * `steepest`. Down a slope the flow separates: `separate` of the sink is
+   * kept smooth and the rest is the lee's rotor, a full lee where the air
+   * falls `leeSlope` of its speed. THE EDDIES: their sigma as shares of the
+   * mean wind — `open` air, `ground` near the snow (dying out in
+   * `groundDepth` m), `lee`, `woods` (over the crowns, dying out
+   * `woodsDepth` m above them) — times `storm` under a storm; their
+   * `wavelengths`, m, how fast they churn as they are carried (`churn`, m/s
+   * a radian of the wave), and the height, m, under which their up-and-down
+   * is pressed flat by the snow (`flat`). */
+  air: {
+    top: 300,
+    crowns: 22,
+    ridge: [
+      { span: 25, share: 0.45, depth: 60 },
+      { span: 140, share: 0.55, depth: 260 },
+    ],
+    steepest: 0.7,
+    separate: 0.55,
+    leeSlope: 0.25,
+    eddies: {
+      open: 0.09,
+      ground: 0.12,
+      groundDepth: 35,
+      lee: 0.3,
+      woods: 0.14,
+      woodsDepth: 40,
+      storm: 1.35,
+      wavelengths: [18, 55, 160],
+      churn: 1.5,
+      flat: 12,
+    },
+  },
+  /** A FOLD — the wing COLLAPSING in the air, which is what rough air does
+   * to a soft wing: pushed under `alpha`, rad, of attack (a downdraught, the
+   * accelerator in a gust) its leading edge tucks under — a FRONTAL; one
+   * tip pushed under it alone by the eddies across the span, that side
+   * folds — an ASYMMETRIC, the canopy turning toward the folded side. The
+   * span the tips stand apart, m (the projected span); how deep a fold
+   * goes per radian under the angle (`deep`, at least `least`, at most
+   * `most`); the lift a fold takes off (a frontal all of its share, a side
+   * fold `sideLift` of it), the drag it adds, the turn toward the folded
+   * side; and the refill — spontaneous in a few seconds (`refill`, s, for
+   * the whole fold), faster with the brakes pumped (`pump`) and slowly
+   * under `slow` m/s of air. The roll the tips' difference throws on the
+   * canopy (`roll`, per radian of their difference). */
+  fold: {
+    alpha: 0.0,
+    span: 6.4,
+    deep: 6,
+    least: 0.35,
+    most: 0.95,
+    lift: 0.85,
+    sideLift: 0.45,
+    drag: 0.2,
+    turn: 0.4,
+    refill: 1.6,
+    pump: 1.5,
+    slow: 8,
+    roll: 0.6,
+  },
 } as const;
 
 /** The pilot's mass on the lines, kg: the skier, his kit and the motor on

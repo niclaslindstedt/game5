@@ -285,9 +285,60 @@ export function canopyLayout(): CanopyLayout {
 /** Where `v` across cell `i` lies along the span, −1..1. */
 export const cellU = (i: number, v: number): number => -1 + (2 * (i + v)) / CANOPY.cells;
 
-/** THE MESH'S POSITIONS for the brakes, into `out` (`canopyLayout`'s
- * order). */
-export function shapeCanopy(out: Float32Array, left: number, right: number): void {
+/** How far a fold turns the folded part under, radians at a full fold:
+ * a side folded down and back under the wing, a leading edge tucked down
+ * and back under the chord. */
+const FOLD_UNDER = Math.PI * 0.5;
+const TUCK_UNDER = Math.PI * 0.7;
+
+/** A FOLDED WING (the engine's `ParaState.fold` and `foldSide`): the point
+ * at `u` along the span and `s` along the chord, already at `out[o]`,
+ * turned under about the fold's hinge. A side fold (`side` −1 or 1) hinges
+ * along the chord at a rib the deeper the fold the further in, and swings
+ * the tip down under; a frontal one (`side` 0) hinges across the span at a
+ * station the deeper the further back, and tucks the nose down under. */
+export function foldPoint(
+  u: number,
+  s: number,
+  fold: number,
+  side: number,
+  out: Float32Array | number[],
+  o: number,
+): void {
+  if (fold <= 0.01) return;
+  const k = Math.min(1, fold / 0.4);
+  if (side !== 0) {
+    const hinge = side * Math.max(0.2, 1 - 1.1 * fold);
+    if (side * u <= side * hinge) return;
+    const r = ribAt(hinge);
+    const b = -side * FOLD_UNDER * k;
+    const x = out[o] - r.x;
+    const y = out[o + 1] - r.y;
+    out[o] = r.x + x * Math.cos(b) - y * Math.sin(b);
+    out[o + 1] = r.y + x * Math.sin(b) + y * Math.cos(b);
+    return;
+  }
+  const back = 0.12 + 0.45 * fold;
+  if (s >= back) return;
+  const r = ribAt(u);
+  const hy = r.y;
+  const hz = r.lead - r.chord * back;
+  const a = TUCK_UNDER * k;
+  const y = out[o + 1] - hy;
+  const z = out[o + 2] - hz;
+  out[o + 1] = hy + y * Math.cos(a) - z * Math.sin(a);
+  out[o + 2] = hz + y * Math.sin(a) + z * Math.cos(a);
+}
+
+/** THE MESH'S POSITIONS for the brakes and a fold (`foldPoint`), into
+ * `out` (`canopyLayout`'s order). */
+export function shapeCanopy(
+  out: Float32Array,
+  left: number,
+  right: number,
+  fold = 0,
+  foldSide = 0,
+): void {
   let base = 0;
   for (let i = 0; i < CANOPY.cells; i++) {
     for (const side of [1, -1]) {
@@ -298,7 +349,9 @@ export function shapeCanopy(out: Float32Array, left: number, right: number): voi
         // The scallop: the tail cut short between ribs.
         const tail = 1 - CANOPY.scallop * Math.sin(Math.PI * v);
         for (let j = 0; j < ALONG; j++) {
-          canopyPoint(u, stationAt(j) * tail, side, v, drop, out, (base + a * ALONG + j) * 3);
+          const at = (base + a * ALONG + j) * 3;
+          canopyPoint(u, stationAt(j) * tail, side, v, drop, out, at);
+          foldPoint(u, stationAt(j) * tail, fold, foldSide, out, at);
         }
       }
       base += GRID;
@@ -314,6 +367,9 @@ export function shapeCanopy(out: Float32Array, left: number, right: number): voi
     // Down its rib's up, and in toward the middle.
     out[(base + 2) * 3] += -r.nx * d - Math.sign(u) * d * 0.3;
     out[(base + 2) * 3 + 1] += -r.ny * d;
+    foldPoint(u, 0.12, fold, foldSide, out, base * 3);
+    foldPoint(u, 0.92, fold, foldSide, out, (base + 1) * 3);
+    foldPoint(u, 0.55, fold, foldSide, out, (base + 2) * 3);
     base += STAB;
   }
 }

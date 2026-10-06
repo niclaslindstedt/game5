@@ -108,7 +108,7 @@ function stateLine(s: GameState): string {
   if (!p) return skier;
   const k = p.controls;
   return (
-    `${p.mode}${p.flying ? " flying" : ""}${p.stalled ? " STALLED" : ""} · agl ${p.agl.toFixed(1)} m · ` +
+    `${p.mode}${p.flying ? " flying" : ""}${p.stalled ? " STALLED" : ""}${p.fold > 0.01 ? ` FOLD ${p.fold.toFixed(2)}/${p.foldSide}` : ""} · agl ${p.agl.toFixed(1)} m · ` +
     `air ${(p.airspeed * 3.6).toFixed(0)} km/h · climb ${p.climb.toFixed(1)} · ` +
     `alpha ${deg(p.alpha)} bank ${deg(p.bank)} · ${p.rpm.toFixed(0)} rpm\n` +
     `thr ${k.throttle.toFixed(2)} brk ${k.brake.toFixed(2)} steer ${k.steer.toFixed(2)} · ` +

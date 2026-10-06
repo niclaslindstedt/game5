@@ -125,3 +125,16 @@
     opacity: 0.35;
   }
 }
+
+/* The wind cell when the air is rough enough to fold the wing, and the word
+   under the strip. */
+.hud-para-gusty .hud-para-num,
+.hud-para-rough {
+  color: #ffb547;
+}
+
+.hud-para-rough {
+  font-size: clamp(0.7rem, 2.1vmin, 0.9rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}

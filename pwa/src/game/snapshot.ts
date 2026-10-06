@@ -273,8 +273,10 @@ export type HudSnapshot = {
 /** THE PARAMOTOR as the HUD reads it while the rig is on him: `ready` on
  * the summit, the wing held up; else flown — in the air or skiing under it
  * on the snow — with his height over the snow, m, his climb, m/s, the air
- * through the wing, m/s, the throttle and the rpm's share of full, and
- * whether the wing is stalled. */
+ * through the wing, m/s, the throttle and the rpm's share of full, whether
+ * the wing is stalled, the wind at it, m/s, how rough the air is (the
+ * eddies' sigma, m/s), and how much of it is folded and on which side (−1
+ * left, 1 right, 0 its leading edge). */
 export type HudPara = {
   kind: "ready" | "flying" | "riding";
   height: number;
@@ -283,6 +285,10 @@ export type HudPara = {
   throttle: number;
   rev: number;
   stalled: boolean;
+  wind: number;
+  rough: number;
+  fold: number;
+  foldSide: number;
 };
 
 /** The paramotor's readout for the player at this step. */
@@ -297,6 +303,10 @@ export function paraOf(state: GameState): HudPara | null {
     throttle: p.controls.throttle,
     rev: p.rpm / PARA.engine.full,
     stalled: p.stalled,
+    wind: p.wind,
+    rough: p.rough,
+    fold: p.fold,
+    foldSide: p.foldSide,
   };
 }
 

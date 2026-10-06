@@ -26,6 +26,7 @@ import {
   canopyLayout,
   canopyPoint,
   linePlan,
+  foldPoint,
   shapeCanopy,
   type LineNode,
 } from "./para-canopy.ts";
@@ -82,6 +83,12 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
   canopyGeo.setIndex(new THREE.BufferAttribute(layout.index, 1));
   canopyGeo.computeVertexNormals();
   let shapedL = 0;
+  let shapedFold = 0;
+  let shapedSide = 0;
+  /** The fold the lines are drawn to, and a leaf's point while folded. */
+  let folded = 0;
+  let foldedSide = 0;
+  const leafFold = new Float32Array(3);
   let shapedR = 0;
   const cloth = hazeMaterial(
     new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0, side: THREE.DoubleSide }),
@@ -240,6 +247,11 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
       if (n.leaf) {
         at.fromArray(leafAt[i]);
         if (n.leaf.stabilo) canopyStabilo(at, n.side);
+        else if (!draped && folded > 0.01) {
+          at.toArray(leafFold);
+          foldPoint(n.leaf.u, n.leaf.s, folded, foldedSide, leafFold, 0);
+          at.fromArray(leafFold);
+        }
         if (draped) drape(at.x, at.y, at.z, at);
         else at.applyMatrix4(canopy.matrixWorld);
       } else {
@@ -262,7 +274,7 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
   /** The stabilizer's point, read off the canopy's own vertices. */
   function canopyStabilo(out: THREE.Vector3, side: number): void {
     const base = layout.vertices - (side < 0 ? 6 : 3);
-    out.fromArray(rest, (base + 2) * 3);
+    out.fromArray(draped ? rest : skin, (base + 2) * 3);
   }
 
   return {
@@ -309,13 +321,24 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
         const { brake, steer } = p.controls;
         const l = Math.min(1, brake + Math.max(0, -steer));
         const r = Math.min(1, brake + Math.max(0, steer));
-        if (Math.abs(l - shapedL) > 0.02 || Math.abs(r - shapedR) > 0.02) {
-          shapeCanopy(skin, l, r);
+        // FOLDED by rough air: the side or the nose turned under, refilling.
+        const fold = p.fold;
+        if (
+          Math.abs(l - shapedL) > 0.02 ||
+          Math.abs(r - shapedR) > 0.02 ||
+          Math.abs(fold - shapedFold) > 0.01 ||
+          p.foldSide !== shapedSide
+        ) {
+          shapeCanopy(skin, l, r, fold, p.foldSide);
           canopyGeo.getAttribute("position").needsUpdate = true;
           canopyGeo.computeVertexNormals();
           shapedL = l;
           shapedR = r;
+          shapedFold = fold;
+          shapedSide = p.foldSide;
         }
+        folded = fold;
+        foldedSide = p.foldSide;
         // The motor on his back, down with him as he sits in the seat (the
         // perch's own share), the propeller at the engine's own turn.
         const sit = p.flying ? Math.max(0, Math.min(1, (p.agl - SIT) / 2)) : 0;

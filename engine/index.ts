@@ -636,6 +636,7 @@ export {
   stepPara,
 } from "./game/para.ts";
 export { paraPilot } from "./game/para-pilot.ts";
+export { eddyUp, paraAirAt, type ParaAir } from "./game/para-air.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

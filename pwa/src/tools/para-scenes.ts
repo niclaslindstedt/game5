@@ -194,6 +194,26 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "speed-riding", "chase");
     st.shoot(s, "speed-riding-side", around(12, 1, 2, 50, 0, 3));
   },
+  // ── FOLDED BY ROUGH AIR ────────────────────────────────────────────────
+  // The fold set by hand on a wing in calm air (the air's own folds are
+  // `make para-wind`'s): the right side under, half the left, the nose.
+  fold(st) {
+    const s = airborne(st);
+    const p = s.para!;
+    const folds: [string, number, number][] = [
+      ["right", 0.55, 1],
+      ["left-deep", 0.9, -1],
+      ["frontal", 0.6, 0],
+    ];
+    for (const [label, fold, side] of folds) {
+      p.fold = fold;
+      p.foldSide = side;
+      st.shoot(s, `${label}-behind`, around(0, 1.5, 12, 55, 0, 3));
+      st.shoot(s, `${label}-quarter`, around(-7, 2, -9, 55, 0, 3));
+    }
+    p.fold = 0;
+    p.foldSide = 0;
+  },
   // ── THE RIG DROPPED ────────────────────────────────────────────────────
   drop(st) {
     const s = st.fresh();
@@ -256,6 +276,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   flight: ["flight"],
   turn: ["turn"],
   landing: ["landing"],
+  fold: ["fold"],
   drop: ["drop"],
   gear: ["gear"],
   turntable: ["turntable"],

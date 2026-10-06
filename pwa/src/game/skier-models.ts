@@ -26,7 +26,9 @@
 // three rigid nodes: `HELI_NODES`), switched by `VITE_MODEL_HELI`; it is
 // not fetched with the skis — only a free ride with the helicopter wants
 // it — so `heliModelUrl()` is where its drawer (`heli-view.ts`) fetches it
-// from, `null` when the build packs none.
+// from, `null` when the build packs none. So are the snowmobile
+// (`sledModelUrl`, `VITE_MODEL_SLED`) and the night's piste machine
+// (`groomerModelUrl`, `VITE_MODEL_GROOMER`), each fetched by its drawer.
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -49,6 +51,7 @@ export const MODELS = {
   skis: modelSwitch(ENV.VITE_MODEL_SKIS),
   heli: modelSwitch(ENV.VITE_MODEL_HELI),
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
+  groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -81,6 +84,26 @@ export const SLED_NODES = {
  * switched off (`VITE_MODEL_SLED=0`). */
 export function sledModelUrl(): string | null {
   return MODELS.sled ? `${String(ENV.BASE_URL ?? "/")}models/sled.glb` : null;
+}
+
+/** The piste machine model's nodes, as `scripts/blender/groomer.py` names
+ * them (in the ENGINE's frame — no turn): the hull, belts, cab and hood;
+ * the cleats with the `run` morph; the blade (its origin the push frame's
+ * hinge); the snow heap ahead of it; the tiller (its origin the hitch);
+ * the beacon's reflector (its origin the beacon's middle). */
+export const GROOMER_NODES = {
+  body: "groomer_body",
+  cleats: "groomer_cleats",
+  blade: "groomer_blade",
+  heap: "groomer_heap",
+  tiller: "groomer_tiller",
+  beacon: "groomer_beacon",
+} as const;
+
+/** Where this build serves the piste machine's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_GROOMER=0`) and the build packs none. */
+export function groomerModelUrl(): string | null {
+  return MODELS.groomer ? `${String(ENV.BASE_URL ?? "/")}models/groomer.glb` : null;
 }
 
 /** Where this build serves the helicopter's glTF, or `null` when it is

@@ -110,7 +110,7 @@ export function createMachines(
   return {
     group,
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {

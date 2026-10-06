@@ -92,6 +92,25 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "ski rack); the code's stand-in is a cowl, a tunnel, a belt and two skis",
   },
   {
+    asset: "Piste machine",
+    ids: ["groomer"],
+    source: "blender",
+    code: ["pwa/src/game/groomer-build.ts"],
+    drawnBy: "pwa/src/game/groomer-view.ts",
+    blender: {
+      builder: "scripts/blender/groomer.py",
+      files: ["groomer.glb"],
+      pattern: "groomer.glb",
+      switch: "VITE_MODEL_GROOMER",
+    },
+    note:
+      "the free ride's night groomer at the largest class's true size, built off `GROOMER` and " +
+      "the class's layout (`groomer-look.ts`): rigid nodes (the hull, belts, cab and hood; the " +
+      "cleats with their run morph; the blade on its hinge; the heap; the tiller on its hitch; " +
+      "the beacon's reflector), one model cloned for every machine out; the code's stand-in is " +
+      "the same machine in boxes",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

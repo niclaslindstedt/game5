@@ -13,6 +13,7 @@ import {
   NEUTRAL_INPUT,
   createGame,
   groomSegment,
+  groomerCount,
   freshGroomed,
   groomedFresh,
   groomersOut,
@@ -68,10 +69,13 @@ describe("when the machines are out", () => {
     expect(groomersOut(level, "night")).toBe(sunAtRun(level).elevation < GROOMER.night);
   });
 
-  it("puts up to `GROOMER.count` on a free ride, and none on any other run", () => {
+  it("puts a fleet sized to the ski area on a free ride, and none on any other run", () => {
     const s = ride();
-    expect(s.groomers!.length).toBeGreaterThan(0);
-    expect(s.groomers!.length).toBeLessThanOrEqual(GROOMER.count);
+    expect(s.groomers!.length).toBeGreaterThanOrEqual(GROOMER.count.least);
+    expect(s.groomers!.length).toBeLessThanOrEqual(GROOMER.count.most);
+    // One a run, never two on the same.
+    const runs = s.groomers!.map((g) => g.run);
+    expect(new Set(runs).size).toBe(runs.length);
     expect(ride("off").groomers).toBeUndefined();
     const trial = createGame({ level, mode: "timeTrial", groomer: "on", quiet: true });
     expect(trial.groomers).toBeUndefined();
@@ -81,6 +85,19 @@ describe("when the machines are out", () => {
     const s = ride();
     for (const g of s.groomers!) expect(g.swath.length).toBeGreaterThan(8);
     expect(s.groomed!.cells.size).toBeGreaterThan(50);
+  });
+});
+
+describe("the fleet's size", () => {
+  it("is one to every few runs, three at the least and six at the most, never more than the runs", () => {
+    expect(groomerCount(0)).toBe(0);
+    expect(groomerCount(2)).toBe(2);
+    expect(groomerCount(3)).toBe(GROOMER.count.least);
+    expect(groomerCount(8)).toBe(GROOMER.count.least);
+    expect(groomerCount(18)).toBe(Math.round(18 / GROOMER.count.perRuns));
+    expect(groomerCount(80)).toBe(GROOMER.count.most);
+    for (let n = 1; n < 60; n++)
+      expect(groomerCount(n + 1)).toBeGreaterThanOrEqual(groomerCount(n));
   });
 });
 

@@ -27,6 +27,7 @@ import {
   airSpanFor,
   buildMinimap,
   project,
+  rotorTurnMs,
   spanFor,
 } from "../pwa/src/game/minimap-view.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
@@ -209,7 +210,7 @@ describe("the plate aloft (minimap-view.ts)", () => {
   function aloft(agl: number, rider: boolean): GameState {
     const state = race();
     placeRun(state, { x: 500, z: 500, heading: 0 });
-    state.heli = { agl, rider } as GameState["heli"];
+    state.heli = { agl, rider, x: 520, z: 480, heading: 1, spool: 1 } as GameState["heli"];
     return state;
   }
 
@@ -237,6 +238,29 @@ describe("the plate aloft (minimap-view.ts)", () => {
     const state = aloft(200, false);
     state.t += 1;
     expect(buildMinimap(state).pose.scale).toBeCloseTo(VIEW / ZOOM.close, 6);
+  });
+
+  it("is the helicopter's while he flies it: on its hub, turned by its nose", () => {
+    const flown = aloft(50, true);
+    const map = buildMinimap(flown);
+    expect(map.pose.x).toBe(520);
+    expect(map.pose.z).toBe(480);
+    expect(map.pose.angle).toBeCloseTo(((1 + Math.PI) * 180) / Math.PI, 6);
+    expect(map.flying).toEqual({ spool: 1 });
+    // Without him it is a mark on the plate, and the plate is his own.
+    const parked = buildMinimap(aloft(0, false));
+    expect(parked.flying).toBeNull();
+    expect(parked.pose.x).toBe(500);
+    expect(parked.heli).toMatchObject({ x: 520, z: 480, heading: 1 });
+  });
+
+  it("turns the drawn rotor with the spool, still when all but stopped", () => {
+    expect(rotorTurnMs(0)).toBeNull();
+    expect(rotorTurnMs(0.04)).toBeNull();
+    expect(rotorTurnMs(1)).toBe(480);
+    expect(rotorTurnMs(0.3)).toBeGreaterThan(rotorTurnMs(0.8)!);
+    // Quartered, so a spool-up restarts the spin only a few times.
+    expect(rotorTurnMs(0.8)).toBe(rotorTurnMs(0.9));
   });
 });
 

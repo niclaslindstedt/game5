@@ -227,6 +227,7 @@ shared piece it first needs:
    the judge, the field dealt about a par, the trick card, more rotation
    and the cork.
 2. **Knuckle huck** — the same jump; the jam format, butters and presses.
+   *Built in part (R38).*
 3. **Slopestyle** — the jumps in a row, JIBS, section judging.
 4. **Rail jam** — jibs alone, the jam again.
 5. **Halfpipe** — a new terrain (walls and vert), riding a wall, the

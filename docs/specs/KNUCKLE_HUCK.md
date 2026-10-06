@@ -1,7 +1,9 @@
 # Knuckle huck — draft spec
 
-**Draft. Researched, not built.** Delete this file when the knuckle huck is
-finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s; the
+**Built in part.** The knuckle (R38), the mode, its pair and build, butters
+and presses, the reader's press, the jam and its dealt field, the bot, the
+HUD and the plate are in; what is still open is unticked below. Delete
+this file when the knuckle huck is finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s; the
 jump is `BIG_AIR.md`'s.
 
 ## Start here
@@ -49,36 +51,44 @@ many hits as the clock allows, one result for the whole session.
 
 ## What it needs to be complete
 
-- [ ] **Mode and rules**: a `GameMode` row; the big air jump's map with the
-      run started on the deck; the jam's clock (twenty minutes in the
-      sport — a game's jam is shorter, open question); a reset back to
-      the deck after every hit.
-- [ ] **Butters and presses**: the weight forward or back past a threshold
+- [x] **Mode and rules**: `knuckleHuck` (`KNUCKLE_HUCK`,
+      `knuckleHuckRules`); the knuckle built as R38 over the map (no
+      kicker: a short drop-in onto a level deck); a three-minute jam
+      (`KNUCKLE_HUCK.jam`); the skier stood back on the platform after
+      every hit (`jam.ts`'s `stepJam`, `RunRules.jam`).
+- [x] **Butters and presses** (`butter.ts`, `RunRules.butters`): the weight forward or back past a threshold
       lifts the other end of the pair; a press held along the snow; a
       BUTTER pivoting about the loaded end, wound up and released into a
       rotation off the knuckle (the body wound ~270° a couple of metres
       before the roll).
 - [ ] **Off the knuckle**: the pop off a convex edge at a crawl, enough
-      air for a flip, a double underflip, a front flip into a half twist;
+      air for a flip (built: R38's knuckle pops a skier at 32 km/h into
+      1.4 s of air, a butter squared into the air, a press held over the
+      knuckle a flip; still open: a double underflip, a front flip into a half twist;
       a ZERO SPIN (switch to switch, no turn) and a HAND DRAG (a hand on
       the snow while rotating) as tricks of their own; a roll or a slide
-      along the knuckle.
+      along the knuckle).
 - [ ] **The reader** names the butter and the press (nose, tail, with the
-      degrees they wind into) and the knuckle-only tricks.
-- [ ] **The jam judge**: the judge's session mode — the best few hits, the
-      variety, the invention (tricks the dealt field has not thrown),
-      style; one impression a rider, a RANK the board shows.
-- [ ] **The field**: seven rivals dealt sessions (their hits shown as they
+      degrees they wind into) — built (`readTrick`'s `butter`,
+      `trickName`) — and the knuckle-only tricks (open).
+- [x] **The jam judge** (`jam.ts`): the session's impression off the best
+      three hits, the variety among them and the falls, marked by the
+      panel; the board ranks it. (Invention — tricks the field has not
+      thrown — is not read yet.)
+- [x] **The field** (`rivalHits`, `jamBoard`): seven rivals dealt sessions (their hits shown as they
       come, their impressions dealt about the bot's), ranked at the
       buzzer.
-- [ ] **The bot**: rides the deck, picks a butter or a press into a trick
-      it can land off the knuckle's pop.
-- [ ] **HUD**: the jam's clock, the trick named, the running rank.
+- [x] **The bot** (`speed-ski-steer.ts`'s `KNUCKLE_HIT`): rides the deck
+      and hits a nose butter off the knuckle's pop, landed every time —
+      one trick only so far.
+- [x] **HUD** (`hud-knuckle.tsx`): the jam's clock, the trick named, the
+      running rank, the session's mark; the plate and its board.
 - [ ] **Cameras**: from the side of the deck, the knuckle in the frame.
 - [ ] **Sound**: the butter's scrape, the crowd at a landing.
-- [ ] **Labs** (`make ride` butter and knuckle scenarios), **tests**,
-      **docs**; delete this spec.
-- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+- [ ] **Labs** (`make ride` butter and knuckle scenarios — open),
+      **tests** (`knuckle_huck_test.ts`, `knuckle_huck_hud_test.ts`),
+      **docs** (`docs/freestyle.md`, `getting-started.md`); delete this spec.
+- [x] **The pair and the build preset** — the Hare and the medium build (`TRICK_MODES.md` § *Research, the
       pair and the build*): the park twin-tip for butters and presses off a
       big jump's knuckle — the Hare (soft, presses easily) or the Raven (big
       air's, the jump's own) — *research which*, and the default build off
@@ -93,14 +103,15 @@ Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
 pair and the build*): several sources for every number that shapes the
 build, written into `docs/freestyle.md`.
 
-- [ ] **The rules and the conditions**, in full: the field of play and a
+- [x] **The rules and the conditions**, in full (`docs/freestyle.md`;
+      no panel size, wind rule or snow preparation is published): the field of play and a
       championship venue's real size, the format, the judging and a fall,
       the snow it is prepared to, the speeds, the wind and light a jury
       holds for.
-- [ ] **The skis**: the park twin-tip for butters and presses off a big
+- [x] **The skis** (the soft park twin-tip, the Hare): the park twin-tip for butters and presses off a big
       jump's knuckle — the Hare (soft, presses easily) or the Raven (big
       air's, the jump's own) — *research which*.
-- [ ] **The default player weight**: knuckle-huck athletes (the big air
+- [x] **The default player weight** (the medium build): knuckle-huck athletes (the big air
       field, ~72 kg for men — the medium build — unless the research says
       otherwise) — which of the four builds (`RIDERS`), argued from what the
       format pays weight for.
@@ -113,5 +124,7 @@ build, written into `docs/freestyle.md`.
 
 ## Open questions for the user
 
-- The jam's length in a game (the sport's twenty minutes, or a few)?
-- Butters only off the knuckle, or everywhere (the free ride too)?
+- The jam's length in a game: three minutes today (the sport's twenty is
+  some sixty hits).
+- Butters only on the knuckle huck today, or everywhere (the free ride
+  too)?

@@ -216,6 +216,11 @@ export interface Level {
    * start gate and the finish line, its start platform the `spawn`. Absent
    * on every map the generator builds — a jump is built over one. */
   bigAir?: BigAirCourse;
+  /** A KNUCKLE built on the map (R38, `setKnuckleHuck`): a jump as R37's
+   * with no kicker — the drop-in, the deck, the knuckle at its end (`lip`
+   * and `knuckle` both), the landing and the run-out. Absent on every map
+   * the generator builds. */
+  knuckleHuck?: BigAirCourse;
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every

@@ -32,10 +32,10 @@ import {
   type Heightfield,
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { LEVEL_RULES } from "./rules.ts";
-import { TRICK_RULES } from "./trick-rules.ts";
+import { TRICK_RULES, type JumpRule } from "./trick-rules.ts";
 import type { BigAirCourse, Checkpoint, Kicker, Level, Spawn, TrackPoint, Vec3 } from "./types.ts";
 
-const B = TRICK_RULES.bigAir;
+const B: JumpRule = TRICK_RULES.bigAir;
 const G = 9.81;
 const RAD = Math.PI / 180;
 
@@ -63,8 +63,10 @@ export function jumpHeightAt(p: JumpProfile, x: number): number {
   return p.y[i] + (p.y[i + 1] - p.y[i]) * (f - i);
 }
 
-/** The profile with a drop-in `run` m long at its full angle. */
-function shape(run: number): JumpProfile {
+/** The profile with a drop-in `run` m long at its full angle, to rule `R`
+ * (R37's, or R38's with no kicker: the deck runs on to the knuckle and the
+ * lip IS the knuckle). */
+function shape(run: number, R: JumpRule): JumpProfile {
   const dx = 0.25;
   const ys: number[] = [0];
   let x = 0;
@@ -89,26 +91,31 @@ function shape(run: number): JumpProfile {
     const end = x + length;
     while (x < end) step(at);
   };
-  straight(B.platform, 0);
+  straight(R.platform, 0);
   const gate = x;
-  bend(B.dropIn * RAD, B.roll);
-  straight(run, B.dropIn * RAD);
-  bend(0, B.toFlat);
-  straight(B.flat, 0);
+  bend(R.dropIn * RAD, R.roll);
+  straight(run, R.dropIn * RAD);
+  bend(0, R.toFlat);
+  straight(R.flat, 0);
   const foot = x;
   const yFoot = y;
-  const kick = B.kick * RAD;
-  bend(-kick, B.kicker);
+  const kick = R.kick * RAD;
+  if (R.kicker > 0) bend(-kick, R.kicker);
   const lip = x;
   const yLip = y;
-  straight(B.table, 0);
+  if (R.table > 0) straight(R.table, 0);
   const knuckle = x;
+  // A LANDING LAID AT ONE GRADE (R38): the knuckle rounded over onto it.
+  if (R.slope > 0) {
+    bend(R.steepest * RAD, R.knuckle);
+    straight(R.slope, R.steepest * RAD);
+  }
   // THE LANDING, shaped by the equivalent fall height until a skier
   // `bigAir.fast` times the design speed has come down on it.
-  const u = Math.sqrt(2 * G * B.fall);
-  const fast = B.speed * B.fast;
+  const u = Math.sqrt(2 * G * R.fall);
+  const fast = R.speed * R.fast;
   let down: number | null = null;
-  for (let i = 0; i < 8000; i++) {
+  for (let i = 0; R.slope === 0 && i < 8000; i++) {
     const lx = x + dx - lip;
     const ly = y - yLip;
     // The take-off speed whose flight passes through here.
@@ -117,16 +124,16 @@ function shape(run: number): JumpProfile {
     const vx = v0 * Math.cos(kick);
     const vy = v0 * Math.sin(kick) - (G * lx) / vx;
     const fall = -Math.atan2(vy, vx);
-    const want = clamp(fall - Math.asin(Math.min(1, u / hypot(vx, vy))), 0, B.steepest * RAD);
+    const want = clamp(fall - Math.asin(Math.min(1, u / hypot(vx, vy))), 0, R.steepest * RAD);
     // Rounded over at the knuckle, never sharper than its radius.
-    step(Math.min(want, a + dx / Math.cos(a) / B.knuckle));
+    step(Math.min(want, a + dx / Math.cos(a) / R.knuckle));
     if (down === null && v0 > fast) down = x;
-    if (down !== null && x > down + B.past) break;
+    if (down !== null && x > down + R.past) break;
   }
   const landing = x;
-  bend(B.outrun.grade * RAD, B.round);
+  bend(R.outrun.grade * RAD, R.round);
   const outrun = x;
-  straight(B.outrun.length, B.outrun.grade * RAD);
+  straight(R.outrun.length, R.outrun.grade * RAD);
   const y0 = Float64Array.from(ys, (v) => v - yLip);
   return {
     dx,
@@ -137,16 +144,16 @@ function shape(run: number): JumpProfile {
     knuckle,
     landing,
     outrun,
-    finish: outrun + B.finish,
+    finish: outrun + R.finish,
     end: x,
     height: yLip - yFoot,
   };
 }
 
 /** The speed, m/s, the rule's skier carries tucked from the start gate to
- * the lip of `p`. */
-export function lipSpeed(p: JumpProfile): number {
-  const S = B.skier;
+ * the lip of `p` (on a knuckle, to the knuckle). */
+export function lipSpeed(p: JumpProfile, R: JumpRule = B): number {
+  const S = R.skier;
   const k = (0.5 * S.air * S.tuck) / S.mass;
   const dx = p.dx;
   let v = 1.5;
@@ -164,21 +171,24 @@ export function lipSpeed(p: JumpProfile): number {
   return v;
 }
 
-let designed: JumpProfile | null = null;
+const designed = new Map<JumpRule, JumpProfile>();
 
-/** THE JUMP (R37), as designed: the drop-in's length found so the rule's
- * skier reaches the lip at `bigAir.speed`. The same on every map. */
-export function jumpProfile(): JumpProfile {
-  if (designed) return designed;
+/** THE JUMP (R37, or R38's knuckle), as designed: the drop-in's length
+ * found so the rule's skier reaches the lip at its design speed. The same
+ * on every map. */
+export function jumpProfile(R: JumpRule = B): JumpProfile {
+  const had = designed.get(R);
+  if (had) return had;
   let lo = 2;
   let hi = 200;
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
-    if (lipSpeed(shape(mid)) < B.speed) lo = mid;
+    if (lipSpeed(shape(mid, R), R) < R.speed) lo = mid;
     else hi = mid;
   }
-  designed = shape(hi);
-  return designed;
+  const p = shape(hi, R);
+  designed.set(R, p);
+  return p;
 }
 
 /** A line down the face and how the jump sits on it. */
@@ -187,8 +197,8 @@ type Fit = { x: number; z: number; heading: number; shift: number; cost: number 
 /** THE JUMP'S LINE on `level` (R37): the column, the bearing and the start
  * where the profile cuts and fills least, clear of the stations and the
  * village; null on a map too small for it. */
-function findLine(level: Level, p: JumpProfile): Fit | null {
-  const S = B.search;
+function findLine(level: Level, p: JumpProfile, R: JumpRule): Fit | null {
+  const S = R.search;
   const n = Math.ceil(p.end / S.step) + 1;
   const prof = new Float64Array(n);
   for (let k = 0; k < n; k++) prof[k] = jumpHeightAt(p, k * S.step);
@@ -220,9 +230,9 @@ function findLine(level: Level, p: JumpProfile): Fit | null {
           sq += e * e;
           deepest = Math.max(deepest, Math.abs(e));
         }
-        const cost = Math.sqrt(sq / n) + B.fit.deepest * deepest;
+        const cost = Math.sqrt(sq / n) + R.fit.deepest * deepest;
         if (best && cost >= best.cost) continue;
-        if (resort && near(resort, x0, z0, heading, p.end)) continue;
+        if (resort && near(resort, x0, z0, heading, p.end, R)) continue;
         best = { x: x0, z: z0, heading, shift: mean, cost };
       }
     }
@@ -237,21 +247,59 @@ function near(
   z: number,
   heading: number,
   length: number,
+  R: JumpRule,
 ): boolean {
   const fx = Math.sin(heading);
   const fz = Math.cos(heading);
   const at = (q: Vec3, r: number): boolean => {
     const along = (q.x - x) * fx + (q.z - z) * fz;
     const across = (q.x - x) * fz - (q.z - z) * fx;
-    return along > -r && along < length + r && Math.abs(across) < B.width / 2 + B.ease + r;
+    return along > -r && along < length + r && Math.abs(across) < R.width / 2 + R.ease + r;
   };
   for (const l of resort.lifts) {
-    if (at(l.bottom, B.fit.stations) || at(l.top, B.fit.stations)) return true;
+    if (at(l.bottom, R.fit.stations) || at(l.top, R.fit.stations)) return true;
   }
-  return at(resort.village, B.fit.village);
+  return at(resort.village, R.fit.village);
 }
 
-const built = new WeakMap<Level, Level>();
+const built = new WeakMap<JumpRule, WeakMap<Level, Level>>();
+
+/** Which jump a rule builds: R37's big air jump, or R38's knuckle. */
+type JumpKind = "bigAir" | "knuckleHuck";
+
+/** The map under any course built over `level`. */
+function originalOf(level: Level): Level {
+  return (
+    level.slalom?.base ??
+    level.downhill?.base ??
+    level.superG?.base ??
+    level.giantSlalom?.base ??
+    level.speedSki?.base ??
+    level.skiCross?.base ??
+    level.bigAir?.base ??
+    level.knuckleHuck?.base ??
+    level
+  );
+}
+
+/** A jump of `kind` to rule `R` over `level`, kept per map and rule. */
+function setJump(level: Level, R: JumpRule, kind: JumpKind): Level {
+  if (level[kind]) return level;
+  const original = originalOf(level);
+  let kept = built.get(R);
+  if (!kept) {
+    kept = new WeakMap();
+    built.set(R, kept);
+  }
+  let jump = kept.get(original);
+  if (!jump) {
+    jump = buildOver(original, R, kind);
+    kept.set(original, jump);
+  }
+  return jump.sun === level.sun && jump.weather === level.weather
+    ? jump
+    : { ...jump, sun: level.sun, weather: level.weather };
+}
 
 /** R37 — A BIG AIR JUMP BUILT OVER `level`: the jump shaped down the face
  * as the map's own `track`, its checkpoints the start gate and the finish
@@ -261,33 +309,25 @@ const built = new WeakMap<Level, Level>();
  * stands on the jump the renderer already built. The jump keeps the day
  * and the sky of the map it was built over. */
 export function setBigAir(level: Level): Level {
-  if (level.bigAir) return level;
-  const original =
-    level.slalom?.base ??
-    level.downhill?.base ??
-    level.superG?.base ??
-    level.giantSlalom?.base ??
-    level.speedSki?.base ??
-    level.skiCross?.base ??
-    level;
-  let jump = built.get(original);
-  if (!jump) {
-    jump = buildOver(original);
-    built.set(original, jump);
-  }
-  return jump.sun === level.sun && jump.weather === level.weather
-    ? jump
-    : { ...jump, sun: level.sun, weather: level.weather };
+  return setJump(level, B, "bigAir");
+}
+
+/** R38 — A KNUCKLE BUILT OVER `level`, as `setBigAir` builds its jump: a
+ * drop-in onto a deck, and the knuckle at its end the take-off — published
+ * as the map's one kicker (`KH`), its ramp the deck, so a trick set up
+ * along the deck is thrown off the knuckle (`strokes.ts`). */
+export function setKnuckleHuck(level: Level): Level {
+  return setJump(level, TRICK_RULES.knuckleHuck, "knuckleHuck");
 }
 
 /** The jump over `original`, a map with no course on it. */
-function buildOver(original: Level): Level {
-  const p = jumpProfile();
-  const fit = findLine(original, p) ?? {
+function buildOver(original: Level, R: JumpRule, kind: JumpKind): Level {
+  const p = jumpProfile(R);
+  const fit = findLine(original, p, R) ?? {
     x: original.size / 2,
-    z: B.search.top,
+    z: R.search.top,
     heading: 0,
-    shift: original.groundAt(original.size / 2, B.search.top),
+    shift: original.groundAt(original.size / 2, R.search.top),
     cost: 0,
   };
   const fx = Math.sin(fit.heading);
@@ -305,23 +345,23 @@ function buildOver(original: Level): Level {
       y: yAt(s),
       s,
       heading: fit.heading,
-      width: B.width,
+      width: R.width,
     });
   }
   const length = points[points.length - 1].s;
   // THE GROUND graded to the profile across the jump, eased out past it.
-  const half = B.width / 2;
+  const half = R.width / 2;
   const field = original.ground;
   const ground: Heightfield = { ...field, data: new Float32Array(field.data) };
   const packedField = original.packed;
   const packed = packedField ? { ...packedField, data: new Float32Array(packedField.data) } : null;
   const fade = LEVEL_RULES.track.shoulder.packed;
-  const reach = half + Math.max(B.ease, fade) + 2;
+  const reach = half + Math.max(R.ease, fade) + 2;
   const corners = [
-    [-B.ease, -reach],
-    [-B.ease, reach],
-    [length + B.ease, -reach],
-    [length + B.ease, reach],
+    [-R.ease, -reach],
+    [-R.ease, reach],
+    [length + R.ease, -reach],
+    [length + R.ease, reach],
   ].map(([a, c]) => ({ x: fit.x + fx * a + rx * c, z: fit.z + fz * a + rz * c }));
   const xs = corners.map((q) => q.x);
   const zs = corners.map((q) => q.z);
@@ -337,10 +377,10 @@ function buildOver(original: Level): Level {
       const dz = z - fit.z;
       const along = dx * fx + dz * fz;
       const across = Math.abs(dx * rx + dz * rz);
-      const ends = smoothstep(-B.ease, 0, along) * (1 - smoothstep(length, length + B.ease, along));
+      const ends = smoothstep(-R.ease, 0, along) * (1 - smoothstep(length, length + R.ease, along));
       if (ends <= 0) continue;
       const i = r * field.cols + c;
-      const w = (1 - smoothstep(half, half + B.ease, across)) * ends;
+      const w = (1 - smoothstep(half, half + R.ease, across)) * ends;
       if (w > 0) ground.data[i] += w * (yAt(clamp(along, 0, length)) - ground.data[i]);
       if (packed) {
         const firm = (1 - smoothstep(half, half + fade, across)) * ends;
@@ -350,7 +390,7 @@ function buildOver(original: Level): Level {
   }
   // THE WOODS and the finish arena cleared; the piste's kickers and drops
   // in the cut taken out with the ground they stood on.
-  const A = B.arena;
+  const A = R.arena;
   const off = (x: number, z: number, r: number): boolean => {
     const dx = x - fit.x;
     const dz = z - fit.z;
@@ -359,26 +399,27 @@ function buildOver(original: Level): Level {
     if (along > -20 && along < length + 10 && across < half + r) return true;
     return along > p.finish - A.before && along < p.finish + A.past && across < A.half;
   };
-  const trees = original.trees.filter((t) => !off(t.x, t.z, B.margin));
+  const trees = original.trees.filter((t) => !off(t.x, t.z, R.margin));
   const kickers = (original.kickers ?? [])
-    .filter((k) => !off(k.x, k.z, B.ease + k.ramp))
+    .filter((k) => !off(k.x, k.z, R.ease + k.ramp))
     .map((k) => ({ ...k, onTrack: false, s: undefined }));
   const cliffs = (original.cliffs ?? [])
-    .filter((k) => !off(k.x, k.z, B.ease + k.width / 2))
+    .filter((k) => !off(k.x, k.z, R.ease + k.width / 2))
     .map((k) => ({ ...k, onTrack: false, s: undefined }));
   // THE KICKER, as every reader of a kicker knows one: its lip, its ramp
   // and its built landing — what arms a trick thrown up its ramp
   // (`strokes.ts`).
+  const knuckled = kind === "knuckleHuck";
   const kicker: Kicker = {
-    id: "BA",
+    id: knuckled ? "KH" : "BA",
     x: fit.x + fx * p.lip,
     z: fit.z + fz * p.lip,
     y: yAt(p.lip),
     heading: fit.heading,
     height: p.height,
-    ramp: p.lip - p.foot,
+    ramp: knuckled ? R.flat : p.lip - p.foot,
     landing: p.outrun - p.lip,
-    width: B.width,
+    width: R.width,
     onTrack: true,
     s: p.lip,
     trick: true,
@@ -410,6 +451,8 @@ function buildOver(original: Level): Level {
     giantSlalom: undefined,
     speedSki: undefined,
     skiCross: undefined,
+    bigAir: undefined,
+    knuckleHuck: undefined,
   };
   const across = (s: number, width: number): Checkpoint => ({
     x: fit.x + fx * s,
@@ -421,13 +464,13 @@ function buildOver(original: Level): Level {
     colour: "red",
   });
   const start = across(p.gate, 6);
-  const finish = across(p.finish, B.width);
+  const finish = across(p.finish, R.width);
   const spawn: Spawn = {
     x: fit.x + fx * (p.gate - 2),
     z: fit.z + fz * (p.gate - 2),
     heading: fit.heading,
   };
-  const bigAir: BigAirCourse = {
+  const course: BigAirCourse = {
     base: original,
     from: p.gate,
     to: p.finish,
@@ -438,9 +481,9 @@ function buildOver(original: Level): Level {
     landing: p.landing,
     outrun: p.outrun,
     height: p.height,
-    kick: B.kick * RAD,
-    speed: B.speed,
-    width: B.width,
+    kick: R.kick * RAD,
+    speed: R.speed,
+    width: R.width,
   };
-  return { ...level, checkpoints: [start, finish], spawn, grid: [spawn], bigAir };
+  return { ...level, checkpoints: [start, finish], spawn, grid: [spawn], [kind]: course };
 }

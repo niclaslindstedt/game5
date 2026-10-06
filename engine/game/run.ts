@@ -36,6 +36,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
+import { butterInput, stepButter } from "./butter.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
@@ -129,7 +130,7 @@ export function stepRun(
   stepStartPush(run, input);
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
-  if (!off) stepSkier(run, stunts ? poseInput(run, held) : held, events);
+  if (!off) stepSkier(run, stunts ? butterInput(run, poseInput(run, held)) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
@@ -142,6 +143,8 @@ export function stepRun(
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (stunts) stepStrokes(run, input);
+  // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
+  if (stunts) stepButter(run, input);
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);

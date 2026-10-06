@@ -94,6 +94,8 @@ export {
   speedSkiRules,
   BIG_AIR,
   bigAirRules,
+  KNUCKLE_HUCK,
+  knuckleHuckRules,
   FREESTYLE,
   type Freestyle,
   SKI_CROSS,
@@ -207,6 +209,24 @@ export {
   trickKind,
   type TrickRead,
 } from "./game/judge.ts";
+export {
+  JAM_FIELD,
+  KNUCKLE_JUDGING,
+  freshJam,
+  hitImpression,
+  jamBoard,
+  jamKind,
+  jamLeft,
+  jamPlace,
+  rivalHits,
+  sessionImpression,
+  sessionScore,
+  stepJam,
+  type JamHit,
+  type JamRow,
+  type JamState,
+} from "./game/jam.ts";
+export { butterInput, stepButter, takeoffPress } from "./game/butter.ts";
 export { CROSS_HEAT, crossCountdown, heatResult, stepDrafts } from "./game/cross-heat.ts";
 export { stepTrap } from "./game/speed-trap.ts";
 export { DOWNHILL_NETS, catchInNets, netPocket, stepNets } from "./game/nets.ts";
@@ -313,6 +333,8 @@ export {
   type TrickPose,
   type TrickState,
   type FlightRecord,
+  type ButterRecord,
+  type PressEnd,
 } from "./game/state.ts";
 export { freshSkier, derive } from "./game/skier.ts";
 export { airForce, dragAreaOf, sideAreaOf, type AirForce } from "./game/air.ts";

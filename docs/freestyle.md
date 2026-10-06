@@ -28,7 +28,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 | Moguls | turns + air + speed, one run | a mogul course | researched — spec `MOGULS.md` |
 | Dual moguls | moguls head to head, a bracket | two mogul lanes | researched — spec `DUAL_MOGULS.md` |
 | Rail jam | a timed jam, one impression | rails and boxes | researched — spec `RAIL_JAM.md` |
-| Knuckle huck | a timed jam, one impression | the knuckle of a big air jump | researched — spec `KNUCKLE_HUCK.md` |
+| Knuckle huck | a timed jam, one impression | the knuckle of a big air jump | BUILT in part (R38) — spec `KNUCKLE_HUCK.md` |
 
 ## What every judged park format shares (halfpipe, slopestyle, big air)
 
@@ -623,7 +623,13 @@ OVERALL IMPRESSION result for the whole session, not a score a hit — style
 and finesse, creativity, originality — and the spirit is loose on purpose:
 "just entertain". No rule says how many hits count *(est.: the session is
 ranked as a whole)*. A medal event for snowboarders since 2019 and for
-skiers since 2020 at the action-sports event that started it [26, 27].
+skiers since 2020 at the action-sports event that started it [26, 27]; the
+women's jams were added in 2024 [37]. Eight riders a sex is the field
+[28, 37, 38]. Nothing published sets a panel size, a tie rule, a practice
+or what a fall costs; criteria reported beside the impression are
+execution, difficulty, variety and the progression through the session
+[27], and the judges openly favour butters, hand drags and "using the
+knuckle" [37].
 
 **The tricks** [27, 28, 29]: BUTTERS and PRESSES into rotations (a nose
 butter into a front flip or a double, a nose butter 360 and 720, a switch
@@ -640,6 +646,65 @@ gentle deck meets a far steeper drop; the event's first venue had a ~15 m
 drop-in onto a ~7 m wide jump that sent a rider 20–25 m up off its kicker.
 Hit at 20–40 km/h after a short run along the deck, landed 3–10 m down a
 30–38° landing *(est.)*.
+Later jumps put the knuckle 21 m past a 7 m wide kicker off a 15 m
+scaffold drop-in, onto a landing 18 m wide [38]; championship landings run
+34–39°, a cap of 40° [7, 9]. No source gives the knuckle's radius, the
+speed it is hit at or the air off it *(est.: a crown of 5–15 m radius, hit
+at 25–45 km/h from a lowered drop-in, 1–3 m of height and 0.7–1.5 s of
+air)*. The session is run in the EVENING UNDER THE LIGHTS, and has gone
+ahead on a cold night after a day's weather delay [28, 37]; no wind or
+snow-preparation rule is published for it.
+
+**What wins** [28, 37]: the women's field throws 360–900, the men's
+360–1260, with a nose butter double cork 1620 the top of it; flips from a
+single to a double, baranis, underflips; switch tail butters into a rodeo
+or a 1080, a hand-drag cork 540, a zero-spin shifty, ballet moves.
+
+**The pair** [35, 39]: the soft PARK TWIN-TIP, not big air's competition
+pair — soft tips and tails that hinge, a firm middle, rocker at both ends
+over camber underfoot, a mount at or near centre. The band, off the
+published specs of the butter-and-jam twin-tips a park field rides:
+171–185 cm for a man, 118–133 / 90–100 / 114–124 mm, a sidecut of 19–23 m,
+1.6–1.9 kg a ski, mounted 0–3 cm back of centre, a retailer's flex of 5–7
+of 10. A competition twin-tip has nearly the same shape (118/90/116 mm,
+19 m) and differs in the core: a jam rides the soft one because a press
+needs the tip or the tail to give. The game's pair for it is the HARE
+(`defs/skis.ts`), the park's soft twin-tip.
+
+**The build** [36, 40]: a national team's freeskiers measured 70.1 kg on
+176 cm for the men and 60.4 kg on 165 cm for the women; an elite men's
+freeski field ~72.5 kg on 179 cm. Nothing a jam pays for favours weight —
+a heavier rider bends a given ski into a press more easily and loads the
+landing harder *(est.)* — so the game opens a knuckle huck on the MEDIUM
+build (`RACE_RIDERS`), as big air.
+
+**The jam as the game runs it** (`engine/game/jam.ts`): a session of eight
+— the player and seven dealt riders — cut from twenty minutes to THREE
+(`KNUCKLE_HUCK.jam`), some dozen hits, held as big air is under 40 km/h of
+gust and no more than a steady fall *(est.)*. A hit is a ride from the
+platform over the deck and off the knuckle, ended at the finish line or by
+a fall, and he is stood back on the platform for the next. Each hit is
+read as the trick it was — the PRESS it left the snow in (`butter.ts`) and
+the BUTTER's winding counted into the spin — and given an impression off
+its difficulty, a press or a butter worth a step of its own; the SESSION
+is the mean of the best three hits (three good hits beat one perfect one
+[18]), a little more for each different kind among them and a little less
+for each fall, marked by the same panel of six as a big air jump. The sport
+ranks without a number; the game shows the panel's mark so the board can
+be read as it stands.
+
+**Butters and presses as the game rides them** (`engine/game/butter.ts`):
+the lean held hard on the snow presses the nose or the tail; pressed, the
+edge pivots him about that end at a gathered rate — the wind-up a rider
+sets some two metres before the roll [29] — and the snow brakes the skis
+across his way. A butter popped off the knuckle is owed the rest of its
+turn, so it is landed square: wound to 270°, a 360.
+
+**The knuckle as the game builds it** (R38, `engine/mapgen/trick-rules.ts`):
+a 6 m platform, a 24° drop-in sized to bring a tucked skier to the knuckle
+at 32 km/h, an 18 m level deck, a knuckle rounded on 6 m — sharp enough to
+pop off at that speed — a 37° landing held for 26 m, then the run-out; cut
+down the face as big air's jump is.
 
 ## Sources
 
@@ -687,4 +752,10 @@ freestyle explainer quoting a coach on in-run speeds · [35] ski makers'
 published specifications of their park and competition twin-tips (length,
 dimensions, sidecut radius, mount) · [36] an anthropometric study of a
 national freeski and snowboard team (body mass and height by sport and
-sex).
+sex) · [37] a freeski news site's reports on the knuckle huck: the 2021
+recap, the first women's jam in 2024 and the men's in 2026 · [38] a
+freeski magazine's 2025 event preview and a men's lifestyle magazine's 2023
+preview of the jump · [39] a ski-review site's and ski retailers' reviews
+and specifications of butter-focused park twin-tips (flex, mount, the
+hinge) · [40] a 2020 exercise-science study of male freeskiers' big air
+landings (their body mass and height, the landing's force).

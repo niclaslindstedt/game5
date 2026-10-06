@@ -18,6 +18,7 @@
 //                   first heat, four out of the start gate).
 //   ?start=bigair   ...or into a BIG AIR contest's first jump (`run=2` the
 //                   next jump, off the first jumped by the bot).
+//   ?start=knuckle  ...or into a KNUCKLE HUCK's jam on its knuckle.
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -49,7 +50,9 @@
 //                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
 //                   ?mode=speedski, a SPEED RACE;
 //                   ?mode=skicross, a SKI CROSS; ?mode=bigair, a BIG AIR
-//                   contest's first jump, built over the seed's map.
+//                   contest's first jump, built over the seed's map;
+//                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
+//                   over it.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -291,6 +294,7 @@ export function readParams(search: string): UrlParams {
       start === "speedski" ||
       start === "skicross" ||
       start === "bigair" ||
+      start === "knuckle" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -331,7 +335,9 @@ export function readParams(search: string): UrlParams {
                       ? "tricks"
                       : start === "bigair" || q.get("mode") === "bigair"
                         ? "bigAir"
-                        : "slalom",
+                        : start === "knuckle" || q.get("mode") === "knuckle"
+                          ? "knuckleHuck"
+                          : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

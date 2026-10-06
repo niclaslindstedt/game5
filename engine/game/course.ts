@@ -323,6 +323,11 @@ export function resetPose(state: GameState): {
   heading: number;
   checkpoint: number;
 } {
+  // A JAM's rider is stood back on the start platform (`jam.ts`).
+  if (state.rules.jam) {
+    const spawn = state.level.spawn;
+    return { x: spawn.x, z: spawn.z, heading: spawn.heading, checkpoint: -1 };
+  }
   if (!state.rules.course) {
     const at = skiedResetPoint(state);
     return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };

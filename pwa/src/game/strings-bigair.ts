@@ -49,13 +49,19 @@ export const BIG_AIR_STRINGS = {
   trickName: (r: TrickRead): string => {
     const words: string[] = [];
     if (r.switchIn) words.push("SWITCH");
+    // Off a press (the knuckle huck's, R38): a butter if it wound, a press
+    // if it only rode the end — "NOSE BUTTER RIGHT 360", "TAIL PRESS".
+    if (r.butter) {
+      const end = r.butter.end === "nose" ? "NOSE" : "TAIL";
+      words.push(r.butter.wound > 0 ? `${end} BUTTER` : `${end} PRESS`);
+    }
     if (r.dir) words.push(r.dir === "left" ? "LEFT" : "RIGHT");
     if (r.offAxis) words.push(`${TIMES[r.flips] ?? `${r.flips}× `}CORK ${r.spin}`);
     else if (r.flips > 0) {
       const flip = `${TIMES[r.flips] ?? `${r.flips}× `}${r.flipDir === "front" ? "FRONT FLIP" : "BACKFLIP"}`;
       words.push(r.spin > 0 ? `${r.spin} ${flip}` : flip);
     } else if (r.spin > 0) words.push(String(r.spin));
-    else words.push("STRAIGHT AIR");
+    else if (!r.butter) words.push("STRAIGHT AIR");
     for (const g of r.grabs) words.push(GRABS[g]);
     return words.join(" ");
   },

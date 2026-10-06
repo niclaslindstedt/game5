@@ -30,6 +30,8 @@ const CLASS = {
   skiCross: "Ski cross",
   speedSki: "Speed ski",
   bigAir: "Big air",
+  // The knuckle huck's field rides the park's soft twin-tip.
+  knuckleHuck: "Park",
 } as const;
 
 describe("a race's own pair", () => {

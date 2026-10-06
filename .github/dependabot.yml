@@ -12,6 +12,12 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # typescript-eslint supports TypeScript below 6.1 only, and its plugin
+      # refuses to load under TS 7, so `make lint` cannot pass on it yet.
+      # Drop this once typescript-eslint supports TS 7.
+      - dependency-name: typescript
+        versions: [">=7"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

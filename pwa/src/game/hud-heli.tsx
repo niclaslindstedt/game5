@@ -8,22 +8,50 @@
 // THE HORIZON, the airframe's pitch and bank; and THE COLLECTIVE, the
 // lever where it was left. And while it waits on its pad near him, the word
 // that it is there and how far — and stood beside its skid, the machine key
-// that sits him on it. Every figure is the snapshot's (`heliOf`).
+// that sits him on it. Every figure is the snapshot's (`heliOf`) but the
+// collective's, which fills as the thumb holds it and is drawn every frame.
+
+import { useEffect, useRef } from "preact/hooks";
 
 import type { HudHeli } from "./snapshot.ts";
+import type { HudLive } from "./hud-live.ts";
 import { MachinePress } from "./hud-machine-press.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The horizon's pitch scale, px of the dial per rad. */
 const PITCH_PX = 60;
 
+/** The collective's bar, written once a frame (`hud-live.ts`) so it fills
+ * smoothly rather than in the snapshot's steps. */
+function CollectiveBar({ live }: { live: HudLive }) {
+  const fillRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const draw = (): void => {
+      if (fillRef.current) fillRef.current.style.height = `${(live.collective * 100).toFixed(1)}%`;
+    };
+    live.draws.add(draw);
+    draw();
+    return () => {
+      live.draws.delete(draw);
+    };
+  }, [live]);
+  return (
+    <div class="hud-heli-coll" aria-label={STRINGS.heliCollective}>
+      <div ref={fillRef} class="hud-heli-coll-fill" />
+      <span class="hud-heli-coll-word">{STRINGS.heliCollectiveShort}</span>
+    </div>
+  );
+}
+
 export function HeliReadout({
   heli,
+  live,
   touch,
   machineKey,
   onBoard,
 }: {
   heli: HudHeli;
+  live: HudLive;
   touch: boolean;
   /** The machine key as bound, as the player reads it off the keyboard. */
   machineKey: string;
@@ -73,13 +101,7 @@ export function HeliReadout({
           <span class="hud-heli-num">{STRINGS.heliMetres(heli.height)}</span>
           <span class="hud-heli-sub">{STRINGS.heliClimb(heli.climb)}</span>
         </div>
-        <div class="hud-heli-coll" aria-label={STRINGS.heliCollective}>
-          <div
-            class="hud-heli-coll-fill"
-            style={{ height: `${(heli.collective * 100).toFixed(0)}%` }}
-          />
-          <span class="hud-heli-coll-word">{STRINGS.heliCollectiveShort}</span>
-        </div>
+        <CollectiveBar live={live} />
       </div>
       <span class="hud-heli-hint">
         {heli.landed ? STRINGS.heliLanded(touch, machineKey) : STRINGS.heliJump(touch, machineKey)}

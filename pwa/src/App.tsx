@@ -817,7 +817,7 @@ export function App() {
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
     // ...and a BIG AIR contest, a KNUCKLE HUCK, a SLOPESTYLE run, a RAIL
-    // JAM or a HALFPIPE on the same card's map, its venue built over it.
+    // JAM, a HALFPIPE or MOGULS on the same card's map, its venue built over it.
     const m = modeRef.current;
     if (
       (m === "tricks" ||
@@ -825,7 +825,8 @@ export function App() {
         m === "knuckleHuck" ||
         m === "slopestyle" ||
         m === "railJam" ||
-        m === "halfpipe") &&
+        m === "halfpipe" ||
+        m === "moguls") &&
       params.seed === null
     ) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);

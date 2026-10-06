@@ -10,6 +10,7 @@ import {
   BIG_AIR,
   FREESTYLE,
   HALFPIPE,
+  MOGULS,
   KNUCKLE_HUCK,
   RAIL_JAM,
   RAIL_JAM_RULE,
@@ -33,6 +34,9 @@ function formatOf(mode: GameMode): string {
   }
   if (mode === "railJam") {
     return STRINGS.freestyleRailJam(RAIL_JAM.field + 1, RAIL_JAM.jam, RAIL_JAM_RULE.jibs.length);
+  }
+  if (mode === "moguls") {
+    return STRINGS.freestyleMoguls(MOGULS.field + 1, MOGULS.final1, MOGULS.final2);
   }
   if (mode === "halfpipe") {
     return STRINGS.freestyleHalfpipe(HALFPIPE.field + 1, HALFPIPE.finalists);

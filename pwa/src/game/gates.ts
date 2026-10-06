@@ -55,6 +55,7 @@ import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createJibs } from "./jibs-view.ts";
 import { createPipe } from "./pipe-view.ts";
+import { createMoguls } from "./mogul-view.ts";
 import {
   archBlower,
   archSkirt,
@@ -694,6 +695,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // A HALFPIPE'S WALLS, drawn off the engine's own section (`pipe-view.ts`).
   const pipe = createPipe(level, std);
   if (pipe) group.add(pipe.group);
+  // A MOGULS COURSE'S SNOW, drawn off the engine's own field (`mogul-view.ts`).
+  const bumps = createMoguls(level, std);
+  if (bumps) group.add(bumps.group);
 
   const breathing = new THREE.Color();
   let lit = -1;
@@ -794,6 +798,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       crossGate?.dispose();
       jibs?.dispose();
       pipe?.dispose();
+      bumps?.dispose();
       for (const t of texs) t.dispose();
     },
   };

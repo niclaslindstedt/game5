@@ -184,6 +184,19 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.15, basket: 0.045, bent: false },
   },
+  // THE MOGUL SKI: short, a round soft shovel with an early rise to fold
+  // over a crest, a low kicked tail, thin and light, a full camber, on a
+  // low race plate; the short poles a mogul skier plants every turn.
+  ibex: {
+    tip: { rise: 0.05, length: 0.17 },
+    tail: { rise: 0.018, length: 0.07, twin: false },
+    point: 0.35,
+    thick: { boot: 0.021, end: 0.008 },
+    camber: 0.012,
+    binding: RACE_BINDING,
+    boot: BOOT,
+    pole: { length: 1.12, basket: 0.04, bent: false },
+  },
 };
 
 /** The look for a pair, its class's. */

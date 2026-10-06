@@ -10,13 +10,15 @@
 // The same two rules as `hud-touch.tsx`'s zones hold here: every grip has a
 // thumb guard to end it, and everything that moves is written onto the DOM
 // at pointer rate — the knob, the icon, the lit arrows — never re-rendered.
-// The one thing drawn from the HUD's ~12 Hz snapshot is the collective's
-// gauge, which is the machine's and not the thumb's.
+// The collective's gauge is the machine's and not the thumb's, so it is
+// written once a frame off the run (`hud-live.ts`), never off the HUD's
+// ~12 Hz snapshot, whose steps a filling gauge shows as a stutter.
 
 import { useEffect, useMemo, useRef } from "preact/hooks";
 
 import { createJumpTap, jumpTapDown, jumpTapUp, powerAxis, type TouchFeel } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
+import type { HudLive } from "./hud-live.ts";
 import { capturePointer, stillDown, type ZoneSide } from "./hud-touch.tsx";
 import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thumb-guard";
 
@@ -84,7 +86,7 @@ const TURN = (() => {
  *   collective up and the machine climbs, down works it down — a lever
  *   moved while the thumb is held off the anchor and LEFT where it is when
  *   the thumb lifts; across is the pedals, the tail rotor turning the nose
- *   that way, sprung back to centre. `collective` is the lever as the HUD
+ *   that way, sprung back to centre. `live` carries the lever as the HUD
  *   last read it, drawn down the upright.
  *
  * A double tap on either, as on the edge thumb, is the machine press: off
@@ -96,16 +98,18 @@ export function StickZone({
   feel,
   side,
   role,
-  collective = 0,
+  live,
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
   role: StickRole;
-  collective?: number;
+  /** The figures fed every frame; the power pad's gauge reads the lever. */
+  live?: HudLive;
 }) {
   const padRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<SVGGElement>(null);
+  const fillRef = useRef<SVGRectElement>(null);
   const iconRef = useRef<SVGGElement>(null);
   /** The arms' arrows: up, right, down, left. */
   const arrowRefs = [
@@ -155,7 +159,21 @@ export function StickZone({
   const guard = useMemo(() => createThumbGuard(() => letGoRef.current(), window), []);
   useEffect(() => () => guard.dispose(), [guard]);
 
-  const level = Math.max(0, Math.min(1, collective)) * GAUGE_LEN;
+  useEffect(() => {
+    if (!live || role !== "power") return;
+    const draw = (): void => {
+      const fill = fillRef.current;
+      if (!fill) return;
+      const level = live.collective * GAUGE_LEN;
+      fill.setAttribute("y", (GAUGE_TOP + GAUGE_LEN - level).toFixed(2));
+      fill.setAttribute("height", level.toFixed(2));
+    };
+    live.draws.add(draw);
+    draw();
+    return () => {
+      live.draws.delete(draw);
+    };
+  }, [live, role]);
 
   return (
     <div
@@ -199,10 +217,11 @@ export function StickZone({
                 class="hud-pad-gauge"
               />
               <rect
+                ref={fillRef}
                 x="-3"
-                y={(GAUGE_TOP + GAUGE_LEN - level).toFixed(1)}
+                y={GAUGE_TOP + GAUGE_LEN}
                 width="6"
-                height={level.toFixed(1)}
+                height="0"
                 rx="2"
                 class="hud-pad-gauge-fill"
               />

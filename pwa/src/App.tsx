@@ -94,6 +94,7 @@ import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts
 import { keepsRecords, pairKey, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
+import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { ReplayBar } from "./game/hud-replay.tsx";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
@@ -159,6 +160,7 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [params] = useState(() => readParams(location.search));
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
+  const [hudLive] = useState(createHudLive);
   const [flashes, setFlashes] = useState<HudFlash[]>([]);
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
@@ -697,6 +699,7 @@ export function App() {
       const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
       const drawAt = performance.now();
       renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
+      feedHudLive(hudLive, state);
       shots.serve();
       if (timing) {
         const drawMs = performance.now() - drawAt + renderer.drain();
@@ -840,6 +843,7 @@ export function App() {
           flashes={flashes}
           touch={touch && !watching(shell)}
           input={input!}
+          live={hudLive}
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}

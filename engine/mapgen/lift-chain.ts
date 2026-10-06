@@ -30,6 +30,7 @@ import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { withinBand } from "./rules.ts";
 import { bottomFootprint } from "./station-clear.ts";
 import { pressPads, type PadShape, type StationPad } from "./station-pad.ts";
+import type { RampRoom } from "./summit-ramps.ts";
 import type { Lift, SummitRamp } from "./types.ts";
 
 type Point = { x: number; z: number };
@@ -106,6 +107,17 @@ export function wayFalls(way: ChainWay, height: (x: number, z: number) => number
   return y0 - height(way.ring.x, way.ring.z) >= C.fall * len;
 }
 
+/** The way's two legs as the room every run walked keeps off (R26):
+ * none where there is no way. */
+export function chainRooms(way: ChainWay | null): RampRoom[] {
+  if (!way) return [];
+  const half = RR.lift.chain.half;
+  return [
+    { from: way.from, to: way.ring, half },
+    { from: way.ring, to: way.station, half },
+  ];
+}
+
 /** How far (x, z) stands off the way's ground, m: its two legs (the
  * let-go point to the ring, the ring up the corral to the station), less
  * `lift.chain.half`. */
@@ -153,6 +165,10 @@ function segAt(a: Point, b: Point, x: number, z: number): { k: number; d: number
 /** The lift that tops out at the mid-station and the one that leaves it. */
 const UPPER = "G1";
 const LOWER = "C1";
+
+/** How fast a ramp's flank falls off its edge where the way crosses it,
+ * m per m. */
+const RAMP_FLANK = 0.5;
 
 /** The step the way's ground is read at for its earthworks, m. */
 const DIG_READ = 2;
@@ -321,7 +337,8 @@ function pressWay(
  * pressed (a ramp may cross it by the deck, and is pressed after it):
  * whatever stands over its line — from where it leaves the top's pad, at
  * the height the pad's edge stands there, straight to the ring — cut down
- * to it and eased into the snow round it over `lift.chain.blend` m — and
+ * to it and eased into the snow round it over `lift.chain.blend` m, never
+ * under a ramp's own even fall where one crosses it — and
  * filled up to it for the first `lift.chain.lip` m off the pad, wherever
  * no ramp crosses it — the pad itself left as it was pressed. */
 export function regradeLeg(
@@ -344,10 +361,21 @@ export function regradeLeg(
   const y0 = sampleField(ground, edge.x, edge.z);
   const yRing = sampleField(ground, way.ring.x, way.ring.z);
   const reach = hypot(way.ring.x - from.x, way.ring.z - from.z);
-  const onRamp = (x: number, z: number): boolean =>
-    (ramps.get(UPPER) ?? []).some(
-      (r) => seg(r.from, r.to, x, z) < r.width / 2 + RR.lift.top.ramp.blend,
-    );
+  // A ramp off the deck crossing the leg: its own even fall (`SummitRamp`
+  // from its rim to its run) and its flanks falling off it, never cut
+  // under, so a rider down the ramp meets no trench across it.
+  const offRamps = ramps.get(UPPER) ?? [];
+  const rampFloor = (x: number, z: number): number => {
+    let floor = -Infinity;
+    for (const r of offRamps) {
+      const at = segAt(r.from, r.to, x, z);
+      const side = at.d - r.width / 2;
+      if (side >= RR.lift.top.ramp.blend) continue;
+      const y = r.from.y + (r.to.y - r.from.y) * at.k - Math.max(0, side) * RAMP_FLANK;
+      floor = Math.max(floor, y);
+    }
+    return floor;
+  };
   pressBox(ground, [from, way.ring], C.half + C.blend, (x, z, y) => {
     if (pad && hypot(x - pad.x, z - pad.z) < keep) return y;
     const at = segAt(leg.from, leg.ring, x, z);
@@ -355,11 +383,13 @@ export function regradeLeg(
     if (out >= C.blend) return y;
     const w = 1 - smoothstep(0, C.blend, out);
     const to = y + (y0 + (yRing - y0) * at.k - y) * w;
+    const floor = rampFloor(x, z);
+    if (to < y) return Math.max(to, Math.min(y, floor));
     // Filled only off the pad's edge, fading over `lift.chain.lip` m, so
-    // the way leaves the pad without a step down onto it — where no ramp
-    // crosses it: a ramp crossing it is left falling as it was pressed.
-    const lip = 1 - smoothstep(0, C.lip, at.k * reach);
-    return to < y ? to : onRamp(x, z) ? y : y + (to - y) * lip;
+    // the way leaves the pad without a step down onto it — and never on a
+    // ramp, left falling as it was pressed.
+    if (floor > -Infinity) return y;
+    return y + (to - y) * (1 - smoothstep(0, C.lip, at.k * reach));
   });
 }
 

@@ -366,7 +366,8 @@ Today there are four:
   he faces, 20–60 m from him, at the first of a list of aims whose earthworks fit — with the station
   beyond the ring, so he turns onto the queue once and never back. The way's first leg is only ever
   CUT, to fall at least 8 % from the pad's edge to the ring, and cut again once the ramps off the top
-  are pressed (a ramp may cross it by the deck, within 36 m of where he is let go); it is filled only
+  are pressed (a ramp may cross it by the deck, within 36 m of where he is let go — never cut under
+  the ramp's own even fall); it is filled only
   for its first 12 m off the pad, off any ramp's snow, so it leaves the pad without a step; the
   station's footprint is levelled at its ground's mean, cut by no more than 18 m and eased into the
   mountain over 1.5 times its cut. The way is groomed 5 m either side and kept clear of every run,

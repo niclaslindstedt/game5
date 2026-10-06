@@ -395,9 +395,10 @@ export const RESORT_RULES = {
      * or `bank` times the station's cut where that is wider (never filled
      * under the gondola's way in). Once the ramps off the top are pressed
      * the first leg is CUT AGAIN to its line, from the height the pad's
-     * edge stands at to the ring's — and filled up to it only for the
-     * first `lip` m off the pad and off a ramp's snow, so he leaves the pad
-     * without a step down. */
+     * edge stands at to the ring's, never under a ramp's own even fall
+     * where one crosses it — and filled up to it only for the first `lip`
+     * m off the pad and off a ramp's snow, so he leaves the pad without a
+     * step down. */
     chain: {
       bearing: { min: 0.35, max: 1.5 } as Band,
       reach: { min: 20, max: 60 } as Band,

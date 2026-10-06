@@ -48,7 +48,16 @@ function rideOver(level: GeneratedLevel, upper: string, lower: string) {
   const next = plans.find((p) => p.lift.id === lower)!;
   const ring = boardingRing(next);
   const run = level.resort!.runs.find((r) => r.from === upper)!;
-  const game = createGame({ level, mode: "free", byLift: true, run: run.id, quiet: true });
+  // Under a clear sky: the way is the generator's, and a storm's new snow
+  // on the deck is the weather's question, not this one.
+  const game = createGame({
+    level,
+    mode: "free",
+    byLift: true,
+    run: run.id,
+    quiet: true,
+    sky: { weather: "clear" },
+  });
   for (let i = 0; i < 120 * 90 && game.skier.lift; i++) step(game, NEUTRAL_INPUT);
   const h0 = game.skier.heading;
   let low = Infinity;

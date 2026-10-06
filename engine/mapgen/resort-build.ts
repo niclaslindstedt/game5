@@ -62,6 +62,7 @@ import { clearStations, nearLine, type StationGround } from "./station-clear.ts"
 import { reckonAccess } from "./access-build.ts";
 import {
   chainOf,
+  chainRooms,
   groomWay,
   keepsChain,
   layChain,
@@ -301,12 +302,7 @@ export function attemptResort(
    * leaning pad (R26). */
   const rooms: RampRoom[] = [];
   /** The way to the next lift's queue, kept off by every run walked (R26). */
-  const wayRooms: RampRoom[] = way
-    ? [
-        { from: way.from, to: way.ring, half: RR.lift.chain.half },
-        { from: way.ring, to: way.station, half: RR.lift.chain.half },
-      ]
-    : [];
+  const wayRooms = chainRooms(way);
   /** Whether a ramp's line at (x, z) comes onto that way (R26): read as
    * the ramps are pressed (`layRamps`, a couple of cells further off). */
   const onQueue = (x: number, z: number): boolean =>

@@ -115,7 +115,8 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   off the pad so he leaves the deck without a step, groomed 5 m either side
   and kept clear of every run, lane and tree; a ramp off the deck may cross
   it only near the deck, and the way is cut back to its line after the ramps
-  are pressed. The analyzer holds it (`analysis/lift-queue.ts`) and
+  are pressed — never under the ramp's own fall, so neither rider meets a
+  trench or a step. The analyzer holds it (`analysis/lift-queue.ts`) and
   `tests/lift_links_test.ts` rides it, gondola to chair, on seven maps.
 - **The approach under the line (from generator v5)** — a chair's bullwheel
   stands 3.8 m over the deck and the chairs come down to the unload ramp,

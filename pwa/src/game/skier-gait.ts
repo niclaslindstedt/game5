@@ -11,6 +11,8 @@ import {
   pivotSteps,
   poleDuty,
   poleKeepUp,
+  sidestepPace,
+  sideSteps,
   skateAngle,
   skateShare,
   skateWork,
@@ -77,6 +79,10 @@ export type Gait = {
   /** STEPPING ROUND ON THE SPOT, −1, 0 or 1 the way (`pivotGait`): the
    * skis stepped one at a time and nothing pushed. */
   pivot: number;
+  /** ON HIS PLATFORMS across a steep slope, the side the hill rises on, ±1
+   * (right positive), and 0 off them (`sidestepGait`): the skis stepped up
+   * it one at a time and stamped down. */
+  sidestep: number;
 };
 
 /** What one push of the poles sweeps from the plant to the release, m —
@@ -144,6 +150,7 @@ export const STILL_GAIT: Gait = {
   pitch: 0,
   twist: 0,
   pivot: 0,
+  sidestep: 0,
 };
 
 /** How long in the air before he is FLYING rather than hopping, s. */
@@ -212,6 +219,59 @@ export function pivotGait(u: number, dir: number): Gait {
   };
 }
 
+/** THE SIDESTEP as drawn (`sidestep.ts`): how high the stepping ski comes
+ * off the snow, m — a real lift, to clear the ledge it is stepped onto —
+ * how far his weight goes over the ski he stands on, m, and the shoulders
+ * with it, rad; and the STAMP — how far he drops onto the ski as it is set
+ * down hard, m, over what share of the pair. */
+export const SIDE = { lift: 0.1, across: 0.07, roll: 0.07, stamp: 0.035, press: 0.12 };
+
+/** The sidestep's gait at phase `u` of a pair, the hill rising on `side`
+ * (±1, right positive), a step `step` m up the snow: the uphill ski lifted,
+ * carried up and STAMPED down, his weight onto it, then the downhill ski
+ * brought up beside it the same way — each ski where the engine set it
+ * (`sideSteps`, the very offsets the snow's contacts are laid by). */
+export function sidestepGait(u: number, side: number, step: number): Gait {
+  const s = sideSteps(u);
+  const dir = Math.sign(side);
+  const hill = dir > 0 ? 1 : 0;
+  const low = 1 - hill;
+  const out: [number, number] = [0, 0];
+  out[hill] = dir * step * (s.uphill - s.body);
+  out[low] = dir * step * (s.downhill - s.body);
+  // Each ski's arc: up off its ledge, carried, and brought down fast onto
+  // the new one — the set-down a slap, never eased onto the snow.
+  const arc = (a: number, b: number): number => {
+    const k = (u - a) / (b - a);
+    return k > 0 && k < 1 ? Math.sin(Math.PI * k ** 1.3) : 0;
+  };
+  const lift: [number, number] = [0, 0];
+  lift[hill] = SIDE.lift * arc(0.04, 0.44);
+  lift[low] = SIDE.lift * arc(0.54, 0.94);
+  // His weight over the ski he stands on: the downhill one while the uphill
+  // steps, the uphill one while the downhill comes up — the feet moved
+  // under him, his centre the line the engine carries up the snow.
+  const hop = (a: number, b: number): number =>
+    u > a && u < b ? Math.sin((Math.PI * (u - a)) / (b - a)) : 0;
+  const over = hop(0, 0.48) - hop(0.5, 0.98);
+  for (const i of [0, 1]) out[i] += dir * SIDE.across * over;
+  // THE STAMP: as each ski is set down he drops onto it.
+  const press = (at: number): number => {
+    const k = (u - at) / SIDE.press;
+    return k > 0 && k < 1 ? Math.sin(Math.PI * k) : 0;
+  };
+  return {
+    ...STILL_GAIT,
+    phase: u,
+    push: hill as 0 | 1,
+    out,
+    lift,
+    roll: -dir * SIDE.roll * over,
+    sink: SIDE.stamp * (press(0.4) + press(0.9)),
+    sidestep: dir,
+  };
+}
+
 export function gaitOf(
   s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
     way?: number;
@@ -220,6 +280,12 @@ export function gaitOf(
     /** Stepping round on the spot (`SkierState.pivot`), ±1; none when left
      * out. */
     pivot?: number;
+    /** On his platforms across a steep slope (`SkierState.sidestep`), ±1;
+     * none when left out — and the snow under him (`SkierState.packed`),
+     * which a step's length reads. */
+    sidestep?: number;
+    packed?: number;
+    roll?: number;
     crouch?: number;
     /** Whether he has his poles (`SkierState.poles`); with them when left
      * out. With none he never double-poles: he walks his skis off a
@@ -231,6 +297,13 @@ export function gaitOf(
 ): Gait {
   if (flying(s) || s.thrown) return STILL_GAIT;
   if (s.pivot) return pivotGait(s.stride - Math.floor(s.stride), s.pivot);
+  if (s.sidestep) {
+    // The slope under him: his body stands square to the snow, so it is
+    // the tilt of his own frame.
+    const slope = Math.acos(Math.cos(s.pitch) * Math.cos(s.roll ?? 0));
+    const step = sidestepPace(slope, s.packed ?? 1).step;
+    return sidestepGait(s.stride - Math.floor(s.stride), s.sidestep, step);
+  }
   if (s.drive <= 0.01) return STILL_GAIT;
   const poles = s.poles ?? true;
   const step = s.step ?? 0;
@@ -324,6 +397,7 @@ export function gaitOf(
     pitch: WEIGHT.pitch * skate,
     twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate, step),
     pivot: 0,
+    sidestep: 0,
   };
 }
 

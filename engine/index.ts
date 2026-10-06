@@ -364,6 +364,18 @@ export {
   strideShare,
 } from "./game/poles.ts";
 export {
+  hillSide,
+  laySkis,
+  sidestepEdge,
+  sidestepPace,
+  sidestepReach,
+  sideSteps,
+  skiOffsets,
+  slideOver,
+  slopeOf,
+  stepSide,
+} from "./game/sidestep.ts";
+export {
   fallHeight,
   landingAhead,
   landingLoad,

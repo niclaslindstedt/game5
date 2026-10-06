@@ -278,7 +278,7 @@ export const STRINGS = {
   heliPad: (m: number): string => `${Math.round(m)} M`,
   /** Stood beside its skid: how to get on. */
   heliTake: (touch: boolean, key: string): string =>
-    touch ? "DOUBLE TAP TO FLY" : `${key} TO FLY`,
+    touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */

@@ -20,6 +20,8 @@
 const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 const PITCH = Math.tan(Math.PI / 9);
 const CLIFF = Math.tan((35 * Math.PI) / 180);
+/** A face pitched `deg` degrees falling along +z: the sidestep's. */
+const FACE = (deg) => Math.tan((deg * Math.PI) / 180);
 
 export const MOVES = [
   {
@@ -113,6 +115,33 @@ export const MOVES = [
     window: [0.05, 1.75],
     input: () => ({ ...IDLE, steer: 1 }),
     poles: false,
+  },
+  {
+    id: "sidestep",
+    title: "stood across a 25° pitch, the key toward the hill held: sidestepping up it",
+    level: (S) => S.flatLevel({ packed: 1, grade: FACE(25), slopeFrom: 200, size: 3000 }),
+    place: () => ({ x: 1500, z: 800, heading: Math.PI / 2 }),
+    seconds: 4,
+    window: [1.0, 3.25],
+    input: (t) => ({ ...IDLE, steer: t >= 0.5 ? 1 : 0 }),
+  },
+  {
+    id: "sidestep-steep",
+    title: "slid to a stop across a 45° face, then sidestepping up it — each step shorter",
+    level: (S) => S.flatLevel({ packed: 1, grade: FACE(45), slopeFrom: 200, size: 3000 }),
+    place: () => ({ x: 1500, z: 800, heading: Math.PI / 2 }),
+    seconds: 8,
+    window: [4.5, 7.5],
+    input: (t) => ({ ...IDLE, steer: t >= 0.5 ? 1 : 0 }),
+  },
+  {
+    id: "sidestep-powder",
+    title: "across a 35° face of powder, the hill on his left: stamping each step in",
+    level: (S) => S.flatLevel({ packed: 0, grade: FACE(35), slopeFrom: 200, size: 3000 }),
+    place: () => ({ x: 1500, z: 800, heading: -Math.PI / 2 }),
+    seconds: 6,
+    window: [2.5, 5.0],
+    input: (t) => ({ ...IDLE, steer: t >= 0.5 ? -1 : 0 }),
   },
   {
     id: "skate-zigzag",

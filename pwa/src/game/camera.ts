@@ -9,6 +9,8 @@
 
 import * as THREE from "three";
 
+import type { PickRay } from "./machine-pick.ts";
+
 import {
   blendLens,
   createBoomState,
@@ -141,4 +143,16 @@ export function createLens(near: number, far: number): Lens {
       return lens;
     },
   };
+}
+
+const pickCaster = new THREE.Raycaster();
+const pickAt = new THREE.Vector2();
+
+/** The ray through a point of the picture, in normalized device
+ * coordinates (−1..1 right and up) — what a tap on the snow is aimed
+ * along (`machine-pick.ts`). */
+export function lensRay(camera: THREE.Camera, x: number, y: number): PickRay {
+  pickCaster.setFromCamera(pickAt.set(x, y), camera);
+  const { origin: o, direction: d } = pickCaster.ray;
+  return { o: { x: o.x, y: o.y, z: o.z }, d: { x: d.x, y: d.y, z: d.z } };
 }

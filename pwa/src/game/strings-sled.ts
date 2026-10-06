@@ -29,7 +29,7 @@ export const SLED_STRINGS = {
   sledCall: "SNOWMOBILE",
   sledAway: (m: number): string => `${Math.round(m)} M`,
   sledTake: (touch: boolean, key: string): string =>
-    touch ? "DOUBLE TAP TO RIDE" : `${key} TO RIDE`,
+    touch ? "TAP TO RIDE" : `${key} OR CLICK TO RIDE`,
   /** OPTIONS ▸ KEYS: the snowmobile's section, and how the skier's keys
    * work on the boards. */
   keysSledTitle: "SNOWMOBILE",

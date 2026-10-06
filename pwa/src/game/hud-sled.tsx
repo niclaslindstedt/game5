@@ -11,6 +11,7 @@
 
 import { SLED } from "@engine";
 import type { HudSled } from "./snapshot.ts";
+import { MachinePress } from "./hud-machine-press.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The arc the needle sweeps, rad from straight up: −135° to +135°. */
@@ -30,19 +31,29 @@ export function SledReadout({
   sled,
   touch,
   machineKey,
+  onBoard,
 }: {
   sled: HudSled;
   touch: boolean;
   /** The machine key as bound, as the player reads it off the keyboard. */
   machineKey: string;
+  /** The call tapped while he stands beside it: the machine press. */
+  onBoard: () => void;
 }) {
   if (sled.kind === "waiting") {
+    if (sled.near)
+      return (
+        <MachinePress
+          word={STRINGS.sledCall}
+          sub={STRINGS.sledTake(touch, machineKey)}
+          kind="sled"
+          onBoard={onBoard}
+        />
+      );
     return (
       <div class="hud-sled hud-sled-call" role="status">
         <span class="hud-sled-word">{STRINGS.sledCall}</span>
-        <span class="hud-sled-sub">
-          {sled.near ? STRINGS.sledTake(touch, machineKey) : STRINGS.sledAway(sled.away)}
-        </span>
+        <span class="hud-sled-sub">{STRINGS.sledAway(sled.away)}</span>
       </div>
     );
   }

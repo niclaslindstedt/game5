@@ -7,6 +7,7 @@ import type { GameState } from "@engine";
 
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
+import type { PickRay } from "./machine-pick.ts";
 import type { Outfit } from "./outfit.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import type { VideoSettings } from "./settings-video.ts";
@@ -24,6 +25,10 @@ export interface WorldRenderer {
   /** Which camera a RUN is seen through; menus use "orbit". */
   setCamera(rung: CameraRung): void;
   camera(): CameraRung;
+  /** The ray through a point of the picture, normalized device coordinates
+   * (−1..1 right and up) — what a tap on a machine is tested along
+   * (`machine-pick.ts`). */
+  pickRay(x: number, y: number): PickRay;
   /** The canvas's box in CSS px and the device's pixel ratio; the RESOLUTION
    * row's share is the renderer's to apply on top. */
   resize(width: number, height: number, pixelRatio: number): void;

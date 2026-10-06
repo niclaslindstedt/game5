@@ -100,6 +100,7 @@ import { ReplayBar } from "./game/hud-replay.tsx";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
+import { watchMachineTaps } from "./game/machine-tap.ts";
 import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
 import { MainMenu } from "./game/menu-main.tsx";
@@ -771,11 +772,19 @@ export function App() {
     const observer = new ResizeObserver(fit);
     observer.observe(canvas);
     fit();
+    // A tap on the snowmobile or the helicopter beside him gets him on.
+    const stopTaps = watchMachineTaps(canvas, {
+      ray: (x, y) => renderer.pickRay(x, y),
+      state: () => state,
+      rides: () => playerRides(shellRef.current),
+      board: () => manager.requestMachine(),
+    });
 
     return () => {
       cancelAnimationFrame(raf);
       audio.silence();
       observer.disconnect();
+      stopTaps();
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
       document.removeEventListener("keydown", unlockAudio, unlockOpts);

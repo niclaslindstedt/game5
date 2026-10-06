@@ -473,13 +473,24 @@ export function Hud({
           rides it, the call to it while it waits on its pad near him — but
           the snowmobile's word wins while he rides it or stands beside it. */}
       {snap.heli && !sledFirst && snap.airTime === 0 && (
-        <HeliReadout heli={snap.heli} live={live} touch={touch} machineKey={machineKey} />
+        <HeliReadout
+          heli={snap.heli}
+          live={live}
+          touch={touch}
+          machineKey={machineKey}
+          onBoard={input.requestMachine}
+        />
       )}
 
       {/* THE SNOWMOBILE (`hud-sled.tsx`): the tachometer while he rides it,
           the call to it while it waits near him. */}
       {snap.sled && (sledFirst || !snap.heli) && snap.airTime === 0 && (
-        <SledReadout sled={snap.sled} touch={touch} machineKey={machineKey} />
+        <SledReadout
+          sled={snap.sled}
+          touch={touch}
+          machineKey={machineKey}
+          onBoard={input.requestMachine}
+        />
       )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the

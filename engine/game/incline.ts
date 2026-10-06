@@ -166,7 +166,10 @@ export function inclineTarget(
   const commit = K.commit * (opposed ? crossGate(c.balance) : 1);
   const most = leanMostOf(T);
   const balance = c.balance + commit * (asked - c.balance);
-  return clamp(balance, -most, most) * packed + c.steer * K.rollPowder * (1 - packed);
+  // In powder the steer rolls him over — but on his platforms
+  // (`sidestep.ts`) it asks for a step, not a roll.
+  const steer = c.sidestep !== 0 ? 0 : c.steer;
+  return clamp(balance, -most, most) * packed + steer * K.rollPowder * (1 - packed);
 }
 
 /** How much of his roll hold is left at `rollRel` rad against the snow,

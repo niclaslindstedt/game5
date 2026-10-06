@@ -50,6 +50,10 @@ export type SkierPoseInput = {
   spread?: readonly [number, number];
   fore?: readonly [number, number];
   incline?: number;
+  /** ON HIS PLATFORMS across a steep face (`sidestep.ts`): the side the
+   * hill rises on, right positive, eased in and out over −1..1 — how far
+   * his poles are planted for the sidestep (`skier-sidestep.ts`). */
+  sidestep?: number;
   airborne: boolean;
   /** Seconds since the last landing — a fresh landing folds the knees when
    * no `bump` is handed in. */

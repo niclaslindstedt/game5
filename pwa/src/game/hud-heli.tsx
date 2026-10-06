@@ -15,6 +15,7 @@ import { useEffect, useRef } from "preact/hooks";
 
 import type { HudHeli } from "./snapshot.ts";
 import type { HudLive } from "./hud-live.ts";
+import { MachinePress } from "./hud-machine-press.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The horizon's pitch scale, px of the dial per rad. */
@@ -47,20 +48,30 @@ export function HeliReadout({
   live,
   touch,
   machineKey,
+  onBoard,
 }: {
   heli: HudHeli;
   live: HudLive;
   touch: boolean;
   /** The machine key as bound, as the player reads it off the keyboard. */
   machineKey: string;
+  /** The call tapped while he stands beside it: the machine press. */
+  onBoard: () => void;
 }) {
   if (heli.kind === "waiting") {
+    if (heli.near)
+      return (
+        <MachinePress
+          word={STRINGS.heliCall}
+          sub={STRINGS.heliTake(touch, machineKey)}
+          kind="heli"
+          onBoard={onBoard}
+        />
+      );
     return (
       <div class="hud-heli hud-heli-call" role="status">
         <span class="hud-heli-word">{STRINGS.heliCall}</span>
-        <span class="hud-heli-sub">
-          {heli.near ? STRINGS.heliTake(touch, machineKey) : STRINGS.heliPad(heli.pad)}
-        </span>
+        <span class="hud-heli-sub">{STRINGS.heliPad(heli.pad)}</span>
       </div>
     );
   }

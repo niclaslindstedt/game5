@@ -54,8 +54,10 @@ export function airTorque(
   // chasing a reading that goes round at the spin's own rate is a driven
   // oscillator (the roll's natural rate is the spin's), which wound every
   // 360 into a tumble. Let go, the tilt he threw the spin with stays, a few
-  // degrees, and the air's damping is all that touches it.
-  const spinning = clamp(Math.abs(c.wy) / A.spinLevel, 0, 1);
+  // degrees, and the air's damping is all that touches it. Under
+  // `spinFrom` he is not spinning at all — the yaw a landing's skid or a
+  // steer left him with — and the hands are whole.
+  const spinning = clamp((Math.abs(c.wy) - A.spinFrom) / (A.spinLevel - A.spinFrom), 0, 1);
   const reach = clamp((A.rollGiveUp - Math.abs(c.roll)) / 0.3, 0, 1) * (1 - spinning);
   out.z += (A.rollLevel * level * c.roll - A.rollDamp * c.wz) * reach;
   // ...AND THE PITCH, which is the arcade's: with the lean left alone his
@@ -87,6 +89,11 @@ export function airTorque(
     (1 - Math.min(1, Math.abs(c.lean))) *
     clamp((A.pitchGiveUp - Math.abs(c.pitch - aim)) / 0.3, 0, 1);
   out.x += clamp(A.pitchLevel * (c.pitch - aim), -A.pitchLevelMax, A.pitchLevelMax) * hand;
+  // ...AND HE HOLDS HIS PITCH: a skier who is not leaning does not let a
+  // lip or a bounce pitch him round — the turn the snow gave him is taken
+  // out at `pitchSteady` (a held tuck carried off a crest included: a held
+  // W leans nothing, `input-model.ts`'s `airLean`).
+  out.x -= A.pitchSteady * heft * c.wx * hand;
   out.x -= A.damping * c.wx;
   out.y -= A.yawDamping * c.wy;
   out.z -= A.damping * c.wz;

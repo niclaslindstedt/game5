@@ -34,6 +34,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine";
 
 import { modelSwitch } from "./model-switch.ts";
+import { mergeModel } from "./model-merge.ts";
 import { lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
 import type { Stand } from "./ski-stand.ts";
@@ -230,7 +231,11 @@ export function attachModels(o: {
   // turned a half turn, set on the spec as `lookFrame` sets a trace (the
   // snow at −cogHeight in the body frame).
   const F = lookFrame(o.spec);
-  const { scene, meshes } = dressed(skisGltf, o.skis, null, o.wrap, mats);
+  const parts = dressed(skisGltf, o.skis, null, o.wrap, mats);
+  const { scene } = parts;
+  // One draw for the pair, its boots apart (`model-merge.ts`).
+  const merged = mergeModel(parts.meshes, (m) => m.name === "boot", o.wrap);
+  const { meshes } = merged;
   scene.rotation.y = Math.PI;
   const holder = new THREE.Group();
   holder.name = "model-skis";
@@ -253,6 +258,7 @@ export function attachModels(o: {
     },
     dispose() {
       for (const m of mats) m.dispose();
+      merged.dispose();
     },
   };
 }

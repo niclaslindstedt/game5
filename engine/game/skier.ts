@@ -50,6 +50,7 @@ import {
   unrotate,
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { MAX_LOAD, absorbShare, legPush, settleRates } from "./absorb.ts";
 import { airForce, type AirForce } from "./air.ts";
 import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
@@ -123,26 +124,8 @@ const CV = TUNING.carve;
 const J = TUNING.jump;
 const P = TUNING.poles;
 const W = TUNING.wind;
+const AB = TUNING.landing.absorb;
 
-/** The stop's rate and damping as multiples of the leg's own, and the most
- * any one station may ever push, as a multiple of the load it carries at
- * rest. The cap is the physics' fuse rather than a model: a leg folded to
- * its stop on a steep face sees its compression grow with every centimetre
- * the skier slides, and a spring that followed it would fire him off the
- * slope. */
-const STOP_RATE = 12;
-const STOP_DAMP = 4;
-const MAX_LOAD = 15;
-/** THE STOP GIVES BACK LITTLE: a knee at the end of its bend loads at its
- * full rate and hands back only this share of it on the way out — the
- * hysteresis that makes it swallow a slam rather than spring off it. */
-const STOP_RELEASE = 0.2;
-/** BOTTOMING CONTROL: the compression damping rises over the last
- * `BOTTOM_ZONE` of the stroke, to `1 + BOTTOM_DAMP` times its own at the
- * end — the muscle a skier braces a landing with, so a big hit is slowed
- * before the stop has to catch it. */
-const BOTTOM_ZONE = 0.3;
-const BOTTOM_DAMP = 2;
 /** The fastest the body may turn about any axis, rad/s — a fuse a tumble would otherwise feed. */
 const MAX_SPIN = 25;
 /** How upright (`uprightOn`) a body must stand for a station to be read at all. */
@@ -392,6 +375,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // (`trench.ts`) — each exactly 1 on a sound skier out of any hole.
   const soft = springShare(c);
   const dampen = dampShare(c);
+  // ...and how far into a landing's absorbing they are (`absorb.ts`).
+  const give = absorbShare(c);
   // ...less up a rise with no poles to brace the push (`climbShare`).
   const bite = trenchGrip(c.trench) * climbShare(c.pitch, c.poles);
   // How much of the edge the ski's tilt buys: a flat ski slides on a share
@@ -503,16 +488,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
         : Math.max(0, -(pvx * normal.x + pvy * normal.y + pvz * normal.z)) /
           Math.max(0.3, -(dx * normal.x + dy * normal.y + dz * normal.z));
     c.comps[i] = bent;
-    const deep = clamp((comp / p.susp.travel - (1 - BOTTOM_ZONE)) / BOTTOM_ZONE, 0, 1);
-    const damp = rate > 0 ? p.susp.bump * (1 + BOTTOM_DAMP * deep) : p.susp.rebound;
-    let spring = p.susp.rate * soft * bent + damp * dampen * rate;
-    if (comp > p.susp.travel) {
-      spring +=
-        STOP_RATE * p.susp.rate * (comp - p.susp.travel) * (rate > 0 ? 1 : STOP_RELEASE) +
-        STOP_DAMP * p.susp.bump * Math.max(0, rate);
-    }
+    const spring = legPush(p, bent, rate, soft, dampen, give);
     if (spring <= 0) continue;
-    if (spring > MAX_LOAD * p.rest) spring = MAX_LOAD * p.rest;
     touching += 1;
     const vn = pvx * normal.x + pvy * normal.y + pvz * normal.z;
     if (-vn > impact) impact = -vn;
@@ -775,7 +752,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     if (loose > 0 && moving > 0) {
       tb.z -= K.deepTip * loose * moving * m * g * spec.cogHeight * Math.sin(rollRel) * hold;
     }
-    tb.z += rollHold(rollRel, target, c.wz, T) * heave * hold * firm;
+    tb.z += (rollHold(rollRel, target, c.wz, T) - give * AB.steady * c.wz) * heave * hold * firm;
     // THE FORE-AFT BALANCE (`skier.pitchStiff`): the body held square to
     // the slope under him — toward the lean the thumb asks — against the
     // brake's and the snow's pull at his feet, which would otherwise fold
@@ -786,7 +763,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     );
     tb.x +=
       (clamp(K.pitchStiff * (pitchRel - K.leanPitch * c.lean), -K.pitchMax, K.pitchMax) -
-        K.pitchDamp * c.wx) *
+        (K.pitchDamp + give * AB.steady) * c.wx) *
       (I.x / inertiaOf(SKIS).x) *
       hold;
     // THE YAW HELD (`steer.yawHold`): toward the rate the carve asks for,
@@ -852,8 +829,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, looseOf(state));
+  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, give > 0, looseOf(state));
   const hullTouch = hullHit > 0;
+  // ...AND NEVER WHIPS HIM ROUND: on the snow while a landing is absorbed
+  // the skis pivot to the slope and the way under him and the body follows
+  // (`absorb.rate`, `.yaw`) — off the snow too in the moment a tail
+  // snapped down leaves it.
+  if (give > 0 && (grounded || hullTouch || c.landing < TUNING.air.counts)) settleRates(c, level);
   if (hullHit > impact) impact = hullHit;
   // STANDING STILL (`grip.stillSpeed`): a skier all but stopped on his
   // skis, not working for his speed or springing off them, whose stations

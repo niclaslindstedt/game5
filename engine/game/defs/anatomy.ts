@@ -23,6 +23,19 @@
 //     from 20–25 g — read here off the landing's load (`flight.ts`'s
 //     `landingLoad`, the equivalent fall height over the legs' stroke),
 //     which a failed landing hands the spine whole;
+//   - THE LEGS UNDER AN AXIAL LOAD — a fall from a height landed on the
+//     feet (cadaver drop and pendulum tests of the leg, and the falls
+//     from height a trauma unit sees): the load goes up the chain, and the
+//     chain breaks from the bottom. The heel bone (the calcaneus) breaks
+//     at about 6–8 kN, the tibia's end at the ankle (the pilon) a little
+//     past it, the tibia's top in the knee (the plateau) at some 8–10 kN
+//     with the knee bent, the femur's shaft at about 10–15 kN, and the
+//     femur's head is driven into the hip socket (the acetabulum) at a
+//     load between those. A ski boot spreads the heel's load over its sole
+//     and holds the ankle, which moves the even chance up the scale a
+//     little, never off it. A leg carries half his weight's stop, so for
+//     the medium build (80 kg) a landing's g is some 0.39 kN on each leg —
+//     and a heavier skier's g is a harder load (`body.ts` scales it);
 //   - THE KNEE: the anterior cruciate parts at 2.2 kN (Woo 1991); a third
 //     of its tears are the valgus and outward twist of a caught edge, a
 //     fifth the phantom foot and a twelfth the boot driven into the shin by
@@ -546,6 +559,54 @@ export const INJURIES = {
     fracture: "hairline",
   },
   brokenFoot: { part: "foot", ais: 2, mech: "blunt", at: 85, bones: ["foot"], fracture: "break" },
+  // A FALL FROM A HEIGHT LANDED ON THE FEET (`load`, the landing's g at
+  // the medium build, each leg): the heel, the pilon, the plateau, the
+  // femur and the hip socket, bottom to top — about 17 g a cracked heel
+  // (6.7 kN), 21 g a broken one, 25 g the pilon, 27 g the plateau, 30 g
+  // the socket and 33 g the femur. A flat landing at the legs' buckle
+  // (14 g) is a chance in six of a cracked heel; a fall of tens of metres
+  // onto hard snow breaks the leg from the heel to the hip.
+  crackedHeel: {
+    part: "foot",
+    ais: 1,
+    mech: "load",
+    at: 17,
+    bones: ["foot"],
+    fracture: "hairline",
+  },
+  brokenHeel: { part: "foot", ais: 2, mech: "load", at: 21, bones: ["foot"], fracture: "break" },
+  pilonFracture: {
+    part: "shin",
+    ais: 3,
+    mech: "load",
+    at: 25,
+    bones: ["tibia", "fibula"],
+    fracture: "break",
+  },
+  plateauFracture: {
+    part: "knee",
+    ais: 3,
+    mech: "load",
+    at: 27,
+    bones: ["tibia"],
+    fracture: "break",
+  },
+  brokenHipSocket: {
+    part: "pelvis",
+    ais: 3,
+    mech: "load",
+    at: 30,
+    bones: ["pelvis"],
+    fracture: "break",
+  },
+  femurDriven: {
+    part: "thigh",
+    ais: 3,
+    mech: "load",
+    at: 33,
+    bones: ["femur"],
+    fracture: "break",
+  },
   // BURNS — a burning wreck's fireball on the skin (`heat`). Bare skin
   // takes a first-degree burn at an even chance of 105 (kW/m²)^4/3 · s, a
   // second-degree one at 290 and a full-thickness one at about 1,000 (the

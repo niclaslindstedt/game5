@@ -176,6 +176,10 @@ const dose = new Float64Array(PARTS * MECHS.length);
 const faced = new Int8Array(PARTS);
 // The hardest blow this step, for the g meter.
 let billG = 0;
+/** How many injuries this step may take (`judge`): a blow's few, or —
+ * a landing past the legs' buckle — every part's, the whole leg loaded
+ * at once. */
+let cap: number = I.perBlow;
 let billPart: BodyPart = "pelvis";
 let billSource: ImpactSource = "snow";
 let billRival = -1;
@@ -185,6 +189,7 @@ function clear(): void {
   dose.fill(0);
   faced.fill(-1);
   billG = 0;
+  cap = I.perBlow;
 }
 
 /** A blow of `g` on `part`, from the `face` side when the trunk's organs
@@ -440,7 +445,7 @@ function rollOf(state: GameState): number {
   return Math.asin(clamp(r.x * n.x + r.y * n.y + r.z * n.z, -1, 1));
 }
 
-/** A LANDING ON THE SKIS, of load `g`: up the legs into the spine, onto
+/** A LANDING ON THE SKIS, of load `g`: up the legs' bones into the spine, onto
  * the knees as far as he came down in the back seat or crooked, and the
  * neck whipped — the spine handed more when the legs folded under it
  * (`legsFold`). A landing that came down on the body (`bodyHit`) is the
@@ -458,6 +463,18 @@ function landing(state: GameState, g: number, airTime: number): void {
   charge("kneeL", "drawer", drawer);
   charge("kneeR", "drawer", drawer);
   charge("back", "load", folded ? g * I.folded : g);
+  // UP THE LEGS: each carries half his weight's stop — the heel, the
+  // pilon, the plateau, the femur and the hip socket loaded at once, a
+  // heavier skier harder for the same g.
+  const leg = g * (c.spec.skierMass / MEDIUM_RIDER.mass);
+  for (const s of [-1, 1]) {
+    charge(sided("foot", s), "load", leg);
+    charge(sided("shin", s), "load", leg);
+    charge(sided("knee", s), "load", leg);
+    charge(sided("thigh", s), "load", leg);
+  }
+  charge("pelvis", "load", leg);
+  if (g >= TUNING.landing.buckle) cap = PARTS;
   strike("neck", (g - 1) * I.neck);
   if (airTime >= L.air && g >= I.landingShown) offer(g, "back", "landing");
 }
@@ -590,7 +607,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
     }
   }
   wreckSeat(state, events);
-  judge(state, events);
+  judge(state, events, cap);
   wreckFire(state, events);
 }
 

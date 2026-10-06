@@ -296,6 +296,33 @@ describe("the body on the snow", () => {
     expect(severityOf(hard)).toBeGreaterThanOrEqual(severityOf(soft));
   });
 
+  it("a fall from a height landed on the feet breaks the legs from the heel up", () => {
+    const fall = (height: number) => {
+      const state = staged(flatLevel({ packed: 1 }), {
+        x: 1500,
+        z: 200,
+        heading: 0,
+        speed: 3,
+        height,
+      });
+      const events = ride(state, 4);
+      const land = events.find((e) => e.kind === "land");
+      const legs = state.skier.body.injuries.filter(
+        (h) => INJURIES[h.kind].mech === "load" && h.part !== "back",
+      );
+      return { g: land?.kind === "land" ? land.g : 0, legs: legs.map((h) => h.kind) };
+    };
+    // A couple of metres is a landing the legs take.
+    expect(fall(2).legs).toEqual([]);
+    // Tens of metres onto the groomer is the whole leg, heel to hip, both
+    // sides at once — not a blow's few.
+    const big = fall(40);
+    expect(big.g).toBeGreaterThan(80);
+    for (const kind of ["brokenHeel", "pilonFracture", "plateauFracture", "femurDriven"])
+      expect(big.legs.filter((k) => k === kind)).toHaveLength(2);
+    expect(big.legs).toContain("brokenHipSocket");
+  });
+
   it("a trunk at speed is a blow of a hundred g and more, and hurts him", () => {
     const state = staged(syntheticLevel(), {
       x: LONE_TREE.x,

@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ABSORB,
+  MOGUL_ABSORB,
   IBEX,
   MODE_RULES,
   MOGULS,
@@ -141,8 +141,8 @@ describe("the course set over a built map", () => {
 describe("the legs absorbing the moguls", () => {
   it("take all of a mogul at the pace and less past it", () => {
     expect(absorbedAt(5)).toBe(1);
-    expect(absorbedAt(ABSORB.easy)).toBe(1);
-    expect(absorbedAt(ABSORB.hard)).toBeCloseTo(ABSORB.floor, 6);
+    expect(absorbedAt(MOGUL_ABSORB.easy)).toBe(1);
+    expect(absorbedAt(MOGUL_ABSORB.hard)).toBeCloseTo(MOGUL_ABSORB.floor, 6);
     expect(absorbedAt(12)).toBeLessThan(1);
   });
 

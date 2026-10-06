@@ -54,7 +54,7 @@ this file when moguls is finished
   with two lines on one rhythm (`mogulsField(p, frame, R, lines)`). The
   renderer lays it as a mesh (`mogul-view.ts`); the trail map's grooves
   and the snow shader are not laid on it yet.
-- **Riding moguls**: the legs ABSORB the moguls (`game/absorb.ts`) — full
+- **Riding moguls**: the legs ABSORB the moguls (`game/mogul-ride.ts`) — full
   to 9.5 m/s, a third by 14 m/s *(est.)*; the bot turns on the moguls'
   rhythm at ~9 m/s and throws a 360 or a straight air off the top bump
   and a back flip off the bottom one.

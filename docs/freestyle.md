@@ -657,7 +657,7 @@ this engine — a straight skid drags only ~0.35 g)*; a 10 m track of moguls
 it so the troughs zig-zag; two air bumps 0.7 m high kicking 35° off the
 slope *(the take-off read as against the slope — the rules do not say)*,
 at 15 % and 80 % of the course, with a 20 m landing; nine control gates.
-The legs ABSORB the moguls (`engine/game/absorb.ts`): the body rides the
+The legs ABSORB the moguls (`engine/game/mogul-ride.ts`): the body rides the
 course with the moguls taken out of the snow under it at up to ~9.5 m/s,
 less of them the faster past it — down to a third by 14 m/s *(est.)*. The
 jury holds the course under 50 km/h of gust and in no more than a steady

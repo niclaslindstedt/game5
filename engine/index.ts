@@ -144,7 +144,7 @@ export {
   type MogulsContest,
 } from "./game/moguls-contest.ts";
 export { TURN_READ, freshTurns, stepMogulTurns, type MogulTurns } from "./game/mogul-turns.ts";
-export { ABSORB, absorbedAt, riddenLevel } from "./game/absorb.ts";
+export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.

@@ -487,12 +487,12 @@ export const NO_HELI_KEYS: HeliKeysHeld = {
 };
 
 /** THE COLLECTIVE'S TRAVEL, shares of the lever a second: a key held moves
- * it at `COLLECTIVE_KEY_RATE` (from the stop to the hover's ~0.7 in a
- * second and a half), the power pad pushed all the way at
+ * it at `COLLECTIVE_KEY_RATE` (from the stop to the hover's ~0.55 in
+ * under a second, the top in a second and a half), the power pad pushed all the way at
  * `COLLECTIVE_THUMB_RATE`. A lever moves while it is worked and stays where
  * it is left: the height held is the hand's, never the machine's. */
-export const COLLECTIVE_KEY_RATE = 0.45;
-export const COLLECTIVE_THUMB_RATE = 0.6;
+export const COLLECTIVE_KEY_RATE = 0.7;
+export const COLLECTIVE_THUMB_RATE = 0.9;
 
 /** THE POWER PAD'S DEAD BAND, a share of its reach either side of the
  * anchor: the collective is a RATE on the pad (held up it keeps rising), so

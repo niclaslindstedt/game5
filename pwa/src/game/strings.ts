@@ -271,6 +271,7 @@ export const STRINGS = {
    * the snow, its climb, how to jump off it, and the way to it. */
   heliHeight: "DROP",
   heliMetres: (m: number): string => `${Math.round(m)} M`,
+  heliAltitude: (m: number): string => `ALT ${Math.round(m)} M`,
   heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
   /** How to get off — the machine key (`key`, as bound), a double tap on
    * touch: off the skid in the air, onto the snow where it has landed. */

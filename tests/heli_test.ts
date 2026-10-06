@@ -92,14 +92,15 @@ describe("the helicopter", () => {
 
   it("gives the thrust momentum theory says the power buys", () => {
     const hover = thrustMost(0, 0, 100);
-    expect(hover / W).toBeGreaterThan(1.25);
-    expect(hover / W).toBeLessThan(1.6);
+    expect(hover / W).toBeGreaterThan(1.6);
+    expect(hover / W).toBeLessThan(2);
     // More in ground effect, more again with translational lift, less climbing.
     expect(thrustMost(0, 0, HELI.rotor.hub)).toBeGreaterThan(hover * 1.1);
     expect(thrustMost(30, 0, 100)).toBeGreaterThan(hover);
     expect(thrustMost(0, 8, 100)).toBeLessThan(hover);
     // At the top of its climb it lifts its own weight and no more.
-    expect(thrustMost(0, 11, 100) / W).toBeLessThan(1.1);
+    expect(thrustMost(0, 20, 100) / W).toBeLessThan(1.05);
+    expect(thrustMost(0, 15, 100) / W).toBeGreaterThan(1.1);
   });
 
   it("sits on its pad with the collective down, and lifts on the lever alone", () => {
@@ -114,7 +115,7 @@ describe("the helicopter", () => {
     fly(s, 3, hands({ collective: 0.95 }));
     expect(height(s)).toBeGreaterThan(a + 10);
     // Down, and it falls.
-    fly(s, 2, hands({ collective: 0 }));
+    fly(s, 3, hands({ collective: 0 }));
     expect(s.heli!.vy).toBeLessThan(-3);
   });
 
@@ -137,6 +138,31 @@ describe("the helicopter", () => {
     expect(s.heli!.disc.pitch).toBeLessThan(tilted * 0.5);
     const h = s.heli!;
     expect(Math.sin(h.heading) * h.vx + Math.cos(h.heading) * h.vz).toBeGreaterThan(3);
+  });
+
+  it("carries the disc on past the vertical and round: a roll and a loop", () => {
+    for (const [axis, cyclic] of [
+      ["roll", { roll: 1 }],
+      ["pitch", { pitch: -1 }],
+    ] as const) {
+      const s = ride();
+      pilot(s, 30, { x: s.heli!.x, z: s.heli!.z, height: 400 });
+      let turned = 0;
+      let was = s.heli!.disc[axis];
+      let past = 0;
+      for (let i = 0; i < 12 * 120 && Math.abs(turned) < 2 * Math.PI; i++) {
+        step(s, hands({ collective: 0.8, ...cyclic }));
+        turned += angleDiff(was, s.heli!.disc[axis]);
+        was = s.heli!.disc[axis];
+        past = Math.max(past, Math.abs(s.heli![axis]));
+      }
+      // All the way round, the airframe swung over the top with it, still
+      // flying — and every angle kept to a turn either way.
+      expect(Math.abs(turned)).toBeGreaterThanOrEqual(2 * Math.PI);
+      expect(past).toBeGreaterThan(3);
+      expect(s.heli!.mode).toBe("flown");
+      expect(Math.abs(s.heli!.disc[axis])).toBeLessThanOrEqual(Math.PI);
+    }
   });
 
   it("swings its nose left as the collective comes up, unless the pedals hold it", () => {

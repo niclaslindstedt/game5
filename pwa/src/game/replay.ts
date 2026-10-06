@@ -99,7 +99,10 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
 
 /** Whether a run in `mode` is recorded to be watched back. */
 export function keepsReplay(mode: GameMode): boolean {
-  return isGameMode(mode) && (keepsRecords(mode) || mode === "tricks" || mode === "bigAir");
+  return (
+    isGameMode(mode) &&
+    (keepsRecords(mode) || mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck")
+  );
 }
 
 /** A FINGERPRINT OF A RUN AT ITS FIRST STEP: where every skier stands, on

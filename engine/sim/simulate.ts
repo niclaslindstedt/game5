@@ -60,7 +60,14 @@ export type SimOptions = {
    * Ignored with `tricks`. */
   mode?: Extract<
     GameMode,
-    "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "bigAir"
+    | "slalom"
+    | "giantSlalom"
+    | "downhill"
+    | "superG"
+    | "speedSki"
+    | "skiCross"
+    | "bigAir"
+    | "knuckleHuck"
   >;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied. */

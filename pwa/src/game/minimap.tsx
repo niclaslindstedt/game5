@@ -37,7 +37,7 @@ import type { Level } from "@engine";
 import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 
 import { bakeMinimap, mapPxFor, minimapSource } from "./minimap-bake.ts";
-import { VIEW, type HudMinimap, type SkierMark } from "./minimap-view.ts";
+import { VIEW, arrowAngle, rotorTurnMs, type HudMinimap, type SkierMark } from "./minimap-view.ts";
 import type { BakeReply, BakeRequest } from "./minimap-worker.ts";
 import { skierCss } from "./skier-colours.ts";
 import { STRINGS } from "./strings.ts";
@@ -331,17 +331,39 @@ function paint(
   }
 
   // THE HELIPAD and THE HELICOPTER: a ring where it is kept, and the
-  // machine itself wherever it is — on its pad, or flying.
+  // machine itself wherever it is — on its pad, or flying home — from
+  // above, nose the way it points, its rotor a faint disc while it turns.
+  // Flown by the player it is the mark at the plate's middle instead.
   if (map.heli) {
     ctx.strokeStyle = PAINT.heli;
     ctx.lineWidth = PAINT.liftWidth * 1.6 * css;
     ctx.beginPath();
     ctx.arc(map.heli.pad.x, map.heli.pad.z, map.dot * 1.6, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = PAINT.heli;
-    ctx.beginPath();
-    ctx.arc(map.heli.x, map.heli.z, map.dot * 0.9, 0, Math.PI * 2);
-    ctx.fill();
+    if (!map.flying) {
+      const s = (map.dot / 3.4) * 0.8;
+      ctx.save();
+      ctx.translate(map.heli.x, map.heli.z);
+      ctx.rotate((arrowAngle(map.heli.heading) * Math.PI) / 180);
+      ctx.scale(s, s);
+      if (map.heli.spool > 0.05) {
+        ctx.globalAlpha = 0.35 * Math.min(1, map.heli.spool);
+        ctx.fillStyle = PAINT.heli;
+        ctx.beginPath();
+        ctx.arc(0, 0, HELI_ROTOR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = PAINT.heli;
+      ctx.fill(heliPaths().body);
+      ctx.strokeStyle = hud.plate(PAINT.rivalEdgeAlpha);
+      ctx.lineWidth = (PAINT.arrowEdgeWidth * 1.6 * css) / s;
+      ctx.stroke(heliPaths().body);
+      ctx.strokeStyle = PAINT.heli;
+      ctx.lineWidth = 0.7;
+      ctx.stroke(heliPaths().gear);
+      ctx.restore();
+    }
   }
   // THE SNOWMOBILE where it was left: a square, edged so it reads on snow.
   if (map.sled) {
@@ -369,6 +391,30 @@ function paint(
  * and never turned — the map turns instead. */
 const SKIER = "M 0 -6.4 L 4.4 5 L 0 2.6 L -4.4 5 Z";
 const PLINTH = 7.4;
+
+/** THE HELICOPTER, from above, nose up the plate, in view units — the
+ * class's proportions (`HELI`: a 5.35 m rotor over a cabin and a boom of
+ * about 7 m) at some 1.4 units a metre: the cabin and the boom with its
+ * tailplane as one shape, the skids and the tail rotor (on the boom's
+ * right) as strokes, and the three blades. */
+const HELI_BODY =
+  "M 0 -4.4 C 2.3 -4.4 2.3 2.6 0 2.6 C -2.3 2.6 -2.3 -4.4 0 -4.4 Z " +
+  "M -0.55 1.6 L 0.55 1.6 L 0.4 9.8 L -0.4 9.8 Z " +
+  "M -1.9 6.9 L 1.9 6.9 L 1.9 7.8 L -1.9 7.8 Z";
+const HELI_GEAR = "M -2.5 -3.2 L -2.5 2.4 M 2.5 -3.2 L 2.5 2.4 M 0.95 7.3 L 0.95 9.9";
+const HELI_ROTOR = 7.6;
+/** The flown machine at the plate's middle is drawn this much larger than
+ * the parked one, to stand where the skier's arrow stood. */
+const HELI_MARK = 1.3;
+const HELI_BLADES = [0, 120, 240]
+  .map((a) => {
+    const r = (a * Math.PI) / 180;
+    return `M 0 0 L ${(Math.sin(r) * HELI_ROTOR).toFixed(2)} ${(-Math.cos(r) * HELI_ROTOR).toFixed(2)}`;
+  })
+  .join(" ");
+let heliCut: { body: Path2D; gear: Path2D } | null = null;
+const heliPaths = (): { body: Path2D; gear: Path2D } =>
+  (heliCut ??= { body: new Path2D(HELI_BODY), gear: new Path2D(HELI_GEAR) });
 
 /** The owed gate's chevron on the rim. */
 const CHEVRON = "M 0 -4.4 L 3.6 2 L 0 0.4 L -3.6 2 Z";
@@ -470,10 +516,37 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
           />
         )}
         <g style={{ transform: `translate(${VIEW / 2}px, ${VIEW / 2}px)` }}>
-          <circle class="hud-minimap-plinth" r={PLINTH} />
-          <path class="hud-minimap-skier" d={SKIER} style={{ fill: skierCss(0) }} />
+          {map.flying ? (
+            <HeliMark spool={map.flying.spool} />
+          ) : (
+            <>
+              <circle class="hud-minimap-plinth" r={PLINTH} />
+              <path class="hud-minimap-skier" d={SKIER} style={{ fill: skierCss(0) }} />
+            </>
+          )}
         </g>
       </svg>
     </button>
+  );
+}
+
+/** THE HELICOPTER HE FLIES at the plate's middle: the machine from above on
+ * the plinth, its rotor a disc that thickens as it spools and three blades
+ * turning in it (held still where motion is asked to be reduced). */
+function HeliMark({ spool }: { spool: number }) {
+  const turn = rotorTurnMs(spool);
+  return (
+    <g transform={`scale(${HELI_MARK})`}>
+      <circle class="hud-minimap-plinth" r={PLINTH * 1.15} />
+      <path class="hud-minimap-heli" d={HELI_BODY} />
+      <path class="hud-minimap-heli-gear" d={HELI_GEAR} />
+      <g
+        class={`hud-minimap-rotor${turn === null ? "" : " hud-minimap-rotor-on"}`}
+        style={turn === null ? undefined : { animationDuration: `${turn}ms` }}
+      >
+        <circle r={HELI_ROTOR} style={{ opacity: 0.12 + 0.25 * Math.min(1, spool) }} />
+        <path d={HELI_BLADES} />
+      </g>
+    </g>
   );
 }

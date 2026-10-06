@@ -516,6 +516,7 @@ export function setSkiCross(level: Level): Level {
     level.giantSlalom?.base ??
     level.speedSki?.base ??
     level.bigAir?.base ??
+    level.knuckleHuck?.base ??
     level;
   let course = set.get(original);
   if (!course) {

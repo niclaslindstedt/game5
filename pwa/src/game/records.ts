@@ -117,7 +117,13 @@ export function recordId(key: RecordKey): string {
 
 /** WHETHER A MODE KEEPS A BOOK AT ALL (see the header). */
 export function keepsRecords(mode: GameMode): boolean {
-  return isGameMode(mode) && mode !== "free" && mode !== "tricks" && mode !== "bigAir";
+  return (
+    isGameMode(mode) &&
+    mode !== "free" &&
+    mode !== "tricks" &&
+    mode !== "bigAir" &&
+    mode !== "knuckleHuck"
+  );
 }
 
 /** Whether `value` beats the row standing — outright, never on a tie — or

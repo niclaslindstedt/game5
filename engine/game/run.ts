@@ -36,6 +36,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
+import { butterInput, stepButter } from "./butter.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
@@ -45,6 +46,7 @@ import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
 import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
+import { inRunInput } from "./in-run.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { DISCIPLINE_RULES } from "../mapgen/index.ts";
@@ -112,7 +114,7 @@ export function stepRun(
   // THE WIPEOUT (`crash.ts`): with the skier thrown, the skis go on with
   // the controls let go, and he tumbles on his own.
   const off = c.thrown;
-  const held = off
+  const asked = off
     ? NEUTRAL_INPUT
     : !racing
       ? run.phase === "countdown"
@@ -121,7 +123,9 @@ export function stepRun(
           : HOLD
         : runOut(run)
       : input;
-  const stunts = run.rules.stunts && held === input;
+  const stunts = run.rules.stunts && asked === input;
+  // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip.
+  const held = off ? asked : inRunInput(run, asked);
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
@@ -129,7 +133,7 @@ export function stepRun(
   stepStartPush(run, input);
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
-  if (!off) stepSkier(run, stunts ? poseInput(run, held) : held, events);
+  if (!off) stepSkier(run, stunts ? butterInput(run, poseInput(run, held)) : held, events);
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
@@ -142,6 +146,8 @@ export function stepRun(
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (stunts) stepStrokes(run, input);
+  // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
+  if (stunts) stepButter(run, input);
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);

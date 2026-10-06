@@ -588,12 +588,16 @@ export const TUNING = {
    * for a tap, rising with the time held to `popMax` at `full` s; held
    * longer is no higher. At the race's flight gravity the full pop stands
    * him about a metre off the snow; a tap hops a boot's height. How deep
-   * the load folds him, as a crouch. */
+   * the load folds him, as a crouch. And the GRACE, s: a jump let go this
+   * soon after he left the snow still springs him — a kicker's lip is left
+   * a beat before a thumb can come off the key, and the pop a skier times
+   * to the lip should not be lost to it. */
   jump: {
     popMin: 2.2,
     popMax: 6,
     full: 2,
     crouch: 0.75,
+    grace: 0.2,
   },
 
   /** CUTTING HARDER (`skier.ts`): the back key thrown with an edge already

@@ -71,6 +71,10 @@ export const JUDGING = {
  * which way it spun; switch in and out; the grabs held. */
 export type TrickRead = {
   spin: number;
+  /** The press he left the snow in (`butter.ts`) and how far it pivoted
+   * him on the snow, degrees, to the nearest 90 — null for none. Its turn
+   * is counted into `spin`. */
+  butter: { end: "nose" | "tail"; wound: number } | null;
   flips: number;
   flipDir: "back" | "front" | null;
   dir: "left" | "right" | null;
@@ -83,15 +87,24 @@ export type TrickRead = {
 /** Read a flight as the trick it was: each axis's turn to the nearest half
  * turn of spin and whole flip. */
 export function readTrick(f: FlightRecord): TrickRead {
-  const halves = Math.round(Math.abs(f.spin) / Math.PI);
+  const press = f.butter ?? null;
+  const turned = f.spin + (press?.yaw ?? 0);
+  const halves = Math.round(Math.abs(turned) / Math.PI);
   const flips = Math.round(Math.abs(f.flip) / TAU);
+  // A butter is called by the way he rode INTO it: wound past a quarter
+  // turn on the snow, he left the lip the other way round.
+  const yaw = Math.abs(press?.yaw ?? 0) % TAU;
+  const wound = yaw > Math.PI / 2 && yaw < 1.5 * Math.PI;
   return {
     spin: halves * 180,
+    butter: press
+      ? { end: press.end, wound: Math.round(Math.abs(press.yaw) / (Math.PI / 2)) * 90 }
+      : null,
     flips,
     flipDir: flips === 0 ? null : f.flip > 0 ? "back" : "front",
-    dir: halves === 0 ? null : f.spin > 0 ? "right" : "left",
+    dir: halves === 0 ? null : turned > 0 ? "right" : "left",
     offAxis: flips > 0 && halves >= 2,
-    switchIn: f.switchIn,
+    switchIn: wound ? !f.switchIn : f.switchIn,
     switchOut: f.switchOut,
     grabs: f.grabs.slice(),
   };

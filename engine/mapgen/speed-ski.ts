@@ -518,6 +518,7 @@ function gradeTrack(original: Level): Graded {
     giantSlalom: undefined,
     skiCross: undefined,
     bigAir: undefined,
+    knuckleHuck: undefined,
   };
   // The arcs on the built track: the final's wand at the platform's lip,
   // the zone along the snow from it.
@@ -570,6 +571,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.giantSlalom?.base ??
     level.skiCross?.base ??
     level.bigAir?.base ??
+    level.knuckleHuck?.base ??
     level;
   let mine = runs.get(original);
   if (!mine) {

@@ -25,9 +25,12 @@ import type { SledEvent, SledState } from "./sled-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
+import type { JamState } from "./jam.ts";
+import type { ButterRecord, PressState } from "./butter-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
+export type { ButterRecord, PressEnd, PressState } from "./butter-state.ts";
 export type * from "./sled-state.ts";
 
 export type SkierInput = {
@@ -413,7 +416,7 @@ export type TrickPart = { kind: TrickKind; spins: number; flight: number };
 
 /** THE SCORE AND ITS COMBO, and the strokes' per-flight bookkeeping
  * (`tricks.ts`, `strokes.ts` — every rule is theirs). Written only there. */
-export type TrickState = {
+export type TrickState = PressState & {
   /** Points banked this run. */
   score: number;
   /** The combo in hand: its base, points, and its multiplier. */
@@ -506,6 +509,9 @@ export type FlightRecord = {
   landing: number | null;
   outcome: "landed" | "sketchy" | "fell";
   t: number;
+  /** The press he left the snow in, on a run with butters — null or left
+   * out for none. */
+  butter?: ButterRecord | null;
 };
 
 /** Why a combo was lost (`tricks.ts`): the skier thrown, put back on the
@@ -714,6 +720,9 @@ export type GameEvent =
   /** Taken into a WIND TUNNEL (R30, `wind-tunnel.ts`) by its id, or let go
    * of it. */
   | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" }
+  /** A JAM's hit over (`jam.ts`): its number from 1, and the skier stood
+   * back on the start platform for the next. */
+  | { kind: "jam"; t: number; hit: number; fell: boolean }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
    * carrier run over a tower's sheaves, or stood off it at the top. */
   | {
@@ -950,6 +959,9 @@ export type GameState = {
    * run's jump — carried for the judges and the app; never read by a
    * step. */
   bigAir?: BigAirContest;
+  /** A KNUCKLE HUCK'S JAM so far (R38, `jam.ts`): the hits ridden, and
+   * where the one under way began — the run's own, stepped with it. */
+  jam?: JamState;
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;

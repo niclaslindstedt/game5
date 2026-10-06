@@ -324,6 +324,7 @@ export {
   type CrowdNet,
   type NetRun,
 } from "./game/crowd.ts";
+export { inCabin } from "./game/crowd-lift.ts";
 export {
   NEUTRAL_INPUT,
   type CraftState,

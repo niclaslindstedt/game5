@@ -610,18 +610,20 @@ export type TunnelRide = {
   seg: number;
 };
 
-/** A skier on a LIFT (`lift-ride.ts`). `board`: being taken from where he
- * rode into its load zone (`from`) to where it carries him off; `ride`:
- * carried, his grip `u` m of plan up the line at `speed` m/s, his chair or
- * cabin swung `swing` rad about the rope (its foot toward the top
- * positive) at `swingRate` rad/s — and stood off at the top, he is the
- * lift's no more. `t` is seconds in the phase; `tower` the next of its
- * supports he has still to pass over. */
+/** A skier on a LIFT (`lift-ride.ts`). `board`: skating from where he
+ * rode into its load zone or its boarding ring (`from`) up the queue's
+ * lane, past the queue, to where it carries him off; `wait`: stood on a
+ * drag's track for the next T-bar to come round to him; `ride`: carried,
+ * his grip `u` m of plan up the line at `speed` m/s, his chair or cabin
+ * swung `swing` rad about the rope (its foot toward the top positive) at
+ * `swingRate` rad/s — and stood off at the top, he is the lift's no more.
+ * `t` is seconds in the phase; `tower` the next of its supports he has
+ * still to pass over. */
 export type LiftRide = {
   index: number;
   id: string;
   kind: "gondola" | "chair" | "drag";
-  phase: "board" | "ride";
+  phase: "board" | "wait" | "ride";
   u: number;
   speed: number;
   swing: number;
@@ -631,9 +633,17 @@ export type LiftRide = {
   /** Where he came into the zone from (`board`), or where the carrier
    * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
   from: { x: number; y: number; z: number; heading: number };
-  /** Taken from the BOARDING RING (`boardingRing`): the length of the way
-   * up the queue's lane to the carrier, m — he is glided along it. */
+  /** BOARDING (`board`): the length of the way up the queue's lane to the
+   * carrier, m, how far along it he is, m, the pace he skates it at, m/s,
+   * and the way he faces, rad. */
   walk?: number;
+  s?: number;
+  pace?: number;
+  head?: number;
+  /** Gone into a gondola's station or onto a chair's load line out of
+   * sight (`ride`): he is sat in his carrier as it leaves the station — the
+   * picture fades out at the door and back in on him sat there. */
+  faded?: boolean;
 };
 
 export type GameEvent =
@@ -729,14 +739,15 @@ export type GameEvent =
       phase: "on" | "off";
       whole: boolean;
     }
-  /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
-   * carrier run over a tower's sheaves, or stood off it at the top. */
+  /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
+   * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
+   * his carrier run over a tower's sheaves, or stood off it at the top. */
   | {
       kind: "lift";
       t: number;
       id: string;
       lift: "gondola" | "chair" | "drag";
-      phase: "board" | "tower" | "off";
+      phase: "board" | "take" | "tower" | "off";
     }
   /** THE HELICOPTER (`heli.ts`): the skier taken onto its skid, lifted off,
    * set down, dropped off it, the pilot home on the pad, the machine
@@ -841,6 +852,12 @@ export type Amateur = {
   tx: number;
   tz: number;
   ts: number;
+  /** SHOULDERED ASIDE in a queue by the player skating up past it
+   * (`crowd-lift.ts`'s `brushQueue`): how far he has been put off his
+   * place, m in the world, and how hard he is staggering from it, 0..1,
+   * and to which side of him (−1 left, 1 right) — shuffled back into line
+   * as it settles. Absent while nobody has touched him. */
+  shove?: { x: number; z: number; stagger: number; side: number };
   /** HIS TURNS as his body reads them, for the picture to time his pole
    * plants on: the side of the one he is in (−1 left, 1 right, 0 none
    * yet), how long he has been in it, s, and how long the one before it

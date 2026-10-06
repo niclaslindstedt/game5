@@ -18,6 +18,15 @@
 //   node scripts/lift-ride-preview.mjs --seed=4 --region=maritime
 //   node scripts/lift-ride-preview.mjs --at=-6,-3,-1,0,0.5,1,1.5,2,3,4,6,9
 //   node scripts/lift-ride-preview.mjs --camera=far --skip-build
+//   node scripts/lift-ride-preview.mjs --board=drag   (the T-bar boarded)
+//   node scripts/lift-ride-preview.mjs --board=gondola --at=8,9,10,11
+//
+// With `--board=` it photographs a lift's FOOT instead: the skier rolled
+// into its boarding ring, skating up the queue's lane past the crowd on
+// it, and taken — waiting for and sat onto a T-bar, or faded through a
+// gondola's door or a chair's load line and back in on him sat in his
+// carrier — at moments in seconds from the ring:
+// `previews/lift-board-<kind>-<seed>.png`.
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -59,8 +68,13 @@ const args = parseArgs(
     },
     at: {
       kind: "string",
-      default: "-2.5,-1.5,-0.5,0.5,1.5,3,5,8,12,16,20,25",
-      help: "the moments photographed, s round the unload (negative on the chair)",
+      default: "",
+      help: "the moments photographed, s round the unload (negative on the chair) — or with --board, s from the ring",
+    },
+    board: {
+      kind: "string",
+      default: "",
+      help: "photograph boarding a lift at its foot instead: drag, gondola or chair",
     },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
@@ -71,7 +85,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--camera=rung] [--at=s,…] [--skip-build]",
+  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--board=kind] [--camera=rung] [--at=s,…] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -147,7 +161,8 @@ const query = new URLSearchParams({
   seed: String(args.seed),
   region: args.region,
   camera: args.camera,
-  at: args.at,
+  ...(args.at ? { at: args.at } : {}),
+  ...(args.board ? { board: args.board } : {}),
   quality: args.quality,
   w: String(args.width),
   h: String(args.height),
@@ -164,7 +179,7 @@ const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
 if (crashed) process.exit(1);
 const stem =
   args.out ||
-  `lift-ride-${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}`;
+  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}`;
 const out = join(outDir, `${stem}.png`);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(

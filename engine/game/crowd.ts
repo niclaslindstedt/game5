@@ -46,6 +46,7 @@ import type { PisteGrade } from "../mapgen/grades.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { treesNear } from "./collision.ts";
 import {
+  brushQueue,
   dealQueued,
   dealRiding,
   joinQueue,
@@ -873,8 +874,12 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   const c = state.skier;
   if (!crowd || c.thrown) return;
   // Carried by a lift the player is the lift's, as an amateur on one is
-  // (`onLift`): nobody shoulders him.
-  if (c.lift) return;
+  // (`onLift`): nobody shoulders him — but skating up a queue to it, or
+  // stood on a drag's track for his bar, he shoulders them aside.
+  if (c.lift) {
+    if (c.lift.phase !== "ride") brushQueue(state, crowd, events);
+    return;
+  }
   // ...and so is he sat on a helicopter's skid (`heli.ts`). Stood on a
   // snowmobile's boards he is shouldered like a skier, and a blow that
   // throws him leaves the machine without him (`sled.ts`).

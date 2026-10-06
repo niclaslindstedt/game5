@@ -57,7 +57,7 @@ import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createLifts, type Lifts } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
-import { createRideMemory, stepRideLook } from "./camera-lift.ts";
+import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
@@ -722,6 +722,7 @@ export function createWorldRenderer(
       rigPose.packed = skier.packed;
       rigPose.summit = summitShare(level, d.x, d.z);
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
+      if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
@@ -743,8 +744,7 @@ export function createWorldRenderer(
       } else if (death.active) {
         dropDeathCam(death);
       }
-      // The ladder is framed underneath either way, so a lens planted for a
-      // moment hands back to a boom that is already where it should be.
+      // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??

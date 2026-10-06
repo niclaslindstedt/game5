@@ -19,6 +19,7 @@ import {
   CROWD,
   CROWD_BODIES,
   carrierAt,
+  inCabin,
   liftPlans,
   type CrowdBody,
   type GameState,
@@ -146,7 +147,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       // ON A LIFT (`crowd-lift.ts`): in a cabin he is out of sight, and on
       // the chair the player rides his own is the player's alone.
       const kind = a.mode === "ride" ? plans[a.lift]?.lift.kind : undefined;
-      if (kind === "gondola") continue;
+      if (inCabin(a, plans[a.lift])) continue;
       if (kind && mine?.phase === "ride" && mine.index === a.lift) {
         const c = carrierAt(plans[a.lift], a.carrier, state.t);
         if (c.side === 0 && Math.abs(c.u - mine.u) < plans[a.lift].look.every / 2) continue;

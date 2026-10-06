@@ -30,7 +30,7 @@ const LOOK = {
   march: [0.7, 0.78] as const,
   dashes: 12,
   beam: 16,
-  beamShare: 0.92,
+  beamShare: 0.55,
   /** How far over the drawn snow the decals ride, m. */
   lift: 0.06,
   /** Segments round a ring. */
@@ -164,6 +164,7 @@ export function createBoardingRings(level: Level, plans: readonly LiftPlan[]): B
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -4,
+      side: THREE.DoubleSide,
       ...p,
     });
   const band = light({ opacity: 0.95 });
@@ -171,9 +172,8 @@ export function createBoardingRings(level: Level, plans: readonly LiftPlan[]): B
   const fill = light({ alphaMap: pool, opacity: 1 });
   const beam = light({
     alphaMap: fade,
-    opacity: 0.35,
-    side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.2,
+    side: THREE.FrontSide,
     polygonOffset: false,
   });
   const mats = [band, march, fill, beam];
@@ -188,7 +188,7 @@ export function createBoardingRings(level: Level, plans: readonly LiftPlan[]): B
     update(t) {
       const breath = 0.5 + 0.5 * Math.sin(t * 3);
       band.opacity = 0.75 + 0.25 * breath;
-      beam.opacity = 0.22 + 0.18 * breath;
+      beam.opacity = 0.12 + 0.1 * breath;
       dash.offset.x = (-t * 0.25) % 1;
     },
     dispose() {

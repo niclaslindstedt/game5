@@ -448,10 +448,13 @@ export const CROWD = {
    * air's on the body (a v² drag), and the scrub of a ski turned off the
    * way it goes (per radian). */
   drag: { snow: 0.45, air: 0.0035, scrub: 1.4 },
-  /** How hard he can check his speed, m/s², and at a crawl what his poles
-   * and his skating give him: the speed, m/s, and the push, m/s². */
+  /** How hard he can check his speed, m/s², and what his poles and his
+   * skating give him where the hill does not carry him: the push, m/s²,
+   * eased off over the last `ease` m/s below the speed he means (or the
+   * player's own whole push, `poles.speed`); and the speed under which he
+   * is at a CRAWL, m/s — a stop's clock runs there, and stood he waits. */
   brake: 3.5,
-  crawl: { speed: 2.6, push: 0.9 },
+  crawl: { speed: 2.6, push: 0.9, ease: 1 },
   /** The speed a stop is stood at, m/s: below it he holds on his edges,
    * still, however steep the pitch under him. */
   stand: 0.3,
@@ -463,8 +466,16 @@ export const CROWD = {
   yawRate: [1.4, 3.4] as readonly [number, number],
   /** A FALL: how many a minute at no skill on a green, and how much more
    * likely on a colour past him, drunk, or landing a kicker; how long he
-   * lies, s; how much the slide scrubs, m/s². */
-  fall: { rate: 0.18, steep: 3, wobble: 1.4, lie: [2.5, 7] as readonly [number, number], slide: 6 },
+   * lies once his body has come to rest (`crashOver`), s; and how long he
+   * takes to get back up on his skis, s. Down, he is a RAGDOLL — the
+   * player's own (`ragdoll.ts`) — thrown by what put him there. */
+  fall: {
+    rate: 0.18,
+    steep: 3,
+    wobble: 1.4,
+    lie: [1, 4] as readonly [number, number],
+    rise: 1.4,
+  },
   /** A STOP: how many a minute at a stopper's 1, how long, s; and how much
    * likelier just below a crest — a roll he has just come over, by how
    * much steeper the pitch is here than `crestBack` m above. */

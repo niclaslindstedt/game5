@@ -22,6 +22,7 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
+import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
@@ -549,6 +550,13 @@ export type Progress = {
    * runs (R27), or the map's own piste off one — the one skied last LAST.
    * Where its reset and its restart stand the skier; a race keeps it empty. */
   skied: string[];
+  /** WHERE A FREE RIDE LAST HAD ITS SKIS ON A RUN (`skied.ts`): the run and
+   * the plan point, noted with `skied` — so once he leaves the runs it is
+   * where he left them, and a reset off every run stands him back there.
+   * Forgotten whenever something other than his skis moves him (a lift, the
+   * helicopter, the snowmobile, a staged moment); null until noted, and on a
+   * race. */
+  lastOnRun: RunMark | null;
   /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */
@@ -564,6 +572,10 @@ export type Progress = {
  * gate MISSED, a pole STRADDLED or a START outside the window — or DID NOT
  * FINISH, stopped by a FALL or caught in the A-NETS beside a downhill
  * (R32). `gate` is the checkpoint it happened at. */
+/** A point on a run of the ski area (R27) — the map's own piste off one —
+ * by the run's id and the plan point (`Progress.lastOnRun`). */
+export type RunMark = { id: string; x: number; z: number };
+
 export type RunOut = {
   status: "dsq" | "dnf";
   why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";
@@ -661,6 +673,7 @@ export type GameEvent =
   | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
+  | GrimbearEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number }
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
@@ -744,9 +757,6 @@ export type GameEvent =
     }
   | SledEvent;
 
-/** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
- * piste, down in the snow after a fall, in the air off a kicker, or up a
- * lift between runs — off the snow and not drawn. */
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
  * RIDING a carrier of it (`crowd-lift.ts`); SKATING off its top onto the
@@ -811,8 +821,8 @@ export type Amateur = {
   /** THE FIGURE: leaned into the turn, rad (positive right); how low, 0..1;
    * the wedge, 0..1; the skis turned across the way (a stop, a slip),
    * 0..1; down in the snow, 0..1, and the side he went down on (−1 left,
-   * 1 right); the arms' stroke at a crawl, rad of its cycle, and how hard
-   * he is working them, 0..1. */
+   * 1 right); his strides skated or poled, counted (a whole one a push),
+   * and how hard he is working, 0..1. */
   lean: number;
   crouch: number;
   plough: number;
@@ -831,13 +841,14 @@ export type Amateur = {
   tx: number;
   tz: number;
   ts: number;
-  /** HIS TURNS as his body reads them, for the picture to time his pole
-   * plants on: the side of the one he is in (−1 left, 1 right, 0 none
-   * yet), how long he has been in it, s, and how long the one before it
-   * held, s. */
+  /** HIS TURNS, for the picture's pole plants: the side of the one he is
+   * in (−1, 1, 0 none yet), s in it, and s the one before it held. */
   turnSide: number;
   turnT: number;
   turnHeld: number;
+  /** DOWN (`crowd-down.ts`): his ragdoll (null on skis); s spent getting up. */
+  thrown: Thrown | null;
+  rise: number;
 };
 
 /** A GROUP of the crowd: its kind, its members (leader first) by index
@@ -979,6 +990,9 @@ export type GameState = {
   /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   sled?: SledState;
+  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to;
+   * absent everywhere else. */
+  grimbear?: GrimbearState;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

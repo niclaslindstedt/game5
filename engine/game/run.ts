@@ -46,7 +46,7 @@ import { stepSled } from "./sled.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
-import { noteSkied } from "./skied.ts";
+import { forgetRun, noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { stepJib } from "./jib.ts";
@@ -96,14 +96,16 @@ export function stepRun(
   player = false,
 ): void {
   const racing = run.phase === "racing";
+  // Carried by any of the three below, the place he last left a run is
+  // forgotten: a reset never sends him back to where he was before.
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
-  if (stepHeli(run, input, events)) return;
+  if (stepHeli(run, input, events)) return forgetRun(run);
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
-  if (stepSled(run, input, events)) return;
+  if (stepSled(run, input, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
-  if (stepLift(run, input, events)) return;
+  if (stepLift(run, input, events)) return forgetRun(run);
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
   if (input.reset && racing && (!player || mayGetUp(run.skier.thrown))) {
     standUp(run, events, false);

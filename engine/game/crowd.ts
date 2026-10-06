@@ -54,6 +54,7 @@ import {
   type LiftRuns,
 } from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
+import { stepDown, throwAmateur } from "./crowd-down.ts";
 import {
   CROWD,
   CROWD_GROUPS,
@@ -66,10 +67,11 @@ import {
   type GroupKind,
 } from "./defs/crowd.ts";
 import { RACE } from "./defs/modes.ts";
+import { strideRate } from "./poles.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
-import type { Amateur, CrowdGroup, CrowdState, GameEvent, GameState } from "./state.ts";
+import type { Amateur, CrashCause, CrowdGroup, CrowdState, GameEvent, GameState } from "./state.ts";
 
 /** What the crowd's stream is seeded with beside the run's seed. */
 const CROWD_SALT = 0x0c40d5;
@@ -178,9 +180,16 @@ function lateralOf(p: TrackPoint, x: number, z: number): number {
 /** A run read at an arc: its line's point and heading, its width, its pitch
  * (the fall along it, a rise over a run, positive down) and how fast its
  * heading turns, rad/m. */
-type Along = { x: number; z: number; heading: number; width: number; pitch: number; bend: number };
+export type Along = {
+  x: number;
+  z: number;
+  heading: number;
+  width: number;
+  pitch: number;
+  bend: number;
+};
 
-function sampleRun(r: NetRun, s: number, out: Along): Along {
+export function sampleRun(r: NetRun, s: number, out: Along): Along {
   const pts = r.pts;
   const n = pts.length;
   const spacing = r.length / (n - 1);
@@ -278,13 +287,15 @@ function freshAmateur(
     tx: 0,
     tz: 0,
     ts: 0,
-    // His own place in the stroke, off his id rather than the stream: the
-    // whole crowd pushes off at once, and at one phase it poles in step.
-    pole: id * 2.39996,
+    // His own place in the stride, off his id rather than the stream: the
+    // whole crowd pushes off at once, and at one phase it skates in step.
+    pole: id * 0.76393,
     push: 0,
     turnSide: 0,
     turnT: 0,
     turnHeld: 0,
+    thrown: null,
+    rise: 0,
   };
 }
 
@@ -440,7 +451,7 @@ export function createCrowd(state: GameState, count: number): void {
 /** Where (`run`, `s`, `d`) and an air's rise put him on the mountain — on
  * the snow under him, or at the run's top station's height with no map to
  * sample (`level` null, while a crowd is being dealt). */
-function place(a: Amateur, r: NetRun, level: Level | null): void {
+export function place(a: Amateur, r: NetRun, level: Level | null): void {
   sampleRun(r, a.s, here);
   const cx = Math.cos(here.heading);
   const sz = Math.sin(here.heading);
@@ -480,12 +491,19 @@ function capOf(a: Amateur, grade: PisteGrade | "road"): number {
   return cap;
 }
 
-/** A FALL: down in the snow, sliding, for a few seconds. */
-function fallDown(a: Amateur, rng: Rng, side: number): void {
-  a.mode = "down";
+/** A FALL: thrown off his skis (`throwAmateur`), then a few seconds lain
+ * in the snow once his body has come to rest, and he gets up. */
+function fallDown(
+  a: Amateur,
+  rng: Rng,
+  side: number,
+  cause: CrashCause,
+  vx = a.vx,
+  vz = a.vz,
+  vy = 0,
+): void {
   a.timer = band(rng, CROWD.fall.lie);
-  a.fallSide = side;
-  a.kickerAt = NaN;
+  throwAmateur(a, side, cause, vx, vz, vy);
 }
 
 /** WHAT HE DOES NEXT — every `CROWD.think` seconds. */
@@ -572,7 +590,7 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
     (1 + CROWD.fall.wobble * k.wobble * 3) *
     wild;
   if (rng.chance((rate / 60) * think)) {
-    fallDown(a, rng, rng.chance(0.5) ? 1 : -1);
+    fallDown(a, rng, rng.chance(0.5) ? 1 : -1, "roll");
     return;
   }
 
@@ -695,59 +713,55 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
   a.push = 0;
 
   if (a.mode === "down") {
-    // Sliding to a stop in the snow, then lying there.
-    v = Math.max(0, v - C.fall.slide * dt);
-    a.fall = 1;
-    if (v < 0.2) {
+    stepDown(state, net, a);
+    return;
+  }
+  // THE LINE: steer for the lateral his turns sweep through now.
+  const stopping = a.mode === "stop";
+  const aim = stopping ? a.centre : targetOf(a, half, state.t);
+  const lookAhead = Math.max(3, v * 0.9 + 2);
+  const want = clamp(Math.atan2(aim - a.d, lookAhead), -style.maxYaw, style.maxYaw);
+  const rate = C.yawRate[0] + (C.yawRate[1] - C.yawRate[0]) * k.skill;
+  const jitter = k.wobble * 0.6 * Math.sin(state.t * 3.1 + a.id * 1.7);
+  a.yaw += clamp(want + jitter - a.yaw, -rate * dt, rate * dt);
+  // THE SPEED: the fall along his line, less the snow, the air and the
+  // scrub of his skis turned off the way he goes.
+  const cap = stopping ? 0 : a.cap;
+  let acc =
+    G * here.pitch * Math.cos(a.yaw) -
+    C.drag.snow -
+    C.drag.air * v * v -
+    C.drag.scrub * Math.abs(a.yaw) * (1 - k.skill * 0.6);
+  if (v > cap) {
+    // A stop is the whole brake, never eased off as he slows — or on a
+    // steep pitch the brake and the fall meet at a creep he never ends.
+    braking = stopping ? 1 : clamp((v - cap) / 2, 0, 1);
+    acc -= C.brake * braking;
+  }
+  // WHERE THE HILL WILL NOT CARRY HIM to the speed he means, he works for
+  // it — skating, poling, as the player does (`poles.ts`), up to the speed
+  // the player's own push reaches whole: nobody glides to a standstill on
+  // a flat. The push is whole until the last `crawl.ease` m/s of it, and
+  // his stride is counted at the player's own rate (`strideRate`), which
+  // the picture skates him through (`dialsOf`).
+  const work = Math.min(cap, TUNING.poles.speed);
+  if (!stopping && v < work && acc < C.crawl.push) {
+    a.push = clamp((work - v) / C.crawl.ease, 0, 1);
+    acc = Math.max(acc, C.crawl.push * a.push);
+    a.pole += strideRate(v) * a.push * dt;
+  }
+  if (a.mode === "air") acc = -C.drag.air * v * v;
+  v = Math.max(0, v + acc * dt);
+  if (stopping) {
+    // Slowed to a walk, he stands on his edges; the stop's clock runs
+    // from a crawl, so no pitch can keep him in it for good.
+    // Below a crawl he sets his edges: the pitch no longer runs him on,
+    // and the brake takes the rest off whatever the fall.
+    if (v < C.crawl.speed) v = Math.max(0, v - C.brake * dt);
+    if (v < C.stand) v = 0;
+    if (v < C.crawl.speed) {
       a.timer -= dt;
-      if (a.timer <= 0) {
-        a.mode = "ski";
-        a.yaw = 0;
-        v = 0;
-      }
-    }
-  } else {
-    // THE LINE: steer for the lateral his turns sweep through now.
-    const stopping = a.mode === "stop";
-    const aim = stopping ? a.centre : targetOf(a, half, state.t);
-    const lookAhead = Math.max(3, v * 0.9 + 2);
-    const want = clamp(Math.atan2(aim - a.d, lookAhead), -style.maxYaw, style.maxYaw);
-    const rate = C.yawRate[0] + (C.yawRate[1] - C.yawRate[0]) * k.skill;
-    const jitter = k.wobble * 0.6 * Math.sin(state.t * 3.1 + a.id * 1.7);
-    a.yaw += clamp(want + jitter - a.yaw, -rate * dt, rate * dt);
-    // THE SPEED: the fall along his line, less the snow, the air and the
-    // scrub of his skis turned off the way he goes.
-    const cap = stopping ? 0 : a.cap;
-    let acc =
-      G * here.pitch * Math.cos(a.yaw) -
-      C.drag.snow -
-      C.drag.air * v * v -
-      C.drag.scrub * Math.abs(a.yaw) * (1 - k.skill * 0.6);
-    if (v > cap) {
-      // A stop is the whole brake, never eased off as he slows — or on a
-      // steep pitch the brake and the fall meet at a creep he never ends.
-      braking = stopping ? 1 : clamp((v - cap) / 2, 0, 1);
-      acc -= C.brake * braking;
-    }
-    if (!stopping && v < C.crawl.speed && acc < C.crawl.push) {
-      // At a crawl he works: skating, poling.
-      a.push = 1 - v / C.crawl.speed;
-      acc = Math.max(acc, C.crawl.push * a.push);
-      a.pole += dt * (2.2 + v);
-    }
-    if (a.mode === "air") acc = -C.drag.air * v * v;
-    v = Math.max(0, v + acc * dt);
-    if (stopping) {
-      // Slowed to a walk, he stands on his edges; the stop's clock runs
-      // from a crawl, so no pitch can keep him in it for good.
-      // Below a crawl he sets his edges: the pitch no longer runs him on,
-      // and the brake takes the rest off whatever the fall.
-      if (v < C.crawl.speed) v = Math.max(0, v - C.brake * dt);
-      if (v < C.stand) v = 0;
-      if (v < C.crawl.speed) {
-        a.timer -= dt;
-        if (a.timer <= 0) a.mode = "ski";
-      }
+      if (a.timer <= 0) a.mode = "ski";
     }
   }
   a.speed = v;
@@ -778,7 +792,10 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
       // The landing: the less skill and the longer the hang, the likelier
       // it is on his back.
       const p = (1 - k.skill) * 0.5 * a.airT + k.wobble * 0.3;
-      if (crowd.rng.chance(p)) fallDown(a, crowd.rng, crowd.rng.chance(0.5) ? 1 : -1);
+      if (crowd.rng.chance(p)) {
+        const side = crowd.rng.chance(0.5) ? 1 : -1;
+        fallDown(a, crowd.rng, side, "landing", a.vx, a.vz, (-G * a.airT) / 2);
+      }
     }
   }
 
@@ -794,7 +811,7 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
   const sway = k.wobble * 0.25 * Math.sin(state.t * 2.3 + a.id);
   const lean = clamp(Math.atan2(v * omega, G) * (0.45 + 0.55 * k.skill) + sway, -0.9, 0.9);
   const ease = 1 - Math.exp(-dt * 6);
-  a.lean += ((a.mode === "down" ? 0 : lean) - a.lean) * ease;
+  a.lean += (lean - a.lean) * ease;
   // A NEW TURN is begun when the lean goes over past `turnOn` on the other
   // side — not when it passes level between two.
   a.turnT += dt;
@@ -826,7 +843,6 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
           ? braking * 0.6
           : 0;
   a.across += (across - a.across) * ease;
-  a.fall += ((a.mode === "down" ? 1 : 0) - a.fall) * (1 - Math.exp(-dt * 3));
 }
 
 /** Bring a group whose ride is over off the top of a lift. */
@@ -930,7 +946,7 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       const knock = CROWD.knock[0] + (CROWD.knock[1] - CROWD.knock[0]) * a.knobs.skill;
       if (dealt >= knock && a.mode !== "down") {
         const right = nx * Math.cos(a.heading) - nz * Math.sin(a.heading);
-        fallDown(a, crowd.rng, right >= 0 ? 1 : -1);
+        fallDown(a, crowd.rng, right >= 0 ? 1 : -1, "skier", vx, vz);
       }
       if (closing >= B.speed && c.bumpCooldown <= 0) {
         c.bumpCooldown = B.cooldown;

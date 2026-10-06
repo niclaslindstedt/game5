@@ -354,6 +354,7 @@ export {
   type CrowdNet,
   type NetRun,
 } from "./game/crowd.ts";
+export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,
   type CraftState,
@@ -375,6 +376,7 @@ export {
   type Field,
   type FieldRun,
   type GamePoles,
+  type RunMark,
   type RunOut,
   type Rival,
   type Amateur,
@@ -539,14 +541,20 @@ export {
   standSkier,
 } from "./game/course.ts";
 export {
+  forgetRun,
   lastPiste,
+  leftRunPoint,
   nearestPiste,
   noteRun,
   pisteHead,
   runUnder,
   skiedResetPoint,
+  topOfSlope,
   TRACK_RUN,
 } from "./game/skied.ts";
+export { GRIMBEAR } from "./game/defs/grimbear.ts";
+export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
+export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";

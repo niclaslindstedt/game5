@@ -500,7 +500,7 @@ export function App() {
       // every other run from the start line, on the same map, in its mode.
       const next =
         !state.rules.course && !state.rules.tricks && freeAgain
-          ? createGame(freeTopOptions(freeAgain, lastPiste(state)))
+          ? createGame(freeTopOptions(freeAgain, lastPiste(state), state.grimbear))
           : (pinned.again() ?? playerGame(state.level, state.seed));
       adopt(next, ticketFor(next));
       frozen = false;

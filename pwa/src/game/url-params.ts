@@ -113,6 +113,9 @@
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
 //                   bottom (`sled.ts`), over the start card's RUN row.
+//   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
+//                   with 0, one he never shows on — over the odds the app
+//                   deals him by (`GRIMBEAR_ODDS`).
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -242,6 +245,9 @@ export type UrlParams = {
   heli: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
+  /** A free ride the grimbear hunts (true) or never shows on (false), over
+   * the odds; null when the link names neither. */
+  grimbear: boolean | null;
 };
 
 /** The sky a link names, if any. */
@@ -370,6 +376,7 @@ export function readParams(search: string): UrlParams {
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
     heli: q.get("heli") === "1",
     sled: q.get("sled") === "1",
+    grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
   };
 }
 
@@ -394,6 +401,7 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,
+    grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
   };
 }
 

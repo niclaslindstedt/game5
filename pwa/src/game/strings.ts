@@ -219,7 +219,7 @@ export const STRINGS = {
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under, a stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
-   * driven into. */
+   * driven into, the grimbear. */
   newsWipeout: (
     cause:
       | "tree"
@@ -232,29 +232,32 @@ export const STRINGS = {
       | "sled"
       | "stake"
       | "chair"
-      | "net",
+      | "net"
+      | "maul",
   ): string =>
-    cause === "heli"
-      ? "THROWN CLEAR!"
-      : cause === "chair"
-        ? "SWEPT BY THE CHAIR!"
-        : cause === "net"
-          ? "INTO THE NETS!"
-          : cause === "stake"
-            ? "YARD SALE! STAKE"
-            : cause === "sled"
-              ? "OFF THE SLED!"
-              : cause === "tree"
-                ? "YARD SALE! TREE"
-                : cause === "skier"
-                  ? "YARD SALE! TAKEN OUT"
-                  : cause === "nose"
-                    ? "OVER THE TIPS"
-                    : cause === "roll"
-                      ? "YARD SALE"
-                      : cause === "landing"
-                        ? "CRASH LANDING"
-                        : "EDGE CAUGHT",
+    cause === "maul"
+      ? "TAKEN BY THE GRIMBEAR"
+      : cause === "heli"
+        ? "THROWN CLEAR!"
+        : cause === "chair"
+          ? "SWEPT BY THE CHAIR!"
+          : cause === "net"
+            ? "INTO THE NETS!"
+            : cause === "stake"
+              ? "YARD SALE! STAKE"
+              : cause === "sled"
+                ? "OFF THE SLED!"
+                : cause === "tree"
+                  ? "YARD SALE! TREE"
+                  : cause === "skier"
+                    ? "YARD SALE! TAKEN OUT"
+                    : cause === "nose"
+                      ? "OVER THE TIPS"
+                      : cause === "roll"
+                        ? "YARD SALE"
+                        : cause === "landing"
+                          ? "CRASH LANDING"
+                          : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
@@ -263,6 +266,9 @@ export const STRINGS = {
    * shoulder he rode through, or one that put the other skier down. */
   newsCrowdBump: "OI! WATCH IT",
   newsCrowdDown: "SKIER DOWN! SORRY",
+  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, and pulled up short. */
+  newsGrimbear: "SOMETHING IN THE TREES!",
+  newsGrimbearHalt: "IT LET YOU GO… THIS TIME",
   /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
    * machine flown into the mountain, and the ride begun again. */
   newsHeliBoard: "ON THE SKID! FLY HER UP",
@@ -273,6 +279,7 @@ export const STRINGS = {
    * the snow, its climb, how to jump off it, and the way to it. */
   heliHeight: "DROP",
   heliMetres: (m: number): string => `${Math.round(m)} M`,
+  heliAltitude: (m: number): string => `ALT ${Math.round(m)} M`,
   heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
   /** How to get off — the machine key (`key`, as bound), a double tap on
    * touch: off the skid in the air, onto the snow where it has landed. */

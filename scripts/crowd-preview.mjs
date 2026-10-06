@@ -10,14 +10,18 @@
 //   lods      every body at its NEAR, MID and FAR cut, with the triangles,
 //             and the far cut at the game's size       → previews/crowd-lods.png
 //   moments   the poses blended as the crowd is drawn: carves, the tuck, the
-//             wedge, a hockey stop, a double pole, a kicker, down
+//             wedge, a hockey stop, a double pole, a kicker
 //                                                      → previews/crowd-moments.png
+//   falls     an amateur thrown onto the ragdoll three ways and strobed as he
+//             goes over, lies and gets up, on the snow he is on
+//                                                      → previews/crowd-falls.png
 //   dress     a real crowd's groups in what they were dealt
 //                                                      → previews/crowd-dress.png
 //   slope     the crowd on `--seed`'s mountain `--t` s into a free ride, at
 //             the views `busy`, `group`, `chase`, `kicker`, `overview`,
 //             `queue` (the longest lift queue at its foot) and `chairs`
-//             (a chair line with its riders, from under it)
+//             (a chair line with its riders, from under it), and
+//             `fall-<s>` (an amateur shouldered over, <s> s after)
 //                                                      → previews/crowd-slope-<view>.png
 //
 // The page does the drawing (`pwa/src/tools/crowd-harness.ts`); this builds
@@ -28,6 +32,8 @@
 //   node scripts/crowd-preview.mjs --sheet=figures,lods
 //   node scripts/crowd-preview.mjs --sheet=slope --seed=7 --t=90 --views=busy,group
 //   node scripts/crowd-preview.mjs --bodies=child,oldWoman --sheet=moments
+//   node scripts/crowd-preview.mjs --sheet=falls
+//   node scripts/crowd-preview.mjs --sheet=slope --views=fall-0.3,fall-1,fall-3,fall-6
 //   node scripts/crowd-preview.mjs --skip-build          # reuse the last bundle
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
@@ -43,7 +49,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".crowd-preview");
 const outDir = join(root, "previews");
 
-const SHEETS = ["figures", "lods", "moments", "dress", "slope"];
+const SHEETS = ["figures", "lods", "moments", "falls", "dress", "slope"];
 const VIEWS = ["busy", "group", "chase", "kicker", "overview", "queue", "chairs"];
 
 const args = parseArgs(
@@ -68,14 +74,14 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: VIEWS.join(","),
-      help: `the slope's views, comma-separated (${VIEWS.join(", ")})`,
+      help: `the slope's views, comma-separated (${VIEWS.join(", ")}, and fall-<s>: an amateur shouldered over, <s> s after)`,
     },
     width: { kind: "number", default: 1280, help: "the slope's picture width, px" },
     height: { kind: "number", default: 720, help: "the slope's picture height, px" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/crowd-preview.mjs [--sheet=figures,lods,moments,dress,slope] [--bodies=a,b] [--seed=n] [--t=s] [--views=a,b] [--skip-build]",
+  "usage: node scripts/crowd-preview.mjs [--sheet=figures,lods,moments,falls,dress,slope] [--bodies=a,b] [--seed=n] [--t=s] [--views=a,b] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());
@@ -87,7 +93,7 @@ for (const s of sheets) {
 }
 const views = args.views.split(",").map((v) => v.trim());
 for (const v of views) {
-  if (!VIEWS.includes(v)) {
+  if (!VIEWS.includes(v) && !/^fall-\d+(\.\d+)?$/.test(v)) {
     console.error(`unknown view "${v}" (${VIEWS.join(", ")})`);
     process.exit(2);
   }

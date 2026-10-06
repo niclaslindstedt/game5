@@ -71,10 +71,11 @@
 // watched, and the HUD's body read, not cut away from.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
-import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { nearestTrackPoint } from "../mapgen/index.ts";
 import type { TrackHit } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
+import { GRIMBEAR } from "./defs/grimbear.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
@@ -348,14 +349,48 @@ export function throwRider(
   // way itself (a turn of −side about it brings his head down on `side`),
   // and a share of his own turning — a body going over takes its turn with
   // it.
+  const side = fallSide(state, cause, heading, events);
+  const own = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz });
+  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own);
+  if (cause === "nose") {
+    // The tips dig and the skis go over them: a tips-down pitch rate is a
+    // positive `wx`.
+    const e = events.find((ev) => ev.kind === "land");
+    const impact = e && e.kind === "land" ? e.impact : 0;
+    c.wx += Math.min(K.skiKickMax, K.skiKick * impact);
+  }
+  // ...and the bindings let go, each ski its own body from here.
+  thrown.skis = letGo(state, c, side, speed);
+  c.thrown = thrown;
+  events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
+  return thrown;
+}
+
+/**
+ * A BODY THROWN off its skis by `cause`: stood at `q` with its centre of
+ * gravity at (`x`, `y`, `z`), going at `v0`, along `heading`, over onto
+ * `side` (−1 left, 1 right), turning at `own` (world frame) — the turn it
+ * goes over with read off `crash.over`. The player's (`throwRider`) and an
+ * amateur's of the crowd (`crowd.ts`) alike; no skis let go yet.
+ */
+export function throwOf(
+  cause: CrashCause,
+  q: Quat,
+  x: number,
+  y: number,
+  z: number,
+  v0: Vec3,
+  heading: number,
+  side: number,
+  own: Vec3,
+): Thrown {
+  const flat = hypot(v0.x, v0.z);
   const how = K.over[cause];
   const spin = Math.min(K.maxSpin, (flat * K.keep) / K.tumbleRadius);
   const pitch = how.pitch * spin;
-  const side = fallSide(state, cause, heading, events);
   const roll = -side * how.side * Math.max(K.topple, spin);
   const turn = hypot(pitch, roll);
   const cap = turn > K.maxSpin ? K.maxSpin / turn : 1;
-  const own = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz });
   const fx = Math.sin(heading);
   const fz = Math.cos(heading);
   const w = {
@@ -364,7 +399,7 @@ export function throwRider(
     z: (-fx * pitch + fz * roll) * cap + own.z * K.carry,
   };
   const v = { x: v0.x * K.keep, y: Math.max(0, v0.y) * K.keep + how.up, z: v0.z * K.keep };
-  const body = throwBody(c.q, c.x, c.y, c.z, v, w);
+  const body = throwBody(q, x, y, z, v, w);
   const com = centreOf(body.points);
   const thrown: Thrown = {
     cause,
@@ -388,17 +423,6 @@ export function throwRider(
     netted: 0,
     skis: [],
   };
-  if (cause === "nose") {
-    // The tips dig and the skis go over them: a tips-down pitch rate is a
-    // positive `wx`.
-    const e = events.find((ev) => ev.kind === "land");
-    const impact = e && e.kind === "land" ? e.impact : 0;
-    c.wx += Math.min(K.skiKickMax, K.skiKick * impact);
-  }
-  // ...and the bindings let go, each ski its own body from here.
-  thrown.skis = letGo(state, c, side, speed);
-  c.thrown = thrown;
-  events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
   return thrown;
 }
 
@@ -410,9 +434,10 @@ export function stepThrown(state: GameState, b: Thrown): void {
 }
 
 /** Whether the skier has lain long enough for the reset to stand him up —
- * the player (`player`) at `lieFor` s, a rival once he has lain still. */
+ * the player (`player`) at `lieFor` s — longer when the grimbear took him,
+ * so he is seen walking off — a rival once he has lain still. */
 export function crashOver(b: Thrown, player = false): boolean {
-  if (player) return b.t >= K.lieFor;
+  if (player) return b.t >= (b.cause === "maul" ? GRIMBEAR.lieFor : K.lieFor);
   if (b.t >= K.lieMax) return true;
   return b.t >= K.lieMin && b.still >= K.lieStill;
 }

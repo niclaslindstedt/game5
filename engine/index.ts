@@ -354,6 +354,12 @@ export {
   type SledMode,
   type SledPhaseEvent,
   type SledState,
+  type ParaControls,
+  type ParaEvent,
+  type ParaMode,
+  type ParaPhaseEvent,
+  type ParaPiece,
+  type ParaState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -573,6 +579,16 @@ export {
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
+export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";
+export {
+  freshPara,
+  paraControls,
+  paraRigged,
+  paraStartOf,
+  startPara,
+  stepPara,
+} from "./game/para.ts";
+export { paraPilot } from "./game/para-pilot.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

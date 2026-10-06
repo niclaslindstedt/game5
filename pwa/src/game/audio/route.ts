@@ -416,6 +416,16 @@ export function soundForEvent(
       }
     }
 
+    // THE PARAMOTOR, on his back: the rig let go is the drop's clack and
+    // rush of the helicopter's skid, the buckles and the cloth away; the
+    // rest of a flight is its engine's bed and the wind.
+    case "para": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      return event.phase === "drop" || event.phase === "collapse"
+        ? { id: "heli_drop", shape: heard }
+        : null;
+    }
+
     default:
       return null;
   }

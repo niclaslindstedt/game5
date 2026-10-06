@@ -26,8 +26,10 @@ import {
   GIANT_SLALOM,
   SPEED_SKI,
   SLED,
+  PARA,
   heliWithin,
   mayGetUp,
+  paraRigged,
   sledWithin,
   trenched,
   type GameState,
@@ -257,7 +259,40 @@ export type HudSnapshot = {
   /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
    * while it waits for him, or null. */
   sled: HudSled | null;
+  /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
+   * null. */
+  para: HudPara | null;
 };
+
+/** THE PARAMOTOR as the HUD reads it while the rig is on him: `ready` on
+ * the summit, the wing held up; else flown — in the air or skiing under it
+ * on the snow — with his height over the snow, m, his climb, m/s, the air
+ * through the wing, m/s, the throttle and the rpm's share of full, and
+ * whether the wing is stalled. */
+export type HudPara = {
+  kind: "ready" | "flying" | "riding";
+  height: number;
+  climb: number;
+  air: number;
+  throttle: number;
+  rev: number;
+  stalled: boolean;
+};
+
+/** The paramotor's readout for the player at this step. */
+export function paraOf(state: GameState): HudPara | null {
+  const p = state.para;
+  if (!p || !paraRigged(state) || state.skier.thrown) return null;
+  return {
+    kind: p.mode === "ready" ? "ready" : p.flying ? "flying" : "riding",
+    height: p.agl,
+    climb: p.climb,
+    air: p.airspeed,
+    throttle: p.controls.throttle,
+    rev: p.rpm / PARA.engine.full,
+    stalled: p.stalled,
+  };
+}
 
 /** THE SNOWMOBILE as the HUD reads it: ridden — the engine's rpm as a share
  * of its limiter, the thumb, and whether the belt is spinning in the snow —
@@ -482,7 +517,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const n = state.level.checkpoints.length;
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
-  const airTime = c.airborne && c.airTime > AIR_SHOWN ? c.airTime : 0;
+  // Hung under a paramotor's wing he is flying, not jumping.
+  const airTime = c.airborne && c.airTime > AIR_SHOWN && !paraRigged(state) ? c.airTime : 0;
   // A slalom is timed at its intermediates (`slalom.timing`), never gate by
   // gate — its gates come a second apart.
   const split =
@@ -554,5 +590,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     wind: windOf(state),
     heli: heliOf(state),
     sled: sledOf(state),
+    para: paraOf(state),
   };
 }

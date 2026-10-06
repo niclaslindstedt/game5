@@ -7,6 +7,7 @@ import "./dev.css";
 import "./body.css";
 import "./heli.css";
 import "./sled.css";
+import "./para.css";
 import { App } from "./App.tsx";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 

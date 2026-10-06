@@ -41,6 +41,7 @@ import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
+import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -102,6 +103,9 @@ export function stepRun(
   if (stepSled(run, input, events)) return;
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
   if (stepLift(run, input, events)) return;
+  // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
+  // the summit — which takes the step.
+  if (paraPress(run, input, events)) return;
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
   if (input.reset && racing && (!player || mayGetUp(run.skier.thrown))) {
     standUp(run, events, false);
@@ -124,9 +128,11 @@ export function stepRun(
           : HOLD
         : runOut(run)
       : input;
-  const stunts = run.rules.stunts && asked === input;
-  // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip.
-  const held = off ? asked : inRunInput(run, asked);
+  const rigged = paraRigged(run);
+  const stunts = run.rules.stunts && asked === input && !rigged;
+  // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip;
+  // hung under a paramotor's wing, his skis do nothing (`para.ts`).
+  const held = off ? asked : paraHeld(run, inRunInput(run, asked));
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
@@ -149,6 +155,9 @@ export function stepRun(
     c.vz = 0;
     derive(c, run.level);
   }
+  // THE PARAMOTOR'S WING on its lines over him (`para.ts`), and its pieces
+  // once released.
+  if (run.para) stepPara(run, asked, events);
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (stunts && !railed) stepStrokes(run, input);
   // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
@@ -183,7 +192,10 @@ export function stepRun(
   // THE RUN'S AIR RECORD, off the landing the skier has just reported.
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
-    if (e.kind === "land" && e.airTime > run.progress.bestAir) run.progress.bestAir = e.airTime;
+    // ...never a flight under a paramotor's wing, which is not a jump.
+    if (e.kind === "land" && !rigged && e.airTime > run.progress.bestAir) {
+      run.progress.bestAir = e.airTime;
+    }
   }
   if (!racing) return;
   const p = run.progress;

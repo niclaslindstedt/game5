@@ -552,6 +552,8 @@ export function heliWithin(run: GameState): boolean {
   const c = run.skier;
   if (!h || h.rider || h.mode !== "parked") return false;
   if (c.thrown || c.lift || c.tunnel || run.sled?.rider) return false;
+  // Under a paramotor's wing the press releases the rig (`para.ts`).
+  if (run.para && run.para.mode !== "dropped") return false;
   const seat = heliPoint(h, SEAT);
   return hypot(c.x - seat.x, c.z - seat.z) <= K.board.reach && c.speed <= K.board.fastest;
 }

@@ -22,6 +22,7 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
+import type { ParaEvent, ParaState } from "./para-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
@@ -37,6 +38,7 @@ export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord } from "./flight-record.ts";
 export type * from "./sled-state.ts";
+export type * from "./para-state.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -76,7 +78,7 @@ export type SkierInput = {
   heli?: HeliControls;
   /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the snowmobile (`sled.ts`)
    * or the helicopter (`heli.ts`) he stands beside, or off the one he
-   * rides. ENTER on the keys, a double tap on touch. */
+   * rides; under a paramotor (`para.ts`), the rig released. ENTER on the keys, a double tap on touch. */
   machine?: boolean;
 };
 
@@ -741,7 +743,8 @@ export type GameEvent =
        * crash), the helicopter's speed (a drop), 0 otherwise. */
       speed: number;
     }
-  | SledEvent;
+  | SledEvent
+  | ParaEvent;
 
 /** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
  * piste, down in the snow after a fall, in the air off a kicker, or up a
@@ -975,6 +978,9 @@ export type GameState = {
   /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   sled?: SledState;
+  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it; absent
+   * everywhere else. */
+  para?: ParaState;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

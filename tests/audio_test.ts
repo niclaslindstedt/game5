@@ -147,6 +147,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   lift: { kind: "lift", t: 1, id: "C1", lift: "chair", phase: "tower" },
   heli: { kind: "heli", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
+  para: { kind: "para", t: 1, phase: "drop", x: 0, y: 0, z: 0, speed: 14 },
   jam: { kind: "jam", t: 1, hit: 1, fell: false },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
 };

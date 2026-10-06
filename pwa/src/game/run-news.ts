@@ -161,6 +161,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
       if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
       return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
+    case "para":
+      // The paramotor: off the summit, in the air, skiing under it, the rig
+      // dropped or cut away, the ride begun again.
+      if (e.phase === "launch") return { text: STRINGS.newsParaLaunch, tone: "info" };
+      if (e.phase === "takeoff") return { text: STRINGS.newsParaTakeoff, tone: "good" };
+      if (e.phase === "touch") return { text: STRINGS.newsParaTouch, tone: "info" };
+      if (e.phase === "drop") return { text: STRINGS.newsParaDrop, tone: "good" };
+      if (e.phase === "collapse") return { text: STRINGS.newsParaCollapse, tone: "bad" };
+      return { text: STRINGS.newsParaRestart, tone: "info" };
     default:
       return null;
   }

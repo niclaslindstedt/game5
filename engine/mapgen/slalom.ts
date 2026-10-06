@@ -360,6 +360,7 @@ export function setSlalom(level: Level, run: 1 | 2 = 1): Level {
       level.bigAir?.base ??
       level.knuckleHuck?.base ??
       level.slopestyle?.base ??
+      level.railJam?.base ??
       level,
     run,
   );

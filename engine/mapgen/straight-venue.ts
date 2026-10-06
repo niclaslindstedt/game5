@@ -214,6 +214,7 @@ export function originalOf(level: Level): Level {
     level.bigAir?.base ??
     level.knuckleHuck?.base ??
     level.slopestyle?.base ??
+    level.railJam?.base ??
     level
   );
 }
@@ -354,6 +355,7 @@ export function gradeVenue(
     bigAir: undefined,
     knuckleHuck: undefined,
     slopestyle: undefined,
+    railJam: undefined,
     jibs: undefined,
   };
   return { ...frame, level };

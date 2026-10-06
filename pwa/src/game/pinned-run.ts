@@ -65,9 +65,12 @@ export type PinnedRuns = {
   /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
    * `bigAir`, a BIG AIR contest's first jump with its jump built over it
    * (R37), as `knuckleHuck`, a KNUCKLE HUCK's jam on its knuckle (R38),
-   * or as `slopestyle`, a SLOPESTYLE contest's first run on its course
-   * (R39). */
-  tricks: (map: TrickMap, mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle") => void;
+   * as `slopestyle`, a SLOPESTYLE contest's first run on its course
+   * (R39), or as `railJam`, a RAIL JAM on its set (R40). */
+  tricks: (
+    map: TrickMap,
+    mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle" | "railJam",
+  ) => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
    * snow is neither. */
@@ -154,10 +157,10 @@ export function createPinnedRuns(world: {
         world.rig.arm(null);
         return createGame(recipeOf(now, "slopestyle"));
       }
-      // A knuckle huck again: a fresh jam on the same knuckle.
+      // A knuckle huck or a rail jam again: a fresh jam on the same feature.
       if (now.jam) {
         world.rig.arm(null);
-        return createGame(recipeOf(now, "knuckleHuck"));
+        return createGame(recipeOf(now, now.level.railJam ? "railJam" : "knuckleHuck"));
       }
       // A ski-cross heat again: the same heat of the same bracket.
       if (now.cross) {
@@ -329,7 +332,13 @@ export function skisBack(
 ): MenuPage {
   if (mode === "free") return "start";
   if (rung) return "campaign";
-  if (mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck" || mode === "slopestyle")
+  if (
+    mode === "tricks" ||
+    mode === "bigAir" ||
+    mode === "knuckleHuck" ||
+    mode === "slopestyle" ||
+    mode === "railJam"
+  )
     return linkSeed === null ? "tricks" : "root";
   return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

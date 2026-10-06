@@ -235,6 +235,7 @@ shared piece it first needs:
 3. **Slopestyle** — the jumps in a row, JIBS, section judging.
    *Built in part (R39).*
 4. **Rail jam** — jibs alone, the jam again.
+   *Built in part (R40).*
 5. **Halfpipe** — a new terrain (walls and vert), riding a wall, the
    alley-oop, pipe use.
 6. **Moguls** — a new terrain (moguls), the turns scored, the formal

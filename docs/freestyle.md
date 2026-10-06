@@ -27,7 +27,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
 | Moguls | turns + air + speed, one run | a mogul course | researched — spec `MOGULS.md` |
 | Dual moguls | moguls head to head, a bracket | two mogul lanes | researched — spec `DUAL_MOGULS.md` |
-| Rail jam | a timed jam, one impression | rails and boxes | researched — spec `RAIL_JAM.md` |
+| Rail jam | a timed jam, one impression | rails and boxes | BUILT in part (R40) — spec `RAIL_JAM.md` |
 | Knuckle huck | a timed jam, one impression | the knuckle of a big air jump | BUILT in part (R38) — spec `KNUCKLE_HUCK.md` |
 
 ## What every judged park format shares (halfpipe, slopestyle, big air)
@@ -680,6 +680,71 @@ over stairs. In a park:
   and gaps; clean locks, no dab, a press held to the end; style and a
   creative line.
 
+**More on the judging** [3, 18, 43]: a rail jam's riders are ranked on the
+whole session's overall impression — style, difficulty, creativity,
+consistency, trick variety and how they use EVERY feature of the set; a
+resort jam often splits its heats by ability, and some rank by judges'
+place votes (three points for a first-place vote, two for a second, one
+for a third). The general freestyle judging criteria count spinning ON
+and OFF a rail as difficulty, sliding it different ways (front and back,
+270 on and off) as variety, and stability, a locked-in slide and a clean
+completion on and off the rail as execution [3]. No published manual
+weighs the parts of one jib trick against each other *(est.: the game
+counts each quarter turn on and off, a swap, a held press, a rail over a
+box and a slide over a 50-50 as steps of difficulty — slopestyle's
+`jibImpression`)*.
+
+**The features' heights, sourced** [44]: modular park features stand
+0.5–1.0 m (20–40 in) over the snow, boxes ~40 cm wide and rails 10–30 cm
+across their platform; a ride-on box or rail has its near end buried in a
+snow ramp so it is met at the snow's level *(est.: 0.2–0.5 m)*.
+
+**The set and the speed** *(est.)*: a jib set is a short, gentle hill —
+a drop-in onto a deck of some 5–10°, its features side by side so a rider
+picks one a hit, met at 10–30 km/h (§ *Slopestyle*'s rail sections), the
+whole a few dozen metres long. A hit lasts some ten seconds, so a jam's
+ten minutes is dozens of hits.
+
+**The jury's weather** *(est.)*: no rule is published. Rails are ridden at
+a crawl and jams go ahead at night under lights and in falling snow; only
+a gale that blows a rider off a rail stops one.
+
+**The pair** [35, 45]: the rail skier's ski is the softest of the park
+twin-tips — 164–180 cm, ~118–121 / 90–94 / 116 mm, a 15–20 m sidecut, a
+soft, even flex for riding forward and switch, mounted at or near the
+centre, with thick, dulled edges (a base edge bevel of ~1.6° to spin) —
+and some are built with NO steel edge at all for the street. The game's
+HARE (`defs/skis.ts`: 174 cm, 122/90/120 mm, 17 m, the softest pair, a
+centre mount) is that class, and the rail jam opens on it (`RACE_SKIS`).
+
+**The build** [36, 40]: the jib field is the same park field as big air's
+and the knuckle huck's (~70–72.5 kg on 176–179 cm for the men); nothing on
+a rail pays for weight — a heavier rider loads a press more easily and
+lands harder, a lighter one hops on and spins more easily *(est.)* — so a
+rail jam opens on the MEDIUM build (`RACE_RIDERS`).
+
+**The jam as the game runs it** (`engine/game/jam.ts`, the knuckle huck's
+jam): ONE JAM of eight — the player and seven dealt riders, the top street
+contest's two heats of four ridden together — cut to THREE MINUTES
+(`RAIL_JAM.jam`), some fifteen hits. A hit is a ride from the platform down
+the drop-in onto one feature and on over the finish line, and he is stood
+back on the platform for the next; it is judged on the feature ridden
+(the degrees on and off, the stances, a swap, a press held, a rail over a
+box), and its KIND for the session's variety is the feature and the way
+it was ridden, so riding every feature pays. The session is the mean of
+the best three hits, a little more for variety, a little less for each
+fall, marked by the panel of six. The field is dealt on a stream of its
+own (`RAIL_JAM_FIELD`), hits coming round every 10–16 s.
+
+**The set as the game builds it** (R40, `engine/mapgen/trick-rules.ts`'s
+`RAIL_JAM_RULE`): a 6 m platform, a 15° drop-in sized to bring a skier
+stood up to the features at 22 km/h, a 7° deck of 34 m with its features
+12 m down it, then a 5° run-out with the finish line 20 m in — some 90 m
+of plan over ~10 m of vertical, cut down the face as big air's jump is.
+FIVE FEATURES stand side by side 5 m apart, their near ends 0.3 m over the
+deck: a 7 m down box, a 9 m flat-down rail, a 9 m kinked (down-flat-down)
+box, a 10 m down-flat-down rail and a 6 m rainbow rail.
+
 ## Knuckle huck
 
 Tricks off the KNUCKLE — the rounded edge where a big air jump's deck meets
@@ -831,4 +896,9 @@ landings (their body mass and height, the landing's force) · [41] broadcasters'
 and park builders' descriptions of championship slopestyle courses (the
 length, the vertical, the features a section, the jumps' sizes, the
 panels) · [42] news reports of championship slopestyle finals skied or
-called off in wind.
+called off in wind · [43] resort rail-jam listings
+and rules (the jam format, heats by ability, the overall impression and
+its criteria, place-vote scoring) · [44] a patent for a portable modular
+terrain-park feature system (the heights, lengths and widths of its rails
+and boxes) · [45] ski retailers' specifications of jib and street park
+skis (length, dimensions, sidecut, edge bevel, edgeless builds).

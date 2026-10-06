@@ -23,7 +23,9 @@
 //     (`boarding-rings.ts`) — on a run that rides the lifts alone.
 //
 //   * THE WIND TUNNELS along the valley floor, the horizontal lift, are
-//     `wind-tunnels.ts`'s, held in this group and moved by `update`.
+//     `wind-tunnels.ts`'s, held in this group and moved by `update`; THE
+//     CABINS beside the runs and lanes are `cabins-view.ts`'s, held here
+//     too and handed their cuts by `update`'s lens.
 //
 // THE DRAWS ARE FEW: every part of a kind is one INSTANCE of one mesh for
 // the whole resort, coloured per vertex where it is more than one paint,
@@ -48,6 +50,7 @@ import {
   type LiftPlan,
 } from "@engine";
 import { createBoardingRings } from "./boarding-rings.ts";
+import { createCabins } from "./cabins-view.ts";
 import { CHAIR_BACK, CHAIR_SEAT } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
@@ -95,6 +98,7 @@ export type Lifts = {
     rider?: LiftRide | null,
     drawn?: RiderPose | null,
     left?: SkierState["chairLeft"],
+    eye?: THREE.Vector3,
   ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
@@ -177,10 +181,13 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const lifts = level.resort?.lifts ?? [];
   const tunnels = createWindTunnels(level, haze, budget);
   group.add(tunnels.group);
+  const houses = createCabins(level, haze);
+  group.add(houses.group);
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
   const dispose = () => {
     tunnels.dispose();
+    houses.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -189,7 +196,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   };
   const done: Lifts = {
     group,
-    update: tunnels.update,
+    update: (t, _rider, _drawn, _left, eye) => {
+      tunnels.update(t);
+      if (eye) houses.update(eye);
+    },
     setBudget: tunnels.setBudget,
     dispose,
   };
@@ -557,8 +567,9 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     return plan && left && u !== null ? { plan, u, index: left.index } : null;
   };
 
-  done.update = (t, rider, drawn, left) => {
+  done.update = (t, rider, drawn, left, eye) => {
     tunnels.update(t);
+    if (eye) houses.update(eye);
     boarding?.update(t);
     const sat = rider?.kind === "chair" && rider.phase === "ride";
     const runOn = sat ? null : emptyAt(left, t);

@@ -30,8 +30,10 @@
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
-// hut, the finish arch from up the last straight),
-// forest,
+// hut, the finish arch from up the last straight), cabin, cabin-2,
+// cabin-3 (a group of log cabins from the run it stands by, a skier's eye
+// up the run), cabin-near (the first close, at three quarters from its
+// front) and cabins-air (the first from high over its run), forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
@@ -100,6 +102,11 @@ const VIEWS = [
   "gate",
   "hut",
   "finish",
+  "cabin",
+  "cabin-2",
+  "cabin-3",
+  "cabin-near",
+  "cabins-air",
   "forest",
   "approach-140",
   "approach-90",

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -408,6 +408,17 @@ judder:
 # trunk from a sapling to a veteran).
 trees:
 	npm run trees -- $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE CABIN LAB: every kind of log building the ski area keeps beside its
+# runs and lanes (hut, cabin, chalet, woodshed) through the game's own
+# procedural builder and material, terraced on a slope — front and back at
+# three quarters, the side, from the snow, from above, the far cut and at
+# night — previews/cabins.png, with each kind's triangles at both cuts. Its
+# own one-off bundle from pwa/cabins-preview.html (never deployed); needs a
+# Chromium like `world`. ARGS="--kinds=hut,shed" draws a subset. Where they
+# STAND is `make resort`'s plan and `make world ARGS=--views=cabin,cabins-air`.
+cabins:
+	npm run cabins -- $(ARGS)
 
 # THE FOREST LAB: what it is like to be IN a map's woods, from the engine
 # and the tree table alone (pure Node, seconds): the trees and their kinds,

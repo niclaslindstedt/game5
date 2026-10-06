@@ -234,7 +234,7 @@ export function noteSave(state: GameState, events: GameEvent[]): void {
       offer(
         "landing",
         Math.max(
-          (e.g - TUNING.landing.clean) / (crashLimit(c, "legsFold") - TUNING.landing.clean),
+          (e.g - K.saveLand) / (crashLimit(c, "legsFold") - K.saveLand),
           (Math.abs(tip) - K.saveTip) / (limit - K.saveTip),
           (roll - K.saveRoll) / (Math.PI / 2 - K.saveRoll),
         ),

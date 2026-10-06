@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
 
-import { gradeOf, isNeutral } from "./colour-grade.ts";
+import { gradeOf, isNeutral, type ColourGrade } from "./colour-grade.ts";
 import type { GpuTimer } from "./gpu-timer.ts";
 import { createGradePass, gradeSupported, type GradePass } from "./grade-pass.ts";
 
@@ -24,6 +24,10 @@ export type RegionPicture = {
   /** Draw `scene` through `camera` onto the canvas, graded or not; the
    * grade's pass is a slice of its own on the GPU's timer. */
   draw(scene: THREE.Scene, camera: THREE.Camera, timer?: Pick<GpuTimer, "push" | "pop">): void;
+  /** THE BUZZ over the picture (`grade-pass.ts`), 0..1, and the clock it
+   * swims by, s: at 0 nothing changes; above it even an ungraded region
+   * draws through the pass, at its own neutral grade. */
+  setBuzz(buzz: number, t: number): void;
   /** What the last frame's SCENE cost — the grade's own pass not counted. */
   info(): { calls: number; triangles: number; points: number };
   dispose(): void;
@@ -32,19 +36,30 @@ export type RegionPicture = {
 export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): RegionPicture {
   let pass: GradePass | null = null;
   let graded = false;
+  let grade: ColourGrade | null = null;
+  let buzz = 0;
   const size = new THREE.Vector2();
   const last = { calls: 0, triangles: 0, points: 0 };
   return {
     load(level) {
-      const grade = gradeOf(regionOf(level).id);
+      grade = gradeOf(regionOf(level).id);
       graded = !isNeutral(grade) && gradeSupported(gl);
+      pass?.setGrade(grade);
       if (!graded) return null;
       pass ??= createGradePass(samples);
       pass.setGrade(grade);
       return pass.target;
     },
+    setBuzz(b, t) {
+      buzz = b > 1e-3 && gradeSupported(gl) ? b : 0;
+      if (buzz > 0 && !pass) {
+        pass = createGradePass(samples);
+        if (grade) pass.setGrade(grade);
+      }
+      pass?.setBuzz(buzz, t);
+    },
     draw(scene, camera, timer) {
-      if (!graded || !pass) {
+      if ((!graded && buzz === 0) || !pass) {
         gl.render(scene, camera);
         const r = gl.info.render;
         last.calls = r.calls;

@@ -305,6 +305,12 @@ function clearOfSolids(run: GameState, x: number, z: number): { x: number; z: nu
 /** THE SKIS HE HAS PICKED UP, over his shoulder: each laid along his
  * heading, tips up and forward, either side of his neck — the lone ski's
  * own ends, so the drawing lays them where they ride. */
+/** HOW THE SKIS ARE CARRIED, m and rad: on the right shoulder (`shoulder`
+ * over the snow, `out` to his right of his middle and `back` behind it),
+ * the two `apart` either side of that and `over` its top, tips forward and
+ * `tipDown` below level — the way a skier walks his pair to the lift. */
+const CARRY = { shoulder: 1.45, out: 0.2, apart: 0.035, back: 0.04, over: 0.07, tipDown: 0.3 };
+
 function carry(run: GameState): void {
   const c = run.skier;
   const f = c.fetch;
@@ -315,17 +321,20 @@ function carry(run: GameState): void {
   const rz = -fx;
   f.skis.forEach((ski, i) => {
     if (!f.carried[i]) return;
+    // Both on his right shoulder, bases together, tips forward and down,
+    // his right hand on them in front.
     const side = i === 0 ? -1 : 1;
     const len = c.spec.length;
-    const mx = c.x + rx * side * 0.14 - fx * 0.05;
-    const mz = c.z + rz * side * 0.14 - fz * 0.05;
-    const my = c.y + 0.45;
+    const shoulder = CARRY.shoulder - c.spec.cogHeight;
+    const mx = c.x + rx * (CARRY.out + side * CARRY.apart) - fx * CARRY.back;
+    const mz = c.z + rz * (CARRY.out + side * CARRY.apart) - fz * CARRY.back;
+    const my = c.y + shoulder + CARRY.over;
     const fore = len * (1 - ski.mount);
     const aft = len * ski.mount;
-    const up = 0.55;
-    const ax = fx * Math.cos(up);
-    const ay = Math.sin(up);
-    const az = fz * Math.cos(up);
+    const down = CARRY.tipDown;
+    const ax = fx * Math.cos(down);
+    const ay = -Math.sin(down);
+    const az = fz * Math.cos(down);
     const P = ski.ends;
     P[0] = mx + ax * fore;
     P[1] = my + ay * fore;

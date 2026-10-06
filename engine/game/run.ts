@@ -23,6 +23,8 @@ import { collideTrees, keepInBounds } from "./collision.ts";
 import { stepStakes } from "./edge-stakes.ts";
 import { outRun, resetSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
+import { stepPipeAir } from "./pipe-air.ts";
+import { flightGravity } from "./limits.ts";
 import {
   crashOver,
   mayGetUp,
@@ -151,6 +153,8 @@ export function stepRun(
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
   if (stunts && !railed) stepStrokes(run, input);
+  // OFF A PIPE'S WALL (`pipe-air.ts`): the lip's push and the turn round.
+  if (!off && !railed) stepPipeAir(run, flightGravity(run.rules));
   // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
   if (stunts && !railed) stepButter(run, input);
   if (!off) collideTrees(run, events);

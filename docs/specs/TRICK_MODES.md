@@ -238,6 +238,7 @@ shared piece it first needs:
    *Built in part (R40).*
 5. **Halfpipe** — a new terrain (walls and vert), riding a wall, the
    alley-oop, pipe use.
+   *Built in part (R41).*
 6. **Moguls** — a new terrain (moguls), the turns scored, the formal
    scorer, the clock, a mogul pair.
 7. **Dual moguls** — moguls side by side, the bracket.

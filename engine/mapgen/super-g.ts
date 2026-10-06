@@ -59,6 +59,7 @@ export function setSuperG(level: Level): Level {
     level.knuckleHuck?.base ??
     level.slopestyle?.base ??
     level.railJam?.base ??
+    level.halfpipe?.base ??
     level;
   let course = set.get(original);
   if (!course) {

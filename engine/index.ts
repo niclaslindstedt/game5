@@ -90,6 +90,34 @@ export {
   type SlopeRow,
   type SlopeRun,
 } from "./game/slopestyle-contest.ts";
+export {
+  PIPE_JUDGING,
+  hitsOf,
+  isAlleyOop,
+  judgeHalfpipe,
+  readHit,
+  runImpression,
+  type HitRead,
+  type PipeScore,
+} from "./game/halfpipe-judge.ts";
+export {
+  PIPE_FIELD,
+  bestPipeRun,
+  freshHalfpipe,
+  judgePipeRun,
+  pipeBoard,
+  pipeContestAfter,
+  pipePhase,
+  pipePlace,
+  pipeRivalRun,
+  pipeRunsIn,
+  type PipeContest,
+  type PipePhase,
+  type PipeRow,
+  type PipeRun,
+} from "./game/halfpipe-contest.ts";
+export { PIPE_AIR, pipeHit, pipeLanding, stepPipeAir, type PipeLanding } from "./game/pipe-air.ts";
+export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -121,6 +149,8 @@ export {
   KNUCKLE_HUCK,
   RAIL_JAM,
   railJamRules,
+  HALFPIPE,
+  halfpipeRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,

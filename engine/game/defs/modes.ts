@@ -34,6 +34,8 @@ import { SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
 export { JIBS, SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
 import { RAIL_JAM, railJamRules } from "./rail-jam.ts";
 export { RAIL_JAM, railJamRules } from "./rail-jam.ts";
+import { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
+export { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
 
 export type RunRules = {
   /** How many OTHER skiers start beside the player (`rivals.ts`). */
@@ -640,7 +642,8 @@ export type GameMode =
   | "bigAir"
   | "knuckleHuck"
   | "slopestyle"
-  | "railJam";
+  | "railJam"
+  | "halfpipe";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -656,6 +659,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "knuckleHuck",
   "slopestyle",
   "railJam",
+  "halfpipe",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -862,6 +866,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   knuckleHuck: knuckleHuckRules,
   slopestyle: slopestyleRules,
   railJam: railJamRules,
+  halfpipe: halfpipeRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
@@ -883,6 +888,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   knuckleHuck: KNUCKLE_HUCK.skis,
   slopestyle: SLOPESTYLE.skis,
   railJam: RAIL_JAM.skis,
+  halfpipe: HALFPIPE.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -913,7 +919,10 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * rail section's balance — none of it weight: the MEDIUM build
  * (`docs/freestyle.md` § *Slopestyle*). The RAIL JAM's are the same park
  * field, and a rail pays balance and a press, never weight: the MEDIUM
- * build (`docs/freestyle.md` § *Rail jam*). */
+ * build (`docs/freestyle.md` § *Rail jam*). The HALFPIPE's are the same
+ * freeski field, and a pipe pays the legs under five or six landings and
+ * a body light enough to spin a 1620 — the MEDIUM build
+ * (`docs/freestyle.md` § *Halfpipe*). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -925,6 +934,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   knuckleHuck: "medium",
   slopestyle: "medium",
   railJam: "medium",
+  halfpipe: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {
@@ -965,7 +975,7 @@ export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
   { id: "knuckleHuck", mode: "knuckleHuck" },
   { id: "slopestyle", mode: "slopestyle" },
   { id: "railJam", mode: "railJam" },
-  { id: "halfpipe", mode: null },
+  { id: "halfpipe", mode: "halfpipe" },
   { id: "moguls", mode: null },
   { id: "dualMoguls", mode: null },
   { id: "aerials", mode: null },

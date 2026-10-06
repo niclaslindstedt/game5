@@ -32,4 +32,19 @@ export type FlightRecord = {
    * which feature it was thrown off. */
   x?: number;
   z?: number;
+  /** Off a PIPE'S wall (R41, `pipe-air.ts`'s `pipeHit`): which wall, how
+   * high over its coping and where on the snow it came down. */
+  pipe?: PipeHit;
+};
+
+/** ONE HIT OF A PIPE: the wall it left (+1 the right of the pipe's line,
+ * −1 the left), the feet's height over the coping at the top of the
+ * flight, m, and where the landing met the snow — its height against the
+ * coping, m (0 at the coping, negative down the wall), and whether that
+ * was the wall, the FLAT bottom or the DECK. */
+export type PipeHit = {
+  side: number;
+  over: number;
+  met: number;
+  on: "wall" | "flat" | "deck";
 };

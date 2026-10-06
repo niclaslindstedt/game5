@@ -64,6 +64,7 @@ import { CrossPlate } from "./hud-cross.tsx";
 import { BigAirPlate } from "./hud-bigair.tsx";
 import { JamPlate } from "./hud-knuckle.tsx";
 import { SlopestylePlate } from "./hud-slopestyle.tsx";
+import { HalfpipePlate } from "./hud-halfpipe.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -117,6 +118,20 @@ export function ResultPlate({
   if (snap?.slopestyle?.judged) {
     return (
       <SlopestylePlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
+  // A HALFPIPE run's plate is its own: the hits and the board.
+  if (snap?.halfpipe?.judged) {
+    return (
+      <HalfpipePlate
         snap={snap}
         touch={touch}
         onAgain={onAgain}

@@ -22,6 +22,8 @@
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
 //   ?start=railjam  ...or into a RAIL JAM on its set.
+//   ?start=halfpipe ...or into a HALFPIPE contest's first run (`run=2`
+//                   the next run, off the first skied by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -58,7 +60,8 @@
 //                   its course built over the seed's map;
 //                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
 //                   over it; ?mode=railjam, a RAIL JAM, its set built over
-//                   it.
+//                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
+//                   pipe cut into the seed's map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -303,6 +306,7 @@ export function readParams(search: string): UrlParams {
       start === "knuckle" ||
       start === "slopestyle" ||
       start === "railjam" ||
+      start === "halfpipe" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -349,7 +353,9 @@ export function readParams(search: string): UrlParams {
                             ? "slopestyle"
                             : start === "railjam" || q.get("mode") === "railjam"
                               ? "railJam"
-                              : "slalom",
+                              : start === "halfpipe" || q.get("mode") === "halfpipe"
+                                ? "halfpipe"
+                                : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

@@ -80,6 +80,7 @@ import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
+import { snowNormal } from "./snow-normal.ts";
 
 const K = TUNING.crash;
 const dt = TUNING.dt;
@@ -92,7 +93,7 @@ const onPiste: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 
  * whose leading end is his tails. */
 export function noseDown(state: GameState): number {
   const c = state.skier;
-  state.level.normalAt(c.x, c.z, n);
+  snowNormal(state.level, c, n);
   const f = rotate(c.q, { x: 0, y: 0, z: 1 });
   const ends = state.rules.stunts && c.vx * f.x + c.vz * f.z < 0 ? -1 : 1;
   return Math.asin(clamp(-(f.x * n.x + f.y * n.y + f.z * n.z) * ends, -1, 1));
@@ -286,7 +287,7 @@ export function noteSave(state: GameState, events: GameEvent[]): void {
  * positive), and the side going down, −1 left, 1 right. */
 function rolledSide(state: GameState): { roll: number; side: number } {
   const c = state.skier;
-  state.level.normalAt(c.x, c.z, n);
+  snowNormal(state.level, c, n);
   const r = rotate(c.q, { x: 1, y: 0, z: 0 });
   const roll = Math.asin(clamp(r.x * n.x + r.y * n.y + r.z * n.z, -1, 1));
   return { roll, side: roll < 0 ? 1 : -1 };
@@ -324,7 +325,7 @@ function fallSide(
 /** Whether the skier's up axis is under `reset.overUp` of the snow's own. */
 function overSnow(state: GameState): boolean {
   const c = state.skier;
-  state.level.normalAt(c.x, c.z, n);
+  snowNormal(state.level, c, n);
   const up = rotate(c.q, { x: 0, y: 1, z: 0 });
   return up.x * n.x + up.y * n.y + up.z * n.z < TUNING.reset.overUp;
 }

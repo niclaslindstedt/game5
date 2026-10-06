@@ -26,6 +26,7 @@ import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
 import type { SlopeContest } from "./slopestyle-contest.ts";
+import type { PipeContest } from "./halfpipe-contest.ts";
 import type { JamState } from "./jam.ts";
 import type { PressState } from "./butter-state.ts";
 
@@ -35,7 +36,7 @@ export type { ButterRecord, PressEnd, PressState } from "./butter-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
-export type { FlightRecord } from "./flight-record.ts";
+export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
 
 export type SkierInput = {
@@ -957,6 +958,9 @@ export type GameState = {
   /** A SLOPESTYLE CONTEST so far (R39, `slopestyle-contest.ts`), carried
    * between its runs as big air's is. */
   slopestyle?: SlopeContest;
+  /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), carried
+   * between its runs as slopestyle's is. */
+  halfpipe?: PipeContest;
   /** A KNUCKLE HUCK'S JAM so far (R38, `jam.ts`): the hits ridden, and
    * where the one under way began — the run's own, stepped with it. */
   jam?: JamState;

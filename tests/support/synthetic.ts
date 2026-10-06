@@ -28,10 +28,13 @@ import {
   CLEAR_WEATHER,
   createHeightfield,
   fillField,
+  pipeSection,
+  withPipe,
   sampleField,
   type Checkpoint,
   type Heightfield,
   type Level,
+  type PipeFrame,
   type Spawn,
   type TrackPoint,
   type TreeDef,
@@ -376,4 +379,34 @@ export function flatLevel(
     { x: size / 2, z: m, heading: 0 },
     [],
   );
+}
+
+/** THE PIPE ON THE BENCH: a 22-foot halfpipe (R41's section) cut down an
+ * 18° packed pitch falling along +z on a drag strip, its centre line at x =
+ * `PIPE.x` (+x is across it to the right), its mouth at z = `PIPE.mouth`
+ * and its full walls from `PIPE.from` to `PIPE.to`. No generator built
+ * it: the physics of riding a wall is held to it. */
+export const PIPE = {
+  x: 1500,
+  mouth: 60,
+  from: 82,
+  to: 252,
+  end: 270,
+  grade: Math.tan(0.1 * Math.PI),
+};
+
+export function pipeLevel(): Level {
+  const base = flatLevel({ packed: 1, grade: PIPE.grade, slopeFrom: 0 });
+  const frame: PipeFrame = {
+    x: PIPE.x,
+    z: 0,
+    heading: 0,
+    mouth: PIPE.mouth,
+    from: PIPE.from,
+    to: PIPE.to,
+    end: PIPE.end,
+    section: pipeSection(),
+    yAt: (d) => -Math.max(0, d) * PIPE.grade,
+  };
+  return withPipe(base, frame);
 }

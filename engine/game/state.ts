@@ -191,6 +191,12 @@ export type SkierState = {
    * — the stride's phase is where in a pair of steps he is — and 0 when he
    * is not. What the pose reads to draw his skis stepped one at a time. */
   pivot: number;
+  /** ON HIS PLATFORMS (`sidestep.ts`): ±1 the side of him the hill rises
+   * on, right positive, while he stands across a steep slope on the ledges
+   * his edges have cut — stepping up it a pair at a time while the steer
+   * asks toward the hill, the stride's phase where in the pair he is — and
+   * 0 when he does not. What the pose reads to draw the sidestep. */
+  sidestep: number;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;

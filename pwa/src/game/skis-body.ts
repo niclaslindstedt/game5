@@ -211,6 +211,9 @@ const lifted = [0, 0, 0, 0, 0, 0];
 const tipward = new THREE.Vector3();
 const upward = new THREE.Vector3();
 const rightward = new THREE.Vector3();
+/** The body's forward axis, and the turn that stands him over the hill. */
+const FORWARD = new THREE.Vector3(0, 0, 1);
+const hillTurn = new THREE.Quaternion();
 
 /** A ski let go (`lone-skis.ts`) as a world matrix in the frame the drawn
  * ski is built in: at its boot centre on the base, x to its right, y out
@@ -268,7 +271,7 @@ export function poseInputOf(
     skier,
     groundOf(skier, legs),
     undefined,
-    undefined,
+    skier.incline + (Number.isNaN(legs.hip) ? 0 : legs.hill),
     drawnSkiAngle(legs, skier),
   ),
   riding?: Riding,
@@ -277,9 +280,13 @@ export function poseInputOf(
   const clip = slalomStart(waiting === "house", skier.launch);
   // The inclination the skis are tipped against beyond the world's roll —
   // carried onto the body's own eased roll.
-  const onSnow = stand.incline - groundOf(skier, legs) * skier.roll;
+  // On his platforms the body is drawn stood over the hill (`hillLean`):
+  // a roll of its own on top of the engine's.
+  const hill = Number.isNaN(legs.hip) ? 0 : legs.hill;
+  const roll = skier.roll + hill;
+  const onSnow = stand.incline - groundOf(skier, legs) * roll;
   return {
-    roll: skier.roll,
+    roll,
     // The hips' shift as his body carries it (eased in the view's spring),
     // or the engine's own before the spring has read a ride.
     hipRight: Number.isNaN(legs.hip) ? skier.hipRight : legs.hip,
@@ -291,8 +298,8 @@ export function poseInputOf(
     body: Number.isNaN(legs.hip)
       ? undefined
       : {
-          tilt: skiTilt({ edge: legs.edge, roll: legs.roll + onSnow, speed: skier.speed }),
-          roll: legs.roll,
+          tilt: skiTilt({ edge: legs.edge, roll: legs.roll + hill + onSnow, speed: skier.speed }),
+          roll: legs.roll + hill,
         },
     // The upper body's lead into a turn, ahead of the skis' edge.
     lead: leadOf(legs),
@@ -305,6 +312,7 @@ export function poseInputOf(
     spread: stand.out,
     fore: stand.fore,
     incline: stand.incline,
+    sidestep: Number.isNaN(legs.hip) ? skier.sidestep : legs.platform,
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,
@@ -575,7 +583,12 @@ export function createSkisModel(
       rack(boarded);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off ? 0 : groundOf(skier, legs);
-      standOf(skier, ground, stand, inclineAt(skier, at.q), angle);
+      // ON HIS PLATFORMS across a steep face, stood over the hill: the body
+      // turned about his feet toward it (`hillLean`), as an inclination
+      // the skis stand under.
+      const hill = off ? 0 : legs.hill;
+      if (hill !== 0) root.quaternion.multiply(hillTurn.setFromAxisAngle(FORWARD, -hill));
+      standOf(skier, ground, stand, inclineAt(skier, at.q) + hill, angle);
       if (hung) stand.tilt = 0;
       // ...and SHAKEN at speed: each ski hopping, flapping and rocking on
       // the snow passing under it, the knees taking it (the boots stand on

@@ -29,9 +29,10 @@
 //                                least
 //   bigAir.finish ≥ 25 m         a finish area at least 25 m long if flat,
 //                                over 30 m recommended, 30 m wide
-//   bigAir.speed 55–60 km/h      off the lip and on the landing (a
-//                                championship jump's ~80 km/h down its
-//                                in-run); a jump of ~30 m and ~2 s of air
+//   bigAir.speed 50–70 km/h      off the lip (55–60 on a championship
+//                                jump, ~80 km/h down its in-run); a jump
+//                                of ~30 m and ~2 s of air, ~5 m over the
+//                                lip on a big one
 //
 //   EQUIVALENT FALL HEIGHT        a landing slope is SAFE when whoever
 //                                lands on it, at whatever speed he left
@@ -106,6 +107,7 @@ export type JumpRule = {
   readonly flat: number;
   readonly kicker: number;
   readonly kick: number;
+  readonly launch: number;
   readonly table: number;
   readonly knuckle: number;
   readonly fall: number;
@@ -149,17 +151,26 @@ export const TRICK_RULES = {
     dropIn: 30,
     /** The radius it is rolled over to the drop-in on, m. */
     roll: 20,
-    /** The radius the drop-in meets the flat on, m. */
-    toFlat: 30,
+    /** The radius the drop-in meets the flat on, m: wide enough that the
+     * skier coming off the drop-in at ~100 km/h is pressed into it at
+     * under 2 g. */
+    toFlat: 50,
     /** The flat before the kicker, m. */
     flat: 8,
     /** The kicker's curve, m of radius, and its take-off, degrees: on
-     * 22 m to 26° the lip stands ~2.2 m over the flat — the rule's least
-     * height on a kicker steeper than its least angle. */
-    kicker: 22,
-    kick: 26,
-    /** The table, m — the top two levels' 15 m and a little. */
-    table: 16,
+     * 25 m to 32° the lip stands ~4 m over the flat — toward a
+     * championship kicker's ~5 m — and a tucked skier is thrown ~2.5 m over
+     * it, ~5 m with the jump sprung at the lip. */
+    kicker: 25,
+    kick: 32,
+    /** THE LAUNCH: the share of the lip's angle a skier leaves it on — his
+     * legs give through the kicker's curve and he comes off flatter than
+     * the snow, so the landing is shaped for the flight he flies, not the
+     * lip's (measured off the engine's skier tucked off the lip: a peak
+     * over it of `v² sin²(launch × kick) / 2g`). */
+    launch: 0.78,
+    /** The table, m — the top two levels' 15 m. */
+    table: 15,
     /** The knuckle's radius, m. */
     knuckle: 10,
     /** THE LANDING: the equivalent fall height it is shaped to, m (a third
@@ -179,10 +190,11 @@ export const TRICK_RULES = {
     outrun: { grade: 5, length: 70 },
     /** The finish line, m into the run-out. */
     finish: 35,
-    /** THE DESIGN SPEED off the lip, m/s (60 km/h — the rule's 55–60 and
-     * a little, so a skier who stands up on the in-run still clears the
-     * table). */
-    speed: 16.7,
+    /** THE DESIGN SPEED off the lip, m/s (59 km/h, a championship jump's
+     * 55–60): a tucked skier's. One stood up the whole in-run comes off it
+     * near 45 km/h and comes down on the knuckle — a jump is skied
+     * tucked. */
+    speed: 16.5,
     /** The skier the drop-in is sized for, tucked from the start gate:
      * his mass with his kit, kg, his tuck's drag area, m², the air's
      * density at a ski area's altitude, kg/m³, and the snow's friction —
@@ -191,7 +203,7 @@ export const TRICK_RULES = {
      * foot and the kicker (his legs taking the load and his body lagging
      * the turn), measured off the engine's skier tucked down the jump
      * (`make sim ARGS="--mode bigAir"`). */
-    skier: { mass: 85, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.8 },
+    skier: { mass: 85, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.55 },
     /** The jump's width, m (the landing's 20 m least and the finish's
      * 30), how far past its edges its grading eases out, m, and the trees
      * cleared within this of them, m. */
@@ -235,6 +247,8 @@ export const TRICK_RULES = {
     /** The take-off off the knuckle, degrees: the deck's level — what a
      * rider adds is his own pop. */
     kick: 0,
+    /** Off a level deck there is no lip's angle to leave flatter than. */
+    launch: 1,
     /** The knuckle's radius, m: at the design speed the snow falls away
      * faster than g can follow (v²/r > g), so a rider leaves it — the
      * pop is his. */

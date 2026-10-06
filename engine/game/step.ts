@@ -235,6 +235,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     flipMost: base.flipMost,
     jam: base.jam,
     butters: base.butters,
+    inRun: base.inRun,
   };
 }
 

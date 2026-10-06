@@ -46,6 +46,7 @@ import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
 import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
+import { inRunInput } from "./in-run.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { DISCIPLINE_RULES } from "../mapgen/index.ts";
@@ -113,7 +114,7 @@ export function stepRun(
   // THE WIPEOUT (`crash.ts`): with the skier thrown, the skis go on with
   // the controls let go, and he tumbles on his own.
   const off = c.thrown;
-  const held = off
+  const asked = off
     ? NEUTRAL_INPUT
     : !racing
       ? run.phase === "countdown"
@@ -122,7 +123,9 @@ export function stepRun(
           : HOLD
         : runOut(run)
       : input;
-  const stunts = run.rules.stunts && held === input;
+  const stunts = run.rules.stunts && asked === input;
+  // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip.
+  const held = off ? asked : inRunInput(run, asked);
   // THE WIND TUNNEL (`wind-tunnel.ts`): taken in, carried, or let go.
   stepTunnel(run, events);
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).

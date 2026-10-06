@@ -230,17 +230,17 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.skiAngle = c.skid * skidAngleAt(speed0) * clamp(c.steer * 2, -1, 1);
   // THE JUMP (`TUNING.jump`): loaded while it is held on the snow — the
   // time held, to `full` — and sprung the step it is let go, off the snow
-  // if he is still on it. A load carried into the air keeps; one let go
-  // there is spent on nothing.
+  // if he is on it or left it under `grace` s ago (a lip is left a beat
+  // before the thumb comes off). Let go later in the air, it is spent.
   let pop = 0;
   let loaded = 0;
   c.popped += dt;
+  const sprung = !c.airborne || c.airTime <= J.grace;
   if (input.jump === true && c.thrown === null) {
     if (!c.airborne) c.jumpLoad = Math.min(J.full, c.jumpLoad + dt);
   } else if (c.jumpLoad > 0) {
     loaded = c.jumpLoad;
-    if (!c.airborne && c.thrown === null)
-      pop = J.popMin + ((J.popMax - J.popMin) * loaded) / J.full;
+    if (sprung && c.thrown === null) pop = J.popMin + ((J.popMax - J.popMin) * loaded) / J.full;
     c.jumpLoad = 0;
   }
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is

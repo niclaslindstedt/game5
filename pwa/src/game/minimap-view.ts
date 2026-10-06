@@ -158,13 +158,38 @@ export type HudMinimap = {
   /** A skier dot's radius in world metres at this zoom. */
   dot: number;
   chevron: MinimapChevron | null;
-  /** THE HELICOPTER (`heli.ts`) on a free ride: where it is and where its
-   * pad stands, world metres; null on a run with none. */
-  heli: { x: number; z: number; pad: { x: number; z: number } } | null;
+  /** THE HELICOPTER (`heli.ts`) on a free ride: where it is, its nose, its
+   * rotor's share of its rpm, and where its pad stands, world metres; null
+   * on a run with none. */
+  heli: {
+    x: number;
+    z: number;
+    heading: number;
+    spool: number;
+    pad: { x: number; z: number };
+  } | null;
+  /** WHILE HE FLIES IT: the plate is the machine's — laid on its hub and
+   * turned by its nose — and the mark at the middle is the helicopter, its
+   * rotor turning at `spool` (0..1 of its rpm); null on his skis. */
+  flying: { spool: number } | null;
   /** THE SNOWMOBILE (`sled.ts`) on a free ride, where it was left — null
    * while he rides it (he is the dot) and on a run with none. */
   sled: { x: number; z: number } | null;
 };
+
+/** THE ROTOR ON THE PLATE: one turn of the drawn rotor at full rpm, ms.
+ * Never the real rate — 390 rpm is a strobe at sixty frames — but quick
+ * enough to read as turning; slower as the rotor spools. */
+const ROTOR_TURN_MS = 480;
+
+/** How long the drawn rotor takes a turn at `spool` of its rpm, ms, in
+ * quarters of the spool so a spool-up changes it four times and not every
+ * snapshot (each change restarts the spin); null while it is all but
+ * still. */
+export function rotorTurnMs(spool: number): number | null {
+  const q = Math.ceil(Math.min(1, spool) * 4) / 4;
+  return spool < 0.05 ? null : Math.round(ROTOR_TURN_MS / q);
+}
 
 /** The zoom where it has got to, and the turn: frame state keyed by the map
  * and the ENGINE's clock, so neither runs while the pause card holds the
@@ -333,13 +358,17 @@ function chevronFor(state: GameState, pose: HudMinimap["pose"]): MinimapChevron 
 export function buildMinimap(state: GameState): HudMinimap {
   const { level, skier } = state;
   // Aloft only while he rides it: the machine flown home without him is a
-  // mark on the plate, not the lens.
-  const agl = state.heli?.rider ? state.heli.agl : 0;
+  // mark on the plate, not the lens. Sat on its skid he faces out to the
+  // side, so the plate follows the MACHINE — where it is and its nose.
+  const ridden = state.heli?.rider ? state.heli : null;
+  const agl = ridden ? ridden.agl : 0;
   const span = spanNow(level, skier.speed * 3.6, agl, state.t);
-  const angle = angleNow(level, skier.heading, state.t);
+  const angle = angleNow(level, ridden ? ridden.heading : skier.heading, state.t);
   held = { level, t: state.t, span, angle };
   const scale = VIEW / span;
-  const pose = { x: skier.x, z: skier.z, angle, scale };
+  const pose = ridden
+    ? { x: ridden.x, z: ridden.z, angle, scale }
+    : { x: skier.x, z: skier.z, angle, scale };
   const track = trackLine(level);
   const resort = resortLines(level);
   return {
@@ -354,7 +383,16 @@ export function buildMinimap(state: GameState): HudMinimap {
     rivals: state.rivals.map((r) => ({ slot: r.id + 1, x: r.run.skier.x, z: r.run.skier.z })),
     dot: DOT / scale,
     chevron: chevronFor(state, pose),
-    heli: state.heli ? { x: state.heli.x, z: state.heli.z, pad: helipadOf(level) } : null,
+    heli: state.heli
+      ? {
+          x: state.heli.x,
+          z: state.heli.z,
+          heading: state.heli.heading,
+          spool: state.heli.spool,
+          pad: helipadOf(level),
+        }
+      : null,
+    flying: ridden ? { spool: ridden.spool } : null,
     sled: state.sled && !state.sled.rider ? { x: state.sled.x, z: state.sled.z } : null,
   };
 }

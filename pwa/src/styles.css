@@ -402,6 +402,51 @@ canvas {
   stroke-linejoin: round;
 }
 
+/* THE HELICOPTER he flies, at the plate's middle: the pad's yellow, edged
+   in the HUD's ink like the skier's arrow, the rotor turning over it. */
+.hud-minimap-heli {
+  fill: #f2c418;
+  stroke: var(--hud-ink);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+.hud-minimap-heli-gear {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+
+/* The rotor's box is its disc, centred on the hub, so it turns about it. */
+.hud-minimap-rotor {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hud-minimap-rotor circle {
+  fill: var(--hud-ink);
+}
+
+.hud-minimap-rotor path {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hud-minimap-rotor-on {
+    animation: hud-minimap-rotor linear infinite;
+  }
+}
+
+@keyframes hud-minimap-rotor {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* THE NOTICE STANDING OVER A CARD (App.tsx): the front door is a layer of
    its own with a wash across the whole screen, so the corner the new-build
    mark stands in has to be lifted over it — under it the one thing the app

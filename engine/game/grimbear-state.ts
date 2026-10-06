@@ -34,3 +34,14 @@ export type GrimbearState = {
   /** How many times he has broken cover this run. */
   sightings: number;
 };
+
+/** THE GRIMBEAR'S EVENT (`grimbear.ts`): out of the trees, over the skier
+ * he caught, pulled up roaring short of one he did not, or gone — and
+ * where he stood. */
+export type GrimbearEvent = {
+  kind: "grimbear";
+  t: number;
+  phase: "burst" | "maul" | "halt" | "gone";
+  x: number;
+  z: number;
+};

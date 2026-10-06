@@ -22,7 +22,7 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
-import type { GrimbearState } from "./grimbear-state.ts";
+import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
@@ -672,9 +672,7 @@ export type GameEvent =
   | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
-  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, over the skier he
-   * caught, pulled up roaring short of one he did not, or gone. */
-  | { kind: "grimbear"; t: number; phase: "burst" | "maul" | "halt" | "gone"; x: number; z: number }
+  | GrimbearEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number }
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
@@ -758,9 +756,6 @@ export type GameEvent =
     }
   | SledEvent;
 
-/** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
- * piste, down in the snow after a fall, in the air off a kicker, or up a
- * lift between runs — off the snow and not drawn. */
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
  * RIDING a carrier of it (`crowd-lift.ts`); SKATING off its top onto the

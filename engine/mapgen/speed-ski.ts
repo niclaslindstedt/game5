@@ -416,9 +416,12 @@ function gradeTrack(original: Level): Graded {
     const p1 = P[i];
     const p2 = P[i + 1];
     const p3 = P[Math.min(last, i + 2)];
-    return (
-      p1 + 0.5 * u * (p2 - p0 + u * (2 * p0 - 5 * p1 + 4 * p2 - p3 + u * (3 * (p1 - p2) + p3 - p0)))
-    );
+    const y =
+      p1 +
+      0.5 * u * (p2 - p0 + u * (2 * p0 - 5 * p1 + 4 * p2 - p3 + u * (3 * (p1 - p2) + p3 - p0)));
+    // Held between its two samples: the cubic may overshoot them by a
+    // hair where the pitch changes, and the track never rises.
+    return clamp(y, Math.min(p1, p2), Math.max(p1, p2));
   };
   const yAt = profileAt;
   const points: TrackPoint[] = [];

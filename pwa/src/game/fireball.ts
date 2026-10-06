@@ -9,23 +9,14 @@
 // buoyancy and rolls up into a black mushroom. Each lobe of it hands its
 // smoke on as it burns out (`smoke`).
 
-/** THE FIREBALL, off the fuel aboard: a light turbine helicopter carries
- * some 450 litres of kerosene, 360 kg. Filmed fuel impacts burn only a
- * tenth to a quarter of it in the fireball (`share`); the rest spills and
- * burns as a pool. A hydrocarbon fireball reaches a diameter of about
- * 5.8 M^⅓ m and lives about 0.45 M^⅓ s (M the fuel it burns, kg — the
- * fireball correlations of the process-safety literature): some 28 m
- * across for two seconds here. It reaches its size in the first third of
- * its life (`grow`), a dome on the snow, LIFTS OFF then (`lift`) and
- * rises at 15–20 m/s as it burns out (`rise`, reached at `riseRate`
- * m/s²), the burnt-out cloud rolling on up black. */
+import { WRECK, fireballGrowth, fireballOf } from "@engine";
+
+/** THE FIREBALL as drawn: its fuel, its share burnt in the ball, its growth,
+ * its lift-off and its rise are the engine's (`WRECK.fire`, which says
+ * where each number comes from) — the heat on a body is read off the same
+ * ball — and what follows is the look. */
 export const BALL = {
-  fuel: 360,
-  share: 0.3,
-  grow: 0.33,
-  lift: 0.33,
-  rise: 17,
-  riseRate: 22,
+  ...WRECK.fire,
   /** The bulging CELLS a ball is a cluster of (a fuel-air fireball is a
    * cauliflower of three to eight, never a sphere), the lobes it is drawn
    * in, how far it is drawn out along the way the wreck was sliding, and
@@ -45,11 +36,7 @@ export const BALL = {
   ],
 } as const;
 
-/** The fireball's diameter, m, and its life, s, off its fuel, kg. */
-export function fireballOf(fuel: number): { diameter: number; life: number } {
-  const m = Math.cbrt(Math.max(1, fuel));
-  return { diameter: 5.8 * m, life: 0.45 * m };
-}
+export { fireballOf };
 
 /** The colours of fire, linear RGB a little over one so the tone map
  * keeps them glowing without washing them out to cream: the yellow-white
@@ -243,8 +230,7 @@ export function stepBall(
   const k = ball.age / ball.life;
   // THE GROWTH: to its full size in its first `grow` of its life; it hugs
   // the snow, a dome, until it LIFTS OFF and rises on its own buoyancy.
-  const grown = 1 - Math.exp(-ball.age / (ball.life * BALL.grow * 0.45));
-  const r = ball.radius * (0.25 + 0.75 * grown) * (1 + 0.25 * Math.max(0, k - 0.5));
+  const r = ball.radius * fireballGrowth(ball.age, ball.life);
   if (k > BALL.lift) ball.vy = Math.min(BALL.rise, ball.vy + BALL.riseRate * dt);
   ball.y += ball.vy * dt;
   const cy = ball.y + r * 0.55;

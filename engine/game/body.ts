@@ -30,7 +30,15 @@
 //     share going to the chest and the abdomen when he comes down on his
 //     front, to the back and the kidneys on his back, to the ribs and the
 //     spleen or the liver on his side;
-//   - ANOTHER SKIER, shoulder to shoulder (`feelBumps`).
+//   - ANOTHER SKIER, shoulder to shoulder (`feelBumps`);
+//   - A CRASHED HELICOPTER (`defs/heli-wreck.ts` says what the research
+//     found): sat on its skid, the stop the snow and the gear's crush
+//     give the machine's fall goes up the seat into his spine (the
+//     vertical crash's compression fracture), the pelvis on the tube and
+//     the legs driven up off the snow; and its FIREBALL's heat on him,
+//     wherever he lies, summed as a thermal dose while it burns and judged
+//     once as it burns out — burns where the clothes let it through, the
+//     airway of a body engulfed in it.
 //
 // A DOSE IS A CHANCE, NOT A LINE. Every injury on a part's ladder
 // (`defs/anatomy.ts`) has the dose at which it is an even chance, and the
@@ -66,6 +74,7 @@ import {
   type Mechanism,
 } from "./defs/anatomy.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
+import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -78,7 +87,7 @@ import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown 
 const I = TUNING.injury;
 const dt = TUNING.dt;
 const PARTS = BODY_PARTS.length;
-const MECHS: readonly Mechanism[] = ["blunt", "load", "drawer", "twist", "bend"];
+const MECHS: readonly Mechanism[] = ["blunt", "load", "drawer", "twist", "bend", "heat"];
 const FACES: readonly Facing[] = ["front", "back", "left", "right"];
 /** The hash's own salt: no other draw reads this stream. */
 const SALT = 0x6b0d1e5;
@@ -115,15 +124,17 @@ export function freshBody(): BodyState {
     peak: 0,
     fallPeak: 0,
     blows: 0,
+    heat: 0,
   };
 }
 
 /** HEALED: every injury gone, as a reset stands him back up
- * (`course.ts`' `resetSkier`). The run's hardest blows and the meter's
- * count are the run's, and stay. */
+ * (`course.ts`' `resetSkier`), and any fire's dose with them. The run's
+ * hardest blows and the meter's count are the run's, and stay. */
 export function mendBody(body: BodyState): void {
   body.worst.fill(0);
   body.injuries.length = 0;
+  body.heat = 0;
 }
 
 /** THE BLOW, g: the peak deceleration of a part met at `v` m/s and
@@ -473,8 +484,9 @@ function fall(c: SkierState, cause: string, speed: number): void {
 }
 
 /** READ THIS STEP'S DOSES against every part's ladder: the injuries taken,
- * onto the body and `events`; and the hardest blow onto the g meter. */
-function judge(state: GameState, events: GameEvent[]): void {
+ * onto the body and `events` — at most `most` of them — and the hardest
+ * blow onto the g meter. */
+function judge(state: GameState, events: GameEvent[], most: number = I.perBlow): void {
   const body = state.skier.body;
   if (billG >= (billSource === "landing" ? I.landingShown : I.shown)) {
     // A blow he went down on takes the meter from one he rode out, and
@@ -530,7 +542,7 @@ function judge(state: GameState, events: GameEvent[]): void {
     }
   }
   found.sort((a, b) => b.ais - a.ais || a.p - b.p);
-  for (let k = 0; k < Math.min(found.length, I.perBlow); k++) {
+  for (let k = 0; k < Math.min(found.length, most); k++) {
     const { p, kind, ais, energy } = found[k];
     const part = BODY_PARTS[p];
     body.injuries.push({ part, kind, ais, t: state.t, energy });
@@ -577,7 +589,115 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
       }
     }
   }
+  wreckSeat(state, events);
   judge(state, events);
+  wreckFire(state, events);
+}
+
+/** THE CRASH ON THE SKID, on the step a helicopter he sat on went down:
+ * the snow's stop of its fall, as the AIRFRAME met it (`HeliState.wreck`).
+ * Up through its belly — level, or near it — the skid gear's crush and the
+ * snow's give are the load up his spine, the pelvis's blow on the tube,
+ * the neck's whip and his feet and shins driven up; rolled toward his side,
+ * the airframe comes down on him; rolled away, he is thrown back against
+ * its side; nose or tail first, he is thrown along the skid into its cross
+ * tube flank first. A crash on its side hands the spine nothing. */
+function wreckSeat(state: GameState, events: GameEvent[]): void {
+  const w = state.heli?.wreck;
+  if (!w?.aboard || !events.some((e) => e.kind === "heli" && e.phase === "crash")) return;
+  const snow = snowGive(state, w.x, w.z);
+  let top = 0;
+  let topPart: BodyPart = "back";
+  const hit = (part: BodyPart, g: number, face: Facing | null): void => {
+    strike(part, g, face);
+    if (g > top && base(part)) {
+      top = g;
+      topPart = part;
+    }
+  };
+  if (w.seat > 0) {
+    const give = WRECK.stroke + snow;
+    const g = blowOf(w.seat, give);
+    charge("back", "load", g);
+    if (g > top) top = g;
+    hit("pelvis", blow("pelvis", w.seat, give, false), null);
+    hit("neck", g * I.share.neck, null);
+    for (const s of [-1, 1]) {
+      const legs = WRECK.legs;
+      strike(sided("foot", s), blow(sided("foot", s), w.seat, give, false, legs));
+      strike(
+        sided("shin", s),
+        blow(sided("shin", s), w.seat, give, false, legs * I.share.footShin),
+      );
+    }
+  }
+  if (w.out > 0) {
+    // Pitched out face first, the airframe's side on his back.
+    const P = WRECK.pinned;
+    const give = WRECK.side + snow;
+    hit("back", blow("back", w.out, give, false, P.back), "back");
+    hit("chest", blow("chest", w.out, give, false, P.chest), "front");
+    hit("abdomen", blow("abdomen", w.out, give, false, P.abdomen), "back");
+    hit("pelvis", blow("pelvis", w.out, give, false, P.pelvis), "back");
+    hit("head", blow("head", w.out, snow, false, P.head), "front");
+    for (const s of [-1, 1]) {
+      hit(sided("shoulder", s), blow(sided("shoulder", s), w.out, give, false, P.shoulder), "back");
+      hit(sided("thigh", s), blow(sided("thigh", s), w.out, give, false, P.thigh), "back");
+    }
+  } else if (w.out < 0) {
+    const T = WRECK.thrown;
+    const v = -w.out;
+    hit("back", blow("back", v, WRECK.side, false, T.back), "back");
+    hit("pelvis", blow("pelvis", v, WRECK.side, false, T.pelvis), "back");
+    hit("head", blow("head", v, WRECK.side, true, T.head), "back");
+    for (const s of [-1, 1])
+      hit(
+        sided("shoulder", s),
+        blow(sided("shoulder", s), v, WRECK.side, false, T.shoulder),
+        "back",
+      );
+  }
+  if (w.across !== 0) {
+    // Along the skid into its cross tube, the flank that leads first — a
+    // trunk met beside him (`I.side`).
+    const S = I.side;
+    const side = Math.sign(w.across);
+    const v = Math.abs(w.across);
+    const face: Facing = side < 0 ? "left" : "right";
+    const at = (part: BodyPart, share: number): void =>
+      hit(part, blow(part, v, WRECK.side, true, share), face);
+    at(sided("shoulder", side), S.shoulder);
+    at(sided("arm", side), S.arm);
+    at("chest", S.chest);
+    at("abdomen", S.abdomen);
+    at("pelvis", S.pelvis);
+    at(sided("thigh", side), S.thigh);
+    at("head", S.head);
+  }
+  offer(top, topPart, "heli");
+}
+
+/** THE WRECK'S FIREBALL on him, every step it burns: its heat where he is
+ * summed into the dose (`BodyState.heat`), and judged ONCE, on the step it
+ * burns out — the whole exposure one draw, every part's burn taken. */
+function wreckFire(state: GameState, events: GameEvent[]): void {
+  const h = state.heli;
+  const w = h?.wreck;
+  if (!h || !w || h.mode !== "wreck") return;
+  const ball = fireballAt(h.t);
+  if (h.t - dt >= ball.life) return;
+  const c = state.skier;
+  const b = c.thrown;
+  // His body's middle: thrown, the ragdoll's; on his skis, a metre up.
+  const x = b ? b.x : c.x;
+  const y = b ? b.y : c.y + 1;
+  const z = b ? b.z : c.z;
+  const d = hypot3(x - w.x, y - (w.y + ball.height), z - w.z);
+  c.body.heat += fireFlux(d, ball.radius, ball.glow) ** (4 / 3) * dt;
+  if (h.t < ball.life || c.body.heat <= 0) return;
+  clear();
+  for (const part of BODY_PARTS) charge(part, "heat", c.body.heat);
+  judge(state, events, PARTS);
 }
 
 /** SKIER AGAINST SKIER: the player's own shoulder into a rival's or an

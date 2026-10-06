@@ -809,7 +809,7 @@ export function createWorldRenderer(
         heroModels.length = 0;
         for (const r of riders) heroModels.push(r.model);
         timer.push("hero");
-        if (!hidden.has("hero")) hero.render(gl, scene, heroModels, env.shadow());
+        hero.render(gl, scene, heroModels, hidden.has("hero") ? null : env.shadow());
         timer.pop();
       }
       gates?.update(state);

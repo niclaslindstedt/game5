@@ -78,24 +78,33 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
     on.set(0, 0, 0, 0);
   };
 
+  /** Whether `target` is on the GPU yet — three makes a render target's
+   * textures only the first time it is drawn into or `initRenderTarget`
+   * is asked. */
+  let made = false;
+
   const setSize = (next: number): void => {
-    if (next === slotSize) return;
+    if (target && next === slotSize) return;
     slotSize = next;
     target?.depthTexture?.dispose();
     target?.dispose();
-    target = null;
-    haze.uHeroMap.value = null;
+    made = false;
     off();
-    if (next <= 0) return;
     // The receivers read the DEPTH attachment through a comparing sampler
     // (`haze.ts`'s `heroLerp`): one tap is four compares blended bilinearly
-    // by the GPU, which is why it is filtered linearly.
-    const depthTexture = new THREE.DepthTexture(2 * next, 2 * next, THREE.UnsignedIntType);
+    // by the GPU, which is why it is filtered linearly. With no map (SHADOWS
+    // below HIGH) the sampler is still handed one, a texel a side: WebGL
+    // refuses EVERY draw whose comparing sampler is bound to anything but a
+    // comparing depth texture, and three's own stand-in for an empty one is
+    // never uploaded, so the snow, the woods and every lit model would
+    // vanish — whatever `uHero` says, the binding is checked, not the read.
+    const side = next > 0 ? 2 * next : 1;
+    const depthTexture = new THREE.DepthTexture(side, side, THREE.UnsignedIntType);
     depthTexture.compareFunction = THREE.LessEqualCompare;
     depthTexture.minFilter = THREE.LinearFilter;
     depthTexture.magFilter = THREE.LinearFilter;
     depthTexture.name = "riders.shadowMap";
-    target = new THREE.WebGLRenderTarget(2 * next, 2 * next, {
+    target = new THREE.WebGLRenderTarget(side, side, {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       generateMipmaps: false,
@@ -108,13 +117,19 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
   return {
     setSize,
     render(gl, scene, models, box) {
-      const active = target !== null && box !== null && gl.shadowMap.enabled;
+      const active = slotSize > 0 && target !== null && box !== null && gl.shadowMap.enabled;
       // The wide map casts whoever this one does not.
       for (let i = 0; i < models.length; i++) {
         for (const mesh of models[i].casters) {
           mesh.castShadow = !active || i >= HERO_SLOTS;
           if (i < HERO_SLOTS) mesh.layers.enable(HERO_LAYER + i);
         }
+      }
+      // Made on the GPU before any frame can sample it, drawn into or not —
+      // a target never drawn into is no texture at all to the sampler.
+      if (target && !made) {
+        gl.initRenderTarget(target);
+        made = true;
       }
       if (!active || !target || !box) return off();
 

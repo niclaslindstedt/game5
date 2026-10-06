@@ -66,6 +66,7 @@ import { JamPlate } from "./hud-knuckle.tsx";
 import { SlopestylePlate } from "./hud-slopestyle.tsx";
 import { HalfpipePlate } from "./hud-halfpipe.tsx";
 import { MogulsPlate } from "./hud-moguls.tsx";
+import { DualPlate } from "./hud-dual.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -119,6 +120,21 @@ export function ResultPlate({
   if (snap?.slopestyle?.judged) {
     return (
       <SlopestylePlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
+  // A DUAL MOGULS run's plate is its own: the qualification's score, or
+  // the dual's votes — and, until the other lane is home, the wait.
+  if (snap?.dualMoguls) {
+    return (
+      <DualPlate
         snap={snap}
         touch={touch}
         onAgain={onAgain}

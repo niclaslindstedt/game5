@@ -264,6 +264,10 @@ export interface Level {
    * the moguls answered by `groundAt` / `normalAt`. Absent on every map the
    * generator builds. */
   moguls?: MogulsCourse;
+  /** A DUAL MOGULS COURSE (R43, `setDualMoguls`): a moguls course
+   * (`moguls`) of two lanes, and which of them this map is skied in — its
+   * `checkpoints`, `spawn` and `grid` that lane's. */
+  dualMoguls?: DualMogulsCourse;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
    * them (R39, R40). */
@@ -384,6 +388,24 @@ export interface MogulsCourse {
   pitch: number;
   /** The mogul field (`Level.bumps`). */
   field: MogulField;
+}
+
+/** ONE LANE of a dual moguls course (R43): its colour, its middle m right
+ * of the venue's line (facing down it), its gates and its start spot. */
+export interface DualLane {
+  colour: "blue" | "red";
+  offset: number;
+  width: number;
+  checkpoints: Checkpoint[];
+  spawn: Spawn;
+}
+
+/** A DUAL MOGULS COURSE (R43): its two lanes — the BLUE first — the lane
+ * a map is skied in, and the gates as DRAWN, across both lanes. */
+export interface DualMogulsCourse {
+  lanes: [DualLane, DualLane];
+  lane: 0 | 1;
+  drawn: Checkpoint[];
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every

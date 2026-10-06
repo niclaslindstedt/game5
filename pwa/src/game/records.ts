@@ -126,7 +126,8 @@ export function keepsRecords(mode: GameMode): boolean {
     mode !== "slopestyle" &&
     mode !== "railJam" &&
     mode !== "halfpipe" &&
-    mode !== "moguls"
+    mode !== "moguls" &&
+    mode !== "dualMoguls"
   );
 }
 

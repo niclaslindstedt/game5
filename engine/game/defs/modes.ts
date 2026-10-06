@@ -39,6 +39,8 @@ export { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
 import { MOGULS, mogulsRules } from "./moguls.ts";
 import type { Discipline } from "./formats.ts";
 export { MOGULS, mogulsRules } from "./moguls.ts";
+import { DUAL_MOGULS, dualMogulsRules } from "./dual-moguls.ts";
+export { DUAL_MOGULS, dualMogulsRules, duelRules } from "./dual-moguls.ts";
 
 export type RunRules = {
   /** How many OTHER skiers start beside the player (`rivals.ts`). */
@@ -643,7 +645,8 @@ export type GameMode =
   | "slopestyle"
   | "railJam"
   | "halfpipe"
-  | "moguls";
+  | "moguls"
+  | "dualMoguls";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -661,6 +664,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "railJam",
   "halfpipe",
   "moguls",
+  "dualMoguls",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -874,6 +878,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   railJam: railJamRules,
   halfpipe: halfpipeRules,
   moguls: mogulsRules,
+  dualMoguls: dualMogulsRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
@@ -898,6 +903,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   railJam: RAIL_JAM.skis,
   halfpipe: HALFPIPE.skis,
   moguls: MOGULS.skis,
+  dualMoguls: DUAL_MOGULS.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -934,7 +940,8 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * (`docs/freestyle.md` § *Halfpipe*). MOGULS' athletes weigh ~73 kg on
  * 178 cm (men) and ~60 kg (women) in a national team's measurements, and
  * a mogul line pays legs that fold and extend three times a second, never
- * weight: the MEDIUM build (`docs/freestyle.md` § *Moguls*). */
+ * weight: the MEDIUM build (`docs/freestyle.md` § *Moguls*); DUAL MOGULS'
+ * are the same skiers on the same pair, and the same build. */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -948,6 +955,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   railJam: "medium",
   halfpipe: "medium",
   moguls: "medium",
+  dualMoguls: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {

@@ -713,6 +713,40 @@ not finish, the first to go out ranks lower. Ties for the last place in
 the ladder are skied off. A championship final went 30–5, its small final
 20–15 [15].
 
+**Which system the top series uses now**: the championships and the top
+series judged duals by VOTES on a seven-judge panel in the 2025–26 season;
+direct comparison stays in the rules as the alternative. A championship
+ladder is 32, filled out with byes when fewer qualify; a series stop's is
+commonly 16.
+
+**As built** (R43, `engine/mapgen/dual-moguls.ts`, `engine/game/duel.ts`,
+`dual-judge.ts`, `dual-bracket.ts`): the moguls course (R42) laid
+220 m long and 24 m wide with TWO mogul lines, each 5 m wide, 6.5 m apart
+centre to centre on ONE rhythm, so a mogul in the blue lane stands level
+with its twin in the red and neither lane is the faster; the air bumps
+level across both lanes, 5 m after the last mogul above them; each lane its
+own start, nine control gates and finish, 6.5 m wide, in its lane's colour.
+Blue is the lane right of the line looking down (left looking up). The two
+skiers start together out of the gates: the call "blue course ready", then
+"red course ready", then both gates drop at a moment dealt within three
+seconds off the dual's own stream (a false start cannot happen — the gates
+hold a skier until they drop). The rival is SKIED in the other lane by the
+moguls bot at a pace dealt to his qualification skill *(est.: 0.92–1.04 of
+the bot's own)*. Both skis' centres over the centre line, or ten seconds
+stopped, is a DID NOT FINISH. The judging is VOTES on a seven-judge panel
+(four turn judges, two air, one speed off the gap), each turn and air
+judge's split drawn about the two runs' moguls scores with an eye of his
+own *(est.)*; a repeated jump costs two votes an air judge; both out, the
+one out later wins. The format is a whole bracket in one sitting: a
+qualification (one moguls run alone in the blue lane) against a field of
+29 dealt about par, the best 16 to a ladder (seeds 1–8 on their places,
+9–16 drawn), the eighth-finals, quarter-finals, semi-finals, the small
+final and the big final; the higher seed takes the blue lane *(the rules
+let him pick; most pick blue — est.)*; every dual the player is not in is
+dealt off the contest's seed; the out ranked by their qualification score.
+Ridden on the moguls' pair (the Ibex) at the MEDIUM build, as moguls is —
+nothing in a dual pays weight differently.
+
 ## Rail jam
 
 A JAM SESSION on a set of rails and boxes: every rider rides as often as

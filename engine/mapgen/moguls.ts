@@ -16,7 +16,7 @@
 // stream — no digest moves.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { MOGULS_RULE } from "./trick-rules.ts";
+import { MOGULS_RULE, type MogulsRule } from "./trick-rules.ts";
 import { createPen, gradeVenue, originalOf, type VenueProfile } from "./straight-venue.ts";
 import { withMoguls, type MogulField, type MogulLine } from "./mogul-field.ts";
 import type { Checkpoint, Kicker, Level, MogulsCourse, Spawn } from "./types.ts";
@@ -24,7 +24,7 @@ import type { Checkpoint, Kicker, Level, MogulsCourse, Spawn } from "./types.ts"
 const RAD = Math.PI / 180;
 
 /** A moguls course's rule (R42's numbers, or a dual course's). */
-export type MogulsRule = typeof MOGULS_RULE;
+export type { MogulsRule };
 
 /** ONE AIR BUMP drawn into the profile: its kicker's foot and lip and the
  * end of its landing, m of plan along the line. */
@@ -134,7 +134,7 @@ const built = new WeakMap<Level, Level>();
  * course is built over the map under it. Kept per map; the course keeps
  * the day and the sky of the map it was built over. */
 export function setMoguls(level: Level): Level {
-  if (level.moguls) return level;
+  if (level.moguls && !level.dualMoguls) return level;
   const original = originalOf(level);
   let course = built.get(original);
   if (!course) {
@@ -146,9 +146,22 @@ export function setMoguls(level: Level): Level {
     : { ...course, sun: level.sun, weather: level.weather };
 }
 
-/** The course over `original`, a map with no course on it. */
-function buildOver(original: Level): Level {
-  const R = MOGULS_RULE;
+/** A MOGULS VENUE BUILT OVER `original` to `R`, down `lines` (one down
+ * the middle when left out): the map graded to its profile, its air bumps
+ * the map's kickers (`A1`, `A2`, as wide as `kick` m), the moguls laid,
+ * and the course — R42's and R43's alike; their gates are their own. */
+export function mogulsVenue(
+  original: Level,
+  R: MogulsRule,
+  lines?: readonly MogulLine[],
+  kick: number = R.track,
+): {
+  level: Level;
+  course: MogulsCourse;
+  p: MogulsProfile;
+  across: (s: number, width: number, offset?: number) => Checkpoint;
+  spawnAt: (offset: number) => Spawn;
+} {
   const p = mogulsProfile(R);
   const { fit, fx, fz, yAt, level } = gradeVenue(original, p, R, (v): Kicker[] =>
     p.airs.map((a, i) => ({
@@ -160,39 +173,39 @@ function buildOver(original: Level): Level {
       height: R.air.height,
       ramp: a.lip - a.foot,
       landing: a.landed - a.lip,
-      width: R.track,
+      width: kick,
       onTrack: true,
       s: a.lip,
       trick: true,
     })),
   );
-  const field = mogulsField(p, { x: fit.x, z: fit.z, heading: fit.heading, yAt }, R);
-  const across = (s: number, width: number): Checkpoint => ({
-    x: fit.x + fx * s,
-    z: fit.z + fz * s,
+  const field = mogulsField(p, { x: fit.x, z: fit.z, heading: fit.heading, yAt }, R, lines);
+  // Right of the line, facing down it.
+  const rx = fz;
+  const rz = -fx;
+  const across = (s: number, width: number, offset = 0): Checkpoint => ({
+    x: fit.x + fx * s + rx * offset,
+    z: fit.z + fz * s + rz * offset,
     y: yAt(s),
     heading: fit.heading,
     width,
     s,
     colour: "red",
   });
+  const spawnAt = (offset: number): Spawn => ({
+    x: fit.x + fx * (p.gate - 2) + rx * offset,
+    z: fit.z + fz * (p.gate - 2) + rz * offset,
+    heading: fit.heading,
+  });
   const start = across(p.gate, 6);
   const finish = across(p.finish, R.width);
-  const gates: Checkpoint[] = [];
-  for (let k = 1; k <= R.gates; k++) {
-    const s = p.gate + ((p.finish - p.gate) * k) / (R.gates + 1);
-    gates.push({ ...across(s, R.track), colour: k % 2 === 1 ? "blue" : "red" });
-  }
-  const spawn: Spawn = {
-    x: fit.x + fx * (p.gate - 2),
-    z: fit.z + fz * (p.gate - 2),
-    heading: fit.heading,
-  };
+  const gates: number[] = [];
+  for (let k = 1; k <= R.gates; k++) gates.push(p.gate + ((p.finish - p.gate) * k) / (R.gates + 1));
   const course: MogulsCourse = {
     base: original,
     from: p.gate,
     to: p.finish,
-    gates: gates.map((g) => g.s),
+    gates,
     vertical: start.y - finish.y,
     length: p.length,
     airs: p.airs,
@@ -200,8 +213,22 @@ function buildOver(original: Level): Level {
     pitch: R.pitch * RAD,
     field,
   };
+  return { level: withMoguls(level, field), course, p, across, spawnAt };
+}
+
+/** The course over `original`, a map with no course on it. */
+function buildOver(original: Level): Level {
+  const R = MOGULS_RULE;
+  const { level, course, p, across, spawnAt } = mogulsVenue(original, R);
+  const start = across(p.gate, 6);
+  const finish = across(p.finish, R.width);
+  const gates: Checkpoint[] = course.gates.map((s, i) => ({
+    ...across(s, R.track),
+    colour: i % 2 === 0 ? "blue" : "red",
+  }));
+  const spawn = spawnAt(0);
   return {
-    ...withMoguls(level, field),
+    ...level,
     checkpoints: [start, ...gates, finish],
     spawn,
     grid: [spawn],

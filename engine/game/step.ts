@@ -32,6 +32,7 @@ import {
   setRailJam,
   setHalfpipe,
   setMoguls,
+  setDualMoguls,
   setSlopestyle,
   withDay,
   withSky,
@@ -49,6 +50,8 @@ import {
   RACE,
   fieldRules,
   skiCrossHeatRules,
+  duelRules,
+  MOGULS,
   clampResilience,
   clampSnowDepth,
   type Assist,
@@ -67,6 +70,8 @@ import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
 import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
+import { freshDual, nextDuel, type DualContest, type DualHeat } from "./dual-bracket.ts";
+import { createDuel, duelCountdown, laneIn, stepDuel } from "./duel.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -134,6 +139,12 @@ export type CreateGameOptions = {
   halfpipe?: PipeContest;
   /** A MOGULS CONTEST so far (R42, `moguls-contest.ts`), as a halfpipe's. */
   moguls?: MogulsContest;
+  /** A DUAL MOGULS CONTEST so far (R43, `dual-bracket.ts`): its
+   * qualification and every dual decided — the run its next: the
+   * qualification while it has none, else the player's next dual
+   * (`nextDuel`), skied against his rival in the other lane. A fresh one
+   * off the seed when a dual moguls run leaves it out. */
+  dualMoguls?: DualContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -251,16 +262,32 @@ function crossOf(options: CreateGameOptions): CrossHeat | undefined {
   return options.cross ?? (options.bracket ? (nextHeat(options.bracket) ?? undefined) : undefined);
 }
 
+/** The dual a dual moguls run skis, if it is one (not the
+ * qualification). */
+function duelOf(options: CreateGameOptions): DualHeat | null {
+  return options.mode === "dualMoguls" && options.dualMoguls ? nextDuel(options.dualMoguls) : null;
+}
+
+/** The lane a dual moguls run is skied in: the player's in his dual, the
+ * blue for the qualification. */
+function laneOfDuel(options: CreateGameOptions): 0 | 1 {
+  const duel = duelOf(options);
+  return duel ? laneIn(duel) : 0;
+}
+
 /** The rules a run is dealt from what it asked for. */
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   const laps = options.laps ?? level.laps;
   const cross = crossOf(options);
+  const duel = duelOf(options);
   const base =
     options.mode === "skiCross" && cross
       ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
-      : options.mode
-        ? MODE_RULES[options.mode](laps)
-        : fieldRules(laps);
+      : duel && options.dualMoguls
+        ? duelRules(laps, duelCountdown(options.dualMoguls, duel))
+        : options.mode
+          ? MODE_RULES[options.mode](laps)
+          : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -375,7 +402,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                           ? setHalfpipe(built)
                           : options.mode === "moguls"
                             ? setMoguls(built)
-                            : original;
+                            : options.mode === "dualMoguls"
+                              ? setDualMoguls(built, laneOfDuel(options))
+                              : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -463,7 +492,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     if (rules.start === "interval" || rules.dealt) {
       createField(state, rules.rivals, options.heat, options.training === true);
     } else if (rules.knock && crossOf(options)) createHeat(state, crossOf(options) as CrossHeat);
-    else createRivals(state, rules.rivals);
+    else if (level.dualMoguls && options.dualMoguls && duelOf(options)) {
+      createDuel(state, options.dualMoguls, duelOf(options) as DualHeat);
+    } else createRivals(state, rules.rivals);
   }
   if (options.bracket) state.bracket = options.bracket;
   if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
@@ -471,7 +502,12 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (level.moguls) {
-    state.moguls = options.moguls ?? freshMoguls(state.seed);
+    // A dual moguls course is a moguls course of two lanes, its contest
+    // its own (`dual-bracket.ts`).
+    if (level.dualMoguls) {
+      state.dualMoguls =
+        options.dualMoguls ?? freshDual(state.seed, level.moguls.length / MOGULS.pace);
+    } else state.moguls = options.moguls ?? freshMoguls(state.seed);
     state.mogulTurns = freshTurns();
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
@@ -536,6 +572,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
   if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
+  // A DUAL (`duel.ts`): the rival's air and turns, each lane's rules.
+  if (state.duel) stepDuel(state, events);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.
   if (state.crowd) {

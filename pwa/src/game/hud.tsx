@@ -240,7 +240,8 @@ export function Hud({
               !snap.jam &&
               !snap.slopestyle &&
               !snap.halfpipe &&
-              !snap.moguls && <TricksChips tile={snap.tricks} />}
+              !snap.moguls &&
+              !snap.dualMoguls && <TricksChips tile={snap.tricks} />}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
             {snap.slopestyle && (
               <div class="hud-chip hud-run">
@@ -252,6 +253,25 @@ export function Hud({
                     snap.slopestyle.sections,
                     snap.slopestyle.kind,
                   )}
+                </span>
+              </div>
+            )}
+            {/* A DUAL MOGULS RUN: its round, the lanes, the start's call. */}
+            {snap.dualMoguls && (
+              <div class="hud-chip hud-run">
+                <span>
+                  {snap.dualMoguls.call
+                    ? STRINGS.dualCall(snap.dualMoguls.call)
+                    : STRINGS.dualRound(snap.dualMoguls.round)}
+                </span>
+                <span class="hud-chip-sub">
+                  {snap.dualMoguls.lane && snap.dualMoguls.rival
+                    ? STRINGS.dualLanes(
+                        snap.dualMoguls.lane,
+                        snap.dualMoguls.rival.id,
+                        snap.dualMoguls.rival.seed,
+                      )
+                    : STRINGS.dualAlone}
                 </span>
               </div>
             )}

@@ -43,6 +43,6 @@ export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
   { id: "railJam", mode: "railJam" },
   { id: "halfpipe", mode: "halfpipe" },
   { id: "moguls", mode: "moguls" },
-  { id: "dualMoguls", mode: null },
+  { id: "dualMoguls", mode: "dualMoguls" },
   { id: "aerials", mode: null },
 ];

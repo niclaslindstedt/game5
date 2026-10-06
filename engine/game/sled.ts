@@ -7,10 +7,12 @@
 // boards, and the player RIDES IT — the thumb throttle, the brake, the bars
 // and his weight — anywhere on the mountain, up the faces the lifts never
 // reach. The same press hops him off: his skis are on his feet again and
-// the machine stays where he left it, to be taken again. Rolled over, looped off a drop, thrown into a trunk or
-// landed too hard, the RIDER IS THROWN (the `sled` crash cause) and the
-// machine lies where it came to rest; stood back up, he is back on it,
-// the machine on its belt.
+// the machine stays where he left it, to be taken again. It rides out
+// bumps, jumps and drops onto snow; rolled over, looped, set down on its
+// side or its nose, dropped off a height, ridden into a wall or thrown into
+// a trunk, the RIDER IS THROWN (the `sled` crash cause) and the machine
+// lies where it came to rest; stood back up, he is back on it, the machine
+// on its belt.
 //
 // The body is `sled-body.ts`'s, the drive `sled-drive.ts`'s; this module
 // owns what the machine is doing, the rider on it, and the trees and the
@@ -28,6 +30,7 @@ import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { mendBody } from "./body.ts";
 import { deriveSled, freshContacts, rideSled } from "./sled-body.ts";
+import { depthUnder } from "./snow.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { derive } from "./skier.ts";
 import { windAt, type Wind } from "./wind.ts";
@@ -232,7 +235,9 @@ function drive(
   windAt(run.level, run.t, wind);
   const air = s.airTime;
   const v0 = { x: s.vx, y: s.vy, z: s.vz };
+  const way0 = v0.x * Math.sin(s.heading) + v0.z * Math.cos(s.heading);
   const r = rideSled(s, ctl, sledMass(rider), run, wind);
+  const landing = r.landed > 0 ? judgeLanding(run, s, v0) : null;
   // A flight is reported once it has lasted.
   if (s.airborne && s.airTime >= AIR_COUNTS && air < AIR_COUNTS && ridden) {
     events.push({ kind: "air", t: run.t, vy: v0.y, speed: hypot3(v0.x, v0.y, v0.z) });
@@ -242,12 +247,12 @@ function drive(
       kind: "land",
       t: run.t,
       airTime: r.landed,
-      impact: r.impact,
+      impact: landing!.into,
       speed: s.speed,
-      harsh: r.impact > K.landing * 0.6,
+      harsh: landing!.off > 0.6,
       lost: 0,
-      g: 1 + r.impact / 3,
-      off: r.impact / K.landing,
+      g: 1 + landing!.into / 3,
+      off: landing!.off,
     });
   }
   const hit = trees(run, s);
@@ -263,9 +268,38 @@ function drive(
     if (s.mode === "down" && s.speed < 0.3 && s.overFor === 0) s.mode = "parked";
     return;
   }
+  // INTO A WALL: the way it was going stopped dead in a step — a cliff
+  // band, a rock step, a bank met square. Nothing on snow stops it so.
+  const stopped = way0 - (s.vx * Math.sin(s.heading) + s.vz * Math.cos(s.heading));
   if (hit > K.tree) throwOff(run, s, events, v0, hit);
-  else if (r.landed > 0 && r.impact > K.landing) throwOff(run, s, events, v0, r.impact);
+  else if (landing && landing.off > 1) throwOff(run, s, events, v0, landing.into);
+  else if (stopped > K.wall) throwOff(run, s, events, v0, stopped);
   else if (s.overFor > K.overFor) throwOff(run, s, events, v0, s.speed);
+}
+
+const ground = { x: 0, y: 1, z: 0 };
+
+/** THE LANDING JUDGED, the step a flight ends: `into` the speed the machine
+ * came down into the snow along its normal, m/s, and `off` how far past
+ * what the rider rides out it is (1 throws him) — the larger of what the
+ * drop asks of the suspension and the snow under it (the groomer gives
+ * little, deep powder a deal: `landing` to `landingPowder` as the snow
+ * deepens) and how far off its belt it came down (`tilt`: square to the
+ * snow is nothing, on its side or its nose all of it — given a landing
+ * worth the name, `tiltFrom` m/s into the snow). */
+function judgeLanding(
+  run: GameState,
+  s: SledState,
+  v0: { x: number; y: number; z: number },
+): { into: number; off: number } {
+  run.level.normalAt(s.x, s.z, ground);
+  const into = Math.max(0, -(v0.x * ground.x + v0.y * ground.y + v0.z * ground.z));
+  const soft = (1 - s.packed) * clamp(depthUnder(run.snowDepth, run.fresh), 0, 1);
+  const most = K.landing + (K.landingPowder - K.landing) * soft;
+  const up = rotate(s.q, { x: 0, y: 1, z: 0 });
+  const square = up.x * ground.x + up.y * ground.y + up.z * ground.z;
+  const tilt = into > K.tiltFrom ? Math.acos(clamp(square, -1, 1)) / K.tilt : 0;
+  return { into, off: Math.max(into / most, tilt) };
 }
 
 const near: number[] = [];
@@ -470,6 +504,8 @@ export function sledWithin(run: GameState): boolean {
   const c = run.skier;
   if (!s || s.rider || s.thrown) return false;
   if (c.thrown || c.lift || c.tunnel || run.heli?.rider) return false;
+  // Under a paramotor's wing the press releases the rig (`para.ts`).
+  if (run.para && run.para.mode !== "dropped") return false;
   return (
     hypot(c.x - s.x, c.z - s.z) <= SLED.board.reach &&
     hypot3(c.vx, c.vy, c.vz) <= SLED.board.fastest &&

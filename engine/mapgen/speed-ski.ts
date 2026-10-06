@@ -521,6 +521,9 @@ function gradeTrack(original: Level): Graded {
     knuckleHuck: undefined,
     slopestyle: undefined,
     railJam: undefined,
+    halfpipe: undefined,
+    normalNear: undefined,
+    pipe: undefined,
     jibs: undefined,
   };
   // The arcs on the built track: the final's wand at the platform's lip,
@@ -577,6 +580,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.knuckleHuck?.base ??
     level.slopestyle?.base ??
     level.railJam?.base ??
+    level.halfpipe?.base ??
     level;
   let mine = runs.get(original);
   if (!mine) {

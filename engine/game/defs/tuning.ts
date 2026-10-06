@@ -15,6 +15,7 @@ import { TRICKS } from "./tricks.ts";
 import { INJURY } from "./anatomy.ts";
 import { CRASH } from "./crash.ts";
 import { FLEX, START_PUSH } from "./race.ts";
+import { LANDING_ABSORB } from "./absorb.ts";
 import { SIDESTEP } from "./sidestep.ts";
 import { STAKES } from "./stakes.ts";
 
@@ -701,27 +702,8 @@ export const TUNING = {
     stroke: 0.6,
     tuckStroke: 0.1,
     give: 0.6,
-    /** THE LANDING ABSORBED (`absorb.ts`): from the air until `for` s
-     * after the touchdown the legs let go `soften` of their rate, bend
-     * `deeper` more of their travel before the stop and come back up with
-     * `1 + rebound` times their damping — a knee sinks under a landing and
-     * does not spring him back off the snow — and the trunk damps its pitch
-     * and roll rates at `steady` N·m·s per rad/s (on the reference pair,
-     * scaled by each one's inertia) against the slap of a ski meeting the
-     * snow end first; and on the snow his pitch and roll turn no faster
-     * than `rate` rad/s (the tips coming down to the slope under them
-     * `follow`) and his yaw no faster than `yaw` — the skis pivot to the
-     * slope and the way under him, the body follows. */
-    absorb: {
-      for: 0.5,
-      soften: 0.45,
-      deeper: 0.3,
-      rebound: 4,
-      steady: 400,
-      rate: 1.2,
-      follow: 5,
-      yaw: 1.5,
-    },
+    /** THE LANDING ABSORBED (`defs/absorb.ts`). */
+    absorb: LANDING_ABSORB,
     /** THE LOAD A LANDING MAY CARRY: under `clean` g a landing is judged
      * only as the tips' dig is (`crash.noseAngle`), and past `buckle` g the
      * legs fold however true it was — a flat landing off a big air. */
@@ -944,12 +926,37 @@ export const TUNING = {
    * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
    * the ramps the run's nearest point `drop` m or more under the top
    * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
-   * other. Stood off it, the skis are his: nothing leads him off a top. */
+   * other. Stood off it, the skis are his: nothing leads him off a top.
+   * A cabin's rider sits `cabinBack` m behind its grip, on the bench along
+   * its back wall; a T-bar's stands `tee` m right of the bar's stem, on
+   * its right arm. BOARDING (`board`): taken by a lift's load zone or its
+   * boarding ring he SKATES to the carrier — up the queue's lane, `past`
+   * m right of the queue — at `pace` m/s and at `drive` of his push,
+   * checked down to it at `brake` m/s² from however fast he came in and
+   * coming to the load line at `end` m/s, slowing at `stop` m/s²; he
+   * looks `ahead` m along the way and turns to it at `turn` rad/s at the
+   * most. Carried, the machine press lets go of the lift wherever he is —
+   * out of a gondola's door `jumpOut` m clear of its cabin — and the tuck
+   * held `skip.hold` s skips him up it behind a fade of `skip.fade` s. */
   lift: {
+    cabinBack: 0.65,
+    jumpOut: 1.3,
+    skip: { hold: 3, fade: 0.5 },
+    tee: 0.3,
+    board: {
+      pace: 3,
+      drive: 0.75,
+      brake: 2.5,
+      stop: 1.2,
+      end: 0.6,
+      ahead: 1.6,
+      turn: 3,
+      past: 0.8,
+    },
     decel: 0.8,
     accel: 1.2,
     seat: 1.85,
-    cabin: 3.6,
+    cabin: 3.2,
     chairHang: 2.4,
     cabinHang: 4.0,
     sit: 1.0,

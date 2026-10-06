@@ -134,3 +134,5 @@ export {
 } from "../analysis/resort.ts";
 export { offRamp, rampFrame, rampHeight, rampLip } from "./summit-ramps.ts";
 export { setSkiCross, skiCrossCourseOf } from "./ski-cross.ts";
+export { jumpHeightAt, jumpProfile, lipSpeed, setBigAir, type JumpProfile } from "./big-air.ts";
+export { TRICK_RULES } from "./trick-rules.ts";

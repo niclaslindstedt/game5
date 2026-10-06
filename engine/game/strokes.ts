@@ -207,7 +207,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     else if (flip !== k.flipCrossed) {
       k.flipCrossed = flip;
       const goal = k.flipGoal + flip * T.flipStep;
-      if (takes(goal, k.flipDone, T.flipMost, flipAccel, left)) {
+      if (takes(goal, k.flipDone, state.rules.flipMost ?? T.flipMost, flipAccel, left)) {
         if (!owing(k.flipGoal, k.flipDone)) k.flipDone = 0;
         k.flipGoal = goal;
         k.flipHeld = true;
@@ -218,7 +218,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     else if (spin !== k.spinCrossed) {
       k.spinCrossed = spin;
       const goal = k.spinGoal + spin * T.spinStep;
-      if (takes(goal, k.spinDone, T.spinMost, spinAccel, left)) {
+      if (takes(goal, k.spinDone, state.rules.spinMost ?? T.spinMost, spinAccel, left)) {
         if (!owing(k.spinGoal, k.spinDone)) k.spinDone = 0;
         k.spinGoal = goal;
         k.spinHeld = true;
@@ -254,7 +254,8 @@ function owing(goal: number, done: number): boolean {
 }
 
 /** Whether a stroke that would make an axis owe `goal` rad in all, `done`
- * of it turned, is taken: no more than the axis's most, and turnable at the
+ * of it turned, is taken: no more than the axis's most (the run's own
+ * ceiling — a contest's — or the arcade's), and turnable at the
  * fastest throw in the `left` s before the snow. */
 function takes(goal: number, done: number, most: number, accel: number, left: number): boolean {
   return Math.abs(goal) <= most && throwTime(goal - done, T.rateMost, accel) <= left;

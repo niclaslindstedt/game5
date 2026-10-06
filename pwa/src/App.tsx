@@ -94,11 +94,13 @@ import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts
 import { keepsRecords, pairKey, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
+import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { ReplayBar } from "./game/hud-replay.tsx";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
+import { watchMachineTaps } from "./game/machine-tap.ts";
 import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
 import { MainMenu } from "./game/menu-main.tsx";
@@ -159,6 +161,7 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [params] = useState(() => readParams(location.search));
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
+  const [hudLive] = useState(createHudLive);
   const [flashes, setFlashes] = useState<HudFlash[]>([]);
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
@@ -697,6 +700,7 @@ export function App() {
       const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
       const drawAt = performance.now();
       renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
+      feedHudLive(hudLive, state);
       shots.serve();
       if (timing) {
         const drawMs = performance.now() - drawAt + renderer.drain();
@@ -768,11 +772,19 @@ export function App() {
     const observer = new ResizeObserver(fit);
     observer.observe(canvas);
     fit();
+    // A tap on the snowmobile or the helicopter beside him gets him on.
+    const stopTaps = watchMachineTaps(canvas, {
+      ray: (x, y) => renderer.pickRay(x, y),
+      state: () => state,
+      rides: () => playerRides(shellRef.current),
+      board: () => manager.requestMachine(),
+    });
 
     return () => {
       cancelAnimationFrame(raf);
       audio.silence();
       observer.disconnect();
+      stopTaps();
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
       document.removeEventListener("keydown", unlockAudio, unlockOpts);
@@ -804,8 +816,9 @@ export function App() {
     const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    if (modeRef.current === "tricks" && params.seed === null) {
-      return pressRef.current.tricks(trickMapFor(settings.trickMap));
+    // ...and a BIG AIR contest on the same card's map, its jump built over it.
+    if ((modeRef.current === "tricks" || modeRef.current === "bigAir") && params.seed === null) {
+      return pressRef.current.tricks(trickMapFor(settings.trickMap), modeRef.current);
     }
     // The trial and the tricks run are ridden on the map the menu stands over.
     const trial = modeRef.current === "timeTrial" || modeRef.current === "tricks";
@@ -840,6 +853,7 @@ export function App() {
           flashes={flashes}
           touch={touch && !watching(shell)}
           input={input!}
+          live={hudLive}
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}
@@ -912,7 +926,7 @@ export function App() {
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
-          onTricks={() => campaign.openCard("tricks", params.seed === null ? "tricks" : "skis")}
+          onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
           onGallery={() => setPage("gallery")}
           developer={settings.developer}

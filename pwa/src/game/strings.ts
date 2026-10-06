@@ -24,6 +24,7 @@ import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
+import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -92,6 +93,7 @@ export const STRINGS = {
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,
+  ...BIG_AIR_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -276,7 +278,7 @@ export const STRINGS = {
   heliPad: (m: number): string => `${Math.round(m)} M`,
   /** Stood beside its skid: how to get on. */
   heliTake: (touch: boolean, key: string): string =>
-    touch ? "DOUBLE TAP TO FLY" : `${key} TO FLY`,
+    touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */
@@ -693,7 +695,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : "RACE"}`,
+    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

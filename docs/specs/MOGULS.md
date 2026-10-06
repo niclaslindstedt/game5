@@ -102,8 +102,29 @@ reverse order with nothing carried over.
 - [ ] **Its maps**, **labs** (a mogul course in `make ride`, the legs'
       travel through it; `make sim ARGS="--mode moguls"`), **tests**,
       **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): a MOGUL pair (160–175 cm, 60–66 mm underfoot, a
+      soft forebody — *research the class's full numbers*), and the default
+      build off mogul athletes (*research*: the legs absorb 2.5–3 turns a
+      second; a light or medium build) — rows in `RACE_SKIS` and
+      `RACE_RIDERS`, so picking the format opens the ski card on its pair
+      and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: a MOGUL pair (160–175 cm, 60–66 mm underfoot, a soft
+      forebody — *research the class's full numbers*).
+- [ ] **The default player weight**: mogul athletes (*research*: the legs
+      absorb 2.5–3 turns a second; a light or medium build) — which of the
+      four builds (`RIDERS`), argued from what the format pays weight for.
 
 - [x] The course, the air bumps, the start, the score and every part of
       it, the DD table, the format, the typical numbers.

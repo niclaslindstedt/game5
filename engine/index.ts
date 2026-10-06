@@ -92,6 +92,10 @@ export {
   giantSlalomRules,
   SPEED_SKI,
   speedSkiRules,
+  BIG_AIR,
+  bigAirRules,
+  FREESTYLE,
+  type Freestyle,
   SKI_CROSS,
   skiCrossRules,
   skiCrossHeatRules,
@@ -177,6 +181,32 @@ export {
   type CrossResult,
   type CrossRound,
 } from "./game/cross-bracket.ts";
+export {
+  BIG_AIR_FIELD,
+  boardOf,
+  contestAfter,
+  freshBigAir,
+  judgeRun,
+  jumpOf,
+  jumpsIn,
+  nextPhase,
+  placeOf,
+  rivalJump,
+  totalOf,
+  type BigAirContest,
+  type BigAirJump,
+  type BigAirPhase,
+  type BigAirRow,
+} from "./game/big-air-contest.ts";
+export {
+  JUDGING,
+  difficultyOf,
+  impressionOf,
+  panelScore,
+  readTrick,
+  trickKind,
+  type TrickRead,
+} from "./game/judge.ts";
 export { CROSS_HEAT, crossCountdown, heatResult, stepDrafts } from "./game/cross-heat.ts";
 export { stepTrap } from "./game/speed-trap.ts";
 export { DOWNHILL_NETS, catchInNets, netPocket, stepNets } from "./game/nets.ts";
@@ -192,6 +222,7 @@ export {
   FALCON,
   MARMOT,
   HARE,
+  RAVEN,
   skisById,
   isSkiId,
   inertiaOf,
@@ -281,6 +312,7 @@ export {
   type TrickPart,
   type TrickPose,
   type TrickState,
+  type FlightRecord,
 } from "./game/state.ts";
 export { freshSkier, derive } from "./game/skier.ts";
 export { airForce, dragAreaOf, sideAreaOf, type AirForce } from "./game/air.ts";
@@ -331,6 +363,18 @@ export {
   strideShape,
   strideShare,
 } from "./game/poles.ts";
+export {
+  hillSide,
+  laySkis,
+  sidestepEdge,
+  sidestepPace,
+  sidestepReach,
+  sideSteps,
+  skiOffsets,
+  slideOver,
+  slopeOf,
+  stepSide,
+} from "./game/sidestep.ts";
 export {
   fallHeight,
   landingAhead,

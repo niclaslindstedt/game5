@@ -106,6 +106,7 @@ import {
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { heldSlip, switchSteer } from "./switch.ts";
+import { laySkis, sidestepEdge, slideOver, stepSide } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 
@@ -211,9 +212,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const lock =
     Math.min(edgeMostOf(spec, T), edgeLockAt(spec, speed0, T) * (1 + CV.edge * c.carve)) *
     (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
-  // STOOD STILL, a steer is no edge: it steps him round on the spot.
-  const still = stoodStill(c, speed0);
-  const goal = (still ? 0 : c.steer) * lock + skiPull(c);
+  // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
+  // a steep slope, his skis set into the hill (`sidestep.ts`).
+  level.normalAt(c.x, c.z, normal);
+  const slide = slideOver(c, normal);
+  const still = stoodStill(c, c.sidestep !== 0 ? slide : speed0);
+  const goal = (still ? sidestepEdge(c, normal) : c.steer * lock) + skiPull(c);
   // ...no further than he is laid over plus his angulation, or than his
   // legs stand the skis under him where he crosses under (`incline.ts`).
   const fall = crossFall(level, c, T);
@@ -261,9 +265,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // The strides, the step turn and the line he glides on (`strideOn`), and
   // the turn he steps this step, which the yaw is asked for below.
   const stepped = strideOn(c, speed0, dt);
-  // ...or, stood still with a steer held, a step round on the spot.
-  if (still) level.normalAt(c.x, c.z, normal);
-  stepRound(c, normal, still, dt);
+  // ...or, stood still with a steer held, a step round or up (`stepSide`).
+  level.normalAt(c.x, c.z, normal);
+  const stepping = stepSide(c, level, normal, stoodStill(c, slide) && c.pivot === 0, dt);
+  stepRound(c, normal, still && !stepping, dt);
   // THE CROUCH follows the tuck — or, deeper the longer it is held, the
   // jump being loaded: a body takes a moment to fold.
   const crouch0 = c.crouch;
@@ -693,6 +698,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     contact.y = level.groundAt(cx, cz);
     contact.sink = sink;
   }
+  // On his platforms each ski stands where he set it (`sidestep.ts`).
+  laySkis(c, level);
   // THE BODY PLOUGH (`snow.ts`): the knees, each over a shin's width,
   // shoving whatever of the untouched powder stands over them — so a skier
   // planing on top pays none of it.
@@ -868,7 +875,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // skis, not working for his speed or springing off them, whose stations
   // hold the slope's pull — along his skis' line, the ledge they stand on
   // taking it across them — is held: his way over the snow taken out, the
-  // legs left to settle along its normal.
+  // legs left to settle along its normal — and on his platforms, however
+  // steep (`sidestep.ts`).
   if (
     grounded &&
     c.thrown === null &&
@@ -879,10 +887,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   ) {
     level.normalAt(c.x, c.z, normal);
     const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
-    const sx = c.vx - vn * normal.x;
-    const sy = c.vy - vn * normal.y;
-    const sz = c.vz - vn * normal.z;
-    if (hypot3(sx, sy, sz) < G.stillSpeed && strained > 0 && strain <= strained) {
+    const held = strain <= strained || c.sidestep !== 0;
+    if (slideOver(c, normal) < G.stillSpeed && strained > 0 && held) {
       c.vx = vn * normal.x;
       c.vy = vn * normal.y;
       c.vz = vn * normal.z;

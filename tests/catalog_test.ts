@@ -17,6 +17,7 @@ import {
   EAGLE,
   FALCON,
   HARE,
+  RAVEN,
   MARMOT,
   NEUTRAL_INPUT,
   PEREGRINE,
@@ -90,7 +91,7 @@ function restSink(spec: SkiSpec): number {
 }
 
 describe("the catalog", () => {
-  it("is nine pairs with their own ids, the chamois the default", () => {
+  it("is ten pairs with their own ids, the chamois the default", () => {
     expect(SKI_CATALOG.map((s) => s.id)).toEqual([
       "chamois",
       "swift",
@@ -101,6 +102,7 @@ describe("the catalog", () => {
       "peregrine",
       "marmot",
       "hare",
+      "raven",
     ]);
     expect(SKIS.id).toBe("chamois");
     for (const s of SKI_CATALOG) {
@@ -272,9 +274,12 @@ describe("nine answers to a kind of snow", () => {
     }
   });
 
-  it("the soft park ski takes the hardest landing whole; the stiff, heavy speed ski the least, then the downhill ski", () => {
+  it("the big-air ski's deep legs take the hardest landing whole, the soft park ski next; the stiff, heavy speed ski the least, then the downhill ski", () => {
     const harsh = SKI_CATALOG.map(harshSpeedOf);
-    expect(Math.max(...harsh)).toBe(harshSpeedOf(HARE));
+    expect(Math.max(...harsh)).toBe(harshSpeedOf(RAVEN));
+    expect(Math.max(...SKI_CATALOG.filter((s) => s !== RAVEN).map(harshSpeedOf))).toBe(
+      harshSpeedOf(HARE),
+    );
     expect(Math.min(...harsh)).toBe(harshSpeedOf(PEREGRINE));
     const alpine = SKI_CATALOG.filter((s) => s !== PEREGRINE).map(harshSpeedOf);
     expect(Math.min(...alpine)).toBe(harshSpeedOf(EAGLE));

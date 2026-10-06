@@ -5,18 +5,18 @@
 // its number, its name and an arrow the way it goes. Three-free and
 // DOM-free, so the suite reads it.
 //
-// AS A SKI AREA SIGNS ITS RUNS: a sign stands a few metres down from the
-// head, on the skier's right going down (the side the orange-banded stakes
-// stand on), turned to face a skier at the top so he reads it looking down
-// the run — or, on a run a ramp comes down to off a lift's top (R26), a
-// few metres past the ramp's foot where it meets the run, turned to the
-// skier coming down the ramp, so the run is named as he comes onto it —
-// and clear of the lift he came up: never in its station, under its line
-// or on its drag track, but further down or across the run. Where a LANE
-// branches off, its sign stands on the
-// run it leaves, a little above the junction, on the side the lane turns
-// off to, facing up THAT run — the junction sign a skier reads before he
-// has to choose. Signs that would stand within a few metres of each other,
+// AS A SKI AREA SIGNS ITS RUNS: a sign stands AT THE PISTE'S EDGE, never
+// out in the middle of the slope — just inside the stakes, on the side the
+// lift he came up arrives on — a few metres down from the head, turned to
+// face a skier at the top so he reads it looking down the run; or, on a run
+// a ramp comes down to off a lift's top (R26), a few metres past the ramp's
+// foot where it meets the run, on the side the ramp comes in from, turned
+// to the skier coming down the ramp, so the run is named as he comes onto
+// it. Clear of the lift he came up: never in its station, under its line or
+// on its drag track, but further down or across the run. Where a LANE
+// branches off, its sign stands at the edge of the run it leaves, a little
+// above the junction, on the side the lane turns off to, facing up THAT run
+// — the junction sign a skier reads before he has to choose. Signs that would stand within a few metres of each other,
 // and the runs leaving one lift's top together, are one SIGN TREE: one post
 // among them, its boards stacked, the pistes over the lanes, green to black,
 // each arrow pointing its own run's way.
@@ -61,17 +61,17 @@ import { NETS, netShape } from "./spectator-plan.ts";
 import { mapBoardOf, signsOf } from "./station-plan.ts";
 
 /** The sign's measure, m: how far down the run it stands — and, on a run a
- * ramp comes down to off its top, how far past the ramp's foot; how far off the
- * line (half the run's width less a metre, held between `side`'s bounds —
- * at the edge of a narrow run, on the groomed snow of a wide one, where a
- * skier at the top has it in view); how far above a junction a lane's sign
+ * ramp comes down to off its top, how far past the ramp's foot; how far
+ * past the piste's edge (`edge`, inside the stakes' line — `TUNING.stakes.out`
+ * — and never nearer the line than `inner`); how far above a junction a lane's sign
  * stands; how far ahead its arrow looks; how close two signs must be to
  * share a post, and how close the heads of two runs off one lift's top. A board's width and height, a lane's smaller one, the
  * lowest board's foot over the snow, the gap between two boards. */
 export const SIGN = {
   down: 10,
   lip: 12,
-  side: { min: 4, max: 5.5 },
+  edge: 0.5,
+  inner: 2,
   junction: 20,
   look: 45,
   cluster: 5,
@@ -151,8 +151,13 @@ function beside(p: TrackPoint, off: number): { x: number; z: number } {
   return { x: p.x - Math.cos(p.heading) * off, z: p.z + Math.sin(p.heading) * off };
 }
 
-const offOf = (p: TrackPoint): number =>
-  Math.min(SIGN.side.max, Math.max(SIGN.side.min, p.width / 2 - 1));
+const offOf = (p: TrackPoint): number => Math.max(SIGN.inner, p.width / 2 + SIGN.edge);
+
+/** Which side of station `p` (x, z) lies on, as `beside` counts it: 1 the
+ * skier's right as the picture shows him, -1 his left. */
+function sideOf(p: TrackPoint, x: number, z: number): 1 | -1 {
+  return -(x - p.x) * Math.cos(p.heading) + (z - p.z) * Math.sin(p.heading) >= 0 ? 1 : -1;
+}
 
 function boardOf(level: Level, run: Run, arrow: SignArrow): Omit<SignBoard, "y"> {
   const lane = run.kind === "road";
@@ -175,20 +180,25 @@ function clearOfTrees(level: Level, x: number, z: number): boolean {
 }
 
 /** The first spot of `tries` (an arc down `line` and a side) clear of the
- * lifts — the first of them when none is. */
+ * lifts and the trees — the first clear of the lifts when none is, the
+ * first of them when none of those is. */
 function clearSpot(
   level: Level,
   line: Run,
   tries: readonly (readonly [number, number])[],
 ): { p: TrackPoint; at: { x: number; z: number } } {
-  let first: { p: TrackPoint; at: { x: number; z: number } } | null = null;
+  type Found = { p: TrackPoint; at: { x: number; z: number } };
+  let first: Found | null = null;
+  let lifts: Found | null = null;
   for (const [s, side] of tries) {
     const p = trackPointAt({ track: line }, Math.max(0, Math.min(line.length, s)));
     const at = beside(p, side * offOf(p));
     first ??= { p, at };
-    if (clearOfLifts(level, at.x, at.z)) return { p, at };
+    if (!clearOfLifts(level, at.x, at.z)) continue;
+    if (clearOfTrees(level, at.x, at.z)) return { p, at };
+    lifts ??= { p, at };
   }
-  return first!;
+  return lifts ?? first!;
 }
 
 /** Where a run's sign stands: at its head, or for a lane that branches
@@ -218,13 +228,15 @@ function spotOf(level: Level, run: Run, runs: readonly Run[]): Spot | null {
   }
   // A run a ramp comes down to off its top (R26): its sign stands where
   // the ramp's foot meets it — the lip the rider comes over onto its
-  // slope — a little down it, turned to him coming down the ramp.
-  const ramp = liftPlans(level)
-    .find((p) => p.lift.id === run.from)
-    ?.lift.ramps?.find((q) => q.run === run.id);
+  // slope — a little down it, at the edge the ramp comes in from, turned
+  // to him coming down the ramp.
+  const lift = liftPlans(level).find((p) => p.lift.id === run.from);
+  const ramp = lift?.lift.ramps?.find((q) => q.run === run.id);
   if (ramp) {
     const s0 = Math.min(run.length / 2, ramp.to.s + SIGN.lip);
-    const tries = [1, -1].flatMap((k) => [0, 5, 10, 15].map((d) => [s0 + d, k] as const));
+    const foot = trackPointAt({ track: run }, s0);
+    const k0 = sideOf(foot, ramp.from.x, ramp.from.z);
+    const tries = [k0, -k0].flatMap((k) => [0, 5, 10, 15].map((d) => [s0 + d, k] as const));
     const { p, at } = clearSpot(level, run, tries);
     const heading = Math.atan2(at.x - ramp.from.x, at.z - ramp.from.z);
     const to = trackPointAt({ track: run }, Math.min(run.length, p.s + SIGN.look));
@@ -238,9 +250,12 @@ function spotOf(level: Level, run: Run, runs: readonly Run[]): Spot | null {
       board: boardOf(level, run, arrowTo(at.x, at.z, heading, to)),
     };
   }
+  // A run off a top with no ramp: at the edge its lift arrives on.
   const down = Math.min(SIGN.down, run.length / 4);
   const steps = [0, 5, 10, 15, 20, 30].map((d) => down + d);
-  const tries = [1, -1].flatMap((k) => steps.map((s) => [s, k] as const));
+  const near = trackPointAt({ track: run }, down);
+  const k0 = lift ? sideOf(near, lift.lift.top.x, lift.lift.top.z) : 1;
+  const tries = [k0, -k0].flatMap((k) => steps.map((s) => [s, k] as const));
   const { p, at } = clearSpot(level, run, tries);
   const to = trackPointAt({ track: run }, Math.min(run.length, p.s + SIGN.look));
   return {
@@ -299,16 +314,30 @@ export function signPlan(level: Level): readonly SignPost[] {
     else groups.push([spot]);
   }
   const posts = groups.flatMap((g): SignPost[] => {
-    // A lone sign stands where it was put. A SIGN TREE stands among the
-    // runs it points to, turned to their mean way down — where that is
-    // clear of the lift, or where its first board's own sign would have.
+    // A lone sign stands where it was put. A SIGN TREE of signs a few
+    // metres apart stands among them — where that is clear of the lift, or
+    // where its first board's own sign would have; one of the runs leaving
+    // a top together stands where the sign nearest the lift's top would
+    // have, at a run's edge on the lift's side, never out between the runs
+    // — each turned to their mean way down.
     let { x, z, heading } = g[0];
     if (g.length > 1) {
-      const mx = g.reduce((a, s) => a + s.x, 0) / g.length;
-      const mz = g.reduce((a, s) => a + s.z, 0) / g.length;
-      if (clearOfLifts(level, mx, mz) && clearOfTrees(level, mx, mz)) {
-        x = mx;
-        z = mz;
+      const top =
+        g[0].top === null ? undefined : liftPlans(level).find((p) => p.lift.id === g[0].top);
+      if (top) {
+        const t = top.lift.top;
+        const first = g.reduce((a, s) =>
+          Math.hypot(s.x - t.x, s.z - t.z) < Math.hypot(a.x - t.x, a.z - t.z) ? s : a,
+        );
+        x = first.x;
+        z = first.z;
+      } else {
+        const mx = g.reduce((a, s) => a + s.x, 0) / g.length;
+        const mz = g.reduce((a, s) => a + s.z, 0) / g.length;
+        if (clearOfLifts(level, mx, mz) && clearOfTrees(level, mx, mz)) {
+          x = mx;
+          z = mz;
+        }
       }
       heading = Math.atan2(
         g.reduce((a, s) => a + Math.sin(s.heading), 0),

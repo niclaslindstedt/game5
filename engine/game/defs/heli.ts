@@ -177,9 +177,10 @@ export const HELI = {
   },
 
   /** BOARDING AT THE PAD: how near the seat a skier rides in to be taken
-   * on, m, the fastest he may be going, m/s, and the seconds he is sat on
-   * the skid over. */
-  board: { reach: 3.2, fastest: 9, sit: 0.8 },
+   * on, m, the fastest he may be going, m/s (a skier's cruise, about
+   * 43 km/h — he need not stop dead), and the seconds he is sat on the
+   * skid over. */
+  board: { reach: 6, fastest: 12, sit: 0.8 },
   /** THE DROP: the push he leaves the skid with, out and up, m/s. */
   drop: { out: 1.6, up: 0.6 },
 

@@ -210,6 +210,38 @@ export interface Level {
    * flags and the finish line, its `grid` the start gate's lanes. Absent on
    * every map the generator builds — a ski cross is built over one. */
   skiCross?: SkiCrossCourse;
+  /** A BIG AIR JUMP built on the map (R37, `setBigAir`): its `track` is the
+   * straight jump cut down the face — the platform, the drop-in, the
+   * kicker, the table, the landing and the run-out — its checkpoints the
+   * start gate and the finish line, its start platform the `spawn`. Absent
+   * on every map the generator builds — a jump is built over one. */
+  bigAir?: BigAirCourse;
+}
+
+/** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every
+ * arc down it, m. */
+export interface BigAirCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The flat's end (the kicker's foot), the LIP, the KNUCKLE (the table's
+   * end), the landing's end and the run-out's start, m. */
+  foot: number;
+  lip: number;
+  knuckle: number;
+  landing: number;
+  outrun: number;
+  /** The lip's height over the flat, m, and its take-off angle, rad. */
+  height: number;
+  kick: number;
+  /** The speed off the lip the drop-in is sized for, m/s. */
+  speed: number;
+  /** The jump's width, m. */
+  width: number;
 }
 
 /** One of a ski-cross course's BUILT FEATURES (R35), by its arcs down the

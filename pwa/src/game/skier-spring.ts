@@ -118,6 +118,16 @@ export type SkierSpring = {
    * stepping his skis round is no longer waiting with his arms hung — he
    * holds them out for his balance. */
   stepping: number;
+  /** STOOD OVER THE HILL on his platforms (`hillLean`), rad, right side
+   * down positive, and its rate: the body drawn upright in the world over
+   * skis set into a steep slope, rather than square to the snow and
+   * leaning off the face. */
+  hill: number;
+  hillRate: number;
+  /** ...and how far onto his platforms he is, the side the hill rises on
+   * eased over −1..1, and its rate — what plants his poles for it. */
+  platform: number;
+  platformRate: number;
   /** THE SNOW PASSED SINCE THE LAST PLANT, m, and the stride it was planted
    * on (the engine's stride count, floored; NaN before the first) — how
    * far behind him a planted basket is, kept as he went rather than
@@ -173,6 +183,9 @@ export type SpringRide = {
   popped?: number;
   /** Stepping round on the spot (`SkierState.pivot`), ±1 or 0. */
   pivot?: number;
+  /** On his platforms across a steep slope (`SkierState.sidestep`), ±1 or
+   * 0 — stepping up it while the stride's phase is under way. */
+  sidestep?: number;
   wx?: number;
   wy?: number;
   wz?: number;
@@ -278,6 +291,22 @@ const READY = { in: 9, out: 20 };
 /** How quickly a step turn on the spot takes him out of his idle stance
  * and lets him back into it, 1/s — a third of a second to most of it. */
 const STEP_FOLLOW = 6;
+/** ON HIS PLATFORMS across a steep slope (`sidestep.ts`), how far toward
+ * upright in the world his body is drawn — a skier sidestepping stands
+ * over his feet, his ankles and knees rolled into the hill to set the
+ * edges, never square to a 45° face — and how quickly he is stood over the
+ * hill and let back, rad/s. */
+export const HILL = { share: 0.85, follow: 5 };
+
+/** The lean over the hill his body is drawn at on his platforms, rad,
+ * right side down positive (`HILL`): the slope under him — his frame
+ * stands square to the snow, so its own tilt — toward the side it rises
+ * on; 0 off them. */
+export function hillLean(ride: Pick<SpringRide, "sidestep" | "pitch" | "roll">): number {
+  if (!ride.sidestep) return 0;
+  const slope = Math.acos(Math.cos(ride.pitch ?? 0) * Math.cos(ride.roll));
+  return Math.sign(ride.sidestep) * slope * HILL.share;
+}
 
 export function createSkierSpring(offset = 0): SkierSpring {
   return {
@@ -317,6 +346,10 @@ export function createSkierSpring(offset = 0): SkierSpring {
     ready: 0,
     readyRate: 0,
     stepping: 0,
+    hill: 0,
+    hillRate: 0,
+    platform: 0,
+    platformRate: 0,
     poled: 0,
     poledStride: Number.NaN,
     keep: Number.NaN,
@@ -487,7 +520,17 @@ export function stepSkierSpring(
   s.ready = Math.max(0, Math.min(1, s.ready));
   let work = 0;
   if (ride) {
-    s.stepping += (Math.abs(ride.pivot ?? 0) - s.stepping) * Math.min(1, STEP_FOLLOW * dt);
+    const climbing = ride.sidestep && ride.stride !== undefined && ride.stride % 1 > 1e-6 ? 1 : 0;
+    const stepping = Math.max(Math.abs(ride.pivot ?? 0), climbing);
+    s.stepping += (stepping - s.stepping) * Math.min(1, STEP_FOLLOW * dt);
+    [s.hill, s.hillRate] = follow(s.hill, s.hillRate, hillLean(ride), dt, HILL.follow);
+    [s.platform, s.platformRate] = follow(
+      s.platform,
+      s.platformRate,
+      Math.sign(ride.sidestep ?? 0),
+      dt,
+      HILL.follow,
+    );
     stepPlant(s, ride, airborne, dt);
     stepBody(s, ride, airborne, dt);
     work = stepPoled(s, ride, airborne, dt);

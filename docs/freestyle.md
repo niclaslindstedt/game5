@@ -227,6 +227,49 @@ in reverse order of the standings after two.
 triple and quad corks, opposite ways and one off a switch take-off; women
 1440–1800.
 
+**The pair** [35]: a big air skier rides a COMPETITION TWIN-TIP — stiffer
+and straighter than a park ski, for the speed down the in-run and the
+landing's load. The class's measured band, off makers' published specs of
+the pairs a park field rides: 178–184 cm for a man, a waist of 88–96 mm,
+a sidecut radius of 17–19 m, a nearly centred mount, an early rise at both
+ends and a twin's turned-up tail for riding away switch. The game's pair
+for it is the RAVEN (`defs/skis.ts`): 1.80 m, 118/88/114 mm, a 20 m
+sidecut, mounted 1 % back of centre, stiffer in the legs than the park's
+HARE so it takes the biggest landing of any pair in the catalog.
+
+**The build** [36]: a men's elite freeski field measured a mean of about
+72.5 kg at 179 cm; weight buys no speed on a jump whose in-run is sized
+for the lip, and a lighter body turns faster in the air. The game opens
+big air on the MEDIUM build (`RACE_RIDERS`), the nearest of its four to
+that mean with the kit on.
+
+**The jury's weather** *(est.)*: the rules set no wind speed and leave a
+hold or a postponement to the jury; contests have been put back for gusts
+of 60 km/h and more and for a whiteout. The game holds a big air under
+40 km/h of gust and no more than a steady fall (`BIG_AIR.jury`).
+
+**The panel as the game scores it** [1, 3]: six judges each mark the jump
+0–100 on its overall impression — difficulty, execution, amplitude and
+progression — the highest and the lowest are dropped and the four left
+averaged, cut to two decimals. `engine/game/judge.ts` reads the flight as
+the trick it was (its spin in half turns, its flips, off-axis when both,
+its direction, switch in and out, the grabs held), sets the ceiling a
+clean jump reaches off the trick's difficulty, takes the landing's
+roughness away from it, gives the height a little and a jump that came
+down on the table or the knuckle less, and scores a fall low whatever was
+thrown. Each judge's own eye is a few points either way, dealt off a hash.
+
+**The jump as the game builds it** (R37, `engine/mapgen/trick-rules.ts`):
+a 6 m platform, a 30° drop-in, an 8 m flat, a 26° kicker 2.3 m over the
+flat, a 16 m table and a landing shaped to an equivalent fall height of a
+third of a metre to a cap of 38°, then a run-out — cut into the mountain
+straight down the face where it fits the ground best. The drop-in is as
+long as brings a tucked skier to the lip at 60 km/h; the engine's skier
+loses more speed than a point mass through the compressions at its foot
+and up the kicker, so the in-run is sized with that loss measured, and he
+reaches some 100 km/h before he rises to the lip — more than a scaffold
+jump's in-run, which drops steeper and shorter.
+
 ## Aerials
 
 Single jumps off steep KICKERS that throw a skier some 14 m over the
@@ -640,4 +683,8 @@ result sheets of the 2026 championship aerials (men, women, mixed team) ·
 [32] the federation's freestyle judging handbook, October 2025 (the
 aerials chapter) · [33] a biomechanics conference paper on twisting in
 aerial skiing (the flight time, the twists a flip) · [34] a broadcaster's
-freestyle explainer quoting a coach on in-run speeds.
+freestyle explainer quoting a coach on in-run speeds · [35] ski makers'
+published specifications of their park and competition twin-tips (length,
+dimensions, sidecut radius, mount) · [36] an anthropometric study of a
+national freeski and snowboard team (body mass and height by sport and
+sex).

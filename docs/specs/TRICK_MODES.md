@@ -82,6 +82,51 @@ Read the code, not this summary.
   tricks run), the replay and its broadcast camera (`replay-shots.ts`
   already files a flight back-dated to its take-off).
 
+## Research, the pair and the build — what every format owes first
+
+Every format starts with RESEARCH, and the research is EXTENSIVE: a spec's
+numbers are a draft's guesses until they are sourced. Before a line of a
+format is built, work its research to-do with web sources (several for
+every number that shapes the build, never one), and write what they say
+into `docs/freestyle.md`'s section for it, in our own words, numbers with
+their sources, estimates marked *(est.)*, no names (`docs/disciplines.md`'s
+rule). The research covers three things, and each spec lists them as boxes:
+
+1. **The rules and the conditions.** The field of play and its minimums
+   and a championship venue's real size; the format (phases, runs or jumps,
+   what counts, the start order, ties); the judging (the panel, the method,
+   the criteria, the deductions, a fall); and the CONDITIONS a contest is
+   held in — the snow a venue is prepared to (groomed, salted, soft on a
+   landing), the speeds on it, the wind and the light a jury holds or
+   cancels for (a format with a jury's weather gets a `JURY`-style row, as
+   the races have), the time of day it is run at. A rule the research
+   cannot source is a question for the user, not a guess.
+2. **The skis.** Which class of ski the format is skied on, from the
+   class's MEASURED bands — the length, the waist, the tip and the tail,
+   the sidecut, the flex, the mount, the rocker, what the athletes say
+   they want of it — never a make or a model. Where a pair in the catalog
+   (`defs/skis.ts`) is that class, the format is skied on it; where none
+   is, the format ADDS ONE (`ski-tuning` for its numbers and `topSpeed`,
+   `ski-design` for its traced look and topsheet, `blender-assets` for
+   its model — `make models`), as the races added the Falcon, the
+   Wolverine and the Peregrine and big air added the RAVEN.
+3. **The default build.** What the format's athletes WEIGH — the
+   anthropometry of its top level, by sex, from studies of national teams
+   and of the athletes in it — and which of the four builds
+   (`defs/riders.ts`'s `RIDERS`: light 60, medium 80, solid 95, heavy 115
+   kg in kit) that is, argued from what the format pays weight for (a
+   tuck's speed, a landing's load, a spin's inertia, the legs on a mogul
+   line).
+
+**The mode presets them.** Picking a format opens the ski card on ITS PAIR
+and the dress card on ITS BUILD, as picking a race does: a row in
+`defs/modes.ts`'s `RACE_SKIS` and `RACE_RIDERS` (read by `raceSkisOf` /
+`raceRiderOf`, applied by `campaign-app.ts`), held by
+`tests/race_skis_test.ts` and `tests/race_riders_test.ts` — every built
+format has both rows, and the argument for each stands beside it in the
+code with its source in `docs/freestyle.md`. Big air's: the Raven, the
+medium build.
+
 ## The shared pieces it needs
 
 - [ ] **THE TRICK CARD.** The front door's TRICKS tile opens a card of the

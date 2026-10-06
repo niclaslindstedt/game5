@@ -61,6 +61,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     glide: 0,
     step: 0,
     pivot: 0,
+    sidestep: 0,
     crouch: 0,
     hipRight: 0,
     hipAft: 0,

@@ -16,7 +16,7 @@
 // and the hardest landing it takes whole (`harshSpeedOf`) — the same
 // arithmetic the physics and the bot run at 120 Hz.
 //
-// NINE AXES, because the catalog is nine answers to a kind of snow and
+// NINE AXES, because the catalog is ten answers to a kind of snow and
 // the snow has two kinds: what a pair does on the GROOMER (the top end, the
 // edge's hold at race pace, round a berm, at a super-G's and at a
 // downhill's, how quickly it goes edge to edge)
@@ -25,8 +25,8 @@
 // something on this sheet and none is best at everything, which is the
 // card's whole argument.
 //
-// The bars are RELATIVE TO THE ROSTER, not absolute: nine pairs within a
-// few percent of each other on an axis scaled from zero are nine identical
+// The bars are RELATIVE TO THE ROSTER, not absolute: ten pairs within a
+// few percent of each other on an axis scaled from zero are ten identical
 // full bars, which is a picture of nothing. The roster's own spread is the
 // scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.

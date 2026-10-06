@@ -205,7 +205,13 @@ function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliContr
   if (h.mode === "home") {
     if (h.t < K.home.beat) return h.controls;
     const pad = helipadOf(run.level);
-    return pilotControls(run, { x: pad.x, z: pad.z, height: K.home.clear, land: true });
+    return pilotControls(run, {
+      x: pad.x,
+      z: pad.z,
+      height: K.home.clear,
+      land: true,
+      face: pad.heading,
+    });
   }
   return { ...DOWN };
 }

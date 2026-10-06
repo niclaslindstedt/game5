@@ -629,7 +629,8 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   }
   const speed = c.speed;
   const on = locate(state);
-  // DOWN A SPEED TRACK (R34): tucked and straight, nothing else.
+  // DOWN A SPEED TRACK (R34) or A BIG AIR JUMP (R37): tucked and straight,
+  // nothing else.
   const straight = speedSkiInput(state, on);
   if (straight) return straight;
   const cps = level.checkpoints;

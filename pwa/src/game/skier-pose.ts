@@ -69,7 +69,8 @@
 
 import { TUNING } from "@engine";
 
-import { STILL_GAIT } from "./skier-gait.ts";
+import { SIDE, STILL_GAIT } from "./skier-gait.ts";
+import { holdAt, sidestepBaskets, toward } from "./skier-sidestep.ts";
 import {
   armAt,
   DOUBLE_ARM,
@@ -798,6 +799,22 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     hands[1] = push.hands[1];
   }
   if (bare) placeBare(hands, knees, shoulders, { gait, crouch, air, ready, hang });
+  // THE SIDESTEP: each fist holding its pole on a basket planted beside its
+  // ski, up the hill and down it (`skier-sidestep.ts`).
+  const climbW = bare ? 0 : clamp01(Math.abs(input.sidestep ?? 0)) * (1 - crouch) * (1 - air);
+  const baskets =
+    climbW > 0
+      ? sidestepBaskets(
+          Math.sign(input.sidestep ?? 0),
+          gait.out,
+          gait.lift,
+          SIDE.lift,
+          M.ground + drop,
+          input.incline ?? 0,
+        )
+      : null;
+  if (baskets)
+    for (const i of [0, 1]) hands[i] = mix(hands[i], holdAt(hands[i], baskets[i], M.pole), climbW);
   // THE BLOCK at a pole gate's turning pole (`gateBlock`): the fist his
   // technique clears it with, punched out at it.
   const B = input.block;
@@ -950,6 +967,10 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     if (blockW > 0 && i === blocker) {
       const was = norm(sub(tip, hands[i]));
       tip = add(hands[i], scale(norm(mix(was, blockPole(i), blockW)), M.pole));
+    }
+    if (baskets) {
+      const was = norm(sub(tip, hands[i]));
+      tip = add(hands[i], scale(toward(was, hands[i], baskets[i], climbW), M.pole));
     }
     return F ? flightPole(F, i, hands[i], tip, M.pole) : tip;
   }) as [V3, V3];

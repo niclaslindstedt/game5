@@ -43,6 +43,10 @@ export type SledView = {
   dressRack(body: number, trim: number): void;
   /** The machine as drawn this frame. */
   drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
+  /** Resolved once the model is in the group (or the stand-in, should it
+   * not load) — awaited before the run's programs are compiled, so none of
+   * them is linked mid-ride. */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -251,7 +255,7 @@ export function createSledView(haze: HazeUniforms): SledView {
   };
 
   const url = sledModelUrl();
-  (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
+  const ready = (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
     .then((gltf) => {
       if (disposed) return;
       gltf.scene.rotation.y = Math.PI;
@@ -293,6 +297,7 @@ export function createSledView(haze: HazeUniforms): SledView {
 
   return {
     group,
+    ready,
     update(state, alpha, dt, player) {
       const s: SledState | undefined = state.sled;
       group.visible = !!s;

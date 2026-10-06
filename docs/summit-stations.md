@@ -97,7 +97,8 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   runs whose ramps leave to the rider's left at its left and the rest at
   its right, turned to where he comes off the lift (a drag's top, with no
   board, signs each ramp at its head), and the run's own sign a dozen
-  metres past its foot, turned up the ramp to him as he comes onto the run; a rider skis
+  metres past its foot at the run's edge on the side the ramp comes in from —
+  never out on the slope — turned up the ramp to him as he comes onto the run; a rider skis
   down them, and the lens holds its summit look to the lip. A DRAG'S top has
   ramps too, from the ground round where it lets its rider go (12 m), laid
   once the drags have settled — but only where they fit: the nursery drag is

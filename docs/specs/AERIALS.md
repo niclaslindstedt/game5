@@ -107,8 +107,32 @@ qualification, a final of twelve, a final of six — the last jump deciding.
 - [ ] **Its venues**, **labs** (a flight lab: every jump of the table
       flown, its height, its air and its landing load against the legs),
       **tests**, **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): the aerials pair (a new catalog row: *research
+      the class* — its length, its stiffness, the twin or flat tail an
+      inverted landing wants), and the default build off aerials athletes —
+      small, light gymnasts by reputation (*research*: likely the LIGHT
+      build; the flips' inertia and the landing load decide) — rows in
+      `RACE_SKIS` and `RACE_RIDERS`, so picking the format opens the ski
+      card on its pair and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: the aerials pair (a new catalog row: *research the
+      class* — its length, its stiffness, the twin or flat tail an inverted
+      landing wants).
+- [ ] **The default player weight**: aerials athletes — small, light
+      gymnasts by reputation (*research*: likely the LIGHT build; the flips'
+      inertia and the landing load decide) — which of the four builds
+      (`RIDERS`), argued from what the format pays weight for.
 
 - [x] The site, the kickers, the score and its method, the form and
       landing bands, the flight plan's code, the format, ties, the mixed

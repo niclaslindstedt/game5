@@ -61,6 +61,7 @@ import type { CampaignLevel } from "./campaign.ts";
 import type { CampaignPlate } from "./campaign-run.ts";
 import { SlalomBoard } from "./hud-board.tsx";
 import { CrossPlate } from "./hud-cross.tsx";
+import { BigAirPlate } from "./hud-bigair.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -96,6 +97,20 @@ export function ResultPlate({
    * app offers none. */
   onSecond?: (() => void) | null;
 }) {
+  // BIG AIR's plate is its own: the jump judged and the contest's board.
+  if (snap?.bigAir?.judged) {
+    return (
+      <BigAirPlate
+        snap={snap}
+        touch={touch}
+        onAgain={onAgain}
+        onNew={onNew}
+        onMenu={onMenu}
+        onReplay={onReplay}
+        onSecond={onSecond}
+      />
+    );
+  }
   if (!snap?.standings) return null;
   // A SKI CROSS's plate is its own: a heat's order and who goes through.
   if (snap.cross) {

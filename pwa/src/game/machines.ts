@@ -49,8 +49,16 @@ export type Machines = {
    * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
    * this frame (so call it after `frame`); otherwise nothing, the pose left. */
   ladder(pose: RigPose, state: GameState): Ladder | undefined;
+  /** Both machines' models in the group — what the renderer waits on
+   * before it compiles the run's programs, so the rotor's smear and the
+   * blades' fade are linked behind the loading card, not as he boards. */
+  ready: Promise<void>;
   dispose(): void;
 };
+
+/** The longest the run's load waits on the machines' models, ms: a file that
+ * never comes is linked when it does, rather than holding the card up. */
+const MODEL_WAIT = 5000;
 
 /** The snow the machines throw and read: the map's spray and snow cloud,
  * and what the snow is at a point. */
@@ -77,6 +85,10 @@ export function createMachines(
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
     group,
+    ready: Promise.race([
+      Promise.all([heli?.ready, sled?.ready]).then(() => undefined),
+      new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
+    ]),
     seat(model, s) {
       model.setPerch(heli ? heli.perch(s) : null);
       model.setSled(sled ? sled.stand(s) : null);

@@ -586,9 +586,9 @@ export function createWorldRenderer(
       lastTick = -1;
       lastState = null;
       lens.snap();
-      await breathe();
+      await Promise.all([breathe(), machines.ready]);
       if (mine !== loads) return;
-      // Compile every program now rather than on the first frame of the run.
+      // Compile every program now, models and all, not on the run's first frame.
       const skier = state.skier;
       lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
       lens.camera.lookAt(skier.x, skier.y, skier.z);
@@ -597,8 +597,7 @@ export function createWorldRenderer(
       // against the target the frame is drawn into (a graded region's are
       // linear), and the trail maps' passes, not in the scene, beside it.
       gl.setRenderTarget(picture.load(lv));
-      // THE MOUNTAIN'S SHADOW is baked off the thread meanwhile, for the
-      // key the run opens under.
+      // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
       const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
       if (gl.extensions.has("KHR_parallel_shader_compile")) {
         await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl), shade]);
@@ -606,7 +605,8 @@ export function createWorldRenderer(
         gl.compile(scene, lens.camera);
         await Promise.all([trail.compile(gl), shade]);
       }
-      if (mine === loads) env.warmShadows(gl, scene, lv.size);
+      if (mine === loads) hero.render(gl, scene, [], null);
+      if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
       gl.setRenderTarget(null);
     },
 
@@ -809,7 +809,7 @@ export function createWorldRenderer(
         heroModels.length = 0;
         for (const r of riders) heroModels.push(r.model);
         timer.push("hero");
-        if (!hidden.has("hero")) hero.render(gl, scene, heroModels, env.shadow());
+        hero.render(gl, scene, heroModels, hidden.has("hero") ? null : env.shadow());
         timer.pop();
       }
       gates?.update(state);

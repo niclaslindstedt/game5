@@ -26,6 +26,7 @@ import {
   GIANT_SLALOM,
   SPEED_SKI,
   SLED,
+  helipadOf,
   heliWithin,
   mayGetUp,
   sledWithin,
@@ -291,13 +292,15 @@ export function sledOf(state: GameState): HudSled | null {
 }
 
 /** THE HELICOPTER as the HUD reads it: flown — how high its skids are over
- * the snow (the fall a jump off them is), m, and its climb, m/s — or
+ * the snow (the fall a jump off them is), m, its ALTITUDE over the pad on
+ * the valley floor it took off from, m, and its climb, m/s — or
  * waiting on its pad `pad` m from him, `near` when he stands where the
  * machine press sits him on its skid (`heliWithin`). */
 export type HudHeli =
   | {
       kind: "flown";
       height: number;
+      altitude: number;
       climb: number;
       landed: boolean;
       /** The collective lever, 0..1, and the disc's attitude as the
@@ -312,6 +315,12 @@ export type HudHeli =
 /** How near the waiting helicopter the HUD points him at it, m. */
 const HELI_CALL = 120;
 
+/** The snow on the helicopter's pad, m — what its altitude is read over. */
+function padHeight(state: GameState): number {
+  const pad = helipadOf(state.level);
+  return state.level.groundAt(pad.x, pad.z);
+}
+
 /** The helicopter's readout for the player at this step. */
 export function heliOf(state: GameState): HudHeli | null {
   const h = state.heli;
@@ -320,6 +329,7 @@ export function heliOf(state: GameState): HudHeli | null {
     return {
       kind: "flown",
       height: Math.max(0, h.y - state.level.groundAt(h.x, h.z)),
+      altitude: h.y - padHeight(state),
       climb: h.vy,
       landed: h.grounded,
       collective: h.controls.collective,

@@ -916,12 +916,37 @@ export const TUNING = {
    * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
    * the ramps the run's nearest point `drop` m or more under the top
    * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
-   * other. Stood off it, the skis are his: nothing leads him off a top. */
+   * other. Stood off it, the skis are his: nothing leads him off a top.
+   * A cabin's rider sits `cabinBack` m behind its grip, on the bench along
+   * its back wall; a T-bar's stands `tee` m right of the bar's stem, on
+   * its right arm. BOARDING (`board`): taken by a lift's load zone or its
+   * boarding ring he SKATES to the carrier — up the queue's lane, `past`
+   * m right of the queue — at `pace` m/s and at `drive` of his push,
+   * checked down to it at `brake` m/s² from however fast he came in and
+   * coming to the load line at `end` m/s, slowing at `stop` m/s²; he
+   * looks `ahead` m along the way and turns to it at `turn` rad/s at the
+   * most. Carried, the machine press lets go of the lift wherever he is —
+   * out of a gondola's door `jumpOut` m clear of its cabin — and the tuck
+   * held `skip.hold` s skips him up it behind a fade of `skip.fade` s. */
   lift: {
+    cabinBack: 0.65,
+    jumpOut: 1.3,
+    skip: { hold: 3, fade: 0.5 },
+    tee: 0.3,
+    board: {
+      pace: 3,
+      drive: 0.75,
+      brake: 2.5,
+      stop: 1.2,
+      end: 0.6,
+      ahead: 1.6,
+      turn: 3,
+      past: 0.8,
+    },
     decel: 0.8,
     accel: 1.2,
     seat: 1.85,
-    cabin: 3.6,
+    cabin: 3.2,
     chairHang: 2.4,
     cabinHang: 4.0,
     sit: 1.0,

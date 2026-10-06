@@ -367,7 +367,7 @@ export function soundForEvent(
     // towers are heard inside it as a chair's are; a drag's is a pull on
     // the snow, and the handing back of the controls says nothing.
     case "lift":
-      if (event.phase === "board") return event.lift === "drag" ? null : { id: "lift_board" };
+      if (event.phase === "take") return event.lift === "drag" ? null : { id: "lift_board" };
       if (event.phase === "tower") return event.lift === "drag" ? null : { id: "lift_tower" };
       if (event.phase === "off") return { id: "lift_off" };
       return null;

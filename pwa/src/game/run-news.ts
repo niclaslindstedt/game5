@@ -148,8 +148,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // the run carrying on.
       return e.phase === "in" ? { text: STRINGS.newsTunnel, tone: "info" } : null;
     case "lift":
-      // Taken onto a lift: which kind, and that the top is where it goes.
-      return e.phase === "board" ? { text: STRINGS.newsLift(e.lift), tone: "info" } : null;
+      // Taken onto a lift: which kind, and that the top is where it goes —
+      // and, carried, how to skip the ride or leave it.
+      if (e.phase === "board") return { text: STRINGS.newsLift(e.lift), tone: "info" };
+      return e.phase === "take" ? { text: STRINGS.newsLiftTaken, tone: "info" } : null;
     case "heli":
       // The helicopter: sat on, pushed off (from how high over the snow),
       // flown into the mountain, and the ride begun again on the pad.

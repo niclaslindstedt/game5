@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
@@ -30,6 +31,7 @@ import type { ContestState } from "./contest-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
+export type { LiftRide, TunnelRide } from "./ride-state.ts";
 export type { ButterRecord, PressEnd, PressState } from "./butter-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
@@ -596,45 +598,6 @@ export type Rival = {
   lane: number;
 };
 
-/** A skier carried along a WIND TUNNEL (`wind-tunnel.ts`): which (its
- * place among the resort's tunnels, and its id), where along it he is —
- * the arc, m; how far right of its line, m; the way it blows there, rad —
- * and the station his line was last read from. */
-export type TunnelRide = {
-  index: number;
-  id: string;
-  s: number;
-  lateral: number;
-  heading: number;
-  seg: number;
-};
-
-/** A skier on a LIFT (`lift-ride.ts`). `board`: being taken from where he
- * rode into its load zone (`from`) to where it carries him off; `ride`:
- * carried, his grip `u` m of plan up the line at `speed` m/s, his chair or
- * cabin swung `swing` rad about the rope (its foot toward the top
- * positive) at `swingRate` rad/s — and stood off at the top, he is the
- * lift's no more. `t` is seconds in the phase; `tower` the next of its
- * supports he has still to pass over. */
-export type LiftRide = {
-  index: number;
-  id: string;
-  kind: "gondola" | "chair" | "drag";
-  phase: "board" | "ride";
-  u: number;
-  speed: number;
-  swing: number;
-  swingRate: number;
-  t: number;
-  tower: number;
-  /** Where he came into the zone from (`board`), or where the carrier
-   * took him from the snow (`ride`; `y` NaN for a ride not boarded). */
-  from: { x: number; y: number; z: number; heading: number };
-  /** Taken from the BOARDING RING (`boardingRing`): the length of the way
-   * up the queue's lane to the carrier, m — he is glided along it. */
-  walk?: number;
-};
-
 export type GameEvent =
   /** ONE LIGHT: `left` whole seconds still to run (3, 2, 1). */
   | { kind: "count"; t: number; left: number }
@@ -729,14 +692,15 @@ export type GameEvent =
       phase: "on" | "off";
       whole: boolean;
     }
-  /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone, his
-   * carrier run over a tower's sheaves, or stood off it at the top. */
+  /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
+   * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
+   * his carrier run over a tower's sheaves, or stood off it at the top. */
   | {
       kind: "lift";
       t: number;
       id: string;
       lift: "gondola" | "chair" | "drag";
-      phase: "board" | "tower" | "off";
+      phase: "board" | "take" | "tower" | "off";
     }
   /** THE HELICOPTER (`heli.ts`): the skier taken onto its skid, lifted off,
    * set down, dropped off it, the pilot home on the pad, the machine
@@ -838,6 +802,10 @@ export type Amateur = {
   tx: number;
   tz: number;
   ts: number;
+  /** SHOULDERED ASIDE in a queue by the player skating past it
+   * (`brushQueue`): his offset off his place, m, the stagger 0..1 and its
+   * side (−1 left, 1 right). Absent while nobody has touched him. */
+  shove?: { x: number; z: number; stagger: number; side: number };
   /** HIS TURNS, for the picture's pole plants: the side of the one he is
    * in (−1, 1, 0 none yet), s in it, and s the one before it held. */
   turnSide: number;

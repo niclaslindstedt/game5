@@ -128,7 +128,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     house: { length: 16, width: 6, height: 8 },
     speed: 6,
     slow: 0.4,
-    entry: { at: -17.5, along: 4, side: 0, across: 6, fastest: 6, turned: 1.4, board: 2 },
+    entry: { at: -17.5, along: 4, side: 0, across: 1.3, fastest: 6, turned: 1.4, board: 2 },
     off: 0,
   },
   chair: {
@@ -552,7 +552,7 @@ export function carrierAt(
 }
 
 /** How far into its stations a gondola's cabin goes out of sight, m. */
-const GONDOLA_IN_STATION = 7;
+export const GONDOLA_IN_STATION = 7;
 
 /** How far apart a queue stands, m, and how far past the corral's mouth
  * the lane runs on for a long one, m. */

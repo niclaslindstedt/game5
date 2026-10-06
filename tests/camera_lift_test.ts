@@ -7,8 +7,11 @@ import { describe, expect, it } from "vitest";
 
 import type { LiftRide } from "@engine";
 import {
+  LIFT_FADE,
   LIFT_LOOK,
   createRideMemory,
+  liftCut,
+  liftFade,
   rideTarget,
   stepRideLook,
 } from "../pwa/src/game/camera-lift.ts";
@@ -30,9 +33,10 @@ function ride(phase: LiftRide["phase"], t = 0, kind: LiftRide["kind"] = "chair")
 }
 
 describe("the lift's look", () => {
-  it("is whole while he boards and rides, and nothing once he is let go", () => {
+  it("is whole while he rides, and nothing while he skates up or once he is let go", () => {
     expect(rideTarget(null)).toBe(0);
-    expect(rideTarget(ride("board"))).toBe(1);
+    expect(rideTarget(ride("board"))).toBe(0);
+    expect(rideTarget(ride("wait", 0, "drag"))).toBe(0);
     expect(rideTarget(ride("ride"))).toBe(1);
   });
 
@@ -59,5 +63,36 @@ describe("the lift's look", () => {
     let left: unknown = after;
     for (let i = 0; i < 60 * 30 && left; i++) left = stepRideLook(free, null, 1 / 60);
     expect(left).toBeNull();
+  });
+});
+
+describe("the fade through a station", () => {
+  const board = (togo: number, kind: LiftRide["kind"] = "gondola"): LiftRide => ({
+    ...ride("board", 0, kind),
+    walk: 20,
+    s: 20 - togo,
+  });
+  const faded = (t: number): LiftRide => ({ ...ride("ride", t, "gondola"), faded: true });
+
+  it("goes black at the door and comes back in on him sat in his cabin", () => {
+    expect(liftFade(board(10))).toBe(0);
+    expect(liftFade(board(LIFT_FADE.out / 2))).toBeGreaterThan(0.2);
+    expect(liftFade(board(0))).toBe(1);
+    expect(liftFade(faded(0))).toBe(1);
+    expect(liftCut(faded(0))).toBe(true);
+    expect(liftFade(faded(LIFT_FADE.hold + LIFT_FADE.in / 2))).toBeCloseTo(0.5, 5);
+    expect(liftCut(faded(LIFT_FADE.hold + 0.1))).toBe(false);
+    expect(liftFade(faded(LIFT_FADE.hold + LIFT_FADE.in))).toBe(0);
+  });
+
+  it("never fades a T-bar's rider, nor a ride begun on the lift", () => {
+    expect(liftFade(board(0, "drag"))).toBe(0);
+    expect(liftFade(ride("ride", 0, "gondola"))).toBe(0);
+    expect(liftCut(ride("ride", 0, "chair"))).toBe(false);
+  });
+
+  it("cuts the lens to the lift's look while it is black", () => {
+    const mem = createRideMemory();
+    expect(stepRideLook(mem, faded(0.1), 1 / 60)!.share).toBe(1);
   });
 });

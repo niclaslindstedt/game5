@@ -132,6 +132,7 @@ export {
   type ResortAnalysis,
   type RunAccess,
 } from "../analysis/resort.ts";
+export { chainedLifts, queueFault } from "../analysis/lift-queue.ts";
 export { offRamp, rampFrame, rampHeight, rampLip } from "./summit-ramps.ts";
 export { setSkiCross, skiCrossCourseOf } from "./ski-cross.ts";
 export {

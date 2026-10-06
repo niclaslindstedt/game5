@@ -105,6 +105,13 @@ export type GeneratorTraits = {
    * run's own snow falling all the way and evenly, a chair's unload falls
    * ahead of the rider and the cut starts behind his tails. */
   looseTops?: boolean;
+  /** THE PEAK'S CHAIR BESIDE THE MID-STATION (v4–v6): its bottom station
+   * stands 45 m across the face and 20 m down from the gondola's top, slid
+   * across its line off any run — its queue as often beside or behind a
+   * rider out of the gondola as ahead of him, or straight in his way. From
+   * v7 its queue lies ahead of him and to one side, on snow that falls to
+   * it, groomed and kept clear (R26, `lift.chain`). */
+  queueBeside?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -138,6 +145,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "across the face through its top, at whatever height that is.",
     levelPads: true,
     startsAcrossTop: true,
+    queueBeside: true,
   },
   {
     version: 5,
@@ -150,6 +158,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "run off a top UNDER it where a ramp has room and lays that ramp onto the run's own " +
       "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
     looseTops: true,
+    queueBeside: true,
   },
   {
     version: 6,
@@ -162,7 +171,19 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
       "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
       "pad slides down to his run and never climbs; a chair's unload ramp falls ahead of " +
-      "the rider, and a drag's top has ramps off where it lets go, where they fit.",
+      "the rider, and a drag's top has ramps off where it lets go, where they fit. v7 lays " +
+      "the peak's chair's queue ahead of a rider out of the gondola; this row keeps the maps " +
+      "pinned on it with that chair beside the mid-station.",
+    queueBeside: true,
+  },
+  {
+    version: 7,
+    note:
+      "The next lift ahead: where the gondola tops out beside the peak's chair, that " +
+      "chair's queue lies AHEAD of a rider out of the gondola and to his right — 20–86° off " +
+      "the way he faces, 20–60 m from him — on a way cut into the snow that falls to it all " +
+      "the way, groomed and kept clear of every run and tree, so he turns onto it and never " +
+      "back (R26).",
   },
 ];
 

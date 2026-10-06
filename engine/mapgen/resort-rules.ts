@@ -101,6 +101,18 @@
 //       corral before it) on no run's surface, on ground level enough to
 //       build on, and a drag lift's line crosses no piste. No tree stands
 //       within `lift.clear` metres of a lift's line or a station.
+//       Where a lift's top stands within `access.skate` metres of the next
+//       lift's bottom (the mid-station and the peak's chair), that lift's
+//       QUEUE — the boarding ring at its corral's open end — lies AHEAD of a
+//       rider let go at the top and to one side, `lift.chain.bearing` off
+//       the way he faces and `lift.chain.reach` metres from him, the snow
+//       falling to it at `lift.chain.fall` or more over the way and never
+//       rising more than `lift.chain.rise` metres, groomed `lift.chain.half`
+//       metres either side of the way and kept clear of every run and tree,
+//       a ramp crossing it only by the deck — the way cut to fall at
+//       `lift.chain.grade` from the pad's edge, filled only to leave the pad
+//       without a step, and the station's footprint levelled into the
+//       mountain: he turns onto it, never back.
 //   R27 THE RUNS. Every run leaves a top station down the mountain,
 //       starting UNDER it by `lift.top.ramp.drop` metres and
 //       `lift.top.ramp.fall` of the way from the top's rim to it, within
@@ -359,6 +371,59 @@ export const RESORT_RULES = {
       gondola: { back: 26, ahead: 6, half: 8 },
       chair: { back: 13, ahead: 11, half: 11 },
       drag: { back: 6, ahead: 9, half: 6 },
+    },
+    /** THE NEXT LIFT'S QUEUE off a top (generator v7): where a lift's top
+     * stands a skate from another's bottom station — the gondola's
+     * mid-station and the peak's chair — the boarding ring at the open end
+     * of that station's corral lies AHEAD of a rider let go at the top and
+     * to his right, `bearing` rad off the way he faces and `reach` m from
+     * him, so he turns onto it and never back; the snow falls to it all
+     * the way — `fall` m per m over the way or more, never rising more
+     * than `rise` m over the lowest he has come to — and is groomed
+     * `half` m either side of the way, kept clear of every run and tree
+     * (a ramp off the top's deck may cross its first leg within `share`
+     * m of where he is let go, where the two stand level by the deck, and
+     * never its corral).
+     *
+     * The generator GRADES the way at the first of `aims` (a bearing, rad,
+     * and a reach, m) whose earthworks fit: its first leg only ever cut,
+     * to fall at least `grade` m per m to the ring, by no more than `dig`
+     * m; the station's footprint level at its ground's mean, held between
+     * the ring's height and `climb` m per m over it up the corral, cut by
+     * no more than `dig` m; the corral eased between the two, filled by no
+     * more than `fill` m; all of it eased into the mountain over `blend` m,
+     * or `bank` times the station's cut where that is wider (never filled
+     * under the gondola's way in). Once the ramps off the top are pressed
+     * the first leg is CUT AGAIN to its line, from the height the pad's
+     * edge stands at to the ring's — and filled up to it only for the
+     * first `lip` m off the pad and off a ramp's snow, so he leaves the pad
+     * without a step down. */
+    chain: {
+      bearing: { min: 0.35, max: 1.5 } as Band,
+      reach: { min: 20, max: 60 } as Band,
+      aims: [
+        [1.35, 50],
+        [1.25, 46],
+        [1.45, 54],
+        [1.3, 56],
+        [1.4, 44],
+        [1.2, 52],
+        [1.45, 40],
+        [1.15, 48],
+        [1.35, 58],
+        [1.1, 42],
+      ] as readonly (readonly [number, number])[],
+      fall: 0.06,
+      grade: 0.08,
+      rise: 0.3,
+      half: 5,
+      blend: 10,
+      climb: 0.15,
+      fill: 6,
+      dig: 18,
+      bank: 1.5,
+      share: 36,
+      lip: 12,
     },
     /** The nursery's top: how far down the descent (u), and how far from
      * the village toward the shoulder, m. */

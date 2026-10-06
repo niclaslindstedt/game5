@@ -77,20 +77,34 @@ function footprint(kind: LiftPlan["kind"], at: Point, dir: Point): Point[] {
 /** Whether a bottom station at `bottom` on a line to `top` stands clear of
  * the runs, on its own level ground. */
 function clearBottom(g: StationGround, kind: LiftPlan["kind"], bottom: Point, top: Point): boolean {
-  const len = hypot(top.x - bottom.x, top.z - bottom.z) || 1;
-  const dir = { x: (top.x - bottom.x) / len, z: (top.z - bottom.z) / len };
-  const pts = footprint(kind, bottom, dir);
   // Its level first — reads of the ground, where the runs are a search.
+  if (!standsLevel(g.height, kind, bottom, top)) return false;
+  return bottomFootprint(kind, bottom, top).every((p) => !g.onRun(p.x, p.z, MARGIN));
+}
+
+/** A bottom station's footprint at `bottom` on a line to `top`, as points. */
+export function bottomFootprint(kind: LiftPlan["kind"], bottom: Point, top: Point): Point[] {
+  const len = hypot(top.x - bottom.x, top.z - bottom.z) || 1;
+  return footprint(kind, bottom, { x: (top.x - bottom.x) / len, z: (top.z - bottom.z) / len });
+}
+
+/** Whether a bottom station at `bottom` on a line to `top` stands on
+ * ground level enough to build on. */
+export function standsLevel(
+  height: (x: number, z: number) => number,
+  kind: LiftPlan["kind"],
+  bottom: Point,
+  top: Point,
+): boolean {
   let lo = Infinity;
   let hi = -Infinity;
-  for (const p of pts) {
-    const y = g.height(p.x, p.z);
+  for (const p of bottomFootprint(kind, bottom, top)) {
+    const y = height(p.x, p.z);
     lo = Math.min(lo, y);
     hi = Math.max(hi, y);
   }
   const F = RR.lift.footprint[kind];
-  if (!((hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= LEVEL)) return false;
-  return pts.every((p) => !g.onRun(p.x, p.z, MARGIN));
+  return (hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= LEVEL;
 }
 
 /** Whether a drag's line crosses no piste, climbs, keeps to a drag's

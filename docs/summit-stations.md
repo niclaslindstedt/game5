@@ -104,6 +104,19 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   once the drags have settled — but only where they fit: the nursery drag is
   re-laid after its runs are walked and its top often ends up too far above
   them for a green's gentle ramp.
+- **The next lift ahead (generator v7, `lift-chain.ts`)** — where the
+  gondola tops out a skate from the peak's chair, a rider walked out of the
+  cabin must reach that chair's queue by turning once, never back and never
+  by threading a gap. So the chair's corral is laid with its boarding ring
+  AHEAD of where he is let go and to his right — 20–86° off the way he faces
+  and 20–60 m from him — the station beyond the ring, at the first of a list
+  of aims whose earthworks fit. The way to it is CUT into the snow, falling at
+  least 8 % from the pad's edge to the ring, filled only for its first 12 m
+  off the pad so he leaves the deck without a step, groomed 5 m either side
+  and kept clear of every run, lane and tree; a ramp off the deck may cross
+  it only near the deck, and the way is cut back to its line after the ramps
+  are pressed. The analyzer holds it (`analysis/lift-queue.ts`) and
+  `tests/lift_links_test.ts` rides it, gondola to chair, on seven maps.
 - **The approach under the line (from generator v5)** — a chair's bullwheel
   stands 3.8 m over the deck and the chairs come down to the unload ramp,
   so a mountain that stays level, or bulges, under the last of the line

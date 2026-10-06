@@ -414,7 +414,14 @@ export function roomBlocked(
 
 /** A ramp's room kept as a start is placed: its line from the rim to the
  * run's start. */
-export type RampRoom = { from: { x: number; z: number }; to: { x: number; z: number } };
+export type RampRoom = {
+  from: { x: number; z: number };
+  to: { x: number; z: number };
+  /** How far either side of its line its ground reaches, m: a ramp's own
+   * half-width and blend unless given (the way to the next lift's queue,
+   * R26). */
+  half?: number;
+};
 
 /** How far (x, z) stands off a ramp's room, m, past the ramp's own ground
  * (its half-width and its blend). */
@@ -425,7 +432,9 @@ export function nearRoom(r: RampRoom, x: number, z: number): number {
     0,
     Math.min(1, ((x - r.from.x) * ex + (z - r.from.z) * ez) / (ex * ex + ez * ez || 1)),
   );
-  return hypot(x - (r.from.x + ex * k), z - (r.from.z + ez * k)) - K.width / 2 - K.blend;
+  return (
+    hypot(x - (r.from.x + ex * k), z - (r.from.z + ez * k)) - (r.half ?? K.width / 2 + K.blend)
+  );
 }
 
 /** Whether `hypot(dx, dz) < r`, bit for bit: a point a whole `r` off along
@@ -491,16 +500,19 @@ export function layRamps(
     bottom: { x: number; z: number };
     top: { x: number; z: number };
   }[],
+  way: (x: number, z: number) => number = () => Infinity,
 ): Map<string, SummitRamp[]> {
-  // A station's footprint, and every run's first `head` metres (its start,
+  // A station's footprint, every run's first `head` metres (its start,
   // its windrows) — but the run a ramp comes down onto, whose head it is
-  // making for.
+  // making for — and the way to the next lift's queue (`way`: how far off
+  // its ground, R26).
   const heads = headIndex(
     runs.flatMap((r) => r.points.filter((q) => q.s <= K.head).map((q) => ({ ...q, run: r.id }))),
   );
   const station = (x: number, z: number, more = 0, own = ""): boolean =>
     lifts.some((l) => within(x - l.bottom.x, z - l.bottom.z, STATION_KEEP + more)) ||
-    heads.near(x, z, SHOULDER + more, (h) => h.run !== own);
+    heads.near(x, z, SHOULDER + more, (h) => h.run !== own) ||
+    way(x, z) < more;
   // The line is kept a couple of cells further off than the pressing is,
   // so no cell it is read over is one left unpressed.
   const margin = ground.cell * 2;
@@ -518,7 +530,11 @@ export function layRamps(
     runs,
     height,
     cover,
-    (x, z, run) => station(x, z, margin, run) || under(x, z, run) || inApproach(pads, x, z),
+    (x, z, run) =>
+      station(x, z, margin, run) ||
+      under(x, z, run) ||
+      inApproach(pads, x, z) ||
+      way(x, z) < K.width / 2 + margin,
     (x, z) => inApproach(pads, x, z, APPROACH_HEAD),
   );
   // Under a lift's line a ramp only ever cuts: never up into the rope — a

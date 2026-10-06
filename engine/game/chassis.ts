@@ -35,6 +35,7 @@ import { footprintOf } from "./footprint.ts";
 import { packedUnder, powderFloor } from "./snow.ts";
 import { hullOf } from "./suspension.ts";
 import type { SkierState } from "./state.ts";
+import { snowNormal } from "./snow-normal.ts";
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 const H = TUNING.hull;
@@ -72,14 +73,21 @@ export function chassisContacts(
   const hull = hullOf(c.spec);
   // The ground's across under the CoG, square to the skis' line, for the
   // skis' points.
-  level.normalAt(c.x, c.z, n);
+  snowNormal(level, c, n);
   const fwd = rotate(c.q, { x: 0, y: 0, z: 1 });
   const fdn = fwd.x * n.x + fwd.y * n.y + fwd.z * n.z;
   const across = cross(n, { x: fwd.x - fdn * n.x, y: fwd.y - fdn * n.y, z: fwd.z - fdn * n.z });
   const al = hypot3(across.x, across.y, across.z) || 1;
+  // ON A WALL (`Level.normalNear`, R41's pipe) the skis are BENT onto the
+  // transition — a 1.8 m ski on a 7 m radius bows 5 cm, well inside the
+  // reverse camber a loaded ski takes — and their stations are the whole
+  // of their contact: a straight ski's tips and tails would dig into every
+  // transition and drag on the vert as he leaves it.
+  const bent = level.normalNear !== undefined;
   for (let hi = 0; hi < hull.length; hi++) {
     const h = hull[hi];
     const ski = hi < SKI_POINTS;
+    if (ski && bent) continue;
     const r = rotate(c.q, ski ? { x: 0, y: h.y + drop, z: h.z } : h);
     if (ski) {
       r.x += (across.x / al) * h.x;

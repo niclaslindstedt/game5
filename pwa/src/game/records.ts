@@ -124,7 +124,8 @@ export function keepsRecords(mode: GameMode): boolean {
     mode !== "bigAir" &&
     mode !== "knuckleHuck" &&
     mode !== "slopestyle" &&
-    mode !== "railJam"
+    mode !== "railJam" &&
+    mode !== "halfpipe"
   );
 }
 

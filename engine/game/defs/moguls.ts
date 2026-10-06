@@ -62,6 +62,7 @@ export function mogulsRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "strict",
     window: MOGULS.window,

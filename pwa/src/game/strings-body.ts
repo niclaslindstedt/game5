@@ -99,6 +99,17 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   brokenAnkle: (s) => `BROKEN ${s}ANKLE`,
   crackedFoot: (s) => `CRACKED ${s}FOOT`,
   brokenFoot: (s) => `BROKEN ${s}FOOT`,
+  burntFace: () => "BURNT FACE",
+  facialBurns: () => "BURNS TO THE FACE",
+  deepFacialBurns: () => "DEEP BURNS TO THE FACE",
+  burntNeck: () => "BURNT NECK",
+  airwayBurn: () => "BURNT AIRWAY",
+  burntHand: (s) => `BURNT ${s}HAND`,
+  handBurns: (s) => `BURNS TO THE ${s}HAND`,
+  burntArm: (s) => `BURNT ${s}ARM`,
+  armBurns: (s) => `BURNS TO THE ${s}ARM`,
+  burntLeg: (s) => `BURNT ${s}LEG`,
+  legBurns: (s) => `BURNS TO THE ${s}LEG`,
 };
 
 /** How the whole body is, by its injury severity score (`body-tile.ts`). */

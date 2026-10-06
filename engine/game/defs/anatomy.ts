@@ -150,8 +150,9 @@ export type Fracture = "hairline" | "break";
  * and the spine (g), `drawer` the same landing taken in the back seat or
  * crooked (g, raised by how far), `twist` a caught edge or a twisting fall
  * (m/s of slide when the edge bit), `bend` the shin levered forward over
- * the boot (m/s of a fall over the tips). */
-export type Mechanism = "blunt" | "load" | "drawer" | "twist" | "bend";
+ * the boot (m/s of a fall over the tips), `heat` a fire's thermal dose on
+ * the skin ((kW/m²)^4/3 · s, `defs/heli-wreck.ts`). */
+export type Mechanism = "blunt" | "load" | "drawer" | "twist" | "bend" | "heat";
 
 /** WHICH SIDE OF THE TRUNK a blow came on, for the injuries that care:
  * the front, the back (the kidneys), the left (the spleen), the right (the
@@ -545,6 +546,29 @@ export const INJURIES = {
     fracture: "hairline",
   },
   brokenFoot: { part: "foot", ais: 2, mech: "blunt", at: 85, bones: ["foot"], fracture: "break" },
+  // BURNS — a burning wreck's fireball on the skin (`heat`). Bare skin
+  // takes a first-degree burn at an even chance of 105 (kW/m²)^4/3 · s, a
+  // second-degree one at 290 and a full-thickness one at about 1,000 (the
+  // process-safety literature's burn thresholds); the clothes over a part
+  // let through only a share of it, which is each dose below over that
+  // share: the face between the helmet and the goggles bare, the neck half
+  // under the collar, a glove a third, a jacket's or trousers' insulated
+  // shell a quarter. The AIS ranks a burn by the share of the body's skin
+  // it covers; a part here is a small share, so a burn on it ranks low
+  // unless it is deep or on the face and the hands, which a burns unit
+  // takes in at any size — and BREATHING IN the ball (the chest's)
+  // scorches the airway, the inhalation injury of a body engulfed in one.
+  burntFace: { part: "head", ais: 1, mech: "heat", at: 105 },
+  facialBurns: { part: "head", ais: 2, mech: "heat", at: 290 },
+  deepFacialBurns: { part: "head", ais: 3, mech: "heat", at: 1000 },
+  burntNeck: { part: "neck", ais: 1, mech: "heat", at: 210 },
+  airwayBurn: { part: "chest", ais: 3, mech: "heat", at: 900 },
+  burntHand: { part: "hand", ais: 1, mech: "heat", at: 300 },
+  handBurns: { part: "hand", ais: 2, mech: "heat", at: 830 },
+  burntArm: { part: "arm", ais: 1, mech: "heat", at: 420 },
+  armBurns: { part: "arm", ais: 2, mech: "heat", at: 1160 },
+  burntLeg: { part: "thigh", ais: 1, mech: "heat", at: 420 },
+  legBurns: { part: "thigh", ais: 2, mech: "heat", at: 1160 },
 } as const satisfies Record<string, InjuryDef>;
 
 export type InjuryKind = keyof typeof INJURIES;

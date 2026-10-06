@@ -343,6 +343,10 @@ export type BodyState = {
   fallPeak: number;
   /** How many blows have been billed — what the HUD keys the meter on. */
   blows: number;
+  /** THE FIRE'S THERMAL DOSE taken from a burning wreck's fireball,
+   * (kW/m²)^4/3 · s on bare skin — summed while it burns and judged once,
+   * as it burns out (`body.ts`). */
+  heat: number;
 };
 
 /** ONE INJURY: the part, which, its AIS rank, and the run clock it came at
@@ -353,8 +357,8 @@ export type BodyState = {
 export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number; energy?: number };
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
- * trunk, another skier. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier";
+ * trunk, another skier, a crashed helicopter's seat. */
+export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether

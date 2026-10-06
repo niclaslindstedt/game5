@@ -230,9 +230,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.skiAngle = c.skid * skidAngleAt(speed0) * clamp(c.steer * 2, -1, 1);
   // THE JUMP (`TUNING.jump`): loaded while it is held on the snow — the
   // time held, to `full` — and sprung the step it is let go, off the snow
-  // if he is still on it or left it no more than `grace` s ago (a lip is
-  // left a beat before the thumb comes off it). A load carried further
-  // into the air keeps; one let go there is spent on nothing.
+  // if he is on it or left it under `grace` s ago (a lip is left a beat
+  // before the thumb comes off). Let go later in the air, it is spent.
   let pop = 0;
   let loaded = 0;
   c.popped += dt;

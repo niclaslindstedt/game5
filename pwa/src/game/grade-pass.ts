@@ -53,14 +53,41 @@ uniform vec3 uTint;
 uniform vec3 uShade;
 uniform vec3 uGlow;
 uniform vec2 uSplit;
+uniform float uBuzz;
+uniform float uTime;
 varying vec2 vUv;
 
 const float MID_P = 0.42426407;
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
+// THE BUZZ (region-picture's setBuzz): the picture swimming — warped in slow
+// waves, seen double, its colours split toward the edges and smeared — at
+// 0 not read at all.
+vec3 split(vec2 uv, vec2 ch) {
+  return vec3(
+    texture2D(uPicture, uv + ch).r,
+    texture2D(uPicture, uv).g,
+    texture2D(uPicture, uv - ch).b
+  );
+}
+vec3 drunk(vec2 uv) {
+  float b = uBuzz;
+  vec2 c = uv - 0.5;
+  vec2 wave = vec2(sin(uv.y * 6.0 + uTime * 1.3), cos(uv.x * 4.5 + uTime * 1.05)) * 0.014 * b;
+  uv = 0.5 + c * (1.0 - 0.06 * b * (0.5 + 0.5 * sin(uTime * 0.7))) + wave;
+  vec2 ch = c * 0.022 * b;
+  vec2 twin = vec2(sin(uTime * 0.63), 0.35 * cos(uTime * 0.41)) * 0.04 * b;
+  float r = 0.0045 * b;
+  vec3 a = split(uv, ch) * 0.4
+    + (split(uv + vec2(r, 0.0), ch) + split(uv - vec2(r, 0.0), ch)
+      + split(uv + vec2(0.0, r), ch) + split(uv - vec2(0.0, r), ch)) * 0.15;
+  vec3 e = split(uv + twin, ch);
+  return mix(a, e, 0.45 * smoothstep(0.0, 0.5, b));
+}
+
 void main() {
-  vec4 picture = texture2D(uPicture, vUv);
-  gl_FragColor = vec4(max(picture.rgb, 0.0), 1.0);
+  vec3 seen = uBuzz > 0.0 ? drunk(vUv) : texture2D(uPicture, vUv).rgb;
+  gl_FragColor = vec4(max(seen, 0.0), 1.0);
   #include <tonemapping_fragment>
   vec3 c = gl_FragColor.rgb;
 
@@ -83,6 +110,13 @@ void main() {
   c *= 1.0 - shade + shade * uShade;
   c *= 1.0 - glow + glow * uGlow;
 
+  // ...and the edges of the buzz closing in, warm.
+  if (uBuzz > 0.0) {
+    float edge = smoothstep(0.3, 0.8, length((vUv - 0.5) * vec2(1.2, 1.0)));
+    c *= 1.0 - uBuzz * 0.6 * edge;
+    c = mix(c, c * vec3(1.08, 0.97, 0.86), uBuzz * 0.6);
+  }
+
   gl_FragColor = vec4(c, 1.0);
   #include <colorspace_fragment>
 }
@@ -94,6 +128,8 @@ export type GradePass = {
   /** Size it in DEVICE pixels — the drawing buffer's own size. */
   setSize(w: number, h: number): void;
   setGrade(grade: ColourGrade): void;
+  /** How drunk the picture is, 0..1, and the clock it swims by, s. */
+  setBuzz(buzz: number, t: number): void;
   /** Read the picture back, tone-map and grade it, write the canvas. */
   render(renderer: THREE.WebGLRenderer): void;
   dispose(): void;
@@ -127,6 +163,8 @@ export function createGradePass(samples: number): GradePass {
     uShade: { value: new THREE.Vector3(1, 1, 1) },
     uGlow: { value: new THREE.Vector3(1, 1, 1) },
     uSplit: { value: new THREE.Vector2(0, 0) },
+    uBuzz: { value: 0 },
+    uTime: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -163,6 +201,10 @@ export function createGradePass(samples: number): GradePass {
       cast(grade.shade, uniforms.uShade.value);
       cast(grade.glow, uniforms.uGlow.value);
       uniforms.uSplit.value.set(grade.split[0], grade.split[1]);
+    },
+    setBuzz(buzz, t) {
+      uniforms.uBuzz.value = buzz;
+      uniforms.uTime.value = t;
     },
     render(renderer) {
       renderer.render(scene, camera);

@@ -177,6 +177,18 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
       if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
       return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
+    case "afterski":
+      // The lodge: in, each beer (the first said loudest), out again.
+      if (e.phase === "in") return { text: STRINGS.newsAfterskiIn, tone: "good" };
+      if (e.phase === "out") return { text: STRINGS.newsAfterskiOut, tone: "info" };
+      return e.beers === 1
+        ? { text: STRINGS.newsFirstBeer, tone: "good" }
+        : { text: STRINGS.newsBeer(e.beers), tone: "good" };
+    case "fetch":
+      // A buzzed fall worked off on foot: up, a ski picked up, back in.
+      if (e.phase === "up") return { text: STRINGS.newsFetchUp, tone: "bad" };
+      if (e.phase === "ski") return { text: STRINGS.newsFetchSki, tone: "info" };
+      return { text: STRINGS.newsFetchIn, tone: "good" };
     case "para":
       // The paramotor: off the summit, in the air, skiing under it, the rig
       // folded by rough air, dropped or cut away, the ride begun again.

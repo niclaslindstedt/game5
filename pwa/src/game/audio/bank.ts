@@ -18,6 +18,7 @@
 // anything with a body behind it — a body thumping down, a trunk — because a
 // clean sine is a bell.
 
+import { AFTERSKI_BANK } from "./afterski-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
 import { HELI_BANK } from "./heli-bank.ts";
@@ -703,4 +704,5 @@ export const RUN_BANK: SoundBank = {
   // down, the drop, the crash and the fire's crackle — the bed's cue.
   ...HELI_BANK,
   ...SLED_BANK,
+  ...AFTERSKI_BANK,
 };

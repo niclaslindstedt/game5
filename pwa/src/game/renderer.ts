@@ -70,11 +70,10 @@ import {
   observeBody,
   sample,
   sampleBody,
-  type BodyTrack,
-  type Pose,
-  type PoseTrack,
 } from "./interp.ts";
 import { createRegionPicture } from "./region-picture.ts";
+import { createAfterskiView } from "./afterski-view.ts";
+import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
@@ -115,14 +114,7 @@ import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import {
-  bodyStampOf,
-  createPen,
-  drawnDepth,
-  stampsOf,
-  type Stamp,
-  type TrailPen,
-} from "./trail-stamp.ts";
+import { bodyStampOf, createPen, drawnDepth, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit is handed out
 // (`use-render-kit.ts`), when this build draws them. Everything else is
@@ -184,53 +176,6 @@ const CLOUD_VEIL = 0.12;
 const LENS_CROWD = 0.55;
 const LENS_TOUCH = 1.5;
 
-type Rider = {
-  model: SkisModel;
-  /** The pair the model was built off: a run on another one is a new
-   * model, even on the same map and in the same slot. */
-  spec: SkiSpec;
-  /** The outfit the skier was dressed in (`outfitKey`). */
-  kit: string;
-  track: PoseTrack;
-  pen: TrailPen;
-  drawn: Pose;
-  /** The drawn furrow's depth past the physics' own, smoothed, m. */
-  sink: number;
-  wasAirborne: boolean;
-  vy: number;
-  airTime: number;
-  /** The skier thrown (`thrownEffects`): whether he was off at the last
-   * frame, whether his body was on the snow, the seconds of slide since the
-   * last plume, and the pen his gouge is drawn with. */
-  wasThrown: boolean;
-  bodyDown: boolean;
-  plume: number;
-  bodyPen: TrailPen;
-  /** The thrown body between two steps (`interp.ts`). */
-  body: BodyTrack;
-};
-
-/** The GPU timer's slice for each named group the scene is built of
- * (`gpu-timer.ts`); anything under none of them is the scene's own. */
-const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
-  sky: "sky",
-  terrain: "terrain",
-  forest: "forest",
-  field: "field",
-  ghost: "field",
-  checkpoints: "checkpoints",
-  "snow-cloud": "cloud",
-  spray: "spray",
-  snowfall: "snowfall",
-  wildlife: "wildlife",
-  crowd: "field",
-};
-
-/** The runs a frame draws: the player's first, then the field's. */
-function runsOf(state: GameState): GameState[] {
-  return [state, ...state.rivals.map((r) => r.run)];
-}
-
 export function createWorldRenderer(
   canvas: HTMLCanvasElement,
   options: RendererOptions = {},
@@ -260,6 +205,7 @@ export function createWorldRenderer(
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame straight onto
   // the canvas, or through the region's grade; the samples go with it.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
+  const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR);
   scene.add(lens.camera);
   /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, or null
@@ -762,6 +708,7 @@ export function createWorldRenderer(
         cam.updateMatrixWorld();
         player.model.setSkierVisible(true);
       }
+      afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
       // A rival standing in the lens's own spot is left out of this frame.
       const eye = lens.camera.position;
@@ -841,7 +788,9 @@ export function createWorldRenderer(
         const autoShadow = gl.shadowMap.autoUpdate;
         if (hidden.has("shadow")) gl.shadowMap.autoUpdate = false;
         timer.push("scene");
-        picture.draw(scene, lens.camera, timer);
+        const w = gl.domElement;
+        const room = afterski.inside(state, outfit, outfitKey(outfit), w.width / w.height);
+        picture.draw(room?.scene ?? scene, room?.camera ?? lens.camera, timer);
         timer.pop();
         gl.shadowMap.autoUpdate = autoShadow;
         for (const o of hid) o.visible = true;
@@ -990,6 +939,7 @@ export function createWorldRenderer(
       overlay.dispose();
       snowfall.dispose();
       picture.dispose();
+      afterski.dispose();
       env.dispose();
       hero.dispose();
       timer.dispose();

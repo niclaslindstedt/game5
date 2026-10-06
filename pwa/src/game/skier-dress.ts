@@ -31,7 +31,13 @@ type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 
 /** What the skier is dressed in: the outfit, his skin's own tone, and
  * whether he is a GHOST (every colour washed pale). */
-export type SkierDress = { outfit: Outfit; tone?: number; ghost?: boolean };
+export type SkierDress = {
+  outfit: Outfit;
+  tone?: number;
+  ghost?: boolean;
+  /** Indoors: no helmet and no goggles (`cutHead`). */
+  bare?: boolean;
+};
 
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
@@ -88,7 +94,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
 
-  const cut = dressOutfit(dress.outfit, dress.tone);
+  const cut = dressOutfit(dress.outfit, dress.tone, dress.bare);
   const ghost = !!dress.ghost;
   const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
   const mats = [

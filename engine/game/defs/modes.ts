@@ -91,6 +91,10 @@ export type RunRules = {
    * is the player's to ride anywhere on the mountain and hop off. On a FREE
    * RIDE only. */
   sled: boolean;
+  /** WHETHER THE AFTERSKI LODGES OPEN THEIR DOORS (`afterski.ts`): skied up
+   * to and stopped at, the machine press takes him in for a beer. Left
+   * out, they are shut. */
+  afterski?: boolean;
   /** WHETHER THE PISTE MACHINES WORK THE RUNS AT NIGHT (`groomer.ts`):
    * driven into, one is the player's to drive. On a FREE RIDE only. */
   groomer: boolean;
@@ -609,6 +613,7 @@ export function freeRules(laps: number): RunRules {
     lifts: true,
     heli: true,
     sled: true,
+    afterski: true,
     groomer: true,
     start: "line",
     gates: "arcade",
@@ -616,29 +621,8 @@ export function freeRules(laps: number): RunRules {
   };
 }
 
-/** THE SNOW'S DEPTH, a RUN DIAL: how deep the loose snow lies, as a
- * multiple of the ordinary snow's — `TUNING.snow.cover` of it, which a
- * standing skier sinks `TUNING.snow.powderSink` into (`snow.ts`). One is
- * the snow every race is skied on; a free ride may ask for a dusting over a
- * crust or a metre of bottomless fresh snow (2.5, `snow.deep.full`). It is
- * read, never written, during a run and draws nothing from the stream, so a
- * run replays the same at any depth and a run that names none moves no
- * digest. */
-export const SNOW_DIAL = { min: 0.25, max: 2.5, step: 0.25 } as const;
-
-/** A depth held inside {@link SNOW_DIAL}; anything that is not a number is
- * the ordinary snow. */
-export function clampSnowDepth(depth: number | undefined): number {
-  if (depth === undefined || !Number.isFinite(depth)) return 1;
-  return Math.min(SNOW_DIAL.max, Math.max(SNOW_DIAL.min, depth));
-}
-
-/** A resilience held to 0..1 (`SkierState.resilience`); anything that is
- * not a number is the professional's. */
-export function clampResilience(r: number | undefined): number {
-  if (r === undefined || !Number.isFinite(r)) return 1;
-  return Math.min(1, Math.max(0, r));
-}
+// The run dials (the snow's depth, the resilience) are `dials.ts`'s.
+export { SNOW_DIAL, clampResilience, clampSnowDepth } from "./dials.ts";
 
 /** THE WAYS ONTO THE SNOW. A mode is a NAME for a bundle of `RunRules`
  * (`MODE_RULES`) and nothing below the app branches on it: the engine reads

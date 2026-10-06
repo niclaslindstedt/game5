@@ -402,6 +402,9 @@ export {
   type ImpactSource,
   type Thrown,
   type LoneSki,
+  type AfterskiState,
+  type Fetch,
+  type Wobble,
   type GameEvent,
   type GamePhase,
   type GameState,
@@ -527,6 +530,7 @@ export {
   crashOver,
   mayGetUp,
   noseDown,
+  throwRider,
   wipeoutCause,
   type CrashLimit,
 } from "./game/crash.ts";
@@ -807,3 +811,22 @@ export {
 // The bot skier and the headless simulator.
 export { botInput, RIDER_BOT, type BotProfile } from "./sim/bot.ts";
 export { simulateRun, SIM_SECONDS, type RunReport, type SimOptions } from "./sim/simulate.ts";
+export {
+  afterskiNear,
+  afterskiWithin,
+  doorOf,
+  freshAfterski,
+  insideOf,
+  lodgesOf,
+  stepAfterski,
+} from "./game/afterski.ts";
+export {
+  buzzLimit,
+  buzzOf,
+  drunkInput,
+  fetchesSkis,
+  getUp,
+  soberUp,
+  stepFetch,
+} from "./game/buzz.ts";
+export { AFTERSKI, BUZZ } from "./game/defs/afterski.ts";

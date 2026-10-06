@@ -37,7 +37,11 @@ const outDir = join(root, "previews");
 const args = parseArgs(
   process.argv.slice(2),
   {
-    kinds: { kind: "string", default: "", help: "only these kinds (hut, cabin, chalet, shed)" },
+    kinds: {
+      kind: "string",
+      default: "",
+      help: "only these kinds (hut, cabin, chalet, shed, afterski)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },

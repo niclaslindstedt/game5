@@ -203,13 +203,13 @@ describe("cabins", () => {
     }
   });
 
-  it("are terraced: never more than a metre of stone showing, the back dug in", () => {
+  it("are terraced: never more stone showing than the kind's plinth, the back dug in", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       for (const c of cabinsOf(level)) {
         expect(c.base).toBeLessThanOrEqual(c.y);
         const P = CABIN_LAYOUT.plinth;
-        expect(c.y - c.base).toBeLessThanOrEqual(P.most + 1e-6);
+        expect(c.y - c.base).toBeLessThanOrEqual((CABINS[c.kind].plinth ?? P.most) + 1e-6);
         expect(c.y - c.base).toBeGreaterThanOrEqual(P.least - 1e-6);
         for (const [x, z] of footprint(c)) {
           const g = level.groundAt(x, z);

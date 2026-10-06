@@ -57,6 +57,7 @@ import {
   type Roof,
   type Wall,
 } from "./cabin-parts.ts";
+import { DECK, TERRACE, lodgePlan } from "./lodge-shapes.ts";
 import type { Shape, V3 } from "./tree-mesh.ts";
 
 /** The two cuts: every log, or the silhouette. */
@@ -67,7 +68,7 @@ export type CabinLod = 0 | 1;
 const PLINTH = 1.5;
 
 /** A window or a door on a wall, by the wall's name. */
-type Hole = {
+export type Hole = {
   wall: "front" | "back" | "left" | "right";
   u: number;
   w: number;
@@ -78,7 +79,7 @@ type Hole = {
 
 /** One kind as built: its roof, the log radius and where the logs run,
  * its openings, and its extras. */
-type Plan = {
+export type Plan = {
   roof: Roof;
   /** Which way the ridge runs: along z (the gable to the front) or x. */
   ridge: "z" | "x";
@@ -118,6 +119,7 @@ function planOf(kind: CabinKind): Plan {
   const d = CABINS[kind];
   const W = d.width;
   const D = d.depth;
+  if (kind === "afterski") return lodgePlan(roofOf);
   if (kind === "hut") {
     const roof = roofOf(
       "z",
@@ -532,13 +534,24 @@ function logWalls(s: Shape, kind: CabinKind, plan: Plan): void {
   }
 }
 
+/** How far a kind's deck runs out past its front wall, m: a porch's, a
+ * lodge's terrace, or none. */
+export function porchOf(kind: CabinKind): number {
+  const d = CABINS[kind];
+  if (kind === "afterski") return TERRACE;
+  return kind === "hut" ? d.reach.front - 0.1 : kind === "cabin" ? d.reach.front - 0.05 : 0;
+}
+
 /** THE PLINTH: dressed stone round the footprint (and under a porch's
  * deck), carried down past any terrace. */
 function plinth(s: Shape, kind: CabinKind, lod: CabinLod): void {
   const d = CABINS[kind];
-  const W = d.width + 0.12;
-  const front = kind === "hut" ? d.reach.front - 0.1 : kind === "cabin" ? d.reach.front - 0.05 : 0;
+  const W = d.width + 0.12 + (kind === "afterski" ? 1.2 : 0);
+  const front = porchOf(kind);
   const D = d.depth + 0.12 + front;
+  // A lodge's site may fall further under its terrace: its stone runs down
+  // the deeper.
+  const deep = kind === "afterski" ? PLINTH + 2 : PLINTH;
   const cz = front / 2;
   const walls: Wall[] = [
     { x: 0, z: cz + D / 2, ux: 1, uz: 0, nx: 0, nz: 1 },
@@ -548,7 +561,7 @@ function plinth(s: Shape, kind: CabinKind, lod: CabinLod): void {
   ];
   walls.forEach((w, i) => {
     const half = i < 2 ? W / 2 : D / 2;
-    const top = front > 0 ? -0.22 : 0;
+    const top = front > 0 ? (kind === "afterski" ? DECK.top - DECK.thick : -0.22) : 0;
     if (lod === 0) stoneFace(s, w, -half, half, -1.3, top, 0, 0.34, 0.6, i + 7);
     else
       s.quad(
@@ -560,8 +573,8 @@ function plinth(s: Shape, kind: CabinKind, lod: CabinLod): void {
         [w.nx, 0, w.nz],
       );
     s.quad(
-      on(w, -half, -PLINTH, 0),
-      on(w, half, -PLINTH, 0),
+      on(w, -half, -deep, 0),
+      on(w, half, -deep, 0),
       on(w, half, -1.3, 0),
       on(w, -half, -1.3, 0),
       P.stone[3],

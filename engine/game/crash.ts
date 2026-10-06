@@ -77,6 +77,7 @@ import type { TrackHit } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { GRIMBEAR } from "./defs/grimbear.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { buzzLimit } from "./buzz.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
@@ -111,7 +112,8 @@ export type CrashLimit = keyof typeof TUNING.crash.club;
 export function crashLimit(c: SkierState, key: CrashLimit): number {
   const pro = K[key];
   const steady = c.poles ? c.resilience : c.resilience * TUNING.poles.bare.balance;
-  return pro - (pro - K.club[key]) * (1 - steady);
+  // ...and the afterski's beer in him (`buzz.ts`) lowers it further.
+  return buzzLimit(c, key, pro - (pro - K.club[key]) * (1 - steady));
 }
 
 /** How far down the tips may come into a landing before they dig, rad:

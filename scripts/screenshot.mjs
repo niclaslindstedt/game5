@@ -42,6 +42,9 @@
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
+//   ?afterski=1      a free ride begun inside the valley's afterski lodge
+//                    (--surface afterski).
+//   ?buzz=<0..1>     a free ride begun with a buzz (--surface buzzed).
 //   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
 //   ?splash=1 / ?menu=root   the attract card / the front door;
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
@@ -310,6 +313,20 @@ const SURFACES = {
   sled: {
     params: { start: "free", sled: "1", t: "20", shot: "1" },
     wait: ".hud-sled",
+    settle: 1500,
+  },
+  // THE AFTERSKI (`afterski.ts`, `?afterski=1`): inside the valley's lodge
+  // with the party under way, two beers down; and a BUZZED
+  // run (`?buzz=`), down the mountain through his own eyes on the pre-roll's
+  // hands.
+  afterski: {
+    params: { start: "free", afterski: "1", t: "21", shot: "1" },
+    wait: ".hud-afterski-room",
+    settle: 1500,
+  },
+  buzzed: {
+    params: { start: "free", buzz: "0.4", camera: "helmet", t: "11", shot: "1" },
+    wait: ".hud-buzz",
     settle: 1500,
   },
   // THE FREE RIDE'S PARAMOTOR (`para.ts`, `?para=1`): on the summit with

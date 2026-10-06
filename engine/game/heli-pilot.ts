@@ -30,7 +30,15 @@ const P = HELI.pilot;
 
 /** WHERE THE BOT FLIES: to (x, z), `height` m over the snow — and, with
  * `land`, down onto the snow there. */
-export type HeliAim = { x: number; z: number; height: number; land?: boolean };
+export type HeliAim = {
+  x: number;
+  z: number;
+  height: number;
+  land?: boolean;
+  /** The heading to set down on, rad — the nose turned to it over the last
+   * stretch of a landing; with none, the way it is going. */
+  face?: number;
+};
 
 const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
@@ -98,7 +106,12 @@ export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
   // THE PEDALS: the nose the way it is going (or held, at the hover),
   // the torque and the weathervane paid for.
   const going = hypot(h.vx, h.vz) > 6 ? Math.atan2(h.vx, h.vz) : h.heading;
-  const yawTo = d > 15 && !aim.land ? Math.atan2(dx, dz) : going;
+  const yawTo =
+    d > 15 && !aim.land
+      ? Math.atan2(dx, dz)
+      : aim.land && aim.face !== undefined && d < 40
+        ? aim.face
+        : going;
   const rWant = clamp(angleDiff(h.heading, yawTo) * 1.2, -0.6, 0.6);
   const hover = m * g;
   const torque = F.torque * (h.thrust / hover - 1);

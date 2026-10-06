@@ -54,6 +54,7 @@ import { glow } from "./glow-sprite.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createJibs } from "./jibs-view.ts";
+import { createPipe } from "./pipe-view.ts";
 import {
   archBlower,
   archSkirt,
@@ -690,6 +691,10 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const jibs = createJibs(level, std);
   if (jibs) group.add(jibs.group);
 
+  // A HALFPIPE'S WALLS, drawn off the engine's own section (`pipe-view.ts`).
+  const pipe = createPipe(level, std);
+  if (pipe) group.add(pipe.group);
+
   const breathing = new THREE.Color();
   let lit = -1;
   let bulged = false;
@@ -788,6 +793,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       crossFlags?.dispose();
       crossGate?.dispose();
       jibs?.dispose();
+      pipe?.dispose();
       for (const t of texs) t.dispose();
     },
   };

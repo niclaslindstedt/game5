@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   DISCIPLINES,
   BIG_AIR,
+  HALFPIPE,
   DOWNHILL,
   FREESTYLE,
   GAME_MODES,
@@ -38,6 +39,9 @@ const CLASS = {
   slopestyle: "Big air",
   // The rail jam's jib skiers ride the park's soft twin-tip too.
   railJam: "Park",
+  // The halfpipe rides the stiff competition twin-tip too: a pipe ski is
+  // firm and about 85–90 mm underfoot.
+  halfpipe: "Big air",
 } as const;
 
 describe("a race's own pair", () => {
@@ -61,6 +65,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("bigAir")).toBe(BIG_AIR.skis);
     expect(raceSkisOf("slopestyle")).toBe(SLOPESTYLE.skis);
     expect(raceSkisOf("railJam")).toBe(RAIL_JAM.skis);
+    expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
   });
 
   it("is none for a mode that is no race and no freestyle format", () => {

@@ -13,6 +13,12 @@
 // neither. An amateur on a lift (`crowd-lift.ts`) is drawn where it has
 // him — in its queue, sat on his chair, stood behind his T-bar — save in a
 // cabin, on the chair the player rides, or up a lift on a map with none.
+//
+// AN AMATEUR DOWN (`Amateur.thrown`) is no blend of targets: his figure is
+// hung on the engine's ragdoll as it tumbles and lies, and lifted off it as
+// he gets up (`crowd-fall.ts`) — the same mesh at the same cut, its
+// positions written afresh each frame into a mesh of its own, kept in a
+// small pool. A fall is rare, so a few such meshes at a time cost nothing.
 
 import * as THREE from "three";
 import {
@@ -27,14 +33,28 @@ import {
 } from "@engine";
 
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
+import { fallenPose, standFrame } from "./crowd-fall.ts";
 import { CROWD_LOOKS, CROWD_POSES, dialsOf, seatHeight } from "./crowd-rig.ts";
-import { CROWD_LODS, buildCrowdFigure, crowdMaterial, type CrowdLod } from "./crowd-shapes.ts";
+import {
+  CROWD_LODS,
+  buildCrowdFigure,
+  crowdMaterial,
+  poseCrowdFigure,
+  type CrowdLod,
+} from "./crowd-shapes.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 
 /** Where the cuts hand over, m from the lens, and the furthest one is
  * drawn: past it a person is under a pixel. */
 export const CROWD_CUTS = { near: 40, mid: 140, far: 700 };
+
+/** A mesh an amateur down is drawn with: one instance, no morphs. */
+type Fallen = {
+  mesh: THREE.InstancedMesh;
+  dress: THREE.InstancedBufferAttribute;
+  dress2: THREE.InstancedBufferAttribute;
+};
 
 type Slot = {
   mesh: THREE.InstancedMesh;
@@ -62,12 +82,48 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   let outfits: Outfit[] = [];
   let dealtFor: unknown = null;
 
+  /** The pool of meshes an amateur down is drawn with, by body and cut,
+   * and how many of each this frame takes. */
+  const fallen = new Map<string, { meshes: Fallen[]; n: number }>();
+
   const clear = (): void => {
     for (const slot of slots.values()) {
       group.remove(slot.mesh);
       slot.mesh.dispose();
     }
     slots.clear();
+    for (const pool of fallen.values()) {
+      for (const f of pool.meshes) {
+        group.remove(f.mesh);
+        f.mesh.geometry.dispose();
+        f.mesh.dispose();
+      }
+    }
+    fallen.clear();
+  };
+  /** A mesh off the pool for `body` at `lod`, built the first time. */
+  const fallenMesh = (body: CrowdBody, lod: CrowdLod): Fallen => {
+    const key = `${body}:${lod}`;
+    let pool = fallen.get(key);
+    if (!pool) fallen.set(key, (pool = { meshes: [], n: 0 }));
+    if (pool.n < pool.meshes.length) return pool.meshes[pool.n++];
+    const geometry = buildCrowdFigure(body, lod).clone();
+    geometry.morphAttributes = {};
+    const dress = new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
+    const dress2 = new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
+    geometry.setAttribute("aDress", dress);
+    geometry.setAttribute("aDress2", dress2);
+    const mesh = new THREE.InstancedMesh(geometry, material, 1);
+    mesh.castShadow = lod !== "far";
+    if (mesh.castShadow) mesh.customDepthMaterial = shadeDepth(haze);
+    mesh.receiveShadow = lod === "near";
+    mesh.frustumCulled = false;
+    mesh.name = `crowd-down-${key}`;
+    group.add(mesh);
+    const f = { mesh, dress, dress2 };
+    pool.meshes.push(f);
+    pool.n++;
+    return f;
   };
   /** A mesh a body and cut, each as big as that body's share of the crowd. */
   const build = (counts: Record<CrowdBody, number>): void => {
@@ -121,6 +177,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     const crowd = state.crowd;
     if (!crowd) {
       for (const slot of slots.values()) slot.mesh.visible = false;
+      for (const pool of fallen.values()) for (const f of pool.meshes) f.mesh.visible = false;
       return;
     }
     if (dealtFor !== crowd) {
@@ -139,6 +196,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       outfits = crowd.amateurs.map((a) => outfitOf(a, crowd.groups[a.group], level.seed));
     }
     for (const slot of slots.values()) slot.n = 0;
+    for (const pool of fallen.values()) pool.n = 0;
     const reach2 = CROWD_CUTS.far * CROWD_CUTS.far;
     const plans = liftPlans(level);
     const mine = state.skier.lift;
@@ -159,9 +217,6 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       if (d2 > reach2) continue;
       const far = Math.sqrt(d2 + (a.y - eye.y) ** 2);
       const lod: CrowdLod = far < CROWD_CUTS.near ? "near" : far < CROWD_CUTS.mid ? "mid" : "far";
-      const slot = slots.get(`${a.body}:${lod}`);
-      if (!slot || slot.n >= (capacityOf?.[a.body] ?? 0)) continue;
-      const i = slot.n;
       // Stood on the snow's own slope, facing his heading — or, sat on a
       // chair, upright on its seat.
       if (seat > 0) normal.x = normal.z = 0;
@@ -171,6 +226,24 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       fwd.set(Math.sin(a.heading), 0, Math.cos(a.heading));
       right.crossVectors(up, fwd).normalize();
       fwd.crossVectors(right, up).normalize();
+      if (a.thrown) {
+        // DOWN: hung on his ragdoll, or getting up off it.
+        const pose = fallenPose(a, standFrame(a, normal), [a.x, a.y, a.z]);
+        if (!pose) continue;
+        const f = fallenMesh(a.body, lod);
+        poseCrowdFigure(a.body, lod, pose, f.mesh.geometry);
+        f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
+        f.mesh.instanceMatrix.needsUpdate = true;
+        const o = outfits[a.id];
+        f.dress.setXYZW(0, o[0], o[1], o[2], o[3]);
+        f.dress2.setXYZW(0, o[4], o[5], o[6], 0);
+        f.dress.needsUpdate = true;
+        f.dress2.needsUpdate = true;
+        continue;
+      }
+      const slot = slots.get(`${a.body}:${lod}`);
+      if (!slot || slot.n >= (capacityOf?.[a.body] ?? 0)) continue;
+      const i = slot.n;
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
       const mirror = dialsOf(a, dials, state.t, seat);
@@ -186,6 +259,9 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       slot.dress.setXYZW(i, o[0], o[1], o[2], o[3]);
       slot.dress2.setXYZW(i, o[4], o[5], o[6], 0);
       slot.n++;
+    }
+    for (const pool of fallen.values()) {
+      pool.meshes.forEach((f, k) => (f.mesh.visible = k < pool.n));
     }
     for (const slot of slots.values()) {
       slot.mesh.count = slot.n;

@@ -22,6 +22,8 @@
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
 //   ?start=railjam  ...or into a RAIL JAM on its set.
+//   ?start=halfpipe ...or into a HALFPIPE contest's first run (`run=2`
+//                   the next run, off the first skied by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -58,7 +60,8 @@
 //                   its course built over the seed's map;
 //                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
 //                   over it; ?mode=railjam, a RAIL JAM, its set built over
-//                   it.
+//                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
+//                   pipe cut into the seed's map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -110,6 +113,9 @@
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
 //                   bottom (`sled.ts`), over the start card's RUN row.
+//   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
+//                   with 0, one he never shows on — over the odds the app
+//                   deals him by (`GRIMBEAR_ODDS`).
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -239,6 +245,9 @@ export type UrlParams = {
   heli: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
+  /** A free ride the grimbear hunts (true) or never shows on (false), over
+   * the odds; null when the link names neither. */
+  grimbear: boolean | null;
 };
 
 /** The sky a link names, if any. */
@@ -303,6 +312,7 @@ export function readParams(search: string): UrlParams {
       start === "knuckle" ||
       start === "slopestyle" ||
       start === "railjam" ||
+      start === "halfpipe" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -349,7 +359,9 @@ export function readParams(search: string): UrlParams {
                             ? "slopestyle"
                             : start === "railjam" || q.get("mode") === "railjam"
                               ? "railJam"
-                              : "slalom",
+                              : start === "halfpipe" || q.get("mode") === "halfpipe"
+                                ? "halfpipe"
+                                : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
@@ -364,6 +376,7 @@ export function readParams(search: string): UrlParams {
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
     heli: q.get("heli") === "1",
     sled: q.get("sled") === "1",
+    grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
   };
 }
 
@@ -388,6 +401,7 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,
+    grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
   };
 }
 

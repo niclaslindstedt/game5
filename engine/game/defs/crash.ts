@@ -152,6 +152,9 @@ export const CRASH = {
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.
     net: { pitch: 0.35, side: 0.7, up: 0.3 },
+    // Taken by the grimbear (`grimbear.ts`): knocked back off his feet
+    // and down on a side.
+    maul: { pitch: -0.5, side: 0.7, up: 0.6 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

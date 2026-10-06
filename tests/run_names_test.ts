@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearOfLifts,
   createGame,
+  liftPlans,
   nearestTrackPoint,
   raceCourseOf,
   type GameState,
@@ -214,13 +215,44 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
             Math.min(...r.points.map((p) => Math.hypot(p.x - post.x, p.z - post.z)));
           // Within the run's own reach, or the run it leaves.
           const line = parent ?? run;
-          // A sign tree stands among the runs off one top, half their spread.
+          // At the line's edge, or a sign tree's among the runs off one top.
+          const half = Math.max(...line.points.map((p) => p.width / 2));
           expect(near(line), `${seed} sign of ${b.run}`).toBeLessThan(
-            SIGN.side.max + SIGN.shared / 2 + SIGN.cluster,
+            half + SIGN.edge + SIGN.shared / 2 + SIGN.cluster,
           );
         }
       }
       expect(runs.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("the piste-head signs stand at the edge, on the lift's side", () => {
+  it("stands every sign at its run's edge, never out on the slope, a ramp's on the side it comes in from", () => {
+    for (const seed of [2, ...SEEDS]) {
+      const level = levelFor(seed);
+      let ramps = 0;
+      for (const post of signPlan(level)) {
+        if (post.boards.length !== 1) continue;
+        const run = runById(level, post.boards[0].run)!;
+        const line = run.branch ? runById(level, run.branch.run)! : run;
+        const hit = nearestTrackPoint({ track: line }, post.x, post.z);
+        const p = line.points[hit.index];
+        const name = `${seed} sign of ${run.id}`;
+        // Just past the groomed snow, inside the stakes — not on the slope.
+        expect(hit.distance, name).toBeGreaterThan(p.width / 2 - 0.5);
+        expect(hit.distance, name).toBeLessThan(Math.max(SIGN.inner, p.width / 2 + SIGN.edge) + 1);
+        const ramp = liftPlans(level)
+          .find((q) => q.lift.id === run.from)
+          ?.lift.ramps?.find((q) => q.run === run.id);
+        if (!ramp || run.branch) continue;
+        // On the side the ramp comes down from.
+        const side = (x: number, z: number) =>
+          Math.sign(-(x - p.x) * Math.cos(p.heading) + (z - p.z) * Math.sin(p.heading));
+        expect(side(post.x, post.z), name).toBe(side(ramp.from.x, ramp.from.z));
+        ramps++;
+      }
+      expect(ramps, `${seed}`).toBeGreaterThan(0);
     }
   });
 });
@@ -231,12 +263,12 @@ describe("the piste-head signs keep off a race course", () => {
     const built = buildCampaignLevel(map);
     const level = createGame({ seed: map.seed, level: built, mode: map.mode, quiet: true }).level;
     const course = raceCourseOf(level)!;
-    // The map unraced keeps it: the lane's junction sign on the piste, a
-    // couple of hundred metres down the course.
+    // The map unraced keeps it: the lane's junction sign at the piste's
+    // edge, a couple of hundred metres down the course.
     const on = signPlan(built).filter((p) => {
       const hit = nearestTrackPoint(built, p.x, p.z);
       const width = built.track.points[hit.index].width;
-      return hit.s > course.from && hit.s < course.to && hit.distance < width / 2;
+      return hit.s > course.from && hit.s < course.to && hit.distance < width / 2 + SIGN.edge + 0.5;
     });
     expect(on.length).toBeGreaterThan(0);
     // Raced, no post stands inside the nets, and the rest still stand.

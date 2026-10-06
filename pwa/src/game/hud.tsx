@@ -58,6 +58,7 @@ import { BarZone, LeverZone, type ZoneSide } from "./hud-touch.tsx";
 import { StickZone } from "./hud-heli-pad.tsx";
 import { edgeFeel, type TouchFeel } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
+import type { HudLive } from "./hud-live.ts";
 import { Minimap } from "./minimap.tsx";
 import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
@@ -97,6 +98,7 @@ export function Hud({
   flashes,
   touch,
   input,
+  live,
   feel,
   lever,
   away,
@@ -112,6 +114,8 @@ export function Hud({
   /** Draw the thumb zones. */
   touch: boolean;
   input: InputManager;
+  /** What is drawn every frame rather than off the snapshot. */
+  live: HudLive;
   /** How the thumbs read (OPTIONS ▸ CONTROLS). */
   feel: TouchFeel;
   /** Which side of the glass the lever stands on; the bar takes the other. */
@@ -143,13 +147,7 @@ export function Hud({
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
   const leverZone = flown ? (
-    <StickZone
-      touch={input.touch}
-      feel={feel}
-      side={lever}
-      role="power"
-      collective={flown.collective}
-    />
+    <StickZone touch={input.touch} feel={feel} side={lever} role="power" live={live} />
   ) : (
     <LeverZone touch={input.touch} feel={feel} side={lever} />
   );
@@ -475,7 +473,7 @@ export function Hud({
           rides it, the call to it while it waits on its pad near him — but
           the snowmobile's word wins while he rides it or stands beside it. */}
       {snap.heli && !sledFirst && snap.airTime === 0 && (
-        <HeliReadout heli={snap.heli} touch={touch} machineKey={machineKey} />
+        <HeliReadout heli={snap.heli} live={live} touch={touch} machineKey={machineKey} />
       )}
 
       {/* THE SNOWMOBILE (`hud-sled.tsx`): the tachometer while he rides it,

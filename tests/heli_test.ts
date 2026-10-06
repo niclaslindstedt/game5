@@ -9,6 +9,7 @@ import {
   HELI,
   NEUTRAL_INPUT,
   TUNING,
+  angleDiff,
   createGame,
   helipadOf,
   heliWithin,
@@ -67,6 +68,11 @@ describe("the helicopter", () => {
     const pad = helipadOf(level);
     expect(free.heli!.x).toBeCloseTo(pad.x);
     expect(free.heli!.y).toBeCloseTo(level.groundAt(pad.x, pad.z));
+    // Parked with its nose to the summit.
+    const top = level.mountain!.summit;
+    expect(
+      Math.abs(angleDiff(free.heli!.heading, Math.atan2(top.x - pad.x, top.z - pad.z))),
+    ).toBeLessThan(1e-9);
     expect(createGame({ level, mode: "slalom", rivals: 0, quiet: true }).heli).toBeUndefined();
     expect(createGame({ level, mode: "timeTrial", quiet: true }).heli).toBeUndefined();
   });
@@ -212,6 +218,8 @@ describe("the helicopter", () => {
     expect(events.some((e) => e.kind === "heli" && e.phase === "home")).toBe(true);
     const pad = helipadOf(level);
     expect(Math.hypot(s.heli!.x - pad.x, s.heli!.z - pad.z)).toBeLessThan(10);
+    // ...facing the summit again, as it was parked.
+    expect(Math.abs(angleDiff(s.heli!.heading, pad.heading))).toBeLessThan(0.35);
   });
 
   it("takes a skier on who gives the machine press beside its skid, never one who skis past", () => {

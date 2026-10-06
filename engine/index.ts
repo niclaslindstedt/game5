@@ -134,6 +134,7 @@ export {
   mogulBoard,
   mogulOrder,
   mogulPhase,
+  mogulLevelOf,
   mogulPlace,
   mogulRivalRun,
   mogulsContestAfter,
@@ -144,6 +145,41 @@ export {
   type MogulsContest,
 } from "./game/moguls-contest.ts";
 export { TURN_READ, freshTurns, stepMogulTurns, type MogulTurns } from "./game/mogul-turns.ts";
+export {
+  DUAL_ROUNDS,
+  DUAL_LADDER,
+  advance as advanceDual,
+  dealDual,
+  dualDone,
+  dualPlace,
+  dualStandings,
+  dualsOf,
+  freshDual,
+  ladder,
+  nextDuel,
+  qualificationBoard,
+  qualified as dualQualified,
+  ranked as dualRanked,
+  resultsOf as dualResultsOf,
+  type DualContest,
+  type DualEntry,
+  type DualHeat,
+  type DualResult,
+  type DualRound,
+} from "./game/dual-bracket.ts";
+export { DUAL_PANEL, voteDual, type DualRead, type DualVotes } from "./game/dual-judge.ts";
+export {
+  DUEL,
+  createDuel,
+  dualContestAfter,
+  duelCountdown,
+  duelOn,
+  judgeDuel,
+  laneIn,
+  qualifyingRun,
+  stepDuel,
+  type Duel,
+} from "./game/duel.ts";
 export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
@@ -181,6 +217,9 @@ export {
   halfpipeRules,
   MOGULS,
   mogulsRules,
+  DUAL_MOGULS,
+  dualMogulsRules,
+  duelRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,

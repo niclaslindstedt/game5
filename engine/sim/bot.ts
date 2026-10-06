@@ -58,6 +58,9 @@ import { TUNING } from "../game/defs/tuning.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
 
 export type BotProfile = {
+  /** The speed a MOGUL line is skied at, m/s (`moguls-steer.ts`'s own
+   * hold when left out) — a dual's rival's (`duel.ts`). */
+  mogulPace?: number;
   /** How far ahead along the piste the aim point stands, m, at rest, and
    * how many more metres per m/s of speed. */
   lookBase: number;
@@ -651,7 +654,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   const pipe = halfpipeInput(state, on);
   if (pipe) return pipe;
   // A MOGULS COURSE (R42): a turn a mogul, a trick an air bump.
-  const bumps = mogulsInput(state, on);
+  const bumps = mogulsInput(state, on, profile.mogulPace);
   if (bumps) return bumps;
   const cps = level.checkpoints;
   const L = level.track.length;

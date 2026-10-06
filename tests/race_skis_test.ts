@@ -45,6 +45,8 @@ const CLASS = {
   halfpipe: "Big air",
   // Moguls ride the mogul ski: short, narrow, straight, soft at the tip.
   moguls: "Moguls",
+  // Dual moguls: the same skiers on the same mogul ski.
+  dualMoguls: "Moguls",
 } as const;
 
 describe("a race's own pair", () => {
@@ -70,6 +72,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("railJam")).toBe(RAIL_JAM.skis);
     expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
     expect(raceSkisOf("moguls")).toBe(MOGULS.skis);
+    expect(raceSkisOf("dualMoguls")).toBe(MOGULS.skis);
   });
 
   it("is none for a mode that is no race and no freestyle format", () => {

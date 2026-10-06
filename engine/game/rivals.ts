@@ -41,7 +41,8 @@
 // at `RACE.bump.restitution` — a shoulder, not a solver: skiers race side
 // by side, and what matters is that they cannot pass through each other.
 
-import { botInput, RIDER_BOT } from "../sim/bot.ts";
+import { botInput, RIDER_BOT, type BotProfile } from "../sim/bot.ts";
+import { MOGUL_STEER } from "../sim/moguls-steer.ts";
 import type { Spawn } from "../mapgen/types.ts";
 import { freshProgress, laneAcross, standSkier } from "./course.ts";
 import { FULL_ASSIST, RACE } from "./defs/modes.ts";
@@ -178,6 +179,19 @@ export function rivalRun(
   return run;
 }
 
+const duelProfiles = new Map<number, BotProfile>();
+
+/** A DUAL'S RIVAL'S BOT (`duel.ts`): the rider's, skiing the mogul line at
+ * `share` of the bot's own pace. */
+function duelProfile(share: number): BotProfile {
+  let p = duelProfiles.get(share);
+  if (!p) {
+    p = { ...RIDER_BOT, mogulPace: MOGUL_STEER.pace * share };
+    duelProfiles.set(share, p);
+  }
+  return p;
+}
+
 /** The controls a rival's bot gives him this step: nothing under the
  * lights or past the flag, the skis held across in the gate until he
  * reacts to GO, then the bot's, its tuck held to his pace. */
@@ -192,7 +206,7 @@ export function rivalInput(
       ? NEUTRAL_INPUT
       : sinceGo < rival.react
         ? IN_GATE
-        : botInput(run, RIDER_BOT, lane);
+        : botInput(run, run.level.dualMoguls ? duelProfile(rival.pace) : RIDER_BOT, lane);
   run.input.steer = input.steer;
   run.input.tuck = Math.min(input.tuck, rival.pace);
   run.input.brake = input.brake;

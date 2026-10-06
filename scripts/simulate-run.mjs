@@ -82,15 +82,15 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump), knuckleHuck (R38, a whole jam to the buzzer), slopestyle (R39, a contest's first run), railJam (R40, a whole jam to the buzzer), halfpipe (R41, a contest's first run) or moguls (R42, a contest's qualification run) — its course set over each seed's map under the strict gates; the open rules when left out",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump), knuckleHuck (R38, a whole jam to the buzzer), slopestyle (R39, a contest's first run), railJam (R40, a whole jam to the buzzer), halfpipe (R41, a contest's first run), moguls (R42, a contest's qualification run) or dualMoguls (R43, its qualification run; --heat for a dual against a rival) — its course set over each seed's map under the strict gates; the open rules when left out",
     },
     heat: {
       kind: "flag",
-      help: "on --mode skiCross, ski a heat of four out of the start gate, the field skied beside the bot (R35)",
+      help: "on --mode skiCross, ski a heat of four out of the start gate, the field skied beside the bot (R35); on --mode dualMoguls, a dual against a rival skied in the other lane (R43)",
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|knuckleHuck|slopestyle|railJam|halfpipe|moguls] [--heat] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|knuckleHuck|slopestyle|railJam|halfpipe|moguls|dualMoguls] [--heat] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -113,10 +113,11 @@ if (
     "railJam",
     "halfpipe",
     "moguls",
+    "dualMoguls",
   ].includes(args.mode)
 ) {
   console.error(
-    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir, knuckleHuck, slopestyle, railJam, halfpipe, moguls)`,
+    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir, knuckleHuck, slopestyle, railJam, halfpipe, moguls, dualMoguls)`,
   );
   process.exit(2);
 }

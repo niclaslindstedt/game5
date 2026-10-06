@@ -86,6 +86,7 @@ describe("what names a row", () => {
       "railJam",
       "halfpipe",
       "moguls",
+      "dualMoguls",
     ];
     for (const mode of GAME_MODES) expect(keepsRecords(mode)).toBe(!untimed.includes(mode));
     expect(beats("free", 10, null)).toBe(false);

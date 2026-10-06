@@ -26,6 +26,9 @@
 //                   the next run, off the first skied by the bot).
 //   ?start=moguls   ...or into a MOGULS contest's qualification run
 //                   (`run=2` its next run, off the first skied by the bot).
+//   ?start=dual     ...or into a DUAL MOGULS contest's qualification run
+//                   (`run=2` its first dual, off the qualification skied
+//                   by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -64,7 +67,9 @@
 //                   over it; ?mode=railjam, a RAIL JAM, its set built over
 //                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
 //                   pipe cut into the seed's map; ?mode=moguls, a MOGULS
-//                   contest's first run, its course built over the map.
+//                   contest's first run, its course built over the map;
+//                   ?mode=dual, a DUAL MOGULS contest's qualification, its
+//                   course of two lanes built over the map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -327,6 +332,7 @@ export function readParams(search: string): UrlParams {
       start === "railjam" ||
       start === "halfpipe" ||
       start === "moguls" ||
+      start === "dual" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -377,7 +383,9 @@ export function readParams(search: string): UrlParams {
                                 ? "halfpipe"
                                 : start === "moguls" || q.get("mode") === "moguls"
                                   ? "moguls"
-                                  : "slalom",
+                                  : start === "dual" || q.get("mode") === "dual"
+                                    ? "dualMoguls"
+                                    : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

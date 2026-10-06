@@ -9,9 +9,9 @@
 // on one line) and the RAIL JAM'S SET (R40 — a short drop-in onto a deck
 // with a row of rails and boxes side by side) and the HALFPIPE (R41 — a U
 // cut down the slope) and the MOGULS COURSE (R42 — a mogul track down a
-// steep pitch with two air bumps in it) are built today; dual moguls and
-// aerials are each a rule here when they are built
-// (`docs/specs/TRICK_MODES.md`).
+// steep pitch with two air bumps in it) and the DUAL MOGULS COURSE (R43 —
+// R42's course with two lanes side by side) are built today; aerials is a
+// rule here when it is built (`docs/specs/TRICK_MODES.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
 // chapter and a championship jump as its builders describe it, by article
@@ -209,6 +209,24 @@
 //       START GATE at the platform's lip, `moguls.gates` CONTROL GATES
 //       `moguls.track` metres wide spaced evenly between it and the FINISH
 //       LINE at the course's foot, and the finish line.
+//
+//   R43 THE DUAL MOGULS COURSE. A dual moguls course is BUILT as R42's
+//       is, on a line searched the same way (`dualMoguls.search`,
+//       `dualMoguls.fit`), `dualMoguls.width` metres wide, its profile
+//       R42's to `dualMoguls.course` metres down the slope, with TWO LANES
+//       side by side, each `dualMoguls.lanes.width` metres wide, their
+//       middles `dualMoguls.lanes.apart` metres apart either side of the
+//       venue's line: the BLUE lane on the left looking up the hill, the
+//       RED on the right. Down each lane's middle runs a MOGUL LINE
+//       `dualMoguls.track` metres wide, both lines on ONE RHYTHM — their
+//       moguls every `dualMoguls.bumps.spacing` metres from the same first
+//       one — so neither lane is the faster. The two AIR BUMPS stand level
+//       across both lanes, `dualMoguls.air.runIn` metres after the last
+//       mogul above each, their landings `dualMoguls.air.landing` metres.
+//       Each lane has its own gates: a START GATE at the platform's lip,
+//       `dualMoguls.gates` CONTROL GATES as wide as the lane spaced evenly
+//       down it, and its FINISH LINE at the course's foot; the start
+//       platform carries both lanes' start gates side by side.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -747,3 +765,37 @@ export const MOGULS_RULE = {
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 15, past: 30, half: 26 },
 } as const;
+
+/** A MOGULS COURSE'S RULE, R42's or R43's: `MOGULS_RULE`'s shape with its
+ * numbers widened, so a dual course's row is one. */
+type Widen<T> = T extends number
+  ? number
+  : T extends readonly (infer U)[]
+    ? readonly Widen<U>[]
+    : T extends object
+      ? { readonly [K in keyof T]: Widen<T[K]> }
+      : T;
+export type MogulsRule = Widen<typeof MOGULS_RULE>;
+
+/** R43 — the dual moguls course (`docs/freestyle.md` § *Dual moguls*: 220
+ * ± 35 m on the top series, 20–24 m wide, two lanes of 6.5 ± 0.5 m, the two
+ * mogul lines at least 4.5 m apart; the air bumps as a moguls course's, 4–5
+ * m from the last mogul, with landings of 18 and 20 m). Everything it does
+ * not say is R42's. */
+export const DUAL_MOGULS_RULE: MogulsRule & {
+  readonly lanes: { readonly width: number; readonly apart: number };
+} = {
+  ...MOGULS_RULE,
+  /** The course down the slope, m (the top series' 220). */
+  course: 220,
+  /** Each lane's mogul line, m: the middle of a 6.5 m lane, leaving the
+   * lines 6.5 m apart (at least 4.5). */
+  track: 5,
+  /** THE LANES: each one's width, and their middles apart, m. */
+  lanes: { width: 6.5, apart: 6.5 },
+  /** The air bumps 5 m after the last mogul above each (4–5), the
+   * landing the longer of the two the rules give. */
+  air: { ...MOGULS_RULE.air, runIn: 5 },
+  /** The course graded across, m (20–24). */
+  width: 24,
+};

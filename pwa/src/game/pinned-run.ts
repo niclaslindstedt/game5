@@ -59,6 +59,7 @@ import { nextContest } from "./big-air-run.ts";
 import { nextSlopeContest } from "./slopestyle-run.ts";
 import { nextPipeContest } from "./halfpipe-run.ts";
 import { nextMogulsContest } from "./moguls-run.ts";
+import { nextDualContest } from "./dual-moguls-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export type PinnedRuns = {
@@ -69,11 +70,20 @@ export type PinnedRuns = {
    * (R37), as `knuckleHuck`, a KNUCKLE HUCK's jam on its knuckle (R38),
    * as `slopestyle`, a SLOPESTYLE contest's first run on its course
    * (R39), as `railJam`, a RAIL JAM on its set (R40), as `halfpipe`, a
-   * HALFPIPE contest's first run down its pipe (R41), or as `moguls`, a
-   * MOGULS contest's qualification run (R42). */
+   * HALFPIPE contest's first run down its pipe (R41), as `moguls`, a
+   * MOGULS contest's qualification run (R42), or as `dualMoguls`, a DUAL
+   * MOGULS contest's qualification run (R43). */
   tricks: (
     map: TrickMap,
-    mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle" | "railJam" | "halfpipe" | "moguls",
+    mode?:
+      | "tricks"
+      | "bigAir"
+      | "knuckleHuck"
+      | "slopestyle"
+      | "railJam"
+      | "halfpipe"
+      | "moguls"
+      | "dualMoguls",
   ) => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
@@ -161,6 +171,12 @@ export function createPinnedRuns(world: {
         world.rig.arm(null);
         return createGame(recipeOf(now, "slopestyle"));
       }
+      // A dual moguls run again: the same run — the same dual — of the
+      // same contest.
+      if (now.dualMoguls) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "dualMoguls"));
+      }
       // A moguls run again: the same run of the same contest.
       if (now.moguls) {
         world.rig.arm(null);
@@ -229,6 +245,21 @@ export function createPinnedRuns(world: {
           build: () => {
             world.rig.arm(null);
             return createGame({ ...recipeOf(now, "slopestyle"), slopestyle: slope });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A DUAL MOGULS contest's next dual, off the contest as this one
+      // left it.
+      const dual = nextDualContest(now);
+      if (dual) {
+        world.setMode("dualMoguls");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({ ...recipeOf(now, "dualMoguls"), dualMoguls: dual });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -335,6 +366,16 @@ export function secondRunOff(first: GameState): GameState {
     }
     const contest = nextSlopeContest(first);
     return contest ? createGame({ ...recipeOf(first, "slopestyle"), slopestyle: contest }) : first;
+  }
+  // A DUAL MOGULS contest's first dual, off the qualification skied by
+  // the bot.
+  if (first.dualMoguls) {
+    for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
+      if (first.progress.finished || first.progress.out) break;
+      step(first, botInput(first));
+    }
+    const contest = nextDualContest(first);
+    return contest ? createGame({ ...recipeOf(first, "dualMoguls"), dualMoguls: contest }) : first;
   }
   // A MOGULS contest's next run, off the first skied by the bot.
   if (first.moguls) {

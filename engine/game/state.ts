@@ -576,7 +576,7 @@ export type RunMark = { id: string; x: number; z: number };
 
 export type RunOut = {
   status: "dsq" | "dnf";
-  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";
+  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact" | "lane" | "stop";
   gate: number;
 };
 

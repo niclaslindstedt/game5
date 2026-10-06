@@ -613,7 +613,8 @@ level:
 # down the lane, for the ramp's head and down the ramp onto the run — one
 # row a run: its ramp, how far under the top it starts, how far he ever
 # climbed, whether he got there. Pure Node over the engine.
-# `make lift-tops SEED=38` · `make lift-tops COUNT=12 REGION=fell`
+# `make lift-tops SEED=38` · `make lift-tops COUNT=12 REGION=fell` ·
+# `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
 

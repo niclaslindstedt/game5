@@ -40,9 +40,9 @@ import type { Level } from "../mapgen/types.ts";
 import { inertiaOf, totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { footprintOf } from "./footprint.ts";
-import { packedUnder, powderFloor } from "./snow.ts";
+import { packedSnow, powderFloor } from "./snow.ts";
 import { hullOf } from "./suspension.ts";
-import type { SkierState } from "./state.ts";
+import type { GameState, SkierState } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -61,18 +61,17 @@ const BODY_POINTS = 6;
 
 /** Apply the hull contacts to the skier's velocities, on snow at the run's
  * depth dial (`GameState.snowDepth`, the new snow laid in — `depthUnder`)
- * with `fresh` m of new snow over the groomer, the body's points lowered
- * `drop` m by the tuck, `loose` of the groomer skied up by the day
- * (`PisteDay.loose`). Returns the fastest speed into the snow met this
+ * with the surface `snow` reads (`packedSnow`: the new snow over the
+ * groomer, the day's skied-up share, the ground the machines and the lift
+ * staff keep), the body's points lowered `drop` m by the tuck. Returns the fastest speed into the snow met this
  * step, m/s (0 with no point touching). */
 export function chassisContacts(
   c: SkierState,
   level: Level,
-  snowDepth = 1,
-  fresh = 0,
+  snowDepth: number,
+  snow: Pick<GameState, "level" | "fresh" | "groomed" | "piste">,
   drop = 0,
   snap = false,
-  loose = 0,
 ): number {
   const m = totalMass(c.spec);
   const I = inertiaOf(c.spec);
@@ -111,9 +110,7 @@ export function chassisContacts(
     const px = c.x + r.x;
     const py = c.y + r.y;
     const pz = c.z + r.z;
-    const floor =
-      level.groundAt(px, pz) -
-      powderFloor(packedUnder(level.packedAt(px, pz), fresh, loose), sink, snowDepth);
+    const floor = level.groundAt(px, pz) - powderFloor(packedSnow(snow, px, pz), sink, snowDepth);
     const pen = floor - py;
     if (pen <= 0) continue;
     touched = true;

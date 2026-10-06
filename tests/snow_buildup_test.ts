@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import {
   CLEAR_WEATHER,
   NEUTRAL_INPUT,
+  angleDiff,
+  generateLevel,
   PISTE_DAY,
   TUNING,
   createGame,
@@ -159,6 +161,64 @@ describe("under the skis", () => {
     const x = SCHUSS.size / 2;
     expect(pisteIce(evening, x, 400, 1)).toBeGreaterThan(0);
     expect(pisteIce(morning, x, 400, 1)).toBe(0);
+  });
+});
+
+describe("the stations, kept clear", () => {
+  // A storm over the maritime country: the day has laid a hand of loose
+  // snow over every run by the time the ride starts. The ski area keeps its
+  // stations and its cat tracks clear of it (`kept-ground.ts`) — the pads,
+  // the decks, the ramps off a top, the load zones at a foot and the
+  // transport lanes are the night's packed snow, carrying only what has
+  // fallen since the ride began.
+  const level = generateLevel(2, { region: "maritime", sky: { weather: "storm" } });
+  const ride = (): GameState =>
+    createGame({ level, mode: "free", byLift: true, run: "3", crowd: 0, quiet: true });
+  const lift = level.resort!.lifts.find((l) => l.id === "G1")!;
+
+  it("are packed through under the day's new snow, where the runs are buried", () => {
+    const s = ride();
+    expect(s.piste!.fresh).toBeGreaterThan(TUNING.snow.freshBury);
+    const ramp = lift.ramps!.find((r) => r.run === "3")!;
+    expect(packedSnow(s, lift.top.x, lift.top.z)).toBe(1);
+    expect(packedSnow(s, (ramp.from.x + ramp.to.x) / 2, (ramp.from.z + ramp.to.z) / 2)).toBe(1);
+    expect(packedSnow(s, lift.bottom.x, lift.bottom.z)).toBe(1);
+    expect(pisteIce(s, lift.top.x, lift.top.z, 1)).toBe(0);
+    // ...and so are the transport lanes between the runs, the machines' roads.
+    for (const lane of level.resort!.runs.filter((r) => r.kind === "road")) {
+      const at = lane.points[Math.floor(lane.points.length / 2)];
+      expect(packedSnow(s, at.x, at.z)).toBe(1);
+    }
+    // ...and the run itself still carries the whole of the day's fall.
+    const run = level.resort!.runs.find((r) => r.id === "3")!;
+    const mid = run.points[Math.floor(run.points.length / 2)];
+    expect(packedSnow(s, mid.x, mid.z)).toBeLessThan(0.1);
+  });
+
+  it("let a rider off the gondola glide off its pad and down its ramp", () => {
+    const s = ride();
+    const ramp = lift.ramps!.find((r) => r.run === "3")!;
+    const marks = [ramp.from, ramp.to];
+    let k = 0;
+    let resets = 0;
+    for (let i = 0; i < 60 * TUNING.physicsHz && k < marks.length; i++) {
+      const c = s.skier;
+      const aim = marks[k];
+      if (!c.lift && Math.hypot(aim.x - c.x, aim.z - c.z) < 4) {
+        k++;
+        continue;
+      }
+      const off = angleDiff(c.heading, Math.atan2(aim.x - c.x, aim.z - c.z));
+      step(s, {
+        ...NEUTRAL_INPUT,
+        steer: c.lift ? 0 : Math.max(-1, Math.min(1, off * 2.2)),
+        tuck: c.lift ? 0 : c.speed < 5 ? 1 : 0.25,
+        brake: c.lift ? 0 : Math.max(0, Math.min(1, c.speed - 12)),
+      });
+      resets += s.events.filter((e) => e.kind === "reset").length;
+    }
+    expect(resets).toBe(0);
+    expect(k).toBe(marks.length);
   });
 });
 

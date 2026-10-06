@@ -60,8 +60,7 @@ import { stepBelt, stepRpm } from "./sled-drive.ts";
 import {
   bottomlessOf,
   depthUnder,
-  looseOf,
-  packedUnder,
+  packedSnow,
   powderFloor,
   settleShare,
   sinkTarget,
@@ -248,7 +247,7 @@ export function rideSled(
     }
     const dx = -up.x;
     const dz = -up.z;
-    const packed = packedUnder(level.packedAt(ax, az), snow.fresh, looseOf(snow));
+    const packed = packedSnow(snow, ax, az);
     const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const tread = p.kind === "tread";
     const scale = tread ? SLED.sink.tread : SLED.sink.ski;
@@ -377,10 +376,7 @@ export function rideSled(
   }
   treadSink /= 6;
   c.treadComp = treadN > 0 ? treadComp / treadN : 0;
-  c.packed =
-    loadSum > 0
-      ? packedLoad / loadSum
-      : packedUnder(level.packedAt(c.x, c.z), snow.fresh, looseOf(snow));
+  c.packed = loadSum > 0 ? packedLoad / loadSum : packedSnow(snow, c.x, c.z);
   const grounded = touching > 0;
   if (!grounded && c.airborne) fy -= m * g * (FLY_G - 1);
 
@@ -549,7 +545,7 @@ function hullContacts(
     const px = c.x + r.x;
     const py = c.y + r.y;
     const pz = c.z + r.z;
-    const packed = packedUnder(level.packedAt(px, pz), snow.fresh, looseOf(snow));
+    const packed = packedSnow(snow, px, pz);
     const floor = level.groundAt(px, pz) - powderFloor(packed, SLED.sink.tread, depth);
     const pen = floor - py;
     if (pen <= 0) continue;

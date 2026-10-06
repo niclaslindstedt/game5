@@ -32,7 +32,7 @@ import { fromEuler, rotate, type Vec3 } from "@niclaslindstedt/oss-game-framewor
 import { TUNING } from "./defs/tuning.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { RAGDOLL } from "./ragdoll.ts";
-import { depthUnder, looseOf, packedUnder } from "./snow.ts";
+import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, LoneSki, SkierState, Thrown } from "./state.ts";
 
 const S = TUNING.crash.skis;
@@ -208,7 +208,7 @@ function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
   const depth = depthUnder(state.snowDepth, state.fresh);
   for (let e = 0; e < 2; e++) {
     const j = 3 * e;
-    const p = packedUnder(level.packedAt(P[j], P[j + 2]), state.fresh, looseOf(state));
+    const p = packedSnow(state, P[j], P[j + 2]);
     packed[e] = p;
     soft[e] = (1 - p) * depth;
     floor[e] = level.groundAt(P[j], P[j + 2]);
@@ -487,7 +487,7 @@ export function followSkis(state: GameState, c: SkierState, skis: readonly LoneS
     const s = contact.station === "tip" ? 0.95 : contact.station === "tail" ? 0.05 : ski.mount;
     const px = P[3] + (P[0] - P[3]) * s;
     const pz = P[5] + (P[2] - P[5]) * s;
-    const p = packedUnder(state.level.packedAt(px, pz), state.fresh, looseOf(state));
+    const p = packedSnow(state, px, pz);
     pk += p;
     const bit = contact.station === "tip" ? 1 : contact.station === "tail" ? 2 : 3;
     contact.touching = (ski.touching & bit) !== 0;

@@ -52,6 +52,7 @@
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import { groomedFresh } from "./groomed.ts";
+import { keptAt } from "./kept-ground.ts";
 import type { GameState } from "./state.ts";
 
 const S = TUNING.snow;
@@ -159,10 +160,11 @@ export function looseOf(state: Pick<GameState, "piste">): number {
 
 /** THE REFROZEN PISTE under a station standing on `packed` 0..1 of
  * groomer: the share of bare ice's grip it stands at (`onIce`), 0 on a run
- * that was not dealt the day's piste and in a cell the machines have
- * groomed since (`groomed.ts` — milled snow is not ice). */
+ * that was not dealt the day's piste, in a cell the machines have groomed
+ * since (`groomed.ts` — milled snow is not ice) and on the ground the lift
+ * staff keep (`kept-ground.ts`). */
 export function pisteIce(
-  state: Pick<GameState, "groomed" | "piste">,
+  state: Pick<GameState, "level" | "groomed" | "piste">,
   x: number,
   z: number,
   packed: number,
@@ -170,14 +172,16 @@ export function pisteIce(
   const ice = state.piste ? state.piste.ice : 0;
   if (ice <= 0 || packed <= 0) return 0;
   if (state.groomed && groomedFresh(state.groomed, x, z) !== undefined) return 0;
-  return ice * packed;
+  return keptAt(state.level, x, z) ? 0 : ice * packed;
 }
 
 /** THE PACKED SHARE UNDER A PLAN POINT on a run, the new snow over it
  * reckoned in: a cell the piste machines have groomed (`groomed.ts`) is
- * packed through and carries only what has fallen since; anywhere else it
- * is the map's own packed field under the whole fall, as skied up as the
- * day has made it (`packedUnder`, `PisteDay.loose`). */
+ * packed through and carries only what has fallen since; so, on a run
+ * dealt the day's piste, is the ground round the lifts the staff keep clear
+ * (`kept-ground.ts`), under only what has fallen since the ride began;
+ * anywhere else it is the map's own packed field under the whole fall, as
+ * skied up as the day has made it (`packedUnder`, `PisteDay.loose`). */
 export function packedSnow(
   state: Pick<GameState, "level" | "fresh" | "groomed" | "piste">,
   x: number,
@@ -185,6 +189,9 @@ export function packedSnow(
 ): number {
   const at = state.groomed ? groomedFresh(state.groomed, x, z) : undefined;
   if (at !== undefined) return packedUnder(1, Math.max(0, state.fresh - at));
+  if (state.piste && keptAt(state.level, x, z)) {
+    return packedUnder(1, Math.max(0, state.fresh - state.piste.fresh));
+  }
   return packedUnder(state.level.packedAt(x, z), state.fresh, looseOf(state));
 }
 

@@ -82,7 +82,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { depthUnder, looseOf, packedUnder } from "./snow.ts";
+import { depthUnder, packedSnow } from "./snow.ts";
 import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 
@@ -150,7 +150,7 @@ export function blowOf(v: number, give: number): number {
  * groomer counted in, and loose snow deeper on a deeper day. */
 export function snowGive(state: GameState, x: number, z: number): number {
   const level = state.level;
-  const p = packedUnder(level.packedAt(x, z), state.fresh, looseOf(state));
+  const p = packedSnow(state, x, z);
   const loose = I.snow.soft + I.snow.deep * depthUnder(state.snowDepth, state.fresh);
   const give = p * I.snow.packed + (1 - p) * loose;
   const ice = level.iceAt ? level.iceAt(x, z) : 0;

@@ -20,6 +20,7 @@
 //   node scripts/lift-tops.mjs --seed=38
 //   node scripts/lift-tops.mjs --count=12 --region=fell
 //   node scripts/lift-tops.mjs --seed=40622 --run=7
+//   node scripts/lift-tops.mjs --seed=2 --region=maritime --weather=storm
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +42,11 @@ const args = parseArgs(
       default: "alpine",
       help: "the kind of snow country (R21): alpine, fell, continental, maritime",
     },
+    weather: {
+      kind: "string",
+      help: "ride under this sky (R19): clear, fair, flurries, high, overcast, snow, storm, fog",
+    },
+    hour: { kind: "number", help: "the solar hour the ride starts at" },
     run: { kind: "string", help: "ride only the run with this id" },
     climb: {
       kind: "number",
@@ -52,7 +58,7 @@ const args = parseArgs(
       help: "print the rider every half second: the mark he makes for, his speed, his height under the top, the snow under him",
     },
   },
-  "usage: npm run lift-tops -- (--seed n | --count k [--from n]) [--region id] [--run id]",
+  "usage: npm run lift-tops -- (--seed n | --count k [--from n]) [--region id] [--weather kind] [--hour h] [--run id]",
 );
 
 /** How near a mark the rider counts as there, m; the speed he checks to,
@@ -155,7 +161,14 @@ let faults = 0;
 for (const seed of seeds) {
   let level;
   try {
-    level = E.generateLevel(seed, { region: args.region });
+    const sky =
+      args.weather !== undefined || args.hour !== undefined
+        ? {
+            ...(args.weather !== undefined ? { weather: args.weather } : {}),
+            ...(args.hour !== undefined ? { hour: args.hour } : {}),
+          }
+        : undefined;
+    level = E.generateLevel(seed, { region: args.region, ...(sky ? { sky } : {}) });
   } catch (err) {
     console.log(
       `${String(seed).padStart(4)}  refused: ${err instanceof Error ? err.message : err}`,

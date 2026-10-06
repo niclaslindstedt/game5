@@ -75,6 +75,7 @@ import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat
 import { nearestTrackPoint } from "../mapgen/index.ts";
 import type { TrackHit } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
+import { GRIMBEAR } from "./defs/grimbear.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
@@ -409,9 +410,10 @@ export function stepThrown(state: GameState, b: Thrown): void {
 }
 
 /** Whether the skier has lain long enough for the reset to stand him up —
- * the player (`player`) at `lieFor` s, a rival once he has lain still. */
+ * the player (`player`) at `lieFor` s — longer when the grimbear took him,
+ * so he is seen walking off — a rival once he has lain still. */
 export function crashOver(b: Thrown, player = false): boolean {
-  if (player) return b.t >= K.lieFor;
+  if (player) return b.t >= (b.cause === "maul" ? GRIMBEAR.lieFor : K.lieFor);
   if (b.t >= K.lieMax) return true;
   return b.t >= K.lieMin && b.still >= K.lieStill;
 }

@@ -195,3 +195,13 @@ export function pisteHead(
   const top = line.track.points[0];
   return { x: top.x, z: top.z, heading: top.heading };
 }
+
+/** THE TOP OF THE SLOPE A RUN WAS ON: the head of the last piste it skied
+ * (the piste nearest the skier where it has skied none), or the start line
+ * off a ski area. */
+export function topOfSlope(state: GameState): { x: number; z: number; heading: number } {
+  const c = state.skier;
+  const id = lastPiste(state) ?? nearestPiste(state.level, c.x, c.z);
+  const spawn = state.level.spawn;
+  return pisteHead(state.level, id) ?? { x: spawn.x, z: spawn.z, heading: spawn.heading };
+}

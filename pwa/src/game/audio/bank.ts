@@ -438,6 +438,47 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  roar: {
+    description:
+      "The grimbear out of the trees: a beast's roar — a low sawtooth " +
+      "growl driven hard and sagging, a second voice a fifth above it for " +
+      "the throat, a brown rush of breath under both, all opening slowly " +
+      "and lowpassed, so it reads as something big in the woods and not as " +
+      "a horn.",
+    voices: [
+      {
+        call: "tone",
+        type: "sawtooth",
+        from: 92,
+        to: 64,
+        durationMs: 1400,
+        volume: 0.05,
+        drive: 0.7,
+        attackMs: 90,
+        filter: { type: "lowpass", frequency: 900, to: 380 },
+      },
+      {
+        call: "tone",
+        type: "sawtooth",
+        from: 138,
+        to: 92,
+        durationMs: 1100,
+        volume: 0.025,
+        drive: 0.5,
+        attackMs: 120,
+        filter: { type: "lowpass", frequency: 1200, to: 500 },
+      },
+      {
+        call: "noise",
+        durationMs: 1300,
+        volume: 0.04,
+        color: "brown",
+        attackMs: 80,
+        filter: { type: "lowpass", frequency: 600, to: 250 },
+      },
+    ],
+  },
+
   net: {
     description:
       "Into the A-nets beside a downhill: a body caught in netting — a long " +

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled grimbear judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -385,6 +385,17 @@ heli:
 # ARGS="--sheet=powder,climb" a few sheets, "--views=roost" a few views.
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GRIMBEAR LAB: the free ride's grimbear staged at every moment he has —
+# the figure from eight sides, his run and walk across one stride, each
+# move, the ambush ridden, THE KILL frame by frame and as the death cam
+# shows it, the chase that comes up short, after dark — through the game's
+# own renderer. One contact sheet a group, previews/grimbear-<group>.png,
+# and every frame alone, previews/grimbear-<view>-<label>.png. Its own
+# one-off bundle from pwa/grimbear-preview.html (never deployed); needs a
+# Chromium like `world`. ARGS="--sheet=kill,moves", "--views=stride".
+grimbear:
+	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

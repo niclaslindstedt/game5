@@ -25,6 +25,23 @@ Beside the disciplines, one spec cuts across all of them:
 | --- | --- | --- |
 | [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for every discipline — the slalom, the giant slalom, the super-G, the downhill, speed skiing and the ski cross |
 
+The TRICK FORMATS — the judged freestyle events that are to replace the one
+arcade TRICKS run — are researched and drafted, none built. Their research
+is `docs/freestyle.md` (this page's `docs/disciplines.md` for tricks), and
+one spec cuts across them all:
+
+| Spec | Format | State |
+| --- | --- | --- |
+| [TRICK_MODES.md](TRICK_MODES.md) | What every format shares: the trick card, the trick reader, the judge, the field, more rotation, jibs, the build order | draft |
+| [BIG_AIR.md](BIG_AIR.md) | Big air | draft — researched |
+| [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | draft — researched |
+| [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | draft — researched |
+| [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | draft — researched |
+| [HALFPIPE.md](HALFPIPE.md) | Halfpipe | draft — researched |
+| [MOGULS.md](MOGULS.md) | Moguls | draft — researched |
+| [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | draft — researched |
+| [AERIALS.md](AERIALS.md) | Aerials | draft — researched |
+
 The drafts are written from what the game already has (the slalom's
 machinery: R31's course setter, strict gates, the interval start and its
 board, flex poles, the start house, the television start, the per-run

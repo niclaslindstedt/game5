@@ -41,7 +41,8 @@ export type CabinKind = "hut" | "cabin" | "chalet" | "shed";
  *     out past the walls at the sides, the back and the front — what a
  *     trunk and a neighbour keep clear of.
  *   * `terrace`: the most the ground may fall across the footprint, m —
- *     the plinth's height on the downhill side.
+ *     at most `CABIN_LAYOUT.plinth.most` of stone showing on the downhill
+ *     side and `plinth.cut` of the back dug into the slope.
  *   * `share`: how often the placer stands this kind as the first of a
  *     group (the shed is only ever a companion). */
 export type CabinDef = {
@@ -61,8 +62,8 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     walls: 2.3,
     ridge: 4.35,
     reach: { side: 0.65, back: 1.4, front: 1.6 },
-    terrace: 1.8,
-    share: 0.45,
+    terrace: 1.4,
+    share: 0.3,
   },
   cabin: {
     width: 7.8,
@@ -70,8 +71,8 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     walls: 3.0,
     ridge: 5.5,
     reach: { side: 1.6, back: 0.8, front: 2.1 },
-    terrace: 2.2,
-    share: 0.35,
+    terrace: 1.5,
+    share: 0.48,
   },
   chalet: {
     width: 7.2,
@@ -79,8 +80,8 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     walls: 5.1,
     ridge: 7.0,
     reach: { side: 1.2, back: 1.1, front: 2.0 },
-    terrace: 2.6,
-    share: 0.2,
+    terrace: 1.5,
+    share: 0.22,
   },
   shed: {
     width: 3.4,
@@ -88,7 +89,7 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     walls: 2.15,
     ridge: 2.25,
     reach: { side: 0.4, back: 0.45, front: 0.6 },
-    terrace: 1.2,
+    terrace: 1.1,
     share: 0,
   },
 };
@@ -102,6 +103,9 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
  *   * `setback`: the walls' nearest corner past the run's edge, m, dealt
  *     between the two; `lean` how far a cabin is turned off square to the
  *     run, radians, either way.
+ *   * `downhill`: how far a cabin is turned from facing its run toward
+ *     facing down the fall line, radians at most — built looking down its
+ *     slope, its back dug in and its porch out over the snow.
  *   * `apart`: the gap from one group to the next, m; `most` the most a
  *     map carries.
  *   * `companion`: the share of groups with a woodshed beside the first
@@ -112,15 +116,22 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
  *     start, the finish, a venue's course past its edge, a wind tunnel, the
  *     hub, a mast, the helicopter's pad and the parked snowmobile, another
  *     building's roof.
+ *   * `plinth`: how the floor is set into a slope, m — the stone shown
+ *     above the snow on the downhill side, `least` on the flat and `most`
+ *     on the steepest site taken; `cut` how far the uphill side is dug in
+ *     under the floor (the snow banked up the back wall), so a cabin sits
+ *     IN its slope rather than up on a pedestal; `door` how far the floor
+ *     stands over the snow before the porch, so no doorstep is buried.
  *   * `wall`: the posts a wall is met as by a skier (`cabinWalls`): their
  *     radius and the most gap between two. */
 export const CABIN_LAYOUT = {
   every: 105,
   head: 70,
   tail: 45,
-  chance: { piste: 0.24, road: 0.32, high: 0.35 },
+  chance: { piste: 0.4, road: 0.5, high: 0.35 },
   setback: { min: 8, max: 22 },
   lean: 0.18,
+  downhill: 1.25,
   apart: 120,
   most: 32,
   companion: { shed: 0.55, hamlet: 0.2 },
@@ -140,5 +151,6 @@ export const CABIN_LAYOUT = {
     pad: 40,
     roof: 2.5,
   },
+  plinth: { least: 0.3, most: 1.0, cut: 0.45, door: 0.3 },
   wall: { radius: 0.45, gap: 0.6 },
 } as const;

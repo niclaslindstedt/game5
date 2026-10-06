@@ -28,6 +28,9 @@ export const CABIN_PAINT = {
   /** The end grain of a sawn log, and its bark ring. */
   grain: colour(0xd2b184),
   grainDark: colour(0xb08e63),
+  /** A stack's log ends as the far cut paints them: the grain in the
+   * shadow between the ends, two bands, so it never flashes at distance. */
+  stackFar: [colour(0x8f6e4c), colour(0x6e5238)],
   /** The chinking between the courses. */
   chink: colour(0xd9d0be),
   /** Dressed stone, four tones, and the mortar's. */

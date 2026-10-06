@@ -8,8 +8,9 @@
 // straight above, its FAR cut, and at NIGHT with its windows lit.
 //
 // Every building stands TERRACED on a slope of `SLOPE` falling to its
-// right, its floor at the high corner — so the sheet shows whether the
-// plinth reaches the snow on the low side and nothing floats — under a
+// right, its floor set as the placer sets it (`CABIN_LAYOUT.plinth`) with
+// the game's own drift banked round it — so the sheet shows the plinth
+// reaching the snow on the low side and nothing floating — under a
 // winter sun with shadows, a metre rule along the snow in front of it.
 // `?kinds=hut,shed` draws a subset.
 //
@@ -18,17 +19,17 @@
 
 import * as THREE from "three";
 
-import { CABINS, type CabinKind } from "@engine";
+import { CABINS, CABIN_LAYOUT, type Cabin, type CabinKind, type Level } from "@engine";
 
 import { buildCabin, type CabinLod } from "../game/cabin-shapes.ts";
 import { createHazeUniforms, hazeMaterial } from "../game/haze.ts";
-import { graftGlow } from "../game/cabins-view.ts";
+import { driftGeometry, graftGlow } from "../game/cabins-view.ts";
 import { LUX_TO_LAMP } from "../game/piste-lights.ts";
 
 const CELL_W = 300;
 const CELL_H = 240;
 /** The ground's fall across the building, rise over run. */
-const SLOPE = 0.22;
+const SLOPE = 0.15;
 
 const query = new URLSearchParams(location.search);
 const want = query.get("kinds");
@@ -107,7 +108,25 @@ async function main(): Promise<void> {
     tris[kind] = geos.map((g) => g.getAttribute("position").count / 3);
     // The ground falls to +x: the floor stands at the high side's height.
     const groundAt = (x: number): number => -x * SLOPE;
-    const floor = groundAt(-d.width / 2) + 0.25;
+    const P = CABIN_LAYOUT.plinth;
+    const hi = groundAt(-d.width / 2);
+    const lo = groundAt(d.width / 2);
+    const floor = Math.max(lo + P.least, hi - P.cut);
+    const stood = {
+      id: "H1",
+      kind,
+      x: 0,
+      z: 0,
+      y: floor,
+      base: lo,
+      heading: 0,
+      run: "",
+      s: 0,
+      group: 0,
+    } as Cabin;
+    const drift = driftGeometry({ groundAt: (x: number) => groundAt(x) } as unknown as Level, [
+      stood,
+    ]);
     const size = Math.max(d.width, d.depth, d.ridge);
     VIEWS.forEach((v, col) => {
       const scene = new THREE.Scene();
@@ -141,6 +160,9 @@ async function main(): Promise<void> {
       house.castShadow = true;
       house.receiveShadow = true;
       scene.add(house);
+      const bank = new THREE.Mesh(drift, material);
+      bank.receiveShadow = true;
+      scene.add(bank);
       for (let m = -3; m < 3; m++) {
         const band = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.08), m % 2 ? pale : dark);
         const x = m + 0.5;
@@ -164,6 +186,7 @@ async function main(): Promise<void> {
       ground.geometry.dispose();
     });
     for (const g of geos) g.dispose();
+    drift.dispose();
   });
   renderer.dispose();
   cell.remove();

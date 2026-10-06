@@ -175,6 +175,20 @@ export function cabinsOf(level: Level): readonly Cabin[] {
   return list;
 }
 
+/** The heading straight down the ground's fall line at (x, z). */
+function downhillOf(level: Level, x: number, z: number): number {
+  const gx = level.groundAt(x + 4, z) - level.groundAt(x - 4, z);
+  const gz = level.groundAt(x, z + 4) - level.groundAt(x, z - 4);
+  return Math.atan2(-gx, -gz);
+}
+
+/** `from` turned toward `to` by no more than `most` radians. */
+function toward(from: number, to: number, most: number): number {
+  let d = to - from;
+  d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI;
+  return from + Math.max(-most, Math.min(most, d));
+}
+
 function placeCabins(level: Level): Cabin[] {
   const seed = level.seed >>> 0;
   const lines = linesOf(level);
@@ -294,8 +308,10 @@ function placeCabins(level: Level): Cabin[] {
         return null;
       }
     }
-    // Terraced into the slope: the floor at the highest ground under the
-    // walls, the plinth down to the lowest.
+    // Terraced into the slope: the back dug in under the floor by up to
+    // `plinth.cut`, the front kept `plinth.door` over the snow before it,
+    // the stone showing on the downhill side no more than `plinth.most` —
+    // a site that cannot have all three is left alone.
     let hi = -Infinity;
     let lo = Infinity;
     for (const [px, pz] of rectPoints(kind, x, z, heading, false, 0.3)) {
@@ -304,7 +320,19 @@ function placeCabins(level: Level): Cabin[] {
       if (g < lo) lo = g;
     }
     if (hi - lo > def.terrace) return null;
-    return { y: hi + 0.25, base: lo };
+    // Never dug in at the front: the porch's deck and the doorstep stand
+    // clear of the snow before them.
+    let front = -Infinity;
+    const fx0 = Math.sin(heading);
+    const fz0 = Math.cos(heading);
+    const lz = def.depth / 2 + def.reach.front;
+    for (const lx of [-def.width / 2, 0, def.width / 2]) {
+      front = Math.max(front, level.groundAt(x + lx * fz0 + lz * fx0, z - lx * fx0 + lz * fz0));
+    }
+    const P = L.plinth;
+    const y = Math.max(lo + P.least, hi - P.cut, front + P.door);
+    if (y - lo > P.most + 1e-9) return null;
+    return { y, base: lo };
   };
 
   /** Stand `kind` at (`x`, `z`) facing `heading`, if it fits. */
@@ -382,9 +410,13 @@ function placeCabins(level: Level): Cabin[] {
         const rx = Math.cos(at.heading) * side;
         const rz = -Math.sin(at.heading) * side;
         const off = at.width / 2 + back + def.depth / 2 + def.reach.front;
-        // Facing the run: back toward the line it stands beside.
-        const heading = Math.atan2(-rx, -rz) + turn;
-        first = stand(kind, at.x + rx * off, at.z + rz * off, heading, line.id, s + ds, groups);
+        // Facing the run — back toward the line it stands beside — and
+        // turned toward the fall line, as a cabin is built looking down
+        // its slope with its back dug into it and its porch out over it.
+        const cx = at.x + rx * off;
+        const cz = at.z + rz * off;
+        const heading = toward(Math.atan2(-rx, -rz), downhillOf(level, cx, cz), L.downhill) + turn;
+        first = stand(kind, cx, cz, heading, line.id, s + ds, groups);
         if (first) break;
       }
       if (!first) continue;

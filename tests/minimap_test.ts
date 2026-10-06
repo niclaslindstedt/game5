@@ -133,7 +133,7 @@ describe("the baked ground (minimap-bake.ts)", () => {
     };
     // Brown (red over blue) where the roof is; the snow's blue round it.
     expect(redder(200, 200 + 7)).toBeGreaterThan(20);
-    expect(redder(200 + 7, 200)).toBeLessThan(0);
+    expect(redder(200 + 11, 200)).toBeLessThan(0);
     expect(redder(240, 240)).toBeLessThan(0);
   });
 

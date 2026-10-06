@@ -25,9 +25,11 @@
 //     balcony to stand out of the snow on.
 //   * THE CHIMNEY is stone: a stack through the roof, or on the cabin a
 //     great stack built up outside its gable from the ground.
-//   * THE PLINTH is dressed stone and reaches well down: a building on a
-//     slope is terraced into it, the floor at the high side and the stone
-//     carried down on the low side — the part under the snow is never seen.
+//   * THE PLINTH is dressed stone, a course or two above the snow: a
+//     building on a slope is dug into it at the back and shows no more
+//     than a metre of stone on the low side, and the snow is banked up
+//     against it all round (the drift, `cabins-view.ts`) — so it sits IN
+//     the snow, never up on a pedestal.
 //
 // THE FRAME is the building's: x across its front, y up from its floor, z
 // toward its front (`defs/cabins.ts`).
@@ -60,9 +62,9 @@ import type { Shape, V3 } from "./tree-mesh.ts";
 /** The two cuts: every log, or the silhouette. */
 export type CabinLod = 0 | 1;
 
-/** How far the plinth reaches down, m — past the deepest terrace a kind
- * may stand on, so no building ever floats. */
-const PLINTH = 3.2;
+/** How far the plinth reaches down, m — past the most stone a site shows
+ * (`CABIN_LAYOUT.plinth.most`), so no building ever floats. */
+const PLINTH = 1.5;
 
 /** A window or a door on a wall, by the wall's name. */
 type Hole = {
@@ -372,8 +374,26 @@ function planOf(kind: CabinKind): Plan {
       box(s, -W / 2, hi - 0.16, D / 2 - 0.14, W / 2, hi, D / 2, P.log[1]);
       const front: Wall = { x: 0, z: D / 2 - 0.2, ux: 1, uz: 0, nx: 0, nz: 1 };
       if (lod === 0) woodStack(s, front, -W / 2 + 0.12, W / 2 - 0.12, 1.55, D - 0.5, -(D - 0.5));
-      else
-        wallBox(s, front, -W / 2 + 0.12, W / 2 - 0.12, 0, 1.55, -(D - 0.5), 0, P.grain, P.logLow);
+      else {
+        // The far cut's stack: the ends in two shaded bands, not a flat
+        // pale face that flashes on the far side of the valley.
+        for (let b = 0; b < 3; b++) {
+          const y0 = (b * 1.55) / 3;
+          const y1 = ((b + 1) * 1.55) / 3;
+          wallBox(
+            s,
+            front,
+            -W / 2 + 0.12,
+            W / 2 - 0.12,
+            y0,
+            y1,
+            -(D - 0.5),
+            0,
+            P.stackFar[b % 2],
+            P.logLow,
+          );
+        }
+      }
       gableRoof(s, roof, [1]);
       roofSnow(s, roof, 0.3, lod ? 1 : 3, 17, [1], true);
     },

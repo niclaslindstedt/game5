@@ -23,6 +23,7 @@ import {
   type Cabin,
 } from "@engine";
 
+import { planSpectators } from "../pwa/src/game/spectator-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 /** The roof's corners and edges in plan, every metre or so. */
@@ -151,15 +152,68 @@ describe("cabins", () => {
     }
   });
 
-  it("are terraced: the floor over the ground, the plinth down to it", () => {
+  it("keep every trunk off the roof and out of the yard before the door", () => {
+    const C = CABIN_LAYOUT.clear;
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const level = levelFor(seed);
+      for (const c of cabinsOf(level)) {
+        const d = CABINS[c.kind];
+        const fx = Math.sin(c.heading);
+        const fz = Math.cos(c.heading);
+        for (const t of level.trees) {
+          const dx = t.x - c.x;
+          const dz = t.z - c.z;
+          if (Math.abs(dx) > 40 || Math.abs(dz) > 40) continue;
+          const lx = dx * fz - dz * fx;
+          const lz = dx * fx + dz * fz;
+          const m = C.trunk - 1e-6;
+          const inside =
+            Math.abs(lx) < d.width / 2 + d.reach.side + m &&
+            lz > -d.depth / 2 - d.reach.back - m &&
+            lz < d.depth / 2 + d.reach.front + m + C.yard;
+          expect(inside, `${t.kind} at ${lx.toFixed(1)}, ${lz.toFixed(1)} by ${c.id}`).toBe(false);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("are kept clear by the audience: no fan in a cabin or on its doorstep", () => {
+    for (const seed of SEEDS.slice(0, 2)) {
+      const level = levelFor(seed);
+      const fans = planSpectators(level).fans;
+      for (const c of cabinsOf(level)) {
+        const d = CABINS[c.kind];
+        const fx = Math.sin(c.heading);
+        const fz = Math.cos(c.heading);
+        for (const f of fans) {
+          const dx = f.x - c.x;
+          const dz = f.z - c.z;
+          const lx = dx * fz - dz * fx;
+          const lz = dx * fx + dz * fz;
+          const inside =
+            Math.abs(lx) < d.width / 2 + d.reach.side &&
+            lz > -d.depth / 2 - d.reach.back &&
+            lz < d.depth / 2 + d.reach.front + 4;
+          expect(inside).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("are terraced: never more than a metre of stone showing, the back dug in", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       for (const c of cabinsOf(level)) {
         expect(c.base).toBeLessThanOrEqual(c.y);
-        expect(c.y - c.base).toBeLessThanOrEqual(CABINS[c.kind].terrace + 0.5);
+        const P = CABIN_LAYOUT.plinth;
+        expect(c.y - c.base).toBeLessThanOrEqual(P.most + 1e-6);
+        expect(c.y - c.base).toBeGreaterThanOrEqual(P.least - 1e-6);
         for (const [x, z] of footprint(c)) {
           const g = level.groundAt(x, z);
-          expect(g).toBeLessThanOrEqual(c.y + 1e-6);
+          expect(g).toBeLessThanOrEqual(c.y + P.cut + 0.3);
           expect(g).toBeGreaterThanOrEqual(c.base - 0.6);
         }
       }

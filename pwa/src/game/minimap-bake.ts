@@ -157,8 +157,8 @@ const ROOF_RIDGE = [214, 190, 170];
 /** A roof is drawn this much larger than it stands, as a piste map marks a
  * building, and never less than `ROOF_LEAST` pixels from its centre to its
  * edge — a hut is a mark at any zoom. */
-const ROOF_GROW = 1.3;
-const ROOF_LEAST = 2.5;
+const ROOF_GROW = 1.5;
+const ROOF_LEAST = 4.2;
 /** Which way each kind's ridge runs (`MinimapSource.cabins`): a cabin's
  * along its front, a hut's and a chalet's gable to the front, a shed's
  * lean-to none. */
@@ -348,9 +348,11 @@ function stampCabins(out: Uint8ClampedArray, px: number, step: number, cabins: F
   for (let n = 0; n < cabins.length; n += 6) {
     const cx = cabins[n] / step - 0.5;
     const cz = cabins[n + 1] / step - 0.5;
-    const hw = Math.max(ROOF_LEAST, (cabins[n + 2] * ROOF_GROW) / step);
-    const hd = Math.max(ROOF_LEAST, (cabins[n + 3] * ROOF_GROW) / step);
     const ridge = cabins[n + 5];
+    // A woodshed (no ridge) is a mark smaller than the house beside it.
+    const least = ridge === 0 ? ROOF_LEAST * 0.6 : ROOF_LEAST;
+    const hw = Math.max(least, (cabins[n + 2] * ROOF_GROW) / step);
+    const hd = Math.max(least, (cabins[n + 3] * ROOF_GROW) / step);
     const fx = Math.sin(cabins[n + 4]);
     const fz = Math.cos(cabins[n + 4]);
     const r = Math.hypot(hw, hd) + 1;
@@ -368,7 +370,7 @@ function stampCabins(out: Uint8ClampedArray, px: number, step: number, cabins: F
         const inside = Math.min(hw - lx, hd - lz);
         const a = Math.min(1, Math.max(0, inside + 0.5));
         if (a <= 0) continue;
-        const onRidge = (ridge === 1 && lz < 0.7) || (ridge === 2 && lx < 0.7);
+        const onRidge = (ridge === 1 && lz < 0.95) || (ridge === 2 && lx < 0.95);
         const tone = inside < 1 ? ROOF_RIM : onRidge ? ROOF_RIDGE : ROOF;
         const k = (j * px + i) * 4;
         out[k] += (tone[0] - out[k]) * a;

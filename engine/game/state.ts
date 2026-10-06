@@ -38,6 +38,7 @@ export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
+export type * from "./para-state.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -75,9 +76,8 @@ export type SkierInput = {
    * controls are where they were let go: the collective down, the cyclic
    * and the pedals centred. */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the snowmobile (`sled.ts`)
-   * or the helicopter (`heli.ts`) he stands beside, or off the one he
-   * rides. ENTER on the keys, a double tap on touch. */
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside, off the one
+   * he rides, or the paramotor's rig released. ENTER, a double tap on touch. */
   machine?: boolean;
 };
 
@@ -716,7 +716,8 @@ export type GameEvent =
        * crash), the helicopter's speed (a drop), 0 otherwise. */
       speed: number;
     }
-  | SledEvent;
+  | SledEvent
+  | import("./para-state.ts").ParaEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
@@ -944,6 +945,8 @@ export type GameState = ContestState & {
   /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   sled?: SledState;
+  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
+  para?: import("./para-state.ts").ParaState;
   /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to;
    * absent everywhere else. */
   grimbear?: GrimbearState;

@@ -420,7 +420,8 @@ export const CROWD = {
    * a queue or off a lift to his run, m/s; how long a chair takes to sit
    * him down, s; how far under the rope a chair's seat is, m (where a
    * rider is kept: the view sits each body on it); how far
-   * apart a chair's seats and a T-bar's two riders are, m; a queue's
+   * apart a chair's seats and a T-bar's two riders are, m, and riders
+   * off one carrier when they are let go at its top (`apart`); a queue's
    * weight against a lift, per amateur already in it, and a ride's, a
    * lift this many metres long half as likely (a short lift is lapped);
    * and the share of the groups already riding one when the run starts —
@@ -434,6 +435,7 @@ export const CROWD = {
     under: 2.4,
     seat: 0.55,
     tee: 0.35,
+    apart: 2.2,
     queued: 0.12,
     lapped: 900,
     riding: 0.3,
@@ -500,8 +502,10 @@ export const CROWD = {
    * least speed that takes him off it at all, m/s. */
   kicker: { see: 60, air: 0.25, perSpeed: 0.045, most: 1.5, speed: 6 },
   /** The room he keeps from the skier ahead on his run: how far ahead he
-   * looks, m and s of his speed, and how wide a berth, m. */
-  room: { ahead: 4, time: 0.8, berth: 1.8 },
+   * looks, m and s of his speed, and how wide a berth, m; how far behind
+   * one still counts as level with him, m; and, in a school's snake, the
+   * share of the pace ahead he drops to when closer than half his look. */
+  room: { ahead: 4, time: 0.8, berth: 1.8, level: 1.5, back: 0.6 },
   /** A GROUP regrouping: how far behind the last one may fall before the
    * leader waits, m, and how near he must come before they go on; and how
    * far down his run off a lift's top a leader waits there for the rest

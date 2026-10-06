@@ -221,6 +221,27 @@ describe("the jump (TUNING.jump)", () => {
     expect(jump(3).pop).toBeCloseTo(jump(TUNING.jump.full).pop, 5);
   });
 
+  it("still springs when let go just after the snow is left, never later", () => {
+    /** Load it a second, throw him off the snow, hold it `late` s into the
+     * air and let go: the pop it springs, if any. */
+    function late(late: number): number {
+      const state = stage(PACKED, 50);
+      ride(state, 0.5);
+      ride(state, 1, { jump: true });
+      state.skier.y += 3;
+      state.skier.vy = 4;
+      ride(state, late, { jump: true });
+      let pop = 0;
+      for (let i = 0; i < 3; i++) {
+        step(state, NEUTRAL_INPUT);
+        for (const e of state.events) if (e.kind === "jump") pop = e.pop;
+      }
+      return pop;
+    }
+    expect(late(TUNING.jump.grace / 2)).toBeGreaterThan(TUNING.jump.popMin);
+    expect(late(TUNING.jump.grace * 2)).toBe(0);
+  });
+
   it("sinks him onto his legs while it loads", () => {
     const state = stage(PACKED, 30);
     ride(state, 1, { jump: true });

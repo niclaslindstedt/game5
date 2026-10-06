@@ -107,15 +107,17 @@ function shape(run: number): JumpProfile {
   // `bigAir.fast` times the design speed has come down on it.
   const u = Math.sqrt(2 * G * B.fall);
   const fast = B.speed * B.fast;
+  // The flight leaves the lip flatter than the lip (`bigAir.launch`).
+  const take = kick * B.launch;
   let down: number | null = null;
   for (let i = 0; i < 8000; i++) {
     const lx = x + dx - lip;
     const ly = y - yLip;
     // The take-off speed whose flight passes through here.
-    const den = 2 * Math.cos(kick) ** 2 * (lx * Math.tan(kick) - ly);
+    const den = 2 * Math.cos(take) ** 2 * (lx * Math.tan(take) - ly);
     const v0 = Math.sqrt((G * lx * lx) / den);
-    const vx = v0 * Math.cos(kick);
-    const vy = v0 * Math.sin(kick) - (G * lx) / vx;
+    const vx = v0 * Math.cos(take);
+    const vy = v0 * Math.sin(take) - (G * lx) / vx;
     const fall = -Math.atan2(vy, vx);
     const want = clamp(fall - Math.asin(Math.min(1, u / hypot(vx, vy))), 0, B.steepest * RAD);
     // Rounded over at the knuckle, never sharper than its radius.
@@ -356,7 +358,7 @@ function buildOver(original: Level): Level {
     const dz = z - fit.z;
     const along = dx * fx + dz * fz;
     const across = Math.abs(dx * rx + dz * rz);
-    if (along > -20 && along < length + 10 && across < half + r) return true;
+    if (along > -20 && along < length + half && across < half + r) return true;
     return along > p.finish - A.before && along < p.finish + A.past && across < A.half;
   };
   const trees = original.trees.filter((t) => !off(t.x, t.z, B.margin));

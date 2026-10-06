@@ -231,6 +231,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     jury: base.jury,
     spinMost: base.spinMost,
     flipMost: base.flipMost,
+    inRun: base.inRun,
   };
 }
 

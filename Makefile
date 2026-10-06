@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled grimbear judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -385,6 +385,17 @@ heli:
 # ARGS="--sheet=powder,climb" a few sheets, "--views=roost" a few views.
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SNOWMOBILE LANDING LAB: every staged ride of
+# tests/support/sled-landings.ts — rollers, whoops, hard turns, a sidehill,
+# kickers onto the flat and onto a landing, the nose dropped or thrown back
+# in the air, a lip banked hard, drops, a cliff, a bank and a wall — ridden
+# by the real engine, one row a ride: thrown or ridden out against what a
+# rider expects, the flight, the landing's speed into the snow, the roll
+# and pitch. Pure Node, seconds; exits non-zero on a row that is not as
+# expected. ARGS="--json=a.json" before, "--compare=a.json" after.
+sled-land:
+	npm run sled-land -- $(ARGS)
 
 # THE GRIMBEAR LAB: the free ride's grimbear staged at every moment he has —
 # the figure from eight sides, his run and walk across one stride, each

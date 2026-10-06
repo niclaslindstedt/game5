@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
 
 build:
 	npm run build
@@ -176,6 +176,17 @@ skier-metrics:
 # "--compare=a.json" a before and after.
 sag:
 	npm run sag -- $(if $(MOMENT),--moment $(MOMENT),) $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE LANDING LAB: does he ride away the landings the mountain hands him?
+# Generated mountains skied the way a player does — down the piste and
+# across the open face at a run's speed, the tuck HELD over every crest and
+# the jump sprung off the slope on half the runs — every landing a row (its
+# load in g, its equivalent fall height, how far off true, the tips into the
+# slope) and the share that threw him, by how hard. Pure Node, a few
+# minutes. ARGS="--seeds 16", "--json" a baseline, "--compare FILE" beside
+# it, "--list" every fall with a --trace line to ski it step by step.
+landing:
+	npm run landing -- $(ARGS)
 
 # THE LEAN LAB: how SMOOTHLY the slalom racer leans from turn to turn. A
 # slalom skied by the bot and staged rhythms of turns on the open pitch,

@@ -485,3 +485,29 @@ describe("the helicopter flown by hand (sampleHeli)", () => {
     expect(out.pedal).toBe(0);
   });
 });
+
+describe("W and S in the air (a desktop's lean)", () => {
+  /** Ride the keys off the snow: `before` s on it, then `after` s flying,
+   * the keys of each phase held throughout it. The lean after. */
+  function fly(onSnow: Partial<KeysHeld>, inAir: Partial<KeysHeld>, gap = false): number {
+    const model = createInputModel();
+    let input = sampleInput(model, { ...NO_KEYS, ...onSnow }, neutralTouch(), DT, false);
+    for (let i = 0; i < 30; i++) {
+      input = sampleInput(model, { ...NO_KEYS, ...onSnow }, neutralTouch(), DT, false);
+    }
+    if (gap) sampleInput(model, NO_KEYS, neutralTouch(), DT, false, true);
+    for (let i = 0; i < 30; i++) {
+      input = sampleInput(model, { ...NO_KEYS, ...inAir }, neutralTouch(), DT, false, true);
+    }
+    return input.lean;
+  }
+
+  it("leans nothing for a tuck held off the lip into the jump", () => {
+    expect(fly({ tuck: true }, { tuck: true })).toBe(0);
+  });
+
+  it("leans forward for W let go and pressed again in the air, and back for S", () => {
+    expect(fly({ tuck: true }, { tuck: true }, true)).toBeLessThan(-0.9);
+    expect(fly({}, { brake: true })).toBeGreaterThan(0.9);
+  });
+});

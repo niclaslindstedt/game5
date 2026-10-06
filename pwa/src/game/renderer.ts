@@ -48,8 +48,8 @@ import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
-import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
-import { freshRigPose } from "./camera-rigs.ts";
+import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
+import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
@@ -248,6 +248,7 @@ export function createWorldRenderer(
   gl.toneMappingExposure = 1.05;
   gl.shadowMap.enabled = SHADOW_LOOK[video.shadows].size > 0;
   gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.setOpaqueSort(byMaterial);
 
   /** The SHADOWS row's stop, its map no bigger than this GPU can hold. */
   const shadowLook = (): ShadowLook => {
@@ -303,7 +304,7 @@ export function createWorldRenderer(
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
   let boomClear: LineClear | undefined;
-  let trunks: TrunksNear | undefined;
+  let trunks: ReturnType<typeof createTrunksNear> | undefined;
   let riders: Rider[] = [];
   let ghost: GhostModel | null = null;
   let ghostRun: GameState | null = null;
@@ -354,7 +355,7 @@ export function createWorldRenderer(
     if (timer.mode === "split" && timer.inScene()) timer.enter(bucket(object));
     direct(camera, sc, geometry, material, object, group);
   };
-  const shadowPass = gl.shadowMap.render.bind(gl.shadowMap);
+  const shadowPass = depthByKind(gl.shadowMap.render.bind(gl.shadowMap));
   gl.shadowMap.render = (lights, sc, camera) => {
     const map = gl.shadowMap;
     const live =

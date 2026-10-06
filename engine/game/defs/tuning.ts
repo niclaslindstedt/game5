@@ -15,6 +15,7 @@ import { TRICKS } from "./tricks.ts";
 import { INJURY } from "./anatomy.ts";
 import { CRASH } from "./crash.ts";
 import { FLEX, START_PUSH } from "./race.ts";
+import { SIDESTEP } from "./sidestep.ts";
 import { STAKES } from "./stakes.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
@@ -938,6 +939,8 @@ export const TUNING = {
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */
   tricks: TRICKS,
+  /** THE SIDESTEP up a steep slope (`defs/sidestep.ts`). */
+  sidestep: SIDESTEP,
 
   /** THE BODY AND WHAT HURTS IT (`defs/anatomy.ts`, `body.ts`). */
   injury: INJURY,

@@ -128,6 +128,13 @@ export type RunRules = {
    * the arcade's. */
   spinMost?: number;
   flipMost?: number;
+  /** THE IN-RUN RIDDEN TUCKED (`in-run.ts`): on a big air jump, from the
+   * start gate to the lip, the skier holds his tuck, never brakes and
+   * never sits back, whatever is pressed — the jump is built for the speed
+   * a tucked skier carries off it, and a contest skier drops in straight,
+   * tucked and centred. The edge and the jump are his own, and in the air
+   * every control is. Left out, the controls are. */
+  inRun?: boolean;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,
@@ -760,6 +767,7 @@ export function bigAirRules(laps: number): RunRules {
     jury: BIG_AIR.jury,
     spinMost: BIG_AIR.spinMost,
     flipMost: BIG_AIR.flipMost,
+    inRun: true,
   };
 }
 

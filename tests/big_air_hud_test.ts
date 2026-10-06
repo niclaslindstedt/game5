@@ -72,6 +72,26 @@ describe("big air on the HUD and the plate", () => {
     expect(nextContest(state)?.qualification).toHaveLength(1);
   });
 
+  it("shows each row the jumps taken so far, never a blank for one to come", () => {
+    const first = bigAirOf(jumped(undefined, [flight({ spin: 2 * Math.PI })]));
+    for (const r of first?.board ?? []) {
+      expect(r.scores).toHaveLength(1);
+      const line = STRINGS.bigAirRow("qualification", r.scores, r.fell, r.total);
+      expect(line).not.toContain("–");
+      expect(line).not.toContain("=");
+    }
+    const c = nextContest(jumped(undefined, [flight({ spin: 2 * Math.PI })])) ?? undefined;
+    const second = bigAirOf(jumped(c, [flight({ spin: 4 * Math.PI })]));
+    for (const r of second?.board ?? []) expect(r.scores).toHaveLength(2);
+    expect(STRINGS.bigAirRow("qualification", [88.25, 40], [false, true], 88.25)).toBe(
+      "88.25 · FALL · BEST 88.25",
+    );
+    expect(STRINGS.bigAirRow("final", [91, 84.5], [false, false], 175.5)).toBe(
+      "91.00 · 84.50 · TOTAL 175.50",
+    );
+    expect(STRINGS.bigAirRow("qualification", [86], [false], 86)).toBe("86.00");
+  });
+
   it("ends the contest after the qualification for a skier who never jumped", () => {
     let c: BigAirContest = freshBigAir(11);
     for (let k = 0; k < BIG_AIR.qualification - 1; k++) c = nextContest(jumped(c, [])) ?? c;

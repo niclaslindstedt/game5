@@ -260,15 +260,26 @@ down on the table or the knuckle less, and scores a fall low whatever was
 thrown. Each judge's own eye is a few points either way, dealt off a hash.
 
 **The jump as the game builds it** (R37, `engine/mapgen/trick-rules.ts`):
-a 6 m platform, a 30° drop-in, an 8 m flat, a 26° kicker 2.3 m over the
-flat, a 16 m table and a landing shaped to an equivalent fall height of a
+a 6 m platform, a 30° drop-in, an 8 m flat, a 32° kicker 4 m over the
+flat, a 15 m table and a landing shaped to an equivalent fall height of a
 third of a metre to a cap of 38°, then a run-out — cut into the mountain
 straight down the face where it fits the ground best. The drop-in is as
-long as brings a tucked skier to the lip at 60 km/h; the engine's skier
+long as brings a tucked skier to the lip at 59 km/h; the engine's skier
 loses more speed than a point mass through the compressions at its foot
 and up the kicker, so the in-run is sized with that loss measured, and he
-reaches some 100 km/h before he rises to the lip — more than a scaffold
-jump's in-run, which drops steeper and shorter.
+reaches near 100 km/h before he rises to the lip — more than a scaffold
+jump's in-run, which drops steeper and shorter. He also leaves the lip
+flatter than the lip (his legs give through the kicker's curve), so the
+landing is shaped for the flight he flies — about 0.78 of the lip's angle
+— not the lip's. Tucked he flies ~2.5 m over the lip and 23–34 m in about
+2 s; with the jump sprung at the lip (`TUNING.jump`, which still springs a
+beat after the snow is left), ~5 m over it and 34–46 m in about 3 s. Stood
+up the whole in-run he would come off near 45 km/h, and sat back on his
+tails or braking slower still, down on the knuckle — so the in-run is
+ridden as a contest skier rides it, tucked, unbraked and centred from the
+start gate to the lip, whatever is pressed (`RunRules.inRun`,
+`engine/game/in-run.ts`); the edge and the jump are his own, and in the
+air every control is.
 
 ## Aerials
 

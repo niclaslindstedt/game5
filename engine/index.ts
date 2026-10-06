@@ -198,6 +198,7 @@ export {
   type BigAirPhase,
   type BigAirRow,
 } from "./game/big-air-contest.ts";
+export { inRunInput } from "./game/in-run.ts";
 export {
   JUDGING,
   difficultyOf,

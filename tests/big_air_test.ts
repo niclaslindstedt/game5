@@ -32,6 +32,9 @@ import {
   type BigAirJump,
   type FlightRecord,
   type GameState,
+  NEUTRAL_INPUT,
+  inRunInput,
+  trackPointAt,
 } from "@engine";
 import { levelFor } from "./support/levels.ts";
 
@@ -82,8 +85,9 @@ describe("the big air jump's profile (R37)", () => {
     // meets the landing the speed into the slope is a fall's of well under
     // a metre — the landing shaped to the rule's fall height until its
     // steepest caps it. A tenth OVER, he comes down further on the landing,
-    // still on it: overshooting a jump is harder, as on any real one.
-    const kick = B.kick * RAD;
+    // still on it: overshooting a jump is harder, as on any real one. The
+    // flight is the one a skier flies, flatter than the lip.
+    const kick = B.kick * B.launch * RAD;
     for (const share of [0.9, 1, 1.1]) {
       const v0 = B.speed * share;
       const vx = v0 * Math.cos(kick);
@@ -146,6 +150,20 @@ describe("the big air jump set on a map (R37)", () => {
 });
 
 describe("big air as a mode", () => {
+  it("rides the in-run tucked, unbraked and centred, and nothing past the lip", () => {
+    const state = createGame({ seed: 1, mode: "bigAir", quiet: true, countdown: 0 });
+    const asked = { ...NEUTRAL_INPUT, steer: 0.4, brake: 1, lean: 1, jump: true };
+    expect(state.rules.inRun).toBe(true);
+    expect(inRunInput(state, asked)).toEqual({ ...asked, tuck: 1, brake: 0, lean: 0 });
+    const lip = state.level.bigAir?.lip ?? 0;
+    const past = trackPointAt(state.level, lip + 5);
+    state.skier.x = past.x;
+    state.skier.z = past.z;
+    expect(inRunInput(state, asked)).toBe(asked);
+    const slalom = createGame({ seed: 1, mode: "slalom", quiet: true, countdown: 0 });
+    expect(inRunInput(slalom, asked)).toBe(asked);
+  });
+
   it("is the strict gates, the tricks, the real g and the raised ceilings", () => {
     const r = MODE_RULES.bigAir(1);
     expect(r.gates).toBe("strict");

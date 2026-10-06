@@ -37,13 +37,14 @@ export type BigAirNext =
   | { kind: "out"; place: number }
   | { kind: "done"; place: number };
 
-/** A ROW OF THE BOARD on the plate: his place, who, each jump's score (null
- * a jump not yet taken), his total and whether a jump was a fall. */
+/** A ROW OF THE BOARD on the plate: his place, who, the score of each jump
+ * taken so far (never a blank for one still to come), his total and whether
+ * a jump was a fall. */
 export type BigAirBoardRow = {
   place: number;
   id: number;
   you: boolean;
-  scores: (number | null)[];
+  scores: number[];
   fell: boolean[];
   total: number;
 };
@@ -94,7 +95,7 @@ function boardRows(c: BigAirContest, phase: BigAirPhase): BigAirBoardRow[] {
     place: i + 1,
     id: r.id,
     you: r.id === -1,
-    scores: Array.from({ length: jumpsIn(phase) }, (_, k) => r.jumps[k]?.score ?? null),
+    scores: r.jumps.map((j) => j.score),
     fell: r.jumps.map((j) => j.fell),
     total: r.total,
   }));

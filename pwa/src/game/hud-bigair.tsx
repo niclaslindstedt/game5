@@ -75,7 +75,7 @@ export function BigAirPlate({
                   {r.you ? STRINGS.bigAirYou : STRINGS.bigAirBib(r.id)}
                 </span>
                 <span class="hud-standing-time">
-                  {STRINGS.bigAirRow(r.scores, r.fell, r.total)}
+                  {STRINGS.bigAirRow(air.phase, r.scores, r.fell, r.total)}
                 </span>
               </li>
             ))}

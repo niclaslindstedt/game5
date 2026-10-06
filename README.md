@@ -131,7 +131,7 @@ The browser-driven labs (`screenshots`, `profile`, `world`, `sky`, `snowfall`, `
 
 All configuration is a URL parameter or build-time:
 
-- `?seed=` — which mountain; `?skis=` — which pair, for the visit; `?mode=trial` — a time trial rather than a slalom; `?start=downhill` (or `?mode=downhill`) — a downhill's training run; `?run=2` — a slalom's second run, or a downhill's race; `?region=` — which kind of country (`alpine`, `fell`, `continental`, `maritime`); `?grade=` — which piste grade (`green`, `blue`, `red`, `black`); `?start=free&heli=1` — a free ride begun on the helicopter; `?start=free&sled=1` — one begun on the snowmobile.
+- `?seed=` — which mountain; `?skis=` — which pair, for the visit; `?mode=trial` — a time trial rather than a slalom; `?start=downhill` (or `?mode=downhill`) — a downhill's training run; `?run=2` — a slalom's second run, or a downhill's race; `?region=` — which kind of country (`alpine`, `fell`, `continental`, `maritime`); `?grade=` — which piste grade (`green`, `blue`, `red`, `black`); `?start=free&heli=1` — a free ride begun on the helicopter; `?start=free&sled=1` — one begun on the snowmobile; `?start=free&grimbear=1` — one the grimbear hunts.
 - OPTIONS on the front door — the picture, the sound, the keys, the thumbs and the assist, remembered between visits.
 - `VITE_BASE` — deploy base path (`/`, `/preview/`, `/branch/`); set by the Pages workflow, defaults to `/`.
 - `VITE_PWA_IGNORE_PATHS` — sibling deploy slots the root service worker must not claim; set by the Pages workflow.

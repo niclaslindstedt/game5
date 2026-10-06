@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WILDLIFE, as the renderer holds it: the birds (`birds.ts`) and the
-// animals on the snow (`beasts.ts`) behind one door, so `renderer.ts` builds
+// THE WILDLIFE, as the renderer holds it: the birds (`birds.ts`), the
+// animals on the snow (`beasts.ts`) and — on a free ride he was dealt to,
+// the one creature the ENGINE moves — the grimbear (`grimbear-view.ts`),
+// behind one door, so `renderer.ts` builds
 // one thing with the map, moves it once a frame and wipes it with a run.
 //
 // Presentation, end to end. Everything here reads `GameState` and the
@@ -13,6 +15,7 @@ import type { GameState, Level } from "@engine";
 
 import { createBeasts, type Beasts, type PrintSnow, type TrailWindow } from "./beasts.ts";
 import { createBirds, type Birds } from "./birds.ts";
+import { createGrimbearView } from "./grimbear-view.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { WildLook } from "./settings-video.ts";
 import type { Stamp } from "./trail-stamp.ts";
@@ -48,13 +51,15 @@ export function createWildlife(
 ): Wildlife {
   const birds = createBirds(level, haze, look);
   const beasts = createBeasts(level, haze, look, snow);
+  const grimbear = createGrimbearView(level, haze);
   const group = new THREE.Group();
-  group.add(birds.group, beasts.group);
+  group.add(birds.group, beasts.group, grimbear.group);
   return {
     group,
     update(state, eyeX, eyeZ, stamps, window) {
       birds.update(state, eyeX, eyeZ);
       beasts.update(state, eyeX, eyeZ, stamps, window);
+      grimbear.update(state);
     },
     retrack: () => beasts.retrack(),
     reset() {
@@ -70,6 +75,7 @@ export function createWildlife(
     dispose() {
       birds.dispose();
       beasts.dispose();
+      grimbear.dispose();
     },
   };
 }

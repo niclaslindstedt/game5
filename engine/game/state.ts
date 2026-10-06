@@ -22,6 +22,7 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
+import type { GrimbearState } from "./grimbear-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
@@ -660,6 +661,9 @@ export type GameEvent =
   | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
+  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, over the skier he
+   * caught, pulled up roaring short of one he did not, or gone. */
+  | { kind: "grimbear"; t: number; phase: "burst" | "maul" | "halt" | "gone"; x: number; z: number }
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number }
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
@@ -975,6 +979,9 @@ export type GameState = {
   /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   sled?: SledState;
+  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to;
+   * absent everywhere else. */
+  grimbear?: GrimbearState;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

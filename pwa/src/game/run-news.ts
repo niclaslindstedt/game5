@@ -89,6 +89,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
       return { text: STRINGS.newsStuck, tone: "bad" };
+    case "grimbear":
+      // Out of the trees, and pulled up short; the catch is the wipeout's.
+      return e.phase === "burst"
+        ? { text: STRINGS.newsGrimbear, tone: "bad" }
+        : e.phase === "halt"
+          ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
+          : null;
     case "bump": {
       // One of the crowd shouldered on a free ride: whether he stayed up.
       if (e.amateur === undefined) return null;

@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE GRIMBEAR as the run holds him (`grimbear.ts`) — a type of its own so
+// `state.ts` can carry him without importing the step that moves him.
+
+import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+
+/** What he is doing: nowhere to be seen (`away`), waiting behind a trunk
+ * (`lurk`), running at the skier (`run`), over him (`maul`), stood
+ * roaring after a chase he gave up (`halt`), or walking off into the woods
+ * (`leave`). */
+export type GrimbearPhase = "away" | "lurk" | "run" | "maul" | "halt" | "leave";
+
+/** THE GRIMBEAR on a free ride that met him. `hunt` is whether he will
+ * CATCH the skier the next time he runs at him — true until he has, once;
+ * after that every sighting is a chase that comes up short. Where he
+ * stands (plan, m), the way he faces (rad, 0 = +z, clockwise), his speed
+ * (m/s) and how far he has run in all (m — the stride the figure reads).
+ * `t` is the seconds in this phase, `wait` the seconds left before he lies
+ * in wait again, `tree` the trunk he hides behind (-1 none). `top` is set
+ * by the catch: the next reset stands the skier at the top of the slope. */
+export type GrimbearState = {
+  rng: Rng;
+  hunt: boolean;
+  phase: GrimbearPhase;
+  x: number;
+  z: number;
+  heading: number;
+  speed: number;
+  stride: number;
+  t: number;
+  wait: number;
+  tree: number;
+  top: boolean;
+  /** How many times he has broken cover this run. */
+  sightings: number;
+};

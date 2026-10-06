@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE PISTE MACHINES IN THE RENDERER — the one hand `machines.ts` holds them
-// by: every machine drawn (`groomer-view.ts`); THE SWATH each lays, stamped
+// by: the model fetched once (`models/groomer.glb`, `make models
+// KIND=groomer`) and dressed — every material hazed, the lamps' lenses, the
+// glass, the beacon and the tail lights lit by the dark — and every machine
+// drawn as a copy of it (`groomer-view.ts`; the code's stand-in,
+// `groomer-build.ts`, when the build packs none or it fails to load); THE SWATH each lays, stamped
 // into the trail map as fresh corduroy (`Stamp.groom`, `trail-map.ts`) —
 // the snow the day skied up wiped flat under it — and its belts' prints
 // ahead of the tiller; the fine snow the tiller's drum throws up behind it,
@@ -11,15 +15,14 @@
 // the rest of the world, on a free ride only.
 
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { GROOMER, type GameState, type GroomerState } from "@engine";
 
-import {
-  createGroomerView,
-  groomerPaint,
-  GROOMER_LAMPS,
-  type GroomerView,
-} from "./groomer-view.ts";
-import type { HazeUniforms } from "./haze.ts";
+import { groomerPaint, type GroomerPaint } from "./groomer-build.ts";
+import { GROOMER_LAMPS } from "./groomer-look.ts";
+import { createGroomerView, type GroomerView } from "./groomer-view.ts";
+import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { groomerModelUrl } from "./skier-models.ts";
 import type { SolidBox } from "./camera-clear.ts";
 import type { Flood } from "./headlamp.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -46,6 +49,9 @@ const MIST_SIZE = 0.55;
 
 export type GroomerScene = {
   group: THREE.Group;
+  /** Resolved once the model is fetched and dressed (or given up on) —
+   * awaited before the run's programs are compiled. */
+  ready: Promise<void>;
   /** One frame: every machine posed, the swaths and the belts' prints
    * stamped into `stamps` (when the trails are drawn), the tiller's mist
    * thrown. */
@@ -67,10 +73,69 @@ type Pen = { swath: number; belts: [number, number, number, number] };
 const fwd = new THREE.Vector3();
 const lamp = new THREE.Vector3();
 
+/** The lit materials: the lamps' lenses, the cab's glass, the beacon's
+ * dome and the tail lights — the code's paint's, or the model's by name. */
+type Lit = {
+  lamp: THREE.MeshStandardMaterial[];
+  glass: THREE.MeshStandardMaterial[];
+  amber: THREE.MeshStandardMaterial[];
+  tail: THREE.MeshStandardMaterial[];
+};
+
+/** THE MODEL, fetched once for every machine on the map and dressed: every
+ * material hazed, and the lit ones gathered into `lit` and given their
+ * glow. Null when the build packs none or the file does not load. */
+function loadModel(haze: HazeUniforms, lit: Lit, made: THREE.Material[]) {
+  const url = groomerModelUrl();
+  if (!url) return Promise.resolve(null);
+  return new GLTFLoader()
+    .loadAsync(url)
+    .then((gltf): THREE.Object3D => {
+      const seen = new Set<THREE.Material>();
+      gltf.scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (seen.has(m) || !(m instanceof THREE.MeshStandardMaterial)) continue;
+          seen.add(m);
+          made.push(m);
+          hazeMaterial(m, haze, "groomer");
+          if (m.name === "lamp") {
+            m.emissive.setHex(0xe8f0ff);
+            lit.lamp.push(m);
+          } else if (m.name === "glass") {
+            m.emissive.setHex(0xffb062);
+            m.emissiveIntensity = 0;
+            lit.glass.push(m);
+          } else if (m.name === "amber") {
+            m.transparent = true;
+            m.opacity = 0.85;
+            m.emissive.setHex(0xff7a00);
+            lit.amber.push(m);
+          } else if (m.name === "tail") {
+            m.emissive.setHex(0xff1010);
+            lit.tail.push(m);
+          } else if (m.name === "orange") {
+            m.side = THREE.DoubleSide;
+          }
+        }
+      });
+      return gltf.scene;
+    })
+    .catch(() => null);
+}
+
+/** The lit materials of the code's paint. */
+function paintLit(paint: GroomerPaint): Lit {
+  return { lamp: [paint.lamp], glass: [paint.glass], amber: [paint.amber], tail: [paint.tail] };
+}
+
 export function createGroomerScene(haze: HazeUniforms): GroomerScene {
   const group = new THREE.Group();
   group.name = "piste-machines";
   const paint = groomerPaint(haze);
+  const lit: Lit = paintLit(paint);
+  const made: THREE.Material[] = [];
+  const model = loadModel(haze, lit, made);
   const views: GroomerView[] = [];
   const pens = new WeakMap<GroomerState, Pen>();
   let mist = 0;
@@ -78,7 +143,7 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
 
   const viewOf = (i: number): GroomerView => {
     while (views.length <= i) {
-      const v = createGroomerView(paint);
+      const v = createGroomerView(paint, model);
       views.push(v);
       group.add(v.group);
     }
@@ -91,6 +156,7 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
 
   return {
     group,
+    ready: model.then(() => undefined),
     frame(state, dt, stamps, cloud) {
       const gs = state.groomers ?? [];
       for (let i = 0; i < views.length; i++) views[i].group.visible = i < gs.length;
@@ -171,13 +237,20 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
         }
       });
     },
-    lamps(state, lit, eye, out) {
+    lamps(state, dark, eye, out) {
       const gs = state.groomers ?? [];
+      // The lenses, the glass, the beacon and the tail lights, by the dark
+      // — always a little on; the work is the night's.
+      const on = 0.25 + 0.75 * dark;
+      for (const m of lit.lamp) m.emissiveIntensity = 0.6 + 5 * on;
+      for (const m of lit.glass) m.emissiveIntensity = 0.035 * dark * dark;
+      for (const m of lit.amber) m.emissiveIntensity = 0.8 + 2.5 * on;
+      for (const m of lit.tail) m.emissiveIntensity = 0.3 + 1.5 * on;
       const order = gs
         .map((g, i) => ({ i, d: Math.hypot(g.x - eye.x, g.z - eye.z) }))
         .filter((o) => o.d < REACH)
         .sort((a, b) => a.d - b.d);
-      gs.forEach((_, i) => viewOf(i).light(lit, eye));
+      gs.forEach((_, i) => viewOf(i).light(dark, eye));
       order.forEach(({ i }, k) => {
         const v = views[i];
         const g = gs[i];
@@ -189,8 +262,9 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
           colour: readonly number[],
           beam: readonly number[],
           power: number,
+          x = 0,
         ) => {
-          worldOf(v, 0, y, z, lamp);
+          worldOf(v, x, y, z, lamp);
           fwd.set(
             Math.sin(heading) * Math.cos(down),
             -Math.sin(down),
@@ -214,7 +288,7 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
         const R = GROOMER_LAMPS.rear;
         push(R.y, R.z, g.heading + Math.PI, R.down + g.pitch, LED, WORK_BEAM, POWER.rear);
         const B = GROOMER_LAMPS.beacon;
-        push(B.y, B.z, v.beaconHeading(), 0.12, AMBER, BEACON_BEAM, POWER.beacon);
+        push(B.y, B.z, v.beaconHeading(), 0.12, AMBER, BEACON_BEAM, POWER.beacon, B.x);
       });
     },
     drawn(g) {
@@ -244,6 +318,12 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
     dispose() {
       for (const v of views) v.dispose();
       paint.dispose();
+      for (const m of made) m.dispose();
+      void model.then((scene) =>
+        scene?.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.geometry.dispose();
+        }),
+      );
     },
   };
 }

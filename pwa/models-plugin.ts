@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb` and the
-// mountain snowmobile's as `models/sled.glb`,
+// `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb`, the
+// mountain snowmobile's as `models/sled.glb` and the night's piste machine's
+// as `models/groomer.glb`,
 // emitted into the
 // bundle (so the service worker precaches them with everything else) and
 // served the same way by the dev server. They are COMMITTED, in
@@ -20,7 +21,8 @@
 // A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
 // `src/game/model-switch.ts`) packs none of them; `VITE_MODEL_HELI=0` packs
 // no helicopter (`src/game/heli-view.ts` draws its code-built stand-in) and
-// `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in).
+// `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in)
+// and `VITE_MODEL_GROOMER=0` no piste machine (`src/game/groomer-build.ts`).
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -30,10 +32,10 @@ import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
 
-export type ModelSwitches = { skis: boolean; heli: boolean; sled: boolean };
+export type ModelSwitches = { skis: boolean; heli: boolean; sled: boolean; groomer: boolean };
 
 /** Every switch on — what a build draws unless told otherwise. */
-export const ALL_MODELS: ModelSwitches = { skis: true, heli: true, sled: true };
+export const ALL_MODELS: ModelSwitches = { skis: true, heli: true, sled: true, groomer: true };
 
 /** Where the committed models are, from the repository's root. */
 export const MODELS_DIR = "pwa/models";
@@ -44,6 +46,9 @@ export const HELI_FILE = "heli.glb";
 /** The snowmobile's one file (`make blender KIND=sled`'s LOD0). */
 export const SLED_FILE = "sled.glb";
 
+/** The piste machine's one file (`make blender KIND=groomer`'s LOD0). */
+export const GROOMER_FILE = "groomer.glb";
+
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
 export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
@@ -53,6 +58,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...skis,
     ...(on.heli && (!half || half === "heli") ? [HELI_FILE] : []),
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
+    ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
   ];
 }
 
@@ -93,13 +99,26 @@ export const SLED_SOURCES = [
   "pwa/src/game/sled-look.ts",
 ];
 
+/** WHAT THE PISTE MACHINE IS MADE FROM: its builder, its data module, the
+ * shelf and the driver, `GROOMER` and the class's layout it is drawn to. */
+export const GROOMER_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/groomer.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/groomer.py",
+  "engine/game/defs/groomer.ts",
+  "pwa/src/game/groomer-look.ts",
+];
+
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
- * helicopter (`heli`) and the snowmobile (`sled`). */
+ * helicopter (`heli`), the snowmobile (`sled`) and the piste machine
+ * (`groomer`). */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
   heli: HELI_SOURCES,
   sled: SLED_SOURCES,
+  groomer: GROOMER_SOURCES,
 } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
@@ -125,7 +144,7 @@ export function gameModels(on: ModelSwitches, root: string): Plugin {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0)",
+            "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0)",
         );
       }
     },

@@ -19,7 +19,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { HELI, SKI_CATALOG } from "@engine";
+import { GROOMER, HELI, SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -31,6 +31,8 @@ import {
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
 import {
   dressOf,
+  GROOMER_NODES,
+  groomerModelUrl,
   HELI_NODES,
   heliModelUrl,
   SLED_NODES,
@@ -38,6 +40,7 @@ import {
 } from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
+import { GROOMER_LOOK } from "../pwa/src/game/groomer-look.ts";
 
 const root = join(import.meta.dirname, "..");
 const matNames = (file: string): string[] =>
@@ -48,22 +51,23 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and the snowmobile", () => {
+  it("are every pair under its id, the helicopter, the snowmobile and the piste machine", () => {
     expect([...all].sort()).toEqual(
-      [...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb", "sled.glb"].sort(),
+      [...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb", "sled.glb", "groomer.glb"].sort(),
     );
-    expect(modelFiles({ skis: false, heli: true, sled: false })).toEqual(["heli.glb"]);
-    expect(modelFiles({ skis: false, heli: false, sled: true })).toEqual(["sled.glb"]);
-    expect(modelFiles({ skis: true, heli: false, sled: false })).toEqual(
-      SKI_CATALOG.map((s) => `${s.id}.glb`),
-    );
-    expect(modelFiles({ skis: false, heli: false, sled: false })).toEqual([]);
+    const none = { skis: false, heli: false, sled: false, groomer: false };
+    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb"]);
+    expect(modelFiles({ ...none, sled: true })).toEqual(["sled.glb"]);
+    expect(modelFiles({ ...none, groomer: true })).toEqual(["groomer.glb"]);
+    expect(modelFiles({ ...none, skis: true })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
+    expect(modelFiles(none)).toEqual([]);
     expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
     expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
+    expect(modelFiles(ALL_MODELS, "groomer")).toEqual(["groomer.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis, the helicopter and the snowmobile — the skier is dressed in code", () => {
+  it("are nothing but the skis and the free ride's machines — the skier is dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -71,7 +75,7 @@ describe("the models the game ships", () => {
     const stamp = JSON.parse(
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
-    expect(Object.keys(stamp).sort()).toEqual(["blender", "heli", "sled", "sources"]);
+    expect(Object.keys(stamp).sort()).toEqual(["blender", "groomer", "heli", "sled", "sources"]);
   });
 
   it("are all committed, each within its budget", () => {
@@ -227,5 +231,84 @@ describe("the snowmobile model", () => {
     // 20k: the cowl's creased loft, the belt and its paddles, the front
     // end's arms and springs, the rack and its pair.
     expect(tris).toBeLessThan(20_000);
+  });
+});
+
+describe("the piste machine model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "groomer.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: {
+      name: string;
+      mesh?: number;
+      translation?: number[];
+      extras?: Record<string, unknown>;
+    }[];
+    materials: { name: string }[];
+    meshes: {
+      primitives: { indices: number; attributes: { POSITION: number }; targets?: unknown[] }[];
+    }[];
+    accessors: { count: number; min?: number[]; max?: number[] }[];
+  };
+  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+  const builder = readFileSync(join(root, "scripts", "blender", "groomer.py"), "utf8");
+  const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+
+  it("carries every node its drawer is told of, each a rigid mesh", () => {
+    for (const name of Object.values(GROOMER_NODES)) {
+      expect(builder, `groomer.py names ${name}`).toContain(`"${name}"`);
+      expect(node(name)?.mesh, name).toBeTypeOf("number");
+    }
+    expect(groomerModelUrl()).toBe("/models/groomer.glb");
+  });
+
+  it("is in the engine's own frame, the blade on its hinge and the tiller on its hitch", () => {
+    const B = GROOMER_LOOK.blade.hinge;
+    const T = GROOMER_LOOK.tiller.hitch;
+    const C = GROOMER_LOOK.beacon;
+    expect(v(node(GROOMER_NODES.body)?.translation)).toEqual([0, 0, 0]);
+    expect(v(node(GROOMER_NODES.blade)?.translation)).toEqual(v([0, B.y, B.z]));
+    expect(v(node(GROOMER_NODES.tiller)?.translation)).toEqual(v([0, T.y, T.z]));
+    expect(v(node(GROOMER_NODES.beacon)?.translation)).toEqual(v([C.x, C.y, C.z]));
+  });
+
+  it("stands at the class's true size: its width over the belts, its height", () => {
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const p of gltf.meshes[node(GROOMER_NODES.body)!.mesh!].primitives) {
+      const a = gltf.accessors[p.attributes.POSITION];
+      for (let k = 0; k < 3; k++) {
+        min[k] = Math.min(min[k], a.min![k]);
+        max[k] = Math.max(max[k], a.max![k]);
+      }
+    }
+    expect(max[0] - min[0]).toBeCloseTo(GROOMER.tracks.span, 1);
+    expect(max[1]).toBeGreaterThan(GROOMER.roof - 0.1);
+    expect(max[1]).toBeLessThan(GROOMER.roof + 0.3);
+    expect(min[1]).toBeGreaterThan(-0.1);
+  });
+
+  it("runs its cleats round the belts on one morph, its pitch on the root", () => {
+    const cleats = gltf.meshes[node(GROOMER_NODES.cleats)!.mesh!];
+    for (const p of cleats.primitives) expect(p.targets?.length).toBe(1);
+    const root = gltf.nodes.find((n) => typeof n.extras?.cleatPitch === "number");
+    expect(root?.extras?.cleatPitch).toBeCloseTo(GROOMER_LOOK.belt.pitch, 1);
+  });
+
+  it("names its materials as the builder does, the lit ones among them", () => {
+    const named = new Set(matNames("groomer.py"));
+    for (const n of ["paint", "glass", "lamp", "amber", "tail", "rubber", "snow"]) {
+      expect(named.has(n), `groomer.py names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((m) => m.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 26k: up to six are out at once — the belts' bands and wheels, the
+    // cab's glass and pillars, the hood, the blade's guard and the
+    // tiller's ribbed mat.
+    expect(tris).toBeLessThan(26_000);
   });
 });

@@ -602,6 +602,7 @@ export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,
+  groomerCount,
   groomersOut,
   groomerStrike,
   groomerWithin,

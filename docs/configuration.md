@@ -94,6 +94,7 @@ Every dependency resolves from the public npm registry, so `npm install` needs n
 | `VITE_MODEL_SKIS`                  | `0` (or `off`) switches back to the code-built skis; unset, empty or anything else draws the modelled ones (`pwa/models/<id>.glb`, packed as `models/<id>.glb`). CI hands it the repository variable of the same name. |
 | `VITE_MODEL_HELI`                  | `0` (or `off`) packs no helicopter model and the free ride's helicopter is drawn as the code's stand-in (`heli-view.ts`); unset, empty or anything else packs `pwa/models/heli.glb` as `models/heli.glb`. |
 | `VITE_MODEL_SLED`                  | `0` (or `off`) packs no snowmobile model and the free ride's snowmobile is drawn as the code's stand-in (`sled-view.ts`); unset, empty or anything else packs `pwa/models/sled.glb` as `models/sled.glb`. |
+| `VITE_MODEL_GROOMER`               | `0` (or `off`) packs no piste machine model and the free ride's night groomers are drawn as the code's stand-in (`groomer-build.ts`); unset, empty or anything else packs `pwa/models/groomer.glb` as `models/groomer.glb`. |
 
 `.env.example` at the root documents the same set; copy it to `.env` (gitignored) to override locally — the build reads the root `.env` (`envDir` in `pwa/vite.config.ts`) for the client's switches and the packing alike, and the environment wins over it.
 

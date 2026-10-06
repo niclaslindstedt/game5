@@ -108,6 +108,30 @@
   }
 }
 
+/* THE CALL AS A PRESS (`hud-machine-press.tsx`): stood beside the
+   snowmobile or the helicopter's skid, its call is a button — the machine
+   press, tapped or clicked. A pill round it says it can be pressed, and it
+   takes the pointer the readouts otherwise let through — over the thumb
+   zones, whose glass it may overlap on a short screen. */
+.hud-machine-press {
+  z-index: 2;
+  min-width: 11rem;
+  padding: 0.7rem 1.4rem;
+  font: inherit;
+  color: var(--hud-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  background: rgb(0 0 0 / 35%);
+  border: 2px solid currentcolor;
+  border-radius: 999px;
+  box-shadow: 0 0 1.2rem rgb(255 255 255 / 25%);
+}
+
+.hud-machine-press:active {
+  background: rgb(255 255 255 / 25%);
+}
+
 /* OPTIONS ▸ KEYS: the snowmobile's note — the skier's keys ride it. */
 .knob-note {
   margin: 0.2rem 0 0.8rem;

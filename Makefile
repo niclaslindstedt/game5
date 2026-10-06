@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
 
 build:
 	npm run build
@@ -213,14 +213,15 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter
-# and the mountain snowmobile, game quality (no stills), made by Blender and published into
+# The models the game ships: every pair of skis, the heli-ski helicopter,
+# the mountain snowmobile and the night's piste machine, game quality (no
+# stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli or KIND=sled makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
-# VITE_MODEL_SLED=0). The skier
+# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
 # (dressed in code, `make gear`), the trees, the wildlife and the course's
 # marks are built in code and have no models; `make blender KIND=skier`
 # still models the skier for the labs.
@@ -228,6 +229,7 @@ models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
+	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # Switch the models on or off for every CI build — the repository
@@ -451,6 +453,17 @@ grimbear:
 # Chromium like `world`. ARGS="--sheet=night,snow", "--views=turntable".
 groomer:
 	npm run groomer -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE PISTE THROUGH THE DAY LAB: one spot of a free ride's piste under a
+# sky at the hours of a day — the night's corduroy at the first chair, the
+# skied-up afternoon, a spring sun's slush and its evening freeze, and the
+# new snow a snowing sky lays on it — through the game's own renderer. One
+# contact sheet a sky, previews/piste-day-<sky>.png, and every frame alone.
+# Its own one-off bundle from pwa/piste-day-preview.html (never deployed);
+# needs a Chromium like `world`. ARGS="--sheet=clear --day=80",
+# "--hours=8,12,16,19".
+piste-day:
+	npm run piste-day -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

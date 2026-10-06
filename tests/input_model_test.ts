@@ -10,8 +10,12 @@ import { describe, expect, it } from "vitest";
 import { TUNING } from "@engine";
 
 import {
+  BACK_TOUCH,
   BAR_REACH_PX,
+  JUMP_TAP_GAP,
+  JUMP_TAP_MAX,
   KEY_AXIS_SNAP,
+  LEAN_REACH_PX,
   LEAN_DEAD_PX,
   LEVER_BRAKE_DEAD_PX,
   LEVER_BRAKE_PX,
@@ -21,12 +25,27 @@ import {
   barLean,
   barReachPx,
   barSteer,
+  edgeFeel,
+  edgeReachPx,
+  SLALOM_EDGE_REACH,
+  trailAnchor,
   createInputModel,
+  createJumpTap,
+  jumpTapDown,
+  jumpTapUp,
   leverBrake,
   leverTuck,
   neutralTouch,
   rampToward,
+  sampleHeli,
+  POWER_PAD_DEAD,
+  powerAxis,
   sampleInput,
+  COLLECTIVE_KEY_RATE,
+  COLLECTIVE_THUMB_RATE,
+  NO_HELI_KEYS,
+  createHeliModel,
+  type HeliKeysHeld,
   type KeysHeld,
 } from "../pwa/src/game/input-model.ts";
 import { DEFAULT_KEYS, isHeldAction, type KeyAction } from "../pwa/src/game/settings-input.ts";
@@ -170,6 +189,39 @@ describe("the thumbs' feel (OPTIONS ▸ CONTROLS)", () => {
   });
 });
 
+describe("the edge on a slalom", () => {
+  it("reaches full edge on a shorter throw, and leaves the lean its own", () => {
+    const slalom = edgeFeel({ sensitivity: 1, invertLean: false }, "slalom");
+    const reach = BAR_REACH_PX * SLALOM_EDGE_REACH;
+    expect(edgeReachPx(slalom)).toBeCloseTo(reach);
+    expect(barSteer(reach, slalom)).toBeCloseTo(1);
+    expect(barSteer(-reach, slalom)).toBeCloseTo(-1);
+    expect(barSteer(reach)).toBeLessThan(1);
+    expect(barLean(BAR_REACH_PX / 2, slalom)).toBe(barLean(BAR_REACH_PX / 2));
+    expect(barReachPx(slalom)).toBe(barReachPx());
+  });
+
+  it("stacks on the player's sensitivity, and only on a slalom", () => {
+    const quick = { sensitivity: 1.5, invertLean: false };
+    expect(edgeReachPx(edgeFeel(quick, "slalom"))).toBeCloseTo(
+      (BAR_REACH_PX * SLALOM_EDGE_REACH) / 1.5,
+    );
+    expect(edgeFeel(quick, "downhill")).toBe(quick);
+    expect(edgeFeel(quick, null)).toBe(quick);
+  });
+
+  it("trails the anchor behind a thumb past full edge, so the way back is one throw", () => {
+    const reach = edgeReachPx();
+    expect(trailAnchor(100, 150, reach)).toBe(100);
+    // Swept an inch past the ring to the right: the anchor follows...
+    const anchor = trailAnchor(100, 100 + reach + 40, reach);
+    expect(anchor).toBe(140);
+    // ...and two throws back from there is full edge the other way.
+    expect(barSteer(100 + reach + 40 - 2 * reach - anchor)).toBe(-1);
+    expect(trailAnchor(100, 100 - reach - 30, reach)).toBe(70);
+  });
+});
+
 describe("the key table (settings-input.ts)", () => {
   it("binds every action, and every held action is one the ramps know", () => {
     for (const [action, codes] of Object.entries(DEFAULT_KEYS) as [KeyAction, string[]][]) {
@@ -186,7 +238,8 @@ describe("the key table (settings-input.ts)", () => {
 
   it("drives on W / S, leans on the arrows, and puts nothing on Ctrl", () => {
     expect(DEFAULT_KEYS.tuck).toEqual(["KeyW"]);
-    expect(DEFAULT_KEYS.brake).toEqual(["KeyS", "Space"]);
+    expect(DEFAULT_KEYS.brake).toEqual(["KeyS"]);
+    expect(DEFAULT_KEYS.jump).toEqual(["Space"]);
     expect(DEFAULT_KEYS.leanForward[0]).toBe("ArrowUp");
     expect(DEFAULT_KEYS.leanBack[0]).toBe("ArrowDown");
     expect(DEFAULT_KEYS.left).toEqual(expect.arrayContaining(["KeyA", "ArrowLeft"]));
@@ -226,6 +279,16 @@ describe("the tuck and the brake keys in the air", () => {
     return input;
   }
 
+  it("a quick tap in the air reaches a stroke's gate, where on the snow it would not", () => {
+    // A 50 ms tap: six steps at 120 Hz.
+    const tapped = (keys: Partial<KeysHeld>, airborne: boolean) =>
+      ride(createInputModel(), keys, airborne, 6);
+    const T = TUNING.tricks;
+    expect(Math.abs(tapped({ left: true }, true).steer)).toBeGreaterThanOrEqual(T.spinGate);
+    expect(tapped({ leanBack: true }, true).lean).toBeGreaterThanOrEqual(T.flipGate);
+    expect(Math.abs(tapped({ left: true }, false).steer)).toBeLessThan(T.spinGate);
+  });
+
   it("never lean on the snow", () => {
     const model = createInputModel();
     expect(ride(model, { tuck: true }, false).lean).toBe(0);
@@ -260,5 +323,165 @@ describe("the tuck and the brake keys in the air", () => {
     expect(ride(model, { tuck: true, leanBack: true }, true).lean).toBeGreaterThan(0.9);
     ride(model, {}, true, 1);
     expect(ride(model, { brake: true, leanForward: true }, true).lean).toBeLessThan(-0.9);
+  });
+});
+
+describe("the back key's two meanings, by order", () => {
+  /** Step `keys` for `steps` steps on the snow on `model`. */
+  function ride(model: ReturnType<typeof createInputModel>, keys: Partial<KeysHeld>, steps = 30) {
+    const held = { ...NO_KEYS, ...keys };
+    let input = sampleInput(model, held, neutralTouch(), DT, false);
+    for (let i = 1; i < steps; i++) input = sampleInput(model, held, neutralTouch(), DT, false);
+    return input;
+  }
+
+  it("brakes when pressed first, and swings into a hockey stop with the edge after", () => {
+    const model = createInputModel();
+    expect(ride(model, { brake: true }).brake).toBeGreaterThan(0.9);
+    const stop = ride(model, { brake: true, right: true });
+    expect(stop.brake).toBeGreaterThan(0.9);
+    expect(stop.carve).toBe(false);
+    expect(Math.abs(stop.steer)).toBeGreaterThan(0.5);
+  });
+
+  it("cuts the edge harder when pressed with an edge already on, and does not brake", () => {
+    const model = createInputModel();
+    ride(model, { left: true });
+    const cut = ride(model, { left: true, brake: true });
+    expect(cut.carve).toBe(true);
+    expect(cut.brake).toBe(0);
+  });
+
+  it("keeps the meaning it went down with until it is let go", () => {
+    const model = createInputModel();
+    ride(model, { left: true });
+    ride(model, { left: true, brake: true });
+    // The edge let go under a held cut: still the cut, never a brake.
+    expect(ride(model, { brake: true }).carve).toBe(true);
+    ride(model, {});
+    expect(ride(model, { brake: true }).brake).toBeGreaterThan(0.9);
+  });
+
+  it("is the edge thumb dragged down on the snow, and the lean back in the air", () => {
+    const model = createInputModel();
+    const touch = neutralTouch();
+    touch.bar = true;
+    touch.lean = BACK_TOUCH + 0.1;
+    let input = sampleInput(model, NO_KEYS, touch, DT, false);
+    for (let i = 0; i < 30; i++) input = sampleInput(model, NO_KEYS, touch, DT, false);
+    expect(input.brake).toBeGreaterThan(0.9);
+    expect(input.lean).toBe(0);
+    const air = sampleInput(createInputModel(), NO_KEYS, touch, DT, false, true);
+    expect(air.brake).toBe(0);
+    expect(air.lean).toBeCloseTo(BACK_TOUCH + 0.1);
+    // Across first, then down: the cut.
+    const cutModel = createInputModel();
+    const across = { ...neutralTouch(), bar: true, steer: 0.8 };
+    sampleInput(cutModel, NO_KEYS, across, DT, false);
+    const cut = sampleInput(cutModel, NO_KEYS, { ...across, lean: 0.9 }, DT, false);
+    expect(cut.carve).toBe(true);
+    expect(cut.brake).toBe(0);
+    expect(LEAN_REACH_PX).toBeGreaterThan(0);
+  });
+});
+
+describe("the jump", () => {
+  it("is held on its key and let go on the release", () => {
+    const model = createInputModel();
+    expect(sampleInput(model, { ...NO_KEYS, jump: true }, neutralTouch(), DT, false).jump).toBe(
+      true,
+    );
+    expect(sampleInput(model, NO_KEYS, neutralTouch(), DT, false).jump).toBe(false);
+  });
+
+  it("is a tap and a hold on the lever's thumb, and never a plain touch", () => {
+    const tap = createJumpTap();
+    // A plain touch held: the tuck, no jump.
+    expect(jumpTapDown(tap, 0)).toBe(false);
+    jumpTapUp(tap, 5);
+    expect(jumpTapDown(tap, 5.1)).toBe(false);
+    // A tap, and the thumb straight back down: the jump loading.
+    jumpTapUp(tap, 5.1 + JUMP_TAP_MAX / 2);
+    expect(jumpTapDown(tap, 5.1 + JUMP_TAP_MAX / 2 + JUMP_TAP_GAP / 2)).toBe(true);
+    jumpTapUp(tap, 7);
+    // The release that sprang him is not a tap for the next touch.
+    expect(jumpTapDown(tap, 7.1)).toBe(false);
+    // A tap followed too late is a plain touch.
+    jumpTapUp(tap, 7.2);
+    expect(jumpTapDown(tap, 7.2 + JUMP_TAP_GAP * 2)).toBe(false);
+  });
+});
+
+describe("the helicopter flown by hand (sampleHeli)", () => {
+  const run = (
+    keys: Partial<HeliKeysHeld>,
+    touch = neutralTouch(),
+    seconds = 1,
+    model = createHeliModel(),
+  ) => {
+    const held = { ...NO_HELI_KEYS, ...keys };
+    let out = sampleHeli(model, held, touch, DT);
+    for (let i = 1; i < Math.round(seconds / DT); i++) out = sampleHeli(model, held, touch, DT);
+    return { out, model };
+  };
+
+  it("works the collective as a lever: it moves while held and stays where it is left", () => {
+    const { out, model } = run({ collectiveUp: true }, neutralTouch(), 1);
+    expect(out.collective).toBeCloseTo(COLLECTIVE_KEY_RATE, 1);
+    const left = run({}, neutralTouch(), 2, model).out;
+    expect(left.collective).toBeCloseTo(out.collective, 5);
+    expect(run({ collectiveDown: true }, neutralTouch(), 5, model).out.collective).toBe(0);
+  });
+
+  it("ramps the cyclic and the pedals off their keys, the side axes through the flip", () => {
+    const { out } = run({ cyclicForward: true, cyclicRight: true, pedalRight: true });
+    expect(out.pitch).toBeGreaterThan(0.95);
+    expect(out.roll).toBeLessThan(-0.95);
+    expect(out.pedal).toBeLessThan(-0.95);
+    expect(Math.sign(out.roll)).toBe(SCREEN_TO_ENGINE);
+  });
+
+  it("reads the thumbs: the cyclic pad for the disc, the power pad for the lever and the pedals", () => {
+    const touch = {
+      ...neutralTouch(),
+      stick: true,
+      stickX: 0.5,
+      stickY: -0.25,
+      power: true,
+      powerX: -1,
+      powerY: 1,
+    };
+    const { out } = run({}, touch, 1);
+    expect(out.pitch).toBeCloseTo(-0.25);
+    expect(out.roll).toBeCloseTo(0.5 * SCREEN_TO_ENGINE);
+    expect(out.pedal).toBeCloseTo(-1 * SCREEN_TO_ENGINE);
+    expect(out.collective).toBeCloseTo(COLLECTIVE_THUMB_RATE, 1);
+  });
+
+  it("leaves the collective where the power pad left it, and springs the pedals back", () => {
+    const up = { ...neutralTouch(), power: true, powerY: 1 };
+    const { out, model } = run({}, up, 1);
+    const after = run({}, neutralTouch(), 2, model).out;
+    expect(after.collective).toBeCloseTo(out.collective, 5);
+    expect(after.pedal).toBe(0);
+    const down = { ...neutralTouch(), power: true, powerY: -1 };
+    expect(run({}, down, 3, model).out.collective).toBe(0);
+  });
+
+  it("holds the power pad's dead band, so the pedals never creep the collective", () => {
+    const across = { ...neutralTouch(), power: true, powerX: 1, powerY: POWER_PAD_DEAD * 0.9 };
+    const { out } = run({}, across, 2);
+    expect(out.collective).toBe(0);
+    expect(out.pedal).toBeCloseTo(SCREEN_TO_ENGINE);
+    expect(powerAxis(-POWER_PAD_DEAD)).toBe(0);
+    expect(powerAxis(-1)).toBe(-1);
+    expect(powerAxis(0.5)).toBeCloseTo((0.5 - POWER_PAD_DEAD) / (1 - POWER_PAD_DEAD));
+  });
+
+  it("ignores the skier's edge thumb while flying", () => {
+    const touch = { ...neutralTouch(), bar: true, steer: 1, lean: -1 };
+    const { out } = run({}, touch, 1);
+    expect(out.collective).toBe(0);
+    expect(out.pedal).toBe(0);
   });
 });

@@ -91,6 +91,21 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.25, basket: 0.04, bent: false },
   },
+  // THE SUPER-G SKI: a short, low shovel (the rule asks 30 mm of tip
+  // rise of a speed ski, 50 of a giant slalom ski) whose widest point
+  // stands close to the tip, so the sidecut runs nearly the whole ski; a
+  // square tail, a hard camber on a plate; the speed events' bent poles,
+  // a little shorter than a downhill's.
+  falcon: {
+    tip: { rise: 0.038, length: 0.08 },
+    tail: { rise: 0.005, length: 0.04, twin: false },
+    point: 0.58,
+    thick: { boot: 0.025, end: 0.0095 },
+    camber: 0.014,
+    binding: RACE_BINDING,
+    boot: BOOT,
+    pole: { length: 1.28, basket: 0.04, bent: true },
+  },
   // THE DOWNHILL SKI: the longest here, a low long shovel, a square tail,
   // on a plate; the poles bent round the body for the tuck.
   eagle: {
@@ -102,6 +117,35 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     binding: RACE_BINDING,
     boot: BOOT,
     pole: { length: 1.3, basket: 0.04, bent: true },
+  },
+  // THE SKI-CROSS SKI: a giant slalom ski's shape cut down — a shorter,
+  // a little higher shovel for the rollers and the landings, a little rise
+  // at the tail, a hard camber on a plate as high as the rule's 50 mm
+  // allows; the race poles straight, for the start's pull and the skating.
+  wolverine: {
+    tip: { rise: 0.05, length: 0.14 },
+    tail: { rise: 0.012, length: 0.05, twin: false },
+    point: 0.55,
+    thick: { boot: 0.024, end: 0.009 },
+    camber: 0.013,
+    binding: { length: 0.36, height: 0.05, plate: true },
+    boot: BOOT,
+    pole: { length: 1.22, basket: 0.04, bent: false },
+  },
+  // THE SPEED SKI: the longest by far, a long low shovel and a square
+  // tail, thick and heavy through its length to damp it, nearly flat
+  // under the boot; its binding raised no more than the rule's 2.5 cm and
+  // on no plate; the poles bent round the body and short — the rule's
+  // least is a metre.
+  peregrine: {
+    tip: { rise: 0.045, length: 0.16 },
+    tail: { rise: 0.005, length: 0.04, twin: false },
+    point: 0.5,
+    thick: { boot: 0.03, end: 0.013 },
+    camber: 0.006,
+    binding: { length: 0.36, height: 0.025, plate: false },
+    boot: BOOT,
+    pole: { length: 1.1, basket: 0.035, bent: true },
   },
   // THE POWDER SKI: a big round shovel rising early and high, a rockered
   // tail lifted a little too, no camber to speak of, wide baskets.
@@ -123,6 +167,19 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     point: 0.2,
     thick: { boot: 0.02, end: 0.008 },
     camber: 0.006,
+    binding: TRAIL_BINDING,
+    boot: BOOT,
+    pole: { length: 1.15, basket: 0.045, bent: false },
+  },
+  // THE BIG-AIR SKI: the park ski's twin tips, a little longer and lower,
+  // thicker under the boot for its stiffness, a touch more camber to pop
+  // off the lip, on a recreational binding with the park's short poles.
+  raven: {
+    tip: { rise: 0.06, length: 0.2 },
+    tail: { rise: 0.055, length: 0.18, twin: true },
+    point: 0.22,
+    thick: { boot: 0.022, end: 0.009 },
+    camber: 0.008,
     binding: TRAIL_BINDING,
     boot: BOOT,
     pole: { length: 1.15, basket: 0.045, bent: false },

@@ -26,7 +26,10 @@
 // the snow as he crouches), and turned two ways: about the body's up by
 // the skid's pivot, then about its own length by the edge it stands on
 // beyond the body's own roll — the angulation, which is what a skier's
-// knees add to his lean (`skiTilt`).
+// knees add to his lean (`skiTilt`). On the snow both are taken against
+// the snow he inclines to (`ski-stand.ts`): the inside ski lifted toward
+// him and the outside let down, so a body inclined into a turn stands
+// both bases on the snow.
 // The boot is clamped to the binding, so it goes with the ski; the figure's
 // shin comes down to its cuff.
 
@@ -34,7 +37,9 @@ import * as THREE from "three";
 import type { SkiSpec, SkierState } from "@engine";
 
 import { baseHeight, halfWidth, lookFrame, thickness, type SkiLook } from "./ski-looks.ts";
+import type { Stand } from "./ski-stand.ts";
 import { PATTERNS, type Pattern } from "./ski-topsheets.ts";
+import { gaitOf } from "./skier-pose.ts";
 
 /** Rest compression of a leg, m — the sag the drawn skis sit at when the
  * engine reports it (a skier's stance settles a few centimetres under his
@@ -66,11 +71,22 @@ export function gearLift(skier: SkierState): [number, number] {
   ];
 }
 
+/** THE EDGE AS DRAWN AT A WALK: the speeds, m/s, under which the skis are
+ * drawn flat on their bases and by which they are drawn on the whole of
+ * the engine's edge. The engine steers a crawling skier on the edge its
+ * turn asks for, but a man shuffling out of the start gate or skating off
+ * a standstill turns his skis on their bases — drawn on a 40° edge at
+ * walking pace, with no speed to lean against, he stands tipped over
+ * sideways off his own boots. */
+const WALK_TILT = { from: 1.5, to: 7 };
+
 /** How far the skis are tipped about their own length IN THE BODY FRAME,
  * rad, right edges down positive: the edge the engine has them on less the
- * roll the whole body already stands at, clamped to what knees can add. */
-export function skiTilt(skier: Pick<SkierState, "edge" | "roll">): number {
-  return clamp(skier.edge - skier.roll, -EDGE_TILT, EDGE_TILT);
+ * roll the whole body already stands at, clamped to what knees can add —
+ * and laid flat at a walk (`WALK_TILT`). */
+export function skiTilt(skier: Pick<SkierState, "edge" | "roll" | "speed">): number {
+  const k = clamp((skier.speed - WALK_TILT.from) / (WALK_TILT.to - WALK_TILT.from), 0, 1);
+  return clamp(skier.edge - skier.roll, -EDGE_TILT, EDGE_TILT) * k * k * (3 - 2 * k);
 }
 
 /** THE SKI'S MESH in its own frame — x across, y up from the base, z from
@@ -195,7 +211,11 @@ export type Gear = {
   /** The two skis' groups, left then right — the figure's feet stand on
    * their boots. */
   skis: [THREE.Group, THREE.Group];
-  pose(skier: SkierState, sink: number): void;
+  /** Posed off the engine's state, the skid's pivot drawn at `angle` rad
+   * (the view's eased one, `drawnSkiAngle`; the engine's when left out),
+   * each ski where `stand` puts it on the snow (`ski-stand.ts`; the legs'
+   * compression and the edge against the body's own roll when left out). */
+  pose(skier: SkierState, sink: number, angle?: number, stand?: Stand): void;
 };
 
 /** Where a boot's cuff top stands over the ski's base, m — the ankle the
@@ -297,21 +317,40 @@ export function buildGear(
   }
 
   const e = new THREE.Euler();
+  const roll = new THREE.Quaternion();
+  const Z = new THREE.Vector3(0, 0, 1);
   return {
     skis: [skis[0], skis[1]],
-    pose(skier, sink) {
-      const lifts = gearLift(skier);
-      const tilt = skiTilt(skier);
+    pose(skier, sink, angle = skier.skiAngle, stand) {
+      const lifts = stand?.lift ?? gearLift(skier);
+      const tilt = stand?.tilt ?? skiTilt(skier);
+      // THE GAIT (`skier-pose.ts`'s `gaitOf`): skating, each ski opened
+      // into the V, the pushing one out on its inside edge and then lifted
+      // back in.
+      const gait = gaitOf(skier);
       for (let i = 0; i < 2; i++) {
         const g = skis[i];
         // The tuck LOWERS the body toward the skis (the engine drops the
         // origin by `crouchDrop` at a full tuck), so the skis rise in the
         // body frame by as much.
-        g.position.y = ground + lifts[i] + sink * SINK_SHARE + skier.spec.crouchDrop * skier.crouch;
+        g.position.x = ((i === 0 ? -1 : 1) * spec.stance) / 2 + (stand?.out[i] ?? 0) + gait.out[i];
+        g.position.z = (stand?.fore[i] ?? 0) + gait.fore[i];
+        g.position.y =
+          ground +
+          lifts[i] +
+          gait.lift[i] +
+          sink * SINK_SHARE +
+          skier.spec.crouchDrop * skier.crouch;
         // Clockwise from above is a positive turn about +y (the framework's
         // `core/quat`); right edges down is a negative turn about the ski's
-        // own length, taken after the skid's pivot.
-        g.quaternion.setFromEuler(e.set(0, skier.skiAngle, -tilt, "YZX"));
+        // own length, taken after the skid's pivot. Both are the SNOW's —
+        // the pivot about its normal, the edge against it — rolled into a
+        // body inclined `incline` to it, so a ski thrown across under an
+        // inclined skier lies on the snow (`ski-stand.ts`).
+        const r = stand?.incline ?? 0;
+        g.quaternion
+          .setFromEuler(e.set(0, angle + gait.splay[i], -(tilt + gait.tilt[i] + r), "YZX"))
+          .premultiply(roll.setFromAxisAngle(Z, r));
       }
     },
   };

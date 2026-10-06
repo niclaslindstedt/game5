@@ -29,7 +29,7 @@ touches. Load **`skill-reflection`** at both ends of the session.
 
 | Piece | Role |
 | --- | --- |
-| `scripts/screenshot.mjs` | The capture harness — serves `pwa/dist`, opens `?start=race&seed=&t=&shot=1` (or a card's own URL with `--surface`), waits for `window.__SH_READY__` (a card waits on its DOM instead), captures at 1280×720 (desktop landscape), 390×844 (phone portrait) and 844×390 (phone LANDSCAPE) to `previews/`; `--viewport` names one, `all` is every one |
+| `scripts/screenshot.mjs` | The capture harness — serves `pwa/dist`, opens `?start=slalom&seed=&t=&shot=1` (or a card's own URL with `--surface`), waits for `window.__SH_READY__` (a card waits on its DOM instead), captures at 1280×720 (desktop landscape), 390×844 (phone portrait) and 844×390 (phone LANDSCAPE) to `previews/`; `--viewport` names one, `all` is every one |
 | `make screenshots SCENE=<name>` | Runs it for one moment of a race (`grid`, `go`, `race`, `late`, `all`) against the BUILT app (`make build` first); `ARGS="--surface all"` for every card, `ARGS=--update` for the new-build button; `CHROMIUM_PATH=/opt/pw-browsers/chromium` in web sessions |
 | Read tool on the PNGs | The evaluation itself — every judgement is made on a screenshot, not on source |
 | `npm run dev` | Headed spot-checks (the lights' timing, touch behaviour in devtools emulation) |
@@ -47,7 +47,13 @@ feature.
 
 The three are the floor, not the ceiling: a small phone (375×667) is the next
 tight case, since a surface tuned to exactly fit 390×844 runs out of room on
-the SE class first.
+the SE class first. And the harness has two more for the CARDS: `iphone`
+(852×393, a notched phone on its side with its 59 px insets emulated) and
+`iphone-browser` (852×340 — the same under a browser's bar), which is the
+tightest shape a card meets. Every card capture prints what scrolls: `!! …
+scrolls whole` is a bug (the head went with it); `its body scrolls by N px`
+is a page's list under a head that stays, and is fine for a list and a bug
+for anything big — a picture, a chart, the pair, a way on.
 
 **When the change is ONE instrument's placement rather than a surface, take
 one scene per viewport instead of the whole sweep.** `SCENE=grid` is the cheap

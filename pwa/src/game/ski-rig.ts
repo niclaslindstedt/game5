@@ -9,7 +9,8 @@
 //                  tuck's drop, turned about the up axis by `skiAngle`, and
 //                  tipped about their own length onto the edge (`skiTilt`)
 //                  — matched to the engine's skis by which side of the
-//                  body they stand on
+//                  body they stand on; on the snow, where the stance
+//                  stands them (`ski-stand.ts`)
 //   a linkage      any bone whose extras name an `aim`: turned so it points
 //                  at that bone's head, and stretched to reach it where
 //                  `stretch` is set
@@ -22,6 +23,8 @@ import * as THREE from "three";
 import type { SkierState } from "@engine";
 
 import { gearLift, SINK_SHARE, skiTilt } from "./ski-gear.ts";
+import type { Stand } from "./ski-stand.ts";
+import { gaitOf } from "./skier-pose.ts";
 
 type Rest = { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 };
 type Aim = {
@@ -39,8 +42,14 @@ export type AssetRig = {
   rest(): void;
   /** Posed off the engine's state; `run` is kept for the lab's call shape
    * (nothing on a pair of skis runs), and `sink` is how much deeper the
-   * drawn furrow is than the physics' sink. */
-  pose(skier: SkierState, run?: number, sink?: number): void;
+   * drawn furrow is than the physics' sink; `angle` the skid's pivot as
+   * drawn (the engine's when left out); `stand` where each ski stands on
+   * the snow (`ski-stand.ts`). */
+  pose(skier: SkierState, run?: number, sink?: number, angle?: number, stand?: Stand): void;
+  /** THE SKI LET GO (`lone-skis.ts`): ski `i` (0 the left) laid where it
+   * lies, `to` taking the rig's body frame — where that ski stands at rest
+   * — to the world. After `pose`, which it overrides for that ski. */
+  lay(i: number, to: THREE.Matrix4): void;
   /** Clip `name` at `t` s. */
   play(name: string, t: number): void;
 };
@@ -89,8 +98,11 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
     .map((n) => named.get(n))
     .filter((o): o is THREE.Object3D => !!o)
     .sort((a, b) => sideOf(a) - sideOf(b));
+  // Where each ski's bone stands in the body frame at rest, for `lay`.
+  const inBody = skis.map((o) => body.matrixWorld.clone().invert().multiply(o.matrixWorld));
   const up = new THREE.Vector3();
   const fwd = new THREE.Vector3();
+  const side = new THREE.Vector3();
 
   const mixer = new THREE.AnimationMixer(root);
 
@@ -106,19 +118,46 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
   }
 
   const w = new THREE.Vector3();
+  const laid = new THREE.Matrix4();
   const pq = new THREE.Quaternion();
+
+  /** Every linkage turned to its target, after the skis have moved. */
+  function aimAll(): void {
+    root.updateMatrixWorld(true);
+    for (const a of aims) {
+      const d = a.node.parent!.worldToLocal(a.target.getWorldPosition(w)).sub(a.node.position);
+      const r = rest.get(a.node)!;
+      a.node.quaternion.setFromUnitVectors(a.dir, d.clone().normalize()).multiply(r.q);
+      if (a.stretch) a.node.scale.y = (r.s.y * d.length()) / a.length;
+    }
+    root.updateMatrixWorld(true);
+  }
   const q = new THREE.Quaternion();
   /** Move `o` by `lift` up the body, turn it by `angle` about the body's
    * up, then tip it by `tilt` about the body's forward (right edges down
-   * positive). */
-  function drive(o: THREE.Object3D, lift: number, angle = 0, tilt = 0): void {
+   * positive) — on a body inclined `incline` to the snow, the turn and the
+   * tip taken in the snow's frame — its tip first lifted `pitch` about its
+   * own across (the chatter's flap, `ski-chatter.ts`). */
+  function drive(
+    o: THREE.Object3D,
+    lift: number,
+    angle = 0,
+    tilt = 0,
+    incline = 0,
+    pitch = 0,
+  ): void {
     const parent = o.parent!;
     o.getWorldPosition(w);
     const at = parent.worldToLocal(w.clone().addScaledVector(up, lift));
     o.position.copy(at);
-    if (angle || tilt) {
+    if (angle || tilt || incline || pitch) {
       parent.getWorldQuaternion(pq);
-      q.setFromAxisAngle(up, angle).multiply(new THREE.Quaternion().setFromAxisAngle(fwd, -tilt));
+      // The pivot about the snow's normal and the edge against the snow,
+      // rolled into a body inclined `incline` to it (`ski-stand.ts`).
+      q.setFromAxisAngle(fwd, incline)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(up, angle))
+        .multiply(new THREE.Quaternion().setFromAxisAngle(fwd, -(tilt + incline)))
+        .multiply(new THREE.Quaternion().setFromAxisAngle(side, -pitch));
       o.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
     }
   }
@@ -126,23 +165,49 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
   return {
     clips: animations.map((c) => ({ name: c.name, seconds: c.duration })),
     rest: reset,
-    pose(skier, _run = 0, sink = 0) {
+    pose(skier, _run = 0, sink = 0, angle = skier.skiAngle, stand) {
       reset();
       body.getWorldQuaternion(pq);
       up.copy(Y).applyQuaternion(pq);
       fwd.set(0, 0, 1).applyQuaternion(pq);
-      const lift = gearLift(skier);
+      side.set(1, 0, 0).applyQuaternion(pq);
+      const lift = stand?.lift ?? gearLift(skier);
       const drop = skier.spec.crouchDrop * skier.crouch;
-      const tilt = skiTilt(skier);
-      skis.forEach((o, i) => drive(o, lift[i] + drop + sink * SINK_SHARE, skier.skiAngle, tilt));
-      root.updateMatrixWorld(true);
-      for (const a of aims) {
-        const d = a.node.parent!.worldToLocal(a.target.getWorldPosition(w)).sub(a.node.position);
-        const r = rest.get(a.node)!;
-        a.node.quaternion.setFromUnitVectors(a.dir, d.clone().normalize()).multiply(r.q);
-        if (a.stretch) a.node.scale.y = (r.s.y * d.length()) / a.length;
-      }
-      root.updateMatrixWorld(true);
+      const tilt = stand?.tilt ?? skiTilt(skier);
+      // The gait's V, the push out on its edge and the lifted recovery, as
+      // the code's skis are drawn (`ski-gear.ts`).
+      const gait = gaitOf(skier);
+      skis.forEach((o, i) => {
+        drive(
+          o,
+          lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
+          angle + gait.splay[i],
+          tilt + gait.tilt[i] + (stand?.rock[i] ?? 0),
+          stand?.incline ?? 0,
+          stand?.pitch[i] ?? 0,
+        );
+        const across = gait.out[i] + (stand?.out[i] ?? 0);
+        const fore = gait.fore[i] + (stand?.fore[i] ?? 0);
+        if (across !== 0 || fore !== 0) {
+          o.getWorldPosition(w);
+          w.addScaledVector(side, across).addScaledVector(fwd, fore);
+          o.position.copy(o.parent!.worldToLocal(w));
+        }
+      });
+      aimAll();
+    },
+    lay(i, to) {
+      const o = skis[i];
+      if (!o) return;
+      const keep = o.scale.clone();
+      laid
+        .copy(o.parent!.matrixWorld)
+        .invert()
+        .multiply(to)
+        .multiply(inBody[i])
+        .decompose(o.position, o.quaternion, w);
+      o.scale.copy(keep);
+      aimAll();
     },
     play(name, t) {
       reset();

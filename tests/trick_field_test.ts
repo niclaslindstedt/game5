@@ -6,12 +6,16 @@ import { describe, expect, it } from "vitest";
 
 import { LEVEL_RULES as R, generateLevel, levelDigest, trackPointAt, withinBand } from "@engine";
 
-import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
+import { LEVEL_SEEDS } from "./support/levels.ts";
+
+/** The terrain park is laid on a map of ONE piste — the generator the six
+ * trick maps stand on (`trick-maps.ts`); a resort (R25) lays none. */
+const PARK = { version: 1 } as const;
 
 describe("the terrain park (R20)", () => {
   const seed = LEVEL_SEEDS[0];
-  const race = levelFor(seed);
-  const park = generateLevel(seed, { tricks: true });
+  const race = generateLevel(seed, PARK);
+  const park = generateLevel(seed, { tricks: true, ...PARK });
   const field = park.kickers.filter((k) => k.trick);
 
   it("is laid only on a map asked for one", () => {

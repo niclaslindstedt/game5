@@ -15,10 +15,15 @@
 //
 // COLOUR BEFORE FILTER, always: brown is mass and distance, pink is snow in
 // the air and the wind, white is grit and the crack of wood. And `drive` on
-// anything with a body behind it — a chassis thumping, a trunk — because a
+// anything with a body behind it — a body thumping down, a trunk — because a
 // clean sine is a bell.
 
 import { BIRD_BANK } from "./bird-bank.ts";
+import { CONTACT_BANK } from "./contact-bank.ts";
+import { HELI_BANK } from "./heli-bank.ts";
+import { SLED_BANK } from "./sled-bank.ts";
+import { LIFT_BANK } from "./lift-voice.ts";
+import { TUNNEL_BANK } from "./tunnel-voice.ts";
 import type { SoundBank } from "@niclaslindstedt/oss-game-framework/audio/types";
 
 export const RUN_BANK: SoundBank = {
@@ -62,7 +67,7 @@ export const RUN_BANK: SoundBank = {
 
   land_hard: {
     description:
-      "A landing the suspension could not take: the chassis bottoming out " +
+      "A landing the legs could not take: the knees folded to the stops " +
       "— a hard driven thump with a white knock on top of it, the one hard " +
       "edge a landing is allowed — then the same brown mass and a bigger " +
       "sheet of snow, longer, because the whole skier has gone into it.",
@@ -107,7 +112,7 @@ export const RUN_BANK: SoundBank = {
   hit_tree: {
     description:
       "A skier into a trunk. The CRACK of wood — broadband white gone inside " +
-      "a fiftieth of a second — over the chassis's own hollow thump, a " +
+      "a fiftieth of a second — over the body's own hollow thump, a " +
       "driven sine barely moving off its note. Then the TREE ANSWERS: the " +
       "load on its branches shaken loose, a pink sheet of snow falling " +
       "through a lowpass a beat later and thinning out. The forest edge " +
@@ -159,7 +164,7 @@ export const RUN_BANK: SoundBank = {
       "Skier on skier: two bodies shouldering, skis clacking — a short " +
       "driven triangle bending down for the body of it, a band of white for " +
       "the knock, no crack in it — with a thin pink spit of snow off both " +
-      "tracks. Rounder than the tree, because nothing here is hard.",
+      "pairs of skis. Rounder than the tree, because nothing here is hard.",
     voices: [
       {
         call: "noise",
@@ -232,7 +237,8 @@ export const RUN_BANK: SoundBank = {
     description:
       "A pole planted: the carbide tip on the hardpack — a tick of white " +
       "noise a few milliseconds long over a short high sine, the basket's " +
-      "pat under it in pink. Small: it is heard because it is beside the ear.",
+      "pat under it in pink. Small: it is heard because it is beside the ear. " +
+      "Played by the packed share of the snow under him (`plantVoice`).",
     voices: [
       {
         call: "noise",
@@ -251,6 +257,25 @@ export const RUN_BANK: SoundBank = {
         attackMs: 4,
         delayMs: 6,
         filter: { type: "lowpass", frequency: 700, to: 300 },
+      },
+    ],
+  },
+
+  plantSoft: {
+    description:
+      "A pole planted in LOOSE snow: no tip strikes anything — the basket " +
+      "punched into the powder, a short low pat of pink noise under a " +
+      "closing lowpass. Played under the tick by the loose share of the " +
+      "snow, its cutoff lowered and its level taken down to nothing as the " +
+      "loose snow deepens (`plantVoice`).",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 70,
+        volume: 0.016,
+        color: "pink",
+        attackMs: 6,
+        filter: { type: "lowpass", frequency: 520, to: 180 },
       },
     ],
   },
@@ -314,6 +339,68 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  out: {
+    description:
+      "OUT OF THE RACE — a gate missed, a pole straddled, a fall: the " +
+      "timing board's verdict, one long low driven square sagging a " +
+      "semitone under a dark lowpass, and the arena's groan under it, a " +
+      "slow swell of brown noise. Nothing rings: it is over.",
+    voices: [
+      {
+        call: "tone",
+        type: "square",
+        from: 196,
+        to: 185,
+        durationMs: 620,
+        volume: 0.03,
+        drive: 0.5,
+        holdMs: 200,
+        filter: { type: "lowpass", frequency: 900 },
+      },
+      {
+        call: "noise",
+        durationMs: 900,
+        volume: 0.022,
+        color: "brown",
+        attackMs: 220,
+        filter: { type: "bandpass", frequency: 420, to: 300, q: 0.7 },
+      },
+    ],
+  },
+
+  pole: {
+    description:
+      "A FLEX POLE KNOCKED: the hollow plastic clack of a guard on a slalom " +
+      "pole — a short bright bandpassed burst with a pitched knock under it " +
+      "— and the pole's rattle on its hinge as it springs back, a second " +
+      "fainter clack a beat later.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 40,
+        volume: 0.045,
+        color: "white",
+        filter: { type: "bandpass", frequency: 2600, q: 2.5 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 520,
+        to: 380,
+        durationMs: 60,
+        volume: 0.03,
+      },
+      {
+        call: "noise",
+        durationMs: 30,
+        volume: 0.018,
+        color: "white",
+        delayMs: 140,
+        filter: { type: "bandpass", frequency: 2200, q: 2.5 },
+      },
+    ],
+  },
+
   reset: {
     description:
       "The skier stood back on the piste at the last gate: a soft " +
@@ -336,6 +423,52 @@ export const RUN_BANK: SoundBank = {
         color: "pink",
         attackMs: 15,
         filter: { type: "bandpass", frequency: 1400, to: 2600, q: 0.8 },
+      },
+    ],
+  },
+
+  trap: {
+    description:
+      "Through a downhill's speed trap: the photocells' two quick chirps, " +
+      "high and dry, a beat apart — the timing's own voice, and the speed up " +
+      "on the board before the second has rung down.",
+    voices: [
+      { call: "tone", type: "sine", from: 1760, durationMs: 60, volume: 0.022 },
+      { call: "tone", type: "sine", from: 2093, durationMs: 80, volume: 0.022, delayMs: 90 },
+    ],
+  },
+
+  net: {
+    description:
+      "Into the A-nets beside a downhill: a body caught in netting — a long " +
+      "soft rush of pink noise sagging down as the mesh takes him, the " +
+      "cables' twang under it (a triangle bending low), and the slip " +
+      "sheet's hiss after. Big and soft: nothing hard was hit.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 520,
+        volume: 0.05,
+        color: "pink",
+        attackMs: 10,
+        filter: { type: "lowpass", frequency: 1800, to: 500 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 140,
+        to: 70,
+        durationMs: 380,
+        volume: 0.04,
+        drive: 0.3,
+        filter: { type: "lowpass", frequency: 900, to: 300 },
+      },
+      {
+        call: "noise",
+        durationMs: 360,
+        volume: 0.018,
+        delayMs: 160,
+        filter: { type: "bandpass", frequency: 3200, q: 0.8 },
       },
     ],
   },
@@ -363,6 +496,68 @@ export const RUN_BANK: SoundBank = {
         holdMs: 100,
         detuneCents: 6,
         echo: 0.18,
+      },
+    ],
+  },
+
+  gate_drop: {
+    description:
+      "A SKI CROSS'S START GATE DROPPING: the latch let go — a dry white " +
+      "tick — then the four steel doors slamming down onto their stops a " +
+      "few milliseconds apart, a driven square knock bending down under " +
+      "two bursts of bright grit, the frame left ringing on two inharmonic " +
+      "partials with the slope's echo behind it. The GO of a gate start.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 18,
+        volume: 0.035,
+        color: "white",
+        filter: { type: "bandpass", frequency: 3600, q: 3 },
+      },
+      {
+        call: "tone",
+        type: "square",
+        from: 230,
+        to: 115,
+        durationMs: 150,
+        volume: 0.05,
+        drive: 0.6,
+        delayMs: 70,
+        filter: { type: "lowpass", frequency: 1900, to: 450 },
+      },
+      {
+        call: "noise",
+        durationMs: 55,
+        volume: 0.055,
+        color: "white",
+        delayMs: 70,
+        filter: { type: "bandpass", frequency: 2100, q: 1.4 },
+      },
+      {
+        call: "noise",
+        durationMs: 45,
+        volume: 0.035,
+        color: "white",
+        delayMs: 92,
+        filter: { type: "bandpass", frequency: 1700, q: 1.4 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 742,
+        durationMs: 380,
+        volume: 0.016,
+        delayMs: 75,
+        echo: 0.2,
+      },
+      {
+        call: "tone",
+        type: "sine",
+        from: 1187,
+        durationMs: 300,
+        volume: 0.012,
+        delayMs: 78,
       },
     ],
   },
@@ -447,7 +642,24 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  // WHAT A SKIER MEETS AND COMES DOWN INTO — the landings in powder and on
+  // ice, a trunk brushed, a dead snag, the four ways he is thrown — are
+  // their own module (`contact-bank.ts`), picked by `route.ts`'s `Contact`.
+  ...CONTACT_BANK,
+
   // THE BIRDS' CRIES are their own module (`bird-bank.ts`), raised by
   // `bird-bed.ts` off the flocks `bird-plan.ts` laid over the map.
   ...BIRD_BANK,
+
+  // THE WIND TUNNEL'S MOUTH crossed, in and out — the bed's cues
+  // (`tunnel-voice.ts`).
+  ...TUNNEL_BANK,
+
+  // THE LIFT RIDDEN (`lift-voice.ts`): taken on, its towers, stood off.
+  ...LIFT_BANK,
+
+  // THE HELICOPTER (`heli-bank.ts`): the skid boarded, lifted off and set
+  // down, the drop, the crash and the fire's crackle — the bed's cue.
+  ...HELI_BANK,
+  ...SLED_BANK,
 };

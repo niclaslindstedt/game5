@@ -54,6 +54,47 @@ import { nearestWithin, type HasTrack } from "./query.ts";
 import type { TerrainPlan } from "./terrain.ts";
 import type { Cliff, Kicker, TrackHit, TreeDef } from "./types.ts";
 
+/** What a RESORT asks of the woods (R25–R27): the ground kept clear for
+ * every run, lift and the village in place of the one piste's corridor,
+ * and the woods thick low down and thinning up through the ecotone to the
+ * tree line (`resort-woods.ts`). */
+export type ForestOptions = {
+  /** Whether no trunk may stand here (a run's corridor, a lift's line, the
+   * village). */
+  readonly clear: (x: number, z: number) => boolean;
+  /** How much of a spot's woods stand at height `y`, m, 0..1 — and how
+   * much nearer the thick of a wood the spot reads (the closed forest low
+   * down has few glades). */
+  readonly cover: (y: number) => { readonly keep: number; readonly close: number };
+  /** The tallest a tree at `y` grows, as a share of the height band. */
+  readonly tall: (y: number) => number;
+};
+
+/** R14 — HOW OLD A TREE IS, years: the age `forest.age`'s growth curve
+ * gives the height it `grew` to, spread round that by a log-normal off a
+ * hash of where it stands (three hashes summed, near enough a normal) and
+ * now and then a VETERAN's many times that. A hash, not the generator's
+ * stream: an age drawn from the stream would move every tree after it. */
+export function treeAge(grew: number, x: number, z: number, seed: number): number {
+  const A = R.forest.age;
+  const h = Math.min(grew, A.top * 0.97);
+  const typical = -Math.log(1 - h / A.top) / A.rate;
+  const ix = Math.floor(x * 8);
+  const iz = Math.floor(z * 8);
+  const normal =
+    (hash2(ix, iz, seed + 41) + hash2(ix, iz, seed + 42) + hash2(ix, iz, seed + 43) - 1.5) * 2;
+  let age = typical * Math.exp(A.spread * normal);
+  if (hash2(ix, iz, seed + 44) < A.veterans) age *= A.veteran;
+  return Math.min(A.max, age);
+}
+
+/** R14 — the trunk's radius at breast height for a tree of `age` years,
+ * m (`forest.trunk`). */
+export function trunkRadius(age: number): number {
+  const T = R.forest.trunk;
+  return T.floor + T.top * Math.pow(1 - Math.exp(-T.rate * Math.max(0, age)), T.shape);
+}
+
 /** R14 — grow the forest. `lineY` is the tree line as a HEIGHT on this
  * map, m — the region's altitude over the valley floor's, stood on the
  * base at the finish. */
@@ -65,6 +106,7 @@ export function growForest(
   kickers: readonly Kicker[],
   cliffs: readonly Cliff[],
   lineY: number,
+  resort?: ForestOptions,
 ): TreeDef[] {
   const F = R.forest;
   const W = plan.region.forest;
@@ -130,11 +172,16 @@ export function growForest(
     if (y > lineY) return true;
     const g = fieldGradient(ground, x, z);
     if (hypot(g.gx, g.gz) > F.maxSlope) return true;
-    nearestWithin(piste, x, z, reach, hit);
-    if (hit.distance < piste.track.points[hit.index].width / 2 + F.corridor) return true;
+    if (resort) {
+      if (resort.clear(x, z)) return true;
+    } else {
+      nearestWithin(piste, x, z, reach, hit);
+      if (hit.distance < piste.track.points[hit.index].width / 2 + F.corridor) return true;
+    }
     if (onKicker(kickers, x, z, 4)) return true;
     if (onCliff(cliffs, x, z, 4)) return true;
-    return onLane(x, z);
+    // On a resort the runs are the cuts through the woods.
+    return resort ? false : onLane(x, z);
   };
   // THE GAP: every tree kept is filed in a hash of `gap`-sized buckets, so a
   // candidate asks only the nine round it whether one stands too near — the
@@ -167,13 +214,18 @@ export function growForest(
     kx: number,
     kz: number,
   ): void => {
+    // Aged off the height it would have grown to unstunted: a krummholz
+    // tree is as old as the tall one, only beaten down.
+    const stunt = 1 - (1 - F.krummholzHeight) * smoothstep(stuntY, lineY, y);
+    const age = treeAge(height / Math.max(1e-6, stunt), x, z, seed);
     const tree: TreeDef = {
       x,
       z,
       y,
       height,
-      radius: F.trunk.floor + F.trunk.share * height,
+      radius: trunkRadius(age),
       crown: Math.min(F.crownMax, F.crown * height),
+      age,
     };
     const kind = treeKindAt(plan.region, kx, kz);
     if (kind !== "spruce") tree.kind = kind;
@@ -188,7 +240,9 @@ export function growForest(
    * the mountain, stunted in the krummholz band. */
   const heightOf = (woods: number, size: number, y: number): number => {
     const up = Math.max(0, Math.min(1, (y - baseY) / (lineY - baseY)));
-    const tall = 0.35 + 0.45 * woods + 0.2 * size - 0.45 * up;
+    const tall = resort
+      ? resort.tall(y) * (0.7 + 0.2 * woods + 0.1 * size)
+      : 0.35 + 0.45 * woods + 0.2 * size - 0.45 * up;
     const stunt = 1 - (1 - F.krummholzHeight) * smoothstep(stuntY, lineY, y);
     const h =
       F.height.min + (F.height.max - F.height.min) * Math.max(0, Math.min(1, tall)) * W.height;
@@ -204,8 +258,15 @@ export function growForest(
     for (let c = 0; c < clumpCells; c++) {
       const cx = (c + 0.2 + 0.6 * hash2(c, r, seed + 11)) * C.spacing;
       const cz = (r + 0.2 + 0.6 * hash2(c, r, seed + 12)) * C.spacing;
-      const { woods, clear } = woodsAt(cx, cz);
-      const odds = (C.meadow + (C.woods - C.meadow) * woods) * clear * W.density;
+      const { woods: w0, clear } = woodsAt(cx, cz);
+      let woods = w0;
+      let odds = 1;
+      if (resort) {
+        const cover = resort.cover(sampleField(ground, cx, cz));
+        woods = w0 + (1 - w0) * cover.close;
+        odds = cover.keep;
+      }
+      odds *= (C.meadow + (C.woods - C.meadow) * woods) * clear * W.density;
       if (hash2(c, r, seed + 13) >= odds) continue;
       const want =
         C.trees.min + Math.floor(hash2(c, r, seed + 14) * (C.trees.max - C.trees.min + 1));
@@ -239,11 +300,21 @@ export function growForest(
       const size = rng.next();
       const x = (c + 0.1 + jx * 0.8) * F.spacing;
       const z = (r + 0.1 + jz * 0.8) * F.spacing;
-      const { woods, clear } = woodsAt(x, z);
-      let share = density * (meadow + (1 - meadow) * woods * clear);
-      // The krummholz thins toward the line as well as stunting.
+      const { woods: w0, clear } = woodsAt(x, z);
       const y = sampleField(ground, x, z);
-      share *= 1 - 0.6 * smoothstep(stuntY, lineY, y);
+      let woods = w0;
+      let share: number;
+      if (resort) {
+        // R14 on a resort: the woods by height — closed low down, thinning
+        // through the ecotone to the tree line.
+        const cover = resort.cover(y);
+        woods = w0 + (1 - w0) * cover.close;
+        share = density * (meadow + (1 - meadow) * woods * clear) * cover.keep;
+      } else {
+        share = density * (meadow + (1 - meadow) * woods * clear);
+        // The krummholz thins toward the line as well as stunting.
+        share *= 1 - 0.6 * smoothstep(stuntY, lineY, y);
+      }
       if (keep >= share) continue;
       // Both refusals are pure, so the cheap one asks first: in a wood
       // most candidates stand inside a kept trunk's gap.

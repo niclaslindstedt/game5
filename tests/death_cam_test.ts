@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DEATH CAM (`camera-death.ts`): the skier thrown into the lone trunk
-// on the stadium, stepped the way the app steps him — at the rate the cam
-// hands out — and the lens read frame by frame. It leaves the ladder where
-// the ladder was, slows the picture smoothly into the impact, closes in on
-// him, rises over him once he lies still, and hands back on the reset; the
-// engine gives it that still beat before it stands him up.
+// on the stadium, stepped the way the app steps him — at full speed, a
+// wipeout is never slowed — and the lens read frame by frame. It leaves the
+// ladder where the ladder was, closes in on him, rises over him once he
+// lies still, and hands back on the reset; the engine gives it that still
+// beat before it stands him up.
 
 import { describe, expect, it } from "vitest";
 
 import { createGame, NEUTRAL_INPUT, placeRun, step, TUNING, type GameState } from "@engine";
 
-import { createDeathCam, DEATH, fallLeft, frameDeath } from "../pwa/src/game/camera-death.ts";
+import { createDeathCam, frameDeath } from "../pwa/src/game/camera-death.ts";
 import type { LensPose } from "../pwa/src/game/camera-rigs.ts";
 import { createBodyTrack, observeBody, sampleBody } from "../pwa/src/game/interp.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
@@ -18,7 +18,6 @@ import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 const FRAME = 1 / 60;
 
 type Frame = {
-  rate: number;
   lens: LensPose | null;
   bodyY: number;
   still: number;
@@ -47,7 +46,7 @@ function crash(): { frames: Frame[]; ladder: LensPose; state: GameState } {
     roll: 0,
   };
   for (let f = 0; f < 60 * 30 && after < 60; f++) {
-    acc += FRAME * cam.rate;
+    acc += FRAME;
     const steps = Math.floor(acc * TUNING.physicsHz + 1e-9);
     acc -= steps * TUNING.dt;
     for (let i = 0; i < steps; i++) step(state, input);
@@ -60,7 +59,6 @@ function crash(): { frames: Frame[]; ladder: LensPose; state: GameState } {
     const body = sampleBody(track, alpha);
     const lens = frameDeath(cam, body, ladder, FRAME, state.level.groundAt);
     frames.push({
-      rate: cam.rate,
       lens,
       bodyY: body?.y ?? 0,
       still: body?.still ?? 0,
@@ -96,18 +94,6 @@ describe("the death cam", () => {
     expect(step).toBeLessThan(1);
   });
 
-  it("slows into the impact smoothly, and is slow when he lands", () => {
-    expect(impact).toBeGreaterThan(on);
-    expect(frames[on].rate).toBeGreaterThan(0.9);
-    expect(frames[impact].rate).toBeLessThan(0.55);
-    const floor = Math.min(...frames.map((f) => f.rate));
-    expect(floor).toBeLessThan(DEATH.slow + 0.05);
-    expect(floor).toBeGreaterThanOrEqual(DEATH.slow - 1e-9);
-    for (let i = 1; i < frames.length; i++) {
-      expect(Math.abs(frames[i].rate - frames[i - 1].rate)).toBeLessThan(0.08);
-    }
-  });
-
   it("closes in on him while he goes, zoomed in", () => {
     const flying = frames.slice(on, impact + 60).map((f) => f.lens!);
     expect(flying.at(-1)!.fov).toBeLessThan(52);
@@ -126,21 +112,7 @@ describe("the death cam", () => {
     expect(down / across).toBeGreaterThan(2);
     const rolls = frames.slice(rest, end).map((f) => f.lens!.roll);
     expect(Math.max(...rolls) - Math.min(...rolls)).toBeGreaterThan(0.03);
-    // ...for long enough to be seen: the still beat, slowed — well over the
-    // engine's own `lieStill` on screen.
-    expect((end - rest) * FRAME).toBeGreaterThan(TUNING.crash.lieStill * 1.3);
-  });
-
-  it("comes back to full speed after the reset", () => {
-    expect(frames.at(-1)!.rate).toBeGreaterThan(0.95);
-  });
-});
-
-describe("the fall left", () => {
-  it("is the time a body falling from a height takes to meet the snow", () => {
-    expect(fallLeft(0, 0)).toBe(0);
-    const h = 4.905;
-    expect(fallLeft(h, 0)).toBeCloseTo(Math.sqrt((2 * h) / TUNING.g), 6);
-    expect(fallLeft(0, 2)).toBeCloseTo(4 / TUNING.g, 6);
+    // ...for long enough to be seen: the engine's own still beat.
+    expect((end - rest) * FRAME).toBeGreaterThan(TUNING.crash.lieStill * 0.9);
   });
 });

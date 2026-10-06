@@ -15,17 +15,19 @@ import * as THREE from "three";
 import type { GameState, SkiSpec } from "@engine";
 
 import { createTrack, observe, sample, type Pose, type PoseTrack } from "./interp.ts";
+import { DEFAULT_OUTFIT } from "./outfit.ts";
 import { createSkisModel, type SkisModel, type SkiStyle } from "./skis-body.ts";
 
 /** How much of the ghost is drawn: enough to read at chase range, little
  * enough that it never reads as a rival. */
 export const GHOST_OPACITY = 0.38;
 
-/** Pale skis and a pale skier: a ghost is a shape, not a topsheet. */
+/** Pale skis and a pale skier: a ghost is a shape, not a topsheet or a
+ * kit — the default kit's cut, every colour washed out. */
 const GHOST_STYLE: SkiStyle = {
   body: 0xcfe6ff,
   accent: 0xffffff,
-  skier: { jacket: 0xdcecff, pants: 0xb8cce0, helmet: 0xffffff, visor: 0x8aa4c0 },
+  skier: { outfit: DEFAULT_OUTFIT, ghost: true },
 };
 
 export type GhostModel = {
@@ -82,6 +84,7 @@ export function createGhostModel(
       m.root.visible = true;
       observe(track, run.skier, run.tick);
       sample(track, alpha, drawn);
+      m.setRun(run);
       m.pose(run.skier, drawn, 0, null, 1 / 60);
     },
     dispose: drop,

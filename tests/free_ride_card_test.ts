@@ -11,10 +11,14 @@ import { describe, expect, it } from "vitest";
 import {
   SKIS,
   createGame,
+  lastPiste,
+  freeRunOf,
+  freeRuns,
   generateLevel,
   NEUTRAL_INPUT,
   SNOW_DIAL,
   snowCoverOf,
+  standSkier,
   step,
 } from "@engine";
 
@@ -22,12 +26,28 @@ import {
   SEASONS,
   SNOW_STOPS,
   depthOf,
+  freeAgainOptions,
   freeGameOptions,
+  freeRunList,
+  freeTopOptions,
   freshRide,
+  HELI_RUN,
+  heliOn,
+  markedRun,
   mergeRide,
+  runOn,
+  SLED_RUN,
+  sledOn,
   spotOn,
 } from "../pwa/src/game/free-ride.ts";
-import { CHART_VIEW, fromChart, seedSchematic, toChart } from "../pwa/src/game/seed-chart.ts";
+import {
+  CHART_VIEW,
+  chartAngle,
+  degrees,
+  fromChart,
+  seedSchematic,
+  toChart,
+} from "../pwa/src/game/seed-chart.ts";
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -45,6 +65,8 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: null,
       weather: null,
       region: "alpine",
+      grade: null,
+      run: null,
     });
   });
 
@@ -74,6 +96,9 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(mergeRide("nonsense")).toEqual(freshRide());
     expect(mergeRide({ weather: "snow" }).weather).toBe("snow");
     expect(mergeRide({ weather: "hail" }).weather).toBeNull();
+    // THE GRADE (R23): one of the four, or the seed's own.
+    expect(mergeRide({ grade: "black" }).grade).toBe("black");
+    expect(mergeRide({ grade: "orange" }).grade).toBeNull();
   });
 
   it("reads the faders' blob onto the nearest snow and hands the day back to the map", () => {
@@ -85,6 +110,38 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(old.time).toBeNull();
     expect(mergeRide({ depth: 0.25 }).snow).toBe("thin");
     expect(mergeRide({ depth: 1 }).snow).toBe("medium");
+  });
+
+  it("keeps a run only on the seed and in the country it was picked on", () => {
+    const ride = { ...freshRide(), run: { seed: 7, region: "alpine" as const, id: "3" } };
+    expect(runOn(ride, 7)).toBe("3");
+    expect(runOn(ride, 8)).toBeNull();
+    expect(runOn({ ...ride, region: "fell" }, 7)).toBeNull();
+    expect(mergeRide(JSON.parse(JSON.stringify(ride))).run).toEqual(ride.run);
+    expect(mergeRide({ run: { seed: 7, region: "mars", id: "3" } }).run).toBeNull();
+  });
+
+  it("marks the run the engine rides: the one picked, else the first of the colour, else the map's", () => {
+    const level = generateLevel(1);
+    const list = freeRunList(level);
+    expect(list.runs.map((r) => r.id)).toEqual(freeRuns(level).map((r) => r.id));
+    for (const r of list.runs) {
+      expect(r.vertical).toBeGreaterThan(0);
+      expect(r.number).toMatch(/^\d+$/);
+    }
+    const ride = freshRide();
+    for (const grade of [null, "green", "blue", "red", "black"] as const) {
+      const marked = markedRun({ ...ride, grade }, 1, list);
+      expect(marked?.id).toBe(freeRunOf(level, { grade: grade ?? undefined }));
+    }
+    const pick = list.runs[list.runs.length - 1];
+    const picked = {
+      ...ride,
+      grade: "green" as const,
+      run: { seed: 1, region: ride.region, id: pick.id },
+    };
+    expect(markedRun(picked, 1, list)?.id).toBe(pick.id);
+    expect(markedRun(picked, 2, list)?.id).toBe(freeRunOf(level, { grade: "green" }));
   });
 
   it("keeps a spot only on the seed it was picked on", () => {
@@ -102,24 +159,88 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: { seed: 9, x: 400, z: 200 },
       weather: "fog" as const,
       region: "fell" as const,
+      grade: "black" as const,
+      run: { seed: 9, region: "fell" as const, id: "4" },
     };
-    const opts = freeGameOptions(ride, 9, SKIS, { yaw: 1, air: 1 });
+    const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");
+    // The GRADE row's colour (R23), and the seed's own where it stands on
+    // AS DEALT.
+    expect(opts.grade).toBe("black");
+    expect(
+      freeGameOptions({ ...ride, grade: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .grade,
+    ).toBe(undefined);
     expect(opts.seed).toBe(9);
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });
     expect(opts.spawn).toEqual({ x: 400, z: 200 });
-    // The weather row names the sky and never an hour: the hour is the day's.
-    expect(opts.sky).toEqual({ weather: "fog" });
-    expect(freeGameOptions({ ...ride, weather: null }, 9, SKIS, { yaw: 1, air: 1 }).sky).toBe(
+    // The RUN row's run, on the map it was picked on and no other.
+    expect(opts.run).toBe("4");
+    expect(freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).run).toBe(
       undefined,
     );
+    expect(
+      freeGameOptions({ ...ride, region: "alpine" }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .run,
+    ).toBe(undefined);
+    // A spot picked is where the ride starts — no chair up to its run's top;
+    // with none (or one picked on another seed) the ride arrives by chair.
+    expect(opts.byLift).toBe(false);
+    expect(
+      freeGameOptions({ ...ride, spot: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .byLift,
+    ).toBe(true);
+    expect(freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).byLift).toBe(true);
+    // The weather row names the sky and never an hour: the hour is the day's.
+    expect(opts.sky).toEqual({ weather: "fog" });
+    expect(
+      freeGameOptions({ ...ride, weather: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
+        .sky,
+    ).toBe(undefined);
     const state = createGame({ ...opts, level: syntheticLevel(), quiet: true });
     expect(state.level.weather?.kind).toBe("fog");
     expect(state.rules.course).toBe(false);
     expect(state.snowDepth).toBe(depthOf("thick"));
     expect(state.level.sun.dayOfYear).toBe(56);
-    expect(freeGameOptions(ride, 10, SKIS, { yaw: 1, air: 1 }).spawn).toBeUndefined();
+    expect(state.skier.lift).toBeNull();
+    expect(
+      freeGameOptions(ride, 10, { spec: SKIS, assist: { yaw: 1, air: 1 } }).spawn,
+    ).toBeUndefined();
+  });
+
+  it("starts the same ride again on the very map it built — the renderer's", () => {
+    // With a sky and an hour asked for: laid on again they would make a new
+    // map the renderer never built, and the restart would never be drawn.
+    const ride = { ...freshRide(), time: "evening" as const, weather: "storm" as const };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const again = createGame(freeAgainOptions(opts, first.level));
+    expect(again.level).toBe(first.level);
+    expect(again.level.weather?.kind).toBe("storm");
+    expect(again.skier.x).toBeCloseTo(first.skier.x, 9);
+    expect(again.skier.z).toBeCloseTo(first.skier.z, 9);
+  });
+
+  it("restarts at the top of the slope: on the snow, never at the spot or up a lift", () => {
+    const ride = { ...freshRide(), spot: { seed: 9, x: 400, z: 700 } };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const top = freeTopOptions(freeAgainOptions(opts, first.level), lastPiste(first));
+    expect(top.spawn).toBeUndefined();
+    expect(top.byLift).toBe(false);
+    const again = createGame(top);
+    expect(again.level).toBe(first.level);
+    // The map's one piste: its top is the start line.
+    const slot = first.level.grid[0];
+    expect(again.skier.x).toBeCloseTo(slot.x, 5);
+    expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 });
 
@@ -147,22 +268,35 @@ describe("what the rows ask for", () => {
 });
 
 describe("the chart (seed-chart.ts)", () => {
-  it("is north-up, and a point goes to the chart and back", () => {
-    expect(toChart(1000, 0, 0)).toEqual([0, CHART_VIEW]);
-    expect(toChart(1000, 1000, 1000)).toEqual([CHART_VIEW, 0]);
+  it("hangs summit-up, seen from the valley, and a point goes to the chart and back", () => {
+    // The world's +z is the fall line, so it runs DOWN the chart; the
+    // viewer faces up the mountain, so the world's +x is on his left.
+    expect(toChart(1000, 0, 0)).toEqual([CHART_VIEW, 0]);
+    expect(toChart(1000, 1000, 1000)).toEqual([0, CHART_VIEW]);
+    // A heading straight down the fall line points down the chart.
+    expect(degrees(chartAngle(0))).toBeCloseTo(180);
     const back = fromChart(1600, ...toChart(1600, 420, 1210));
     expect(back.x).toBeCloseTo(420);
     expect(back.z).toBeCloseTo(1210);
   });
 
   it("holds a point off the chart on the map", () => {
-    expect(fromChart(1000, -10, 150)).toEqual({ x: 0, z: 0 });
+    expect(fromChart(1000, -10, 150)).toEqual({ x: 1000, z: 1000 });
   });
 
   it("marks every kicker and the grid of a generated map", () => {
     const level = generateLevel(38);
     const chart = seedSchematic(level);
     expect(chart.size).toBe(level.size);
+    // The summit above the base, and the piste falling down the chart.
+    expect(toChart(level.size, level.mountain.summit.x, level.mountain.summit.z)[1]).toBeLessThan(
+      toChart(level.size, level.mountain.base.x, level.mountain.base.z)[1],
+    );
+    const first = level.track.points[0];
+    const last = level.track.points[level.track.points.length - 1];
+    expect(toChart(level.size, first.x, first.z)[1]).toBeLessThan(
+      toChart(level.size, last.x, last.z)[1],
+    );
     expect(chart.kickers).toHaveLength(level.kickers.length);
     expect(chart.kickers.some((k) => !k.onTrack)).toBe(level.kickers.some((k) => !k.onTrack));
     for (const k of chart.kickers) {
@@ -219,5 +353,93 @@ describe("the HUD over a free ride (snapshot.ts, minimap-view.ts)", () => {
     const snap = takeSnapshot(state);
     expect(snap.free).toBe(false);
     expect(snap.minimap.checkpoints.length).toBe(state.level.checkpoints.length);
+  });
+});
+
+describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
+  it("stands the ride up on the helicopter, never by lift or at a spot", () => {
+    const ride = {
+      ...freshRide(),
+      run: { seed: 7, region: freshRide().region, id: HELI_RUN },
+      spot: { seed: 7, x: 100, z: 100 },
+    };
+    expect(heliOn(ride, 7)).toBe(true);
+    expect(heliOn(ride, 8)).toBe(false);
+    const options = freeGameOptions(ride, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(options.heli).toBe(true);
+    expect(options.byLift).toBe(false);
+    expect(options.spawn).toBeUndefined();
+    expect(options.run).toBeUndefined();
+    // Kept through a stored blob.
+    expect(heliOn(mergeRide(JSON.parse(JSON.stringify(ride))), 7)).toBe(true);
+  });
+
+  it("is a link's too, and the HUD reads it while he rides", () => {
+    expect(readParams("?start=free&heli=1").heli).toBe(true);
+    expect(readParams("?start=free").heli).toBe(false);
+    const s = createGame({
+      level: syntheticLevel(),
+      mode: "free",
+      heli: true,
+      crowd: 0,
+      quiet: true,
+    });
+    const snap = takeSnapshot(s);
+    expect(snap.heli?.kind).toBe("flown");
+    for (let i = 0; i < 600; i++)
+      step(s, { ...NEUTRAL_INPUT, heli: { collective: 0.95, pitch: 0, roll: 0, pedal: 0 } });
+    const up = takeSnapshot(s).heli;
+    expect(up?.kind === "flown" && up.height > 20).toBe(true);
+  });
+});
+
+describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
+  it("stands the ride up on the snowmobile, never by lift or at a spot", () => {
+    const ride = {
+      ...freshRide(),
+      run: { seed: 7, region: freshRide().region, id: SLED_RUN },
+      spot: { seed: 7, x: 100, z: 100 },
+    };
+    expect(sledOn(ride, 7)).toBe(true);
+    expect(sledOn(ride, 8)).toBe(false);
+    expect(heliOn(ride, 7)).toBe(false);
+    const options = freeGameOptions(ride, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(options.sled).toBe(true);
+    expect(options.heli).toBe(false);
+    expect(options.byLift).toBe(false);
+    expect(options.spawn).toBeUndefined();
+    expect(options.run).toBeUndefined();
+    expect(sledOn(mergeRide(JSON.parse(JSON.stringify(ride))), 7)).toBe(true);
+  });
+
+  it("is a link's too, and the HUD reads its engine while he rides", () => {
+    expect(readParams("?start=free&sled=1").sled).toBe(true);
+    expect(readParams("?start=free").sled).toBe(false);
+    const s = createGame({
+      level: syntheticLevel(),
+      mode: "free",
+      sled: true,
+      crowd: 0,
+      quiet: true,
+    });
+    expect(takeSnapshot(s).sled?.kind).toBe("ridden");
+    for (let i = 0; i < 240; i++) step(s, { ...NEUTRAL_INPUT, tuck: 1 });
+    const going = takeSnapshot(s).sled;
+    expect(going?.kind === "ridden" && going.rev > 0.5).toBe(true);
+    // Off it, it calls him back while he is near.
+    step(s, { ...NEUTRAL_INPUT, machine: true });
+    for (let i = 0; i < 120; i++) step(s, { ...NEUTRAL_INPUT, brake: 1 });
+    expect(takeSnapshot(s).sled?.kind).toBe("waiting");
+  });
+
+  it("offers the machine key only to a skier stood beside it", () => {
+    const s = createGame({ level: syntheticLevel(), mode: "free", crowd: 0, quiet: true });
+    const k = s.sled!;
+    standSkier(s, k.x + 20, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: false });
+    standSkier(s, k.x + 1.6, k.z, k.heading);
+    step(s, NEUTRAL_INPUT);
+    expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: true });
   });
 });

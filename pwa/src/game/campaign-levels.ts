@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE CAMPAIGN'S SHELVES, and the six maps each of them runs. Every map is a
-// SEED in a KIND OF SNOW COUNTRY (R21) and, where the ladder needs one, the
+// SEED's ski area in a KIND OF SNOW COUNTRY (R21), raced down one of its
+// COURSES (R28) of a PISTE GRADE (R23) and, where the ladder needs one, the
 // sky it is skied under — the maps are generated, not authored — so a shelf
-// is a short table of them with the name the menu shows. Curating one is
-// `make rate CAMPAIGN=1` and `make difficulty CAMPAIGN=1`'s job, and the
-// numbers here are their output.
+// is a short table of them with the name the menu shows. Curating one is `make rate CAMPAIGN=1` and `make
+// difficulty CAMPAIGN=1`'s job, and the numbers here are their output.
 //
 // EVERY MAP NAMES THE GENERATOR THAT BUILT IT (`engine/mapgen/versions.ts`)
 // and carries the DIGEST of the map that came out, and both are written out
@@ -21,31 +21,74 @@
 // A MAP IS NAMED FOR WHAT IT IS LIKE, never for where it is: the snow, the
 // light, the shape of the ask. A region is a kind of country and no place.
 //
-// THREE SHELVES, A REGION EACH. THE NURSERY is skied on the FELL — low,
-// rounded country, half the vertical, the gentlest pistes the generator
-// makes (a blue's mean grade; the steepest hundred metres of a fell still
-// read red or black on the colour rule, which is honest: a fell's headwall
-// is a headwall). THE RIDGE is the ALPINE — the rules as written, black
-// pistes over a thousand metres of vertical. THE GLACIER is the CONTINENTAL
-// — a fifth more vertical, the steepest faces, and two of its rungs skied
-// from the last light into the night, one in a blizzard and one in fog.
+// FOUR SHELVES, FOUR SKI AREAS. A shelf is ONE seed's resort on the
+// generator that builds ski areas (v4, R25–R28): a massif with its lifts,
+// its runs of every colour and its lanes down to the village — and its six
+// maps are six of that area's COURSES (R28), each the line from a top
+// station down the network to the village, raced through its own gates. The
+// whole mountain is there on every rung — a skier may leave the course and
+// ski anywhere on it — but the points are paid down the one course the rung
+// races. Every map of a shelf names the same seed and country, so the six
+// are one resort the generator builds once.
 //
-// THE RUNG ORDER is a race, a time trial, two races, a time trial and a race
-// — six rungs, so four races around two trials, and the race both OPENS and
-// CLOSES a shelf. Every rung asks more than the one before it on `make rate
-// CAMPAIGN=1`'s index, and the seeds were picked from sweeps of the first
-// ninety-six alpine seeds and the first forty-eight of the fell and the
-// continental (`make rate COUNT=96`, `make rate COUNT=48 ARGS="--region
-// fell"`) on the brief the rating module's header states: climb without a
-// wall, no two rungs the same map twice, and every kind of ask led on
-// somewhere.
+// THE CAMPAIGN RACES RED AND BLACK. The greens and the blues are the free
+// ride's; a rung is a red or a black, with ONE blue to warm up on — the
+// very first rung of the first shelf, a time trial, because A SLALOM IS
+// NEVER SET ON AN EASY HILL: every slalom rung is a red or a black whose
+// slalom stretch (R31) is a real slalom hill, and a map whose stretch is
+// gentle, or cut short by its drops, is raced against the clock instead.
+// The shelves blacken as they climb,
+// and every rung is ordered by how hard it really is on the rating's index
+// (`make rate CAMPAIGN=1`) — the steepest pitch, the drop, the air, the
+// drops across the piste, the sky — because two blacks can be a world
+// apart: the early shelves' are the raceable ones, the last shelf's the
+// brutal.
 //
-// EVERY MAP IS SKIED ON THE HOUR, THE SEASON AND THE SKY ITS SEED DEALT
-// (R15, R19): no rung lays a sky over the dealt one today, so the dark on
-// the glacier is the evenings R19 hands out and not a lamp turned off by
-// hand. A `sky` may still be pinned on a rung (`withSky`); it moves nothing
-// the generator builds and so nothing the digest reads, but the rating
-// reads it (its weather axis).
+//   RIME WOODS   MARITIME, seed 4: deep snow and rimed firs; a blue in a
+//                valley fog to warm up on, then five reds, the last into a
+//                storm.
+//   HIGH CIRQUE  ALPINE, seed 8: four reds off the cirque, then the first
+//                two blacks — one in a storm, then nine hundred metres of it.
+//   FROST BASIN  CONTINENTAL, seed 10: cold dry snow; three reds, then
+//                three blacks with drops across the piste, the last seven.
+//   COLD CREST   CONTINENTAL, seed 77: a short red and a long one among the
+//                four hardest blacks in the game — one in a storm, one in
+//                falling snow, the last nearly twelve hundred metres of drop.
+//
+// The FELL has no shelf: its ski areas are gentle by nature — no black on
+// any of the first forty seeds and never more than two reds — so it is the
+// free ride's country. The maritime opens because its reds are the gentlest
+// (no black at all), the alpine follows because it offers two blacks at
+// most, and the continental, the steepest country, hosts the last two
+// shelves on two different massifs.
+//
+// The areas were picked from sweeps of the v4 generator (`make resort
+// COUNT=40 REGION=…`; forty maritime seeds, eighty alpine, a hundred and
+// twenty continental): the ones with six red-and-black courses (or a blue
+// and five reds) that stand clean, every course finished by the bot, and a
+// plan that reads as a ski area somebody laid out. No continental area of
+// the hundred and twenty offered five blacks the bot finishes, so the last
+// shelf races four. Within a shelf the rungs climb on the index; across
+// the shelves the share of black climbs (0, 2, 3, 4) and so does the
+// shelf's mean ask.
+//
+// THE RUNG ORDER mixes slaloms, downhills and time trials, the slalom on
+// the maps whose stretch is a slalom hill and the DOWNHILL (R32) on a black
+// whose whole course is a downhill's: HIGH CIRQUE a slalom, a trial, two
+// slaloms, a downhill and a slalom, the slalom opening and closing it; RIME
+// WOODS opens on its blue against the clock and closes on two slaloms;
+// FROST BASIN closes on a trial and a downhill down a thousand metres of
+// black, cut up by its drops;
+// COLD CREST puts its storm black against the clock and its steep wall to a
+// slalom, four slaloms round two trials.
+//
+// EVERY MAP IS SKIED ON THE HOUR, THE SEASON AND THE SKY ITS COURSE WAS
+// DEALT (R15, R19 — each course of a resort is dealt a day of its own) —
+// but for two, where the ladder needed a step the dealt day did not give:
+// fair-weather cloud over RIME WOODS's late-sun red, and falling snow over
+// COLD CREST's six-kicker black. A `sky` (`withSky`) moves nothing the
+// generator builds and so nothing the digest reads, but the rating reads it
+// (its weather axis), and the box bills it (`day`).
 //
 // THE MEDALS on a time trial are set against the bot's own run of it — the
 // all-mountain pair skied by the bot from the start gate to the finish,
@@ -55,11 +98,19 @@
 // and nothing else; GOLD is two per cent under it, a clean run the bot does
 // not ski.
 
-import type { GeneratorVersion, RegionId, SkyOverride, WeatherKind } from "@engine";
+import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind } from "@engine";
 
-/** The two games a campaign map is played as. A free ride measures nothing,
- * so it is never a rung. */
-export type CampaignMode = "race" | "timeTrial";
+/** The games a pinned map is played as: a SLALOM, set on the map's
+ * steepest stretch (R31), a DOWNHILL down its whole course out of a start
+ * house against a field (R32), a SUPER-G from a start lowered down it (R33
+ * — a race map's, `race-maps.ts`, never a rung yet), a SPEED RACE down a
+ * track cut straight down the face (R34 — a race map's too), a GIANT
+ * SLALOM's two runs round its gates (R36 — a race map's too), or the TIME
+ * TRIAL down
+ * its whole course alone. A free ride measures nothing, so it is never a
+ * rung. */
+export type CampaignMode =
+  "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "timeTrial";
 
 /** The three medals a time trial pays, worst first. */
 export const MEDALS = ["bronze", "silver", "gold"] as const;
@@ -84,6 +135,14 @@ export type CampaignLevel = {
   /** THE KIND OF SNOW COUNTRY the map is built in (R21): a shelf's own —
    * the alpine when left out. Part of what the digest names. */
   region?: RegionId;
+  /** THE PISTE GRADE of the course raced (R23) — red or black, the one blue
+   * the first rung — quoted so a box can sign it without building the map,
+   * and held to the built map by `tests/generator_version_test.ts`. */
+  grade: PisteGrade;
+  /** THE COURSE of the seed's ski area this map is raced down (R28,
+   * `Resort.course`): the run the gates are on and the points are paid
+   * down, by its id. Part of what the digest names. */
+  course: string;
   /** A sky or a start hour laid over the dealt day (see the header). */
   sky?: SkyOverride;
   /** THE DAY the map is ridden in — its sky and the solar hour the run
@@ -96,267 +155,422 @@ export type CampaignLevel = {
 };
 
 export type CampaignShelf = {
-  id: "nursery" | "ridge" | "glacier";
+  /** The stem of its maps' ids (`rime-1` …), and the shelf's key on the
+   * developer page's UNLOCKS. */
+  id: string;
+  /** The ski area's name — invented, and named for what it is like. */
   name: string;
   blurb: string;
+  /** THE SKI AREA: the seed every map of the shelf is built from, and the
+   * country it stands in (R21) — restated on every map, held equal by
+   * `tests/campaign_test.ts`. */
+  seed: number;
+  region: RegionId;
   levels: readonly CampaignLevel[];
 };
 
-/** THE FIRST SHELF — open to everyone: the fell, bright days, gentle pistes
- * to learn the edge on, then the crust, the traverses and the first air. */
-const NURSERY: CampaignShelf = {
-  id: "nursery",
-  name: "Nursery",
-  blurb: "The fell: gentle pistes, bright days, the first turns",
+/** THE FIRST SHELF — open to everyone: a maritime ski area, deep snow and
+ * rimed firs; the one blue to warm up on, then five reds, the last into a storm. */
+const RIME_WOODS: CampaignShelf = {
+  id: "rime",
+  name: "Rime Woods",
+  blurb: "Deep snow and rimed firs: one blue to warm up on, then the reds",
+  seed: 4,
+  region: "maritime",
   levels: [
     {
-      id: "nursery-1",
-      name: "First Turns",
-      blurb: "A gentle fell under high cloud, three rolls to learn the edge on",
-      seed: 34,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "88daa0ad",
-      region: "fell",
-      day: { weather: "high", hour: 10.98 },
-    },
-    {
-      id: "nursery-2",
-      name: "Birch Line",
-      blurb: "Alone against the clock down the birches on a clear February afternoon",
-      seed: 36,
-      mode: "timeTrial",
-      laps: 1,
-      version: 1,
-      digest: "3d8a18c5",
-      region: "fell",
-      day: { weather: "clear", hour: 13.51 },
-      medals: { gold: 284, silver: 299, bronze: 327 },
-    },
-    {
-      id: "nursery-3",
-      name: "Open Fell",
-      blurb: "A fair March morning on the bare top, four lips and a long run-out",
-      seed: 45,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "9a93b4f1",
-      region: "fell",
-      day: { weather: "fair", hour: 10.19 },
-    },
-    {
-      id: "nursery-4",
-      name: "Wind Crust",
-      blurb: "High cloud and a crust scoured over the open snow beside the piste",
-      seed: 33,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "67df1008",
-      region: "fell",
-      day: { weather: "high", hour: 10.88 },
-    },
-    {
-      id: "nursery-5",
-      name: "Birch Woods",
-      blurb: "The clock again, in and out of the birch woods under high cloud",
-      seed: 20,
-      mode: "timeTrial",
-      laps: 1,
-      version: 1,
-      digest: "11d2c314",
-      region: "fell",
-      day: { weather: "high", hour: 12.48 },
-      medals: { gold: 305, silver: 321, bronze: 350 },
-    },
-    {
-      id: "nursery-6",
-      name: "Six Lips",
-      blurb:
-        "Flurries out of a sunny sky and six kickers down one fell — the most air on the shelf",
-      seed: 40,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "6b172f8e",
-      region: "fell",
-      day: { weather: "flurries", hour: 11.99 },
-    },
-  ],
-};
-
-/** THE SECOND SHELF — the alpine: black pistes over a thousand metres of
- * vertical, the woods, the drifts, the tightest bends. */
-const RIDGE: CampaignShelf = {
-  id: "ridge",
-  name: "Ridge",
-  blurb: "The alpine: black pistes, the timberline, the drifts",
-  levels: [
-    {
-      id: "ridge-1",
-      name: "Under the Ridge",
-      blurb: "High cloud on a black piste's shoulder, six kickers to learn the air on",
-      seed: 64,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "84eca003",
-      region: "alpine",
-      day: { weather: "high", hour: 9.53 },
-    },
-    {
-      id: "ridge-2",
-      name: "Larch Bowl",
-      blurb: "A clear afternoon and the clock, over the steepest pitch so far",
-      seed: 7,
-      mode: "timeTrial",
-      laps: 1,
-      version: 1,
-      digest: "630c1626",
-      region: "alpine",
-      day: { weather: "clear", hour: 14.42 },
-      medals: { gold: 272, silver: 286, bronze: 313 },
-    },
-    {
-      id: "ridge-3",
-      name: "Stone Pine",
-      blurb: "A fair January afternoon through the timberline woods",
+      id: "rime-1",
+      name: "Fog Opener",
+      blurb: "The one blue, against the clock: wide turns through the rimed firs in a valley fog",
       seed: 4,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "6b31568e",
-      region: "alpine",
-      day: { weather: "fair", hour: 13.81 },
-    },
-    {
-      id: "ridge-4",
-      name: "Wind Lips",
-      blurb: "High cloud and five kickers down the face — the most air so far",
-      seed: 84,
-      mode: "race",
-      laps: 1,
-      version: 1,
-      digest: "fe250f6f",
-      region: "alpine",
-      day: { weather: "high", hour: 11.24 },
-    },
-    {
-      id: "ridge-5",
-      name: "Flat Light",
-      blurb: "The clock under a lid of overcast, the longest run of the shelf in flat light",
-      seed: 37,
       mode: "timeTrial",
       laps: 1,
-      version: 1,
-      digest: "d14629a1",
-      region: "alpine",
-      day: { weather: "overcast", hour: 11.24 },
-      medals: { gold: 361, silver: 380, bronze: 415 },
+      version: 4,
+      digest: "4a43faec",
+      region: "maritime",
+      grade: "blue",
+      course: "4",
+      day: { weather: "fog", hour: 12.65 },
+      medals: { gold: 149, silver: 157, bronze: 172 },
     },
     {
-      id: "ridge-6",
-      name: "Night Flurries",
-      blurb: "Flurries at nightfall and deep snow beside the piste, the shelf's last race",
-      seed: 47,
-      mode: "race",
+      id: "rime-2",
+      name: "First Red",
+      blurb: "The first slalom, set on the steepest of the first red in the sun",
+      seed: 4,
+      mode: "slalom",
       laps: 1,
-      version: 1,
-      digest: "30a057d8",
-      region: "alpine",
-      day: { weather: "flurries", hour: 19.69 },
+      version: 4,
+      digest: "fbe8009e",
+      region: "maritime",
+      grade: "red",
+      course: "11",
+      day: { weather: "clear", hour: 14.29 },
+    },
+    {
+      id: "rime-3",
+      name: "Flurry Line",
+      blurb: "Against the clock down a short red through flurries, four kickers between the firs",
+      seed: 4,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "0fc67945",
+      region: "maritime",
+      grade: "red",
+      course: "3",
+      day: { weather: "flurries", hour: 15.16 },
+      medals: { gold: 121, silver: 127, bronze: 138 },
+    },
+    {
+      id: "rime-4",
+      name: "Late Sun",
+      blurb: "The clock down a short red in the late sun under fair-weather cloud, to the village",
+      seed: 4,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "5b92d38a",
+      region: "maritime",
+      grade: "red",
+      course: "5",
+      sky: { weather: "fair" },
+      day: { weather: "fair", hour: 16.87 },
+      medals: { gold: 114, silver: 119, bronze: 130 },
+    },
+    {
+      id: "rime-5",
+      name: "Village Face",
+      blurb: "A slalom on the steep face above the village, a hundred and ninety metres of it",
+      seed: 4,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "db8b3a93",
+      region: "maritime",
+      grade: "red",
+      course: "7",
+      day: { weather: "clear", hour: 15.3 },
+    },
+    {
+      id: "rime-6",
+      name: "Storm Red",
+      blurb: "The last red race into a storm, five kickers and the next gate lost in the spindrift",
+      seed: 4,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "2974386e",
+      region: "maritime",
+      grade: "red",
+      course: "12",
+      day: { weather: "storm", hour: 15.19 },
     },
   ],
 };
 
-/** THE THIRD SHELF — the continental: the biggest faces, the steepest
- * hundred metres, and two rungs skied into the dark. */
-const GLACIER: CampaignShelf = {
-  id: "glacier",
-  name: "Glacier",
-  blurb: "The continental: the biggest faces, and the dark",
+/** THE SECOND SHELF — an alpine ski area under its cirque: four reds
+ * down the fall line, then the first two blacks. */
+const HIGH_CIRQUE: CampaignShelf = {
+  id: "cirque",
+  name: "High Cirque",
+  blurb: "Reds off the cirque, then the first blacks: drops across the piste",
+  seed: 8,
+  region: "alpine",
   levels: [
     {
-      id: "glacier-1",
-      name: "First Face",
-      blurb: "High cloud on the biggest face so far, four lips down it",
-      seed: 3,
-      mode: "race",
+      id: "cirque-1",
+      name: "Long Traverse",
+      blurb: "Three kilometres of red on a clear morning, long traverses across the face",
+      seed: 8,
+      mode: "slalom",
       laps: 1,
-      version: 1,
-      digest: "27dda6c8",
-      region: "continental",
-      day: { weather: "high", hour: 9.63 },
+      version: 4,
+      digest: "10c41001",
+      region: "alpine",
+      grade: "red",
+      course: "7",
+      day: { weather: "clear", hour: 10.32 },
     },
     {
-      id: "glacier-2",
-      name: "Five Kickers",
-      blurb: "A clear midday and five lips against the clock",
-      seed: 12,
+      id: "cirque-2",
+      name: "Cirque Clock",
+      blurb: "Against the clock under the cirque at noon, three kickers on the way down",
+      seed: 8,
       mode: "timeTrial",
       laps: 1,
-      version: 1,
-      digest: "502b70e3",
-      region: "continental",
-      day: { weather: "clear", hour: 12.41 },
-      medals: { gold: 263, silver: 277, bronze: 302 },
+      version: 4,
+      digest: "67c47454",
+      region: "alpine",
+      grade: "red",
+      course: "2",
+      day: { weather: "fair", hour: 11.99 },
+      medals: { gold: 172, silver: 180, bronze: 197 },
     },
     {
-      id: "glacier-3",
-      name: "Deep Snow",
-      blurb: "Fair weather and deep snow beside a piste that never lets up",
-      seed: 17,
-      mode: "race",
+      id: "cirque-3",
+      name: "Morning Fog",
+      blurb: "A red raced into the morning fog, three kickers looming out of it",
+      seed: 8,
+      mode: "slalom",
       laps: 1,
-      version: 1,
-      digest: "91fa8dcb",
-      region: "continental",
-      day: { weather: "fair", hour: 12 },
+      version: 4,
+      digest: "26604e7f",
+      region: "alpine",
+      grade: "red",
+      course: "4",
+      day: { weather: "fog", hour: 9.86 },
     },
     {
-      id: "glacier-4",
-      name: "Storm Front",
-      blurb: "A blizzard at dusk, the next gate lost in the spindrift",
-      seed: 10,
-      mode: "race",
+      id: "cirque-4",
+      name: "Six Kickers",
+      blurb: "Six hundred metres of red through the flurries, six kickers to take air off",
+      seed: 8,
+      mode: "slalom",
       laps: 1,
-      version: 1,
-      digest: "4ef2c372",
-      region: "continental",
-      day: { weather: "storm", hour: 18.65 },
+      version: 4,
+      digest: "593596c8",
+      region: "alpine",
+      grade: "red",
+      course: "11",
+      day: { weather: "flurries", hour: 13.59 },
     },
     {
-      id: "glacier-5",
-      name: "Steady Fall",
-      blurb: "The clock in a steady snowfall, over the steepest hundred metres of the campaign",
-      seed: 48,
-      mode: "timeTrial",
+      id: "cirque-5",
+      name: "First Black",
+      blurb: "The first black, a downhill in a storm: a training run, then the race over two drops",
+      seed: 8,
+      mode: "downhill",
       laps: 1,
-      version: 1,
-      digest: "2f97b487",
-      region: "continental",
-      day: { weather: "snow", hour: 11.28 },
-      medals: { gold: 305, silver: 321, bronze: 351 },
+      version: 4,
+      digest: "6e786204",
+      region: "alpine",
+      grade: "black",
+      course: "10",
+      day: { weather: "storm", hour: 11.17 },
     },
     {
-      id: "glacier-6",
-      name: "Valley Fog",
-      blurb: "The last race, into a fog lying over the lower mountain at nightfall",
-      seed: 22,
-      mode: "race",
+      id: "cirque-6",
+      name: "Cirque Wall",
+      blurb: "Nine hundred metres of black off the top, three drops on the steepest pitch",
+      seed: 8,
+      mode: "slalom",
       laps: 1,
-      version: 1,
-      digest: "04cd7931",
-      region: "continental",
-      day: { weather: "fog", hour: 18.85 },
+      version: 4,
+      digest: "4815a9a4",
+      region: "alpine",
+      grade: "black",
+      course: "8",
+      day: { weather: "flurries", hour: 12.31 },
     },
   ],
 };
 
-/** The shelves in the order they open. */
-export const SHELVES: readonly CampaignShelf[] = [NURSERY, RIDGE, GLACIER];
+/** THE THIRD SHELF — a continental ski area, cold dry snow: three reds,
+ * then three blacks with drops across the piste. */
+const FROST_BASIN: CampaignShelf = {
+  id: "basin",
+  name: "Frost Basin",
+  blurb: "Cold dry snow: short reds, then three blacks with drops",
+  seed: 10,
+  region: "continental",
+  levels: [
+    {
+      id: "basin-1",
+      name: "Cold Morning",
+      blurb: "A clear, cold morning and a short red to open the basin, four kickers",
+      seed: 10,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "85ea3ae9",
+      region: "continental",
+      grade: "red",
+      course: "5",
+      day: { weather: "clear", hour: 9.06 },
+    },
+    {
+      id: "basin-2",
+      name: "Snow Clock",
+      blurb: "The clock down a short, steep red in falling snow",
+      seed: 10,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "b4a5bd8e",
+      region: "continental",
+      grade: "red",
+      course: "3",
+      day: { weather: "snow", hour: 11.02 },
+      medals: { gold: 110, silver: 115, bronze: 126 },
+    },
+    {
+      id: "basin-3",
+      name: "Seven Kickers",
+      blurb:
+        "Three kilometres of red under high cloud, seven kickers on eight hundred metres of drop",
+      seed: 10,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "52ed07a8",
+      region: "continental",
+      grade: "red",
+      course: "6",
+      day: { weather: "high", hour: 10.29 },
+    },
+    {
+      id: "basin-4",
+      name: "Four Drops",
+      blurb: "A black through the flurries, four drops across the piste and seven kickers",
+      seed: 10,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "b27c5ffc",
+      region: "continental",
+      grade: "black",
+      course: "8",
+      day: { weather: "flurries", hour: 11.36 },
+    },
+    {
+      id: "basin-5",
+      name: "Short Black",
+      blurb: "Against the clock down a short black, three drops and four kickers",
+      seed: 10,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "15003760",
+      region: "continental",
+      grade: "black",
+      course: "12",
+      day: { weather: "fair", hour: 13.41 },
+      medals: { gold: 149, silver: 157, bronze: 171 },
+    },
+    {
+      id: "basin-6",
+      name: "Basin Wall",
+      blurb:
+        "The last word off the top of the basin: a downhill down a thousand metres of black and seven drops",
+      seed: 10,
+      mode: "downhill",
+      laps: 1,
+      version: 4,
+      digest: "a99433e3",
+      region: "continental",
+      grade: "black",
+      course: "9",
+      day: { weather: "high", hour: 9.4 },
+    },
+  ],
+};
+
+/** THE FOURTH SHELF — the steepest continental ski area: two reds among
+ * the four hardest blacks in the game. */
+const COLD_CREST: CampaignShelf = {
+  id: "crest",
+  name: "Cold Crest",
+  blurb: "The steepest blacks: drops, a storm and falling snow, two reds among four blacks",
+  seed: 77,
+  region: "continental",
+  levels: [
+    {
+      id: "crest-1",
+      name: "Crest Opener",
+      blurb: "A short red to open the crest, three kickers under fair-weather cloud",
+      seed: 77,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "27f341ad",
+      region: "continental",
+      grade: "red",
+      course: "3",
+      day: { weather: "fair", hour: 11.84 },
+    },
+    {
+      id: "crest-2",
+      name: "Steep Clock",
+      blurb:
+        "Against the clock down eleven hundred metres of black, the steepest pitch on the crest",
+      seed: 77,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "d41f4f5c",
+      region: "continental",
+      grade: "black",
+      course: "9",
+      day: { weather: "high", hour: 11.81 },
+      medals: { gold: 226, silver: 238, bronze: 260 },
+    },
+    {
+      id: "crest-3",
+      name: "Snow Red",
+      blurb:
+        "The one long red, raced in falling snow: three and a half kilometres and seven kickers",
+      seed: 77,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "9586af74",
+      region: "continental",
+      grade: "red",
+      course: "5",
+      day: { weather: "snow", hour: 10.95 },
+    },
+    {
+      id: "crest-4",
+      name: "Storm Black",
+      blurb:
+        "Against the clock down a black into a storm, four drops and the next one lost in the spindrift",
+      seed: 77,
+      mode: "timeTrial",
+      laps: 1,
+      version: 4,
+      digest: "6c263fb2",
+      region: "continental",
+      grade: "black",
+      course: "11",
+      day: { weather: "storm", hour: 10.97 },
+      medals: { gold: 159, silver: 167, bronze: 182 },
+    },
+    {
+      id: "crest-5",
+      name: "Falling Snow",
+      blurb: "A slalom on the steepest wall of the crest in falling snow, every gate hard to read",
+      seed: 77,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "140db917",
+      region: "continental",
+      grade: "black",
+      course: "12",
+      sky: { weather: "snow" },
+      day: { weather: "snow", hour: 9.26 },
+    },
+    {
+      id: "crest-6",
+      name: "Crest Wall",
+      blurb:
+        "The last race: nearly twelve hundred metres of black off the crest, five kickers and two drops",
+      seed: 77,
+      mode: "slalom",
+      laps: 1,
+      version: 4,
+      digest: "77ce73da",
+      region: "continental",
+      grade: "black",
+      course: "8",
+      day: { weather: "clear", hour: 9.29 },
+    },
+  ],
+};
+
+/** The shelves in the order they open, gentlest first. */
+export const SHELVES: readonly CampaignShelf[] = [RIME_WOODS, HIGH_CIRQUE, FROST_BASIN, COLD_CREST];
 
 /** Every campaign map, shelf by shelf, in the order they are played. */
 export const CAMPAIGN_LEVELS: readonly CampaignLevel[] = SHELVES.flatMap((shelf) => shelf.levels);

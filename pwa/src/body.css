@@ -1,0 +1,400 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* ── THE BODY AND THE G METER (hud-body.tsx, hud-gforce.tsx) ─────────────
+   Stated in a sheet of their own beside the HUD's, the way the campaign's
+   and the developer page's are.
+
+   THE CONDITION LANGUAGE is the rally game's four colours (its car
+   schematic): green sound, yellow a minor injury, orange a moderate one,
+   red serious and worse. Every shape reads its colour out of one custom
+   property, `--hp`, so a part is coloured by putting ONE class on it and
+   the panel's own word can carry the worst paint on him. Red is the HUD's
+   own alarm, never a second red. */
+.hud {
+  --hud-hp-ok: #7fd68e;
+  --hud-hp-hurt: #ffc24a;
+  --hud-hp-spent: #ff9a3c;
+  --hud-hp-dead: var(--hud-bad);
+}
+
+.hud-hp-ok {
+  --hp: var(--hud-hp-ok);
+}
+
+.hud-hp-hurt {
+  --hp: var(--hud-hp-hurt);
+}
+
+.hud-hp-spent {
+  --hp: var(--hud-hp-spent);
+}
+
+.hud-hp-dead {
+  --hp: var(--hud-hp-dead);
+}
+
+/* THE BODY, at the left edge halfway down — clear of the run's row at the
+   top and the speed at the foot, and of every thumb: it is read, never
+   pressed, so the glass under it stays the thumb zone's.
+
+   ITS SIZE IS THE HURT: `--body-scale` (body-tile.ts' `scaleOf`) is half on
+   a sound body and grows to one as the injuries mount; the figure follows
+   it whole and the words under it most of the way (`--body-text`), so a
+   line stays readable on the smallest panel. It grows over a moment, never
+   in a frame. */
+.hud-body {
+  --body-scale: 1;
+  --body-text: calc(0.6 + 0.4 * var(--body-scale));
+
+  position: absolute;
+  top: 50%;
+  left: max(0.8rem, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+  max-width: calc(clamp(9rem, 40vmin, 14rem) * var(--body-text));
+  line-height: 1.15;
+  pointer-events: none;
+  transform: translateY(-45%);
+}
+
+/* A SOUND BODY says nothing loudly: the figure stands back until something
+   is wrong with it, and the red, orange or yellow part is then the one
+   bright thing in the corner. */
+.hud-body.hud-hp-ok {
+  opacity: 0.72;
+}
+
+.hud-body-figure {
+  display: block;
+  width: auto;
+  height: calc(clamp(8.5rem, 38vmin, 17rem) * var(--body-scale));
+  margin-bottom: 0.15rem;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px var(--hud-shadow));
+  transition: height 700ms cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+/* THE SHAKE: the figure thrown about by the blow he goes down on —
+   played by hud-body.tsx (`shakeFrames`) on this wrapper, about the
+   figure's chest. */
+.hud-body-shake {
+  transform-origin: 50% 35%;
+}
+
+/* THE FLESH: a wash of the part's paint, faint while sound, the seams
+   between the parts a hair of the plate. */
+.hud-body-part,
+.hud-body-back {
+  fill: var(--hp);
+  fill-opacity: 0.55;
+  stroke: rgb(var(--hud-plate) / 55%);
+  stroke-width: 0.35;
+}
+
+.hud-body-part.hud-hp-ok {
+  fill-opacity: 0.22;
+}
+
+/* The back, behind the spine, shows only when it is hurt. */
+.hud-body-back {
+  stroke: none;
+}
+
+.hud-body-back.hud-hp-ok {
+  fill-opacity: 0;
+}
+
+.hud-body-skin {
+  fill: none;
+  stroke: #f4f8fb;
+  stroke-opacity: 0.9;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+/* THE BONES: bone grey when sound, the HUD's yellow cracked, its red broken
+   — every shape outlined a hair darker so a bone reads over the flesh, and
+   shaded as it lies (lit faces, shadowed ones, recesses) in grey over
+   whatever colour it is. */
+.hud-bone {
+  --bone: #c9c6be;
+}
+
+.hud-bone-hairline {
+  --bone: var(--hud-hp-hurt);
+}
+
+.hud-bone-break {
+  --bone: var(--hud-hp-dead);
+}
+
+/* A BONE'S PAINT is a registered colour, so a bone that cracks or breaks
+   turns from bone to yellow or red over a moment rather than in a frame,
+   and FLASHES white as it goes — each grade on a keyframe of its own, so a
+   break that becomes a wedge or a shatter flashes again. */
+@property --bone {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c9c6be;
+}
+
+.hud-bone {
+  transition: --bone 250ms ease-out;
+}
+
+.hud-bone-hairline {
+  animation: hud-bone-crack 500ms ease-out;
+}
+
+.hud-bone-break {
+  animation: hud-bone-snap-flash 600ms ease-out;
+}
+
+.hud-bone-wedge {
+  animation-name: hud-bone-wedge-flash;
+}
+
+.hud-bone-shatter {
+  animation-name: hud-bone-shatter-flash;
+}
+
+@keyframes hud-bone-crack {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-snap-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-wedge-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+@keyframes hud-bone-shatter-flash {
+  from {
+    --bone: #ffffff;
+  }
+}
+
+/* A PIECE OF A BROKEN BONE (`moveCss`: `--to` its place, its own
+   transform-origin): it mounts where the bone lay and SNAPS to its place,
+   overshooting a hair and settling; a harder blow later moves it on from
+   there. The box is the figure's view box, so a CSS pixel is a figure
+   unit. */
+.hud-bone-move {
+  transform: var(--to);
+  transform-box: view-box;
+  transition: transform 380ms cubic-bezier(0.2, 1.5, 0.4, 1);
+  animation: hud-bone-snap 420ms cubic-bezier(0.2, 1.5, 0.4, 1) backwards;
+}
+
+@keyframes hud-bone-snap {
+  from {
+    transform: none;
+  }
+}
+
+.hud-bone-fill {
+  fill: var(--bone);
+  stroke: rgb(30 24 18 / 55%);
+  stroke-width: 0.22;
+  stroke-linejoin: round;
+}
+
+.hud-bone-light {
+  fill: rgb(255 255 255 / 42%);
+}
+
+.hud-bone-shadow {
+  fill: rgb(28 30 34 / 30%);
+}
+
+.hud-bone-deep {
+  fill: rgb(18 20 24 / 42%);
+}
+
+/* A BROKEN BONE glows its red, so a thin one (a fibula, a rib) is found at
+   a glance — a shattered one the brighter, its pieces lit round. */
+.hud-bone-break {
+  filter: drop-shadow(0 0 0.9px var(--hud-hp-dead));
+}
+
+.hud-bone-shatter {
+  filter: drop-shadow(0 0 1.2px var(--hud-hp-dead));
+}
+
+/* THE PART THE BLOW STRUCK, lit white and cooling to its paint. */
+.hud-body-struck {
+  animation: hud-body-struck 900ms ease-out;
+}
+
+@keyframes hud-body-struck {
+  from {
+    fill: #ffffff;
+    fill-opacity: 1;
+  }
+}
+
+.hud-body-word {
+  color: var(--hp);
+  font-size: calc(clamp(0.72rem, 2.3vmin, 1.05rem) * var(--body-text));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hud-body-line {
+  color: var(--hp);
+  font-size: calc(clamp(0.58rem, 1.85vmin, 0.86rem) * var(--body-text));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* A NEW INJURY blinks a few times as it lands, then reads as a standing
+   fact. */
+.hud-body-fresh {
+  animation:
+    hud-flash-pop 180ms ease-out,
+    hud-body-blink 900ms steps(2, jump-none) 3;
+}
+
+@keyframes hud-body-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.hud-body-more {
+  color: var(--hud-info);
+}
+
+.hud-body-peak {
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+
+/* THE G METER, over the skier — a third of the way down, clear of the air
+   clock at the top and the missed gate's quarter, and above where the chase
+   camera stands him. It fades out over the engine's hold
+   (`TUNING.injury.hold`, 1.6 s); a harder blow in that time is a new
+   element (keyed on its number) with its own shake. */
+.hud-gforce {
+  position: absolute;
+  z-index: 1;
+  top: 36%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--g);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: hud-g-fade 1.6s ease-in forwards;
+}
+
+.hud-gforce-jolt {
+  --g: var(--hud-ink);
+}
+
+.hud-gforce-hard {
+  --g: var(--hud-hp-hurt);
+}
+
+.hud-gforce-danger {
+  --g: var(--hud-hp-spent);
+}
+
+.hud-gforce-severe {
+  --g: var(--hud-bad);
+}
+
+.hud-gforce-read {
+  display: flex;
+  align-items: baseline;
+  gap: 0.12em;
+  animation: hud-g-shake 600ms linear;
+}
+
+.hud-gforce-num {
+  font-size: clamp(2.6rem, 11vmin, 5.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.hud-gforce-unit {
+  font-size: clamp(1.2rem, 4.5vmin, 2.2rem);
+  font-weight: 800;
+}
+
+/* THE SHAKE: thrown about by `--shake` px (the blow's size, hud-gforce.tsx)
+   and settling, the number landing a size too big and coming down to its
+   own. */
+@keyframes hud-g-shake {
+  0% {
+    transform: scale(1.3);
+  }
+
+  10% {
+    transform: translate(calc(var(--shake) * -1), calc(var(--shake) * 0.5)) scale(1.18);
+  }
+
+  20% {
+    transform: translate(var(--shake), calc(var(--shake) * -0.6)) scale(1.1);
+  }
+
+  32% {
+    transform: translate(calc(var(--shake) * -0.7), calc(var(--shake) * 0.3)) scale(1.05);
+  }
+
+  45% {
+    transform: translate(calc(var(--shake) * 0.5), calc(var(--shake) * -0.35));
+  }
+
+  60% {
+    transform: translate(calc(var(--shake) * -0.3), calc(var(--shake) * 0.2));
+  }
+
+  78% {
+    transform: translate(calc(var(--shake) * 0.12), 0);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes hud-g-fade {
+  0%,
+  65% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-gforce-read,
+  .hud-body-fresh,
+  .hud-bone,
+  .hud-bone-move {
+    animation: none;
+  }
+
+  .hud-body-figure,
+  .hud-bone,
+  .hud-bone-move {
+    transition: none;
+  }
+}

@@ -9,8 +9,9 @@
 // latitude and day leave no hour of the band with the sun over the floor is
 // simply drawn again.
 
-import { daylightWindow } from "@niclaslindstedt/oss-game-framework/core/solar";
-import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import { angleDiff } from "@niclaslindstedt/oss-game-framework/core/math";
+import { daylightWindow, sunAt } from "@niclaslindstedt/oss-game-framework/core/solar";
+import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { LEVEL_RULES as R, inBand, type Band } from "./rules.ts";
 
 /** The sun's declination on a day of the year, degrees. */
@@ -50,6 +51,42 @@ export function dealSun(
   }
   // The band's own southern edge in its latest week always has a noon.
   return { latitude: bands.latitude.min, dayOfYear: bands.dayOfYear.max, hour: 12 };
+}
+
+/** Salt on the attempt's sub-seed for the face's bearing's own stream. */
+const FACING_SALT = 0x5a1f0ce;
+
+/** R15 — THE FACE TURNED TO THE SUN: the compass bearing the fall line is
+ * given (`Level.sun.facing`), within `sun.facing` of the sun's own bearing
+ * at the hour the run starts, off a stream of its own. The mountain shades
+ * itself — a face turned from a low winter sun is skied in its own shadow
+ * — so the face a piste runs down is turned to the light, and a skier goes
+ * down it toward the sun and across it. */
+export function faceTheSun(
+  sub: number,
+  sun: { hour: number; dayOfYear: number; latitude: number },
+): number {
+  const rng = createRng((sub ^ FACING_SALT) >>> 0);
+  const at = sunAt(sun.hour, sun.latitude, declinationOf(sun.dayOfYear));
+  return compass(at.azimuth + rng.range(-R.sun.facing, R.sun.facing));
+}
+
+/** A bearing on [0, 2π). */
+function compass(heading: number): number {
+  const t = heading % (2 * Math.PI);
+  return t < 0 ? t + 2 * Math.PI : t;
+}
+
+/** How far off the face's own bearing the sun stands at the run's hour,
+ * radians — 0 where the skier skis straight at it (R15). */
+export function sunOffFace(sun: {
+  hour: number;
+  dayOfYear: number;
+  latitude: number;
+  facing?: number;
+}): number {
+  const at = sunAt(sun.hour, sun.latitude, declinationOf(sun.dayOfYear));
+  return Math.abs(angleDiff(sun.facing ?? 0, at.azimuth));
 }
 
 /** THE HOURS A FREE RIDE MAY START AT on a day at a latitude: every hour the

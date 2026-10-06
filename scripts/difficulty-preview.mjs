@@ -78,7 +78,7 @@ const POWDER_INK = [150, 70, 210];
 const WALL_INK = [130, 20, 30];
 const PANEL_W = 300;
 /** A ten-metre stretch falling steeper than this is ticked: a red's pitch. */
-const STEEP = LEVEL_RULES.track.grades.red;
+const STEEP = LEVEL_RULES.grade.bands.red;
 
 /** The corner ladder: green for a straight, amber halfway, red at the floor.
  * `t` is 0 straight … 1 at the floor. */
@@ -251,7 +251,7 @@ if (args.campaign) {
         level,
         opts: { sky: campaignSky(pinned), runSeconds: botRun(level) },
         name: `difficulty-${pinned.id}`,
-        title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed}  ${pinned.mode === "race" ? "RACE" : "TIME TRIAL"}  V${pinned.version}`,
+        title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed} COURSE ${pinned.course} ${pinned.grade.toUpperCase()}  ${pinned.mode === "slalom" ? "SLALOM" : "TIME TRIAL"}  V${pinned.version}`,
       });
     }
   }

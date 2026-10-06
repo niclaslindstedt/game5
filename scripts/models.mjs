@@ -1,40 +1,45 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS THE GAME SHIPS, published: the last step of `make models`
-// (which first runs `make blender`'s game quality for every pair, the
-// skier, every kind of tree, every bird and animal, and the course's
-// marks). Copies each pair's and the skier's LOD0 glTF out of the
-// gitignored `previews/blender/` into the committed `pwa/models/` under the
-// name the build packs it by (`<id>.glb`, `skier.glb`), PACKS every static
-// model's (`scripts/lib/glb-pack.mjs`: quantized and meshopt-compressed)
-// into `pwa/models/trees/<kind>.glb`, `birds/<id>.glb`, `beasts/<id>.glb`
-// and `gates/<id>.glb`, and writes `pwa/models/sources.json` — the hash of
-// every source each half is made from (`MODEL_HALVES` in
-// `pwa/models-plugin.ts`), which `tests/models_test.ts` holds to the tree.
-// A half not published keeps its stamp: it was not remade.
+// (which first runs `make blender`'s game quality for every pair and the
+// helicopter). Copies each LOD0 glTF out of the gitignored
+// `previews/blender/` into the committed `pwa/models/` under the name the
+// build packs it by (`<id>.glb`, `heli.glb`), and writes
+// `pwa/models/sources.json` — the hash of every source they are made from,
+// a stamp a kind (`MODEL_HALVES` in `pwa/models-plugin.ts`), which
+// `tests/models_test.ts` holds to the tree. `--kind` publishes one kind and
+// leaves the other's files and stamp as they were. (Nothing else is a model: the skier is dressed in code
+// — `pwa/src/game/skier-dress.ts` — and the trees, the wildlife and the
+// course's marks are built in code — `tree-shapes.ts`, `bird-shapes.ts`,
+// `beast-shapes.ts`, `mark-shapes.ts`.)
 //
 //   node scripts/models.mjs                  publish what `make blender` made
-//   node scripts/models.mjs --set=trees      one half only (machines: the skis and the skier; trees, birds, beasts, gates)
-//   node scripts/models.mjs --check          only say whether the stamps are fresh
+//   node scripts/models.mjs --kind=heli      publish the helicopter alone
+//   node scripts/models.mjs --check          only say whether the stamp is fresh
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
-import { packGlb } from "./lib/glb-pack.mjs";
-import { MODELS_DIR, MODEL_HALVES, modelFiles, sourcesHash } from "../pwa/models-plugin.ts";
+import {
+  ALL_MODELS,
+  MODELS_DIR,
+  MODEL_HALVES,
+  modelFiles,
+  sourcesHash,
+} from "../pwa/models-plugin.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = parseArgs(
   process.argv.slice(2),
   {
     check: { kind: "flag", help: "only report whether pwa/models/ is fresh against its sources" },
-    set: {
+    kind: {
       kind: "string",
       default: "all",
-      help: "which half to publish: machines (the skis and the skier), trees, birds, beasts, gates, or all",
+      help: "publish only this kind (skis, heli, sled) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -42,20 +47,8 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--set=all|machines|trees|birds|beasts|gates] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|sled] [--from=previews/blender]",
 );
-/** The halves, by the name `--set` calls each and its stamp. */
-const HALVES = {
-  machines: "sources",
-  trees: "trees",
-  birds: "birds",
-  beasts: "beasts",
-  gates: "gates",
-};
-if (args.set !== "all" && !(args.set in HALVES)) {
-  console.error(`unknown set "${args.set}" (all, ${Object.keys(HALVES).join(", ")})`);
-  process.exit(2);
-}
 
 const out = join(root, MODELS_DIR);
 const stampAt = join(out, "sources.json");
@@ -67,35 +60,22 @@ const had = existsSync(stampAt) ? JSON.parse(readFileSync(stampAt, "utf8")) : {}
 if (args.check) {
   const stale = Object.keys(hashes).filter((k) => had[k] !== hashes[k]);
   console.log(
-    stale.length === 0
-      ? "pwa/models/ is fresh"
-      : `pwa/models/ is STALE (${stale.join(", ")}) — run \`make models\``,
+    stale.length === 0 ? "pwa/models/ is fresh" : "pwa/models/ is STALE — run `make models`",
   );
   process.exit(stale.length === 0 ? 0 : 1);
 }
 
-const on = (half) => args.set === "all" || args.set === half;
-const machines = on("machines");
-/** Each published name and the file `make blender` wrote it as: a pair's
- * or the skier's LOD0, a static model under its own name. */
-const made = (name) =>
-  join(
-    root,
-    args.from,
-    name === "skier.glb"
-      ? "skier0-lod0.glb"
-      : name.includes("/")
-        ? name.slice(name.indexOf("/") + 1)
-        : name.replace(".glb", "-lod0.glb"),
-  );
-const names = modelFiles({
-  skis: machines,
-  skiers: machines,
-  trees: on("trees"),
-  birds: on("birds"),
-  beasts: on("beasts"),
-  gates: on("gates"),
-});
+/** Which stamp a kind is (`MODEL_HALVES`): the skis' predates the split. */
+const HALF_OF = { skis: "sources", heli: "heli", sled: "sled" };
+if (args.kind !== "all" && !HALF_OF[args.kind]) {
+  console.error(`unknown kind "${args.kind}" (all, ${Object.keys(HALF_OF).join(", ")})`);
+  process.exit(2);
+}
+const half = args.kind === "all" ? undefined : HALF_OF[args.kind];
+
+/** Each published name and the file `make blender` wrote it as: its LOD0. */
+const made = (name) => join(root, args.from, name.replace(".glb", "-lod0.glb"));
+const names = modelFiles(ALL_MODELS, half);
 const missing = names.filter((n) => !existsSync(made(n)));
 if (missing.length) {
   console.error(
@@ -103,25 +83,14 @@ if (missing.length) {
   );
   process.exit(1);
 }
-for (const dir of ["trees", "birds", "beasts", "gates"])
-  mkdirSync(join(out, dir), { recursive: true });
 for (const n of names) {
-  if (n.includes("/")) {
-    writeFileSync(join(out, n), await packGlb(readFileSync(made(n))));
-  } else {
-    copyFileSync(made(n), join(out, n));
-  }
+  copyFileSync(made(n), join(out, n));
   console.log(
     `${MODELS_DIR}/${n}  ${(readFileSync(join(out, n)).byteLength / 1024).toFixed(0)} KiB`,
   );
 }
-const stamp = Object.fromEntries(
-  Object.entries(HALVES).map(([half, key]) => [key, on(half) ? hashes[key] : had[key]]),
-);
-stamp.blender = "4.2.0";
+const fresh = half ? { [half]: hashes[half] } : hashes;
+const stamp = { ...had, ...fresh, blender: "4.2.0" };
 writeFileSync(stampAt, `${JSON.stringify(stamp, null, 2)}\n`);
-console.log(
-  `${MODELS_DIR}/sources.json  ${Object.entries(HALVES)
-    .map(([half, key]) => `${half} ${stamp[key]?.slice(0, 12)}`)
-    .join(" · ")}`,
-);
+for (const k of Object.keys(fresh))
+  console.log(`${MODELS_DIR}/sources.json  ${k} ${fresh[k].slice(0, 12)}`);

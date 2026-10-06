@@ -6,10 +6,25 @@
 // being a flick — and turns in within a couple of tenths; a bend carved
 // flat out pays for itself in the way (the scrub); a lean forward loads the
 // tips and tightens the arc, a lean back lets it run; and past what the
-// edge holds the ski skids rather than snapping round.
+// edge holds the ski skids rather than snapping round. And SPEED TAKES THE
+// TURN AWAY: the bend an edge can hold is a lateral acceleration, so the
+// yaw it allows goes as one over the speed, and the CHATTER of the snow
+// passing under the skis (`TUNING.chatter`) takes a little of the edge's
+// hold off the top end — a long stiff ski least, a short soft one most.
 
 import { describe, expect, it } from "vitest";
-import { SKIS, TUNING, createGame, placeRun, step, type GameState } from "@engine";
+import {
+  EAGLE,
+  HARE,
+  SKIS,
+  TUNING,
+  chatterOf,
+  cornerGrip,
+  createGame,
+  placeRun,
+  step,
+  type GameState,
+} from "@engine";
 import { flatLevel } from "./support/synthetic.ts";
 
 const PACKED = flatLevel({ packed: 1 });
@@ -92,5 +107,65 @@ describe("the bend", () => {
     }
     expect(worst).toBeLessThan(Math.PI / 3);
     expect(state.skier.thrown).toBeNull();
+  });
+});
+
+describe("the bend at speed", () => {
+  /** The yaw rate, rad/s, and the lateral g held over the second after a
+   * full edge is thrown on at `kmh` on the flat groomer. */
+  function turnIn(kmh: number): { yaw: number; g: number } {
+    const state = bend(PACKED, kmh);
+    settle(state, 0, 0.3);
+    let yaw = 0;
+    let g = 0;
+    let n = 0;
+    for (let i = 0; i < 1.5 * TUNING.physicsHz; i++) {
+      step(state, { steer: 1, tuck: 0.6, brake: 0, lean: 0, reset: false });
+      if (i >= 0.5 * TUNING.physicsHz) {
+        yaw += Math.abs(state.skier.wy);
+        g += (state.skier.speed * Math.abs(state.skier.wy)) / TUNING.g;
+        n++;
+      }
+    }
+    return { yaw: yaw / n, g: g / n };
+  }
+
+  it("turns slower the faster he goes, once the grip is what holds the bend", () => {
+    const sixty = turnIn(60);
+    const hundred = turnIn(100);
+    const top = turnIn(120);
+    expect(hundred.yaw).toBeLessThan(sixty.yaw * 0.8);
+    expect(top.yaw).toBeLessThan(hundred.yaw);
+    // ...and holds less of a bend flat out than at a cruise: the chatter.
+    expect(top.g).toBeLessThan(turnIn(80).g);
+  });
+
+  it("chatters only at speed, a long stiff ski least and a short soft one most", () => {
+    expect(chatterOf(SKIS, TUNING.chatter.from)).toBe(0);
+    expect(chatterOf(SKIS, TUNING.chatter.full)).toBeCloseTo(1, 9);
+    expect(chatterOf(SKIS, 25)).toBeGreaterThan(chatterOf(SKIS, 20));
+    expect(chatterOf(EAGLE, 30)).toBeLessThan(chatterOf(SKIS, 30));
+    expect(chatterOf(HARE, 30)).toBeGreaterThan(chatterOf(SKIS, 30));
+    expect(cornerGrip(SKIS, 1, 0)).toBe(cornerGrip(SKIS, 1));
+    expect(cornerGrip(SKIS, 1, 33)).toBeLessThan(cornerGrip(SKIS, 1, 10));
+    // Powder cushions the ski: the base's hold is the chatter's to keep.
+    expect(cornerGrip(SKIS, 0, 33)).toBe(cornerGrip(SKIS, 0, 0));
+  });
+
+  it("reads the chatter out loudest on a loaded edge, and none in powder", () => {
+    const shake = (level: ReturnType<typeof flatLevel>, steer: number) => {
+      const state = bend(level, 100);
+      settle(state, steer, 0.6);
+      return state.skier.chatter;
+    };
+    const straight = shake(PACKED, 0);
+    const carving = shake(PACKED, 0.8);
+    expect(straight).toBeGreaterThan(0);
+    expect(carving).toBeGreaterThan(straight);
+    expect(carving).toBeLessThanOrEqual(1);
+    expect(shake(flatLevel({ packed: 0 }), 0.8)).toBe(0);
+    const slow = bend(PACKED, 30);
+    settle(slow, 0.8, 0.6);
+    expect(slow.skier.chatter).toBe(0);
   });
 });

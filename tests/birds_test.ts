@@ -97,21 +97,25 @@ describe("the wildlife never moves a map or a run", () => {
   });
 });
 
-describe("the wildlife by region (R21)", () => {
-  /** Two maps of each region but the boreal, built once for the block. */
-  const maps = new Map<RegionId, Level[]>();
-  const mapsOf = (region: RegionId): Level[] => {
-    let hit = maps.get(region);
-    if (!hit) {
-      hit =
-        region === "alpine"
-          ? [levelFor(LEVEL_SEEDS[0]), levelFor(LEVEL_SEEDS[1])]
-          : [generateLevel(38, { region }), generateLevel(75, { region })];
-      maps.set(region, hit);
-    }
-    return hit;
-  };
+/** The maps of each region, built once for the file: the alpine's two off
+ * the corpus, one of each other region's — a whole ski area (R25) deals
+ * most of a region's roster on its own, though one can come out nearly
+ * bare of a sparse roster (the fell's, the maritime's): seed 42 is one
+ * that does not. */
+const maps = new Map<RegionId, Level[]>();
+const mapsOf = (region: RegionId): Level[] => {
+  let hit = maps.get(region);
+  if (!hit) {
+    hit =
+      region === "alpine"
+        ? [levelFor(LEVEL_SEEDS[0]), levelFor(LEVEL_SEEDS[1])]
+        : [generateLevel(42, { region })];
+    maps.set(region, hit);
+  }
+  return hit;
+};
 
+describe("the wildlife by region (R21)", () => {
   it("names at least one region on every row, and lays each region a roster of its own", () => {
     for (const row of [...BIRDS, ...BEASTS]) {
       expect(row.regions.length, row.id).toBeGreaterThan(0);
@@ -278,7 +282,7 @@ describe("the birds", () => {
 
   it("sends skeins north over the fell in March, and none in January", () => {
     // The swans and the geese cross the fell and the maritime range.
-    const level = generateLevel(LEVEL_SEEDS[3], { region: "fell" });
+    const level = mapsOf("fell")[0];
     const march = withDay(level, { dayOfYear: 85 });
     const january = withDay(level, { dayOfYear: 20 });
     expect(planBirds(january).crossers.length).toBe(0);
@@ -339,7 +343,9 @@ describe("the animals in the snow", () => {
   });
 
   it("runs from an engine, straight away from it, and settles where it ran to", () => {
-    const level = levelFor(LEVEL_SEEDS[5]);
+    // The first map of the corpus a group is dealt on — a map may deal
+    // none, the rare rungs being rare.
+    const level = LEVEL_SEEDS.map(levelFor).find((l) => planBeasts(l).groups.length > 0)!;
     const ground = wildGround(level);
     const plan = planBeasts(level);
     const g = plan.groups[0];
@@ -370,7 +376,7 @@ describe("the animals in the snow", () => {
   });
 
   it("leaves prints the trail map draws, in the species' own pattern", () => {
-    const level = levelFor(LEVEL_SEEDS[6]);
+    const level = levelFor(LEVEL_SEEDS[5]);
     const plan = planBeasts(level);
     for (const g of plan.groups) {
       const out: Stamp[] = [];

@@ -128,7 +128,7 @@ export const VIEWPORT_HARDENING = `(function () {
  *
  * A phone's screenshot is taken by the hardware and lands in the phone's own
  * photo gallery, and nothing on the page ever learns it happened. The store
- * app is the one place that CAN be told, so it presses ENTER on the skier's
+ * app is the one place that CAN be told, so it presses the SHUTTER on the skier's
  * behalf: the same picture, with the HUD composited in and the game's mark in
  * the corner, filed in the gallery on the front door.
  *

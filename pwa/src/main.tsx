@@ -4,6 +4,9 @@ import { render } from "preact";
 import "./styles.css";
 import "./campaign.css";
 import "./dev.css";
+import "./body.css";
+import "./heli.css";
+import "./sled.css";
 import { App } from "./App.tsx";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 

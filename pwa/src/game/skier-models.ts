@@ -1,25 +1,32 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS AND SKIERS the game draws: glTFs made in Blender off
-// the game's own data (`make models`, committed in `pwa/models/` and held
-// fresh against their sources by `tests/models_test.ts`) and packed by
-// every build (`pwa/models-plugin.ts`) — unless a build is switched back to
-// the code-built ones (`VITE_MODEL_SKIS=0`, `VITE_MODEL_SKIERS=0`;
-// `model-switch.ts`). Nothing else changes: the code's pair is still
-// built, still posed, still the one the bound, the thrown skier and every
-// reader of a `SkisModel` know; its drawn parts are only collapsed out of
-// the merged draw, and the model — skinned on the rig `make blender` gave
-// it — is posed off the same readings beside it:
+// THE MODELLED SKIS the game draws: glTFs made in Blender off the game's
+// own data (`make models`, committed in `pwa/models/` and held fresh
+// against their sources by `tests/models_test.ts`) and packed by every
+// build (`pwa/models-plugin.ts`) — unless a build is switched back to the
+// code-built ones (`VITE_MODEL_SKIS=0`; `model-switch.ts`). Nothing else
+// changes: the code's pair is still built, still posed, still the one the
+// bound, the thrown skier and every reader of a `SkisModel` know; its
+// drawn parts are only collapsed out of the merged draw, and the model —
+// skinned on the rig `make blender` gave it — is posed off the same
+// readings beside it: its rig (`ski-rig.ts`) posed off the engine's state
+// and the drawn furrow's sink, dressed in the pair's style (the paint, the
+// trim, the sidewalls, the boots, the poles) — the topsheet's pattern is
+// the code pair's only.
 //
-//   a pair      its rig (`ski-rig.ts`) posed off the engine's state and the
-//               drawn furrow's sink; dressed in the pair's style (the
-//               paint, the trim, the sidewalls, the boots, the poles) —
-//               the topsheet's pattern is the code pair's only
-//   a skier     his bones (`skier-rig.ts`) set to the pose the figure is
-//               hung on — on his skis or thrown — in the slot's kit
+// THE SKIER IS NOT A MODEL: he is dressed in code, his outfit cut onto the
+// rig (`skier-dress.ts`), since a modelled skier is one suit and the gear
+// is a catalog to be mixed. A Blender skier (`make blender KIND=skier`) is
+// still the labs' comparison, dressed by `dressOf` in an outfit's colours.
 //
 // Loaded once, before the renderer's kit is handed out (`use-render-kit.ts`),
 // so every builder finds them waiting; a model that fails to load leaves
-// that pair or skier to the code.
+// that pair to the code.
+//
+// THE HELICOPTER is a model too (`models/heli.glb`, `make models KIND=heli`,
+// three rigid nodes: `HELI_NODES`), switched by `VITE_MODEL_HELI`; it is
+// not fetched with the skis — only a free ride with the helicopter wants
+// it — so `heliModelUrl()` is where its drawer (`heli-view.ts`) fetches it
+// from, `null` when the build packs none.
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -29,25 +36,59 @@ import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine"
 import { modelSwitch } from "./model-switch.ts";
 import { lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
-import type { SkierStyle } from "./skier-figure.ts";
-import type { SkierPose } from "./skier-pose.ts";
-import { rigSkier } from "./skier-rig.ts";
+import type { Stand } from "./ski-stand.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
  * where the suite reads the module (the root program knows no Vite). */
 const ENV = (import.meta as { env?: Record<string, string | boolean | undefined> }).env ?? {};
 
-/** Which models this build draws (build-time switches, ON unless turned
+/** Which models this build draws (a build-time switch, ON unless turned
  * off — `model-switch.ts`). */
 export const MODELS = {
   skis: modelSwitch(ENV.VITE_MODEL_SKIS),
-  skiers: modelSwitch(ENV.VITE_MODEL_SKIERS),
+  heli: modelSwitch(ENV.VITE_MODEL_HELI),
+  sled: modelSwitch(ENV.VITE_MODEL_SLED),
 };
 
-const loaded: { skis: Map<SkiId, GLTF>; skier: GLTF | null } = {
-  skis: new Map(),
-  skier: null,
-};
+/** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
+ * the airframe (its origin the skid datum), the main rotor (its origin the
+ * hub; it turns clockwise seen from above, about its local +y — a NEGATIVE
+ * angle in three.js) and the tail rotor (its origin the tail rotor's hub;
+ * it turns about its local +x, the top blade going aft). */
+export const HELI_NODES = {
+  body: "heli_body",
+  rotor: "heli_rotor",
+  tail: "heli_tail_rotor",
+} as const;
+
+/** The snowmobile model's nodes, as `scripts/blender/sled.py` names them
+ * (each in the TRACE's frame, glTF-turned): the chassis, the bars (turned
+ * about the post), each ski (its origin the spindle's foot), the rear
+ * suspension (its origin the drive), the paddles (the track's child, with
+ * the `run` morph) and the ski rack. */
+export const SLED_NODES = {
+  body: "sled_body",
+  bars: "sled_bars",
+  skiL: "sled_ski_l",
+  skiR: "sled_ski_r",
+  track: "sled_track",
+  lugs: "sled_lugs",
+  rack: "sled_rack",
+} as const;
+
+/** Where this build serves the snowmobile's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_SLED=0`). */
+export function sledModelUrl(): string | null {
+  return MODELS.sled ? `${String(ENV.BASE_URL ?? "/")}models/sled.glb` : null;
+}
+
+/** Where this build serves the helicopter's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_HELI=0`) and the build packs none. */
+export function heliModelUrl(): string | null {
+  return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/heli.glb` : null;
+}
+
+const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };
 let loading: Promise<void> | null = null;
 
 /** Fetch every model this build draws, once; resolves when all are in (or
@@ -67,14 +108,6 @@ export function loadModels(): Promise<void> {
       );
     }
   }
-  if (MODELS.skiers) {
-    jobs.push(
-      loader.loadAsync(at("skier.glb")).then(
-        (g) => (loaded.skier = g),
-        () => undefined,
-      ),
-    );
-  }
   loading = Promise.all(jobs).then(() => undefined);
   return loading;
 }
@@ -84,6 +117,18 @@ export function loadModels(): Promise<void> {
  * it. The names are stated twice — here and in `scripts/blender/skis.py` /
  * `skier.py` — and `tests/models_test.ts` holds them together. */
 export type Dress = { colour: number } | null;
+
+/** A modelled skier's colours, by the names `skier.py` gives its
+ * materials (`outfit.ts`' `coloursOf` makes one off an outfit). */
+export type SkierStyle = {
+  jacket: number;
+  accent?: number;
+  pants: number;
+  helmet: number;
+  peak?: number;
+  visor: number;
+  skin?: number;
+};
 
 export type SkisStyle = {
   body: number;
@@ -108,6 +153,7 @@ export function dressOf(name: string, skis: SkisStyle | null, skier: SkierStyle 
     if (name === "helmet") return { colour: skier.helmet };
     if (name === "peak") return { colour: skier.peak ?? skier.helmet };
     if (name === "lens") return { colour: skier.visor };
+    if (name === "skin" && skier.skin !== undefined) return { colour: skier.skin };
   }
   return null;
 }
@@ -154,82 +200,56 @@ function dressed(
 export type ModelParts = {
   /** Every mesh the models draw — what casts. */
   meshes: THREE.Mesh[];
-  /** Whether each is drawn in place of the code's. */
+  /** Whether the pair is drawn in place of the code's. */
   skis: boolean;
-  skier: boolean;
-  pose(skier: SkierState, sink: number, dt: number): void;
-  /** The skier at a pose, his holder where the figure's group stands. */
-  poseSkier(p: SkierPose, figure: THREE.Object3D): void;
-  setSkierVisible(v: boolean): void;
+  /** The pair posed; `angle` the skid's pivot as drawn (the engine's when
+   * left out), `stand` where each ski stands on the snow
+   * (`ski-stand.ts`). */
+  pose(skier: SkierState, sink: number, dt: number, angle?: number, stand?: Stand): void;
+  /** Ski `i` (0 the left) let go of (`lone-skis.ts`), after `pose`:
+   * `pair` takes the pair's root frame — where the ski stands in it at
+   * rest — to the world where it lies. */
+  lay(i: number, pair: THREE.Matrix4): void;
   dispose(): void;
 };
 
-/** THE MODELS FOR ONE PAIR, hung under its `root` in place of the code's
- * drawn parts (which the caller collapses when `skis` / `skier` say so).
- * Null when this build draws neither, or neither has loaded. */
+/** THE MODEL FOR ONE PAIR, hung under its `root` in place of the code's
+ * drawn parts (which the caller collapses when `skis` says so). Null when
+ * this build draws none, or it has not loaded. */
 export function attachModels(o: {
   spec: SkiSpec;
   root: THREE.Object3D;
   skis: SkisStyle;
-  skier: SkierStyle;
   wrap: Wrap;
 }): ModelParts | null {
   const skisGltf = MODELS.skis ? loaded.skis.get(o.spec.id) : undefined;
-  const skierGltf = MODELS.skiers ? loaded.skier : null;
-  if (!skisGltf && !skierGltf) return null;
+  if (!skisGltf) return null;
   const mats: THREE.Material[] = [];
-  const meshes: THREE.Mesh[] = [];
 
   // THE PAIR: modelled in its trace's frame, forward on glTF's −z — so
   // turned a half turn, set on the spec as `lookFrame` sets a trace (the
   // snow at −cogHeight in the body frame).
-  let skisRig: ReturnType<typeof rigAsset> | null = null;
-  if (skisGltf) {
-    const F = lookFrame(o.spec);
-    const { scene, meshes: m } = dressed(skisGltf, o.skis, null, o.wrap, mats);
-    scene.rotation.y = Math.PI;
-    const holder = new THREE.Group();
-    holder.name = "model-skis";
-    holder.add(scene);
-    holder.position.set(0, F.y(0), F.z(0));
-    o.root.add(holder);
-    skisRig = rigAsset(scene, skisGltf.animations);
-    meshes.push(...m);
-  }
-
-  // THE SKIER: stated in the pose's frame, turned the same half turn; his
-  // holder stands where the figure's group stands, on the skis or thrown.
-  let skierHolder: THREE.Group | null = null;
-  let skierRig: ReturnType<typeof rigSkier> | null = null;
-  if (skierGltf) {
-    const { scene, meshes: m } = dressed(skierGltf, null, o.skier, o.wrap, mats);
-    scene.rotation.y = Math.PI;
-    skierHolder = new THREE.Group();
-    skierHolder.name = "model-skier";
-    skierHolder.add(scene);
-    o.root.add(skierHolder);
-    skierRig = rigSkier(skierHolder, skierGltf.animations);
-    meshes.push(...m);
-  }
+  const F = lookFrame(o.spec);
+  const { scene, meshes } = dressed(skisGltf, o.skis, null, o.wrap, mats);
+  scene.rotation.y = Math.PI;
+  const holder = new THREE.Group();
+  holder.name = "model-skis";
+  holder.add(scene);
+  holder.position.set(0, F.y(0), F.z(0));
+  o.root.add(holder);
+  const skisRig = rigAsset(scene, skisGltf.animations);
+  const to = new THREE.Matrix4();
 
   return {
     meshes,
-    skis: !!skisRig,
-    skier: !!skierRig,
-    pose(skier, sink) {
+    skis: true,
+    pose(skier, sink, _dt, angle, stand) {
       o.root.updateWorldMatrix(true, false);
-      skisRig?.pose(skier, 0, sink);
+      skisRig.pose(skier, 0, sink, angle, stand);
     },
-    poseSkier(p, figure) {
-      if (!skierHolder || !skierRig) return;
-      o.root.updateWorldMatrix(true, false);
-      skierHolder.position.copy(figure.position);
-      skierHolder.quaternion.copy(figure.quaternion);
-      skierHolder.updateMatrixWorld(true);
-      skierRig.pose(p);
-    },
-    setSkierVisible(v) {
-      if (skierHolder) skierHolder.visible = v;
+    lay(i, pair) {
+      holder.updateMatrix();
+      skisRig.lay(i, to.multiplyMatrices(pair, holder.matrix));
     },
     dispose() {
       for (const m of mats) m.dispose();

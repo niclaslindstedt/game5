@@ -17,23 +17,27 @@
 // or a layer steered by a pure function of the state, and the only module
 // that touches WebAudio is the framework's `audio/synth`.
 
-import type { GameEvent, GameState } from "@engine";
+import type { GameEvent, GameState, Level } from "@engine";
 
 import { RUN_BANK } from "./bank.ts";
 import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
+import { createHeliBed, type HeliBed } from "./heli-bed.ts";
+import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
-import { heardFrom, soundsForStep } from "./route.ts";
+import { heardFrom, soundsForStep, trunkAt, type Contact } from "./route.ts";
 
 export { setAudioVolumes, unlockAudio } from "./bus.ts";
 export { RUN_BANK } from "./bank.ts";
-export { soundForEvent, soundsForStep } from "./route.ts";
+export { soundForEvent, soundsForStep, trunkAt } from "./route.ts";
 
 export type RunAudio = {
-  /** Translate one step's events into sound. */
-  events: (list: readonly GameEvent[]) => void;
+  /** Translate one step's events into sound. `state` is the run they came
+   * out of — which trunk a hit met is read off its map; without it every
+   * trunk is a middling one. */
+  events: (list: readonly GameEvent[], state?: GameState) => void;
   /** Advance the continuous beds; call once per rendered frame. `duck`
    * scales the whole bed — 1 with the player on his skis, less
    * under a card the race is scenery behind. */
@@ -54,11 +58,36 @@ export function createRunAudio(): RunAudio {
   // The wood's own voices (`bird-bed.ts`): cues off the birds' plan, never
   // an engine event.
   const birds: BirdBed = createBirdBed(sfx);
+  // THE FREE RIDE'S HELICOPTER (`heli-bed.ts`), heard from the skier: built
+  // only on a run that has one.
+  const heli: HeliBed = createHeliBed(sfx);
+  // THE FREE RIDE'S SNOWMOBILE (`sled-bed.ts`), heard from the skier,
+  // through the effects' fader as the helicopter is.
+  const sled: SledBed = createSledBed(sfx);
   let ear: Listener = listenerFor("chase");
 
   return {
-    events(list) {
-      for (const hit of soundsForStep(list)) {
+    events(list, state) {
+      // WHAT WAS MET, AND WHAT IT CAME DOWN INTO (`route.ts`'s `Contact`):
+      // the snow the bed last read under the skis, and a hit's own trunk.
+      const level: Level | undefined = state?.level;
+      const contactOf = (event: GameEvent): Contact => {
+        const ground = bed.ground();
+        // The helicopter is somewhere else on the mountain: heard from the
+        // skier's head.
+        if ((event.kind === "heli" || event.kind === "sled") && state) {
+          const c = state.skier;
+          return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
+        }
+        // The starter's sounds hear how the run starts.
+        if ((event.kind === "count" || event.kind === "go") && state) {
+          const gate = state.rules.start === "gate";
+          return { ground, start: { gate, heat: gate && state.rules.dealt !== true } };
+        }
+        if (event.kind !== "hit" || !level) return { ground };
+        return { ground, trunk: trunkAt(level, event.x, event.z) ?? undefined };
+      };
+      for (const hit of soundsForStep(list, contactOf)) {
         playSound(sfx, RUN_BANK, hit.id, heardFrom(hit.shape, ear));
       }
     },
@@ -66,22 +95,30 @@ export function createRunAudio(): RunAudio {
     frame(state, dt, duck = 1) {
       bed.update(state, dt, duck);
       birds.update(state, dt, duck);
+      heli.update(state, dt, duck);
+      sled.update(state, dt, duck);
     },
 
     setView(view) {
       ear = listenerFor(view);
       bed.setView(view);
       birds.setView(view);
+      heli.setView(view);
+      sled.setView(view);
     },
 
     silence() {
       bed.silence();
       birds.silence();
+      heli.silence();
+      sled.silence();
     },
 
     reset() {
       bed.reset();
       birds.reset();
+      heli.reset();
+      sled.reset();
     },
   };
 }

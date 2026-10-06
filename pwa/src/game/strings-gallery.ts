@@ -46,7 +46,7 @@ export const GALLERY_STRINGS = {
    * told for a frame that they have none. */
   galleryReading: "Reading the roll…",
   galleryEmpty:
-    "Nothing here yet. Press ENTER during a run — or take a screenshot on a phone — and the picture lands here.",
+    "Nothing here yet. Press P during a run — or take a screenshot on a phone — and the picture lands here.",
   /** The three ways a picture leaves the game, offered only where the
    * browser will actually do them (the framework's `shots/share-image`), and
    * the two-step delete beside them — a stray press must not destroy a

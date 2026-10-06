@@ -35,8 +35,13 @@ import {
   barLean,
   barReachPx,
   barSteer,
+  createJumpTap,
+  edgeReachPx,
+  jumpTapDown,
+  jumpTapUp,
   leverBrake,
   leverTuck,
+  trailAnchor,
   type TouchFeel,
 } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
@@ -45,7 +50,7 @@ import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thum
 /** Capture the pointer so a drag that leaves the zone keeps steering; a
  * pointer that cannot be captured (synthetic, already released) is fine —
  * the zone still tracks it by id. */
-function capturePointer(e: { currentTarget: EventTarget | null; pointerId: number }): void {
+export function capturePointer(e: { currentTarget: EventTarget | null; pointerId: number }): void {
   try {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   } catch {
@@ -56,7 +61,7 @@ function capturePointer(e: { currentTarget: EventTarget | null; pointerId: numbe
 /** Ask the DOM whether a finger is still on the glass. Capture is the only
  * one who knows: the browser drops it the moment a touch ends, whether or
  * not it ever told us the touch ended. */
-function stillDown(zone: EventTarget | null): (pointerId: number) => boolean {
+export function stillDown(zone: EventTarget | null): (pointerId: number) => boolean {
   const el = zone as HTMLElement | null;
   return (pointerId) => el?.hasPointerCapture(pointerId) ?? false;
 }
@@ -65,8 +70,9 @@ function stillDown(zone: EventTarget | null): (pointerId: number) => boolean {
 const BAR_LOCK_DEG = 28;
 /** The bar's drawing is this many px across (styles.css `.hud-bar-svg`),
  * mapped onto a hundred-unit box — so the reach ring can be drawn at the
- * thumb's real travel (`barReachPx`, which the sensitivity moves: the
- * drawing lets a wider ring overhang its box). */
+ * thumb's real travel (`edgeReachPx` across, `barReachPx` up and down,
+ * both of which the sensitivity moves: the drawing lets a wider ring
+ * overhang its box). */
 const BAR_SVG_PX = 200;
 /** Half the drawn bar's own height, units: the crossbar's top edge to the
  * base grip's bottom. The art is drawn CENTRED on the box (that is what the
@@ -79,7 +85,9 @@ export type ZoneSide = "left" | "right";
 
 /** The left thumb: touching anywhere in the zone anchors the skis under
  * the finger; dragging sideways turns it, dragging up or down leans the
- * skier, and releasing centres both. Screen-space: right = +1
+ * skier — and on the snow a drag DOWN is the back key (`input-model.ts`'s
+ * `backMode`: down first and then across is the hockey stop, across first
+ * and then down the edge cut harder) — and releasing centres both. Screen-space: right = +1
  * (input-model.ts flips the sign for the engine, once). */
 export function BarZone({
   touch,
@@ -90,8 +98,10 @@ export function BarZone({
   feel: TouchFeel;
   side: ZoneSide;
 }) {
-  /** The reach ring's radius in the drawing's own units... */
+  /** The reach ring's half-height in the drawing's own units — the lean's
+   * throw — and its half-width, the edge's (shorter on a slalom)... */
   const reachUnits = (barReachPx(feel) / BAR_SVG_PX) * 100;
+  const edgeUnits = (edgeReachPx(feel) / BAR_SVG_PX) * 100;
   /** ...so the bar slides this far at full lean: right up against the reach
    * ring and no further, at BOTH ends of the axis.
    *
@@ -105,6 +115,8 @@ export function BarZone({
   const barRef = useRef<HTMLDivElement>(null);
   const rotorRef = useRef<SVGGElement>(null);
   const originRef = useRef({ x: 0, y: 0 });
+  // A double tap here too is the push off the helicopter's skid.
+  const tapRef = useRef(createJumpTap());
 
   const write = (steer: number, lean: number): void => {
     touch.steer = steer;
@@ -125,6 +137,7 @@ export function BarZone({
    * the guard can call it from a window event or an unmount just as safely
    * as the pointerup does. */
   const letGo = (): void => {
+    jumpTapUp(tapRef.current, performance.now() / 1000);
     touch.bar = false;
     write(0, 0);
     if (barRef.current) barRef.current.style.display = "none";
@@ -154,10 +167,20 @@ export function BarZone({
           bar.style.display = "block";
         }
         touch.bar = true;
+        // A double tap stays down until a step has taken it (`input.ts`).
+        if (jumpTapDown(tapRef.current, performance.now() / 1000)) touch.tap2 = true;
         write(0, 0);
       }}
       onPointerMove={(e) => {
         if (!guard.owns(e.pointerId)) return;
+        // A thumb past full edge drags the anchor (and the drawing) along.
+        const origin = originRef.current;
+        const x = trailAnchor(origin.x, e.clientX, edgeReachPx(feel));
+        if (x !== origin.x) {
+          const bar = barRef.current;
+          if (bar) bar.style.left = `${parseFloat(bar.style.left) + x - origin.x}px`;
+          origin.x = x;
+        }
         write(
           barSteer(e.clientX - originRef.current.x, feel),
           barLean(e.clientY - originRef.current.y, feel),
@@ -171,8 +194,9 @@ export function BarZone({
     >
       <div ref={barRef} class="hud-bar" aria-hidden="true">
         <svg class="hud-bar-svg" viewBox="0 0 100 100" overflow="visible">
-          {/* The reach ring: how far the thumb can go for full lock. */}
-          <circle cx="50" cy="50" r={reachUnits} class="hud-bar-reach" />
+          {/* The reach ring: how far the thumb can go for full edge across
+              and full lean up and down. */}
+          <ellipse cx="50" cy="50" rx={edgeUnits} ry={reachUnits} class="hud-bar-reach" />
           <g ref={rotorRef}>
             {/* THE SKIS under the thumb, seen from above — drawn CENTRED
                 on the box, so that a lean slides them the same distance
@@ -200,7 +224,9 @@ const LEVER_BOX_PX = LEVER_UP_PX + LEVER_PAD_PX * 2;
 /** The right thumb: touching anywhere in the zone anchors the LEVER, WIDE
  * OPEN, under the finger. Sliding UP eases the tuck off over
  * `LEVER_EASE_PX` to shut; further up, past a small dead band, pulls the
- * BRAKE over `LEVER_BRAKE_PX`. Analogue the whole way, held while the finger
+ * BRAKE over `LEVER_BRAKE_PX`. A TAP and then the thumb held straight back
+ * down LOADS THE JUMP (`jumpTapDown`) — the lever still under it — and
+ * lifting it springs him. Analogue the whole way, held while the finger
  * is down and let go on the lift. `input-model.ts` states the maths once. */
 export function LeverZone({
   touch,
@@ -215,6 +241,7 @@ export function LeverZone({
   const knobRef = useRef<SVGGElement>(null);
   const fillRef = useRef<SVGRectElement>(null);
   const originRef = useRef(0);
+  const tapRef = useRef(createJumpTap());
 
   const write = (tuck: number, brake: number): void => {
     touch.tuck = tuck;
@@ -238,9 +265,15 @@ export function LeverZone({
     fill.classList.toggle("hud-lever-fill-reverse", brake > 0);
   };
   const letGo = (): void => {
+    jumpTapUp(tapRef.current, performance.now() / 1000);
     touch.lever = false;
+    touch.jump = false;
     write(0, 0);
-    if (leverRef.current) leverRef.current.style.display = "none";
+    const lever = leverRef.current;
+    if (lever) {
+      lever.style.display = "none";
+      lever.classList.remove("hud-lever-jump");
+    }
   };
   const letGoRef = useRef(letGo);
   letGoRef.current = letGo;
@@ -263,6 +296,9 @@ export function LeverZone({
           lever.style.display = "block";
         }
         touch.lever = true;
+        touch.jump = jumpTapDown(tapRef.current, performance.now() / 1000);
+        if (touch.jump) touch.tap2 = true;
+        lever?.classList.toggle("hud-lever-jump", touch.jump);
         write(leverTuck(0, feel), leverBrake(0, feel));
       }}
       onPointerMove={(e) => {

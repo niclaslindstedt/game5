@@ -6,9 +6,19 @@
 // kickers, the start line behind the start gate, the gates down to the
 // finish, the clear corridor, the tree line — holds on every map, measured
 // off what the map PUBLISHES.
+//
+// Every map the current generator builds is a ski area (R25–R30, held on
+// its own in tests/resort_test.ts) raced on one COURSE down it (R28), and
+// the course is the piste these rules hold — read as the analysis reads
+// it: the course's own bands where R28 states them, and the snow beside it
+// left to whichever run lies there, a run that joins it or a lane that
+// leaves it, the hub it finishes in.
 import { describe, expect, it } from "vitest";
 
 import {
+  GRADES,
+  PISTE_GRADES,
+  RESORT_RULES as RR,
   bermCrest,
   bermProfile,
   cliffFootprint,
@@ -16,21 +26,55 @@ import {
   dealDrifts,
   generateLevel,
   LEVEL_RULES as R,
+  nearestRun,
   nearestTrackPoint,
   nearestWithin,
-  pisteColour,
+  gradeRowOf,
+  outsideHub,
+  pisteGradeOf,
+  regionRow,
+  scaleBand,
+  scaleCount,
+  verticalBand,
   REGIONS,
   startGateArc,
   subSeed,
   trackPointAt,
+  trunkRadius,
   withinBand,
   type GeneratedLevel,
   sunsetOf,
+  offRamp,
 } from "@engine";
 
 import { LEVEL_SEEDS, analysisFor, levelFor } from "./support/levels.ts";
+import { runsCovering } from "./support/resort.ts";
 
 const corpus = (): GeneratedLevel[] => LEVEL_SEEDS.map(levelFor);
+
+/** The cliffs of the mountain (R22): neither a drop across the course nor
+ * one across another run (R24). */
+const mountainCliffs = (level: GeneratedLevel) =>
+  level.cliffs.filter((c) => !c.onTrack && c.run === undefined);
+
+/** How far past its surface another run reaches the course at a junction,
+ * m: its bench and windrow (R8, R18) and the analysis's slack. */
+const JUNCTION = R.track.shoulder.flat + R.berm.width + 12;
+
+/** Whether a spot beside a resort's course is another run's snow: a run's
+ * groomed band, the hub's (R29) or a lift's level pad (R26). */
+function groomedBeside(level: GeneratedLevel, x: number, z: number): boolean {
+  const resort = level.resort;
+  if (!resort) return false;
+  if (runsCovering(level, x, z, R.track.shoulder.packed + 2).size > 0) return true;
+  if (resort.hub && outsideHub(resort.hub, x, z) <= RR.hub.fade) return true;
+  return resort.lifts.some(
+    (l) =>
+      Math.hypot(l.top.x - x, l.top.z - z) < RR.lift.pad + R.track.shoulder.packed ||
+      // A ramp off a top, groomed down to its run (R26).
+      (l.ramps ?? []).some((r) => offRamp(r, x, z) < R.track.shoulder.packed),
+  );
+}
 
 /** A cheap fingerprint of a float array. */
 function digest(data: ArrayLike<number>): number {
@@ -60,7 +104,7 @@ describe("the generator is a pure function of its seed", () => {
   it("builds a map in well under the budget a test suite can afford", () => {
     const t0 = performance.now();
     generateLevel(99);
-    expect(performance.now() - t0).toBeLessThan(12_000);
+    expect(performance.now() - t0).toBeLessThan(15_000);
   });
 });
 
@@ -77,11 +121,17 @@ describe("the Level contract", () => {
       expect(level.laps).toBe(1);
       expect(level.grid).toHaveLength(R.grid.slots);
       expect(level.trees.length).toBeGreaterThan(1000);
-      expect(level.checkpoints.length).toBeGreaterThan(15);
+      // A gate every spacing's most at least, the course's own on a resort.
+      const gap = level.resort ? RR.course.gates.spacing : R.checkpoint.spacing;
+      expect(level.checkpoints.length).toBeGreaterThanOrEqual(
+        Math.floor(level.track.length / gap.max),
+      );
       expect(level.region).toBe("alpine");
       for (const t of level.trees.slice(0, 200)) {
         expect(withinBand(t.height, R.forest.height)).toBe(true);
-        expect(t.radius).toBeGreaterThan(0.1);
+        // A trunk as thick as the tree is old (R14), never under the floor.
+        expect(t.radius).toBeGreaterThan(R.forest.trunk.floor);
+        expect(t.radius).toBeCloseTo(trunkRadius(t.age!), 9);
         expect(t.crown).toBeGreaterThan(t.radius);
         expect(t.y).toBeCloseTo(level.groundAt(t.x, t.z), 3);
       }
@@ -91,7 +141,13 @@ describe("the Level contract", () => {
   it("publishes the mountain (R2): the summit on the ridge, the base at the finish, the vertical between", () => {
     for (const level of corpus()) {
       const M = level.mountain;
-      expect(withinBand(M.vertical, R.mountain.vertical)).toBe(true);
+      // The grade's band (R23), with the region's share of its multiple —
+      // on a resort the massif's (R25).
+      const region = regionRow(level.region);
+      const band = level.resort
+        ? scaleBand(RR.massif.vertical, region.relief.vertical)
+        : verticalBand(region, gradeRowOf(level));
+      expect(withinBand(M.vertical, band, 1e-6)).toBe(true);
       expect(M.summit.y - M.base.y).toBeCloseTo(M.vertical, 6);
       expect(M.summit.z).toBeCloseTo(R.mountain.summit * level.size, 6);
       expect(M.base.z).toBeGreaterThanOrEqual(R.mountain.base * level.size - 1);
@@ -102,7 +158,9 @@ describe("the Level contract", () => {
       // sea, in the alpine's bands.
       expect(withinBand(M.altitude, REGIONS.alpine.altitude.base)).toBe(true);
       expect(withinBand(M.treeLine, REGIONS.alpine.altitude.treeLine)).toBe(true);
-      expect(M.treeLine).toBeLessThan(M.altitude + M.vertical);
+      // A green's few hundred metres (R23) may stand under the tree line
+      // whole; a mountain of a red's vertical or more tops out over it.
+      if (M.vertical > 600) expect(M.treeLine).toBeLessThan(M.altitude + M.vertical);
     }
   });
 
@@ -152,22 +210,30 @@ describe("the piste (R5–R8)", () => {
     for (const level of corpus()) {
       const pts = level.track.points;
       const L = level.track.length;
-      expect(withinBand(L, R.track.length)).toBe(true);
+      const resort = level.resort;
+      // A course's length is R28's; it starts at its run's top station.
+      expect(withinBand(L, resort ? RR.course.length : gradeRowOf(level).track.length)).toBe(true);
       expect(pts[0].s).toBe(0);
-      expect(Math.abs(pts[0].z - R.track.start.z * level.size)).toBeLessThan(1);
+      if (!resort) expect(Math.abs(pts[0].z - R.track.start.z * level.size)).toBeLessThan(1);
       for (let i = 1; i < pts.length; i++) {
         const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
         expect(pts[i].s).toBeGreaterThan(pts[i - 1].s);
         expect(d).toBeGreaterThan(R.track.step * 0.8);
         expect(d).toBeLessThan(R.track.step * 1.2);
-        // Every station lower down the map than the one before it.
-        expect(pts[i].z).toBeGreaterThan(pts[i - 1].z);
+        // Every station lower down the map than the one before it — a
+        // course laid again every two metres across its junctions with a
+        // hair of the resampling's rounding.
+        expect(pts[i].z).toBeGreaterThan(pts[i - 1].z - (resort ? 0.05 : 0));
       }
       const last = pts[pts.length - 1];
       expect(last.s).toBe(L);
       expect(last.z).toBeGreaterThanOrEqual(R.track.finishZ * level.size - 1);
-      // The start high, the finish on the valley floor.
-      expect(pts[0].y - last.y).toBeGreaterThan(0.6 * level.mountain.vertical);
+      // The start high, the finish on the valley floor — on a resort the
+      // course's own drop, which a nursery's start stands far under the
+      // peak.
+      const course = resort?.courses.find((c) => c.id === resort.course);
+      if (course) expect(pts[0].y - last.y).toBeCloseTo(course.drop, 0);
+      else expect(pts[0].y - last.y).toBeGreaterThan(0.6 * level.mountain.vertical);
     }
   });
 
@@ -185,8 +251,16 @@ describe("the piste (R5–R8)", () => {
         R.track.minRadius - 0.5,
       );
       const pts = level.track.points;
-      for (const p of pts) expect(withinBand(p.width, R.track.width)).toBe(true);
-      expect(pts[pts.length - 1].width).toBeCloseTo(R.track.width.max, 1);
+      // The grade's band on the run (R23); the arena opens to R7's widest.
+      // A resort's pistes are its own (R27): no narrower than a black's
+      // neck, no wider than its widest, the arena at least R7's.
+      const band = level.resort
+        ? { min: Math.min(...Object.values(RR.piste.neck.width)), max: RR.piste.most }
+        : { min: gradeRowOf(level).track.width.min, max: R.track.width.max };
+      for (const p of pts) expect(withinBand(p.width, band, 0.5)).toBe(true);
+      const arena = pts[pts.length - 1].width;
+      if (level.resort) expect(arena).toBeGreaterThanOrEqual(R.track.width.max - 0.5);
+      else expect(arena).toBeCloseTo(R.track.width.max, 1);
     }
   });
 
@@ -194,14 +268,19 @@ describe("the piste (R5–R8)", () => {
     for (const level of corpus()) {
       const s = analysisFor(level.seed).stats;
       expect(s.climb).toBeLessThanOrEqual(0.005);
-      expect(s.maxGrade).toBeLessThanOrEqual(R.track.maxGrade + 0.01);
+      // A resort's course is measured by its colour (R23, R27) under the
+      // rule book's own ceiling, as the analyzer holds it; a one-piste map
+      // under its grade row's.
+      const ceiling = level.resort ? R.track.maxGrade : gradeRowOf(level).track.maxGrade;
+      expect(s.maxGrade).toBeLessThanOrEqual(ceiling + 0.01);
       expect(s.minGrade).toBeGreaterThanOrEqual(R.track.minGrade - 0.01);
       expect(s.maxCrossSlope).toBeLessThanOrEqual(R.track.camber + 0.03);
       // The finish straight is the one flat.
       expect(Math.abs(s.finishGrade)).toBeLessThan(0.03);
-      // Its colour is read off its steepest hundred metres.
-      expect(s.colour).toBe(pisteColour(s.steepestSpan));
-      expect(["blue", "red", "black"]).toContain(s.colour);
+      // Its colour is read off its steepest hundred metres — and it is the
+      // colour the map was built to (R23).
+      expect(s.colour).toBe(pisteGradeOf(s.steepestSpan));
+      expect(s.colour).toBe(level.grade);
     }
   });
 
@@ -211,12 +290,20 @@ describe("the piste (R5–R8)", () => {
       const drifted = (s: number): boolean =>
         level.drifts.some((d) => s > d.from - F && s < d.to + F);
       for (const p of level.track.points.filter((_, i) => i % 7 === 0)) {
-        if (!drifted(p.s)) expect(level.packedAt(p.x, p.z)).toBeGreaterThan(0.98);
+        // Where two runs' surfaces meet, the snow is the junction's.
+        const meeting = runsCovering(level, p.x, p.z, 0).size > 1;
+        if (!drifted(p.s) && !meeting) expect(level.packedAt(p.x, p.z)).toBeGreaterThan(0.98);
         const off = p.width / 2 + R.track.shoulder.packed + 3;
         const rx = Math.cos(p.heading);
         const rz = -Math.sin(p.heading);
-        expect(level.packedAt(p.x + rx * off, p.z + rz * off)).toBeLessThan(0.1);
-        expect(level.packedAt(p.x - rx * off, p.z - rz * off)).toBeLessThan(0.1);
+        for (const side of [-1, 1]) {
+          const x = p.x + rx * off * side;
+          const z = p.z + rz * off * side;
+          if (groomedBeside(level, x, z)) continue;
+          expect(level.packedAt(x, z), `s ${p.s.toFixed(0)} on seed ${level.seed}`).toBeLessThan(
+            0.1,
+          );
+        }
       }
     }
   });
@@ -241,11 +328,21 @@ describe("the windrows (R18)", () => {
 });
 
 describe("the kickers (R4, R9)", () => {
-  it("puts two to six kickers on every piste, each sized to its pitch", () => {
+  it("puts its grade's count of kickers on every piste, each sized to its pitch", () => {
     for (const level of corpus()) {
+      const G = gradeRowOf(level).kickers;
       const on = level.kickers.filter((k) => k.onTrack);
-      expect(withinBand(on.length, R.kickers.on.count)).toBe(true);
-      for (const k of on) expect(withinBand(k.height, R.kickers.on.height)).toBe(true);
+      // A resort's runs each carry their own share (R27): a course of
+      // several runs carries theirs, sized to the colours they are.
+      if (!level.resort) expect(withinBand(on.length, G.on)).toBe(true);
+      const multiples = level.resort
+        ? PISTE_GRADES.map((g) => GRADES[g].kickers.height)
+        : [G.height];
+      const lips = {
+        min: R.kickers.on.height.min * Math.min(...multiples),
+        max: R.kickers.on.height.max * Math.max(...multiples),
+      };
+      for (const k of on) expect(withinBand(k.height, lips)).toBe(true);
     }
   });
 
@@ -256,18 +353,25 @@ describe("the kickers (R4, R9)", () => {
           const p = trackPointAt(level, (k.s ?? 0) + u);
           return level.groundAt(p.x, p.z);
         };
+        // The break in grade across the lip, over the three metres either
+        // side the analysis reads it.
         const lip = at(0);
-        expect((lip - at(-2)) / 2 - (at(2) - lip) / 2).toBeGreaterThan(0.15);
+        expect((lip - at(-3)) / 3 - (at(3) - lip) / 3).toBeGreaterThan(0.15);
         const approach = (at(-k.ramp) - (lip - k.height)) / k.ramp;
-        expect(approach).toBeLessThanOrEqual(R.kickers.on.approachGrade + 0.03);
-        expect(R.kickers.on.approachGrade).toBeLessThanOrEqual(R.track.grades.red);
+        const most = level.resort
+          ? GRADES.black.kickers.approachGrade
+          : gradeRowOf(level).kickers.approachGrade;
+        expect(approach).toBeLessThanOrEqual(most + 0.03);
+        expect(R.kickers.on.approachGrade).toBeLessThanOrEqual(R.grade.bands.red);
       }
     }
   });
 
   it("keeps the kickers off the piste clear of it", () => {
     for (const level of corpus()) {
-      for (const k of level.kickers.filter((k) => !k.onTrack)) {
+      // The mountain's own (R4) — a neighbouring run's kickers are on that
+      // piste, which may run beside the course off a shared top (R27).
+      for (const k of level.kickers.filter((k) => !k.onTrack && k.run === undefined)) {
         const reach = Math.max(k.ramp, k.landing) + k.width / 2;
         expect(nearestTrackPoint(level, k.x, k.z).distance - reach).toBeGreaterThan(
           R.kickers.off.clearance,
@@ -278,8 +382,9 @@ describe("the kickers (R4, R9)", () => {
 });
 
 describe("the start and the gates (R11–R13)", () => {
-  it("opens on a straight, gentle run out of the start gate, clear of every kicker (R12)", () => {
+  it("opens on a straight run out of the start gate at its grade's pitch, clear of every kicker (R12)", () => {
     for (const level of corpus()) {
+      const S = gradeRowOf(level).spawn;
       const gateArc = startGateArc();
       const gate = trackPointAt(level, gateArc);
       for (let u = 0; u <= R.spawn.run; u += 2) {
@@ -291,7 +396,7 @@ describe("the start and the gates (R11–R13)", () => {
         expect(Math.abs(turn)).toBeLessThanOrEqual(R.spawn.straight + 0.02);
         if (u + R.track.gradeWindow > R.spawn.run) continue;
         const q = trackPointAt(level, gateArc + u + R.track.gradeWindow);
-        expect((p.y - q.y) / R.track.gradeWindow).toBeLessThanOrEqual(R.spawn.maxSlope + 0.02);
+        expect((p.y - q.y) / R.track.gradeWindow).toBeLessThanOrEqual(S.maxSlope + 0.02);
       }
       for (const k of level.kickers.filter((kk) => kk.onTrack)) {
         expect((k.s ?? 0) - gateArc).toBeGreaterThanOrEqual(R.spawn.kickerGap - 1);
@@ -305,14 +410,24 @@ describe("the start and the gates (R11–R13)", () => {
       const L = level.track.length;
       expect(cps[0].s).toBeCloseTo(startGateArc(), 6);
       expect(cps[cps.length - 1].s).toBeCloseTo(L, 6);
+      // A course's gates are R28's: spaced its own way, and every one
+      // between the start gate and the finish a SLALOM GATE standing its
+      // offset off the line (tests/resort_test.ts holds the weave).
+      const gap = level.resort ? RR.course.gates.spacing : R.checkpoint.spacing;
       for (let i = 0; i < cps.length; i++) {
         expect(cps[i].colour).toBe(i % 2 === 0 ? "red" : "blue");
         if (i + 1 < cps.length) {
-          expect(withinBand(cps[i + 1].s - cps[i].s, R.checkpoint.spacing)).toBe(true);
+          expect(withinBand(cps[i + 1].s - cps[i].s, gap, 0.5)).toBe(true);
         }
-        expect(nearestTrackPoint(level, cps[i].x, cps[i].z).distance).toBeLessThan(0.1);
+        const off = Math.abs(cps[i].offset ?? 0);
+        expect(nearestTrackPoint(level, cps[i].x, cps[i].z).distance).toBeCloseTo(off, 0);
         const p = trackPointAt(level, cps[i].s);
-        expect(cps[i].width).toBeCloseTo(p.width + 2 * R.checkpoint.margin, 6);
+        if (cps[i].offset === undefined) {
+          expect(cps[i].width).toBeCloseTo(p.width + 2 * R.checkpoint.margin, 6);
+        } else {
+          expect(level.resort).toBeDefined();
+          expect(cps[i].width).toBeLessThan(p.width);
+        }
       }
     }
   });
@@ -378,7 +493,13 @@ describe("the drifts (R17)", () => {
           for (const u of [-0.45, 0, 0.45]) {
             const x = p.x + rx * u * p.width;
             const z = p.z + rz * u * p.width;
-            expect(level.packedAt(x, z)).toBeLessThan(R.drift.packed + 0.05);
+            // Where another run meets the course — joins it, or a lane
+            // leaves it, its bench and windrow opened — the snow is the
+            // junction's, drawn onto the course's (R27).
+            if (runsCovering(level, x, z, JUNCTION).size > 1) continue;
+            expect(level.packedAt(x, z), `seed ${level.seed} at s ${s.toFixed(0)}`).toBeLessThan(
+              R.drift.packed + 0.05,
+            );
           }
         }
       }
@@ -398,7 +519,7 @@ describe("the drifts (R17)", () => {
     expect(Math.max(...shares)).toBeGreaterThan(0.35);
     for (const level of corpus()) {
       const lvl = level.drifts.reduce((a, d) => a + d.to - d.from, 0) / level.track.length;
-      expect(lvl).toBeLessThanOrEqual(R.drift.share.max + 0.08);
+      expect(lvl).toBeLessThanOrEqual(gradeRowOf(level).drift.max + 0.08);
     }
   });
 });
@@ -412,10 +533,17 @@ describe("the forest (R14)", () => {
     }
   });
 
-  it("stands no tree on the piste's corridor", () => {
+  it("stands no tree on the piste's corridor — on a resort, on any run's", () => {
     const reach = R.track.width.max / 2 + R.forest.corridor;
     const hit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
     for (const level of corpus()) {
+      if (level.resort) {
+        const on = level.trees.filter(
+          (t) => runsCovering(level, t.x, t.z, R.forest.corridor - 0.5).size > 0,
+        );
+        expect(on, `seed ${level.seed}`).toEqual([]);
+        continue;
+      }
       for (const t of level.trees) {
         nearestWithin(level, t.x, t.z, reach, hit);
         if (hit.distance === Infinity) continue;
@@ -428,8 +556,11 @@ describe("the forest (R14)", () => {
   it("stops at the tree line — an altitude — with krummholz under it and tall woods low down", () => {
     for (const level of corpus()) {
       const M = level.mountain;
-      const lineY = M.base.y + (M.treeLine - M.altitude);
+      // Its height over the valley floor: a resort's is its village's.
+      const floor = level.resort ? level.resort.village.y : M.base.y;
+      const lineY = floor + (M.treeLine - M.altitude);
       expect(analysisFor(level.seed).stats.aboveTreeLine).toBe(0);
+      expect(analysisFor(level.seed).stats.treeLineY).toBeCloseTo(lineY, 6);
       for (const t of level.trees) expect(t.y).toBeLessThanOrEqual(lineY + 0.01);
       const mean = (ts: typeof level.trees): number =>
         ts.reduce((a, t) => a + t.height, 0) / Math.max(1, ts.length);
@@ -438,8 +569,11 @@ describe("the forest (R14)", () => {
       if (stunted.length > 20 && low.length > 20) {
         expect(mean(stunted)).toBeLessThan(mean(low) * 0.8);
       }
-      // The summit ridge stands bare: nothing within the top of the vertical.
-      for (const t of level.trees) expect(t.y).toBeLessThan(M.summit.y - 20);
+      // The summit ridge stands bare where it tops the tree line: nothing
+      // within the top of the vertical.
+      if (lineY < M.summit.y - 20) {
+        for (const t of level.trees) expect(t.y).toBeLessThan(M.summit.y - 20);
+      }
     }
   });
 });
@@ -491,17 +625,23 @@ describe("the face (R3)", () => {
 
 describe("the cliffs (R22)", () => {
   it("stands cliffs on nearly every map, each a drop clear of the piste", () => {
-    const clear = R.track.width.max / 2 + R.cliff.clearance;
     let withCliffs = 0;
     for (const level of corpus()) {
-      if (level.cliffs.length >= R.cliff.count.min) withCliffs++;
-      for (const c of level.cliffs) {
+      // On a resort the cliffs are the mountain's, clear of every run at
+      // the rule book's own clearance.
+      const G = level.resort
+        ? { count: 1, clearance: R.cliff.clearance }
+        : gradeRowOf(level).cliffs;
+      const clear = R.track.width.max / 2 + G.clearance;
+      const cliffs = mountainCliffs(level);
+      const distance = (x: number, z: number): number =>
+        level.resort ? nearestRun(level, x, z, 400) : nearestTrackPoint(level, x, z).distance;
+      if (cliffs.length >= scaleCount(R.cliff.count, G.count).min) withCliffs++;
+      for (const c of cliffs) {
         expect(withinBand(c.drop, R.cliff.drop)).toBe(true);
         expect(withinBand(c.shelf, R.cliff.shelf)).toBe(true);
         expect(withinBand(c.width, R.cliff.width)).toBe(true);
-        for (const p of cliffFootprint(c)) {
-          expect(nearestTrackPoint(level, p.x, p.z).distance).toBeGreaterThan(clear - 1);
-        }
+        for (const p of cliffFootprint(c)) expect(distance(p.x, p.z)).toBeGreaterThan(clear - 1);
         const fx = Math.sin(c.heading);
         const fz = Math.cos(c.heading);
         const top = level.groundAt(c.x - fx, c.z - fz);

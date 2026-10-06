@@ -25,7 +25,11 @@
 // in the plate's own space, because it is pinned to the rim however the
 // world is turned.
 
-import { angleDiff, type GameState, type Level } from "@engine";
+import { angleDiff, type GameState, type Level, type TrackPoint } from "@engine";
+
+import { GRADE_LOOK } from "./grade-look.ts";
+import { tunnelPaint, tunnelPointAt, tunnelsOf } from "./wind-tunnel-plan.ts";
+import { helipadOf } from "@engine";
 
 /** The plate's own square user space. */
 export const VIEW = 100;
@@ -55,6 +59,21 @@ export function spanFor(speedKmh: number): number {
   return ZOOM.close + (ZOOM.far - ZOOM.close) * t;
 }
 
+/** HOW MUCH MAP THE WINDOW HOLDS ALOFT, m: on the helicopter's skid the
+ * plate is for getting one's bearings, not for the next bend, so it opens
+ * with the hub's height over the snow — `per` metres of window for every
+ * metre climbed past `from` (about the hover a landing is flown from), on
+ * top of the speedo's widest window, and never wider than the map. At
+ * 100 m over the snow that is a kilometre; at 300 m, two. */
+export const AIR_ZOOM = { from: 20, per: 6 };
+
+/** The window for a height over the snow, m — 0 below `AIR_ZOOM.from`, so
+ * the speedo's window rules on the pad and in a low hover. */
+export function airSpanFor(agl: number, mapSize: number): number {
+  if (agl <= AIR_ZOOM.from) return 0;
+  return Math.min(mapSize, ZOOM.far + (agl - AIR_ZOOM.from) * AIR_ZOOM.per);
+}
+
 /** The mark on the plate at a size a skier reads: a dot of this many view
  * units whatever the zoom, so it is carried into the world group divided by
  * the scale. */
@@ -81,6 +100,30 @@ export type CheckpointMark = {
   state: "owed" | "missed" | "start" | "other";
 };
 
+/** ONE RUN OF THE RESORT (R27) under the raced course, cut once per map:
+ * its centreline in world metres, a piste in its grade's paint (CSS) and a
+ * transport lane as a light line with no grade to show. */
+export type RunMark = { id: string; d: string; road: boolean; paint: string };
+
+/** ONE LIFT (R26): its line from the bottom station to the top, world
+ * metres — a lift is straight, so the two ends are the whole of it. */
+export type LiftMark = { id: string; a: [number, number]; b: [number, number] };
+
+/** ONE WIND TUNNEL along the valley floor: its line in world metres, its
+ * paint (CSS, the colour it is drawn in on the snow), and an ARROW every
+ * `TUNNEL_ARROW` m of it pointing the way it blows — at (x, z), turned
+ * `angle` degrees clockwise from up-the-world-group, so a chevron path that
+ * points up is laid along the lane. */
+export type TunnelMark = {
+  id: string;
+  d: string;
+  paint: string;
+  arrows: { x: number; z: number; angle: number }[];
+};
+
+/** An arrow on a tunnel every this many metres, the first half a gap in. */
+export const TUNNEL_ARROW = 70;
+
 /** Another skier, where the map has him: the start-line slot names the
  * colour. */
 export type SkierMark = { slot: number; x: number; z: number };
@@ -102,13 +145,51 @@ export type HudMinimap = {
   track: string;
   /** Its stroke, m. */
   trackWidth: number;
+  /** Every run of the resort, lanes first so the pistes lie over them, and
+   * every lift — both cut once per map, and empty on a map that is only
+   * its one piste. */
+  runs: readonly RunMark[];
+  lifts: readonly LiftMark[];
+  /** The wind tunnels, each with its arrows; cut once per map. */
+  tunnels: readonly TunnelMark[];
   checkpoints: CheckpointMark[];
   /** The field, in world metres. */
   rivals: SkierMark[];
   /** A skier dot's radius in world metres at this zoom. */
   dot: number;
   chevron: MinimapChevron | null;
+  /** THE HELICOPTER (`heli.ts`) on a free ride: where it is, its nose, its
+   * rotor's share of its rpm, and where its pad stands, world metres; null
+   * on a run with none. */
+  heli: {
+    x: number;
+    z: number;
+    heading: number;
+    spool: number;
+    pad: { x: number; z: number };
+  } | null;
+  /** WHILE HE FLIES IT: the plate is the machine's — laid on its hub and
+   * turned by its nose — and the mark at the middle is the helicopter, its
+   * rotor turning at `spool` (0..1 of its rpm); null on his skis. */
+  flying: { spool: number } | null;
+  /** THE SNOWMOBILE (`sled.ts`) on a free ride, where it was left — null
+   * while he rides it (he is the dot) and on a run with none. */
+  sled: { x: number; z: number } | null;
 };
+
+/** THE ROTOR ON THE PLATE: one turn of the drawn rotor at full rpm, ms.
+ * Never the real rate — 390 rpm is a strobe at sixty frames — but quick
+ * enough to read as turning; slower as the rotor spools. */
+const ROTOR_TURN_MS = 480;
+
+/** How long the drawn rotor takes a turn at `spool` of its rpm, ms, in
+ * quarters of the spool so a spool-up changes it four times and not every
+ * snapshot (each change restarts the spin); null while it is all but
+ * still. */
+export function rotorTurnMs(spool: number): number | null {
+  const q = Math.ceil(Math.min(1, spool) * 4) / 4;
+  return spool < 0.05 ? null : Math.round(ROTOR_TURN_MS / q);
+}
 
 /** The zoom where it has got to, and the turn: frame state keyed by the map
  * and the ENGINE's clock, so neither runs while the pause card holds the
@@ -117,8 +198,8 @@ export type HudMinimap = {
 let held: { level: Level; t: number; span: number; angle: number } | null = null;
 
 /** The window this snapshot shows, m — `spanFor`'s answer, chased. */
-function spanNow(level: Level, speedKmh: number, t: number): number {
-  const want = spanFor(speedKmh);
+function spanNow(level: Level, speedKmh: number, agl: number, t: number): number {
+  const want = Math.max(spanFor(speedKmh), airSpanFor(agl, level.size));
   if (held === null || held.level !== level || t < held.t) return want;
   const dt = Math.min(1, t - held.t);
   return held.span + (want - held.span) * (1 - Math.exp(-dt / ZOOM_LAG));
@@ -150,21 +231,80 @@ export function project(pose: HudMinimap["pose"], x: number, z: number): [number
 /** The piste's line, cut once per map. */
 let trackOf: { level: Level; d: string; width: number } | null = null;
 
+/** A centreline as an SVG path, every `TRACK_STRIDE`th station and the
+ * last one always, so the line reaches its end whatever the stride; and
+ * never closed — a run ends where it ends. */
+function pathOf(pts: readonly TrackPoint[]): string {
+  let d = "";
+  for (let i = 0; i < pts.length; i += TRACK_STRIDE) {
+    d += `${i === 0 ? "M" : "L"}${pts[i].x.toFixed(1)} ${pts[i].z.toFixed(1)}`;
+  }
+  const last = pts[pts.length - 1];
+  if ((pts.length - 1) % TRACK_STRIDE !== 0) d += `L${last.x.toFixed(1)} ${last.z.toFixed(1)}`;
+  return d;
+}
+
 function trackLine(level: Level): { d: string; width: number } {
   if (trackOf?.level === level) return trackOf;
   const pts = level.track.points;
-  let d = "";
   let width = 0;
-  for (let i = 0; i < pts.length; i += TRACK_STRIDE) {
-    d += `${i === 0 ? "M" : "L"}${pts[i].x.toFixed(1)} ${pts[i].z.toFixed(1)}`;
-    width += pts[i].width;
-  }
-  // The last point always, so the line reaches the finish whatever the
-  // stride; and never closed — a piste ends where it ends.
-  const last = pts[pts.length - 1];
-  if ((pts.length - 1) % TRACK_STRIDE !== 0) d += `L${last.x.toFixed(1)} ${last.z.toFixed(1)}`;
-  trackOf = { level, d, width: width / Math.ceil(pts.length / TRACK_STRIDE) };
+  for (let i = 0; i < pts.length; i += TRACK_STRIDE) width += pts[i].width;
+  trackOf = { level, d: pathOf(pts), width: width / Math.ceil(pts.length / TRACK_STRIDE) };
   return trackOf;
+}
+
+/** The resort's runs, lifts and tunnels, cut once per map. */
+let resortOf: { level: Level; runs: RunMark[]; lifts: LiftMark[]; tunnels: TunnelMark[] } | null =
+  null;
+
+/** A heading (0 is +z, clockwise from above) as the turn, degrees, of a
+ * mark drawn pointing UP the world group: the group's up is −z, and
+ * `rotate` turns clockwise with y down, so +z is half a turn. */
+export function arrowAngle(heading: number): number {
+  return 180 - (heading * 180) / Math.PI;
+}
+
+/** A tunnel's mark: its line every station and its arrows. */
+export function tunnelMarks(level: Level): TunnelMark[] {
+  return tunnelsOf(level)
+    .filter((t) => t.points.length > 1)
+    .map((t, i) => {
+      const arrows: TunnelMark["arrows"] = [];
+      const gap = Math.min(TUNNEL_ARROW, t.length / 2);
+      for (let s = gap / 2; s < t.length; s += gap) {
+        const p = tunnelPointAt(t, s);
+        arrows.push({ x: p.x, z: p.z, angle: arrowAngle(p.heading) });
+      }
+      const d = t.points
+        .map((p, k) => `${k === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.z.toFixed(1)}`)
+        .join("");
+      return { id: t.id, d, paint: `#${tunnelPaint(i).toString(16).padStart(6, "0")}`, arrows };
+    });
+}
+
+function resortLines(level: Level): {
+  runs: RunMark[];
+  lifts: LiftMark[];
+  tunnels: TunnelMark[];
+} {
+  if (resortOf?.level === level) return resortOf;
+  const resort = level.resort;
+  const runs = (resort?.runs ?? [])
+    .filter((r) => r.points.length > 1)
+    .map((r) => ({
+      id: r.id,
+      d: pathOf(r.points),
+      road: r.kind === "road",
+      paint: GRADE_LOOK[r.grade].paint,
+    }))
+    .sort((a, b) => Number(b.road) - Number(a.road));
+  const lifts = (resort?.lifts ?? []).map((l) => ({
+    id: l.id,
+    a: [l.bottom.x, l.bottom.z] as [number, number],
+    b: [l.top.x, l.top.z] as [number, number],
+  }));
+  resortOf = { level, runs, lifts, tunnels: tunnelMarks(level) };
+  return resortOf;
 }
 
 /** Which gate the run owes, or null once the finish is crossed — and on a
@@ -217,20 +357,42 @@ function chevronFor(state: GameState, pose: HudMinimap["pose"]): MinimapChevron 
 /** The HUD's minimap for this snapshot. */
 export function buildMinimap(state: GameState): HudMinimap {
   const { level, skier } = state;
-  const span = spanNow(level, skier.speed * 3.6, state.t);
-  const angle = angleNow(level, skier.heading, state.t);
+  // Aloft only while he rides it: the machine flown home without him is a
+  // mark on the plate, not the lens. Sat on its skid he faces out to the
+  // side, so the plate follows the MACHINE — where it is and its nose.
+  const ridden = state.heli?.rider ? state.heli : null;
+  const agl = ridden ? ridden.agl : 0;
+  const span = spanNow(level, skier.speed * 3.6, agl, state.t);
+  const angle = angleNow(level, ridden ? ridden.heading : skier.heading, state.t);
   held = { level, t: state.t, span, angle };
   const scale = VIEW / span;
-  const pose = { x: skier.x, z: skier.z, angle, scale };
+  const pose = ridden
+    ? { x: ridden.x, z: ridden.z, angle, scale }
+    : { x: skier.x, z: skier.z, angle, scale };
   const track = trackLine(level);
+  const resort = resortLines(level);
   return {
     level,
     pose,
     track: track.d,
     trackWidth: Math.max(track.width, TRACK_MIN / scale),
+    runs: resort.runs,
+    lifts: resort.lifts,
+    tunnels: resort.tunnels,
     checkpoints: checkpointMarks(state),
     rivals: state.rivals.map((r) => ({ slot: r.id + 1, x: r.run.skier.x, z: r.run.skier.z })),
     dot: DOT / scale,
     chevron: chevronFor(state, pose),
+    heli: state.heli
+      ? {
+          x: state.heli.x,
+          z: state.heli.z,
+          heading: state.heli.heading,
+          spool: state.heli.spool,
+          pad: helipadOf(level),
+        }
+      : null,
+    flying: ridden ? { spool: ridden.spool } : null,
+    sled: state.sled && !state.sled.rider ? { x: state.sled.x, z: state.sled.z } : null,
   };
 }

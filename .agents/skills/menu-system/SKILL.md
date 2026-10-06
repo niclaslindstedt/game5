@@ -36,11 +36,14 @@ the REPLAY (`replay` and `bench` are the two extra surfaces — `watching` and
 `appDraws` in `shell.ts`), and the GALLERY (`menu-gallery.tsx` over the
 framework's `shots/shot-store`, the policy in its `shots/shot-roll`;
 `?menu=gallery`), reached from a CHIP on the front door's foot — it is not a
-way onto the snow, so it does not wear a tile's shape. The shutter is ENTER,
+way onto the snow, so it does not wear a tile's shape. The shutter is P,
 or the phone's own screenshot in the store app — never a menu row, as in the
 sibling games. The roll is IndexedDB and never load-bearing; `--surface
 gallery` photographs the empty state a fresh browser sees, `--surface
-gallery-roll` skis a run, presses ENTER and opens the roll in the same tab.
+gallery-roll` skis a run, presses P and opens the roll in the same tab.
+(ENTER, in a run, is the MACHINE key — on and off the free ride's
+snowmobile and helicopter, `SkierInput.machine` — and over a card it is the
+focused row's, as ever.)
 The sibling `game4` has every one of these and its `menu-system` skill the
 rules they were built under; port from there, and never add a row whose
 setting nothing reads (below). OPTIONS is built — ported from the siblings',
@@ -51,7 +54,7 @@ and the rows are its `menu-knobs.tsx` trimmed to what this page uses.
 | Surface | Covers | Where |
 | --- | --- | --- |
 | `splash` | The publisher's name while the first map is built, then the title, the trails laying themselves, and an invitation | `splash-screen.tsx` over the policy in `splash.ts`; the mark from `app-mark.ts` via `mark-trails.tsx` |
-| `menu` | The front door over a bot-skied run: the CAMPAIGN as the lit tile, RACE and TIME TRIAL (one run down a pinned mountain picked on the level card, against three rivals or the record book), FREE RIDE, TRICKS, the OPTIONS chip and the GALLERY chip (the sound switch is a row inside OPTIONS, never a chip on the door) — and its pages, which are the SAME surface over the same live run (`App.tsx`'s `page`: `root`, `campaign`, `levels`, `tricks`, `start`, `skis`, `options`, `keys`, `gallery`, `dev`…). RACE and TIME TRIAL open the SKI card — the pair on its rack with the skier beside it, its sheet beside that, the four topsheets, SKI — which is the last card before the start line. FREE RIDE opens the START card first (the map with its chart, the country, the date, the hour, the snow), whose NEXT is the ski card | `menu-main.tsx`, `menu-start.tsx` (over `free-ride.ts`, `seed-preview.tsx`, `seed-chart.ts`), `menu-skis.tsx` (over `ski-picker.tsx`, `ski-turntable.ts`, `ski-stats.ts`, `ski-topsheets.ts`), `menu-options.tsx`, `menu-keys.tsx` |
+| `menu` | The front door over a bot-skied run: the CAMPAIGN as the lit tile, RACE and TIME TRIAL (one run down a pinned mountain picked on the level card, against three rivals or the record book), FREE RIDE, TRICKS, the OPTIONS chip and the GALLERY chip (the sound switch is a row inside OPTIONS, never a chip on the door) — and its pages, which are the SAME surface over the same live run (`App.tsx`'s `page`: `root`, `campaign`, `levels`, `tricks`, `start`, `skis`, `options`, `keys`, `gallery`, `dev`…). RACE and TIME TRIAL open the SKI card — the pair on its rack with the skier beside it, its sheet beside that, the four topsheets, SKI — which is the last card before the start line. FREE RIDE opens the START card first (the map with its chart, the country, the date, the hour, the snow), whose NEXT is the ski card | `menu-main.tsx`, `menu-start.tsx` (over `free-ride.ts`, `seed-preview.tsx`, `seed-maps.ts`, `seed-store.ts`, `seed-chart.ts`, `panorama.ts`), `menu-skis.tsx` (over `ski-picker.tsx`, `ski-turntable.ts`, `ski-stats.ts`, `ski-topsheets.ts`), `menu-options.tsx`, `menu-keys.tsx` |
 | `loading` | A run being stood up, paid for in slices | `loading-screen.tsx` over `run-loader.ts`, whose steps are `app-load.ts`'s |
 | `pause` | The run HELD: RESUME, OPTIONS (the camera and the sound), and a quiet strip along the foot of the three that end it — RESTART, REPLAY, MAIN MENU | `menu-pause.tsx` |
 | `run` | The player on his skis, the HUD over the top; the finish plate once the finish line is crossed | `hud.tsx`, `hud-result.tsx` (`hud-and-menus`) |
@@ -136,7 +139,7 @@ whether it is stepped at all.
   and Space already press it; `menu-nav.ts` is wired for directions and back
   only, or a row is pressed twice.
 - **Anything reachable from a card is reachable as a URL** (`?splash=1`,
-  `?menu=root|options|keys|skis|start|campaign|gallery|dev`, `?start=race|trial|free|tricks`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
+  `?menu=root|options|keys|skis|start|campaign|gallery|dev`, `?start=slalom|free`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
   frame handable to somebody else, and how `make screenshots` reaches it.
 
 ## The loop
@@ -153,10 +156,15 @@ npx vitest run tests/menu_system_test.ts tests/video_test.ts
 `__SH_READY__`, which is a race's flag. Then LOOK, and run `ui-review` at
 1280×720, 390×844 and 844×390.
 
-**A card that outgrew the viewport photographs perfectly** — `.menu-card`
-scrolls, so its last control sits below the fold in every picture. Anything
-that adds HEIGHT is measured: `scrollHeight` against `clientHeight`, before
-and after, on both phones.
+**A card that outgrew the viewport photographs perfectly** — its last
+control sits below the fold in every picture. So a page with a head is HEAD
+(`MenuHead`: the way back, and the way on opposite it) → BODY (`MenuBody`,
+the ONLY part that scrolls) → caption, and the head and the caption never
+move; only a LIST belongs in what scrolls, so the big things (the pair, the
+chart, the picture) are laid out to fit the phone on its side rather than
+scrolled to. A way on lives in the head, never at the foot. Anything that
+adds HEIGHT is measured — `make screenshots ARGS="--surface all --viewport
+iphone,iphone-browser"` prints what scrolls on every card, before and after.
 
 **A picture is not the machine.** Drive the real flow before calling a change
 done: attract card → a press → the front door → RACE → the level card → the

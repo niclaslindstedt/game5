@@ -29,6 +29,8 @@ import {
   type Heightfield,
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import type { TrackDrop } from "./drops.ts";
+import { UNGRADED, type GradeRow } from "./grades.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 import { nearestTrackPoint } from "./query.ts";
 import { scaleCount } from "./regions.ts";
@@ -97,16 +99,25 @@ export function kickerProfile(
 /** An on-piste kicker as it is laid: its lip's station. */
 export type TrackKicker = { index: number; height: number; ramp: number; landing: number };
 
-/** R9 — choose the piste's kickers and add them to the graded profile.
- * Returns them by the index of their lip, in order down the line. */
-export function layTrackKickers(rng: Rng, piste: Piste): TrackKicker[] {
+/** R9 — choose the piste's kickers and add them to the graded profile, as
+ * many and as tall as the grade asks (R23), `drop.kickerClear` off every
+ * drop across the line (R24). Returns them by the index of their lip, in
+ * order down the line. */
+export function layTrackKickers(
+  rng: Rng,
+  piste: Piste,
+  grade: GradeRow = UNGRADED,
+  drops: readonly TrackDrop[] = [],
+  keepOff: readonly { from: number; to: number }[] = [],
+): TrackKicker[] {
   const pts = piste.points;
   const n = pts.length;
   const step = R.track.step;
   const K = R.kickers.on;
-  // How many this map carries, dealt in the band: a course with two jumps
-  // and one with six are different courses.
-  const want = rng.int(K.count.min, K.count.max);
+  const G = grade.kickers;
+  // How many this map carries, dealt in the grade's band: a course with two
+  // jumps and one with six are different courses.
+  const want = rng.int(G.on.min, G.on.max);
   // Every station a kicker could stand at, scored; then the best that keep
   // their spacing, with a little noise in the score so a seed with two
   // equally good rolls does not always pick the same one.
@@ -121,10 +132,12 @@ export function layTrackKickers(rng: Rng, piste: Piste): TrackKicker[] {
   const rampOf = inBand(rng, K.ramp);
   const landingOf = inBand(rng, K.landing);
   const heightFor = (fall: number): number =>
-    K.height.min +
-    (K.height.max - K.height.min) * clamp((fall - K.pitch.min) / (K.pitch.max - K.pitch.min), 0, 1);
-  const ramp = K.height.max * rampOf;
-  const landing = K.height.max * landingOf;
+    (K.height.min +
+      (K.height.max - K.height.min) *
+        clamp((fall - K.pitch.min) / (K.pitch.max - K.pitch.min), 0, 1)) *
+    G.height;
+  const ramp = K.height.max * G.height * rampOf;
+  const landing = K.height.max * G.height * landingOf;
   const back = Math.ceil((ramp + 10) / step);
   const ahead = Math.ceil((landing + 10) / step);
   const first = Math.ceil((R.grid.back + step + R.spawn.kickerGap) / step);
@@ -139,7 +152,7 @@ export function layTrackKickers(rng: Rng, piste: Piste): TrackKicker[] {
     const yEnd = pts[i + Math.round(landing / step)].y;
     const rise = (yFoot - yLip) / ramp;
     const fall = (yLip - yEnd) / landing;
-    if (rise > K.approachGrade || fall < rise - K.roll) continue;
+    if (rise > G.approachGrade || fall < rise - K.roll) continue;
     // … and straight enough over that lip's own ramp and landing.
     const height = heightFor(fall);
     const from = -Math.ceil((height * rampOf) / step);
@@ -162,6 +175,24 @@ export function layTrackKickers(rng: Rng, piste: Piste): TrackKicker[] {
     const clear = chosen.every((k) => Math.abs(pts[k.index].s - pts[c.index].s) >= K.spacing);
     if (!clear) continue;
     const height = heightFor(c.fall);
+    if (drops.length > 0) {
+      const s0 = pts[c.index].s;
+      const gap = R.drop.kickerClear;
+      const onDrop = drops.some((d) => {
+        const ds = pts[d.index].s;
+        return (
+          s0 - height * rampOf < ds + d.face + d.landing + gap &&
+          s0 + height * landingOf > ds - d.shelf - gap
+        );
+      });
+      if (onDrop) continue;
+    }
+    if (keepOff.length > 0) {
+      const s0 = pts[c.index].s;
+      if (keepOff.some((k) => s0 - height * rampOf < k.to && s0 + height * landingOf > k.from)) {
+        continue;
+      }
+    }
     chosen.push({ index: c.index, height, ramp: height * rampOf, landing: height * landingOf });
   }
   chosen.sort((a, b) => a.index - b.index);
@@ -206,15 +237,17 @@ export function layOffKickers(
   rng: Rng,
   plan: TerrainPlan,
   ground: Heightfield,
-  piste: Piste,
+  piste: Piste | null,
+  distanceTo?: (x: number, z: number) => number,
 ): Kicker[] {
   const K = R.kickers.off;
-  // R21 — the region's multiple of the rule's count; the same band at one.
-  const count = scaleCount(K.count, plan.region.kickers);
+  // R21, R23 — the region's and the grade's multiple of the rule's count;
+  // the same band at one.
+  const count = scaleCount(K.count, plan.region.kickers * plan.grade.kickers.off);
   const want = rng.int(count.min, count.max);
   const out: Kicker[] = [];
   const size = R.world.size;
-  const face = R.mountain.flank.inner - 60;
+  const face = (plan.flankBand ?? R.mountain.flank).inner - 60;
   for (let tries = 0; tries < want * 40 && out.length < want; tries++) {
     const x = size / 2 + rng.range(-face, face);
     const z = plan.summitZ + (plan.baseZ - plan.summitZ) * rng.range(0.08, 0.96);
@@ -240,8 +273,12 @@ export function layOffKickers(
     );
     const below = fallAlong(ground, x, z, heading, landing);
     if (below.steepest - above.gentlest < K.roll) continue;
-    const hit = nearestTrackPoint(trackOf(piste), x, z);
-    if (hit.distance - reach < R.track.width.max / 2 + K.clearance) continue;
+    const distance = distanceTo
+      ? distanceTo(x, z)
+      : piste
+        ? nearestTrackPoint(trackOf(piste), x, z).distance
+        : Infinity;
+    if (distance - reach < R.track.width.max / 2 + K.clearance) continue;
     if (out.some((k) => hypot(k.x - x, k.z - z) < reach + Math.max(k.ramp, k.landing) + 20)) {
       continue;
     }

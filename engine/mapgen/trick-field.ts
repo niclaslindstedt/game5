@@ -57,7 +57,16 @@ import { landingEase, runoutEase } from "./kickers.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { gateArcs, startGateArc } from "./spawn.ts";
 import type { Piste } from "./track.ts";
-import type { Kicker, KickerShape, TrackPoint, TrickSize } from "./types.ts";
+import type { Cliff, Kicker, KickerShape, TrackPoint, TrickSize } from "./types.ts";
+import { GENERATOR_VERSIONS, type GeneratorVersion } from "./versions.ts";
+
+/** The generator a map with a park on it is built by when none is named:
+ * the newest that still lays ONE piste down a face — the park is laid on a
+ * piste of its own, and a resort (R25) lays none — the one the trick maps
+ * stand on. */
+export const PARK_VERSION: GeneratorVersion | undefined = [...GENERATOR_VERSIONS]
+  .reverse()
+  .find((v) => v.singlePiste)?.version;
 
 /** The arc a kicker covers, foot of the ramp to the end of its landing, m. */
 function footprint(k: { s?: number; ramp: number; landing: number }): [number, number] {
@@ -88,13 +97,20 @@ export type Corridor = { near: Int32Array; along: Float32Array; dist: Float32Arr
 
 /** R20 — plan the park on the finished piste: its kickers in the order they
  * are skied, or the reason the line could not carry one. `taken` are the
- * kickers already on the piste (R9), which the park keeps clear of.
- * Nothing is stamped yet: the mountain is finished first
- * (`stampTrickField`). */
-export function planTrickField(piste: Piste, taken: readonly Kicker[]): Kicker[] | string {
+ * kickers already on the piste (R9) and `drops` the drops across it (R24),
+ * which the park keeps clear of. Nothing is stamped yet: the mountain is
+ * finished first (`stampTrickField`). */
+export function planTrickField(
+  piste: Piste,
+  taken: readonly Kicker[],
+  drops: readonly Cliff[] = [],
+): Kicker[] | string {
   const F = R.trick;
   const n = piste.points.length;
-  const busy = taken.filter((k) => k.onTrack).map(footprint);
+  const busy = taken
+    .filter((k) => k.onTrack)
+    .map(footprint)
+    .concat(drops.map((d) => footprint({ s: d.s, ramp: d.shelf, landing: d.face + d.landing })));
   const gates = gateArcs(piste.length);
   const out: Kicker[] = [];
   let free = startGateArc() + F.lead;

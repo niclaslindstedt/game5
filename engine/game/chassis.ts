@@ -44,8 +44,11 @@ function cross(a: Vec3, b: Vec3): Vec3 {
   return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
 }
 
-/** The first `SKI_POINTS` of `hullOf` are the skis' own and do not crouch. */
+/** The first `SKI_POINTS` of `hullOf` are the skis' own and do not crouch;
+ * from `BODY_POINTS` on (the hips, the shoulders, the helmet) a point on
+ * the snow is the skier down on it (`SkierState.bodyHit`). */
 const SKI_POINTS = 4;
+const BODY_POINTS = 6;
 
 /** Apply the hull contacts to the skier's velocities, on snow at the run's
  * depth dial (`GameState.snowDepth`, the new snow laid in — `depthUnder`)
@@ -64,6 +67,8 @@ export function chassisContacts(
   const sink = footprintOf(c.spec).sink;
   let worst = 0;
   let touched = false;
+  c.bodyHit = 0;
+  c.bodySide = 0;
   const hull = hullOf(c.spec);
   // The ground's across under the CoG, square to the skis' line, for the
   // skis' points.
@@ -99,6 +104,13 @@ export function chassisContacts(
     const vy = c.vy + wr.y;
     const vz = c.vz + wr.z;
     const vn = vx * n.x + vy * n.y + vz * n.z;
+    if (hi >= BODY_POINTS) {
+      const into = Math.max(1e-6, -vn);
+      if (into > c.bodyHit) {
+        c.bodyHit = into;
+        c.bodySide = Math.sign(h.x);
+      }
+    }
     const target = Math.min(depth * H.pushRate, H.pushOut);
     if (vn >= target) continue;
     if (-vn > worst) worst = -vn;

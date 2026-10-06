@@ -218,6 +218,20 @@ export function gripAt(packed: number, out: Grip, fit: GripFit = UNIT_FIT): Grip
   return out;
 }
 
+/** THE PLATFORM under an edge stood `edge` rad over, as a multiple of the
+ * edge's own bite added to it (`grip.platform`), for a skier who stands
+ * `on` 0..1 of it (`Technique.platform` — the racer's angulation):
+ * nothing up to `from`, then `share` of tan θ's growth past it — the
+ * snow's reaction square to a base stood on the shelf it has cut. Zero on
+ * a flat or a moderate edge and for a skier who does not stand on it, so
+ * he holds exactly what the edge's bite does. Read by the physics'
+ * stations and by `limits.ts`'s `cornerGrip`. */
+export function platformOf(edge: number, on: number): number {
+  const P = G.platform;
+  const e = Math.min(Math.abs(edge), 1.45);
+  return on > 0 && e > P.from ? on * P.share * (Math.tan(e) - Math.tan(P.from)) : 0;
+}
+
 /** The share of a footprint the grip reads (`Footprint` carries it). */
 export type GripFit = { edge: number; base: number };
 

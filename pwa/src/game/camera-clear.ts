@@ -18,15 +18,16 @@
 // a reason to pull the lens onto him: the walk starts counting at the first
 // step that is out in the open.
 //
-// THE RIDDEN BOOMS DO NOT ASK ABOUT THE TREES (`{ trees: false }`): a boom
-// pulled in for every trunk flicking past jolts the lens at the skier, and a
-// bough across the frame for a moment is the lesser fault. They still keep
-// out of the course's own marks; the planted lenses (the broadcast, the
-// death cam) ask of the trees as well.
+// THE RIDDEN BOOMS DO NOT PULL IN FOR THE TREES (`{ trees: false }`): a boom
+// pulled in for every trunk flicking past jolts the lens at the skier. They
+// pull in only for the course's own marks, and are PUSHED OFF THE TRUNKS
+// instead — a metre of free space round the bark and no more, asked of
+// `createTrunksNear` (`camera-rigs.ts`'s `repel`). The planted lenses (the
+// broadcast, the death cam) pull in for the trees as well.
 
-import { treesNear, type Level } from "@engine";
+import { liftPlans, stationHouses, treesNear, type Level, type StationHouse } from "@engine";
 
-import type { LineClear, Vec3 } from "./camera-rigs.ts";
+import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
 
 /** How far off any solid the lens is kept, m — a near plane's worth and a
@@ -95,6 +96,10 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     }
   });
 
+  // Every lift's station houses: a lens carried up a chair and led off its
+  // top past the house is pulled in short of the wall, never through it.
+  const houses: StationHouse[] = liftPlans(level).flatMap((p) => stationHouses(level, p));
+
   const near: number[] = [];
 
   const inside = (x: number, y: number, z: number): boolean => {
@@ -111,6 +116,15 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     for (const p of posts) {
       if (y < p.y0 || y > p.y1 + LENS_PAD) continue;
       if (Math.hypot(x - p.x, z - p.z) < p.r + LENS_PAD) return true;
+    }
+    for (const h of houses) {
+      if (y < h.base || y > h.top + LENS_PAD) continue;
+      const dx = x - h.x;
+      const dz = z - h.z;
+      const along = dx * h.plan.dx + dz * h.plan.dz;
+      const across = dx * h.plan.dz - dz * h.plan.dx;
+      if (Math.abs(along) < h.halfLength + LENS_PAD && Math.abs(across) < h.halfWidth + LENS_PAD)
+        return true;
     }
     const b = banner as Banner | null;
     if (b && y > b.y0 - LENS_PAD && y < b.y1 + LENS_PAD) {
@@ -152,5 +166,20 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
       }
     }
     return 1;
+  };
+}
+
+/** The trunks the ridden booms are pushed off: every tree's trunk as the
+ * physics has it (`Level.trees`' radius), from a metre under its foot to its
+ * tip. */
+export function createTrunksNear(level: Level): TrunksNear {
+  const ids: number[] = [];
+  return (x: number, z: number, reach: number, out: Trunk[]): Trunk[] => {
+    out.length = 0;
+    for (const i of treesNear(level, x, z, reach, ids)) {
+      const t = level.trees[i];
+      out.push({ id: i, x: t.x, z: t.z, r: t.radius, y0: t.y - 1, y1: t.y + t.height });
+    }
+    return out;
   };
 }

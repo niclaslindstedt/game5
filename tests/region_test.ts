@@ -49,7 +49,11 @@ function regionLevel(region: RegionId, seed: number): GeneratedLevel {
   const key = `${region}:${seed}`;
   let level = built.get(key);
   if (!level) {
-    level = generateLevel(seed, { region });
+    // On generator v1, the rule book's own numbers (the UNGRADED row): a
+    // region's character is its row's multiples of them, whole — on the
+    // graded generator a grade sets the vertical and keeps only a share of
+    // the region's (R23), which mapgen_test holds.
+    level = generateLevel(seed, { region, version: 1 });
     built.set(key, level);
   }
   return level;
@@ -133,7 +137,7 @@ describe("a region is named in five places, and all five agree", () => {
 describe("the alpine is the map every seed always built", () => {
   it("asking for it by name builds the very map asking for nothing does", () => {
     const plain = levelFor(38);
-    const named = regionLevel("alpine", 38);
+    const named = generateLevel(38, { region: "alpine" });
     expect(levelDigest(named)).toBe(levelDigest(plain));
     expect(plain.region).toBe("alpine");
     expect(plain.crust).toBeUndefined();

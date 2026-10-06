@@ -24,7 +24,7 @@
 // wrote nothing that moves the skis), and the two runs advance in lockstep.
 //
 // WHAT NAMES THE SNOW is a `GhostStage`: the record-book row the run is
-// filed under (`records.ts`'s `recordId` — seed, skis, mode, laps) and a
+// filed under (`records.ts`'s `recordId` — seed and course, skis, mode, laps) and a
 // FINGERPRINT of the map that was ridden (`mapPrint`), because a generator
 // that moves under a seed is exactly the case a matching seed would miss. A
 // ghost riding a map that is no longer there is worse than no ghost at all.
@@ -37,10 +37,12 @@
 import {
   NEUTRAL_INPUT,
   isGameMode,
+  isRiderId,
   isSkiId,
   type Assist,
   type GameMode,
   type Level,
+  type RiderId,
   type SkiId,
   type SkierInput,
 } from "@engine";
@@ -58,7 +60,8 @@ import {
 import { recordId, type RecordKey } from "./records.ts";
 
 /** THE TAPE'S LAYOUT: the axes one step is written down as, each a byte —
- * the reset's edge and the trick button packed into `flags`. The names are
+ * the reset's edge, the trick button, the hard cut and the jump packed
+ * into `flags`. The names are
  * the stored tape's keys, so renaming one is a format change. */
 const TAPE: TapeSchema<"steer" | "lean" | "tuck" | "brake" | "flags"> = {
   steer: "signed",
@@ -73,7 +76,7 @@ const TAPE: TapeSchema<"steer" | "lean" | "tuck" | "brake" | "flags"> = {
  * else, and a ghost that misses every corner is worse than none. A tape
  * whose format this build does not know is dropped and rewritten by the
  * next run on that map. */
-export const GHOST_FORMAT = 1;
+export const GHOST_FORMAT = 2;
 
 /** THE BIGGEST TAPE WORTH KEEPING, characters of JSON. `localStorage` is a
  * few megabytes for the whole origin, shared with the record book and the
@@ -87,6 +90,15 @@ export function snapInput(input: SkierInput): SkierInput {
   input.lean = snapAxis(input.lean, TAPE.lean);
   input.tuck = snapAxis(input.tuck, TAPE.tuck);
   input.brake = snapAxis(input.brake, TAPE.brake);
+  // A helicopter flown (`heli.ts`) on the same grid: a free ride keeps no
+  // tape, but the figure the engine flies on is still the figure snapped.
+  const h = input.heli;
+  if (h) {
+    h.collective = snapAxis(h.collective, "lever");
+    h.pitch = snapAxis(h.pitch, "signed");
+    h.roll = snapAxis(h.roll, "signed");
+    h.pedal = snapAxis(h.pedal, "signed");
+  }
   return input;
 }
 
@@ -127,11 +139,18 @@ export type GhostRun = GhostStage &
     format: number;
     seed: number;
     skis: SkiId;
+    /** The skier's build it was ridden at — absent on a medium build's run
+     * (and on every run kept before a build could be chosen). */
+    rider?: RiderId;
     mode: GameMode;
     laps: number;
     /** The help the run was ridden with: the ghost rides with it too, since
      * the same hands with another hold on the yaw are another line. */
     assist: Assist;
+    /** Whether it was skied on poles (`SkierState.poles`): the ghost skis
+     * as it did, since the same hands with no poles are another line. Left
+     * out of a tape that had them — every tape an older build wrote. */
+    poles?: boolean;
     /** The time the run set, s. */
     value: number;
   };
@@ -139,6 +158,9 @@ export type GhostRun = GhostStage &
 const FLAG_RESET = 1;
 /** ...and the trick button held (a tricks run's poses, `strokes.ts`). */
 const FLAG_TRICK = 2;
+/** ...the edge cut hard, and the jump held. */
+const FLAG_CARVE = 4;
+const FLAG_JUMP = 8;
 
 export type ControlRecorder = {
   /** Write down the controls a step was ridden on — the input the engine
@@ -158,7 +180,11 @@ export function createControlRecorder(): ControlRecorder {
         lean: input.lean,
         tuck: input.tuck,
         brake: input.brake,
-        flags: (input.reset ? FLAG_RESET : 0) | (input.trick ? FLAG_TRICK : 0),
+        flags:
+          (input.reset ? FLAG_RESET : 0) |
+          (input.trick ? FLAG_TRICK : 0) |
+          (input.carve ? FLAG_CARVE : 0) |
+          (input.jump ? FLAG_JUMP : 0),
       }),
     steps: tape.steps,
     seal: tape.seal,
@@ -181,7 +207,10 @@ export function readControls(tape: ControlTape): GhostTape {
   return {
     steps: reader.steps,
     at: (step) => {
-      if (reader.at(step, axes) === null) return Object.assign(input, NEUTRAL_INPUT);
+      if (reader.at(step, axes) === null) {
+        input.trick = input.carve = input.jump = undefined;
+        return Object.assign(input, NEUTRAL_INPUT);
+      }
       input.steer = axes.steer;
       input.lean = axes.lean;
       input.tuck = axes.tuck;
@@ -189,6 +218,8 @@ export function readControls(tape: ControlTape): GhostTape {
       input.reset = (axes.flags & FLAG_RESET) !== 0;
       // Left off when it is not held, so a tape reads back as the input it was.
       input.trick = (axes.flags & FLAG_TRICK) !== 0 ? true : undefined;
+      input.carve = (axes.flags & FLAG_CARVE) !== 0 ? true : undefined;
+      input.jump = (axes.flags & FLAG_JUMP) !== 0 ? true : undefined;
       return input;
     },
   };
@@ -201,6 +232,7 @@ export function sealGhost(
   key: RecordKey,
   assist: Assist,
   value: number,
+  poles = true,
 ): GhostRun {
   return {
     ...stage,
@@ -208,9 +240,11 @@ export function sealGhost(
     format: GHOST_FORMAT,
     seed: key.seed,
     skis: key.skis,
+    ...(key.rider && key.rider !== "medium" ? { rider: key.rider } : {}),
     mode: key.mode,
     laps: key.laps,
     assist: { ...assist },
+    ...(poles ? {} : { poles: false }),
     value,
   };
 }
@@ -232,11 +266,15 @@ export function readsAsGhost(parsed: unknown): parsed is GhostRun {
   if (run.format !== GHOST_FORMAT) return false;
   if (typeof run.id !== "string" || typeof run.map !== "string") return false;
   if (typeof run.skis !== "string" || !isSkiId(run.skis)) return false;
+  if (run.rider !== undefined && (typeof run.rider !== "string" || !isRiderId(run.rider))) {
+    return false;
+  }
   if (!isGameMode(run.mode)) return false;
   if (!Number.isInteger(run.seed) || !Number.isInteger(run.laps) || (run.laps as number) < 1) {
     return false;
   }
   if (!run.assist || !share(run.assist.yaw) || !share(run.assist.air)) return false;
+  if (run.poles !== undefined && typeof run.poles !== "boolean") return false;
   if (typeof run.value !== "number" || !Number.isFinite(run.value) || run.value <= 0) return false;
   return isControlTape(parsed, TAPE);
 }

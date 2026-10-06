@@ -24,7 +24,7 @@
 //!   opened and nothing is saved by name. The second menu is RACE, which is
 //!   what its rows are actually about.
 //! - **A bare-key accelerator.** Every binding below carries ⌘. The game reads
-//!   the keyboard directly (Enter takes a picture, B restarts, R resets,
+//!   the keyboard directly (P takes a picture, B restarts, R resets,
 //!   Escape pauses, C walks the camera) and a menu accelerator wins before the
 //!   page ever sees the key, so binding a naked Escape or C to a row would
 //!   quietly take that key away from the skier.

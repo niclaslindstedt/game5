@@ -37,14 +37,17 @@ in the instrument exist to reach that:
 | framework `audio/voice` | **The vocabulary.** Every parameter a sound may be written in, the `Synth` interface, the `LayerSpec` / `LayerTarget` / `Layer` a bed is made of, and the arithmetic worth testing without a browser. DOM-free on purpose. |
 | framework `audio/synth` | The instrument: `tone()` and `noise()` for one-shots, `layer()` for the beds, the echo bus, the master limiter, the context lifecycle (unlock, iOS interruption, zombie-context recovery). The ONLY module that touches WebAudio. |
 | `pwa/src/game/audio/bank.ts` | **THE RUN'S SOUND DESIGN** (`RUN_BANK`): every discrete sound as data — a description and a list of voices. The landings, the trunk, the shoulder, the gate and the panel, the miss, the reset, the wand's count and GO, the finish horn and the cowbells, the crash. |
-| `pwa/src/game/audio/route.ts` | **WHICH sound an event makes** and how big (`PlayShape`) — pure functions from `GameEvent` (`soundForEvent`, `soundsForStep`, `heardFrom`). |
+| `pwa/src/game/audio/contact-bank.ts` | **WHAT A SKIER MEETS AND COMES DOWN INTO** (`CONTACT_BANK`, spread into `RUN_BANK`): a landing in powder and on ice, a trunk brushed, a dead snag, the four wipeouts (tree, nose, roll, catch) — every fall ending on the skis' own clatter. |
+| `pwa/src/game/audio/route.ts` | **WHICH sound an event makes** and how big (`PlayShape`) — pure functions from `GameEvent` and its `Contact` (the snow under the skis, the trunk met — `trunkAt`) (`soundForEvent`, `soundsForStep`, `heardFrom`). |
 | `pwa/src/game/audio/wind-voice.ts` | THE WIND as layers that never stop: the rush, its body, its whistle — `windTargets` is a pure function of the state. The level and the cutoff are arithmetic off `SkierState.speed` and the crouch (`tuck` through its lag): a tuck closes the helmet's opening and the wind darkens as it gets louder; in the air the wind is all there is. |
-| `pwa/src/game/audio/snow-voice.ts` | THE EDGES ON THE SNOW as layers (the hiss, the chatter, the scrape, the powder, the carve): `snowTargets`, a pure function crossfading on ONE number — `SkierState.packed` — with the edge angle, the skid and the kind of snow under the stations moving the rest. |
+| `pwa/src/game/audio/snow-voice.ts` | THE SKIS ON THE SNOW as eight layers (the hiss, the powder, the edge, the chatter, the skid, the crust's crunch, the slush, the ice's scrape) — this game's answer to the sibling snowmobile game's engine voice: `snowTargets`, a pure function of the SIX KINDS OF SNOW under the skis (`SnowUnder`, `snowpack.ts`'s mix read by the bed at the boots), the edge, the skid and the PAIR (`skiVoiceOf`: flex, waist, length). |
 | `pwa/src/game/audio/listener.ts` | **WHERE THE EAR IS.** `LISTENERS`, one row per camera rung: what each seat does to the wind, the edges, the poles and the one-shots. The helmet hears the wind loudest; the far boom hears the snow. The beds and the router both read it. |
 | `pwa/src/game/audio/ride-bed.ts` | The scheduler: reads the player's `SkierState` once a frame and turns it into every layer's target, through the seat's listener row; raises the poles' clicks as a CUE at a crawl with the tuck held. The field has no bed of its own yet. |
 | `pwa/src/game/audio/bird-voice.ts`, `bird-bank.ts`, `bird-bed.ts` | **THE MOUNTAIN'S VOICES.** Who cries and how often (`BIRD_CALLS`, plan-free), the cries themselves (`BIRD_BANK`, spread into `RUN_BANK`), and the scheduler that raises them off the birds' own plan (`birdPlanFor`) — a CUE drawn off each flock's scatter (`criesIn`), never an event and never `state.rng`. The ptarmigan's whirr is the one cry a skier causes (`flushAt`). `tests/birds_test.ts` holds every call to a bank id. |
 | framework `audio/rack` | The plumbing every bed shares: build a layer, rebuild one whose context died, steer it on its glide. |
 | framework `audio/play`, `audio/types` | Firing one def through a shape; what a def and a shape ARE. |
+| `pwa/src/game/audio/heli-voice.ts`, `heli-bed.ts`, `heli-bank.ts` | **THE HELICOPTER** (`heli.ts`, `docs/helicopter.md`): the bed's eleven layers as a pure function of `state.heli` and the ear (the rotor's whop, thump and slap at its blade-passage rate, the turbine's whine with the spool, the tail rotor's buzz, the wash's blown snow near the ground, the fire on a wreck — by distance, air absorption and Doppler, the `machine` column of `LISTENERS`), the scheduler `RunAudio.frame` already drives, and the one-shots its `heli` events make (the boots on the skid, the liftoff, the touchdown, the drop's whoosh, the crash's explosion). `tests/heli_audio_test.ts`. |
+| `pwa/src/game/audio/sled-voice.ts`, `sled-bed.ts`, `sled-bank.ts` | **THE SNOWMOBILE** (`sled.ts`, `docs/snowmobile.md`): the sibling sled game's eight-layer two-stroke (the block, the firing note and its octave, the expansion chamber's rasp on the pipe, the bass, the intake, the CVT belt's whine at the track's speed) with the paddles' CHURN in powder, as a pure function of `state.sled` heard from the skier (`sledVoiceOf`, `sledHeard`), a `LOUD` gain putting it with the helicopter in the mix, through the effects' fader; and the `sled` event's one-shots (on and the engine starting, off, heaved back up, the crash). The audition page's SNOWMOBILE section and its presets. |
 | `pwa/src/game/audio/bus.ts` | One synth, the volume-scaled view the SOUND switch moves, and the unlock. |
 | `pwa/src/game/audio/index.ts` | The front door (`createRunAudio`): events in, the beds fed per frame, `silence()`. `App.tsx` is its one caller. |
 | `pwa/src/game/settings.ts` | The switch the player keeps (`sound`), and the three faders. |
@@ -98,11 +101,23 @@ and a glide. The rules:
   heard as the wind closing in and darkening, and standing up out of it as
   the roar opening again. A layer set that gave the wind one level would
   leave the player with no sense of speed at all.
-- **Packed or powder is the whole story of the snow**, and it is one number
-  (`SkierState.packed`): skiing off the piste is heard as the hiss giving
-  way to the whoosh before anything else changes. The powder's whoosh is
-  loudest SLOW, where the skis are sunk and pushing snow, and thins as they
-  float up.
+- **The snow is SIX KINDS, heard as a mix** — the same `snowpack.ts` mix
+  the spray, the cloud and the grooves read, so what is seen and what is
+  heard never disagree: skiing off the piste is heard as the hiss giving
+  way to the whoosh before anything else changes; a crest scoured to crust
+  CRUNCHES; spring snow SLUSHES, loudest slow; ice SCRAPES under the steel
+  and takes the carve's clean tear away. The powder's whoosh is loudest
+  SLOW, where the skis are sunk and pushing snow, and thins as they float
+  up — and NEW snow swallows a third of it. Each kind's own layer is silent
+  on every other kind (the test holds it).
+- **The pair is heard off its spec, never off its name** (`skiVoiceOf`):
+  stiffness pitches the chatter up and holds it down, the waist deepens the
+  hush, the length lowers the hiss. A new pair needs no audio row.
+- **A contact is what was met AND what it came down into.** The event says a
+  trunk was met at a speed; the route's `Contact` (the trunk off the map by
+  where, the snow the bed last read) picks the sound — a brush, a crack, a
+  dead snag — and shapes it; a fall in deep powder is swallowed, on ice it
+  is bare. Never a new `GameEvent` field for it: the app can work it out.
 - **The edge tells the ear what the snow is.** A carve on the groomer is a
   clean hiss; on the crust and the ice it CHATTERS (white grit in a band
   that climbs with speed); a skid is a SCRAPE, a driven noise that comes up
@@ -111,9 +126,12 @@ and a glide. The rules:
 - **The air is the wind alone.** Off a kicker the snow layers go and only
   the wind keeps going — the physics does that; the bed only hears it.
   Never fake it with a take-off one-shot.
-- **The poles are a crawl's sound.** Under `poles.speed` with the tuck held a
-  plant is a click and a push; at speed they are silent under the arms. A
-  cue off `plantPulse`, never an event.
+- **The poles are a crawl's sound, and heard only where they are SEEN.** A
+  plant plays where the pose plants — the bed reads the gait the figure is
+  drawn by (`gaitOf`: the stroke's start, the arms' share, `Gait.keep`), never
+  a looser test of its own — and sounds like the snow it goes into
+  (`plantVoice`): a tick on the groomer, a pat in loose snow taken to nothing
+  as it deepens. A cue, never an event.
 - **The pitches are arithmetic; the levels are taste.** Nothing about the
   wind's cutoff or the chatter's band is chosen by ear.
 

@@ -32,6 +32,14 @@ differently from the ground under it and reads as paint. The LENS's reaction
 (the flown hand-over, a landing's kick) is the camera's — `camera.ts` under
 `game-feel`.
 
+**WHICH SKI THROWS IT.** A turning skier stands on his OUTSIDE ski — 95 %
+of him at a crawl, three quarters at a cruise, two thirds in a fast carve
+(`ski-stand.ts`'s `skiShares`, laid over the engine's two loads, which its
+equal legs carry alike) — and the snow comes off that ski's edge: the
+spray's sheet and the cloud's per-ski sheet go by each ski's share (the two
+together throwing what the pair does), and the skid's wall rises off the
+loaded ski's boot. Judge it with `make turns ARGS=--views=low`.
+
 ## The modules
 
 | Effect | Where |
@@ -39,7 +47,7 @@ differently from the ground under it and reads as paint. The LENS's reaction
 | THE SKID'S SHEET: snow thrown sideways off two skis pivoted across the way, harder with the brake and the speed, a wall of it in a hockey stop, much more in powder than on the groomer | `spray.ts` |
 | THE CARVE'S SPRAY: powder off the tips and the outside ski's tail in a carve, sized by the edge and the speed; a thin dust on the groomer | `spray.ts` |
 | THE LANDING PUFF: a ring of powder from under a skier coming down, sized by how hard — read off the airborne → grounded TRANSITION rather than the `land` event, so a frame that ran two steps cannot swallow it and a rival's landing throws the same puff | `spray.ts` |
-| THE SNOW CLOUD: the fine powder a skid, a powder turn, a landing and a wipeout raise — the rooster tail that stalls, swells, drifts and hangs. What each source throws out of which snow and how a puff flies, swells and thins is `snow-cloud-plan.ts` (three-free, `tests/snow_cloud_test.ts`); the flight, the sort, the whole cloud's self-shadow (a sun-first walk through a hashed grid), the shader (noise-carved body, wrap light, Henyey–Greenstein glow, glints, lamps, the soft meeting with the snow) and the chase lens's VEIL through the player's own tail are `snow-cloud.ts` | `snow-cloud-plan.ts`, `snow-cloud.ts` |
+| THE SNOW CLOUD: the fine powder a skid, a powder turn, a landing and a wipeout raise — the rooster tail that stalls, swells, drifts and hangs. What each source throws out of which snow and how a puff flies, swells and thins is `snow-cloud-plan.ts` (three-free, `tests/snow_cloud_test.ts`) — `driveOf` / `carveOf` read a skier into its inputs, and `loftOf` scales every recipe (rate, size, swell, hang, lift) by how much a speed LOFTS; the flight, the sort, the whole cloud's self-shadow (a sun-first walk through a hashed grid), the shader (noise-carved body, wrap light, Henyey–Greenstein glow, glints, lamps, the soft meeting with the snow) and the chase lens's VEIL through the player's own tail are `snow-cloud.ts` | `snow-cloud-plan.ts`, `snow-cloud.ts` |
 | THE KINDS OF SNOW: groomed, hard, soft, new, wet, ice — where each lies (the packed field, the crust, the ice, a snowing sky's new layer and `fresh`, a spring thaw) and what each does to the cloud, the spray's clumps, a groove's depth, WALLS and windrow, and a print (a crust carries a light foot) | `snowpack.ts` (three-free, `tests/snowpack_test.ts`) |
 | THE TRACKS: a capsule per station from its last touch to this one; `drawnDepth` (the sink or the powder's furrow, whichever is deeper, cut narrower and deeper the more edge the ski stands on); `furrowProfile` for the windrow; `TRAIL.jump` breaks the line on a reset; a thrown skier's slide gouges a wider furrow of its own | `trail-stamp.ts`; `tests/world_render_test.ts` |
 | WHAT IS FELT: the CHATTER on hard snow read off `skiCompression` every step, a landing, a trunk, a fall (read off the state — there is no event), a gate's light tick; what does NOT rumble and why | `pwa/src/game/rumble.ts` (DOM-free; `tests/rumble_test.ts`) |
@@ -112,22 +120,39 @@ in code. Snow in the air is:
    (`--cols=times`). The LIGHT is the sun turned to the run, so BACK is
    always the chase lens looking into the sun through the cloud. Run it
    before and after, both sheets in the PR.
-2. **`make world SEED=38`** reaches the moments in one skied run:
+   `--moves=straight,carve,turn,skid,check,stop,skate` rides each row in a
+   manoeuvre (the controls are `hold-input.ts`'s, the app's own held
+   ride) and `--where=piste` stands it on the groomer.
+2. **`make cloud-metrics`** is the NUMBERS behind those sheets: the same
+   rows ridden by the engine in pure Node, every frame read as
+   `snow-cloud.ts` reads it — puffs a second, the opacity-weighted AREA
+   alive behind him, that area against his silhouette (`× skier`), how
+   high, how long it hangs, how long a curtain. `--json=` the before,
+   `--compare=` the after; a picture says what it looks like, this says
+   whether it GROWS with speed.
+3. **The game's own frame at a speed:** `make build`, then `make
+   screenshots ARGS="--pose x,z,heading,v --hold 12,30,60 --move check"`
+   — the player stood there (a deep spot off the piste reads the cloud
+   best; the REPRO line gives one) and ridden for `--hold-for` seconds at
+   each speed down the fall line, drawn as he goes (`?hold=`), so the
+   cloud in the picture is the one that speed raises, through the chase
+   lens and its veil.
+4. **`make world SEED=38`** reaches the moments in one skied run:
    `powder` and `powder-high` for the powder turn's plume, `jump` and
    `landing` for the puff, `furrow` and `lookback` for the tracks, `track`
    for the thin dust on the groomer. It builds its own bundle; no
    `make build`.
-3. **Zoom** — crop the skier at full resolution (`make cloud
+5. **Zoom** — crop the skier at full resolution (`make cloud
    ARGS="--width=800 --height=450"`); at a quarter size you are judging a
    smudge.
-4. **Bench the numbers** when the question is WHEN rather than HOW:
+6. **Bench the numbers** when the question is WHEN rather than HOW:
    `make ride SCENARIO=kicker` says when the skier leaves and lands, so the
    puff's frame is known before it is looked for; `SCENARIO=hockey-stop`
    when the skid's sheet starts and stops.
-5. **Ski it** for anything that moves — a spray's timing and a pulse show in
+7. **Ski it** for anything that moves — a spray's timing and a pulse show in
    no still: `npm run dev`, or `make screenshots` at two offsets
    (`ARGS="--t 12"`, `--t 13`).
-6. Judge, refine the worst beat, re-shoot. `make profile` before and after.
+8. Judge, refine the worst beat, re-shoot. `make profile` before and after.
 
 ## What the cloud taught (the snow cloud's own rules)
 
@@ -142,6 +167,17 @@ in code. Snow in the air is:
 - **The chase lens rides in its own tail.** Without the veil the player's
   skier disappears into his own cloud at any speed in powder. A planted
   lens (a replay's broadcast, a lab view) sees the cloud whole.
+- **A crawl lofts almost nothing.** Below about 15 km/h a ski shoves the
+  powder aside and it falls straight back; the fine cloud is lofted by
+  speed. Scale the WHOLE recipe by it (`loftOf`: rate, size, swell, hang
+  and lift, each down to a floor) — a cloud whose size is set by the
+  plough's depth alone is bigger at a walk than at 60 km/h (it was: 55 %
+  of the 60 km/h cloud at 10 km/h) and sits on the slow skier like a ball.
+  A landing and a wipeout's burst are an impact, not a speed: they take
+  the full loft.
+- **The veil reaches past him.** The lens sees through the cloud BEHIND
+  the skier, but a carve throws puffs beside and a metre ahead of the
+  boots; a veil that stops at his feet leaves a white ball over him.
 - **A faint puff is still fill.** The biggest puffs on the screen are the
   near and veiled ones; cull them in the vertex shader, not by alpha.
 - **Fade into the snow on the ball's front surface**, not the card's
@@ -157,7 +193,8 @@ in code. Snow in the air is:
 - [ ] Pooled allocations; observed per step where the reading spikes.
 - [ ] You LOOKED at it zoomed, at two moments.
 - [ ] `make cloud` before and after for anything in the air, both sheets
-      in the PR.
+      in the PR; `make cloud-metrics` `--json` before and `--compare`
+      after when HOW MUCH moved.
 - [ ] `npx vitest run tests/world_render_test.ts tests/rumble_test.ts
       tests/snow_cloud_test.ts tests/snowpack_test.ts`;
       `make profile` both tables in the PR.

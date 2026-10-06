@@ -48,19 +48,24 @@ sibling's the day one lands, and add its registry row.
 | `game-feel` | How the game FEELS: a skier on two grounds (the groomer and the powder), the reference (the arcade winter racers), the camera ladder, the cross-system levers |
 | `ski-physics` | The skier's answer to the snow: the six stations and the legs, the sink and the float, the edge and the carve, the skid, the tuck, the poles, the hips, the body, the fall, flight; `make ride` |
 | `ski-tuning` | A pair's own numbers (`defs/skis.ts`), the expectations a test holds the physics to, the field's pace, the day a roster lands |
-| `ski-design` | How the skis LOOK: the builder in the body frame, the topsheets, the start line's four colours; `make skis`, `make world` |
+| `ski-design` | How the skis LOOK: the builder in the body frame, each pair's own topsheet; `make skis`, `make world` |
 | `blender-assets` | A game asset modelled in Blender off the game's own data: `make blender`, the budget and its LODs, the asset sheet beside the game's own, headless Blender; the models in the game |
 | `skier` | The figure on the skis: the stance from the engine's readings, the limbs solved to the bindings and the pole grips; judged from behind |
+| `skier-gear` | What the skier wears: the catalog (two bodies, jackets, pants, helmets, gloves, poles — each in its own colours), the loom that cuts a piece onto the rig, the DRESS card, and `make gear` (every piece, every outfit, the moves, the game's pixels, a Blender skier and local references beside them) |
+| `skier-improvement` | Making the skier more realistic: the loop and its harnesses — `make skier-metrics` (the pose against a skier's bands), the skier lab's closeup, detail, game-pixel and skin-stretch sheets, the model rebuilt and published — and what the first pass learned |
 | `collision` | The skier meeting what is not snow — trunks, rivals, the edge of the map — and the course counting: gates, misses, the finish, the reset |
 | `crash` | The skier past saving and off his skis: the wipeout (a trunk, over the tips, a fall, an edge caught) and his tumble, bogged in the powder and poling out, damage when it is on (the rally game's `crash`, by way of the snowmobile game's) |
 | `engine-system` | Adding or changing a gameplay system, engine-first |
 | `mapgen-improvement` | The world generator: the mountain, the piste's descent, the gates, the kickers, the start, the forest and the tree line, the day; the R-rules; piste-and-terrain craft; the analyze → fix → `make level` loop |
 | `add-region` | A new kind of snow country (R21) end to end: the row, the surface, the look and the grade, the word, the suite and the labs — the alpine kept all ones |
+| `lift-areas` | Where a lift ends: the pad, the unload ramp and the way off, every run off a top starting under it, the ramps down onto them, the signs at their heads and the piste map board — and no lead: a rider who follows the sign gets there downhill; `make lift-tops` |
+| `crowd` | The free ride's amateurs: who is out on the ski area and in what groups, the knobs that make each one himself, how they ski the runs and ride the lifts, the player meeting them, and the figures — eight bodies at three cuts posed by the player's own pose; `make crowd` — and a race's SPECTATORS: where the audience stands (the finish arena, the jumps, the turns), what each fan wears and carries, how he moves as a racer passes; `make audience` |
 | `nature` | The snow-loaded woods (where they stand, the tree line, how they are drawn), the mountain as a landscape, the ground's clipmap, the wildlife by region |
 | `atmosphere` | The clear winter sky: the sun by the run's own hour, the colour model, the blue in the shadows, the haze; the weather and the night |
 | `snow-look` | The snow as DRAWN: the shader, the glitter, the groomed piste, the trail map and the grooves it lowers |
 | `visual-effects` | What the skis throw and leave and what the skier feels: the spray, the tracks' stamping, the vibration table |
 | `platform-shells` | The desktop app (`tauri/`) and the store app (`native/`): the two-crate split, the WebView and its server, the `__SH_SHELL__` seam, the haptics bridge, the names stated twice |
+| `perf-optimization` | Making the game run faster and steadier, a round at a time: the cost map of a frame, priorities off the price list, `make cpu-cost`, which meter needs a GPU, the proofs a speed-up owes, the ledger of rounds and open leads |
 | `picture-pricing` | Every PICTURE stop's measured cost and argued benefit, the price list lab (`make bench --costs`), and what PRESET ▸ AUTO keeps because of them |
 | `lab-tooling` | How a lab or a script is built: the framework's `tooling/*` shelf and `scripts/lib/`, pure-Node versus browser-driven, the harness page, the URL contract, registering a tool |
 | `hud-and-menus` | The HUD's readouts, the three presses, the edge thumb and the tuck lever, the keys — what is drawn over a RUN |

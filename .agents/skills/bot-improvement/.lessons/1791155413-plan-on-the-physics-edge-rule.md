@@ -1,0 +1,8 @@
+---
+title: The turn model calls the physics' own edge rule — and its two fitted numbers are fitted open-loop on the bot's inputs
+date: 2026-10-04
+scope: engine/sim/turn-model.ts, engine/sim/slalom-plan.ts, engine/sim/bot.ts, engine/game/race-line.ts, engine/game/par.ts
+concepts: [bot, slalom, incline, slip, check, planner, speed, fit]
+---
+
+The skis point 5–30° inside the way through a slalom turn, so after an edge change the way goes on round the old turn until the skis have swung through it: the model turns the skis at the carve's rate less `slipHold/yawHold`·slip and the way by `GRIP_SHARE` × `cornerGrip` · tanh(v·sin(slip + pivot)/sideRef); the CHECK pivots the skis the way he steers and is weighed against none. Its edge goes through `incline.ts`'s `edgeReach` — the very function the physics calls — so a technique change (the cross-under) reaches the bot without a restatement. Fit `LEAN_LAG` and `GRIP_SHARE` by snapshotting the model every quarter second of several bot slaloms, skiing it 0.6 s on the bot's recorded inputs and comparing the lateral offset to the engine's (temporarily read both off `globalThis` in a `previews/` probe): under the cross-under the lean's lag fits anywhere in 0.05–0.4 s and the grip share at 0.6 (0.23 m rms). Speed is the lever that finishes courses: `lineSpeed` leaves `cross` s of crossing between two turns (0.3 crossing over, 0.15 crossing under), and the par reads the same line; keep bot/par within ~5 %. The planner is fragile to its horizon (`slalomReach` 7 m worked, 9 m failed all thirty), and a steer-change cost (`slalomChange` 6) steadies it. `slalom.bend` at 8 m costs nothing once the transition is quick — the bot rounds the line on steep pitches, so its tightest tenth of turns moved only ~8.1 → 7.9 m.

@@ -23,8 +23,8 @@
 // WHAT NAMES THE AFTERNOON is read off the run itself at its first step
 // (`recipeOf`) rather than off the settings that asked for it: the `Level`
 // (which already carries the day and the sky the run was stood up under),
-// the seed, the rules, the pair, the help, the damage switch and the snow
-// dial. Nothing is written to disk — a replay lives as long as the tab does.
+// the seed, the rules, the pair, the help, the damage and poles switches
+// and the snow dial. Nothing is written to disk — a replay lives as long as the tab does.
 // And the rebuild is CHECKED before it is watched (`startPrint`): a recipe
 // that stopped describing its run is a replay that quietly rides a different
 // race, and a press that does nothing is the better failure.
@@ -52,6 +52,8 @@ import {
 
 import { createControlRecorder, readControls, type ControlRecorder } from "./ghost.ts";
 import { keepsRecords } from "./records.ts";
+import { trainingOf } from "./downhill-run.ts";
+import { heatOf } from "./slalom-heat.ts";
 import {
   createShotCollector,
   directAt,
@@ -79,23 +81,40 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     spec: state.skier.spec,
     assist: { ...state.assist },
     damage: state.damage,
+    poles: state.skier.poles,
     snowDepth: state.snowDepth,
+    // A slalom's second run: the first run carried in again, so the course
+    // and the board are the second run's.
+    heat: heatOf(state),
+    // A downhill's training run or its race (`downhill-run.ts`).
+    training: trainingOf(state),
+    // A ski cross's heat and the bracket it was raced in (`ski-cross-run.ts`).
+    cross: state.cross,
+    bracket: state.bracket,
+    // A big air jump and the contest it was jumped in (`big-air-run.ts`).
+    bigAir: state.bigAir,
     quiet: true,
   };
 }
 
 /** Whether a run in `mode` is recorded to be watched back. */
 export function keepsReplay(mode: GameMode): boolean {
-  return isGameMode(mode) && (keepsRecords(mode) || mode === "tricks");
+  return (
+    isGameMode(mode) &&
+    (keepsRecords(mode) || mode === "tricks" || mode === "bigAir" || mode === "knuckleHuck")
+  );
 }
 
 /** A FINGERPRINT OF A RUN AT ITS FIRST STEP: where every skier stands, on
- * which pair, at what pace — what a rebuild has to agree on before it is
+ * which pair, at what pace and how late off the start — what a rebuild has to agree on before it is
  * worth watching. */
 export function startPrint(state: GameState): string {
   const r = (v: number): string => v.toFixed(4);
   const s = state.skier;
-  const field = state.rivals.map((v) => `${v.run.skier.spec.id}:${r(v.pace)}`).join(",");
+  const field =
+    state.rivals.map((v) => `${v.run.skier.spec.id}:${r(v.pace)}:${r(v.react)}`).join(",") +
+    (state.field?.runs.map((f) => `${f.id}:${f.time === null ? "out" : r(f.time)}`).join(",") ??
+      "");
   return [
     state.seed,
     state.skier.spec.id,

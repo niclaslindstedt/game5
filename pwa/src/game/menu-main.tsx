@@ -11,12 +11,16 @@
 // has got, and the rung it would pick next — which is what stops a front
 // door being furniture.
 //
-// THE RACE AND THE TIME TRIAL under it ride a PINNED map too, picked on the
-// level card (`menu-levels.tsx`) out of the shelves the campaign has opened,
-// so a time in the record book is a time down a piste somebody else can
-// ride. The map is ON the tile — the name the level card last picked. A link
-// that pinned a seed says so instead, because that visit rides the seed.
-// The race is one run top to bottom against three skiers; the trial is the
+// THE RACE under it is ONE tile for every discipline: it opens the race card
+// (`menu-races.tsx`) — the SLALOM, two runs against a field of thirty, one on
+// the course at a time; the SUPER-G, one run unseen; the DOWNHILL, a
+// training run and then the race; and the disciplines named and not built
+// yet, dimmed — and each race rides a PINNED map picked on its level card
+// (`menu-levels.tsx`), so a time in the record book is a time down a piste
+// somebody else can ride. Six disciplines do not fit a front door a phone
+// holds upright; one choice of race, then a map, does. A link that pinned a
+// seed says so on the tile instead, because that visit rides the seed. The
+// TIME TRIAL rides a pinned map too, named on its tile. The trial is the
 // same piste alone against the clock, the record book's row for that
 // mountain and pair, and the ghost of the run that set it (`ghost-run.ts`).
 // TRICKS beside them: two minutes on the map's trick field (R20), alone, the
@@ -34,6 +38,7 @@
 // of one.
 
 import { useEffect, useRef } from "preact/hooks";
+import { DISCIPLINES, SLALOM } from "@engine";
 
 import { APP_NAME, REPO_URL } from "../identity.ts";
 import { MarkTrails } from "./mark-trails.tsx";
@@ -67,11 +72,9 @@ function VersionStamp() {
 export function MainMenu({
   campaign,
   onCampaign,
-  raceMap,
   trialMap,
   seed,
   pinned,
-  skiers,
   trial,
   onRace,
   onFree,
@@ -87,17 +90,16 @@ export function MainMenu({
   /** THE CAMPAIGN tile's face: how far up the ladder, and the rung next. */
   campaign: { cleared: number; of: number; next: string | null };
   onCampaign: () => void;
-  /** The pinned map the RACE and the TIME TRIAL ride, by name — null where
-   * a link pinned a seed instead. */
-  raceMap: string | null;
+  /** The pinned map the TIME TRIAL rides, by name — null where a link
+   * pinned a seed instead. */
   trialMap: string | null;
-  /** The seed RACE will build. */
+  /** The seed a run off a seed of its own will build. */
   seed: number;
   /** Whether a link pinned it. */
   pinned: boolean;
-  skiers: number;
   /** The TIME TRIAL tile: its seed and the row standing. */
   trial: { seed: number; best: { time: number; skis: string } | null };
+  /** Onto the race card (`menu-races.tsx`). */
   onRace: () => void;
   onTrial: () => void;
   /** Onto the free ride's start card. */
@@ -149,16 +151,23 @@ export function MainMenu({
               </span>
             </span>
           </button>
+          {/* THE RACES, one tile: the disciplines built, named on it, and
+              the race card behind it (`menu-races.tsx`) — the seed a link
+              pinned said instead. */}
           <button type="button" class="menu-tile menu-tile-wide" data-menu="race" onClick={onRace}>
             <Glyph name="flag" />
             <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.menuRace}</span>
+              <span class="menu-tile-name">{STRINGS.menuRaces}</span>
               <span class="menu-tile-line">
-                {raceMap === null
-                  ? STRINGS.menuRaceLine(seed, skiers)
-                  : STRINGS.menuPinnedLine(raceMap)}
+                {pinned
+                  ? STRINGS.menuRaceSeed(seed)
+                  : STRINGS.menuRacesLine(
+                      DISCIPLINES.filter((d) => d.mode !== null).map(
+                        (d) => STRINGS.disciplines[d.id],
+                      ),
+                    )}
               </span>
-              {pinned && <span class="menu-tile-line">{STRINGS.menuRacePinned}</span>}
+              <span class="menu-tile-line">{STRINGS.menuRacesFormat(SLALOM.field + 1)}</span>
             </span>
           </button>
           <button

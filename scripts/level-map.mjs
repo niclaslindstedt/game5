@@ -31,7 +31,9 @@ import { renderLevelMap } from "./lib/level-draw.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 // The generator's own surface rather than `engine/index.ts`: this lab needs
 // the map and its scoreboard and nothing of the rest of the engine.
-const { generateLevel, trackPointAt } = await import(join(root, "engine/mapgen/index.ts"));
+const { PARK_VERSION, generateLevel, trackPointAt } = await import(
+  join(root, "engine/mapgen/index.ts")
+);
 const { analyzeLevel } = await import(join(root, "engine/analysis/index.ts"));
 
 const args = parseArgs(
@@ -47,13 +49,23 @@ const args = parseArgs(
       default: "alpine",
       help: "the kind of snow country (R21): alpine, fell, continental, maritime",
     },
+    grade: {
+      kind: "string",
+      help: "the piste grade to build to (R23): green, blue, red, black — the seed's own when left out",
+    },
   },
-  "usage: npm run level -- --seed n [--scale px/m] [--out name] [--json] [--tricks] [--region id]",
+  "usage: npm run level -- --seed n [--scale px/m] [--out name] [--json] [--tricks] [--region id] [--grade id]",
 );
 
 // ── Build it ────────────────────────────────────────────────────────────
 const t0 = performance.now();
-const level = generateLevel(args.seed, { tricks: args.tricks, region: args.region });
+const level = generateLevel(args.seed, {
+  tricks: args.tricks,
+  region: args.region,
+  grade: args.grade,
+  // The park is laid on a map of one piste (R20).
+  version: args.tricks ? PARK_VERSION : undefined,
+});
 const built = performance.now() - t0;
 const analysis = analyzeLevel(level);
 const st = analysis.stats;
@@ -73,14 +85,16 @@ out.push(
 out.push(
   `piste: ${f(st.length, 0)} m open descent, ${st.points} stations, width ${f(st.widthMin)}–${f(st.widthMax)} m, ` +
     `tightest bend ${f(st.minRadius, 0)} m, drop ${f(st.drop, 0)} m, steepest ${f(st.maxGrade * 100, 1)} % off the kickers, ` +
-    `a ${st.colour.toUpperCase()} (steepest hundred metres ${f(st.steepestSpan * 100, 0)} %), ${f(st.traverse * 100, 0)} % of it traversing`,
+    `a ${st.colour.toUpperCase()} (steepest hundred metres ${f(st.steepestSpan * 100, 0)} %, mean ${f(st.meanGrade * 100, 1)} %` +
+    `${st.grade ? `, built to a ${st.grade}` : ", measured"}), ${f(st.traverse * 100, 0)} % of it traversing`,
 );
 out.push(
   `start line: (${f(level.spawn.x, 0)}, ${f(level.spawn.z, 0)}) facing ${f(deg(level.spawn.heading), 0)}°, ` +
     `${level.grid.length} abreast, the start gate ${f(level.checkpoints[0].s, 0)} m down the piste`,
 );
 out.push(
-  `region: ${level.region}; forest: ${level.trees.length} trees; kickers: ${st.trackKickers} on the piste, ${st.offKickers} off it; cliffs: ${st.cliffs}`,
+  `region: ${level.region}; forest: ${level.trees.length} trees; kickers: ${st.trackKickers} on the piste, ${st.offKickers} off it; ` +
+    `cliffs: ${st.cliffs - st.drops} off the piste, ${st.drops} drops across it`,
 );
 out.push(
   `sun: ${f(level.sun.hour, 2)} h solar on day ${level.sun.dayOfYear} at ${f(level.sun.latitude)}°N — ${f(st.sunElevation)}° up`,
@@ -120,10 +134,10 @@ for (const k of level.kickers) {
 }
 if (level.cliffs.length > 0) {
   out.push("");
-  out.push("  cliff       x      z  top(m)  drop  face  shelf  width  heading");
+  out.push("  cliff   s(m)      x      z  top(m)  drop  face  shelf  width  heading");
   for (const c of level.cliffs) {
     out.push(
-      `  ${c.id.padEnd(6)} ${f(c.x, 0).padStart(6)} ${f(c.z, 0).padStart(6)} ${f(c.y).padStart(7)} ` +
+      `  ${c.id.padEnd(6)} ${(c.s === undefined ? "-" : f(c.s, 0)).padStart(4)} ${f(c.x, 0).padStart(6)} ${f(c.z, 0).padStart(6)} ${f(c.y).padStart(7)} ` +
         `${f(c.drop).padStart(5)} ${f(c.face).padStart(5)} ${f(c.shelf, 0).padStart(6)} ${f(c.width, 0).padStart(6)} ${f(deg(c.heading), 0).padStart(7)}°`,
     );
   }
@@ -156,11 +170,12 @@ if (args.json) {
 const canvas = renderLevelMap({
   level,
   scale: args.scale,
-  title: `LEVEL ${level.seed}${args.region !== "alpine" ? ` ${args.region.toUpperCase()}` : ""}  ${f(st.length / 1000, 2)} KM ${st.colour.toUpperCase()} PISTE  ${f(M.vertical, 0)} M VERTICAL  ${level.checkpoints.length} GATES  ${st.trackKickers}+${st.offKickers} KICKERS  ${st.cliffs} CLIFFS`,
+  title: `LEVEL ${level.seed}${args.region !== "alpine" ? ` ${args.region.toUpperCase()}` : ""}  ${f(st.length / 1000, 2)} KM ${st.colour.toUpperCase()} PISTE  ${f(M.vertical, 0)} M VERTICAL  ${level.checkpoints.length} GATES  ${st.trackKickers}+${st.offKickers} KICKERS  ${st.cliffs - st.drops} CLIFFS  ${st.drops} DROPS`,
   lines: [
     `WIDTH ${f(st.widthMin)}-${f(st.widthMax)} M`,
     `TIGHTEST BEND ${f(st.minRadius, 0)} M`,
     `MAX GRADE ${f(st.maxGrade * 100)} %`,
+    `STEEPEST 100 M ${f(st.steepestSpan * 100)} %`,
     `DROP ${f(st.drop, 0)} M`,
     `TREE LINE ${f(M.treeLine, 0)} M`,
     `TREES ${level.trees.length}`,
@@ -174,7 +189,7 @@ const dir = join(root, "previews");
 mkdirSync(dir, { recursive: true });
 const name =
   args.out ??
-  `level-${level.seed}${args.region !== "alpine" ? `-${args.region}` : ""}${args.tricks ? "-tricks" : ""}`;
+  `level-${level.seed}${args.region !== "alpine" ? `-${args.region}` : ""}${args.grade ? `-${args.grade}` : ""}${args.tricks ? "-tricks" : ""}`;
 writeFileSync(join(dir, `${name}.png`), canvas.toPng());
 writeFileSync(join(dir, `${name}.txt`), text + "\n");
 console.log(`\nwrote previews/${name}.png and previews/${name}.txt`);

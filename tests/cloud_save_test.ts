@@ -23,12 +23,17 @@ import {
   parseSave,
   type CloudSave,
 } from "../pwa/src/game/cloud-save.ts";
-import { EMPTY_PROGRESS, type CampaignProgress } from "../pwa/src/game/campaign.ts";
+import {
+  CAMPAIGN_LEVELS,
+  EMPTY_PROGRESS,
+  PROGRESS_KEY,
+  type CampaignProgress,
+} from "../pwa/src/game/campaign.ts";
 import { GHOST_FORMAT, GHOST_PREFIX, type GhostRun } from "../pwa/src/game/ghost.ts";
 import { RECORDS_KEY, recordId, type RecordBook } from "../pwa/src/game/records.ts";
 import { freshSettings } from "../pwa/src/game/settings.ts";
 
-const raceId = recordId({ seed: 5, skis: "hare", mode: "race", laps: 3 });
+const raceId = recordId({ seed: 5, skis: "hare", mode: "slalom", laps: 3 });
 const trialId = recordId({ seed: 5, skis: "hare", mode: "timeTrial", laps: 1 });
 
 const book = (rows: Record<string, number>): RecordBook =>
@@ -56,6 +61,7 @@ const tape = (id: string, value: number, steps = 100): GhostRun => ({
 
 const save = (over: Partial<CloudSave>): CloudSave => ({
   v: 1,
+  ladder: PROGRESS_KEY,
   records: {},
   ghosts: [],
   campaign: EMPTY_PROGRESS,
@@ -110,9 +116,21 @@ describe("the ghosts: the faster tape per row", () => {
 });
 
 describe("the campaign: furthest progress", () => {
+  /** The first rung of the ladder, whatever it is called today. */
+  const RUNG = CAMPAIGN_LEVELS[0].id;
   const board = (result: Partial<CampaignProgress["results"][string]>): CampaignProgress => ({
-    results: { "nursery-1": { best: 100, skis: "hare", place: 4, medal: null, ...result } },
+    results: { [RUNG]: { best: 100, skis: "hare", place: 4, medal: null, ...result } },
     points: {},
+  });
+
+  it("reads a board off the wire only when it was won on this ladder", () => {
+    const won = board({ best: 90, place: 1 });
+    const wire = (ladder?: string) => JSON.stringify({ ladder, campaign: won });
+    expect(parseSave(wire(PROGRESS_KEY))?.campaign.results[RUNG]).toMatchObject({ best: 90 });
+    // A re-cut ladder keeps the ids and moves the maps behind them: a board
+    // from before it, stamped or not, names maps nobody rode.
+    expect(parseSave(wire("fall-line.campaign.v3"))?.campaign).toEqual(EMPTY_PROGRESS);
+    expect(parseSave(wire())?.campaign).toEqual(EMPTY_PROGRESS);
   });
 
   it("keeps the better time, and the skis that set it, together", () => {
@@ -120,28 +138,24 @@ describe("the campaign: furthest progress", () => {
       board({ best: 95, skis: "hare", place: 3 }),
       board({ best: 90, skis: "swift", place: 2 }),
     );
-    expect(merged.results["nursery-1"]).toMatchObject({ best: 90, skis: "swift" });
+    expect(merged.results[RUNG]).toMatchObject({ best: 90, skis: "swift" });
   });
 
   it("keeps the HIGHER place even when the other device was slower", () => {
     const merged = mergeBoards(board({ best: 90, place: 4 }), board({ best: 95, place: 2 }));
-    expect(merged.results["nursery-1"]).toMatchObject({ best: 90, place: 2 });
+    expect(merged.results[RUNG]).toMatchObject({ best: 90, place: 2 });
   });
 
   it("lets any ridden time beat a row UNLOCKS set by hand", () => {
     const unlocked: CampaignProgress = {
-      results: { "nursery-1": { place: 4, medal: null } },
+      results: { [RUNG]: { place: 4, medal: null } },
       points: {},
     };
-    expect(
-      mergeBoards(unlocked, board({ best: 97, skis: "swift" })).results["nursery-1"],
-    ).toMatchObject({
+    expect(mergeBoards(unlocked, board({ best: 97, skis: "swift" })).results[RUNG]).toMatchObject({
       best: 97,
       skis: "swift",
     });
-    expect(
-      mergeBoards(board({ best: 97, skis: "swift" }), unlocked).results["nursery-1"],
-    ).toMatchObject({
+    expect(mergeBoards(board({ best: 97, skis: "swift" }), unlocked).results[RUNG]).toMatchObject({
       best: 97,
       skis: "swift",
     });
@@ -152,7 +166,7 @@ describe("the campaign: furthest progress", () => {
       board({ best: 95, medal: "bronze" }),
       board({ best: 99, medal: "gold" }),
     );
-    expect(merged.results["nursery-1"]?.medal).toBe("gold");
+    expect(merged.results[RUNG]?.medal).toBe("gold");
   });
 
   it("drops a map this ladder no longer has", () => {
@@ -166,10 +180,10 @@ describe("the campaign: furthest progress", () => {
   it("takes the field's points from whichever afternoon placed the player higher", () => {
     // Points are one afternoon's whole field, so they move together — a
     // blended table is a table no afternoon produced.
-    const mine: CampaignProgress = { results: {}, points: { "nursery-1": { you: 1, r1: 3 } } };
-    const theirs: CampaignProgress = { results: {}, points: { "nursery-1": { you: 3, r1: 2 } } };
-    expect(mergeBoards(mine, theirs).points["nursery-1"]).toEqual({ you: 3, r1: 2 });
-    expect(mergeBoards(theirs, mine).points["nursery-1"]).toEqual({ you: 3, r1: 2 });
+    const mine: CampaignProgress = { results: {}, points: { [RUNG]: { you: 1, r1: 3 } } };
+    const theirs: CampaignProgress = { results: {}, points: { [RUNG]: { you: 3, r1: 2 } } };
+    expect(mergeBoards(mine, theirs).points[RUNG]).toEqual({ you: 3, r1: 2 });
+    expect(mergeBoards(theirs, mine).points[RUNG]).toEqual({ you: 3, r1: 2 });
   });
 });
 

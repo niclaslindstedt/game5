@@ -8,10 +8,29 @@
 // and the campaign's block is one file to read. Templates, never
 // concatenations at the call site (§39.2).
 //
-// The shelves are graded like pistes: THE NURSERY is the blue runs, THE
-// RIDGE the reds, THE GLACIER the blacks (`campaign-levels.ts`).
+// The shelves are four SKI AREAS, each raced down six of its red and black
+// courses (`campaign-levels.ts`); their names and blurbs are the ladder's
+// own data there, and the kind of country a tab bills is `regionNames`.
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
+
+import type { CampaignMode } from "./campaign-levels.ts";
+
+/** A measured mode's word on a box. */
+const modeWord = (mode: CampaignMode): string =>
+  mode === "timeTrial"
+    ? "TIME TRIAL"
+    : mode === "downhill"
+      ? "DOWNHILL"
+      : mode === "superG"
+        ? "SUPER-G"
+        : mode === "giantSlalom"
+          ? "GIANT SLALOM"
+          : mode === "speedSki"
+            ? "SPEED SKIING"
+            : mode === "skiCross"
+              ? "SKI CROSS"
+              : "RACE";
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -59,7 +78,16 @@ export const CAMPAIGN_STRINGS = {
   campaignWins: (wins: number): string => plural(wins, "WIN", "WINS"),
   /** What a box is: the game, and the run it always is — the piste once,
    * top to bottom. */
-  campaignBilling: (trial: boolean): string => `${trial ? "TIME TRIAL" : "RACE"} · TOP TO BOTTOM`,
+  campaignBilling: (mode: CampaignMode): string =>
+    mode === "superG"
+      ? "SUPER-G · ONE RUN"
+      : mode === "giantSlalom"
+        ? "GIANT SLALOM · TWO RUNS"
+        : mode === "speedSki"
+          ? "SPEED SKIING · TWO RUNS"
+          : mode === "skiCross"
+            ? "SKI CROSS · FOUR ABREAST"
+            : `${modeWord(mode)} · TOP TO BOTTOM`,
   /** The day a run is skied in, under its name: the sky and the start hour. */
   campaignDay: (sky: string, hour: number): string => `${sky} · ${clockOf(hour)}`,
   campaignSky: {
@@ -79,9 +107,20 @@ export const CAMPAIGN_STRINGS = {
 
   /* ── THE LEVEL CARD (menu-levels.tsx) ──────────────────────────────── */
   levelsRace: "RACE ON",
+  levelsDownhill: "DOWNHILL ON",
   levelsTrial: "TIME TRIAL ON",
   levelsShelfLocked: "OPENED BY THE CAMPAIGN",
+  /** Over a discipline's nine: what they are. */
+  levelsRaceMaps: "NINE MOUNTAINS PICKED FOR THIS RACE · THE GENTLEST FIRST",
+  /** A race map's course on its box: the drop and the length — a slalom's in
+   * metres, a speed course's in kilometres. */
+  levelsFigures: (vertical: number, length: number): string =>
+    `${Math.round(vertical)} M DROP · ${
+      length < 1000 ? `${Math.round(length)} M` : `${(length / 1000).toFixed(1)} KM`
+    }`,
   levelsNoBest: "NO TIME SET YET",
+  /** An open shelf with no map the mode can ride (no black for a downhill). */
+  levelsNoneHere: (mode: CampaignMode): string => `NO ${modeWord(mode)} ON THIS SHELF`,
   levelsBest: (seconds: number, skis: string): string =>
     `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
 

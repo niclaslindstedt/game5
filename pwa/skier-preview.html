@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Skier preview harness</title>
+    <!-- Tooling page for scripts/skier-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It poses
+         the game's own skier through states the real engine skied and
+         draws chosen frames of each move, from several sides, on one
+         labelled sheet. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b1116;
+        overflow: auto;
+      }
+      canvas {
+        display: block;
+      }
+      #sheet {
+        position: relative;
+        display: inline-block;
+      }
+      .label {
+        position: absolute;
+        color: #fff;
+        font: 12px/1.3 monospace;
+        letter-spacing: 0.06em;
+        text-shadow: 0 1px 3px rgb(0 0 0 / 85%);
+        pointer-events: none;
+      }
+      .title {
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sheet"><canvas id="stage"></canvas></div>
+    <script type="module" src="/src/tools/skier-harness.ts"></script>
+  </body>
+</html>

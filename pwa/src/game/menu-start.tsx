@@ -28,6 +28,22 @@
 //   COUNTRY the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
+//   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
+//           green, a blue, a red or a black built to its band — and the RUN
+//           row brought to the first run of that colour.
+//
+//   RUN     which run of the ski area the ride starts down, by the number
+//           the piste map signs it with: the GRADE row's colour's runs
+//           stepped through (`markedRun`, the engine's `pickFreeRun`). The
+//           lift up to its top carries the skier the last few seconds, and
+//           the chart marks its head with a pulse; the line under the chart
+//           bills it. Its LAST two stops are no run but a machine at the
+//           bottom: the SNOWMOBILE — the ride begun stood on its boards, the
+//           skis racked, ridden up the mountain and hopped off (`sled.ts`) —
+//           and the HELICOPTER: the ride begun sat on the skid of the
+//           helicopter on its pad on the valley floor, flown up the mountain
+//           and pushed off (`heli.ts`).
+//
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
@@ -39,11 +55,28 @@
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
 // one a `?start=free` link boots into are the same ride read the same way.
 
-import { REGION_IDS, TIMES_OF_DAY, WEATHER_KINDS, type WeatherKind } from "@engine";
+import {
+  PISTE_GRADES,
+  REGION_IDS,
+  TIMES_OF_DAY,
+  WEATHER_KINDS,
+  type PisteGrade,
+  type WeatherKind,
+} from "@engine";
 import { useState } from "preact/hooks";
 
-import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
-import { Caption, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
+import {
+  HELI_RUN,
+  SLED_RUN,
+  SEASONS,
+  SNOW_STOPS,
+  heliOn,
+  sledOn,
+  markedRun,
+  spotOn,
+  type FreeRide,
+} from "./free-ride.ts";
+import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -60,6 +93,12 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 
 /** The COUNTRY row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
+
+/** The GRADE row's stops: the seed's own colour, then R23's four. */
+const GRADE_STOPS: { id: "dealt" | PisteGrade; label: string }[] = [
+  { id: "dealt", label: STRINGS.weatherDealt },
+  ...PISTE_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
+];
 
 /** The SEASON row's stops: the map's own date, then the four. */
 const SEASON_STOPS = [
@@ -99,7 +138,34 @@ export function StartPage({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
-  const chart = useSeedPreview(seed, ride.region);
+  const chart = useSeedPreview(seed, ride.region, ride.grade);
+  // THE RUNS ON THIS MAP: a ski area's runs are the seed's and the
+  // country's, whatever colour is asked of it, so the answer for another
+  // grade still names them while the fresh one is drawn.
+  const shown = chart.shown;
+  const list =
+    shown !== null && shown.ok && shown.seed === seed && shown.region === ride.region
+      ? shown
+      : null;
+  const heli = heliOn(ride, seed);
+  const sled = sledOn(ride, seed);
+  const vehicle = heli || sled;
+  const marked = list && !vehicle ? markedRun(ride, seed, list) : null;
+  // The RUN row walks the runs of the GRADE row's colour — every run where
+  // it stands on AS DEALT, or where the map has none of the colour.
+  const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
+  const walked = graded.length > 0 ? graded : (list?.runs ?? []);
+  // ...and, LAST, the two machines at the bottom: the snowmobile parked
+  // beside the village and the helicopter on its pad.
+  const runStops = [
+    ...walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) })),
+    ...(list
+      ? [
+          { id: SLED_RUN, label: STRINGS.startRunSled },
+          { id: HELI_RUN, label: STRINGS.startRunHeli },
+        ]
+      : []),
+  ];
 
   return (
     <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
@@ -123,84 +189,107 @@ export function StartPage({
           </button>
         }
       />
-      <div class="start-cols">
-        <div class="start-col">
-          <div class="knob-rows">
-            <NumberRow
-              label={STRINGS.startMap}
-              hint={STRINGS.startMapHint}
-              value={seed}
-              min={SEED_RANGE.min}
-              max={SEED_RANGE.max}
-              onValue={(next) => setRide({ seed: next })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startRegion}
-              hint={STRINGS.startRegionHint}
-              stops={REGION_STOPS}
-              value={ride.region}
-              onPick={(region) => setRide({ region })}
-              onHint={setHint}
+      <MenuBody>
+        <div class="start-cols">
+          <div class="start-col">
+            <div class="knob-rows">
+              <NumberRow
+                label={STRINGS.startMap}
+                hint={STRINGS.startMapHint}
+                value={seed}
+                min={SEED_RANGE.min}
+                max={SEED_RANGE.max}
+                onValue={(next) => setRide({ seed: next })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startRegion}
+                hint={STRINGS.startRegionHint}
+                stops={REGION_STOPS}
+                value={ride.region}
+                onPick={(region) => setRide({ region, spot: null })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startGrade}
+                hint={STRINGS.startGradeHint}
+                stops={GRADE_STOPS}
+                value={ride.grade ?? "dealt"}
+                onPick={(id) =>
+                  setRide({ grade: id === "dealt" ? null : id, spot: null, run: null })
+                }
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startRun}
+                hint={STRINGS.startRunHint}
+                stops={runStops}
+                value={heli ? HELI_RUN : sled ? SLED_RUN : (marked?.id ?? "")}
+                extra={STRINGS.startRunWaiting}
+                onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
+                onHint={setHint}
+              />
+            </div>
+            <SeedPreview
+              chart={chart}
+              entry={marked}
+              machine={heli ? "heli" : sled ? "sled" : null}
+              spot={vehicle ? null : spotOn(ride, seed)}
+              onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />
           </div>
-          <SeedPreview
-            chart={chart}
-            spot={spotOn(ride, seed)}
-            onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
-          />
+          <div class="start-col">
+            <div class="knob-rows">
+              <StepRow
+                label={STRINGS.startSeason}
+                hint={STRINGS.startSeasonHint}
+                stops={SEASON_STOPS}
+                value={ride.season ?? "dealt"}
+                onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startTime}
+                hint={STRINGS.startTimeHint}
+                stops={TIME_STOPS}
+                value={ride.time ?? "dealt"}
+                onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startWeather}
+                hint={STRINGS.startWeatherHint}
+                stops={WEATHER_STOPS}
+                value={ride.weather ?? "dealt"}
+                onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startSnow}
+                hint={STRINGS.startSnowHint}
+                stops={SNOW_ROW}
+                value={ride.snow}
+                onPick={(snow) => setRide({ snow })}
+                onHint={setHint}
+              />
+            </div>
+            <div class="start-actions">
+              <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
+                <span class="menu-tile-name">{STRINGS.startReroll}</span>
+              </button>
+              <button
+                type="button"
+                class="menu-chip"
+                data-menu="grid"
+                disabled={spotOn(ride, seed) === null}
+                onClick={() => setRide({ spot: null })}
+              >
+                <span class="menu-tile-name">{STRINGS.startGrid}</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="start-col">
-          <div class="knob-rows">
-            <StepRow
-              label={STRINGS.startSeason}
-              hint={STRINGS.startSeasonHint}
-              stops={SEASON_STOPS}
-              value={ride.season ?? "dealt"}
-              onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startTime}
-              hint={STRINGS.startTimeHint}
-              stops={TIME_STOPS}
-              value={ride.time ?? "dealt"}
-              onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startWeather}
-              hint={STRINGS.startWeatherHint}
-              stops={WEATHER_STOPS}
-              value={ride.weather ?? "dealt"}
-              onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
-              onHint={setHint}
-            />
-            <StepRow
-              label={STRINGS.startSnow}
-              hint={STRINGS.startSnowHint}
-              stops={SNOW_ROW}
-              value={ride.snow}
-              onPick={(snow) => setRide({ snow })}
-              onHint={setHint}
-            />
-          </div>
-          <div class="start-actions">
-            <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
-              <span class="menu-tile-name">{STRINGS.startReroll}</span>
-            </button>
-            <button
-              type="button"
-              class="menu-chip"
-              data-menu="grid"
-              disabled={spotOn(ride, seed) === null}
-              onClick={() => setRide({ spot: null })}
-            >
-              <span class="menu-tile-name">{STRINGS.startGrid}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      </MenuBody>
       <Caption hint={hint} fallback={STRINGS.startCaption} />
     </div>
   );

@@ -32,7 +32,7 @@ import {
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 import { onKicker } from "./kickers.ts";
-import { nearestTrackPoint, type HasTrack } from "./query.ts";
+import { nearestTrackPoint, trackPointAt, type HasTrack } from "./query.ts";
 import { scaleCount } from "./regions.ts";
 import { descentAt, flankAt, type TerrainPlan } from "./terrain.ts";
 import type { Cliff, Kicker } from "./types.ts";
@@ -104,40 +104,76 @@ export function onCliff(cliffs: readonly Cliff[], x: number, z: number, margin: 
   return false;
 }
 
-/** R22 — stand the cliffs on the face clear of the piste and the kickers,
- * facing down the fall line, and cut them into the ground. */
+/** How far past the least clearance a cliff stood BESIDE the piste (R22,
+ * R23) may stand, m: near enough that its edge is seen from the line. */
+const BESIDE_REACH = 24;
+
+/** R22 — stand the cliffs on the face clear of the piste, the kickers and
+ * the drops across it (R24), facing down the fall line, and cut them into
+ * the ground: first the ones the grade stands BESIDE the piste (R23), off a
+ * station of the line, then the rest anywhere on the face. */
 export function layCliffs(
   sub: number,
   plan: TerrainPlan,
   ground: Heightfield,
   piste: HasTrack,
   kickers: readonly Kicker[],
+  drops: readonly Cliff[] = [],
+  distanceTo?: (x: number, z: number) => number,
 ): Cliff[] {
   const C = R.cliff;
+  const G = plan.grade.cliffs;
   const rng = createRng((sub ^ CLIFF_SALT) >>> 0);
-  const count = scaleCount(C.count, plan.region.kickers);
-  const want = rng.int(count.min, count.max);
+  const count = scaleCount(C.count, plan.region.kickers * G.count);
   const size = R.world.size;
-  const face = R.mountain.flank.inner - 40;
-  const clear = R.track.width.max / 2 + C.clearance;
+  const face = (plan.flankBand ?? R.mountain.flank).inner - 40;
+  const clear = R.track.width.max / 2 + G.clearance;
   const out: Cliff[] = [];
+  const length = piste.track.length;
+  // BESIDE THE PISTE: a station down the line, a side, and the cliff stood
+  // just past the clearance off it — drawn only on a grade that asks for
+  // any, so the ungraded row draws what it always drew.
+  if (G.beside.max > 0) {
+    const beside = rng.int(G.beside.min, G.beside.max);
+    for (let tries = 0, laid = 0; tries < beside * 60 && laid < beside; tries++) {
+      const p = trackPointAt(piste, rng.range(0.08, 0.9) * length);
+      const side = rng.chance(0.5) ? 1 : -1;
+      const width = inBand(rng, C.width);
+      const off = clear + width / 2 + C.edge + rng.range(0, BESIDE_REACH);
+      const x = p.x + Math.cos(p.heading) * side * off;
+      const z = p.z - Math.sin(p.heading) * side * off;
+      const drop = inBand(rng, C.drop);
+      const shelf = inBand(rng, C.shelf);
+      if (tryCliff(x, z, drop, shelf, width)) laid++;
+    }
+  }
+  const want = out.length + rng.int(count.min, count.max);
   for (let tries = 0; tries < want * 40 && out.length < want; tries++) {
     const x = size / 2 + rng.range(-face, face);
     const z = plan.summitZ + (plan.baseZ - plan.summitZ) * rng.range(0.06, 0.96);
     const drop = inBand(rng, C.drop);
     const shelf = inBand(rng, C.shelf);
     const width = inBand(rng, C.width);
+    tryCliff(x, z, drop, shelf, width);
+  }
+  // Publish the ground the stamp left at the top of each edge.
+  for (const c of out) c.y = sampleField(ground, c.x, c.z);
+  return out;
+
+  /** One cliff stood at a plan point if the face there takes it: cut into
+   * the ground and kept. */
+  function tryCliff(x: number, z: number, drop: number, shelf: number, width: number): boolean {
     const run = drop * C.face;
     const apron = drop * C.apron;
     const landing = apron * C.landing;
-    if (descentAt(plan, z) > 1) continue;
+    if (descentAt(plan, z) > 1) return false;
     // Faces down the mountain's own fall, read over a wide stencil so a
     // roller's face does not pass for a slope.
     const g = fieldGradient(ground, x, z);
     const gx = (sampleField(ground, x + 20, z) - sampleField(ground, x - 20, z)) / 40;
     const gz = (sampleField(ground, x, z + 20) - sampleField(ground, x, z - 20)) / 40;
     const fall = hypot(gx, gz);
-    if (fall < C.fall || hypot(g.gx, g.gz) > 0.6) continue;
+    if (fall < C.fall || hypot(g.gx, g.gz) > 0.6) return false;
     const heading = Math.atan2(-gx, -gz);
     const cliff: Cliff = {
       id: `C${out.length + 1}`,
@@ -153,15 +189,24 @@ export function layCliffs(
       width,
     };
     const foot = cliffFootprint(cliff);
-    if (foot.some((p) => flankAt(plan, p.x, p.z) > 0.02)) continue;
-    if (foot.some((p) => nearestTrackPoint(piste, p.x, p.z).distance < clear)) continue;
-    if (foot.some((p) => onKicker(kickers, p.x, p.z, 6) || onCliff(out, p.x, p.z, 10))) continue;
+    if (foot.some((p) => flankAt(plan, p.x, p.z) > 0.02)) return false;
+    const far =
+      distanceTo ?? ((px: number, pz: number) => nearestTrackPoint(piste, px, pz).distance);
+    if (foot.some((p) => far(p.x, p.z) < clear)) return false;
+    if (
+      foot.some(
+        (p) =>
+          onKicker(kickers, p.x, p.z, 6) ||
+          onCliff(out, p.x, p.z, 10) ||
+          (drops.length > 0 && onCliff(drops, p.x, p.z, 10)),
+      )
+    ) {
+      return false;
+    }
     stampCliff(ground, cliff);
     out.push(cliff);
+    return true;
   }
-  // Publish the ground the stamp left at the top of each edge.
-  for (const c of out) c.y = sampleField(ground, c.x, c.z);
-  return out;
 }
 
 /** Add one cliff's profile to the ground in plan. */

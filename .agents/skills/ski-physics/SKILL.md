@@ -1,6 +1,6 @@
 ---
 name: ski-physics
-description: "Use when working on HOW THE SKIER ANSWERS THE SNOW — the six stations (tip, mid and tail of each ski) and THE LEGS they hang on, the sink into powder and how the skis float up onto the top of it with speed, the base's friction, the plough and the powder drag, THE EDGE (the sidecut bent into the snow, the carve's curvature, the grip an edge holds and a flat ski does not), THE SKID (the brake: the skis pivoted across the way, the scrub), the drive that is gravity and the POLES at a crawl, the TUCK and the drag it takes off, the skier's hips and the inclination into a turn, the carve on the base in powder, the body meeting the snow when the legs run out, the fall, flight and landings. Owns `engine/game/skier.ts`, `suspension.ts`, `snow.ts`, `poles.ts`, `flight.ts`, `chassis.ts`, `limits.ts`, the `TUNING.snow` / `.grip` / `.steer` / `.skier` / `.poles` / `.air` / `.hull` / `.reset` blocks, and `make ride` — the lab that must run before and after any change here. Not the pair's own numbers (`ski-tuning`) and not trees, gates or the edge of the map (`collision`)."
+description: "Use when working on HOW THE SKIER ANSWERS THE SNOW — the six stations (tip, mid and tail of each ski) and THE LEGS they hang on, the sink into powder and how the skis float up onto the top of it with speed, the base's friction, the plough and the powder drag, THE EDGE (the sidecut bent into the snow, the carve's curvature, the grip an edge holds and a flat ski does not), THE SKID (the brake: the skis pivoted across the way, the scrub), the drive that is gravity and the POLES at a crawl, the TUCK and the drag it takes off, THE WIND on him (his drag against the air where he is, the lean into a crosswind, a turn widened or tightened by it), the skier's hips and the inclination into a turn, the carve on the base in powder, the body meeting the snow when the legs run out, the fall, flight and landings. Owns `engine/game/skier.ts`, `suspension.ts`, `snow.ts`, `poles.ts`, `flight.ts`, `chassis.ts`, `limits.ts`, `air.ts`, the `TUNING.snow` / `.grip` / `.steer` / `.skier` / `.poles` / `.air` / `.wind` / `.hull` / `.reset` blocks, and `make ride` — the lab that must run before and after any change here. Not the pair's own numbers (`ski-tuning`) and not trees, gates or the edge of the map (`collision`)."
 ---
 
 # The skier's physics
@@ -25,9 +25,19 @@ Seven modules answer it, and the split matters:
   (`snowDrag`: the base's friction, the plough, powder drag) and how hard it
   can be gripped (`gripAt`: the edge's hold on packed snow, the base's hold in
   powder). Knobs in `TUNING.snow` and `TUNING.grip`.
-- **`engine/game/poles.ts`** — THE ONE PUSH THAT IS NOT GRAVITY: a plant a
-  second under `poles.speed` with the tuck held, fading to nothing by
-  `poles.fade`, half in powder. Knobs in `TUNING.poles`.
+- **`engine/game/poles.ts`** — THE ONE PUSH THAT IS NOT GRAVITY: the skate
+  at a crawl and the double pole once rolling, AUTOMATIC below `poles.fade`
+  and POWER-LIMITED (`min(polePush, power / v)`), in strides the pose reads
+  (`SkierState.drive`, `stride`). Knobs in `TUNING.poles`. And THE TURN
+  AT A CRAWL is STEPPED, not carved (`stepWork`, `stepYaw`,
+  `SkierState.step`, `TUNING.poles.turn`): the skate turned to one side —
+  a step of heading a stride, the V led into the turn, the edge eased off,
+  the double pole given up for the skate — pushed all the way round, so he
+  comes out faster than he went in. `make skate-turns` is its lab: the
+  heading turned at 1, 2 and 3 s from each crawl speed, the time and
+  radius to 90°, the speed against the same run straight, before
+  (`--json`) and after (`--compare`), and the turning moves drawn from
+  above over the line he takes.
 - **`engine/game/skier.ts`** — THE BODY: every force summed in the world
   frame, torques about the CoG turned into the body frame, one semi-implicit
   step at 120 Hz (velocity then position, body rates then the quaternion).
@@ -77,15 +87,18 @@ term and the comment's claim has to stay true.
 | The scrub | An edge holding a carve is cutting a groove: a drag of `steer.scrub` of the bend's own acceleration (the rate ASKED × the way), on the packed share only | `skier.ts`, `TUNING.steer.scrub` |
 | The yaw hand | ARCADE: the yaw rate held toward the one the edge's geometry asks for, the nose held to the way — models nothing, stated as such; stated on the reference pair, scaled by each pair's yaw inertia | `skier.ts`, `TUNING.steer.yawHold` |
 | The arcade's hands | ARCADE multipliers on measured quantities, 1 the bare physics: `sideGrip` on every sideways grip, `hangOff` on the tipping point and the roll held; in the air the pitch eased toward the flight path | `TUNING.arcade`, `TUNING.air.pitch*`, `skier.ts`, `flight.ts` |
-| The drive | GRAVITY, and at a crawl THE POLES: `polePush` of the spec in a pulse at `poles.cadence`, under `poles.speed` of way, fading by `poles.fade`, half in powder, gone with the tuck let go | `poles.ts` — `poleForce`, `plantPulse` |
+| The drive | GRAVITY, and at a crawl THE SKATE AND THE DOUBLE POLE: the lesser of `polePush` and `poles.power` over the SPEED (never the way — a sideways slide pushes nothing), whole under `poles.speed`, gone by `poles.fade`, in half-sine strides of `duty` on a `floor`; automatic once rolling past 0.4 m/s or asked with the tuck, stopped by the skid, a jump loading, the air and a throw; the crouch is the tuck less the drive | `poles.ts` — `poleForce`, `driveForce`, `strideShape` |
+| The jump | Loaded while held on the snow to `jump.full` s (the crouch deepening), sprung on the release at `popMin`…`popMax` m/s off the snow's own normal | `skier.ts`, `TUNING.jump` |
+| The hard cut | The back key after the edge: the edge's lock raised by `carve.edge` (never past `edgeMax`), the curvature by `carve.tighten`, the grip (and the yaw hand's and the incline's reach) by `carve.grip`, the scrub spared `carve.scrubSpared` | `skier.ts`, `TUNING.carve` |
+| The landing's load | EFH = v⊥²/2g over the legs' `landing.stroke` (less a tuck's share) plus `give` of the loose snow: 1 + EFH/stroke g; what it forgives (`landingTolerance`) against how far off true the skis came down (`landingOff`) — read by `crash.ts` | `flight.ts`, `TUNING.landing` |
 | The tuck | The body folds toward the crouch the tuck asks for at `skier.crouchRate`; the drag area eases from `cdAUpright` to `cdATuck` (`dragAreaOf`) and the CoG drops by `crouchDrop` | `skier.ts`, `defs/skis.ts` |
 | The skier | His hips moved inside the turn (`hipRight`, the angulation, once the bend pulls `hangG`) and fore and aft (`hipAft`), lagging; the INCLINATION the whole settles at into a carve (`rollPacked`, `rollPowder`, held by `rollStiff` up to `rollMax`); in powder THE CARVE ON THE BASE — a ski rolled over in powder turns toward the low side, `carve` per radian of roll, with way on | `skier.ts`, `TUNING.skier` |
 | Air control | Lean → pitch (tips up is back), the edge → a little yaw, the body levelling the roll up to `rollGiveUp`; no lever rolls a skier in the air and the tuck does nothing there | `flight.ts` |
 | Landing cost | Past the pair's `harshSpeedOf` INTO the slope, a share of the way per m/s over, capped | `flight.ts` — `landingLoss` |
 | Body contacts | Velocity-level impulse through the effective mass (angular term in), a little restitution, a capped push-out, Coulomb friction; against the powder's FLOOR; the tuck lowers every body point | `chassis.ts` |
-| Gravity, air drag | g on the CoG, and in genuine flight the run's heavier ARCADE pull (`RunRules.airGravity`: `air.gravity` on a race, 1 on a tricks run; `limits.ts`'s `flightGravity`, which the bot reads too); ½ ρ C_dA v² with ρ at −8 °C two thousand metres up | `skier.ts`, `TUNING.airDensity`, `TUNING.air.gravity` |
+| Gravity, air drag | g on the CoG, and in genuine flight the run's heavier ARCADE pull (`RunRules.airGravity`: `air.gravity` on a race, 1 on a tricks run; `limits.ts`'s `flightGravity`, which the bot reads too); ½ ρ |a| C_dA a against the AIR WHERE HE IS (`a` his velocity less the wind's — `wind.ts`'s `airAt`: the log law to his body, the mountain's exposure, the woods' shelter), split along his heading (the frontal area) and across it (the side-on, `sideAreaOf`); ρ at −8 °C two thousand metres up. A crosswind is held by the edges, so he LEANS into it (the incline stood on the bend's pull less `AirForce.side`), and it widens or tightens a grip-limited turn (`reach`); its push is weighed by the standstill's hold over `wind.still` times the sliding grip. The bench (`tests/support/synthetic.ts`) is STILL AIR; `make ride`'s `wind-*` scenarios deal a wind | `air.ts`, `skier.ts`, `TUNING.airDensity`, `TUNING.wind`, `TUNING.air.gravity` |
 | The landing looked for | ARCADE: the pitch hand eases the skis onto the slope the ballistic arc will land on over the last `landLook` s (`landingAhead`) | `flight.ts` |
-| The high-side | A CAUGHT EDGE: the sideways slip at a station (`SkierState.sideSlip`) past `skier.slipSpeed` while the edge stands over `skier.slipEdge` throws him — read by `crash.ts`, measured here | `skier.ts`, `TUNING.skier` |
+| The high-side | A CAUGHT EDGE: the sideways slip at a station (`SkierState.sideSlip`) past `crash.catchSlip` while the edge stands over `crash.catchEdge` throws him (`skier.slipSpeed` / `.slipEdge` are where the bot stands its edge down) — read by `crash.ts`, measured here | `skier.ts`, `TUNING.skier` |
 
 ## The instrument: `make ride`
 
@@ -127,10 +140,15 @@ look at.** The scenarios are `scripts/lib/ride-scenarios.mjs`:
 | `sidehill` | Across a 40° groomed slope at 40 km/h: the worst roll, whether he went over, the slide down it |
 | `tree` / `tree-glance` | A trunk met at 50 km/h, and one clipped at a crawl in a snowplough: the speed in and out, the yaw, the wipeout |
 | `nose-in` / `rollover` | A landing 40° over the tips at 60 km/h, and thrown onto his side at 70: the impact, the wipeout, how far the body slid, the reset |
+| `skate` | Hands off from a shuffle across the flat: the drive's speed at 1, 3, 6 and 12 s |
+| `jump-tap` / `jump-full` | The jump tapped and loaded 2 s at 50 km/h on the flat: the pop, the air, the peak, the impact |
+| `carve-hard` / `carve-full` | A full edge at 80 km/h down the pitch, cut hard and not: radius, g, the edge |
+| `drop-true` / `drop-rolled` / `drop-big` / `drop-big-powder` / `drop-big-tilted` | Drops of 1.5 m and 8 m at 70 km/h, true, rolled or tips-down, onto the groomer or into a metre of powder: the impact, the EFH, the load in g, how far off true, whether he was thrown |
 | `stuck` / `stuck-held` | Poling from rest in a metre of fresh snow: bogged, then rocked out and skied off — or the push held until the engine resets him |
 | `rest-deep` / `schuss-deep` / `schuss-deep-back` | A metre of fresh snow (the dial's deepest): how far down he sits at rest, whether he planes tucked, and leaning back to lift the tips |
 | `bog-deep` | Planing through a metre at 70 km/h, stood up out of the tuck for four seconds, then tucked again: the slowest he got, the deepest sink, when he was back on top |
 | `sidehill-deep` / `sidehill-deep-held` | A 10° traverse in a metre at 20 km/h, hands off and with the weight hung on the uphill ski: the worst roll, whether he went over, how far he skied |
+| `wind-up` / `wind-tail` / `wind-cross` / `wind-turn-into` / `wind-turn-out` / `wind-stood` | THE WIND (the rest of the bench is still air): a tuck down the pitch with 12 m/s dealt up it (folded down it — the wind never blows up the mountain, `downhillFrom`) and behind him, hands off at 70 km/h with 15 m/s across (blown aside, the lean into it), full edge from 95 km/h with 18 m/s into and out of the turn (degrees round), stood still with a storm at his back |
 | `backflip` / `frontflip` / `spin` / `pose` | A staged launch over flat snow in a tricks run — the lean back, the lean forward, the edge thrown over, a grab let go before the landing: what was won, the landing, the combo |
 | `kicker-flip` | The slope's kicker at 75 km/h with a backflip off it: the same numbers off a real lip |
 
@@ -201,11 +219,13 @@ rewrites that row. No build, no browser, seconds.
   stores the impact and hands it back — the skier who hit the foot of a face
   was fired forty metres up it. The two FUSES (`MAX_LOAD`, `MAX_SPIN`) are
   guards, not models; a change that leans on one is a force that is wrong.
-- **THE DRIVE IS GRAVITY, AND ONLY EVER GENTLE OTHERWISE.** Nothing but the
-  slope can push a skier past a jog: the poles are a pulse at a crawl that
-  fades out by `poles.fade`, one-way, and never a brake. A term that
-  accelerates a skier on the flat at speed is a motor, and this game has
-  none.
+- **THE DRIVE IS GRAVITY, AND A MAN'S PUSH OTHERWISE.** Nothing but the
+  slope can push a skier past a skater's pace: the skate and the double
+  pole are power-limited and gone by `poles.fade`, one-way, never a brake,
+  and read off the SPEED — a push read off the way was a motor for a skier
+  sliding sideways (the bot on seed 4 hit 150 km/h in a spin before it was
+  fixed). A term that accelerates a skier on the flat at speed is a motor,
+  and this game has none.
 - **THE TOP SPEED IS WHERE THE DRAG MEETS THE SLOPE, NOT A CEILING.** The
   terminal speed on a pitch is the air's drag on `cdATuck` balancing the
   slope's pull less the base's friction (`terminalSpeed`); `SKIS.topSpeed` is
@@ -312,6 +332,16 @@ rewrites that row. No build, no browser, seconds.
 - `docs/riding.md` for any force, model or constant, and its measured table.
 - `make ride` before/after on the reached scenarios, and `make sim`
   before/after, in the PR.
+- A change to the drive or the turn at a crawl: `make skate-turns`
+  before/after too — a skier who barely comes round at 10 km/h is the
+  first thing a player feels.
+- A change to a TECHNIQUE row (`defs/technique.ts`) or to anything a
+  discipline's turn reads (the edge, the carve, the platform, the
+  inclination): `make technique` before (`ARGS=--json=…`) and after
+  (`ARGS=--compare=…`) — every row skied down a real course by the bot,
+  its numbers against the research of `docs/disciplines.md`, and its
+  sheets (the line from above, a TV lens through a turn, the apex from the
+  side) looked at.
 - `SKIS.topSpeed` re-derived if the physics legitimately moved it
   (`ski-tuning`).
 - A `.changes/unreleased/` fragment — the skier is what the player is.

@@ -11,12 +11,51 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { TUNING, botInput, createGame, step, type GameEvent, type GameState } from "@engine";
+import {
+  BODY_PARTS,
+  BONES,
+  INJURIES,
+  mayGetUp,
+  NEUTRAL_INPUT,
+  TUNING,
+  botInput,
+  createGame,
+  freshBody,
+  placeRun,
+  step,
+  withSky,
+  type GameEvent,
+  type GameState,
+} from "@engine";
 
+import {
+  FIGURE,
+  figureView,
+  fractureOf,
+  moveCss,
+  moveSvg,
+  type Move,
+} from "../pwa/src/game/body-figure.ts";
+import {
+  FORCE_MOST,
+  SCALE_SOUND,
+  bodyTile,
+  conditionOf,
+  forceOf,
+  LINES,
+  scaleOf,
+  toneOf,
+} from "../pwa/src/game/body-tile.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
-import { gatesTaken, standingsOf, takeSnapshot } from "../pwa/src/game/snapshot.ts";
+import {
+  AIR_SHOWN,
+  gatesTaken,
+  standingsOf,
+  takeSnapshot,
+  windOf,
+} from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
-import { syntheticLevel } from "./support/synthetic.ts";
+import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 /** A race on the slope, three rivals on the start line and the lights on. */
 function race(): GameState {
@@ -88,11 +127,27 @@ describe("the snapshot (snapshot.ts)", () => {
     expect(Math.abs(snap.missed!.angle)).toBeLessThanOrEqual(Math.PI + 1e-9);
   });
 
+  it("times a flight only once it has lasted past AIR_SHOWN — a hop is not a jump", () => {
+    const state = race();
+    state.skier.airborne = true;
+    state.skier.airTime = AIR_SHOWN - 0.05;
+    expect(takeSnapshot(state).airTime).toBe(0);
+    expect(takeSnapshot(state).airBest).toBe(false);
+    state.skier.airTime = AIR_SHOWN + 0.05;
+    expect(takeSnapshot(state).airTime).toBeCloseTo(AIR_SHOWN + 0.05, 9);
+    // The best air reads nothing until a flight past the floor has landed.
+    state.progress.bestAir = 0.3;
+    expect(takeSnapshot(state).bestAir).toBe(0);
+    state.progress.bestAir = 0.8;
+    expect(takeSnapshot(state).bestAir).toBe(0.8);
+  });
+
   it("bills the finish, and the whole field's table under it, live", () => {
     const state = race();
     ride(state, 6);
     state.progress.finished = true;
     state.progress.time = 181.5;
+    state.progress.penalty = 6;
     state.rivals[1].run.progress.finished = true;
     state.rivals[1].run.progress.time = 170.25;
     const snap = takeSnapshot(state);
@@ -107,7 +162,49 @@ describe("the snapshot (snapshot.ts)", () => {
     expect(table[2].taken).toBeGreaterThanOrEqual(0);
     expect(table[2].taken).toBeLessThan(state.level.checkpoints.length);
     expect(snap.result!.place).toBe(2);
+    // The time is the clock, the slalom gates' charge already in it.
+    expect(snap.result!.time).toBe(181.5);
+    expect(snap.result!.penalty).toBe(6);
     expect(new Set(table.map((s) => s.slot)).size).toBe(4);
+  });
+});
+
+describe("the wind meter (snapshot.ts)", () => {
+  /** A skier facing +z, at `speed` m/s along it, under a wind from `from`. */
+  function under(wind: number, from: number, speed: number): GameState {
+    const state = race();
+    state.level = withSky(state.level, { weather: { kind: "storm", wind, windFrom: from } });
+    const c = state.skier;
+    c.heading = 0;
+    c.vx = 0;
+    c.vy = 0;
+    c.vz = speed;
+    return state;
+  }
+
+  it("reads the weather's wind at rest, and the felt wind is the same", () => {
+    const at = windOf(under(20, 0, 0));
+    expect(at.feltKmh).toBeCloseTo(at.airKmh, 9);
+    expect(at.feltAngle).toBeCloseTo(at.airAngle, 9);
+    expect(at.airKmh).toBeGreaterThan(20 * 3.6 * 0.4);
+  });
+
+  it("points a wind in his face down, at the player, and adds it to his speed", () => {
+    // From −z (down the mountain), dead ahead of a skier turned to face −z:
+    // a wind is never dealt up the mountain into a skier facing down it.
+    const state = under(20, Math.PI, 0);
+    state.skier.heading = Math.PI;
+    state.skier.vz = -28;
+    const snap = takeSnapshot(state);
+    expect(snap.wind.feltKmh).toBeCloseTo(snap.wind.airKmh + 28 * 3.6, -1);
+    expect(Math.abs(snap.wind.feltAngle)).toBeGreaterThan(Math.PI - 0.3);
+  });
+
+  it("turns a wind toward the engine's +x to the screen's LEFT, as the chase camera sees it", () => {
+    // Air moving toward +x (from -x), the skier at rest facing +z.
+    const at = windOf(under(20, -Math.PI / 2, 0));
+    expect(at.airAngle).toBeLessThan(-Math.PI / 2 + 0.3);
+    expect(at.airAngle).toBeGreaterThan(-Math.PI / 2 - 0.3);
   });
 });
 
@@ -120,11 +217,197 @@ describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
     expect(takeSnapshot(state).damage).toEqual({ skiLeft: 0, skiRight: 0.4, legs: 0.25 });
   });
 
+  it("lights the reset once the thrown skier may get up, and puts it out when he is stood up", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 30, heading: 0, speed: 50 / 3.6 });
+    expect(takeSnapshot(state).down).toBe(false);
+    const tuck = { ...NEUTRAL_INPUT, tuck: 1 };
+    for (let i = 0; i < 6 * TUNING.physicsHz && !state.skier.thrown; i++) step(state, tuck);
+    expect(state.skier.thrown).not.toBeNull();
+    expect(takeSnapshot(state).down).toBe(true);
+    // The first seconds are the fall's: the reset unlit, a press let go.
+    expect(takeSnapshot(state).getUp).toBe(false);
+    step(state, { ...NEUTRAL_INPUT, reset: true });
+    expect(state.skier.thrown).not.toBeNull();
+    while (!mayGetUp(state.skier.thrown)) step(state, NEUTRAL_INPUT);
+    expect(takeSnapshot(state).getUp).toBe(true);
+    // The press it lights then answers at once.
+    step(state, { ...NEUTRAL_INPUT, reset: true });
+    expect(state.skier.thrown).toBeNull();
+    expect(takeSnapshot(state).down).toBe(false);
+  });
+
   it("says BOGGED while the skier is sunk in, and not while he is thrown off", () => {
     const state = race();
     expect(takeSnapshot(state).stuck).toBe(false);
     state.skier.trench = TUNING.trench.max;
     expect(takeSnapshot(state).stuck).toBe(true);
+  });
+});
+
+describe("the body and the g meter (body-tile.ts)", () => {
+  it("paints a part by its worst AIS rank and the body by its severity score's band", () => {
+    expect([0, 1, 2, 3, 5].map(toneOf)).toEqual(["ok", "hurt", "spent", "dead", "dead"]);
+    expect([0, 2, 6, 12, 20, 34].map(conditionOf)).toEqual([
+      "sound",
+      "bruised",
+      "hurt",
+      "injured",
+      "serious",
+      "critical",
+    ]);
+    const tile = takeSnapshot(race()).body;
+    expect(tile.parts).toHaveLength(BODY_PARTS.length);
+    expect(tile.parts.every((t) => t === "ok")).toBe(true);
+    expect(tile.bones).toHaveLength(BONES.length);
+    expect(tile.bones.every((t) => t === "sound")).toBe(true);
+    expect(tile.condition).toBe("sound");
+    expect(tile.blow).toBe(null);
+  });
+
+  it("lists the worst injuries first, the newest first within a rank, and counts the rest", () => {
+    const body = freshBody();
+    const take = (part: (typeof BODY_PARTS)[number], kind: keyof typeof INJURIES, t: number) => {
+      const ais = INJURIES[kind].ais;
+      body.injuries.push({ part, kind, ais, t });
+      const i = BODY_PARTS.indexOf(part);
+      body.worst[i] = Math.max(body.worst[i], ais);
+    };
+    take("handL", "sprainedThumb", 1);
+    take("kneeR", "tornAcl", 2);
+    take("head", "concussion", 3);
+    take("pelvis", "brokenPelvis", 4);
+    take("shinL", "bruisedShin", 5);
+    const tile = bodyTile(body, 5.5);
+    // The broken pelvis is the bone's to show, never a line or a paint.
+    expect(tile.lines.map((l) => l.kind)).toEqual(["concussion", "tornAcl", "bruisedShin"]);
+    expect(tile.lines).toHaveLength(LINES);
+    expect(tile.more).toBe(1);
+    expect(tile.lines[0].fresh).toBe(true);
+    expect(tile.lines[1].fresh).toBe(false);
+    expect(tile.parts[BODY_PARTS.indexOf("pelvis")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("kneeR")]).toBe("spent");
+    expect(tile.bones[BONES.indexOf("pelvis")]).toBe("break");
+    expect(tile.bones.filter((b) => b !== "sound")).toHaveLength(1);
+    // Pelvis 3 (limbs), head 2, nothing else: 9 + 4.
+    expect(tile.severity).toBe(13);
+    expect(tile.condition).toBe("injured");
+  });
+
+  it("is half its size sound and grows with the hurt to its full size", () => {
+    expect(scaleOf(0)).toBe(SCALE_SOUND);
+    expect(SCALE_SOUND).toBe(0.5);
+    const scores = [0, 1, 4, 9, 16, 25, 50, 75];
+    const sizes = scores.map(scaleOf);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    expect(scaleOf(1)).toBeGreaterThan(SCALE_SOUND);
+    expect(scaleOf(25)).toBe(1);
+    expect(scaleOf(75)).toBe(1);
+    const body = freshBody();
+    expect(bodyTile(body, 0).scale).toBe(SCALE_SOUND);
+    body.injuries.push({ part: "head", kind: "concussion", ais: 2, t: 0 });
+    body.worst[BODY_PARTS.indexOf("head")] = 2;
+    expect(bodyTile(body, 0).scale).toBe(scaleOf(4));
+  });
+
+  it("paints a break by the energy that did it, and throws its pieces by it", () => {
+    const C = TUNING.injury.comminute;
+    expect(forceOf(0)).toBe(0);
+    expect(forceOf(0.5)).toBe(0);
+    expect(forceOf(C.shatter)).toBeCloseTo(1);
+    expect(forceOf(50)).toBe(FORCE_MOST);
+    const body = freshBody();
+    const take = (part: (typeof BODY_PARTS)[number], kind: keyof typeof INJURIES, e: number) =>
+      body.injuries.push({ part, kind, ais: INJURIES[kind].ais, t: 0, energy: e });
+    take("thighL", "brokenFemur", 1);
+    take("armR", "brokenArm", C.wedge);
+    take("pelvis", "brokenPelvis", C.shatter + 1);
+    take("shinR", "crackedShin", 1);
+    const tile = bodyTile(body, 10);
+    const at = (b: (typeof BONES)[number]) => BONES.indexOf(b);
+    expect(tile.bones[at("femurL")]).toBe("break");
+    expect(tile.bones[at("humerusR")]).toBe("wedge");
+    expect(tile.bones[at("pelvis")]).toBe("shatter");
+    expect(tile.bones[at("tibiaR")]).toBe("hairline");
+    expect(tile.force[at("femurR")]).toBe(0);
+    expect(tile.force[at("pelvis")]).toBeGreaterThan(tile.force[at("humerusR")]);
+    expect(tile.force[at("humerusR")]).toBeGreaterThan(tile.force[at("femurL")]);
+  });
+
+  it("holds the blow on the meter for the engine's hold, and lights the part it struck", () => {
+    const body = freshBody();
+    body.impact = {
+      g: 42,
+      part: "head",
+      source: "tree",
+      t: 0.4,
+      id: 3,
+      fall: true,
+      rival: -1,
+      amateur: -1,
+    };
+    body.peak = 42;
+    body.fallPeak = 42;
+    const tile = bodyTile(body, 1);
+    expect(tile.blow).toEqual({
+      g: 42,
+      part: "head",
+      source: "tree",
+      id: 3,
+      age: 0.4 / TUNING.injury.hold,
+    });
+    expect(tile.struck).toBe("head");
+    expect(tile.peak).toBe(42);
+    body.impact.t = TUNING.injury.hold;
+    expect(bodyTile(body, 3).blow).toBe(null);
+  });
+
+  it("shows no g for a blow nobody fell on", () => {
+    const body = freshBody();
+    body.impact = {
+      g: 9,
+      part: "back",
+      source: "landing",
+      t: 0.1,
+      id: 1,
+      fall: false,
+      rival: -1,
+      amateur: -1,
+    };
+    body.peak = 9;
+    const tile = bodyTile(body, 1);
+    expect(tile.blow).toBe(null);
+    expect(tile.struck).toBe(null);
+    expect(tile.peak).toBe(0);
+  });
+
+  it("bills a trunk met at speed on the meter, with an injury in plain words", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: LONE_TREE.x, z: LONE_TREE.z - 20, heading: 0, speed: 60 / 3.6 });
+    let seen = 0;
+    for (let i = 0; i < 3 * TUNING.physicsHz; i++) {
+      step(state, NEUTRAL_INPUT);
+      const blow = takeSnapshot(state).body.blow;
+      if (blow) seen = Math.max(seen, blow.g);
+    }
+    expect(seen).toBeGreaterThan(TUNING.injury.shown);
+    const first = state.skier.body.injuries[0];
+    expect(STRINGS.injury(first.kind, first.part).length).toBeGreaterThan(0);
+  });
+
+  it("names every injury, and the side of a paired part", () => {
+    for (const kind of Object.keys(INJURIES) as (keyof typeof INJURIES)[]) {
+      const part = INJURIES[kind].part;
+      const paired = !BODY_PARTS.includes(part as (typeof BODY_PARTS)[number]);
+      const line = STRINGS.injury(
+        kind,
+        paired
+          ? (`${part}L` as (typeof BODY_PARTS)[number])
+          : (part as (typeof BODY_PARTS)[number]),
+      );
+      expect(line.trim().length, kind).toBeGreaterThan(0);
+      if (paired) expect(line, kind).toContain("LEFT");
+    }
   });
 });
 
@@ -170,11 +453,199 @@ describe("the news column (run-news.ts)", () => {
 
   it("says the bad news in the bad tone, and a clean landing not at all", () => {
     expect(line({ kind: "missed", t: 1, index: 4 })?.tone).toBe("bad");
+    // A slalom gate skied past says what it put on the clock; a gate only
+    // gone past (the arrow's) does not.
+    expect(line({ kind: "missed", t: 1, index: 4, penalty: 3 })?.text).toBe(
+      STRINGS.newsMissed(4, 3),
+    );
+    expect(STRINGS.newsMissed(4, 3)).toContain("+3 s");
+    expect(line({ kind: "missed", t: 1, index: 4 })?.text).not.toContain("+");
     expect(line({ kind: "hit", t: 1, speed: 10, x: 0, z: 0 })?.tone).toBe("bad");
-    const land = { kind: "land", t: 1, airTime: 1, impact: 9, speed: 20, lost: 0.1 } as const;
+    const land = {
+      kind: "land",
+      t: 1,
+      airTime: 1,
+      impact: 9,
+      speed: 20,
+      lost: 0.1,
+      g: 4,
+      off: 0.2,
+    } as const;
     expect(line({ ...land, harsh: true })?.tone).toBe("bad");
     expect(line({ ...land, harsh: false, lost: 0 })).toBe(null);
     expect(line({ kind: "count", t: 1, left: 3 })).toBe(null);
+  });
+
+  it("leaves every injury to the body panel — no news line, however bad", () => {
+    const hurt = createGame({ level: syntheticLevel(), rivals: 0, quiet: true });
+    const pelvis: GameEvent = {
+      kind: "injury",
+      t: 1,
+      part: "pelvis",
+      injury: "brokenPelvis",
+      ais: 3,
+    };
+    hurt.events.push(pelvis);
+    expect(newsFor(pelvis, hurt)).toBe(null);
+  });
+});
+
+describe("the body as drawn (body-figure.ts)", () => {
+  /** Even-odd over every ring of a path's fill. */
+  const rings = (d: string): number[][][] =>
+    d
+      .split("Z")
+      .filter(Boolean)
+      .map((r) =>
+        r
+          .replace(/^M/, "")
+          .split("L")
+          .map((p) => p.split(",").map(Number)),
+      );
+  const inRings = (
+    rs: readonly (readonly (readonly number[])[])[],
+    x: number,
+    y: number,
+  ): boolean => {
+    let hit = false;
+    for (const r of rs)
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i];
+        const [xj, yj] = r[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+      }
+    return hit;
+  };
+  const SIDES = ["front", "back"] as const;
+
+  it("cuts every part out of the one outline, the back a strip from the front and the trunk from behind", () => {
+    const front = figureView("front");
+    const back = figureView("back");
+    expect(Object.keys(front.regions).sort()).toEqual(
+      BODY_PARTS.filter((p) => p !== "back").sort(),
+    );
+    expect(front.strip).toMatch(/^(M[\d.,L-]+Z)+$/);
+    expect(Object.keys(back.regions).sort()).toEqual(
+      BODY_PARTS.filter((p) => p !== "chest" && p !== "abdomen").sort(),
+    );
+    expect(back.strip).toBeUndefined();
+  });
+
+  it("draws every bone once in each view, shaded, and fractures each", () => {
+    for (const side of SIDES) {
+      const view = figureView(side);
+      expect([...view.order].sort(), side).toEqual([...BONES].sort());
+      expect(Object.keys(view.bones).sort(), side).toEqual([...BONES].sort());
+      for (const bone of BONES) {
+        const b = view.bones[bone];
+        for (const d of [b.fill, b.light, b.shadow, b.deep].filter(Boolean))
+          expect(d, `${side} ${bone}`).toMatch(/^(M[\d.,L-]+Z)+$/);
+        const fr = fractureOf(bone, side);
+        for (const d of [fr.fissure, fr.piece, fr.chip, fr.shatter.piece])
+          expect(d, bone).toMatch(/^(M[\d.,L-]+Z)+$/);
+        for (const m of [fr.move, fr.chipMove, fr.shatter.move]) {
+          expect(moveSvg(m), bone).toMatch(
+            /^translate\([-\d. ]+\) rotate\([-\d.]+\) translate\([-\d. ]+\)$/,
+          );
+          expect(moveCss(m).transform, bone).toMatch(
+            /^translate\([-\d.]+px, [-\d.]+px\) rotate\([-\d.]+deg\)$/,
+          );
+        }
+        // Shattered: in pieces, and more of them struck harder.
+        expect(fr.shatter.shards.length, bone).toBeGreaterThanOrEqual(6);
+        expect(fractureOf(bone, side, FORCE_MOST).shatter.shards.length).toBeGreaterThan(
+          fr.shatter.shards.length,
+        );
+        for (const s of fr.shatter.shards) expect(s.clip, bone).toMatch(/^M[\d.,L-]+Z$/);
+      }
+    }
+  });
+
+  it("breaks a long bone between its joints: both ends stay where the joints hold them", () => {
+    // Where a move puts a point.
+    const moved = (m: Move, x: number, y: number): [number, number] => {
+      const r = (m.deg * Math.PI) / 180;
+      const dx = (x - m.ox) * m.s;
+      const dy = (y - m.oy) * m.s;
+      return [
+        m.ox + m.x + dx * Math.cos(r) - dy * Math.sin(r),
+        m.oy + m.y + dx * Math.sin(r) + dy * Math.cos(r),
+      ];
+    };
+    const LONG = /^(humerus|radius|ulna|femur|tibia|fibula|clavicle)/;
+    for (const side of SIDES) {
+      for (const bone of BONES.filter((b) => LONG.test(b))) {
+        const b = figureView(side).bones[bone];
+        if (!b.fill) continue;
+        const pts = (b.fill.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+        const v = [Math.cos(b.mark.a), Math.sin(b.mark.a)];
+        const along = (i: number) => (pts[i] - b.mark.x) * v[0] + (pts[i + 1] - b.mark.y) * v[1];
+        let lo = 0;
+        let hi = 0;
+        for (let i = 0; i + 1 < pts.length; i += 2) {
+          lo = Math.min(lo, along(i));
+          hi = Math.max(hi, along(i));
+        }
+        const A: [number, number] = [b.mark.x + v[0] * lo, b.mark.y + v[1] * lo];
+        const B: [number, number] = [b.mark.x + v[0] * hi, b.mark.y + v[1] * hi];
+        for (const force of [0, 1, FORCE_MOST]) {
+          const fr = fractureOf(bone, side, force);
+          for (const [near, far] of [
+            [fr.restMove, fr.move],
+            [fr.shatter.restMove, fr.shatter.move],
+          ] as const) {
+            expect(near, bone).not.toBe(null);
+            const a = moved(near!, ...A);
+            const z = moved(far, ...B);
+            expect(Math.hypot(a[0] - A[0], a[1] - A[1]), `${side} ${bone} near`).toBeLessThan(1e-6);
+            expect(Math.hypot(z[0] - B[0], z[1] - B[1]), `${side} ${bone} far`).toBeLessThan(1e-6);
+            // ... and the ends at the break are shoved apart.
+            const n = moved(near!, b.mark.x, b.mark.y);
+            const f = moved(far, b.mark.x, b.mark.y);
+            expect(Math.hypot(n[0] - f[0], n[1] - f[1]), bone).toBeGreaterThan(0.1);
+          }
+        }
+        // Harder struck, shoved further.
+        const gap = (force: number) => {
+          const fr = fractureOf(bone, side, force);
+          const n = moved(fr.restMove!, b.mark.x, b.mark.y);
+          const f = moved(fr.move, b.mark.x, b.mark.y);
+          return Math.hypot(n[0] - f[0], n[1] - f[1]);
+        };
+        expect(gap(1), bone).toBeGreaterThan(gap(0));
+      }
+    }
+  });
+
+  it("shows from the front the bones a man shows from the front, and the rest from behind", () => {
+    // Every bone the front draws has something to draw; the shoulder
+    // blades are the back's.
+    const area = (side: "front" | "back", bone: (typeof BONES)[number]): number =>
+      figureView(side).bones[bone].fill.length;
+    for (const bone of BONES)
+      if (!bone.startsWith("scapula")) expect(area("front", bone), bone).toBeGreaterThan(0);
+    for (const bone of BONES)
+      if (bone !== "sternum") expect(area("back", bone), bone).toBeGreaterThan(0);
+  });
+
+  it("puts every bone's crack ON the bone, inside the outline, on its own side", () => {
+    for (const side of SIDES) {
+      const view = figureView(side);
+      const skin = rings(view.outline);
+      for (const bone of BONES) {
+        const b = view.bones[bone];
+        if (!b.fill) continue;
+        expect(inRings(rings(b.fill), b.mark.x, b.mark.y), `${side} ${bone}`).toBe(true);
+        expect(inRings(skin, b.mark.x, b.mark.y), `${side} ${bone}`).toBe(true);
+        // His right is on the viewer's left from the front, and on the
+        // viewer's right from behind.
+        const right = (side === "front") === bone.endsWith("R");
+        if (/[RL]$/.test(bone)) {
+          if (right) expect(b.mark.x, `${side} ${bone}`).toBeLessThan(FIGURE.w / 2);
+          else expect(b.mark.x, `${side} ${bone}`).toBeGreaterThan(FIGURE.w / 2);
+        }
+      }
+    }
   });
 });
 

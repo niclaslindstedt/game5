@@ -1,0 +1,227 @@
+/* THE HELICOPTER'S READOUT (`hud-heli.tsx`): top centre, in the air clock's
+   place — the drop under the skids big, the climb and the way to jump under
+   it; and, while it waits on its pad, the call to ride to it. */
+.hud-heli {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-heli-num {
+  font-size: clamp(1.6rem, 6vmin, 3rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-heli-sub {
+  margin-top: 0.2rem;
+  font-size: clamp(0.72rem, 2.3vmin, 1rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+
+.hud-heli-hint {
+  margin-top: 0.45rem;
+  font-size: clamp(0.66rem, 2vmin, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0.85;
+}
+
+.hud-heli-call {
+  top: 22%;
+  animation: hud-heli-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.hud-heli-word {
+  font-size: clamp(0.9rem, 3vmin, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+@keyframes hud-heli-pulse {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* A PHONE HELD UPRIGHT: the top is the clock's and the map's, so the
+   readout stands under the map, clear of both. */
+@media (orientation: portrait) and (max-width: 700px) {
+  .hud-heli {
+    top: 31vh;
+  }
+
+  .hud-heli-call {
+    top: 36vh;
+  }
+
+  .hud-heli-word {
+    white-space: normal;
+    max-width: 80vw;
+  }
+}
+
+/* THE INSTRUMENTS: the horizon, the drop, the collective's gauge. */
+.hud-heli-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.hud-heli-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-heli-horizon {
+  width: clamp(3rem, 9vmin, 4.6rem);
+  height: clamp(3rem, 9vmin, 4.6rem);
+}
+
+.hud-heli-sky {
+  fill: rgb(70 130 200 / 70%);
+}
+
+.hud-heli-ground {
+  fill: rgb(140 95 55 / 75%);
+}
+
+.hud-heli-line,
+.hud-heli-wings {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.hud-heli-wings {
+  stroke: #ffd23f;
+  stroke-width: 3;
+}
+
+.hud-heli-ring {
+  fill: none;
+  stroke: rgb(255 255 255 / 70%);
+  stroke-width: 2;
+}
+
+.hud-heli-coll {
+  position: relative;
+  width: 0.7rem;
+  height: clamp(3rem, 9vmin, 4.6rem);
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 70%);
+  border-radius: 0.35rem;
+  background: rgb(0 0 0 / 25%);
+}
+
+.hud-heli-coll-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #ffd23f;
+}
+
+.hud-heli-coll-word {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 0.15rem;
+  font-size: 0.55rem;
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+
+/* OPTIONS ▸ KEYS: the helicopter's table under a heading of its own. */
+.knob-section {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+}
+
+/* THE HELICOPTER'S TWO PADS under the thumbs (`hud-heli-pad.tsx`), laid
+   out like the edge thumb (`.hud-bar`, `.hud-bar-svg`): a d-pad's cross on
+   a dark disc, each arm's arrow lit by how hard the thumb leans that way
+   (its opacity written at pointer rate), and the knob carrying what the pad
+   works — the machine from behind on the cyclic, its rotor from above on
+   the power pad, the collective's gauge down the power pad's upright in the
+   readout's own yellow. Two thirds the edge thumb's size: at its full 200 px
+   a pair of them read too big over the picture. */
+.hud-pad .hud-bar-svg {
+  left: -67px;
+  top: -67px;
+  width: 134px;
+  height: 134px;
+}
+
+.hud-pad-disc {
+  fill: rgb(var(--hud-plate) / 15%);
+  stroke: rgb(255 255 255 / 30%);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.hud-pad-cross {
+  fill: rgb(var(--hud-plate) / 35%);
+  stroke: var(--hud-track);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.hud-pad-arrow {
+  fill: var(--hud-ink);
+  opacity: 0.35;
+}
+
+.hud-pad-turn {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.hud-pad-turn-head {
+  fill: var(--hud-ink);
+  stroke: none;
+}
+
+.hud-pad-gauge {
+  fill: rgb(var(--hud-plate) / 70%);
+  stroke: var(--hud-track);
+  stroke-width: 1;
+}
+
+.hud-pad-gauge-fill {
+  fill: #ffd23f;
+}
+
+.hud-pad-icon {
+  fill: none;
+  stroke: rgb(var(--hud-plate));
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.hud-pad-icon-fill {
+  fill: rgb(var(--hud-plate));
+  stroke: none;
+}

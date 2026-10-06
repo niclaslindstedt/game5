@@ -184,6 +184,14 @@ describe("the URL (url-params.ts, splash.ts)", () => {
     expect(readParams("?t=-4").t).toBe(0);
     expect(readParams("?start=race&bot=1").bot).toBe(true);
     expect(readParams("?start=race").bot).toBe(false);
+    // A SUPER-G (R33): booted into, or the mode the next press rides, and
+    // the race card the front door's RACE tile opens.
+    expect(readParams("?start=superg")).toMatchObject({ rides: true, mode: "superG" });
+    expect(readParams("?menu=levels&mode=superg")).toMatchObject({ rides: false, mode: "superG" });
+    // A GIANT SLALOM (R36) the same way.
+    expect(readParams("?start=gs")).toMatchObject({ rides: true, mode: "giantSlalom" });
+    expect(readParams("?menu=levels&mode=gs")).toMatchObject({ rides: false, mode: "giantSlalom" });
+    expect(readParams("?menu=races").page).toBe("races");
     expect(readParams("?menu=root")).toMatchObject({ menu: true, page: "root" });
     expect(readParams("?menu=options").page).toBe("options");
     expect(readParams("?menu=keys").page).toBe("keys");
@@ -193,6 +201,20 @@ describe("the URL (url-params.ts, splash.ts)", () => {
     expect(readParams("?video=ultra").video).toBe(null);
     expect(readParams("").probe).toBe(true);
     expect(readParams("?probe=0").probe).toBe(false);
+  });
+
+  it("reads a held ride: a speed, a move and its seconds, or nothing", () => {
+    expect(readParams("?start=race&hold=40").hold).toEqual({
+      kmh: 40,
+      move: "straight",
+      seconds: 3,
+    });
+    expect(readParams("?hold=15,check,5").hold).toEqual({ kmh: 15, move: "check", seconds: 5 });
+    expect(readParams("?hold=15,flail").hold?.move).toBe("straight");
+    expect(readParams("?hold=15,carve,99").hold?.seconds).toBe(20);
+    expect(readParams("?hold=fast").hold).toBe(null);
+    expect(readParams("?hold=400").hold).toBe(null);
+    expect(readParams("").hold).toBe(null);
   });
 
   it("deals a seed in the generator's range", () => {
@@ -325,17 +347,32 @@ describe("the keys page (settings-input.ts)", () => {
   });
 
   it("merges stored keys against the actions this build has", () => {
-    // A stored row is the skier's, whatever it holds; a row the blob does
-    // not carry is the shipped one.
+    // A stored row is the skier's; a row the blob does not carry is the
+    // shipped one, and takes its keys back off any stored row — the first
+    // layout's SPACE on the brake is the jump's, not a skid with it.
     const old = mergeKeys({
       tuck: ["KeyW", "ArrowUp"],
       brake: ["KeyS", "ArrowDown", "Space"],
-      leanBack: ["KeyP"],
+      leanBack: ["KeyO"],
     });
-    expect(old.tuck).toEqual(["KeyW", "ArrowUp"]);
-    expect(old.brake).toEqual(["KeyS", "ArrowDown", "Space"]);
+    // ArrowUp is the lean forward's own, and the blob does not carry it.
+    expect(old.tuck).toEqual(["KeyW"]);
+    expect(old.brake).toEqual(["KeyS", "ArrowDown"]);
+    expect(old.jump).toEqual(["Space"]);
+    // ...and a stored row left with nothing is its shipped one.
+    expect(mergeKeys({ brake: ["Space"] }).brake).toEqual(DEFAULT_KEYS.brake);
+    // A layout that carries the row keeps whatever the skier put there.
+    expect(mergeKeys({ jump: ["KeyJ"], brake: ["KeyS", "Space"] }).brake).toEqual([
+      "KeyS",
+      "Space",
+    ]);
     expect(old.leanForward).toEqual(freshKeys().leanForward);
-    expect(old.leanBack).toEqual(["KeyP"]);
+    expect(old.leanBack).toEqual(["KeyO"]);
+    // A layout saved when ENTER was the shutter: the machine key, newer than
+    // the blob, takes ENTER back, and the shutter falls to its shipped P.
+    const shutter = mergeKeys({ shot: ["Enter"], reset: ["KeyR"] });
+    expect(shutter.machine).toEqual(["Enter"]);
+    expect(shutter.shot).toEqual(["KeyP"]);
     expect(mergeKeys(null)).toEqual(freshKeys());
     const merged = mergeKeys({ tuck: ["KeyI", 4, "KeyI"], hover: ["KeyH"], brake: "KeyK" });
     expect(merged.tuck).toEqual(["KeyI"]);

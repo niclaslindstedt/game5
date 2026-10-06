@@ -32,6 +32,7 @@ import {
   type NoiseField,
 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import { UNGRADED, verticalBand, type GradeRow, type ProfileShape } from "./grades.ts";
 import { REGIONS, scaleBand, scaleCount, type Region } from "./regions.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 
@@ -49,6 +50,11 @@ export type Headwall = {
   readonly z: number;
   readonly drop: number;
   readonly run: number;
+  /** On a resort's massif (R25): the x it is centred on and how far across
+   * the face it reaches (a bell's sigma), m — a headwall is a band of the
+   * face, not a step across the whole mountain. */
+  readonly x?: number;
+  readonly spread?: number;
 };
 
 /** Everything the mountain is drawn from, dealt once per attempt. */
@@ -80,7 +86,20 @@ export type TerrainPlan = {
   /** The region the mountain is built in (R21), which everything
    * downstream of the plan reads its own multipliers off. */
   readonly region: Region;
+  /** The grade the piste down it is built to (R23) — the UNGRADED row on a
+   * map from before the grades. */
+  readonly grade: GradeRow;
   /** Noise seeds, one per layer so the layers do not echo each other. */
+  /** THE RESORT'S MOUNTAIN (R25, `massif.ts`): where it is set, the
+   * height is the massif's — a summit ridge rising to a peak, a steep
+   * sector under it, a gentle shoulder, a mid-mountain bench — rather than
+   * one fall line's profile across the whole face. Absent on a map from a
+   * generator before the resorts. */
+  readonly massif?: import("./massif.ts").Massif;
+  /** R2 — where the side ridges start and reach their height, m across from
+   * the map's middle: the rule book's `mountain.flank` when absent — a
+   * resort's face is wider (R25). */
+  readonly flankBand?: { readonly inner: number; readonly outer: number };
   readonly seeds: {
     readonly warp: number;
     readonly flank: number;
@@ -96,10 +115,9 @@ export type TerrainPlan = {
 const PROFILE_SAMPLES = 1024;
 
 /** The grade's shape down the fall line, before it is scaled to the
- * vertical (`mountain.profile`): a shoulder under the ridge, the peak, and
- * the ease to the run-out. */
-function gradeShape(u: number): number {
-  const P = R.mountain.profile;
+ * vertical (`mountain.profile`, or a piste grade's own, R23): a shoulder
+ * under the ridge, the peak, and the ease to the run-out. */
+function gradeShape(P: ProfileShape, u: number): number {
   const shoulder = P.shoulder + (1 - P.shoulder) * smoothstep(0, P.shoulderRun, u);
   const ease = Math.max(0, 1 - u) ** P.ease;
   return shoulder * (ease * (1 - P.runout) + P.runout);
@@ -108,35 +126,41 @@ function gradeShape(u: number): number {
 /** The profile table: the share of the drop still below `u`, 1 at the
  * summit and 0 at the base, off the grade shape integrated by the
  * trapezium. */
-function tabulateProfile(): Float64Array {
+function tabulateProfile(P: ProfileShape): Float64Array {
   const n = PROFILE_SAMPLES;
   const table = new Float64Array(n + 1);
   let sum = 0;
   for (let i = n - 1; i >= 0; i--) {
-    sum += (gradeShape(i / n) + gradeShape((i + 1) / n)) / 2 / n;
+    sum += (gradeShape(P, i / n) + gradeShape(P, (i + 1) / n)) / 2 / n;
     table[i] = sum;
   }
   for (let i = 0; i <= n; i++) table[i] /= sum;
   return table;
 }
 
-/** Deal the mountain's plan off the attempt's stream, in `region` (R21).
- * Every band is the rule's scaled by the region's row — the same band, and
- * so the same draws, in the alpine. */
-export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainPlan {
+/** Deal the mountain's plan off the attempt's stream, in `region` (R21),
+ * for a piste of `grade` (R23). Every band is the rule's scaled by the
+ * region's row and the grade's — the same band, and so the same draws, in
+ * the alpine on the ungraded row. */
+export function planTerrain(
+  rng: Rng,
+  region: Region = REGIONS.alpine,
+  grade: GradeRow = UNGRADED,
+): TerrainPlan {
   const size = R.world.size;
   const M = R.mountain;
   const F = R.face;
   const K = region.relief;
+  const G = grade.relief;
   const seed = (): number => rng.int(1, 0x7ffffff0);
   const summitZ = size * M.summit;
   const baseZ = size * M.base;
   const cx = size / 2;
   // In this order: the stream a map is always dealt.
-  const vertical = inBand(rng, scaleBand(M.vertical, K.vertical));
+  const vertical = inBand(rng, verticalBand(region, grade));
   const flank = inBand(rng, scaleBand(M.flank.height, K.flank));
-  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills));
-  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges));
+  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills * G.hills));
+  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges * G.ridges));
   const bowls: Bowl[] = [];
   const nBowls = scaleCount(F.bowls.count, K.bowls.count);
   const bowlCount = rng.int(nBowls.min, nBowls.max);
@@ -151,13 +175,13 @@ export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainP
     });
   }
   const headwalls: Headwall[] = [];
-  const nWalls = scaleCount(F.headwalls.count, K.headwalls.count);
+  const nWalls = scaleCount(F.headwalls.count, K.headwalls.count * G.headwalls.count);
   const wallCount = rng.int(nWalls.min, nWalls.max);
   for (let i = 0; i < wallCount; i++) {
     const u = inBand(rng, F.headwalls.at);
     headwalls.push({
       z: summitZ + (baseZ - summitZ) * u,
-      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop)),
+      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop * G.headwalls.drop)),
       run: inBand(rng, F.headwalls.run),
     });
   }
@@ -182,18 +206,31 @@ export function planTerrain(rng: Rng, region: Region = REGIONS.alpine): TerrainP
     crests: M.crests * K.crests,
     hills,
     ridges,
-    rollers: F.rollers.amplitude * K.rollers,
+    rollers: F.rollers.amplitude * K.rollers * G.rollers,
     bowls,
     headwalls,
-    profile: tabulateProfile(),
+    profile: profileFor(grade.profile),
     region,
+    grade,
     seeds: s,
   };
 }
 
+/** The profile tables tabulated so far, one per shape: a shape is a row's
+ * constant, so a table is worked out once per grade. */
+const PROFILES = new Map<ProfileShape, Float64Array>();
+function profileFor(shape: ProfileShape): Float64Array {
+  let table = PROFILES.get(shape);
+  if (!table) {
+    table = tabulateProfile(shape);
+    PROFILES.set(shape, table);
+  }
+  return table;
+}
+
 /** Fractal value noise centred on zero, roughly −1..1: the octaves are
  * `fbmFields`' fields, halving in scale and in weight. */
-function fbm(fields: readonly NoiseField[], x: number, z: number): number {
+export function fbm(fields: readonly NoiseField[], x: number, z: number): number {
   let sum = 0;
   let amp = 1;
   let norm = 0;
@@ -205,7 +242,7 @@ function fbm(fields: readonly NoiseField[], x: number, z: number): number {
   return sum / norm;
 }
 
-function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
+export function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
   const fields: NoiseField[] = [];
   let s = scale;
   for (let o = 0; o < octaves; o++) {
@@ -216,7 +253,7 @@ function fbmFields(scale: number, octaves: number, seed: number): NoiseField[] {
 }
 
 /** Ridged noise, 0..1 with sharp crests at 1, off a `ridgedFields` pair. */
-function ridged(f: RidgedFields, x: number, z: number): number {
+export function ridged(f: RidgedFields, x: number, z: number): number {
   const a = 1 - Math.abs(sampleNoise(f.coarse, x, z) * 2 - 1);
   const b = 1 - Math.abs(sampleNoise(f.fine, x, z) * 2 - 1);
   const v = a * a * 0.7 + b * b * 0.3;
@@ -224,16 +261,16 @@ function ridged(f: RidgedFields, x: number, z: number): number {
   return v * Math.sqrt(Math.sqrt(v));
 }
 
-type RidgedFields = { readonly coarse: NoiseField; readonly fine: NoiseField };
+export type RidgedFields = { readonly coarse: NoiseField; readonly fine: NoiseField };
 
-function ridgedFields(scale: number, seed: number): RidgedFields {
+export function ridgedFields(scale: number, seed: number): RidgedFields {
   return { coarse: noiseField(scale, seed), fine: noiseField(scale * 0.5, seed + 31) };
 }
 
 /** Every noise field the mountain is read off, for one plan. Each keeps the
  * lattice square it last read (`NoiseField`), and a bake reads its grid in
  * order, so nearly every read reuses its field's four corner hashes. */
-type CountryFields = {
+export type CountryFields = {
   readonly warpX: NoiseField;
   readonly warpZ: NoiseField;
   readonly flank: NoiseField;
@@ -245,7 +282,7 @@ type CountryFields = {
   readonly headwalls: readonly NoiseField[];
 };
 
-function countryFields(plan: TerrainPlan): CountryFields {
+export function countryFields(plan: TerrainPlan): CountryFields {
   const s = plan.seeds;
   return {
     warpX: noiseField(420, s.warp),
@@ -268,12 +305,24 @@ export function descentAt(plan: TerrainPlan, z: number): number {
 
 /** R2 — how far up a side ridge a point stands: 0 on the face, 1 at the
  * flank's full height. Read off the warp's noise at (x, z). */
-function flankOf(plan: TerrainPlan, noise: number, x: number, z: number): number {
+export function flankOf(plan: TerrainPlan, noise: number, x: number, z: number): number {
+  return flankAcross(plan, noise, x, flankOpen(plan, z));
+}
+
+/** How open the side ridges are at `z` — `flankOf`'s half that depends on
+ * z alone, for a bake that reads it once a row. */
+export function flankOpen(plan: TerrainPlan, z: number): number {
   const F = R.mountain.flank;
+  return 1 - smoothstep(F.open.min, F.open.max, descentAt(plan, z));
+}
+
+/** `flankOf` with its row's `flankOpen` already read. */
+export function flankAcross(plan: TerrainPlan, noise: number, x: number, open: number): number {
+  const F = R.mountain.flank;
+  const band = plan.flankBand ?? F;
   const warp = (noise * 2 - 1) * F.warp;
   const across = Math.abs(x - R.world.size / 2) + warp;
-  const open = 1 - smoothstep(F.open.min, F.open.max, descentAt(plan, z));
-  return smoothstep(F.inner, F.outer, across) * open;
+  return smoothstep(band.inner, band.outer, across) * open;
 }
 
 /** R2 — how far up a side ridge a plan point stands, 0..1. */
@@ -354,7 +403,10 @@ function countryAt(plan: TerrainPlan, f: CountryFields, x: number, z: number): n
 
 /** Bake the untouched mountain onto the map's grid (R1), row by row — the
  * order the noise fields' kept squares pay off in. */
-export function bakeCountry(plan: TerrainPlan): Heightfield {
+export function bakeCountry(
+  plan: TerrainPlan,
+  at: (plan: TerrainPlan, f: CountryFields, x: number, z: number) => number = countryAt,
+): Heightfield {
   const cell = R.world.cell;
   const n = Math.round(R.world.size / cell) + 1;
   const field = createHeightfield(0, 0, cell, n, n);
@@ -362,7 +414,7 @@ export function bakeCountry(plan: TerrainPlan): Heightfield {
   const fields = countryFields(plan);
   for (let r = 0; r < n; r++) {
     const z = r * cell;
-    for (let c = 0; c < n; c++) d[r * n + c] = countryAt(plan, fields, c * cell, z);
+    for (let c = 0; c < n; c++) d[r * n + c] = at(plan, fields, c * cell, z);
   }
   return field;
 }

@@ -79,6 +79,9 @@ const LAND_FULL = 12;
 /** Closing speed at which a trunk met is as big as it ever gets, m/s. */
 const HIT_FULL = 20;
 
+/** The closing speed on a gate pole felt at full strength, m/s. */
+const POLE_FULL = 12;
+
 /** Take a value from `lo`..`hi` to 0..1. */
 function ramp(value: number, lo: number, hi: number): number {
   return Math.min(1, Math.max(0, (value - lo) / (hi - lo)));
@@ -110,6 +113,12 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
     case "wipeout":
       return { ms: RUMBLE.longest, strength: 1 };
 
+    // A SAVE: the body fighting to stay on its skis — a short shudder, as
+    // big as the fall it nearly was. The landing or the trunk that started
+    // it is felt on the same step, and the motor plays the bigger.
+    case "save":
+      return { ms: 70 + 110 * event.size, strength: 0.3 + 0.4 * event.size };
+
     // BOGGED: the skier sunk to the knees in powder — a low, short shudder
     // so the hands know the poles have stopped doing anything.
     case "stuck":
@@ -120,6 +129,27 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
     case "bump": {
       const hard = ramp(event.speed, 1, HIT_FULL);
       return { ms: 50 + 90 * hard, strength: 0.35 + 0.35 * hard };
+    }
+
+    // A GATE POLE driven over: a knock in the hands, sized by how hard he
+    // closed on it — softer than a shoulder, because a flex pole gives.
+    case "pole": {
+      const hard = ramp(event.speed, 2, POLE_FULL);
+      return { ms: 40 + 50 * hard, strength: 0.25 + 0.3 * hard };
+    }
+
+    // AN EDGE STAKE bent over or snapped: the same knock, a little more
+    // where it broke.
+    case "stake": {
+      const hard = ramp(event.speed, 2, POLE_FULL);
+      return { ms: 40 + 50 * hard, strength: 0.2 + 0.3 * hard + (event.broke ? 0.15 : 0) };
+    }
+
+    // INTO THE A-NETS (R32): a long soft heave, the mesh taking him — the
+    // harder he drove into it, the longer and fuller.
+    case "net": {
+      const hard = ramp(event.speed, 1, HIT_FULL);
+      return { ms: 160 + 200 * hard, strength: 0.4 + 0.4 * hard };
     }
 
     // THE WAND — one short tap, so a skier looking at the piste

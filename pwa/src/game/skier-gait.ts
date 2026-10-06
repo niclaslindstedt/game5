@@ -1,0 +1,419 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE GAIT — how the skier works for his speed at a crawl, off the
+// engine's own drive (`poles.ts`): the diagonal stride up a rise, the
+// skate's V and the double pole, and what each does to each ski as drawn. One statement
+// the skis (`ski-gear.ts`, `ski-rig.ts`) and the figure (`skier-pose.ts`)
+// both read, so a boot never leaves its ski. Three-free.
+
+import {
+  driveReach,
+  glideYaw,
+  pivotSteps,
+  poleDuty,
+  poleKeepUp,
+  sidestepPace,
+  sideSteps,
+  skateAngle,
+  skateShare,
+  skateWork,
+  type SkierState,
+  stepQuick,
+  strideRate,
+  strideShare,
+  TUNING,
+} from "@engine";
+
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+const smooth01 = (v: number): number => {
+  const k = clamp01(v);
+  return k * k * (3 - 2 * k);
+};
+
+/** THE GAIT: how the skier is working for his speed this frame, off the
+ * engine's own `drive` and `stride` (`poles.ts`), and what it does to each
+ * ski as drawn — the one statement the skis (`ski-gear.ts`, `ski-rig.ts`)
+ * and the figure both read, so a boot never leaves its ski. */
+export type Gait = {
+  /** How much of him is striding (the diagonal stride), skating, and
+   * double-poling, 0..1 each. */
+  stride: number;
+  skate: number;
+  pole: number;
+  /** Where in the stride he is, 0..1, and which leg is pushing (0 left). */
+  phase: number;
+  push: 0 | 1;
+  /** Each ski's turn off the line, rad (clockwise positive — the V opens
+   * the left ski anticlockwise), how far out it has been pushed, m, and how
+   * far up it has been lifted for the recovery, m. */
+  splay: [number, number];
+  out: [number, number];
+  lift: [number, number];
+  /** Each ski slid forward (+) or back along its line, m — the stride's
+   * kick and glide. */
+  fore: [number, number];
+  /** Each ski tipped onto an edge of its own on top of the pair's, rad,
+   * right edges down positive — the skate's pushing ski on its INSIDE
+   * edge, which is what it pushes off. */
+  tilt: [number, number];
+  /** How far he goes over the snow in one stride, m — what a planted
+   * basket is left behind by over a push (`pinnedSwing`); 0 standing —
+   * and how much he works the poles on it, 0..1: all of it while one push
+   * sweeps the snow going by under it, none once his arms at their
+   * quickest (`poleKeepUp`) or folded into the tuck, which shortens the
+   * stroke, cannot keep up — he stops poling rather than swing the poles
+   * over the snow. */
+  pass: number;
+  keep: number;
+  /** The share of the stride the POLES are on the snow (`poleDuty`): the
+   * double pole's whole push, a quick bite inside a skate's long one. */
+  duty: number;
+  /** THE SKATE'S BODY, off his own centre: how far the shoulders roll over
+   * the gliding ski, rad (right side down positive), how far the hips
+   * sink as he loads it, m, how far the trunk leans on over his skis,
+   * rad, and how far his hips turn toward the line he glides on, rad
+   * (clockwise positive — the engine's `glide`, a share of it). */
+  roll: number;
+  sink: number;
+  pitch: number;
+  twist: number;
+  /** STEPPING ROUND ON THE SPOT, −1, 0 or 1 the way (`pivotGait`): the
+   * skis stepped one at a time and nothing pushed. */
+  pivot: number;
+  /** ON HIS PLATFORMS across a steep slope, the side the hill rises on, ±1
+   * (right positive), and 0 off them (`sidestepGait`): the skis stepped up
+   * it one at a time and stamped down. */
+  sidestep: number;
+};
+
+/** What one push of the poles sweeps from the plant to the release, m —
+ * double-poling and skating — and the share of it a full tuck takes off
+ * (the pose's own strokes, measured). */
+const POLE_SWEEP = { pole: 1.55, skate: 1.19, tuck: 0.75 };
+
+/** THE SKATE, after measured skating: how far out a push drives the ski,
+ * m — the leg extended long and out to the side, a skater's foot ends
+ * half a metre and more off his centre — and how far behind him it
+ * finishes, m (the body glides on past a foot pushed out sideways, so the
+ * push ends out AND back); how high the recovery lifts it clear of the
+ * snow, m; and how far the pushing ski is rolled onto its inside edge at
+ * the end of the push, rad — a flat ski has nothing to push off, and a
+ * skater's push is a leg driven out along a ski on its edge while he
+ * glides on the other, flat. The V itself is the engine's (`skateAngle`),
+ * which he rides the gliding arm of. */
+const SKATE = { out: 0.3, back: 0.3, lift: 0.12, edge: 0.62 };
+/** THE SKATER'S WEIGHT, wholly over the gliding ski — nose, knee and toe
+ * in one line over it: how far the feet go across under him, m, from the
+ * pushing ski under his centre to the gliding one (his centre is the line
+ * the engine skis, which already swings him some ±20 cm across the run's
+ * line, as measured); how far the shoulders roll over the gliding ski,
+ * rad; how far the hips bob through a stroke, m — measured 16 cm, the
+ * knees bent 52–59° just after the ski is set down and opened to 21–25°
+ * as he rises over it in the glide — over a standing `stoop`, and where
+ * in the stride he is lowest; how far the trunk leans over his skis,
+ * rad; and the share of the line he glides on his hips turn to face
+ * (measured: the pelvis turns 14–22° from side to side). */
+const WEIGHT = {
+  across: 0.14,
+  roll: 0.16,
+  sink: 0.11,
+  stoop: 0.02,
+  low: 0.1,
+  pitch: 0.2,
+  twist: 0.6,
+};
+/** THE DIAGONAL STRIDE: how far the kicking ski slides back and the
+ * gliding one forward, m, and how high the kick comes off the snow. */
+const STRIDE = { back: 0.3, ahead: 0.24, kick: 0.04 };
+/** THE STRIDE IS FOR CLIMBING: the pair's pitch up a rise, rad, past
+ * which a skier at a walk strides, and the span over which he takes it
+ * up. On the flat and down a pitch he sets off on his POLES — the push a
+ * racer makes out of the gate — because a diagonal stride there is a man
+ * walking on skis, upright with the poles trailing. */
+const CLIMB = { from: 0.03, span: 0.05 };
+
+export const STILL_GAIT: Gait = {
+  stride: 0,
+  skate: 0,
+  pole: 0,
+  phase: 0,
+  push: 0,
+  splay: [0, 0],
+  out: [0, 0],
+  lift: [0, 0],
+  fore: [0, 0],
+  tilt: [0, 0],
+  pass: 0,
+  keep: 1,
+  duty: TUNING.poles.duty,
+  roll: 0,
+  sink: 0,
+  pitch: 0,
+  twist: 0,
+  pivot: 0,
+  sidestep: 0,
+};
+
+/** How long in the air before he is FLYING rather than hopping, s. */
+export const HOP = 0.12;
+
+/** IN FLIGHT, not just off the snow: skis skimming off a crest for a
+ * tenth of a second are the legs not quite keeping them down, and his
+ * body rides on over them — the stroke he is making, the stance — as it
+ * does over the bump. A jump he sprang himself (`popped` since he left
+ * the snow) flies from the first frame; with no clock read, any air is a
+ * flight. */
+export function flying(s: { airborne: boolean; airTime?: number; popped?: number }): boolean {
+  if (!s.airborne) return false;
+  const t = s.airTime ?? Infinity;
+  return t >= HOP || (s.popped !== undefined && s.popped <= t + HOP);
+}
+
+/** THE STEP TURN ON THE SPOT, as drawn (`poles.ts`'s `stepRound`): each
+ * ski turned about a point behind its boot, m — near the tail, so the
+ * tails stay together and the tips step out (the star turn) — how high
+ * the stepping ski comes off the snow, m; how far his weight goes over the
+ * ski he stands on, m; how far the shoulders roll over it, rad; and how
+ * far he sinks onto it, m. */
+const PIVOT = { behind: 0.5, lift: 0.07, across: 0.06, roll: 0.05, sink: 0.01 };
+
+/** The step turn's gait at phase `u` of a pair of steps, `dir` ±1 the way
+ * he steps (right positive): the inside ski stepped round off its tail
+ * and set down, then the outside one brought alongside — each ski's turn
+ * off the body, which stands between them (`pivotSteps`). */
+export function pivotGait(u: number, dir: number): Gait {
+  const p = pivotSteps(u);
+  const angle = TUNING.poles.pivot.angle * Math.sign(dir);
+  const inner = dir > 0 ? 1 : 0;
+  const outer = 1 - inner;
+  const splay: [number, number] = [0, 0];
+  splay[inner] = angle * (p.inside - p.body);
+  splay[outer] = angle * (p.outside - p.body);
+  // Each step a lift and a set-down: the inside ski over the first part of
+  // the pair, the outside over the second (`pivotSteps`' windows).
+  const hop = (a: number, b: number): number =>
+    u > a && u < b ? Math.sin((Math.PI * (u - a)) / (b - a)) : 0;
+  const lift: [number, number] = [0, 0];
+  lift[inner] = PIVOT.lift * hop(0, 0.45);
+  lift[outer] = PIVOT.lift * hop(0.5, 0.95);
+  // The standing ski carries him: the outside one while the inside steps,
+  // and the inside one while the outside comes in.
+  const stand = hop(0, 0.45) - hop(0.5, 0.95);
+  const over = (inner === 1 ? -1 : 1) * stand;
+  const out: [number, number] = [0, 0];
+  const fore: [number, number] = [0, 0];
+  for (const i of [0, 1]) {
+    out[i] = PIVOT.behind * Math.sin(splay[i]) - PIVOT.across * over;
+    fore[i] = PIVOT.behind * (Math.cos(splay[i]) - 1);
+  }
+  return {
+    ...STILL_GAIT,
+    phase: u,
+    push: inner as 0 | 1,
+    splay,
+    out,
+    lift,
+    fore,
+    roll: PIVOT.roll * over,
+    sink: -PIVOT.sink * Math.abs(stand),
+    pivot: Math.sign(dir),
+  };
+}
+
+/** THE SIDESTEP as drawn (`sidestep.ts`): how high the stepping ski comes
+ * off the snow, m — a real lift, to clear the ledge it is stepped onto —
+ * how far his weight goes over the ski he stands on, m, and the shoulders
+ * with it, rad; and the STAMP — how far he drops onto the ski as it is set
+ * down hard, m, over what share of the pair. */
+export const SIDE = { lift: 0.1, across: 0.07, roll: 0.07, stamp: 0.035, press: 0.12 };
+
+/** The sidestep's gait at phase `u` of a pair, the hill rising on `side`
+ * (±1, right positive), a step `step` m up the snow: the uphill ski lifted,
+ * carried up and STAMPED down, his weight onto it, then the downhill ski
+ * brought up beside it the same way — each ski where the engine set it
+ * (`sideSteps`, the very offsets the snow's contacts are laid by). */
+export function sidestepGait(u: number, side: number, step: number): Gait {
+  const s = sideSteps(u);
+  const dir = Math.sign(side);
+  const hill = dir > 0 ? 1 : 0;
+  const low = 1 - hill;
+  const out: [number, number] = [0, 0];
+  out[hill] = dir * step * (s.uphill - s.body);
+  out[low] = dir * step * (s.downhill - s.body);
+  // Each ski's arc: up off its ledge, carried, and brought down fast onto
+  // the new one — the set-down a slap, never eased onto the snow.
+  const arc = (a: number, b: number): number => {
+    const k = (u - a) / (b - a);
+    return k > 0 && k < 1 ? Math.sin(Math.PI * k ** 1.3) : 0;
+  };
+  const lift: [number, number] = [0, 0];
+  lift[hill] = SIDE.lift * arc(0.04, 0.44);
+  lift[low] = SIDE.lift * arc(0.54, 0.94);
+  // His weight over the ski he stands on: the downhill one while the uphill
+  // steps, the uphill one while the downhill comes up — the feet moved
+  // under him, his centre the line the engine carries up the snow.
+  const hop = (a: number, b: number): number =>
+    u > a && u < b ? Math.sin((Math.PI * (u - a)) / (b - a)) : 0;
+  const over = hop(0, 0.48) - hop(0.5, 0.98);
+  for (const i of [0, 1]) out[i] += dir * SIDE.across * over;
+  // THE STAMP: as each ski is set down he drops onto it.
+  const press = (at: number): number => {
+    const k = (u - at) / SIDE.press;
+    return k > 0 && k < 1 ? Math.sin(Math.PI * k) : 0;
+  };
+  return {
+    ...STILL_GAIT,
+    phase: u,
+    push: hill as 0 | 1,
+    out,
+    lift,
+    roll: -dir * SIDE.roll * over,
+    sink: SIDE.stamp * (press(0.4) + press(0.9)),
+    sidestep: dir,
+  };
+}
+
+export function gaitOf(
+  s: Pick<SkierState, "drive" | "stride" | "speed" | "airborne" | "thrown" | "pitch"> & {
+    way?: number;
+    /** The step turn he is making (`SkierState.step`); none when left out. */
+    step?: number;
+    /** Stepping round on the spot (`SkierState.pivot`), ±1; none when left
+     * out. */
+    pivot?: number;
+    /** On his platforms across a steep slope (`SkierState.sidestep`), ±1;
+     * none when left out — and the snow under him (`SkierState.packed`),
+     * which a step's length reads. */
+    sidestep?: number;
+    packed?: number;
+    roll?: number;
+    crouch?: number;
+    /** Whether he has his poles (`SkierState.poles`); with them when left
+     * out. With none he never double-poles: he walks his skis off a
+     * standstill wherever he is and skates once rolling. */
+    poles?: boolean;
+    airTime?: number;
+    popped?: number;
+  },
+): Gait {
+  if (flying(s) || s.thrown) return STILL_GAIT;
+  if (s.pivot) return pivotGait(s.stride - Math.floor(s.stride), s.pivot);
+  if (s.sidestep) {
+    // The slope under him: his body stands square to the snow, so it is
+    // the tilt of his own frame.
+    const slope = Math.acos(Math.cos(s.pitch) * Math.cos(s.roll ?? 0));
+    const step = sidestepPace(slope, s.packed ?? 1).step;
+    return sidestepGait(s.stride - Math.floor(s.stride), s.sidestep, step);
+  }
+  if (s.drive <= 0.01) return STILL_GAIT;
+  const poles = s.poles ?? true;
+  const step = s.step ?? 0;
+  // THE MOTION IS WHOLE while he works at all: the push fades with speed
+  // (`driveReach`), but a skier pushing at all makes a whole stride of it —
+  // a stride drawn at half size reads as a twitch. It comes in over the
+  // drive's own rise, eased, so the arms come up from their hang (or out
+  // of the start gate) into the stroke as a motion — even a stroke the
+  // engine's stride count starts halfway through.
+  const d = clamp01(s.drive);
+  const work = d * d * (3 - 2 * d) * clamp01(2 * driveReach(s.speed, poles, step));
+  if (work <= 0.01) return STILL_GAIT;
+  // At a walk he strides up a rise and double-poles everywhere else — or,
+  // with nothing to double-pole on, strides everywhere; the skate takes
+  // over from either as he rolls.
+  const walk = strideShare(s.speed);
+  // ...and he steps round a turn at a walk rather than pole through it.
+  const climb = poles ? Math.max(clamp01((s.pitch - CLIMB.from) / CLIMB.span), Math.abs(step)) : 1;
+  const striding = walk * climb;
+  const stride = work * striding;
+  // The engine's own measure, which it rides the V by (`glideYaw`).
+  const skate = skateWork(s.drive, s.speed, poles, step);
+  const skating = (1 - walk) * skateShare(s.speed, poles, step);
+  const phase = s.stride - Math.floor(s.stride);
+  const push = (Math.floor(s.stride) % 2) as 0 | 1;
+  const glide = (1 - push) as 0 | 1;
+  const lead = glideYaw(0, s.speed, 0, step);
+  const duty = TUNING.poles.duty;
+  const poleShare = poleDuty(s.speed, step);
+  // The snow passed in a stride — the engine counts one at `strideRate` ×
+  // the drive a second — and how much of it one push sweeps.
+  const pass =
+    Math.abs(s.way ?? s.speed) /
+    (strideRate(s.speed, poles, step) * stepQuick(step, s.speed) * Math.max(0.2, s.drive));
+  const poling = skate + work * Math.max(0, 1 - striding - skating);
+  const sweep =
+    (poling > 0
+      ? (POLE_SWEEP.pole * (poling - skate) + POLE_SWEEP.skate * skate) / poling
+      : POLE_SWEEP.pole) *
+    (1 - POLE_SWEEP.tuck * clamp01(s.crouch ?? 0));
+  const fit = sweep / Math.max(1e-6, pass * poleShare);
+  const out: [number, number] = [0, 0];
+  const lift: [number, number] = [0, 0];
+  const fore: [number, number] = [0, 0];
+  const tilt: [number, number] = [0, 0];
+  // THE PUSHING LEG goes out along its ski's line (skating) or back along
+  // it (striding), weighted; then comes back in, lifted clear of the snow,
+  // for the next.
+  const reach =
+    phase < duty
+      ? Math.sin((Math.PI / 2) * (phase / duty))
+      : Math.cos((Math.PI / 2) * ((phase - duty) / (1 - duty)));
+  const recover = phase < duty ? 0 : Math.sin((Math.PI * (phase - duty)) / (1 - duty));
+  const side = push === 0 ? -1 : 1;
+  out[push] = side * SKATE.out * skate * reach;
+  tilt[push] = -side * SKATE.edge * skate * reach;
+  lift[push] = SKATE.lift * skate * recover + STRIDE.kick * stride * reach;
+  fore[push] = -(STRIDE.back * stride + SKATE.back * skate) * reach;
+  fore[glide] = STRIDE.ahead * stride * reach;
+  // THE WEIGHT, skating: over the pushing ski as its push starts, carried
+  // across onto the gliding ski by the push's end and held there through
+  // the glide — which is the next stride's pushing ski, so a stride begins
+  // where the last one left him and nothing jumps from side to side. The
+  // feet go under him rather than his hips over them: his centre is the
+  // line the engine skis, along the gliding ski.
+  const glideSide = glide === 1 ? 1 : -1;
+  const across = skate * glideSide * -Math.cos(Math.PI * Math.min(1, phase / duty));
+  out[0] -= WEIGHT.across * across;
+  out[1] -= WEIGHT.across * across;
+  // He loads the ski he lands on and rises over it as the push drives
+  // him up; lowest just after the push begins.
+  const low = 0.5 + 0.5 * Math.cos(2 * Math.PI * (phase - WEIGHT.low));
+  return {
+    stride,
+    skate,
+    pole: work * Math.max(0, 1 - striding - skating),
+    phase,
+    push,
+    // THE V, turned into a step turn as the engine leads the line he
+    // glides on (`glideYaw`): the inside arm opened, the outside closed.
+    splay: [-skateAngle(s.speed) * skate + lead, skateAngle(s.speed) * skate + lead],
+    out,
+    lift,
+    fore,
+    tilt,
+    pass,
+    keep: poleKeepUp(s.speed, step) * smooth01((fit - 0.8) / 0.15),
+    duty: poleShare,
+    roll: WEIGHT.roll * across,
+    sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)),
+    pitch: WEIGHT.pitch * skate,
+    twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate, step),
+    pivot: 0,
+    sidestep: 0,
+  };
+}
+
+/** How long his arms take to come onto the poles out of the hold, s. */
+const LAUNCH_ARMS = 0.12;
+
+/** THE START PUSH as drawn (`start-push.ts`): one double pole — the push
+ * through over `push` s as his weight goes out over the wand, then the
+ * arms recovering through `recover` s more — or null when he is not
+ * making it. Out of the house he works nothing else. */
+export function launchGait(launch: number, push: number, recover = 0.45): Gait | null {
+  if (launch < 0 || launch >= push + recover) return null;
+  const duty = STILL_GAIT.duty;
+  const phase =
+    launch < push ? (launch / push) * duty : duty + ((launch - push) / recover) * (1 - duty);
+  // The arms come onto the poles as his chest goes out over the wand.
+  const on = Math.min(1, launch / LAUNCH_ARMS);
+  return { ...STILL_GAIT, pole: launch < push ? on : 1 - (launch - push) / recover, phase };
+}

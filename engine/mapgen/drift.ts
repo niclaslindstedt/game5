@@ -18,8 +18,8 @@
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
-import { LEVEL_RULES, inBand } from "./rules.ts";
-import type { Drift, Kicker } from "./types.ts";
+import { LEVEL_RULES, inBand, type Band } from "./rules.ts";
+import type { Cliff, Drift, Kicker } from "./types.ts";
 
 const R = LEVEL_RULES.drift;
 
@@ -30,16 +30,26 @@ const DRIFT_SALT = 0x5eedd71f;
 const TRIES = 60;
 
 /** R17 — deal the drifted stretches of a piste `length` m long, clear of
- * the start line, the finish and every on-piste kicker. `sub` is the
- * attempt's sub-seed. */
-export function dealDrifts(sub: number, length: number, kickers: readonly Kicker[]): Drift[] {
+ * the start line, the finish, every on-piste kicker and every drop (R24),
+ * a `share` of it — the grade's (R23), the rule's own when left out. `sub`
+ * is the attempt's sub-seed. */
+export function dealDrifts(
+  sub: number,
+  length: number,
+  kickers: readonly Kicker[],
+  share: Band = R.share,
+  drops: readonly Cliff[] = [],
+  keepOff: readonly { from: number; to: number }[] = [],
+): Drift[] {
   const rng = createRng((sub ^ DRIFT_SALT) >>> 0);
-  const target = inBand(rng, R.share) * length;
+  const target = inBand(rng, share) * length;
   // The stretches no drift (with its ease) may touch: each kicker's ramp and
-  // landing, as arc ranges.
+  // landing and each drop's shelf and landing, as arc ranges.
   const kept: { from: number; to: number }[] = kickers
     .filter((k) => k.onTrack && k.s !== undefined)
-    .map((k) => ({ from: k.s! - k.ramp, to: k.s! + k.landing }));
+    .map((k) => ({ from: k.s! - k.ramp, to: k.s! + k.landing }))
+    .concat(drops.map((d) => ({ from: d.s! - d.shelf, to: d.s! + d.face + d.landing })))
+    .concat(keepOff);
   const drifts: Drift[] = [];
   let laid = 0;
   const lo = R.clear + R.fade;

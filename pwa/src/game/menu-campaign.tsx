@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CAMPAIGN CARD — a row of three shelves, six boxes each, and the table
+// THE CAMPAIGN CARD — a row of four shelves, six boxes each, and the table
 // under the one being looked at.
 //
-// The card is one column: the shelves as a row of tabs across the top (three
-// is a row a phone can read, so the coast step the sibling game needs for
-// four coasts is not a step here), the six boxes in a grid, then the table.
+// The card is one column: the shelves as a row of tabs across the top (four
+// across, two by two on a phone held upright) — each a SKI AREA, named, with
+// its kind of country (R21) and the six runs' GRADE SIGNS in rung order
+// (R23: the green circle, the blue square, the red rectangle, the black
+// diamond — `grade-mark.tsx`), so the climb from the gentle runs to the
+// steep ones reads before a box is opened — the six boxes in a grid, each
+// with its own run's sign, then the table.
 // A BOX is a number, a name, what the map is (a race or a time trial, over
 // top to bottom) and the day it is skied in, the piste itself drawn behind
 // the words (`CourseMap`), and what has been got out of it — the best place
@@ -41,7 +45,8 @@ import {
   type CampaignShelf,
 } from "./campaign.ts";
 import { CAMPAIGN_ROUTES } from "./campaign-routes.ts";
-import { MenuHead } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead } from "./menu-knobs.tsx";
+import { GradeMark } from "./grade-mark.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { ROUTE_BOX, ROUTE_STROKE } from "./route-shape.ts";
 import { STRINGS } from "./strings.ts";
@@ -92,7 +97,7 @@ export function dayLine(level: CampaignLevel): string {
 
 /** What a box is: the game and its length. */
 export function billing(level: CampaignLevel): string {
-  return STRINGS.campaignBilling(level.mode === "timeTrial");
+  return STRINGS.campaignBilling(level.mode);
 }
 
 function LevelBox({
@@ -140,6 +145,7 @@ function LevelBox({
       <CourseMap levelId={level.id} />
       <span class="menu-level-head">
         <span class="menu-level-no">{index + 1}</span>
+        <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name={level.mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
         <span class="menu-level-billing">{billing(level)}</span>
       </span>
@@ -164,7 +170,7 @@ function LevelBox({
               {STRINGS.campaignPoints(points)}
             </span>
           )}
-          {level.mode === "race" && (
+          {level.mode === "slalom" && (
             <span
               class={`menu-level-mark${result.place <= POINTS.length ? " menu-level-mark-lit" : ""}`}
             >
@@ -244,6 +250,14 @@ export function ShelfTabs({
               {!unlocked && <Glyph name="lock" />}
               {shelf.name}
             </span>
+            <span class="menu-shelf-mix">
+              <span class="menu-shelf-region">{STRINGS.regionNames[shelf.region]}</span>
+              <span class="menu-shelf-grades" aria-hidden="true">
+                {shelf.levels.map((level) => (
+                  <GradeMark key={level.id} grade={level.grade} className="menu-shelf-grade" />
+                ))}
+              </span>
+            </span>
             <span class="menu-shelf-line">{unlocked ? line(shelf) : hint}</span>
           </button>
         );
@@ -278,28 +292,30 @@ export function CampaignPage({
   return (
     <div class="menu-card menu-card-campaign">
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.campaign} action={ride} />
-      <ShelfTabs
-        shown={shown}
-        open={(shelf) => shelfUnlocked(shelf, progress)}
-        line={(shelf) => shelfLine(shelf, progress)}
-        hint={STRINGS.campaignShelfLocked}
-        onPick={setShown}
-      />
-      <p class="menu-shelf-blurb">{shown.blurb}</p>
-      <div class="menu-levels">
-        {shown.levels.map((level, index) => (
-          <LevelBox
-            key={level.id}
-            level={level}
-            index={index}
-            open={levelUnlocked(shown, index, progress)}
-            next={level === next}
-            progress={progress}
-            onRide={() => onRide(level)}
-          />
-        ))}
-      </div>
-      <ShelfTable shelf={shown} progress={progress} />
+      <MenuBody>
+        <ShelfTabs
+          shown={shown}
+          open={(shelf) => shelfUnlocked(shelf, progress)}
+          line={(shelf) => shelfLine(shelf, progress)}
+          hint={STRINGS.campaignShelfLocked}
+          onPick={setShown}
+        />
+        <p class="menu-shelf-blurb">{shown.blurb}</p>
+        <div class="menu-levels">
+          {shown.levels.map((level, index) => (
+            <LevelBox
+              key={level.id}
+              level={level}
+              index={index}
+              open={levelUnlocked(shown, index, progress)}
+              next={level === next}
+              progress={progress}
+              onRide={() => onRide(level)}
+            />
+          ))}
+        </div>
+        <ShelfTable shelf={shown} progress={progress} />
+      </MenuBody>
     </div>
   );
 }

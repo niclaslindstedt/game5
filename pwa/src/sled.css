@@ -1,0 +1,141 @@
+/* THE SNOWMOBILE'S READOUT (`hud-sled.tsx`): top centre, in the air clock's
+   place — the tachometer, the belt's word and the way off under it; and,
+   while it waits near him, the call to ride into it. */
+.hud-sled {
+  position: absolute;
+  top: max(0.4rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-sled-tach {
+  width: clamp(4.6rem, 15vmin, 7rem);
+  overflow: visible;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 50%));
+}
+
+.hud-sled-track {
+  fill: none;
+  stroke: rgb(255 255 255 / 25%);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.hud-sled-band {
+  fill: none;
+  stroke: rgb(255 255 255 / 70%);
+  stroke-width: 5;
+}
+
+.hud-sled-red {
+  fill: none;
+  stroke: #e2402e;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.hud-sled-thumb {
+  fill: none;
+  stroke: #f2c418;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.hud-sled-needle {
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.hud-sled-over {
+  stroke: #ff5a3c;
+}
+
+.hud-sled-hub {
+  fill: #fff;
+}
+
+.hud-sled-rpm {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
+.hud-sled-sub {
+  margin-top: 0.15rem;
+  font-size: clamp(0.66rem, 2vmin, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hud-sled-hint {
+  margin-top: 0.35rem;
+  font-size: clamp(0.62rem, 1.9vmin, 0.85rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+}
+
+.hud-sled-call {
+  top: 22%;
+  animation: hud-sled-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.hud-sled-word {
+  font-size: clamp(0.9rem, 3vmin, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+@keyframes hud-sled-pulse {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* THE CALL AS A PRESS (`hud-machine-press.tsx`): stood beside the
+   snowmobile or the helicopter's skid, its call is a button — the machine
+   press, tapped or clicked. A pill round it says it can be pressed, and it
+   takes the pointer the readouts otherwise let through — over the thumb
+   zones, whose glass it may overlap on a short screen. */
+.hud-machine-press {
+  z-index: 2;
+  min-width: 11rem;
+  padding: 0.7rem 1.4rem;
+  font: inherit;
+  color: var(--hud-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  background: rgb(0 0 0 / 35%);
+  border: 2px solid currentcolor;
+  border-radius: 999px;
+  box-shadow: 0 0 1.2rem rgb(255 255 255 / 25%);
+}
+
+.hud-machine-press:active {
+  background: rgb(255 255 255 / 25%);
+}
+
+/* OPTIONS ▸ KEYS: the snowmobile's note — the skier's keys ride it. */
+.knob-note {
+  margin: 0.2rem 0 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}

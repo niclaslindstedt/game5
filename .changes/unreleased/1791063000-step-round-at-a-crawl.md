@@ -1,0 +1,5 @@
+---
+type: Changed
+---
+
+Turning at low speed works now. At a crawl the skier steps his skis round a turn instead of waiting for them to carve it. He skates more to one side: the V of his skis turns into the turn, he pushes off the outside ski and glides on the inside one, and from a standstill he takes short, quick steps. He keeps pushing all the way round, so he comes out of a turn faster than he went in, and he comes round 90 degrees in about two seconds at any speed up to about 27 km/h. With poles he skates through the turn instead of double-poling. Before, a full turn of the stick at 10 km/h brought him round only about 30 degrees in two seconds, and he stopped pushing in the bend. Skiing without poles, his arms now swing the way a skater's do: relaxed and close to his body, the arm on the side of the pushing leg coming forward over the gliding ski while the other goes back past his hip, one smooth swing with each push. They no longer flap up and down out to the sides. Riding without poles, he carries his hands forward, a little wider than his shoulders, as a skier is taught to.

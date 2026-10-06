@@ -38,7 +38,12 @@
   --hud-good: #e8412c;
   --hud-bad: #ff5a4e;
   --hud-info: #cfe6f7;
-  /* THE TOP-RIGHT CLUSTER'S WIDTH — the row of three presses, sized to be
+  /* AHEAD ON THE CLOCK: the one green in the chrome, kept for a gap that is
+     going the racer's way — against the record or the leader — beside the
+     alarm's red for one that is not, as a timing board shows it. */
+  --hud-ahead: #4fdc7c;
+  /* THE TOP-RIGHT CLUSTER'S WIDTH — the minimap and the row of presses under
+     it, sized to be
      found at a glance from the corner of an eye that is on the track. The
      rem FLOOR carries a phone on its side, where vmin is the short edge. */
   --hud-cluster: clamp(8rem, 24vmin, 11rem);
@@ -54,11 +59,25 @@
      writes them here in px. Both are 0 whenever the browser is showing the
      whole page, which is nearly always — so `--shell-visible` is then the
      viewport's own height and every box below is laid out exactly as it would
-     be without any of this. */
+     be without any of this.
+
+     `--shell-seen` is the visible window's own height, measured beside the
+     offsets, and it is a FLOOR: the shell is never shorter than the window
+     the player is looking at. The offsets are read against a layout viewport
+     that can be stale — an installed iOS app turned from upright onto its
+     side can read its window slid most of the way down a layout that has not
+     caught up, and the unit less that offset is a sliver along the top of
+     the screen over `body`'s blue. The unit caps it, so a window read too
+     tall is no taller than the viewport. 0 until measured, which is no
+     opinion. */
   --shell-top: 0px;
   --shell-bottom: 0px;
+  --shell-seen: 0px;
   --shell-height: 100%;
-  --shell-visible: calc(var(--shell-height) - var(--shell-top) - var(--shell-bottom));
+  --shell-visible: min(
+    var(--shell-height),
+    max(calc(var(--shell-height) - var(--shell-top) - var(--shell-bottom)), var(--shell-seen))
+  );
 }
 
 html,
@@ -179,8 +198,9 @@ canvas {
   --hud-edge: rgb(255 255 255 / 65%);
   --hud-track: rgb(255 255 255 / 70%);
 
-  /* THE THREE PRESSES' DIAMETER, and the one statement of it: a third of
-     the cluster's width less the gaps. Declared HERE rather than in `:root`
+  /* THE PRESSES' DIAMETER, and the one statement of it: a third of the
+     cluster's width less the gaps — room for three, the most the row ever
+     holds (hud-actions.tsx). Declared HERE rather than in `:root`
      because two subtrees need it — the buttons and `.hud-zone`'s clearance
      over them — and a `var()` inside a custom property is substituted
      against the element it is DECLARED on; `.hud` is the element the
@@ -249,6 +269,34 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* The piste's sign (R23) ahead of the GATES label, on the label's line. */
+.hud-gates .hud-chip-sub {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hud-chip-sub .hud-grade {
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.3em;
+  vertical-align: -0.25em;
+}
+
+/* The chart's reading, led by the sign of the colour that came out. */
+.seed-preview-read {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seed-preview-read .seed-preview-grade {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.4em;
+  vertical-align: -0.25em;
+}
+
 .hud-chip-sub {
   font-size: 0.62em;
   opacity: 0.85;
@@ -266,20 +314,31 @@ canvas {
   right: max(0.8rem, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  /* CENTRED, NOT FLUSH RIGHT: the row of presses is the cluster's width and
+     the map is narrower on a phone on its side (`--hud-map`), so a column
+     pushed to its right edge leaves the presses centred on a different line
+     from the plate over them. Centred, the two share one axis at every size,
+     and the column is still the cluster's width against the corner. */
+  align-items: center;
   gap: 0.5rem;
 }
 
-/* THE MINIMAP: a round plate under the presses, as wide as their row, with
+/* THE MINIMAP: a round plate over the presses, as wide as their row, with
    the map turned heading-up about the skier (minimap.tsx). Round because the
    map turns: a square window would swing its corners through the country
-   every bend. It takes no pointer — a thumb landing here on a phone held
-   sideways belongs to the lever's zone under it. The plate's own ground is
-   the grey of rock past the map's edge, which is what the corners of the
-   baked picture give way to. */
+   every bend. IT IS THE PAUSE PRESS — a button, said the way the discs under
+   it say it: the rim goes to full ink under the pointer and the plate sinks
+   a pixel under a thumb. The plate's own ground is the grey of rock past the
+   map's edge, which is what the corners of the baked picture give way to. */
 .hud-minimap {
+  position: relative;
+  display: block;
+  flex: none;
   width: var(--hud-map, var(--hud-cluster));
   height: var(--hud-map, var(--hud-cluster));
+  padding: 0;
+  font: inherit;
+  color: inherit;
   border-radius: 50%;
   overflow: hidden;
   background: #5d6670;
@@ -287,68 +346,39 @@ canvas {
   box-shadow:
     0 2px 0 rgb(var(--hud-plate) / 60%),
     inset 0 0 0.6rem rgb(var(--hud-plate) / 45%);
-  pointer-events: none;
+  cursor: pointer;
+  /* As the discs: no double-tap wait, no gesture claimed mid-press. */
+  touch-action: manipulation;
+  transition:
+    transform 110ms ease,
+    border-color 110ms ease,
+    box-shadow 110ms ease;
 }
 
+.hud-minimap:hover,
+.hud-minimap:focus-visible {
+  outline: none;
+  border-color: var(--hud-ink);
+  box-shadow:
+    0 2px 0 rgb(var(--hud-plate) / 60%),
+    inset 0 0 0.6rem rgb(var(--hud-plate) / 45%),
+    0 0 10px rgb(255 255 255 / 20%);
+}
+
+.hud-minimap:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* The world is painted on a canvas (minimap.tsx — the pose, its glide
+   between snapshots and every mark's paint are there); the skier's arrow and
+   the rim's chevron ride an SVG laid over it in the plate's own space. */
+.hud-minimap-world,
 .hud-minimap-face {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* The world group is posed by one transform written out whole, from the
-   origin (minimap.tsx's `pose`), and tweened between two snapshots — so a
-   map read twelve times a second turns and slides like one drawn every
-   frame. The angle it tweens through is kept continuous by the payload, so
-   a heading crossing south never spins the map the long way round. */
-.hud-minimap-world {
-  transform-origin: 0 0;
-  transition: transform 90ms linear;
-}
-
-.hud-minimap-world image {
-  image-rendering: auto;
-}
-
-/* The piste over the baked ground: the payload hands the width in metres,
-   floored so the piste is never a hair at the widest window. */
-.hud-minimap-track {
-  fill: none;
-  stroke: rgb(255 255 255 / 55%);
-  stroke-linejoin: round;
-}
-
-.hud-minimap-checkpoint {
-  vector-effect: non-scaling-stroke;
-  stroke: rgb(var(--hud-plate) / 55%);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-}
-
-.hud-minimap-checkpoint-start {
-  stroke: var(--hud-ink);
-  stroke-width: 2.4;
-}
-
-/* THE ONE THE RUN OWES, in the flag's red and wider than the rest — the
-   place on the map the skier has to reach next. */
-.hud-minimap-checkpoint-owed {
-  stroke: var(--hud-good);
-  stroke-width: 4;
-}
-
-.hud-minimap-checkpoint-missed {
-  stroke: var(--hud-bad);
-  stroke-width: 4.5;
-}
-
-.hud-minimap-rival {
-  stroke: rgb(var(--hud-plate) / 85%);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-  transition:
-    cx 90ms linear,
-    cy 90ms linear;
 }
 
 .hud-minimap-chevron {
@@ -372,6 +402,51 @@ canvas {
   stroke-linejoin: round;
 }
 
+/* THE HELICOPTER he flies, at the plate's middle: the pad's yellow, edged
+   in the HUD's ink like the skier's arrow, the rotor turning over it. */
+.hud-minimap-heli {
+  fill: #f2c418;
+  stroke: var(--hud-ink);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+.hud-minimap-heli-gear {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+
+/* The rotor's box is its disc, centred on the hub, so it turns about it. */
+.hud-minimap-rotor {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hud-minimap-rotor circle {
+  fill: var(--hud-ink);
+}
+
+.hud-minimap-rotor path {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hud-minimap-rotor-on {
+    animation: hud-minimap-rotor linear infinite;
+  }
+}
+
+@keyframes hud-minimap-rotor {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* THE NOTICE STANDING OVER A CARD (App.tsx): the front door is a layer of
    its own with a wash across the whole screen, so the corner the new-build
    mark stands in has to be lifted over it — under it the one thing the app
@@ -383,10 +458,13 @@ canvas {
   z-index: 1600;
 }
 
-/* THE THREE PRESSES, side by side in the top-right corner: targets a thumb
-   finds without leaving the snow, in the corner the skier glances at between
-   checkpoints (hud-actions.tsx). The row is the cluster's width and the discs
-   share it, so a press added or taken out is one edit to `--hud-press`. */
+/* THE PRESSES, side by side in the top-right corner under the map: targets a
+   thumb finds without leaving the snow, in the corner the skier glances at
+   between checkpoints (hud-actions.tsx). The row is the cluster's width and
+   the discs are a THIRD of it whether two stand there (the reset and the
+   camera, the map being the pause) or three (the pause disc heading the row
+   with the readouts off), so the discs never change size as the HUD comes
+   and goes; two sit centred under the plate. */
 .hud-action-stack {
   display: flex;
   align-items: flex-start;
@@ -775,6 +853,87 @@ canvas {
   fill: var(--hud-bad);
 }
 
+/* THE WIND METER (hud-wind.tsx): a heading-up dial to the right of the
+   speed, the weather's wind faint on it and the felt wind bold, with the
+   felt wind's number beside it. */
+.hud-wind {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+}
+
+.hud-wind-dial {
+  width: clamp(2rem, 6.5vmin, 3.2rem);
+  height: clamp(2rem, 6.5vmin, 3.2rem);
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px var(--hud-shadow));
+}
+
+.hud-wind-ring {
+  fill: rgb(var(--hud-plate) / 45%);
+  stroke: var(--hud-track);
+  stroke-width: 3;
+}
+
+.hud-wind-ahead {
+  fill: var(--hud-ink);
+  opacity: 0.7;
+}
+
+/* Turned about the dial's centre and tweened between the HUD's 12 Hz
+   snapshots, the angle carried the short way round by the component. */
+.hud-wind-turn {
+  transition: transform 90ms linear;
+}
+
+.hud-wind-air {
+  fill: var(--hud-ink);
+  stroke: var(--hud-ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.4;
+}
+
+.hud-wind-felt {
+  fill: var(--hud-ink);
+  stroke: var(--hud-ink);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hud-wind-gale .hud-wind-felt {
+  fill: var(--hud-bad);
+  stroke: var(--hud-bad);
+}
+
+.hud-wind-read {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+
+.hud-wind-num {
+  font-size: clamp(1.1rem, 4vmin, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-wind-gale .hud-wind-num {
+  color: var(--hud-bad);
+}
+
+.hud-wind-air-read {
+  font-size: clamp(0.5rem, 1.5vmin, 0.7rem);
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
 /* STUCK sits where the missed arrow would, a notch lower so the two read
    as different news. */
 .hud-stuck {
@@ -1103,6 +1262,44 @@ canvas {
   }
 }
 
+/* THE STARTER'S WORD on a slalom (hud.tsx): READY, then GO, small at the
+   top centre. The count itself is the start clock's in the house, and the
+   start is a television shot the big lights would cover — so this is a
+   caption, not a light: the HUD's condensed capitals in a dark pill, GO in
+   the flag's colour. */
+.hud-starter {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hud-starter > span {
+  display: block;
+  padding: 0.2rem 0.9rem;
+  border-radius: 999px;
+  background: rgb(var(--hud-plate) / 70%);
+  border: 1px solid var(--hud-edge);
+  font-size: clamp(0.85rem, 2.6vmin, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #fff;
+  animation: hud-air-in 300ms ease-out backwards;
+}
+
+.hud-starter > .hud-starter-go {
+  color: var(--hud-good);
+}
+
+/* A phone held upright wraps the top-left readouts across the top centre,
+   so the word drops under them, clear of the map's corner. */
+@media (orientation: portrait) {
+  .hud-starter {
+    top: 20%;
+  }
+}
+
 /* THE RESULT PLATE — the tab-away card's plate with the finish's own lines on
    it and a row of presses under them (hud-result.tsx), and a gold rim on the
    day the book gains a row.
@@ -1144,6 +1341,14 @@ canvas {
 .hud-result-note {
   margin-top: 0.3rem;
   opacity: 0.7;
+}
+
+/* What the slalom gates skied past put on the clock, under the time it is
+   already in: the bad tone, small, so it explains the time rather than
+   competing with it. */
+.hud-result-penalty {
+  color: var(--hud-bad);
+  font-size: 0.85em;
 }
 
 /* The centre: the pause card. */
@@ -1293,8 +1498,13 @@ canvas {
   color: var(--hud-good);
 }
 
-/* THE GAP to the record at the same crossing: the flag's colour ahead of
-   it, the warning's behind — the one chip whose colour IS the reading. */
+/* THE GAP to the record (or, on a slalom, the leader) at the same
+   crossing: green ahead of it, the warning's red behind — the one chip
+   whose colour IS the reading. */
+.hud-gap.hud-gap-ahead > span:first-child {
+  color: var(--hud-ahead);
+}
+
 .hud-gap.hud-gap-behind > span:first-child {
   color: var(--hud-bad);
 }
@@ -1351,6 +1561,171 @@ canvas {
 
 .hud-standing-time {
   text-align: right;
+}
+
+/* THE SLALOM'S BOARD on the finish plate (hud-board.tsx): a results sheet
+   of thirty — place, start number, the player's word, the times, the gap —
+   in a fixed grid so every column lines up down the sheet, a head row of
+   captions over it. The LIST is the one part of the plate that scrolls:
+   thirty rows are more than a phone on its side can stand, and the rest of
+   the plate (the verdict, the ways on) never moves. */
+.hud-board {
+  width: 100%;
+  margin-top: 0.4rem;
+  font-size: clamp(0.72rem, 2.1vmin, 0.95rem);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  max-height: min(15rem, 30vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hud-board-row {
+  display: grid;
+  grid-template-columns: 1.7em 2.2em minmax(2.4em, 1fr) 5.2em 4.2em;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.3rem;
+  background: rgb(var(--hud-plate) / 35%);
+  white-space: nowrap;
+}
+
+/* On the second run, the first run's time and the total beside this one. */
+.hud-board[data-second] .hud-board-row {
+  grid-template-columns: 1.7em 2.2em minmax(2.4em, 1fr) 5.2em 5.2em 5.2em 4.2em;
+}
+
+.hud-board-head {
+  background: none;
+  font-size: 0.8em;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.hud-board-head > span:nth-child(n + 4),
+.hud-board-place,
+.hud-board-time,
+.hud-board-gap {
+  text-align: right;
+}
+
+.hud-board-place {
+  font-weight: 700;
+}
+
+.hud-board-bib {
+  color: var(--hud-info);
+}
+
+.hud-board-gap {
+  color: var(--hud-info);
+}
+
+/* A racer with no time: why, across the columns his times would be in. */
+.hud-board-status {
+  grid-column: 4 / -1;
+  text-align: right;
+  color: var(--hud-info);
+}
+
+.hud-board-out .hud-board-status {
+  color: var(--hud-bad);
+}
+
+.hud-board-you {
+  color: var(--hud-good);
+  background: rgb(var(--hud-plate) / 75%);
+  outline: 1px solid var(--hud-good);
+}
+
+/* On a phone held upright the second run's sheet drops the first run's
+   column: the total carries it, and seven columns do not fit 390 px. */
+@media (max-width: 30rem) {
+  .hud-board[data-second] .hud-board-row {
+    grid-template-columns: 1.7em 2.2em minmax(2em, 1fr) 4.9em 4.9em 3.8em;
+  }
+  .hud-board[data-second] .hud-board-row > :nth-child(4) {
+    display: none;
+  }
+}
+
+/* THE SLALOM'S PLATE ON A PHONE: upright, the list gives up rows before the
+   plate gives up its presses; on its side — 390 px of height for a verdict,
+   a sheet of thirty and the ways on — the plate turns into two columns, the
+   verdict and the presses on the left and the board filling the right to
+   exactly the left's height (`contain: size` keeps thirty rows from asking
+   for more), its list scrolling inside it. */
+@media (max-width: 30rem) {
+  .hud-board-list {
+    max-height: 22vh;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .hud-card.hud-result-boarded {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    column-gap: 1rem;
+    row-gap: 0;
+    align-content: center;
+    justify-items: center;
+    max-width: min(52rem, calc(100vw - 2rem));
+    max-height: calc(100% - 1rem);
+    padding: 0.6rem 1rem;
+    overflow: hidden;
+  }
+  .hud-result-boarded > * {
+    grid-column: 1;
+    margin-block: 0.1rem;
+  }
+  .hud-result-boarded > .hud-board {
+    grid-column: 2;
+    grid-row: 1 / span 14;
+    align-self: stretch;
+    contain: size;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+  }
+  .hud-result-boarded .hud-board-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  .hud-result-boarded .hud-result-acts {
+    margin-top: 0.3rem;
+  }
+}
+
+/* A RUN THAT WENT OUT: the plate's rim and its verdict in the warning's
+   colour — the one plate whose colour IS the reading. */
+.hud-card.hud-result-out {
+  border-color: var(--hud-bad);
+}
+
+.hud-result-verdict {
+  color: var(--hud-bad);
+}
+
+.hud-result-why {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* Where the player stands against the leader: green leading. */
+.hud-result-lead[data-lead] {
+  color: var(--hud-ahead);
 }
 
 /* ── THE TOUCH CONTROLS ──────────────────────────────────────────────────
@@ -1482,6 +1857,27 @@ canvas {
   fill: var(--hud-ink);
   stroke: rgb(var(--hud-plate) / 70%);
   stroke-width: 2;
+}
+
+/* THE JUMP LOADING under the lever's thumb (the tap-and-hold): the knob
+   ringed in the accent and swelling over the two seconds a full load
+   takes, so the thumb can see it loading. */
+.hud-lever-jump .hud-lever-knob {
+  stroke: var(--hud-good);
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hud-jump-load 2s ease-out forwards;
+}
+
+@keyframes hud-jump-load {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.45);
+  }
 }
 
 @keyframes hud-anchor-in {
@@ -1953,10 +2349,11 @@ canvas {
   gap: 0.9rem;
   width: min(30rem, 100%);
   max-height: 100%;
-  /* THE CARD IS THE SCROLLER, not the rows inside it. A scrolling body
-     within a fixed head reserves a gutter its head does not, and every row
-     then sits a scrollbar's width left of the rule above them — a card that
-     looks broken on the one page long enough to need the scroll. */
+  /* A card with a head never scrolls as a whole: its BODY does
+     (`.menu-body`), so the way back and the way on stay put. This is the
+     fallback for the two cards with no head (the front door, the pause
+     card), which are laid out to fit and scroll only on a screen smaller
+     than any phone. */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: clamp(1rem, 3.5vmin, 1.6rem);
@@ -1979,6 +2376,37 @@ canvas {
 
    It costs nothing on a card that FITS: there is no shrinking to refuse. */
 .menu-card > * {
+  flex-shrink: 0;
+}
+
+/* THE PAGE'S BODY (`MenuBody`): the one part of a card that scrolls, between
+   a head and a caption that do not — so BACK and the way on are never below
+   the fold, which on a phone on its side is 390 px away. It is the one child
+   ALLOWED to shrink, and it hands its children the same refusal the card
+   does, for the same reason. The gap is the card's own, so a page reads the
+   same whether or not it is long enough to scroll.
+
+   The inset and its matching negative margin give a lit box's ring and a
+   picked swatch's scale room inside the clip: a scroller cuts at its padding
+   edge, and with none every chosen box would lose its outer stroke. */
+.menu-card > .menu-body {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  margin: -0.3rem;
+  padding: 0.3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.menu-body > * {
   flex-shrink: 0;
 }
 
@@ -2020,6 +2448,14 @@ canvas {
 .menu-pause-head .menu-title {
   font-size: clamp(1.3rem, 5.5vmin, 1.9rem);
   color: var(--hud-good);
+}
+
+/* THE MOUNTAIN as the free ride raises it again: a footnote to the line
+   over it, small enough to stay one line on a phone. */
+.menu-pause-head .menu-pause-mountain {
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
 }
 
 /* HOW THE HELD RUN HAS GONE (`pause-stats.ts`): up to four figures in one
@@ -2290,7 +2726,7 @@ canvas {
    block). */
 .menu-tiles {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
@@ -2447,6 +2883,31 @@ canvas {
   text-indent: 0.16em;
   line-height: 1.2;
   color: rgb(255 255 255 / 82%);
+}
+
+/* THE DISCIPLINES NOT BUILT YET, under SLALOM: a dim row of their names
+   across the grid and a COMING tag — words, not tiles, because nothing in it
+   can be pressed. */
+.menu-disciplines {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.9rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: rgb(255 255 255 / 45%);
+  pointer-events: none;
+}
+
+.menu-discipline-soon {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 0.25rem;
+  color: rgb(255 255 255 / 60%);
 }
 
 /* THE SHEEN — a bar of light travelling the hero, the one moving thing on a
@@ -2628,23 +3089,53 @@ canvas {
    width query, because what is short is what hurts: a desktop window dragged
    into a letterbox has the same problem and gets the same door. */
 @media (orientation: landscape) and (max-height: 34rem) {
+  /* THE NAME AND THE CHIPS SHARE ONE LINE across the head of the card — the
+     name and the build on the left, everything that is not snow on the
+     right — and the line the chips had to themselves goes to the tiles. A
+     door that scrolls hides a way on below its fold, and under a browser's
+     own bar there is no line to spare. */
   .menu-card-root {
-    width: min(36rem, 100%);
-    gap: 0.6rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand strip"
+      "tiles tiles";
+    align-items: center;
+    gap: 0.5rem 1rem;
+  }
+
+  .menu-card-root .menu-brand {
+    grid-area: brand;
+    margin: 0;
+  }
+
+  .menu-card-root .menu-tiles {
+    grid-area: tiles;
+  }
+
+  .menu-card-root .menu-strip {
+    grid-area: strip;
+    justify-content: flex-end;
+    margin: 0;
+  }
+
+  /* The build rides beside the name, as its small print. */
+  .menu-card-root .menu-version {
+    order: -1;
+    margin: 0 auto 0 0;
+    padding: 0;
   }
 
   .menu-brand-mark {
-    width: 3.2rem;
+    width: 2.5rem;
   }
 
   .menu-brand-name {
-    font-size: 1.6rem;
+    font-size: 1.35rem;
   }
 
-  /* Four chips along the foot on one row, so none of them — the GALLERY is
-     the last — is below the card's fold. */
   .menu-card-root .menu-chip {
-    padding: 0.45rem 0.55rem;
+    padding: 0.4rem 0.6rem;
     gap: 0.35rem;
     letter-spacing: 0.1em;
   }
@@ -2744,7 +3235,7 @@ canvas {
 
 /* ── A PAGE UNDER THE FRONT DOOR (menu-options.tsx, menu-keys.tsx) ─────────
    A head with the way out in it, then the rows (menu-knobs.tsx). OPTIONS is
-   the longest card in the game, so the CARD scrolls — see `.menu-card`. */
+   the longest card in the game, so its BODY scrolls — see `.menu-body`. */
 .menu-head {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -3015,20 +3506,16 @@ canvas {
   text-align: center;
 }
 
-/* THE PAGE'S ONE SENTENCE, fixed to the foot of the WINDOW — the card is the
-   scroller, and a caption at the bottom of a column taller than the viewport
-   is a caption nobody reading a row at the top can see. Fixed is safe only
-   while nothing between this and the root carries a transform, a filter,
-   `contain` or `will-change`: put one on `.menu-card` and the bar is clipped
-   by the card again. No pointer events, ever: it lies over the foot of
-   whatever card is up. */
+/* THE PAGE'S ONE SENTENCE, at the foot of the CARD — after its body, which
+   is what scrolls, so the sentence is on screen whichever row is being
+   read. No pointer events: it is read, never pressed.
+
+   Every sentence the card can show is stacked in ONE grid cell and all but
+   the one being read are hidden, so the bar is always as tall as the longest
+   of them (`Caption`): a bar that grew as a row was touched would pull the
+   row out from under the finger before the press landed. */
 .knob-caption {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--shell-bottom) + max(0.6rem, env(safe-area-inset-bottom)));
-  z-index: 1600;
-  transform: translateX(-50%);
-  width: min(44rem, calc(100vw - 2rem));
+  display: grid;
   pointer-events: none;
   font-size: 0.64rem;
   font-weight: 500;
@@ -3043,6 +3530,18 @@ canvas {
   background: rgb(13 34 51 / 82%);
   border: 1px solid rgb(244 248 251 / 18%);
   transition: opacity 120ms ease;
+}
+
+.knob-caption-line {
+  grid-area: 1 / 1;
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.knob-caption-sizer {
+  visibility: hidden;
 }
 
 .knob-caption-on {
@@ -3061,12 +3560,6 @@ canvas {
   color: var(--hud-info);
   font-weight: 500;
   letter-spacing: 0;
-}
-
-/* A CARD WITH A CAPTION STOPS ABOVE IT, or its last row sits under the one
-   element that exists to explain a row. */
-.menu:has(.knob-caption) {
-  padding-bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.2rem);
 }
 
 .menu-card-options,
@@ -3333,45 +3826,15 @@ canvas {
   color: var(--hud-ink);
 }
 
-.skis-topsheets {
+/* The way to the DRESS card, where the topsheet swatches stood: a pair is
+   sold in one topsheet, and what the skier wears is a card of its own. */
+.skis-dress-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.6rem;
-  background: rgb(255 255 255 / 6%);
 }
 
-.skis-topsheet-label {
-  font-size: clamp(0.5rem, 1.8vmin, 0.62rem);
-  letter-spacing: 0.14em;
-  color: var(--hud-ink);
-  opacity: 0.8;
-  margin-right: 0.3rem;
-}
-
-.skis-topsheet {
-  width: clamp(1.4rem, 4.2vmin, 1.9rem);
-  height: clamp(1.4rem, 4.2vmin, 1.9rem);
-  padding: 0;
-  border: 2px solid rgb(255 255 255 / 35%);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.skis-topsheet.is-on {
-  border-color: var(--hud-ink);
-  box-shadow: 0 0 0 2px rgb(0 0 0 / 35%);
-  transform: scale(1.12);
-}
-
-.skis-topsheet-name {
-  min-width: 5.5em;
-  font-size: clamp(0.55rem, 2vmin, 0.72rem);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  color: var(--hud-ink);
-  opacity: 0.8;
+.skis-dress {
+  flex: 1;
+  justify-content: center;
 }
 
 .skis-pick-kind {
@@ -3503,11 +3966,6 @@ canvas {
   transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.skis-done {
-  margin-top: 0.2rem;
-  text-align: center;
-}
-
 /* Two columns the moment the card is wide enough to read the sheet beside
    the skis; the stage takes the slack. */
 @media (min-width: 40rem) {
@@ -3536,27 +3994,71 @@ canvas {
   }
 }
 
-/* A phone held sideways: the least height, and most of it spoken for. */
+/* A phone held sideways: the least height, and most of it spoken for. The
+   card takes the whole window and the body the whole card, so the PAIR's
+   pane is as tall as the window allows and never pushed past it; the sheet
+   beside it packs into one line of figures, the bars and the swatches. */
 @media (orientation: landscape) and (max-height: 34rem) {
   .menu-card-skis {
+    height: 100%;
     gap: 0.4rem;
+  }
+
+  .menu-card-skis > .menu-body {
+    flex: 1 1 0;
   }
 
   .skis-pick-body {
+    flex: 1 1 0;
+    min-height: 0;
     gap: 0.6rem;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .skis-spec {
-    gap: 0.4rem;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .skis-figures {
+    gap: 0.3rem;
   }
 
   .skis-figure {
-    padding: 0.35rem 0.5rem 0.4rem;
+    gap: 0.05rem;
+    padding: 0.3rem 0.4rem 0.35rem;
+    border-radius: 0.45rem;
+  }
+
+  .skis-figure-label {
+    font-size: 0.46rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .skis-figure-value {
+    font-size: 0.86rem;
+  }
+
+  .skis-figure-unit {
+    margin-left: 0.2em;
+    letter-spacing: 0.04em;
+  }
+
+  .skis-bars {
+    gap: 0.22rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .skis-bar-label {
+    width: 5.6rem;
   }
 
   .skis-pick-stage {
-    min-height: clamp(6rem, 34vh, 11rem);
+    height: auto;
+    min-height: 0;
   }
 
   /* The billing gives its two lines back to the pair: on this shape the
@@ -3565,10 +4067,86 @@ canvas {
   .skis-blurb {
     display: none;
   }
+}
 
-  .skis-done {
-    margin-top: 0;
-    padding: 0.5rem 1rem;
+/* ── THE DRESS CARD (menu-dress.tsx) ──────────────────────────────────────
+   The skier on his stand beside seven rows — the body, its weight and the
+   kit. Side by side where there is the width, the stand over the rows on a
+   phone held upright, and the rows in two columns on a phone on its side,
+   where seven of them stacked are taller than the screen. */
+.menu-card-dress {
+  width: min(52rem, 100%);
+  gap: 0.6rem;
+}
+
+.dress-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(0.6rem, 2.4vmin, 1.1rem);
+  align-items: stretch;
+}
+
+.dress-stage {
+  position: relative;
+  min-height: clamp(12rem, 42vh, 22rem);
+  border-radius: 0.7rem;
+  border: 2px solid rgb(244 248 251 / 18%);
+  background: linear-gradient(rgb(111 168 220 / 55%), rgb(207 230 247 / 35%) 70%);
+  overflow: hidden;
+}
+
+.dress-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+/* What NONE on the POLES row costs: the one pick that is more than a look. */
+.dress-note {
+  margin: 0.2rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--flag);
+  border-radius: 0.3rem;
+  background: rgb(10 20 34 / 45%);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: rgb(244 248 251 / 88%);
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .dress-body {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr);
+  }
+
+  .dress-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+  }
+
+  /* Half a row's width: a narrower value and arrows, so the slot's name
+     still reads beside them. */
+  .dress-rows .knob {
+    padding-left: 0.55rem;
+  }
+
+  .dress-rows .knob-value {
+    width: 6.4rem;
+  }
+
+  .dress-rows .knob-arrow {
+    width: 1.7rem;
+  }
+}
+
+@media (max-width: 40rem) and (orientation: portrait) {
+  .dress-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dress-stage {
+    min-height: clamp(11rem, 34vh, 16rem);
   }
 }
 
@@ -3775,8 +4353,80 @@ canvas {
   gap: 0.35rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 0.2rem;
+  padding-bottom: 0.35rem;
   -webkit-overflow-scrolling: touch;
+  /* The browser's own bar is a white slab under the dark card: thin, the
+     track left clear and the thumb in the card's own pale ink instead. */
+  scrollbar-width: thin;
+  scrollbar-color: rgb(207 230 247 / 0.45) transparent;
+}
+
+.gallery-strip::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gallery-strip::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gallery-strip::-webkit-scrollbar-thumb {
+  background: rgb(207 230 247 / 0.45);
+  border-radius: 3px;
+}
+
+.gallery-strip::-webkit-scrollbar-thumb:hover {
+  background: rgb(207 230 247 / 0.7);
+}
+
+/* A phone on its side: the picture down the left, as tall as the window
+   allows, and everything that is said or pressed about it in a column
+   beside it — the filmstrip at its foot, scrolling on its own. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .gallery {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "stage caption"
+      "stage actions"
+      "stage strip";
+    gap: 0.5rem 0.8rem;
+  }
+
+  .gallery-stage {
+    grid-area: stage;
+  }
+
+  .gallery-caption {
+    grid-area: caption;
+    font-size: 0.7rem;
+  }
+
+  .gallery-actions {
+    grid-area: actions;
+  }
+
+  .gallery-strip {
+    grid-area: strip;
+    align-self: end;
+  }
+
+  .gallery-img {
+    max-height: calc(100dvh - 9rem);
+  }
+
+  .gallery-step {
+    width: 1.8rem;
+  }
+
+  .gallery-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.72rem;
+  }
+
+  .gallery-btn-quiet {
+    margin-left: 0;
+  }
 }
 
 .gallery-thumb {
@@ -4050,6 +4700,42 @@ canvas {
   white-space: nowrap;
 }
 
+/* ── EVERY PAGE TURNED SIDEWAYS ────────────────────────────────────────────
+   A phone on its side is 390 px tall, less a browser's own bar when it is
+   not installed, and every page pays for its head and its caption before a
+   row is drawn. So the chrome thins — the window's margin, the card's own
+   padding, the head's rule and title — and the caption keeps to ONE line:
+   a sentence that wrapped as the rows were walked would move the card under
+   the thumb walking them. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .menu-card {
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .menu-head {
+    padding-bottom: 0.4rem;
+  }
+
+  .menu-head .menu-title {
+    font-size: 1rem;
+  }
+
+  .menu-head-go {
+    padding: 0.4rem 1.2rem;
+  }
+
+  .knob-caption {
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
+  }
+}
+
 /* A VALUE THAT IS TYPED INTO — the seed: the reading it is, with a faint box
    that says "type here" without competing with the number in it. */
 .knob-field {
@@ -4135,39 +4821,113 @@ canvas {
   }
 }
 
-/* A phone on its side: the least height of all, so the two columns stand
-   side by side there too and the chart gives way first. */
+/* A phone on its side: the least height of all, so the CHART takes a column
+   of its own down the left, as tall as the body, and the rows stand in two
+   columns beside it — the mountain, the country and the grade with the two
+   chips under them; the day's four on the right. Nothing on the card is
+   below the fold, and nothing that is a picture scrolls. */
 @media (orientation: landscape) and (max-height: 34rem) {
+  /* THE CHART'S SIDE: square, and sized off what the window has left under
+     the head, over the caption and its own line of figures — the body is
+     that tall, and the chart is the reason the card exists. Its column is
+     cut to it, or the line of figures under it would widen the column to
+     its own length and squeeze the rows' names out. */
+  .menu-card-start {
+    --chart: clamp(8rem, calc(100dvh - 12rem), 13rem);
+    width: min(52rem, 100%);
+  }
+
   .start-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: calc(var(--chart) + 0.5rem + 4px) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     align-items: start;
-    gap: 0.4rem 0.8rem;
+    gap: 0.4rem 0.6rem;
   }
 
-  .menu-card-start {
-    width: min(48rem, 100%);
+  .start-col {
+    display: contents;
   }
 
-  .menu-card-start {
-    gap: 0.4rem;
-    padding-top: 0.6rem;
-    padding-bottom: 0.6rem;
+  .start-col:first-child > .knob-rows {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .start-cols .seed-preview {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    padding: 0.25rem;
+  }
+
+  .start-col:last-child > .knob-rows {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .start-actions {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .menu-card-start .seed-preview-plate {
-    max-width: min(12rem, 34vh);
+    width: var(--chart);
+    max-width: none;
   }
 
-  .menu-card-start .seed-preview {
-    padding: 0.25rem;
+  .menu-card-start .seed-preview-read {
+    font-size: 0.5rem;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  /* The two chips under the left column's rows share one line. */
+  .start-actions {
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+  }
+
+  .start-actions .menu-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.4rem 0.4rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-indent: 0;
+  }
+
+  /* Two columns of rows beside a chart: the name, the value and the arrows
+     each give a little width, so every row still says what it is. */
+  .menu-card-start .knob {
+    gap: 0.25rem;
+    padding-left: 0.55rem;
+    padding-right: 0.15rem;
+  }
+
+  .menu-card-start .knob-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+  }
+
+  .menu-card-start .knob-value {
+    width: 5.2rem;
+  }
+
+  .menu-card-start .knob-ctl {
+    gap: 0;
+  }
+
+  .menu-card-start .knob-arrow {
+    width: 1.8rem;
   }
 }
 
 /* ── THE SEED'S CHART (seed-preview.tsx) ───────────────────────────────────
-   The minimap's own bake of the ground, north up, with the piste, the start line
-   and every kicker over it. The plate is a square the CARD sizes, reserved
-   before the first chart lands, so nothing moves under a press. */
+   Two views of the map, summit-up: the PANORAMA (the mountain painted from
+   the valley, the ski area over it — panorama.ts) and the PLAN (the
+   minimap's own bake of the ground, with the piste, the start line and every
+   kicker over it). The plate is a square the CARD sizes, reserved before the
+   first chart lands, so nothing moves under a press. */
 .seed-preview {
   display: flex;
   flex-direction: column;
@@ -4180,6 +4940,7 @@ canvas {
 }
 
 .seed-preview-plate {
+  position: relative;
   display: flex;
   width: 100%;
   max-width: min(15rem, 26vh);
@@ -4249,22 +5010,162 @@ canvas {
   opacity: 0.45;
 }
 
-.seed-preview-spot circle:first-child {
-  fill: none;
+/* The chip that turns the plate to its other view, in the plate's corner. */
+.seed-preview-view {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid rgb(244 248 251 / 55%);
+  border-radius: 0.25rem;
+  background: rgb(13 34 51 / 72%);
+  color: var(--snow);
+  font: inherit;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.seed-preview-view:hover,
+.seed-preview-view:focus-visible {
+  background: rgb(13 34 51 / 92%);
+  border-color: var(--snow);
+}
+
+/* THE PANORAMA'S SCHEMATIC, as a painted piste map prints it: every run in
+   its grade's colour on a white casing (a transport lane dashed), the
+   course raced the widest, the stretches the view cannot see dotted
+   faintly, the lifts as dark lines between two stations. */
+.pano-run-hidden {
+  stroke-width: 0.5;
+  stroke-dasharray: 0.6 1.1;
+  opacity: 0.5;
+}
+
+.pano-run-casing {
+  stroke: #fff;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+.pano-run {
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.pano-run-casing.pano-raced {
+  stroke-width: 2.3;
+}
+
+.pano-run.pano-raced {
+  stroke-width: 1.35;
+}
+
+/* A transport lane is a cat track a few metres wide, not a piste: a thin
+   line on a thin casing, finely dashed — never the weight of a run. */
+.pano-run.pano-road {
+  stroke-width: 0.45;
+  stroke-dasharray: 0.9 0.7;
+  stroke-linecap: butt;
+}
+
+.pano-run-casing.pano-road {
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.pano-lift-casing {
+  stroke: #fff;
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.pano-lift-line {
+  stroke: #16181b;
+  stroke-width: 0.4;
+}
+
+.pano-lift-drag .pano-lift-line {
+  stroke-dasharray: 1.2 0.6;
+}
+
+.pano-station {
+  fill: #16181b;
+  stroke: #fff;
+  stroke-width: 0.3;
+}
+
+.pano-badge text {
+  fill: #fff;
+  font-size: 3.6px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.pano-finish {
+  fill: #16181b;
+  stroke: #fff;
+  stroke-width: 0.4;
+}
+
+/* WHERE THE RIDE STARTS: a dot in the run's colour (the go-green on a spot
+   tapped) inside a white ring, with two rings beating out of it in turn so
+   the eye finds it on a busy chart at once. Calm, one still halo, for a
+   skier who asked for less motion. */
+.seed-preview-entry {
+  pointer-events: none;
+}
+
+.seed-preview-entry-ring {
+  fill: rgb(0 0 0 / 0.35);
   stroke: var(--snow);
   stroke-width: 0.9;
 }
 
-.seed-preview-spot circle:last-child {
+.seed-preview-entry-dot {
   fill: #1ea848;
-  stroke: var(--night);
-  stroke-width: 0.3;
+  stroke: var(--snow);
+  stroke-width: 0.5;
 }
 
-/* THE FREE RIDE'S BEST AIR: keyed on its value, so a new best lands with the
-   place chip's thump, in the flag's colour so it reads as news. */
-.hud-best-air {
-  animation: hud-score-bank 340ms cubic-bezier(0.2, 1.4, 0.4, 1);
+.seed-preview-pulse {
+  fill: none;
+  stroke: var(--snow);
+  stroke-width: 0.7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seed-preview-pulse 1.6s ease-out infinite;
+}
+
+.seed-preview-pulse-late {
+  animation-delay: 0.8s;
+}
+
+@keyframes seed-preview-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seed-preview-pulse {
+    animation: none;
+    transform: scale(2);
+    opacity: 0.5;
+  }
+
+  .seed-preview-pulse-late {
+    display: none;
+  }
 }
 
 /* ── THE TRICKS RUN (hud-combo.tsx) ──────────────────────────────────────
@@ -4329,4 +5230,17 @@ canvas {
   .hud-combo-points {
     animation: none;
   }
+}
+
+/* A SKI CROSS (hud-cross.tsx, hud.tsx): the first two of a heat — over the
+   line, or holding the place on the course — lit as going THROUGH. */
+.hud-place-through > span:first-child,
+.hud-cross-through .hud-standing-place,
+.hud-cross-mark {
+  color: var(--hud-good);
+}
+
+.hud-cross-mark {
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
 }

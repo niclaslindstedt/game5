@@ -152,6 +152,10 @@ window.__sky = {
       state.fresh = rows[r].fresh ?? 0;
       for (let c = 0; c < hours.length; c++) {
         renderer.setSky({ weather: rows[r].sky, hour: hours[c] });
+        // The mountain's shadow is baked again off the thread for a new
+        // bearing of the sun: one frame to ask, then wait for it.
+        renderer.draw(state, 0, FRAME, false);
+        await renderer.shadeSettled();
         // A few frames unseen, so the spindrift is up and the lens settled.
         for (let i = 0; i < 20; i++) renderer.draw(state, 0, FRAME, false);
         renderer.draw(state, 0, FRAME, true);

@@ -12,6 +12,7 @@
 //   npm run sim -- --seeds 3,7,38        specific seeds
 //   npm run sim -- --rivals 3            a whole race, the bot on the grid's first slot
 //   npm run sim -- --skis eagle          one pair of the catalog
+//   npm run sim -- --rider heavy         the skier of another build (defs/riders.ts)
 //   npm run sim -- --skis all            the whole catalog, seed by seed, and who won each
 //   npm run sim -- --tricks              the maps with their trick field laid (R20)
 //   npm run sim -- --laps 1 --json out.json
@@ -35,8 +36,15 @@ const {
   TUNING,
   SKI_CATALOG,
   isSkiId,
+  RIDERS,
+  isRiderId,
+  riderById,
+  withRider,
   isRegionId,
   REGION_IDS,
+  isPisteGrade,
+  PISTE_GRADES,
+  WEATHER_KINDS,
 } = await import(join(root, "engine/index.ts"));
 
 const args = parseArgs(
@@ -52,16 +60,67 @@ const args = parseArgs(
       default: SKI_CATALOG[0].id,
       help: `the pair (${SKI_CATALOG.map((s) => s.id).join(", ")}), or all for the catalog`,
     },
+    rider: {
+      kind: "string",
+      default: "medium",
+      help: `the skier's build (${RIDERS.map((r) => r.id).join(", ")})`,
+    },
     tricks: { kind: "flag", help: "ride each seed's map with its trick field laid (R20)" },
+    "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     region: {
       kind: "string",
       default: "alpine",
       help: `the kind of snow country each map is built in (R21: ${REGION_IDS.join(", ")})`,
     },
+    grade: {
+      kind: "string",
+      help: `the piste grade each map is built to (R23: ${PISTE_GRADES.join(", ")}); the seed's own when left out`,
+    },
+    weather: {
+      kind: "string",
+      help: `ski every map under this sky (R19: ${WEATHER_KINDS.join(", ")}); the seed's own when left out`,
+    },
+    mode: {
+      kind: "string",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump) or knuckleHuck (R38, a whole jam to the buzzer) — its course set over each seed's map under the strict gates; the open rules when left out",
+    },
+    heat: {
+      kind: "flag",
+      help: "on --mode skiCross, ski a heat of four out of the start gate, the field skied beside the bot (R35)",
+    },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--laps n] [--rivals n] [--max s] [--tricks] [--region id] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|knuckleHuck] [--heat] [--json path]",
 );
+
+if (args.grade !== undefined && !isPisteGrade(args.grade)) {
+  console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);
+  process.exit(2);
+}
+
+if (
+  args.mode !== undefined &&
+  ![
+    "slalom",
+    "giantSlalom",
+    "downhill",
+    "superG",
+    "speedSki",
+    "skiCross",
+    "bigAir",
+    "knuckleHuck",
+  ].includes(args.mode)
+) {
+  console.error(
+    `unknown mode "${args.mode}" (slalom, giantSlalom, downhill, superG, speedSki, skiCross, bigAir, knuckleHuck)`,
+  );
+  process.exit(2);
+}
+
+if (args.weather !== undefined && !WEATHER_KINDS.includes(args.weather)) {
+  console.error(`unknown weather "${args.weather}" (${WEATHER_KINDS.join(", ")})`);
+  process.exit(2);
+}
 
 if (!isRegionId(args.region)) {
   console.error(`unknown region "${args.region}" (${REGION_IDS.join(", ")})`);
@@ -72,7 +131,13 @@ if (args.skis !== "all" && !isSkiId(args.skis)) {
   console.error(`unknown skis "${args.skis}" (${SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
-const roster = args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis);
+if (!isRiderId(args.rider)) {
+  console.error(`unknown rider "${args.rider}" (${RIDERS.map((r) => r.id).join(", ")})`);
+  process.exit(2);
+}
+const roster = (
+  args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis)
+).map((s) => withRider(s, riderById(args.rider)));
 
 const seeds = args.seeds
   ? args.seeds.map(Number)
@@ -88,8 +153,13 @@ const kmh = (ms) => (ms * 3.6).toFixed(0);
 console.log(
   `sim — engine ${engineVersion} at ${TUNING.physicsHz} Hz · skis ${args.skis} · seeds ${seeds.join(",")} · ` +
     `laps ${args.laps ?? "map"} · rivals ${args.rivals} · max ${args.max} s` +
+    (args.rider !== "medium" ? ` · rider ${args.rider}` : "") +
     (args.tricks ? " · trick field" : "") +
-    (args.region !== "alpine" ? ` · ${args.region}` : ""),
+    (args["no-poles"] ? " · no poles" : "") +
+    (args.region !== "alpine" ? ` · ${args.region}` : "") +
+    (args.grade ? ` · ${args.grade}` : "") +
+    (args.weather ? ` · ${args.weather}` : "") +
+    (args.mode ? ` · ${args.mode}` : ""),
 );
 const header = [
   pad("seed", 5),
@@ -99,6 +169,7 @@ const header = [
   pad("cps", 7),
   pad("len", 6),
   pad("pow", 4),
+  pad("grade", 6),
   pad("mean", 5),
   pad("top", 5),
   pad("air", 5),
@@ -113,6 +184,8 @@ const header = [
   pad("plc", 4),
   pad("score", 6),
   pad("digest", 9),
+  // A discipline's run: the speed trap and how it went out of the race.
+  ...(args.mode ? [pad("trap", 5), " out"] : []),
 ].join(" ");
 
 const rows = [];
@@ -126,7 +199,12 @@ for (const spec of roster) {
       maxSeconds: args.max,
       spec,
       tricks: args.tricks,
+      poles: !args["no-poles"],
       region: args.region === "alpine" ? undefined : args.region,
+      grade: args.grade,
+      weather: args.weather,
+      mode: args.mode,
+      heat: args.heat,
     });
     rows.push(r);
     console.log(
@@ -138,6 +216,7 @@ for (const spec of roster) {
         pad(`${r.checkpoints}/${r.crossings}`, 7),
         pad(r.trackLength.toFixed(0), 6),
         pad(`${Math.round(r.powder * 100)}%`, 4),
+        pad(r.grade, 6),
         pad(kmh(r.meanSpeed), 5),
         pad(kmh(r.topSpeed), 5),
         pad(r.airTime.toFixed(1), 5),
@@ -152,6 +231,7 @@ for (const spec of roster) {
         pad(r.place, 4),
         pad(r.score, 6),
         pad(r.digest, 9),
+        ...(args.mode ? [pad(r.trap === null ? "-" : kmh(r.trap), 5), ` ${r.out ?? "-"}`] : []),
       ].join(" "),
     );
   }

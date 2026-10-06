@@ -215,6 +215,7 @@ export function originalOf(level: Level): Level {
     level.knuckleHuck?.base ??
     level.slopestyle?.base ??
     level.railJam?.base ??
+    level.halfpipe?.base ??
     level
   );
 }
@@ -356,6 +357,9 @@ export function gradeVenue(
     knuckleHuck: undefined,
     slopestyle: undefined,
     railJam: undefined,
+    halfpipe: undefined,
+    normalNear: undefined,
+    pipe: undefined,
     jibs: undefined,
   };
   return { ...frame, level };

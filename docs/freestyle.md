@@ -21,7 +21,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
-| Halfpipe | judged runs, best run counts | a pipe of its own | researched — spec `HALFPIPE.md` |
+| Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R41) — spec `HALFPIPE.md` |
 | Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R39) — spec `SLOPESTYLE.md` |
 | Big air | judged jumps, best two different | one jump | researched — spec `BIG_AIR.md` |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
@@ -140,6 +140,40 @@ bottom *(est.)*; a run of 25–40 s *(est.)*. A winning run today chains
 double corks to 1260, 1440 and 1620 in BOTH directions, switch take-offs,
 an alley-oop (an alley-oop flatspin or 900–1080) and long grabs [5]; the
 best women 900–1080 and doubles *(est.)*.
+
+**The shape of the walls** [46, 47]: a pipe-grooming cutter cuts a wall's
+whole profile in one pass, its blade curved to a fixed shape — an
+ELLIPTICAL one on the machine most used, circular arcs of 3–4.5 m radius
+on the smaller pipes the patents describe, with a flat bottom of 5–20 m
+between them. Our 22 ft section *(est.)*: walls 6.7 m from the flat to the
+coping and 20 m apart, the top 0.2 m at 83°, under it a circular
+TRANSITION of about 7.4 m radius tangent to the flat and to the vert, so
+the flat is about 5.3 m wide; a 4 m deck either side; the pitch 18° and
+170 m of full wall, a 22 m mouth the walls grow over at the top and an 18 m
+tail they shrink over at the foot.
+
+**Riding it** [48, 49]: the pipe is entered across its line, not down it —
+coaching material for the pipe has the skier meet each wall at near 90° to
+the coping and take off and land at the same height on the same wall. The
+height is kept by PUMPING: the legs extended into the transition, where
+the snow presses hardest (two to nearly three times his weight on a
+championship run [48]), and folded over the flat and the lip. A kinematic
+study of elite pipe riders' take-off measured the centre of mass leaving
+the lip at about 9.5 m/s on a 720 [48] — the 4–5 m over the coping above.
+An ALLEY-OOP is a spin turned toward the top of the pipe: off the
+right-hand wall (facing down the pipe) a turn to the right, off the left
+one to the left [49].
+
+**The skis and the skier** [50, 35, 36]: a pipe ski is a firm twin-tip
+about 85–90 mm underfoot, 172–186 cm, a sidecut of 17–21 m (the published
+pairs of a championship final's skiers run 110/84/110 to 119/90/109) —
+the stiff competition twin-tip big air rides. The skiers are the freeski
+team's measured mean, the MEDIUM build.
+
+**The conditions** [51]: a pipe final has been skied in gusts near 65 km/h
+with skiers falling, and a top-series stop postponed for gusts of about
+64 km/h and called off for a snowstorm; we hold a pipe run to gusts under
+40 km/h at the deck and a fall under 0.75 of a storm's *(est.)*.
 
 ## Slopestyle
 
@@ -901,4 +935,14 @@ and rules (the jam format, heats by ability, the overall impression and
 its criteria, place-vote scoring) · [44] a patent for a portable modular
 terrain-park feature system (the heights, lengths and widths of its rails
 and boxes) · [45] ski retailers' specifications of jib and street park
-skis (length, dimensions, sidecut, edge bevel, edgeless builds).
+skis (length, dimensions, sidecut, edge bevel, edgeless builds) ·
+[46] patents for snow-pipe cutting apparatus (the cutter's curved blade,
+the wall's radius and the flat bottom) · [47] a snow magazine's and a
+pipe-machine maker's descriptions of the 22 ft cutter (its elliptical
+profile) · [48] a 2016 kinematic analysis of elite halfpipe snowboarders'
+take-off (the speed out of the lip, the load in the transition) · [49] a
+national coaching portal's freeski halfpipe pages (the approach, the
+pump, the take-off and landing on the same wall, the alley-oop) · [50] a
+ski site's analysis of the equipment of a championship pipe final ·
+[51] news reports of pipe contests delayed or called off for wind and
+snow.

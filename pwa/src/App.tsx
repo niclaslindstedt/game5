@@ -500,7 +500,7 @@ export function App() {
       // every other run from the start line, on the same map, in its mode.
       const next =
         !state.rules.course && !state.rules.tricks && freeAgain
-          ? createGame(freeTopOptions(freeAgain, lastPiste(state)))
+          ? createGame(freeTopOptions(freeAgain, lastPiste(state), state.grimbear))
           : (pinned.again() ?? playerGame(state.level, state.seed));
       adopt(next, ticketFor(next));
       frozen = false;
@@ -816,15 +816,16 @@ export function App() {
     const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    // ...and a BIG AIR contest, a KNUCKLE HUCK, a SLOPESTYLE run or a RAIL
-    // JAM on the same card's map, its venue built over it.
+    // ...and a BIG AIR contest, a KNUCKLE HUCK, a SLOPESTYLE run, a RAIL
+    // JAM or a HALFPIPE on the same card's map, its venue built over it.
     const m = modeRef.current;
     if (
       (m === "tricks" ||
         m === "bigAir" ||
         m === "knuckleHuck" ||
         m === "slopestyle" ||
-        m === "railJam") &&
+        m === "railJam" ||
+        m === "halfpipe") &&
       params.seed === null
     ) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);

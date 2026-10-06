@@ -57,6 +57,7 @@ import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
 import { jamOf, type JamHud } from "./knuckle-huck-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
+import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -225,6 +226,10 @@ export type HudSnapshot = {
    * section he is in, and once judged the sheet, the board and what comes
    * next; null on any other run. */
   slopestyle: SlopestyleHud | null;
+  /** A HALFPIPE run (`halfpipe-run.ts`) — its phase and run, the hits so
+   * far, and once judged the sheet, the board and what comes next; null
+   * on any other run. */
+  halfpipe: HalfpipeHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -582,6 +587,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     bigAir: bigAirOf(state),
     jam: jamOf(state),
     slopestyle: slopestyleOf(state),
+    halfpipe: halfpipeOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,

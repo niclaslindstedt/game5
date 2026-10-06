@@ -90,6 +90,34 @@ export {
   type SlopeRow,
   type SlopeRun,
 } from "./game/slopestyle-contest.ts";
+export {
+  PIPE_JUDGING,
+  hitsOf,
+  isAlleyOop,
+  judgeHalfpipe,
+  readHit,
+  runImpression,
+  type HitRead,
+  type PipeScore,
+} from "./game/halfpipe-judge.ts";
+export {
+  PIPE_FIELD,
+  bestPipeRun,
+  freshHalfpipe,
+  judgePipeRun,
+  pipeBoard,
+  pipeContestAfter,
+  pipePhase,
+  pipePlace,
+  pipeRivalRun,
+  pipeRunsIn,
+  type PipeContest,
+  type PipePhase,
+  type PipeRow,
+  type PipeRun,
+} from "./game/halfpipe-contest.ts";
+export { PIPE_AIR, pipeHit, pipeLanding, stepPipeAir, type PipeLanding } from "./game/pipe-air.ts";
+export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -121,6 +149,8 @@ export {
   KNUCKLE_HUCK,
   RAIL_JAM,
   railJamRules,
+  HALFPIPE,
+  halfpipeRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
@@ -324,6 +354,7 @@ export {
   type CrowdNet,
   type NetRun,
 } from "./game/crowd.ts";
+export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,
   type CraftState,
@@ -524,8 +555,12 @@ export {
   pisteHead,
   runUnder,
   skiedResetPoint,
+  topOfSlope,
   TRACK_RUN,
 } from "./game/skied.ts";
+export { GRIMBEAR } from "./game/defs/grimbear.ts";
+export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
+export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";

@@ -29,6 +29,7 @@ import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 import { KNUCKLE_STRINGS } from "./strings-knuckle.ts";
 import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
 import { RAIL_JAM_STRINGS } from "./strings-railjam.ts";
+import { HALFPIPE_STRINGS } from "./strings-halfpipe.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -102,6 +103,7 @@ export const STRINGS = {
   ...KNUCKLE_STRINGS,
   ...SLOPESTYLE_STRINGS,
   ...RAIL_JAM_STRINGS,
+  ...HALFPIPE_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -219,7 +221,7 @@ export const STRINGS = {
    * landing taken over the tips, a fall at speed, an edge caught, a
    * landing on the body or one the legs folded under, a stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
-   * driven into. */
+   * driven into, the grimbear. */
   newsWipeout: (
     cause:
       | "tree"
@@ -232,29 +234,32 @@ export const STRINGS = {
       | "sled"
       | "stake"
       | "chair"
-      | "net",
+      | "net"
+      | "maul",
   ): string =>
-    cause === "heli"
-      ? "THROWN CLEAR!"
-      : cause === "chair"
-        ? "SWEPT BY THE CHAIR!"
-        : cause === "net"
-          ? "INTO THE NETS!"
-          : cause === "stake"
-            ? "YARD SALE! STAKE"
-            : cause === "sled"
-              ? "OFF THE SLED!"
-              : cause === "tree"
-                ? "YARD SALE! TREE"
-                : cause === "skier"
-                  ? "YARD SALE! TAKEN OUT"
-                  : cause === "nose"
-                    ? "OVER THE TIPS"
-                    : cause === "roll"
-                      ? "YARD SALE"
-                      : cause === "landing"
-                        ? "CRASH LANDING"
-                        : "EDGE CAUGHT",
+    cause === "maul"
+      ? "TAKEN BY THE GRIMBEAR"
+      : cause === "heli"
+        ? "THROWN CLEAR!"
+        : cause === "chair"
+          ? "SWEPT BY THE CHAIR!"
+          : cause === "net"
+            ? "INTO THE NETS!"
+            : cause === "stake"
+              ? "YARD SALE! STAKE"
+              : cause === "sled"
+                ? "OFF THE SLED!"
+                : cause === "tree"
+                  ? "YARD SALE! TREE"
+                  : cause === "skier"
+                    ? "YARD SALE! TAKEN OUT"
+                    : cause === "nose"
+                      ? "OVER THE TIPS"
+                      : cause === "roll"
+                        ? "YARD SALE"
+                        : cause === "landing"
+                          ? "CRASH LANDING"
+                          : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
@@ -263,6 +268,9 @@ export const STRINGS = {
    * shoulder he rode through, or one that put the other skier down. */
   newsCrowdBump: "OI! WATCH IT",
   newsCrowdDown: "SKIER DOWN! SORRY",
+  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, and pulled up short. */
+  newsGrimbear: "SOMETHING IN THE TREES!",
+  newsGrimbearHalt: "IT LET YOU GO… THIS TIME",
   /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
    * machine flown into the mountain, and the ride begun again. */
   newsHeliBoard: "ON THE SKID! FLY HER UP",
@@ -704,7 +712,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "railJam" ? "RAIL JAM" : "RACE"}`,
+    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "railJam" ? "RAIL JAM" : mode === "halfpipe" ? "HALFPIPE" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

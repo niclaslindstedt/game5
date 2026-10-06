@@ -50,6 +50,7 @@ import { downhillSteer, steerOf } from "./downhill-steer.ts";
 import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
 import { railJamInput } from "./rail-jam-steer.ts";
+import { halfpipeInput } from "./halfpipe-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -645,6 +646,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // A RAIL JAM'S SET (R40): a feature a hit.
   const rails = railJamInput(state, on);
   if (rails) return rails;
+  // A HALFPIPE (R41): wall to wall, a trick a hit.
+  const pipe = halfpipeInput(state, on);
+  if (pipe) return pipe;
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;

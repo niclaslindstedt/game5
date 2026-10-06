@@ -15,6 +15,7 @@
 // point on the corral's lane (`queueSpot`), a skate a straight line at
 // `CROWD.ride.skate`. Every choice is drawn off the crowd's own stream.
 
+import { strideRate } from "./poles.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { CROWD } from "./defs/crowd.ts";
@@ -163,7 +164,7 @@ function standInLine(state: GameState, a: Amateur, plan: LiftPlan, slot: number)
     a.heading = Math.atan2(dx, dz);
     a.speed = R.skate;
     a.push = 1;
-    a.pole += dt * 3;
+    a.pole += strideRate(a.speed) * dt;
   } else {
     a.x = spot.x;
     a.z = spot.z;
@@ -302,7 +303,7 @@ function skate(state: GameState, a: Amateur): boolean {
     a.vx = a.speed * Math.sin(a.heading);
     a.vz = a.speed * Math.cos(a.heading);
     a.push = 1;
-    a.pole += dt * 3;
+    a.pole += strideRate(a.speed) * dt;
     return false;
   }
   a.mode = "ski";

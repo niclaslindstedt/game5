@@ -345,6 +345,7 @@ export {
   type Field,
   type FieldRun,
   type GamePoles,
+  type RunMark,
   type RunOut,
   type Rival,
   type Amateur,
@@ -509,7 +510,9 @@ export {
   standSkier,
 } from "./game/course.ts";
 export {
+  forgetRun,
   lastPiste,
+  leftRunPoint,
   nearestPiste,
   noteRun,
   pisteHead,

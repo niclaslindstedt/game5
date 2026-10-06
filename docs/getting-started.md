@@ -114,7 +114,7 @@ The whole game is two grounds under one pair of skis. On the **groomed piste** t
 | ↓ / E / Shift      | Lean back — in the air, tips up                                                           |
 | ↑ / Q / Z          | Lean forward — in the air, tips down                                                      |
 | F / X              | Hold in the air on a tricks run: a grab                                                   |
-| R                  | Back onto the piste at the last gate taken (a race: out of the run, DNF; a free ride: the nearest run you have skied) |
+| R                  | Back onto the piste at the last gate taken (a race: out of the run, DNF; a free ride: the nearest run you have skied, or where you left the runs if you are off them) |
 | B                  | Restart the run from the start line (a race: from the start house; a free ride: the top of the last piste you skied) |
 | C                  | Next camera                                                                               |
 | H                  | HUD on / off                                                                              |

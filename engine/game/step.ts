@@ -71,6 +71,7 @@ import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
+import { startPara } from "./para.ts";
 import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -183,6 +184,11 @@ export type CreateGameOptions = {
    * sled's. Wins over `byLift` and `spawn` (never over `heli`). Ignored by
    * every mode without a snowmobile. */
   sled?: boolean;
+  /** A FREE RIDE begun ON THE SUMMIT UNDER A PARAMOTOR (`para.ts`): stood
+   * at the top of the mountain on his skis, the motor on his back and the
+   * wing inflated over him. Wins over `byLift`, `spawn` and the machines.
+   * Ignored by every mode but the free ride. */
+  para?: boolean;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
    * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
    * it is stood at (`pisteHead`: the restart's top of the slope); ignored
@@ -384,13 +390,19 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   standSkier(state, at.x, at.z, at.heading);
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
-  if (state.heli && options.heli) startAgain(state, []);
-  if (state.sled && options.sled && !(state.heli && options.heli)) startSled(state, []);
+  const para = free && options.para === true;
+  if (state.heli && options.heli && !para) startAgain(state, []);
+  if (state.sled && options.sled && !(state.heli && options.heli) && !para) startSled(state, []);
+  if (para) startPara(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.
   const lifted =
-    free && options.byLift && !(state.heli && options.heli) && !(state.sled && options.sled)
+    free &&
+    options.byLift &&
+    !para &&
+    !(state.heli && options.heli) &&
+    !(state.sled && options.sled)
       ? options.spawn
         ? arriveByLift(state, options.spawn.x, options.spawn.z)
         : arriveByLift(

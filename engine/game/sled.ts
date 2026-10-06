@@ -470,6 +470,8 @@ export function sledWithin(run: GameState): boolean {
   const c = run.skier;
   if (!s || s.rider || s.thrown) return false;
   if (c.thrown || c.lift || c.tunnel || run.heli?.rider) return false;
+  // Under a paramotor's wing the press releases the rig (`para.ts`).
+  if (run.para && run.para.mode !== "dropped") return false;
   return (
     hypot(c.x - s.x, c.z - s.z) <= SLED.board.reach &&
     hypot3(c.vx, c.vy, c.vz) <= SLED.board.fastest &&

@@ -113,6 +113,8 @@
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
 //                   bottom (`sled.ts`), over the start card's RUN row.
+//   ?para=1         a free ride begun ON THE SUMMIT UNDER THE PARAMOTOR
+//                   (`para.ts`), over the start card's RUN row.
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
@@ -243,6 +245,8 @@ export type UrlParams = {
   grade: PisteGrade | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
+  /** A free ride begun under the paramotor, over the card's RUN row. */
+  para: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
   /** A free ride the grimbear hunts (true) or never shows on (false), over
@@ -375,6 +379,7 @@ export function readParams(search: string): UrlParams {
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
     heli: q.get("heli") === "1",
+    para: q.get("para") === "1",
     sled: q.get("sled") === "1",
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
   };
@@ -391,13 +396,14 @@ export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "r
   };
 }
 
-/** A free ride's options with a link's sky, region, grade, helicopter and
- * snowmobile laid over the card's. */
+/** A free ride's options with a link's sky, region, grade, helicopter,
+ * snowmobile and paramotor laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   return {
     ...ride,
-    heli: params.heli || ride.heli,
-    sled: !params.heli && (params.sled || ride.sled),
+    heli: !params.para && (params.heli || ride.heli),
+    sled: !params.para && !params.heli && (params.sled || ride.sled),
+    para: params.para || (!params.heli && !params.sled && ride.para),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,

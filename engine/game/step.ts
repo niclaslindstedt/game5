@@ -28,6 +28,7 @@ import {
   setSlalom,
   setBigAir,
   setKnuckleHuck,
+  setSlopestyle,
   withDay,
   withSky,
 } from "../mapgen/index.ts";
@@ -58,6 +59,7 @@ import { createField, type Heat } from "./field.ts";
 import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
 import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshJam, stepJam } from "./jam.ts";
+import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -111,6 +113,10 @@ export type CreateGameOptions = {
    * player has taken, carried between the runs of one contest — a fresh
    * one off the seed when a big air run leaves it out. */
   bigAir?: BigAirContest;
+  /** A SLOPESTYLE CONTEST so far (R39, `slopestyle-contest.ts`): the runs
+   * the player has skied, carried between the runs of one contest — a
+   * fresh one off the seed when a slopestyle run leaves it out. */
+  slopestyle?: SlopeContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -290,6 +296,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.skiCross?.base ??
     built.bigAir?.base ??
     built.knuckleHuck?.base ??
+    built.slopestyle?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -310,7 +317,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                   ? setBigAir(built)
                   : options.mode === "knuckleHuck"
                     ? setKnuckleHuck(built)
-                    : original;
+                    : options.mode === "slopestyle"
+                      ? setSlopestyle(built)
+                      : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -389,6 +398,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (options.bracket) state.bracket = options.bracket;
   if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
   if (level.knuckleHuck && rules.jam) state.jam = freshJam();
+  if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {
     status(

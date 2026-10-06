@@ -29,6 +29,9 @@ import type { TechniqueId } from "./technique.ts";
 import type { RiderId } from "./riders.ts";
 import type { SkiId } from "./skis.ts";
 import { TUNING } from "./tuning.ts";
+import { SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
+
+export { JIBS, SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
 
 export type RunRules = {
   /** How many OTHER skiers start beside the player (`rivals.ts`). */
@@ -633,7 +636,8 @@ export type GameMode =
   | "free"
   | "tricks"
   | "bigAir"
-  | "knuckleHuck";
+  | "knuckleHuck"
+  | "slopestyle";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -647,6 +651,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "tricks",
   "bigAir",
   "knuckleHuck",
+  "slopestyle",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -851,11 +856,12 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   tricks: tricksRules,
   bigAir: bigAirRules,
   knuckleHuck: knuckleHuckRules,
+  slopestyle: slopestyleRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
  * skis — what the ski card is opened on for that race — and a trick
- * format's (big air's the Raven; the knuckle huck's the Hare — a jam is
+ * format's (big air's and slopestyle's the Raven; the knuckle huck's the Hare — a jam is
  * ridden on the soft park twin-tip, its tips and tails giving under a
  * press where the Raven's competition core holds them straight; the two
  * classes share a shape, 118–133/90–100 mm, and differ in the flex), or
@@ -870,6 +876,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   speedSki: SPEED_SKI.skis,
   bigAir: BIG_AIR.skis,
   knuckleHuck: KNUCKLE_HUCK.skis,
+  slopestyle: SLOPESTYLE.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -895,7 +902,10 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * THE KNUCKLE HUCK's field is the same freeski field — a national team
  * measured ~70 kg on 176 cm for the men, ~60 kg for the women — and
  * nothing a jam pays for favours weight: the MEDIUM build too
- * (`docs/freestyle.md` § *Knuckle huck*). */
+ * (`docs/freestyle.md` § *Knuckle huck*). SLOPESTYLE's are the same
+ * skiers again, and its course pays the big air's landings and spins and a
+ * rail section's balance — none of it weight: the MEDIUM build
+ * (`docs/freestyle.md` § *Slopestyle*). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -905,6 +915,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   speedSki: "heavy",
   bigAir: "medium",
   knuckleHuck: "medium",
+  slopestyle: "medium",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {
@@ -943,7 +954,7 @@ export type Freestyle =
 export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
   { id: "bigAir", mode: "bigAir" },
   { id: "knuckleHuck", mode: "knuckleHuck" },
-  { id: "slopestyle", mode: null },
+  { id: "slopestyle", mode: "slopestyle" },
   { id: "railJam", mode: null },
   { id: "halfpipe", mode: null },
   { id: "moguls", mode: null },

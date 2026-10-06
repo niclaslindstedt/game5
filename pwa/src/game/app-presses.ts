@@ -16,7 +16,7 @@ export type Presses = {
   free: (options: CreateGameOptions) => void;
   /** A TRICKS run on a trick map (`trick-maps.ts`), or a BIG AIR contest
    * built over one. */
-  tricks: (map: TrickMap, mode?: "tricks" | "bigAir" | "knuckleHuck") => void;
+  tricks: (map: TrickMap, mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle") => void;
   /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
   pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
   restart: () => void;

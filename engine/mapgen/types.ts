@@ -221,6 +221,71 @@ export interface Level {
    * and `knuckle` both), the landing and the run-out. Absent on every map
    * the generator builds. */
   knuckleHuck?: BigAirCourse;
+  /** A SLOPESTYLE COURSE built on the map (R39, `setSlopestyle`): its
+   * `track` the straight course cut down the face — the start platform,
+   * three rail sections and three jump sections — its checkpoints the start
+   * gate and the finish line, its start platform the `spawn`, its jumps'
+   * kickers among the map's `kickers` and its rails and boxes the `jibs`.
+   * Absent on every map the generator builds. */
+  slopestyle?: SlopestyleCourse;
+  /** THE JIBS standing on the map — the rails and boxes a skier slides on
+   * (`jib.ts`). Absent on every map the generator builds: a venue sets
+   * them (R39). */
+  jibs?: Jib[];
+}
+
+/** A JIB (R39): a RAIL or a BOX a skier slides on — a line, not a
+ * surface. Its riding top is the polyline `points` from the end he mounts
+ * at to the end he leaves by, each point in the world, m; `width` the
+ * width of what he stands on (a rail's pipe, a box's top), m. */
+export interface Jib {
+  /** `J<section><L|R>` — the section, and the line's side. */
+  id: string;
+  /** The rail section it stands in, from 1. */
+  section: number;
+  /** Its line across the course: −1 the left (looking down it), +1 the
+   * right. */
+  line: -1 | 1;
+  kind: "rail" | "box";
+  /** Its shape, from the top: `"down"` the slope's own fall all the way,
+   * `"flatDown"` level then down, `"downFlatDown"` down, level and down. */
+  shape: "down" | "flatDown" | "downFlatDown";
+  points: Vec3[];
+  width: number;
+}
+
+/** One SECTION of a slopestyle course (R39), by its arcs down the course,
+ * m: a RAIL section (its jibs side by side) or a JUMP (`lip` its kicker's
+ * lip, `knuckle` its table's end — what a flight off it is judged
+ * against). */
+export interface SlopeSection {
+  kind: "rail" | "jump";
+  from: number;
+  to: number;
+  lip?: number;
+  knuckle?: number;
+  /** The speed it is designed to be met at, m/s: a rail section's at its
+   * jibs' start, a jump's off its lip. */
+  speed: number;
+}
+
+/** A SLOPESTYLE COURSE (R39) as it was built over a map: its own `track`,
+ * every arc down it, m. */
+export interface SlopestyleCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The six judged sections, in the order they are ridden. */
+  sections: SlopeSection[];
+  /** How far either side of the course's middle a rail section's two
+   * lines run, m. */
+  lines: number;
+  /** The course's width, m. */
+  width: number;
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every

@@ -31,6 +31,7 @@
 //     (`run-signs.ts`).
 //   * THE PISTE LIGHTS: a floodlight mast every fifty metres or so down
 //     every run, lit with the floods (`piste-lights.ts`).
+//   * A SLOPESTYLE COURSE's rails and boxes (`jibs-view.ts`).
 //
 // THE NEXT GATE IS THE ONE THAT MATTERS, so it is the one that is loud:
 // its panels are their colour at full strength and breathe a little light,
@@ -52,6 +53,7 @@ import { bannerTexture } from "./banner-texture.ts";
 import { glow } from "./glow-sprite.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createJibs } from "./jibs-view.ts";
 import {
   archBlower,
   archSkirt,
@@ -684,6 +686,10 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const lights = createPisteLights(level, haze);
   group.add(lights.group);
 
+  // A SLOPESTYLE COURSE'S RAILS AND BOXES (`jibs-view.ts`).
+  const jibs = createJibs(level, std);
+  if (jibs) group.add(jibs.group);
+
   const breathing = new THREE.Color();
   let lit = -1;
   let bulged = false;
@@ -781,6 +787,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       house?.dispose();
       crossFlags?.dispose();
       crossGate?.dispose();
+      jibs?.dispose();
       for (const t of texs) t.dispose();
     },
   };

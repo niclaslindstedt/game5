@@ -14,6 +14,7 @@ import {
   GAME_MODES,
   SKI_CROSS,
   SLALOM,
+  SLOPESTYLE,
   SPEED_SKI,
   SUPER_G,
   GIANT_SLALOM,
@@ -32,6 +33,8 @@ const CLASS = {
   bigAir: "Big air",
   // The knuckle huck's field rides the park's soft twin-tip.
   knuckleHuck: "Park",
+  // Slopestyle rides the same stiff competition twin-tip as big air.
+  slopestyle: "Big air",
 } as const;
 
 describe("a race's own pair", () => {
@@ -53,6 +56,7 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("skiCross")).toBe(SKI_CROSS.skis);
     expect(raceSkisOf("speedSki")).toBe(SPEED_SKI.skis);
     expect(raceSkisOf("bigAir")).toBe(BIG_AIR.skis);
+    expect(raceSkisOf("slopestyle")).toBe(SLOPESTYLE.skis);
   });
 
   it("is none for a mode that is no race and no freestyle format", () => {

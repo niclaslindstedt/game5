@@ -332,6 +332,18 @@ export function soundForEvent(
     case "jam":
       return event.fell ? null : { id: "lap" };
 
+    // A JIB (`jib.ts`): the skis' bases met by the steel or the plastic —
+    // the pole's clack pitched down to a rail's ring or a box's knock — and
+    // the same note, softer, as he leaves it.
+    case "jib":
+      return {
+        id: "pole",
+        shape: {
+          gain: event.phase === "on" ? 0.9 : 0.5,
+          pitch: event.jib === "rail" ? 0.7 : 0.55,
+        },
+      };
+
     // A WIND TUNNEL'S MOUTH: sucked in, and let go at the far end
     // (`tunnel-voice.ts`'s two sweeps); the gale between is the bed's.
     case "tunnel":

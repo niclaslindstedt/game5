@@ -77,7 +77,7 @@ describe("what names a row", () => {
   });
 
   it("every timed mode keeps a book, and the free ride, the tricks run and the contests none", () => {
-    const untimed = ["free", "tricks", "bigAir", "knuckleHuck"];
+    const untimed = ["free", "tricks", "bigAir", "knuckleHuck", "slopestyle"];
     for (const mode of GAME_MODES) expect(keepsRecords(mode)).toBe(!untimed.includes(mode));
     expect(beats("free", 10, null)).toBe(false);
   });

@@ -193,7 +193,11 @@ medium build.
       balance across it a thing he holds, left by the end or a spin off;
       the stations' contacts on it (not the snow) so the trail map draws
       nothing there. Shared by slopestyle and the rail jam. Built
-      procedurally in `mark-shapes.ts`'s look.
+      procedurally in `mark-shapes.ts`'s look. *Built for slopestyle
+      (`jib.ts`, `jibs-view.ts`): a rail or a box as a polyline ridden as
+      a bead on a wire, mounted by meeting its end along it (no ollie
+      onto it from the side yet), a 50-50 or a slide, swaps, presses,
+      the turn-out, the pop; the balance across it is not yet held.*
 - [ ] **THE COURSES.** Each format's terrain is a rule (the next free R)
       and a setter over a built map, as a race course is: the PIPE cut
       into the slope, the SLOPESTYLE course's sections, the BIG AIR jump
@@ -229,6 +233,7 @@ shared piece it first needs:
 2. **Knuckle huck** — the same jump; the jam format, butters and presses.
    *Built in part (R38).*
 3. **Slopestyle** — the jumps in a row, JIBS, section judging.
+   *Built in part (R39).*
 4. **Rail jam** — jibs alone, the jam again.
 5. **Halfpipe** — a new terrain (walls and vert), riding a wall, the
    alley-oop, pipe use.

@@ -54,6 +54,7 @@ export function setGiantSlalom(level: Level, run: 1 | 2 = 1): Level {
     level.skiCross?.base ??
     level.bigAir?.base ??
     level.knuckleHuck?.base ??
+    level.slopestyle?.base ??
     level;
   let runs = set.get(original);
   if (!runs) {

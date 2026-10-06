@@ -47,6 +47,7 @@ import { stepTrap } from "./speed-trap.ts";
 import { noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
+import { stepJib } from "./jib.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { DISCIPLINE_RULES } from "../mapgen/index.ts";
@@ -131,9 +132,13 @@ export function stepRun(
   // HELD IN THE START HOUSE after GO, and thrown out of it (`start-push.ts`).
   const housed = heldInHouse(run);
   stepStartPush(run, input);
+  // ON A JIB (`jib.ts`): a bead on a wire, and the snow's step is not his.
+  const railed = !off && stepJib(run, held, events);
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
-  if (!off) stepSkier(run, stunts ? butterInput(run, poseInput(run, held)) : held, events);
+  if (!off && !railed) {
+    stepSkier(run, stunts ? butterInput(run, poseInput(run, held)) : held, events);
+  }
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
   // his legs settle.
@@ -145,9 +150,9 @@ export function stepRun(
     derive(c, run.level);
   }
   // THE STROKES (`strokes.ts`), on a skier whose flight is now current.
-  if (stunts) stepStrokes(run, input);
+  if (stunts && !railed) stepStrokes(run, input);
   // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
-  if (stunts) stepButter(run, input);
+  if (stunts && !railed) stepButter(run, input);
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
@@ -163,7 +168,7 @@ export function stepRun(
     followSkis(run, c, off.skis);
     derive(c, run.level);
     quietClocks(c);
-  } else {
+  } else if (!railed) {
     // THE EMPTY CHAIR behind him off a lift (`lift-ride.ts`), if he stood
     // in its way; else whatever else threw him.
     const swept = chairStrike(run);

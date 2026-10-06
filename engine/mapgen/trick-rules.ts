@@ -5,7 +5,8 @@
 // is a thing BUILT in the snow, as a real one is shaped by the snowcats out
 // of a mountain's side. BIG AIR (R37) and the KNUCKLE HUCK (R38 — the big
 // air jump's table and landing, ridden onto from the deck with no kicker)
-// are built today; slopestyle, the rail jam, the halfpipe, moguls, dual
+// and the SLOPESTYLE COURSE (R39 — three rail sections and three jumps cut
+// on one line) are built today; the rail jam, the halfpipe, moguls, dual
 // moguls and aerials are each a rule here when they are built
 // (`docs/specs/TRICK_MODES.md`).
 //
@@ -95,6 +96,38 @@
 //       `knuckleHuck.width` metres wide, graded, groomed, cleared and its
 //       gates set as R37's: the START GATE at the platform's lip and the
 //       FINISH LINE `knuckleHuck.finish` metres into the run-out.
+//
+//   R39 THE SLOPESTYLE COURSE. A slopestyle course is BUILT as R37's jump
+//       is, straight down a built map's face on a line searched the same
+//       way (`slopestyle.search`, `slopestyle.fit`), `slopestyle.width`
+//       metres wide, graded, groomed and cleared. Its PROFILE is built
+//       against the horizontal, in order: a START PLATFORM level for
+//       `slopestyle.platform` metres; then SIX SECTIONS, each met down an
+//       APPROACH that either drops at `slopestyle.dropIn` degrees (rolled
+//       over within `slopestyle.roll` metres of radius and brought round
+//       within `slopestyle.toFlat`) or runs level, as long as brings the
+//       rule's skier (`slopestyle.skier`: stood up into a rail section,
+//       tucked into a jump) to the section at its design speed. The first
+//       THREE are RAIL SECTIONS: a DECK falling at `slopestyle.rails.grade`
+//       degrees for `slopestyle.rails.deck` metres, and on it,
+//       `slopestyle.rails.lead` metres in, TWO JIBS side by side
+//       `slopestyle.rails.lines` metres either side of the middle — a rail
+//       and a box, each of the shape and length its section's row in
+//       `slopestyle.jibs` gives, its near end `slopestyle.rails.entry`
+//       metres over the snow — met at `slopestyle.rails.speed` m/s. The
+//       last THREE are JUMPS, each sized up the ladder of
+//       `slopestyle.jumps` and built as R37's: a FLAT of
+//       `slopestyle.flat` metres, a KICKER on its row's radius to its
+//       row's take-off, a level TABLE of its row's length, and a LANDING
+//       shaped to the equivalent fall height `slopestyle.fall` for its
+//       row's lip speed, never steeper than `slopestyle.steepest`
+//       degrees; each landing brought round on `slopestyle.round` metres
+//       of radius onto a RUN-OUT of `slopestyle.between.grade` degrees for
+//       `slopestyle.between.length` metres, and the last onto the FINISH
+//       AREA falling at `slopestyle.outrun.grade` degrees for
+//       `slopestyle.outrun.length` metres. Its gates are the START GATE at
+//       the platform's lip and the FINISH LINE `slopestyle.finish` metres
+//       into the finish area; it has no gate between.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -285,3 +318,125 @@ export const TRICK_RULES = {
     arena: { before: 15, past: 30, half: 26 },
   },
 } as const satisfies Record<string, JumpRule>;
+
+/** ONE JIB of a rail section (R39), as its row gives it: which line, a
+ * RAIL or a BOX, its shape, and the plan length of each of its legs, m —
+ * a `"down"` one leg at the deck's fall, a `"flatDown"` a level leg then a
+ * falling one, a `"downFlatDown"` three. */
+export type JibRow = {
+  readonly line: -1 | 1;
+  readonly kind: "rail" | "box";
+  readonly shape: "down" | "flatDown" | "downFlatDown";
+  readonly legs: readonly number[];
+};
+
+/** ONE JUMP of a slopestyle course (R39): its kicker's radius, m, its
+ * take-off, degrees, its table, m, and the speed off its lip it is built
+ * for, m/s. */
+export type SlopeJumpRow = {
+  readonly kicker: number;
+  readonly kick: number;
+  readonly table: number;
+  readonly speed: number;
+};
+
+/** R39 — the slopestyle course (`docs/freestyle.md` § *Slopestyle*: the
+ * top level's six sections, three of them jumps, ~30 m wide, two or more
+ * lines a section, a flat finish of 25–30 m; 10–30 km/h through a rail
+ * section, 50–70 km/h at a jump's take-off). */
+export const SLOPESTYLE_RULE = {
+  platform: 6,
+  /** The approaches' drop, degrees, and the radii it is rolled over and
+   * brought round on, m — rolled over wide enough that a skier coming
+   * off a landing at 70 km/h stays on the snow over it (v²/r under g). */
+  dropIn: 22,
+  roll: 45,
+  toFlat: 30,
+  /** How long an approach may drop, m, and how long it may run level to
+   * bleed off a landing's speed, m — the bounds its length is found in. */
+  approachMost: 160,
+  levelMost: 120,
+  rails: {
+    /** The deck's fall, degrees: a rail section's gentle pitch (est.). */
+    grade: 7,
+    /** The deck's length, m, and how far down it the jibs begin, m. */
+    deck: 20,
+    lead: 4,
+    /** THE SPEED the jibs are met at, m/s (23 km/h — the middle of the
+     * 10–30 km/h a rail section is ridden at). */
+    speed: 6.5,
+    /** A jib's near end over the snow, m: ridden onto with a hop (est.). */
+    entry: 0.3,
+    /** The two lines, m either side of the course's middle. */
+    lines: 6,
+  },
+  /** THE JIBS, a rail section's two to a row, left and right: a box and a
+   * rail in each, the shapes a park's sets are built from (a down box, a
+   * flat-down rail, a kinked down-flat-down rail; boxes 4.5–9 m, rails
+   * 3–12 m — `docs/freestyle.md` § *Rail jam*). */
+  jibs: [
+    [
+      { line: -1, kind: "box", shape: "down", legs: [8] },
+      { line: 1, kind: "rail", shape: "flatDown", legs: [3, 6] },
+    ],
+    [
+      { line: -1, kind: "rail", shape: "down", legs: [9] },
+      { line: 1, kind: "box", shape: "flatDown", legs: [3, 6] },
+    ],
+    [
+      { line: -1, kind: "rail", shape: "downFlatDown", legs: [3, 3, 4] },
+      { line: 1, kind: "box", shape: "down", legs: [10] },
+    ],
+  ] as readonly (readonly JibRow[])[],
+  /** The rail's pipe and the box's top across, m (a rail 7.5–10 cm round,
+   * a box ~40 cm). */
+  railWidth: 0.08,
+  boxWidth: 0.4,
+  /** THE JUMPS, sized up the ladder: the lip a little higher, the table a
+   * little longer and the speed off it a little faster each time (a top
+   * course's tables ~19–21 m to the landing's sweet spot, a 5 m kicker on
+   * the biggest; 50–70 km/h at the take-off). */
+  jumps: [
+    { kicker: 18, kick: 28, table: 9, speed: 14.5 },
+    { kicker: 20, kick: 29, table: 11, speed: 15.5 },
+    { kicker: 22, kick: 30, table: 13, speed: 16.5 },
+  ] as readonly SlopeJumpRow[],
+  /** The flat before each kicker, m. */
+  flat: 6,
+  /** The landing (as R37's): the share of the lip a skier leaves it at,
+   * the knuckle's radius, m, the equivalent fall height, m, the share of
+   * the design speed it is shaped for, how far past that skier's
+   * touchdown it runs, m, and its steepest, degrees. */
+  launch: 0.78,
+  knuckle: 10,
+  fall: 0.35,
+  fast: 1.12,
+  past: 6,
+  steepest: 36,
+  /** The radius a landing meets its run-out on, m, and the run-out
+   * between two jumps: its fall, degrees, and its length, m. */
+  round: 40,
+  between: { grade: 4, length: 10 },
+  /** The finish area: its fall, degrees, and its length, m (the rules'
+   * 25 m and more); the finish line, m into it. */
+  outrun: { grade: 4, length: 50 },
+  finish: 28,
+  /** THE SKIER the approaches are sized for: his mass, kg, his drag area
+   * stood up and tucked, m², the air's density, kg/m³, the snow's
+   * friction, and the share of his speed's square a radian of
+   * compression costs him (as R37's). */
+  skier: { mass: 80, stand: 0.7, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.65 },
+  width: 30,
+  ease: 14,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 20, past: 40, half: 30 },
+} as const;

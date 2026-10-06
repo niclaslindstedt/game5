@@ -36,6 +36,8 @@ describe("a race's own build", () => {
     // Big air: the competition field's measured mean (~72 kg) is nearest
     // the medium build.
     expect(raceRiderOf("bigAir")).toBe("medium");
+    // Slopestyle: the same field, the same build.
+    expect(raceRiderOf("slopestyle")).toBe("medium");
   });
 
   it("grows heavier the more a race is the tuck alone", () => {

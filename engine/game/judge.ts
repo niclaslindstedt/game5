@@ -155,18 +155,25 @@ function mix(a: number, b: number, c: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
-/** THE PANEL'S SCORE for an impression: six whole marks a judge's eye
- * apart, the highest and lowest dropped, the rest averaged and cut to two
+/** THE PANEL'S SCORE for an impression: `judges` whole marks a judge's eye
+ * apart — six when left out — the highest and lowest dropped where there
+ * are six or more (the rules'), the rest averaged and cut to two
  * decimals. `seed` and `jump` name the jump the eyes are dealt for. */
-export function panelScore(impression: number, seed: number, jump: number): number {
+export function panelScore(
+  impression: number,
+  seed: number,
+  jump: number,
+  judges: number = JUDGING.judges,
+): number {
   const J = JUDGING;
   const marks: number[] = [];
-  for (let j = 0; j < J.judges; j++) {
+  for (let j = 0; j < judges; j++) {
     const eye = createRng(mix(seed, jump, j)).range(-J.spread, J.spread);
     marks.push(Math.max(0, Math.min(100, Math.round(impression + eye))));
   }
   marks.sort((a, b) => a - b);
-  const kept = marks.slice(J.dropped, marks.length - J.dropped);
+  const drop = judges >= 6 ? J.dropped : 0;
+  const kept = marks.slice(drop, marks.length - drop);
   const mean = kept.reduce((s, m) => s + m, 0) / kept.length;
   return Math.floor(mean * 100 + 1e-6) / 100;
 }

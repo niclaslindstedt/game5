@@ -21,6 +21,9 @@
 //   ?start=knuckle  ...or into a KNUCKLE HUCK's jam on its knuckle.
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
+//   ?start=railjam  ...or into a RAIL JAM on its set.
+//   ?start=halfpipe ...or into a HALFPIPE contest's first run (`run=2`
+//                   the next run, off the first skied by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -56,7 +59,9 @@
 //                   ?mode=slopestyle, a SLOPESTYLE contest's first run,
 //                   its course built over the seed's map;
 //                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
-//                   over it.
+//                   over it; ?mode=railjam, a RAIL JAM, its set built over
+//                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
+//                   pipe cut into the seed's map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -108,6 +113,14 @@
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
 //                   bottom (`sled.ts`), over the start card's RUN row.
+//   ?para=1         a free ride begun ON THE SUMMIT UNDER THE PARAMOTOR
+//                   (`para.ts`), over the start card's RUN row.
+//   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
+//                   with 0, one he never shows on — over the odds the app
+//                   deals him by (`GRIMBEAR_ODDS`).
+//   ?groomer=1      a free ride the PISTE MACHINES work whatever the hour
+//                   (`groomer.ts`) — or, with 0, one they never do; left
+//                   out, they are out after dark.
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -235,8 +248,16 @@ export type UrlParams = {
   grade: PisteGrade | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
+  /** A free ride begun under the paramotor, over the card's RUN row. */
+  para: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
+  /** A free ride the grimbear hunts (true) or never shows on (false), over
+   * the odds; null when the link names neither. */
+  grimbear: boolean | null;
+  /** A free ride the piste machines work whatever the hour (true) or never
+   * (false); null when the link names neither — out after dark. */
+  groomer: boolean | null;
 };
 
 /** The sky a link names, if any. */
@@ -300,6 +321,8 @@ export function readParams(search: string): UrlParams {
       start === "bigair" ||
       start === "knuckle" ||
       start === "slopestyle" ||
+      start === "railjam" ||
+      start === "halfpipe" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -344,7 +367,11 @@ export function readParams(search: string): UrlParams {
                           ? "knuckleHuck"
                           : start === "slopestyle" || q.get("mode") === "slopestyle"
                             ? "slopestyle"
-                            : "slalom",
+                            : start === "railjam" || q.get("mode") === "railjam"
+                              ? "railJam"
+                              : start === "halfpipe" || q.get("mode") === "halfpipe"
+                                ? "halfpipe"
+                                : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
@@ -358,7 +385,10 @@ export function readParams(search: string): UrlParams {
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
     heli: q.get("heli") === "1",
+    para: q.get("para") === "1",
     sled: q.get("sled") === "1",
+    grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
+    groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
   };
 }
 
@@ -373,16 +403,19 @@ export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "r
   };
 }
 
-/** A free ride's options with a link's sky, region, grade, helicopter and
- * snowmobile laid over the card's. */
+/** A free ride's options with a link's sky, region, grade, helicopter,
+ * snowmobile and paramotor laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   return {
     ...ride,
-    heli: params.heli || ride.heli,
-    sled: !params.heli && (params.sled || ride.sled),
+    heli: !params.para && (params.heli || ride.heli),
+    sled: !params.para && !params.heli && (params.sled || ride.sled),
+    para: params.para || (!params.heli && !params.sled && ride.para),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,
+    grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
+    groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
   };
 }
 

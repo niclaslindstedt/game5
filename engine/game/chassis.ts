@@ -26,6 +26,14 @@
 // apart ACROSS THE SNOW, as the legs' stations do (`skier.ts`), not rolled
 // over with the body — a skier inclined into a carve has both skis on the
 // snow under him.
+//
+// THE TAILS SNAP DOWN (`snap`, while a landing is absorbed — `absorb.ts`):
+// a ski met end first by its TRAILING end (the tails, or the tips ridden
+// switch) is pivoted flat about the boot by its ankle and knee, and the
+// body goes on as it was — the impulse at that end turns the pair and
+// takes nothing off the body's own fall, which the legs then take whole
+// when the skis are down. Met as a rigid body the tail stopped him dead
+// and threw him back up off it.
 
 import { rotate, unrotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Level } from "../mapgen/types.ts";
@@ -35,6 +43,7 @@ import { footprintOf } from "./footprint.ts";
 import { packedUnder, powderFloor } from "./snow.ts";
 import { hullOf } from "./suspension.ts";
 import type { SkierState } from "./state.ts";
+import { snowNormal } from "./snow-normal.ts";
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 const H = TUNING.hull;
@@ -61,6 +70,7 @@ export function chassisContacts(
   snowDepth = 1,
   fresh = 0,
   drop = 0,
+  snap = false,
 ): number {
   const m = totalMass(c.spec);
   const I = inertiaOf(c.spec);
@@ -72,14 +82,24 @@ export function chassisContacts(
   const hull = hullOf(c.spec);
   // The ground's across under the CoG, square to the skis' line, for the
   // skis' points.
-  level.normalAt(c.x, c.z, n);
+  snowNormal(level, c, n);
   const fwd = rotate(c.q, { x: 0, y: 0, z: 1 });
   const fdn = fwd.x * n.x + fwd.y * n.y + fwd.z * n.z;
   const across = cross(n, { x: fwd.x - fdn * n.x, y: fwd.y - fdn * n.y, z: fwd.z - fdn * n.z });
   const al = hypot3(across.x, across.y, across.z) || 1;
+  // ON A WALL (`Level.normalNear`, R41's pipe) the skis are BENT onto the
+  // transition — a 1.8 m ski on a 7 m radius bows 5 cm, well inside the
+  // reverse camber a loaded ski takes — and their stations are the whole
+  // of their contact: a straight ski's tips and tails would dig into every
+  // transition and drag on the vert as he leaves it.
+  const bent = level.normalNear !== undefined;
+  // Which of the skis' points trail (`snap`): the tails going forward, the
+  // tips going backward.
+  const trailing = c.vx * fwd.x + c.vy * fwd.y + c.vz * fwd.z < 0 ? 0 : 2;
   for (let hi = 0; hi < hull.length; hi++) {
     const h = hull[hi];
     const ski = hi < SKI_POINTS;
+    if (ski && bent) continue;
     const r = rotate(c.q, ski ? { x: 0, y: h.y + drop, z: h.z } : h);
     if (ski) {
       r.x += (across.x / al) * h.x;
@@ -119,6 +139,20 @@ export function chassisContacts(
     const k = 1 / m + rn.x * (rn.x / I.x) + rn.y * (rn.y / I.y) + rn.z * (rn.z / I.z);
     const goal = vn < 0 ? Math.max(target, -H.restitution * vn) : target;
     const jn = (goal - vn) / k;
+    if (snap && ski && (hi === trailing || hi === trailing + 1)) {
+      // Pivoted, not stopped: the whole of the closing taken out by the
+      // turn alone (the angular term of the effective mass), and nothing
+      // of it off the body's way.
+      const ka = k - 1 / m;
+      if (ka > 1e-9) {
+        const dw = unrotate(c.q, cross(r, n));
+        const ja = (goal - vn) / ka;
+        c.wx += (dw.x * ja) / I.x;
+        c.wy += (dw.y * ja) / I.y;
+        c.wz += (dw.z * ja) / I.z;
+        continue;
+      }
+    }
     // Friction against the slide along the slope, bounded by Coulomb.
     let tx = vx - vn * n.x;
     let ty = vy - vn * n.y;

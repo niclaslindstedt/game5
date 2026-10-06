@@ -24,7 +24,13 @@ const TUCK = { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false };
 
 /** Drop a skier from `height` m (his CoG over the snow) at 70 km/h onto a
  * flat strip and report the landing and whether he was thrown by it. */
-function drop(opts: { packed: number; height: number; roll?: number; snow?: number }) {
+function drop(opts: {
+  packed: number;
+  height: number;
+  roll?: number;
+  pitch?: number;
+  snow?: number;
+}) {
   const level = flatLevel({ packed: opts.packed });
   const state = createGame({
     level,
@@ -41,10 +47,22 @@ function drop(opts: { packed: number; height: number; roll?: number; snow?: numb
     speed: 70 / 3.6,
     height: opts.height,
     roll: opts.roll ?? 0,
+    pitch: opts.pitch ?? 0,
   });
+  const c = state.skier;
   let land: Extract<GameEvent, { kind: "land" }> | null = null;
   let thrown: string | null = null;
   let save: string | null = null;
+  // After the touchdown: the deepest the legs bent, m, whether he left the
+  // snow again inside the absorbing, and his fastest pitch rate, rad/s.
+  let bent = 0;
+  let bounced = false;
+  let whipped = 0;
+  // How long after the touchdown the skis lay flat on the snow, s, and
+  // whether he left it again after they had.
+  let flatIn = Number.POSITIVE_INFINITY;
+  let reflew = false;
+  let since = 0;
   for (let i = 0; i < 4 * TUNING.physicsHz; i++) {
     step(state, TUCK);
     for (const e of state.events) {
@@ -52,8 +70,16 @@ function drop(opts: { packed: number; height: number; roll?: number; snow?: numb
       if (e.kind === "wipeout" && !thrown) thrown = e.cause;
       if (e.kind === "save" && !save) save = e.save;
     }
+    if (land && c.thrown === null && c.landing < TUNING.landing.absorb.for) {
+      bent = Math.max(bent, ...c.skiCompression);
+      bounced ||= c.airborne;
+      whipped = Math.max(whipped, Math.abs(c.wx));
+      if (flatIn === Number.POSITIVE_INFINITY && Math.abs(c.pitch) < 0.05) flatIn = since;
+      if (flatIn < since) reflew ||= c.airborne;
+      since += TUNING.dt;
+    }
   }
-  return { land, thrown, save };
+  return { land, thrown, save, bent, bounced, whipped, flatIn, reflew };
 }
 
 describe("the landing's load", () => {
@@ -105,6 +131,39 @@ describe("a landing ridden away, or not", () => {
     }
     expect(drop({ packed: 1, height: 4, roll: 0.5 }).save).toBe("landing");
     expect(drop({ packed: 1, height: 1.4, roll: 1 }).save).toBe("landing");
+  });
+
+  it("bends deeper the harder he lands and is not sprung back off the snow", () => {
+    const hop = drop({ packed: 1, height: 1.4 });
+    const big = drop({ packed: 1, height: 2.5 });
+    expect(big.thrown).toBeNull();
+    expect(big.bounced).toBe(false);
+    expect(hop.bounced).toBe(false);
+    // The bigger the landing the deeper the knees.
+    expect(big.bent).toBeGreaterThan(hop.bent);
+  });
+
+  it("rides a landing on the tails away, the skis pivoted flat under him", () => {
+    for (const pitch of [0.25, -0.2]) {
+      const { thrown, whipped } = drop({ packed: 1, height: 2.5, pitch });
+      expect(thrown, `pitch ${pitch}`).toBeNull();
+      // The tips laid down to the slope at `follow` at the most; the tails
+      // never whipped down faster than `rate`.
+      const most = pitch > 0 ? TUNING.landing.absorb.follow : TUNING.landing.absorb.rate;
+      expect(whipped, `pitch ${pitch}`).toBeLessThanOrEqual(most + 1e-9);
+    }
+  });
+
+  it("snaps the skis down off their tails and lands on them, never bounced back up", () => {
+    for (const height of [1.5, 3, 5]) {
+      for (const pitch of [0.4, 0.6]) {
+        const { thrown, flatIn, reflew } = drop({ packed: 1, height, pitch });
+        const at = `${height} m, pitch ${pitch}`;
+        expect(thrown, at).toBeNull();
+        expect(flatIn, at).toBeLessThan(0.1);
+        expect(reflew, at).toBe(false);
+      }
+    }
   });
 
   it("goes down when he comes down on his side, off a hop or a drop", () => {

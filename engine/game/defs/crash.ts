@@ -94,13 +94,15 @@ export const CRASH = {
   },
   /** THE SAVE (`SkierState.save`): how near a thing came to throwing him
    * is a share of its threshold, and a save is kept from `saveFrom` of
-   * one. A landing is near from `landing.clean` g toward `legsFold`, and
+   * one. A landing is near from `saveLand` g toward `legsFold` (so a
+   * landing of about 6 g is kept, and rocks him), and
    * from `saveTip` rad tips-down or `saveRoll` rad rolled against the
    * slope; an edge from `saveEdge` of the edge and `saveSlip` of the
    * slide that catch it (an ordinary skidded turn is short of both); a
    * newer save takes the place of one older than `saveHold` s or nearer
    * than what is left of it. */
   saveFrom: 0.25,
+  saveLand: 2,
   saveTip: 0.3,
   saveRoll: 0.5,
   saveEdge: 0.9,
@@ -152,6 +154,12 @@ export const CRASH = {
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.
     net: { pitch: 0.35, side: 0.7, up: 0.3 },
+    // Taken by the grimbear (`grimbear.ts`): knocked back off his feet
+    // and down on a side.
+    maul: { pitch: -0.5, side: 0.7, up: 0.6 },
+    // Ridden into a piste machine (`groomer.ts`), or met by its blade:
+    // knocked flat on his back off the steel, and over onto a side.
+    groomer: { pitch: -0.7, side: 0.6, up: 0.8 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

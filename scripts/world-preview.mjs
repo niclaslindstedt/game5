@@ -30,8 +30,10 @@
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
-// hut, the finish arch from up the last straight),
-// forest,
+// hut, the finish arch from up the last straight), cabin, cabin-2,
+// cabin-3 (a group of log cabins from the run it stands by, a skier's eye
+// up the run), cabin-near (the first close, at three quarters from its
+// front) and cabins-air (the first from high over its run), forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
@@ -46,6 +48,8 @@
 // both skis he left; with `--downhill`, `net-<s>` (`net-0.3,net-1,net-3`):
 // the player driven into the A-nets half way down the course, from the
 // piste — the pocket the mesh makes round him and the skis hooked in it;
+// with `--free --grimbear`, `grimbear-lurk`, `-chase`, `-run`, `-maul` and
+// `-leave`: the beast behind his trunk, out of it, over the skier and off;
 // then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
@@ -71,6 +75,11 @@ const buildDir = join(root, "previews", ".world-preview");
 const outDir = join(root, "previews");
 
 const VIEWS = [
+  "grimbear-lurk",
+  "grimbear-chase",
+  "grimbear-run",
+  "grimbear-maul",
+  "grimbear-leave",
   "spawn",
   "powder",
   "powder-high",
@@ -100,6 +109,11 @@ const VIEWS = [
   "gate",
   "hut",
   "finish",
+  "cabin",
+  "cabin-2",
+  "cabin-3",
+  "cabin-near",
+  "cabins-air",
   "forest",
   "approach-140",
   "approach-90",
@@ -179,10 +193,14 @@ const args = parseArgs(
       kind: "flag",
       help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
     },
+    grimbear: {
+      kind: "flag",
+      help: "with --free, the grimbear hunts the ride (the grimbear-lurk, -chase, -run, -maul and -leave views)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--grimbear] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -268,6 +286,7 @@ const query = new URLSearchParams({
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
   ...(args.downhill ? { downhill: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
+  ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),

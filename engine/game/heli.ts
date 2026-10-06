@@ -37,7 +37,7 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run whose rules carry no helicopter never comes in here.
 
-import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromAxisAngle,
   fromEuler,
@@ -283,8 +283,10 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
       (-F.cyclic.pitch * spool2 * c.pitch - F.damping.pitch * d.pitchRate + F.flapback * af) * dt;
     d.rollRate +=
       (F.cyclic.roll * spool2 * c.roll - F.damping.roll * d.rollRate - F.flapback * as) * dt;
-    d.pitch = clamp(d.pitch + d.pitchRate * dt, -F.discMost, F.discMost);
-    d.roll = clamp(d.roll + d.rollRate * dt, -F.discMost, F.discMost);
+    // NO STOP on the disc: held over it carries on past the vertical and
+    // round — a roll, a loop — the angles kept to a turn either way.
+    d.pitch = wrap(d.pitch + d.pitchRate * dt);
+    d.roll = wrap(d.roll + d.rollRate * dt);
   }
   // THE FUSELAGE swung under the disc, hanging off the centre line by the
   // skier's weight on the skid (his share of the mass, over the hub's
@@ -299,10 +301,11 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
     h.roll = lie.roll;
     h.pitchRate = h.rollRate = 0;
   } else {
-    h.pitchRate += (w * w * (d.pitch - h.pitch) - z2 * h.pitchRate) * dt;
-    h.rollRate += (w * w * (d.roll + hang - h.roll) - z2 * h.rollRate) * dt;
-    h.pitch += h.pitchRate * dt;
-    h.roll += h.rollRate * dt;
+    // Swung the short way round to the disc, so it follows it over the top.
+    h.pitchRate += (w * w * angleDiff(h.pitch, d.pitch) - z2 * h.pitchRate) * dt;
+    h.rollRate += (w * w * angleDiff(h.roll, d.roll + hang) - z2 * h.rollRate) * dt;
+    h.pitch = wrap(h.pitch + h.pitchRate * dt);
+    h.roll = wrap(h.roll + h.rollRate * dt);
   }
   // THE PEDALS, the torque, the fin.
   if (h.grounded && !light) h.yawRate = 0;
@@ -349,6 +352,11 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
   h.hang += clamp(to - h.hang, -dt * 0.6, dt * 0.6);
 }
 
+/** An angle kept to (−π, π]. */
+function wrap(a: number): number {
+  return angleDiff(0, a);
+}
+
 /** How the snow lies under the skids: the pitch and roll it stands at. */
 function lieOf(run: GameState, h: HeliState): { pitch: number; roll: number; slope: number } {
   const level = run.level;
@@ -371,7 +379,10 @@ function lieOf(run: GameState, h: HeliState): { pitch: number; roll: number; slo
  * stood too far off the snow's lean, or snow too steep to sit on. */
 function landedHard(run: GameState, h: HeliState, sink: number, slide: number): boolean {
   const lie = lieOf(run, h);
-  const off = Math.max(Math.abs(h.pitch - lie.pitch), Math.abs(h.roll - lie.roll));
+  const off = Math.max(
+    Math.abs(angleDiff(lie.pitch, h.pitch)),
+    Math.abs(angleDiff(lie.roll, h.roll)),
+  );
   return (
     sink > K.crash.sink || slide > K.crash.slide || off > K.crash.tilt || lie.slope > K.crash.slope
   );
@@ -552,6 +563,8 @@ export function heliWithin(run: GameState): boolean {
   const c = run.skier;
   if (!h || h.rider || h.mode !== "parked") return false;
   if (c.thrown || c.lift || c.tunnel || run.sled?.rider) return false;
+  // Under a paramotor's wing the press releases the rig (`para.ts`).
+  if (run.para && run.para.mode !== "dropped") return false;
   const seat = heliPoint(h, SEAT);
   return hypot(c.x - seat.x, c.z - seat.z) <= K.board.reach && c.speed <= K.board.fastest;
 }

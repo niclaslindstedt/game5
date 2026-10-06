@@ -188,7 +188,11 @@ export const SLED = {
   /** THE AIR: the lean's pitch, N·m at full lean (back is nose up); the
    * belt's gyro — the throttle lifting the nose, the brake dropping it,
    * N·m; the bars' yaw, N·m; the damping, N·m·s; the rider levelling the
-   * roll, N·m per rad, and its damping. */
+   * roll, N·m per rad, its damping and the most his body lends it, N·m
+   * (a lip tipped a little is levelled in the air, one tipped hard
+   * comes down on its side); the nose SET for the landing
+   * (`assist.air`) — toward the pitch of the snow it will come down on,
+   * `setNose` rad high: N·m per rad, N·m·s, the most it lends, N·m. */
   air: {
     lean: 520,
     throttle: 110,
@@ -197,6 +201,11 @@ export const SLED = {
     damping: 60,
     rollLevel: 1600,
     rollDamp: 300,
+    rollMost: 300,
+    setStiff: 5300,
+    setDamp: 2400,
+    setMost: 3000,
+    setNose: 0.06,
   },
   /** THE PARKING SPOT on the valley floor (`sled-pad.ts`): the room kept
    * clear round it, m, and the steepest the snow under it may lean
@@ -212,12 +221,26 @@ export const SLED = {
   /** THE HOP OFF the boards (the jump's press): out to the left of the
    * machine, m/s, and a little up. */
   hop: { out: 1.6, up: 1.4 },
-  /** WHAT PUTS THE RIDER OFF: a trunk met harder than `tree` m/s; the
-   * machine past `over` rad of roll or pitch off the snow for `overFor` s
-   * — rolled, or looped — and a landing closing harder than `landing` m/s.
+  /** WHAT PUTS THE RIDER OFF — and nothing else does, on snow: a trunk met
+   * harder than `tree` m/s; the machine past `over` rad of roll or pitch
+   * off the snow for `overFor` s — rolled, or looped; a landing coming
+   * down into the snow harder than `landing` m/s on the groomer, up to
+   * `landingPowder` m/s in deep powder (a drop of some 7.6 m and 12 m at
+   * the flight's gravity), or set down `tilt` rad off its belt any harder
+   * than `tiltFrom` m/s; and the way it was going stopped `wall` m/s in a
+   * step — a cliff band ridden into.
    * Off, the machine lies where it came to rest until he rides back to it
    * (boarding stands it back on its belt). */
-  crash: { tree: 7, over: 1.25, overFor: 0.6, landing: 9 },
+  crash: {
+    tree: 7,
+    over: 1.25,
+    overFor: 0.6,
+    landing: 15,
+    landingPowder: 19,
+    tilt: 0.7,
+    tiltFrom: 4,
+    wall: 8,
+  },
   /** THE BODY'S POINTS that meet the snow and the trunks when the springs
    * run out — the hull, nose to tunnel, belly to riser — body frame, m. */
   hull: [

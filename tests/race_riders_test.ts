@@ -38,6 +38,9 @@ describe("a race's own build", () => {
     expect(raceRiderOf("bigAir")).toBe("medium");
     // Slopestyle: the same field, the same build.
     expect(raceRiderOf("slopestyle")).toBe("medium");
+    // The rail jam: the same park field, nothing on a rail paid for weight.
+    expect(raceRiderOf("railJam")).toBe("medium");
+    expect(raceRiderOf("halfpipe")).toBe("medium");
   });
 
   it("grows heavier the more a race is the tuck alone", () => {

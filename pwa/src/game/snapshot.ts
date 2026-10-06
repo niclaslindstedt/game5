@@ -26,9 +26,13 @@ import {
   GIANT_SLALOM,
   SPEED_SKI,
   SLED,
+  PARA,
+  helipadOf,
   heliWithin,
   mayGetUp,
+  paraRigged,
   sledWithin,
+  groomerWithin,
   trenched,
   type GameState,
   type Level,
@@ -54,6 +58,7 @@ import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
 import { jamOf, type JamHud } from "./knuckle-huck-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
+import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -222,6 +227,10 @@ export type HudSnapshot = {
    * section he is in, and once judged the sheet, the board and what comes
    * next; null on any other run. */
   slopestyle: SlopestyleHud | null;
+  /** A HALFPIPE run (`halfpipe-run.ts`) — its phase and run, the hits so
+   * far, and once judged the sheet, the board and what comes next; null
+   * on any other run. */
+  halfpipe: HalfpipeHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -257,7 +266,80 @@ export type HudSnapshot = {
   /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
    * while it waits for him, or null. */
   sled: HudSled | null;
+  /** THE PISTE MACHINE (`groomerOf`): driven, or the nearest's way while
+   * he is near one, or null. */
+  groomer: HudGroomer | null;
+  /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
+   * null. */
+  para: HudPara | null;
 };
+
+/** A PISTE MACHINE as the HUD reads it: driven — its speed, km/h (negative
+ * in reverse), and whether its tiller is down — or the nearest `away` m from
+ * him, `near` when he stands where the machine press takes him into its
+ * cab (`groomerWithin`). */
+export type HudGroomer =
+  | { kind: "driven"; kmh: number; tiller: boolean }
+  | { kind: "waiting"; away: number; near: boolean };
+
+/** How near a piste machine the HUD names it to him, m. */
+const GROOMER_CALL = 45;
+
+/** The piste machines' readout for the player at this step. */
+export function groomerOf(state: GameState): HudGroomer | null {
+  const gs = state.groomers;
+  if (!gs || gs.length === 0) return null;
+  const driven = gs.find((g) => g.rider);
+  if (driven) return { kind: "driven", kmh: driven.speed * 3.6, tiller: driven.tiller };
+  const c = state.skier;
+  if (c.thrown || c.lift || state.heli?.rider || state.sled?.rider || paraRigged(state))
+    return null;
+  let away = Infinity;
+  for (const g of gs) away = Math.min(away, Math.hypot(g.x - c.x, g.z - c.z));
+  return away < GROOMER_CALL
+    ? { kind: "waiting", away, near: groomerWithin(state) !== null }
+    : null;
+}
+
+/** THE PARAMOTOR as the HUD reads it while the rig is on him: `ready` on
+ * the summit, the wing held up; else flown — in the air or skiing under it
+ * on the snow — with his height over the snow, m, his climb, m/s, the air
+ * through the wing, m/s, the throttle and the rpm's share of full, whether
+ * the wing is stalled, the wind at it, m/s, how rough the air is (the
+ * eddies' sigma, m/s), and how much of it is folded and on which side (−1
+ * left, 1 right, 0 its leading edge). */
+export type HudPara = {
+  kind: "ready" | "flying" | "riding";
+  height: number;
+  climb: number;
+  air: number;
+  throttle: number;
+  rev: number;
+  stalled: boolean;
+  wind: number;
+  rough: number;
+  fold: number;
+  foldSide: number;
+};
+
+/** The paramotor's readout for the player at this step. */
+export function paraOf(state: GameState): HudPara | null {
+  const p = state.para;
+  if (!p || !paraRigged(state) || state.skier.thrown) return null;
+  return {
+    kind: p.mode === "ready" ? "ready" : p.flying ? "flying" : "riding",
+    height: p.agl,
+    climb: p.climb,
+    air: p.airspeed,
+    throttle: p.controls.throttle,
+    rev: p.rpm / PARA.engine.full,
+    stalled: p.stalled,
+    wind: p.wind,
+    rough: p.rough,
+    fold: p.fold,
+    foldSide: p.foldSide,
+  };
+}
 
 /** THE SNOWMOBILE as the HUD reads it: ridden — the engine's rpm as a share
  * of its limiter, the thumb, and whether the belt is spinning in the snow —
@@ -291,13 +373,15 @@ export function sledOf(state: GameState): HudSled | null {
 }
 
 /** THE HELICOPTER as the HUD reads it: flown — how high its skids are over
- * the snow (the fall a jump off them is), m, and its climb, m/s — or
+ * the snow (the fall a jump off them is), m, its ALTITUDE over the pad on
+ * the valley floor it took off from, m, and its climb, m/s — or
  * waiting on its pad `pad` m from him, `near` when he stands where the
  * machine press sits him on its skid (`heliWithin`). */
 export type HudHeli =
   | {
       kind: "flown";
       height: number;
+      altitude: number;
       climb: number;
       landed: boolean;
       /** The collective lever, 0..1, and the disc's attitude as the
@@ -312,6 +396,12 @@ export type HudHeli =
 /** How near the waiting helicopter the HUD points him at it, m. */
 const HELI_CALL = 120;
 
+/** The snow on the helicopter's pad, m — what its altitude is read over. */
+function padHeight(state: GameState): number {
+  const pad = helipadOf(state.level);
+  return state.level.groundAt(pad.x, pad.z);
+}
+
 /** The helicopter's readout for the player at this step. */
 export function heliOf(state: GameState): HudHeli | null {
   const h = state.heli;
@@ -320,6 +410,7 @@ export function heliOf(state: GameState): HudHeli | null {
     return {
       kind: "flown",
       height: Math.max(0, h.y - state.level.groundAt(h.x, h.z)),
+      altitude: h.y - padHeight(state),
       climb: h.vy,
       landed: h.grounded,
       collective: h.controls.collective,
@@ -482,7 +573,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const n = state.level.checkpoints.length;
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
-  const airTime = c.airborne && c.airTime > AIR_SHOWN ? c.airTime : 0;
+  // Hung under a paramotor's wing he is flying, not jumping.
+  const airTime = c.airborne && c.airTime > AIR_SHOWN && !paraRigged(state) ? c.airTime : 0;
   // A slalom is timed at its intermediates (`slalom.timing`), never gate by
   // gate — its gates come a second apart.
   const split =
@@ -536,6 +628,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     bigAir: bigAirOf(state),
     jam: jamOf(state),
     slopestyle: slopestyleOf(state),
+    halfpipe: halfpipeOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
@@ -554,5 +647,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     wind: windOf(state),
     heli: heliOf(state),
     sled: sledOf(state),
+    groomer: groomerOf(state),
+    para: paraOf(state),
   };
 }

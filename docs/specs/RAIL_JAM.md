@@ -1,7 +1,10 @@
-# Rail jam — draft spec
+# Rail jam — spec
 
-**Draft. Researched, not built.** Delete this file when the rail jam is
-finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s; the
+**Built in part.** The set (R40), the mode, its pair and build, the jam
+(the knuckle huck's, now shared), a hit judged on its feature, the dealt
+field, the bot, the HUD, the plate, the tricks card's box and the links
+are built; the boxes below that are still open say what remains. Delete
+this file when the rail jam is finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s; the
 jibs are first built for `SLOPESTYLE.md`.
 
 ## Start here
@@ -45,31 +48,48 @@ tricks beat one perfect one.
 
 ## What it needs to be complete
 
-- [ ] **The set (the next free R-rule)**: a short drop-in onto a gentle
-      slope (a rail park's ~10–15°, *est.*), three to five features —
-      a box (~40 cm wide, 6–9 m), a flat-down rail, a down-flat-down rail
-      (~10 m), a kinked rail, a rainbow, a wall ride (2–4 m tall) — laid
-      side by side so a rider picks one a hit, the landing and the run-out
-      back to the lift or the drop-in.
-- [ ] **Mode and rules**: a `GameMode` row; the jam's clock; the reset to
-      the top after each hit.
-- [ ] **Jib tricks in full**: on (90° offsets onto a slide, 180s onto a
-      50-50), the stance, presses held, SWAPS (front and back) and
-      PRETZELS, the degrees off; blind; switch on and off.
-- [ ] **The jam judge** (the knuckle huck's): the session's best hits,
-      variety across features and tricks, consistency, style.
-- [ ] **The format**: heats of four, the best two to a final (the street
-      contest's) — or one jam (open question); a DOM-free module.
-- [ ] **The field**: rivals dealt sessions, shown hit by hit.
-- [ ] **The bot**: picks a feature, mounts it with a trick it can hold,
-      leaves it with a spin it can land.
-- [ ] **HUD**: the clock, the trick named (on, stance, off), the running
-      rank.
+- [x] **The set (R40)** (`mapgen/rail-jam.ts` over `straight-venue.ts`):
+      a 6 m platform, a 15° drop-in sized so a skier stood up meets the
+      features at 22 km/h, a 7° deck of 34 m with FIVE FEATURES side by
+      side 5 m apart 12 m down it — a 7 m down box, a 9 m flat-down rail,
+      a 9 m kinked box, a 10 m down-flat-down rail and a 6 m rainbow rail
+      — a 5° run-out and the finish line; cut down the face as big air's
+      jump is. *Still open: the WALL RIDE (the jib module rides a line,
+      not a wall), a street set (stairs, a handrail, barriers), and the
+      run-out back to a lift rather than the jam standing him back on the
+      platform.*
+- [x] **Mode and rules**: `railJam` (`RAIL_JAM`, `railJamRules` in
+      `defs/rail-jam.ts`); a three-minute jam; the reset to the platform
+      after each hit (`jam.ts`'s `stepJam`, shared with the knuckle huck).
+- [ ] **Jib tricks in full**: built — the degrees on (the strokes' turn
+      out of the air, in quarters), the stances, presses held, swaps, the
+      degrees off (`jib.ts`). *Still open: front and back swaps told
+      apart, PRETZELS, BLIND read off which way he turned relative to the
+      rail, switch on and off as a difficulty of its own, an ollie onto a
+      feature from its side.*
+- [x] **The jam judge** (the knuckle huck's, `jam.ts`): each hit marked on
+      the feature ridden (`railHitImpression` over slopestyle's
+      `jibImpression`), the session on its best three hits, the variety
+      among them (the feature and the way it was ridden, `railKind`) and
+      the falls. *Style is not read.*
+- [x] **The format**: ONE JAM of eight (the open question's default; see
+      below), a DOM-free module (`jam.ts`). *Heats of four and a final are
+      open.*
+- [x] **The field**: seven rivals dealt sessions on a stream of their own
+      (`RAIL_JAM_FIELD`), their hits on the board as they come.
+- [x] **The bot** (`sim/rail-jam-steer.ts`): a different feature every
+      hit, left to right, checked to its speed, a press, a swap or a 180
+      out on each, every hit ridden whole. *It spins onto nothing yet.*
+- [x] **HUD**: the jam's clock, hits and running rank (the knuckle huck's
+      chips), the last hit's trick named — on, stance, swap, press, off
+      and the feature (`strings-railjam.ts`'s `jibName`) — and the plate
+      with the board at the buzzer.
 - [ ] **Cameras**: side-on to the rail; a follow from behind.
 - [ ] **Sound**: the rail's ring, the box's slide, the hit of a landing.
-- [ ] **Labs** (`make ride` jib scenarios), **tests**, **docs**; delete
-      this spec.
-- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+- [ ] **Labs** (`make ride` jib scenarios — open), **tests**
+      (`rail_jam_test.ts`, `rail_jam_hud_test.ts`), **docs**
+      (`docs/freestyle.md`, `getting-started.md`); delete this spec.
+- [x] **The pair and the build preset** — the Hare and the medium build (`TRICK_MODES.md` § *Research, the
       pair and the build*): the softest park twin-tip — the Hare, unless the
       research finds rail skiers on something else, and the default build
       off rail-jam athletes (*research*; the jib skiers of the park, likely
@@ -83,18 +103,21 @@ Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
 pair and the build*): several sources for every number that shapes the
 build, written into `docs/freestyle.md`.
 
-- [ ] **The rules and the conditions**, in full: the field of play and a
+- [x] **The rules and the conditions**, in full (`docs/freestyle.md`;
+      no wind or snow-preparation rule is published): the field of play and a
       championship venue's real size, the format, the judging and a fall,
       the snow it is prepared to, the speeds, the wind and light a jury
       holds for.
-- [ ] **The skis**: the softest park twin-tip — the Hare, unless the
+- [x] **The skis** (the Hare: jib skis are 164–180 cm, ~120/90–94/116 mm,
+      15–20 m, soft, thick dull edges or none): the softest park twin-tip — the Hare, unless the
       research finds rail skiers on something else.
-- [ ] **The default player weight**: rail-jam athletes (*research*; the jib
+- [x] **The default player weight** (the medium build): rail-jam athletes (*research*; the jib
       skiers of the park, likely the medium or light build) — which of the
       four builds (`RIDERS`), argued from what the format pays weight for.
 
 - [x] The formats, the judging, the feature sizes, the vocabulary.
-- [ ] A rail's height off the snow, a box's height — sourced (now an
+- [x] A rail's height off the snow, a box's height — modular features
+      0.5–1.0 m, a ride-on one met at the snow (the game's 0.3 m an
       estimate).
 - [ ] How judges weigh a jib trick's parts (on, stance, swap, off) — a
       judges' manual for freeski rails.
@@ -102,5 +125,7 @@ build, written into `docs/freestyle.md`.
 ## Open questions for the user
 
 - A park rail set on the mountain, or a street set (stairs, handrails,
-  a wall)?
-- Heats and a final, or one jam?
+  a wall)? *Chosen for now: a park set on the mountain — what the jib
+  module can ride today.*
+- Heats and a final, or one jam? *Chosen for now: one jam of eight,
+  three minutes, as the knuckle huck's.*

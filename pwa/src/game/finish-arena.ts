@@ -25,7 +25,7 @@ import type { GameState, Level } from "@engine";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 
 import { PALETTE } from "../identity.ts";
-import { netTexture } from "./gates.ts";
+import { netLook, netTexture } from "./gates.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { Fence, Grandstand, SpectatorPlan } from "./spectator-plan.ts";
 
@@ -237,10 +237,14 @@ export function createFinishArena(
   for (const s of plan.stands) buildStand(kit, level, s);
   const netTex = netTexture();
   texs.push(netTex);
-  const netMat = std(
-    { map: netTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.9 },
-    "fan-net",
-  );
+  // Seen from both sides, and drawn as three draws a see-through two-sided
+  // sheet — its back faces, then its front — but as two meshes with a
+  // side each: one two-sided material has its program re-derived for
+  // each half on every frame.
+  const netMat = {
+    back: std({ ...netLook(netTex), side: THREE.BackSide }, "fan-net"),
+    front: std({ ...netLook(netTex), side: THREE.FrontSide }, "fan-net"),
+  };
   const postMat = std({ color: 0x2b3036, roughness: 0.8 }, "fan-post");
   const postGeos: THREE.BufferGeometry[] = [];
   const netGeos: THREE.BufferGeometry[] = [];
@@ -258,7 +262,7 @@ export function createFinishArena(
     const nets = mergeGeometries(netGeos)!;
     for (const g of netGeos) g.dispose();
     geos.push(nets);
-    group.add(new THREE.Mesh(nets, netMat));
+    group.add(new THREE.Mesh(nets, netMat.back), new THREE.Mesh(nets, netMat.front));
   }
   if (postGeos.length) {
     const merged = mergeAll(postGeos);

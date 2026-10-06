@@ -25,6 +25,7 @@
 import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import { SKIS, inertiaOf } from "./defs/skis.ts";
+import { pipeLanding } from "./pipe-air.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { SkierState } from "./state.ts";
 
@@ -53,8 +54,10 @@ export function airTorque(
   // chasing a reading that goes round at the spin's own rate is a driven
   // oscillator (the roll's natural rate is the spin's), which wound every
   // 360 into a tumble. Let go, the tilt he threw the spin with stays, a few
-  // degrees, and the air's damping is all that touches it.
-  const spinning = clamp(Math.abs(c.wy) / A.spinLevel, 0, 1);
+  // degrees, and the air's damping is all that touches it. Under
+  // `spinFrom` he is not spinning at all — the yaw a landing's skid or a
+  // steer left him with — and the hands are whole.
+  const spinning = clamp((Math.abs(c.wy) - A.spinFrom) / (A.spinLevel - A.spinFrom), 0, 1);
   const reach = clamp((A.rollGiveUp - Math.abs(c.roll)) / 0.3, 0, 1) * (1 - spinning);
   out.z += (A.rollLevel * level * c.roll - A.rollDamp * c.wz) * reach;
   // ...AND THE PITCH, which is the arcade's: with the lean left alone his
@@ -86,6 +89,11 @@ export function airTorque(
     (1 - Math.min(1, Math.abs(c.lean))) *
     clamp((A.pitchGiveUp - Math.abs(c.pitch - aim)) / 0.3, 0, 1);
   out.x += clamp(A.pitchLevel * (c.pitch - aim), -A.pitchLevelMax, A.pitchLevelMax) * hand;
+  // ...AND HE HOLDS HIS PITCH: a skier who is not leaning does not let a
+  // lip or a bounce pitch him round — the turn the snow gave him is taken
+  // out at `pitchSteady` (a held tuck carried off a crest included: a held
+  // W leans nothing, `input-model.ts`'s `airLean`).
+  out.x -= A.pitchSteady * heft * c.wx * hand;
   out.x -= A.damping * c.wx;
   out.y -= A.yawDamping * c.wy;
   out.z -= A.damping * c.wz;
@@ -106,6 +114,11 @@ const ARC_HORIZON = 3;
  * snow does not come back within `ARC_HORIZON`. A pure function of the
  * skier and the map: it draws nothing and remembers nothing. */
 export function landingAhead(c: SkierState, level: Level, fall: number): Landing | null {
+  // A pipe's wall is met along its normal, not under the CoG (`pipe-air.ts`).
+  if (level.pipe) {
+    const down = pipeLanding(level, c, fall);
+    return down ? { t: down.t, slope: 0 } : null;
+  }
   const stand = c.spec.cogHeight;
   let x = c.x;
   let y = c.y;
@@ -178,7 +191,11 @@ export function landingOff(
   vx: number,
   vz: number,
   switchOk = false,
+  vy?: number,
 ): number {
+  // On a wall (`vy` given), the slide is read in the snow's own plane: the
+  // way across a wall at 80° has next to nothing level in it.
+  if (vy !== undefined) return wallOff(fwd, right, normal, vx, vy, vz, switchOk);
   const flat = hypot(vx, vz);
   const tailsFirst = flat > 1 && fwd.x * vx + fwd.z * vz < 0;
   const ends = switchOk && tailsFirst ? -1 : 1;
@@ -195,6 +212,40 @@ export function landingOff(
         )
       : 0;
   // Landing backwards is landing sideways twice over — unless he may.
+  const back = tailsFirst && ends > 0 ? Math.PI / 2 : 0;
+  return Math.max(
+    pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,
+    Math.abs(roll) / LD.rolled,
+    (slide + back) / LD.sideways,
+  );
+}
+
+/** `landingOff` on a WALL: the way and the skis both laid into the snow's
+ * plane, the slide the angle between them there. */
+function wallOff(
+  fwd: { x: number; y: number; z: number },
+  right: { x: number; y: number; z: number },
+  normal: { x: number; y: number; z: number },
+  vx: number,
+  vy: number,
+  vz: number,
+  switchOk: boolean,
+): number {
+  const vn = vx * normal.x + vy * normal.y + vz * normal.z;
+  const px = vx - vn * normal.x;
+  const py = vy - vn * normal.y;
+  const pz = vz - vn * normal.z;
+  const way = Math.sqrt(px * px + py * py + pz * pz);
+  const along = fwd.x * px + fwd.y * py + fwd.z * pz;
+  const tailsFirst = way > 1 && along < 0;
+  const ends = switchOk && tailsFirst ? -1 : 1;
+  const pitch = Math.asin(
+    clamp(-(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z) * ends, -1, 1),
+  );
+  const roll = Math.asin(
+    clamp(right.x * normal.x + right.y * normal.y + right.z * normal.z, -1, 1),
+  );
+  const slide = way > 1 ? Math.acos(clamp(Math.abs(along) / way, 0, 1)) : 0;
   const back = tailsFirst && ends > 0 ? Math.PI / 2 : 0;
   return Math.max(
     pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,

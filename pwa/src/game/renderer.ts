@@ -809,7 +809,6 @@ export function createWorldRenderer(
         heroModels.length = 0;
         for (const r of riders) heroModels.push(r.model);
         timer.push("hero");
-        // Hidden, it is still asked: with no shadow it only makes its map.
         hero.render(gl, scene, heroModels, hidden.has("hero") ? null : env.shadow());
         timer.pop();
       }

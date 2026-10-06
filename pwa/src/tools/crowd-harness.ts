@@ -18,7 +18,13 @@
 //   moments   the poses BLENDED as the crowd is drawn (`dialsOf` off an
 //             amateur's numbers): a carve each way, the bomber's tuck, the
 //             beginner's wedge, a hockey stop, a side-slip, a double pole, a
-//             kicker, a drunk's sway, down in the snow;
+//             kicker, a drunk's sway;
+//   falls     AN AMATEUR DOWN, frame by frame: a real amateur on `?seed=`'s
+//             mountain thrown three ways — shouldered off his line from the
+//             side, losing it on his own at speed, a landing on his back —
+//             onto the engine's ragdoll (`throwAmateur`), strobed as he goes
+//             over, lies, and gets up (`crowd-fall.ts`), each row a body,
+//             each cell on the snow he is on;
 //   dress     a real crowd's first groups (`createGame`'s free ride on
 //             `?seed=`) stood in a line in what they were dealt, by group;
 //   slope     the crowd on `?seed=`'s mountain `?t=` seconds into a free ride,
@@ -26,15 +32,20 @@
 //             (`window.__crowd.shoot(view)`): `busy` over the busiest stretch
 //             of green, `group` beside a family or a ski school, `chase`
 //             behind a carver, `kicker` at a lip someone is going for,
-//             `overview` a hundred metres over the busiest run.
+//             `overview` a hundred metres over the busiest run; and
+//             `fall-<s>`, an amateur near the busiest stretch shouldered
+//             over (the first such view) and seen <s> seconds after.
 //
 // Sets `window.__done` when a sheet is on screen; the slope sheet sets it
 // once loaded and answers `__crowd.shoot`.
 
 import * as THREE from "three";
 import {
+  CROWD,
   CROWD_BODIES,
   createGame,
+  throwAmateur,
+  type CrashCause,
   crowdNet,
   NEUTRAL_INPUT,
   step,
@@ -46,12 +57,21 @@ import {
 } from "@engine";
 
 import { outfitOf, type Outfit } from "../game/crowd-dress.ts";
-import { CROWD_LOOKS, CROWD_POSES, dialsOf, type CrowdPose } from "../game/crowd-rig.ts";
+import { fallenPose, standFrame } from "../game/crowd-fall.ts";
+import {
+  CROWD_LOOKS,
+  CROWD_POSES,
+  dialsOf,
+  type CrowdPose,
+  type Posed,
+  type V3,
+} from "../game/crowd-rig.ts";
 import {
   CROWD_LODS,
   buildCrowdFigure,
   crowdMaterial,
   crowdTriangles,
+  poseCrowdFigure,
   type CrowdLod,
 } from "../game/crowd-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
@@ -143,6 +163,8 @@ function standIn(body: CrowdBody, id: number, over: Partial<Amateur> = {}): Amat
     turnSide: 0,
     turnT: 0,
     turnHeld: 0,
+    thrown: null,
+    rise: 0,
     ...over,
   };
 }
@@ -292,7 +314,6 @@ const MOMENTS: readonly { name: string; at: Partial<Amateur>; t?: number }[] = [
   { name: "double pole", at: { push: 1, pole: Math.PI / 2 } },
   { name: "off a kicker", at: { mode: "air", airAt: 0.5, airT: 1, crouch: 0.55 } },
   { name: "drunk's sway", at: { lean: 0.35, crouch: 0.1, plough: 0.3 } },
-  { name: "down", at: { fall: 1, fallSide: -1 } },
   { name: "pole plant", at: { ...TURNING, turnT: 0.22 } },
   { name: "pole trailing", at: { ...TURNING, turnT: 0.5 } },
   // His own clock a quarter of the wait's swing in, and three quarters.
@@ -335,6 +356,174 @@ function dressCells(): Cell[] {
     });
   }
   return cells;
+}
+
+// ── THE FALLS: an amateur thrown, strobed on the snow he is on ───────────
+
+/** The ways the sheet throws him: what threw him, the side he goes down
+ * on, a shove across his way, m/s, and his way down into the snow. */
+const FALLS: readonly {
+  name: string;
+  cause: CrashCause;
+  side: number;
+  shove: number;
+  vy: number;
+}[] = [
+  { name: "shouldered", cause: "skier", side: 1, shove: 4, vy: 0 },
+  { name: "lost it", cause: "roll", side: -1, shove: 0, vy: 0 },
+  { name: "landed on his back", cause: "landing", side: 1, shove: 0, vy: -4 },
+];
+/** The moments strobed: seconds after he left his skis, then the last
+ * moment he lies, then shares of the get-up. */
+const FALL_AT = [0.15, 0.35, 0.6, 1, 1.6, 2.5] as const;
+const RISE_AT = [0.25, 0.5, 0.75, 1] as const;
+
+/** One frame of a fall: the pose about `at`, the snow round it, and the
+ * way the camera looks across his fall. */
+type FallFrame = { name: string; pose: Posed; at: V3; across: number };
+
+function fallFrames(
+  body: CrowdBody,
+  how: (typeof FALLS)[number],
+): { frames: FallFrame[]; id: number; state: GameState } {
+  const state = createGame({ seed, mode: "free", quiet: true });
+  const crowd = state.crowd!;
+  const level = state.level;
+  // A real amateur of that body, skiing along at a cruise.
+  let a: Amateur | undefined;
+  for (let k = 0; k < 120 * 40 && !a; k++) {
+    step(state, NEUTRAL_INPUT);
+    a = crowd.amateurs.find(
+      (o) => o.body === body && o.mode === "ski" && o.speed > 5 && o.speed < 11,
+    );
+  }
+  a ??= crowd.amateurs.find((o) => o.body === body && o.mode === "ski") ?? crowd.amateurs[0];
+  const right = { x: Math.cos(a.heading), z: -Math.sin(a.heading) };
+  throwAmateur(
+    a,
+    how.side,
+    how.cause,
+    a.vx + right.x * how.shove * how.side,
+    a.vz + right.z * how.shove * how.side,
+    how.vy,
+  );
+  a.timer = 1;
+  const across = a.heading + Math.PI / 2;
+  const frames: FallFrame[] = [];
+  const normal = { x: 0, y: 1, z: 0 };
+  const snap = (name: string): void => {
+    level.normalAt(a.x, a.z, normal);
+    const at: V3 = [a.x, a.y, a.z];
+    const pose = fallenPose(a, standFrame(a, normal), at);
+    if (pose) frames.push({ name, pose, at, across });
+  };
+  let lying: FallFrame | null = null;
+  const want = [...FALL_AT];
+  const rises = [...RISE_AT];
+  for (let k = 0; k < 120 * 20 && a.thrown; k++) {
+    const b = a.thrown;
+    const rise = a.rise / CROWD.fall.rise;
+    if (want.length && b.t >= want[0]) snap(`${want.shift()!.toFixed(2)} s`);
+    if (a.rise <= 0) {
+      level.normalAt(a.x, a.z, normal);
+      const at: V3 = [a.x, a.y, a.z];
+      lying = {
+        name: `lying, ${b.t.toFixed(1)} s`,
+        pose: fallenPose(a, standFrame(a, normal), at)!,
+        at,
+        across,
+      };
+    } else if (lying) {
+      frames.push(lying);
+      lying = null;
+    }
+    if (rises.length && rise >= rises[0] - 1e-9) snap(`up ${Math.round(rises.shift()! * 100)} %`);
+    step(state, NEUTRAL_INPUT);
+  }
+  return { frames, id: a.id, state };
+}
+
+/** The snow under a fall, `size` m square round `at`, laid off the map. */
+function snowPatch(state: GameState, at: V3, size: number): THREE.Mesh {
+  const g = new THREE.PlaneGeometry(size, size, 24, 24);
+  g.rotateX(-Math.PI / 2);
+  const p = g.getAttribute("position");
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i) + at[0];
+    const z = p.getZ(i) + at[2];
+    p.setY(i, state.level.groundAt(x, z) - at[1]);
+  }
+  g.computeVertexNormals();
+  return new THREE.Mesh(
+    g,
+    new THREE.MeshLambertMaterial({ color: 0xeef3f8, side: THREE.DoubleSide }),
+  );
+}
+
+function fallCells(): Cell[] {
+  const rows = (only ? bodies : (["man", "child", "oldWoman"] as const)).flatMap((body, k) => {
+    const how = FALLS[k % FALLS.length];
+    return [{ body, how }];
+  });
+  if (!only) rows.push(...FALLS.slice(1).map((how) => ({ body: "freerider" as CrowdBody, how })));
+  const cols = FALL_AT.length + 1 + RISE_AT.length;
+  return rows.flatMap(({ body, how }) => {
+    const { frames, id, state } = fallFrames(body, how);
+    const outfit = outfitOf(
+      state.crowd!.amateurs[id],
+      state.crowd!.groups[state.crowd!.amateurs[id].group],
+      seed,
+    );
+    const blank: Cell = { name: "", foot: "", draw: () => new THREE.OrthographicCamera() };
+    return Array.from({ length: cols }, (_, k): Cell => {
+      const f = frames[k];
+      if (!f) return k === 0 ? { ...blank, name: `${body} — ${how.name}: no fall` } : blank;
+      return {
+        name: k === 0 ? `${body} — ${how.name}` : "",
+        foot: f.name,
+        draw(scene: THREE.Scene) {
+          const geometry = buildCrowdFigure(body, "near").clone();
+          geometry.morphAttributes = {};
+          geometry.setAttribute(
+            "aDress",
+            new THREE.InstancedBufferAttribute(new Float32Array(outfit.slice(0, 4)), 4),
+          );
+          geometry.setAttribute(
+            "aDress2",
+            new THREE.InstancedBufferAttribute(
+              new Float32Array([outfit[4], outfit[5], outfit[6], 0]),
+              4,
+            ),
+          );
+          poseCrowdFigure(body, "near", f.pose, geometry);
+          const mesh = new THREE.InstancedMesh(geometry, material, 1);
+          mesh.setMatrixAt(0, new THREE.Matrix4());
+          mesh.frustumCulled = false;
+          scene.add(mesh);
+          scene.add(snowPatch(state, f.at, 8));
+          scene.add(new THREE.HemisphereLight(0xdfeaf6, 0x9aa8b8, 1.6));
+          const key = new THREE.DirectionalLight(0xfff0dc, 1.9);
+          key.position.set(-0.55, 0.72, -0.42);
+          scene.add(key);
+          const w = 3.4;
+          const h = (w * CELL_H) / CELL_W;
+          const camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 200);
+          // From the side of the way he was going, a little behind and above.
+          const az = f.across + 0.5;
+          const el = 0.75;
+          const d = 30;
+          const cy = 0.45;
+          camera.position.set(
+            Math.sin(az) * Math.cos(el) * d,
+            cy + Math.sin(el) * d,
+            Math.cos(az) * Math.cos(el) * d,
+          );
+          camera.lookAt(0, cy, 0);
+          return camera;
+        },
+      };
+    });
+  });
 }
 
 function drawSheet(cells: Cell[], cols: number): void {
@@ -503,8 +692,32 @@ async function slope(): Promise<void> {
       return `a hundred metres over the busiest run, round amateur ${a.id} (${net.runs[a.run].grade})`;
     },
   };
+  // A FALL through the game's renderer: an amateur near the busiest
+  // stretch shouldered over at the first `fall-<s>` view, and every such
+  // view the moment <s> s after, from a lens planted beside where he went.
+  let fallen: { a: Amateur; at: number; eye: [number, number, number] } | null = null;
+  const fallShot = (after: number): string => {
+    if (!fallen) {
+      const a = busiest(60, (o) => out(o) && o.mode === "ski" && o.speed > 5);
+      const right = { x: Math.cos(a.heading), z: -Math.sin(a.heading) };
+      throwAmateur(a, 1, "skier", a.vx + right.x * 4, a.vz + right.z * 4, 0);
+      const ex = a.x - right.x * 7 + Math.sin(a.heading) * 4;
+      const ez = a.z - right.z * 7 + Math.cos(a.heading) * 4;
+      fallen = { a, at: state.t, eye: [ex, level.groundAt(ex, ez) + 2.2, ez] };
+    }
+    const f = fallen;
+    while (state.t - f.at < after) {
+      step(state, NEUTRAL_INPUT);
+      renderer.draw(state, 0, FRAME / 2, false);
+    }
+    const a = f.a;
+    look(f.eye, [a.x, a.y + 0.4, a.z], 40);
+    const how = a.thrown ? (a.rise > 0 ? "getting up" : "down") : a.mode;
+    return `amateur ${a.id} (${a.body}) ${how}, ${(state.t - f.at).toFixed(2)} s after he was shouldered`;
+  };
   window.__crowd = {
     async shoot(view) {
+      if (view.startsWith("fall-")) return fallShot(Number(view.slice(5)));
       const shoot = shots[view];
       if (!shoot) throw new Error(`no view ${view} (${Object.keys(shots).join(", ")})`);
       // A second between views, so each is its own moment of the crowd.
@@ -533,7 +746,9 @@ if (sheet === "slope") {
         ? momentCells()
         : sheet === "dress"
           ? dressCells()
-          : figureCells();
+          : sheet === "falls"
+            ? fallCells()
+            : figureCells();
   const cols =
     sheet === "lods"
       ? 4
@@ -541,6 +756,8 @@ if (sheet === "slope") {
         ? MOMENTS.length
         : sheet === "dress"
           ? 6
-          : CROWD_POSES.length + 1;
+          : sheet === "falls"
+            ? FALL_AT.length + 1 + RISE_AT.length
+            : CROWD_POSES.length + 1;
   drawSheet(cells, cols);
 }

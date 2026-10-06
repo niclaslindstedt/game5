@@ -463,8 +463,16 @@ export const CROWD = {
   yawRate: [1.4, 3.4] as readonly [number, number],
   /** A FALL: how many a minute at no skill on a green, and how much more
    * likely on a colour past him, drunk, or landing a kicker; how long he
-   * lies, s; how much the slide scrubs, m/s². */
-  fall: { rate: 0.18, steep: 3, wobble: 1.4, lie: [2.5, 7] as readonly [number, number], slide: 6 },
+   * lies once his body has come to rest (`crashOver`), s; and how long he
+   * takes to get back up on his skis, s. Down, he is a RAGDOLL — the
+   * player's own (`ragdoll.ts`) — thrown by what put him there. */
+  fall: {
+    rate: 0.18,
+    steep: 3,
+    wobble: 1.4,
+    lie: [1, 4] as readonly [number, number],
+    rise: 1.4,
+  },
   /** A STOP: how many a minute at a stopper's 1, how long, s; and how much
    * likelier just below a crest — a roll he has just come over, by how
    * much steeper the pitch is here than `crestBack` m above. */

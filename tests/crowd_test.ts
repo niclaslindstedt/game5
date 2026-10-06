@@ -279,6 +279,39 @@ describe("the player meets the crowd", () => {
     expect(taken.events.some((e) => e.kind === "wipeout" && e.cause === "skier")).toBe(true);
   });
 
+  it("knocked down, he goes over on a ragdoll, lies, and gets back up", () => {
+    const { state, a } = meet(6);
+    const body = a.thrown!;
+    expect(body).toBeTruthy();
+    expect(a.rise).toBe(0);
+    // Shouldered from behind, he goes on down the way he was hit.
+    const z0 = body.z;
+    let lay = false;
+    let rose = false;
+    for (let i = 0; i < 120 * 20 && a.mode === "down"; i++) {
+      step(state, NEUTRAL_INPUT);
+      if (a.thrown?.touching && a.thrown.down >= 0) lay = true;
+      if (a.rise > 0) rose = true;
+    }
+    expect(lay).toBe(true);
+    expect(rose).toBe(true);
+    expect(body.z).toBeGreaterThan(z0);
+    // Up on his skis, his body handed back, stood on the snow.
+    expect(a.mode).not.toBe("down");
+    expect(a.thrown).toBeNull();
+    expect(a.fall).toBe(0);
+    expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.05);
+  });
+
+  it("a fall replays body for body, off the crowd's own stream", () => {
+    const one = meet(6);
+    const two = meet(6);
+    ride(one.state, 3);
+    ride(two.state, 3);
+    expect(one.a.thrown!.points).toEqual(two.a.thrown!.points);
+    expect(one.state.crowd!.rng.next()).toBe(two.state.crowd!.rng.next());
+  });
+
   it("the g of a shoulder is the HUD's only when somebody went down on it", () => {
     // Both stood up: the blow is billed, but as one ridden out.
     const stood = meet(5, 0.95);

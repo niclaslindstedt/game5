@@ -848,6 +848,9 @@ export type Amateur = {
   turnSide: number;
   turnT: number;
   turnHeld: number;
+  /** DOWN (`crowd-down.ts`): his ragdoll (null on skis); s spent getting up. */
+  thrown: Thrown | null;
+  rise: number;
 };
 
 /** A GROUP of the crowd: its kind, its members (leader first) by index

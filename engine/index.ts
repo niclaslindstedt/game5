@@ -324,6 +324,7 @@ export {
   type CrowdNet,
   type NetRun,
 } from "./game/crowd.ts";
+export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,
   type CraftState,

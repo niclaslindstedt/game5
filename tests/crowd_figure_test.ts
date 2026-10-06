@@ -48,12 +48,12 @@ describe("the crowd is posed by the player's own pose", () => {
     });
   }
 
-  it("every shape stands on its skis on the snow but the fall and the air", () => {
+  it("every shape stands on its skis on the snow but the air", () => {
     for (const body of CROWD_BODIES) {
       const targets = crowdTargets(CROWD_LOOKS[body]);
       targets.forEach((t, k) => {
         const pose = k === 0 ? "stand" : CROWD_POSES[k - 1];
-        if (pose === "down" || pose === "air" || pose === "lean" || pose === "leanLeft") return;
+        if (pose === "air" || pose === "lean" || pose === "leanLeft") return;
         expect(Math.min(t.skiL.mid[1], t.skiR.mid[1]), `${body} ${pose}`).toBeCloseTo(0, 6);
         expect(t.head[1], `${body} ${pose}`).toBeGreaterThan(t.pelvis[1]);
       });
@@ -63,9 +63,6 @@ describe("the crowd is posed by the player's own pose", () => {
       expect(right.head[0]).toBeGreaterThan(0.2 * CROWD_LOOKS[body].height);
       expect(left.skiR.mid[1]).toBeCloseTo(0, 6);
       expect(left.head[0]).toBeLessThan(-0.2 * CROWD_LOOKS[body].height);
-      // Down, he lies on the snow.
-      const down = targets[1 + CROWD_POSES.indexOf("down")];
-      expect(down.pelvis[1]).toBeLessThan(0.25 * CROWD_LOOKS[body].height);
     }
   });
 
@@ -160,11 +157,10 @@ describe("an amateur's weights and kit", () => {
     expect(moving.of("idle") + moving.of("idleAway")).toBe(0);
   });
 
-  it("down in the snow, nothing else shows, mirrored to the side he fell on", () => {
+  it("down in the snow, no target shows: he is drawn off his ragdoll", () => {
     const down = w({ fall: 1, fallSide: -1, lean: 0.4, crouch: 0.8, across: 1 });
-    expect(down.of("down")).toBe(1);
     expect(down.mirror).toBe(-1);
-    for (const k of CROWD_POSES) if (k !== "down") expect(down.of(k)).toBe(0);
+    for (const k of CROWD_POSES) expect(down.of(k)).toBe(0);
   });
 
   it("each dealt a kit of his own, the same every time; a ski school in one bib", () => {

@@ -12,9 +12,8 @@
 // amateur's body. So whatever is done to the player's stance, his tuck or
 // his angulation moves the crowd with it: there is one skier's pose in the
 // game, and an amateur is that skier, smaller or broader, on worse days.
-// The one shape the player has no pose for is lying in the snow (his is a
-// ragdoll, stepped by the engine), so DOWN is his half-crouch laid over on
-// its side.
+// Lying in the snow is no shape at all: an amateur down is the player's
+// own ragdoll, stepped by the engine and drawn off it (`crowd-fall.ts`).
 //
 // HIS ANIMATIONS, NOT JUST HIS STANCES. What makes the player read as
 // alive between those shapes is what his body does on its own clock: a
@@ -93,7 +92,6 @@ export const CROWD_POSES = [
   "leanLeft",
   "plough",
   "across",
-  "down",
   "pole",
   "air",
   "plantLeft",
@@ -165,7 +163,7 @@ const STAND: SkierPoseInput = {
   airborne: false,
   landing: 10,
 };
-const INPUTS: Readonly<Record<Exclude<CrowdPose, "down" | "seat">, SkierPoseInput>> = {
+const INPUTS: Readonly<Record<Exclude<CrowdPose, "seat">, SkierPoseInput>> = {
   crouch: { ...STAND, crouch: 1, tuck: 1 },
   lean: {
     ...STAND,
@@ -236,7 +234,7 @@ function rollAbout(p: V3, o: V3, a: number): V3 {
  * origin rather than his centre of gravity, the skis off his boots' own
  * frames, sized to `look` — every height by his, the arms out to his
  * shoulders. */
-function fromPlayer(pose: SkierPose, look: CrowdLook): Posed {
+export function fromPlayer(pose: SkierPose, look: CrowdLook): Posed {
   const ground = MOUNTS.ground;
   const k = look.height / REFERENCE.height;
   const wide = look.shoulder / REFERENCE.shoulder;
@@ -309,7 +307,7 @@ const POINT_KEYS = [
 ] as const;
 
 /** Every point of a pose moved by `f`. */
-function mapPosed(p: Posed, f: (q: V3) => V3): Posed {
+export function mapPosed(p: Posed, f: (q: V3) => V3): Posed {
   const out = { ...p };
   for (const key of POINT_KEYS) out[key] = f(p[key]);
   for (const key of SKI_KEYS) {
@@ -323,27 +321,13 @@ function mapPosed(p: Posed, f: (q: V3) => V3): Posed {
  * one dial names, at that dial's share of the way (the player's own pose
  * solved at the share). */
 export function poseCrowd(look: CrowdLook, dials: PoseDials = {}): Posed {
-  const down = dials.down ?? 0;
-  if (down > 0) {
-    // His half-crouch laid over onto his right side and dropped onto the
-    // snow, his skis still on.
-    const crouched = grounded(fromPlayer(skierPose({ ...STAND, crouch: 0.5 }), look));
-    const fallen = mapPosed(crouched, (p) => rollAbout(p, [0, 0, 0], 1.45 * down));
-    // ...lying on his hip, his shoulder and his head.
-    let low = Infinity;
-    for (const key of ["pelvis", "hipR", "shoulderR", "head"] as const) {
-      low = Math.min(low, fallen[key][1]);
-    }
-    const drop = (low - look.girth) * down;
-    return mapPosed(fallen, (p) => [p[0] - 0.25 * look.height * down, p[1] - drop, p[2]]);
-  }
   const key = (Object.keys(dials) as CrowdPose[]).find((k) => (dials[k] ?? 0) !== 0);
   const share = key ? (dials[key] ?? 0) : 0;
   if (key === "seat") {
     // ON A CHAIR: the player's own seated pose (`skier-seat.ts`).
     return grounded(fromPlayer(seatedPose(STAND, { share, y: SEAT_Y }), look));
   }
-  const input = key && key !== "down" ? blend(INPUTS[key], share) : STAND;
+  const input = key ? blend(INPUTS[key], share) : STAND;
   const posed = grounded(fromPlayer(skierPose(input), look));
   // The lean's roll is the player's group's, turned about the outside
   // ski's edge — the left, in a turn to the right.
@@ -430,8 +414,9 @@ const crouchDial = (crouch: number): number => Math.max(0, crouch - 0.15) * 1.15
  * `CROWD_POSES`' order, into `out` — off the numbers the engine keeps for
  * the picture (`Amateur.crouch` … `turnHeld`) and the run's clock `t`, s —
  * and which way his figure is mirrored (−1 left): a fall goes down on his
- * own side, and the lean, the stop and the plant are turned with it. Lying
- * in the snow, nothing else shows; sat on a chair (`seat`, how far he is
+ * own side, and the lean, the stop and the plant are turned with it; down
+ * in the snow, every weight fades (he is drawn off his ragdoll then, never
+ * by these); sat on a chair (`seat`, how far he is
  * sat, which only the view knows — a T-bar's rider rides stood), his own
  * seat, and neither a plant nor a stood skier's wait. */
 export function dialsOf(
@@ -468,14 +453,13 @@ export function dialsOf(
   out[2] = Math.max(0, -lean);
   out[3] = a.plough * up;
   out[4] = a.across * up;
-  out[5] = a.fall;
-  out[6] = a.push * (0.5 + 0.5 * Math.sin(a.pole)) * up;
-  out[7] = (air || 0) * up;
+  out[5] = a.push * (0.5 + 0.5 * Math.sin(a.pole)) * up;
+  out[6] = (air || 0) * up;
   // THE PLANT through its two shapes: swung forward to the touch, trailed
   // back behind it, and home to the stance — on the pole the mirror puts
   // inside his turn.
   const plant = plantOf(a);
-  for (let k = 8; k < 12; k++) out[k] = 0;
+  for (let k = 7; k < 11; k++) out[k] = 0;
   if (plant) {
     const u = plant.t;
     const touch = TURN_PLANT.touch;
@@ -484,17 +468,17 @@ export function dialsOf(
     const touchW = u < touch ? smooth(u / touch) : u < TRAIL ? 1 - toTrail : 0;
     const trailW = u < touch ? 0 : u < TRAIL ? toTrail : 1 - smooth((u - TRAIL) / (1 - TRAIL));
     const side = mirror > 0 ? plant.side : 1 - plant.side;
-    out[8 + 2 * side] = touchW * w;
-    out[9 + 2 * side] = trailW * w;
+    out[7 + 2 * side] = touchW * w;
+    out[8 + 2 * side] = trailW * w;
   }
   // STOOD STILL, alive: the player's own wait, faded in below a walk and
   // swung from one side to the other on his own clock.
   const still =
     Math.max(0, 1 - a.speed / 1.5) * (1 - a.push) * (a.mode === "air" ? 0 : up) * (1 - seat);
   const wave = Math.sin((2 * Math.PI * t) / WAIT.period + a.id * 2.39);
-  out[12] = still * Math.max(0, wave);
-  out[13] = still * Math.max(0, -wave);
-  out[14] = seat * up;
+  out[11] = still * Math.max(0, wave);
+  out[12] = still * Math.max(0, -wave);
+  out[13] = seat * up;
   return mirror;
 }
 

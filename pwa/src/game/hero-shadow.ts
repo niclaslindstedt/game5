@@ -42,8 +42,31 @@ export type HeroShadow = {
   dispose(): void;
 };
 
-export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
+/** A depth attachment read through a comparing sampler (`haze.ts`'s
+ * `heroLerp`): one tap is four compares blended bilinearly by the GPU, which
+ * is why it is filtered linearly. */
+function comparing(side: number): THREE.DepthTexture {
+  const depthTexture = new THREE.DepthTexture(side, side, THREE.UnsignedIntType);
+  depthTexture.compareFunction = THREE.LessEqualCompare;
+  depthTexture.minFilter = THREE.LinearFilter;
+  depthTexture.magFilter = THREE.LinearFilter;
+  return depthTexture;
+}
+
+export function createHeroShadow(
+  gl: THREE.WebGLRenderer,
+  haze: HazeUniforms,
+  size: number,
+): HeroShadow {
   let target: THREE.WebGLRenderTarget | null = null;
+  // WHAT THE SAMPLER READS WITH NO MAP (SHADOWS below HIGH) and before the
+  // map's first pass: a depth texture that EXISTS on the GPU. Left null,
+  // three binds a depth texture it never uploads, the GL sees a colour
+  // texture under a shadow sampler, and refuses the draw — every lit
+  // material in the picture, every frame, under SHADOWS MEDIUM and SKIERS.
+  const blank = new THREE.WebGLRenderTarget(1, 1, { depthTexture: comparing(1) });
+  gl.initRenderTarget(blank);
+  haze.uHeroMap.value = blank.depthTexture;
   let slotSize = 0;
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, HERO_BACK + HERO_DEPTH);
   // What the mountain already shades casts nothing (`terrain-shade.ts`).
@@ -84,16 +107,11 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
     target?.depthTexture?.dispose();
     target?.dispose();
     target = null;
-    haze.uHeroMap.value = null;
+    haze.uHeroMap.value = blank.depthTexture;
     off();
     if (next <= 0) return;
-    // The receivers read the DEPTH attachment through a comparing sampler
-    // (`haze.ts`'s `heroLerp`): one tap is four compares blended bilinearly
-    // by the GPU, which is why it is filtered linearly.
-    const depthTexture = new THREE.DepthTexture(2 * next, 2 * next, THREE.UnsignedIntType);
-    depthTexture.compareFunction = THREE.LessEqualCompare;
-    depthTexture.minFilter = THREE.LinearFilter;
-    depthTexture.magFilter = THREE.LinearFilter;
+    // The receivers read the DEPTH attachment (`comparing`).
+    const depthTexture = comparing(2 * next);
     depthTexture.name = "riders.shadowMap";
     target = new THREE.WebGLRenderTarget(2 * next, 2 * next, {
       minFilter: THREE.NearestFilter,
@@ -101,6 +119,9 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
       generateMipmaps: false,
       depthTexture,
     });
+    // On the GPU now, not at its first pass: a frame drawn before that one
+    // reads it too.
+    gl.initRenderTarget(target);
     haze.uHeroMap.value = depthTexture;
   };
   setSize(size);
@@ -212,6 +233,8 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
     dispose() {
       target?.depthTexture?.dispose();
       target?.dispose();
+      blank.depthTexture?.dispose();
+      blank.dispose();
       depth.dispose();
     },
   };

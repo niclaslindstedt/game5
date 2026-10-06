@@ -269,7 +269,7 @@ export function createWorldRenderer(
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
-  const hero = createHeroShadow(env.haze, shadowLook().hero);
+  const hero = createHeroShadow(gl, env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
   const wrap = <M extends THREE.Material>(m: M, name: string): M => hazeMaterial(m, env.haze, name);
   const snowfall = createSnowfall(env.haze);
@@ -586,9 +586,9 @@ export function createWorldRenderer(
       lastTick = -1;
       lastState = null;
       lens.snap();
-      await breathe();
+      await Promise.all([breathe(), machines.ready]);
       if (mine !== loads) return;
-      // Compile every program now rather than on the first frame of the run.
+      // Compile every program now, models and all, not on the run's first frame.
       const skier = state.skier;
       lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
       lens.camera.lookAt(skier.x, skier.y, skier.z);
@@ -606,7 +606,7 @@ export function createWorldRenderer(
         gl.compile(scene, lens.camera);
         await Promise.all([trail.compile(gl), shade]);
       }
-      if (mine === loads) env.warmShadows(gl, scene, lv.size);
+      if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
       gl.setRenderTarget(null);
     },
 

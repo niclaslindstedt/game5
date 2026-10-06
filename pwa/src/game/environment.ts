@@ -55,8 +55,9 @@ export type Environment = {
   shadeSettled(): Promise<void>;
   /** Link every program the sun's shadow pass can ask for, now, behind the
    * loading card: one pass of its map over `span` m round the scene with
-   * every caster shown (`warmShadows`). */
-  warmShadows(gl: THREE.WebGLRenderer, scene: THREE.Scene, span: number): void;
+   * every caster shown (`warmShadows`) — and draw every program the picture
+   * can ask for once through `camera` into the target bound (`warmPicture`). */
+  warm(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, span: number): void;
   dispose(): void;
 };
 
@@ -102,6 +103,61 @@ function warmShadows(
   gl.shadowMap.needsUpdate = wanted;
   Object.assign(cam, { left, right, top, bottom, near, far });
   cam.updateProjectionMatrix();
+  for (const p of shown) p.visible = false;
+}
+
+/**
+ * THE PICTURE'S PROGRAMS, FIRST DRAWN BEFORE THE RUN. `compile` links every
+ * program in the scene, but a driver finishes one only when it is first
+ * DRAWN with (a phone's builds its pipeline there, on the thread that
+ * draws): whatever the lens had not yet seen — the rotor's smear as he sits
+ * on the skid, the far side of the ski area as the helicopter climbs, the
+ * fire when it goes down — stalled the frame it came into view. One draw of
+ * the whole scene, every mesh shown and none culled, into a single pixel of
+ * the target the run is drawn into finishes them all while the card is up;
+ * what was hidden is hidden again, and the next frame paints over the pixel.
+ */
+function warmPicture(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+  const shown: THREE.Object3D[] = [];
+  const culled: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!(o as THREE.Mesh).isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite)
+      return;
+    if (o.frustumCulled) {
+      o.frustumCulled = false;
+      culled.push(o);
+    }
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+      if (p.visible) continue;
+      p.visible = true;
+      shown.push(p);
+    }
+  });
+  // A target carries its own scissor; the canvas's is the renderer's.
+  const target = gl.getRenderTarget();
+  const scissor = target ? target.scissorTest : gl.getScissorTest();
+  const box = target ? target.scissor.clone() : gl.getScissor(new THREE.Vector4());
+  const auto = gl.shadowMap.autoUpdate;
+  gl.shadowMap.autoUpdate = false;
+  if (target) {
+    target.scissorTest = true;
+    target.scissor.set(0, 0, 1, 1);
+    gl.setRenderTarget(target);
+  } else {
+    gl.setScissorTest(true);
+    gl.setScissor(0, 0, 1, 1);
+  }
+  gl.render(scene, camera);
+  if (target) {
+    target.scissorTest = scissor;
+    target.scissor.copy(box);
+    gl.setRenderTarget(target);
+  } else {
+    gl.setScissorTest(scissor);
+    gl.setScissor(box);
+  }
+  gl.shadowMap.autoUpdate = auto;
+  for (const o of culled) o.frustumCulled = true;
   for (const p of shown) p.visible = false;
 }
 
@@ -212,7 +268,10 @@ export function createEnvironment(
       return terrain.setGround(ground, key, sun.castShadow);
     },
     shadeSettled: () => terrain.settled(),
-    warmShadows: (gl, scene, span) => warmShadows(gl, scene, sun, span),
+    warm(gl, scene, camera, span) {
+      warmShadows(gl, scene, sun, span);
+      warmPicture(gl, scene, camera);
+    },
     dispose() {
       terrain.dispose();
       dome.dispose();

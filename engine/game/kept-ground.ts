@@ -16,6 +16,7 @@
 // asked by a lookup. Read only on a run dealt the day's piste, so nothing
 // else a map is skied for moves.
 
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import type { Level } from "../mapgen/types.ts";
 import { GROOM_CELL, groomCellOf } from "./groomed.ts";
@@ -69,7 +70,7 @@ export function keptCells(level: Level): Set<number> {
     keep(cells, l.bottom.x, l.bottom.z, l.bottom.x, l.bottom.z, FOOT);
     if (l.kind === "drag") {
       // A drag's let-go, `drag.letGo` m short of its top wheel.
-      const len = Math.max(1, Math.hypot(l.top.x - l.bottom.x, l.top.z - l.bottom.z));
+      const len = Math.max(1, hypot(l.top.x - l.bottom.x, l.top.z - l.bottom.z));
       const x = l.top.x - ((l.top.x - l.bottom.x) / len) * L.drag.letGo;
       const z = l.top.z - ((l.top.z - l.bottom.z) / len) * L.drag.letGo;
       keep(cells, x, z, x, z, L.drag.rim);

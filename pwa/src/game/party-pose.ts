@@ -28,7 +28,8 @@ import { add, len, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
  *   * `dance`: `t` s into it, `style` which of the dances.
  *   * `drink`: `k` 0..1 the glass up, the swallow and down, over a dance.
  * `sway` is the buzz's weave, 0..1; `carry` whether his skis are on his
- * shoulder (his right hand up on them). */
+ * shoulder (his right hand up on them); `glass` whether a beer is in his
+ * right hand (dancing, it is raised in a TOAST). */
 export type BodyMove = {
   kind: "walk" | "rise" | "pick" | "clip" | "dance" | "drink";
   t: number;
@@ -37,6 +38,7 @@ export type BodyMove = {
   style?: number;
   sway?: number;
   carry?: boolean;
+  glass?: boolean;
 };
 
 /** One key of a move: the hips over the ground and off the middle, the
@@ -190,11 +192,20 @@ function keyOf(m: BodyMove): Key {
         // the head back for it.
         const k = clamp(m.k ?? 0);
         const up = ease(clamp(k / 0.25)) * (1 - ease(clamp((k - 0.78) / 0.22)));
-        const mouth = v(0.06, key.hipY + 0.62, 0.16);
+        const mouth = v(0.02, key.hipY + 0.66, 0.24);
         key.hands[1] = mix(v(0.24, key.hipY + 0.12, 0.3), mouth, up);
         key.hands[0] = v(-0.22, key.hipY + 0.02, 0.08);
         key.nod = -0.1 + 0.55 * up;
         key.pitch = Math.max(-0.25, key.pitch - 0.3 * up);
+      } else if (m.glass) {
+        // THE TOAST: the glass held up high and out in front, lifted on the
+        // beat and swung over the bar.
+        const b = t * Math.PI * 2 * BEAT;
+        key.hands[1] = v(
+          0.27 + 0.07 * Math.sin(b / 2),
+          key.hipY + 0.86 + 0.07 * (0.5 + 0.5 * Math.cos(b)),
+          0.3,
+        );
       }
       break;
     }

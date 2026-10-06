@@ -208,32 +208,58 @@ type Person = {
   move: (t: number) => BodyMove;
 };
 
-/** A BEER GLASS: the glass, the beer in it (scaled by how full) and its
- * head of foam. */
+/** A BEER GLASS: a half-litre stein drawn a size up so it reads across
+ * the room — the glass, the amber beer in it (scaled by how full), its
+ * white head standing proud of the rim, and the handle. Its origin is the
+ * HANDLE, where the hand holds it; the glass stands to the handle's left
+ * (his body's side of his right hand). */
+const STEIN = { r: 0.058, h: 0.2, wall: 0.006, handle: 0.075 };
 function beerGlass(mats: {
   beer: THREE.Material;
   foam: THREE.Material;
   glass: THREE.Material;
 }): THREE.Group {
+  const S = STEIN;
   const g = new THREE.Group();
-  const beer = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.03, 0.13, 10), mats.beer);
-  beer.position.y = 0.065;
+  const body = new THREE.Group();
+  body.position.set(-S.handle, -S.h / 2, 0);
+  const beer = new THREE.Mesh(
+    new THREE.CylinderGeometry(S.r - S.wall, S.r - S.wall - 0.004, 1, 14),
+    mats.beer,
+  );
   beer.name = "beer";
-  const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.039, 0.037, 0.025, 10), mats.foam);
-  foam.position.y = 0.14;
+  const foam = new THREE.Mesh(
+    new THREE.CylinderGeometry(S.r + 0.004, S.r - S.wall, 0.04, 14),
+    mats.foam,
+  );
   foam.name = "foam";
   const shell = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.042, 0.034, 0.17, 10, 1, true),
+    new THREE.CylinderGeometry(S.r, S.r - 0.004, S.h, 14, 1, true),
     mats.glass,
   );
-  shell.position.y = 0.085;
-  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.009, 4, 8, Math.PI), mats.glass);
+  shell.position.y = S.h / 2;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(S.r, S.r, 0.012, 14), mats.glass);
+  base.position.y = 0.006;
+  body.add(beer, foam, shell, base);
+  const handle = new THREE.Mesh(
+    new THREE.TorusGeometry(S.handle * 0.55, 0.012, 6, 10, Math.PI),
+    mats.glass,
+  );
   handle.rotation.z = -Math.PI / 2;
-  handle.position.set(0.045, 0.085, 0);
-  g.add(beer, foam, shell, handle);
-  // A half-litre stein, drawn a size up so it reads at the room's range.
-  g.scale.setScalar(1.5);
+  handle.position.set(-S.handle + S.r - 0.004, 0, 0);
+  g.add(body, handle);
   return g;
+}
+
+/** The beer in a stein `full` of the way to its rim, and its head on it. */
+function fill(glass: THREE.Group, full: number): void {
+  const f = Math.max(0.06, Math.min(1, full));
+  const beer = glass.getObjectByName("beer")!;
+  const foam = glass.getObjectByName("foam")!;
+  const deep = (STEIN.h - 0.03) * f;
+  beer.scale.y = deep;
+  beer.position.y = 0.012 + deep / 2;
+  foam.position.y = 0.012 + deep + 0.012;
 }
 
 export function createInterior(): Interior {
@@ -361,7 +387,7 @@ export function createInterior(): Interior {
         color: 0xffffff,
         roughness: 0.05,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.38,
       }),
     ),
   };
@@ -387,7 +413,8 @@ export function createInterior(): Interior {
     const holder = new THREE.Group();
     holder.position.set(x, 0, z);
     holder.rotation.y = face;
-    const figure = createSkier({ outfit, tone: outfit.tone }, identity);
+    // Indoors nobody wears a helmet or goggles: hair or a beanie, faces bare.
+    const figure = createSkier({ outfit, tone: outfit.tone, bare: true }, identity);
     holder.add(figure.group);
     const g = glass ? beerGlass(beerMats) : null;
     if (g) holder.add(g);
@@ -406,13 +433,14 @@ export function createInterior(): Interior {
     const style = Math.floor(dealt(i, 22) * 4);
     const phase = dealt(i, 23) * 2;
     const sway = dealt(i, 24) * 0.8;
+    const held = dealt(i, 26) < 0.4;
     add(
       kitOf(i),
       x,
       z,
       a + Math.PI + (dealt(i, 25) - 0.5) * 0.8,
-      (t) => ({ kind: "dance", t: t + phase, style, sway }),
-      dealt(i, 26) < 0.4,
+      (t) => ({ kind: "dance", t: t + phase, style, sway, glass: held }),
+      held,
     );
   }
   // Two at the tables, drinking; the barman behind the bar.
@@ -454,15 +482,17 @@ export function createInterior(): Interior {
     p.figure.sprawl(pose);
     if (p.glass) {
       const h = handAt(pts);
-      p.glass.position.set(h.x - 0.03, h.y - 0.1, h.z + 0.03);
-      // Tipped toward his mouth as it rises past his chest.
-      const up = Math.max(0, Math.min(1, (h.y - 1.2) / 0.35));
-      p.glass.rotation.set(-1.2 * up, 0, 0.25 * up);
-      const beer = p.glass.getObjectByName("beer")!;
-      const foam = p.glass.getObjectByName("foam")!;
-      beer.scale.y = Math.max(0.05, full);
-      beer.position.y = 0.065 * Math.max(0.05, full);
-      foam.position.y = 0.13 * Math.max(0.05, full) + 0.012;
+      // Held by the handle in his right fist; tipped to his lips on a drink
+      // (the hand near his mouth), upright in a toast.
+      const m = p.move(t);
+      const sip = m.kind === "drink" ? Math.max(0, Math.min(1, (h.y - 1.15) / 0.3)) : 0;
+      p.glass.position.set(h.x, h.y, h.z + 0.02);
+      // From the side of his mouth: the rim in to his lips, the foot up
+      // and out.
+      // The stein's body turned to his middle, whichever side the hand is.
+      const turn = h.x < 0 ? Math.PI : 0;
+      p.glass.rotation.set(-0.35 * sip, turn, 0.1 + 1.2 * sip);
+      fill(p.glass, full);
     }
   };
 
@@ -487,11 +517,12 @@ export function createInterior(): Interior {
       const sip = a && a.sip >= 0 ? a.sip / B.sip : -1;
       if (me) {
         const style = (a?.beers ?? 0) % 4;
+        const held = t > B.first - B.sip;
         me.move = () =>
           sip >= 0
             ? { kind: "drink", t, k: sip, sway: buzz }
-            : { kind: "dance", t, style, sway: buzz };
-        me.glass!.visible = t > B.first - B.sip;
+            : { kind: "dance", t, style, sway: buzz, glass: held };
+        me.glass!.visible = held;
       }
       for (const p of people)
         lay(p, t, p === me && sip >= 0 ? 1 - 0.85 * Math.min(1, sip * 1.3) : 1);

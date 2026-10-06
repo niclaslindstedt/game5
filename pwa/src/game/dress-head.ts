@@ -21,7 +21,15 @@
 // knuckles. A fist is the grip's own size: a hand 8.5 cm across closed
 // round a 3 cm grip.
 
-import { helmetParts, shellAt, shellNormal, type HelmetMaterial } from "./helmet-shape.ts";
+import {
+  BEANIE,
+  bareHeadParts,
+  headAt,
+  helmetParts,
+  shellAt,
+  shellNormal,
+  type HelmetMaterial,
+} from "./helmet-shape.ts";
 import {
   add,
   bindPose,
@@ -51,10 +59,42 @@ const GOGGLE_PARTS: HelmetMaterial[] = ["frame", "foam", "lens", "strap", "band"
 /** What shines: the shell and its stripe, the goggles' frame and lens. */
 const HARD: HelmetMaterial[] = ["shell", "stripe", "frame", "lens"];
 
-export function cutHead(loom: Loom, o: Outfit, tone?: number): void {
+/** The head dressed: in his helmet, or `bare` (indoors — his face, and his
+ * hair or, on a man, a beanie in his helmet's colour). */
+export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): void {
   const h = gearOf("helmet", o.helmet);
   const body = gearOf("body", o.body);
   const skin = tone ?? body.skin;
+  if (bare) {
+    const cap = body.female ? body.hair : h.shell;
+    const beanie = !body.female;
+    for (const part of bareHeadParts(1, beanie)) {
+      const colour = part.material === "knit" ? cap : part.material === "skin" ? skin : DARK;
+      loom.rigid("head", part.position, part.normal, part.index, colour, false);
+    }
+    if (beanie) {
+      // ITS CUFF: a band rolled round the brow in the helmet's trim colour.
+      const lo = headAt(BEANIE.y);
+      const hi = headAt(BEANIE.y + BEANIE.band);
+      const ring = (s: number, at: typeof lo) => ({
+        s,
+        w: at.w + BEANIE.proud,
+        f: at.f + BEANIE.proud,
+        b: at.b + BEANIE.proud,
+      });
+      loom.tube({
+        path: [H(0, BEANIE.y - 0.002, 0), H(0, BEANIE.y + BEANIE.band, 0)],
+        face: [HD(0, 0, 1), HD(0, 0, 1)],
+        sections: [ring(0, lo), ring(BEANIE.band + 0.002, hi)],
+        step: 0.02,
+        segments: 16,
+        colour: () => h.trim,
+        weights: () => rides("head"),
+      });
+    }
+    braid(loom, body);
+    return;
+  }
   const paint: Record<HelmetMaterial, number> = {
     shell: h.shell,
     stripe: h.trim,
@@ -210,32 +250,30 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number): void {
     });
   }
 
-  // A WOMAN'S BRAID, out from under the helmet's nape and down her back.
-  if (body.female) {
-    const path = [
-      H(0, -0.06, -0.118),
-      H(0, -0.11, -0.142),
-      H(0, -0.2, -0.142),
-      H(0, -0.27, -0.128),
-    ];
-    loom.tube({
-      path,
-      face: [HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1)],
-      round: 0.04,
-      sections: [
-        { s: 0, w: 0.03, f: 0.026, b: 0.026 },
-        { s: 0.06, w: 0.027, f: 0.024, b: 0.024 },
-        { s: 0.17, w: 0.021, f: 0.019, b: 0.019 },
-        { s: 0.22, w: 0.016, f: 0.014, b: 0.014 },
-        { s: 0.235, w: 0.005, f: 0.005, b: 0.005 },
-      ],
-      step: 0.012,
-      segments: 8,
-      fold: (s, t) => 0.004 * Math.sin((s / 0.024) * Math.PI * 2 + t),
-      colour: () => body.hair,
-      weights: () => rides("head"),
-    });
-  }
+  braid(loom, body);
+}
+
+/** A WOMAN'S BRAID, out from under the helmet's nape and down her back. */
+function braid(loom: Loom, body: { female: boolean; hair: number }): void {
+  if (!body.female) return;
+  const path = [H(0, -0.06, -0.118), H(0, -0.11, -0.142), H(0, -0.2, -0.142), H(0, -0.27, -0.128)];
+  loom.tube({
+    path,
+    face: [HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1)],
+    round: 0.04,
+    sections: [
+      { s: 0, w: 0.03, f: 0.026, b: 0.026 },
+      { s: 0.06, w: 0.027, f: 0.024, b: 0.024 },
+      { s: 0.17, w: 0.021, f: 0.019, b: 0.019 },
+      { s: 0.22, w: 0.016, f: 0.014, b: 0.014 },
+      { s: 0.235, w: 0.005, f: 0.005, b: 0.005 },
+    ],
+    step: 0.012,
+    segments: 8,
+    fold: (s, t) => 0.004 * Math.sin((s / 0.024) * Math.PI * 2 + t),
+    colour: () => body.hair,
+    weights: () => rides("head"),
+  });
 }
 
 /** THE GLOVES: a fist round each grip riding the hand, its cuff the

@@ -793,7 +793,8 @@ function headPoint(theta: number, phi: number): V {
   return add(p, HEAD.at);
 }
 
-function buildHead(detail: number): Piece[] {
+/** The head's egg as one skin piece, the nose beside it. */
+function headEgg(detail: number): Piece {
   const [around, up] = counts(detail).head;
   const skin = new Piece("skin");
   const ids: number[][] = [];
@@ -819,23 +820,11 @@ function buildHead(detail: number): Piece[] {
   }
   skin.faceNormals();
   orientOut(skin, HEAD.at);
-  // The face is his own below the goggles; the rest of the head and the
-  // neck are in a dark knit balaclava, as a racer's are.
-  const face = new Piece("skin");
-  const knit = new Piece("knit");
-  const P = skin.position;
-  const Nn = skin.normal;
-  for (let t = 0; t < skin.index.length; t += 3) {
-    const tri = skin.index.slice(t, t + 3);
-    const cy = tri.reduce((sum, i) => sum + P[i * 3 + 1], 0) / 3;
-    const cz = tri.reduce((sum, i) => sum + P[i * 3 + 2], 0) / 3;
-    const to = cz > 0.045 && cy < 0.01 ? face : knit;
-    const ids = tri.map((i) =>
-      to.vert([P[i * 3], P[i * 3 + 1], P[i * 3 + 2]], [Nn[i * 3], Nn[i * 3 + 1], Nn[i * 3 + 2]]),
-    );
-    to.tri(ids[0], ids[1], ids[2]);
-  }
-  // The nose: a wedge from under the goggles' arch.
+  return skin;
+}
+
+/** THE NOSE: a wedge from under the goggles' arch. */
+function buildNose(): Piece {
   const nose = new Piece("skin");
   const tip: V = [0, -0.05, 0.124];
   const root = [
@@ -848,7 +837,35 @@ function buildHead(detail: number): Piece[] {
   for (let k = 0; k < 4; k++) nose.tri(root[k], root[(k + 1) % 4], t);
   nose.faceNormals();
   orientOut(nose, [0, -0.04, 0.06]);
-  return [face, knit, nose];
+  return nose;
+}
+
+/** The egg's triangles shared out: `pick` names each one's material by
+ * its middle (y up, z ahead). */
+function splitEgg(skin: Piece, pick: (cy: number, cz: number) => HelmetMaterial): Piece[] {
+  const to = new Map<HelmetMaterial, Piece>();
+  const P = skin.position;
+  const Nn = skin.normal;
+  for (let t = 0; t < skin.index.length; t += 3) {
+    const tri = skin.index.slice(t, t + 3);
+    const cy = tri.reduce((sum, i) => sum + P[i * 3 + 1], 0) / 3;
+    const cz = tri.reduce((sum, i) => sum + P[i * 3 + 2], 0) / 3;
+    const m = pick(cy, cz);
+    let piece = to.get(m);
+    if (!piece) to.set(m, (piece = new Piece(m)));
+    const ids = tri.map((i) =>
+      piece.vert([P[i * 3], P[i * 3 + 1], P[i * 3 + 2]], [Nn[i * 3], Nn[i * 3 + 1], Nn[i * 3 + 2]]),
+    );
+    piece.tri(ids[0], ids[1], ids[2]);
+  }
+  return [...to.values()];
+}
+
+function buildHead(detail: number): Piece[] {
+  const skin = headEgg(detail);
+  // The face is his own below the goggles; the rest of the head and the
+  // neck are in a dark knit balaclava, as a racer's are.
+  return [...splitEgg(skin, (cy, cz) => (cz > 0.045 && cy < 0.01 ? "skin" : "knit")), buildNose()];
 }
 
 /** THE CHIN STRAP: webbing from inside each ear cover down under the jaw,
@@ -882,14 +899,18 @@ function buildChinStrap(): Piece {
  * game quality), 2 a studio still's.
  */
 export function helmetParts(detail = 1): HelmetPart[] {
-  const pieces = [
+  return mergeParts([
     ...buildShell(detail),
     buildVents(),
     ...buildGoggles(detail),
     ...buildStrap(detail),
     ...buildHead(detail),
     buildChinStrap(),
-  ];
+  ]);
+}
+
+/** Pieces merged a material a part. */
+function mergeParts(pieces: Piece[]): HelmetPart[] {
   const by = new Map<HelmetMaterial, HelmetPart>();
   for (const p of pieces) {
     let part = by.get(p.material);
@@ -906,6 +927,52 @@ export function helmetParts(detail = 1): HelmetPart[] {
     for (const i of p.index) part.index.push(base + i);
   }
   return [...by.values()];
+}
+
+/** A BEANIE's cuff: the height its lower edge is level at, m, and the
+ * band rolled round it, m. */
+export const BEANIE = { y: 0.028, band: 0.032, proud: 0.007 };
+
+/** The head's half width, front and back at height `y` (its frame), m. */
+export function headAt(y: number): { w: number; f: number; b: number } {
+  const u = (y - HEAD.at[1]) / HEAD.r[1];
+  const k = Math.sqrt(Math.max(0, 1 - u * u));
+  return { w: HEAD.r[0] * k, f: HEAD.r[2] * k + HEAD.at[2], b: HEAD.r[2] * k - HEAD.at[2] };
+}
+
+/**
+ * THE HEAD BARE, as it is indoors: no shell, no goggles, no straps — his
+ * face to the brow, his ears and neck in skin, and over the crown and the
+ * back of the skull a CAP (`knit`: his hair, or a beanie), and his eyes
+ * two dark slits (`trim`). In the head's frame, as `helmetParts`.
+ */
+export function bareHeadParts(detail = 1, beanie = false): HelmetPart[] {
+  // A beanie pulled level to the brow; hair falling lower behind.
+  const cap = (cy: number, cz: number): HelmetMaterial =>
+    cy > (beanie ? BEANIE.y : 0.045 - Math.max(0, -cz) * 0.55) ? "knit" : "skin";
+  const eyes = new Piece("trim");
+  for (const side of [-1, 1]) {
+    const x = side * 0.032;
+    const a = eyes.vert([x - 0.013, 0.0, 0.0915]);
+    const b = eyes.vert([x + 0.013, 0.0, 0.0915]);
+    const c = eyes.vert([x + 0.011, 0.008, 0.0905]);
+    const d = eyes.vert([x - 0.011, 0.008, 0.0905]);
+    eyes.quad(a, b, c, d);
+  }
+  eyes.faceNormals();
+  orientOut(eyes, [0, 0, 0]);
+  const parts = splitEgg(headEgg(detail), cap);
+  // A beanie's knit stands off the skull and rises over the crown.
+  for (const knit of beanie ? parts.filter((p) => p.material === "knit") : []) {
+    const P = knit.position;
+    for (let i = 0; i < P.length; i += 3) {
+      const k = (P[i + 1] - BEANIE.y) / (HEAD.r[1] + HEAD.at[1] - BEANIE.y);
+      P[i] = HEAD.at[0] + (P[i] - HEAD.at[0]) * (1 + BEANIE.proud * 9);
+      P[i + 2] = HEAD.at[2] + (P[i + 2] - HEAD.at[2]) * (1 + BEANIE.proud * 9);
+      P[i + 1] += BEANIE.proud * 0.6 + 0.02 * k * k;
+    }
+  }
+  return mergeParts([...parts, buildNose(), eyes]);
 }
 
 /** Triangles the helmet carries, by material — what the lab and the suite

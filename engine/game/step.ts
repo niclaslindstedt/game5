@@ -28,6 +28,7 @@ import {
   setSlalom,
   setBigAir,
   setKnuckleHuck,
+  setRailJam,
   setSlopestyle,
   withDay,
   withSky,
@@ -303,6 +304,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.bigAir?.base ??
     built.knuckleHuck?.base ??
     built.slopestyle?.base ??
+    built.railJam?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -325,7 +327,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                     ? setKnuckleHuck(built)
                     : options.mode === "slopestyle"
                       ? setSlopestyle(built)
-                      : original;
+                      : options.mode === "railJam"
+                        ? setRailJam(built)
+                        : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -409,7 +413,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   }
   if (options.bracket) state.bracket = options.bracket;
   if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
-  if (level.knuckleHuck && rules.jam) state.jam = freshJam();
+  if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {

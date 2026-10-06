@@ -45,7 +45,7 @@ import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
-import { noteSkied } from "./skied.ts";
+import { forgetRun, noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { stepJib } from "./jib.ts";
@@ -95,14 +95,16 @@ export function stepRun(
   player = false,
 ): void {
   const racing = run.phase === "racing";
+  // Carried by any of the three below, the place he last left a run is
+  // forgotten: a reset never sends him back to where he was before.
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
-  if (stepHeli(run, input, events)) return;
+  if (stepHeli(run, input, events)) return forgetRun(run);
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
-  if (stepSled(run, input, events)) return;
+  if (stepSled(run, input, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
-  if (stepLift(run, input, events)) return;
+  if (stepLift(run, input, events)) return forgetRun(run);
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
   if (paraPress(run, input, events)) return;
@@ -222,7 +224,9 @@ export function stepRun(
     stepCourse(run, x0, z0, events);
     stepTrap(run, x0, z0, events);
   }
-  // A FREE RIDE remembers the runs it skies instead (`skied.ts`).
+  // A FREE RIDE remembers the runs it skies instead (`skied.ts`) — never
+  // the ones flown over under the paramotor's wing.
+  else if (run.para?.flying) forgetRun(run);
   else noteSkied(run);
   if (p.finished) return;
   const R = TUNING.reset;

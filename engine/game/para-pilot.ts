@@ -6,7 +6,7 @@
 // throttle and turns the wing down the fall line on the toggles, never
 // dropping the rig. Pure over the state.
 
-import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
 /** The height it holds over the snow, m, and how much throttle a metre
@@ -22,7 +22,7 @@ export function paraPilot(state: GameState): SkierInput {
   const p = state.para!;
   const c = state.skier;
   state.level.normalAt(c.x, c.z, normal);
-  const flat = Math.hypot(normal.x, normal.z);
+  const flat = hypot(normal.x, normal.z);
   const heading = p.mode === "flown" && p.flying ? p.heading : c.heading;
   let off = flat > 0.02 ? Math.atan2(normal.x, normal.z) - heading : 0;
   off = Math.atan2(Math.sin(off), Math.cos(off));

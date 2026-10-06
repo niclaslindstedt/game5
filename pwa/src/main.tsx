@@ -9,6 +9,7 @@ import "./heli.css";
 import "./sled.css";
 import "./para.css";
 import { App } from "./App.tsx";
+import { guardAgainstLoupe } from "./game/no-loupe.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 
 // In dev no worker registers (`usePwaUpdate` runs disabled), but a worker
@@ -26,6 +27,10 @@ if (import.meta.env.DEV && "serviceWorker" in navigator) {
 // the part of the screen the browser is showing rather than corrected a frame
 // into the session. It runs for the life of the page and is never stopped.
 watchVisibleViewport();
+
+// No loupe, no double-tap zoom, no selection on any screen (`no-loupe.ts`);
+// for the life of the page, before anything can be touched.
+guardAgainstLoupe();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root element");

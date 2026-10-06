@@ -72,6 +72,7 @@ export function setDownhill(level: Level): Level {
     level.bigAir?.base ??
     level.knuckleHuck?.base ??
     level.slopestyle?.base ??
+    level.railJam?.base ??
     level;
   let course = set.get(original);
   if (!course) {

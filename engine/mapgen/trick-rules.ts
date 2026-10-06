@@ -6,8 +6,10 @@
 // of a mountain's side. BIG AIR (R37) and the KNUCKLE HUCK (R38 — the big
 // air jump's table and landing, ridden onto from the deck with no kicker)
 // and the SLOPESTYLE COURSE (R39 — three rail sections and three jumps cut
-// on one line) are built today; the rail jam, the halfpipe, moguls, dual
-// moguls and aerials are each a rule here when they are built
+// on one line) and the RAIL JAM'S SET (R40 — a short drop-in onto a deck
+// with a row of rails and boxes side by side) are built today; the
+// halfpipe, moguls, dual moguls and aerials are each a rule here when they
+// are built
 // (`docs/specs/TRICK_MODES.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
@@ -128,6 +130,28 @@
 //       `slopestyle.outrun.length` metres. Its gates are the START GATE at
 //       the platform's lip and the FINISH LINE `slopestyle.finish` metres
 //       into the finish area; it has no gate between.
+//
+//   R40 THE RAIL JAM'S SET. A rail jam is ridden on a set BUILT as R37's
+//       jump is, straight down a built map's face on a line searched the
+//       same way (`railJam.search`, `railJam.fit`), `railJam.width` metres
+//       wide, graded, groomed and cleared. Its PROFILE is built against the
+//       horizontal, in order: a START PLATFORM level for `railJam.platform`
+//       metres; a DROP-IN rolled over to `railJam.dropIn` degrees within
+//       `railJam.roll` metres of radius and as long as brings the rule's
+//       skier (`railJam.skier`, stood up) from the start gate to the
+//       features at `railJam.speed` m/s, brought round within
+//       `railJam.toFlat` metres onto a DECK falling at `railJam.deck.grade`
+//       degrees for `railJam.deck.length` metres; and on the deck,
+//       `railJam.deck.lead` metres in, a ROW OF FEATURES side by side
+//       `railJam.lines` metres apart across it — the rails and boxes of
+//       `railJam.jibs`, each of its row's kind, line and legs (a plan
+//       length and a fall a leg, a rising leg a rainbow's), its near end
+//       `railJam.entry` metres over the snow — so a rider picks one a hit;
+//       then a transition of `railJam.round` metres of radius onto a
+//       RUN-OUT falling at `railJam.outrun.grade` degrees for
+//       `railJam.outrun.length` metres. Its gates are the START GATE at the
+//       platform's lip and the FINISH LINE `railJam.finish` metres into the
+//       run-out; it has no gate between.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -439,4 +463,120 @@ export const SLOPESTYLE_RULE = {
   },
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 20, past: 40, half: 30 },
+} as const;
+
+/** ONE FEATURE of a rail jam's set (R40), as its row gives it: its line
+ * across the deck (0 the middle, ±1 a line either side, ±2 the outer), a
+ * RAIL or a BOX, its shape, and each of its legs: the plan length, m, and
+ * its fall, degrees (negative a rise — a rainbow's way up). */
+export type RailJamRow = {
+  readonly line: number;
+  readonly kind: "rail" | "box";
+  readonly shape: "down" | "flatDown" | "downFlatDown" | "rainbow";
+  readonly legs: readonly { readonly plan: number; readonly fall: number }[];
+};
+
+/** R40 — the rail jam's set (`docs/freestyle.md` § *Rail jam*: boxes ~40
+ * cm wide and 4.5–9 m long, rails 7.5–10 cm round and 3–12 m long — down,
+ * flat-down, down-flat-down, a rainbow — ridden at 10–30 km/h off a short
+ * drop-in, a row of them side by side so a rider picks one a hit). */
+export const RAIL_JAM_RULE = {
+  platform: 6,
+  /** The drop-in, degrees, and the radii it is rolled over and brought
+   * round on, m: a rail park's short, steepish in-run (est.). */
+  dropIn: 15,
+  roll: 15,
+  toFlat: 20,
+  /** The longest the drop-in may be, m — the bound its length is found
+   * in. */
+  approachMost: 80,
+  deck: {
+    /** The deck's fall, degrees: a jib park's gentle pitch (est., R39's
+     * rail decks'), steep enough that a ski slides on down a box's
+     * polyethylene. */
+    grade: 7,
+    /** The deck's length, m, and how far down it the features begin, m —
+     * room on the deck above them for a rider to pick his line. */
+    length: 34,
+    lead: 12,
+  },
+  /** THE SPEED the features are met at, m/s (22 km/h — inside the 10–30
+   * km/h a rail is ridden at). */
+  speed: 6,
+  /** A feature's near end over the snow, m: a ride-on feature, its end
+   * buried in a snow ramp so it is ridden onto with a hop (est.; a
+   * stand-alone rail stands 0.5–1 m up). */
+  entry: 0.3,
+  /** The lines, m apart across the deck. */
+  lines: 5,
+  /** THE FEATURES, left to right: a down box, a flat-down rail, a kinked
+   * box (down-flat-down), a down-flat-down rail and a rainbow rail. */
+  jibs: [
+    { line: -2, kind: "box", shape: "down", legs: [{ plan: 7, fall: 7 }] },
+    {
+      line: -1,
+      kind: "rail",
+      shape: "flatDown",
+      legs: [
+        { plan: 3, fall: 0 },
+        { plan: 6, fall: 7 },
+      ],
+    },
+    {
+      line: 0,
+      kind: "box",
+      shape: "downFlatDown",
+      legs: [
+        { plan: 3, fall: 7 },
+        { plan: 3, fall: 0 },
+        { plan: 3, fall: 7 },
+      ],
+    },
+    {
+      line: 1,
+      kind: "rail",
+      shape: "downFlatDown",
+      legs: [
+        { plan: 3, fall: 7 },
+        { plan: 3, fall: 0 },
+        { plan: 4, fall: 7 },
+      ],
+    },
+    {
+      line: 2,
+      kind: "rail",
+      shape: "rainbow",
+      legs: [
+        { plan: 2, fall: -6 },
+        { plan: 2, fall: 3 },
+        { plan: 2, fall: 10 },
+      ],
+    },
+  ] as readonly RailJamRow[],
+  /** The rail's pipe and the box's top across, m. */
+  railWidth: 0.08,
+  boxWidth: 0.4,
+  /** The radius the deck meets the run-out on, m; the run-out, its fall,
+   * degrees, and its length, m; the finish line, m into it. */
+  round: 25,
+  outrun: { grade: 5, length: 40 },
+  finish: 20,
+  /** THE SKIER the drop-in is sized for, stood up (a rail is met stood
+   * up, never tucked): his mass, kg, his drag area, m², the air's
+   * density, kg/m³, the snow's friction, and the share of his speed's
+   * square a radian of compression costs him (as R39's). */
+  skier: { mass: 80, stand: 0.7, air: 1.0, friction: 0.05, compression: 0.65 },
+  width: 30,
+  ease: 12,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 15, past: 30, half: 26 },
 } as const;

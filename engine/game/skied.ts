@@ -8,6 +8,10 @@
 //   * THE RESET stands him on the nearest point of the nearest of THOSE —
 //     a piste before a lane — facing the way it runs there: back on the
 //     snow he chose, never on a run he has not been near.
+//   * OFF EVERY RUN, the reset stands him back on the run where he LEFT
+//     the runs (`Progress.lastOnRun`, the last point his skis were seen on
+//     one): a fall in the woods sends him back to where he went into them,
+//     never down to wherever the nearest run happens to pass.
 //   * THE RESTART stands him at the HEAD of the last piste he skied: the
 //     top of the slope, to ski it again.
 //
@@ -93,13 +97,41 @@ export function noteRun(state: GameState, id: string): void {
 }
 
 /** THE FREE RIDE'S MEMORY, a step's worth: every `NOTE_EVERY` steps, the run
- * under a skier with his skis on the snow is noted as skied. */
+ * under a skier with his skis on the snow is noted as skied, and where on
+ * it he is as the last place he was on a run. */
 export function noteSkied(state: GameState): void {
   if (state.tick % NOTE_EVERY !== 0) return;
   const c = state.skier;
   if (c.airborne || c.thrown || c.lift) return;
   const id = runUnder(state.level, c.x, c.z);
-  if (id !== null) noteRun(state, id);
+  if (id === null) return;
+  noteRun(state, id);
+  const at = state.progress.lastOnRun;
+  if (at) {
+    at.id = id;
+    at.x = c.x;
+    at.z = c.z;
+  } else state.progress.lastOnRun = { id, x: c.x, z: c.z };
+}
+
+/** Forget where the run last had its skis on a run: he is being carried
+ * (a lift, the helicopter, the snowmobile), not skiing away from it. */
+export function forgetRun(state: GameState): void {
+  state.progress.lastOnRun = null;
+}
+
+/** WHERE HE WENT OFF THE RUNS, for a reset: with the skier off every run,
+ * the point of the run he was last on nearest where he was last seen on it,
+ * facing the way it runs there. Null while he is on a run (the nearest
+ * point of it is the reset's) and before any run has been noted. */
+export function leftRunPoint(state: GameState): TrackPoint | null {
+  const at = state.progress.lastOnRun;
+  if (!at) return null;
+  const c = state.skier;
+  if (runUnder(state.level, c.x, c.z) !== null) return null;
+  const line = linesOf(state.level).find((l) => l.id === at.id);
+  if (!line) return null;
+  return trackPointAt(line, nearestTrackPoint(line, at.x, at.z, hit).s);
 }
 
 /** The run a free ride is stood up on before it has skied anything: the

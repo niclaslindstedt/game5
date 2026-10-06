@@ -49,6 +49,7 @@ import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
 import { downhillSteer, steerOf } from "./downhill-steer.ts";
 import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
+import { railJamInput } from "./rail-jam-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -641,6 +642,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // DOWN A SLOPESTYLE COURSE (R39): its lines, its jibs and its jumps.
   const slope = slopestyleInput(state, on);
   if (slope) return slope;
+  // A RAIL JAM'S SET (R40): a feature a hit.
+  const rails = railJamInput(state, on);
+  if (rails) return rails;
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;

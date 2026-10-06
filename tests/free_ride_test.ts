@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE: nobody else out there, no lights and no course — the clock
 // and the odometer run, no gate is ever owed, the runs it skies are
-// remembered — a reset stands the skier on the nearest of them and a restart
-// at the head of the last piste — a spot picked on the chart is where it
+// remembered — a reset stands the skier on the nearest of them (or, off
+// every run, back where he left them) and a restart at the head of the last
+// piste — a spot picked on the chart is where it
 // starts (held out of the trees and inside the edge), the day can be moved,
 // and the snow dial sinks the powder deeper or shallower without drawing
 // anything from the stream.
@@ -15,6 +16,7 @@ import {
   createGame,
   dayOfYearOf,
   freeHours,
+  forgetRun,
   freeSpawn,
   hourOfTime,
   lastPiste,
@@ -200,6 +202,62 @@ describe("the runs a free ride has skied", () => {
     };
     expect(at(SLOPE.x + 205, SLOPE.x + 240)).toBeCloseTo(SLOPE.x + 240, 5);
     expect(at(SLOPE.x + 200, SLOPE.x + 300)).toBeCloseTo(SLOPE.x + 200, 5);
+  });
+});
+
+describe("the free ride's reset off the runs: back where he left them", () => {
+  // Skied down run A, then gone off it into the snow beside B, unskied.
+  function wentOff(): GameState {
+    const state = resortRide(line(SLOPE.x + 200, "piste", "A"), line(SLOPE.x + 300, "piste", "B"));
+    placeRun(state, { x: SLOPE.x + 200, z: 600, heading: 0, speed: 5 });
+    for (let i = 0; i < 60; i++) step(state, NEUTRAL_INPUT);
+    state.skier.x = SLOPE.x + 270;
+    state.skier.z = 780;
+    return state;
+  }
+
+  it("remembers the last place his skis were on a run", () => {
+    const state = wentOff();
+    const at = state.progress.lastOnRun;
+    expect(at?.id).toBe("A");
+    expect(at?.x).toBeCloseTo(SLOPE.x + 200, 0);
+    expect(at!.z).toBeGreaterThan(600);
+    expect(at!.z).toBeLessThan(650);
+  });
+
+  it("stands him on that run where he left it, not where the nearest run passes", () => {
+    const state = wentOff();
+    const left = state.progress.lastOnRun!;
+    expect(runUnder(state.level, state.skier.x, state.skier.z)).toBeNull();
+    const pose = resetPose(state);
+    expect(pose.x).toBeCloseTo(SLOPE.x + 200, 5);
+    expect(pose.z).toBeCloseTo(left.z, 0);
+    expect(pose.heading).toBe(0);
+    expect(pose.checkpoint).toBe(-1);
+    step(state, { ...NEUTRAL_INPUT, reset: true });
+    expect(Math.hypot(state.skier.x - pose.x, state.skier.z - pose.z)).toBeLessThan(1);
+  });
+
+  it("on a run, the reset is still that run's nearest point", () => {
+    const state = wentOff();
+    state.skier.x = SLOPE.x + 205;
+    expect(resetPose(state).z).toBeCloseTo(780, 5);
+  });
+
+  it("forgets it once he is carried, or stood at a moment", () => {
+    const state = wentOff();
+    forgetRun(state);
+    expect(resetPose(state).z).toBeCloseTo(780, 5);
+    const staged = wentOff();
+    placeRun(staged, { x: SLOPE.x + 270, z: 780, heading: 0 });
+    expect(staged.progress.lastOnRun).toBeNull();
+  });
+
+  it("a race remembers nothing", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: SLOPE.x, z: 600, heading: 0, speed: 5 });
+    for (let i = 0; i < 60; i++) step(state, NEUTRAL_INPUT);
+    expect(state.progress.lastOnRun).toBeNull();
   });
 });
 

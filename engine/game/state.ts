@@ -22,7 +22,6 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
-import type { ParaEvent, ParaState } from "./para-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { BigAirContest } from "./big-air-contest.ts";
@@ -76,9 +75,8 @@ export type SkierInput = {
    * controls are where they were let go: the collective down, the cyclic
    * and the pedals centred. */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the snowmobile (`sled.ts`)
-   * or the helicopter (`heli.ts`) he stands beside, or off the one he
-   * rides; under a paramotor (`para.ts`), the rig released. ENTER on the keys, a double tap on touch. */
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside, off the one
+   * he rides, or the paramotor's rig released. ENTER, a double tap on touch. */
   machine?: boolean;
 };
 
@@ -550,6 +548,13 @@ export type Progress = {
    * runs (R27), or the map's own piste off one — the one skied last LAST.
    * Where its reset and its restart stand the skier; a race keeps it empty. */
   skied: string[];
+  /** WHERE A FREE RIDE LAST HAD ITS SKIS ON A RUN (`skied.ts`): the run and
+   * the plan point, noted with `skied` — so once he leaves the runs it is
+   * where he left them, and a reset off every run stands him back there.
+   * Forgotten whenever something other than his skis moves him (a lift, the
+   * helicopter, the snowmobile, a staged moment); null until noted, and on a
+   * race. */
+  lastOnRun: RunMark | null;
   /** OUT OF THE RACE under the strict gates (R31): disqualified or did not
    * finish, why, and at which gate — the run over (`finished` with it) and
    * no time to rank. Null on every run that is still in it or home. */
@@ -565,6 +570,10 @@ export type Progress = {
  * gate MISSED, a pole STRADDLED or a START outside the window — or DID NOT
  * FINISH, stopped by a FALL or caught in the A-NETS beside a downhill
  * (R32). `gate` is the checkpoint it happened at. */
+/** A point on a run of the ski area (R27) — the map's own piste off one —
+ * by the run's id and the plan point (`Progress.lastOnRun`). */
+export type RunMark = { id: string; x: number; z: number };
+
 export type RunOut = {
   status: "dsq" | "dnf";
   why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";
@@ -744,7 +753,7 @@ export type GameEvent =
       speed: number;
     }
   | SledEvent
-  | ParaEvent;
+  | import("./para-state.ts").ParaEvent;
 
 /** WHAT AN AMATEUR IS DOING (`crowd.ts`): skiing his line, stopped on the
  * piste, down in the snow after a fall, in the air off a kicker, or up a
@@ -978,9 +987,8 @@ export type GameState = {
   /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
    * ride); absent everywhere else. */
   sled?: SledState;
-  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it; absent
-   * everywhere else. */
-  para?: ParaState;
+  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
+  para?: import("./para-state.ts").ParaState;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

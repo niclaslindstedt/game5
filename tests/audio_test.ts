@@ -116,6 +116,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   trap: { kind: "trap", t: 40, speed: 36 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
+  afterski: { kind: "afterski", t: 40, phase: "beer", beers: 1, buzz: 0.14 },
+  fetch: { kind: "fetch", t: 40, phase: "ski", skis: 1 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
   jump: { kind: "jump", t: 1, pop: 4, held: 1 },
   land: {

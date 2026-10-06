@@ -25,8 +25,9 @@
 // map's digest and no run's moves for it.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { nearestWithin, outsideHub } from "../mapgen/query.ts";
+import { hubAt, nearestWithin, outsideHub } from "../mapgen/query.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
+import { AFTERSKI } from "./defs/afterski.ts";
 import { CABINS, CABIN_LAYOUT, type CabinKind } from "./defs/cabins.ts";
 import { helipadOf } from "./heli-pad.ts";
 import { clearOfLifts } from "./lift-line.ts";
@@ -55,6 +56,8 @@ export type Cabin = {
 type Line = { id: string; road: boolean; track: { points: TrackPoint[]; length: number } };
 
 const L = CABIN_LAYOUT;
+/** How far off the hub's edge a lodge beside it is first tried, m. */
+const AFTERSKI_HUB_GAP = CABIN_LAYOUT.clear.hub;
 
 /** The spots tried at a station, in order: along the run (m), which side
  * (1 the dealt one, −1 the other) and how far back past the edge (m; −1
@@ -221,7 +224,7 @@ function placeCabins(level: Level): Cabin[] {
     const edge = radius + 40;
     if (x < edge || z < edge || x > level.size - edge || z > level.size - edge) return null;
     // Off every run's snow, by the packed field and by every run's line.
-    for (const [px, pz] of rectPoints(kind, x, z, heading, true, 2)) {
+    for (const [px, pz] of rectPoints(kind, x, z, heading, kind !== "afterski", 2)) {
       if (level.packedAt(px, pz) > 0.25) return null;
       if ((level.iceAt?.(px, pz) ?? 0) > 0) return null;
       if (!clearOfLifts(level, px, pz)) return null;
@@ -331,7 +334,7 @@ function placeCabins(level: Level): Cabin[] {
     }
     const P = L.plinth;
     const y = Math.max(lo + P.least, hi - P.cut, front + P.door);
-    if (y - lo > P.most + 1e-9) return null;
+    if (y - lo > (def.plinth ?? P.most) + 1e-9) return null;
     return { y, base: lo };
   };
 
@@ -465,7 +468,118 @@ function placeCabins(level: Level): Cabin[] {
       }
     }
   }
+  placeLodges(level, lines, base, (x, z, heading, run, s) => {
+    const lodge = stand("afterski", x, z, heading, run, s, groups);
+    if (!lodge) return null;
+    groups++;
+    lodge.id = `A${cabins.filter((c) => c.kind === "afterski").length}`;
+    return lodge;
+  });
   return cabins;
+}
+
+/** THE AFTERSKI LODGES (`AFTERSKI.lodge`), placed after every cabin so not
+ * one of those moves for them: one on the valley floor beside the lowest
+ * reach of a run, and — on most maps — one on a shelf part way down the
+ * mountain beside a run or a lane. Each tries the stations of
+ * its band in order of how well they suit it (the lowest first; the
+ * nearest the band's middle), each side of the run and a few setbacks,
+ * and stands at the first that fits — facing its run, turned toward the
+ * fall line as a cabin is. `stand` is the placer's own. */
+function placeLodges(
+  level: Level,
+  lines: Line[],
+  base: number,
+  stand: (x: number, z: number, heading: number, run: string, s: number) => Cabin | null,
+): void {
+  const A = AFTERSKI.lodge;
+  const seed = level.seed >>> 0;
+  const vertical = level.mountain ? Math.max(1, level.mountain.vertical) : 1;
+  const def = CABINS.afterski;
+  const at: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+  type Station = { line: Line; s: number; score: number; at?: TrackPoint; side?: number };
+  const runs = lines.filter((l) => !l.road);
+  const pool = runs.length > 0 ? runs : lines;
+  const hubLine: Line = { id: "hub", road: true, track: { points: [], length: 0 } };
+  const tryAt = (list: Station[], away: Cabin | null): Cabin | null => {
+    list.sort((a, b) => a.score - b.score || (a.line.id < b.line.id ? -1 : 1) || a.s - b.s);
+    for (const st of list.slice(0, A.tries)) {
+      if (st.at) Object.assign(at, st.at);
+      else pointAt(st.line.track.points, st.line.track.length, st.s, at);
+      if (away && hypot(at.x - away.x, at.z - away.z) < A.apart) continue;
+      const first = pick(seed, st.line.id, Math.round(st.s), 21) < 0.5 ? 1 : -1;
+      for (const side of st.side ? [st.side] : [first, -first]) {
+        for (const back of A.setbacks) {
+          const rx = Math.cos(at.heading) * side;
+          const rz = -Math.sin(at.heading) * side;
+          const off = at.width / 2 + back + def.depth / 2 + def.reach.front;
+          const cx = at.x + rx * off;
+          const cz = at.z + rz * off;
+          const heading = toward(Math.atan2(-rx, -rz), downhillOf(level, cx, cz), A.downhill);
+          const lodge = stand(cx, cz, heading, st.line.id, st.s);
+          if (lodge) return lodge;
+        }
+      }
+    }
+    return null;
+  };
+  // THE VALLEY'S: along the hub's edge on the mountain's side, where the
+  // runs come in, and the last `bottom` m of every run — the lowest first.
+  const low: Station[] = [];
+  const hub = level.resort?.hub;
+  if (hub) {
+    const x1 = hub.x0 + hub.step * (hub.top.length - 1);
+    for (let x = hub.x0; x <= x1; x += A.every) {
+      const edges = hubAt(hub, x);
+      if (!edges) continue;
+      // On the mountain's side of it, where the runs come in: a station
+      // on that edge, the "run" along it, its width the hub's clearance —
+      // so the lodge stands that far off the edge, facing it.
+      const up = !level.mountain || level.mountain.summit.z < (edges.top + edges.bottom) / 2;
+      const z = up ? edges.top : edges.bottom;
+      const y = level.groundAt(x, z);
+      const finish = level.mountain
+        ? hypot(level.mountain.base.x - x, level.mountain.base.z - z)
+        : 0;
+      low.push({
+        line: hubLine,
+        s: x,
+        score: y + finish * 0.02,
+        side: 1,
+        at: {
+          x,
+          z,
+          y,
+          s: x,
+          heading: up ? Math.PI / 2 : -Math.PI / 2,
+          width: 2 * AFTERSKI_HUB_GAP,
+        },
+      });
+    }
+  }
+  for (const line of pool) {
+    const len = line.track.length;
+    for (let s = Math.max(0, len - A.bottom); s <= len - A.tail; s += A.every) {
+      pointAt(line.track.points, len, s, at);
+      low.push({ line, s, score: at.y });
+    }
+  }
+  const valley = tryAt(low, null);
+  // THE MOUNTAIN'S, on most maps: a station part way down a run or a lane,
+  // the nearest the band's middle first.
+  if (pick(seed, "afterski", 0, 22) >= A.midChance) return;
+  const mid: Station[] = [];
+  const [lo, hi] = A.band;
+  for (const line of lines) {
+    const len = line.track.length;
+    for (let s = A.every; s <= len - A.tail; s += A.every) {
+      pointAt(line.track.points, len, s, at);
+      const share = (at.y - base) / vertical;
+      if (share < lo || share > hi) continue;
+      mid.push({ line, s, score: Math.abs(share - (lo + hi) / 2) });
+    }
+  }
+  tryAt(mid, valley);
 }
 
 /** A line's station `s` m down it (`trackPointAt` over bare points). */

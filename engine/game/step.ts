@@ -74,6 +74,7 @@ import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
 import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
+import { freshAfterski } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
@@ -249,6 +250,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     lifts: base.lifts,
     heli: base.heli,
     sled: base.sled,
+    afterski: base.afterski,
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -390,6 +392,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   standSkier(state, at.x, at.z, at.heading);
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
+  if (rules.afterski) state.afterski = freshAfterski();
   const para = free && options.para === true;
   if (state.heli && options.heli && !para) startAgain(state, []);
   if (state.sled && options.sled && !(state.heli && options.heli) && !para) startSled(state, []);

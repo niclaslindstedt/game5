@@ -88,6 +88,10 @@ export type RunRules = {
    * is the player's to ride anywhere on the mountain and hop off. On a FREE
    * RIDE only. */
   sled: boolean;
+  /** WHETHER THE AFTERSKI LODGES OPEN THEIR DOORS (`afterski.ts`): skied up
+   * to and stopped at, the machine press takes him in for a beer. Left
+   * out, they are shut. */
+  afterski?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
@@ -595,6 +599,7 @@ export function freeRules(laps: number): RunRules {
     lifts: true,
     heli: true,
     sled: true,
+    afterski: true,
     start: "line",
     gates: "arcade",
     window: 0,

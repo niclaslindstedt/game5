@@ -21,7 +21,7 @@
 import { TUNING } from "./defs/tuning.ts";
 import { collideTrees, keepInBounds } from "./collision.ts";
 import { stepStakes } from "./edge-stakes.ts";
-import { outRun, resetSkier, stepCourse } from "./course.ts";
+import { outRun, resetSkier, standSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { stepPipeAir } from "./pipe-air.ts";
 import { flightGravity } from "./limits.ts";
@@ -44,6 +44,8 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
+import { stepAfterski } from "./afterski.ts";
+import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -110,12 +112,21 @@ export function stepRun(
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
   if (paraPress(run, input, events)) return;
+  // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
+  if (stepAfterski(run, input, events)) return;
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
   if (input.reset && racing && (!player || mayGetUp(run.skier.thrown))) {
     standUp(run, events, false);
     return;
   }
   const c = run.skier;
+  // ON FOOT after a buzzed fall, fetching his skis (`buzz.ts`).
+  if (c.fetch) {
+    stepFetch(run, input, events);
+    return;
+  }
+  const drunk = buzzOf(c) > 0;
+  if (drunk) soberUp(c);
   const x0 = c.x;
   const z0 = c.z;
   const v0 = { x: c.vx, y: c.vy, z: c.vz };
@@ -147,7 +158,9 @@ export function stepRun(
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
   if (!off && !railed) {
-    stepSkier(run, stunts ? butterInput(run, poseInput(run, held)) : held, events);
+    // THE BUZZ (`buzz.ts`): the hands late and wrong.
+    const ridden = drunk && !rigged ? drunkInput(run, held) : held;
+    stepSkier(run, stunts ? butterInput(run, poseInput(run, ridden)) : ridden, events);
   }
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
@@ -221,7 +234,12 @@ export function stepRun(
     // A thrown skier takes no gate; he is stood back up once he has lain
     // long enough — the player longer — unless a helicopter he rode down is
     // burning, which stands him up on its pad when it is done (`heli.ts`).
-    if (crashOver(off, player) && !heliDown(run)) standUp(run, events, true);
+    // Buzzed on a free ride, he gets up where he lies and fetches his skis
+    // instead (`buzz.ts`).
+    if (crashOver(off, player) && !heliDown(run)) {
+      if (player && fetchesSkis(run)) getUp(run, off, events);
+      else standUp(run, events, true);
+    }
     return;
   }
   if (run.rules.course) {
@@ -236,7 +254,11 @@ export function stepRun(
   const R = TUNING.reset;
   // Bogged, the skier is input the time to work out (`trench.ts`).
   const stuck = c.trench > 0 ? c.trenchFor >= TUNING.trench.holdFor : c.stuckFor >= R.stuckFor;
-  if (c.overFor >= R.overFor || stuck) standUp(run, events, true);
+  if (c.overFor >= R.overFor || stuck) {
+    // ...buzzed, stood up where he sat down rather than sent back.
+    if (player && fetchesSkis(run)) standSkier(run, c.x, c.z, c.heading);
+    else standUp(run, events, true);
+  }
 }
 
 /** THE RESET — or, under the strict gates (R31), where nobody is stood

@@ -138,12 +138,23 @@ export function stepLoneSkis(state: GameState, b: Thrown): void {
   for (const ski of b.skis) stepSki(state, b, ski);
 }
 
-function stepSki(state: GameState, b: Thrown, ski: LoneSki): void {
+/** THE SKIS LYING WHERE THE FALL LEFT THEM while he walks to fetch them
+ * (`buzz.ts`): each one not yet `carried` slides on, its binding long let
+ * go. */
+export function slideSkis(
+  state: GameState,
+  skis: readonly LoneSki[],
+  carried: readonly boolean[],
+): void {
+  for (let i = 0; i < skis.length; i++) if (!carried[i]) stepSki(state, null, skis[i]);
+}
+
+function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
   const level = state.level;
   const P = ski.ends;
   const L = ski.last;
   const length = hypot3(P[0] - P[3], P[1] - P[4], P[2] - P[5]);
-  if (ski.held > 0) {
+  if (ski.held > 0 && b) {
     // STILL IN ITS BINDING: carried by his foot's own move this step.
     ski.held = Math.max(0, ski.held - dt);
     const k = 3 * (ski.side < 0 ? RAGDOLL.footL : RAGDOLL.footR);

@@ -23,6 +23,8 @@
 //                   "slalom"
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
+//   buzz            optional: the afterski's beer in him (`buzz.ts`), skied
+//                   on the free ride's terms — the drunk scenarios
 //
 // The bench is skied in STILL AIR (`S.STILL_AIR`); the `wind-*` scenarios
 // deal a sky with a wind in it (`windy`), stated at 10 m as R19 states it —
@@ -59,6 +61,7 @@ import {
   onPitch,
 } from "./ride-helpers.mjs";
 import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
+import { DRUNK_SCENARIOS } from "./ride-drunk.mjs";
 import { SPEED_SCENARIOS } from "./ride-speed.mjs";
 
 /** The fastest the snow slid across the skis over a run, m/s. */
@@ -285,6 +288,7 @@ export const SCENARIOS = [
   },
   // The slalom racer's technique (`ride-slalom.mjs`).
   ...SLALOM_SCENARIOS,
+  ...DRUNK_SCENARIOS,
   // The speed skier's, on the speed ski (`ride-speed.mjs`, R34).
   ...SPEED_SCENARIOS,
   {

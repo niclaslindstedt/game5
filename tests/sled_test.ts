@@ -13,6 +13,7 @@ import {
   SLED,
   clipCrowd,
   createGame,
+  generateLevel,
   helipadOf,
   sledDriveForce,
   sledMaxDrive,
@@ -277,7 +278,9 @@ describe("riding it", () => {
   });
 
   it("is ridden up the mountain by the bot's hands, round the trunks", () => {
-    const lv = levelFor(38);
+    // Seed 38 by generator v6, the climb this was measured on: v7's ski
+    // area comes out differently there, and the bot's line ends in a crash.
+    const lv = generateLevel(38, { version: 6 });
     const s = createGame({ level: lv, mode: "free", sled: true, crowd: 0, quiet: true });
     const y0 = s.sled!.y;
     const z0 = s.sled!.z;

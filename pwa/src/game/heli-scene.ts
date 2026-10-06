@@ -62,6 +62,8 @@ export type HeliScene = {
    * — the gravity less the seat's acceleration, the air past him, the
    * rotor), or null off it. */
   perch(state: GameState): Perch | null;
+  /** The model in the group (`HeliView.ready`). */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -146,6 +148,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const wash: Wash = { x: 0, y: 0, z: 0 };
   return {
     group,
+    ready: view.ready,
     frame(state, alpha, dt, player, rung, flying, cloud, snowAt) {
       const h = state.heli;
       cam.cut = !flying;

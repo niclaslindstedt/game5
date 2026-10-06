@@ -69,6 +69,10 @@ export function tailDug(state: GameState): boolean {
   const c = state.skier;
   if (!state.rules.stunts || c.airborne || c.way > -SW.digSpeed) return false;
   const depth = depthUnder(state.snowDepth, state.fresh);
-  const loose = TUNING.snow.cover * depth * (1 - clamp(c.packed, 0, 1));
+  // The day's skied-up or softened groomer (`piste-day.ts`) is heaps a
+  // hand high over a hard base, never a cover a tail is buried in: the
+  // share it loosened is read back as the groomer it was.
+  const packed = state.piste ? c.packed + state.piste.loose : c.packed;
+  const loose = TUNING.snow.cover * depth * (1 - clamp(packed, 0, 1));
   return loose * (1 - tailRiseOf(c.spec)) >= SW.tailDig;
 }

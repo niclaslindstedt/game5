@@ -48,7 +48,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { depthUnder, packedUnder } from "./snow.ts";
+import { depthUnder, looseOf, packedUnder } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
 
 const K = TUNING.crash;
@@ -229,7 +229,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   for (let i = 0; i < N; i++) {
     const x = P[3 * i];
     const z = P[3 * i + 2];
-    const p = packedUnder(level.packedAt(x, z), state.fresh);
+    const p = packedUnder(level.packedAt(x, z), state.fresh, looseOf(state));
     packed[i] = p;
     soft[i] = (1 - p) * depth;
     floor[i] = level.groundAt(x, z) - K.sink * soft[i] + RADIUS[i];

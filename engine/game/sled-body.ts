@@ -53,12 +53,14 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Level } from "../mapgen/types.ts";
 import type { Assist } from "./defs/modes.ts";
+import type { PisteDay } from "./piste-day.ts";
 import { SLED, SLED_PROBES, sledInertia } from "./defs/sled.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { stepBelt, stepRpm } from "./sled-drive.ts";
 import {
   bottomlessOf,
   depthUnder,
+  looseOf,
   packedUnder,
   powderFloor,
   settleShare,
@@ -146,6 +148,8 @@ export type SledSnow = {
   level: Level;
   snowDepth: number;
   fresh: number;
+  /** The day's piste (`GameState.piste`), on a run dealt it. */
+  piste?: PisteDay;
   /** How much the machine helps (the run's `assist`): its `air` sets the
    * nose for the landing. Every hand on when it is not given. */
   assist?: Assist;
@@ -244,7 +248,7 @@ export function rideSled(
     }
     const dx = -up.x;
     const dz = -up.z;
-    const packed = packedUnder(level.packedAt(ax, az), snow.fresh);
+    const packed = packedUnder(level.packedAt(ax, az), snow.fresh, looseOf(snow));
     const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const tread = p.kind === "tread";
     const scale = tread ? SLED.sink.tread : SLED.sink.ski;
@@ -373,7 +377,10 @@ export function rideSled(
   }
   treadSink /= 6;
   c.treadComp = treadN > 0 ? treadComp / treadN : 0;
-  c.packed = loadSum > 0 ? packedLoad / loadSum : packedUnder(level.packedAt(c.x, c.z), snow.fresh);
+  c.packed =
+    loadSum > 0
+      ? packedLoad / loadSum
+      : packedUnder(level.packedAt(c.x, c.z), snow.fresh, looseOf(snow));
   const grounded = touching > 0;
   if (!grounded && c.airborne) fy -= m * g * (FLY_G - 1);
 
@@ -542,7 +549,7 @@ function hullContacts(
     const px = c.x + r.x;
     const py = c.y + r.y;
     const pz = c.z + r.z;
-    const packed = packedUnder(level.packedAt(px, pz), snow.fresh);
+    const packed = packedUnder(level.packedAt(px, pz), snow.fresh, looseOf(snow));
     const floor = level.groundAt(px, pz) - powderFloor(packed, SLED.sink.tread, depth);
     const pen = floor - py;
     if (pen <= 0) continue;

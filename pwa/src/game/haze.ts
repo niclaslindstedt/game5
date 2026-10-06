@@ -77,6 +77,11 @@ export type HazeUniforms = {
   /** THE NEW SNOW over the run, m (`GameState.fresh`): what buries the
    * groomer's look. The run's, not the sky's — the renderer writes it. */
   uFresh: { value: number };
+  /** THE PISTE THROUGH THE DAY (`GameState.piste`, `piste-day.ts`): how
+   * skied up, sun-softened and refrozen the groomer is, each 0..1, and 1
+   * in `w` on a run dealt it — all nought on one that was not. The
+   * renderer writes it. */
+  uPiste: { value: THREE.Vector4 };
   /** THE LAMPS: each slot's lamp — a flood or a skier's headlamp — where
    * it is, where it points, how far on (0 for a slot with no lamp), the
    * colour of its light (linear) and its BEAM (`lampReach`): the spot's
@@ -97,6 +102,19 @@ export type HazeUniforms = {
   uPisteOn: { value: THREE.Vector4 };
   uPisteCol: { value: THREE.Vector3 };
 };
+
+/** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`) and the
+ * piste through the day (`uPiste`: worn, soft, hard, and 1 in `w` on a run
+ * dealt it — `GameState.piste`). */
+export function setRunSnow(
+  u: HazeUniforms,
+  fresh: number,
+  day: { worn: number; soft: number; hard: number } | undefined,
+): void {
+  u.uFresh.value = fresh;
+  if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
+  else u.uPiste.value.set(0, 0, 0, 0);
+}
 
 export function createHazeUniforms(): HazeUniforms {
   const vectors = (): THREE.Vector3[] =>
@@ -124,6 +142,7 @@ export function createHazeUniforms(): HazeUniforms {
     uFlat: { value: 0 },
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
+    uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
     uLampPos: { value: vectors() },
     uLampDir: { value: vectors() },
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },

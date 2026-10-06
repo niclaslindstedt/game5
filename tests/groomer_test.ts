@@ -132,10 +132,13 @@ describe("the swath", () => {
     s.fresh = at + 0.02;
     expect(packedSnow(s, x, z)).toBeCloseTo(packedUnder(1, 0.02), 9);
     // Off the swath — far off the map's runs — the map's own field under the
-    // whole fall, as a ride with no machines reads it.
+    // whole fall, as skied up as the day has made it (`piste-day.ts`); the
+    // swath itself is the machine's, none of the day's on it.
     const bare = { ...s, groomed: undefined };
     expect(packedSnow(s, 3, 3)).toBe(packedSnow(bare, 3, 3));
-    expect(packedSnow(bare, x, z)).toBe(packedUnder(level.packedAt(x, z), s.fresh));
+    expect(packedSnow(bare, x, z)).toBe(
+      packedUnder(level.packedAt(x, z), s.fresh, s.piste?.loose ?? 0),
+    );
   });
 });
 

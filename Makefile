@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
 
 build:
 	npm run build
@@ -451,6 +451,17 @@ grimbear:
 # Chromium like `world`. ARGS="--sheet=night,snow", "--views=turntable".
 groomer:
 	npm run groomer -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE PISTE THROUGH THE DAY LAB: one spot of a free ride's piste under a
+# sky at the hours of a day — the night's corduroy at the first chair, the
+# skied-up afternoon, a spring sun's slush and its evening freeze, and the
+# new snow a snowing sky lays on it — through the game's own renderer. One
+# contact sheet a sky, previews/piste-day-<sky>.png, and every frame alone.
+# Its own one-off bundle from pwa/piste-day-preview.html (never deployed);
+# needs a Chromium like `world`. ARGS="--sheet=clear --day=80",
+# "--hours=8,12,16,19".
+piste-day:
+	npm run piste-day -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

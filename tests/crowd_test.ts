@@ -232,6 +232,29 @@ describe("the crowd on the lifts", () => {
   });
 });
 
+describe("nobody skis inside another", () => {
+  it("off a lift, on a run, in a school's snake: a body's room between them", () => {
+    const state = free();
+    const crowd = state.crowd!;
+    // Dealt riding, every one is on his way up — none let go at once.
+    ride(state, 1 / 120);
+    expect(crowd.amateurs.filter((a) => a.mode === "skate")).toHaveLength(0);
+    let close = 0;
+    let pairs = 0;
+    for (let k = 0; k < 20; k++) {
+      ride(state, 2);
+      const out = crowd.amateurs.filter((a) => ["ski", "skate", "stop"].includes(a.mode));
+      for (let i = 0; i < out.length; i++)
+        for (let j = i + 1; j < out.length; j++) {
+          pairs++;
+          if (Math.hypot(out[i].x - out[j].x, out[i].z - out[j].z) < 0.5) close++;
+        }
+    }
+    // A pass or a meeting now and then, never a knot.
+    expect(close).toBeLessThan(pairs * 2e-5 + 10);
+  });
+});
+
 describe("the player meets the crowd", () => {
   /** One amateur stood in front of the player, everyone else up a lift,
    * the player coming at him at `v` m/s. */

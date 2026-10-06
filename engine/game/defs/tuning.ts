@@ -659,7 +659,7 @@ export const TUNING = {
     /** ...and the pitch rate held, N·m·s per rad/s, under the same hand:
      * a turn the lip or a bounce gave him is taken out over about half a
      * second. */
-    pitchSteady: 80,
+    pitchSteady: 100,
     pitchAim: 0.35,
     pitchGiveUp: 1.0,
     /** The yaw rate, rad/s, past which a flying skier is SPINNING and the

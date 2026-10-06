@@ -116,6 +116,8 @@ function warmShadows(
  * the whole scene, every mesh shown and none culled, into a single pixel of
  * the target the run is drawn into finishes them all while the card is up;
  * what was hidden is hidden again, and the next frame paints over the pixel.
+ * Every texture it samples must exist on the GPU by then, or the GL refuses
+ * the draw: the renderer runs the skiers' shadow pass (empty) first.
  */
 function warmPicture(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
   const shown: THREE.Object3D[] = [];

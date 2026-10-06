@@ -269,7 +269,7 @@ export function createWorldRenderer(
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
-  const hero = createHeroShadow(gl, env.haze, shadowLook().hero);
+  const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
   const wrap = <M extends THREE.Material>(m: M, name: string): M => hazeMaterial(m, env.haze, name);
   const snowfall = createSnowfall(env.haze);
@@ -597,8 +597,7 @@ export function createWorldRenderer(
       // against the target the frame is drawn into (a graded region's are
       // linear), and the trail maps' passes, not in the scene, beside it.
       gl.setRenderTarget(picture.load(lv));
-      // THE MOUNTAIN'S SHADOW is baked off the thread meanwhile, for the
-      // key the run opens under.
+      // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
       const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
       if (gl.extensions.has("KHR_parallel_shader_compile")) {
         await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl), shade]);
@@ -606,6 +605,7 @@ export function createWorldRenderer(
         gl.compile(scene, lens.camera);
         await Promise.all([trail.compile(gl), shade]);
       }
+      if (mine === loads) hero.render(gl, scene, [], null);
       if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
       gl.setRenderTarget(null);
     },

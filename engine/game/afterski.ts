@@ -94,6 +94,23 @@ export function insideOf(run: GameState): Cabin | null {
  * machine press, the beers inside, and out again on the same press. True
  * while he is inside — the step is the lodge's, and the snow, the trees and
  * his clock wait. `events` is the run's own list. */
+/** IN: his skis in the rack, stood at `lodge`'s door — where he will be
+ * stood again on the way out — the beers of this visit counted from none.
+ * The machine press at the door (`stepAfterski`), or a run begun inside
+ * (`CreateGameOptions.inLodge`). */
+export function enterLodge(run: GameState, lodge: Cabin, events: GameEvent[]): void {
+  const a = run.afterski;
+  if (!a) return;
+  const door = doorOf(lodge);
+  standSkier(run, door.x, door.z, door.heading);
+  a.inside = lodge.id;
+  a.t = 0;
+  a.beers = 0;
+  a.last = -1;
+  a.sip = -1;
+  events.push({ kind: "afterski", t: run.t, phase: "in", beers: 0, buzz: run.skier.buzz ?? 0 });
+}
+
 export function stepAfterski(run: GameState, input: SkierInput, events: GameEvent[]): boolean {
   const a = run.afterski;
   if (!a) return false;
@@ -102,16 +119,7 @@ export function stepAfterski(run: GameState, input: SkierInput, events: GameEven
     if (!input.machine) return false;
     const lodge = afterskiNear(run);
     if (!lodge) return false;
-    // IN: his skis in the rack, stood at the door — where he will be stood
-    // again on the way out — the beers of this visit counted from none.
-    const door = doorOf(lodge);
-    standSkier(run, door.x, door.z, door.heading);
-    a.inside = lodge.id;
-    a.t = 0;
-    a.beers = 0;
-    a.last = -1;
-    a.sip = -1;
-    events.push({ kind: "afterski", t: run.t, phase: "in", beers: 0, buzz: c.buzz ?? 0 });
+    enterLodge(run, lodge, events);
     return true;
   }
   // OUT on the same press: his skis back on, stood before the racks facing

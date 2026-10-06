@@ -75,7 +75,7 @@ import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
 import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
-import { freshAfterski } from "./afterski.ts";
+import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
@@ -191,6 +191,13 @@ export type CreateGameOptions = {
    * wing inflated over him. Wins over `byLift`, `spawn` and the machines.
    * Ignored by every mode but the free ride. */
   para?: boolean;
+  /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
+   * the party under way and his skis in the rack. Wins over every other
+   * start. Ignored by every mode without lodges. */
+  inLodge?: boolean;
+  /** The BUZZ he starts with, 0..1 (`buzz.ts`) — as though he had been to
+   * the afterski already. Left out, sober. */
+  buzz?: number;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
    * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
    * it is stood at (`pisteHead`: the restart's top of the slope); ignored
@@ -409,6 +416,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const lifted =
     free &&
     options.byLift &&
+    !options.inLodge &&
     !para &&
     !(state.heli && options.heli) &&
     !(state.sled && options.sled)
@@ -446,6 +454,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
     state.groomers = freshGroomers(state);
   }
+  // A run begun with a buzz, or inside the valley's lodge.
+  if (options.buzz) state.skier.buzz = Math.max(0, Math.min(1, options.buzz));
+  const lodge = free && options.inLodge ? lodgesOf(level)[0] : undefined;
+  if (lodge) enterLodge(state, lodge, []);
   if (!options.quiet) {
     status(
       `Map ${level.seed}: ${level.checkpoints.length} gates over ${Math.round(

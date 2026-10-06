@@ -83,6 +83,10 @@ export type HeliView = {
   way(): THREE.Vector3;
   /** Throw this frame's wash into the snow cloud. */
   blow(state: GameState, dt: number, puff: WashPuff, loose: (x: number, z: number) => number): void;
+  /** Resolved once the model is in the group (or the stand-in, should it
+   * not load) — awaited before the run's programs are compiled, so none of
+   * them is linked mid-ride. */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -274,16 +278,13 @@ function lookDisc(disc: THREE.Mesh, look: RotorLook, on: boolean): void {
   disc.visible = on && look.disc > 0.01;
 }
 
-/** The model's blades drawn as solid as `look.blades` says. */
+/** The model's blades drawn as solid as `look.blades` says. Their materials
+ * are transparent for good (`bladesOf`): toggled as the rotor spooled up,
+ * each was a program of its own linked the moment he sat on the skid. */
 function fadeBlades(meshes: THREE.Mesh[], look: RotorLook): void {
   const o = look.blades;
   for (const mesh of meshes) {
     const m = mesh.material as THREE.MeshStandardMaterial;
-    const see = o < 0.999;
-    if (m.transparent !== see) {
-      m.transparent = see;
-      m.needsUpdate = true;
-    }
     m.opacity = o;
     mesh.visible = o > 0.01;
     mesh.castShadow = o > 0.5;
@@ -444,7 +445,12 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       if (/^paint/i.test(m.name)) {
         (disc.material as THREE.ShaderMaterial).uniforms.uTip.value.copy(m.color);
       }
-      o.material = m.clone();
+      // Transparent from the start, drawn solid at an opacity of 1 (before
+      // every effect, which all draw at a later `renderOrder`): the program
+      // the spun-up rotor needs is the one compiled behind the loading card.
+      const own = m.clone();
+      own.transparent = true;
+      o.material = own;
       out.push(o);
     });
     return out;
@@ -483,7 +489,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   // The Blender model where the build packs it (`heliModelUrl`), the code's
   // stand-in where it is switched off or will not load.
   const url = heliModelUrl();
-  (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
+  const ready = (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
     .then((gltf) => {
       if (disposed) return;
       // The model faces −z as glTF has it; the engine's nose is +z.
@@ -631,6 +637,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
     way() {
       return vel;
     },
+    ready,
     blow(state, dt, puff, loose) {
       const h: HeliState | undefined = state.heli;
       if (!h || h.mode === "wreck" || h.thrust <= 0 || dt <= 0) return;

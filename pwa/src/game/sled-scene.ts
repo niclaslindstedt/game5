@@ -47,6 +47,8 @@ export type SledScene = {
   drawn(): ReturnType<SledView["drawn"]>;
   /** Dress the racked pair in the rider's topsheet colours. */
   dressRack(body: number, trim: number): void;
+  /** The model in the group (`SledView.ready`). */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -134,6 +136,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
 
   return {
     group,
+    ready: view.ready,
     frame(state, alpha, dt, simDt, player, fx) {
       const s = state.sled;
       if (!s) return;

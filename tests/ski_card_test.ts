@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SKIS, SKI_CATALOG, skisById } from "@engine";
+import { SKIS, SKI_CATALOG, harshSpeedOf, skisById } from "@engine";
 
 import { mergeSettings, freshSettings } from "../pwa/src/game/settings.ts";
 import {
@@ -82,6 +82,9 @@ describe("the spec sheet", () => {
     // slalom ski's arc does not yet ask all of its own: the ski-cross
     // ski's arc asks all of a grip greater than the slalom ski's.
     expect(by(bermCarveOf)[0]).toBe("wolverine");
+    // The big-air ski's legs fold the deepest: it takes the hardest landing
+    // whole, where the softer park ski is the more forgiving.
+    expect(by(harshSpeedOf)[0]).toBe("raven");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);
     expect(forgivenessOf(SKIS)).toBeCloseTo(1, 9);

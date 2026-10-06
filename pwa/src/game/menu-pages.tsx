@@ -18,6 +18,7 @@ import { KeysPage } from "./menu-keys.tsx";
 import { OptionsPage } from "./menu-options.tsx";
 import { PinnedCards } from "./menu-pinned.tsx";
 import { RacesPage } from "./menu-races.tsx";
+import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
@@ -71,7 +72,19 @@ export function MenuPages(p: {
       </div>
     );
   }
-  // A race's level card goes back to the race card.
+  if (page === "freestyle") {
+    return (
+      <div class="menu">
+        <FreestylePage
+          chosen={p.mode}
+          onBack={back}
+          onPick={(mode) => campaign.openCard(mode, p.linkSeed === null ? "tricks" : "skis")}
+        />
+      </div>
+    );
+  }
+  // A race's level card goes back to the race card, the trick map card to
+  // the tricks card.
   const race =
     p.mode === "slalom" ||
     p.mode === "superG" ||
@@ -89,7 +102,9 @@ export function MenuPages(p: {
           skis={p.skis}
           progress={campaign.progress}
           standing={p.standing}
-          onBack={() => setPage(page === "levels" && race ? "races" : "root")}
+          onBack={() =>
+            setPage(page === "levels" && race ? "races" : page === "tricks" ? "freestyle" : "root")
+          }
           onChoose={campaign.choose}
           onTrick={campaign.chooseTrick}
         />
@@ -103,7 +118,8 @@ export function MenuPages(p: {
           onPage={setPage}
           onBack={() => {
             const to = skisBack(campaign.rung.current, p.mode, p.linkSeed);
-            setPage(to === "root" && race ? "races" : to);
+            const trick = p.mode === "tricks" || p.mode === "bigAir";
+            setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}
         />

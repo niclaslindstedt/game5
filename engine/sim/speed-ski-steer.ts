@@ -8,6 +8,11 @@
 // skier's few degrees — and never brakes: the timing zone ends his run,
 // and past it the run-out's stand-up and skid are the engine's
 // (`run.ts`), as they are for every racer home.
+//
+// A BIG AIR JUMP (R37) is skied the same way: its line is straight down the
+// face too, and a skier drops in tucked and straight to carry the jump's
+// design speed off the lip — never checking it, which would knuckle him on
+// the table.
 
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
@@ -26,11 +31,11 @@ export const SPEED_SKI_STEER = {
   yawLead: 0.3,
 } as const;
 
-/** The input that skis `state`'s skier down the speed track, or null on a
- * map with none. `on` is where he stands on the track. */
+/** The input that skis `state`'s skier down the speed track or the big air
+ * jump, or null on a map with neither. `on` is where he stands on it. */
 export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null {
   const level = state.level;
-  if (!level.speedSki || !state.rules.course) return null;
+  if ((!level.speedSki && !level.bigAir) || !state.rules.course) return null;
   const c = state.skier;
   const K = SPEED_SKI_STEER;
   const v = Math.max(5, c.speed);
@@ -43,5 +48,12 @@ export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null
   const T = techniqueOf(state.rules);
   const lock = Math.max(0.05, Math.min(edgeMostOf(spec, T), edgeLockAt(spec, c.speed, T)));
   const edge = Math.sign(want) * Math.atan(Math.abs(want) * spec.sidecut);
+  // OFF A BIG AIR KICKER, a 360: two taps of the edge early in the flight
+  // (`strokes.ts`), the hands off it after.
+  if (level.bigAir && c.airborne && state.rules.stunts) {
+    const t = c.airTime;
+    const tap = (t > 0.2 && t < 0.3) || (t > 0.45 && t < 0.55);
+    return { ...NEUTRAL_INPUT, steer: tap ? 1 : 0, tuck: 0 };
+  }
   return { ...NEUTRAL_INPUT, steer: clamp(edge / lock, -1, 1), tuck: 1 };
 }

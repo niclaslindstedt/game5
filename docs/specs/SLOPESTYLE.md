@@ -84,8 +84,32 @@ three, the single best run counting.
 - [ ] **Its maps**, **labs** (a course lab: the sections, the speed down
       the profile; `make sim ARGS="--mode slopestyle"`), **tests**,
       **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): the park twin-tip that both jibs and jumps — the
+      Raven (big air's) or the Hare (the rail jam's), or a pair between
+      (*research what slopestyle athletes ride*), and the default build off
+      slopestyle's athletes (big air's freeskiers, ~72 kg for men, the
+      medium build, are the same riders — confirm) — rows in `RACE_SKIS` and
+      `RACE_RIDERS`, so picking the format opens the ski card on its pair
+      and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: the park twin-tip that both jibs and jumps — the Raven
+      (big air's) or the Hare (the rail jam's), or a pair between (*research
+      what slopestyle athletes ride*).
+- [ ] **The default player weight**: slopestyle's athletes (big air's
+      freeskiers, ~72 kg for men, the medium build, are the same riders —
+      confirm) — which of the four builds (`RIDERS`), argued from what the
+      format pays weight for.
 
 - [x] The course minimums, the sections and lines, the speeds.
 - [x] The format and section judging.

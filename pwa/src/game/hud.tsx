@@ -226,7 +226,14 @@ export function Hud({
               </div>
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
-            {snap.tricks && <TricksChips tile={snap.tricks} />}
+            {snap.tricks && !snap.bigAir && <TricksChips tile={snap.tricks} />}
+            {/* A BIG AIR JUMP: its phase, and which of its jumps. */}
+            {snap.bigAir && (
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.bigAirJump(snap.bigAir.jump, snap.bigAir.of)}</span>
+                <span class="hud-chip-sub">{STRINGS.bigAirPhase(snap.bigAir.phase)}</span>
+              </div>
+            )}
             {/* THE PLACE — the one number a racer reads more than the clock.
               Keyed on the place, so a pass lands with its own beat. Left
               out of a race alone, where 1 / 1 says nothing. */}

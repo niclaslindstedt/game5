@@ -91,8 +91,32 @@ of two or three, the single best run counting.
 - [ ] **Its maps** (or venues), **labs** (a pipe in `make ride`: one hit,
       a run of six, the height kept; `make sim ARGS="--mode halfpipe"`),
       **tests**, **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): a pipe's twin-tip — stiffer than a jib ski,
+      holding an edge up an icy wall (*research the class*: is it the Raven,
+      or a pair of its own?), and the default build off the pipe's athletes
+      (the big air study's freeskiers, ~72 kg and ~179 cm for men, are a
+      start; the pipe's own may differ) — rows in `RACE_SKIS` and
+      `RACE_RIDERS`, so picking the format opens the ski card on its pair
+      and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: a pipe's twin-tip — stiffer than a jib ski, holding an
+      edge up an icy wall (*research the class*: is it the Raven, or a pair
+      of its own?).
+- [ ] **The default player weight**: the pipe's athletes (the big air
+      study's freeskiers, ~72 kg and ~179 cm for men, are a start; the
+      pipe's own may differ) — which of the four builds (`RIDERS`), argued
+      from what the format pays weight for.
 
 - [x] The pipe's dimensions, the format, the judging, pipe use.
 - [ ] The transition radius, the flat bottom, the deck — sourced (now an

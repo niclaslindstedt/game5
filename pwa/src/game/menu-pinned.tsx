@@ -48,7 +48,9 @@ export function PinnedCards({
   onTrick: (map: TrickMap) => void;
 }) {
   if (page === "tricks") {
-    return <TrickMapsPage chosen={settings.trickMap} onBack={onBack} onPick={onTrick} />;
+    return (
+      <TrickMapsPage mode={mode} chosen={settings.trickMap} onBack={onBack} onPick={onTrick} />
+    );
   }
   if (page === "campaign") {
     return (

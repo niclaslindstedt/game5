@@ -6,7 +6,7 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// NINE PAIRS, NINE ANSWERS TO A KIND OF SNOW — never nine points on one
+// TEN PAIRS, TEN ANSWERS TO A KIND OF SNOW — never nine points on one
 // scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
@@ -36,6 +36,9 @@
 //           where the others sink, vague and slow on the groomer.
 //   HARE    a PARK ski — a soft twin-tip: spins, lands anything softly,
 //           slow in a tuck and loose on an edge.
+//   RAVEN   a BIG-AIR ski — the competition park twin-tip: longer and
+//           stiffer than the Hare, damp for a landing from ten metres up,
+//           still mounted near its centre to spin and ride away switch.
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
@@ -82,7 +85,8 @@ export type SkiId =
   | "wolverine"
   | "peregrine"
   | "marmot"
-  | "hare";
+  | "hare"
+  | "raven";
 
 export type SkiSpec = {
   id: SkiId;
@@ -446,12 +450,50 @@ export const HARE: SkiSpec = {
   topSpeed: 106,
 };
 
+/** THE RAVEN — a BIG-AIR ski (named for the bird that rolls and tumbles in
+ * the air for the joy of it): the competition park twin-tip a big air jump
+ * is ridden on (`docs/freestyle.md` § *Big air*, "The skis"). The freestyle
+ * rules set no length, width or sidecut, so the class is what the
+ * athletes ride: a twin-tip of some 1.78–1.84 m on an 85–96 mm waist and a
+ * 17–20 m arc, built STIFF and damp for the take-off and a landing from ten
+ * metres up where a jib ski is soft for rails, and mounted a few
+ * centimetres behind its true centre to spin either way and ride away
+ * switch. 180 cm on an 88 mm waist with a 20 m sidecut — 14 mm of side
+ * depth over its chord — a little rocker at both ends, and the legs of a
+ * skier set for big landings: a deeper fold than the race pairs', a
+ * firmer one than the Hare's. Its answer is a kicker taken at 60 km/h and
+ * a 1440 put down on the landing without a bobble: it holds the in-run
+ * straighter than the Hare, lands what the Hare folds on, and still spins
+ * as a park ski does. */
+export const RAVEN: SkiSpec = {
+  ...SKIS,
+  id: "raven",
+  name: "Raven",
+  kind: "Big air",
+  blurb:
+    "A stiff competition twin-tip: straight down the in-run, round three times, and down clean.",
+  gearMass: 8.5,
+  length: 1.8,
+  waist: 0.088,
+  tipWidth: 0.118,
+  tailWidth: 0.114,
+  sidecut: 20,
+  flex: 0.6,
+  rocker: 0.25,
+  edgeMax: 1.02,
+  mount: 0.49,
+  legs: { rate: 7300, bump: 520, rebound: 860, travel: 0.52 },
+  cdAUpright: 0.9,
+  cdATuck: 0.52,
+  topSpeed: 110,
+};
+
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
  * most of him last: the all-mountain ski that refuses nothing, the alpine
  * race skis from the shortest to the longest (slalom, giant slalom, super-G,
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
- * ski. (`make sim ARGS="--skis
+ * ski and the big-air ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkiSpec[] = [
   SKIS,
@@ -463,6 +505,7 @@ export const SKI_CATALOG: readonly SkiSpec[] = [
   PEREGRINE,
   MARMOT,
   HARE,
+  RAVEN,
 ];
 
 /** The pair with this id, or the all-mountain ski for one this build does

@@ -84,8 +84,28 @@ knock-out bracket of 16 or 32, with a big final and a small final.
 - [ ] **Sound**: the gates, the crowd's split.
 - [ ] **Labs** (`make sim ARGS="--mode dualMoguls --heat"`), **tests**,
       **docs**; delete this spec.
+- [ ] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
+      pair and the build*): the moguls' pair (`MOGULS.md` adds it), and the
+      default build off the moguls' build (`MOGULS.md` argues it; dual
+      moguls shares it unless the research says otherwise) — rows in
+      `RACE_SKIS` and `RACE_RIDERS`, so picking the format opens the ski
+      card on its pair and the dress card on its build.
 
 ## Research to-do
+
+Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
+pair and the build*): several sources for every number that shapes the
+build, written into `docs/freestyle.md`.
+
+- [ ] **The rules and the conditions**, in full: the field of play and a
+      championship venue's real size, the format, the judging and a fall,
+      the snow it is prepared to, the speeds, the wind and light a jury
+      holds for.
+- [ ] **The skis**: the moguls' pair (`MOGULS.md` adds it).
+- [ ] **The default player weight**: the moguls' build (`MOGULS.md` argues
+      it; dual moguls shares it unless the research says otherwise) — which
+      of the four builds (`RIDERS`), argued from what the format pays weight
+      for.
 
 - [x] The course, the start, the two judging systems, the format, falls
       and ties.

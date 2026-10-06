@@ -1,7 +1,9 @@
 # Big air — draft spec
 
-**Draft. Researched, not built.** Delete this file when big air is finished
-(see `README.md`). The shared pieces (the trick card, the reader, the judge,
+**Built in part.** The jump (R37), the mode, its pair and build, the
+reader, the panel, the contest and its board are in; what is still open is
+ticked off below. Delete this file when big air is finished (see
+`README.md`). The shared pieces (the trick card, the reader, the judge,
 the field, more rotation) are `TRICK_MODES.md`'s; big air is the first
 format to build them.
 
@@ -59,7 +61,7 @@ DIFFERENT tricks. Won on rotation, amplitude and a clean landing.
 
 ## What it needs to be complete
 
-- [ ] **The jump (the next free R-rule)**: a drop-in (a start platform, an
+- [x] **The jump (R37, `engine/mapgen/big-air.ts`, `trick-rules.ts`)**: a drop-in (a start platform, an
       in-run of 35–40° on a championship jump, 20°+ at the least), a flat
       before the kicker, the KICKER (5 m high on a championship jump, 2 m
       at the least, a take-off angle of ~25° up), a TABLE of 15–20 m with
@@ -68,38 +70,45 @@ DIFFERENT tricks. Won on rotation, amplitude and a clean landing.
       long fall line (or a scaffold of its own off the slope — open
       question), held by the analyzer; mirrored in
       `docs/level-generator.md`. The knuckle huck rides the same jump.
-- [ ] **The in-run speed**: a start height that brings the skier to the lip
+- [x] **The in-run speed** (the drop-in sized to the lip's speed, the
+      engine's loss through the compressions measured in): a start height that brings the skier to the lip
       at the jump's design speed (the aerials' in-run markers are the
       idea: a start chosen off the speed), so the bot and the player
       land in the sweet spot on a straight run.
-- [ ] **Mode and rules**: a `GameMode` row and its `RunRules` (one rider,
+- [x] **Mode and rules** (`BIG_AIR`, `bigAirRules`): a `GameMode` row and its `RunRules` (one rider,
       no course gates, the real g, the strokes' ceilings raised, no clock
       but a start window).
-- [ ] **The reader and the judge** (`TRICK_MODES.md`): the trick named,
+- [x] **The reader and the judge** (`engine/game/judge.ts`; progression
+      and variety across the counting jumps still open) (`TRICK_MODES.md`): the trick named,
       its direction and kind; scored 0–100 by a panel of six (the high and
       the low dropped), on difficulty, execution, amplitude, progression
       and variety across the two counting jumps.
-- [ ] **The format**: qualification (two jumps, the best), final (three
+- [x] **The format** (`engine/game/big-air-contest.ts`; the final's
+      third jump in reverse order still open): qualification (two jumps, the best), final (three
       jumps, the best two DIFFERENT — the direction rule a `RunRules`
       choice; a repeat counts once; only two landed counts the better),
       the third jump in reverse order of the standings; a DOM-free format
       module with tests (`cross-bracket.ts` is the shape).
-- [ ] **The field**: eleven rivals dealt a board of three jumps each about
+- [x] **The field** (dealt off the contest's seed — every rival, revealed
+      as far as the player has jumped): eleven rivals dealt a board of three jumps each about
       the bot's par score, revealed jump by jump between the player's.
-- [ ] **The bot**: drops in, takes the kicker straight, picks a trick it
+- [ ] **The bot**: drops in and takes the kicker straight (done); picks a trick it
       can turn in the air it has, in the direction the contest still
       needs, lands it.
-- [ ] **HUD**: the trick named on landing, the six scores and the
-      average, the jump that counts and the one that does not, the board.
+- [ ] **HUD**: the jump and its phase on the HUD, the trick named and
+      the panel's score on the plate, the board (done, `big-air-run.ts`,
+      `hud-bigair.tsx`); the six marks shown one by one still open.
 - [ ] **Cameras**: side-on to the table for the flight, from below the
       landing; the drop-in from behind.
 - [ ] **Audience**: the arena round the landing and the finish.
 - [ ] **Sound**: the crowd's roar at the landing, the announcer's silence.
-- [ ] **Its maps** (`RACE_MAPS.md`'s pattern): nine seeds (or venues) with
+- [ ] **Its maps** (today it stands on the six trick maps, picked on the
+      trick map card off the TRICKS card) (`RACE_MAPS.md`'s pattern): nine seeds (or venues) with
       a good jump on them, digests held by a test.
 - [ ] **Labs**: a jump lab (the profile, a point mass's flight over it at
       the speed band, the impact against `harshSpeed`), `make ride` a
-      big-air scenario, `make sim ARGS="--mode bigAir"`; **tests**;
+      big-air scenario; `make sim ARGS="--mode bigAir"` (done);
+      **tests** (`tests/big_air_test.ts`, `tests/big_air_hud_test.ts`);
       **docs**; delete this spec.
 
 ## Research to-do
@@ -111,6 +120,8 @@ Recorded in `docs/freestyle.md` (numbers with sources, estimates marked).
 - [x] The panel, the method, the criteria, the deductions' scale.
 - [ ] What tricks win today, by sex, with their rotations — sourced (now
       an estimate: 1980–2160 men, 1440–1800 women).
+- [x] The pair (a competition twin-tip's band) and the default build
+      (the field's measured mean) — `docs/freestyle.md` § *Big air*.
 - [ ] The kicker's real take-off angle on a big jump (the rules' minimum
       is 25°; a championship kicker is likely steeper) and the knuckle's
       shape.
@@ -119,5 +130,5 @@ Recorded in `docs/freestyle.md` (numbers with sources, estimates marked).
 ## Open questions for the user
 
 - The jump on the mountain (a seed's slope), or a built scaffold as at a
-  city big air?
+  city big air? *(Built on the mountain, cut into the face.)*
 - How many jumps a final shows: every rival's in full, or the board only?

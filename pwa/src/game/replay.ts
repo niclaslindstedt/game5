@@ -91,13 +91,15 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     // A ski cross's heat and the bracket it was raced in (`ski-cross-run.ts`).
     cross: state.cross,
     bracket: state.bracket,
+    // A big air jump and the contest it was jumped in (`big-air-run.ts`).
+    bigAir: state.bigAir,
     quiet: true,
   };
 }
 
 /** Whether a run in `mode` is recorded to be watched back. */
 export function keepsReplay(mode: GameMode): boolean {
-  return isGameMode(mode) && (keepsRecords(mode) || mode === "tricks");
+  return isGameMode(mode) && (keepsRecords(mode) || mode === "tricks" || mode === "bigAir");
 }
 
 /** A FINGERPRINT OF A RUN AT ITS FIRST STEP: where every skier stands, on

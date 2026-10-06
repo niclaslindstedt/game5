@@ -51,6 +51,7 @@ import { trapOf, type TrapReading } from "./downhill-run.ts";
 import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
+import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -207,6 +208,10 @@ export type HudSnapshot = {
    * gate's commands, the heat's order and what comes next — null on any
    * other run. */
   cross: CrossHud | null;
+  /** A BIG AIR jump's readouts (`big-air-run.ts`) — its phase and number,
+   * the panel's score once judged, the board and what comes next — null on
+   * any other run. */
+  bigAir: BigAirHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -518,6 +523,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     standings: p.finished ? standingsOf(state) : null,
     race,
     cross,
+    bigAir: bigAirOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,

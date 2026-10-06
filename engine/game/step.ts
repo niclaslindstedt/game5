@@ -26,6 +26,7 @@ import {
   setSkiCross,
   setSpeedSki,
   setSlalom,
+  setBigAir,
   withDay,
   withSky,
 } from "../mapgen/index.ts";
@@ -54,6 +55,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
 import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
+import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -103,6 +105,10 @@ export type CreateGameOptions = {
    * of one race, its heat the player's next (`nextHeat`) where `cross` asks
    * for none. The engine never reads it otherwise. */
   bracket?: Bracket;
+  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`): the jumps the
+   * player has taken, carried between the runs of one contest — a fresh
+   * one off the seed when a big air run leaves it out. */
+  bigAir?: BigAirContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -223,6 +229,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     window: base.window,
     technique: options.technique ?? base.technique,
     jury: base.jury,
+    spinMost: base.spinMost,
+    flipMost: base.flipMost,
   };
 }
 
@@ -275,9 +283,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.giantSlalom?.base ??
     built.speedSki?.base ??
     built.skiCross?.base ??
+    built.bigAir?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
-  // qualification's, or the final's.
+  // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
@@ -291,7 +300,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
               ? setSpeedSki(built, options.heat?.run ?? 1)
               : options.mode === "skiCross"
                 ? setSkiCross(built)
-                : original;
+                : options.mode === "bigAir"
+                  ? setBigAir(built)
+                  : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -368,6 +379,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     else createRivals(state, rules.rivals);
   }
   if (options.bracket) state.bracket = options.bracket;
+  if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (!options.quiet) {
     status(

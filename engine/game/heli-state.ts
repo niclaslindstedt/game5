@@ -71,15 +71,22 @@ export type HeliState = {
   t: number;
   /** Where the wreck came down, how hard, m/s, how fast it was coming
    * DOWN when the snow stopped it, m/s (its fall from where it struck
-   * counted in — what the seat hands the spine, `body.ts`), and whether
-   * the skier was on it (`heli` crash) — then the ride starts again from
-   * the pad. */
+   * counted in), and whether the skier was on it (`heli` crash) — then the
+   * ride starts again from the pad. That stop as the AIRFRAME met it, m/s,
+   * is what reaches the skier on its skid (`body.ts`): `seat` up through
+   * its belly and the skid he sits on, `out` toward his side (his skid
+   * first into the snow, the airframe rolled down onto him; negative, it
+   * rolled away from him), and `across` along the skid, to his right — the
+   * way a nose or a tail first throws him along it. */
   wreck: {
     x: number;
     y: number;
     z: number;
     speed: number;
     sink: number;
+    seat: number;
+    out: number;
+    across: number;
     aboard: boolean;
   } | null;
   /** How far the seated skier's body origin stands over the skid's top, m

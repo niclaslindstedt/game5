@@ -36,6 +36,17 @@
 //     for half a second is burnt through bare skin and through all but good
 //     clothing, and breathing it in burns the airway. Out of the ball the
 //     flux falls as a sphere's view of him, (r / d)².
+//   - THE ANGLE IT COMES DOWN AT decides which of those it is. The seat's
+//     stroke and the spine's load are the VERTICAL ones, along the
+//     airframe's own up; a helicopter that comes down rolled or nose-low
+//     (a dynamic rollover off a skid caught on landing is the commonest
+//     way a light one goes over) hands the people in it the stop ACROSS
+//     the body instead, and the injuries of a side impact follow it: the
+//     ribs and the shoulder on the struck side, the organ under them (the
+//     liver on the right, the spleen on the left), the pelvis squeezed
+//     side to side and the head against the structure — and little up the
+//     spine. Rolled onto the occupant's own side, the airframe comes down
+//     ON him.
 // A body on the RIGHT SKID — outside the cabin, on a tube, unbelted — has
 // none of the cabin's protection: no stroking seat, no airframe round him,
 // nothing between him and the fire.
@@ -49,6 +60,17 @@ export const WRECK = {
    * the snow under the skid (his skis rest on it on the ground, his legs
    * folded): the legs are driven up into him. */
   legs: 0.6,
+  /** THE AIRFRAME'S SIDE, m: the crush of the cabin's door and frame, or
+   * of the skid's cross tube, a body is stopped against. */
+  side: 0.15,
+  /** ROLLED ONTO HIS SIDE: he is pitched out face first onto the snow and
+   * the airframe's side comes down on his back — its crush and the snow's
+   * give the stop, these the shares of it each part takes (the trunk
+   * caught between, the head and the limbs less). */
+  pinned: { back: 1, chest: 0.9, abdomen: 0.8, pelvis: 0.7, shoulder: 0.7, head: 0.5, thigh: 0.4 },
+  /** ROLLED AWAY FROM HIM: his skid goes up and over and he is thrown back
+   * against the cabin's side behind him. */
+  thrown: { back: 1, pelvis: 0.6, shoulder: 0.7, head: 0.5 },
   /** THE FIREBALL off the fuel aboard: a light turbine helicopter carries
    * some 450 litres of kerosene, 360 kg (`fuel`). Filmed fuel impacts burn
    * a tenth to a quarter of it in the fireball, held at `share` here; the

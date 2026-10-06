@@ -594,26 +594,87 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   wreckFire(state, events);
 }
 
-/** THE CRASH UP THE SEAT, on the step a helicopter he sat on went down: its
- * fall stopped over the skid gear's crush and the snow's give is the load
- * up his spine, the pelvis's blow on the tube, the neck's whip, and — his
- * skis on the snow under the skid — his feet and shins driven up. */
+/** THE CRASH ON THE SKID, on the step a helicopter he sat on went down:
+ * the snow's stop of its fall, as the AIRFRAME met it (`HeliState.wreck`).
+ * Up through its belly — level, or near it — the skid gear's crush and the
+ * snow's give are the load up his spine, the pelvis's blow on the tube,
+ * the neck's whip and his feet and shins driven up; rolled toward his side,
+ * the airframe comes down on him; rolled away, he is thrown back against
+ * its side; nose or tail first, he is thrown along the skid into its cross
+ * tube flank first. A crash on its side hands the spine nothing. */
 function wreckSeat(state: GameState, events: GameEvent[]): void {
   const w = state.heli?.wreck;
   if (!w?.aboard || !events.some((e) => e.kind === "heli" && e.phase === "crash")) return;
-  const give = WRECK.stroke + snowGive(state, w.x, w.z);
-  const g = blowOf(w.sink, give);
-  charge("back", "load", g);
-  strike("pelvis", blow("pelvis", w.sink, give, false));
-  strike("neck", g * I.share.neck);
-  for (const s of [-1, 1]) {
-    strike(sided("foot", s), blow(sided("foot", s), w.sink, give, false, WRECK.legs));
-    strike(
-      sided("shin", s),
-      blow(sided("shin", s), w.sink, give, false, WRECK.legs * I.share.footShin),
-    );
+  const snow = snowGive(state, w.x, w.z);
+  let top = 0;
+  let topPart: BodyPart = "back";
+  const hit = (part: BodyPart, g: number, face: Facing | null): void => {
+    strike(part, g, face);
+    if (g > top && base(part)) {
+      top = g;
+      topPart = part;
+    }
+  };
+  if (w.seat > 0) {
+    const give = WRECK.stroke + snow;
+    const g = blowOf(w.seat, give);
+    charge("back", "load", g);
+    if (g > top) top = g;
+    hit("pelvis", blow("pelvis", w.seat, give, false), null);
+    hit("neck", g * I.share.neck, null);
+    for (const s of [-1, 1]) {
+      const legs = WRECK.legs;
+      strike(sided("foot", s), blow(sided("foot", s), w.seat, give, false, legs));
+      strike(
+        sided("shin", s),
+        blow(sided("shin", s), w.seat, give, false, legs * I.share.footShin),
+      );
+    }
   }
-  offer(g, "back", "heli");
+  if (w.out > 0) {
+    // Pitched out face first, the airframe's side on his back.
+    const P = WRECK.pinned;
+    const give = WRECK.side + snow;
+    hit("back", blow("back", w.out, give, false, P.back), "back");
+    hit("chest", blow("chest", w.out, give, false, P.chest), "front");
+    hit("abdomen", blow("abdomen", w.out, give, false, P.abdomen), "back");
+    hit("pelvis", blow("pelvis", w.out, give, false, P.pelvis), "back");
+    hit("head", blow("head", w.out, snow, false, P.head), "front");
+    for (const s of [-1, 1]) {
+      hit(sided("shoulder", s), blow(sided("shoulder", s), w.out, give, false, P.shoulder), "back");
+      hit(sided("thigh", s), blow(sided("thigh", s), w.out, give, false, P.thigh), "back");
+    }
+  } else if (w.out < 0) {
+    const T = WRECK.thrown;
+    const v = -w.out;
+    hit("back", blow("back", v, WRECK.side, false, T.back), "back");
+    hit("pelvis", blow("pelvis", v, WRECK.side, false, T.pelvis), "back");
+    hit("head", blow("head", v, WRECK.side, true, T.head), "back");
+    for (const s of [-1, 1])
+      hit(
+        sided("shoulder", s),
+        blow(sided("shoulder", s), v, WRECK.side, false, T.shoulder),
+        "back",
+      );
+  }
+  if (w.across !== 0) {
+    // Along the skid into its cross tube, the flank that leads first — a
+    // trunk met beside him (`I.side`).
+    const S = I.side;
+    const side = Math.sign(w.across);
+    const v = Math.abs(w.across);
+    const face: Facing = side < 0 ? "left" : "right";
+    const at = (part: BodyPart, share: number): void =>
+      hit(part, blow(part, v, WRECK.side, true, share), face);
+    at(sided("shoulder", side), S.shoulder);
+    at(sided("arm", side), S.arm);
+    at("chest", S.chest);
+    at("abdomen", S.abdomen);
+    at("pelvis", S.pelvis);
+    at(sided("thigh", side), S.thigh);
+    at("head", S.head);
+  }
+  offer(top, topPart, "heli");
 }
 
 /** THE WRECK'S FIREBALL on him, every step it burns: its heat where he is

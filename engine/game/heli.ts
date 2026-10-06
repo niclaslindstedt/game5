@@ -43,6 +43,7 @@ import {
   fromEuler,
   multiply,
   rotate,
+  unrotate,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { treesNear } from "./collision.ts";
 import { standSkier } from "./course.ts";
@@ -430,7 +431,22 @@ function crash(run: GameState, h: HeliState, events: GameEvent[], speed: number)
   const fall = Math.max(0, h.y - ground);
   const down = Math.max(0, -h.vy);
   const sink = Math.sqrt(down * down + 2 * TUNING.g * fall);
-  h.wreck = { x: h.x, y: h.y, z: h.z, speed, sink, aboard: h.rider };
+  // That stop in the airframe's own frame: level, all of it up the skids;
+  // rolled onto a side, across them; nose or tail first, along them.
+  const stop = unrotate(heliQuat(h), { x: 0, y: -sink, z: 0 });
+  h.wreck = {
+    x: h.x,
+    y: h.y,
+    z: h.z,
+    speed,
+    sink,
+    seat: Math.max(0, -stop.y),
+    out: stop.x * OUT.x,
+    // Facing out over his skid, his right is up × out: the nose or the
+    // tail, by which skid the seat is on.
+    across: -stop.z * OUT.x,
+    aboard: h.rider,
+  };
   say(run, events, "crash", speed);
   if (h.rider) {
     // The snow stops the machine's fall, and his with it: he leaves with

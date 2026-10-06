@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WRECK ON THE BODY (`defs/heli-wreck.ts`, `body.ts`): a helicopter
-// crashed with the skier on its skid hands his spine the snow's stop of
-// its fall at once, and its fireball's heat burns him — summed while it
+// crashed with the skier on its skid hands him the snow's stop of its fall
+// at once — up his spine when it comes down level, across his body when it
+// comes down rolled or nose first, and its fireball's heat burns him — summed while it
 // burns, judged once as it goes out, and less the further off he lies.
 
 import { describe, expect, it } from "vitest";
 import {
+  INJURIES,
   NEUTRAL_INPUT,
   WRECK,
   createGame,
@@ -50,6 +52,26 @@ function crashed(climb: number, down: number): { s: GameState; crash: GameEvent[
   return { s, crash: [...s.events] };
 }
 
+/** Climbed four seconds, then let down HELD at a roll and a pitch, rad,
+ * until it crashes: the wreck, and every injury of the crash's step. */
+function crashedAt(roll: number, pitch: number) {
+  const s = createGame({ level, mode: "free", heli: true, crowd: 0, quiet: true });
+  for (let i = 0; i < 4 * 120; i++) step(s, hands(0.95));
+  for (let i = 0; i < 60 * 120 && s.heli!.mode !== "wreck"; i++) {
+    const h = s.heli!;
+    h.roll = roll;
+    h.pitch = pitch;
+    h.rollRate = h.pitchRate = 0;
+    step(s, hands(0.1));
+  }
+  expect(s.heli!.mode).toBe("wreck");
+  const hurt = s.events.flatMap((e) => (e.kind === "injury" ? [e] : []));
+  return { w: s.heli!.wreck!, hurt };
+}
+
+const spineLoad = (hurt: { injury: InjuryKind }[]) =>
+  hurt.filter((e) => INJURIES[e.injury].mech === "load" && INJURIES[e.injury].part === "back");
+
 describe("the fireball's heat", () => {
   const full = fireballOf(WRECK.fire.fuel * WRECK.fire.share);
 
@@ -87,6 +109,43 @@ describe("a helicopter crashed with the skier on its skid", () => {
       Math.max(...c.map((e) => (e.kind === "injury" && e.part === "back" ? e.ais : 0)));
     expect(worst(soft.crash)).toBeGreaterThanOrEqual(2);
     expect(worst(hard.crash)).toBeGreaterThanOrEqual(worst(soft.crash));
+  });
+
+  it("hands the spine only the stop along the airframe's up, whatever its angle", () => {
+    const level = crashedAt(0, 0);
+    expect(level.w.seat).toBeCloseTo(level.w.sink, 1);
+    expect(spineLoad(level.hurt).length).toBe(1);
+    // Rolled onto either side, the stop is across him, not up his spine.
+    for (const roll of [-1.4, 1.4]) {
+      const { w, hurt } = crashedAt(roll, 0);
+      expect(w.seat).toBeLessThan(w.sink * 0.2);
+      expect(Math.abs(w.out)).toBeGreaterThan(w.sink * 0.9);
+      expect(spineLoad(hurt)).toHaveLength(0);
+      expect(hurt.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("comes down on him rolled his way, and throws him off it rolled away", () => {
+    const [a, b] = [crashedAt(-1.4, 0), crashedAt(1.4, 0)];
+    const onHim = a.w.out > 0 ? a : b;
+    const away = a.w.out > 0 ? b : a;
+    expect(away.w.out).toBeLessThan(0);
+    // Pinned under the airframe on the snow is the worse of the two.
+    const worst = (h: { ais: number }[]) => Math.max(...h.map((e) => e.ais));
+    expect(worst(onHim.hurt)).toBeGreaterThanOrEqual(worst(away.hurt));
+  });
+
+  it("throws him along the skid flank first, nose or tail down", () => {
+    const nose = crashedAt(0, -1.2);
+    const tail = crashedAt(0, 1.2);
+    expect(Math.sign(nose.w.across)).toBe(-Math.sign(tail.w.across));
+    for (const { w, hurt } of [nose, tail]) {
+      expect(spineLoad(hurt)).toHaveLength(0);
+      // Only the flank that leads is struck.
+      const far = w.across > 0 ? "L" : "R";
+      const sided = hurt.filter((e) => /^(shoulder|arm|thigh)/.test(e.part));
+      for (const e of sided) expect(e.part.endsWith(far)).toBe(false);
+    }
   });
 
   it("burns him once, as the fireball goes out — never before", () => {

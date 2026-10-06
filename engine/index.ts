@@ -565,6 +565,8 @@ export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
+export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,

@@ -9,6 +9,7 @@
 // him. Kept per map, off the map alone, drawing from no stream.
 
 import type { Level } from "../mapgen/types.ts";
+import { cabinWalls } from "./cabins.ts";
 import { liftPlans } from "./lift-line.ts";
 import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
@@ -37,13 +38,14 @@ const solids = new WeakMap<Level, Upright[]>();
 
 /** EVERYTHING SOLID standing in `level`'s snow: its trunks, in
  * `level.trees`' order — so a trunk's index is its index there — then its
- * posts. What a skier, his body thrown, his skis let go and the
+ * posts, then its cabins' walls (`cabins.ts`). What a skier, his body thrown, his skis let go and the
  * snowmobile are pushed out of. */
 export function solidsOf(level: Level): readonly Upright[] {
   let list = solids.get(level);
   if (list) return list;
   const posts = postsOf(level);
-  list = posts.length === 0 ? level.trees : [...level.trees, ...posts];
+  const cabins = cabinWalls(level);
+  list = posts.length + cabins.length === 0 ? level.trees : [...level.trees, ...posts, ...cabins];
   solids.set(level, list);
   return list;
 }

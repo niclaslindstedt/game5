@@ -23,7 +23,8 @@ import type { TrackHit } from "../mapgen/types.ts";
  * hard he skids over it; how far he swings off the fall line each turn,
  * rad; how far ahead the line is read, m; the speed he poles himself up
  * to; how far ahead of a crest he folds, m; when in the air his taps
- * come and how far apart, s. */
+ * come and how far apart, s; and how far past an air bump's lip he starts
+ * to scrub the flight's speed off on its landing, m. */
 export const MOGUL_STEER = {
   pace: 9,
   skid: 0.6,
@@ -33,6 +34,7 @@ export const MOGUL_STEER = {
   fold: 0.6,
   tapFrom: 0.15,
   tapEvery: 0.22,
+  settle: 4,
 } as const;
 
 /** AN AIR'S TRICK: half turns of spin (`taps`, the edge), whole flips
@@ -87,7 +89,13 @@ export function mogulsInput(state: GameState, on: TrackHit): SkierInput | null {
   const lock = Math.max(0.05, Math.min(edgeMostOf(spec, T), edgeLockAt(spec, c.speed, T)));
   const edge = Math.sign(want) * Math.atan(Math.abs(want) * spec.sidecut);
   // THE PACE: a skid set against the bumps over it.
-  const brake = onField && !nearAir ? clamp((c.speed - K.pace) * K.skid, 0, 1) : 0;
+  // ...and on an air bump's landing, once he is down on it, the speed the
+  // flight gave him scrubbed back before the moguls start again: met at
+  // 13 m/s, past what the legs fold to, they throw him.
+  const landing = course.airs.some(
+    (a) => at.along > a.lip + K.settle && at.along < a.landed + f.ease,
+  );
+  const brake = (onField && !nearAir) || landing ? clamp((c.speed - K.pace) * K.skid, 0, 1) : 0;
   // THE LEGS: folded up a mogul's face (the snow ahead rising toward the
   // crest), extended down its back.
   const ahead = mogulsAt(f, at.along + K.fold, at.across) - mogulsAt(f, at.along, at.across);

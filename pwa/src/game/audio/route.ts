@@ -457,6 +457,16 @@ export function soundForEvent(
         : null;
     }
 
+    // THE AFTERSKI (`afterski-bank.ts`): always the player's own, heard
+    // where he is — the lodge's door in and out, a beer; and a buzzed
+    // skier's fall worked off on foot: up, a ski picked up, back in.
+    case "afterski":
+      return { id: `afterski_${event.phase}` };
+    case "fetch":
+      return {
+        id: event.phase === "up" ? "fetch_up" : event.phase === "ski" ? "fetch_ski" : "fetch_in",
+      };
+
     default:
       return null;
   }

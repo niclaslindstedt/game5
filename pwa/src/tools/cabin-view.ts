@@ -11,7 +11,10 @@
 //     over its floor;
 //   * cabins-air — the busiest corner of the ski area (the group with most
 //     groups round it), from a drone 120–200 m up out over the valley,
-//     looking down at it.
+//     looking down at it;
+//   * lodge, lodge-near, lodge-2 — an afterski lodge from the snow before
+//     its terrace, close off one end of its racks, and the mountain's (the
+//     afterski lab's, `make afterski`).
 
 import { cabinsOf, trackPointAt, type Cabin, type Level } from "@engine";
 
@@ -82,7 +85,31 @@ function aerial(level: Level, groups: Cabin[]): { pose: LensPose; note: string }
   };
 }
 
+/** THE AFTERSKI LODGES (`lodge`, `lodge-near`, `lodge-2`): the valley's
+ * (or the mountain's, `lodge-2`) from a skier's eye on the snow out before
+ * its terrace, square on — and close, from off one end of its racks. */
+function lodgeView(level: Level, name: string): { pose: LensPose; note: string } | null {
+  const lodges = cabinsOf(level).filter((c) => c.kind === "afterski");
+  const c = lodges[name === "lodge-2" ? Math.min(1, lodges.length - 1) : 0];
+  if (!c) return null;
+  const near = name === "lodge-near";
+  const a = c.heading + (near ? 0.6 : 0.12);
+  const far = near ? 19 : 34;
+  const eye = { x: c.x + Math.sin(a) * far, z: c.z + Math.cos(a) * far };
+  const high = Math.max(1.7, c.y + (near ? 1.2 : 0.4) - level.groundAt(eye.x, eye.z));
+  const at = {
+    ...c,
+    x: c.x + Math.sin(c.heading) * (near ? 9 : 4),
+    z: c.z + Math.cos(c.heading) * (near ? 9 : 4),
+  };
+  return {
+    pose: pose(eye, high, at, near ? 1.2 : 2.6, level, near ? 55 : 50),
+    note: `afterski ${c.id}, ${lodges.length} on the map, ${Math.round(c.y - (level.mountain?.base.y ?? 0))} m up`,
+  };
+}
+
 export function cabinView(level: Level, name: string): { pose: LensPose; note: string } | null {
+  if (name.startsWith("lodge")) return lodgeView(level, name);
   const groups = groupsOf(level);
   if (groups.length === 0) return null;
   const pick = name === "cabin-2" ? 1 : name === "cabin-3" ? 2 : 0;

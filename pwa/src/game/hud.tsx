@@ -69,6 +69,7 @@ import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
+import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
 
@@ -148,6 +149,7 @@ export function Hud({
   // A piste machine's over both: driven, or stood beside it.
   const groomerFirst =
     snap.groomer !== null && (snap.groomer.kind === "driven" || snap.groomer.near);
+  const indoors = snap.afterski?.kind === "inside";
   const sledFirst =
     !groomerFirst && snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
@@ -238,7 +240,8 @@ export function Hud({
               !snap.jam &&
               !snap.slopestyle &&
               !snap.halfpipe &&
-              !snap.moguls && <TricksChips tile={snap.tricks} />}
+              !snap.moguls &&
+              !snap.dualMoguls && <TricksChips tile={snap.tricks} />}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
             {snap.slopestyle && (
               <div class="hud-chip hud-run">
@@ -250,6 +253,25 @@ export function Hud({
                     snap.slopestyle.sections,
                     snap.slopestyle.kind,
                   )}
+                </span>
+              </div>
+            )}
+            {/* A DUAL MOGULS RUN: its round, the lanes, the start's call. */}
+            {snap.dualMoguls && (
+              <div class="hud-chip hud-run">
+                <span>
+                  {snap.dualMoguls.call
+                    ? STRINGS.dualCall(snap.dualMoguls.call)
+                    : STRINGS.dualRound(snap.dualMoguls.round)}
+                </span>
+                <span class="hud-chip-sub">
+                  {snap.dualMoguls.lane && snap.dualMoguls.rival
+                    ? STRINGS.dualLanes(
+                        snap.dualMoguls.lane,
+                        snap.dualMoguls.rival.id,
+                        snap.dualMoguls.rival.seed,
+                      )
+                    : STRINGS.dualAlone}
                 </span>
               </div>
             )}
@@ -426,20 +448,24 @@ export function Hud({
         </div>
       )}
 
-      <div class="hud-speed">
-        <div class="hud-revs-row">
-          <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
-          <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
-            {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
-          </span>
+      {/* Indoors (the afterski's room) there is nothing to ski: no speed,
+          edge or wind, and no body panel. */}
+      {!indoors && (
+        <div class="hud-speed">
+          <div class="hud-revs-row">
+            <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
+            <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
+              {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
+            </span>
+          </div>
+          <div class="hud-cluster">
+            <span class="hud-speed-num">{Math.round(snap.speedKmh)}</span>
+            <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
+            <WindMeter wind={snap.wind} />
+            {snap.damage && <DamageGauge damage={snap.damage} />}
+          </div>
         </div>
-        <div class="hud-cluster">
-          <span class="hud-speed-num">{Math.round(snap.speedKmh)}</span>
-          <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
-          <WindMeter wind={snap.wind} />
-          {snap.damage && <DamageGauge damage={snap.damage} />}
-        </div>
-      </div>
+      )}
 
       {/* BOGGED: the skier sunk to the knees, where the missed arrow stands
           (the two are never up together — a bogged skier is going nowhere
@@ -544,6 +570,18 @@ export function Hud({
           />
         )}
 
+      {/* THE AFTERSKI (`hud-afterski.tsx`): the way to a lodge and in, the
+          room, the skis to fetch — and the BUZZ meter while he has one. */}
+      {snap.afterski && !sledFirst && !groomerFirst && snap.airTime === 0 && (
+        <AfterskiReadout
+          afterski={snap.afterski}
+          touch={touch}
+          machineKey={machineKey}
+          onPress={input.requestMachine}
+        />
+      )}
+      {snap.buzz > 0.005 && <BuzzMeter buzz={snap.buzz} />}
+
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
           on him — in the air clock's place, which a flight never shows. */}
       {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
@@ -552,6 +590,7 @@ export function Hud({
       {snap.groomer &&
         (groomerFirst || (!snap.sled && !snap.heli)) &&
         !snap.para &&
+        snap.afterski?.kind !== "inside" &&
         snap.airTime === 0 && (
           <GroomerReadout
             groomer={snap.groomer}
@@ -563,7 +602,7 @@ export function Hud({
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}
-      <BodyPanel tile={snap.body} />
+      {!indoors && <BodyPanel tile={snap.body} />}
       {snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}

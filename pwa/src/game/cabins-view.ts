@@ -23,7 +23,8 @@ import { CABINS, cabinsOf, type Cabin, type CabinKind, type Level } from "@engin
 
 import { CABIN_PAINT } from "./cabin-parts.ts";
 
-import { buildCabin, type CabinLod } from "./cabin-shapes.ts";
+import { buildCabin, porchOf, type CabinLod } from "./cabin-shapes.ts";
+import { lodgeYardGeometry } from "./lodge-yard.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { LUX_TO_LAMP } from "./piste-lights.ts";
 
@@ -62,8 +63,13 @@ const DRIFT = { reach: 0.9, bank: 0.3, belowFloor: 0.08, front: 0.52, step: 0.7 
  * porch, its deck: its half-width, and its front and back. */
 function plinthOutline(kind: CabinKind): { half: number; front: number; back: number } {
   const d = CABINS[kind];
-  const porch = kind === "hut" ? d.reach.front - 0.1 : kind === "cabin" ? d.reach.front - 0.05 : 0;
-  return { half: d.width / 2 + 0.08, front: d.depth / 2 + porch + 0.08, back: -d.depth / 2 - 0.08 };
+  const porch = porchOf(kind);
+  const wide = kind === "afterski" ? 0.6 : 0;
+  return {
+    half: d.width / 2 + wide + 0.08,
+    front: d.depth / 2 + porch + 0.08,
+    back: -d.depth / 2 - 0.08,
+  };
 }
 
 /** THE DRIFTS of every building of `level`, as one geometry in the world
@@ -191,6 +197,16 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   const drift = new THREE.Mesh(drifts, material);
   drift.receiveShadow = true;
   group.add(drift);
+  // The lodges' steps and ski racks, on the snow (`lodge-yard.ts`).
+  const lodges = cabins.filter((c) => c.kind === "afterski");
+  if (lodges.length) {
+    const yards = lodgeYardGeometry(level, lodges);
+    geos.push(yards);
+    const yard = new THREE.Mesh(yards, material);
+    yard.castShadow = true;
+    yard.receiveShadow = true;
+    group.add(yard);
+  }
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);

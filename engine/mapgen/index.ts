@@ -143,6 +143,7 @@ export {
   type JumpProfile,
 } from "./big-air.ts";
 export {
+  DUAL_MOGULS_RULE,
   HALFPIPE_RULE,
   MOGULS_RULE,
   RAIL_JAM_RULE,
@@ -174,6 +175,7 @@ export {
   type MogulsProfile,
   type MogulsRule,
 } from "./moguls.ts";
+export { laneOf, setDualMoguls } from "./dual-moguls.ts";
 export {
   fieldCoords,
   fieldHeight,

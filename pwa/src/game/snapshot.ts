@@ -13,6 +13,7 @@
 // an interval start leaves empty. A number that decided an outcome would be a rule in the
 // shell (§23.2), and there are none.
 
+import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -60,6 +61,7 @@ import { jamOf, type JamHud } from "./knuckle-huck-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
+import { dualMogulsOf, type DualHud } from "./dual-moguls-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -236,6 +238,10 @@ export type HudSnapshot = {
    * so far, and once scored the sheet, the board and what comes next;
    * null on any other run. */
   moguls: MogulsHud | null;
+  /** A DUAL MOGULS run (`dual-moguls-run.ts`) — its round, its lanes and
+   * the start's call, and once decided the score or the votes and what
+   * comes next; null on any other run. */
+  dualMoguls: DualHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -277,6 +283,11 @@ export type HudSnapshot = {
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
+  /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
+   * skis to fetch after a buzzed fall — or null. */
+  afterski: HudAfterski | null;
+  /** THE BUZZ, 0 sober to 1 (`SkierState.buzz`): the meter shows over 0. */
+  buzz: number;
 };
 
 /** A PISTE MACHINE as the HUD reads it: driven — its speed, km/h (negative
@@ -635,6 +646,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     slopestyle: slopestyleOf(state),
     halfpipe: halfpipeOf(state),
     moguls: mogulsOf(state),
+    dualMoguls: dualMogulsOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
@@ -655,5 +667,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     sled: sledOf(state),
     groomer: groomerOf(state),
     para: paraOf(state),
+    afterski: afterskiOf(state),
+    buzz: c.buzz ?? 0,
   };
 }

@@ -161,8 +161,14 @@ const ROOF_GROW = 1.5;
 const ROOF_LEAST = 4.2;
 /** Which way each kind's ridge runs (`MinimapSource.cabins`): a cabin's
  * along its front, a hut's and a chalet's gable to the front, a shed's
- * lean-to none. */
-const RIDGE: Readonly<Record<CabinKind, number>> = { cabin: 1, hut: 2, chalet: 2, shed: 0 };
+ * lean-to none, the afterski lodge's along its long front. */
+const RIDGE: Readonly<Record<CabinKind, number>> = {
+  cabin: 1,
+  hut: 2,
+  chalet: 2,
+  shed: 0,
+  afterski: 1,
+};
 /** How strongly the woods' mass is laid over the snow at its thickest, and
  * how far round each tree it reaches, as a share of its crown — wide
  * enough that the trees of one clump run together into a wood, while a

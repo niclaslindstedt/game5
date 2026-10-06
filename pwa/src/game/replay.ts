@@ -99,6 +99,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     halfpipe: state.halfpipe,
     // A moguls run and the contest it was skied in (`moguls-run.ts`).
     moguls: state.moguls,
+    // A dual moguls run — the qualification or a dual — and its contest.
+    dualMoguls: state.dualMoguls,
     quiet: true,
   };
 }
@@ -114,7 +116,8 @@ export function keepsReplay(mode: GameMode): boolean {
       mode === "slopestyle" ||
       mode === "railJam" ||
       mode === "halfpipe" ||
-      mode === "moguls")
+      mode === "moguls" ||
+      mode === "dualMoguls")
   );
 }
 

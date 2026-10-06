@@ -76,6 +76,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import { fetchMove, movePose } from "./party-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 import { CHAIR_SEAT, seatedPose, type Seat } from "./skier-seat.ts";
@@ -549,10 +550,13 @@ export function createSkisModel(
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
+      // ON HIS FEET after a buzzed fall (`buzz.ts`'s fetch): up, walking to
+      // his skis, picking them up and back into the bindings.
+      const afoot = off ? null : (skier.fetch ?? null);
       // His legs' spring first: how far he stands on the snow is its own —
       // and thrown, they carry nothing, so he is stood back up on them at
       // rest.
-      if (off) {
+      if (off || afoot) {
         if (!rested) restSkierSpring(legs);
         rested = true;
       } else {
@@ -580,13 +584,13 @@ export function createSkisModel(
       // feet, so the drawn origin goes inside the turn by the legs' length
       // times the sine of the inclination.
       // Hanging off a skid the skis are neither pivoted nor edged.
-      const hung = perch !== null && !off;
-      const boarded = sled !== null && !off;
+      const hung = perch !== null && !off && !afoot;
+      const boarded = sled !== null && !off && !afoot;
       // IN A GONDOLA'S CABIN his skis ride in the rack on its door.
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride";
       rack(boarded || cabin);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
-      const ground = off ? 0 : groundOf(skier, legs);
+      const ground = off || afoot ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
       // turned about his feet toward it (`hillLean`), as an inclination
       // the skis stand under.
@@ -633,6 +637,19 @@ export function createSkisModel(
         figure.group.quaternion.copy(toRoot).multiply(thrown);
         figure.sprawl(p);
         bound.radius = BOUND + figure.group.position.length();
+      } else if (afoot) {
+        // Laid in the root's own frame (stood upright, facing the way he
+        // walks), the snow under his boots.
+        const snow = fall ? fall.ground.groundAt(at.x, at.z) - root.position.y : -spec.cogHeight;
+        const p = movePose(fetchMove(afoot, skier), snow, frame);
+        figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+        trunk.makeBasis(
+          axis.x.set(frame.x.x, frame.x.y, frame.x.z),
+          axis.y.set(frame.y.x, frame.y.y, frame.y.z),
+          axis.z.set(frame.z.x, frame.z.y, frame.z.z),
+        );
+        figure.group.quaternion.setFromRotationMatrix(trunk);
+        figure.sprawl(p);
       } else {
         if (bound.radius !== BOUND) {
           figure.group.position.set(0, 0, 0);
@@ -707,7 +724,8 @@ export function createSkisModel(
       }
       // THE SKIS LET GO (`lone-skis.ts`): each laid where its own body
       // lies, no longer a pair under him.
-      const loose = off && off.skis.length === 2 ? off.skis : null;
+      const loose =
+        off && off.skis.length === 2 ? off.skis : afoot?.skis.length === 2 ? afoot.skis : null;
       if (loose) {
         root.updateWorldMatrix(true, false);
         toLocal.copy(root.matrixWorld).invert();

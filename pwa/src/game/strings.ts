@@ -23,6 +23,7 @@ import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
 import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
+import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
@@ -32,6 +33,7 @@ import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
 import { RAIL_JAM_STRINGS } from "./strings-railjam.ts";
 import { HALFPIPE_STRINGS } from "./strings-halfpipe.ts";
 import { MOGULS_STRINGS } from "./strings-moguls.ts";
+import { DUAL_MOGULS_STRINGS } from "./strings-dualmoguls.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -100,6 +102,7 @@ export const STRINGS = {
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,
+  ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
   ...GROOMER_STRINGS,
   ...BIG_AIR_STRINGS,
@@ -108,6 +111,7 @@ export const STRINGS = {
   ...RAIL_JAM_STRINGS,
   ...HALFPIPE_STRINGS,
   ...MOGULS_STRINGS,
+  ...DUAL_MOGULS_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -721,7 +725,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "railJam" ? "RAIL JAM" : mode === "halfpipe" ? "HALFPIPE" : mode === "moguls" ? "MOGULS" : "RACE"}`,
+    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "knuckleHuck" ? "KNUCKLE HUCK" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "railJam" ? "RAIL JAM" : mode === "halfpipe" ? "HALFPIPE" : mode === "moguls" ? "MOGULS" : mode === "dualMoguls" ? "DUAL MOGULS" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

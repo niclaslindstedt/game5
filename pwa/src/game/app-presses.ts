@@ -18,7 +18,15 @@ export type Presses = {
    * built over one. */
   tricks: (
     map: TrickMap,
-    mode?: "tricks" | "bigAir" | "knuckleHuck" | "slopestyle" | "railJam" | "halfpipe" | "moguls",
+    mode?:
+      | "tricks"
+      | "bigAir"
+      | "knuckleHuck"
+      | "slopestyle"
+      | "railJam"
+      | "halfpipe"
+      | "moguls"
+      | "dualMoguls",
   ) => void;
   /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
   pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;

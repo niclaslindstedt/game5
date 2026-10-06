@@ -11,6 +11,7 @@ import {
   FREESTYLE,
   HALFPIPE,
   MOGULS,
+  DUAL_MOGULS,
   KNUCKLE_HUCK,
   RAIL_JAM,
   RAIL_JAM_RULE,
@@ -37,6 +38,9 @@ function formatOf(mode: GameMode): string {
   }
   if (mode === "moguls") {
     return STRINGS.freestyleMoguls(MOGULS.field + 1, MOGULS.final1, MOGULS.final2);
+  }
+  if (mode === "dualMoguls") {
+    return STRINGS.freestyleDual(DUAL_MOGULS.field + 1, DUAL_MOGULS.ladder);
   }
   if (mode === "halfpipe") {
     return STRINGS.freestyleHalfpipe(HALFPIPE.field + 1, HALFPIPE.finalists);

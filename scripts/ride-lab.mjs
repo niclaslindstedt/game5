@@ -63,6 +63,10 @@ const args = parseArgs(
       help: "how much the skier can take before he goes down: 0 a club skier, 1 a professional",
     },
     "no-poles": { kind: "flag", help: "ski without poles (the hard mode)" },
+    buzz: {
+      kind: "number",
+      help: "the afterski's beer in him, 0..1, on the free ride's terms (the scenario's own when left out; 0 skis a drunk scenario sober)",
+    },
     "no-png": { kind: "flag", help: "print the numbers, draw nothing" },
     card: {
       kind: "flag",
@@ -70,7 +74,7 @@ const args = parseArgs(
     },
     out: { kind: "string", default: "previews", help: "where the pictures go" },
   },
-  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--no-poles] [--no-png] [--out dir]",
+  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--buzz 0..1] [--no-poles] [--no-png] [--out dir]",
 );
 
 if (args.skis !== "all" && !E.isSkiId(args.skis)) {
@@ -116,6 +120,13 @@ function record(scenario, asked) {
   // A scenario that needs a moment placeRun cannot stand — the skis slid
   // across the way, an edge already stood up — sets it here.
   scenario.prepare?.(state, S);
+  // THE BUZZ (`buzz.ts`), on the free ride's terms: the lodges open and no
+  // course, so a fall is got up from rather than reset.
+  const buzz = args.buzz ?? scenario.buzz;
+  if (buzz !== undefined) {
+    state.rules = { ...state.rules, afterski: true, course: false };
+    state.skier.buzz = buzz;
+  }
   const seconds = args.seconds ?? scenario.seconds;
   const frames = [];
   const events = [];

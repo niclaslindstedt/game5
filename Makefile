@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -498,6 +498,16 @@ trees:
 # STAND is `make resort`'s plan and `make world ARGS=--views=cabin,cabins-air`.
 cabins:
 	npm run cabins -- $(ARGS)
+
+# THE AFTERSKI LAB: a free ride drawn through the game's own renderer at the
+# afterski's moments — the lodges and their racks from the snow, the party
+# inside (inside-<s>), the drunk picture through his own eyes at a ladder of
+# buzz (eyes-<b>, chase-<b>), and a buzzed fall worked off on foot as a strip
+# of frames (fetch-<s>) — each previews/afterski-<view>.png. Its own one-off
+# bundle from pwa/afterski-preview.html (never deployed); needs a Chromium
+# like `world`. SEED=n another map; ARGS="--views=inside-4,eyes-0.6".
+afterski:
+	npm run afterski -- --seed=$(or $(SEED),38) $(ARGS)
 
 # THE FOREST LAB: what it is like to be IN a map's woods, from the engine
 # and the tree table alone (pure Node, seconds): the trees and their kinds,

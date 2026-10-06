@@ -23,14 +23,18 @@
 //     the front with a balcony across it, a shallow roof heavy with snow;
 //   * SHED — a woodshed of boards under a lean-to roof, open to the front
 //     and stacked with firewood: the companion beside a cabin.
-// A kind is a name the placer and the drawing both read; a building a
-// skier can ski up to and enter (an afterski) is a kind added here.
+//   * AFTERSKI — the lodge a ski area keeps its afterski in: a long log hall
+//     of a storey and a half under a shallow snow-heavy roof, a TERRACE of
+//     boards out across its front with benches and tables on it, SKI RACKS
+//     along the terrace's foot and its door in the middle of the long side
+//     (`afterski.ts`: the skier skis up to the racks and goes in).
+// A kind is a name the placer and the drawing both read.
 //
 // THE FRAME is the building's own: x across its front (`width`), z from its
 // back to its front (`depth`, +z the way it faces), y up from its FLOOR —
 // the top of the plinth. Every number is metres.
 
-export type CabinKind = "hut" | "cabin" | "chalet" | "shed";
+export type CabinKind = "hut" | "cabin" | "chalet" | "shed" | "afterski";
 
 /** One kind's measure.
  *   * `width`, `depth`: the walls' footprint, outside to outside.
@@ -44,7 +48,10 @@ export type CabinKind = "hut" | "cabin" | "chalet" | "shed";
  *     at most `CABIN_LAYOUT.plinth.most` of stone showing on the downhill
  *     side and `plinth.cut` of the back dug into the slope.
  *   * `share`: how often the placer stands this kind as the first of a
- *     group (the shed is only ever a companion). */
+ *     group (the shed is only ever a companion, the afterski placed apart
+ *     by `cabins.ts`'s `placeLodges`).
+ *   * `plinth`: the most stone shown on the downhill side, m, where the
+ *     kind has its own (`CABIN_LAYOUT.plinth.most` otherwise). */
 export type CabinDef = {
   width: number;
   depth: number;
@@ -53,6 +60,7 @@ export type CabinDef = {
   reach: { side: number; back: number; front: number };
   terrace: number;
   share: number;
+  plinth?: number;
 };
 
 export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
@@ -91,6 +99,22 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     reach: { side: 0.4, back: 0.45, front: 0.6 },
     terrace: 1.1,
     share: 0,
+  },
+  // THE AFTERSKI LODGE: a hall 14 m along its front and 9 m deep, its eaves
+  // over a storey and a half of logs, a shallow roof; the terrace runs
+  // 7 m out over the snow before it (`reach.front`), so a tree, a run and a
+  // neighbour keep clear of the terrace as of the roof. Built only where a
+  // valley floor or a shelf is near level: no more than 2.6 m of fall
+  // under the walls, the stone under the downhill side up to 1.8 m.
+  afterski: {
+    width: 14,
+    depth: 9,
+    walls: 3.6,
+    ridge: 7.4,
+    reach: { side: 1.4, back: 1.2, front: 7 },
+    terrace: 2.6,
+    share: 0,
+    plinth: 1.8,
   },
 };
 

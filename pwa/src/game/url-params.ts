@@ -26,6 +26,9 @@
 //                   the next run, off the first skied by the bot).
 //   ?start=moguls   ...or into a MOGULS contest's qualification run
 //                   (`run=2` its next run, off the first skied by the bot).
+//   ?start=dual     ...or into a DUAL MOGULS contest's qualification run
+//                   (`run=2` its first dual, off the qualification skied
+//                   by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -64,7 +67,9 @@
 //                   over it; ?mode=railjam, a RAIL JAM, its set built over
 //                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
 //                   pipe cut into the seed's map; ?mode=moguls, a MOGULS
-//                   contest's first run, its course built over the map.
+//                   contest's first run, its course built over the map;
+//                   ?mode=dual, a DUAL MOGULS contest's qualification, its
+//                   course of two lanes built over the map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
 //                   RUN: the first
 //                   skied by the bot to the flag, then the second stood up
@@ -121,6 +126,10 @@
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
+//   ?afterski=1     a free ride begun INSIDE the valley's afterski lodge
+//                   (`afterski.ts`), the party under way.
+//   ?buzz=<0..1>    a free ride begun with that BUZZ (`buzz.ts`), as
+//                   though he had been to the afterski already.
 //   ?groomer=1      a free ride the PISTE MACHINES work whatever the hour
 //                   (`groomer.ts`) — or, with 0, one they never do; left
 //                   out, they are out after dark.
@@ -261,6 +270,10 @@ export type UrlParams = {
   /** A free ride the piste machines work whatever the hour (true) or never
    * (false); null when the link names neither — out after dark. */
   groomer: boolean | null;
+  /** A free ride begun inside the valley's afterski lodge. */
+  afterski: boolean;
+  /** A free ride's buzz to begin with, 0..1; null sober. */
+  buzz: number | null;
 };
 
 /** The sky a link names, if any. */
@@ -327,6 +340,7 @@ export function readParams(search: string): UrlParams {
       start === "railjam" ||
       start === "halfpipe" ||
       start === "moguls" ||
+      start === "dual" ||
       start === "free" ||
       start === "1" ||
       paused ||
@@ -377,7 +391,9 @@ export function readParams(search: string): UrlParams {
                                 ? "halfpipe"
                                 : start === "moguls" || q.get("mode") === "moguls"
                                   ? "moguls"
-                                  : "slalom",
+                                  : start === "dual" || q.get("mode") === "dual"
+                                    ? "dualMoguls"
+                                    : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
@@ -395,6 +411,8 @@ export function readParams(search: string): UrlParams {
     sled: q.get("sled") === "1",
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
+    afterski: q.get("afterski") === "1",
+    buzz: buzzOf(q.get("buzz")),
   };
 }
 
@@ -422,7 +440,15 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     grade: params.grade ?? ride.grade,
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
     groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
+    inLodge: params.afterski || ride.inLodge,
+    buzz: params.buzz ?? ride.buzz,
   };
+}
+
+/** A link's buzz: a number in 0..1, or null. */
+function buzzOf(raw: string | null): number | null {
+  const b = raw === null ? NaN : Number(raw);
+  return Number.isFinite(b) && b > 0 ? Math.min(1, b) : null;
 }
 
 /** A fresh seed for a race nobody pinned. Off `Math.random` on purpose:

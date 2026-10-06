@@ -30,6 +30,8 @@ import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { PressState } from "./butter-state.ts";
 import type { ContestState } from "./contest-state.ts";
+import type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
+export type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
@@ -283,6 +285,12 @@ export type SkierState = {
   /** THE SKIER THROWN OFF HIS SKIS, or null while he is on them
    * (`crash.ts`). */
   thrown: Thrown | null;
+  /** THE BUZZ, 0 sober..1 (`buzz.ts`): the afterski's beer in him, read by
+   * the steer, the crash and the reset; the late hands it rides on; and ON
+   * FOOT fetching his skis after a fall, or null. Absent, he is sober. */
+  buzz?: number;
+  wobble?: Wobble;
+  fetch?: Fetch | null;
   /** What the skis and the legs have taken (`damage.ts`). */
   damage: SkierDamage;
   /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): every part's injuries,
@@ -577,7 +585,7 @@ export type RunMark = { id: string; x: number; z: number };
 
 export type RunOut = {
   status: "dsq" | "dnf";
-  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";
+  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact" | "lane" | "stop";
   gate: number;
 };
 
@@ -634,6 +642,7 @@ export type GameEvent =
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
+  | AfterskiEvent
   | GroomerEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number }
@@ -952,6 +961,9 @@ export type GameState = ContestState & {
   sled?: SledState;
   /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
   para?: import("./para-state.ts").ParaState;
+  /** THE AFTERSKI (`afterski.ts`): on a run whose rules have lodges to go
+   * into (the free ride); absent everywhere else. */
+  afterski?: AfterskiState;
   /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to. */
   grimbear?: GrimbearState;
   /** THE PISTE MACHINES (`groomer.ts`) and their snow (`groomed.ts`). */

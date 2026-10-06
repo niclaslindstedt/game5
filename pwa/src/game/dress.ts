@@ -20,14 +20,14 @@ export const outfitKey = (o: Outfit, tone?: number): string =>
 
 /** THE SKIER IN AN OUTFIT, as the two meshes he is drawn in (shared: never
  * written to). */
-export function dressOutfit(o: Outfit, tone?: number): DressMesh {
-  const key = outfitKey(o, tone);
+export function dressOutfit(o: Outfit, tone?: number, bare = false): DressMesh {
+  const key = `${outfitKey(o, tone)}${bare ? ":bare" : ""}`;
   const known = cut.get(key);
   if (known) return known;
   const loom = createLoom();
   cutClothes(loom, o);
   cutGloves(loom, o);
-  cutHead(loom, o, tone);
+  cutHead(loom, o, tone, bare);
   const mesh = loom.mesh();
   cut.set(key, mesh);
   return mesh;

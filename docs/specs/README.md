@@ -39,7 +39,7 @@ one spec cuts across them all:
 | [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | built in part |
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | built in part |
 | [MOGULS.md](MOGULS.md) | Moguls | built in part |
-| [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | draft — researched |
+| [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | built in part |
 | [AERIALS.md](AERIALS.md) | Aerials | draft — researched |
 
 The drafts are written from what the game already has (the slalom's

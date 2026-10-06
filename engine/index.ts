@@ -134,6 +134,7 @@ export {
   mogulBoard,
   mogulOrder,
   mogulPhase,
+  mogulLevelOf,
   mogulPlace,
   mogulRivalRun,
   mogulsContestAfter,
@@ -144,6 +145,41 @@ export {
   type MogulsContest,
 } from "./game/moguls-contest.ts";
 export { TURN_READ, freshTurns, stepMogulTurns, type MogulTurns } from "./game/mogul-turns.ts";
+export {
+  DUAL_ROUNDS,
+  DUAL_LADDER,
+  advance as advanceDual,
+  dealDual,
+  dualDone,
+  dualPlace,
+  dualStandings,
+  dualsOf,
+  freshDual,
+  ladder,
+  nextDuel,
+  qualificationBoard,
+  qualified as dualQualified,
+  ranked as dualRanked,
+  resultsOf as dualResultsOf,
+  type DualContest,
+  type DualEntry,
+  type DualHeat,
+  type DualResult,
+  type DualRound,
+} from "./game/dual-bracket.ts";
+export { DUAL_PANEL, voteDual, type DualRead, type DualVotes } from "./game/dual-judge.ts";
+export {
+  DUEL,
+  createDuel,
+  dualContestAfter,
+  duelCountdown,
+  duelOn,
+  judgeDuel,
+  laneIn,
+  qualifyingRun,
+  stepDuel,
+  type Duel,
+} from "./game/duel.ts";
 export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
@@ -181,6 +217,9 @@ export {
   halfpipeRules,
   MOGULS,
   mogulsRules,
+  DUAL_MOGULS,
+  dualMogulsRules,
+  duelRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
@@ -402,6 +441,9 @@ export {
   type ImpactSource,
   type Thrown,
   type LoneSki,
+  type AfterskiState,
+  type Fetch,
+  type Wobble,
   type GameEvent,
   type GamePhase,
   type GameState,
@@ -527,6 +569,7 @@ export {
   crashOver,
   mayGetUp,
   noseDown,
+  throwRider,
   wipeoutCause,
   type CrashLimit,
 } from "./game/crash.ts";
@@ -807,3 +850,22 @@ export {
 // The bot skier and the headless simulator.
 export { botInput, RIDER_BOT, type BotProfile } from "./sim/bot.ts";
 export { simulateRun, SIM_SECONDS, type RunReport, type SimOptions } from "./sim/simulate.ts";
+export {
+  afterskiNear,
+  afterskiWithin,
+  doorOf,
+  freshAfterski,
+  insideOf,
+  lodgesOf,
+  stepAfterski,
+} from "./game/afterski.ts";
+export {
+  buzzLimit,
+  buzzOf,
+  drunkInput,
+  fetchesSkis,
+  getUp,
+  soberUp,
+  stepFetch,
+} from "./game/buzz.ts";
+export { AFTERSKI, BUZZ } from "./game/defs/afterski.ts";

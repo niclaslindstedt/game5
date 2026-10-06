@@ -72,7 +72,6 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
-  looseOf,
   onIce,
   pisteIce,
   platformOf,
@@ -831,7 +830,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   c.vx += (fx / m) * dt;
   c.vy += (fy / m) * dt;
   c.vz += (fz / m) * dt;
-  const hullHit = chassisContacts(c, level, depth, state.fresh, fold, give > 0, looseOf(state));
+  const hullHit = chassisContacts(c, level, depth, state, fold, give > 0);
   const hullTouch = hullHit > 0;
   // ...AND NEVER WHIPS HIM ROUND: on the snow while a landing is absorbed
   // the skis pivot to the slope and the way under him and the body follows

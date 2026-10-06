@@ -8,8 +8,9 @@
 //
 //   * A HARD LANDING ridden out: sunk deep onto the legs, the trunk thrown
 //     over the tips (or back onto the tails, the arms reaching forward to
-//     haul him off them), rocked to the side it came down crooked on, and
-//     both arms flung out for the balance — then stood back up.
+//     haul him off them), rocked to the side it came down crooked on and
+//     WOBBLING from side to side over the skis as it dies away, both arms
+//     flung out and working for the balance — then stood back up.
 //   * A TRUNK TAKEN ON THE SHOULDER: that shoulder knocked back and the
 //     trunk turned round with it, the body rocked away from the tree and
 //     back on its heels, the head ducked, the far arm flung out to catch
@@ -62,10 +63,12 @@ export const NO_JOLT: Readonly<Jolt> = {
 export const JOLT_KEYS = Object.keys(NO_JOLT) as (keyof Jolt)[];
 
 /** How long each save plays, s, and how long it takes to come on. */
-const LENGTH = { landing: 0.8, tree: 0.75, body: 0.85, edge: 0.9, stake: 0.9 };
+const LENGTH = { landing: 1, tree: 0.75, body: 0.85, edge: 0.9, stake: 0.9 };
 const RISE = 0.08;
-/** The edge's wobble: its period, s. */
+/** The edge's wobble: its period, s — and a hard landing's, slower: the
+ * whole body rocking over the skis rather than the trunk over the hips. */
 const WOBBLE = 0.36;
+const LAND_WOBBLE = 0.45;
 
 /** How much of a save is showing `t` s into it, 0..1: on over `RISE`, off
  * smoothly by `length`. */
@@ -89,11 +92,12 @@ export function joltOf(save: Save | null | undefined): Jolt {
   switch (save.kind) {
     case "landing": {
       const fore = Math.max(-1, Math.min(1, save.fore));
-      j.sink = 0.13 * k;
+      const w = Math.sin((2 * Math.PI * save.t) / LAND_WOBBLE);
+      j.sink = 0.2 * k;
       j.lurch = (0.15 + 0.35 * fore) * k;
-      j.sway = 0.3 * side * k;
+      j.sway = (0.3 * side + 0.22 * w) * k;
       j.duck = 0.3 * k;
-      fling(0.75, 0.75);
+      fling(0.75 + 0.25 * w, 0.75 - 0.25 * w);
       break;
     }
     case "tree":

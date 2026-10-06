@@ -94,13 +94,15 @@ export const CRASH = {
   },
   /** THE SAVE (`SkierState.save`): how near a thing came to throwing him
    * is a share of its threshold, and a save is kept from `saveFrom` of
-   * one. A landing is near from `landing.clean` g toward `legsFold`, and
+   * one. A landing is near from `saveLand` g toward `legsFold` (so a
+   * landing of about 6 g is kept, and rocks him), and
    * from `saveTip` rad tips-down or `saveRoll` rad rolled against the
    * slope; an edge from `saveEdge` of the edge and `saveSlip` of the
    * slide that catch it (an ordinary skidded turn is short of both); a
    * newer save takes the place of one older than `saveHold` s or nearer
    * than what is left of it. */
   saveFrom: 0.25,
+  saveLand: 2,
   saveTip: 0.3,
   saveRoll: 0.5,
   saveEdge: 0.9,

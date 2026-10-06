@@ -655,12 +655,19 @@ export const TUNING = {
      * authority, and not once he is `pitchGiveUp` rad off. */
     pitchLevel: 46,
     pitchLevelMax: 28,
+    /** ...and the pitch rate held, N·m·s per rad/s, under the same hand:
+     * a turn the lip or a bounce gave him is taken out over about half a
+     * second. */
+    pitchSteady: 80,
     pitchAim: 0.35,
     pitchGiveUp: 1.0,
     /** The yaw rate, rad/s, past which a flying skier is SPINNING and the
      * roll's and the pitch's levelling are let go (`flight.ts`) — a 360
      * turns at about 4; the edge's own little yaw never nears 1. */
     spinLevel: 2,
+    /** ...letting them go from this yaw rate, rad/s, so the turn a skid or
+     * a steer leaves him flying with is no spin. */
+    spinFrom: 1,
     /** ...and over the last this many seconds before the snow comes back
      * (`flight.ts`'s `landingAhead`), s, the skis are eased from half the
      * flight path onto the slope they will land on instead. */
@@ -691,9 +698,30 @@ export const TUNING = {
    * of powder takes a quarter of a metre, a metre of it most of the fall) —
    * so the load is 1 + EFH / stroke g. */
   landing: {
-    stroke: 0.45,
-    tuckStroke: 0.25,
+    stroke: 0.6,
+    tuckStroke: 0.1,
     give: 0.6,
+    /** THE LANDING ABSORBED (`absorb.ts`): from the air until `for` s
+     * after the touchdown the legs let go `soften` of their rate, bend
+     * `deeper` more of their travel before the stop and come back up with
+     * `1 + rebound` times their damping — a knee sinks under a landing and
+     * does not spring him back off the snow — and the trunk damps its pitch
+     * and roll rates at `steady` N·m·s per rad/s (on the reference pair,
+     * scaled by each one's inertia) against the slap of a ski meeting the
+     * snow end first; and on the snow his pitch and roll turn no faster
+     * than `rate` rad/s (the tips coming down to the slope under them
+     * `follow`) and his yaw no faster than `yaw` — the skis pivot to the
+     * slope and the way under him, the body follows. */
+    absorb: {
+      for: 0.5,
+      soften: 0.45,
+      deeper: 0.3,
+      rebound: 4,
+      steady: 400,
+      rate: 1.2,
+      follow: 5,
+      yaw: 1.5,
+    },
     /** THE LOAD A LANDING MAY CARRY: under `clean` g a landing is judged
      * only as the tips' dig is (`crash.noseAngle`), and past `buckle` g the
      * legs fold however true it was — a flat landing off a big air. */

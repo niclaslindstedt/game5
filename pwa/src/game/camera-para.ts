@@ -24,17 +24,31 @@ import {
 /** How far up his lines the booms are framed from, m. */
 export const LIFT = 2.6;
 
-const bolted = (rig: Rig): BoltedRig => {
+/** How far each bolted rung is tipped down under the wing, rad: hung over
+ * the mountain, the level look is only haze — the skis dangling over the
+ * snow far below are the shot, and the helmet's eyes look where he flies. */
+const DOWN = { tips: 0.7, helmet: 0.3 };
+
+const bolted = (rig: Rig, down: number): BoltedRig => {
   const b = rig as BoltedRig;
-  return { ...b, eye: { x: b.eye.x, y: b.eye.y - LIFT, z: b.eye.z } };
+  return { ...b, eye: { x: b.eye.x, y: b.eye.y - LIFT, z: b.eye.z }, down };
 };
 const boom = (rig: Rig, over: Partial<BoomRig>): BoomRig => ({ ...(rig as BoomRig), ...over });
 
 /** The ladder under the wing. */
 export const PARA_RIGS: Record<Rung, Rig> = {
-  tips: bolted(RIGS.tips),
-  helmet: bolted(RIGS.helmet),
-  chase: boom(RIGS.chase, { dist: 10.5, height: 1.4, fov: 64, fovMax: 80, clearance: 2 }),
+  tips: bolted(RIGS.tips, DOWN.tips),
+  helmet: bolted(RIGS.helmet, DOWN.helmet),
+  // The summit pad's close, level look (`SUMMIT_LOOK`) is a skier's: under
+  // a wing it would put the lens inside the canopy, so the chase leaves it.
+  chase: boom(RIGS.chase, {
+    dist: 10.5,
+    height: 1.4,
+    fov: 64,
+    fovMax: 80,
+    clearance: 2,
+    ride: 0,
+  }),
   far: boom(RIGS.far, { dist: 20, height: 3.5, fov: 56, fovMax: 70, clearance: 3 }),
   high: boom(RIGS.high, { dist: 24, height: 15, clearance: 4 }),
   orbit: { kind: "orbit", radius: 17, height: 3, spin: 0.12, fov: 56 },

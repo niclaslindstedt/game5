@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled para judder trees forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android
 
 build:
 	npm run build
@@ -385,6 +385,18 @@ heli:
 # ARGS="--sheet=powder,climb" a few sheets, "--views=roost" a few views.
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
+# — on the summit under the held wing, the launch, in the air, a turn and
+# the brakes, the landing and speed riding, the rig dropped and lying on the
+# snow, the gear close up, eight sides, every camera rung, after dark —
+# through the game's own renderer. One contact sheet a group,
+# previews/para-<group>.png, and every frame alone,
+# previews/para-<view>-<label>.png. Its own one-off bundle from
+# pwa/para-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--sheet=flight,gear" a few sheets, "--views=turntable" a few views.
+para:
+	npm run para -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

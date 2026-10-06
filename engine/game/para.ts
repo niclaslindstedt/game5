@@ -177,11 +177,18 @@ export function paraPress(state: GameState, input: SkierInput, events: GameEvent
 
 /** AFTER THE SKIER'S STEP: the rig flown on him, or its pieces falling and
  * lying where they came down. */
+/** How quickly a released motor's propeller runs down, s. */
+const SPIN_DOWN = 1.2;
+
 export function stepPara(state: GameState, input: SkierInput, events: GameEvent[]): void {
   const p = state.para;
   if (!p) return;
   p.t += dt;
   if (p.mode === "dropped") {
+    // The kill switch let go with the throttle: the propeller runs down.
+    p.rpm *= Math.exp(-dt / SPIN_DOWN);
+    if (p.rpm < 30) p.rpm = 0;
+    p.prop = (p.prop + (p.rpm / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
     if (p.canopy) fall(state, p.canopy, PARA.wing.mass, PARA.dropped.canopyDrag);
     if (p.motor) fall(state, p.motor, PARA.motorMass, PARA.dropped.motorDrag);
     return;

@@ -386,6 +386,17 @@ heli:
 sled:
 	npm run sled -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE SNOWMOBILE LANDING LAB: every staged ride of
+# tests/support/sled-landings.ts — rollers, whoops, hard turns, a sidehill,
+# kickers onto the flat and onto a landing, the nose dropped or thrown back
+# in the air, a lip banked hard, drops, a cliff, a bank and a wall — ridden
+# by the real engine, one row a ride: thrown or ridden out against what a
+# rider expects, the flight, the landing's speed into the snow, the roll
+# and pitch. Pure Node, seconds; exits non-zero on a row that is not as
+# expected. ARGS="--json=a.json" before, "--compare=a.json" after.
+sled-land:
+	npm run sled-land -- $(ARGS)
+
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and
 # the brakes, the landing and speed riding, the rig dropped and lying on the

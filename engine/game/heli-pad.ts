@@ -17,7 +17,7 @@ import { liftPlans } from "./lift-line.ts";
 import type { Level } from "../mapgen/types.ts";
 
 /** A pad: the skid datum's place on the snow and the heading the
- * helicopter is parked facing (up the mountain, its nose to the face). */
+ * helicopter is parked facing (its nose to the summit, `summitward`). */
 export type Helipad = { x: number; y: number; z: number; heading: number };
 
 /** The grid the floor is searched on, m, and how far out from the village
@@ -77,6 +77,16 @@ function clearAt(level: Level, x: number, z: number): boolean {
   return true;
 }
 
+/** THE HEADING FROM (x, z) TO THE SUMMIT, rad: the way the machine is parked
+ * and set down, so a skier who climbs on looks up at the mountain he is
+ * about to fly. A map with no mountain published (a synthetic one) is
+ * faced up its fall line: +z is down it, so the nose to −z. */
+export function summitward(level: Level, x: number, z: number): number {
+  const top = level.mountain?.summit;
+  if (!top || hypot(top.x - x, top.z - z) < 1) return Math.PI;
+  return Math.atan2(top.x - x, top.z - z);
+}
+
 function findPad(level: Level): Helipad {
   const resort = level.resort;
   const finish = level.track.points[level.track.points.length - 1];
@@ -101,6 +111,10 @@ function findPad(level: Level): Helipad {
   }
   // Nowhere level and clear: the village (or the finish) itself.
   const at = best ?? { x: centre.x, z: centre.z };
-  // Parked facing up the mountain: the fall line is +z, so the nose to −z.
-  return { x: at.x, y: level.groundAt(at.x, at.z), z: at.z, heading: Math.PI };
+  return {
+    x: at.x,
+    y: level.groundAt(at.x, at.z),
+    z: at.z,
+    heading: summitward(level, at.x, at.z),
+  };
 }

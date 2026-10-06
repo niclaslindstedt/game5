@@ -59,6 +59,21 @@ export function spanFor(speedKmh: number): number {
   return ZOOM.close + (ZOOM.far - ZOOM.close) * t;
 }
 
+/** HOW MUCH MAP THE WINDOW HOLDS ALOFT, m: on the helicopter's skid the
+ * plate is for getting one's bearings, not for the next bend, so it opens
+ * with the hub's height over the snow — `per` metres of window for every
+ * metre climbed past `from` (about the hover a landing is flown from), on
+ * top of the speedo's widest window, and never wider than the map. At
+ * 100 m over the snow that is a kilometre; at 300 m, two. */
+export const AIR_ZOOM = { from: 20, per: 6 };
+
+/** The window for a height over the snow, m — 0 below `AIR_ZOOM.from`, so
+ * the speedo's window rules on the pad and in a low hover. */
+export function airSpanFor(agl: number, mapSize: number): number {
+  if (agl <= AIR_ZOOM.from) return 0;
+  return Math.min(mapSize, ZOOM.far + (agl - AIR_ZOOM.from) * AIR_ZOOM.per);
+}
+
 /** The mark on the plate at a size a skier reads: a dot of this many view
  * units whatever the zoom, so it is carried into the world group divided by
  * the scale. */
@@ -158,8 +173,8 @@ export type HudMinimap = {
 let held: { level: Level; t: number; span: number; angle: number } | null = null;
 
 /** The window this snapshot shows, m — `spanFor`'s answer, chased. */
-function spanNow(level: Level, speedKmh: number, t: number): number {
-  const want = spanFor(speedKmh);
+function spanNow(level: Level, speedKmh: number, agl: number, t: number): number {
+  const want = Math.max(spanFor(speedKmh), airSpanFor(agl, level.size));
   if (held === null || held.level !== level || t < held.t) return want;
   const dt = Math.min(1, t - held.t);
   return held.span + (want - held.span) * (1 - Math.exp(-dt / ZOOM_LAG));
@@ -317,7 +332,10 @@ function chevronFor(state: GameState, pose: HudMinimap["pose"]): MinimapChevron 
 /** The HUD's minimap for this snapshot. */
 export function buildMinimap(state: GameState): HudMinimap {
   const { level, skier } = state;
-  const span = spanNow(level, skier.speed * 3.6, state.t);
+  // Aloft only while he rides it: the machine flown home without him is a
+  // mark on the plate, not the lens.
+  const agl = state.heli?.rider ? state.heli.agl : 0;
+  const span = spanNow(level, skier.speed * 3.6, agl, state.t);
   const angle = angleNow(level, skier.heading, state.t);
   held = { level, t: state.t, span, angle };
   const scale = VIEW / span;

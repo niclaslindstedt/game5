@@ -336,6 +336,8 @@ export function freeGameOptions(
     byLift: spot === null && !vehicle,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
+    // THE PISTE MACHINES, out working the runs if the ride is after dark.
+    groomer: "night",
   };
 }
 

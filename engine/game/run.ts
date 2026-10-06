@@ -41,6 +41,7 @@ import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
+import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -98,6 +99,9 @@ export function stepRun(
   // forgotten: a reset never sends him back to where he was before.
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
+  // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
+  // and while he drives one the step is its own.
+  if (stepGroomers(run, input, events)) return forgetRun(run);
   if (stepHeli(run, input, events)) return forgetRun(run);
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
@@ -174,8 +178,11 @@ export function stepRun(
     // THE EMPTY CHAIR behind him off a lift (`lift-ride.ts`), if he stood
     // in its way; else whatever else threw him.
     const swept = chairStrike(run);
-    const cause = swept ? null : wipeoutCause(run, events, speed0);
+    // ...or a piste machine he rode into, or whose blade met him.
+    const struck = swept ? null : groomerStrike(run, events);
+    const cause = swept || struck ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
+    else if (struck) throwRider(run, "groomer", struck, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
   }

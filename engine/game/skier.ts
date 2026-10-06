@@ -73,7 +73,7 @@ import {
   gripAt,
   onIce,
   platformOf,
-  packedUnder,
+  packedSnow,
   restSinkOf,
   settleShare,
   sinkTarget,
@@ -456,7 +456,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ax = c.x + fwd.x * p.bz + acrossX * p.bx + dx * -(p.by + drop);
     const ay = c.y + fwd.y * p.bz + acrossY * p.bx + dy * -(p.by + drop);
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
-    const packed = packedUnder(level.packedAt(ax, az), state.fresh);
+    const packed = packedSnow(state, ax, az);
     const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
     const target =
@@ -711,15 +711,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       const px = c.x + b.x;
       const pz = c.z + b.z;
       const under = level.groundAt(px, pz) - (c.y + b.y);
-      const packed = packedUnder(level.packedAt(px, pz), state.fresh);
+      const packed = packedSnow(state, px, pz);
       const f = bodyPlough(packed, under, 0.12, speed0, bottomless) / speed0;
       if (f > 0) push(px, c.y + b.y, pz, -f * vx0, -f * vy0, -f * vz0);
     }
   }
   c.skiCompression[0] = skiL;
   c.skiCompression[1] = skiR;
-  c.packed =
-    loadSum > 0 ? packedLoad / loadSum : packedUnder(level.packedAt(c.x, c.z), state.fresh);
+  c.packed = loadSum > 0 ? packedLoad / loadSum : packedSnow(state, c.x, c.z);
   c.sideSlip = touching > 0 ? slipWorst : 0;
   const grounded = touching > 0;
   // THE TURN'S BALANCE: the lean at which the snow's grip across the skis

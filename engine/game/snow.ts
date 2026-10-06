@@ -51,6 +51,8 @@
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
+import { groomedFresh } from "./groomed.ts";
+import type { GameState } from "./state.ts";
 
 const S = TUNING.snow;
 const G = TUNING.grip;
@@ -143,6 +145,20 @@ export function powderFloor(packed: number, scale = 1, depth = 1): number {
  * grip and the hiss (`SkierState.packed`) all feel the same layer. */
 export function packedUnder(packed: number, fresh: number): number {
   return fresh > 0 ? packed * Math.max(0, 1 - fresh / S.freshBury) : packed;
+}
+
+/** THE PACKED SHARE UNDER A PLAN POINT on a run, the new snow over it
+ * reckoned in: a cell the piste machines have groomed (`groomed.ts`) is
+ * packed through and carries only what has fallen since; anywhere else it
+ * is the map's own packed field under the whole fall (`packedUnder`). */
+export function packedSnow(
+  state: Pick<GameState, "level" | "fresh" | "groomed">,
+  x: number,
+  z: number,
+): number {
+  const at = state.groomed ? groomedFresh(state.groomed, x, z) : undefined;
+  if (at !== undefined) return packedUnder(1, Math.max(0, state.fresh - at));
+  return packedUnder(state.level.packedAt(x, z), state.fresh);
 }
 
 /** The run's snow dial with `fresh` m of new snow laid over the powder: a

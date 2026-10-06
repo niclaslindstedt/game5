@@ -96,6 +96,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         : e.phase === "halt"
           ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
           : null;
+    case "groomer":
+      // Into its cab and out of it; ridden into, it is the wipeout's word.
+      return e.phase === "board"
+        ? { text: STRINGS.newsGroomerBoard, tone: "good" }
+        : e.phase === "hop"
+          ? { text: STRINGS.newsGroomerHop, tone: "info" }
+          : null;
     case "bump": {
       // One of the crowd shouldered on a free ride: whether he stayed up.
       if (e.amateur === undefined) return null;

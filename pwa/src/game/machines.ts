@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE'S MACHINES IN THE RENDERER — the helicopter on its pad
-// (`heli-scene.ts`) and the snowmobile at the bottom (`sled-scene.ts`), held
+// (`heli-scene.ts`), the snowmobile at the bottom (`sled-scene.ts`) and the
+// piste machines working the runs after dark (`groomer-scene.ts`), held
 // together so the renderer holds them by one hand: built per map with the
 // rest of the world (only where a run's rules carry them), the player's
 // figure seated on the skid or stood on the boards, each drawn every frame
@@ -12,8 +13,12 @@ import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
 import type { Ladder } from "./camera.ts";
+import type { SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
+import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
+import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
+import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -49,6 +54,12 @@ export type Machines = {
    * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
    * this frame (so call it after `frame`); otherwise nothing, the pose left. */
   ladder(pose: RigPose, state: GameState): Ladder | undefined;
+  /** THE PISTE MACHINES' LAMPS lit at `lit` and seen from `eye`, ahead of
+   * `floods` — the list the lamp slots are dealt from (`dealLamps`). */
+  lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
+  /** THE PISTE MACHINES AS SOLIDS to the lens (`camera-clear.ts`), where
+   * they were drawn this frame. */
+  solids(): readonly SolidBox[];
   /** Both machines' models in the group — what the renderer waits on
    * before it compiles the run's programs, so the rotor's smear and the
    * blades' fade are linked behind the loading card, not as he boards. */
@@ -75,6 +86,12 @@ export function createMachines(
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
   if (heli) group.add(heli.group);
+  const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
+  if (groomers) group.add(groomers.group);
+  // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
+  let seated: SkisModel | null = null;
+  let current: GameState = state;
+  const floods: Flood[] = [];
   if (sled) {
     group.add(sled.group);
     // The rider's own pair on the rack, in its topsheet's colours.
@@ -90,6 +107,7 @@ export function createMachines(
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
+      seated = model;
       model.setPerch(heli ? heli.perch(s) : null);
       model.setSled(sled ? sled.stand(s) : null);
     },
@@ -97,18 +115,36 @@ export function createMachines(
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
+      current = s;
+      groomers?.frame(s, dt, stamps, fx.cloud);
+      // In the cab he is out of sight: the machine is his figure now.
+      if (seated && drivenGroomer(s)) seated.root.visible = false;
+    },
+    lamps(lit, eye, others) {
+      if (!groomers || !current.groomers) return others;
+      floods.length = 0;
+      groomers.lamps(current, lit, eye, floods);
+      floods.push(...others);
+      return floods;
     },
     lens(ladder, dt) {
       return heli?.lens(ladder, dt) ?? null;
     },
     ladder(pose, s) {
+      const g = drivenGroomer(s);
+      if (g) {
+        groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
+        return GROOMER_RIGS;
+      }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
       return SLED_RIGS;
     },
+    solids: () => groomers?.solids() ?? [],
     dispose() {
       heli?.dispose();
       sled?.dispose();
+      groomers?.dispose();
     },
   };
 }

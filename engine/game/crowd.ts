@@ -178,9 +178,16 @@ function lateralOf(p: TrackPoint, x: number, z: number): number {
 /** A run read at an arc: its line's point and heading, its width, its pitch
  * (the fall along it, a rise over a run, positive down) and how fast its
  * heading turns, rad/m. */
-type Along = { x: number; z: number; heading: number; width: number; pitch: number; bend: number };
+export type Along = {
+  x: number;
+  z: number;
+  heading: number;
+  width: number;
+  pitch: number;
+  bend: number;
+};
 
-function sampleRun(r: NetRun, s: number, out: Along): Along {
+export function sampleRun(r: NetRun, s: number, out: Along): Along {
   const pts = r.pts;
   const n = pts.length;
   const spacing = r.length / (n - 1);

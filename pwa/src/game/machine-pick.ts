@@ -7,7 +7,7 @@
 // each machine's body. The listener the app hangs on the page is
 // `machine-tap.ts`'s.
 
-import { type GameState, heliWithin, sledWithin } from "@engine";
+import { type GameState, groomerWithin, heliWithin, sledWithin } from "@engine";
 
 type Vec = { x: number; y: number; z: number };
 
@@ -23,6 +23,13 @@ export const PICK = {
   sled: [
     { z: 0.8, y: 0.6, r: 1.0 },
     { z: -0.8, y: 0.6, r: 1.0 },
+  ],
+  // A piste machine: its blade, its cab and its bay, its tiller.
+  groomer: [
+    { z: 3.4, y: 0.8, r: 2.4 },
+    { z: 0.6, y: 2.2, r: 2.0 },
+    { z: -1.6, y: 1.6, r: 2.0 },
+    { z: -3.9, y: 0.6, r: 2.4 },
   ],
   heli: [
     { z: 1.2, y: 1.6, r: 1.9 },
@@ -61,7 +68,9 @@ export function rayHitsBall(ray: PickRay, c: Vec, r: number): boolean {
 
 /** Which machine a tap's ray takes him onto, or null — only one he can get
  * on now, never one merely in the picture. */
-export function machineHit(state: GameState, ray: PickRay): "sled" | "heli" | null {
+export function machineHit(state: GameState, ray: PickRay): "sled" | "heli" | "groomer" | null {
+  const g = groomerWithin(state);
+  if (g && hitsBody(ray, g, g.heading, PICK.groomer)) return "groomer";
   const s = state.sled;
   if (s && sledWithin(state) && hitsBody(ray, s, s.heading, PICK.sled)) return "sled";
   const h = state.heli;

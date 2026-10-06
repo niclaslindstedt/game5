@@ -204,6 +204,22 @@ function fill(
   u.uLampBeam.value[i].set(beam[0], beam[1], beam[2], beam[3]);
 }
 
+/** A FLOOD dealt a slot: where it is and the way it points, and — for one
+ * that is not the arena's warm halogen (a piste machine's LED work lamps,
+ * its beacon, `groomer-scene.ts`) — its own colour, beam and power over
+ * the dark's. */
+export type Flood = {
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  colour?: readonly number[];
+  beam?: readonly number[];
+  power?: number;
+};
+
 /**
  * THE NIGHT'S LIGHTS at `level` (0 off … 1, `SkyLook.lamps`): every
  * skier's headlamp lit and seen from `eye`, and the slots dealt — the
@@ -217,7 +233,7 @@ export function dealLamps(
   u: HazeUniforms,
   level: number,
   skiers: readonly { model: { lamp: Headlamp } }[],
-  floods: readonly { x: number; y: number; z: number; dx: number; dy: number; dz: number }[],
+  floods: readonly Flood[],
   eye: THREE.Vector3,
 ): void {
   for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
@@ -229,7 +245,16 @@ export function dealLamps(
   if (skiers.length > 0) head(skiers[0].model.lamp);
   for (const f of floods) {
     if (n >= LAMP_SLOTS) return;
-    fill(u, n++, f, { x: f.dx, y: f.dy, z: f.dz }, level, FLOOD_COLOUR, FLOOD_BEAM);
+    const on = level * (f.power ?? 1);
+    fill(
+      u,
+      n++,
+      f,
+      { x: f.dx, y: f.dy, z: f.dz },
+      on,
+      f.colour ?? FLOOD_COLOUR,
+      f.beam ?? FLOOD_BEAM,
+    );
   }
   for (let i = 1; i < skiers.length && n < LAMP_SLOTS; i++) {
     const lamp = skiers[i].model.lamp;

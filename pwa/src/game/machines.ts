@@ -125,8 +125,9 @@ export function createMachines(
       para?.frame(s, alpha);
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
-      // In the cab he is out of sight: the machine is his figure now.
-      if (seated && drivenGroomer(s)) seated.root.visible = false;
+      // In the cab he is out of sight: the machine is his figure now — and
+      // back in sight the moment he is let down out of it.
+      if (seated && groomers) seated.root.visible = !drivenGroomer(s);
     },
     lamps(lit, eye, others) {
       if (!groomers || !current.groomers) return others;

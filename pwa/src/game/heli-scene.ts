@@ -198,7 +198,9 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         const w = h.wreck;
         const c = state.skier;
         const t = c.thrown;
-        const rider = t ? { x: t.x, y: t.y, z: t.z } : { x: c.x, y: c.y, z: c.z };
+        const rider = t
+          ? { x: t.x, y: t.y, z: t.z, vy: t.vy }
+          : { x: c.x, y: c.y, z: c.z, vy: c.vy };
         own = frameCrash(
           crash,
           { x: w.x, y: w.y, z: w.z },

@@ -122,11 +122,41 @@ describe("the crash's lens", () => {
     const far = startCrashCam(from, wreck);
     let a = frameCrash(near, wreck, { x: 5, y: 1, z: 0 }, 1 / 60, flat);
     let b = frameCrash(far, wreck, { x: 45, y: 1, z: 0 }, 1 / 60, flat);
-    for (let t = 0; t < CRASH_LOOK.pull; t += 1 / 60) {
-      a = frameCrash(near, wreck, { x: 5, y: 1, z: 0 }, 1 / 60, flat);
-      b = frameCrash(far, wreck, { x: 45, y: 1, z: 0 }, 1 / 60, flat);
+    // Up to the close-in on him, which takes over from the pull-back.
+    for (let t = 0; t < CRASH_LOOK.zoomLate - 0.1; t += 1 / 60) {
+      a = frameCrash(near, wreck, { x: 5, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
+      b = frameCrash(far, wreck, { x: 45, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
     }
-    expect(gap(b.eye, b.target)).toBeGreaterThan(gap(a.eye, a.target) + 20);
+    expect(gap(b.eye, b.target)).toBeGreaterThan(gap(a.eye, a.target) + 10);
+  });
+
+  it("closes in on the skier as his flight nears its apex, and follows him down", () => {
+    const cam = startCrashCam(from, wreck);
+    const dt = 1 / 60;
+    // Flung up at 12 m/s and out at 14 m/s off the wreck.
+    const at = (t: number) => ({ x: 14 * t, y: 2 + 12 * t - 4.9 * t * t, z: 0, vy: 12 - 9.81 * t });
+    const apex = 12 / 9.81;
+    let lens = from;
+    let wide = Infinity;
+    for (let t = dt; t <= 2.3; t += dt) {
+      lens = frameCrash(cam, wreck, at(t), dt, flat);
+      // Wide while the flinch and the first of the pull-back play.
+      if (t < CRASH_LOOK.zoomFrom) expect(cam.zoomAt).toBeNull();
+      if (Math.abs(t - 0.5) < dt / 2) wide = gap(lens.eye, at(t));
+      if (Math.abs(t - apex) < dt / 2) {
+        // Begun before the apex, and close on him at it.
+        expect(cam.zoomAt).not.toBeNull();
+        expect(cam.zoomAt!).toBeLessThan(apex);
+        expect(gap(lens.eye, at(t))).toBeLessThan(wide);
+      }
+    }
+    // Followed down: close, narrowed, the look on him, over the snow.
+    // (the look a step behind him, the tumble's jolts taken out of it).
+    const end = at(2.3);
+    expect(gap(lens.eye, end)).toBeLessThan(CRASH_LOOK.close + 3);
+    expect(gap(lens.target, end)).toBeLessThan(3);
+    expect(lens.fov).toBeLessThan(CRASH_LOOK.fov);
+    expect(lens.eye.y).toBeGreaterThan(flat());
   });
 
   it("throws a lens at the impact itself back out of the fireball at once", () => {

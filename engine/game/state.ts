@@ -25,11 +25,8 @@ import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
-import type { BigAirContest } from "./big-air-contest.ts";
-import type { SlopeContest } from "./slopestyle-contest.ts";
-import type { PipeContest } from "./halfpipe-contest.ts";
-import type { JamState } from "./jam.ts";
 import type { PressState } from "./butter-state.ts";
+import type { ContestState } from "./contest-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
@@ -923,7 +920,9 @@ export type Field = {
  * coasts. */
 export type GamePhase = "countdown" | "racing" | "finished";
 
-export type GameState = {
+/** One run, whole — and, beside it, any freestyle contest it is part of
+ * (`ContestState`). */
+export type GameState = ContestState & {
   seed: number;
   rng: Rng;
   /** Sim time since creation, s, and the number of steps taken. */
@@ -962,19 +961,6 @@ export type GameState = {
   cross?: CrossHeat;
   /** The ski cross so far, carried for the app; never read by a step. */
   bracket?: Bracket;
-  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`), before this
-   * run's jump — carried for the judges and the app; never read by a
-   * step. */
-  bigAir?: BigAirContest;
-  /** A SLOPESTYLE CONTEST so far (R39, `slopestyle-contest.ts`), carried
-   * between its runs as big air's is. */
-  slopestyle?: SlopeContest;
-  /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), carried
-   * between its runs as slopestyle's is. */
-  halfpipe?: PipeContest;
-  /** A KNUCKLE HUCK'S JAM so far (R38, `jam.ts`): the hits ridden, and
-   * where the one under way began — the run's own, stepped with it. */
-  jam?: JamState;
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;

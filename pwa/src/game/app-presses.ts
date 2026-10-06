@@ -14,11 +14,14 @@ import type { TrickMap } from "./trick-maps.ts";
 export type Presses = {
   race: (seed: number, mode: GameMode) => void;
   free: (options: CreateGameOptions) => void;
-  /** A TRICKS run on a trick map (`trick-maps.ts`). */
-  tricks: (map: TrickMap) => void;
+  /** A TRICKS run on a trick map (`trick-maps.ts`), or a BIG AIR contest
+   * built over one. */
+  tricks: (map: TrickMap, mode?: "tricks" | "bigAir") => void;
   /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
   pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
   restart: () => void;
+  /** A slalom's SECOND RUN, off the first run's plate (`pinned-run.ts`). */
+  second: () => void;
   pause: () => void;
   resume: () => void;
   toMenu: () => void;
@@ -34,6 +37,7 @@ export const NO_PRESSES: Presses = {
   tricks: () => {},
   pinned: () => {},
   restart: () => {},
+  second: () => {},
   pause: () => {},
   resume: () => {},
   toMenu: () => {},

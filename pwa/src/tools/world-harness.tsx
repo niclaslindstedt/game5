@@ -22,14 +22,19 @@ import {
   type GameState,
   type PisteGrade,
   type RegionId,
+  type Thrown,
+  planLift,
+  ropeAt,
 } from "@engine";
 
 import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
-import { planLift, ropeAt } from "../game/lift-plan.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { markView } from "./mark-view.ts";
+import { ringView } from "./ring-view.ts";
+import { intoNet, netLens } from "./net-view.ts";
 import { signView } from "./sign-view.ts";
 import {
   DEFAULT_VIDEO,
@@ -90,10 +95,18 @@ const renderer = createWorldRenderer(canvas, {
 renderer.resize(width, height, 1);
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
+/** A DOWNHILL set over the seed (`?downhill=1`) — its A-nets for the
+ * `net-<s>` views. */
+const downhill = params.get("downhill") === "1";
+/** A FREE RIDE over the seed (`?free=1`) — its lifts' boarding rings, for
+ * the `lift-ring` view. */
+const free = params.get("free") === "1";
 const state: GameState = createGame({
   seed,
   region,
   grade,
+  ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
+  ...(free ? { mode: "free" as const } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
 });
 /** The sun's solar hour (`withSky`), the map's own unless named: a low sun
@@ -469,6 +482,122 @@ function chaseAt(t: number): string {
   return `chase at t ${state.t.toFixed(1)} s, y ${state.skier.y.toFixed(0)} m`;
 }
 
+/** THE FALL AS A SEQUENCE (the views `fall-<s>`, any time off the skis):
+ * the player put into the nearest trunk flat out — the wipeout view's
+ * staging — and drawn `t` s after he left his skis from a lens that keeps
+ * square to the line he was thrown along, 7 m off his side and a little
+ * over him, so a run of them reads as the frames of one fall. The YARD
+ * SALE (`yard-<s>`) is the same fall from over it, pulled back to take in
+ * him and both skis he left (`lone-skis.ts`). */
+let fallSide = 0;
+function fallAt(t: number, yard = false): string {
+  if (!state.skier.thrown) {
+    intoTrunk();
+    const pinned = { ...NEUTRAL_INPUT, tuck: 1 };
+    const until = state.t + 6;
+    while (!state.skier.thrown && state.t < until) {
+      for (let i = 0; i < 2; i++) step(state, pinned);
+      renderer.draw(state, 0, FRAME, false);
+    }
+    // Read afresh: the steps above may have thrown him.
+    const off = state.skier.thrown as Thrown | null;
+    if (!off) return "no wipeout";
+    fallSide = off.heading + Math.PI / 2;
+  }
+  while (state.skier.thrown && state.skier.thrown.t < t - 1e-9) {
+    step(state, NEUTRAL_INPUT);
+    if (state.tick % 2 === 0) renderer.draw(state, 0, FRAME, false);
+  }
+  const off = state.skier.thrown;
+  if (!off) return "already stood back up";
+  if (yard) {
+    // The middle of him and the two skis, and the farthest of them from it.
+    const at = [{ x: off.x, y: off.y, z: off.z }];
+    for (const ski of off.skis) {
+      const e = ski.ends;
+      at.push({ x: (e[0] + e[3]) / 2, y: (e[1] + e[4]) / 2, z: (e[2] + e[5]) / 2 });
+    }
+    const mid = {
+      x: at.reduce((a, p) => a + p.x, 0) / at.length,
+      y: at.reduce((a, p) => a + p.y, 0) / at.length,
+      z: at.reduce((a, p) => a + p.z, 0) / at.length,
+    };
+    const far = Math.max(...at.map((p) => Math.hypot(p.x - mid.x, p.z - mid.z)));
+    const back = Math.max(6, far * 1.6 + 3);
+    const ex = mid.x + Math.sin(fallSide) * back * 0.6;
+    const ez = mid.z + Math.cos(fallSide) * back * 0.6;
+    renderer.setOverride({
+      eye: { x: ex, y: Math.max(level.groundAt(ex, ez), mid.y) + back * 0.8, z: ez },
+      target: mid,
+      fov: 50,
+      roll: 0,
+    });
+    still();
+    renderer.setOverride(null);
+    const gap = Math.hypot(at[1].x - at[2].x, at[1].z - at[2].z);
+    const lift = at
+      .slice(1)
+      .map((p) => (p.y - level.groundAt(p.x, p.z)).toFixed(2))
+      .join(", ");
+    return `${off.cause}, ${off.t.toFixed(2)} s off, skis ${gap.toFixed(1)} m apart, ${lift} m over the snow`;
+  }
+  const ex = off.x + Math.sin(fallSide) * 7;
+  const ez = off.z + Math.cos(fallSide) * 7;
+  renderer.setOverride({
+    eye: { x: ex, y: Math.max(level.groundAt(ex, ez) + 1.2, off.y + 0.6), z: ez },
+    target: { x: off.x, y: off.y, z: off.z },
+    fov: 40,
+    roll: 0,
+  });
+  still();
+  renderer.setOverride(null);
+  return `${off.cause}, ${off.t.toFixed(2)} s off, tumbled ${(off.tumble / (2 * Math.PI)).toFixed(1)} turns`;
+}
+
+/** The player stood short of the trunk nearest him and pointed at it at
+ * 55 km/h. */
+function intoTrunk(): void {
+  const s = state.skier;
+  let tree = level.trees[0];
+  for (const t of level.trees) {
+    if (Math.hypot(t.x - s.x, t.z - s.z) < Math.hypot(tree.x - s.x, tree.z - s.z)) tree = t;
+  }
+  const h = Math.atan2(s.x - tree.x, s.z - tree.z);
+  placeRun(state, {
+    x: tree.x + Math.sin(h) * 25,
+    z: tree.z + Math.cos(h) * 25,
+    heading: h + Math.PI,
+    speed: 55 / 3.6,
+  });
+}
+
+/** INTO THE A-NETS AS A SEQUENCE (the views `net-<s>`, on a
+ * `?downhill=1` run): `net-view.ts` stands the player and plants the lens;
+ * this rides the crash on to `t` s off his skis and draws it. */
+function netAt(t: number): string {
+  if (!state.skier.thrown) {
+    if (!intoNet(state)) return "no downhill on this run (--downhill)";
+    const until = state.t + 3;
+    while (!state.skier.thrown && state.t < until) {
+      for (let i = 0; i < 2; i++) step(state, NEUTRAL_INPUT);
+      renderer.draw(state, 0, FRAME, false);
+    }
+    if (!state.skier.thrown) return "never reached the net";
+  }
+  while (state.skier.thrown && state.skier.thrown.t < t - 1e-9) {
+    step(state, NEUTRAL_INPUT);
+    if (state.tick % 2 === 0) renderer.draw(state, 0, FRAME, false);
+  }
+  const off = state.skier.thrown;
+  const lens = netLens(state);
+  if (!off || !lens) return "already stood back up";
+  renderer.setOverride(lens);
+  still();
+  renderer.setOverride(null);
+  const hooked = off.skis.filter((k) => k.hooked).length;
+  return `${off.cause}, ${off.t.toFixed(2)} s off, ${hooked} of 2 skis hooked in the net`;
+}
+
 /** How far the lens stands off the skier's origin, m — so a boom pulled in
  * against the slope shows in the note, not only in the picture. */
 function standoff(): string {
@@ -573,6 +702,9 @@ const shots: Record<string, () => string> = {
         ["lift-drag", "drag", [0.5, 8, 30, 1.7, 40], "beside the drag's line"],
         ["lift-station", "longest", [0, 20, 30, 1.7, 0], "the longest lift's bottom station"],
         ["lift-far", "longest", [0.5, 180, 0, 30, 0], "the longest lift from across the face"],
+        ["lift-top", "chair", [1, 16, 28, 2, 0], "a chair's top station from its pad"],
+        ["lift-foot", "chair", [0, 16, 16, 1.8, 6], "a chair's load line and corral"],
+        ["lift-door", "gondola", [0, 12, 34, 2, -18], "the gondola station's door"],
       ] as const
     ).map(([name, kind, a, said]) => [
       name,
@@ -586,6 +718,14 @@ const shots: Record<string, () => string> = {
       },
     ]),
   ),
+  "lift-ring"() {
+    const pose = ringView(level);
+    if (!pose) return "no chair on this map";
+    renderer.setOverride(pose);
+    still();
+    renderer.setOverride(null);
+    return free ? "a chair's boarding ring" : "a chair's foot (no ring: not a free ride)";
+  },
   forest() {
     renderer.setOverride(forestView());
     still();
@@ -616,18 +756,7 @@ const shots: Record<string, () => string> = {
     // THE WIPEOUT (`crash.ts`): the player stood short of the trunk
     // nearest it and ridden into it flat out, drawn a moment after the
     // skier has left his skis — the burst, and him in the air past it.
-    const s = state.skier;
-    let tree = level.trees[0];
-    for (const t of level.trees) {
-      if (Math.hypot(t.x - s.x, t.z - s.z) < Math.hypot(tree.x - s.x, tree.z - s.z)) tree = t;
-    }
-    const h = Math.atan2(s.x - tree.x, s.z - tree.z);
-    placeRun(state, {
-      x: tree.x + Math.sin(h) * 25,
-      z: tree.z + Math.cos(h) * 25,
-      heading: h + Math.PI,
-      speed: 55 / 3.6,
-    });
+    intoTrunk();
     renderer.setCamera("chase", true);
     const pinned = { ...NEUTRAL_INPUT, tuck: 1 };
     const on = (done: () => boolean, limit: number) => {
@@ -687,6 +816,19 @@ const shots: Record<string, () => string> = {
       () => {
         const view = signView(level, name === "sign-tree");
         if (!view) return "no sign on this map";
+        renderer.setOverride(view.pose);
+        still();
+        renderer.setOverride(null);
+        return view.note;
+      },
+    ]),
+  ),
+  ...Object.fromEntries(
+    (["gate", "hut", "finish"] as const).map((name) => [
+      name,
+      () => {
+        const view = markView(level, name);
+        if (!view) return "no course on this map";
         renderer.setOverride(view.pose);
         still();
         renderer.setOverride(null);
@@ -824,7 +966,15 @@ window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
-    const run = chase ? () => chaseAt(Number(chase[1])) : shots[name];
+    const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
+    const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
+    const run = chase
+      ? () => chaseAt(Number(chase[1]))
+      : fall
+        ? () => fallAt(Number(fall[2]), fall[1] === "yard")
+        : net
+          ? () => netAt(Number(net[1]))
+          : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

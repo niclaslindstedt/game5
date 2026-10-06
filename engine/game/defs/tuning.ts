@@ -8,9 +8,15 @@
 // source at the function that implements it. Tweak here, verify with
 // `npm run ride` and `npm run sim`; the render layer never reads these.
 // The score and the strokes are stated next door (`defs/tricks.ts`) and
-// folded in as `TUNING.tricks`.
+// folded in as `TUNING.tricks`; the wipeout likewise (`defs/crash.ts`,
+// `TUNING.crash`).
 
 import { TRICKS } from "./tricks.ts";
+import { INJURY } from "./anatomy.ts";
+import { CRASH } from "./crash.ts";
+import { FLEX, START_PUSH } from "./race.ts";
+import { SIDESTEP } from "./sidestep.ts";
+import { STAKES } from "./stakes.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -30,6 +36,52 @@ export const TUNING = {
 
   /** THE AIR: density at −8 °C at two thousand metres up, kg/m³ (ISA). */
   airDensity: 1.05,
+
+  /** THE WEATHER'S WIND ON THE SKIER (`wind.ts`'s `airAt`, `air.ts`). R19
+   * deals a mean wind at the standard 10 m over open ground; what a skier
+   * meets is that air brought down to his body, more of it high on the
+   * mountain than in the valley, and taken off it by the woods round him. */
+  wind: {
+    /** The height R19's wind is stated at, m (the meteorological 10 m). */
+    refHeight: 10,
+    /** THE SNOW'S AERODYNAMIC ROUGHNESS, m: the log law's z0, the height
+     * the profile u ∝ ln(z / z0) runs out at. Measured fresh snow lies near
+     * 0.25 mm, a skied, rutted slope a few mm; 1 mm puts a skier's body
+     * (about 1 m up) in three quarters of the 10 m wind. */
+    roughness: 0.001,
+    /** EXPOSURE: the 10 m wind on the valley floor and on the summit, as
+     * shares of the dealt mean — the flow squeezed over a ridge runs
+     * faster, the valley lies in the lee. Linear in height up the
+     * mountain's vertical. */
+    valley: 0.7,
+    summit: 1.3,
+    /** THE WOODS' SHELTER: the air under a closed canopy keeps barely a
+     * quarter of the open wind at a skier's height (the trunk space of a
+     * dense conifer stand measures 10–30 %), a glade or a lane through the
+     * woods some of it. `cover` is the crowns' share of the ground within
+     * `radius` m (about two trees' heights — the shelter a wood throws),
+     * read off a grid of `cell` m baked once a map; at `full` cover and
+     * over, `most` of the wind is gone. R14's woods grow in clumps with
+     * lanes between, and at their thickest their crowns cover some 0.3–0.4
+     * of the ground (a quarter in an ordinary stretch of wood), so a wood
+     * that thick is a closed wood here. */
+    shelter: { radius: 30, cell: 10, full: 0.3, most: 0.75 },
+    /** THE SIDE-ON DRAG AREA, as a share of the frontal (`dragAreaOf`) at
+     * the same crouch. A standing body shows the wind about two thirds as
+     * much of itself side-on as face-on; folded into a tuck the frontal
+     * area shrinks to a ball but the profile — back, thighs and shins laid
+     * along the way — stays long, so side-on is the larger. Wind-tunnel
+     * work on skiers finds the side force climbing with the yaw angle
+     * while the drag barely moves inside 15°, which a body with these two
+     * areas does. */
+    sideUpright: 0.7,
+    sideTuck: 1.2,
+    /** A ski AT REST grips the snow this many times as hard as it slides
+     * on it (a waxed base's static friction on cold snow is some 0.1–0.3
+     * against 0.02–0.08 sliding), so a skier stood still is blown along
+     * only by a wind that beats that: a storm's gust, not a breeze. */
+    still: 3,
+  },
 
   /** THE SNOW — a ski's water. Powder lets a ski SINK, and how far is a
    * function of speed exactly as a planing hull's draft is: at rest the ski
@@ -137,6 +189,11 @@ export const TUNING = {
     /** A soft ski lands softer: the harsh speed goes as
      * `1 + flexHarsh · (flex₀ − flex)`. */
     flexHarsh: 0.25,
+    /** THE CHATTER a pair lets through at speed (`TUNING.chatter`): a long
+     * ski spans more of the bumps and a stiff one is damped against them,
+     * `(L₀ / L)^chatterLength · (1 − chatterFlex · (flex − flex₀))`. */
+    chatterLength: 1.5,
+    chatterFlex: 0.6,
   },
 
   /** GRIP — the friction coefficients between the skis and the snow, each
@@ -149,17 +206,44 @@ export const TUNING = {
      * edge angle, `skier.ts`). */
     edgePacked: 0.95,
     flatShare: 0.3,
+    /** THE PLATFORM (`snow.ts`'s `platformOf`): past `from` rad of edge
+     * a ski bent into reverse camber has cut a shelf as long as itself
+     * and stands on it, and the snow's reaction is square to the base, so
+     * what it holds across grows as tan θ — the reaction's share across
+     * the slope over its share into it. `share` of that growth past
+     * `from`, as a multiple of the edge's own bite: a racer on 65–70° of
+     * edge on a hard groomer carries 2.5–3 g round a slalom pole (the
+     * measured loads are 2.5–3 body weights), where a sharp edge biting
+     * by friction alone holds about one. Only a pair that stands so far
+     * over reaches it (`SkiSpec.edgeMax`, `edgeLockAt`): the race skis,
+     * cut hard, at a slalom's pace. */
+    platform: { from: 0.95, share: 0.6 },
     /** ...and in powder, where the edge is buried and the ski turns on its
      * BASE: what the base holds sideways, as a coefficient on the load. */
     basePowder: 0.45,
     /** The slip speed across the ski at which the sideways grip is 76 %
      * developed, m/s. */
     sideRef: 0.4,
+    /** STANDING STILL: below this speed over the snow, m/s, a skier whose
+     * stations can hold the slope's pull with no slip at all — Coulomb's
+     * STATIC friction — stands where he is. A ski at rest presses the snow
+     * into a LEDGE level across it, so the pull across the skis stands on
+     * that ledge whatever the pitch, and only the pull along their line is
+     * the base's and the plough's to hold (bare ice takes no ledge: there
+     * the edge's own hold is all there is across). The `tanh` grips are
+     * nothing at no slip and develop over `sideRef` and the drag's fade
+     * (0.3–0.4 m/s), so a skier stopping on a pitch settles into a slip
+     * of that order; this is twice it, so that slip is caught. */
+    stillSpeed: 0.6,
     /** THE SKID SCRAPES: a ski pivoted across the way and shoved sideways
      * is sliding on its edge, not cutting a groove with it, and sliding
      * friction is less than the bite — this share of the edge's hold is
      * what a fully skidding ski keeps (blended by `SkierState.skid`). */
     skidHold: 0.5,
+    /** ...but a skier all but stopped SETS the pivoted edge: the scrape
+     * fades out below this speed, m/s, and the edge bites with all of its
+     * hold — how a stop on a steep pitch ends stood, not side-slipping. */
+    skidBite: 2,
     /** BLUE ICE (a frozen tarn's, `Level.iceAt`, and the icy patches a
      * region's crust carries): the share of the groomer's grip an edge has
      * left on bare ice — a sharp edge scratches a line and little more. */
@@ -220,6 +304,36 @@ export const TUNING = {
     skidRate: 4,
   },
 
+  /** THE CHATTER — the skis shaken by the snow passing under them. A
+   * groomed surface is never smooth: its corduroy, the ruts of the skiers
+   * before and its grains are bumps of every wavelength, and a ski running
+   * over them at v is driven at v / λ — a few hertz at a walk, the ski's
+   * own bending (some 10–20 Hz) and torsional (some 50–70 Hz) modes by a
+   * racer's pace. The measured vibration on a running ski climbs steeply
+   * with speed and is worst on hard snow under a loaded edge; past the
+   * ski's damping the edge skips, leaving the snow for an instant at a
+   * time, and a skipping edge holds less than a biting one. That is why a
+   * downhiller's skis are long, stiff and heavily damped, and why a soft
+   * short ski that carves a nursery slope clean is all over the place
+   * flat out. So the chatter is the speed's share — nothing under `from`
+   * m/s, the whole by `full` (a smoothstep between) — times the pair's own
+   * (`footprint.ts`'s `chatter`: a long stiff ski less, a short soft one
+   * more), on packed snow only (powder cushions the ski); and at the whole
+   * of it the EDGE'S sideways hold is `loss` less. The yaw the edge asks
+   * for at a speed goes as v·κ while the bend it can hold goes as the
+   * grip over v, so a turn already widens as v²; the chatter takes a
+   * little more off the top end, where real skis lose it. */
+  chatter: {
+    from: 14,
+    full: 36,
+    loss: 0.2,
+    /** How much of the chatter shows (`SkierState.chatter`) with the skis
+     * running flat and unloaded — the rest comes with the bend's load on
+     * the edge, whole by `loadedG` g of it. */
+    flat: 0.35,
+    loadedG: 0.8,
+  },
+
   /** THE ARCADE'S HANDS — dials that model nothing, stated as such, and the
    * reason the game FEELS like skiing rather than measuring like it. Each is
    * a multiplier on a measured quantity, so 1 is the bare physics and the
@@ -249,13 +363,44 @@ export const TUNING = {
      * as far as the edge sends them only once the bend it asks for pulls
      * this many g; under it, that share of the way. */
     hangG: 0.35,
-    /** THE INCLINATION INTO A TURN: the most the whole rolls into a carve,
-     * rad — on packed snow, where the bend's own load asks for it (a
-     * bicycle's lean, atan(v²κ / g)) and this is the cap, 40°, the whole
-     * body of a strong carver laid over (a racer goes past 60°); and in
-     * powder, where the roll is the whole of how a ski turns. Read by
-     * `tipLimit` too. */
+    /** THE INCLINATION INTO A TURN on packed snow follows THE TURN'S
+     * BALANCE (`SkierState.balance`): the angle at which the snow's
+     * reaction — its grip across the skis over its push along its normal,
+     * tan θ = a_lat / g on the level — passes through his centre of mass,
+     * as a bicycle leans. Eased over `balanceLag`, s (the body is a mass
+     * on his legs, and the snow's grip shakes step to step), and laid over
+     * no further than `inclineMost`, rad: 50°, a strong free skier's
+     * carve at 1.2 g (a technique floors it higher — a racer's 52–63°,
+     * `Technique.incline`). The edge he stands on past it is his
+     * angulation's. */
+    inclineMost: 0.87,
+    balanceLag: 0.06,
+    /** ...and the share of the way from that balance to the one his edge
+     * asks for that he leans as he commits to a turn, 0..1 (an arcade
+     * dial, argued against `make skier-metrics`' turn entries: at 0 the
+     * body rolls a turn late, at 1 a skidding skier lies down for a turn
+     * he is not getting). */
+    commit: 0.5,
+    /** THE ANGULATION'S REACH, rad: how far past the body's inclination
+     * the ankles, knees and hips can stand a ski on its edge — a racer's
+     * hip angulation is 10–20° at a slalom apex and his knees add to it;
+     * a skier stood up tips his skis to some 35° with his knees alone. */
+    angulateMost: 0.6,
+    /** ...and the old turn's load, over g (tan of its balance), under which
+     * he crosses over into the next: past it the turn he is still making
+     * holds him in it — a body thrown into the next turn against a 2 g load
+     * is a skier over his edges. An arcade dial, argued against `make
+     * technique`'s turn shapes: at tan(angulateMost) (0.68) a 0.9 s rhythm
+     * missed every other cross-over and turned on its angulation alone;
+     * unbounded, a downhiller at 90 km/h went over his edges. */
+    crossLoad: 1.3,
+    /** THE TIPPING POINT'S ROLL, rad: the whole's inclination the tipping
+     * point (`limits.ts`'s `tipLimit`, the most lateral load a carve can
+     * put on him before it throws him over) is reckoned on — 40°, plus his
+     * angulation, times the arcade's `hangOff`. */
     rollPacked: 0.7,
+    /** IN POWDER the roll is the whole of how a ski turns: the edge asks
+     * for this much of it outright, rad. */
     rollPowder: 0.5,
     /** The righting the skier and his legs together hold that roll with,
      * N·m per rad, the damping on the roll rate, N·m·s, and the most it can
@@ -296,9 +441,10 @@ export const TUNING = {
      * for and stands back up, 1/s — and the least of the way (m/s) a tuck
      * counts for anything: a skier at rest crouching is not going faster. */
     crouchRate: 3,
-    /** THE HIGH-SIDE (`crash.ts`): the sideways slip at a contact, m/s,
-     * past which an edge standing more than `slipEdge` rad over catches
-     * and throws him. */
+    /** THE START OF A HIGH-SIDE: the sideways slip at a contact, m/s,
+     * past which an edge standing more than `slipEdge` rad over is in
+     * trouble — the bot stands his edge down past it; what actually
+     * throws a skier is `crash.catchSlip` / `.catchEdge`, well beyond. */
     slipSpeed: 6,
     slipEdge: 0.75,
   },
@@ -318,11 +464,11 @@ export const TUNING = {
   poles: {
     /** The speed, m/s, under which the push is its whole, and the speed by
      * which the legs and the arms can no longer keep up and it is gone: 22
-     * and 40 km/h — a racer skates out of the gate and keeps skating on a
+     * and 34 km/h — a racer skates out of the gate and keeps skating on a
      * flat to hold his speed, and the power law (below) is what makes the
      * last of it little. */
     speed: 6,
-    fade: 11,
+    fade: 9.5,
     /** The mean propulsive power, W — a fit recreational skier's sprint
      * (an elite cross-country skier holds over 400 W for minutes). */
     power: 450,
@@ -337,23 +483,103 @@ export const TUNING = {
      * setting off or climbing a rise walks his skis forward. */
     strideFrom: 1.6,
     strideTo: 3,
+    /** THE SKATE'S V, each ski off his line, rad: at a walk (`strideFrom`)
+     * and by `skateTo` — measured skating holds some 14° a ski at 3 m/s
+     * (19° in the asymmetric skate a skier climbs in, 45° and more slow up
+     * a steep rise), and the V closes as the speed comes up. He rides the
+     * gliding ski's arm of it (`glideYaw`). */
+    vee: { slow: 0.36, fast: 0.2 },
+    /** The drive under which he does not skate at all (`skateWork`): a
+     * skier half working — the brake held, an edge on — pushes on his
+     * poles with his skis together. */
+    skateDrive: 0.4,
     /** THE DRIVE IS FOR A STRAIGHT: a skier works on the flat and down the
      * run-out, not with his skis on edge in a bend — the edge asked past
      * `edgeFrom` of full takes it away by `edgeGone`. */
     edgeFrom: 0.25,
     edgeGone: 0.6,
+    /** THE STEP TURN (`poles.ts`'s `stepWork`): a skier at a crawl STEPS
+     * his skis round a turn, pushing all the way, rather than wait on a
+     * sidecut whose arc at a walk is fifteen metres and more. Each stride
+     * turns his heading `step` rad (a step turn's steps are 15–30° each, a
+     * skate turn's push-and-step 30–45° at a crawl), the V leads the
+     * heading into it by `lead` rad (its inside arm stepped out ahead of
+     * the line he is on), a turn is taken up and let go at `rate` a second
+     * — a stride or so — and the skis stand on `edge` less of the speed's
+     * lock while he can step (some 22° rather than 55°: an edge to push off
+     * and to lean the turn's load on, not a carve); at a walk his strides
+     * come `quick` quicker than going straight (a step turn is short quick
+     * steps, not a skater's long glide; rolling, he turns on the skate's
+     * own cadence). So from a crawl to 27 km/h he comes round 90° in some
+     * two seconds, on a few metres, faster out of it than into it. */
+    turn: { step: 0.7, lead: 0.25, rate: 3, edge: 0.6, quick: 0.35 },
+    /** THE STEP TURN ON THE SPOT (`stepRound`): stood still with only a
+     * steer held, a skier is not going anywhere — he STEPS HIS SKIS ROUND,
+     * the inside ski's tip lifted and set down `angle` rad further round,
+     * its tail where it was (the star turn every beginner is taught on the
+     * flat), then the outside ski lifted and brought alongside it; `steps`
+     * such pairs a second. Measured stepping round on skis takes 15–30° a
+     * step at one to two steps a second, so a right angle is three or four
+     * pairs: about 25° at 1.2 a second — some 30°/s. A pair begun is
+     * finished, and set down together. */
+    pivot: { angle: 0.44, steps: 1.2 },
     /** The share of the push left in powder — the baskets sink and a
      * skating ski has nothing to push off. */
     powderShare: 0.4,
-    /** Strides a second: a skate stride each leg at a crawl, a double
-     * pole a second faster — and the share of each cycle the push is on,
-     * the rest the recovery (a rest level of `floor` of the mean between). */
-    cadence: 1.3,
+    /** Strides a second: THE SKATE'S — one leg's push and the long glide
+     * on the other ski (`strideRate`), measured at 0.85 a second at 3.5
+     * m/s rising to 1.3 by 6.3 (a skater lengthens his glide first and
+     * quickens only toward his top speed) — and the slowest a double pole
+     * is worked; the share of each stride the push is on (measured: the
+     * leg's push 0.42–0.5 s of a stroke), the rest the glide and the
+     * recovery (a rest level of `floor` of the mean between); and the
+     * least share of a skate stride the poles bite for (`poleDuty` —
+     * measured 0.34 s slow to 0.22 s fast, a quarter of a stroke). */
+    cadence: { slow: 0.85, fast: 1.3, from: 3.5, to: 6.3 },
     cadencePole: 1.05,
     duty: 0.45,
     floor: 0.3,
+    dutyLeast: 0.2,
+    /** How far he goes past a planted basket over one push, m — the pole's
+     * sweep from its plant to its release behind him, double-poling and
+     * skating (the pose's own strokes sweep 1.55 and 1.19 m; less here, so
+     * a push ends before the last of the arm's reach, where the basket
+     * hardly moves for all the arm it takes). A push is never longer than
+     * the snow takes to pass under it (`strideRate`). */
+    sweep: 1.35,
+    sweepSkate: 1,
+    /** The quickest he works the poles, strides a second — a double pole
+     * at its most driven — and the shares of the snow going by under one
+     * push that a push at that cadence still sweeps where he starts to
+     * give up poling for the tuck, and where he has (the arm reaches past
+     * `sweep`, so he keeps up with somewhat more than it). */
+    cadenceMax: 2,
+    keepUp: { from: 0.85, to: 0.6 },
     /** How fast the drive the body shows comes and goes, 1/s. */
     rate: 4,
+    /** WITHOUT POLES (`SkierState.poles` off — the player's hard mode):
+     *   - `legs`: the share of the push's power and a plant's press his
+     *     legs make alone. Measured skating, the arms put a third and more
+     *     of the propulsive power into the snow, and all of a double pole
+     *     — so with none he skates at every speed (`skateShare`) on 0.6 of
+     *     it;
+     *   - `climb`: up a rise, the pair's pitch, rad, from which a push with
+     *     no basket to brace it slips back (2°), and by which only `least`
+     *     of it holds (10°, `climbShare`) — the herringbone's grip without
+     *     the arms behind it;
+     *   - `balance`: the share of his resilience (`SkierState.resilience`)
+     *     he keeps — poles are a skier's outriggers, a touch on the snow
+     *     that catches a lurch, and without them a professional falls where
+     *     a skier halfway to the club skier does (`crash.ts`'s
+     *     `crashLimit`);
+     *   - `rock`: the share of a bog's rocking that packs the hole back
+     *     (`trench.ts`) with no poles to lever himself on. */
+    bare: {
+      legs: 0.6,
+      climb: { from: 0.035, to: 0.17, least: 0.15 },
+      balance: 0.5,
+      rock: 0.45,
+    },
   },
 
   /** THE JUMP (`skier.ts`): the skier sinks and loads his legs while the
@@ -362,12 +588,16 @@ export const TUNING = {
    * for a tap, rising with the time held to `popMax` at `full` s; held
    * longer is no higher. At the race's flight gravity the full pop stands
    * him about a metre off the snow; a tap hops a boot's height. How deep
-   * the load folds him, as a crouch. */
+   * the load folds him, as a crouch. And the GRACE, s: a jump let go this
+   * soon after he left the snow still springs him — a kicker's lip is left
+   * a beat before a thumb can come off the key, and the pop a skier times
+   * to the lip should not be lost to it. */
   jump: {
     popMin: 2.2,
     popMax: 6,
     full: 2,
     crouch: 0.75,
+    grace: 0.2,
   },
 
   /** CUTTING HARDER (`skier.ts`): the back key thrown with an edge already
@@ -518,6 +748,14 @@ export const TUNING = {
     cell: 12,
   },
 
+  /** THE START PUSH and THE FLEX POLES, a race's own (`race.ts`). */
+  start: START_PUSH,
+  flex: FLEX,
+
+  /** THE EDGE STAKES (`edge-stakes.ts`), stated next door
+   * (`defs/stakes.ts`). */
+  stakes: STAKES,
+
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
    * push that grows over `soft` m. */
   bounds: { margin: 6, soft: 20, push: 12 },
@@ -541,92 +779,34 @@ export const TUNING = {
     resetAhead: 3,
   },
 
-  /** THE WIPEOUT — the skier thrown (`crash.ts`). Four ways off, each a
-   * threshold no clean run comes near. */
-  crash: {
-    /** A trunk met at this closing speed or more throws him, m/s (25 km/h):
-     * the trunk stops the skis and he does not. */
-    treeSpeed: 7,
-    /** A landing taken this far tips-down against the slope, rad (32°), at
-     * this speed into it or more, m/s, goes over the tips — the landing
-     * that ends a real flight of `noseAir` s or more. */
-    noseAngle: 0.56,
-    noseImpact: 5,
-    noseAir: 0.3,
-    /** A skier going over (`reset.overUp`) at this speed or more, m/s, is
-     * thrown; slower, he sits down and the reset's own clock stands him up. */
-    rollSpeed: 6,
-    /** ...once he has lain over ON THE SNOW (`SkierState.rolledFor`) this
-     * long, s. */
-    rollHold: 0.2,
-    /** A CAUGHT EDGE is never read in a skid: past this much of the brake's
-     * pivot (`SkierState.skid`) the slide across the skis is the skier's
-     * own — a hockey stop, not a high-side. */
-    catchSkid: 0.5,
-    /** What he leaves with: this share of his velocity before the blow, and
-     * a climb, m/s, and a turn head over heels at his speed over
-     * `tumbleRadius` m, no faster than `maxSpin` rad/s, with `carry` of his
-     * own turning on top. */
-    keep: 0.85,
-    throwUp: 1.8,
-    tumbleRadius: 2,
-    maxSpin: 6,
-    carry: 0.5,
-    /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,
-     * the head, the knees, the feet, the elbows, the hands — held at the
-     * skier's own measures (`skier-pose.ts`'s `BODY` states the same ones
-     * for the figure, and `tests/crash_test.ts` holds the two together), a
-     * mass on each, kg (80 in all), and a radius, m, the snow and the
-     * trunks keep it out by. `radius` is the torso's. */
-    body: {
-      thigh: 0.44,
-      shin: 0.46,
-      upperArm: 0.31,
-      forearm: 0.34,
-      spine: 0.5,
-      shoulder: 0.2,
-      hip: 0.12,
-      neck: 0.18,
-      mass: { hip: 14, shoulder: 11, head: 5, knee: 5, foot: 4, elbow: 2, hand: 1.5 },
-      head: 0.13,
-      limb: 0.06,
-    },
-    radius: 0.11,
-    /** Passes over the body's joints a step: enough that no limb is seen to
-     * stretch. */
-    iterations: 8,
-    /** THE JOINTS a body cannot pass. */
-    hipBack: 0.35,
-    hipUp: 0.3,
-    foldArm: 0.2,
-    /** THE SNOW under every point: it settles `sink` m into powder at the
-     * ordinary dial (twice that at the deepest), the speed into it taken
-     * away; Coulomb friction along it on the weight and on the arrival —
-     * `frictionPacked` on the groomer, `frictionPowder` in fresh snow — and
-     * the PLOUGH, 1/s per unit of powder depth, the share of its way a point
-     * buried in fresh snow loses a second shoving it. */
-    sink: 0.15,
-    frictionPacked: 0.45,
-    frictionPowder: 0.8,
-    plough: 1.2,
-    /** A point put back on the snow from under it keeps no more than this
-     * of the push, m/s: the way out is a position corrected, not a launch,
-     * and a body thrown down in deep powder starts a hand under the
-     * surface it is laid on. */
-    pushOut: 0.3,
-    /** THE SKIS, skierless: the tip-over a landing over the tips puts into
-     * them, rad/s per m/s of impact, capped. */
-    skiKick: 0.35,
-    skiKickMax: 5,
-    /** How long he lies before the reset stands him up, s: at least
-     * `lieMin` off the skis and `lieStill` lain still (under `restSpeed`
-     * m/s, on the snow) — the beat the death cam rises over him on — and
-     * never past `lieMax`. */
-    lieMin: 1.8,
-    restSpeed: 0.6,
-    lieStill: 1,
-    lieMax: 6.5,
+  /** RIDING SWITCH (`RunRules.stunts`): the skis going down the hill
+   * backward, tails first — come down off a 180 (`strokes.ts`) or turned
+   * round on the spot and let go. */
+  switch: {
+    /** The way along the skis, m/s, past which a skier on the snow is
+     * going backward (`SkierState.switched`), and forward again past its
+     * negative — a margin either side of a standstill, so a skier sliding
+     * to a stop does not flicker between the two. */
+    from: 1,
+    /** THE TAIL DUG IN (`crash.ts`): the loose snow lying in front of the
+     * leading tail, m — the loose cover over the base where it is not
+     * pressed (`snow.cover` of the run's depth, by the share of it under
+     * him that is not packed), less what a turned-up tail rides over
+     * (`TAIL_RISE`: all of it on a twin-tip, none on a race ski's
+     * square tail) — past which the tail dives and throws him, at
+     * `digSpeed` m/s or more backward: riding, not drifting — a skier slid
+     * back at a walk after a stall ploughs to a stop. A ski in powder is held up by its
+     * shovel; ridden tail first a flat tail is a blade into it. On the
+     * groomer there is nothing in front of it to dig, and every pair runs
+     * backward; a dusting of fresh snow over it a race ski still carries.
+     * An arcade's numbers: 6 cm takes a square tail, 9 cm an
+     * all-mountain's little kick, 12 the powder ski's. */
+    tailDig: 0.06,
+    digSpeed: 5,
   },
+
+  /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */
+  crash: CRASH,
 
   /** BOGGED IN DEEP POWDER (`trench.ts`). A skier stopped in deep snow
    * sinks to his knees; the way out is to pole (the tuck held) and rock —
@@ -692,13 +872,15 @@ export const TUNING = {
 
   /** THE WIND TUNNEL (R30, `wind-tunnel.ts`): a horizontal lift along the
    * hub that blows a skier from its entrance to its exit without his
-   * skiing. The air inside moves along it at the tunnel's own speed, so the
-   * drag a skier feels there is against THAT air — it pushes him on while
-   * he is slower, and costs him nothing once he rides at its speed — and
-   * the blowers THRUST him along over it: `thrust` m/s² while he is
-   * `soft` m/s or more under the wind's speed, easing to nothing at it
-   * (and a quarter of it back past it), so a skier stood at the entrance
-   * is at the wind's speed in a few seconds. Across it he is CENTRED,
+   * skiing. The air inside moves along it at the tunnel's own speed — or
+   * at his, once he is past it — so the drag a skier feels there is
+   * against THAT air: it pushes him on while he is slower and never holds
+   * him back. The blowers THRUST him along over it, `thrust` m/s² up to
+   * the wind's speed and past it the same POWER (thrust × speed over his
+   * speed), so there is NO TOP SPEED: the push falls as 1/v and never to
+   * nothing. On a 28 m/s tunnel a skier stood at its entrance is at the
+   * wind's speed in some 3 s and 45 m and at 150 km/h in some 5 s and
+   * 110 m. Across it he is CENTRED,
    * `centre` m/s² a metre off its line, `damp` /s of his sideways way
    * taken out. He is taken in where he stands inside its width with his
    * skis within `capture` rad of the way it blows — a skier crossing it
@@ -706,14 +888,64 @@ export const TUNING = {
    * way kept, or thrown. */
   tunnel: {
     thrust: 9,
-    soft: 4,
-    back: 0.25,
     centre: 0.8,
     damp: 1.5,
     capture: 0.7,
     release: 2,
   },
 
+  /** THE LIFT RIDE (`lift-ride.ts`; the lifts' own measure is `LIFT_LOOK`).
+   * The rope's slowing into the top terminal, m/s², and its pick-up off
+   * the load line, m/s²; how far down the hanger from the grip a chair's
+   * rider (`seat`) and a cabin's (`cabin`) has his body's origin, m, and
+   * each hanger's swinging length, m; the least a chair carries its rider's
+   * origin over the snow, m (`sit`: sat with his skis just on it, where the
+   * chair comes down to the ramp — his CoG's height over his skis); the swing's damping, 1/s, the most
+   * it swings, rad, and the kick a tower's bend in the rope gives it, rad/s
+   * per unit of slope change read `bend` m either side (to `kickMost`
+   * rad/s — a lurch of a few degrees); how long a chair
+   * scoops a rider up, s; the way a chair stands him up with on the ramp,
+   * turned `ramp` rad off the line to the up rope's side (a step out of
+   * the chair's way into the lane straight on off the ramp, `chairLane`),
+   * a cabin walks him out with, m/s, and how far short of the top the
+   * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the ride
+   * starts `arrive` s of carrying short of where the carrier lets him go —
+   * the last of the climb, over the last tower and down onto the top
+   * station's rail ahead (`LiftLook.in`) — on the chair whose
+   * run passes nearest the spot picked among those a rider stood off its
+   * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
+   * the ramps the run's nearest point `drop` m or more under the top
+   * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
+   * other. Stood off it, the skis are his: nothing leads him off a top. */
+  lift: {
+    decel: 0.8,
+    accel: 1.2,
+    seat: 1.85,
+    cabin: 3.6,
+    chairHang: 2.4,
+    cabinHang: 4.0,
+    sit: 1.0,
+    damp: 0.45,
+    swingMost: 0.3,
+    kick: 1.5,
+    kickMost: 0.2,
+    bend: 3,
+    scoop: 0.8,
+    standUp: 2.2,
+    ramp: 0.3,
+    walkOut: 1.5,
+    door: 10,
+    arrive: 8,
+    drop: 2,
+    joinFar: 120,
+    noJoin: 2000,
+  },
+
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */
   tricks: TRICKS,
+  /** THE SIDESTEP up a steep slope (`defs/sidestep.ts`). */
+  sidestep: SIDESTEP,
+
+  /** THE BODY AND WHAT HURTS IT (`defs/anatomy.ts`, `body.ts`). */
+  injury: INJURY,
 } as const;

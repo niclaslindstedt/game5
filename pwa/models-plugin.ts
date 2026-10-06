@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, the skier's as `models/skier.glb`, every kind of
-// tree's as `models/trees/<kind>.glb`, every bird's and animal's as
-// `models/birds/<id>.glb` and `models/beasts/<id>.glb`, and the course's
-// marks as `models/gates/<id>.glb`, emitted into the bundle (so the
-// service worker precaches them with everything else) and served the same
-// way by the dev server. They are COMMITTED, in
+// `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb` and the
+// mountain snowmobile's as `models/sled.glb`,
+// emitted into the
+// bundle (so the service worker precaches them with everything else) and
+// served the same way by the dev server. They are COMMITTED, in
 // `pwa/models/`, made there by `make models` (Blender, off the game's own
 // data — the `blender-assets` skill), with a stamp of the sources they were
 // made from (`sources.json`), which `tests/models_test.ts` holds to the
 // sources as they stand: a model older than its sources fails the suite.
-// Each half is stamped apart (`TREE_SOURCES`, `BIRD_SOURCES`,
-// `BEAST_SOURCES`, `GATE_SOURCES`), so a tree remade never asks for the
-// skis to be, nor the other way round.
+// Each KIND is stamped apart (`MODEL_HALVES`), so a change to the
+// helicopter's sources asks for the helicopter alone to be made again.
+// Nothing else the game draws is a model: the skier is dressed in code
+// (`src/game/skier-dress.ts`, his outfit cut on the rig), and the trees,
+// the birds, the animals and the course's marks are built in code,
+// procedurally (`src/game/tree-shapes.ts`, `bird-shapes.ts`,
+// `beast-shapes.ts`, `mark-shapes.ts`).
 //
-// A build switched back to a code-built half (`VITE_MODEL_SKIS=0`,
-// `VITE_MODEL_SKIERS=0`, `VITE_MODEL_TREES=0`, `VITE_MODEL_BIRDS=0`,
-// `VITE_MODEL_BEASTS=0`, `VITE_MODEL_GATES=0` — `src/game/model-switch.ts`)
-// packs none of that side's files.
+// A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
+// `src/game/model-switch.ts`) packs none of them; `VITE_MODEL_HELI=0` packs
+// no helicopter (`src/game/heli-view.ts` draws its code-built stand-in) and
+// `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in).
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -26,124 +29,82 @@ import { join } from "node:path";
 import type { Plugin } from "vite";
 
 import { SKI_CATALOG } from "../engine/game/defs/skis.ts";
-import { TREE_KINDS } from "../engine/mapgen/regions.ts";
-import { BEAST_IDS } from "./src/game/beast-defs.ts";
-import { BIRD_IDS } from "./src/game/bird-defs.ts";
-import { GATE_IDS } from "./src/game/gate-ids.ts";
 
-export type ModelSwitches = {
-  skis: boolean;
-  skiers: boolean;
-  trees: boolean;
-  birds: boolean;
-  beasts: boolean;
-  gates: boolean;
-};
+export type ModelSwitches = { skis: boolean; heli: boolean; sled: boolean };
 
 /** Every switch on — what a build draws unless told otherwise. */
-export const ALL_MODELS: ModelSwitches = {
-  skis: true,
-  skiers: true,
-  trees: true,
-  birds: true,
-  beasts: true,
-  gates: true,
-};
+export const ALL_MODELS: ModelSwitches = { skis: true, heli: true, sled: true };
 
 /** Where the committed models are, from the repository's root. */
 export const MODELS_DIR = "pwa/models";
 
-/** Every file a build with these switches packs, by its published name. */
-export function modelFiles(on: ModelSwitches): string[] {
+/** The helicopter's one file (`make blender KIND=heli`'s LOD0). */
+export const HELI_FILE = "heli.glb";
+
+/** The snowmobile's one file (`make blender KIND=sled`'s LOD0). */
+export const SLED_FILE = "sled.glb";
+
+/** Every file a build with these switches packs, by its published name —
+ * or only one half's (`MODEL_HALVES`). */
+export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
+  const skis =
+    on.skis && (!half || half === "sources") ? SKI_CATALOG.map((s) => `${s.id}.glb`) : [];
   return [
-    ...(on.skis ? SKI_CATALOG.map((s) => `${s.id}.glb`) : []),
-    ...(on.skiers ? ["skier.glb"] : []),
-    ...(on.trees ? TREE_KINDS.map((k) => `trees/${k}.glb`) : []),
-    ...(on.birds ? BIRD_IDS.map((k) => `birds/${k}.glb`) : []),
-    ...(on.beasts ? BEAST_IDS.map((k) => `beasts/${k}.glb`) : []),
-    ...(on.gates ? GATE_IDS.map((k) => `gates/${k}.glb`) : []),
+    ...skis,
+    ...(on.heli && (!half || half === "heli") ? [HELI_FILE] : []),
+    ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
   ];
 }
 
-/** WHAT A MODEL IS MADE FROM: the Blender builders and their driver, and
- * the game's own data they read — the spec, the traced looks, the drawn
- * travel, the skier's pose, bones and clips, the helmet's measured shell.
+/** WHAT A MODEL IS MADE FROM: the Blender builder and its driver, and the
+ * game's own data it reads — the spec, the traced looks, the drawn travel,
+ * each pair's topsheet graphic.
  * A change to any of these can move a model; the stamp is their hash. */
 export const MODEL_SOURCES = [
   "scripts/blender.mjs",
   "scripts/blender/kinds/skis.mjs",
-  "scripts/blender/kinds/skier.mjs",
   "scripts/blender/lib.py",
   "scripts/blender/skis.py",
-  "scripts/blender/skier.py",
   "engine/game/defs/skis.ts",
   "pwa/src/game/ski-looks.ts",
   "pwa/src/game/ski-gear.ts",
-  "pwa/src/game/skier-pose.ts",
-  "pwa/src/game/skier-helmet.ts",
-  "pwa/src/game/skier-rig.ts",
+  "pwa/src/game/ski-topsheets.ts",
 ];
 
-/** WHAT A TREE IS MADE FROM: the builder, the shelf and the driver, the
- * variant rows it models, and the packer the published files go through. */
-export const TREE_SOURCES = [
+/** WHAT THE HELICOPTER IS MADE FROM: its builder, its data module, the
+ * shelf and the driver, and `HELI` — the table the engine flies and the
+ * builder reads every dimension off. */
+export const HELI_SOURCES = [
   "scripts/blender.mjs",
-  "scripts/blender/kinds/tree.mjs",
+  "scripts/blender/kinds/heli.mjs",
   "scripts/blender/lib.py",
-  "scripts/blender/static.py",
-  "scripts/blender/tree.py",
-  "scripts/lib/glb-pack.mjs",
-  "pwa/src/game/tree-variants.ts",
+  "scripts/blender/heli.py",
+  "engine/game/defs/heli.ts",
 ];
 
-/** The static shelf every wildlife and gate model stands on, and the
- * packer it ships through. */
-const STATIC_SOURCES = [
+/** WHAT THE SNOWMOBILE IS MADE FROM: its builder, its data module, the
+ * shelf and the driver, `SLED` and the class's traced look. */
+export const SLED_SOURCES = [
   "scripts/blender.mjs",
+  "scripts/blender/kinds/sled.mjs",
   "scripts/blender/lib.py",
-  "scripts/blender/static.py",
-  "scripts/lib/glb-pack.mjs",
+  "scripts/blender/sled.py",
+  "engine/game/defs/sled.ts",
+  "pwa/src/game/sled-look.ts",
 ];
 
-/** WHAT A BIRD IS MADE FROM: its builder and the roster's rows. */
-export const BIRD_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/bird.mjs",
-  "scripts/blender/bird.py",
-  "pwa/src/game/bird-defs.ts",
-];
-
-/** WHAT AN ANIMAL IS MADE FROM: its builder, the roster's rows and the
- * styles that proportion it. */
-export const BEAST_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/beast.mjs",
-  "scripts/blender/beast.py",
-  "pwa/src/game/beast-defs.ts",
-  "pwa/src/game/beast-shapes.ts",
-];
-
-/** WHAT THE COURSE'S MARKS ARE MADE FROM: the builder and the plan. */
-export const GATE_SOURCES = [
-  ...STATIC_SOURCES,
-  "scripts/blender/kinds/gate.mjs",
-  "scripts/blender/gate.py",
-  "pwa/src/game/start-arch.ts",
-];
-
-/** Every half's stamp in `sources.json`, and the sources it hashes. */
+/** Every half's stamp in `sources.json`, and the sources it hashes: the
+ * skis (`sources`, its name from when they were the only models), the
+ * helicopter (`heli`) and the snowmobile (`sled`). */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
-  trees: TREE_SOURCES,
-  birds: BIRD_SOURCES,
-  beasts: BEAST_SOURCES,
-  gates: GATE_SOURCES,
+  heli: HELI_SOURCES,
+  sled: SLED_SOURCES,
 } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
 /** The sources' hash, from the repository's `root` (line endings as
- * committed: `\r` dropped, so a checkout's conversion moves nothing) — the
- * skis' and the skier's, or the trees' (`TREE_SOURCES`). */
+ * committed: `\r` dropped, so a checkout's conversion moves nothing). */
 export function sourcesHash(root: string, sources: readonly string[] = MODEL_SOURCES): string {
   const h = createHash("sha256");
   for (const f of sources) {
@@ -153,18 +114,18 @@ export function sourcesHash(root: string, sources: readonly string[] = MODEL_SOU
   return h.digest("hex");
 }
 
-export function skiModels(on: ModelSwitches, root: string): Plugin {
+export function gameModels(on: ModelSwitches, root: string): Plugin {
   const dir = join(root, MODELS_DIR);
   const files = modelFiles(on);
   return {
-    name: "ski-models",
+    name: "game-models",
     buildStart() {
       const gone = files.filter((f) => !existsSync(join(dir, f)));
       if (gone.length) {
         this.error(
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
-            "(VITE_MODEL_SKIS=0 / VITE_MODEL_SKIERS=0 / VITE_MODEL_TREES=0)",
+            "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0)",
         );
       }
     },
@@ -179,9 +140,7 @@ export function skiModels(on: ModelSwitches, root: string): Plugin {
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const name = /\/models\/((?:trees\/|birds\/|beasts\/|gates\/)?[\w-]+\.glb)$/.exec(
-          req.url ?? "",
-        )?.[1];
+        const name = /\/models\/([\w-]+\.glb)$/.exec(req.url ?? "")?.[1];
         if (!name || !files.includes(name) || !existsSync(join(dir, name))) return next();
         res.setHeader("Content-Type", "model/gltf-binary");
         res.end(readFileSync(join(dir, name)));

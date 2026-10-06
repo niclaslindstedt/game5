@@ -57,6 +57,7 @@ import {
   botInput,
   createGame,
   error,
+  lastPiste,
   placeRun,
   skisById,
   step,
@@ -71,36 +72,42 @@ import { connectOutput } from "./output-bridge.ts";
 import { onShellCommand } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
+import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
-import { frontDoorPins, pinnedFor, pinnedPress } from "./game/campaign.ts";
+import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
+import { carriesPoles } from "./game/outfit.ts";
 import { useCampaign } from "./game/campaign-app.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
-import { freeGameOptions } from "./game/free-ride.ts";
+import {
+  FIRST_FREE_SEED,
+  freeAgainOptions,
+  freeGameOptions,
+  freeTopOptions,
+  standingFor,
+} from "./game/free-ride.ts";
+import { freeAsk, freeRideLevel, quietSeedMaps } from "./game/seed-maps.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
+import { heldRide } from "./game/hold-input.ts";
 import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts";
-import { keepsRecords } from "./game/records.ts";
+import { keepsRecords, pairKey, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
+import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { ReplayBar } from "./game/hud-replay.tsx";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
+import { watchMachineTaps } from "./game/machine-tap.ts";
 import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
-import { DevPages } from "./game/menu-dev.tsx";
-import { KeysPage } from "./game/menu-keys.tsx";
 import { MainMenu } from "./game/menu-main.tsx";
+import { MenuPages } from "./game/menu-pages.tsx";
 import { createMenuNav, walkCardsOnKeys } from "./game/menu-nav.ts";
-import { GalleryPage } from "./game/menu-gallery.tsx";
-import { OptionsPage } from "./game/menu-options.tsx";
-import { SkisPage } from "./game/menu-skis.tsx";
-import { StartPage } from "./game/menu-start.tsx";
 import { PauseMenu } from "./game/menu-pause.tsx";
-import { PinnedCards } from "./game/menu-pinned.tsx";
-import { createPinnedRuns, skisBack } from "./game/pinned-run.ts";
+import { createPinnedRuns, secondRunOff } from "./game/pinned-run.ts";
 import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { createRunActions } from "./game/run-actions.ts";
@@ -114,9 +121,11 @@ import {
   mixOf,
   nextCamera,
   saveSettings,
+  specFor,
   type Settings,
 } from "./game/settings.ts";
 import { withPreset, type VideoSettings } from "./game/settings-video.ts";
+import { boundLabel } from "./game/settings-input.ts";
 import {
   appDraws,
   cameraFor,
@@ -152,6 +161,7 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [params] = useState(() => readParams(location.search));
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
+  const [hudLive] = useState(createHudLive);
   const [flashes, setFlashes] = useState<HudFlash[]>([]);
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
@@ -182,18 +192,27 @@ export function App() {
   const [linkSkis, setLinkSkis] = useState(params.skis);
   const linkSkisRef = useRef(linkSkis);
   linkSkisRef.current = linkSkis;
-  /** The pair the player skis. */
-  const specOf = (s: Settings): SkiSpec => skisById(linkSkisRef.current ?? s.skis);
+  /** The pair the player skis, under his build (`specFor`). */
+  const specOf = (s: Settings): SkiSpec => specFor(s, linkSkisRef.current);
+  /** Who skis the player's runs, and with what: the pair, the help, the
+   * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
+  const skierOf = (s: Settings): PinnedSkier => ({
+    spec: specOf(s),
+    assist: assistOf(s.assist),
+    damage: s.damage,
+    poles: params.poles ?? carriesPoles(s.outfit),
+  });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
    * `?video=` is never written back. */
   const videoOf = (s: Settings): VideoSettings => ({
     ...(params.video ? withPreset(s.video, params.video) : s.video),
     ...params.picture,
   });
-  /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`,
-   * otherwise dealt fresh after every race stood up. */
-  const [nextSeed, setNextSeed] = useState(() => params.seed ?? dealSeed());
-  const [skiers, setSkiers] = useState(4);
+  /** THE SEED RACE WILL BUILD, shown on the tile. Pinned by `?seed=`; the
+   * free ride's first mountain on a fresh visit — so the front door stands on
+   * the map the start card opens on, and a free ride on it is stood up off
+   * the ski area already built — and dealt fresh after every race stood up. */
+  const [nextSeed, setNextSeed] = useState(() => params.seed ?? FIRST_FREE_SEED);
   /** THE MAP THE MENU IS STANDING OVER — what the TIME TRIAL tile rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
@@ -235,9 +254,8 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  // The keys and the picture reach the manager and the renderer the same
-  // way: the moment they are pressed, over the live race.
-  useEffect(() => input?.setBindings(settings.keys), [input, settings.keys]);
+  const { keys: skiKeys, heliKeys } = settings;
+  useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();
@@ -298,22 +316,17 @@ export function App() {
      * not build, the race fallback's map. */
     const freeBoot = (): GameState => {
       const s = settingsRef.current;
-      const seed = params.seed ?? s.ride.seed ?? raceSeed;
-      const ride = freeGameOptions(s.ride, seed, specOf(s), assistOf(s.assist));
+      const seed = params.seed ?? s.ride.seed ?? FIRST_FREE_SEED;
+      const ride = freeGameOptions(s.ride, seed, skierOf(s));
       // A link's sky (`?weather=` / `?hour=`) and region over the card's.
       const opts = overLink(ride, params);
       try {
         const game = createGame(opts);
-        freeAgain = { ...opts, level: game.level };
+        freeAgain = freeAgainOptions(opts, game.level);
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-        return raceOrFallback(1, {
-          assist: s.assist,
-          spec: specOf(s),
-          mode: "race",
-          laps: s.trialLaps,
-        });
+        return raceOrFallback(1, { ...skierOf(s), mode: "slalom", laps: s.trialLaps });
       }
     };
     // A race a link boots into is the player's, with the player's help; the
@@ -324,14 +337,15 @@ export function App() {
           raceSeed,
           params.rides
             ? {
-                assist: settingsRef.current.assist,
-                spec: specOf(settingsRef.current),
+                ...skierOf(settingsRef.current),
                 mode: params.mode,
                 laps: settingsRef.current.trialLaps,
               }
             : null,
           linkWorld(params),
         );
+    // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
+    if (params.rides && params.run === 2) state = secondRunOff(state);
     /** The mode the player's runs are ridden in, until a tile says otherwise. */
     let mode: GameMode = params.mode;
     /** The run the player is about to ski, in `mode`, on the pair they
@@ -344,26 +358,18 @@ export function App() {
         ...linkWorld(params),
         mode,
         laps: mode === "timeTrial" ? settingsRef.current.trialLaps : undefined,
-        spec: specOf(settingsRef.current),
-        assist: assistOf(settingsRef.current.assist),
-        damage: settingsRef.current.damage,
+        training: mode === "downhill" ? true : undefined,
+        ...skierOf(settingsRef.current),
       });
     /** What a player's run is filed under — nothing for a run the bot rides
-     * from the line (`?bot=1`), which is nobody's time, and nothing for a
-     * mode that keeps no book (a free ride, `keepsRecords`). */
+     * from the line (`?bot=1`), which is nobody's time, nothing for a mode
+     * that keeps no book (a free ride, `keepsRecords`), and nothing for a
+     * downhill's training, which counts for nothing, or a ski cross's heat,
+     * which is a race for places — its qualification is the timed run. */
     const ticketFor = (s: GameState): RunTicket | null =>
-      params.bot || !keepsRecords(mode)
+      params.bot || !keepsRecords(mode) || isTraining(s) || s.cross !== undefined
         ? null
-        : {
-            key: {
-              seed: s.seed,
-              course: s.level.resort?.course,
-              skis: s.skier.spec.id,
-              mode,
-              laps: s.rules.laps,
-            },
-            assist: { ...s.assist },
-          };
+        : { key: runKey(s, mode), assist: { ...s.assist } };
     const drawable = (): boolean => standing !== null && standing === state.level;
     let frozen = params.shot;
     let preroll = false;
@@ -402,8 +408,6 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
       audio.reset();
       runRumble.reset();
-      // The RACE tile's line reads a race's field, never a trial's.
-      if (next.rules.rivals > 0) setSkiers(next.rivals.length + 1);
     };
 
     /** What this step is ridden on: the player's hands on a run, and the BOT
@@ -412,7 +416,12 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(TUNING.dt, state.skier.airborne);
+        : manager.sample(
+            TUNING.dt,
+            state.skier.airborne,
+            !!state.heli?.rider,
+            state.skier.thrown !== null,
+          );
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {
@@ -447,7 +456,7 @@ export function App() {
     // the player waits for another), or the race a link names — already
     // `t` seconds in, ridden by the bot.
     // A link's race is the player's, and filed — unless the bot pre-rides it.
-    adopt(state, params.rides && params.t === 0 ? ticketFor(state) : null);
+    adopt(state, params.rides && params.t === 0 && !params.hold ? ticketFor(state) : null);
     if (params.rides && params.t > 0) {
       preroll = true;
       const steps = Math.round(params.t * TUNING.physicsHz);
@@ -455,6 +464,7 @@ export function App() {
       preroll = false;
     }
     if (params.rides && params.pose) placeRun(state, params.pose);
+    const holdRide = heldRide(params.rides ? params.hold : null); // `?hold=`, as the map stands
     renderer.setCamera(cameraFor(shellRef.current, settingsRef.current.camera));
     build(state).catch((e: unknown) =>
       error(`the renderer could not build the map: ${e instanceof Error ? e.message : String(e)}`),
@@ -486,11 +496,11 @@ export function App() {
      * trails and its spray clean — so no card, just the lights again. */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again from where it was stood up; every other
-      // run from the start line, on the same map, in its mode.
+      // A free ride starts again at the top of the last piste it skied;
+      // every other run from the start line, on the same map, in its mode.
       const next =
         !state.rules.course && !state.rules.tricks && freeAgain
-          ? createGame(freeAgain)
+          ? createGame(freeTopOptions(freeAgain, lastPiste(state)))
           : (pinned.again() ?? playerGame(state.level, state.seed));
       adopt(next, ticketFor(next));
       frozen = false;
@@ -504,7 +514,7 @@ export function App() {
       loader,
       current: () => state,
       settings: () => settingsRef.current,
-      spec: specOf,
+      skier: skierOf,
       setMode: (asked) => (mode = asked),
       done: lift,
     });
@@ -550,12 +560,17 @@ export function App() {
       free: (options) => {
         mode = "free";
         pinned.clear();
+        // The map standing, or the one the start card's worker built — or
+        // is building — for this seed (`seed-maps.ts`); built here only
+        // where there is neither.
+        const made = freeRideLevel(freeAsk(options));
+        quietSeedMaps(freeAsk(options));
         loader.begin({
+          ready: made.ready,
           build: () => {
-            const reuse =
-              state.level.seed === options.seed && state.rules.course ? state.level : undefined;
-            const game = createGame({ ...options, level: reuse });
-            freeAgain = { ...options, level: game.level };
+            const level = standingFor(state.level, state.rules, options) ?? made.level();
+            const game = createGame({ ...options, level });
+            freeAgain = freeAgainOptions(options, game.level);
             return game;
           },
           camera: settingsRef.current.camera,
@@ -565,6 +580,7 @@ export function App() {
       tricks: pinned.tricks,
       pinned: pinned.press,
       restart,
+      second: pinned.second,
       pause: () => {
         if (canPause(shellRef.current)) setShellNow("pause");
         else if (watching(shellRef.current)) pressRef.current.toMenu();
@@ -661,12 +677,13 @@ export function App() {
 
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is fewer steps per frame and nothing else: the replay's
-      // director (`replay-shots.ts`) and the death cam (`camera-death.ts`).
+      // SLOW MOTION is the replay director's alone (`replay-shots.ts`): fewer
+      // steps per frame. A wipeout runs at full speed (`camera-death.ts`).
       renderer.setDeathCam(playerRides(shellRef.current));
-      const rate = replays.frame() * renderer.timeRate();
+      const rate = replays.frame();
       const dtRun = dtFrame * rate;
       const simAt = performance.now();
+      if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
       if (!frozen && !held && shown) {
         const steps = clock.frame(dtRun);
         for (let i = 0; i < steps; i++) stepOnce();
@@ -683,6 +700,7 @@ export function App() {
       const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
       const drawAt = performance.now();
       renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
+      feedHudLive(hudLive, state);
       shots.serve();
       if (timing) {
         const drawMs = performance.now() - drawAt + renderer.drain();
@@ -754,11 +772,19 @@ export function App() {
     const observer = new ResizeObserver(fit);
     observer.observe(canvas);
     fit();
+    // A tap on the snowmobile or the helicopter beside him gets him on.
+    const stopTaps = watchMachineTaps(canvas, {
+      ray: (x, y) => renderer.pickRay(x, y),
+      state: () => state,
+      rides: () => playerRides(shellRef.current),
+      board: () => manager.requestMachine(),
+    });
 
     return () => {
       cancelAnimationFrame(raf);
       audio.silence();
       observer.disconnect();
+      stopTaps();
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
       document.removeEventListener("keydown", unlockAudio, unlockOpts);
@@ -778,7 +804,7 @@ export function App() {
   // renderer's own effect above, so the first call finds it standing.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => rendererRef.current?.setVideo(videoOf(settings)), [renderKit, settings.video]);
-  useEffect(() => rendererRef.current?.dress(settings.topsheets), [renderKit, settings.topsheets]);
+  useEffect(() => rendererRef.current?.dress(settings.outfit), [renderKit, settings.outfit]);
 
   /** THE TIME TRIAL'S MAP: a pinned one, or the one the menu stands over. */
   const trialSeed = params.seed ?? mapSeed;
@@ -787,11 +813,12 @@ export function App() {
   const race = (): void => {
     setPage("root");
     // A RUNG off the campaign card, or a PINNED map off the level card.
-    const pin = pinnedPress(campaign.rung.current, settings.level, modeRef.current, params.seed);
+    const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    if (modeRef.current === "tricks" && params.seed === null) {
-      return pressRef.current.tricks(trickMapFor(settings.trickMap));
+    // ...and a BIG AIR contest on the same card's map, its jump built over it.
+    if ((modeRef.current === "tricks" || modeRef.current === "bigAir") && params.seed === null) {
+      return pressRef.current.tricks(trickMapFor(settings.trickMap), modeRef.current);
     }
     // The trial and the tricks run are ridden on the map the menu stands over.
     const trial = modeRef.current === "timeTrial" || modeRef.current === "tricks";
@@ -801,20 +828,19 @@ export function App() {
   };
   const trialBest = bookRef.current?.standing({
     seed: trialSeed,
-    skis: specOf(settings).id,
+    ...pairKey(specOf(settings)),
     mode: "timeTrial",
     laps: settings.trialLaps,
   });
 
-  /** The map on the start card: the one it stored, or the front door's. */
-  const startSeed = settings.ride.seed ?? nextSeed;
+  /** The map on the start card: the one it stored, or the first of the
+   * free ride's own mountains (`FREE_SEEDS`). */
+  const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
   /** Onto the snow on a FREE RIDE: the start card's map, day and snow, on
    * the pair the ski card holds. */
   const freeRide = (): void => {
     setPage("root");
-    pressRef.current.free(
-      freeGameOptions(settings.ride, startSeed, specOf(settings), assistOf(settings.assist)),
-    );
+    pressRef.current.free(freeGameOptions(settings.ride, startSeed, skierOf(settings)));
   };
 
   const hudUp = hudOver(shell) && snap !== null && input !== null;
@@ -827,6 +853,7 @@ export function App() {
           flashes={flashes}
           touch={touch && !watching(shell)}
           input={input!}
+          live={hudLive}
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}
@@ -834,6 +861,8 @@ export function App() {
           onCamera={() => pressRef.current.camera()}
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}
+          machineKey={boundLabel(settings.keys.machine)}
+          tuckKey={boundLabel(settings.keys.tuck)}
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands
@@ -858,7 +887,7 @@ export function App() {
         touch={touch}
         onAgain={() => pressRef.current.restart()}
         onNew={() => {
-          if (!pinnedFor(settings.level, modeRef.current, params.seed)) return race();
+          if (!pinnedFor(settings, modeRef.current, params.seed)) return race();
           pressRef.current.toMenu();
           setPage("levels");
         }}
@@ -866,6 +895,7 @@ export function App() {
         campaign={shell === "run" ? campaign.rig.plate() : null}
         onNext={(next) => pressRef.current.pinned((campaign.rung.current = next), next.mode, true)}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
+        onSecond={() => pressRef.current.second()}
       />
       {shell === "pause" && snap !== null && (
         <PauseMenu
@@ -884,20 +914,19 @@ export function App() {
       )}
       {shell === "menu" && page === "root" && (
         <MainMenu
-          {...frontDoorPins(campaign.progress, settings.level, params.seed)}
+          {...frontDoorPins(campaign.progress, settings, params.seed)}
           onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}
-          skiers={skiers}
           trial={{
             seed: trialSeed,
             best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,
           }}
-          onRace={() => campaign.openCard("race", params.seed === null ? "levels" : "skis")}
+          onRace={() => setPage("races")}
           onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
-          onTricks={() => campaign.openCard("tricks", params.seed === null ? "tricks" : "skis")}
+          onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
           onGallery={() => setPage("gallery")}
           developer={settings.developer}
@@ -906,73 +935,24 @@ export function App() {
         />
       )}
       {shell === "menu" && page !== "root" && (
-        <div class="menu">
-          {page === "campaign" || page === "levels" || page === "tricks" ? (
-            <PinnedCards
-              page={page}
-              mode={modeRef.current}
-              settings={settings}
-              skis={specOf(settings).id}
-              progress={campaign.progress}
-              standing={(key) => bookRef.current?.standing(key) ?? null}
-              onBack={() => setPage("root")}
-              onChoose={campaign.choose}
-              onTrick={campaign.chooseTrick}
-            />
-          ) : page === "skis" ? (
-            <SkisPage
-              skis={specOf(settings).id}
-              topsheets={settings.topsheets}
-              onPick={(skis) => {
-                setLinkSkis(null);
-                setSettings((s) => ({ ...s, skis }));
-              }}
-              onTopsheet={(topsheets) => setSettings((s) => ({ ...s, topsheets }))}
-              onBack={() => setPage(skisBack(campaign.rung.current, modeRef.current, params.seed))}
-              onRide={modeRef.current === "free" ? freeRide : race}
-            />
-          ) : page === "start" ? (
-            <StartPage
-              settings={settings}
-              seed={startSeed}
-              onSettings={setSettings}
-              onReroll={() =>
-                setSettings((s) => ({ ...s, ride: { ...s.ride, seed: dealSeed(), spot: null } }))
-              }
-              onBack={() => setPage("root")}
-              onNext={() => setPage("skis")}
-            />
-          ) : page === "gallery" ? (
-            <GalleryPage onBack={() => setPage("root")} />
-          ) : page === "dev" || page === "unlocks" || page === "benchHistory" ? (
-            <DevPages
-              page={page}
-              settings={settings}
-              progress={campaign.progress}
-              repro={() => dev.rig.current?.repro() ?? ""}
-              onSettings={setSettings}
-              onProgress={campaign.setProgress}
-              onPage={setPage}
-              onBack={() => setPage("root")}
-              onBenchmark={() => dev.rig.current?.startBench()}
-            />
-          ) : page === "options" ? (
-            <OptionsPage
-              settings={settings}
-              keys={keys}
-              touch={touch}
-              onSettings={setSettings}
-              onBack={() => setPage("root")}
-              onKeys={() => setPage("keys")}
-            />
-          ) : (
-            <KeysPage
-              settings={settings}
-              onSettings={setSettings}
-              onBack={() => setPage("options")}
-            />
-          )}
-        </div>
+        <MenuPages
+          page={page}
+          setPage={setPage}
+          mode={modeRef.current}
+          settings={settings}
+          setSettings={setSettings}
+          skis={specOf(settings).id}
+          campaign={campaign}
+          standing={(key) => bookRef.current?.standing(key) ?? null}
+          linkSeed={params.seed}
+          startSeed={startSeed}
+          dev={dev}
+          keys={keys}
+          touch={touch}
+          onLinkSkis={() => setLinkSkis(null)}
+          onRide={race}
+          onFreeRide={freeRide}
+        />
       )}
       {(shell === "loading" || loadLeaving) && (
         <LoadingScreen

@@ -46,6 +46,8 @@ in the instrument exist to reach that:
 | `pwa/src/game/audio/bird-voice.ts`, `bird-bank.ts`, `bird-bed.ts` | **THE MOUNTAIN'S VOICES.** Who cries and how often (`BIRD_CALLS`, plan-free), the cries themselves (`BIRD_BANK`, spread into `RUN_BANK`), and the scheduler that raises them off the birds' own plan (`birdPlanFor`) — a CUE drawn off each flock's scatter (`criesIn`), never an event and never `state.rng`. The ptarmigan's whirr is the one cry a skier causes (`flushAt`). `tests/birds_test.ts` holds every call to a bank id. |
 | framework `audio/rack` | The plumbing every bed shares: build a layer, rebuild one whose context died, steer it on its glide. |
 | framework `audio/play`, `audio/types` | Firing one def through a shape; what a def and a shape ARE. |
+| `pwa/src/game/audio/heli-voice.ts`, `heli-bed.ts`, `heli-bank.ts` | **THE HELICOPTER** (`heli.ts`, `docs/helicopter.md`): the bed's eleven layers as a pure function of `state.heli` and the ear (the rotor's whop, thump and slap at its blade-passage rate, the turbine's whine with the spool, the tail rotor's buzz, the wash's blown snow near the ground, the fire on a wreck — by distance, air absorption and Doppler, the `machine` column of `LISTENERS`), the scheduler `RunAudio.frame` already drives, and the one-shots its `heli` events make (the boots on the skid, the liftoff, the touchdown, the drop's whoosh, the crash's explosion). `tests/heli_audio_test.ts`. |
+| `pwa/src/game/audio/sled-voice.ts`, `sled-bed.ts`, `sled-bank.ts` | **THE SNOWMOBILE** (`sled.ts`, `docs/snowmobile.md`): the sibling sled game's eight-layer two-stroke (the block, the firing note and its octave, the expansion chamber's rasp on the pipe, the bass, the intake, the CVT belt's whine at the track's speed) with the paddles' CHURN in powder, as a pure function of `state.sled` heard from the skier (`sledVoiceOf`, `sledHeard`), a `LOUD` gain putting it with the helicopter in the mix, through the effects' fader; and the `sled` event's one-shots (on and the engine starting, off, heaved back up, the crash). The audition page's SNOWMOBILE section and its presets. |
 | `pwa/src/game/audio/bus.ts` | One synth, the volume-scaled view the SOUND switch moves, and the unlock. |
 | `pwa/src/game/audio/index.ts` | The front door (`createRunAudio`): events in, the beds fed per frame, `silence()`. `App.tsx` is its one caller. |
 | `pwa/src/game/settings.ts` | The switch the player keeps (`sound`), and the three faders. |
@@ -124,9 +126,12 @@ and a glide. The rules:
 - **The air is the wind alone.** Off a kicker the snow layers go and only
   the wind keeps going — the physics does that; the bed only hears it.
   Never fake it with a take-off one-shot.
-- **The poles are a crawl's sound.** Under `poles.speed` with the tuck held a
-  plant is a click and a push; at speed they are silent under the arms. A
-  cue off `plantPulse`, never an event.
+- **The poles are a crawl's sound, and heard only where they are SEEN.** A
+  plant plays where the pose plants — the bed reads the gait the figure is
+  drawn by (`gaitOf`: the stroke's start, the arms' share, `Gait.keep`), never
+  a looser test of its own — and sounds like the snow it goes into
+  (`plantVoice`): a tick on the groomer, a pat in loose snow taken to nothing
+  as it deepens. A cue, never an event.
 - **The pitches are arithmetic; the levels are taste.** Nothing about the
   wind's cutoff or the chatter's band is chosen by ear.
 

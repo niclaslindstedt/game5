@@ -106,49 +106,52 @@ export const TRICKS = {
    * THE GATES: how far toward the top of its axis an input has to be
    * carried for it to be a stroke rather than trim — the lean's (both
    * ways: back is the backflip, forward the front flip) and the edge's.
-   * Below them the lean and the edge are the ordinary air control of
-   * `flight.ts`. */
+   * The edge's is the lower: a key tapped left or right is ramped
+   * (`input-model.ts`) and a quick tap must still reach it. Below them the
+   * lean and the edge are the ordinary air control of `flight.ts`. */
   flipGate: 0.8,
-  spinGate: 0.85,
-  /** WHAT ONE STROKE IS WORTH, N·m·s of angular impulse about the pitch
-   * axis (the lean) and about the up axis (the edge thrown over): divided
-   * by the skier's own inertia, so a long stiff ski turns less for the same
-   * throw. About 2.9 rad/s of pitch and 4.2 of yaw on the all-mountain
-   * ski, reached over the wind-up below rather than in one step — with the
-   * lean's own torque held on through the throw, a backflip in the 1.7 s a
-   * park kicker gives a skier standing a metre tall, landed a few degrees
-   * tips-down rather than over-turned onto his tails (in the air nothing
-   * but the air's damping slows a flip); the front flip, thrown against
-   * the tips the body eases up off the lip, comes round a little shorter
-   * and the landing finishes it. */
-  flip: 77,
-  spin: 38,
-  /** ...and the most a FLIGHT's strokes may add up to, rad/s on each axis:
-   * the budget a skier taps out of. Enough for a double off the big lips
-   * and not a triple. */
-  flipCeiling: 6.5,
-  spinCeiling: 8,
-  /** HOW A STROKE IS PAID OUT, 1/s: not as one step's snap but as a
-   * skier's throw — his body winds itself up, it gathers, and it settles
-   * at the rate the stroke bought. The rate follows a critically damped
-   * rise, `1 − (1 + ωt)·e^(−ωt)`, at this ω: half of it in 1.68/ω s, nine
-   * tenths in 3.89/ω — about 0.17 s and 0.39 s for the flip, 0.21 s and
-   * 0.49 s for the 360, whose heavier yaw gathers slower. What the delay
-   * costs the turn is 2/ω s of the stroke's rate, which a skier holding
-   * his throw is given back (the lean's torque, the 360's carry below). */
-  flipWindUp: 10,
-  spinWindUp: 8,
-  /** THE 360 CARRIED: the edge held across its gate on the side a stroke
-   * threw it to keeps winding the spin up at this much rad/s², out of the
-   * same flight's budget — so a held 360 accelerates until the skier lets
-   * go or the budget is spent, and a let-go one coasts down under the
-   * air's damping. The flip needs no such dial: a held lean is already its
-   * carry, the lean's own torque (`air.leanTorque`) gathering the flip the
-   * whole time it is held, where the edge's yaw (`air.steerTorque`) is too
-   * light to hold a spin against the air at all. */
-  spinCarry: 3,
+  spinGate: 0.6,
+  /** WHAT ONE STROKE TURNS, rad: a tap on the edge is HALF A TURN about
+   * the skier's own up axis — once, and the skis come down backward (a
+   * 180, ridden away switch); twice, a whole 360 — and a tap on the lean a
+   * WHOLE TURN nose over tail, a loop. A tap the other way takes one back
+   * off what is still owed. */
+  spinStep: Math.PI,
+  flipStep: 2 * Math.PI,
+  /** ...and the most a flight's strokes may have owed at once on each
+   * axis, rad: a 720 and a double. */
+  spinMost: 4 * Math.PI,
+  flipMost: 4 * Math.PI,
+  /** HOW A STROKE IS TURNED: not handed over in a step but THROWN — the
+   * rate gathered at `spinAccel` / `flipAccel` rad/s² up to a cruise of
+   * `spinRate` / `flipRate` rad/s, and taken off again at the same
+   * acceleration so the body stops square on the angle bought (a 180
+   * stops with the skis straight backward, a loop with them level). The
+   * accelerations are the reference pair's, scaled by the root of each
+   * pair's own inertia against it (a long downhill ski is slower to throw
+   * round, the short park ski quicker). An arcade's numbers: a 180 in
+   * about 0.36 s, a loop in 0.5–0.7, so both come round off the jump key's
+   * own pop on the flat — a real skier wants a kicker for the loop. */
+  spinRate: 12,
+  flipRate: 10,
+  spinAccel: 120,
+  flipAccel: 100,
+  /** THE THROW IS PACED TO THE SNOW: whatever is owed is turned by
+   * `finish` s before the flight comes back down (`flight.ts`'s
+   * `landingAhead`), the cruise raised to fit up to `rateMost` rad/s —
+   * and a stroke that could not be turned in the air left, at that rate,
+   * is not taken at all: a lean thrown for the landing is the lean, not a
+   * loop the skier would land half way round. */
+  finish: 0.08,
+  rateMost: 18,
   /** A flight a stroke may be thrown in: one that LEFT the snow climbing at
    * least this fast, m/s, and has been up `air.counts` — a skier dropping off
    * a crest is not a launch. */
   launch: 0.5,
+  /** ON A FREE RIDE, a flight is one the skier MEANT only if he left the
+   * snow off a kicker's ramp or within this long of popping the jump, s —
+   * a knee taken at speed throws him without asking, and the edge he
+   * steers across it is his steering (`TrickState.meant`). A tricks run
+   * means every flight. */
+  popWindow: 0.3,
 } as const;

@@ -378,6 +378,56 @@ export const CONTACT_BANK: SoundBank = {
     ],
   },
 
+  wipeout_skier: {
+    description:
+      "ANOTHER SKIER TAKEN OUT on a free ride: two padded bodies meeting " +
+      "at speed — a dull double thud, jacket into jacket, a nylon swish of " +
+      "the shells sliding past each other — then both down the slope in a " +
+      "pink sheet of snow and TWO pairs of skis clattering off.",
+    voices: [
+      {
+        call: "tone",
+        type: "sine",
+        from: 96,
+        to: 52,
+        durationMs: 180,
+        volume: 0.07,
+        drive: 0.6,
+        attackMs: 2,
+      },
+      {
+        call: "tone",
+        type: "sine",
+        from: 84,
+        to: 46,
+        durationMs: 200,
+        volume: 0.05,
+        drive: 0.5,
+        attackMs: 3,
+        delayMs: 70,
+      },
+      {
+        call: "noise",
+        durationMs: 140,
+        volume: 0.03,
+        attackMs: 6,
+        filter: { type: "bandpass", frequency: 2600, to: 1400, q: 1.4 },
+      },
+      {
+        call: "noise",
+        durationMs: 900,
+        volume: 0.03,
+        color: "pink",
+        attackMs: 40,
+        delayMs: 120,
+        holdMs: 300,
+        filter: { type: "bandpass", frequency: 900, to: 2200, q: 0.6 },
+      },
+      ...clatter(260, 0.026),
+      ...clatter(470, 0.02),
+    ],
+  },
+
   wipeout_catch: {
     description:
       "An EDGE CAUGHT — the high-side: the steel ripping sideways across " +

@@ -11,8 +11,10 @@
 // --costs"` prices every stop against the top picture on the pinned race,
 // the frame end to end (what the probe times), each row lowered alone, from
 // the race's chase camera AND a vista across the whole basin, at whichever
-// is dearer — DISTANCE is nearly free in the woods and a fifth of the frame
-// from a hilltop. A stop that measured cheaper than the one under it is set
+// is dearer — a row's price moves with the view and with the machine (on a
+// laptop GPU DISTANCE was nearly free in the woods and a fifth of the frame
+// from a hilltop; on a bigger one the vista's frame is the lighter of the
+// two). A stop that measured cheaper than the one under it is set
 // level with it: that is the noise, not a stop that pays for itself. How to
 // re-price, and how a benefit is argued: the `picture-pricing` skill.
 // `benefit` is what it adds to the LOOK over the cheapest stop, on one scale
@@ -53,14 +55,15 @@ export type PriceList = {
   readonly [R in PictureRow]: Readonly<Record<VideoSettings[R], StopPrice>>;
 };
 
-/** THE REFERENCE MACHINE the costs were measured on: an integrated
- * laptop-class GPU, the benchmark's pinned race, at this buffer. */
+/** THE REFERENCE MACHINE the costs were measured on: a high-end laptop
+ * with the GPU on the processor, drawing through the browser's Metal
+ * backend on its charger, the benchmark's pinned race, at this buffer. */
 export const FIT_REFERENCE = { width: 1920, height: 1080 } as const;
 
 /** The frame with every row at its cheapest stop on the reference machine,
  * ms: the engine, the sky, the ground at its coarsest — what no row can
  * take off. */
-export const FLOOR_MS = 1.92;
+export const FLOOR_MS = 3.96;
 
 /**
  * THE PRICE LIST. Benefits, row by row:
@@ -85,41 +88,41 @@ export const FLOOR_MS = 1.92;
 export const PICTURE_PRICES: PriceList = {
   resolution: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.63, benefit: 45 },
-    high: { cost: 1.43, benefit: 70 },
+    medium: { cost: 0.4, benefit: 45 },
+    high: { cost: 0.87, benefit: 70 },
   },
   distance: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.38, benefit: 25 },
-    high: { cost: 0.76, benefit: 35 },
-    max: { cost: 1.0, benefit: 38 },
+    medium: { cost: 0.52, benefit: 25 },
+    high: { cost: 1.23, benefit: 35 },
+    max: { cost: 1.46, benefit: 38 },
   },
   terrain: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.56, benefit: 8 },
-    high: { cost: 0.76, benefit: 12 },
+    medium: { cost: 0, benefit: 8 },
+    high: { cost: 0.21, benefit: 12 },
   },
   trails: {
     off: { cost: 0, benefit: 0 },
-    low: { cost: 0.36, benefit: 50 },
-    medium: { cost: 0.36, benefit: 58 },
-    high: { cost: 0.36, benefit: 62 },
+    low: { cost: 0.06, benefit: 50 },
+    medium: { cost: 0.16, benefit: 58 },
+    high: { cost: 0.24, benefit: 62 },
   },
   forest: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.15, benefit: 12 },
-    high: { cost: 0.32, benefit: 18 },
+    medium: { cost: 0.65, benefit: 12 },
+    high: { cost: 1.19, benefit: 18 },
   },
   shadows: {
     off: { cost: 0, benefit: 0 },
-    skiers: { cost: 0.55, benefit: 22 },
-    medium: { cost: 0.74, benefit: 40 },
-    high: { cost: 1.98, benefit: 44 },
+    skiers: { cost: 0.6, benefit: 22 },
+    medium: { cost: 0.62, benefit: 40 },
+    high: { cost: 1.89, benefit: 44 },
   },
   spray: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.06, benefit: 8 },
-    high: { cost: 0.15, benefit: 12 },
+    medium: { cost: 0.08, benefit: 8 },
+    high: { cost: 0.18, benefit: 12 },
   },
 };
 

@@ -8,7 +8,7 @@ import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv } from "vite";
 
-import { skiModels } from "./models-plugin.ts";
+import { gameModels } from "./models-plugin.ts";
 import { modelSwitch } from "./src/game/model-switch.ts";
 import { appPwa } from "./pwa-plugin.ts";
 
@@ -51,29 +51,26 @@ const version = process.env.GITHUB_SHA ? buildLabel : `${buildLabel}+${new Date(
 const envDir = here("..");
 
 export default defineConfig(({ mode }) => {
-  // The MODEL switches (`pwa/models-plugin.ts`, `src/game/skier-models.ts`,
-  // `src/game/tree-models.ts`):
-  // on unless the environment or the root `.env` switches one back
+  // The MODEL switch (`pwa/models-plugin.ts`, `src/game/skier-models.ts`):
+  // on unless the environment or the root `.env` switches it back
   // (`src/game/model-switch.ts`).
   const env = { ...loadEnv(mode, envDir, "VITE_"), ...process.env };
   const models = {
     skis: modelSwitch(env.VITE_MODEL_SKIS),
-    skiers: modelSwitch(env.VITE_MODEL_SKIERS),
-    trees: modelSwitch(env.VITE_MODEL_TREES),
-    birds: modelSwitch(env.VITE_MODEL_BIRDS),
-    beasts: modelSwitch(env.VITE_MODEL_BEASTS),
-    gates: modelSwitch(env.VITE_MODEL_GATES),
+    heli: modelSwitch(env.VITE_MODEL_HELI),
+    sled: modelSwitch(env.VITE_MODEL_SLED),
   };
   return {
     base,
     envDir,
-    // The lazy renderer carries three.js and the generated rider shapes in a
-    // 571 kB chunk by design. Keep Vite's warning just above that measured
-    // envelope. It is the ONLY thing watching bundle size now: the raw and
-    // gzip budgets over the first-render path went with `check-seo.mjs`, so
-    // what keeps three.js off that path is the dynamic import of
-    // `renderer.ts` in `App.tsx` and nothing else (spec-conformance §23.9).
-    build: { chunkSizeWarningLimit: 600 },
+    // The lazy renderer carries three.js and every procedural builder (the
+    // riders and the loom their outfits are cut on, the trees, the
+    // wildlife, the marks) in a 715 kB chunk by design. Keep Vite's
+    // warning just above that measured envelope. It is
+    // the ONLY thing watching bundle size: what keeps three.js off the
+    // first-render path is the dynamic import of `renderer.ts` in `App.tsx`
+    // and nothing else (spec-conformance §23.9).
+    build: { chunkSizeWarningLimit: 725 },
     resolve: {
       alias: {
         "@engine": here("../engine/index.ts"),
@@ -91,12 +88,12 @@ export default defineConfig(({ mode }) => {
     // `preact/jsx-runtime` and aliases `react` / `react-dom` onto
     // `preact/compat`, so the pre-built framework chunks resolve to Preact.
     //
-    // `skiModels` comes before `appPwa`, so the models it emits are in the
+    // `gameModels` comes before `appPwa`, so the models it emits are in the
     // bundle the worker's precache list is read off.
     plugins: [
       preact(),
       tailwindcss(),
-      skiModels(models, here("..")),
+      gameModels(models, here("..")),
       appPwa({ base, version, ignorePaths }),
     ],
   };

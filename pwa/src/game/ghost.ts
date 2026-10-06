@@ -37,10 +37,12 @@
 import {
   NEUTRAL_INPUT,
   isGameMode,
+  isRiderId,
   isSkiId,
   type Assist,
   type GameMode,
   type Level,
+  type RiderId,
   type SkiId,
   type SkierInput,
 } from "@engine";
@@ -88,6 +90,15 @@ export function snapInput(input: SkierInput): SkierInput {
   input.lean = snapAxis(input.lean, TAPE.lean);
   input.tuck = snapAxis(input.tuck, TAPE.tuck);
   input.brake = snapAxis(input.brake, TAPE.brake);
+  // A helicopter flown (`heli.ts`) on the same grid: a free ride keeps no
+  // tape, but the figure the engine flies on is still the figure snapped.
+  const h = input.heli;
+  if (h) {
+    h.collective = snapAxis(h.collective, "lever");
+    h.pitch = snapAxis(h.pitch, "signed");
+    h.roll = snapAxis(h.roll, "signed");
+    h.pedal = snapAxis(h.pedal, "signed");
+  }
   return input;
 }
 
@@ -128,11 +139,18 @@ export type GhostRun = GhostStage &
     format: number;
     seed: number;
     skis: SkiId;
+    /** The skier's build it was ridden at — absent on a medium build's run
+     * (and on every run kept before a build could be chosen). */
+    rider?: RiderId;
     mode: GameMode;
     laps: number;
     /** The help the run was ridden with: the ghost rides with it too, since
      * the same hands with another hold on the yaw are another line. */
     assist: Assist;
+    /** Whether it was skied on poles (`SkierState.poles`): the ghost skis
+     * as it did, since the same hands with no poles are another line. Left
+     * out of a tape that had them — every tape an older build wrote. */
+    poles?: boolean;
     /** The time the run set, s. */
     value: number;
   };
@@ -214,6 +232,7 @@ export function sealGhost(
   key: RecordKey,
   assist: Assist,
   value: number,
+  poles = true,
 ): GhostRun {
   return {
     ...stage,
@@ -221,9 +240,11 @@ export function sealGhost(
     format: GHOST_FORMAT,
     seed: key.seed,
     skis: key.skis,
+    ...(key.rider && key.rider !== "medium" ? { rider: key.rider } : {}),
     mode: key.mode,
     laps: key.laps,
     assist: { ...assist },
+    ...(poles ? {} : { poles: false }),
     value,
   };
 }
@@ -245,11 +266,15 @@ export function readsAsGhost(parsed: unknown): parsed is GhostRun {
   if (run.format !== GHOST_FORMAT) return false;
   if (typeof run.id !== "string" || typeof run.map !== "string") return false;
   if (typeof run.skis !== "string" || !isSkiId(run.skis)) return false;
+  if (run.rider !== undefined && (typeof run.rider !== "string" || !isRiderId(run.rider))) {
+    return false;
+  }
   if (!isGameMode(run.mode)) return false;
   if (!Number.isInteger(run.seed) || !Number.isInteger(run.laps) || (run.laps as number) < 1) {
     return false;
   }
   if (!run.assist || !share(run.assist.yaw) || !share(run.assist.air)) return false;
+  if (run.poles !== undefined && typeof run.poles !== "boolean") return false;
   if (typeof run.value !== "number" || !Number.isFinite(run.value) || run.value <= 0) return false;
   return isControlTape(parsed, TAPE);
 }

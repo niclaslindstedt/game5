@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE BIRDS, DRAWN — the flocks and the crossings `bird-plan.ts` laid over
-// the map, as three.js sees them: one instanced mesh a species, holding
-// whatever of that species is within sight this frame, each bird posed off
-// the engine's own clock and its wings hinged in the shader.
+// the map, as three.js sees them: one instanced mesh a species FORM and cut
+// (`bird-shapes.ts`), holding whatever of it is within sight this frame,
+// each bird posed off the engine's own clock, its wings hinged in the shader,
+// and drawn as WHO it is (`wild-traits.ts`: its form, its size, its shade —
+// dealt off the flock's own scatter, never the engine's stream) at the NEAR
+// cut within `WildLook.near` of the lens and the FAR one past it. How many
+// forms a species is drawn in is the FOREST row's (`FOREST_LOOK[row].wild`).
 //
 // The wiring and the one thing here with MEMORY: when each flock was last
 // put up by a skier, decided by `flushAt` — the rule the plan states once
@@ -26,21 +30,30 @@ import {
   residentCount,
   type BirdPlan,
 } from "./bird-plan.ts";
-import { birdModel } from "./bird-models.ts";
-import { BIRD_STYLES, birdMaterial, buildBird } from "./bird-shapes.ts";
+import { BIRD_STYLES, birdMaterial, buildBird, type BirdLod } from "./bird-shapes.ts";
 import type { HazeUniforms } from "./haze.ts";
+import type { WildLook } from "./settings-video.ts";
+import { BIRD_FORMS, birdIndividual, drawnForm, freshIndividual } from "./wild-traits.ts";
 
 /** How far from the LENS a flock is drawn at all, m, and a crossing: a
  * raven is a speck at half a kilometre, a skein a shape from much further. */
 const FLOCK_REACH = 700;
 const CROSSING_REACH = 1600;
 
-type Roster = {
+/** The cuts, in the order a roster's slots are laid. */
+const LODS: readonly BirdLod[] = ["near", "far"];
+
+/** One mesh of a species: a form at a cut. */
+type Slot = {
   mesh: THREE.InstancedMesh;
   flaps: THREE.InstancedBufferAttribute;
   folds: THREE.InstancedBufferAttribute;
   n: number;
 };
+
+/** A species' meshes, form by form and cut by cut (`form * 2 + lod`), and
+ * how many of its forms are drawn. */
+type Roster = { slots: Slot[]; forms: number };
 
 export type Birds = {
   group: THREE.Group;
@@ -50,59 +63,101 @@ export type Birds = {
   update: (state: GameState, eyeX: number, eyeZ: number) => void;
   /** A new run on the same map: every covey back on the snow. */
   reset: () => void;
+  /** The FOREST row moved: how many forms are drawn and where the cuts
+   * hand over. */
+  setLook: (look: WildLook) => void;
   plan: BirdPlan;
   dispose: () => void;
 };
 
-export function createBirds(level: Level, haze: HazeUniforms): Birds {
+export function createBirds(level: Level, haze: HazeUniforms, look: WildLook): Birds {
   const group = new THREE.Group();
   const plan = birdPlanFor(level);
   const rosters = new Map<BirdId, Roster>();
-  for (const spec of BIRDS) {
-    const capacity = residentCount(plan, spec.id) + crossingCapacity(plan, spec.id);
-    if (capacity === 0) continue;
-    // The species' model where one is loaded (`bird-models.ts`), else
-    // the code's own bird, flat-shaded as it is built to be.
-    const modelled = birdModel(spec, BIRD_STYLES[spec.id]);
-    const geometry = modelled ?? buildBird(spec, BIRD_STYLES[spec.id]);
-    const flaps = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
-    flaps.setUsage(THREE.DynamicDrawUsage);
-    geometry.setAttribute("aFlap", flaps);
-    const folds = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
-    folds.setUsage(THREE.DynamicDrawUsage);
-    geometry.setAttribute("aFold", folds);
-    const mesh = new THREE.InstancedMesh(geometry, birdMaterial(spec, haze, !modelled), capacity);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.count = 0;
-    // The instances move every frame and the mesh has no fixed extent; the
-    // reach test below is the cull.
-    mesh.frustumCulled = false;
-    group.add(mesh);
-    rosters.set(spec.id, { mesh, flaps, folds, n: 0 });
-  }
+  let near = look.near;
+  let drawnForms = look.forms;
+
+  const clear = (): void => {
+    for (const roster of rosters.values()) {
+      for (const slot of roster.slots) {
+        group.remove(slot.mesh);
+        slot.mesh.geometry.dispose();
+        (slot.mesh.material as THREE.Material).dispose();
+      }
+    }
+    rosters.clear();
+  };
+  const build = (forms: number): void => {
+    clear();
+    for (const spec of BIRDS) {
+      const capacity = residentCount(plan, spec.id) + crossingCapacity(plan, spec.id);
+      if (capacity === 0) continue;
+      const drawn = Math.max(1, Math.min(forms, BIRD_FORMS[spec.id].length));
+      const slots: Slot[] = [];
+      for (const form of BIRD_FORMS[spec.id].slice(0, drawn)) {
+        for (const lod of LODS) {
+          const geometry = buildBird(spec, BIRD_STYLES[spec.id], form, lod);
+          const flaps = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+          flaps.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute("aFlap", flaps);
+          const folds = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+          folds.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute("aFold", folds);
+          const mesh = new THREE.InstancedMesh(geometry, birdMaterial(spec, haze), capacity);
+          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          // Every individual's shade, written as it is drawn.
+          mesh.instanceColor = new THREE.InstancedBufferAttribute(
+            new Float32Array(capacity * 3),
+            3,
+          );
+          mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+          mesh.count = 0;
+          mesh.visible = false;
+          // The instances move every frame and the mesh has no fixed extent;
+          // the reach test below is the cull.
+          mesh.frustumCulled = false;
+          group.add(mesh);
+          slots.push({ mesh, flaps, folds, n: 0 });
+        }
+      }
+      rosters.set(spec.id, { slots, forms: drawn });
+    }
+  };
+  build(look.forms);
 
   /** When each flock was last put up, on the engine's clock. */
   const flushed = new Float64Array(plan.flocks.length).fill(-Infinity);
 
   const pose = freshBirdPose();
+  const who = freshIndividual();
   const m = new THREE.Matrix4();
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
-  const one = new THREE.Vector3(1, 1, 1);
+  const size = new THREE.Vector3();
+  const tint = new THREE.Color();
+  let eyeX = 0;
+  let eyeZ = 0;
 
-  const write = (roster: Roster): void => {
-    if (roster.n >= roster.mesh.instanceMatrix.count) return;
+  /** Draw the bird in `pose` as bird `i` of a group scattered by `scatter`. */
+  const write = (roster: Roster, species: BirdId, scatter: number, i: number): void => {
+    birdIndividual(species, scatter, i, who);
+    const lod = Math.hypot(pose.x - eyeX, pose.z - eyeZ) < near ? 0 : 1;
+    const slot = roster.slots[drawnForm(who.form, roster.forms) * 2 + lod];
+    if (slot.n >= slot.mesh.instanceMatrix.count) return;
     pos.set(pose.x, pose.y, pose.z);
     quat.set(pose.q.x, pose.q.y, pose.q.z, pose.q.w);
-    m.compose(pos, quat, one);
-    roster.mesh.setMatrixAt(roster.n, m);
-    roster.flaps.setX(roster.n, pose.flap);
-    roster.folds.setX(roster.n, pose.fold);
-    roster.n++;
+    m.compose(pos, quat, size.setScalar(who.scale));
+    slot.mesh.setMatrixAt(slot.n, m);
+    slot.mesh.setColorAt(slot.n, tint.setRGB(who.shade[0], who.shade[1], who.shade[2]));
+    slot.flaps.setX(slot.n, pose.flap);
+    slot.folds.setX(slot.n, pose.fold);
+    slot.n++;
   };
 
-  const update = (state: GameState, eyeX: number, eyeZ: number): void => {
-    for (const roster of rosters.values()) roster.n = 0;
+  const update = (state: GameState, x: number, z: number): void => {
+    eyeX = x;
+    eyeZ = z;
+    for (const roster of rosters.values()) for (const slot of roster.slots) slot.n = 0;
     const t = state.t;
     const activity = activityAt(level);
     plan.flocks.forEach((flock, f) => {
@@ -118,7 +173,7 @@ export function createBirds(level: Level, haze: HazeUniforms): Birds {
       if (far > FLOCK_REACH) return;
       for (let i = 0; i < flock.count; i++) {
         birdPose(flock, i, t, pose, activity, flushed[f]);
-        write(roster);
+        write(roster, flock.species, flock.scatter, i);
       }
     });
     forEachCrossing(plan, t, (crossing) => {
@@ -126,19 +181,22 @@ export function createBirds(level: Level, haze: HazeUniforms): Birds {
       if (!roster) return;
       crossingPose(crossing, 0, t, pose);
       if (Math.hypot(pose.x - eyeX, pose.z - eyeZ) > CROSSING_REACH) return;
-      write(roster);
+      write(roster, crossing.species, crossing.scatter, 0);
       for (let i = 1; i < crossing.count; i++) {
         crossingPose(crossing, i, t, pose);
-        write(roster);
+        write(roster, crossing.species, crossing.scatter, i);
       }
     });
     for (const roster of rosters.values()) {
-      roster.mesh.count = roster.n;
-      roster.mesh.visible = roster.n > 0;
-      if (roster.n === 0) continue;
-      roster.mesh.instanceMatrix.needsUpdate = true;
-      roster.flaps.needsUpdate = true;
-      roster.folds.needsUpdate = true;
+      for (const slot of roster.slots) {
+        slot.mesh.count = slot.n;
+        slot.mesh.visible = slot.n > 0;
+        if (slot.n === 0) continue;
+        slot.mesh.instanceMatrix.needsUpdate = true;
+        if (slot.mesh.instanceColor) slot.mesh.instanceColor.needsUpdate = true;
+        slot.flaps.needsUpdate = true;
+        slot.folds.needsUpdate = true;
+      }
     }
   };
 
@@ -146,12 +204,12 @@ export function createBirds(level: Level, haze: HazeUniforms): Birds {
     group,
     update,
     reset: () => flushed.fill(-Infinity),
-    plan,
-    dispose: () => {
-      for (const roster of rosters.values()) {
-        roster.mesh.geometry.dispose();
-        (roster.mesh.material as THREE.Material).dispose();
-      }
+    setLook: (next) => {
+      near = next.near;
+      if (next.forms !== drawnForms) build(next.forms);
+      drawnForms = next.forms;
     },
+    plan,
+    dispose: clear,
   };
 }

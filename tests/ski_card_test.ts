@@ -6,14 +6,18 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SKIS, SKI_CATALOG, skisById } from "@engine";
+import { SKIS, SKI_CATALOG, harshSpeedOf, skisById } from "@engine";
 
 import { mergeSettings, freshSettings } from "../pwa/src/game/settings.ts";
 import {
+  carveOf,
   floatOf,
   forgivenessOf,
   quicknessOf,
   skisBars,
+  speedCarveOf,
+  fastCarveOf,
+  bermCarveOf,
   skisFacts,
 } from "../pwa/src/game/ski-stats.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -64,6 +68,23 @@ describe("the spec sheet", () => {
     expect(by(floatOf)[0]).toBe("marmot");
     expect(by(quicknessOf)[0]).toBe("swift");
     expect(by(forgivenessOf)[0]).toBe("hare");
+    // At a super-G's pace the giant slalom ski's arc asks more than its
+    // edge holds and the downhill ski's asks less than its edge could:
+    // the super-G ski carves the hardest bend clean there, the giant
+    // slalom ski at race pace.
+    expect(by(speedCarveOf)[0]).toBe("falcon");
+    // ...and at a downhill's, every arc asks more than its edge holds but
+    // the speed ski's, and the downhill ski's grip holds the most.
+    expect(by(fastCarveOf)[0]).toBe("eagle");
+    expect(by((s) => s.topSpeed)[0]).toBe("peregrine");
+    expect(by((s) => carveOf(s))[0]).toBe("chough");
+    // Round a ski cross's berm the slalom ski is at its grip and the giant
+    // slalom ski's arc does not yet ask all of its own: the ski-cross
+    // ski's arc asks all of a grip greater than the slalom ski's.
+    expect(by(bermCarveOf)[0]).toBe("wolverine");
+    // The big-air ski's legs fold the deepest: it takes the hardest landing
+    // whole, where the softer park ski is the more forgiving.
+    expect(by(harshSpeedOf)[0]).toBe("raven");
     expect(floatOf(SKIS)).toBeCloseTo(1, 9);
     expect(quicknessOf(SKIS)).toBeCloseTo(1, 9);
     expect(forgivenessOf(SKIS)).toBeCloseTo(1, 9);

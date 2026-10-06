@@ -246,18 +246,24 @@ export function snowMix(pack: Snowpack, x: number, z: number, out: SnowMix = emp
   const hard = Math.min(1 - groomed, crust) * land;
   const g = groomed * land;
   const soft = Math.max(0, land - g - hard);
-  // THE NEW LAYER over all of it but the ice.
+  // THE NEW LAYER over all of it but the ice — and over the GROOMER only
+  // what has fallen during the run: the piste was groomed under the night's
+  // fall, and the physics holds it groomed until the run's own fall buries
+  // it (`packedUnder`), so a ski on it is drawn on it rather than sunk a
+  // hand deep into snow the engine says is not there.
   const cover = Math.min(1, (pack.laid + pack.fresh) / NEW_COVER);
+  const coverGroomed = Math.min(1, pack.fresh / NEW_COVER);
   const under = 1 - cover;
+  const buried = g * coverGroomed + (hard + soft) * cover;
   // THE THAW takes the loose snow wet; the groomer and the slab stay what
   // they are (a sunlit groomer is slush only in April).
   const w = pack.wet;
   out.ice = ice;
-  out.groomed = g * under;
+  out.groomed = g * (1 - coverGroomed);
   out.hard = hard * under;
   out.soft = soft * under * (1 - w);
-  out.new = land * cover * (1 - w);
-  out.wet = (soft * under + land * cover) * w;
+  out.new = buried * (1 - w);
+  out.wet = (soft * under + buried) * w;
   return out;
 }
 

@@ -115,14 +115,20 @@ describe("the picture's ladders (settings-video.ts)", () => {
       const lo = FOREST_LOOK[TIERS[i - 1]];
       const hi = FOREST_LOOK[TIERS[i]];
       expect(lo.full).toBeLessThanOrEqual(hi.full);
+      expect(lo.mid).toBeLessThanOrEqual(hi.mid);
       expect(lo.farShare).toBeLessThanOrEqual(hi.farShare);
-      expect(lo.shapes).toBeLessThanOrEqual(hi.shapes);
+      // Fewer VARIANTS of each kind down the ladder — never fewer kinds.
+      expect(lo.variants).toBeLessThan(hi.variants);
     }
-    // The top rung's budget carries every variant of a map's main kinds.
-    expect(FOREST_LOOK.high.shapes).toBeGreaterThanOrEqual(60);
-    // The full band draws EVERY tree — the thinning is the far band's
-    // sketches alone — so a trunk in reach of the skis is always drawn.
-    for (const t of TIERS) expect(FOREST_LOOK[t].full).toBeLessThan(DISTANCE_LOOK.low.trees);
+    expect(FOREST_LOOK.high.variants).toBe(10);
+    expect(FOREST_LOOK.low.variants).toBeGreaterThanOrEqual(1);
+    // The full and the mid band draw EVERY tree — the thinning is the far
+    // band's sketches alone — so a trunk in reach of the skis is always
+    // drawn, whatever the DISTANCE row.
+    for (const t of TIERS) {
+      expect(FOREST_LOOK[t].full).toBeLessThan(FOREST_LOOK[t].mid);
+      expect(FOREST_LOOK[t].full).toBeLessThan(DISTANCE_LOOK.low.trees);
+    }
     expect(FOREST_LOOK.high.farShare).toBe(1);
   });
 
@@ -238,8 +244,15 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
       expect(worth, `${measured} ms`).toBeLessThanOrEqual(last);
       last = worth;
     }
-    // A machine no fit can save gets every row at its cheapest.
-    expect(samePicture(fitPicture(DEFAULT_VIDEO, 500), bottom())).toBe(true);
+    // A machine no fit can save gets the cheapest picture there is: every
+    // row at its cheapest, bar a stop that measured free over the one under
+    // it, which is kept for nothing.
+    const floor = fitPicture(DEFAULT_VIDEO, 500);
+    expect(pictureCost(floor)).toBe(FLOOR_MS);
+    for (const row of PICTURE_ROWS) {
+      const prices = PICTURE_PRICES[row] as Record<string, { cost: number }>;
+      expect(prices[floor[row] as string].cost, row).toBe(0);
+    }
   });
 
   it("gives up the step that loses least per millisecond first, and never one that saves nothing", () => {

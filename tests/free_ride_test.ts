@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE: nobody else out there, no lights and no course — the clock
-// and the odometer run, no gate is ever owed, a reset stands the skier on
-// the nearest point of the piste (of the resort's nearest run on a resort), a spot picked on the chart is where it
+// and the odometer run, no gate is ever owed, the runs it skies are
+// remembered — a reset stands the skier on the nearest of them and a restart
+// at the head of the last piste — a spot picked on the chart is where it
 // starts (held out of the trees and inside the edge), the day can be moved,
 // and the snow dial sinks the powder deeper or shallower without drawing
 // anything from the stream.
@@ -16,16 +17,21 @@ import {
   freeHours,
   freeSpawn,
   hourOfTime,
+  lastPiste,
   nearestTrackPoint,
   NEUTRAL_INPUT,
+  noteRun,
+  pisteHead,
   placeRun,
   powderFloor,
   resetPose,
   restSinkOf,
+  runUnder,
   sinkTarget,
   step,
   sunAtRun,
   TIMES_OF_DAY,
+  TRACK_RUN,
   TUNING,
   withDay,
   type GameState,
@@ -92,54 +98,13 @@ describe("the free ride's reset", () => {
     expect(Math.hypot(state.skier.x - near.x, state.skier.z - near.z)).toBeLessThan(1);
   });
 
-  it("on a resort, stands him on the nearest RUN — a piste before a lane", () => {
-    // Two straight lines down the face beside the skier: a run of the
-    // resort and a lane (R27). Each is a line of 2 m stations along +z.
-    const line = (x: number, kind: "piste" | "road", id: string) => {
-      const points = Array.from({ length: 201 }, (_, i) => ({
-        x,
-        z: 400 + i * 2,
-        y: 0,
-        s: i * 2,
-        heading: 0,
-        width: 20,
-      }));
-      return {
-        id,
-        kind,
-        grade: "blue" as const,
-        points,
-        length: 400,
-        from: "L1",
-        into: null,
-        drifts: [],
-      };
-    };
-    const resortOf = (...runs: ReturnType<typeof line>[]) => ({
-      runs,
-      lifts: [],
-      courses: [],
-      course: "C1",
-      village: { x: 0, y: 0, z: 0 },
-    });
-    const at = (resort: ReturnType<typeof resortOf>) => {
-      const state = createGame({
-        level: { ...syntheticLevel(), resort },
-        mode: "free",
-        quiet: true,
-      });
-      placeRun(state, { x: SLOPE.x + 200, z: 700, heading: 1 });
-      return resetPose(state);
-    };
-    // The piste 40 m off beats a lane 5 m off: a lane is the way between.
-    const near = at(resortOf(line(SLOPE.x + 205, "road", "R"), line(SLOPE.x + 240, "piste", "P")));
-    expect(near.x).toBeCloseTo(SLOPE.x + 240, 5);
-    expect(near.z).toBeCloseTo(700, 5);
-    expect(near.heading).toBe(0);
-    // A lane right under him beats a piste a hundred metres off.
-    const lane = at(resortOf(line(SLOPE.x + 200, "road", "R"), line(SLOPE.x + 300, "piste", "P")));
-    expect(lane.x).toBeCloseTo(SLOPE.x + 200, 5);
-    expect(lane.checkpoint).toBe(-1);
+  it("at the foot of the piste stays at the foot: the top is the restart's", () => {
+    const state = freeRide();
+    const end = state.level.track.points[state.level.track.points.length - 1];
+    placeRun(state, { x: end.x, z: end.z, heading: end.heading });
+    const pose = resetPose(state);
+    expect(Math.hypot(pose.x - end.x, pose.z - end.z)).toBeLessThan(1);
+    expect(pose.heading).toBeCloseTo(end.heading, 5);
   });
 
   it("a race's reset still goes back to the start gate before one is taken", () => {
@@ -153,6 +118,127 @@ describe("the free ride's reset", () => {
     expect(Math.hypot(pose.x - spawn.x, pose.z - spawn.z)).toBeLessThan(1);
     expect(pose.z).toBeLessThan(cp0.z);
     expect(Math.hypot(pose.x - cp0.x, pose.z - cp0.z)).toBeLessThan(SLOPE.startGate + 1);
+  });
+});
+
+// Straight lines down the face beside the skier, as runs of a ski area
+// (R27): each a line of 2 m stations along +z, 20 m wide.
+function line(x: number, kind: "piste" | "road", id: string) {
+  const points = Array.from({ length: 201 }, (_, i) => ({
+    x,
+    z: 400 + i * 2,
+    y: 0,
+    s: i * 2,
+    heading: 0,
+    width: 20,
+  }));
+  return {
+    id,
+    kind,
+    grade: "blue" as const,
+    points,
+    length: 400,
+    from: "L1",
+    into: null,
+    drifts: [],
+  };
+}
+
+function resortRide(...runs: ReturnType<typeof line>[]): GameState {
+  const resort = { runs, lifts: [], courses: [], course: "C1", village: { x: 0, y: 0, z: 0 } };
+  return createGame({ level: { ...syntheticLevel(), resort }, mode: "free", quiet: true });
+}
+
+describe("the runs a free ride has skied", () => {
+  it("is stood up having skied the piste nearest where it starts — never a lane", () => {
+    const state = resortRide(line(SLOPE.x, "road", "R"), line(SLOPE.x + 60, "piste", "P"));
+    expect(state.progress.skied).toEqual(["P"]);
+  });
+
+  it("notes a run as skied when the skis are on it, the latest last", () => {
+    const state = resortRide(line(SLOPE.x + 200, "piste", "A"), line(SLOPE.x + 300, "piste", "B"));
+    expect(runUnder(state.level, SLOPE.x + 209, 600)).toBe("A");
+    expect(runUnder(state.level, SLOPE.x + 250, 600)).toBeNull();
+    for (const [x, id] of [
+      [SLOPE.x + 300, "B"],
+      [SLOPE.x + 200, "A"],
+    ] as const) {
+      placeRun(state, { x, z: 600, heading: 0, speed: 5 });
+      for (let i = 0; i < 60; i++) step(state, NEUTRAL_INPUT);
+      expect(state.progress.skied[state.progress.skied.length - 1]).toBe(id);
+    }
+    expect(state.progress.skied.filter((id) => id === "A")).toHaveLength(1);
+  });
+
+  it("a race notes nothing", () => {
+    const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
+    placeRun(state, { x: SLOPE.x, z: 600, heading: 0, speed: 5 });
+    for (let i = 0; i < 60; i++) step(state, NEUTRAL_INPUT);
+    expect(state.progress.skied).toEqual([]);
+  });
+
+  it("the reset stands him on the nearest run he has SKIED, not the nearest run", () => {
+    const state = resortRide(line(SLOPE.x + 210, "piste", "A"), line(SLOPE.x + 400, "piste", "B"));
+    state.progress.skied = ["B"];
+    placeRun(state, { x: SLOPE.x + 200, z: 700, heading: 1 });
+    const pose = resetPose(state);
+    expect(pose.x).toBeCloseTo(SLOPE.x + 400, 5);
+    expect(pose.z).toBeCloseTo(700, 5);
+    expect(pose.heading).toBe(0);
+    expect(pose.checkpoint).toBe(-1);
+    // Once A is skied too, it is the nearer.
+    noteRun(state, "A");
+    expect(resetPose(state).x).toBeCloseTo(SLOPE.x + 210, 5);
+  });
+
+  it("a skied piste before a skied lane, unless the lane is right under him", () => {
+    const at = (lane: number, piste: number) => {
+      const state = resortRide(line(lane, "road", "R"), line(piste, "piste", "P"));
+      state.progress.skied = ["P", "R"];
+      placeRun(state, { x: SLOPE.x + 200, z: 700, heading: 1 });
+      return resetPose(state).x;
+    };
+    expect(at(SLOPE.x + 205, SLOPE.x + 240)).toBeCloseTo(SLOPE.x + 240, 5);
+    expect(at(SLOPE.x + 200, SLOPE.x + 300)).toBeCloseTo(SLOPE.x + 200, 5);
+  });
+});
+
+describe("the free ride's restart: the top of the slope", () => {
+  it("is the head of the last PISTE skied — a lane's head is no top", () => {
+    const state = resortRide(line(SLOPE.x + 200, "piste", "A"), line(SLOPE.x + 300, "road", "R"));
+    state.progress.skied = ["A", "R"];
+    expect(lastPiste(state)).toBe("A");
+    expect(pisteHead(state.level, "R")).toBeNull();
+    expect(pisteHead(state.level, "nowhere")).toBeNull();
+  });
+
+  it("stands the new run at the head of that piste, facing down it, having skied it", () => {
+    const resort = {
+      runs: [line(SLOPE.x + 200, "piste", "A")],
+      lifts: [],
+      courses: [],
+      course: "C1",
+      village: { x: 0, y: 0, z: 0 },
+    };
+    const state = createGame({
+      level: { ...syntheticLevel(), resort },
+      mode: "free",
+      run: "A",
+      quiet: true,
+    });
+    expect(state.skier.x).toBeCloseTo(SLOPE.x + 200, 5);
+    expect(state.skier.z).toBeCloseTo(400, 5);
+    expect(state.skier.lift).toBeNull();
+    expect(state.progress.skied).toEqual(["A"]);
+  });
+
+  it("off a ski area, the top of the map's one piste is the start line", () => {
+    const state = freeRide();
+    expect(lastPiste(state)).toBe(TRACK_RUN);
+    const again = createGame({ level: state.level, mode: "free", run: TRACK_RUN, quiet: true });
+    const slot = state.level.grid[0];
+    expect(again.skier.x).toBeCloseTo(slot.x, 5);
+    expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 });
 

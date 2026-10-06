@@ -40,6 +40,12 @@
 //    ×2, and a multiplier that always says ×2 says nothing. It adds no base
 //    — the seconds are already paid.
 //
+// 2b. HALF A TURN LANDED IS AN ELEMENT TOO: a flight that comes down with
+//    half a revolution about the up axis over its whole ones — the skis
+//    backward, ridden away switch (`strokes.ts`'s twirl, once) — wins the
+//    180, half a 360's base and one step, judged at the touchdown, since a
+//    360 passes through it on the way round.
+//
 // 4. BOTH AXES IN ONE FLIGHT ARE A THIRD THING: THE TWIST, won as the second
 //    comes round and once a flight. What it prices is the combination.
 //
@@ -81,6 +87,7 @@ import { harshShare } from "./damage.ts";
 import { harshSpeedOf } from "./limits.ts";
 import type {
   BailCause,
+  FlightRecord,
   GameEvent,
   GameState,
   SkierState,
@@ -129,16 +136,15 @@ export function freshTricks(): TrickState {
     pose: null,
     poseTime: 0,
     posed: [],
-    pumped: 0,
-    twirled: 0,
     flipCrossed: 0,
     spinCrossed: 0,
-    tricking: false,
-    flipWind: 0,
-    spinWind: 0,
-    flipPay: 0,
-    spinPay: 0,
-    spinSide: 0,
+    flipGoal: 0,
+    spinGoal: 0,
+    flipDone: 0,
+    spinDone: 0,
+    flipHeld: false,
+    spinHeld: false,
+    meant: false,
     inAir: false,
     parts: [],
     flight: 0,
@@ -146,6 +152,10 @@ export function freshTricks(): TrickState {
     lastAt: 0,
     lastBailed: false,
     lastParts: [],
+    flights: [],
+    fromY: 0,
+    peak: 0,
+    switchIn: false,
   };
 }
 
@@ -172,6 +182,33 @@ function win(
   k.link = T.linkWindow;
   k.parts.push({ kind, spins, flight: k.flight });
   events.push({ kind: "trick", t: state.t, trick: kind, spins, points, mult: k.mult });
+}
+
+/** FILE THE FLIGHT as it ends, for a judge (`judge.ts`): read before
+ * `endFlight` clears it. Kept only for a flight that counted as air. */
+function file(
+  state: GameState,
+  outcome: FlightRecord["outcome"],
+  landing: number | null,
+  air: number,
+): void {
+  const k = state.tricks;
+  const c = state.skier;
+  if (air <= TUNING.air.counts) return;
+  k.flights.push({
+    flight: k.flight,
+    flip: k.rotation,
+    spin: k.yaw,
+    grabs: k.posed.slice(),
+    air,
+    length: hypot(c.x - k.fromX, c.z - k.fromZ),
+    height: Math.max(0, k.peak - k.fromY),
+    switchIn: k.switchIn,
+    switchOut: c.switched,
+    landing,
+    outcome,
+    t: state.t,
+  });
 }
 
 /** Everything that belongs to ONE flight, cleared as the snow comes back. */
@@ -225,6 +262,7 @@ function bail(state: GameState, events: GameEvent[], cause: BailCause): void {
     k.lastBailed = true;
     k.lastParts = k.parts;
   }
+  if (k.inAir) file(state, "fell", null, state.skier.airTime);
   endCombo(k);
   endFlight(k);
 }
@@ -249,9 +287,14 @@ function countTurns(state: GameState, events: GameEvent[], slack: number): void 
   }
 }
 
-/** The turns a clean touchdown finished. */
+/** The turns a clean touchdown finished — and the half turn over them a
+ * skier who came down backward has turned (rule 2b). */
 function turnsLanded(state: GameState, events: GameEvent[]): void {
   countTurns(state, events, T.landSlack);
+  const k = state.tricks;
+  if (Math.abs(k.yaw) - k.turns * TAU + T.landSlack >= Math.PI) {
+    win(state, events, "half", 1, T.spinPoints / 2);
+  }
 }
 
 /** HOW HARD A LANDING WAS, as the share of what the legs of the skier who
@@ -264,12 +307,13 @@ export function landingGrade(c: SkierState, impact: number): number {
 }
 
 /** How far the skier is turned from the way he is going over the snow,
- * rad, 0 … π. */
-function slipOf(c: SkierState): number {
+ * rad, 0 … π — from the nearer end of his skis where he may ride switch
+ * (`switchOk`), so a 180 ridden away backward is a landing along his line. */
+function slipOf(c: SkierState, switchOk: boolean): number {
   const v = hypot(c.vx, c.vz);
   if (v < 1) return 0;
   const along = (c.vx * Math.sin(c.heading) + c.vz * Math.cos(c.heading)) / v;
-  return Math.acos(Math.max(-1, Math.min(1, along)));
+  return Math.acos(Math.max(-1, Math.min(1, switchOk ? Math.abs(along) : along)));
 }
 
 /** A LANDING TAKEN WHOLE, judged (rule 7): a clean or a perfect one is an
@@ -279,7 +323,7 @@ function landed(state: GameState, events: GameEvent[], impact: number, tricked: 
   const k = state.tricks;
   const c = state.skier;
   const grade = landingGrade(c, impact);
-  if (grade > T.cleanLanding || slipOf(c) > T.landSlip) return;
+  if (grade > T.cleanLanding || slipOf(c, state.rules.stunts) > T.landSlip) return;
   const tier = grade <= T.perfectLanding ? 2 : 1;
   const points = T.landPoints * (1 - grade / T.cleanLanding);
   k.base += points;
@@ -317,7 +361,11 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
       k.inAir = true;
       k.fromX = c.x - c.vx * c.airTime;
       k.fromZ = c.z - c.vz * c.airTime;
+      k.fromY = c.y;
+      k.peak = Math.max(c.y, k.fromY);
+      k.switchIn = c.switched;
     }
+    k.peak = Math.max(k.peak, c.y);
     // HOW FAR THE SKIER HAS TURNED, rad, on each axis he can turn about:
     // tips up positive for the flip (−wx), and about the up axis for
     // the 360. The BODY rates are those axes at any attitude, so summing them
@@ -350,6 +398,10 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
     const posing = k.pose !== null;
     if (land) turnsLanded(state, events);
     const tricked = k.parts.some((p) => p.flight === k.flight && p.kind !== "air");
+    if (land) {
+      const grade = landingGrade(c, land.impact);
+      file(state, land.harsh || posing ? "sketchy" : "landed", grade, land.airTime);
+    }
     endFlight(k);
     if (land && posing) {
       bail(state, events, "pose");

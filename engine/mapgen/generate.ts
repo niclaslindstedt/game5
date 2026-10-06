@@ -80,6 +80,7 @@ import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./tra
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { buildResort, chooseCourse, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { resortCached } from "./resort-cache.ts";
 import { analyzeResort } from "../analysis/resort.ts";
 
 /** How many pistes an attempt walks before it gives up on its mountain. */
@@ -257,6 +258,15 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
   throw new Error(`level ${seed}: no clean map in ${attempts} attempts — ${reasons.join("; ")}`);
 }
 
+/** Whether `generateLevel(seed, opts)` would be answered off the ski area
+ * this thread built last (`buildResort`'s one-resort cache): a course's map
+ * stood up in milliseconds rather than a mountain raised in seconds. */
+export function levelIsCached(seed: number, opts: GenerateOptions = {}): boolean {
+  const traits = generatorTraits(opts.version);
+  if (traits.singlePiste) return false;
+  return resortCached(seed, opts.region, opts.attempts ?? 16, traits.version);
+}
+
 /** R25–R28 — a map of a resort: the ski area the seed builds (the first
  * attempt whose network and whose courses the analysis passes), raced on
  * the course asked for. */
@@ -287,7 +297,7 @@ function generateResortLevel(
     });
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
-  const built = buildResort(seed, opts.region, attempts, subSeed, accept);
+  const built = buildResort(seed, opts.region, attempts, subSeed, accept, version);
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,

@@ -57,7 +57,20 @@ import {
 } from "./grades.ts";
 import { layOffKickers, layTrackKickers, publishTrackKickers } from "./kickers.ts";
 import { routeLane } from "./lanes.ts";
-import { settleDrags, type DragGround } from "./drags.ts";
+import { planLifts, settleDrags, type DragGround } from "./drags.ts";
+import { clearStations, nearLine, type StationGround } from "./station-clear.ts";
+import { reckonAccess } from "./access-build.ts";
+import { dragTopsOf, groomPads, padShape, pressPads, relevelPads } from "./station-pad.ts";
+import {
+  groomRamps,
+  layRamps,
+  nearRoom,
+  offRamp,
+  rampRoom,
+  roomBlocked,
+  type RampRoom,
+} from "./summit-ramps.ts";
+import { trimDrifts } from "./drift-trim.ts";
 import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.ts";
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
@@ -75,8 +88,11 @@ import {
   type WalkedRun,
 } from "./network.ts";
 import { gradeRun, networkStamp, onCore, stampRun } from "./network-build.ts";
+import { headOnContour, placeStart, startTop } from "./run-start.ts";
+import { groomRampsV5, layRampsV5 } from "./summit-ramps-v5.ts";
 import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
+import { cachedResort, keepResort, resortKey } from "./resort-cache.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { WOODS, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
@@ -102,7 +118,7 @@ import type {
   Vec3,
   WindTunnel,
 } from "./types.ts";
-import type { GeneratorVersion } from "./versions.ts";
+import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 
 /** A run as the resort keeps it: walked, built, and what it carries — its
  * kickers and drops by ITS OWN arc. */
@@ -174,83 +190,33 @@ function scaledRow(row: GradeRow, length: number): GradeRow {
 const RUN_SALT = 0x2b1d5e7;
 const DAY_SALT = 0x0dae5a1;
 
-/** The start heading a run can be raced off (R12): the fall of the first
- * stretch no steeper than its colour's start, and on a black at least its
- * floor — tried about the wanted heading, the first that holds; null where
- * none does. */
-function fairHeading(
-  ground: Heightfield,
-  x: number,
-  z: number,
-  want: number,
-  row: GradeRow,
-): number | null {
-  const run = R.grid.back + R.track.step + R.spawn.run;
-  const { maxSlope, minSlope } = row.spawn;
-  for (const d of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.05, -1.05, 1.3, -1.3, 1.55, -1.55]) {
-    const h = want + d;
-    if (Math.abs(h) > 1.3) continue;
-    let steepest = 0;
-    let climb = 0;
-    for (let u = 0; u + R.track.gradeWindow <= run; u += 5) {
-      const a = sampleField(ground, x + Math.sin(h) * u, z + Math.cos(h) * u);
-      const b = sampleField(
-        ground,
-        x + Math.sin(h) * (u + R.track.gradeWindow),
-        z + Math.cos(h) * (u + R.track.gradeWindow),
-      );
-      const fall = (a - b) / R.track.gradeWindow;
-      steepest = Math.max(steepest, fall);
-      climb = Math.max(climb, -fall);
-    }
-    const end = sampleField(ground, x + Math.sin(h) * run, z + Math.cos(h) * run);
-    const mean = (sampleField(ground, x, z) - end) / run;
-    if (steepest > maxSlope * 0.85 || climb > 0.06) continue;
-    if (minSlope > 0 && mean < minSlope * 1.2) continue;
-    return h;
-  }
-  return null;
-}
-
-/** How far along the contour from its top station a run's start is looked
- * for, m a step and steps: a red off a peak whose face falls too steeply
- * for one starts where the ridge has carried it to a pitch it can leave on,
- * as a ridge run does. */
-const START_STEP = 30;
-const START_STEPS = 12;
-
-/** How far apart along the contour two runs off one top start, m. */
-const SIBLING_APART = 80;
-
-/** R12, R27 — where on the contour by its top station a run starts, and
- * the heading it leaves on: the first spot, out from the station on the
- * side the run leans to and then the other, a start of its colour can be
- * raced off. Null where there is none within reach. */
-function placeStart(
-  ground: Heightfield,
-  spec: RunSpec,
-  lean: number,
-  siblings: readonly number[],
-  clear: (x: number, z: number, heading: number) => boolean,
-): RunSpec | null {
-  const dir = lean >= 0 ? 1 : -1;
-  for (let k = 0; k <= START_STEPS; k++) {
-    for (const sgn of k === 0 ? [1] : [dir, -dir]) {
-      const x = spec.x + sgn * k * START_STEP;
-      if (Math.abs(x - R.world.size / 2) > RR.massif.flank.inner - 160) continue;
-      if (siblings.some((sx) => Math.abs(sx - x) < SIBLING_APART)) continue;
-      const heading = fairHeading(ground, x, spec.z, spec.heading, spec.row);
-      if (heading !== null && clear(x, spec.z, heading)) return { ...spec, x, heading };
-    }
-  }
-  return null;
-}
-
 /** How far down its heading a start must be clear of every run but its
  * top's (R12, R27), m, and by how much more than the clearance: a run that
  * began beside another would merge into it off the gate. */
 const START_CLEAR = R.track.hold + 100;
+/** How far a run's start and its first stretch keep off a station pad's
+ * middle past its radius (R26), m: the margin a pad pressed again yields to
+ * a run's line by (`PAD_LINE`) and a little. */
+const PAD_KEEP = 10;
+/** How far past its half-width a run's start and first stretch keep off a
+ * station's wheel (R26), m: its footprint's reach and a margin. */
+const STATION_KEEP = 14;
+/** How far past its radius a lane's route keeps off a station pad's middle
+ * (R26), m: a lane may cross the ground eased into a pad, never the pad. */
+const LANE_KEEP = 12;
+/** How near a run's line a pad pressed again yields to the run, m: its
+ * line is the one it was graded to (R27). */
+const PAD_LINE = 8;
+/** How far past a run's edge a ramp's grooming stops (R10's powder). */
+const RAMP_GROOM = R.track.shoulder.packed + 4;
+/** How far off a drag lift's line a piste keeps its edge, m (R26). */
+const DRAG_ROOM = 6;
 const START_ROOM = 12;
+/** How far past a run's bench a ramp's line is kept as a start is placed
+ * (the pressing's margin and a couple of cells), and a lane's route off a
+ * ramp's room (its half-width and bench), m. */
+const RAMP_ROOM = 6;
+const LANE_ROOM = RR.road.width.max / 2 + BENCH;
 
 function road(run: WalkedRun): boolean {
   return run.spec.kind === "road";
@@ -270,46 +236,116 @@ export function attemptResort(
   attempt: number,
   sub: number,
   region: Region,
+  version: GeneratorVersion,
 ): BuiltResort | string {
   const rng = createRng(sub);
   const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
+  // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
+  const traits = generatorTraits(version);
+  const shape = padShape(traits.levelPads, traits.looseTops);
+  const pads = pressPads(ground, liftPlans, shape);
+  // v6's tops: runs started under them where a ramp has room (R26, R27).
+  const tight = shape.lean > 0 && !traits.looseTops;
+  /** Every station standing as the runs are walked — a lift's two ends,
+   * the valley floor's aside (the runs finish among them in the hub, and
+   * they are stood clear of them once every run stands) (R26). */
+  const stations = liftPlans.flatMap((l) =>
+    l.bottom.z >= plan.baseZ - 1 ? [l.top] : [l.top, l.bottom],
+  );
+  /** Whether a piste `half` m wide either side of (x, z) would run over a
+   * drag lift's line laid before the runs (the nursery's, R26). */
+  const drags = liftPlans.filter((l) => l.kind === "drag");
+  const overDrag = (x: number, z: number, half: number): boolean => {
+    for (const l of drags) {
+      const dx = l.top.x - l.bottom.x;
+      const dz = l.top.z - l.bottom.z;
+      const len2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - l.bottom.x) * dx + (z - l.bottom.z) * dz) / len2));
+      if (hypot(x - (l.bottom.x + dx * t), z - (l.bottom.z + dz * t)) < half + DRAG_ROOM)
+        return true;
+    }
+    return false;
+  };
+  /** Whether a lane would cross a station's pad (R26). */
+  const onPad = (x: number, z: number): boolean => {
+    for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + LANE_KEEP) return true;
+    return false;
+  };
 
   // ── 3. THE RUNS, WALKED ──────────────────────────────────────────────
   const walking = new NetIndex();
   const walked: WalkedRun[] = [];
+  /** The room kept for the ramp down to every start placed under a
+   * leaning pad (R26). */
+  const rooms: RampRoom[] = [];
+  let placed: RampRoom | null = null;
   const startHit = netHit();
   for (const spec of specs) {
     let fair: RunSpec | null;
+    placed = null;
+    // Under its top by a glide's fall from the pad's rim (a drag's top,
+    // from the top itself), R27.
+    const lift = liftPlans.find((l) => l.id === spec.from);
+    const top =
+      lift && !traits.startsAcrossTop ? startTop(ground, lift, shape.r, traits.looseTops) : null;
     if (spec.kind === "road") {
-      // The lane's route to the cheapest join on a piste off another top.
-      const lane = routeLane(
-        ground,
-        walking,
-        spec.x,
-        spec.z,
-        Math.sign(spec.target.x - spec.x) || 1,
-        (r) => walked[r].spec.kind === "piste" && walked[r].spec.from !== spec.from,
-      );
+      // The lane's route to the cheapest join on a piste off another top —
+      // from under its own top, slid down the fall line (R27).
+      const z = top && !top.loose ? headOnContour(ground, spec.x, spec.z, top) : spec.z;
+      const lane =
+        z === null
+          ? null
+          : routeLane(
+              ground,
+              walking,
+              spec.x,
+              z,
+              Math.sign(spec.target.x - spec.x) || 1,
+              (r) => walked[r].spec.kind === "piste" && walked[r].spec.from !== spec.from,
+              {
+                keepOff: (x, z) => onPad(x, z) || rooms.some((r) => nearRoom(r, x, z) < LANE_ROOM),
+              },
+            );
       const ahead = lane?.route[Math.min(5, lane.route.length - 1)];
       fair =
-        lane && ahead
+        lane && ahead && z !== null
           ? {
               ...spec,
+              z,
               target: { x: lane.x, z: lane.z },
               join: lane.run,
               route: lane.route,
-              heading: Math.atan2(ahead.x - spec.x, Math.max(1, ahead.z - spec.z)),
+              heading: Math.atan2(ahead.x - spec.x, Math.max(1, ahead.z - z)),
             }
           : null;
     } else {
       const siblings = walked.filter((w) => w.spec.from === spec.from).map((w) => w.spec.x);
+      // The leaning pad its ramp comes off, and what that ramp keeps off:
+      // every run walked, every other station and pad.
+      const rampPad = tight ? (pads.find((p) => p.lift === spec.from) ?? null) : null;
+      let room: RampRoom | null = null;
+      const onRun = (x: number, z: number): boolean =>
+        walking.nearest(x, z, WIDEST + BENCH + START_ROOM, () => false, startHit).distance <
+        startHit.width / 2 + BENCH + RAMP_ROOM;
+      const keep = { pad: PAD_KEEP, station: STATION_KEEP };
+      const rampBlocked = roomBlocked(rampPad, pads, stations, rooms, keep, onRun);
+      const height = (x: number, z: number): number => sampleField(ground, x, z);
       const wide = spec.row.id ? RR.piste.width[spec.row.id].max : WIDEST;
       const clear = (x: number, z: number, h: number): boolean => {
         for (let u = 0; u <= START_CLEAR; u += 10) {
           const px = x + Math.sin(h) * u;
           const pz = z + Math.cos(h) * u;
+          // Off every station's pad and the ground eased into it (R26): the
+          // runs leave from its edges, never across it.
+          if (u <= shape.r + PAD_KEEP) {
+            for (const p of pads) if (hypot(px - p.x, pz - p.z) < p.r + PAD_KEEP) return false;
+            // Its corridor off every station standing (R26): the runs leave
+            // beside a top, and pass beside a bottom.
+            for (const p of stations)
+              if (hypot(px - p.x, pz - p.z) < STATION_KEEP + wide / 2) return false;
+          }
           // The runs off its own top it leaves beside, off their width and
           // bench; every other by the clearance.
           const reach = WIDEST + 2 * BENCH + RR.network.gap + START_ROOM;
@@ -318,9 +354,18 @@ export function attemptResort(
           walking.nearest(px, pz, reach, (r) => walked[r].spec.from !== spec.from, startHit);
           if (startHit.distance < startHit.width / 2 + BENCH + START_ROOM) return false;
         }
-        return true;
+        // A ramp off its top's leaning pad has room to come down to it
+        // (R26): it starts where a rider let go there slides to.
+        if (!rampPad) return true;
+        room = rampRoom(rampPad, pads, liftPlans, x, z, wide / 2, spec.row, height, rampBlocked);
+        return room !== null;
       };
-      fair = placeStart(ground, spec, spec.lean, siblings, clear);
+      fair = placeStart(ground, spec, spec.lean, siblings, clear, top);
+      // Never over a drag lift's line (R26): its track is ridden on the snow.
+      // The runs off a drag's own top, which leave beside it and would
+      // otherwise wander across it all the way down.
+      if (fair && drags.some((l) => l.id === spec.from)) fair = { ...fair, avoid: overDrag };
+      placed = room;
     }
     if (!fair) {
       debug(
@@ -328,7 +373,21 @@ export function attemptResort(
       );
       continue;
     }
-    lay(fair, (r) => walked[r].spec.from === spec.from);
+    const shared = (r: number): boolean => walked[r].spec.from === spec.from;
+    // Off the room kept for the ramp down to every start before it (R26),
+    // and its own kept for every run after it.
+    const before = rooms.slice();
+    const offRooms = (x: number, z: number, half: number): boolean =>
+      before.some((r) => nearRoom(r, x, z) < half);
+    const drag = fair.avoid;
+    const avoid = (x: number, z: number, half: number): boolean =>
+      (drag?.(x, z, half) ?? false) || offRooms(x, z, half);
+    // A drag's own run that will not walk clear of its line walks as it
+    // would; the drag is then laid again off it (`clearStations`).
+    const laid =
+      lay(before.length > 0 ? { ...fair, avoid } : fair, shared) ||
+      (!!drag && lay({ ...fair, avoid: before.length > 0 ? offRooms : undefined }, shared));
+    if (laid && placed) rooms.push(placed);
   }
   const pistes = walked.filter((w) => w.spec.kind === "piste").length;
   if (pistes < RR.network.runs.min) {
@@ -342,7 +401,8 @@ export function attemptResort(
     walked,
     lifts: liftPlans,
     floor,
-    route: (x, z, side, may, ask) => routeLane(ground, walking, x, z, side, may, ask),
+    route: (x, z, side, may, ask) =>
+      routeLane(ground, walking, x, z, side, may, { ...ask, keepOff: onPad }),
     lay,
     height: (x, z) => sampleField(ground, x, z),
     piste: (x, z) => {
@@ -492,6 +552,13 @@ export function attemptResort(
       drifts,
     });
   }
+  // The station pads at their levels again, over the runs pressed off them
+  // (R26).
+  relevelPads(
+    ground,
+    pads,
+    (x, z) => walking.nearest(x, z, PAD_LINE, () => false, startHit).distance < PAD_LINE,
+  );
   // Every run's line as the ground carries it once every run is pressed,
   // and the colour it MEASURES there (R23, R27): a lane's is green.
   for (const b of built) {
@@ -520,6 +587,14 @@ export function attemptResort(
   for (const w of kept)
     net.add(w.points, rankOf(w.spec), w.into?.run ?? -1, w.mergeStart, w.spec.kind === "road");
   const hit = netHit();
+  // ── 4a. THE RAMPS OFF THE TOPS (R26), off a run's snow and a station ──
+  const runAt = (x: number, z: number, past = 0): boolean => net.covers(x, z, past, hit);
+  const runIn = (x: number, z: number, past: number): number =>
+    net.covers(x, z, past, hit) ? hit.run : -1;
+  const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
+  const ramps = traits.looseTops
+    ? layRampsV5(ground, pads, runs, runAt, liftPlans)
+    : layRamps(ground, pads, runs, runIn, liftPlans);
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
   // R29 again on the colours the pressed runs measure and the runs that
@@ -560,6 +635,33 @@ export function attemptResort(
   for (const b of built)
     if (b.run.to !== undefined) b.run.to = settled.renamed.get(b.run.to) ?? b.run.to;
 
+  // ── 4c. THE STATIONS BESIDE THE RUNS (R26) ───────────────────────────
+  {
+    const beside: StationGround = {
+      onRun: (x, z, pad) => net.covers(x, z, pad, hit),
+      onPiste: (x, z, pad) => {
+        net.nearest(x, z, WIDEST, (r) => kept[r].spec.kind === "road", hit);
+        return hit.distance < hit.width / 2 + pad;
+      },
+      height: (x, z) => sampleField(ground, x, z),
+      floor,
+      linkEnds: (id) =>
+        built
+          .filter((b) => b.run.to === id)
+          .map((b) => b.walked.points[b.walked.points.length - 1]),
+    };
+    const stuck = clearStations(beside, liftPlans, (ls) => {
+      const v = reckonAccess(measured, planLifts(pressedGround, ls));
+      return v.ok.every(Boolean) && v.orphans.length === 0;
+    });
+    if (stuck) return `R26: ${stuck} stands on a run wherever its station is moved`;
+  }
+  // ── 4d. THE RAMPS OFF THE DRAGS' TOPS (R26), where they settled ──────
+  const height = (x: number, z: number): number => sampleField(ground, x, z);
+  const dragTops = tight ? dragTopsOf(liftPlans, runs, height) : [];
+  for (const [id, off] of layRamps(ground, dragTops, runs, runIn, liftPlans)) ramps.set(id, off);
+  const allRamps = [...ramps.values()].flat();
+
   // ── 5–6. THE MOUNTAIN'S OWN, CLEAR OF THE RUNS ───────────────────────
   const never = (): boolean => false;
   // Read as a race piste's distance from its line (R4, R22 keep off one
@@ -567,7 +669,11 @@ export function attemptResort(
   // and from its centreline where it is narrower.
   const distanceTo = (x: number, z: number): number => {
     const h = net.nearest(x, z, 400, never, hit);
-    return h.distance - Math.max(0, h.width - R.track.width.max) / 2;
+    let d = h.distance - Math.max(0, h.width - R.track.width.max) / 2;
+    // A station's pad, eased out, is kept off as a run is (R26).
+    for (const p of pads) d = Math.min(d, hypot(x - p.x, z - p.z) - p.r - RR.lift.padBlend);
+    for (const r of allRamps) d = Math.min(d, offRamp(r, x, z));
+    return d;
   };
   const offKickers = layOffKickers(rng, plan, ground, null, distanceTo);
   const allDrops = built.flatMap((b) => b.drops);
@@ -584,7 +690,16 @@ export function attemptResort(
     ...liftPlans.flatMap((l) => (floor(l.bottom) ? [l.bottom] : [])),
   ];
   const hubPlan = planHub(plan, ground, floorPoints, sub);
+  const unhubbed = packed.data.slice();
   groomHub(hubPlan.hub, packed);
+  // A drift the hub's grooming reaches into is groomed over there, the run's
+  // whole width, and the drift cut back to the fresh snow left of it (R17,
+  // R29) — the hub laid round where the stations now stand.
+  for (const b of built) trimDrifts(b, packed, unhubbed);
+  // A drag's top too, the ground its rider is let go on (R26).
+  groomPads([...pads, ...dragTops], packed, runAt);
+  if (traits.looseTops) groomRampsV5(packed, ramps, pads, (x, z) => runAt(x, z, RAMP_GROOM));
+  else groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
 
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
@@ -593,6 +708,7 @@ export function attemptResort(
     kind: l.kind,
     bottom: { x: l.bottom.x, z: l.bottom.z, y: sampleField(ground, l.bottom.x, l.bottom.z) },
     top: { x: l.top.x, z: l.top.z, y: sampleField(ground, l.top.x, l.top.z) },
+    ...(ramps.has(l.id) ? { ramps: ramps.get(l.id) } : {}),
   }));
   const village: Vec3 = { x: v.x, z: v.z, y: sampleField(ground, v.x, v.z) };
   const baseY = village.y;
@@ -601,6 +717,8 @@ export function attemptResort(
   const clear = (x: number, z: number): boolean => {
     if (hubClear(hubPlan.hub, sub, x, z)) return true;
     for (const l of lifts) if (nearLine(l, x, z) < RR.lift.clear) return true;
+    for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + RR.lift.clear) return true;
+    for (const r of allRamps) if (offRamp(r, x, z) < 0) return true;
     // Off every run's corridor, not only the nearest's (R14).
     return net.covers(x, z, R.forest.corridor, hit);
   };
@@ -668,30 +786,25 @@ export function attemptResort(
   };
 }
 
-/** Plan distance from a point to a lift's line, m. */
-function nearLine(l: Lift, x: number, z: number): number {
-  const dx = l.top.x - l.bottom.x;
-  const dz = l.top.z - l.bottom.z;
-  const len2 = dx * dx + dz * dz || 1;
-  let t = ((x - l.bottom.x) * dx + (z - l.bottom.z) * dz) / len2;
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  return hypot(x - (l.bottom.x + dx * t), z - (l.bottom.z + dz * t));
-}
+export { lastResort } from "./resort-cache.ts";
 
-/** The resort a seed builds in a region: the first attempt that stands. */
+/** The resort a seed builds in a region: the first attempt that stands
+ * (kept, and built once: `resort-cache.ts`). */
 export function buildResort(
   seed: number,
   regionId: RegionId | undefined,
   attempts: number,
   subSeed: (seed: number, attempt: number) => number,
   accept: (built: BuiltResort) => string | null,
+  version: GeneratorVersion,
 ): BuiltResort {
   const region = regionRow(regionId);
-  const key = `${seed}:${region.id}:${attempts}`;
-  if (cache && cache.key === key) return cache.built;
+  const key = resortKey(seed, regionId, attempts, version);
+  const kept = cachedResort(key);
+  if (kept) return kept;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptResort(seed, a, subSeed(seed, a), region);
+    const built = attemptResort(seed, a, subSeed(seed, a), region, version);
     if (typeof built === "string") {
       debug(`resort ${seed}#${a}: refused — ${built}`);
       reasons.push(`#${a}: ${built}`);
@@ -703,23 +816,13 @@ export function buildResort(
       reasons.push(`#${a}: ${why}`);
       continue;
     }
-    cache = { key, built };
+    keepResort(key, built);
     return built;
   }
   throw new Error(
     `resort ${seed}: no clean resort in ${attempts} attempts — ${reasons.join("; ")}`,
   );
 }
-
-/** The last resort built, for a lab that reads what its build did. */
-export function lastResort(): BuiltResort | null {
-  return cache?.built ?? null;
-}
-
-/** The last resort built: every map of one resort is the same mountain, so
- * the campaign's six maps of it and a lab's sweep of its courses build it
- * once. */
-let cache: { key: string; built: BuiltResort } | null = null;
 
 /** R15, R19 — a course's day: its own stream's day of the year and hour,
  * turned to the face (the sun within `sun.facing` of the face's bearing at

@@ -24,6 +24,7 @@
 import { captureFrame } from "./screenshots.ts";
 import type { HudLayer } from "@niclaslindstedt/oss-game-framework/shots/shot-hud";
 import {
+  copiedWithin,
   copyWhenReady,
   type PendingCopy,
 } from "@niclaslindstedt/oss-game-framework/shots/share-image";
@@ -75,8 +76,9 @@ export function createShotRequest(world: ShotRequestWorld): ShotRequest {
         if (!capture) return world.say(STRINGS.shotFailed, "bad");
         // The copy is waited on rather than assumed: a browser can hold the
         // permission back, and one receipt that tells the truth is worth more
-        // than an instant one that does not.
-        const copied = (await shot.copy?.done) ?? false;
+        // than an instant one that does not. But only for so long — a write
+        // that never answers would leave a kept picture with no receipt at all.
+        const copied = shot.copy ? await copiedWithin(shot.copy) : false;
         world.say(copied ? STRINGS.shotCopied : STRINGS.shotKept, "good");
       });
     },

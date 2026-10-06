@@ -21,6 +21,13 @@
 //                                        medals against it), does every
 //                                        rung ask more than the one before,
 //                                        is any pair the same map twice
+//   make rate RACE=superG                a discipline's nine race maps (slalom,
+//                                        giantSlalom, superG, downhill,
+//                                        speedSki, skiCross)
+//                                        (race-maps.ts), audited the same
+//                                        way: the digest, the rating, the
+//                                        course's figures, the bot's time
+//                                        down it against par, its trap
 //
 // The table prints a row per seed: the analyzer's error count (a map the
 // generator would not hand out is not a candidate whatever it rates), the
@@ -49,6 +56,12 @@ const {
   rateLadder,
   rateLevel,
   simulateRun,
+  RACE_SKIS,
+  createGame,
+  raceCourseOf,
+  raceParOf,
+  skisById,
+  speedCourseOf,
 } = await import(join(root, "engine/index.ts"));
 
 const DEFAULT_SEEDS = [1, 7, 38, 123];
@@ -65,6 +78,10 @@ const args = parseArgs(
     sim: { kind: "flag", help: "ski each map with the bot and rate its run as the time axis" },
     stats: { kind: "flag", help: "print the population per axis instead of the rows" },
     campaign: { kind: "flag", help: "audit the committed campaign ladder (campaign-levels.ts)" },
+    race: {
+      kind: "string",
+      help: "audit a discipline's nine race maps (race-maps.ts): slalom, giantSlalom, superG, downhill, speedSki, skiCross",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -76,7 +93,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "write every rating to this file" },
   },
-  "usage: npm run rate -- [--seed n | --seeds a,b,c | --count n [--from n]] [--hour h] [--weather w] [--sim] [--stats] [--campaign] [--region id] [--grade id] [--json path]",
+  "usage: npm run rate -- [--seed n | --seeds a,b,c | --count n [--from n]] [--hour h] [--weather w] [--sim] [--stats] [--campaign] [--race id] [--region id] [--grade id] [--json path]",
 );
 
 const pad = (v, n) => String(v).padStart(n);
@@ -257,6 +274,69 @@ async function auditCampaign() {
   return all;
 }
 
+/** A discipline's nine race maps, built the way the app builds them, rated
+ * and laddered, the course each sets and the bot's run down it against
+ * the discipline's par. */
+async function auditRace(discipline) {
+  const { RACE_MAPS } = await import(join(root, "pwa/src/game/race-maps.ts"));
+  const { buildCampaignLevel, campaignSky } = await import(join(root, "pwa/src/game/campaign.ts"));
+  const rowsOf = RACE_MAPS[discipline];
+  if (!rowsOf) {
+    console.error(`no race maps for "${discipline}" (${Object.keys(RACE_MAPS).join(", ")})`);
+    process.exit(2);
+  }
+  const all = [];
+  let moved = 0;
+  printHeader();
+  for (const pinned of rowsOf) {
+    const level = buildCampaignLevel(pinned);
+    // Each discipline on its field's own pair.
+    const skis = RACE_SKIS[pinned.mode];
+    const run = simulateRun(level.seed, { level, mode: pinned.mode, spec: skisById(skis) });
+    const raced = createGame({
+      seed: level.seed,
+      level,
+      mode: pinned.mode,
+      sky: campaignSky(pinned),
+      quiet: true,
+    });
+    const course = speedCourseOf(raced.level) ?? raceCourseOf(raced.level);
+    const par = raceParOf(raced.level);
+    const row = rowOf(pinned.id, level, {
+      sky: campaignSky(pinned),
+      runSeconds: run.finished ? run.time : undefined,
+    });
+    printRow(row);
+    const bot = run.out
+      ? `OUT (${run.out})`
+      : run.finished
+        ? `${f(run.time, 1)} s`
+        : "DID NOT FINISH";
+    console.log(
+      `  "${pinned.name}" — ${pinned.region ?? "alpine"} ${pinned.grade}, course ${pinned.course}: ` +
+        `${f(course?.vertical ?? 0, 0)} m over ${f((course?.to ?? 0) - (course?.from ?? 0), 0)} m, ` +
+        `${raced.level.checkpoints.length - 2} gates · the bot ${bot} against par ${f(par?.time ?? NaN, 1)} s` +
+        (run.trap
+          ? raced.level.speedSki
+            ? ` · timed ${f(run.trap * 3.6, 2)} km/h against par's ${f((par?.trap ?? 0) * 3.6, 2)}`
+            : ` · trap ${f(run.trap * 3.6, 0)} km/h`
+          : ""),
+    );
+    if (levelDigest(level) !== pinned.digest) {
+      moved += 1;
+      console.log(`  !! ${pinned.id} builds to ${levelDigest(level)} and pins ${pinned.digest}`);
+    }
+    all.push({ ...row, pinned });
+  }
+  const ladder = rateLadder(all.map((r) => ({ name: r.pinned.id, rating: r.rating })));
+  console.log(
+    `\n${discipline}: ${all.length} maps, asks ${ladder.asks.map((a) => a.toFixed(3)).join(" → ")}` +
+      (moved > 0 ? ` · ${moved} digest(s) moved` : " · every digest holds"),
+  );
+  for (const note of ladder.notes) console.log(`  !  ${note}`);
+  return all;
+}
+
 if (args.weather !== undefined && !WEATHER_KINDS.includes(args.weather)) {
   console.error(`unknown weather "${args.weather}" (${WEATHER_KINDS.join(", ")})`);
   process.exit(2);
@@ -274,6 +354,8 @@ console.log(
 let rows;
 if (args.campaign) {
   rows = await auditCampaign();
+} else if (args.race !== undefined) {
+  rows = await auditRace(args.race);
 } else {
   const seeds = args.seeds
     ? args.seeds.map(Number)

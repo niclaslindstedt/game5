@@ -179,7 +179,13 @@ if (args.walks) {
   traceWalks((spec, points, why) =>
     refused.push({ spec, points: points.map((p) => ({ x: p.x, z: p.z })), why }),
   );
-  attemptResort(seed, level.attempt, subSeed(seed, level.attempt), regionRow(args.region));
+  attemptResort(
+    seed,
+    level.attempt,
+    subSeed(seed, level.attempt),
+    regionRow(args.region),
+    level.version,
+  );
   traceWalks(null);
 }
 const R = level.resort;

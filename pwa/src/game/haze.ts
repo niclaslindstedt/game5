@@ -22,8 +22,12 @@ import * as THREE from "three";
 import type { SkyLook } from "./sky.ts";
 import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
 
-/** How many the floods the snow is lit by: the player and the field. */
-export const LAMP_SLOTS = 4;
+/** How many lamps light the world at once: the player's headlamp first,
+ * the finish arena's two floods, then the field's headlamps
+ * (`headlamp.ts`'s `dealLamps` deals them). The piste lights' masts are
+ * not among them: they stand still, so their light is baked into one map
+ * (`pisteLight`). */
+export const LAMP_SLOTS = 6;
 /** How many skiers cast into a map of their own (`hero-shadow.ts`): the
  * player and the field, a quadrant of one atlas each. */
 export const HERO_SLOTS = 4;
@@ -73,12 +77,25 @@ export type HazeUniforms = {
   /** THE NEW SNOW over the run, m (`GameState.fresh`): what buries the
    * groomer's look. The run's, not the sky's — the renderer writes it. */
   uFresh: { value: number };
-  /** THE LAMPS: each floodlight — where it is, where it points, how
-   * far on (0 for a slot with no lamp) — and the colour of the beam. */
+  /** THE LAMPS: each slot's lamp — a flood or a skier's headlamp — where
+   * it is, where it points, how far on (0 for a slot with no lamp), the
+   * colour of its light (linear) and its BEAM (`lampReach`): the spot's
+   * cosine from its edge to its full, where the wide flood round it
+   * starts, and the flood's share of the spot. */
   uLampPos: { value: THREE.Vector3[] };
   uLampDir: { value: THREE.Vector3[] };
   uLampOn: { value: number[] };
-  uLampCol: { value: THREE.Color };
+  uLampCol: { value: THREE.Vector3[] };
+  uLampBeam: { value: THREE.Vector4[] };
+  /** THE PISTE LIGHTS (`piste-lights.ts`): the light their masts lay on
+   * the ground over the whole map — a vector irradiance a texel, lux — the
+   * world-to-uv of its grid (the origin less half a texel, and one over its
+   * span), `x` how far on in the lamp slots' units a lux (0: dark, or no
+   * map baked) and the colour of the light, linear. Read by `pisteLight`. */
+  uPisteLight: { value: THREE.Texture | null };
+  uPisteBox: { value: THREE.Vector4 };
+  uPisteOn: { value: THREE.Vector4 };
+  uPisteCol: { value: THREE.Vector3 };
 };
 
 export function createHazeUniforms(): HazeUniforms {
@@ -110,8 +127,12 @@ export function createHazeUniforms(): HazeUniforms {
     uLampPos: { value: vectors() },
     uLampDir: { value: vectors() },
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },
-    // A halogen's warm white, in linear light.
-    uLampCol: { value: new THREE.Color().setRGB(1.0, 0.86, 0.66) },
+    uLampCol: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector3(1, 1, 1)) },
+    uLampBeam: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
+    uPisteLight: { value: null },
+    uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPisteCol: { value: new THREE.Vector3(1, 1, 1) },
   };
 }
 
@@ -188,6 +209,66 @@ float mistBand(vec3 dir) {
 }
 `;
 
+/** THE LAMPS' UNIFORMS AND THEIR BEAM, for any shader, vertex or fragment:
+ * `lampReach(i, toLamp, d)` is how much of lamp `i` reaches a point `d` m
+ * from it, `toLamp` the unit way back to the lamp — its spot and the wide
+ * flood round it (`uLampBeam`), falling off with the square of the
+ * distance, and faded out within a metre of the lens, so a headlamp never
+ * floods the helmet it is strapped to. The slots are DEALT IN ORDER
+ * (`headlamp.ts`'s `dealLamps`: every lamp lit has a slot before any empty
+ * one), so a loop over them breaks at the first empty slot — by day, when
+ * none is lit, it is one test rather than six (software GL runs a body it
+ * skips with `continue` masked, at the whole body's price). And
+ * `pisteLight(at)`: the PISTE
+ * LIGHTS' vector irradiance at a world point, in the same units — the light
+ * on a surface of normal n is `max(dot(n, v), 0)`, and `length(v)` all of
+ * it, for what has no one face (a flake, the cloud). */
+export const LAMP_GLSL = /* glsl */ `
+uniform vec3 uLampPos[${LAMP_SLOTS}];
+uniform vec3 uLampDir[${LAMP_SLOTS}];
+uniform float uLampOn[${LAMP_SLOTS}];
+uniform vec3 uLampCol[${LAMP_SLOTS}];
+uniform vec4 uLampBeam[${LAMP_SLOTS}];
+float lampReach(int i, vec3 toLamp, float d) {
+  float axis = dot(-toLamp, uLampDir[i]);
+  vec4 b = uLampBeam[i];
+  float beam = smoothstep(b.x, b.y, axis) + b.w * smoothstep(b.z, b.x, axis);
+  return uLampOn[i] * beam * smoothstep(0.2, 0.9, d) / (1.0 + 0.012 * d * d);
+}
+uniform sampler2D uPisteLight;
+uniform vec4 uPisteBox;
+uniform vec4 uPisteOn;
+uniform vec3 uPisteCol;
+vec3 pisteLight(vec3 at) {
+  if (uPisteOn.x <= 0.0) return vec3(0.0);
+  vec2 uv = (at.xz - uPisteBox.xy) * uPisteBox.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
+  return texture2D(uPisteLight, uv).rgb * uPisteOn.x;
+}
+`;
+
+/** THE LAMPS ON EVERYTHING ELSE: a tree, a gate, a skier in a beam takes
+ * it on the side that faces the lamp. The snow has its own (`snow-glsl.ts`,
+ * with its glitter) and says so with `OWN_LAMPS`. */
+const LAMP_FRAGMENT = /* glsl */ `
+#ifndef OWN_LAMPS
+{
+  vec3 lpN = inverseTransformDirection(normal, viewMatrix);
+  vec3 lpLit = vec3(0.0);
+  for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+    if (uLampOn[i] <= 0.0) break;
+    if (uLampOn[i] <= 0.001) continue;
+    vec3 L = uLampPos[i] - vHazeWorld;
+    float d = length(L);
+    L /= max(d, 1e-3);
+    lpLit += uLampCol[i] * lampReach(i, L, d) * max(dot(lpN, L), 0.0);
+  }
+  if (uPisteOn.x > 0.0) lpLit += uPisteCol * max(dot(lpN, pisteLight(vHazeWorld)), 0.0);
+  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lpLit * 9.0;
+}
+#endif
+`;
+
 const HAZE_VERTEX = /* glsl */ `
 varying vec3 vHazeWorld;
 `;
@@ -233,35 +314,26 @@ bool shadowGone() {
 
 /** The skiers' own shadows (`shadow-box.ts`, `hero-shadow.ts`), each looked
  * up in its quadrant of the atlas and taken with the wide map's, the
- * darkest of them. Four compares blended bilinearly per tap and nine taps a
- * texel and a quarter apart: an edge a few millimetres soft, as the sun's
- * own disc makes it, that slides smoothly rather than stepping a texel at a
- * time; the taps are held inside the quadrant, so a neighbour never bleeds
- * in. Only the pixels inside a skier's box pay for his. Needs three's
- * `packing` chunk, so it goes in after `shadowmap_pars_fragment`. */
+ * darkest of them. The atlas is a DEPTH texture read through a comparing
+ * sampler, so one tap is the GPU's own four compares blended bilinearly —
+ * what this did by hand in four reads and a mix — and nine taps a texel and
+ * a quarter apart make an edge a few millimetres soft, as the sun's own disc
+ * makes it, that slides smoothly rather than stepping a texel at a time; the
+ * taps are held inside the quadrant, so a neighbour never bleeds in. Only
+ * the pixels inside a skier's box pay for his, and every lit pixel carries
+ * the code, so it is kept short. Goes in after `shadowmap_pars_fragment`. */
 const HERO_SHADOW_GLSL = /* glsl */ `
 #ifdef USE_SHADOWMAP
-uniform sampler2D uHeroMap;
+uniform sampler2DShadow uHeroMap;
 uniform mat4 uHeroMatrix[${HERO_SLOTS}];
 uniform vec4 uHeroOn;
 uniform vec4 uHeroBias;
 uniform vec4 uHero;
-float heroLit(vec2 uv, float z) {
-  return step(z, unpackRGBAToDepth(texture2D(uHeroMap, uv)));
-}
 // \`uv\` in the quadrant's own 0..1; \`corner\` where it sits in the atlas.
 float heroLerp(vec2 uv, vec2 corner, float z) {
   float t = uHero.y;
   uv = clamp(uv, vec2(0.5 * t), vec2(1.0 - 1.5 * t));
-  vec2 st = uv / t - 0.5;
-  vec2 f = fract(st);
-  vec2 at = corner + 0.5 * (floor(st) + 0.5) * t;
-  float h = 0.5 * t;
-  float a = heroLit(at, z);
-  float b = heroLit(at + vec2(h, 0.0), z);
-  float c = heroLit(at + vec2(0.0, h), z);
-  float d = heroLit(at + vec2(h, h), z);
-  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  return texture(uHeroMap, vec3(corner + 0.5 * uv, z));
 }
 float heroSlot(vec3 n, mat4 m, float normalBias, vec2 corner) {
   vec4 hc = m * vec4(vHazeWorld + n * normalBias, 1.0);
@@ -354,13 +426,14 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",
         `#include <shadowmap_pars_fragment>\n${HERO_SHADOW_GLSL}`,
       )
       .replace("#include <lights_fragment_begin>", lightsWithFade())
+      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${LAMP_FRAGMENT}`)
       .replace("#include <fog_fragment>", HAZE_FRAGMENT);
     extra?.(shader);
   };

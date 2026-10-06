@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Lift ride preview harness</title>
+    <!-- Tooling page for scripts/lift-ride-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It rides a
+         free ride up its chairlift and off the top through the game's own
+         renderer and camera, and lays moments of it out as a contact sheet. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      canvas {
+        display: block;
+      }
+      #sheet {
+        display: grid;
+        gap: 6px;
+        padding: 6px;
+        width: max-content;
+      }
+      figure {
+        margin: 0;
+        position: relative;
+      }
+      figcaption {
+        position: absolute;
+        left: 8px;
+        top: 6px;
+        color: #fff;
+        font: 13px/1.3 monospace;
+        letter-spacing: 0.06em;
+        text-shadow: 0 1px 3px rgb(0 0 0 / 90%);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="sheet"></div>
+    <script type="module" src="/src/tools/lift-ride-harness.ts"></script>
+  </body>
+</html>

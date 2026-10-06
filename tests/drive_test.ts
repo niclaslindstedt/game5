@@ -10,10 +10,15 @@ import {
   SKIS,
   TUNING,
   createGame,
+  angleDiff,
   driveForce,
+  glideYaw,
   placeRun,
+  skateAngle,
   skateShare,
+  skateWork,
   step,
+  stepWork,
   strideShape,
   type GameState,
   type SkierInput,
@@ -80,6 +85,109 @@ describe("the drive (poles.ts)", () => {
   });
 });
 
+describe("the skate goes where the ski points (poles.ts' glideYaw)", () => {
+  it("glides each stride on the gliding ski's arm of the V, the right ski's while the left pushes", () => {
+    const vee = skateAngle(3);
+    // Past the push, the whole of the arm: right (clockwise) on a left push.
+    expect(glideYaw(0.8, 3, 1)).toBeCloseTo(vee, 6);
+    expect(glideYaw(1.8, 3, 1)).toBeCloseTo(-vee, 6);
+    // Carried across over the push, never jumping at a stride's turn.
+    expect(glideYaw(0.999999, 3, 1)).toBeCloseTo(glideYaw(1, 3, 1), 4);
+    // Not skating, straight on.
+    expect(glideYaw(0.8, 3, 0)).toBe(0);
+    expect(skateWork(0.3, 3)).toBe(0);
+    // The V closes as he rolls.
+    expect(skateAngle(TUNING.poles.skateTo)).toBeLessThan(skateAngle(2));
+  });
+
+  it("takes him diagonally along the gliding ski — a zig-zag, not straight up the V", () => {
+    const state = stage(PACKED, 4);
+    ride(state, 0.6);
+    const c = state.skier;
+    let worst = 0;
+    let left = 0;
+    let right = 0;
+    let n = 0;
+    for (let i = 0; i < 3 * TUNING.physicsHz; i++) {
+      step(state, NEUTRAL_INPUT);
+      const p = c.stride - Math.floor(c.stride);
+      const way = angleDiff(c.heading, Math.atan2(c.vx, c.vz));
+      if (way < -0.1) left += 1;
+      if (way > 0.1) right += 1;
+      // Gliding (past the push) he goes the way the ski he stands on points.
+      if (p > TUNING.poles.duty && skateWork(c.drive, c.speed) > 0.5) {
+        worst = Math.max(worst, Math.abs(angleDiff(way, c.glide)));
+        n += 1;
+      }
+    }
+    expect(n).toBeGreaterThan(60);
+    expect(worst).toBeLessThan(0.05);
+    // Both arms of the V are skied, a good part of the time each.
+    expect(left).toBeGreaterThan(60);
+    expect(right).toBeGreaterThan(60);
+  });
+});
+
+describe("the step turn (poles.ts' stepWork, SkierState.step)", () => {
+  /** Turned from `kmh` on the flat with the steer and the tuck held for
+   * `seconds`: the heading turned, rad, and the speed kept, km/h. */
+  function stepRound(kmh: number, seconds: number, poles = true) {
+    const state = createGame({
+      level: PACKED,
+      spec: SKIS,
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+      poles,
+    });
+    placeRun(state, { x: PACKED.size / 2, z: 400, heading: 0, speed: kmh / 3.6 });
+    const c = state.skier;
+    let turned = 0;
+    let prev = c.heading;
+    let drive = 1;
+    for (let i = 0; i < seconds * TUNING.physicsHz; i++) {
+      step(state, { ...NEUTRAL_INPUT, steer: 1, tuck: 1 });
+      turned += angleDiff(prev, c.heading);
+      prev = c.heading;
+      if (i > TUNING.physicsHz / 2) drive = Math.min(drive, c.drive);
+    }
+    return { turned, kmh: c.speed * 3.6, drive, step: c.step };
+  }
+
+  it("brings a skier at a crawl round 90° in a couple of seconds, on or off his poles", () => {
+    for (const poles of [true, false]) {
+      for (const kmh of [5, 12, 20, 27]) {
+        expect(Math.abs(stepRound(kmh, 2.5, poles).turned)).toBeGreaterThan(Math.PI / 2);
+      }
+    }
+  });
+
+  it("is pushed all the way round: the drive kept, the speed gained", () => {
+    for (const kmh of [8, 15]) {
+      const turn = stepRound(kmh, 3);
+      expect(turn.drive).toBeGreaterThan(0.9);
+      expect(turn.kmh).toBeGreaterThan(kmh + 2);
+    }
+  });
+
+  it("leads the V into the turn, its inside arm opened — skating more to one side", () => {
+    const vee = skateAngle(3);
+    const lead = TUNING.poles.turn.lead;
+    expect(glideYaw(0.8, 3, 1, 1)).toBeCloseTo(vee + lead, 6);
+    expect(glideYaw(1.8, 3, 1, 1)).toBeCloseTo(lead - vee, 6);
+    // On his poles at a double pole's pace, the turn is skated.
+    expect(skateShare(8, true)).toBeLessThan(0.5);
+    expect(skateShare(8, true, 1)).toBe(1);
+  });
+
+  it("is nothing at speed: a skier past the drive's reach carves", () => {
+    expect(stepWork(1, TUNING.poles.fade + 1)).toBe(0);
+    const state = stage(PITCH, 60, 600);
+    ride(state, 1, { steer: 1 });
+    expect(state.skier.step).toBe(0);
+  });
+});
+
 describe("the jump (TUNING.jump)", () => {
   /** Load it for `held` s at 50 km/h on the flat, let go, and read the pop
    * and the highest the skier's CoG rose over where it stood. */
@@ -111,6 +219,27 @@ describe("the jump (TUNING.jump)", () => {
 
   it("is no higher for being held past two seconds", () => {
     expect(jump(3).pop).toBeCloseTo(jump(TUNING.jump.full).pop, 5);
+  });
+
+  it("still springs when let go just after the snow is left, never later", () => {
+    /** Load it a second, throw him off the snow, hold it `late` s into the
+     * air and let go: the pop it springs, if any. */
+    function late(late: number): number {
+      const state = stage(PACKED, 50);
+      ride(state, 0.5);
+      ride(state, 1, { jump: true });
+      state.skier.y += 3;
+      state.skier.vy = 4;
+      ride(state, late, { jump: true });
+      let pop = 0;
+      for (let i = 0; i < 3; i++) {
+        step(state, NEUTRAL_INPUT);
+        for (const e of state.events) if (e.kind === "jump") pop = e.pop;
+      }
+      return pop;
+    }
+    expect(late(TUNING.jump.grace / 2)).toBeGreaterThan(TUNING.jump.popMin);
+    expect(late(TUNING.jump.grace * 2)).toBe(0);
   });
 
   it("sinks him onto his legs while it loads", () => {

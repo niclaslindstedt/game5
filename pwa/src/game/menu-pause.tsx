@@ -52,7 +52,15 @@
 import { useState } from "preact/hooks";
 
 import { Glyph } from "./menu-glyphs.tsx";
-import { Caption, KnobGroup, MenuHead, StepRow, type Hint, type Stop } from "./menu-knobs.tsx";
+import {
+  Caption,
+  KnobGroup,
+  MenuBody,
+  MenuHead,
+  StepRow,
+  type Hint,
+  type Stop,
+} from "./menu-knobs.tsx";
 import { SoundRows } from "./menu-options.tsx";
 import { pauseStats } from "./pause-stats.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -89,21 +97,23 @@ function PauseOptions({
       role="presentation"
     >
       <MenuHead back={onBack} backLabel={STRINGS.pauseBack} title={STRINGS.menuOptions} />
-      <div class="knob-groups">
-        <KnobGroup title={STRINGS.optCameraGroup} glyph="display">
-          <StepRow
-            label={STRINGS.optCamera}
-            hint={STRINGS.optCameraHint}
-            stops={CAMERA_STOPS}
-            value={settings.camera}
-            onPick={onCamera}
-            onHint={setHint}
-          />
-        </KnobGroup>
-        <KnobGroup title={STRINGS.optSoundGroup} glyph={settings.sound ? "speaker" : "mute"}>
-          <SoundRows settings={settings} onSettings={onSettings} onHint={setHint} />
-        </KnobGroup>
-      </div>
+      <MenuBody>
+        <div class="knob-groups">
+          <KnobGroup title={STRINGS.optCameraGroup} glyph="display">
+            <StepRow
+              label={STRINGS.optCamera}
+              hint={STRINGS.optCameraHint}
+              stops={CAMERA_STOPS}
+              value={settings.camera}
+              onPick={onCamera}
+              onHint={setHint}
+            />
+          </KnobGroup>
+          <KnobGroup title={STRINGS.optSoundGroup} glyph={settings.sound ? "speaker" : "mute"}>
+            <SoundRows settings={settings} onSettings={onSettings} onHint={setHint} />
+          </KnobGroup>
+        </div>
+      </MenuBody>
       <Caption hint={hint} fallback={STRINGS.pauseOptionsCaption} />
     </div>
   );
@@ -167,6 +177,17 @@ export function PauseMenu({
                   ? STRINGS.pauseSubFree(snap.seed)
                   : STRINGS.pauseSub(snap.seed, snap.taken, snap.gates)}
             </div>
+            {/* THE MOUNTAIN, as the free ride raises it again: its seed, its
+                country and its grade off the start card's own rows. */}
+            {!snap.free && !snap.tricks && (
+              <div class="menu-sub menu-pause-mountain">
+                {STRINGS.pauseMountain(
+                  snap.seed,
+                  STRINGS.regionNames[snap.region],
+                  STRINGS.gradeNames[snap.grade],
+                )}
+              </div>
+            )}
           </div>
           {/* HOW THE RACE HAS GONE, in one row across: the figure over its
               caption, the HUD's own arrangement. */}

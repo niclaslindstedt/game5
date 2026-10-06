@@ -6,8 +6,10 @@
 // self-contained page that plays the ACTUAL shipped audio: the same synth,
 // the same bank, the same beds. Three sections:
 //
-//   THE WIND   the skier's own wind under sliders — the airspeed, how far
-//              into the tuck he is — and a switch for the air, because the
+//   THE WIND   the skier's own wind under sliders — the APPARENT wind (his
+//              speed and the weather's together), the side a crosswind
+//              comes from, how far into the tuck he is — and a switch for
+//              the air, because the
 //              rush comes up with the snow gone, and a row of SEATS, because
 //              the mix moves with the camera.
 //   THE SNOW   the skis on the snow: the pace, how PACKED the snow is (the
@@ -15,6 +17,12 @@
 //              the edge, the skid.
 //   THE TUNNEL a wind tunnel's gale: how far in the lane the skier is and
 //              how near its fan.
+//   THE HELICOPTER the free ride's machine: its spool and collective, the
+//              slap, the wash, how far off and how fast it closes, the
+//              wreck's fire.
+//   THE SNOWMOBILE the free ride's other machine: its revs, the thumb, how
+//              hard it works, the belt's speed and slip, the loose snow
+//              under the paddles, and how far off it idles.
 //   THE BANK   every discrete sound in the game, one button each, with the
 //              description it was written against printed beside it.
 //
@@ -41,6 +49,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
+
+import { NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -89,6 +99,8 @@ const RUNTIME = [
   "pwa/src/game/audio/wind-voice.ts",
   "pwa/src/game/audio/snow-voice.ts",
   "pwa/src/game/audio/tunnel-voice.ts",
+  "pwa/src/game/audio/heli-voice.ts",
+  "pwa/src/game/audio/sled-voice.ts",
 ];
 
 /** Compile the runtime modules to plain JS and return one concatenated blob. */
@@ -159,7 +171,8 @@ function compileRuntime() {
 const { RUN_BANK } = await import(join(root, "pwa/src/game/audio/bank.ts"));
 const { WIND_LAYERS } = await import(join(root, "pwa/src/game/audio/wind-voice.ts"));
 const { SNOW_LAYERS } = await import(join(root, "pwa/src/game/audio/snow-voice.ts"));
-const { SKIS, SKI_CATALOG, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const { HELI, SKIS, SKI_CATALOG, SLED, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const { rotorsOf } = await import(join(root, "pwa/src/game/audio/heli-voice.ts"));
 const { APP_NAME } = await import(join(root, "pwa/src/identity.ts"));
 const spec = SKIS;
 
@@ -168,6 +181,11 @@ const runtime = compileRuntime();
 // the page) and how fast it goes flat out — the snow's PACE is a share of it.
 const data = JSON.stringify({
   bank: RUN_BANK,
+  // The helicopter's blade passages off the engine's own rotors — the page
+  // has no engine in it.
+  rotors: rotorsOf(HELI),
+  // The snowmobile's engine band, off the engine's own table.
+  sled: { idle: SLED.idleRpm, max: SLED.maxRpm },
   skis: { name: spec.name, top: topSpeedOf(spec) },
   catalog: SKI_CATALOG.map((s) => ({
     name: s.name,
@@ -334,6 +352,33 @@ const page = `<!doctype html>
     <div id="tunnelSliders"></div>
   </div>
 
+  <h2>The helicopter</h2>
+  <p class="sub">
+    The free ride's helicopter: <b>spool</b> is the rotor's rpm (the whop's rate and the
+    turbine's pitch), <b>run-up</b> the start's whine, <b>collective</b> the blades' bite,
+    <b>slap</b> the crack of a descent into its own wake, <b>wash</b> the snow blown up under
+    it. <b>Distance</b> is from the ear (3 m is sat on the skid), <b>closing</b> its speed toward
+    you — negative flying away. <b>Fire</b> is the wreck burning; its crackle is a cue the
+    game raises, and the crash is in the bank.
+  </p>
+  <div class="panel">
+    <div class="switches"><button id="heli" class="primary" type="button">Start the helicopter</button></div>
+    <div id="heliSliders"></div>
+  </div>
+
+  <h2>The snowmobile</h2>
+  <p class="sub">
+    The free ride's mountain sled: <b>revs</b> is the crank's share of its band (the note,
+    the pipe coming on past a third), <b>thumb</b> the throttle, <b>load</b> how hard it works
+    (none in the air), <b>belt</b> the track's speed (its whine), <b>slip</b> how much faster
+    it runs than the snow (the churn and the roost), <b>loose</b> how much powder the paddles
+    are in. <b>Distance</b> is from the ear — 0 is stood on its boards.
+  </p>
+  <div class="panel">
+    <div class="switches"><button id="sled" class="primary" type="button">Start the snowmobile</button></div>
+    <div id="sledSliders"></div>
+  </div>
+
   <div id="bank"></div>
 
   <footer>
@@ -426,7 +471,8 @@ window.__ear = { seat };
 const rush = { airborne: false };
 window.__ear.rush = rush;
 const rushSliders = document.getElementById("rushSliders");
-sliderRow(rushSliders, rush, "wind", "Wind", 16, 0, 45, " m/s");
+sliderRow(rushSliders, rush, "wind", "Wind", 16, 0, 75, " m/s");
+sliderRow(rushSliders, rush, "side", "From the side", 0, -1, 1);
 sliderRow(rushSliders, rush, "crouch", "Tuck", 0);
 toggle(rushSliders, rush, "airborne", "In the air");
 switchRow(rushSliders, "Seat", Object.keys(LISTENERS), "chase", (s) => (seat.view = s));
@@ -457,7 +503,7 @@ rushBtn.addEventListener("click", () => {
     const ear = listenerFor(seat.view);
     rack.apply(
       windTargets(
-        { wind: rush.wind, crouch: rush.crouch, airborne: rush.airborne },
+        { wind: rush.wind, crouch: rush.crouch, airborne: rush.airborne, side: rush.side },
         { wind: ear.wind, tone: ear.tone },
       ),
     );
@@ -570,6 +616,119 @@ tunnelBtn.addEventListener("click", () => {
   tunnelRack = { timer, rack };
 });
 
+// ── The helicopter ─────────────────────────────────────────────────────────
+const heli = {};
+window.__ear.heli = heli;
+const heliSliders = document.getElementById("heliSliders");
+sliderRow(heliSliders, heli, "spool", "Spool", 1);
+sliderRow(heliSliders, heli, "rise", "Run-up", 0);
+sliderRow(heliSliders, heli, "collective", "Collective", 0.6);
+sliderRow(heliSliders, heli, "slap", "Slap", 0);
+sliderRow(heliSliders, heli, "wash", "Wash", 0.5);
+sliderRow(heliSliders, heli, "distance", "Distance", 3, 0, 2500, " m");
+sliderRow(heliSliders, heli, "closing", "Closing", 0, -60, 60, " m/s");
+sliderRow(heliSliders, heli, "fire", "Fire", 0);
+let heliRack = null;
+let heliSlot = 0;
+const heliBtn = document.getElementById("heli");
+heliBtn.addEventListener("click", () => {
+  synth.unlock();
+  refreshState();
+  if (heliRack !== null) {
+    clearInterval(heliRack.timer);
+    heliRack.rack.stop();
+    heliRack = null;
+    heliBtn.className = "primary";
+    heliBtn.textContent = "Start the helicopter";
+    return;
+  }
+  heliBtn.className = "primary on";
+  heliBtn.textContent = "Stop the helicopter";
+  const rack = createRack(synth, HELI_LAYERS, HELI_GLIDE);
+  const timer = setInterval(() => {
+    if (synth.now() === null) return;
+    const ear = listenerFor(seat.view);
+    const t = performance.now() / 1000;
+    const voice = {
+      spool: heli.spool,
+      rise: heli.rise,
+      collective: heli.collective,
+      slap: heli.slap,
+      wash: heli.wash,
+      distance: heli.distance,
+      doppler: dopplerOf(heli.closing),
+      pan: 0,
+      fire: heli.fire,
+      t,
+    };
+    rack.apply(heliTargets(voice, DATA.rotors, { machine: ear.machine }));
+    // The fire's crackle, as the game's bed raises it: a slot a fortieth.
+    const now = Math.floor(t * CRACKLE_SLOTS);
+    const heard = heliHeard(heli.distance);
+    for (let s = Math.max(heliSlot + 1, now - 4); s <= now; s++) {
+      const pop = crackleAt(s, heli.fire);
+      if (pop) {
+        playDef(synth, DATA.bank.heli_crackle, {
+          gain: pop.size * heard.gain * ear.machine * ear.events,
+          pitch: pop.pitch * (0.6 + 0.4 * heard.bright),
+        });
+      }
+    }
+    heliSlot = now;
+  }, 33);
+  heliRack = { timer, rack };
+});
+
+// ── The snowmobile ─────────────────────────────────────────────────────────
+const sled = {};
+window.__ear.sled = sled;
+const sledSliders = document.getElementById("sledSliders");
+sliderRow(sledSliders, sled, "rev", "Revs", 0);
+sliderRow(sledSliders, sled, "throttle", "Thumb", 0);
+sliderRow(sledSliders, sled, "load", "Load", 0);
+sliderRow(sledSliders, sled, "belt", "Belt", 0, 0, 45, " m/s");
+sliderRow(sledSliders, sled, "slip", "Slip", 0, 0, 30, " m/s");
+sliderRow(sledSliders, sled, "loose", "Loose snow", 0);
+sliderRow(sledSliders, sled, "distance", "Distance", 0, 0, 400, " m");
+let sledRack = null;
+const sledBtn = document.getElementById("sled");
+sledBtn.addEventListener("click", () => {
+  synth.unlock();
+  refreshState();
+  if (sledRack !== null) {
+    clearInterval(sledRack.timer);
+    sledRack.rack.stop();
+    sledRack = null;
+    sledBtn.className = "primary";
+    sledBtn.textContent = "Start the snowmobile";
+    return;
+  }
+  sledBtn.className = "primary on";
+  sledBtn.textContent = "Stop the snowmobile";
+  const rack = createRack(synth, SLED_LAYERS, SLED_GLIDE);
+  const timer = setInterval(() => {
+    if (synth.now() === null) return;
+    const ear = listenerFor(seat.view);
+    const heard = sled.distance > 0 ? sledHeard(sled.distance) : { gain: 1, bright: 1 };
+    const machine = ear.machine * heard.gain;
+    rack.apply(
+      sledTargets(
+        {
+          rpm: DATA.sled.idle + sled.rev * (DATA.sled.max - DATA.sled.idle),
+          rev: sled.rev,
+          throttle: sled.throttle,
+          load: sled.load,
+          treadSpeed: sled.belt,
+          slip: sled.slip,
+          loose: sled.loose,
+        },
+        { engine: machine, exhaust: machine * (sled.distance > 0 ? 1 : 0.85), tone: heard.bright },
+      ),
+    );
+  }, 33);
+  sledRack = { timer, rack };
+});
+
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -621,106 +780,17 @@ console.log(
    handed to `page.addInitScript` and `page.evaluate` run in the PAGE, not in
    Node; these are the page's globals, named so the linter knows. */
 
-/** The moments the beds are metered at — a ladder from a skier stood in
- * the start gate to the whole mix flat out in a tuck, and the ones the ear
- * finds faults at: the push off into powder, a hockey stop and the air. */
-/** The snow as a preset writes it: one kind of snow, every other slider at
- * zero, so a preset never inherits the last one's mix. */
-const on = (kind, rest) => ({
-  groomed: 0,
-  hard: 0,
-  soft: 0,
-  new: 0,
-  wet: 0,
-  ice: 0,
-  [kind]: 1,
-  ski: "Chamois",
-  ...rest,
-});
-
-const PRESETS = [
-  {
-    name: "in the start gate",
-    rush: { wind: 0, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0, edge: 0, skid: 0, airborne: false }),
-  },
-  {
-    name: "pushing off into powder",
-    rush: { wind: 3, crouch: 0, airborne: false },
-    snow: on("soft", { pace: 0.08, edge: 0, skid: 0, airborne: false }),
-  },
-  {
-    name: "cruising the piste",
-    rush: { wind: 18, crouch: 0.2, airborne: false },
-    snow: on("groomed", { pace: 0.55, edge: 0.3, skid: 0, airborne: false }),
-  },
-  {
-    name: "flat out in a tuck",
-    rush: { wind: 36, crouch: 1, airborne: false },
-    snow: on("groomed", { pace: 1, edge: 0.1, skid: 0, airborne: false }),
-  },
-  {
-    name: "carving on ice",
-    rush: { wind: 25, crouch: 0.3, airborne: false },
-    snow: on("ice", { pace: 0.7, edge: 0.9, skid: 0, airborne: false }),
-  },
-  {
-    name: "hockey stop",
-    rush: { wind: 12, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0.4, edge: 0.4, skid: 1, airborne: false }),
-  },
-  {
-    name: "across the crust",
-    rush: { wind: 15, crouch: 0.1, airborne: false },
-    snow: on("hard", { pace: 0.45, edge: 0.4, skid: 0.2, airborne: false }),
-  },
-  {
-    name: "deep in new snow",
-    rush: { wind: 10, crouch: 0, airborne: false },
-    snow: on("new", { pace: 0.3, edge: 0.2, skid: 0, airborne: false, ski: "Marmot" }),
-  },
-  {
-    name: "spring slush",
-    rush: { wind: 10, crouch: 0, airborne: false },
-    snow: on("wet", { pace: 0.3, edge: 0.3, skid: 0.3, airborne: false }),
-  },
-  {
-    name: "slalom ski on ice",
-    rush: { wind: 20, crouch: 0.2, airborne: false },
-    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Swift" }),
-  },
-  {
-    name: "park ski on ice",
-    rush: { wind: 20, crouch: 0.2, airborne: false },
-    snow: on("ice", { pace: 0.8, edge: 1, skid: 0, airborne: false, ski: "Hare" }),
-  },
-  {
-    name: "in the air",
-    rush: { wind: 30, crouch: 0.4, airborne: true },
-    snow: on("groomed", { pace: 0.9, edge: 0, skid: 0, airborne: true }),
-  },
-  {
-    name: "blown down a wind tunnel",
-    rush: { wind: 28, crouch: 0.3, airborne: false },
-    snow: on("groomed", { pace: 0.75, edge: 0, skid: 0, airborne: false }),
-    tunnel: { presence: 1, fan: 0.3 },
-  },
-  {
-    name: "beside a wind tunnel",
-    rush: { wind: 8, crouch: 0, airborne: false },
-    snow: on("groomed", { pace: 0.2, edge: 0, skid: 0, airborne: false }),
-    tunnel: { presence: 0.2, fan: 0 },
-  },
-];
-
 /** How long a bed is given to reach its targets before it is read, ms, and
  * how long it is then read for. The glides run to a sixth of a second. */
 const SETTLE_MS = 800;
 const READ_MS = 2000;
 const READ_STEP_MS = 40;
 
-/** The longest one-shot in the bank, ms. */
+/** How long a one-shot is read for at the least, ms, and the tail read past
+ * its last voice's end — a long sound (the crash) is read to its end, so
+ * its tail does not land on the next one's reading. */
 const SOUND_MS = 1500;
+const SOUND_TAIL_MS = 300;
 
 const db = (rms) => (20 * Math.log10(Math.max(1e-6, rms))).toFixed(1).padStart(6) + " dBFS";
 
@@ -796,15 +866,27 @@ async function meter() {
   }, args.seat);
 
   console.log("\nTHE BEDS (mean / peak)");
+  /** Set every store a preset writes; the first is set before the beds
+   * start, so it never reads the sliders' defaults fading out. */
+  const set = (preset) =>
+    page.evaluate(
+      (p) => {
+        Object.assign(window.__ear.rush, p.rush);
+        Object.assign(window.__ear.snow, p.snow);
+        Object.assign(window.__ear.tunnel, p.tunnel ?? { presence: 0, fan: 0 });
+        Object.assign(window.__ear.heli, p.noHeli, p.heli ?? {});
+        Object.assign(window.__ear.sled, p.noSled, p.sled ?? {});
+      },
+      { ...preset, noHeli: NO_HELI, noSled: NO_SLED },
+    );
+  await set(PRESETS[0]);
   await page.click("#rush");
   await page.click("#snow");
   await page.click("#tunnel");
+  await page.click("#heli");
+  await page.click("#sled");
   for (const preset of PRESETS) {
-    await page.evaluate((p) => {
-      Object.assign(window.__ear.rush, p.rush);
-      Object.assign(window.__ear.snow, p.snow);
-      Object.assign(window.__ear.tunnel, p.tunnel ?? { presence: 0, fan: 0 });
-    }, preset);
+    await set(preset);
     await page.waitForTimeout(SETTLE_MS);
     const { mean, peak } = await read(READ_MS);
     console.log(`  ${preset.name.padEnd(26)} ${db(mean)}   ${db(peak)}`);
@@ -812,13 +894,16 @@ async function meter() {
   await page.click("#rush");
   await page.click("#snow");
   await page.click("#tunnel");
+  await page.click("#heli");
+  await page.click("#sled");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");
   for (const button of await page.$$("#bank button")) {
     const id = await button.evaluate((b) => b.parentElement.querySelector(".id").textContent);
+    const ends = RUN_BANK[id].voices.map((v) => (v.delayMs ?? 0) + v.durationMs);
     await button.click();
-    const { peak } = await read(SOUND_MS);
+    const { peak } = await read(Math.max(SOUND_MS, Math.max(...ends) + SOUND_TAIL_MS));
     console.log(`  ${id.padEnd(26)} ${db(peak)}`);
   }
   await browser.close();

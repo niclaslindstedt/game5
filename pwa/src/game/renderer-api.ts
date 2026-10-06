@@ -3,10 +3,12 @@
 // may ask of the renderer, and nothing else. The shell owns WHEN a frame is
 // drawn and WHICH state it shows; the renderer owns how it looks, and never
 // writes a `GameState`.
-import type { GameState, SkiId } from "@engine";
+import type { GameState } from "@engine";
 
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
+import type { PickRay } from "./machine-pick.ts";
+import type { Outfit } from "./outfit.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import type { VideoSettings } from "./settings-video.ts";
 
@@ -23,6 +25,10 @@ export interface WorldRenderer {
   /** Which camera a RUN is seen through; menus use "orbit". */
   setCamera(rung: CameraRung): void;
   camera(): CameraRung;
+  /** The ray through a point of the picture, normalized device coordinates
+   * (−1..1 right and up) — what a tap on a machine is tested along
+   * (`machine-pick.ts`). */
+  pickRay(x: number, y: number): PickRay;
   /** The canvas's box in CSS px and the device's pixel ratio; the RESOLUTION
    * row's share is the renderer's to apply on top. */
   resize(width: number, height: number, pixelRatio: number): void;
@@ -32,10 +38,9 @@ export interface WorldRenderer {
   /** THE GHOST (`ghost-run.ts`): another run on the same map, drawn
    * see-through and leaving no trail — or null for none. */
   setGhost(ghost: GameState | null): void;
-  /** The player's topsheets (`Settings.topsheets`): the pair in slot 0 is
-   * dressed in the one its id picks, rebuilt when that changes; the field
-   * keeps its start-line slots' colours. */
-  dress(topsheets: Partial<Record<SkiId, number>>): void;
+  /** The player's outfit (`Settings.outfit`): the skier in slot 0 wears
+   * it, rebuilt when it changes; the field wears its slots' own. */
+  dress(outfit: Outfit): void;
   /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, framed
    * from a lens planted beside it — or null for the camera ladder. Only a
    * replay ever sets one (`replay-run.ts`). */
@@ -44,10 +49,6 @@ export interface WorldRenderer {
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */
   setDeathCam(on: boolean): void;
-  /** The time rate the death cam asks the run to be stepped at, 0..1 — 1
-   * whenever it is idle or not let in. What it returns is what the next
-   * `draw`'s `dt` is taken to have been slowed by. */
-  timeRate(): number;
   /** Wait for the GPU to finish everything asked of it, and say how long
    * that took, ms — what the first-visit probe times a frame with. */
   drain(): number;

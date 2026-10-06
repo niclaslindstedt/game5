@@ -5,10 +5,13 @@
 //   * THE EDGE'S SHEET: a ski carving on its edge shaves a sheet of snow
 //     off the outside of the arc, from under the boot and the tail, sized
 //     by how far it is tipped (`edge`) and how fast — the fan of a railed
-//     turn on a groomer, a wave off it in powder.
+//     turn on a groomer, a wave off it in powder — and by the ski's share
+//     of the load (`ski-stand.ts`): the OUTSIDE ski, which carries two
+//     thirds of him and more, throws most of it.
 //   * THE SKID'S WALL: skis pivoted across the way (`skid`) push a wall of
 //     snow ahead of their edges, out to the side the skier is sliding —
-//     the hockey stop's spray, off every station at once.
+//     the hockey stop's spray, off the stations of the ski that carries
+//     him most, the downhill one.
 //   * THE POWDER OVER THE SHOULDER: in deep snow at speed the tips throw
 //     powder up over the skier, sized by how deep they are running.
 //   * THE LANDING PUFF: a skier coming down out of the air sends a ring of
@@ -32,6 +35,7 @@ import * as THREE from "three";
 import { rotate, type Level, type SkierState } from "@engine";
 
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { skiShares } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowProps } from "./snowpack.ts";
 
@@ -72,6 +76,21 @@ export type Spray = {
     vz: number,
     size: number,
     snow?: SnowProps,
+  ): void;
+  /** ONE GRAIN OR CLUMP FLUNG from a point at (vx, vy, vz) — a
+   * snowmobile's roost off its paddles (`sled-scene.ts`): living `life` s,
+   * `size` m across, `hard` 0 a grain puff … 1 a clump. Thinned by the
+   * SPRAY row's share. */
+  fling(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    life: number,
+    size: number,
+    hard: number,
   ): void;
   update(dt: number, look: SkyLook, level: Level): void;
   /** Pixels per metre at one metre from the lens (the projection's scale). */
@@ -198,9 +217,14 @@ export function createSpray(haze: HazeUniforms): Spray {
 
   // Emission carries fractions over from frame to frame, per skier.
   let debt = new WeakMap<SkierState, number[]>();
+  const shares: [number, number] = [0.5, 0.5];
 
   return {
     points,
+    fling(x, y, z, vx, vy, vz, lifetime, s, h) {
+      if (random() > share) return;
+      spawn(x, y, z, vx, vy, vz, lifetime, s, h);
+    },
     emit(skier, level, dt, landed, snow) {
       let owed = debt.get(skier);
       if (!owed) {
@@ -218,7 +242,10 @@ export function createSpray(haze: HazeUniforms): Spray {
       // outside of the arc.
       const outSide =
         skier.skiAngle !== 0 ? -Math.sign(skier.skiAngle) : -Math.sign(skier.edge || 1);
-      // THE EDGE'S SHEET, off the boot and the tail of each ski.
+      // Which ski carries him, and so throws the snow (`ski-stand.ts`).
+      skiShares(skier, shares);
+      // THE EDGE'S SHEET, off the boot and the tail of each ski, by its
+      // share of the load — the two together throwing what the pair does.
       for (let k = 0; k < 2; k++) {
         const mid = skier.contacts[k * 3 + 1];
         const tail = skier.contacts[k * 3 + 2];
@@ -226,7 +253,9 @@ export function createSpray(haze: HazeUniforms): Spray {
         const rate =
           (edge * (1 - skid) * skier.speed * 9 + skier.speed * 0.6) *
           (0.15 * base + powder) *
-          share;
+          share *
+          2 *
+          shares[k];
         owed[k] += rate * dt;
         while (owed[k] >= 1) {
           owed[k] -= 1;
@@ -255,7 +284,9 @@ export function createSpray(haze: HazeUniforms): Spray {
         owed[2] += rate * dt;
         while (owed[2] >= 1) {
           owed[2] -= 1;
-          const c = skier.contacts[Math.floor(random() * 6)];
+          // Off the ski that carries him, as often as it does.
+          const k = random() < shares[0] ? 0 : 1;
+          const c = skier.contacts[k * 3 + Math.floor(random() * 3)];
           if (!c.touching) continue;
           const kick = rotate(skier.q, {
             x: outSide * (1.5 + random() * 3 + skid * 2),

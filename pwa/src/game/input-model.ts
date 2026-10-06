@@ -16,7 +16,7 @@
 // the steer, the HUD's missed-gate arrow applies it to a bearing, and
 // nothing else may.
 
-import type { SkierInput } from "@engine";
+import type { HeliControls, SkierInput } from "@engine";
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { snapInput } from "./ghost.ts";
@@ -47,6 +47,13 @@ export const KEY_BRAKE_RELEASE = 30;
  * do it in; coming back to centre is quicker still. */
 export const KEY_LEAN_ATTACK = 10;
 export const KEY_LEAN_RELEASE = 14;
+/** ...and both the edge and the lean keys' attack IN THE AIR, 1/s: there a
+ * tap is a STROKE (`strokes.ts` — half a turn on the edge, a loop on the
+ * lean, on a run that lets him trick) and only counts once the axis is
+ * carried past its gate, so the quickest tap a finger makes — 50 ms — must
+ * get there: at this rate the edge's gate is reached in 30 ms and the
+ * lean's in 55. */
+export const KEY_AIR_ATTACK = 30;
 
 /** Walk `value` toward `target` at `attack` per second when the target is
  * away from centre and `release` when it is centre, over `dt` seconds. A
@@ -85,7 +92,13 @@ export const LEVER_BRAKE_PX = 60;
  * pushed AWAY as the lean back, the way a flight stick does. The keys never
  * pass through it — a key is a whole press either way, and the binding page
  * is how a key is turned round. */
-export type TouchFeel = { sensitivity: number; invertLean: boolean };
+export type TouchFeel = {
+  sensitivity: number;
+  invertLean: boolean;
+  /** The share of `BAR_REACH_PX` the EDGE's throw spans on this run, 1 when
+   * absent — shorter on a slalom (`edgeFeel`). The lean keeps its own. */
+  edgeReach?: number;
+};
 export const PLAIN_FEEL: TouchFeel = { sensitivity: 1, invertLean: false };
 
 /** How deep the tuck is for a thumb `dyPx` below its anchor (screen y
@@ -177,10 +190,41 @@ export const LEAN_DEAD_PX = 14;
  * the reach ring is drawn, as the steer does. */
 export const LEAN_REACH_PX = BAR_REACH_PX - LEAN_DEAD_PX;
 
+/** THE EDGE THROW ON A SLALOM, as a share of `BAR_REACH_PX`. A slalom
+ * gate comes round every second or so and each one asks the edge thrown
+ * from full on one side to full on the other: at the whole reach that is a
+ * thumb swept 180 px a second, which no thumb keeps up gate after gate. At
+ * this share the swing is half that, and the lean — which a slalom barely
+ * asks for — keeps its whole travel, so a quick swing that strays a little
+ * up or down neither leans him nor throws the back key. */
+export const SLALOM_EDGE_REACH = 0.55;
+
+/** How the thumbs read on a run of `discipline` (a race's, or null): the
+ * player's own feel, with the edge's throw shortened on a slalom. */
+export function edgeFeel(feel: TouchFeel, discipline: string | null): TouchFeel {
+  return discipline === "slalom" ? { ...feel, edgeReach: SLALOM_EDGE_REACH } : feel;
+}
+
+/** The thumb travel that IS full edge, px, for a feel: the reach ring's
+ * width, and how far the anchor trails a thumb past it (`trailAnchor`). */
+export function edgeReachPx(feel: TouchFeel = PLAIN_FEEL): number {
+  return (BAR_REACH_PX * (feel.edgeReach ?? 1)) / feel.sensitivity;
+}
+
 /** Screen-space steer, -1..1, for a thumb `dxPx` right of its anchor. */
 export function barSteer(dxPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  const travel = clamp((dxPx * feel.sensitivity) / BAR_REACH_PX, -1, 1);
+  const travel = clamp(dxPx / edgeReachPx(feel), -1, 1);
   return Math.sign(travel) * Math.abs(travel) ** BAR_THROW_CURVE;
+}
+
+/** THE ANCHOR TRAILS A THUMB PAST FULL EDGE, sideways only: a thumb swept
+ * past the ring drags the anchor along behind it, so the way back is never
+ * longer than the throw. Without it a thumb that overshot by an inch had
+ * that inch to come back before the edge even began to come off, and the
+ * swing to full edge the other way fell short by it — gate after gate, as
+ * the overshoots added up. The anchor's x for a thumb at `thumbX`. */
+export function trailAnchor(anchorX: number, thumbX: number, reachPx: number): number {
+  return clamp(anchorX, thumbX - reachPx, thumbX + reachPx);
 }
 
 /** Lean, -1..1, for a thumb `dyPx` below its anchor: pulling the control
@@ -194,9 +238,9 @@ export function barLean(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
   return clamp((Math.sign(dy) * beyond) / LEAN_REACH_PX, -1, 1);
 }
 
-/** Where the edge control's reach ring is drawn for a feel, px: the thumb
- * travel that IS full edge, so the circle a player sees is still the
- * control's whole extent at any sensitivity. */
+/** How far the lean's throw reaches for a feel, px: the reach ring's
+ * height, so the ring a player sees is still the control's whole extent at
+ * any sensitivity (its width is the edge's, `edgeReachPx`). */
 export function barReachPx(feel: TouchFeel = PLAIN_FEEL): number {
   return BAR_REACH_PX / feel.sensitivity;
 }
@@ -242,10 +286,43 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
+  /** A DOUBLE TAP on either thumb's zone, set on the second touch and kept
+   * until a step has taken it — the MACHINE press on touch
+   * (`SkierInput.machine`): on to the snowmobile or the helicopter beside
+   * him, or off the one he rides. */
+  tap2: boolean;
+  /** THE CYCLIC STICK, the edge thumb's glass while he flies the
+   * helicopter (`hud-heli-pad.tsx`'s `StickZone`, `role="cyclic"`): −1..1
+   * right and −1..1 pushed up (forward), screen-space, and whether a thumb
+   * is on it. */
+  stickX: number;
+  stickY: number;
+  stick: boolean;
+  /** THE POWER PAD, the lever's glass while he flies (`role="power"`):
+   * pushed up −1..1 works the collective up and down, across −1..1 is the
+   * pedals, screen-space, and whether a thumb is on it. */
+  powerX: number;
+  powerY: number;
+  power: boolean;
 };
 
 export function neutralTouch(): TouchChannel {
-  return { steer: 0, lean: 0, bar: false, tuck: 0, brake: 0, lever: false, jump: false };
+  return {
+    steer: 0,
+    lean: 0,
+    bar: false,
+    tuck: 0,
+    brake: 0,
+    lever: false,
+    jump: false,
+    tap2: false,
+    stickX: 0,
+    stickY: 0,
+    stick: false,
+    powerX: 0,
+    powerY: 0,
+    power: false,
+  };
 }
 
 /** The keyboard's ramped axes, screen-space. Advanced once per STEP (§37.1)
@@ -334,14 +411,17 @@ export function sampleInput(
   dt: number,
   reset: boolean,
   airborne = false,
+  flying = false,
 ): SkierInput {
-  const keyAir = airLean(model, keys, airborne);
+  const aloft = airborne && !flying;
+  const keyAir = airLean(model, keys, aloft);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  model.steer = rampToward(model.steer, steerTarget, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  const steerAttack = aloft ? KEY_AIR_ATTACK : KEY_STEER_ATTACK;
+  model.steer = rampToward(model.steer, steerTarget, dt, steerAttack, KEY_STEER_RELEASE);
   model.tuck = rampToward(model.tuck, keys.tuck ? 1 : 0, dt, KEY_TUCK_ATTACK, KEY_TUCK_RELEASE);
   // THE BACK KEY, the key or the edge thumb dragged down on the snow, and
   // which of its two meanings it went down as.
-  const thumbBack = touch.bar && !airborne && touch.lean >= BACK_TOUCH;
+  const thumbBack = touch.bar && !airborne && !flying && touch.lean >= BACK_TOUCH;
   const back = backMode(
     model,
     (keys.brake && !model.brakeLeans) || thumbBack,
@@ -358,7 +438,8 @@ export function sampleInput(
     keys.leanBack || keys.leanForward
       ? (keys.leanBack ? 1 : 0) - (keys.leanForward ? 1 : 0)
       : keyAir;
-  model.lean = rampToward(model.lean, leanTarget, dt, KEY_LEAN_ATTACK, KEY_LEAN_RELEASE);
+  const leanAttack = aloft ? KEY_AIR_ATTACK : KEY_LEAN_ATTACK;
+  model.lean = rampToward(model.lean, leanTarget, dt, leanAttack, KEY_LEAN_RELEASE);
 
   const steer = touch.bar ? touch.steer : model.steer;
   // A thumb dragged down as the back key is not also leaning him back.
@@ -378,4 +459,104 @@ export function sampleInput(
     carve: back === "carve",
     jump: keys.jump || (touch.lever && touch.jump),
   });
+}
+
+// ── THE HELICOPTER, FLOWN BY HAND (`heli.ts`, `SkierInput.heli`) ────────
+
+/** Which of the helicopter's keys are down (`settings-heli-keys.ts`). */
+export type HeliKeysHeld = {
+  collectiveUp: boolean;
+  collectiveDown: boolean;
+  cyclicForward: boolean;
+  cyclicBack: boolean;
+  cyclicLeft: boolean;
+  cyclicRight: boolean;
+  pedalLeft: boolean;
+  pedalRight: boolean;
+};
+
+export const NO_HELI_KEYS: HeliKeysHeld = {
+  collectiveUp: false,
+  collectiveDown: false,
+  cyclicForward: false,
+  cyclicBack: false,
+  cyclicLeft: false,
+  cyclicRight: false,
+  pedalLeft: false,
+  pedalRight: false,
+};
+
+/** THE COLLECTIVE'S TRAVEL, shares of the lever a second: a key held moves
+ * it at `COLLECTIVE_KEY_RATE` (from the stop to the hover's ~0.7 in a
+ * second and a half), the power pad pushed all the way at
+ * `COLLECTIVE_THUMB_RATE`. A lever moves while it is worked and stays where
+ * it is left: the height held is the hand's, never the machine's. */
+export const COLLECTIVE_KEY_RATE = 0.45;
+export const COLLECTIVE_THUMB_RATE = 0.6;
+
+/** THE POWER PAD'S DEAD BAND, a share of its reach either side of the
+ * anchor: the collective is a RATE on the pad (held up it keeps rising), so
+ * a thumb working the pedals across must not creep the lever up or down by
+ * the little it strays — and a thumb working the collective must not kick
+ * the tail. Past the band the axis is rescaled, so the full reach is still
+ * the whole of it. */
+export const POWER_PAD_DEAD = 0.15;
+
+/** One of the power pad's axes past its dead band, −1..1. */
+export function powerAxis(v: number): number {
+  const past = Math.abs(v) - POWER_PAD_DEAD;
+  if (past <= 0) return 0;
+  return Math.sign(v) * clamp(past / (1 - POWER_PAD_DEAD), 0, 1);
+}
+
+/** The flying hand's memory: the collective lever where it was left, and
+ * the cyclic's and the pedals' keyboard ramps, screen-space. */
+export type HeliModel = { collective: number; pitch: number; roll: number; pedal: number };
+
+export function createHeliModel(): HeliModel {
+  return { collective: 0, pitch: 0, roll: 0, pedal: 0 };
+}
+
+/**
+ * ONE STEP OF THE HELICOPTER'S CONTROLS off the keys and the thumbs — on
+ * touch two pads, the CYCLIC on the edge thumb's side and the POWER PAD on
+ * the lever's:
+ *   * the COLLECTIVE lever worked up and down by its keys, or by the power
+ *     pad's vertical travel (pushed up raises it, at a rate), and left where
+ *     it is;
+ *   * the CYCLIC off the stick keys (ramped like the edge) or the cyclic
+ *     stick, which owns both its axes while it is down;
+ *   * the PEDALS off their keys, or the power pad's sideways travel, which
+ *     owns them while it is down and is sprung back to centre after.
+ * The side-to-side axes go through the one screen-to-engine flip.
+ */
+export function sampleHeli(
+  model: HeliModel,
+  keys: HeliKeysHeld,
+  touch: TouchChannel,
+  dt: number,
+): HeliControls {
+  const lift = (keys.collectiveUp ? 1 : 0) - (keys.collectiveDown ? 1 : 0);
+  const thumbLift = touch.power ? powerAxis(touch.powerY) : 0;
+  model.collective = clamp(
+    model.collective + (lift * COLLECTIVE_KEY_RATE + thumbLift * COLLECTIVE_THUMB_RATE) * dt,
+    0,
+    1,
+  );
+  const fore = (keys.cyclicForward ? 1 : 0) - (keys.cyclicBack ? 1 : 0);
+  const side = (keys.cyclicRight ? 1 : 0) - (keys.cyclicLeft ? 1 : 0);
+  const yaw = (keys.pedalRight ? 1 : 0) - (keys.pedalLeft ? 1 : 0);
+  model.pitch = rampToward(model.pitch, fore, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  model.roll = rampToward(model.roll, side, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  model.pedal = rampToward(model.pedal, yaw, dt, KEY_STEER_ATTACK, KEY_STEER_RELEASE);
+  const pitch = touch.stick ? touch.stickY : model.pitch;
+  const roll = touch.stick ? touch.stickX : model.roll;
+  const pedal = touch.power ? powerAxis(touch.powerX) : model.pedal;
+  const flip = (v: number): number => (v === 0 ? 0 : clamp(v, -1, 1) * SCREEN_TO_ENGINE);
+  return {
+    collective: model.collective,
+    pitch: clamp(pitch, -1, 1),
+    roll: flip(roll),
+    pedal: flip(pedal),
+  };
 }

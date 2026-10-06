@@ -8,26 +8,50 @@
 // Nothing in here decides anything: the speed is the engine's `speed`, the
 // edge is the engine's own edge against the pair's full edge, the gate
 // count is the progress the engine keeps, the place is `racePlace` and the
-// standings are `fieldOrder`. A number that decided an outcome would be a
-// rule in the shell (§23.2), and there are none.
+// standings are `fieldOrder` — on a SLALOM or a DOWNHILL the board of the
+// field skied before him (`slalom-board.ts`), never `state.rivals`, which
+// an interval start leaves empty. A number that decided an outcome would be a rule in the
+// shell (§23.2), and there are none.
 
 import {
-  TUNING,
+  airflowAt,
   bearingToNext,
   fieldOrder,
   gradeOf,
   racePlace,
+  regionOf,
+  DOWNHILL,
+  SLALOM,
+  SUPER_G,
+  GIANT_SLALOM,
+  SPEED_SKI,
+  SLED,
+  heliWithin,
+  mayGetUp,
+  sledWithin,
   trenched,
   type GameState,
   type Level,
   type PisteGrade,
+  type RegionId,
+  type Airflow,
+  type AirRider,
   type Progress,
+  type RunOut,
+  edgeMostOf,
+  techniqueOf,
 } from "@engine";
 
+import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
 import { courseName } from "./run-names.ts";
+import { trapOf, type TrapReading } from "./downhill-run.ts";
+import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
+import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
+import { crossOf, type CrossHud } from "./ski-cross-run.ts";
+import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -41,18 +65,71 @@ const GO_HOLD = 1;
  * before the next so a stale split is never read as a fresh one. */
 const SPLIT_HOLD = 6;
 
+/** THE AIR CLOCK'S FLOOR, s: a flight is shown — on the clock, and as the
+ * run's best — only once it has lasted longer than this. A hop off a roller
+ * is air to the engine (`TUNING.air.counts`) but not a jump worth timing. */
+export const AIR_SHOWN = 0.5;
+
 /** One skier on the finish plate's table. */
 export type Standing = {
-  /** 1-based, in `fieldOrder`'s order. */
-  place: number;
+  /** 1-based, in `fieldOrder`'s order — null on the slalom's board for a
+   * racer with no time to rank (out of it, on the course, still to come). */
+  place: number | null;
   /** Start-line slot, 1-based: the player is 1, the rivals 2… — what a
-   * rival is called on the table (`strings.ts`). */
+   * rival is called on the table (`strings.ts`); on the slalom's board the
+   * start number. */
   slot: number;
   you: boolean;
   /** The run clock at the finish, or null while still out on the piste. */
   time: number | null;
   /** Gates taken, for a skier still out. */
   taken: number;
+  /** THE SLALOM'S BOARD (`slalom-board.ts`) — absent on any other table:
+   * the start number; the first run's time on the second run (null on the
+   * first); the combined time; the gap to the leader, s; how the racer
+   * went out; and whether he has still to come down. */
+  bib?: number;
+  before?: number | null;
+  total?: number | null;
+  gap?: number | null;
+  out?: RunOut | null;
+  waiting?: boolean;
+};
+
+/** AN INTERVAL START'S RACE as the HUD reads it — a slalom's, a giant
+ * slalom's, a downhill's, a super-G's or a speed race's — null on any other
+ * run. */
+export type RaceHud = {
+  /** Which discipline, and — on a downhill — whether this is its TRAINING
+   * run (`downhill-run.ts`), which counts for nothing. */
+  discipline: "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross";
+  training: boolean;
+  /** Which run of how many (R31, R36; a downhill and a super-G are one). */
+  run: 1 | 2;
+  runs: number;
+  /** THE STARTER'S WORD, small at the top while the start clock in the
+   * house carries the count: READY through the countdown, GO from then
+   * until a moment after the wand opens — null otherwise. */
+  word: "ready" | "go" | null;
+  /** THE INTERMEDIATE TIME while fresh: the timing point (1, 2 …), the run
+   * clock there and the gap to the leader (negative ahead). */
+  timing: { point: number; time: number; gap: number | null } | null;
+  /** The player's first-run time on the second run, s; 0 on the first. */
+  before: number;
+  /** OUT OF IT (R31): disqualified or did not finish, why and where. */
+  out: RunOut | null;
+  /** WHAT THE PLATE OFFERS NEXT — a slalom's SECOND RUN, or why not; a
+   * downhill's RACE after its training — null on any other plate. */
+  second: SecondRun | null;
+  /** A SPEED COURSE'S TRAP (R32, R33, `trapOf`): his speed through it and the
+   * field's best, km/h, and his place among them — null off a course with
+   * one. `trapFresh` while it has just been taken (`TIMING_HOLD`). */
+  trap: TrapReading | null;
+  trapFresh: boolean;
+  /** A SPEED TRACK'S TIMING ZONE (R34): its length along the snow, m —
+   * what every time the race keeps is read against as a speed
+   * (`speed-ski-run.ts`) — null on every other race. */
+  zone: number | null;
 };
 
 export type HudSnapshot = {
@@ -96,8 +173,8 @@ export type HudSnapshot = {
   mode: RunLedger["mode"];
   best: { time: number; skis: string; at: number } | null;
   /** THE AIR CLOCK, s — the flight so far, and 0 until it has lasted
-   * `TUNING.air.counts`: a hop off a bump is not air time, and a readout
-   * that counted it would flicker through every mogul. */
+   * `AIR_SHOWN`: a hop off a bump is not a jump, and a readout that timed
+   * it would flicker through every roller. */
   airTime: number;
   /** The flight in progress is the race's longest so far. */
   airBest: boolean;
@@ -111,43 +188,195 @@ export type HudSnapshot = {
   /** A FREE RIDE: no field, no gates owed — the HUD shows the run's best
    * air and the distance skied in their place. */
   free: boolean;
-  /** The run's longest flight so far, s. */
+  /** The run's longest flight so far, s — 0 until one has lasted
+   * `AIR_SHOWN`. */
   bestAir: number;
   /** How far has been skied, m. */
   distance: number;
   /** THE FINISH: the player's own result once he is through the finish,
    * and the whole field's table under it — live, because the field is
    * still coming down behind him. `time` carries the slalom gates' charge
-   * (`penalty`, s) already. Null until then. */
+   * (`penalty`, s) already. Null until then — and on a run that went OUT
+   * (`slalom.out`), which has no time and no place, while the table still
+   * comes up under its plate. */
   result: { place: number; time: number; penalty: number } | null;
   standings: Standing[] | null;
+  /** AN INTERVAL START'S RACE — a slalom's or a downhill's — its own
+   * readouts (`RaceHud`), null on any other run. */
+  race: RaceHud | null;
+  /** A SKI CROSS's readouts (`ski-cross-run.ts`) — its round, the start
+   * gate's commands, the heat's order and what comes next — null on any
+   * other run. */
+  cross: CrossHud | null;
+  /** A BIG AIR jump's readouts (`big-air-run.ts`) — its phase and number,
+   * the panel's score once judged, the board and what comes next — null on
+   * any other run. */
+  bigAir: BigAirHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
   /** BOGGED: the skier is sunk to the knees in powder (`trench.ts`) and
    * must pole out — the standing hint, up while he is. */
   stuck: boolean;
+  /** DOWN: the skier is off his skis (`crash.ts`'s `Thrown`). */
+  down: boolean;
+  /** ...and may GET UP: down past `crash.getUp`, when a press of his own
+   * stands him up (`mayGetUp`) — the reset lit and the hint up from then,
+   * the first seconds left to the fall and the body's plate. */
+  getUp: boolean;
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
+  /** THE BODY (`body-tile.ts`): every part's paint, the word for the whole
+   * of him, the worst injuries, the run's hardest blow — and the blow on
+   * the g meter while it holds. */
+  body: BodyTile;
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
   /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
   grade: PisteGrade;
+  /** THE COUNTRY the mountain is raised in (R21) — with the seed and the
+   * grade, what the free ride's start card needs to raise it again. */
+  region: RegionId;
+  /** THE WIND METER beside the speed (`windOf`). */
+  wind: HudWind;
+  /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
+   * it while it waits for him, or null. */
+  heli: HudHeli | null;
+  /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
+   * while it waits for him, or null. */
+  sled: HudSled | null;
 };
+
+/** THE SNOWMOBILE as the HUD reads it: ridden — the engine's rpm as a share
+ * of its limiter, the thumb, and whether the belt is spinning in the snow —
+ * or waiting `away` m from him, `near` when he stands where the machine
+ * press takes him on (`sledWithin`). */
+export type HudSled =
+  | { kind: "ridden"; rpm: number; rev: number; throttle: number; spin: boolean }
+  | { kind: "waiting"; away: number; near: boolean };
+
+/** How near the waiting snowmobile the HUD points him at it, m. */
+const SLED_CALL = 60;
+
+/** The snowmobile's readout for the player at this step. */
+export function sledOf(state: GameState): HudSled | null {
+  const s = state.sled;
+  if (!s) return null;
+  if (s.rider) {
+    return {
+      kind: "ridden",
+      rpm: s.rpm,
+      rev: Math.min(1, s.rpm / SLED.maxRpm),
+      throttle: s.controls.throttle,
+      spin: s.slip > 4,
+    };
+  }
+  const c = state.skier;
+  const away = Math.hypot(s.x - c.x, s.z - c.z);
+  return away < SLED_CALL && c.thrown === null && !state.heli?.rider && !c.lift
+    ? { kind: "waiting", away, near: sledWithin(state) }
+    : null;
+}
+
+/** THE HELICOPTER as the HUD reads it: flown — how high its skids are over
+ * the snow (the fall a jump off them is), m, and its climb, m/s — or
+ * waiting on its pad `pad` m from him, `near` when he stands where the
+ * machine press sits him on its skid (`heliWithin`). */
+export type HudHeli =
+  | {
+      kind: "flown";
+      height: number;
+      climb: number;
+      landed: boolean;
+      /** The collective lever, 0..1, and the disc's attitude as the
+       * horizon shows it: nose-up pitch and the bank as SCREEN rad (right
+       * side down positive as the player sees it), rad. */
+      collective: number;
+      pitch: number;
+      bank: number;
+    }
+  | { kind: "waiting"; pad: number; near: boolean };
+
+/** How near the waiting helicopter the HUD points him at it, m. */
+const HELI_CALL = 120;
+
+/** The helicopter's readout for the player at this step. */
+export function heliOf(state: GameState): HudHeli | null {
+  const h = state.heli;
+  if (!h) return null;
+  if (h.rider) {
+    return {
+      kind: "flown",
+      height: Math.max(0, h.y - state.level.groundAt(h.x, h.z)),
+      climb: h.vy,
+      landed: h.grounded,
+      collective: h.controls.collective,
+      pitch: h.pitch,
+      bank: h.roll * SCREEN_TO_ENGINE,
+    };
+  }
+  const c = state.skier;
+  const pad = Math.hypot(h.x - c.x, h.z - c.z);
+  // Riding the snowmobile, the helicopter does not call him.
+  return h.mode === "parked" && pad < HELI_CALL && c.thrown === null && !state.sled?.rider
+    ? { kind: "waiting", pad, near: heliWithin(state) }
+    : null;
+}
+
+/** THE WIND as the meter reads it: the air the skier FEELS — the air where
+ * he is less his own velocity (`airflowAt`), what he hears and what drags
+ * on him — and that air itself, the weather's wind down at his body and
+ * sheltered by the woods round him, each as a speed and the way it MOVES as
+ * a SCREEN angle (rad clockwise from straight ahead, so a wind in his face
+ * points down, at the player). */
+export type HudWind = {
+  /** The apparent wind, km/h. */
+  feltKmh: number;
+  feltAngle: number;
+  /** The air where he is, standing still in it, km/h. */
+  airKmh: number;
+  airAngle: number;
+};
+
+const FLOW: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 };
+const STILL: AirRider = { x: 0, z: 0, vx: 0, vy: 0, vz: 0, heading: 0 };
+
+/** The way a flow moves past the skier as a screen angle, through the one
+ * flip the input model owns. */
+function flowAngle(f: Airflow): number {
+  return Math.atan2(f.across * SCREEN_TO_ENGINE, -f.head);
+}
+
+/** The wind meter's reading for the player at this step. */
+export function windOf(state: GameState): HudWind {
+  const c = state.skier;
+  STILL.x = c.x;
+  STILL.z = c.z;
+  STILL.heading = c.heading;
+  airflowAt(state.level, state.t, STILL, FLOW);
+  const airKmh = FLOW.speed * 3.6;
+  const airAngle = flowAngle(FLOW);
+  airflowAt(state.level, state.t, c, FLOW);
+  return { feltKmh: FLOW.speed * 3.6, feltAngle: flowAngle(FLOW), airKmh, airAngle };
+}
 
 /** Gates taken so far, the start gate counted as the first, and never
  * more than the piste has: before the start gate none; through the finish,
- * all of them. */
+ * all of them; out of the race (R31), the gates he had taken. */
 export function gatesTaken(p: Progress, gates: number): number {
-  if (p.finished) return gates;
+  if (p.finished && !p.out) return gates;
   if (!p.started) return 0;
+  // Out, he skis on down and past gates that no longer count.
+  if (p.out) return Math.min(gates, p.passed, p.out.gate);
   return Math.min(gates, p.passed);
 }
 
-/** THE TABLE: every skier in `fieldOrder`'s order. */
+/** THE TABLE: every skier in `fieldOrder`'s order — on an interval start,
+ * the board of the field skied before him (`boardOf`). */
 export function standingsOf(state: GameState): Standing[] {
+  if (state.field) return boardOf(state);
   const gates = state.level.checkpoints.length;
   return fieldOrder(state).map((id, i) => {
     const rival = id === null ? null : state.rivals.find((r) => r.id === id);
@@ -185,8 +414,57 @@ function gradeOfLevel(level: Level): PisteGrade {
   return grade;
 }
 
-/** A run with no book behind it: a race, measured against nothing. */
-const NO_LEDGER: RunLedger = { mode: "race", standing: null };
+/** A run with no book behind it: a slalom, measured against nothing. */
+const NO_LEDGER: RunLedger = { mode: "slalom", standing: null };
+
+/** The race's readouts at this step, or null off an interval start. */
+export function raceOf(state: GameState): RaceHud | null {
+  const f = state.field;
+  if (!f) return null;
+  const p = state.progress;
+  const discipline: RaceHud["discipline"] = state.level.downhill
+    ? "downhill"
+    : state.level.superG
+      ? "superG"
+      : state.level.giantSlalom
+        ? "giantSlalom"
+        : state.level.speedSki
+          ? "speedSki"
+          : state.level.skiCross
+            ? "skiCross"
+            : "slalom";
+  const word =
+    state.phase === "countdown"
+      ? "ready"
+      : !p.finished && (!p.started || p.time < GO_HOLD)
+        ? "go"
+        : null;
+  return {
+    discipline,
+    training: f.training,
+    run: f.run,
+    runs:
+      discipline === "downhill"
+        ? DOWNHILL.runs
+        : discipline === "superG"
+          ? SUPER_G.runs
+          : discipline === "giantSlalom"
+            ? GIANT_SLALOM.runs
+            : discipline === "speedSki"
+              ? SPEED_SKI.runs
+              : discipline === "skiCross"
+                ? 1
+                : SLALOM.runs,
+    word,
+    timing: timingSplit(state),
+    before: f.before,
+    out: p.out,
+    second: secondRunOf(state),
+    trap: trapOf(state),
+    trapFresh: p.trapAt !== null && p.time - p.trapAt < TIMING_HOLD && !p.finished,
+    zone: state.level.speedSki?.zone.length ?? null,
+  };
+}
 
 export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): HudSnapshot {
   const c = state.skier;
@@ -194,23 +472,34 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const n = state.level.checkpoints.length;
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
-  const airTime = c.airborne && c.airTime > TUNING.air.counts ? c.airTime : 0;
+  const airTime = c.airborne && c.airTime > AIR_SHOWN ? c.airTime : 0;
+  // A slalom is timed at its intermediates (`slalom.timing`), never gate by
+  // gate — its gates come a second apart.
   const split =
-    Number.isFinite(lastAt) && p.time - lastAt < SPLIT_HOLD && !p.finished ? lastAt : null;
+    Number.isFinite(lastAt) && p.time - lastAt < SPLIT_HOLD && !p.finished && !state.field
+      ? lastAt
+      : null;
   const standing = ledger.standing;
   const owed = p.missed !== null ? bearingToNext(state) : null;
+  const race = raceOf(state);
+  // THE BIG LIGHTS are the line start's: a race's count out of the house is
+  // the start clock's, and its word the small one at the top — and a ski
+  // cross's heat has the start gate's commands and no count at all.
+  const cross = crossOf(state);
+  const lights = state.rules.countdown > 0 && !race && !state.cross;
   return {
     speedKmh: c.speed * 3.6,
-    edge: (c.edge / c.spec.edgeMax) * SCREEN_TO_ENGINE,
+    // Against the most edge he can use — a slalom racer's past the ski's own.
+    edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
     braking: c.brake > BRAKE_SHOWN,
     cutting: c.carve > BRAKE_SHOWN,
     time: p.time,
     finished: p.finished,
-    countdown: state.phase === "countdown" ? Math.ceil(state.countdown) : 0,
-    go: state.rules.countdown > 0 && state.phase !== "countdown" && p.time < GO_HOLD,
+    countdown: lights && state.phase === "countdown" ? Math.ceil(state.countdown) : 0,
+    go: lights && state.phase !== "countdown" && p.time < GO_HOLD,
     place: racePlace(state),
-    skiers: state.rivals.length + 1,
+    skiers: (state.field?.runs.length ?? state.rivals.length) + 1,
     taken: gatesTaken(p, n),
     gates: n,
     dropped: droppedOf(state),
@@ -227,12 +516,18 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         ? courseName(state.level, state.level.resort.course)
         : null,
     free: !state.rules.course,
-    bestAir: p.bestAir,
+    bestAir: p.bestAir > AIR_SHOWN ? p.bestAir : 0,
     distance: p.distance,
-    result: p.finished ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
+    result:
+      p.finished && !p.out ? { place: racePlace(state), time: p.time, penalty: p.penalty } : null,
     standings: p.finished ? standingsOf(state) : null,
+    race,
+    cross,
+    bigAir: bigAirOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
+    down: c.thrown !== null,
+    getUp: c.thrown !== null && mayGetUp(c.thrown),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],
@@ -240,7 +535,12 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
           legs: c.damage.legs,
         }
       : null,
+    body: bodyTile(c.body, state.t),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
+    region: regionOf(state.level).id,
+    wind: windOf(state),
+    heli: heliOf(state),
+    sled: sledOf(state),
   };
 }

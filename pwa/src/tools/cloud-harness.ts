@@ -11,9 +11,12 @@
 // blue in its shaded side, the glow of a taillight in it at night, how much
 // less a wet or crusted snow throws — only shows side by side.
 //
-// THE STAGE: one open meadow on the seed's own map — the flattest spot with
-// no tree near it and the track well away — ridden straight across at a
-// held speed. The SUN is turned to the ride rather than the ride to the
+// THE STAGE (`stage.ts`): one open meadow on the seed's own map — the
+// flattest spot with no tree near it and the track well away — or, with
+// `where=piste`, the piste itself (its own groomer, unless a snow is laid over it), ridden at
+// a held speed in one of the MOVES: running straight, carving, checking the
+// speed with the brake's skid, a hockey stop from the speed, skating off
+// from a standstill. The SUN is turned to the ride rather than the ride to the
 // sun: a light is a sky (`renderer.setSky`) and a heading chosen off the
 // sun's azimuth, so FRONT is the sun behind the chase camera, BACK is the
 // chase camera looking into it through the cloud, SIDE is across. The kind
@@ -23,7 +26,6 @@
 import {
   createGame,
   isRegionId,
-  nearestTrackPoint,
   placeRun,
   step,
   sunAtRun,
@@ -31,13 +33,14 @@ import {
   type GameState,
   type RegionId,
   type SkyOverride,
-  type SkierInput,
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { holdInput, isHoldMove, type HoldMove } from "../game/hold-input.ts";
 import { isSnowKind, type SnowKind } from "../game/snowpack.ts";
+import { hourAt, meadow, pisteSpot } from "./stage.ts";
 
 declare global {
   interface Window {
@@ -70,6 +73,8 @@ const ride = Number(params.get("ride") ?? 2.5);
 const coast = Number(params.get("coast") ?? 0);
 const dial = Number(params.get("dial") ?? 1);
 const byTimes = params.get("cols") === "times";
+const moves = list("moves", "straight").filter(isHoldMove);
+const onPiste = params.get("where") === "piste";
 const times = list("times", "0.4,1,2,3.5").map(Number);
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
@@ -82,62 +87,24 @@ renderer.resize(cellW, cellH, 1);
 const first: GameState = createGame({ seed, region, mode: "free", rivals: 0, quiet: true });
 const level = first.level;
 
-/** THE STAGE: the open meadow — the most room from the nearest tree, flat,
- * off the piste, on the mountain's face. */
-function meadow(): { x: number; z: number; room: number } {
-  const c = { x: level.size / 2, z: level.size * 0.5, rim: level.size * 0.4 };
-  let best = { x: c.x, z: c.z, room: -Infinity };
-  for (let x = c.x - c.rim * 0.8; x <= c.x + c.rim * 0.8; x += 16) {
-    for (let z = c.z - c.rim * 0.8; z <= c.z + c.rim * 0.8; z += 16) {
-      if (Math.hypot(x - c.x, z - c.z) > c.rim * 0.8) continue;
-      const near = nearestTrackPoint(level, x, z);
-      if (Math.hypot(near.x - x, near.z - z) < 45 || level.packedAt(x, z) > 0.05) continue;
-      let tree = 90;
-      for (const t of level.trees) tree = Math.min(tree, Math.hypot(t.x - x, t.z - z));
-      let lo = Infinity;
-      let hi = -Infinity;
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
-        for (const r of [0, 20, 40]) {
-          const y = level.groundAt(x + Math.sin(a) * r, z + Math.cos(a) * r);
-          lo = Math.min(lo, y);
-          hi = Math.max(hi, y);
-        }
-      }
-      const room = tree - (hi - lo) * 6;
-      if (room > best.room) best = { x, z, room };
-    }
-  }
-  return best;
-}
-
 /** A LIGHT: the sky it rides under and where the sun stands to the ride —
  * the ride's heading off the sun's azimuth (0 rides at the sun). */
 type Light = { label: string; sky: SkyOverride; turn: number };
 
-/** The hour (solar) the sun stands nearest `elevation` rad, before noon. */
-function hourAt(elevation: number): number {
-  let best = 12;
-  let gap = Infinity;
-  for (let h = 5; h <= 12; h += 0.25) {
-    const e = sunAtRun(withSky(level, { hour: h })).elevation;
-    if (Math.abs(e - elevation) < gap) {
-      gap = Math.abs(e - elevation);
-      best = h;
-    }
-  }
-  return best;
-}
-
 const DEG = Math.PI / 180;
 function lightOf(name: string): Light {
-  const day = hourAt(16 * DEG);
+  const day = hourAt(level, 16 * DEG);
   switch (name) {
     case "back":
       return { label: "INTO THE SUN", sky: { weather: "clear", hour: day }, turn: 0 };
     case "side":
       return { label: "SUN ACROSS", sky: { weather: "clear", hour: day }, turn: Math.PI / 2 };
     case "low":
-      return { label: "LOW SUN, BACK", sky: { weather: "clear", hour: hourAt(4 * DEG) }, turn: 0 };
+      return {
+        label: "LOW SUN, BACK",
+        sky: { weather: "clear", hour: hourAt(level, 4 * DEG) },
+        turn: 0,
+      };
     case "overcast":
       return { label: "OVERCAST", sky: { weather: "overcast", hour: 12 }, turn: 0 };
     case "snowing":
@@ -155,21 +122,6 @@ function lightOf(name: string): Light {
 
 const FRAME = 1 / 60;
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
-
-/** Hold `kmh` along `heading`: the tuck and the brake on the gap, the
- * edge on the heading's error. */
-function hold(state: GameState, kmh: number, heading: number, on: boolean): SkierInput {
-  const s = state.skier;
-  const want = kmh / 3.6;
-  const gap = want - s.speed;
-  return {
-    steer: Math.max(-1, Math.min(1, wrap(heading - s.heading) * 2.5)),
-    tuck: on ? Math.max(0, Math.min(1, 0.55 + gap * 0.35)) : 0,
-    brake: on ? Math.max(0, Math.min(1, -gap * 0.15 - 0.2)) : 0,
-    lean: 0,
-    reset: false,
-  };
-}
 
 /** Where to stand for a view of the skier at his pose now; `start` is where
  * the ride began. Null is the game's own chase camera. */
@@ -211,12 +163,14 @@ function viewOf(name: string, state: GameState, start: { x: number; z: number })
   }
 }
 
-type Row = { snow: SnowKind | null; light: Light; kmh: number };
+type Row = { snow: SnowKind | null; light: Light; kmh: number; move: HoldMove };
 const rows: Row[] = [];
 for (const snow of snows) {
   for (const light of lights) {
-    for (const kmh of speeds) {
-      rows.push({ snow: isSnowKind(snow) ? snow : null, light: lightOf(light), kmh });
+    for (const move of moves) {
+      for (const kmh of move === "skate" ? [0] : speeds) {
+        rows.push({ snow: isSnowKind(snow) ? snow : null, light: lightOf(light), kmh, move });
+      }
     }
   }
 }
@@ -226,7 +180,7 @@ let spot = { x: 0, z: 0, room: 0 };
 window.__cloud = {
   ready: (async () => {
     await renderer.load(first);
-    spot = meadow();
+    spot = meadow(level);
   })(),
   async sheet() {
     const cols = byTimes ? times.length : views.length;
@@ -256,7 +210,8 @@ window.__cloud = {
       renderer.setSky(row.light.sky);
       renderer.setSnow(row.snow);
       const sun = sunAtRun(withSky(level, row.light.sky));
-      const heading = wrap(sun.azimuth + row.light.turn);
+      const piste = onPiste ? pisteSpot(level) : null;
+      const heading = piste ? piste.heading : wrap(sun.azimuth + row.light.turn);
       const state = createGame({
         level,
         mode: "free",
@@ -265,19 +220,23 @@ window.__cloud = {
         snowDepth: dial,
       });
       // Onto the meadow's far side, so the ride crosses its middle.
-      const lead = Math.min(40, (row.kmh / 3.6) * ride * 0.6);
+      const lead = piste ? 0 : Math.min(40, (row.kmh / 3.6) * ride * 0.6);
+      const from = piste ?? spot;
       const start = {
-        x: spot.x - Math.sin(heading) * lead,
-        z: spot.z - Math.cos(heading) * lead,
+        x: from.x - Math.sin(heading) * lead,
+        z: from.z - Math.cos(heading) * lead,
       };
       placeRun(state, { x: start.x, z: start.z, heading, speed: row.kmh / 3.6 });
+      const t0 = state.t;
       renderer.setOverride(null);
       renderer.setCamera("chase", true);
       renderer.draw(state, 0, FRAME, false);
       // The mountain's shadow under this row's light, baked off the thread.
       await renderer.shadeSettled();
       const frame = (on: boolean) => {
-        for (let i = 0; i < 2; i++) step(state, hold(state, row.kmh, heading, on));
+        for (let i = 0; i < 2; i++) {
+          step(state, holdInput(state, row.kmh, heading, row.move, state.t - t0, on));
+        }
         renderer.draw(state, 0, FRAME, false);
       };
       const shoot = (view: string, c: number) => {
@@ -299,10 +258,10 @@ window.__cloud = {
       }
       ctx.fillStyle = "#e8eef4";
       const label = [
-        (row.snow ?? "map").toUpperCase(),
+        `${(row.snow ?? "map").toUpperCase()}${onPiste ? " · PISTE" : ""}`,
         row.light.label,
-        `${row.kmh} KM/H`,
-        `(${(state.skier.speed * 3.6).toFixed(0)} ridden)`,
+        `${row.move.toUpperCase()} ${row.move === "skate" ? "OFF" : `${row.kmh} KM/H`}`,
+        `(${(state.skier.speed * 3.6).toFixed(0)} now)`,
       ];
       label.forEach((l, i) => ctx.fillText(l, 8, y0 + cellH / 2 - 24 + i * 16));
       await new Promise((done) => setTimeout(done, 0));
@@ -313,7 +272,7 @@ window.__cloud = {
     return {
       rows: rows.length,
       cols,
-      note: `${snows.join("/")} × ${lights.join("/")} × ${speeds.join("/")} km/h`,
+      note: `${snows.join("/")} × ${lights.join("/")} × ${moves.join("/")} × ${speeds.join("/")} km/h${onPiste ? " on the piste" : ""}`,
     };
   },
 };

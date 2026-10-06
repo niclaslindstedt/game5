@@ -33,10 +33,13 @@
 // headwalls weighted to the steep sector.
 //
 // Everything here is a pure function of the plan, like `terrain.ts`, and is
-// baked once onto the same grid through `bakeCountry`.
+// baked once onto the same grid, row by row as `bakeCountry` bakes it.
 
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import {
+  createHeightfield,
+  type Heightfield,
+} from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
@@ -44,10 +47,11 @@ import { scaleBand, scaleCount, type Region } from "./regions.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
 import {
-  bakeCountry,
+  countryFields,
   descentAt,
   fbm,
-  flankOf,
+  flankAcross,
+  flankOpen,
   ridged,
   type Bowl,
   type CountryFields,
@@ -307,32 +311,87 @@ function sampleNoise2(seed: number, x: number): number {
  * are `terrain.ts`'s own arithmetic, restated here rather than shared so
  * that the mountain before the resorts keeps every bit of its own. */
 export function massifAt(plan: TerrainPlan, f: CountryFields, x: number, z: number): number {
-  return heightAt(plan, f, x, z, ridgeShare(plan, x), steepShare(plan, x), benchShare(plan, x));
+  return heightAt(
+    plan,
+    f,
+    x,
+    massifRow(plan, z),
+    ridgeShare(plan, x),
+    steepShare(plan, x),
+    benchShare(plan, x),
+  );
+}
+
+/** Everything `heightAt` reads off `z` alone — the descent, the four
+ * profiles at it, the fade of the folds and the crests, the side ridges'
+ * opening — so a bake reads them once a row. Each is the very expression
+ * the height was written with, so a row read once is the row read every
+ * time, bit for bit. */
+type MassifRow = {
+  z: number;
+  /** The four profile tables at the row's descent (`profileOf`). */
+  g: number;
+  s: number;
+  gb: number;
+  sb: number;
+  /** Behind the summit ridge, and how far it falls away there. */
+  behind: boolean;
+  back: number;
+  /** The folds' fade on the valley floor. */
+  floor: number;
+  /** The crests' fade down the face. */
+  ridge: number;
+  /** How open the side ridges are at this descent (`flankOpen`). */
+  open: number;
+};
+
+function massifRow(plan: TerrainPlan, z: number): MassifRow {
+  const M = R.mountain;
+  const F = R.face;
+  const u = descentAt(plan, z);
+  const [g, s, gb, sb] = massifOf(plan).tables;
+  const crest = z - plan.summitZ;
+  return {
+    z,
+    g: sample(g, u),
+    s: sample(s, u),
+    gb: sample(gb, u),
+    sb: sample(sb, u),
+    behind: z < plan.summitZ,
+    back: (plan.summitZ - z) * M.back,
+    floor: 1 - (1 - F.hills.floor * RR.massif.floorRelief) * smoothstep(0.88, 1.02, u),
+    ridge: crest < 0 ? 1 : 1 - smoothstep(0, M.crestSpread, crest),
+    open: flankOpen(plan, z),
+  };
 }
 
 /** `massifAt` with the three shares across x already read — they depend on
- * x alone, so a bake reads them once a column. */
+ * x alone, so a bake reads them once a column — and what depends on z
+ * alone read once a row (`massifRow`). `walls` holds each headwall's drop
+ * at x from `wallsAt` on, when a bake has read them. */
 function heightAt(
   plan: TerrainPlan,
   f: CountryFields,
   x: number,
-  z: number,
+  row: MassifRow,
   share: number,
   st: number,
   bn: number,
   walls: ArrayLike<number> | null = null,
+  wallsAt = 0,
 ): number {
-  const M = R.mountain;
   const F = R.face;
-  const u = descentAt(plan, z);
+  const z = row.z;
   let drops = 0;
   for (let i = 0; i < plan.headwalls.length; i++) {
-    drops += walls ? walls[i] : wallDrop(plan.headwalls[i], x, st);
+    drops += walls ? walls[wallsAt + i] : wallDrop(plan.headwalls[i], x, st);
   }
-  let h = (plan.vertical * share - drops) * profileOf(massifOf(plan), st, bn, u);
+  const plain = row.g * (1 - st) + row.s * st;
+  const benched = row.gb * (1 - st) + row.sb * st;
+  let h = (plan.vertical * share - drops) * (plain * (1 - bn) + benched * bn);
   for (let i = 0; i < plan.headwalls.length; i++) {
     const w = plan.headwalls[i];
-    const drop = walls ? walls[i] : wallDrop(w, x, st);
+    const drop = walls ? walls[wallsAt + i] : wallDrop(w, x, st);
     const dz = z - w.z;
     if (dz < -w.run) {
       h += drop;
@@ -342,13 +401,13 @@ function heightAt(
     const wander = (sampleNoise(f.headwalls[i], x, 0) * 2 - 1) * F.headwalls.wander;
     h += drop * (1 - smoothstep(-w.run / 2, w.run / 2, dz + wander));
   }
-  if (z < plan.summitZ) h -= (plan.summitZ - z) * M.back;
+  if (row.behind) h -= row.back;
   const wx = x + (sampleNoise(f.warpX, x, z) * 2 - 1) * 70;
   const wz = z + (sampleNoise(f.warpZ, x, z) * 2 - 1) * 70;
-  const flank = flankOf(plan, sampleNoise(f.flank, x, z), x, z);
+  const flank = flankAcross(plan, sampleNoise(f.flank, x, z), x, row.open);
   // The folds, quieter on the valley floor where the village stands, and
   // the spurs and gullies strongest on the steep sector.
-  const floor = 1 - (1 - F.hills.floor * RR.massif.floorRelief) * smoothstep(0.88, 1.02, u);
+  const floor = row.floor;
   h += fbm(f.hills, wx, wz) * plan.hills * floor;
   const folds = RR.massif.gentleFolds + (1 - RR.massif.gentleFolds) * st;
   h +=
@@ -362,8 +421,7 @@ function heightAt(
     const d2 = ((x - b.x) ** 2 + (z - b.z) ** 2) / (b.r * b.r);
     if (d2 < 1) h -= b.depth * (1 - d2) * (1 - d2);
   }
-  const crest = z - plan.summitZ;
-  const ridge = crest < 0 ? 1 : 1 - smoothstep(0, M.crestSpread, crest);
+  const ridge = row.ridge;
   if (flank > 0 || ridge > 0) {
     const rx = wx * 0.866 - wz * 0.5;
     const rz = wx * 0.5 + wz * 0.866;
@@ -381,25 +439,34 @@ function wallDrop(w: Headwall, x: number, st: number): number {
   return w.drop * st * across;
 }
 
-/** Bake the massif onto the map's grid (R1). */
+/** Bake the massif onto the map's grid (R1), row by row — the order the
+ * noise fields' kept squares pay off in — with what depends on x alone
+ * read once a column and what depends on z alone once a row. */
 export function bakeMassif(plan: TerrainPlan): Heightfield {
-  const n = Math.round(R.world.size / R.world.cell) + 1;
+  const cell = R.world.cell;
+  const n = Math.round(R.world.size / cell) + 1;
   const share = new Float64Array(n);
   const st = new Float64Array(n);
   const bn = new Float64Array(n);
   const k = plan.headwalls.length;
   const walls = new Float64Array(n * k);
   for (let c = 0; c < n; c++) {
-    const x = c * R.world.cell;
+    const x = c * cell;
     share[c] = ridgeShare(plan, x);
     st[c] = steepShare(plan, x);
     bn[c] = benchShare(plan, x);
     for (let i = 0; i < k; i++) walls[c * k + i] = wallDrop(plan.headwalls[i], x, st[c]);
   }
-  return bakeCountry(plan, (p, f, x, z) => {
-    const c = Math.round(x / R.world.cell);
-    return heightAt(p, f, x, z, share[c], st[c], bn[c], walls.subarray(c * k, c * k + k));
-  });
+  const field = createHeightfield(0, 0, cell, n, n);
+  const d = field.data;
+  const fields = countryFields(plan);
+  for (let r = 0; r < n; r++) {
+    const row = massifRow(plan, r * cell);
+    for (let c = 0; c < n; c++) {
+      d[r * n + c] = heightAt(plan, fields, c * cell, row, share[c], st[c], bn[c], walls, c * k);
+    }
+  }
+  return field;
 }
 
 /** The untouched massif's height at the summit ridge's crest line at `x`,

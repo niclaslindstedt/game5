@@ -41,17 +41,26 @@ export type RunMoment = {
    * already crossed. */
   time?: number;
   nextCheckpoint?: number;
+  /** Seconds of the lights still to run in front of the moment, the
+   * skier held in the start gate through them; none when left out. */
+  lights?: number;
 };
 
 /** Stand the run at a moment. A staged moment has no lights in front of
- * it: the run is racing from here. */
+ * it unless it asks for them: the run is racing from here. */
 export function placeRun(state: GameState, moment: RunMoment): void {
-  if (state.phase === "countdown") {
+  if (moment.lights !== undefined && moment.lights > 0) {
+    state.phase = "countdown";
+    state.countdown = moment.lights;
+  } else if (state.phase === "countdown") {
     state.phase = "racing";
     state.countdown = 0;
   }
   const c = state.skier;
   standSkier(state, moment.x, moment.z, moment.heading);
+  // Stood at a moment, off any lift (`lift-ride.ts`).
+  state.skier.lift = null;
+  state.skier.chairLeft = null;
   const speed = moment.speed ?? 0;
   const pitch = moment.pitch ?? c.pitch;
   const roll = moment.roll ?? c.roll;
@@ -107,7 +116,7 @@ export function placeRun(state: GameState, moment: RunMoment): void {
   c.crouch = tucked;
   // The crouch sits him lower on his legs (`skier.ts`), never in the air.
   if (!c.airborne) c.y -= c.spec.crouchDrop * c.crouch;
-  derive(c);
+  derive(c, state.level);
   if (moment.time !== undefined) state.progress.time = moment.time;
   if (moment.nextCheckpoint !== undefined) {
     state.progress.nextCheckpoint = moment.nextCheckpoint;

@@ -196,10 +196,6 @@ uniform vec4 uHole;
 uniform float uFlat;
 uniform float uFresh;
 uniform float uGlitter;
-uniform vec3 uLampPos[${LAMP_SLOTS}];
-uniform vec3 uLampDir[${LAMP_SLOTS}];
-uniform float uLampOn[${LAMP_SLOTS}];
-uniform vec3 uLampCol;
 uniform sampler2D uSurface;
 uniform vec3 uForestTint;
 uniform vec3 uCrustTone;
@@ -344,11 +340,15 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad += across * cos(ph) * 1.9 * 0.07 * k;
   }
   if (nearFade > 0.0) {
-    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.025 * nearFade;
-    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.004 * nearFade * (1.0 - snowPress);
+    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.035 * nearFade;
+    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.007 * nearFade * (1.0 - snowPress);
   }
 
-  // THE CORDUROY: the groomer's comb, running along the track.
+  // THE CORDUROY: the groomer's comb, running along the track — and WORN
+  // along it, in patches a few metres long where skis have scraped it
+  // flat and chips a hand across where it has crumbled. A comb running
+  // unbroken along the way looks the same however fast it is skied; its
+  // wear is what streams past.
   vec4 td = texture2D(uTrackDir, guv);
   snowBerm = td.b;
   float along = length(td.xy * 2.0 - 1.0);
@@ -360,6 +360,9 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     float aa = 1.0 - smoothstep(0.35, 0.9, fwidth(phase));
     float k = snowPacked * min(along * 2.0, 1.0) * aa * (1.0 - snowPress * 0.7);
     k *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
+    float worn = smoothstep(0.3, 0.7, snowNoise(p * 0.42 + 11.0));
+    float chip = snowNoise(p * 2.6 + 5.0);
+    k *= mix(0.3, 1.0, worn) * mix(0.55, 1.0, chip);
     grad += across * cos(phase) * 0.14 * k;
   }
 
@@ -396,7 +399,8 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float px = length(fwidth(p));
     float m1 = (snowNoise(p * 0.85) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 0.85));
     float m2 = (snowNoise(p * 2.9 + 3.7) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 2.9));
-    alb *= 1.0 + (m1 * 0.55 + m2 * 0.45) * mix(0.14, 0.22, snowPacked) * (1.0 - snowIce);
+    float m3 = (snowNoise(p * 8.5 + 9.1) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 8.5));
+    alb *= 1.0 + (m1 * 0.45 + m2 * 0.4 + m3 * 0.3) * mix(0.22, 0.32, snowPacked) * (1.0 - snowIce);
   }
   // The berm is snow turned over by the plough: back to fresh white, with
   // the shade of its clods in it.
@@ -447,10 +451,12 @@ normal = normalize((viewMatrix * vec4(snowN, 0.0)).xyz);
  * than one turned away. That is the one cue drawn, at a tenth of the
  * contrast a sun gives: readable, but hard.
  *
- * THE LAMPS (`uLamp*`): each floodlight is a cone from its mast,
- * falling off with the square of the distance, with a little spill round
- * the pool; the snow in it glitters toward the lamp as it does toward the
- * sun, which is what makes a lit pool of snow read as snow at night. */
+ * THE LAMPS (`uLamp*`, `haze.ts`'s `lampReach`): a floodlight's cone
+ * from its mast, a skier's headlamp's spot and the wide flood round it,
+ * each falling off with the square of the distance in its own colour, and
+ * the piste lights' baked light (`pisteLight`) on the runs they stand by; the
+ * snow in a beam glitters toward the lamp as it does toward the sun, which
+ * is what makes a lit pool of snow read as snow at night. */
 export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
 {
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
@@ -461,23 +467,34 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
   vec3 V = normalize(cameraPosition - vSnowWorld);
   float loose = (1.0 - snowPacked * 0.8) * (1.0 - snowPress * 0.6) * (1.0 - snowIce) * (1.0 - snowRock);
   vec3 lampLit = vec3(0.0);
-  float lampGlint = 0.0;
+  vec3 lampGlint = vec3(0.0);
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
+    if (uLampOn[i] <= 0.0) break;
     if (uLampOn[i] <= 0.001) continue;
     vec3 L = uLampPos[i] - vSnowWorld;
     float d = length(L);
     L /= max(d, 1e-3);
-    float axis = dot(-L, uLampDir[i]);
-    float beam = smoothstep(0.86, 0.975, axis) + 0.1 * smoothstep(0.35, 0.86, axis);
-    float e = uLampOn[i] * beam / (1.0 + 0.012 * d * d);
-    lampLit += vec3(e * max(dot(snowN, L), 0.0));
+    float e = lampReach(i, L, d);
+    lampLit += uLampCol[i] * (e * max(dot(snowN, L), 0.0));
     if (snowDist < 40.0) {
       vec3 H = normalize(L + V);
-      lampGlint += e * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 57.0);
+      lampGlint += uLampCol[i] * (e * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 57.0));
     }
   }
-  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * uLampCol * lampLit * 9.0;
-  reflectedLight.directSpecular += uLampCol * lampGlint * loose
+  // THE PISTE LIGHTS, baked: a lit run's snow glitters toward its masts.
+  if (uPisteOn.x > 0.0) {
+    vec3 pv = pisteLight(vSnowWorld);
+    float pe = length(pv);
+    if (pe > 1e-4) {
+      lampLit += uPisteCol * max(dot(snowN, pv), 0.0);
+      if (snowDist < 40.0) {
+        vec3 H = normalize(pv / pe + V);
+        lampGlint += uPisteCol * (pe * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 83.0));
+      }
+    }
+  }
+  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lampLit * 9.0;
+  reflectedLight.directSpecular += lampGlint * loose
     * (1.0 - smoothstep(12.0, 40.0, snowDist)) * 12.0;
 }
 #if NUM_DIR_LIGHTS > 0

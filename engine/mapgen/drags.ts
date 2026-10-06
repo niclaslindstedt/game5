@@ -8,11 +8,12 @@
 // A surface lift pulls a skier up on his skis, so it is short (a few
 // hundred metres to a kilometre and a bit) and never steep (the rope is let
 // climb about forty per cent), and its track is a groomed lane of its own:
-// it may cross a piste, square, but never runs up one. Its top stands beside
+// it crosses no piste (on a version from before the stations stood beside
+// the runs, one square), and never runs up one. Its top stands beside
 // the station or the lane it serves, on ground level enough to step off
 // onto, so a skier off it is where that station's runs start.
 
-import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { reckonAccess, type PlanLift, type PlanRun } from "./access-build.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { withinBand } from "./rules.ts";
@@ -96,7 +97,6 @@ function fits(g: DragGround, a: Point, b: Point): boolean {
   const D = RR.lift.drag;
   const length = hypot(b.x - a.x, b.z - a.z);
   const n = Math.max(2, Math.ceil(length / READ));
-  const heading = Math.atan2(b.x - a.x, b.z - a.z);
   const ys: number[] = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
@@ -107,9 +107,8 @@ function fits(g: DragGround, a: Point, b: Point): boolean {
     if (u < ENDS || u > length - ENDS) continue;
     const p = g.piste(x, z);
     if (p.distance > p.width / 2 + D.room) continue;
-    // Up a run, either way along it, is never a drag's track.
-    const along = Math.abs(angleDiff(heading, p.heading));
-    if (Math.min(along, Math.PI - along) < Math.PI / 2 - D.square) return false;
+    // A T-bar's track is ridden on the snow: it crosses no piste (R26).
+    return false;
   }
   if (ys[n] - ys[0] < RISE) return false;
   const k = Math.max(1, Math.round(D.pitchWindow / (length / n)));

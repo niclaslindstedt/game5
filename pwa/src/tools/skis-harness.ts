@@ -13,8 +13,8 @@
 //              on the move, carving either way, in the tuck, poling, in
 //              the air, folded by a landing, leaning back and forward, the
 //              grabs — by view
-//   topsheets  every pair in each of its topsheets (`ski-topsheets.ts`),
-//              three-quarters on
+//   topsheets  every pair in its own topsheet (`ski-topsheets.ts`), a view
+//              a column (three-quarters on unless `views=` says)
 //   skier      the skier CLOSE UP on one pair, in the poses that read most
 //              (at rest, on the move, carving, the tuck, in the air,
 //              landed), from behind at the chase camera's height, the rear
@@ -63,11 +63,13 @@ import {
   SKIS,
   SKI_CATALOG,
   skisById,
+  type Save,
   type SkiSpec,
   type SkierState,
   type TrickPose,
 } from "@engine";
 
+import { joltOf } from "../game/skier-save.ts";
 import { createSkier, type SkierFigure } from "../game/skier-figure.ts";
 import {
   createSkierSpring,
@@ -80,8 +82,8 @@ import {
   createSkisModel,
   mountsOf,
   REST_SAG,
-  SKI_STYLES,
-  styleIn,
+  pairStyle,
+  SLOT_DRESS,
   type SkisModel,
 } from "../game/skis-body.ts";
 import { TOPSHEETS } from "../game/ski-topsheets.ts";
@@ -111,7 +113,7 @@ const params = new URLSearchParams(location.search);
 const sheet = (params.get("sheet") ?? "skis") as Sheet;
 const cell = Number(params.get("cell") ?? 300);
 const spec = skisById(params.get("skis") ?? SKIS.id);
-const slot = Number(params.get("slot") ?? 0) % SKI_STYLES.length;
+const slot = Number(params.get("slot") ?? 0) % SLOT_DRESS.length;
 const landVy = Number(params.get("vy") ?? 6);
 const onlyViews = (params.get("views") ?? "").split(",").filter(Boolean) as View[];
 const assetNames = (params.get("assets") ?? "").split(",").filter(Boolean);
@@ -146,6 +148,8 @@ type Moment = {
   /** Either leg's compression past its rest, m. */
   left?: number;
   right?: number;
+  /** A near fall ridden out (`skier-save.ts`), shown at its peak. */
+  save?: Omit<Save, "t">;
 };
 
 const POSES: Moment[] = [
@@ -162,6 +166,10 @@ const POSES: Moment[] = [
   { name: "daffy", airborne: true, trick: "daffy" },
   { name: "spread", airborne: true, trick: "spread" },
   { name: "grab", airborne: true, trick: "grab" },
+  { name: "saved a landing", save: { kind: "landing", size: 1, side: 0, fore: 1 } },
+  { name: "trunk on the right", save: { kind: "tree", size: 1, side: 1, fore: 0 } },
+  { name: "hand down, left", save: { kind: "body", size: 1, side: -1, fore: 0 } },
+  { name: "edge bit, right", save: { kind: "edge", size: 1, side: 1, fore: 0 } },
 ];
 
 /** The moments the rig sheet poses every pair at: the edge each way, the
@@ -219,7 +227,7 @@ const riders = new Map<number, SkierFigure>();
 function riderOf(kit: number): SkierFigure {
   let r = riders.get(kit);
   if (!r) {
-    r = createSkier(SKI_STYLES[kit].skier, (m) => m);
+    r = createSkier(SLOT_DRESS[kit], (m) => m);
     r.pose(HEAD_POSE);
     scene.add(r.group);
     riders.set(kit, r);
@@ -254,14 +262,12 @@ scene.add(wall);
 
 const plain = <M extends THREE.Material>(m: M): M => m;
 const models = new Map<string, SkisModel>();
-/** A pair built once per topsheet it is shown in (-1: the slot's own). */
-function modelOf(s: SkiSpec, livery = -1): SkisModel {
-  const key = `${s.id}:${livery}`;
+/** A pair built once, in its own topsheet, the slot's skier on it. */
+function modelOf(s: SkiSpec): SkisModel {
+  const key = s.id;
   let m = models.get(key);
   if (!m) {
-    const style =
-      livery < 0 ? SKI_STYLES[slot] : styleIn(SKI_STYLES[slot], TOPSHEETS[s.id][livery]);
-    m = createSkisModel(s, style, plain);
+    m = createSkisModel(s, pairStyle(s, SLOT_DRESS[slot]), plain);
     scene.add(m.root);
     models.set(key, m);
   }
@@ -291,8 +297,8 @@ function stateAt(s: SkiSpec, at: Moment): SkierState {
 }
 
 /** Pose one pair for a moment, the skier's legs at `legs`. */
-function posed(s: SkiSpec, at: Moment, legs: SkierSpring | null, livery = -1): SkisModel {
-  const m = modelOf(s, livery);
+function posed(s: SkiSpec, at: Moment, legs: SkierSpring | null): SkisModel {
+  const m = modelOf(s);
   for (const other of models.values()) other.root.visible = other === m;
   const c = stateAt(s, at);
   const roll = at.roll ?? 0;
@@ -321,6 +327,7 @@ function skierAt(c: SkierState, at: Moment, legs: SkierSpring | null): SkierPose
     airborne: c.airborne,
     landing: c.landing,
     trick: at.trick ?? null,
+    jolt: at.save ? joltOf({ ...at.save, t: 0.15 }) : undefined,
     mounts: mountsOf(c.spec),
   };
 }
@@ -360,7 +367,7 @@ async function loadAssets(): Promise<void> {
     scene.add(holder);
     riderModel = { holder, rig: rigSkier(holder, gltf.animations) };
   }
-  assetRider = createSkier(SKI_STYLES[slot].skier, (m) => m);
+  assetRider = createSkier(SLOT_DRESS[slot], (m) => m);
   assetRider.group.position.set(0, spec.cogHeight, 0);
   assetRider.group.visible = false;
   scene.add(assetRider.group);
@@ -462,11 +469,12 @@ function camera(view: View, s: SkiSpec): THREE.Camera {
     lens.position.set(0, 11, -0.2);
     lens.lookAt(0, 0, -0.2);
   } else {
-    // THE CHASE CAMERA's place (`camera-rigs.ts`: 5.2 m back, 1.9 m up,
-    // aimed 7 m ahead at 0.7 m) — the view the skier is judged from.
-    lens.fov = 62;
-    lens.position.set(0, 1.9, -5.2);
-    lens.lookAt(0, 0.7, 7);
+    // THE CHASE CAMERA's place on level snow at a crawl (`camera-rigs.ts`:
+    // 5 m back, 2.2 m over his centre of gravity, the look pitched to stand
+    // him under the middle of the frame) — the view the skier is judged from.
+    lens.fov = 59;
+    lens.position.set(0, 3.2, -5);
+    lens.lookAt(0, 0.35, 7);
   }
   lens.updateProjectionMatrix();
   return lens;
@@ -486,7 +494,6 @@ type Cell = {
   legs: SkierSpring | null;
   view: View;
   label: string;
-  livery?: number;
 };
 
 function cells(): { rows: number; cols: number; list: Cell[] } {
@@ -585,17 +592,17 @@ function cells(): { rows: number; cols: number; list: Cell[] } {
     return { rows: clips.length + riderClips.length, cols: CLIP_FRAMES, list };
   }
   if (sheet === "topsheets") {
-    const cols = Math.max(...SKI_CATALOG.map((s) => TOPSHEETS[s.id].length));
+    // Every pair in its own topsheet, a view a column.
+    const cols = Math.max(1, views.length);
     for (const s of SKI_CATALOG) {
-      for (let i = 0; i < cols; i++) {
-        const l = TOPSHEETS[s.id][i];
+      const l = TOPSHEETS[s.id];
+      for (const view of views.length ? views : (["three"] as View[])) {
         list.push({
           spec: s,
           at: POSES[1],
           legs: null,
-          view: views[0] ?? "three",
-          label: `${s.name} · ${l.name} · ${l.pattern}`,
-          livery: i,
+          view,
+          label: `${s.name} · ${l.name} · ${l.pattern} · ${view}`,
         });
       }
     }
@@ -635,7 +642,7 @@ function cells(): { rows: number; cols: number; list: Cell[] } {
 
 /** THE HEAD SHEET: every kit a row, every angle a column. */
 function drawHeads(): { rows: number; cols: number; note: string } {
-  const rows = SKI_STYLES.length;
+  const rows = SLOT_DRESS.length;
   const cols = HEAD_VIEWS.length;
   const w = cell;
   const h = Math.round(cell * 0.75);
@@ -713,7 +720,7 @@ function draw(): { rows: number; cols: number; note: string } {
     renderer.setViewport(x, y, w, h);
     renderer.setScissor(x, y, w, h);
     renderer.setClearColor(row % 2 === col % 2 ? 0x51606f : 0x5b6a79);
-    posed(c.spec, c.at, c.legs, c.livery ?? -1);
+    posed(c.spec, c.at, c.legs);
     showAsset(c.asset ?? -1, c.at, c.clip);
     showRider(c, !!c.model || (c.asset !== undefined && c.asset >= 0 && !c.clip));
     renderer.render(scene, camera(c.view, c.spec));

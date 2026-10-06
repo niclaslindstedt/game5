@@ -17,11 +17,10 @@
 
 import {
   generateLevel,
-  type GameMode,
   type GeneratorVersion,
   type Level,
   type RegionId,
-  type SkyOverride,
+  type Weather,
 } from "@engine";
 
 import type { CameraRung } from "./renderer-api.ts";
@@ -52,11 +51,12 @@ export type BenchmarkPlan = {
    * A graded map re-rolls the seed, and a sweep of the graded ones found
    * none with both the woods and a flight in its first thirty seconds. */
   version: GeneratorVersion;
-  /** THE RACE, because it is the heaviest thing the game does: four skis
-   * drawn, and — the part no screenshot shows — four whole runs stepped at
-   * 120 Hz, each ridden by the bot deciding on every step. A benchmark that
-   * rode alone would be reporting the renderer and calling it the game. */
-  mode: GameMode;
+  /** THE FIELD ON THE START LINE (`fieldRules`, the run that names no
+   * mode), because it is the heaviest thing the game does: four skis drawn,
+   * and — the part no screenshot shows — four whole runs stepped at 120 Hz,
+   * each ridden by the bot deciding on every step. A benchmark that rode
+   * alone would be reporting the renderer and calling it the game. */
+  mode: "field";
   /** The view. CHASE is what a skier actually rides, which makes the score a
    * statement about playing the game rather than about a camera nobody uses. */
   camera: CameraRung;
@@ -66,8 +66,10 @@ export type BenchmarkPlan = {
    * clear, because the dome's cloud is a per-pixel cost every frame pays;
    * and not falling snow or fog, which close the view before the far woods
    * and would make DISTANCE read as free. The sun stands at that hour for
-   * the whole run (`clock.ts`). */
-  sky: Required<Pick<SkyOverride, "weather" | "hour">>;
+   * the whole run (`clock.ts`). And CALM: the wind pushes every skier in
+   * the field (`air.ts`), so a wind left to the seed would be one more
+   * thing a change to it could move the race by. */
+  sky: { weather: Pick<Weather, "kind" | "wind">; hour: number };
   /** Seconds of game each rendered frame advances. A sixtieth divides the
    * engine's step exactly (`TUNING.physicsHz` is 120), so a frame is a whole
    * number of steps with nothing carried — the race is the same race every
@@ -82,9 +84,9 @@ export const BENCHMARK: BenchmarkPlan = {
   seed: 20,
   region: "maritime",
   version: 1,
-  mode: "race",
+  mode: "field",
   camera: "chase",
-  sky: { weather: "fair", hour: 11 },
+  sky: { weather: { kind: "fair", wind: 0 }, hour: 11 },
   step: 1 / 60,
   frames: 1800,
 };
@@ -109,7 +111,7 @@ export function plannedRows(plan: BenchmarkPlan = BENCHMARK): { label: string; v
     { label: "generator", value: `v${plan.version}` },
     { label: "mode", value: plan.mode },
     { label: "camera", value: plan.camera },
-    { label: "sky", value: `${plan.sky.weather} ${plan.sky.hour}h` },
+    { label: "sky", value: `${plan.sky.weather.kind} ${plan.sky.hour}h, calm` },
     { label: "frames", value: `${plan.frames} × ${Math.round(1 / plan.step)} Hz` },
   ];
 }

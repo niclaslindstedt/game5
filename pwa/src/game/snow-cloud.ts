@@ -25,8 +25,9 @@
 //     (Henyey–Greenstein, g ≈ 0.6), so against a low sun the thin edges of
 //     the cloud light up silver and the whole of it glows;
 //   * GLINTS: in dry cold snow single crystals catch the sun and twinkle;
-//   * THE LAMPS: at night the finish arena's floodlights' cones light what
-//     they pass through (the snow shader's own lamp slots);
+//   * THE LAMPS: at night every lamp's beam — the finish arena's floods,
+//     the skiers' headlamps — lights what it passes through (the lamp
+//     slots, `haze.ts`'s `lampReach`);
 //   * it FADES INTO THE SNOW where it meets it (the lower part of a puff
 //     sitting on the ground thins out instead of cutting a line), away
 //     close to the lens (a chase camera rides inside the player's own
@@ -42,10 +43,13 @@
 import * as THREE from "three";
 import { rotate, type Level, type SkierState, type Wind } from "@engine";
 
-import { LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { skiShares } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   flyPuff,
+  carveOf,
+  driveOf,
   emptyRecipe,
   landingPuffs,
   puffOpacity,
@@ -53,6 +57,7 @@ import {
   skidCloud,
   skiCloud,
   type CloudRecipe,
+  CLOUD,
 } from "./snow-cloud-plan.ts";
 import type { SnowProps } from "./snowpack.ts";
 
@@ -162,10 +167,12 @@ void main() {
   // THE VEIL: the skier's own lens looks THROUGH his plume at him — what
   // stands between the lens and the skier, near the line of sight, is thinned
   // to \`uFocus.w\` (1 where the lens is planted and sees the cloud whole).
+  // It reaches a metre PAST him too: his newest puffs are born round his
+  // skis, at his own depth, and a ball of them sat on him otherwise.
   vec3 fwd = -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
   vec3 toF = uFocus.xyz - cameraPosition;
   vec3 toP = iPos.xyz - cameraPosition;
-  float before = smoothstep(dot(toF, fwd) - 0.5, dot(toF, fwd) - 2.5, dot(toP, fwd));
+  float before = smoothstep(dot(toF, fwd) + 1.0, dot(toF, fwd) - 1.5, dot(toP, fwd));
   vec3 dirF = toF / max(length(toF), 1e-3);
   float lat = length(toP - dirF * dot(toP, dirF));
   float onLine = 1.0 - smoothstep(1.2 + iPos.w * 0.6, 3.0 + iPos.w * 1.4, lat);
@@ -198,10 +205,7 @@ uniform float uFlat;
 uniform float uGlint;
 uniform float uTime;
 uniform float uNight;
-uniform vec3 uLampPos[${LAMP_SLOTS}];
-uniform vec3 uLampDir[${LAMP_SLOTS}];
-uniform float uLampOn[${LAMP_SLOTS}];
-uniform vec3 uLampCol;
+${LAMP_GLSL}
 varying vec2 vUv;
 varying vec2 vSpin;
 varying vec4 vLook;
@@ -292,16 +296,18 @@ void main() {
   float glint = step(1.0 - odds, h) * spot * uGlint * smoothstep(0.1, 0.5, d) * shade;
   col += uKeyCol * glint * (3.0 + hg);
 
-  // THE LAMPS: a floodlight's cone lights what it passes through.
+  // THE LAMPS: a floodlight's cone, a headlamp's beam, lights what it
+  // passes through — brightest seen looking back up it. The slots are dealt
+  // in order (\`dealLamps\`), so the first empty one ends them: by day the
+  // loop is one test, not six.
   for (int i = 0; i < ${LAMP_SLOTS}; i++) {
-    if (uLampOn[i] <= 0.0) continue;
-    vec3 away = vWorld - uLampPos[i];
-    float gap = length(away);
-    float cone = smoothstep(0.82, 0.97, dot(away / max(gap, 1e-3), uLampDir[i]));
-    float fall = max(0.0, 1.0 - gap / 40.0);
+    if (uLampOn[i] <= 0.0) break;
+    vec3 back = uLampPos[i] - vWorld;
+    float gap = length(back);
     float toward = 0.5 + 0.5 * pow(max(0.0, dot(-toEye, uLampDir[i])), 3.0);
-    col += uLampCol * uLampOn[i] * cone * fall * fall * toward * 1.4;
+    col += uLampCol[i] * lampReach(i, back / max(gap, 1e-3), gap) * toward * 1.8;
   }
+  col += uPisteCol * length(pisteLight(vWorld)) * 1.2;
   gl_FragColor = vec4(col, alpha);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -337,6 +343,9 @@ export type SnowCloud = {
     size: number,
     snow: SnowProps,
   ): void;
+  /** A PUFF BLOWN by a helicopter's rotor wash (`heli-view.ts`): one
+   * puff of loose snow at a point, thrown at (vx, vy, vz), `size` m. */
+  blow(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number): void;
   /** Fly every puff and sort them for the lens. */
   update(dt: number, look: SkyLook, level: Level, wind: Wind, eye: THREE.Vector3): void;
   /** The skier the lens is looking at, and how thin his plume is drawn
@@ -536,7 +545,16 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const wall = emptyRecipe();
   const ski = emptyRecipe();
   const puff = emptyRecipe();
+  const blown: CloudRecipe = {
+    ...emptyRecipe(),
+    hang: 4.5,
+    settle: 0.35,
+    tau: 1.4,
+    opacity: 0.55,
+    sparkle: 0.4,
+  };
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
+  const shares: [number, number] = [0.5, 0.5];
 
   const api: SnowCloud = {
     mesh,
@@ -546,17 +564,21 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         owed = [0, 0, 0];
         debt.set(skier, owed);
       }
+      // THE SKI THAT CARRIES HIM throws the cloud (`ski-stand.ts`): the
+      // outside one, two thirds of his weight and more in a turn — the
+      // wall rises off its boot, and each ski's sheet goes by its share.
+      skiShares(skier, shares);
+      const lead = skier.contacts[(shares[0] >= shares[1] ? 0 : 3) + 1];
       const under = rotate(skier.q, { x: 0, y: -skier.spec.cogHeight, z: 0 });
-      const ux = skier.x + under.x;
-      const uz = skier.z + under.z;
+      const on = lead?.touching === true;
+      const ux = on ? lead.x : skier.x + under.x;
+      const uy = on ? lead.y : skier.y + under.y;
+      const uz = on ? lead.z : skier.z + under.z;
       const snow = snowAt(ux, uz);
-      drive.speed = skier.speed;
-      drive.skid = skier.skid;
-      drive.edge = Math.min(1, Math.abs(skier.edge) / 0.9);
-      drive.grounded = !skier.airborne;
+      driveOf(skier, drive);
       // Which way the skis are sliding across their own line.
       const out = skier.skiAngle !== 0 ? -Math.sign(skier.skiAngle) : -Math.sign(skier.edge || 1);
-      // THE SKID'S WALL, off the boots, out across the way.
+      // THE SKID'S WALL, off the loaded ski's boot, out across the way.
       skidCloud(drive, snow, wall);
       owed[0] += wall.rate * dt * share;
       while (owed[0] >= 1) {
@@ -566,7 +588,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const back = random() * dt;
         const at = rotate(skier.q, {
           x: (random() - 0.5) * 0.7 + out * 0.3,
-          y: -skier.spec.cogHeight + 0.1 + (random() - 0.5) * 0.2,
+          y: 0.1 + (random() - 0.5) * 0.2,
           z: (random() - 0.5) * 0.8,
         });
         const kick = rotate(skier.q, {
@@ -574,11 +596,11 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
           y: wall.lift * (0.55 + 0.7 * random()),
           z: (random() - 0.5) * 1.5,
         });
-        const x = skier.x + at.x - skier.vx * back;
-        const z = skier.z + at.z - skier.vz * back;
+        const x = ux + at.x - skier.vx * back;
+        const z = uz + at.z - skier.vz * back;
         spawn(
           x,
-          skier.y + at.y - skier.vy * back,
+          uy + at.y - skier.vy * back,
           z,
           skier.vx * 0.45 + kick.x,
           skier.vy * 0.3 + kick.y,
@@ -588,13 +610,13 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         );
       }
       // THE SKIS: the sheet off a carve, the bow wave of a buried tip.
-      const carve = drive.edge * (1 - drive.skid) * skier.speed;
+      const carve = carveOf(drive);
       for (let k = 0; k < 2; k++) {
         const tip = skier.contacts[k * 3];
         const mid = skier.contacts[k * 3 + 1];
         if (!mid || !mid.touching) continue;
-        skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski);
-        owed[1 + k] += ski.rate * dt * share;
+        skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski, drive.speed);
+        owed[1 + k] += ski.rate * dt * share * 2 * shares[k];
         while (owed[1 + k] >= 1) {
           owed[1 + k] -= 1;
           const c = random() < 0.5 && tip?.touching ? tip : mid;
@@ -622,7 +644,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       if (landed > 0) {
         const at = snowAt(skier.x, skier.z);
         const n = Math.round(landingPuffs(landed, at) * share);
-        skidCloud({ speed: skier.speed, skid: 1, edge: 0, grounded: true }, at, puff);
+        // A landing's cloud is the fall's, not the forward speed's: lofted
+        // whole however slow he was going.
+        skidCloud(
+          { speed: skier.speed, skid: 1, edge: 0, grounded: true },
+          at,
+          puff,
+          CLOUD.loft.full,
+        );
         const g = groundOf(skier.x, skier.z);
         for (let i = 0; i < n; i++) {
           const a = random() * Math.PI * 2;
@@ -641,7 +670,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       }
     },
     burst(x, y, z, vx, vz, size, snow) {
-      skidCloud({ speed: 8, skid: 1, edge: 0, grounded: true }, snow, puff);
+      // A body meeting the snow throws its own cloud, whatever the speed.
+      skidCloud({ speed: 8, skid: 1, edge: 0, grounded: true }, snow, puff, CLOUD.loft.full);
       const n = Math.round(Math.min(45, (5 + 35 * size) * snow.loose * snow.fine) * share);
       for (let i = 0; i < n; i++) {
         const a = random() * Math.PI * 2;
@@ -657,6 +687,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
           groundOf(x, z),
         );
       }
+    },
+    blow(x, y, z, vx, vy, vz, size) {
+      // The wash's snow: big, slow-settling puffs that hang and drift — a
+      // whiteout is the air full of them.
+      blown.size = size;
+      blown.grow = size * 2.2;
+      if (random() > share) return;
+      spawn(x, y, z, vx, vy, vz, blown, groundOf(x, z));
     },
     update(dt, look, level, wind, eye) {
       levelRef = level;

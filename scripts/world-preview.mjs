@@ -22,9 +22,15 @@
 // falling fast), landing, vista, lift, lift-gondola, lift-drag,
 // lift-station, lift-far (the resort's longest lift from under its rope,
 // the gondola and the drag from beside theirs, the longest one's bottom
-// station, and the longest from across the face), cliff, cliff-edge,
+// station, and the longest from across the face), lift-top, lift-foot,
+// lift-door (a chair's top station from its pad — the hood, the booth, the
+// gate, the netting, the mast — its load line and corral, and the
+// gondola station's door), lift-ring (a chair's boarding ring from up the
+// hill — lit on a `--free` run alone), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
-// sign-tree (the post carrying the most boards),
+// sign-tree (the post carrying the most boards), gate, hut, finish (the
+// course's marks close to: the panel gate at the middle gate, the start
+// hut, the finish arch from up the last straight),
 // forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
@@ -33,7 +39,14 @@
 // the skier's shadow at every height of the face; `chase-<s>` at any
 // second), orbit, and last, staged rather
 // than ridden to: wipeout and wipeout-lie (the player put into the nearest
-// trunk flat out, then where the skier came to rest); then the wildlife:
+// trunk flat out, then where the skier came to rest) — and before them,
+// `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
+// crash drawn from one lens planted square to his line, the frames of one
+// fall, and `yard-<s>` the same fall from over it, pulled back to take in
+// both skis he left; with `--downhill`, `net-<s>` (`net-0.3,net-1,net-3`):
+// the player driven into the A-nets half way down the course, from the
+// piste — the pocket the mesh makes round him and the skis hooked in it;
+// then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
 // on a fox's round, the player stood off it so the fine trail map is over it);
@@ -76,10 +89,17 @@ const VIEWS = [
   "lift-drag",
   "lift-station",
   "lift-far",
+  "lift-top",
+  "lift-foot",
+  "lift-door",
+  "lift-ring",
   "cliff",
   "cliff-edge",
   "sign",
   "sign-tree",
+  "gate",
+  "hut",
+  "finish",
   "forest",
   "approach-140",
   "approach-90",
@@ -127,7 +147,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")})`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s> and yard-<s> at any time)`,
     },
     quality: {
       kind: "string",
@@ -151,10 +171,18 @@ const args = parseArgs(
       default: 0,
       help: "after the views, time this many drawn frames and print ms/frame",
     },
+    downhill: {
+      kind: "flag",
+      help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
+    },
+    free: {
+      kind: "flag",
+      help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -238,6 +266,8 @@ const query = new URLSearchParams({
   ...(args.shadows ? { shadows: args.shadows } : {}),
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
+  ...(args.downhill ? { downhill: "1" } : {}),
+  ...(args.free ? { free: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),
@@ -257,14 +287,27 @@ const wanted = args.views ? args.views.split(",").map((v) => v.trim()) : VIEWS;
 // in the order of its clock.
 const isChase = (v) => /^chase-\d+$/.test(v);
 const chases = wanted.filter(isChase).sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)));
-const order = VIEWS.flatMap((v) => (v === "chase-60" ? chases : isChase(v) ? [] : [v]));
+// A fall view (`fall-0.4`, `yard-0.4`) rides just before the wipeout's, in
+// the order of its clock: the frames of one fall.
+const isFall = (v) => /^(fall|yard)-\d+(\.\d+)?$/.test(v);
+const falls = wanted.filter(isFall).sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)));
+// A net view (`net-0.6`, on a `--downhill`) is staged after everything
+// else, in the order of its clock: the frames of one crash into the nets.
+const isNet = (v) => /^net-\d+(\.\d+)?$/.test(v);
+const nets = wanted.filter(isNet).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+const order = [
+  ...VIEWS.flatMap((v) =>
+    v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
+  ),
+  ...nets,
+];
 for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();
   const shot = await page.evaluate((name) => globalThis.__world.shoot(name), view);
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

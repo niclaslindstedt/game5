@@ -5,8 +5,9 @@
 // snow) and `tunnel-voice.ts` (a wind tunnel's gale); this is the one place
 // that turns a state into their targets — and the one place the POLES are
 // heard: a plant is not an engine event, so the bed watches the engine's
-// own pulse (`plantPulse`) while the skier is poling and plays the bank's
-// click on each one.
+// gait the pose draws (`gaitOf`) and plays a plant each time a stroke puts
+// the baskets in the snow — a tick on the groomer, a pat in loose snow
+// that deepens to nothing (`plantVoice`).
 //
 // NOTHING HERE IS BOOKED AHEAD. The layers run on the audio thread and
 // every frame merely tells them where to go next, over a glide; a frame
@@ -16,7 +17,16 @@
 // stuttered when it was starved, and a stutter is what a player reports as
 // crackle.
 
-import { TUNING, plantPulse, sunAtRun, topSpeedOf, type GameState, type Level } from "@engine";
+import {
+  airflowAt,
+  depthUnder,
+  snowCoverOf,
+  sunAtRun,
+  topSpeedOf,
+  type Airflow,
+  type GameState,
+  type Level,
+} from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -43,15 +53,38 @@ import {
   type TunnelLayer,
 } from "./tunnel-voice.ts";
 import { tunnelNear, tunnelsOf } from "../wind-tunnel-plan.ts";
+import { SCREEN_TO_ENGINE } from "../input-model.ts";
+import { gaitOf } from "../skier-gait.ts";
 
-/** How quickly the wind follows the speed, s — a time constant rather than a
+/** How quickly the wind follows the air, s — a time constant rather than a
  * per-frame fraction, because a fraction is only true at the frame rate it
  * was tuned at. */
 const WIND_TAU = 0.25;
 
-/** The way under which a skier working for his speed is heard planting
- * his poles, m/s — the engine's own `poles.fade`, where the push is gone. */
-const POLING_UNDER = TUNING.poles.fade;
+/** THE PLANT IN LOOSE SNOW: how deep the loose snow under the basket is
+ * when the pat is gone into it, m — the basket sinks into it rather than
+ * striking anything — and how far down its cutoff is taken by then. */
+const PLANT_HUSH = { depth: 0.6, muffle: 0.5 };
+/** The least share of a stroke the arms make for a plant to be heard. */
+const PLANT_HEARD = 0.15;
+
+/** THE PLANT AS HEARD off the snow it goes into: the tip's TICK on the
+ * packed share (`packed`, `SkierState.packed` — new snow on the groomer
+ * already taken off it), the basket's PAT in the loose rest, taken down
+ * toward silence and its cutoff lowered (`muffle`, a pitch) as the loose
+ * snow under him deepens (`loose`, m). */
+export function plantVoice(
+  packed: number,
+  loose: number,
+): { tick: number; pat: number; muffle: number } {
+  const p = Math.min(1, Math.max(0, packed));
+  const deep = Math.min(1, Math.max(0, loose) / PLANT_HUSH.depth);
+  return {
+    tick: p,
+    pat: (1 - p) * (1 - deep) * (1 - deep),
+    muffle: 1 - PLANT_HUSH.muffle * deep,
+  };
+}
 
 /** One step of a one-pole filter on a time constant. */
 function follow(previous: number, target: number, dt: number, tau: number): number {
@@ -87,7 +120,11 @@ export type RideBed = {
  * the one synth (`bus.ts`); the snow and the poles play through `synth`. */
 export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
   let wind = 0;
-  let planted = 0;
+  let side = 0;
+  const flow: Airflow = { x: 0, y: 0, z: 0, speed: 0, head: 0, across: 0 };
+  // The stroke the last plant was heard on (the engine's stride count,
+  // floored; NaN before the first).
+  let planted = Number.NaN;
   let listener: Listener = listenerFor("chase");
   // THE RUN'S SNOWPACK (`snowpack.ts`), the one the picture reads: built
   // once per map under its own sky and sun, its new snow moved every frame.
@@ -123,10 +160,19 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       const pace = c.speed / topSpeedOf(spec);
 
       // ── The wind ─────────────────────────────────────────────────────
-      wind = follow(wind, c.speed, frame, WIND_TAU);
+      // THE APPARENT WIND (`airflowAt`): the air where he is — the
+      // weather's, down at his body, sheltered by the woods — less his own
+      // velocity — a headwind adds to his speed, a tailwind takes from it,
+      // and a storm is heard standing still. Across him it is heard on the
+      // side it comes from: a wind toward the engine's right comes from his
+      // left, which the screen's one flip turns into the ear it lands on.
+      airflowAt(state.level, state.t, c, flow);
+      wind = follow(wind, flow.speed, frame, WIND_TAU);
+      const across = flow.speed > 1 ? -flow.across / flow.speed : 0;
+      side = follow(side, across * SCREEN_TO_ENGINE * listener.side, frame, WIND_TAU);
       air.apply(
         windTargets(
-          { wind, crouch: c.crouch, airborne: c.airborne },
+          { wind, crouch: c.crouch, airborne: c.airborne, side },
           { wind: listener.wind * duck, tone: listener.tone },
         ),
       );
@@ -172,17 +218,33 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       }
 
       // ── The poles ────────────────────────────────────────────────────
-      // A plant on each rise of the engine's own stride while he is working
-      // for his speed (`poles.ts`): the skate's and the double pole's.
-      const poling = !c.airborne && c.drive > 0.3 && Math.abs(c.way) < POLING_UNDER && grounded > 0;
-      const pulse = poling ? plantPulse(c.stride) : 0;
-      if (pulse > 0.5 && planted <= 0.5) {
-        playSound(synth, RUN_BANK, "plant", {
-          gain: listener.events * duck * (0.6 + 0.4 * (1 - c.packed)),
-          pitch: (0.95 + 0.1 * c.packed) * listener.muffle,
-        });
+      // A plant where the pose PLANTS one: at the start of each stroke (the
+      // engine's stride count turning over) of the gait it draws (`gaitOf`)
+      // — the skate's and the double pole's both poles, the diagonal
+      // stride's one — as far as the arms work them: given up for the tuck
+      // or once they cannot keep up with the snow (`Gait.keep`), and none
+      // from a skier who has none (`SkierState.poles`).
+      const stroke = Math.floor(c.stride);
+      if (stroke !== planted && !Number.isNaN(planted) && c.poles && grounded > 0) {
+        const g = gaitOf(c);
+        const arms = (g.pole + g.skate) * (1 - c.crouch * 0.5) * g.keep + g.stride;
+        if (arms > PLANT_HEARD) {
+          const loose = (1 - c.packed) * snowCoverOf(depthUnder(state.snowDepth, state.fresh));
+          const v = plantVoice(c.packed, loose);
+          const gain = listener.events * duck * Math.min(1, arms);
+          if (v.tick > 0.02)
+            playSound(synth, RUN_BANK, "plant", {
+              gain: gain * v.tick,
+              pitch: (0.95 + 0.1 * c.packed) * listener.muffle,
+            });
+          if (v.pat > 0.02)
+            playSound(synth, RUN_BANK, "plantSoft", {
+              gain: gain * v.pat,
+              pitch: v.muffle * listener.muffle,
+            });
+        }
       }
-      planted = pulse;
+      planted = stroke;
     },
 
     setView(view) {
@@ -194,7 +256,8 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
     reset() {
       hush();
       wind = 0;
-      planted = 0;
+      side = 0;
+      planted = Number.NaN;
       pack = null;
       packLevel = null;
     },

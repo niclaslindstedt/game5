@@ -9,12 +9,14 @@
 import { SKIS, type SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
+import type { GameMode } from "../game/defs/modes.ts";
+import type { CrossHeat } from "../game/cross-bracket.ts";
 import { generateLevel } from "../mapgen/generate.ts";
 import { PARK_VERSION } from "../mapgen/trick-field.ts";
 import type { GameEvent } from "../game/state.ts";
 import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
-import type { Level } from "../mapgen/types.ts";
+import type { Level, WeatherKind } from "../mapgen/types.ts";
 import { botInput, RIDER_BOT, type BotProfile } from "./bot.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -42,6 +44,27 @@ export type SimOptions = {
   /** Ski the seed's map as built to this piste grade (R23); the one the
    * seed deals when left out. Ignored when `level` is given. */
   grade?: PisteGrade;
+  /** Ski the map under this sky (`withSky`) rather than the one R19 dealt
+   * it — the bot in a storm's wind, say. */
+  weather?: WeatherKind;
+  /** Ski WITHOUT POLES (`SkierState.poles` — the player's hard mode); with
+   * them when left out. */
+  poles?: boolean;
+  /** RACE A DISCIPLINE (`MODE_RULES`): the seed's map with its course set
+   * over it — a slalom's stretch (R31), a downhill's whole piste on the ski
+   * area's biggest course (R32), a super-G down the same from its lowered
+   * start (R33), a giant slalom from its own, its first run (R36), a speed
+   * track cut down the face, its qualification (R34)
+   * — skied out of the start house under the
+   * strict gates, against the field's board. The open rules when left out.
+   * Ignored with `tricks`. */
+  mode?: Extract<
+    GameMode,
+    "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "bigAir"
+  >;
+  /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
+   * bot in the first seed's lane beside three of the start list, skied. */
+  heat?: boolean;
 };
 
 export type RunReport = {
@@ -79,6 +102,12 @@ export type RunReport = {
   /** Times the skier was thrown (`crash.ts`) — 0 on every clean run. */
   wipeouts: number;
   missed: number;
+  /** OUT OF THE RACE under the strict gates (a discipline's run): how —
+   * `dsq` or `dnf` and why — or null. */
+  out: string | null;
+  /** His speed through a speed course's trap (R32, R33) — on a speed
+   * track (R34) through its timing zone — m/s, or null. */
+  trap: number | null;
   /** Where the bot finished against the field (1 on a solo run). */
   place: number;
   /** THE SCORE the run banked (`tricks.ts`). The bot turns nothing, so this
@@ -94,15 +123,32 @@ export type RunReport = {
  * piste at a crawl. It catches a skier who has STOPPED. */
 export const SIM_SECONDS = 600;
 
+/** THE HEAT the sim skis a ski cross's bot in (`SimOptions.heat`): the
+ * first seed's, three of the start list beside him. */
+const SIM_HEAT: CrossHeat = {
+  round: "quarter",
+  index: 0,
+  racers: [
+    { id: null, rank: 1 },
+    { id: 0, rank: 8 },
+    { id: 1, rank: 9 },
+    { id: 2, rank: 16 },
+  ],
+};
+
 /** Ski one map headlessly with the bot. */
 export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   const profile = options.profile ?? RIDER_BOT;
   const maxSeconds = options.maxSeconds ?? SIM_SECONDS;
+  const race = options.tricks ? undefined : options.mode;
   const state = createGame({
     seed,
+    mode: race,
+    region: race ? options.region : undefined,
+    grade: race ? options.grade : undefined,
     level:
       options.level ??
-      (options.tricks || options.region || options.grade
+      (!race && (options.tricks || options.region || options.grade)
         ? generateLevel(seed, {
             tricks: options.tricks,
             region: options.region,
@@ -112,9 +158,12 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
           })
         : undefined),
     laps: options.laps,
-    rivals: options.rivals ?? 0,
+    cross: race === "skiCross" && options.heat ? SIM_HEAT : undefined,
+    rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
     spec: options.spec,
+    poles: options.poles,
+    sky: options.weather ? { weather: options.weather } : undefined,
     quiet: true,
   });
   const events: GameEvent[] = [];
@@ -178,7 +227,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     skis: (options.spec ?? SKIS).id,
     powder: soft / pts.length,
     grade: gradeOf(state.level),
-    finished: p.finished,
+    finished: p.finished && p.out === null,
     time: p.time,
     laps: p.lap,
     lapTimes: p.lapTimes,
@@ -186,7 +235,9 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     crossings: state.level.checkpoints.length * state.rules.laps,
     trackLength: state.level.track.length,
     topSpeed,
-    meanSpeed: p.time > 0 ? distance / p.time : 0,
+    // A speed track's clock runs only through its timing zone: its mean is
+    // the zone's, the speed through it.
+    meanSpeed: state.level.speedSki ? (p.trap ?? 0) : p.time > 0 ? distance / p.time : 0,
     airTime,
     bestAir: p.bestAir,
     jumps,
@@ -197,6 +248,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     autoResets,
     wipeouts,
     missed,
+    out: p.out ? `${p.out.status} ${p.out.why}@${p.out.gate}` : null,
+    trap: p.trap,
     place,
     score: state.tricks.score,
     events,

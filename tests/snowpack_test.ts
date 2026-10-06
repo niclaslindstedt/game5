@@ -112,6 +112,10 @@ describe("which snow lies where", () => {
     );
     expect(storm.laid).toBeGreaterThan(0.1);
     expect(kindAt(storm, 70, 10)).toBe("new");
+    // The night's fall lies off the piste: the groomer is buried only by
+    // what falls during the run, as the physics has it.
+    expect(kindAt(storm, 10, 10)).toBe("groomed");
+    for (const x of [10, 70, 101, 200, 350]) expect(sum(snowMix(storm, x, 10))).toBeCloseTo(1, 6);
   });
 
   it("goes wet under a high sun, never while it snows, less under a lid", () => {

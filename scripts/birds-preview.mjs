@@ -7,9 +7,10 @@
 // pixels forty metres up and an animal is whichever one that stretch of
 // wood held, at whatever point of its round the frame caught. The roster is
 // a ladder of silhouettes, and a ladder is judged side by side. Each cell
-// draws its species three times through the game's own geometry and
-// material — a bird gliding, mid-beat and folded; an animal stood, running
-// and grazing — over a metre rule, labelled with its size and its rarity.
+// draws its species three times through the game's own procedural geometry
+// and material — a bird gliding, mid-beat and folded, each in the next of its
+// forms; an animal stood (an old male), running (a female) and grazing (a
+// youngster) — over a metre rule, labelled with its size and its rarity.
 //
 // The page does the drawing (`pwa/src/tools/birds-harness.ts`); this builds
 // it into a one-off bundle (never deployed), serves it and photographs it in
@@ -17,12 +18,11 @@
 //
 //   node scripts/birds-preview.mjs
 //   node scripts/birds-preview.mjs --rows=raven,ptarmigan,reindeer
-//   node scripts/birds-preview.mjs --models          # the MODELLED roster (pwa/models/birds, beasts)
-//   node scripts/birds-preview.mjs --models --from=previews/blender --compare
-//                                   # a lab run's models, each species' code cell beside its model's
+//   node scripts/birds-preview.mjs --lod=far         # the FAR cut of every one
+//   node scripts/birds-preview.mjs --lod=both        # each species' near cell, then its far
 //   node scripts/birds-preview.mjs --skip-build      # reuse the last bundle
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -43,28 +43,20 @@ const args = parseArgs(
       default: "",
       help: "only these species, birds or animals (e.g. raven,ptarmigan,reindeer)",
     },
-    models: {
-      kind: "flag",
-      help: "draw the MODELLED birds and animals (every <id>.glb in --from)",
-    },
-    from: {
+    lod: {
       kind: "string",
-      default: "pwa/models",
-      help: "where --models finds them, in birds/ and beasts/ (previews/blender: a make blender run's, flat)",
-    },
-    compare: {
-      kind: "flag",
-      help: "with --models: each species' code-built cell beside its model's",
+      default: "near",
+      help: "which cut: near, far, or both (each species' near cell, then its far)",
     },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: {
       kind: "string",
       default: "",
-      help: "where the sheet is written (previews/birds[-models|-compare].png)",
+      help: "where the sheet is written (previews/birds[-far|-both].png)",
     },
   },
-  "usage: node scripts/birds-preview.mjs [--rows=a,b] [--models] [--from=dir] [--compare] [--skip-build] [--out=path]",
+  "usage: node scripts/birds-preview.mjs [--rows=a,b] [--lod=near|far|both] [--skip-build] [--out=path]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -86,18 +78,9 @@ if (!args["skip-build"] || !existsSync(join(buildDir, "birds-preview.html"))) {
   });
 }
 
-// The models go beside the page, where the harness fetches them from: a
-// published tree keeps its birds/ and beasts/; a lab run's are flat.
-const models = args.models ? args.from : "";
-if (models) {
-  for (const dir of ["birds", "beasts"]) {
-    const into = join(buildDir, "models", dir);
-    mkdirSync(into, { recursive: true });
-    const from = existsSync(join(root, models, dir)) ? join(root, models, dir) : join(root, models);
-    for (const f of readdirSync(from)) {
-      if (/^[a-z]+\.glb$/.test(f)) copyFileSync(join(from, f), join(into, f));
-    }
-  }
+if (!["near", "far", "both"].includes(args.lod)) {
+  console.error(`unknown cut "${args.lod}" (near, far, both)`);
+  process.exit(2);
 }
 
 const found = await findChromium();
@@ -124,13 +107,10 @@ page.on("console", (msg) => {
 
 const params = new URLSearchParams();
 if (args.rows) params.set("rows", args.rows);
-if (models) params.set("models", args.compare ? "compare" : "1");
+if (args.lod !== "near") params.set("lod", args.lod);
 const query = params.size ? `?${params}` : "";
-const out =
-  args.out || join(outDir, `birds${models ? (args.compare ? "-compare" : "-models") : ""}.png`);
-console.log(
-  `birds — ${args.rows || "every bird and every animal"}${models ? `, models from ${models}` : ""}`,
-);
+const out = args.out || join(outDir, `birds${args.lod === "near" ? "" : `-${args.lod}`}.png`);
+console.log(`birds — ${args.rows || "every bird and every animal"}, the ${args.lod} cut`);
 await page.goto(`${server.url}birds-preview.html${query}`);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),

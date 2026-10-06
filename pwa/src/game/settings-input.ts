@@ -23,8 +23,10 @@ export type HeldAction = keyof KeysHeld;
  * back on the piste and changing the camera. */
 export type InputAction = "restart" | "camera" | "pause" | "shot" | "hud";
 
-/** An action taken on the PRESS, not held. */
-export type EdgeAction = "reset" | InputAction;
+/** An action taken on the PRESS, not held. `machine` reaches the engine as
+ * `reset` does (`SkierInput.machine`): on to the snowmobile or the
+ * helicopter he stands beside, or off the one he rides. */
+export type EdgeAction = "reset" | "machine" | InputAction;
 
 export type KeyAction = HeldAction | EdgeAction;
 
@@ -44,6 +46,7 @@ export const KEY_ACTIONS: readonly { id: KeyAction; label: string }[] = [
   { id: "jump", label: STRINGS.keyJump },
   { id: "trick", label: STRINGS.keyTrick },
   { id: "reset", label: STRINGS.keyReset },
+  { id: "machine", label: STRINGS.keyMachine },
   { id: "restart", label: STRINGS.keyRestart },
   { id: "camera", label: STRINGS.keyCamera },
   { id: "hud", label: STRINGS.keyHud },
@@ -102,6 +105,12 @@ export function isHeldAction(action: KeyAction): action is HeldAction {
  * expensive to make by accident, so it is B beside it rather than a key
  * shared with it. C walks the camera ladder; Escape holds the run under
  * the pause card.
+ *
+ * ENTER IS THE MACHINE: on to the snowmobile or the helicopter he stands
+ * beside, and off the one he rides — one press each way, on the key the
+ * hand beside the arrows rests near. It is read while he flies the
+ * helicopter too, whose own table (`settings-heli-keys.ts`) has no row for
+ * it.
  */
 export const DEFAULT_KEYS: KeyBindings = {
   tuck: ["KeyW"],
@@ -114,16 +123,16 @@ export const DEFAULT_KEYS: KeyBindings = {
   leanForward: ["ArrowUp", "KeyQ", "KeyZ"],
   trick: ["KeyF", "KeyX"],
   reset: ["KeyR"],
+  machine: ["Enter"],
   restart: ["KeyB"],
   camera: ["KeyC"],
   // H FOR THE READOUTS, beside C for what the camera looks at: the two
   // presses about the PICTURE rather than the skier. The same switch as
   // OPTIONS ▸ HUD, so the snow can be cleared for a photograph mid-run.
   hud: ["KeyH"],
-  // ENTER IS THE SHUTTER (`screenshots.ts`): a picture is the press a skier
-  // makes while everything is still going well, on the key the hand beside
-  // the arrows is already resting near.
-  shot: ["Enter"],
+  // P FOR PICTURE, THE SHUTTER (`screenshots.ts`): a press the right hand
+  // reaches without leaving the keyboard, and on no machine's key table.
+  shot: ["KeyP"],
   pause: ["Escape"],
 };
 
@@ -187,18 +196,29 @@ export function freshKeys(): KeyBindings {
 
 /** A stored blob's bindings, checked against the actions THIS build has,
  * the `mergeSettings` rule: an action this build dropped is dropped, a code
- * that is not a string is dropped, and anything left over is the default. */
+ * that is not a string is dropped, and anything left over is the default.
+ *
+ * AN ACTION NEWER THAN THE BLOB CLAIMS ITS OWN KEYS: a row the stored
+ * layout does not carry is the shipped one, and its keys are taken off
+ * every stored row that still holds them — the first layout put SPACE on
+ * the brake, and a blob saved then would otherwise have the jump and the
+ * skid on one key, every jump stood up out of the tuck into a skid. A
+ * stored row left with no key at all goes back to its own shipped keys. */
 export function mergeKeys(parsed: unknown): KeyBindings {
   const keys = freshKeys() as Record<KeyAction, string[]>;
   if (!parsed || typeof parsed !== "object") return keys;
   const blob = parsed as Partial<Record<KeyAction, unknown>>;
-  for (const action of Object.keys(keys) as KeyAction[]) {
+  const actions = Object.keys(keys) as KeyAction[];
+  const claimed = new Set(
+    actions.filter((action) => !Array.isArray(blob[action])).flatMap((action) => keys[action]),
+  );
+  for (const action of actions) {
     const codes = blob[action];
     if (!Array.isArray(codes)) continue;
     const clean = codes.filter(
-      (code): code is string => typeof code === "string" && code.length > 0,
+      (code): code is string => typeof code === "string" && code.length > 0 && !claimed.has(code),
     );
-    keys[action] = [...new Set(clean)].slice(0, KEYS_PER_ACTION);
+    if (clean.length > 0) keys[action] = [...new Set(clean)].slice(0, KEYS_PER_ACTION);
   }
   return keys;
 }

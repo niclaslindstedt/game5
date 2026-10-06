@@ -2,15 +2,17 @@
 // THE RECORD BOOK — the best time this device has seen on each mountain, on each
 // skis, in each mode, over each length.
 //
-// ONE ROW PER (SEED AND COURSE, SKIS, MODE, LAPS). The seed is the
+// ONE ROW PER (SEED AND COURSE, SKIS, MODE, LAPS, RUN). The seed is the
 // mountain — the generator is a pure function of it — and on a resort the
 // COURSE is which of its pistes was raced (R28), so two runs on one seed and
 // course are two runs down the same piste. The pair is in the key rather than merely written on the row,
-// because the six pairs are six answers to the snow — a slalom ski's time
+// because the seven pairs are seven answers to the snow — a slalom ski's time
 // down a groomed piste is not a powder ski's to beat — and the run count is
 // (always one on a piste, kept so the key's shape is the sibling games'),
 // because a one-run trial and a three-run one would be two different
-// stopwatches. The date the row was set is written on it, and so are the
+// stopwatches. A SLALOM'S SECOND RUN is set on a course of its own (R31),
+// so it keeps its own row — and its own ghost — beside the first run's. The
+// date the row was set is written on it, and so are the
 // clock at every crossing of the run that set it (`splits`), which is what
 // the HUD's split is read against at each checkpoint of the next run.
 //
@@ -29,7 +31,16 @@
 //
 // A TIE IS NOT A RECORD. The row stands until it is beaten outright.
 
-import { isGameMode, isSkiId, type GameMode, type SkiId } from "@engine";
+import {
+  isGameMode,
+  isSkiId,
+  riderOf,
+  type GameMode,
+  type GameState,
+  type RiderId,
+  type SkiId,
+  type SkiSpec,
+} from "@engine";
 import {
   beats as beatsRow,
   bestIn,
@@ -46,8 +57,17 @@ export type RecordKey = {
   seed: number;
   course?: string;
   skis: SkiId;
+  /** The skier's build (`Outfit.weight`): a heavier skier is faster
+   * downhill, so each build keeps its own book. Absent is the medium
+   * build, whose rows keep the ids they had before a build could be
+   * chosen. */
+  rider?: RiderId;
   mode: GameMode;
   laps: number;
+  /** Which run of a slalom (R31): the second is a course of its own. Absent
+   * is the first — and every other mode's only run — whose rows keep the
+   * ids they had before a second run could be skied. */
+  run?: 1 | 2;
 };
 
 /** One row: the time, s; the skis it was set on; when, as a unix ms stamp;
@@ -68,15 +88,36 @@ export type RecordBook = Readonly<Record<string, RunRecord>>;
  * already been rewritten. */
 export type RunLedger = { mode: GameMode; standing: RunRecord | null };
 
+/** The pair and the build a run is skied on, as a key names them. */
+export function pairKey(spec: SkiSpec): Pick<RecordKey, "skis" | "rider"> {
+  return { skis: spec.id, rider: riderOf(spec).id };
+}
+
+/** THE ROW A RUN ON THE SNOW IS FILED UNDER, ridden in `mode`: its map
+ * and course, its pair and build, its length — and on a slalom's second run,
+ * the run. */
+export function runKey(state: GameState, mode: GameMode): RecordKey {
+  return {
+    seed: state.seed,
+    course: state.level.resort?.course,
+    ...pairKey(state.skier.spec),
+    mode,
+    laps: state.rules.laps,
+    ...(state.field?.run === 2 ? { run: 2 as const } : {}),
+  };
+}
+
 /** The row's id. */
 export function recordId(key: RecordKey): string {
   const map = key.course === undefined ? `${key.seed}` : `${key.seed}.${key.course}`;
-  return `${key.mode}/${map}/${key.skis}/${key.laps}`;
+  const rider = key.rider === undefined || key.rider === "medium" ? "" : `/${key.rider}`;
+  const run = key.run === 2 ? "/run2" : "";
+  return `${key.mode}/${map}/${key.skis}/${key.laps}${rider}${run}`;
 }
 
 /** WHETHER A MODE KEEPS A BOOK AT ALL (see the header). */
 export function keepsRecords(mode: GameMode): boolean {
-  return isGameMode(mode) && mode !== "free" && mode !== "tricks";
+  return isGameMode(mode) && mode !== "free" && mode !== "tricks" && mode !== "bigAir";
 }
 
 /** Whether `value` beats the row standing — outright, never on a tie — or

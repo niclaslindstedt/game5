@@ -40,6 +40,82 @@ export function tail(run, from, f) {
 
 export const fmt = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
 
+/** THE SKID ANGLE: the skis' line off the way a skier `c` is going, rad,
+ * signed — what a recorded frame carries as `slide`. */
+export function slideOf(c) {
+  const d = Math.atan2(c.vx, c.vz) - c.heading;
+  return Math.atan2(Math.sin(d), Math.cos(d));
+}
+
+/** The edge past which a ski counts as on one side or the other when the
+ * turns are counted, rad (10°): a flat ski between two turns flips nothing. */
+export const TURN_EDGE = 0.17;
+
+/** THE TURNS in recorded `frames` (each carrying `t` and `edge`): every
+ * stretch from one flip of the edge past `TURN_EDGE` to the next — `from`
+ * and `to` the frames' indices (the next flip's frame not in it), `t0` and
+ * `t1` their times, `side` +1 a right turn (the edge positive), `peak` its
+ * most edge (rad) on `peakAt`. The stretch before the first flip is not a
+ * turn. The rhythm below and the technique lab's turn shapes count turns
+ * by it. */
+export function turnsOf(frames) {
+  const turns = [];
+  let side = 0;
+  let start = -1;
+  let peak = 0;
+  let peakAt = -1;
+  frames.forEach((f, i) => {
+    const now = f.edge > TURN_EDGE ? 1 : f.edge < -TURN_EDGE ? -1 : 0;
+    if (Math.abs(f.edge) > peak) {
+      peak = Math.abs(f.edge);
+      peakAt = i;
+    }
+    if (now !== 0 && now !== side) {
+      if (side !== 0) {
+        turns.push({ from: start, to: i, t0: frames[start].t, t1: f.t, side, peak, peakAt });
+      }
+      side = now;
+      start = i;
+      peak = 0;
+      peakAt = i;
+    }
+  });
+  return turns;
+}
+
+/** A RHYTHM OF TURNS as numbers, over recorded `frames` (each carrying
+ * `t`, `edge`, `wy`, `speed`, `slide` and `thrown`): how long a turn is —
+ * the edge from one side past `TURN_EDGE` to the other, between the first
+ * flip and the last — the mean of each turn's peak edge (rad), the radius a
+ * tenth of the turning frames turn tighter than (m; speed over yaw where
+ * the yaw is over 0.3 rad/s), the most yaw (rad/s), the mean speed (m/s),
+ * the skid angle on the mean and at its most (rad), the turns counted and
+ * whether he was thrown. Null where there is too little to say. The ride
+ * lab's `slalom-rhythm` and the technique lab both read it. */
+export function rhythmOf(frames) {
+  const turns = turnsOf(frames);
+  const flips = turns.map((t) => t.t1);
+  const peaks = turns.map((t) => t.peak);
+  const radii = frames
+    .filter((f) => Math.abs(f.wy) > 0.3)
+    .map((f) => f.speed / Math.abs(f.wy))
+    .sort((a, b) => a - b);
+  const n = Math.max(1, frames.length);
+  const mean = (g) => frames.reduce((sum, f) => sum + g(f), 0) / n;
+  const most = (g) => frames.reduce((m, f) => Math.max(m, g(f)), 0);
+  return {
+    turnS: flips.length > 1 ? (flips[flips.length - 1] - flips[0]) / (flips.length - 1) : null,
+    turns: Math.max(0, flips.length - 1),
+    edgePeak: peaks.length ? peaks.reduce((a, b) => a + b, 0) / peaks.length : null,
+    radius: radii.length ? radii[Math.floor(radii.length * 0.1)] : null,
+    yawMost: most((f) => Math.abs(f.wy)),
+    speed: mean((f) => f.speed),
+    skid: mean((f) => Math.abs(f.slide)),
+    skidMost: most((f) => Math.abs(f.slide)),
+    thrown: frames.some((f) => f.thrown),
+  };
+}
+
 export function schuss(run) {
   const top = Math.max(...run.frames.map((f) => f.speed));
   const t100 = timeTo(run, 100);
@@ -91,13 +167,41 @@ export function flight(run) {
     ["harsh", first ? (first.harsh ? `yes -${Math.round(first.lost * 100)}%` : "no") : "—"],
     ["land pitch deg", touch ? fmt(touch.pitch * 57.3, 1) : "—"],
     ["out km/h", fmt(run.frames[run.frames.length - 1].speed * 3.6, 1)],
+    ...hurt(run),
   ];
 }
 
 /** THE WIPEOUT's numbers: what put him off and when, how fast he was
  * going, how far his body slid from where he left the skis, how many turns
- * it took, and when the reset stood him up. */
+ * it took, and when the reset stood him up — and the nearest thing he
+ * SAVED before it (`crash.ts`'s `noteSave`): which, how near, when. */
 export function wipeout(run) {
+  return [...thrownRows(run), ...saved(run), ...hurt(run)];
+}
+
+/** THE BODY (`body.ts`): the run's hardest blow and every injury taken,
+ * in the engine's own names with their AIS rank. */
+export function hurt(run) {
+  const last = run.frames[run.frames.length - 1];
+  const taken = run.events.filter((e) => e.kind === "injury");
+  return [
+    ["hardest g", last ? fmt(last.peakG, 0) : "—"],
+    [
+      "injuries",
+      taken.length ? taken.map((e) => `${e.part}:${e.injury}(${e.ais})`).join(" ") : "none",
+    ],
+  ];
+}
+
+/** THE SAVE: the nearest fall he rode out — its kind, how near it came
+ * (0..1) and when. */
+export function saved(run) {
+  let best = null;
+  for (const e of run.events) if (e.kind === "save" && (!best || e.size > best.size)) best = e;
+  return [["saved", best ? `${best.save} ${fmt(best.size)} at ${fmt(best.t)} s` : "—"]];
+}
+
+function thrownRows(run) {
   const off = run.events.find((e) => e.kind === "wipeout");
   const reset = run.events.find((e) => e.kind === "reset" && (!off || e.t > off.t));
   const lying = off ? run.frames.filter((f) => f.t > off.t && f.thrown) : [];
@@ -129,6 +233,7 @@ export function landed(run) {
     ["EFH m", land ? fmt((land.impact * land.impact) / (2 * 9.81)) : "—"],
     ["load g", land ? fmt(land.g, 1) : "—"],
     ["off true", land ? fmt(land.off) : "—"],
+    ...hurt(run),
   ];
 }
 
@@ -274,7 +379,9 @@ export function trick(id, title, input) {
     id,
     title,
     mode: "tricks",
-    level: (S) => S.flatLevel({ packed: 1 }),
+    // A landing slope falling 24° from just short of where the flight comes
+    // down, as a park kicker's built landing has it.
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.45, slopeFrom: 230 }),
     place: () => LAUNCH,
     seconds: 4,
     view: "profile",
@@ -291,3 +398,28 @@ export const schussStrip = (S, packed = 1) =>
 export const TOP = { x: 2000, z: 210, heading: 0, speed: 3 };
 /** Down the pitch already, at `kmh`. */
 export const onPitch = (kmh) => ({ x: 2000, z: 600, heading: 0, speed: kmh / 3.6 });
+
+/** RIDING SWITCH (`switch.ts`) on a free ride: stood on a 14° slope falling
+ * toward +z FACING UP IT and let go, then the edge to the right from 3 s —
+ * on the groomer (`packed` 1) or the ordinary powder (0). */
+export function switchRide(id, title, packed) {
+  return {
+    id,
+    title,
+    mode: "free",
+    level: (S) => S.flatLevel({ packed, grade: 0.25, slopeFrom: 0 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, pitch: Math.atan(0.25) }),
+    seconds: 5,
+    view: "plan",
+    input: (t) => ({ ...IDLE, steer: t > 3 && t < 4 ? 1 : 0 }),
+    measure: (run) => {
+      const last = run.frames[run.frames.length - 1];
+      const out = run.events.find((e) => e.kind === "wipeout");
+      return [
+        ["way km/h", fmt(last.way * 3.6, 1)],
+        ["went right m", fmt(last.x - 1500, 2)],
+        ["wipeout", out ? `${out.cause} at ${fmt(out.t, 2)} s` : "none"],
+      ];
+    },
+  };
+}

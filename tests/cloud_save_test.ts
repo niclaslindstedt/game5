@@ -26,13 +26,14 @@ import {
 import {
   CAMPAIGN_LEVELS,
   EMPTY_PROGRESS,
+  PROGRESS_KEY,
   type CampaignProgress,
 } from "../pwa/src/game/campaign.ts";
 import { GHOST_FORMAT, GHOST_PREFIX, type GhostRun } from "../pwa/src/game/ghost.ts";
 import { RECORDS_KEY, recordId, type RecordBook } from "../pwa/src/game/records.ts";
 import { freshSettings } from "../pwa/src/game/settings.ts";
 
-const raceId = recordId({ seed: 5, skis: "hare", mode: "race", laps: 3 });
+const raceId = recordId({ seed: 5, skis: "hare", mode: "slalom", laps: 3 });
 const trialId = recordId({ seed: 5, skis: "hare", mode: "timeTrial", laps: 1 });
 
 const book = (rows: Record<string, number>): RecordBook =>
@@ -60,6 +61,7 @@ const tape = (id: string, value: number, steps = 100): GhostRun => ({
 
 const save = (over: Partial<CloudSave>): CloudSave => ({
   v: 1,
+  ladder: PROGRESS_KEY,
   records: {},
   ghosts: [],
   campaign: EMPTY_PROGRESS,
@@ -119,6 +121,16 @@ describe("the campaign: furthest progress", () => {
   const board = (result: Partial<CampaignProgress["results"][string]>): CampaignProgress => ({
     results: { [RUNG]: { best: 100, skis: "hare", place: 4, medal: null, ...result } },
     points: {},
+  });
+
+  it("reads a board off the wire only when it was won on this ladder", () => {
+    const won = board({ best: 90, place: 1 });
+    const wire = (ladder?: string) => JSON.stringify({ ladder, campaign: won });
+    expect(parseSave(wire(PROGRESS_KEY))?.campaign.results[RUNG]).toMatchObject({ best: 90 });
+    // A re-cut ladder keeps the ids and moves the maps behind them: a board
+    // from before it, stamped or not, names maps nobody rode.
+    expect(parseSave(wire("fall-line.campaign.v3"))?.campaign).toEqual(EMPTY_PROGRESS);
+    expect(parseSave(wire())?.campaign).toEqual(EMPTY_PROGRESS);
   });
 
   it("keeps the better time, and the skis that set it, together", () => {

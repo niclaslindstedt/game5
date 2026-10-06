@@ -13,9 +13,18 @@
 import type { TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
+import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
+import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
+import { SUPER_G_STRINGS } from "./strings-superg.ts";
+import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
+import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
+import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
+import { SLED_STRINGS } from "./strings-sled.ts";
+import { SLALOM_STRINGS } from "./strings-slalom.ts";
+import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 
 /** THE TRICK VOCABULARY: what each element the engine names (`TrickKind`)
  * is CALLED. The engine names the thing and never the word. */
@@ -24,6 +33,7 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
   backflip: "BACKFLIP",
   frontflip: "FRONT FLIP",
   spin: "360",
+  half: "180",
   twist: "TWIST",
   landing: "CLEAN LANDING",
   daffy: "DAFFY",
@@ -34,10 +44,10 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
 /** How a revolution's count reads in front of a flip. */
 const TIMES = ["", "", "DOUBLE ", "TRIPLE "];
 
-/** One element as read: a flip by its count, a spin by its degrees, a
- * landing by its tier. */
-function trickWord(kind: TrickKind, spins: number): string {
-  if (kind === "spin") return String(360 * spins);
+/** One element as read: a flip by its count, a spin by its degrees (and
+ * the half turn landed over it, `half`), a landing by its tier. */
+function trickWord(kind: TrickKind, spins: number, half = false): string {
+  if (kind === "spin") return String(360 * spins + (half ? 180 : 0));
   if (kind === "landing" && spins > 1) return "PERFECT LANDING";
   if (kind === "backflip" || kind === "frontflip") {
     return `${TIMES[spins] ?? `${spins}× `}${TRICK_WORDS[kind]}`;
@@ -47,15 +57,22 @@ function trickWord(kind: TrickKind, spins: number): string {
 
 /** THE COMBO AS ONE LINE: its elements in the order they were won, a
  * revolution's later index read INTO its first (a backflip that came round
- * twice in one flight is one DOUBLE BACKFLIP, not two words). */
+ * twice in one flight is one DOUBLE BACKFLIP, not two words), and a half
+ * turn landed over a flight's 360s read into them (a 540, not 360 + 180). */
 export function comboLine(parts: readonly TrickPart[]): string {
-  const merged: { kind: TrickKind; spins: number; flight: number }[] = [];
+  const merged: { kind: TrickKind; spins: number; flight: number; half: boolean }[] = [];
   for (const p of parts) {
+    const spun =
+      p.kind === "half" && merged.find((m) => m.kind === "spin" && m.flight === p.flight);
+    if (spun) {
+      spun.half = true;
+      continue;
+    }
     const same = p.spins > 1 && merged.find((m) => m.kind === p.kind && m.flight === p.flight);
     if (same) same.spins = Math.max(same.spins, p.spins);
-    else merged.push({ ...p });
+    else merged.push({ ...p, half: false });
   }
-  return merged.map((m) => trickWord(m.kind, m.spins)).join(" + ");
+  return merged.map((m) => trickWord(m.kind, m.spins, m.half)).join(" + ");
 }
 
 /** Metres of vertical, as the HUD and the cards print them. */
@@ -66,6 +83,17 @@ export const STRINGS = {
   ...GALLERY_STRINGS,
   /* ── THE DEVELOPER PAGE — stated in strings-dev.ts ─────────────────── */
   ...DEV_STRINGS,
+  /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
+  ...BODY_STRINGS,
+  /* ── THE SLALOM — stated in strings-slalom.ts ──────────────────────── */
+  ...SLALOM_STRINGS,
+  ...DOWNHILL_STRINGS,
+  ...SUPER_G_STRINGS,
+  ...GIANT_SLALOM_STRINGS,
+  ...SPEED_SKI_STRINGS,
+  ...SKI_CROSS_STRINGS,
+  ...SLED_STRINGS,
+  ...BIG_AIR_STRINGS,
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
@@ -73,6 +101,13 @@ export const STRINGS = {
   edge: "EDGE",
   brake: "SKID",
   cut: "CUT",
+  /** THE WIND METER beside the speed (`hud-wind.tsx`): the felt wind's
+   * caption, the weather's wind where he stands under it, and both said
+   * aloud. */
+  windLabel: "WIND",
+  windAir: (kmh: number): string => `WEATHER ${Math.round(kmh)}`,
+  windAria: (felt: number, air: number): string =>
+    `Wind ${Math.round(felt)} km/h, weather ${Math.round(air)} km/h`,
   clockLabel: "TIME",
   /** Gates taken, of how many the piste has — the start gate the first,
    * the finish the last. */
@@ -91,12 +126,16 @@ export const STRINGS = {
   air: (seconds: number): string => `${seconds.toFixed(1)}s`,
   airLabel: "AIR",
   airBest: "BEST",
-  /** THE FREE RIDE's two readouts in place of the run's: the longest
-   * flight so far, and how far has been skied. */
+  /** THE FREE RIDE's figures, billed on the pause card (never over the
+   * snow — a free ride is no contest): the longest flight so far and how
+   * far has been skied. */
   bestAirLabel: "BEST AIR",
   distance: (metres: number): string =>
     metres < 1000 ? `${Math.round(metres)} M` : `${(metres / 1000).toFixed(2)} KM`,
   distanceLabel: "SKIED",
+  /** Under the free ride's map seed — its one figure over the snow — so a
+   * picture of it names its mountain. */
+  seedLabel: "SEED",
   /** THE LIGHTS: the whole second still to run, and the word after. */
   count: (left: number): string => String(left),
   go: "GO!",
@@ -108,12 +147,16 @@ export const STRINGS = {
    * (`trench.ts`). */
   stuck: "BOGGED",
   stuckHow: "POLE OUT: TUCK AND ROCK",
+  /** Down past the first seconds of a fall (`crash.getUp`): what stands
+   * him up — a tap anywhere, or the tuck key as bound. */
+  getUp: (touch: boolean, key: string): string =>
+    touch ? "TAP TO GET UP" : `PRESS ${key} TO GET UP`,
   /** THE DAMAGE INSTRUMENT: its caption, and what each part is called. */
   damageLabel: "DAMAGE",
   damageSkiLeft: "Left edge",
   damageSkiRight: "Right edge",
   damageLegs: "Legs",
-  /** The three presses in the corner. */
+  /** The presses in the corner (the pause is the minimap's own). */
   resetTitle: "Back to the last gate you took (R)",
   cameraTitle: "Next camera (C)",
   pauseTitle: "Pause (Esc)",
@@ -126,6 +169,8 @@ export const STRINGS = {
 
   /** Printed across the finish arch's span (gates.ts). */
   archLine: "FINISH",
+  /** The start house's banner. */
+  startLine: "START",
 
   /* ── THE NEWS COLUMN (run-news.ts) ─────────────────────────────────── */
   newsCheckpoint: (index: number, seconds: number): string =>
@@ -140,27 +185,105 @@ export const STRINGS = {
         ? `MISSED GATE ${index}  +${Number(penalty.toFixed(1))} s`
         : `MISSED GATE ${index}`,
   newsTree: "TREE!",
+  /** A lift's tower or a floodlight mast met (`posts.ts`), and an edge
+   * stake snapped off (`edge-stakes.ts`). */
+  newsPost: "POST!",
+  newsStake: "STAKE DOWN",
   /** A landing the legs paid for, and a big one ridden away — its load in
    * g (`flight.ts`'s `landingLoad`). */
   newsHarsh: (g: number): string => `HARD LANDING · ${g.toFixed(1)} G`,
   newsLoad: (g: number): string => `${g.toFixed(1)} G LANDING`,
   newsReset: "BACK ON THE PISTE",
+  /** THE SAVE (`crash.ts`): a near fall ridden out, by what nearly put
+   * the skier down — a hard landing, a trunk on the shoulder, the body on
+   * the snow and back up, an edge that bit, a stake run through. */
+  newsSave: (kind: "landing" | "tree" | "body" | "edge" | "stake"): string =>
+    kind === "landing"
+      ? "SAVED THE LANDING"
+      : kind === "tree"
+        ? "SHRUGGED OFF THE TREE"
+        : kind === "body"
+          ? "BACK UP!"
+          : kind === "stake"
+            ? "STAYED UP!"
+            : "HELD THE EDGE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
-   * landing taken over the tips, a fall at speed, an edge caught, a big
-   * landing the legs folded under. */
-  newsWipeout: (cause: "tree" | "nose" | "roll" | "catch" | "landing"): string =>
-    cause === "tree"
-      ? "YARD SALE! TREE"
-      : cause === "nose"
-        ? "OVER THE TIPS"
-        : cause === "roll"
-          ? "YARD SALE"
-          : cause === "landing"
-            ? "COMPRESSED!"
-            : "EDGE CAUGHT",
+   * landing taken over the tips, a fall at speed, an edge caught, a
+   * landing on the body or one the legs folded under, a stake hit fast,
+   * the empty chair off a lift run into his legs, a downhill's A-nets
+   * driven into. */
+  newsWipeout: (
+    cause:
+      | "tree"
+      | "nose"
+      | "roll"
+      | "catch"
+      | "landing"
+      | "skier"
+      | "heli"
+      | "sled"
+      | "stake"
+      | "chair"
+      | "net",
+  ): string =>
+    cause === "heli"
+      ? "THROWN CLEAR!"
+      : cause === "chair"
+        ? "SWEPT BY THE CHAIR!"
+        : cause === "net"
+          ? "INTO THE NETS!"
+          : cause === "stake"
+            ? "YARD SALE! STAKE"
+            : cause === "sled"
+              ? "OFF THE SLED!"
+              : cause === "tree"
+                ? "YARD SALE! TREE"
+                : cause === "skier"
+                  ? "YARD SALE! TAKEN OUT"
+                  : cause === "nose"
+                    ? "OVER THE TIPS"
+                    : cause === "roll"
+                      ? "YARD SALE"
+                      : cause === "landing"
+                        ? "CRASH LANDING"
+                        : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
+  /** Riding switch into loose snow on tails that do not ride over it
+   * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
+  newsTailDug: "TAILS DUG IN",
+  /** The player into one of the crowd on a free ride (`crowd.ts`): a
+   * shoulder he rode through, or one that put the other skier down. */
+  newsCrowdBump: "OI! WATCH IT",
+  newsCrowdDown: "SKIER DOWN! SORRY",
+  /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
+   * machine flown into the mountain, and the ride begun again. */
+  newsHeliBoard: "ON THE SKID! FLY HER UP",
+  newsHeliDrop: (metres: number): string => `DROPPED FROM ${Math.round(metres)} M!`,
+  newsHeliCrash: "MAYDAY! SHE'S GONE DOWN",
+  newsHeliRestart: "BACK ON THE PAD",
+  /** THE HELICOPTER'S HUD (`hud-heli.tsx`): the height its skids are over
+   * the snow, its climb, how to jump off it, and the way to it. */
+  heliHeight: "DROP",
+  heliMetres: (m: number): string => `${Math.round(m)} M`,
+  heliClimb: (v: number): string => `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)} M/S`,
+  /** How to get off — the machine key (`key`, as bound), a double tap on
+   * touch: off the skid in the air, onto the snow where it has landed. */
+  heliJump: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO JUMP" : `${key} TO JUMP`,
+  heliLanded: (touch: boolean, key: string): string =>
+    `LANDED — ${touch ? "DOUBLE TAP" : key} TO STEP OFF`,
+  heliCollective: "Collective",
+  heliCollectiveShort: "COL",
+  heliCall: "HELICOPTER",
+  heliPad: (m: number): string => `${Math.round(m)} M`,
+  /** Stood beside its skid: how to get on. */
+  heliTake: (touch: boolean, key: string): string =>
+    touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
+  /** Taken onto a lift on a free ride (`lift-ride.ts`). */
+  newsLift: (kind: "gondola" | "chair" | "drag"): string =>
+    kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>
@@ -197,10 +320,17 @@ export const STRINGS = {
   splashPress: "PRESS ANY KEY TO START",
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
-  menuRace: "RACE",
-  menuRaceLine: (seed: number, skiers: number): string =>
-    `SEED ${seed} · TOP TO BOTTOM · ${skiers} SKIERS`,
-  menuRacePinned: "PINNED BY THE LINK",
+  /** A race's map line where a link pinned a seed. */
+  menuRaceSeed: (seed: number): string => `SEED ${seed}`,
+  /** THE DISCIPLINES the game names, by their id. */
+  disciplines: {
+    slalom: "SLALOM",
+    giantSlalom: "GIANT SLALOM",
+    superG: "SUPER-G",
+    downhill: "DOWNHILL",
+    skiCross: "SKI CROSS",
+    speedSki: "SPEED SKIING",
+  },
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",
   /* ── THE TRICKS RUN (menu-main.tsx, hud-combo.tsx, hud-result.tsx) ── */
@@ -232,8 +362,24 @@ export const STRINGS = {
   skisRide: "SKI",
   skisPrev: "Previous pair",
   skisNext: "Next pair",
-  skisTopsheet: "Topsheet",
+  skisDress: "CUSTOMIZE SKIER",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
+
+  /* ── THE DRESS CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
+  dressTitle: "DRESS",
+  dressDone: "DONE",
+  dressSlots: {
+    body: "BODY",
+    weight: "WEIGHT",
+    jacket: "JACKET",
+    pants: "PANTS",
+    helmet: "HELMET",
+    gloves: "GLOVES",
+    poles: "POLES",
+  },
+  /** Under the rows while the POLES row reads NONE. */
+  dressNoPoles:
+    "Skiing without poles is harder: no poles to push on, a rise you can barely climb and less to keep your balance with.",
   /** THE SPEC SHEET's figures: what a pair is, off its catalog row. */
   skisFacts: {
     length: "LENGTH",
@@ -247,6 +393,9 @@ export const STRINGS = {
   skisBars: {
     top: "TOP SPEED",
     edge: "EDGE HOLD",
+    berm: "BERM",
+    speed: "SPEED CARVE",
+    fast: "FAST BEND",
     quick: "QUICKNESS",
     float: "FLOAT",
     flex: "FORGIVENESS",
@@ -275,6 +424,10 @@ export const STRINGS = {
   /** THE PISTE GRADES (R23), as a sign names them: the GRADE row's stops,
    * the mark's name, the loading card's line. */
   gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK" },
+  /** The piste map board at a lift's top (`map-board.ts`): its header, and
+   * the mark at the top it stands on. */
+  mapBoardTitle: "PISTE MAP",
+  mapBoardHere: "YOU ARE HERE",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
@@ -289,7 +442,7 @@ export const STRINGS = {
   },
   startTime: "TIME",
   startTimeHint:
-    "The time of day the run starts at, on that date at that mountain's latitude — a night run under the moon, the finish arena lit by its floodlights. The sun stays where it is for the whole run.",
+    "The time of day the run starts at, on that date at that mountain's latitude — a night run under the moon, the runs lit by their floodlight masts and the woods between them dark. The sun stays where it is for the whole run.",
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
   startWeather: "WEATHER",
   startWeatherHint:
@@ -311,16 +464,31 @@ export const STRINGS = {
     "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
-  startGrid: "FROM THE START GATE",
-  startCaption: "Tap the chart to start anywhere on the mountain · the arrows are kickers",
+  startRun: "RUN",
+  startRunHint:
+    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last two stops are machines waiting at the bottom: the SNOWMOBILE — start stood on its boards with your skis racked, ride it anywhere on the mountain and press the jump twice to ski off — and the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off.",
+  /** The RUN row's last stop: the ride begun on the helicopter (`heli.ts`). */
+  startRunHeli: "HELICOPTER",
+  /** A RUN row's stop: the number the piste map signs it with. */
+  startRunWord: (number: string): string => number,
+  /** The RUN row before the chart has said what runs there are. */
+  startRunWaiting: "…",
+  startGrid: "FROM THE LIFT",
+  startCaption:
+    "The pulsing mark is where you start · tap the chart to start anywhere else · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
   seedRefused: "NO PISTE ON THIS SEED",
-  /** The line under the chart: the piste's grade and length, its vertical
-   * and its kickers. */
+  /** The line under the chart: the run's (or the piste's) grade and
+   * length, its vertical and the map's kickers. */
   seedRead: (grade: string, piste: number, drop: number, kickers: number): string =>
     `${grade} · ${(piste / 1000).toFixed(1)} KM · ${vertical(drop)} VERTICAL · ${kickers} KICKERS`,
   seedChart: (seed: number, kickers: number): string =>
     `The mountain on seed ${seed}, with ${kickers} kickers`,
+  seedPanorama: (seed: number, runs: number, lifts: number): string =>
+    `The mountain on seed ${seed} seen from the valley, with ${runs} runs and ${lifts} lifts`,
+  /** The plate's chip, naming the view it turns to. */
+  seedViewPanorama: "PANORAMA",
+  seedViewPlan: "PLAN",
 
   /* ── OPTIONS (menu-options.tsx) and its rows (menu-knobs.tsx) ──────── */
   optCaption: "Point at a row to read what it does",
@@ -401,7 +569,7 @@ export const STRINGS = {
     "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched.",
   optForest: "FOREST",
   optForestHint:
-    "How far out trees are drawn in full, how thick the far woods stand, and how many shapes of each kind of tree are drawn.",
+    "How far out trees are drawn in full, how thick the far woods stand, and how many variants of each kind of tree are drawn: ten, five or two.",
   optShadows: "SHADOWS",
   optShadowsHint:
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
@@ -423,11 +591,23 @@ export const STRINGS = {
   keyTuck: "TUCK",
   keyBrake: "BRAKE / CUT",
   keyJump: "JUMP",
+  /** OPTIONS ▸ KEYS' helicopter section (`settings-heli-keys.ts`). */
+  keysHeliTitle: "HELICOPTER",
+  keyCollectiveUp: "COLLECTIVE UP",
+  keyCollectiveDown: "COLLECTIVE DOWN",
+  keyCyclicForward: "CYCLIC FORWARD",
+  keyCyclicBack: "CYCLIC BACK",
+  keyCyclicLeft: "CYCLIC LEFT",
+  keyCyclicRight: "CYCLIC RIGHT",
+  keyPedalLeft: "PEDAL LEFT",
+  keyPedalRight: "PEDAL RIGHT",
   keyLeft: "LEFT",
   keyRight: "RIGHT",
   keyLeanBack: "LEAN BACK",
   keyLeanForward: "LEAN FORWARD",
   keyReset: "RESET",
+  /** On to the snowmobile or the helicopter, and off again. */
+  keyMachine: "GET ON / OFF",
   keyRestart: "RESTART",
   keyCamera: "CAMERA",
   keyPause: "PAUSE",
@@ -453,6 +633,10 @@ export const STRINGS = {
     `SEED ${seed} · GATE ${taken} OF ${gates}`,
   /** ...over a free ride, where there is no gate to count. */
   pauseSubFree: (seed: number): string => `SEED ${seed} · FREE RIDE`,
+  /** ...and under a measured run's, the mountain it is raced on as the free
+   * ride's start card raises it again: `FREE RIDE IT · SEED 8 · ALPINE · RED`. */
+  pauseMountain: (seed: number, country: string, grade: string): string =>
+    `FREE RIDE IT · SEED ${seed} · ${country} · ${grade}`,
   pauseResume: "RESUME",
   pauseRestart: "RESTART",
   pauseRestartFree: "START AGAIN",
@@ -511,7 +695,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : "RACE"}`,
+    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

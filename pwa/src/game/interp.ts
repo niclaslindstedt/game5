@@ -11,7 +11,7 @@
 //
 // Three-free, so the suite reads it (`tests/world_render_test.ts`).
 
-import type { Quat, SkierState, Thrown } from "@engine";
+import type { Quat, Thrown } from "@engine";
 
 export type Pose = {
   x: number;
@@ -65,8 +65,10 @@ export function nlerp(a: Quat, b: Quat, t: number, out: Quat): Quat {
  * cut, never swept across the map. */
 const CUT = 8;
 
-/** Take in the skier as the state has it at `tick`. */
-export function observe(track: PoseTrack, skier: SkierState, tick: number): void {
+/** Take in a body as the state has it at `tick` — a skier, or a machine
+ * (`sled-view.ts`, `heli-view.ts`) drawn on the same steps as its rider, so
+ * the two never part between them. */
+export function observe(track: PoseTrack, skier: Pose, tick: number): void {
   if (tick === track.tick) return;
   const k = tick - track.tick;
   const jumped =
@@ -103,13 +105,20 @@ export function sample(track: PoseTrack, alpha: number, out: Pose): Pose {
 }
 
 /** THE RIDER THROWN, drawn between two steps the same way: his centre, his
- * tumble and every point of his body. Under the death cam's slow motion a
- * step lands every few frames, and a body posed off the step alone would
- * visibly hop. */
+ * tumble, every point of his body and both skis he left (each ski's ends
+ * and its up). Under the death cam's slow motion a step lands every few
+ * frames, and a body posed off the step alone would visibly hop. */
 export type BodyTrack = {
   tick: number;
   curr: Thrown | null;
-  prev: { x: number; y: number; z: number; tumble: number; points: number[] };
+  prev: {
+    x: number;
+    y: number;
+    z: number;
+    tumble: number;
+    points: number[];
+    skis: { ends: number[]; up: number[] }[];
+  };
   /** The body as last drawn, rewritten by `sampleBody`. */
   drawn: Thrown | null;
 };
@@ -118,9 +127,14 @@ export function createBodyTrack(): BodyTrack {
   return {
     tick: -1,
     curr: null,
-    prev: { x: 0, y: 0, z: 0, tumble: 0, points: [] },
+    prev: { x: 0, y: 0, z: 0, tumble: 0, points: [], skis: [] },
     drawn: null,
   };
+}
+
+/** `out[i]` set `a` of the way from `from[i]` to `to[i]`. */
+function mixInto(out: number[], from: readonly number[], to: readonly number[], a: number): void {
+  for (let i = 0; i < to.length; i++) out[i] = from[i] + (to[i] - from[i]) * a;
 }
 
 /** Take in the thrown body as the state has it at `tick` (null: on his skis). */
@@ -136,6 +150,7 @@ export function observeBody(track: BodyTrack, body: Thrown | null, tick: number)
       p.z = body.z;
       p.tumble = body.tumble;
       p.points = body.points.slice();
+      p.skis = body.skis.map((s) => ({ ends: s.ends.slice(), up: s.up.slice() }));
     }
   } else {
     const f = 1 - 1 / k;
@@ -143,12 +158,24 @@ export function observeBody(track: BodyTrack, body: Thrown | null, tick: number)
     p.y = c.y + (body.y - c.y) * f;
     p.z = c.z + (body.z - c.z) * f;
     p.tumble = c.tumble + (body.tumble - c.tumble) * f;
-    for (let i = 0; i < body.points.length; i++) {
-      p.points[i] = c.points[i] + (body.points[i] - c.points[i]) * f;
-    }
+    mixInto(p.points, c.points, body.points, f);
+    body.skis.forEach((s, i) => {
+      const was = c.skis[i];
+      p.skis[i] ??= { ends: s.ends.slice(), up: s.up.slice() };
+      if (!was) return;
+      mixInto(p.skis[i].ends, was.ends, s.ends, f);
+      mixInto(p.skis[i].up, was.up, s.up, f);
+    });
   }
   // The state's arrays are stepped in place: keep copies.
-  track.curr = body ? { ...body, points: body.points.slice(), last: [] } : null;
+  track.curr = body
+    ? {
+        ...body,
+        points: body.points.slice(),
+        last: [],
+        skis: body.skis.map((s) => ({ ...s, ends: s.ends.slice(), up: s.up.slice() })),
+      }
+    : null;
   track.tick = tick;
 }
 
@@ -159,16 +186,24 @@ export function sampleBody(track: BodyTrack, alpha: number): Thrown | null {
   if (!c) return null;
   const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
   const p = track.prev;
-  const out = (track.drawn ??= { ...c, points: c.points.slice() });
+  const out = (track.drawn ??= { ...c, points: c.points.slice(), skis: [] });
   const points = out.points;
+  const skis = out.skis;
   Object.assign(out, c);
   out.points = points;
+  out.skis = skis;
   out.x = p.x + (c.x - p.x) * a;
   out.y = p.y + (c.y - p.y) * a;
   out.z = p.z + (c.z - p.z) * a;
   out.tumble = p.tumble + (c.tumble - p.tumble) * a;
-  for (let i = 0; i < c.points.length; i++) {
-    points[i] = p.points[i] + (c.points[i] - p.points[i]) * a;
-  }
+  mixInto(points, p.points, c.points, a);
+  skis.length = c.skis.length;
+  c.skis.forEach((s, i) => {
+    const was = p.skis[i] ?? s;
+    const ski = (skis[i] ??= { ...s, ends: s.ends.slice(), up: s.up.slice() });
+    Object.assign(ski, s, { ends: ski.ends, up: ski.up });
+    mixInto(ski.ends, was.ends, s.ends, a);
+    mixInto(ski.up, was.up, s.up, a);
+  });
   return out;
 }

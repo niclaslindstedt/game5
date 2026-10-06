@@ -3,12 +3,14 @@
 // standing on it, on its own little canvas and turning.
 //
 // It is `createSkisModel` — the builder the race draws with — off the
-// pair's own spec, in the topsheet the skier has picked for it, stood at
+// pair's own spec, in its own topsheet, stood at
 // rest on a disc of snow at its own height: the skier tall on his skis at
 // the sag his legs settle at, the poles hanging from his fists, so the
 // downhill ski's length, the slalom ski's stubby waist and the powder
 // ski's shovel are visible before a single bar beside it has been read.
-// He wears the player's start-line colours, because he is the player.
+// He wears the player's outfit (`outfit.ts`), because he is the player —
+// and on the DRESS card the same stand, framed on HIM rather than on the
+// pair (`frameOn: "skier"`), shows each piece of kit as it is picked.
 //
 // The eye line is a person standing beside the skier — a little above,
 // looking slightly DOWN — the angle a pair is admired from on the rack,
@@ -21,8 +23,9 @@
 import * as THREE from "three";
 import { freshSkier, type SkiSpec } from "@engine";
 
-import { createSkisModel, REST_SAG, SKI_STYLES, styleIn, type SkisModel } from "./skis-body.ts";
-import { topsheetOf } from "./ski-topsheets.ts";
+import { outfitKey } from "./dress.ts";
+import { carriesPoles, DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
+import { createSkisModel, pairStyle, REST_SAG, type SkisModel } from "./skis-body.ts";
 
 export { loadModels } from "./skier-models.ts";
 
@@ -39,6 +42,11 @@ const FRAME_MARGIN = 1.3;
  * not the same height: the billing under the skier is two lines on a
  * phone, and a skier framed about his middle has his skis under him. */
 const AIM = 0.35;
+/** On the DRESS card: how far round the skier the frame must reach, m,
+ * and where on his height it aims — the skier filling the pane, the skis'
+ * tips let run out of it as they come round. */
+const SKIER_REACH = 0.5;
+const SKIER_AIM = 0.5;
 /** One revolution every this many seconds — slow enough to read a topsheet. */
 const SPIN_PERIOD = 16;
 /** The pose's own heading, so a still frame (reduced motion, a screenshot)
@@ -49,7 +57,7 @@ export type SkisTurntable = {
   /** Swap the pair on the stand; the spin carries on from where it was.
    * The model is built on the next frame, not inside this call, so a skier
    * rowing through the arrows builds only the one they stop on. */
-  setSkis: (spec: SkiSpec, topsheet?: number) => void;
+  setSkis: (spec: SkiSpec, outfit?: Outfit) => void;
   /** Match the canvas to its box after a layout change. */
   resize: () => void;
   dispose: () => void;
@@ -59,7 +67,10 @@ export type SkisTurntable = {
  * no-op here. */
 const plain = <M extends THREE.Material>(m: M): M => m;
 
-export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
+export function createSkisTurntable(
+  canvas: HTMLCanvasElement,
+  frameOn: "pair" | "skier" = "pair",
+): SkisTurntable {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -90,7 +101,7 @@ export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
 
   let model: SkisModel | null = null;
   let shown: string | null = null;
-  let pending: { spec: SkiSpec; topsheet: number } | null = null;
+  let pending: { spec: SkiSpec; outfit: Outfit } | null = null;
   /** How far the skier reaches from the spin axis, and how tall he
    * stands — measured off the model that was built. */
   let radius = 2;
@@ -112,16 +123,18 @@ export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
     const vNeed = middle * Math.cos(pitch) + radius * Math.sin(pitch);
     const dist = FRAME_MARGIN * Math.max(vNeed / Math.tan(vHalf), radius / Math.tan(hHalf));
     const back = dist / Math.hypot(1, EYE_RISE);
-    const aim = top * AIM;
+    const aim = top * (frameOn === "skier" ? SKIER_AIM : AIM);
     camera.position.set(0, aim + back * EYE_RISE, -back);
     camera.lookAt(0, aim, 0);
   };
 
-  const build = (spec: SkiSpec, topsheet: number): void => {
+  const keyOf = (spec: SkiSpec, outfit: Outfit) => `${spec.id}:${outfitKey(outfit)}`;
+  const build = (spec: SkiSpec, outfit: Outfit): void => {
     clear();
-    shown = `${spec.id}:${topsheet}`;
-    model = createSkisModel(spec, styleIn(SKI_STYLES[0], topsheetOf(spec.id, topsheet)), plain);
-    const rest = freshSkier(spec);
+    shown = keyOf(spec, outfit);
+    model = createSkisModel(spec, pairStyle(spec, { outfit }), plain);
+    // ...with his poles in his hands, or none (`carriesPoles`).
+    const rest = { ...freshSkier(spec), poles: carriesPoles(outfit) };
     rest.skiCompression[0] = REST_SAG;
     rest.skiCompression[1] = REST_SAG;
     model.pose(rest, { x: 0, y: spec.cogHeight, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } }, 0);
@@ -140,8 +153,9 @@ export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
       Math.hypot(box.max.x, box.min.z),
       Math.hypot(box.max.x, box.max.z),
     );
+    if (frameOn === "skier") radius = SKIER_REACH;
     top = box.max.y;
-    snow.scale.setScalar(radius * 1.2);
+    snow.scale.setScalar(Math.max(radius, 1.1) * 1.2);
     frame();
   };
 
@@ -178,9 +192,9 @@ export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
     // Every frame: a resize EVENT is not the only way a canvas changes size.
     resize();
     if (pending) {
-      const { spec, topsheet } = pending;
+      const { spec, outfit } = pending;
       pending = null;
-      build(spec, topsheet);
+      build(spec, outfit);
     }
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -192,8 +206,8 @@ export function createSkisTurntable(canvas: HTMLCanvasElement): SkisTurntable {
   raf = requestAnimationFrame(tick);
 
   return {
-    setSkis: (spec, topsheet = 0) => {
-      pending = shown === `${spec.id}:${topsheet}` ? null : { spec, topsheet };
+    setSkis: (spec, outfit = DEFAULT_OUTFIT) => {
+      pending = shown === keyOf(spec, outfit) ? null : { spec, outfit };
     },
     resize,
     dispose: () => {

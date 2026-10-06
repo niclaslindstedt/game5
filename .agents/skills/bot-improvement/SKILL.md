@@ -75,8 +75,9 @@ human's (`tests/simulation_test.ts`, `determinism_test.ts`).
    `poles.speed`), aims onto the piste SHORT of the start gate (`entryShare`,
    `entryMin`, `entryMax`).
 4. **How fast**: for every bend within braking reach, the speed its curvature
-   allows at `cornerShare` of the corner grip, less what a skid at
-   `brakeShare` can take off; for every piste kicker, the fastest it can
+   allows at `cornerShare` of the corner grip and the pair's sidecut can
+   still carve at (`carveSpeedOf`), less what a skid at `brakeShare` can
+   take off; for every piste kicker, the fastest it can
    leave the lip and still land on the landing under `kickerMargin` of the
    harsh speed (flown once per kicker over the real snow); never under
    `crawl`. Over that it skids; near it it stands up; under it, tucked.
@@ -85,6 +86,13 @@ human's (`tests/simulation_test.ts`, `determinism_test.ts`).
 6. **Trees**: moves its aim `dodge` off a trunk inside `treeCorridor` within
    `treeLook`.
 7. **Giving up**: asks for a reset after `giveUpAfter` s without a gate.
+8. **On a slalom**: a forward-search planner (`slalom-plan.ts`) over a model
+   of a carved turn (`turn-model.ts`) that reads the physics' limits — the
+   edge no further over than the lean plus the angulation or than the
+   technique's cross-under stands it (`incline.ts`'s `edgeReach`, the
+   physics' own function), the carve no tighter than R·cos edge, the way turned through the skis' slip, the lean
+   crossing over only as the old turn lets go, the check's pivot — choosing
+   the steer and the check together; its speed is `lineSpeed` (the par's).
 
 Every number is a field of `BotProfile`, with its unit; `SKIER_BOT` is the
 one profile. A second profile is data handed to `botInput`, never a fork of

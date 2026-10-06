@@ -236,6 +236,22 @@ describe("the ski area a seed builds (R25–R30)", () => {
     }
   });
 
+  it("starts every piste under the top it leaves, never up the slope above it (R27)", () => {
+    // Slid onto the top's contour just under the station (`headOnContour`);
+    // the slack is what the pads pressed again, the runs graded and a drag
+    // re-laid clear of the runs (`clearStations`) may move either by —
+    // never the tens of metres a start found across the face through the
+    // top could stand above it.
+    for (const { region, level } of areas()) {
+      const resort = resortOf(level);
+      for (const run of resort.runs) {
+        const top = resort.lifts.find((l) => l.id === run.from)?.top;
+        if (run.kind !== "piste" || !top) continue;
+        expect(run.points[0].y - top.y, `run ${run.id} of ${region} ${level.seed}`).toBeLessThan(6);
+      }
+    }
+  });
+
   it("grades its lanes no steeper than a cat track, as wide as one (R27)", () => {
     for (const { region, level } of areas()) {
       const resort = resortOf(level);
@@ -584,6 +600,10 @@ describe("the slalom gates as skied (R28)", () => {
     expect(gateLineAt(level, a.s + 1).curvature).toBeGreaterThan(mid.curvature);
     // A piste whose gates span it has no weave.
     const plain = syntheticLevel({ noTrees: true, noKicker: true });
-    expect(gateLineAt(plain, plain.checkpoints[2].s + 30)).toEqual({ offset: 0, curvature: 0 });
+    expect(gateLineAt(plain, plain.checkpoints[2].s + 30)).toEqual({
+      offset: 0,
+      curvature: 0,
+      bend: 0,
+    });
   });
 });

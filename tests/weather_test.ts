@@ -11,6 +11,7 @@ import {
   analyzeLevel,
   createGame,
   dealWeather,
+  downhillFrom,
   generateLevel,
   moonAt,
   sunAtRun,
@@ -19,6 +20,7 @@ import {
   weatherFor,
   weatherOf,
   windAt,
+  windFromOf,
   withSky,
   type WeatherKind,
 } from "@engine";
@@ -164,6 +166,35 @@ describe("the wind", () => {
     expect(sum / 1200).toBeGreaterThan(9);
     expect(sum / 1200).toBeLessThan(11);
     expect(hi - lo).toBeGreaterThan(4);
+  });
+
+  it("never blows up the mountain, and blows down it from anywhere in that half", () => {
+    // The fall line is the world's +z: the air may move across it or down
+    // it, never against it — whatever bearing R19 dealt, at every moment.
+    let straightDown = Infinity;
+    for (let i = 0; i < 72; i++) {
+      const windFrom = (i / 72) * 2 * Math.PI;
+      const level = withSky(levelFor(LEVEL_SEEDS[2]), { weather: { kind: "storm", windFrom } });
+      for (let t = 0; t < 120; t += 1.5) {
+        const w = windAt(level, t);
+        expect(w.z).toBeGreaterThanOrEqual(-1e-9);
+      }
+      // A bearing dealt across or down the slope is left as it was dealt.
+      if (Math.cos(windFrom) <= 0) expect(windFromOf(level)).toBeCloseTo(windFrom, 12);
+      const mean = windFromOf(level);
+      straightDown = Math.min(straightDown, Math.abs(mean - Math.PI));
+    }
+    // Straight down the fall line is one of the ways it can come.
+    expect(straightDown).toBeLessThan(0.1);
+    expect(downhillFrom(0)).toBeCloseTo(Math.PI, 12);
+    expect(downhillFrom(Math.PI / 2)).toBeCloseTo(Math.PI / 2, 12);
+  });
+
+  it("keeps the map's own bearing under a sky picked by kind", () => {
+    const level = levelFor(LEVEL_SEEDS[2]);
+    expect(weatherOf(withSky(level, { weather: "storm" })).windFrom).toBe(
+      weatherOf(level).windFrom,
+    );
   });
 
   it("draws nothing from the run's stream", () => {

@@ -16,11 +16,10 @@
 // (`make model-registry` rewrites it, and prettier pads its columns).
 // DOM-free and three-free.
 
-import { SKI_CATALOG, TREE_KINDS } from "@engine";
+import { CROWD_BODIES, SKI_CATALOG, TREE_KINDS } from "@engine";
 
 import { BEAST_IDS } from "./beast-defs.ts";
 import { BIRD_IDS } from "./bird-defs.ts";
-import { GATE_IDS } from "./gate-ids.ts";
 
 export type ModelSource = "blender" | "code";
 
@@ -60,78 +59,125 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
     note: "the ghost and the ski card draw the same models",
   },
   {
+    asset: "Helicopter",
+    ids: ["heli"],
+    source: "blender",
+    code: ["pwa/src/game/heli-view.ts"],
+    drawnBy: "pwa/src/game/heli-view.ts",
+    blender: {
+      builder: "scripts/blender/heli.py",
+      files: ["heli.glb"],
+      pattern: "heli.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the free ride's heli-ski machine, built off `HELI`: three rigid nodes (the airframe, " +
+      "the main rotor, the tail rotor); the code's stand-in is a cabin, a boom, the skids and the rotors",
+  },
+  {
+    asset: "Snowmobile",
+    ids: ["sled"],
+    source: "blender",
+    code: ["pwa/src/game/sled-view.ts"],
+    drawnBy: "pwa/src/game/sled-view.ts",
+    blender: {
+      builder: "scripts/blender/sled.py",
+      files: ["sled.glb"],
+      pattern: "sled.glb",
+      switch: "VITE_MODEL_SLED",
+    },
+    note:
+      "the free ride's mountain sled, built off `SLED` and the class's trace: rigid nodes (the " +
+      "chassis, the bars, each ski, the rear suspension, the paddles with their run morph, the " +
+      "ski rack); the code's stand-in is a cowl, a tunnel, a belt and two skis",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
-    source: "blender",
+    source: "code",
     code: [
-      "pwa/src/game/skier-figure.ts",
-      "pwa/src/game/skier-cloth.ts",
-      "pwa/src/game/skier-helmet.ts",
+      "pwa/src/game/skier-dress.ts",
+      "pwa/src/game/dress.ts",
+      "pwa/src/game/dress-loft.ts",
+      "pwa/src/game/dress-garments.ts",
+      "pwa/src/game/dress-head.ts",
+      "pwa/src/game/helmet-shape.ts",
     ],
-    drawnBy: "pwa/src/game/skier-models.ts",
-    blender: {
-      builder: "scripts/blender/skier.py",
-      files: ["skier.glb"],
-      pattern: "skier.glb",
-      switch: "VITE_MODEL_SKIERS",
-    },
-    note: "one model, dressed in each start-line slot's kit",
+    drawnBy: "pwa/src/game/skier-figure.ts",
+    note:
+      "procedural: his outfit (outfit.ts — two bodies, five jackets, four pants, four helmets, " +
+      "four gloves, four poles) cut to the body's measure on the rig and skinned on it; " +
+      "`make blender KIND=skier` still models one suit, the labs' comparison (`make gear`)",
   },
   {
     asset: "Trees",
     ids: [...TREE_KINDS],
-    source: "blender",
-    code: ["pwa/src/game/tree-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/tree-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/forest.ts",
-    blender: {
-      builder: "scripts/blender/tree.py",
-      files: TREE_KINDS.map((k) => `trees/${k}.glb`),
-      pattern: "trees/<kind>.glb",
-      switch: "VITE_MODEL_TREES",
-    },
-    note: "ten variants a kind, dressed in the region's paint",
+    note:
+      "procedural: ten variants a kind at three levels of detail, the trunk sized " +
+      "to the tree's age, painted in the region's colours",
   },
   {
     asset: "Birds",
     ids: BIRD_IDS,
-    source: "blender",
-    code: ["pwa/src/game/bird-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/bird-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/birds.ts",
-    blender: {
-      builder: "scripts/blender/bird.py",
-      files: BIRD_IDS.map((k) => `birds/${k}.glb`),
-      pattern: "birds/<id>.glb",
-      switch: "VITE_MODEL_BIRDS",
-    },
-    note: "one model a species, painted in its style, flapped by the same shader",
+    note:
+      "procedural: a form for each sex or age that shows — a cock, a hen, a first-winter " +
+      "bird — at two levels of detail, each bird its own size and shade, flapped in the shader",
   },
   {
     asset: "Animals",
     ids: BEAST_IDS,
-    source: "blender",
-    code: ["pwa/src/game/beast-shapes.ts"],
+    source: "code",
+    code: ["pwa/src/game/beast-shapes.ts", "pwa/src/game/tree-mesh.ts"],
     drawnBy: "pwa/src/game/beasts.ts",
-    blender: {
-      builder: "scripts/blender/beast.py",
-      files: BEAST_IDS.map((k) => `beasts/${k}.glb`),
-      pattern: "beasts/<id>.glb",
-      switch: "VITE_MODEL_BEASTS",
-    },
-    note: "one model a species, painted in its style, walked by the same shader",
+    note:
+      "procedural: grown and young forms at two levels of detail, each animal its own " +
+      "size and shade, antlers and horns grown to its age in the shader",
+  },
+  {
+    asset: "Amateur skiers",
+    ids: CROWD_BODIES,
+    source: "code",
+    code: [
+      "pwa/src/game/crowd-shapes.ts",
+      "pwa/src/game/crowd-rig.ts",
+      "pwa/src/game/tree-mesh.ts",
+    ],
+    drawnBy: "pwa/src/game/crowd-view.ts",
+    note:
+      "procedural: the free ride's crowd — eight bodies at three levels of detail, posed " +
+      "by morph targets solved from the player's own pose and dressed per instance",
+  },
+  {
+    asset: "Spectators",
+    ids: ["fan-near", "fan-far"],
+    source: "code",
+    code: ["pwa/src/game/spectator-shapes.ts", "pwa/src/game/spectator-plan.ts"],
+    drawnBy: "pwa/src/game/spectators.ts",
+    note:
+      "procedural: a race's crowd — one rough figure at two levels of detail carrying every " +
+      "hat and prop, each fan's look dealt per instance and his moves posed in the shader",
+  },
+  {
+    asset: "The finish arena",
+    ids: ["grandstand", "fan-fence", "finish-boards", "exit-gate", "leader-platform", "video-wall"],
+    source: "code",
+    code: ["pwa/src/game/finish-arena.ts"],
+    drawnBy: "pwa/src/game/spectators.ts",
+    note: "procedural and boxy, laid out by the crowd's plan; the video wall shows the run clock",
   },
   {
     asset: "Gates, the start hut and the finish arch",
-    ids: [...GATE_IDS],
-    source: "blender",
-    code: ["pwa/src/game/gates.ts", "pwa/src/game/start-arch.ts"],
+    ids: ["gate-pole", "gate-panel", "edge-pole", "marker", "start-hut", "finish-arch"],
+    source: "code",
+    code: ["pwa/src/game/mark-shapes.ts", "pwa/src/game/start-arch.ts"],
     drawnBy: "pwa/src/game/gates.ts",
-    blender: {
-      builder: "scripts/blender/gate.py",
-      files: GATE_IDS.map((k) => `gates/${k}.glb`),
-      pattern: "gates/<id>.glb",
-      switch: "VITE_MODEL_GATES",
-    },
-    note: "the arch stretched to the finish line; the panels, the nets, the edge poles and the floods stay code",
+    note: "procedural and faceted; the arch built round the finish line's own plan",
   },
 ];
 

@@ -6,8 +6,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLOUD,
   emptyRecipe,
   flyPuff,
+  loftOf,
   landingPuffs,
   puffOpacity,
   puffRadius,
@@ -95,5 +97,52 @@ describe("a puff", () => {
     expect(v[0]).toBeCloseTo(2, 3);
     expect(v[1]).toBeCloseTo(-0.3, 3);
     expect(v[2]).toBeCloseTo(1, 3);
+  });
+});
+
+describe("the loft: a cloud grows with speed", () => {
+  // The cloud a source keeps alive: its rate times each puff's area over
+  // its life — what a lens sees of it.
+  const alive = (r: ReturnType<typeof emptyRecipe>) => {
+    let sum = 0;
+    for (let i = 0; i < 20; i++) {
+      const a = (i + 0.5) / 20;
+      sum += puffRadius(r.size, r.grow, a) ** 2 * puffOpacity(r.opacity, r.size, r.grow, a);
+    }
+    return r.rate * (sum / 20) * r.hang;
+  };
+  const wallAt = (kmh: number) =>
+    alive(
+      skidCloud({ speed: kmh / 3.6, skid: 1, edge: 0, grounded: true }, SNOW.new, emptyRecipe()),
+    );
+  const ploughAt = (kmh: number) => alive(skiCloud(0, 0.2, SNOW.soft, emptyRecipe(), kmh / 3.6));
+
+  it("lofts next to nothing at a walk and all of it at speed", () => {
+    expect(loftOf(0)).toBe(0);
+    expect(loftOf(CLOUD.loft.full)).toBe(1);
+    expect(loftOf(30)).toBe(1);
+    for (let v = 0; v < 20; v += 0.5) expect(loftOf(v + 0.5)).toBeGreaterThanOrEqual(loftOf(v));
+  });
+
+  it("keeps a crawl's cloud a sliver of a schuss's, rising with the speed", () => {
+    expect(wallAt(10)).toBeLessThan(wallAt(60) * 0.05);
+    expect(ploughAt(10)).toBeLessThan(ploughAt(60) * 0.05);
+    let last = 0;
+    for (const kmh of [5, 10, 20, 30, 40, 50]) {
+      expect(ploughAt(kmh)).toBeGreaterThanOrEqual(last);
+      last = ploughAt(kmh);
+    }
+  });
+
+  it("leaves a landing's cloud and a body's whole however slow he was", () => {
+    const slow = skidCloud(
+      { speed: 1, skid: 1, edge: 0, grounded: true },
+      SNOW.new,
+      emptyRecipe(),
+      CLOUD.loft.full,
+    );
+    const fast = skidCloud({ speed: 1, skid: 1, edge: 0, grounded: true }, SNOW.new, emptyRecipe());
+    expect(slow.size).toBeGreaterThan(fast.size);
+    expect(slow.hang).toBeGreaterThan(fast.hang);
   });
 });

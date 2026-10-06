@@ -33,12 +33,13 @@
 // shape of the thing — see the shelf, then go back for the wins it costs to
 // leave it — and it is why a map already cleared is still worth riding.
 //
-// THE PINNED MAPS ARE THE GAME'S MEASURED MAPS, not the campaign's alone. A
-// RACE and a TIME TRIAL off the front door pick one of these maps rather
-// than a seed — the same snow, the same day, ridden for the record book
-// instead of for points (`menu-levels.tsx`, `pinnedFor`) — and what the
-// level card offers is gated on the campaign having OPENED that shelf. A
-// seed of your own is the FREE RIDE's, and a link's (`?seed=`).
+// A TIME TRIAL off the front door rides one of THESE maps rather than a
+// seed — the same snow, the same day, ridden for the record book instead of
+// for points (`menu-levels.tsx`, `pinnedFor`) — and what its level card
+// offers is gated on the campaign having OPENED that shelf. A RACE (the
+// slalom, the super-G, the downhill) is raced on its discipline's own nine
+// (`race-maps.ts`), all open, chosen for the discipline. A seed of your own
+// is the FREE RIDE's, and a link's (`?seed=`).
 //
 // Two halves, the way `records.ts` is split: everything above the storage
 // line is PURE — a map built, a run booked, a lock read — so
@@ -69,6 +70,7 @@ import {
   type CampaignShelf,
   type Medal,
 } from "./campaign-levels.ts";
+import { disciplineOf, raceMapFor, raceMapsOf, type RacePicks } from "./race-maps.ts";
 
 export { CAMPAIGN_LEVELS, MEDALS, SHELVES } from "./campaign-levels.ts";
 export type { CampaignLevel, CampaignMode, CampaignShelf, Medal } from "./campaign-levels.ts";
@@ -112,12 +114,34 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
   return level.sky;
 }
 
-/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: every one of them takes the
- * RACE and the TIME TRIAL — a map carries no discipline of its own, the piste
- * is the piste — and none takes the FREE RIDE, the one mode allowed a seed and
- * a day of its own. */
-export function fitsMode(_level: CampaignLevel, mode: GameMode): boolean {
-  return mode === "race" || mode === "timeTrial";
+/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: the TIME TRIAL rides any
+ * of them — the piste is the piste — but a SLALOM only the maps the
+ * campaign sets one on, the reds and blacks whose slalom stretch (R31) is a
+ * slalom hill, because a slalom is never set on an easy one; a DOWNHILL
+ * (R32) the campaign's downhill rungs and every black, the courses with a
+ * downhill's vertical under them; and none takes the FREE RIDE, the one mode
+ * allowed a seed and a day of its own. */
+export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
+  if (mode === "superG") return level.mode === "superG";
+  if (mode === "giantSlalom") return level.mode === "giantSlalom";
+  if (mode === "speedSki") return level.mode === "speedSki";
+  if (mode === "skiCross") return level.mode === "skiCross";
+  if (mode === "slalom") return level.mode === "slalom";
+  if (mode === "downhill") return level.mode === "downhill" || level.grade === "black";
+  return mode === "timeTrial";
+}
+
+/** The campaign's own name for a measured mode: the mode itself where a
+ * rung can be one, the slalom's otherwise. */
+function measuredMode(mode: GameMode): CampaignLevel["mode"] {
+  return mode === "timeTrial" ||
+    mode === "downhill" ||
+    mode === "superG" ||
+    mode === "giantSlalom" ||
+    mode === "speedSki" ||
+    mode === "skiCross"
+    ? mode
+    : "slalom";
 }
 
 /** The pinned map named by an id, where it exists and the mode can ride it —
@@ -128,20 +152,35 @@ export function levelForMode(id: string | null, mode: GameMode): CampaignLevel |
   return found && fitsMode(found.level, mode) ? found.level : null;
 }
 
+/** WHAT THE LEVEL CARDS LAST PICKED, as the settings keep it: the time
+ * trial's campaign map (`Settings.level`) and each discipline's race map
+ * (`Settings.raceMap`). */
+export type PinnedPicks = { level: string | null; raceMap: RacePicks };
+
+/** No card has picked anything yet: every mode's first map. */
+export const NO_PICKS: PinnedPicks = { level: null, raceMap: {} };
+
 /** THE PINNED MAP A MEASURED RUN IS ON, or null where it is choosing its
- * own. A RACE and a TIME TRIAL ride the map the level card last picked
- * (`Settings.level`) — or the first rung, on a fresh app — so two figures in
- * the record book are two figures down the same piste. Two answers are null:
- * a FREE RIDE, the mode that picks a seed; and a LINK that names a seed
- * (`?seed=`), which takes the pinned map off for that visit so a lab or a
- * shared link rides exactly the seed it names. */
+ * own. A RACE rides the race map its discipline's level card last picked
+ * (`Settings.raceMap`, `race-maps.ts`) and a TIME TRIAL the campaign map
+ * its card last picked (`Settings.level`) — or the first that fits, on a
+ * fresh app — so two figures in the record book are two figures down the
+ * same piste. Two answers are null: a FREE RIDE, the mode that picks a
+ * seed; and a LINK that names a seed (`?seed=`), which takes the pinned map
+ * off for that visit so a lab or a shared link rides exactly the seed it
+ * names. */
 export function pinnedFor(
-  chosen: string | null,
+  picks: PinnedPicks,
   mode: GameMode,
   linkSeed: number | null,
 ): CampaignLevel | null {
-  if (linkSeed !== null || !fitsMode(CAMPAIGN_LEVELS[0], mode)) return null;
-  return levelForMode(chosen, mode) ?? CAMPAIGN_LEVELS[0];
+  if (linkSeed !== null) return null;
+  const races = raceMapsOf(mode);
+  const discipline = disciplineOf(mode);
+  if (races && discipline) return raceMapFor(mode, picks.raceMap[discipline]) ?? races[0];
+  const first = CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
+  if (!first) return null;
+  return levelForMode(picks.level, mode) ?? first;
 }
 
 /** WHAT A RIDE PRESS STANDS UP ON A PINNED MAP, as the arguments of the
@@ -150,13 +189,13 @@ export function pinnedFor(
  * choosing its own seed. */
 export function pinnedPress(
   rung: CampaignLevel | null,
-  chosen: string | null,
+  chosen: PinnedPicks,
   mode: GameMode,
   linkSeed: number | null,
 ): [CampaignLevel, CampaignLevel["mode"], boolean] | null {
   if (rung) return [rung, rung.mode, true];
   const pin = pinnedFor(chosen, mode, linkSeed);
-  return pin ? [pin, mode === "timeTrial" ? "timeTrial" : "race", false] : null;
+  return pin ? [pin, measuredMode(mode), false] : null;
 }
 
 /** Whether `level` is the very map `pin` builds — the same seed on the same
@@ -171,9 +210,9 @@ export function isPinnedMap(level: Level, pin: CampaignLevel): boolean {
   );
 }
 
-/** Who skis a pinned run, and with what: the pair, the help, and whether
- * blows cost him. */
-export type PinnedSkier = { spec: SkiSpec; assist: Assist; damage: boolean };
+/** Who skis a pinned run, and with what: the pair, the help, whether
+ * blows cost him, and his poles (with them when left out). */
+export type PinnedSkier = { spec: SkiSpec; assist: Assist; damage: boolean; poles?: boolean };
 
 /** A RUN ON THE PINNED MAP — the map's own snow under the map's own sky,
  * skied as `mode` on the skier's pair. `laps` is the run's own — a
@@ -198,6 +237,7 @@ export function pinnedGameOptions(
     spec: skier.spec,
     assist: skier.assist,
     damage: skier.damage,
+    poles: skier.poles,
     contact: opts.contact,
   };
 }
@@ -329,7 +369,7 @@ export function recordRun(
     medal: stood === undefined ? medal : bestMedal(stood.medal, medal),
   };
   const results = { ...progress.results, [level.id]: result };
-  if (level.mode !== "race") return { results, points: progress.points };
+  if (level.mode === "timeTrial") return { results, points: progress.points };
   const scored: LevelScores = {};
   run.order.forEach((id, i) => {
     scored[skierKey(id)] = pointsFor(i + 1);
@@ -435,6 +475,33 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
   return shelfWon(SHELVES[index - 1], progress);
 }
 
+/** WHETHER THE LEVEL CARD OFFERS A SHELF TO `mode`: every shelf the campaign
+ * has opened, and the FIRST shelf holding a map the mode can ride, opened or
+ * not — so the card is never empty. The first shelf carries no black, so
+ * without it a DOWNHILL would have nowhere to go on a fresh app; it is the
+ * map `pinnedFor` already puts a fresh app's downhill on. */
+export function shelfOpenFor(
+  shelf: CampaignShelf,
+  mode: GameMode,
+  progress: CampaignProgress,
+): boolean {
+  return shelfUnlocked(shelf, progress) || shelf === SHELVES.find((s) => holdsMode(s, mode));
+}
+
+/** Where the level card lands for `mode`: the furthest shelf it offers that
+ * holds a map the mode can ride. */
+export function reachedShelfFor(mode: GameMode, progress: CampaignProgress): CampaignShelf {
+  let reached = SHELVES[0];
+  for (const shelf of SHELVES) {
+    if (holdsMode(shelf, mode) && shelfOpenFor(shelf, mode, progress)) reached = shelf;
+  }
+  return reached;
+}
+
+function holdsMode(shelf: CampaignShelf, mode: GameMode): boolean {
+  return shelf.levels.some((level) => fitsMode(level, mode));
+}
+
 /** WHERE THE CAMPAIGN PICKS BACK UP on a shelf. Forward first: the next open
  * map never ridden. Then back to the first open race not WON or trial
  * without its gold — which is the whole shape of a points campaign. Null
@@ -442,7 +509,7 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
 export function continueAt(shelf: CampaignShelf, progress: CampaignProgress): CampaignLevel | null {
   const open = shelf.levels.filter((_l, index) => levelUnlocked(shelf, index, progress));
   const spent = (level: CampaignLevel): boolean =>
-    level.mode === "race"
+    level.mode !== "timeTrial"
       ? (progress.points[level.id]?.[PLAYER_ID] ?? 0) === POINTS[0]
       : progress.results[level.id]?.medal === MEDALS[MEDALS.length - 1];
   return (
@@ -471,15 +538,20 @@ export function campaignStanding(progress: CampaignProgress): { cleared: number;
 }
 
 /** THE FRONT DOOR'S PINNED FACES: the campaign tile's (how far up the ladder
- * and the rung it would pick next) and the map the RACE and TIME TRIAL tiles
- * ride — null where a link pinned a seed instead. */
+ * and the rung it would pick next) and the map the SLALOM, DOWNHILL and TIME
+ * TRIAL tiles ride — null where a link pinned a seed instead. */
 export function frontDoorPins(
   progress: CampaignProgress,
-  chosen: string | null,
+  chosen: PinnedPicks,
   linkSeed: number | null,
 ): {
   campaign: { cleared: number; of: number; next: string | null };
   raceMap: string | null;
+  downhillMap: string | null;
+  superGMap: string | null;
+  giantSlalomMap: string | null;
+  speedSkiMap: string | null;
+  skiCrossMap: string | null;
   trialMap: string | null;
 } {
   return {
@@ -487,7 +559,12 @@ export function frontDoorPins(
       ...campaignStanding(progress),
       next: continueAt(reachedShelf(progress), progress)?.name ?? null,
     },
-    raceMap: pinnedFor(chosen, "race", linkSeed)?.name ?? null,
+    raceMap: pinnedFor(chosen, "slalom", linkSeed)?.name ?? null,
+    downhillMap: pinnedFor(chosen, "downhill", linkSeed)?.name ?? null,
+    superGMap: pinnedFor(chosen, "superG", linkSeed)?.name ?? null,
+    giantSlalomMap: pinnedFor(chosen, "giantSlalom", linkSeed)?.name ?? null,
+    speedSkiMap: pinnedFor(chosen, "speedSki", linkSeed)?.name ?? null,
+    skiCrossMap: pinnedFor(chosen, "skiCross", linkSeed)?.name ?? null,
     trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
   };
 }
@@ -519,11 +596,15 @@ export function ladderAfter(levelId: string, progress: CampaignProgress): Ladder
 
 /** Versioned, so a board a later ladder reshapes is a board it can
  * recognise: the board is keyed by MAP ID and the ids are rung numbers, so a
- * re-cut shelf would land a row on water nobody rode. v3 is the ladder re-cut
- * as SKI AREAS (R25–R28) — a shelf one resort, its maps six of its courses,
- * its ids the area's (`rime-1` …) — so a row of the graded ladder before it
- * (`green-1` …) carried in by the cloud save names no map and is dropped. */
-export const PROGRESS_KEY = "fall-line.campaign.v3";
+ * re-cut shelf would land a row on water nobody rode. v3 was the ladder
+ * re-cut as SKI AREAS (R25–R28) — a shelf one resort, its maps six of its
+ * courses, its ids the area's (`rime-1` …). v4 keeps the ids and moves every
+ * map onto the generator that stands its stations beside the runs (four new
+ * ski areas, new courses), so a v3 board is left where it lies rather than
+ * read onto maps it was never won on. v5 keeps the ids and the maps and
+ * turns every race rung into a SLALOM (R31): a podium on a course the old
+ * board's places were never won on. */
+export const PROGRESS_KEY = "fall-line.campaign.v5";
 
 /** A stored blob turned into progress this build can stand on: every id
  * checked against this ladder, every figure checked for being a number, and
@@ -533,6 +614,10 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
   const out: CampaignProgress = { results: {}, points: {} };
   if (typeof parsed !== "object" || parsed === null) return out;
   const known = new Set(CAMPAIGN_LEVELS.map((l) => l.id));
+  // The rungs raced as a DOWNHILL now, which were trials once: a row there
+  // with a medal on it is a trial's — kept as the clear it paid (a trial's
+  // place is 1st), its time down the unset course dropped.
+  const downhills = new Set(CAMPAIGN_LEVELS.filter((l) => l.mode === "downhill").map((l) => l.id));
   const blob = parsed as { results?: unknown; points?: unknown };
   if (typeof blob.results === "object" && blob.results !== null) {
     for (const [id, row] of Object.entries(blob.results as Record<string, unknown>)) {
@@ -540,6 +625,10 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
       const r = row as Partial<LevelResult>;
       if (!Number.isInteger(r.place) || (r.place as number) < 1) continue;
       const medal = MEDALS.find((m) => m === r.medal) ?? null;
+      if (downhills.has(id) && medal !== null) {
+        out.results[id] = { place: 1, medal: null };
+        continue;
+      }
       const kept: LevelResult = { place: r.place as number, medal };
       // The time and the skis come as a pair or not at all.
       const timed = typeof r.best === "number" && Number.isFinite(r.best) && r.best >= 0;

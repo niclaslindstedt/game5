@@ -16,10 +16,16 @@
 // stands on the start line four abreast, facing down the piste.
 //
 // `flatLevel()` is a drag strip: a huge flat square, all packed or all
-// powder, an optional grade FALLING along +z past `slopeFrom`, with a
-// straight piste down its middle only so the Level is whole.
+// powder, an optional grade FALLING along +z past `slopeFrom` and an
+// optional run of ROLLERS across it (`bumps`), with a straight piste down
+// its middle only so the Level is whole.
+//
+// Both are skied in STILL AIR (`STILL_AIR`): a figure taken on the bench is
+// the skier's own, with no wind in it. A test that wants the wind asks for
+// it with `withSky`.
 
 import {
+  CLEAR_WEATHER,
   createHeightfield,
   fillField,
   sampleField,
@@ -29,7 +35,11 @@ import {
   type Spawn,
   type TrackPoint,
   type TreeDef,
+  type Weather,
 } from "@engine";
+
+/** The bench's sky: clear, and not a breath of wind. */
+export const STILL_AIR: Readonly<Weather> = { ...CLEAR_WEATHER, wind: 0 };
 
 /** The slope's geometry, m. */
 export const SLOPE = {
@@ -183,6 +193,7 @@ function levelFrom(
     grid,
     trees,
     sun: { hour: 13, dayOfYear: 60, latitude: 46 },
+    weather: STILL_AIR,
     laps: 1,
   };
 }
@@ -298,18 +309,51 @@ export function syntheticLevel(options: SyntheticOptions = {}): Level {
   return level;
 }
 
+/** ROLLERS ACROSS THE STRIP: a row of smooth bumps `height` m from trough
+ * to crest, one every `length` m, from z = `from` to z = `to` — the uneven
+ * ground the legs ride over and the body above them should not. */
+export type Bumps = { height: number; length: number; from: number; to: number };
+
+/** The rollers' rise at `z`, m: a raised cosine, nought outside the run of
+ * them, so the strip meets them level. */
+export function bumpAt(b: Bumps, z: number): number {
+  if (z <= b.from || z >= b.to) return 0;
+  return (b.height / 2) * (1 - Math.cos((2 * Math.PI * (z - b.from)) / b.length));
+}
+
 /** THE DRAG STRIP: flat snow `size` m square, packed everywhere (`packed`
  * 1) or powder everywhere (0), with an optional slope FALLING along +z at
- * `grade` (m/m) past z = `slopeFrom`, and a straight piste down its middle
- * from z = 100 to z = size − 100. */
+ * `grade` (m/m) past z = `slopeFrom` — RUN OUT onto the level again past
+ * z = `runOut.at`, the grade easing off over `runOut.bend` m (a
+ * compression of a constant curvature, `grade / bend` per metre) —
+ * optional ROLLERS across it (`bumps`,
+ * on a metre grid — keep `size` small with them), and a straight piste
+ * down its middle from z = 100 to z = size − 100. */
 export function flatLevel(
-  options: { packed?: number; size?: number; grade?: number; slopeFrom?: number } = {},
+  options: {
+    packed?: number;
+    size?: number;
+    grade?: number;
+    slopeFrom?: number;
+    runOut?: { at: number; bend: number };
+    bumps?: Bumps;
+  } = {},
 ): Level {
   const size = options.size ?? 3000;
   const packedShare = options.packed ?? 1;
   const grade = options.grade ?? 0;
   const from = options.slopeFrom ?? size;
-  const height = (_x: number, z: number): number => (z > from ? -(z - from) * grade : 0);
+  const bumps = options.bumps;
+  const out = options.runOut;
+  // How far the strip has fallen by `z`: the grade's own, eased off to the
+  // level over the run-out's bend.
+  const fallen = (z: number): number => {
+    if (z <= from) return 0;
+    if (!out || z <= out.at) return (z - from) * grade;
+    const u = Math.min(z - out.at, out.bend);
+    return grade * (out.at - from + u - (u * u) / (2 * out.bend));
+  };
+  const height = (_x: number, z: number): number => -fallen(z) + (bumps ? bumpAt(bumps, z) : 0);
   const m = 100;
   const length = size - 2 * m;
   const n = Math.round(length / 2);
@@ -321,7 +365,8 @@ export function flatLevel(
   return levelFrom(
     2,
     size,
-    10,
+    // A bump is a few metres long: the grid fine enough to carry it.
+    bumps ? 1 : 10,
     height,
     () => packedShare,
     points,

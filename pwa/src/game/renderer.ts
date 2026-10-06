@@ -6,21 +6,20 @@
 //   terrain.ts      the ground: a clipmap round the lens, shaded as snow
 //   trail-map.ts    every furrow any skier has cut, lowering that snow
 //   forest.ts       the snow-loaded conifers, two bands and their casters
-//   gates.ts        the gates' poles and panels, the start hut, the finish
+//   gates.ts        the gates (a slalom's flex poles), the start, the finish
 //                   arena and its floodlights, the piste's edge poles
 //   lifts.ts        the resort's lifts, and its wind tunnels (wind-tunnels.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
-//   spray.ts        the edge's sheet, the skid's wall and the landing puff
-//   snow-cloud.ts   the fine powder they raise: the plume, the hanging cloud
-//   snowpack.ts     what kind of snow lies where (both, and the trails)
+//   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
+//   machines.ts     the free ride's helicopter and snowmobile
 //   snowfall.ts     the snow falling round the lens, the spindrift
 //   ghost-model.ts  the time trial's ghost, see-through and trail-less
 //   wildlife.ts     the birds over the woods, the animals and their prints
-//   camera.ts      the ladder of lenses and the hand-over between them
+//   spectators.ts   the free ride's amateurs, and a race's crowd watching
+//   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
 //
-// WHAT IT COSTS is the picture it is handed (`settings-video.ts`): every
-// module above is built or tuned off one `VideoSettings`, and `setVideo` is
-// the one place a row of OPTIONS ▸ PICTURE becomes a draw call.
+// WHAT IT COSTS is the picture it is handed (`settings-video.ts`): `setVideo`
+// is the one place a row of OPTIONS ▸ PICTURE becomes a draw call.
 //
 // It READS `GameState` and never writes it. Everything that depends on the
 // map is built in `load`; `draw` only moves things. Every skier — the player
@@ -35,10 +34,10 @@ import {
   totalMass,
   weatherOf,
   windAt,
+  windFromOf,
   withSky,
   type GameState,
   type Level,
-  type SkiId,
   type SkiSpec,
   type SkierState,
   type SkyOverride,
@@ -46,18 +45,24 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
-import { createLens, type Lens } from "./camera.ts";
-import { createLineClear } from "./camera-clear.ts";
+import { createLens, lensRay, type Lens } from "./camera.ts";
+import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { createTvCamera } from "./camera-tv.ts";
-import type { LensPose, LineClear, RigPose } from "./camera-rigs.ts";
+import type { LensPose, LineClear, RigPose, TrunksNear } from "./camera-rigs.ts";
+import { freshRigPose } from "./camera-rigs.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
+import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createLifts, type Lifts } from "./lifts.ts";
+import { summitShare } from "./camera-summit.ts";
+import { createRideMemory, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
+import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
-import { LAMP_SLOTS, hazeMaterial } from "./haze.ts";
+import { hazeMaterial } from "./haze.ts";
+import { dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
 import {
   createBodyTrack,
@@ -73,8 +78,10 @@ import {
 import { createRegionPicture } from "./region-picture.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
-import { createSkisModel, SKI_STYLES, styleIn, type SkisModel } from "./skis-body.ts";
-import { topsheetOf } from "./ski-topsheets.ts";
+import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
+import { inStartGate } from "./skier-spring.ts";
+import { outfitKey } from "./dress.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -107,11 +114,8 @@ import { createTerrain, type Terrain } from "./terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
+import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import { loadTreeModels } from "./tree-models.ts";
-import { loadBirdModels } from "./bird-models.ts";
-import { loadBeastModels } from "./beast-models.ts";
-import { loadGateModels } from "./gate-models.ts";
 import {
   bodyStampOf,
   createPen,
@@ -121,16 +125,11 @@ import {
   type TrailPen,
 } from "./trail-stamp.ts";
 
-// The modelled skis, skiers and trees, fetched before the kit is handed
-// out (`use-render-kit.ts`), when this build draws them.
+// The modelled skis and skiers, fetched before the kit is handed out
+// (`use-render-kit.ts`), when this build draws them. Everything else is
+// built in code.
 export async function loadModels(): Promise<void> {
-  await Promise.all([
-    loadSkierModels(),
-    loadTreeModels(),
-    loadBirdModels(),
-    loadBeastModels(),
-    loadGateModels(),
-  ]);
+  await loadSkierModels();
 }
 
 export type RendererOptions = {
@@ -178,21 +177,21 @@ const CLOUD_HEIGHT = 1400;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
-/** A RIVAL nearer the lens's eye than this share of the eye's reach to
- * the player is not drawn that frame: the field bunched behind the player
- * out of the start puts one in the boom's own spot, and the back of his
- * helmet would fill the picture. A share rather than metres, so the far
- * boom keeps the same rule at its own length. */
+/** A RIVAL nearer the lens's eye than this share of the eye's reach to the
+ * player is not drawn that frame where the lens TRAILS him: the field
+ * bunched behind puts one in the boom's own spot, his helmet filling the
+ * picture. A lens circling him or planted by the piste sees the field ski
+ * PAST in plain view, so it drops only one within `LENS_TOUCH` m of it. */
 const LENS_CROWD = 0.55;
+const LENS_TOUCH = 1.5;
 
 type Rider = {
   model: SkisModel;
   /** The pair the model was built off: a run on another one is a new
    * model, even on the same map and in the same slot. */
   spec: SkiSpec;
-  /** The topsheet it was dressed in (`ski-topsheets.ts`), or -1 for its
-   * start-line slot's own colours. */
-  livery: number;
+  /** The outfit the skier was dressed in (`outfitKey`). */
+  kit: string;
   track: PoseTrack;
   pen: TrailPen;
   drawn: Pose;
@@ -225,6 +224,7 @@ const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   spray: "spray",
   snowfall: "snowfall",
   wildlife: "wildlife",
+  crowd: "field",
 };
 
 /** The runs a frame draws: the player's first, then the field's. */
@@ -297,9 +297,13 @@ export function createWorldRenderer(
   const sampleSnow = (x: number, z: number): SnowProps =>
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
   let wildlife: Wildlife | null = null;
+  let crowd: CrowdView | null = null;
+  let machines: Machines | null = null;
   let clear: LineClear | undefined;
-  /** The ridden booms' clear: the course's marks, never the trees. */
+  /** The ridden booms' clear: the course's marks, never the trees — they
+   * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
   let boomClear: LineClear | undefined;
+  let trunks: TrunksNear | undefined;
   let riders: Rider[] = [];
   let ghost: GhostModel | null = null;
   let ghostRun: GameState | null = null;
@@ -309,11 +313,9 @@ export function createWorldRenderer(
   /** The new snow the trail maps have been filled by, m (`trail.fill`). */
   let filled = 0;
   let override: LensPose | null = null;
-  /** THE DEATH CAM: its state, whether the app lets it take the lens, and
-   * the time rate it last handed the app (`timeRate`). */
+  /** THE DEATH CAM: its state, and whether the app lets it take the lens. */
   const death = createDeathCam();
   let deathOn = false;
-  let handed = 1;
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
   let box = { width: 1, height: 1, pixelRatio: 1 };
@@ -365,21 +367,8 @@ export function createWorldRenderer(
     if (live) timer.pop();
   };
   const lensDir = new THREE.Vector3();
-  const rigPose: RigPose = {
-    x: 0,
-    y: 0,
-    z: 0,
-    heading: 0,
-    pitch: 0,
-    roll: 0,
-    vx: 0,
-    vy: 0,
-    vz: 0,
-    speed: 0,
-    airborne: false,
-    packed: 1,
-    q: { x: 0, y: 0, z: 0, w: 1 },
-  };
+  const rigPose: RigPose = freshRigPose();
+  const rideMem = createRideMemory();
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
@@ -391,6 +380,8 @@ export function createWorldRenderer(
     spray?.dispose();
     cloud?.dispose();
     wildlife?.dispose();
+    crowd?.dispose();
+    machines?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -400,6 +391,8 @@ export function createWorldRenderer(
       spray?.points,
       cloud?.mesh,
       wildlife?.group,
+      crowd?.group,
+      machines?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -407,11 +400,12 @@ export function createWorldRenderer(
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
-    cloud = null;
+    cloud = machines = null;
     pack = null;
-    wildlife = null;
+    wildlife = crowd = null;
     clear = undefined;
     boomClear = undefined;
+    trunks = undefined;
     riders = [];
     level = null;
     skyLevel = null;
@@ -420,6 +414,8 @@ export function createWorldRenderer(
   }
 
   const breathe = () => new Promise<void>((done) => setTimeout(done, 0));
+  /** Loads begun: one superseded stops at its next breath, adding nothing. */
+  let loads = 0;
 
   /** The trail maps and the ground that reads them, built for the picture in
    * force. One step, because the ground's shader holds the maps' uniforms by
@@ -442,21 +438,23 @@ export function createWorldRenderer(
     casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
   });
 
-  /** The player's topsheets, and which one slot 0's model was dressed in. */
-  let liveries: Partial<Record<SkiId, number>> = {};
-  const dressIn = (i: number, spec: SkiSpec): number => (i === 0 ? (liveries[spec.id] ?? 0) : -1);
+  /** The player's outfit: slot 0 wears it, the field its slots' own. */
+  let outfit: Outfit = DEFAULT_OUTFIT;
+  const dressOf = (i: number) =>
+    i === 0 ? { outfit } : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  const kitOf = (i: number): string => {
+    const d = dressOf(i);
+    return outfitKey(d.outfit, d.tone);
+  };
   function riderFor(i: number, spec: SkiSpec): Rider {
-    const slot = SKI_STYLES[i % SKI_STYLES.length];
-    const livery = dressIn(i, spec);
-    const style = livery < 0 ? slot : styleIn(slot, topsheetOf(spec.id, livery));
-    const model = createSkisModel(spec, style, wrap);
+    const model = createSkisModel(spec, pairStyle(spec, dressOf(i)), wrap);
     castInLight(model.root, env.haze);
     model.root.name = "field";
     scene.add(model.root);
     return {
       model,
       spec,
-      livery,
+      kit: kitOf(i),
       track: createTrack(),
       pen: createPen(16),
       drawn: { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } },
@@ -523,23 +521,6 @@ export function createWorldRenderer(
     }
   }
 
-  /** THE NIGHT'S LIGHTS at `level` (0 off … 1): a skier carries no lamp,
-   * so what lights the snow after dark is the finish arena's FLOODLIGHTS
-   * (`gates.ts`), the first `LAMP_SLOTS` of them as beams on the snow. */
-  function lightLamps(level: number) {
-    const u = env.haze;
-    for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
-    if (level <= 0 || !gates) return;
-    const floods = gates.floods;
-    for (let i = 0; i < Math.min(LAMP_SLOTS, floods.length); i++) {
-      const f = floods[i];
-      u.uLampPos.value[i].set(f.x, f.y, f.z);
-      u.uLampDir.value[i].set(f.dx, f.dy, f.dz);
-      u.uLampOn.value[i] = level;
-    }
-    gates.setLamps(level);
-  }
-
   /** THE RUN'S SNOWPACK: the map's snow under the sky it is ridden under
    * (a lab's `setSky` too), the run's dial and its new snow. */
   function packFor(state: GameState): Snowpack {
@@ -555,14 +536,17 @@ export function createWorldRenderer(
   const api: WorldRendererExt = {
     gl,
     async load(state) {
+      const mine = ++loads;
       unload();
       level = state.level;
       skyLevel = skyOverride ? withSky(level, skyOverride) : level;
       const lv = level;
       trail = buildTrail(lv);
       await breathe();
+      if (mine !== loads) return;
       terrain = buildTerrain(lv, trail);
       await breathe();
+      if (mine !== loads) return;
       forest = createForest(lv, env.haze, forestOptions());
       forest.group.name = "forest";
       scene.add(forest.group);
@@ -571,19 +555,22 @@ export function createWorldRenderer(
       gates.group.name = "checkpoints";
       clear = createLineClear(lv);
       boomClear = createLineClear(lv, { trees: false });
+      trunks = createTrunksNear(lv);
       scene.add(gates.group);
-      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray]);
+      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";
       scene.add(lifts.group);
       pack = packFor(state);
-      wildlife = createWildlife(lv, env.haze, {
+      wildlife = createWildlife(lv, env.haze, FOREST_LOOK[video.forest].wild, {
         at: sampleSnow,
         // A snowing sky has been filling last night's prints for hours.
         soften: () => (pack ? Math.min(0.75, (pack.laid / NEW_COVER) * 0.6) : 0),
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
+      crowd = createPeopleView(lv, env.haze, state.rules);
+      scene.add(crowd.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
@@ -592,26 +579,25 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
+      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow });
+      scene.add(machines.group);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
       lastState = null;
       lens.snap();
-      await breathe();
-      // Compile every program now rather than on the first frame of the run.
+      await Promise.all([breathe(), machines.ready]);
+      if (mine !== loads) return;
+      // Compile every program now, models and all, not on the run's first frame.
       const skier = state.skier;
       lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
       lens.camera.lookAt(skier.x, skier.y, skier.z);
       terrain.follow(skier.x, skier.z);
-      // Asynchronously where the driver can; three warns and falls back to
-      // a blocking compile anyway where it cannot, so ask first. Against the
-      // target the frame will be drawn into: a graded region's programs are
-      // compiled for linear output, not the canvas's.
-      // The trail maps' passes are compiled beside the scene: they are drawn
-      // on the first frame too, and are not in it.
+      // Asynchronously where the driver can (three blocks where it cannot),
+      // against the target the frame is drawn into (a graded region's are
+      // linear), and the trail maps' passes, not in the scene, beside it.
       gl.setRenderTarget(picture.load(lv));
-      // THE MOUNTAIN'S SHADOW is baked off the thread meanwhile, for the
-      // key the run opens under.
+      // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
       const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
       if (gl.extensions.has("KHR_parallel_shader_compile")) {
         await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl), shade]);
@@ -619,6 +605,8 @@ export function createWorldRenderer(
         gl.compile(scene, lens.camera);
         await Promise.all([trail.compile(gl), shade]);
       }
+      if (mine === loads) hero.render(gl, scene, [], null);
+      if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
       gl.setRenderTarget(null);
     },
 
@@ -633,7 +621,7 @@ export function createWorldRenderer(
       // chose different skis for a race on the same map — is rebuilt.
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
-        if (riders[i].spec === spec && riders[i].livery === dressIn(i, spec)) continue;
+        if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
         scene.remove(riders[i].model.root);
         riders[i].model.dispose();
         riders[i] = riderFor(i, runs[i].skier.spec);
@@ -674,7 +662,17 @@ export function createWorldRenderer(
         const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
-        r.model.pose(skier, r.drawn, r.sink, run.tricks.pose, dt, sampleBody(r.body, alpha));
+        r.model.setRun(run);
+        if (i === 0) machines?.seat(r.model, state);
+        r.model.pose(
+          skier,
+          r.drawn,
+          r.sink,
+          run.tricks.pose,
+          dt,
+          sampleBody(r.body, alpha),
+          inStartGate(run),
+        );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(
             skier.contacts,
@@ -720,26 +718,29 @@ export function createWorldRenderer(
       rigPose.vz = skier.vz;
       rigPose.speed = skier.speed;
       rigPose.airborne = skier.airborne;
+      rigPose.switched = skier.switched;
       rigPose.packed = skier.packed;
-      const inside = lens.rung() === "tips" || lens.rung() === "helmet";
-      player.model.setSkierVisible(!inside);
-      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear);
-      // THE DEATH CAM (`camera-death.ts`) takes the lens off the ladder while
-      // the player is off his skis, on WALL time: `dt` is the run's, slowed
-      // by the rate it handed out.
+      rigPose.summit = summitShare(level, d.x, d.z);
+      rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
+      // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
+      const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
+      machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
+      const own = machines?.ladder(rigPose, state);
+      player.model.setSkierVisible(lens.rung() !== "tips" && lens.rung() !== "helmet");
+      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
+      // THE DEATH CAM (`camera-death.ts`): the lens off the ladder while he is off his skis.
       let dead: LensPose | null = null;
       if (deathOn && !override && !shot && lens.rung() !== "orbit") {
-        const real = Math.min(handed > 0 ? dt / handed : dt, 0.1);
         dead = frameDeath(
           death,
           sampleBody(player.body, alpha),
           ladder,
-          real,
+          Math.min(dt, 0.1),
           level.groundAt,
           clear,
         );
         if (death.ended) lens.snap();
-      } else if (death.active || death.rate !== 1) {
+      } else if (death.active) {
         dropDeathCam(death);
       }
       // The ladder is framed underneath either way, so a lens planted for a
@@ -747,7 +748,9 @@ export function createWorldRenderer(
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
-        dead;
+        machines?.lens(ladder, Math.min(dt, 0.1)) ??
+        dead ??
+        frameStart(startMoment(state, d), ladder);
       if (planted) {
         const cam = lens.camera;
         cam.position.set(planted.eye.x, planted.eye.y, planted.eye.z);
@@ -763,7 +766,8 @@ export function createWorldRenderer(
       // A rival standing in the lens's own spot is left out of this frame.
       const eye = lens.camera.position;
       const me = player.drawn;
-      const reach = Math.hypot(me.x - eye.x, me.y - eye.y, me.z - eye.z) * LENS_CROWD;
+      const far = Math.hypot(me.x - eye.x, me.y - eye.y, me.z - eye.z) * LENS_CROWD;
+      const reach = !planted && lens.rung() !== "orbit" ? Math.max(LENS_TOUCH, far) : LENS_TOUCH;
       for (let i = 1; i < riders.length; i++) {
         const at = riders[i].drawn;
         riders[i].model.root.visible = Math.hypot(at.x - eye.x, at.y - eye.y, at.z - eye.z) > reach;
@@ -778,6 +782,7 @@ export function createWorldRenderer(
         TRAIL_LOOK[video.trails].stamp ? stamps : null,
         { x: fine.uFineOrigin.value.x, z: fine.uFineOrigin.value.y, span: fine.uFineSpan.value },
       );
+      crowd?.update(state, lens.camera.position);
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       // THE NEW SNOW: it settles into every trail and buries the groomer.
@@ -788,30 +793,32 @@ export function createWorldRenderer(
       timer.pop();
       env.haze.uFresh.value = state.fresh;
       const trailed = performance.now();
-      terrain.follow(lens.camera.position.x, lens.camera.position.z);
+      terrain.follow(lens.camera.position.x, lens.camera.position.z, lens.camera);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);
       windAt(sky, state.t, wind);
       // The cloud goes with the MEAN wind — its gusts are the air down here.
-      const weather = weatherOf(sky);
-      const carried = (weather.wind * state.t) / CLOUD_HEIGHT;
+      const carried = (weatherOf(sky).wind * state.t) / CLOUD_HEIGHT;
+      const from = windFromOf(sky);
       env.update(look, lens.camera, d.y, {
-        x: -Math.sin(weather.windFrom) * carried,
-        z: -Math.cos(weather.windFrom) * carried,
+        x: -Math.sin(from) * carried,
+        z: -Math.cos(from) * carried,
       });
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {
         heroModels.length = 0;
         for (const r of riders) heroModels.push(r.model);
         timer.push("hero");
-        if (!hidden.has("hero")) hero.render(gl, scene, heroModels, env.shadow());
+        hero.render(gl, scene, heroModels, hidden.has("hero") ? null : env.shadow());
         timer.pop();
       }
-      gates?.update(state.progress.nextCheckpoint, state.t);
-      lifts?.update(state.t);
-      lightLamps(look.lamps);
+      gates?.update(state);
+      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft);
+      // THE NIGHT'S LIGHTS: every headlamp, the arena's floods, the piste's masts.
+      dealLamps(env.haze, look.lamps, riders, gates?.floods ?? [], lens.camera.position);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
+      gates?.setLamps(look.lamps, pixels);
       spray.setScale(pixels);
       spray.update(Math.min(dt, 0.1), look, level);
       // The ladder's lens looks through the player's own tail at him; a
@@ -889,8 +896,8 @@ export function createWorldRenderer(
       };
     },
 
-    dress(picks) {
-      liveries = { ...picks };
+    dress(kit) {
+      outfit = kit;
     },
     setGhost(run) {
       ghostRun = run;
@@ -902,10 +909,6 @@ export function createWorldRenderer(
 
     setDeathCam(on) {
       deathOn = on;
-    },
-    timeRate() {
-      handed = deathOn ? death.rate : 1;
-      return handed;
     },
 
     setShot(next) {
@@ -927,9 +930,8 @@ export function createWorldRenderer(
     setCamera(rung: CameraRung, cut: boolean = false) {
       lens.set(rung, cut);
     },
-    camera() {
-      return lens.rung();
-    },
+    camera: () => lens.rung(),
+    pickRay: (x, y) => lensRay(lens.camera, x, y),
     resize(width, height, pixelRatio) {
       box = { width, height, pixelRatio };
       gl.setPixelRatio(pixelRatio * RESOLUTION_SHARE[video.resolution]);
@@ -951,6 +953,7 @@ export function createWorldRenderer(
       lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);
       forest?.setOptions(forestOptions());
+      wildlife?.setLook(FOREST_LOOK[video.forest].wild);
       // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch,
       // its reach and a map's size are what their buffers were allocated
       // at. New trail maps lose the trails cut so far — this is pressed over

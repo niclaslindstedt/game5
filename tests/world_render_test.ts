@@ -6,8 +6,18 @@
 // (`interp.ts`). The shaders and the meshes are judged by LOOKING
 // (`make world`); what can be said in numbers is said here.
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { createGame, placeRun, step, NEUTRAL_INPUT, TUNING, type SnowContact } from "@engine";
+import {
+  createGame,
+  placeRun,
+  sledPilot,
+  step,
+  unrotate,
+  NEUTRAL_INPUT,
+  TUNING,
+  type SnowContact,
+} from "@engine";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 import {
@@ -15,22 +25,18 @@ import {
   createBoomState,
   FRAME_AT,
   frameRig,
+  MAGNET,
   PACE,
   PULL_MIN,
   RIGS,
   turn,
   type RigPose,
+  type TrunksNear,
 } from "../pwa/src/game/camera-rigs.ts";
-import { createLineClear } from "../pwa/src/game/camera-clear.ts";
+import { createLineClear, createTrunksNear } from "../pwa/src/game/camera-clear.ts";
 import { createTrack, nlerp, observe, sample } from "../pwa/src/game/interp.ts";
-import {
-  BODY,
-  MOUNTS,
-  ragdollPose,
-  skierPose,
-  solveLimb,
-  type BodyFrame,
-} from "../pwa/src/game/skier-pose.ts";
+import { BODY, MOUNTS, skierPose, SHIN_ABOVE_CUFF, solveLimb } from "../pwa/src/game/skier-pose.ts";
+import { ragdollPose, type BodyFrame } from "../pwa/src/game/skier-ragdoll.ts";
 import { airMass, skyLookAt, skyLookFor, sunDirection, sunTint } from "../pwa/src/game/sky.ts";
 import {
   bodyStampOf,
@@ -213,15 +219,16 @@ describe("the camera ladder", () => {
   it("follows a turn rather than copying it", () => {
     const st = createBoomState();
     frameRig(RIGS.chase, pose(), st, 1 / 60, flat);
-    frameRig(
-      RIGS.chase,
-      pose({ heading: 1, vx: Math.sin(1) * 10, vz: Math.cos(1) * 10 }),
-      st,
-      1 / 60,
-      flat,
-    );
-    expect(st.yaw).toBeGreaterThan(0);
-    expect(st.yaw).toBeLessThan(0.2);
+    for (let i = 0; i < 3; i++)
+      frameRig(
+        RIGS.chase,
+        pose({ heading: 1, vx: Math.sin(1) * 10, vz: Math.cos(1) * 10 }),
+        st,
+        1 / 60,
+        flat,
+      );
+    expect(st.yaw.y).toBeGreaterThan(0);
+    expect(st.yaw.y).toBeLessThan(0.2);
   });
 
   it("keeps the lens out of the hill", () => {
@@ -299,10 +306,18 @@ describe("the rider stays in the picture", () => {
     }
   });
 
-  it("leaves the look alone on level snow", () => {
-    const st = createBoomState();
-    const lens = frameRig(RIGS.chase, pose(), st, 1 / 60, flat);
-    expect(lens.target.y).toBeCloseTo(10 + (RIGS.chase as { aimHeight: number }).aimHeight, 9);
+  it("composes the skier under the middle of the frame on level snow", () => {
+    for (const rung of ["chase", "far", "high"] as const) {
+      const st = createBoomState();
+      let o = 0;
+      for (let i = 0; i < 120; i++) {
+        const p = pose({ z: 100 + (i * 10) / 60 });
+        o = offAxis(frameRig(RIGS[rung], p, st, 1 / 60, flat), p);
+      }
+      const place = (RIGS[rung] as { place: number }).place;
+      expect(o).toBeLessThan(0);
+      expect(Math.abs(o + place)).toBeLessThan(0.05);
+    }
   });
 });
 
@@ -365,13 +380,13 @@ describe("the sense of speed", () => {
 describe("the lens kept out of the woods", () => {
   const level = syntheticLevel();
   const clear = createLineClear(level);
-  // Riding north (+z) four metres past the lone spruce: the boom's arm runs
+  // Riding north (+z) three metres past the lone spruce: the boom's arm runs
   // straight back through its crown.
   const past = () =>
     pose({
       x: LONE_TREE.x,
-      z: LONE_TREE.z + 4,
-      y: level.groundAt(LONE_TREE.x, LONE_TREE.z + 4) + 0.5,
+      z: LONE_TREE.z + 3,
+      y: level.groundAt(LONE_TREE.x, LONE_TREE.z + 3) + 0.5,
     });
 
   it("reads a line through a crown as blocked and one in the open as clear", () => {
@@ -414,6 +429,134 @@ describe("the lens kept out of the woods", () => {
     expect(st.pull).toBeGreaterThan(pulled);
     expect(st.pull).toBeLessThan(1);
   });
+
+  /** The chase boom ridden north past the lone spruce at 12 m/s, `beside` m
+   * east of its trunk (and drifting `drift` m east a second): every lens,
+   * and the boom's last state. The speed it READS is under the tremor's,
+   * so the buzz does not stir the metres measured. */
+  const rideBy = (beside: number, trunks?: TrunksNear, drift = 0) => {
+    const boomClear = createLineClear(level, { trees: false });
+    const st = createBoomState();
+    const lenses: ReturnType<typeof frameRig>[] = [];
+    const poses: RigPose[] = [];
+    for (let i = 0; i < 240; i++) {
+      const z = LONE_TREE.z - 25 + (12 * i) / 60;
+      const x = LONE_TREE.x + beside + (drift * i) / 60;
+      const p = pose({ x, z, y: level.groundAt(x, z) + 0.5, vx: drift, vz: 12, speed: 8 });
+      poses.push(p);
+      lenses.push(frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, trunks));
+    }
+    return { lenses, poses, st };
+  };
+  const bark = (eye: { x: number; z: number }) =>
+    Math.hypot(eye.x - LONE_TREE.x, eye.z - LONE_TREE.z) - 0.35;
+
+  it("keeps the ridden boom a metre off a trunk it rides past, never pulling it in", () => {
+    const trunks = createTrunksNear(level);
+    for (const beside of [1.2, -1.2, 0.6, 0]) {
+      const straight = rideBy(beside);
+      const pushed = rideBy(beside, trunks);
+      expect(Math.min(...straight.lenses.map((l) => bark(l.eye)))).toBeLessThan(MAGNET.gap);
+      const closest = Math.min(...pushed.lenses.map((l) => bark(l.eye)));
+      expect(closest).toBeGreaterThan(MAGNET.gap - 1e-6);
+      // A metre, not a swing: never further off its own path than the push
+      // needs, and never a jump from one frame to the next.
+      let widest = 0;
+      let leap = 0;
+      pushed.lenses.forEach((l, i) => {
+        widest = Math.max(
+          widest,
+          Math.hypot(l.eye.x - straight.lenses[i].eye.x, l.eye.z - straight.lenses[i].eye.z),
+        );
+        if (i > 0) {
+          const was = pushed.lenses[i - 1].eye;
+          leap = Math.max(leap, Math.hypot(l.eye.x - was.x, l.eye.z - was.z));
+        }
+      });
+      expect(widest).toBeGreaterThan(0);
+      expect(widest).toBeLessThan(0.35 + MAGNET.gap + MAGNET.soft);
+      expect(leap).toBeLessThan(0.5);
+      expect(pushed.st.pull).toBe(1);
+    }
+  });
+
+  it("lets a lens that clears the trunk by more than the band ride straight by", () => {
+    const trunks = createTrunksNear(level);
+    const beside = 0.35 + MAGNET.gap + MAGNET.soft + 0.3;
+    const straight = rideBy(beside);
+    const pushed = rideBy(beside, trunks);
+    pushed.lenses.forEach((l, i) => expect(l.eye).toEqual(straight.lenses[i].eye));
+  });
+
+  it("carries a lens whose arm swings over the trunk round it, never through it or across it at a stroke", () => {
+    const trunks = createTrunksNear(level);
+    const boomClear = createLineClear(level, { trees: false });
+    for (const dir of [1, -1]) {
+      // Stood four metres past the spruce and turning across it, so the
+      // arm behind him sweeps over the trunk.
+      const x = LONE_TREE.x;
+      const z = LONE_TREE.z + 4;
+      const st = createBoomState();
+      const free = createBoomState();
+      let slid = false;
+      let leap = 0;
+      let was: { x: number; z: number } | null = null;
+      let last = null as ReturnType<typeof frameRig> | null;
+      let alone = null as ReturnType<typeof frameRig> | null;
+      for (let i = 0; i < 300; i++) {
+        const heading = dir * (-0.8 + (1.6 * Math.min(i, 180)) / 180);
+        const p = pose({ x, z, y: level.groundAt(x, z) + 0.5, heading, vz: 0, speed: 0 });
+        last = frameRig(RIGS.chase, p, st, 1 / 60, level.groundAt, boomClear, trunks);
+        alone = frameRig(RIGS.chase, p, free, 1 / 60, level.groundAt, boomClear);
+        expect(bark(last.eye)).toBeGreaterThan(MAGNET.gap - 1e-6);
+        if (was) leap = Math.max(leap, Math.hypot(last.eye.x - was.x, last.eye.z - was.z));
+        was = last.eye;
+        slid ||= st.slide !== null;
+      }
+      expect(slid).toBe(true);
+      expect(leap).toBeLessThan(0.5);
+      expect(st.slide).toBeNull();
+      expect(last!.eye).toEqual(alone!.eye);
+    }
+  });
+
+  it("keeps the look on the skier while pushed", () => {
+    const { lenses, poses } = rideBy(0.6, createTrunksNear(level));
+    const straight = rideBy(0.6);
+    const i = lenses.findIndex((l, k) => l.eye.x !== straight.lenses[k].eye.x);
+    expect(i).toBeGreaterThan(0);
+    const lens = lenses[i];
+    const p = poses[i];
+    const ax = lens.target.x - lens.eye.x;
+    const az = lens.target.z - lens.eye.z;
+    const bx = p.x - lens.eye.x;
+    const bz = p.z - lens.eye.z;
+    expect(Math.abs(ax * bz - az * bx) / Math.hypot(ax, az) / Math.hypot(bx, bz)).toBeLessThan(
+      1e-6,
+    );
+  });
+
+  it("never moves the lens in the open, and lets it go once the tree is passed", () => {
+    const trunks = createTrunksNear(level);
+    const boomClear = createLineClear(level, { trees: false });
+    const open = pose({ x: LONE_TREE.x, z: LONE_TREE.z + 40 });
+    open.y = level.groundAt(open.x, open.z) + 0.5;
+    const free = frameRig(RIGS.chase, open, createBoomState(), 1 / 60, level.groundAt, boomClear);
+    const rode = frameRig(
+      RIGS.chase,
+      open,
+      createBoomState(),
+      1 / 60,
+      level.groundAt,
+      boomClear,
+      trunks,
+    );
+    expect(rode.eye).toEqual(free.eye);
+    const straight = rideBy(0.6);
+    const pushed = rideBy(0.6, trunks);
+    expect(pushed.lenses.at(-1)!.eye).toEqual(straight.lenses.at(-1)!.eye);
+    expect(pushed.st.sides.size).toBe(0);
+  });
 });
 
 describe("the rider's pose", () => {
@@ -454,7 +597,13 @@ describe("the rider's pose", () => {
       for (let s = 0; s < 2; s++) {
         expect(d(p.shoulders[s], p.elbows[s])).toBeCloseTo(BODY.upperArm, 2);
         expect(d(p.elbows[s], p.hands[s])).toBeCloseTo(BODY.forearm, 2);
-        expect(d(p.knees[s], p.feet[s])).toBeCloseTo(BODY.shin, 2);
+        // The cloth stops at the boot's cuff up the shin; the foot in its
+        // liner is squared below it, its frame a true one.
+        expect(d(p.knees[s], p.feet[s])).toBeCloseTo(SHIN_ABOVE_CUFF, 2);
+        const { f, n } = p.boots[s];
+        expect(Math.hypot(f.x, f.y, f.z)).toBeCloseTo(1, 6);
+        expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 6);
+        expect(f.x * n.x + f.y * n.y + f.z * n.z).toBeCloseTo(0, 6);
       }
       expect(d(p.hips, p.neck)).toBeCloseTo(BODY.spine, 2);
       // The frame is his trunk's: the neck straight up it, the hips across.
@@ -466,8 +615,10 @@ describe("the rider's pose", () => {
   });
 
   it("keeps the poles a pole's length from the fists", () => {
+    // Into a turn to his right: the look follows the engine's hip shift
+    // (which lags the key), never the key itself, which flips in a step.
     const p = skierPose({
-      hipRight: 0,
+      hipRight: 0.2,
       hipAft: 0,
       lean: 0,
       steer: 0.8,
@@ -492,16 +643,23 @@ describe("the rider's pose", () => {
       airborne: false,
       landing: 5,
     };
-    const hung = skierPose({ ...base, hipRight: 0.25, steer: 1 });
+    const hung = skierPose({ ...base, hipRight: 0.25, steer: 1, edge: 0.5 });
     expect(hung.hips.x).toBeGreaterThan(0.1);
-    // The shoulders are held level over hips hung inside: the neck stands
-    // back toward the centre.
-    expect(hung.neck.x).toBeLessThan(hung.hips.x);
+    // Angulated: the trunk leans in less than the legs do — a hinge at the
+    // hips, so the neck stands nearer the centre than the legs' line.
+    const feetX = (hung.feet[0].x + hung.feet[1].x) / 2;
+    const feetY = (hung.feet[0].y + hung.feet[1].y) / 2;
+    const legs = Math.atan2(hung.hips.x - feetX, hung.hips.y - feetY);
+    const trunk = Math.atan2(hung.neck.x - hung.hips.x, hung.neck.y - hung.hips.y);
+    expect(trunk).toBeLessThan(legs - 0.1);
     const back = skierPose({ ...base, lean: 1 });
     expect(back.pitch).toBeLessThan(skierPose(base).pitch);
-    expect(
-      Math.hypot(back.neck.x - back.hips.x, back.neck.y - back.hips.y, back.neck.z - back.hips.z),
-    ).toBeCloseTo(BODY.spine, 6);
+    // The back is two spans, never stretched: the lumbar and the chest's
+    // together are the spine's length, the chord a hair short of it.
+    const d = (a: { x: number; y: number; z: number }, b: typeof a) =>
+      Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    expect(d(back.hips, back.waist) + d(back.waist, back.neck)).toBeCloseTo(BODY.spine, 6);
+    expect(d(back.hips, back.neck)).toBeGreaterThan(BODY.spine - 0.01);
   });
 });
 
@@ -522,6 +680,37 @@ describe("drawing between two steps", () => {
     // One of the two steps back, on the line from the last frame's pose.
     expect(before).toBeCloseTo((x0 + game.skier.x) / 2, 9);
     expect(Math.hypot(out.q.x, out.q.y, out.q.z, out.q.w)).toBeCloseTo(1, 9);
+  });
+
+  it("keeps a machine under its rider, however many steps a frame takes", () => {
+    // The snowmobile and its rider drawn on the same line between the same
+    // two steps: his place on the boards as drawn is the engine's at every
+    // alpha, on a frame of one step or four (a view that kept its own
+    // previous frame shook the machine under him at the frame rate).
+    const game = createGame({ seed: 38, mode: "free", sled: true, crowd: 0, quiet: true });
+    for (let i = 0; i < 240; i++) step(game, sledPilot(game));
+    const rider = createTrack();
+    const machine = createTrack();
+    const r = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
+    const m = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
+    const onBoards = (a: typeof r, b: typeof r) =>
+      unrotate(b.q, { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+    for (const k of [2, 3, 2, 3, 1, 4, 2, 3]) {
+      for (let i = 0; i < k; i++) step(game, sledPilot(game));
+      observe(rider, game.skier, game.tick);
+      observe(machine, game.sled!, game.tick);
+      const truth = onBoards(game.skier, game.sled!);
+      for (const alpha of [0, 0.5, 1]) {
+        const on = onBoards(sample(rider, alpha, r), sample(machine, alpha, m));
+        expect(Math.hypot(on.x - truth.x, on.y - truth.y, on.z - truth.z)).toBeLessThan(0.005);
+      }
+    }
+    // And both machines ARE drawn on that line.
+    for (const view of ["sled-view.ts", "heli-view.ts"]) {
+      const src = readFileSync(new URL(`../pwa/src/game/${view}`, import.meta.url), "utf8");
+      expect(src).toMatch(/observe\(track, /);
+      expect(src).toMatch(/sample\(track, alpha, /);
+    }
   });
 
   it("blends quaternions the short way round", () => {

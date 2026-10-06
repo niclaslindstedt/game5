@@ -18,12 +18,20 @@
 //                   off the recorded run (see `ride-lab.mjs`'s `record`)
 //   mode            optional: the mode whose rules the run is dealt — the
 //                   trick scenarios ride "tricks", so the strokes are read
+//   technique       optional: how the skier works the ski (`technique.ts`)
+//                   over the mode's own — the slalom scenarios ride
+//                   "slalom"
 //   snow            optional: the run's snow dial (`SNOW_DIAL`) — the deep
 //                   scenarios ski a metre of fresh snow (2.5)
+//
+// The bench is skied in STILL AIR (`S.STILL_AIR`); the `wind-*` scenarios
+// deal a sky with a wind in it (`windy`), stated at 10 m as R19 states it —
+// some three quarters of it reaches the skier's body.
 
 import {
   TUCK,
   IDLE,
+  switchRide,
   hold,
   tail,
   fmt,
@@ -50,6 +58,11 @@ import {
   TOP,
   onPitch,
 } from "./ride-helpers.mjs";
+import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
+import { SPEED_SCENARIOS } from "./ride-speed.mjs";
+
+/** The fastest the snow slid across the skis over a run, m/s. */
+const maxSideSlip = (run) => run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0);
 
 export const SCENARIOS = [
   {
@@ -102,6 +115,33 @@ export const SCENARIOS = [
         ["at 5 s km/h", fmt(run.frames.find((x) => x.t >= 5).speed * 3.6, 1)],
         ["at 10 s km/h", fmt(f.speed * 3.6, 1)],
         ["metres", fmt(f.dist, 1)],
+      ];
+    },
+  },
+  {
+    id: "pivot",
+    title: "stood still on the flat, only the right key held for 3 s: stepped round on the spot",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 300, heading: 0 }),
+    seconds: 4,
+    view: "plan",
+    input: (t) => ({ ...IDLE, steer: t < 3 ? 1 : 0 }),
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const turned = (until) => {
+        const fs = run.frames.filter((x) => x.t <= until);
+        let a = 0;
+        for (let i = 1; i < fs.length; i++) {
+          const d = fs[i].heading - fs[i - 1].heading;
+          a += Math.atan2(Math.sin(d), Math.cos(d));
+        }
+        return a * (180 / Math.PI);
+      };
+      return [
+        ["at 1 s deg", fmt(turned(1), 0)],
+        ["at 3 s deg", fmt(turned(3), 0)],
+        ["let go deg", fmt(turned(Infinity), 0)],
+        ["moved m", fmt(f.dist, 2)],
       ];
     },
   },
@@ -243,6 +283,10 @@ export const SCENARIOS = [
     input: (t, st) => ({ ...TUCK, steer: 1, ...hold(st, 80) }),
     measure: turn,
   },
+  // The slalom racer's technique (`ride-slalom.mjs`).
+  ...SLALOM_SCENARIOS,
+  // The speed skier's, on the speed ski (`ride-speed.mjs`, R34).
+  ...SPEED_SCENARIOS,
   {
     id: "jump-tap",
     title: "the jump tapped at 50 km/h on flat packed snow",
@@ -360,25 +404,33 @@ export const SCENARIOS = [
   },
   {
     id: "catch",
-    title: "an edge caught: the skis flung across at 70 km/h, then stood on their edge",
+    title: "an edge caught: slid sideways at 45 km/h with the skis stood up on their edge",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 300, heading: Math.PI / 2, speed: 0 }),
+    // Facing across the strip and sliding down it: the snow crosses the
+    // skis at the whole of the speed, and the edge is already over.
+    prepare: (st) => {
+      st.skier.vx = 0;
+      st.skier.vz = 45 / 3.6;
+      st.skier.edge = 1;
+    },
+    seconds: 4,
+    view: "plan",
+    input: () => ({ ...IDLE, steer: 1 }),
+    measure: (run) => [["worst side slip m/s", fmt(maxSideSlip(run), 1)], ...wipeout(run)],
+  },
+  {
+    id: "catch-held",
+    title: "a hockey stop let go at 70 km/h onto full edge — the edge bites and is held",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({ x: 1500, z: 300, heading: 0, speed: 70 / 3.6 }),
     seconds: 6,
     view: "plan",
     // Half a second of hockey stop puts the skis across the way at speed;
     // the brake let go with the edge still full is a ski stood over while
-    // the snow slides across it — the high-side.
+    // the snow slides across it — a save, short of a high-side.
     input: (t) => ({ ...IDLE, steer: 1, brake: t < 0.5 ? 1 : 0 }),
-    measure: (run) => [
-      [
-        "worst side slip m/s",
-        fmt(
-          run.frames.reduce((m, f) => Math.max(m, f.sideSlip), 0),
-          1,
-        ),
-      ],
-      ...wipeout(run),
-    ],
+    measure: (run) => [["worst side slip m/s", fmt(maxSideSlip(run), 1)], ...wipeout(run)],
   },
   {
     id: "carve-powder",
@@ -576,8 +628,24 @@ export const SCENARIOS = [
     },
   },
   {
-    id: "nose-in",
-    title: "a landing taken 40 degrees over the tips at 60 km/h",
+    id: "shoulder",
+    title: "a trunk taken on the shoulder: slid into it sideways at 18 km/h, skiing past at 50",
+    level: (S) => S.syntheticLevel(),
+    place: (S) => ({ x: S.LONE_TREE.x - 0.8, z: S.LONE_TREE.z, heading: 0, speed: 14 }),
+    prepare: (st) => {
+      st.skier.vx = 5;
+    },
+    seconds: 4,
+    view: "plan",
+    input: () => TUCK,
+    measure: (run) => {
+      const hit = run.events.find((e) => e.kind === "hit");
+      return [["hit km/h", hit ? fmt(hit.speed * 3.6, 1) : "—"], ...wipeout(run)];
+    },
+  },
+  {
+    id: "nose-save",
+    title: "a landing taken 40 degrees over the tips at 60 km/h — slapped down and saved",
     level: (S) => S.flatLevel({ packed: 1 }),
     place: () => ({
       x: 1500,
@@ -595,6 +663,37 @@ export const SCENARIOS = [
       const land = run.events.find((e) => e.kind === "land");
       return [["impact m/s", land ? fmt(land.impact) : "—"], ...wipeout(run)];
     },
+  },
+  {
+    id: "nose-in",
+    title: "a landing taken 57 degrees over the tips at 60 km/h — the tips spear the snow",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 60 / 3.6,
+      height: 2.5,
+      vy: -3,
+      pitch: -1,
+    }),
+    seconds: 6,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const land = run.events.find((e) => e.kind === "land");
+      return [["impact m/s", land ? fmt(land.impact) : "—"], ...wipeout(run)];
+    },
+  },
+  {
+    id: "drop-side",
+    title: "dropped 1.5 m at 70 km/h onto his side",
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6, height: 2.5, roll: 1.5 }),
+    seconds: 6,
+    view: "profile",
+    input: () => TUCK,
+    measure: (run) => [...landed(run), ...wipeout(run)],
   },
   {
     id: "rollover",
@@ -729,14 +828,33 @@ export const SCENARIOS = [
     }),
     measure: balance,
   },
-  trick("backflip", "a backflip off a staged launch over flat snow", (t) => ({
-    lean: t < 1.2 ? 1 : 0,
+  trick(
+    "backflip",
+    "a backflip off a staged launch onto a landing slope: one tap of the lean back",
+    (t) => ({
+      lean: t < 0.1 ? 1 : 0,
+    }),
+  ),
+  trick("frontflip", "a front flip onto a landing slope: one tap of the lean forward", (t) => ({
+    lean: t < 0.1 ? -1 : 0,
   })),
-  trick("frontflip", "a front flip over flat snow: the weight thrown forward", (t) => ({
-    lean: t < 1.2 ? -1 : 0,
+  trick("spin", "a 360 onto a landing slope: the edge tapped over twice", (t) => ({
+    steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0,
   })),
-  trick("spin", "a 360 over flat snow: the edge thrown over", (t) => ({ steer: t < 0.4 ? 1 : 0 })),
-  trick("pose", "a spread over flat snow, let go before the landing", (t) => ({
+  trick(
+    "half",
+    "a 180 onto a landing slope: the edge tapped over once, ridden away switch",
+    (t) => ({
+      steer: t < 0.05 ? 1 : 0,
+    }),
+  ),
+  switchRide("switch", "turned round on a 14° groomer, ridden backward, then steered right", 1),
+  switchRide(
+    "switch-powder",
+    "the same in the ordinary powder: the tails dig, but a twin-tip's",
+    0,
+  ),
+  trick("pose", "a spread onto a landing slope, let go before the landing", (t) => ({
     trick: t < 0.8,
     lean: t < 0.8 ? 1 : 0,
   })),
@@ -748,14 +866,115 @@ export const SCENARIOS = [
     place: (S) => atKicker(S, 70, 75),
     seconds: 6,
     view: "profile",
-    // The lean held from the foot of the ramp — one stroke at the lip — and
-    // let go past half a turn; the weight forward checks the last quarter.
-    input: (t, st) => {
-      const turned = st.tricks.rotation;
-      return { ...TUCK, lean: turned < 3.5 && t < 3.2 ? 1 : turned > 5 ? -1 : 0 };
-    },
+    // The lean held from the foot of the ramp — one stroke at the lip,
+    // however long it is held — and let go past half the loop.
+    input: (t, st) => ({ ...TUCK, lean: st.tricks.rotation < 3 && t < 3.2 ? 1 : 0 }),
     measure: tricked,
   },
 ];
+
+/** A map under a clear sky with `wind` m/s at 10 m blowing FROM `from`
+ * (0 from +z, so in the face of a skier faced down the strip; π behind
+ * him; −π/2 toward his right). */
+const windy = (S, level, wind, from) => ({
+  ...level,
+  weather: { ...S.STILL_AIR, wind, windFrom: from },
+});
+
+/** Degrees the heading has come round by the end of a run. */
+const turnedDeg = (run) => fmt((run.frames[run.frames.length - 1].heading * 180) / Math.PI, 1);
+
+/** A full-edge turn to the right from 95 km/h on the flat under `from`. */
+const windTurn = (id, title, from) => ({
+  id,
+  title,
+  level: (S) => windy(S, S.flatLevel({ packed: 1 }), 18, from),
+  place: () => ({ x: 1500, z: 200, heading: 0, speed: 95 / 3.6 }),
+  seconds: 1.5,
+  view: "plan",
+  input: () => ({ ...IDLE, steer: 1 }),
+  measure: (run) => {
+    const f = run.frames[run.frames.length - 1];
+    return [
+      ["turned in 1.5 s deg", turnedDeg(run)],
+      ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ["roll deg", fmt(f.roll * 57.3, 1)],
+    ];
+  },
+});
+
+SCENARIOS.push(
+  {
+    // The wind never blows up the mountain (`wind.ts`'s `downhillFrom`): one
+    // DEALT straight up the pitch is folded down it, so this rides the same
+    // as `wind-tail` — the fold measured, not a headwind.
+    id: "wind-up",
+    title: "a tuck down the 20° pitch, 12 m/s dealt up it — folded down it",
+    level: (S) => windy(S, schussStrip(S, 1), 12, 0),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-tail",
+    title: "a tuck down the 20° pitch with a 12 m/s tailwind",
+    level: (S) => windy(S, schussStrip(S, 1), 12, Math.PI),
+    place: () => TOP,
+    seconds: 30,
+    view: "profile",
+    input: () => TUCK,
+    measure: schuss,
+  },
+  {
+    id: "wind-cross",
+    title: "hands off on the flat at 70 km/h, 15 m/s blowing from his left",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 15, -Math.PI / 2),
+    place: () => ({ x: 1500, z: 200, heading: 0, speed: 70 / 3.6 }),
+    seconds: 4,
+    view: "plan",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const settled = run.frames.filter((k) => k.t > 1);
+      const lean = settled.reduce((m, k) => m + k.roll, 0) / settled.length;
+      return [
+        ["blown aside m", fmt(f.x - 1500, 2)],
+        ["leaned into it deg", fmt(-lean * 57.3, 1)],
+        ["heading deg", turnedDeg(run)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+  windTurn(
+    "wind-turn-into",
+    "full edge right from 95 km/h, 18 m/s blowing into the turn",
+    -Math.PI / 2,
+  ),
+  windTurn(
+    "wind-turn-out",
+    "full edge right from 95 km/h, 18 m/s blowing out of the turn",
+    Math.PI / 2,
+  ),
+  {
+    id: "wind-stood",
+    title: "stood still on the flat, a 32 m/s storm at his back",
+    level: (S) => windy(S, S.flatLevel({ packed: 1 }), 32, Math.PI),
+    place: () => ({ x: 1500, z: 200, heading: 0 }),
+    seconds: 8,
+    view: "profile",
+    input: () => IDLE,
+    measure: (run) => {
+      const f = run.frames[run.frames.length - 1];
+      const moved = run.frames.find((k) => k.speed > 0.2);
+      return [
+        ["started at s", moved ? fmt(moved.t, 2) : "—"],
+        ["blown m", fmt(f.dist, 1)],
+        ["speed km/h", fmt(f.speed * 3.6, 1)],
+      ];
+    },
+  },
+);
 
 export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);

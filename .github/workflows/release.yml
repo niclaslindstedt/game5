@@ -179,15 +179,10 @@ jobs:
       - name: make build
         run: make build
         env:
-          # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
-          # drawn unless a repository variable switches one back — `make
+          # THE MODELLED SKIS (committed in pwa/models/) are
+          # drawn unless a repository variable switches them back — `make
           # ci-models MODELS=off`, no commit needed; unset is on.
           VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
-          VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-          VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
-          VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-          VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-          VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
       - name: make test
         run: make test
 
@@ -251,15 +246,10 @@ jobs:
       # The release commit is on the tag, so the build is made from exactly
       # what was tagged rather than from whatever main looks like by now.
       TAG: ${{ needs.release.outputs.tag }}
-      # THE MODELLED SKIS AND SKIERS (committed in pwa/models/) are
-      # drawn unless a repository variable switches one back — `make
+      # THE MODELLED SKIS (committed in pwa/models/) are
+      # drawn unless a repository variable switches them back — `make
       # ci-models MODELS=off`, no commit needed; unset is on.
       VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
-      VITE_MODEL_SKIERS: ${{ vars.VITE_MODEL_SKIERS }}
-      VITE_MODEL_TREES: ${{ vars.VITE_MODEL_TREES }}
-      VITE_MODEL_BIRDS: ${{ vars.VITE_MODEL_BIRDS }}
-      VITE_MODEL_BEASTS: ${{ vars.VITE_MODEL_BEASTS }}
-      VITE_MODEL_GATES: ${{ vars.VITE_MODEL_GATES }}
       # NOTARIZATION. The bundler acts on these three only once the app is
       # signed with a real Developer ID (the `Apple signing` step below), and
       # ignores them otherwise — so an unconfigured repo still packages, it

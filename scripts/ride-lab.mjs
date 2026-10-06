@@ -16,6 +16,7 @@
 //   npm run ride -- schuss --seconds 30
 //   npm run ride -- --skis eagle       one pair of the catalog
 //   npm run ride -- --skis all         every scenario on every pair, one table
+//   npm run ride -- --rider heavy      the skier of another build (defs/riders.ts)
 //   npm run ride -- --card             THE ROSTER CARD: one row a pair, the
 //                                      figures that tell the classes apart
 //   npm run ride -- backflip           a trick scenario (backflip, frontflip,
@@ -33,6 +34,7 @@ import process from "node:process";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { drawRun } from "./lib/ride-draw.mjs";
+import { slideOf } from "./lib/ride-helpers.mjs";
 import { SCENARIOS, SCENARIO_IDS } from "./lib/ride-scenarios.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +52,17 @@ const args = parseArgs(
       default: "chamois",
       help: `the pair (${E.SKI_CATALOG.map((s) => s.id).join(", ")}), or all`,
     },
+    rider: {
+      kind: "string",
+      default: "medium",
+      help: `the skier's build (${E.RIDERS.map((r) => r.id).join(", ")})`,
+    },
+    resilience: {
+      kind: "number",
+      default: 1,
+      help: "how much the skier can take before he goes down: 0 a club skier, 1 a professional",
+    },
+    "no-poles": { kind: "flag", help: "ski without poles (the hard mode)" },
     "no-png": { kind: "flag", help: "print the numbers, draw nothing" },
     card: {
       kind: "flag",
@@ -57,17 +70,23 @@ const args = parseArgs(
     },
     out: { kind: "string", default: "previews", help: "where the pictures go" },
   },
-  "usage: npm run ride -- [scenario] [--skis id|all] [--seconds s] [--no-png] [--out dir]",
+  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--no-poles] [--no-png] [--out dir]",
 );
 
 if (args.skis !== "all" && !E.isSkiId(args.skis)) {
   console.error(`unknown skis "${args.skis}" (${E.SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
-const roster =
+if (!E.isRiderId(args.rider)) {
+  console.error(`unknown rider "${args.rider}" (${E.RIDERS.map((r) => r.id).join(", ")})`);
+  process.exit(2);
+}
+const rider = E.riderById(args.rider);
+const roster = (
   args.skis === "all" || (args.card && args.skis === "chamois" && !process.argv.includes("--skis"))
     ? E.SKI_CATALOG
-    : [E.skisById(args.skis)];
+    : [E.skisById(args.skis)]
+).map((s) => E.withRider(s, rider));
 
 const wanted = args.scenario ?? args._[0];
 if (wanted && !SCENARIO_IDS.includes(wanted)) {
@@ -77,18 +96,26 @@ if (wanted && !SCENARIO_IDS.includes(wanted)) {
 const chosen = wanted ? SCENARIOS.filter((s) => s.id === wanted) : SCENARIOS;
 
 /** Ski a scenario and keep a frame every step. */
-function record(scenario, spec) {
+function record(scenario, asked) {
+  // A scenario of a discipline's own pair skis it whatever the lab asked.
+  const spec = scenario.skis ? E.skisById(scenario.skis) : asked;
   const level = scenario.level(S);
   const state = E.createGame({
     level,
     mode: scenario.mode,
+    technique: scenario.technique,
     snowDepth: scenario.snow,
     rivals: 0,
     countdown: 0,
     spec,
+    resilience: args.resilience,
+    poles: !args["no-poles"],
     quiet: true,
   });
   E.placeRun(state, scenario.place(S));
+  // A scenario that needs a moment placeRun cannot stand — the skis slid
+  // across the way, an edge already stood up — sets it here.
+  scenario.prepare?.(state, S);
   const seconds = args.seconds ?? scenario.seconds;
   const frames = [];
   const events = [];
@@ -122,6 +149,10 @@ function record(scenario, spec) {
       crouch: c.crouch,
       sideSlip: c.sideSlip,
       heading: c.heading,
+      // The skid angle: the skis' line off the way he is going, rad.
+      slide: slideOf(c),
+      // The run's hardest blow so far, g (`body.ts`).
+      peakG: c.body.peak,
       wy: c.wy,
       // The share of the skier's load on the tips — what the lean moves.
       tipLoad:
@@ -183,7 +214,10 @@ if (args.card) {
   process.exit(0);
 }
 
-console.log(`ride lab — engine ${E.engineVersion} at ${E.TUNING.physicsHz} Hz · skis ${args.skis}`);
+console.log(
+  `ride lab — engine ${E.engineVersion} at ${E.TUNING.physicsHz} Hz · skis ${args.skis}` +
+    (args.rider !== "medium" ? ` · rider ${args.rider}` : ""),
+);
 if (!args["no-png"]) mkdirSync(join(root, args.out), { recursive: true });
 for (const scenario of chosen) {
   console.log(`\n${scenario.id.padEnd(13)} ${scenario.title}`);

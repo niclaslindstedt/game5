@@ -4,6 +4,7 @@
 // the headless simulator — nothing here needs a DOM.
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { WeightedSequencer } from "./tests/support/shards.ts";
 
 export default defineConfig({
   resolve: {
@@ -20,5 +21,8 @@ export default defineConfig({
     // several times the heaviest case, so a busy runner cannot decide a
     // result.
     testTimeout: 120_000,
+    // CI's shards are cut by each file's measured time rather than by
+    // vitest's hash of its path, and the heaviest files start first.
+    sequence: { sequencer: WeightedSequencer },
   },
 });

@@ -17,24 +17,61 @@
 // a trick map's is, when the run on the snow is a tricks run on its ground
 // (its field and all), and it needs nothing to stand up again — the level
 // it stands on already carries the map's day and sky.
+//
+// A SLALOM'S SECOND RUN is stood up here too, off whichever slalom is on the
+// snow, pinned or not: the run read back off its first step's afternoon
+// (`recipeOf`) with the first run handed over as its heat (`heatAfter`). A
+// run already in its second run stands up again as its second run — the
+// heat read back off it (`heatOf`, in `recipeOf`) — so a restart never drops
+// a racer back into the first. The second run books no campaign rung: the
+// rung is booked at the first run's flag.
+//
+// A SKI CROSS stands up as its QUALIFICATION, and the plate over each of its
+// runs stands up the player's NEXT HEAT (`ski-cross-run.ts`'s
+// `nextBracket`): the run read back off its first step with the bracket as
+// it now stands handed over — the heat it names his. A heat books no rung.
+//
+// A DOWNHILL stands up as its TRAINING run (every racer starts one before
+// he may race, `downhill-run.ts`), and the plate over it — home or out —
+// stands up its RACE through the same press. A campaign rung is booked at
+// the RACE's flag, never the training's: the rig is armed for the rung only
+// when the race is stood up.
 
-import { createGame, type GameMode, type GameState, type SkiSpec } from "@engine";
+import { TUNING, botInput, createGame, step, type GameMode, type GameState } from "@engine";
 
 import type { Loader } from "./app-load.ts";
-import { isPinnedMap, pinnedFor, pinnedRun, type CampaignLevel } from "./campaign.ts";
+import {
+  isPinnedMap,
+  NO_PICKS,
+  pinnedFor,
+  pinnedRun,
+  type CampaignLevel,
+  type PinnedSkier,
+} from "./campaign.ts";
 import type { CampaignRig } from "./campaign-run.ts";
-import { assistOf, type Settings } from "./settings.ts";
+import { recipeOf } from "./replay.ts";
+import type { Settings } from "./settings.ts";
+import { trainingOf } from "./downhill-run.ts";
+import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
+import { nextBracket } from "./ski-cross-run.ts";
 import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
+import { nextContest } from "./big-air-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export type PinnedRuns = {
   /** Stand `pin` up as `mode` — a rung of the campaign when `rung`. */
   press: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
-  /** Stand a TRICKS run up on a trick map (`trick-maps.ts`). */
-  tricks: (map: TrickMap) => void;
-  /** The last pinned run stood up, again from the start line; null where the run
-   * on the snow is not a pinned one. */
+  /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
+   * `bigAir`, a BIG AIR contest's first jump with its jump built over it
+   * (R37). */
+  tricks: (map: TrickMap, mode?: "tricks" | "bigAir") => void;
+  /** The last pinned run stood up, again from the start line — or a
+   * slalom's second run again, its heat kept; null where the run on the
+   * snow is neither. */
   again: () => GameState | null;
+  /** A slalom's SECOND RUN, behind the loading card, off the first run on
+   * the snow — nothing where it earned none (`secondRunOf`). */
+  second: () => void;
   /** The run on the snow is no longer a pinned one: the rig disarmed and
    * nothing to stand up again. */
   clear: () => void;
@@ -48,25 +85,33 @@ export function createPinnedRuns(world: {
   /** What the game remembers — the help, the damage switch, the trial's
    * length, the lens — read at the press. */
   settings: () => Settings;
-  /** The pair the player skis (a link's `?skis=` over the stored one). */
-  spec: (settings: Settings) => SkiSpec;
+  /** Who skis, and with what: the pair (a link's `?skis=` over the stored
+   * one), the help and the switches (a link's `?poles=` over the stored
+   * row). */
+  skier: (settings: Settings) => PinnedSkier;
   /** The app's own note of which mode the player's runs are in. */
   setMode: (mode: GameMode) => void;
   /** Run on the frame the loading card lifts. */
   done: () => void;
 }): PinnedRuns {
   let last: ReturnType<typeof pinnedRun> | null = null;
+  /** The campaign rung a downhill's training was stood up for — armed when
+   * its race is. */
+  let rungOf: CampaignLevel | null = null;
   return {
     press: (pin, mode, rung) => {
       world.setMode(mode);
       const s = world.settings();
-      const skier = { spec: world.spec(s), assist: assistOf(s.assist), damage: s.damage };
+      const skier = world.skier(s);
       world.loader.begin({
         build: () => {
-          world.rig.arm(rung ? pin : null);
+          // A downhill's training books nothing: the rung waits for its race.
+          const training = mode === "downhill";
+          rungOf = rung ? pin : null;
+          world.rig.arm(training ? null : rungOf);
           const now = world.current();
           const built = now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
-          const opts = pinnedRun(pin, mode, rung, skier, s.trialLaps, built);
+          const opts = { ...pinnedRun(pin, mode, rung, skier, s.trialLaps, built), training };
           const game = createGame(opts);
           last = { ...opts, level: game.level };
           return game;
@@ -75,33 +120,166 @@ export function createPinnedRuns(world: {
         done: world.done,
       });
     },
-    tricks: (map) => {
-      world.setMode("tricks");
+    tricks: (map, mode = "tricks") => {
+      world.setMode(mode);
       last = null;
       world.rig.arm(null);
       const s = world.settings();
-      const skier = { spec: world.spec(s), assist: assistOf(s.assist), damage: s.damage };
+      const skier = world.skier(s);
       world.loader.begin({
         build: () => {
           const now = world.current();
           const same =
             now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
-          return createGame(trickGameOptions(map, skier, same ? now.level : undefined));
+          const opts = trickGameOptions(map, skier, same ? now.level : undefined);
+          return createGame(mode === "bigAir" ? { ...opts, mode } : opts);
         },
         camera: s.camera,
         done: world.done,
       });
     },
     again: () => {
+      const now = world.current();
+      if (heatOf(now)) return secondRunAgain(now);
+      // A big air jump again: the same jump of the same contest.
+      if (now.bigAir) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "bigAir"));
+      }
+      // A ski-cross heat again: the same heat of the same bracket.
+      if (now.cross) {
+        world.rig.arm(null);
+        return createGame(recipeOf(now, "skiCross"));
+      }
+      // A downhill again as the run it is: its training, or its race.
+      const training = trainingOf(now);
+      if (training !== undefined) {
+        world.rig.arm(training ? null : world.rig.riding());
+        return createGame(recipeOf(now, "downhill"));
+      }
       if (!last) return null;
       world.rig.arm(world.rig.riding());
       return createGame(last);
     },
+    second: () => {
+      const now = world.current();
+      // A DOWNHILL'S RACE, after its training: the same course, the rung
+      // armed now.
+      if (secondRunOf(now)?.kind === "race") {
+        world.setMode("downhill");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(rungOf);
+            return createGame({ ...recipeOf(now, "downhill"), training: false });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A BIG AIR contest's next jump, off the contest as this one left it.
+      const contest = nextContest(now);
+      if (contest) {
+        world.setMode("bigAir");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({ ...recipeOf(now, "bigAir"), bigAir: contest });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      // A SKI CROSS's next heat, off the bracket as this run left it.
+      const bracket = nextBracket(now);
+      if (bracket) {
+        world.setMode("skiCross");
+        world.loader.begin({
+          build: () => {
+            world.rig.arm(null);
+            return createGame({
+              ...recipeOf(now, "skiCross"),
+              cross: undefined,
+              bracket,
+              rivals: undefined,
+              countdown: undefined,
+            });
+          },
+          camera: world.settings().camera,
+          done: world.done,
+        });
+        return;
+      }
+      const heat = heatAfter(now);
+      if (!heat) return;
+      // A slalom's or a giant slalom's second run, or a speed race's final.
+      const mode = twoRunMode(now);
+      world.setMode(mode);
+      world.loader.begin({
+        build: () => {
+          world.rig.arm(null);
+          return createGame({ ...recipeOf(now, mode), heat });
+        },
+        camera: world.settings().camera,
+        done: world.done,
+      });
+    },
     clear: () => {
       last = null;
+      rungOf = null;
       world.rig.arm(null);
     },
   };
+}
+
+/** The longest a first run is skied for a link's second run, s. */
+const FIRST_RUN_CAP = 600;
+
+/** A LINK'S SECOND RUN (`?run=2`): `first` skied by the bot to its flag
+ * in place, then the second run off it — or `first` as it stands where the
+ * bot went out of it and there is no second run to stand up. On a
+ * downhill, its RACE off its training; on a ski cross, its first HEAT off
+ * its qualification; on a big air contest, its next jump. */
+export function secondRunOff(first: GameState): GameState {
+  // A downhill's: its race, off its training — nothing skied first.
+  if (trainingOf(first) === true) {
+    return createGame({ ...recipeOf(first, "downhill"), training: false });
+  }
+  // A BIG AIR contest's next jump, off the first jumped by the bot.
+  if (first.bigAir) {
+    for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
+      if (first.progress.finished || first.progress.out) break;
+      step(first, botInput(first));
+    }
+    const contest = nextContest(first);
+    return contest ? createGame({ ...recipeOf(first, "bigAir"), bigAir: contest }) : first;
+  }
+  if (first.field?.run !== 1 || first.level.downhill || first.level.superG) return first;
+  for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz && !first.progress.finished; i++) {
+    step(first, botInput(first));
+  }
+  // A SKI CROSS: its first heat, off the qualification the bot skied.
+  if (first.level.skiCross) {
+    const bracket = nextBracket(first);
+    return bracket
+      ? createGame({
+          ...recipeOf(first, "skiCross"),
+          cross: undefined,
+          bracket,
+          rivals: undefined,
+          countdown: undefined,
+        })
+      : first;
+  }
+  const heat = heatAfter(first);
+  return heat ? createGame({ ...recipeOf(first, twoRunMode(first)), heat }) : first;
+}
+
+/** A SLALOM'S SECOND RUN AGAIN from the start house: the same course, the
+ * same board, the same heat — or null on a run that is not a second run. */
+export function secondRunAgain(state: GameState): GameState | null {
+  return heatOf(state) ? createGame(recipeOf(state, twoRunMode(state))) : null;
 }
 
 /** Where BACK on the skis card goes: the card that opened it — the free
@@ -115,6 +293,6 @@ export function skisBack(
 ): MenuPage {
   if (mode === "free") return "start";
   if (rung) return "campaign";
-  if (mode === "tricks") return linkSeed === null ? "tricks" : "root";
-  return pinnedFor(null, mode, linkSeed) ? "levels" : "root";
+  if (mode === "tricks" || mode === "bigAir") return linkSeed === null ? "tricks" : "root";
+  return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

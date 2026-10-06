@@ -95,6 +95,34 @@ export function runNames(level: Level): ReadonlyMap<string, string> {
   return names;
 }
 
+const numbers = new WeakMap<Level, ReadonlyMap<string, string>>();
+
+/** THE NUMBER EVERY RUN IS SIGNED WITH, by run id — the one a skier reads
+ * on the piste map, on the sign at the run's head and in the news column.
+ * The engine's id is a run's SLOT in the ski area's plan (R27): a slot
+ * whose run was not laid leaves a hole, and the lanes laid after the
+ * pistes carry on past the highest slot. So the pistes are numbered 1…P
+ * in the plan's order, without a gap, and the lanes after them. Built once
+ * per map; empty off a resort. */
+export function runNumbers(level: Level): ReadonlyMap<string, string> {
+  const hit = numbers.get(level);
+  if (hit) return hit;
+  const byId = (a: Run, b: Run): number => Number(a.id) - Number(b.id) || a.id.localeCompare(b.id);
+  const runs = level.resort?.runs ?? [];
+  const order = [
+    ...runs.filter((r) => r.kind !== "road").sort(byId),
+    ...runs.filter((r) => r.kind === "road").sort(byId),
+  ];
+  const out = new Map(order.map((r, i) => [r.id, String(i + 1)]));
+  numbers.set(level, out);
+  return out;
+}
+
+/** The number `run` is signed with. */
+export function runNumber(level: Level, run: Run): string {
+  return runNumbers(level).get(run.id) ?? run.id;
+}
+
 /** What `run` is called. */
 export function runName(level: Level, run: Run): string {
   return runNames(level).get(run.id) ?? run.id;
@@ -126,5 +154,5 @@ export function runNewsText(level: Level, run: Run): string {
   const name = runName(level, run);
   return run.kind === "road"
     ? RUN_WORDS.newsLane(mark, name)
-    : RUN_WORDS.newsRun(mark, run.id, name);
+    : RUN_WORDS.newsRun(mark, runNumber(level, run), name);
 }

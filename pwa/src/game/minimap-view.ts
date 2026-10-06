@@ -29,6 +29,7 @@ import { angleDiff, type GameState, type Level, type TrackPoint } from "@engine"
 
 import { GRADE_LOOK } from "./grade-look.ts";
 import { tunnelPaint, tunnelPointAt, tunnelsOf } from "./wind-tunnel-plan.ts";
+import { helipadOf } from "@engine";
 
 /** The plate's own square user space. */
 export const VIEW = 100;
@@ -56,6 +57,21 @@ const ZOOM_LAG = 0.6;
 export function spanFor(speedKmh: number): number {
   const t = Math.min(1, Math.max(0, speedKmh / ZOOM.at));
   return ZOOM.close + (ZOOM.far - ZOOM.close) * t;
+}
+
+/** HOW MUCH MAP THE WINDOW HOLDS ALOFT, m: on the helicopter's skid the
+ * plate is for getting one's bearings, not for the next bend, so it opens
+ * with the hub's height over the snow — `per` metres of window for every
+ * metre climbed past `from` (about the hover a landing is flown from), on
+ * top of the speedo's widest window, and never wider than the map. At
+ * 100 m over the snow that is a kilometre; at 300 m, two. */
+export const AIR_ZOOM = { from: 20, per: 6 };
+
+/** The window for a height over the snow, m — 0 below `AIR_ZOOM.from`, so
+ * the speedo's window rules on the pad and in a low hover. */
+export function airSpanFor(agl: number, mapSize: number): number {
+  if (agl <= AIR_ZOOM.from) return 0;
+  return Math.min(mapSize, ZOOM.far + (agl - AIR_ZOOM.from) * AIR_ZOOM.per);
 }
 
 /** The mark on the plate at a size a skier reads: a dot of this many view
@@ -142,6 +158,12 @@ export type HudMinimap = {
   /** A skier dot's radius in world metres at this zoom. */
   dot: number;
   chevron: MinimapChevron | null;
+  /** THE HELICOPTER (`heli.ts`) on a free ride: where it is and where its
+   * pad stands, world metres; null on a run with none. */
+  heli: { x: number; z: number; pad: { x: number; z: number } } | null;
+  /** THE SNOWMOBILE (`sled.ts`) on a free ride, where it was left — null
+   * while he rides it (he is the dot) and on a run with none. */
+  sled: { x: number; z: number } | null;
 };
 
 /** The zoom where it has got to, and the turn: frame state keyed by the map
@@ -151,8 +173,8 @@ export type HudMinimap = {
 let held: { level: Level; t: number; span: number; angle: number } | null = null;
 
 /** The window this snapshot shows, m — `spanFor`'s answer, chased. */
-function spanNow(level: Level, speedKmh: number, t: number): number {
-  const want = spanFor(speedKmh);
+function spanNow(level: Level, speedKmh: number, agl: number, t: number): number {
+  const want = Math.max(spanFor(speedKmh), airSpanFor(agl, level.size));
   if (held === null || held.level !== level || t < held.t) return want;
   const dt = Math.min(1, t - held.t);
   return held.span + (want - held.span) * (1 - Math.exp(-dt / ZOOM_LAG));
@@ -310,7 +332,10 @@ function chevronFor(state: GameState, pose: HudMinimap["pose"]): MinimapChevron 
 /** The HUD's minimap for this snapshot. */
 export function buildMinimap(state: GameState): HudMinimap {
   const { level, skier } = state;
-  const span = spanNow(level, skier.speed * 3.6, state.t);
+  // Aloft only while he rides it: the machine flown home without him is a
+  // mark on the plate, not the lens.
+  const agl = state.heli?.rider ? state.heli.agl : 0;
+  const span = spanNow(level, skier.speed * 3.6, agl, state.t);
   const angle = angleNow(level, skier.heading, state.t);
   held = { level, t: state.t, span, angle };
   const scale = VIEW / span;
@@ -329,5 +354,7 @@ export function buildMinimap(state: GameState): HudMinimap {
     rivals: state.rivals.map((r) => ({ slot: r.id + 1, x: r.run.skier.x, z: r.run.skier.z })),
     dot: DOT / scale,
     chevron: chevronFor(state, pose),
+    heli: state.heli ? { x: state.heli.x, z: state.heli.z, pad: helipadOf(level) } : null,
+    sled: state.sled && !state.sled.rider ? { x: state.sled.x, z: state.sled.z } : null,
   };
 }

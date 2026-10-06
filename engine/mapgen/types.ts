@@ -20,8 +20,12 @@ export interface TreeDef {
   /** Ground height at the trunk, m. */
   y: number;
   height: number;
-  /** Trunk collision radius, m. */
+  /** Trunk collision radius, m — the trunk at breast height, its girth
+   * that of its AGE (R14). */
   radius: number;
+  /** How old the tree is, years (R14): what its trunk is grown from, and
+   * what the picture reads as old or young. */
+  age?: number;
   /** Crown radius at its widest, m. */
   crown: number;
   /** What grows here (R21) — a spruce when left out. Drawn only: a trunk
@@ -53,6 +57,24 @@ export interface Checkpoint {
   offset?: number;
   /** A slalom gate's piste: its width there, m. */
   span?: number;
+  /** A POLE GATE (R31, a slalom's), drawn as two poles and no panel:
+   * `"open"` across the hill, its TURNING pole at the end `turn` names
+   * (−1 the skier's left as he comes down the piste, +1 his right) and its
+   * OUTSIDE pole at the other; `"closed"` with its two poles one above the
+   * other down the fall line, crossed sideways — `heading` the way across.
+   * Absent: a gate of flags (R11, R28). */
+  pole?: "open" | "closed";
+  turn?: -1 | 1;
+  /** A SPEED GATE (R32, a downhill's): four poles, a pair at each end of
+   * its line holding a panel, `width` m between the inner poles — passed
+   * with both feet between them. Absent: any other gate. */
+  panels?: true;
+  /** A SKI-CROSS GATE (R35): triangular flags, each a stubby turning pole
+   * and a long outside pole joined by the flag. With `pole: "open"` a
+   * TURNING GATE, one flag on the inside of a berm at the `turn` end;
+   * alone a CORRIDOR GATE, a flag at each end of its line, passed with both
+   * feet between them. Absent: any other gate. */
+  flags?: true;
 }
 
 export interface TrackPoint {
@@ -160,6 +182,205 @@ export interface Level {
   /** THE SKI AREA (R25–R28) on a map built by a generator from the resorts
    * on: every run, lift and course, and which course `track` is. */
   resort?: Resort;
+  /** A SLALOM set on the map (R31, `setSlalom`): its gates are this map's
+   * `checkpoints`, its start hut the `spawn`. Absent on every map the
+   * generator builds — a slalom is set over one. */
+  slalom?: SlalomCourse;
+  /** A DOWNHILL set on the map (R32, `setDownhill`): its gates are this
+   * map's `checkpoints`, its start house the `spawn`. Absent on every map
+   * the generator builds — a downhill is set over one. */
+  downhill?: DownhillCourse;
+  /** A SUPER-G set on the map (R33, `setSuperG`): its gates are this map's
+   * `checkpoints`, its start house the `spawn`. Absent on every map the
+   * generator builds — a super-G is set over one. */
+  superG?: SuperGCourse;
+  /** A GIANT SLALOM set on the map (R36, `setGiantSlalom`): its gates are
+   * this map's `checkpoints`, its start house the `spawn`. Absent on every
+   * map the generator builds — a giant slalom is set over one. */
+  giantSlalom?: GiantSlalomCourse;
+  /** A SPEED-SKIING TRACK set on the map (R34, `setSpeedSki`): its `track`
+   * is the straight speed track cut down the fall line, its checkpoints
+   * the start gate and the TIMING ZONE's two lines, its start house the
+   * `spawn`. Absent on every map the generator builds — a speed track is
+   * set over one. */
+  speedSki?: SpeedSkiCourse;
+  /** A SKI-CROSS COURSE built on the map (R35, `setSkiCross`): its `track`
+   * is the course weaving down the piste's corridor, its ground graded and
+   * its features built in the snow, its checkpoints the start gate, the
+   * flags and the finish line, its `grid` the start gate's lanes. Absent on
+   * every map the generator builds — a ski cross is built over one. */
+  skiCross?: SkiCrossCourse;
+  /** A BIG AIR JUMP built on the map (R37, `setBigAir`): its `track` is the
+   * straight jump cut down the face — the platform, the drop-in, the
+   * kicker, the table, the landing and the run-out — its checkpoints the
+   * start gate and the finish line, its start platform the `spawn`. Absent
+   * on every map the generator builds — a jump is built over one. */
+  bigAir?: BigAirCourse;
+}
+
+/** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every
+ * arc down it, m. */
+export interface BigAirCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The flat's end (the kicker's foot), the LIP, the KNUCKLE (the table's
+   * end), the landing's end and the run-out's start, m. */
+  foot: number;
+  lip: number;
+  knuckle: number;
+  landing: number;
+  outrun: number;
+  /** The lip's height over the flat, m, and its take-off angle, rad. */
+  height: number;
+  kick: number;
+  /** The speed off the lip the drop-in is sized for, m/s. */
+  speed: number;
+  /** The jump's width, m. */
+  width: number;
+}
+
+/** One of a ski-cross course's BUILT FEATURES (R35), by its arcs down the
+ * course, m: a BERM (a banked turn, `side` the inside: −1 left, +1 right),
+ * a series of ROLLERS, a JUMP (`lip` its take-off's arc, `height` the lip
+ * over the line) or a STEP-DOWN (the same, onto a lower landing). */
+export interface CrossFeature {
+  kind: "berm" | "rollers" | "jump" | "step";
+  from: number;
+  to: number;
+  side?: -1 | 1;
+  lip?: number;
+  height?: number;
+}
+
+/** A SKI-CROSS COURSE (R35) as it was built over a map: its own `track`,
+ * the piste's corridor it weaves down, its features and its fence. */
+export interface SkiCrossCourse {
+  /** The map it was built over, before any course. */
+  base: Level;
+  /** The start gate's arc (its doors) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** The course's width, m. */
+  width: number;
+  /** Every built feature, in the order they are skied. */
+  features: CrossFeature[];
+  /** THE FENCE along both edges: its line this far outside the course's
+   * edge, m, this tall, m, from arc `from` to `to`. */
+  nets: { gap: number; height: number; from: number; to: number };
+  /** The stretch of the piste it was built on, m of the piste's own arc. */
+  axis: { from: number; to: number };
+}
+
+/** A SPEED-SKIING TRACK (R34) as it was set over a built map: a straight
+ * cut down the fall line, graded smooth and groomed hard, its own `track`
+ * — the map's piste is not skied. Every arc is down this track. */
+export interface SpeedSkiCourse {
+  /** Which run of the two (R34): the QUALIFICATION from a lowered start
+   * (1), or the FINAL from the top (2). */
+  run: 1 | 2;
+  /** The map it was set over, before any course. */
+  base: Level;
+  /** The run's start gate's arc (the wand), m, and the timing zone's end —
+   * where the run is measured to. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** THE TIMING ZONE: its two lines' arcs, m, and its length along the
+   * snow, m — the speed is that length over the time between them. */
+  zone: { from: number; to: number; length: number };
+  /** The final's start, at the top of the track, m — a qualification
+   * starts lower. */
+  top: number;
+  /** The run-out's end, m: where the track stops, on the valley floor. */
+  stop: number;
+  /** The track's width, m. */
+  width: number;
+}
+
+/** A COURSE SET ON A RACING LINE over a built map — a downhill's (R32), a
+ * super-G's (R33) or a giant slalom's (R36): the stretch, the nets along
+ * it, the trap (a speed event's),
+ * the jumps it keeps and the racing line its gates are set on
+ * (`speed-course.ts`). */
+export interface SpeedCourse {
+  /** The map it was set over, before any course. */
+  base: Level;
+  /** The stretch of the piste it is set on — a downhill's the whole of it,
+   * a super-G's from a start lowered into the band: the start gate's arc
+   * (the wand) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** THE SPEED TRAP: its arc down the piste, m, and its line across it
+   * (a point on the piste's centreline and the way down it there) — a
+   * speed event's; a giant slalom has none. */
+  trap?: SpeedTrap;
+  /** THE A-NETS along both edges: their line this far outside the piste's
+   * edge, m, this tall, m, from arc `from` to `to`. */
+  nets: { gap: number; height: number; from: number; to: number };
+  /** The jumps the course keeps (its drops, by arc), m. */
+  jumps: number[];
+  /** THE RACING LINE (`speedLineAt`): points down the course every few
+   * metres, each an arc and how far right of the piste's centreline, m — a
+   * downhill's the line that bends the least inside the piste, which its
+   * gates mark; a super-G's that line swung round its turning poles. */
+  line: { s: number; x: number }[];
+}
+
+/** A speed event's SPEED TRAP: its arc down the piste, m, and its line
+ * across it (a point on the piste's centreline and the way down it there). */
+export type SpeedTrap = { s: number; x: number; z: number; heading: number; width: number };
+
+/** A DOWNHILL COURSE (R32) as it was set over a built map. */
+export type DownhillCourse = SpeedCourse & { trap: SpeedTrap };
+
+/** A SUPER-G COURSE (R33) as it was set over a built map: a speed course
+ * whose gates TURN the racer. */
+export interface SuperGCourse extends SpeedCourse {
+  trap: SpeedTrap;
+  /** The direction changes its gates make. */
+  turns: number;
+}
+
+/** A GIANT-SLALOM COURSE (R36) as it was set over a built map: a course
+ * on a racing line whose gates turn the racer, one of two runs. */
+export interface GiantSlalomCourse extends SpeedCourse {
+  /** Which run of the two — each set afresh on the same stretch. */
+  run: 1 | 2;
+  /** The direction changes its gates make. */
+  turns: number;
+}
+
+/** A SLALOM COURSE (R31) as it was set over a built map. */
+export interface SlalomCourse {
+  /** Which run of the two (R31) — each set afresh on the same stretch. */
+  run: 1 | 2;
+  /** The map it was set over, before any slalom: what a run's other course
+   * is set over again. */
+  base: Level;
+  /** The stretch of the piste it is set on: the start gate's arc (the
+   * wand) and the finish line's, m. */
+  from: number;
+  to: number;
+  /** The vertical between them, m. */
+  vertical: number;
+  /** How many of each combination it carries. */
+  hairpins: number;
+  verticals: number;
+  delays: number;
+  /** THE LINE A RACER TAKES (`slalomLineAt`): points down the course, each
+   * an arc and how far right of the piste's centreline, m — just outside
+   * every turning pole, across the middle of every closed gate. */
+  line: { s: number; x: number }[];
 }
 
 /** The skies R19 deals, lightest first. Three of them SNOW — a few flakes
@@ -341,7 +562,26 @@ export interface Lift {
   kind: "gondola" | "chair" | "drag";
   bottom: Vec3;
   top: Vec3;
+  /** THE RAMPS OFF ITS TOP (R26, generator v5 on): one down from its pad's
+   * rim to the head of each run a rider skis onto from it. Absent on a drag
+   * and on a map from before them. */
+  ramps?: SummitRamp[];
 }
+
+/** A RAMP OFF A TOP (R26, `summit-ramps.ts`): from the pad's rim (`from`, on
+ * the pad's surface) down to where it joins the run `run` (`to`, its point
+ * there and its arc `s`), `width` m wide — eased off the pad, even down to
+ * the run's head, the run's lip. */
+export type SummitRamp = {
+  run: string;
+  from: Vec3;
+  to: Vec3 & { s: number };
+  width: number;
+  /** A ramp generator v5 laid (`looseTops`), which may roll over a LIP
+   * into a drop down to its run (`summit-ramps-v5.ts`); absent, it falls
+   * evenly all the way. */
+  lip?: boolean;
+};
 
 /** A course (R28): the line from a run's top station down the network to
  * the village — the runs it follows, in order, and what it measures. */

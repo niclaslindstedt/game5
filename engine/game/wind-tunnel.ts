@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WIND TUNNEL (R30) — a horizontal lift along the hub at the foot of
 // the mountain: a skier stood into the wind inside one is blown along it to
-// its exit at the tunnel's own speed, without skiing a metre, and let go
-// there with his way kept. The player and every rival alike: it is part of
+// its exit, without skiing a metre — up to the tunnel's own speed in a few
+// seconds and on past it with no ceiling, ever more slowly the faster he
+// goes — and let go there with his way kept. The player and every rival alike: it is part of
 // the one step a skier takes (`run.ts`).
 //
 // Two halves, both pure over the level and the skier, drawing nothing from
@@ -13,11 +14,11 @@
 //     them, is never carried off), where along it he is, and when he is let
 //     go — past its edge, at its exit, or thrown — each with its event.
 //   * THE WIND (`tunnelWind`, `tunnelBlow`), summed with every other force
-//     on him (`skier.ts`): the air in a tunnel moves along it at its speed,
-//     so his drag is against that air, and the blowers thrust him on toward
-//     it and hold him to its line.
+//     on him (`skier.ts`): the air in a tunnel moves along it at its speed
+//     or at his, whichever is faster, so his drag is against that air, and
+//     the blowers thrust him on and hold him to its line.
 
-import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import type { WindTunnel } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierState } from "./state.ts";
@@ -31,7 +32,8 @@ type Hit = { s: number; lateral: number; heading: number; seg: number };
 const hit: Hit = { s: 0, lateral: 0, heading: 0, seg: 0 };
 
 /** How many stations either way of the last one a rider's place is read
- * over; a skier at a tunnel's speed covers one a step. */
+ * over; a skier covers less than one a step at any speed a lane lets him
+ * reach. */
 const WINDOW = 6;
 
 /** Read a point against a tunnel's line, over its stations `from`..`to`. */
@@ -119,7 +121,9 @@ const wind = { x: 0, z: 0 };
 const blow = { x: 0, z: 0 };
 
 /** THE AIR in the tunnel a skier rides, m/s — still air out of one. The
- * drag he feels is against it (`skier.ts`). */
+ * drag he feels is against it (`skier.ts`). The column moves at the
+ * tunnel's speed, and never slower than he rides along it: he is never
+ * blown back by the air he is carried in, so it is no ceiling on him. */
 export function tunnelWind(
   c: SkierState,
   tunnels: readonly WindTunnel[] | undefined,
@@ -130,13 +134,17 @@ export function tunnelWind(
     wind.z = 0;
     return wind;
   }
-  wind.x = Math.sin(c.tunnel.heading) * t.speed;
-  wind.z = Math.cos(c.tunnel.heading) * t.speed;
+  const fx = Math.sin(c.tunnel.heading);
+  const fz = Math.cos(c.tunnel.heading);
+  const speed = Math.max(t.speed, c.vx * fx + c.vz * fz);
+  wind.x = fx * speed;
+  wind.z = fz * speed;
   return wind;
 }
 
-/** THE BLOWERS, m/s² on the whole skier: the thrust along the tunnel
- * toward its speed, and the hold to its line across it. */
+/** THE BLOWERS, m/s² on the whole skier: the thrust along the tunnel —
+ * full up to its speed, and past it the blowers' fixed POWER, so it falls
+ * as 1/v and never to nothing — and the hold to its line across it. */
 export function tunnelBlow(
   c: SkierState,
   tunnels: readonly WindTunnel[] | undefined,
@@ -153,7 +161,7 @@ export function tunnelBlow(
   const fz = Math.cos(ride.heading);
   const along = c.vx * fx + c.vz * fz;
   const across = c.vx * fz - c.vz * fx;
-  const push = T.thrust * clamp((t.speed - along) / T.soft, -T.back, 1);
+  const push = (T.thrust * t.speed) / Math.max(along, t.speed);
   const hold = -T.centre * ride.lateral - T.damp * across;
   // Along the way it blows, and across it to the right (`fz, −fx`).
   blow.x = fx * push + fz * hold;

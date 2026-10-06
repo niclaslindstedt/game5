@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE LIFTS AS PLANNED (`pwa/src/game/lift-plan.ts`): every tower stands on
+// THE LIFTS AS PLANNED (`engine/game/lift-line.ts`): every tower stands on
 // the snow under its rope, the towers are a class's span apart, and the
 // rope hangs clear of the snow between them by what its carriers need —
 // on the resort the generator builds, and on a hand-built crest a straight
@@ -7,8 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Lift } from "@engine";
-import { LIFT_LOOK, planLift, ropeAt } from "../pwa/src/game/lift-plan.ts";
+import { LIFT_LOOK, liftPlans, planLift, ropeAt, ropeShortfall, type Lift } from "@engine";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 
@@ -39,6 +38,36 @@ describe("a lift's plan", () => {
       for (let i = 1; i < plan.supports.length; i++) {
         const span = plan.supports[i].u - plan.supports[i - 1].u;
         expect(span).toBeLessThanOrEqual(plan.look.spacing * 1.5 + 24);
+      }
+    }
+  });
+
+  it("hangs every carrier clear of the snow to the wheels, as R26's check asks of the ruled rope", () => {
+    for (const seed of LEVEL_SEEDS) {
+      const map = levelFor(seed);
+      for (const plan of liftPlans(map)) {
+        expect(ropeShortfall(map, plan).lack, `${seed} ${plan.lift.id}`).toBeLessThan(0.25);
+      }
+    }
+  });
+
+  it("brings the rope DOWN into a top from its last tower, over the terminal's rail", () => {
+    for (const lift of lifts) {
+      if (lift.kind === "drag") continue;
+      const plan = planLift(level, lift);
+      const s = plan.supports;
+      const last = s[s.length - 2];
+      const wheel = s[s.length - 1];
+      // Past the pad's rim, and above the wheel by the fall into it — or
+      // as tall as a tower goes where the mountain climbs too steeply to it.
+      expect(plan.length - last.u).toBeGreaterThanOrEqual(plan.look.in.back);
+      const fall = last.ground + last.rope - (wheel.ground + wheel.rope);
+      if (last.rope < plan.look.towerMax)
+        expect(fall).toBeGreaterThanOrEqual((plan.length - last.u) * plan.look.in.fall - 1e-9);
+      expect(fall).toBeGreaterThan(0);
+      // Level at the wheel's height along the rail.
+      for (let b = 0; b <= plan.look.rail; b += 2) {
+        expect(ropeAt(plan, plan.length - b)).toBeCloseTo(wheel.ground + wheel.rope, 6);
       }
     }
   });

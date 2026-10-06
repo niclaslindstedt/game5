@@ -78,9 +78,33 @@ export type GeneratorTraits = {
    * rule book's own numbers (the UNGRADED row of `grades.ts`, whatever
    * grade it is asked for: no grade dealt, no drop laid, no `Level.grade`
    * published) down a face due north (no `Level.sun.facing`). The trick
-   * maps and the benchmark stand on it. From v3 every map is a ski area
+   * maps and the benchmark stand on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
+  /** LEVEL PADS (v4): every gondola's and chair's top stands on a level pad
+   * `lift.pad` metres across (R26), with no ramps off it, no approach cut
+   * under its line and no rope held to the snow. From v5 the pad is
+   * `lift.top.pad` across and leans off its deck to both sides
+   * (`lift.top`), ramps come down off it to its runs, and the ground under
+   * every line's way in is cut beneath the rope. */
+  levelPads?: boolean;
+  /** STARTS ACROSS THE TOP (v4): a run's start is looked for along the line
+   * across the face through its top station, at whatever height that finds
+   * — tens of metres above the station, often, so a rider off the lift had
+   * to climb to it. From v5 every start is slid down the fall line
+   * under the top (R27), so a rider glides down to it. */
+  startsAcrossTop?: boolean;
+  /** THE TOPS LEFT TO THE CONTOUR (v5): every run off a top starts on the
+   * top's contour 4 m under its snow, at whatever distance, a lane where
+   * its slot puts it; a ramp comes down off a pad's rim only where one
+   * reaches a run's snow past its head, met at its shoulder, rolling over a
+   * lip where it must fall far (`summit-ramps-v5.ts`); a chair's unload is
+   * a mound falling every way, the cut under its way in starting 11 m
+   * short of the top, and a drag's top has no ramps. From v6 every run off a
+   * top starts UNDER it where a ramp has room, every ramp lands on its
+   * run's own snow falling all the way and evenly, a chair's unload falls
+   * ahead of the rider and the cut starts behind his tails. */
+  looseTops?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -92,7 +116,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     version: 1,
     note:
       "The generator as Fall Line launched with it (R1–R22): one ungraded piste down one " +
-      "face, the fall line due north. v3 builds every map as a whole ski area — a massif, " +
+      "face, the fall line due north. v4 builds every map as a whole ski area — a massif, " +
       "its lifts, a network of runs each built to a PISTE GRADE (R23) with the drops " +
       "across a black (R24), the face turned to the sun (R15) and transport lanes merging " +
       "down to a village (R25–R28) — raced on one course down it; this row builds one " +
@@ -100,12 +124,45 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     singlePiste: true,
   },
   {
-    version: 3,
+    version: 4,
     note:
-      "The resorts: every map a ski area on one massif — its lifts, its runs of every " +
-      "colour and its transport lanes merging down to the village (R25–R27) — raced on " +
-      "one COURSE down that network (R28), the woods thick low down and thinning through " +
-      "the ecotone to the tree line (R14).",
+      "The resorts with their stations: every map a ski area on one massif — its lifts, " +
+      "its runs of every colour and its transport lanes merging down to the village " +
+      "(R25–R27) — raced on one COURSE down that network (R28), the woods thick low down " +
+      "and thinning through the ecotone to the tree line (R14); every gondola's and " +
+      "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
+      "the face and a chair's unload ramp on it, every station stands beside the runs, " +
+      "never on one, and no drag lift crosses a piste (R26). From v5 on every gondola's and " +
+      "chair's top is cut wider and LEANING off its deck to both sides instead of level; this " +
+      "row keeps the level pad 30 m across, and every run's start found along the line " +
+      "across the face through its top, at whatever height that is.",
+    levelPads: true,
+    startsAcrossTop: true,
+  },
+  {
+    version: 5,
+    note:
+      "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
+      "deck along the line level and the pad leaning off it to both sides to its rim; a " +
+      "wide groomed RAMP comes down off the rim to a run where one reaches its snow; the " +
+      "ground under the last of every line is cut away beneath the rope's way in (R26); and " +
+      "every run starts on its top's contour 4 m under the station (R27). v6 starts every " +
+      "run off a top UNDER it where a ramp has room and lays that ramp onto the run's own " +
+      "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
+    looseTops: true,
+  },
+  {
+    version: 6,
+    note:
+      "The tops above their runs: every gondola's and chair's top stands on a pad 48 m " +
+      "across, its deck along the line level and the pad leaning off it to both sides to " +
+      "its rim; the ground under the last of every line is cut away beneath the rope's " +
+      "way in, so no carrier ever runs into the snow (R26); and every run off a top STARTS " +
+      "UNDER IT by 4 m and a tenth of the way from the rim to it, within reach of a ramp " +
+      "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
+      "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
+      "pad slides down to his run and never climbs; a chair's unload ramp falls ahead of " +
+      "the rider, and a drag's top has ramps off where it lets go, where they fit.",
   },
 ];
 

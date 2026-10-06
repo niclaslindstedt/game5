@@ -7,8 +7,17 @@
 //   ?seed=<n>       pin the map: the front door's RACE and TIME TRIAL ride
 //                   this seed rather than a campaign map off the level card,
 //                   and the race the menu stands over is built on it too.
-//   ?start=race     boot straight into a race on the start line (the splash and
-//                   the front door skipped). `start=1` is the same.
+//   ?start=slalom   boot straight into a slalom in its start house (the splash
+//                   and the front door skipped). `start=race` and `start=1`
+//                   are the same.
+//   ?start=downhill ...or into a DOWNHILL's training run in its start house.
+//   ?start=superg   ...or into a SUPER-G's one run in its start house.
+//   ?start=gs       ...or into a GIANT SLALOM's first run in its start house.
+//   ?start=speedski ...or into a SPEED RACE's qualification on its track.
+//   ?start=skicross ...or into a SKI CROSS's qualification (`run=2` its
+//                   first heat, four out of the start gate).
+//   ?start=bigair   ...or into a BIG AIR contest's first jump (`run=2` the
+//                   next jump, off the first jumped by the bot).
 //   ?start=free     ...or into a FREE RIDE on the start card's stored map,
 //                   day and snow (the seed a `?seed=` names over it).
 //   ?t=<s>          ...with this many seconds of it already ridden — by the
@@ -18,21 +27,42 @@
 //                   bot's pre-roll left it: the REPRO line's last word
 //                   (`debug-readout.ts`), so a frame found on the developer
 //                   page is a link.
+//   ?hold=<kmh>[,<move>[,<s>]]
+//                   ...and then ridden on a few seconds more (three unless
+//                   named) HELD at that speed along his heading in a move
+//                   (`hold-input.ts`: straight, carve, turn, skid, check,
+//                   stop, skate) —
+//                   how a lab photographs what a speed looks like in the
+//                   game: the cloud it raises, the skier at it.
 //   ?shot=1         ...and held still once drawn, so nothing moves under a
 //                   screenshot's shutter.
 //   ?paused=1       ...or held under the pause card.
 //   ?camera=<rung>  the run's camera (tips, helmet, chase, far, high).
 //   ?skis=<id>      the player's pair for this visit (chamois, swift,
-//                   chough, eagle, marmot, hare), over the stored one and
-//                   never written back — how a lab photographs a pair it did
-//                   not pick.
+//                   chough, falcon, eagle, wolverine, peregrine, marmot,
+//                   hare), over the stored one and never written back —
+//                   how a lab photographs a pair it did not pick.
 //   ?mode=trial     the run a link boots into (or the next one pressed) is
 //                   a TIME TRIAL — alone, against the record and the ghost —
 //                   rather than a race; ?mode=tricks, a TRICKS run on the
-//                   seed's trick field.
+//                   seed's trick field; ?mode=downhill, a DOWNHILL;
+//                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
+//                   ?mode=speedski, a SPEED RACE;
+//                   ?mode=skicross, a SKI CROSS; ?mode=bigair, a BIG AIR
+//                   contest's first jump, built over the seed's map.
+//   ?run=2          a slalom or a giant slalom link boots into its SECOND
+//                   RUN: the first
+//                   skied by the bot to the flag, then the second stood up
+//                   off it (`pinned-run.ts`'s `secondRunOff`) — what the
+//                   finish plate's SECOND RUN press reaches; a downhill
+//                   link, into its RACE rather than its training; a speed
+//                   race's, into its FINAL.
 //   ?bot=1          the player's own skis skied by the bot for the whole
 //                   run, not just the pre-roll — a race watched to its
 //                   finish plate with nobody's hands on it.
+//   ?poles=0        the player's runs this visit skied WITHOUT POLES (the
+//                   hard mode), over the stored OPTIONS row (`poles=1` with
+//                   them) — never written back.
 //   ?menu=root      open on the front door rather than the attract card;
 //   ?menu=options   ...on OPTIONS, and `keys` on OPTIONS ▸ KEYS; `skis` on
 //                   the skis card RACE opens; `start` on the free ride's
@@ -67,6 +97,10 @@
 //                   red, black) instead of the one the seed deals — a free
 //                   ride over the start card's GRADE row, and a race a
 //                   `?seed=` link boots into; never a campaign map.
+//   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
+//                   (`heli.ts`), over the start card's RUN row.
+//   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
+//                   bottom (`sled.ts`), over the start card's RUN row.
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -100,6 +134,7 @@ import {
 import { BENCHMARK } from "./benchmark-plan.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
+import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
@@ -111,9 +146,12 @@ export type DevPage = "dev" | "unlocks" | "benchHistory";
 export type MenuPage =
   | "root"
   | "skis"
+  | "dress"
   | "options"
   | "keys"
   | "start"
+  | "races"
+  | "freestyle"
   | "campaign"
   | "levels"
   | "tricks"
@@ -122,9 +160,12 @@ export type MenuPage =
 const MENU_PAGES: readonly MenuPage[] = [
   "root",
   "skis",
+  "dress",
   "options",
   "keys",
   "start",
+  "races",
+  "freestyle",
   "campaign",
   "levels",
   "tricks",
@@ -144,6 +185,8 @@ export type UrlParams = {
   t: number;
   /** Where the player's skier is stood once the pre-roll is skied. */
   pose: SkisPose | null;
+  /** ...and the ride he is held on after it, at a speed in a move. */
+  hold: { kmh: number; move: HoldMove; seconds: number } | null;
   /** Run the benchmark on boot. */
   bench: boolean;
   /** ...its GPU timer's cut, and what it is drawn without. */
@@ -161,6 +204,11 @@ export type UrlParams = {
   mode: GameMode;
   /** The bot rides the player's skis for the whole run. */
   bot: boolean;
+  /** Which run of a slalom a link boots into. */
+  run: 1 | 2;
+  /** The player's poles for this visit — false without, true with, null
+   * the stored OPTIONS row's. */
+  poles: boolean | null;
   /** The URL names the front door. */
   menu: boolean;
   /** ...and which page of it. */
@@ -178,6 +226,10 @@ export type UrlParams = {
   region: RegionId | null;
   /** The piste grade a seed's map is built to, over the card's. */
   grade: PisteGrade | null;
+  /** A free ride begun on the helicopter, over the card's RUN row. */
+  heli: boolean;
+  /** A free ride begun on the snowmobile, over the card's RUN row. */
+  sled: boolean;
 };
 
 /** The sky a link names, if any. */
@@ -199,6 +251,21 @@ function framesOf(raw: string | null): number | null {
   return raw !== null && Number.isInteger(n) && n >= 60 && n <= BENCHMARK.frames ? n : null;
 }
 
+/** A held ride a link may name: a speed, km/h (0–150), a move and the
+ * seconds it is ridden (0.5–20, three unless named). */
+function holdOf(raw: string | null): UrlParams["hold"] {
+  if (raw === null || raw.trim() === "") return null;
+  const [kmhRaw, moveRaw, secondsRaw] = raw.split(",");
+  const kmh = Number(kmhRaw);
+  if (!Number.isFinite(kmh) || kmh < 0 || kmh > 150) return null;
+  const seconds = Number(secondsRaw ?? 3);
+  return {
+    kmh,
+    move: isHoldMove(moveRaw) ? moveRaw : "straight",
+    seconds: Number.isFinite(seconds) ? Math.max(0.5, Math.min(20, seconds)) : 3,
+  };
+}
+
 /** A seed a link may name: a whole number the generator's stream takes. */
 function seedOf(raw: string | null): number | null {
   if (raw === null || raw.trim() === "") return null;
@@ -215,10 +282,23 @@ export function readParams(search: string): UrlParams {
   const skis = q.get("skis");
   return {
     seed: seedOf(q.get("seed")),
-    rides: start === "race" || start === "free" || start === "1" || paused || q.get("shot") === "1",
+    rides:
+      start === "race" ||
+      start === "slalom" ||
+      start === "downhill" ||
+      start === "superg" ||
+      start === "gs" ||
+      start === "speedski" ||
+      start === "skicross" ||
+      start === "bigair" ||
+      start === "free" ||
+      start === "1" ||
+      paused ||
+      q.get("shot") === "1",
     free: start === "free",
     t: Number.isFinite(t) && t > 0 ? Math.min(t, 600) : 0,
     pose: readPose(q.get("pose")),
+    hold: holdOf(q.get("hold")),
     bench: q.get("bench") === "1",
     gpu: GPU_MODES.includes(q.get("gpu") as GpuMode) ? (q.get("gpu") as GpuMode) : "passes",
     hide: (q.get("hide") ?? "")
@@ -235,12 +315,26 @@ export function readParams(search: string): UrlParams {
     mode:
       start === "free"
         ? "free"
-        : q.get("mode") === "trial"
-          ? "timeTrial"
-          : q.get("mode") === "tricks"
-            ? "tricks"
-            : "race",
+        : start === "downhill" || q.get("mode") === "downhill"
+          ? "downhill"
+          : start === "superg" || q.get("mode") === "superg"
+            ? "superG"
+            : start === "gs" || q.get("mode") === "gs"
+              ? "giantSlalom"
+              : start === "speedski" || q.get("mode") === "speedski"
+                ? "speedSki"
+                : start === "skicross" || q.get("mode") === "skicross"
+                  ? "skiCross"
+                  : q.get("mode") === "trial"
+                    ? "timeTrial"
+                    : q.get("mode") === "tricks"
+                      ? "tricks"
+                      : start === "bigair" || q.get("mode") === "bigair"
+                        ? "bigAir"
+                        : "slalom",
     bot: q.get("bot") === "1",
+    run: q.get("run") === "2" ? 2 : 1,
+    poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
 
     menu: q.get("menu") !== null,
     page: MENU_PAGES.includes(q.get("menu") as MenuPage) ? (q.get("menu") as MenuPage) : "root",
@@ -250,6 +344,8 @@ export function readParams(search: string): UrlParams {
     sky: skyOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
+    heli: q.get("heli") === "1",
+    sled: q.get("sled") === "1",
   };
 }
 
@@ -264,11 +360,13 @@ export function linkWorld(params: UrlParams): Pick<CreateGameOptions, "sky" | "r
   };
 }
 
-/** A free ride's options with a link's sky, region and grade laid over the
- * card's. */
+/** A free ride's options with a link's sky, region, grade, helicopter and
+ * snowmobile laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   return {
     ...ride,
+    heli: params.heli || ride.heli,
+    sled: !params.heli && (params.sled || ride.sled),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,

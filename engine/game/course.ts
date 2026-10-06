@@ -22,17 +22,21 @@
 // he took, facing down it, at rest — or on the start line before he has
 // taken one. It is the skier's (the key) and the engine's (`run.ts`: on his
 // back, or bogged going nowhere). On a free ride it stands him on the
-// nearest run of the resort, a piste before a lane.
+// nearest run he has skied, a piste before a lane (`skied.ts`).
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { nearestTrackPoint, trackPointAt } from "../mapgen/index.ts";
+import { nearestTrackPoint, speedLineAt, trackPointAt } from "../mapgen/index.ts";
 import type { Checkpoint, Level, Spawn, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
 import { bottomlessOf, depthUnder, packedUnder, sinkTarget } from "./snow.ts";
 import { probesOf } from "./suspension.ts";
-import type { GameEvent, GameState, Progress } from "./state.ts";
+import type { GameEvent, GameState, Progress, RunOut } from "./state.ts";
+import { stepStrict } from "./strict.ts";
+import { fieldPlace } from "./field.ts";
+import { skiedResetPoint } from "./skied.ts";
 
 const K = TUNING.course;
 
@@ -62,6 +66,10 @@ export function freshProgress(level: Level): Progress {
     lastResetAt: 0,
     bestAir: 0,
     distance: 0,
+    skied: [],
+    out: null,
+    trap: null,
+    trapAt: null,
   };
 }
 
@@ -86,6 +94,24 @@ export function crossedLine(
   return (cx - cp.x) * fz - (cz - cp.z) * fx;
 }
 
+/** WHEN IN THE STEP the move from (x0, z0) to (x1, z1) crossed the gate's
+ * line: the share of the move made before it, 0..1 (1 where it did not
+ * cross). A clock read to the step alone is 1/120 s coarse — half a km/h
+ * through a speed-skiing trap — so the timing zone reads it finer. */
+export function crossingShare(
+  cp: Checkpoint,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+): number {
+  const fx = Math.sin(cp.heading);
+  const fz = Math.cos(cp.heading);
+  const s0 = (x0 - cp.x) * fx + (z0 - cp.z) * fz;
+  const s1 = (x1 - cp.x) * fx + (z1 - cp.z) * fz;
+  return s0 < 0 && s1 >= 0 ? s0 / (s0 - s1) : 1;
+}
+
 /** Whether the move went THROUGH the gate — inside its width and the
  * grace, and `extra` metres more — returning the offset, or null. */
 export function crossedCheckpoint(
@@ -107,11 +133,41 @@ export function crossingsToFinish(state: GameState): number {
   return state.level.checkpoints.length * state.rules.laps;
 }
 
+/** THE FINISH LINE crossed: the run is done, and placed. */
+export function finishRun(state: GameState, events: GameEvent[]): void {
+  const p = state.progress;
+  p.lap += 1;
+  const runTime = p.time - p.lapStart;
+  p.lapTimes.push(runTime);
+  p.nextCheckpoint = state.level.checkpoints.length - 1;
+  events.push({ kind: "lap", t: state.t, lap: p.lap, time: runTime });
+  p.finished = true;
+  p.missed = null;
+  state.phase = "finished";
+  events.push({ kind: "finish", t: state.t, time: p.time, place: placeOf(state) });
+}
+
+/** OUT OF THE RACE (R31): the run over where it stands, with no time to
+ * rank — disqualified or did not finish (`RunOut`). */
+export function outRun(state: GameState, events: GameEvent[], out: RunOut): void {
+  const p = state.progress;
+  if (p.finished) return;
+  p.out = out;
+  p.finished = true;
+  p.missed = null;
+  state.phase = "finished";
+  events.push({ kind: "out", t: state.t, out });
+}
+
 /** Check the move the skier just made against the gate the run owes. The
  * clock is run by `run.ts`, not here. */
 export function stepCourse(state: GameState, x0: number, z0: number, events: GameEvent[]): void {
   const p = state.progress;
   if (p.finished) return;
+  if (state.rules.gates === "strict") {
+    stepStrict(state, x0, z0, events);
+    return;
+  }
   const cps = state.level.checkpoints;
   const n = cps.length;
   const c = state.skier;
@@ -129,16 +185,7 @@ export function stepCourse(state: GameState, x0: number, z0: number, events: Gam
       p.lapStart = p.time;
     }
     if (owed === n - 1) {
-      // THE FINISH LINE: the run is done.
-      p.lap += 1;
-      const runTime = p.time - p.lapStart;
-      p.lapTimes.push(runTime);
-      p.nextCheckpoint = n - 1;
-      events.push({ kind: "lap", t: state.t, lap: p.lap, time: runTime });
-      p.finished = true;
-      p.missed = null;
-      state.phase = "finished";
-      events.push({ kind: "finish", t: state.t, time: p.time, place: placeOf(state) });
+      finishRun(state, events);
       return;
     }
     p.nextCheckpoint = owed + 1;
@@ -214,7 +261,10 @@ function slalomReach(cp: Checkpoint): number {
  * so it stands on every gate's centre, crosses straight between two set
  * either side, and turns hardest round each gate, as a skier does. Zero on
  * a piste whose gates span it. */
-export function gateLineAt(level: Level, s: number): { offset: number; curvature: number } {
+export function gateLineAt(
+  level: Level,
+  s: number,
+): { offset: number; curvature: number; bend: number } {
   const cps = level.checkpoints;
   let i = 0;
   while (i + 1 < cps.length && cps[i + 1].s < s) i++;
@@ -222,58 +272,51 @@ export function gateLineAt(level: Level, s: number): { offset: number; curvature
   const b = cps[Math.min(cps.length - 1, i + 1)];
   const oa = a?.offset ?? 0;
   const ob = b?.offset ?? 0;
-  if (!a || b === a || oa === ob) return { offset: oa, curvature: 0 };
+  if (!a || b === a || oa === ob) return { offset: oa, curvature: 0, bend: 0 };
   const span = Math.max(1, b.s - a.s);
   const t = Math.min(1, Math.max(0, (s - a.s) / span));
   const w = Math.PI / span;
+  const bend = ((ob - oa) * w * w * Math.cos(Math.PI * t)) / 2;
   return {
     offset: oa + ((ob - oa) * (1 - Math.cos(Math.PI * t))) / 2,
-    curvature: Math.abs(((ob - oa) * w * w * Math.cos(Math.PI * t)) / 2),
+    curvature: Math.abs(bend),
+    bend,
   };
+}
+
+const la: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+const lb: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
+
+/** HOW SHARPLY THE LINE THROUGH THE GATES TURNS `s` metres down the piste,
+ * 1/m, signed (positive to the right): on a speed course its racing line's
+ * own (`speedLineAt`, R32, R33); elsewhere the piste's own bend there, read over
+ * `span` metres either side, and the gate line's swing across it
+ * (`gateLineAt`) — with their signs, so a line that cuts to the inside of
+ * a bend at its apex turns LESS than the piste does, as a racer's line
+ * does. What a speed course's line is read by (the bot, its par). */
+export function lineBendAt(level: Level, s: number, span: number): number {
+  const line = speedLineAt(level, s);
+  if (line) return line.bend;
+  trackPointAt(level, s - span, la);
+  trackPointAt(level, s + span, lb);
+  return angleDiff(la.heading, lb.heading) / (2 * span) + gateLineAt(level, s).bend;
 }
 
 /** Where a run that has just finished stands: one more than the rivals
  * already home. A rival's own run has no field, so it reads 1 here and the
  * standings are the player's to work out (`racePlace`). */
 function placeOf(state: GameState): number {
+  if (state.field) return fieldPlace(state);
   let ahead = 0;
   for (const r of state.rivals) if (r.run.progress.finished) ahead += 1;
   return ahead + 1;
 }
 
-/** How much nearer a TRANSPORT LANE (a cat track, R27) must be than the
- * nearest piste for a free ride's reset to stand the skier on it, m: a
- * skier set back on the snow is set on a run to ski, and a lane is only
- * the way between them. */
-const LANE_HANDICAP = 40;
-
-/** The point of a run's centreline nearest (x, z) on a free ride: of every
- * run of the resort (R27) — a piste preferred over a lane by
- * `LANE_HANDICAP` — or of the map's one piste where the map is not a
- * resort. Facing the way that run runs there. Pure: the runs are walked in
- * their published order and the first of two equal answers is kept. */
-function nearestRunPoint(level: Level, x: number, z: number): TrackPoint {
-  const runs = level.resort?.runs ?? [];
-  let best: TrackPoint | null = null;
-  let score = Infinity;
-  for (const run of runs) {
-    if (run.points.length < 2) continue;
-    const line = { track: { points: run.points, length: run.length } };
-    const near = nearestTrackPoint(line, x, z);
-    const d = near.distance + (run.kind === "road" ? LANE_HANDICAP : 0);
-    if (d < score) {
-      score = d;
-      best = trackPointAt(line, near.s);
-    }
-  }
-  return best ?? trackPointAt(level, nearestTrackPoint(level, x, z).s);
-}
-
 /** Where a reset stands the skier: on the piste's centreline a few metres
  * past the last gate taken (or on the start line before the start gate),
  * facing down the piste. On a FREE RIDE, where no gate is owed, it is the
- * nearest point of the nearest RUN of the resort (`nearestRunPoint`) — the
- * groomer he was last closest to, facing the way it runs there. */
+ * nearest point of the nearest run he has SKIED (`skied.ts`), facing the
+ * way it runs there. */
 export function resetPose(state: GameState): {
   x: number;
   z: number;
@@ -281,7 +324,7 @@ export function resetPose(state: GameState): {
   checkpoint: number;
 } {
   if (!state.rules.course) {
-    const at = nearestRunPoint(state.level, state.skier.x, state.skier.z);
+    const at = skiedResetPoint(state);
     return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };
   }
   const cps = state.level.checkpoints;
@@ -325,6 +368,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.z = z;
   c.y = level.groundAt(x, z) - midSink + c.spec.cogHeight;
   c.vx = c.vy = c.vz = 0;
+  c.switched = false;
   c.q = fromEuler(heading, pitch, roll);
   c.wx = c.wy = c.wz = 0;
   c.tuck = 0;
@@ -338,9 +382,12 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.jumpLoad = 0;
   c.popped = 1e6;
   c.drive = 0;
+  c.glide = 0;
+  c.step = 0;
   c.crouch = 0;
   c.hipRight = 0;
   c.hipAft = 0;
+  c.balance = 0;
   c.packed = packed;
   c.sideSlip = 0;
   c.airborne = false;
@@ -356,6 +403,9 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.trenchFor = 0;
   c.boggedFor = 0;
   c.rolledFor = 0;
+  c.bodyHit = 0;
+  c.bodySide = 0;
+  c.save = null;
   c.thrown = null;
   c.hitCooldown = 0;
   c.bumpCooldown = 0;
@@ -364,7 +414,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
     contact.load = 0;
   }
   c.comps.fill(0);
-  derive(c);
+  derive(c, state.level);
 }
 
 /** How far clear of a trunk a free ride may be stood, m past its radius. */
@@ -391,10 +441,11 @@ export function freeSpawn(level: Level, x: number, z: number): Spawn {
   return { x: px, z: pz, heading: along.heading };
 }
 
-/** `reset`: back on the piste at the last gate taken. */
+/** `reset`: back on the piste at the last gate taken — and healed. */
 export function resetSkier(state: GameState, events: GameEvent[], auto: boolean): void {
   const pose = resetPose(state);
   standSkier(state, pose.x, pose.z, pose.heading);
+  mendBody(state.skier.body);
   state.progress.lastResetAt = state.progress.time;
   events.push({ kind: "reset", t: state.t, checkpoint: pose.checkpoint, auto });
 }

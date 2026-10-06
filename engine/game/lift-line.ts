@@ -586,6 +586,52 @@ export function queueLane(plan: LiftPlan): { u: number; v: number }[] {
   ];
 }
 
+/** How far past the corral's mouth its rope fences run on, m — the corral
+ * as drawn (`station-plan.ts`), and where its open end is. */
+export const CORRAL_TAIL = 8;
+
+/** THE BOARDING RING at a lift's foot, m and m/s: a lit circle on the snow
+ * `gap` m past the open end of its corral, where the queue starts. A skier
+ * who rides into it slower than `fastest`, whichever way he is facing, is
+ * taken up the queue's lane through the corral at `glide` and onto the
+ * lift (`lift-ride.ts`). */
+export const BOARDING_RING = { radius: 3.5, gap: 1, fastest: 14, glide: 6 } as const;
+
+/** Where a lift's boarding ring lies: its centre (`u`, `v` in the line's
+ * frame, and in the world) — on the queue lane's last leg, beyond the
+ * corral's fences. */
+export function boardingRing(plan: LiftPlan): { u: number; v: number; x: number; z: number } {
+  const lane = queueLane(plan);
+  const a = lane[lane.length - 2];
+  const b = lane[lane.length - 1];
+  const len = hypot(b.u - a.u, b.v - a.v) || 1;
+  const out = CORRAL_TAIL + BOARDING_RING.gap + BOARDING_RING.radius;
+  const u = a.u + ((b.u - a.u) / len) * out;
+  const v = a.v + ((b.v - a.v) / len) * out;
+  return {
+    u,
+    v,
+    x: plan.lift.bottom.x + plan.dx * u + plan.dz * v,
+    z: plan.lift.bottom.z + plan.dz * u - plan.dx * v,
+  };
+}
+
+/** The way a rider taken from the boarding ring is brought to the load
+ * zone, in the world: up the queue's lane from the corral's mouth to its
+ * head on the load line (or a gondola's door). */
+export function ringWalk(plan: LiftPlan): { x: number; z: number }[] {
+  const lane = queueLane(plan);
+  const way: { x: number; z: number }[] = [];
+  for (let k = lane.length - 2; k >= 0; k--) {
+    const p = lane[k];
+    way.push({
+      x: plan.lift.bottom.x + plan.dx * p.u + plan.dz * p.v,
+      z: plan.lift.bottom.z + plan.dz * p.u - plan.dx * p.v,
+    });
+  }
+  return way;
+}
+
 /** Place `i` in a lift's queue (0 on the load line): where, and the way
  * he faces — up the lane toward the load line. */
 export function queueSpot(plan: LiftPlan, i: number): { x: number; z: number; heading: number } {

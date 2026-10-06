@@ -19,6 +19,9 @@
 //     each. Hung where they stand — a lift that turned would be a second
 //     clock the replay and the ghost would have to agree on.
 //
+//   * THE BOARDING RINGS at their feet, where a free ride's queues start
+//     (`boarding-rings.ts`) — on a run that rides the lifts alone.
+//
 //   * THE WIND TUNNELS along the valley floor, the horizontal lift, are
 //     `wind-tunnels.ts`'s, held in this group and moved by `update`.
 //
@@ -44,6 +47,7 @@ import {
   type LiftKind,
   type LiftPlan,
 } from "@engine";
+import { createBoardingRings } from "./boarding-rings.ts";
 import { CHAIR_BACK, CHAIR_SEAT } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
@@ -163,8 +167,9 @@ function ropesOf(plan: LiftPlan): number[] {
 
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
  * (`wind-tunnels.ts`), the horizontal lift — in one group the renderer
- * holds. `budget` is the SPRAY row's share. */
-export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts {
+ * holds. `budget` is the SPRAY row's share; `rings` whether the run rides
+ * the lifts (`RunRules.lifts`), and so whether its boarding rings show. */
+export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings = false): Lifts {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -173,9 +178,11 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   const tunnels = createWindTunnels(level, haze, budget);
   group.add(tunnels.group);
   let disposeBoards = (): void => {};
+  let disposeRings = (): void => {};
   const dispose = () => {
     tunnels.dispose();
     disposeBoards();
+    disposeRings();
     for (const g of geos) g.dispose();
     for (const m of mats) m.dispose();
     for (const m of meshes) m.dispose();
@@ -348,6 +355,12 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
   );
   group.add(boards.group);
   disposeBoards = boards.dispose;
+  // THE BOARDING RINGS where the queues start, ridden into to board.
+  const boarding = rings ? createBoardingRings(level, plans) : null;
+  if (boarding) {
+    group.add(boarding.group);
+    disposeRings = boarding.dispose;
+  }
 
   // THE ROPES, every lift's as one set of line segments: a vertex every few
   // metres down each span (the sag is a curve), and the turn round each
@@ -546,6 +559,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1): Lifts
 
   done.update = (t, rider, drawn, left) => {
     tunnels.update(t);
+    boarding?.update(t);
     const sat = rider?.kind === "chair" && rider.phase === "ride";
     const runOn = sat ? null : emptyAt(left, t);
     moveCarriers(

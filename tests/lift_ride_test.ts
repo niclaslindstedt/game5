@@ -13,7 +13,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOARDING_RING,
   LIFT_LOOK,
+  boardingRing,
   PISTE_GRADES,
   generateLevel,
   NEUTRAL_INPUT,
@@ -26,7 +28,9 @@ import {
   freeRunOf,
   freeRuns,
   liftPlans,
+  queueSpot,
   standSkier,
+  stationHouses,
   step,
   type GameEvent,
   type GameState,
@@ -213,6 +217,69 @@ describe("riding a lift on a free ride", () => {
     fast.skier.speed = LIFT_LOOK.chair.entry.fastest + 3;
     step(fast, NEUTRAL_INPUT);
     expect(fast.skier.lift).toBeNull();
+  });
+
+  for (const kind of ["chair", "gondola", "drag"] as const) {
+    it(`boards a ${kind} from its boarding ring, facing any way, and carries him up`, () => {
+      const plan = of(kind)!;
+      const ring = boardingRing(plan);
+      const run = createGame({ level, mode: "free", quiet: true });
+      // Come in off the mountain, facing away from the line, at a run.
+      standSkier(run, ring.x, ring.z, plan.heading + 2.5);
+      run.skier.vx = Math.sin(plan.heading + 2.5) * 8;
+      run.skier.vz = Math.cos(plan.heading + 2.5) * 8;
+      run.skier.speed = 8;
+      step(run, NEUTRAL_INPUT);
+      expect(run.skier.lift?.phase).toBe("board");
+      expect(run.skier.lift?.walk).toBeGreaterThan(BOARDING_RING.radius);
+      // Glided up the queue's lane, never faster than the glide asks, onto
+      // the lift facing up its line.
+      let fastest = 0;
+      ride(run, 60, (r) => {
+        if (r.skier.lift?.phase === "board") fastest = Math.max(fastest, r.skier.speed);
+        return r.skier.lift?.phase === "ride";
+      });
+      expect(run.skier.lift?.phase).toBe("ride");
+      expect(fastest).toBeLessThan(BOARDING_RING.glide * 2);
+      expect(Math.abs(angleDiff(run.skier.heading, plan.heading))).toBeLessThan(0.05);
+      const events = ride(run, 900, (r) =>
+        r.events.some((e) => e.kind === "lift" && e.phase === "off"),
+      );
+      expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
+    });
+  }
+
+  it("lays every boarding ring on the queue's lane past the corral, clear of the houses", () => {
+    for (const plan of plans) {
+      const ring = boardingRing(plan);
+      // Beyond the head of the queue the crowd stands in…
+      const head = queueSpot(plan, 0);
+      expect(Math.hypot(ring.x - head.x, ring.z - head.z)).toBeGreaterThan(10);
+      // …and no station house stands on it.
+      for (const h of stationHouses(level, plan)) {
+        const rx = ring.x - h.x;
+        const rz = ring.z - h.z;
+        const a = Math.abs(rx * plan.dx + rz * plan.dz);
+        const b = Math.abs(rx * plan.dz - rz * plan.dx);
+        expect(
+          a > h.halfLength + BOARDING_RING.radius || b > h.halfWidth + BOARDING_RING.radius,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("will not take a skier through the ring at speed, nor in a race", () => {
+    const plan = of("chair")!;
+    const ring = boardingRing(plan);
+    const fast = createGame({ level, mode: "free", quiet: true });
+    standSkier(fast, ring.x, ring.z, plan.heading);
+    fast.skier.speed = BOARDING_RING.fastest + 2;
+    step(fast, NEUTRAL_INPUT);
+    expect(fast.skier.lift).toBeNull();
+    const race = createGame({ level, rivals: 0, countdown: 0, quiet: true });
+    standSkier(race, ring.x, ring.z, plan.heading);
+    step(race, NEUTRAL_INPUT);
+    expect(race.skier.lift).toBeNull();
   });
 
   it("is a free ride's alone: a race never boards", () => {

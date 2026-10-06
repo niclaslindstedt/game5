@@ -161,6 +161,12 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   its station's door (in a cabin, out of sight, and walked out of the top
   station onto the pad facing down), a drag from the head of its track
   (pulled up it standing on the skis and let go short of the top wheel).
+- **The boarding ring (`boardingRing`, `boarding-rings.ts`)** — a lit amber
+  circle of 3.5 m radius, on the queue's lane a metre past the open
+  end of the corral, with a column of light standing out of it (a free
+  ride's alone). Ride into it under 14 m/s, facing any way, and you are
+  glided up the queue's lane through the corral (`ringWalk`) to the load
+  zone and boarded as above.
 - **The way in (`lift-line.ts`, `LiftLook.in` and `.rail`)** — the last
   tower stands past the pad's rim, 30 m short of a chair's top wheel (34 m
   of a gondola's) and slid on back off any groomed snow, as tall as it must

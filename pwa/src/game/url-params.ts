@@ -118,6 +118,9 @@
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
+//   ?groomer=1      a free ride the PISTE MACHINES work whatever the hour
+//                   (`groomer.ts`) — or, with 0, one they never do; left
+//                   out, they are out after dark.
 //   ?video=<tier>   ski this visit at a picture preset (low, medium, high —
 //                   `settings-video.ts`) without storing it: how a lab
 //                   meters or photographs a rung.
@@ -252,6 +255,9 @@ export type UrlParams = {
   /** A free ride the grimbear hunts (true) or never shows on (false), over
    * the odds; null when the link names neither. */
   grimbear: boolean | null;
+  /** A free ride the piste machines work whatever the hour (true) or never
+   * (false); null when the link names neither — out after dark. */
+  groomer: boolean | null;
 };
 
 /** The sky a link names, if any. */
@@ -382,6 +388,7 @@ export function readParams(search: string): UrlParams {
     para: q.get("para") === "1",
     sled: q.get("sled") === "1",
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
+    groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
   };
 }
 
@@ -408,6 +415,7 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
+    groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
   };
 }
 

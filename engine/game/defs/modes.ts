@@ -88,6 +88,9 @@ export type RunRules = {
    * is the player's to ride anywhere on the mountain and hop off. On a FREE
    * RIDE only. */
   sled: boolean;
+  /** WHETHER THE PISTE MACHINES WORK THE RUNS AT NIGHT (`groomer.ts`):
+   * driven into, one is the player's to drive. On a FREE RIDE only. */
+  groomer: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
@@ -268,6 +271,7 @@ export function fieldRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -308,6 +312,7 @@ export function slalomRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "interval",
     gates: "strict",
     window: SLALOM.window,
@@ -349,6 +354,7 @@ export function downhillRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "interval",
     gates: "strict",
     window: DOWNHILL.window,
@@ -391,6 +397,7 @@ export function superGRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "interval",
     gates: "strict",
     window: SUPER_G.window,
@@ -434,6 +441,7 @@ export function giantSlalomRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "interval",
     gates: "strict",
     window: GIANT_SLALOM.window,
@@ -480,6 +488,7 @@ export function speedSkiRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "interval",
     gates: "strict",
     window: SPEED_SKI.window,
@@ -528,6 +537,7 @@ export function skiCrossRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "gate",
     dealt: true,
     gates: "strict",
@@ -568,6 +578,7 @@ export function openRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -595,6 +606,7 @@ export function freeRules(laps: number): RunRules {
     lifts: true,
     heli: true,
     sled: true,
+    groomer: true,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -689,6 +701,7 @@ export function timeTrialRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -709,6 +722,7 @@ export const TRICKS_RUN = {
   lifts: false,
   heli: false,
   sled: false,
+  groomer: false,
 } as const;
 
 /** A tricks run as a skier is dealt it: the lights, the strokes read, the
@@ -728,6 +742,7 @@ export function tricksRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,
@@ -786,6 +801,7 @@ export function bigAirRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "strict",
     window: BIG_AIR.window,
@@ -840,6 +856,7 @@ export function knuckleHuckRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "arcade",
     window: 0,

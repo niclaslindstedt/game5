@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind
 
 build:
 	npm run build
@@ -429,6 +429,17 @@ para-wind:
 # Chromium like `world`. ARGS="--sheet=kill,moves", "--views=stride".
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE PISTE MACHINE LAB: the free ride's night groomers photographed
+# through the game's own renderer — the figure from eight sides and up
+# close, at work by day, at dusk, after dark with every lamp lit, in the
+# fall and the storm, the corduroy from the skier's chase, driven on its
+# own camera ladder, and skied into frame by frame. One contact sheet a
+# group, previews/groomer-<group>.png, and every frame alone. Its own
+# one-off bundle from pwa/groomer-preview.html (never deployed); needs a
+# Chromium like `world`. ARGS="--sheet=night,snow", "--views=turntable".
+groomer:
+	npm run groomer -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

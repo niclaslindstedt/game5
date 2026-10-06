@@ -69,6 +69,14 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   from `skier-spring.ts` against the turn clock the engine keeps
   (`Amateur.turnSide`, `turnT`, `turnHeld`, begun past `CROWD.turnOn`).
   Never a second timing.
+- **NOBODY SKIS INSIDE ANOTHER.** Riders off one carrier are let go side
+  by side (`CROWD.ride.apart`) and join their run that far apart; the
+  start deals riders only onto carriers on their way up (one past the top
+  would let a whole lift's load go on one spot); on a run each gives the
+  one ahead — or level, dealt first — a berth (`CROWD.room`), his own
+  group too, and a school's kid drops back into his place in the snake
+  instead. A pace held off another is never below a crawl, or one stood
+  still stands the run behind him still. `tests/crowd_test.ts` holds it.
 - **NOBODY GLIDES STILL.** Where the hill will not carry an amateur to the
   speed he means (up to `TUNING.poles.speed`, the player's own push), the
   engine has him WORK (`Amateur.push`) and counts his strides at the

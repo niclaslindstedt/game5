@@ -16,7 +16,7 @@
 // `CROWD.ride.skate`. Every choice is drawn off the crowd's own stream.
 
 import { strideRate } from "./poles.ts";
-import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { CROWD } from "./defs/crowd.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -43,7 +43,7 @@ export type LiftRuns = {
     from: string;
     top: boolean;
     grade: string;
-    pts: readonly { x: number; z: number; y: number; s: number }[];
+    pts: readonly { x: number; z: number; y: number; s: number; heading: number; width: number }[];
   }[];
   weight(run: number, skill: number): number;
 };
@@ -235,8 +235,11 @@ function letGo(
 ): void {
   const g = crowd.groups[a.group];
   const off = offAt(plan);
-  const sx = plan.lift.bottom.x + plan.dx * off;
-  const sz = plan.lift.bottom.z + plan.dz * off;
+  // Side by side as the carrier held them, a skier's room apart — never
+  // let go on one spot to skate off inside each other.
+  const side = (a.seat - (R.seats[plan.lift.kind] - 1) / 2) * R.apart;
+  const sx = plan.lift.bottom.x + plan.dx * off + plan.dz * side;
+  const sz = plan.lift.bottom.z + plan.dz * off - plan.dx * side;
   a.x = sx;
   a.z = sz;
   a.y = state.level.groundAt(sx, sz);
@@ -264,11 +267,14 @@ function letGo(
       at = p;
     }
   }
+  // ...and onto it the same room apart, across it.
+  const across = clamp(side, -at.width / 2 + 1, at.width / 2 - 1);
   a.mode = "skate";
   a.run = g.next;
-  a.tx = at.x;
-  a.tz = at.z;
+  a.tx = at.x + Math.cos(at.heading) * across;
+  a.tz = at.z - Math.sin(at.heading) * across;
   a.ts = at.s;
+  a.centre = across;
 }
 
 function pickTop(rng: Rng, net: LiftRuns, lift: string, skill: number): number {
@@ -308,8 +314,7 @@ function skate(state: GameState, a: Amateur): boolean {
   }
   a.mode = "ski";
   a.s = a.ts;
-  a.d = 0;
-  a.centre = 0;
+  a.d = a.centre;
   a.yaw = 0;
   a.speed = R.skate;
   a.push = 0;
@@ -387,27 +392,37 @@ export function dealRiding(
   }
   const plan = plans[lift];
   const n = carrierCount(plan);
-  // A carrier on the way up, somewhere along the line.
-  let k = rng.int(0, n - 1);
-  for (let tries = 0; tries < n; tries++, k = (k + 1) % n) {
+  // A carrier on the way up, somewhere along the line — never one past
+  // its top or on the way back down, which would let him go at once.
+  const up = (k: number): boolean => {
     const c = carrierAt(plan, k, state.t);
-    if (c.side === 0 && c.u > 0.1 * plan.length && c.u < 0.85 * plan.length) break;
-  }
+    return c.side === 0 && c.u > 0.1 * plan.length && c.u < 0.85 * plan.length;
+  };
+  let k = rng.int(0, n - 1);
+  for (let tries = 0; tries < n && !up(k); tries++) k = (k + 1) % n;
   const seats = R.seats[plan.lift.kind];
-  // Filling the free seats of one carrier and then the one below it.
-  let seat = taken(crowd, lift, k);
-  for (const m of members) {
-    for (let tries = 0; seat >= seats && tries < n; tries++) {
+  // Filling the free seats of one carrier and then the ones below it, on
+  // the way up all — and with no room left there, dealt elsewhere.
+  const placed: [number, number][] = [];
+  const held = (k: number): number =>
+    taken(crowd, lift, k) + placed.filter(([c]) => c === k).length;
+  let seat = held(k);
+  for (let m = 0; m < members.length; m++) {
+    for (let tries = 0; (seat >= seats || !up(k)) && tries < n; tries++) {
       k = (k - 1 + n) % n;
-      seat = taken(crowd, lift, k);
+      seat = held(k);
     }
+    if (seat >= seats || !up(k)) return false;
+    placed.push([k, seat++]);
+  }
+  members.forEach((m, i) => {
     const a = crowd.amateurs[m];
     a.mode = "ride";
     a.lift = lift;
-    a.carrier = k;
-    a.seat = seat++;
+    a.carrier = placed[i][0];
+    a.seat = placed[i][1];
     a.timer = R.sit;
-  }
+  });
   const g = crowd.groups[crowd.amateurs[members[0]].group];
   g.queue = lift;
   g.next = -1;

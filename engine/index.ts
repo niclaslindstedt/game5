@@ -440,6 +440,7 @@ export {
   bottomlessOf,
   settleShare,
   packedUnder,
+  packedSnow,
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
@@ -566,6 +567,24 @@ export {
 export { GRIMBEAR } from "./game/defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
 export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
+export { GROOMER } from "./game/defs/groomer.ts";
+export {
+  freshGroomers,
+  groomersOut,
+  groomerStrike,
+  groomerWithin,
+  seatOf,
+  stepGroomers,
+  type GroomerAsk,
+} from "./game/groomer.ts";
+export {
+  freshGroomed,
+  GROOM_CELL,
+  groomCellOf,
+  groomedFresh,
+  groomSegment,
+} from "./game/groomed.ts";
+export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";

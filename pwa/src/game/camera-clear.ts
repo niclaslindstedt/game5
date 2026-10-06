@@ -58,6 +58,33 @@ type Banner = {
 export type LineClearOptions = {
   /** Whether the trees are solid to the lens (default true). */
   trees?: boolean;
+  /** THE SOLIDS THAT MOVE — the free ride's piste machines as drawn this
+   * frame (`groomer-scene.ts`), asked once per question: a lens is never
+   * stood in a cab twelve tonnes of steel drives through. */
+  movers?: () => readonly SolidBox[];
+};
+
+/** A box standing on the snow: its middle, its long axis (a unit plan
+ * direction), its half length along that and half width across, and its
+ * foot and top, m. */
+export type SolidBox = {
+  x: number;
+  z: number;
+  dx: number;
+  dz: number;
+  halfLength: number;
+  halfWidth: number;
+  base: number;
+  top: number;
+};
+
+const inBox = (h: SolidBox, x: number, y: number, z: number): boolean => {
+  if (y < h.base || y > h.top + LENS_PAD) return false;
+  const ox = x - h.x;
+  const oz = z - h.z;
+  const along = ox * h.dx + oz * h.dz;
+  const across = ox * h.dz - oz * h.dx;
+  return Math.abs(along) < h.halfLength + LENS_PAD && Math.abs(across) < h.halfWidth + LENS_PAD;
 };
 
 export function createLineClear(level: Level, opts: LineClearOptions = {}): LineClear {
@@ -98,7 +125,10 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
 
   // Every lift's station houses: a lens carried up a chair and led off its
   // top past the house is pulled in short of the wall, never through it.
-  const houses: StationHouse[] = liftPlans(level).flatMap((p) => stationHouses(level, p));
+  const houses: SolidBox[] = liftPlans(level)
+    .flatMap((p) => stationHouses(level, p))
+    .map((h: StationHouse) => ({ ...h, dx: h.plan.dx, dz: h.plan.dz }));
+  let movers: readonly SolidBox[] = [];
 
   const near: number[] = [];
 
@@ -117,15 +147,8 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
       if (y < p.y0 || y > p.y1 + LENS_PAD) continue;
       if (Math.hypot(x - p.x, z - p.z) < p.r + LENS_PAD) return true;
     }
-    for (const h of houses) {
-      if (y < h.base || y > h.top + LENS_PAD) continue;
-      const dx = x - h.x;
-      const dz = z - h.z;
-      const along = dx * h.plan.dx + dz * h.plan.dz;
-      const across = dx * h.plan.dz - dz * h.plan.dx;
-      if (Math.abs(along) < h.halfLength + LENS_PAD && Math.abs(across) < h.halfWidth + LENS_PAD)
-        return true;
-    }
+    for (const h of houses) if (inBox(h, x, y, z)) return true;
+    for (const h of movers) if (inBox(h, x, y, z)) return true;
     const b = banner as Banner | null;
     if (b && y > b.y0 - LENS_PAD && y < b.y1 + LENS_PAD) {
       const dx = x - b.x;
@@ -143,6 +166,7 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     const dz = to.z - from.z;
     const len = Math.hypot(dx, dy, dz);
     if (len < 1e-6) return 1;
+    movers = opts.movers?.() ?? [];
     if (trees) {
       treesNear(
         level,

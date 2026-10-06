@@ -47,6 +47,11 @@ export type SnowSampler = (x: number, z: number) => SnowProps;
  * (`snow-glsl.ts` lifts it; anything standing on the snow stands on it). */
 export const LOOSE = 0.1;
 
+/** New snow that buries the groomed track's LOOK outright, m: a few
+ * centimetres cover the comb's corduroy and the grey of worked snow — and
+ * fill a piste machine's fresh swath the same (`trail-map.ts`'s `fill`). */
+export const FRESH_LOOK = 0.06;
+
 export const TRAIL = {
   /** The deepest trough the map can hold, m — the encoding's full scale:
    * a skier standing in a metre of fresh snow sits some 70 cm down in it
@@ -101,6 +106,11 @@ export type Stamp = {
   /** How its walls stand, 0 sloughed … 1 square (`SnowProps.wall`);
    * settled powder's (`TRAIL.wall`) when left out. */
   wall?: number;
+  /** A PISTE MACHINE'S SWATH (`groomer.ts`), not a furrow: everything under
+   * it is wiped back to the snow's own surface and marked groomed, the comb
+   * running along it (`trail-map.ts`'s groom pass). `depth` and `berm` are
+   * nought. */
+  groom?: boolean;
 };
 
 /** THE DEPTH A PROBE IS DRAWN AT, m, on snow `packed` (0 powder … 1

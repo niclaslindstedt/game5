@@ -46,6 +46,7 @@ import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { stepAfterski } from "./afterski.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
+import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -99,19 +100,25 @@ export function stepRun(
   player = false,
 ): void {
   const racing = run.phase === "racing";
-  // Carried by any of the three below, the place he last left a run is
+  // Carried by any of the machines below, the place he last left a run is
   // forgotten: a reset never sends him back to where he was before.
+  // In a lodge he is stood at its door: the machine press is the lodge's
+  // (out again), never a machine's that happens to pass it.
+  const out = run.afterski?.inside ? { ...input, machine: false } : input;
+  // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
+  // and while he drives one the step is its own.
+  if (stepGroomers(run, out, events)) return forgetRun(run);
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
-  if (stepHeli(run, input, events)) return forgetRun(run);
+  if (stepHeli(run, out, events)) return forgetRun(run);
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
-  if (stepSled(run, input, events)) return forgetRun(run);
+  if (stepSled(run, out, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
-  if (stepLift(run, input, events)) return forgetRun(run);
+  if (stepLift(run, out, events)) return forgetRun(run);
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
-  if (paraPress(run, input, events)) return;
+  if (paraPress(run, out, events)) return;
   // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
   if (stepAfterski(run, input, events)) return;
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
@@ -200,8 +207,11 @@ export function stepRun(
     // THE EMPTY CHAIR behind him off a lift (`lift-ride.ts`), if he stood
     // in its way; else whatever else threw him.
     const swept = chairStrike(run);
-    const cause = swept ? null : wipeoutCause(run, events, speed0);
+    // ...or a piste machine he rode into, or whose blade met him.
+    const struck = swept ? null : groomerStrike(run, events);
+    const cause = swept || struck ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
+    else if (struck) throwRider(run, "groomer", struck, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
   }

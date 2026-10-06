@@ -97,6 +97,7 @@ export function slopestyleRules(laps: number): RunRules {
     lifts: false,
     heli: false,
     sled: false,
+    groomer: false,
     start: "line",
     gates: "strict",
     window: SLOPESTYLE.window,

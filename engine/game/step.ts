@@ -69,6 +69,7 @@ import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
+import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
@@ -219,6 +220,10 @@ export type CreateGameOptions = {
    * started again after he was caught). None when left out; the app deals
    * him to one ride in a few. Ignored by every other mode. */
   grimbear?: GrimbearAsk;
+  /** THE PISTE MACHINES (`groomer.ts`) on a FREE RIDE: out after dark
+   * (`night`, the app's ask), whatever the hour (`on`), or never (`off`).
+   * None when left out. Ignored by every other mode. */
+  groomer?: GroomerAsk;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -251,6 +256,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     heli: base.heli,
     sled: base.sled,
     afterski: base.afterski,
+    groomer: base.groomer,
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -436,6 +442,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
+  // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
+  if (free && rules.groomer && groomersOut(level, options.groomer)) {
+    state.groomers = freshGroomers(state);
+  }
   if (!options.quiet) {
     status(
       `Map ${level.seed}: ${level.checkpoints.length} gates over ${Math.round(

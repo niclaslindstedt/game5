@@ -33,6 +33,7 @@ import {
   mayGetUp,
   paraRigged,
   sledWithin,
+  groomerWithin,
   trenched,
   type GameState,
   type Level,
@@ -266,6 +267,9 @@ export type HudSnapshot = {
   /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
    * while it waits for him, or null. */
   sled: HudSled | null;
+  /** THE PISTE MACHINE (`groomerOf`): driven, or the nearest's way while
+   * he is near one, or null. */
+  groomer: HudGroomer | null;
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
@@ -275,6 +279,33 @@ export type HudSnapshot = {
   /** THE BUZZ, 0 sober to 1 (`SkierState.buzz`): the meter shows over 0. */
   buzz: number;
 };
+
+/** A PISTE MACHINE as the HUD reads it: driven — its speed, km/h (negative
+ * in reverse), and whether its tiller is down — or the nearest `away` m from
+ * him, `near` when he stands where the machine press takes him into its
+ * cab (`groomerWithin`). */
+export type HudGroomer =
+  | { kind: "driven"; kmh: number; tiller: boolean }
+  | { kind: "waiting"; away: number; near: boolean };
+
+/** How near a piste machine the HUD names it to him, m. */
+const GROOMER_CALL = 45;
+
+/** The piste machines' readout for the player at this step. */
+export function groomerOf(state: GameState): HudGroomer | null {
+  const gs = state.groomers;
+  if (!gs || gs.length === 0) return null;
+  const driven = gs.find((g) => g.rider);
+  if (driven) return { kind: "driven", kmh: driven.speed * 3.6, tiller: driven.tiller };
+  const c = state.skier;
+  if (c.thrown || c.lift || state.heli?.rider || state.sled?.rider || paraRigged(state))
+    return null;
+  let away = Infinity;
+  for (const g of gs) away = Math.min(away, Math.hypot(g.x - c.x, g.z - c.z));
+  return away < GROOMER_CALL
+    ? { kind: "waiting", away, near: groomerWithin(state) !== null }
+    : null;
+}
 
 /** THE PARAMOTOR as the HUD reads it while the rig is on him: `ready` on
  * the summit, the wing held up; else flown — in the air or skiing under it
@@ -622,6 +653,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     wind: windOf(state),
     heli: heliOf(state),
     sled: sledOf(state),
+    groomer: groomerOf(state),
     para: paraOf(state),
     afterski: afterskiOf(state),
     buzz: c.buzz ?? 0,

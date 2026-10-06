@@ -24,6 +24,7 @@ import type { Thrown } from "./thrown-state.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
+import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { PressState } from "./butter-state.ts";
@@ -73,13 +74,11 @@ export type SkierInput = {
    * held on the snow, and springs off them the step it is let go, the
    * higher the longer it was held (`TUNING.jump`). Left out, it is off. */
   jump?: boolean;
-  /** THE HELICOPTER'S CONTROLS (`heli.ts`), while he sits on its skid and
-   * flies it — the skier's own axes mean nothing there. Left out, the
-   * controls are where they were let go: the collective down, the cyclic
-   * and the pedals centred. */
+  /** THE HELICOPTER'S CONTROLS (`heli.ts`) while he flies it; left out,
+   * where they were let go — the collective down, the rest centred. */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside, off the one
-   * he rides, or the paramotor's rig released. ENTER, a double tap on touch. */
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside (a piste
+   * machine's cab too), off the one he rides, or the paramotor's rig released. */
   machine?: boolean;
 };
 
@@ -377,8 +376,8 @@ export type BodyState = {
 export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number; energy?: number };
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
- * trunk, another skier, a crashed helicopter's seat. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli";
+ * trunk, another skier, a crashed helicopter's seat, a piste machine. */
+export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -643,6 +642,7 @@ export type GameEvent =
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
   | AfterskiEvent
+  | GroomerEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number }
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
@@ -948,20 +948,20 @@ export type GameState = ContestState & {
   /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
    * whose rules ask for one (the free ride); absent everywhere else. */
   crowd?: CrowdState;
-  /** THE HELICOPTER (`heli.ts`): on a run whose rules carry one (the free
-   * ride); absent everywhere else. */
+  /** THE HELICOPTER (`heli.ts`) and THE SNOWMOBILE (`sled.ts`): on a run
+   * whose rules carry them (the free ride); absent everywhere else. */
   heli?: HeliState;
-  /** THE SNOWMOBILE (`sled.ts`): on a run whose rules carry one (the free
-   * ride); absent everywhere else. */
   sled?: SledState;
   /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
   para?: import("./para-state.ts").ParaState;
   /** THE AFTERSKI (`afterski.ts`): on a run whose rules have lodges to go
    * into (the free ride); absent everywhere else. */
   afterski?: AfterskiState;
-  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to;
-   * absent everywhere else. */
+  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to. */
   grimbear?: GrimbearState;
+  /** THE PISTE MACHINES (`groomer.ts`) and their snow (`groomed.ts`). */
+  groomers?: GroomerState[];
+  groomed?: GroomedSnow;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

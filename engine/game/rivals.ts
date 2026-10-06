@@ -160,6 +160,8 @@ export function rivalRun(
     rivals: [],
     // The crowd is the world's, stepped once, never a rival's own.
     crowd: undefined,
+    // ...and so are the piste machines.
+    groomers: undefined,
     field: undefined,
     // Every racer knocks his own poles, and his own stakes.
     gatePoles: freshGatePoles(state.level),

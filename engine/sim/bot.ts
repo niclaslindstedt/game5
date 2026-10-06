@@ -20,6 +20,7 @@
 
 import { pilotInput } from "../game/heli.ts";
 import { sledPilot } from "../game/sled-pilot.ts";
+import { paraPilot } from "../game/para-pilot.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
@@ -48,6 +49,8 @@ import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
 import { downhillSteer, steerOf } from "./downhill-steer.ts";
 import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
+import { railJamInput } from "./rail-jam-steer.ts";
+import { halfpipeInput } from "./halfpipe-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -618,6 +621,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // ...and one stood on the snowmobile's boards rides it up the mountain
   // (`sled-pilot.ts`) and never hops off.
   if (state.sled?.rider) return sledPilot(state);
+  // ...and one under a paramotor's wing skis off the summit and flies it
+  // (`para-pilot.ts`), never dropping the rig.
+  if (state.para && state.para.mode !== "dropped" && !c.thrown) return paraPilot(state);
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)
@@ -637,6 +643,12 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // DOWN A SLOPESTYLE COURSE (R39): its lines, its jibs and its jumps.
   const slope = slopestyleInput(state, on);
   if (slope) return slope;
+  // A RAIL JAM'S SET (R40): a feature a hit.
+  const rails = railJamInput(state, on);
+  if (rails) return rails;
+  // A HALFPIPE (R41): wall to wall, a trick a hit.
+  const pipe = halfpipeInput(state, on);
+  if (pipe) return pipe;
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;

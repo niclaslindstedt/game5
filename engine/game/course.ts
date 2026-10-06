@@ -36,7 +36,7 @@ import { probesOf } from "./suspension.ts";
 import type { GameEvent, GameState, Progress, RunOut } from "./state.ts";
 import { stepStrict } from "./strict.ts";
 import { fieldPlace } from "./field.ts";
-import { skiedResetPoint } from "./skied.ts";
+import { leftRunPoint, skiedResetPoint, topOfSlope } from "./skied.ts";
 
 const K = TUNING.course;
 
@@ -67,6 +67,7 @@ export function freshProgress(level: Level): Progress {
     bestAir: 0,
     distance: 0,
     skied: [],
+    lastOnRun: null,
     out: null,
     trap: null,
     trapAt: null,
@@ -314,9 +315,10 @@ function placeOf(state: GameState): number {
 
 /** Where a reset stands the skier: on the piste's centreline a few metres
  * past the last gate taken (or on the start line before the start gate),
- * facing down the piste. On a FREE RIDE, where no gate is owed, it is the
- * nearest point of the nearest run he has SKIED (`skied.ts`), facing the
- * way it runs there. */
+ * facing down the piste. On a FREE RIDE, where no gate is owed, it is back
+ * on the run where he LEFT the runs when he is off every one of them
+ * (`leftRunPoint`), else the nearest point of the nearest run he has SKIED
+ * (`skied.ts`), facing the way it runs there. */
 export function resetPose(state: GameState): {
   x: number;
   z: number;
@@ -329,7 +331,10 @@ export function resetPose(state: GameState): {
     return { x: spawn.x, z: spawn.z, heading: spawn.heading, checkpoint: -1 };
   }
   if (!state.rules.course) {
-    const at = skiedResetPoint(state);
+    // Taken by the grimbear (`grimbear.ts`), back at the top of the slope.
+    const at = state.grimbear?.top
+      ? topOfSlope(state)
+      : (leftRunPoint(state) ?? skiedResetPoint(state));
     return { x: at.x, z: at.z, heading: at.heading, checkpoint: -1 };
   }
   const cps = state.level.checkpoints;
@@ -450,6 +455,7 @@ export function freeSpawn(level: Level, x: number, z: number): Spawn {
 export function resetSkier(state: GameState, events: GameEvent[], auto: boolean): void {
   const pose = resetPose(state);
   standSkier(state, pose.x, pose.z, pose.heading);
+  if (state.grimbear) state.grimbear.top = false;
   mendBody(state.skier.body);
   state.progress.lastResetAt = state.progress.time;
   events.push({ kind: "reset", t: state.t, checkpoint: pose.checkpoint, auto });

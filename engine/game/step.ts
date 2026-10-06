@@ -10,7 +10,8 @@
 // skier, the trees, the edge, the clock, the course, the reset); the score
 // (`tricks.ts`); every rival's run by the same function; then every skier
 // against every other; then the crowd on a free ride (`crowd.ts`) — its
-// amateurs down their runs, and the player against them.
+// amateurs down their runs, and the player against them — and the
+// grimbear, on a free ride he was dealt to (`grimbear.ts`).
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -28,6 +29,8 @@ import {
   setSlalom,
   setBigAir,
   setKnuckleHuck,
+  setRailJam,
+  setHalfpipe,
   setSlopestyle,
   withDay,
   withSky,
@@ -60,12 +63,15 @@ import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
 import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshJam, stepJam } from "./jam.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
+import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
+import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
+import { startPara } from "./para.ts";
 import { juryDay } from "./jury.ts";
 import { stepRun } from "./run.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -117,6 +123,9 @@ export type CreateGameOptions = {
    * the player has skied, carried between the runs of one contest — a
    * fresh one off the seed when a slopestyle run leaves it out. */
   slopestyle?: SlopeContest;
+  /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), as a
+   * slopestyle's. */
+  halfpipe?: PipeContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -175,6 +184,11 @@ export type CreateGameOptions = {
    * sled's. Wins over `byLift` and `spawn` (never over `heli`). Ignored by
    * every mode without a snowmobile. */
   sled?: boolean;
+  /** A FREE RIDE begun ON THE SUMMIT UNDER A PARAMOTOR (`para.ts`): stood
+   * at the top of the mountain on his skis, the motor on his back and the
+   * wing inflated over him. Wins over `byLift`, `spawn` and the machines.
+   * Ignored by every mode but the free ride. */
+  para?: boolean;
   /** The run of the ski area (R27, `Run.id`) a free ride by lift starts
    * down (`freeRunOf`) — or, by neither lift nor spot, the piste whose HEAD
    * it is stood at (`pisteHead`: the restart's top of the slope); ignored
@@ -199,6 +213,11 @@ export type CreateGameOptions = {
    * is the new snow a fall lays over the run (`snowfall.ts`) and its wind
    * (`air.ts`). */
   sky?: SkyOverride;
+  /** THE GRIMBEAR (`grimbear.ts`) on a FREE RIDE: one that catches the
+   * skier once (`hunt`), or one that only chases him (`roam` — a ride
+   * started again after he was caught). None when left out; the app deals
+   * him to one ride in a few. Ignored by every other mode. */
+  grimbear?: GrimbearAsk;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -297,6 +316,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.bigAir?.base ??
     built.knuckleHuck?.base ??
     built.slopestyle?.base ??
+    built.railJam?.base ??
+    built.halfpipe?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -319,7 +340,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                     ? setKnuckleHuck(built)
                     : options.mode === "slopestyle"
                       ? setSlopestyle(built)
-                      : original;
+                      : options.mode === "railJam"
+                        ? setRailJam(built)
+                        : options.mode === "halfpipe"
+                          ? setHalfpipe(built)
+                          : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -365,13 +390,19 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   standSkier(state, at.x, at.z, at.heading);
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
-  if (state.heli && options.heli) startAgain(state, []);
-  if (state.sled && options.sled && !(state.heli && options.heli)) startSled(state, []);
+  const para = free && options.para === true;
+  if (state.heli && options.heli && !para) startAgain(state, []);
+  if (state.sled && options.sled && !(state.heli && options.heli) && !para) startSled(state, []);
+  if (para) startPara(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.
   const lifted =
-    free && options.byLift && !(state.heli && options.heli) && !(state.sled && options.sled)
+    free &&
+    options.byLift &&
+    !para &&
+    !(state.heli && options.heli) &&
+    !(state.sled && options.sled)
       ? options.spawn
         ? arriveByLift(state, options.spawn.x, options.spawn.z)
         : arriveByLift(
@@ -397,9 +428,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   }
   if (options.bracket) state.bracket = options.bracket;
   if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
-  if (level.knuckleHuck && rules.jam) state.jam = freshJam();
+  if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
+  if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
+  if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   if (!options.quiet) {
     status(
       `Map ${level.seed}: ${level.checkpoints.length} gates over ${Math.round(
@@ -456,6 +489,8 @@ export function step(state: GameState, input: SkierInput): GameState {
     stepCrowd(state);
     if (state.rules.contact) clipCrowd(state, events);
   }
+  // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
+  if (state.grimbear) stepGrimbear(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

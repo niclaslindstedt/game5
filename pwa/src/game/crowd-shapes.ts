@@ -444,6 +444,30 @@ export function buildCrowdFigure(body: CrowdBody, lod: CrowdLod): THREE.BufferGe
   return base;
 }
 
+/** ONE BODY AT ONE CUT IN ANY POSE — the same mesh as `buildCrowdFigure`,
+ * triangle for triangle, its positions and normals written into `into`'s
+ * (a clone of that geometry): what an amateur down in the snow is drawn
+ * with, his pose the ragdoll's (`crowd-fall.ts`) rather than a blend. */
+export function poseCrowdFigure(
+  body: CrowdBody,
+  lod: CrowdLod,
+  pose: Posed,
+  into: THREE.BufferGeometry,
+): void {
+  const fig = new Figure();
+  emit(fig, pose, CROWD_LOOKS[body], lod);
+  const g = fig.s.geometry();
+  for (const name of ["position", "normal"] as const) {
+    const to = into.getAttribute(name) as THREE.BufferAttribute;
+    const from = g.getAttribute(name).array as Float32Array;
+    if (from.length !== to.array.length)
+      throw new Error(`crowd ${body}:${lod}: a pose changed the mesh`);
+    (to.array as Float32Array).set(from);
+    to.needsUpdate = true;
+  }
+  g.dispose();
+}
+
 /** How many triangles a body's cut is. */
 export function crowdTriangles(body: CrowdBody, lod: CrowdLod): number {
   return buildCrowdFigure(body, lod).getAttribute("position").count / 3;

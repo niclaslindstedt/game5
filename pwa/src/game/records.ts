@@ -123,7 +123,9 @@ export function keepsRecords(mode: GameMode): boolean {
     mode !== "tricks" &&
     mode !== "bigAir" &&
     mode !== "knuckleHuck" &&
-    mode !== "slopestyle"
+    mode !== "slopestyle" &&
+    mode !== "railJam" &&
+    mode !== "halfpipe"
   );
 }
 

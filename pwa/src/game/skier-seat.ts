@@ -17,6 +17,8 @@
 // (`skier-dangle.ts`): the seat carries their swing and the lower legs are
 // turned to it about the knees.
 
+import { TUNING } from "@engine";
+
 import {
   BODY,
   MOUNTS,
@@ -47,6 +49,24 @@ export type Seat = {
   /** STOOD ON A SNOWMOBILE'S BOARDS instead (`skier-sled.ts`): no seat at
    * all, but the trunk over the bars and the hands on the grips. */
   board?: Board;
+  /** In a gondola's cabin: the floor under him in the body frame, m — the
+   * poles held stood on it, leant forward, rather than hung through it. */
+  floor?: number;
+  /** TOWED BY A T-BAR instead (`towPose`): the bar under his seat, `share`
+   * how far he has sat back onto it. */
+  tow?: boolean;
+};
+
+/** A T-BAR'S RIDER, in the body frame, m: where his hips go sat back onto
+ * the bar, the bar's own place across the backs of his thighs under them
+ * (the stem `TUNING.lift.tee` to his left), the trunk's pitch over it,
+ * rad, and the left hand's grip on the stem over the bar. `lifts.ts`
+ * hangs his bar there. */
+export const TOW = {
+  hips: { x: 0, y: -0.1, z: -0.14 },
+  bar: { y: -0.06, z: -0.12 },
+  pitch: -0.04,
+  grip: { y: 0.3, z: -0.12 },
 };
 
 /** The hip joints over the seat's top, m — the pelvis sat on it; how far
@@ -116,15 +136,16 @@ export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
       z: -0.4,
     }),
   ) as [V3, V3];
-  // The poles held upright beside the knees, the baskets hanging.
+  // The poles held upright beside the knees, the baskets hanging — or, on
+  // a cabin's floor, stood on it and leant forward.
+  const basket = (h: V3): V3 => {
+    if (seat.floor === undefined || h.y - M.pole >= seat.floor)
+      return { x: h.x, y: h.y - M.pole, z: h.z + POLE_AHEAD };
+    const dy = h.y - seat.floor;
+    return { x: h.x, y: seat.floor, z: h.z + Math.sqrt(Math.max(0, M.pole ** 2 - dy * dy)) };
+  };
   const poles = p.poles
-    ? ([0, 1].map((i) =>
-        lerp(
-          carry(p.poles![i]),
-          { x: hands[i].x, y: hands[i].y - M.pole, z: hands[i].z + POLE_AHEAD },
-          k,
-        ),
-      ) as [V3, V3])
+    ? ([0, 1].map((i) => lerp(carry(p.poles![i]), basket(hands[i]), k)) as [V3, V3])
     : null;
   return {
     ...p,
@@ -143,6 +164,81 @@ export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
   };
 }
 
+/** The pose `p` TOWED BY A T-BAR, by `share`: the hips sat back and down
+ * onto the bar (`TOW`), the trunk stood near upright over them, the knees
+ * solved again over the cuffs, the left hand on the stem and the right
+ * keeping the poles. */
+export function towPose(p: SkierPose, share: number, M: Mounts, tee: number): SkierPose {
+  const k = Math.max(0, Math.min(1, share));
+  if (k <= 0) return p;
+  // The trunk's lean as drawn (hips to neck, forward positive), stood up to
+  // the bar's: the gait and the tuck lean him on top of `pitch`.
+  const lean = Math.atan2(p.neck.z - p.hips.z, p.neck.y - p.hips.y);
+  const back = (lean - TOW.pitch) * k;
+  const cos = Math.cos(back);
+  const sin = Math.sin(back);
+  const shift = {
+    x: (TOW.hips.x - p.hips.x) * k,
+    y: (TOW.hips.y - p.hips.y) * k,
+    z: (TOW.hips.z - p.hips.z) * k,
+  };
+  const carry = (q: V3): V3 => {
+    const y = q.y - p.hips.y;
+    const z = q.z - p.hips.z;
+    return {
+      x: q.x + shift.x,
+      y: p.hips.y + shift.y + y * cos + z * sin,
+      z: p.hips.z + shift.z + z * cos - y * sin,
+    };
+  };
+  const hips = carry(p.hips);
+  const hipJoints = [carry(p.hipJoints[0]), carry(p.hipJoints[1])] as [V3, V3];
+  const shoulders = [carry(p.shoulders[0]), carry(p.shoulders[1])] as [V3, V3];
+  const knees = [0, 1].map((i) =>
+    lerp(
+      p.knees[i],
+      solveLimb(hipJoints[i], p.feet[i], BODY.thigh, SHIN_ABOVE_CUFF, {
+        x: (i ? 1 : -1) * 0.05,
+        y: 0,
+        z: 1,
+      }),
+      k,
+    ),
+  ) as [V3, V3];
+  // The left hand on the stem; the right where it was, carried.
+  const stem = { x: -tee, y: TOW.hips.y + TOW.grip.y, z: TOW.grip.z };
+  const hands = [lerp(carry(p.hands[0]), stem, k), carry(p.hands[1])] as [V3, V3];
+  const elbows = [0, 1].map((i) =>
+    solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
+      x: i ? 1 : -1,
+      y: -0.6,
+      z: -0.2,
+    }),
+  ) as [V3, V3];
+  // The left pole hung from its fist; both trail behind on the snow.
+  const poles = p.poles
+    ? ([0, 1].map((i) => {
+        const was = carry(p.poles![i]);
+        const hung = { x: hands[i].x, y: hands[i].y - M.pole * 0.9, z: hands[i].z - M.pole * 0.4 };
+        return lerp(was, hung, k);
+      }) as [V3, V3])
+    : null;
+  return {
+    ...p,
+    hips,
+    hipJoints,
+    waist: carry(p.waist),
+    neck: carry(p.neck),
+    head: carry(p.head),
+    pitch: p.pitch - back,
+    knees,
+    shoulders,
+    elbows,
+    hands,
+    poles,
+  };
+}
+
 /** The pose for `input`, sat on a chair's seat when there is one — what the
  * code's figure and the model are both posed by — its legs swung when the
  * seat dangles them. */
@@ -151,6 +247,7 @@ export function seatedPose(input: SkierPoseInput, seat: Seat | null): SkierPose 
   if (!seat || seat.share <= 0) return p;
   const M = input.mounts ?? MOUNTS;
   if (seat.board) return boardPose(p, seat.board, M, seat.share);
+  if (seat.tow) return towPose(p, seat.share, M, TUNING.lift.tee);
   const sat = seatPose(p, seat, M);
   return seat.legs ? swingLegs(sat, seat.legs, M).pose : sat;
 }

@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A KNUCKLE HUCK'S JAM (R38) — the session the format is, from
-// `docs/freestyle.md` § *Knuckle huck*: about eight riders share the
-// knuckle for a set time and hit it as often as the clock allows, and the
-// panel ranks each on ONE OVERALL IMPRESSION of his whole session — style,
-// invention, variety, the best of what he landed — never a score a hit.
+// A JAM — the KNUCKLE HUCK'S (R38) and the RAIL JAM'S (R40) — the session
+// both formats are, from `docs/freestyle.md` § *Knuckle huck* and § *Rail
+// jam*: about eight riders share the feature for a set time and hit it as
+// often as the clock allows, and the panel ranks each on ONE OVERALL
+// IMPRESSION of his whole session — style, invention, variety, the best of
+// what he landed — never a score a hit.
+//
+// A RAIL JAM'S HIT is a ride from the platform down the drop-in onto one of
+// the set's features and on to the finish line; it is judged on the
+// feature ridden (`slopestyle-judge.ts`'s `jibImpression`: the degrees on
+// and off, the swaps, the press, a rail over a box, a slide), and its KIND
+// for the session's variety is the feature and the way it was ridden, so
+// using every feature pays as the judges reward it.
 //
 // THE HITS. A jam run (`RunRules.jam`) owes no course: each HIT is a ride
 // from the start platform over the deck and off the knuckle, ended at the
@@ -31,21 +39,25 @@
 // moment of the clock is too, and nothing here draws from `state.rng`.
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
-import { KNUCKLE_HUCK } from "./defs/modes.ts";
+import { KNUCKLE_HUCK, RAIL_JAM } from "./defs/modes.ts";
 import { jumpOf } from "./big-air-contest.ts";
 import { standSkier } from "./course.ts";
 import { difficultyOf, JUDGING, panelScore, readTrick, type TrickRead } from "./judge.ts";
-import type { FlightRecord, GameEvent, GameState } from "./state.ts";
+import { jibDifficulty, jibImpression, SLOPE_JUDGING } from "./slopestyle-judge.ts";
+import type { Level } from "../mapgen/types.ts";
+import type { FlightRecord, GameEvent, GameState, JibRecord } from "./state.ts";
 
 /** ONE HIT OF A SESSION: the trick it was judged on (null for none), when
  * it ended, s of run clock, whether it was a fall, its impression and its
- * kind (`jamKind`, null for none). */
+ * kind (`jamKind`, null for none) — and on a rail jam the feature ridden
+ * as it was ridden (`jib`, null for none). */
 export type JamHit = {
   trick: FlightRecord | null;
   t: number;
   fell: boolean;
   impression: number;
   kind: string | null;
+  jib?: JibRecord | null;
 };
 
 /** THE JAM SO FAR: the hits ridden; where the hit under way began in the
@@ -54,6 +66,8 @@ export type JamHit = {
 export type JamState = {
   hits: JamHit[];
   from: number;
+  /** Where the hit under way began in the run's jibs ridden. */
+  jibFrom: number;
   left: boolean;
   down: boolean;
   closed: boolean;
@@ -88,7 +102,7 @@ export const KNUCKLE_JUDGING = {
 
 /** A new jam, before the first hit. */
 export function freshJam(): JamState {
-  return { hits: [], from: 0, left: false, down: false, closed: false };
+  return { hits: [], from: 0, jibFrom: 0, left: false, down: false, closed: false };
 }
 
 /** WHAT KIND OF TRICK a hit was, for the session's variety: the press it
@@ -115,6 +129,26 @@ export function hitImpression(f: FlightRecord, fell: boolean): number {
   return Math.max(1, Math.min(99, score));
 }
 
+/** WHAT KIND OF HIT a rail jam's was, for the session's variety: the
+ * feature, and how it was ridden — the stances, a swap, a press and the
+ * degrees on and off. */
+export function railKind(r: JibRecord): string {
+  const on = r.on > 0 ? ` ${r.on} on` : "";
+  const off = r.off > 0 ? ` ${r.off} off` : "";
+  const swap = r.swaps > 0 ? " swap" : "";
+  const press = r.press ? ` ${r.press}` : "";
+  return `${r.id} ${r.stances.join("-")}${on}${swap}${press}${off}`;
+}
+
+/** THE IMPRESSION OF A RAIL JAM'S HIT, 0–100: the feature ridden as the
+ * slopestyle judges mark a jib (`jibImpression`), a fall low whatever was
+ * thrown. */
+export function railHitImpression(r: JibRecord, fell: boolean): number {
+  const J = JUDGING;
+  if (!fell) return jibImpression(r);
+  return J.fall + J.fallSpan * Math.min(1, jibDifficulty(r) / SLOPE_JUDGING.top);
+}
+
 /** THE SESSION'S IMPRESSION off its hits (`KNUCKLE_JUDGING`), 0–100. */
 export function sessionImpression(hits: readonly JamHit[]): number {
   const K = KNUCKLE_JUDGING;
@@ -133,8 +167,9 @@ export function sessionScore(seed: number, id: number, hits: readonly JamHit[]):
   return panelScore(sessionImpression(hits), seed, 2000 + id);
 }
 
-/** The salt a jam's field is dealt off. */
+/** The salt a knuckle huck's field is dealt off, and a rail jam's. */
 const FIELD_SALT = 0x6b1c7e;
+const RAIL_SALT = 0x2a17e5;
 
 /** THE DEALT FIELD's knobs: when the first hit comes and the gap between
  * hits, s; how often a hit is a fall, the weakest rider's to the best's;
@@ -150,15 +185,82 @@ export const JAM_FIELD = {
   kinds: ["nose left", "nose right", "tail left", "tail right", "air back flip", "air front flip"],
 } as const;
 
+/** A JAM'S FORMAT: its clock, s, the riders beside the player, the salt
+ * its field is dealt off and the field's knobs (`JAM_FIELD`'s shape). */
+export type JamFormat = {
+  jam: number;
+  field: number;
+  salt: number;
+  dealt: {
+    readonly first: readonly number[];
+    readonly gap: readonly number[];
+    readonly fallMost: number;
+    readonly fallLeast: number;
+    readonly floor: number;
+    readonly span: number;
+    readonly wobble: number;
+    readonly kinds: readonly string[];
+  };
+};
+
+/** THE KNUCKLE HUCK'S JAM (R38). */
+export const KNUCKLE_JAM: JamFormat = {
+  jam: KNUCKLE_HUCK.jam,
+  field: KNUCKLE_HUCK.field,
+  salt: FIELD_SALT,
+  dealt: JAM_FIELD,
+};
+
+/** THE RAIL JAM'S (R40): a hit down a short set comes round oftener than
+ * one off a knuckle, and a feature's slide is fallen off less. */
+export const RAIL_JAM_FIELD = {
+  first: [5, 12],
+  gap: [10, 16],
+  fallMost: 0.3,
+  fallLeast: 0.1,
+  floor: 36,
+  span: 42,
+  wobble: 9,
+  kinds: [
+    "box fifty",
+    "box slide",
+    "rail fifty",
+    "rail slide",
+    "rail fifty swap",
+    "box nose press",
+    "rail 270 on",
+    "kink 180 off",
+    "rainbow slide",
+  ],
+} as const;
+
+export const RAIL_JAM_FORMAT: JamFormat = {
+  jam: RAIL_JAM.jam,
+  field: RAIL_JAM.field,
+  salt: RAIL_SALT,
+  dealt: RAIL_JAM_FIELD,
+};
+
+/** The jam a map's feature is ridden in: a rail jam's set's, or the
+ * knuckle's. */
+export function jamFormatOf(level: Level): JamFormat {
+  return level.railJam ? RAIL_JAM_FORMAT : KNUCKLE_JAM;
+}
+
 /** RIVAL `id`'s hits that have ended by `t` s of the jam, dealt. */
-export function rivalHits(seed: number, id: number, t: number): JamHit[] {
-  const F = JAM_FIELD;
-  const base = (seed ^ FIELD_SALT) + id * 7919;
+export function rivalHits(
+  seed: number,
+  id: number,
+  t: number,
+  format: JamFormat = KNUCKLE_JAM,
+): JamHit[] {
+  const F = format.dealt;
+  const base = (seed ^ format.salt) + id * 7919;
   const level = createRng(base).next();
   const hits: JamHit[] = [];
   const rng = createRng(base + 1);
   let at = rng.range(F.first[0], F.first[1]);
-  while (at <= Math.min(t, KNUCKLE_HUCK.jam)) {
+  while (at <= Math.min(t, format.jam)) {
     const fell = rng.chance(F.fallMost - (F.fallMost - F.fallLeast) * level);
     const kind = F.kinds[Math.floor(rng.next() * F.kinds.length)];
     const impression = fell
@@ -173,7 +275,12 @@ export function rivalHits(seed: number, id: number, t: number): JamHit[] {
 /** THE SESSION'S BOARD at `t` s of the jam — the player's hits and every
  * rival's that have ended by then — best first; a tie keeps the player
  * first. */
-export function jamBoard(seed: number, mine: readonly JamHit[], t: number): JamRow[] {
+export function jamBoard(
+  seed: number,
+  mine: readonly JamHit[],
+  t: number,
+  format: JamFormat = KNUCKLE_JAM,
+): JamRow[] {
   const row = (id: number, hits: readonly JamHit[]): JamRow => ({
     id,
     hits: hits.length,
@@ -181,7 +288,7 @@ export function jamBoard(seed: number, mine: readonly JamHit[], t: number): JamR
     score: sessionScore(seed, id, hits),
   });
   const rows = [row(-1, mine)];
-  for (let id = 0; id < KNUCKLE_HUCK.field; id++) rows.push(row(id, rivalHits(seed, id, t)));
+  for (let id = 0; id < format.field; id++) rows.push(row(id, rivalHits(seed, id, t, format)));
   return rows.sort((a, b) => b.score - a.score);
 }
 
@@ -189,7 +296,8 @@ export function jamBoard(seed: number, mine: readonly JamHit[], t: number): JamR
 export function jamPlace(state: GameState): number {
   const j = state.jam;
   if (!j) return 0;
-  return jamBoard(state.seed, j.hits, state.progress.time).findIndex((r) => r.id === -1) + 1;
+  const board = jamBoard(state.seed, j.hits, state.progress.time, jamFormatOf(state.level));
+  return board.findIndex((r) => r.id === -1) + 1;
 }
 
 /** How far down the jump's line the skier stands, m. */
@@ -199,8 +307,25 @@ function along(state: GameState): number {
   return (c.x - p.x) * Math.sin(p.heading) + (c.z - p.z) * Math.cos(p.heading);
 }
 
-/** File the hit under way: its longest flight judged. */
+/** File the hit under way: its longest flight judged — on a rail jam, the
+ * best feature ridden. */
 function fileHit(state: GameState, j: JamState, fell: boolean, events: GameEvent[]): void {
+  if (state.level.railJam) {
+    let best: JibRecord | null = null;
+    for (const r of state.tricks.jibs.slice(j.jibFrom)) {
+      if (!best || jibImpression(r) > jibImpression(best)) best = r;
+    }
+    j.hits.push({
+      trick: null,
+      t: state.progress.time,
+      fell,
+      impression: best ? railHitImpression(best, fell) : 0,
+      kind: best && !fell ? railKind(best) : null,
+      jib: best,
+    });
+    events.push({ kind: "jam", t: state.t, hit: j.hits.length, fell });
+    return;
+  }
   const f = jumpOf(state.tricks.flights.slice(j.from));
   const down = fell || f?.outcome === "fell";
   j.hits.push({
@@ -216,6 +341,7 @@ function fileHit(state: GameState, j: JamState, fell: boolean, events: GameEvent
 /** The next hit begun: the flights so far behind it. */
 function nextHit(state: GameState, j: JamState): void {
   j.from = state.tricks.flights.length;
+  j.jibFrom = state.tricks.jibs.length;
   j.left = false;
   j.down = false;
 }
@@ -224,12 +350,15 @@ function nextHit(state: GameState, j: JamState): void {
  * (`step.ts`). */
 export function stepJam(state: GameState, events: GameEvent[]): void {
   const j = state.jam;
-  const course = state.level.knuckleHuck;
+  const course = state.level.knuckleHuck ?? state.level.railJam;
   if (!j || !course || j.closed) return;
   const c = state.skier;
   // THE BUZZER: a hit already off the knuckle counts.
   if (state.progress.finished) {
-    if (j.left && state.tricks.flights.length > j.from) fileHit(state, j, j.down, events);
+    const rode = state.level.railJam
+      ? state.tricks.jibs.length > j.jibFrom
+      : state.tricks.flights.length > j.from;
+    if (j.left && rode) fileHit(state, j, j.down, events);
     j.closed = true;
     return;
   }

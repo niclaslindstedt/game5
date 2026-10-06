@@ -24,6 +24,7 @@ import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
+import { createParaBed, type ParaBed } from "./para-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
@@ -64,6 +65,8 @@ export function createRunAudio(): RunAudio {
   // THE FREE RIDE'S SNOWMOBILE (`sled-bed.ts`), heard from the skier,
   // through the effects' fader as the helicopter is.
   const sled: SledBed = createSledBed(sfx);
+  // THE FREE RIDE'S PARAMOTOR (`para-bed.ts`), on the skier's back.
+  const para: ParaBed = createParaBed(sfx);
   let ear: Listener = listenerFor("chase");
 
   return {
@@ -75,7 +78,7 @@ export function createRunAudio(): RunAudio {
         const ground = bed.ground();
         // The helicopter is somewhere else on the mountain: heard from the
         // skier's head.
-        if ((event.kind === "heli" || event.kind === "sled") && state) {
+        if ((event.kind === "heli" || event.kind === "sled" || event.kind === "para") && state) {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
         }
@@ -97,6 +100,7 @@ export function createRunAudio(): RunAudio {
       birds.update(state, dt, duck);
       heli.update(state, dt, duck);
       sled.update(state, dt, duck);
+      para.update(state, dt, duck);
     },
 
     setView(view) {
@@ -105,6 +109,7 @@ export function createRunAudio(): RunAudio {
       birds.setView(view);
       heli.setView(view);
       sled.setView(view);
+      para.setView(view);
     },
 
     silence() {
@@ -112,6 +117,7 @@ export function createRunAudio(): RunAudio {
       birds.silence();
       heli.silence();
       sled.silence();
+      para.silence();
     },
 
     reset() {
@@ -119,6 +125,7 @@ export function createRunAudio(): RunAudio {
       birds.reset();
       heli.reset();
       sled.reset();
+      para.reset();
     },
   };
 }

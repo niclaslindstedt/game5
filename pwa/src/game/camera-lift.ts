@@ -19,7 +19,7 @@
 // `release` s to the chase — on the pad the summit's own low look behind him
 // (`camera-summit.ts`), opening out only once he is over the lip.
 
-import type { LiftRide } from "@engine";
+import { TUNING, type LiftRide } from "@engine";
 
 type LiftKind = LiftRide["kind"];
 
@@ -59,9 +59,42 @@ export function createRideMemory(): RideMemory {
   return { share: 0, kind: null };
 }
 
-/** The share the look is headed for: whole while `lift` has him. */
+/** The share the look is headed for: whole while `lift` carries him —
+ * skating up to it and stood waiting for his T-bar, the chase is his. */
 export function rideTarget(lift: LiftRide | null): number {
-  return lift ? 1 : 0;
+  return lift?.phase === "ride" ? 1 : 0;
+}
+
+/** THE FADE through a station (`LiftRide.faded`): to black over the last
+ * `out` m of his skate up to a gondola's door or a chair's load line, held
+ * black `hold` s once he is in his carrier — the lens cut to it there
+ * (`liftCut`) — and back in over `in` s on him sat in it as it leaves the
+ * station — and the same in, held and out where the tuck held skips him up
+ * the lift. A T-bar takes him in the open, unfaded. */
+export const LIFT_FADE = { out: 2.4, hold: 0.35, in: 0.9 };
+
+function ease(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+/** How black the picture is, 0 clear … 1 black, for the lift `lift`. */
+export function liftFade(lift: LiftRide | null): number {
+  if (!lift) return 0;
+  // Skipped up the lift (`TUNING.lift.skip`): out over its fade…
+  if (lift.skip !== undefined) return ease(0, TUNING.lift.skip.fade, lift.skip);
+  if (lift.kind === "drag" && !lift.faded) return 0;
+  if (lift.phase === "board" && lift.walk !== undefined && lift.s !== undefined)
+    return ease(LIFT_FADE.out, 0.15, lift.walk - lift.s);
+  if (lift.phase === "ride" && lift.faded)
+    return 1 - ease(LIFT_FADE.hold, LIFT_FADE.hold + LIFT_FADE.in, lift.t);
+  return 0;
+}
+
+/** Whether the lens is cut, not flown, to the lift's look this frame: the
+ * moment held black in a station (`LIFT_FADE.hold`). */
+export function liftCut(lift: LiftRide | null): boolean {
+  return !!lift?.faded && lift.phase === "ride" && lift.t < LIFT_FADE.hold;
 }
 
 /** One frame of the lift's look, `dt` s after the last: the share eased
@@ -76,7 +109,7 @@ export function stepRideLook(
 ): RideLook | null {
   if (lift) mem.kind = lift.kind;
   const want = rideTarget(lift);
-  if (snap) mem.share = want;
+  if (snap || liftCut(lift)) mem.share = want;
   else if (want > mem.share) {
     mem.share += (want - mem.share) * (1 - Math.exp(-LIFT_LOOK.take * dt));
   } else mem.share += (want - mem.share) * (1 - Math.exp(-LIFT_LOOK.release * dt));

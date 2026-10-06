@@ -854,8 +854,9 @@ canvas {
 }
 
 /* THE WIND METER (hud-wind.tsx): a heading-up dial to the right of the
-   speed, the weather's wind faint on it and the felt wind bold, with the
-   felt wind's number beside it. */
+   speed, the felt wind a bold arrow through it and the weather's wind a
+   pale-blue marker on its ring, with the felt wind's number beside it and
+   the weather's under it in the marker's colour. */
 .hud-wind {
   display: flex;
   align-items: center;
@@ -889,12 +890,10 @@ canvas {
 }
 
 .hud-wind-air {
-  fill: var(--hud-ink);
-  stroke: var(--hud-ink);
-  stroke-width: 4;
-  stroke-linecap: round;
+  fill: var(--hud-info);
+  stroke: rgb(var(--hud-plate));
+  stroke-width: 2;
   stroke-linejoin: round;
-  opacity: 0.4;
 }
 
 .hud-wind-felt {
@@ -928,6 +927,7 @@ canvas {
 }
 
 .hud-wind-air-read {
+  color: var(--hud-info);
   font-size: clamp(0.5rem, 1.5vmin, 0.7rem);
   letter-spacing: 0.06em;
   opacity: 0.7;

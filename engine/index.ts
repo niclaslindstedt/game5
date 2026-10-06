@@ -90,6 +90,34 @@ export {
   type SlopeRow,
   type SlopeRun,
 } from "./game/slopestyle-contest.ts";
+export {
+  PIPE_JUDGING,
+  hitsOf,
+  isAlleyOop,
+  judgeHalfpipe,
+  readHit,
+  runImpression,
+  type HitRead,
+  type PipeScore,
+} from "./game/halfpipe-judge.ts";
+export {
+  PIPE_FIELD,
+  bestPipeRun,
+  freshHalfpipe,
+  judgePipeRun,
+  pipeBoard,
+  pipeContestAfter,
+  pipePhase,
+  pipePlace,
+  pipeRivalRun,
+  pipeRunsIn,
+  type PipeContest,
+  type PipePhase,
+  type PipeRow,
+  type PipeRun,
+} from "./game/halfpipe-contest.ts";
+export { PIPE_AIR, pipeHit, pipeLanding, stepPipeAir, type PipeLanding } from "./game/pipe-air.ts";
+export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -119,6 +147,10 @@ export {
   BIG_AIR,
   bigAirRules,
   KNUCKLE_HUCK,
+  RAIL_JAM,
+  railJamRules,
+  HALFPIPE,
+  halfpipeRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
@@ -239,8 +271,14 @@ export {
 } from "./game/judge.ts";
 export {
   JAM_FIELD,
+  KNUCKLE_JAM,
   KNUCKLE_JUDGING,
+  RAIL_JAM_FIELD,
+  RAIL_JAM_FORMAT,
   freshJam,
+  jamFormatOf,
+  railHitImpression,
+  railKind,
   hitImpression,
   jamBoard,
   jamKind,
@@ -250,6 +288,7 @@ export {
   sessionImpression,
   sessionScore,
   stepJam,
+  type JamFormat,
   type JamHit,
   type JamRow,
   type JamState,
@@ -315,6 +354,8 @@ export {
   type CrowdNet,
   type NetRun,
 } from "./game/crowd.ts";
+export { inCabin } from "./game/crowd-lift.ts";
+export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,
   type CraftState,
@@ -336,6 +377,7 @@ export {
   type Field,
   type FieldRun,
   type GamePoles,
+  type RunMark,
   type RunOut,
   type Rival,
   type Amateur,
@@ -354,6 +396,12 @@ export {
   type SledMode,
   type SledPhaseEvent,
   type SledState,
+  type ParaControls,
+  type ParaEvent,
+  type ParaMode,
+  type ParaPhaseEvent,
+  type ParaPiece,
+  type ParaState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -500,14 +548,20 @@ export {
   standSkier,
 } from "./game/course.ts";
 export {
+  forgetRun,
   lastPiste,
+  leftRunPoint,
   nearestPiste,
   noteRun,
   pisteHead,
   runUnder,
   skiedResetPoint,
+  topOfSlope,
   TRACK_RUN,
 } from "./game/skied.ts";
+export { GRIMBEAR } from "./game/defs/grimbear.ts";
+export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
+export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
@@ -575,6 +629,17 @@ export {
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
+export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";
+export {
+  freshPara,
+  paraControls,
+  paraRigged,
+  paraStartOf,
+  startPara,
+  stepPara,
+} from "./game/para.ts";
+export { paraPilot } from "./game/para-pilot.ts";
+export { eddyUp, paraAirAt, type ParaAir } from "./game/para-air.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

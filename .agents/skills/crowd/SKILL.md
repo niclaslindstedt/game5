@@ -23,6 +23,7 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 | What a run asks for | `RunRules.crowd` (`freeRules` deals `CROWD.count`; every measured run 0), `createGame`'s `crowd` |
 | The state | `Amateur`, `CrowdGroup`, `CrowdState`, `GameState.crowd` in `state.ts`; the `bump` event's `amateur`, the `skier` crash cause |
 | The skeleton in every pose — the PLAYER'S `skierPose`, sized to each body — and the weights an amateur is drawn at (`dialsOf`) | `pwa/src/game/crowd-rig.ts` (three-free) |
+| An amateur DOWN: thrown onto the ragdoll, lying, getting up (`throwAmateur`, `stepDown`); drawn off it (`fallenPose`, `standFrame`) | `engine/game/crowd-down.ts`; `pwa/src/game/crowd-fall.ts` (three-free), `crowd-shapes.ts`' `poseCrowdFigure` |
 | The figures: eight bodies × three cuts, the poses as relative morph targets, the palette graft | `pwa/src/game/crowd-shapes.ts` |
 | The kit each is dealt | `pwa/src/game/crowd-dress.ts` (three-free) |
 | The instanced draw | `pwa/src/game/crowd-view.ts`, hung on `renderer.ts` |
@@ -44,8 +45,22 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   `skierPose` at that moment, sized to the body (`crowd-rig.ts`); a change
   to the player's stance, tuck or angulation moves the crowd with it, and
   `tests/crowd_figure_test.ts` holds the joints to the player's. Never
-  hand-pose a target. The one shape the player has no pose for — lying in
-  the snow — is his half-crouch laid over.
+  hand-pose a target.
+- **DOWN IS THE PLAYER'S RAGDOLL, NEVER A TARGET.** An amateur who falls
+  (knocked, a landing, losing it on his own — `fallDown`) is thrown by
+  `crash.ts`' `throwOf`, the player's own throw, onto a `Thrown` body
+  stepped by `stepRagdoll` (`crowd-down.ts`): it goes over, is dragged flat
+  and lies still, then he lies `CROWD.fall.lie` s more and stands up where
+  his FEET lay, skis across the fall line on the side he was going, and
+  turns them down. The view hangs his figure on the ragdoll's joints
+  (`crowd-fall.ts`: `ragdollPose` → `fromPlayer`, sized about the hips, the
+  skis laid on the snow about each shin) and rebuilds that one mesh each
+  frame (`poseCrowdFigure`) in a small pool — falls are rare, so it costs
+  nothing; the get-up blends the joints lying → crouched → stood, every
+  bone held to its length. The body draws from no stream: a fall moves
+  nothing the crowd's stream deals. `make crowd ARGS=--sheet=falls` strobes
+  three falls frame by frame; `--sheet=slope --views=fall-0.3,fall-1,…`
+  films one in the game's renderer.
 - **HIS ANIMATIONS ON THE PLAYER'S TIMING.** A stance blended alone is a
   statue gliding. What the player's body does on its own clock is a target
   pair too — the turn's pole plant at its touch and its trail (either pole),
@@ -54,6 +69,22 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
   from `skier-spring.ts` against the turn clock the engine keeps
   (`Amateur.turnSide`, `turnT`, `turnHeld`, begun past `CROWD.turnOn`).
   Never a second timing.
+- **NOBODY SKIS INSIDE ANOTHER.** Riders off one carrier are let go side
+  by side (`CROWD.ride.apart`) and join their run that far apart; the
+  start deals riders only onto carriers on their way up (one past the top
+  would let a whole lift's load go on one spot); on a run each gives the
+  one ahead — or level, dealt first — a berth (`CROWD.room`), his own
+  group too, and a school's kid drops back into his place in the snake
+  instead. A pace held off another is never below a crawl, or one stood
+  still stands the run behind him still. `tests/crowd_test.ts` holds it.
+- **NOBODY GLIDES STILL.** Where the hill will not carry an amateur to the
+  speed he means (up to `TUNING.poles.speed`, the player's own push), the
+  engine has him WORK (`Amateur.push`) and counts his strides at the
+  player's rate (`strideRate`, `Amateur.pole`); `dialsOf` hands both to the
+  player's own `gaitOf` and walks the result through its keys — six of the
+  skate over two strides, three of the double pole over one, each the
+  player's pose at that point of his stride (`STRIDE_AT`) — so the mix of
+  skate and pole at a speed is the player's, and a poleless child skates.
 - **A MORPH IS LINEAR.** A weight below zero extrapolates the target
   backwards (a body run "anti-lean" stretches upward), so a turn each way
   is a target of its own (`lean`, `leanLeft`) and every weight is ≥ 0.

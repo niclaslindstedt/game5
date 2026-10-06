@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WIND METER — beside the speed, the air the skier is skiing through.
 // A dial turned heading-up like the minimap (the top of it is the way he
-// faces) with two arrows on it, each pointing the way the air MOVES: a faint
-// one for the WEATHER's wind where he is — down at his body, sheltered by the
-// woods (`airAt`) — and a bold one for the wind he FEELS — that wind less his
-// own velocity (`airflowAt`), which is what the wind bed plays and what his
-// drag is against. At speed in still air the bold arrow points straight
+// faces) with two marks on it, each pointing the way the air MOVES: the
+// bold arrow through the middle is the wind he FEELS — the air where he is
+// less his own velocity (`airflowAt`), which is what the wind bed plays and
+// what his drag is against — and the small pale-blue marker riding the ring
+// is the WEATHER's wind itself where he is — down at his body, sheltered by
+// the woods (`airAt`) — standing on the side it blows FROM and pointing in,
+// the way a wind instrument's bezel marks the true wind, so the two never
+// cross as two arrows would. At speed in still air the bold arrow points straight
 // down, at the player: the air streaming back past him. Into a headwind it
 // points down and the number is the two added; with a tailwind as fast as
 // he is, the number falls to nothing. The number is the felt wind, km/h,
@@ -31,6 +34,10 @@ function useTurn(angle: number): number {
   return (held.current * 180) / Math.PI;
 }
 
+/** The weather's marker drawn for an air moving up the dial: on the ring
+ * at the bottom, the side it blows from, its point in toward the centre. */
+const WEATHER_MARK = "M -9 54 L 0 36 L 9 54 Z";
+
 /** An arrow drawn pointing up, `long` from tail to tip, about the centre. */
 function arrow(long: number, head: number): string {
   const tip = -long / 2;
@@ -54,7 +61,7 @@ export function WindMeter({ wind }: { wind: HudWind }) {
         <path class="hud-wind-ahead" d="M -7 -47 L 0 -38 L 7 -47 Z" />
         {wind.airKmh >= CALM_KMH && (
           <g class="hud-wind-turn" style={{ transform: `rotate(${air.toFixed(1)}deg)` }}>
-            <path class="hud-wind-air" d={arrow(62, 12)} />
+            <path class="hud-wind-air" d={WEATHER_MARK} />
           </g>
         )}
         {wind.feltKmh >= CALM_KMH && (

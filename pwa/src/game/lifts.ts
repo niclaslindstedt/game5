@@ -51,7 +51,8 @@ import {
 } from "@engine";
 import { createBoardingRings } from "./boarding-rings.ts";
 import { createCabins } from "./cabins-view.ts";
-import { CHAIR_BACK, CHAIR_SEAT } from "./skier-seat.ts";
+import { liftFade } from "./camera-lift.ts";
+import { CHAIR_BACK, CHAIR_SEAT, TOW } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
@@ -61,13 +62,9 @@ import { createWindTunnels } from "./wind-tunnels.ts";
  * skier meets). */
 const SINK = 1.2;
 
-/** A drag's bar rides this high over the snow, m — a skier's hips. */
-const TEE = 1.0;
-/** Where a towed rider's own T-bar rides: how far behind his origin, m,
- * and how high over the snow, m — under his seat, across the backs of his
- * thighs, lower than an empty bar hangs. */
-const TOW_BEHIND = 0.22;
-const TOW_HIGH = 0.5;
+/** A drag's bar rides this high over the snow up the line, m — under a
+ * skier's seat, where his own bar sits (`skier-seat.ts`'s `TOW`). */
+const TEE = 0.8;
 
 /** The paints, sRGB: the towers' galvanised steel, the dark steel of the
  * grips and the sheaves, a gondola cabin's body and its glass, a chair's
@@ -82,6 +79,7 @@ const PAINT = {
   timber: 0x6b4a2e,
   roof: 0x2f3338,
   rope: 0x15181b,
+  skis: 0xe8e2d6,
 };
 
 export type Lifts = {
@@ -123,6 +121,31 @@ function cabinGeometry(): THREE.BufferGeometry {
     box(1.95, 0.22, 2.15, 0, -2.2, 0, PAINT.cabin),
     box(1.9, 0.85, 2.1, 0, -2.75, 0, PAINT.glass),
     box(1.92, 1.05, 2.12, 0, -3.7, 0, PAINT.cabin),
+  ]);
+}
+
+/** THE RIDER'S OWN CABIN, its glass apart: the grip, the hanger, the roof,
+ * the posts at the corners of the glazed band, the body under it, the
+ * bench along its back wall he sits on (at a chair's seat height under his
+ * origin, `TUNING.lift.cabin` under the grip and `cabinBack` behind it) and
+ * the rack on its right side with his skis stood in it. */
+function ownCabinGeometry(): THREE.BufferGeometry {
+  const benchTop = -(TUNING.lift.cabin + CHAIR_SEAT - TUNING.lift.seat);
+  const posts = [-1, 1].flatMap((sx) =>
+    [-1, 1].map((sz) => box(0.07, 0.85, 0.07, sx * 0.94, -2.75, sz * 1.04, PAINT.cabin)),
+  );
+  return merged([
+    box(0.32, 0.3, 0.9, 0, -0.1, 0, PAINT.dark),
+    box(0.12, 1.9, 0.12, 0, -1.15, 0, PAINT.dark),
+    box(1.95, 0.22, 2.15, 0, -2.2, 0, PAINT.cabin),
+    ...posts,
+    box(1.92, 1.05, 2.12, 0, -3.7, 0, PAINT.cabin),
+    box(1.8, 0.08, 0.5, 0, benchTop - 0.04, -0.78, PAINT.seat),
+    box(1.8, 0.08, 0.5, 0, benchTop - 0.04, 0.78, PAINT.seat),
+    // The rack on the right-hand door, two pairs of skis stood in it.
+    box(0.06, 0.06, 1.6, 1.0, -3.4, 0, PAINT.dark),
+    box(0.03, 1.75, 0.09, 1.02, -3.25, -0.42, PAINT.skis),
+    box(0.03, 1.75, 0.09, 1.06, -3.25, -0.3, PAINT.skis),
   ]);
 }
 
@@ -472,8 +495,53 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     m.castShadow = true;
     group.add(m);
   }
+  // THE RIDER'S OWN CABIN while a gondola carries him: hung from the grip
+  // over him, its glass clear enough to see him sat inside.
+  const cabin = new THREE.Group();
+  const cabinBody = new THREE.Mesh(ownCabinGeometry(), painted);
+  cabinBody.castShadow = true;
+  geos.push(cabinBody.geometry);
+  const glassMat = std(
+    {
+      color: PAINT.glass,
+      roughness: 0.08,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+    },
+    "lift-glass",
+  );
+  const glassGeo = new THREE.BoxGeometry(1.9, 0.85, 2.1);
+  glassGeo.translate(0, -2.75, 0);
+  geos.push(glassGeo);
+  const glass = new THREE.Mesh(glassGeo, glassMat);
+  glass.renderOrder = 1;
+  cabin.add(cabinBody, glass);
+  cabin.visible = false;
+  group.add(cabin);
+  // THE FADE through a station (`camera-lift.ts`'s `liftFade`): a black
+  // sheet over the whole frame, drawn last, in clip space.
+  const fadeGeo = new THREE.PlaneGeometry(2, 2);
+  geos.push(fadeGeo);
+  const fadeMat = new THREE.ShaderMaterial({
+    uniforms: { uFade: { value: 0 } },
+    vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader:
+      "uniform float uFade;\nvoid main() {\n  gl_FragColor = vec4(0.0, 0.0, 0.0, uFade);\n  #include <colorspace_fragment>\n}",
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  mats.push(fadeMat);
+  const fade = new THREE.Mesh(fadeGeo, fadeMat);
+  fade.frustumCulled = false;
+  fade.renderOrder = 1e6;
+  fade.visible = false;
+  group.add(fade);
   const lift = new THREE.Vector3();
   const riderQ = new THREE.Quaternion();
+  const bar = new THREE.Vector3();
 
   /** An instanced mesh whose instances move: filled every frame. */
   function instancedMoving(
@@ -571,43 +639,50 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     tunnels.update(t);
     if (eye) houses.update(eye);
     boarding?.update(t);
-    const sat = rider?.kind === "chair" && rider.phase === "ride";
+    const black = liftFade(rider ?? null);
+    fade.visible = black > 0;
+    fadeMat.uniforms.uFade.value = black;
+    const carried = rider?.phase === "ride" ? rider : null;
+    const sat = carried?.kind === "chair";
     const runOn = sat ? null : emptyAt(left, t);
-    moveCarriers(
-      t,
-      rider?.phase === "ride" || rider?.phase === "board"
-        ? rider
-        : runOn
-          ? { index: runOn.index, u: runOn.u }
-          : null,
-    );
-    // His own T-bar on a drag: the grip on the rope straight over him, the
-    // bar behind his thighs (`TOW_HIGH`).
-    const towed =
-      rider?.kind === "drag" && rider.phase === "ride" && drawn ? plans[rider.index] : null;
+    // The clock's carrier he rides is drawn as his own, hung on him.
+    moveCarriers(t, carried ?? (runOn ? { index: runOn.index, u: runOn.u } : null));
+    if (drawn) riderQ.set(drawn.q.x, drawn.q.y, drawn.q.z, drawn.q.w);
+    // His own T-bar on a drag: the bar across the backs of his thighs
+    // under his seat, in his own frame (`TOW`), its stem to his left and
+    // the cord straight up from it to the grip on the rope.
+    const towed = carried?.kind === "drag" && drawn ? plans[carried.index] : null;
     for (const m of tow) m.visible = !!towed;
     if (towed && drawn) {
-      const ground = level.groundAt(drawn.x, drawn.z);
-      const rope = ropeAt(towed, rider!.u);
-      const bx = drawn.x - towed.dx * TOW_BEHIND;
-      const bz = drawn.z - towed.dz * TOW_BEHIND;
-      const barY = ground + TOW_HIGH;
-      const cord = Math.max(0.3, rope - 0.58 - (barY + 0.6));
+      bar
+        .set(-TUNING.lift.tee, TOW.hips.y + TOW.bar.y, TOW.hips.z + TOW.bar.z)
+        .applyQuaternion(riderQ)
+        .add(at.set(drawn.x, drawn.y, drawn.z));
+      const rope = ropeAt(towed, carried!.u);
+      const cord = Math.max(0.3, rope - 0.58 - (bar.y + 0.6));
       q.setFromAxisAngle(up, towed.heading);
-      towSpring.position.set(drawn.x, rope, drawn.z);
+      towSpring.position.set(bar.x, rope, bar.z);
       towSpring.quaternion.copy(q);
-      towLine.position.set(drawn.x, rope - 0.58, drawn.z);
+      towLine.position.set(bar.x, rope - 0.58, bar.z);
       towLine.quaternion.copy(q);
       towLine.scale.set(1, cord, 1);
-      towTee.position.set(bx, barY, bz);
-      towTee.quaternion.copy(q);
+      towTee.position.copy(bar);
+      towTee.quaternion.copy(riderQ);
+    }
+    // His own cabin on a gondola, hung from the grip over him: the grip
+    // `lift.cabin` up and `cabinBack` ahead of him in his frame.
+    const inCabin = carried?.kind === "gondola" && drawn;
+    cabin.visible = !!inCabin;
+    if (inCabin) {
+      lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
+      cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);
+      cabin.quaternion.copy(riderQ);
     }
     // His own chair, hung from the grip over him: in the body's frame, the
     // grip `lift.seat` up from his origin — or running on without him.
     const seated = sat && drawn;
     ridden.visible = !!seated || !!runOn;
     if (seated) {
-      riderQ.set(drawn.q.x, drawn.q.y, drawn.q.z, drawn.q.w);
       lift.set(0, TUNING.lift.seat, 0).applyQuaternion(riderQ);
       ridden.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);
       ridden.quaternion.copy(riderQ);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE KNUCKLE HUCK ON THE HUD (R38): the jam's chips beside the clock — the
-// session's mark as it stands, the jam's clock left, the hits ridden and
+// THE KNUCKLE HUCK ON THE HUD (R38) — and the RAIL JAM (R40), the same
+// jam: the jam's chips beside the clock — the session's mark as it stands, the jam's clock left, the hits ridden and
 // the place on the board — the last hit as the judges called it, over the
 // nose for a moment after it ends, and at the buzzer the PLATE: the place,
 // the session's mark and the whole board, drawn by `ResultPlate` in place
@@ -44,7 +44,11 @@ export function JamCalled({ jam }: { jam: JamHud }) {
       role="status"
     >
       <span class="hud-combo-line">
-        {last.trick ? STRINGS.trickName(last.trick) : STRINGS.trickNone}
+        {last.jib
+          ? STRINGS.jibName(last.jib.ride, last.jib.shape)
+          : last.trick
+            ? STRINGS.trickName(last.trick)
+            : STRINGS.trickNone}
       </span>
       <span class="hud-combo-points">
         {last.fell ? STRINGS.knuckleFall : STRINGS.knuckleImpression(last.impression)}
@@ -71,14 +75,19 @@ export function JamPlate({
   const jam = snap.jam;
   if (!jam?.done) return null;
   const won = jam.place === 1;
+  const rail = jam.format === "rail";
   return (
     <div class="hud hud-result-layer">
       <div class="hud-center">
         <div class={`hud-card hud-result hud-result-boarded${won ? " hud-result-record" : ""}`}>
-          <span class="hud-card-note hud-result-label">{STRINGS.knuckleTitle}</span>
+          <span class="hud-card-note hud-result-label">
+            {rail ? STRINGS.railJamTitle : STRINGS.knuckleTitle}
+          </span>
           <span class="hud-card-title">{STRINGS.knuckleResult(jam.place)}</span>
           <span class="hud-card-title hud-result-verdict">{STRINGS.knuckleScore(jam.score)}</span>
-          <span class="hud-card-note hud-result-award">{STRINGS.knuckleNote}</span>
+          <span class="hud-card-note hud-result-award">
+            {rail ? STRINGS.railJamNote : STRINGS.knuckleNote}
+          </span>
           {/* THE BOARD: every rider's session at the buzzer. */}
           <ol class="hud-standings hud-bigair-board">
             {jam.board.map((r) => (

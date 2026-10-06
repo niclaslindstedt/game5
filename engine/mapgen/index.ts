@@ -143,10 +143,25 @@ export {
   type JumpProfile,
 } from "./big-air.ts";
 export {
+  HALFPIPE_RULE,
+  RAIL_JAM_RULE,
   SLOPESTYLE_RULE,
   TRICK_RULES,
   type JibRow,
+  type RailJamRow,
   type JumpRule,
   type SlopeJumpRow,
 } from "./trick-rules.ts";
 export { courseSpeed, setSlopestyle, slopestyleProfile, type SlopeProfile } from "./slopestyle.ts";
+export { railJamProfile, railJamSpeed, setRailJam, type RailJamProfile } from "./rail-jam.ts";
+export { halfpipeProfile, setHalfpipe, type HalfpipeProfile } from "./halfpipe.ts";
+export {
+  nearestAcross,
+  pipeCoords,
+  pipeSection,
+  wallAt,
+  wallShare,
+  withPipe,
+  type PipeFrame,
+  type PipeSection,
+} from "./pipe.ts";

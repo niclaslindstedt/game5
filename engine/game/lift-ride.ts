@@ -19,8 +19,18 @@
 //
 // Or he rides into its BOARDING RING (`boardingRing`), the lit circle on
 // the snow where the queue starts, just past the open end of its corral:
-// facing any way, slow enough, he is glided up the queue's lane through the
-// corral (`ringWalk`) to the load zone and boarded as above.
+// facing any way, slow enough, he SKATES up the queue's lane through the
+// corral (`walkOf`, `stepBoard`: a skater's pace, his strides counted for
+// the gait), beside the queue standing on it — shouldering aside whoever is
+// in his way (`crowd-lift.ts`'s `brushQueue`) — to the load zone: a chair or
+// a gondola takes him behind the station's fade, already sat in the carrier
+// leaving it; a drag stands him on its track until a T-bar of the lift's own
+// comes round (`stepWait`) and takes him on it.
+//
+// CARRIED, the machine press lets go of the lift wherever he is (`letGo`:
+// dropped off a chair, jumped out of a cabin, the bar let go of), and the
+// tuck held `TUNING.lift.skip.hold` seconds skips him up it behind a fade
+// (`skipUp`) to where he would be let go.
 //
 // A FREE RIDE BEGINS ON ONE (`arriveByLift`): the last few seconds of the
 // ride up the lift serving the run it is to start down, the top close
@@ -39,13 +49,17 @@ import { standSkier } from "./course.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
   BOARDING_RING,
+  CORRAL_TAIL,
+  GONDOLA_IN_STATION,
   boardingRing,
+  carrierPassing,
   liftPlans,
-  ringWalk,
+  queueLane,
   ropeAt,
   upRope,
   type LiftPlan,
 } from "./lift-line.ts";
+import { strideRate } from "./poles.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import { generatorTraits } from "../mapgen/versions.ts";
 import type { Level, Run, SummitRamp } from "../mapgen/types.ts";
@@ -79,9 +93,10 @@ function setOff(run: GameState, x: number, z: number, heading: number, way: numb
 }
 
 /** ONE STEP OF THE LIFT, before the skier is stepped: taken into a load
- * zone, taken to the carrier, carried, or stood off at the top. True while
- * the lift has him — the step is the lift's, and the snow, the trees and
- * the clock wait. `events` is the run's own list. */
+ * zone, skating up to the carrier, waiting for a T-bar, carried, or stood
+ * off at the top. True while the lift has him — the step is the lift's,
+ * and the snow, the trees and the clock wait. `events` is the run's own
+ * list. */
 export function stepLift(run: GameState, input: SkierInput, events: GameEvent[]): boolean {
   const c = run.skier;
   const ride = c.lift;
@@ -103,14 +118,78 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
     ride.swing = 0;
     ride.swingRate = 0;
     ride.tower = plan.supports.length;
+    delete ride.faded;
   }
+  if (input.machine) {
+    letGo(run, plan, ride, events);
+    return false;
+  }
+  if (ride.phase === "ride") skipUp(plan, ride, input);
   if (ride.phase === "board") {
-    stepBoard(run, plan, ride);
+    stepBoard(run, plan, ride, events);
+    return true;
+  }
+  if (ride.phase === "wait") {
+    stepWait(run, plan, ride, events);
     return true;
   }
   // The step he is stood off at the top is the lift's too.
   stepCarried(run, plan, ride, events);
   return true;
+}
+
+/** OFF THE LIFT WHEREVER HE IS, on the machine press: skating up to it or
+ * waiting for his bar he simply skis away; carried, he lets go — off a
+ * T-bar onto the track, off the seat of a chair, out of a gondola's door
+ * on its right side — with the carrier's way, to fall however far there
+ * is under him (`flight.ts` judges the landing). */
+function letGo(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
+  const c = run.skier;
+  c.lift = null;
+  if (ride.phase !== "ride") return;
+  events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
+  if (plan.lift.kind === "gondola") {
+    // Out of the door, clear of the cabin's side.
+    c.x += plan.dz * K.jumpOut;
+    c.z -= plan.dx * K.jumpOut;
+  }
+  if (plan.lift.kind === "drag") return;
+  c.airborne = c.y - run.level.groundAt(c.x, c.z) - c.spec.cogHeight > 0.05;
+  c.airTime = 0;
+  derive(c, run.level);
+}
+
+/** HELD TUCKED FOR `skip.hold` s while carried, the lift goes by in a
+ * moment: the picture fades out over `skip.fade` s, and he is put where a
+ * free ride begun on this lift starts (`arrivalOf`: the top close ahead),
+ * sat in his carrier, the picture fading back in (`faded`). */
+function skipUp(plan: LiftPlan, ride: LiftRide, input: SkierInput): void {
+  const dt = TUNING.dt;
+  if (ride.skip === undefined) {
+    ride.held = input.tuck >= 0.5 ? (ride.held ?? 0) + dt : 0;
+    if (ride.held < K.skip.hold) return;
+    if (arrivalOf(plan).u <= ride.u) {
+      ride.held = 0;
+      return;
+    }
+    ride.skip = 0;
+  }
+  ride.skip += dt;
+  if (ride.skip < K.skip.fade) return;
+  const there = arrivalOf(plan);
+  ride.u = there.u;
+  ride.speed = there.speed;
+  ride.swing = 0;
+  ride.swingRate = 0;
+  ride.tower = Math.max(
+    1,
+    plan.supports.findIndex((p) => p.u > there.u),
+  );
+  ride.t = 0;
+  ride.faded = true;
+  ride.from = { ...ride.from, y: Number.NaN };
+  delete ride.skip;
+  ride.held = 0;
 }
 
 /** Into a load zone — inside it, slow enough and facing up the line — or
@@ -142,32 +221,87 @@ function boardLift(run: GameState, events: GameEvent[]): void {
       id: plan.lift.id,
       kind: plan.lift.kind,
       phase: "board",
-      u: plan.lift.kind === "gondola" ? 0 : e.at,
+      u: e.at,
       speed: 0,
       swing: 0,
       swingRate: 0,
       t: 0,
       tower: 1,
       from: { x: c.x, y: Number.NaN, z: c.z, heading: c.heading },
+      s: 0,
+      pace: c.speed,
+      head: c.heading,
     };
-    if (ringed) ride.walk = wayLength(walkOf(plan, ride));
+    ride.walk = wayLength(walkOf(plan, ride, ringed));
     c.lift = ride;
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "board" });
     return;
   }
 }
 
-/** Where boarding takes him: out onto a chair's load line or a drag's track
- * under its rope, or in at a gondola station's door. */
-function boardAt(plan: LiftPlan, ride: LiftRide): { x: number; z: number } {
+/** Where boarding takes him: out onto a chair's load line under its up
+ * rope, onto a drag's track on its bar's right arm (`lift.tee` right of
+ * the rope), or in at a gondola station's door. */
+export function boardAt(plan: LiftPlan): { x: number; z: number } {
   const e = plan.look.entry;
-  return plan.lift.kind === "gondola" ? along(plan, e.at, 0) : along(plan, ride.u, upRope(plan));
+  if (plan.lift.kind === "gondola") return along(plan, e.at, 0);
+  if (plan.lift.kind === "drag") return along(plan, e.at, upRope(plan) + K.tee);
+  return along(plan, e.at, upRope(plan));
 }
 
-/** The way a rider taken from the boarding ring is glided: from where he
- * came into it, up the queue's lane, to where he is boarded. */
-function walkOf(plan: LiftPlan, ride: LiftRide): { x: number; z: number }[] {
-  return [{ x: ride.from.x, z: ride.from.z }, ...ringWalk(plan), boardAt(plan, ride)];
+/** THE WAY A RIDER SKATES TO THE CARRIER, in the world. From the load
+ * zone, straight to it. From the boarding ring: in at the corral's open
+ * end on the queue's lane, then up the lane `board.past` m to the right
+ * of the queue standing on it — past them, never through them (those in
+ * his way are shouldered aside, `crowd-lift.ts`'s `brushQueue`) — and
+ * onto the load line, a drag's track or a gondola's door. */
+function walkOf(
+  plan: LiftPlan,
+  ride: Pick<LiftRide, "from">,
+  ringed: boolean,
+): { x: number; z: number }[] {
+  const start = { x: ride.from.x, z: ride.from.z };
+  if (!ringed) return [start, boardAt(plan)];
+  const lane = queueLane(plan);
+  const n = lane.length;
+  const off = K.board.past;
+  // Each leg's normal in (u, v), to the right of the way IN (toward the
+  // load line).
+  const normal = (a: { u: number; v: number }, b: { u: number; v: number }) => {
+    const len = hypot(b.u - a.u, b.v - a.v) || 1;
+    // The way in runs b → a; its right in (u, v) is (−dv, du) of a − b
+    // turned — v is already right of the line.
+    return { u: (a.v - b.v) / len, v: (b.u - a.u) / len };
+  };
+  const at = (a: { u: number; v: number }, b: { u: number; v: number }, d: number) => {
+    const len = hypot(b.u - a.u, b.v - a.v) || 1;
+    return { u: a.u + ((b.u - a.u) / len) * d, v: a.v + ((b.v - a.v) / len) * d };
+  };
+  const way: { x: number; z: number }[] = [start];
+  // In at the corral's open end, on the lane's line just outside it…
+  const a = lane[n - 2];
+  const b = lane[n - 1];
+  const mouth = at(a, b, CORRAL_TAIL + 1);
+  way.push(along(plan, mouth.u, mouth.v));
+  // …stepped across to the queue's right inside it…
+  const nl = normal(a, b);
+  const inside = at(a, b, CORRAL_TAIL - 1);
+  way.push(along(plan, inside.u + nl.u * off, inside.v + nl.v * off));
+  // …and up the lane beside the queue, every corner held off it.
+  for (let k = n - 2; k >= 1; k--) {
+    const n0 = normal(lane[k - 1], lane[k]);
+    const n1 = normal(lane[k], lane[k + 1]);
+    const mu = (n0.u + n1.u) / 2;
+    const mv = (n0.v + n1.v) / 2;
+    const m = hypot(mu, mv) || 1;
+    way.push(along(plan, lane[k].u + (mu / m) * off, lane[k].v + (mv / m) * off));
+  }
+  // The last of it beside the front of the queue, then onto the carrier.
+  const front = at(lane[0], lane[1], 1.5);
+  const nf = normal(lane[0], lane[1]);
+  way.push(along(plan, front.u + nf.u * off, front.v + nf.v * off));
+  way.push(boardAt(plan));
+  return way;
 }
 
 function wayLength(way: readonly { x: number; z: number }[]): number {
@@ -181,7 +315,7 @@ function alongWay(
   way: readonly { x: number; z: number }[],
   s: number,
 ): { x: number; z: number; heading: number } {
-  let left = s;
+  let left = Math.max(0, s);
   for (let k = 1; k < way.length; k++) {
     const a = way[k - 1];
     const b = way[k];
@@ -201,45 +335,106 @@ function alongWay(
   return { x: end.x, z: end.z, heading: Number.NaN };
 }
 
-/** Taken from where he came into the zone to the carrier — straight from
- * the load zone, or glided up the queue's lane from the boarding ring —
- * and faced up the line as he gets there. */
-function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): void {
+/** BOARDING: he SKATES his way to the carrier — checked down from however
+ * fast he came in to a skater's pace, his legs and poles working it
+ * (`SkierState.drive` and `.stride`, which the figure's gait reads), and
+ * eased to a crawl onto the load line, turned up the line over its last
+ * metres. There a gondola's door and a chair's load line take him in out
+ * of sight (`faded`: sat in his carrier as it leaves the station), and a
+ * drag's track stands him waiting for his bar (`wait`). */
+function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
+  const B = K.board;
+  const dt = TUNING.dt;
+  const c = run.skier;
+  const way = walkOf(plan, ride, isRinged(plan, ride));
+  const total = ride.walk ?? wayLength(way);
+  let s = ride.s ?? 0;
+  let pace = ride.pace ?? 0;
+  const togo = Math.max(0, total - s);
+  // Checked down to a skater's pace, and to a crawl onto the load line.
+  const cap = Math.sqrt(B.end ** 2 + 2 * B.stop * togo);
+  const want = Math.min(B.pace, cap);
+  pace = pace > want ? Math.max(want, pace - B.brake * dt) : Math.min(want, pace + B.brake * dt);
+  pace = Math.min(pace, cap);
+  s = Math.min(total, s + pace * dt);
+  const at = alongWay(way, s);
+  const ahead = alongWay(way, s + B.ahead);
+  const aim =
+    hypot(ahead.x - at.x, ahead.z - at.z) > 0.05
+      ? Math.atan2(ahead.x - at.x, ahead.z - at.z)
+      : (ride.head ?? plan.heading);
+  // Turned up the line over the last of the way.
+  const last = 1 - Math.min(1, togo / B.ahead);
+  const goal = aim + angleDiff(aim, plan.heading) * last;
+  let head = ride.head ?? c.heading;
+  head += clamp(angleDiff(head, goal), -B.turn * dt, B.turn * dt);
+  setOff(run, at.x, at.z, head, pace);
+  // Skating it: the push and the strides the figure's gait is drawn by —
+  // gliding while he is still checking down from coming in fast.
+  c.drive = pace <= B.pace + 0.2 && togo > B.end ? B.drive : 0;
+  c.stride += strideRate(pace, c.poles) * c.drive * dt;
+  ride.s = s;
+  ride.pace = pace;
+  ride.head = head;
+  if (s < total) return;
+  delete ride.s;
+  delete ride.pace;
+  delete ride.head;
+  delete ride.walk;
+  ride.t = 0;
+  if (plan.lift.kind === "drag") {
+    ride.phase = "wait";
+    return;
+  }
+  // In at the door or onto the load line: sat in his carrier as it
+  // leaves the station, and the picture fades back in on him there.
+  const start = plan.lift.kind === "gondola" ? GONDOLA_IN_STATION + 2 : plan.look.entry.at + 2;
+  ride.phase = "ride";
+  ride.faded = true;
+  ride.u = start;
+  ride.speed = plan.look.slow;
+  ride.swing = 0;
+  ride.swingRate = 0;
+  ride.tower = Math.max(
+    1,
+    plan.supports.findIndex((p) => p.u > start),
+  );
+  ride.from = { x: c.x, y: Number.NaN, z: c.z, heading: plan.heading };
+  events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "take" });
+  hold(run, plan, ride);
+}
+
+/** Whether a ride came from the boarding ring: its way starts outside the
+ * load zone. */
+function isRinged(plan: LiftPlan, ride: LiftRide): boolean {
   const e = plan.look.entry;
-  const to = boardAt(plan, ride);
-  const walk = ride.walk ?? 0;
-  const span = Math.max(e.board, walk / BOARDING_RING.glide);
-  const k = smoothstep(0, 1, Math.min(1, ride.t / span));
-  const k0 = smoothstep(0, 1, Math.min(1, (ride.t - TUNING.dt) / span));
-  let x: number;
-  let z: number;
-  let heading: number;
-  let way: number;
-  if (walk > 0) {
-    const path = walkOf(plan, ride);
-    const at = alongWay(path, walk * k);
-    x = at.x;
-    z = at.z;
-    // Along the lane, turned up the line over the last of the way.
-    const lane = Number.isNaN(at.heading) ? plan.heading : at.heading;
-    const last = smoothstep(0.8, 1, k);
-    heading = lane + angleDiff(lane, plan.heading) * last;
-    way = (walk * (k - k0)) / TUNING.dt;
-  } else {
-    x = ride.from.x + (to.x - ride.from.x) * k;
-    z = ride.from.z + (to.z - ride.from.z) * k;
-    heading = ride.from.heading + angleDiff(ride.from.heading, plan.heading) * k;
-    way = (hypot(to.x - ride.from.x, to.z - ride.from.z) * (k - k0)) / TUNING.dt;
-  }
-  setOff(run, x, z, heading, way);
-  if (ride.t >= span) {
-    ride.phase = "ride";
-    ride.t = 0;
-    ride.speed = plan.look.slow;
-    delete ride.walk;
-    const c = run.skier;
-    ride.from = { x: c.x, y: c.y, z: c.z, heading: plan.heading };
-  }
+  const rx = ride.from.x - plan.lift.bottom.x;
+  const rz = ride.from.z - plan.lift.bottom.z;
+  const u = rx * plan.dx + rz * plan.dz;
+  const v = rx * plan.dz - rz * plan.dx;
+  return !(Math.abs(u - e.at) <= e.along && Math.abs(v - e.side) <= e.across);
+}
+
+/** ON A DRAG'S TRACK: stood on its bar's right arm facing up the line
+ * until the next T-bar comes round to him — the one the clock brings past
+ * the load line (`carrierPassing`), so his is a bar of the lift's own —
+ * and it takes him from behind: the bar under him, the pull taken up from
+ * a stand (`stepCarried`'s pick-up). */
+function stepWait(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
+  const c = run.skier;
+  const p = boardAt(plan);
+  setOff(run, p.x, p.z, plan.heading, 0);
+  if (carrierPassing(plan, plan.look.entry.at, run.t, TUNING.dt) < 0) return;
+  ride.phase = "ride";
+  ride.t = 0;
+  ride.u = plan.look.entry.at;
+  ride.speed = 0;
+  ride.tower = Math.max(
+    1,
+    plan.supports.findIndex((s) => s.u > ride.u),
+  );
+  ride.from = { x: c.x, y: c.y, z: c.z, heading: plan.heading };
+  events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "take" });
 }
 
 /** Carried: the grip up the rope at the rope's speed — slowed through the
@@ -267,8 +462,8 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "tower" });
   }
   if (plan.lift.kind === "drag") {
-    // Pulled up the track on his skis.
-    const p = along(plan, ride.u, upRope(plan));
+    // Pulled up the track on his skis, sat back on his bar's right arm.
+    const p = along(plan, ride.u, upRope(plan) + K.tee);
     setOff(run, p.x, p.z, plan.heading, ride.speed);
   } else {
     // THE HANGER as a pendulum off a grip that is slowed and bent: its foot
@@ -414,9 +609,15 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const grip = along(plan, ride.u, upRope(plan));
   const gy = ropeAt(plan, ride.u);
   const drop = plan.lift.kind === "gondola" ? K.cabin : K.seat;
-  let x = grip.x + plan.dx * Math.sin(ride.swing) * drop;
-  let z = grip.z + plan.dz * Math.sin(ride.swing) * drop;
-  let y = gy - Math.cos(ride.swing) * drop;
+  // A cabin's rider sits on the bench along its back wall, `cabinBack` m
+  // behind the grip — the hanger's foot and he swung about it as one.
+  const back = plan.lift.kind === "gondola" ? K.cabinBack : 0;
+  const cs = Math.cos(ride.swing);
+  const sn = Math.sin(ride.swing);
+  const ahead = -back * cs + drop * sn;
+  let x = grip.x + plan.dx * ahead;
+  let z = grip.z + plan.dz * ahead;
+  let y = gy - back * sn - drop * cs;
   // Coming down to the ramp a chair carries him on the snow, never in it.
   if (plan.lift.kind === "chair") y = Math.max(y, run.level.groundAt(x, z) + K.sit);
   // Scooped off the load line: lifted from where he stood onto the seat.
@@ -453,7 +654,7 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
  * a chair scoops him up over `lift.scoop` s; every other carrier, and a
  * ride not boarded from the snow, has him at once. The pose reads it. */
 export function seatedShare(ride: LiftRide): number {
-  if (ride.phase === "board") return 0;
+  if (ride.phase !== "ride") return 0;
   if (!Number.isFinite(ride.from.y)) return 1;
   return smoothstep(0, 1, Math.min(1, ride.t / K.scoop));
 }
@@ -571,7 +772,7 @@ export function arriveByLift(run: GameState, x: number, z: number, pin?: string)
   };
   if (plan.lift.kind === "drag") {
     // On a drag he is pulled up the track on his skis.
-    const p = along(plan, c.lift.u, upRope(plan));
+    const p = along(plan, c.lift.u, upRope(plan) + K.tee);
     setOff(run, p.x, p.z, plan.heading, c.lift.speed);
   } else hold(run, plan, c.lift);
   return resort.runs[pick].id;

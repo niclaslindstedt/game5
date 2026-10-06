@@ -82,6 +82,7 @@
 // — the names live in `pwa/src/game/strings.ts`. Nothing here draws, and
 // nothing here is random: a run replays to the same score.
 
+import { pipeHit } from "./pipe-air.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { harshShare } from "./damage.ts";
 import { harshSpeedOf } from "./limits.ts";
@@ -221,6 +222,9 @@ function file(
     butter: k.takeoff,
     x: k.fromX,
     z: k.fromZ,
+    ...(state.level.pipe
+      ? { pipe: pipeHit(state.level, c, k.fromX, k.fromZ, k.peak) ?? undefined }
+      : {}),
   });
 }
 

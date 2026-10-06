@@ -69,6 +69,7 @@ import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
+import { ParaReadout } from "./hud-para.tsx";
 
 export type { HudFlash };
 
@@ -227,7 +228,7 @@ export function Hud({
               </div>
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
-            {snap.tricks && !snap.bigAir && !snap.jam && !snap.slopestyle && (
+            {snap.tricks && !snap.bigAir && !snap.jam && !snap.slopestyle && !snap.halfpipe && (
               <TricksChips tile={snap.tricks} />
             )}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
@@ -241,6 +242,16 @@ export function Hud({
                     snap.slopestyle.sections,
                     snap.slopestyle.kind,
                   )}
+                </span>
+              </div>
+            )}
+            {/* A HALFPIPE RUN: its run, its phase, the hits and the last height. */}
+            {snap.halfpipe && (
+              <div class="hud-chip hud-run">
+                <span>{STRINGS.halfpipeRun(snap.halfpipe.run, snap.halfpipe.of)}</span>
+                <span class="hud-chip-sub">
+                  {STRINGS.halfpipePhase(snap.halfpipe.phase)} ·{" "}
+                  {STRINGS.halfpipeHits(snap.halfpipe.hits, snap.halfpipe.over)}
                 </span>
               </div>
             )}
@@ -491,7 +502,7 @@ export function Hud({
       {/* THE HELICOPTER (`hud-heli.tsx`): the drop under its skids while he
           rides it, the call to it while it waits on its pad near him — but
           the snowmobile's word wins while he rides it or stands beside it. */}
-      {snap.heli && !sledFirst && snap.airTime === 0 && (
+      {snap.heli && !sledFirst && !snap.para && snap.airTime === 0 && (
         <HeliReadout
           heli={snap.heli}
           live={live}
@@ -503,7 +514,7 @@ export function Hud({
 
       {/* THE SNOWMOBILE (`hud-sled.tsx`): the tachometer while he rides it,
           the call to it while it waits near him. */}
-      {snap.sled && (sledFirst || !snap.heli) && snap.airTime === 0 && (
+      {snap.sled && (sledFirst || !snap.heli) && !snap.para && snap.airTime === 0 && (
         <SledReadout
           sled={snap.sled}
           touch={touch}
@@ -511,6 +522,10 @@ export function Hud({
           onBoard={input.requestMachine}
         />
       )}
+
+      {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
+          on him — in the air clock's place, which a flight never shows. */}
+      {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}

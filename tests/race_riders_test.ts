@@ -41,6 +41,8 @@ describe("a race's own build", () => {
     // The rail jam: the same park field, nothing on a rail paid for weight.
     expect(raceRiderOf("railJam")).toBe("medium");
     expect(raceRiderOf("halfpipe")).toBe("medium");
+    // Moguls: a top field's men ~73 kg on 178 cm, the medium build.
+    expect(raceRiderOf("moguls")).toBe("medium");
   });
 
   it("grows heavier the more a race is the tuck alone", () => {

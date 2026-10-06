@@ -8,8 +8,9 @@
 // and the SLOPESTYLE COURSE (R39 — three rail sections and three jumps cut
 // on one line) and the RAIL JAM'S SET (R40 — a short drop-in onto a deck
 // with a row of rails and boxes side by side) and the HALFPIPE (R41 — a U
-// cut down the slope) are built today; moguls, dual moguls and aerials are
-// each a rule here when they are built
+// cut down the slope) and the MOGULS COURSE (R42 — a mogul track down a
+// steep pitch with two air bumps in it) are built today; dual moguls and
+// aerials are each a rule here when they are built
 // (`docs/specs/TRICK_MODES.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
@@ -178,6 +179,36 @@
 //       surface, never above it. Its gates are the START GATE at the
 //       platform's lip and the FINISH LINE `halfpipe.finish` metres into
 //       the run-out; it has no gate between.
+//
+//   R42 THE MOGULS COURSE. A moguls course is BUILT as R37's jump is,
+//       straight down a built map's face on a line searched the same way
+//       (`moguls.search`, `moguls.fit`), `moguls.width` metres wide,
+//       graded, groomed and cleared. Its PROFILE is built against the
+//       horizontal, in order: a START PLATFORM level for `moguls.platform`
+//       metres; a roll of `moguls.roll` metres of radius onto the COURSE'S
+//       PITCH of `moguls.pitch` degrees, held until `moguls.course` metres
+//       down the slope from the start gate; a transition of `moguls.round`
+//       metres of radius onto a FINISH AREA falling at
+//       `moguls.outrun.grade` degrees for `moguls.outrun.length` metres.
+//       In the pitch stand TWO AIR BUMPS, their lips `moguls.air.at` of the
+//       course down it: each a KICKER curved up off the pitch to a take-off
+//       of `moguls.air.kick` degrees to the slope, its lip
+//       `moguls.air.height` metres over the pitch, falling back to the
+//       pitch at `moguls.air.back` degrees behind the lip. Down the course
+//       runs a MOGUL TRACK `moguls.track` metres wide on the venue's line:
+//       moguls every `moguls.bumps.spacing` metres down the slope,
+//       `moguls.bumps.height` metres from crest to trough, their crests
+//       snaking a quarter wave either way every `moguls.bumps.wave` metres
+//       across, from `moguls.bumps.first` metres below the start gate to the
+//       foot of the pitch, faded over `moguls.bumps.ease` metres at their
+//       ends, their edges and round each air bump — none in the last
+//       `moguls.air.runIn` metres before its lip nor the
+//       `moguls.air.landing` metres after it. The moguls and the air bumps
+//       are an analytic surface, not the map's grid, and the grid under
+//       them is cut to the same surface, never above it. Its gates are the
+//       START GATE at the platform's lip, `moguls.gates` CONTROL GATES
+//       `moguls.track` metres wide spaced evenly between it and the FINISH
+//       LINE at the course's foot, and the finish line.
 
 /** A JUMP'S RULE, as R37 and R38 state one (`big-air.ts` builds either). A
  * jump with no kicker (`kicker` 0) takes off from the knuckle at the end
@@ -654,4 +685,65 @@ export const HALFPIPE_RULE = {
   },
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 15, past: 30, half: 30 },
+} as const;
+
+/** R42 — the moguls course (`docs/freestyle.md` § *Moguls*: the top
+ * series' 235 ± 35 m at 28 ± 4°, 18–22 m wide, a 10 ± 2 m track between
+ * nine control gates, moguls ~3.5 m apart, two air bumps 50–70 cm high at
+ * a 26–35° take-off with a 15–18 m landing, the top one 15 % of the course
+ * down it and the bottom one 20 % from the finish, a level finish area of
+ * 30–40 m). */
+export const MOGULS_RULE = {
+  platform: 6,
+  /** The roll onto the pitch, m of radius. */
+  roll: 15,
+  /** THE PITCH, degrees: the low end of the top series' band (28 ± 4°) —
+   * as steep as a skier on this engine checks his speed on with the turns
+   * against the moguls (a skid alone drags ~0.35 g, under the pull of a
+   * steeper pitch). */
+  pitch: 25,
+  /** The course down the slope from the start gate to the finish line,
+   * m (the top series' 235). */
+  course: 235,
+  /** The radius the pitch meets the finish area on, m; the finish area. */
+  round: 30,
+  outrun: { grade: 3, length: 35 },
+  /** THE TRACK, m (10 ± 2), and the control gates between the start and
+   * the finish (nine, each a tenth of the course). */
+  track: 10,
+  gates: 9,
+  /** THE MOGULS: their spacing down the slope (~3.5 m), crest to trough
+   * (est., 0.8–1.2 m on a course; the lower end, for a skier whose legs
+   * fold half a metre), the snake of their crests across, where the first
+   * stands below the start gate and how far they fade, m. */
+  bumps: { spacing: 3.5, height: 0.7, wave: 8, first: 10, ease: 3 },
+  /** THE AIR BUMPS: their lips as shares of the course down it (15 % from
+   * the start, 20 % from the finish), the lip over the pitch, m (50–70
+   * cm), the take-off to the slope, degrees (26–35°), the fall back behind
+   * the lip, degrees, the smooth run-in before the lip and the landing
+   * after it, m (5–6 m from the last mogul; a 15–18 m landing in the
+   * rules, 18–20 m on a course sheet — the longer, for a run at pace). */
+  air: {
+    at: [0.15, 0.8] as readonly number[],
+    height: 0.7,
+    kick: 35,
+    back: 45,
+    runIn: 6,
+    landing: 20,
+  },
+  /** The course graded across, m (18–22), its ease and the trees cleared
+   * past it, m. */
+  width: 22,
+  ease: 12,
+  margin: 10,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 15, past: 30, half: 26 },
 } as const;

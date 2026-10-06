@@ -54,6 +54,7 @@ describe("the technique a run is skied with", () => {
       "downhill",
       "free",
       "giantSlalom",
+      "moguls",
       "skiCross",
       "slalom",
       "speedSki",

@@ -117,6 +117,34 @@ export {
   type PipeRun,
 } from "./game/halfpipe-contest.ts";
 export { PIPE_AIR, pipeHit, pipeLanding, stepPipeAir, type PipeLanding } from "./game/pipe-air.ts";
+export {
+  MOGUL_PANEL,
+  ddOf,
+  judgeMoguls,
+  scoreMoguls,
+  turnQuality,
+  type MogulJump,
+  type MogulScore,
+} from "./game/moguls-judge.ts";
+export {
+  MOGUL_FIELD,
+  MOGUL_PHASES,
+  freshMoguls,
+  judgeMogulsRun,
+  mogulBoard,
+  mogulOrder,
+  mogulPhase,
+  mogulPlace,
+  mogulRivalRun,
+  mogulsContestAfter,
+  paceTimeOf,
+  type MogulPhase,
+  type MogulRow,
+  type MogulRun,
+  type MogulsContest,
+} from "./game/moguls-contest.ts";
+export { TURN_READ, freshTurns, stepMogulTurns, type MogulTurns } from "./game/mogul-turns.ts";
+export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
@@ -151,6 +179,8 @@ export {
   railJamRules,
   HALFPIPE,
   halfpipeRules,
+  MOGULS,
+  mogulsRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
@@ -183,6 +213,7 @@ export {
   SUPER_G_TECHNIQUE,
   SPEED_SKI_TECHNIQUE,
   SKI_CROSS_TECHNIQUE,
+  MOGULS_TECHNIQUE,
   TECHNIQUES,
   techniqueOf,
   type Crossing,
@@ -310,6 +341,7 @@ export {
   MARMOT,
   HARE,
   RAVEN,
+  IBEX,
   skisById,
   isSkiId,
   inertiaOf,

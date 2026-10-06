@@ -6,7 +6,7 @@
 // carries its unit, and where it came from is said beside it: a real class
 // of ski's proportions are kept as the BAND they sit in, never as a make.
 //
-// TEN PAIRS, TEN ANSWERS TO A KIND OF SNOW — never nine points on one
+// ELEVEN PAIRS, ELEVEN ANSWERS TO A KIND OF SNOW — never nine points on one
 // scale.
 // Each is a real class of ski, named for an animal of the high country that
 // moves the way it does, and its numbers sit inside that class's measured
@@ -39,6 +39,9 @@
 //   RAVEN   a BIG-AIR ski — the competition park twin-tip: longer and
 //           stiffer than the Hare, damp for a landing from ten metres up,
 //           still mounted near its centre to spin and ride away switch.
+//   IBEX    a MOGUL ski — short, narrow and straight, soft in the forebody:
+//           pivots on a mogul's shoulder and folds over its crest, nervous
+//           anywhere it can run.
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
@@ -86,7 +89,8 @@ export type SkiId =
   | "peregrine"
   | "marmot"
   | "hare"
-  | "raven";
+  | "raven"
+  | "ibex";
 
 export type SkiSpec = {
   id: SkiId;
@@ -488,12 +492,49 @@ export const RAVEN: SkiSpec = {
   topSpeed: 110,
 };
 
+/** THE IBEX — a MOGUL ski (named for the goat that bounds down broken rock
+ * a step at a time): the class a moguls course is skied on (`docs/freestyle.md`
+ * § *Moguls*, "The skis"). The rules set no length, width or sidecut; the
+ * class the athletes ride is 161–179 cm (a man's 171–175), 92–100 mm at the
+ * tip, 61–66 mm underfoot and 81–90 mm at the tail, on a STRAIGHT 17–26 m
+ * sidecut that pivots rather than hooks, full camber, light, and SOFT IN
+ * THE FOREBODY (a tip a quarter softer than the rest) so it folds over a
+ * mogul's crest and finds the trough. 172 cm on a 63 mm waist, 95 mm tip and
+ * 84 mm tail — 13 mm of side depth over its chord, a 22.5 m arc — mounted
+ * where a race ski is, and the legs of a mogul skier: the deepest fold and
+ * the quickest give of any pair, for a bump every third of a second. Its
+ * answer is a mogul line taken at 35 km/h: it turns on a crest the others
+ * have to be skidded off, and it is slow in a tuck, chatters at speed and
+ * sinks in powder. */
+export const IBEX: SkiSpec = {
+  ...SKIS,
+  id: "ibex",
+  name: "Ibex",
+  kind: "Moguls",
+  blurb:
+    "Short, narrow and straight, soft at the tip: pivots on a crest and folds into the trough.",
+  gearMass: 8,
+  length: 1.72,
+  waist: 0.063,
+  tipWidth: 0.095,
+  tailWidth: 0.084,
+  sidecut: 22.5,
+  flex: 0.45,
+  rocker: 0,
+  edgeMax: 1.0,
+  mount: 0.46,
+  legs: { rate: 7000, bump: 380, rebound: 760, travel: 0.5 },
+  cdAUpright: 0.88,
+  cdATuck: 0.56,
+  topSpeed: 106,
+};
+
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
  * most of him last: the all-mountain ski that refuses nothing, the alpine
  * race skis from the shortest to the longest (slalom, giant slalom, super-G,
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
- * ski and the big-air ski. (`make sim ARGS="--skis
+ * ski, the big-air ski and the mogul ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkiSpec[] = [
   SKIS,
@@ -506,6 +547,7 @@ export const SKI_CATALOG: readonly SkiSpec[] = [
   MARMOT,
   HARE,
   RAVEN,
+  IBEX,
 ];
 
 /** The pair with this id, or the all-mountain ski for one this build does

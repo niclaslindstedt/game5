@@ -31,6 +31,7 @@ import {
   setKnuckleHuck,
   setRailJam,
   setHalfpipe,
+  setMoguls,
   setSlopestyle,
   withDay,
   withSky,
@@ -64,6 +65,8 @@ import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshJam, stepJam } from "./jam.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
+import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
+import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -127,6 +130,8 @@ export type CreateGameOptions = {
   /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), as a
    * slopestyle's. */
   halfpipe?: PipeContest;
+  /** A MOGULS CONTEST so far (R42, `moguls-contest.ts`), as a halfpipe's. */
+  moguls?: MogulsContest;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -324,6 +329,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.slopestyle?.base ??
     built.railJam?.base ??
     built.halfpipe?.base ??
+    built.moguls?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -350,7 +356,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                         ? setRailJam(built)
                         : options.mode === "halfpipe"
                           ? setHalfpipe(built)
-                          : original;
+                          : options.mode === "moguls"
+                            ? setMoguls(built)
+                            : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -437,6 +445,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
+  if (level.moguls) {
+    state.moguls = options.moguls ?? freshMoguls(state.seed);
+    state.mogulTurns = freshTurns();
+  }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
@@ -492,6 +504,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   stepTricks(state, events);
   // A KNUCKLE HUCK'S JAM (`jam.ts`): a hit over, and back to the platform.
   if (state.jam) stepJam(state, events);
+  // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
+  if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.

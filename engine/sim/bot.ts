@@ -51,6 +51,7 @@ import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
 import { railJamInput } from "./rail-jam-steer.ts";
 import { halfpipeInput } from "./halfpipe-steer.ts";
+import { mogulsInput } from "./moguls-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -649,6 +650,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // A HALFPIPE (R41): wall to wall, a trick a hit.
   const pipe = halfpipeInput(state, on);
   if (pipe) return pipe;
+  // A MOGULS COURSE (R42): a turn a mogul, a trick an air bump.
+  const bumps = mogulsInput(state, on);
+  if (bumps) return bumps;
   const cps = level.checkpoints;
   const L = level.track.length;
   const poles = state.rules.course && level.slalom !== undefined;

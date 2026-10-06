@@ -97,6 +97,7 @@ import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
 import { snowNormal, uprightOn } from "./snow-normal.ts";
 import { castLeg } from "./leg-ray.ts";
+import { riddenLevel } from "./mogul-ride.ts";
 import {
   climbShare,
   driveReach,
@@ -162,7 +163,8 @@ function cross(ax: number, ay: number, az: number, bx: number, by: number, bz: n
 export function stepSkier(state: GameState, input: SkierInput, events: GameEvent[]): void {
   const c = state.skier;
   const spec = c.spec;
-  const level = state.level;
+  // Over a mogul field, the snow the legs leave the body (`mogul-ride.ts`).
+  const level = riddenLevel(state.level, hypot3(c.vx, c.vy, c.vz));
   const m = totalMass(spec);
   const I = inertiaOf(spec);
   const g = TUNING.g;
@@ -652,7 +654,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     );
     contact.x = cx;
     contact.z = cz;
-    contact.y = level.groundAt(cx, cz);
+    contact.y = state.level.groundAt(cx, cz);
     contact.sink = sink;
   }
   // On his platforms each ski stands where he set it (`sidestep.ts`).

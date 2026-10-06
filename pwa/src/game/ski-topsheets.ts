@@ -164,4 +164,7 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   // A big-air pair in a raven's gloss black with a lime twin: black reads
   // against the sky at the top of a jump, the lime against the snow.
   raven: sheet("Gloss", 0x1c1e26, 0xb6e01e, "twin", { boot: 0xb6e01e }),
+  // A mogul pair in glacier cyan split with white: the knees and the skis
+  // are what a turn judge watches from below, and cyan reads on the snow.
+  ibex: sheet("Glacier", 0x1aa3d8, 0xf2f2f2, "split", { boot: 0x1aa3d8, pole: 0xf2f2f2 }),
 };

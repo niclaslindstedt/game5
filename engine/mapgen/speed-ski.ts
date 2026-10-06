@@ -522,6 +522,8 @@ function gradeTrack(original: Level): Graded {
     slopestyle: undefined,
     railJam: undefined,
     halfpipe: undefined,
+    moguls: undefined,
+    bumps: undefined,
     normalNear: undefined,
     pipe: undefined,
     jibs: undefined,
@@ -581,6 +583,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.slopestyle?.base ??
     level.railJam?.base ??
     level.halfpipe?.base ??
+    level.moguls?.base ??
     level;
   let mine = runs.get(original);
   if (!mine) {

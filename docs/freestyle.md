@@ -25,7 +25,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 | Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R39) — spec `SLOPESTYLE.md` |
 | Big air | judged jumps, best two different | one jump | researched — spec `BIG_AIR.md` |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
-| Moguls | turns + air + speed, one run | a mogul course | researched — spec `MOGULS.md` |
+| Moguls | turns + air + speed, one run | a mogul course | BUILT in part (R42) — spec `MOGULS.md` |
 | Dual moguls | moguls head to head, a bracket | two mogul lanes | researched — spec `DUAL_MOGULS.md` |
 | Rail jam | a timed jam, one impression | rails and boxes | BUILT in part (R40) — spec `RAIL_JAM.md` |
 | Knuckle huck | a timed jam, one impression | the knuckle of a big air jump | BUILT in part (R38) — spec `KNUCKLE_HUCK.md` |
@@ -614,6 +614,56 @@ the bottom; women a back full, cork 720, a 720 off axis, back tuck or lay,
 a 360 with a grab. Mogul skiers move their hips and knees through more
 range, faster and in shorter cycles than alpine racers [14].
 
+**The course as prepared** [52, 53]: the line is set with a rope of about
+250 m down the course and a flag every ~4 m marking where each mogul is
+built; a top series course runs some 200–270 m at about 26° on average. The
+air bumps' take-offs are built in forms filled with snow and water and left
+to freeze overnight, and the course is injected with water, raising the
+snow from about 350 to about 580 kg/m³ so the moguls hold their shape run
+after run. Moguls left to form on their own stand ~5.7 m apart and creep
+uphill some 8 cm a day [54] — a built line is tighter and stays put.
+
+**The weather it is called off for** [55]: top-series moguls have been
+postponed or cancelled again and again for FOG and a heavy fall — the turn
+judges sit at the course's foot and must see the whole line — far oftener
+than for wind; the runs are low to the snow and the air bumps small.
+
+**The skis** [56, 57, 58]: a mogul pair is a ski of its own class — short,
+narrow and nearly straight, soft at the tip so it folds into a trough and
+stiffer under foot and at the tail for the take-off:
+
+| | Figure |
+| --- | --- |
+| Length | 140–179 cm the range a maker offers; adults 161–179, a men's top-series pair ~171–172 cm |
+| Tip / waist / tail | ~92–100 / 61–66 / 81–90 mm (a 172 cm world-level pair 92-63-81; others 95-61-84, 95-63-85, 100-66-90) |
+| Sidecut radius | 17–26 m by length (26 m on a 172 cm race pair, 19.7–21.3 m on another range, 11–19 m on an elliptical one) |
+| Camber | full camber, no rocker |
+| Weight | ~3 kg a pair without bindings |
+| Flex | soft forebody — one maker's "pro" version is 25 % softer at the tip; ~8/10 stiff on a retailer's scale overall |
+
+**The athletes** [59, 60]: a national team's tests over six seasons (834 of
+them) give its moguls men 177.8 ± 5.6 cm and 73.4 ± 5.8 kg, its women
+164.6 ± 4.9 cm and 59.6 ± 4.5 kg — some 8 kg lighter than the same team's
+alpine men; another national group's men weigh 72.9 ± 6.3 kg and its women
+64.0 ± 9.1 kg. A knee-angle and muscle study of six top-level mogul skiers
+found each skier's turn time and knee range his own. Nothing in the score
+pays for weight: the turns want legs quick enough to fold every third of a
+second and the speed a body that runs — the MEDIUM build.
+
+**As built** (R42, `engine/mapgen/moguls.ts`, `mogul-field.ts`): a 235 m
+course at 25° *(the low end of the top series' 28 ± 4°, steep enough on
+this engine — a straight skid drags only ~0.35 g)*; a 10 m track of moguls
+3.5 m apart and 0.7 m crest to trough *(est.)*, their crests snaking across
+it so the troughs zig-zag; two air bumps 0.7 m high kicking 35° off the
+slope *(the take-off read as against the slope — the rules do not say)*,
+at 15 % and 80 % of the course, with a 20 m landing; nine control gates.
+The legs ABSORB the moguls (`engine/game/mogul-ride.ts`): the body rides the
+course with the moguls taken out of the snow under it at up to ~9.5 m/s,
+less of them the faster past it — down to a third by 14 m/s *(est.)*. The
+jury holds the course under 50 km/h of gust and in no more than a steady
+fall *(est.; fog is not modelled)*. The format is the single-qualification
+one: the best 16 to FINAL 1 and its best 6 to FINAL 2.
+
 ## Dual moguls
 
 Moguls head to head: two skiers side by side on two lanes of one course,
@@ -945,4 +995,16 @@ national coaching portal's freeski halfpipe pages (the approach, the
 pump, the take-off and landing on the same wall, the alley-oop) · [50] a
 ski site's analysis of the equipment of a championship pipe final ·
 [51] news reports of pipe contests delayed or called off for wind and
-snow.
+snow ·
+[52] a mountain resort's account of building a top-series moguls course
+(the rope, the flags every ~4 m, the frozen take-off forms) · [53] a winter
+sports science feature on course preparation (the water injection and the
+snow's density) · [54] a physics magazine's field study of natural moguls
+(their spacing and their creep uphill) · [55] news reports of top-series
+moguls postponed or cancelled for fog and snow · [56] two ski makers'
+mogul ranges (lengths, dimensions, radii, the softer-tipped version) ·
+[57] a retailer's mogul ski listings (the flex rating, the weight) ·
+[58] a freestyle coaching page on choosing a mogul ski · [59] a national
+team's six-season physical test database, summarised in a sports science
+journal (height and mass by discipline and sex) · [60] a sports
+biomechanics study of the knee in six top-level mogul skiers.

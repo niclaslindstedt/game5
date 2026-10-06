@@ -90,6 +90,7 @@ export function TrickMapsPage({
   const slope = mode === "slopestyle";
   const rail = mode === "railJam";
   const pipe = mode === "halfpipe";
+  const bumps = mode === "moguls";
   const billing = bigAir
     ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
     : knuckle
@@ -100,7 +101,9 @@ export function TrickMapsPage({
           ? STRINGS.railJamBilling(RAIL_JAM.jam)
           : pipe
             ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
-            : STRINGS.tricksBilling(TRICKS_RUN.limit);
+            : bumps
+              ? STRINGS.mogulsBilling
+              : STRINGS.tricksBilling(TRICKS_RUN.limit);
   const title = bigAir
     ? STRINGS.bigAirOn
     : knuckle
@@ -111,7 +114,9 @@ export function TrickMapsPage({
           ? STRINGS.railJamOn
           : pipe
             ? STRINGS.halfpipeOn
-            : STRINGS.tricksOn;
+            : bumps
+              ? STRINGS.mogulsOn
+              : STRINGS.tricksOn;
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead

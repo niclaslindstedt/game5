@@ -97,6 +97,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     slopestyle: state.slopestyle,
     // A halfpipe run and the contest it was skied in (`halfpipe-run.ts`).
     halfpipe: state.halfpipe,
+    // A moguls run and the contest it was skied in (`moguls-run.ts`).
+    moguls: state.moguls,
     quiet: true,
   };
 }
@@ -111,7 +113,8 @@ export function keepsReplay(mode: GameMode): boolean {
       mode === "knuckleHuck" ||
       mode === "slopestyle" ||
       mode === "railJam" ||
-      mode === "halfpipe")
+      mode === "halfpipe" ||
+      mode === "moguls")
   );
 }
 

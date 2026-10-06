@@ -20,7 +20,7 @@
 
 /** The techniques the engine knows. */
 export type TechniqueId =
-  "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki";
+  "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki" | "moguls";
 
 export type Technique = {
   id: TechniqueId;
@@ -224,6 +224,31 @@ export const SPEED_SKI_TECHNIQUE: Technique = {
   cross: CROSS_OVER,
 };
 
+/** THE MOGUL SKIER (R42). Two and a half to three turns a second down the
+ * zipper line, each turn pivoted on a mogul's shoulder: the skis swung
+ * edge to edge UNDER a trunk kept square to the fall line and dead quiet
+ * (the turn judges' quarter for the upper body), the legs ABSORBING each
+ * mogul — folded up its face as the skis cross under him — and EXTENDED
+ * down its back into the trough (their quarter), the edges set short and
+ * hard in the trough rather than carved round the arc (their half), the
+ * hips and knees moving through a far larger range, faster and in shorter
+ * cycles than an alpine racer's (`docs/freestyle.md` § *Moguls*). So: the
+ * edge rolled twice the shared rate (a turn every 0.35–0.4 s), stood at no
+ * more than 50° (the short edge set of a turn on a bump's shoulder, est.),
+ * its lock eased early — a mogul skier is never fast enough to need it
+ * late — half a shelf, the body barely laid in (a quiet trunk over the
+ * fall line), and a CROSS-UNDER on any pitch: the skis tipped to 40° under
+ * a level body and the legs drawn up 15 cm as they swing across (est.). */
+export const MOGULS_TECHNIQUE: Technique = {
+  id: "moguls",
+  edgeRate: 2,
+  edgeMax: 0.87,
+  fade: 1.5,
+  platform: 0.5,
+  incline: 0.6,
+  cross: { under: 0.7, retract: 0.15, steep: 0 },
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   free: FREE,
   slalom: SLALOM_TECHNIQUE,
@@ -232,6 +257,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   downhill: DOWNHILL_TECHNIQUE,
   skiCross: SKI_CROSS_TECHNIQUE,
   speedSki: SPEED_SKI_TECHNIQUE,
+  moguls: MOGULS_TECHNIQUE,
 };
 
 /** The technique a run is skied with: its rules' own, the free skier's when

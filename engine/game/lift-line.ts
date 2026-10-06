@@ -40,6 +40,7 @@
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import type { Level, Lift } from "../mapgen/types.ts";
+import { TUNING } from "./defs/tuning.ts";
 
 export type LiftKind = Lift["kind"];
 
@@ -566,14 +567,19 @@ export const QUEUE_GAP = 1.5;
  * drawn corral (`station-plan.ts`) is fenced along it and the crowd queues
  * on it (`crowd-lift.ts`). */
 export function queueLane(plan: LiftPlan): { u: number; v: number }[] {
-  const e = plan.look.entry;
-  const h = plan.look.house;
-  if (plan.lift.kind === "gondola")
+  return laneOf(plan.lift.kind, plan.look);
+}
+
+/** `queueLane` read off a kind and its measure alone. */
+function laneOf(kind: LiftKind, look: LiftLook): { u: number; v: number }[] {
+  const e = look.entry;
+  const h = look.house;
+  if (kind === "gondola")
     return [
       { u: e.at, v: 0 },
       { u: e.at - 40, v: 0 },
     ];
-  const clear = h.width / 2 + plan.look.gauge / 2 + 3;
+  const clear = h.width / 2 + look.gauge / 2 + 3;
   const mouth = { u: e.at - 7, v: clear + 1 };
   const du = mouth.u - (e.at - 1);
   const dv = mouth.v - e.side;
@@ -601,19 +607,55 @@ export const BOARDING_RING = { radius: 3.5, gap: 1, fastest: 14, glide: 6 } as c
  * frame, and in the world) — on the queue lane's last leg, beyond the
  * corral's fences. */
 export function boardingRing(plan: LiftPlan): { u: number; v: number; x: number; z: number } {
-  const lane = queueLane(plan);
-  const a = lane[lane.length - 2];
-  const b = lane[lane.length - 1];
-  const len = hypot(b.u - a.u, b.v - a.v) || 1;
-  const out = CORRAL_TAIL + BOARDING_RING.gap + BOARDING_RING.radius;
-  const u = a.u + ((b.u - a.u) / len) * out;
-  const v = a.v + ((b.v - a.v) / len) * out;
+  const { u, v } = ringFrame(plan.lift.kind);
   return {
     u,
     v,
     x: plan.lift.bottom.x + plan.dx * u + plan.dz * v,
     z: plan.lift.bottom.z + plan.dz * u - plan.dx * v,
   };
+}
+
+/** Where a kind of lift's boarding ring lies in its line's frame: `u` m up
+ * the line from the bottom wheel, `v` m right of it — what the generator
+ * places a bottom station by, before there is a level to plan it on. */
+export function ringFrame(kind: LiftKind): { u: number; v: number } {
+  const lane = laneOf(kind, LIFT_LOOK[kind]);
+  const a = lane[lane.length - 2];
+  const b = lane[lane.length - 1];
+  const len = hypot(b.u - a.u, b.v - a.v) || 1;
+  const out = CORRAL_TAIL + BOARDING_RING.gap + BOARDING_RING.radius;
+  return { u: a.u + ((b.u - a.u) / len) * out, v: a.v + ((b.v - a.v) / len) * out };
+}
+
+/** WHERE A RIDER IS LET GO AT A LIFT'S TOP, read off its two ends alone,
+ * and the way he faces: out of a gondola's top station onto its pad
+ * `lift.door` m short of the top, facing back down the line; off a chair
+ * over its unload ramp on the up rope's side, turned `lift.ramp` off the
+ * line; a drag's let go on its track short of its wheel. The lift ride
+ * stands him there (`lift-ride.ts`), and the generator lays the next
+ * lift's queue ahead of it (R26). */
+export function letGoOf(
+  kind: LiftKind,
+  bottom: { x: number; z: number },
+  top: { x: number; z: number },
+): { x: number; z: number; heading: number } {
+  const ex = top.x - bottom.x;
+  const ez = top.z - bottom.z;
+  const length = Math.max(1, hypot(ex, ez));
+  const dx = ex / length;
+  const dz = ez / length;
+  const heading = Math.atan2(dx, dz);
+  const look = LIFT_LOOK[kind];
+  const at = (u: number, v: number): { x: number; z: number } => ({
+    x: bottom.x + dx * u + dz * v,
+    z: bottom.z + dz * u - dx * v,
+  });
+  const K = TUNING.lift;
+  if (kind === "gondola") return { ...at(length - K.door, 0), heading: heading + Math.PI };
+  if (kind === "chair")
+    return { ...at(length - look.off, look.gauge / 2), heading: heading + K.ramp };
+  return { ...at(length - look.off, DRAG_ARM), heading };
 }
 
 /** The way a rider taken from the boarding ring is brought to the load

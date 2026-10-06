@@ -60,6 +60,17 @@ import { routeLane } from "./lanes.ts";
 import { planLifts, settleDrags, type DragGround } from "./drags.ts";
 import { clearStations, nearLine, type StationGround } from "./station-clear.ts";
 import { reckonAccess } from "./access-build.ts";
+import {
+  chainOf,
+  chainRooms,
+  groomWay,
+  keepsChain,
+  layChain,
+  offQueue,
+  offWay,
+  regradeLeg,
+  type ChainWay,
+} from "./lift-chain.ts";
 import { dragTopsOf, groomPads, padShape, pressPads, relevelPads } from "./station-pad.ts";
 import {
   groomRamps,
@@ -97,10 +108,10 @@ import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { WOODS, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { gridOnTrack } from "./spawn.ts";
-import { dealSun, faceTheSun, sunOffFace, sunWindow } from "./sun.ts";
+import { courseDay } from "./course-day.ts";
+import { dealSun, faceTheSun } from "./sun.ts";
 import { foldSurface, layCrust } from "./surface.ts";
 import type { TerrainPlan } from "./terrain.ts";
-import { dealWeather } from "./weather.ts";
 import { compileLevel } from "./compile.ts";
 import { courseGates, hashPick } from "./course-gates.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
@@ -186,9 +197,8 @@ function scaledRow(row: GradeRow, length: number): GradeRow {
   return { ...row, kickers: { ...row.kickers, on }, drops };
 }
 
-/** Salts for a run's own streams and a course's day. */
+/** The salt for a run's own streams. */
 const RUN_SALT = 0x2b1d5e7;
-const DAY_SALT = 0x0dae5a1;
 
 /** How far down its heading a start must be clear of every run but its
  * top's (R12, R27), m, and by how much more than the clearance: a run that
@@ -241,11 +251,22 @@ export function attemptResort(
   const rng = createRng(sub);
   const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
-  const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
-  // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
   const traits = generatorTraits(version);
+  const chained = !traits.queueBeside;
+  const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
+  // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
   const shape = padShape(traits.levelPads, traits.looseTops);
-  const pads = pressPads(ground, liftPlans, shape);
+  const raw = chained ? ground.data.slice() : null;
+  let pads = pressPads(ground, liftPlans, shape);
+  // v7: the peak's chair's queue ahead of a rider out of the gondola, at
+  // the first aim whose way the pressed snow carries him down (R26).
+  let way: ChainWay | null = null;
+  if (raw) {
+    const chain = layChain(ground, raw, liftPlans, pads, shape);
+    if (!chain) return "R26: no way off the gondola's top falls to the peak's chair's queue";
+    way = chain.way;
+    pads = chain.pads;
+  }
   // v6's tops: runs started under them where a ramp has room (R26, R27).
   const tight = shape.lean > 0 && !traits.looseTops;
   /** Every station standing as the runs are walked — a lift's two ends,
@@ -280,6 +301,12 @@ export function attemptResort(
   /** The room kept for the ramp down to every start placed under a
    * leaning pad (R26). */
   const rooms: RampRoom[] = [];
+  /** The way to the next lift's queue, kept off by every run walked (R26). */
+  const wayRooms = chainRooms(way);
+  /** Whether a ramp's line at (x, z) comes onto that way (R26): read as
+   * the ramps are pressed (`layRamps`, a couple of cells further off). */
+  const onQueue = (x: number, z: number): boolean =>
+    !!way && offQueue(way, x, z) < RR.lift.top.ramp.width / 2 + 2 * ground.cell;
   let placed: RampRoom | null = null;
   const startHit = netHit();
   for (const spec of specs) {
@@ -305,7 +332,8 @@ export function attemptResort(
               Math.sign(spec.target.x - spec.x) || 1,
               (r) => walked[r].spec.kind === "piste" && walked[r].spec.from !== spec.from,
               {
-                keepOff: (x, z) => onPad(x, z) || rooms.some((r) => nearRoom(r, x, z) < LANE_ROOM),
+                keepOff: (x, z) =>
+                  onPad(x, z) || [...wayRooms, ...rooms].some((r) => nearRoom(r, x, z) < LANE_ROOM),
               },
             );
       const ahead = lane?.route[Math.min(5, lane.route.length - 1)];
@@ -330,7 +358,8 @@ export function attemptResort(
         walking.nearest(x, z, WIDEST + BENCH + START_ROOM, () => false, startHit).distance <
         startHit.width / 2 + BENCH + RAMP_ROOM;
       const keep = { pad: PAD_KEEP, station: STATION_KEEP };
-      const rampBlocked = roomBlocked(rampPad, pads, stations, rooms, keep, onRun);
+      const blocked = roomBlocked(rampPad, pads, stations, rooms, keep, onRun);
+      const rampBlocked = (x: number, z: number): boolean => blocked(x, z) || onQueue(x, z);
       const height = (x: number, z: number): number => sampleField(ground, x, z);
       const wide = spec.row.id ? RR.piste.width[spec.row.id].max : WIDEST;
       const clear = (x: number, z: number, h: number): boolean => {
@@ -376,7 +405,7 @@ export function attemptResort(
     const shared = (r: number): boolean => walked[r].spec.from === spec.from;
     // Off the room kept for the ramp down to every start before it (R26),
     // and its own kept for every run after it.
-    const before = rooms.slice();
+    const before = [...wayRooms, ...rooms];
     const offRooms = (x: number, z: number, half: number): boolean =>
       before.some((r) => nearRoom(r, x, z) < half);
     const drag = fair.avoid;
@@ -402,7 +431,10 @@ export function attemptResort(
     lifts: liftPlans,
     floor,
     route: (x, z, side, may, ask) =>
-      routeLane(ground, walking, x, z, side, may, { ...ask, keepOff: onPad }),
+      routeLane(ground, walking, x, z, side, may, {
+        ...ask,
+        keepOff: (x, z) => onPad(x, z) || (!!way && offWay(way, x, z) < LANE_ROOM),
+      }),
     lay,
     height: (x, z) => sampleField(ground, x, z),
     piste: (x, z) => {
@@ -594,7 +626,9 @@ export function attemptResort(
   const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
   const ramps = traits.looseTops
     ? layRampsV5(ground, pads, runs, runAt, liftPlans)
-    : layRamps(ground, pads, runs, runIn, liftPlans);
+    : layRamps(ground, pads, runs, runIn, liftPlans, (x, z) =>
+        way ? offQueue(way, x, z) : Infinity,
+      );
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
   // R29 again on the colours the pressed runs measure and the runs that
@@ -636,6 +670,7 @@ export function attemptResort(
     if (b.run.to !== undefined) b.run.to = settled.renamed.get(b.run.to) ?? b.run.to;
 
   // ── 4c. THE STATIONS BESIDE THE RUNS (R26) ───────────────────────────
+  const height = (x: number, z: number): number => sampleField(ground, x, z);
   {
     const beside: StationGround = {
       onRun: (x, z, pad) => net.covers(x, z, pad, hit),
@@ -652,12 +687,15 @@ export function attemptResort(
     };
     const stuck = clearStations(beside, liftPlans, (ls) => {
       const v = reckonAccess(measured, planLifts(pressedGround, ls));
-      return v.ok.every(Boolean) && v.orphans.length === 0;
+      return v.ok.every(Boolean) && v.orphans.length === 0 && (!way || keepsChain(ls, height));
     });
     if (stuck) return `R26: ${stuck} stands on a run wherever its station is moved`;
+    if (way) {
+      way = chainOf(liftPlans);
+      regradeLeg(ground, liftPlans, pads, ramps);
+    }
   }
   // ── 4d. THE RAMPS OFF THE DRAGS' TOPS (R26), where they settled ──────
-  const height = (x: number, z: number): number => sampleField(ground, x, z);
   const dragTops = tight ? dragTopsOf(liftPlans, runs, height) : [];
   for (const [id, off] of layRamps(ground, dragTops, runs, runIn, liftPlans)) ramps.set(id, off);
   const allRamps = [...ramps.values()].flat();
@@ -673,6 +711,7 @@ export function attemptResort(
     // A station's pad, eased out, is kept off as a run is (R26).
     for (const p of pads) d = Math.min(d, hypot(x - p.x, z - p.z) - p.r - RR.lift.padBlend);
     for (const r of allRamps) d = Math.min(d, offRamp(r, x, z));
+    if (way) d = Math.min(d, offWay(way, x, z));
     return d;
   };
   const offKickers = layOffKickers(rng, plan, ground, null, distanceTo);
@@ -698,6 +737,7 @@ export function attemptResort(
   for (const b of built) trimDrifts(b, packed, unhubbed);
   // A drag's top too, the ground its rider is let go on (R26).
   groomPads([...pads, ...dragTops], packed, runAt);
+  if (way) groomWay(way, packed, runAt);
   if (traits.looseTops) groomRampsV5(packed, ramps, pads, (x, z) => runAt(x, z, RAMP_GROOM));
   else groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
@@ -719,6 +759,7 @@ export function attemptResort(
     for (const l of lifts) if (nearLine(l, x, z) < RR.lift.clear) return true;
     for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + RR.lift.clear) return true;
     for (const r of allRamps) if (offRamp(r, x, z) < 0) return true;
+    if (way && offWay(way, x, z) < RR.lift.clear) return true;
     // Off every run's corridor, not only the nearest's (R14).
     return net.covers(x, z, R.forest.corridor, hit);
   };
@@ -822,40 +863,6 @@ export function buildResort(
   throw new Error(
     `resort ${seed}: no clean resort in ${attempts} attempts — ${reasons.join("; ")}`,
   );
-}
-
-/** R15, R19 — a course's day: its own stream's day of the year and hour,
- * turned to the face (the sun within `sun.facing` of the face's bearing at
- * the run's hour), and its sky. */
-function courseDay(
-  b: BuiltResort,
-  id: string,
-): { sun: GeneratedLevel["sun"]; weather: GeneratedLevel["weather"] } {
-  const sub = (b.sub ^ Math.imul(Number(id), DAY_SALT)) >>> 0;
-  const rng = createRng(sub);
-  const bands = b.region.sun;
-  for (let t = 0; t < 48; t++) {
-    const dayOfYear = Math.round(
-      bands.dayOfYear.min + rng.next() * (bands.dayOfYear.max - bands.dayOfYear.min),
-    );
-    const w = sunWindow(b.latitude, dayOfYear);
-    if (!w) continue;
-    const hour = w.min + rng.next() * (w.max - w.min);
-    const { weather, hour: start } = dealWeather((sub + t) >>> 0, {
-      hour,
-      dayOfYear,
-      latitude: b.latitude,
-    });
-    const sun = { hour: start, dayOfYear, latitude: b.latitude, facing: b.facing };
-    if (sunOffFace(sun) <= R.sun.facing) return { sun, weather };
-  }
-  // A noon in the band always faces within the bearing it was dealt for.
-  const dayOfYear = Math.round((bands.dayOfYear.min + bands.dayOfYear.max) / 2);
-  const { weather } = dealWeather(sub, { hour: 12.5, dayOfYear, latitude: b.latitude });
-  return {
-    sun: { hour: 12.5, dayOfYear, latitude: b.latitude, facing: b.facing },
-    weather: { ...weather, evening: false },
-  };
 }
 
 /** R28 — the map of a resort raced on one of its courses. */

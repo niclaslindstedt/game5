@@ -24,6 +24,7 @@ import type { Level, Lift, Run } from "../mapgen/types.ts";
 import { generatorTraits } from "../mapgen/versions.ts";
 import { ropeShortfall, ruledLiftPlans } from "../game/lift-line.ts";
 import { accessOf } from "./access.ts";
+import { chainedLifts, queueFault } from "./lift-queue.ts";
 import { holdDrags, holdHub, holdTunnels } from "./hub.ts";
 import type { Finding, Severity } from "./index.ts";
 
@@ -314,6 +315,13 @@ export function analyzeResort(level: Level): ResortAnalysis {
     // climbing and never steeper than its lip's drop; and on a leaning pad
     // every piste off a chair's or a gondola's top comes down to by one, so
     // a rider let go there slides to it.
+    // R26 — the next lift's queue ahead of a rider off a top (from v7).
+    if (!generatorTraits(level.version).queueBeside) {
+      for (const { upper, lower } of chainedLifts(level)) {
+        const why = queueFault(level, upper, lower);
+        if (why) add("R26", "error", `${lower.lift.id}'s queue off ${upper.id}'s top ${why}`);
+      }
+    }
     for (const l of resort.lifts) {
       for (const r of l.ramps ?? []) {
         const why = rampFault(level, l, r);

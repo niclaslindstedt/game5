@@ -52,6 +52,7 @@ import {
   CORRAL_TAIL,
   GONDOLA_IN_STATION,
   boardingRing,
+  letGoOf,
   carrierPassing,
   liftPlans,
   queueLane,
@@ -482,14 +483,14 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
   events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
   if (plan.lift.kind === "gondola") {
     // Out of the top station's front onto its pad, facing down the line.
-    const p = along(plan, plan.length - K.door, 0);
-    setOff(run, p.x, p.z, plan.heading + Math.PI, K.walkOut);
+    const p = letGoOf("gondola", plan.lift.bottom, plan.lift.top);
+    setOff(run, p.x, p.z, p.heading, K.walkOut);
   } else if (plan.lift.kind === "chair") {
     // Down the ramp on the diagonal, off to the up rope's side, clear of
     // the chairs swinging round the wheel — and the chair he sat on runs
     // on empty behind him.
-    const p = along(plan, off, upRope(plan));
-    setOff(run, p.x, p.z, plan.heading + K.ramp, K.standUp);
+    const p = letGoOf("chair", plan.lift.bottom, plan.lift.top);
+    setOff(run, p.x, p.z, p.heading, K.standUp);
     c.chairLeft = { index: ride.index, u: off, t: run.t };
   }
   // Stood off it, the skis are his.

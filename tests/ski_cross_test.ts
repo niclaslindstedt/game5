@@ -31,12 +31,17 @@ import {
   type CrossHeat,
   type GameState,
 } from "@engine";
-import { levelFor } from "./support/levels.ts";
 
 const K = DISCIPLINE_RULES.skiCross;
 const SEED = 38;
-/** The seed's ski area, built on the course a ski cross is built on. */
-const BASE = generateLevel(SEED, { course: skiCrossCourseOf(levelFor(SEED)) ?? undefined });
+/** The seed's ski area, built on the course a ski cross is built on — by
+ * generator v6, the rules this course was read off (v7 moved the peak's
+ * chair, and with it which course the seed's ski cross is set on). */
+const VERSION = 6;
+const BASE = generateLevel(SEED, {
+  version: VERSION,
+  course: skiCrossCourseOf(generateLevel(SEED, { version: VERSION })) ?? undefined,
+});
 const COURSE = setSkiCross(BASE);
 const HEAT: CrossHeat = {
   round: "quarter",

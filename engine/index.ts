@@ -755,6 +755,8 @@ export {
   queueSpot,
   BOARDING_RING,
   boardingRing,
+  letGoOf,
+  ringFrame,
   CORRAL_TAIL,
   ringWalk,
   QUEUE_GAP,

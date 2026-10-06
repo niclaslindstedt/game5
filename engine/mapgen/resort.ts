@@ -28,6 +28,7 @@
 // a red.
 
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import { chainBottom } from "./lift-chain.ts";
 import { GRADES, PISTE_GRADES, type GradeRow, type PisteGrade } from "./grades.ts";
 import type { RunSpec } from "./network.ts";
 import type { RegionId } from "./regions.ts";
@@ -231,7 +232,11 @@ export const ROAD_ROW: GradeRow = {
 };
 
 /** R26 — the stations and the lifts between them. */
-function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts: LiftPlan[] } {
+function placeStations(
+  rng: Rng,
+  plan: TerrainPlan,
+  chain: boolean,
+): { stations: Stations; lifts: LiftPlan[] } {
   const m = plan.massif;
   if (!m) throw new Error("not a resort's mountain");
   const L = RR.lift;
@@ -264,11 +269,26 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
     outer,
     outerFoot,
   };
+  const gondola: LiftPlan = {
+    id: "G1",
+    kind: "gondola",
+    bottom: { x: village.x + side * 30, z: village.z },
+    top: mid,
+  };
   const lifts: LiftPlan[] = [
-    { id: "G1", kind: "gondola", bottom: { x: village.x + side * 30, z: village.z }, top: mid },
+    gondola,
     // The peak's chair leaves beside the gondola's top, a skate from it
-    // (R29).
-    { id: "C1", kind: "chair", bottom: { x: mid.x + side * 45, z: mid.z + 20 }, top: peak },
+    // (R29) — from v7 its queue AHEAD of a rider out of the gondola and to
+    // one side, at the first of the aims (R26; `resort-build.ts` tries the
+    // others where the snow will not carry him there).
+    {
+      id: "C1",
+      kind: "chair",
+      bottom: chain
+        ? chainBottom(gondola, "chair", peak, RR.lift.chain.aims[0])
+        : { x: mid.x + side * 45, z: mid.z + 20 },
+      top: peak,
+    },
     { id: "C2", kind: "chair", bottom: shoulderFoot, top: shoulder },
     {
       id: "D1",
@@ -286,8 +306,9 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
 export function planResort(
   rng: Rng,
   plan: TerrainPlan,
+  chain = false,
 ): { lifts: LiftPlan[]; specs: RunSpec[]; village: Point } {
-  const { stations, lifts } = placeStations(rng, plan);
+  const { stations, lifts } = placeStations(rng, plan, chain);
   const tops = new Map(lifts.map((l) => [l.id, l.top]));
   const specs: RunSpec[] = [];
   for (const slot of SLOTS) {

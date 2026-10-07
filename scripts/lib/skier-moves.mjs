@@ -152,7 +152,8 @@ export const MOVES = [
     seconds: 3,
     window: [0.0, 2.0],
     input: () => IDLE,
-    mode: "free",
+    // The tricks run rides switch with the free ride's rules, and no crowd.
+    mode: "tricks",
   },
   {
     id: "switch-turns",
@@ -162,7 +163,19 @@ export const MOVES = [
     seconds: 6,
     window: [0.6, 5.8],
     input: (t) => ({ ...IDLE, steer: t < 0.5 ? 0 : Math.floor((t - 0.5) / 1.4) % 2 ? -0.7 : 0.7 }),
-    mode: "free",
+    // The tricks run rides switch with the free ride's rules, and no crowd.
+    mode: "tricks",
+  },
+  {
+    id: "switch-tuck",
+    title: "riding SWITCH down a 27° pitch at 90 km/h, the tuck key held",
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.5, slopeFrom: 0, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, pitch: Math.atan(0.5), speed: -25 }),
+    seconds: 2.5,
+    window: [0.0, 2.0],
+    input: () => ({ ...IDLE, tuck: 1 }),
+    // The tricks run rides switch with the free ride's rules, and no crowd.
+    mode: "tricks",
   },
   {
     id: "skate-zigzag",
@@ -419,6 +432,7 @@ export const MOMENTS = [
   { id: "pivot", move: "pivot", t: 0.25, say: "a step turn on the spot: the inside ski stepped" },
   { id: "switch", move: "switch", t: 1.5, say: "riding switch, looking back over a shoulder" },
   { id: "switch-turn", move: "switch-turns", t: 2.6, say: "a turn ridden switch" },
+  { id: "switch-tuck", move: "switch-tuck", t: 1.5, say: "tucked switch at 90 km/h" },
 ];
 
 export const MOMENT_IDS = MOMENTS.map((m) => m.id);

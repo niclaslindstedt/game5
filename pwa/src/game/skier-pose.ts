@@ -134,7 +134,7 @@ import {
 import type { GateShape } from "./slalom-start.ts";
 export type { SkierPose } from "./skier-joints.ts";
 import { BODY, MOUNTS, SHIN_ABOVE_CUFF } from "./skier-mounts.ts";
-import { switchHand, switchShape } from "./skier-switch.ts";
+import { switchHand, switchPole, switchShape } from "./skier-switch.ts";
 export { BODY, MOUNTS, mountsFor, SHIN_ABOVE_CUFF, type Mounts } from "./skier-mounts.ts";
 export { solveLimb, type Boot } from "./skier-limbs.ts";
 
@@ -254,7 +254,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // load let go of over the pop rather than in a step.
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
   // RIDING SWITCH: turned round to look back over a shoulder.
-  const SW = switchShape(input.switched, air);
+  const SW = switchShape(input.switched, air, crouch);
   const load = input.air === undefined && input.airborne ? 0 : clamp01(input.jumpLoad ?? 0);
   // The pop's spring: straight up out of the crouch for a moment after he
   // leaves the snow off his own legs.
@@ -880,10 +880,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // then swung forward in the air for the next.
   const ground = M.ground + drop;
   const poles = [-1, 1].map((side, i) => {
-    const trail = -Math.sin(POLE_HANG) * (1 - 2 * SW.w); // behind the way he goes
-    const hangDir = norm({ x: side * 0.12, y: -Math.cos(POLE_HANG), z: trail });
+    const hangDir = norm({ x: side * 0.12, y: -Math.cos(POLE_HANG), z: -Math.sin(POLE_HANG) });
     const tuckDir = norm({ x: side * 0.06, y: 0.1, z: -1 });
-    const hung = norm(mix(hangDir, tuckDir, crouch));
+    const hung = switchPole(norm(mix(hangDir, tuckDir, crouch)), side, SW);
     // A speed racer's bent poles carried under his arms, stood up too.
     const dir =
       S.underArm > 0

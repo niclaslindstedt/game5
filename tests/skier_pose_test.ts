@@ -615,6 +615,20 @@ describe("riding switch (skier-switch.ts)", () => {
       expect(pose.hips.y).toBeLessThan(ahead.hips.y);
       // ...and the poles trail behind the way he goes: toward his tips.
       for (const i of [0, 1]) expect(pose.poles![i].z).toBeGreaterThan(pose.hands[i].z);
+      // The hands DROPPED low by his sides, under where he carries them
+      // riding forward; the baskets clear of the snow.
+      for (const i of [0, 1]) {
+        expect(pose.hands[i].y).toBeLessThan(ahead.hands[i].y);
+        expect(pose.poles![i].y).toBeGreaterThan(MOUNTS.ground);
+      }
+    }
+  });
+
+  it("tucked switch, keeps his fists low beside his knees, never up behind his back", () => {
+    const pose = skierPose({ ...base, crouch: 1, switched: 1 });
+    for (const i of [0, 1]) {
+      expect(pose.hands[i].y).toBeLessThan(pose.shoulders[i].y - 0.2);
+      expect(pose.hands[i].z).toBeGreaterThan(pose.hips.z);
     }
   });
 

@@ -56,6 +56,7 @@ import {
   windOf,
 } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
+import { skyLookAt } from "../pwa/src/game/sky.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 /** A race on the slope, three rivals on the start line and the lights on. */
@@ -206,6 +207,32 @@ describe("the wind meter (snapshot.ts)", () => {
     const at = windOf(under(20, -Math.PI / 2, 0));
     expect(at.airAngle).toBeLessThan(-Math.PI / 2 + 0.3);
     expect(at.airAngle).toBeGreaterThan(-Math.PI / 2 - 0.3);
+  });
+});
+
+describe("the night dressing (snapshot.ts)", () => {
+  /** The race's map under a clear sky from `hour`. */
+  function at(hour: number): GameState {
+    const state = race();
+    state.level = withSky(state.level, { weather: "clear", hour });
+    return state;
+  }
+
+  it("leaves the chrome undipped under a clear noon", () => {
+    expect(takeSnapshot(at(12)).dark).toBe(0);
+  });
+
+  it("dips it all the way at night, on the lamps' own switch", () => {
+    const dark = takeSnapshot(at(22)).dark;
+    expect(dark).toBe(1);
+    expect(dark).toBe(Math.round(skyLookAt(at(22).level, 0).lamps * 100) / 100);
+  });
+
+  it("ramps through the dusk with the lamps rather than switching", () => {
+    const hours = Array.from({ length: 141 }, (_, i) => 15 + i * 0.05);
+    const darks = hours.map((h) => takeSnapshot(at(h)).dark);
+    for (let i = 1; i < darks.length; i++) expect(darks[i]).toBeGreaterThanOrEqual(darks[i - 1]);
+    expect(darks.some((d) => d > 0.05 && d < 0.95)).toBe(true);
   });
 });
 

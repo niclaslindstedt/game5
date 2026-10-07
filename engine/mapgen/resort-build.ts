@@ -51,6 +51,7 @@ import {
   GRADES,
   PISTE_GRADES,
   pisteGradeOf,
+  scaledRow,
   steepestSpan,
   type GradeRow,
   type PisteGrade,
@@ -179,24 +180,6 @@ export type AccessCures = {
   homeDrags: number;
 };
 
-/** Kickers on a run, by its length, against the grade row's count for a
- * course: the row's band is a downhill course's, and a resort's runs are
- * shorter — a run of `KICKER_REACH` metres carries the row's whole band,
- * and any but a green at least one. */
-const KICKER_REACH = 2000;
-
-/** A row's kicker and drop counts scaled to a run's length. */
-function scaledRow(row: GradeRow, length: number): GradeRow {
-  const k = Math.min(1.4, length / KICKER_REACH);
-  const least = row.id === "green" || row.id === null ? 0 : 1;
-  const on = {
-    min: Math.max(least, Math.floor(row.kickers.on.min * k)),
-    max: Math.max(least, Math.round(row.kickers.on.max * k)),
-  };
-  const drops = { min: Math.floor(row.drops.min * k), max: Math.round(row.drops.max * k) };
-  return { ...row, kickers: { ...row.kickers, on }, drops };
-}
-
 /** The salt for a run's own streams. */
 const RUN_SALT = 0x2b1d5e7;
 
@@ -254,6 +237,12 @@ export function attemptResort(
   const traits = generatorTraits(version);
   const chained = !traits.queueBeside;
   const stepped = traits.steppedJunctions === true;
+  const grade = (
+    run: WalkedRun,
+    row: GradeRow,
+    onto: WalkedRun | null,
+    pinned?: (x: number, z: number) => boolean,
+  ) => gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
   const shape = padShape(traits.levelPads, traits.looseTops);
@@ -476,15 +465,7 @@ export function attemptResort(
       // the runs pressed before it, which differs only by their benches.
       const row = run.spec.kind === "road" ? ROAD_ROW : run.spec.row;
       const onto = run.into ? walked[run.into.run] : null;
-      let graded = gradeRun(
-        run,
-        ground,
-        row.track.maxGrade,
-        colourCap(run),
-        onto,
-        undefined,
-        stepped,
-      );
+      let graded = grade(run, row, onto);
       // A run the mountain made gentler than its colour starts as the
       // colour it measures (R12): graded again with that start.
       const measured = graded || road(run) ? null : runColour(run.points, onto?.points ?? null);
@@ -493,15 +474,7 @@ export function attemptResort(
         PISTE_GRADES.indexOf(measured) < PISTE_GRADES.indexOf(run.spec.row.id ?? "black")
       ) {
         run.startSlope = GRADES[measured].spawn.maxSlope;
-        graded = gradeRun(
-          run,
-          ground,
-          row.track.maxGrade,
-          colourCap(run),
-          onto,
-          undefined,
-          stepped,
-        );
+        graded = grade(run, row, onto);
       }
       if (graded) {
         why.push(graded);
@@ -552,14 +525,14 @@ export function attemptResort(
         ? "the run it merges into was left out"
         : w.spec.branch && dropped.has(w.spec.branch.run)
           ? "the run it leaves was left out"
-          : gradeRun(w, ground, row.track.maxGrade, colourCap(w), onto, pressed, stepped);
+          : grade(w, row, onto, pressed);
     // A run walked as gentler than its colour that grades out its colour
     // on the pressed mountain starts as its colour again (R12).
     if (!why && w.startSlope !== undefined) {
       const measured = runColour(w.points, onto?.points ?? null);
       if (PISTE_GRADES.indexOf(measured) >= PISTE_GRADES.indexOf(w.spec.row.id ?? "black")) {
         w.startSlope = undefined;
-        why = gradeRun(w, ground, row.track.maxGrade, colourCap(w), onto, pressed, stepped);
+        why = grade(w, row, onto, pressed);
       }
     }
     if (why) {

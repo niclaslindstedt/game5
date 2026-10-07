@@ -220,12 +220,19 @@ export type Flood = {
   power?: number;
 };
 
+/** A lamp waiting for a slot, and how far it is from the eye. */
+type Waiting = { far: number; deal(): void };
+const waiting: Waiting[] = [];
+
 /**
  * THE NIGHT'S LIGHTS at `level` (0 off … 1, `SkyLook.lamps`): every
- * skier's headlamp lit and seen from `eye`, and the slots dealt — the
- * player's lamp first (`skiers[0]`: it lights what he skis into), then
- * the finish arena's floods, then the field's lamps within reach of the
- * lens, as far as the slots go. The floods' own glow is `gates.ts`'s.
+ * skier's headlamp lit and seen from `eye`, and `most` of the slots dealt
+ * (the LAMPS row, `settings-video.ts`'s `LAMP_COUNT`) — the player's lamp
+ * first (`skiers[0]`: it lights what he skis into), then the finish
+ * arena's floods, then the field's lamps within reach of the lens, as far
+ * as the slots go; with fewer slots than lamps, the NEAREST of the rest to
+ * the eye, since a lamp lights what is round it and the eye sees most of
+ * what is near. The floods' own glow is `gates.ts`'s.
  * Every slot dealt is lit (its power over 0) and comes before every empty
  * one: the shaders' lamp loops stop at the first empty slot (`haze.ts`).
  */
@@ -235,29 +242,39 @@ export function dealLamps(
   skiers: readonly { model: { lamp: Headlamp } }[],
   floods: readonly Flood[],
   eye: THREE.Vector3,
+  most: number = LAMP_SLOTS,
 ): void {
   for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
   for (const s of skiers) s.model.lamp.setLit(level, eye);
   if (level <= 0) return;
+  const slots = Math.min(most, LAMP_SLOTS);
   let n = 0;
   const head = (lamp: Headlamp) =>
     fill(u, n++, lamp.at, lamp.way, level * POWER, HEADLAMP_COLOUR, HEADLAMP_BEAM);
-  if (skiers.length > 0) head(skiers[0].model.lamp);
-  for (const f of floods) {
-    if (n >= LAMP_SLOTS) return;
-    const on = level * (f.power ?? 1);
+  const flood = (f: Flood) =>
     fill(
       u,
       n++,
       f,
       { x: f.dx, y: f.dy, z: f.dz },
-      on,
+      level * (f.power ?? 1),
       f.colour ?? FLOOD_COLOUR,
       f.beam ?? FLOOD_BEAM,
     );
+  if (skiers.length > 0 && slots > 0) head(skiers[0].model.lamp);
+  waiting.length = 0;
+  for (const f of floods) {
+    waiting.push({ far: Math.hypot(f.x - eye.x, f.y - eye.y, f.z - eye.z), deal: () => flood(f) });
   }
-  for (let i = 1; i < skiers.length && n < LAMP_SLOTS; i++) {
+  for (let i = 1; i < skiers.length; i++) {
     const lamp = skiers[i].model.lamp;
-    if (lamp.at.distanceTo(eye) <= FIELD_REACH) head(lamp);
+    const far = lamp.at.distanceTo(eye);
+    if (far <= FIELD_REACH) waiting.push({ far, deal: () => head(lamp) });
+  }
+  // Every lamp has a slot: dealt in the order the lamps were named.
+  if (n + waiting.length > slots) waiting.sort((a, b) => a.far - b.far);
+  for (const w of waiting) {
+    if (n >= slots) break;
+    w.deal();
   }
 }

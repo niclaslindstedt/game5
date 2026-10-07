@@ -69,7 +69,7 @@ export const FLOOR_MS = 3.96;
  * THE PRICE LIST. Benefits, row by row:
  *
  * RESOLUTION is the sharpness of EVERYTHING — the one row whose loss is on
- * every pixel; 0.8 is soft, 0.6 is blurred under crisp type.
+ * every pixel; 0.8 is soft, 0.6 is blurred under crisp type, 0.45 more so.
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
  * rim mountains.
@@ -84,12 +84,18 @@ export const FLOOR_MS = 3.96;
  * (SKIERS) are what sets a skier on the snow; HIGH only sharpens the
  * skiers'.
  * SPRAY: a share of the roost and the cloud; the lowest still throws some.
+ * LAMPS: only after dark, and only where beams cross — his own headlamp is
+ * always drawn, the floods and the field's lamps past the nearest are what
+ * the lower stops give up.
  */
 export const PICTURE_PRICES: PriceList = {
+  // MIN is priced off the three measured stops, which lie on one line in
+  // the share of pixels (0.36, 0.64, 1): 1.36 ms a screen's worth.
   resolution: {
-    low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.4, benefit: 45 },
-    high: { cost: 0.87, benefit: 70 },
+    min: { cost: 0, benefit: 0 },
+    low: { cost: 0.21, benefit: 15 },
+    medium: { cost: 0.61, benefit: 60 },
+    high: { cost: 1.08, benefit: 85 },
   },
   distance: {
     low: { cost: 0, benefit: 0 },
@@ -123,6 +129,11 @@ export const PICTURE_PRICES: PriceList = {
     low: { cost: 0, benefit: 0 },
     medium: { cost: 0.08, benefit: 8 },
     high: { cost: 0.18, benefit: 12 },
+  },
+  lamps: {
+    low: { cost: 0, benefit: 0 },
+    medium: { cost: 0.3, benefit: 6 },
+    high: { cost: 0.6, benefit: 10 },
   },
 };
 

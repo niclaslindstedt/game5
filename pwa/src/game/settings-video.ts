@@ -4,12 +4,13 @@
 // `tests/video_test.ts` reads the whole ladder without a browser, and
 // `renderer.setVideo` is the one place a row becomes a draw call.
 //
-// EIGHT ROWS, BECAUSE THEY ARE EIGHT DIFFERENT BILLS. A phone can be short
+// NINE ROWS, BECAUSE THEY ARE NINE DIFFERENT BILLS. A phone can be short
 // of pixels and rich in triangles, or the other way round, and one QUALITY
 // knob would make it pay for the thing it can afford to save on the thing it
 // cannot:
 //
-//   RESOLUTION  how many pixels: a share of the device's own pixel ratio.
+//   RESOLUTION  how many pixels: a share of the device's own pixel ratio,
+//               down to MIN for a phone's dense screen.
 //   DISTANCE    how far anything is drawn at all: the woods, and the ground's
 //               clipmap cut to the view — with a MIST closing over the last
 //               of it, the one row that changes the WEATHER, which is how the
@@ -35,6 +36,11 @@
 //               draws it in) or HIGH (MEDIUM, with every skier and his
 //               machine cast into a fine map of their own).
 //   SPRAY       the share of the roost, the ski spray and the puffs thrown.
+//   LAMPS       after dark, how many lamps every lit pixel is shaded by: his
+//               own headlamp always, then the nearest of the floods and the
+//               field's lamps. Each one is a beam, a falloff and a glint
+//               worked out over the whole snow, so on a phone's screen it is
+//               the night's own bill. Nothing by day.
 //   ANTIALIAS   the canvas's multisampling. The one row that cannot be
 //               changed under a running context: it is read when the canvas
 //               is made, and the page says so.
@@ -61,24 +67,37 @@ export const DISTANCE_LEVELS: readonly DistanceLevel[] = [...TIERS, "max"];
 export type TrailLevel = "off" | Tier;
 export const TRAIL_LEVELS: readonly TrailLevel[] = ["off", ...TIERS];
 
+/** RESOLUTION: the three tiers, and MIN under them. */
+export type ResolutionLevel = "min" | Tier;
+export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["min", ...TIERS];
+
 export type VideoSettings = {
-  resolution: Tier;
+  resolution: ResolutionLevel;
   distance: DistanceLevel;
   terrain: Tier;
   trails: TrailLevel;
   forest: Tier;
   shadows: ShadowLevel;
   spray: Tier;
+  lamps: Tier;
   antialias: boolean;
 };
 
 /* ── What each stop buys ─────────────────────────────────────────────── */
 
 /** RESOLUTION: the share of the device's pixel ratio the canvas is drawn at.
- * The top is the screen's own; the bottom is still more than half of it on
- * each axis, below which the HUD's crisp type sits over a picture that reads
- * as out of focus rather than as cheaper. */
-export const RESOLUTION_SHARE: Record<Tier, number> = { low: 0.6, medium: 0.8, high: 1 };
+ * The top is the screen's own; LOW is still more than half of it on each
+ * axis, below which the HUD's crisp type sits over a picture that reads as
+ * out of focus on a desktop's screen. MIN goes under that for a phone's,
+ * whose two pixels to the point (`App.tsx` caps the ratio at 2) leave a
+ * picture of nearly one pixel a point there: a fifth of the pixels HIGH
+ * draws, for the screens that are short of nothing else. */
+export const RESOLUTION_SHARE: Record<ResolutionLevel, number> = {
+  min: 0.45,
+  low: 0.6,
+  medium: 0.8,
+  high: 1,
+};
 
 /** How far out the ground reaches under DISTANCE MAX, m: past the basin's
  * rim from any corner of it, so the mountains are always ground and never a
@@ -269,6 +288,13 @@ export const SHADOW_LOOK: Record<ShadowLevel, ShadowLook> = {
 /** SPRAY: the share of every emission rate, and of the particle pool. */
 export const SPRAY_SHARE: Record<Tier, number> = { low: 0.35, medium: 0.65, high: 1 };
 
+/** LAMPS: how many of the lamp slots (`haze.ts`'s `LAMP_SLOTS`) are dealt
+ * after dark (`headlamp.ts`'s `dealLamps`) — his own headlamp first, then
+ * the nearest of the rest. Every shader stops at the first empty slot, so a
+ * slot not dealt is a lamp no pixel pays for. LOW keeps his own and one
+ * more: what lights the snow in front of him, and the nearest beam. */
+export const LAMP_COUNT: Record<Tier, number> = { low: 2, medium: 4, high: 6 };
+
 /* ── Whole pictures ──────────────────────────────────────────────────── */
 
 /** A whole picture a tier at a time. ANTIALIAS is not in it: it is a fact
@@ -283,6 +309,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     forest: "low",
     shadows: "off",
     spray: "low",
+    lamps: "low",
   },
   medium: {
     resolution: "high",
@@ -292,6 +319,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     forest: "medium",
     shadows: "medium",
     spray: "medium",
+    lamps: "medium",
   },
   high: {
     resolution: "high",
@@ -301,6 +329,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     forest: "high",
     shadows: "high",
     spray: "high",
+    lamps: "high",
   },
 };
 
@@ -337,13 +366,14 @@ export function withPreset(video: VideoSettings, tier: Tier): VideoSettings {
  * one: the canvas takes it only when it is made. */
 export type PictureRow = Exclude<keyof VideoSettings, "antialias">;
 export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettings[R][] } = {
-  resolution: TIERS,
+  resolution: RESOLUTION_LEVELS,
   distance: DISTANCE_LEVELS,
   terrain: TIERS,
   trails: TRAIL_LEVELS,
   forest: TIERS,
   shadows: SHADOW_LEVELS,
   spray: TIERS,
+  lamps: TIERS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -372,7 +402,7 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   const blob = parsed as Record<string, unknown>;
   const pick = <T extends string>(value: unknown, ladder: readonly T[], fallback: T): T =>
     typeof value === "string" && ladder.includes(value as T) ? (value as T) : fallback;
-  out.resolution = pick(blob.resolution, TIERS, out.resolution);
+  out.resolution = pick(blob.resolution, RESOLUTION_LEVELS, out.resolution);
   out.distance = pick(blob.distance, DISTANCE_LEVELS, out.distance);
   out.terrain = pick(blob.terrain, TIERS, out.terrain);
   out.trails = pick(blob.trails, TRAIL_LEVELS, out.trails);
@@ -383,6 +413,7 @@ export function mergeVideo(parsed: unknown): VideoSettings {
     blob.shadows === "low" ? "medium" : blob.shadows === "all" ? "high" : blob.shadows;
   out.shadows = pick(shadows, SHADOW_LEVELS, out.shadows);
   out.spray = pick(blob.spray, TIERS, out.spray);
+  out.lamps = pick(blob.lamps, TIERS, out.lamps);
   if (typeof blob.antialias === "boolean") out.antialias = blob.antialias;
   return out;
 }

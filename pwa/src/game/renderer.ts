@@ -99,6 +99,7 @@ import {
   DEFAULT_VIDEO,
   DISTANCE_LOOK,
   FOREST_LOOK,
+  LAMP_COUNT,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
   SPRAY_SHARE,
@@ -763,8 +764,8 @@ export function createWorldRenderer(
       lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
-      const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);
-      dealLamps(env.haze, look.lamps, riders, floods ?? gates?.floods ?? [], lens.camera.position);
+      const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
+      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, LAMP_COUNT[video.lamps]);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

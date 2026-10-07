@@ -57,11 +57,13 @@ import { KEY_ACTIONS } from "./settings-input.ts";
 import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
+  RESOLUTION_LEVELS,
   TIERS,
   TRAIL_LEVELS,
   presetOf,
   withPreset,
   type DistanceLevel,
+  type ResolutionLevel,
   type ShadowLevel,
   type Tier,
   type TrailLevel,
@@ -71,15 +73,16 @@ import { STRINGS } from "./strings.ts";
 
 /** The word for a stop on any of the picture's ladders — one vocabulary for
  * every row, so LOW means the same thing wherever it is read. */
-const STEP_WORD: Record<Tier | "off" | "max", string> = {
+const STEP_WORD: Record<Tier | "off" | "max" | "min", string> = {
   off: STRINGS.optOff,
+  min: STRINGS.optMin,
   low: STRINGS.optLow,
   medium: STRINGS.optMedium,
   high: STRINGS.optHigh,
   max: STRINGS.optMax,
 };
 
-const stopsOf = <T extends Tier | "off" | "max">(ladder: readonly T[]): Stop<T>[] =>
+const stopsOf = <T extends Tier | "off" | "max" | "min">(ladder: readonly T[]): Stop<T>[] =>
   ladder.map((id) => ({ id, label: STEP_WORD[id] }));
 
 const TIER_STOPS = stopsOf(TIERS);
@@ -87,6 +90,7 @@ const TIER_STOPS = stopsOf(TIERS);
  * the whole pictures. */
 const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAuto }, ...TIER_STOPS];
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
+const RESOLUTION_STOPS = stopsOf<ResolutionLevel>(RESOLUTION_LEVELS);
 const TRAIL_STOPS = stopsOf<TrailLevel>(TRAIL_LEVELS);
 const SHADOW_WORD: Record<ShadowLevel, string> = {
   off: STRINGS.optOff,
@@ -297,7 +301,7 @@ export function OptionsPage({
             </KnobGroup>
           </div>
           <div class="knob-col">
-            {/* Eight rows, not one, because they are eight different bills — a
+            {/* Nine rows, not one, because they are nine different bills — a
               machine can be short of pixels and rich in triangles. PRESET
               moves all of them and reads back which one they still are. */}
             <KnobGroup title={STRINGS.optPicture} glyph="display">
@@ -328,7 +332,7 @@ export function OptionsPage({
               <StepRow
                 label={STRINGS.optResolution}
                 hint={STRINGS.optResolutionHint}
-                stops={TIER_STOPS}
+                stops={RESOLUTION_STOPS}
                 value={video.resolution}
                 onPick={(resolution) => setVideo({ resolution })}
                 onHint={setHint}
@@ -379,6 +383,14 @@ export function OptionsPage({
                 stops={TIER_STOPS}
                 value={video.spray}
                 onPick={(spray) => setVideo({ spray })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optLamps}
+                hint={STRINGS.optLampsHint}
+                stops={TIER_STOPS}
+                value={video.lamps}
+                onPick={(lamps) => setVideo({ lamps })}
                 onHint={setHint}
               />
               <StepRow

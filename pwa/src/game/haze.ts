@@ -280,7 +280,9 @@ const LAMP_FRAGMENT = /* glsl */ `
     vec3 L = uLampPos[i] - vHazeWorld;
     float d = length(L);
     L /= max(d, 1e-3);
-    lpLit += uLampCol[i] * lampReach(i, L, d) * max(dot(lpN, L), 0.0);
+    float e = lampReach(i, L, d);
+    if (e <= 0.0) continue;
+    lpLit += uLampCol[i] * e * max(dot(lpN, L), 0.0);
   }
   if (uPisteOn.x > 0.0) lpLit += uPisteCol * max(dot(lpN, pisteLight(vHazeWorld)), 0.0);
   reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lpLit * 9.0;

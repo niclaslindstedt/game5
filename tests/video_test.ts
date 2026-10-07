@@ -11,6 +11,8 @@ import {
   DISTANCE_LEVELS,
   DISTANCE_LOOK,
   FOREST_LOOK,
+  LAMP_COUNT,
+  RESOLUTION_LEVELS,
   RESOLUTION_SHARE,
   SHADOW_LEVELS,
   SHADOW_LOOK,
@@ -55,10 +57,18 @@ import {
 
 describe("the picture's ladders (settings-video.ts)", () => {
   it("runs every ladder cheapest first", () => {
-    const shares = TIERS.map((t) => RESOLUTION_SHARE[t]);
+    const shares = RESOLUTION_LEVELS.map((t) => RESOLUTION_SHARE[t]);
     expect(shares).toEqual([...shares].sort((a, b) => a - b));
     expect(RESOLUTION_SHARE.high).toBe(1);
     expect(RESOLUTION_SHARE.low).toBeGreaterThanOrEqual(0.5);
+    // MIN is a phone's: still over two fifths of the screen's own a side.
+    expect(RESOLUTION_SHARE.min).toBeGreaterThanOrEqual(0.4);
+
+    // LAMPS: his own headlamp at every stop, and every slot there is on HIGH.
+    const lamps = TIERS.map((t) => LAMP_COUNT[t]);
+    expect(lamps).toEqual([...lamps].sort((a, b) => a - b));
+    expect(LAMP_COUNT.low).toBeGreaterThanOrEqual(1);
+    expect(LAMP_COUNT.high).toBe(6);
 
     const sprays = TIERS.map((t) => SPRAY_SHARE[t]);
     expect(sprays).toEqual([...sprays].sort((a, b) => a - b));

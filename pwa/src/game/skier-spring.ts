@@ -143,6 +143,13 @@ export type SkierSpring = {
   /** THE FALL as his body rides it (`skier-flight.ts`): secure off a
    * kicker, spotting a drop, windmilling a cliff, reaching for the snow. */
   flight: Flight;
+  /** LOOKING BACK OVER A SHOULDER while he rides switch: how far into it
+   * his body is, 0..1, its rate, and the shoulder (the side the hips hang to for a positive `hipRight`) — the
+   * shoulder picked as he turns round and kept until he faces his skis'
+   * way again, so the head is never flicked from side to side. */
+  back: number;
+  backRate: number;
+  backSide: -1 | 1;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -186,6 +193,8 @@ export type SpringRide = {
   /** On his platforms across a steep slope (`SkierState.sidestep`), ±1 or
    * 0 — stepping up it while the stride's phase is under way. */
   sidestep?: number;
+  /** Riding tails first (`SkierState.switched`). */
+  switched?: boolean;
   wx?: number;
   wy?: number;
   wz?: number;
@@ -288,6 +297,10 @@ const EASE = { up: 16, down: 25, take: 32, release: 29 };
 /** How fast he settles into the start gate's stance and comes out of it,
  * rad/s — out of it is the first push, which is quick. */
 const READY = { in: 9, out: 20 };
+/** How quickly he turns to look back over a shoulder once he rides switch,
+ * and back round once he faces his skis' way again, rad/s — some third of
+ * a second: a deliberate turn of the head and shoulders, never a flick. */
+const BACK_FOLLOW = 7;
 /** How quickly a step turn on the spot takes him out of his idle stance
  * and lets him back into it, 1/s — a third of a second to most of it. */
 const STEP_FOLLOW = 6;
@@ -355,6 +368,9 @@ export function createSkierSpring(offset = 0): SkierSpring {
     keep: Number.NaN,
     keepRate: 0,
     flight: createFlight(),
+    back: 0,
+    backRate: 0,
+    backSide: 1,
   };
 }
 
@@ -518,6 +534,14 @@ export function stepSkierSpring(
     waiting ? READY.in : READY.out,
   );
   s.ready = Math.max(0, Math.min(1, s.ready));
+  // LOOKING BACK, on the snow: a 180 is landed before he turns his head
+  // to see where he is going. The shoulder is picked as he starts turning
+  // round — the side his hips hang to, if he is in a turn — and kept.
+  const back = ride?.switched && !airborne ? 1 : 0;
+  if (back > 0 && s.back < 0.15 && ride && Math.abs(ride.hipRight) > 0.05)
+    s.backSide = ride.hipRight > 0 ? 1 : -1;
+  [s.back, s.backRate] = follow(s.back, s.backRate, back, dt, BACK_FOLLOW);
+  s.back = Math.max(0, Math.min(1, s.back));
   let work = 0;
   if (ride) {
     const climbing = ride.sidestep && ride.stride !== undefined && ride.stride % 1 > 1e-6 ? 1 : 0;

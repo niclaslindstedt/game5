@@ -181,6 +181,18 @@ describe("the plate's pose (minimap-view.ts)", () => {
     }
   });
 
+  it("riding switch, is turned to the way he goes: down the hill stays up the plate", () => {
+    const state = race();
+    for (const heading of [0, 0.7, -1.9]) {
+      placeRun(state, { x: 500, z: 500, heading });
+      state.skier.switched = true;
+      // The tails lead: what is BEHIND his skis is ahead of him.
+      const [dx, dy] = onPlate(state, 500 - Math.sin(heading) * 50, 500 - Math.cos(heading) * 50);
+      expect(Math.abs(dx)).toBeLessThan(1e-6);
+      expect(dy).toBeLessThan(0);
+    }
+  });
+
   it("puts on the left of the plate what the chase camera sees on the left", () => {
     // Facing +z, the renderer's camera has engine +x on its LEFT — the same
     // fact `SCREEN_TO_ENGINE` states at the thumbs.

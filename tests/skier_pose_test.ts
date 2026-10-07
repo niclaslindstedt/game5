@@ -594,3 +594,42 @@ describe("the rig his model is posed by", () => {
     }
   });
 });
+
+describe("riding switch (skier-switch.ts)", () => {
+  it("is nothing at all riding forward", () => {
+    expect(skierPose({ ...base, switched: 0 })).toEqual(skierPose(base));
+  });
+
+  it("turns him to look back over a shoulder: the head round past square, the trunk with it", () => {
+    for (const side of [-1, 1]) {
+      const pose = skierPose({ ...base, switched: side });
+      const ahead = skierPose(base);
+      // The head's yaw in the body frame is half the look (`headAxes`):
+      // turned more than a right angle, toward the side asked.
+      expect(Math.sign(pose.look)).toBe(side);
+      expect(Math.abs(pose.look * 0.5)).toBeGreaterThan(Math.PI / 2);
+      // The shoulders turned the same way, the hips a little lower.
+      const across = (p: SkierPose) =>
+        Math.atan2(-(p.shoulders[1].z - p.shoulders[0].z), p.shoulders[1].x - p.shoulders[0].x);
+      expect(Math.sign(across(pose) - across(ahead))).toBe(side);
+      expect(pose.hips.y).toBeLessThan(ahead.hips.y);
+      // ...and the poles trail behind the way he goes: toward his tips.
+      for (const i of [0, 1]) expect(pose.poles![i].z).toBeGreaterThan(pose.hands[i].z);
+    }
+  });
+
+  it("turns his head while he rides tails first on the snow, and keeps the shoulder", () => {
+    const legs = createSkierSpring();
+    const ride = { edge: 0, speed: 6, crouch: 0, drive: 0, hipRight: 0.1, roll: 0, switched: true };
+    for (let i = 0; i < 60; i++) stepSkierSpring(legs, 0, false, 1 / 60, 0, ride);
+    expect(legs.back).toBeGreaterThan(0.9);
+    const side = legs.backSide;
+    // A turn the other way does not flick his head to the other shoulder.
+    for (let i = 0; i < 60; i++)
+      stepSkierSpring(legs, 0, false, 1 / 60, 0, { ...ride, hipRight: -0.1 });
+    expect(legs.backSide).toBe(side);
+    for (let i = 0; i < 60; i++)
+      stepSkierSpring(legs, 0, false, 1 / 60, 0, { ...ride, switched: false });
+    expect(legs.back).toBeLessThan(0.1);
+  });
+});

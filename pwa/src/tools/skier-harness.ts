@@ -452,8 +452,12 @@ function drawGame(): Drawn {
   );
   const eye = new THREE.Vector3();
   data.moments.forEach((moment, row) => {
-    const { centre, heading } = settle(moment);
-    const speed = moment.frames.at(-1)!.skier.speed;
+    const { centre, heading: skis } = settle(moment);
+    const last = moment.frames.at(-1)!.skier;
+    const speed = last.speed;
+    // Riding switch the game's lens stands behind the way he goes, not his
+    // skis' (`camera-rigs.ts`'s `RigPose.switched`).
+    const heading = skis + (last.switched ? Math.PI : 0);
     names.forEach((name, col) => {
       const b = BOOMS[name];
       const fx = Math.sin(heading);

@@ -321,7 +321,7 @@ export const GRIMBEAR_ODDS = 1 / 3;
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
+  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean },
   random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
@@ -335,6 +335,7 @@ export function freeGameOptions(
     spec: skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
+    ...(skier.gore ? { gore: true } : {}),
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,

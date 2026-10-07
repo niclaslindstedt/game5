@@ -17,6 +17,9 @@
 //   blood    spray (a stump close over two heartbeats: the spurt and the
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
+//   hud      wreck (the HUD over a fatal crash: the jolt, the cracked glass,
+//            the readouts falling off it, DIED and the dark — each frame
+//            an iframe of `pwa/gore-hud.html` at the frame's own size)
 //
 // Each GROUP is one contact sheet, previews/gore-<group>.png, and every
 // frame is also written alone, previews/gore-<view>-<label>.png. The page
@@ -49,12 +52,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, blood, close); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, blood, close, hud); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, spray, snow, closeup)",
+      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, spray, snow, closeup, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {
@@ -105,7 +108,12 @@ if (!args["skip-build"] || !existsSync(join(buildDir, "gore-preview.html"))) {
       outDir: buildDir,
       emptyOutDir: true,
       chunkSizeWarningLimit: 2000,
-      rollupOptions: { input: join(root, "pwa", "gore-preview.html") },
+      rollupOptions: {
+        input: {
+          lab: join(root, "pwa", "gore-preview.html"),
+          hud: join(root, "pwa", "gore-hud.html"),
+        },
+      },
     },
   });
 }

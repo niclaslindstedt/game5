@@ -45,7 +45,10 @@ import {
   type RunOut,
   edgeMostOf,
   techniqueOf,
+  holdsHim,
+  type DeathCause,
 } from "@engine";
+import { diedOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
@@ -259,6 +262,9 @@ export type HudSnapshot = {
    * of him, the worst injuries, the run's hardest blow — and the blow on
    * the g meter while it holds. */
   body: BodyTile;
+  /** HIS DEATH on an injuries run (`hud-wreck.ts`): how long ago, s, and
+   * what of — null alive, or on a run without the wounds that kill. */
+  died: { since: number; cause: DeathCause } | null;
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
@@ -662,7 +668,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
-    getUp: c.thrown !== null && mayGetUp(c.thrown),
+    // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).
+    getUp: c.thrown !== null && mayGetUp(c.thrown) && !holdsHim(state),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],
@@ -671,6 +678,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         }
       : null,
     body: bodyTile(c.body, state.t),
+    died: diedLine(state),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
@@ -683,4 +691,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };
+}
+
+/** His death, as the HUD reads it. */
+function diedLine(state: GameState): HudSnapshot["died"] {
+  const since = diedOf(state);
+  return since === null || !state.gore?.cause ? null : { since, cause: state.gore.cause };
 }

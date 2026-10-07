@@ -1,0 +1,172 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE HUD TAKING HIS BLOWS, AND HIS DEATH (`hud-wreck.ts`, `hud-glass.tsx`)
+   — only with the INJURIES switch on.
+
+   A BLOW JOLTS the readouts off their place and they spring back: the
+   root's `data-jolt` flips between two identical animations on every new
+   blow, so each one starts its own; `--hud-jolt` is how hard (0 … 1).
+   HIS INJURIES BEND the glass out of true (`--hud-bend`, deg). HIS DEATH
+   drops every readout off it (`--hud-fall`, 0 … 1), each its own way. */
+
+.hud[data-wreck] {
+  transform: rotate(calc(var(--hud-bend, 0) * 0.25deg)) skewX(calc(var(--hud-bend, 0) * 1deg));
+  transform-origin: 30% 60%;
+}
+
+.hud[data-jolt="0"] {
+  animation: hud-jolt-a 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.hud[data-jolt="1"] {
+  animation: hud-jolt-b 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes hud-jolt-a {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  12% {
+    translate: calc(var(--hud-jolt) * -2.4vmin) calc(var(--hud-jolt) * 3.2vmin);
+    rotate: calc(var(--hud-jolt) * -2.5deg);
+  }
+  30% {
+    translate: calc(var(--hud-jolt) * 1.8vmin) calc(var(--hud-jolt) * -1.4vmin);
+    rotate: calc(var(--hud-jolt) * 1.6deg);
+  }
+  55% {
+    translate: calc(var(--hud-jolt) * -0.6vmin) calc(var(--hud-jolt) * 0.5vmin);
+    rotate: calc(var(--hud-jolt) * -0.5deg);
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+@keyframes hud-jolt-b {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  12% {
+    translate: calc(var(--hud-jolt) * -2.4vmin) calc(var(--hud-jolt) * 3.2vmin);
+    rotate: calc(var(--hud-jolt) * -2.5deg);
+  }
+  30% {
+    translate: calc(var(--hud-jolt) * 1.8vmin) calc(var(--hud-jolt) * -1.4vmin);
+    rotate: calc(var(--hud-jolt) * 1.6deg);
+  }
+  55% {
+    translate: calc(var(--hud-jolt) * -0.6vmin) calc(var(--hud-jolt) * 0.5vmin);
+    rotate: calc(var(--hud-jolt) * -0.5deg);
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+
+/* HIS DEATH: every readout drops off the glass, tumbling, each its own way
+   — a fall that speeds up as it goes (the square of `--hud-fall`). */
+/* (`translate` and `rotate` move a dozen times a second: smoothed between.) */
+.hud[data-wreck] > :not(.hud-glass):not(.hud-death) {
+  transition:
+    translate 0.12s linear,
+    rotate 0.12s linear,
+    opacity 0.12s linear;
+  --fall2: calc(var(--hud-fall, 0) * var(--hud-fall, 0));
+  translate: 0 calc(var(--fall2) * 115vh);
+  rotate: calc(var(--fall2) * 28deg);
+  opacity: calc(1 - var(--hud-fall, 0) * 0.6);
+}
+.hud[data-wreck] > :not(.hud-glass):not(.hud-death):nth-child(2n) {
+  rotate: calc(var(--fall2) * -36deg);
+  translate: calc(var(--fall2) * -8vw) calc(var(--fall2) * 120vh);
+}
+.hud[data-wreck] > :not(.hud-glass):not(.hud-death):nth-child(3n) {
+  rotate: calc(var(--fall2) * 18deg);
+  translate: calc(var(--fall2) * 6vw) calc(var(--fall2) * 105vh);
+}
+
+/* THE CRACKED GLASS over the whole picture. */
+.hud-glass {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hud-crack,
+.hud-crack-shade,
+.hud-crack-ring {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hud-crack {
+  stroke: rgb(240 248 255 / 85%);
+  stroke-width: 1.2px;
+}
+.hud-crack-shade {
+  stroke: rgb(10 16 24 / 45%);
+  stroke-width: 3px;
+}
+.hud-crack-ring {
+  stroke: rgb(240 248 255 / 70%);
+  stroke-width: 1.5px;
+  fill: rgb(240 248 255 / 12%);
+}
+
+/* THE DEATH CARD: the picture going dark, the word over it. */
+.hud-death {
+  position: absolute;
+  /* Past the edges: the glass it is on leans out of true. */
+  inset: -20%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgb(0 0 0 / calc(var(--death-dark, 0) * 100%));
+  /* The snapshot moves a dozen times a second: smoothed between. */
+  transition: background-color 0.12s linear;
+  z-index: 20;
+}
+.hud-death-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2vmin;
+  text-align: center;
+  transition: opacity 0.12s linear;
+}
+.hud-death-word {
+  font-size: min(22vmin, 160px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  color: #c3110c;
+  text-shadow:
+    0 0 2vmin rgb(0 0 0 / 80%),
+    0 0.6vmin 0 rgb(40 0 0 / 90%);
+}
+.hud-death-cause {
+  font-size: min(4vmin, 28px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  color: #f1e7e2;
+  text-shadow: 0 0 1.2vmin rgb(0 0 0 / 90%);
+}
+.hud-death-again {
+  font-size: min(2.6vmin, 18px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.24em;
+  color: rgb(241 231 226 / 70%);
+  text-shadow: 0 0 1vmin rgb(0 0 0 / 90%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud[data-jolt] {
+    animation: none;
+  }
+}

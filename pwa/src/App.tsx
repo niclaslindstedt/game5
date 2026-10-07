@@ -95,6 +95,7 @@ import { keepsRecords, pairKey, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
+import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -202,6 +203,7 @@ export function App() {
     spec: specOf(s),
     assist: assistOf(s.assist),
     damage: s.damage,
+    gore: injuriesShown(s, shellContent()),
     poles: params.poles ?? carriesPoles(s.outfit),
   });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
@@ -690,6 +692,8 @@ export function App() {
         const steps = clock.frame(dtRun);
         for (let i = 0; i < steps; i++) stepOnce();
         if (replays.over()) pressRef.current.toMenu();
+        // DIED (`hud-wreck.ts`): a new rider at the top once the dark is down.
+        else if (playerRides(shellRef.current) && deathOver(state)) restart();
       } else {
         // Held: the controls are still read, so a banked reset does not
         // fire the moment the picture thaws.

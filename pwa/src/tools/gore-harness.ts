@@ -11,7 +11,9 @@
 // to photograph, and hands back every frame at full size.
 
 import {
+  BONES,
   createGame,
+  fracturesOf,
   generateLevel,
   GORE_OPEN,
   GORE_PIECES,
@@ -19,17 +21,29 @@ import {
   NEUTRAL_INPUT,
   step,
   TUNING,
+  type DeathCause,
   type GameState,
   type RegionId,
   type SkyOverride,
   type WeatherKind,
 } from "@engine";
 
+import { bodyTile, type BodyTile } from "../game/body-tile.ts";
+import { diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
-import { GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./gore-scenes.ts";
+import { GROUPS, HUD_GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./gore-scenes.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
+
+/** What a HUD frame lays over its picture (`gore-hud.tsx`). */
+export type HudFrame = {
+  png: string;
+  tile: BodyTile;
+  died: { since: number; cause: DeathCause } | null;
+  kmh: number;
+  seed: number;
+};
 
 declare global {
   interface Window {
@@ -38,6 +52,8 @@ declare global {
       /** The sheets and the views each is shot from (`grimbear-scenes.ts`). */
       groups: Record<string, readonly string[]>;
       sheet(group: string, views: string[]): Promise<{ frames: Frame[] }>;
+      /** The frames a HUD sheet's iframes read. */
+      hud: HudFrame[];
     };
   }
 }
@@ -104,6 +120,7 @@ const ready = (async () => {
 })();
 
 let frames: Frame[] = [];
+let huds: HudFrame[] = [];
 let view = "";
 
 /** What the frame shows, as a caption under its label. */
@@ -114,10 +131,14 @@ function stateLine(s: GameState): string {
   if (!g) return skier;
   const lost = GORE_PIECES.filter((p) => lostPiece(g, p));
   const open = GORE_OPEN.filter((_, i) => g.open & (1 << i));
+  const grades = fracturesOf(c.body);
+  // Each broken bone with its grade: s simple, w wedge, x shattered.
+  const broken = BONES.flatMap((b, k) => (grades[k] >= 2 ? [`${b}:${"--swx"[grades[k]]}`] : []));
   return (
     `${skier} · t ${s.t.toFixed(2)} s\n` +
     `lost ${lost.join(" ") || "-"} · open ${open.join(" ") || "-"}${g.crushed >= 0 ? " · skull crushed" : ""}` +
-    `${g.impaled ? ` · on a ${g.impaled.stuff}` : ""}\n` +
+    `${g.impaled ? ` · on a ${g.impaled.stuff}` : ""}` +
+    `${broken.length ? ` · broken ${broken.join(" ")}` : ""}\n` +
     `${g.dead >= 0 ? `DEAD (${g.cause})` : g.mortal >= 0 ? "dying" : "alive"} · heart ${g.rate.toFixed(0)}/min · ` +
     `lost ${g.blood.toFixed(2)} l · ${g.flow.toFixed(2)} l/s`
   );
@@ -157,6 +178,14 @@ const stage: Stage = {
       caption: `${view} ${label} [${lensName}]\n${stateLine(state)}`,
       png: canvas.toDataURL("image/png"),
     });
+    const since = diedOf(state);
+    huds.push({
+      png: frames[frames.length - 1].png,
+      tile: bodyTile(state.skier.body, state.t),
+      died: since !== null && state.gore?.cause ? { since, cause: state.gore.cause } : null,
+      kmh: state.skier.speed * 3.6,
+      seed,
+    });
   },
   async sky(over) {
     const sky = over ? { ...(baseSky ?? {}), ...over } : baseSky;
@@ -168,6 +197,8 @@ const stage: Stage = {
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {
   const note = await ready;
   frames = [];
+  huds = [];
+  window.__gore!.hud = huds;
   for (const v of views) {
     const scene = VIEWS[v];
     if (!scene) throw new Error(`no view "${v}"`);
@@ -183,20 +214,43 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     `${baseSky ? ` sky ${JSON.stringify(baseSky)}` : ""} — ${tier}\n${note}`;
   header.style.whiteSpace = "pre-wrap";
   const cells: HTMLElement[] = [header];
-  for (const f of frames) {
+  const withHud = HUD_GROUPS.has(group);
+  for (const [i, f] of frames.entries()) {
     const cell = document.createElement("figure");
-    const img = document.createElement("img");
-    img.src = f.png;
-    img.width = tw;
-    img.height = th;
-    await img.decode();
     const caption = document.createElement("figcaption");
     caption.textContent = f.caption;
-    cell.append(img, caption);
+    if (withHud) {
+      // The HUD over the frame, at the frame's own size, scaled to the tile.
+      const box = document.createElement("div");
+      box.style.cssText = `width:${tw}px;height:${th}px;overflow:hidden`;
+      const iframe = document.createElement("iframe");
+      iframe.src = `gore-hud.html?hud=${i}`;
+      iframe.width = String(width);
+      iframe.height = String(height);
+      iframe.style.cssText = `border:0;display:block;transform:scale(${scale});transform-origin:0 0`;
+      box.append(iframe);
+      cell.append(box, caption);
+    } else {
+      const img = document.createElement("img");
+      img.src = f.png;
+      img.width = tw;
+      img.height = th;
+      await img.decode();
+      cell.append(img, caption);
+    }
     cells.push(cell);
   }
   sheetEl.replaceChildren(...cells);
+  if (withHud) {
+    // Every frame's page drawn, its fonts in and its picture decoded.
+    const shown = [...sheetEl.querySelectorAll("iframe")];
+    for (let k = 0; k < 100; k++) {
+      if (shown.every((f) => (f.contentWindow as unknown as { __drawn?: boolean })?.__drawn)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    await new Promise((r) => setTimeout(r, 1200));
+  }
   return { frames };
 }
 
-window.__gore = { ready, groups: GROUPS, sheet };
+window.__gore = { ready, groups: GROUPS, sheet, hud: huds };

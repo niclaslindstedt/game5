@@ -36,7 +36,6 @@ export type Dressed = {
   dispose(): void;
 };
 
-
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 
 /** What the skier is dressed in: the outfit, his skin's own tone, and

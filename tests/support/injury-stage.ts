@@ -395,7 +395,6 @@ export function stageTrial(
 /** ONE TRIAL of a staging, its run seed `trial + 1`. */
 export function runTrial(s: Staging, trial: number): Trial {
   const { state, input } = stageTrial(s, trial);
-  const st = s.stage;
   const out: Trial = { injuries: [], worst: 0, peak: 0, cause: null, land: 0, shattered: [] };
   const events: GameEvent[] = [];
   for (let i = 0; i < Math.round(RUN / dt); i++) {

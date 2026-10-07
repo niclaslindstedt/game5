@@ -58,7 +58,16 @@ export type Stick = {
 
 /** A stick at ends `a` and `b`, going `v` m/s, its far end swung on by `w`
  * m/s across it. */
-export function stick(a: V3, b: V3, v: V3, w: V3, ra: number, rb: number, spin: number, dt: number): Stick {
+export function stick(
+  a: V3,
+  b: V3,
+  v: V3,
+  w: V3,
+  ra: number,
+  rb: number,
+  spin: number,
+  dt: number,
+): Stick {
   const length = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) || 0.01;
   return {
     a: { ...a },

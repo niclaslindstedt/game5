@@ -71,8 +71,9 @@ export const GORE = {
       waist: 0.5,
       chest: 0.18,
       abdomen: 0.12,
-      crush: 0.06,
-      impaled: 0.08,
+      crush: 0.22,
+      impaled: 0.2,
+      fracture: 0.03,
     },
     /** With the heart stopped: what still drains, as a share of the flow,
      * and the seconds it halves in. */
@@ -91,4 +92,11 @@ export const GORE = {
 } as const;
 
 /** The causes that kill AT ONCE. */
-export const INSTANT: readonly DeathCause[] = ["head", "crush", "impaled", "opened", "torn", "maul"];
+export const INSTANT: readonly DeathCause[] = [
+  "head",
+  "crush",
+  "impaled",
+  "opened",
+  "torn",
+  "maul",
+];

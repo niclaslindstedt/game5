@@ -33,7 +33,8 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { GORE, INSTANT } from "./defs/gore.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { doseOn, severityOf } from "./body.ts";
+import { doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
+import { BONES } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
@@ -309,14 +310,21 @@ function mortality(state: GameState, g: GoreState, events: GameEvent[]): void {
   events.push({ kind: "death", t: state.t, cause });
 }
 
+/** The long bones a break stands out of the skin from (`gore-view.ts` draws
+ * them): the thighs, the shins, the upper arms and the forearms. */
+const OPEN_BONE = /^(femur|tibia|humerus|radius|ulna)/;
+
 /** The litres a second every wound bleeds at the full pressure. */
-function flowOf(g: GoreState): number {
+function flowOf(g: GoreState, state: GameState): number {
   const F = GORE.blood.flow;
   let q = 0;
   for (const piece of GORE_PIECES) {
     if (!(g.lost & bit(piece))) continue;
     // A forearm gone inside a whole arm gone bleeds as the arm.
-    if ((piece === "forearmL" && g.lost & bit("armL")) || (piece === "forearmR" && g.lost & bit("armR")))
+    if (
+      (piece === "forearmL" && g.lost & bit("armL")) ||
+      (piece === "forearmR" && g.lost & bit("armR"))
+    )
       continue;
     if ((piece === "shinL" && g.lost & bit("legL")) || (piece === "shinR" && g.lost & bit("legR")))
       continue;
@@ -328,13 +336,17 @@ function flowOf(g: GoreState): number {
   for (let k = 0; k < GORE_OPEN.length; k++) if (g.open & (1 << k)) q += F[GORE_OPEN[k]];
   if (g.impaled) q += F.impaled;
   if (g.crushed >= 0) q += F.crush;
+  // A long bone broken out through the skin bleeds where it stands out.
+  const grades = fracturesOf(state.skier.body);
+  for (let k = 0; k < BONES.length; k++)
+    if (grades[k] >= FRACTURE_GRADE.simple && OPEN_BONE.test(BONES[k])) q += F.fracture;
   return q;
 }
 
 /** THE HEART: racing as the blood goes, pumping it out in spurts, and
  * stopped at death — the wounds then only drain. */
 function heart(state: GameState, g: GoreState): void {
-  const q = flowOf(g);
+  const q = flowOf(g, state);
   if (q <= 0 && g.mortal < 0) return;
   const V = GORE.blood.volume;
   const lost = Math.min(1, g.blood / (V * GORE.blood.fatal));

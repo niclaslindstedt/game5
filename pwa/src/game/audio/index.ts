@@ -72,6 +72,10 @@ export function createRunAudio(): RunAudio {
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
   let ear: Listener = listenerFor("chase");
+  // HIS OWN HEART as he bleeds (`engine/game/gore.ts`'s beat): the beat
+  // counted last heard, and the run it was counted on.
+  let heard = 0;
+  let heartOf: GameState | null = null;
 
   return {
     events(list, state) {
@@ -100,6 +104,16 @@ export function createRunAudio(): RunAudio {
     },
 
     frame(state, dt, duck = 1) {
+      const g = state.gore;
+      if (state !== heartOf) {
+        heartOf = state;
+        heard = g ? Math.floor(g.beats) : 0;
+      }
+      if (g && g.rate > 0 && Math.floor(g.beats) > heard) {
+        heard = Math.floor(g.beats);
+        // Louder the more he has lost: the beat is all he hears at the end.
+        playSound(sfx, RUN_BANK, "heartbeat", { gain: duck * Math.min(1.4, 0.6 + g.blood / 1.5) });
+      }
       room.update(state, dt, duck);
       const outside = state.afterski?.inside ? 0 : duck;
       bed.update(state, dt, outside);

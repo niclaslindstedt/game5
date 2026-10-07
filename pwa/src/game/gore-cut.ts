@@ -56,14 +56,15 @@ const HOLDS: Partial<Record<GorePiece, readonly GorePiece[]>> = {
  * the waist for the body torn in two, else the head of the piece's first
  * bone (the shoulder, the elbow, the hip, the knee). And the way out of
  * the body along the cut — what a stump faces. */
-export function cutOf(
-  piece: GorePiece,
-  frames: Record<SkierBone, BoneFrame>,
-): { at: V3; out: V3 } {
+export function cutOf(piece: GorePiece, frames: Record<SkierBone, BoneFrame>): { at: V3; out: V3 } {
   if (piece === "head") {
     const c = frames.chest;
     return {
-      at: { x: c.head.x + c.y.x * c.length, y: c.head.y + c.y.y * c.length, z: c.head.z + c.y.z * c.length },
+      at: {
+        x: c.head.x + c.y.x * c.length,
+        y: c.head.y + c.y.y * c.length,
+        z: c.head.z + c.y.z * c.length,
+      },
       out: c.y,
     };
   }

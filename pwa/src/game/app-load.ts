@@ -206,6 +206,7 @@ export function raceOrFallback(
           assist: skier.assist,
           spec: skier.spec,
           damage: skier.damage,
+          ...(skier.gore ? { gore: true } : {}),
           poles: skier.poles,
           mode: skier.mode,
           laps: skier.mode === "timeTrial" ? skier.laps : undefined,

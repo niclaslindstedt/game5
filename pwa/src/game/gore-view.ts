@@ -40,7 +40,7 @@ import {
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import { bindPose } from "./dress-loft.ts";
-import { createBlood, type Blood } from "./gore-blood.ts";
+import { createBlood } from "./gore-blood.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
 import {
   lump,
@@ -94,19 +94,21 @@ export type GoreView = {
 
 /** Each piece's measures: its stump's radius and the bone out of it, m,
  * and which of the engine's flows it bleeds as. */
-const PIECE_LOOK: Record<GorePiece, { r: number; bone: number; flow: keyof typeof GORE.blood.flow }> =
-  {
-    head: { r: 0.075, bone: 0.035, flow: "head" },
-    armL: { r: 0.08, bone: 0.05, flow: "arm" },
-    armR: { r: 0.08, bone: 0.05, flow: "arm" },
-    forearmL: { r: 0.065, bone: 0.04, flow: "forearm" },
-    forearmR: { r: 0.065, bone: 0.04, flow: "forearm" },
-    legL: { r: 0.11, bone: 0.07, flow: "leg" },
-    legR: { r: 0.11, bone: 0.07, flow: "leg" },
-    shinL: { r: 0.08, bone: 0.055, flow: "shin" },
-    shinR: { r: 0.08, bone: 0.055, flow: "shin" },
-    lower: { r: 0.17, bone: 0.045, flow: "waist" },
-  };
+const PIECE_LOOK: Record<
+  GorePiece,
+  { r: number; bone: number; flow: keyof typeof GORE.blood.flow }
+> = {
+  head: { r: 0.075, bone: 0.035, flow: "head" },
+  armL: { r: 0.08, bone: 0.05, flow: "arm" },
+  armR: { r: 0.08, bone: 0.05, flow: "arm" },
+  forearmL: { r: 0.065, bone: 0.04, flow: "forearm" },
+  forearmR: { r: 0.065, bone: 0.04, flow: "forearm" },
+  legL: { r: 0.11, bone: 0.07, flow: "leg" },
+  legR: { r: 0.11, bone: 0.07, flow: "leg" },
+  shinL: { r: 0.08, bone: 0.055, flow: "shin" },
+  shinR: { r: 0.08, bone: 0.055, flow: "shin" },
+  lower: { r: 0.17, bone: 0.045, flow: "waist" },
+};
 
 /** The far end of a piece, off its own bones: where its stick ends. */
 function farEnd(piece: GorePiece, f: Record<SkierBone, BoneFrame>): V3 {
@@ -246,6 +248,9 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   };
   const ribs = [0, 1, 2].map((i) => keep(ribGeometry(0.1 + 0.05 * i, i * 5.3)));
   const shards = [0, 1, 2].map((i) => keep(shardGeometry(0.09 + 0.03 * i, 0.016, i * 3.7)));
+  // An open fracture's end: a long bone's, thick and long enough to stand
+  // well out of the limb and its clothes.
+  const breaks = [0, 1, 2].map((i) => keep(shardGeometry(0.22 + 0.04 * i, 0.024, i * 5.1 + 1)));
   const openings = {
     chest: keep(openingGeometry(0.12, true, 4.4)),
     abdomen: keep(openingGeometry(0.11, false, 9.1)),
@@ -338,11 +343,20 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       });
     }
   };
-  const throwBones = (count: number, at: THREE.Vector3, dir: THREE.Vector3, carry: THREE.Vector3) => {
+  const throwBones = (
+    count: number,
+    at: THREE.Vector3,
+    dir: THREE.Vector3,
+    carry: THREE.Vector3,
+  ) => {
     for (let i = 0; i < count; i++) {
       const mesh = meshOf(rng.chance(0.5) ? rng.pick(ribs) : rng.pick(shards));
       group.add(mesh);
-      v1.set(dir.x + rng.range(-1, 1), dir.y + rng.range(0, 1), dir.z + rng.range(-1, 1)).normalize();
+      v1.set(
+        dir.x + rng.range(-1, 1),
+        dir.y + rng.range(0, 1),
+        dir.z + rng.range(-1, 1),
+      ).normalize();
       const u = rng.range(1.5, 4.5);
       v3.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize();
       gibs.push({
@@ -584,7 +598,13 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         crushed = true;
         const at = world(f.head.head, M);
         const dir = worldDir(f.head.y, M);
-        throwOut(["brain", "brain", "brain", "skull", "skull", "skull", "skull", "eye", "gobbet"], at, dir, carry, 3);
+        throwOut(
+          ["brain", "brain", "brain", "skull", "skull", "skull", "skull", "eye", "gobbet"],
+          at,
+          dir,
+          carry,
+          3,
+        );
         blood.emit(at, dir, 3.5, 140, 1.1, carry, () => rng.next());
       }
       // THE SPIKE through him.
@@ -634,7 +654,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       const hidden = bodyHides(g.lost);
       BONES.forEach((bone, k) => {
         const on = OPEN_BONES[bone];
-        if (!on || grades[k] < FRACTURE_GRADE.wedge || hidden.has(on)) {
+        if (!on || grades[k] < FRACTURE_GRADE.simple || hidden.has(on)) {
           const m = fractures.get(bone);
           if (m) {
             m.parent?.remove(m);
@@ -644,7 +664,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         }
         let mesh = fractures.get(bone);
         if (!mesh) {
-          mesh = meshOf(shards[k % shards.length]);
+          mesh = meshOf(breaks[k % breaks.length]);
           skin.group.add(mesh);
           fractures.set(bone, mesh);
         }
@@ -711,10 +731,20 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       GORE_OPEN.forEach((name, bit) => {
         if (!(g.open & (1 << bit))) return;
         const o = openAt(bit, f);
-        wounds.push({ at: world(o.at, M), dir: worldDir(o.out, M), share: GORE.blood.flow[name], key: name });
+        wounds.push({
+          at: world(o.at, M),
+          dir: worldDir(o.out, M),
+          share: GORE.blood.flow[name],
+          key: name,
+        });
       });
       if (g.crushed >= 0) {
-        wounds.push({ at: world(f.head.head, M), dir: worldDir(f.head.y, M), share: GORE.blood.flow.crush, key: "skull" });
+        wounds.push({
+          at: world(f.head.head, M),
+          dir: worldDir(f.head.y, M),
+          share: GORE.blood.flow.crush,
+          key: "skull",
+        });
       }
       if (g.impaled) {
         const i = g.impaled;
@@ -725,11 +755,26 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           key: "spike",
         });
       }
+      // Every open fracture bleeds where the bone stands out.
+      for (const [bone, mesh] of fractures) {
+        wounds.push({
+          at: mesh.getWorldPosition(new THREE.Vector3()),
+          dir: new THREE.Vector3(0, 1, 0).applyQuaternion(
+            mesh.getWorldQuaternion(new THREE.Quaternion()),
+          ),
+          share: GORE.blood.flow.fracture,
+          key: bone,
+        });
+      }
       // A piece's own end bleeds out what was in it, for a moment.
       for (const p of pieces) {
         const age = state.t - p.t;
         if (age > 3) continue;
-        v1.set(p.stick.a.x - p.stick.b.x, p.stick.a.y - p.stick.b.y, p.stick.a.z - p.stick.b.z).normalize();
+        v1.set(
+          p.stick.a.x - p.stick.b.x,
+          p.stick.a.y - p.stick.b.y,
+          p.stick.a.z - p.stick.b.z,
+        ).normalize();
         wounds.push({
           at: new THREE.Vector3(p.stick.a.x, p.stick.a.y, p.stick.a.z),
           dir: v1.clone(),
@@ -746,7 +791,10 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         const litres = g.flow * simDt * (w.share / total);
         const n = litres * DROPS_A_LITRE + (rng.next() < (litres * DROPS_A_LITRE) % 1 ? 1 : 0);
         const speed = g.rate > 0 ? DRIBBLE + JET * beat : DRIBBLE * 0.5;
-        if (n >= 1) blood.emit(w.at, w.dir, speed, Math.floor(n), 0.18 + 0.2 * (1 - beat), carry, () => rng.next());
+        if (n >= 1)
+          blood.emit(w.at, w.dir, speed, Math.floor(n), 0.18 + 0.2 * (1 - beat), carry, () =>
+            rng.next(),
+          );
         // What runs out of him lying still soaks into the snow under the wound.
         if (pool && lying && w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
           blood.pool(w.key, w.at.x, w.at.z, g.flow * 0.1 * (w.share / total) * 0.6);
@@ -756,7 +804,12 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       if (pool) {
         for (const p of pieces) {
           if (!p.stick.down || state.t - p.t > 8) continue;
-          blood.pool(`lying${pieces.indexOf(p)}`, p.stick.a.x, p.stick.a.z, 0.012 * Math.exp(-(state.t - p.t) / 4));
+          blood.pool(
+            `lying${pieces.indexOf(p)}`,
+            p.stick.a.x,
+            p.stick.a.z,
+            0.012 * Math.exp(-(state.t - p.t) / 4),
+          );
         }
       }
       blood.update(fly, {
@@ -772,7 +825,8 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         const wet = Math.min(1, 0.3 + g.blood / 1.2);
         const reach = 0.1 + Math.min(0.35, g.blood * 0.12);
         const at: { at: V3; r: number }[] = [];
-        for (const piece of cuts) at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
+        for (const piece of cuts)
+          at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
         GORE_OPEN.forEach((_, bit) => {
           if (g.open & (1 << bit)) at.push({ at: openAt(bit, bind).at, r: reach + 0.12 });
         });
@@ -780,9 +834,16 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         if (g.impaled) at.push({ at: bind[POINT_BONE[g.impaled.point]].head, r: reach + 0.1 });
         BONES.forEach((bone, k) => {
           const on = OPEN_BONES[bone];
-          if (on && grades[k] >= FRACTURE_GRADE.wedge && !hidden.has(on)) {
+          if (on && grades[k] >= FRACTURE_GRADE.simple && !hidden.has(on)) {
             const b = bind[on];
-            at.push({ at: { x: b.head.x + b.y.x * b.length * 0.5, y: b.head.y + b.y.y * b.length * 0.5, z: b.head.z + b.y.z * b.length * 0.5 }, r: 0.08 + reach * 0.4 });
+            at.push({
+              at: {
+                x: b.head.x + b.y.x * b.length * 0.5,
+                y: b.head.y + b.y.y * b.length * 0.5,
+                z: b.head.z + b.y.z * b.length * 0.5,
+              },
+              r: 0.08 + reach * 0.4,
+            });
           }
         });
         if (at.length > 0) soakCloth(skin.cloth, at, wet);

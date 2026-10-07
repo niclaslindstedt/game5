@@ -245,15 +245,7 @@ export function ribGeometry(length: number, seed: number): THREE.BufferGeometry 
 
 /** The organs: what they are called and how big each is, m. */
 export type OrganKind =
-  | "heart"
-  | "lung"
-  | "liver"
-  | "kidney"
-  | "brain"
-  | "skull"
-  | "gobbet"
-  | "eye"
-  | "spleen";
+  "heart" | "lung" | "liver" | "kidney" | "brain" | "skull" | "gobbet" | "eye" | "spleen";
 
 /** AN ORGAN of its kind, `seed` its own lumps. Each about its real size: a
  * heart a fist (12 × 8 × 6 cm), a lung's lobe a hand long, the liver a
@@ -350,7 +342,11 @@ export function organGeometry(kind: OrganKind, seed: number): THREE.BufferGeomet
     case "eye": {
       const g = new THREE.IcosahedronGeometry(0.012, 2);
       return painted(flat(g), (p) =>
-        p.z > 0.008 ? new THREE.Color(0x101010) : p.z > 0.005 ? new THREE.Color(0x5a7a8a) : new THREE.Color(0xf0eadc),
+        p.z > 0.008
+          ? new THREE.Color(0x101010)
+          : p.z > 0.005
+            ? new THREE.Color(0x5a7a8a)
+            : new THREE.Color(0xf0eadc),
       );
     }
     case "gobbet":
@@ -393,7 +389,11 @@ export function spikeGeometry(length: number, r: number): THREE.BufferGeometry {
   const bark = new THREE.Color(0x3a2a1c);
   const blood = colour("blood");
   return painted(flat(g), (p) =>
-    mix(bark, blood, 0.35 + 0.7 * (p.y / length) + 0.3 * (lumpy(p.x * 90, p.y * 20, p.z * 90) - 0.5)),
+    mix(
+      bark,
+      blood,
+      0.35 + 0.7 * (p.y / length) + 0.3 * (lumpy(p.x * 90, p.y * 20, p.z * 90) - 0.5),
+    ),
   );
 }
 
@@ -459,7 +459,13 @@ export function splatMask(size = 128): THREE.CanvasTexture | null {
     const a = noise(i, 2, 3) * Math.PI * 2;
     const r = h * (0.62 + 0.3 * noise(i, 5, 1));
     g.beginPath();
-    g.arc(h + Math.cos(a) * r, h + Math.sin(a) * r, h * (0.02 + 0.05 * noise(i, 7, 7)), 0, Math.PI * 2);
+    g.arc(
+      h + Math.cos(a) * r,
+      h + Math.sin(a) * r,
+      h * (0.02 + 0.05 * noise(i, 7, 7)),
+      0,
+      Math.PI * 2,
+    );
     g.fill();
   }
   const t = new THREE.CanvasTexture(c);

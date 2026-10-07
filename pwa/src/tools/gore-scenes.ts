@@ -122,7 +122,13 @@ function loneTree(
       best = t;
     }
   }
-  return { x: best.x, z: best.z, y: level.groundAt(best.x, best.z), height: best.height, radius: best.radius };
+  return {
+    x: best.x,
+    z: best.z,
+    y: level.groundAt(best.x, best.z),
+    height: best.height,
+    radius: best.radius,
+  };
 }
 
 /** Throw the body: posed `pose` heading `heading`, going `v`, its lowest
@@ -140,7 +146,16 @@ function throwAt(
 ): void {
   placeRun(s, { x, z, heading, speed: 0 });
   const q = multiply(fromAxisAngle(0, 1, 0, heading), poseOf(pose, into));
-  const b = bodyThrown(into ? "tree" : "landing", q, x, floor + 3, z, v, { x: 0, y: 0, z: 0 }, heading);
+  const b = bodyThrown(
+    into ? "tree" : "landing",
+    q,
+    x,
+    floor + 3,
+    z,
+    v,
+    { x: 0, y: 0, z: 0 },
+    heading,
+  );
   const P = b.points;
   const L = b.last;
   let low = Infinity;
@@ -165,7 +180,15 @@ function throwAt(
 
 /** A lens planted round `at`: `dist` m out at `yaw` (rad, from +z), `up` m
  * over the snow there, aimed `aim` m over `at`. */
-function around(level: Level, at: P3, yaw: number, dist: number, up: number, fov = 45, aim = 0.4): LensPose {
+function around(
+  level: Level,
+  at: P3,
+  yaw: number,
+  dist: number,
+  up: number,
+  fov = 45,
+  aim = 0.4,
+): LensPose {
   const ex = at.x + Math.sin(yaw) * dist;
   const ez = at.z + Math.cos(yaw) * dist;
   return {
@@ -214,7 +237,17 @@ function intoTree(st: Stage, pose: Pose, speed: number): { s: GameState; tree: P
   const h = 0.6;
   const x = t.x - Math.sin(h) * 2.2;
   const z = t.z - Math.cos(h) * 2.2;
-  throwAt(s, x, z, h, pose, { x: Math.sin(h) * speed, y: 0, z: Math.cos(h) * speed }, st.level.groundAt(x, z), 0.35, true);
+  throwAt(
+    s,
+    x,
+    z,
+    h,
+    pose,
+    { x: Math.sin(h) * speed, y: 0, z: Math.cos(h) * speed },
+    st.level.groundAt(x, z),
+    0.35,
+    true,
+  );
   return { s, tree: { x: t.x, y: t.y, z: t.z } };
 }
 
@@ -231,7 +264,12 @@ function ontoSnow(st: Stage, pose: Pose, speed: number, slide = 0): { s: GameSta
 
 /** His body falling `speed` m/s onto the top of `post` (a tree's or a
  * post's), his hips over it. */
-function ontoTop(st: Stage, post: { x: number; z: number; y: number; height: number }, pose: Pose, speed: number): GameState {
+function ontoTop(
+  st: Stage,
+  post: { x: number; z: number; y: number; height: number },
+  pose: Pose,
+  speed: number,
+): GameState {
   const s = st.fresh();
   throwAt(s, post.x, post.z, 0.4, pose, { x: 0, y: -speed, z: 0 }, post.y + post.height, 0.3);
   return s;
@@ -278,7 +316,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   /** Fallen on his feet from a height (20 m/s): the legs broken through
    * the skin (open fractures) — the bones out. */
   fracture(st) {
-    const { s, at } = ontoSnow(st, "feet", 20);
+    const { s, at } = ontoSnow(st, "feet", 26);
     const lens = around(st.level, at, 1.0, 5, 1.6, 45, 0.5);
     strobe(st, s, [0.05, 0.3, 1.5], lens);
     st.shoot(s, "legs", onBody(0.3, 1.8, 0.8, 40));
@@ -331,9 +369,11 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       return;
     }
     const c = { x: s.skier.x, y: s.skier.y, z: s.skier.z };
-    const lens = around(st.level, c, s.grimbear!.heading + Math.PI / 2, 7, 2, 50, 0.5);
+    const lens = around(st.level, c, s.grimbear!.heading + Math.PI / 2, 4.5, 1.6, 50, 0.4);
     strobe(st, s, [0.1, 0.3, 0.6, 1, 2, 4, 7], lens);
-    st.shoot(s, "chase", "chase");
+    // The two halves where they lie: the trunk and the hips apart.
+    st.shoot(s, "close", onBody(0.9, 2.6, 1.6, 45));
+    st.shoot(s, "above", onBody(0.2, 1.2, 3.4, 50));
   },
   // ── THE BLOOD ──────────────────────────────────────────────────────────
   /** The spurt on the heartbeat: a stump close, frame by frame over two
@@ -349,7 +389,11 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     for (const t of times) {
       st.run(s, t - at, still);
       at = t;
-      st.shoot(s, `beat+${(seconds(s) - t0).toFixed(2)}s pulse ${(s.gore?.pulse ?? 0).toFixed(2)}`, lens);
+      st.shoot(
+        s,
+        `beat+${(seconds(s) - t0).toFixed(2)}s pulse ${(s.gore?.pulse ?? 0).toFixed(2)}`,
+        lens,
+      );
     }
   },
   /** The snow red under him: pooled, splashed and smeared, from above. */
@@ -362,6 +406,24 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "7s", onBody(2.5, 4.5, 2.2, 50));
     st.shoot(s, "7s-far", "far");
   },
+  // ── THE HUD ────────────────────────────────────────────────────────────
+  /** A fatal crash with the HUD over it: skiing, the blow's jolt, the glass
+   * cracked, the readouts falling off it, DIED and the dark. */
+  wreck(st) {
+    const { s, tree, side } = skiAtTree(st, 30, 14);
+    const lens = onBody(side + 0.5, 6, 2, 50);
+    st.shoot(s, "skiing", "chase");
+    st.until(s, (q) => !!q.skier.thrown, 2, still);
+    st.run(s, 0.05, still);
+    st.shoot(s, "the-blow", lens);
+    void tree;
+    st.until(s, (q) => (q.gore?.dead ?? -1) >= 0, 8, still);
+    const dead = s.gore!.dead;
+    for (const t of [0.15, 0.6, 1.3, 2, 3, 4.2]) {
+      st.until(s, (q) => q.t - dead >= t, 8, still);
+      st.shoot(s, `died+${t}s`, lens);
+    }
+  },
   /** Up close at the wounds and what was thrown out. */
   closeup(st) {
     const { s } = ontoSnow(st, "left", 28, 6);
@@ -373,6 +435,9 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   },
 };
 
+/** The sheets drawn with the HUD over every frame (`gore-hud.tsx`). */
+export const HUD_GROUPS = new Set(["hud"]);
+
 export const GROUPS: Record<string, readonly string[]> = {
   trunk: ["ski-trunk", "decapitation"],
   snow: ["mangled", "crush", "fracture"],
@@ -380,4 +445,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   blood: ["spray", "snow"],
   close: ["closeup"],
+  hud: ["wreck"],
 };

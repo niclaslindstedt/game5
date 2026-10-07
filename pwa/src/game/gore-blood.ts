@@ -60,7 +60,7 @@ const G = 9.81;
 /** The share of a drop's speed the air takes a second. */
 const AIR = 0.15;
 /** A pool's area a litre, m²: blood wicks out wide through snow's grains. */
-const SOAK = 1.4;
+const SOAK = 2;
 /** How far over the snow a blot lies, m — the drawn surface under it. */
 const LIFT = 0.012;
 
@@ -173,7 +173,7 @@ export function createBlood(wrap: Wrap): Blood {
         vy[i] = v.y * u + carry.y;
         vz[i] = v.z * u + carry.z;
         // Most drops are a couple of millimetres; a few are clots.
-        size[i] = 0.0025 + 0.006 * next() ** 3;
+        size[i] = 0.004 + 0.009 * next() ** 3;
       }
     },
     splat(x, z, r, shade, turn) {
@@ -228,7 +228,7 @@ export function createBlood(wrap: Wrap): Blood {
         v.set(vx[i], vy[i], vz[i]);
         const u = v.length();
         q.setFromUnitVectors(yUp, u > 1e-4 ? v.divideScalar(u) : yUp);
-        s.set(size[i], size[i] * (1 + Math.min(4, u * 0.25)), size[i]);
+        s.set(size[i], size[i] * (1 + Math.min(7, u * 0.5)), size[i]);
         p.set(px[i], py[i], pz[i]);
         m.compose(p, q, s);
         drops.setMatrixAt(i, m);

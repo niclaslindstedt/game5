@@ -35,15 +35,7 @@ export type GoreOpen = (typeof GORE_OPEN)[number];
  * (an injury severity of 50 and more), burned in a wreck's fireball, the
  * grimbear. */
 export type DeathCause =
-  | "head"
-  | "crush"
-  | "impaled"
-  | "opened"
-  | "torn"
-  | "bled"
-  | "trauma"
-  | "fire"
-  | "maul";
+  "head" | "crush" | "impaled" | "opened" | "torn" | "bled" | "trauma" | "fire" | "maul";
 
 /** ONE PIECE TORN OFF: which, when, and where its end at the body was and
  * how it was going at that moment (world frame, m and m/s) — the drawing
@@ -120,3 +112,18 @@ export function freshGore(): GoreState {
 export function lostPiece(g: GoreState | undefined, piece: GorePiece): boolean {
   return !!g && (g.lost & (1 << GORE_PIECES.indexOf(piece))) !== 0;
 }
+
+/** What the wounds put on the run's events: a MORTAL WOUND — a piece torn
+ * off, the skull crushed, the trunk opened or the body run through on a
+ * spike, and where, world frame, m — and DEATH, and of what. */
+export type GoreEvent =
+  | {
+      kind: "gore";
+      t: number;
+      what: "torn" | "crush" | "open" | "impaled";
+      piece?: GorePiece | GoreOpen;
+      x: number;
+      y: number;
+      z: number;
+    }
+  | { kind: "death"; t: number; cause: DeathCause };

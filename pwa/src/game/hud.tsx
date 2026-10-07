@@ -460,6 +460,11 @@ export function Hud({
             <WindMeter wind={snap.wind} />
             {snap.damage && <DamageGauge damage={snap.damage} />}
           </div>
+          {snap.altitude !== null && (
+            <span class="hud-chip-sub hud-altitude" title={STRINGS.altitudeSaid}>
+              {STRINGS.altitude(snap.altitude)}
+            </span>
+          )}
         </div>
       )}
 

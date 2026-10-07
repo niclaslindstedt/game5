@@ -33,7 +33,7 @@ const WIDEST_HALF = RR.piste.most / 2;
  * and a wide margin round it, where every run and nearly every question
  * lies. A cell outside it is still answered, off the map. */
 const GRID_MARGIN = 24;
-const GRID_SIDE = Math.ceil(R.world.size / CELL) + 2 * GRID_MARGIN;
+const GRID_SIDE = Math.ceil(Math.max(R.world.size, RR.massif.size) / CELL) + 2 * GRID_MARGIN;
 
 /** How much further than the ring's square a segment not yet scanned must
  * lie before a ring scan stops, m: far more than the rounding of any

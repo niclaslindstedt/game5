@@ -44,8 +44,8 @@ import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
-import { RESORT_RULES as RR } from "./resort-rules.ts";
-import { LEVEL_RULES as R, inBand } from "./rules.ts";
+import { LOW_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
+import { LEVEL_RULES as R, inBand, type Band } from "./rules.ts";
 import {
   countryFields,
   descentAt,
@@ -95,6 +95,9 @@ export type Massif = {
   readonly tables: readonly [Float64Array, Float64Array, Float64Array, Float64Array];
   /** A slow noise along the ridge, so a ridge is not two bells. */
   readonly ridgeSeed: number;
+  /** How much wider than the rule book's square the massif's is (one on
+   * the low massif): the ridge's slow noise is stretched with it. */
+  readonly wide: number;
 };
 
 const SAMPLES = 1024;
@@ -142,42 +145,55 @@ function sample(table: Float64Array, u: number): number {
 
 /** R25 — deal the resort's mountain off the attempt's stream, in `region`
  * (R21): the vertical, the peak and the shoulder, the bench, the village,
- * and the folds R3 lays over it. */
-export function planMassif(rng: Rng, region: Region): TerrainPlan {
-  const size = R.world.size;
+ * and the folds R3 lays over it — `low` on the low massif of the
+ * generators before v8 (`LOW_MASSIF`). */
+export function planMassif(rng: Rng, region: Region, low = false): TerrainPlan {
   const M = RR.massif;
+  // R1 — the low massif stands on the rule book's square; from v8 a
+  // resort's is wider, so its taller mountain falls as far over each
+  // metre down the face as the low one did.
+  const size = low ? R.world.size : M.size;
   const F = R.face;
   const K = region.relief;
+  // From v8 every country's mountain stands the massif's own vertical over
+  // a floor near the sea, whatever the region's multiple.
+  const T = low ? LOW_MASSIF : M;
   const cx = size / 2;
   const summitZ = size * R.mountain.summit;
   const baseZ = size * R.mountain.base;
-  const vertical = inBand(rng, scaleBand(M.vertical, K.vertical));
+  const vertical = inBand(rng, low ? scaleBand(T.vertical, K.vertical) : T.vertical);
+  // Everything across the face is stretched with the square, so the ridge
+  // falls from the peak to the shoulder over as far as it rises.
+  const wide = size / R.world.size;
+  const across = (band: Band): Band => scaleBand(band, wide);
   const side = rng.chance(0.5) ? 1 : -1;
-  const peakX = cx + side * inBand(rng, M.peak.across);
-  const peakSpread = inBand(rng, M.peak.spread);
-  const shoulderX = cx - side * inBand(rng, M.shoulder.across);
+  const peakX = cx + side * inBand(rng, across(M.peak.across));
+  const peakSpread = inBand(rng, across(M.peak.spread));
+  const shoulderX = cx - side * inBand(rng, across(M.shoulder.across));
   const shoulderShare = inBand(rng, M.shoulder.share);
-  const steepSpread = inBand(rng, M.sector);
+  const steepSpread = inBand(rng, across(M.sector));
   const benchU = inBand(rng, M.bench.at);
   const benchWidth = inBand(rng, M.bench.width);
   const benchDepth = inBand(rng, M.bench.depth);
-  const villageX = cx - side * inBand(rng, M.village.across);
+  const villageX = cx - side * inBand(rng, across(M.village.across));
   const benchX = villageX + (peakX - villageX) * inBand(rng, M.bench.toward);
-  const benchSpread = inBand(rng, M.bench.spread);
-  const flank = inBand(rng, scaleBand(R.mountain.flank.height, K.flank));
-  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills));
-  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges * M.ridges));
+  const benchSpread = inBand(rng, across(M.bench.spread));
+  const flankBand = { inner: M.flank.inner * wide, outer: M.flank.outer * wide };
+  const Q = T.relief;
+  const flank = inBand(rng, scaleBand(R.mountain.flank.height, K.flank * Q.flank));
+  const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills * Q.hills));
+  const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges * M.ridges * Q.ridges));
   const bowls: Bowl[] = [];
   const nBowls = scaleCount(F.bowls.count, K.bowls.count);
   const bowlCount = rng.int(nBowls.min, nBowls.max);
   for (let i = 0; i < bowlCount; i++) {
     const u = inBand(rng, F.bowls.at);
-    const across = rng.range(-1, 1) * (M.flank.inner - 200);
+    const off = rng.range(-1, 1) * (flankBand.inner - 200);
     bowls.push({
-      x: cx + across,
+      x: cx + off,
       z: summitZ + (baseZ - summitZ) * u,
       r: inBand(rng, scaleBand(F.bowls.radius, K.bowls.radius)),
-      depth: inBand(rng, scaleBand(F.bowls.depth, K.bowls.depth)),
+      depth: inBand(rng, scaleBand(F.bowls.depth, K.bowls.depth * Q.bowls)),
     });
   }
   const headwalls: Headwall[] = [];
@@ -187,14 +203,14 @@ export function planMassif(rng: Rng, region: Region): TerrainPlan {
     const u = inBand(rng, M.headwalls.at);
     headwalls.push({
       z: summitZ + (baseZ - summitZ) * u,
-      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop)),
+      drop: inBand(rng, scaleBand(F.headwalls.drop, K.headwalls.drop * Q.headwalls)),
       run: inBand(rng, F.headwalls.run),
-      x: peakX + rng.range(-1, 1) * M.headwalls.across,
-      spread: inBand(rng, M.headwalls.spread),
+      x: peakX + rng.range(-1, 1) * M.headwalls.across * wide,
+      spread: inBand(rng, across(M.headwalls.spread)),
     });
   }
-  const altitude = inBand(rng, region.altitude.base);
-  const treeLine = inBand(rng, region.altitude.treeLine);
+  const dealtBase = inBand(rng, region.altitude.base);
+  const dealtLine = inBand(rng, region.altitude.treeLine);
   const seed = (): number => rng.int(1, 0x7ffffff0);
   const seeds = {
     warp: seed(),
@@ -226,25 +242,40 @@ export function planMassif(rng: Rng, region: Region): TerrainPlan {
       tabulate(M.steepProfile, bench),
     ],
     ridgeSeed: seed(),
+    wide,
   };
+  // R21 — the tree line. On the low massif the floor stands at the
+  // region's base altitude and the line at its own; from v8 the floor is
+  // a few metres over the sea (`massif.sea`, the lowest ground's — the
+  // published altitude is set off the built ground, `seaLevelOf`) and the
+  // line stands the same SHARE of the mountain over it as the region's
+  // bands give the low massif's, so a country is as wooded as it was.
+  const sea = low ? undefined : inBand(rng, M.sea);
+  const above = dealtLine - dealtBase;
+  const altitude = sea ?? dealtBase;
+  const lowVertical = ((LOW_MASSIF.vertical.min + LOW_MASSIF.vertical.max) / 2) * K.vertical;
+  const treeLine = low ? dealtLine : altitude + (above * vertical) / lowVertical;
   return {
     vertical,
     altitude,
     treeLine,
+    size,
+    ...(low ? {} : { fold: Q.scale }),
+    ...(sea === undefined ? {} : { sea }),
     summitZ,
     baseZ,
     flank,
     crests: R.mountain.crests * K.crests,
     hills,
     ridges,
-    rollers: F.rollers.amplitude * K.rollers,
+    rollers: F.rollers.amplitude * K.rollers * Q.rollers,
     bowls,
     headwalls,
     profile: massif.tables[0],
     region,
     grade: UNGRADED,
     massif,
-    flankBand: M.flank,
+    flankBand,
     seeds,
   };
 }
@@ -265,7 +296,7 @@ export function ridgeShare(plan: TerrainPlan, x: number): number {
   const shoulder = bell(x - m.shoulderX, m.peakSpread * 1.3);
   const base = RR.massif.ridgeFloor;
   const share = Math.max(base + (m.shoulderShare - base) * shoulder, base) * (1 - peak) + peak;
-  const wander = (sampleNoise2(m.ridgeSeed, x) - 0.5) * RR.massif.ridgeWander;
+  const wander = (sampleNoise2(m.ridgeSeed, x / m.wide) - 0.5) * RR.massif.ridgeWander;
   return Math.min(1, Math.max(base, share + wander * (1 - peak)));
 }
 
@@ -444,7 +475,7 @@ function wallDrop(w: Headwall, x: number, st: number): number {
  * read once a column and what depends on z alone once a row. */
 export function bakeMassif(plan: TerrainPlan): Heightfield {
   const cell = R.world.cell;
-  const n = Math.round(R.world.size / cell) + 1;
+  const n = Math.round(plan.size / cell) + 1;
   const share = new Float64Array(n);
   const st = new Float64Array(n);
   const bn = new Float64Array(n);

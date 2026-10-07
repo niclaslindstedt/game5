@@ -882,6 +882,12 @@ canvas {
   gap: 0.4rem;
 }
 
+/* HIS HEIGHT OVER THE SEA under the speed, in the captions' small type. */
+.hud-altitude {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
 /* THE DAMAGE INSTRUMENT (hud-damage.tsx): the skier from above beside
    the speed, its parts painted sound, tired or wrecked. */
 .hud-damage {

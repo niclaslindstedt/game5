@@ -111,6 +111,9 @@ export const STRINGS = {
 
   /* ── THE HUD (hud.tsx) ─────────────────────────────────────────────── */
   speedUnit: "km/h",
+  /** His height over the sea, under the speed (`HudSnapshot.altitude`). */
+  altitude: (m: number): string => `ALT ${Math.round(m)} M`,
+  altitudeSaid: "Height above sea level",
   /** The EDGE bar's caption (`hud-dial.tsx`) and the skid's word on it. */
   edge: "EDGE",
   brake: "SKID",

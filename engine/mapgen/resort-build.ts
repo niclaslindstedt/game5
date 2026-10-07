@@ -47,14 +47,7 @@ import { composeCourse, courseArc, type CoursePlan } from "./courses.ts";
 import { dealDrifts } from "./drift.ts";
 import { layDrops, publishDrops } from "./drops.ts";
 import { growForest } from "./forest.ts";
-import {
-  GRADES,
-  PISTE_GRADES,
-  pisteGradeOf,
-  steepestSpan,
-  type GradeRow,
-  type PisteGrade,
-} from "./grades.ts";
+import { GRADES, PISTE_GRADES, pisteGradeOf, steepestSpan, type GradeRow } from "./grades.ts";
 import { layOffKickers, layTrackKickers, publishTrackKickers } from "./kickers.ts";
 import { routeLane } from "./lanes.ts";
 import { planLifts, settleDrags, type DragGround } from "./drags.ts";
@@ -111,9 +104,9 @@ import { gridOnTrack } from "./spawn.ts";
 import { courseDay } from "./course-day.ts";
 import { dealSun, faceTheSun } from "./sun.ts";
 import { foldSurface, layCrust } from "./surface.ts";
-import type { TerrainPlan } from "./terrain.ts";
+import { seaLevelOf, type TerrainPlan } from "./terrain.ts";
 import { compileLevel } from "./compile.ts";
-import { courseGates, hashPick } from "./course-gates.ts";
+import { courseGates } from "./course-gates.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import type {
   Cliff,
@@ -143,6 +136,8 @@ export type BuiltRun = {
 
 /** A resort, built — everything a map of it shares. */
 export type BuiltResort = {
+  /** R25 — the sea's height in the map's frame, m (`seaLevelOf`). */
+  seaY: number;
   seed: number;
   attempt: number;
   sub: number;
@@ -249,9 +244,9 @@ export function attemptResort(
   version: GeneratorVersion,
 ): BuiltResort | string {
   const rng = createRng(sub);
-  const plan = planMassif(rng, region);
-  const ground = bakeMassif(plan);
   const traits = generatorTraits(version);
+  const plan = planMassif(rng, region, traits.lowMassif);
+  const ground = bakeMassif(plan);
   const chained = !traits.queueBeside;
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
@@ -413,9 +408,20 @@ export function attemptResort(
       (drag?.(x, z, half) ?? false) || offRooms(x, z, half);
     // A drag's own run that will not walk clear of its line walks as it
     // would; the drag is then laid again off it (`clearStations`).
-    const laid =
+    let laid =
       lay(before.length > 0 ? { ...fair, avoid } : fair, shared) ||
       (!!drag && lay({ ...fair, avoid: before.length > 0 ? offRooms : undefined }, shared));
+    // From v8 a piste the tall mountain is too steep to lay at its colour
+    // is walked again a colour harder (R27): a shoulder's blue comes down as
+    // a red where the face will not carry a blue.
+    const harder =
+      spec.kind === "piste" && spec.row.id
+        ? PISTE_GRADES[PISTE_GRADES.indexOf(spec.row.id) + 1]
+        : undefined;
+    if (!laid && !traits.lowMassif && harder) {
+      const again = { ...fair, row: GRADES[harder] };
+      laid = lay(before.length > 0 ? { ...again, avoid } : again, shared);
+    }
     if (laid && placed) rooms.push(placed);
   }
   const pistes = walked.filter((w) => w.spec.kind === "piste").length;
@@ -804,6 +810,7 @@ export function attemptResort(
   }
   if (courses.length === 0) return "no course runs down the network to the village";
   return {
+    seaY: seaLevelOf(plan, ground, village),
     seed,
     attempt,
     sub,
@@ -925,7 +932,7 @@ export function resortLevel(
   return {
     ...compileLevel({
       seed: b.seed,
-      size: R.world.size,
+      size: b.plan.size,
       ground: b.ground,
       packed: b.packed,
       points,
@@ -947,8 +954,11 @@ export function resortLevel(
         summit: { x: b.plan.massif?.peakX ?? 0, z: b.plan.summitZ, y: base.y + b.plan.vertical },
         base,
         vertical: b.plan.vertical,
-        altitude: b.plan.altitude,
-        treeLine: b.plan.treeLine,
+        // The village's altitude over the sea, and the tree line the plan's
+        // height over the floor above it (R21).
+        altitude: b.village.y - b.seaY,
+        treeLine: b.village.y - b.seaY + (b.plan.treeLine - b.plan.altitude),
+        sea: b.seaY,
       },
       attempt: b.attempt,
       drifts,
@@ -968,33 +978,6 @@ export function resortLevel(
       tunnels: b.tunnels,
     },
   };
-}
-
-/** R28 — which course a map asks for: by id, else of the colour asked (or
- * the nearest colour there is), else the seed's. */
-export function chooseCourse(
-  b: BuiltResort,
-  ask: { course?: string; grade?: PisteGrade; dealt: PisteGrade },
-): number {
-  if (ask.course !== undefined) {
-    const i = b.courses.findIndex((c) => c.course.id === ask.course);
-    if (i >= 0) return i;
-  }
-  const want = ask.grade ?? ask.dealt;
-  const order = ["green", "blue", "red", "black"] as const;
-  const wi = order.indexOf(want);
-  let best = 0;
-  let bestScore = Infinity;
-  b.courses.forEach((c, i) => {
-    const d = Math.abs(order.indexOf(c.course.grade) - wi);
-    // Nearest colour, the harder on a tie, then the seed's own pick.
-    const score = d * 4 - (order.indexOf(c.course.grade) > wi ? 1 : 0) + hashPick(b.seed, i) * 0.5;
-    if (score < bestScore) {
-      bestScore = score;
-      best = i;
-    }
-  });
-  return best;
 }
 
 export { BENCH, GRADES };

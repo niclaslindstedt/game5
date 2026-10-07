@@ -53,6 +53,10 @@ const args = parseArgs(
     },
     course: { kind: "string", help: "the course to trace on the plan (R28): a run's number" },
     grade: { kind: "string", help: "trace a course of this colour instead" },
+    version: {
+      kind: "number",
+      help: "build on this generator version (a pinned map's), not the current",
+    },
     scale: { kind: "number", default: 0.4, help: "plan pixels per metre" },
     out: { kind: "string", help: "file stem under previews/ (no extension)" },
     debug: { kind: "flag", help: "print why every run slot that failed to walk failed" },
@@ -76,6 +80,7 @@ function build(seed) {
     region: args.region,
     course: args.course,
     grade: args.grade,
+    ...(args.version === undefined ? {} : { version: args.version }),
   });
   return { level, ms: performance.now() - t0 };
 }

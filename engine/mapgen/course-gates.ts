@@ -9,6 +9,7 @@ import { startGateArc } from "./spawn.ts";
 import { trackPointAt } from "./query.ts";
 import type { PisteGrade } from "./grades.ts";
 import type { Checkpoint, Cliff, Kicker, TrackPoint } from "./types.ts";
+import type { BuiltResort } from "./resort-build.ts";
 
 /** R11, R24, R28 — THE GATES DOWN A COURSE: the start gate across the
  * piste, the finish line across the arena, and between them SLALOM GATES
@@ -118,4 +119,31 @@ export function hashPick(seed: number, i: number): number {
   let v = Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(i + 1, 0xc2b2ae35);
   v ^= v >>> 15;
   return (v >>> 0) / 4294967296;
+}
+
+/** R28 — which course a map asks for: by id, else of the colour asked (or
+ * the nearest colour there is), else the seed's. */
+export function chooseCourse(
+  b: BuiltResort,
+  ask: { course?: string; grade?: PisteGrade; dealt: PisteGrade },
+): number {
+  if (ask.course !== undefined) {
+    const i = b.courses.findIndex((c) => c.course.id === ask.course);
+    if (i >= 0) return i;
+  }
+  const want = ask.grade ?? ask.dealt;
+  const order = ["green", "blue", "red", "black"] as const;
+  const wi = order.indexOf(want);
+  let best = 0;
+  let bestScore = Infinity;
+  b.courses.forEach((c, i) => {
+    const d = Math.abs(order.indexOf(c.course.grade) - wi);
+    // Nearest colour, the harder on a tie, then the seed's own pick.
+    const score = d * 4 - (order.indexOf(c.course.grade) > wi ? 1 : 0) + hashPick(b.seed, i) * 0.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return best;
 }

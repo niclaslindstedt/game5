@@ -5,8 +5,9 @@
 // A BLOW IS A STOP. A part meeting something at `v` m/s is brought to rest
 // over a distance — its own give (the flesh, the bone's flex, the clothes,
 // `injury.give`) and the give of what it met: the snow's (bare ice, the
-// groomer, loose snow by its depth — `injury.snow`) or a trunk's (`.tree`,
-// and the helmet's liner on the head). Its mean deceleration is v² / 2s and
+// groomer, loose snow by its depth — `injury.snow`) or a solid's by what
+// it is made of (`.solid`: a trunk, a tower's bare steel or its pad, a
+// cabin's logs — and the helmet's liner on the head). Its mean deceleration is v² / 2s and
 // its peak half a sine's (`injury.peak`): that peak, in g, is the blow. The
 // same fall is a few g into a deep day's powder, tens on the groomer and a
 // hundred on ice, which is the whole of how the snow's depth and hardness
@@ -96,6 +97,8 @@ import type {
   Thrown,
 } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
+import { axialOf, facingOf, legAxialOf, torsoOf } from "./body-torso.ts";
+import type { Stuff } from "./upright-grid.ts";
 
 const I = TUNING.injury;
 const dt = TUNING.dt;
@@ -264,51 +267,18 @@ const base = (part: BodyPart): boolean => CENTRAL.has(part);
 
 const sided = (base: string, side: number): BodyPart =>
   `${base}${side < 0 ? "L" : "R"}` as BodyPart;
-
-/** The body's frame off the ragdoll: its right and the way out of its
- * chest, unit vectors. */
-const right: Vec3 = { x: 1, y: 0, z: 0 };
-const chest: Vec3 = { x: 0, y: 0, z: 1 };
-function torsoOf(P: readonly number[]): void {
-  const R = RAGDOLL;
-  const hx = P[3 * R.hipR] - P[3 * R.hipL];
-  const hy = P[3 * R.hipR + 1] - P[3 * R.hipL + 1];
-  const hz = P[3 * R.hipR + 2] - P[3 * R.hipL + 2];
-  const ux = (P[3 * R.shoulderL] + P[3 * R.shoulderR] - P[3 * R.hipL] - P[3 * R.hipR]) / 2;
-  const uy =
-    (P[3 * R.shoulderL + 1] + P[3 * R.shoulderR + 1] - P[3 * R.hipL + 1] - P[3 * R.hipR + 1]) / 2;
-  const uz =
-    (P[3 * R.shoulderL + 2] + P[3 * R.shoulderR + 2] - P[3 * R.hipL + 2] - P[3 * R.hipR + 2]) / 2;
-  const hl = hypot3(hx, hy, hz) || 1;
-  right.x = hx / hl;
-  right.y = hy / hl;
-  right.z = hz / hl;
-  // Out of the chest: right × up (x right, y up the spine, z out of it).
-  const ox = right.y * uz - right.z * uy;
-  const oy = right.z * ux - right.x * uz;
-  const oz = right.x * uy - right.y * ux;
-  const ol = hypot3(ox, oy, oz) || 1;
-  chest.x = ox / ol;
-  chest.y = oy / ol;
-  chest.z = oz / ol;
-}
-
-/** Which side of the trunk faces what it met, `n` the way out of that
- * surface toward the body: his front when his chest faces into it. */
-function facingOf(nx: number, ny: number, nz: number): Facing {
-  const d = chest.x * nx + chest.y * ny + chest.z * nz;
-  if (d < -0.5) return "front";
-  if (d > 0.5) return "back";
-  return right.x * nx + right.y * ny + right.z * nz > 0 ? "left" : "right";
-}
+/** The outer side of a part on `side`: his left of a left one. */
+const outside = (side: number): Facing => (side < 0 ? "left" : "right");
 
 const n: Vec3 = { x: 0, y: 1, z: 0 };
+const way: Vec3 = { x: 0, y: 0, z: 1 };
 const near: number[] = [];
 
 /** THE TRUNK'S SHARE of a blow on a shoulder or a hip, by which way he
- * faces what he met. */
+ * faces what he met: met flat on a SIDE the flank itself meets it — the
+ * ribs over the spleen or the liver — and more of it reaches them. */
 function trunkShare(hip: boolean, v: number, against: number, tree: boolean, face: Facing): void {
-  const s = I.share.trunk;
+  const s = face === "left" || face === "right" ? I.share.flank : I.share.trunk;
   if (hip) {
     if (face === "back") strike("back", blow("back", v, against, tree, s), face);
     strike("abdomen", blow("abdomen", v, against, tree, s), face);
@@ -319,7 +289,15 @@ function trunkShare(hip: boolean, v: number, against: number, tree: boolean, fac
 }
 
 /** ONE POINT OF THE RAGDOLL meeting the snow or a trunk at `v` m/s. */
-function pointBlow(i: number, v: number, against: number, tree: boolean, face: Facing): void {
+function pointBlow(
+  i: number,
+  v: number,
+  against: number,
+  tree: boolean,
+  face: Facing,
+  n: Vec3,
+  points: readonly number[],
+): void {
   const R = RAGDOLL;
   const S = I.share;
   const source: ImpactSource = tree ? "tree" : "snow";
@@ -335,13 +313,20 @@ function pointBlow(i: number, v: number, against: number, tree: boolean, face: F
   let part: BodyPart;
   if (i === R.head) {
     part = "head";
-    strike("neck", blow("neck", v, against, tree, S.neck), face);
+    // The neck is whipped by any blow on the head, and LOADED by one that
+    // runs down the spine — the head met first in a dive.
+    const axial = axialOf(n.x, n.y, n.z, true);
+    strike("neck", blow("neck", v, against, tree, S.neck + S.neckAxial * axial), face);
   } else if (i === R.shoulderL || i === R.shoulderR) {
     part = sided("shoulder", side);
     trunkShare(false, v, against, tree, face);
   } else if (i === R.hipL || i === R.hipR) {
     part = "pelvis";
     trunkShare(true, v, against, tree, face);
+    // Sat down on it, the trunk upright over the seat: the blow runs up the
+    // spine as a load — the seated fall's compression fracture.
+    const axial = axialOf(n.x, n.y, n.z, false);
+    if (axial > 0) charge("back", "load", blow("pelvis", v, against, tree) * I.seat * axial);
   } else if (i === R.kneeL || i === R.kneeR) {
     part = sided("knee", side);
     strike(sided("thigh", side), blow(sided("thigh", side), v, against, tree, S.kneeThigh));
@@ -349,11 +334,23 @@ function pointBlow(i: number, v: number, against: number, tree: boolean, face: F
   } else if (i === R.footL || i === R.footR) {
     part = sided("foot", side);
     strike(sided("shin", side), blow(sided("shin", side), v, against, tree, S.footShin));
+    // Met sole first along a straight body — feet first into a trunk, or
+    // stood down onto them — the blow runs UP THE LEG as a landing's does:
+    // the heel, the pilon, the plateau, the femur and the hip socket.
+    const axial = legAxialOf(points, i, n.x, n.y, n.z);
+    if (axial > 0) {
+      const leg = blow(part, v, against, tree) * S.legAxial * axial;
+      for (const p of ["foot", "shin", "knee", "thigh"]) charge(sided(p, side), "load", leg);
+      charge("pelvis", "load", leg);
+    }
   } else if (i === R.elbowL || i === R.elbowR) {
     part = sided("arm", side);
+    // ...up the arm into the shoulder from its outer end, as a blow on the
+    // point of the shoulder is.
     strike(
       sided("shoulder", side),
       blow(sided("shoulder", side), v, against, tree, S.elbowShoulder),
+      outside(side),
     );
   } else {
     part = sided("hand", side);
@@ -361,6 +358,7 @@ function pointBlow(i: number, v: number, against: number, tree: boolean, face: F
     strike(
       sided("shoulder", side),
       blow(sided("shoulder", side), v, against, tree, S.handShoulder),
+      outside(side),
     );
   }
   const g = blow(part, v, against, tree);
@@ -381,14 +379,16 @@ function ragdollBlows(state: GameState, b: Thrown): void {
     const v = b.impacts[i];
     if (v > I.touch) {
       level.normalAt(x, z, n);
-      pointBlow(i, v, snowGive(state, x, z), false, facingOf(n.x, n.y, n.z));
+      pointBlow(i, v, snowGive(state, x, z), false, facingOf(n.x, n.y, n.z), n, P);
     }
     const t = b.struck[i];
     if (t > I.touch) {
-      // The trunk's way out toward him: from the nearest trunk's centre.
+      // The solid's way out toward him: from the nearest one's centre — and
+      // what it is made of.
       let best = Infinity;
       let ux = 0;
       let uz = 0;
+      let stuff: Stuff = "trunk";
       solidsNear(level, x, z, 2, near);
       const solids = solidsOf(level);
       for (const k of near) {
@@ -400,26 +400,42 @@ function ragdollBlows(state: GameState, b: Thrown): void {
           best = d;
           ux = dx / (d || 1);
           uz = dz / (d || 1);
+          stuff = tree.stuff ?? "trunk";
         }
       }
-      pointBlow(i, t, I.tree, true, facingOf(ux, 0, uz));
+      way.x = ux;
+      way.y = 0;
+      way.z = uz;
+      pointBlow(i, t, I.solid[stuff], true, facingOf(ux, 0, uz), way, P);
     }
   }
 }
 
-/** A TRUNK MET ON THE SKIS at `v` m/s closing: in front of the skis it
- * takes the legs, beside him his side. */
-function trunkOnSkis(c: SkierState, v: number, tx: number, tz: number): void {
+/** A TRUNK — or any solid, of `stuff` and `radius` — MET ON THE SKIS at
+ * `v` m/s closing: in front of the skis, square enough on that the tips
+ * meet it, it takes the legs; beside him — or ahead but wide enough of his
+ * line for the skis to pass it (`front.lane`) — his side. */
+function trunkOnSkis(
+  c: SkierState,
+  v: number,
+  tx: number,
+  tz: number,
+  stuff: Stuff = "trunk",
+  radius = 0,
+): void {
   const dx = tx - c.x;
   const dz = tz - c.z;
   const fx = Math.sin(c.heading);
   const fz = Math.cos(c.heading);
-  const ahead = dx * fx + dz * fz > 0.4 * (envelopeOf(c.spec).length / 2);
-  const side = dx * fz - dz * fx >= 0 ? 1 : -1;
+  const across = dx * fz - dz * fx;
+  const ahead =
+    dx * fx + dz * fz > 0.4 * (envelopeOf(c.spec).length / 2) &&
+    Math.abs(across) < radius + I.front.lane;
+  const side = across >= 0 ? 1 : -1;
   let top = 0;
   let topPart: BodyPart = "shinL";
   const hit = (part: BodyPart, share: number, face: Facing | null): void => {
-    const g = blow(part, v, I.tree, true, share);
+    const g = blow(part, v, I.solid[stuff], true, share);
     strike(part, g, face);
     if (g > top && base(part)) {
       top = g;
@@ -539,7 +555,7 @@ function steel(speed: number): void {
   hit("head", 0.7, "front");
   hit("neck", I.share.neck, null);
   for (const s of [-1, 1]) {
-    hit(sided("shoulder", s), 0.9, null);
+    hit(sided("shoulder", s), 0.9, "front");
     hit(sided("arm", s), 0.8, null);
     hit(sided("thigh", s), 0.7, null);
     hit(sided("knee", s), 0.6, null);
@@ -583,7 +599,7 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
     if (!def.fracture) continue;
     const p = PART[h.part];
     const d = dose[p * MECHS.length + MECHS.indexOf(def.mech)];
-    if (d <= 0 || (def.face && (faced[p] < 0 || FACES[faced[p]] !== def.face))) continue;
+    if (d <= 0 || !struckOn(def, p)) continue;
     const e = energyOver(def.mech, d, def.at * (1 - I.weaken * body.worst[p]));
     if (e > (h.energy ?? 1)) h.energy = e;
   }
@@ -597,7 +613,7 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
       if (def.ais < worst) break;
       const d = dose[p * MECHS.length + MECHS.indexOf(def.mech)];
       if (d <= 0) continue;
-      if (def.face && (faced[p] < 0 || FACES[faced[p]] !== def.face)) continue;
+      if (!struckOn(def, p)) continue;
       const part = BODY_PARTS[p];
       if (body.injuries.some((h) => h.kind === kind && h.part === part)) continue;
       const at = def.at * (1 - I.weaken * worst);
@@ -625,6 +641,20 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
     if (ais > body.worst[p]) body.worst[p] = ais;
     events.push({ kind: "injury", t: state.t, part, injury: kind, ais });
   }
+}
+
+/** Whether this step's blow on part `p` came from a side `def` is done
+ * from: its organ's `face`, and the sides a bone breaks on (`on`) — the
+ * point of the shoulder for the collarbone, behind for the shoulder blade,
+ * the front of the knee for the kneecap. */
+function struckOn(def: InjuryDef, p: number): boolean {
+  if (!def.face && !def.on) return true;
+  const f = faced[p] < 0 ? null : FACES[faced[p]];
+  if (f === null) return false;
+  if (def.face && f !== def.face) return false;
+  if (!def.on) return true;
+  const out = BODY_PARTS[p].endsWith("L") ? "left" : "right";
+  return def.on.some((o) => o === f || (o === "outside" && f === out));
 }
 
 const found: {
@@ -656,7 +686,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   if (off) ragdollBlows(state, off);
   else {
     for (const e of events) {
-      if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z);
+      if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z, e.stuff, e.radius);
       else if (e.kind === "land") landing(state, e.g, e.airTime);
       else if (e.kind === "wipeout") fall(c, e.cause, e.speed);
     }
@@ -676,6 +706,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
         strike(
           sided("shoulder", s),
           blow(sided("shoulder", s), c.bodyHit, give, false, I.share.trunk),
+          face,
         );
         strike("abdomen", blow("abdomen", c.bodyHit, give, false, I.share.trunk), face);
         offer(g, "pelvis", "snow");

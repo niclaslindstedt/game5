@@ -81,14 +81,14 @@ describe("a blow", () => {
   it("a helmet at its test speed into a trunk risks a concussion, never a fracture", () => {
     // 5.4 m/s (about 20 km/h), the speed a helmet is tested at and about as
     // fast as one protects: the trunk crushes its liner.
-    const g = blowOf(5.4, I.give.head + I.tree + I.helmet);
+    const g = blowOf(5.4, I.give.head + I.solid.trunk + I.helmet);
     expect(riskOf(g, INJURIES.concussion.at)).toBeGreaterThan(0.1);
     expect(riskOf(g, INJURIES.concussion.at)).toBeLessThan(0.5);
     expect(riskOf(g, INJURIES.skullFracture.at)).toBe(0);
     // ...and at 30 km/h a trunk can already fracture the skull of a skier
     // in a helmet.
     expect(
-      riskOf(blowOf(30 / 3.6, I.give.head + I.tree + I.helmet), INJURIES.skullFracture.at),
+      riskOf(blowOf(30 / 3.6, I.give.head + I.solid.trunk + I.helmet), INJURIES.skullFracture.at),
     ).toBeGreaterThan(0.2);
   });
 

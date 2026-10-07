@@ -13,7 +13,7 @@ import type { Level } from "../mapgen/types.ts";
 import { cabinWalls } from "./cabins.ts";
 import { TOWER_PAD, liftPlans } from "./lift-line.ts";
 import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
-import { rockSolids } from "./rocks.ts";
+import { wallSolids } from "./cliff-wall.ts";
 import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
 
@@ -66,15 +66,15 @@ const solids = new WeakMap<Level, Upright[]>();
 
 /** EVERYTHING SOLID standing in `level`'s snow: its trunks, in
  * `level.trees`' order — so a trunk's index is its index there — then its
- * posts, then its cabins' walls (`cabins.ts`), then the crags' blocks on
- * its drops (`rocks.ts`). What a skier, his body thrown, his skis let go
+ * posts, then its cabins' walls (`cabins.ts`), then the rock walls of
+ * its cliffs (`cliff-wall.ts`). What a skier, his body thrown, his skis let go
  * and the snowmobile are pushed out of. */
 export function solidsOf(level: Level): readonly Upright[] {
   let list = solids.get(level);
   if (list) return list;
   const posts = postsOf(level);
   const cabins = cabinWalls(level);
-  const rocks = rockSolids(level);
+  const rocks = wallSolids(level);
   list =
     posts.length + cabins.length + rocks.length === 0
       ? level.trees

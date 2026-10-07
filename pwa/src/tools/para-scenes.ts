@@ -178,6 +178,18 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "brakes-side", around(12, 2, 0, 55, 0, 3));
     st.shoot(s, "brakes-behind", around(0, 1, 12, 55, 0, 3));
   },
+  // ── THE LEAN IN THE HARNESS: forward over the bar, back reclined ──────
+  lean(st) {
+    const s = airborne(st);
+    st.run(s, 2, ride({ tuck: 0.7 }));
+    st.shoot(s, "level-side", around(9, 0, 0, 50, 0, 1.5));
+    st.run(s, 2, ride({ tuck: 0.7, lean: -1 }));
+    st.shoot(s, "forward-side", around(9, 0, 0, 50, 0, 1.5));
+    st.shoot(s, "forward-chase", "chase");
+    st.run(s, 3, ride({ tuck: 0.7, lean: 1 }));
+    st.shoot(s, "back-side", around(9, 0, 0, 50, 0, 1.5));
+    st.shoot(s, "back-chase", "chase");
+  },
   // ── DOWN ON THE SNOW UNDER IT, AND THE LANDING ─────────────────────────
   landing(st) {
     // Off the summit and straight back down, above the tree line.
@@ -275,6 +287,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   launch: ["launch"],
   flight: ["flight"],
   turn: ["turn"],
+  lean: ["lean"],
   landing: ["landing"],
   fold: ["fold"],
   drop: ["drop"],

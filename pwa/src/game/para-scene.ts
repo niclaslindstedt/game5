@@ -30,13 +30,16 @@ import {
   shapeCanopy,
   type LineNode,
 } from "./para-canopy.ts";
-import { MOTOR, createMotor } from "./para-motor.ts";
+import { MOTOR, createMotor, lineLightOf, litLine, type LineLight } from "./para-motor.ts";
+import type { SkyLook } from "./sky.ts";
 import type { Perch } from "./skier-dangle.ts";
 
 export type ParaScene = {
   group: THREE.Group;
   /** One frame: the wing, the lines and the motor where the run has them. */
   frame(state: GameState, alpha: number): void;
+  /** The sky's light on the lines and the net this frame (`lineLightOf`). */
+  light(look: SkyLook): void;
   /** The figure sat in the harness, or null on the snow (`SkisModel.setPerch`). */
   perch(state: GameState): Perch | null;
   /** The canopy's centre as drawn this frame, or null with no wing up. */
@@ -143,17 +146,19 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
   }
   lineGeo.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
   lineGeo.setAttribute("color", new THREE.BufferAttribute(lineCol, 3));
-  const lineMat = hazeMaterial(
+  const lineLight: LineLight = { value: new THREE.Color(1, 1, 1) };
+  const lineMat = litLine(
     new THREE.LineBasicMaterial({ vertexColors: true }),
     haze,
     "para-line",
+    lineLight,
   );
   const lines = new THREE.LineSegments(lineGeo, lineMat);
   lines.frustumCulled = false;
   group.add(lines);
 
   // THE MOTOR UNIT on his back.
-  const motor = createMotor(haze);
+  const motor = createMotor(haze, lineLight);
   group.add(motor.group);
 
   const pilotTrack = createTrack();
@@ -279,6 +284,9 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
 
   return {
     group,
+    light(look) {
+      lineLightOf(look, lineLight.value);
+    },
     frame(state, alpha) {
       const p = state.para;
       if (!p) {

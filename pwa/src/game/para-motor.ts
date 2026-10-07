@@ -16,6 +16,7 @@
 import * as THREE from "three";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import type { SkyLook } from "./sky.ts";
 
 /** THE UNIT's measure in his frame, m. */
 export const MOTOR = {
@@ -116,7 +117,40 @@ function netGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
-export function createMotor(haze: HazeUniforms): MotorUnit {
+/** THE LIGHT ON A LINE: three draws a line unlit, at its paint whatever the
+ * hour, so the lines and the cage's net would glow at night. A line is
+ * lit instead as a Lambert surface turned every way is: the hemisphere's
+ * mean and half the key, over pi — written each frame off the sky
+ * (`lineLightOf`) into the one uniform every line material reads. */
+export type LineLight = { value: THREE.Color };
+
+export function lineLightOf(look: SkyLook, out: THREE.Color): THREE.Color {
+  const a = look.ambient / 2;
+  const k = look.keyIntensity / 2;
+  const at = (i: number): number =>
+    (a * (look.skyLight[i] + look.groundLight[i]) + k * look.keyColour[i]) / Math.PI;
+  return out.setRGB(at(0), at(1), at(2));
+}
+
+/** A line material in the haze, lit by `light`. */
+export function litLine(
+  material: THREE.LineBasicMaterial,
+  haze: HazeUniforms,
+  name: string,
+  light: LineLight,
+): THREE.LineBasicMaterial {
+  return hazeMaterial(material, haze, name, (shader) => {
+    shader.uniforms.uLineLight = light;
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform vec3 uLineLight;")
+      .replace(
+        "#include <color_fragment>",
+        "#include <color_fragment>\ndiffuseColor.rgb *= uLineLight;",
+      );
+  });
+}
+
+export function createMotor(haze: HazeUniforms, light: LineLight): MotorUnit {
   const group = new THREE.Group();
   group.name = "para-motor";
   const C = MOTOR.cage;
@@ -136,7 +170,12 @@ export function createMotor(haze: HazeUniforms): MotorUnit {
     transparent: true,
     opacity: 0.85,
   });
-  const netMat = hazeMaterial(new THREE.LineBasicMaterial({ color: 0xe8d23a }), haze, "para-net");
+  const netMat = litLine(
+    new THREE.LineBasicMaterial({ color: 0xe8d23a }),
+    haze,
+    "para-line",
+    light,
+  );
   const blur = new THREE.MeshBasicMaterial({
     color: 0x101114,
     transparent: true,

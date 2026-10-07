@@ -494,7 +494,7 @@ export const STRINGS = {
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   startRun: "RUN",
   startRunHint:
-    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last two stops are machines waiting at the bottom: the SNOWMOBILE — start stood on its boards with your skis racked, ride it anywhere on the mountain and press the jump twice to ski off — and the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off.",
+    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last two stops are machines waiting at the bottom: the SNOWMOBILE — start stood on its boards with your skis racked, ride it anywhere on the mountain and press the jump twice to ski off — and the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off. And last of all the AFTERSKI: start inside the valley's lodge with the party under way — the beers come round on their own, and JUMP orders another — then head out with the machine key and ski off with whatever buzz you drank.",
   /** The RUN row's last stop: the ride begun on the helicopter (`heli.ts`). */
   startRunHeli: "HELICOPTER",
   /** A RUN row's stop: the number the piste map signs it with. */

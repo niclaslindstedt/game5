@@ -9,6 +9,10 @@
 const BUZZ_WORDS = ["TIPSY", "MERRY", "WOBBLY", "SLOSHED", "LEGLESS"] as const;
 
 export const AFTERSKI_STRINGS = {
+  /** The start card's RUN row: the ride begun inside the lodge, at the
+   * party (`free-ride.ts`'s `AFTERSKI_RUN`). */
+  startRunAfterski: "AFTERSKI",
+
   /* ── THE WAY IN (hud-afterski.tsx) ─────────────────────────────────── */
   /** A lodge near him on a free ride, how far its door is, and how to go
    * in stood at it. */

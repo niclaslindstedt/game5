@@ -19,9 +19,12 @@
 //
 // WHAT IS ON IT is what a free skier reads a map for: the piste, the start
 // line, and EVERY KICKER — the crests shaped to throw a skis, on the track and off
-// it — which is what he is out there hunting.
+// it — which is what he is out there hunting; and EVERY HOUSE (`cabinsOf`:
+// the huts, cabins, chalets and sheds beside the runs, and the afterski
+// lodges), so a seed is chosen knowing where on the mountain there is a
+// roof to ski to.
 
-import type { GeneratedLevel, Level } from "@engine";
+import type { Cabin, CabinKind, GeneratedLevel, Level } from "@engine";
 
 /** The chart's own square user space. */
 export const CHART_VIEW = 100;
@@ -36,6 +39,13 @@ export const CHART_PX = 256;
  * whether it is on the piste (`K…`) or out on the mountain (`X…`). */
 export type ChartKicker = { id: string; x: number; y: number; angle: number; onTrack: boolean };
 
+/** A house on the chart: where it stands and what kind it is (an afterski
+ * lodge is marked apart from the rest). */
+export type ChartHouse = { id: string; x: number; y: number; kind: CabinKind };
+
+/** What a house is read off: `cabinsOf`'s row, or any point with a kind. */
+export type HouseSpot = Pick<Cabin, "id" | "kind" | "x" | "z">;
+
 /** Everything drawn over the ground, in chart units. */
 export type SeedSchematic = {
   /** The map's side, m — what a chart point is scaled back by. */
@@ -44,6 +54,8 @@ export type SeedSchematic = {
    * finish. */
   track: string;
   kickers: ChartKicker[];
+  /** Every house on the map (`cabinsOf`). */
+  houses: ChartHouse[];
   /** The start line's first slot: where a ride starts when no spot is
    * picked, and the way it faces as an SVG rotation (`chartAngle`), rad. */
   grid: { x: number; y: number; angle: number };
@@ -97,9 +109,11 @@ export function trackPath(level: Pick<Level, "size" | "track">): string {
  * mirrored, still clockwise. */
 export const chartAngle = (heading: number): number => heading + Math.PI;
 
-/** THE SCHEMATIC of a map, cut once per seed (in the worker). */
+/** THE SCHEMATIC of a map, cut once per seed (in the worker); `houses` is
+ * the map's `cabinsOf`, handed in because it asks for the whole map. */
 export function seedSchematic(
   level: Pick<GeneratedLevel, "size" | "track" | "kickers" | "grid">,
+  houses: readonly HouseSpot[] = [],
 ): SeedSchematic {
   const size = level.size;
   const kickers = level.kickers.map((k) => {
@@ -112,6 +126,10 @@ export function seedSchematic(
     size,
     track: trackPath(level),
     kickers,
+    houses: houses.map((h) => {
+      const [x, y] = toChart(size, h.x, h.z);
+      return { id: h.id, x, y, kind: h.kind };
+    }),
     grid: { x: gx, y: gy, angle: chartAngle(g.heading) },
   };
 }

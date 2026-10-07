@@ -223,8 +223,10 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
   p.prop = (p.prop + (p.rpm / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
   const fx = Math.sin(p.heading);
   const fz = Math.cos(p.heading);
+  // In the air the thrust line tilts with the pilot's lean in the harness.
+  const tilt = E.tilt - ctl.bar * PARA.lean.pitch * PARA.lean.thrust;
   const along = c.airborne
-    ? { x: fx * Math.cos(E.tilt), y: Math.sin(E.tilt), z: fz * Math.cos(E.tilt) }
+    ? { x: fx * Math.cos(tilt), y: Math.sin(tilt), z: fz * Math.cos(tilt) }
     : rotate(c.q, { x: 0, y: 0, z: 1 });
   const through = Math.max(0, c.vx * along.x + c.vy * along.y + c.vz * along.z);
   const r = p.rpm / E.full;
@@ -526,7 +528,10 @@ function hang(state: GameState, p: ParaState): void {
     2 * Wd,
   );
   const bank = clamp(p.bank, -BANK_MOST, BANK_MOST);
-  const wantPitch = slopePitch * square;
+  // Aloft he leans in the harness as the bar asks (forward over it, back
+  // reclined); stood up to land, squared to the slope.
+  const lean = -p.controls.bar * PARA.lean.pitch;
+  const wantPitch = slopePitch * square + lean * (1 - square);
   const wantRoll = bank * (1 - square) + slopeRoll * square;
   const k = 1 - Math.exp(-dt / SWING);
   let dh = p.heading - c.heading;

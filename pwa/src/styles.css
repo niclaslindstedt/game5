@@ -5000,6 +5000,20 @@ canvas {
   fill: #7832d2;
 }
 
+/* A house: the log cabins' timber brown under a snow-white rim, as the
+   minimap's roofs are; an afterski lodge in a warm amber, lit for the
+   evening. */
+.seed-preview-house {
+  fill: #6b4226;
+  stroke: var(--snow);
+  stroke-width: 0.45;
+  stroke-linejoin: round;
+}
+
+.seed-preview-house-lodge {
+  fill: #e0902a;
+}
+
 .seed-preview-grid {
   fill: #1ea848;
   stroke: var(--snow);

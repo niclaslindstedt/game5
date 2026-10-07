@@ -20,6 +20,7 @@
 
 import {
   boundLevel,
+  cabinsOf,
   generateLevel,
   gradeOf,
   helipadOf,
@@ -167,6 +168,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         bakeMinimap(minimapSource(level), CHART_PX, CHART_LIGHT),
         transfer,
       );
+      const houses = cabinsOf(level);
       const view = fitPanorama(level);
       const drawn = renderPanorama(level, view);
       const pick = pickGrid(view, drawn.depth);
@@ -174,7 +176,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
       const panorama: PreviewPanorama = {
         picture: await encode(view.px, drawn.rgba, transfer),
         view,
-        schematic: panoramaSchematic(level, view, drawn.depth),
+        schematic: panoramaSchematic(level, view, drawn.depth, houses),
         pick,
       };
       painted = {
@@ -183,7 +185,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         grade,
         ok: true,
         picture,
-        schematic: seedSchematic(level),
+        schematic: seedSchematic(level, houses),
         panorama,
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,

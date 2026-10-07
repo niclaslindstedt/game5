@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SKIS,
+  cabinsOf,
   createGame,
   lastPiste,
   freeRunOf,
@@ -282,6 +283,20 @@ describe("the chart (seed-chart.ts)", () => {
 
   it("holds a point off the chart on the map", () => {
     expect(fromChart(1000, -10, 150)).toEqual({ x: 1000, z: 1000 });
+  });
+
+  it("marks every house of a generated map where it stands", () => {
+    const level = generateLevel(38);
+    const houses = cabinsOf(level);
+    expect(houses.length).toBeGreaterThan(0);
+    const chart = seedSchematic(level, houses);
+    expect(chart.houses).toHaveLength(houses.length);
+    for (const [n, h] of chart.houses.entries()) {
+      expect(h.kind).toBe(houses[n].kind);
+      expect([h.x, h.y]).toEqual(toChart(level.size, houses[n].x, houses[n].z));
+    }
+    // A map handed no houses draws none.
+    expect(seedSchematic(level).houses).toEqual([]);
   });
 
   it("marks every kicker and the grid of a generated map", () => {

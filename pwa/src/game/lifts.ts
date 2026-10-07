@@ -40,6 +40,7 @@ import { createMapBoards } from "./map-board.ts";
 import {
   COLUMN_TAPER,
   DRAG_ARM,
+  TOWER_PAD,
   carrierAt,
   carrierCount,
   emptyChairAt,
@@ -80,6 +81,8 @@ const PAINT = {
   roof: 0x2f3338,
   rope: 0x15181b,
   skis: 0xe8e2d6,
+  pad: 0xd8411f,
+  band: 0xf2f0ea,
 };
 
 export type Lifts = {
@@ -299,6 +302,39 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
         // crossarm, both sunk into the snow.
         const top = s.rope - (s.station ? 0.4 : 0.9);
         set(s.x, s.ground - SINK, s.z, p.heading, size.set(w, top + SINK, w));
+      }
+    }
+  });
+
+  // THE PADS: a tower standing on or beside a run (`Support.pad`) wrapped
+  // from the snow to over a skier's head in vinyl-covered foam — a vivid
+  // octagonal sleeve round the column, two pale reflective bands near its
+  // top and a dark cap — so a skier who meets it meets the pad.
+  const pads = plans.reduce((n, p) => n + p.supports.filter((s) => s.pad).length, 0);
+  const sleeve = (h: number, y: number, colour: number) => {
+    const geo = new THREE.CylinderGeometry(1, 1, h, 8, 1, false);
+    geo.rotateY(Math.PI / 8);
+    geo.translate(0, y + h / 2, 0);
+    return { geo, colour };
+  };
+  const padGeo = merged([
+    sleeve(0.7, 0, PAINT.pad),
+    sleeve(0.04, 0.7, PAINT.band),
+    sleeve(0.12, 0.74, PAINT.pad),
+    sleeve(0.04, 0.86, PAINT.band),
+    sleeve(0.1, 0.9, PAINT.pad),
+    {
+      geo: new THREE.CylinderGeometry(0.86, 1, 0.02, 8).rotateY(Math.PI / 8).translate(0, 1.01, 0),
+      colour: PAINT.dark,
+    },
+  ]);
+  const vinyl = std({ vertexColors: true, roughness: 0.6, metalness: 0 }, "lift");
+  instanced(padGeo, vinyl, pads, (set) => {
+    for (const p of plans) {
+      const r = p.look.column * Math.SQRT2 + TOWER_PAD.thick;
+      for (const s of p.supports) {
+        if (!s.pad) continue;
+        set(s.x, s.ground - SINK, s.z, p.heading, size.set(r, TOWER_PAD.height + SINK, r));
       }
     }
   });

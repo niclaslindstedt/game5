@@ -38,8 +38,9 @@
 //     wheel: he stands in the track and the bar is put behind his thighs.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { nearestWithin } from "../mapgen/query.ts";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
-import type { Level, Lift } from "../mapgen/types.ts";
+import type { Level, Lift, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
 
 export type LiftKind = Lift["kind"];
@@ -190,6 +191,8 @@ export type Support = {
   ground: number;
   rope: number;
   station: boolean;
+  /** Wrapped in a pad (`TOWER_PAD`): a tower standing on or beside a run. */
+  pad?: boolean;
 };
 
 export type LiftPlan = {
@@ -207,6 +210,51 @@ export type LiftPlan = {
 
 /** How far a tower may be slid along the line off a piste, m. */
 const SLIDE = 24;
+/** WHERE A TOWER MAY STAND BESIDE A PISTE (`docs/summit-stations.md`). A
+ * ski area runs its lines up beside its runs, never down the middle of
+ * one, and where a tower must stand in or by a run the rules a ski area is
+ * held to ask that it be PADDED — wrapped from the snow to over a man's
+ * head in foam, so a skier who meets it meets the pad. So a tower is slid
+ * along its line, `slide` m at the most, until its column stands `clear`
+ * m outside every run's edge; where no slide gets it there it stands
+ * where it is furthest out, and a column that ends up nearer than `pad` m
+ * to an edge — or on the snow of a run — is padded. */
+export const TOWER_SITE = { slide: 44, step: 2, clear: 3, pad: 4, span: 3 } as const;
+/** A tower's pad: how high it wraps the column over the snow, m, and how
+ * thick its foam is round the column's foot, m. */
+export const TOWER_PAD = { height: 2.6, thick: 0.22 } as const;
+
+const lines = new WeakMap<Level, readonly (readonly TrackPoint[])[]>();
+/** Every piste of a map a tower keeps off: its runs and lanes, and the
+ * course raced (a venue's own line, when one is set over the map). */
+function pisteLines(level: Level): readonly (readonly TrackPoint[])[] {
+  let out = lines.get(level);
+  if (!out) {
+    out = [...(level.resort?.runs ?? []).map((r) => r.points), level.track.points].filter(
+      (p) => p.length > 1,
+    );
+    lines.set(level, out);
+  }
+  return out;
+}
+
+const hit: TrackHit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
+/** How far (x, z) stands outside the nearest piste's edge, m — negative
+ * on its snow — looking `within` m of its edge (Infinity past that). */
+export function pisteGap(level: Level, x: number, z: number, within = 40): number {
+  let gap = Infinity;
+  for (const points of pisteLines(level)) {
+    nearestWithin({ track: { points, length: 0 } }, x, z, within + 40, hit);
+    if (hit.distance === Infinity) continue;
+    const a = points[hit.index];
+    const b = points[Math.min(points.length - 1, hit.index + 1)];
+    const span = b.s - a.s;
+    const t = span > 0 ? Math.min(1, Math.max(0, (hit.s - a.s) / span)) : 0;
+    gap = Math.min(gap, hit.distance - (a.width + (b.width - a.width) * t) / 2);
+  }
+  return gap;
+}
+
 /** The step a span is read at for clearance, m. */
 const PROBE = 4;
 
@@ -283,7 +331,12 @@ const DRAG_HOLD = 1;
  * crest of every span the rope would not clear — and a tower raised where
  * a span is too short to split. Pure: the same lift on the same map plans
  * the same. */
-export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]): LiftPlan {
+export function planLift(
+  level: Level,
+  lift: Lift,
+  look = LIFT_LOOK[lift.kind],
+  sited = true,
+): LiftPlan {
   const ex = lift.top.x - lift.bottom.x;
   const ez = lift.top.z - lift.bottom.z;
   const length = Math.max(1, hypot(ex, ez));
@@ -294,22 +347,54 @@ export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]):
     const z = lift.bottom.z + dz * u;
     return { u, x, z, ground: level.groundAt(x, z), rope: station ? look.wheel : rope, station };
   };
-  // A tower off the groomer: the nearest slide along the line onto snow no
-  // run is packed on, or where it was.
+  // A tower off the piste: the nearest slide along the line to where its
+  // column stands `TOWER_SITE.clear` m outside every run's edge, or where
+  // it stands furthest out (`sited`) — or, as R26's rope check was ruled on
+  // (`RULED`), the nearest slide onto snow no run is packed on.
+  const gapAt = (v: number): number =>
+    pisteGap(level, lift.bottom.x + dx * v, lift.bottom.z + dz * v) - look.column;
   const offPiste = (u: number, lo: number, hi: number): number => {
-    for (let d = 0; d <= SLIDE; d += 4) {
+    if (!sited) {
+      for (let d = 0; d <= SLIDE; d += 4) {
+        for (const v of d === 0 ? [u] : [u + d, u - d]) {
+          if (v <= lo || v >= hi) continue;
+          if (level.packedAt(lift.bottom.x + dx * v, lift.bottom.z + dz * v) < 0.3) return v;
+        }
+      }
+      return u;
+    }
+    let best = u;
+    let most = -Infinity;
+    for (let d = 0; d <= TOWER_SITE.slide; d += TOWER_SITE.step) {
       for (const v of d === 0 ? [u] : [u + d, u - d]) {
         if (v <= lo || v >= hi) continue;
-        if (level.packedAt(lift.bottom.x + dx * v, lift.bottom.z + dz * v) < 0.3) return v;
+        const gap = gapAt(v);
+        if (gap >= TOWER_SITE.clear) return v;
+        if (gap > most) {
+          most = gap;
+          best = v;
+        }
       }
     }
-    return u;
+    return best;
   };
   const supports: Support[] = [at(0, true)];
   const n = Math.max(0, Math.round(length / look.spacing) - 1);
   for (let i = 1; i <= n; i++) {
     const u = (i * length) / (n + 1);
-    supports.push(at(offPiste(u, look.minSpan, length - look.minSpan)));
+    // Never slid within a short span of the tower before it.
+    const lo = sited ? supports[supports.length - 1].u + look.minSpan : look.minSpan;
+    const v = offPiste(u, lo, length - look.minSpan);
+    // Where no slide gets it off a run the line SPANS the run instead —
+    // the towers either side of it taken taller below if the rope then
+    // sags too near the snow — so long as the span stays one a class
+    // hangs (`TOWER_SITE.span` of its own).
+    const prev = supports[supports.length - 1].u;
+    const next = ((i + 1) * length) / (n + 1);
+    if (sited && gapAt(v) < TOWER_SITE.clear && next - prev <= look.spacing * TOWER_SITE.span) {
+      continue;
+    }
+    supports.push(at(v));
   }
   supports.push(at(length, true));
   supports.sort((a, b) => a.u - b.u);
@@ -320,12 +405,22 @@ export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]):
   const into = look.in.back;
   if (into > 0 && length - into - SLIDE > look.minSpan) {
     let u = length - into;
+    let most = -Infinity;
     for (let d = 0; d <= SLIDE; d += 2) {
       const v = length - into - d;
-      if (level.packedAt(lift.bottom.x + dx * v, lift.bottom.z + dz * v) < 0.3) {
-        u = v;
-        break;
+      if (!sited) {
+        if (level.packedAt(lift.bottom.x + dx * v, lift.bottom.z + dz * v) < 0.3) {
+          u = v;
+          break;
+        }
+        continue;
       }
+      const gap = gapAt(v);
+      if (gap > most) {
+        most = gap;
+        u = v;
+      }
+      if (gap >= TOWER_SITE.clear) break;
     }
     for (let i = supports.length - 2; i > 0; i--) {
       if (supports[i].u > u - look.minSpan) supports.splice(i, 1);
@@ -363,7 +458,14 @@ export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]):
     const b = supports[span + 1];
     if (b.u - a.u >= 2 * look.minSpan) {
       const u = Math.min(b.u - look.minSpan, Math.max(a.u + look.minSpan, where));
-      supports.splice(span + 1, 0, at(offPiste(u, a.u + look.minSpan, b.u - look.minSpan)));
+      const v = offPiste(u, a.u + look.minSpan, b.u - look.minSpan);
+      // Over a run, its towers are raised before one is stood on its snow.
+      const raise = [a, b].filter((s) => !s.station && s.rope < look.towerMax);
+      if (!sited || gapAt(v) >= TOWER_SITE.clear || raise.length === 0) {
+        supports.splice(span + 1, 0, at(v));
+        continue;
+      }
+      for (const s of raise) s.rope = Math.min(look.towerMax, s.rope + worst + 0.1);
       continue;
     }
     // Too short to split: raise its towers (never a station) by the lack.
@@ -374,6 +476,10 @@ export function planLift(level: Level, lift: Lift, look = LIFT_LOOK[lift.kind]):
       raised = true;
     }
     if (!raised) given.add(a);
+  }
+  // Every tower left on or beside a run is padded.
+  if (sited) {
+    for (const t of supports) if (!t.station && gapAt(t.u) < TOWER_SITE.pad) t.pad = true;
   }
   return { lift, look, length, dx, dz, heading: Math.atan2(dx, dz), supports };
 }
@@ -501,7 +607,7 @@ const ruled = new WeakMap<Level, LiftPlan[]>();
 export function ruledLiftPlans(level: Level): readonly LiftPlan[] {
   let out = ruled.get(level);
   if (!out) {
-    out = (level.resort?.lifts ?? []).map((l) => planLift(level, l, RULED[l.kind]));
+    out = (level.resort?.lifts ?? []).map((l) => planLift(level, l, RULED[l.kind], false));
     ruled.set(level, out);
   }
   return out;

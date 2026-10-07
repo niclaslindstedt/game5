@@ -15,7 +15,7 @@ import {
   pieceCollapse,
 } from "../pwa/src/game/gore-cut.ts";
 import { rope, stepRope, stepStick, stick, type GibGround } from "../pwa/src/game/gore-gibs.ts";
-import { CRACKS_MOST, DEATH, crackStar, wreckOf } from "../pwa/src/game/hud-wreck.ts";
+import { DEATH, wreckOf } from "../pwa/src/game/hud-wreck.ts";
 import type { BoneFrame, SkierBone } from "../pwa/src/game/skier-rig.ts";
 
 const bit = (p: GorePiece): number => 1 << GORE_PIECES.indexOf(p);
@@ -117,37 +117,26 @@ describe("what flies off a body", () => {
 });
 
 describe("the HUD taking his blows", () => {
-  it("is whole while he is sound and cracks from major trauma on", () => {
-    expect(wreckOf(0, null, null)).toMatchObject({ jolt: 0, cracks: 0, bend: 0, fall: 0, dark: 0 });
-    expect(wreckOf(15, null, null).cracks).toBe(0);
-    expect(wreckOf(16, null, null).cracks).toBe(1);
-    expect(wreckOf(75, null, null).cracks).toBe(CRACKS_MOST);
+  it("is still and true while he is alive and nothing has struck him", () => {
+    expect(wreckOf(null, null)).toMatchObject({ jolt: 0, bend: 0, fall: 0, word: 0, dark: 0 });
   });
 
   it("jolts on a blow and settles as it ages", () => {
-    const fresh = wreckOf(0, { g: 120, id: 3, age: 0 }, null);
+    const fresh = wreckOf({ g: 120, id: 3, age: 0 }, null);
     expect(fresh.jolt).toBe(1);
     expect(fresh.joltId).toBe(3);
-    expect(wreckOf(0, { g: 60, id: 3, age: 0 }, null).jolt).toBeCloseTo(0.5);
-    expect(wreckOf(0, { g: 120, id: 3, age: 1 }, null).jolt).toBe(0);
+    expect(wreckOf({ g: 60, id: 3, age: 0 }, null).jolt).toBeCloseTo(0.5);
+    expect(wreckOf({ g: 120, id: 3, age: 1 }, null).jolt).toBe(0);
   });
 
   it("breaks up, says DIED and goes dark in that order when he dies", () => {
-    const at = (t: number) => wreckOf(20, null, t);
-    expect(at(0)).toMatchObject({ fall: 0, word: 0, dark: 0, cracks: CRACKS_MOST });
+    const at = (t: number) => wreckOf(null, t);
+    expect(at(0)).toMatchObject({ fall: 0, word: 0, dark: 0 });
     expect(at(DEATH.fall + DEATH.falling).fall).toBe(1);
     expect(at(DEATH.word - 0.01).word).toBe(0);
     expect(at(DEATH.word + DEATH.rise).word).toBe(1);
     expect(at(DEATH.dark - 0.01).dark).toBe(0);
     expect(at(DEATH.dark + DEATH.fade).dark).toBe(1);
     expect(DEATH.dark + DEATH.fade).toBeLessThanOrEqual(DEATH.again);
-  });
-
-  it("cracks the same glass the same way every time", () => {
-    expect(crackStar(2, 16 / 9)).toEqual(crackStar(2, 16 / 9));
-    const star = crackStar(0, 16 / 9);
-    expect(star.rays.length).toBeGreaterThanOrEqual(7);
-    expect(star.x).toBeGreaterThan(0);
-    expect(star.x).toBeLessThan(16 / 9);
   });
 });

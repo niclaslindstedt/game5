@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  GORE,
   GROOMER,
   NEUTRAL_INPUT,
   createGame,
@@ -199,6 +200,30 @@ describe("skied into", () => {
     expect(events.some((e) => e.kind === "groomer" && e.phase === "strike")).toBe(true);
     expect(s.skier.thrown?.cause).toBe("groomer");
     expect(severityOf(s.skier.body)).toBeGreaterThanOrEqual(25);
+  });
+
+  it("on an injuries run, tears apart a body its tracks and tiller pass over", () => {
+    const s = createGame({ level, mode: "free", groomer: "on", crowd: 0, quiet: true, gore: true });
+    const g = s.groomers![0];
+    run(s, 0.5, NEUTRAL_INPUT);
+    expect(g.speed).toBeGreaterThan(GORE.machine.speed);
+    placeRun(s, {
+      x: g.x + Math.sin(g.heading) * 8,
+      z: g.z + Math.cos(g.heading) * 8,
+      heading: g.heading + Math.PI,
+      speed: 4,
+    });
+    const events = run(s, 6, NEUTRAL_INPUT);
+    const gore = s.gore!;
+    expect(s.skier.thrown?.cause).toBe("groomer");
+    expect(gore.torn.length).toBeGreaterThanOrEqual(3);
+    // Spat out of the back of the tiller, against the way it goes.
+    for (const t of gore.torn)
+      expect(t.vx * Math.sin(g.heading) + t.vz * Math.cos(g.heading)).toBeLessThan(0);
+    expect(gore.open).toBe(3);
+    expect(gore.dead).toBeGreaterThanOrEqual(0);
+    expect(gore.cause).toBe("machine");
+    expect(events.filter((e) => e.kind === "death")).toHaveLength(1);
   });
 
   it("only holds him off when he leans on it at a shuffle", () => {

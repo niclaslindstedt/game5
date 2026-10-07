@@ -89,6 +89,21 @@ export const GORE = {
    * since the wound — whichever comes first. */
   still: 1.2,
   last: 7,
+  /** UNDER A PISTE MACHINE (`groomer.ts`): a point of his body lying in a
+   * working machine's footprint, behind its blade's face by `behind` m and
+   * no more than `over` m over its tracks, while it moves faster than
+   * `speed` m/s — twelve tonnes on two belts and a tiller's shaft turning
+   * at some 1000 a minute do not leave a limb on. What goes is spat out of
+   * the back of the tiller at `spit` m/s over the machine's own way (a
+   * share spread off a hash) and `up` m/s up. */
+  machine: { speed: 0.4, behind: 0.6, over: 1.4, spit: 6, up: 4 },
+  /** A HELICOPTER'S BLAST (`heli.ts`): the skier on its skid when it comes
+   * down is blown apart — each limb off at the shoulder or the elbow, the
+   * hip or the knee (dealt off a hash), the head off `head` of the time,
+   * torn in two at the waist `waist` of it, the trunk opened. Every piece
+   * flies off the body's middle at `out` m/s (± a share off a hash) and
+   * `up` m/s up, on top of the blast's own push. */
+  blast: { head: 0.55, waist: 0.35, out: 11, up: 6, spread: 0.45 },
 } as const;
 
 /** The causes that kill AT ONCE. */
@@ -99,4 +114,6 @@ export const INSTANT: readonly DeathCause[] = [
   "opened",
   "torn",
   "maul",
+  "machine",
+  "blast",
 ];

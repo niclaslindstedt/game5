@@ -65,7 +65,7 @@ import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
 import { wreckOf } from "./hud-wreck.ts";
-import { DeathCard, WreckGlass } from "./hud-glass.tsx";
+import { DeathCard } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
@@ -190,9 +190,7 @@ export function Hud({
   );
   // THE GLASS TAKING HIS BLOWS, and his death (`hud-wreck.ts`): only
   // where his injuries are drawn at all.
-  const wreck = injuries
-    ? wreckOf(snap.body.severity, snap.body.blow, snap.died?.since ?? null)
-    : null;
+  const wreck = injuries ? wreckOf(snap.body.blow, snap.died?.since ?? null) : null;
   if (bare) {
     return (
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
@@ -671,7 +669,6 @@ export function Hud({
         </div>
       )}
 
-      {wreck && <WreckGlass wreck={wreck} />}
       {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
 
       {thumbs}

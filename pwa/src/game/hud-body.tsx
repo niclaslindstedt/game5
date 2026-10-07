@@ -26,7 +26,7 @@
 import type { JSX } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 
-import { BODY_PARTS, BONES, type Bone as BoneName } from "@engine";
+import { BODY_PARTS, BONES, ORGANS, type Bone as BoneName, type Organ } from "@engine";
 
 import {
   EVERYWHERE,
@@ -36,6 +36,7 @@ import {
   moveCss,
   type BoneDraw,
   type FigureSide,
+  type OrganDraw,
   type Move,
 } from "./body-figure.ts";
 import type { BodyTile, BodyTone, BoneTone } from "./body-tile.ts";
@@ -43,12 +44,12 @@ import { shakeOf } from "./hud-gforce.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The worst paint anywhere on him — the word over the list takes it. */
-function worstOf(parts: BodyTone[], bones: BoneTone[]): BodyTone {
+function worstOf(parts: BodyTone[], bones: BoneTone[], organs: BodyTone[]): BodyTone {
   const rank: BodyTone[] = ["ok", "hurt", "spent", "dead"];
   const fromBones: BodyTone[] = bones.map((b) =>
     b === "sound" ? "ok" : b === "hairline" ? "hurt" : "dead",
   );
-  return [...parts, ...fromBones].reduce<BodyTone>(
+  return [...parts, ...fromBones, ...organs].reduce<BodyTone>(
     (w, t) => (rank.indexOf(t) > rank.indexOf(w) ? t : w),
     "ok",
   );
@@ -67,6 +68,27 @@ function Bone({ draw }: { draw: BoneDraw }): JSX.Element {
     </>
   );
 }
+
+/** THE ORGAN KIND a drawn organ is painted as when sound (`body.css`). */
+const organKind = (o: Organ): string => o.replace(/[LR]$/, "");
+
+/** An organ as it lies, inside the bones: its own soft colour while sound
+ * and the condition's paint when hurt (`body.css`), shaded as a bone is. */
+function OrganMark({ organ, draw, tone }: { organ: Organ; draw: OrganDraw; tone: BodyTone }) {
+  if (!draw.fill) return <g />;
+  return (
+    <g class={`hud-organ hud-organ-${organKind(organ)} hud-hp-${tone}`}>
+      <path class="hud-organ-fill" d={draw.fill} fill-rule="evenodd" />
+      {draw.shadow && <path class="hud-organ-shadow" d={draw.shadow} fill-rule="evenodd" />}
+      {draw.deep && <path class="hud-organ-deep" d={draw.deep} fill-rule="evenodd" />}
+      {draw.light && <path class="hud-organ-light" d={draw.light} fill-rule="evenodd" />}
+    </g>
+  );
+}
+
+/** How much of an organ may lie hidden before a hurt one is outlined over
+ * what hides it, as a plate dashes an organ in behind another. */
+const OUTLINED = 0.7;
 
 /** The bone drawn inside a clip, moved by `move` (none, where it lies).
  * A moved piece is SNAPPED there: it mounts where the bone lay and is
@@ -218,7 +240,7 @@ export function BodyPanel({
 }): JSX.Element {
   const view = figureView(side);
   const skinId = `hud-body-skin-${side}`;
-  const worst = worstOf(tile.parts, tile.bones);
+  const worst = worstOf(tile.parts, tile.bones, tile.organs);
   const word = STRINGS.conditions[tile.condition];
   const injuries = tile.lines.length + tile.more;
   const back = BODY_PARTS.indexOf("back");
@@ -270,17 +292,41 @@ export function BodyPanel({
             )}
           </g>
           <path class="hud-body-skin" d={view.outline} fill-rule="evenodd" />
-          {/* THE BONES, back to front, inside the flesh. */}
+          {/* THE BONES AND THE ORGANS, back to front, inside the flesh. */}
           <g clip-path={`url(#${skinId})`}>
-            {view.order.map((bone) => (
-              <BoneMark
-                key={bone}
-                bone={bone}
-                side={side}
-                tone={tile.bones[BONES.indexOf(bone)]}
-                force={tile.force[BONES.indexOf(bone)]}
-              />
-            ))}
+            {view.order.map((layer) => {
+              const o = ORGANS.indexOf(layer as Organ);
+              if (o >= 0)
+                return (
+                  <OrganMark
+                    key={layer}
+                    organ={layer as Organ}
+                    draw={view.organs[layer as Organ]}
+                    tone={tile.organs[o]}
+                  />
+                );
+              const b = BONES.indexOf(layer as BoneName);
+              return (
+                <BoneMark
+                  key={layer}
+                  bone={layer as BoneName}
+                  side={side}
+                  tone={tile.bones[b]}
+                  force={tile.force[b]}
+                />
+              );
+            })}
+            {/* A HURT ORGAN mostly hidden, outlined over what hides it. */}
+            {ORGANS.map((o, i) =>
+              tile.organs[i] !== "ok" && view.organs[o].hidden > OUTLINED ? (
+                <path
+                  key={`${o}-out`}
+                  class={`hud-organ-out hud-hp-${tile.organs[i]}`}
+                  d={view.organs[o].fill}
+                  fill-rule="evenodd"
+                />
+              ) : null,
+            )}
           </g>
         </svg>
       </div>

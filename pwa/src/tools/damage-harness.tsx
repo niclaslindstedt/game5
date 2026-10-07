@@ -56,11 +56,18 @@ type Case = { id: string; title: string; body: BodyState; t: number };
 
 /** A body built injury by injury: `[kind, part]` each, ranked as the
  * catalog ranks it, every one done at `energy` times its even chance's. */
-function staged(id: string, title: string, list: [InjuryKind, BodyPart][], energy = 1): Case {
+function staged(
+  id: string,
+  title: string,
+  list: ([InjuryKind, BodyPart] | [InjuryKind, BodyPart, "L" | "R"])[],
+  energy = 1,
+): Case {
   const body = freshBody();
-  for (const [kind, part] of list) {
+  for (const [kind, part, side] of list) {
     const ais = (INJURIES[kind] as InjuryDef).ais;
-    body.injuries.push({ part, kind, ais, t: 0, energy });
+    body.injuries.push(
+      side ? { part, kind, ais, t: 0, energy, side } : { part, kind, ais, t: 0, energy },
+    );
     body.worst[PART[part]] = Math.max(body.worst[PART[part]], ais);
   }
   return { id, title, body, t: 100 };
@@ -71,7 +78,7 @@ function everyFracture(grade: "hairline" | "break"): [InjuryKind, BodyPart][] {
   const out: [InjuryKind, BodyPart][] = [];
   for (const kind of Object.keys(INJURIES) as InjuryKind[]) {
     const def = INJURIES[kind] as InjuryDef;
-    if (def.fracture !== grade || def.organ) continue;
+    if (def.fracture !== grade || def.said) continue;
     for (const part of BODY_PARTS) {
       const base = part.endsWith("L") || part.endsWith("R") ? part.slice(0, -1) : part;
       if (def.part === part || def.part === base) out.push([kind, part]);
@@ -111,6 +118,30 @@ const STAGED: Case[] = [
     ["tornAcl", "kneeL"],
     ["tornMcl", "kneeR"],
     ["backStrain", "back"],
+  ]),
+  staged("organs-bruised", "ORGANS BRUISED", [
+    ["concussion", "head"],
+    ["bruisedKidney", "abdomen", "R"],
+    ["bruisedBowel", "abdomen"],
+  ]),
+  staged("organs-torn", "ORGANS TORN", [
+    ["bruisedLung", "chest", "L"],
+    ["bruisedHeart", "chest"],
+    ["tornLiver", "abdomen"],
+    ["tornKidney", "abdomen", "L"],
+    ["tornBladder", "pelvis"],
+  ]),
+  staged("organs-worst", "EVERY ORGAN AT ITS WORST", [
+    ["brainInjury", "head"],
+    ["collapsedLung", "chest", "L"],
+    ["collapsedLung", "chest", "R"],
+    ["bruisedHeart", "chest"],
+    ["rupturedLiver", "abdomen"],
+    ["rupturedSpleen", "abdomen"],
+    ["lacerated", "abdomen"],
+    ["tornKidney", "abdomen", "L"],
+    ["tornKidney", "abdomen", "R"],
+    ["tornBladder", "pelvis"],
   ]),
   staged("tree", "A TRUNK AT SPEED", [
     ["brokenRibs", "chest"],
@@ -289,6 +320,21 @@ if (params.has("frame")) {
       render(<Plate cases={cases} side="front" px={620} width={290} wrap facts />, root);
       return {
         note: `${cases.length} high-g crashes skied through the engine`,
+        table: cases.map((c) => table[lab.cases.indexOf(c)]),
+      };
+    }
+    if (name === "organs") {
+      const ids = ["sound", "organs-bruised", "organs-torn", "organs-worst"];
+      const cases = ids.map((id) => lab.cases.find((x) => x.id === id)!);
+      render(
+        <>
+          <Plate cases={cases} side="front" />
+          <Plate cases={cases} side="back" />
+        </>,
+        root,
+      );
+      return {
+        note: "the organs, front and back",
         table: cases.map((c) => table[lab.cases.indexOf(c)]),
       };
     }

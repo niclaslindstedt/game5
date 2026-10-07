@@ -65,13 +65,16 @@ import {
   BODY_PARTS,
   BONES,
   INJURIES,
+  ORGANS,
   pairedBone,
+  pairedOrgan,
   type BodyPart,
   type Bone,
   type Facing,
   type InjuryDef,
   type InjuryKind,
   type Mechanism,
+  type Organ,
 } from "./defs/anatomy.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
@@ -83,7 +86,15 @@ import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
-import type { BodyState, GameEvent, GameState, ImpactSource, SkierState, Thrown } from "./state.ts";
+import type {
+  BodyState,
+  GameEvent,
+  GameState,
+  ImpactSource,
+  Injury,
+  SkierState,
+  Thrown,
+} from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 
 const I = TUNING.injury;
@@ -93,6 +104,7 @@ const MECHS: readonly Mechanism[] = ["blunt", "load", "drawer", "twist", "bend",
 const FACES: readonly Facing[] = ["front", "back", "left", "right"];
 /** The hash's own salt: no other draw reads this stream. */
 const SALT = 0x6b0d1e5;
+const SIDE_SALT = 0x51de0e6;
 
 /** A part's index in `BODY_PARTS`. */
 export const PART = Object.fromEntries(BODY_PARTS.map((p, i) => [p, i])) as Record<
@@ -476,6 +488,9 @@ function landing(state: GameState, g: number, airTime: number): void {
     charge(sided("thigh", s), "load", leg);
   }
   charge("pelvis", "load", leg);
+  // THE ORGANS stopped with him: the trunk's deceleration, the landing's g.
+  charge("chest", "load", g);
+  charge("abdomen", "load", g);
   if (g >= TUNING.landing.buckle) cap = PARTS;
   strike("neck", (g - 1) * I.neck);
   if (airTime >= L.air && g >= I.landingShown) offer(g, "back", "landing");
@@ -588,21 +603,48 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
       const at = def.at * (1 - I.weaken * worst);
       const u = hash2(state.tick, p * 64 + index, (state.seed ^ SALT) | 0);
       if (u >= riskOf(d, at)) continue;
-      found.push({ p, kind, ais: def.ais, energy: energyOver(def.mech, d, at) });
+      found.push({
+        p,
+        kind,
+        ais: def.ais,
+        energy: energyOver(def.mech, d, at),
+        side: sideOf(def, faced[p], state, p * 64 + index),
+      });
       break;
     }
   }
   found.sort((a, b) => b.ais - a.ais || a.p - b.p);
   for (let k = 0; k < Math.min(found.length, most); k++) {
-    const { p, kind, ais, energy } = found[k];
+    const { p, kind, ais, energy, side } = found[k];
     const part = BODY_PARTS[p];
-    body.injuries.push({ part, kind, ais, t: state.t, energy });
+    body.injuries.push(
+      side
+        ? { part, kind, ais, t: state.t, energy, side }
+        : { part, kind, ais, t: state.t, energy },
+    );
     if (ais > body.worst[p]) body.worst[p] = ais;
     events.push({ kind: "injury", t: state.t, part, injury: kind, ais });
   }
 }
 
-const found: { p: number; kind: InjuryKind; ais: number; energy: number }[] = [];
+const found: {
+  p: number;
+  kind: InjuryKind;
+  ais: number;
+  energy: number;
+  side: "L" | "R" | null;
+}[] = [];
+
+/** WHICH SIDE a paired organ an injury names is hurt on: the side the blow
+ * came from, or — from the front, from behind or up through the legs — one
+ * drawn off a hash of the step (never the stream). Null for an injury that
+ * names none. */
+function sideOf(def: InjuryDef, face: number, state: GameState, k: number): "L" | "R" | null {
+  if (!def.organs?.some(pairedOrgan)) return null;
+  if (face >= 0 && FACES[face] === "left") return "L";
+  if (face >= 0 && FACES[face] === "right") return "R";
+  return hash2(state.tick, k, (state.seed ^ SIDE_SALT) | 0) < 0.5 ? "L" : "R";
+}
 
 /** ONE STEP OF THE BODY, after the run's own (`run.ts`): `off` is the body
  * he was thrown on at the start of the step — its ragdoll stepped — or
@@ -817,7 +859,26 @@ export function bonesOf(kind: InjuryKind, part: BodyPart): Bone[] {
  * vertebra, is said. */
 export function saidOf(kind: InjuryKind): boolean {
   const def = INJURIES[kind] as InjuryDef;
-  return !def.fracture || def.organ === true;
+  return !def.fracture || def.said === true;
+}
+
+/** THE ORGANS an injury hurts — a paired one on its side — or none. */
+export function organsOfInjury(h: Injury): Organ[] {
+  const def = INJURIES[h.kind] as InjuryDef;
+  if (!def.organs) return [];
+  return def.organs.map((o) => (pairedOrgan(o) ? `${o}${h.side ?? "L"}` : o) as Organ);
+}
+
+/** EVERY ORGAN'S STATE, in `ORGANS` order: the worst AIS any injury on the
+ * body did to it, 0 sound. */
+export function organsOf(body: BodyState): number[] {
+  const worst = new Array<number>(ORGANS.length).fill(0);
+  for (const h of body.injuries)
+    for (const o of organsOfInjury(h)) {
+      const i = ORGANS.indexOf(o);
+      if (h.ais > worst[i]) worst[i] = h.ais;
+    }
+  return worst;
 }
 
 /** WHAT A FRACTURE SHOWS on its bone: sound, a HAIRLINE crack, a SIMPLE

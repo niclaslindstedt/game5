@@ -374,7 +374,16 @@ export type BodyState = {
  * energy of the injury's even chance (`body.ts`' `energyOver`; 1 when left
  * out), raised by every harder blow on the part after it: what grades a
  * break simple, wedge or shattered (`fracturesOf`). */
-export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number; energy?: number };
+export type Injury = {
+  part: BodyPart;
+  kind: InjuryKind;
+  ais: number;
+  t: number;
+  energy?: number;
+  /** THE SIDE of a paired organ it hurt (`InjuryDef.organs`: a lung, a
+   * kidney) — the side the blow came from, or one drawn off a hash. */
+  side?: "L" | "R";
+};
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */

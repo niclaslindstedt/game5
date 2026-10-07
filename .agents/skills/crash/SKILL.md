@@ -49,7 +49,10 @@ Three modules answer it, and the split matters:
   its even chance's (`Injury.energy`, `energyOver`, `injury.comminute`),
   raised by every harder blow on the part after it;
   `saidOf` keeps a fracture out of the HUD's words, since the figure shows
-  it on the bone. A reset MENDS the body (`mendBody`, from `resetSkier`).
+  it on the bone. An injury to an ORGAN names it (`InjuryDef.organs`, a
+  paired one on the side the blow came from, `Injury.side`) and paints
+  that organ in the figure (`organsOf`); the trunk's organs take a
+  landing's deceleration too (`load` on the chest and the abdomen). A reset MENDS the body (`mendBody`, from `resetSkier`).
   The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the
   generated `body-model.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
   with `make damage`, the figure made again from the 3D body with

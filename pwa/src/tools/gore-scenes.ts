@@ -219,7 +219,11 @@ function strobe(st: Stage, s: GameState, times: number[], lens: Lens, drive = st
 }
 
 /** Ski straight at a lone trunk at `speed` m/s from `back` m up the line. */
-function skiAtTree(st: Stage, speed: number, back = 7): { s: GameState; tree: P3; side: number } {
+export function skiAtTree(
+  st: Stage,
+  speed: number,
+  back = 7,
+): { s: GameState; tree: P3; side: number } {
   const s = st.fresh();
   const t = loneTree(st.level, 0, true);
   // Coming at it down the fall line: from uphill.
@@ -231,7 +235,7 @@ function skiAtTree(st: Stage, speed: number, back = 7): { s: GameState; tree: P3
 }
 
 /** His body flown into a lone trunk, `pose` leading, at `speed` m/s. */
-function intoTree(st: Stage, pose: Pose, speed: number): { s: GameState; tree: P3 } {
+export function intoTree(st: Stage, pose: Pose, speed: number): { s: GameState; tree: P3 } {
   const s = st.fresh();
   const t = loneTree(st.level, 0, true);
   const h = 0.6;
@@ -253,7 +257,12 @@ function intoTree(st: Stage, pose: Pose, speed: number): { s: GameState; tree: P
 
 /** His body thrown onto the flat piste, `pose` first, at `speed` m/s down
  * into it, sliding `slide` m/s along it. */
-function ontoSnow(st: Stage, pose: Pose, speed: number, slide = 0): { s: GameState; at: P3 } {
+export function ontoSnow(
+  st: Stage,
+  pose: Pose,
+  speed: number,
+  slide = 0,
+): { s: GameState; at: P3 } {
   const s = st.fresh();
   const p = flatSpot(st.level);
   const g = st.level.groundAt(p.x, p.z);

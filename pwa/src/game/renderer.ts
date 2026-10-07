@@ -53,7 +53,7 @@ import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./cam
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
-import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
+import { createHurtLens } from "./xray-scene.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createGoreView, type GoreView } from "./gore-view.ts";
@@ -267,9 +267,9 @@ export function createWorldRenderer(
   /** The new snow the trail maps have been filled by, m (`trail.fill`). */
   let filled = 0;
   let override: LensPose | null = null;
-  /** THE DEATH CAM: its state, and whether the app lets it take the lens. */
-  const death = createDeathCam();
-  let deathOn = false;
+  /** THE DEATH CAM and THE X-RAY CAM (`xray-scene.ts`), and his skeleton. */
+  const hurt = createHurtLens();
+  scene.add(hurt.group);
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
   let box = { width: 1, height: 1, pixelRatio: 1 };
@@ -710,25 +710,23 @@ export function createWorldRenderer(
       const own = machines?.ladder(rigPose, state);
       player.model.setSkierVisible(lens.rung() !== "tips" && lens.rung() !== "helmet");
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
-      // THE DEATH CAM (`camera-death.ts`): the lens off the ladder while he is off his skis.
-      let dead: LensPose | null = null;
-      if (deathOn && !override && !shot && lens.rung() !== "orbit") {
-        dead = frameDeath(
-          death,
-          sampleBody(player.body, alpha),
-          ladder,
-          Math.min(dt, 0.1),
-          level.groundAt,
-          clear,
-        );
-        if (death.ended) lens.snap();
-      } else if (death.active) {
-        dropDeathCam(death);
-      }
+      // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.
+      hurt.update(state, player.model.skin());
+      const allowed = !override && !shot && lens.rung() !== "orbit";
+      const dead = hurt.lens(
+        allowed,
+        sampleBody(player.body, alpha),
+        ladder,
+        Math.min(dt, 0.1),
+        level.groundAt,
+        clear,
+        () => lens.snap(),
+      );
       // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
+        (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
         frameStart(startMoment(state, d), ladder);
@@ -906,9 +904,8 @@ export function createWorldRenderer(
       override = view;
     },
 
-    setDeathCam(on) {
-      deathOn = on;
-    },
+    setDeathCam: hurt.setDeathCam,
+    setXray: hurt.setXray,
 
     setShot(next) {
       if (!next) tv.drop();
@@ -985,6 +982,7 @@ export function createWorldRenderer(
     },
     dispose() {
       unload();
+      hurt.dispose();
       overlay.dispose();
       snowfall.dispose();
       picture.dispose();

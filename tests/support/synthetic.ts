@@ -413,11 +413,11 @@ export function pipeLevel(): Level {
 
 /** ANY GROUND ON THE BENCH: a strip `size` m square whose height is
  * `height(x, z)` on a `cell` m grid, packed to `packed` everywhere, with a
- * straight piste down its middle along +z — what a lab shapes its own
- * kicker, drop or cliff with. */
+ * straight piste down its middle along +z and whatever `trees` stand on it
+ * — what a lab shapes its own kicker, drop or cliff with. */
 export function shapedLevel(
   height: (x: number, z: number) => number,
-  options: { packed?: number; size?: number; cell?: number } = {},
+  options: { packed?: number; size?: number; cell?: number; trees?: TreeDef[] } = {},
 ): Level {
   const size = options.size ?? 600;
   const cell = options.cell ?? 0.5;
@@ -441,6 +441,6 @@ export function shapedLevel(
     400,
     8,
     { x: size / 2, z: m, heading: 0 },
-    [],
+    options.trees ?? [],
   );
 }

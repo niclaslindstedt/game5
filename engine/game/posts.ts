@@ -26,11 +26,25 @@ export function postsOf(level: Level): readonly Upright[] {
   for (const plan of liftPlans(level)) {
     for (const s of plan.supports) {
       const radius = s.pad ? padRadius(plan.look.column) : plan.look.column;
-      list.push({ x: s.x, z: s.z, y: s.ground, height: s.rope, radius });
+      list.push({
+        x: s.x,
+        z: s.z,
+        y: s.ground,
+        height: s.rope,
+        radius,
+        stuff: s.pad ? "padded" : "steel",
+      });
     }
   }
   for (const m of pisteMasts(level)) {
-    list.push({ x: m.x, z: m.z, y: m.y, height: m.height, radius: PISTE_MAST.pole.foot });
+    list.push({
+      x: m.x,
+      z: m.z,
+      y: m.y,
+      height: m.height,
+      radius: PISTE_MAST.pole.foot,
+      stuff: "steel",
+    });
   }
   lists.set(level, list);
   return list;

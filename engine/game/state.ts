@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
@@ -642,7 +643,18 @@ export type GameEvent =
       off: number;
     }
   /** A trunk met at `speed` m/s closing. */
-  | { kind: "hit"; t: number; speed: number; x: number; z: number; post?: true }
+  | {
+      kind: "hit";
+      t: number;
+      speed: number;
+      x: number;
+      z: number;
+      /** What was met — a trunk when left out (`upright-grid.ts`) — and
+       * its radius, m. */
+      stuff?: Stuff;
+      radius?: number;
+      post?: true;
+    }
   /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
    * which, and how near it came, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }

@@ -12,10 +12,24 @@ import { TUNING } from "./defs/tuning.ts";
 
 const CELL = TUNING.trees.cell;
 
+/** WHAT A THING STANDING IN THE SNOW IS MADE OF, as a body meeting it
+ * feels it (`TUNING.injury.solid`): a TRUNK (the bark, the branches and
+ * the trunk's own sway give a little), a lift's or a mast's bare STEEL,
+ * a tower wrapped in its foam PAD (`lift-line.ts`' `TOWER_PAD`), and a
+ * cabin's LOG wall. */
+export type Stuff = "trunk" | "steel" | "padded" | "log";
+
 /** A thing standing up out of the snow: its foot (x, z) and the snow's
- * height there, its height over that and its radius in plan, m. A
- * `TreeDef` is one. */
-export type Upright = { x: number; z: number; y: number; height: number; radius: number };
+ * height there, its height over that and its radius in plan, m, and what
+ * it is made of — a trunk when left out. A `TreeDef` is one. */
+export type Upright = {
+  x: number;
+  z: number;
+  y: number;
+  height: number;
+  radius: number;
+  stuff?: Stuff;
+};
 
 type Grid = { cells: Map<number, number[]>; maxRadius: number };
 

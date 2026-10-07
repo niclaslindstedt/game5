@@ -549,6 +549,7 @@ export {
   type Landing,
 } from "./game/flight.ts";
 export {
+  bodyThrown,
   crashLimit,
   crashOver,
   mayGetUp,
@@ -558,6 +559,7 @@ export {
   type CrashLimit,
 } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
+export { letGo } from "./game/lone-skis.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
   FRACTURE_GRADE,
@@ -653,7 +655,7 @@ export {
 } from "./game/groomed.ts";
 export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
-export { uprightsNear, type Upright } from "./game/upright-grid.ts";
+export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";

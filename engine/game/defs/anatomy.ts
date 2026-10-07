@@ -227,7 +227,10 @@ export type Facing = "front" | "back" | "left" | "right";
 
 /** ONE INJURY a part can take: its severity (AIS), the mechanism that does
  * it, the dose of that mechanism with an even chance of it (`at`), and —
- * for the trunk's organs — the side the blow must come from. A FRACTURE
+ * for the trunk's organs — the side the blow must come from (`face`); a
+ * bone broken only by a blow from some sides names them (`on`: the
+ * collarbone off the point of the shoulder — `outside`, the part's own
+ * outer side — the shoulder blade from behind). A FRACTURE
  * names the bones it cracks or breaks (on a paired part, the part's side
  * of each) and which (`fracture`): the body drawn shows it on the bone and
  * says nothing of it in words — unless it is more than the bone (`said`,
@@ -240,6 +243,7 @@ export type InjuryDef = {
   mech: Mechanism;
   at: number;
   face?: Facing;
+  on?: readonly (Facing | "outside")[];
   bones?: readonly BoneKind[];
   fracture?: Fracture;
   said?: true;
@@ -455,16 +459,31 @@ export const INJURIES = {
     bones: ["pelvis"],
     fracture: "break",
   },
-  // THE SHOULDER — a point load on it, and the fall on the arm.
+  // THE SHOULDER — a point load on it, and the fall on the arm: the
+  // collarbone and the joints off the point of the shoulder or up the arm,
+  // the shoulder blade only from behind and only hard.
   bruisedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 15 },
-  separatedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 24 },
-  dislocatedShoulder: { part: "shoulder", ais: 2, mech: "blunt", at: 31 },
+  separatedShoulder: {
+    part: "shoulder",
+    ais: 1,
+    mech: "blunt",
+    at: 24,
+    on: ["outside"],
+  },
+  dislocatedShoulder: {
+    part: "shoulder",
+    ais: 2,
+    mech: "blunt",
+    at: 31,
+    on: ["outside"],
+  },
   crackedCollarbone: {
     part: "shoulder",
     ais: 1,
     mech: "blunt",
     at: 30,
     bones: ["clavicle"],
+    on: ["outside"],
     fracture: "hairline",
   },
   brokenCollarbone: {
@@ -473,23 +492,27 @@ export const INJURIES = {
     mech: "blunt",
     at: 38,
     bones: ["clavicle"],
+    on: ["outside"],
     fracture: "break",
   },
-  // The shoulder blade, which takes a hard blow to break.
+  // The shoulder blade, which takes a hard blow from behind to break —
+  // one of the high-energy fractures, rare in a fall flat on the back.
   crackedScapula: {
     part: "shoulder",
     ais: 1,
     mech: "blunt",
-    at: 46,
+    at: 60,
     bones: ["scapula"],
+    on: ["back"],
     fracture: "hairline",
   },
   brokenScapula: {
     part: "shoulder",
     ais: 2,
     mech: "blunt",
-    at: 58,
+    at: 78,
     bones: ["scapula"],
+    on: ["back"],
     fracture: "break",
   },
   // THE ARM — the elbow and the bones either side of it.
@@ -584,6 +607,7 @@ export const INJURIES = {
     mech: "blunt",
     at: 48,
     bones: ["patella"],
+    on: ["front"],
     fracture: "hairline",
   },
   brokenKneecap: {
@@ -592,6 +616,7 @@ export const INJURIES = {
     mech: "blunt",
     at: 60,
     bones: ["patella"],
+    on: ["front"],
     fracture: "break",
   },
   // THE SHIN — bruised by a trunk, broken over the boot's rim.
@@ -786,7 +811,7 @@ export const INJURY = {
   /** THE STOP each part is brought to against a hard surface, m: the
    * flesh, the bone's own flex and the clothes over it — the half of the
    * stopping distance that is the body's. The snow's half is `snow`; a
-   * trunk adds `tree` (the bark, the branches, the trunk's own sway) and,
+   * solid adds `solid` by what it is made of (a trunk its bark and sway) and,
    * on the head, the helmet's liner crushing (`helmet`) — which it does
    * against a trunk and not against snow (the headform study). A LIMB's give
    * is its joints folding as well — the arm at the elbow and the shoulder
@@ -807,7 +832,13 @@ export const INJURY = {
     shin: 0.04,
     foot: 0.08,
   },
-  tree: 0.01,
+  /** WHAT A SOLID GIVES, m, by what it is made of (`upright-grid.ts`'
+   * `Stuff`): a TRUNK its bark, its branches and its sway; a lift tower's
+   * or a mast's bare STEEL next to nothing; a tower's foam PAD
+   * (`TOWER_PAD`, 0.22 m of it) most of its thickness crushed, which is
+   * what it is wrapped round a column on a run for; a cabin's LOG wall a
+   * little less than a living trunk. */
+  solid: { trunk: 0.01, steel: 0.003, padded: 0.15, log: 0.006 },
   helmet: 0.012,
   /** THE SNOW'S GIVE, m: bare ice, the groomer (the study's hard snow),
    * and loose snow — `soft` of it at once and `deep` more for every unit of
@@ -833,7 +864,7 @@ export const INJURY = {
    * into the thigh and the shin, a shoulder's or a hip's into the trunk on
    * the side it faces down. */
   share: {
-    neck: 0.35,
+    neck: 0.25,
     handArm: 0.5,
     handShoulder: 0.5,
     elbowShoulder: 0.4,
@@ -841,13 +872,30 @@ export const INJURY = {
     kneeShin: 0.4,
     footShin: 0.5,
     trunk: 0.6,
+    /** ...and met flat on a side, the flank itself: the lower ribs and the
+     * spleen or the liver under them. */
+    flank: 0.9,
+    /** A head met first down the spine — a dive — loads the neck along it
+     * on top of the whip: the diving injury's cervical fracture. */
+    neckAxial: 0.35,
+    /** A sole met first along a straight body loads the leg along it, in a
+     * landing's g: feet first into a trunk at 40 km/h, the femur's even
+     * chance. */
+    legAxial: 0.7,
   },
+  /** A SEAT met with the trunk upright over it: this share of the hips'
+   * blow runs up the spine as its load (g) — the ejection seat's and the
+   * seated fall's compression fracture, from a drop of a few metres onto
+   * hard snow; nothing from a fall on the side or the back. */
+  seat: 0.18,
   /** A TRUNK met on the skis: square in front of them the tips meet it and
    * the skis stop over the bindings' release and the legs' fold, `stop` m —
    * the shins levered and the knees twisted, the blow the body's own once
-   * it is thrown on into it; beside him it takes the shoulder, the arm, the
+   * it is thrown on into it — the tips meet it only within `lane` m of his
+   * line past its own radius (his feet's stance and a ski's half-width);
+   * wider of it, the skis pass it, and so beside him it takes the shoulder, the arm, the
    * ribs, the flank, the hip, the thigh and a glancing share of the head. */
-  front: { stop: 0.6 },
+  front: { stop: 0.6, lane: 0.25 },
   side: { shoulder: 1, arm: 0.7, chest: 0.6, abdomen: 0.5, pelvis: 0.4, thigh: 0.4, head: 0.25 },
   /** THE LANDING: the knees' drawer load is `square` of the landing's g
    * on a landing square on the skis — the cruciate is torn by the back seat
@@ -866,7 +914,7 @@ export const INJURY = {
   onBody: 0.4,
   /** The most new injuries one step's blows do — the worst of what was
    * drawn. */
-  perBlow: 3,
+  perBlow: 5,
   /** HOW A BREAK BREAKS, by its ENERGY over the energy of its even chance
    * (`body.ts`' `energyOver`): a SIMPLE break under `wedge`, a WEDGE — a
    * butterfly fragment knocked out of it — under `shatter`, and past that

@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SKIS, SKI_CATALOG, harshSpeedOf, skisById } from "@engine";
+import { SKIS, SKI_CATALOG, harshSpeedOf, skisById, type SkiId } from "@engine";
 
 import { mergeSettings, freshSettings } from "../pwa/src/game/settings.ts";
 import {
@@ -49,19 +49,34 @@ describe("the spec sheet", () => {
     }
   });
 
-  it("has no pair best everywhere, every specialist best at something, and the all-mountain in the middle of every band", () => {
-    const keys = skisBars(SKIS).map((b) => b.key);
+  it("bills a pair on three bars, and no more", () => {
+    expect(skisBars(SKIS).map((b) => b.key)).toEqual(["speed", "carve", "freestyle"]);
+  });
+
+  it("has no pair best everywhere, the right class best on each bar, and the all-mountain in the middle of every band", () => {
+    const best = (key: string): string =>
+      [...SKI_CATALOG].sort(
+        (a, b) =>
+          skisBars(b).find((x) => x.key === key)!.value -
+          skisBars(a).find((x) => x.key === key)!.value,
+      )[0].id;
+    expect(best("speed")).toBe("peregrine");
+    expect(best("carve")).toBe("swift");
+    expect(best("freestyle")).toBe("hare");
     for (const spec of SKI_CATALOG) {
-      const bars = skisBars(spec);
-      const wins = bars.filter((b) => b.value === 1).length;
-      const losses = bars.filter((b) => b.value < 0.3 + 1e-9).length;
-      expect(wins, `${spec.id} is best at everything`).toBeLessThan(keys.length);
-      if (spec.id === SKIS.id) {
-        expect(wins + losses, "the all-mountain is the middle of every band").toBe(0);
-      } else {
-        expect(wins, `${spec.id} is best at nothing`).toBeGreaterThan(0);
-      }
+      const wins = skisBars(spec).filter((b) => b.value === 1).length;
+      expect(wins, `${spec.id} is best at everything`).toBeLessThan(3);
     }
+    for (const bar of skisBars(SKIS)) {
+      expect(bar.value, `the all-mountain on ${bar.key}`).toBeGreaterThan(0.3 + 1e-9);
+      expect(bar.value, `the all-mountain on ${bar.key}`).toBeLessThan(1);
+    }
+    // The race skis read faster than the park and powder skis, and the
+    // park and powder skis more playful than the race skis.
+    const value = (id: string, key: string): number =>
+      skisBars(skisById(id as SkiId)).find((b) => b.key === key)!.value;
+    expect(value("eagle", "speed")).toBeGreaterThan(value("hare", "speed"));
+    expect(value("marmot", "freestyle")).toBeGreaterThan(value("eagle", "freestyle"));
   });
 
   it("bills the powder ski best at floating, the slalom ski quickest and the park ski most forgiving — the catalog's own claim", () => {

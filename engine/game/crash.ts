@@ -401,6 +401,23 @@ export function throwOf(
     z: (-fx * pitch + fz * roll) * cap + own.z * K.carry,
   };
   const v = { x: v0.x * K.keep, y: Math.max(0, v0.y) * K.keep + how.up, z: v0.z * K.keep };
+  return bodyThrown(cause, q, x, y, z, v, w, heading);
+}
+
+/** A BODY OFF ITS SKIS as it stands at `q` with its centre of gravity at
+ * (`x`, `y`, `z`), going at `v` and turning at `w` (world frame) along
+ * `heading` — what `throwOf` sends off, and what a lab poses by hand (the
+ * injury lab's falls, `tests/support/injury-scenarios.ts`). */
+export function bodyThrown(
+  cause: CrashCause,
+  q: Quat,
+  x: number,
+  y: number,
+  z: number,
+  v: Vec3,
+  w: Vec3,
+  heading: number,
+): Thrown {
   const body = throwBody(q, x, y, z, v, w);
   const com = centreOf(body.points);
   const thrown: Thrown = {

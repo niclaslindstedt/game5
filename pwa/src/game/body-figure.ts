@@ -21,16 +21,24 @@
 // body's own seams (the jaw, the sternal notch, the armpits, the costal
 // margin, the iliac crests, the groin, the knees, the ankles, the wrists),
 // every bone is its silhouette with its holes and its shading, the bones go
-// down in the order their depths say, and each has a MARK — the point a
-// crack or a break is drawn across, and the bone's way there.
+// down in the order their depths say — the ORGANS among them, inside the
+// bones that hold them (the skull's cap lifted off the brain) — and each
+// bone has a MARK: the point a crack or a break is drawn across, and the
+// bone's way there.
 
 import type { Bone } from "@engine";
 
 import { FORCE_MOST } from "./body-tile.ts";
 import { FIGURE } from "./body-frame.ts";
-import { BACK_VIEW, FRONT_VIEW, type BoneDraw, type FigureView } from "./body-model.ts";
+import {
+  BACK_VIEW,
+  FRONT_VIEW,
+  type BoneDraw,
+  type FigureView,
+  type OrganDraw,
+} from "./body-model.ts";
 
-export { BACK_VIEW, FIGURE, FRONT_VIEW, type BoneDraw, type FigureView };
+export { BACK_VIEW, FIGURE, FRONT_VIEW, type BoneDraw, type FigureView, type OrganDraw };
 
 /** Which way the figure is seen. */
 export type FigureSide = "front" | "back";

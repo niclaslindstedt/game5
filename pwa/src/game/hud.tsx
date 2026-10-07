@@ -192,6 +192,7 @@ export function Hud({
       class="hud"
       data-air={snap.airTime > 0 ? "1" : undefined}
       data-finished={snap.finished ? "1" : undefined}
+      style={{ "--hud-dark": String(snap.dark) }}
       data-touch={touch ? "1" : undefined}
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
@@ -423,7 +424,7 @@ export function Hud({
           and the reset and the camera sit a thumb's reach lower, nearer the
           hands. */}
       <div class="hud-topright">
-        <Minimap map={snap.minimap} onPause={onPause} />
+        <Minimap map={snap.minimap} dark={snap.dark} onPause={onPause} />
         <HudActions onReset={onReset} onCamera={onCamera} lit={lit} />
       </div>
 

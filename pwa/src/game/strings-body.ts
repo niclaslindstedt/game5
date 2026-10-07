@@ -116,6 +116,15 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   armBurns: (s) => `BURNS TO THE ${s}ARM`,
   burntLeg: (s) => `BURNT ${s}LEG`,
   legBurns: (s) => `BURNS TO THE ${s}LEG`,
+  brainBleed: () => "BLEEDING IN THE SKULL",
+  bruisedLung: () => "BRUISED LUNG",
+  bruisedHeart: () => "BRUISED HEART",
+  rupturedLiver: () => "RUPTURED LIVER",
+  bruisedBowel: () => "BRUISED BOWEL",
+  tornBladder: () => "TORN BLADDER",
+  bruisedLungFall: () => "BRUISED LUNG",
+  tornLiverFall: () => "TORN LIVER",
+  tornSpleenFall: () => "TORN SPLEEN",
 };
 
 /** How the whole body is, by its injury severity score (`body-tile.ts`). */

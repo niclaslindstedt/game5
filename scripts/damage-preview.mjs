@@ -20,6 +20,8 @@
 //   viewports  one body (`--case`) at 1280×720, 390×844 and 844×390, whole
 //   plate      the figure enlarged: sound, every bone cracked, every bone
 //              broken, a trunk at speed
+//   organs     the organs enlarged, front and back: sound, bruised, torn,
+//              and every organ at its worst
 //   force      the figure enlarged with every bone fractured at one energy
 //              a column: a hairline, a simple break struck lightly and
 //              harder, a wedge, shattered, shattered hard
@@ -62,6 +64,7 @@ const SHEETS = [
   "viewports",
   "plate",
   "back",
+  "organs",
   "force",
   "closeup",
   "snap",
@@ -91,7 +94,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,force,closeup,snap,blows,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
+  "usage: node scripts/damage-preview.mjs [--sheet=panels,viewports,plate,back,organs,force,closeup,snap,blows,refs] [--scenarios=a,b] [--case=id] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs" || args.refs);

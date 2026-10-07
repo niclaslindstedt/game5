@@ -64,6 +64,21 @@
 //     (never under 1) — the scale's own step between a fracture that
 //     holds and one that does not (a linear skull fracture is AIS 2, a
 //     depressed one 3–4; a femoral crack 2, the shaft broken 3).
+//   - THE ORGANS (the trauma and sports-medicine series): in ski and
+//     snowboard falls a fifth to a quarter of the seriously hurt have an
+//     abdominal injury, and the SPLEEN is the organ torn first and most
+//     (a fall onto the left flank), the kidney (a blow from behind) and the
+//     liver (the right) after it, the three often together; in falls from a
+//     height the lungs are bruised in every other fall from the second
+//     floor up, with the ribs over them, the liver is the abdomen's first
+//     injury (an even chance of it from some fifteen metres) and the spleen
+//     the organ deceleration tears most — both together past some
+//     twenty-five; the heart is bruised by a hard blow square on the
+//     breastbone, the brain bleeds under a blow that breaks the skull, and
+//     the bladder tears in about one pelvic ring fracture in ten. Their
+//     doses below sit between those: past the ribs' break for the lung, past
+//     the skull's for the bleed, and a landing's deceleration past the
+//     spine's break for the trunk's organs.
 // The SEVERITY of each injury is its Abbreviated Injury Scale rank (AIS):
 // 1 minor, 2 moderate, 3 serious, 4 severe, 5 critical. Six — unsurvivable
 // — is not on any ladder: this is a game, and the worst it says is
@@ -155,6 +170,44 @@ export const BONES: readonly Bone[] = BONE_KINDS.flatMap((k): Bone[] =>
   pairedBone(k) ? [`${k}L`, `${k}R`] : [k as Exclude<BoneKind, PairedKind>],
 );
 
+/** THE ORGANS the body is drawn with (`hud-body.tsx`), inside the bones
+ * that hold them: the brain in the skull, the heart and the lungs in the
+ * rib cage, the liver, the spleen, the stomach and the kidneys under its
+ * lower ribs, the bowel in the belly and the bladder in the pelvis — the
+ * ones a fall or a blow tears (see `INJURIES`). */
+export const ORGAN_KINDS = [
+  "brain",
+  "heart",
+  "lung",
+  "liver",
+  "spleen",
+  "stomach",
+  "bowel",
+  "kidney",
+  "bladder",
+] as const;
+
+export type OrganKind = (typeof ORGAN_KINDS)[number];
+
+/** The organs there are two of, one a side. */
+const PAIRED_ORGANS = ["lung", "kidney"] as const satisfies readonly OrganKind[];
+
+type PairedOrgan = (typeof PAIRED_ORGANS)[number];
+
+/** One organ: a single one, or a paired kind and its side. */
+export type Organ = Exclude<OrganKind, PairedOrgan> | `${PairedOrgan}${"L" | "R"}`;
+
+/** Whether an organ kind is one a side. */
+export function pairedOrgan(kind: OrganKind): kind is PairedOrgan {
+  return (PAIRED_ORGANS as readonly OrganKind[]).includes(kind);
+}
+
+/** THE ORGANS, in the order every per-organ array keeps them: each kind in
+ * turn, a paired one left then right. */
+export const ORGANS: readonly Organ[] = ORGAN_KINDS.flatMap((k): Organ[] =>
+  pairedOrgan(k) ? [`${k}L`, `${k}R`] : [k as Exclude<OrganKind, PairedOrgan>],
+);
+
 /** WHAT A FRACTURE IS: a `hairline` crack that holds, or a `break`. */
 export type Fracture = "hairline" | "break";
 
@@ -174,20 +227,27 @@ export type Facing = "front" | "back" | "left" | "right";
 
 /** ONE INJURY a part can take: its severity (AIS), the mechanism that does
  * it, the dose of that mechanism with an even chance of it (`at`), and —
- * for the trunk's organs — the side the blow must come from. A FRACTURE
+ * for the trunk's organs — the side the blow must come from (`face`); a
+ * bone broken only by a blow from some sides names them (`on`: the
+ * collarbone off the point of the shoulder — `outside`, the part's own
+ * outer side — the shoulder blade from behind). A FRACTURE
  * names the bones it cracks or breaks (on a paired part, the part's side
  * of each) and which (`fracture`): the body drawn shows it on the bone and
- * says nothing of it in words — unless it is more than the bone (`organ`,
- * the spinal cord), which is said. */
+ * says nothing of it in words — unless it is more than the bone (`said`,
+ * the spinal cord), which is said. An injury to an ORGAN names it
+ * (`organs`, a paired one on the side the blow came from): the body drawn
+ * paints the organ by it, and it is said. */
 export type InjuryDef = {
   part: BodyPart | "arm" | "hand" | "shoulder" | "thigh" | "knee" | "shin" | "foot";
   ais: 1 | 2 | 3 | 4 | 5;
   mech: Mechanism;
   at: number;
   face?: Facing;
+  on?: readonly (Facing | "outside")[];
   bones?: readonly BoneKind[];
   fracture?: Fracture;
-  organ?: true;
+  said?: true;
+  organs?: readonly OrganKind[];
 };
 
 /** THE INJURIES, by name — the engine names them and never says them
@@ -197,8 +257,8 @@ export const INJURIES = {
   // THE HEAD — in a helmet, which on snow changes the peak little (the
   // headform study) and against a trunk crushes its liner (`helmet`).
   headBump: { part: "head", ais: 1, mech: "blunt", at: 45 },
-  concussion: { part: "head", ais: 2, mech: "blunt", at: 95 },
-  knockedOut: { part: "head", ais: 3, mech: "blunt", at: 150 },
+  concussion: { part: "head", ais: 2, mech: "blunt", at: 95, organs: ["brain"] },
+  knockedOut: { part: "head", ais: 3, mech: "blunt", at: 150, organs: ["brain"] },
   skullFracture: {
     part: "head",
     ais: 4,
@@ -234,7 +294,7 @@ export const INJURIES = {
     bones: ["mandible"],
     fracture: "hairline",
   },
-  brainInjury: { part: "head", ais: 5, mech: "blunt", at: 320 },
+  brainInjury: { part: "head", ais: 5, mech: "blunt", at: 320, organs: ["brain"] },
   // THE NECK, whipped by the head's blow (`share`) and by a landing.
   whiplash: { part: "neck", ais: 1, mech: "blunt", at: 24 },
   neckSprain: { part: "neck", ais: 2, mech: "blunt", at: 45 },
@@ -283,7 +343,7 @@ export const INJURIES = {
     bones: ["sternum"],
     fracture: "break",
   },
-  collapsedLung: { part: "chest", ais: 3, mech: "blunt", at: 85 },
+  collapsedLung: { part: "chest", ais: 3, mech: "blunt", at: 85, organs: ["lung"] },
   flailChest: {
     part: "chest",
     ais: 4,
@@ -328,17 +388,59 @@ export const INJURIES = {
     at: 30,
     bones: ["lumbar"],
     fracture: "break",
-    organ: true,
+    said: true,
   },
   // THE ABDOMEN — winded from any side; the kidneys from behind, the
   // spleen from the left and the liver from the right.
   winded: { part: "abdomen", ais: 1, mech: "blunt", at: 20 },
-  bruisedKidney: { part: "abdomen", ais: 2, mech: "blunt", at: 42, face: "back" },
-  tornKidney: { part: "abdomen", ais: 3, mech: "blunt", at: 75, face: "back" },
-  tornSpleen: { part: "abdomen", ais: 3, mech: "blunt", at: 62, face: "left" },
-  rupturedSpleen: { part: "abdomen", ais: 4, mech: "blunt", at: 100, face: "left" },
-  tornLiver: { part: "abdomen", ais: 3, mech: "blunt", at: 62, face: "right" },
-  lacerated: { part: "abdomen", ais: 4, mech: "blunt", at: 105, face: "front" },
+  bruisedKidney: {
+    part: "abdomen",
+    ais: 2,
+    mech: "blunt",
+    at: 42,
+    face: "back",
+    organs: ["kidney"],
+  },
+  tornKidney: {
+    part: "abdomen",
+    ais: 3,
+    mech: "blunt",
+    at: 75,
+    face: "back",
+    organs: ["kidney"],
+  },
+  tornSpleen: {
+    part: "abdomen",
+    ais: 3,
+    mech: "blunt",
+    at: 62,
+    face: "left",
+    organs: ["spleen"],
+  },
+  rupturedSpleen: {
+    part: "abdomen",
+    ais: 4,
+    mech: "blunt",
+    at: 100,
+    face: "left",
+    organs: ["spleen"],
+  },
+  tornLiver: {
+    part: "abdomen",
+    ais: 3,
+    mech: "blunt",
+    at: 62,
+    face: "right",
+    organs: ["liver"],
+  },
+  lacerated: {
+    part: "abdomen",
+    ais: 4,
+    mech: "blunt",
+    at: 105,
+    face: "front",
+    organs: ["stomach", "bowel"],
+  },
   // THE PELVIS — the hip pointer of a fall on the side, and the ring.
   bruisedHip: { part: "pelvis", ais: 1, mech: "blunt", at: 18 },
   crackedPelvis: {
@@ -357,16 +459,31 @@ export const INJURIES = {
     bones: ["pelvis"],
     fracture: "break",
   },
-  // THE SHOULDER — a point load on it, and the fall on the arm.
+  // THE SHOULDER — a point load on it, and the fall on the arm: the
+  // collarbone and the joints off the point of the shoulder or up the arm,
+  // the shoulder blade only from behind and only hard.
   bruisedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 15 },
-  separatedShoulder: { part: "shoulder", ais: 1, mech: "blunt", at: 24 },
-  dislocatedShoulder: { part: "shoulder", ais: 2, mech: "blunt", at: 31 },
+  separatedShoulder: {
+    part: "shoulder",
+    ais: 1,
+    mech: "blunt",
+    at: 24,
+    on: ["outside"],
+  },
+  dislocatedShoulder: {
+    part: "shoulder",
+    ais: 2,
+    mech: "blunt",
+    at: 31,
+    on: ["outside"],
+  },
   crackedCollarbone: {
     part: "shoulder",
     ais: 1,
     mech: "blunt",
     at: 30,
     bones: ["clavicle"],
+    on: ["outside"],
     fracture: "hairline",
   },
   brokenCollarbone: {
@@ -375,23 +492,27 @@ export const INJURIES = {
     mech: "blunt",
     at: 38,
     bones: ["clavicle"],
+    on: ["outside"],
     fracture: "break",
   },
-  // The shoulder blade, which takes a hard blow to break.
+  // The shoulder blade, which takes a hard blow from behind to break —
+  // one of the high-energy fractures, rare in a fall flat on the back.
   crackedScapula: {
     part: "shoulder",
     ais: 1,
     mech: "blunt",
-    at: 46,
+    at: 60,
     bones: ["scapula"],
+    on: ["back"],
     fracture: "hairline",
   },
   brokenScapula: {
     part: "shoulder",
     ais: 2,
     mech: "blunt",
-    at: 58,
+    at: 78,
     bones: ["scapula"],
+    on: ["back"],
     fracture: "break",
   },
   // THE ARM — the elbow and the bones either side of it.
@@ -486,6 +607,7 @@ export const INJURIES = {
     mech: "blunt",
     at: 48,
     bones: ["patella"],
+    on: ["front"],
     fracture: "hairline",
   },
   brokenKneecap: {
@@ -494,6 +616,7 @@ export const INJURIES = {
     mech: "blunt",
     at: 60,
     bones: ["patella"],
+    on: ["front"],
     fracture: "break",
   },
   // THE SHIN — bruised by a trunk, broken over the boot's rim.
@@ -630,6 +753,55 @@ export const INJURIES = {
   armBurns: { part: "arm", ais: 2, mech: "heat", at: 1160 },
   burntLeg: { part: "thigh", ais: 1, mech: "heat", at: 420 },
   legBurns: { part: "thigh", ais: 2, mech: "heat", at: 1160 },
+  // THE ORGANS' OWN — the rest of what a blow or a fall from a height does
+  // inside the bones (the research in the header's ORGANS paragraph). A
+  // bleed under the skull past the blow that breaks it; the lung bruised
+  // under a blow on the ribs (the commonest chest injury of blunt trauma,
+  // and of a fall), the heart by a hard one square on the breastbone; the
+  // liver torn through and the bowel bruised; the bladder torn with the
+  // ring of the pelvis broken round it — a blow square on the front of the
+  // pelvis, twice the one that breaks the ring.
+  brainBleed: { part: "head", ais: 4, mech: "blunt", at: 265, organs: ["brain"] },
+  bruisedLung: { part: "chest", ais: 3, mech: "blunt", at: 70, organs: ["lung"] },
+  bruisedHeart: {
+    part: "chest",
+    ais: 3,
+    mech: "blunt",
+    at: 110,
+    face: "front",
+    organs: ["heart"],
+  },
+  rupturedLiver: {
+    part: "abdomen",
+    ais: 4,
+    mech: "blunt",
+    at: 100,
+    face: "right",
+    organs: ["liver"],
+  },
+  bruisedBowel: {
+    part: "abdomen",
+    ais: 2,
+    mech: "blunt",
+    at: 70,
+    face: "front",
+    organs: ["bowel"],
+  },
+  tornBladder: {
+    part: "pelvis",
+    ais: 3,
+    mech: "blunt",
+    at: 150,
+    face: "front",
+    organs: ["bladder"],
+  },
+  // DECELERATION (`load`, the landing's g on the trunk): a fall from a
+  // height landed on the feet stops the organs as hard as the skeleton, and
+  // they tear on what holds them — the lungs bruised first, then the liver
+  // and the spleen torn on their ligaments.
+  bruisedLungFall: { part: "chest", ais: 3, mech: "load", at: 30, organs: ["lung"] },
+  tornLiverFall: { part: "abdomen", ais: 3, mech: "load", at: 32, organs: ["liver"] },
+  tornSpleenFall: { part: "abdomen", ais: 3, mech: "load", at: 34, organs: ["spleen"] },
 } as const satisfies Record<string, InjuryDef>;
 
 export type InjuryKind = keyof typeof INJURIES;
@@ -639,7 +811,7 @@ export const INJURY = {
   /** THE STOP each part is brought to against a hard surface, m: the
    * flesh, the bone's own flex and the clothes over it — the half of the
    * stopping distance that is the body's. The snow's half is `snow`; a
-   * trunk adds `tree` (the bark, the branches, the trunk's own sway) and,
+   * solid adds `solid` by what it is made of (a trunk its bark and sway) and,
    * on the head, the helmet's liner crushing (`helmet`) — which it does
    * against a trunk and not against snow (the headform study). A LIMB's give
    * is its joints folding as well — the arm at the elbow and the shoulder
@@ -660,7 +832,13 @@ export const INJURY = {
     shin: 0.04,
     foot: 0.08,
   },
-  tree: 0.01,
+  /** WHAT A SOLID GIVES, m, by what it is made of (`upright-grid.ts`'
+   * `Stuff`): a TRUNK its bark, its branches and its sway; a lift tower's
+   * or a mast's bare STEEL next to nothing; a tower's foam PAD
+   * (`TOWER_PAD`, 0.22 m of it) most of its thickness crushed, which is
+   * what it is wrapped round a column on a run for; a cabin's LOG wall a
+   * little less than a living trunk. */
+  solid: { trunk: 0.01, steel: 0.003, padded: 0.15, log: 0.006 },
   helmet: 0.012,
   /** THE SNOW'S GIVE, m: bare ice, the groomer (the study's hard snow),
    * and loose snow — `soft` of it at once and `deep` more for every unit of
@@ -686,7 +864,7 @@ export const INJURY = {
    * into the thigh and the shin, a shoulder's or a hip's into the trunk on
    * the side it faces down. */
   share: {
-    neck: 0.35,
+    neck: 0.25,
     handArm: 0.5,
     handShoulder: 0.5,
     elbowShoulder: 0.4,
@@ -694,13 +872,30 @@ export const INJURY = {
     kneeShin: 0.4,
     footShin: 0.5,
     trunk: 0.6,
+    /** ...and met flat on a side, the flank itself: the lower ribs and the
+     * spleen or the liver under them. */
+    flank: 0.9,
+    /** A head met first down the spine — a dive — loads the neck along it
+     * on top of the whip: the diving injury's cervical fracture. */
+    neckAxial: 0.35,
+    /** A sole met first along a straight body loads the leg along it, in a
+     * landing's g: feet first into a trunk at 40 km/h, the femur's even
+     * chance. */
+    legAxial: 0.7,
   },
+  /** A SEAT met with the trunk upright over it: this share of the hips'
+   * blow runs up the spine as its load (g) — the ejection seat's and the
+   * seated fall's compression fracture, from a drop of a few metres onto
+   * hard snow; nothing from a fall on the side or the back. */
+  seat: 0.18,
   /** A TRUNK met on the skis: square in front of them the tips meet it and
    * the skis stop over the bindings' release and the legs' fold, `stop` m —
    * the shins levered and the knees twisted, the blow the body's own once
-   * it is thrown on into it; beside him it takes the shoulder, the arm, the
+   * it is thrown on into it — the tips meet it only within `lane` m of his
+   * line past its own radius (his feet's stance and a ski's half-width);
+   * wider of it, the skis pass it, and so beside him it takes the shoulder, the arm, the
    * ribs, the flank, the hip, the thigh and a glancing share of the head. */
-  front: { stop: 0.6 },
+  front: { stop: 0.6, lane: 0.25 },
   side: { shoulder: 1, arm: 0.7, chest: 0.6, abdomen: 0.5, pelvis: 0.4, thigh: 0.4, head: 0.25 },
   /** THE LANDING: the knees' drawer load is `square` of the landing's g
    * on a landing square on the skis — the cruciate is torn by the back seat
@@ -719,7 +914,7 @@ export const INJURY = {
   onBody: 0.4,
   /** The most new injuries one step's blows do — the worst of what was
    * drawn. */
-  perBlow: 3,
+  perBlow: 5,
   /** HOW A BREAK BREAKS, by its ENERGY over the energy of its even chance
    * (`body.ts`' `energyOver`): a SIMPLE break under `wedge`, a WEDGE — a
    * butterfly fragment knocked out of it — under `shatter`, and past that

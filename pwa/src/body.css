@@ -230,6 +230,107 @@
   filter: drop-shadow(0 0 1.2px var(--hud-hp-dead));
 }
 
+/* THE ORGANS, inside the bones: each in a soft colour of its own while
+   sound — muted, a little greyed, so nothing sound reads as the alarm —
+   and the condition's paint when hurt (yellow bruised, orange torn, red
+   serious and worse), turning over a moment and flashing as it goes, as a
+   bone does. Shaded as it lies, outlined a hair darker. */
+@property --organ {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c9a9ad;
+}
+
+.hud-organ {
+  --organ: #c9a9ad;
+  transition: --organ 300ms ease-out;
+}
+
+.hud-organ-brain {
+  --organ: #d6c2c2;
+}
+
+.hud-organ-heart {
+  --organ: #a8707c;
+}
+
+.hud-organ-lung {
+  --organ: #d9aab3;
+}
+
+.hud-organ-liver {
+  --organ: #a8857f;
+}
+
+.hud-organ-spleen {
+  --organ: #a3899d;
+}
+
+.hud-organ-stomach {
+  --organ: #d2bba9;
+}
+
+.hud-organ-bowel {
+  --organ: #cdb39f;
+}
+
+.hud-organ-kidney {
+  --organ: #ad8a85;
+}
+
+.hud-organ-bladder {
+  --organ: #cfc3a0;
+}
+
+.hud-organ.hud-hp-hurt,
+.hud-organ.hud-hp-spent,
+.hud-organ.hud-hp-dead {
+  --organ: var(--hp);
+  animation: hud-organ-flash 600ms ease-out;
+}
+
+@keyframes hud-organ-flash {
+  from {
+    --organ: #ffffff;
+  }
+}
+
+.hud-organ-fill {
+  fill: var(--organ);
+  stroke: rgb(40 22 24 / 50%);
+  stroke-width: 0.2;
+  stroke-linejoin: round;
+}
+
+.hud-organ-light {
+  fill: rgb(255 255 255 / 30%);
+}
+
+.hud-organ-shadow {
+  fill: rgb(40 24 28 / 26%);
+}
+
+.hud-organ-deep {
+  fill: rgb(30 16 20 / 30%);
+}
+
+/* A HURT ONE glows its paint, as a broken bone does, so it is found
+   between the ribs over it at a glance. */
+.hud-organ.hud-hp-hurt,
+.hud-organ.hud-hp-spent,
+.hud-organ.hud-hp-dead {
+  filter: drop-shadow(0 0 1px var(--hp));
+}
+
+/* A HURT ORGAN that lies mostly behind another is dashed in over it. */
+.hud-organ-out {
+  fill: none;
+  stroke: var(--hp);
+  stroke-width: 0.7;
+  stroke-dasharray: 1.4 0.8;
+  stroke-linejoin: round;
+}
+
 /* THE PART THE BLOW STRUCK, lit white and cooling to its paint. */
 .hud-body-struck {
   animation: hud-body-struck 900ms ease-out;

@@ -640,6 +640,7 @@ export function cabinWalls(level: Level): readonly Upright[] {
           y: c.base,
           height,
           radius: r,
+          stuff: "log",
         });
       }
     }

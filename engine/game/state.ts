@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
@@ -372,7 +373,16 @@ export type BodyState = {
  * energy of the injury's even chance (`body.ts`' `energyOver`; 1 when left
  * out), raised by every harder blow on the part after it: what grades a
  * break simple, wedge or shattered (`fracturesOf`). */
-export type Injury = { part: BodyPart; kind: InjuryKind; ais: number; t: number; energy?: number };
+export type Injury = {
+  part: BodyPart;
+  kind: InjuryKind;
+  ais: number;
+  t: number;
+  energy?: number;
+  /** THE SIDE of a paired organ it hurt (`InjuryDef.organs`: a lung, a
+   * kidney) — the side the blow came from, or one drawn off a hash. */
+  side?: "L" | "R";
+};
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
@@ -633,7 +643,18 @@ export type GameEvent =
       off: number;
     }
   /** A trunk met at `speed` m/s closing. */
-  | { kind: "hit"; t: number; speed: number; x: number; z: number; post?: true }
+  | {
+      kind: "hit";
+      t: number;
+      speed: number;
+      x: number;
+      z: number;
+      /** What was met — a trunk when left out (`upright-grid.ts`) — and
+       * its radius, m. */
+      stuff?: Stuff;
+      radius?: number;
+      post?: true;
+    }
   /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
    * which, and how near it came, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }

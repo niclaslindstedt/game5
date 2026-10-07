@@ -56,6 +56,7 @@ import {
 } from "@engine";
 
 import { runNumbers } from "./run-names.ts";
+import type { ChartHouse, HouseSpot } from "./seed-chart.ts";
 
 /** The square picture's side, px: the plate is a couple of hundred CSS
  * pixels on the card, so this is its own size on a two-times screen. */
@@ -671,6 +672,8 @@ export type PanoramaSchematic = {
   runs: PanoramaRun[];
   lifts: PanoramaLift[];
   kickers: PanoramaMark[];
+  /** Every house seen from the valley (`cabinsOf`), at its foot. */
+  houses: ChartHouse[];
   /** The start line's first slot, and the finish line; null where hidden. */
   start: PanoramaMark | null;
   finish: [number, number] | null;
@@ -725,6 +728,7 @@ export function panoramaSchematic(
   level: PanoramaLevel,
   v: PanoramaView,
   depth: Float32Array,
+  spots: readonly HouseSpot[] = [],
 ): PanoramaSchematic {
   const resort = level.resort;
   const raced = new Set(resort?.courses.find((c) => c.id === resort.course)?.runs ?? []);
@@ -784,6 +788,13 @@ export function panoramaSchematic(
       onTrack: k.onTrack,
     });
   }
+  const houses: ChartHouse[] = [];
+  for (const h of spots) {
+    const y = sampleField(level.ground, h.x, h.z);
+    if (!seenIn(v, depth, h.x, y, h.z)) continue;
+    const [x, yy] = toPanorama(v, h.x, y, h.z);
+    houses.push({ id: h.id, x, y: yy, kind: h.kind });
+  }
   const g = level.grid[0];
   const gy = sampleField(level.ground, g.x, g.z);
   const [sx, sy] = toPanorama(v, g.x, gy, g.z);
@@ -792,7 +803,7 @@ export function panoramaSchematic(
     : null;
   const end = level.track.points[level.track.points.length - 1];
   const finish = seenIn(v, depth, end.x, end.y, end.z) ? toPanorama(v, end.x, end.y, end.z) : null;
-  return { runs, lifts, kickers, start, finish };
+  return { runs, lifts, kickers, houses, start, finish };
 }
 
 // ── A tap, and a spot ───────────────────────────────────────────────────

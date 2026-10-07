@@ -54,6 +54,7 @@ import { stepTrap } from "./speed-trap.ts";
 import { forgetRun, noteSkied } from "./skied.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
+import { hockeyStop, stopMade } from "./hockey-stop.ts";
 import { stepJib } from "./jib.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -76,6 +77,7 @@ const RUN_OUT: SkierInput = { ...NEUTRAL_INPUT };
  * little at a time; then he rides stood up into it, the arms in, and only
  * past the BRAKING LINE, slow, does he skid to a stop. */
 function runOut(run: GameState): SkierInput {
+  if (run.rules.hockeyStop && !run.skier.thrown) return hockeyStop(run);
   const sk = run.level.speedSki;
   if (!sk) return COAST;
   const c = run.skier;
@@ -174,8 +176,9 @@ export function stepRun(
   }
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
-  // his legs settle.
-  if ((run.phase === "countdown" || (housed && c.launch < 0)) && !off) {
+  // his legs settle. ...and so does a freestyle skier whose HOCKEY STOP is
+  // made (`hockey-stop.ts`).
+  if ((run.phase === "countdown" || (housed && c.launch < 0) || stopMade(run, speed0)) && !off) {
     c.x = x0;
     c.z = z0;
     c.vx = 0;

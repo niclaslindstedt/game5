@@ -88,6 +88,8 @@ export const SLALOM_STRINGS = {
       ? "DSQ · START"
       : `${out.status === "dsq" ? "DSQ" : "DNF"} · ${out.why === "missed" ? "MISSED" : out.why === "straddle" ? "STRADDLE" : out.why === "net" ? "NETS" : out.why === "contact" ? "CARD" : "FALL"} ${out.gate}`,
   boardWaiting: "TO START",
+  /** A freestyle board's cut, where its places skip (hud-contest-board.tsx). */
+  boardGapRow: "⋮",
   boardOnCourse: "ON COURSE",
 
   /* ── THE NEWS COLUMN (run-news.ts) ─────────────────────────────────── */

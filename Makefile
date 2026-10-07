@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear groomer snowguns piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -488,6 +488,16 @@ groomer:
 # `world`. ARGS="--sheet=plume", "--day=70 --hour=8" (a late season).
 snowguns:
 	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
+# through the game's own renderer — one well from every side and at the
+# ordinary snow beside it (look), a skier sliding in and stuck (fall), and
+# under the headlamp (night). One contact sheet a group,
+# previews/tree-wells-<group>.png, and every frame alone. Its own one-off
+# bundle from pwa/tree-wells-preview.html (never deployed); needs a Chromium.
+# SEED=, REGION=, SNOW= (the dial) and ARGS= (--sheet=look, --views=below).
+tree-wells:
+	npm run tree-wells -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(if $(SNOW),--snow=$(SNOW),) $(ARGS)
 
 # THE PISTE THROUGH THE DAY LAB: one spot of a free ride's piste under a
 # sky at the hours of a day — the night's corduroy at the first chair, the

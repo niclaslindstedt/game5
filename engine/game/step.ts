@@ -80,6 +80,7 @@ import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
 import { juryDay } from "./jury.ts";
+import { wellShareOf, withWells } from "./tree-well.ts";
 import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -305,6 +306,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     flipMost: base.flipMost,
     inRun: base.inRun,
     aerials: base.aerials,
+    hockeyStop: base.hockeyStop,
   };
 }
 
@@ -394,7 +396,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const rules = rulesFor(options, skied);
   // A RACE is run only in the weather its jury allows (`jury.ts`) — a sky
   // picked by hand included.
-  const level = rules.jury ? juryDay(skied, rules.jury) : skied;
+  const judged = rules.jury ? juryDay(skied, rules.jury) : skied;
+  // THE TREE WELLS the run's powder has left round the trunks
+  // (`tree-well.ts`): none at the ordinary snow, where this is the map.
+  const level = withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth)));
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left

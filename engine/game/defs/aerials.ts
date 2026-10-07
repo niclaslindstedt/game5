@@ -72,5 +72,6 @@ export function aerialsRules(laps: number): RunRules {
     flipMost: AERIALS.flipMost,
     inRun: true,
     aerials: true,
+    hockeyStop: true,
   };
 }

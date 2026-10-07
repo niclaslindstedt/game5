@@ -45,8 +45,6 @@
 //   node scripts/hud-body.mjs              the sheets and the tables
 //   node scripts/hud-body.mjs --write      ...and the figure's module
 
-import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -61,6 +59,8 @@ import {
   loadObj,
   selectBone,
 } from "./lib/bodyparts3d.mjs";
+import { createOrgans } from "./lib/hud-body-organs.mjs";
+import { writeModule } from "./lib/hud-body-module.mjs";
 import { createSheets } from "./lib/hud-body-sheet.mjs";
 import { blurIn, createView, drawMesh, traceMask, vertexNormals } from "./lib/mask-trace.mjs";
 
@@ -73,16 +73,24 @@ const args = parseArgs(
     write: { kind: "flag", default: false, help: "write pwa/src/game/body-model.ts" },
     foot: { kind: "number", default: 58, help: "degrees each foot is turned down about its ankle" },
     k: { kind: "number", default: 8, help: "pixels per figure unit the body is drawn at" },
+    brow: {
+      kind: "number",
+      default: 14,
+      help: "mm over the nose's root the skull cap is cut off at, the brain under it",
+    },
   },
-  "usage: node scripts/hud-body.mjs [--write] [--foot=58] [--k=8]",
+  "usage: node scripts/hud-body.mjs [--write] [--foot=58] [--k=8] [--brow=14]",
 );
 
 aliasEngine(root);
-const { BONES } = await import("@engine");
+const { BONES, ORGANS } = await import("@engine");
+/** Everything laid down in the figure: the bones, then the organs. */
+const LAYERS = [...BONES, ...ORGANS];
 const { FIGURE } = await import("../pwa/src/game/body-frame.ts");
 
 const t0 = Date.now();
-const { objDir, table } = ensureBodyParts3D(join(root, "previews", ".bodyparts3d"));
+const cache = ensureBodyParts3D(join(root, "previews", ".bodyparts3d"));
+const { objDir, table } = cache;
 const names = elementsByName(table);
 const SIDES = ["R", "L"];
 const sideWord = (s) => (s === "R" ? "right" : "left");
@@ -203,6 +211,18 @@ const cutAt = (() => {
   };
 })();
 
+/** THE SKULL CAP is cut off level a little over the root of the nose, as an
+ * anatomy plate lifts it, so the brain shows in the skull under it. */
+const CAP = (() => {
+  let top = -Infinity;
+  for (const s of SIDES)
+    for (const m of named(`${sideWord(s)} nasal bone`))
+      for (let i = 2; i < m.v.length; i += 3) top = Math.max(top, m.v[i]);
+  return top + args.brow;
+})();
+/** How a bone is cut: along the spine, its cap off (the skull), or whole. */
+const cutOf = (b) => (CUT.test(b) ? "spine" : b === "skull" ? "cap" : null);
+
 // ── 3. LOOK ──────────────────────────────────────────────────────────────
 
 const K = args.k;
@@ -237,7 +257,12 @@ function lightOf(view) {
 }
 function drawn(view, meshes, cut) {
   const out = createView(W, H);
-  const clip = cut ? Float32Array.from({ length: H }, (_, r) => view.sd * cutAt(zOfRow(r))) : null;
+  const clip =
+    cut === "cap"
+      ? Float32Array.from({ length: H }, (_, r) => (zOfRow(r) > CAP ? -Infinity : Infinity))
+      : cut
+        ? Float32Array.from({ length: H }, (_, r) => view.sd * cutAt(zOfRow(r)))
+        : null;
   for (const m of meshes) {
     const p = new Float64Array(m.v.length);
     for (let i = 0; i < p.length; i += 3) {
@@ -250,6 +275,7 @@ function drawn(view, meshes, cut) {
   return out;
 }
 const maskOf = (d) => Uint8Array.from(d.depth, (x) => (Number.isFinite(x) ? 1 : 0));
+const organs = createOrgans({ cache, W, H, K, MM, posed, still });
 
 // ── 4. LIGHT ─────────────────────────────────────────────────────────────
 
@@ -343,9 +369,14 @@ function render(name) {
   const nearBone = new Int16Array(W * H).fill(-1);
   /** Over: how many pixels bone i lies in front of bone j. */
   const over = new Map();
-  for (const [bi, b] of BONES.entries()) {
-    const d = drawn(view, boneMeshes.get(b), CUT.test(b));
-    const mask = maskOf(d);
+  for (const [bi, b] of LAYERS.entries()) {
+    const bone = bi < BONES.length;
+    const { d, mask } = bone
+      ? (() => {
+          const dd = drawn(view, boneMeshes.get(b), cutOf(b));
+          return { d: dd, mask: maskOf(dd) };
+        })()
+      : organs.layerOf(b, view, drawn);
     const c = cropOf(d, mask);
     const tone = new Float32Array(W * H);
     const ct = c ? toneOf(c.d, c.mask, light, c.w, c.h) : null;
@@ -388,8 +419,8 @@ function render(name) {
   }
   // THE ORDER: a bone goes down before every bone it lies behind more than
   // in front of; ties and loops broken by how far back it lies on the whole.
-  const n = BONES.length;
-  const meanDepth = BONES.map((_, i) => {
+  const n = LAYERS.length;
+  const meanDepth = LAYERS.map((_, i) => {
     let s = 0;
     let c = 0;
     for (let k = 0; k < W * H; k++)
@@ -401,16 +432,16 @@ function render(name) {
   });
   const behind = (i, j) => (over.get(`${j}>${i}`) ?? 0) > (over.get(`${i}>${j}`) ?? 0);
   const placed = [];
-  const left = new Set(BONES.map((_, i) => i));
+  const left = new Set(LAYERS.map((_, i) => i));
   while (left.size) {
     const free = [...left].filter((i) => ![...left].some((j) => j !== i && behind(j, i)));
     const pick = (free.length ? free : [...left]).sort((a, b) => meanDepth[b] - meanDepth[a])[0];
     placed.push(pick);
     left.delete(pick);
   }
-  const order = placed.map((i) => BONES[i]);
+  const order = placed.map((i) => LAYERS[i]);
   const shows = new Map(
-    BONES.map((b, i) => [b, Uint8Array.from(nearBone, (x) => (x === i ? 1 : 0))]),
+    LAYERS.map((b, i) => [b, Uint8Array.from(nearBone, (x) => (x === i ? 1 : 0))]),
   );
   void n;
   return { name, view, outline, skinMask, skinTone, masks, tones, shapes, order, shows };
@@ -886,7 +917,13 @@ for (const [r, parts, marks] of [
   void parts;
 }
 console.log(`  ${MM.toFixed(2)} mm a unit; feet turned ${args.foot}°`);
-console.log("  bone          front: area u²  corners  hidden   back: area u²  corners  hidden");
+console.log("  layer         front: area u²  corners  hidden   back: area u²  corners  hidden");
+/** How much of a layer the layers in front of it hide, 0 .. 1. */
+const hiddenOf = (r, b) => {
+  const area = r.masks.get(b).reduce((n, x) => n + x, 0);
+  const shown = r.shows.get(b).reduce((n, x) => n + x, 0);
+  return area > 0 ? Math.round((1 - shown / area) * 100) / 100 : 1;
+};
 const stat = (r, b) => {
   const area = r.masks.get(b).reduce((n, x) => n + x, 0) / K / K;
   const shown = r.shows.get(b).reduce((n, x) => n + x, 0) / K / K;
@@ -894,70 +931,21 @@ const stat = (r, b) => {
   const hid = area > 0 ? Math.round(100 - (shown / area) * 100) : 100;
   return `${area.toFixed(1).padStart(13)} ${String(corners).padStart(8)} ${String(hid).padStart(5)} %`;
 };
-for (const b of BONES) console.log(`  ${b.padEnd(12)} ${stat(front, b)}  ${stat(back, b)}`);
+for (const b of LAYERS) console.log(`  ${b.padEnd(12)} ${stat(front, b)}  ${stat(back, b)}`);
 console.log(`  order (front): ${front.order.join(" ")}`);
 console.log(`  order (back):  ${back.order.join(" ")}`);
 console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 
 // ── THE MODULE ───────────────────────────────────────────────────────────
 
-if (args.write) {
-  const viewOf = (r, parts, marks, strip) => ({
-    outline: r.outline.map((o) => pathOf(o)).join(""),
-    regions: parts,
-    ...(strip ? { strip } : {}),
-    order: r.order,
-    bones: Object.fromEntries(BONES.map((b) => [b, { ...r.shapes[b], mark: marks[b] }])),
+if (args.write)
+  writeModule({
+    MODULE,
+    root,
+    BP3D,
+    BONES,
+    ORGANS,
+    pathOf,
+    hiddenOf,
+    views: { front, back, regions, backRegions, frontMarks, backMarks, backStrip },
   });
-  const src = [
-    "// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0",
-    "// GENERATED by `make hud-body ARGS=--write` (scripts/hud-body.mjs) — never",
-    "// edit by hand: change the lab and write it again.",
-    "//",
-    "// THE HUD'S FIGURE, MADE FROM A WHOLE BODY: one man's CT, every bone and",
-    "// the skin a mesh of its own, the feet turned down about the ankles so the",
-    "// toes show side by side, the trunk's bones cut in two along the spine —",
-    "// seen from the FRONT (what lies before the cut) and from BEHIND (what",
-    "// lies behind it) and traced: the skin's silhouette the outline, the",
-    "// parts cut at the seams read off his bones, every bone's silhouette with",
-    "// its holes and its shading (the bands of a light high on the viewer's",
-    "// left, the recesses darkened: `light`, `shadow`, `deep`, each filled",
-    "// even-odd), the order they are laid down in read off their depths, and",
-    "// where a crack is drawn across each (`mark`: the point, the bone's way",
-    "// there, rad, and its half width).",
-    "//",
-    `// Traced off ${BP3D.credit}.`,
-    "",
-    'import type { Bone, BodyPart } from "@engine";',
-    "",
-    "/** How one bone is drawn: each a path of every piece and hole. */",
-    "export type BoneDraw = {",
-    "  fill: string;",
-    "  light: string;",
-    "  shadow: string;",
-    "  deep: string;",
-    "  mark: { x: number; y: number; a: number; r: number };",
-    "};",
-    "",
-    "/** One way of seeing him: the outline (even-odd),",
-    " * the parts it is cut into, the strip the back is painted on when the",
-    " * back cannot be seen, the order the bones go down in, and the bones. */",
-    "export type FigureView = {",
-    "  outline: string;",
-    "  regions: Partial<Record<BodyPart, string>>;",
-    "  strip?: string;",
-    "  order: readonly Bone[];",
-    "  bones: Record<Bone, BoneDraw>;",
-    "};",
-    "",
-    "/** FROM THE FRONT: his right on the viewer's left. */",
-    `export const FRONT_VIEW: FigureView = ${JSON.stringify(viewOf(front, regions, frontMarks, backStrip))};`,
-    "",
-    "/** FROM BEHIND: his right on the viewer's right. */",
-    `export const BACK_VIEW: FigureView = ${JSON.stringify(viewOf(back, backRegions, backMarks, null))};`,
-    "",
-  ].join("\n");
-  writeFileSync(MODULE, src);
-  execFileSync("npx", ["prettier", "--write", MODULE], { cwd: root, stdio: "ignore" });
-  console.log(`wrote ${MODULE.replace(`${root}/`, "")}`);
-}

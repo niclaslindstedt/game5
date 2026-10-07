@@ -4,7 +4,7 @@ The HUD body's figure (`pwa/src/game/body-model.ts`) is made from a 3D body, and
 
 ## The 3D body — fetched, never stored
 
-`make hud-body` (`scripts/hud-body.mjs`) builds the figure from **BodyParts3D**: a whole human body segmented out of one man's CT scan, with every bone and the skin as separate meshes. The lab downloads it the first time it runs into the gitignored `previews/.bodyparts3d/`. No mesh is committed. The figure is traced off it: the skin's silhouette, each bone's silhouette and the bone's shading bands, a few hundred corners per bone.
+`make hud-body` (`scripts/hud-body.mjs`) builds the figure from **BodyParts3D**: a whole human body segmented out of one man's CT scan, with every bone, every organ and the skin as separate meshes. The lab downloads it — both of its published sets, the part-of tree and the is-a tree (the spleen is only in the second) — the first time it runs into the gitignored `previews/.bodyparts3d/`. No mesh is committed. The figure is traced off it: the skin's silhouette, each bone's and each organ's silhouette and shading bands, a few hundred corners each. The organs drawn are the brain, the heart, the lungs, the liver, the spleen, the stomach, the bowel, the kidneys and the bladder; this body has no surface for the lungs, only their airways and vessels, so their outline is that tree closed into one shape.
 
 > BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan — <https://dbarchive.biosciencedbc.jp/en/bodyparts3d/>
 

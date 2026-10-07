@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   BODY_PARTS,
   BONES,
+  ORGANS,
   INJURIES,
   mayGetUp,
   NEUTRAL_INPUT,
@@ -263,6 +264,24 @@ describe("the body and the g meter (body-tile.ts)", () => {
     expect(tile.bones.every((t) => t === "sound")).toBe(true);
     expect(tile.condition).toBe("sound");
     expect(tile.blow).toBe(null);
+  });
+
+  it("paints an organ by its own injuries, never the flesh of the part it lies in", () => {
+    const body = freshBody();
+    body.injuries.push({ part: "head", kind: "concussion", ais: 2, t: 0 });
+    body.injuries.push({ part: "abdomen", kind: "tornKidney", ais: 3, t: 0, side: "L" });
+    body.injuries.push({ part: "abdomen", kind: "winded", ais: 1, t: 0 });
+    body.worst[BODY_PARTS.indexOf("head")] = 2;
+    body.worst[BODY_PARTS.indexOf("abdomen")] = 3;
+    const tile = bodyTile(body, 0);
+    expect(tile.organs).toHaveLength(ORGANS.length);
+    expect(tile.organs[ORGANS.indexOf("brain")]).toBe("spent");
+    expect(tile.organs[ORGANS.indexOf("kidneyL")]).toBe("dead");
+    expect(tile.organs[ORGANS.indexOf("kidneyR")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("head")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("abdomen")]).toBe("hurt");
+    // Said all the same.
+    expect(tile.lines.map((l) => l.kind)).toContain("tornKidney");
   });
 
   it("lists the worst injuries first, the newest first within a rank, and counts the rest", () => {
@@ -534,7 +553,14 @@ describe("the body as drawn (body-figure.ts)", () => {
   it("draws every bone once in each view, shaded, and fractures each", () => {
     for (const side of SIDES) {
       const view = figureView(side);
-      expect([...view.order].sort(), side).toEqual([...BONES].sort());
+      expect([...view.order].sort(), side).toEqual([...BONES, ...ORGANS].sort());
+      expect(Object.keys(view.organs).sort(), side).toEqual([...ORGANS].sort());
+      for (const organ of ORGANS) {
+        const o = view.organs[organ];
+        expect(o.fill, `${side} ${organ}`).toMatch(/^(M[\d.,L-]+Z)+$/);
+        expect(o.hidden).toBeGreaterThanOrEqual(0);
+        expect(o.hidden).toBeLessThanOrEqual(1);
+      }
       expect(Object.keys(view.bones).sort(), side).toEqual([...BONES].sort());
       for (const bone of BONES) {
         const b = view.bones[bone];

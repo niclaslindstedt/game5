@@ -14,6 +14,8 @@ import {
   BONES,
   INJURIES,
   NEUTRAL_INPUT,
+  ORGANS,
+  ORGAN_KINDS,
   SKI_CATALOG,
   TUNING,
   FRACTURE_GRADE,
@@ -23,6 +25,8 @@ import {
   fractureEnergyOf,
   fracturesOf,
   createGame,
+  organsOf,
+  organsOfInjury,
   freshBody,
   placeRun,
   resetSkier,
@@ -193,6 +197,36 @@ describe("the bones", () => {
   });
 });
 
+describe("the organs", () => {
+  it("every organ can be hurt, and every organ an injury names is one of them", () => {
+    const named = new Set<string>();
+    for (const def of Object.values(INJURIES) as InjuryDef[])
+      for (const o of def.organs ?? []) {
+        expect(ORGAN_KINDS).toContain(o);
+        named.add(o);
+      }
+    expect([...named].sort()).toEqual([...ORGAN_KINDS].sort());
+  });
+
+  it("each organ shows its worst; a paired one on its side; organ injuries are said", () => {
+    const body = freshBody();
+    body.injuries.push({ part: "abdomen", kind: "bruisedKidney", ais: 2, t: 0, side: "R" });
+    body.injuries.push({ part: "abdomen", kind: "tornKidney", ais: 3, t: 1, side: "R" });
+    body.injuries.push({ part: "chest", kind: "collapsedLung", ais: 3, t: 2, side: "L" });
+    body.injuries.push({ part: "abdomen", kind: "lacerated", ais: 4, t: 3 });
+    const o = organsOf(body);
+    expect(o[ORGANS.indexOf("kidneyR")]).toBe(3);
+    expect(o[ORGANS.indexOf("kidneyL")]).toBe(0);
+    expect(o[ORGANS.indexOf("lungL")]).toBe(3);
+    expect(o[ORGANS.indexOf("lungR")]).toBe(0);
+    expect(o[ORGANS.indexOf("stomach")]).toBe(4);
+    expect(o[ORGANS.indexOf("bowel")]).toBe(4);
+    expect(o[ORGANS.indexOf("brain")]).toBe(0);
+    expect(organsOfInjury(body.injuries[0])).toEqual(["kidneyR"]);
+    expect(saidOf("tornKidney")).toBe(true);
+  });
+});
+
 describe("how a break breaks", () => {
   it("a blow's energy goes as its g, a twist's or a bend's as its speed squared", () => {
     expect(energyOver("blunt", 90, 60)).toBeCloseTo(1.5);
@@ -321,6 +355,10 @@ describe("the body on the snow", () => {
     for (const kind of ["brokenHeel", "pilonFracture", "plateauFracture", "femurDriven"])
       expect(big.legs.filter((k) => k === kind)).toHaveLength(2);
     expect(big.legs).toContain("brokenHipSocket");
+    // And the organs are stopped as hard as the skeleton: the lungs bruised,
+    // the liver or the spleen torn on what holds them.
+    expect(big.legs).toContain("bruisedLungFall");
+    expect(big.legs.some((k) => k === "tornLiverFall" || k === "tornSpleenFall")).toBe(true);
   });
 
   it("a trunk at speed is a blow of a hundred g and more, and hurts him", () => {

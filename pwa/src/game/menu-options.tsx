@@ -73,16 +73,15 @@ import { STRINGS } from "./strings.ts";
 
 /** The word for a stop on any of the picture's ladders — one vocabulary for
  * every row, so LOW means the same thing wherever it is read. */
-const STEP_WORD: Record<Tier | "off" | "max" | "min", string> = {
+const STEP_WORD: Record<Tier | "off" | "max", string> = {
   off: STRINGS.optOff,
-  min: STRINGS.optMin,
   low: STRINGS.optLow,
   medium: STRINGS.optMedium,
   high: STRINGS.optHigh,
   max: STRINGS.optMax,
 };
 
-const stopsOf = <T extends Tier | "off" | "max" | "min">(ladder: readonly T[]): Stop<T>[] =>
+const stopsOf = <T extends Tier | "off" | "max">(ladder: readonly T[]): Stop<T>[] =>
   ladder.map((id) => ({ id, label: STEP_WORD[id] }));
 
 const TIER_STOPS = stopsOf(TIERS);
@@ -90,7 +89,11 @@ const TIER_STOPS = stopsOf(TIERS);
  * the whole pictures. */
 const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAuto }, ...TIER_STOPS];
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
-const RESOLUTION_STOPS = stopsOf<ResolutionLevel>(RESOLUTION_LEVELS);
+/** RESOLUTION reads as the share it is: 50% … 100%. */
+const RESOLUTION_STOPS: Stop<ResolutionLevel>[] = RESOLUTION_LEVELS.map((id) => ({
+  id,
+  label: STRINGS.optShare(id),
+}));
 const TRAIL_STOPS = stopsOf<TrailLevel>(TRAIL_LEVELS);
 const SHADOW_WORD: Record<ShadowLevel, string> = {
   off: STRINGS.optOff,

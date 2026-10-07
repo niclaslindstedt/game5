@@ -63,13 +63,13 @@ export const FIT_REFERENCE = { width: 1920, height: 1080 } as const;
 /** The frame with every row at its cheapest stop on the reference machine,
  * ms: the engine, the sky, the ground at its coarsest — what no row can
  * take off. */
-export const FLOOR_MS = 3.96;
+export const FLOOR_MS = 3.81;
 
 /**
  * THE PRICE LIST. Benefits, row by row:
  *
  * RESOLUTION is the sharpness of EVERYTHING — the one row whose loss is on
- * every pixel; 0.8 is soft, 0.6 is blurred under crisp type, 0.45 more so.
+ * every pixel; 0.8 is soft, 0.6 is blurred under crisp type, 0.5 more so.
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
  * rim mountains.
@@ -86,16 +86,22 @@ export const FLOOR_MS = 3.96;
  * SPRAY: a share of the roost and the cloud; the lowest still throws some.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
- * the lower stops give up.
+ * the lower stops give up, and LOW the snow's glitter in the beams. The
+ * benchmark's race is run by day, where the row costs nothing, so its
+ * prices are an estimate off a night frame, not the re-pricing's.
  */
 export const PICTURE_PRICES: PriceList = {
-  // MIN is priced off the three measured stops, which lie on one line in
-  // the share of pixels (0.36, 0.64, 1): 1.36 ms a screen's worth.
+  // Measured at 0.6, 0.8 and the whole (0.40 and 0.87 ms over 0.6); those
+  // lie on one line in the share of pixels (0.36, 0.64, 1) — 1.36 ms a
+  // screen's worth — and the tenths between and under them are laid on it,
+  // until the next re-pricing times them. The floor is the half's frame.
   resolution: {
-    min: { cost: 0, benefit: 0 },
-    low: { cost: 0.21, benefit: 15 },
-    medium: { cost: 0.61, benefit: 60 },
-    high: { cost: 1.08, benefit: 85 },
+    "50": { cost: 0, benefit: 0 },
+    "60": { cost: 0.15, benefit: 15 },
+    "70": { cost: 0.33, benefit: 38 },
+    "80": { cost: 0.55, benefit: 60 },
+    "90": { cost: 0.78, benefit: 75 },
+    "100": { cost: 1.02, benefit: 85 },
   },
   distance: {
     low: { cost: 0, benefit: 0 },

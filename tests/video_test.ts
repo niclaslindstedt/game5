@@ -12,6 +12,7 @@ import {
   DISTANCE_LOOK,
   FOREST_LOOK,
   LAMP_COUNT,
+  LAMP_GLINT,
   RESOLUTION_LEVELS,
   RESOLUTION_SHARE,
   SHADOW_LEVELS,
@@ -59,16 +60,19 @@ describe("the picture's ladders (settings-video.ts)", () => {
   it("runs every ladder cheapest first", () => {
     const shares = RESOLUTION_LEVELS.map((t) => RESOLUTION_SHARE[t]);
     expect(shares).toEqual([...shares].sort((a, b) => a - b));
-    expect(RESOLUTION_SHARE.high).toBe(1);
-    expect(RESOLUTION_SHARE.low).toBeGreaterThanOrEqual(0.5);
-    // MIN is a phone's: still over two fifths of the screen's own a side.
-    expect(RESOLUTION_SHARE.min).toBeGreaterThanOrEqual(0.4);
+    expect(RESOLUTION_SHARE["100"]).toBe(1);
+    // A tenth a stop, from half the screen's own a side: a phone's one
+    // pixel a point at the bottom.
+    expect(shares).toEqual([0.5, 0.6, 0.7, 0.8, 0.9, 1]);
+    for (const t of RESOLUTION_LEVELS) expect(RESOLUTION_SHARE[t]).toBe(Number(t) / 100);
 
     // LAMPS: his own headlamp at every stop, and every slot there is on HIGH.
     const lamps = TIERS.map((t) => LAMP_COUNT[t]);
     expect(lamps).toEqual([...lamps].sort((a, b) => a - b));
     expect(LAMP_COUNT.low).toBeGreaterThanOrEqual(1);
     expect(LAMP_COUNT.high).toBe(6);
+    // LOW gives up the glitter in the beams; the stops over it keep it.
+    expect(TIERS.map((t) => LAMP_GLINT[t])).toEqual([false, true, true]);
 
     const sprays = TIERS.map((t) => SPRAY_SHARE[t]);
     expect(sprays).toEqual([...sprays].sort((a, b) => a - b));
@@ -196,6 +200,13 @@ describe("the picture's ladders (settings-video.ts)", () => {
     expect(mergeVideo({ shadows: "low" }).shadows).toBe("medium");
     expect(mergeVideo({ shadows: "all" }).shadows).toBe("high");
     expect(mergeVideo({ shadows: "high" }).shadows).toBe("high");
+    // RESOLUTION stored as a word: the share that word stood for.
+    expect(mergeVideo({ resolution: "low" }).resolution).toBe("60");
+    expect(mergeVideo({ resolution: "medium" }).resolution).toBe("80");
+    expect(mergeVideo({ resolution: "high" }).resolution).toBe("100");
+    expect(mergeVideo({ resolution: "min" }).resolution).toBe("50");
+    expect(mergeVideo({ resolution: "70" }).resolution).toBe("70");
+    expect(mergeVideo({ resolution: "toString" }).resolution).toBe(DEFAULT_VIDEO.resolution);
   });
 });
 

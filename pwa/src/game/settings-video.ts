@@ -10,7 +10,8 @@
 // cannot:
 //
 //   RESOLUTION  how many pixels: a share of the device's own pixel ratio,
-//               down to MIN for a phone's dense screen.
+//               in tenths from a half to the whole — the row a phone short
+//               of pixels wants fine steps on.
 //   DISTANCE    how far anything is drawn at all: the woods, and the ground's
 //               clipmap cut to the view — with a MIST closing over the last
 //               of it, the one row that changes the WEATHER, which is how the
@@ -67,9 +68,9 @@ export const DISTANCE_LEVELS: readonly DistanceLevel[] = [...TIERS, "max"];
 export type TrailLevel = "off" | Tier;
 export const TRAIL_LEVELS: readonly TrailLevel[] = ["off", ...TIERS];
 
-/** RESOLUTION: the three tiers, and MIN under them. */
-export type ResolutionLevel = "min" | Tier;
-export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["min", ...TIERS];
+/** RESOLUTION: a share of the screen's own pixels, in tenths. */
+export type ResolutionLevel = "50" | "60" | "70" | "80" | "90" | "100";
+export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["50", "60", "70", "80", "90", "100"];
 
 export type VideoSettings = {
   resolution: ResolutionLevel;
@@ -86,17 +87,20 @@ export type VideoSettings = {
 /* ── What each stop buys ─────────────────────────────────────────────── */
 
 /** RESOLUTION: the share of the device's pixel ratio the canvas is drawn at.
- * The top is the screen's own; LOW is still more than half of it on each
- * axis, below which the HUD's crisp type sits over a picture that reads as
- * out of focus on a desktop's screen. MIN goes under that for a phone's,
- * whose two pixels to the point (`App.tsx` caps the ratio at 2) leave a
- * picture of nearly one pixel a point there: a fifth of the pixels HIGH
- * draws, for the screens that are short of nothing else. */
+ * The top is the screen's own. The bottom is half of it a side — on a
+ * phone, whose two pixels to the point (`App.tsx` caps the ratio at 2) it
+ * leaves one pixel a point, a quarter of the pixels the top draws; under it
+ * the HUD's crisp type sits over a picture that reads as out of focus
+ * rather than as cheaper. A tenth a stop, because the pixels a frame shades
+ * go as the square of the share: each stop down is a sixth to a fifth fewer,
+ * so a machine just short of its frame gives up a step, not a third. */
 export const RESOLUTION_SHARE: Record<ResolutionLevel, number> = {
-  min: 0.45,
-  low: 0.6,
-  medium: 0.8,
-  high: 1,
+  "50": 0.5,
+  "60": 0.6,
+  "70": 0.7,
+  "80": 0.8,
+  "90": 0.9,
+  "100": 1,
 };
 
 /** How far out the ground reaches under DISTANCE MAX, m: past the basin's
@@ -295,6 +299,12 @@ export const SPRAY_SHARE: Record<Tier, number> = { low: 0.35, medium: 0.65, high
  * more: what lights the snow in front of him, and the nearest beam. */
 export const LAMP_COUNT: Record<Tier, number> = { low: 2, medium: 4, high: 6 };
 
+/** LAMPS, again: whether the snow near the lens GLITTERS toward the lamps
+ * (`snow-glsl.ts`, `haze.ts`'s `uLampGlint`) or is only lit by them — the
+ * crystals are the dearest part of a lamp on the snow, and LOW gives them
+ * up; the moon's own glitter stays. */
+export const LAMP_GLINT: Record<Tier, boolean> = { low: false, medium: true, high: true };
+
 /* ── Whole pictures ──────────────────────────────────────────────────── */
 
 /** A whole picture a tier at a time. ANTIALIAS is not in it: it is a fact
@@ -302,7 +312,7 @@ export const LAMP_COUNT: Record<Tier, number> = { low: 2, medium: 4, high: 6 };
  * moved it would be a press that did nothing until the next visit. */
 export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
   low: {
-    resolution: "medium",
+    resolution: "80",
     distance: "low",
     terrain: "low",
     trails: "low",
@@ -312,7 +322,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     lamps: "low",
   },
   medium: {
-    resolution: "high",
+    resolution: "100",
     distance: "medium",
     terrain: "medium",
     trails: "medium",
@@ -322,7 +332,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     lamps: "medium",
   },
   high: {
-    resolution: "high",
+    resolution: "100",
     distance: "high",
     terrain: "high",
     trails: "high",
@@ -402,7 +412,13 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   const blob = parsed as Record<string, unknown>;
   const pick = <T extends string>(value: unknown, ladder: readonly T[], fallback: T): T =>
     typeof value === "string" && ladder.includes(value as T) ? (value as T) : fallback;
-  out.resolution = pick(blob.resolution, RESOLUTION_LEVELS, out.resolution);
+  // A picture stored under the word ladder: the share each word stood for.
+  const said = { min: "50", low: "60", medium: "80", high: "100" } as const;
+  const resolution =
+    typeof blob.resolution === "string" && Object.hasOwn(said, blob.resolution)
+      ? said[blob.resolution as keyof typeof said]
+      : blob.resolution;
+  out.resolution = pick(resolution, RESOLUTION_LEVELS, out.resolution);
   out.distance = pick(blob.distance, DISTANCE_LEVELS, out.distance);
   out.terrain = pick(blob.terrain, TIERS, out.terrain);
   out.trails = pick(blob.trails, TRAIL_LEVELS, out.trails);

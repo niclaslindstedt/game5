@@ -526,7 +526,8 @@ export const STRINGS = {
   optMedium: "MEDIUM",
   optHigh: "HIGH",
   optMax: "MAX",
-  optMin: "MIN",
+  /** A RESOLUTION stop: "70%". */
+  optShare: (percent: string): string => `${percent}%`,
   optShadowSkiers: "SKIERS",
   optCustom: "CUSTOM",
   optAuto: "AUTO",
@@ -605,7 +606,7 @@ export const STRINGS = {
   optSprayHint: "How much snow the skis throw.",
   optLamps: "LAMPS",
   optLampsHint:
-    "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest.",
+    "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
   optAntialias: "SMOOTH EDGES",
   optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
 

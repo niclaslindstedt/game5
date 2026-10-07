@@ -602,13 +602,14 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
   // so a cell's facet and its spot are found once, and each lamp pays only
   // its own highlight — \`snowGlints\` lamp by lamp, without its hashes
   // done six times over a pixel. The footprint is read out here, where
-  // every pixel of the quad still runs it.
+  // every pixel of the quad still runs it. LAMPS LOW draws none of them
+  // (\`uLampGlint\`): the beams light the snow and no crystal flares.
   vec3 lgQ = vSnowWorld * 7.0;
   float lgRad = max(0.14, length(fwidth(lgQ)) * 0.75);
   float lgK = 0.14 / lgRad;
   vec3 lgFacet = vec3(0.0);
   float lgSpot = 0.0;
-  if (uLampOn[0] > 0.0 && snowDist < 40.0) {
+  if (uLampOn[0] > 0.0 && uLampGlint > 0.0 && snowDist < 40.0) {
     vec3 lgCell = floor(lgQ);
     vec3 lgR = snowHash3(lgCell + 57.0);
     if (lgR.z <= 0.6) {
@@ -639,7 +640,7 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
     float pe = length(pv);
     if (pe > 1e-4) {
       lampLit += uPisteCol * max(dot(snowN, pv), 0.0);
-      if (snowDist < 40.0) {
+      if (snowDist < 40.0 && uLampGlint > 0.0) {
         vec3 H = normalize(pv / pe + V);
         lampGlint += uPisteCol * (pe * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 83.0));
       }

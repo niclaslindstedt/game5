@@ -100,6 +100,7 @@ import {
   DISTANCE_LOOK,
   FOREST_LOOK,
   LAMP_COUNT,
+  LAMP_GLINT,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
   SPRAY_SHARE,
@@ -214,6 +215,7 @@ export function createWorldRenderer(
   const tv = createTvCamera();
   let shot: ReplayShot | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
+  env.haze.uLampGlint.value = LAMP_GLINT[video.lamps] ? 1 : 0;
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
@@ -900,6 +902,7 @@ export function createWorldRenderer(
       env.setShadow(shadowLook());
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
+      env.haze.uLampGlint.value = LAMP_GLINT[video.lamps] ? 1 : 0;
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
       lifts?.setBudget(SPRAY_SHARE[video.spray]);

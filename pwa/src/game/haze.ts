@@ -92,6 +92,9 @@ export type HazeUniforms = {
   uLampOn: { value: number[] };
   uLampCol: { value: THREE.Vector3[] };
   uLampBeam: { value: THREE.Vector4[] };
+  /** Whether the snow glitters toward the lamps (1) or is only lit by
+   * them (0): the LAMPS row's (`settings-video.ts`'s `LAMP_GLINT`). */
+  uLampGlint: { value: number };
   /** THE PISTE LIGHTS (`piste-lights.ts`): the light their masts lay on
    * the ground over the whole map — a vector irradiance a texel, lux — the
    * world-to-uv of its grid (the origin less half a texel, and one over its
@@ -148,6 +151,7 @@ export function createHazeUniforms(): HazeUniforms {
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },
     uLampCol: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector3(1, 1, 1)) },
     uLampBeam: { value: Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
+    uLampGlint: { value: 1 },
     uPisteLight: { value: null },
     uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
     uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
@@ -248,6 +252,7 @@ uniform vec3 uLampDir[${LAMP_SLOTS}];
 uniform float uLampOn[${LAMP_SLOTS}];
 uniform vec3 uLampCol[${LAMP_SLOTS}];
 uniform vec4 uLampBeam[${LAMP_SLOTS}];
+uniform float uLampGlint;
 float lampReach(int i, vec3 toLamp, float d) {
   float axis = dot(-toLamp, uLampDir[i]);
   vec4 b = uLampBeam[i];

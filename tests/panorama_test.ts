@@ -7,6 +7,7 @@
 // turned back into the snow it shows.
 
 import { describe, expect, it } from "vitest";
+import { cabinsOf } from "@engine";
 
 import {
   PANORAMA_VIEW,
@@ -34,7 +35,7 @@ function paint(seed: number) {
     level,
     view,
     picture,
-    schematic: panoramaSchematic(level, view, picture.depth),
+    schematic: panoramaSchematic(level, view, picture.depth, cabinsOf(level)),
     pick: pickGrid(view, picture.depth),
   };
 }
@@ -128,6 +129,20 @@ describe("the schematic (panoramaSchematic)", () => {
     // Most of every map's ski area is in plain sight.
     const seen = schematic.runs.filter((r) => r.seen.length > 0).length;
     expect(seen).toBeGreaterThan(runs.length * 0.8);
+  });
+
+  it.each(SEEDS)("marks seed %i's houses seen from the valley", (seed) => {
+    const { level, view, schematic } = paintedFor(seed);
+    const houses = cabinsOf(level);
+    // Most of them in sight, and each at its own foot in the picture.
+    expect(schematic.houses.length).toBeGreaterThan(houses.length * 0.5);
+    for (const h of schematic.houses) {
+      const cabin = houses.find((c) => c.id === h.id)!;
+      expect(h.kind).toBe(cabin.kind);
+      const [x, y] = toPanorama(view, cabin.x, level.groundAt(cabin.x, cabin.z), cabin.z);
+      expect(h.x).toBeCloseTo(x, 0);
+      expect(h.y).toBeCloseTo(y, 0);
+    }
   });
 
   it.each(SEEDS)("marks seed %i's raced course and its two ends", (seed) => {

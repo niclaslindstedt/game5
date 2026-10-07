@@ -16,11 +16,14 @@
 //     its terrace, close off one end of its racks, and the mountain's (the
 //     afterski lab's, `make afterski`);
 //   * tower-pad, tower-edge, tower-span — the lift towers where they meet
-//     the runs (`tower-view.ts`'s).
+//     the runs (`tower-view.ts`'s);
+//   * rocks, rocks-near, rocks-run, rocks-air — the crags on the bare
+//     faces (`rock-view.ts`'s).
 
 import { cabinsOf, trackPointAt, type Cabin, type Level } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { ROCK_VIEWS, rockView } from "./rock-view.ts";
 import { TOWER_VIEWS, towerView } from "./tower-view.ts";
 
 /** The views this module answers for the world lab. */
@@ -31,6 +34,7 @@ export const SITE_VIEWS = [
   "cabin-near",
   "cabins-air",
   ...TOWER_VIEWS,
+  ...ROCK_VIEWS,
 ] as const;
 
 /** The groups' first buildings, the ones with a companion first. */
@@ -124,6 +128,7 @@ function lodgeView(level: Level, name: string): { pose: LensPose; note: string }
 export function cabinView(level: Level, name: string): { pose: LensPose; note: string } | null {
   if (name.startsWith("lodge")) return lodgeView(level, name);
   if (name.startsWith("tower")) return towerView(level, name);
+  if (name.startsWith("rocks")) return rockView(level, name);
   const groups = groupsOf(level);
   if (groups.length === 0) return null;
   const pick = name === "cabin-2" ? 1 : name === "cabin-3" ? 2 : 0;

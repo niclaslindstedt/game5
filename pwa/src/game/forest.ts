@@ -48,6 +48,7 @@ import { createShadeDepth } from "./terrain-shade.ts";
 import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
+import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
@@ -157,6 +158,10 @@ export type Forest = {
 export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
   let options = { ...initial };
   const group = new THREE.Group();
+  // THE CRAGS on the bare faces stand with the woods: the same reach, and
+  // the far share the share of their shards (`rocks.ts`).
+  const rocks = createRocks(level, haze, options.farShare);
+  group.add(rocks.group);
   const count = level.trees.length;
   // Binned by cell — and every tree NUMBERED in bin order, so a cell's
   // trees and everything held for them stand side by side in memory: the
@@ -581,6 +586,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   return {
     group,
     update(camera, shadow) {
+      rocks.update(camera.position, options.far);
       // The casters, when the circle has moved, turned with the sun or
       // changed size — a metre, or a few hundredths of a degree.
       if (
@@ -709,11 +715,13 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         shapes = buildShapes(next.variants);
       }
       options = { ...next };
+      rocks.setShare(options.farShare);
       tick++;
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
     dispose() {
+      rocks.dispose();
       dropShapes(shapes);
       material.dispose();
       casterMaterial.dispose();

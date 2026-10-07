@@ -274,6 +274,7 @@ export const STRINGS = {
                             ? "CRASH LANDING"
                             : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
+  newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it
    * (`switch.ts`'s tail dug in): only a twin-tip planes through it. */
   newsTailDug: "TAILS DUG IN",

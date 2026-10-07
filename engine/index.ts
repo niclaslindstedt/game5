@@ -630,6 +630,15 @@ export {
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
+  wellAt,
+  wellDepthOf,
+  wellLoose,
+  wellShareOf,
+  wellsOf,
+  withWells,
+} from "./game/tree-well.ts";
+export { TREE_WELLS } from "./game/defs/tree-wells.ts";
+export {
   FRACTURE_GRADE,
   PART,
   baseOf,

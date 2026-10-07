@@ -110,6 +110,7 @@ import {
 } from "./poles.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
+import { wellAt, wellLoose } from "./tree-well.ts";
 import { heldSlip, switchSteer } from "./switch.ts";
 import { laySkis, sidestepEdge, slideOver, stepSide } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
@@ -444,11 +445,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     let ice = level.iceAt ? level.iceAt(ax, az) : 0;
     // ...and an evening's refrozen groomer (`piste-day.ts`).
     if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
+    // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
+    const loose = level.wells ? Math.max(bottomless, wellLoose(level, ax, az)) : bottomless;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
     const target =
-      sinkTarget(packed, speed0, p.sinkScale, p.planeScale, depth, carried, bottomless) + c.trench;
+      sinkTarget(packed, speed0, p.sinkScale, p.planeScale, depth, carried, loose) + c.trench;
     // Deep snow a ski has pressed stays pressed (`settleShare`).
-    const settle = target < c.sinks[i] ? settleShare(bottomless, speed0) : 1;
+    const settle = target < c.sinks[i] ? settleShare(loose, speed0) : 1;
     c.sinks[i] += (target - c.sinks[i]) * Math.min(1, (dt / TUNING.snow.sinkLag) * settle);
     const sink = c.sinks[i];
     if (p.station === "mid") midSink += sink / 2;
@@ -936,6 +939,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   }
 
   derive(c, level);
+  c.well = level.wells ? wellAt(level, c.x, c.z) : 0;
   // ── The automatic reset's clocks (`run.ts` acts on them) ──────────────
   snowNormal(level, c, normal);
   const upright = uprightOn(level, rotate(c.q, { x: 0, y: 1, z: 0 }), normal);

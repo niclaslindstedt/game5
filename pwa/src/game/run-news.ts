@@ -88,7 +88,7 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (state.cross && e.cause === "skier") return { text: STRINGS.newsKnocked, tone: "bad" };
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
-      return { text: STRINGS.newsStuck, tone: "bad" };
+      return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };
     case "grimbear":
       // Out of the trees, and pulled up short; the catch is the wipeout's.
       return e.phase === "burst"

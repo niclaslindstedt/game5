@@ -123,7 +123,9 @@ function fresh(ask: Fresh = false): GameState {
 }
 
 const ready = (async () => {
-  const first = fresh();
+  // Loaded with the machines out, so their scene is built for the sheets
+  // that ask for them.
+  const first = fresh({ groomer: true });
   await renderer.load(first);
   if (baseSky) renderer.setSky(baseSky);
   renderer.draw(first, 1, FRAME);

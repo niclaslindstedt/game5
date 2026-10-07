@@ -395,7 +395,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     const side = g.heading + Math.PI / 2;
     st.shoot(s, "coming", around(st.level, at, side, 14, 3, 50, 1));
     st.until(s, (q) => !!q.skier.thrown, 3, still);
-    strobe(st, s, [0.3, 1, 1.6, 2.2, 3, 4.5], around(st.level, at, side, 13, 3.5, 50, 0.6));
+    strobe(st, s, [0.3, 1, 1.6, 2.2, 3, 4.5], around(st.level, at, side, 10, 2.6, 50, 0.6));
     const end = { x: g.x, y: g.y, z: g.z };
     st.shoot(s, "behind", around(st.level, end, g.heading + Math.PI, 14, 4, 50, 0.4));
     st.shoot(s, "left-behind", onBody(side + 0.6, 4, 2.4, 50));

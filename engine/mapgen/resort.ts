@@ -33,7 +33,7 @@ import { GRADES, PISTE_GRADES, type GradeRow, type PisteGrade } from "./grades.t
 import type { RunSpec } from "./network.ts";
 import type { RegionId } from "./regions.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
-import { LEVEL_RULES as R, inBand } from "./rules.ts";
+import { inBand } from "./rules.ts";
 import type { TerrainPlan } from "./terrain.ts";
 import type { Lift, RunKind } from "./types.ts";
 
@@ -211,8 +211,12 @@ const TILT: Readonly<Record<RegionId, Partial<Record<PisteGrade, PisteGrade>>>> 
   maritime: { black: "red" },
 };
 
-function tilted(slot: Slot, region: RegionId): PisteGrade {
-  const to = TILT[region][slot.aim] ?? slot.aim;
+/** From v8 the fell's mountain is as tall as any (R25), so its runs are
+ * not tilted gentler: every other country keeps its tilt. */
+const TALL_TILT: typeof TILT = { ...TILT, fell: {} };
+
+function tilted(slot: Slot, region: RegionId, tall: boolean): PisteGrade {
+  const to = (tall ? TALL_TILT : TILT)[region][slot.aim] ?? slot.aim;
   const harder = PISTE_GRADES.indexOf(to) > PISTE_GRADES.indexOf(slot.aim);
   return slot.firm && harder ? slot.aim : to;
 }
@@ -240,7 +244,7 @@ function placeStations(
   const m = plan.massif;
   if (!m) throw new Error("not a resort's mountain");
   const L = RR.lift;
-  const size = R.world.size;
+  const size = plan.size;
   const span = plan.baseZ - plan.summitZ;
   const at = (u: number): number => plan.summitZ + span * u;
   const side = m.side;
@@ -249,13 +253,17 @@ function placeStations(
   const peak = { x: m.peakX - side * 40, z: plan.summitZ + L.below };
   const shoulder = { x: m.shoulderX, z: plan.summitZ + L.below + 10 };
   const shoulderFoot = { x: (m.shoulderX + m.villageX) / 2 - side * 60, z: plan.baseZ + 40 };
+  // The nursery's top as far up from the floor as on the rule book's
+  // square, however wide the massif's is: a beginner's slope stays short.
+  const nurseryX = m.villageX - side * inBand(rng, L.nursery.across);
+  const nurseryU = inBand(rng, L.nursery.at);
   const nursery = {
-    x: m.villageX - side * inBand(rng, L.nursery.across),
-    z: at(inBand(rng, L.nursery.at)),
+    x: nurseryX,
+    z: m.wide === 1 ? at(nurseryU) : at(1 - (1 - nurseryU) / m.wide),
   };
-  const outerX = m.peakX + side * inBand(rng, L.outer.across);
+  const outerX = m.peakX + side * inBand(rng, L.outer.across) * m.wide;
   const outerU = inBand(rng, L.outer.at);
-  const room = Math.abs(outerX - size / 2) < RR.massif.flank.inner - 220;
+  const room = Math.abs(outerX - size / 2) < (plan.flankBand ?? RR.massif.flank).inner - 220;
   const outer = room ? { x: outerX, z: at(outerU) } : null;
   const outerFoot = room ? { x: outerX - side * 80, z: plan.baseZ + 40 } : null;
   const stations: Stations = {
@@ -317,7 +325,8 @@ export function planResort(
     // missing outer top moves nothing after it.
     const laid = rng.chance(slot.odds);
     if (!top || !laid) continue;
-    const aim = slot.kind === "road" ? "green" : tilted(slot, plan.region.id);
+    const aim =
+      slot.kind === "road" ? "green" : tilted(slot, plan.region.id, plan.sea !== undefined);
     const row = slot.kind === "road" ? ROAD_ROW : GRADES[aim];
     const x = top.x + slot.offset * stations.side;
     const target = slot.target(stations);

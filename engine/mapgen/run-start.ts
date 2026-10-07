@@ -165,6 +165,7 @@ export function placeStart(
   top: StartTop | null,
 ): RunSpec | null {
   const dir = lean >= 0 ? 1 : -1;
+  const mid = ((ground.cols - 1) * ground.cell) / 2;
   // Under a top, at half the step along the contour and a little further
   // down the fall line at each, for the ramp's room as much as the start's.
   const close = top !== null && !top.loose;
@@ -173,7 +174,7 @@ export function placeStart(
   for (let k = 0; k <= START_STEPS * split; k++) {
     for (const sgn of k === 0 ? [1] : [dir, -dir]) {
       const x = spec.x + (sgn * k * START_STEP) / split;
-      if (Math.abs(x - R.world.size / 2) > RR.massif.flank.inner - 160) continue;
+      if (Math.abs(x - mid) > (RR.massif.flank.inner * mid * 2) / R.world.size - 160) continue;
       if (siblings.some((sx) => Math.abs(sx - x) < SIBLING_APART)) continue;
       const z0 = top === null ? spec.z : headOnContour(ground, x, spec.z, top);
       if (z0 === null) continue;

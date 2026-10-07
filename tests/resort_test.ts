@@ -29,8 +29,6 @@ import {
   outsideHub,
   pisteGradeOf,
   placeRun,
-  regionRow,
-  scaleBand,
   slalom,
   step,
   steepestSpan,
@@ -174,8 +172,11 @@ describe("the ski area a seed builds (R25–R30)", () => {
   it("stands one massif over the village (R25)", () => {
     for (const { region, level } of areas()) {
       const resort = resortOf(level);
-      const band = scaleBand(RR.massif.vertical, regionRow(region).relief.vertical);
-      expect(withinBand(level.mountain.vertical, band, 1e-6), `${region} ${level.seed}`).toBe(true);
+      // Every country's mountain as tall (R25).
+      expect(
+        withinBand(level.mountain.vertical, RR.massif.vertical, 1e-6),
+        `${region} ${level.seed}`,
+      ).toBe(true);
       // The village on the valley floor, on the ground.
       expect(resort.village.z).toBeGreaterThanOrEqual(R.mountain.base * level.size - 1);
       expect(resort.village.y).toBeCloseTo(level.groundAt(resort.village.x, resort.village.z), 1);

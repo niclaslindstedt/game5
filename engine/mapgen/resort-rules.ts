@@ -9,8 +9,11 @@
 // THE RESEARCH BEHIND THE NUMBERS — read off ski areas' piste maps and the
 // planners' own figures, by class and never by name:
 //
-//   massif.vertical 900–1150 m   a mid-size area's lifted vertical, top
-//                                station to village; the fell's half of it
+//   massif.vertical 1420–1620 m  a big area's peak over a valley that runs
+//                                down to the sea: the summit 1420 m and
+//                                more over a floor 10–20 m above the water
+//                                (`massif.sea`), as the tallest fells by a
+//                                sea stand; every country as tall
 //   piste maps                   a resort is a few SECTORS — a steep one
 //                                under the peak (the blacks and the reds,
 //                                the headwalls), a gentle shoulder (the
@@ -40,20 +43,24 @@
 // carried VERBATIM by docs/level-generator.md):
 //
 //   R25 THE RESORT. A generator from the resorts on (`versions.ts`) builds
-//       every map as one SKI AREA: a single mountain, its lifts and its
-//       runs, and the map a run is raced on is that whole area with one
-//       COURSE down it (R28) — every other run on the mountain groomed and
-//       skiable beside it. The mountain is a MASSIF: its summit ridge rises
-//       to a PEAK `massif.peak.across` metres one side of the map's middle
-//       and falls to a lower SHOULDER `massif.shoulder.across` metres the
-//       other side, standing `massif.shoulder.share` of the vertical
-//       (`massif.vertical`, scaled by the region, R21); the face under the
-//       peak falls on a STEEP profile and the face under the shoulder on a
-//       GENTLE one, blended across a sector `massif.sector` metres
-//       wide; part-way down — `massif.bench.at` of the descent — a BENCH
-//       eases the fall by up to `massif.bench.depth`, strongest under the
-//       mid-station; the headwalls (R3) stand on the steep sector; and the
-//       VILLAGE stands on the valley floor `massif.village.across` metres
+//       every map as one SKI AREA: a single mountain, its lifts and its runs,
+//       and the map a run is raced on is that whole area with one COURSE down
+//       it (R28) — every other run on the mountain groomed and skiable beside
+//       it. The mountain is a MASSIF on a square `massif.size` metres on a
+//       side (R1's stretched, everything across its face with it): its summit
+//       ridge rises to a PEAK `massif.peak.across` metres one side of the
+//       map's middle and falls to a lower SHOULDER `massif.shoulder.across`
+//       metres the other side, standing `massif.shoulder.share` of the
+//       vertical (`massif.vertical`, in every country, R21), over a valley
+//       floor whose lowest ground stands `massif.sea` metres over the sea; the
+//       face under the peak falls on a STEEP profile and the face under the
+//       shoulder on a GENTLE one, blended across a sector `massif.sector`
+//       metres wide; part-way down — `massif.bench.at` of the descent — a
+//       BENCH eases the fall by up to `massif.bench.depth`, strongest under
+//       the mid-station; R3's folds rise and fall `massif.relief` times as
+//       far, the hills and the spurs and gullies over `massif.relief.scale`
+//       times their reach; the headwalls (R3) stand on the steep sector; and
+//       the VILLAGE stands on the valley floor `massif.village.across` metres
 //       to the shoulder's side of the middle, with the face between side
 //       ridges `massif.flank.inner` metres either side of the middle.
 //   R26 THE LIFTS. The area's lifts are straight lines from a BOTTOM station
@@ -225,12 +232,46 @@
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";
 
+/** THE LOW MASSIF (generator v4–v6, `GeneratorTraits.lowMassif`): the
+ * mountain as the resorts were curated on — a mid-size area's 900–1150 m
+ * of vertical (the region's multiple on top, the fell's half of it), R3's
+ * folds at their own height and the valley floor at the region's base
+ * altitude. From v8 the massif is `massif.vertical` tall over a valley
+ * floor a few metres above the sea, its folds `massif.relief` times R3's. */
+export const LOW_MASSIF = {
+  vertical: { min: 900, max: 1150 } as Band,
+  relief: { flank: 1, hills: 1, ridges: 1, rollers: 1, bowls: 1, headwalls: 1, scale: 1 },
+} as const;
+
 export const RESORT_RULES = {
   /** R25 — the massif. */
   massif: {
-    /** The vertical from the valley floor to the peak, m (the region's
-     * multiple on top). */
-    vertical: { min: 900, max: 1150 } as Band,
+    /** R1 — the side of a resort's square, m: the rule book's `world.size`
+     * stretched so the face from the summit ridge to the valley floor is
+     * long enough for the vertical below to fall as a ski area's does. */
+    size: 4000,
+    /** The vertical from the valley floor to the peak, m, in every
+     * country (R21's multiple is the low massif's only). */
+    vertical: { min: 1420, max: 1620 } as Band,
+    /** How far over the sea the lowest ground stands, m: the valley floor
+     * runs down to a lake or a fjord's head. */
+    sea: { min: 10, max: 20 } as Band,
+    /** Multiples on R3's folds (the region's on top): the side ridges, the
+     * hills, the spurs and gullies, the rollers, the bowls' depth and the
+     * headwalls' drop — a mountain this tall rises and falls across its
+     * face and down it, never one smooth sweep. */
+    relief: {
+      flank: 1.6,
+      hills: 2,
+      ridges: 1.8,
+      rollers: 1,
+      bowls: 1.8,
+      headwalls: 1.4,
+      /** How many times R3's wavelengths the hills and the spurs and
+       * gullies are drawn at: twice as tall over twice the reach, so a
+       * traverse across them is no steeper than on the low massif. */
+      scale: 2,
+    },
     /** The peak: how far from the map's middle along the ridge, m, and its
      * spread (a bell's sigma), m. */
     peak: { across: { min: 260, max: 520 } as Band, spread: { min: 360, max: 560 } as Band },

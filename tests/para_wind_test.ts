@@ -101,6 +101,7 @@ function flight(sky: SkyOverride, seconds: number) {
   });
   let folds = 0;
   let launchSpeed = -1;
+  let heading = 0;
   for (let i = 0; i < Math.round(seconds * 120); i++) {
     step(state, paraPilot(state));
     for (const e of state.events) {
@@ -110,10 +111,11 @@ function flight(sky: SkyOverride, seconds: number) {
         const p = state.para!;
         const c = state.skier;
         launchSpeed = c.vx * Math.sin(p.heading) + c.vz * Math.cos(p.heading);
+        heading = p.heading;
       }
     }
   }
-  return { state, folds, launchSpeed };
+  return { state, folds, launchSpeed, heading };
 }
 
 describe("the wing in the wind", () => {
@@ -131,7 +133,9 @@ describe("the wing in the wind", () => {
 
   it("is let fly in a tailwind only once he skis faster than the wind", () => {
     const calm = flight({ weather: { kind: "fair", wind: 0, windFrom: Math.PI } }, 12);
-    const tail = flight({ weather: { kind: "fair", wind: 9, windFrom: Math.PI } }, 25);
+    // The wind from straight behind him as he skis off the summit.
+    const behind = calm.heading + Math.PI;
+    const tail = flight({ weather: { kind: "fair", wind: 9, windFrom: behind } }, 25);
     expect(tail.launchSpeed).toBeGreaterThan(calm.launchSpeed + 5);
     // And it flies, rather than being blown down onto him.
     expect(tail.state.para!.mode).toBe("flown");

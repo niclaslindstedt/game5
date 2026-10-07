@@ -16,7 +16,7 @@ import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math"
 import type { PisteGrade } from "../mapgen/grades.ts";
 import { BENCH, NetIndex, WIDEST, clearance, netHit, runColour } from "../mapgen/network.ts";
 import { regionOf, scaleBand } from "../mapgen/regions.ts";
-import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
+import { LOW_MASSIF, RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
@@ -273,8 +273,19 @@ export function analyzeResort(level: Level): ResortAnalysis {
 
   // R25 — the massif's vertical, and the village on the valley floor.
   const M = level.mountain;
-  if (M && !withinBand(M.vertical, scaleBand(RR.massif.vertical, region.relief.vertical), 1e-6)) {
+  const low = generatorTraits(level.version).lowMassif;
+  const k = region.relief.vertical;
+  const tall = low ? scaleBand(LOW_MASSIF.vertical, k) : RR.massif.vertical;
+  if (M && !withinBand(M.vertical, tall, 1e-6)) {
     add("R25", "error", `a vertical of ${M.vertical.toFixed(0)} m`);
+  }
+  // R25 — from v8 the lowest ground stands `massif.sea` over the sea.
+  if (M && !low) {
+    let lowest = Infinity;
+    for (const v of level.ground.data) if (v < lowest) lowest = v;
+    if (!withinBand(lowest - M.sea, RR.massif.sea, 0.5)) {
+      add("R25", "error", `the lowest ground ${(lowest - M.sea).toFixed(1)} m over the sea`);
+    }
   }
   if (resort.village.z < R.mountain.base * level.size - 1) {
     add("R25", "error", "the village is not on the valley floor");

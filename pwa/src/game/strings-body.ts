@@ -170,6 +170,8 @@ export const BODY_STRINGS = {
     trauma: "INJURIES PAST SAVING",
     fire: "BURNED",
     maul: "TORN IN TWO BY THE GRIMBEAR",
+    machine: "UNDER THE PISTE MACHINE",
+    blast: "BLOWN APART",
   } satisfies Record<DeathCause, string>,
   diedAgain: "A NEW RIDER AT THE TOP",
 };

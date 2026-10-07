@@ -14,6 +14,9 @@
 //   spike    spike-tree (onto a tree's top: run through), spike-post (onto
 //            a post's: a mast's or a snow gun's lance, where the map has one)
 //   maul     maul (the grimbear's catch: torn in two)
+//   machines groomer (knocked down before a working piste machine: torn
+//            apart under its belts and tiller), heli (on the skid when the
+//            helicopter is flown into the snow: blown apart)
 //   blood    spray (a stump close over two heartbeats: the spurt and the
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
@@ -52,12 +55,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, blood, close, hud); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, close, hud); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, spray, snow, closeup, wreck)",
+      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, spray, snow, closeup, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

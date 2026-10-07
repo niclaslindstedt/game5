@@ -32,7 +32,15 @@ import { bodyTile, type BodyTile } from "../game/body-tile.ts";
 import { diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
-import { GROUPS, HUD_GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./gore-scenes.ts";
+import {
+  GROUPS,
+  HUD_GROUPS,
+  VIEWS,
+  type Drive,
+  type Fresh,
+  type Lens,
+  type Stage,
+} from "./gore-scenes.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -97,7 +105,9 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 /** The wall time a still is drawn over: nothing moves in it. */
 const STILL = 1e-4;
 
-function fresh(grimbear = false): GameState {
+function fresh(ask: Fresh = false): GameState {
+  const o = typeof ask === "boolean" ? { grimbear: ask } : ask;
+  const grimbear = !!o.grimbear;
   return createGame({
     level,
     seed,
@@ -107,6 +117,8 @@ function fresh(grimbear = false): GameState {
     crowd: 0,
     quiet: true,
     ...(grimbear ? { grimbear: "hunt" as const } : {}),
+    ...(o.groomer ? { groomer: "on" as const } : {}),
+    ...(o.heli ? { heli: true } : {}),
   });
 }
 

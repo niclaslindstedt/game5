@@ -30,13 +30,15 @@ import { fromAxisAngle, multiply, type Quat } from "@niclaslindstedt/oss-game-fr
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 
+export type Fresh = boolean | { grimbear?: boolean; groomer?: boolean; heli?: boolean };
 export type Lens = CameraRung | LensPose | ((state: GameState) => LensPose);
 export type Drive = (state: GameState) => SkierInput;
 
 export type Stage = {
   level: Level;
-  /** A free ride with the injuries on — the grimbear hunting, if asked. */
-  fresh(grimbear?: boolean): GameState;
+  /** A free ride with the injuries on — the grimbear hunting, the piste
+   * machines out or the skier on the helicopter's skid, if asked. */
+  fresh(ask?: Fresh): GameState;
   run(state: GameState, seconds: number, drive?: Drive): void;
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   shoot(state: GameState, label: string, lens?: Lens): void;
@@ -375,6 +377,54 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "close", onBody(0.9, 2.6, 1.6, 45));
     st.shoot(s, "above", onBody(0.2, 1.2, 3.4, 50));
   },
+  // ── THE MACHINES ───────────────────────────────────────────────────────
+  /** Knocked down in front of a working piste machine: under its belts and
+   * its tiller, torn apart and spat out of the back. */
+  groomer(st) {
+    const s = st.fresh({ groomer: true });
+    const g = s.groomers![0];
+    st.run(s, 0.5, still);
+    const fx = Math.sin(g.heading);
+    const fz = Math.cos(g.heading);
+    placeRun(s, { x: g.x + fx * 8, z: g.z + fz * 8, heading: g.heading + Math.PI, speed: 4 });
+    const at = {
+      x: g.x + fx * 6,
+      y: st.level.groundAt(g.x + fx * 6, g.z + fz * 6),
+      z: g.z + fz * 6,
+    };
+    const side = g.heading + Math.PI / 2;
+    st.shoot(s, "coming", around(st.level, at, side, 14, 3, 50, 1));
+    st.until(s, (q) => !!q.skier.thrown, 3, still);
+    strobe(st, s, [0.3, 1, 1.6, 2.2, 3, 4.5], around(st.level, at, side, 13, 3.5, 50, 0.6));
+    const end = { x: g.x, y: g.y, z: g.z };
+    st.shoot(s, "behind", around(st.level, end, g.heading + Math.PI, 14, 4, 50, 0.4));
+    st.shoot(s, "left-behind", onBody(side + 0.6, 4, 2.4, 50));
+    st.shoot(s, "above", onBody(0.3, 1.5, 5, 55));
+  },
+  /** On the helicopter's skid when it is flown into the snow: blown apart
+   * by the blast. */
+  heli(st) {
+    const s = st.fresh({ heli: true });
+    const hands =
+      (collective: number): Drive =>
+      () => ({
+        ...NEUTRAL_INPUT,
+        heli: { collective, pitch: 0, roll: 0, pedal: 0 },
+      });
+    st.run(s, 6, hands(0.95));
+    st.shoot(s, "flying", "chase");
+    if (!st.until(s, (q) => q.heli?.mode === "wreck", 40, hands(0.1))) {
+      st.shoot(s, "no-crash", "chase");
+      return;
+    }
+    const w = s.heli!.wreck!;
+    const at = { x: w.x, y: st.level.groundAt(w.x, w.z), z: w.z };
+    const lens = around(st.level, at, s.heli!.heading + Math.PI / 2, 22, 5, 55, 2);
+    st.shoot(s, "blast", lens);
+    strobe(st, s, [0.05, 0.15, 0.35, 0.7, 1.4, 3, 6], lens);
+    st.shoot(s, "remains", onBody(1.2, 4, 2.5, 50));
+    st.shoot(s, "above", around(st.level, at, 0.5, 6, 18, 60, 0));
+  },
   // ── THE BLOOD ──────────────────────────────────────────────────────────
   /** The spurt on the heartbeat: a stump close, frame by frame over two
    * beats. */
@@ -443,6 +493,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   snow: ["mangled", "crush", "fracture"],
   spike: ["spike-tree", "spike-post"],
   maul: ["maul"],
+  machines: ["groomer", "heli"],
   blood: ["spray", "snow"],
   close: ["closeup"],
   hud: ["wreck"],

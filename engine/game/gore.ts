@@ -17,6 +17,12 @@
 //   - RUN THROUGH: a point of the body thrown down onto a tree's top or a
 //     thin post's, held there (`Thrown.pin`) and slid on down it, the rest
 //     of him hanging off it;
+//   - UNDER A PISTE MACHINE: every point of him a working machine's belts
+//     and tiller pass over torn off and spat out behind it, the skull
+//     crushed, the trunk burst — the dead as well as the living;
+//   - BLOWN APART: the skier on a helicopter's skid when it comes down —
+//     the limbs, the head or the lower half off as a hash deals them, the
+//     trunk opened, every piece flung off his middle by the blast;
 //   - MORTAL: any of those, an injury of AIS 5, a severity score of 50, a
 //     body engulfed in a wreck's fire (the airway burnt) or the grimbear's
 //     catch. A mortal wound is never stood back up (`holdsHim`): he dies —
@@ -32,6 +38,7 @@
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { GORE, INSTANT } from "./defs/gore.ts";
+import { GROOMER } from "./defs/groomer.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
 import { BONES } from "./defs/anatomy.ts";
@@ -140,10 +147,16 @@ export function stepGore(state: GameState, events: GameEvent[]): void {
   if (!g) return;
   pending = null;
   if (g.dead < 0) {
+    blast(state, g, events);
     wound(state, g, events);
     impale(state, g, events);
+    underMachine(state, g, events);
     mortality(state, g, events);
-  } else if (state.skier.thrown?.pin) slide(state, g, state.skier.thrown);
+  } else {
+    if (state.skier.thrown?.pin) slide(state, g, state.skier.thrown);
+    // A machine runs over the dead as it does the living.
+    underMachine(state, g, events);
+  }
   heart(state, g);
 }
 
@@ -170,16 +183,7 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   const c = state.skier;
   const off = off0 ?? throwRider(state, "tree", { x: c.vx, y: c.vy, z: c.vz }, events);
   for (const piece of tear) {
-    const with_ = WITH[piece];
-    // A whole limb gone takes the lower half with it; the lower half
-    // already gone leaves the upper to tear on its own.
-    g.lost |= bit(piece) | (with_ ? bit(with_) : 0);
-    if (piece === "lower") for (const p of LOWER) g.lost |= bit(p);
-    const T = TEAR[piece];
-    const at = pointOf(off, T.at);
-    const v = velocityOf(off, T.takes);
-    g.torn.push({ piece, t: state.t, ...at, vx: v.x, vy: v.y, vz: v.z });
-    events.push({ kind: "gore", t: state.t, what: "torn", piece, ...at });
+    tearOff(state, g, off, piece, velocityOf(off, TEAR[piece].takes), events);
     mortalBy(
       state,
       g,
@@ -192,17 +196,173 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
             : "torn",
     );
   }
-  if (crush) {
-    g.crushed = state.t;
-    events.push({ kind: "gore", t: state.t, what: "crush", ...pointOf(off, R.head) });
-    mortalBy(state, g, "crush");
+  if (crush) crushSkull(state, g, off, events);
+  for (const part of open) openTrunk(state, g, off, part, events);
+}
+
+/** `piece` torn off `off`, going `v` (m/s, world). */
+function tearOff(
+  state: GameState,
+  g: GoreState,
+  off: Thrown,
+  piece: GorePiece,
+  v: { x: number; y: number; z: number },
+  events: GameEvent[],
+): void {
+  const with_ = WITH[piece];
+  // A whole limb gone takes the lower half with it; the lower half
+  // already gone leaves the upper to tear on its own.
+  g.lost |= bit(piece) | (with_ ? bit(with_) : 0);
+  if (piece === "lower") for (const p of LOWER) g.lost |= bit(p);
+  const at = pointOf(off, TEAR[piece].at);
+  g.torn.push({ piece, t: state.t, ...at, vx: v.x, vy: v.y, vz: v.z });
+  events.push({ kind: "gore", t: state.t, what: "torn", piece, ...at });
+}
+
+function crushSkull(state: GameState, g: GoreState, off: Thrown, events: GameEvent[]): void {
+  g.crushed = state.t;
+  events.push({ kind: "gore", t: state.t, what: "crush", ...pointOf(off, R.head) });
+  mortalBy(state, g, "crush");
+}
+
+function openTrunk(
+  state: GameState,
+  g: GoreState,
+  off: Thrown,
+  part: GoreOpen,
+  events: GameEvent[],
+): void {
+  g.open |= 1 << GORE_OPEN.indexOf(part);
+  const at = part === "chest" ? pointOf(off, -1) : hipsOf(off);
+  events.push({ kind: "gore", t: state.t, what: "open", piece: part, ...at });
+  mortalBy(state, g, part === "chest" ? "opened" : "bled");
+}
+
+/** The piece a ragdoll point goes with when it is torn off on its own: a
+ * hand the forearm, an elbow the arm, a foot the shin, a knee the leg, a
+ * hip the lower half — the head and the shoulders are the skull and the
+ * chest, which are crushed and opened rather than torn. */
+const PIECE_AT: readonly (GorePiece | null)[] = (() => {
+  const out: (GorePiece | null)[] = new Array(R.count).fill(null);
+  out[R.handL] = "forearmL";
+  out[R.handR] = "forearmR";
+  out[R.elbowL] = "armL";
+  out[R.elbowR] = "armR";
+  out[R.footL] = "shinL";
+  out[R.footR] = "shinR";
+  out[R.kneeL] = "legL";
+  out[R.kneeR] = "legR";
+  out[R.hipL] = "lower";
+  out[R.hipR] = "lower";
+  return out;
+})();
+
+/** UNDER A PISTE MACHINE: every point of his body a working machine's
+ * tracks and tiller pass over — alive or dead — torn off and spat out of
+ * the back of the tiller; the skull crushed under a belt, the chest and the
+ * belly burst. */
+function underMachine(state: GameState, g: GoreState, events: GameEvent[]): void {
+  const ms = state.groomers;
+  const b = state.skier.thrown;
+  if (!ms || !b) return;
+  const M = GORE.machine;
+  const K = GROOMER;
+  for (const m of ms) {
+    if (m.rider || Math.abs(m.speed) < M.speed) continue;
+    const dir = Math.sign(m.speed);
+    const fx = Math.sin(m.heading);
+    const fz = Math.cos(m.heading);
+    for (let i = 0; i < R.count; i++) {
+      const px = b.points[3 * i];
+      const py = b.points[3 * i + 1];
+      const pz = b.points[3 * i + 2];
+      if (py > m.y + M.over) continue;
+      const dx = px - m.x;
+      const dz = pz - m.z;
+      // Along the way it goes: past the blade's face (or the tiller's end
+      // backing up) and inside it, under the belts and the tiller.
+      const u = (dx * fx + dz * fz) * dir;
+      const v = dx * fz - dz * fx;
+      const lead = dir > 0 ? K.front : K.back;
+      const tail = dir > 0 ? K.back : K.front;
+      if (u > lead - M.behind || u < -tail || Math.abs(v) > K.half) continue;
+      const h = hash2(i, state.seed | 0, SALT + 1);
+      const spit = -(Math.abs(m.speed) + M.spit * (0.6 + 0.8 * h)) * dir;
+      const out = {
+        x: fx * spit + (v > 0 ? -fz : fz) * h * 2,
+        y: M.up * (0.6 + 0.8 * h),
+        z: fz * spit + (v > 0 ? fx : -fx) * h * 2,
+      };
+      const piece = PIECE_AT[i];
+      if (piece && !(g.lost & bit(piece))) {
+        tearOff(state, g, b, piece, out, events);
+        mortalBy(state, g, "machine");
+      } else if (i === R.head && !(g.lost & bit("head")) && g.crushed < 0) {
+        crushSkull(state, g, b, events);
+        mortalBy(state, g, "machine");
+      } else if (i <= R.shoulderR) {
+        for (const part of GORE_OPEN)
+          if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
+        mortalBy(state, g, "machine");
+      }
+    }
   }
-  for (const part of open) {
-    g.open |= 1 << GORE_OPEN.indexOf(part);
-    const at = part === "chest" ? pointOf(off, -1) : hipsOf(off);
-    events.push({ kind: "gore", t: state.t, what: "open", piece: part, ...at });
-    mortalBy(state, g, part === "chest" ? "opened" : "bled");
+}
+
+/** THE HELICOPTER'S BLAST: on the step it came down with him on its skid,
+ * the skier blown apart — the limbs, the head and the lower half off as a
+ * hash of the map deals them, the trunk opened, every piece flung off his
+ * middle. */
+function blast(state: GameState, g: GoreState, events: GameEvent[]): void {
+  if (!state.heli?.wreck?.aboard) return;
+  if (!events.some((e) => e.kind === "heli" && e.phase === "crash")) return;
+  const b = state.skier.thrown;
+  if (!b) return;
+  const B = GORE.blast;
+  const deal = (k: number) => hash2(k, state.seed | 0, SALT + 2);
+  const tear: GorePiece[] = [];
+  if (deal(0) < B.head) tear.push("head");
+  tear.push(deal(1) < 0.5 ? "armL" : "forearmL", deal(2) < 0.5 ? "armR" : "forearmR");
+  if (deal(3) < B.waist) tear.push("lower");
+  else tear.push(deal(4) < 0.5 ? "legL" : "shinL", deal(5) < 0.5 ? "legR" : "shinR");
+  const mid = centre(b);
+  tear.forEach((piece, k) => {
+    if (g.lost & bit(piece)) return;
+    const T = TEAR[piece];
+    const v = velocityOf(b, T.takes);
+    const end = pointOf(b, T.takes[T.takes.length - 1]);
+    let ox = end.x - mid.x;
+    let oz = end.z - mid.z;
+    const n = hypot(ox, oz);
+    // The waist and a piece over his middle: off at a dealt bearing.
+    if (n < 0.05) {
+      const a = deal(10 + k) * Math.PI * 2;
+      ox = Math.sin(a);
+      oz = Math.cos(a);
+    } else {
+      ox /= n;
+      oz /= n;
+    }
+    const s = B.out * (1 + B.spread * (2 * deal(20 + k) - 1));
+    const up = B.up * (1 + B.spread * (2 * deal(30 + k) - 1));
+    tearOff(state, g, b, piece, { x: v.x + ox * s, y: v.y + up, z: v.z + oz * s }, events);
+  });
+  for (const part of GORE_OPEN)
+    if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
+  mortalBy(state, g, "blast");
+}
+
+/** The middle of his body: the ragdoll's points averaged. */
+function centre(b: Thrown): { x: number; y: number; z: number } {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (let i = 0; i < R.count; i++) {
+    x += b.points[3 * i];
+    y += b.points[3 * i + 1];
+    z += b.points[3 * i + 2];
   }
+  return { x: x / R.count, y: y / R.count, z: z / R.count };
 }
 
 function hipsOf(b: Thrown): { x: number; y: number; z: number } {
@@ -220,6 +380,8 @@ function hipsOf(b: Thrown): { x: number; y: number; z: number } {
  * that waits. */
 let pending: DeathCause | null = null;
 function mortalBy(state: GameState, g: GoreState, cause: DeathCause): void {
+  // Dead, what killed him stays what killed him.
+  if (g.dead >= 0) return;
   if (g.mortal < 0) g.mortal = state.t;
   if (g.cause === null || (INSTANT.includes(cause) && !INSTANT.includes(g.cause))) {
     g.cause = cause;

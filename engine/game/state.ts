@@ -606,16 +606,16 @@ export type RunOut = {
  * bot is allowed, dealt once at the start line; `react` how long after GO
  * he stays in the gate, s (`RACE.reactBand`); `lane` the line it holds
  * down the piste, m right of the centreline — its own slot's; `id` its
- * slot less one. */
+ * slot less one; `free` an enthusiast's, out on a free ride after dark. */
 export type Rival = {
   id: number;
   run: GameState;
   pace: number;
-  /** How much this rival can take before he goes down, 0..1 — his skier's
-   * `resilience`, dealt at the start line. */
+  /** How much he can take before he goes down, 0..1 (his `resilience`). */
   resilience: number;
   react: number;
   lane: number;
+  free?: import("./enthusiast-state.ts").FreeRider;
 };
 
 export type GameEvent =

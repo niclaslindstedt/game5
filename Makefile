@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -673,6 +673,17 @@ level:
 # `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE JUNCTIONS LAB: where the groomed snow BREAKS — a lip, a step or a
+# wall where a lane leaves a piste, a run merges into another, or anywhere
+# on a run nothing was built to be jumped — read down the fall line on every
+# packed metre, the kickers, drops and pads left out, one row a seed by
+# kind. `--versions=7,8` builds the same seeds by an older generator beside
+# the current one; `--sheet` draws the worst as relief. Pure Node.
+# `make junctions SEED=3 REGION=continental ARGS=--list` ·
+# `make junctions COUNT=10 ARGS="--versions=7,8 --sheet"`
+junctions:
+	npm run junctions -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the

@@ -364,6 +364,8 @@ describe("the HUD over a free ride (snapshot.ts, minimap-view.ts)", () => {
     expect(snap.split).toBeNull();
     expect(snap.minimap.checkpoints).toHaveLength(0);
     expect(snap.minimap.chevron).toBeNull();
+    // Where he stands, to the metre, for the chip beside the seed.
+    expect(snap.at).toEqual({ x: Math.round(state.skier.x), z: Math.round(state.skier.z) });
   });
 
   it("a race still reads its course", () => {

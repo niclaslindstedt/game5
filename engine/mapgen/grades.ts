@@ -343,3 +343,21 @@ export function dealGrade(seed: number): PisteGrade {
   }
   return PISTE_GRADES[PISTE_GRADES.length - 1];
 }
+
+/** Kickers on a run, by its length, against the grade row's count for a
+ * course: the row's band is a downhill course's, and a resort's runs are
+ * shorter — a run of `KICKER_REACH` metres carries the row's whole band,
+ * and any but a green at least one. */
+const KICKER_REACH = 2000;
+
+/** A row's kicker and drop counts scaled to a run's length. */
+export function scaledRow(row: GradeRow, length: number): GradeRow {
+  const k = Math.min(1.4, length / KICKER_REACH);
+  const least = row.id === "green" || row.id === null ? 0 : 1;
+  const on = {
+    min: Math.max(least, Math.floor(row.kickers.on.min * k)),
+    max: Math.max(least, Math.round(row.kickers.on.max * k)),
+  };
+  const drops = { min: Math.floor(row.drops.min * k), max: Math.round(row.drops.max * k) };
+  return { ...row, kickers: { ...row.kickers, on }, drops };
+}

@@ -113,6 +113,7 @@ export function Hud({
   bare = false,
   machineKey,
   tuckKey,
+  jumpKey = "SPACE",
   injuries = true,
 }: {
   snap: HudSnapshot;
@@ -141,6 +142,9 @@ export function Hud({
   /** The tuck key as bound — what stands a fallen skier up past the first
    * seconds of his fall, with a tap anywhere on touch. */
   tuckKey: string;
+  /** The jump key as bound — what orders another round in the afterski's
+   * room. */
+  jumpKey?: string;
   /** Whether the body's injuries are drawn (`settings.ts`'s
    * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
   injuries?: boolean;
@@ -174,7 +178,8 @@ export function Hud({
       side={barSide}
     />
   );
-  const thumbs = touch && (
+  // Indoors there is nothing to ski: the room's tap is the whole glass.
+  const thumbs = touch && !indoors && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
           whichever of the two it is. */}
@@ -220,14 +225,17 @@ export function Hud({
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
           contest's, and a FREE RIDE is no contest: it skis without them,
-          and carries the MAP'S SEED alone in their place, so a picture of
-          it says which mountain it was taken on — the one number that
-          brings it back. */}
+          and carries the MAP'S SEED in their place, and where on it he
+          stands, so a picture of it says which mountain it was taken on and
+          where — the numbers that bring it back. */}
       {leisure && (
         <div class="hud-top">
           <div class="hud-top-row">
             <div class="hud-chip hud-seed">
-              <span>{snap.seed}</span>
+              <span>
+                {snap.seed}
+                <span class="hud-seed-at">{STRINGS.seedAt(snap.at.x, snap.at.z)}</span>
+              </span>
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           </div>
@@ -597,7 +605,9 @@ export function Hud({
           afterski={snap.afterski}
           touch={touch}
           machineKey={machineKey}
+          jumpKey={jumpKey}
           onPress={input.requestMachine}
+          onDrink={input.requestJump}
         />
       )}
       {snap.buzz > 0.005 && <BuzzMeter buzz={snap.buzz} />}

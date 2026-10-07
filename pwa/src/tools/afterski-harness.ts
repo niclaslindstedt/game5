@@ -199,7 +199,9 @@ window.__afterski = {
               afterski: reading,
               touch: false,
               machineKey: "ENTER",
+              jumpKey: "SPACE",
               onPress: () => {},
+              onDrink: () => {},
             })
           : null,
         buzz > 0.005 ? h(BuzzMeter, { buzz }) : null,

@@ -207,6 +207,8 @@ export function rivalInput(
 export function stepRivals(state: GameState): void {
   const sinceGo = state.t - state.rules.countdown;
   for (const rival of state.rivals) {
+    // An enthusiast is out skiing, not racing (`enthusiasts.ts`).
+    if (rival.free) continue;
     const run = rival.run;
     run.t = state.t;
     run.tick = state.tick;

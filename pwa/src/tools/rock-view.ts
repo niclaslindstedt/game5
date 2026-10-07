@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WORLD LAB'S ROCK VIEWS (`make world ARGS=--views=rocks,rocks-near,rocks-run,rocks-air`):
-// the crags on the bare faces (`rock-plan.ts`), through the game's own
+// the crags on the drops (the engine's `rocksOf`), through the game's own
 // renderer.
 //
-//   * rocks — the rockiest corner of the map (the 60 m square with most
-//     outcrops), from a skier's eye 70 m down its fall line, looking up;
+//   * rocks, rocks-cliff — the widest cliff band from out on its landing,
+//     square on and close from one side (the rockiest corner, where the
+//     map has no cliff);
 //   * rocks-near — the tallest outcrop on a whole wall, close, from 14 m
 //     off down and across the slope;
 //   * rocks-run — the outcrops nearest a run, from a skier's eye on it;
 //   * rocks-air — the rockiest corner from a drone 160 m out over the valley.
 
-import { nearestTrackPoint, regionOf, type Level } from "@engine";
+import { nearestTrackPoint, rocksOf, rockyCliff, type Level, type Outcrop } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
-import { regionLookOf } from "../game/region-look.ts";
-import { rockOutcrops, type Outcrop } from "../game/rock-plan.ts";
 
-export const ROCK_VIEWS = ["rocks", "rocks-near", "rocks-run", "rocks-air"] as const;
+export const ROCK_VIEWS = ["rocks", "rocks-cliff", "rocks-near", "rocks-run", "rocks-air"] as const;
 
 /** The fall line at (x, z): its downhill unit vector. */
 function fallAt(level: Level, x: number, z: number): { x: number; z: number } {
@@ -65,9 +64,30 @@ function below(
 }
 
 export function rockView(level: Level, name: string): { pose: LensPose; note: string } | null {
-  const all = rockOutcrops(level, regionLookOf(regionOf(level).id).rock);
+  const all = [...rocksOf(level)];
   if (all.length === 0) return null;
   const said = `${all.length} outcrops on the map`;
+  if (name === "rocks" || name === "rocks-cliff") {
+    // The widest rocky cliff, from out below it on its landing: square on
+    // (`rocks`), or close and off to one side (`rocks-cliff`).
+    const c = [...(level.cliffs ?? [])].filter(rockyCliff).sort((a, b) => b.width - a.width)[0];
+    if (c) {
+      const near = name === "rocks-cliff";
+      const out = near ? 16 : 40;
+      const side = near ? 12 : 0;
+      const ex = c.x + Math.sin(c.heading) * out + Math.cos(c.heading) * side;
+      const ez = c.z + Math.cos(c.heading) * out - Math.sin(c.heading) * side;
+      return {
+        pose: {
+          eye: { x: ex, y: level.groundAt(ex, ez) + 1.7, z: ez },
+          target: { x: c.x, y: c.y - c.drop * 0.5, z: c.z },
+          fov: 58,
+          roll: 0,
+        },
+        note: `cliff ${c.id}: ${c.drop.toFixed(1)} m drop, ${Math.round(c.width)} m wide; ${said}`,
+      };
+    }
+  }
   if (name === "rocks-near") {
     const o = [...all].sort((a, b) => b.bare * b.height - a.bare * a.height)[0];
     const f = fallAt(level, o.x, o.z);
@@ -81,7 +101,7 @@ export function rockView(level: Level, name: string): { pose: LensPose; note: st
         fov: 55,
         roll: 0,
       },
-      note: `close: the tallest crag, ${o.height.toFixed(1)} m, ${o.shards} shards; ${said}`,
+      note: `close: the tallest crag, ${o.height.toFixed(1)} m, ${o.blocks} blocks; ${said}`,
     };
   }
   if (name === "rocks-run") {

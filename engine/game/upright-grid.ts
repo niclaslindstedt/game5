@@ -15,9 +15,9 @@ const CELL = TUNING.trees.cell;
 /** WHAT A THING STANDING IN THE SNOW IS MADE OF, as a body meeting it
  * feels it (`TUNING.injury.solid`): a TRUNK (the bark, the branches and
  * the trunk's own sway give a little), a lift's or a mast's bare STEEL,
- * a tower wrapped in its foam PAD (`lift-line.ts`' `TOWER_PAD`), and a
- * cabin's LOG wall. */
-export type Stuff = "trunk" | "steel" | "padded" | "log";
+ * a tower wrapped in its foam PAD (`lift-line.ts`' `TOWER_PAD`), a
+ * cabin's LOG wall, and the bare ROCK of a crag (`rocks.ts`). */
+export type Stuff = "trunk" | "steel" | "padded" | "log" | "rock";
 
 /** A thing standing up out of the snow: its foot (x, z) and the snow's
  * height there, its height over that and its radius in plan, m, and what

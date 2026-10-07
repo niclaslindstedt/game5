@@ -686,6 +686,17 @@ export {
 export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
+export {
+  rockBlock,
+  rockSolids,
+  rocksOf,
+  rockyCliff,
+  unit as rockDraw,
+  wallOf,
+  type Outcrop,
+  type Block,
+} from "./game/rocks.ts";
+export { ROCKS } from "./game/defs/rocks.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,

@@ -23,7 +23,9 @@
 //   land       land (flown in and set down on the highest summit flat),
 //              landed (the rotor turning there; the skier stepping off)
 //   drop       drop (pushed off over a face too steep to land on: 0, 0.5, 1,
-//              2 s), fall and impact (40 m into deep powder), home (the
+//              2 s), plunge (pushed off 60 m over a steep face and watched
+//              down onto it and down it: the fall look), fall and impact
+//              (40 m into deep powder), home (the
 //              machine flying home, seen from the skier on the snow)
 //   crash      crash (into the snow: the airframe torn apart and the
 //              fireball at 0 … 6 s through the game's own crash lens,
@@ -79,7 +81,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, fall, impact, home, crash, thrown, crash-nose, crash-fast, wreck, restart, handover, night, turntable)",
+      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, plunge, fall, impact, home, crash, thrown, crash-nose, crash-fast, wreck, restart, handover, night, turntable)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

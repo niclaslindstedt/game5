@@ -48,7 +48,7 @@ Some behaviour comes out of the model with no special case:
 
 **Under the wing on the snow** is speed riding: the skis on the slope, the wing still flying and taking some of the weight. Near the snow the pilot stands up out of the seat, and his skis meet the slope square from 6 m above it, fully by 1.5 m.
 
-**The drop.** The machine press (**Enter**, or a double tap on touch) releases the whole rig. The canopy streams down as cloth, the motor falls on its own, and both lie where they land. The skier goes on as a skier. Drop it low: a pilot who lets go of the wing 100 m up falls 100 m.
+**The drop.** The machine press (**Enter**, or a double tap on touch) releases the whole rig. The canopy streams down as cloth, the motor falls on its own, and both lie where they land. The skier goes on as a skier. Drop it low: a pilot who lets go of the wing 100 m up falls 100 m. The lens follows him down from over his back, looking at the snow he will land on (`camera-fall.ts`), and a steep face takes a long fall far better than the flat (`landing.steep`, `docs/riding.md`).
 
 **The collapse.** A wing brought down within 0.4 m of the snow, or into a tree's crown, collapses and is cut away the same way.
 

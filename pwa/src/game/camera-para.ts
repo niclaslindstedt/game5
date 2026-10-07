@@ -31,9 +31,14 @@ const DOWN = { tips: 0.7, helmet: 0.3 };
 
 const bolted = (rig: Rig, down: number): BoltedRig => {
   const b = rig as BoltedRig;
-  return { ...b, eye: { x: b.eye.x, y: b.eye.y - LIFT, z: b.eye.z }, down };
+  // Hung under the wing he is flying, not falling: no fall look.
+  return { ...b, eye: { x: b.eye.x, y: b.eye.y - LIFT, z: b.eye.z }, down, fallDown: 0 };
 };
-const boom = (rig: Rig, over: Partial<BoomRig>): BoomRig => ({ ...(rig as BoomRig), ...over });
+const boom = (rig: Rig, over: Partial<BoomRig>): BoomRig => ({
+  ...(rig as BoomRig),
+  fall: 0,
+  ...over,
+});
 
 /** The ladder under the wing. */
 export const PARA_RIGS: Record<Rung, Rig> = {

@@ -3,7 +3,8 @@
 // as a trunk: every lift's towers and the posts under its two bullwheels
 // (`lift-line.ts`'s plan, the columns `lifts.ts` draws), and every
 // floodlight mast down its runs (`piste-masts.ts`, the poles
-// `piste-lights.ts` draws). Each is an `Upright` — a vertical cylinder
+// `piste-lights.ts` draws), and in a thin season every snow gun beside them
+// (`snow-guns.ts`: a carriage's bulk, a column's or a lance's pole). Each is an `Upright` — a vertical cylinder
 // from the snow at its foot to its head — met by `collision.ts` exactly as
 // a trunk is, so a column met square stops a skier and one clipped turns
 // him. Kept per map, off the map alone, drawing from no stream.
@@ -12,12 +13,14 @@ import type { Level } from "../mapgen/types.ts";
 import { cabinWalls } from "./cabins.ts";
 import { liftPlans } from "./lift-line.ts";
 import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
+import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
 
 const lists = new WeakMap<Level, Upright[]>();
 
 /** Every post of `level`: the lifts' columns (their half-width at the foot
- * — a square tube, met on its flats), then the masts' poles. */
+ * — a square tube, met on its flats), then the masts' poles, then the snow
+ * guns standing. */
 export function postsOf(level: Level): readonly Upright[] {
   let list = lists.get(level);
   if (list) return list;
@@ -29,6 +32,10 @@ export function postsOf(level: Level): readonly Upright[] {
   }
   for (const m of pisteMasts(level)) {
     list.push({ x: m.x, z: m.z, y: m.y, height: m.height, radius: PISTE_MAST.pole.foot });
+  }
+  for (const g of standingGuns(level)) {
+    const { radius, height } = gunSolid(g);
+    list.push({ x: g.x, z: g.z, y: g.y, height, radius });
   }
   lists.set(level, list);
   return list;

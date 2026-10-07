@@ -969,6 +969,10 @@ export type GameState = ContestState & {
   /** THE PISTE MACHINES (`groomer.ts`) and their snow (`groomed.ts`). */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
+  /** THE MACHINE SNOW the running snow guns have laid (`snow-guns.ts`):
+   * on a run whose rules have the ski area's machines, in a thin season
+   * when the guns run; absent everywhere else. Read, never written. */
+  machineSnow?: import("./snow-guns.ts").MachineSnow;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

@@ -718,6 +718,24 @@ export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./gam
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export {
+  gunSeason,
+  gunSolid,
+  machineSnowAt,
+  machineSnowOf,
+  nozzleOf,
+  snowGunsOf,
+  snowGunsOut,
+  snowGunsRun,
+  standingGuns,
+  whaleOf,
+  whaleShare,
+  type MachineSnow,
+  type SnowGun,
+  type SnowGunMount,
+  type Whale,
+} from "./game/snow-guns.ts";
+export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";

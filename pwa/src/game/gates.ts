@@ -46,7 +46,14 @@
 // laid on this map's own ground here.
 
 import * as THREE from "three";
-import { speedSkiLines, stakePlan, type Checkpoint, type GameState, type Level } from "@engine";
+import {
+  speedSkiLines,
+  stakePlan,
+  type Checkpoint,
+  type GameState,
+  type Level,
+  type Wind,
+} from "@engine";
 
 import { PALETTE } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
@@ -71,6 +78,8 @@ import { createCrossFlags } from "./cross-flags.ts";
 import { createCrossGate } from "./cross-gate.ts";
 import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
+import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
+import type { SkyLook } from "./sky.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
 import { netShape, netStretch, NETS } from "./spectator-plan.ts";
@@ -111,6 +120,11 @@ export type Gates = {
    * edge poles' reflectors and the piste lights along every run, with
    * `pixels` the lens's focal length in pixels. */
   setLamps(level: number, pixels: number): void;
+  /** THE SNOW GUNS of a thin season (`snow-guns-view.ts`): their sweep,
+   * their plumes and their whales at the run's moment, in its sky. */
+  air(state: GameState, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
+  /** The snow guns standing, for the labs; null where none stand. */
+  guns: SnowGuns | null;
   dispose(): void;
 };
 
@@ -703,6 +717,10 @@ export function createGates(skied: Level, haze: HazeUniforms): Gates {
   const lights = createPisteLights(level, haze);
   group.add(lights.group);
 
+  // THE SNOW GUNS, in a thin season.
+  const guns = createSnowGuns(level, haze);
+  if (guns) group.add(guns.group);
+
   // A SLOPESTYLE COURSE'S RAILS AND BOXES (`jibs-view.ts`).
   const jibs = createJibs(level, std);
   if (jibs) group.add(jibs.group);
@@ -799,6 +817,10 @@ export function createGates(skied: Level, haze: HazeUniforms): Gates {
       }
       reflectorMat.emissiveIntensity = 0.2 + 1.6 * on;
     },
+    air(state, look, wind, eye, pixels) {
+      guns?.update(state, look, wind, eye, pixels);
+    },
+    guns,
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
@@ -808,6 +830,7 @@ export function createGates(skied: Level, haze: HazeUniforms): Gates {
       bands.dispose();
       signs.dispose();
       lights.dispose();
+      guns?.dispose();
       slalomPoles?.dispose();
       house?.dispose();
       crossFlags?.dispose();

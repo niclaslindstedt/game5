@@ -775,6 +775,7 @@ export function createWorldRenderer(
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
       snowfall.update(look, wind, lens.camera, level, dt);
+      gates?.air(state, look, wind, lens.camera.position, pixels);
 
       const built = performance.now();
       if (present) {

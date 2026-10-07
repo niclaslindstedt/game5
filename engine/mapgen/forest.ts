@@ -121,8 +121,8 @@ export function growForest(
   const nClear = rng.int(F.clearings.count.min, F.clearings.count.max);
   for (let i = 0; i < nClear; i++) {
     clearings.push({
-      x: rng.range(200, R.world.size - 200),
-      z: rng.range(200, R.world.size - 200),
+      x: rng.range(200, plan.size - 200),
+      z: rng.range(200, plan.size - 200),
       r: inBand(rng, F.clearings.radius),
     });
   }
@@ -252,7 +252,7 @@ export function growForest(
   // ── THE CLUMPS, before the scan: every trunk the scan stands after keeps
   // the whole gap from them. One chance a cell, off the forest's seed. ──────
   const C = F.clumps;
-  const clumpCells = Math.floor(R.world.size / C.spacing);
+  const clumpCells = Math.floor(plan.size / C.spacing);
   let id = 0;
   for (let r = 0; r < clumpCells; r++) {
     for (let c = 0; c < clumpCells; c++) {
@@ -289,7 +289,7 @@ export function growForest(
   }
 
   // ── THE SCAN: a candidate a cell ──────────────────────────────────────────
-  const cells = Math.floor(R.world.size / F.spacing);
+  const cells = Math.floor(plan.size / F.spacing);
   for (let r = 0; r < cells; r++) {
     for (let c = 0; c < cells; c++) {
       // Four draws per cell whatever happens, so one refusal never shifts

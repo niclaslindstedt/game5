@@ -79,7 +79,8 @@ import { foldSurface, layCrust } from "./surface.ts";
 import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./track.ts";
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
-import { buildResort, chooseCourse, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { chooseCourse } from "./course-gates.ts";
+import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
 import { resortCached } from "./resort-cache.ts";
 import { analyzeResort } from "../analysis/resort.ts";
 
@@ -186,6 +187,7 @@ function attemptLevel(
     vertical: plan.vertical,
     altitude: plan.altitude,
     treeLine: plan.treeLine,
+    sea: base.y - plan.altitude,
   };
 
   const treeLineY = base.y + (plan.treeLine - plan.altitude);

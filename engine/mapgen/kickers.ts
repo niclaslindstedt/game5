@@ -246,7 +246,7 @@ export function layOffKickers(
   const count = scaleCount(K.count, plan.region.kickers * plan.grade.kickers.off);
   const want = rng.int(count.min, count.max);
   const out: Kicker[] = [];
-  const size = R.world.size;
+  const size = plan.size;
   const face = (plan.flankBand ?? R.mountain.flank).inner - 60;
   for (let tries = 0; tries < want * 40 && out.length < want; tries++) {
     const x = size / 2 + rng.range(-face, face);

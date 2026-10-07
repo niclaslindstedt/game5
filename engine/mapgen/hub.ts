@@ -30,7 +30,6 @@ import {
 import { valueNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { outsideHub } from "./query.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
-import { LEVEL_RULES as R } from "./rules.ts";
 import type { TerrainPlan } from "./terrain.ts";
 import type { Hub, WindTunnel } from "./types.ts";
 
@@ -51,8 +50,8 @@ export function planHub(
 ): HubPlan {
   const H = RR.hub;
   const T = RR.tunnel;
-  const cx = R.world.size / 2;
-  const inner = RR.massif.flank.inner - 40;
+  const cx = plan.size / 2;
+  const inner = (plan.flankBand ?? RR.massif.flank).inner - 40;
   let minX = Infinity;
   let maxX = -Infinity;
   let lowest = plan.baseZ;

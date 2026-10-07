@@ -112,6 +112,13 @@ export type GeneratorTraits = {
    * v7 its queue lies ahead of him and to one side, on snow that falls to
    * it, groomed and kept clear (R26, `lift.chain`). */
   queueBeside?: boolean;
+  /** THE LOW MASSIF (v4–v6): the resort's mountain 900–1150 m tall (the
+   * region's multiple on it, the fell's half of it) over a valley floor at
+   * the region's base altitude, its folds R3's own. From v8 it stands
+   * 1420–1620 m over a floor 10–20 m above the sea, every country at least
+   * that tall, and its hills, spurs, gullies, bowls and headwalls rise and
+   * fall about twice as far (R25, `massif.relief`). */
+  lowMassif?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -146,6 +153,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     levelPads: true,
     startsAcrossTop: true,
     queueBeside: true,
+    lowMassif: true,
   },
   {
     version: 5,
@@ -159,6 +167,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
     looseTops: true,
     queueBeside: true,
+    lowMassif: true,
   },
   {
     version: 6,
@@ -171,19 +180,25 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
       "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
       "pad slides down to his run and never climbs; a chair's unload ramp falls ahead of " +
-      "the rider, and a drag's top has ramps off where it lets go, where they fit. v7 lays " +
-      "the peak's chair's queue ahead of a rider out of the gondola; this row keeps the maps " +
-      "pinned on it with that chair beside the mid-station.",
+      "the rider, and a drag's top has ramps off where it lets go, where they fit. v8 lays " +
+      "the peak's chair's queue ahead of a rider out of the gondola and raises the mountain " +
+      "to 1420 m and more over a floor by the sea; this row keeps the maps pinned on it with " +
+      "that chair beside the mid-station, on the low massif.",
     queueBeside: true,
+    lowMassif: true,
   },
   {
-    version: 7,
+    version: 8,
     note:
-      "The next lift ahead: where the gondola tops out beside the peak's chair, that " +
-      "chair's queue lies AHEAD of a rider out of the gondola and to his right — 20–86° off " +
-      "the way he faces, 20–60 m from him — on a way cut into the snow that falls to it all " +
-      "the way, groomed and kept clear of every run and tree, so he turns onto it and never " +
-      "back (R26).",
+      "The tall mountain: the massif stands 1420–1620 m over a valley floor 10–20 m above " +
+      "the sea in every country alike, and its hills, " +
+      "spurs and gullies, bowls and headwalls rise and fall about twice as far across the " +
+      "face (R25); the tree line stands the same share of the mountain over the floor as " +
+      "before. The next lift ahead: where the gondola tops out beside the peak's chair, " +
+      "that chair's queue lies AHEAD of a rider out of the gondola and to his right — " +
+      "20–86° off the way he faces, 20–60 m from him — on a way cut into the snow that " +
+      "falls to it all the way, groomed and kept clear of every run and tree, so he turns " +
+      "onto it and never back (R26). (v7 was that queue on the low massif, pinned by no map.)",
   },
 ];
 

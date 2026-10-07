@@ -293,7 +293,8 @@ describe("the birds", () => {
     forEachCrossing(plan, 300, (c) => {
       seen++;
       crossingPose(c, 0, 300, pose);
-      expect(pose.y).toBeGreaterThan(march.groundAt(march.size / 2, march.size / 2));
+      // Over the ground under it: a skein clears the ridge on its track.
+      expect(pose.y).toBeGreaterThan(march.groundAt(pose.x, pose.z));
     });
     expect(seen).toBeGreaterThan(0);
     expect(crossingAt(plan, 3)).toEqual(crossingAt(plan, 3));

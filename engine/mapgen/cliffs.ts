@@ -125,7 +125,7 @@ export function layCliffs(
   const G = plan.grade.cliffs;
   const rng = createRng((sub ^ CLIFF_SALT) >>> 0);
   const count = scaleCount(C.count, plan.region.kickers * G.count);
-  const size = R.world.size;
+  const size = plan.size;
   const face = (plan.flankBand ?? R.mountain.flank).inner - 40;
   const clear = R.track.width.max / 2 + G.clearance;
   const out: Cliff[] = [];

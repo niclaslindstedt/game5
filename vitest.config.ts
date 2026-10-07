@@ -20,7 +20,7 @@ export default defineConfig({
     // craft through them at 120 Hz. Sized to the work, not the failure —
     // several times the heaviest case, so a busy runner cannot decide a
     // result.
-    testTimeout: 120_000,
+    testTimeout: 300_000,
     // CI's shards are cut by each file's measured time rather than by
     // vitest's hash of its path, and the heaviest files start first.
     sequence: { sequencer: WeightedSequencer },

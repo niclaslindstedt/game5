@@ -144,6 +144,9 @@ export type RaceHud = {
 
 export type HudSnapshot = {
   speedKmh: number;
+  /** HOW HIGH HE IS over the sea, m (`Mountain.sea`) — null on a map that
+   * publishes no mountain. */
+  altitude: number | null;
   /** THE EDGE the skis stand on, as a share of the pair's full edge at a
    * standstill, -1..1 — SCREEN-space, so positive is the skis tipped to
    * the player's right. */
@@ -613,8 +616,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
   const lights = state.rules.countdown > 0 && !race && !state.cross;
+  const mountain = state.level.mountain;
   return {
     speedKmh: c.speed * 3.6,
+    altitude: mountain ? c.y - mountain.sea : null,
     // Against the most edge he can use — a slalom racer's past the ski's own.
     edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,

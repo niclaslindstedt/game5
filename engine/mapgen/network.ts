@@ -351,7 +351,7 @@ function walk(
   const G = spec.row;
   const road = spec.kind === "road";
   const step = T.step;
-  const size = R.world.size;
+  const size = plan.size;
   // Everything drawn is drawn here, in this order.
   const widthSeed = rng.int(1, 1 << 30);
   const bendSeed = rng.int(1, 1 << 30);
@@ -395,7 +395,7 @@ function walk(
   // opens out on the open snow above it.
   const lineY = plan.treeLine - plan.altitude;
   const zEnd = size * T.finishZ;
-  const edge = RR.massif.flank.inner - 140;
+  const edge = (plan.flankBand ?? RR.massif.flank).inner - 140;
   const widthAt = (p: TrackPoint): number => {
     const v = valueNoise(p.s, 0, T.widthScale, widthSeed);
     let wide = W.min + (W.max - W.min) * smoothstep(0.15, 0.85, v);

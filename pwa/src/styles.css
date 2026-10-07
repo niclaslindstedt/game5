@@ -354,6 +354,14 @@ canvas {
   vertical-align: -0.25em;
 }
 
+.hud-seed-at {
+  margin-left: 0.6em;
+  font-size: 0.62em;
+  opacity: 0.85;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
 .hud-chip-sub {
   font-size: 0.62em;
   opacity: 0.85;

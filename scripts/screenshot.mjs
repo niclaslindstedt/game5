@@ -616,14 +616,22 @@ if (args.surface) {
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
     if (args["no-poles"]) params.poles = "0";
-    // A surface that rides a run (`free`) is held at `--t` when given.
+    // A surface that rides a run (`free`) is held at `--t` when given, under
+    // `--hour`, and stood at `--pose` — a spot on the map, which a free
+    // ride's chip names (`X … · Z …`).
     if (args.t !== undefined && params.t !== undefined) params.t = String(args.t);
+    if (params.t !== undefined && args.hour !== undefined) params.hour = String(args.hour);
+    if (params.t !== undefined && args.pose !== undefined) params.pose = String(args.pose);
+    if (params.t !== undefined && args.weather !== undefined) params.weather = String(args.weather);
     for (const v of viewports)
       await capture(
         `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
           `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
-          `${args["no-poles"] ? "-nopoles" : ""}`,
+          `${args["no-poles"] ? "-nopoles" : ""}` +
+          `${params.weather !== undefined ? `-${args.weather}` : ""}` +
+          `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
+          `${args.camera !== undefined ? `-${args.camera}` : ""}`,
         params,
         v,
         surface,

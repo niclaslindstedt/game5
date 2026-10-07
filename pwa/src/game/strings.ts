@@ -153,6 +153,9 @@ export const STRINGS = {
   /** Under the free ride's map seed — its one figure over the snow — so a
    * picture of it names its mountain. */
   seedLabel: "SEED",
+  /** Behind the seed: where on its mountain he stands, m across and down
+   * the map — so a picture names the spot as well as the mountain. */
+  seedAt: (x: number, z: number): string => `X ${x} · Z ${z}`,
   /** THE LIGHTS: the whole second still to run, and the word after. */
   count: (left: number): string => String(left),
   go: "GO!",

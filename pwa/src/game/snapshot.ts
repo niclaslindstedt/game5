@@ -195,6 +195,11 @@ export type HudSnapshot = {
    * straight ahead, and how far, m — or null with nothing owed. */
   missed: { angle: number; distance: number } | null;
   seed: number;
+  /** WHERE HE IS on the map, to the metre (the engine's x across and z down
+   * the map): beside the seed, so a picture names the spot on its mountain
+   * as well as the mountain — the same frame `make level` and the labs
+   * read. */
+  at: { x: number; z: number };
   /** The COURSE raced, by its runs' names (`courseName`) — null off a ski
    * area and on a free ride, which races none. */
   course?: string | null;
@@ -642,6 +647,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     airBest: airTime > 0 && airTime > p.bestAir,
     missed: owed ? { angle: owed.error * SCREEN_TO_ENGINE, distance: owed.distance } : null,
     seed: state.seed,
+    at: { x: Math.round(c.x), z: Math.round(c.z) },
     course:
       state.rules.course && state.level.resort
         ? courseName(state.level, state.level.resort.course)

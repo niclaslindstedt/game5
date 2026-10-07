@@ -545,8 +545,8 @@ export const IBEX: SkiSpec = {
  * mm of side depth over its chord, a 30 m arc — flat-tailed, mounted near
  * its middle, stiff (`flex` 0.75), and the legs of a skier set for a
  * landing from ten metres and more onto a 37° hill. It is the LIGHTEST
- * and SHORTEST pair — the least swing weight to turn in the air, its share of the
- * card's FREESTYLE bar (`ski-stats.ts`'s `spinOf`). Its answer is the straight
+ * and SHORTEST pair — the least swing weight to turn in the air, its bar
+ * on the card (`ski-stats.ts`'s `spinOf`). Its answer is the straight
  * line into a 71° kicker at 55 km/h and the twist about its own length in
  * the air; it is slow in a tuck, vague on an edge and sinks in powder. */
 export const KESTREL: SkiSpec = {

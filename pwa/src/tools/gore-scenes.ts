@@ -457,8 +457,8 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "7s-far", "far");
   },
   // ── THE HUD ────────────────────────────────────────────────────────────
-  /** A fatal crash with the HUD over it: skiing, the blow's jolt, the glass
-   * cracked, the readouts falling off it, DIED and the dark. */
+  /** A fatal crash with the HUD over it: skiing, the blow's jolt, the
+   * readouts falling off it, DIED and the dark. */
   wreck(st) {
     const { s, tree, side } = skiAtTree(st, 30, 14);
     const lens = onBody(side + 0.5, 6, 2, 50);

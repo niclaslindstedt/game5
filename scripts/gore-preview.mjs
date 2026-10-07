@@ -20,7 +20,7 @@
 //   blood    spray (a stump close over two heartbeats: the spurt and the
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
-//   hud      wreck (the HUD over a fatal crash: the jolt, the cracked glass,
+//   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts falling off it, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
 //

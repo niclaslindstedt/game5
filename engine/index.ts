@@ -562,6 +562,15 @@ export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
 export { letGo } from "./game/lone-skis.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
+  wellAt,
+  wellDepthOf,
+  wellLoose,
+  wellShareOf,
+  wellsOf,
+  withWells,
+} from "./game/tree-well.ts";
+export { TREE_WELLS } from "./game/defs/tree-wells.ts";
+export {
   FRACTURE_GRADE,
   PART,
   baseOf,
@@ -657,6 +666,24 @@ export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./gam
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export {
+  gunSeason,
+  gunSolid,
+  machineSnowAt,
+  machineSnowOf,
+  nozzleOf,
+  snowGunsOf,
+  snowGunsOut,
+  snowGunsRun,
+  standingGuns,
+  whaleOf,
+  whaleShare,
+  type MachineSnow,
+  type SnowGun,
+  type SnowGunMount,
+  type Whale,
+} from "./game/snow-guns.ts";
+export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
 export {

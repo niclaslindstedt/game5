@@ -599,6 +599,7 @@ export function tricksRules(laps: number): RunRules {
     start: "line",
     gates: "arcade",
     window: 0,
+    hockeyStop: true,
   };
 }
 
@@ -662,6 +663,7 @@ export function bigAirRules(laps: number): RunRules {
     spinMost: BIG_AIR.spinMost,
     flipMost: BIG_AIR.flipMost,
     inRun: true,
+    hockeyStop: true,
   };
 }
 

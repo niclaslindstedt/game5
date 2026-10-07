@@ -65,5 +65,6 @@ export function halfpipeRules(laps: number): RunRules {
     jury: HALFPIPE.jury,
     spinMost: HALFPIPE.spinMost,
     flipMost: HALFPIPE.flipMost,
+    hockeyStop: true,
   };
 }

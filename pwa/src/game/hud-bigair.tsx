@@ -13,6 +13,7 @@
 import { BIG_AIR } from "@engine";
 
 import type { HudSnapshot } from "./snapshot.ts";
+import { ContestBoard } from "./hud-contest-board.tsx";
 import { STRINGS } from "./strings.ts";
 
 export function BigAirPlate({
@@ -67,19 +68,11 @@ export function BigAirPlate({
             </span>
           )}
           {/* THE BOARD: the phase as far as he has jumped. */}
-          <ol class="hud-standings hud-bigair-board">
-            {air.board.map((r) => (
-              <li key={r.id} class={`hud-standing${r.you ? " hud-standing-you" : ""}`}>
-                <span class="hud-standing-place">{r.place}</span>
-                <span class="hud-standing-name">
-                  {r.you ? STRINGS.bigAirYou : STRINGS.bigAirBib(r.id)}
-                </span>
-                <span class="hud-standing-time">
-                  {STRINGS.bigAirRow(air.phase, r.scores, r.fell, r.total)}
-                </span>
-              </li>
-            ))}
-          </ol>
+          <ContestBoard
+            rows={air.board}
+            name={(r) => (r.you ? STRINGS.bigAirYou : STRINGS.bigAirBib(r.id))}
+            figure={(r) => STRINGS.bigAirRow(air.phase, r.scores, r.fell, r.total)}
+          />
           <div class="hud-result-acts">
             {onward && (
               <button

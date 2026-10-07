@@ -54,6 +54,7 @@
 import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { FRESH_LOOK, LOOSE } from "./trail-stamp.ts";
+import { WELL_GLSL } from "./tree-wells.ts";
 
 /** How much brighter than white snow's albedo is painted. */
 export const GLARE = 1.12;
@@ -82,6 +83,7 @@ uniform sampler2D uGround;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${WELL_GLSL}
 
 float snowHash1(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -170,7 +172,9 @@ float snowRelief;
 // ground is the track's graded surface; the skier drawn in powder is lowered
 // by as much in renderer.ts.)
 float snowPackedV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0).b;
-float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV);
+// THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
+// powder, off the engine's own wells.
+float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ);
 float snowE = max(uSpacing, uCell);
 vec3 objectNormal = normalize(vec3(
   groundHeight(snowXZ - vec2(snowE, 0.0)) - groundHeight(snowXZ + vec2(snowE, 0.0)),
@@ -208,6 +212,7 @@ uniform vec2 uWindDir;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${WELL_GLSL}
 
 vec3 snowHash3(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -271,6 +276,7 @@ float snowChop;      // 0 .. 1 new snow on a piste in use, skied into heaps
 float snowCombed;    // 0 .. 1 the night's corduroy still whole (the day's morning)
 float snowLane;      // -1 .. 1 the night's passes: this one's shade, by its strength
 float snowCord;      // -1 .. 1 the comb's ridge (+) or furrow (−) here, by its strength
+float snowWell;      // m: how deep a tree well lowers the snow here
 `;
 
 /** Straight after `clipping_planes_fragment`: throw away what the finer
@@ -352,6 +358,16 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     tg *= 1.0 - smoothstep(120.0, 220.0, snowDist);
     snowWall = clamp(length(tg), 0.0, 1.0);
     grad += tg;
+  }
+
+  // THE TREE WELLS: the hollow's own slope, off the same map the mesh is
+  // lowered by.
+  snowWell = wellDepth(p);
+  if (uWellFrame.w > 0.0 && snowDist < 90.0) {
+    float we = 0.3;
+    vec2 wg = vec2(wellDepth(p + vec2(we, 0.0)) - wellDepth(p - vec2(we, 0.0)),
+                   wellDepth(p + vec2(0.0, we)) - wellDepth(p - vec2(0.0, we))) / (2.0 * we);
+    grad -= wg;
   }
 
   // THE MICRO-RELIEF: wind-packed swells a few metres long, and a finer
@@ -527,6 +543,21 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float m2 = (snowNoise(p * 2.9 + 3.7) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 2.9));
     float m3 = (snowNoise(p * 8.5 + 9.1) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 8.5));
     alb *= 1.0 + (m1 * 0.45 + m2 * 0.4 + m3 * 0.3) * mix(0.22, 0.32, snowPacked) * (1.0 - snowIce);
+  }
+  // A TREE WELL: the hollow under the boughs is out of the sky's light and
+  // its snow is older and coarser — a cooler, shadier grey-blue the deeper
+  // in — and on its floor lies what the tree sheds: needles, twigs, flakes
+  // of bark and lichen, in clots.
+  if (snowWell > 0.02) {
+    float k = smoothstep(0.0, 1.0, snowWell);
+    alb = mix(alb, vec3(0.62, 0.7, 0.84), 0.55 * k);
+    // Under the boughs the pit sees little of the sky: the deeper, the
+    // darker, as the photographs of open wells show their walls.
+    alb *= mix(vec3(1.0), vec3(0.66, 0.72, 0.82), smoothstep(0.25, 1.3, snowWell));
+    float floorK = smoothstep(0.55, 1.2, snowWell) * (1.0 - smoothstep(0.3, 0.7, length(fwidth(p)) * 6.0));
+    float clot = smoothstep(0.55, 0.85, snowNoise(p * 6.0 + 41.0));
+    float needle = smoothstep(0.7, 0.95, snowNoise(p * 23.0 + 7.0));
+    alb = mix(alb, vec3(0.3, 0.25, 0.19), (clot * 0.5 + needle * 0.35) * floorK);
   }
   // The berm is snow turned over by the plough: back to fresh white, with
   // the shade of its clods in it.

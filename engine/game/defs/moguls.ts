@@ -70,5 +70,6 @@ export function mogulsRules(laps: number): RunRules {
     jury: MOGULS.jury,
     spinMost: MOGULS.spinMost,
     flipMost: MOGULS.flipMost,
+    hockeyStop: true,
   };
 }

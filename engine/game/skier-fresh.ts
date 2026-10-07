@@ -80,6 +80,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     trench: 0,
     trenchFor: 0,
     boggedFor: 0,
+    well: 0,
     rolledFor: 0,
     bodyHit: 0,
     bodySide: 0,

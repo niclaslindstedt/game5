@@ -20,16 +20,23 @@
 //     about) fills `trench.rock` of it;
 //   - MOVING OUT clears it, by the metre of way made good.
 //
+// IN A TREE WELL (`tree-well.ts`, `SkierState.well`) it is worse: the
+// loose walls fall in on a skier stopped in one whether he poles or not,
+// he sinks sooner, faster and deeper, and rocking packs back little of it
+// (`TREE_WELLS`) — and the `stuck` it fires says where he is.
+//
 // Past `trench.stuckAt` he is bogged: `stuck` fires once, and the automatic
 // reset waits `trench.holdFor` s rather than `reset.stuckFor`, so the skier
 // has the time to work out before the engine does it for him. Nothing here
 // draws from the stream.
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { TREE_WELLS } from "./defs/tree-wells.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
 const T = TUNING.trench;
+const W = TREE_WELLS;
 const dt = TUNING.dt;
 
 /** Whether the skier is bogged. */
@@ -50,17 +57,25 @@ export function stepTrench(state: GameState, moved: number, events: GameEvent[])
   const was = c.trench;
   // BOGGED: pushing on the poles in powder and going nowhere — at a crawl,
   // whichever way he is crawling.
-  const bogged = c.tuck > 0.5 && c.speed < T.creep && c.packed < 0.5;
+  const inWell = c.well > W.at;
+  const bogged = (inWell || c.tuck > 0.5) && c.speed < T.creep && c.packed < 0.5;
   c.boggedFor = bogged ? c.boggedFor + dt : 0;
-  if (was > 0 || c.boggedFor >= T.after) {
+  const after = inWell ? W.after : T.after;
+  if (was > 0 || c.boggedFor >= after) {
     let d = was;
-    if (c.boggedFor >= T.after) d += T.dig * (1 - c.packed) * c.tuck * dt;
+    if (c.boggedFor >= after) {
+      d += inWell
+        ? T.dig * W.dig * (1 - c.packed) * Math.max(0.5, c.tuck) * dt
+        : T.dig * (1 - c.packed) * c.tuck * dt;
+    }
     // ...worse with no poles to lever himself on (`poles.bare.rock`).
-    d -= T.rock * (c.poles ? 1 : TUNING.poles.bare.rock) * moved;
+    d -= T.rock * (inWell ? W.rock : 1) * (c.poles ? 1 : TUNING.poles.bare.rock) * moved;
     // Creeping about in the hole is not moving out of it.
     d -= T.clear * Math.max(0, Math.abs(c.way) - T.creep) * dt;
-    c.trench = clamp(d, 0, T.max);
+    c.trench = clamp(d, 0, inWell ? W.max : Math.max(T.max, Math.min(was, W.max)));
   }
-  if (trenched(c.trench) && !trenched(was)) events.push({ kind: "stuck", t: state.t });
+  if (trenched(c.trench) && !trenched(was)) {
+    events.push(inWell ? { kind: "stuck", t: state.t, well: true } : { kind: "stuck", t: state.t });
+  }
   c.trenchFor = c.trench > 0 ? c.trenchFor + dt : 0;
 }

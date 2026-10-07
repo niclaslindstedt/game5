@@ -68,6 +68,9 @@ export type InputManager = {
    * helicopter tapped while he stands beside it (`hud-sled.tsx`,
    * `hud-heli.tsx`) lands here, as ENTER does. */
   requestMachine: () => void;
+  /** Queue one JUMP press, as a tap of the jump key — the afterski room's
+   * tap on the picture, which orders another round, lands here. */
+  requestJump: () => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
   /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
@@ -234,6 +237,9 @@ export function createInputManager(
     },
     requestMachine: () => {
       machine = true;
+    },
+    requestJump: () => {
+      jumped = true;
     },
     onAction: (handler) => {
       onAction = handler;

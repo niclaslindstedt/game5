@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE AFTERSKI ON THE HUD (`afterski-hud.ts`'s reading): the call to a
 // lodge's door as he skis up to it — at the door, the machine press that
-// takes him in — the room's readout while he is in (the beers, another
-// round, the way out), the skis still to fetch after a buzzed fall; and
+// takes him in — the room while he is in (the beers; the whole picture a
+// press for another round, the jump's; a door to press to head out, the
+// machine's), the skis still to fetch after a buzzed fall; and
 // THE BUZZ METER, a beer glass filled to his buzz with its word under it,
 // shown whenever he has had any.
+
+import { useMemo } from "preact/hooks";
+
+import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 
 import type { HudAfterski } from "./afterski-hud.ts";
 import { MachinePress } from "./hud-machine-press.tsx";
@@ -14,13 +19,19 @@ export function AfterskiReadout({
   afterski,
   touch,
   machineKey,
+  jumpKey,
   onPress,
+  onDrink,
 }: {
   afterski: HudAfterski;
   touch: boolean;
   machineKey: string;
+  /** The jump key as bound: another round in the room. */
+  jumpKey: string;
   /** The machine press: in at the door, out from inside. */
   onPress: () => void;
+  /** The jump press: another round, inside. */
+  onDrink: () => void;
 }) {
   if (afterski.kind === "call") {
     if (afterski.near)
@@ -49,19 +60,74 @@ export function AfterskiReadout({
     );
   }
   return (
+    <AfterskiRoom
+      afterski={afterski}
+      touch={touch}
+      jumpKey={jumpKey}
+      onPress={onPress}
+      onDrink={onDrink}
+    />
+  );
+}
+
+/** THE ROOM: the readout at the top, the whole picture a press for another
+ * round (a tap or a click anywhere — the jump key's, SPACE as bound), and a
+ * DOOR at the foot of the glass that is the way out (ENTER's). */
+function AfterskiRoom({
+  afterski,
+  touch,
+  jumpKey,
+  onPress,
+  onDrink,
+}: {
+  afterski: Extract<HudAfterski, { kind: "inside" }>;
+  touch: boolean;
+  jumpKey: string;
+  onPress: () => void;
+  onDrink: () => void;
+}) {
+  const drink = useMemo(createHudPress, []);
+  const door = useMemo(createHudPress, []);
+  const blur = (e: Event): void => (e.currentTarget as HTMLButtonElement).blur();
+  return (
     <>
+      <button
+        type="button"
+        class="hud-afterski-tap"
+        aria-label={STRINGS.afterskiRound(touch, jumpKey)}
+        {...pressHandlers(drink, onDrink)}
+        onMouseUp={blur}
+      />
       <div class="hud-afterski hud-afterski-room" role="status">
         <span class="hud-afterski-word">{STRINGS.afterskiInside}</span>
         <span class="hud-afterski-sub">{STRINGS.afterskiBeers(afterski.beers)}</span>
-        <span class="hud-afterski-hint">{STRINGS.afterskiRound}</span>
+        <span class="hud-afterski-hint">
+          {afterski.drinking ? STRINGS.afterskiCheers : STRINGS.afterskiRound(touch, jumpKey)}
+        </span>
       </div>
-      <MachinePress
-        word={STRINGS.afterskiCall}
-        sub={STRINGS.afterskiLeave(touch, machineKey)}
-        kind="afterski"
-        onBoard={onPress}
-      />
+      <button
+        type="button"
+        class="hud-afterski-door"
+        aria-label={STRINGS.afterskiLeave}
+        {...pressHandlers(door, onPress)}
+        onMouseUp={blur}
+      >
+        <DoorIcon />
+        <span class="hud-afterski-door-word">{STRINGS.afterskiLeave}</span>
+      </button>
     </>
+  );
+}
+
+/** A door ajar in its frame, an arrow out through it. */
+function DoorIcon() {
+  return (
+    <svg class="hud-afterski-door-icon" viewBox="0 0 48 48" aria-hidden="true">
+      <path class="hud-afterski-door-frame" d="M10 44V6h20v38" />
+      <path class="hud-afterski-door-leaf" d="M10 6l14 5v36l-14-3z" />
+      <circle class="hud-afterski-door-knob" cx="20" cy="27" r="1.8" />
+      <path class="hud-afterski-door-arrow" d="M31 25h13M39 20l5 5-5 5" />
+    </svg>
   );
 }
 

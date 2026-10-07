@@ -72,6 +72,8 @@ import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
+import { dealEnthusiasts, nightOver, stepEnthusiasts } from "./enthusiasts.ts";
+import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
@@ -161,6 +163,10 @@ export type CreateGameOptions = {
   /** How many amateurs are out on the ski area (`crowd.ts`); the mode's
    * own when left out — the free ride's crowd, nobody on any other. */
   crowd?: number;
+  /** How many ENTHUSIASTS are out on a free ride (`enthusiasts.ts`):
+   * `ENTHUSIASTS.count` after dark with the crowd left to the hour, none
+   * otherwise, when left out. */
+  enthusiasts?: number;
   /** The skis; the all-mountain pair when left out. */
   spec?: SkiSpec;
   /** The arcade's help for the player's own skiing (`Assist`); every hand on
@@ -289,7 +295,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     stunts: base.stunts,
     limit: base.limit,
     airGravity: base.airGravity,
-    crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
+    // AFTER DARK the crowd has gone in (`enthusiasts.ts`); asked for, it
+    // is out whatever the hour.
+    crowd: Math.max(0, Math.round(options.crowd ?? (nightOver(level) ? 0 : base.crowd))),
     lifts: base.lifts,
     heli: base.heli,
     sled: base.sled,
@@ -496,6 +504,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     state.aerial = freshAerial(planOf(options));
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
+  // ...and the few keen skiers still lapping the lit runs instead.
+  const keen =
+    options.enthusiasts ??
+    (free && options.crowd === undefined && nightOver(level) ? ENTHUSIASTS.count : 0);
+  if (free && keen > 0) dealEnthusiasts(state, keen);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
@@ -557,6 +570,7 @@ export function step(state: GameState, input: SkierInput): GameState {
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
   if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
+  stepEnthusiasts(state);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.
   if (state.crowd) {

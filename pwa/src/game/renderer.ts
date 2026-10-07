@@ -35,8 +35,10 @@ import {
   windAt,
   windFromOf,
   withSky,
+  type FreeRider,
   type GameState,
   type Level,
+  type Rival,
   type SkiSpec,
   type SkierState,
   type SkyOverride,
@@ -54,7 +56,7 @@ import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
-import { createLifts, type Lifts } from "./lifts.ts";
+import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
@@ -77,9 +79,10 @@ import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
+import type { SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
-import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
+import { DEFAULT_OUTFIT, dealtOutfit, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -217,6 +220,8 @@ export function createWorldRenderer(
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
+  /** The other skiers sat on chairs this frame (`lifts.ts`). */
+  const seated: SeatedRider[] = [];
   const wrap = <M extends THREE.Material>(m: M, name: string): M => hazeMaterial(m, env.haze, name);
   const snowfall = createSnowfall(env.haze);
   snowfall.setBudget(SPRAY_SHARE[video.spray]);
@@ -387,8 +392,25 @@ export function createWorldRenderer(
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */
   let outfit: Outfit = DEFAULT_OUTFIT;
-  const dressOf = (i: number) =>
-    i === 0 ? { outfit } : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  /** The run's rivals, read for an enthusiast's own kit. */
+  let field: readonly Rival[] = [];
+  const dealtKits = new Map<string, SkierDress>();
+  /** An enthusiast's kit, dealt off his look (`dealtOutfit`), kept. */
+  const kitOfFree = (free: FreeRider): SkierDress => {
+    const key = `${free.look}:${free.rider}`;
+    let kit = dealtKits.get(key);
+    if (!kit) {
+      const { tone, ...dressed } = dealtOutfit(free.look, free.rider);
+      kit = { outfit: dressed, tone };
+      dealtKits.set(key, kit);
+    }
+    return kit;
+  };
+  const dressOf = (i: number): SkierDress => {
+    if (i === 0) return { outfit };
+    const free = field[i - 1]?.free;
+    return free ? kitOfFree(free) : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  };
   const kitOf = (i: number): string => {
     const d = dressOf(i);
     return outfitKey(d.outfit, d.tone);
@@ -528,6 +550,7 @@ export function createWorldRenderer(
       scene.add(cloud.mesh);
       machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow });
       scene.add(machines.group);
+      field = state.rivals;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -561,6 +584,7 @@ export function createWorldRenderer(
       if (!level || state.level !== level || !terrain || !trail || !spray || !cloud) return;
       const opened = performance.now();
       const runs = runsOf(state);
+      field = state.rivals;
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }
@@ -761,7 +785,19 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state);
-      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
+      seated.length = 0;
+      for (let i = 1; i < runs.length; i++) {
+        const ride = runs[i].skier.lift;
+        if (ride) seated.push({ ride, drawn: riders[i].drawn });
+      }
+      lifts?.update(
+        state.t,
+        skier.lift,
+        player.drawn,
+        skier.chairLeft,
+        lens.camera.position,
+        seated,
+      );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
       const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);

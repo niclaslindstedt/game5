@@ -288,6 +288,39 @@ export const RIVAL_OUTFITS: readonly (Outfit & { tone: number })[] = [
   },
 ];
 
+/** The skins an enthusiast is dealt one of, fair to dark. */
+const TONES: readonly number[] = [0xf0c8a8, 0xe8b896, 0xd8a47c, 0xb07650, 0x8a5a3c, 0x5e3a26];
+
+/** One of `n`, dealt off `look` for draw `k`: an integer hash, so the same
+ * look is always the same skier. */
+function dealt(look: number, k: number, n: number): number {
+  let h = Math.imul(look ^ Math.imul(k + 1, 0x9e3779b1), 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) % n;
+}
+
+/** AN ENTHUSIAST'S KIT (the engine's `enthusiasts.ts`): every piece dealt
+ * off his `look` out of its whole catalog, each in its own colours, at the
+ * build the engine skis him at, a skin of his own — and always his poles. */
+export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: number } {
+  const of = <T extends { id: string }>(list: readonly T[], k: number): T["id"] => {
+    const kept = list.filter((g) => g.id !== "none");
+    return kept[dealt(look, k, kept.length)].id;
+  };
+  return {
+    body: of(BODIES, 0),
+    weight,
+    jacket: of(JACKETS, 1),
+    pants: of(PANTS, 2),
+    helmet: of(HELMETS, 3),
+    gloves: of(GLOVES, 4),
+    poles: of(POLES, 5),
+    tone: TONES[dealt(look, 6, TONES.length)],
+  };
+}
+
 /** One slot's catalog entry for an id — its first when the id is unknown. */
 export function gearOf<S extends GearSlot>(slot: S, id: string): (typeof GEAR)[S][number] {
   const list = GEAR[slot] as readonly { id: string }[];

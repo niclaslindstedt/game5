@@ -55,6 +55,10 @@
 // piste — the pocket the mesh makes round him and the skis hooked in it;
 // with `--free --grimbear`, `grimbear-lurk`, `-chase`, `-run`, `-maul` and
 // `-leave`: the beast behind his trunk, out of it, over the skier and off;
+// with `--free --hour=21` (a free ride after dark), `keen-0`, `keen-1`,
+// `keen-2`, `keen-side` and `keen-lift`: the enthusiasts out on the empty
+// slopes (`enthusiasts.ts`), each from behind, one from beside his line and
+// one carried up a lift;
 // then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
@@ -80,6 +84,11 @@ const buildDir = join(root, "previews", ".world-preview");
 const outDir = join(root, "previews");
 
 const VIEWS = [
+  "keen-0",
+  "keen-1",
+  "keen-2",
+  "keen-side",
+  "keen-lift",
   "grimbear-lurk",
   "grimbear-chase",
   "grimbear-run",

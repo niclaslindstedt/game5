@@ -24,6 +24,7 @@
     "sim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/simulate-run.mjs",
     "resort": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/resort-map.mjs",
     "lift-tops": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-tops.mjs",
+    "junctions": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/junctions-lab.mjs",
     "level": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/level-map.mjs",
     "analyze": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/analyze-level.mjs",
     "rate": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/rate-level.mjs",

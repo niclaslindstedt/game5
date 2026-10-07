@@ -56,7 +56,9 @@ const PIN_REACH = 14;
  * flat on a run that reaches the floor, and on one that merges the line
  * drawn onto the other's surface from where its centre runs inside the
  * other's width. Writes `y`, `raw` and `cross`; returns a reason on a line
- * that cannot be graded inside `track.maxCut`. */
+ * that cannot be graded inside `track.maxCut`. `stepped` grades the stretch
+ * on the other's surface as generator v7 and before did (`GeneratorTraits`'
+ * `steppedJunctions`). */
 export function gradeRun(
   run: WalkedRun,
   ground: Heightfield,
@@ -64,6 +66,7 @@ export function gradeRun(
   colour: number | undefined,
   onto: WalkedRun | null,
   pinned?: (x: number, z: number) => boolean,
+  stepped = false,
 ): string | null {
   const T = R.track;
   const pts = run.points;
@@ -128,10 +131,31 @@ export function gradeRun(
   const pin = pinned ? pinOf(run, pinned) : null;
   const pinW = plane ? plane.w : pin ? pin : null;
   if (plane && pin) {
+    // On the other's core the ground as it lies IS its surface, which the
+    // stamp keeps — truer than the plane read off its line, which can stand
+    // a metre or two off it on a wide run. Off the core the plane is moved
+    // by the gap at the nearest core station, as much as the station is
+    // pinned, so the line meets the core without a step where it starts.
+    const gap = new Float64Array(n);
+    if (!stepped) {
+      let last = NaN;
+      for (let i = 0; i < n; i++) {
+        if (pin[i] >= 1) last = raw[i] - plane.y[i];
+        gap[i] = last;
+      }
+      last = NaN;
+      for (let i = n - 1; i >= 0; i--) {
+        if (pin[i] >= 1) last = raw[i] - plane.y[i];
+        else if (Number.isNaN(gap[i]) || (!Number.isNaN(last) && nearerAhead(pts, pin, i)))
+          gap[i] = last;
+      }
+    }
     for (let i = 0; i < n; i++) {
-      if (pin[i] > plane.w[i]) {
+      if (pin[i] > plane.w[i] || (!stepped && pin[i] >= 1)) {
         plane.w[i] = pin[i];
         plane.y[i] = raw[i];
+      } else if (!stepped && pin[i] > 0 && !Number.isNaN(gap[i])) {
+        plane.y[i] += gap[i] * pin[i];
       }
     }
   }
@@ -140,11 +164,19 @@ export function gradeRun(
       const w = pinW[i];
       if (w > 0) y[i] = y[i] * (1 - w) + (plane ? plane.y[i] : raw[i]) * w;
     }
-    // Off another's surface down the run (where it leaves the top or the
-    // piste it branches off), the line never falls away from it steeper
-    // than its ceiling: filled up after it where it would.
-    for (let i = 1; i < n; i++) {
-      if (pinW[i] < 1) y[i] = Math.max(y[i], y[i - 1] - most);
+    // A station wholly on the other's surface stays on it: the stamp never
+    // touches the core of a run pressed before this one, so a line graded
+    // under it there is a STEP down off that surface where the core ends —
+    // a lip at a lane's branch, a wall at a junction.
+    const fixed = (i: number): boolean => !stepped && pin !== null && pin[i] >= 1;
+    const target = (i: number): number => (plane ? plane.y[i] : raw[i]);
+    if (stepped) {
+      // Off another's surface down the run (where it leaves the top or the
+      // piste it branches off), the line never falls away from it steeper
+      // than its ceiling: filled up after it where it would.
+      for (let i = 1; i < n; i++) {
+        if (pinW[i] < 1) y[i] = Math.max(y[i], y[i - 1] - most);
+      }
     }
     // From the junction back up the run, the line is held between never
     // climbing onto the other (filled up where the other's surface stands
@@ -152,15 +184,62 @@ export function gradeRun(
     // its colour's (cut down over as long a stretch as that takes, where
     // the other lies far below it).
     const least = T.minGrade * step;
-    for (let i = n - 2; i >= 0; i--) {
-      const floor = y[i + 1] + least * (1 - pinW[i]);
-      // On the other's surface it is the other's, however steep for its
-      // colour (the course's colour is the steepest on it, R28) — never
-      // past the run's own ceiling.
-      let top = y[i + 1] + most;
-      if (K > 0 && i + K < n && pinW[i] < 1) top = Math.min(top, y[i + K] + mostK);
-      // Never climbing wins over the colour's cut.
-      y[i] = Math.max(floor, Math.min(y[i], top));
+    const back = (ceiling: number): void => {
+      if (fixed(n - 1)) y[n - 1] = target(n - 1);
+      for (let i = n - 2; i >= 0; i--) {
+        if (fixed(i)) {
+          y[i] = target(i);
+          continue;
+        }
+        const floor = y[i + 1] + least * (1 - pinW[i]);
+        // On the other's surface it is the other's, however steep for its
+        // colour (the course's colour is the steepest on it, R28) — never
+        // past the run's own ceiling.
+        let top = y[i + 1] + ceiling;
+        if (K > 0 && i + K < n && pinW[i] < 1) top = Math.min(top, y[i + K] + mostK);
+        // Never climbing wins over the colour's cut.
+        y[i] = Math.max(floor, Math.min(y[i], top));
+      }
+    };
+    if (stepped) back(most);
+    else {
+      // Off another's surface down the run (where it leaves the top or the
+      // piste it branches off), the line neither falls away from that
+      // surface steeper than its ceiling (filled up after it) nor climbs
+      // off it (cut down into the bank it was pressed into) — then held
+      // back up from the junction below again, until the two agree. Where
+      // the two surfaces it runs between lie further apart than its ceiling
+      // carries it, the fall is spread down the whole of it, a little past
+      // the ceiling, rather than left as a step where one of them ends; and
+      // past `CEILING_GIVE` of it the run cannot be graded.
+      const shaped = Float64Array.from(y);
+      let ceiling = most;
+      for (;;) {
+        y.set(shaped);
+        back(ceiling);
+        let worst = 0;
+        for (let pass = 0; pass < 4; pass++) {
+          worst = 0;
+          for (let i = 1; i < n; i++) {
+            if (fixed(i)) continue;
+            const lo = y[i - 1] - ceiling;
+            const hi = y[i - 1] - least * (1 - pinW[i]);
+            y[i] = Math.min(Math.max(y[i], lo), hi);
+          }
+          back(ceiling);
+          for (let i = 1; i < n; i++) {
+            // Along the other's surface it falls as the other does.
+            if (fixed(i) && fixed(i - 1)) continue;
+            const fall = y[i - 1] - y[i];
+            worst = Math.max(worst, fall - ceiling, least * (1 - pinW[i]) - fall);
+          }
+          if (worst < 1e-3) break;
+        }
+        if (worst < 1e-3) break;
+        ceiling *= 1.04;
+        if (ceiling > most * CEILING_GIVE)
+          return "a run cannot be graded between the runs it meets";
+      }
     }
   }
   let deepest = 0;
@@ -210,6 +289,31 @@ export function gradeRun(
   return null;
 }
 
+/** THE FUNNEL (R27): a merging run wider than the run it merges into
+ * narrows to that one's width as it closes on it — from where it began
+ * closing (`mergeStart`) to where its centre runs inside the other — so its
+ * corridor ends INSIDE the other's surface, never as a terrace wider than
+ * the other standing beside its line, which the other falls away under in a
+ * wall where the merging run stops. Narrows the widths in place. */
+export function funnelInto(run: WalkedRun, onto: WalkedRun): void {
+  const into = run.into;
+  if (!into) return;
+  const tp = onto.points;
+  const j = clamp(Math.round((into.s / onto.length) * (tp.length - 1)), 0, tp.length - 1);
+  const theirs = tp[j].width;
+  const from = Math.min(run.mergeStart, run.coreFrom - 40);
+  const to = Math.max(from + 20, run.coreFrom);
+  for (const p of run.points) {
+    if (p.width <= theirs) continue;
+    p.width += (theirs - p.width) * smoothstep(from, to, p.s);
+  }
+}
+
+/** How far past its ceiling a run's fall may be spread between two runs'
+ * surfaces it is held to (`gradeRun`): a lane's 12 % to under 13.5 %, inside
+ * what the analyzer holds a lane to. */
+const CEILING_GIVE = 1.18;
+
 /** How far either side of a stretch on another run's core the line eases
  * onto that surface, m. */
 const PIN_EASE = 24;
@@ -237,6 +341,24 @@ function pinOf(run: WalkedRun, pinned: (x: number, z: number) => boolean): Float
     w[i] = pts[i].s < finish ? 1 - smoothstep(0, PIN_EASE, d) : 0;
   }
   return w;
+}
+
+/** Whether the nearest station on another's core (`pin` at 1) to station
+ * `i` lies down the run from it rather than up. */
+function nearerAhead(pts: readonly { s: number }[], pin: Float64Array, i: number): boolean {
+  let up = Infinity;
+  let down = Infinity;
+  for (let j = i - 1; j >= 0; j--)
+    if (pin[j] >= 1) {
+      up = pts[i].s - pts[j].s;
+      break;
+    }
+  for (let j = i + 1; j < pts.length; j++)
+    if (pin[j] >= 1) {
+      down = pts[j].s - pts[i].s;
+      break;
+    }
+  return down < up;
 }
 
 /** Whether a plan point stands on the core of a run already pressed. */
@@ -381,7 +503,9 @@ export function networkStamp(ground: Heightfield): NetworkStamp {
  * across its width but for the camber, the flat shoulder and the bench, its
  * windrow on that bench, a bank back to the mountain behind it, the packed
  * field and its drifts — everywhere but the cores of the runs pressed
- * before it. Writes `ground` and `packed` in place, and the shared mask. */
+ * before it. Writes `ground` and `packed` in place, and the shared mask.
+ * `stepped` levels round a merging run's end as generator v7 and before did
+ * (`GeneratorTraits`' `steppedJunctions`). */
 export function stampRun(
   run: WalkedRun,
   ground: Heightfield,
@@ -389,6 +513,7 @@ export function stampRun(
   shared: NetworkStamp,
   drifts: readonly Drift[],
   onto: WalkedRun | null = null,
+  stepped = false,
 ): void {
   const T = R.track;
   const pts = run.points;
@@ -429,6 +554,9 @@ export function stampRun(
     const b = pts[Math.min(n - 1, i + 1)];
     kappa[i] = angleDiff(a.heading, b.heading) / Math.max(1e-9, b.s - a.s);
   }
+  const last = pts[n - 1];
+  const pastEnd = (x: number, z: number): boolean =>
+    (x - last.x) * fx[n - 1] + (z - last.z) * fz[n - 1] > 0;
   const yAt = (s: number): number => {
     const u = (s / run.length) * (n - 1);
     const i = clamp(Math.floor(u), 0, n - 2);
@@ -470,8 +598,10 @@ export function stampRun(
         const x = c * cell;
         let t = ((x - a.x) * dx + (z - a.z) * dz) / len2;
         // A run that merges ends inside the other: nothing of it past its
-        // last station, where the other's surface runs on.
-        if (endsInside && i === n - 2 && t > 1) continue;
+        // last station, where the other's surface runs on — not even round
+        // the end of an earlier stretch, whose corridor would stand as a
+        // terrace beside the other's line as it falls away.
+        if (endsInside && (stepped ? i === n - 2 && t > 1 : pastEnd(x, z))) continue;
         t = t < 0 ? 0 : t > 1 ? 1 : t;
         const ex = x - (a.x + dx * t);
         const ez = z - (a.z + dz * t);

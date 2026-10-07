@@ -112,6 +112,15 @@ export type GeneratorTraits = {
    * v7 its queue lies ahead of him and to one side, on snow that falls to
    * it, groomed and kept clear (R26, `lift.chain`). */
   queueBeside?: boolean;
+  /** STEPS WHERE RUNS MEET (v1–v7): a lane leaving a piste, or a run
+   * merging into another, was graded under the other's surface where it ran
+   * on it — a surface the stamp never touches — so a lip or a wall stood on
+   * the groomed snow where the other's core ended; and a merging run wider
+   * than the run it joined levelled its whole width to its own last station,
+   * a terrace beside the other's line that it fell away under. From v8 the
+   * line stays on the other's surface and is filled down off it, and the
+   * junction's corridor is levelled onto the other's surface as it falls. */
+  steppedJunctions?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -129,6 +138,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "down to a village (R25–R28) — raced on one course down it; this row builds one " +
       "piste on the ungraded rules with the face due north.",
     singlePiste: true,
+    steppedJunctions: true,
   },
   {
     version: 4,
@@ -146,6 +156,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     levelPads: true,
     startsAcrossTop: true,
     queueBeside: true,
+    steppedJunctions: true,
   },
   {
     version: 5,
@@ -159,6 +170,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
     looseTops: true,
     queueBeside: true,
+    steppedJunctions: true,
   },
   {
     version: 6,
@@ -175,15 +187,19 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "the peak's chair's queue ahead of a rider out of the gondola; this row keeps the maps " +
       "pinned on it with that chair beside the mid-station.",
     queueBeside: true,
+    steppedJunctions: true,
   },
   {
-    version: 7,
+    version: 8,
     note:
-      "The next lift ahead: where the gondola tops out beside the peak's chair, that " +
-      "chair's queue lies AHEAD of a rider out of the gondola and to his right — 20–86° off " +
-      "the way he faces, 20–60 m from him — on a way cut into the snow that falls to it all " +
-      "the way, groomed and kept clear of every run and tree, so he turns onto it and never " +
-      "back (R26).",
+      "The next lift ahead (v7, retired once nothing pinned it): where the gondola tops " +
+      "out beside the peak's chair, that chair's queue lies AHEAD of a rider out of the " +
+      "gondola, on a way cut into the snow that falls to it all the way (R26). " +
+      "Smooth junctions: a lane leaving a piste and a run merging into another stay on the " +
+      "other's surface where they run on it and are filled down off it at no more than their " +
+      "ceiling, and a merging run's corridor is levelled onto the surface of the run it " +
+      "joins as that run falls — no lip where a lane branches, no wall where a wide run " +
+      "comes in (R27).",
   },
 ];
 

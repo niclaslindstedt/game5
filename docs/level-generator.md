@@ -360,7 +360,7 @@ Today there are four:
   20 m down from the gondola's top, slid across its line off any run (their trait `queueBeside`), so
   its queue lay as often beside or behind a rider out of the gondola as ahead of him; v4's trait
   `startsAcrossTop` keeps a campaign map's starts where they were.
-- **v7** is the current rules: v6 with THE NEXT LIFT AHEAD. Where the gondola tops out a skate from
+- **v7** was v6 with THE NEXT LIFT AHEAD, and v8 keeps it whole. Where the gondola tops out a skate from
   the peak's chair (`lift.chain`, `lift-chain.ts`), the chair's corral is laid so its boarding ring
   lies AHEAD of a rider let go 10 m short of the gondola's wheel and to his right — 20–86° off the way
   he faces, 20–60 m from him, at the first of a list of aims whose earthworks fit — with the station
@@ -373,13 +373,25 @@ Today there are four:
   mountain over 1.5 times its cut. The way is groomed 5 m either side and kept clear of every run,
   lane and tree, and a station slid off a run must keep it. The analyzer holds every such pair
   (`analysis/lift-queue.ts`): the ring's bearing and reach, the snow never rising more than 0.3 m over
-  the lowest he has come to and falling at least 6 % over the way. Every free ride, every race off a
-  link and every lab builds on it.
+  the lowest he has come to and falling at least 6 % over the way. v4, v5 and v6 keep the steps
+  where runs met (their trait `steppedJunctions`).
+- **v8** is the current rules: v7 with SMOOTH JUNCTIONS (R27). A run never touches the core of a run
+  pressed before it, so a lane graded under the piste it leaves stood a LIP where that piste's core
+  ended, and a run merging into another levelled its whole width to its own last station — on a wide
+  black coming into a narrow red, a terrace the red fell away under in a wall. Now a station wholly
+  on another run's core takes that core's surface as it lies (the plane read off the other's line is
+  moved by the gap at the nearest core station, as far as a station is pinned), the line is held
+  down off it and back up from the junction until the two agree — the fall spread a little past the
+  ceiling, up to 1.18 of it, where the surfaces it runs between lie further apart than the ceiling
+  carries it, and the run left out past that — a merging run wider than the run it joins narrows to
+  that run's width over its last stretch (`funnelInto`), and nothing is levelled past its last
+  station. `make junctions` finds the steps that are left. Every free ride, every race off a link
+  and every lab builds on it.
 
 
 v2 — the graded generator of one piste down one face (R23, R24) — was retired when the campaign
 moved onto the ski areas, and v3 — the ski areas before their stations stood beside the runs — when
-the campaign moved onto v4: no map names either any more, so their rows went, and a number is never
+the campaign moved onto v4, and v7 when v8 smoothed the junctions: no map names any of them any more, so their rows went, and a number is never
 used twice.
 
 ## Labs

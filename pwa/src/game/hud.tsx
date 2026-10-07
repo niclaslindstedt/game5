@@ -197,14 +197,17 @@ export function Hud({
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
           contest's, and a FREE RIDE is no contest: it skis without them,
-          and carries the MAP'S SEED alone in their place, so a picture of
-          it says which mountain it was taken on — the one number that
-          brings it back. */}
+          and carries the MAP'S SEED in their place, and where on it he
+          stands, so a picture of it says which mountain it was taken on and
+          where — the numbers that bring it back. */}
       {leisure && (
         <div class="hud-top">
           <div class="hud-top-row">
             <div class="hud-chip hud-seed">
-              <span>{snap.seed}</span>
+              <span>
+                {snap.seed}
+                <span class="hud-seed-at">{STRINGS.seedAt(snap.at.x, snap.at.z)}</span>
+              </span>
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           </div>

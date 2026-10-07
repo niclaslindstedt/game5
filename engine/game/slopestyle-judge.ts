@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// SLOPESTYLE'S JUDGES (R39): a run SECTION-JUDGED, as the top level judges
+// SLOPESTYLE'S JUDGES (R38): a run SECTION-JUDGED, as the top level judges
 // it (`docs/freestyle.md` § *Slopestyle*).
 //
 // THE TRICK JUDGES score each of the six sections 0–100 on what was done

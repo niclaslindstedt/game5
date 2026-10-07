@@ -31,6 +31,8 @@ export type Spots = {
   meadow: Spot;
   flat: Spot;
   steep: Spot & { slope: number };
+  /** The steepest open face of loose snow to drop onto (`plunge`). */
+  face: Spot & { slope: number };
 };
 
 const trunks: number[] = [];
@@ -122,6 +124,37 @@ function steepOf(level: Level): Spot & { slope: number } {
   return { x: best.x, y: best.y, z: best.z, slope: best.slope };
 }
 
+/** THE STEEPEST OPEN FACE: loose snow 40–50° steep all round a 9 m disc
+ * (its least slope the score), no trunk within 25 m — where a long drop
+ * comes down along the fall line and is ridden away down it. */
+function faceOf(level: Level): Spot & { slope: number } {
+  let best: (Spot & { slope: number }) | null = null;
+  const m = 80;
+  const n = { x: 0, y: 1, z: 0 };
+  const slopeAt = (x: number, z: number): number => {
+    level.normalAt(x, z, n);
+    return Math.acos(Math.min(1, n.y));
+  };
+  for (let x = m; x <= level.size - m; x += 10) {
+    for (let z = m; z <= level.size - m; z += 10) {
+      if (level.packedAt(x, z) > 0.05) continue;
+      let least = slopeAt(x, z);
+      for (const [dx, dz] of [
+        [9, 0],
+        [-9, 0],
+        [0, 9],
+        [0, -9],
+      ]) {
+        least = Math.min(least, slopeAt(x + dx, z + dz));
+      }
+      if (least > 0.87 || (best && least <= best.slope)) continue;
+      if (!treeFree(level, x, z, 25)) continue;
+      best = { x, y: level.groundAt(x, z), z, slope: least };
+    }
+  }
+  return best ?? steepOf(level);
+}
+
 /** Open deep powder to hover over and drop into: flat within 6°, unpacked,
  * and the most room to the nearest trunk — 20 m at the least. */
 function meadowOf(level: Level): Spot {
@@ -155,6 +188,7 @@ export function spotsOf(level: Level): Spots {
     meadow: meadowOf(level),
     flat: flatOf(level, pad),
     steep: steepOf(level),
+    face: faceOf(level),
   };
 }
 

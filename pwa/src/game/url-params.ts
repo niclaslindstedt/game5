@@ -18,17 +18,12 @@
 //                   first heat, four out of the start gate).
 //   ?start=bigair   ...or into a BIG AIR contest's first jump (`run=2` the
 //                   next jump, off the first jumped by the bot).
-//   ?start=knuckle  ...or into a KNUCKLE HUCK's jam on its knuckle.
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
-//   ?start=railjam  ...or into a RAIL JAM on its set.
 //   ?start=halfpipe ...or into a HALFPIPE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
 //   ?start=moguls   ...or into a MOGULS contest's qualification run
 //                   (`run=2` its next run, off the first skied by the bot).
-//   ?start=dual     ...or into a DUAL MOGULS contest's qualification run
-//                   (`run=2` its first dual, off the qualification skied
-//                   by the bot).
 //   ?start=aerials  ...or into an AERIALS contest's qualification jump
 //                   (`run=2` its next jump, off the first jumped by the
 //                   bot); `?plan=bLF` the jump it declares.
@@ -66,13 +61,10 @@
 //                   contest's first jump, built over the seed's map;
 //                   ?mode=slopestyle, a SLOPESTYLE contest's first run,
 //                   its course built over the seed's map;
-//                   ?mode=knuckle, a KNUCKLE HUCK's jam, its knuckle built
-//                   over it; ?mode=railjam, a RAIL JAM, its set built over
-//                   it; ?mode=halfpipe, a HALFPIPE contest's first run, its
+//                   ?mode=halfpipe, a HALFPIPE contest's first run, its
 //                   pipe cut into the seed's map; ?mode=moguls, a MOGULS
 //                   contest's first run, its course built over the map;
-//                   ?mode=dual, a DUAL MOGULS contest's qualification, its
-//                   course of two lanes built over the map; ?mode=aerials,
+//                   ?mode=aerials,
 //                   an AERIALS contest's first jump, its site built over
 //                   the map.
 //   ?run=2          a slalom or a giant slalom link boots into its SECOND
@@ -344,12 +336,9 @@ export function readParams(search: string): UrlParams {
       start === "speedski" ||
       start === "skicross" ||
       start === "bigair" ||
-      start === "knuckle" ||
       start === "slopestyle" ||
-      start === "railjam" ||
       start === "halfpipe" ||
       start === "moguls" ||
-      start === "dual" ||
       start === "aerials" ||
       start === "free" ||
       start === "1" ||
@@ -391,21 +380,15 @@ export function readParams(search: string): UrlParams {
                       ? "tricks"
                       : start === "bigair" || q.get("mode") === "bigair"
                         ? "bigAir"
-                        : start === "knuckle" || q.get("mode") === "knuckle"
-                          ? "knuckleHuck"
-                          : start === "slopestyle" || q.get("mode") === "slopestyle"
-                            ? "slopestyle"
-                            : start === "railjam" || q.get("mode") === "railjam"
-                              ? "railJam"
-                              : start === "halfpipe" || q.get("mode") === "halfpipe"
-                                ? "halfpipe"
-                                : start === "moguls" || q.get("mode") === "moguls"
-                                  ? "moguls"
-                                  : start === "dual" || q.get("mode") === "dual"
-                                    ? "dualMoguls"
-                                    : start === "aerials" || q.get("mode") === "aerials"
-                                      ? "aerials"
-                                      : "slalom",
+                        : start === "slopestyle" || q.get("mode") === "slopestyle"
+                          ? "slopestyle"
+                          : start === "halfpipe" || q.get("mode") === "halfpipe"
+                            ? "halfpipe"
+                            : start === "moguls" || q.get("mode") === "moguls"
+                              ? "moguls"
+                              : start === "aerials" || q.get("mode") === "aerials"
+                                ? "aerials"
+                                : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,

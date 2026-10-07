@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// MOGULS (R42): the course built to the rules (the pitch, the two air
+// MOGULS (R40): the course built to the rules (the pitch, the two air
 // bumps, the mogul track, the gates), the field of moguls laid as an
-// analytic surface a dual course can share, the legs absorbing them, the
+// analytic surface down one line or more, the legs absorbing them, the
 // formal score (the turns, the air by its DD, the speed off the pace), the
 // contest's format and its dealt field, and the bot down the course.
 
@@ -43,7 +43,7 @@ import { levelFor } from "./support/levels.ts";
 const R = MOGULS_RULE;
 const RAD = Math.PI / 180;
 
-describe("the moguls course's profile (R42)", () => {
+describe("the moguls course's profile (R40)", () => {
   const p = mogulsProfile();
 
   it("is the top series' course: 235 m down the pitch to the finish line", () => {
@@ -97,15 +97,15 @@ describe("the mogul field", () => {
     expect(mogulsAt(f, f.to + 1, 0)).toBe(0);
   });
 
-  it("lays two lines side by side on one rhythm for a dual course", () => {
-    const dual = mogulsField(p, frame, R, [
+  it("lays two lines side by side on one rhythm", () => {
+    const two = mogulsField(p, frame, R, [
       { offset: -6, width: 6 },
       { offset: 6, width: 6 },
     ]);
     const a = (f.gaps[0][1] + f.gaps[1][0]) / 2;
-    expect(mogulsAt(dual, a, -6)).toBeCloseTo(mogulsAt(dual, a, 6), 6);
-    expect(Math.abs(mogulsAt(dual, a, 6))).toBeGreaterThan(0);
-    expect(mogulsAt(dual, a, 0)).toBeCloseTo(0, 3);
+    expect(mogulsAt(two, a, -6)).toBeCloseTo(mogulsAt(two, a, 6), 6);
+    expect(Math.abs(mogulsAt(two, a, 6))).toBeGreaterThan(0);
+    expect(mogulsAt(two, a, 0)).toBeCloseTo(0, 3);
   });
 });
 
@@ -173,7 +173,6 @@ describe("the mode, the pair and the build", () => {
 
 const read = (r: Partial<TrickRead>): TrickRead => ({
   spin: 0,
-  butter: null,
   flips: 0,
   flipDir: null,
   dir: null,

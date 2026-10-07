@@ -50,6 +50,12 @@ export const PARA = {
   rig: -0.05,
   brakes: { rig: 0.1, lift: 0.45, drag: 0.15, stall: 0.08 },
   speedBar: { rig: -0.06, trimmers: 0.03 },
+  /** THE PILOT'S LEAN IN THE HARNESS, rad: the lean forward pitches him
+   * over the bar and the lean back reclines him in the seat, this far at
+   * full throw, followed at the swing's own pace — and the motor on his
+   * back turns with him, so the thrust line tilts by `thrust` of his lean:
+   * reclined on the throttle it climbs, leant forward it drives. */
+  lean: { pitch: 0.32, thrust: 0.5 },
   /** THE TURN: the side force a toggle pulled all the way down puts on the
    * canopy, as a coefficient on the dynamic pressure and the area (the
    * braked tip dragging, the canopy yawing and banking toward it), and the

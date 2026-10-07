@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// R41 — A HALFPIPE BUILT OVER A BUILT MAP. A line of its own cut straight
-// down the face, as R37's jump and R40's set are (`straight-venue.ts`): a
+// R39 — A HALFPIPE BUILT OVER A BUILT MAP. A line of its own cut straight
+// down the face, as R37's jump and R38's course are (`straight-venue.ts`): a
 // start platform, a roll onto the pipe's pitch, the pitch held the pipe's
 // whole length and a run-out at its foot — graded, groomed and cleared —
 // and the PIPE cut into the pitch as an analytic surface (`pipe.ts`): the
@@ -32,7 +32,7 @@ export type HalfpipeProfile = VenueProfile & {
 
 let designed: HalfpipeProfile | null = null;
 
-/** THE PROFILE (R41), the same on every map. */
+/** THE PROFILE (R39), the same on every map. */
 export function halfpipeProfile(): HalfpipeProfile {
   if (designed) return designed;
   const pen = createPen(0.25);
@@ -62,7 +62,7 @@ export function halfpipeProfile(): HalfpipeProfile {
 
 const built = new WeakMap<Level, Level>();
 
-/** R41 — A HALFPIPE BUILT OVER `level`: the venue shaped down the face as
+/** R39 — A HALFPIPE BUILT OVER `level`: the venue shaped down the face as
  * the map's own `track`, its checkpoints the start gate and the finish
  * line, its spawn the start platform, and the pipe's surface answered by
  * the map's ground. A map already carrying a pipe is that map; one

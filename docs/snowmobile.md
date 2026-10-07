@@ -53,7 +53,7 @@ The sibling sled game's model, restated for the one machine over this game's sno
 - **The rider.** His weight goes across with the bars and fore and aft with the lean — on the groomer as far as the bend asks, in powder wherever the bars send it. The chassis settles into a small lean on the groomer and a large one in powder. In powder a sled rolled onto its belt's edge CARVES toward its low side, and the soft snow gives under the loaded side (RIDE IT LIKE A BIKE), so a powder turn and a sidehill are the rider's balance.
 - **The air.** The lean pitches it, the belt's gyro lifts the nose on the throttle and drops it on the brake, and the rider levels the roll with his body.
 - **The hull.** Ten unsprung points (the nose, the belly, the tunnel's corners, the riser) meet the snow as impulses when the springs run out. That is how it lies on its side and how it rolls over.
-- **The arcade's hand** (models nothing, says so): on the snow the yaw rate is held toward the one the skis ask for, no faster than the grip can turn the way, and the nose toward the way it is going.
+- **The arcade's hand** (models nothing, says so): on the snow the yaw rate is held toward the one the skis ask for, no faster than the grip can turn the way (on the groomer the skis' carbides, about 0.8 g; in powder `steer.reachPowder`, about 0.65 g, a sled rolled onto its edge and carved), and the nose toward the way it is going.
 
 What it does, held by `tests/sled_test.ts`:
 
@@ -138,6 +138,7 @@ It is heard from the skier: under him on the boards, and going away down the sno
 ## Measuring it
 
 - `make sled-land` and `npx vitest run tests/sled_landing_test.ts`: rollers, whoops, hard turns, a sidehill, kickers, drops, a cliff, a bank and a wall, each ridden out or thrown as a rider expects.
+- `make sled-turn` and `npx vitest run tests/sled_turn_test.ts`: full lock on the flat, groomer and powder, at a crawl and at 25, 40 and 60 km/h, both ways round — the circle it settles on held to a band. A mountain sled at a crawl on the hardpack turns on some 7.5–11 m (measured on two of the class's machines, the long belt fighting the skis); the game's is a little tighter, so it is easy to place: about 5.5 m at 21 km/h, 11 m at 33 and 32 m at 56 on the groomer (a turn at full lock slows it), 8, 20 and 46 m at 25, 40 and 60 in powder.
 - `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, getting on and off on the machine press, the crash and the remount, determinism, and the voice.
 - `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, the model alone, and every camera rung riding it (`ARGS=--sheet=lenses`), on contact sheets.
 - `make screenshots ARGS="--surface sled-park,sled-go,sled"` (after `make build`): the built app stood on its boards at the bottom, riding away, and riding up the mountain on the pre-roll's hands (`sledPilot`).

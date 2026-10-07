@@ -24,10 +24,6 @@ function outWhy(why: RunOut["why"], gate: number): string {
       return `INTO THE NETS BELOW GATE ${gate}`;
     case "contact":
       return `RED CARD · CONTACT BELOW GATE ${gate}`;
-    case "lane":
-      return `OVER THE CENTRE LINE AT GATE ${gate}`;
-    case "stop":
-      return `STOPPED AT GATE ${gate}`;
     default:
       return `FELL AT GATE ${gate}`;
   }
@@ -90,7 +86,7 @@ export const SLALOM_STRINGS = {
   boardOut: (out: RunOut): string =>
     out.why === "start"
       ? "DSQ · START"
-      : `${out.status === "dsq" ? "DSQ" : "DNF"} · ${out.why === "missed" ? "MISSED" : out.why === "straddle" ? "STRADDLE" : out.why === "net" ? "NETS" : out.why === "contact" ? "CARD" : out.why === "lane" ? "LANE" : out.why === "stop" ? "STOP" : "FALL"} ${out.gate}`,
+      : `${out.status === "dsq" ? "DSQ" : "DNF"} · ${out.why === "missed" ? "MISSED" : out.why === "straddle" ? "STRADDLE" : out.why === "net" ? "NETS" : out.why === "contact" ? "CARD" : "FALL"} ${out.gate}`,
   boardWaiting: "TO START",
   boardOnCourse: "ON COURSE",
 

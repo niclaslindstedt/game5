@@ -147,8 +147,9 @@ describe("the giant slalom course (R36)", () => {
   });
 
   it("holds its line off a lift tower standing on the piste", () => {
-    // Seed 13's course runs past a chair's tower in the middle of the piste.
-    const raced = createGame({ seed: 13, mode: "giantSlalom", rivals: 0, quiet: true }).level;
+    // Seed 17's course runs past a tower left on the piste — the rare one a
+    // line running down a run too far to span stands there, padded.
+    const raced = createGame({ seed: 17, mode: "giantSlalom", rivals: 0, quiet: true }).level;
     const course = raced.giantSlalom!;
     let checked = 0;
     for (const plan of liftPlans(raced)) {

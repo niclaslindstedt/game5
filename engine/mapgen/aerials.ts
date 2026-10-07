@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// R44 — AN AERIALS SITE BUILT OVER A BUILT MAP. As R37's big air jump is
+// R41 — AN AERIALS SITE BUILT OVER A BUILT MAP. As R37's big air jump is
 // pushed up out of a mountain's side, an aerials site is shaped STRAIGHT
 // down the face: a start platform, an in-run at 23°, a level TABLE with
 // ONE steep KICKER on it — the single, the double or the triple, the one
@@ -103,7 +103,7 @@ function shape(run: number, kicker: AerialKicker): AerialsProfile {
 
 const designed = new Map<AerialKicker, AerialsProfile>();
 
-/** THE SITE (R44) with `kicker`, as designed: the in-run's length found so
+/** THE SITE (R41) with `kicker`, as designed: the in-run's length found so
  * the rule's skier reaches the lip at the kicker's speed. The same on
  * every map. */
 export function aerialsProfile(kicker: AerialKicker = "triple"): AerialsProfile {
@@ -129,7 +129,7 @@ export function aerialsHeightAt(p: AerialsProfile, x: number): number {
 
 const built = new Map<AerialKicker, WeakMap<Level, Level>>();
 
-/** R44 — AN AERIALS SITE BUILT OVER `level` with `kicker`: the site shaped
+/** R41 — AN AERIALS SITE BUILT OVER `level` with `kicker`: the site shaped
  * down the face as the map's own `track`, its checkpoints the start gate
  * and the finish line, its spawn the start platform, its kicker the map's
  * one kicker (`AE`) and its surface the map's ground inside its width. A

@@ -13,7 +13,7 @@
 // a double in the second, a full in the third.
 //
 // THE KICKER is the flips': a single's off the single kicker, a double's
-// off the double, a triple's off the triple (R44).
+// off the double, a triple's off the triple (R41).
 
 import type { AerialKicker } from "../../mapgen/types.ts";
 

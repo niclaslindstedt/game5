@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AIR OFF A PIPE'S WALL (R41) — what a pipe skier's own body does
+// THE AIR OFF A PIPE'S WALL (R39) — what a pipe skier's own body does
 // between leaving the vert and meeting the wall again, which the air's
 // levelling hands (`flight.ts`, made for a kicker's flight over a landing
 // below) cannot: those level him to the WORLD, and the snow a pipe skier

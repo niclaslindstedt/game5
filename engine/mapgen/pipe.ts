@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE'S SURFACE (R41) — a U cut down a pitch, as a function of
+// THE HALFPIPE'S SURFACE (R39) — a U cut down a pitch, as a function of
 // the plan rather than a grid. A 6.7 m wall on a transition of ~7 m radius
 // rising to 83° is far finer than the 2 m grid a map is baked on: on the
 // grid the vert would be a step and the transition three facets. So the
@@ -40,7 +40,7 @@ export type PipeSection = {
   deck: number;
 };
 
-/** The section R41's numbers give. */
+/** The section R39's numbers give. */
 export function pipeSection(R: typeof HALFPIPE_RULE = HALFPIPE_RULE): PipeSection {
   const vert = R.vert * RAD;
   const radius = (R.height - R.vertHeight) / (1 - Math.cos(vert));

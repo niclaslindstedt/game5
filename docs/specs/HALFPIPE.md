@@ -1,13 +1,13 @@
 # Halfpipe — working spec
 
-**BUILT IN PART (R41).** The pipe, riding a wall, the hit's air, the mode,
+**BUILT IN PART (R39).** The pipe, riding a wall, the hit's air, the mode,
 the judge, the contest, the bot, the cards, the HUD and the plate are
 built; what is left is unticked below. Delete this file when the halfpipe
 is finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s.
 
 ## What was built
 
-- **The pipe** (`engine/mapgen/halfpipe.ts`, `pipe.ts`, R41 in
+- **The pipe** (`engine/mapgen/halfpipe.ts`, `pipe.ts`, R39 in
   `trick-rules.ts`): a venue graded straight down a built map's face over
   the straight-venue module, the pipe's section (`pipeSection`: a flat, a
   circular transition, the vert at 83° over its top 0.2 m, a deck) cut

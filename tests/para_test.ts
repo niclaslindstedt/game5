@@ -106,6 +106,26 @@ describe("the paramotor's flight (para.ts)", () => {
     expect(glide).toBeLessThan(6);
   });
 
+  it("leans him in the harness on the lean: forward faster, back reclined and climbing", () => {
+    // Each held 8 s on the throttle once flying: the air through the wing,
+    // the climb, and the pilot's pitch in the harness (tips up positive).
+    const held = (lean: number) => {
+      const s = rig();
+      fly(s, 25, ask({ tuck: 1 }));
+      fly(s, 8, ask({ tuck: 1, lean }));
+      return { air: s.para!.airspeed, climb: s.para!.climb, pitch: s.skier.pitch };
+    };
+    const level = held(0);
+    const forward = held(-1);
+    const back = held(1);
+    expect(forward.air).toBeGreaterThan(level.air * 1.15);
+    expect(back.air).toBeLessThan(level.air);
+    expect(back.climb).toBeGreaterThan(level.climb + 0.3);
+    expect(forward.pitch).toBeLessThan(-PARA.lean.pitch * 0.8);
+    expect(back.pitch).toBeGreaterThan(PARA.lean.pitch * 0.8);
+    expect(Math.abs(level.pitch)).toBeLessThan(0.02);
+  });
+
   it("turns toward the toggle pulled", () => {
     const s = rig();
     fly(s, 20, ask({ tuck: 1 }));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE'S JUDGES (R41's contest): a RUN read hit by hit and scored
+// THE HALFPIPE'S JUDGES (R39's contest): a RUN read hit by hit and scored
 // as a panel scores it.
 //
 // THE READING. A pipe run is five or six HITS, a wall each, alternating.

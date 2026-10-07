@@ -12,9 +12,11 @@
 //   flight     in the air on the bot's hands (the chase, a quarter, the
 //              side, the front, from below, from above)
 //   turn       a toggle pulled each way, then both brakes down
+//   lean       the lean held forward and back, from the side and behind
 //   landing    the final glide, the flare, speed riding under the wing
 //   drop       the rig released, skiing on, the canopy and the motor lying
-//              on the snow
+//              on the snow; drop-high, the rig let go high over the
+//              mountain and the fall watched down onto the snow
 //   gear       close up: the motor on his back, the cage and the propeller,
 //              the risers, the canopy's underside
 //   turntable  the rig in flight from eight sides
@@ -55,7 +57,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (summit, launch, flight, turn, landing, fold, drop, gear, turntable, lenses, night); every one when left out",
+      help: "which sheets, comma-separated (summit, launch, flight, turn, lean, landing, fold, drop, gear, turntable, lenses, night); every one when left out",
     },
     views: {
       kind: "string",

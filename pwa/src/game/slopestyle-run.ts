@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A SLOPESTYLE CONTEST FROM THE APP'S SIDE (R39): one run of the whole
+// A SLOPESTYLE CONTEST FROM THE APP'S SIDE (R38): one run of the whole
 // course a run on the snow — the qualification's, then the final's — what
 // the HUD reads of the run (the phase, which run, which of the six sections
 // he is in), what the judges gave it section by section, the board, what

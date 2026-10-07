@@ -7,7 +7,8 @@
 // Its licence: "BodyParts3D, (c) The Database Center for Life Science
 // licensed under CC Attribution-Share Alike 2.1 Japan". `make hud-body`
 // TRACES it (a silhouette and its tones, a few hundred corners a bone);
-// `references/anatomy/README.md` carries the attribution.
+// `references/anatomy/README.md` carries the attribution. The organs come
+// from the same body (`ORGAN_SOURCES`).
 //
 // The model's frame: x toward his LEFT (so a front view puts his right on
 // the viewer's left with no flip), y toward his BACK (the front is −y), z up,
@@ -21,12 +22,16 @@ export const BP3D = {
   base: "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/",
   zip: "partof_BP3D_4.0_obj_99.zip",
   table: "partof_element_parts.txt",
+  // The is-a tree's set: the same body, the same frame, a few concepts the
+  // part-of tree leaves out (the spleen).
+  isaZip: "isa_BP3D_4.0_obj_99.zip",
+  isaTable: "isa_element_parts.txt",
   credit:
     "BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan",
 };
 
 /** The meshes on disk, fetched and unpacked the first time: `{ objDir,
- * table }`. curl, so the machine's proxy and certificates are the ones
+ * table, isaDir, isaTable }`. curl, so the machine's proxy and certificates are the ones
  * every other download here uses. */
 export function ensureBodyParts3D(cache) {
   mkdirSync(cache, { recursive: true });
@@ -47,7 +52,16 @@ export function ensureBodyParts3D(cache) {
     mkdirSync(objDir, { recursive: true });
     execFileSync("unzip", ["-q", "-o", "-j", zip, "-d", objDir]);
   }
-  return { objDir, table };
+  const isaTable = join(cache, BP3D.isaTable);
+  const isaZip = join(cache, BP3D.isaZip);
+  const isaDir = join(cache, "isa");
+  get(BP3D.isaTable, isaTable);
+  if (!existsSync(isaDir) || readdirSync(isaDir).length === 0) {
+    get(BP3D.isaZip, isaZip);
+    mkdirSync(isaDir, { recursive: true });
+    execFileSync("unzip", ["-q", "-o", "-j", isaZip, "-d", isaDir]);
+  }
+  return { objDir, table, isaDir, isaTable };
 }
 
 /** Every concept's name → the element meshes that make it. */
@@ -103,6 +117,26 @@ const SKULL = [
   "left inferior nasal concha",
 ];
 const CARPALS = "scaphoid|lunate|triquetral|pisiform|trapezium|trapezoid|capitate|hamate";
+
+/** WHICH OF THE MODEL'S CONCEPTS MAKE EACH OF OUR ORGANS (`ORGANS`): their
+ * names, from the part-of tree or (`isa`) the is-a one. The lungs are only
+ * their airways and vessels in this body — no surface of their own — so
+ * their silhouette is that tree CLOSED (`close`, mm: grown and shrunk
+ * back), which fills the space the tree branches through. "right"/"left"
+ * are HIS. */
+export const ORGAN_SOURCES = {
+  brain: { names: ["brain"] },
+  heart: { names: ["heart"] },
+  lungL: { names: ["left lung"], close: 16 },
+  lungR: { names: ["right lung"], close: 16 },
+  liver: { names: ["liver"] },
+  spleen: { names: ["spleen"], isa: true },
+  stomach: { names: ["stomach"] },
+  bowel: { names: ["small intestine", "large intestine"] },
+  kidneyL: { names: ["left kidney"] },
+  kidneyR: { names: ["right kidney"] },
+  bladder: { names: ["urinary bladder"] },
+};
 
 /** WHICH OF THE MODEL'S BONES MAKE EACH OF OURS (`BONES`): a test on the
  * concept's name. "right"/"left" are HIS. */

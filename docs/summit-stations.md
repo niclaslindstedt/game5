@@ -198,6 +198,27 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   height, never dragged up the snow. The towers stand 13 m (a chair's) and
   18 m (a gondola's) to the rope on columns most of a metre across, the last
   one up to 28 m and 34 m.
+- **The towers beside the runs (`lift-line.ts`, `TOWER_SITE`, `TOWER_PAD`)**
+  — a ski area runs its lines up beside its runs, not down their middle,
+  and where a tower must stand in a run or by its edge the rules ski areas
+  are held to ask that it be padded (vinyl-covered foam wrapped round the
+  column from the snow to over a skier's head, or air bags, or a net set
+  off it), with no ladder or step jutting out on the uphill side within
+  reach. So each tower is slid along its line, 44 m at the most, until its
+  column stands 3 m outside every run's edge. Where the line crosses a run
+  wider than that, the line SPANS it: the tower that would have stood on
+  it is left out, so long as the span stays under three of the class's
+  spans, and the towers either side are raised before one is stood on the
+  run to keep the rope's clearance. A tower still nearer a run's edge than
+  4 m — or on its snow, where a line runs down a run too long to span — is
+  PADDED: a red octagonal sleeve 2.6 m tall with two pale reflective bands
+  and a dark cap, 22 cm of foam round the column, and the pad is what a
+  skier meets (`posts.ts`). Across the first dozen seeds that leaves 4
+  towers in 830 on a run's snow (it was 30 in 444 over the first six), every
+  one padded. The world lab's `tower-pad`, `tower-edge` and `tower-span`
+  views look at them from the run. R26's rope check is still ruled on the
+  towers as they stood before (`ruledLiftPlans`), so no map a seed builds
+  moves.
 - **The ride up** — a chair rides at line speed, its hanger a pendulum: a
   lurch of a few degrees as the grip runs over each tower's sheaves, a swing
   forward as it slows into the top terminal, coming down to the ramp with his

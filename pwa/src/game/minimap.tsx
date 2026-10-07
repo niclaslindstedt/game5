@@ -186,6 +186,28 @@ const PAINT = {
   checkpoint: { other: 1.6, start: 2.4, owed: 4, missed: 4.5 },
 } as const;
 
+/** THE PLATE BY NIGHT — the night dressing's half of the map (`dark`, the
+ * HUD's `--hud-dark`). The ground is multiplied down toward moonlit snow
+ * and black woods as the lamps come up, so the brightest thing in the
+ * corner of a night frame stops glaring at an eye used to the dark, and the
+ * lines a skier steers by — the runs, the lanes, the piste — are left light
+ * over it, as a night chart draws its roads. The lifts, dark lines by day,
+ * go pale so they still show on the dark ground. Channels, 0..255: the
+ * multiply at full dark, and the lifts' line at full dark. */
+const NIGHT = {
+  ground: [70, 86, 118],
+  lift: [169, 182, 196],
+} as const;
+
+/** A channel triple `dark` of the way from `day` to `night`, as CSS. */
+function dip(day: readonly number[], night: readonly number[], dark: number): string {
+  const c = day.map((v, i) => Math.round(v + (night[i] - v) * dark));
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+/** The lifts' day line as channels. */
+const LIFT_DAY = [29, 33, 38];
+
 /** The HUD's own colours, read off the plate's style once it is mounted,
  * so the plate's marks stay the HUD's. */
 type HudColours = { ink: string; good: string; bad: string; plate: (alpha: number) => string };
@@ -240,6 +262,7 @@ function paint(
   rivals: readonly SkierMark[],
   ground: Ground | null,
   hud: HudColours,
+  dark: number,
 ): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, device, device);
@@ -257,6 +280,12 @@ function paint(
   if (ground) {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(ground, 0, 0, size, size);
+    if (dark > 0) {
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = dip([255, 255, 255], NIGHT.ground, dark);
+      ctx.fillRect(0, 0, size, size);
+      ctx.globalCompositeOperation = "source-over";
+    }
   }
 
   // THE RESORT under the course: every run in its grade's paint, the lanes
@@ -269,8 +298,9 @@ function paint(
     ctx.stroke(cut(r, r.d));
   }
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = PAINT.lift;
-  ctx.fillStyle = PAINT.lift;
+  const lift = dark > 0 ? dip(LIFT_DAY, NIGHT.lift, dark) : PAINT.lift;
+  ctx.strokeStyle = lift;
+  ctx.fillStyle = lift;
   ctx.lineWidth = PAINT.liftWidth * css;
   for (const l of map.lifts) {
     ctx.beginPath();
@@ -419,7 +449,15 @@ const heliPaths = (): { body: Path2D; gear: Path2D } =>
 /** The owed gate's chevron on the rim. */
 const CHEVRON = "M 0 -4.4 L 3.6 2 L 0 0.4 L -3.6 2 Z";
 
-export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void }) {
+export function Minimap({
+  map,
+  dark = 0,
+  onPause,
+}: {
+  map: HudMinimap;
+  dark?: number;
+  onPause: () => void;
+}) {
   const ground = useGround(map.level);
   const press = useMemo(createHudPress, []);
   const plateRef = useRef<HTMLButtonElement>(null);
@@ -435,6 +473,7 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
     t0: number;
     frame: number;
     hud: HudColours | null;
+    dark: number;
   }>({
     level: null,
     from: map.pose,
@@ -444,6 +483,7 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
     t0: 0,
     frame: 0,
     hud: null,
+    dark,
   });
 
   useEffect(() => {
@@ -453,7 +493,9 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
     if (!canvas || !plate) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    g.hud ??= hudColours(plate);
+    // The HUD's colours are read again as the night dressing moves them.
+    if (g.hud === null || g.dark !== dark) g.hud = hudColours(plate);
+    g.dark = dark;
     // A new map, or the first picture, lands where it is; a new snapshot
     // glides on from wherever the last glide has got to.
     const snap = g.level !== map.level;
@@ -483,7 +525,7 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
         canvas.width = device;
         canvas.height = device;
       }
-      paint(ctx, device, dpr, map, pose, rivals, ground, g.hud!);
+      paint(ctx, device, dpr, map, pose, rivals, ground, g.hud!, dark);
       if (t < 1) g.frame = requestAnimationFrame(draw);
     };
     draw();
@@ -491,7 +533,7 @@ export function Minimap({ map, onPause }: { map: HudMinimap; onPause: () => void
       if (g.frame) cancelAnimationFrame(g.frame);
       g.frame = 0;
     };
-  }, [map, ground]);
+  }, [map, ground, dark]);
 
   return (
     <button

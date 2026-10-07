@@ -68,6 +68,15 @@ export type Stage = {
 };
 
 const still: Drive = () => NEUTRAL_INPUT;
+/** In the air, the edge turning him to face down the fall line under him. */
+const spotting: Drive = (s) => {
+  const c = s.skier;
+  const n = { x: 0, y: 1, z: 0 };
+  s.level.normalAt(c.x, c.z, n);
+  let off = Math.atan2(n.x, n.z) - c.heading;
+  off = Math.atan2(Math.sin(off), Math.cos(off));
+  return { ...NEUTRAL_INPUT, steer: c.airborne ? Math.max(-1, Math.min(1, off * 2)) : 0 };
+};
 /** The controls let go: the collective down, the cyclic and pedals centred. */
 const letGo: Drive = () => ({
   ...NEUTRAL_INPUT,
@@ -452,6 +461,31 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     }
   },
 
+  // A LONG FALL ONTO A STEEP FACE: pushed off 45 m over the steepest one
+  // and watched all the way down (`camera-fall.ts`) — the chase at each
+  // moment, the far lens and his own eye beside it — the edge turning him
+  // down the fall line as a player would, onto the face and down it.
+  plunge(st) {
+    st.camera("chase");
+    const s = dropped(st, st.spots.face, 45);
+    let t = 0;
+    for (const at of [0.4, 1.2, 2.2, 3]) {
+      st.run(s, at - t, spotting);
+      t = at;
+      st.shoot(s, `${at}s`, "chase");
+      if (at === 2.2) {
+        st.shoot(s, `${at}s-far`, "far");
+        st.shoot(s, `${at}s-eye`, "helmet");
+      }
+    }
+    st.until(s, (q) => !q.skier.airborne || !!q.skier.thrown, 10, spotting);
+    st.shoot(s, "touchdown", "chase");
+    for (const after of [0.6, 1.6]) {
+      st.run(s, after - (after === 0.6 ? 0 : 0.6), still);
+      st.shoot(s, `ridden-${after}s`, "chase");
+    }
+  },
+
   fall(st) {
     st.camera("chase");
     const s = dropped(st, st.spots.meadow, 40);
@@ -627,7 +661,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   lift: ["liftoff", "wash"],
   flight: ["cruise", "turn", "eye"],
   land: ["land", "landed"],
-  drop: ["drop", "fall", "impact", "home"],
+  drop: ["drop", "plunge", "fall", "impact", "home"],
   crash: ["crash", "thrown", "crash-nose", "crash-fast", "wreck", "restart"],
   handover: ["handover"],
   night: ["night"],

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A MOGULS CONTEST FROM THE APP'S SIDE (R42): one run down the course a run
+// A MOGULS CONTEST FROM THE APP'S SIDE (R40): one run down the course a run
 // on the snow — the qualification's, then final 1's and final 2's — what
 // the HUD reads of the run (the phase, the clock against the pace, the
 // airs so far), the formal score once it is over (the turns, the air, the

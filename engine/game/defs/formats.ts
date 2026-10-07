@@ -24,25 +24,14 @@ export const DISCIPLINES: readonly { id: Discipline; mode: GameMode | null }[] =
 
 /** THE TRICK FORMATS the game names (`docs/freestyle.md`), in the order the
  * trick card lists them — the build order. */
-export type Freestyle =
-  | "bigAir"
-  | "knuckleHuck"
-  | "slopestyle"
-  | "railJam"
-  | "halfpipe"
-  | "moguls"
-  | "dualMoguls"
-  | "aerials";
+export type Freestyle = "bigAir" | "slopestyle" | "halfpipe" | "moguls" | "aerials";
 
 /** Each format, and the mode that skis it where it is BUILT — null where it
  * is named and not built yet. */
 export const FREESTYLE: readonly { id: Freestyle; mode: GameMode | null }[] = [
   { id: "bigAir", mode: "bigAir" },
-  { id: "knuckleHuck", mode: "knuckleHuck" },
   { id: "slopestyle", mode: "slopestyle" },
-  { id: "railJam", mode: "railJam" },
   { id: "halfpipe", mode: "halfpipe" },
   { id: "moguls", mode: "moguls" },
-  { id: "dualMoguls", mode: "dualMoguls" },
   { id: "aerials", mode: "aerials" },
 ];

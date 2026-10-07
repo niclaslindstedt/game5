@@ -145,15 +145,15 @@ export interface Level {
   groundAt(x: number, z: number): number;
   normalAt(x: number, z: number, out: Vec3): void;
   /** The snow's normal at the surface point NEAREST `(x, y, z)` — on a map
-   * with a surface steeper than a skier stands on (R41's pipe), where the
+   * with a surface steeper than a skier stands on (R39's pipe), where the
    * snow straight under a body is not the snow under its feet. Absent
    * elsewhere: `normalAt` under the point is the answer. */
   normalNear?(x: number, y: number, z: number, out: Vec3): void;
-  /** THE PIPE cut into the map (R41, `withPipe`) — the surface `groundAt`,
+  /** THE PIPE cut into the map (R39, `withPipe`) — the surface `groundAt`,
    * `normalAt` and `normalNear` answer off, read by the flight off its
    * walls (`pipe-air.ts`). Absent on every map without one. */
   pipe?: PipeFrame;
-  /** THE MOGUL FIELD laid on the map (R42, `withMoguls`) — the surface
+  /** THE MOGUL FIELD laid on the map (R40, `withMoguls`) — the surface
    * `groundAt` and `normalAt` answer off inside its venue. Absent on every
    * map without one. */
   bumps?: MogulField;
@@ -258,32 +258,21 @@ export interface Level {
    * start gate and the finish line, its start platform the `spawn`. Absent
    * on every map the generator builds — a jump is built over one. */
   bigAir?: BigAirCourse;
-  /** A KNUCKLE built on the map (R38, `setKnuckleHuck`): a jump as R37's
-   * with no kicker — the drop-in, the deck, the knuckle at its end (`lip`
-   * and `knuckle` both), the landing and the run-out. Absent on every map
-   * the generator builds. */
-  knuckleHuck?: BigAirCourse;
-  /** A SLOPESTYLE COURSE built on the map (R39, `setSlopestyle`): its
+  /** A SLOPESTYLE COURSE built on the map (R38, `setSlopestyle`): its
    * `track` the straight course cut down the face — the start platform,
    * three rail sections and three jump sections — its checkpoints the start
    * gate and the finish line, its start platform the `spawn`, its jumps'
    * kickers among the map's `kickers` and its rails and boxes the `jibs`.
    * Absent on every map the generator builds. */
   slopestyle?: SlopestyleCourse;
-  /** A RAIL JAM'S SET built on the map (R40, `setRailJam`): its `track` the
-   * straight set cut down the face — the platform, the drop-in, the deck
-   * with its row of rails and boxes, the run-out — its checkpoints the
-   * start gate and the finish line, its start platform the `spawn` and its
-   * features the `jibs`. Absent on every map the generator builds. */
-  railJam?: RailJamCourse;
-  /** A HALFPIPE built on the map (R41, `setHalfpipe`): its `track` the
+  /** A HALFPIPE built on the map (R39, `setHalfpipe`): its `track` the
    * straight line cut down the face — the platform, the pitch with the
    * pipe in it, the run-out — its checkpoints the start gate and the
    * finish line, its start platform the `spawn`, and the pipe's surface
    * answered by `groundAt` / `normalAt` / `normalNear`. Absent on every
    * map the generator builds. */
   halfpipe?: HalfpipeCourse;
-  /** A MOGULS COURSE built on the map (R42, `setMoguls`): its `track` the
+  /** A MOGULS COURSE built on the map (R40, `setMoguls`): its `track` the
    * straight line cut down the face — the platform, the pitch with the
    * mogul track and the two air bumps in it, the finish area — its
    * checkpoints the start gate, the control gates and the finish line,
@@ -291,11 +280,7 @@ export interface Level {
    * the moguls answered by `groundAt` / `normalAt`. Absent on every map the
    * generator builds. */
   moguls?: MogulsCourse;
-  /** A DUAL MOGULS COURSE (R43, `setDualMoguls`): a moguls course
-   * (`moguls`) of two lanes, and which of them this map is skied in — its
-   * `checkpoints`, `spawn` and `grid` that lane's. */
-  dualMoguls?: DualMogulsCourse;
-  /** AN AERIALS SITE built on the map (R44, `setAerials`): its `track` the
+  /** AN AERIALS SITE built on the map (R41, `setAerials`): its `track` the
    * straight line cut down the face — the platform, the in-run, the table
    * with its one kicker, the knoll, the landing hill and the out-run — its
    * checkpoints the start gate and the finish line, its start platform the
@@ -305,23 +290,21 @@ export interface Level {
   aerials?: AerialsCourse;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
-   * them (R39, R40). */
+   * them (R38). */
   jibs?: Jib[];
 }
 
-/** A JIB (R39): a RAIL or a BOX a skier slides on — a line, not a
+/** A JIB (R38): a RAIL or a BOX a skier slides on — a line, not a
  * surface. Its riding top is the polyline `points` from the end he mounts
  * at to the end he leaves by, each point in the world, m; `width` the
  * width of what he stands on (a rail's pipe, a box's top), m. */
 export interface Jib {
-  /** `J<section><L|R>` — the section, and the line's side (a rail jam's
-   * `F<feature>`). */
+  /** `J<section><L|R>` — the section, and the line's side. */
   id: string;
-  /** The rail section it stands in, from 1 (a rail jam's feature, from 1,
-   * left to right). */
+  /** The rail section it stands in, from 1. */
   section: number;
   /** Its line across the course: −1 the left (looking down it), +1 the
-   * right (a rail jam's −2 to +2, its lines' spacing apart). */
+   * right. */
   line: number;
   kind: "rail" | "box";
   /** Its shape, from the top: `"down"` the slope's own fall all the way,
@@ -332,7 +315,7 @@ export interface Jib {
   width: number;
 }
 
-/** One SECTION of a slopestyle course (R39), by its arcs down the course,
+/** One SECTION of a slopestyle course (R38), by its arcs down the course,
  * m: a RAIL section (its jibs side by side) or a JUMP (`lip` its kicker's
  * lip, `knuckle` its table's end — what a flight off it is judged
  * against). */
@@ -347,7 +330,7 @@ export interface SlopeSection {
   speed: number;
 }
 
-/** A SLOPESTYLE COURSE (R39) as it was built over a map: its own `track`,
+/** A SLOPESTYLE COURSE (R38) as it was built over a map: its own `track`,
  * every arc down it, m. */
 export interface SlopestyleCourse {
   /** The map it was built over, before any course. */
@@ -366,28 +349,7 @@ export interface SlopestyleCourse {
   width: number;
 }
 
-/** A RAIL JAM'S SET (R40) as it was built over a map: its own `track`,
- * every arc down it, m. */
-export interface RailJamCourse {
-  /** The map it was built over, before any course. */
-  base: Level;
-  /** The start gate's arc and the finish line's, m. */
-  from: number;
-  to: number;
-  /** The vertical between them, m. */
-  vertical: number;
-  /** Where the deck begins and where its features begin, m. */
-  deck: number;
-  features: number;
-  /** How far apart the features' lines run across the deck, m. */
-  lines: number;
-  /** The set's width, m. */
-  width: number;
-  /** The speed the features are designed to be met at, m/s. */
-  speed: number;
-}
-
-/** A HALFPIPE (R41) as it was built over a map: its own `track`, every
+/** A HALFPIPE (R39) as it was built over a map: its own `track`, every
  * arc down it, m, and the pipe on it. */
 export interface HalfpipeCourse {
   /** The map it was built over, before any course. */
@@ -401,7 +363,7 @@ export interface HalfpipeCourse {
   pipe: PipeFrame;
 }
 
-/** A MOGULS COURSE (R42) as it was built over a map: its own `track`, every
+/** A MOGULS COURSE (R40) as it was built over a map: its own `track`, every
  * arc down it, m. */
 export interface MogulsCourse {
   /** The map it was built over, before any course. */
@@ -423,24 +385,6 @@ export interface MogulsCourse {
   pitch: number;
   /** The mogul field (`Level.bumps`). */
   field: MogulField;
-}
-
-/** ONE LANE of a dual moguls course (R43): its colour, its middle m right
- * of the venue's line (facing down it), its gates and its start spot. */
-export interface DualLane {
-  colour: "blue" | "red";
-  offset: number;
-  width: number;
-  checkpoints: Checkpoint[];
-  spawn: Spawn;
-}
-
-/** A DUAL MOGULS COURSE (R43): its two lanes — the BLUE first — the lane
- * a map is skied in, and the gates as DRAWN, across both lanes. */
-export interface DualMogulsCourse {
-  lanes: [DualLane, DualLane];
-  lane: 0 | 1;
-  drawn: Checkpoint[];
 }
 
 /** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every
@@ -469,10 +413,10 @@ export interface BigAirCourse {
   width: number;
 }
 
-/** Which of an aerials site's three kickers a jump is assigned (R44). */
+/** Which of an aerials site's three kickers a jump is assigned (R41). */
 export type AerialKicker = "single" | "double" | "triple";
 
-/** AN AERIALS SITE (R44) as it was built over a map: its own `track`, every
+/** AN AERIALS SITE (R41) as it was built over a map: its own `track`, every
  * arc down it, m. */
 export interface AerialsCourse {
   /** The map it was built over, before any course. */

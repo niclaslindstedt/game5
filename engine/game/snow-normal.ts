@@ -2,7 +2,7 @@
 // THE SNOW UNDER A SKIER — the normal of the snow he stands on, read off
 // his centre of mass. On every map but one it is the snow straight under
 // him (`Level.normalAt`); on a map with a surface steeper than a skier
-// stands on — R41's pipe, whose vert stands at 83° — it is the snow
+// stands on — R39's pipe, whose vert stands at 83° — it is the snow
 // NEAREST him (`Level.normalNear`), because straight down from a body stood
 // off a wall is the transition metres below it. Every reading of "the
 // ground under the CoG" in the skier's step asks here, so a map without a

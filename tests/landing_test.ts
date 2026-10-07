@@ -172,3 +172,61 @@ describe("a landing ridden away, or not", () => {
     }
   });
 });
+
+/** A long fall straight down onto a face of `deg` degrees of the groomer,
+ * the skier facing down it, on a free ride: the load and how it ended. */
+function plunge(deg: number, height: number) {
+  const level = flatLevel({ packed: 1, grade: Math.tan((deg * Math.PI) / 180), slopeFrom: 0 });
+  const state = createGame({
+    level,
+    spec: SKIS,
+    rivals: 0,
+    countdown: 0,
+    quiet: true,
+    mode: "free",
+    crowd: 0,
+  });
+  placeRun(state, { x: level.size / 2, z: 1000, heading: 0, speed: 1, height, roll: 0, pitch: 0 });
+  let land: Extract<GameEvent, { kind: "land" }> | null = null;
+  let thrown: string | null = null;
+  for (let i = 0; i < 6 * TUNING.physicsHz; i++) {
+    step(state, { ...TUCK, tuck: 0 });
+    for (const e of state.events) {
+      if (e.kind === "land" && !land) land = e;
+      if (e.kind === "wipeout" && !thrown) thrown = e.cause;
+    }
+  }
+  return { land, thrown, speed: state.skier.speed };
+}
+
+describe("a steep face takes a long fall", () => {
+  const S = TUNING.landing.steep;
+  const efh = (h: number) => Math.sqrt(2 * TUNING.g * h);
+
+  it("judges a kicker's landing as ever, however steep", () => {
+    const small = efh(S.over * 0.9);
+    expect(landingLoad(small, 0, 0, 1, 0.8)).toBeCloseTo(landingLoad(small, 0, 0, 1, 0), 9);
+  });
+
+  it("draws out what falls past it, the more the steeper the face", () => {
+    const big = efh(12);
+    const flatLoad = landingLoad(big, 0, 0, 1, 0);
+    const blue = landingLoad(big, 0, 0, 1, 0.35);
+    const red = landingLoad(big, 0, 0, 1, 0.6);
+    const black = landingLoad(big, 0, 0, 1, S.full);
+    expect(blue).toBeCloseTo(flatLoad, 9);
+    expect(red).toBeLessThan(flatLoad);
+    expect(black).toBeLessThan(red);
+    // ...and a bigger fall is never the lighter landing.
+    expect(landingLoad(efh(20), 0, 0, 1, S.full)).toBeGreaterThan(black);
+  });
+
+  it("rides thirty metres onto a 45° face away down it, where onto the flat it folds him", () => {
+    const steep = plunge(45, 30);
+    expect(steep.thrown).toBeNull();
+    expect(steep.land!.g).toBeLessThan(TUNING.crash.legsFold);
+    // ...and fast: a long way down the face is a lot of way on.
+    expect(steep.speed * 3.6).toBeGreaterThan(70);
+    expect(plunge(0, 30).thrown).toBe("landing");
+  });
+});

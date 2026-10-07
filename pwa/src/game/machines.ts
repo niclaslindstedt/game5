@@ -25,6 +25,7 @@ import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
+import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import type { SkisModel } from "./skis-body.ts";
@@ -60,6 +61,8 @@ export type Machines = {
   /** THE PISTE MACHINES' LAMPS lit at `lit` and seen from `eye`, ahead of
    * `floods` — the list the lamp slots are dealt from (`dealLamps`). */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
+  /** The sky's light on whatever the machines draw unlit (the wing's lines). */
+  light(look: SkyLook): void;
   /** THE PISTE MACHINES AS SOLIDS to the lens (`camera-clear.ts`), where
    * they were drawn this frame. */
   solids(): readonly SolidBox[];
@@ -128,6 +131,9 @@ export function createMachines(
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
+    },
+    light(look) {
+      para?.light(look);
     },
     lamps(lit, eye, others) {
       if (!groomers || !current.groomers) return others;

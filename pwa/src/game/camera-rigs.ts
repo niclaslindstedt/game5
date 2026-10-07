@@ -84,6 +84,15 @@ import { rotate, type Quat } from "@engine";
 import type { RideLook } from "./camera-lift.ts";
 
 import {
+  createFallMemory,
+  FALL,
+  fallEase,
+  fallPitch,
+  stepFall,
+  type FallMemory,
+} from "./camera-fall.ts";
+
+import {
   createSpring,
   follow,
   followAngle,
@@ -162,6 +171,9 @@ export type BoltedRig = {
   rollShare: number;
   /** Share of `PACE.tremor` the lens takes. */
   tremor: number;
+  /** THE FALL LOOK (`camera-fall.ts`): how much further down the look is
+   * tipped in a long fall, rad — the head spotting the landing. */
+  fallDown?: number;
 };
 
 export type BoomRig = {
@@ -217,6 +229,10 @@ export type BoomRig = {
   /** Share of a lift's close look (`RigPose.ride`) the rig takes, 0..1: the
    * chase comes in behind a rider, the far and high lenses keep their own. */
   ride: number;
+  /** Share of THE FALL LOOK (`camera-fall.ts`) the rig takes, 0..1 — up
+   * over his back and looking down at his landing in a long fall. A
+   * machine's ladder leaves it out: under a wing he is not falling. */
+  fall?: number;
 };
 
 export type OrbitRig = {
@@ -244,6 +260,7 @@ export const RIGS: Record<Rung, Rig> = {
     fovPerSpeed: 0.4,
     rollShare: 0.85,
     tremor: 1,
+    fallDown: 0.35,
   },
   // THE HELMET CAM: the skier's own eyes, at the height of a standing head
   // over the body's origin (the tuck folds the body and the lens with it,
@@ -256,6 +273,7 @@ export const RIGS: Record<Rung, Rig> = {
     fovPerSpeed: 0.35,
     rollShare: 0.6,
     tremor: 0.8,
+    fallDown: 0.45,
   },
   // THE CHASE: behind and above, the skier composed a little under the
   // middle of the frame and the piste he is about to ski over his head.
@@ -293,6 +311,7 @@ export const RIGS: Record<Rung, Rig> = {
     frame: 0.66,
     clearance: 0.9,
     ride: 1,
+    fall: 1,
   },
   far: {
     kind: "boom",
@@ -320,6 +339,7 @@ export const RIGS: Record<Rung, Rig> = {
     frame: 0.66,
     clearance: 1.4,
     ride: 0,
+    fall: 1,
   },
   high: {
     kind: "boom",
@@ -347,6 +367,7 @@ export const RIGS: Record<Rung, Rig> = {
     frame: 0.66,
     clearance: 3,
     ride: 0,
+    fall: 1,
   },
   orbit: { kind: "orbit", radius: 16, height: 6, spin: 0.14, fov: 55 },
 };
@@ -389,6 +410,8 @@ export type BoomState = {
   /** THE TREMOR's memory: its own clock, s, and its envelope, 0..1. */
   clock: number;
   buzz: number;
+  /** THE FALL LOOK's memory (`camera-fall.ts`). */
+  fallen: FallMemory;
 };
 
 export function createBoomState(): BoomState {
@@ -407,6 +430,7 @@ export function createBoomState(): BoomState {
     surge: 0,
     clock: 0,
     buzz: 0,
+    fallen: createFallMemory(),
   };
 }
 
@@ -531,7 +555,11 @@ export function frameRig(
     // Bolted on, the tremor swings the aim: the whole world buzzes.
     const shake = tremorAt(st, pose, rig.tremor, dt);
     const swing = rig.look * PACE.tremor.aim;
-    const dip = rig.look * Math.tan(rig.down ?? 0);
+    // In a long fall the head goes down onto the landing (`camera-fall.ts`).
+    const spot = rig.fallDown
+      ? fallEase(stepFall(st.fallen, pose, groundAt, dt, st.fresh)) * rig.fallDown
+      : 0;
+    const dip = rig.look * Math.tan((rig.down ?? 0) + spot);
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
     const target = { x: eye.x + fwd.x, y: eye.y + fwd.y, z: eye.z + fwd.z };
     st.fresh = false;
@@ -557,10 +585,12 @@ export function frameRig(
   // nose the end of the skis that leads, the tails when he rides switch,
   // and the boom swung round behind them on its own spring when he starts.
   const snap = st.fresh;
+  // THE FALL LOOK (`camera-fall.ts`): how far into it the boom is, 0..1.
+  const fallen = rig.fall ? fallEase(stepFall(st.fallen, pose, groundAt, dt, snap)) * rig.fall : 0;
   const plan = Math.hypot(pose.vx, pose.vz);
   const nose = pose.heading + (pose.switched ? Math.PI : 0);
   const travel = plan > 2 ? Math.atan2(pose.vx, pose.vz) : nose;
-  const want = nose + turn(nose, travel) * rig.slipWeight;
+  const want = nose + turn(nose, travel) * (rig.slipWeight + (FALL.slip - rig.slipWeight) * fallen);
   const yaw = snap ? settle(st.yaw, want) : followAngle(st.yaw, rig.yaw, want, dt);
   const lx = Math.sin(yaw);
   const lz = Math.cos(yaw);
@@ -607,7 +637,7 @@ export function frameRig(
   const look = pose.ride;
   const chased =
     Math.min(rig.fovMax, rig.fov + rig.fovPerSpeed * pose.speed) + SUMMIT_LOOK.fov * summit;
-  const fov = look ? chased + (look.fov - chased) * ride : chased;
+  const fov = (look ? chased + (look.fov - chased) * ride : chased) + FALL.fov * fallen;
   const half = (d: number) => Math.tan((d * Math.PI) / 360);
   const arm = 1 - rig.hold * (1 - half(rig.fov) / half(chased));
   // ON A SUMMIT'S PAD the chase comes down and in behind him — low and
@@ -622,7 +652,7 @@ export function frameRig(
   // THE INCLINE: the arm swung up the slope behind by its share of the
   // fall line's pitch, about the skier — the lens keeps its height over
   // the snow it stands above instead of meeting it.
-  const len = Math.hypot(dist, rise);
+  const len = Math.hypot(dist, rise) * (1 + (FALL.reach - 1) * fallen);
   const steep = Math.max(0, Math.min(1, (slope - STEEP.from) / (STEEP.full - STEEP.from)));
   // AT A SUMMIT the arm stays level rather than leaning with the face, so
   // the drop reads as the drop it is.
@@ -630,7 +660,8 @@ export function frameRig(
     (rig.incline + (rig.inclineSteep - rig.incline) * steep * steep * (3 - 2 * steep)) *
     (1 - SUMMIT_LOOK.level * summit) *
     (1 - ride);
-  const up = Math.atan2(rise, dist) + incline * slope;
+  // In a long fall the arm climbs over his back instead (`FALL.up`).
+  const up = (Math.atan2(rise, dist) + incline * slope) * (1 - fallen) + FALL.up * fallen;
   const eye = {
     x: pose.x - Math.sin(yaw) * len * Math.cos(up),
     y: y + len * Math.sin(up),
@@ -664,7 +695,21 @@ export function frameRig(
   // Carried up a lift the look tips up with the climb, the rope and the
   // top station ahead over his head rather than the slope under the chair.
   const climb = Math.max(0, -slope) * RIDE_LOOK_UP * ride;
-  const composed = Math.atan2(y + FRAME_AT - eye.y, back) + placed + climb;
+  const skiing = Math.atan2(y + FRAME_AT - eye.y, back) + placed + climb;
+  // ...and in a long fall, tipped down between him and where he lands.
+  const composed =
+    fallen > 0
+      ? skiing * (1 - fallen) +
+        fallPitch(
+          eye,
+          fx,
+          fz,
+          st.fallen.land,
+          Math.atan2(pose.y + FRAME_AT - eye.y, back),
+          halfAngle,
+        ) *
+          fallen
+      : skiing;
   const pitch = snap ? settle(st.pitch, composed) : follow(st.pitch, rig.look, composed, dt);
   const reach = back + rig.aimAhead;
   const target = {
@@ -672,7 +717,14 @@ export function frameRig(
     y: eye.y + reach * Math.tan(Math.max(-TILT_MAX, Math.min(TILT_MAX, pitch))),
     z: eye.z + fz * reach,
   };
-  tiltToFrame(eye, target, pose, halfAngle, rig.frame, placed);
+  tiltToFrame(
+    eye,
+    target,
+    pose,
+    halfAngle,
+    rig.frame + (FALL.frame - rig.frame) * fallen,
+    placed * (1 - fallen),
+  );
   // The tremor last, on the lens alone: the look's own spring never sees it.
   const buzz = PACE.tremor.travel;
   eye.x += fz * shake.x * buzz;

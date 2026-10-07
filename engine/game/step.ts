@@ -28,11 +28,8 @@ import {
   setSpeedSki,
   setSlalom,
   setBigAir,
-  setKnuckleHuck,
-  setRailJam,
   setHalfpipe,
   setMoguls,
-  setDualMoguls,
   setAerials,
   setSlopestyle,
   withDay,
@@ -51,8 +48,6 @@ import {
   RACE,
   fieldRules,
   skiCrossHeatRules,
-  duelRules,
-  MOGULS,
   clampResilience,
   clampSnowDepth,
   type Assist,
@@ -66,7 +61,6 @@ import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
 import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
 import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
-import { freshJam, stepJam } from "./jam.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
@@ -75,8 +69,6 @@ import { freshAerial } from "./aerial-flight.ts";
 import { AERIALS } from "./defs/aerials.ts";
 import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
 import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
-import { freshDual, nextDuel, type DualContest, type DualHeat } from "./dual-bracket.ts";
-import { createDuel, duelCountdown, laneIn, stepDuel } from "./duel.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
@@ -136,27 +128,21 @@ export type CreateGameOptions = {
    * player has taken, carried between the runs of one contest — a fresh
    * one off the seed when a big air run leaves it out. */
   bigAir?: BigAirContest;
-  /** A SLOPESTYLE CONTEST so far (R39, `slopestyle-contest.ts`): the runs
+  /** A SLOPESTYLE CONTEST so far (R38, `slopestyle-contest.ts`): the runs
    * the player has skied, carried between the runs of one contest — a
    * fresh one off the seed when a slopestyle run leaves it out. */
   slopestyle?: SlopeContest;
-  /** A HALFPIPE CONTEST so far (R41, `halfpipe-contest.ts`), as a
+  /** A HALFPIPE CONTEST so far (R39, `halfpipe-contest.ts`), as a
    * slopestyle's. */
   halfpipe?: PipeContest;
-  /** A MOGULS CONTEST so far (R42, `moguls-contest.ts`), as a halfpipe's. */
+  /** A MOGULS CONTEST so far (R40, `moguls-contest.ts`), as a halfpipe's. */
   moguls?: MogulsContest;
-  /** A DUAL MOGULS CONTEST so far (R43, `dual-bracket.ts`): its
-   * qualification and every dual decided — the run its next: the
-   * qualification while it has none, else the player's next dual
-   * (`nextDuel`), skied against his rival in the other lane. A fresh one
-   * off the seed when a dual moguls run leaves it out. */
-  dualMoguls?: DualContest;
-  /** AN AERIALS CONTEST so far (R44, `aerials-contest.ts`): the jumps
+  /** AN AERIALS CONTEST so far (R41, `aerials-contest.ts`): the jumps
    * scored and the one DECLARED next (`AerialsContest.plan`) — a fresh one
    * off the seed when an aerials run leaves it out. */
   aerials?: AerialsContest;
   /** THE JUMP DECLARED for an aerials run, over the contest's: a code of
-   * the DD chart (`defs/aerial-jumps.ts`); its kicker is built (R44). */
+   * the DD chart (`defs/aerial-jumps.ts`); its kicker is built (R41). */
   plan?: string;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
@@ -275,19 +261,6 @@ function crossOf(options: CreateGameOptions): CrossHeat | undefined {
   return options.cross ?? (options.bracket ? (nextHeat(options.bracket) ?? undefined) : undefined);
 }
 
-/** The dual a dual moguls run skis, if it is one (not the
- * qualification). */
-function duelOf(options: CreateGameOptions): DualHeat | null {
-  return options.mode === "dualMoguls" && options.dualMoguls ? nextDuel(options.dualMoguls) : null;
-}
-
-/** The lane a dual moguls run is skied in: the player's in his dual, the
- * blue for the qualification. */
-function laneOfDuel(options: CreateGameOptions): 0 | 1 {
-  const duel = duelOf(options);
-  return duel ? laneIn(duel) : 0;
-}
-
 /** The jump an aerials run declares: the one asked for, the contest's
  * next, or the default — always a jump of the chart. */
 function planOf(options: CreateGameOptions): string {
@@ -299,15 +272,12 @@ function planOf(options: CreateGameOptions): string {
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   const laps = options.laps ?? level.laps;
   const cross = crossOf(options);
-  const duel = duelOf(options);
   const base =
     options.mode === "skiCross" && cross
       ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
-      : duel && options.dualMoguls
-        ? duelRules(laps, duelCountdown(options.dualMoguls, duel))
-        : options.mode
-          ? MODE_RULES[options.mode](laps)
-          : fieldRules(laps);
+      : options.mode
+        ? MODE_RULES[options.mode](laps)
+        : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -333,8 +303,6 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     jury: base.jury,
     spinMost: base.spinMost,
     flipMost: base.flipMost,
-    jam: base.jam,
-    butters: base.butters,
     inRun: base.inRun,
     aerials: base.aerials,
   };
@@ -390,9 +358,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.speedSki?.base ??
     built.skiCross?.base ??
     built.bigAir?.base ??
-    built.knuckleHuck?.base ??
     built.slopestyle?.base ??
-    built.railJam?.base ??
     built.halfpipe?.base ??
     built.moguls?.base ??
     built.aerials?.base ??
@@ -414,21 +380,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                 ? setSkiCross(built)
                 : options.mode === "bigAir"
                   ? setBigAir(built)
-                  : options.mode === "knuckleHuck"
-                    ? setKnuckleHuck(built)
-                    : options.mode === "slopestyle"
-                      ? setSlopestyle(built)
-                      : options.mode === "railJam"
-                        ? setRailJam(built)
-                        : options.mode === "halfpipe"
-                          ? setHalfpipe(built)
-                          : options.mode === "moguls"
-                            ? setMoguls(built)
-                            : options.mode === "dualMoguls"
-                              ? setDualMoguls(built, laneOfDuel(options))
-                              : options.mode === "aerials"
-                                ? setAerials(built, kickerOf(planOf(options)))
-                                : original;
+                  : options.mode === "slopestyle"
+                    ? setSlopestyle(built)
+                    : options.mode === "halfpipe"
+                      ? setHalfpipe(built)
+                      : options.mode === "moguls"
+                        ? setMoguls(built)
+                        : options.mode === "aerials"
+                          ? setAerials(built, kickerOf(planOf(options)))
+                          : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -519,22 +479,14 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     if (rules.start === "interval" || rules.dealt) {
       createField(state, rules.rivals, options.heat, options.training === true);
     } else if (rules.knock && crossOf(options)) createHeat(state, crossOf(options) as CrossHeat);
-    else if (level.dualMoguls && options.dualMoguls && duelOf(options)) {
-      createDuel(state, options.dualMoguls, duelOf(options) as DualHeat);
-    } else createRivals(state, rules.rivals);
+    else createRivals(state, rules.rivals);
   }
   if (options.bracket) state.bracket = options.bracket;
   if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
-  if ((level.knuckleHuck || level.railJam) && rules.jam) state.jam = freshJam();
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (level.moguls) {
-    // A dual moguls course is a moguls course of two lanes, its contest
-    // its own (`dual-bracket.ts`).
-    if (level.dualMoguls) {
-      state.dualMoguls =
-        options.dualMoguls ?? freshDual(state.seed, level.moguls.length / MOGULS.pace);
-    } else state.moguls = options.moguls ?? freshMoguls(state.seed);
+    state.moguls = options.moguls ?? freshMoguls(state.seed);
     state.mogulTurns = freshTurns();
   }
   if (level.aerials) {
@@ -598,13 +550,9 @@ export function step(state: GameState, input: SkierInput): GameState {
   stepRun(state, input, events, true);
   // THE SCORE is the player's, kept on every run (`tricks.ts`).
   stepTricks(state, events);
-  // A KNUCKLE HUCK'S JAM (`jam.ts`): a hit over, and back to the platform.
-  if (state.jam) stepJam(state, events);
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
   if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
-  // A DUAL (`duel.ts`): the rival's air and turns, each lane's rules.
-  if (state.duel) stepDuel(state, events);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.
   if (state.crowd) {

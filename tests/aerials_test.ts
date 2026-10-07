@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// AERIALS (R44): the site built to the rules (the in-run sized to the
+// AERIALS (R41): the site built to the rules (the in-run sized to the
 // kicker's speed, the three kickers, the table, the knoll and the landing
 // hill), the chart of jumps and their codes, the flight as declared flips
 // and twists, the formal score (the air, the form and the landing of five
@@ -46,7 +46,7 @@ import { levelFor } from "./support/levels.ts";
 const R = AERIALS_RULE;
 const RAD = Math.PI / 180;
 
-describe("the aerials site's profile (R44)", () => {
+describe("the aerials site's profile (R41)", () => {
   for (const kicker of ["single", "double", "triple"] as const) {
     const p = aerialsProfile(kicker);
     const K = R.kickers[kicker];

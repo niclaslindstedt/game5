@@ -134,7 +134,6 @@ export {
   mogulBoard,
   mogulOrder,
   mogulPhase,
-  mogulLevelOf,
   mogulPlace,
   mogulRivalRun,
   mogulsContestAfter,
@@ -196,41 +195,6 @@ export {
   type AerialFlip,
   type AerialJumpRow,
 } from "./game/defs/aerial-jumps.ts";
-export {
-  DUAL_ROUNDS,
-  DUAL_LADDER,
-  advance as advanceDual,
-  dealDual,
-  dualDone,
-  dualPlace,
-  dualStandings,
-  dualsOf,
-  freshDual,
-  ladder,
-  nextDuel,
-  qualificationBoard,
-  qualified as dualQualified,
-  ranked as dualRanked,
-  resultsOf as dualResultsOf,
-  type DualContest,
-  type DualEntry,
-  type DualHeat,
-  type DualResult,
-  type DualRound,
-} from "./game/dual-bracket.ts";
-export { DUAL_PANEL, voteDual, type DualRead, type DualVotes } from "./game/dual-judge.ts";
-export {
-  DUEL,
-  createDuel,
-  dualContestAfter,
-  duelCountdown,
-  duelOn,
-  judgeDuel,
-  laneIn,
-  qualifyingRun,
-  stepDuel,
-  type Duel,
-} from "./game/duel.ts";
 export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
@@ -261,22 +225,15 @@ export {
   speedSkiRules,
   BIG_AIR,
   bigAirRules,
-  KNUCKLE_HUCK,
-  RAIL_JAM,
-  railJamRules,
   HALFPIPE,
   halfpipeRules,
   MOGULS,
   mogulsRules,
-  DUAL_MOGULS,
-  dualMogulsRules,
-  duelRules,
   AERIALS,
   aerialsRules,
   JIBS,
   SLOPESTYLE,
   slopestyleRules,
-  knuckleHuckRules,
   FREESTYLE,
   type Freestyle,
   SKI_CROSS,
@@ -392,31 +349,6 @@ export {
   trickKind,
   type TrickRead,
 } from "./game/judge.ts";
-export {
-  JAM_FIELD,
-  KNUCKLE_JAM,
-  KNUCKLE_JUDGING,
-  RAIL_JAM_FIELD,
-  RAIL_JAM_FORMAT,
-  freshJam,
-  jamFormatOf,
-  railHitImpression,
-  railKind,
-  hitImpression,
-  jamBoard,
-  jamKind,
-  jamLeft,
-  jamPlace,
-  rivalHits,
-  sessionImpression,
-  sessionScore,
-  stepJam,
-  type JamFormat,
-  type JamHit,
-  type JamRow,
-  type JamState,
-} from "./game/jam.ts";
-export { butterInput, stepButter, takeoffPress } from "./game/butter.ts";
 export { CROSS_HEAT, crossCountdown, heatResult, stepDrafts } from "./game/cross-heat.ts";
 export { stepTrap } from "./game/speed-trap.ts";
 export { DOWNHILL_NETS, catchInNets, netPocket, stepNets } from "./game/nets.ts";
@@ -540,8 +472,6 @@ export {
   type JibRecord,
   type JibRide,
   type JibStance,
-  type ButterRecord,
-  type PressEnd,
 } from "./game/state.ts";
 export { freshSkier, derive } from "./game/skier.ts";
 export { airForce, dragAreaOf, sideAreaOf, type AirForce } from "./game/air.ts";
@@ -619,6 +549,7 @@ export {
   type Landing,
 } from "./game/flight.ts";
 export {
+  bodyThrown,
   crashLimit,
   crashOver,
   mayGetUp,
@@ -628,6 +559,7 @@ export {
   type CrashLimit,
 } from "./game/crash.ts";
 export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
+export { letGo } from "./game/lone-skis.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
   wellAt,
@@ -651,6 +583,8 @@ export {
   freshBody,
   mendBody,
   markFall,
+  organsOf,
+  organsOfInjury,
   riskOf,
   saidOf,
   severityOf,
@@ -663,10 +597,15 @@ export {
   BONE_KINDS,
   INJURIES,
   INJURY,
+  ORGANS,
+  ORGAN_KINDS,
   pairedBone,
+  pairedOrgan,
   type BodyPart,
   type Bone,
   type BoneKind,
+  type Organ,
+  type OrganKind,
   type Facing,
   type Fracture,
   type InjuryDef,
@@ -725,7 +664,7 @@ export {
 } from "./game/groomed.ts";
 export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
-export { uprightsNear, type Upright } from "./game/upright-grid.ts";
+export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
@@ -826,6 +765,9 @@ export {
   planLift,
   ropeShortfall,
   ruledLiftPlans,
+  pisteGap,
+  TOWER_PAD,
+  TOWER_SITE,
   ropeAt,
   upRope,
   type LiftKind,

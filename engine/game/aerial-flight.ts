@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AERIALS FLIGHT (`RunRules.aerials`, R44): the air off an aerials
+// THE AERIALS FLIGHT (`RunRules.aerials`, R41): the air off an aerials
 // kicker flown as a TWISTING SOMERSAULT — what the strokes (`strokes.ts`)
 // cannot turn, because they throw the two axes apart and a body rate held
 // about a fixed body axis is a tilted spin, not a twist inside a flip.

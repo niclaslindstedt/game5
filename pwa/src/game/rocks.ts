@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ROCK AS DRAWN — every outcrop of the map (the engine's `rocksOf`, the
-// same blocks a skier meets), built into
-// static meshes a TILE of the map at a time (`rock-shapes.ts`): one draw a
-// tile, culled by three against the lens like any mesh, and BUILT ONLY
-// WHEN IT FIRST COMES WITHIN REACH, so a phone never holds the crags of a
-// face it never sees. The building is SLICED: an outcrop at a time, for at most
-// `SLICE` ms a frame, so riding toward a rocky face never hitches; only the
-// tiles round the lens itself, on the run's first frame or after a jump
-// (a reset, a lift's top), are built whole at once. The reach is the
-// DISTANCE row's whole view, not the trees': a far or high lens looks at
-// the cliffs from across the valley, and a whole map's crags are a few
-// tens of thousands of triangles. Past it the snow shader's dark rock
-// carries them to the rim.
+// THE ROCK AS DRAWN — the drops' rock (`rock-shapes.ts`): the skin over
+// every wall too steep for snow (the engine's `rockShare`) and every rocky
+// cliff's wall (`cliffWalls`), built into static meshes a TILE of the map
+// at a time: one draw a tile, culled by three against the lens like any
+// mesh, and BUILT ONLY WHEN IT FIRST COMES WITHIN REACH, so a phone never
+// holds the rock of a face it never sees. The building is SLICED: a strip
+// of the tile's lattice at a time, for at most `SLICE` ms a frame, so
+// riding toward a rocky face never hitches; only the tiles round the lens
+// itself, on the run's first frame or after a jump (a reset, a lift's
+// top), are built whole at once. The reach is the DISTANCE row's whole
+// view, not the trees': a far or high lens looks at the walls from across
+// the valley. Past it the snow shader's dark rock carries them to the rim.
 //
-// What it costs is the FOREST row's: its far share is the share of each
-// knot's blocks a tile is built with, the small ones dropped first, so a
-// cheap picture keeps the crags' outline. The whole
-// thing hangs off the forest (`forest.ts`), which owns the woods' reach.
+// What it costs is the FOREST row's: under three quarters of its far
+// share the skin's lattice is the coarser `ROCKS.skin.cheap`, about half
+// the triangles in the same outline. The whole thing hangs off the forest
+// (`forest.ts`), which owns the woods' reach.
 
 import * as THREE from "three";
-import { regionOf, rocksOf, type Level, type Outcrop } from "@engine";
+import { ROCKS, cliffWalls, regionOf, rockHash, type CliffWall, type Level } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
-import { buildOutcrop, rockMesh, type RockMesh } from "./rock-shapes.ts";
+import { buildSkin, buildWall, rockMesh, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -39,7 +38,7 @@ export type Rocks = {
   readonly group: THREE.Group;
   /** Show what is within `reach` m of the lens, building what is new. */
   update(eye: THREE.Vector3, reach: number): void;
-  /** The share of a knot's blocks a tile is built with, 0..1. */
+  /** The FOREST row's far share, 0..1: under 0.75 the coarser skin. */
   setShare(share: number): void;
   dispose(): void;
 };
@@ -47,9 +46,13 @@ export type Rocks = {
 type Tile = {
   readonly cx: number;
   readonly cz: number;
-  /** The outcrops standing on it. */
-  readonly outcrops: Outcrop[];
-  /** How many its building has reached, and the triangles so far. */
+  /** Its first lattice column and row (`TILE` m a side). */
+  readonly i: number;
+  readonly j: number;
+  /** The cliffs' rock walls whose middle is on it, built first. */
+  readonly walls: CliffWall[];
+  /** The rows of its lattice its building has reached, and the triangles
+   * so far. */
   done: number;
   part: RockMesh | null;
   mesh: THREE.Mesh | null;
@@ -75,7 +78,9 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
       tiles.push({
         cx: (i + 0.5) * TILE,
         cz: (j + 0.5) * TILE,
-        outcrops: [],
+        i,
+        j,
+        walls: [],
         done: 0,
         part: null,
         mesh: null,
@@ -83,22 +88,32 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
       });
     }
   }
+  const seed = rockHash(level.seed, 0x534b494e);
   if (band) {
-    for (const o of rocksOf(level)) {
-      const i = Math.min(cols - 1, Math.max(0, Math.floor(o.x / TILE)));
-      const j = Math.min(cols - 1, Math.max(0, Math.floor(o.z / TILE)));
-      tiles[j * cols + i].outcrops.push(o);
+    for (const w of cliffWalls(level)) {
+      const i = Math.min(cols - 1, Math.max(0, Math.floor(w.x / TILE)));
+      const j = Math.min(cols - 1, Math.max(0, Math.floor(w.z / TILE)));
+      tiles[j * cols + i].walls.push(w);
     }
   }
-  /** The outcrops a step builds before it looks at the clock. */
-  const BATCH = 8;
+  /** The lattice rows a step builds before it looks at the clock. */
+  const BATCH = 4;
+  const cellOf = (): number => (share < 0.75 ? ROCKS.skin.cheap : ROCKS.skin.cell);
 
-  /** Build a few more outcrops of `t`; true when it is whole. */
+  /** Build a few more rows of `t`; true when it is whole. */
   const step = (t: Tile): boolean => {
-    const part = (t.part ??= rockMesh());
-    const end = Math.min(t.outcrops.length, t.done + BATCH);
-    for (; t.done < end; t.done++) buildOutcrop(part, level, t.outcrops[t.done], band!.tone, share);
-    if (t.done < t.outcrops.length) return false;
+    if (!t.part) {
+      t.part = rockMesh();
+      for (const w of t.walls) buildWall(t.part, w, band!.tone);
+    }
+    const part = t.part;
+    const cell = cellOf();
+    const n = Math.round(TILE / cell);
+    const end = Math.min(n, t.done + BATCH);
+    const i0 = t.i * n;
+    buildSkin(part, level, band!.tone, seed, cell, i0, t.j * n + t.done, i0 + n, t.j * n + end);
+    t.done = end;
+    if (t.done < n) return false;
     t.part = null;
     if (part.pos.length === 0) {
       t.empty = true;
@@ -125,7 +140,7 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     t.mesh.geometry.dispose();
     t.mesh = null;
   };
-  const due = (t: Tile): boolean => !t.mesh && !t.empty && t.outcrops.length > 0;
+  const due = (t: Tile): boolean => !t.mesh && !t.empty;
 
   return {
     group,
@@ -149,7 +164,7 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
         }
         if (t.mesh) t.mesh.visible = near;
         // Well out of reach, its triangles are let go, so a long ride never
-        // holds the whole mountain's crags.
+        // holds the whole mountain's rock.
         if ((t.mesh || t.part) && d2 > (reach + KEEP) ** 2) drop(t);
       }
       // The nearest tile still owed, a slice of a frame's worth of it.

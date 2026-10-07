@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -477,6 +477,23 @@ grimbear:
 # `world`. ARGS="--sheet=trunk,blood", "--views=spray".
 gore:
 	npm run gore -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE X-RAY LAB: a hard blow on a run with the INJURIES switch on, run the
+# way the app runs it — the read ahead, the run slowed, the lens closing on
+# the bone that breaks, the pans to the next one and the limb torn, the
+# whole body and the death — photographed every half second of wall
+# through the game's own renderer: previews/xray-<scene>.png. Its own
+# one-off bundle from pwa/xray-preview.html; needs a Chromium like `world`.
+# ARGS="--scene=trunk|trunk-fast|head|slam --most=14".
+xray:
+	npm run xray -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE X-RAY SKELETON: every bone and organ of BodyParts3D (fetched into
+# the gitignored previews/.bodyparts3d/), thinned and fitted onto the
+# skier's rig, drawn inside his dressed outline (previews/xray-body.png);
+# ARGS=--write regenerates pwa/src/game/xray-model.ts.
+xray-body:
+	npm run xray-body -- $(ARGS)
 
 # THE PISTE MACHINE LAB: the free ride's night groomers photographed
 # through the game's own renderer — the figure from eight sides and up

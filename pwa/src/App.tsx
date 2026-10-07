@@ -99,6 +99,7 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
+import { createXrayRun } from "./game/xray-run.ts";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
@@ -283,6 +284,7 @@ export function App() {
       adopt: (s) => adopt(s),
       shell: () => shellRef.current,
     });
+    const xray = createXrayRun(renderer.setXray);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -441,6 +443,7 @@ export function App() {
       step(state, input);
       book.step(input, state.events);
       replays.step(input, state);
+      xray.step(state);
       for (const e of state.events) tally[e.kind] = (tally[e.kind] ?? 0) + 1;
       if (preroll) return;
       const rides = playerRides(shellRef.current);
@@ -681,10 +684,10 @@ export function App() {
 
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is the replay director's alone (`replay-shots.ts`): fewer
-      // steps per frame. A wipeout runs at full speed (`camera-death.ts`).
+      // SLOW MOTION is fewer steps a frame: the replay director's (`replay-shots.ts`) and the X-ray cam's.
+      const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
       renderer.setDeathCam(playerRides(shellRef.current));
-      const rate = replays.frame();
+      const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
       const dtRun = dtFrame * rate;
       const simAt = performance.now();
       if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
@@ -695,8 +698,7 @@ export function App() {
         // DIED (`hud-wreck.ts`): a new rider at the top once the dark is down.
         else if (playerRides(shellRef.current) && deathOver(state)) restart();
       } else {
-        // Held: the controls are still read, so a banked reset does not
-        // fire the moment the picture thaws.
+        // Held: the controls are still read, so a banked reset does not fire on the thaw.
         manager.sample(TUNING.dt);
       }
       devRig.frame(frameMs, dtFrame, performance.now() - simAt);

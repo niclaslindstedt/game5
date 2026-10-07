@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE JIBS — a RAIL or a BOX ridden (R39's rail sections, `Level.jibs`).
+// THE JIBS — a RAIL or a BOX ridden (R38's rail sections, `Level.jibs`).
 // Nothing else in the engine slides on anything but snow, and a rail is a
 // LINE, not a surface: the stations under the skis (`suspension.ts`) would
 // find the snow either side of a 8 cm pipe and nothing on it. So a jib is

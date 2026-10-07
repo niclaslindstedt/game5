@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AERIALS KICKER RIDDEN (R44): from its foot to its lip the skier is
+// THE AERIALS KICKER RIDDEN (R41): from its foot to its lip the skier is
 // carried up the kicker's curve as a bead on a wire (`jib.ts`'s way with a
 // rail), his skis on the snow and his body square to it.
 //

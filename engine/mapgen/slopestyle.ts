@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// R39 — A SLOPESTYLE COURSE BUILT OVER A BUILT MAP. A line of its own cut
+// R38 — A SLOPESTYLE COURSE BUILT OVER A BUILT MAP. A line of its own cut
 // straight down the face, as R37's jump is (`straight-venue.ts`): a start
 // platform, then SIX SECTIONS in a row — three RAIL sections, each a deck
 // at a gentle pitch with a rail and a box side by side on it, the two
@@ -189,7 +189,7 @@ export function courseSpeed(p: SlopeProfile, marks: readonly Mark[], to: number)
 
 let designed: SlopeProfile | null = null;
 
-/** THE COURSE (R39), as designed: each section's approach found in turn so
+/** THE COURSE (R38), as designed: each section's approach found in turn so
  * the skier meets it at its design speed. The same on every map. */
 export function slopestyleProfile(): SlopeProfile {
   if (designed) return designed;
@@ -212,7 +212,7 @@ export function slopestyleProfile(): SlopeProfile {
 
 const built = new WeakMap<Level, Level>();
 
-/** R39 — A SLOPESTYLE COURSE BUILT OVER `level`: the course shaped down the
+/** R38 — A SLOPESTYLE COURSE BUILT OVER `level`: the course shaped down the
  * face as the map's own `track`, its checkpoints the start gate and the
  * finish line, its spawn the start platform, its jumps' kickers among the
  * map's and its rails and boxes the map's `jibs`. A map already carrying

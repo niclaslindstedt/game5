@@ -111,16 +111,6 @@ export type RunRules = {
    * the arcade's. */
   spinMost?: number;
   flipMost?: number;
-  /** A JAM (R38's knuckle huck, `jam.ts`): no course owed, every hit ridden
-   * from the start platform to the finish line or a fall, and the skier
-   * stood back on the platform for the next, until the buzzer. Left out,
-   * a run is one way down. */
-  jam?: boolean;
-  /** BUTTERS AND PRESSES (`butter.ts`): the lean held hard on the snow
-   * presses the skis onto one end, and the edge then pivots him on it —
-   * the knuckle huck's rotation on the ground. Left out, the lean on the
-   * snow is the weight fore and aft and nothing more. */
-  butters?: boolean;
   /** THE IN-RUN RIDDEN TUCKED (`in-run.ts`): on a big air jump, from the
    * start gate to the lip, the skier holds his tuck, never brakes and
    * never sits back, whatever is pressed — the jump is built for the speed
@@ -129,7 +119,7 @@ export type RunRules = {
    * every control is. Left out, the controls are. */
   inRun?: boolean;
   /** THE AERIALS FLIGHT (`aerial-flight.ts`): in the air off an aerials
-   * kicker (R44) the lean's taps are FLIPS turned about the take-off's
+   * kicker (R41) the lean's taps are FLIPS turned about the take-off's
    * side axis, the edge's taps TWISTS turned about the body's long axis
    * inside the flip under way, and the trick button held the TUCK —
    * flown as a twisting somersault is, the flips paced to the air and the

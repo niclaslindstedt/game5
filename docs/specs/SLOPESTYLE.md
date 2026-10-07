@@ -1,6 +1,6 @@
 # Slopestyle — spec
 
-**Built in part.** The course (R39), the jibs, the mode, its pair and build,
+**Built in part.** The course (R38), the jibs, the mode, its pair and build,
 section judging, the format and the dealt field, the bot, the HUD, the
 plate, the tricks card's box and the links are built; the boxes below that
 are still open say what remains. Delete this file when slopestyle is
@@ -54,7 +54,7 @@ three, the single best run counting.
 
 ## What it needs to be complete
 
-- [x] **The course (R39)**: built straight down a built map's face as big
+- [x] **The course (R38)**: built straight down a built map's face as big
       air's jump is (`mapgen/slopestyle.ts` over `straight-venue.ts`), not
       on the piste: a platform, three rail sections (a deck at 7°, a rail
       and a box side by side on two lines 12 m apart — down, flat-down and
@@ -109,7 +109,7 @@ three, the single best run counting.
       docs are built; no course lab of its own.*
 - [x] **The pair and the build preset** (`TRICK_MODES.md` § *Research, the
       pair and the build*): the park twin-tip that both jibs and jumps — the
-      Raven (big air's) or the Hare (the rail jam's), or a pair between
+      Raven (big air's) or the Hare (the park's), or a pair between
       (*research what slopestyle athletes ride*), and the default build off
       slopestyle's athletes (big air's freeskiers, ~72 kg for men, the
       medium build, are the same riders — confirm) — rows in `RACE_SKIS` and
@@ -130,7 +130,7 @@ build, written into `docs/freestyle.md`.
       the snow it is prepared to, the speeds, the wind and light a jury
       holds for.
 - [x] **The skis**: the park twin-tip that both jibs and jumps — the Raven
-      (big air's) or the Hare (the rail jam's), or a pair between (*research
+      (big air's) or the Hare (the park's), or a pair between (*research
       what slopestyle athletes ride*).
 - [x] **The default player weight**: slopestyle's athletes (big air's
       freeskiers, ~72 kg for men, the medium build, are the same riders —

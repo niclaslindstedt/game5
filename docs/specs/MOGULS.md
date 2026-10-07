@@ -1,10 +1,9 @@
 # Moguls — draft spec
 
-**Built in part** (R42 — the course, the pair, the score, the contest, the
+**Built in part** (R40 — the course, the pair, the score, the contest, the
 bot, the HUD and the plate; what is unticked below is still open). Delete
 this file when moguls is finished
-(see `README.md`). The shared pieces are `TRICK_MODES.md`'s; dual moguls
-(`DUAL_MOGULS.md`) is built on this.
+(see `README.md`). The shared pieces are `TRICK_MODES.md`'s.
 
 ## Start here
 
@@ -43,15 +42,15 @@ this file when moguls is finished
 
 ## What was built, and what was decided
 
-- **The course** (R42, `mapgen/moguls.ts`): 235 m at **25°** — the low end
+- **The course** (R40, `mapgen/moguls.ts`): 235 m at **25°** — the low end
   of the top series' band rather than 28°, for an engine whose straight
   skid drags only ~0.35 g. Moguls **only on their course**, not on the free
   ride's mountain. Moguls 3.5 m apart and **0.7 m** crest to trough
   *(est.)*; the air bumps 0.7 m high, the take-off **35° to the slope**
   (the rules do not say against what), a 20 m landing.
 - **Moguls as terrain** (`mapgen/mogul-field.ts`): an analytic surface
-  over the venue's profile as LINES — a dual course is the same profile
-  with two lines on one rhythm (`mogulsField(p, frame, R, lines)`). The
+  over the venue's profile as LINES — one down the venue's line, or more
+  on one rhythm (`mogulsField(p, frame, R, lines)`). The
   renderer lays it as a mesh (`mogul-view.ts`); the trail map's grooves
   and the snow shader are not laid on it yet.
 - **Riding moguls**: the legs ABSORB the moguls (`game/mogul-ride.ts`) — full

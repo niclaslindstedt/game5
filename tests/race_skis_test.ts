@@ -17,7 +17,6 @@ import {
   GAME_MODES,
   SKI_CROSS,
   SLALOM,
-  RAIL_JAM,
   SLOPESTYLE,
   SPEED_SKI,
   SUPER_G,
@@ -35,19 +34,13 @@ const CLASS = {
   skiCross: "Ski cross",
   speedSki: "Speed ski",
   bigAir: "Big air",
-  // The knuckle huck's field rides the park's soft twin-tip.
-  knuckleHuck: "Park",
   // Slopestyle rides the same stiff competition twin-tip as big air.
   slopestyle: "Big air",
-  // The rail jam's jib skiers ride the park's soft twin-tip too.
-  railJam: "Park",
   // The halfpipe rides the stiff competition twin-tip too: a pipe ski is
   // firm and about 85–90 mm underfoot.
   halfpipe: "Big air",
   // Moguls ride the mogul ski: short, narrow, straight, soft at the tip.
   moguls: "Moguls",
-  // Dual moguls: the same skiers on the same mogul ski.
-  dualMoguls: "Moguls",
   // Aerials ride the aerials ski: short, narrow, light and straight.
   aerials: "Aerials",
 } as const;
@@ -72,10 +65,8 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("speedSki")).toBe(SPEED_SKI.skis);
     expect(raceSkisOf("bigAir")).toBe(BIG_AIR.skis);
     expect(raceSkisOf("slopestyle")).toBe(SLOPESTYLE.skis);
-    expect(raceSkisOf("railJam")).toBe(RAIL_JAM.skis);
     expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
     expect(raceSkisOf("moguls")).toBe(MOGULS.skis);
-    expect(raceSkisOf("dualMoguls")).toBe(MOGULS.skis);
     expect(raceSkisOf("aerials")).toBe(AERIALS.skis);
   });
 

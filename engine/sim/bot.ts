@@ -49,7 +49,6 @@ import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
 import { downhillSteer, steerOf } from "./downhill-steer.ts";
 import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
-import { railJamInput } from "./rail-jam-steer.ts";
 import { halfpipeInput } from "./halfpipe-steer.ts";
 import { mogulsInput } from "./moguls-steer.ts";
 import { packedUnder } from "../game/snow.ts";
@@ -58,9 +57,6 @@ import { TUNING } from "../game/defs/tuning.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
 
 export type BotProfile = {
-  /** The speed a MOGUL line is skied at, m/s (`moguls-steer.ts`'s own
-   * hold when left out) — a dual's rival's (`duel.ts`). */
-  mogulPace?: number;
   /** How far ahead along the piste the aim point stands, m, at rest, and
    * how many more metres per m/s of speed. */
   lookBase: number;
@@ -644,17 +640,14 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // nothing else.
   const straight = speedSkiInput(state, on);
   if (straight) return straight;
-  // DOWN A SLOPESTYLE COURSE (R39): its lines, its jibs and its jumps.
+  // DOWN A SLOPESTYLE COURSE (R38): its lines, its jibs and its jumps.
   const slope = slopestyleInput(state, on);
   if (slope) return slope;
-  // A RAIL JAM'S SET (R40): a feature a hit.
-  const rails = railJamInput(state, on);
-  if (rails) return rails;
-  // A HALFPIPE (R41): wall to wall, a trick a hit.
+  // A HALFPIPE (R39): wall to wall, a trick a hit.
   const pipe = halfpipeInput(state, on);
   if (pipe) return pipe;
-  // A MOGULS COURSE (R42): a turn a mogul, a trick an air bump.
-  const bumps = mogulsInput(state, on, profile.mogulPace);
+  // A MOGULS COURSE (R40): a turn a mogul, a trick an air bump.
+  const bumps = mogulsInput(state, on);
   if (bumps) return bumps;
   const cps = level.checkpoints;
   const L = level.track.length;

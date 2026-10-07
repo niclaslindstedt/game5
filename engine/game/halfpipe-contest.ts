@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A HALFPIPE CONTEST (R41), pure: the format the freestyle rules give it,
+// A HALFPIPE CONTEST (R39), pure: the format the freestyle rules give it,
 // carried between the runs of one contest as `GameState.halfpipe`
 // (`CreateGameOptions.halfpipe`), as big air carries its contest.
 //

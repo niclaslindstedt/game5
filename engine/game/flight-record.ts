@@ -2,7 +2,6 @@
 // A FLIGHT AS IT ENDED (`tricks.ts`), stated beside `state.ts` — which
 // re-exports it — so the state's file stays under its cap.
 
-import type { ButterRecord } from "./butter-state.ts";
 import type { TrickPose } from "./state.ts";
 
 /** ONE FLIGHT AS IT ENDED: its number in the run, the turns it made on
@@ -25,14 +24,11 @@ export type FlightRecord = {
   landing: number | null;
   outcome: "landed" | "sketchy" | "fell";
   t: number;
-  /** The press he left the snow in, on a run with butters — null or left
-   * out for none. */
-  butter?: ButterRecord | null;
   /** Where it left the snow (or a jib), m — what a judge reads to tell
    * which feature it was thrown off. */
   x?: number;
   z?: number;
-  /** Off a PIPE'S wall (R41, `pipe-air.ts`'s `pipeHit`): which wall, how
+  /** Off a PIPE'S wall (R39, `pipe-air.ts`'s `pipeHit`): which wall, how
    * high over its coping and where on the snow it came down. */
   pipe?: PipeHit;
 };

@@ -54,8 +54,7 @@ export type JumpProfile = {
 };
 
 /** The profile with a drop-in `run` m long at its full angle, to rule `R`
- * (R37's, or R38's with no kicker: the deck runs on to the knuckle and the
- * lip IS the knuckle). */
+ * (R37's). */
 function shape(run: number, R: JumpRule): JumpProfile {
   const pen = createPen(0.25);
   pen.straight(R.platform, 0);
@@ -67,19 +66,14 @@ function shape(run: number, R: JumpRule): JumpProfile {
   const foot = pen.x;
   const yFoot = pen.y;
   const kick = R.kick * RAD;
-  if (R.kicker > 0) pen.bend(-kick, R.kicker);
+  pen.bend(-kick, R.kicker);
   const lip = pen.x;
   const yLip = pen.y;
-  if (R.table > 0) pen.straight(R.table, 0);
+  pen.straight(R.table, 0);
   const knuckle = pen.x;
-  // A LANDING LAID AT ONE GRADE (R38): the knuckle rounded over onto it.
-  if (R.slope > 0) {
-    pen.bend(R.steepest * RAD, R.knuckle);
-    pen.straight(R.slope, R.steepest * RAD);
-  }
   // THE LANDING, shaped by the equivalent fall height until a skier
   // `bigAir.fast` times the design speed has come down on it.
-  if (R.slope === 0) shapeLanding(pen, R, lip, yLip);
+  shapeLanding(pen, R, lip, yLip);
   const landing = pen.x;
   pen.bend(R.outrun.grade * RAD, R.round);
   const outrun = pen.x;
@@ -101,7 +95,7 @@ function shape(run: number, R: JumpRule): JumpProfile {
 }
 
 /** The speed, m/s, the rule's skier carries tucked from the start gate to
- * the lip of `p` (on a knuckle, to the knuckle). */
+ * the lip of `p`. */
 export function lipSpeed(
   p: Pick<JumpProfile, "dx" | "y" | "gate" | "lip" | "finish" | "end">,
   R: Pick<JumpRule, "skier"> = B,
@@ -126,7 +120,7 @@ export function lipSpeed(
 
 const designed = new Map<JumpRule, JumpProfile>();
 
-/** THE JUMP (R37, or R38's knuckle), as designed: the drop-in's length
+/** THE JUMP (R37), as designed: the drop-in's length
  * found so the rule's skier reaches the lip at its design speed. The same
  * on every map. */
 export function jumpProfile(R: JumpRule = B): JumpProfile {
@@ -144,24 +138,16 @@ export function jumpProfile(R: JumpRule = B): JumpProfile {
   return p;
 }
 
-const built = new WeakMap<JumpRule, WeakMap<Level, Level>>();
+const built = new WeakMap<Level, Level>();
 
-/** Which jump a rule builds: R37's big air jump, or R38's knuckle. */
-type JumpKind = "bigAir" | "knuckleHuck";
-
-/** A jump of `kind` to rule `R` over `level`, kept per map and rule. */
-function setJump(level: Level, R: JumpRule, kind: JumpKind): Level {
-  if (level[kind]) return level;
+/** A jump to rule `R` over `level`, kept per map. */
+function setJump(level: Level, R: JumpRule): Level {
+  if (level.bigAir) return level;
   const original = originalOf(level);
-  let kept = built.get(R);
-  if (!kept) {
-    kept = new WeakMap();
-    built.set(R, kept);
-  }
-  let jump = kept.get(original);
+  let jump = built.get(original);
   if (!jump) {
-    jump = buildOver(original, R, kind);
-    kept.set(original, jump);
+    jump = buildOver(original, R);
+    built.set(original, jump);
   }
   return jump.sun === level.sun && jump.weather === level.weather
     ? jump
@@ -176,33 +162,24 @@ function setJump(level: Level, R: JumpRule, kind: JumpKind): Level {
  * stands on the jump the renderer already built. The jump keeps the day
  * and the sky of the map it was built over. */
 export function setBigAir(level: Level): Level {
-  return setJump(level, B, "bigAir");
-}
-
-/** R38 — A KNUCKLE BUILT OVER `level`, as `setBigAir` builds its jump: a
- * drop-in onto a deck, and the knuckle at its end the take-off — published
- * as the map's one kicker (`KH`), its ramp the deck, so a trick set up
- * along the deck is thrown off the knuckle (`strokes.ts`). */
-export function setKnuckleHuck(level: Level): Level {
-  return setJump(level, TRICK_RULES.knuckleHuck, "knuckleHuck");
+  return setJump(level, B);
 }
 
 /** The jump over `original`, a map with no course on it. */
-function buildOver(original: Level, R: JumpRule, kind: JumpKind): Level {
+function buildOver(original: Level, R: JumpRule): Level {
   const p = jumpProfile(R);
-  const knuckled = kind === "knuckleHuck";
   // THE KICKER, as every reader of a kicker knows one: its lip, its ramp
   // and its built landing — what arms a trick thrown up its ramp
   // (`strokes.ts`).
   const v = gradeVenue(original, p, R, ({ fit, fx, fz, yAt }): Kicker[] => [
     {
-      id: knuckled ? "KH" : "BA",
+      id: "BA",
       x: fit.x + fx * p.lip,
       z: fit.z + fz * p.lip,
       y: yAt(p.lip),
       heading: fit.heading,
       height: p.height,
-      ramp: knuckled ? R.flat : p.lip - p.foot,
+      ramp: p.lip - p.foot,
       landing: p.outrun - p.lip,
       width: R.width,
       onTrack: true,
@@ -243,5 +220,5 @@ function buildOver(original: Level, R: JumpRule, kind: JumpKind): Level {
     speed: R.speed,
     width: R.width,
   };
-  return { ...level, checkpoints: [start, finish], spawn, grid: [spawn], [kind]: course };
+  return { ...level, checkpoints: [start, finish], spawn, grid: [spawn], bigAir: course };
 }

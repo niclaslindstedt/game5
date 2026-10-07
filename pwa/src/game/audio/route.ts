@@ -340,10 +340,6 @@ export function soundForEvent(
       return event.sketchy ? null : { id: "lap" };
     case "bail":
       return { id: "missed" };
-    // A KNUCKLE HUCK's hit called at the line: the lap's phrase for one
-    // ridden away; a fall is heard as the wipeout it was.
-    case "jam":
-      return event.fell ? null : { id: "lap" };
 
     // A JIB (`jib.ts`): the skis' bases met by the steel or the plastic —
     // the pole's clack pitched down to a rail's ring or a box's knock — and

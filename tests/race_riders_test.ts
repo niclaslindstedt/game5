@@ -38,13 +38,9 @@ describe("a race's own build", () => {
     expect(raceRiderOf("bigAir")).toBe("medium");
     // Slopestyle: the same field, the same build.
     expect(raceRiderOf("slopestyle")).toBe("medium");
-    // The rail jam: the same park field, nothing on a rail paid for weight.
-    expect(raceRiderOf("railJam")).toBe("medium");
     expect(raceRiderOf("halfpipe")).toBe("medium");
     // Moguls: a top field's men ~73 kg on 178 cm, the medium build.
     expect(raceRiderOf("moguls")).toBe("medium");
-    // Dual moguls: the same field, the same build.
-    expect(raceRiderOf("dualMoguls")).toBe("medium");
     // Aerials: national squads' men ~69 kg on 175 cm and women ~56 kg on
     // 160 cm, the light build.
     expect(raceRiderOf("aerials")).toBe("light");

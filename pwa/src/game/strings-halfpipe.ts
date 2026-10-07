@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WORDS OF THE HALFPIPE (R41) — a block of the one strings table
+// THE WORDS OF THE HALFPIPE (R39) — a block of the one strings table
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
 // the same names: the freestyle card's row, the trick map card's billing,
 // the run on the HUD and the plate. A hit's trick is called by big air's

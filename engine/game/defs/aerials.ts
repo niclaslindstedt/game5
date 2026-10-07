@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AERIALS' NUMBERS — the contest (R44 builds its site; the format is
+// THE AERIALS' NUMBERS — the contest (R41 builds its site; the format is
 // `aerials-contest.ts`'s, the formal score `aerials-judge.ts`'s and the
 // flight `aerial-flight.ts`'s), from `docs/freestyle.md` § *Aerials*.
 // Stated beside `modes.ts`, which re-exports them, so the modes' file stays
@@ -42,7 +42,7 @@ export const AERIALS = {
   plan: "bLF",
 } as const;
 
-/** AERIALS as a jumper is dealt them (R44): one jumper on the site, the
+/** AERIALS as a jumper is dealt them (R41): one jumper on the site, the
  * start official's count and the start clock, the strict gates (a fall a
  * DID NOT FINISH), the real g in flight, the in-run ridden straight and
  * tucked to the kicker (`in-run.ts`), and the air flown as twisting flips

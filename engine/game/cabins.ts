@@ -107,7 +107,7 @@ function linesOf(level: Level): Line[] {
   return [{ id: "piste", road: false, track: level.track }];
 }
 
-/** Whether a venue is set over the map (R31–R39): its course is then
+/** Whether a venue is set over the map (R31–R38): its course is then
  * `level.track`, and kept further from. */
 function hasVenue(level: Level): boolean {
   return !!(
@@ -118,7 +118,6 @@ function hasVenue(level: Level): boolean {
     level.speedSki ||
     level.skiCross ||
     level.bigAir ||
-    level.knuckleHuck ||
     level.slopestyle
   );
 }

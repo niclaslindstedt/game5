@@ -7,7 +7,16 @@
 
 import { describe, expect, it } from "vitest";
 
-import { LIFT_LOOK, liftPlans, planLift, ropeAt, ropeShortfall, type Lift } from "@engine";
+import {
+  LIFT_LOOK,
+  TOWER_SITE,
+  liftPlans,
+  pisteGap,
+  planLift,
+  ropeAt,
+  ropeShortfall,
+  type Lift,
+} from "@engine";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 
@@ -36,10 +45,39 @@ describe("a lift's plan", () => {
         expect(s.rope).toBeGreaterThan(0);
       }
       for (let i = 1; i < plan.supports.length; i++) {
-        const span = plan.supports[i].u - plan.supports[i - 1].u;
-        expect(span).toBeLessThanOrEqual(plan.look.spacing * 1.5 + 24);
+        const a = plan.supports[i - 1];
+        const b = plan.supports[i];
+        const span = b.u - a.u;
+        expect(span).toBeLessThanOrEqual(plan.look.spacing * TOWER_SITE.span + TOWER_SITE.slide);
+        if (span <= plan.look.spacing * 1.5 + 24) continue;
+        // Longer only where the line spans a run.
+        let crosses = false;
+        for (let t = 0.05; t < 1 && !crosses; t += 0.05) {
+          crosses = pisteGap(level, a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t) < 0;
+        }
+        expect(crosses, `${lift.id} ${a.u}–${b.u}`).toBe(true);
       }
     }
+  });
+
+  it("stands its towers off the runs, and pads any left on or beside one", () => {
+    let towers = 0;
+    let on = 0;
+    for (const seed of LEVEL_SEEDS) {
+      const map = levelFor(seed);
+      for (const plan of liftPlans(map)) {
+        for (const s of plan.supports) {
+          if (s.station) continue;
+          towers++;
+          const gap = pisteGap(map, s.x, s.z) - plan.look.column;
+          if (gap < 0) on++;
+          // Padded exactly where it stands near a run's edge.
+          expect(s.pad === true, `${seed} ${plan.lift.id} ${s.u}`).toBe(gap < TOWER_SITE.pad);
+        }
+      }
+    }
+    // A line run down a run too long to span is all that leaves one there.
+    expect(on / towers).toBeLessThan(0.02);
   });
 
   it("hangs every carrier clear of the snow to the wheels, as R26's check asks of the ruled rope", () => {

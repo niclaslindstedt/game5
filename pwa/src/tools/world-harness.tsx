@@ -32,7 +32,7 @@ import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
-import { cabinView } from "./cabin-view.ts";
+import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
@@ -828,12 +828,10 @@ const shots: Record<string, () => string> = {
     ]),
   ),
   ...Object.fromEntries(
-    (
-      ["gate", "hut", "finish", "cabin", "cabin-2", "cabin-3", "cabin-near", "cabins-air"] as const
-    ).map((name) => [
+    (["gate", "hut", "finish", ...SITE_VIEWS] as const).map((name) => [
       name,
       () => {
-        const view = name.startsWith("cabin")
+        const view = SITE_VIEWS.includes(name as never)
           ? cabinView(level, name)
           : markView(level, name as "gate");
         if (!view) return "none on this map";

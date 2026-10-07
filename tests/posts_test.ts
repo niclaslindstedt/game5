@@ -68,7 +68,7 @@ describe("the floodlight masts", () => {
 describe("the lift towers", () => {
   const level = levelFor(LEVEL_SEEDS[1]);
 
-  it("stand every support of every lift as a post of its column's girth", () => {
+  it("stand every support of every lift as a post of its column's girth, or its pad's", () => {
     const plans = liftPlans(level);
     expect(plans.length).toBeGreaterThan(0);
     const posts = postsOf(level);
@@ -76,7 +76,9 @@ describe("the lift towers", () => {
       for (const s of plan.supports) {
         const post = posts.find((p) => p.x === s.x && p.z === s.z);
         expect(post, `${plan.lift.id} at ${s.u.toFixed(0)} m`).toBeDefined();
-        expect(post!.radius).toBe(plan.look.column);
+        // A padded tower is met on its pad, wider than the steel.
+        if (s.pad) expect(post!.radius).toBeGreaterThan(plan.look.column);
+        else expect(post!.radius).toBe(plan.look.column);
         expect(post!.height).toBe(s.rope);
       }
     }

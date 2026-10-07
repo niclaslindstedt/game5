@@ -28,7 +28,7 @@ import {
   grimbearAgain,
 } from "../pwa/src/game/free-ride.ts";
 import { freshGrimbearPose, grimbearPose } from "../pwa/src/game/grimbear-pose.ts";
-import { SKIS } from "@engine";
+import { SKIS, lostPiece } from "@engine";
 
 /** The SLOPE with one trunk 9 m beside the straight below the bend. */
 const TREE = { x: SLOPE.x + 9, z: 700 };
@@ -40,13 +40,13 @@ function woods(): Level {
   return level;
 }
 
-function ride(ask?: "hunt" | "roam"): GameState {
-  return createGame({ level: woods(), mode: "free", quiet: true, grimbear: ask, crowd: 0 });
+function ride(ask?: "hunt" | "roam", gore = false): GameState {
+  return createGame({ level: woods(), mode: "free", quiet: true, grimbear: ask, crowd: 0, gore });
 }
 
 /** A hunt whose every run lands (or misses) — the burst's draw decided. */
-function rigged(lands: boolean): GameState {
-  const state = ride("hunt");
+function rigged(lands: boolean, gore = false): GameState {
+  const state = ride("hunt", gore);
   state.grimbear!.rng.chance = () => !lands;
   return state;
 }
@@ -135,6 +135,18 @@ describe("the hunt", () => {
     expect(state.skier.thrown?.cause).toBe("maul");
     expect(b.hunt).toBe(false);
     expect(b.top).toBe(true);
+  });
+
+  it("tears the skier in two, on a run with the injuries on, and kills him", () => {
+    const state = rigged(true, true);
+    state.grimbear!.wait = 0;
+    glide(state, 620, 15, 8);
+    expect(state.skier.thrown?.cause).toBe("maul");
+    step(state, NEUTRAL_INPUT);
+    expect(lostPiece(state.gore, "lower")).toBe(true);
+    expect(lostPiece(state.gore, "legL")).toBe(true);
+    expect(state.gore!.cause).toBe("maul");
+    expect(state.gore!.dead).toBeGreaterThanOrEqual(0);
   });
 
   it("catches a skier going flat out too", () => {

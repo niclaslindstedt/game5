@@ -56,6 +56,7 @@ import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
+import { createGoreView, type GoreView } from "./gore-view.ts";
 import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
@@ -239,6 +240,8 @@ export function createWorldRenderer(
   let trail: TrailMap | null = null;
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
+  /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
+  let gore: GoreView | null = null;
   /** WHAT SNOW LIES WHERE for this run (`snowpack.ts`), a lab's forced
    * kind, and the samples every reader takes of it — each read at once. */
   let pack: Snowpack | null = null;
@@ -333,6 +336,7 @@ export function createWorldRenderer(
     wildlife?.dispose();
     crowd?.dispose();
     machines?.dispose();
+    gore?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -344,6 +348,7 @@ export function createWorldRenderer(
       wildlife?.group,
       crowd?.group,
       machines?.group,
+      gore?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -351,7 +356,7 @@ export function createWorldRenderer(
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
-    cloud = machines = null;
+    cloud = machines = gore = null;
     pack = null;
     wildlife = crowd = null;
     clear = undefined;
@@ -670,6 +675,11 @@ export function createWorldRenderer(
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
         if (skier.airborne) r.vy = skier.vy;
       }
+      if (state.gore && !gore) {
+        gore = createGoreView(level, wrap);
+        scene.add(gore.group);
+      }
+      gore?.update(state, riders[0].model, simDt, dt);
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);

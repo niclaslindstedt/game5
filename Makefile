@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -466,6 +466,17 @@ para-wind:
 # Chromium like `world`. ARGS="--sheet=kill,moves", "--views=stride".
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
+# skied into a trunk, flown into one head first, thrown onto the snow, onto
+# his feet, onto a tree's top or a post's, caught by the grimbear — frame by
+# frame through the game's own renderer, with the blood spurting on the
+# beat and the snow red under him. One contact sheet a group,
+# previews/gore-<group>.png, and every frame alone. Its own one-off bundle
+# from pwa/gore-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=trunk,blood", "--views=spray".
+gore:
+	npm run gore -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE PISTE MACHINE LAB: the free ride's night groomers photographed
 # through the game's own renderer — the figure from eight sides and up

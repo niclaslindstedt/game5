@@ -37,6 +37,7 @@ import {
 import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
+import { holdsHim, stepGore } from "./gore.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { aerialInput, stepAerial } from "./aerial-flight.ts";
 import { stepKicker } from "./aerial-kicker.ts";
@@ -125,7 +126,7 @@ export function stepRun(
   // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
   if (stepAfterski(run, input, events)) return;
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
-  if (input.reset && racing && (!player || mayGetUp(run.skier.thrown))) {
+  if (input.reset && racing && (!player || mayGetUp(run.skier.thrown)) && !holdsHim(run)) {
     standUp(run, events, false);
     return;
   }
@@ -224,6 +225,8 @@ export function stepRun(
   takeDamage(run, events);
   // THE BODY (`body.ts`): what the blows of this step did to him.
   stepBody(run, events, off);
+  // ...and on a run that asked for them, the wounds it does not survive.
+  if (player) stepGore(run, events);
   // THE RUN'S AIR RECORD, off the landing the skier has just reported.
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
@@ -252,7 +255,7 @@ export function stepRun(
     // burning, which stands him up on its pad when it is done (`heli.ts`).
     // Buzzed on a free ride, he gets up where he lies and fetches his skis
     // instead (`buzz.ts`).
-    if (crashOver(off, player) && !heliDown(run)) {
+    if (crashOver(off, player) && !heliDown(run) && !holdsHim(run)) {
       if (player && fetchesSkis(run)) getUp(run, off, events);
       else standUp(run, events, true);
     }

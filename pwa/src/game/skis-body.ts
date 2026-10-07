@@ -76,6 +76,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import { fetchMove, movePose } from "./party-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
@@ -182,6 +183,19 @@ export type SkisModel = {
    * (`setGround`), the technique he carries himself by and the gate he
    * owes (`technique-pose.ts`). Without one he rides as the free skier. */
   setRun(run: GameState | null): void;
+  /** HIS BODY TORN APART (`gore.ts`): the pieces lost (a bit each in
+   * `GORE_PIECES`' order) and the skull crushed, 0 … 1 — read at the next
+   * pose of a thrown body (`gore-cut.ts`). */
+  setGore(lost: number, crush: number): void;
+  /** His dressed skin as last posed: its bones' frames in its own group's
+   * frame, that group (whose world matrix places them) and its cloth — what
+   * the torn pieces are drawn off (`gore-view.ts`). */
+  skin(): {
+    frames: Record<SkierBone, BoneFrame>;
+    group: THREE.Object3D;
+    dress: SkierDress;
+    cloth: THREE.BufferGeometry;
+  };
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
   lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
@@ -496,6 +510,9 @@ export function createSkisModel(
     return g;
   });
 
+  // HIS BODY TORN APART (`setGore`).
+  let goreLost = 0;
+  let goreCrush = 0;
   const toRoot = new THREE.Quaternion();
   const thrown = new THREE.Quaternion();
   // The skis let go: each one's place in the world, the root's inverse,
@@ -637,7 +654,7 @@ export function createSkisModel(
         );
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
-        figure.sprawl(p);
+        figure.sprawl(p, goreLost, goreCrush);
         bound.radius = BOUND + figure.group.position.length();
       } else if (afoot) {
         // Laid in the root's own frame (stood upright, facing the way he
@@ -769,6 +786,16 @@ export function createSkisModel(
       run = next;
       fall = next ? { ground: next.level, gravity: flightGravity(next.rules) } : null;
     },
+    setGore(lost, crush) {
+      goreLost = lost;
+      goreCrush = crush;
+    },
+    skin: () => ({
+      frames: figure.dressed.last(),
+      group: figure.dressed.group,
+      dress: style.skier,
+      cloth: figure.dressed.cloth,
+    }),
     setSkierVisible(v) {
       if (figure.group.visible === v) return;
       figure.group.visible = v;

@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { GoreEvent, GoreState } from "./gore-state.ts";
 import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
@@ -658,26 +659,24 @@ export type GameEvent =
       radius?: number;
       post?: true;
     }
-  /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
-   * which, and how near it came, 0..1. */
+  /** A SAVE (`crash.ts`): a near throw ridden out — which, how near, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
   | AfterskiEvent
   | GroomerEvent
+  | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }
-  /** A ski or the legs have taken a blow worth saying (`damage.ts`):
-   * which, and how bad it now is, 0..1. */
+  /** A ski or the legs blown (`damage.ts`): which, and how bad now, 0..1. */
   | { kind: "damage"; t: number; part: DamagePart; level: number }
   /** AN INJURY TAKEN (`body.ts`): the part, which, its AIS rank. */
   | { kind: "injury"; t: number; part: BodyPart; injury: InjuryKind; ais: number }
   /** Another skier — the player's own contact with rival `rival`, or (with
    * `rival` −1) with amateur `amateur` of the crowd (`crowd.ts`). */
   | { kind: "bump"; t: number; rival: number; speed: number; amateur?: number }
-  /** A gate taken: its index, the run it was taken on (always 0), and the
-   * clock. */
+  /** A gate taken: its index, the run it was taken on (always 0), the clock. */
   | { kind: "checkpoint"; t: number; index: number; lap: number; split: number }
   /** A gate skied past without being taken. */
   | { kind: "missed"; t: number; index: number; penalty?: number }
@@ -935,9 +934,10 @@ export type GameState = ContestState & {
   /** The arcade's help (`Assist`), 0..1 per hand; the field always rides
    * with every hand on. */
   assist: Assist;
-  /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the
-   * player's option, off unless asked for; a rival never takes damage. */
+  /** Whether blows dull an edge or hurt the legs (`damage.ts`): the player's option. */
   damage?: boolean;
+  /** THE PLAYER'S MORTAL WOUNDS (`gore.ts`), on a run that asked for them. */
+  gore?: GoreState;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */

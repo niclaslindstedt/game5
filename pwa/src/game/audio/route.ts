@@ -246,6 +246,24 @@ export function soundForEvent(
       };
     }
 
+    // A MORTAL WOUND (`gore.ts`): the body coming apart, the skull, a
+    // spike. DEATH says nothing of its own: the heart's last beats are the
+    // `heartbeat` the app plays off the run, and then nothing.
+    case "gore":
+      return {
+        id:
+          event.what === "torn"
+            ? "gore_torn"
+            : event.what === "crush"
+              ? "gore_crush"
+              : event.what === "open"
+                ? "gore_open"
+                : "gore_impaled",
+        shape: { gain: 1.1, pitch: 1, stretch: 1 },
+      };
+    case "death":
+      return null;
+
     case "bump": {
       const hard = ramp(event.speed, 1, HIT_FULL);
       return {

@@ -18,7 +18,9 @@
 import * as THREE from "three";
 
 import { gearOf } from "./outfit.ts";
-import { createDressed, type SkierDress } from "./skier-dress.ts";
+import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
+import { bodyCollapse } from "./gore-cut.ts";
+import { skierBones } from "./skier-rig.ts";
 import { skierPose, type SkierPose, type SkierPoseInput, type V3 } from "./skier-pose.ts";
 import { seatedPose, type Seat } from "./skier-seat.ts";
 
@@ -37,8 +39,12 @@ export type SkierFigure = {
   pose(input: SkierPoseInput, seat?: Seat | null): void;
   /** Pose him THROWN, off the engine's ragdoll (`ragdollPose`): the poles
    * let go, every limb where the physics has it. The caller places and
-   * turns the group. */
-  sprawl(pose: SkierPose): void;
+   * turns the group. A body torn apart (`gore.ts`) is drawn with the
+   * pieces it lost `lost` cut out of its skin and its skull crushed
+   * `crush` (`gore-cut.ts`). */
+  sprawl(pose: SkierPose, lost?: number, crush?: number): void;
+  /** The dressed skin itself — its bones' last frames and its cloth. */
+  dressed: Dressed;
   dispose(): void;
 };
 
@@ -174,8 +180,11 @@ export function createSkier(
 
   /** Hang the figure on a pose's points — `free`, off the skis, with the
    * poles let go. */
-  function lay(p: SkierPose, free = false): void {
-    dressed.pose(p);
+  function lay(p: SkierPose, free = false, lost = 0, crush = 0): void {
+    if (lost || crush) {
+      const frames = skierBones(p);
+      dressed.frames(frames, bodyCollapse(lost, crush, frames));
+    } else dressed.pose(p);
     for (let i = 0; i < 2; i++) {
       const at = p.poles?.[i] ?? null;
       poleMeshes[i].visible = !free && at !== null;
@@ -186,6 +195,8 @@ export function createSkier(
         hang(poleMeshes[i], at, p.hands[i], outward);
       }
     }
+    // The head torn off (`GORE_PIECES[0]`) takes the lamp on its helmet.
+    headGroup.visible = !(lost & 1);
     headGroup.position.set(p.head.x, p.head.y, p.head.z);
     // The head held nearer level than the shoulders — a skier looks down
     // the hill out of a tuck — and turned a little into the turn (as the
@@ -200,9 +211,10 @@ export function createSkier(
     pose(input, seat = null) {
       lay(seat ? seatedPose(input, seat) : skierPose(input));
     },
-    sprawl(pose) {
-      lay(pose, true);
+    sprawl(pose, lost = 0, crush = 0) {
+      lay(pose, true, lost, crush);
     },
+    dressed,
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

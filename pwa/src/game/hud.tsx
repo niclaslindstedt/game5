@@ -64,6 +64,8 @@ import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
+import { wreckOf } from "./hud-wreck.ts";
+import { DeathCard, WreckGlass } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
@@ -186,12 +188,18 @@ export function Hud({
       {lever === "right" && leverZone}
     </div>
   );
+  // THE GLASS TAKING HIS BLOWS, and his death (`hud-wreck.ts`): only
+  // where his injuries are drawn at all.
+  const wreck = injuries
+    ? wreckOf(snap.body.severity, snap.body.blow, snap.died?.since ?? null)
+    : null;
   if (bare) {
     return (
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
         <div class="hud-topright">
           <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
         </div>
+        {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
         {thumbs}
       </div>
     );
@@ -201,7 +209,18 @@ export function Hud({
       class="hud"
       data-air={snap.airTime > 0 ? "1" : undefined}
       data-finished={snap.finished ? "1" : undefined}
-      style={{ "--hud-dark": String(snap.dark) }}
+      data-wreck={wreck ? "1" : undefined}
+      data-jolt={wreck && wreck.jolt > 0 ? String(wreck.joltId % 2) : undefined}
+      style={{
+        "--hud-dark": String(snap.dark),
+        ...(wreck
+          ? {
+              "--hud-jolt": wreck.jolt.toFixed(3),
+              "--hud-bend": wreck.bend.toFixed(2),
+              "--hud-fall": wreck.fall.toFixed(3),
+            }
+          : {}),
+      }}
       data-touch={touch ? "1" : undefined}
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
@@ -651,6 +670,9 @@ export function Hud({
           </div>
         </div>
       )}
+
+      {wreck && <WreckGlass wreck={wreck} />}
+      {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
 
       {thumbs}
     </div>

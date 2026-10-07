@@ -5,6 +5,7 @@ import "./styles.css";
 import "./campaign.css";
 import "./dev.css";
 import "./body.css";
+import "./wreck.css";
 import "./heli.css";
 import "./sled.css";
 import "./afterski.css";

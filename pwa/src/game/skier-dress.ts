@@ -17,13 +17,22 @@ import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
 import type { Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
-import { SKIER_BONES, skierBones, type BoneFrame } from "./skier-rig.ts";
+import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
+import type { Collapse } from "./gore-cut.ts";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
   group: THREE.Group;
   meshes: THREE.SkinnedMesh[];
-  pose(p: SkierPose): void;
+  pose(p: SkierPose, cut?: Collapse | null): void;
+  /** Posed off bone frames handed in whole (a piece torn off,
+   * `gore-view.ts`), each in the group's frame. */
+  frames(f: Record<SkierBone, BoneFrame>, cut?: Collapse | null): void;
+  /** The frames of the last pose, in the group's frame. */
+  last(): Record<SkierBone, BoneFrame>;
+  /** The cloth's vertex colours, the bind pose's positions and its weights
+   * — what a wound soaks red (`gore-view.ts`). */
+  cloth: THREE.BufferGeometry;
   dispose(): void;
 };
 
@@ -128,13 +137,34 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     return m;
   });
 
+  let lastFrames = bind;
+  const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
+    lastFrames = frames;
+    SKIER_BONES.forEach((name, i) => {
+      const b = bones[i];
+      setBone(b, frames[name]);
+      const at = cut?.bones.get(name);
+      if (at) {
+        b.position.set(at.x, at.y, at.z);
+        b.scale.setScalar(1e-4);
+      } else if (name === "head" && cut?.crush) {
+        const k = cut.crush;
+        b.scale.set(1 + 0.35 * k, 1 - 0.45 * k, 1 + 0.25 * k);
+      } else b.scale.setScalar(1);
+    });
+  };
+
   return {
     group,
     meshes,
-    pose(p) {
-      const frames = skierBones(p);
-      SKIER_BONES.forEach((name, i) => setBone(bones[i], frames[name]));
+    pose(p, cut) {
+      lay(skierBones(p), cut);
     },
+    frames(f, cut) {
+      lay(f, cut);
+    },
+    last: () => lastFrames,
+    cloth: geos[0],
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

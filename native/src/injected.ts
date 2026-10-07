@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// JavaScript injected into the game WebView. Five jobs, all invisible to the
-// game's own code — the first four run on their own as the page loads, the
-// fifth is fired at it by the shell when the phone does something the page
+// JavaScript injected into the game WebView. Six jobs, all invisible to the
+// game's own code — the first five run on their own as the page loads, the
+// last is fired at it by the shell when the phone does something the page
 // cannot see:
 //
 //  1. NATIVE_FLAG — names this shell to the page BEFORE the game boots, on
@@ -13,6 +13,10 @@
 //     new version is ready" card to show — a player updates by downloading a
 //     new build, never by an in-page reload. Frozen, so nothing on the page
 //     can later claim to be a browser.
+//
+//  1b. contentFlag — tells the page, the same way and at the same moment,
+//     what the device's content setting is (a parental control, or the
+//     owner's own filter), so the injuries are hidden from the first frame.
 //
 //  2. RUMBLE_BRIDGE — carry the page's vibration asks out to the phone's own
 //     haptics. The website decides what is felt and how big it is
@@ -57,6 +61,31 @@ export const NATIVE_FLAG = `(function () {
   } catch (e) {}
   true;
 })();`;
+
+/** What the device says about sensitive content (`src/content-filter.ts`):
+ * a parental control, or the owner's own filter. `ShellContent` in
+ * `pwa/src/shell-host.ts`, restated because neither file can import the
+ * other. */
+export type ContentWord = "child" | "filtered";
+
+/** THE DEVICE'S CONTENT WORD, defined before the page's own scripts as a
+ * frozen global beside the shell's name — `SHELL_CONTENT_GLOBAL` in
+ * `pwa/src/shell-host.ts`, held by `tests/shell_test.ts`. Nothing at all
+ * when the device said nothing, so the page reads the same as in a browser. */
+export function contentFlag(word: ContentWord | null): string {
+  if (word === null) return "";
+  return `(function () {
+  try {
+    Object.defineProperty(window, "__SH_CONTENT__", {
+      value: ${JSON.stringify(word)},
+      writable: false,
+      configurable: false,
+      enumerable: false,
+    });
+  } catch (e) {}
+  true;
+})();`;
+}
 
 /** Listens for the page's rumble asks and posts each one to the shell. The
  * event's name and its two fields are `SHELL_RUMBLE` in

@@ -29,6 +29,29 @@ export function shellHost(): ShellHost | null {
   return value === "tauri" || value === "native" ? value : null;
 }
 
+/** THE DEVICE'S WORD ON WHAT A CHILD MAY SEE — the one thing a shell may
+ * tell the page about the person holding it. The store app reads the
+ * platform's own content setting before the page loads (on iOS the
+ * sensitive-content policy: Communication Safety, the parental control on a
+ * child's account, or Sensitive Content Warning, an adult's own choice) and
+ * defines this frozen global beside {@link SHELL_GLOBAL}. A browser, the
+ * desktop app and a device with neither switch on define nothing, and the
+ * game shows everything it would. The word is restated by
+ * `native/src/injected.ts`'s `contentFlag`; `tests/shell_test.ts` holds the
+ * two together. */
+export const SHELL_CONTENT_GLOBAL = "__SH_CONTENT__";
+
+/** What the device said: `child` is a parental control (the injuries are
+ * hidden and the switch is locked), `filtered` is an adult's own filter (the
+ * injuries are hidden until they are switched back on). */
+export type ShellContent = "child" | "filtered";
+
+/** The device's content word, or `null` where nothing was said. */
+export function shellContent(): ShellContent | null {
+  const value = (globalThis as unknown as Record<string, unknown>)[SHELL_CONTENT_GLOBAL];
+  return value === "child" || value === "filtered" ? value : null;
+}
+
 /** THE WINDOW'S FULLSCREEN, ASKED FOR AND ANSWERED — the second thing the
  * page may know about a shell, and the only thing it may ask one to DO.
  *

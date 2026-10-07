@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// SLOPESTYLE'S NUMBERS — the contest (R39 builds its course; the format and
+// SLOPESTYLE'S NUMBERS — the contest (R38 builds its course; the format and
 // the section judging are `slopestyle-contest.ts`'s and
 // `slopestyle-judge.ts`'s) and THE JIBS a skier slides on (`jib.ts`), from
-// `docs/freestyle.md` § *Slopestyle* and § *Rail jam*. Stated beside
+// `docs/freestyle.md` § *Slopestyle*. Stated beside
 // `modes.ts`, which re-exports them, so the modes' file stays under its
 // cap; it imports nothing from `modes.ts` but types, so the two load in
 // either order.
@@ -76,7 +76,7 @@ export const JIBS = {
   mass: 80,
 } as const;
 
-/** SLOPESTYLE as a skier is dealt it (R39): one skier on the course, the
+/** SLOPESTYLE as a skier is dealt it (R38): one skier on the course, the
  * starter's count and the window to drop in, a fall the end of the run
  * (the strict gates — nobody is stood back on it), the real g in flight,
  * the strokes' ceilings raised, and the jibs ridden. The field is the

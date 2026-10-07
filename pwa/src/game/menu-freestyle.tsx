@@ -12,10 +12,6 @@ import {
   FREESTYLE,
   HALFPIPE,
   MOGULS,
-  DUAL_MOGULS,
-  KNUCKLE_HUCK,
-  RAIL_JAM,
-  RAIL_JAM_RULE,
   SLOPESTYLE,
   TRICKS_RUN,
   type GameMode,
@@ -28,23 +24,14 @@ import { STRINGS } from "./strings.ts";
 /** Each built format's line, by its mode. */
 function formatOf(mode: GameMode): string {
   if (mode === "bigAir") return STRINGS.freestyleBigAir(BIG_AIR.field + 1, BIG_AIR.finalists);
-  if (mode === "knuckleHuck") {
-    return STRINGS.freestyleKnuckle(KNUCKLE_HUCK.field + 1, KNUCKLE_HUCK.jam);
-  }
   if (mode === "slopestyle") {
     return STRINGS.freestyleSlopestyle(SLOPESTYLE.field + 1, SLOPESTYLE.finalists);
-  }
-  if (mode === "railJam") {
-    return STRINGS.freestyleRailJam(RAIL_JAM.field + 1, RAIL_JAM.jam, RAIL_JAM_RULE.jibs.length);
   }
   if (mode === "moguls") {
     return STRINGS.freestyleMoguls(MOGULS.field + 1, MOGULS.final1, MOGULS.final2);
   }
   if (mode === "aerials") {
     return STRINGS.freestyleAerials(AERIALS.field + 1, AERIALS.final1, AERIALS.final2);
-  }
-  if (mode === "dualMoguls") {
-    return STRINGS.freestyleDual(DUAL_MOGULS.field + 1, DUAL_MOGULS.ladder);
   }
   if (mode === "halfpipe") {
     return STRINGS.freestyleHalfpipe(HALFPIPE.field + 1, HALFPIPE.finalists);

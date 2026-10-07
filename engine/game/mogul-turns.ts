@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE TURNS AS A JUDGE WATCHES THEM (R42) — what the five turn judges of a
+// THE TURNS AS A JUDGE WATCHES THEM (R40) — what the five turn judges of a
 // moguls run see, read off the skier step by step while he is on the mogul
 // line (`moguls-judge.ts` scores it). A judge watches three things
 // (`docs/freestyle.md` § *Moguls*):

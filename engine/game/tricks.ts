@@ -86,7 +86,6 @@ import { pipeHit } from "./pipe-air.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { harshShare } from "./damage.ts";
 import { harshSpeedOf } from "./limits.ts";
-import { takeoffPress } from "./butter.ts";
 import type {
   BailCause,
   FlightRecord,
@@ -159,14 +158,6 @@ export function freshTricks(): TrickState {
     fromY: 0,
     peak: 0,
     switchIn: false,
-    press: null,
-    pressEnd: null,
-    pressFor: 0,
-    butterYaw: 0,
-    pivot: 0,
-    pressGone: 1e6,
-    takeoff: null,
-    squared: false,
   };
 }
 
@@ -219,7 +210,6 @@ function file(
     landing,
     outcome,
     t: state.t,
-    butter: k.takeoff,
     x: k.fromX,
     z: k.fromZ,
     ...(state.level.pipe
@@ -381,8 +371,6 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
       k.fromY = c.y;
       k.peak = Math.max(c.y, k.fromY);
       k.switchIn = c.switched;
-      k.takeoff = takeoffPress(state);
-      k.squared = false;
     }
     k.peak = Math.max(k.peak, c.y);
     // HOW FAR THE SKIER HAS TURNED, rad, on each axis he can turn about:

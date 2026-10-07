@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A MOGULS CONTEST (R42), pure: the format the freestyle rules give it,
+// A MOGULS CONTEST (R40), pure: the format the freestyle rules give it,
 // carried between its runs as `GameState.moguls` (`CreateGameOptions.
 // moguls`), as the halfpipe carries its contest.
 //
@@ -82,17 +82,11 @@ export function mogulPhase(c: MogulsContest): MogulPhase | null {
   return c.runs.length < c.open ? MOGUL_PHASES[c.runs.length] : null;
 }
 
-/** RIVAL `id`'s LEVEL in a contest of `seed`, 0 the field's weakest … 1
- * its best — the one draw every phase of his is read off. */
-export function mogulLevelOf(seed: number, id: number): number {
-  return createRng((seed ^ FIELD_SALT) + id * 7919).next();
-}
-
 /** RIVAL `id`'s run in `phase` of a contest of `seed` on a course of
  * `pace` s, dealt. */
 export function mogulRivalRun(seed: number, id: number, phase: MogulPhase, pace: number): MogulRun {
   const F = MOGUL_FIELD;
-  const level = mogulLevelOf(seed, id);
+  const level = createRng((seed ^ FIELD_SALT) + id * 7919).next();
   const rng = createRng(
     (seed ^ FIELD_SALT) + id * 7919 + (MOGUL_PHASES.indexOf(phase) + 1) * 104729,
   );

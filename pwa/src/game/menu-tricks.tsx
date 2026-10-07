@@ -20,8 +20,6 @@ import {
   BIG_AIR,
   aerialJump,
   HALFPIPE,
-  KNUCKLE_HUCK,
-  RAIL_JAM,
   SLOPESTYLE,
   TRICKS_RUN,
   type GameMode,
@@ -86,9 +84,8 @@ export function TrickMapsPage({
   onPick,
 }: {
   /** The format the card picks a map for: the park run, or a freestyle
-   * contest (BIG AIR — its jump built over the map, R37; a KNUCKLE HUCK —
-   * its knuckle built over it, R38; a SLOPESTYLE run — its course built
-   * over it, R39; a RAIL JAM — its set built over it, R40). */
+   * contest (BIG AIR — its jump built over the map, R37; a SLOPESTYLE
+   * run — its course built over it, R38; the others likewise). */
   mode: GameMode;
   /** The map the settings already stand on, if any. */
   chosen: string | null;
@@ -101,47 +98,32 @@ export function TrickMapsPage({
 }) {
   const pick = trickMapFor(chosen);
   const bigAir = mode === "bigAir";
-  const knuckle = mode === "knuckleHuck";
   const slope = mode === "slopestyle";
-  const rail = mode === "railJam";
   const pipe = mode === "halfpipe";
   const bumps = mode === "moguls";
-  const dual = mode === "dualMoguls";
   const aerials = mode === "aerials";
   const billing = bigAir
     ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
-    : knuckle
-      ? STRINGS.knuckleBilling(KNUCKLE_HUCK.jam)
-      : slope
-        ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
-        : rail
-          ? STRINGS.railJamBilling(RAIL_JAM.jam)
-          : pipe
-            ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
-            : bumps
-              ? STRINGS.mogulsBilling
-              : dual
-                ? STRINGS.dualBilling
-                : aerials
-                  ? STRINGS.aerialsBilling
-                  : STRINGS.tricksBilling(TRICKS_RUN.limit);
+    : slope
+      ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
+      : pipe
+        ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
+        : bumps
+          ? STRINGS.mogulsBilling
+          : aerials
+            ? STRINGS.aerialsBilling
+            : STRINGS.tricksBilling(TRICKS_RUN.limit);
   const title = bigAir
     ? STRINGS.bigAirOn
-    : knuckle
-      ? STRINGS.knuckleOn
-      : slope
-        ? STRINGS.slopestyleOn
-        : rail
-          ? STRINGS.railJamOn
-          : pipe
-            ? STRINGS.halfpipeOn
-            : bumps
-              ? STRINGS.mogulsOn
-              : dual
-                ? STRINGS.dualOn
-                : aerials
-                  ? STRINGS.aerialsOn
-                  : STRINGS.tricksOn;
+    : slope
+      ? STRINGS.slopestyleOn
+      : pipe
+        ? STRINGS.halfpipeOn
+        : bumps
+          ? STRINGS.mogulsOn
+          : aerials
+            ? STRINGS.aerialsOn
+            : STRINGS.tricksOn;
   return (
     <div class="menu-card menu-card-levels">
       <MenuHead

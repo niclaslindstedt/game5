@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MOGULS' NUMBERS — the contest (R42 builds its course; the format is
+// THE MOGULS' NUMBERS — the contest (R40 builds its course; the format is
 // `moguls-contest.ts`'s, the formal score `moguls-judge.ts`'s and the
 // turns' reading `mogul-turns.ts`'s), from `docs/freestyle.md` §
 // *Moguls*. Stated beside `modes.ts`, which re-exports them, so the
@@ -42,7 +42,7 @@ export const MOGULS = {
   jury: { wind: 50 / 3.6, fall: 0.75 } as Jury,
 } as const;
 
-/** THE MOGULS as a skier is dealt them (R42): one skier on the course, the
+/** THE MOGULS as a skier is dealt them (R40): one skier on the course, the
  * starter's count and the window to break the beam, the control gates
  * held strictly (a gate missed, a fall that stops him: out), the real g in
  * flight, the strokes' ceilings raised for the two airs, and the mogul

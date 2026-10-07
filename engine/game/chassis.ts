@@ -88,7 +88,7 @@ export function chassisContacts(
   const fdn = fwd.x * n.x + fwd.y * n.y + fwd.z * n.z;
   const across = cross(n, { x: fwd.x - fdn * n.x, y: fwd.y - fdn * n.y, z: fwd.z - fdn * n.z });
   const al = hypot3(across.x, across.y, across.z) || 1;
-  // ON A WALL (`Level.normalNear`, R41's pipe) the skis are BENT onto the
+  // ON A WALL (`Level.normalNear`, R39's pipe) the skis are BENT onto the
   // transition — a 1.8 m ski on a 7 m radius bows 5 cm, well inside the
   // reverse camber a loaded ski takes — and their stations are the whole
   // of their contact: a straight ski's tips and tails would dig into every

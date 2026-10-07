@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE'S NUMBERS — the contest (R41 builds its pipe; the format and
+// THE HALFPIPE'S NUMBERS — the contest (R39 builds its pipe; the format and
 // the judging are `halfpipe-contest.ts`'s and `halfpipe-judge.ts`'s, the
 // flight off a wall `pipe-air.ts`'s), from `docs/freestyle.md` §
 // *Halfpipe*. Stated beside `modes.ts`, which re-exports them, so the
@@ -39,7 +39,7 @@ export const HALFPIPE = {
   jury: { wind: 40 / 3.6, fall: 0.75 } as Jury,
 } as const;
 
-/** THE HALFPIPE as a skier is dealt it (R41): one skier in the pipe, the
+/** THE HALFPIPE as a skier is dealt it (R39): one skier in the pipe, the
  * starter's count and the window to drop in, a fall the end of the run
  * (the strict gates), the real g in flight, the strokes' ceilings raised.
  * The field is the contest's, dealt, never skied. */

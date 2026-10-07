@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE LEGS TAKING THE MOGULS (R42) — a mogul skier's whole craft. A mogul a
+// THE LEGS TAKING THE MOGULS (R40) — a mogul skier's whole craft. A mogul a
 // metre and less high every three and a half metres, met at nine metres a
 // second, is a crest of a metre's radius: ridden as a rigid body it throws
 // him into the air off every one (v²/R is eight g against one). A good

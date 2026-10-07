@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A MOGUL FIELD (R42) — bumps at a skier's scale, as a function of the plan
+// A MOGUL FIELD (R40) — bumps at a skier's scale, as a function of the plan
 // rather than a grid. A mogul a metre high every three and a half metres
 // is far finer than the 2 m grid a map is baked on: on the grid it would be
-// a ripple. So the field is ANALYTIC, as R41's pipe is (`pipe.ts`): a
+// a ripple. So the field is ANALYTIC, as R39's pipe is (`pipe.ts`): a
 // venue's own profile (`yAt`, drawn every quarter metre, its air bumps in
 // it) with the moguls laid over it down each LINE of the field, and a map
 // carrying one answers `groundAt` and `normalAt` off it inside the venue's
@@ -10,7 +10,7 @@
 //
 // A LINE is a mogul track down the venue: its centre `offset` m across
 // the venue's line (right positive) and its `width`. One line is a moguls
-// course (R42); two side by side, on one rhythm, are a dual moguls course.
+// course (R40).
 // Down a line the moguls stand every `spacing` m of plan, `height` m from
 // crest to trough, and the crests SNAKE across it (a phase that swings a
 // quarter wave either way every `wave` m across), so the troughs zig-zag

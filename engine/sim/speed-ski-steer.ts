@@ -14,14 +14,8 @@
 // design speed off the lip — never checking it, which would knuckle him on
 // the table.
 //
-// An AERIALS SITE (R44) too, its in-run and its out-run; in the air the
+// An AERIALS SITE (R41) too, its in-run and its out-run; in the air the
 // jump declared is `aerials-steer.ts`'s.
-//
-// A KNUCKLE (R38) too, down to its deck, and there the knuckle huck's hit:
-// the legs loaded for a pop, the skis pressed onto their tips and BUTTERED
-// round a quarter turn and more (`butter.ts`), the lean short of the
-// stroke's gate so no flip is thrown, and the pop sprung at the knuckle —
-// the throw squares the butter in the air, a NOSE BUTTER 180 or 360.
 
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
@@ -41,19 +35,12 @@ export const SPEED_SKI_STEER = {
   yawLead: 0.3,
 } as const;
 
-/** THE BOT'S KNUCKLE HIT, m before the knuckle: the press set at
- * `press`, the butter wound from `wind`, the legs loaded from `load` (a
- * small pop: a knuckle is ollied, not launched), the press and the butter
- * let go at `release` and the pop sprung at `pop`. */
-export const KNUCKLE_HIT = { load: 5, press: 10, wind: 7, release: 0.4, pop: 0.4 } as const;
-
 /** The input that skis `state`'s skier down the speed track or the big air
  * jump, or null on a map with neither. `on` is where he stands on it. */
 export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null {
   const level = state.level;
-  const knuckle = level.knuckleHuck;
-  if (!level.speedSki && !level.bigAir && !knuckle && !level.aerials) return null;
-  if (!state.rules.course && !state.rules.jam) return null;
+  if (!level.speedSki && !level.bigAir && !level.aerials) return null;
+  if (!state.rules.course) return null;
   const c = state.skier;
   const K = SPEED_SKI_STEER;
   const v = Math.max(5, c.speed);
@@ -78,19 +65,5 @@ export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null
   // OFF AN AERIALS KICKER, the jump declared (`aerials-steer.ts`).
   const flown = aerialsAirInput(state);
   if (flown) return flown;
-  const held = clamp(edge / lock, -1, 1);
-  if (knuckle && state.rules.butters) {
-    const H = KNUCKLE_HIT;
-    const to = knuckle.knuckle - on.s;
-    // In the air the hands are off: the throw squares the butter.
-    if (c.airborne) return { ...NEUTRAL_INPUT };
-    if (to < 0 || to > H.press) return { ...NEUTRAL_INPUT, steer: held, tuck: 1 };
-    return {
-      ...NEUTRAL_INPUT,
-      jump: to < H.load && to > H.pop,
-      lean: to < H.press && to > H.release ? -0.7 : 0,
-      steer: to < H.wind && to > H.release ? 1 : held,
-    };
-  }
-  return { ...NEUTRAL_INPUT, steer: held, tuck: 1 };
+  return { ...NEUTRAL_INPUT, steer: clamp(edge / lock, -1, 1), tuck: 1 };
 }

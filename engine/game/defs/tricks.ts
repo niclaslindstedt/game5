@@ -154,23 +154,4 @@ export const TRICKS = {
    * steers across it is his steering (`TrickState.meant`). A tricks run
    * means every flight. */
   popWindow: 0.3,
-  /** BUTTERS AND PRESSES on the snow (`butter.ts`, a run with
-   * `RunRules.butters`): the lean past `gate` presses the skis onto the
-   * tips (forward) or the tails (back), lifting the other end; held so,
-   * the edge past `spinGate` PIVOTS him on the pressed end at up to
-   * `rate` rad/s, gathered at `accel` rad/s² — a butter 180 in about a
-   * second, the slow wind-up a rider sets on a deck before he rolls the
-   * knuckle (a nose butter 540 is wound ~270° a couple of metres before
-   * the roll). The pivot is about the pressed end, `pivot` of the ski's
-   * length ahead of (or behind) the boots. No press above `fastest` m/s.
-   * A press let go keeps what it wound for `keep` s, so one released on
-   * the knuckle's lip still takes its rotation into the air. */
-  butter: {
-    gate: 0.6,
-    rate: 3.4,
-    accel: 10,
-    pivot: 0.38,
-    fastest: 15,
-    keep: 0.5,
-  },
 } as const;

@@ -31,15 +31,11 @@ import { TUNING } from "./tuning.ts";
 import { SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
 
 export { JIBS, SLOPESTYLE, slopestyleRules } from "./slopestyle.ts";
-import { RAIL_JAM, railJamRules } from "./rail-jam.ts";
-export { RAIL_JAM, railJamRules } from "./rail-jam.ts";
 import { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
 export { HALFPIPE, halfpipeRules } from "./halfpipe.ts";
 import { MOGULS, mogulsRules } from "./moguls.ts";
 import type { Discipline } from "./formats.ts";
 export { MOGULS, mogulsRules } from "./moguls.ts";
-import { DUAL_MOGULS, dualMogulsRules } from "./dual-moguls.ts";
-export { DUAL_MOGULS, dualMogulsRules, duelRules } from "./dual-moguls.ts";
 import { AERIALS, aerialsRules } from "./aerials.ts";
 export { AERIALS, aerialsRules } from "./aerials.ts";
 
@@ -509,12 +505,9 @@ export type GameMode =
   | "free"
   | "tricks"
   | "bigAir"
-  | "knuckleHuck"
   | "slopestyle"
-  | "railJam"
   | "halfpipe"
   | "moguls"
-  | "dualMoguls"
   | "aerials";
 
 export const GAME_MODES: readonly GameMode[] = [
@@ -528,12 +521,9 @@ export const GAME_MODES: readonly GameMode[] = [
   "free",
   "tricks",
   "bigAir",
-  "knuckleHuck",
   "slopestyle",
-  "railJam",
   "halfpipe",
   "moguls",
-  "dualMoguls",
   "aerials",
 ];
 
@@ -675,62 +665,6 @@ export function bigAirRules(laps: number): RunRules {
   };
 }
 
-/** THE KNUCKLE HUCK'S NUMBERS (R38 builds its knuckle; the jam is
- * `jam.ts`'s, from `docs/freestyle.md` § *Knuckle huck*). */
-export const KNUCKLE_HUCK = {
-  /** The riders beside the player: a session of eight. */
-  field: 7,
-  /** THE JAM, s: the sport's twenty minutes cut to three — some dozen
-   * hits off the knuckle, where the sport's riders get as many in its
-   * twenty. */
-  jam: 180,
-  /** The starter's count, s. */
-  countdown: 3,
-  /** THE STROKES' CEILINGS: a 1620 (the most a butter has been wound into
-   * off a knuckle) and a double. */
-  spinMost: 9 * Math.PI,
-  flipMost: 4 * Math.PI,
-  /** The pair the field rides: the soft park twin-tip, for the presses. */
-  skis: "hare",
-  /** THE JURY'S WEATHER (est.): no rule is published; the session is run in
-   * the evening under the lights, and has gone ahead on a cold night after
-   * a day's delay — held, as big air is, under 40 km/h of gust and no more
-   * than a steady fall. */
-  jury: { wind: 40 / 3.6, fall: 0.75 } as Jury,
-} as const;
-
-/** THE KNUCKLE HUCK as a skier is dealt it (R38): one rider on the
- * knuckle, the starter's count, no course owed — a JAM of hits off the
- * platform until the buzzer, a fall only the end of its hit — the real g,
- * the strokes' ceilings raised, and BUTTERS on the snow. The field is the
- * jam's (`jam.ts`), dealt, never skied. */
-export function knuckleHuckRules(laps: number): RunRules {
-  return {
-    rivals: 0,
-    laps,
-    countdown: KNUCKLE_HUCK.countdown,
-    contact: false,
-    course: false,
-    tricks: true,
-    stunts: true,
-    limit: KNUCKLE_HUCK.jam,
-    airGravity: TRICKS_RUN.airGravity,
-    crowd: 0,
-    lifts: false,
-    heli: false,
-    sled: false,
-    groomer: false,
-    start: "line",
-    gates: "arcade",
-    window: 0,
-    jury: KNUCKLE_HUCK.jury,
-    spinMost: KNUCKLE_HUCK.spinMost,
-    flipMost: KNUCKLE_HUCK.flipMost,
-    jam: true,
-    butters: true,
-  };
-}
-
 /** EVERY MODE'S RULES by its name — the one place a name becomes a bundle. */
 export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> = {
   slalom: slalomRules,
@@ -743,22 +677,16 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   free: freeRules,
   tricks: tricksRules,
   bigAir: bigAirRules,
-  knuckleHuck: knuckleHuckRules,
   slopestyle: slopestyleRules,
-  railJam: railJamRules,
   halfpipe: halfpipeRules,
   moguls: mogulsRules,
-  dualMoguls: dualMogulsRules,
   aerials: aerialsRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
  * skis — what the ski card is opened on for that race — and a trick
  * format's (big air's, slopestyle's and the halfpipe's the Raven; moguls'
- * the Ibex; aerials' the Kestrel; the knuckle huck's and the rail jam's the Hare — a jam is
- * ridden on the soft park twin-tip, its tips and tails giving under a
- * press where the Raven's competition core holds them straight; the two
- * classes share a shape, 118–133/90–100 mm, and differ in the flex), or
+ * the Ibex; aerials' the Kestrel), or
  * null for a mode that is neither (the time trial, the free ride, the
  * tricks run). */
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
@@ -769,12 +697,9 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   skiCross: SKI_CROSS.skis,
   speedSki: SPEED_SKI.skis,
   bigAir: BIG_AIR.skis,
-  knuckleHuck: KNUCKLE_HUCK.skis,
   slopestyle: SLOPESTYLE.skis,
-  railJam: RAIL_JAM.skis,
   halfpipe: HALFPIPE.skis,
   moguls: MOGULS.skis,
-  dualMoguls: DUAL_MOGULS.skis,
   aerials: AERIALS.skis,
 };
 
@@ -798,22 +723,15 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * ~72.5 kg on 179 cm, the medium build in his kit — and what it pays for is
  * the legs under a landing from ten metres up and a body light enough to
  * spin: the MEDIUM build (`docs/freestyle.md` § *Big air*, "The skier").
- * THE KNUCKLE HUCK's field is the same freeski field — a national team
- * measured ~70 kg on 176 cm for the men, ~60 kg for the women — and
- * nothing a jam pays for favours weight: the MEDIUM build too
- * (`docs/freestyle.md` § *Knuckle huck*). SLOPESTYLE's are the same
- * skiers again, and its course pays the big air's landings and spins and a
+ * SLOPESTYLE's are the same skiers again, and its course pays the big air's landings and spins and a
  * rail section's balance — none of it weight: the MEDIUM build
- * (`docs/freestyle.md` § *Slopestyle*). The RAIL JAM's are the same park
- * field, and a rail pays balance and a press, never weight: the MEDIUM
- * build (`docs/freestyle.md` § *Rail jam*). The HALFPIPE's are the same
+ * (`docs/freestyle.md` § *Slopestyle*). The HALFPIPE's are the same
  * freeski field, and a pipe pays the legs under five or six landings and
  * a body light enough to spin a 1620 — the MEDIUM build
  * (`docs/freestyle.md` § *Halfpipe*). MOGULS' athletes weigh ~73 kg on
  * 178 cm (men) and ~60 kg (women) in a national team's measurements, and
  * a mogul line pays legs that fold and extend three times a second, never
- * weight: the MEDIUM build (`docs/freestyle.md` § *Moguls*); DUAL MOGULS'
- * are the same skiers on the same pair, and the same build. AERIALS is the
+ * weight: the MEDIUM build (`docs/freestyle.md` § *Moguls*). AERIALS is the
  * one format that pays for LIGHTNESS: three flips and five twists turn
  * faster the less there is to turn, and a landing from fourteen metres
  * down a 37° hill loads the legs at seven to eight body weights. Its
@@ -830,12 +748,9 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   skiCross: "solid",
   speedSki: "heavy",
   bigAir: "medium",
-  knuckleHuck: "medium",
   slopestyle: "medium",
-  railJam: "medium",
   halfpipe: "medium",
   moguls: "medium",
-  dualMoguls: "medium",
   aerials: "light",
 };
 

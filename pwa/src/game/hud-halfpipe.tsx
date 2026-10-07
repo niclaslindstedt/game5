@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE'S PLATE (R41) — the card over a run the judges have scored,
+// THE HALFPIPE'S PLATE (R39) — the card over a run the judges have scored,
 // drawn by `ResultPlate` in place of its own.
 //
 // It says which run it was and its SCORE (or the fall), the run's hits

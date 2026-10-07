@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT IN THE AIR OFF AN AERIALS KICKER (R44) — the jump he declared,
+// THE BOT IN THE AIR OFF AN AERIALS KICKER (R41) — the jump he declared,
 // thrown as a jumper throws it: the in-run and the out-run are the speed
 // skier's hold (`speed-ski-steer.ts`, tucked and straight down the site's
 // line), and off the lip every flip of the plan is asked at once, a tap of

@@ -69,7 +69,7 @@ DIFFERENT tricks. Won on rotation, amplitude and a clean landing.
       wide, a level finish 25–30 m long. Set on a built map's steepest
       long fall line (or a scaffold of its own off the slope — open
       question), held by the analyzer; mirrored in
-      `docs/level-generator.md`. The knuckle huck rides the same jump.
+      `docs/level-generator.md`.
 - [x] **The in-run speed** (the drop-in sized to the lip's speed, the
       engine's loss through the compressions measured in): a start height that brings the skier to the lip
       at the jump's design speed (the aerials' in-run markers are the

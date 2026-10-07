@@ -28,7 +28,6 @@ import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts
 import type { PisteDay } from "./piste-day.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
-import type { PressState } from "./butter-state.ts";
 import type { ContestState } from "./contest-state.ts";
 import type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
 export type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
@@ -36,7 +35,6 @@ export type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-sta
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
-export type { ButterRecord, PressEnd, PressState } from "./butter-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
@@ -303,7 +301,7 @@ export type SkierState = {
   /** THE LIFT he is riding (`lift-ride.ts`), or null — on a free ride. */
   lift: LiftRide | null;
   /** THE JIB he is sliding (`jib.ts`), or null — on a map with rails and
-   * boxes (R39). Left out, he is on none. */
+   * boxes (R38). Left out, he is on none. */
   jib?: JibRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
@@ -433,7 +431,7 @@ export type TrickPart = { kind: TrickKind; spins: number; flight: number };
 
 /** THE SCORE AND ITS COMBO, and the strokes' per-flight bookkeeping
  * (`tricks.ts`, `strokes.ts` — every rule is theirs). Written only there. */
-export type TrickState = PressState & {
+export type TrickState = {
   /** Points banked this run. */
   score: number;
   /** EVERY JIB RIDDEN this run (`jib.ts`), in the order he left them. */
@@ -585,7 +583,7 @@ export type RunMark = { id: string; x: number; z: number };
 
 export type RunOut = {
   status: "dsq" | "dnf";
-  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact" | "lane" | "stop";
+  why: "missed" | "straddle" | "start" | "fall" | "net" | "contact";
   gate: number;
 };
 
@@ -689,9 +687,6 @@ export type GameEvent =
   /** Taken into a WIND TUNNEL (R30, `wind-tunnel.ts`) by its id, or let go
    * of it. */
   | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" }
-  /** A JAM's hit over (`jam.ts`): its number from 1, and the skier stood
-   * back on the start platform for the next. */
-  | { kind: "jam"; t: number; hit: number; fell: boolean }
   /** ON A JIB (`jib.ts`): onto a rail or a box by its id, or off it —
    * `whole` when he rode it to its end. */
   | {

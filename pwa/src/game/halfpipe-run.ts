@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A HALFPIPE CONTEST FROM THE APP'S SIDE (R41): one run down the pipe a
+// A HALFPIPE CONTEST FROM THE APP'S SIDE (R39): one run down the pipe a
 // run on the snow — the qualification's, then the final's — what the HUD
 // reads of the run (the phase, which run, the hits so far and the last
 // one's height over the coping), what the judges gave it, the board, what

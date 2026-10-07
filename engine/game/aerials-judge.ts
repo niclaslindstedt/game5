@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AERIALS' FORMAL SCORE (R44) — not an impression but a judged score
+// THE AERIALS' FORMAL SCORE (R41) — not an impression but a judged score
 // times the jump's DEGREE OF DIFFICULTY, as the freestyle rules write it
 // (`docs/freestyle.md` § *Aerials*):
 //

@@ -325,11 +325,6 @@ export function resetPose(state: GameState): {
   heading: number;
   checkpoint: number;
 } {
-  // A JAM's rider is stood back on the start platform (`jam.ts`).
-  if (state.rules.jam) {
-    const spawn = state.level.spawn;
-    return { x: spawn.x, z: spawn.z, heading: spawn.heading, checkpoint: -1 };
-  }
   if (!state.rules.course) {
     // Taken by the grimbear (`grimbear.ts`), back at the top of the slope.
     const at = state.grimbear?.top

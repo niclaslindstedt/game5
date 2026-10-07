@@ -11,12 +11,6 @@ import { judgeSlopeRun } from "../game/slopestyle-contest.ts";
 import { judgePipeRun } from "../game/halfpipe-contest.ts";
 import { judgeMogulsRun } from "../game/moguls-contest.ts";
 import { judgeAerialRun } from "../game/aerials-contest.ts";
-import { freshDual, type DualContest } from "../game/dual-bracket.ts";
-import { duelOn, judgeDuel, qualifyingRun } from "../game/duel.ts";
-import { MOGULS } from "../game/defs/moguls.ts";
-import { DUAL_MOGULS_RULE } from "../mapgen/trick-rules.ts";
-import { mogulsProfile } from "../mapgen/moguls.ts";
-import { sessionScore } from "../game/jam.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { createGame, step } from "../game/step.ts";
 import type { GameMode } from "../game/defs/modes.ts";
@@ -77,21 +71,16 @@ export type SimOptions = {
     | "speedSki"
     | "skiCross"
     | "bigAir"
-    | "knuckleHuck"
     | "slopestyle"
-    | "railJam"
     | "halfpipe"
     | "moguls"
-    | "dualMoguls"
     | "aerials"
   >;
-  /** On aerials (R44), the jump the bot declares and throws (a code of the
+  /** On aerials (R41), the jump the bot declares and throws (a code of the
    * chart, `defs/aerial-jumps.ts`) — the contest's default when left out. */
   plan?: string;
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
-   * bot in the first seed's lane beside three of the start list, skied.
-   * On dual moguls, a DUAL (R43): the bot the first seed in the blue lane
-   * against the sixteenth in the red, skied. */
+   * bot in the first seed's lane beside three of the start list, skied. */
   heat?: boolean;
 };
 
@@ -164,15 +153,6 @@ const SIM_HEAT: CrossHeat = {
   ],
 };
 
-/** THE CONTEST the sim skis a dual moguls bot's dual in
- * (`SimOptions.heat`): the qualification won, so his dual is the first
- * seed's against the sixteenth. */
-function simDual(seed: number): DualContest {
-  const pace = mogulsProfile(DUAL_MOGULS_RULE).length / MOGULS.pace;
-  const won = { score: 99, turns: 59, air: 20, airRaw: 20, speed: 20, time: pace, fell: false };
-  return { ...freshDual(seed, pace), qualifying: won };
-}
-
 /** Ski one map headlessly with the bot. */
 export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   const profile = options.profile ?? RIDER_BOT;
@@ -196,7 +176,6 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
         : undefined),
     laps: options.laps,
     cross: race === "skiCross" && options.heat ? SIM_HEAT : undefined,
-    dualMoguls: race === "dualMoguls" && options.heat ? simDual(seed) : undefined,
     plan: race === "aerials" ? options.plan : undefined,
     rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
@@ -225,8 +204,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   let distance = 0;
   const maxSteps = Math.ceil(maxSeconds / TUNING.dt);
   let steps = 0;
-  // A dual is over when both its runs are, the bot's and his rival's.
-  while ((state.phase !== "finished" || duelOn(state)) && steps < maxSteps) {
+  while (state.phase !== "finished" && steps < maxSteps) {
     step(state, botInput(state, profile));
     for (const e of state.events) {
       if (options.keepEvents) events.push(e);
@@ -259,7 +237,6 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   mix(state.skier.y);
   mix(state.skier.z);
   const p = state.progress;
-  const dual = judgeDuel(state);
   const pts = state.level.track.points;
   let soft = 0;
   for (const pt of pts) soft += 1 - state.level.packedAt(pt.x, pt.z);
@@ -291,29 +268,20 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     missed,
     out: p.out ? `${p.out.status} ${p.out.why}@${p.out.gate}` : null,
     trap: p.trap,
-    // A DUAL's place is the dual's: first for the winner of the votes.
-    place: dual ? (dual.votes.winner === state.duel?.lane ? 1 : 2) : place,
-    // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`).
-    // A RAIL JAM's is the panel's mark for the session (`jam.ts`), a
+    place,
+    // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`), a
     // HALFPIPE's the panel's for the run (`halfpipe-judge.ts`), MOGULS'
     // the formal score (`moguls-judge.ts`), AERIALS' the jump's (`aerials-
-    // judge.ts`); DUAL MOGULS' the votes the bot
-    // took in his dual, or his qualification's moguls score.
-    score: dual
-      ? dual.votes.votes[state.duel?.lane ?? 0]
-      : state.dualMoguls
-        ? (qualifyingRun(state)?.score ?? 0)
-        : state.moguls
-          ? (judgeMogulsRun(state)?.score ?? 0)
-          : state.aerials
-            ? (judgeAerialRun(state)?.score ?? 0)
-            : state.slopestyle
-              ? (judgeSlopeRun(state)?.score ?? 0)
-              : state.halfpipe
-                ? (judgePipeRun(state)?.score ?? 0)
-                : state.level.railJam && state.jam
-                  ? sessionScore(state.seed, -1, state.jam.hits)
-                  : state.tricks.score,
+    // judge.ts`).
+    score: state.moguls
+      ? (judgeMogulsRun(state)?.score ?? 0)
+      : state.aerials
+        ? (judgeAerialRun(state)?.score ?? 0)
+        : state.slopestyle
+          ? (judgeSlopeRun(state)?.score ?? 0)
+          : state.halfpipe
+            ? (judgePipeRun(state)?.score ?? 0)
+            : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

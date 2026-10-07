@@ -224,7 +224,7 @@ export const SPEED_SKI_TECHNIQUE: Technique = {
   cross: CROSS_OVER,
 };
 
-/** THE MOGUL SKIER (R42). Two and a half to three turns a second down the
+/** THE MOGUL SKIER (R40). Two and a half to three turns a second down the
  * zipper line, each turn pivoted on a mogul's shoulder: the skis swung
  * edge to edge UNDER a trunk kept square to the fall line and dead quiet
  * (the turn judges' quarter for the upper body), the legs ABSORBING each

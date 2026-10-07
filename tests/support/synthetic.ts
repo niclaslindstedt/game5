@@ -381,7 +381,7 @@ export function flatLevel(
   );
 }
 
-/** THE PIPE ON THE BENCH: a 22-foot halfpipe (R41's section) cut down an
+/** THE PIPE ON THE BENCH: a 22-foot halfpipe (R39's section) cut down an
  * 18° packed pitch falling along +z on a drag strip, its centre line at x =
  * `PIPE.x` (+x is across it to the right), its mouth at z = `PIPE.mouth`
  * and its full walls from `PIPE.from` to `PIPE.to`. No generator built

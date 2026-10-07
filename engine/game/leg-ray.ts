@@ -9,7 +9,7 @@
 // a face converges where a vertical guess would overshoot it — from the
 // vertical gap; a ray running along the snow meets nothing.
 //
-// ON A MAP WITH WALLS (`Level.normalNear`, R41's pipe), the ray is cast
+// ON A MAP WITH WALLS (`Level.normalNear`, R39's pipe), the ray is cast
 // nearly level into a wall standing at 80°, where the vertical gap is no
 // guess at all and three Newton steps from it land metres off: the gap is
 // BRACKETED along the leg's own reach and bisected — the first place the

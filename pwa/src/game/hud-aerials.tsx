@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AERIALS' PLATE (R44) — the card over a jump the panel has scored,
+// THE AERIALS' PLATE (R41) — the card over a jump the panel has scored,
 // drawn by `ResultPlate` in place of its own.
 //
 // It says which phase it was and its SCORE (or why it is no finish), the

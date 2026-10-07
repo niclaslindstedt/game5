@@ -1,6 +1,6 @@
 # The trick modes — draft spec (what every format shares)
 
-**Built in part.** Every format below is built (R37–R44), each a mode of
+**Built in part.** Every format below is built (R37–R41), each a mode of
 its own with a spec beside this one, and the arcade TRICKS run kept as the
 trick card's PARK RUN. What is still open of the shared pieces is
 unticked below — more grabs, the jibs' balance held, the judges' marks
@@ -14,9 +14,6 @@ each format's own spec keeps its own open boxes.
 | [BIG_AIR.md](BIG_AIR.md) | Big air | judged jumps off one kicker, the best two different counting |
 | [AERIALS.md](AERIALS.md) | Aerials | declared jumps, air + form + landing × degree of difficulty |
 | [MOGULS.md](MOGULS.md) | Moguls | one run: turns + air + speed |
-| [DUAL_MOGULS.md](DUAL_MOGULS.md) | Dual moguls | moguls head to head in a bracket |
-| [RAIL_JAM.md](RAIL_JAM.md) | Rail jam | a timed jam on rails and boxes, one impression |
-| [KNUCKLE_HUCK.md](KNUCKLE_HUCK.md) | Knuckle huck | a timed jam off a big jump's knuckle, one impression |
 
 This file is what they all stand on: the pieces no one format owns, built
 once. The research every number here comes from is `docs/freestyle.md`
@@ -72,7 +69,7 @@ Read the code, not this summary.
   fly at 1.5 — every format here keeps the real g, because every
   rotation and height in the research is quoted at it.
 - **The HARE** (`defs/skis.ts`): the park twin-tip, centre-mounted — the
-  pair for the pipe, slopestyle, big air, the rail jam and the knuckle.
+  pair of the free ride's park and the tricks run.
 - **The six trick maps** (`pwa/src/game/trick-maps.ts`, `menu-tricks.tsx`):
   seeds on their days, digests held by `tests/trick_maps_test.ts` — the
   shape every format's own maps take (`RACE_MAPS.md`'s pattern).
@@ -180,14 +177,11 @@ medium build.
       judge, × DD) and MOGULS (turns, air × DD, speed off the pace). A
       score is a RANK made a number — the judge scores a run against the
       dealt field's, so it holds its scale for the day.
-- [x] **THE FIELD.** One rider on the feature at a time in every format but
-      the duals and the jams' shared feature: the rivals' scores DEALT as
+- [x] **THE FIELD.** One rider on the feature at a time in every format:
+      the rivals' scores DEALT as
       a board about a par (`field.ts`'s shape) — the par here a SCORE the
       bot earns, not a time; a phase's start order (random, then reverse
       standings), a qualification, finals with nothing carried over, ties.
-      Dual moguls SKI the rival side by side (`cross-heat.ts`'s shape). A
-      jam's rivals are dealt session impressions, their hits shown on the
-      board as they come.
 - [x] **THE BOT FREESTYLES.** Every format needs the bot to ski it (the
       sim, the labs, par): to pick a trick it can land off the speed it
       carries (the strokes already refuse what the air cannot turn), to
@@ -199,7 +193,7 @@ medium build.
       onto by a pop or an ollie, ridden 50-50, sideways or pressed, the
       balance across it a thing he holds, left by the end or a spin off;
       the stations' contacts on it (not the snow) so the trail map draws
-      nothing there. Shared by slopestyle and the rail jam. Built
+      nothing there. Built
       procedurally in `mark-shapes.ts`'s look. *Built for slopestyle
       (`jib.ts`, `jibs-view.ts`): a rail or a box as a polyline ridden as
       a bead on a wire, mounted by meeting its end along it (no ollie
@@ -208,9 +202,8 @@ medium build.
       still open.*
 - [x] **THE COURSES.** Each format's terrain is a rule (the next free R)
       and a setter over a built map, as a race course is: the PIPE cut
-      into the slope, the SLOPESTYLE course's sections, the BIG AIR jump
-      (the knuckle huck rides the same), the AERIALS site, the MOGUL
-      course, the RAIL set. Built in a copy of the ground as the race
+      into the slope, the SLOPESTYLE course's sections, the BIG AIR jump,
+      the AERIALS site, the MOGUL course. Built in a copy of the ground as the race
       setters build (`course-prep.ts`), held by the analyzer, mirrored in
       `docs/level-generator.md`.
 - [x] **THE PAIRS.** The Hare for the park formats; a MOGUL pair (160–175
@@ -243,23 +236,17 @@ shared piece it first needs:
 1. **Big air** — one jump (the terrain park's kicker grown), the reader,
    the judge, the field dealt about a par, the trick card, more rotation
    and the cork.
-2. **Knuckle huck** — the same jump; the jam format, butters and presses.
+2. **Slopestyle** — the jumps in a row, JIBS, section judging.
    *Built in part (R38).*
-3. **Slopestyle** — the jumps in a row, JIBS, section judging.
-   *Built in part (R39).*
-4. **Rail jam** — jibs alone, the jam again.
-   *Built in part (R40).*
-5. **Halfpipe** — a new terrain (walls and vert), riding a wall, the
+3. **Halfpipe** — a new terrain (walls and vert), riding a wall, the
    alley-oop, pipe use.
-   *Built in part (R41).*
-6. **Moguls** — a new terrain (moguls), the turns scored, the formal
+   *Built in part (R39).*
+4. **Moguls** — a new terrain (moguls), the turns scored, the formal
    scorer, the clock, a mogul pair.
-   *Built in part (R42).*
-7. **Dual moguls** — moguls side by side, the bracket.
-   *Built in part (R43).*
-8. **Aerials** — the declared flight plan, twisting flips, the formal
+   *Built in part (R40).*
+5. **Aerials** — the declared flight plan, twisting flips, the formal
    scorer with DD, an aerials pair.
-   *Built in part (R44).*
+   *Built in part (R41).*
 
 ## Open questions for the user
 

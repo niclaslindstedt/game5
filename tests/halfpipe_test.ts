@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE (R41): the section built to the rules (the walls, the vert,
+// THE HALFPIPE (R39): the section built to the rules (the walls, the vert,
 // the transitions, the flat), the pipe cut into a built map in a copy of
 // its ground, the physics of riding up a wall and back down it on the
 // synthetic pipe (`pipeLevel`), the hit's air turned round to land on the
@@ -45,7 +45,7 @@ import { PIPE, pipeLevel } from "./support/synthetic.ts";
 const R = HALFPIPE_RULE;
 const RAD = Math.PI / 180;
 
-describe("the halfpipe's section (R41)", () => {
+describe("the halfpipe's section (R39)", () => {
   const s = pipeSection();
 
   it("is a 22-foot pipe: 6.7 m walls about 20 m apart, the vert at 83°", () => {
@@ -76,7 +76,7 @@ describe("the halfpipe's section (R41)", () => {
   });
 });
 
-describe("the pipe cut into a built map (R41)", () => {
+describe("the pipe cut into a built map (R39)", () => {
   for (const seed of [1, 38]) {
     it(`seed ${seed}: a start gate above the mouth, the walls, the finish below`, () => {
       const level = setHalfpipe(levelFor(seed));

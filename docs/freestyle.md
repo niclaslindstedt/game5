@@ -21,14 +21,11 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
-| Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R41) — spec `HALFPIPE.md` |
-| Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R39) — spec `SLOPESTYLE.md` |
+| Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R39) — spec `HALFPIPE.md` |
+| Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R38) — spec `SLOPESTYLE.md` |
 | Big air | judged jumps, best two different | one jump | researched — spec `BIG_AIR.md` |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
-| Moguls | turns + air + speed, one run | a mogul course | BUILT in part (R42) — spec `MOGULS.md` |
-| Dual moguls | moguls head to head, a bracket | two mogul lanes | researched — spec `DUAL_MOGULS.md` |
-| Rail jam | a timed jam, one impression | rails and boxes | BUILT in part (R40) — spec `RAIL_JAM.md` |
-| Knuckle huck | a timed jam, one impression | the knuckle of a big air jump | BUILT in part (R38) — spec `KNUCKLE_HUCK.md` |
+| Moguls | turns + air + speed, one run | a mogul course | BUILT in part (R40) — spec `MOGULS.md` |
 
 ## What every judged park format shares (halfpipe, slopestyle, big air)
 
@@ -252,7 +249,7 @@ enough to land a big jump and twin enough to ride and land switch and to
 slide a rail. The riders are big air's: freeskiers of about 70 kg on
 176 cm for the men, about 60 kg for the women.
 
-**What the game builds (R39)**. A course straight down a built map's face
+**What the game builds (R38)**. A course straight down a built map's face
 (`setSlopestyle`): a start platform, three RAIL SECTIONS — each a deck at
 7° with a RAIL and a BOX side by side, the two LINES 12 m apart (a down
 box and a flat-down rail, a down rail and a flat-down box, a
@@ -538,7 +535,7 @@ rather than skidding off. The in-run's SPEED is checked by radar on the
 judges' stand and held within about a kilometre an hour of what a kicker
 wants [66].
 
-**What the game builds** *(est. where it is ours)*: R44's site — a 23°
+**What the game builds** *(est. where it is ours)*: R41's site — a 23°
 in-run sized for each kicker's lip speed (some 59, 80 and 103 m of it for
 the single, the double and the triple, so the foot's speed is ~55, ~62 and
 ~67 km/h), a 4 m table to the kicker, the three kickers on 5.2, 6.2 and
@@ -700,7 +697,7 @@ found each skier's turn time and knee range his own. Nothing in the score
 pays for weight: the turns want legs quick enough to fold every third of a
 second and the speed a body that runs — the MEDIUM build.
 
-**As built** (R42, `engine/mapgen/moguls.ts`, `mogul-field.ts`): a 235 m
+**As built** (R40, `engine/mapgen/moguls.ts`, `mogul-field.ts`): a 235 m
 course at 25° *(the low end of the top series' 28 ± 4°, steep enough on
 this engine — a straight skid drags only ~0.35 g)*; a 10 m track of moguls
 3.5 m apart and 0.7 m crest to trough *(est.)*, their crests snaking across
@@ -714,388 +711,67 @@ jury holds the course under 50 km/h of gust and in no more than a steady
 fall *(est.; fog is not modelled)*. The format is the single-qualification
 one: the best 16 to FINAL 1 and its best 6 to FINAL 2.
 
-## Dual moguls
-
-Moguls head to head: two skiers side by side on two lanes of one course,
-out of one start, in a knock-out bracket.
-
-**The course** [8, 9]: 250 ± 15 m at the championships (220 ± 35 m on the
-top series), 20–24 m wide, two lanes of 6.5 ± 0.5 m — BLUE on the left and
-RED on the right looking up the hill — a middle gate 0.40 m wide and
-outside gates 0.75 m, the two mogul lines at least 4.5 m apart; the air
-bumps as a moguls course's, 4–5 m from the last mogul, landings of 18 and
-20 m. The START DEVICE is two hinged gates, each 2.0 m wide and 0.4 m high,
-opening outward together; the call is "blue course ready… red course
-ready", and both open within three seconds; a false start is a DID NOT
-START, and if one skier cannot start the other does not ski. Only the GAP
-at the finish is timed: the first across starts the clock and the second
-stops it.
-
-**The judging** — two systems [10]:
-
-- **VOTES** (the classic, the championships' in 2026): each judge splits
-  FIVE votes between the two (5–0, 4–1 or 3–2). A seven-judge panel: four
-  TURN judges, two AIR judges and one SPEED judge — 35 votes (turns 20, air
-  10, speed 5); the speed judge also scores turns, read only on a tie. A
-  five-judge panel: two turn, one air, one speed and one OVERALL judge (who
-  splits his five 3 turns / 1 air / 1 speed) — 25 votes. The speed votes
-  come off the gap: 0.74 s or less 3–2, 0.75–1.49 s 4–1, 1.5 s or more 5–0,
-  a dead heat split. A repeated identical jump costs two votes an air
-  judge, two jumps of one category one. The winner has a simple majority.
-- **DIRECT COMPARISON** (newer): each skier scored out of 100. Turns 50 —
-  three judges score both skiers 0–20, never a tie, averaged × 2.5. Air 25
-  — each jump 0–10 times the DUAL DD (the moguls DD × 1.25), up to 12.5 a
-  jump. Speed 25 — the faster 25, the slower `24.50 − 0.025 × the gap in
-  hundredths` (a 0.40 s gap: 23.50), never below 0. A tie: the faster
-  wins, then the skier more turn judges preferred.
-
-Weights either way: turns 50 %, air 25 %, speed 25 %.
-
-**The format** [8]: a ladder of 8, 16, 24 or 32 off a qualification (or
-the series standings, or a moguls result on the same course): the top
-eight keep their seeds, 9–16 and 17–32 drawn within their groups; the
-higher seed picks the lane, or the top of the bracket alternates red and
-blue by round. Places 1–4 are skied off (a BIG FINAL and a SMALL FINAL);
-the rest ranked by their score, then their seed. A DID NOT FINISH is both
-feet over the centre line, a gate missed, a ski lost or a ten-second stop;
-a fall is a turns deduction and most likely the speed votes. If both do
-not finish, the first to go out ranks lower. Ties for the last place in
-the ladder are skied off. A championship final went 30–5, its small final
-20–15 [15].
-
-**Which system the top series uses now**: the championships and the top
-series judged duals by VOTES on a seven-judge panel in the 2025–26 season;
-direct comparison stays in the rules as the alternative. A championship
-ladder is 32, filled out with byes when fewer qualify; a series stop's is
-commonly 16.
-
-**As built** (R43, `engine/mapgen/dual-moguls.ts`, `engine/game/duel.ts`,
-`dual-judge.ts`, `dual-bracket.ts`): the moguls course (R42) laid
-220 m long and 24 m wide with TWO mogul lines, each 5 m wide, 6.5 m apart
-centre to centre on ONE rhythm, so a mogul in the blue lane stands level
-with its twin in the red and neither lane is the faster; the air bumps
-level across both lanes, 5 m after the last mogul above them; each lane its
-own start, nine control gates and finish, 6.5 m wide, in its lane's colour.
-Blue is the lane right of the line looking down (left looking up). The two
-skiers start together out of the gates: the call "blue course ready", then
-"red course ready", then both gates drop at a moment dealt within three
-seconds off the dual's own stream (a false start cannot happen — the gates
-hold a skier until they drop). The rival is SKIED in the other lane by the
-moguls bot at a pace dealt to his qualification skill *(est.: 0.92–1.04 of
-the bot's own)*. Both skis' centres over the centre line, or ten seconds
-stopped, is a DID NOT FINISH. The judging is VOTES on a seven-judge panel
-(four turn judges, two air, one speed off the gap), each turn and air
-judge's split drawn about the two runs' moguls scores with an eye of his
-own *(est.)*; a repeated jump costs two votes an air judge; both out, the
-one out later wins. The format is a whole bracket in one sitting: a
-qualification (one moguls run alone in the blue lane) against a field of
-29 dealt about par, the best 16 to a ladder (seeds 1–8 on their places,
-9–16 drawn), the eighth-finals, quarter-finals, semi-finals, the small
-final and the big final; the higher seed takes the blue lane *(the rules
-let him pick; most pick blue — est.)*; every dual the player is not in is
-dealt off the contest's seed; the out ranked by their qualification score.
-Ridden on the moguls' pair (the Ibex) at the MEDIUM build, as moguls is —
-nothing in a dual pays weight differently.
-
-## Rail jam
-
-A JAM SESSION on a set of rails and boxes: every rider rides as often as
-the clock allows, and the judges score the whole session.
-
-**The format** [16, 17, 18]: a timed window — at the top action-sports
-event's street-style contest two heats of four riders, ten minutes each,
-the best two of each to a ten-minute final of four [17]; a resort rail jam
-usually one jam of 30–60 minutes *(est.)*. Variants: BEST TRICK (only the
-rider's single best trick counts) *(est.)*, and head-to-head games of
-copying each other's tricks (a game of "skate" on skis) [17].
-
-**The judging** [17, 16]: OVERALL IMPRESSION of the whole session —
-progression, execution, difficulty, variety, originality — one score or
-one RANK per rider, so VARIETY and landing consistently matter: three to
-five good tricks beat one perfect one [18]. Some local contests score
-categories instead (landing, technical merit, speed, style, out of 10 each)
-[18].
-
-**The features** [17, 19, 20, 21]: a top contest's street course was a
-staircase with a down-flat-down rail on one side and a down rail on the
-other, a big WALL RIDE (~4 m), a cannon rail and a run of chain links; an
-earlier one a picnic table on a drop, concrete barriers and kinked rails
-over stairs. In a park:
-
-| Feature | Sizes |
-| --- | --- |
-| Box (a wide slide, polyethylene-topped) | ~38–40 cm wide; 4.5, 6 and 9 m long; 7–11 m for a flat-down, down-flat-down or up-flat-down [20] |
-| Rail (round pipe) | 7.5–10 cm round; 3–12 m long — flat, flat-down, down-flat-down, A-frame, rainbow (a 6 m arc) [20, 21] |
-| Height | ride-on boxes 0.2–0.5 m over the snow, rails 0.6–1.2 m, a handrail 1–1.5 m over its stairs *(est.)* |
-| Wall ride | ~2–3 m tall and 4–8 m long in a park *(est.)*, ~4 m at the top contest [19] |
-| Tube | a big round section, ridden on its top [22] |
-
-**The jib vocabulary** [23, 24, 25]:
-
-- **How he stands on it**: a 50-50 (both skis along the rail), a SKI
-  SLIDE (one ski on it), a RAIL SLIDE (sideways across it), a LIPSLIDE
-  (on tails first), a NOSE or TAIL PRESS (along it, the weight forward or
-  back so the other end lifts; a tail tapped at the end of a nose press is
-  part of the trick, not a failure) [24].
-- **On and off**: spins onto a sideways slide come in 90° offsets (270,
-  450, 630 ON); off a 50-50 or a press in 180s (180, 360, 540); and out the
-  same way (a 450 OUT). A PRETZEL spins on one way and off the other (a
-  270 on, pretzel 270 out); a SWAP or SWITCH-UP hops 180° on the rail, a
-  BACK swap harder because he goes BLIND (loses sight of the rail) — a
-  front swap blind 270 out has a name of its own [23, 24, 25].
-- **What judges read** *(est., the ladder from the naming)*: the degrees
-  on and off, swaps, pretzels, blind spins, switch, a press held, kinks
-  and gaps; clean locks, no dab, a press held to the end; style and a
-  creative line.
-
-**More on the judging** [3, 18, 43]: a rail jam's riders are ranked on the
-whole session's overall impression — style, difficulty, creativity,
-consistency, trick variety and how they use EVERY feature of the set; a
-resort jam often splits its heats by ability, and some rank by judges'
-place votes (three points for a first-place vote, two for a second, one
-for a third). The general freestyle judging criteria count spinning ON
-and OFF a rail as difficulty, sliding it different ways (front and back,
-270 on and off) as variety, and stability, a locked-in slide and a clean
-completion on and off the rail as execution [3]. No published manual
-weighs the parts of one jib trick against each other *(est.: the game
-counts each quarter turn on and off, a swap, a held press, a rail over a
-box and a slide over a 50-50 as steps of difficulty — slopestyle's
-`jibImpression`)*.
-
-**The features' heights, sourced** [44]: modular park features stand
-0.5–1.0 m (20–40 in) over the snow, boxes ~40 cm wide and rails 10–30 cm
-across their platform; a ride-on box or rail has its near end buried in a
-snow ramp so it is met at the snow's level *(est.: 0.2–0.5 m)*.
-
-**The set and the speed** *(est.)*: a jib set is a short, gentle hill —
-a drop-in onto a deck of some 5–10°, its features side by side so a rider
-picks one a hit, met at 10–30 km/h (§ *Slopestyle*'s rail sections), the
-whole a few dozen metres long. A hit lasts some ten seconds, so a jam's
-ten minutes is dozens of hits.
-
-**The jury's weather** *(est.)*: no rule is published. Rails are ridden at
-a crawl and jams go ahead at night under lights and in falling snow; only
-a gale that blows a rider off a rail stops one.
-
-**The pair** [35, 45]: the rail skier's ski is the softest of the park
-twin-tips — 164–180 cm, ~118–121 / 90–94 / 116 mm, a 15–20 m sidecut, a
-soft, even flex for riding forward and switch, mounted at or near the
-centre, with thick, dulled edges (a base edge bevel of ~1.6° to spin) —
-and some are built with NO steel edge at all for the street. The game's
-HARE (`defs/skis.ts`: 174 cm, 122/90/120 mm, 17 m, the softest pair, a
-centre mount) is that class, and the rail jam opens on it (`RACE_SKIS`).
-
-**The build** [36, 40]: the jib field is the same park field as big air's
-and the knuckle huck's (~70–72.5 kg on 176–179 cm for the men); nothing on
-a rail pays for weight — a heavier rider loads a press more easily and
-lands harder, a lighter one hops on and spins more easily *(est.)* — so a
-rail jam opens on the MEDIUM build (`RACE_RIDERS`).
-
-**The jam as the game runs it** (`engine/game/jam.ts`, the knuckle huck's
-jam): ONE JAM of eight — the player and seven dealt riders, the top street
-contest's two heats of four ridden together — cut to THREE MINUTES
-(`RAIL_JAM.jam`), some fifteen hits. A hit is a ride from the platform down
-the drop-in onto one feature and on over the finish line, and he is stood
-back on the platform for the next; it is judged on the feature ridden
-(the degrees on and off, the stances, a swap, a press held, a rail over a
-box), and its KIND for the session's variety is the feature and the way
-it was ridden, so riding every feature pays. The session is the mean of
-the best three hits, a little more for variety, a little less for each
-fall, marked by the panel of six. The field is dealt on a stream of its
-own (`RAIL_JAM_FIELD`), hits coming round every 10–16 s.
-
-**The set as the game builds it** (R40, `engine/mapgen/trick-rules.ts`'s
-`RAIL_JAM_RULE`): a 6 m platform, a 15° drop-in sized to bring a skier
-stood up to the features at 22 km/h, a 7° deck of 34 m with its features
-12 m down it, then a 5° run-out with the finish line 20 m in — some 90 m
-of plan over ~10 m of vertical, cut down the face as big air's jump is.
-FIVE FEATURES stand side by side 5 m apart, their near ends 0.3 m over the
-deck: a 7 m down box, a 9 m flat-down rail, a 9 m kinked (down-flat-down)
-box, a 10 m down-flat-down rail and a 6 m rainbow rail.
-
-## Knuckle huck
-
-Tricks off the KNUCKLE — the rounded edge where a big air jump's deck meets
-its landing — instead of the kicker: less height, so it is won on
-technique, style and invention. A jam, judged on one impression.
-
-**The format** [26, 27, 28]: about eight riders share one 20-minute jam
-and hit the knuckle as often as the time allows; the panel gives each one
-OVERALL IMPRESSION result for the whole session, not a score a hit — style
-and finesse, creativity, originality — and the spirit is loose on purpose:
-"just entertain". No rule says how many hits count *(est.: the session is
-ranked as a whole)*. A medal event for snowboarders since 2019 and for
-skiers since 2020 at the action-sports event that started it [26, 27]; the
-women's jams were added in 2024 [37]. Eight riders a sex is the field
-[28, 37, 38]. Nothing published sets a panel size, a tie rule, a practice
-or what a fall costs; criteria reported beside the impression are
-execution, difficulty, variety and the progression through the session
-[27], and the judges openly favour butters, hand drags and "using the
-knuckle" [37].
-
-**The tricks** [27, 28, 29]: BUTTERS and PRESSES into rotations (a nose
-butter into a front flip or a double, a nose butter 360 and 720, a switch
-butter front flip), spins into, up and out of the knuckle, double
-underflips, a front flip into a barani (a front flip with a half twist),
-up to four flips in one run, a ZERO SPIN over the knuckle, hand drags into
-a flip, ballet moves, a roll or a slide along the knuckle, spins to 1080. A
-butter: the weight on the tips lifts the tails and he pivots on the tips;
-for a nose butter 540 the body is wound up about 270° some two metres
-before the roll [29].
-
-**The feature** [26]: the knoll at the top of a landing, where a flat or
-gentle deck meets a far steeper drop; the event's first venue had a ~15 m
-drop-in onto a ~7 m wide jump that sent a rider 20–25 m up off its kicker.
-Hit at 20–40 km/h after a short run along the deck, landed 3–10 m down a
-30–38° landing *(est.)*.
-Later jumps put the knuckle 21 m past a 7 m wide kicker off a 15 m
-scaffold drop-in, onto a landing 18 m wide [38]; championship landings run
-34–39°, a cap of 40° [7, 9]. No source gives the knuckle's radius, the
-speed it is hit at or the air off it *(est.: a crown of 5–15 m radius, hit
-at 25–45 km/h from a lowered drop-in, 1–3 m of height and 0.7–1.5 s of
-air)*. The session is run in the EVENING UNDER THE LIGHTS, and has gone
-ahead on a cold night after a day's weather delay [28, 37]; no wind or
-snow-preparation rule is published for it.
-
-**What wins** [28, 37]: the women's field throws 360–900, the men's
-360–1260, with a nose butter double cork 1620 the top of it; flips from a
-single to a double, baranis, underflips; switch tail butters into a rodeo
-or a 1080, a hand-drag cork 540, a zero-spin shifty, ballet moves.
-
-**The pair** [35, 39]: the soft PARK TWIN-TIP, not big air's competition
-pair — soft tips and tails that hinge, a firm middle, rocker at both ends
-over camber underfoot, a mount at or near centre. The band, off the
-published specs of the butter-and-jam twin-tips a park field rides:
-171–185 cm for a man, 118–133 / 90–100 / 114–124 mm, a sidecut of 19–23 m,
-1.6–1.9 kg a ski, mounted 0–3 cm back of centre, a retailer's flex of 5–7
-of 10. A competition twin-tip has nearly the same shape (118/90/116 mm,
-19 m) and differs in the core: a jam rides the soft one because a press
-needs the tip or the tail to give. The game's pair for it is the HARE
-(`defs/skis.ts`), the park's soft twin-tip.
-
-**The build** [36, 40]: a national team's freeskiers measured 70.1 kg on
-176 cm for the men and 60.4 kg on 165 cm for the women; an elite men's
-freeski field ~72.5 kg on 179 cm. Nothing a jam pays for favours weight —
-a heavier rider bends a given ski into a press more easily and loads the
-landing harder *(est.)* — so the game opens a knuckle huck on the MEDIUM
-build (`RACE_RIDERS`), as big air.
-
-**The jam as the game runs it** (`engine/game/jam.ts`): a session of eight
-— the player and seven dealt riders — cut from twenty minutes to THREE
-(`KNUCKLE_HUCK.jam`), some dozen hits, held as big air is under 40 km/h of
-gust and no more than a steady fall *(est.)*. A hit is a ride from the
-platform over the deck and off the knuckle, ended at the finish line or by
-a fall, and he is stood back on the platform for the next. Each hit is
-read as the trick it was — the PRESS it left the snow in (`butter.ts`) and
-the BUTTER's winding counted into the spin — and given an impression off
-its difficulty, a press or a butter worth a step of its own; the SESSION
-is the mean of the best three hits (three good hits beat one perfect one
-[18]), a little more for each different kind among them and a little less
-for each fall, marked by the same panel of six as a big air jump. The sport
-ranks without a number; the game shows the panel's mark so the board can
-be read as it stands.
-
-**Butters and presses as the game rides them** (`engine/game/butter.ts`):
-the lean held hard on the snow presses the nose or the tail; pressed, the
-edge pivots him about that end at a gathered rate — the wind-up a rider
-sets some two metres before the roll [29] — and the snow brakes the skis
-across his way. A butter popped off the knuckle is owed the rest of its
-turn, so it is landed square: wound to 270°, a 360.
-
-**The knuckle as the game builds it** (R38, `engine/mapgen/trick-rules.ts`):
-a 6 m platform, a 24° drop-in sized to bring a tucked skier to the knuckle
-at 32 km/h, an 18 m level deck, a knuckle rounded on 6 m — sharp enough to
-pop off at that speed — a 37° landing held for 26 m, then the run-out; cut
-down the face as big air's jump is.
-
 ## Sources
 
 [1] the international snowboard, freestyle, freeski and ski-cross
 competition rules, autumn 2025 edition (the park and pipe chapter: the
-fields of play, the judging, the formats) · [2] the federation's
-top-series rules for those sports, 2025–26 (the format sections) · [3] a
-national snowboard association's pocket guide to freestyle judging,
-2020–21, restating the federation's judges' handbook · [4] a broadcaster's
-freestyle glossary and an energy-drink brand's halfpipe guide (the 8.04 m
-record) · [5] a snow magazine's guide to the championship halfpipe ·
-[6] a broadcaster's question-and-answer on the championship slopestyle
-course · [7] a national ski-technicians' conference talk on preparing
-freeski courses and jumps, 2026 (speeds, a championship big air jump) ·
-[8] the same competition rules, spring 2026 edition (the moguls and dual
-moguls chapters) · [9] the federation's freestyle course standards
-manual, 2023 · [10] the federation's freestyle judging handbook, November
-2025 · [11] the general reference literature on mogul skiing · [12] the
-federation's moguls degree-of-difficulty table, November 2023 · [13] the
-federation's 2025–26 explainer on moguls and dual moguls · [14] a review of
-biomechanical analysis in mogul skiing (perspectives for comprehensive
-analyses) · [15] the published results of the 2026 championship dual
-moguls · [16] a national ski instructors' association's learning page on
-park contests · [17] a freeski magazine's 2025 guide to the action-sports
-event's street-style contest · [18] regional rail-jam rules and listings ·
-[19] a freeski news site's report on the first street-style contest ·
-[20] a ski maker's park-feature catalogue excerpt (box and rail sizes) ·
-[21] terrain-park listings of their features · [22] the general reference
-literature on terrain parks · [23] the general reference literature on
-freeskiing · [24] the federation's judges' manual extract on naming rail
-tricks (written for snowboard; the 270/450 offsets and the pretzel carry
-over) · [25] a sports camp's rail tip on front and back swaps · [26] the
-action-sports broadcaster's press release adding the knuckle huck, 2018,
-and a city magazine's 2020 preview · [27] a ski journal's 2020 report on
-the first ski knuckle huck, and a freeski news site's 2021 recap · [28] a
-local newspaper's 2025 report on the knuckle huck · [29] a freeski
-magazine's trick tip on the nose butter · [30] the federation's
-top-series aerials start lists, 2021–24, each with its jury's technical
-data (the site, the kickers, the jumps and their DDs) · [31] the published
-result sheets of the 2026 championship aerials (men, women, mixed team) ·
-[32] the federation's freestyle judging handbook, October 2025 (the
-aerials chapter) · [33] a biomechanics conference paper on twisting in
-aerial skiing (the flight time, the twists a flip) · [34] a broadcaster's
-freestyle explainer quoting a coach on in-run speeds · [35] ski makers'
-published specifications of their park and competition twin-tips (length,
-dimensions, sidecut radius, mount) · [36] an anthropometric study of a
-national freeski and snowboard team (body mass and height by sport and
-sex) · [37] a freeski news site's reports on the knuckle huck: the 2021
-recap, the first women's jam in 2024 and the men's in 2026 · [38] a
-freeski magazine's 2025 event preview and a men's lifestyle magazine's 2023
-preview of the jump · [39] a ski-review site's and ski retailers' reviews
-and specifications of butter-focused park twin-tips (flex, mount, the
-hinge) · [40] a 2020 exercise-science study of male freeskiers' big air
-landings (their body mass and height, the landing's force) · [41] broadcasters'
-and park builders' descriptions of championship slopestyle courses (the
-length, the vertical, the features a section, the jumps' sizes, the
-panels) · [42] news reports of championship slopestyle finals skied or
-called off in wind · [43] resort rail-jam listings
-and rules (the jam format, heats by ability, the overall impression and
-its criteria, place-vote scoring) · [44] a patent for a portable modular
-terrain-park feature system (the heights, lengths and widths of its rails
-and boxes) · [45] ski retailers' specifications of jib and street park
-skis (length, dimensions, sidecut, edge bevel, edgeless builds) ·
-[46] patents for snow-pipe cutting apparatus (the cutter's curved blade,
-the wall's radius and the flat bottom) · [47] a snow magazine's and a
-pipe-machine maker's descriptions of the 22 ft cutter (its elliptical
-profile) · [48] a 2016 kinematic analysis of elite halfpipe snowboarders'
-take-off (the speed out of the lip, the load in the transition) · [49] a
-national coaching portal's freeski halfpipe pages (the approach, the
-pump, the take-off and landing on the same wall, the alley-oop) · [50] a
-ski site's analysis of the equipment of a championship pipe final ·
-[51] news reports of pipe contests delayed or called off for wind and
-snow ·
-[52] a mountain resort's account of building a top-series moguls course
-(the rope, the flags every ~4 m, the frozen take-off forms) · [53] a winter
-sports science feature on course preparation (the water injection and the
-snow's density) · [54] a physics magazine's field study of natural moguls
-(their spacing and their creep uphill) · [55] news reports of top-series
-moguls postponed or cancelled for fog and snow · [56] two ski makers'
-mogul ranges (lengths, dimensions, radii, the softer-tipped version) ·
-[57] a retailer's mogul ski listings (the flex rating, the weight) ·
-[58] a freestyle coaching page on choosing a mogul ski · [59] a national
-team's six-season physical test database, summarised in a sports science
-journal (height and mass by discipline and sex) · [60] a sports
-biomechanics study of the knee in six top-level mogul skiers ·
-[61] the governing body's published aerials degree-of-difficulty chart
-(2023 edition) · [62] ski makers' and retailers' aerials ski listings
-(lengths, dimensions, cores) · [63] sports science studies of national
-aerials squads (height and mass by sex) · [64] a biomechanics study of
-the landing load on aerials triples · [65] coaching and venue accounts of
-the aerials landing hill (the drop, the snow chopped and loosened) ·
-[66] a national team's account of the radar speed check on the in-run.
+fields of play, the judging, the formats) · [2] the federation's top-series
+rules for those sports, 2025–26 (the format sections) · [3] a national
+snowboard association's pocket guide to freestyle judging, 2020–21,
+restating the federation's judges' handbook · [4] a broadcaster's freestyle
+glossary and an energy-drink brand's halfpipe guide (the 8.04 m record) ·
+[5] a snow magazine's guide to the championship halfpipe · [6] a
+broadcaster's question-and-answer on the championship slopestyle course ·
+[7] a national ski-technicians' conference talk on preparing freeski courses
+and jumps, 2026 (speeds, a championship big air jump) · [8] the same
+competition rules, spring 2026 edition (the moguls chapters)
+· [9] the federation's freestyle course standards manual, 2023 · [10] the
+federation's freestyle judging handbook, November 2025 · [11] the general
+reference literature on mogul skiing · [12] the federation's moguls
+degree-of-difficulty table, November 2023 · [13] the federation's 2025–26
+explainer on moguls · [14] a review of biomechanical
+analysis in mogul skiing (perspectives for comprehensive analyses) · [20] a
+ski maker's park-feature catalogue excerpt (box and rail sizes) · [21]
+terrain-park listings of their features · [30] the federation's top-series
+aerials start lists, 2021–24, each with its jury's technical data (the site,
+the kickers, the jumps and their DDs) · [31] the published result sheets of
+the 2026 championship aerials (men, women, mixed team) · [32] the
+federation's freestyle judging handbook, October 2025 (the aerials chapter)
+· [33] a biomechanics conference paper on twisting in aerial skiing (the
+flight time, the twists a flip) · [34] a broadcaster's freestyle explainer
+quoting a coach on in-run speeds · [35] ski makers' published specifications
+of their park and competition twin-tips (length, dimensions, sidecut radius,
+mount) · [36] an anthropometric study of a national freeski and snowboard
+team (body mass and height by sport and sex) · [40] a 2020 exercise-science
+study of male freeskiers' big air landings (their body mass and height, the
+landing's force) · [41] broadcasters' and park builders' descriptions of
+championship slopestyle courses (the length, the vertical, the features a
+section, the jumps' sizes, the panels) · [42] news reports of championship
+slopestyle finals skied or called off in wind · [46] patents for snow-pipe
+cutting apparatus (the cutter's curved blade, the wall's radius and the flat
+bottom) · [47] a snow magazine's and a pipe-machine maker's descriptions of
+the 22 ft cutter (its elliptical profile) · [48] a 2016 kinematic analysis
+of elite halfpipe snowboarders' take-off (the speed out of the lip, the load
+in the transition) · [49] a national coaching portal's freeski halfpipe
+pages (the approach, the pump, the take-off and landing on the same wall,
+the alley-oop) · [50] a ski site's analysis of the equipment of a
+championship pipe final · [51] news reports of pipe contests delayed or
+called off for wind and snow · [52] a mountain resort's account of building
+a top-series moguls course (the rope, the flags every ~4 m, the frozen
+take-off forms) · [53] a winter sports science feature on course preparation
+(the water injection and the snow's density) · [54] a physics magazine's
+field study of natural moguls (their spacing and their creep uphill) · [55]
+news reports of top-series moguls postponed or cancelled for fog and snow ·
+[56] two ski makers' mogul ranges (lengths, dimensions, radii, the
+softer-tipped version) · [57] a retailer's mogul ski listings (the flex
+rating, the weight) · [58] a freestyle coaching page on choosing a mogul ski
+· [59] a national team's six-season physical test database, summarised in a
+sports science journal (height and mass by discipline and sex) · [60] a
+sports biomechanics study of the knee in six top-level mogul skiers · [61]
+the governing body's published aerials degree-of-difficulty chart (2023
+edition) · [62] ski makers' and retailers' aerials ski listings (lengths,
+dimensions, cores) · [63] sports science studies of national aerials squads
+(height and mass by sex) · [64] a biomechanics study of the landing load on
+aerials triples · [65] coaching and venue accounts of the aerials landing
+hill (the drop, the snow chopped and loosened) · [66] a national team's
+account of the radar speed check on the in-run.

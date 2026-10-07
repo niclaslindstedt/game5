@@ -84,6 +84,8 @@ export type GoreState = {
   lost: number;
   torn: TornPiece[];
   open: number;
+  /** When the skull was crushed (−1: it was not). */
+  crushed: number;
   impaled: Impaled | null;
   mortal: number;
   dead: number;
@@ -101,6 +103,7 @@ export function freshGore(): GoreState {
     lost: 0,
     torn: [],
     open: 0,
+    crushed: -1,
     impaled: null,
     mortal: -1,
     dead: -1,

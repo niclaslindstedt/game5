@@ -153,7 +153,7 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
     if (g.lost & bit(piece)) continue;
     if (doseOn(TEAR[piece].part) >= tearDose(state, piece)) tear.push(piece);
   }
-  let crush = doseOn("head") >= GORE.crush && !(g.lost & bit("head"));
+  let crush = doseOn("head") >= GORE.crush && !(g.lost & bit("head")) && g.crushed < 0;
   // The head comes off or is crushed, never both.
   if (tear.includes("head")) crush = false;
   const open: GoreOpen[] = [];
@@ -192,6 +192,7 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
     );
   }
   if (crush) {
+    g.crushed = state.t;
     events.push({ kind: "gore", t: state.t, what: "crush", ...pointOf(off, R.head) });
     mortalBy(state, g, "crush");
   }
@@ -326,7 +327,7 @@ function flowOf(g: GoreState): number {
   }
   for (let k = 0; k < GORE_OPEN.length; k++) if (g.open & (1 << k)) q += F[GORE_OPEN[k]];
   if (g.impaled) q += F.impaled;
-  if (g.cause === "crush") q += F.crush;
+  if (g.crushed >= 0) q += F.crush;
   return q;
 }
 

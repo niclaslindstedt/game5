@@ -24,10 +24,12 @@ export const AFTERSKI_STRINGS = {
   /* ── INSIDE ─────────────────────────────────────────────────────────── */
   afterskiInside: "AFTERSKI",
   afterskiBeers: (n: number): string => (n === 1 ? "1 BEER" : `${n} BEERS`),
-  /** Another round on the jump key, and the way out on the machine key. */
-  afterskiRound: "JUMP FOR ANOTHER ROUND",
-  afterskiLeave: (touch: boolean, key: string): string =>
-    touch ? "TAP HERE TO HEAD OUT" : `${key} OR CLICK TO HEAD OUT`,
+  /** Another round on a tap anywhere or the jump key; a beer on its way
+   * down; the door's word (the machine key heads out too). */
+  afterskiRound: (touch: boolean, key: string): string =>
+    touch ? "TAP FOR ANOTHER ROUND" : `CLICK OR ${key} FOR ANOTHER ROUND`,
+  afterskiCheers: "CHEERS!",
+  afterskiLeave: "LEAVE",
 
   /* ── THE BUZZ METER ─────────────────────────────────────────────────── */
   buzzLabel: "BUZZ",

@@ -69,6 +69,7 @@
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
+    "gore": "node scripts/gore-preview.mjs",
     "groomer": "node scripts/groomer-preview.mjs",
     "snowguns": "node scripts/snowguns-preview.mjs",
     "tree-wells": "node scripts/tree-wells-preview.mjs",

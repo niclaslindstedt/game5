@@ -113,12 +113,23 @@ export function bodyCollapse(
 }
 
 /** A TORN PIECE'S SKIN CUT: every bone the piece did NOT take, collapsed at
- * its cut — so only the piece is drawn. */
-export function pieceCollapse(piece: GorePiece, frames: Record<SkierBone, BoneFrame>): Collapse {
+ * its cut — so only the piece is drawn — and every bone of a piece it held
+ * that tore off before it (`before`, a bit a piece), collapsed at THAT
+ * piece's cut: an arm torn off after its forearm is the upper arm alone. */
+export function pieceCollapse(
+  piece: GorePiece,
+  frames: Record<SkierBone, BoneFrame>,
+  before = 0,
+): Collapse {
   const at = cutOf(piece, frames).at;
   const bones = new Map<SkierBone, V3>();
   for (const name of Object.keys(frames) as SkierBone[]) {
     if (!onPiece(piece, name)) bones.set(name, at);
+  }
+  for (const held of HOLDS[piece] ?? []) {
+    if (!(before & (1 << GORE_PIECES.indexOf(held)))) continue;
+    const cut = cutOf(held, frames).at;
+    for (const b of PIECE_BONES[held]) bones.set(b, cut);
   }
   return { bones };
 }

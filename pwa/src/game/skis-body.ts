@@ -190,7 +190,12 @@ export type SkisModel = {
   /** His dressed skin as last posed: its bones' frames in its own group's
    * frame, that group (whose world matrix places them) and its cloth — what
    * the torn pieces are drawn off (`gore-view.ts`). */
-  skin(): { frames: Record<SkierBone, BoneFrame>; group: THREE.Object3D; dress: SkierDress };
+  skin(): {
+    frames: Record<SkierBone, BoneFrame>;
+    group: THREE.Object3D;
+    dress: SkierDress;
+    cloth: THREE.BufferGeometry;
+  };
   /** The lamp on his helmet (`headlamp.ts`), lit by the renderer. */
   lamp: Headlamp;
   /** Every mesh that draws the pair and its skier — what casts. */
@@ -785,7 +790,12 @@ export function createSkisModel(
       goreLost = lost;
       goreCrush = crush;
     },
-    skin: () => ({ frames: figure.dressed.last(), group: figure.dressed.group, dress: style.skier }),
+    skin: () => ({
+      frames: figure.dressed.last(),
+      group: figure.dressed.group,
+      dress: style.skier,
+      cloth: figure.dressed.cloth,
+    }),
     setSkierVisible(v) {
       if (figure.group.visible === v) return;
       figure.group.visible = v;

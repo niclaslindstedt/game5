@@ -89,6 +89,28 @@ export function grimbearPose(
     out.spread = 0.3;
     out.look = 0.5 - up * 0.5;
     out.jaw = 0.4 + up * 0.5;
+  } else if (phase === "miss" && t < 0.6) {
+    // THE DIVE: thrown forward at the skier, both arms raked down and
+    // across through the air where he was, the jaws open.
+    const rake = Math.min(1, t / 0.35);
+    out.hip[0] = 0.9;
+    out.hip[1] = -0.35;
+    out.knee[0] = 0.5;
+    out.knee[1] = 0.3;
+    out.shoulder[0] = out.shoulder[1] = 2.4 - rake * 1.9;
+    out.elbow[0] = out.elbow[1] = 0.25 + rake * 0.35;
+    out.lean = 0.7 + rake * 0.25;
+    out.bob = -0.2;
+    out.spread = 0.55 - rake * 0.35;
+    out.look = 0.1;
+    out.jaw = 0.9;
+  } else if (phase === "miss") {
+    // Stumbling on after it, pitched over his own feet.
+    out.lean += 0.3;
+    out.bob -= 0.05;
+    out.shoulder[0] += 0.6;
+    out.shoulder[1] -= 0.3;
+    out.spread = 0.45;
   } else if (phase === "halt" && speed < 1) {
     // Pulled up, stood tall, the arms up and out and roaring.
     const heave = Math.sin(t * 3) * 0.05;

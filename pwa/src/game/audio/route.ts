@@ -292,7 +292,7 @@ export function soundForEvent(
       return { id: "trap" };
 
     // THE GRIMBEAR (`grimbear.ts`): his roar out of the trees, over the
-    // skier he took, and pulled up short — heard from where he stands.
+    // skier he took, as he dives past the one he missed, and pulled up short — heard from where he stands.
     case "grimbear":
       return event.phase === "gone"
         ? null
@@ -300,7 +300,11 @@ export function soundForEvent(
             id: "roar",
             shape: {
               ...heardAt({ x: event.x, y: contact.ear?.y ?? 0, z: event.z }, contact.ear, 25, 0.2),
-              ...(event.phase === "halt" ? { pitch: 0.85 } : {}),
+              ...(event.phase === "halt"
+                ? { pitch: 0.85 }
+                : event.phase === "miss"
+                  ? { pitch: 1.15 }
+                  : {}),
             },
           };
 

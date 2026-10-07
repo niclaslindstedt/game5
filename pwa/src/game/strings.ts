@@ -276,8 +276,10 @@ export const STRINGS = {
    * shoulder he rode through, or one that put the other skier down. */
   newsCrowdBump: "OI! WATCH IT",
   newsCrowdDown: "SKIER DOWN! SORRY",
-  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, and pulled up short. */
+  /** THE GRIMBEAR (`grimbear.ts`) out of the trees, diving past, and
+   * pulled up short. */
   newsGrimbear: "SOMETHING IN THE TREES!",
+  newsGrimbearMiss: "IT MISSED YOU!",
   newsGrimbearHalt: "IT LET YOU GO… THIS TIME",
   /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
    * machine flown into the mountain, and the ride begun again. */

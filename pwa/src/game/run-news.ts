@@ -90,12 +90,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "stuck":
       return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };
     case "grimbear":
-      // Out of the trees, and pulled up short; the catch is the wipeout's.
+      // Out of the trees, diving past, and pulled up short; the catch is
+      // the wipeout's.
       return e.phase === "burst"
         ? { text: STRINGS.newsGrimbear, tone: "bad" }
-        : e.phase === "halt"
-          ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
-          : null;
+        : e.phase === "miss"
+          ? { text: STRINGS.newsGrimbearMiss, tone: "good" }
+          : e.phase === "halt"
+            ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
+            : null;
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"

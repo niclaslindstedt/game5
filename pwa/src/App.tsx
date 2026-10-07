@@ -96,6 +96,7 @@ import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
+import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
@@ -853,7 +854,9 @@ export function App() {
     pressRef.current.free(freeGameOptions(settings.ride, startSeed, skierOf(settings)));
   };
 
-  const hudUp = hudOver(shell) && snap !== null && input !== null;
+  // A freestyle contest's plate takes the screen from the run's HUD.
+  const plated = shell === "run" && !away && contestPlateUp(snap);
+  const hudUp = hudOver(shell) && snap !== null && input !== null && !plated;
   return (
     <>
       <canvas ref={canvasRef} />

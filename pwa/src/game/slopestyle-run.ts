@@ -29,6 +29,8 @@ import {
   type SlopeScore,
 } from "@engine";
 
+import { boardWindow } from "./contest-board.ts";
+
 /** WHAT THE PLATE OFFERS after a run: the phase's next run, the final
  * (through at `place`), or the contest over for him — out of the
  * qualification at `place`, or the final done at `place`. */
@@ -69,9 +71,6 @@ export type SlopestyleHud = {
   next: SlopeNext | null;
 };
 
-/** How many of the board the plate shows. */
-const BOARD_ROWS = 8;
-
 /** The slopestyle readouts at this step, or null on any other run. */
 export function slopestyleOf(state: GameState): SlopestyleHud | null {
   const c = state.slopestyle;
@@ -110,9 +109,7 @@ function boardRows(c: SlopeContest, phase: SlopePhase): SlopeBoardRow[] {
     fell: r.runs.map((j) => j.fell),
     total: r.total,
   }));
-  const you = rows.findIndex((r) => r.you);
-  const top = rows.slice(0, BOARD_ROWS);
-  return you >= BOARD_ROWS ? [...top.slice(0, BOARD_ROWS - 1), rows[you]] : top;
+  return boardWindow(rows);
 }
 
 /** What comes after the run just filed in `phase`. */

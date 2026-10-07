@@ -11,6 +11,7 @@
 import { HALFPIPE } from "@engine";
 
 import type { HudSnapshot } from "./snapshot.ts";
+import { ContestBoard } from "./hud-contest-board.tsx";
 import { STRINGS } from "./strings.ts";
 
 export function HalfpipePlate({
@@ -67,19 +68,11 @@ export function HalfpipePlate({
                     : STRINGS.halfpipeDone(next.place)}
             </span>
           )}
-          <ol class="hud-standings hud-bigair-board">
-            {run.board.map((r) => (
-              <li key={r.id} class={`hud-standing${r.you ? " hud-standing-you" : ""}`}>
-                <span class="hud-standing-place">{r.place}</span>
-                <span class="hud-standing-name">
-                  {r.you ? STRINGS.halfpipeYou : STRINGS.halfpipeBib(r.id)}
-                </span>
-                <span class="hud-standing-time">
-                  {STRINGS.halfpipeRow(r.scores, r.fell, r.total)}
-                </span>
-              </li>
-            ))}
-          </ol>
+          <ContestBoard
+            rows={run.board}
+            name={(r) => (r.you ? STRINGS.halfpipeYou : STRINGS.halfpipeBib(r.id))}
+            figure={(r) => STRINGS.halfpipeRow(r.scores, r.fell, r.total)}
+          />
           <div class="hud-result-acts">
             {onward && (
               <button

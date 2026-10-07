@@ -27,6 +27,11 @@
   --pine-dark: #143326;
   /* The deepest tone a card is washed toward — the HUD's own navy. */
   --night: #0d2233;
+  /* THE NIGHT DRESSING's dial at its day value (`.hud` ramps the chrome
+     along it), stated here as well so a rule read outside the HUD gets the
+     undipped chrome rather than an invalid declaration. */
+  --hud-dark: 0;
+  --hud-rim-light: 1;
   --hud-ink: #ffffff;
   /* THE CHROME'S OWN NAVY, as bare channels so every plate can still mix
      its own alpha off it — the glyph a letter is stamped in and the ground
@@ -193,10 +198,60 @@ canvas {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
 
+  /* ── THE NIGHT DRESSING: the chrome dips with the lamps ──────────────
+     The sibling games' own, ported. Instruments dip when the lamps go on,
+     and so do these: `--hud-dark` is 0..1 — how far the night's lamps are
+     on (`SkyLook.lamps`: the floodlights, the arena's floods, every
+     skier's headlamp), read into the snapshot as `dark` and written here
+     by `hud.tsx` — and every colour below is a ramp along it. Nothing
+     else on this screen has an opinion about how dark it is.
+
+     THE REASON IS CONTRAST, NOT MOOD. Every colour here was mixed to hold
+     over a bright piste at noon: full white ink, a hard navy drop under
+     every glyph, a chart of white snow in the corner. Under a night sky the
+     same chrome has several times the contrast it needs and spends the
+     surplus as GLARE — a screenful of white in front of the one thing the
+     skier is straining to see into, the dark past the floodlights. A night
+     instrument is dimmer and lower in contrast so the eye keeps its dark
+     adaptation; the dip hands the surplus back.
+
+       * THE CHROME COMES DOWN A STOP, AND NEVER FURTHER. The ink goes off
+         pure white to a soft grey-blue; the navy goes to nearly black,
+         which takes the drop under every glyph and the ground under every
+         plate with it in one number (`--hud-plate`).
+       * THE DRESSING LOSES ITS LIGHT; THE SIGNAL KEEPS IT. `--hud-bad`,
+         `--hud-good` and `--hud-ahead` are NOT ramped: the red is every
+         warning and the flag a skier hunts for on the snow, the green the
+         gap going his way — a warning lamp is the one thing on a real
+         cluster that never dims.
+       * THE DROP STAYS HARD. The sibling jet-ski game fades its 1 px drop
+         out at night, because its night is black water; ours is a piste
+         under floodlights, as bright behind the speed as a noon one, and
+         a small label there kept only a soft shadow went grey on white.
+         So the hard drop stays, in the near-black navy, and a soft one is
+         laid under it to hold the letters off the lit snow.
+
+     IT RAMPS RATHER THAN SWITCHING, because the lamps come up through the
+     dusk as a dimmer, and a cluster that stepped while they faded would
+     read as two machines. */
+  --hud-dark: 0;
+  --hud-ink: color-mix(in srgb, #ffffff, #d3dce8 calc(var(--hud-dark) * 100%));
+  --hud-info: color-mix(in srgb, #cfe6f7, #93afc4 calc(var(--hud-dark) * 100%));
+  --hud-plate: calc(13 - 8 * var(--hud-dark)) calc(34 - 22 * var(--hud-dark))
+    calc(51 - 31 * var(--hud-dark));
+  /* Restated rather than left to `:root`'s alias: a `var()` inside a custom
+     property is substituted where the property is DECLARED, so the root's
+     would carry the day navy down here however far this one ramps. */
+  --hud-shadow: rgb(var(--hud-plate));
   /* THE CHROME'S WHITE EDGE — the rim round a pressable plate, and the
-     line along a gauge's track. */
-  --hud-edge: rgb(255 255 255 / 65%);
-  --hud-track: rgb(255 255 255 / 70%);
+     line along a gauge's track. Drawn to be found against a bright sky;
+     against the night it only has to be found, so both come down by the
+     same share and keep the weights they were drawn at. */
+  --hud-edge: rgb(255 255 255 / calc(65% - 38% * var(--hud-dark)));
+  --hud-track: rgb(255 255 255 / calc(70% - 41% * var(--hud-dark)));
+  /* The highlight along the top of a press's moulding and the glow of a
+     pressable one, which dip with the rim. */
+  --hud-rim-light: calc(1 - 0.5 * var(--hud-dark));
 
   /* THE PRESSES' DIAMETER, and the one statement of it: a third of the
      cluster's width less the gaps — room for three, the most the row ever
@@ -207,7 +262,9 @@ canvas {
      portrait query re-declares `--hud-cluster` on, so both resolve together. */
   --hud-press: calc((var(--hud-cluster) - 2 * var(--hud-mini-gap)) / 3);
 
-  text-shadow: 0 1px 0 rgb(var(--hud-plate));
+  text-shadow:
+    0 1px 0 rgb(var(--hud-plate)),
+    0 1px 3px rgb(0 0 0 / calc(60% * var(--hud-dark)));
 }
 .hud button,
 .hud [data-touch] {
@@ -341,7 +398,8 @@ canvas {
   color: inherit;
   border-radius: 50%;
   overflow: hidden;
-  background: #5d6670;
+  /* The plate under the bake, dipped with it (minimap.tsx's `NIGHT`). */
+  background: color-mix(in srgb, #5d6670, #1a222c calc(var(--hud-dark) * 100%));
   border: 2px solid var(--hud-edge);
   box-shadow:
     0 2px 0 rgb(var(--hud-plate) / 60%),
@@ -362,7 +420,7 @@ canvas {
   box-shadow:
     0 2px 0 rgb(var(--hud-plate) / 60%),
     inset 0 0 0.6rem rgb(var(--hud-plate) / 45%),
-    0 0 10px rgb(255 255 255 / 20%);
+    0 0 10px rgb(255 255 255 / calc(20% * var(--hud-rim-light)));
 }
 
 .hud-minimap:active {
@@ -523,7 +581,7 @@ canvas {
   /* The rim of light along the top of the moulding, and the shadow the disc
      stands off the snow on — the same separation the map beside it is given. */
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / calc(28% * var(--hud-rim-light))),
     0 2px 3px rgb(0 0 0 / 45%);
   transition:
     transform 110ms ease,
@@ -539,9 +597,9 @@ canvas {
   outline: none;
   border-color: var(--hud-ink);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / calc(34% * var(--hud-rim-light))),
     0 2px 3px rgb(0 0 0 / 45%),
-    0 0 10px rgb(255 255 255 / 20%);
+    0 0 10px rgb(255 255 255 / calc(20% * var(--hud-rim-light)));
 }
 
 /* ...and pressed, it goes INTO the panel: the crown's rim becomes a shadow
@@ -582,7 +640,7 @@ canvas {
     rgb(var(--hud-plate) / 68%)
   );
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / calc(28% * var(--hud-rim-light))),
     0 2px 3px rgb(0 0 0 / 45%),
     0 0 12px color-mix(in srgb, var(--hud-bad) 45%, transparent);
 }

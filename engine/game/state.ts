@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { DeathCause, GoreOpen, GorePiece, GoreState } from "./gore-state.ts";
 import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
@@ -673,6 +674,20 @@ export type GameEvent =
   | { kind: "damage"; t: number; part: DamagePart; level: number }
   /** AN INJURY TAKEN (`body.ts`): the part, which, its AIS rank. */
   | { kind: "injury"; t: number; part: BodyPart; injury: InjuryKind; ais: number }
+  /** A MORTAL WOUND (`gore.ts`, a run that asked for them): a piece torn
+   * off, the skull crushed, the trunk opened or the body run through on a
+   * spike — and where, world frame, m. */
+  | {
+      kind: "gore";
+      t: number;
+      what: "torn" | "crush" | "open" | "impaled";
+      piece?: GorePiece | GoreOpen;
+      x: number;
+      y: number;
+      z: number;
+    }
+  /** DEAD (`gore.ts`), and of what. */
+  | { kind: "death"; t: number; cause: DeathCause }
   /** Another skier — the player's own contact with rival `rival`, or (with
    * `rival` −1) with amateur `amateur` of the crowd (`crowd.ts`). */
   | { kind: "bump"; t: number; rival: number; speed: number; amateur?: number }
@@ -938,6 +953,9 @@ export type GameState = ContestState & {
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the
    * player's option, off unless asked for; a rival never takes damage. */
   damage?: boolean;
+  /** THE PLAYER'S MORTAL WOUNDS (`gore.ts`): present only on a run that
+   * asked for them (`CreateGameOptions.gore`); a rival's run never has it. */
+  gore?: GoreState;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */

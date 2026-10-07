@@ -63,13 +63,17 @@ export type Pose =
  *  - `ski`: on his skis at `speed` m/s straight at a solid of `stuff`,
  *    `offset` m beside his line (0 square on the tips, ~0.5 his shoulder);
  *  - `catch`: carving at `speed` m/s, the outside ski over on its edge as
- *    the skis are thrown across his way — an edge caught. */
+ *    the skis are thrown across his way — an edge caught;
+ *  - `spike`: the body posed and falling at `speed` m/s straight down onto
+ *    the top of a solid of `stuff` `height` m tall (a tree's top, a post's),
+ *    his hips over it. */
 export type Stage =
   | { how: "fall"; pose: Pose; speed: number; slide?: number }
   | { how: "into"; pose: Pose; stuff: Stuff; speed: number; radius?: number }
   | { how: "drop"; height: number; speed: number; pitch?: number; roll?: number }
   | { how: "ski"; stuff: Stuff; speed: number; offset: number; radius?: number }
-  | { how: "catch"; speed: number };
+  | { how: "catch"; speed: number }
+  | { how: "spike"; pose: Pose; stuff: Stuff; speed: number; height: number; radius?: number };
 
 export type Staging = { stage: Stage; ground: Ground };
 
@@ -107,8 +111,9 @@ const levels = new Map<string, Level>();
  * wall across the way. */
 function benchOf(s: Staging): Level {
   const st = s.stage;
-  const solid = st.how === "into" || st.how === "ski" ? st : null;
-  const key = `${s.ground}|${solid ? `${solid.stuff}:${solid.radius ?? ""}:${solid.how}` : ""}`;
+  const solid = st.how === "into" || st.how === "ski" || st.how === "spike" ? st : null;
+  const tall = st.how === "spike" ? st.height : 12;
+  const key = `${s.ground}|${solid ? `${solid.stuff}:${solid.radius ?? ""}:${solid.how}:${tall}` : ""}`;
   let level = levels.get(key);
   if (level) return level;
   const trees: TreeDef[] = [];
@@ -117,7 +122,7 @@ function benchOf(s: Staging): Level {
     const wall = CABIN_LAYOUT.wall;
     const radius =
       solid.radius ?? (stuff === "log" ? wall.radius : stuff === "padded" ? 0.45 : 0.22);
-    const z = AT.z + AHEAD;
+    const z = AT.z + (st.how === "spike" ? 0 : AHEAD);
     // A wall is a cabin's row of uprights across the way, as `cabinWalls`
     // stands them; a trunk or a column one.
     const across = stuff === "log" ? [-4, -3, -2, -1, 0, 1, 2, 3, 4].map((k) => k * wall.gap) : [0];
@@ -126,7 +131,7 @@ function benchOf(s: Staging): Level {
         x: AT.x + dx,
         z,
         y: 0,
-        height: 12,
+        height: tall,
         radius,
         crown: 2,
         stuff,
@@ -233,12 +238,17 @@ function seated(P: number[], L: number[]): void {
 }
 
 /** Stand a thrown body for a `fall` or an `into` moment. */
-function throwStaged(state: GameState, st: Stage & { how: "fall" | "into" }): void {
+function throwStaged(state: GameState, st: Stage & { how: "fall" | "into" | "spike" }): void {
   const level = state.level;
-  const q = st.how === "fall" ? poseOf(st.pose) : intoOf(st.pose);
+  const q = st.how === "into" ? intoOf(st.pose) : poseOf(st.pose);
   // A fall staged LEAD above the snow, as slow as meets it at its speed.
   const down = Math.sqrt(Math.max(0, st.speed * st.speed - 2 * g * LEAD));
-  const v = st.how === "fall" ? { x: 0, y: -down, z: st.slide ?? 0 } : { x: 0, y: 0, z: st.speed };
+  const v =
+    st.how === "fall"
+      ? { x: 0, y: -down, z: st.slide ?? 0 }
+      : st.how === "spike"
+        ? { x: 0, y: -st.speed, z: 0 }
+        : { x: 0, y: 0, z: st.speed };
   const thrown = bodyThrown(
     st.how === "into" ? "tree" : "landing",
     q,
@@ -266,7 +276,15 @@ function throwStaged(state: GameState, st: Stage & { how: "fall" | "into" }): vo
       : i <= R.shoulderR
         ? TUNING.crash.radius
         : TUNING.crash.body.limb;
-  if (st.how === "fall") {
+  if (st.how === "spike") {
+    // His hips over the spike's axis, his lowest point 0.3 m over its tip.
+    const tip = level.trees[0];
+    let low = Infinity;
+    for (let i = 0; i < R.count; i++) low = Math.min(low, P[3 * i + 1] - radius(i));
+    dy = tip.y + tip.height + 0.3 - low;
+    dx = tip.x - (P[3 * R.hipL] + P[3 * R.hipR]) / 2;
+    dz = tip.z - (P[3 * R.hipL + 2] + P[3 * R.hipR + 2]) / 2;
+  } else if (st.how === "fall") {
     let low = Infinity;
     for (let i = 0; i < R.count; i++) {
       const gap = P[3 * i + 1] - radius(i) - level.groundAt(P[3 * i], P[3 * i + 2]);
@@ -294,6 +312,7 @@ function throwStaged(state: GameState, st: Stage & { how: "fall" | "into" }): vo
     L[3 * i + 1] += dy;
     L[3 * i + 2] += dz;
   }
+  thrown.x += dx;
   thrown.y += dy;
   thrown.z += dz;
   // ...and his skis let go where he stood, out of the way.
@@ -342,8 +361,14 @@ function inputOf(st: Stage): SkierInput {
   return st.how === "catch" ? { ...NEUTRAL_INPUT, steer: 1 } : NEUTRAL_INPUT;
 }
 
-/** ONE TRIAL of a staging, its run seed `trial + 1`. */
-export function runTrial(s: Staging, trial: number): Trial {
+/** A staging stood up for its trial, its run seed `trial + 1`, ready to
+ * step with the input it is ridden with — `gore` a run that may kill him
+ * (`gore.ts`). */
+export function stageTrial(
+  s: Staging,
+  trial: number,
+  gore = false,
+): { state: GameState; input: SkierInput } {
   const level = benchOf(s);
   const state = createGame({
     level,
@@ -355,15 +380,22 @@ export function runTrial(s: Staging, trial: number): Trial {
     // Off a drop the skis meet the snow as staged: nothing levels them in
     // the air.
     assist: { yaw: 1, air: s.stage.how === "drop" ? 0 : 1 },
+    gore,
   });
   const st = s.stage;
-  if (st.how === "fall" || st.how === "into") {
+  if (st.how === "fall" || st.how === "into" || st.how === "spike") {
     placeRun(state, { x: AT.x, z: AT.z - 20, heading: 0 });
     throwStaged(state, st);
   } else {
     placeStaged(state, st);
   }
-  const input = inputOf(st);
+  return { state, input: inputOf(st) };
+}
+
+/** ONE TRIAL of a staging, its run seed `trial + 1`. */
+export function runTrial(s: Staging, trial: number): Trial {
+  const { state, input } = stageTrial(s, trial);
+  const st = s.stage;
   const out: Trial = { injuries: [], worst: 0, peak: 0, cause: null, land: 0, shattered: [] };
   const events: GameEvent[] = [];
   for (let i = 0; i < Math.round(RUN / dt); i++) {

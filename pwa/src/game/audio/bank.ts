@@ -21,6 +21,7 @@
 import { AFTERSKI_BANK } from "./afterski-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
+import { GORE_BANK } from "./gore-bank.ts";
 import { HELI_BANK } from "./heli-bank.ts";
 import { SLED_BANK } from "./sled-bank.ts";
 import { LIFT_BANK } from "./lift-voice.ts";
@@ -705,4 +706,5 @@ export const RUN_BANK: SoundBank = {
   ...HELI_BANK,
   ...SLED_BANK,
   ...AFTERSKI_BANK,
+  ...GORE_BANK,
 };

@@ -576,6 +576,7 @@ export {
   baseOf,
   blowOf,
   bonesOf,
+  doseOn,
   energyOver,
   fractureEnergyOf,
   fracturesOf,
@@ -591,6 +592,20 @@ export {
   snowGive,
   stepBody,
 } from "./game/body.ts";
+export { holdsHim, isDead, stepGore } from "./game/gore.ts";
+export {
+  GORE_OPEN,
+  GORE_PIECES,
+  freshGore,
+  lostPiece,
+  type DeathCause,
+  type GoreOpen,
+  type GorePiece,
+  type GoreState,
+  type Impaled,
+  type TornPiece,
+} from "./game/gore-state.ts";
+export { GORE } from "./game/defs/gore.ts";
 export {
   BODY_PARTS,
   BONES,

@@ -84,6 +84,7 @@ import { wellShareOf, withWells } from "./tree-well.ts";
 import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
+import { freshGore } from "./gore-state.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -169,6 +170,12 @@ export type CreateGameOptions = {
   /** Whether blows dull the player's edges (`damage.ts`); off when left
    * out. */
   damage?: boolean;
+  /** Whether the player's run is MORTAL (`gore.ts`): a blow past what a
+   * body survives tears a limb off, opens him or kills him, a body thrown
+   * onto a tree's top is run through, and a mortal wound is never stood
+   * back up — the app's to end. Off when left out, and then nothing of it
+   * runs: the INJURIES switch's (`settings.ts`). */
+  gore?: boolean;
   /** How much the player can take before he goes down, 0 a club skier …
    * 1 a professional (`SkierState.resilience`); 1 when left out. The
    * field's is its own, dealt at the start line. */
@@ -422,6 +429,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     rules,
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
+    ...(options.gore ? { gore: freshGore() } : {}),
     snowDepth: clampSnowDepth(options.snowDepth),
     fresh: Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],

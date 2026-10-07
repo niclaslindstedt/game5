@@ -209,6 +209,12 @@ function clear(): void {
   cap = I.perBlow;
 }
 
+/** THIS STEP'S DOSE of `mech` on `part` — what `stepBody` has just judged
+ * — read after it by `gore.ts`, which asks no blow again. */
+export function doseOn(part: BodyPart, mech: Mechanism = "blunt"): number {
+  return dose[PART[part] * MECHS.length + MECHS.indexOf(mech)];
+}
+
 /** A blow of `g` on `part`, from the `face` side when the trunk's organs
  * care. */
 function strike(part: BodyPart, g: number, face: Facing | null = null): void {

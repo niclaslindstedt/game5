@@ -6,14 +6,14 @@
 //
 // A BLOCK is broken rock, not a spike: where it stands and how big is the
 // engine's (`rockBlock` — a skier meets the same block), the rest drawn
-// here. A ring of four to six corners round its foot, on an ellipse long
+// here. A ring of four or five corners round its foot, on an ellipse long
 // along the bedding and thinner across it, each sunk under the ground
 // beneath IT (so a block on a steep face is buried on its uphill side, not
 // perched); a SHOULDER ring a little under half way up, bulged out past
 // the foot so the sides are steep and broken; a TOP ring, smaller and at
 // uneven heights so the top is a few tilted facets; and a low hump over
-// it. Fifteen to twenty-five triangles a block; the rubble round a knot's
-// foot and a small block a ring fewer.
+// it — twenty to twenty-five triangles. A block under `SMALL` m has no
+// shoulder: twelve.
 //
 // SNOW HOLDS ON A FACET THAT FACES UP: past `SNOW_HOLDS` of the sky the
 // facet is painted snow, between it and `SNOW_SLIDES` a mix, the rest the
@@ -24,10 +24,9 @@ import { rockDraw as unit, rockBlock, type Level, type Outcrop } from "@engine";
 
 /** How dark a block's foot is, of its own colour. */
 const FOOT = 0.45;
-/** Rubble blocks a knot, for each of its standing ones. */
-const RUBBLE = 1;
-/** Under this tall, m, a block is built as rubble is, one ring fewer. */
-const SMALL = 0.9;
+/** Under this tall, m, a block is built with no shoulder: a foot, a
+ * crown and a hump, twelve triangles. */
+const SMALL = 1.5;
 
 /** Linear 0..1 RGB, the way `region-look.ts` authors its tones. */
 export type Tone = readonly [number, number, number];
@@ -109,23 +108,20 @@ function tri(
 }
 
 /** Append the blocks of outcrop `o` to `m`, its rock `tone`. `share` 0..1
- * keeps that share of a knot's blocks (the rubble dropped first), so a
+ * keeps that share of a knot's blocks (the smallest dropped first), so a
  * cheaper picture keeps the crags' outline. */
 export function buildOutcrop(m: RockMesh, level: Level, o: Outcrop, tone: Tone, share = 1): void {
   const lean = Math.tan(o.dip);
   const sx = Math.sin(o.strike);
   const sz = Math.cos(o.strike);
   const stone = rockTone(tone);
-  const keep = Math.max(1, Math.round(o.blocks * share));
-  // THE RUBBLE round the knot's foot — low, broken lumps, so the ground
-  // between the crags is uneven too; the first thing a cheap picture drops.
-  const rubble = Math.round(o.blocks * RUBBLE * share * share);
-  for (let k = 0; k < keep + rubble; k++) {
-    const loose = k >= keep;
+  const keep = Math.max(1, Math.floor(o.blocks * share + 0.25));
+  for (let k = 0; k < keep; k++) {
     // Where it stands and how big: the engine's layout, which a skier meets
     // (`rockBlock`); the rest of it — its facets, its paint — drawn here.
-    const { x: cx, z: cz, height, long, thin, sink, hash: h } = rockBlock(o, k, loose);
-    const sides = loose ? 4 : 4 + Math.floor(unit(h, 5) * 2);
+    const { x: cx, z: cz, height, long, thin, sink, hash: h } = rockBlock(o, k);
+    const small = height < SMALL;
+    const sides = small ? 4 : 4 + Math.floor(unit(h, 5) * 2);
     const ground = level.groundAt(cx, cz);
     // Never over the outcrop's own cap: a cliff's blocks stay under its lip.
     const cap = o.y + o.height;
@@ -194,8 +190,8 @@ export function buildOutcrop(m: RockMesh, level: Level, o: Outcrop, tone: Tone, 
       top,
       cz + lz + (unit(h, 8) - 0.5) * thin * 0.3,
     ];
-    if (loose || height < SMALL) {
-      // Rubble and a small block: a foot and a lumpy top.
+    if (small) {
+      // A small block: a foot and a lumpy top.
       const crown = ring(0.7, 0.75, 0.4, 0.3, 50);
       band(foot, crown);
       fan(crown, hump);

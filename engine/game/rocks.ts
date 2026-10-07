@@ -242,7 +242,7 @@ function cliffBlocks(level: Level, c: Cliff, seed: number): Outcrop[] {
         strike: c.heading + Math.PI / 2 + (unit(h, 3) - 0.5) * 0.4,
         dip: ROCKS.cliffDip[0] + (ROCKS.cliffDip[1] - ROCKS.cliffDip[0]) * unit(h, 4),
         dipHeading: c.heading + (unit(h, 5) - 0.5) * 0.4,
-        blocks: 2 + Math.floor(unit(h, 6) * 3),
+        blocks: Math.round(ROCKS.cliffFewest + (ROCKS.cliffMost - ROCKS.cliffFewest) * unit(h, 6)),
         hash: h,
       });
     }
@@ -251,21 +251,18 @@ function cliffBlocks(level: Level, c: Cliff, seed: number): Outcrop[] {
 }
 
 /** BLOCK `k` OF OUTCROP `o`: the first the knot's biggest, at its middle;
- * the rest strung out along the strike, a little to either side of it. A
- * LOOSE one is rubble — low, broken lumps strung a little further along,
- * which the drawing adds and nobody meets. Coarse rock, not spikes: a block
- * is about as wide as it is tall, longer along the bedding than across
- * it, a third of the standing ones long SLABS. */
-export function rockBlock(o: Outcrop, k: number, loose: boolean): Block {
+ * the rest strung out along the strike, a little to either side of it.
+ * Coarse rock, not spikes: a block is about as wide as it is tall, longer
+ * along the bedding than across it, a third of them long SLABS. */
+export function rockBlock(o: Outcrop, k: number): Block {
   const h = hashOf(o.hash, 100 + k);
   const sx = Math.sin(o.strike);
   const sz = Math.cos(o.strike);
-  const reach = loose ? o.spread * 1.3 : o.spread;
+  const reach = o.spread;
   const along = k === 0 ? 0 : (unit(h, 0) - 0.5) * 2 * reach;
   const across = k === 0 ? 0 : (unit(h, 1) - 0.5) * 0.45 * reach;
-  const height =
-    k === 0 ? o.height : o.height * (loose ? 0.12 + 0.2 * unit(h, 2) : 0.35 + 0.55 * unit(h, 2));
-  const slab = !loose && unit(h, 32) < ROCKS.slabs ? ROCKS.slab : 1;
+  const height = k === 0 ? o.height : o.height * (0.35 + 0.55 * unit(h, 2));
+  const slab = unit(h, 32) < ROCKS.slabs ? ROCKS.slab : 1;
   const long = height * (0.6 + 0.3 * unit(h, 3)) * slab;
   return {
     x: o.x + sx * along + sz * across,
@@ -290,7 +287,7 @@ export function rockSolids(level: Level): readonly Upright[] {
   list = [];
   for (const o of rocksOf(level)) {
     for (let k = 0; k < o.blocks; k++) {
-      const s = rockBlock(o, k, false);
+      const s = rockBlock(o, k);
       const y = level.groundAt(s.x, s.z);
       const height = Math.min(s.height, o.y + o.height - y);
       if (height < ROCKS.least) continue;

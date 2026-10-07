@@ -108,7 +108,7 @@ describe("rocks", () => {
     }
     // Coarse blocks, not spikes: as wide as they are tall, near enough.
     for (const o of all.slice(0, 200)) {
-      const b = rockBlock(o, 0, false);
+      const b = rockBlock(o, 0);
       expect((2 * b.long) / b.height).toBeGreaterThanOrEqual(0.9);
     }
   });
@@ -144,10 +144,10 @@ describe("rocks", () => {
       buildOutcrop(cheap, level, o, band!.tone, 0.5);
     }
     const tris = whole.pos.length / 9;
-    // Under a hundred triangles a knot on average, and under 65 000 a
-    // square kilometre of the map.
-    expect(tris / all.length).toBeLessThan(100);
-    expect(tris / (level.size / 1000) ** 2).toBeLessThan(65_000);
+    // Under forty triangles a knot on average, and under 10 000 a square
+    // kilometre of the map.
+    expect(tris / all.length).toBeLessThan(40);
+    expect(tris / (level.size / 1000) ** 2).toBeLessThan(10_000);
     expect(cheap.pos.length).toBeLessThan(whole.pos.length * 0.55);
     // Every vertex is coloured, every normal unit length.
     expect(whole.col.length).toBe(whole.pos.length);

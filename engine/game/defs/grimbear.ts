@@ -53,6 +53,23 @@ export const GRIMBEAR = {
   huntFor: 14,
   /** THE CATCH: how near he has to come, m. */
   reach: 1.4,
+  /** THE MISS: the share of his runs at the skier that miss him, dealt at
+   * each burst off his own stream. A miss is seen: at `lunge` m he dives
+   * at a spot `wide` m to his own side of where the skier will be and
+   * `behind` m behind it, at `dive` times his pace, never nearer him than
+   * `clear` m however he turns — swipes the air there and stumbles on
+   * past, slowing at `skid` m/s² from `diveFor` s in, and pulls up roaring
+   * after `missFor` s. A run that misses leaves him hunting the next
+   * time. */
+  miss: 0.8,
+  lunge: 3.2,
+  wide: 2.2,
+  behind: 1.2,
+  dive: 1.15,
+  clear: 1.8,
+  diveFor: 0.35,
+  skid: 12,
+  missFor: 1.5,
   /** How long he stands over the skier, s, then walks off at `walk` m/s
    * for `leaveFor` s, or until he is `gone` m away. */
   maulFor: 4,

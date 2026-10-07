@@ -18,6 +18,8 @@
 //            it — the reach, the throw, the beast over him, walking off),
 //            kill-cam (the same as the player sees it: the death cam, then
 //            stood up at the top of the slope)
+//   miss     miss (a run that misses, frame by frame: the dive at him, the
+//            swipe through the air beside him, stumbling on, roaring)
 //   chase    chase (after the catch: out of the trees, running after him,
 //            falling behind, pulled up roaring)
 //   night    night (his eyes behind the trunk, in the headlamp)
@@ -55,12 +57,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (figure, gait, moves, ambush, kill, chase, night); every one when left out",
+      help: "which sheets, comma-separated (figure, gait, moves, ambush, kill, miss, chase, night); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (turntable, stride, walk, moves, ambush, kill, kill-cam, chase, night)",
+      help: "only these views, comma-separated (turntable, stride, walk, moves, ambush, kill, kill-cam, miss, chase, night)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

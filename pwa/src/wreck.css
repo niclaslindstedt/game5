@@ -5,8 +5,8 @@
    A BLOW JOLTS the readouts off their place and they spring back: the
    root's `data-jolt` flips between two identical animations on every new
    blow, so each one starts its own; `--hud-jolt` is how hard (0 … 1).
-   HIS INJURIES BEND the glass out of true (`--hud-bend`, deg). HIS DEATH
-   drops every readout off it (`--hud-fall`, 0 … 1), each its own way. */
+   HIS DEATH knocks it out of true (`--hud-bend`, deg) and drops every
+   readout off it (`--hud-fall`, 0 … 1), each its own way. */
 
 .hud[data-wreck] {
   transform: rotate(calc(var(--hud-bend, 0) * 0.25deg)) skewX(calc(var(--hud-bend, 0) * 1deg));
@@ -68,7 +68,7 @@
 /* HIS DEATH: every readout drops off the glass, tumbling, each its own way
    — a fall that speeds up as it goes (the square of `--hud-fall`). */
 /* (`translate` and `rotate` move a dozen times a second: smoothed between.) */
-.hud[data-wreck] > :not(.hud-glass):not(.hud-death) {
+.hud[data-wreck] > :not(.hud-death) {
   transition:
     translate 0.12s linear,
     rotate 0.12s linear,
@@ -78,43 +78,13 @@
   rotate: calc(var(--fall2) * 28deg);
   opacity: calc(1 - var(--hud-fall, 0) * 0.6);
 }
-.hud[data-wreck] > :not(.hud-glass):not(.hud-death):nth-child(2n) {
+.hud[data-wreck] > :not(.hud-death):nth-child(2n) {
   rotate: calc(var(--fall2) * -36deg);
   translate: calc(var(--fall2) * -8vw) calc(var(--fall2) * 120vh);
 }
-.hud[data-wreck] > :not(.hud-glass):not(.hud-death):nth-child(3n) {
+.hud[data-wreck] > :not(.hud-death):nth-child(3n) {
   rotate: calc(var(--fall2) * 18deg);
   translate: calc(var(--fall2) * 6vw) calc(var(--fall2) * 105vh);
-}
-
-/* THE CRACKED GLASS over the whole picture. */
-.hud-glass {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.hud-crack,
-.hud-crack-shade,
-.hud-crack-ring {
-  fill: none;
-  vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.hud-crack {
-  stroke: rgb(240 248 255 / 85%);
-  stroke-width: 1.2px;
-}
-.hud-crack-shade {
-  stroke: rgb(10 16 24 / 45%);
-  stroke-width: 3px;
-}
-.hud-crack-ring {
-  stroke: rgb(240 248 255 / 70%);
-  stroke-width: 1.5px;
-  fill: rgb(240 248 255 / 12%);
 }
 
 /* THE DEATH CARD: the picture going dark, the word over it. */

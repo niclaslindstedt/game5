@@ -283,6 +283,27 @@ describe("the helicopter", () => {
     expect(s.skier.thrown).toBeNull();
   });
 
+  it("on an injuries run, blows the skier on the skid apart when it comes down", () => {
+    const s = createGame({ level, mode: "free", heli: true, crowd: 0, quiet: true, gore: true });
+    fly(s, 6, hands({ collective: 0.95 }));
+    const events: GameEvent[] = [];
+    for (let i = 0; i < 40 * 120 && s.heli!.mode !== "wreck"; i++) {
+      step(s, hands({ collective: 0.1 }));
+      events.push(...s.events);
+    }
+    const g = s.gore!;
+    expect(g.torn.length).toBeGreaterThanOrEqual(3);
+    expect(g.open).toBe(3);
+    expect(g.dead).toBeGreaterThanOrEqual(0);
+    expect(g.cause).toBe("blast");
+    // Flung off his middle, faster than the blast threw his body.
+    const b = s.skier.thrown!;
+    const off = g.torn.map((t) => Math.hypot(t.vx - b.vx, t.vz - b.vz));
+    expect(Math.max(...off)).toBeGreaterThan(5);
+    // ...and nowhere without the injuries on.
+    expect(ride().gore).toBeUndefined();
+  });
+
   it("flings the skier on the skid clear of the blast, and leaves him lying until it burns out", () => {
     const s = ride();
     fly(s, 6, hands({ collective: 0.95 }));

@@ -2,7 +2,7 @@
 // THE GORE LAB'S HUD FRAME (`gore-hud.html`): one frame the lab shot,
 // as its picture with the HUD laid over it by the game's own components and
 // stylesheets — the readouts, the body's plate and the g meter, the glass
-// jolted, bent and cracked, the readouts falling off it and the death card
+// jolted, the readouts falling off it and the death card
 // (`hud-wreck.ts`, `hud-glass.tsx`). An iframe of the sheet at the frame's
 // own size, so the HUD's vmin is the frame's; the frame is read off the
 // sheet's page (`parent.__gore.hud`).
@@ -15,7 +15,7 @@ import { render, type JSX } from "preact";
 
 import { BodyPanel } from "../game/hud-body.tsx";
 import { GForce } from "../game/hud-gforce.tsx";
-import { DeathCard, WreckGlass } from "../game/hud-glass.tsx";
+import { DeathCard } from "../game/hud-glass.tsx";
 import { wreckOf } from "../game/hud-wreck.ts";
 import { STRINGS } from "../game/strings.ts";
 import type { HudFrame } from "./gore-harness.ts";
@@ -26,7 +26,7 @@ const frame = (parent as unknown as { __gore?: { hud: HudFrame[] } }).__gore?.hu
 
 function Page({ f }: { f: HudFrame }): JSX.Element {
   const tile = f.tile;
-  const wreck = wreckOf(tile.severity, tile.blow, f.died?.since ?? null);
+  const wreck = wreckOf(tile.blow, f.died?.since ?? null);
   return (
     <div style={{ position: "fixed", inset: 0, background: `center / cover url(${f.png})` }}>
       {/* The jolt is an animation: held at its furthest for the still. */}
@@ -57,7 +57,6 @@ function Page({ f }: { f: HudFrame }): JSX.Element {
         </div>
         <BodyPanel tile={tile} />
         {tile.blow && <GForce blow={tile.blow} />}
-        <WreckGlass wreck={wreck} />
         {f.died && <DeathCard wreck={wreck} cause={f.died.cause} />}
       </div>
     </div>

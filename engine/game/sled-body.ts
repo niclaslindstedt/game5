@@ -434,7 +434,7 @@ export function rideSled(
     // faster than the grip turns the way, and the nose to the way it goes.
     const way = c.way;
     const flat = hypot(c.vx, c.vz);
-    const grip = (G.skiPacked * packed + G.sidePowder * (1 - packed)) * g;
+    const grip = (G.skiPacked * packed + S.reachPowder * (1 - packed)) * g;
     const reach = Math.abs(way) > 1 ? (grip * S.pathShare) / Math.abs(way) : 0;
     const asked = clamp((way * Math.tan(c.skiAngle)) / S.base, -reach, reach);
     const slide = flat > S.slipFrom && way > 0 ? angleDiff(Math.atan2(c.vx, c.vz), c.heading) : 0;

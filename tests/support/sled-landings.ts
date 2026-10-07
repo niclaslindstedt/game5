@@ -437,7 +437,9 @@ export function rideLanding(row: SledLanding): SledLandingResult {
     if (sled.airborne) input = row.inAir ? air : { ...ground, tuck: thumb };
     else {
       thumb = Math.min(most, Math.max(0, (v - sled.way) * 0.8 + 0.25));
-      const swing = row.weave ? (Math.sin((2 * Math.PI * s.t) / row.weave) >= 0 ? 1 : -1) : 0;
+      // A quarter swing first, so the heading swings about the way it came
+      // in on and the line keeps to the strip's middle.
+      const swing = row.weave ? (Math.cos((2 * Math.PI * s.t) / row.weave) >= 0 ? 1 : -1) : 0;
       input = { ...ground, tuck: thumb, steer: row.weave ? swing : ground.steer };
     }
     step(s, input);

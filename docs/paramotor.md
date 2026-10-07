@@ -36,7 +36,7 @@ The model has **two bodies on one line**, solved after the skier's own step each
 | The tuck | **The hand throttle.** Thrust is the static thrust times (rpm/full)², falling to zero at the propeller's pitch speed of 38 m/s. The rpm answers with a 0.35 s lag. |
 | The skid | **Both brakes.** They pull the trailing edge down: more trim, more lift and drag, and an earlier stall. Pulled near the snow they flare the wing, so you touch down at walking pace. Held down, the wing stalls. |
 | The edge | **The toggles and your weight in the harness.** One braked side drags and banks the canopy toward it, and the canopy's arc swings it back over the pilot as it banks. A toggle held is a steady turn, and let go it levels. |
-| The lean | **The risers.** Forward is the accelerator (the front risers down, faster and steeper); back lets the trimmers out (slower). |
+| The lean | **The risers and the harness.** Forward is the accelerator (the front risers down, faster and steeper); back lets the trimmers out (slower). He leans with it in the harness, up to 18° over the bar or reclined (`PARA.lean`), and the motor on his back turns with him, so the thrust line tilts by half his lean: reclined on the throttle he climbs harder, leant forward he drives. |
 
 Some behaviour comes out of the model with no special case:
 
@@ -61,7 +61,7 @@ The look is built from how real speed wings and foot-launch paramotors are made,
 - **The wing** is 7.8 m across flat on a 2.45 m root chord, an elliptical planform tapering to half a chord at the tips with its leading edge swept back toward them: about 16 m² and a flat aspect ratio near 3.8. It is arced so its projected span is about 0.83 of the flat one, its outer cells curled down 60–80° from the vertical as a ram-air wing's are.
 - **The cells.** 25 of them, each a 15 % thick section with a little camber, the top skin pillowed out between the ribs and the trailing edge scalloped. The open cells' MOUTHS are cut along the underside just behind the nose (1–7 % of the chord); the outer two each side are closed, and a STABILIZER panel hangs under each tip.
 - **The paint** is a three-colour panel scheme: a red base, a white swoosh piped in black running from the centre's nose out to the tips' tails, black tips, the underside a shade darker and the ribs' seams darker still. It is drawn in the shader (`PAINT_GLSL`), off each vertex's place on the wing, so the panels' edges, the mouths and the seams stay crisp at any distance.
-- **The lines** are a cascade, as a real wing's are: every rib carries an A, a B and a C line (red, yellow, yellow) and the outer trailing edge the brake lines (orange), gathered two at a time into middles and those into mains, each set tied to its own riser webbing 45 cm over the hang point — the A risers red. Each stabilizer has a line of its own.
+- **The lines** are a cascade, as a real wing's are: every rib carries an A, a B and a C line (red, yellow, yellow) and the outer trailing edge the brake lines (orange), gathered two at a time into middles and those into mains, each set tied to its own riser webbing 45 cm over the hang point — the A risers red. Each stabilizer has a line of its own. A line is drawn lit as a surface turned every way would be (the sky's hemisphere and half the key light, `para-motor.ts`'s `lineLightOf`), and so is the cage's net, so neither glows after dark.
 - **The brakes** pull the trailing edge down, the more toward the tips, each toggle its own side; a stalled wing bunches its span.
 - **The motor unit** is a round cage of about 1.3 m in four tube sections with sleeves, its eight spokes from a hub ring and a net laced zigzag in each sector; a two-blade carbon propeller of 1.24 m, twisted and tapered, with a spinner and a blur disc as it spins up (the blades hidden past 90 % of their speed); the engine low in the middle with its cylinder up, its fins, plug cap, pulley and belt and its exhaust can; a translucent tank under it; the frame black with red accents and swan-neck arms round the pilot's sides to high hang points. Seated, the pilot's head is at the hub.
 - **Released**, the propeller runs down over a second or so, and the canopy lies on the snow as a crumpled sheet on its back, draped over the ground point by point, its lines fanned toward the motor while they still reach it.
@@ -76,6 +76,7 @@ The look is built from how real speed wings and foot-launch paramotors are made,
 | `launch` | Skiing off as the wing is let fly, and the lift-off. |
 | `flight` | Climbing on the bot's hands, from behind, a quarter, beside, in front, below and above. |
 | `turn` | A toggle pulled each way, and both brakes held. |
+| `lean` | The lean held level, forward and back, from the side and behind. |
 | `landing` | The final approach, the flare, and speed riding on the snow under it. |
 | `drop` | The rig released, skiing on, and the canopy and the motor lying on the snow. |
 | `gear` | The motor, the harness and the risers close up, and the canopy's underside. |

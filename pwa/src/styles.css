@@ -1707,6 +1707,55 @@ canvas {
   }
 }
 
+/* A FREESTYLE CONTEST'S PLATE (hud-bigair.tsx and its four siblings, the
+   board drawn by hud-contest-board.tsx): the run's HUD steps aside for it
+   (`contestPlateUp`), and the plate keeps every press on screen. Its board
+   is the part that gives — it scrolls before the presses are pushed off —
+   and on a phone on its side it takes the right-hand column as the
+   slalom's sheet does, the verdict and the presses on the left. A gap row
+   marks where the places skip between the leaders and the player. */
+.hud-standing-gap {
+  background: none;
+  padding-block: 0;
+  line-height: 0.9;
+  opacity: 0.6;
+}
+
+.hud-result-boarded > .hud-bigair-board {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.hud-card.hud-result-boarded:has(> .hud-bigair-board) {
+  max-height: calc(100% - 1rem);
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+@media (max-width: 30rem) {
+  .hud-result-boarded > .hud-bigair-board {
+    max-height: 34vh;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .hud-result-boarded > .hud-bigair-board {
+    grid-column: 2;
+    grid-row: 1 / span 14;
+    align-self: stretch;
+    contain: size;
+    margin: 0;
+    gap: 0.1rem;
+    font-size: clamp(0.68rem, 3vmin, 1rem);
+  }
+  .hud-result-boarded > .hud-bigair-board > .hud-standing {
+    padding-block: 0.05rem;
+  }
+  .hud-card.hud-result-boarded:has(> .hud-bigair-board) {
+    overflow: hidden;
+  }
+}
+
 /* A RUN THAT WENT OUT: the plate's rim and its verdict in the warning's
    colour — the one plate whose colour IS the reading. */
 .hud-card.hud-result-out {

@@ -28,6 +28,8 @@ import {
   type MogulsContest,
 } from "@engine";
 
+import { boardWindow } from "./contest-board.ts";
+
 /** WHAT THE PLATE OFFERS after a run: the next final (through at
  * `place`), or the contest over for him at `place` — out of a phase, or
  * final 2 done. */
@@ -64,9 +66,6 @@ export type MogulsHud = {
   /** What the plate offers once the run is judged — null before. */
   next: MogulsNext | null;
 };
-
-/** How many of the board the plate shows. */
-const BOARD_ROWS = 8;
 
 /** The moguls readouts at this step, or null on any other run. */
 export function mogulsOf(state: GameState): MogulsHud | null {
@@ -112,9 +111,7 @@ function boardRows(c: MogulsContest, phase: MogulPhase, pace: number): MogulsBoa
     total: r.run?.score ?? 0,
     fell: r.run?.fell ?? false,
   }));
-  const you = rows.findIndex((r) => r.you);
-  const top = rows.slice(0, BOARD_ROWS);
-  return you >= BOARD_ROWS ? [...top.slice(0, BOARD_ROWS - 1), rows[you]] : top;
+  return boardWindow(rows);
 }
 
 /** What comes after the run just filed in `phase`. */

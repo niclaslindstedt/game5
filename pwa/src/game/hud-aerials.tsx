@@ -10,6 +10,7 @@
 // will declare, with its press first, or the contest over for him.
 
 import type { HudSnapshot } from "./snapshot.ts";
+import { ContestBoard } from "./hud-contest-board.tsx";
 import { STRINGS } from "./strings.ts";
 
 export function AerialsPlate({
@@ -70,17 +71,11 @@ export function AerialsPlate({
                   : STRINGS.aerialsDone(next.place)}
             </span>
           )}
-          <ol class="hud-standings hud-bigair-board">
-            {run.board.map((r) => (
-              <li key={r.id} class={`hud-standing${r.you ? " hud-standing-you" : ""}`}>
-                <span class="hud-standing-place">{r.place}</span>
-                <span class="hud-standing-name">
-                  {r.you ? STRINGS.aerialsYou : STRINGS.aerialsBib(r.id)}
-                </span>
-                <span class="hud-standing-time">{STRINGS.aerialsRow(r.plan, r.score, r.dnf)}</span>
-              </li>
-            ))}
-          </ol>
+          <ContestBoard
+            rows={run.board}
+            name={(r) => (r.you ? STRINGS.aerialsYou : STRINGS.aerialsBib(r.id))}
+            figure={(r) => STRINGS.aerialsRow(r.plan, r.score, r.dnf)}
+          />
           <div class="hud-result-acts">
             {onward && next?.kind === "final" && (
               <button

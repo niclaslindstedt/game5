@@ -304,6 +304,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     flipMost: base.flipMost,
     inRun: base.inRun,
     aerials: base.aerials,
+    hockeyStop: base.hockeyStop,
   };
 }
 

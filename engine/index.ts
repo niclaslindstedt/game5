@@ -412,6 +412,9 @@ export {
   type NetRun,
 } from "./game/crowd.ts";
 export { inCabin } from "./game/crowd-lift.ts";
+export { dealEnthusiasts, nightOver, stepEnthusiasts } from "./game/enthusiasts.ts";
+export { ENTHUSIASTS } from "./game/defs/enthusiasts.ts";
+export type { FreeRider } from "./game/enthusiast-state.ts";
 export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,

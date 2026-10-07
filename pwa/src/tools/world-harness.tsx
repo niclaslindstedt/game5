@@ -36,6 +36,7 @@ import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
+import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
 import { signView } from "./sign-view.ts";
 import {
@@ -100,9 +101,10 @@ const snow = Number(params.get("snow"));
 /** A DOWNHILL set over the seed (`?downhill=1`) — its A-nets for the
  * `net-<s>` views. */
 const downhill = params.get("downhill") === "1";
-/** A FREE RIDE over the seed (`?free=1`) — its lifts' boarding rings, for
- * the `lift-ring` view. */
+/** A FREE RIDE over the seed (`?free=1`): `lift-ring`, the `keen-` views. */
 const free = params.get("free") === "1";
+/** The sun's solar hour (`withSky`), the map's own unless named. */
+const hour = Number(params.get("hour") ?? Number.NaN);
 const state: GameState = createGame({
   seed,
   region,
@@ -111,11 +113,10 @@ const state: GameState = createGame({
   ...(free ? { mode: "free" as const } : {}),
   ...(params.get("grimbear") === "1" ? { grimbear: "hunt" as const } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
+  // A free ride's crowd is the hour's (`enthusiasts.ts`).
+  ...(free && Number.isFinite(hour) ? { sky: { hour } } : {}),
 });
-/** The sun's solar hour (`withSky`), the map's own unless named: a low sun
- * is where a shadow shows what it is made of. */
-const hour = Number(params.get("hour"));
-if (params.get("hour") !== null && Number.isFinite(hour)) renderer.setSky({ hour });
+if (Number.isFinite(hour)) renderer.setSky({ hour });
 
 const FRAME = 1 / 60;
 
@@ -611,6 +612,7 @@ function standoff(): string {
 
 const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
+  ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   spawn() {
     rideUntil(() => state.t >= 1.5, 3);
     renderer.setCamera("chase", true);

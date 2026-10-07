@@ -100,11 +100,16 @@ export type Lifts = {
     drawn?: RiderPose | null,
     left?: SkierState["chairLeft"],
     eye?: THREE.Vector3,
+    others?: readonly SeatedRider[],
   ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
   dispose(): void;
 };
+
+/** ANOTHER SKIER SAT ON A CHAIR (an enthusiast, `enthusiasts.ts`): his
+ * ride and where he is drawn, a chair of his own hung under him. */
+export type SeatedRider = { ride: LiftRide; drawn: RiderPose };
 
 /** Where the rider is drawn between two steps: his origin and his turn. */
 export type RiderPose = {
@@ -516,6 +521,19 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   ridden.visible = false;
   ridden.castShadow = true;
   group.add(ridden);
+  // ...and the chairs the other skiers sit on, made as they are first sat.
+  const theirs: THREE.Mesh[] = [];
+  const theirGeometry = chairGeometry();
+  geos.push(theirGeometry);
+  const theirChair = (n: number): THREE.Mesh => {
+    while (theirs.length <= n) {
+      const m = new THREE.Mesh(theirGeometry, painted);
+      m.castShadow = true;
+      group.add(m);
+      theirs.push(m);
+    }
+    return theirs[n];
+  };
   // THE RIDER'S OWN T-BAR while a drag pulls him: the spring box at the
   // rope over him, the cord down from it, and the bar behind his thighs —
   // the clock's bar nearest him stood aside for it, as a chair's is.
@@ -604,16 +622,13 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const hide = m4.compose(zero, q.identity(), zero).clone();
   /** Every carrier where the clock has it; the one a rider sits in is his
    * own chair's (`ridden`). */
-  function moveCarriers(t: number, rider: { index: number; u: number } | null): void {
+  function moveCarriers(t: number, sat: readonly { index: number; u: number }[]): void {
     const seat = (h: THREE.InstancedMesh | null, list: Carrier[]) => {
       if (!h) return;
       list.forEach((c, n) => {
         const { u, side, out } = placeOf(c, t);
         const mine =
-          rider !== null &&
-          rider.index === c.i &&
-          side === 0 &&
-          Math.abs(u - rider.u) < c.p.look.every / 2;
+          side === 0 && sat.some((r) => r.index === c.i && Math.abs(u - r.u) < c.p.look.every / 2);
         if (!out || mine) {
           h.setMatrixAt(n, hide);
           return;
@@ -637,7 +652,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     if (!springs || !cords || !tees) return;
     carriers.drag.forEach((c, n) => {
       const { u, side, out } = placeOf(c, t);
-      const mine = rider !== null && rider.index === c.i && side === 0 && Math.abs(u - rider.u) < 6;
+      const mine = side === 0 && sat.some((r) => r.index === c.i && Math.abs(u - r.u) < 6);
       if (!out || mine) {
         for (const h of [springs, cords, tees]) h.setMatrixAt(n, hide);
         return;
@@ -656,7 +671,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     });
     for (const h of [springs, cords, tees]) h.instanceMatrix.needsUpdate = true;
   }
-  moveCarriers(0, null);
+  moveCarriers(0, []);
 
   // THE CHAIR HE GOT OFF runs on empty over the ramp to the wheel at the
   // terminal's slow speed (`emptyChairAt`, the engine's — a skier stopped
@@ -671,7 +686,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     return plan && left && u !== null ? { plan, u, index: left.index } : null;
   };
 
-  done.update = (t, rider, drawn, left, eye) => {
+  const satOn: { index: number; u: number }[] = [];
+  done.update = (t, rider, drawn, left, eye, others = []) => {
     tunnels.update(t);
     if (eye) houses.update(eye);
     boarding?.update(t);
@@ -681,8 +697,24 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     const carried = rider?.phase === "ride" ? rider : null;
     const sat = carried?.kind === "chair";
     const runOn = sat ? null : emptyAt(left, t);
-    // The clock's carrier he rides is drawn as his own, hung on him.
-    moveCarriers(t, carried ?? (runOn ? { index: runOn.index, u: runOn.u } : null));
+    // The clock's carrier he rides is drawn as his own, hung on him — and
+    // so is every other skier's sat on a chair.
+    satOn.length = 0;
+    const mine = carried ?? (runOn ? { index: runOn.index, u: runOn.u } : null);
+    if (mine) satOn.push(mine);
+    let n = 0;
+    for (const o of others) {
+      if (o.ride.phase !== "ride" || o.ride.kind !== "chair") continue;
+      satOn.push(o.ride);
+      const chair = theirChair(n++);
+      chair.visible = true;
+      riderQ.set(o.drawn.q.x, o.drawn.q.y, o.drawn.q.z, o.drawn.q.w);
+      lift.set(0, TUNING.lift.seat, 0).applyQuaternion(riderQ);
+      chair.position.set(o.drawn.x + lift.x, o.drawn.y + lift.y, o.drawn.z + lift.z);
+      chair.quaternion.copy(riderQ);
+    }
+    for (let k = n; k < theirs.length; k++) theirs[k].visible = false;
+    moveCarriers(t, satOn);
     if (drawn) riderQ.set(drawn.q.x, drawn.q.y, drawn.q.z, drawn.q.w);
     // His own T-bar on a drag: the bar across the backs of his thighs
     // under his seat, in his own frame (`TOW`), its stem to his left and

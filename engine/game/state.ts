@@ -254,9 +254,8 @@ export type SkierState = {
   trench: number;
   trenchFor: number;
   boggedFor: number;
-  /** IN A TREE WELL (`tree-well.ts`): how far the snow under his CoG is
-   * lowered by the well he stands in, m — 0 out of one, and on every map
-   * skied in the ordinary snow. */
+  /** IN A TREE WELL (`tree-well.ts`): how far the well lowers the snow
+   * under his CoG, m — 0 out of one, and always in the ordinary snow. */
   well: number;
   /** Seconds lying over on the snow (`crash.ts`) — the fall's clock;
    * turning over in the air does not run it. */
@@ -981,14 +980,15 @@ export type GameState = ContestState & {
   sled?: SledState;
   /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
   para?: import("./para-state.ts").ParaState;
-  /** THE AFTERSKI (`afterski.ts`): on a run whose rules have lodges to go
-   * into (the free ride); absent everywhere else. */
+  /** THE AFTERSKI (`afterski.ts`): on a free ride, with its lodges. */
   afterski?: AfterskiState;
   /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to. */
   grimbear?: GrimbearState;
-  /** THE PISTE MACHINES (`groomer.ts`) and their snow (`groomed.ts`). */
+  /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
+   * snow guns' (`snow-guns.ts`, a thin season's): read, never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
+  machineSnow?: import("./snow-guns.ts").MachineSnow;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

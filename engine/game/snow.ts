@@ -53,6 +53,7 @@ import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import { groomedFresh } from "./groomed.ts";
 import { keptAt } from "./kept-ground.ts";
+import { machineSnowAt } from "./snow-guns.ts";
 import type { GameState } from "./state.ts";
 
 const S = TUNING.snow;
@@ -183,16 +184,19 @@ export function pisteIce(
  * anywhere else it is the map's own packed field under the whole fall, as
  * skied up as the day has made it (`packedUnder`, `PisteDay.loose`). */
 export function packedSnow(
-  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste">,
+  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow">,
   x: number,
   z: number,
 ): number {
+  // A WHALE of machine snow (`snow-guns.ts`) is heavy loose snow heaped on
+  // whatever lies under it, and reads as new snow over it.
+  const heap = state.machineSnow ? machineSnowAt(state.machineSnow, x, z) : 0;
   const at = state.groomed ? groomedFresh(state.groomed, x, z) : undefined;
-  if (at !== undefined) return packedUnder(1, Math.max(0, state.fresh - at));
+  if (at !== undefined) return packedUnder(1, Math.max(0, state.fresh - at) + heap);
   if (state.piste && keptAt(state.level, x, z)) {
-    return packedUnder(1, Math.max(0, state.fresh - state.piste.fresh));
+    return packedUnder(1, Math.max(0, state.fresh - state.piste.fresh) + heap);
   }
-  return packedUnder(state.level.packedAt(x, z), state.fresh, looseOf(state));
+  return packedUnder(state.level.packedAt(x, z), state.fresh + heap, looseOf(state));
 }
 
 /** The run's snow dial with `fresh` m of new snow laid over the powder: a

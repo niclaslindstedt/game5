@@ -111,6 +111,7 @@ export function Hud({
   bare = false,
   machineKey,
   tuckKey,
+  injuries = true,
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -138,6 +139,9 @@ export function Hud({
   /** The tuck key as bound — what stands a fallen skier up past the first
    * seconds of his fall, with a tap anywhere on touch. */
   tuckKey: string;
+  /** Whether the body's injuries are drawn (`settings.ts`'s
+   * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
+  injuries?: boolean;
 }) {
   const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
@@ -596,9 +600,10 @@ export function Hud({
         )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
-          moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}
-      {!indoors && <BodyPanel tile={snap.body} />}
-      {snap.body.blow && <GForce blow={snap.body.blow} />}
+          moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`) — neither
+          where OPTIONS ▸ INJURIES or the device's content setting says no. */}
+      {injuries && !indoors && <BodyPanel tile={snap.body} />}
+      {injuries && snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
       {snap.tricks && <ComboTile tile={snap.tricks} />}

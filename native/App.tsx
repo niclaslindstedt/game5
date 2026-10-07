@@ -33,6 +33,7 @@ import type { WebViewMessageEvent, WebViewNavigation } from "react-native-webvie
 import { cloudChanged, parseCloudAsk } from "./src/cloud-ask";
 import { onCloudChange, serveCloudAsk } from "./src/cloud-save";
 import { BRAND_BG, REMOTE_GAME_URL } from "./src/config";
+import { deviceContent } from "./src/content-filter";
 import { playRumble } from "./src/haptics";
 import {
   CLOUD_BRIDGE,
@@ -40,6 +41,7 @@ import {
   RUMBLE_BRIDGE,
   SHOT_COMMAND,
   VIEWPORT_HARDENING,
+  contentFlag,
 } from "./src/injected";
 import { startLocalServer, type LocalServer } from "./src/local-server";
 import { isExternalUrl } from "./src/navigation";
@@ -49,6 +51,11 @@ import { watchScreenshots } from "./src/screen-capture";
 // Keep the native splash up until the WebView paints its first frame, so the
 // skier never sees a white flash or a half-loaded page.
 void SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// The device's content setting, read once at launch (src/content-filter.ts)
+// and told to the page before its first script, so a child's phone never
+// draws the injuries for a frame.
+const CONTENT_FLAG = contentFlag(deviceContent());
 
 export default function App() {
   const webRef = useRef<WebView>(null);
@@ -231,7 +238,7 @@ export default function App() {
           // the rumble and cloud listeners before the first thing that could
           // ask for a pulse or a save; the hardening runs once the document
           // is up.
-          injectedJavaScriptBeforeContentLoaded={`${NATIVE_FLAG}\n${RUMBLE_BRIDGE}\n${CLOUD_BRIDGE}`}
+          injectedJavaScriptBeforeContentLoaded={`${NATIVE_FLAG}\n${CONTENT_FLAG}\n${RUMBLE_BRIDGE}\n${CLOUD_BRIDGE}`}
           injectedJavaScript={VIEWPORT_HARDENING}
           onMessage={onMessage}
           onNavigationStateChange={onNavStateChange}

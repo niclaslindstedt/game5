@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ROCK AS DRAWN — every outcrop of the map (`rock-plan.ts`), built into
+// THE ROCK AS DRAWN — every outcrop of the map (the engine's `rocksOf`, the
+// same blocks a skier meets), built into
 // static meshes a TILE of the map at a time (`rock-shapes.ts`): one draw a
-// tile, culled by three against the lens like any mesh, and PLANNED AND
-// BUILT ONLY WHEN IT FIRST COMES WITHIN REACH, so the loading card pays for
-// none of it and a phone never holds the crags of a face it never sees.
-// The building is SLICED: a lattice row of a tile at a time, for at most
+// tile, culled by three against the lens like any mesh, and BUILT ONLY
+// WHEN IT FIRST COMES WITHIN REACH, so a phone never holds the crags of a
+// face it never sees. The building is SLICED: an outcrop at a time, for at most
 // `SLICE` ms a frame, so riding toward a rocky face never hitches; only the
 // tiles round the lens itself, on the run's first frame or after a jump
-// (a reset, a lift's top), are built whole at once. A tile past the reach
-// (the DISTANCE row's trees) is hidden; past it the snow shader's dark rock
-// carries the crags to the rim, as the ground's tint carries the woods.
+// (a reset, a lift's top), are built whole at once. The reach is the
+// DISTANCE row's whole view, not the trees': a far or high lens looks at
+// the cliffs from across the valley, and a whole map's crags are a few
+// tens of thousands of triangles. Past it the snow shader's dark rock
+// carries them to the rim.
 //
 // What it costs is the FOREST row's: its far share is the share of each
-// knot's shards a tile is built with, the small ones dropped first, so a
-// cheap picture keeps the crags' outline and loses their rubble. The whole
+// knot's blocks a tile is built with, the small ones dropped first, so a
+// cheap picture keeps the crags' outline. The whole
 // thing hangs off the forest (`forest.ts`), which owns the woods' reach.
 
 import * as THREE from "three";
-import { regionOf, type Level } from "@engine";
+import { regionOf, rocksOf, type Level, type Outcrop } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
-import { ROCKS, rockPlanner } from "./rock-plan.ts";
 import { buildOutcrop, rockMesh, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
@@ -38,7 +39,7 @@ export type Rocks = {
   readonly group: THREE.Group;
   /** Show what is within `reach` m of the lens, building what is new. */
   update(eye: THREE.Vector3, reach: number): void;
-  /** The share of a knot's shards a tile is built with, 0..1. */
+  /** The share of a knot's blocks a tile is built with, 0..1. */
   setShare(share: number): void;
   dispose(): void;
 };
@@ -46,11 +47,10 @@ export type Rocks = {
 type Tile = {
   readonly cx: number;
   readonly cz: number;
-  /** Its lattice rows (`ROCKS.cell`), the first and one past the last. */
-  readonly row0: number;
-  readonly row1: number;
-  /** The row its building has reached, and the triangles so far. */
-  row: number;
+  /** The outcrops standing on it. */
+  readonly outcrops: Outcrop[];
+  /** How many its building has reached, and the triangles so far. */
+  done: number;
   part: RockMesh | null;
   mesh: THREE.Mesh | null;
   /** Built, and nothing stands on it. */
@@ -68,33 +68,37 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     PAST_THE_WALL,
   );
   let share = initial;
-  const plan = rockPlanner(level, band);
   const cols = band ? Math.ceil(level.size / TILE) : 0;
   const tiles: Tile[] = [];
   for (let j = 0; j < cols; j++) {
     for (let i = 0; i < cols; i++) {
-      const row0 = Math.ceil((j * TILE) / ROCKS.cell);
       tiles.push({
         cx: (i + 0.5) * TILE,
         cz: (j + 0.5) * TILE,
-        row0,
-        row1: Math.ceil(((j + 1) * TILE) / ROCKS.cell),
-        row: row0,
+        outcrops: [],
+        done: 0,
         part: null,
         mesh: null,
         empty: false,
       });
     }
   }
+  if (band) {
+    for (const o of rocksOf(level)) {
+      const i = Math.min(cols - 1, Math.max(0, Math.floor(o.x / TILE)));
+      const j = Math.min(cols - 1, Math.max(0, Math.floor(o.z / TILE)));
+      tiles[j * cols + i].outcrops.push(o);
+    }
+  }
+  /** The outcrops a step builds before it looks at the clock. */
+  const BATCH = 8;
 
-  /** Build one more lattice row of `t`; true when it is whole. */
+  /** Build a few more outcrops of `t`; true when it is whole. */
   const step = (t: Tile): boolean => {
     const part = (t.part ??= rockMesh());
-    const x0 = t.cx - TILE / 2;
-    const area = { x0, x1: x0 + TILE, z0: t.row * ROCKS.cell, z1: (t.row + 1) * ROCKS.cell };
-    for (const o of plan(area)) buildOutcrop(part, level, o, band!.tone, share);
-    t.row++;
-    if (t.row < t.row1) return false;
+    const end = Math.min(t.outcrops.length, t.done + BATCH);
+    for (; t.done < end; t.done++) buildOutcrop(part, level, t.outcrops[t.done], band!.tone, share);
+    if (t.done < t.outcrops.length) return false;
     t.part = null;
     if (part.pos.length === 0) {
       t.empty = true;
@@ -114,14 +118,14 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
   };
   const drop = (t: Tile): void => {
     t.empty = false;
-    t.row = t.row0;
+    t.done = 0;
     t.part = null;
     if (!t.mesh) return;
     group.remove(t.mesh);
     t.mesh.geometry.dispose();
     t.mesh = null;
   };
-  const due = (t: Tile): boolean => !t.mesh && !t.empty;
+  const due = (t: Tile): boolean => !t.mesh && !t.empty && t.outcrops.length > 0;
 
   return {
     group,
@@ -148,7 +152,7 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
         // holds the whole mountain's crags.
         if ((t.mesh || t.part) && d2 > (reach + KEEP) ** 2) drop(t);
       }
-      // The nearest tile still owed, a slice of a frame's worth of rows.
+      // The nearest tile still owed, a slice of a frame's worth of it.
       if (next) {
         const until = performance.now() + SLICE;
         while (!step(next) && performance.now() < until);

@@ -247,6 +247,7 @@ if (suites.includes("forest")) {
   const forest = createForest(level, createHazeUniforms(), {
     ...look,
     far: V.DISTANCE_LOOK[args.distance].trees,
+    view: V.DISTANCE_LOOK[args.distance].view,
     casters: casts ? look.casters : "none",
   });
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 4000);

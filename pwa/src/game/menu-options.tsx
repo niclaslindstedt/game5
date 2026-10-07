@@ -48,12 +48,14 @@ import {
   LEVER_SIDES,
   TOUCH_SENSITIVITY,
   freshSettings,
+  injuriesShown,
   type AssistLevel,
   type AudioLevels,
   type LeverSide,
   type Settings,
 } from "./settings.ts";
 import { KEY_ACTIONS } from "./settings-input.ts";
+import { shellContent } from "../shell-host.ts";
 import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
@@ -182,6 +184,9 @@ export function SoundRows({
   );
 }
 
+/** The INJURIES row under a parental control: OFF and nowhere else. */
+const OFF_ONLY = ON_OFF.filter((stop) => stop.id === "off");
+
 export function OptionsPage({
   settings,
   keys,
@@ -209,6 +214,8 @@ export function OptionsPage({
   const setAssist = (next: Partial<Settings["assist"]>): void =>
     onSettings({ ...settings, assist: { ...settings.assist, ...next } });
   const preset = presetOf(video);
+  const content = shellContent();
+  const childLock = content === "child";
   const T = TOUCH_SENSITIVITY;
   return (
     <div class="menu-card menu-card-options" onPointerLeave={() => setHint(null)}>
@@ -308,6 +315,17 @@ export function OptionsPage({
                 stops={ON_OFF}
                 value={onOff(settings.hud)}
                 onPick={(id) => onSettings({ ...settings, hud: id === "on" })}
+                onHint={setHint}
+              />
+              {/* THE INJURIES: the body plate and the g meter. A parental
+                control on the device locks it off — one stop, and the caption
+                says whose word that is. */}
+              <StepRow
+                label={STRINGS.optInjuries}
+                hint={childLock ? STRINGS.optInjuriesLocked : STRINGS.optInjuriesHint}
+                stops={childLock ? OFF_ONLY : ON_OFF}
+                value={onOff(injuriesShown(settings, content))}
+                onPick={(id) => onSettings({ ...settings, injuries: id === "on" })}
                 onHint={setHint}
               />
               <StepRow

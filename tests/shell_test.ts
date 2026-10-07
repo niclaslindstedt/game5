@@ -35,16 +35,19 @@ import {
   RUMBLE_BRIDGE,
   SHOT_COMMAND,
   VIEWPORT_HARDENING,
+  contentFlag,
 } from "../native/src/injected.ts";
 import { isExternalUrl } from "../native/src/navigation.ts";
 import {
   SHELL_CLOUD_EVENT,
   SHELL_COMMAND,
   SHELL_COMMANDS,
+  SHELL_CONTENT_GLOBAL,
   SHELL_GLOBAL,
   askShellCloud,
   onShellCloud,
   onShellCommand,
+  shellContent,
   shellHost,
   type ShellCloudAsk,
   type ShellCloudReply,
@@ -105,6 +108,44 @@ describe("the shell's word", () => {
       window[SHELL_GLOBAL] = "browser";
     }).toThrow(TypeError);
     expect(window[SHELL_GLOBAL]).toBe("native");
+  });
+});
+
+describe("the device's content word", () => {
+  it("says nothing at all when the device said nothing", () => {
+    expect(contentFlag(null)).toBe("");
+  });
+
+  it("writes the global the page reads, frozen, as a script iOS will accept", () => {
+    for (const word of ["child", "filtered"] as const) {
+      const script = contentFlag(word);
+      expect(script).toContain(SHELL_CONTENT_GLOBAL);
+      expect(script.trimEnd().endsWith("})();")).toBe(true);
+      expect(script).toContain("true;");
+      const window = {} as Record<string, unknown>;
+      new Function("window", script)(window);
+      expect(window[SHELL_CONTENT_GLOBAL]).toBe(word);
+      expect(() => {
+        window[SHELL_CONTENT_GLOBAL] = "open";
+      }).toThrow(TypeError);
+    }
+  });
+
+  it("is the value shellContent() names", () => {
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = globals[SHELL_CONTENT_GLOBAL];
+    try {
+      expect(shellContent()).toBe(null);
+      globals[SHELL_CONTENT_GLOBAL] = "child";
+      expect(shellContent()).toBe("child");
+      globals[SHELL_CONTENT_GLOBAL] = "filtered";
+      expect(shellContent()).toBe("filtered");
+      globals[SHELL_CONTENT_GLOBAL] = "open";
+      expect(shellContent()).toBe(null);
+    } finally {
+      if (before === undefined) delete globals[SHELL_CONTENT_GLOBAL];
+      else globals[SHELL_CONTENT_GLOBAL] = before;
+    }
   });
 });
 

@@ -25,7 +25,15 @@
 // `createTrunksNear` (`camera-rigs.ts`'s `repel`). The planted lenses (the
 // broadcast, the death cam) pull in for the trees as well.
 
-import { liftPlans, stationHouses, treesNear, type Level, type StationHouse } from "@engine";
+import {
+  CABINS,
+  cabinsOf,
+  liftPlans,
+  stationHouses,
+  treesNear,
+  type Level,
+  type StationHouse,
+} from "@engine";
 
 import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
@@ -128,6 +136,24 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
   const houses: SolidBox[] = liftPlans(level)
     .flatMap((p) => stationHouses(level, p))
     .map((h: StationHouse) => ({ ...h, dx: h.plan.dx, dz: h.plan.dz }));
+  // ...and every cabin, its porch or terrace out front and the roof's
+  // ridge over it: a lens behind a skier stood at a lodge's door, on his
+  // way out of the afterski, is pulled in short of the terrace.
+  for (const c of cabinsOf(level)) {
+    const d = CABINS[c.kind];
+    const fx = Math.sin(c.heading);
+    const fz = Math.cos(c.heading);
+    houses.push({
+      x: c.x + (fx * d.reach.front) / 2,
+      z: c.z + (fz * d.reach.front) / 2,
+      dx: fx,
+      dz: fz,
+      halfLength: (d.depth + d.reach.front) / 2,
+      halfWidth: d.width / 2 + d.reach.side,
+      base: c.base,
+      top: c.y + d.ridge,
+    });
+  }
   let movers: readonly SolidBox[] = [];
 
   const near: number[] = [];

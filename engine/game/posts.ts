@@ -3,7 +3,8 @@
 // as a trunk: every lift's towers and the posts under its two bullwheels
 // (`lift-line.ts`'s plan, the columns `lifts.ts` draws), and every
 // floodlight mast down its runs (`piste-masts.ts`, the poles
-// `piste-lights.ts` draws). Each is an `Upright` — a vertical cylinder
+// `piste-lights.ts` draws), and in a thin season every snow gun beside them
+// (`snow-guns.ts`: a carriage's bulk, a column's or a lance's pole). Each is an `Upright` — a vertical cylinder
 // from the snow at its foot to its head — met by `collision.ts` exactly as
 // a trunk is, so a column met square stops a skier and one clipped turns
 // him. Kept per map, off the map alone, drawing from no stream.
@@ -12,13 +13,15 @@ import type { Level } from "../mapgen/types.ts";
 import { cabinWalls } from "./cabins.ts";
 import { TOWER_PAD, liftPlans } from "./lift-line.ts";
 import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
+import { rockSolids } from "./rocks.ts";
+import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
 
 const lists = new WeakMap<Level, Upright[]>();
 
 /** Every post of `level`: the lifts' columns (their half-width at the foot
  * — a square tube, met on its flats; a padded one met on its pad's), then
- * the masts' poles. */
+ * the masts' poles, then the snow guns standing. */
 export function postsOf(level: Level): readonly Upright[] {
   let list = lists.get(level);
   if (list) return list;
@@ -46,6 +49,10 @@ export function postsOf(level: Level): readonly Upright[] {
       stuff: "steel",
     });
   }
+  for (const g of standingGuns(level)) {
+    const { radius, height } = gunSolid(g);
+    list.push({ x: g.x, z: g.z, y: g.y, height, radius, stuff: "steel" });
+  }
   lists.set(level, list);
   return list;
 }
@@ -59,14 +66,19 @@ const solids = new WeakMap<Level, Upright[]>();
 
 /** EVERYTHING SOLID standing in `level`'s snow: its trunks, in
  * `level.trees`' order — so a trunk's index is its index there — then its
- * posts, then its cabins' walls (`cabins.ts`). What a skier, his body thrown, his skis let go and the
- * snowmobile are pushed out of. */
+ * posts, then its cabins' walls (`cabins.ts`), then the crags' blocks on
+ * its drops (`rocks.ts`). What a skier, his body thrown, his skis let go
+ * and the snowmobile are pushed out of. */
 export function solidsOf(level: Level): readonly Upright[] {
   let list = solids.get(level);
   if (list) return list;
   const posts = postsOf(level);
   const cabins = cabinWalls(level);
-  list = posts.length + cabins.length === 0 ? level.trees : [...level.trees, ...posts, ...cabins];
+  const rocks = rockSolids(level);
+  list =
+    posts.length + cabins.length + rocks.length === 0
+      ? level.trees
+      : [...level.trees, ...posts, ...cabins, ...rocks];
   solids.set(level, list);
   return list;
 }

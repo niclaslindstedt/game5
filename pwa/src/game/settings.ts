@@ -37,6 +37,7 @@ import { findLevel } from "./campaign.ts";
 import { mergeRacePicks, type RacePicks } from "./race-maps.ts";
 import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
+import type { ShellContent } from "../shell-host.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
@@ -122,6 +123,11 @@ export type Settings = {
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
    * run's, off unless asked for. */
   damage: boolean;
+  /** Whether the HUD draws the body's injuries — the anatomy plate and the
+   * g meter (OPTIONS ▸ INJURIES), off for a younger player. `null` is "as
+   * the device says" (`injuriesShown`): shown, unless the store app reports
+   * a content filter. */
+  injuries: boolean | null;
   /** The time trial's length, laps (`TIME_TRIAL.laps`). */
   trialLaps: number;
   /** THE START CARD's answers: the free ride's mountain, day and snow
@@ -185,6 +191,7 @@ export function freshSettings(): Settings {
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
+    injuries: null,
     trialLaps: TIME_TRIAL.laps[0],
     ride: freshRide(),
     level: null,
@@ -195,6 +202,16 @@ export function freshSettings(): Settings {
     developer: false,
     dev: { fps: false, cost: false, physics: false, trails: false, log: false, freefly: false },
   };
+}
+
+/** WHETHER THE INJURIES ARE DRAWN: a parental control on the device
+ * (`child`) hides them whatever was picked; otherwise the player's own pick,
+ * and with none, shown unless the device's owner filters sensitive content
+ * (`filtered`). `content` is `shell-host.ts`'s `shellContent()`. */
+export function injuriesShown(settings: Settings, content: ShellContent | null): boolean {
+  if (content === "child") return false;
+  if (settings.injuries !== null) return settings.injuries;
+  return content !== "filtered";
 }
 
 /** What the mixer is handed: each fader under the master, and all of it
@@ -257,6 +274,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.assist.steer = onLadder(assist.steer, ASSIST_LEVELS, out.assist.steer);
   out.assist.air = onLadder(assist.air, ASSIST_LEVELS, out.assist.air);
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
+  if (typeof blob.injuries === "boolean") out.injuries = blob.injuries;
   if (typeof blob.trialLaps === "number" && TIME_TRIAL.laps.includes(blob.trialLaps)) {
     out.trialLaps = blob.trialLaps;
   }

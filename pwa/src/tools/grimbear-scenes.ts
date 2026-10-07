@@ -66,9 +66,12 @@ function woodsOf(level: Level): { x: number; z: number; heading: number; s: numb
 }
 
 /** A ride the beast hunts or chases, the skier stood 90 m up the piste from
- * the woods at a skier's pace and the beast set to lie in wait at once. */
-function ambush(st: Stage, ask: "hunt" | "roam"): GameState {
+ * the woods at a skier's pace and the beast set to lie in wait at once —
+ * a hunt rigged so every run of his LANDS (or, `lands` false, misses), the
+ * burst's draw (`GRIMBEAR.miss`) taken out of the sheet. */
+function ambush(st: Stage, ask: "hunt" | "roam", lands = true): GameState {
   const s = st.fresh(ask);
+  s.grimbear!.rng.chance = () => !lands;
   const wood = woodsOf(st.level);
   const pts = st.level.track.points;
   const from = pts.find((p) => p.s >= wood.s - 90) ?? pts[0];
@@ -212,6 +215,10 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "maul", quarter);
     pose(s, "maul", { t: 0.65 });
     st.shoot(s, "maul-blow", quarter);
+    pose(s, "miss", { t: 0.05, speed: 13 });
+    st.shoot(s, "dive", quarter);
+    pose(s, "miss", { t: 0.4, speed: 12 });
+    st.shoot(s, "swipe-air", quarter);
     pose(s, "leave", { stride: 0.5, speed: 1.6 });
     st.shoot(s, "leave", quarter);
   },
@@ -260,6 +267,24 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(s, 0.4, still);
     st.shoot(s, "stood-up-at-the-top", "chase");
   },
+  // ── THE MISS, FRAME BY FRAME: THE DIVE PAST HIM ────────────────────────
+  miss(st) {
+    const s = ambush(st, "hunt", false);
+    if (!st.until(s, isPhase("run"), 60, bot)) return;
+    st.until(s, (q) => q.grimbear!.phase !== "run" || hypot(q) < 6, 10, bot);
+    const lens = plantedSide(s, 12, 2.2);
+    st.shoot(s, "coming", lens);
+    st.until(s, isPhase("miss"), 3, bot);
+    let at = 0;
+    for (const t of [0.05, 0.15, 0.3, 0.5, 0.9, 1.4]) {
+      st.run(s, t - at, bot);
+      at = t;
+      st.shoot(s, `+${t}s`, lens);
+    }
+    st.shoot(s, "from-the-chase", "chase");
+    if (st.until(s, isPhase("halt", 0.5), 4, bot))
+      st.shoot(s, "roaring-after-him", aroundBeast(-4, 1.4, -4, 45));
+  },
   // ── AFTER THE CATCH: THE CHASE THAT COMES UP SHORT ─────────────────────
   chase(st) {
     const s = ambush(st, "roam");
@@ -296,6 +321,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   moves: ["moves"],
   ambush: ["ambush"],
   kill: ["kill", "kill-cam"],
+  miss: ["miss"],
   chase: ["chase"],
   night: ["night"],
 };

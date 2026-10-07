@@ -75,6 +75,7 @@ import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
+import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
@@ -455,7 +456,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const lifted =
     free &&
     options.byLift &&
-    !options.inLodge &&
+    !(options.inLodge && lodgesOf(level).length > 0) &&
     !para &&
     !(state.heli && options.heli) &&
     !(state.sled && options.sled)
@@ -500,6 +501,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
     state.groomers = freshGroomers(state);
   }
+  // THE SNOW GUNS (`snow-guns.ts`), running in a thin season's cold.
+  if (free && rules.groomer && snowGunsRun(level)) state.machineSnow = machineSnowOf(level);
   // A run begun with a buzz, or inside the valley's lodge.
   if (options.buzz) state.skier.buzz = Math.max(0, Math.min(1, options.buzz));
   const lodge = free && options.inLodge ? lodgesOf(level)[0] : undefined;

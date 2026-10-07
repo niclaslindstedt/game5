@@ -16,6 +16,7 @@ import {
   freeRunOf,
   freeRuns,
   generateLevel,
+  lodgesOf,
   NEUTRAL_INPUT,
   SNOW_DIAL,
   snowCoverOf,
@@ -24,6 +25,8 @@ import {
 } from "@engine";
 
 import {
+  AFTERSKI_RUN,
+  afterskiOn,
   SEASONS,
   SNOW_STOPS,
   depthOf,
@@ -458,5 +461,39 @@ describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
     standSkier(s, k.x + 1.6, k.z, k.heading);
     step(s, NEUTRAL_INPUT);
     expect(takeSnapshot(s).sled).toMatchObject({ kind: "waiting", near: true });
+  });
+});
+
+describe("the RUN row's afterski stop: the party in the lodge (free-ride.ts)", () => {
+  it("stands the ride up inside the lodge, never at a spot or on a machine", () => {
+    const ride = {
+      ...freshRide(),
+      run: { seed: 7, region: freshRide().region, id: AFTERSKI_RUN },
+      spot: { seed: 7, x: 100, z: 100 },
+    };
+    expect(afterskiOn(ride, 7)).toBe(true);
+    expect(afterskiOn(ride, 8)).toBe(false);
+    const options = freeGameOptions(ride, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(options.inLodge).toBe(true);
+    expect(options.heli || options.sled || options.para).toBe(false);
+    expect(options.spawn).toBeUndefined();
+    expect(options.run).toBeUndefined();
+    expect(afterskiOn(mergeRide(JSON.parse(JSON.stringify(ride))), 7)).toBe(true);
+    // Started again, it is stood on the snow at the top of the slope.
+    expect(freeTopOptions(options, undefined).inLodge).toBe(false);
+  });
+
+  it("begins at the party, and he heads out with the buzz he drank", () => {
+    const level = generateLevel(7);
+    expect(lodgesOf(level).length).toBeGreaterThan(0);
+    const s = createGame({ level, mode: "free", inLodge: true, crowd: 0, quiet: true });
+    expect(s.afterski?.inside).toBe(lodgesOf(level)[0].id);
+    for (let i = 0; i < 120 * 30 && (s.afterski?.beers ?? 0) < 2; i++) step(s, NEUTRAL_INPUT);
+    expect(s.afterski?.beers).toBeGreaterThanOrEqual(2);
+    const buzz = s.skier.buzz ?? 0;
+    expect(buzz).toBeGreaterThan(0);
+    step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.afterski?.inside).toBeNull();
+    expect(s.skier.buzz).toBeCloseTo(buzz, 6);
   });
 });

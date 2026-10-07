@@ -18,7 +18,7 @@ See [`docs/platforms.md`](../docs/platforms.md) for where this sits.
 
 ## What the shell actually does
 
-Everything else is the website. The shell is six things a browser tab cannot
+Everything else is the website. The shell is seven things a browser tab cannot
 give a phone:
 
 | The thing                | Where it lives                                                                      | Why the website cannot do it                                                                                                                                                                                                                                         |
@@ -27,6 +27,7 @@ give a phone:
 | Sound through the ringer | `App.tsx` (`setAudioModeAsync`)                                                     | iOS silences a WebView's WebAudio on the ringer switch; a game should sound like a game                                                                                                                                                                              |
 | The snow in the hands    | `src/injected.ts` → `src/rumble.ts` → `src/haptics.ts`                              | a WKWebView has no Vibration API at all, and the phone under it has the best haptics the game will ever run on                                                                                                                                                       |
 | The book on every device | `src/injected.ts` → `src/cloud-ask.ts` → `src/cloud-save.ts` → `modules/cloud-save` | a web page cannot reach the iCloud account the phone is already signed into; the skier's records, ghosts, campaign board and preferences follow them to their other devices                                                                                          |
+| A child's phone          | `src/content-filter.ts` → `modules/content-filter` → `src/injected.ts` (`contentFlag`) | a web page cannot read the phone's content restrictions; a parental control (Communication Safety) hides the HUD's injuries and locks the switch, an adult's Sensitive Content Warning hides them until switched back on — see below |
 | Off-site links           | `src/navigation.ts`                                                                 | there is no address bar and no back button, so a link out would replace the game with a page the skier cannot leave                                                                                                                                                  |
 | No caret loupe           | `App.tsx` (`textInteractionEnabled={false}`)                                        | the magnifier a double tap or a press-and-hold puts over the snow is a UIKit gesture recognized before the page is consulted, so the website's `user-select: none` cannot reach it — the cost is that the seed field types but cannot have a caret placed mid-number |
 
@@ -86,6 +87,25 @@ bare Apple ID without the capability sets `EXPO_PUBLIC_CLOUD_SAVE=off` so
 signing does not fail. No account, key or container id is committed — the
 save follows whichever Apple ID the device is signed into.
 
+### The content setting
+
+iOS 17 and later say whether sensitive content is filtered through the
+sensitive-content analysis policy: COMMUNICATION SAFETY, the parental control
+on a child's account, or SENSITIVE CONTENT WARNING, an adult's own switch. The
+shell reads it once at launch (`src/content-filter.ts`, over the Swift module
+in `modules/content-filter/`) and defines `__SH_CONTENT__` beside the shell's
+name before the page's first script (`contentFlag`). The page's answer is
+`injuriesShown` in `pwa/src/game/settings.ts`: a parental control hides the
+body plate and the g meter and locks OPTIONS ▸ INJURIES off; an adult's filter
+only changes the default. On an older iOS, without the capability, and on
+Android — which has no such switch an app can read — nothing is said and the
+game's own switch is the whole answer.
+
+**Enabling it for a store build:** turn on the **Sensitive Content Analysis**
+capability on the App ID. `app.config.js` writes the entitlement
+(`com.apple.developer.sensitivecontentanalysis.client`); a local build without
+the capability sets `EXPO_PUBLIC_CONTENT_FILTER=off`.
+
 ## The tree
 
 | File                          | What it is                                                                                     |
@@ -101,6 +121,8 @@ save follows whichever Apple ID the device is signed into.
 | `src/cloud-ask.ts`            | a cloud ask parsed, an answer scripted — pure, for the same reason                             |
 | `src/cloud-save.ts`           | an ask served against the native module                                                        |
 | `modules/cloud-save/`         | the local Expo module: iCloud key-value storage (Swift, iOS only)                              |
+| `src/content-filter.ts`       | the device's content setting, read once at launch                                              |
+| `modules/content-filter/`     | the local Expo module: the sensitive-content policy (Swift, iOS only)                          |
 | `scripts/bundle-web.mjs`      | `vite build` + a deterministic zip into `assets/webroot.zip`                                   |
 | `scripts/ios-device.mjs`      | bundle → prebuild → sign → install → launch on a real iPhone over USB                          |
 | `plugins/with-ios-signing.js` | pins `DEVELOPMENT_TEAM` so a prebuild does not discard it                                      |

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE JIBS AS DRAWN (R39): a slopestyle course's rails and boxes, built in
+// THE JIBS AS DRAWN (R38): a slopestyle course's rails and boxes, built in
 // code off the polylines the engine rides them on (`Level.jibs` — each
 // point the TOP a ski slides along), in the course furniture's plain look:
 //

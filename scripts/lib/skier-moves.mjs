@@ -144,6 +144,27 @@ export const MOVES = [
     input: (t) => ({ ...IDLE, steer: t >= 0.5 ? -1 : 0 }),
   },
   {
+    id: "switch",
+    title:
+      "riding SWITCH down a 14° pitch at 20 km/h, tails first: turned to look back over a shoulder",
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.25, slopeFrom: 0, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, pitch: Math.atan(0.25), speed: -5.5 }),
+    seconds: 3,
+    window: [0.0, 2.0],
+    input: () => IDLE,
+    mode: "free",
+  },
+  {
+    id: "switch-turns",
+    title: "riding SWITCH down a 14° pitch, turned left and right a turn each 1.4 s",
+    level: (S) => S.flatLevel({ packed: 1, grade: 0.25, slopeFrom: 0, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, pitch: Math.atan(0.25), speed: -5.5 }),
+    seconds: 6,
+    window: [0.6, 5.8],
+    input: (t) => ({ ...IDLE, steer: t < 0.5 ? 0 : Math.floor((t - 0.5) / 1.4) % 2 ? -0.7 : 0.7 }),
+    mode: "free",
+  },
+  {
     id: "skate-zigzag",
     title: "skating at a crawl on the flat, stepped left and right a turn each 1.6 s",
     level: (S) => S.flatLevel({ packed: 1 }),
@@ -396,6 +417,8 @@ export const MOMENTS = [
   { id: "reach", move: "cliff", t: 1.75, say: "reaching for the snow at the foot of a cliff" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },
   { id: "pivot", move: "pivot", t: 0.25, say: "a step turn on the spot: the inside ski stepped" },
+  { id: "switch", move: "switch", t: 1.5, say: "riding switch, looking back over a shoulder" },
+  { id: "switch-turn", move: "switch-turns", t: 2.6, say: "a turn ridden switch" },
 ];
 
 export const MOMENT_IDS = MOMENTS.map((m) => m.id);

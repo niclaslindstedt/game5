@@ -8,7 +8,7 @@
 // so from the start gate to the lip the tuck is held, the brake let go and
 // his weight kept over his feet, whatever is pressed; the edge and the
 // jump stay his own, and in the air and past the lip every control is
-// again. An AERIALS site's in-run (R44) is ridden the same way to its
+// again. An AERIALS site's in-run (R41) is ridden the same way to its
 // kicker, and STRAIGHT: the edge and the jump are held too — a 71° kicker
 // is met square and taken as it throws him, never popped.
 

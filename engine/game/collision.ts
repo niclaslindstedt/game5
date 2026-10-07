@@ -29,7 +29,7 @@ import { envelopeOf, inertiaOf, totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import type { GameEvent, GameState } from "./state.ts";
-import { treesNear } from "./upright-grid.ts";
+import { treesNear, type Stuff } from "./upright-grid.ts";
 
 export { treesNear };
 
@@ -60,6 +60,8 @@ export function collideTrees(state: GameState, events: GameEvent[]): void {
   let hitX = 0;
   let hitZ = 0;
   let post = false;
+  let stuff: Stuff = "trunk";
+  let radius = 0;
   for (const i of near) {
     const t = solids[i];
     if (c.y < t.y - 1 || c.y > t.y + t.height) continue;
@@ -97,6 +99,8 @@ export function collideTrees(state: GameState, events: GameEvent[]): void {
         hitX = t.x;
         hitZ = t.z;
         post = i >= level.trees.length;
+        stuff = t.stuff ?? "trunk";
+        radius = t.radius;
       }
     }
   }
@@ -108,6 +112,8 @@ export function collideTrees(state: GameState, events: GameEvent[]): void {
       speed: worst,
       x: hitX,
       z: hitZ,
+      stuff,
+      radius,
       ...(post ? { post: true as const } : {}),
     });
   }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT ON A MOGULS COURSE (R42) — a competent mogul skier's run: out of
+// THE BOT ON A MOGULS COURSE (R40) — a competent mogul skier's run: out of
 // the start onto the zipper line, then a turn on every mogul — the edge
 // swung from side to side on the moguls' own rhythm, the line held to the
 // track's middle — his speed held to a pace he can absorb with a skid set
@@ -47,14 +47,8 @@ const AIRS: readonly Air[] = [
 
 /** The input that skis `state`'s skier down a moguls course, or null on a
  * map with none — or in a flight with no trick in it, which the bot's own
- * hands level to the landing. `on` is where he stands on its line; `pace`
- * the speed he holds, m/s. On a dual moguls course (R43) he holds the
- * middle of the lane the map is skied in. */
-export function mogulsInput(
-  state: GameState,
-  on: TrackHit,
-  pace: number = MOGUL_STEER.pace,
-): SkierInput | null {
+ * hands level to the landing. `on` is where he stands on its line. */
+export function mogulsInput(state: GameState, on: TrackHit): SkierInput | null {
   const level = state.level;
   const course = level.moguls;
   const f = level.bumps;
@@ -79,10 +73,6 @@ export function mogulsInput(
     if (plan.flips > 0 && c.airTime > K.tapFrom && c.airTime < K.tapFrom + 0.08) lean = 1;
     return { ...NEUTRAL_INPUT, steer, lean, trick: plan.grab && c.airTime > K.tapFrom };
   }
-  const dual = level.dualMoguls;
-  // Where across he skis: a dual lane's middle, else the line's.
-  const across = dual ? at.across - dual.lanes[dual.lane].offset : at.across;
-  const lateral = dual ? on.lateral - dual.lanes[dual.lane].offset : on.lateral;
   const v = Math.max(1, c.speed);
   const travel = Math.atan2(c.vx, c.vz);
   const onField = mogulShare(f, at.along) > 0.2 && at.along > course.from;
@@ -91,9 +81,9 @@ export function mogulsInput(
   // the moguls' own, so every turn is made on a bump's shoulder.
   const phase = (2 * Math.PI * (at.along - f.from)) / f.spacing;
   const side = onField && !nearAir ? Math.sign(Math.sin(phase)) || 1 : 0;
-  const aim = f.heading + side * K.swing - across * 0.08;
+  const aim = f.heading + side * K.swing - at.across * 0.08;
   const look = Math.max(K.look, 0.5 * v);
-  const want = (-2 * angleDiff(aim, travel)) / look - (lateral * 1.5) / (look * look);
+  const want = (-2 * angleDiff(aim, travel)) / look - (on.lateral * 1.5) / (look * look);
   const spec = c.spec;
   const T = techniqueOf(state.rules);
   const lock = Math.max(0.05, Math.min(edgeMostOf(spec, T), edgeLockAt(spec, c.speed, T)));
@@ -105,7 +95,7 @@ export function mogulsInput(
   const landing = course.airs.some(
     (a) => at.along > a.lip + K.settle && at.along < a.landed + f.ease,
   );
-  const brake = (onField && !nearAir) || landing ? clamp((c.speed - pace) * K.skid, 0, 1) : 0;
+  const brake = (onField && !nearAir) || landing ? clamp((c.speed - K.pace) * K.skid, 0, 1) : 0;
   // THE LEGS: folded up a mogul's face (the snow ahead rising toward the
   // crest), extended down its back.
   const ahead = mogulsAt(f, at.along + K.fold, at.across) - mogulsAt(f, at.along, at.across);

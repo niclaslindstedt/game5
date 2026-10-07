@@ -521,9 +521,7 @@ function gradeTrack(original: Level): Graded {
     giantSlalom: undefined,
     skiCross: undefined,
     bigAir: undefined,
-    knuckleHuck: undefined,
     slopestyle: undefined,
-    railJam: undefined,
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
@@ -583,9 +581,7 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.giantSlalom?.base ??
     level.skiCross?.base ??
     level.bigAir?.base ??
-    level.knuckleHuck?.base ??
     level.slopestyle?.base ??
-    level.railJam?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??
     level;

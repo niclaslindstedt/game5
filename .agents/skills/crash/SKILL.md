@@ -49,7 +49,10 @@ Three modules answer it, and the split matters:
   its even chance's (`Injury.energy`, `energyOver`, `injury.comminute`),
   raised by every harder blow on the part after it;
   `saidOf` keeps a fracture out of the HUD's words, since the figure shows
-  it on the bone. A reset MENDS the body (`mendBody`, from `resetSkier`).
+  it on the bone. An injury to an ORGAN names it (`InjuryDef.organs`, a
+  paired one on the side the blow came from, `Injury.side`) and paints
+  that organ in the figure (`organsOf`); the trunk's organs take a
+  landing's deceleration too (`load` on the chest and the abdomen). A reset MENDS the body (`mendBody`, from `resetSkier`).
   The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the
   generated `body-model.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
   with `make damage`, the figure made again from the 3D body with
@@ -114,6 +117,36 @@ beyond all of it (`TUNING.crash`'s comment says by how much). A wipeout in
 the solo table is a threshold that has come down into clean skiing, or a bot
 that has got worse. In a race (`--rivals 3`) the field shoulders skiers into
 the woods and a wipeout there is honest.
+
+### The injury lab: `make injuries`
+
+The body's own instrument. Every scenario in
+`tests/support/injury-scenarios.ts` stages the skier at the moment before a
+blow on a flat bench (`tests/support/injury-stage.ts`): THROWN and posed —
+head first, on his back, a side, his hands, a shoulder, his seat, feet
+first — and driven into the snow by its kind (powder, soft, the groomer,
+ice) or into a solid by what it is made of (a trunk, a lift tower's bare
+steel or its pad, a cabin's log wall); or ON HIS SKIS off a cliff onto the
+flat, in the back seat, over the tips, an edge caught, into a solid. Each
+is drawn `TRIALS` times (each a run seed of its own) and its rates held to
+the groups it EXPECTS (half the trials or more), the injuries it must
+NEVER do (an eighth at most), the bones it must leave SHATTERED and the
+median worst AIS. `tests/injury_lab_test.ts` holds the same rows, and the
+lab's last line lists the injuries no scenario expects yet — a new rung on
+a ladder owes a moment that does it.
+
+```sh
+make injuries                                # the table; exits non-zero on a miss
+make injuries ARGS="--only=head-ice --list"  # every injury's rate, the cause, the landing's g
+make injuries ARGS=--json                    # previews/injuries.json, the before
+make injuries ARGS="--compare previews/injuries.json"
+```
+
+When a moment misses, read its `--list` row before touching a number: a
+miss is as often the MOMENT staged wrong (the body not meeting what it was
+meant to, a flight too short to count as one) as the model wrong. Fix the
+model where a real body would be hurt otherwise, and say which research
+row it answers to.
 
 ## The rules
 
@@ -256,7 +289,8 @@ the woods and a wipeout there is honest.
 
 ## Workflow
 
-1. **Take the baseline first.** `make ride` on the crash and bog scenarios
+1. **Take the baseline first.** `make injuries ARGS=--json` for anything
+   the body reads, `make ride` on the crash and bog scenarios
    and `kicker --skis all` (an ordinary overshot jump must be skied out), and
    `make sim`, before the first edit.
 2. **Find WHICH STEP decided it.** Print every step's cause candidate —
@@ -266,7 +300,7 @@ the woods and a wipeout there is honest.
    on one step.
 3. **Tune defs, with the bot's distribution beside the number.**
 4. **Re-run the lab, then the tests** —
-   `npx vitest run tests/crash_test.ts tests/ragdoll_test.ts tests/body_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
+   `npx vitest run tests/crash_test.ts tests/ragdoll_test.ts tests/body_test.ts tests/injury_lab_test.ts tests/collision_test.ts tests/course_test.ts tests/simulation_test.ts tests/determinism_test.ts tests/hud_test.ts tests/rumble_test.ts`.
 5. **LOOK.** `make world ARGS=--views=wipeout,wipeout-lie`, and the fall
    as frames — `ARGS=--views=fall-0.2,fall-0.4,fall-0.8,fall-1.3,fall-2`,
    one lens beside him — against the same views on `main`.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MOGULS' FORMAL SCORE (R42) — not an impression but the sum of three
+// THE MOGULS' FORMAL SCORE (R40) — not an impression but the sum of three
 // parts, out of 100, as the freestyle rules write it (`docs/freestyle.md` §
 // *Moguls*):
 //

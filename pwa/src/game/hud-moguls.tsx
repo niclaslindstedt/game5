@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MOGULS' PLATE (R42) — the card over a run the panel and the clock
+// THE MOGULS' PLATE (R40) — the card over a run the panel and the clock
 // have scored, drawn by `ResultPlate` in place of its own.
 //
 // It says which phase it was and its SCORE (or the run out), the three

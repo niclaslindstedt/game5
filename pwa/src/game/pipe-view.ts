@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE HALFPIPE AS DRAWN (R41): the pipe's own snow surface, built in code
+// THE HALFPIPE AS DRAWN (R39): the pipe's own snow surface, built in code
 // off the engine's own surface (`Level.groundAt`, which inside the pipe's
 // footprint is `mapgen/pipe.ts`'s exact section, not the 2 m grid).
 //

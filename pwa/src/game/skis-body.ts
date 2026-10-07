@@ -316,6 +316,8 @@ export function poseInputOf(
     fore: stand.fore,
     incline: stand.incline,
     sidestep: Number.isNaN(legs.hip) ? skier.sidestep : legs.platform,
+    // RIDING SWITCH: looking back over the shoulder his body has turned to.
+    switched: legs.back * legs.backSide,
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,

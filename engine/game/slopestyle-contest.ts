@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A SLOPESTYLE CONTEST (R39), pure: the format the freestyle rules give it,
+// A SLOPESTYLE CONTEST (R38), pure: the format the freestyle rules give it,
 // carried between the runs of one contest as `GameState.slopestyle`
 // (`CreateGameOptions.slopestyle`), as big air carries its contest.
 //

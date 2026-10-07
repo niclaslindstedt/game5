@@ -72,12 +72,17 @@ export function airTorque(
   // never more than `pitchLevelMax`.
   // Flying tails first (`backward`, a 180 on a run that lets him), the
   // tails are what rises along the path: the tips aim the other way.
+  // A LONG FALL (`fallFrom`): the landing spotted sooner, and laid onto
+  // however steep it is.
   const path = Math.atan2(c.vy, hypot(c.vx, c.vz)) * (backward ? -1 : 1);
-  const look = landing ? clamp(1 - landing.t / A.landLook, 0, 1) : 0;
+  const big = landing ? clamp((landing.into - A.fallFrom) / (A.fallFull - A.fallFrom), 0, 1) : 0;
+  const spot = A.landLook + (A.fallLook - A.landLook) * big;
+  const look = landing ? clamp(1 - landing.t / spot, 0, 1) : 0;
+  const most = A.pitchAim + (A.fallAim - A.pitchAim) * big;
   const aim = clamp(
-    path * 0.5 * (1 - look) + (landing ? landing.slope : 0) * look,
-    -A.pitchAim,
-    A.pitchAim,
+    clamp(path * 0.5, -A.pitchAim, A.pitchAim) * (1 - look) + (landing ? landing.slope : 0) * look,
+    -most,
+    most,
   );
   // Stated on the reference pair and scaled by this one's pitch inertia: a
   // hand is an acceleration, and a long downhill ski is more to swing.
@@ -100,8 +105,9 @@ export function airTorque(
 }
 
 /** Where a flight comes down: `t` s from now, onto snow whose slope along
- * the skis is `slope` rad (tips-up positive, as `pitch` is). */
-export type Landing = { t: number; slope: number };
+ * the skis is `slope` rad (tips-up positive, as `pitch` is), meeting it at
+ * `into` m/s into the slope. */
+export type Landing = { t: number; slope: number; into: number };
 
 /** The arc's own time step, s, and how far ahead it is traced, s. */
 const ARC_STEP = 1 / 30;
@@ -117,7 +123,7 @@ export function landingAhead(c: SkierState, level: Level, fall: number): Landing
   // A pipe's wall is met along its normal, not under the CoG (`pipe-air.ts`).
   if (level.pipe) {
     const down = pipeLanding(level, c, fall);
-    return down ? { t: down.t, slope: 0 } : null;
+    return down ? { t: down.t, slope: 0, into: 0 } : null;
   }
   const stand = c.spec.cogHeight;
   let x = c.x;
@@ -134,7 +140,8 @@ export function landingAhead(c: SkierState, level: Level, fall: number): Landing
     const fx = Math.sin(c.heading);
     const fz = Math.cos(c.heading);
     const rise = -(ground.x * fx + ground.z * fz) / Math.max(0.2, ground.y);
-    return { t, slope: Math.atan(rise) };
+    const into = -(c.vx * ground.x + vy * ground.y + c.vz * ground.z);
+    return { t, slope: Math.atan(rise), into };
   }
   return null;
 }
@@ -160,11 +167,24 @@ export function fallHeight(impact: number): number {
  * folded out of them, and as much of it as his legs stop his weight over
  * (`hold`, `RiderSpec.hold`: a heavy rider's legs less) — and the snow's
  * give, `loose` m of unpressed snow under the skis (`landing.give` of it
- * presses). One g is standing. */
-export function landingLoad(impact: number, crouch: number, loose: number, hold = 1): number {
+ * presses). On a face `slope` rad steep, what falls past
+ * `landing.steep.over` m is drawn out down it (`landing.steep`). One g is
+ * standing. */
+export function landingLoad(
+  impact: number,
+  crouch: number,
+  loose: number,
+  hold = 1,
+  slope = 0,
+): number {
   const stroke =
     LD.stroke * hold * (1 - LD.tuckStroke * clamp(crouch, 0, 1)) + LD.give * Math.max(0, loose);
-  return 1 + fallHeight(impact) / stroke;
+  const efh = fallHeight(impact);
+  const S = LD.steep;
+  const u = clamp((slope - S.from) / (S.full - S.from), 0, 1);
+  const along = 1 + S.gain * u * u * (3 - 2 * u);
+  const past = Math.max(0, efh - S.over);
+  return 1 + (efh - past + past / along) / stroke;
 }
 
 /** How much of the clean landing's tolerance a load of `g` leaves: the

@@ -150,15 +150,20 @@ export const SLED = {
    * arcade's hand on the yaw (models nothing, says so — the sibling sled
    * game's): the yaw rate held toward the one the skis ask, no faster than
    * `pathShare` of the grip turns the way, N·m per rad/s, and the nose held
-   * to the way it goes, N·m per rad of slide, both capped. */
+   * to the way it goes, N·m per rad of slide, both capped; in powder the
+   * grip it may turn on is `reachPowder` g — a sled rolled onto its edge
+   * and carved, more than its belt and skis hold sideways flat. Tuned so
+   * full lock turns a circle of about 5.5 m at 21 km/h, 11 m at 33 and 32 m
+   * at 56 on the groomer (`make sled-turn`). */
   steer: {
-    fadeSpeed: 15,
+    fadeSpeed: 20,
     rate: 2.8,
     base: 1.75,
-    yawHold: 5200,
-    slipHold: 2600,
-    yawHoldMax: 3400,
-    pathShare: 0.85,
+    yawHold: 10000,
+    slipHold: 1200,
+    yawHoldMax: 6000,
+    pathShare: 1,
+    reachPowder: 0.7,
     slipFrom: 3,
     scrub: 0.3,
   },

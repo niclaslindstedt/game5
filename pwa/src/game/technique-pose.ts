@@ -229,7 +229,7 @@ export const SPEED_SKI_POSE: TechniquePose = {
   tuck: { low: 1.55, high: 1.4 },
 };
 
-/** THE MOGUL SKIER (R42). The upper body square to the fall line and
+/** THE MOGUL SKIER (R40). The upper body square to the fall line and
  * still while the skis turn under it — the most counter-rotation of any
  * row — the trunk bent well forward over the knees; the hands up, forward
  * and wide, a pole plant on every turn, short, by the boot; a hip-width

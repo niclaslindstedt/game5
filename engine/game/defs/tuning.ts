@@ -673,6 +673,14 @@ export const TUNING = {
      * (`flight.ts`'s `landingAhead`), s, the skis are eased from half the
      * flight path onto the slope they will land on instead. */
     landLook: 0.8,
+    /** A LONG FALL (a heli's skid, a wing, a cliff): meeting the slope at
+     * `fallFrom` m/s (an equivalent fall of 3.3 m, past any kicker's), all
+     * of it at `fallFull` (10 m), he SPOTS his landing — the skis laid onto
+     * it however steep, up to `fallAim` rad (49°), `fallLook` s early. */
+    fallFrom: 8,
+    fallFull: 14,
+    fallAim: 0.85,
+    fallLook: 2,
     /** How long off the snow before it counts as air, s — anything shorter
      * is a skier skipping over a bump. */
     counts: 0.15,
@@ -722,6 +730,12 @@ export const TUNING = {
     /** ...and under `clean` g more forgiving still, to `1 + slack` of it
      * at a hop that loads him no more than standing. */
     slack: 1,
+    /** A STEEP FACE TAKES A FALL: the skis run on down it while the legs
+     * fold, drawing the stop out. The first `over` m of the equivalent fall
+     * height is stopped outright (a kicker's landing is judged as ever);
+     * what falls past it over a stroke `1 + gain` times as long on a face
+     * of `full` rad (45°), eased in from `from` (25°). */
+    steep: { over: 3, from: 0.44, full: 0.79, gain: 2 },
     /** Only a landing that ends a real flight is judged, s in the air. */
     air: 0.3,
   },

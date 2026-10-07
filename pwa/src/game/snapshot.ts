@@ -55,14 +55,13 @@ import { courseName } from "./run-names.ts";
 import { trapOf, type TrapReading } from "./downhill-run.ts";
 import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
+import { skyLookAt } from "./sky.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
-import { jamOf, type JamHud } from "./knuckle-huck-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
-import { dualMogulsOf, type DualHud } from "./dual-moguls-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
@@ -223,10 +222,6 @@ export type HudSnapshot = {
    * the panel's score once judged, the board and what comes next — null on
    * any other run. */
   bigAir: BigAirHud | null;
-  /** A KNUCKLE HUCK's jam (`knuckle-huck-run.ts`) — its clock, its hits,
-   * the place as it stands, the last hit called and at the buzzer the
-   * board; null on any other run. */
-  jam: JamHud | null;
   /** A SLOPESTYLE run (`slopestyle-run.ts`) — its phase and run, the
    * section he is in, and once judged the sheet, the board and what comes
    * next; null on any other run. */
@@ -242,10 +237,6 @@ export type HudSnapshot = {
   /** An AERIALS jump (`aerials-run.ts`) — its phase, the jump declared and
    * the flips thrown, and once it is over the formal score and the board. */
   aerials: AerialsHud | null;
-  /** A DUAL MOGULS run (`dual-moguls-run.ts`) — its round, its lanes and
-   * the start's call, and once decided the score or the votes and what
-   * comes next; null on any other run. */
-  dualMoguls: DualHud | null;
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
@@ -292,6 +283,19 @@ export type HudSnapshot = {
   afterski: HudAfterski | null;
   /** THE BUZZ, 0 sober to 1 (`SkierState.buzz`): the meter shows over 0. */
   buzz: number;
+  /** HOW FAR THE CHROME IS DIPPED, 0..1 — the HUD's NIGHT DRESSING, the
+   * sibling games' own: nothing is DRAWN from it here. It goes on the HUD's
+   * root as `--hud-dark`, where every colour of the chrome is a ramp along
+   * it (styles.css), and the minimap darkens its ground by it.
+   *
+   * IT IS THE LAMP SWITCH (`SkyLook.lamps`): the dark that turns on the
+   * floodlights, the arena's floods and every skier's headlamp, never a
+   * threshold of the HUD's own — an instrument panel dips off the lamp
+   * switch, not a light meter, and a second opinion about when it is dark
+   * would drift from the light the skier is riding by. The lamps come up
+   * smoothly through the dusk (and partway in a storm's gloom), so the
+   * chrome comes down with them rather than on one frame. */
+  dark: number;
 };
 
 /** A PISTE MACHINE as the HUD reads it: driven — its speed, km/h (negative
@@ -646,12 +650,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     race,
     cross,
     bigAir: bigAirOf(state),
-    jam: jamOf(state),
     slopestyle: slopestyleOf(state),
     halfpipe: halfpipeOf(state),
     moguls: mogulsOf(state),
     aerials: aerialsOf(state),
-    dualMoguls: dualMogulsOf(state),
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
@@ -674,5 +676,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     para: paraOf(state),
     afterski: afterskiOf(state),
     buzz: c.buzz ?? 0,
+    dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };
 }

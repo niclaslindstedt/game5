@@ -49,7 +49,6 @@ import { REPO_URL } from "../identity.ts";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
-import { JamCalled, JamChips } from "./hud-knuckle.tsx";
 import { BodyPanel } from "./hud-body.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
@@ -193,6 +192,7 @@ export function Hud({
       class="hud"
       data-air={snap.airTime > 0 ? "1" : undefined}
       data-finished={snap.finished ? "1" : undefined}
+      style={{ "--hud-dark": String(snap.dark) }}
       data-touch={touch ? "1" : undefined}
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
@@ -237,12 +237,10 @@ export function Hud({
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
             {snap.tricks &&
               !snap.bigAir &&
-              !snap.jam &&
               !snap.slopestyle &&
               !snap.halfpipe &&
               !snap.moguls &&
-              !snap.aerials &&
-              !snap.dualMoguls && <TricksChips tile={snap.tricks} />}
+              !snap.aerials && <TricksChips tile={snap.tricks} />}
             {/* A SLOPESTYLE RUN: its run, its phase, the section he is in. */}
             {snap.slopestyle && (
               <div class="hud-chip hud-run">
@@ -254,25 +252,6 @@ export function Hud({
                     snap.slopestyle.sections,
                     snap.slopestyle.kind,
                   )}
-                </span>
-              </div>
-            )}
-            {/* A DUAL MOGULS RUN: its round, the lanes, the start's call. */}
-            {snap.dualMoguls && (
-              <div class="hud-chip hud-run">
-                <span>
-                  {snap.dualMoguls.call
-                    ? STRINGS.dualCall(snap.dualMoguls.call)
-                    : STRINGS.dualRound(snap.dualMoguls.round)}
-                </span>
-                <span class="hud-chip-sub">
-                  {snap.dualMoguls.lane && snap.dualMoguls.rival
-                    ? STRINGS.dualLanes(
-                        snap.dualMoguls.lane,
-                        snap.dualMoguls.rival.id,
-                        snap.dualMoguls.rival.seed,
-                      )
-                    : STRINGS.dualAlone}
                 </span>
               </div>
             )}
@@ -309,8 +288,6 @@ export function Hud({
                 </span>
               </div>
             )}
-            {/* A KNUCKLE HUCK'S JAM: the session, the clock, the hits. */}
-            {snap.jam && <JamChips jam={snap.jam} />}
             {/* A BIG AIR JUMP: its phase, and which of its jumps. */}
             {snap.bigAir && (
               <div class="hud-chip hud-run">
@@ -447,7 +424,7 @@ export function Hud({
           and the reset and the camera sit a thumb's reach lower, nearer the
           hands. */}
       <div class="hud-topright">
-        <Minimap map={snap.minimap} onPause={onPause} />
+        <Minimap map={snap.minimap} dark={snap.dark} onPause={onPause} />
         <HudActions onReset={onReset} onCamera={onCamera} lit={lit} />
       </div>
 
@@ -621,8 +598,7 @@ export function Hud({
       {snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
-      {snap.tricks && !snap.jam && <ComboTile tile={snap.tricks} />}
-      {snap.jam && <JamCalled jam={snap.jam} />}
+      {snap.tricks && <ComboTile tile={snap.tricks} />}
 
       <div class="hud-right">
         <div class="hud-flashes">

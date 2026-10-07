@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// AN AERIALS CONTEST (R44), pure: the format the freestyle rules give it on
+// AN AERIALS CONTEST (R41), pure: the format the freestyle rules give it on
 // the top series, carried between its jumps as `GameState.aerials`
 // (`CreateGameOptions.aerials`), as the moguls carry theirs.
 //

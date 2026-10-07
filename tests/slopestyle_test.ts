@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// SLOPESTYLE (R39): the course built to the rules — the platform, three
+// SLOPESTYLE (R38): the course built to the rules — the platform, three
 // rail sections and three jumps, each section met at its design speed —
 // set on a map, the mode's rules and presets, the bot down it, the
 // section judging and the contest's format.
@@ -37,7 +37,7 @@ import { levelFor } from "./support/levels.ts";
 const R = SLOPESTYLE_RULE;
 const RAD = Math.PI / 180;
 
-describe("the slopestyle course's profile (R39)", () => {
+describe("the slopestyle course's profile (R38)", () => {
   const p = slopestyleProfile();
 
   it("is three rail sections then three jumps, in order down the hill", () => {
@@ -84,7 +84,7 @@ describe("the slopestyle course's profile (R39)", () => {
   });
 });
 
-describe("the slopestyle course set on a map (R39)", () => {
+describe("the slopestyle course set on a map (R38)", () => {
   const level = setSlopestyle(levelFor(1));
   const course = level.slopestyle;
 

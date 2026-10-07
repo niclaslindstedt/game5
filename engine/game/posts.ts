@@ -11,7 +11,7 @@
 
 import type { Level } from "../mapgen/types.ts";
 import { cabinWalls } from "./cabins.ts";
-import { liftPlans } from "./lift-line.ts";
+import { TOWER_PAD, liftPlans } from "./lift-line.ts";
 import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
 import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
@@ -19,26 +19,46 @@ import { uprightsNear, type Upright } from "./upright-grid.ts";
 const lists = new WeakMap<Level, Upright[]>();
 
 /** Every post of `level`: the lifts' columns (their half-width at the foot
- * — a square tube, met on its flats), then the masts' poles, then the snow
- * guns standing. */
+ * — a square tube, met on its flats; a padded one met on its pad's), then
+ * the masts' poles, then the snow guns standing. */
 export function postsOf(level: Level): readonly Upright[] {
   let list = lists.get(level);
   if (list) return list;
   list = [];
   for (const plan of liftPlans(level)) {
     for (const s of plan.supports) {
-      list.push({ x: s.x, z: s.z, y: s.ground, height: s.rope, radius: plan.look.column });
+      const radius = s.pad ? padRadius(plan.look.column) : plan.look.column;
+      list.push({
+        x: s.x,
+        z: s.z,
+        y: s.ground,
+        height: s.rope,
+        radius,
+        stuff: s.pad ? "padded" : "steel",
+      });
     }
   }
   for (const m of pisteMasts(level)) {
-    list.push({ x: m.x, z: m.z, y: m.y, height: m.height, radius: PISTE_MAST.pole.foot });
+    list.push({
+      x: m.x,
+      z: m.z,
+      y: m.y,
+      height: m.height,
+      radius: PISTE_MAST.pole.foot,
+      stuff: "steel",
+    });
   }
   for (const g of standingGuns(level)) {
     const { radius, height } = gunSolid(g);
-    list.push({ x: g.x, z: g.z, y: g.y, height, radius });
+    list.push({ x: g.x, z: g.z, y: g.y, height, radius, stuff: "steel" });
   }
   lists.set(level, list);
   return list;
+}
+
+/** A pad's octagon round a column, met on its flats, m. */
+function padRadius(column: number): number {
+  return (column * Math.SQRT2 + TOWER_PAD.thick) * Math.cos(Math.PI / 8);
 }
 
 const solids = new WeakMap<Level, Upright[]>();

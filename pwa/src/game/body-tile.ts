@@ -2,11 +2,12 @@
 // HOW THE BODY IS, as the HUD paints it — the engine's ledger
 // (`SkierState.body`, `body.ts`) folded into what an anatomical figure and
 // three lines under it can say, and the blow the g meter shows: the flesh
-// of each part painted by its worst injury that is NOT a fracture, every
-// bone by its own (`fracturesOf`: sound, a hairline crack, a simple break,
-// a wedge, shattered — thrown apart by the energy that did it), and the
-// lines saying only what the bones cannot show (`saidOf` — the organs, the
-// ligaments, the sprains).
+// of each part painted by its worst injury that is NOT a fracture or an
+// organ's, every bone by its own (`fracturesOf`: sound, a hairline crack, a
+// simple break, a wedge, shattered — thrown apart by the energy that did
+// it), every organ by its worst injury (`organsOf`), and the lines saying
+// only what the bones cannot show (`saidOf` — the organs, the ligaments,
+// the sprains).
 // DOM-free on purpose: the drawing is next door (`hud-body.tsx`,
 // `hud-gforce.tsx`), the arithmetic is here, and the root suite reads it.
 //
@@ -29,6 +30,8 @@ import {
   TUNING,
   fractureEnergyOf,
   fracturesOf,
+  organsOf,
+  organsOfInjury,
   saidOf,
   severityOf,
   type BodyPart,
@@ -68,6 +71,8 @@ export type BodyTile = {
   parts: BodyTone[];
   /** Every bone's paint, in `BONES` order. */
   bones: BoneTone[];
+  /** Every organ's paint, in `ORGANS` order: the worst injury on it. */
+  organs: BodyTone[];
   /** How hard each bone's fracture was struck, in `BONES` order: 0 a
    * fracture at the least dose that does one, 1 at the energy that
    * shatters a bone, up to `FORCE_MOST` — how far its pieces are thrown
@@ -149,10 +154,11 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
     .map((h, i) => ({ h, i }))
     .filter(({ h }) => saidOf(h.kind))
     .sort((a, b) => b.h.ais - a.h.ais || b.i - a.i);
-  // The flesh: each part's worst injury that is said, not a bone's.
+  // The flesh: each part's worst injury that is said, not a bone's and not
+  // an organ's — which paint the bone and the organ instead.
   const flesh = new Array<number>(BODY_PARTS.length).fill(0);
   for (const h of body.injuries) {
-    if (!saidOf(h.kind)) continue;
+    if (!saidOf(h.kind) || organsOfInjury(h).length > 0) continue;
     flesh[PART[h.part]] = Math.max(flesh[PART[h.part]], h.ais);
   }
   const lines = order.slice(0, LINES).map(({ h }) => ({
@@ -172,6 +178,7 @@ export function bodyTile(body: BodyState, t: number): BodyTile {
     parts: flesh.map(toneOf),
     bones: fracturesOf(body).map((g) => BONE_TONES[g]),
     force: fractureEnergyOf(body).map(forceOf),
+    organs: organsOf(body).map(toneOf),
     scale: scaleOf(severity),
     struck: blow ? blow.part : null,
     condition: conditionOf(severity),

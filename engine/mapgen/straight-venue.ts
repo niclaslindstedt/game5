@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A VENUE BUILT STRAIGHT DOWN THE FACE — what every freestyle venue cut on a
-// line of its own shares (R37's big air jump, R38's knuckle, R39's
-// slopestyle course): a PROFILE drawn against the horizontal with a pen,
+// line of its own shares (R37's big air jump, R38's slopestyle course, the
+// halfpipe, the moguls course and the aerials site): a PROFILE drawn against the horizontal with a pen,
 // the LINE searched down the face where that profile cuts and fills least,
 // and the ground GRADED to it, groomed, its woods cleared and the piste's
 // kickers, drops and cliffs in it taken out.
@@ -212,9 +212,7 @@ export function originalOf(level: Level): Level {
     level.speedSki?.base ??
     level.skiCross?.base ??
     level.bigAir?.base ??
-    level.knuckleHuck?.base ??
     level.slopestyle?.base ??
-    level.railJam?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??
     level.aerials?.base ??
@@ -356,9 +354,7 @@ export function gradeVenue(
     speedSki: undefined,
     skiCross: undefined,
     bigAir: undefined,
-    knuckleHuck: undefined,
     slopestyle: undefined,
-    railJam: undefined,
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land grimbear groomer snowguns piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear groomer snowguns piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -176,6 +176,20 @@ skier-metrics:
 # "--compare=a.json" a before and after.
 sag:
 	npm run sag -- $(if $(MOMENT),--moment $(MOMENT),) $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE INJURY LAB: does a moment hurt a skier the way it hurts a body? Every
+# scenario in tests/support/injury-scenarios.ts stages him at the moment
+# before a blow — thrown and posed (head first, on his back, a side, his
+# hands, a shoulder, his seat, feet first) into the snow by its kind
+# (powder, soft, the groomer, ice), a trunk, a lift tower's steel or its
+# pad, a cabin's log wall; or on his skis off a cliff, in the back seat,
+# over the tips, an edge caught, into a solid — and draws it many times,
+# each row's rates against what it expects (a broken neck, the legs, the
+# spine shattered, the kidneys torn, the brain…) and what it must never do.
+# Pure Node, seconds; exits non-zero on a miss. ARGS="--only=head-ice",
+# "--list" every rate, "--json" a baseline, "--compare previews/injuries.json".
+injuries:
+	npm run injuries -- $(ARGS)
 
 # THE LANDING LAB: does he ride away the landings the mountain hands him?
 # Generated mountains skied the way a player does — down the piste and
@@ -409,6 +423,16 @@ sled:
 # expected. ARGS="--json=a.json" before, "--compare=a.json" after.
 sled-land:
 	npm run sled-land -- $(ARGS)
+
+# THE SNOWMOBILE TURN LAB: every turn of tests/support/sled-turns.ts — the
+# sled at full lock on the flat at a crawl, 25, 40 and 60 km/h, on the
+# groomer and in powder — ridden by the real engine, one row a turn: the
+# circle it settles on against the band a rider expects, the sideways pull,
+# the time to turn 90°, the roll. Pure Node, seconds; exits non-zero on a
+# row outside its band. ARGS="--json=a.json" before, "--compare=a.json"
+# after; ARGS=--left the other way round.
+sled-turn:
+	npm run sled-turn -- $(ARGS)
 
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and

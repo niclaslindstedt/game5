@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT ON A SLOPESTYLE COURSE (R39) — a competent skier's run: down the
+// THE BOT ON A SLOPESTYLE COURSE (R38) — a competent skier's run: down the
 // course's straight line, holding a LINE across it, as a speed skier
 // holds a track's middle (`speed-ski-steer.ts`) but looking nearer, since a
 // rail section's two lines are a dozen metres apart.

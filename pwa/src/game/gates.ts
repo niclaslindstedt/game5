@@ -219,10 +219,7 @@ function strand(a: THREE.Vector3, b: THREE.Vector3, r: number): THREE.BufferGeom
   return g;
 }
 
-export function createGates(skied: Level, haze: HazeUniforms): Gates {
-  // A DUAL MOGULS COURSE (R43) is drawn with both lanes' gates as one,
-  // across the pair of them, whichever lane the map is skied in.
-  const level = skied.dualMoguls ? { ...skied, checkpoints: skied.dualMoguls.drawn } : skied;
+export function createGates(level: Level, haze: HazeUniforms): Gates {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];

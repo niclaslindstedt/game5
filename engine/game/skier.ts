@@ -911,7 +911,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       // or not (`crash.ts`).
       snowNormal(level, c, normal);
       const loose = TUNING.snow.cover * depth * (1 - c.packed);
-      const load = landingLoad(impact, c.crouch, loose, riderOf(spec).hold);
+      // How steep the face is he came down on — none on a pipe's wall.
+      const face = level.normalNear ? 0 : Math.acos(clamp(normal.y, -1, 1));
+      const load = landingLoad(impact, c.crouch, loose, riderOf(spec).hold, face);
       const off = landingOff(
         rotate(c.q, { x: 0, y: 0, z: 1 }),
         rotate(c.q, { x: 1, y: 0, z: 0 }),

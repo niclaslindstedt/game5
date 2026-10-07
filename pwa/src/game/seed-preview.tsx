@@ -54,7 +54,7 @@ import {
   toPanorama,
   type PanoramaSchematic,
 } from "./panorama.ts";
-import { CHART_VIEW, degrees, fromChart, toChart } from "./seed-chart.ts";
+import { CHART_VIEW, degrees, fromChart, toChart, type ChartHouse } from "./seed-chart.ts";
 import { askKey, onSeedMaps, seedAnswer, wantSeed, type SeedAnswer } from "./seed-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
@@ -102,6 +102,40 @@ export function useSeedPreview(
 /** A kicker's mark: a chevron pointing the way it throws, at its lip. */
 const KICKER_MARK = "M 0 -2.6 L 2 1.6 L 0 0.6 L -2 1.6 Z";
 
+/** A house's mark: walls under a gable, drawn upright (a map's pictogram,
+ * not a roof turned to its heading), centred on the house. */
+const HOUSE_MARK = "M -1.5 1.5 L -1.5 -0.3 L 0 -1.7 L 1.5 -0.3 L 1.5 1.5 Z";
+
+/** Every house on a view, the afterski lodges larger and in their own
+ * colour (a ski area's piste map marks where the party is); on the
+ * panorama each stands on its foot rather than over it. */
+function HouseMarks({
+  houses,
+  scale,
+  standing,
+}: {
+  houses: readonly ChartHouse[] | undefined;
+  scale: number;
+  standing: boolean;
+}) {
+  return (
+    <>
+      {(houses ?? []).map((h) => {
+        const k = h.kind === "afterski" ? scale * 1.35 : scale;
+        const lift = standing ? 1.5 * k : 0;
+        return (
+          <path
+            key={h.id}
+            class={`seed-preview-house${h.kind === "afterski" ? " seed-preview-house-lodge" : ""}`}
+            d={HOUSE_MARK}
+            transform={`translate(${h.x.toFixed(1)} ${(h.y - lift).toFixed(1)}) scale(${k.toFixed(2)})`}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 /** The start line's mark: a triangle pointing down the piste. */
 const GRID_MARK = "M 0 -3 L 2.4 2 L -2.4 2 Z";
 
@@ -141,6 +175,7 @@ function PlanLayers({
         />
       )}
       <path class="seed-preview-route" d={drawn.schematic.track} fill="none" />
+      <HouseMarks houses={drawn.schematic.houses} scale={0.8} standing={false} />
       {drawn.schematic.kickers.map((k) => (
         <path
           key={k.id}
@@ -222,6 +257,7 @@ function PanoramaLayers({
           <circle class="pano-station" cx={l.to[0]} cy={l.to[1]} r={0.9} />
         </g>
       ))}
+      <HouseMarks houses={pano.houses} scale={0.75} standing />
       {pano.kickers.map((k) => (
         <path
           key={k.id}

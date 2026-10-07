@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// AN AERIALS CONTEST FROM THE APP'S SIDE (R44): one jump a run on the snow
+// AN AERIALS CONTEST FROM THE APP'S SIDE (R41): one jump a run on the snow
 // — the qualification's, then final 1's and final 2's — what the HUD reads
 // of it (the phase, the jump declared and the flips thrown of it), the
 // formal score once it is over (the air, the form and the landing times

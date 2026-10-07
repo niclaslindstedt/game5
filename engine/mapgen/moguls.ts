@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// R42 — A MOGULS COURSE BUILT OVER A BUILT MAP. A line of its own cut
-// straight down the face, as R37's jump and R41's pipe are
+// R40 — A MOGULS COURSE BUILT OVER A BUILT MAP. A line of its own cut
+// straight down the face, as R37's jump and R39's pipe are
 // (`straight-venue.ts`): a start platform, a roll onto the course's pitch,
 // the pitch held down the course with its two AIR BUMPS drawn into it, and
 // a finish area at its foot — graded, groomed and cleared — and the MOGUL
 // TRACK laid down its middle as an analytic surface (`mogul-field.ts`).
 //
 // The field is built as LINES (`MogulLine`): one here, down the venue's
-// line; a dual moguls course is the same profile with two lines on one
-// rhythm, so `mogulsProfile` and `mogulsField` take the lines they are
-// asked for.
+// line; `mogulsProfile` and `mogulsField` take the lines they are asked
+// for.
 //
 // The course is the same on every map: only WHERE it stands is the map's.
 // Everything is a pure function of the map, drawing nothing from any
@@ -23,7 +22,7 @@ import type { Checkpoint, Kicker, Level, MogulsCourse, Spawn } from "./types.ts"
 
 const RAD = Math.PI / 180;
 
-/** A moguls course's rule (R42's numbers, or a dual course's). */
+/** A moguls course's rule (R40's numbers). */
 export type { MogulsRule };
 
 /** ONE AIR BUMP drawn into the profile: its kicker's foot and lip and the
@@ -43,7 +42,7 @@ export type MogulsProfile = VenueProfile & {
 
 const designed = new Map<MogulsRule, MogulsProfile>();
 
-/** THE PROFILE (R42), the same on every map. */
+/** THE PROFILE (R40), the same on every map. */
 export function mogulsProfile(R: MogulsRule = MOGULS_RULE): MogulsProfile {
   const hit = designed.get(R);
   if (hit) return hit;
@@ -126,7 +125,7 @@ export function mogulsField(
 
 const built = new WeakMap<Level, Level>();
 
-/** R42 — A MOGULS COURSE BUILT OVER `level`: the venue shaped down the face
+/** R40 — A MOGULS COURSE BUILT OVER `level`: the venue shaped down the face
  * as the map's own `track`, its checkpoints the start gate, the control
  * gates and the finish line, its spawn the start platform, its air bumps
  * the map's kickers (`A1`, `A2`) and the moguls answered by the map's
@@ -134,7 +133,7 @@ const built = new WeakMap<Level, Level>();
  * course is built over the map under it. Kept per map; the course keeps
  * the day and the sky of the map it was built over. */
 export function setMoguls(level: Level): Level {
-  if (level.moguls && !level.dualMoguls) return level;
+  if (level.moguls) return level;
   const original = originalOf(level);
   let course = built.get(original);
   if (!course) {
@@ -149,7 +148,7 @@ export function setMoguls(level: Level): Level {
 /** A MOGULS VENUE BUILT OVER `original` to `R`, down `lines` (one down
  * the middle when left out): the map graded to its profile, its air bumps
  * the map's kickers (`A1`, `A2`, as wide as `kick` m), the moguls laid,
- * and the course — R42's and R43's alike; their gates are their own. */
+ * and the course — R40's; its gates are its own. */
 export function mogulsVenue(
   original: Level,
   R: MogulsRule,

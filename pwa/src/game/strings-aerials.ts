@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WORDS OF AERIALS (R44) — a block of the one strings table
+// THE WORDS OF AERIALS (R41) — a block of the one strings table
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
 // the same names: the freestyle card's row, the trick map card's billing
 // and its jump picker, the jump on the HUD and the plate. A jump is called

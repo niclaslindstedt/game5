@@ -40,7 +40,6 @@ import { stepBody } from "./body.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { aerialInput, stepAerial } from "./aerial-flight.ts";
 import { stepKicker } from "./aerial-kicker.ts";
-import { butterInput, stepButter } from "./butter.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
@@ -171,7 +170,7 @@ export function stepRun(
   if (!off && !railed) {
     // THE BUZZ (`buzz.ts`): the hands late and wrong.
     const ridden = drunk && !rigged ? drunkInput(run, held) : held;
-    stepSkier(run, stunts ? butterInput(run, poseInput(run, ridden)) : ridden, events);
+    stepSkier(run, stunts ? poseInput(run, ridden) : ridden, events);
   }
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
@@ -192,8 +191,6 @@ export function stepRun(
   if (run.aerial) stepAerial(run, input);
   // OFF A PIPE'S WALL (`pipe-air.ts`): the lip's push and the turn round.
   if (!off && !railed) stepPipeAir(run, flightGravity(run.rules));
-  // THE PRESS AND THE BUTTER (`butter.ts`), on a run that has them.
-  if (stunts && !railed) stepButter(run, input);
   if (!off) collideTrees(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);

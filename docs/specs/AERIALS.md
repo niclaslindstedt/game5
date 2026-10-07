@@ -1,6 +1,6 @@
 # Aerials — draft spec
 
-**Built in part** (R44 — the site and its three kickers, the declared
+**Built in part** (R41 — the site and its three kickers, the declared
 jump, twisting flips, the formal scorer, the chart, the format and its
 dealt field, the Kestrel at the light build, the bot, the HUD and the
 plate; what is unticked below is still open). Delete this file when
@@ -73,7 +73,7 @@ qualification, a final of twelve, a final of six — the last jump deciding.
       20–25° with start markers every 2 m, the KICKERS (single, double,
       triple — their lengths, lip heights and take-off angles) set on the
       in-run's foot, a level TABLE of 20–25 m, the KNOLL, a LANDING HILL of
-      25–30 m at 36–38°, a level out-run; 22 m wide. *Built (R44,
+      25–30 m at 36–38°, a level out-run; 22 m wide. *Built (R41,
       `mapgen/aerials.ts`): the in-run sized to each kicker's lip speed,
       the kicker ridden as a guided curve (`aerial-kicker.ts`). Still
       open: the START MARKERS every 2 m a jumper picks his start height

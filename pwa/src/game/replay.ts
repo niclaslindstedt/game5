@@ -101,8 +101,6 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     moguls: state.moguls,
     // An aerials jump and the contest it was jumped in (`aerials-run.ts`).
     aerials: state.aerials,
-    // A dual moguls run — the qualification or a dual — and its contest.
-    dualMoguls: state.dualMoguls,
     quiet: true,
   };
 }
@@ -114,13 +112,10 @@ export function keepsReplay(mode: GameMode): boolean {
     (keepsRecords(mode) ||
       mode === "tricks" ||
       mode === "bigAir" ||
-      mode === "knuckleHuck" ||
       mode === "slopestyle" ||
-      mode === "railJam" ||
       mode === "halfpipe" ||
       mode === "moguls" ||
-      mode === "aerials" ||
-      mode === "dualMoguls")
+      mode === "aerials")
   );
 }
 

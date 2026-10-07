@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOT IN A HALFPIPE (R41) — a competent pipe skier's run: down the
+// THE BOT IN A HALFPIPE (R39) — a competent pipe skier's run: down the
 // middle onto the pipe's pitch and into its mouth, then wall to wall —
 // across the flat at an angle off the pipe's line (`PIPE_STEER.approach`)
 // so the wall carries him up and off its vert, his skis left alone up the

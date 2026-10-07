@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   BODY_PARTS,
   BONES,
+  ORGANS,
   INJURIES,
   mayGetUp,
   NEUTRAL_INPUT,
@@ -55,6 +56,7 @@ import {
   windOf,
 } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
+import { skyLookAt } from "../pwa/src/game/sky.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 /** A race on the slope, three rivals on the start line and the lights on. */
@@ -208,6 +210,32 @@ describe("the wind meter (snapshot.ts)", () => {
   });
 });
 
+describe("the night dressing (snapshot.ts)", () => {
+  /** The race's map under a clear sky from `hour`. */
+  function at(hour: number): GameState {
+    const state = race();
+    state.level = withSky(state.level, { weather: "clear", hour });
+    return state;
+  }
+
+  it("leaves the chrome undipped under a clear noon", () => {
+    expect(takeSnapshot(at(12)).dark).toBe(0);
+  });
+
+  it("dips it all the way at night, on the lamps' own switch", () => {
+    const dark = takeSnapshot(at(22)).dark;
+    expect(dark).toBe(1);
+    expect(dark).toBe(Math.round(skyLookAt(at(22).level, 0).lamps * 100) / 100);
+  });
+
+  it("ramps through the dusk with the lamps rather than switching", () => {
+    const hours = Array.from({ length: 141 }, (_, i) => 15 + i * 0.05);
+    const darks = hours.map((h) => takeSnapshot(at(h)).dark);
+    for (let i = 1; i < darks.length; i++) expect(darks[i]).toBeGreaterThanOrEqual(darks[i - 1]);
+    expect(darks.some((d) => d > 0.05 && d < 0.95)).toBe(true);
+  });
+});
+
 describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
   it("draws the damage only on a run with it, off the engine's figures", () => {
     expect(takeSnapshot(race()).damage).toBe(null);
@@ -263,6 +291,24 @@ describe("the body and the g meter (body-tile.ts)", () => {
     expect(tile.bones.every((t) => t === "sound")).toBe(true);
     expect(tile.condition).toBe("sound");
     expect(tile.blow).toBe(null);
+  });
+
+  it("paints an organ by its own injuries, never the flesh of the part it lies in", () => {
+    const body = freshBody();
+    body.injuries.push({ part: "head", kind: "concussion", ais: 2, t: 0 });
+    body.injuries.push({ part: "abdomen", kind: "tornKidney", ais: 3, t: 0, side: "L" });
+    body.injuries.push({ part: "abdomen", kind: "winded", ais: 1, t: 0 });
+    body.worst[BODY_PARTS.indexOf("head")] = 2;
+    body.worst[BODY_PARTS.indexOf("abdomen")] = 3;
+    const tile = bodyTile(body, 0);
+    expect(tile.organs).toHaveLength(ORGANS.length);
+    expect(tile.organs[ORGANS.indexOf("brain")]).toBe("spent");
+    expect(tile.organs[ORGANS.indexOf("kidneyL")]).toBe("dead");
+    expect(tile.organs[ORGANS.indexOf("kidneyR")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("head")]).toBe("ok");
+    expect(tile.parts[BODY_PARTS.indexOf("abdomen")]).toBe("hurt");
+    // Said all the same.
+    expect(tile.lines.map((l) => l.kind)).toContain("tornKidney");
   });
 
   it("lists the worst injuries first, the newest first within a rank, and counts the rest", () => {
@@ -534,7 +580,14 @@ describe("the body as drawn (body-figure.ts)", () => {
   it("draws every bone once in each view, shaded, and fractures each", () => {
     for (const side of SIDES) {
       const view = figureView(side);
-      expect([...view.order].sort(), side).toEqual([...BONES].sort());
+      expect([...view.order].sort(), side).toEqual([...BONES, ...ORGANS].sort());
+      expect(Object.keys(view.organs).sort(), side).toEqual([...ORGANS].sort());
+      for (const organ of ORGANS) {
+        const o = view.organs[organ];
+        expect(o.fill, `${side} ${organ}`).toMatch(/^(M[\d.,L-]+Z)+$/);
+        expect(o.hidden).toBeGreaterThanOrEqual(0);
+        expect(o.hidden).toBeLessThanOrEqual(1);
+      }
       expect(Object.keys(view.bones).sort(), side).toEqual([...BONES].sort());
       for (const bone of BONES) {
         const b = view.bones[bone];

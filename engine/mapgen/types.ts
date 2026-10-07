@@ -111,6 +111,29 @@ export interface Mountain {
   treeLine: number;
 }
 
+/** ONE TREE WELL (`engine/game/tree-well.ts`): the hollow round a trunk at
+ * (`x`, `z`) of radius `trunk`, `depth` m deep at the trunk, reaching
+ * `reach` m from it across the fall line and `lean` further down it —
+ * (`fx`, `fz`) the fall line's way, a unit vector in plan — and never past
+ * `bound` m. */
+export interface TreeWell {
+  x: number;
+  z: number;
+  trunk: number;
+  depth: number;
+  reach: number;
+  lean: number;
+  fx: number;
+  fz: number;
+  bound: number;
+}
+
+/** A map's tree wells and the deepest of them, m. */
+export interface WellField {
+  list: readonly TreeWell[];
+  deepest: number;
+}
+
 export interface Level {
   seed: number;
   /** The world is [0, size] × [0, size] metres. */
@@ -134,6 +157,10 @@ export interface Level {
    * `groundAt` and `normalAt` answer off inside its venue. Absent on every
    * map without one. */
   bumps?: MogulField;
+  /** THE TREE WELLS round the trunks in deep powder (`engine/game/
+   * tree-well.ts`'s `withWells`) — the hollows `groundAt` and `normalAt`
+   * answer off. Absent on every map skied in the ordinary snow. */
+  wells?: WellField;
   /** 0 = virgin powder … 1 = fully packed piste. */
   packedAt(x: number, z: number): number;
   /** THE PISTE, open: from the start line (s = 0) to the finish (s =

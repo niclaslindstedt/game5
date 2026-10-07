@@ -254,6 +254,10 @@ export type SkierState = {
   trench: number;
   trenchFor: number;
   boggedFor: number;
+  /** IN A TREE WELL (`tree-well.ts`): how far the snow under his CoG is
+   * lowered by the well he stands in, m — 0 out of one, and on every map
+   * skied in the ordinary snow. */
+  well: number;
   /** Seconds lying over on the snow (`crash.ts`) — the fall's clock;
    * turning over in the air does not run it. */
   rolledFor: number;
@@ -664,7 +668,7 @@ export type GameEvent =
   | AfterskiEvent
   | GroomerEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
-  | { kind: "stuck"; t: number }
+  | { kind: "stuck"; t: number; well?: true }
   /** A ski or the legs have taken a blow worth saying (`damage.ts`):
    * which, and how bad it now is, 0..1. */
   | { kind: "damage"; t: number; part: DamagePart; level: number }

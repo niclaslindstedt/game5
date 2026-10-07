@@ -54,6 +54,7 @@ import {
 } from "./snow-glsl.ts";
 import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
+import { createTreeWells } from "./tree-wells.ts";
 
 /** The grid's size, pitch and depth — a TERRAIN stop, `terrainLook` in
  * `settings-video.ts`. */
@@ -342,7 +343,12 @@ export function createTerrain(
   const f = level.ground;
   const look = regionLookOf(regionOf(level).id);
   const wind = windFromOf(level);
+  // THE TREE WELLS in deep powder (`tree-wells.ts`): their map, and the
+  // wood drawn down into them.
+  const wells = createTreeWells(level, haze);
+  group.add(wells.group);
   const shared = {
+    ...wells.uniforms,
     uHeight: { value: tex.height },
     uGround: { value: tex.ground },
     uTrackDir: { value: tex.dir },
@@ -532,6 +538,7 @@ export function createTerrain(
   return {
     group,
     follow(x, z, lens) {
+      wells.follow(x, z);
       if (lens) {
         view.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
         frustum.setFromProjectionMatrix(view);
@@ -557,6 +564,7 @@ export function createTerrain(
         lv.mesh.geometry.dispose();
         (lv.mesh.material as THREE.Material).dispose();
       }
+      wells.dispose();
       tex.height.dispose();
       tex.ground.dispose();
       tex.dir.dispose();

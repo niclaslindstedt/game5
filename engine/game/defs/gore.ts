@@ -38,6 +38,8 @@ export const GORE = {
     leg: 430,
     /** The knee's: the shin off at the knee. */
     shin: 760,
+    /** The abdomen's: the body torn in two at the waist. */
+    waist: 980,
   },
   /** The spread of every piece's dose off its hash, ± a share. */
   spread: 0.14,
@@ -66,6 +68,7 @@ export const GORE = {
       forearm: 0.08,
       leg: 0.24,
       shin: 0.12,
+      waist: 0.5,
       chest: 0.18,
       abdomen: 0.12,
       crush: 0.06,
@@ -88,4 +91,4 @@ export const GORE = {
 } as const;
 
 /** The causes that kill AT ONCE. */
-export const INSTANT: readonly DeathCause[] = ["head", "crush", "impaled", "opened"];
+export const INSTANT: readonly DeathCause[] = ["head", "crush", "impaled", "opened", "torn", "maul"];

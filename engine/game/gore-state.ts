@@ -6,7 +6,8 @@
 /** THE PIECES a body can lose, in the order `GoreState.lost` keeps them a
  * bit each: the head off at the neck, a whole arm off at the shoulder, the
  * forearm off at the elbow, a whole leg off at the hip, the shin off at the
- * knee — the left before the right. */
+ * knee — the left before the right — and the body TORN IN TWO at the waist,
+ * the hips and both legs gone from under the trunk (`lower`). */
 export const GORE_PIECES = [
   "head",
   "armL",
@@ -17,6 +18,7 @@ export const GORE_PIECES = [
   "legR",
   "shinL",
   "shinR",
+  "lower",
 ] as const;
 
 export type GorePiece = (typeof GORE_PIECES)[number];
@@ -29,7 +31,7 @@ export const GORE_OPEN = ["chest", "abdomen"] as const;
 export type GoreOpen = (typeof GORE_OPEN)[number];
 
 /** WHAT KILLED HIM: the head torn off, the skull crushed, run through on a
- * spike, the chest or the belly torn open, bled out, a body past saving
+ * spike, the chest or the belly torn open, torn in two, bled out, a body past saving
  * (an injury severity of 50 and more), burned in a wreck's fireball, the
  * grimbear. */
 export type DeathCause =
@@ -37,6 +39,7 @@ export type DeathCause =
   | "crush"
   | "impaled"
   | "opened"
+  | "torn"
   | "bled"
   | "trauma"
   | "fire"

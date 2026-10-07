@@ -68,6 +68,12 @@ const TEAR: Record<
   legR: { part: "thighR", row: "leg", at: R.hipR, takes: [R.kneeR, R.footR] },
   shinL: { part: "kneeL", row: "shin", at: R.kneeL, takes: [R.footL] },
   shinR: { part: "kneeR", row: "shin", at: R.kneeR, takes: [R.footR] },
+  lower: {
+    part: "abdomen",
+    row: "waist",
+    at: -2,
+    takes: [R.hipL, R.hipR, R.kneeL, R.kneeR, R.footL, R.footR],
+  },
 };
 
 /** A piece that takes another with it: a whole arm the forearm, a leg the
@@ -78,6 +84,9 @@ const WITH: Partial<Record<GorePiece, GorePiece>> = {
   legL: "shinL",
   legR: "shinR",
 };
+
+/** Torn in two, the legs go with the hips. */
+const LOWER = ["legL", "legR", "shinL", "shinR", "lower"] as const;
 
 const bit = (piece: GorePiece): number => 1 << GORE_PIECES.indexOf(piece);
 
@@ -98,9 +107,11 @@ export function isDead(state: GameState): boolean {
   return (state.gore?.dead ?? -1) >= 0;
 }
 
-/** A point of the ragdoll, or the middle of the shoulders (−1). */
+/** A point of the ragdoll, the middle of the shoulders (−1) or the waist
+ * (−2). */
 function pointOf(b: Thrown, i: number): { x: number; y: number; z: number } {
   const P = b.points;
+  if (i === -2) return hipsOf(b);
   if (i >= 0) return { x: P[3 * i], y: P[3 * i + 1], z: P[3 * i + 2] };
   const l = 3 * R.shoulderL;
   const r = 3 * R.shoulderR;
@@ -150,11 +161,9 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
     const part = GORE_OPEN[k];
     if (!(g.open & (1 << k)) && doseOn(part) >= GORE.open[part]) open.push(part);
   }
-  // THE GRIMBEAR'S CATCH: an arm torn off in his jaws, the side off a hash.
+  // THE GRIMBEAR'S CATCH: the body torn in two in his arms.
   const off0 = state.skier.thrown;
-  if (off0?.cause === "maul" && g.mortal < 0) {
-    tear.push(hash2(state.seed | 0, 7, SALT) < 0.5 ? "armL" : "armR");
-  }
+  if (off0?.cause === "maul" && g.mortal < 0 && !(g.lost & bit("lower"))) tear.push("lower");
   if (!tear.length && !crush && !open.length) return;
   // Torn apart on his skis, he is off them now.
   const c = state.skier;
@@ -164,12 +173,23 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
     // A whole limb gone takes the lower half with it; the lower half
     // already gone leaves the upper to tear on its own.
     g.lost |= bit(piece) | (with_ ? bit(with_) : 0);
+    if (piece === "lower") for (const p of LOWER) g.lost |= bit(p);
     const T = TEAR[piece];
     const at = pointOf(off, T.at);
     const v = velocityOf(off, T.takes);
     g.torn.push({ piece, t: state.t, ...at, vx: v.x, vy: v.y, vz: v.z });
     events.push({ kind: "gore", t: state.t, what: "torn", piece, ...at });
-    mortalBy(state, g, piece === "head" ? "head" : "bled");
+    mortalBy(
+      state,
+      g,
+      piece === "head"
+        ? "head"
+        : piece !== "lower"
+          ? "bled"
+          : off.cause === "maul"
+            ? "maul"
+            : "torn",
+    );
   }
   if (crush) {
     events.push({ kind: "gore", t: state.t, what: "crush", ...pointOf(off, R.head) });
@@ -298,6 +318,9 @@ function flowOf(g: GoreState): number {
     if ((piece === "forearmL" && g.lost & bit("armL")) || (piece === "forearmR" && g.lost & bit("armR")))
       continue;
     if ((piece === "shinL" && g.lost & bit("legL")) || (piece === "shinR" && g.lost & bit("legR")))
+      continue;
+    // Torn in two, the legs' own arteries went with the hips.
+    if (g.lost & bit("lower") && piece !== "lower" && (LOWER as readonly string[]).includes(piece))
       continue;
     q += F[TEAR[piece].row];
   }

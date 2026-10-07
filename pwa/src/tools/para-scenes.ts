@@ -227,6 +227,27 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "canopy-down", overPiece("canopy", 6, 4, 8));
     st.shoot(s, "motor-down", overPiece("motor", 1.5, 1.2, 2.5));
   },
+  // A LONG FALL: the rig let go high over the mountain (the bot's flight
+  // for 24 s), and the skier watched down onto the snow by the fall look
+  // (`camera-fall.ts`) — the chase, the far lens and his own eye.
+  "drop-high"(st) {
+    const s = airborne(st);
+    const high = (q: GameState) => q.skier.y - q.level.groundAt(q.skier.x, q.skier.z);
+    st.once(s, { ...NEUTRAL_INPUT, machine: true });
+    st.shoot(s, `released-${high(s).toFixed(0)}m`, "chase");
+    let t = 0;
+    for (const at of [0.8, 1.6]) {
+      st.run(s, at - t, still);
+      t = at;
+      st.shoot(s, `${at}s-${high(s).toFixed(0)}m`, "chase");
+    }
+    st.shoot(s, `${t}s-far`, "far");
+    st.shoot(s, `${t}s-eye`, "helmet");
+    st.until(s, (q) => !q.skier.airborne || q.skier.thrown !== null, 15, still);
+    st.shoot(s, "touchdown", "chase");
+    st.run(s, 1, still);
+    st.shoot(s, "after-1s", "chase");
+  },
   // ── THE GEAR CLOSE UP ──────────────────────────────────────────────────
   gear(st) {
     const s = airborne(st);
@@ -277,7 +298,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   turn: ["turn"],
   landing: ["landing"],
   fold: ["fold"],
-  drop: ["drop"],
+  drop: ["drop", "drop-high"],
   gear: ["gear"],
   turntable: ["turntable"],
   lenses: ["lenses"],

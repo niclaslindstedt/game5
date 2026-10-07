@@ -14,7 +14,8 @@
 //   turn       a toggle pulled each way, then both brakes down
 //   landing    the final glide, the flare, speed riding under the wing
 //   drop       the rig released, skiing on, the canopy and the motor lying
-//              on the snow
+//              on the snow; drop-high, the rig let go high over the
+//              mountain and the fall watched down onto the snow
 //   gear       close up: the motor on his back, the cage and the propeller,
 //              the risers, the canopy's underside
 //   turntable  the rig in flight from eight sides

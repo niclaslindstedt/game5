@@ -456,7 +456,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const lifted =
     free &&
     options.byLift &&
-    !options.inLodge &&
+    !(options.inLodge && lodgesOf(level).length > 0) &&
     !para &&
     !(state.heli && options.heli) &&
     !(state.sled && options.sled)

@@ -64,6 +64,7 @@
     "heli": "node scripts/heli-preview.mjs",
     "sled": "node scripts/sled-preview.mjs",
     "sled-land": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-land-lab.mjs",
+    "sled-turn": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-turn-lab.mjs",
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",

@@ -420,19 +420,11 @@ export const STRINGS = {
     top: "TOP SPEED",
   },
   skisUnits: { cm: "CM", mm: "MM", metres: "M", kg: "KG", speed: "KM/H" },
-  /** ...and the bars: what it does on the groomer, and off it. */
+  /** ...and the three bars: fast on the groomer, turning on it, and off it. */
   skisBars: {
-    top: "TOP SPEED",
-    edge: "EDGE HOLD",
-    berm: "BERM",
-    speed: "SPEED CARVE",
-    fast: "FAST BEND",
-    quick: "QUICKNESS",
-    float: "FLOAT",
-    flex: "FORGIVENESS",
-    landing: "LANDINGS",
-    bumps: "BUMPS",
-    spin: "SPIN",
+    speed: "SPEED",
+    carve: "CARVE",
+    freestyle: "FREESTYLE",
   },
 
   /* ── THE START CARD (menu-start.tsx, seed-preview.tsx) ─────────────── */

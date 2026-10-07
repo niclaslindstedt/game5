@@ -18,19 +18,22 @@
 // air (`spinOf`) — the same arithmetic the physics and the bot run at
 // 120 Hz.
 //
-// ELEVEN AXES, because the catalog is twelve answers to a kind of snow and
-// the snow has two kinds: what a pair does on the GROOMER (the top end, the
-// edge's hold at race pace, round a berm, at a super-G's and at a
-// downhill's, how quickly it goes edge to edge)
-// and what it does OFF it
-// (the float, how forgiving it is, the landing, the bumps, the spin). Every pair is best at
-// something on this sheet and none is best at everything, which is the
-// card's whole argument.
+// THREE BARS, because a skier choosing a pair reads three things at a
+// glance and not eleven. The engine still answers eleven questions about a
+// pair (the functions below), and each bar is the mean of some of them:
+// SPEED (the top end), CARVE (the bend the edge holds clean at race pace,
+// round a berm, at a super-G's pace and at a downhill's, and how quickly it
+// goes edge to edge) and FREESTYLE (the float, how forgiving it is, the
+// landing, the bumps, the spin) — fast down the groomer, turning on it, and
+// everything off it.
 //
 // The bars are RELATIVE TO THE ROSTER, not absolute: twelve pairs within
 // a few percent of each other on an axis scaled from zero are twelve identical
-// full bars, which is a picture of nothing. The roster's own spread is the
-// scale, and `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
+// full bars, which is a picture of nothing. Each question is read as a
+// RANK in the roster (so one outlier — the speed ski's 316 km/h — does not
+// squash every other pair to the floor), the ranks are averaged into the
+// bar, and the bar is placed on the roster's spread, so the best pair on a
+// bar fills it; `BAR_FLOOR` keeps the worst pair's bar a bar rather than an
 // empty slot.
 //
 // DOM-free: `tests/ski_card_test.ts` reads it on plain Node.
@@ -152,24 +155,40 @@ export function spinOf(spec: SkiSpec): number {
   return 1 / (spec.gearMass * spec.length * spec.length);
 }
 
-type AxisKey = keyof typeof STRINGS.skisBars;
-type Axis = { key: AxisKey; of: (spec: SkiSpec) => number };
+type BarKey = keyof typeof STRINGS.skisBars;
+type Axis = (spec: SkiSpec) => number;
 
-/** The axes a pair is billed on, in the order they are drawn: the groomer
- * first, then what is off it. */
-const AXES: readonly Axis[] = [
-  { key: "top", of: (spec) => spec.topSpeed },
-  { key: "edge", of: (spec) => carveOf(spec) },
-  { key: "berm", of: bermCarveOf },
-  { key: "speed", of: speedCarveOf },
-  { key: "fast", of: fastCarveOf },
-  { key: "quick", of: quicknessOf },
-  { key: "float", of: floatOf },
-  { key: "flex", of: forgivenessOf },
-  { key: "landing", of: harshSpeedOf },
-  { key: "bumps", of: bumpsOf },
-  { key: "spin", of: spinOf },
+/** The bars a pair is billed on, in the order they are drawn, and the
+ * questions each is the mean of. */
+const BARS: readonly { key: BarKey; axes: readonly Axis[] }[] = [
+  { key: "speed", axes: [(spec) => spec.topSpeed] },
+  {
+    key: "carve",
+    axes: [(spec) => carveOf(spec), bermCarveOf, speedCarveOf, fastCarveOf, quicknessOf],
+  },
+  { key: "freestyle", axes: [floatOf, forgivenessOf, harshSpeedOf, bumpsOf, spinOf] },
 ];
+
+/** Where every pair of the roster sits between its worst (0) and its best
+ * (1) on one question. A roster of one, or a question every pair answers
+ * alike, is all ones rather than a division by zero. */
+function shares(all: readonly number[]): number[] {
+  const low = Math.min(...all);
+  const high = Math.max(...all);
+  return all.map((v) => (high > low ? (v - low) / (high - low) : 1));
+}
+
+/** Every pair's RANK on one question, 0 (the worst) to 1 (the best), pairs
+ * that answer alike sharing the mean of their places. */
+function ranks(all: readonly number[]): number[] {
+  const n = all.length;
+  if (n < 2) return all.map(() => 1);
+  return all.map((v) => {
+    const below = all.filter((w) => w < v).length;
+    const alike = all.filter((w) => w === v).length;
+    return (below + (alike - 1) / 2) / (n - 1);
+  });
+}
 
 export type SkisBar = {
   key: string;
@@ -179,18 +198,17 @@ export type SkisBar = {
   value: number;
 };
 
-/** Where every axis of one pair sits against the rest of the roster. */
+/** Where every bar of one pair sits against the rest of the roster. */
 export function skisBars(spec: SkiSpec): SkisBar[] {
-  return AXES.map((axis) => {
-    const all = SKI_CATALOG.map(axis.of);
-    const low = Math.min(...all);
-    const high = Math.max(...all);
-    // A roster of one, or an axis every pair shares, is a full bar rather
-    // than a division by zero.
-    const share = high > low ? (axis.of(spec) - low) / (high - low) : 1;
+  const at = SKI_CATALOG.findIndex((s) => s.id === spec.id);
+  return BARS.map((bar) => {
+    const per = bar.axes.map((axis) => ranks(SKI_CATALOG.map(axis)));
+    const mean = SKI_CATALOG.map((_, i) => per.reduce((sum, p) => sum + p[i], 0) / per.length);
+    // A pair off the roster (a test's own spec) is read as the reference.
+    const share = shares(mean)[at < 0 ? 0 : at];
     return {
-      key: axis.key,
-      label: STRINGS.skisBars[axis.key],
+      key: bar.key,
+      label: STRINGS.skisBars[bar.key],
       value: BAR_FLOOR + (1 - BAR_FLOOR) * share,
     };
   });

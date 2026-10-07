@@ -111,6 +111,17 @@ const CLOUD_ENTITLEMENTS = {
   "com.apple.developer.ubiquity-kvstore-identifier": `$(TeamIdentifierPrefix)${BUNDLE_ID}`,
 };
 
+// THE DEVICE'S CONTENT SETTING (src/content-filter.ts) is read through the
+// sensitive-content analysis policy, which needs the Sensitive Content
+// Analysis capability on the App ID — and, like iCloud, an entitlement the
+// App ID does not carry fails code signing. EXPO_PUBLIC_CONTENT_FILTER=off
+// drops it for a quick local build (the policy then reads as off and the game
+// follows its own OPTIONS switch alone); store builds leave it on.
+const CONTENT_FILTER = process.env.EXPO_PUBLIC_CONTENT_FILTER !== "off";
+const CONTENT_ENTITLEMENTS = {
+  "com.apple.developer.sensitivecontentanalysis.client": ["analysis"],
+};
+
 module.exports = () => ({
   expo: {
     name: DISPLAY_NAME ?? APP_NAME,
@@ -133,7 +144,10 @@ module.exports = () => ({
       supportsTablet: true,
       bundleIdentifier: BUNDLE_ID,
       requireFullScreen: true,
-      ...(CLOUD_SAVE ? { entitlements: CLOUD_ENTITLEMENTS } : {}),
+      entitlements: {
+        ...(CLOUD_SAVE ? CLOUD_ENTITLEMENTS : {}),
+        ...(CONTENT_FILTER ? CONTENT_ENTITLEMENTS : {}),
+      },
       infoPlist: {
         // Synthesized audio only — no recording — but the WebView's WebAudio
         // must survive the ringer switch (paired with setAudioModeAsync).

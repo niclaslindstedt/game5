@@ -131,6 +131,12 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
 export type BodyCondition = "sound" | "bruised" | "hurt" | "injured" | "serious" | "critical";
 
 export const BODY_STRINGS = {
+  /** OPTIONS ▸ INJURIES: the switch over the body plate and the g meter. */
+  optInjuries: "INJURIES",
+  optInjuriesHint:
+    "The body plate and the g meter: what a fall hurts, bone by bone. Off for a younger player — the crashes stay, the injuries go.",
+  optInjuriesLocked:
+    "Off: this device's content restrictions for a child's account hide the body plate and the g meter.",
   /** One injury's line. */
   injury: (kind: InjuryKind, part: BodyPart): string => INJURY_WORDS[kind](sideWord(part)),
   /** ...and how many more there are than the panel lists. */

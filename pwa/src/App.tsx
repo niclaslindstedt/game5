@@ -69,7 +69,7 @@ import {
 } from "@engine";
 
 import { connectOutput } from "./output-bridge.ts";
-import { onShellCommand } from "./shell-host.ts";
+import { onShellCommand, shellContent } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { isTraining } from "./game/downhill-run.ts";
@@ -118,6 +118,7 @@ import { shotLabel } from "./game/run-news.ts";
 import { createNewsFeed } from "./game/run-watch.ts";
 import {
   assistOf,
+  injuriesShown,
   loadSettings,
   mixOf,
   nextCamera,
@@ -876,6 +877,7 @@ export function App() {
           bare={!settings.hud}
           machineKey={boundLabel(settings.keys.machine)}
           tuckKey={boundLabel(settings.keys.tuck)}
+          injuries={injuriesShown(settings, shellContent())}
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands

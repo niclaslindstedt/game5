@@ -35,7 +35,10 @@
 // up the run), cabin-near (the first close, at three quarters from its
 // front) and cabins-air (the first from high over its run), tower-pad,
 // tower-edge, tower-span (the lift towers where they meet the runs: the
-// padded one nearest a run, a bare one off its edge, a span across one), forest,
+// padded one nearest a run, a bare one off its edge, a span across one),
+// rocks, rocks-near, rocks-run, rocks-air (the crags on the bare faces: the
+// rockiest corner from below, the tallest close, one from a run, the
+// corner from the air), forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
@@ -119,6 +122,10 @@ const VIEWS = [
   "tower-pad",
   "tower-edge",
   "tower-span",
+  "rocks",
+  "rocks-near",
+  "rocks-run",
+  "rocks-air",
   "forest",
   "approach-140",
   "approach-90",

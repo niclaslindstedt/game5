@@ -31,6 +31,8 @@ import {
   type GameState,
 } from "@engine";
 
+import { boardWindow } from "./contest-board.ts";
+
 /** WHAT THE PLATE OFFERS after a jump: the next final (through at `place`,
  * on the jump it will declare), or the contest over for him at `place`. */
 export type AerialsNext =
@@ -66,9 +68,6 @@ export type AerialsHud = {
   next: AerialsNext | null;
 };
 
-/** How many of the board the plate shows. */
-const BOARD_ROWS = 8;
-
 /** The aerials readouts at this step, or null on any other run. */
 export function aerialsOf(state: GameState): AerialsHud | null {
   const c = state.aerials;
@@ -98,9 +97,7 @@ function boardRows(c: AerialsContest, phase: AerialPhase): AerialsBoardRow[] {
     score: r.jump?.score ?? 0,
     dnf: r.jump?.dnf != null,
   }));
-  const you = rows.findIndex((r) => r.you);
-  const top = rows.slice(0, BOARD_ROWS);
-  return you >= BOARD_ROWS ? [...top.slice(0, BOARD_ROWS - 1), rows[you]] : top;
+  return boardWindow(rows);
 }
 
 function nextOf(c: AerialsContest, phase: AerialPhase): AerialsNext {

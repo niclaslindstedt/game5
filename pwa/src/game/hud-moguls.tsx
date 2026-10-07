@@ -10,6 +10,7 @@
 // contest over for him at his place.
 
 import type { HudSnapshot } from "./snapshot.ts";
+import { ContestBoard } from "./hud-contest-board.tsx";
 import { STRINGS } from "./strings.ts";
 
 export function MogulsPlate({
@@ -69,17 +70,11 @@ export function MogulsPlate({
                   : STRINGS.mogulsDone(next.place)}
             </span>
           )}
-          <ol class="hud-standings hud-bigair-board">
-            {run.board.map((r) => (
-              <li key={r.id} class={`hud-standing${r.you ? " hud-standing-you" : ""}`}>
-                <span class="hud-standing-place">{r.place}</span>
-                <span class="hud-standing-name">
-                  {r.you ? STRINGS.mogulsYou : STRINGS.mogulsBib(r.id)}
-                </span>
-                <span class="hud-standing-time">{STRINGS.mogulsRow(r.total, r.fell)}</span>
-              </li>
-            ))}
-          </ol>
+          <ContestBoard
+            rows={run.board}
+            name={(r) => (r.you ? STRINGS.mogulsYou : STRINGS.mogulsBib(r.id))}
+            figure={(r) => STRINGS.mogulsRow(r.total, r.fell)}
+          />
           <div class="hud-result-acts">
             {onward && next?.kind === "final" && (
               <button

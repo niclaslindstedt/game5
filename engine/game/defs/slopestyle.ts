@@ -104,5 +104,6 @@ export function slopestyleRules(laps: number): RunRules {
     jury: SLOPESTYLE.jury,
     spinMost: SLOPESTYLE.spinMost,
     flipMost: SLOPESTYLE.flipMost,
+    hockeyStop: true,
   };
 }

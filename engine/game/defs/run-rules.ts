@@ -126,6 +126,11 @@ export type RunRules = {
    * twists to their flip; the strokes and the grabs are not read. Left
    * out, the air is the strokes' (`strokes.ts`). */
   aerials?: boolean;
+  /** THE HOCKEY STOP (`hockey-stop.ts`): a freestyle run over — the jump
+   * landed, the course run, the buzzer gone — is ridden out by throwing
+   * the skis across the fall line on the brake and standing there, rather
+   * than coasting on down the run-out. Left out, a finished run coasts. */
+  hockeyStop?: boolean;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,

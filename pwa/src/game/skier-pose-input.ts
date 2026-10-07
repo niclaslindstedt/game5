@@ -54,6 +54,10 @@ export type SkierPoseInput = {
    * hill rises on, right positive, eased in and out over −1..1 — how far
    * his poles are planted for the sidestep (`skier-sidestep.ts`). */
   sidestep?: number;
+  /** RIDING SWITCH, looking back over a shoulder (`SkierSpring.back`):
+   * how far into it, signed to the shoulder he looks over (`skier-switch.ts`),
+   * −1..1; none when left out. */
+  switched?: number;
   airborne: boolean;
   /** Seconds since the last landing — a fresh landing folds the knees when
    * no `bump` is handed in. */

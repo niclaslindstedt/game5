@@ -363,7 +363,10 @@ export function buildMinimap(state: GameState): HudMinimap {
   const ridden = state.heli?.rider ? state.heli : null;
   const agl = ridden ? ridden.agl : 0;
   const span = spanNow(level, skier.speed * 3.6, agl, state.t);
-  const angle = angleNow(level, ridden ? ridden.heading : skier.heading, state.t);
+  // Riding SWITCH the skis point up the hill and he goes down it tails
+  // first: the plate is turned to the way he GOES, so down stays up.
+  const facing = skier.heading + (skier.switched ? Math.PI : 0);
+  const angle = angleNow(level, ridden ? ridden.heading : facing, state.t);
   held = { level, t: state.t, span, angle };
   const scale = VIEW / span;
   const pose = ridden

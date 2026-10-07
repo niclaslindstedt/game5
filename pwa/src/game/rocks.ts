@@ -7,13 +7,15 @@
 // face it never sees. The building is SLICED: an outcrop at a time, for at most
 // `SLICE` ms a frame, so riding toward a rocky face never hitches; only the
 // tiles round the lens itself, on the run's first frame or after a jump
-// (a reset, a lift's top), are built whole at once. A tile past the reach
-// (the DISTANCE row's trees) is hidden; past it the snow shader's dark rock
-// carries the crags to the rim, as the ground's tint carries the woods.
+// (a reset, a lift's top), are built whole at once. The reach is the
+// DISTANCE row's whole view, not the trees': a far or high lens looks at
+// the cliffs from across the valley, and a whole map's crags are a few
+// tens of thousands of triangles. Past it the snow shader's dark rock
+// carries them to the rim.
 //
 // What it costs is the FOREST row's: its far share is the share of each
 // knot's blocks a tile is built with, the small ones dropped first, so a
-// cheap picture keeps the crags' outline and loses their rubble. The whole
+// cheap picture keeps the crags' outline. The whole
 // thing hangs off the forest (`forest.ts`), which owns the woods' reach.
 
 import * as THREE from "three";

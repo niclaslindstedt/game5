@@ -15,11 +15,11 @@ export const ROCKS = {
   /** THE WALLS. The lattice an outcrop may stand on, m (one jittered point
    * a cell), the slope (m per m) the wall starts at — 1.3 is 52°, steeper
    * than anything skied — and the one it is whole at. */
-  cell: 4,
+  cell: 5,
   wall: 1.3,
   whole: 1.7,
   /** At a whole wall, the chance a cell carries an outcrop. */
-  density: 0.8,
+  density: 0.5,
   /** The most packed share an outcrop stands on. */
   packed: 0.02,
   /** No block within this of a trunk, m. */
@@ -29,14 +29,17 @@ export const ROCKS = {
   high: 2.2,
   /** Blocks a knot, the least and the most. */
   fewest: 2,
-  most: 5,
+  most: 3,
   /** THE CLIFFS. Blocks across the face every `pitch` m, in rows at these
    * shares of the way from the lip down to the foot; the tallest a share
    * of the drop, its tip kept `lip` m under the edge. */
-  pitch: 2.4,
+  pitch: 3.2,
   rows: [0.3, 0.62] as const,
   tall: [0.22, 0.42] as const,
   lip: 0.35,
+  /** A cliff's knot's blocks, the least and the most. */
+  cliffFewest: 2,
+  cliffMost: 3,
   /** The dip out of plumb, rad: the least and the most (walls), and a
    * cliff's blocks — further out, so they jut from the wall. */
   dip: [0.25, 0.6] as const,

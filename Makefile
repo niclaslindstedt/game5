@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: title-scene world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -257,6 +257,19 @@ models:
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
+
+# The title scene's plates: the game's key art, path-traced in Blender
+# (the skier built at game quality, then `scripts/blender/title.py` over
+# `kinds/title.mjs`) and published into the COMMITTED pwa/src/title/ with a
+# stamp of their sources (tests/title_scene_test.ts holds it). A full
+# render is a long one (an hour and more on a CPU); a draft is
+# `TITLE_SIZE=768 make blender KIND=title ARGS=--samples=32`.
+#   make title-scene                      the plates, 256 samples
+#   make title-scene SAMPLES=128          fewer samples
+title-scene:
+	npm run blender -- --kind skier --id skier0 --quality=game --views=none
+	npm run blender -- --kind title --quality=render --samples=$(or $(SAMPLES),256)
+	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/title-plates.mjs
 
 # Switch the models on or off for every CI build — the repository
 # VARIABLE the workflows hand the build (needs gh, and the right to set

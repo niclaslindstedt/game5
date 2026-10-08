@@ -191,6 +191,9 @@ export function Hud({
   // THE GLASS TAKING HIS BLOWS, and his death (`hud-wreck.ts`): only
   // where his injuries are drawn at all.
   const wreck = injuries ? wreckOf(snap.body.blow, snap.died?.since ?? null) : null;
+  // The readouts faded off the glass (`hudFade`): any other reason to clear
+  // it folds in here with `Math.max`.
+  const fade = wreck?.fade ?? 0;
   if (bare) {
     return (
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
@@ -208,14 +211,14 @@ export function Hud({
       data-air={snap.airTime > 0 ? "1" : undefined}
       data-finished={snap.finished ? "1" : undefined}
       data-wreck={wreck ? "1" : undefined}
+      data-fade={fade > 0 ? "1" : undefined}
       data-jolt={wreck && wreck.jolt > 0 ? String(wreck.joltId % 2) : undefined}
       style={{
         "--hud-dark": String(snap.dark),
+        "--hud-fade": fade.toFixed(3),
         ...(wreck
           ? {
               "--hud-jolt": wreck.jolt.toFixed(3),
-              "--hud-bend": wreck.bend.toFixed(2),
-              "--hud-fall": wreck.fall.toFixed(3),
             }
           : {}),
       }}

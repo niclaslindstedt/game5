@@ -17,32 +17,14 @@ import type { GameState } from "@engine";
 import type { KeyBindings } from "./settings-input.ts";
 
 import { createForecaster } from "./impact-forecast.ts";
-import { createXrayDirector, type XrayLook } from "./xray-shots.ts";
+import { createSkipCount, createXrayDirector, type XrayLook } from "./xray-shots.ts";
 
 /** A skier this slow, on the snow and on his skis, is not read ahead:
  * nothing at a crawl breaks a bone. m/s. */
 const STILL = 6;
 
-/** A SKIP on the keys: this many presses of the skier's own keys inside
- * this many wall seconds — a mash, not the one press still steering him. */
-export const SKIP = { presses: 2, within: 0.8 } as const;
-
 /** The keys whose presses count toward a skip: the skier's own. */
 const MOVES = ["tuck", "brake", "left", "right", "leanBack", "leanForward", "jump"] as const;
-
-/** Presses counted toward a skip: `press(t)` at wall second `t`, true on
- * the press that makes it one. */
-export function createSkipCount(): { press(t: number): boolean } {
-  let times: number[] = [];
-  return {
-    press(t) {
-      times = [...times.filter((u) => t - u < SKIP.within), t];
-      if (times.length < SKIP.presses) return false;
-      times = [];
-      return true;
-    },
-  };
-}
 
 /** Whether a run's skier is dying: only then may the death cam take him. */
 export const dying = (state: GameState): boolean =>

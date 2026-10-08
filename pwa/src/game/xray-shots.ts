@@ -395,3 +395,21 @@ export function createXrayDirector(): XrayDirector {
     },
   };
 }
+
+/** A SKIP on the keys: this many presses of the skier's own keys inside
+ * this many wall seconds — a mash, not the one press still steering him. */
+export const SKIP = { presses: 2, within: 0.8 } as const;
+
+/** Presses counted toward a skip: `press(t)` at wall second `t`, true on
+ * the press that makes it one. */
+export function createSkipCount(): { press(t: number): boolean } {
+  let times: number[] = [];
+  return {
+    press(t) {
+      times = [...times.filter((u) => t - u < SKIP.within), t];
+      if (times.length < SKIP.presses) return false;
+      times = [];
+      return true;
+    },
+  };
+}

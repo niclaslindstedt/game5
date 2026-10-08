@@ -10,8 +10,14 @@ import { BONES, ORGANS, type GameState } from "@engine";
 
 import type { Forecast } from "../pwa/src/game/impact-forecast.ts";
 import { XRAY_BONES, XRAY_ORGANS } from "../pwa/src/game/xray-model.ts";
-import { SKIP, createSkipCount } from "../pwa/src/game/xray-run.ts";
-import { BIG_BONES, XRAY, boneKind, createXrayDirector } from "../pwa/src/game/xray-shots.ts";
+import {
+  BIG_BONES,
+  SKIP,
+  XRAY,
+  boneKind,
+  createSkipCount,
+  createXrayDirector,
+} from "../pwa/src/game/xray-shots.ts";
 
 type Fake = {
   t: number;

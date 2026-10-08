@@ -124,7 +124,12 @@ function rimRoll(): THREE.BufferGeometry {
   const pts = plan(B.thick / 2, 6).map((p) => new THREE.Vector3(p.x, K.wall, p.z));
   pts.pop();
   const curve = new THREE.CatmullRomCurve3(pts, true);
-  return new THREE.TubeGeometry(curve, 96, B.rim, 8, true);
+  const g = new THREE.TubeGeometry(curve, 160, B.rim, 12, true);
+  // Its u in tiles along the roll, so the nap and the stitches are to scale.
+  const uv = g.getAttribute("uv");
+  const along = curve.getLength() / SUEDE_TILE;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * along);
+  return g;
 }
 
 /** A cylinder from `a` to `b`, radius `r`. */
@@ -195,6 +200,44 @@ function wickerMaps(): { map: THREE.DataTexture; normal: THREE.DataTexture } {
   return { map, normal };
 }
 
+/** THE SUEDE ON THE RIM'S ROLL: a soft nap, lighter and darker in
+ * patches, and the two lines of stitching that close the leather round
+ * the roll — a tile `SUEDE_TILE` m along it (u along, v round). */
+const SUEDE_TILE = 0.12;
+function suedeMap(): THREE.DataTexture {
+  const size = 64;
+  const texel = new Uint8Array(size * size * 4);
+  for (let j = 0; j < size; j++) {
+    const v = (j + 0.5) / size;
+    // The seams on the roll's inner and outer side, stitched in a lighter
+    // thread: a dash every eighth of the tile.
+    const seam = Math.min(Math.abs(v - 0.25), Math.abs(v - 0.75)) * size;
+    for (let i = 0; i < size; i++) {
+      const h = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
+      const nap =
+        0.9 + 0.12 * (h - Math.floor(h)) + 0.05 * Math.sin((i / size) * Math.PI * 4 + v * 9);
+      let t = nap;
+      if (seam < 1.5) t *= 0.62;
+      else if (seam < 2.5 && i % 8 < 5) t *= 1.45;
+      const o = (j * size + i) * 4;
+      const k = Math.min(255, Math.round(255 * Math.min(1, t * 0.82)));
+      texel[o] = k;
+      texel[o + 1] = k;
+      texel[o + 2] = k;
+      texel[o + 3] = 255;
+    }
+  }
+  const map = new THREE.DataTexture(texel, size, size, THREE.RGBAFormat);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.generateMipmaps = true;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  map.magFilter = THREE.LinearFilter;
+  map.anisotropy = 4;
+  map.needsUpdate = true;
+  return map;
+}
+
 export function createBasket(haze: HazeUniforms): Basket {
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -213,7 +256,9 @@ export function createBasket(haze: HazeUniforms): Basket {
     normalScale: new THREE.Vector2(1.1, 1.1),
     roughness: 0.88,
   });
-  const suede = mat("balloon-suede", { color: 0x4a2f1c, roughness: 0.95 });
+  const suede = mat("balloon-suede", { color: 0x6b4a33, roughness: 0.92 });
+  const rimMap = suedeMap();
+  const rimSuede = mat("balloon-rim", { map: rimMap, color: 0x7a553a, roughness: 0.95 });
   const sleeveMat = mat("balloon-sleeve", { color: 0x232a3a, roughness: 0.92 });
   const steel = mat("balloon-steel", { color: 0xc4c8cc, roughness: 0.3, metalness: 0.85 });
   const coilMat = mat("balloon-coil", { color: 0x8a7258, roughness: 0.45, metalness: 0.75 });
@@ -249,7 +294,7 @@ export function createBasket(haze: HazeUniforms): Basket {
     run.translate(sx * (K.width / 2 - 0.2), -B.runner / 2 - 0.02, 0);
     add(suede, run);
   }
-  add(suede, rimRoll());
+  add(rimSuede, rimRoll());
   // A suede band round the wall's foot.
   const foot = wall(-0.004, 0, 0.08, false);
   add(suede, foot);
@@ -451,6 +496,7 @@ export function createBasket(haze: HazeUniforms): Basket {
       for (const m of mats) m.dispose();
       maps.map.dispose();
       maps.normal.dispose();
+      rimMap.dispose();
     },
   };
 }

@@ -18,7 +18,10 @@ export const BALLOON_STRINGS = {
   balloonTempValue: (c: number): string => `${Math.round(c)}°`,
   balloonFuel: "FUEL",
   balloonFuelValue: (kg: number): string => `${Math.round(kg)} KG`,
-  balloonWind: "WIND",
+  balloonWind: "WIND KM/H",
+  /** Under the speed dial while he is in the basket: it reads the basket's
+   * speed over the snow. */
+  balloonGround: "OVER GROUND",
   balloonWindValue: (kmh: number): string => `${Math.round(kmh)}`,
   /** THE CALLS (`balloon-hud.ts`'s `balloonCall`). */
   balloonCallFire: "FIRE — JUMP!",

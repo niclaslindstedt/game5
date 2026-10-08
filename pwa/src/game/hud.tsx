@@ -486,22 +486,29 @@ export function Hud({
       )}
 
       {/* Indoors (the afterski's room) there is nothing to ski: no speed,
-          edge or wind, and no body panel. */}
+          edge or wind, and no body panel. In the balloon's basket the dial
+          is the BASKET'S speed over the snow and nothing of the skier's:
+          the edge, his own wind and the height are the strip's. */}
       {!indoors && (
         <div class="hud-speed">
-          <div class="hud-revs-row">
-            <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
-            <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
-              {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
-            </span>
-          </div>
+          {!snap.balloon && (
+            <div class="hud-revs-row">
+              <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
+              <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
+                {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
+              </span>
+            </div>
+          )}
           <div class="hud-cluster">
-            <span class="hud-speed-num">{Math.round(snap.speedKmh)}</span>
+            <span class="hud-speed-num">
+              {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
+            </span>
             <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
-            <WindMeter wind={snap.wind} />
+            {!snap.balloon && <WindMeter wind={snap.wind} />}
             {snap.damage && <DamageGauge damage={snap.damage} />}
           </div>
-          {snap.altitude !== null && (
+          {snap.balloon && <span class="hud-chip-sub">{STRINGS.balloonGround}</span>}
+          {snap.altitude !== null && !snap.balloon && (
             <span class="hud-chip-sub hud-altitude" title={STRINGS.altitudeSaid}>
               {STRINGS.altitude(snap.altitude)}
             </span>

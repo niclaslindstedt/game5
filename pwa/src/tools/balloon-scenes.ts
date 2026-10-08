@@ -49,6 +49,8 @@ export type Stage = {
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   once(state: GameState, input: SkierInput): void;
   camera(rung: CameraRung): void;
+  /** Change rung FLOWN, over the lens's hand-over, as a press in the game does. */
+  hop(rung: CameraRung): void;
   shoot(state: GameState, label: string, lens?: Lens): void;
   sky(over: SkyOverride | null): Promise<void>;
   /** Every balloon painted in `c`, or its map's own again (null). */
@@ -217,6 +219,20 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "dusk-quarter", around(20, 4, 24, 50));
     await st.sky(null);
   },
+  // ── THE FLAME BY DAY ───────────────────────────────────────────────────
+  // A full blast under the map's own sun, from the booms and the planted
+  // views a skier sees a balloon from: the jet must read below the mouth.
+  "flame-day"(st) {
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    st.run(s, 1.6, ride({ tuck: 1 }));
+    st.shoot(s, "chase", "chase");
+    st.shoot(s, "quarter", around(20, 4, 24, 50));
+    st.shoot(s, "close", around(6, 2.6, 7, 50, 3.6));
+    st.shoot(s, "low", around(22, 1.2, 26, 62, 13));
+    st.shoot(s, "far", "far");
+    st.shoot(s, "side", around(34, 6, 0, 50));
+  },
   // ── ALIGHT ─────────────────────────────────────────────────────────────
   burn(st) {
     const s = st.fresh();
@@ -348,6 +364,24 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       at(0, 0, f.a);
       st.run(s, 0.6, still);
       st.shoot(s, `helmet-middle-${f.name}`, "helmet");
+    }
+    // The hand-overs between the first-person rungs and the booms, flown
+    // and caught half way: the lens must never pass through the wicker.
+    at(0.3, 0.4, 0.7);
+    const hops: [CameraRung, CameraRung][] = [
+      ["tips", "chase"],
+      ["chase", "helmet"],
+      ["helmet", "high"],
+      ["orbit", "tips"],
+    ];
+    for (const [from, to] of hops) {
+      st.camera(from);
+      st.run(s, 1.2, still);
+      st.hop(to);
+      for (const k of ["a", "b"]) {
+        st.run(s, 0.15, still);
+        st.shoot(s, `hop-${from}-${to}-${k}`, to);
+      }
     }
     st.camera("chase");
   },
@@ -500,6 +534,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   lean: ["lean"],
   night: ["night"],
   burn: ["burn"],
+  flame: ["flame-day"],
   down: ["down"],
   colours: ["colours"],
   walk: ["walk"],

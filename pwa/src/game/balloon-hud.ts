@@ -38,6 +38,10 @@ export type HudBalloon = {
    * angle off the basket's heading (0 straight ahead, clockwise), rad. */
   windKmh: number;
   windAngle: number;
+  /** How fast the basket goes over the snow, km/h — what the speed dial
+   * reads while he is in it (it drifts with the wind it is in, so this
+   * and the wind come together once it has caught up). */
+  groundKmh: number;
   /** The blast valve open; the parachute valve's opening, 0..1. */
   burning: boolean;
   vent: number;
@@ -81,6 +85,7 @@ export function balloonOf(state: GameState): HudBalloon | null {
     fuelShare: Math.max(0, Math.min(1, b.fuel / BALLOON.mass.fuel)),
     windKmh: b.wind * 3.6,
     windAngle: Math.atan2(Math.sin(way) * SCREEN_TO_ENGINE, Math.cos(way)),
+    groundKmh: Math.hypot(b.vx, b.vz) * 3.6,
     burning: b.valve,
     vent: b.vent,
     scorch: b.scorch,

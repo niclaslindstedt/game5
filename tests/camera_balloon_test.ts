@@ -9,8 +9,15 @@
 
 import { describe, expect, it } from "vitest";
 import { BALLOON, fromEuler, multiply, rotate, unrotate, type BalloonState } from "@engine";
-import { BALLOON_LOOK, createBalloonLadder, rimPoint } from "../pwa/src/game/camera-balloon.ts";
 import {
+  BALLOON_LOOK,
+  createBalloonLadder,
+  KEEP_OUT,
+  keepOutOfBalloon,
+  rimPoint,
+} from "../pwa/src/game/camera-balloon.ts";
+import {
+  blendLens,
   createBoomState,
   frameRig,
   freshRigPose,
@@ -117,8 +124,11 @@ describe("the lens on the hot air balloon", () => {
       for (const f of FACES)
         for (const rung of ["tips", "helmet"] as const) {
           const { local } = framed(balloon({ walkX: p.x, walkZ: p.z, face: f }), rung);
-          expect(Math.abs(local.x), rung).toBeLessThan(W - 0.04);
-          expect(Math.abs(local.z), rung).toBeLessThan(LEN - 0.04);
+          // TIPS leans his head out over the rim's roll, never past the
+          // wall's outer face; HELMET stands inside the wicker.
+          const inset = rung === "tips" ? 0 : 0.04;
+          expect(Math.abs(local.x), rung).toBeLessThan(W - inset);
+          expect(Math.abs(local.z), rung).toBeLessThan(LEN - inset);
           expect(local.y, rung).toBeGreaterThan(RIM_TOP + 0.15);
           expect(local.y, rung).toBeLessThan(2.0);
           expect(rodGap(local), `${rung} ${p.x},${p.z} ${f}`).toBeGreaterThan(0.1);
@@ -180,5 +190,55 @@ describe("the lens on the hot air balloon", () => {
     ladder.pose(pose, balloon(), null, 1 / 60);
     ladder.pose(pose, balloon({ walkX: 0.3 }), null, 1 / 60);
     expect(ladder.rigs).toBe(rigs);
+  });
+
+  it("flies a change of rung over the rim and round the envelope, never through them", () => {
+    const b = balloon({ walkX: 0.3, walkZ: 0.4, face: 0.7 });
+    const at = { x: b.x, y: b.y, z: b.z, q: fromEuler(b.heading, 0, 0) };
+    const e = KEEP_OUT.envelope;
+    for (const [from, to] of [
+      ["tips", "chase"],
+      ["helmet", "high"],
+      ["helmet", "far"],
+      ["orbit", "tips"],
+      ["tips", "helmet"],
+    ] as const) {
+      const a = framed(b, from, 400).lens;
+      const z = framed(b, to, 400).lens;
+      for (let k = 0; k <= 40; k++) {
+        const eye = { ...blendLens(a, z, k / 40).eye };
+        keepOutOfBalloon(eye, at);
+        const l = unrotate(at.q, { x: eye.x - b.x, y: eye.y - b.y, z: eye.z - b.z });
+        const inWicker =
+          Math.abs(l.x) < W && Math.abs(l.z) < LEN && l.y > 0 && l.y < KEEP_OUT.rimTop;
+        expect(inWicker, `${from}→${to} ${k}`).toBe(false);
+        const r = Math.hypot(l.x / e.across, (l.y - e.y) / e.up, l.z / e.across);
+        expect(r, `${from}→${to} ${k}`).toBeGreaterThan(0.999);
+      }
+    }
+    // The first-person eyes themselves are left where they stand.
+    for (const rung of ["tips", "helmet"] as const) {
+      const eye = { ...framed(b, rung).lens.eye };
+      const was = { ...eye };
+      keepOutOfBalloon(eye, at);
+      expect(eye).toEqual(was);
+    }
+  });
+
+  it("frames the whole envelope across a phone held upright", () => {
+    const ladder = createBalloonLadder();
+    const wide = { ...ladder.rigs.chase };
+    ladder.fit(390 / 844);
+    for (const rung of ["chase", "far", "high", "orbit"] as const) {
+      const r = ladder.rigs[rung];
+      const arm =
+        r.kind === "boom" ? Math.hypot(r.dist, r.height) : r.kind === "orbit" ? r.radius : 0;
+      const half = Math.atan(Math.tan(((r.fov / 2) * Math.PI) / 180) * (390 / 844));
+      // The envelope's half-width is inside the frame's half-width, with room.
+      expect(Math.atan(BALLOON.envelope.diameter / 2 / arm), rung).toBeLessThan(half * 0.85);
+    }
+    expect(ladder.rigs.chase.fov).toBeGreaterThan(wide.fov);
+    ladder.fit(16 / 9);
+    expect(ladder.rigs.chase).toEqual(wide);
   });
 });

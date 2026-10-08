@@ -20,6 +20,7 @@
 //   lean       leant over by the air past it, 3, 6 and 9 m/s
 //   night      after dark, cold and with the burner held; dusk
 //   burn       scorched, then burning away
+//   flame      a full blast by day, from the booms and beside it
 //   down       laid on the snow as it deflates
 //   colours    every colourway
 //   walk       the skier walked about the basket
@@ -70,7 +71,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (tethered, flight, basket, mouth, lean, night, burn, down, colours, walk, turntable, jump, lenses, fire, catch, inferno); every one when left out",
+      help: "which sheets, comma-separated (tethered, flight, basket, mouth, lean, night, burn, flame, down, colours, walk, turntable, jump, lenses, fire, catch, inferno); every one when left out",
     },
     views: {
       kind: "string",

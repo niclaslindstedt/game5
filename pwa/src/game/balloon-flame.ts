@@ -38,7 +38,7 @@ void main() {
   // THE SHAPE: a jet narrow at the coil, swelling a third of the way up and
   // drawn to a point at the top; the ignition's burst a ball at its top.
   float s = pow(h, 0.62);
-  float prof = max(0.08, pow(sin(3.14159 * min(s, 1.0)), 0.75)) * mix(0.4, 1.0, smoothstep(0.02, 0.22, h));
+  float prof = max(0.08, pow(sin(3.14159 * min(s, 1.0)), 0.75)) * mix(0.75, 1.0, smoothstep(0.02, 0.16, h));
   prof = mix(prof, 1.0, uBurst * smoothstep(0.25, 0.95, h) * 0.6);
   float r = uRad * prof * (1.0 + 0.5 * uBurst);
   // It wobbles, the more the higher, as the jet breaks into turbulence.
@@ -102,23 +102,26 @@ void main() {
   float warp = fNoise(q * 0.55 + vec3(0.0, -uTime * 3.0, 0.0));
   float n = 0.55 * fNoise(q + warp * 2.2) + 0.3 * fNoise(q * 2.2 + warp) + 0.15 * fNoise(q * 4.7);
   // The eye looks through the most of it at the silhouette's middle.
-  float core = pow(vFacing, 3.0);
-  float body = pow(vFacing, 0.8);
-  // TONGUES: whole low down, torn into licks toward the top.
-  float thr = mix(0.18, 0.62, smoothstep(0.1, 1.0, vH)) - core * 0.12;
+  float core = pow(vFacing, 2.2);
+  float body = pow(vFacing, 0.45);
+  // TONGUES: a solid jet low down, torn into licks toward the top.
+  float thr = mix(0.02, 0.62, smoothstep(0.22, 1.0, vH)) - core * 0.2;
   float tongue = smoothstep(thr, thr + 0.09, n);
   // THE BLUE ROOT over the jets: a short, clear-blue cone of premixed
   // flame before the soot lights.
   float blue = (1.0 - smoothstep(FLAME_BLUE * 0.55, FLAME_BLUE * 1.15, d - uCut)) * (1.0 - smoothstep(0.0, 0.1, uCut));
-  float a = body * mix(tongue * (0.35 + 0.65 * n), 0.55 + 0.3 * core, blue);
+  float a = body * mix(tongue * (0.6 + 0.4 * n), 0.7 + 0.3 * core, blue);
   // The jet leaves the coil clear, and the tail's ragged root.
-  a *= smoothstep(0.0, 0.04, vH) * smoothstep(0.0, 0.35, d - uCut + 0.05);
+  a *= smoothstep(0.0, 0.04, vH) * smoothstep(0.0, 0.1, d - uCut + 0.03);
   // THE COLOURS: a yellow heart, orange body and tongues, a dull red top,
   // brighter where the soot is thickest.
-  float lum = 0.35 + 1.25 * n * n;
-  vec3 hot = mix(vec3(1.9, 0.62, 0.08), vec3(2.2, 1.35, 0.42), core * smoothstep(0.8, 0.15, vH));
+  // The jet's lower half burns yellow-white through its heart — the
+  // brightest thing in a day's frame, held over the tone map's knee.
+  float lum = 0.55 + 1.1 * n * n;
+  float heart = core * smoothstep(0.85, 0.12, vH);
+  vec3 hot = mix(vec3(2.2, 0.85, 0.12), vec3(3.4, 2.45, 0.7), heart);
   hot = mix(hot, vec3(1.05, 0.22, 0.03), smoothstep(0.45, 1.0, vH)) * lum;
-  vec3 cold = vec3(0.12, 0.28, 1.45) * (0.7 + 0.8 * core);
+  vec3 cold = vec3(0.2, 0.42, 2.2) * (0.75 + 0.8 * core);
   vec3 col = mix(hot, cold, blue);
   float alpha = a * uBright;
   if (uPilot > 0.5) {
@@ -293,7 +296,7 @@ export function createBurnerFlame(): BurnerFlame {
         halo.scale.set(size, size * 1.3, 1);
         const flick = 0.9 + 0.1 * Math.sin(t * 31) * Math.sin(t * 17);
         (halo.material as THREE.SpriteMaterial).opacity =
-          Math.min(1, now.bright) * flick * (0.04 + 0.5 * night);
+          Math.min(1, now.bright) * flick * (0.16 + 0.38 * night);
       }
     },
     hide() {

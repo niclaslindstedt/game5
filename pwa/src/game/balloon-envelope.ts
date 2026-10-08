@@ -254,6 +254,11 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
   float shade = 1.0 - 0.7 * bTape;
   vec3 lit = mix(bPaint, vec3(0.9, 0.7, 0.45), 0.3 * fall);
   totalEmissiveRadiance += lit * uBalGlowColour * uBalGlow * fall * inside * shade * 1.2;
+  // THE SKIRT AND THE THROAT lit straight by the jet a metre or two off:
+  // its inside a bright warm ring round the flame, by day as well, and a
+  // little of it through the cloth to the outside.
+  float throat = 1.0 - smoothstep(-0.6, 1.6, h);
+  totalEmissiveRadiance += mix(bPaint, vec3(1.0), 0.2) * uBalGlowColour * min(uBalGlow, 1.6) * throat * (gl_FrontFacing ? 0.05 : 1.1);
   // THE DAYLIGHT THROUGH IT, seen from under the mouth: the cloth a lamp.
   if (!gl_FrontFacing) totalEmissiveRadiance += bPaint * uBalThrough;
   // THE FIRE ON THE CLOTH: the front's flames, white-hot at their roots,

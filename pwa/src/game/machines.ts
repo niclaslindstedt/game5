@@ -16,7 +16,7 @@ import { BALLOON, type GameState, type Level } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import type { SolidBox } from "./camera-clear.ts";
-import type { LensPose, RigPose } from "./camera-rigs.ts";
+import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
@@ -26,7 +26,7 @@ import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { hangIn, PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
-import { createBalloonLadder, inBasket } from "./camera-balloon.ts";
+import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
@@ -62,8 +62,12 @@ export type Machines = {
    * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
    * `camera-para.ts`, `camera-balloon.ts`), `pose` moved onto the machine as
    * drawn this frame (so call it after `frame`); otherwise nothing, the pose
-   * left. */
-  ladder(pose: RigPose, state: GameState): Ladder | undefined;
+   * left. `aspect`, the screen's width to its height, frames the balloon's
+   * booms for a phone held upright (`camera-balloon.ts`'s `TALL`). */
+  ladder(pose: RigPose, state: GameState, aspect?: number): Ladder | undefined;
+  /** A FLOWN lens's `eye` put back out of the balloon's basket and
+   * envelope as drawn this frame (`keepOutOfBalloon`), while one is. */
+  keepOut(eye: Vec3): void;
   /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
    * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
    * are dealt from (`dealLamps`); the balloon's fire is sorted for `eye`
@@ -201,7 +205,7 @@ export function createMachines(
     lens(ladder, dt) {
       return heli?.lens(ladder, dt) ?? null;
     },
-    ladder(pose, s) {
+    ladder(pose, s, aspect = 16 / 9) {
       pose.lift = null;
       const g = drivenGroomer(s);
       if (g) {
@@ -209,6 +213,7 @@ export function createMachines(
         return GROOMER_RIGS;
       }
       if (balloon && basketLens && inBasket(s.balloon, !!s.skier.thrown)) {
+        basketLens.fit(aspect);
         basketLens.pose(pose, s.balloon, balloon.at(), lastDt);
         return basketLens.rigs;
       }
@@ -220,6 +225,10 @@ export function createMachines(
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
       return SLED_RIGS;
+    },
+    keepOut(eye) {
+      const at = balloon?.at();
+      if (at) keepOutOfBalloon(eye, at);
     },
     solids: () => groomers?.solids() ?? [],
     dispose() {

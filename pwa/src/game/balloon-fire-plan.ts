@@ -48,7 +48,7 @@ export const FLAME = {
   /** The length a flame just lit or nearly out still has, as a share. */
   least: 0.25,
   /** The blue root over the jets, m, before the soot glows yellow. */
-  blue: 0.4,
+  blue: 0.15,
   /** How fast its tongues climb it, m/s (the jet leaves the coil far
    * faster and slows as it burns; this is how the turbulence reads). */
   rise: 9,

@@ -2,7 +2,7 @@
 
 A free ride can start in the basket of a hot air balloon. Pick **BALLOON** on the start card's RUN row (after PARAMOTOR, before SNOWMOBILE), or follow a `?start=free&balloon=1` link. You start standing in the wicker basket on the valley floor, the envelope inflated over you and held down by its tether. Burn until it is light and the tether lets go; the day's wind carries you up the mountain. Land it softly and step out, or jump over the side.
 
-The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`; its fire in `balloon-fire-plan.ts`, `balloon-flame.ts` and `balloon-fire.ts`), `strings-balloon.ts` and the start card's RUN stop. The cameras, the HUD and the sound are still to come.
+The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`; its fire in `balloon-fire-plan.ts`, `balloon-flame.ts` and `balloon-fire.ts`), `strings-balloon.ts` and the start card's RUN stop; the cameras (`camera-balloon.ts`), the HUD (`balloon-hud.ts`, `hud-balloon.tsx`) and the sound (`audio/balloon-*.ts`) are below. `make balloon` photographs all of it (`--sheet=flame` a burn by day, `--sheet=lenses` every rung and the hand-overs between them caught half way).
 
 ## What it is
 
@@ -78,12 +78,16 @@ In the basket the lens is the balloon's own ladder (`pwa/src/game/camera-balloon
 
 | Rung | What it is |
 | --- | --- |
-| TIPS | FIRST PERSON OVER THE RIM: leant forward over the wall he faces, his eye 1.5 m over the floor a hand back from the rim's roll, tipped 0.95 rad down at the snow under the basket (74° of field) — the rim, the wicker and the cylinders' padding in the frame's foot. The point he leans to is a ray from his boots along the way he faces to the wall, held 0.3 m off the corners and their rods, eased over 0.18 s so it walks along the wall and never jumps a corner |
+| TIPS | FIRST PERSON OVER THE RIM: his head leant out over the rim's leather roll (right over its middle, 0.65 m and 0.85 m off the floor's centre), his eye 1.47 m over the floor, tipped 0.88 rad down at the snow under the basket (72° of field) — so the roll, its suede nap and stitching, is a thin band across the frame's foot and the drop to the snow is the rest of it; none of the wall's inside or the cylinders shows. The point he leans to is a ray from his boots along the way he faces to the wall, held 0.3 m off the corners and their rods, eased over 0.18 s so it walks along the wall and never jumps a corner |
 | HELMET | HIS EYES stood where he is: 1.68 m up, 0.1 m ahead of his boots, tipped 0.5 rad down (72°), held 0.15 m off a corner's rod |
 | CHASE | 31 m behind the basket's heading, at 10 m up the balloon (the middle of its whole height, pulled toward the basket) — the whole balloon in a 58° frame |
 | FAR | 62 m off and 12 m over that, 54° |
 | HIGH | 34 m off and 52 m over, looking down on the crown, 60° |
 | ORBIT | round it at 44 m, 56° |
+
+A change of rung is flown over the lens's hand-over, a straight line from one eye to the other; between a first-person eye and a boom that line can run through the wicker or up through the envelope. While a balloon is drawn, a flown eye is put back out of both (`keepOutOfBalloon`, `KEEP_OUT`): out of the basket's box up to 0.25 m over the rim's roll, and out of an ellipsoid round the envelope (from 0.9 m under the mouth to 0.9 m over the crown, 0.6 m wider than its 17.2 m) along its own radius — so the lens slides over the rim and round the envelope's skin. The first-person eyes stand outside both and are never moved.
+
+On a screen narrower than it is tall (a phone held upright), the booms are framed again (`TALL`): each one's field opened by 3° for every 0.1 the screen is narrower than square (to 76°), and its arm let out until the envelope's width with 30 % of it again either side fits across the frame.
 
 Both first-person rungs hide his figure as the skier's do; the eye is written each frame in the basket's own frame off the drawn basket (`balloon-scene.ts`'s `at`), so it pitches and rolls with the wicker as he walks it.
 
@@ -95,7 +99,9 @@ Both first-person rungs hide his figure as the skier's do; the eye is written ea
 - **VARIO**, the climb, a bar up green or down red, full at 5 m/s;
 - **ENV**, the envelope's air on a gauge to 140 °C with the fabric's working limit's RED LINE at 120 °C, the cell red past it;
 - **FUEL**, the propane left, kg, on a gauge of a full load, red under 15 %;
-- **WIND**, its speed in km/h and an arrow the way it carries him, up the way the basket faces.
+- **WIND KM/H**, its speed at the envelope in km/h and an arrow the way it carries him, up the way the basket faces.
+
+While he is in the basket the speed dial under the picture reads the BASKET'S speed over the ground, km/h, marked OVER GROUND, and nothing of the skier's: his EDGE bar, his own wind meter (the air at his body, which is not the wind the balloon drifts on) and the height chip are put away, so the one wind is the strip's, at the envelope. A balloon that has caught up with its wind drifts at it, so the two read alike.
 
 Under the strip, THE CALL the moment asks for, the most urgent first (`balloonCall`): FIRE — JUMP! (the envelope alight), ENVELOPE HOT (past the red line), SINKING — BURN! (falling faster than 2.8 m/s under 80 m), OUT OF PROPANE, ON THE TETHER, LANDED — STEP OUT, and BURN while the valve is open; under it, how to fly it on the keys or the thumbs in use.
 
@@ -132,7 +138,7 @@ So:
 
 | Part | Value |
 | --- | --- |
-| The flame | 5.4 m at full blast (a quarter of it just lit or nearly out), widest 0.27 m a third of the way up each jet; a blue root of 0.4 m; tongues climbing at about 9 m/s |
+| The flame | 5.4 m at full blast (a quarter of it just lit or nearly out), widest 0.27 m a third of the way up each jet, three quarters of that at the coil; a blue root of 0.15 m; tongues climbing at about 9 m/s |
 | Ignition | the flame 35 % bigger and brighter for a moment, dying away over 0.28 s |
 | The tail | the valve shut, the flame goes out from the coil first, its root climbing at 12 m/s, the last of it lifting into the mouth |
 | The bend | the top laid over the way the envelope leans by (air past ÷ 14 m/s) of its length, at most 0.85 |
@@ -144,6 +150,7 @@ So:
 | The wreck | burns down over about 25 s on the snow and smoulders for minutes |
 
 - **The flame** is one open tube a jet, shaped in the vertex shader (narrow at the coil, widest a third of the way up, wobbling more the higher it goes, its top bent) and burnt in the fragment shader: how much flame the eye looks through at each point (the most at the silhouette's middle, and the whole of it when looking up the axis from the basket), a warped noise streaming up it that tears the upper half into tongues, the blue root, a yellow heart, orange tongues and a dull red top. Its colours sit a little over one so the tone map keeps it burning against the snow. A halo round it after dark.
+- **By day**, the skirt hangs to half a metre over the coils, so what a lens outside the basket sees of a burn is the jet between them: a solid yellow-white heart from just over the coils (its colours up to three times white, so the tone map keeps it over the snow), a short blue base, and the inside of the skirt and the throat lit warm orange round it by the jet a metre or two off.
 - **The envelope glows** with the flame as drawn (the tail's last light included), flickering with it, the more after dark; and with the fire's own light as it burns.
 - **Scorching**, the cloth where the flame is laid into it browns and smokes, then catches in licks.
 - **Alight**, the envelope's shader eats the cloth behind the spread's front (`FIRE_GLSL`, the same key as `spreadKey`), blackens it and glows patchily along the front; flames stand on the front (billboards off the helicopter's billow strip, `explosion.ts`, in one sorted batch, `billboards.ts`), black smoke rolls off it and drifts downwind, embers and burning drips fall through the helicopter's spark pool (`sparks.ts`), shreds of cloth tear off burning and flutter down to lie charred on the snow. A falling balloon leaves its smoke standing in the sky.

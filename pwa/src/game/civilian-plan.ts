@@ -48,18 +48,21 @@ import {
 import {
   civilianClear,
   frameAt,
+  pastHub,
   spotsOf,
   standable,
   type Seat,
   type Spot,
 } from "./civilian-spots.ts";
+import { SNOWBALL } from "./civilian-moves.ts";
+import { freshRouteAt, routeAside, routeAt, routeOf, type Route } from "./civilian-route.ts";
 import { wildGround } from "./wild-ground.ts";
 
 /** The salt on the map's seed the civilians are dealt off. */
 export const CIVILIAN_SALT = 0x5c1a;
 
 /** How many civilians a map holds at the most. */
-export const CIVILIAN_MOST = 160;
+export const CIVILIAN_MOST = 360;
 
 /** The places, m and s: the least room between two people stood at one
  * place; the tries a person's spot gets; a walker's leg — the shortest and
@@ -70,6 +73,33 @@ const ROOM = 0.85;
 const TRIES = 24;
 const LEG = { least: 30, most: 260, check: 1, millLeast: 8, millMost: 22 } as const;
 const PAUSE: readonly [number, number] = [8, 40];
+/** A ROUND of the base: how many stops past his own (dealt between the
+ * two), the nearest and furthest the next stop may be, m, and the pause at
+ * each, s — a skater's shorter; the steepest a skater's line may cross
+ * (rise over run: the valley floor's own flat). */
+const ROUND = {
+  stops: [2, 4] as const,
+  least: 25,
+  most: 200,
+  /** A skater's next stop may be further: the next lift's foot. */
+  skiMost: 340,
+  pause: [5, 22] as const,
+  skiPause: [3, 10] as const,
+  flat: 0.12,
+} as const;
+/** A child rolling a ball to the snowman: from how far off, m, at what
+ * pace, m/s, and the ball from its first size to the size it is lifted on
+ * at, m (radius). */
+const ROLL = {
+  from: [7, 13] as const,
+  speed: [0.4, 0.6] as const,
+  ball: [0.1, 0.26] as const,
+  /** Where he stops, m from the snowman's middle: its bottom ball, the
+   * ball he rolls and the reach to it between them. */
+  stop: 0.36 + 0.26 * 2 + 0.4,
+  /** The ball ahead of his feet, m past its own radius. */
+  ahead: 0.3,
+};
 /** The share of walkers out with nothing in their hands; the rest carry
  * their skis on a shoulder. */
 const EMPTY_HANDED = 0.4;
@@ -79,7 +109,10 @@ const ALONGSIDE = 0.75;
 /** A ring of people facing in: its radius, m, by how many stand on it. */
 const ringRadius = (n: number): number => 0.55 + 0.22 * n;
 /** A snowball fight is thrown across a wider ring, m. */
-const THROW_RING = 3.2;
+const THROW_RING = SNOWBALL.reach / 2;
+/** One guest behind the next in a queue, m: a body and a pair of skis on
+ * a shoulder. */
+const QUEUE_STEP = 0.95;
 /** A class stands on an arc this far before its instructor, m. */
 const CLASS_ARC = 2.6;
 
@@ -87,6 +120,8 @@ const CLASS_ARC = 2.6;
  * lounger, a snowman the children are building. */
 export type CivilianProp = {
   kind: "deckchair" | "snowman";
+  /** A snowman's stage: 1 the bottom ball, 2 two, 3 finished. */
+  stage?: 1 | 2 | 3;
   x: number;
   y: number;
   z: number;
@@ -97,19 +132,6 @@ export type CivilianProp = {
  * height over the floor when he sits on one (`null` stood, 0 sat on the
  * snow). */
 type Home = { x: number; y: number; z: number; heading: number; seat: number | null };
-
-/** A walker's LEG: from A to B and back, at `speed`, pausing `pause` s at
- * each end; walking `side` m to the right of its line (a party alongside). */
-type Leg = {
-  ax: number;
-  az: number;
-  bx: number;
-  bz: number;
-  length: number;
-  speed: number;
-  pause: number;
-  side: number;
-};
 
 /** One step of a dealt routine: the activity, how long, what is held. */
 type Held = { act: Activity; seconds: number; carry: Carry };
@@ -128,7 +150,11 @@ export type Civilian = {
   readonly home: Home;
   /** On a deck: his feet on its boards, never the snow's. */
   readonly deck: boolean;
-  readonly leg: Leg | null;
+  /** A walker's leg or round (`civilian-route.ts`): out through its stops
+   * and back, pausing at each; null for a person who stays at his place. */
+  readonly leg: Route | null;
+  /** On his skis, skating his round (drawn on the crowd's figure). */
+  readonly skis: boolean;
   readonly routine: readonly Held[];
   /** The routine's whole length, s, and where in it he starts. */
   readonly total: number;
@@ -230,14 +256,40 @@ function freePoint(
 /** Whether a walk along a–b stays on clear snow all the way: sampled every
  * `LEG.check` m, each sample held half that more off everything, so the
  * snow between two samples is clear too. */
-function legClear(level: Level, ax: number, az: number, bx: number, bz: number): boolean {
+function legClear(
+  level: Level,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  flat = Infinity,
+  base = false,
+): boolean {
   const len = Math.hypot(bx - ax, bz - az);
-  const n = Math.max(1, Math.ceil(len / LEG.check));
+  // Every half step: the clearances are distances the spare covers
+  // between samples, but the slope and the ice are not.
+  const n = Math.max(1, Math.ceil((2 * len) / LEG.check));
+  const ground = wildGround(level);
   for (let i = 0; i <= n; i++) {
     const t = i / n;
-    if (!civilianClear(level, ax + (bx - ax) * t, az + (bz - az) * t, false, LEG.check / 2)) {
-      return false;
-    }
+    const x = ax + (bx - ax) * t;
+    const z = az + (bz - az) * t;
+    if (!civilianClear(level, x, z, false, LEG.check / 2)) return false;
+    if (flat < Infinity && ground.slope(x, z) > flat) return false;
+    if (base && pastHub(level, x, z)) return false;
+  }
+  return true;
+}
+
+/** Whether every line of `r`, walked `side` m to its right, is clear. */
+function routeClear(level: Level, r: Route, side: number): boolean {
+  for (let k = 0; k + 1 < r.points.length; k++) {
+    const a = r.points[k];
+    const b = r.points[k + 1];
+    const n = r.lengths[k] || 1;
+    const rx = ((b.z - a.z) / n) * side;
+    const rz = (-(b.x - a.x) / n) * side;
+    if (!legClear(level, a.x + rx, a.z + rz, b.x + rx, b.z + rz)) return false;
   }
   return true;
 }
@@ -252,7 +304,8 @@ function dealLeg(
   x: number,
   z: number,
   speed: number,
-): Leg | null {
+  takenOf: (s: Spot) => { x: number; z: number }[],
+): Route | null {
   const ends = spots.filter(
     (s) =>
       s !== from &&
@@ -264,22 +317,96 @@ function dealLeg(
   const pause = rng.range(PAUSE[0], PAUSE[1]);
   for (let k = 0; k < Math.min(6, ends.length * 2); k++) {
     const to = rng.pick(ends);
-    const b = freePoint(rng, level, to, []);
+    const b = freePoint(rng, level, to, takenOf(to));
     if (!b || !legClear(level, x, z, b.x, b.z)) continue;
-    return leg(x, z, b.x, b.z, speed, pause);
+    takenOf(to).push(b);
+    return routeOf([{ x, z }, b], speed, pause);
   }
   for (let k = 0; k < 8; k++) {
     const a = rng.range(0, TAU);
     const r = rng.range(LEG.millLeast, LEG.millMost);
     const bx = x + Math.sin(a) * r;
     const bz = z + Math.cos(a) * r;
-    if (legClear(level, x, z, bx, bz)) return leg(x, z, bx, bz, speed, pause);
+    if (legClear(level, x, z, bx, bz))
+      return routeOf(
+        [
+          { x, z },
+          { x: bx, z: bz },
+        ],
+        speed,
+        pause,
+      );
   }
   return null;
 }
 
-function leg(ax: number, az: number, bx: number, bz: number, speed: number, pause: number): Leg {
-  return { ax, az, bx, bz, length: Math.hypot(bx - ax, bz - az), speed, pause, side: 0 };
+/**
+ * A ROUND OF THE BASE from (x, z): through a few of the base's places in
+ * turn — each the next one in reach whose line from the last is clear —
+ * walked out and back, never past the hub's valley-side edge
+ * (`pastHub`). On skis, only along the valley floor's flat and from one
+ * lift's (or the village's) place to ANOTHER's. Null when no place is in
+ * reach. The stops are any `base` (or, on foot, `yard`) places
+ * `SPOT_SOURCES` finds, so a new building's places join the rounds as
+ * they are; a new KIND of round is a filter and a flag here.
+ */
+function dealRound(
+  rng: Rng,
+  level: Level,
+  spots: readonly Spot[],
+  from: Spot,
+  x: number,
+  z: number,
+  speed: number,
+  skis: boolean,
+  takenOf: (s: Spot) => { x: number; z: number }[],
+): Route | null {
+  const points = [{ x, z }];
+  const seen = new Set<string>([from.id]);
+  let last = from;
+  const stops = rng.int(ROUND.stops[0], ROUND.stops[1]);
+  const flat = skis ? ROUND.flat : Infinity;
+  for (let k = 0; k < stops; k++) {
+    const here = points[points.length - 1];
+    const ends = spots.filter(
+      (s) =>
+        !seen.has(s.id) &&
+        s.deck === undefined &&
+        (s.kind === "base" || (!skis && s.kind === "yard")) &&
+        (!skis || s.of !== last.of) &&
+        Math.hypot(s.x - here.x, s.z - here.z) > ROUND.least &&
+        Math.hypot(s.x - here.x, s.z - here.z) < (skis ? ROUND.skiMost : ROUND.most),
+    );
+    let next: { x: number; z: number } | null = null;
+    for (let tries = 0; tries < Math.min(skis ? 10 : 6, ends.length * 2) && !next; tries++) {
+      const to = rng.pick(ends);
+      const b = freePoint(rng, level, to, takenOf(to));
+      if (b && legClear(level, here.x, here.z, b.x, b.z, flat, true)) {
+        // Where he stops is held off everyone stood or stopping there.
+        takenOf(to).push(b);
+        next = b;
+        seen.add(to.id);
+        last = to;
+      }
+    }
+    if (!next) break;
+    points.push(next);
+  }
+  if (points.length < 2) return null;
+  const pause = skis
+    ? rng.range(ROUND.skiPause[0], ROUND.skiPause[1])
+    : rng.range(ROUND.pause[0], ROUND.pause[1]);
+  return routeOf(points, speed, pause);
+}
+
+/** `list` in an order dealt off `rng` (Fisher–Yates). */
+function shuffled<T>(rng: Rng, list: readonly T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rng.int(0, i);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 /** A boot's pace for a body, m/s: the old and the children at the slow end. */
@@ -312,7 +439,7 @@ export function planCivilians(level: Level): CivilianPlan {
     home: Home,
     deck: boolean,
     keen: number,
-    leg: Leg | null,
+    leg: Route | null,
     body: CrowdBody = rng.pick(role.bodies),
     carry?: Carry,
   ): Civilian => {
@@ -330,6 +457,7 @@ export function planCivilians(level: Level): CivilianPlan {
       home,
       deck,
       leg,
+      skis: role.skis !== undefined,
       routine,
       total,
       offset: rng.range(0, total),
@@ -369,9 +497,48 @@ export function planCivilians(level: Level): CivilianPlan {
     return out;
   };
 
+  /** A child rolling a ball from a clear spot a few metres off to the
+   * snowman at (sx, sz), and back for the next. */
+  const addRoller = (
+    spot: Spot,
+    sx: number,
+    sz: number,
+    a0: number,
+    gaps: number,
+    keen: number,
+  ): void => {
+    const kid = roleOf("roller");
+    for (let k = 0; k < 16; k++) {
+      // Into a gap between two builders, any of them.
+      const a = a0 + (TAU * (k % gaps)) / gaps + (k < gaps ? 0 : rng.range(-0.3, 0.3));
+      const r = rng.range(ROLL.from[0], ROLL.from[1]);
+      const ax = sx + Math.sin(a) * r;
+      const az = sz + Math.cos(a) * r;
+      // He stops with the ball against the snowman's bottom ball.
+      const bx = sx + Math.sin(a) * ROLL.stop;
+      const bz = sz + Math.cos(a) * ROLL.stop;
+      if (!legClear(level, ax, az, bx, bz)) continue;
+      const route = routeOf(
+        [
+          { x: ax, z: az },
+          { x: bx, z: bz },
+        ],
+        rng.range(ROLL.speed[0], ROLL.speed[1]),
+        rng.range(5, 9),
+      );
+      add(kid, spot, standAt(spot, ax, az, a + Math.PI), false, keen, route);
+      return;
+    }
+  };
+
   for (const role of CIVILIAN_ROLES) {
-    for (const spot of spots) {
+    // A role with a budget is dealt over its places in an order of the
+    // map's own, so the budget is spread over all of them.
+    const order = role.most === undefined ? spots : shuffled(rng, spots);
+    const dealt = () => people.filter((c) => c.role === role.id).length;
+    for (const spot of order) {
       if (full()) break;
+      if (role.most !== undefined && dealt() >= role.most) break;
       if (!role.at.includes(spot.kind)) continue;
       if (!rng.chance(role.chance)) continue;
       const want = rng.int(role.count[0], role.count[1]);
@@ -386,6 +553,20 @@ export function planCivilians(level: Level): CivilianPlan {
           const p = n === 0 ? post : frameAt(post.x, post.z, post.heading, 1.4 * n, -0.4);
           add(role, spot, standAt(spot, p.x, p.z, post.heading), false, keen, null);
           continue;
+        }
+        if (role.moves === "line") {
+          // THE QUEUE: a step behind the one before, out from the head,
+          // each a little off the line and facing the window. Its first is
+          // always there while the window is open.
+          const q = spot.queue;
+          if (!q) break;
+          for (let k = 0; k < want && !full(); k++) {
+            const at = frameAt(q.x, q.z, q.heading, rng.range(-0.15, 0.15), k * QUEUE_STEP);
+            if (!civilianClear(level, at.x, at.z)) break;
+            const face = q.heading + Math.PI + rng.range(-0.25, 0.25);
+            add(role, spot, standAt(spot, at.x, at.z, face), false, k === 0 ? 0 : rng.next(), null);
+          }
+          break;
         }
         if (role.moves === "seat") {
           const free = spot.seats.filter((s) => !seatsUsed.has(s));
@@ -415,34 +596,41 @@ export function planCivilians(level: Level): CivilianPlan {
           add(role, spot, home, deck, keen, null);
           continue;
         }
-        if (role.moves === "walk") {
+        if (role.moves === "walk" || role.moves === "route") {
           const body = rng.pick(role.bodies);
           const companions =
             role.party && rng.chance(role.party.chance)
               ? rng.int(role.party.count[0], role.party.count[1])
               : 0;
-          const speed =
-            companions > 0 ? Math.min(paceOf(rng, body), paceOf(rng, "child")) : paceOf(rng, body);
-          const l = dealLeg(rng, level, spots, spot, p.x, p.z, speed);
+          const skis = role.skis;
+          const speed = skis
+            ? rng.range(skis[0], skis[1]) * (body === "child" || body.startsWith("old") ? 0.8 : 1)
+            : companions > 0
+              ? Math.min(paceOf(rng, body), paceOf(rng, "child"))
+              : paceOf(rng, body);
+          const l =
+            role.moves === "route"
+              ? (dealRound(rng, level, spots, spot, p.x, p.z, speed, skis !== undefined, takenAt) ??
+                (skis ? null : dealLeg(rng, level, spots, spot, p.x, p.z, speed, takenAt)))
+              : dealLeg(rng, level, spots, spot, p.x, p.z, speed, takenAt);
           const home = standAt(spot, p.x, p.z, facing);
           if (!l) {
-            // Nowhere clear to walk to: he stands about his place instead.
-            add(role, spot, home, deck, keen, null, body);
+            // Nowhere clear to go: he stands about his place instead — a
+            // skater with nowhere to skate is not dealt at all.
+            if (!skis) add(role, spot, home, deck, keen, null, body);
             continue;
           }
           // Skis on a shoulder for most, empty hands for the rest.
-          add(role, spot, home, deck, keen, l, body, rng.chance(EMPTY_HANDED) ? "none" : undefined);
+          const hands = !skis && role.carry === "skis" && rng.chance(EMPTY_HANDED);
+          add(role, spot, home, deck, keen, l, body, hands ? "none" : undefined);
           if (companions > 0 && role.party) {
             const kid = roleOf(role.party.role);
-            // To the right of the way out is (cos h, −sin h).
-            const rx = (l.bz - l.az) / (l.length || 1);
-            const rz = -(l.bx - l.ax) / (l.length || 1);
             for (let k = 0; k < companions && !full(); k++) {
               const side = (k % 2 === 0 ? 1 : -1) * ALONGSIDE * (1 + Math.floor(k / 2));
-              const ox = rx * side;
-              const oz = rz * side;
-              if (!legClear(level, l.ax + ox, l.az + oz, l.bx + ox, l.bz + oz)) continue;
-              add(kid, spot, standAt(spot, p.x + ox, p.z + oz, facing), deck, keen, { ...l, side });
+              if (!routeClear(level, l, side)) continue;
+              const r = routeAside(l, side);
+              const at0 = routeAt(r, 0, freshRouteAt());
+              add(kid, spot, standAt(spot, at0.x, at0.z, facing), deck, keen, r);
             }
           }
           continue;
@@ -459,21 +647,33 @@ export function planCivilians(level: Level): CivilianPlan {
           const r =
             role.id === "snowballer" ? THROW_RING : role.id === "builder" ? 0.75 : ringRadius(size);
           const homes = ring(spot, p.x, p.z, size, r);
+          let roll = false;
           // A ring of one is nobody's company: a lone patrolman stands.
           if (homes.length < Math.min(2, size)) break;
           if (role.id === "builder") {
+            // A snowman at a stage of its own: the bottom ball, two, or
+            // finished with its face and arms.
+            const stage = rng.pick([1, 2, 2, 3] as const);
             props.push({
               kind: "snowman",
               x: p.x,
               y: floorAt(level, spot, p.x, p.z),
               z: p.z,
               heading: rng.range(0, TAU),
+              stage,
             });
+            roll = stage < 3;
           }
           const mate = role.party ? roleOf(role.party.role) : role;
           homes.forEach((h, k) => {
             if (!full()) add(k < want - n ? role : mate, spot, h, deck, keen, null);
           });
+          // Not finished: a child rolls the next ball over to it, coming in
+          // between two of the builders.
+          if (roll && !full()) {
+            const a = Math.atan2(homes[0].x - p.x, homes[0].z - p.z) + Math.PI / homes.length;
+            addRoller(spot, p.x, p.z, a, homes.length, keen);
+          }
           break;
         }
         // About the place, stood or sat as the routine has it; a rester
@@ -552,47 +752,24 @@ export function civilianAt(
   out.seat = c.home.seat;
   out.walked = 0;
   if (c.leg) {
-    const L = c.leg;
-    const walk = L.length / L.speed;
-    const cycle = 2 * (walk + L.pause);
-    const n = Math.floor(u / cycle);
-    const w = u - n * cycle;
-    // Out, a pause, back, a pause: the distance in closed form.
-    let s: number;
-    let back = false;
-    let moving = true;
-    if (w < walk) s = w * L.speed;
-    else if (w < walk + L.pause) {
-      s = L.length;
-      moving = false;
-    } else if (w < 2 * walk + L.pause) {
-      s = L.length - (w - walk - L.pause) * L.speed;
-      back = true;
-    } else {
-      s = 0;
-      back = true;
-      moving = false;
-    }
-    const dx = (L.bx - L.ax) / (L.length || 1);
-    const dz = (L.bz - L.az) / (L.length || 1);
-    // Alongside: to the right of the way out (cos h, −sin h).
-    out.x = L.ax + dx * s + dz * L.side;
-    out.z = L.az + dz * s - dx * L.side;
-    out.y = wildGround(plan.level).snowY(out.x, out.z);
-    out.heading = back ? Math.atan2(-dx, -dz) : Math.atan2(dx, dz);
-    const covered = n * 2 * L.length + (w < walk + L.pause ? s : L.length + (L.length - s));
-    out.walked = covered;
-    if (moving) {
-      out.activity = "walk";
-      out.clock = covered / L.speed;
-      out.span = walk;
+    const at = routeAt(c.leg, u, ROUTE_AT);
+    out.x = at.x;
+    out.z = at.z;
+    out.y = wildGround(plan.level).snowY(at.x, at.z);
+    out.heading = at.heading;
+    out.walked = at.walked;
+    if (at.moving) {
+      // A child rolls his ball out to the snowman and walks back for the
+      // next; a skater skates; everyone else walks.
+      out.activity = c.skis ? "skate" : c.role === "roller" && at.out ? "roll" : "walk";
+      out.clock = at.walked / c.leg.speed;
+      out.span = c.leg.length / c.leg.speed;
       return out;
     }
-    // Stood at an end, as the routine has it.
-    const pausedFor = w < walk + L.pause ? w - walk : w - 2 * walk - L.pause;
+    // Stood at a stop, as the routine has it.
     out.activity = held.act === "walk" ? "stand" : held.act;
-    out.clock = pausedFor;
-    out.span = L.pause;
+    out.clock = at.paused;
+    out.span = c.leg.pause;
     return out;
   }
   out.x = c.home.x;
@@ -603,6 +780,37 @@ export function civilianAt(
   // The terrace dances to one beat: the run's own clock.
   out.clock = held.act === "dance" ? t : into;
   out.span = held.seconds;
+  return out;
+}
+
+const ROUTE_AT = freshRouteAt();
+
+/** The ball a rolling child pushes, refilled by `rolledBall`: where its
+ * middle is and its radius, m. */
+export type Ball = { x: number; y: number; z: number; r: number };
+
+/**
+ * THE BALL CIVILIAN `i` IS ROLLING at `t` — a child's (`roller`): pushed
+ * ahead of his feet from its first size, growing as it rolls out to the
+ * snowman, and stood against it while he pats it on; gone while he walks
+ * back and makes the next (then it is in his hands, under the crouch).
+ * Null for anyone else, or when there is none.
+ */
+export function rolledBall(plan: CivilianPlan, i: number, t: number, out: Ball): Ball | null {
+  const c = plan.people[i];
+  if (c.role !== "roller" || !c.leg) return null;
+  const at = routeAt(c.leg, t + c.offset, ROUTE_AT);
+  const last = c.leg.points.length - 1;
+  let grown: number;
+  if (at.moving && at.out) grown = at.along / (c.leg.lengths[0] || 1);
+  else if (!at.moving && at.stop === last) grown = 1;
+  else return null;
+  const r = ROLL.ball[0] + (ROLL.ball[1] - ROLL.ball[0]) * grown;
+  const d = ROLL.ahead + r;
+  out.x = at.x + Math.sin(at.heading) * d;
+  out.z = at.z + Math.cos(at.heading) * d;
+  out.y = wildGround(plan.level).snowY(out.x, out.z) + r * 0.92;
+  out.r = r;
   return out;
 }
 

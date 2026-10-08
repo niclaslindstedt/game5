@@ -37,6 +37,7 @@ import {
   type Wall,
 } from "./cabin-parts.ts";
 import type { CabinLod, Plan } from "./cabin-shapes.ts";
+import { DECK, DECK_END, GAP, TERRACE, TERRACE_TABLES as T } from "./lodge-measure.ts";
 import type { Shape, V3 } from "./tree-mesh.ts";
 
 const colour = (hex: number): THREE.Color => new THREE.Color(hex);
@@ -56,13 +57,7 @@ export const LODGE_PAINT = {
   table: colour(0x9c7a55),
 };
 
-/** The deck: its top under the floor, m, and how thick it is. */
-export const DECK = { top: -0.22, thick: 0.2 };
-/** How far the deck stands out past the walls, m — the terrace's front,
- * a little short of the roof's reach the placer kept clear. */
-export const TERRACE = CABINS.afterski.reach.front - 0.4;
-/** Half the gap in the front railing the steps come up through, m. */
-export const GAP = 1.3;
+export { DECK, GAP, TERRACE } from "./lodge-measure.ts";
 
 /** A board laid on the deck from (x0, z0) to (x1, z1), `y0..y1` over it. */
 function plank(
@@ -80,10 +75,10 @@ function plank(
 
 /** A TRESTLE TABLE at (x, z) along x, with a bench either side. */
 function table(s: Shape, x: number, z: number, lod: CabinLod): void {
-  const L = 1.0;
-  plank(s, x - L, z - 0.4, x + L, z + 0.4, 0.7, 0.76, LODGE_PAINT.table);
-  for (const dz of [-0.75, 0.75])
-    plank(s, x - L, z + dz - 0.17, x + L, z + dz + 0.17, 0.42, 0.47, P.board[0]);
+  const L = T.half;
+  plank(s, x - L, z - T.top, x + L, z + T.top, T.height - 0.06, T.height, LODGE_PAINT.table);
+  for (const dz of [-T.bench, T.bench])
+    plank(s, x - L, z + dz - 0.17, x + L, z + dz + 0.17, T.seat - 0.05, T.seat, P.board[0]);
   if (lod) return;
   for (const dx of [-L + 0.2, L - 0.2]) {
     plank(s, x + dx - 0.05, z - 0.3, x + dx + 0.05, z + 0.3, 0, 0.7, P.board[1]);
@@ -177,7 +172,7 @@ function terrace(s: Shape, roof: Roof, lod: CabinLod): void {
   const d = CABINS.afterski;
   const W = d.width;
   const D = d.depth;
-  const x = W / 2 + 0.6;
+  const x = W / 2 + DECK_END;
   const z0 = D / 2;
   const z1 = D / 2 + TERRACE;
   box(s, -x, DECK.top - DECK.thick, z0, x, DECK.top, z1, P.board[1], P.board[0]);
@@ -215,11 +210,11 @@ function terrace(s: Shape, roof: Roof, lod: CabinLod): void {
   rail(front, GAP, x);
   for (const w of ends) rail(w, -TERRACE / 2, TERRACE / 2 - 0.05);
   // THE TABLES, in two rows either side of the way in, two under parasols.
-  for (const tz of [z0 + 2.2, z0 + 4.7]) {
-    for (const tx of [-5.2, -2.7, 2.7, 5.2]) table(s, tx, tz, lod);
+  for (const tz of T.z) {
+    for (const tx of T.x) table(s, tx, z0 + tz, lod);
   }
-  parasol(s, -2.7, z0 + 4.7, lod);
-  parasol(s, 5.2, z0 + 2.2, lod);
+  parasol(s, T.x[1], z0 + T.z[1], lod);
+  parasol(s, T.x[3], z0 + T.z[0], lod);
   // THE STRING LIGHTS: from under the eave out to the corner posts and
   // the posts by the steps, and along the front rail.
   const eave = roof.plate - 0.15;

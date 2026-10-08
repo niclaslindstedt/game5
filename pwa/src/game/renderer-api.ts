@@ -46,6 +46,9 @@ export interface WorldRenderer {
    * from a lens planted beside it — or null for the camera ladder. Only a
    * replay ever sets one (`replay-run.ts`). */
   setShot(shot: ReplayShot | null): void;
+  /** LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): a drag of `dx`, `dy`
+   * CSS px over the picture, taken while the lift carries the player. */
+  lookAround(dx: number, dy: number): void;
   /** THE DEATH CAM (`camera-death.ts`): whether it may take the lens when
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */

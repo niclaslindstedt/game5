@@ -46,10 +46,17 @@ export interface WorldRenderer {
    * from a lens planted beside it — or null for the camera ladder. Only a
    * replay ever sets one (`replay-run.ts`). */
   setShot(shot: ReplayShot | null): void;
+  /** LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): a drag of `dx`, `dy`
+   * CSS px over the picture, taken while the lift carries the player. */
+  lookAround(dx: number, dy: number): void;
   /** THE DEATH CAM (`camera-death.ts`): whether it may take the lens when
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */
   setDeathCam(on: boolean): void;
+  /** Every body left lying gone — the run left for the menu. (A run stood
+   * up after a death on the same map leaves the dead one lying on its own,
+   * `gore-view.ts`'s `leave`.) */
+  clearBodies(): void;
   /** THE X-RAY CAM (`xray-shots.ts`): this frame's look — the skeleton drawn
    * inside him and the lens on the bone breaking — or null when it is off. */
   setXray(look: XrayLook | null): void;

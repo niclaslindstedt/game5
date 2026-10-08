@@ -43,7 +43,16 @@ import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/pr
 
 import { bindPose } from "./dress-loft.ts";
 import { createBlood } from "./gore-blood.ts";
-import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
+import {
+  cheekAt,
+  gapAt,
+  noseAt,
+  lowestGap,
+  PART_BONE,
+  partAt,
+  soakPath,
+  spreadAt,
+} from "./gore-leaks.ts";
 import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
 import {
@@ -185,6 +194,14 @@ const SEEP = 0.12;
 /** The litres his clothes hold round a wound before it runs out at a
  * gap: a jacket's and its layers' worth of a cupful. */
 const HOLD = 0.1;
+/** How fast it runs off his bare face, m/s, and the most drops a second
+ * that fall off it beside the stream. */
+const FACE = 0.25;
+const DRIPS = 14;
+/** How far off his skin the blood down his face is drawn, m. */
+const FACE_OFF = 0.012;
+/** Fresh blood on his skin, linear RGB. */
+const ON_SKIN = [0.32, 0.01, 0.008] as const;
 
 type Piece = {
   piece: GorePiece;
@@ -221,6 +238,8 @@ type Leak = {
   share: number;
   key: string;
   part?: BodyPart;
+  /** Out of his bare face, run over it from these points: no cloth holds it. */
+  lead?: THREE.Vector3[];
 };
 
 export function createGoreView(level: Level, wrap: Wrap): GoreView {
@@ -298,6 +317,10 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   // The litres each part hit hard has bled into his clothes, and the
   // litres run onto the snow under each gap since the pools last grew.
   const soakedIn = new Map<BodyPart, number>();
+  let drips = 0;
+  // Which cheek his face's blood runs over as he lies, and how far.
+  let cheekSide = 1;
+  let cheekLean = 0;
   // The body's way, smoothed: what a stream is carried along by — the
   // ragdoll's own step-to-step jitter would break it into dashes.
   const drift = new THREE.Vector3();
@@ -496,6 +519,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     opened = 0;
     crushed = false;
     soakedIn.clear();
+    drips = 0;
     drift.set(0, 0, 0);
     poolAcc.clear();
     blood.clear();
@@ -768,6 +792,36 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       const height = (p: V3) => world(p, M, v3).y;
       const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
       for (const h of hard) {
+        if (h.part === "head") {
+          // The face has nothing over it: a head split open bleeds straight
+          // out of it, down off the nose and the chin, in a stream and drops.
+          // Off the lowest of the face as he lies (the chin, a cheek), run
+          // down the skin to it from under his nose — each point stood
+          // just off the face so the stream lies on it, not in it.
+          const mid = world(partAt("head", f), M);
+          const off = (p: THREE.Vector3) =>
+            p.addScaledVector(p.clone().sub(mid).normalize(), FACE_OFF);
+          let at = world(gapAt("face", f), M);
+          const chin = at.y;
+          cheekLean = 0;
+          for (const side of [-1, 1]) {
+            const cheek = world(cheekAt(f, side), M);
+            if (cheek.y < at.y) {
+              at = cheek;
+              cheekSide = side;
+              cheekLean = Math.min(1, (chin - cheek.y) / 0.05);
+            }
+          }
+          const nose = world(noseAt(f), M);
+          const half = off(nose.clone().lerp(at, 0.5));
+          off(nose);
+          off(at);
+          const lead = [nose, half];
+          const dir = at.clone().sub(mid).normalize().multiplyScalar(0.3);
+          dir.y -= 1;
+          wounds.push({ at, dir: dir.normalize(), share: h.out, key: "face", lead });
+          continue;
+        }
         const gap = lowestGap(h.part, f, height);
         const from = world(partAt(h.part, f), M);
         const at = world(gapAt(gap, f), M);
@@ -791,8 +845,23 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           soakedIn.set(w.part, had + q * simDt);
           if (had < HOLD) continue;
         }
-        const speed = w.part ? SEEP * (1 + beat) : g.rate > 0 ? POUR + JET * beat : POUR * 0.5;
-        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next());
+        const speed = w.lead
+          ? FACE * (1 + beat)
+          : w.part
+            ? SEEP * (1 + beat)
+            : g.rate > 0
+              ? POUR + JET * beat
+              : POUR * 0.5;
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead);
+        if (w.lead) {
+          // And it drips off the face, the more the faster it runs.
+          drips += simDt * Math.min(DRIPS, 4 + q * 600);
+          const n = Math.floor(drips);
+          if (n > 0) {
+            drips -= n;
+            blood.emit(w.at, w.dir, 0.5 + beat, n, 0.6, along, () => rng.next());
+          }
+        }
         // What reaches the snow under a gap lying on it pools there; a
         // share runs on under him, into the one pool round his body.
         if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
@@ -833,7 +902,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         const bind = bindPose().frames;
         const wet = Math.min(1, 0.3 + g.blood / 1.2);
         const reach = 0.1 + Math.min(0.35, g.blood * 0.12);
-        const at: { at: V3; r: number }[] = [];
+        const at: { at: V3; r: number; blood?: readonly [number, number, number] }[] = [];
         for (const piece of cuts)
           at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
         GORE_OPEN.forEach((_, bit) => {
@@ -856,6 +925,18 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           }
         });
         for (const h of hard) {
+          if (h.part === "head") {
+            // His bare face run red: from under the nose down to the chin,
+            // and over the cheek it runs off when he lies on his side —
+            // fresh blood on skin, not soaked black into cloth.
+            const lowCheek = cheekAt(bind, cheekSide);
+            for (const run of [
+              soakPath(noseAt(bind), gapAt("face", bind), 1, 0.05),
+              soakPath(noseAt(bind), lowCheek, Math.abs(cheekLean), 0.045),
+            ])
+              for (const p of run) at.push({ ...p, blood: ON_SKIN });
+            continue;
+          }
           const litres = soakedIn.get(h.part) ?? 0;
           if (litres <= 0.005) continue;
           const gap = lowestGap(h.part, f, height);
@@ -868,7 +949,8 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             ),
           );
         }
-        if (at.length > 0) soak.cloth(skin.cloth, at, Math.max(wet, hard.length > 0 ? 0.9 : 0));
+        if (at.length > 0)
+          soak.cloth(skin.cloth, at, Math.max(wet, hard.some((h) => h.part !== "head") ? 0.9 : 0));
       }
     },
     clear(model) {

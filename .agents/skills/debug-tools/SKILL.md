@@ -1,6 +1,6 @@
 ---
 name: debug-tools
-description: "Use when a problem arrives as a FRAME, a PLACE or a SLOW PHONE rather than a repro — 'the furrow stops here', 'it stutters in the woods on my phone', a screenshot with the developer overlay in it. Owns the in-game developer page (the seven-second hold on the front door's title), its instruments — the frame rate and frame cost, the physics readouts, the trail-map overlay, the engine log, the free camera — the REPRO line and the URL that reads it back, DEVELOPER ▸ UNLOCKS, and DEVELOPER ▸ BENCHMARK with its report, its history and `make bench`."
+description: "Use when a problem arrives as a FRAME, a PLACE or a SLOW PHONE rather than a repro — 'the furrow stops here', 'it stutters in the woods on my phone', a screenshot with the developer overlay in it. Owns the in-game developer page (the seven-second hold on the front door's title), its instruments — the frame rate and frame cost, the physics readouts, the trail-map overlay, the engine log, the free camera — the REPRO line and the URL that reads it back, and DEVELOPER ▸ BENCHMARK with its report, its history and `make bench`."
 ---
 
 # The in-game developer tools
@@ -37,7 +37,6 @@ DEFAULTS deliberately does not.
 | TRAIL MAP | The two maps the snow reads its furrows off, drawn flat in the corner (depth warm, berm blue) | `trail-overlay.ts` |
 | ENGINE LOG | The engine's `debug` lines switched on (`setDebugEnabled`) and its last eight on screen | `output-bridge.ts`'s buffer |
 | FREE CAMERA | The lens off the ladder: I K fly, J L slide, U O sink and climb, shift faster, drag to look — over a run, a held run or a replay | `free-fly.ts` |
-| UNLOCKS | The campaign's board set by hand, shelf by shelf, on a prefix | `campaign-unlocks.ts`, `menu-unlocks.tsx` |
 | BENCHMARK | A pinned race timed as fast as the machine draws, scored, kept, and reported | `benchmark*.ts`, `bench-run.ts`, `menu-bench.tsx` |
 
 Every switch is an instrument, never a change to the game, and every one is

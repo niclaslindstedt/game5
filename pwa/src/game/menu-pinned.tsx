@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE CARDS A PINNED MAP IS CHOSEN ON, as the front door's pages see them:
-// the CAMPAIGN card (a rung, ridden for points), the LEVEL card (a map for a
-// RACE — one of its discipline's nine, raced for the record book) and the
-// TRICK MAP card (a map for a TRICKS run). One component so `App.tsx` routes the three
-// pages with one branch: which card is up is the page, and what a pick does
-// is the app's.
+// the LEVEL card (a map for a RACE — one of its discipline's nine, raced for
+// the record book) and the TRICK MAP card (a map for a TRICKS run). One
+// component so `App.tsx` routes both pages with one branch: which card is up
+// is the page, and what a pick does is the app's.
 
 import { LEVEL_RULES, skisById, type GameMode, type SkiId } from "@engine";
 
-import { type CampaignLevel, type CampaignProgress } from "./campaign.ts";
-import { CampaignPage } from "./menu-campaign.tsx";
 import { LevelsPage } from "./menu-levels.tsx";
+import type { PinnedLevel } from "./pinned.ts";
 import { disciplineOf } from "./race-maps.ts";
 import { TrickMapsPage } from "./menu-tricks.tsx";
 import type { RecordKey, RunRecord } from "./records.ts";
@@ -23,27 +21,24 @@ export function PinnedCards({
   mode,
   settings,
   skis,
-  progress,
   standing,
   onBack,
   onChoose,
   onTrick,
   onSettings,
 }: {
-  page: "campaign" | "levels" | "tricks";
+  page: "levels" | "tricks";
   /** The mode the level card picks a map for. */
   mode: GameMode;
   /** The maps the level cards last picked (`Settings.raceMap`). */
   settings: Settings;
   /** The machine the skis card holds — a record book row is one skis's. */
   skis: SkiId;
-  progress: CampaignProgress;
   /** The record book's row under a key (`ghost-run.ts`'s `standing`). */
   standing: (key: RecordKey) => RunRecord | null;
   onBack: () => void;
-  /** A map picked, on to the skis card: a campaign RUNG, or a map off the
-   * level card. */
-  onChoose: (level: CampaignLevel, rung: boolean) => void;
+  /** A map picked off the level card, on to the skis card. */
+  onChoose: (level: PinnedLevel) => void;
   /** A trick map picked, on to the skis card. */
   onTrick: (map: TrickMap) => void;
   /** A setting changed on a card — the jump an aerials contest declares. */
@@ -61,11 +56,6 @@ export function PinnedCards({
       />
     );
   }
-  if (page === "campaign") {
-    return (
-      <CampaignPage progress={progress} onBack={onBack} onRide={(level) => onChoose(level, true)} />
-    );
-  }
   // A race off the level card is the race's one run (R16).
   const laps = LEVEL_RULES.race.laps;
   const pick = disciplineOf(mode);
@@ -78,7 +68,7 @@ export function PinnedCards({
         return row ? STRINGS.levelsBest(row.value, skisById(row.skis).name) : null;
       }}
       onBack={onBack}
-      onPick={(level) => onChoose(level, false)}
+      onPick={onChoose}
     />
   );
 }

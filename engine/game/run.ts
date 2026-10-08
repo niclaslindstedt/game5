@@ -38,6 +38,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { holdsHim, stepGore } from "./gore.ts";
+import { callRescue } from "./rescue.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { aerialInput, stepAerial } from "./aerial-flight.ts";
 import { stepKicker } from "./aerial-kicker.ts";
@@ -135,6 +136,8 @@ export function stepRun(
   if (paraPress(run, out, events)) return;
   // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
   if (stepAfterski(run, input, events)) return;
+  // Down too hurt to get up (`rescue.ts`): found so, and held.
+  if (player) callRescue(run, events);
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
   if (input.reset && racing && (!player || mayGetUp(run.skier.thrown)) && !holdsHim(run)) {
     standUp(run, events, false);

@@ -3,7 +3,7 @@
 // rode while offline, reconciled without a judgement call.
 //
 // The rules under test are the ones the game already uses for a live run —
-// the better row per record, the faster tape, furthest progress — so these
+// the better row per record, the faster tape — so these
 // cases are as much about the merge AGREEING with the game as about the merge
 // working. A rule that drifts is a rule that quietly disagrees with the game
 // about who is faster. The settings are the one half decided by a clock, and
@@ -14,7 +14,6 @@ import {
   CLOUD_KEY,
   applyCloudSave,
   carriedSettings,
-  mergeBoards,
   mergeBooks,
   mergeGhosts,
   mergeSaves,
@@ -23,12 +22,6 @@ import {
   parseSave,
   type CloudSave,
 } from "../pwa/src/game/cloud-save.ts";
-import {
-  CAMPAIGN_LEVELS,
-  EMPTY_PROGRESS,
-  PROGRESS_KEY,
-  type CampaignProgress,
-} from "../pwa/src/game/campaign.ts";
 import { GHOST_FORMAT, GHOST_PREFIX, type GhostRun } from "../pwa/src/game/ghost.ts";
 import { RECORDS_KEY, recordId, type RecordBook } from "../pwa/src/game/records.ts";
 import { freshSettings } from "../pwa/src/game/settings.ts";
@@ -61,10 +54,8 @@ const tape = (id: string, value: number, steps = 100): GhostRun => ({
 
 const save = (over: Partial<CloudSave>): CloudSave => ({
   v: 1,
-  ladder: PROGRESS_KEY,
   records: {},
   ghosts: [],
-  campaign: EMPTY_PROGRESS,
   settings: null,
   ...over,
 });
@@ -112,70 +103,6 @@ describe("the ghosts: the faster tape per row", () => {
     expect(parseSave(text)?.ghosts.map((g) => g.id)).toEqual([small.id]);
     // With room, both go up.
     expect(parseSave(packSave(save({ ghosts: [big, small] })))?.ghosts).toHaveLength(2);
-  });
-});
-
-describe("the campaign: furthest progress", () => {
-  /** The first rung of the ladder, whatever it is called today. */
-  const RUNG = CAMPAIGN_LEVELS[0].id;
-  const board = (result: Partial<CampaignProgress["results"][string]>): CampaignProgress => ({
-    results: { [RUNG]: { best: 100, skis: "hare", place: 4, ...result } },
-    points: {},
-  });
-
-  it("reads a board off the wire only when it was won on this ladder", () => {
-    const won = board({ best: 90, place: 1 });
-    const wire = (ladder?: string) => JSON.stringify({ ladder, campaign: won });
-    expect(parseSave(wire(PROGRESS_KEY))?.campaign.results[RUNG]).toMatchObject({ best: 90 });
-    // A re-cut ladder keeps the ids and moves the maps behind them: a board
-    // from before it, stamped or not, names maps nobody rode.
-    expect(parseSave(wire("fall-line.campaign.v3"))?.campaign).toEqual(EMPTY_PROGRESS);
-    expect(parseSave(wire())?.campaign).toEqual(EMPTY_PROGRESS);
-  });
-
-  it("keeps the better time, and the skis that set it, together", () => {
-    const merged = mergeBoards(
-      board({ best: 95, skis: "hare", place: 3 }),
-      board({ best: 90, skis: "swift", place: 2 }),
-    );
-    expect(merged.results[RUNG]).toMatchObject({ best: 90, skis: "swift" });
-  });
-
-  it("keeps the HIGHER place even when the other device was slower", () => {
-    const merged = mergeBoards(board({ best: 90, place: 4 }), board({ best: 95, place: 2 }));
-    expect(merged.results[RUNG]).toMatchObject({ best: 90, place: 2 });
-  });
-
-  it("lets any ridden time beat a row UNLOCKS set by hand", () => {
-    const unlocked: CampaignProgress = {
-      results: { [RUNG]: { place: 4 } },
-      points: {},
-    };
-    expect(mergeBoards(unlocked, board({ best: 97, skis: "swift" })).results[RUNG]).toMatchObject({
-      best: 97,
-      skis: "swift",
-    });
-    expect(mergeBoards(board({ best: 97, skis: "swift" }), unlocked).results[RUNG]).toMatchObject({
-      best: 97,
-      skis: "swift",
-    });
-  });
-
-  it("drops a map this ladder no longer has", () => {
-    const merged = mergeBoards(EMPTY_PROGRESS, {
-      results: { "a-shelf-that-was-recut-9": { best: 1, skis: "hare", place: 1 } },
-      points: { "a-shelf-that-was-recut-9": { you: 3 } },
-    });
-    expect(merged).toEqual(EMPTY_PROGRESS);
-  });
-
-  it("takes the field's points from whichever afternoon placed the player higher", () => {
-    // Points are one afternoon's whole field, so they move together — a
-    // blended table is a table no afternoon produced.
-    const mine: CampaignProgress = { results: {}, points: { [RUNG]: { you: 1, r1: 3 } } };
-    const theirs: CampaignProgress = { results: {}, points: { [RUNG]: { you: 3, r1: 2 } } };
-    expect(mergeBoards(mine, theirs).points[RUNG]).toEqual({ you: 3, r1: 2 });
-    expect(mergeBoards(theirs, mine).points[RUNG]).toEqual({ you: 3, r1: 2 });
   });
 });
 
@@ -228,7 +155,6 @@ describe("what comes off the wire", () => {
       JSON.stringify({
         records: { [raceId]: { value: -1, skis: "hare", at: 1, splits: [] } },
         ghosts: [{ id: trialId, value: 60 }, tape(trialId, 61)],
-        campaign: { results: {}, points: {} },
       }),
     );
     // A negative time is not a row a run could have set, and half a tape is
@@ -274,7 +200,7 @@ describe("a device merging the cloud into itself", () => {
     store.set(RECORDS_KEY, JSON.stringify(book({ [raceId]: 90 })));
     const out = applyCloudSave(null, freshSettings());
     expect(out.save.records[raceId]?.value).toBe(90);
-    expect(out).toMatchObject({ records: false, campaign: false, settings: null });
+    expect(out).toMatchObject({ records: false, settings: null });
     // Never touched, so its settings go up as nobody's to win with.
     expect(out.save.settings).toBeNull();
   });

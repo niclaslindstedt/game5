@@ -5,9 +5,8 @@
 // line until it lies under the station by a GLIDE's fall over the way to it
 // (`headBelow`), so a skier stood off any lift, a drag's as much as a
 // chair's, slides down to his run gathering speed and never climbs to it,
-// and near enough that a ramp comes down off the top to it (R26). A version from before (`startsAcrossTop`,
-// v4) looks along the line across the face through the top instead, at
-// whatever height that finds. The walk itself is `resort-build.ts`'s.
+// and near enough that a ramp comes down off the top to it (R26). The walk
+// itself is `resort-build.ts`'s.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
@@ -152,9 +151,8 @@ const HEAD_DOWNS = [0, 12, 24, 36, 48];
  * the heading it leaves on: the first spot, out from the station on the
  * side the run leans to and then the other, a start of its colour can be
  * raced off — under it by a glide's fall (`headOnContour`), so a rider
- * off the lift slides down to it, never climbs; `top` null (a version
- * from before, `startsAcrossTop`) looks along the line across the face
- * through the top, at whatever height. Null where there is none within
+ * off the lift slides down to it, never climbs; `top` null (a run off no
+ * lift's top) looks along the line across the face, at whatever height. Null where there is none within
  * reach. */
 export function placeStart(
   ground: Heightfield,

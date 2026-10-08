@@ -1,6 +1,6 @@
 ---
 name: add-region
-description: "Use when a NEW KIND OF SNOW COUNTRY is asked for — a fifth region beside the alpine, the fell, the continental and the maritime, 'add a region for …', or a change to what one of them IS. The whole of what a region is in this repo, as one checklist in order: the engine's row (the relief and the vertical, the woods and the tree line, the kickers, the sun's bands, the crust, the tarn), the surface the physics reads, the app's two tables (the look and the grade) and the card's word, the suite that holds them to one list, every lab's REGION= help, the wildlife rows, the docs, the changelog — and the promise the whole scheme stands on: the alpine row stays all ones, so no seed and no pinned campaign map moves. Owns the order and the measurement each step owes; what each half is made of is `mapgen-improvement`'s, `nature`'s, `snow-look`'s and `atmosphere`'s. The sibling snowmobile game's `add-region`, retyped for a mountain."
+description: "Use when a NEW KIND OF SNOW COUNTRY is asked for — a fifth region beside the alpine, the fell, the continental and the maritime, 'add a region for …', or a change to what one of them IS. The whole of what a region is in this repo, as one checklist in order: the engine's row (the relief and the vertical, the woods and the tree line, the kickers, the sun's bands, the crust, the tarn), the surface the physics reads, the app's two tables (the look and the grade) and the card's word, the suite that holds them to one list, every lab's REGION= help, the wildlife rows, the docs, the changelog — and the promise the whole scheme stands on: the alpine row stays all ones, so no seed and no pinned map moves. Owns the order and the measurement each step owes; what each half is made of is `mapgen-improvement`'s, `nature`'s, `snow-look`'s and `atmosphere`'s. The sibling snowmobile game's `add-region`, retyped for a mountain."
 ---
 
 # Adding a region: a kind of snow country, never a place
@@ -31,12 +31,12 @@ station reads). Load **`write-code`** beside all of them and
 is scaled through `scaleBand` / `scaleCount` (which hand back the SAME object
 at one), and a region's own steps — the crust, a frozen tarn — draw off
 streams of their own and are skipped where the row lays none. That is what
-keeps every seed's mountain byte-identical and every pinned campaign map on
+keeps every seed's mountain byte-identical and every pinned map on
 its digest (`tests/generator_version_test.ts`, `tests/region_test.ts`'s "the
 alpine is the map every seed always built"). A change that needs a new draw
 on the attempt's own stream, or a number that is not a multiple of one in the
 alpine, moves every map: that is a generator VERSION row (`versions.ts`), not
-a region — stop and read `campaign`.
+a region — stop and read `pinned-maps`.
 
 ## The quality bar
 
@@ -141,10 +141,9 @@ a half-float target; the alpine pays neither).
   refusal).
 - **A place name.** Name the country for what it IS — a fell, not a named
   range; the continental, not a named state.
-- **The campaign.** Each shelf is dealt a region on purpose (the nursery on
-  the fells, the ridge in the alpine, the glacier on the continental faces —
-  `campaign`); a new region's shelf is a deliberate curation, never a side
-  effect.
+- **The pinned maps.** A race map's region is chosen on purpose
+  (`pinned-maps`); pinning one in a new region is a deliberate curation,
+  never a side effect.
 
 ## Checklist
 

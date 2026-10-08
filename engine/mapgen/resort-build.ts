@@ -246,7 +246,7 @@ export function attemptResort(
   ) => gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
-  const shape = padShape(traits.levelPads, traits.looseTops);
+  const shape = padShape(traits.looseTops);
   const raw = chained ? ground.data.slice() : null;
   let pads = pressPads(ground, liftPlans, shape);
   // v7: the peak's chair's queue ahead of a rider out of the gondola, at
@@ -306,8 +306,7 @@ export function attemptResort(
     // Under its top by a glide's fall from the pad's rim (a drag's top,
     // from the top itself), R27.
     const lift = liftPlans.find((l) => l.id === spec.from);
-    const top =
-      lift && !traits.startsAcrossTop ? startTop(ground, lift, shape.r, traits.looseTops) : null;
+    const top = lift ? startTop(ground, lift, shape.r, traits.looseTops) : null;
     if (spec.kind === "road") {
       // The lane's route to the cheapest join on a piste off another top —
       // from under its own top, slid down the fall line (R27).

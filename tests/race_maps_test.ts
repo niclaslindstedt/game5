@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RACE MAPS (`pwa/src/game/race-maps.ts`): every built discipline's
-// nine, each held to its digest, its course and its drawn loop like a
-// campaign map; the discipline's course set on every one inside its rule's
+// nine, each held to its digest, its course and its drawn loop; the
+// discipline's course set on every one inside its rule's
 // bands and billed by the figures its box quotes; the card's answer per
 // discipline remembered, a stale one not; which map a measured run is on;
 // and the pause card's line that raises the mountain again in a free ride.
 
 import { describe, expect, it } from "vitest";
 
-import { CAMPAIGN_LEVELS, NO_PICKS, pinnedFor } from "../pwa/src/game/campaign.ts";
+import { NO_PICKS, pinnedFor } from "../pwa/src/game/pinned.ts";
 import {
   RACE_MAPS,
   disciplineOf,
@@ -23,13 +23,13 @@ import { holdRaceMaps } from "./support/race-maps.ts";
 
 const BUILT = ["slalom", "giantSlalom", "superG", "downhill", "speedSki", "skiCross"] as const;
 
-/** Seeds the campaign's shelves and the trick maps already race. */
-const TAKEN = new Set([...CAMPAIGN_LEVELS.map((l) => l.seed), ...TRICK_MAPS.map((m) => m.seed)]);
+/** Seeds the trick maps already ride. */
+const TAKEN = new Set(TRICK_MAPS.map((m) => m.seed));
 
 describe("every built discipline's nine", () => {
   for (const discipline of BUILT) {
     const maps = RACE_MAPS[discipline] ?? [];
-    it(`${discipline}: nine, each its own seed and none the campaign's or a trick map's`, () => {
+    it(`${discipline}: nine, each its own seed and none a trick map's`, () => {
       expect(maps).toHaveLength(9);
       expect(new Set(maps.map((m) => m.id)).size).toBe(9);
       expect(new Set(maps.map((m) => m.seed)).size).toBe(9);
@@ -77,8 +77,7 @@ describe("the level card's answer, per discipline", () => {
     // One discipline's map is never another's.
     expect(pinnedFor({ raceMap: { slalom: downhill3.id } }, "slalom", null)).toBe(slalom1);
     expect(pinnedFor(picks, "slalom", 38)).toBeNull();
-    // A mode with no nine of its own is pinned to nothing — not even a
-    // campaign map, which only a rung rides.
+    // A mode with no nine of its own is pinned to nothing.
     expect(pinnedFor(picks, "timeTrial", null)).toBeNull();
   });
 

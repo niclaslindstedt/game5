@@ -22,7 +22,7 @@
 // WHERE A HOME MAY BE is decided here too (`planBeasts`), on the renderer's
 // own generator off the map's seed: never on or beside the loop, never in
 // the woods — at the EDGE of them, or out in a MEADOW. The map is read and
-// never written, so a campaign map's digest cannot see an animal.
+// never written, so a pinned map's digest cannot see an animal.
 
 import {
   TAU,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// A MAP'S PISTE AS A LINE ON A CARD — the shape drawn behind every campaign
-// box, so a shelf's six maps read as six different rides before a word on
+// A MAP'S PISTE AS A LINE ON A CARD — the shape drawn behind every map
+// box, so a card's nine maps read as nine different rides before a word on
 // any of them has been read.
 //
 // TWO HALVES, one format. `routeOf` turns a built map into the line: the
@@ -9,9 +9,9 @@
 // down it, seen from the valley as the start card's chart is —
 // `seed-chart.ts`), and written as an SVG path with one decimal. Building a
 // map costs most of a second, so the app never calls it: `make routes`
-// (`scripts/campaign-routes.mjs`) runs it over every pinned map and writes
-// `campaign-routes.ts`, and `tests/generator_version_test.ts` — which
-// rebuilds every pinned map anyway — holds each line to the map it is a
+// (`scripts/map-routes.mjs`) runs it over every pinned map and writes
+// `map-routes.ts`, and `tests/race_maps_test.ts` and `tests/trick_maps_test.ts` — which
+// rebuild every pinned map anyway — holds each line to the map it is a
 // picture of. A generated table is never hand-edited.
 //
 // DOM-free and three-free, so the script, the test and the card read one

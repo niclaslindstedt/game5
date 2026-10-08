@@ -54,7 +54,7 @@ import {
 
 /** What names a row. `course` is the resort's course the run was raced
  * down (R28, `Resort.course`) — one seed builds a whole ski area and the
- * campaign rides six of its courses, so the seed alone no longer names the
+ * race maps ride several of its courses, so the seed alone no longer names the
  * piste; absent on a map with one piste (a version before the resorts). */
 export type RecordKey = {
   seed: number;

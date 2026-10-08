@@ -44,7 +44,7 @@ export type BenchmarkPlan = {
   /** The kind of snow country the seed is raised in (R21) — pinned with
    * the seed, because the same seed in another region is another map. */
   region: RegionId;
-  /** WHICH GENERATOR builds it (`versions.ts`) — pinned like a campaign
+  /** WHICH GENERATOR builds it (`versions.ts`) — pinned like a race
    * map's, so the race a score was taken on is the race every later build
    * takes it on: v1, the generator before the grades (R23), which is the
    * map the sweep above chose and the one the history's scores stand on.

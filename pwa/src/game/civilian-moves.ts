@@ -72,6 +72,10 @@ export const CIVILIAN_POSES = [
   "throw1",
   "build0",
   "build1",
+  "roll0",
+  "roll1",
+  "roll2",
+  "roll3",
   "bench",
   "benchDrink",
   "benchTalk",
@@ -100,6 +104,22 @@ const STOOD: Key = {
 
 /** A key off the stance, with what is changed. */
 const at = (over: Partial<Key>): Key => ({ ...blend(STOOD, STOOD, 0), ...over });
+
+/** PUSHING A SNOWBALL along the snow at `u` of a stride: the boot stride
+ * shortened, bent well over from the hips with the knees in it, both
+ * hands low and out in front on the ball. */
+function rollKey(u: number): Key {
+  const key = walkKey(u);
+  key.feet = key.feet.map((f) => v(f.x, f.y, f.z * 0.7)) as [V3, V3];
+  key.hipY -= 0.12;
+  key.hipZ = -0.06;
+  key.pitch = 0.62;
+  key.nod = -0.15;
+  key.twist *= 0.4;
+  const reach = 0.06 * Math.sin(u * Math.PI * 4);
+  key.hands = [v(-0.17, 0.5, 0.58 + reach), v(0.17, 0.52, 0.58 - reach)];
+  return key;
+}
 
 /** THE BOOT STRIDE at `u` of a stride (two steps), 0..1. */
 function walkKey(u: number): Key {
@@ -233,6 +253,11 @@ const MOVES: Readonly<Record<CivilianTarget, { key: Key } & Partial<Holding>>> =
     }),
   },
   walk0: { key: walkKey(0) },
+  // BENT OVER THE BALL, pushing it along at a shortened stride.
+  roll0: { key: rollKey(0) },
+  roll1: { key: rollKey(0.25) },
+  roll2: { key: rollKey(0.5) },
+  roll3: { key: rollKey(0.75) },
   walk1: { key: walkKey(0.25) },
   walk2: { key: walkKey(0.5) },
   walk3: { key: walkKey(0.75) },
@@ -470,6 +495,7 @@ function swing(u: number, rise = 0.2, fall = 0.2): number {
 const DANCE_A = ["danceA0", "danceA1", "danceA2", "danceA3"] as const;
 const DANCE_B = ["danceB0", "danceB1", "danceB2", "danceB3"] as const;
 const WALK = ["walk0", "walk1", "walk2", "walk3"] as const;
+const ROLL = ["roll0", "roll1", "roll2", "roll3"] as const;
 
 /** The seat a pose is drawn on: stood, on the snow, laid back in a deck
  * chair, or on a bench. */
@@ -511,6 +537,10 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
       cycle(out, WALK, p.walked / (2 * BOOT_GAIT.step));
       break;
     }
+    case "roll":
+      // The shorter stride bent over the ball (0.7 of a step).
+      cycle(out, ROLL, p.walked / (1.4 * BOOT_GAIT.step));
+      break;
     case "drink":
       share(out, "drink", swing(u, 0.25, 0.25), null);
       break;
@@ -588,9 +618,43 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
   }
 }
 
+/** Of a throw's span, the share at which the snowball leaves his hand. */
+const LEAVES = THROW.wind + 0.12;
+
 /** Whether a snowball is in his hand: wound up and until it leaves it. */
 export function holdsSnowball(p: CivilianPose): boolean {
-  return p.activity === "throw" && p.span > 0 && p.clock / p.span < THROW.wind + 0.12;
+  return p.activity === "throw" && p.span > 0 && p.clock / p.span < LEAVES;
+}
+
+/** A SNOWBALL IN THE AIR: how long it flies, s, how far, m (across the
+ * fight's ring to the child opposite — `THROW_RING` in the plan, twice
+ * over), from what height off his hand and to what height at the far
+ * child's chest, and how high its arc rises over the straight line, m. */
+export const SNOWBALL = { flight: 0.55, reach: 6.4, from: 1.25, to: 0.85, arc: 0.7 } as const;
+
+/**
+ * WHERE A THROWN SNOWBALL IS — off a thrower's pose: from the moment it
+ * leaves his hand, flown along his heading in an arc to the child across
+ * the ring, `SNOWBALL.flight` s, then gone. Into `out` in the world, or
+ * null when none is in the air. A pure function of the pose, so of the
+ * clock.
+ */
+export function snowballAt(
+  p: CivilianPose,
+  out: { x: number; y: number; z: number },
+): { x: number; y: number; z: number } | null {
+  if (p.activity !== "throw" || p.span <= 0) return null;
+  const f = (p.clock - LEAVES * p.span) / SNOWBALL.flight;
+  if (f < 0 || f > 1) return null;
+  const fx = Math.sin(p.heading);
+  const fz = Math.cos(p.heading);
+  // Off the right hand, a little to his right, and on to the far child.
+  const d = 0.35 + (SNOWBALL.reach - 0.35) * f;
+  const side = 0.18 * (1 - f);
+  out.x = p.x + fx * d + fz * side;
+  out.z = p.z + fz * d - fx * side;
+  out.y = p.y + SNOWBALL.from + (SNOWBALL.to - SNOWBALL.from) * f + 4 * SNOWBALL.arc * f * (1 - f);
+  return out;
 }
 
 /** The far end of a hand's reach, for the suite: how far a key's hand

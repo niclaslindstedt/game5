@@ -58,6 +58,21 @@ holds it.
   sunny day the deck outside carries as many again as the room inside, and a
   good share of the seats are held all day by people not skiing at all. People
   sit at a terrace for an hour or more, and lie in deck chairs facing the sun.
+- **The base area at peak hours.** Ski area master plans size the base to
+  the mountain's comfortable carrying capacity (what its lifts carry up and
+  its runs carry down) and plan it as a STAGING area: the snow at the lifts'
+  feet where guests gather, put their skis on and wait for their friends or
+  their class before they load. Its circulation is planned from the car
+  park through the ticket windows and the rental to the lifts' feet, with
+  the walks kept short and level. So at peak hours a base reads as a
+  crossroads: people on foot crossing between the village and every lift,
+  skis on their shoulders, families at the children's pace, knots of
+  friends at a meeting point, ski-school classes gathering, and guests
+  still on their skis skating slowly across the flat from one lift's foot
+  to the next.
+- **Children at play.** Off the slopes the children make the snow a
+  playground: snowball fights across a few metres, snowmen built up ball by
+  ball — a ball rolled along the snow grows as it goes and is lifted on.
 - **The afterski.** The lifts close between about half past three and five; a
   terrace's music starts from about three, and the party runs on into the
   evening — a terrace session lasts one to three hours, often to the sunset
@@ -85,13 +100,14 @@ works, and SEATS where it has them. Every place comes out of one list,
 | Kind | Where | Source |
 | --- | --- | --- |
 | `liftFoot` | the crew's post by the booth over the load line (a gondola's at its door, a drag's at its hut) | `liftSpots` |
-| `base` | open snow about a lift's foot station, at 4, 10 and 18 m from its house | `liftSpots` |
+| `base` | open snow about a lift's foot station, at 4, 10 and 18 m from its house (up to `BASE_PLACES.lift`, three) | `liftSpots` |
 | `liftTop` | the top operator's post at his booth (chairs only) | `liftSpots` |
 | `summit` | open snow beside a chair's or a gondola's top station | `liftSpots` |
 | `terrace` | an afterski lodge's deck, its tables kept out of and their benches the seats | `lodgeSpots` |
 | `yard` | the snow before a lodge's terrace, past its racks and steps | `lodgeSpots` |
 | `porch` | the open yard before a hut's, a cabin's or a chalet's porch | `cabinSpots` |
-| `base` | open snow about the village on the valley floor | `villageSpots` |
+| `base` / `yard` | the snow before each of the ski area's own buildings, past its terrace, apron or porch — the village's a place of the base area (the ticket office's with its queue's head at its window), the mountain's a yard | `cabinSpots` |
+| `base` | open snow about the village on the valley floor (up to `BASE_PLACES.village`, five, 32 m apart) | `villageSpots` |
 
 A NEW KIND OF BUILDING (a ticket office, a restaurant, a ski school's hut, a
 patrol hut) is one source added to `SPOT_SOURCES`, returning places of the
@@ -123,6 +139,10 @@ snow between two samples is clear too.
 | instructor + class | `base` | 1 + 3–5 children on an arc | talks, points; the class stands holding skis | skis (class) | a morning and an afternoon class |
 | guest desk | `base` | 1 | stands, talks, waves | — | 08:30–16:30 |
 | walker (+ children) | `base`, `yard`, `porch` | 1–2 (+1–2) | walks a leg to another place and back, pausing at each end | skis on a shoulder (six in ten), else nothing | daytime; the odd one at night |
+| queuer | `base` before the ticket office (`Spot.queue`) | 3–7 in a line | stands queued a step (0.95 m) behind the one before, facing the window, talking | skis on a shoulder | 08:24–16:18, the morning's rush longest |
+| stroller (+ children) | `base` | 2–4 (+1–2) | goes ROUND the base: through two to four other base places in turn and back, pausing at each | skis on a shoulder (six in ten), else nothing | daytime; the odd one at night |
+| base skier | `base` | 1–3 | SKATES on his skis along the valley floor from one lift's (or the village's) place to another's, 2.2–3.6 m/s, stopping at each | his skis, on his feet | the lifts' hours, a few after |
+| meetup | `base` | a ring of 3–5 | friends at a meeting point with their skis, talking, waving one over | skis | 08:30–17:30 |
 | partier | `terrace` | 8–14 | dances on one beat, drinks, holds a beer up, talks | beer | from half past three, the whole evening |
 | terrace sitter | `terrace` seats | 8–14 | sits at a table, drinks, talks | beer | the lunch crowd from about half past eleven, then the afterski and the evening |
 | terrace knot | `terrace` | a ring of 3–5 | stands talking with mugs, sips, raises one | mug | the same |
@@ -130,12 +150,35 @@ snow between two samples is clear too.
 | cocoa | `yard`, `porch`, `base` | a ring of 2–3 | stands, sips, talks | mug | lunch, from mid-morning |
 | rester | `yard`, `porch`, `base` | 1–2 | sits in the snow, talks | — | lunch |
 | snowball fight | `yard`, `base` | 2–3 children on a wide ring | throws, ducks | — | 10:00–17:00 |
-| snowman | `yard`, `porch`, `base` | 2+ children round a snowman | packs it | — | 10:00–17:00 |
+| snowman | `yard`, `porch`, `base` | 2+ children round a snowman (its stage dealt: the bottom ball, two, finished) | packs it | — | 10:00–17:00 |
+| roller | at an unfinished snowman | 1 child | rolls the next ball over to it from 7–13 m, the ball growing from 0.1 to 0.26 m, pats it on, walks back for the next | the ball | 10:00–17:00 |
 
 The bodies are the crowd's eight (`CROWD_BODIES`); the staff wear their
 uniforms (`STAFF_DRESS`), the guests their own colours dealt off `tint`.
-A map carries at most `CIVILIAN_MOST` (160); a five-lift map with two lodges
-and ten cabins deals about 120–160, about 100–150 of them out at midday.
+A map carries at most `CIVILIAN_MOST` (360). The roles are dealt in order —
+the staff, the children at play, the ticket queue, then the guests — and the
+bulk of the guests (the walkers, strollers, skaters, meeting points, cocoa
+knots and resters) is held to a budget a role (`Role.most`), dealt over its
+places in an order of the map's own, so a village of many buildings spreads
+them over all of it and leaves room for the terraces. A five-lift map with
+its village deals about 310–360, about 290–340 of them out at midday — some
+135–185 of those on the base (the village and the lifts' feet on the valley
+floor), 35–55 of them on the move at any moment. The night keeps 8–20 there.
+
+### Going round the base
+
+A walker's way is a ROUTE (`civilian-route.ts`): stops in order, walked out
+through them to the last and back the same way, pausing at each, so every
+line he walks is one the plan checked clear. A stroller's route (and a base
+skier's) is a ROUND dealt by `dealRound`: from his place to the next base
+place in reach whose line is clear, two to four times; a skier's only along
+the flat (rise over run 0.12 at most) and always to ANOTHER lift's place, so
+he skis between the slopes. A stop is held off everyone stood or stopping at
+that place. A party walking alongside its leader keeps to one side of the
+line both ways and is eased across at a corner over the pause, never
+jumping. Since every round is built off `spotsOf`, a new base building (a
+ticket office, a ski school's hut, a restaurant) added to `SPOT_SOURCES` as a
+`base` place is a new stop on the rounds, with nothing else to change.
 
 ### When: routines and hours
 
@@ -187,6 +230,17 @@ chair (each with a sip and a word). `civilianDials` turns a `CivilianPose`
 into the weights of a moment — a walk stepped off the metres walked, a dance
 on the run's clock so a terrace keeps one beat, a cycle per chore.
 
+A SNOWBALL in the air is a pure function of the thrower's pose
+(`snowballAt`): from his hand as it leaves it, flown along his heading in an
+arc 0.7 m high over 0.55 s across the fight's ring (6.4 m) to the child
+opposite, then gone. The ball a child ROLLS is the plan's (`rolledBall`):
+ahead of his feet, growing as he goes, stood against the snowman while he
+pats it on. Both are one instanced ball in the view. A snowman is built to
+its dealt stage. A guest on his skis is drawn on the crowd's own skiing
+figure (`crowd-shapes.ts`), posed by the crowd's dials (`dialsOf`: the
+player's skate, his strides counted off the metres covered) and dressed in a
+crowd outfit.
+
 `civilians-view.ts` draws them instanced, one mesh a body and a cut (near to
 35 m, mid to 120 m, far to 600 m and culled past it), every buffer sized once
 off the plan; the deck chairs and snowmen are one static mesh. The view is
@@ -203,3 +257,6 @@ terraces after dark — and goes with the map. `make civilians` is the lab.
 - A ski area's base-lodge master planning paper (seat turnover, deck use,
   non-skiers' share of seating).
 - Guides to the afterski's hours.
+- Ski area master development plans (comfortable carrying capacity, base
+  area staging capacity, circulation from the car park to the lifts' feet,
+  peak-day design standards).

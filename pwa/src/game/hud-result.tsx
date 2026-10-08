@@ -24,10 +24,6 @@
 // (`HudSnapshot.best`), so the plate can say the run beat it after the book
 // has been rewritten.
 //
-// ON A CAMPAIGN RUNG the plate adds three lines — the rung, what it paid
-// (the points) and what the finish did to the
-// ladder — and NEXT RUN takes NEW MOUNTAIN's place, skiing the rung the ladder
-// opened (`campaign-run.ts` writes the lines; this only draws them).
 // A TRICKS RUN'S PLATE is the score where the time was, and no book under
 // it: the record book is a book of times (`records.ts`).
 //
@@ -56,8 +52,6 @@ import { isSkiId, skisById } from "@engine";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { SLALOM, SPEED_SKI } from "@engine";
 
-import type { CampaignLevel } from "./campaign.ts";
-import type { CampaignPlate } from "./campaign-run.ts";
 import { SlalomBoard } from "./hud-board.tsx";
 import { CrossPlate } from "./hud-cross.tsx";
 import { BigAirPlate } from "./hud-bigair.tsx";
@@ -75,8 +69,6 @@ export function ResultPlate({
   onAgain,
   onNew,
   onMenu,
-  campaign = null,
-  onNext,
   onReplay = null,
   onSecond = null,
 }: {
@@ -88,11 +80,6 @@ export function ResultPlate({
   onAgain: () => void;
   onNew: () => void;
   onMenu: () => void;
-  /** A CAMPAIGN RUNG's lines (`campaign-run.ts`): what it paid and what it
-   * did to the ladder — and the NEXT press in place of NEW MAP where the
-   * ladder has a map open after it. */
-  campaign?: CampaignPlate | null;
-  onNext?: (next: CampaignLevel) => void;
   /** The race watched back (`replay-run.ts`), or null where there is no
    * recording of it. */
   onReplay?: (() => void) | null;
@@ -273,20 +260,6 @@ export function ResultPlate({
                   : `${STRINGS.resultBest(best.time, skisName(best.skis), best.at)} · ${STRINGS.resultOff(result.time - best.time)}`}
             </span>
           )}
-          {/* THE CAMPAIGN'S lines on a rung: the rung, what it paid, and
-              what the finish did to the ladder. */}
-          {campaign && <span class="hud-card-note hud-result-rung">{campaign.title}</span>}
-          {campaign && (
-            <span
-              class="hud-card-note hud-result-award"
-              data-cleared={campaign.cleared ? "1" : undefined}
-            >
-              {campaign.award}
-            </span>
-          )}
-          {campaign?.ladder && (
-            <span class="hud-card-note hud-result-ladder">{campaign.ladder}</span>
-          )}
           {/* THE SECOND RUN, or why there is none. */}
           {(second?.kind === "out" || second?.kind === "short") && (
             <span class="hud-card-note hud-result-penalty">
@@ -368,22 +341,9 @@ export function ResultPlate({
                   ? raceAgain(slalom)
                   : STRINGS.resultAgain}
             </button>
-            {campaign ? (
-              campaign.next &&
-              onNext && (
-                <button
-                  type="button"
-                  class="hud-mini hud-result-act"
-                  onClick={() => campaign.next && onNext(campaign.next)}
-                >
-                  {STRINGS.plateNext}
-                </button>
-              )
-            ) : (
-              <button type="button" class="hud-mini hud-result-act" onClick={onNew}>
-                {STRINGS.resultNew}
-              </button>
-            )}
+            <button type="button" class="hud-mini hud-result-act" onClick={onNew}>
+              {STRINGS.resultNew}
+            </button>
             {onReplay && (
               <button type="button" class="hud-mini hud-result-act" onClick={onReplay}>
                 {STRINGS.replayWatch}

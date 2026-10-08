@@ -2,7 +2,7 @@
 // THE GENERATOR'S VERSIONS, and the three things about them that are only
 // true because something refuses to let them stop being true.
 //
-// The scheme (engine/mapgen/versions.ts): a campaign map names the version
+// The scheme (engine/mapgen/versions.ts): a pinned map names the version
 // of the generator it was curated under, that version keeps building it,
 // and everything else in the game takes the current rules. Three halves of
 // it fail SILENTLY without a case here:
@@ -15,17 +15,11 @@
 //     and worked around by every session after this one.
 //   * THE RULES MOVING UNDER A PINNED MAP. Nothing in the generator knows
 //     that seed 10 used to put its third checkpoint somewhere else, so every
-//     map is REBUILT here and held to the digest it was curated with. When
+//     map is REBUILT and held to the digest it was curated with
+//     (`race_maps_test.ts`, `trick_maps_test.ts`). When
 //     this goes red, read `versions.ts`'s header before touching a digest: a
 //     map deliberately moved writes its new digest down; the rules moving
 //     under one that did not owes a version row instead.
-//
-// Every pinned map is built here anyway, so the two other things a campaign
-// map quotes about itself without a build are held to it too: the day on its
-// box (`CampaignLevel.day`) and the loop drawn behind it (`campaign-routes.ts`,
-// `make routes`). Four ski areas, each built once and raced down three to
-// five courses, is the cost, which is why this is its own file: on a shard it is the whole
-// file's floor.
 
 import { describe, expect, it } from "vitest";
 
@@ -42,19 +36,15 @@ import {
 } from "@engine";
 
 import { BENCHMARK } from "../pwa/src/game/benchmark-plan.ts";
-import { CAMPAIGN_LEVELS, buildCampaignLevel, campaignSky } from "../pwa/src/game/campaign.ts";
-import { CAMPAIGN_ROUTES } from "../pwa/src/game/campaign-routes.ts";
-import { routeOf } from "../pwa/src/game/route-shape.ts";
 import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
-/** Every version something committed actually stands on: the campaign's
- * maps, the trick maps (`trick_maps_test.ts` holds their digests) and the
+/** Every version something committed actually stands on: the race maps
+ * (`race_maps_test.ts` holds their digests), the trick maps (`trick_maps_test.ts` holds their digests) and the
  * benchmark's race — each a map pinned so that a result on it is a result on
  * the same snow. */
 const pinned = new Set([
-  ...CAMPAIGN_LEVELS.map((level) => level.version),
   ...TRICK_MAPS.map((map) => map.version),
   ...Object.values(RACE_MAPS).flatMap((maps) => maps.map((map) => map.version)),
   BENCHMARK.version,
@@ -110,12 +100,12 @@ describe("the generator's version registry", () => {
   });
 });
 
-describe("what the campaign pins", () => {
+describe("what the pinned maps stand on", () => {
   it("gives every map a version this build can still build", () => {
-    for (const level of CAMPAIGN_LEVELS) {
+    for (const version of pinned) {
       expect(
-        isGeneratorVersion(level.version),
-        `${level.id} names generator v${level.version}, which this build no longer carries — ` +
+        isGeneratorVersion(version),
+        `a pinned map names generator v${version}, which this build no longer carries — ` +
           "either restore the row in engine/mapgen/versions.ts or move the map onto a " +
           "version that exists (a curation: re-rate, re-time, re-name, write the new digest)",
       ).toBe(true);
@@ -132,30 +122,4 @@ describe("what the campaign pins", () => {
         "engine/mapgen/versions.ts and every trait branch that only existed for it",
     ).toEqual([]);
   });
-
-  for (const level of CAMPAIGN_LEVELS) {
-    it(`${level.id} (seed ${level.seed}, v${level.version}) still builds the map it was curated on`, () => {
-      const built = buildCampaignLevel(level);
-      expect(built.version).toBe(level.version);
-      // The course its box signs, raced down the ski area it names (R28).
-      expect(built.resort?.course, `${level.id} races another course`).toBe(level.course);
-      expect(built.grade, `${level.id}'s box signs the wrong colour`).toBe(level.grade);
-      expect(
-        levelDigest(built),
-        `${level.id} builds to a different map from the one it pins — read engine/mapgen/versions.ts's header: ` +
-          "a map deliberately moved writes the new digest down in campaign-levels.ts; the rules " +
-          "moving under one that did not owes a version row, not a new digest",
-      ).toBe(level.digest);
-      // The day its box bills, as the run is stood up in it.
-      const sky = campaignSky(level);
-      const day = sky ? withSky(built, sky) : built;
-      expect(weatherOf(day).kind, `${level.id}'s box bills the wrong sky`).toBe(level.day.weather);
-      expect(day.sun.hour, `${level.id}'s box bills the wrong hour`).toBeCloseTo(level.day.hour, 1);
-      // The loop drawn behind its box.
-      expect(
-        CAMPAIGN_ROUTES[level.id],
-        `${level.id}'s line in campaign-routes.ts is not its loop — run \`make routes\``,
-      ).toBe(routeOf(built));
-    });
-  }
 });

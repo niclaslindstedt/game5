@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -253,12 +253,13 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter,
+# The models the game ships: every pair of skis, the heli-ski helicopter
+# and its air ambulance,
 # the mountain snowmobile and the night's piste machine, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
@@ -268,6 +269,7 @@ blender:
 models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
@@ -554,6 +556,16 @@ balloon:
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE RESCUE LAB: the air ambulance on the run after an injured one
+# (docs/rescue.md) — where it lands, the crew scooping him onto the
+# stretcher frame by frame (--sheet=scoop) and lifting it, the carry stride by stride, the loading through the door, the
+# lift-off and the wash, the next run skied past it, after dark — through
+# the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
+# and every frame alone. Its own one-off bundle from pwa/rescue-preview.html
+# (never deployed); needs a Chromium like `world`. ARGS="--sheet=carry,load", "--at=0.6".
+rescue:
+	npm run rescue -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
 # skied into a trunk, flown into one head first, thrown onto the snow, onto
 # his feet, onto a tree's top or a post's, caught by the grimbear — frame by
@@ -807,22 +819,22 @@ analyze:
 
 # RATE generated maps — how HARD each one is and what KIND of hard, on the
 # eight axes of engine/rating/ folded into one index. `--stats` is the
-# population per axis; CAMPAIGN=1 audits the committed ladder (every map on
-# its own version and held to its digest, the bot's time, the climb).
-# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate CAMPAIGN=1`
+# population per axis; RACE=<discipline> audits that discipline's nine race
+# maps (every map on its own version and held to its digest, the bot's time).
+# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate RACE=superG`
 rate:
-	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(CAMPAIGN),--campaign,) $(if $(RACE),--race $(RACE),) $(ARGS)
+	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
 # THE DIFFICULTY SCHEMATIC: one map from above with what makes it hard drawn
 # over it — the corners, the climbs, the drifts, the walled woods — and the
-# eight axes beside it, to previews/difficulty-<seed>.png. CAMPAIGN=1 draws
-# one sheet per committed map.
-# `make difficulty SEED=38` · `make difficulty CAMPAIGN=1`
+# eight axes beside it, to previews/difficulty-<seed>.png. RACE=<discipline>
+# draws one sheet per race map of that discipline.
+# `make difficulty SEED=38` · `make difficulty RACE=downhill`
 difficulty:
-	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(CAMPAIGN),--campaign,) $(ARGS)
+	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
-# THE CAMPAIGN'S ROUTES: every pinned map's loop written down as the line its
-# box on the card draws (pwa/src/game/campaign-routes.ts, generated).
+# THE MAP ROUTES: every pinned map's loop written down as the line its box
+# on the card draws (pwa/src/game/map-routes.ts, generated).
 # `make routes` · `make routes ARGS=--check`
 routes:
 	npm run routes -- $(ARGS)

@@ -75,6 +75,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "the main rotor, the tail rotor); the code's stand-in is a cabin, a boom, the skids and the rotors",
   },
   {
+    asset: "Air ambulance",
+    ids: ["rescue"],
+    source: "blender",
+    code: ["pwa/src/game/heli-view.ts"],
+    drawnBy: "pwa/src/game/heli-view.ts",
+    blender: {
+      builder: "scripts/blender/rescue.py",
+      files: ["rescue.glb"],
+      pattern: "rescue.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the mountain rescue helicopter that lands beside a skier too hurt to get up: the heli's " +
+      "airframe and nodes (its builder run whole) in signal yellow with an anthracite band, the " +
+      "blue star on white, a rescue hoist over the sliding door, a searchlight and wire cutters",
+  },
+  {
     asset: "Snowmobile",
     ids: ["sled"],
     source: "blender",

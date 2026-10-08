@@ -359,6 +359,8 @@ function terminal(kit: FacadeKit, w: number, ground: (x: number, z: number) => n
   kit.cap(chamfered(w, z0, z1, c), 0, FACADE.plain, T.under, true);
   // The two columns at its far end, a lightning rod on its back.
   for (const sx of [-1, 1]) {
+    // `station-plan.ts`'s HOOD_INSET: the hood is sized so the chairs run
+    // between these.
     const x = sx * (w / 2 - 0.7);
     const z = z0 + 1.2;
     kit.box(x - 0.2, ground(x, z) - 0.4, z - 0.2, x + 0.2, 0, z + 0.2, FACADE.steel, T.as, null);

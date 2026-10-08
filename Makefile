@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -242,12 +242,13 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter,
+# The models the game ships: every pair of skis, the heli-ski helicopter
+# and its air ambulance,
 # the mountain snowmobile and the night's piste machine, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
@@ -257,6 +258,7 @@ blender:
 models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
@@ -519,6 +521,16 @@ balloon:
 # Chromium like `world`. ARGS="--sheet=kill,moves", "--views=stride".
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE RESCUE LAB: the air ambulance on the run after an injured one
+# (docs/rescue.md) — where it lands, the crew knelt by the stretcher and
+# lifting it, the carry stride by stride, the loading through the door, the
+# lift-off and the wash, the next run skied past it, after dark — through
+# the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
+# and every frame alone. Its own one-off bundle from pwa/rescue-preview.html
+# (never deployed); needs a Chromium like `world`. ARGS="--sheet=carry,load", "--at=0.6".
+rescue:
+	npm run rescue -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
 # skied into a trunk, flown into one head first, thrown onto the snow, onto

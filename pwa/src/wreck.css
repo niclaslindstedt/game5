@@ -122,3 +122,21 @@
     animation: none;
   }
 }
+
+/* THE INJURED CARD (`rescue.ts`): the same card going WHITE — the word in
+   the rescue's orange, and the lines under it darkening as the white comes
+   up under them. */
+.hud-death[data-white] {
+  background: rgb(255 255 255 / calc(var(--death-dark, 0) * 100%));
+}
+.hud-death[data-white] .hud-death-word {
+  color: #f07d12;
+  text-shadow:
+    0 0 2vmin rgb(0 0 0 / calc((1 - var(--death-dark, 0)) * 70%)),
+    0 0.6vmin 0 rgb(90 40 0 / 60%);
+}
+.hud-death[data-white] .hud-death-cause,
+.hud-death[data-white] .hud-death-again {
+  color: color-mix(in srgb, #1b2230 calc(var(--death-dark, 0) * 100%), #f1e7e2);
+  text-shadow: 0 0 1.2vmin rgb(0 0 0 / calc((1 - var(--death-dark, 0)) * 90%));
+}

@@ -21,8 +21,11 @@
 //   resort    `?seed=`'s free ride through the game's renderer at `?hour=`,
 //             at a named view (`window.__civilians.shoot(view)`): `lift`
 //             (a lift's foot and its crew), `terrace` (an afterski lodge's
-//             terrace), `base` (the base area round a lift's foot), `walker`
-//             (a walker close up), `cocoa` (a ring with mugs), `overview`.
+//             terrace), `base` (the base area round a lift's foot), `square`
+//             (the base's busiest place, wide), `walker` (a walker close up),
+//             `skier` (a guest skating between the lifts' feet), `cocoa` (a
+//             ring with mugs), `kids`, `snowball` (one in the air across a
+//             fight), `roller` (a ball rolled to a snowman), `overview`.
 //
 // Sets `window.__done` when a sheet is on screen; the resort sheet sets it
 // once loaded and answers `__civilians.shoot`.
@@ -31,7 +34,12 @@ import * as THREE from "three";
 import { CROWD_BODIES, NEUTRAL_INPUT, createGame, step, type CrowdBody } from "@engine";
 
 import { PART, civilianKit, kitParts, type Head } from "../game/civilian-dress.ts";
-import { CIVILIAN_POSES, civilianDials, type CivilianTarget } from "../game/civilian-moves.ts";
+import {
+  CIVILIAN_POSES,
+  civilianDials,
+  snowballAt,
+  type CivilianTarget,
+} from "../game/civilian-moves.ts";
 import {
   civilianAt,
   civilianHour,
@@ -92,6 +100,7 @@ function standIn(body: CrowdBody, dress: Dress, tint: number, role: Civilian["ro
     home: { x: 0, y: 0, z: 0, heading: 0, seat: null },
     deck: false,
     leg: null,
+    skis: false,
     routine: [],
     total: 1,
     offset: 0,
@@ -389,7 +398,26 @@ const MOVES: readonly Move[] = [
     head: "beanie",
   },
   { name: "build a snowman", act: "build", span: 3, carry: "none", body: "child", head: "helmet" },
+  {
+    name: "roll a ball to the snowman",
+    act: "roll",
+    span: 1.6,
+    carry: "none",
+    body: "child",
+    walk: 0.5,
+    head: "beanie",
+  },
 ];
+
+/** A white ball of `r` m at (x, y, z) — a snowball, a rolled one. */
+function snowball(scene: THREE.Scene, x: number, y: number, z: number, r: number): void {
+  const ball = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(r, 1),
+    new THREE.MeshLambertMaterial({ color: 0xf2f5f8 }),
+  );
+  ball.position.set(x, y, z);
+  scene.add(ball);
+}
 const FRAMES = 8;
 
 function moveCells(): Cell[] {
@@ -435,6 +463,21 @@ function moveCells(): Cell[] {
           if (mv.seat === 0.32) deckchairs(scene, [[0, 0, facing]]);
           if (mv.act === "build")
             snowmen(scene, [[0.65 * Math.sin(facing), 0, 0.65 * Math.cos(facing)]]);
+          if (mv.act === "roll") {
+            // The ball ahead of his feet, grown over the strip.
+            const r = 0.1 + 0.16 * u;
+            const d = 0.3 + r;
+            snowball(scene, d * Math.sin(facing), r * 0.92, d * Math.cos(facing), r);
+          }
+          if (mv.act === "throw") {
+            // The snowball as it leaves his hand — its first metre in the
+            // cell, the rest of its flight the resort's `snowball` view.
+            const b = snowballAt(
+              { ...pose, x: 0, y: 0, z: 0, heading: facing },
+              { x: 0, y: 0, z: 0 },
+            );
+            if (b && Math.hypot(b.x, b.z) < 1.1) snowball(scene, b.x, b.y, b.z, 0.06);
+          }
           return stage(scene, 2.2, 0.85, 0.15, 0.18);
         },
       };
@@ -442,9 +485,20 @@ function moveCells(): Cell[] {
   );
 }
 
-function snowmen(scene: THREE.Scene, at: [number, number, number][]): void {
+function snowmen(
+  scene: THREE.Scene,
+  at: [number, number, number][],
+  stages: readonly (1 | 2 | 3)[] = [],
+): void {
   const plan = {
-    props: at.map(([x, y, z]) => ({ kind: "snowman" as const, x, y, z, heading: 0.5 })),
+    props: at.map(([x, y, z], k) => ({
+      kind: "snowman" as const,
+      x,
+      y,
+      z,
+      heading: 0.5,
+      stage: stages[k] ?? 3,
+    })),
   } as unknown as CivilianPlan;
   scene.add(
     new THREE.Mesh(
@@ -562,6 +616,22 @@ function propCells(): Cell[] {
         );
       });
       return stage(scene, 2.6, 0.6, 0.5, 0.35);
+    },
+  });
+  cells.push({
+    name: "a snowman's stages: 1, 2, done",
+    foot: "",
+    draw(scene) {
+      snowmen(
+        scene,
+        [
+          [-1.1, 0, 0],
+          [0, 0, 0],
+          [1.1, 0, 0],
+        ],
+        [1, 2, 3],
+      );
+      return stage(scene, 3.4, 0.6, 0.3, 0.2);
     },
   });
   for (const lod of CROWD_LODS) {
@@ -722,6 +792,15 @@ async function resort(): Promise<void> {
     }
     return best;
   };
+  /** Ski the clock on (unseen) until `find` finds something, or give up. */
+  const until = <T>(find: () => T | undefined, most = 120 * 60): T | undefined => {
+    for (let k = 0; k < most; k++) {
+      const hit = find();
+      if (hit) return hit;
+      step(state, NEUTRAL_INPUT);
+    }
+    return undefined;
+  };
   const shots: Record<string, () => string> = {
     lift() {
       const crew = out().find((q) => plan.people[q.i].role === "liftAttendant");
@@ -820,6 +899,68 @@ async function resort(): Promise<void> {
       if (!c) return "no children at play";
       from(c.p, c.p.heading + 0.4, 7, 2.4, 45, 0.6);
       return `${plan.people[c.i].role}, ${c.p.activity}`;
+    },
+    skier() {
+      // A guest skating between the lifts' feet, caught mid-stride.
+      const skaters = plan.people.map((c, i) => ({ c, i })).filter(({ c }) => c.skis);
+      if (skaters.length === 0) return "no skaters";
+      const p = freshCivilianPose();
+      const found = until(() =>
+        skaters.find(({ i }) => {
+          civilianAt(plan, i, state.t, hour, p);
+          return p.shown && p.activity === "skate";
+        }),
+      );
+      if (!found) return "nobody skating";
+      civilianAt(plan, found.i, state.t, hour, p);
+      from(p, p.heading + 1.25, 7, 2, 45, 0.9);
+      return `a guest skating the base, ${found.c.leg!.speed.toFixed(1)} m/s, ${found.c.leg!.points.length} stops`;
+    },
+    snowball() {
+      // A snowball in the air across a fight's ring, seen from the side.
+      const kids = plan.people.map((c, i) => ({ c, i })).filter(({ c }) => c.role === "snowballer");
+      const p = freshCivilianPose();
+      const b = { x: 0, y: 0, z: 0 };
+      const found = until(
+        () =>
+          kids.find(({ i }) => {
+            civilianAt(plan, i, state.t, hour, p);
+            return p.shown && snowballAt(p, b) !== null && Math.hypot(b.x - p.x, b.z - p.z) > 2.5;
+          }),
+        120 * 120,
+      );
+      if (!found) return "no snowball in the air";
+      civilianAt(plan, found.i, state.t, hour, p);
+      const mid = {
+        x: p.x + Math.sin(p.heading) * 3.2,
+        y: p.y,
+        z: p.z + Math.cos(p.heading) * 3.2,
+      };
+      from(mid, p.heading + Math.PI / 2, 8, 2.2, 45, 0.9);
+      return "a snowball across the ring";
+    },
+    roller() {
+      // A child rolling a ball to the snowman.
+      const kids = plan.people.map((c, i) => ({ c, i })).filter(({ c }) => c.role === "roller");
+      const p = freshCivilianPose();
+      const found = until(() =>
+        kids.find(({ i }) => {
+          civilianAt(plan, i, state.t, hour, p);
+          return p.shown && p.activity === "roll";
+        }),
+      );
+      if (!found) return "nobody rolling";
+      civilianAt(plan, found.i, state.t, hour, p);
+      // From the side and a little ahead, the snowman he rolls it to beyond.
+      from(p, p.heading + 1.2, 4.5, 1.4, 45, 0.5);
+      return "a ball rolled to the snowman";
+    },
+    square() {
+      // The base area's busiest place, wide, from a little up.
+      const s = busiestSpot("base")!;
+      from(s, s.heading + 2.2, 38, 11, 55, 0);
+      const n = out().filter((q) => Math.hypot(q.p.x - s.x, q.p.z - s.z) < 60).length;
+      return `the base, ${n} out within 60 m`;
     },
     overview() {
       const s = busiestSpot("liftFoot") ?? busiestSpot("base")!;

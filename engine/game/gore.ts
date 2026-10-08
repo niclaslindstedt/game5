@@ -104,10 +104,12 @@ function tearDose(state: GameState, piece: GorePiece): number {
   return GORE.sever[TEAR[piece].row] * (1 + GORE.spread * (2 * u - 1));
 }
 
-/** Whether a mortal wound holds him where he lies: never stood back up,
- * by a press or by the reset — the run is the app's to end. */
+/** Whether a mortal wound — or a body hurt too badly to ski on
+ * (`rescue.ts`) — holds him where he lies: never stood back up, by a press
+ * or by the reset; the run is the app's to end. */
 export function holdsHim(state: GameState): boolean {
-  return (state.gore?.mortal ?? -1) >= 0;
+  const g = state.gore;
+  return !!g && (g.mortal >= 0 || g.injured >= 0);
 }
 
 /** Whether he is dead. */

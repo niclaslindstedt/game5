@@ -80,6 +80,9 @@ export type Spot = {
   keepOut: readonly Rect[];
   /** Where a member of staff works, in the world, and the way he faces. */
   post?: { x: number; z: number; heading: number };
+  /** Where a QUEUE starts (its head, at a window or a door) and the way it
+   * runs out from there — a ticket office's line. */
+  queue?: { x: number; z: number; heading: number };
   seats: readonly Seat[];
   /** The building or lift the place belongs to. */
   of: string;
@@ -260,11 +263,32 @@ export function civilianClear(
     for (const q of t.points) if (Math.hypot(q.x - x, q.z - z) < m) return false;
   }
   if (!clearOfLifts(level, x, z)) return false;
+  // The lifts' clearance is a box, not a distance: the spare kept round it
+  // as eight points on a ring.
+  if (spare > 0) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      if (!clearOfLifts(level, x + Math.sin(a) * spare, z + Math.cos(a) * spare)) return false;
+    }
+  }
   const lane = C.lane + spare;
   for (const l of o.lanes) if (toSegment(x, z, l.ax, l.az, l.bx, l.bz) < lane) return false;
   const ring = BOARDING_RING.radius + CORRAL_TAIL / 2 + C.ring + spare;
   for (const r of o.rings) if (Math.hypot(r.x - x, r.z - z) < ring) return false;
   return true;
+}
+
+/** Whether (x, z) lies past the HUB's valley-side edge (R29) — off the
+ * base, down toward the valley. The base's rounds keep to its mountain
+ * side; what lies below it is the valley's own. False off the hub's
+ * reach across, or on a map with none. */
+export function pastHub(level: Level, x: number, z: number): boolean {
+  const hub = level.resort?.hub;
+  if (!hub || hub.bottom.length === 0) return false;
+  const i = Math.round((x - hub.x0) / hub.step);
+  if (i < 0 || i >= hub.bottom.length) return false;
+  const down = Math.sign(hub.bottom[i] - hub.top[i]);
+  return (z - hub.bottom[i]) * down > 0;
 }
 
 /** Whether a point of `spot`'s frame is a place to stand: on a deck, on it
@@ -280,6 +304,12 @@ export function standable(level: Level, spot: Spot, lx: number, lz: number): boo
 }
 
 // --- THE SOURCES ----------------------------------------------------------
+
+/** THE BASE AREA's places: how many patches of open snow about a lift's
+ * foot station and about the village, and how far apart the village's
+ * are, m. At peak hours a real base is a crossroads of people on foot —
+ * the more places, the more of them standing about and walking between. */
+export const BASE_PLACES = { lift: 3, village: 5, apart: 32 } as const;
 
 /** Candidate patches about a box (a station house): `gap` m off each of its
  * four sides, each a rectangle `w` × `d` facing out from the box — kept
@@ -379,7 +409,7 @@ function liftSpots(level: Level): Spot[] {
     [4, 10, 18]
       .flatMap((gap) => aboutBox(level, houseBox(level, p, 0), gap, 9, 6))
       .filter((b, k, all) => all.findIndex((o) => Math.hypot(o.x - b.x, o.z - b.z) < 12) === k)
-      .slice(0, 2)
+      .slice(0, BASE_PLACES.lift)
       .forEach((b, k) =>
         out.push({ id: `${id}-base${k}`, kind: "base", ...b, keepOut: [], seats: [], of: id }),
       );
@@ -486,7 +516,10 @@ function cabinSpots(level: Level): Spot[] {
     const d = CABINS[c.kind];
     const z0 = d.depth / 2 + d.reach.front + 0.8;
     const own = isResortBuilding(c.kind);
+    // The ticket office's line runs straight out from its window.
+    const head = frameAt(c.x, c.z, c.heading, 0, z0);
     out.push({
+      ...(c.kind === "ticket" ? { queue: { ...head, heading: c.heading } } : {}),
       id: `${c.id}-${own ? "front" : "porch"}`,
       kind: own ? (isMountainBuilding(c.kind) ? "yard" : "base") : "porch",
       x: c.x,
@@ -507,7 +540,7 @@ function villageSpots(level: Level): Spot[] {
   const v = level.resort?.village;
   if (!v) return [];
   const out: Spot[] = [];
-  for (let k = 0; k < 12 && out.length < 3; k++) {
+  for (let k = 0; k < 12 && out.length < BASE_PLACES.village; k++) {
     const a = (k / 12) * Math.PI * 2;
     for (const r of [20, 35, 50, 70, 95, 120]) {
       const box = {
@@ -520,7 +553,7 @@ function villageSpots(level: Level): Spot[] {
       };
       const hit = aboutBox(level, box, 0, 8, 6)[0];
       if (!hit) continue;
-      if (out.some((o) => Math.hypot(o.x - hit.x, o.z - hit.z) < 40)) continue;
+      if (out.some((o) => Math.hypot(o.x - hit.x, o.z - hit.z) < BASE_PLACES.apart)) continue;
       out.push({
         id: `village${out.length}`,
         kind: "base",

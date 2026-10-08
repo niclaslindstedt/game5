@@ -3,6 +3,8 @@
 // its own so `state.ts` can carry them without importing the step that
 // deals them.
 
+import type { Injury } from "./state.ts";
+
 /** THE PIECES a body can lose, in the order `GoreState.lost` keeps them a
  * bit each: the head off at the neck, a whole arm off at the shoulder, the
  * forearm off at the elbow, a whole leg off at the hip, the shin off at the
@@ -95,6 +97,11 @@ export type GoreState = {
   mortal: number;
   dead: number;
   cause: DeathCause | null;
+  /** HURT TOO BADLY TO SKI ON and alive (`rescue.ts`): the run clock he
+   * was found so (−1 not), and the injury that keeps him down — from then
+   * he is never stood back up either, and the rescue is called. */
+  injured: number;
+  injury: Injury | null;
   beats: number;
   rate: number;
   blood: number;
@@ -115,6 +122,8 @@ export function freshGore(): GoreState {
     mortal: -1,
     dead: -1,
     cause: null,
+    injured: -1,
+    injury: null,
     beats: 0,
     rate: 0,
     blood: 0,
@@ -132,7 +141,8 @@ export function lostPiece(g: GoreState | undefined, piece: GorePiece): boolean {
 
 /** What the wounds put on the run's events: a MORTAL WOUND — a piece torn
  * off, the skull crushed, the trunk opened or the body run through on a
- * spike, and where, world frame, m — and DEATH, and of what. */
+ * spike, and where, world frame, m — DEATH, and of what — and a body
+ * HURT TOO BADLY TO SKI ON, by what and where (`rescue.ts`). */
 export type GoreEvent =
   | {
       kind: "gore";
@@ -143,4 +153,5 @@ export type GoreEvent =
       y: number;
       z: number;
     }
-  | { kind: "death"; t: number; cause: DeathCause };
+  | { kind: "death"; t: number; cause: DeathCause }
+  | { kind: "injured"; t: number; injury: Injury; x: number; y: number; z: number };

@@ -264,6 +264,7 @@ export function soundForEvent(
         shape: { gain: 1.1, pitch: 1, stretch: 1 },
       };
     case "death":
+    case "injured":
       return null;
 
     case "bump": {

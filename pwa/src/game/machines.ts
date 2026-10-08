@@ -25,6 +25,8 @@ import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { hangIn, PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
+import type { Outfit } from "./outfit.ts";
+import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -99,7 +101,13 @@ const MODEL_WAIT = 5000;
 
 /** The snow the machines throw and read: the map's spray and snow cloud,
  * and what the snow is at a point. */
-export type MachineSnow = { spray: Spray; cloud: SnowCloud; snowAt: SnowSampler };
+export type MachineSnow = {
+  spray: Spray;
+  cloud: SnowCloud;
+  snowAt: SnowSampler;
+  /** The player's outfit — the injured skier's on the next run's stretcher. */
+  wearing?: () => Outfit;
+};
 
 export function createMachines(
   level: Level,
@@ -139,6 +147,9 @@ export function createMachines(
     const top = TOPSHEETS[state.skier.spec.id];
     sled.dressRack(top.body, top.trim);
   }
+  // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),
+  // built with the first run that carries its injuries.
+  let rescue: RescueScene | null = null;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -184,6 +195,12 @@ export function createMachines(
       lastDt = dt;
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
+      if (s.gore && !rescue) {
+        rescue = createRescueScene(level, haze);
+        group.add(rescue.group);
+      }
+      if (rescue && fx.wearing) rescue.dress(fx.wearing());
+      rescue?.frame(s, dt, fx.cloud, fx.snowAt);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
@@ -197,6 +214,7 @@ export function createMachines(
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
+      rescue?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
       if (floods.length === 0) return others;
       floods.push(...others);
@@ -237,6 +255,7 @@ export function createMachines(
       groomers?.dispose();
       para?.dispose();
       balloon?.dispose();
+      rescue?.dispose();
     },
   };
 }

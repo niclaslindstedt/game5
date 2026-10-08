@@ -494,8 +494,22 @@ export function buildCivilianFigure(body: CrowdBody, lod: CrowdLod): THREE.Buffe
   const key = `${body}:${lod}`;
   const cached = built.get(key);
   if (cached) return cached;
+  const base = buildPosedFigure(body, lod, civilianTargets(body), key);
+  built.set(key, base);
+  return base;
+}
+
+/** A BODY AT ONE CUT AT `targets` (the first the base, the rest relative
+ * morph targets) — the civilians' figure built on poses of a caller's own
+ * (the air ambulance's crew, `rescue-crew.ts`). Not cached. */
+export function buildPosedFigure(
+  body: CrowdBody,
+  lod: CrowdLod,
+  targets: readonly { posed: Posed; holding: Holding }[],
+  name = `${body}:${lod}`,
+): THREE.BufferGeometry {
   const look = CROWD_LOOKS[body];
-  const shapes = civilianTargets(body).map(({ posed, holding }) => {
+  const shapes = targets.map(({ posed, holding }) => {
     const fig = new Figure(true);
     emit(fig, posed, look, lod, holding);
     return fig.s.geometry();
@@ -503,9 +517,9 @@ export function buildCivilianFigure(body: CrowdBody, lod: CrowdLod): THREE.Buffe
   const base = shapes[0];
   const bp = base.getAttribute("position").array as Float32Array;
   const bn = base.getAttribute("normal").array as Float32Array;
-  const delta = (g: THREE.BufferGeometry, name: "position" | "normal", from: Float32Array) => {
-    const a = g.getAttribute(name).array as Float32Array;
-    if (a.length !== from.length) throw new Error(`civilian ${key}: a pose changed the mesh`);
+  const delta = (g: THREE.BufferGeometry, attr: "position" | "normal", from: Float32Array) => {
+    const a = g.getAttribute(attr).array as Float32Array;
+    if (a.length !== from.length) throw new Error(`civilian ${name}: a pose changed the mesh`);
     const out = new Float32Array(a.length);
     for (let i = 0; i < a.length; i++) out[i] = a[i] - from[i];
     return new THREE.Float32BufferAttribute(out, 3);
@@ -518,7 +532,6 @@ export function buildCivilianFigure(body: CrowdBody, lod: CrowdLod): THREE.Buffe
     new THREE.Vector3(0, look.height / 2, 0),
     look.height * 1.6,
   );
-  built.set(key, base);
   return base;
 }
 
@@ -625,8 +638,10 @@ function deckchair(s: Shape, o: V3, heading: number, stripe: THREE.Color): void 
 }
 
 /** A snowman: three balls of packed snow, coal eyes and buttons, a carrot,
- * two stick arms, the children's own size. */
-function snowman(s: Shape, o: V3, heading: number): void {
+ * two stick arms, the children's own size — at its `stage`: the bottom
+ * ball alone, the middle one on it, or finished with its head, face and
+ * arms. */
+function snowman(s: Shape, o: V3, heading: number, stage: 1 | 2 | 3 = 3): void {
   const white = new THREE.Color(0xf2f5f8);
   const coal = new THREE.Color(0x1d1f22);
   const carrot = new THREE.Color(0xe2701f);
@@ -652,7 +667,8 @@ function snowman(s: Shape, o: V3, heading: number): void {
     }
   };
   ball(0.3, 0.36);
-  ball(0.78, 0.26);
+  if (stage >= 2) ball(0.78, 0.26);
+  if (stage < 3) return;
   ball(1.12, 0.17);
   const face = (y: number, r: number, side: number): V3 => {
     const a = side * 0.35;
@@ -688,7 +704,7 @@ export function buildCivilianProps(plan: CivilianPlan, origin: V3): THREE.Buffer
   plan.props.forEach((p, i) => {
     const o: V3 = [p.x - origin[0], p.y - origin[1], p.z - origin[2]];
     if (p.kind === "deckchair") deckchair(s, o, p.heading, stripes[i % stripes.length]);
-    else snowman(s, o, p.heading);
+    else snowman(s, o, p.heading, p.stage);
   });
   return s.geometry();
 }

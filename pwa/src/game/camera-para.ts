@@ -101,6 +101,14 @@ export function hangIn(hung: number, dt: number): number {
   return hung + (1 - hung) * (1 - Math.exp(-dt / HANG_IN));
 }
 
+/** WHETHER HIS OWN FIGURE IS DRAWN on `rung` of `ladder` (the ladder a
+ * machine framed this frame, if any): his own eyes hide him, but flying
+ * under the wing they see his arms and legs, as a pilot's camera does. */
+export function figureShown(rung: Rung, ladder: unknown, airborne: boolean): boolean {
+  if (rung !== "tips" && rung !== "helmet") return true;
+  return ladder === PARA_RIGS && airborne;
+}
+
 /** Whether the lens is the wing's this frame: the rig on him. */
 export function underWing(state: GameState): boolean {
   return paraRigged(state) && state.skier.thrown === null;

@@ -48,7 +48,7 @@ import {
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
-import { PARA_RIGS } from "./camera-para.ts";
+import { figureShown } from "./camera-para.ts";
 import { createTvCamera } from "./camera-tv.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
@@ -713,9 +713,7 @@ export function createWorldRenderer(
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state);
-      // His own eyes hide him — but under the wing they see his arms and legs.
-      const eyes = lens.rung() === "tips" || lens.rung() === "helmet";
-      player.model.setSkierVisible(!eyes || (own === PARA_RIGS && rigPose.airborne));
+      player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.
       hurt.update(state, player.model.skin());

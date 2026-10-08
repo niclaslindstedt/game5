@@ -7,19 +7,14 @@
 import type * as THREE from "three";
 
 type V3 = { x: number; y: number; z: number };
-type Rgb = readonly [number, number, number];
-
-/** Blood soaked into cloth: near black-red where it is soaked through. */
-const SOAKED: Rgb = [0.11, 0.004, 0.004];
 
 export type Soak = {
   /** Soak cloth `g` red round the wounds `at` (the bind pose's frame), each
    * reaching `r`, as wet as `wet` (0 … 1); `force` keeps its colours even
-   * with no wound yet; `blood` the colour soaked to (linear RGB), near
-   * black-red in cloth unless asked. */
+   * with no wound yet. */
   cloth(
     g: THREE.BufferGeometry,
-    wounds: { at: V3; r: number; blood?: Rgb }[],
+    wounds: { at: V3; r: number }[],
     wet: number,
     force?: boolean,
   ): void;
@@ -33,7 +28,7 @@ export function createSoak(): Soak {
   const soaked = new Set<THREE.BufferGeometry>();
   function cloth(
     g: THREE.BufferGeometry,
-    wounds: { at: V3; r: number; blood?: Rgb }[],
+    wounds: { at: V3; r: number }[],
     wet: number,
     force = false,
   ) {
@@ -47,26 +42,25 @@ export function createSoak(): Soak {
     soaked.add(g);
     const pos = g.getAttribute("position");
     const arr = col.array as Float32Array;
+    // Blood soaked into cloth: near black-red where it is soaked through.
+    const br = 0.11;
+    const bg = 0.004;
+    const bb = 0.004;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const y = pos.getY(i);
       const z = pos.getZ(i);
       let k = 0;
-      let b = SOAKED;
       for (const w of wounds) {
         const d = Math.hypot(x - w.at.x, y - w.at.y, z - w.at.z);
         // A ragged edge: the soak's reach wanders round the wound.
         const reach = w.r * (0.8 + 0.4 * Math.sin(x * 41 + z * 37 + y * 23));
-        const kw = Math.min(1, ((reach - d) / (0.35 * reach)) * wet);
-        if (kw > k) {
-          k = kw;
-          b = w.blood ?? SOAKED;
-        }
+        k = Math.max(k, Math.min(1, ((reach - d) / (0.35 * reach)) * wet));
       }
       k = Math.max(0, k);
-      arr[3 * i] = orig[3 * i] + (b[0] - orig[3 * i]) * k;
-      arr[3 * i + 1] = orig[3 * i + 1] + (b[1] - orig[3 * i + 1]) * k;
-      arr[3 * i + 2] = orig[3 * i + 2] + (b[2] - orig[3 * i + 2]) * k;
+      arr[3 * i] = orig[3 * i] + (br - orig[3 * i]) * k;
+      arr[3 * i + 1] = orig[3 * i + 1] + (bg - orig[3 * i + 1]) * k;
+      arr[3 * i + 2] = orig[3 * i + 2] + (bb - orig[3 * i + 2]) * k;
     }
     col.needsUpdate = true;
   }

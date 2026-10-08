@@ -47,8 +47,7 @@ export type Blood = {
     next: () => number,
   ): void;
   /** Pour a STREAM out of `at` along `dir` for `dt` s: `q` L/s at about
-   * `speed` m/s, the body's own way `carry` added; `lead` the points it
-   * runs over his skin to get to `at` (blood down a bare face). */
+   * `speed` m/s, the body's own way `carry` added. */
   stream(
     at: THREE.Vector3,
     dir: THREE.Vector3,
@@ -57,7 +56,6 @@ export type Blood = {
     dt: number,
     carry: THREE.Vector3,
     next: () => number,
-    lead?: readonly THREE.Vector3[],
   ): void;
   /** Lay a blot `r` m across at (x, z), `shade` its darkness (1 fresh). */
   splat(x: number, z: number, r: number, shade: number, turn: number): void;
@@ -139,7 +137,6 @@ export function createBlood(wrap: Wrap): Blood {
     vy: number;
     vz: number;
     r: number;
-    lead?: readonly THREE.Vector3[];
   }[] = [];
   drops.frustumCulled = false;
   drops.count = 0;
@@ -268,32 +265,14 @@ export function createBlood(wrap: Wrap): Blood {
     for (const o of asked) {
       const end = Math.max(0.02, fallTime(o));
       const u0 = Math.max(0.3, Math.hypot(o.vx, o.vy, o.vz));
-      // The first rings over the skin it runs on, the rest its fall.
-      const lead = o.lead ?? [];
-      const fall = RINGS - lead.length;
       for (let i = 0; i < RINGS; i++) {
-        let cx: number;
-        let cy: number;
-        let cz: number;
-        let u: number;
-        if (i < lead.length) {
-          const p = lead[i];
-          const q = i + 1 < lead.length ? lead[i + 1] : o;
-          cx = p.x;
-          cy = p.y;
-          cz = p.z;
-          T.set(q.x - p.x, q.y - p.y, q.z - p.z);
-          T.divideScalar(Math.max(1e-6, T.length()));
-          u = u0;
-        } else {
-          const t = (end * (i - lead.length)) / (fall - 1);
-          cx = o.x + o.vx * t;
-          cy = o.y + o.vy * t - 0.5 * G * t * t;
-          cz = o.z + o.vz * t;
-          T.set(o.vx, o.vy - G * t, o.vz);
-          u = Math.max(1e-3, T.length());
-          T.divideScalar(u);
-        }
+        const t = (end * i) / (RINGS - 1);
+        const cx = o.x + o.vx * t;
+        const cy = o.y + o.vy * t - 0.5 * G * t * t;
+        const cz = o.z + o.vz * t;
+        T.set(o.vx, o.vy - G * t, o.vz);
+        const u = Math.max(1e-3, T.length());
+        T.divideScalar(u);
         N.set(Math.abs(T.y) < 0.9 ? 0 : 1, Math.abs(T.y) < 0.9 ? 1 : 0, 0)
           .cross(T)
           .normalize();
@@ -356,7 +335,7 @@ export function createBlood(wrap: Wrap): Blood {
         size[i] = 0.004 + 0.009 * next() ** 3;
       }
     },
-    stream(at, dir, speed, q, dt, carry, next, lead) {
+    stream(at, dir, speed, q, dt, carry, next) {
       if (q <= 0 || asked.length >= STREAMS) return;
       // As thick as what flows, from a thread to a pour a couple of
       // centimetres across — drawn a little fuller than life, so a thread
@@ -370,7 +349,6 @@ export function createBlood(wrap: Wrap): Blood {
         vy: dir.y * speed + carry.y,
         vz: dir.z * speed + carry.z,
         r,
-        ...(lead ? { lead: lead.slice(0, RINGS - 4) } : {}),
       });
       // Where it meets the snow, it spatters.
       if (ground && dt > 0 && next() < SPATTER * dt) {

@@ -30,10 +30,10 @@ export type Gap =
   | "ankleR";
 
 /** A point `k` of the way along a bone, `d` m out along its front (z). */
-const along = (b: BoneFrame, k: number, d = 0, side = 0): V3 => ({
-  x: b.head.x + b.y.x * b.length * k + b.z.x * d + b.x.x * side,
-  y: b.head.y + b.y.y * b.length * k + b.z.y * d + b.x.y * side,
-  z: b.head.z + b.y.z * b.length * k + b.z.z * d + b.x.z * side,
+const along = (b: BoneFrame, k: number, d = 0): V3 => ({
+  x: b.head.x + b.y.x * b.length * k + b.z.x * d,
+  y: b.head.y + b.y.y * b.length * k + b.z.y * d,
+  z: b.head.z + b.y.z * b.length * k + b.z.z * d,
 });
 
 /** Where each gap is on his frames. */
@@ -66,17 +66,6 @@ export function gapAt(gap: Gap, f: Frames): V3 {
     case "ankleR":
       return along(f.shin_r, 0.88, 0.05);
   }
-}
-
-/** A cheek under the helmet's rim, `side` −1 left or 1 right: where blood
- * off his face runs from when he lies on that side. */
-export function cheekAt(f: Frames, side: number): V3 {
-  return along(f.head, -0.25, 0.07, 0.055 * side);
-}
-
-/** Under his nose, below the goggles: where blood off his face starts. */
-export function noseAt(f: Frames): V3 {
-  return along(f.head, -0.1, 0.12);
 }
 
 /** The middle of a body part on his frames: where it is hurt. */

@@ -660,12 +660,10 @@ export function createXrayView(): XrayView {
       }
       const on = look.active && look.xray > 0.01;
       showGlass(on ? look.xray : 0);
-      if (!on) {
-        group.visible = false;
-        return;
-      }
-      if (!pieces) return;
-      group.visible = true;
+      group.visible = on;
+      // While the cam has the run the skeleton is posed even under a solid
+      // skin (the lead's first half): the lens looks at its bones.
+      if (!look.active || !pieces) return;
       veilMat.uniforms.uAlpha.value = Math.min(1, look.xray * 1.2);
       const body = state.skier.body;
       const grade = fracturesOf(body);

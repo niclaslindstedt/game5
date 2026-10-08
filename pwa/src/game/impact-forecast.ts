@@ -31,7 +31,7 @@ import {
 /** How far ahead, how often, and what is worth slowing down for. */
 export const FORECAST = {
   /** Seconds of run read ahead. */
-  horizon: 0.6,
+  horizon: 0.8,
   /** Steps between two reads. */
   every: 12,
   /** The least AIS rank an injury with no fracture must be. */

@@ -34,6 +34,10 @@ export const XRAY_LENS = {
    * looks at than `pullMin` by what stands between. */
   clearance: 0.2,
   pullMin: 0.7,
+  /** The most a target may move in a frame and still carry the lens with
+   * it, m: the lead runs at nearly the run's own pace, a body falling at
+   * 60 m/s a metre or two a frame; a jump past this is a new place. */
+  carry: 12,
 } as const;
 
 export type XrayLens = {
@@ -44,8 +48,8 @@ export type XrayLens = {
   /** The bearing the lens circles at, rad (0 = +z, clockwise). */
   yaw: number;
   /** What it looked at last frame, and on which shot: a lens on one shot
-   * is carried along with what it looks at (a body falling 60 m/s is still
-   * 5 m/s slowed), so the chase is only the framing's. */
+   * is carried along with what it looks at (a body falling 60 m/s at the
+   * lead's own pace), so the chase is only the framing's. */
   last: Vec3 | null;
   key: string;
 };
@@ -97,7 +101,7 @@ export function frameXray(
     const dx = target.x - st.last.x;
     const dy = target.y - st.last.y;
     const dz = target.z - st.last.z;
-    if (dx * dx + dy * dy + dz * dz < 4) {
+    if (dx * dx + dy * dy + dz * dz < XRAY_LENS.carry * XRAY_LENS.carry) {
       st.eye.x += dx;
       st.eye.y += dy;
       st.eye.z += dz;

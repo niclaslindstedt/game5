@@ -8,10 +8,12 @@
 //
 // THE SEQUENCE:
 //   1. THE LEAD: a blow that will break a bone or tear him open is seen a
-//      moment before it lands, and the run is slowed almost to a stop on
-//      the way to it, the lens closing right in on the part of him the
-//      blow lands on, the skin turning to glass round the skeleton and the
-//      organs;
+//      moment before it lands, and the cam takes the run a WALL SECOND
+//      before the hit: the run slowed evenly from its own pace almost to a
+//      stop so the blow lands on that second's last frame, the lens closing
+//      right in on the part of him the blow lands on — the skier drawn as
+//      he is for the first half of it, the skin turning to glass round the
+//      skeleton and the organs over the second half;
 //   2. THE BONES: it watches that bone crack; every other BIG bone that
 //      goes after it (the skull, the spine, the ribs, the pelvis, the long
 //      bones of the arm and the leg) is a shot of its own, the lens panning
@@ -47,8 +49,14 @@ import type { Forecast } from "./impact-forecast.ts";
 /** The whole director, as numbers: seconds of the WALL clock unless named
  * game seconds; rates are game seconds per wall second. */
 export const XRAY = {
-  /** How near a blow seen coming starts the cam, game s. */
-  lead: 0.45,
+  /** How near a blow seen coming starts the cam, game s: what a run slowed
+   * evenly from its own pace to `slow` covers in `leadWall`. */
+  lead: 0.55,
+  /** The wall seconds from the cam taking the run to the hit, and of them
+   * the ones the skier is drawn solid; the glass comes over him in the
+   * rest. */
+  leadWall: 1,
+  leadSolid: 0.5,
   /** How slow the bones and the tear are shot. */
   slow: 0.08,
   /** How fast the rate eases toward what a shot wants, 1/s. */
@@ -183,6 +191,13 @@ export function createXrayDirector(): XrayDirector {
   let body = false;
   /** How far along the way back, linear 0 … 1. */
   let home = 0;
+  /** The lead under way: the game second the first blow lands, the wall
+   * seconds since the cam took the run; and the wall seconds the shot on
+   * screen has been held since its blow landed. */
+  let leading = false;
+  let firstAt = 0;
+  let leadAge = 0;
+  let since = 0;
   const shotBones = new Set<string>();
   let last: GameState | null = null;
 
@@ -198,6 +213,10 @@ export function createXrayDirector(): XrayDirector {
     shots = 0;
     body = false;
     home = 0;
+    leading = false;
+    firstAt = 0;
+    leadAge = 0;
+    since = 0;
     shotBones.clear();
   };
 
@@ -242,7 +261,12 @@ export function createXrayDirector(): XrayDirector {
         const own = PART_BONE[f.part];
         look = f.bones.find((b) => boneKind(b) === boneKind(own)) ?? own;
       }
-      if (!on) begin();
+      if (!on) {
+        begin();
+        leading = true;
+        firstAt = at;
+        leadAge = 0;
+      }
       want({ kind: "bone", bone: look }, at, false);
     },
 
@@ -288,16 +312,19 @@ export function createXrayDirector(): XrayDirector {
       }
       if (!on) return IDLE;
       age += wall;
+      if (leading && state.t >= firstAt) leading = false;
       // The shot on screen: done when its bone has cracked and been held,
       // or when what was seen coming never came.
       if (current) {
+        if (current.landed && state.t >= current.at) since += wall;
         const held = current.shot.kind === "tear" ? XRAY.tear : XRAY.hold;
         const late = !current.landed && state.t > current.at + XRAY.late;
-        if ((current.landed && age > held && state.t >= current.at) || late) current = null;
+        if ((current.landed && since > held) || late) current = null;
       }
       if (!current && queue.length) {
         current = queue.shift()!;
         age = 0;
+        since = 0;
         index++;
       }
       if (!current && !body) {
@@ -306,6 +333,18 @@ export function createXrayDirector(): XrayDirector {
         index++;
       }
       let want: number;
+      if (leading && !body) {
+        // THE LEAD: the rate set (never eased) so that, falling evenly to
+        // `slow`, the run reaches the blow just as the lead's wall second
+        // runs out; the skin solid, then glass.
+        leadAge += wall;
+        const gap = Math.max(0, firstAt - state.t);
+        const left = Math.max(0.05, XRAY.leadWall - leadAge);
+        rate = Math.min(1, Math.max(XRAY.slow, (2 * gap) / left - XRAY.slow));
+        const glass = (leadAge - XRAY.leadSolid) / (XRAY.leadWall - XRAY.leadSolid);
+        xray = Math.min(1, Math.max(0, glass));
+        return { active: true, rate, xray, back: 0, shot: current!.shot, age, index };
+      }
       if (body) {
         home = Math.min(1, home + wall / XRAY.back);
         want = XRAY.bodyRate + (1 - XRAY.bodyRate) * home * home;

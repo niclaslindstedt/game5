@@ -58,13 +58,36 @@ describe("the X-ray director", () => {
     const s = fake();
     d.step(as(s));
     d.seen(femur, as(s));
-    const look = run(d, s, 1);
+    // The skier drawn solid for the lead's first half, the run still quick.
+    let look = run(d, s, XRAY.leadSolid - 0.05);
     expect(look.active).toBe(true);
     expect(look.shot).toEqual({ kind: "bone", bone: "femurL" });
+    expect(look.xray).toBe(0);
+    expect(look.rate).toBeGreaterThan(XRAY.slow * 2);
+    // Glass over the second half, and the blow lands a wall second in.
+    look = run(d, s, XRAY.leadWall - XRAY.leadSolid);
+    expect(look.xray).toBeGreaterThan(0.9);
     expect(look.rate).toBeLessThan(XRAY.slow * 1.2);
-    expect(look.xray).toBe(1);
-    // A second of wall is a fraction of a second of the run.
-    expect(s.t).toBeLessThan(0.2);
+    expect(s.t).toBeGreaterThan(femur.in - 0.03);
+    expect(s.t).toBeLessThan(femur.in + 0.03);
+  });
+
+  it("takes the run a wall second before a blow seen at the lead", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s));
+    d.seen({ ...femur, in: XRAY.lead }, as(s));
+    let wall = 0;
+    let look = d.frame(as(s), WALL);
+    expect(look.rate).toBeGreaterThan(0.95);
+    while (s.t < XRAY.lead && wall < 3) {
+      s.t += WALL * look.rate;
+      wall += WALL;
+      d.step(as(s));
+      look = d.frame(as(s), WALL);
+    }
+    expect(wall).toBeGreaterThan(XRAY.leadWall - 0.08);
+    expect(wall).toBeLessThan(XRAY.leadWall + 0.08);
   });
 
   it("lets the run go when the blow seen coming never lands", () => {
@@ -89,13 +112,14 @@ describe("the X-ray director", () => {
     run(d, s, 0.5);
     s.events.push({ kind: "gore", t: s.t, what: "torn", piece: "legL", x: 1, y: 2, z: 3 });
     const shots: string[] = [];
+    let broke = false;
     let look = d.frame(as(s), WALL);
     for (let w = 0; w < 20 && look.active; w += WALL) {
       s.t += WALL * look.rate;
       // The femur breaks when it was seen to.
-      if (s.t >= 0.3 && !shots.includes("broke")) {
+      if (s.t >= 0.3 && !broke) {
         s.events.push({ kind: "injury", t: s.t, part: "thighL", injury: "brokenFemur", ais: 3 });
-        shots.push("broke");
+        broke = true;
       }
       d.step(as(s));
       s.events = [];
@@ -103,7 +127,7 @@ describe("the X-ray director", () => {
       const name = look.shot?.kind === "bone" ? look.shot.bone : (look.shot?.kind ?? "-");
       if (shots.at(-1) !== name) shots.push(name);
     }
-    expect(shots.filter((x) => x !== "broke")).toEqual(["femurL", "tear", "body", "-"]);
+    expect(shots).toEqual(["femurL", "tear", "body", "-"]);
   });
 
   it("draws the lens back home and the skin back solid, then lets go", () => {

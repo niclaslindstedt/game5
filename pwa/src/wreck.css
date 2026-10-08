@@ -60,9 +60,12 @@
   }
 }
 
-/* HIS DEATH: every readout fades away where it stands. */
+/* THE READOUTS FADED OFF THE GLASS (`hud-wreck.ts`'s `hudFade`): his
+   death, or any other moment the picture is left bare — each readout fades
+   away where it stands. `data-fade` is on the HUD only while it fades, so
+   a readout's own opacity is left alone the rest of the time. */
 /* (`--hud-fade` moves a dozen times a second: smoothed between.) */
-.hud[data-wreck] > :not(.hud-death) {
+.hud[data-fade] > :not(.hud-death) {
   transition: opacity 0.12s linear;
   opacity: calc(1 - var(--hud-fade, 0));
 }

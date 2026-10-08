@@ -20,9 +20,8 @@ import type { GameState } from "@engine";
  * his heart's last beats spray; the picture goes dark under it; the run
  * starts again from the top. */
 export const DEATH = {
-  /** The readouts start to fade, and how long they take to go. */
+  /** The readouts start to fade (they take `HUD_FADE` to go). */
   clear: 0,
-  clearing: 1,
   /** The word comes up, and how long it takes. */
   word: 1.1,
   rise: 0.6,
@@ -52,6 +51,18 @@ export type Wreck = {
 const ramp = (t: number, from: number, over: number): number =>
   Math.max(0, Math.min(1, (t - from) / over));
 
+/** How long the readouts take to fade off the glass, s. */
+export const HUD_FADE = 1;
+
+/** THE HUD FADED OFF THE GLASS, 0 … 1, `since` s after whatever cleared it
+ * began (null: it has not). One fade for every reason the readouts go —
+ * his death here, and any other moment the picture should be left bare —
+ * drawn as `--hud-fade` on the HUD (`wreck.css`); several reasons at once
+ * are the furthest of them (`Math.max`). */
+export function hudFade(since: number | null): number {
+  return since === null ? 0 : ramp(since, 0, HUD_FADE);
+}
+
 /** THE HUD'S WRECK for a body that took the blow `blow` (its g, its id
  * and its age, s — or none) and died `died` s ago (null: alive). */
 export function wreckOf(
@@ -64,7 +75,7 @@ export function wreckOf(
   return {
     jolt,
     joltId: blow?.id ?? 0,
-    fade: dead ? ramp(died, DEATH.clear, DEATH.clearing) : 0,
+    fade: dead ? hudFade(died - DEATH.clear) : 0,
     word: dead ? ramp(died, DEATH.word, DEATH.rise) : 0,
     dark: dead ? ramp(died, DEATH.dark, DEATH.fade) : 0,
   };

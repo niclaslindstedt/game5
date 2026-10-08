@@ -15,7 +15,7 @@ import {
   pieceCollapse,
 } from "../pwa/src/game/gore-cut.ts";
 import { rope, stepRope, stepStick, stick, type GibGround } from "../pwa/src/game/gore-gibs.ts";
-import { DEATH, wreckOf } from "../pwa/src/game/hud-wreck.ts";
+import { DEATH, HUD_FADE, hudFade, wreckOf } from "../pwa/src/game/hud-wreck.ts";
 import type { BoneFrame, SkierBone } from "../pwa/src/game/skier-rig.ts";
 
 const bit = (p: GorePiece): number => 1 << GORE_PIECES.indexOf(p);
@@ -129,13 +129,20 @@ describe("the HUD taking his blows", () => {
     expect(wreckOf({ g: 120, id: 3, age: 1 }, null).jolt).toBe(0);
   });
 
+  it("fades the readouts over one shared fade", () => {
+    expect(hudFade(null)).toBe(0);
+    expect(hudFade(0)).toBe(0);
+    expect(hudFade(HUD_FADE / 2)).toBeCloseTo(0.5);
+    expect(hudFade(HUD_FADE * 2)).toBe(1);
+  });
+
   it("fades its readouts, then says DIED and goes dark, in that order when he dies", () => {
     const at = (t: number) => wreckOf(null, t);
     expect(at(0)).toMatchObject({ fade: 0, word: 0, dark: 0 });
-    expect(at(DEATH.clearing / 2).fade).toBeCloseTo(0.5);
-    expect(at(DEATH.clear + DEATH.clearing).fade).toBe(1);
+    expect(at(HUD_FADE / 2).fade).toBeCloseTo(0.5);
+    expect(at(DEATH.clear + HUD_FADE).fade).toBe(1);
     // The readouts are gone before the word comes up.
-    expect(DEATH.clear + DEATH.clearing).toBeLessThanOrEqual(DEATH.word);
+    expect(DEATH.clear + HUD_FADE).toBeLessThanOrEqual(DEATH.word);
     expect(at(DEATH.word - 0.01).word).toBe(0);
     expect(at(DEATH.word + DEATH.rise).word).toBe(1);
     expect(at(DEATH.dark - 0.01).dark).toBe(0);

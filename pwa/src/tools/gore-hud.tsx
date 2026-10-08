@@ -34,6 +34,7 @@ function Page({ f }: { f: HudFrame }): JSX.Element {
       <div
         class="hud"
         data-wreck="1"
+        data-fade={wreck.fade > 0 ? "1" : undefined}
         data-jolt={wreck.jolt > 0 ? String(wreck.joltId % 2) : undefined}
         style={{
           "--hud-dark": "0",

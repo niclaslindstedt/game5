@@ -68,6 +68,18 @@ describe("hurt too badly to ski on", () => {
     expect(Number.isFinite(e.x + e.y + e.z)).toBe(true);
   });
 
+  it("puts down a skier who takes one ON HIS SKIS, and keeps him down", () => {
+    const { state, input } = stageTrial(SHOULDER_INTO_TRUNK, 0, true);
+    // Knocked out cold riding on: what the ride would otherwise ski on with.
+    state.skier.body.injuries.push(hurt("knockedOut", "head"));
+    step(state, input);
+    expect(state.skier.thrown).not.toBeNull();
+    for (let i = 0; i < Math.round(10 / TUNING.dt); i++) step(state, { ...input, reset: true });
+    expect(state.gore!.injured).toBeGreaterThanOrEqual(0);
+    expect(state.gore!.injury!.kind).toBe("knockedOut");
+    expect(state.skier.thrown).not.toBeNull();
+  });
+
   it("stands up a skier whose arm and collarbone are all he hurt", () => {
     const { state, events } = ride(SHOULDER_INTO_TRUNK, 10);
     expect(state.gore!.injured).toBe(-1);

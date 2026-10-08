@@ -18,7 +18,7 @@
 
 import { RAGDOLL as R } from "./ragdoll.ts";
 import { INJURIES, type BodyPart } from "./defs/anatomy.ts";
-import { mayGetUp } from "./crash.ts";
+import { mayGetUp, throwRider } from "./crash.ts";
 import type { GameEvent, GameState, Injury, BodyState } from "./state.ts";
 
 /** WHAT KEEPS A SKIER DOWN. The parts a BROKEN bone keeps him down on (a
@@ -71,14 +71,23 @@ export function isInjured(state: GameState): boolean {
 
 /** Find him INJURED, the first step he has lain long enough to get up and
  * cannot — on a run that carries its injuries, alive and not already
- * found so. */
+ * found so. A blow that keeps him down while he is still ON HIS SKIS (a
+ * landing ridden out with a femur broken, a knock-out on a shoulder into a
+ * trunk) puts him down there and then: nobody skis on knocked out cold or
+ * on a broken leg. (Called after every machine has had its step, so he is
+ * on the snow on his own feet.) */
 export function callRescue(state: GameState, events: GameEvent[]): void {
   const g = state.gore;
-  const off = state.skier.thrown;
-  if (!g || !off || g.injured >= 0 || g.mortal >= 0 || g.dead >= 0) return;
-  if (!mayGetUp(off)) return;
-  const injury = disablingOf(state.skier.body);
+  if (!g || g.injured >= 0 || g.mortal >= 0 || g.dead >= 0) return;
+  const c = state.skier;
+  const injury = disablingOf(c.body);
   if (!injury) return;
+  if (!c.thrown && !c.fetch) {
+    throwRider(state, "roll", { x: c.vx, y: c.vy, z: c.vz }, events);
+    return;
+  }
+  const off = c.thrown;
+  if (!off || !mayGetUp(off)) return;
   g.injured = state.t;
   g.injury = injury;
   const P = off.points;

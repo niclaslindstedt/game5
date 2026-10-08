@@ -43,6 +43,7 @@ import {
   queueLane,
   sledSpotOf,
   stationHouses,
+  villageBox,
   type Cabin,
   type Level,
   type LiftPlan,
@@ -284,11 +285,15 @@ export function civilianClear(
 
 /** Whether (x, z) lies past the HUB's valley-side edge (R29) — off the
  * base, down toward the valley. The base's rounds keep to its mountain
- * side; what lies below it is the valley's own. False off the hub's
+ * side; what lies below it is the valley's own — but for the village laid
+ * there, whose streets are the base's too. False off the hub's
  * reach across, or on a map with none. */
 export function pastHub(level: Level, x: number, z: number): boolean {
   const hub = level.resort?.hub;
   if (!hub || hub.bottom.length === 0) return false;
+  // The village below the hub is the base's own: its sidewalks are walked.
+  const box = villageBox(level);
+  if (box && x >= box.x0 && x <= box.x1 && z >= box.z0 && z <= box.z1) return false;
   const i = Math.round((x - hub.x0) / hub.step);
   if (i < 0 || i >= hub.bottom.length) return false;
   const down = Math.sign(hub.bottom[i] - hub.top[i]);

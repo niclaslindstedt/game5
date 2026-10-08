@@ -805,8 +805,7 @@ export function App() {
       renderer.dispose();
       delete window.__SH_PROBE__;
     };
-    // Boots once: the URL is read on mount and `renderKit` is set exactly
-    // once.
+    // Boots once: the URL is read on mount and `renderKit` is set exactly once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderKit]);
 

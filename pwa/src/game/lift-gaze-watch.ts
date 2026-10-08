@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DRAG THAT LOOKS ROUND FROM THE LIFT, heard (`lift-gaze.ts`): every
 // finger on the glass, or the pointer held down and moved on a desktop, on a
-// run — the renderer takes them only while a lift carries him. Captured on the document ahead of the thumb zones, so
-// a drag that starts on the edge thumb or the tuck lever looks round as well
-// — and a finger that has dragged past the slop says so (`dragging`), so the
-// tuck it set on the lever is not held up the lift as a skip (`input.ts`).
+// run — the renderer takes them only while a lift carries him. Captured on
+// the document ahead of the thumb zones, so a drag that starts on the edge
+// thumb or the tuck lever looks round as well — and a finger that has
+// dragged past the slop says so (`dragging`), so the tuck it set on the
+// lever is not held up the lift as a skip (`input.ts`).
 
 import { LIFT_GAZE } from "./lift-gaze.ts";
 

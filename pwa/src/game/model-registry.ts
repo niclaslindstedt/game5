@@ -111,6 +111,20 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "the same machine in boxes",
   },
   {
+    asset: "Hot air balloon",
+    ids: ["balloon"],
+    source: "code",
+    code: [
+      "pwa/src/game/balloon-look.ts",
+      "pwa/src/game/balloon-envelope.ts",
+      "pwa/src/game/balloon-basket.ts",
+    ],
+    drawnBy: "pwa/src/game/balloon-scene.ts",
+    note:
+      "built off `BALLOON`: sixteen lobed gores of painted panels on a natural shape, a colourway " +
+      "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

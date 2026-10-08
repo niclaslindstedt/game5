@@ -174,6 +174,10 @@ export type SkisModel = {
    * his hands on the grips (`skier-sled.ts`), or null off it — read at the
    * next pose. */
   setSled(sled: SledStand | null): void;
+  /** STOOD IN A HOT AIR BALLOON'S BASKET (`balloon.ts`): his pair racked in
+   * its corner (`balloon-basket.ts`) — drawn as his boots alone on its
+   * floor — and his hands empty. Read at the next pose. */
+  setBasket(on: boolean): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -551,6 +555,8 @@ export function createSkisModel(
   // his pair is drawn racked — his boots alone.
   let sled: SledStand | null = null;
   let racked = false;
+  // In a balloon's basket (`setBasket`): his pair racked, his hands empty.
+  let basket = false;
   let lastPerch: number | null = null;
   const dangle = createDangle();
   // Whether his legs' spring has been set back to rest since he was thrown.
@@ -607,7 +613,8 @@ export function createSkisModel(
       const boarded = sled !== null && !off && !afoot;
       // IN A GONDOLA'S CABIN his skis ride in the rack on its door.
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride";
-      rack(boarded || cabin);
+      const inBasket = basket && !off && !afoot;
+      rack(boarded || cabin || inBasket);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
@@ -678,7 +685,7 @@ export function createSkisModel(
         const pose = poseInputOf(skier, legs, mounts, trick, waiting, stand, riding);
         // Hung, the stand is moved with the boots below, after the figure's
         // input has read it: the input keeps the stand as it stood.
-        const input = hung
+        const held = hung
           ? {
               ...pose,
               skiAngle: 0,
@@ -688,6 +695,7 @@ export function createSkisModel(
               fore: [stand.fore[0], stand.fore[1]] as const,
             }
           : pose;
+        const input = inBasket ? { ...held, poles: false } : held;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
@@ -778,6 +786,9 @@ export function createSkisModel(
     },
     setSled(s) {
       sled = s;
+    },
+    setBasket(on) {
+      basket = on;
     },
     setPerch(p) {
       perch = p;

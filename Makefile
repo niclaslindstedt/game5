@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -466,6 +466,19 @@ para-wind:
 # "--compare=previews/balloon-before.json" after; "--rows=pilot,gale --trace=pilot".
 balloon-flight:
 	npm run balloon-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE BALLOON LAB: the free ride's hot air balloon staged at every moment it
+# has — tethered on the valley floor, in flight over the mountain, the
+# basket, burner and skirt close up, up into the mouth, the parachute
+# pulled, leant over in the wind, after dark with the burner lit, burning,
+# laid on the snow, every colourway, the walk, eight sides, over the side,
+# every camera rung — through the game's own renderer. One contact sheet a
+# group, previews/balloon-<group>.png, and every frame alone,
+# previews/balloon-<view>-<label>.png. Its own one-off bundle from
+# pwa/balloon-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--sheet=tethered,basket" a few sheets, "--views=night" a few views.
+balloon:
+	npm run balloon -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GRIMBEAR LAB: the free ride's grimbear staged at every moment he has —
 # the figure from eight sides, his run and walk across one stride, each

@@ -2,7 +2,7 @@
 
 A free ride can start in the basket of a hot air balloon. Pick **BALLOON** on the start card's RUN row (after PARAMOTOR, before SNOWMOBILE), or follow a `?start=free&balloon=1` link. You start standing in the wicker basket on the valley floor, the envelope inflated over you and held down by its tether. Burn until it is light and the tether lets go; the day's wind carries you up the mountain. Land it softly and step out, or jump over the side.
 
-The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side today is `pwa/src/game/balloon-scene.ts` (a stand-in drawing: a lathed envelope, a box basket and four cables hung on the engine's state), `strings-balloon.ts` and the start card's RUN stop. The model, the burner's flame, the fire, the cameras and the HUD are still to come.
+The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`), `strings-balloon.ts` and the start card's RUN stop. The burner's flame, the fire as drawn, the cameras and the HUD are still to come.
 
 ## What it is
 
@@ -76,13 +76,25 @@ On touch the edge thumb walks him across the basket; walking along it on a left 
 
 `balloonSiteOf` finds open, level snow on the valley floor by the village (or the finish): the helipad's search (`heli-pad.ts`'s `openSpotNear`) with 14 m of room for the envelope, a lean under 0.06, clear of trunks, lifts and tunnels, and 70 m off the helicopter's pad and the snowmobile's spot. The balloon stands there tethered, its air 2 % short of floating it; the tether lets go when its lift beats its weight by 150 N.
 
+## As drawn
+
+Everything is built in code off `BALLOON`, so the picture and the physics cannot part. The measures and the rules are in `pwa/src/game/balloon-look.ts` (three-free, held by `tests/balloon_look_test.ts`); the meshes in `balloon-envelope.ts` and `balloon-basket.ts`; `balloon-scene.ts` hangs them on the engine's state every frame.
+
+- **The envelope** is a natural shape, as a sport balloon's is: a cubic flare out of the 4.2 m mouth into a cone about 30° off the axis, widest (17.2 m) at the engine's equator 11.5 m up, rounding over a superellipse crown to 19.5 m. Its sixteen GORES bulge in LOBES between the load tapes (a sagitta of 0.13 of the chord, normalised so the lobes, not the tapes, make the girth), and the drawn volume comes to about 2,590 m³ against the class's 2,550. Each gore is sewn of sixteen panels about 1.5 m tall, the top four rows a parachute cap with its dark rim, and the bottom a scoop of a skirt 1.7 m long in the dark slot. About 14,000 triangles.
+- **The paint**: a colourway is dealt off the map's seed on a salt of its own (never the run's stream, so no digest moves) — one of seven patterns (alternate gores, bands, chevrons, diamonds, a spiral, a rainbow, a sunburst round the crown) over one of six palettes. The same rule is written twice, in `paintSlot` and the shader's `PAINT_GLSL`, and the test holds them to each other. Tapes are drawn darker down every seam and round every row; sunlight shows through the fabric on its shaded side.
+- **The glow**: `EnvelopeLook.glow` (the engine's `flame` each frame) lights the inside — brightest a little over the mouth, the tapes standing dark against it — the thing a balloon looks like at dusk. `.burnt` eats holes and a char band into the fabric and shrinks and streams what is left; `.scorch` browns it round the mouth.
+- **The shape moves**: the envelope leans off the basket by the engine's `lean` toward the drift, dents on its windward side in a strong shear, and the valve pulls its crown down. Down, it tips over downwind and lays out flat on the snow, rucked, as `deflate` runs from 0 to 1.
+- **The rigging and the basket**: sixteen flying wires from the tapes at the mouth, four to each corner of the burner frame; the double burner — two coils, the jets, the blast valves with their red grips — on padded uprights; a wicker basket (a woven texture and its normal map, generated) with a suede rim roll, rope handles, ash runners and three quilted cylinders, their hoses to the burner. The skier stands in it with no poles, his skis lashed outside the long wall. Past 110 m a few boxes and a cylinder stand in for the basket.
+
 ## The labs
 
 - `make balloon-flight`: scripted flights in pure Node on a generated map — the bot holding 120 m and 300 m over the snow ahead of it, a hop off the tether, the valve held, the burner held, a jump, a walk, a breeze and a gale. It prints the top, the climb and sink, the lag from the first burn to a climb, the envelope's hottest, the propane burnt, the way carried up the mountain, the fire and how each ended. Keep `ARGS=--json=previews/balloon-before.json` before a change and `ARGS=--compare=…` after; `ARGS="--trace=pilot"` prints a row's flight every 5 s.
+- `make balloon`: the balloon as drawn, through the game's own renderer on a generated map (the harness `pwa/balloon-preview.html` over `pwa/src/tools/balloon-harness.ts` and `balloon-scenes.ts`): tethered, in flight from six sides, the basket close, up into the mouth and the valve, leaning, dusk and night, burning, down on the snow, every colourway, the walk, a turntable, the jump and every camera rung. A contact sheet a group in `previews/balloon-<group>.png`; `ARGS=--sheet=colours,night` some.
+- `tests/balloon_look_test.ts` holds the drawing to the engine: the volume, the shape and where it is widest, the panels, the lobes, the mesh, the wires, the burner, the cylinders, the wicker, the paint's rule and the envelope laid on the snow.
 - `tests/balloon_test.ts` holds it: the tether, the drift up the mountain, the lag, the valve, the crash of a cooled envelope and the restart, the fire in a gale, the jump, the walk, the step out, the reset, determinism, and the site.
 
 ## What is still open
 
-- The model (envelope gores and colours, the wicker, the burner frame and cylinders), the burner's flame and the fire as drawn, and the envelope deflating on the snow — `balloon-scene.ts` is a stand-in.
+- The burner's flame and the fire as drawn (the glow and the burn are wired in; the flame, the smoke and the embers are not), and the envelope's cloth is a shape, not a cloth simulation: it does not billow as it lays down.
 - A camera ladder of its own (the first-person rung in the basket looking down over the side), the HUD (altimeter, variometer, envelope temperature with its red line, fuel, wind) and the sound (the burner's roar, the pilot light, the fire).
 - On touch, a left d-pad to walk the basket both ways (the helicopter's `StickZone`).

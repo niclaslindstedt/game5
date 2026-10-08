@@ -63,6 +63,9 @@ export type Machines = {
   /** THE PISTE MACHINES' LAMPS lit at `lit` and seen from `eye`, ahead of
    * `floods` — the list the lamp slots are dealt from (`dealLamps`). */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
+  /** THE HOT AIR BALLOON as drawn (`balloon-scene.ts`), on a free ride —
+   * what its burner's flame, its fire and its lens hang off. */
+  balloon: BalloonScene | null;
   /** The sky's light on whatever the machines draw unlit (the wing's lines). */
   light(look: SkyLook): void;
   /** THE PISTE MACHINES AS SOLIDS to the lens (`camera-clear.ts`), where
@@ -97,7 +100,7 @@ export function createMachines(
   // carries the rig (`GameState.para`).
   const para: ParaScene | null = state.rules.heli ? createParaScene(haze) : null;
   // ...and the hot air balloon, drawn while a run carries one
-  // (`GameState.balloon`) — a stand-in until its model lands.
+  // (`GameState.balloon`).
   const balloon: BalloonScene | null = state.rules.heli ? createBalloonScene(haze) : null;
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
@@ -118,6 +121,7 @@ export function createMachines(
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
     group,
+    balloon,
     ready: Promise.race([
       Promise.all([heli?.ready, sled?.ready, groomers?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
@@ -126,13 +130,15 @@ export function createMachines(
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
+      // In the balloon's basket his pair is racked in its corner.
+      model.setBasket(!!s.balloon?.aboard);
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
-      balloon?.frame(s);
+      balloon?.frame(s, alpha);
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
@@ -141,6 +147,7 @@ export function createMachines(
     },
     light(look) {
       para?.light(look);
+      balloon?.light(look);
     },
     lamps(lit, eye, others) {
       if (!groomers || !current.groomers) return others;

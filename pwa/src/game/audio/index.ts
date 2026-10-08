@@ -25,6 +25,7 @@ import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
+import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
 import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
@@ -68,6 +69,9 @@ export function createRunAudio(): RunAudio {
   const sled: SledBed = createSledBed(sfx);
   // THE FREE RIDE'S PARAMOTOR (`para-bed.ts`), on the skier's back.
   const para: ParaBed = createParaBed(sfx);
+  // THE FREE RIDE'S HOT AIR BALLOON (`balloon-bed.ts`): its burner over
+  // his head, and as it flies on without him.
+  const balloon: BalloonBed = createBalloonBed(sfx);
   // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
@@ -86,7 +90,13 @@ export function createRunAudio(): RunAudio {
         const ground = bed.ground();
         // The helicopter is somewhere else on the mountain: heard from the
         // skier's head.
-        if ((event.kind === "heli" || event.kind === "sled" || event.kind === "para") && state) {
+        if (
+          (event.kind === "heli" ||
+            event.kind === "sled" ||
+            event.kind === "para" ||
+            event.kind === "balloon") &&
+          state
+        ) {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
         }
@@ -121,6 +131,7 @@ export function createRunAudio(): RunAudio {
       heli.update(state, dt, outside);
       sled.update(state, dt, outside);
       para.update(state, dt, outside);
+      balloon.update(state, dt, outside);
     },
 
     setView(view) {
@@ -130,6 +141,7 @@ export function createRunAudio(): RunAudio {
       heli.setView(view);
       sled.setView(view);
       para.setView(view);
+      balloon.setView(view);
     },
 
     silence() {
@@ -138,6 +150,7 @@ export function createRunAudio(): RunAudio {
       heli.silence();
       sled.silence();
       para.silence();
+      balloon.silence();
       room.silence();
     },
 
@@ -147,6 +160,7 @@ export function createRunAudio(): RunAudio {
       heli.reset();
       sled.reset();
       para.reset();
+      balloon.reset();
       room.reset();
     },
   };

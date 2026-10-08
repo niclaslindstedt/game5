@@ -129,7 +129,7 @@ function makeRandom(seed: number): () => number {
  * as rolling fire or smoke rather than a stack of discs — the fire's
  * blobs brightest at their hearts and dull at their rims (a flame cell
  * meeting the air), the smoke's even. */
-function billowStrip(): THREE.Texture {
+export function billowStrip(): THREE.Texture {
   const n = 128;
   const canvas = document.createElement("canvas");
   canvas.width = n * 2;
@@ -202,7 +202,7 @@ function scorchTexture(): THREE.Texture {
 }
 
 /** A soft round glow: the heat's halo, added on. */
-function glowTexture(): THREE.Texture {
+export function glowTexture(): THREE.Texture {
   const n = 64;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = n;

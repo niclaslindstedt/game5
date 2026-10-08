@@ -69,6 +69,8 @@
     "sled-turn": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-turn-lab.mjs",
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",
+    "balloon": "node scripts/balloon-preview.mjs",
+    "balloon-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/balloon-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
     "gore": "node scripts/gore-preview.mjs",
     "xray": "node scripts/xray-preview.mjs",

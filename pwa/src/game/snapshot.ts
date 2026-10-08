@@ -14,6 +14,7 @@
 // shell (§23.2), and there are none.
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
+import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -32,6 +33,7 @@ import {
   heliWithin,
   mayGetUp,
   paraRigged,
+  balloonAboard,
   sledWithin,
   groomerWithin,
   trenched,
@@ -292,6 +294,9 @@ export type HudSnapshot = {
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
+  /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
+   * while he stands in its basket, or null. */
+  balloon: HudBalloon | null;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -689,11 +694,13 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
     wind: windOf(state),
-    heli: heliOf(state),
-    sled: sledOf(state),
-    groomer: groomerOf(state),
+    // In a balloon's basket no machine on the snow calls him.
+    heli: balloonAboard(state) ? null : heliOf(state),
+    sled: balloonAboard(state) ? null : sledOf(state),
+    groomer: balloonAboard(state) ? null : groomerOf(state),
     para: paraOf(state),
-    afterski: afterskiOf(state),
+    balloon: balloonOf(state),
+    afterski: balloonAboard(state) ? null : afterskiOf(state),
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };

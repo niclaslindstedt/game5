@@ -36,8 +36,14 @@ const ICON_YAW_DEG = 45;
 /** An unlit arrow's opacity; a full push lights it to one. */
 const ARROW_DIM = 0.35;
 
-/** Which of the two pads a zone is. */
-export type StickRole = "cyclic" | "power";
+/** Where the walking pad rests in its zone with no thumb on it. */
+const REST = { left: "34%", top: "62%" };
+
+/** Which pad a zone is: the helicopter's two, or the WALKING PAD the left
+ * thumb walks the balloon's basket with (`hud-balloon.tsx`) — a cross the
+ * stick's own, writing the same channel (`TouchChannel.stick`), read as
+ * steps across and along the basket (`input.ts`). */
+export type StickRole = "cyclic" | "power" | "walk";
 
 /** The d-pad's cross, its arms `ARM` wide either side and `REACH` long. */
 const ARM = 13;
@@ -125,7 +131,7 @@ export function StickZone({
   const reach = STICK_REACH_PX / feel.sensitivity;
 
   const write = (x: number, y: number, down: boolean): void => {
-    if (role === "cyclic") {
+    if (role !== "power") {
       touch.stickX = x;
       touch.stickY = y;
       touch.stick = down;
@@ -138,10 +144,11 @@ export function StickZone({
       "transform",
       `translate(${(x * KNOB_TRAVEL).toFixed(1)} ${(-y * KNOB_TRAVEL).toFixed(1)})`,
     );
-    iconRef.current?.setAttribute(
-      "transform",
-      `rotate(${(x * (role === "cyclic" ? ICON_BANK_DEG : ICON_YAW_DEG)).toFixed(1)})`,
-    );
+    if (role !== "walk")
+      iconRef.current?.setAttribute(
+        "transform",
+        `rotate(${(x * (role === "cyclic" ? ICON_BANK_DEG : ICON_YAW_DEG)).toFixed(1)})`,
+      );
     // The power pad lights only past its dead band, as it only works there.
     const ax = role === "power" ? powerAxis(x) : x;
     const ay = role === "power" ? powerAxis(y) : y;
@@ -151,15 +158,30 @@ export function StickZone({
         ref.current.style.opacity = (ARROW_DIM + (1 - ARROW_DIM) * lit[i]).toFixed(2);
     });
   };
+  // THE WALKING PAD RESTS where a thumb finds it, faint, so it reads as the
+  // d-pad it is before it is touched; the helicopter's pads are hidden.
+  const rest = (): void => {
+    const pad = padRef.current;
+    if (!pad) return;
+    if (role !== "walk") {
+      pad.style.display = "none";
+      return;
+    }
+    pad.style.left = REST.left;
+    pad.style.top = REST.top;
+    pad.style.display = "block";
+    pad.classList.add("hud-pad-rest");
+  };
   const letGo = (): void => {
     jumpTapUp(tapRef.current, performance.now() / 1000);
     write(0, 0, false);
-    if (padRef.current) padRef.current.style.display = "none";
+    rest();
   };
   const letGoRef = useRef(letGo);
   letGoRef.current = letGo;
   const guard = useMemo(() => createThumbGuard(() => letGoRef.current(), window), []);
   useEffect(() => () => guard.dispose(), [guard]);
+  useEffect(rest, [role]);
 
   useEffect(() => {
     if (!live || role !== "power") return;
@@ -180,7 +202,7 @@ export function StickZone({
   return (
     <div
       class={`hud-zone hud-zone-${side}`}
-      data-touch={role === "cyclic" ? "stick" : "power"}
+      data-touch={role === "cyclic" ? "stick" : role}
       onPointerDown={(e) => {
         capturePointer(e);
         if (!guard.claim(e.pointerId, stillDown(e.currentTarget))) return;
@@ -191,6 +213,7 @@ export function StickZone({
           pad.style.left = `${e.clientX - box.left}px`;
           pad.style.top = `${e.clientY - box.top}px`;
           pad.style.display = "block";
+          pad.classList.remove("hud-pad-rest");
         }
         if (jumpTapDown(tapRef.current, performance.now() / 1000)) touch.tap2 = true;
         write(0, 0, true);
@@ -235,7 +258,7 @@ export function StickZone({
           <g ref={arrowRefs[2]} class="hud-pad-arrow">
             <path d={ARROW} transform="rotate(180)" />
           </g>
-          {role === "cyclic" ? (
+          {role !== "power" ? (
             <>
               <g ref={arrowRefs[1]} class="hud-pad-arrow">
                 <path d={ARROW} transform="rotate(90)" />
@@ -259,7 +282,13 @@ export function StickZone({
           <g ref={knobRef}>
             <circle r="15" class="hud-lever-knob" />
             <g ref={iconRef} class="hud-pad-icon">
-              {role === "cyclic" ? (
+              {role === "walk" ? (
+                // Two boot prints, one a stride ahead of the other.
+                <>
+                  <ellipse cx="-4" cy="3" rx="3" ry="5.5" class="hud-pad-icon-fill" />
+                  <ellipse cx="4" cy="-4" rx="3" ry="5.5" class="hud-pad-icon-fill" />
+                </>
+              ) : role === "cyclic" ? (
                 // The machine from behind: the rotor, the mast, the cabin
                 // and the skids under it.
                 <>

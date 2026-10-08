@@ -43,6 +43,7 @@ import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
 export type * from "./para-state.ts";
+export type * from "./balloon-state.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -745,7 +746,8 @@ export type GameEvent =
       speed: number;
     }
   | SledEvent
-  | import("./para-state.ts").ParaEvent;
+  | import("./para-state.ts").ParaEvent
+  | import("./balloon-state.ts").BalloonEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
@@ -968,21 +970,19 @@ export type GameState = ContestState & {
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;
-  /** THE EDGE STAKES (`edge-stakes.ts`) as this run has knocked them —
-   * from the first one touched; absent until then. */
+  /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
   stakes?: StakeState;
-  /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
-   * whose rules ask for one (the free ride); absent everywhere else. */
+  /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
-  /** THE HELICOPTER (`heli.ts`) and THE SNOWMOBILE (`sled.ts`): on a run
-   * whose rules carry them (the free ride); absent everywhere else. */
+  /** THE HELICOPTER (`heli.ts`), THE SNOWMOBILE (`sled.ts`): on a free ride;
+   * THE PARAMOTOR (`para.ts`), THE BALLOON (`balloon.ts`): begun on one. */
   heli?: HeliState;
   sled?: SledState;
-  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
   para?: import("./para-state.ts").ParaState;
-  /** THE AFTERSKI (`afterski.ts`): on a free ride, with its lodges. */
+  balloon?: import("./balloon-state.ts").BalloonState;
+  /** THE AFTERSKI (`afterski.ts`) with its lodges, and THE GRIMBEAR
+   * (`grimbear.ts`) the app dealt: on a free ride. */
   afterski?: AfterskiState;
-  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to. */
   grimbear?: GrimbearState;
   /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
    * snow guns' (`snow-guns.ts`, a thin season's): read, never written. */
@@ -992,9 +992,9 @@ export type GameState = ContestState & {
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;
-  /** Seconds of the lights still to run; 0 once they are out. */
+  /** Seconds of the lights still to run (0 once out); the phase; and this
+   * step's events, cleared at the top of each step. */
   countdown: number;
   phase: GamePhase;
-  /** This step's events, cleared at the top of each step. */
   events: GameEvent[];
 };

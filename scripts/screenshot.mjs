@@ -340,6 +340,19 @@ const SURFACES = {
     wait: ".hud-para",
     settle: 1500,
   },
+  // THE FREE RIDE'S HOT AIR BALLOON (`balloon.ts`, `?balloon=1`): tethered
+  // on the valley floor, and up on the day's wind on the pre-roll's hands
+  // (`balloonPilot`).
+  "balloon-ready": {
+    params: { start: "free", balloon: "1", t: "0.5", shot: "1" },
+    wait: ".hud-seed",
+    settle: 1500,
+  },
+  balloon: {
+    params: { start: "free", balloon: "1", t: "60", shot: "1" },
+    wait: ".hud-seed",
+    settle: 1500,
+  },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.

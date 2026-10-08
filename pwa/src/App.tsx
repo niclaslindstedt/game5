@@ -422,6 +422,7 @@ export function App() {
             !!state.heli?.rider,
             state.skier.thrown !== null,
             state.skier.lift,
+            !!state.balloon?.aboard,
           );
 
     window.__SH_PROBE__ = () =>

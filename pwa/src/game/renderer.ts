@@ -212,7 +212,7 @@ export function createWorldRenderer(
   // the canvas, or through the region's grade; the samples go with it.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
   const afterski = createAfterskiView(picture);
-  const lens: Lens = createLens(NEAR, FAR);
+  const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
   /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, or null
    * for the ladder's own rung. */
@@ -712,7 +712,7 @@ export function createWorldRenderer(
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
-      const own = machines?.ladder(rigPose, state);
+      const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.

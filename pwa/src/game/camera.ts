@@ -24,6 +24,7 @@ import {
   type Rig,
   type RigPose,
   type Rung,
+  type Vec3,
 } from "./camera-rigs.ts";
 
 /** A ladder: one rig per rung. */
@@ -52,7 +53,10 @@ export type Lens = {
   ): LensPose;
 };
 
-export function createLens(near: number, far: number): Lens {
+/** `keepOut` puts a FLOWN lens's eye back out of what it may not pass
+ * through on its way between two rungs (the balloon's basket and envelope,
+ * `camera-balloon.ts`'s `keepOutOfBalloon`). */
+export function createLens(near: number, far: number, keepOut?: (eye: Vec3) => void): Lens {
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, near, far);
   let current: Rung = "chase";
   let table: Ladder = RIGS;
@@ -120,6 +124,7 @@ export function createLens(near: number, far: number): Lens {
         const { ladder: l, rung: r } = previous;
         const from = frameRig(l[r], pose, stateOf(l, r), dt, groundAt, clear, trunks);
         lens = blendLens(from, lens, since / HANDOVER);
+        keepOut?.(lens.eye);
       } else {
         previous = null;
       }

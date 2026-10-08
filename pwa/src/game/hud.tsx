@@ -65,6 +65,7 @@ import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
 import { wreckOf } from "./hud-wreck.ts";
+import type { AgainAt } from "./free-ride.ts";
 import { DeathCard } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
@@ -116,6 +117,7 @@ export function Hud({
   tuckKey,
   jumpKey = "SPACE",
   injuries = true,
+  again = "start",
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -149,6 +151,8 @@ export function Hud({
   /** Whether the body's injuries are drawn (`settings.ts`'s
    * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
   injuries?: boolean;
+  /** Where the next rider stands if this one dies (`againAt`). */
+  again?: AgainAt;
 }) {
   const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
@@ -215,7 +219,7 @@ export function Hud({
         <div class="hud-topright">
           <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
         </div>
-        {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
+        {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} again={again} />}
         {thumbs}
       </div>
     );
@@ -699,7 +703,7 @@ export function Hud({
         </div>
       )}
 
-      {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
+      {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} again={again} />}
 
       {thumbs}
     </div>

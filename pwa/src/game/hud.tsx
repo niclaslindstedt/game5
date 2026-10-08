@@ -192,8 +192,10 @@ export function Hud({
     />
   );
   // Indoors there is nothing to ski: the room's tap is the whole glass.
+  // Carried up a lift a finger LOOKS ROUND (`lift-gaze.ts`): the zones
+  // still take it, but no pad is drawn under it.
   const thumbs = touch && !indoors && (
-    <div class="hud-touch">
+    <div class="hud-touch" data-look={snap.carried ? "1" : undefined}>
       {/* In reading order, so the zone on the left is the first child
           whichever of the two it is. */}
       {lever === "left" && leverZone}

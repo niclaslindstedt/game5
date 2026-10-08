@@ -1882,6 +1882,13 @@ canvas {
   touch-action: none;
 }
 
+/* Carried up a lift a finger on the glass looks round (`lift-gaze.ts`):
+   the zones still take it, but neither pad is drawn under it. */
+.hud-touch[data-look] .hud-bar,
+.hud-touch[data-look] .hud-lever {
+  visibility: hidden;
+}
+
 .hud-zone-left {
   left: 0;
 }

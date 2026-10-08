@@ -18,6 +18,7 @@ import { FLEX, START_PUSH } from "./race.ts";
 import { LANDING_ABSORB } from "./absorb.ts";
 import { SIDESTEP } from "./sidestep.ts";
 import { STAKES } from "./stakes.ts";
+import { LIFT } from "./lift.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -918,77 +919,8 @@ export const TUNING = {
     release: 2,
   },
 
-  /** THE LIFT RIDE (`lift-ride.ts`; the lifts' own measure is `LIFT_LOOK`).
-   * The rope's slowing into the top terminal, m/s², and its pick-up off
-   * the load line, m/s²; how far down the hanger from the grip a chair's
-   * rider (`seat`) and a cabin's (`cabin`) has his body's origin, m, and
-   * each hanger's swinging length, m; the least a chair carries its rider's
-   * origin over the snow, m (`sit`: sat with his skis just on it, where the
-   * chair comes down to the ramp — his CoG's height over his skis); the swing's damping, 1/s, the most
-   * it swings, rad, and the kick a tower's bend in the rope gives it, rad/s
-   * per unit of slope change read `bend` m either side (to `kickMost`
-   * rad/s — a lurch of a few degrees); how long a chair
-   * scoops a rider up, s; the way a chair stands him up with on the ramp,
-   * turned `ramp` rad off the line to the up rope's side (a step out of
-   * the chair's way into the lane straight on off the ramp, `chairLane`),
-   * a cabin walks him out with, m/s, and how far short of the top the
-   * cabin's door lets him out, m. THE FREE RIDE'S ARRIVAL: the ride
-   * starts `arrive` s of carrying short of where the carrier lets him go —
-   * the last of the climb, over the last tower and down onto the top
-   * station's rail ahead (`LiftLook.in`) — on the chair whose
-   * run passes nearest the spot picked among those a rider stood off its
-   * top can ski onto (`runsOffTop`: down a ramp, or on a map from before
-   * the ramps the run's nearest point `drop` m or more under the top
-   * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
-   * other. Stood off it, the skis are his: nothing leads him off a top.
-   * A cabin's rider sits `cabinBack` m behind its grip, on the bench along
-   * its back wall; a T-bar's stands `tee` m right of the bar's stem, on
-   * its right arm. BOARDING (`board`): taken by a lift's load zone or its
-   * boarding ring he SKATES to the carrier — up the queue's lane, `past`
-   * m right of the queue — at `pace` m/s and at `drive` of his push,
-   * checked down to it at `brake` m/s² from however fast he came in and
-   * coming to the load line at `end` m/s, slowing at `stop` m/s²; he
-   * looks `ahead` m along the way and turns to it at `turn` rad/s at the
-   * most. Carried, the machine press lets go of the lift wherever he is —
-   * out of a gondola's door `jumpOut` m clear of its cabin — and the tuck
-   * held `skip.hold` s skips him up it behind a fade of `skip.fade` s. */
-  lift: {
-    cabinBack: 0.65,
-    jumpOut: 1.3,
-    skip: { hold: 3, fade: 0.5 },
-    tee: 0.3,
-    board: {
-      pace: 3,
-      drive: 0.75,
-      brake: 2.5,
-      stop: 1.2,
-      end: 0.6,
-      ahead: 1.6,
-      turn: 3,
-      past: 0.8,
-    },
-    decel: 0.8,
-    accel: 1.2,
-    seat: 1.85,
-    cabin: 3.2,
-    chairHang: 2.4,
-    cabinHang: 4.0,
-    sit: 1.0,
-    damp: 0.45,
-    swingMost: 0.3,
-    kick: 1.5,
-    kickMost: 0.2,
-    bend: 3,
-    scoop: 0.8,
-    standUp: 2.2,
-    ramp: 0.3,
-    walkOut: 1.5,
-    door: 10,
-    arrive: 8,
-    drop: 2,
-    joinFar: 120,
-    noJoin: 2000,
-  },
+  /** THE LIFT RIDE (`defs/lift.ts`). */
+  lift: LIFT,
 
   /** THE SCORE AND THE STROKES (`defs/tricks.ts`). */
   tricks: TRICKS,

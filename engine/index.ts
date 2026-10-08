@@ -747,6 +747,7 @@ export {
 } from "./game/defs/resort-buildings.ts";
 // THE VILLAGE'S STREETS: the plan, what it carries, the questions asked of it.
 export * from "./game/village-api.ts";
+export * from "./game/traffic-api.ts";
 export {
   hashOf as rockHash,
   onAnyCliff,

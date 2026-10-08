@@ -264,7 +264,7 @@ function pivot(g: GroomerState, r: NetRun): void {
 
 /** The player's skier is out on his own skis: not thrown, not carried by a
  * lift, a tunnel's wind, a rail or another machine. */
-function onSkis(state: GameState): boolean {
+export function onSkis(state: GameState): boolean {
   const c = state.skier;
   if (c.thrown || c.lift || c.tunnel || c.jib) return false;
   if (state.heli?.rider || state.sled?.rider) return false;

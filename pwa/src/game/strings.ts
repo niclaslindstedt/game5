@@ -28,6 +28,7 @@ import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
+import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
@@ -108,6 +109,7 @@ export const STRINGS = {
   ...PARA_STRINGS,
   ...BALLOON_STRINGS,
   ...GROOMER_STRINGS,
+  ...TRAFFIC_STRINGS,
   ...BIG_AIR_STRINGS,
   ...SLOPESTYLE_STRINGS,
   ...HALFPIPE_STRINGS,
@@ -253,9 +255,12 @@ export const STRINGS = {
       | "net"
       | "maul"
       | "groomer"
+      | "car"
       | "balloon",
   ): string =>
-    cause === "balloon"
+    cause === "car"
+      ? TRAFFIC_STRINGS.newsCar
+      : cause === "balloon"
       ? BALLOON_STRINGS.newsBalloonCrash
       : cause === "maul"
         ? "TAKEN BY THE GRIMBEAR"

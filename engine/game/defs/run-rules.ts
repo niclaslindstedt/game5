@@ -64,6 +64,11 @@ export type RunRules = {
   /** WHETHER THE PISTE MACHINES WORK THE RUNS AT NIGHT (`groomer.ts`):
    * driven into, one is the player's to drive. On a FREE RIDE only. */
   groomer: boolean;
+  /** WHETHER THE VILLAGE'S TRAFFIC MEETS HIM (`traffic.ts`): its cars, its
+   * bus and its bicycles hold a skier off them and knock him down
+   * (`traffic-contact.ts`), and are drawn. On a FREE RIDE only; left out,
+   * the streets are empty. */
+  traffic?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times

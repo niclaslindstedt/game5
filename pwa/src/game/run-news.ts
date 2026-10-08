@@ -86,6 +86,14 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
         return { text: STRINGS.newsTailDug, tone: "bad" };
       // In a ski-cross heat a rival's shoulder put him down in the pack.
       if (state.cross && e.cause === "skier") return { text: STRINGS.newsKnocked, tone: "bad" };
+      // In the village's streets, by what met him (`traffic-contact.ts`).
+      if (e.cause === "car") {
+        const hit = state.events.find((ev) => ev.kind === "traffic");
+        const by = hit?.kind === "traffic" ? hit.vehicle : "hatch";
+        const text =
+          by === "bus" ? STRINGS.newsBus : by === "bike" ? STRINGS.newsBike : STRINGS.newsCar;
+        return { text, tone: "bad" };
+      }
       return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
     case "stuck":
       return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };

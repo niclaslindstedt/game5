@@ -35,6 +35,11 @@
 // strides a second): previews/skier-path-<move>.png
 // (`pwa/src/tools/skier-path.ts`).
 //
+// `--broken=LEFT,RIGHT` skis every move with his arms broken
+// (`skier-broken.ts`: each `upper`, `fore`, `wrist` or `none`, one word for
+// both) — each broken arm's pole dropped and the arm hanging from its
+// break: previews/skier-<sheet>-broken-<left>-<right>.png.
+//
 // It exists because a pose that reads in one still can be a twitch, a
 // boot leaving its ski or an arm through the body a frame later — and the
 // game's cameras, the world lab and the skis lab all show one moment.
@@ -47,6 +52,7 @@
 //   node scripts/skier-preview.mjs --sheet=closeup,game,stretch
 //   node scripts/skier-preview.mjs --sheet=closeup --moment=carve,tuck
 //   node scripts/skier-preview.mjs --sheet=path --move=skate,pole,start
+//   node scripts/skier-preview.mjs --broken=upper,fore --move=carve,skate
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -97,6 +103,11 @@ const args = parseArgs(
       default: false,
       help: "ski every move without poles (the hard mode)",
     },
+    broken: {
+      kind: "string",
+      default: "",
+      help: "ski every move with his arms broken (`skier-broken.ts`): LEFT,RIGHT each upper, fore, wrist or none — one word for both (upper,none: the left upper arm)",
+    },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 240, help: "seconds a sheet may take" },
   },
@@ -125,6 +136,31 @@ const moments = args.moment
     })
   : MOMENTS;
 
+// THE BROKEN ARMS, as the injuries the figure reads them off: the upper
+// arm's humerus, the forearm's two bones, the wrist's radius.
+const BREAKS = { upper: "brokenArm", fore: "brokenForearm", wrist: "brokenWrist", none: null };
+const brokenWords = args.broken ? args.broken.split(",") : [];
+if (brokenWords.length === 1) brokenWords.push(brokenWords[0]);
+for (const w of brokenWords) {
+  if (!(w in BREAKS)) {
+    console.error(`unknown break "${w}" (${Object.keys(BREAKS).join(", ")})`);
+    process.exit(2);
+  }
+}
+const injuries = brokenWords.flatMap((w, i) =>
+  BREAKS[w]
+    ? [
+        {
+          part: `${w === "wrist" ? "hand" : "arm"}${i === 0 ? "L" : "R"}`,
+          kind: BREAKS[w],
+          ais: 2,
+          t: 0,
+        },
+      ]
+    : [],
+);
+const tag = args.broken ? `-broken-${brokenWords.join("-")}` : "";
+
 // ── Ski every move through the real engine ────────────────────────────────
 aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
@@ -141,11 +177,17 @@ function frameOf(state) {
   state.level.normalAt(at.x, at.z, n);
   return {
     t: state.t,
-    skier: JSON.parse(JSON.stringify(c)),
+    skier: withBreaks(JSON.parse(JSON.stringify(c))),
     trick: state.tricks?.pose ?? null,
     waiting: SPRING.inStartGate(state),
     ground: [state.level.groundAt(at.x, at.z), n.x, n.y, n.z],
   };
+}
+
+/** A recorded skier with the lab's broken arms on his body. */
+function withBreaks(c) {
+  if (injuries.length) c.body.injuries = [...c.body.injuries, ...injuries];
+  return c;
 }
 
 function ski(move) {
@@ -288,7 +330,7 @@ for (const job of jobs) {
   if (crashed) process.exit(1);
   const drawn = await page.evaluate(() => globalThis.__skier.sheet());
   if (crashed) process.exit(1);
-  const out = join(outDir, `skier-${job.id}.png`);
+  const out = join(outDir, `skier-${job.id}${tag}.png`);
   await page.locator("#sheet").screenshot({ path: out });
   console.log(
     `${out.replace(`${root}/`, "")}  ${drawn.rows}×${drawn.cols}: ${drawn.note}  (${((Date.now() - t0) / 1000).toFixed(0)} s)`,

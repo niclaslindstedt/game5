@@ -6,18 +6,27 @@
 import type { JSX } from "preact";
 import type { BodyPart, DeathCause, InjuryKind } from "@engine";
 
+import type { AgainAt } from "./free-ride.ts";
 import type { Wreck } from "./hud-wreck.ts";
 import { STRINGS } from "./strings.ts";
 
 /** THE DEATH CARD: the picture going dark, the word over it, what killed
- * him under it, and that a new rider starts at the top. */
-export function DeathCard({ wreck, cause }: { wreck: Wreck; cause: DeathCause }): JSX.Element {
+ * him under it, and where the new rider starts (`againAt`). */
+export function DeathCard({
+  wreck,
+  cause,
+  again,
+}: {
+  wreck: Wreck;
+  cause: DeathCause;
+  again: AgainAt;
+}): JSX.Element {
   return (
     <WreckCard
       wreck={wreck}
       word={STRINGS.died}
       line={STRINGS.diedOf[cause]}
-      again={STRINGS.diedAgain}
+      again={STRINGS.diedAgain[again]}
     />
   );
 }

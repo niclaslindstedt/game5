@@ -35,8 +35,9 @@ export type SkierFigure = {
    * pair (`posed-merge.ts` takes only the poles). */
   skin: THREE.SkinnedMesh[];
   /** Posed for `input`, sat on a chair's `seat` when one is handed in
-   * (`skier-seat.ts`). */
-  pose(input: SkierPoseInput, seat?: Seat | null): void;
+   * (`skier-seat.ts`), and the pose made over by `after` (a broken arm,
+   * `skier-broken.ts`). */
+  pose(input: SkierPoseInput, seat?: Seat | null, after?: (p: SkierPose) => SkierPose): void;
   /** Pose him THROWN, off the engine's ragdoll (`ragdollPose`): the poles
    * let go, every limb where the physics has it. The caller places and
    * turns the group. A body torn apart (`gore.ts`) is drawn with the
@@ -187,7 +188,7 @@ export function createSkier(
     } else dressed.pose(p);
     for (let i = 0; i < 2; i++) {
       const at = p.poles?.[i] ?? null;
-      poleMeshes[i].visible = !free && at !== null;
+      poleMeshes[i].visible = !free && at !== null && !p.dropped?.[i];
       if (at) {
         // A bent pole bows out from the body and back; a straight one
         // turns nowhere about its length.
@@ -208,8 +209,9 @@ export function createSkier(
     group,
     head: headGroup,
     skin: dressed.meshes,
-    pose(input, seat = null) {
-      lay(seat ? seatedPose(input, seat) : skierPose(input));
+    pose(input, seat = null, after) {
+      const p = seat ? seatedPose(input, seat) : skierPose(input);
+      lay(after ? after(p) : p);
     },
     sprawl(pose, lost = 0, crush = 0) {
       lay(pose, true, lost, crush);

@@ -155,8 +155,7 @@ import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 const HUD_TICK = 1 / 12;
 /** How long a line stays in the news column, s. */
 const FLASH_LIFE = 3.2;
-/** How long the loading card takes to fade off the race underneath. Must
- * match the `.loading.leaving` transition in styles.css. */
+/** The loading card's fade off the race; must match `.loading.leaving` in styles.css. */
 const LOAD_FADE_MS = 260;
 /** How much of the mix the bot's race gets under a card. */
 const CARD_DUCK = 0.5;
@@ -277,6 +276,7 @@ export function App() {
     setInput(manager);
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
+    manager.onLook((dx, dy) => renderer.lookAround(dx, dy));
     const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
     bookRef.current = book;
     const replays = createReplayRun({
@@ -427,6 +427,7 @@ export function App() {
             state.skier.airborne,
             !!state.heli?.rider,
             state.skier.thrown !== null,
+            state.skier.lift,
           );
 
     window.__SH_PROBE__ = () =>

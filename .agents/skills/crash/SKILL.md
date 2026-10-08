@@ -52,7 +52,14 @@ Three modules answer it, and the split matters:
   it on the bone. An injury to an ORGAN names it (`InjuryDef.organs`, a
   paired one on the side the blow came from, `Injury.side`) and paints
   that organ in the figure (`organsOf`); the trunk's organs take a
-  landing's deceleration too (`load` on the chest and the abdomen). A reset MENDS the body (`mendBody`, from `resetSkier`).
+  landing's deceleration too (`load` on the chest and the abdomen). A reset MENDS the body (`mendBody`, from `resetSkier`) — except
+  with the INJURIES switch on (`GameState.gore`), where he keeps it.
+- **`engine/game/hurt.ts`** — SKIING HURT, only with the INJURIES switch on:
+  the shares of what his injuries leave him (`hurtOf` → `SkierState.hurt`:
+  the edge, its rate and its hold a leg each — the OUTSIDE leg carries a
+  turn — the drive, the tuck, the landing), read by `skier.ts` and
+  `tricks.ts`; absent, every share is exactly 1. Knobs in `HURT`
+  (`defs/hurt.ts`); `tests/hurt_test.ts` holds it.
   The HUD's half is `body-tile.ts` (DOM-free), `body-figure.ts` and the
   generated `body-model.ts`, `hud-body.tsx` and `hud-gforce.tsx` — judged
   with `make damage`, the figure made again from the 3D body with

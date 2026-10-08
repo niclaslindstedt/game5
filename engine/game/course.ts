@@ -318,7 +318,11 @@ function placeOf(state: GameState): number {
  * facing down the piste. On a FREE RIDE, where no gate is owed, it is back
  * on the run where he LEFT the runs when he is off every one of them
  * (`leftRunPoint`), else the nearest point of the nearest run he has SKIED
- * (`skied.ts`), facing the way it runs there. */
+ * (`skied.ts`), facing the way it runs there. On a run that carries its
+ * injuries through a fall (`GameState.gore`), a course's reset is back
+ * where he LEFT the piste too — the point of it nearest where his skis were
+ * last seen on a run, or where he lies — facing down it, but never behind
+ * the last gate taken nor past the gate he owes. */
 export function resetPose(state: GameState): {
   x: number;
   z: number;
@@ -334,6 +338,16 @@ export function resetPose(state: GameState): {
   }
   const cps = state.level.checkpoints;
   const last = state.progress.lastCheckpoint;
+  if (state.gore) {
+    const level = state.level;
+    const from = state.progress.lastOnRun ?? state.skier;
+    const lo = last < 0 ? 0 : cps[last].s + K.resetAhead;
+    const next = cps[state.progress.nextCheckpoint] ?? cps[cps.length - 1];
+    const hi = Math.max(lo, next.s - K.resetAhead);
+    const s = Math.min(hi, Math.max(lo, nearestTrackPoint(level, from.x, from.z).s));
+    const at = trackPointAt(level, s);
+    return { x: at.x, z: at.z, heading: at.heading, checkpoint: last };
+  }
   if (last < 0) {
     const spawn = state.level.spawn;
     return { x: spawn.x, z: spawn.z, heading: spawn.heading, checkpoint: -1 };
@@ -447,12 +461,15 @@ export function freeSpawn(level: Level, x: number, z: number): Spawn {
   return { x: px, z: pz, heading: along.heading };
 }
 
-/** `reset`: back on the piste at the last gate taken — and healed. */
+/** `reset`: back on the piste at the last gate taken — and healed, unless
+ * the run carries its injuries through a fall (`GameState.gore`, the
+ * INJURIES switch): then he is stood up as hurt as he lay, and skis it
+ * (`hurt.ts`) until it kills him or the run is started again. */
 export function resetSkier(state: GameState, events: GameEvent[], auto: boolean): void {
   const pose = resetPose(state);
   standSkier(state, pose.x, pose.z, pose.heading);
   if (state.grimbear) state.grimbear.top = false;
-  mendBody(state.skier.body);
+  if (!state.gore) mendBody(state.skier.body);
   state.progress.lastResetAt = state.progress.time;
   events.push({ kind: "reset", t: state.t, checkpoint: pose.checkpoint, auto });
 }

@@ -57,7 +57,9 @@
 //
 // IT IS A READOUT: nothing in the physics reads it, and it draws nothing
 // from the stream. A reset MENDS it (`mendBody`): the skier stood back up
-// on the piste is a sound one — only the run's hardest blow is kept.
+// on the piste is a sound one — only the run's hardest blow is kept. The
+// one exception is a run with the INJURIES switch on (`GameState.gore`):
+// there a reset keeps it, and `hurt.ts` reads what it leaves him.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";

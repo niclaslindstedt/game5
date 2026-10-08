@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { render } from "preact";
 
+// The cards first: a page's own block in styles.css overrides the base card.
+import "./menu.css";
+import "./menu-pages.css";
 import "./styles.css";
 import "./maps.css";
 import "./dev.css";
@@ -12,6 +15,7 @@ import "./afterski.css";
 import "./para.css";
 import "./balloon.css";
 import "./stats.css";
+import "./title.css";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";

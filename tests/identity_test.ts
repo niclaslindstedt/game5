@@ -182,8 +182,10 @@ describe("the restatements that cannot import the manifest", () => {
     // It draws in plain Node with no bundler and restates the hexes it
     // needs; a palette change that skips it ships icons in the old colours.
     const gen = read("scripts/generate-icons.mjs");
-    for (const name of ["skyHigh", "sky", "snow", "snowShadow", "flag", "hudShadow"] as const) {
-      // (`gateBlue` is the game's, not the mark's: the icon carries one red gate.)
+    for (const name of ["night", "dusk", "snow", "snowShadow", "alpenglow", "flag"] as const) {
+      // The colours the mark is painted in: the tile's night and dusk, the
+      // peak's snow and shadow, the alpenglow on its ridge and the carve's
+      // red. (`gateBlue` and the sky are the game's, not the mark's.)
       expect(gen, `PALETTE.${name} (${PALETTE[name]})`).toContain(PALETTE[name]);
     }
   });

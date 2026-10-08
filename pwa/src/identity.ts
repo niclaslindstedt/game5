@@ -30,9 +30,19 @@ export const REPO_URL = "https://github.com/niclaslindstedt/game5";
 /** A clear day on the mountain: fresh snow in the sun and blue in the shade,
  * a pale sky deepening overhead, dark spruce on the lower slopes, the grey
  * of the groomed piste, and the slalom's own pair of colours — the red of a
- * gate panel to aim at, and the blue of the next one. */
+ * gate panel to aim at, and the blue of the next one. And the first light
+ * the title is set in: the night before it, the dusk of the mountain's
+ * shadow side, the alpenglow on the ridge and the ice of shadowed snow lit
+ * by the sky. */
 export const PALETTE = {
-  /** Brand + boot background: the high sky. */
+  /** Brand + boot background: the night the app opens on. */
+  night: "#0a1726",
+  /** The mountain's shadow side; the menu's glass. */
+  dusk: "#16304f",
+  /** The low sun on the ridge; the warm edge of a lit control. */
+  alpenglow: "#ffb27a",
+  /** Shadowed snow under the sky; the secondary line, the cool edge. */
+  ice: "#9fd2f5",
   skyHigh: "#6fa8dc",
   sky: "#cfe6f7",
   snow: "#f4f8fb",
@@ -49,5 +59,5 @@ export const PALETTE = {
 
 /** The one colour the boot screen, the manifest and the browser chrome are
  * painted — named once so none of them has to know which palette entry it
- * is. */
-export const BRAND_COLOR = PALETTE.skyHigh;
+ * is. The night: a release opens dark, and the title comes up out of it. */
+export const BRAND_COLOR = PALETTE.night;

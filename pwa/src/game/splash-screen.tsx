@@ -1,57 +1,45 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ATTRACT SCREEN the app opens on, played like an arcade cabinet's.
+// THE ATTRACT SCREEN the app opens on, played like a console title's.
 //
-// Beat one, while the game loads: the publisher's name and PRESENTS, drawn in
-// the menu's own type over the same sky the game is painted in, so the card
-// lifting reads as the menu arriving rather than as a screen change.
+// Beat one, while the title scene comes down the wire: the publisher's name
+// and PRESENTS, small and quiet on the dark. The scene (`title-stage.tsx`) is
+// mounting underneath and draws its first frame black.
 //
-// Beat two, the moment the game is standing, is a HAND-OVER rather than a
-// cut: the house's lockup walks up out of the middle of the card to make room,
-// the app's own trails arrive in the space it left, lay themselves, POWDER
-// RUN rises under it, and only then does the card ask for a press. Then it
-// waits.
-// Nothing lifts it on a timer — see `splash.ts` for why the press is worth
-// waiting for.
+// Beat two, the REVEAL (`revealAt`): the house's name fades, the card goes
+// clear, the scene's exposure comes up out of the black with the lens
+// pushing in, and over it the logo reveals itself — the peak, the carve
+// drawn down it, the name swept on and cut — and then the invitation.
+// Beat three: the invitation breathes, and the card waits. A press flashes
+// it, hands the screen to the front door (`onPress`, so the door mounts
+// under the card), and FLIES the logo from the title into the door's header
+// (a FLIP: both boxes measured, the move a transform) while everything else
+// on the card fades; then the card is gone (`onDone`). Nothing lifts it on
+// a timer — see `splash.ts` for why the press is worth waiting for.
 //
-// It is a COVER, not a stage. The whole app mounts underneath it and does its
-// entire arrival behind it — the renderer, the generator, a whole mountain
-// with a piste laid down it, and the field getting off the start line. That is what
-// beat one is buying.
-//
-// Presses are swallowed for exactly that reason: the menu is LIVE under
-// there, and a press meant for the card must never reach the row the finger
-// happens to land on.
+// Presses are swallowed: the menu is mounted under the card the moment it is
+// pressed, and a press meant for the card must never reach the row the
+// finger happens to land on.
 //
 // The timing rules it obeys live in `splash.ts` and are tested there.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
-import { APP_NAME, PUBLISHER } from "../identity.ts";
-import { MarkTrails } from "./mark-trails.tsx";
-import { SPLASH_MIN_MS, SPLASH_STUCK_MS, splashReady } from "./splash.ts";
+import { PUBLISHER } from "../identity.ts";
+import { SPLASH_MIN_MS, SPLASH_STUCK_MS, revealAt, splashReady } from "./splash.ts";
 import { STRINGS } from "./strings.ts";
-
-/** How long the card takes to fade out of the way. Must match the
- * `.splash.leaving` transition in styles.css. */
-const FADE_MS = 340;
-
-/** How long the house's lockup takes to walk from the middle of the card to
- * its place above the title, and the curve it walks on — the same one the
- * mark's own wipe uses, so the two halves of the hand-over are paced alike.
- * Beat two's block is on screen but blank for exactly this long. */
-const LIFT_MS = 420;
-const LIFT_EASING = "cubic-bezier(0.33, 0, 0.2, 1)";
+import { TitleLogo } from "./title-logo.tsx";
+import { TITLE_BEATS } from "./title-plan.ts";
 
 /** Keys that are not "a key" to a player holding one down to reach another. */
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "OS"]);
+/** The curve the logo flies into the door's header on. */
+const FLIP_EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+/** A click this soon after a pointerdown is the same tap's tail, not a press. */
+const TAP_TAIL_MS = 700;
 
-/** Where the card is in its life. `loading` is beat one, with nothing on the
- * screen but the house's name and the ring turning in the corner. `lifting`
- * is the hand-over: beat two's block has taken its place in the layout but
- * nothing is drawn in it yet, and the lockup is walking up to sit above it.
- * `ready` is beat two proper — the trails arriving, laying themselves, the name
- * rising under it and the prompt asking. `done` is the card leaving. */
-type CardPhase = "loading" | "lifting" | "ready" | "done";
+/** Where the card is in its life: the house's name on the dark, the reveal,
+ * the invitation waiting, and the card leaving. */
+type CardPhase = "loading" | "reveal" | "ready" | "done";
 
 /** What the card asks for, in the words of the device it is being read on. A
  * phone has no key to press, and telling it to press one is the kind of
@@ -60,32 +48,91 @@ function startPrompt(): string {
   return window.matchMedia?.("(pointer: coarse)").matches ? STRINGS.splashTap : STRINGS.splashPress;
 }
 
-export function SplashScreen({ warm, onDone }: { warm: boolean; onDone: () => void }) {
-  const [phase, setPhase] = useState<CardPhase>("loading");
+export function SplashScreen({
+  warm,
+  onReveal,
+  onPress,
+  onDone,
+  frozenMs = null,
+}: {
+  /** What the card reveals has drawn its first frame. */
+  warm: boolean;
+  /** The reveal has begun: the scene's clock starts. */
+  onReveal: () => void;
+  /** Pressed: the front door may mount under the card. */
+  onPress: () => void;
+  /** The card has finished leaving. */
+  onDone: () => void;
+  /** A lab's frozen title time, ms (`?titleT=`): the reveal is held at it,
+   * every animation on the card parked at that moment, so the card and the
+   * scene under it are one frame of the same instant. */
+  frozenMs?: number | null;
+}) {
+  const [phase, setPhaseState] = useState<CardPhase>("loading");
+  const phaseRef = useRef<CardPhase>("loading");
+  const setPhase = (next: CardPhase): void => {
+    phaseRef.current = next;
+    setPhaseState(next);
+  };
   const [prompt] = useState(startPrompt);
   const [stillness] = useState(
     () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
   );
-
-  // The lockup, and where it sat in beat one. The rect is stamped in the last
-  // frame before beat two's block lands in the layout under it, because that
-  // is the only moment the distance it is about to travel can be measured.
-  const cardRef = useRef<HTMLDivElement>(null);
-  const liftFrom = useRef(0);
+  /** How far the reveal is: re-rendered at each of its beats. */
+  const [beat, setBeat] = useState(revealAt(0));
+  const [skipped, setSkipped] = useState(false);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const tapAt = useRef(-Infinity);
 
   // The card's own age, stamped on mount. A ref rather than state: nothing
   // re-renders on it, and it has to survive the re-render `warm` causes.
   const startedAt = useRef(0);
+  const revealedAt = useRef(0);
   useEffect(() => {
     startedAt.current = performance.now();
   }, []);
 
-  // `onDone` is a fresh closure every parent render; hold it in a ref so the
-  // fade-out timer is armed once instead of restarted on each one.
-  const doneRef = useRef(onDone);
-  doneRef.current = onDone;
+  // Callbacks are fresh closures every parent render; held in refs so the
+  // timers below are armed once instead of restarted on each one.
+  const calls = useRef({ onReveal, onPress, onDone });
+  calls.current = { onReveal, onPress, onDone };
 
-  // BEAT ONE → BEAT TWO. Readiness answers to the clock AND to the load, so
+  const beginReveal = useCallback(
+    (skip: boolean): void => {
+      revealedAt.current = performance.now();
+      calls.current.onReveal();
+      if (frozenMs !== null) {
+        const held = revealAt(frozenMs);
+        setBeat(held);
+        setPhase(held.prompt ? "ready" : "reveal");
+        return;
+      }
+      setSkipped(skip || stillness);
+      setBeat(revealAt(0, skip || stillness));
+      setPhase(skip || stillness ? "ready" : "reveal");
+    },
+    [stillness, frozenMs],
+  );
+
+  // A FROZEN FRAME: every animation on the card parked at the held time,
+  // counted from when its element arrived (the logo at its beat, the
+  // invitation at its own).
+  useLayoutEffect(() => {
+    if (frozenMs === null || phase === "loading" || phase === "done") return;
+    for (const a of document.getAnimations()) {
+      const target = (a.effect as KeyframeEffect | null)?.target;
+      if (!(target instanceof Element) || !target.closest(".splash")) continue;
+      const from = target.closest(".splash-title")
+        ? TITLE_BEATS.logo
+        : target.closest(".splash-prompt")
+          ? TITLE_BEATS.prompt
+          : 0;
+      a.pause();
+      a.currentTime = Math.max(0, frozenMs - from);
+    }
+  });
+
+  // BEAT ONE → THE REVEAL. Readiness answers to the clock AND to the load, so
   // this re-checks on each `warm` change and at each of the two moments the
   // clock alone could change the answer: the minimum, and the dead man's
   // handle that opens the card up on a boot that never reported in.
@@ -94,69 +141,91 @@ export function SplashScreen({ warm, onDone }: { warm: boolean; onDone: () => vo
     let timer = 0;
     const check = (): void => {
       const elapsed = performance.now() - startedAt.current;
-      if (splashReady(elapsed, warm)) {
-        liftFrom.current = cardRef.current?.getBoundingClientRect().top ?? 0;
-        // Asked to hold still, the card hands over in one step: there is no
-        // travel to watch, and a block sitting blank for the length of one
-        // would read as a card that had stalled.
-        setPhase(stillness ? "ready" : "lifting");
-        return;
-      }
+      if (splashReady(elapsed, warm)) return beginReveal(false);
       const next = elapsed < SPLASH_MIN_MS ? SPLASH_MIN_MS : SPLASH_STUCK_MS;
       timer = window.setTimeout(check, Math.max(0, next - elapsed));
     };
     check();
     return () => window.clearTimeout(timer);
-  }, [phase, stillness, warm]);
+  }, [phase, warm, beginReveal]);
 
-  // THE TRAVEL, and the only motion on this card the stylesheet cannot own:
-  // how far the lockup has to go is the height of a block that did not exist
-  // a frame ago, so it is measured here. It is walked on a TRANSFORM all the
-  // same — the compositor's, like every other moving thing in the app — and
-  // it is a layout effect because the lockup must never be PAINTED at its new
-  // place before the animation that walks it there is on it.
-  useLayoutEffect(() => {
-    if (phase !== "lifting") return;
-    const card = cardRef.current;
-    card?.animate(
-      [
-        { transform: `translateY(${liftFrom.current - card.getBoundingClientRect().top}px)` },
-        { transform: "none" },
-      ],
-      { duration: LIFT_MS, easing: LIFT_EASING },
-    );
-    const timer = window.setTimeout(() => setPhase("ready"), LIFT_MS);
-    return () => window.clearTimeout(timer);
-  }, [phase]);
-
-  // Cleared: fade, then let the parent unmount us.
+  // THE REVEAL'S BEATS: the house's name off, the logo on, the invitation.
   useEffect(() => {
-    if (phase !== "done") return;
-    const timer = window.setTimeout(() => doneRef.current(), FADE_MS);
-    return () => window.clearTimeout(timer);
-  }, [phase]);
+    if (phase !== "reveal" || frozenMs !== null) return;
+    const timers = [TITLE_BEATS.publisherOut, TITLE_BEATS.logo, TITLE_BEATS.prompt].map((at) =>
+      window.setTimeout(() => {
+        const next = revealAt(performance.now() - revealedAt.current);
+        setBeat(next);
+        if (next.prompt && phaseRef.current === "reveal") setPhase("ready");
+      }, at),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [phase, frozenMs]);
 
-  // MAY THIS PRESS CLEAR THE CARD — asked of the CLOCK, never of `phase`.
-  // The two agree only on an idle main thread, and the card exists for the
-  // launch where the main thread is anything but: a whole mountain's
-  // geometry is being built. Both the timer that promotes `loading` → `ready` and the
-  // press itself are macrotasks queued behind that work, so they arrive
-  // together when it lets go — and a `dismiss` closing over `phase` would
-  // read the render BEFORE the timer's state update landed and drop the press
-  // on the floor, on exactly the device the card was added for. `startedAt`
-  // is a ref and `performance.now()` owes nothing to the renderer.
-  const dismiss = useCallback(() => {
-    if (!splashReady(performance.now() - startedAt.current, warm)) return;
+  // THE FLIP into the front door's header, the frame after the door mounts:
+  // the logo is moved by a transform from its own box to the header's (its
+  // height to the header's height, centre to centre) and fades as it lands,
+  // the header's own logo held hidden under it until then (`title.css`).
+  useLayoutEffect(() => {
+    if (phase !== "done") return;
+    const root = document.documentElement;
+    root.dataset.titleFlip = "1";
+    let anim: Animation | null = null;
+    const raf = requestAnimationFrame(() => {
+      const from = logoRef.current?.getBoundingClientRect();
+      const to = document.querySelector(".menu-brand .title-logo")?.getBoundingClientRect();
+      if (!from || !to || stillness) return;
+      const s = to.height / from.height;
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      anim =
+        logoRef.current?.animate(
+          [
+            { transform: "none", opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 1, offset: 0.7 },
+            { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 0 },
+          ],
+          { duration: TITLE_BEATS.flip, easing: FLIP_EASING, fill: "forwards" },
+        ) ?? null;
+    });
+    const timer = window.setTimeout(() => {
+      delete root.dataset.titleFlip;
+      calls.current.onDone();
+    }, TITLE_BEATS.flip);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      anim?.cancel();
+      delete root.dataset.titleFlip;
+    };
+  }, [phase, stillness]);
+
+  // A PRESS, asked of the CLOCK as well as the phase: a press and the timer
+  // that would have promoted the card can arrive together off a busy main
+  // thread, so a card still `loading` whose clock says ready is revealed —
+  // skipped straight to its end — rather than the press dropped. During the
+  // reveal a press finishes it; once it is ready, a press enters.
+  const press = useCallback(() => {
+    const p = phaseRef.current;
+    if (p === "done") return;
+    if (p === "loading") {
+      if (splashReady(performance.now() - startedAt.current, warm)) beginReveal(true);
+      return;
+    }
+    if (p === "reveal") {
+      setSkipped(true);
+      setBeat(revealAt(0, true));
+      setPhase("ready");
+      return;
+    }
     setPhase("done");
-  }, [warm]);
+    calls.current.onPress();
+  }, [warm, beginReveal]);
 
   // EVERY KEY IS EATEN WHILE THE CARD IS UP, on `window` in the CAPTURE phase
   // because that is the only place upstream of the input manager the live
-  // game underneath has already installed. Without it, the key that clears
-  // the card also rides the skis behind it.
-  //
-  // It keeps eating them through the fade-out too, so a second impatient
-  // press cannot land on the menu coming up underneath.
+  // game underneath has already installed. It keeps eating them through the
+  // flight too, so a second impatient press cannot land on the menu.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       event.stopPropagation();
@@ -165,51 +234,49 @@ export function SplashScreen({ warm, onDone }: { warm: boolean; onDone: () => vo
       // not a press on the card.
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       event.preventDefault();
-      dismiss();
+      if (!event.repeat) press();
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [dismiss]);
+  }, [press]);
 
-  // Beat two's block is in the LAYOUT from the moment the hand-over starts —
-  // its space is what the lockup is travelling to, so it has to be reserved
-  // before the travel begins — and blank until the travel lands.
-  const staged = phase === "lifting" || phase === "ready";
+  const revealed = phase !== "loading";
   return (
     <div
-      class={`splash${phase === "done" ? " leaving" : ""}`}
+      class="splash"
+      data-phase={phase}
       // A pointer press lands here rather than on the menu: the card covers
       // the screen, so nothing has to be swallowed for it.
-      onPointerDown={dismiss}
+      onPointerDown={() => {
+        tapAt.current = performance.now();
+        press();
+      }}
       // ...and a CLICK, which is the only press a controller can synthesise
-      // (menu-nav.ts). `dismiss` is idempotent.
-      onClick={dismiss}
+      // (menu-nav.ts) — unless it is the tail of the tap just taken.
+      onClick={() => {
+        if (performance.now() - tapAt.current > TAP_TAIL_MS) press();
+      }}
       role="presentation"
     >
-      <div class="splash-card" ref={cardRef}>
-        <span class="splash-publisher">{PUBLISHER.toUpperCase()}</span>
-        <span class="splash-presents">{STRINGS.splashPresents}</span>
-      </div>
-      {/* Beat two, mounted when it arrives rather than held invisible above
-          the fold through beat one. Reserving its space that early would keep
-          the house's name still, and buy that with a hole in the middle of
-          beat one. The card lifting the publisher to make room for its own
-          title is what an attract screen does — and `held` is that lift in
-          progress: the space taken, the drawing in it not started. */}
-      {staged && (
-        <div class={`splash-title${phase === "lifting" ? " held" : ""}`}>
-          <MarkTrails lay="once" className="splash-mark" />
-          <span class="splash-game">{APP_NAME.toUpperCase()}</span>
+      {(!revealed || beat.publisher) && (
+        <div class={`splash-card${revealed ? " leaving" : ""}`}>
+          <span class="splash-publisher">{PUBLISHER.toUpperCase()}</span>
+          <span class="splash-presents">{STRINGS.splashPresents}</span>
+        </div>
+      )}
+      {revealed && beat.logo && (
+        <div class="splash-title" ref={logoRef}>
+          <TitleLogo lockup="stacked" reveal={!skipped} className="splash-logo" />
         </div>
       )}
       {/* THE TWO BEATS SAY DIFFERENT KINDS OF THING, so they are not one slot.
-          Beat two's invitation is the only thing on the card the player has to
-          act on, and it belongs under the title where they were already
-          looking. Beat one has nothing to report but that work is happening —
-          a fact worth a corner, not a headline — so it is said the way a
-          console says it: a small ring turning in the bottom right, out of the
-          lockup's way, claiming no fraction and asking for nothing. */}
-      {phase === "ready" && <span class="splash-prompt">{prompt}</span>}
+          The invitation is the only thing on the card the player has to act
+          on, and it sits low and central where the eye comes to rest. Beat
+          one has nothing to report but that work is happening — a fact worth
+          a corner, not a headline: a small ring turning in the bottom right. */}
+      {revealed && beat.prompt && (
+        <span class={`splash-prompt${phase === "done" ? " flash" : ""}`}>{prompt}</span>
+      )}
       {phase === "loading" && (
         <span class="splash-spinner" role="img" aria-label={STRINGS.loading} />
       )}

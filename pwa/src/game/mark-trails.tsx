@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE APP MARK'S TRAILS, BEING LAID.
 //
-// The two skis trails off the icon (`app-mark.ts`) — without the hill and
-// the flag, which belong to the icon: on its own the pair of trails IS the
-// mark. They fill from the tail on the lower left, up over the crest and
-// down into the dip, which is the direction a skis lays them.
+// The two carved tracks off the icon (`app-mark.ts`) — without the peak,
+// which belongs to the full mark (`title-logo.tsx`): on its own the pair of
+// tracks is the mark at work. They fill from the summit down, the direction
+// a skier cuts them.
 //
 // Two ways of filling:
 //
-//   "once" — laid on arrival and left there. A flourish beside a title that
-//            has just come up (the attract card's, the menu's wordmark).
+//   "once" — laid on arrival and left there (the loading card's mark over a
+//            load that has stopped).
 //   "loop" — laid, held, faded, again. A load in progress
 //            (`loading-screen.tsx`). It says the game is working.
 //
@@ -21,7 +21,7 @@
 // COMPOSITOR, so it keeps moving through a block that would freeze a stroke.
 //
 // The double translate is how a wipe is done with transforms alone: the
-// clipping box slides right over the drawing while the drawing slides left
+// clipping box slides down over the drawing while the drawing slides up
 // by the same amount inside it, so the drawing stays PUT on screen and only
 // the window into it moves.
 

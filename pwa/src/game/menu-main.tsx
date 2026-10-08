@@ -1,42 +1,40 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FRONT DOOR — the card the app opens onto once the attract card has
-// been pressed away, painted over a LIVE RACE: the engine is stepping a
-// bot-ridden race behind this card the whole time it is up, and the camera
-// turns slowly round the skis. A menu that stopped the snow would be a menu
-// that announces the game is not running.
+// been pressed away: over the TITLE SCENE on a visit's first door, and over
+// the LIVE RACE the bot rides once a run has been left for it. Neither stops
+// behind the card; a menu that froze the snow would announce the game is not
+// running.
 //
-// THE RACE IS THE LIT TILE, ONE tile for every discipline: it opens the race card
-// (`menu-races.tsx`) — the SLALOM, two runs against a field of thirty, one on
-// the course at a time; the SUPER-G, one run unseen; the DOWNHILL, a
-// training run and then the race; and the disciplines named and not built
-// yet, dimmed — and each race rides a PINNED map picked on its level card
-// (`menu-levels.tsx`), so a time in the record book is a time down a piste
-// somebody else can ride. Six disciplines do not fit a front door a phone
-// holds upright; one choice of race, then a map, does. A link that pinned a
-// seed says so on the tile instead, because that visit rides the seed.
-// TRICKS beside them: two minutes on the map's trick field (R20), alone, the
-// score the run — on the map the menu stands over.
-// THE FREE RIDE beside it, unlit: the whole map and nobody on it, set up on
-// its own start card (`menu-start.tsx`) — a second way onto the snow, so a
-// tile, but never a second red one.
+// THREE THINGS, BY HOW OFTEN THEY ARE WANTED. PLAY is the lit slab and the
+// only red on the card: it opens the door's second page, where the three
+// ways onto the snow stand — RACE (the race card, `menu-races.tsx`, each
+// discipline on its pinned maps), TRICKS (the freestyle card,
+// `menu-freestyle.tsx`) and FREE RIDE (its start card, `menu-start.tsx`).
+// OPTIONS is the second slab, as big and quieter: every setting, the sound
+// included, lives there. Under them, small, the two things that are not a
+// run at all — the GALLERY of pictures kept and the STATISTICS — and
+// DEVELOPER once it has been let out (the title HELD for seven seconds,
+// `menu-hold.ts`, the chip appearing the receipt), with the build's stamp.
 //
-// EVERYTHING THAT IS NOT SNOW, along the foot: OPTIONS (`menu-options.tsx` —
-// the sound switch and every other setting live there, not on this card),
-// the GALLERY of pictures kept (`menu-gallery.tsx`) and the build. And DEVELOPER, once it
-// has been let out: the title HELD for seven seconds (`menu-hold.ts`) is the
-// one door to it, and the chip appearing is the receipt. Low, and not tile-shaped at
-// all, because a thing that does not start a race should not wear the shape
-// of one.
+// THE PLAY PAGE is the same card with its slabs swapped, not a page laid
+// over it: the logo stays where the attract card flew it, and BACK (or
+// Escape) is the way to the door again. The card is keyed by the page, so
+// the cursor lands afresh and the slabs are dealt in again on the turn.
+//
+// THE COLUMN stands to one side of the scene's subject — left of the skier
+// on a wide screen, under him on a phone held upright — over a scrim rather
+// than in a box (`menu.css`).
 
 import { useEffect, useRef } from "preact/hooks";
 import { DISCIPLINES, SLALOM } from "@engine";
 
-import { APP_NAME, REPO_URL } from "../identity.ts";
-import { MarkTrails } from "./mark-trails.tsx";
+import { REPO_URL } from "../identity.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
 import { DEV_HOLD_MS } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
+import { TitleLogo } from "./title-logo.tsx";
+import type { MenuPage } from "./url-params.ts";
 
 /** The build, bottom right, linking to the exact commit it was cut from. A
  * build with no commit behind it says so and links nowhere — a dead link is
@@ -50,6 +48,10 @@ function VersionStamp() {
   return (
     <a
       class="menu-version"
+      // Small print, not a stop on the keys' walk: the cursor would otherwise
+      // step off a slab onto a link out of the game.
+      data-nav-skip
+      tabIndex={-1}
       href={`${REPO_URL}/commit/${sha}`}
       target="_blank"
       rel="noreferrer noopener"
@@ -61,6 +63,8 @@ function VersionStamp() {
 }
 
 export function MainMenu({
+  page,
+  onPage,
   seed,
   pinned,
   onRace,
@@ -75,6 +79,9 @@ export function MainMenu({
   onDeveloper,
   onHeld,
 }: {
+  /** Which face of the door is up: the door itself, or PLAY's page. */
+  page: MenuPage;
+  onPage: (page: MenuPage) => void;
   /** The seed a run off a seed of its own will build. */
   seed: number;
   /** Whether a link pinned it. */
@@ -85,11 +92,11 @@ export function MainMenu({
   onFree: () => void;
   onOptions: () => void;
   onGallery: () => void;
-  /** The STATISTICS tile's face: runs, metres skied, the top speed (null
-   * before any run), and the press onto its card. */
+  /** The STATISTICS button's face (runs and metres skied; the rest is its
+   * card's), and the press onto its card. */
   stats: { runs: number; distance: number; kmh: number | null };
   onStats: () => void;
-  /** The TRICKS tile: the map it rides and how long the run lasts, s. */
+  /** The TRICKS slab: the map it rides and how long the run lasts, s. */
   tricks?: { map: string; seconds: number };
   onTricks?: () => void;
   /** Whether the DEVELOPER chip is out, the press that opens its page, and
@@ -99,107 +106,201 @@ export function MainMenu({
   onHeld?: () => void;
 }) {
   const hold = useTitleHold(onHeld);
+  const lean = useLean();
+  const play = page === "play";
   return (
-    <div class="menu">
-      <div class="menu-card menu-card-root">
+    <div class="menu menu-door" {...lean}>
+      <div
+        key={play ? "play" : "root"}
+        class={`menu-card menu-card-root${play ? " menu-card-play" : ""}`}
+      >
         <div class="menu-brand" {...hold}>
-          <div class="menu-brand-line">
-            <MarkTrails lay="once" className="menu-brand-mark" />
-            <span class="menu-brand-name">{APP_NAME.toUpperCase()}</span>
-          </div>
+          <TitleLogo lockup="inline" className="menu-brand-logo" />
         </div>
-        <div class="menu-tiles">
-          {/* THE RACES, one tile: the disciplines built, named on it, and
-              the race card behind it (`menu-races.tsx`) — the seed a link
-              pinned said instead. */}
-          <button
-            type="button"
-            class="menu-tile menu-tile-hero"
-            data-menu="race"
-            data-nav-next
-            data-nav-focus
-            onClick={onRace}
-          >
-            {/* The sheen: a slow bar of light travelling the tile, the one
-                moving thing on the card. A transform, and off under
-                `prefers-reduced-motion`. */}
-            <span class="menu-tile-sheen" aria-hidden="true" />
-            <Glyph name="flag" />
-            <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.menuRaces}</span>
-              <span class="menu-tile-line">
-                {pinned
-                  ? STRINGS.menuRaceSeed(seed)
-                  : STRINGS.menuRacesLine(
-                      DISCIPLINES.filter((d) => d.mode !== null).map(
-                        (d) => STRINGS.disciplines[d.id],
-                      ),
-                    )}
-              </span>
-              <span class="menu-tile-line">{STRINGS.menuRacesFormat(SLALOM.field + 1)}</span>
-            </span>
-          </button>
-          {/* THE STATISTICS (`menu-stats.tsx`): every run counted, billed
-              with how much and how fast. */}
-          <button
-            type="button"
-            class="menu-tile menu-tile-wide"
-            data-menu="stats"
-            onClick={onStats}
-          >
-            <Glyph name="chart" />
-            <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.menuStats}</span>
-              <span class="menu-tile-line">
-                {STRINGS.menuStatsLine(stats.runs, stats.distance)}
-              </span>
-              <span class="menu-tile-line">{STRINGS.menuStatsTop(stats.kmh)}</span>
-            </span>
-          </button>
-          {tricks && (
-            <button
-              type="button"
-              class="menu-tile menu-tile-wide"
-              data-menu="tricks"
-              onClick={onTricks}
-            >
-              <Glyph name="flip" />
-              <span class="menu-tile-words">
-                <span class="menu-tile-name">{STRINGS.menuTricks}</span>
-                <span class="menu-tile-line">
-                  {STRINGS.menuTricksLine(tricks.map, tricks.seconds)}
+        {play ? (
+          <>
+            <div class="menu-play-head" style={at(0)}>
+              <button type="button" class="menu-back" data-nav-back onClick={() => onPage("root")}>
+                ‹ {STRINGS.menuBack}
+              </button>
+              <span class="menu-play-title">{STRINGS.menuPlay}</span>
+            </div>
+            <div class="menu-tiles">
+              {/* THE RACES, one slab: the disciplines built, named on it,
+                  and the race card behind it — the seed a link pinned said
+                  instead. The way on of this page, so the lit one. */}
+              <button
+                type="button"
+                class="menu-tile menu-tile-hero"
+                data-menu="race"
+                data-nav-next
+                data-nav-focus
+                style={at(1)}
+                onClick={onRace}
+              >
+                <span class="menu-tile-sheen" aria-hidden="true" />
+                <Glyph name="flag" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuRaces}</span>
+                  <span class="menu-tile-line">
+                    {pinned
+                      ? STRINGS.menuRaceSeed(seed)
+                      : STRINGS.menuRacesLine(
+                          DISCIPLINES.filter((d) => d.mode !== null).map(
+                            (d) => STRINGS.disciplines[d.id],
+                          ),
+                        )}
+                  </span>
+                  <span class="menu-tile-line">{STRINGS.menuRacesFormat(SLALOM.field + 1)}</span>
                 </span>
-              </span>
-            </button>
-          )}
-          <button type="button" class="menu-tile menu-tile-wide" data-menu="free" onClick={onFree}>
-            <Glyph name="kicker" />
-            <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.menuFree}</span>
-              <span class="menu-tile-line">{STRINGS.menuFreeLine}</span>
-            </span>
-          </button>
-        </div>
-        <div class="menu-strip">
-          <button type="button" class="menu-chip" data-menu="options" onClick={onOptions}>
-            <Glyph name="sliders" />
-            <span class="menu-tile-name">{STRINGS.menuOptions}</span>
-          </button>
-          <button type="button" class="menu-chip" data-menu="gallery" onClick={onGallery}>
-            <Glyph name="camera" />
-            <span class="menu-tile-name">{STRINGS.menuGallery}</span>
-          </button>
-          {developer && (
-            <button type="button" class="menu-chip" data-menu="developer" onClick={onDeveloper}>
-              <Glyph name="gauge" />
-              <span class="menu-tile-name">{STRINGS.devTitle}</span>
-            </button>
-          )}
-          <VersionStamp />
-        </div>
+              </button>
+              {tricks && (
+                <button
+                  type="button"
+                  class="menu-tile menu-tile-wide"
+                  data-menu="tricks"
+                  style={at(2)}
+                  onClick={onTricks}
+                >
+                  <Glyph name="flip" />
+                  <span class="menu-tile-words">
+                    <span class="menu-tile-name">{STRINGS.menuTricks}</span>
+                    <span class="menu-tile-line">
+                      {STRINGS.menuTricksLine(tricks.map, tricks.seconds)}
+                    </span>
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                class="menu-tile menu-tile-wide"
+                data-menu="free"
+                style={at(3)}
+                onClick={onFree}
+              >
+                <Glyph name="kicker" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuFree}</span>
+                  <span class="menu-tile-line">{STRINGS.menuFreeLine}</span>
+                </span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div class="menu-tiles">
+              <button
+                type="button"
+                class="menu-tile menu-tile-hero"
+                data-menu="play"
+                data-nav-next
+                data-nav-focus
+                style={at(0)}
+                onClick={() => onPage("play")}
+              >
+                {/* The sheen: a slow bar of light travelling the slab, a
+                    transform and off under `prefers-reduced-motion`. */}
+                <span class="menu-tile-sheen" aria-hidden="true" />
+                <Glyph name="play" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuPlay}</span>
+                  <span class="menu-tile-line">{STRINGS.menuPlayLine}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="menu-tile menu-tile-wide"
+                data-menu="options"
+                style={at(1)}
+                onClick={onOptions}
+              >
+                <Glyph name="sliders" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuOptions}</span>
+                  <span class="menu-tile-line">{STRINGS.menuOptionsLine}</span>
+                </span>
+              </button>
+            </div>
+            <div class="menu-minor">
+              <button
+                type="button"
+                class="menu-chip menu-minor-item"
+                data-menu="gallery"
+                style={at(2)}
+                onClick={onGallery}
+              >
+                <Glyph name="camera" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuGallery}</span>
+                </span>
+              </button>
+              {/* THE STATISTICS (`menu-stats.tsx`): every run counted —
+                  billed small, with how many and how far. */}
+              <button
+                type="button"
+                class="menu-chip menu-minor-item"
+                data-menu="stats"
+                style={at(3)}
+                onClick={onStats}
+              >
+                <Glyph name="chart" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuStats}</span>
+                  <span class="menu-tile-line">
+                    {STRINGS.menuStatsLine(stats.runs, stats.distance)}
+                  </span>
+                </span>
+              </button>
+            </div>
+            <div class="menu-strip" style={at(4)}>
+              {developer && (
+                <button type="button" class="menu-chip" data-menu="developer" onClick={onDeveloper}>
+                  <Glyph name="gauge" />
+                  <span class="menu-tile-name">{STRINGS.devTitle}</span>
+                </button>
+              )}
+              <VersionStamp />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+/** A slab's place in the deal: `menu.css` staggers each one's arrival by
+ * it, so the order is the markup's and never a list of `nth-child` rules. */
+const at = (i: number): Record<string, string> => ({ "--i": String(i) });
+
+/**
+ * THE LEAN: a mouse over the door tilts the column a few pixels against
+ * where it is, as the title scene's lens leans with it (`title-stage.tsx`),
+ * so the card and the mountain part by depth. Written as two custom
+ * properties on `.menu` once a frame at most; `menu.css` reads them. A
+ * thumb is not a pointer resting anywhere, and a machine that asked for
+ * less motion gets none, so neither is listened to.
+ */
+function useLean() {
+  const frame = useRef(0);
+  const want = useRef<[number, number]>([0, 0]);
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const fine =
+    typeof matchMedia === "function" &&
+    matchMedia("(pointer: fine)").matches &&
+    !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!fine) return {};
+  return {
+    onPointerMove: (e: PointerEvent) => {
+      const host = e.currentTarget as HTMLElement;
+      want.current = [(e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1];
+      if (frame.current) return;
+      frame.current = requestAnimationFrame(() => {
+        frame.current = 0;
+        host.style.setProperty("--px", want.current[0].toFixed(3));
+        host.style.setProperty("--py", want.current[1].toFixed(3));
+      });
+    },
+  };
 }
 
 /** The page's clock, ms — read from the pointer handlers and the timer,

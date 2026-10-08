@@ -1,0 +1,913 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE CARDS — the front door (`menu-main.tsx`), its PLAY page, and the glass
+   every other card is cut from (the race card, the level cards, the skis and
+   dress cards, OPTIONS, the start card, the gallery, the statistics, the
+   pause card; its heads, rows and the pause card are `menu-pages.css`).
+
+   IMPORTED BEFORE `styles.css` (`main.tsx`), on purpose: a page's own block
+   there (`.menu-card-skis`, `.menu-card-start`…) restates a measure of the
+   base `.menu-card` at the same specificity, and only a LATER rule wins that.
+
+   ONE LIGHT, ONE ACCENT. The cards are set in the cold blue of the
+   mountain's shadow and lit along their edges by the low sun the title scene
+   is lit by (`--alpenglow`, with `--ice` for the sky's cool half); the
+   flag's red is the way on and nothing else. No hard offset shadow anywhere:
+   the glass and the scrim carry the contrast.
+
+   WHICH BACKDROP and WHAT THE GLASS COSTS are two attributes on the root
+   (`title-app.tsx`'s `MenuChrome`): `data-backdrop` — `title` or `race` —
+   and `data-glass` — `frost`, or `flat` where a full-screen blur over the
+   live race is a price the frame rate should not pay. */
+
+@property --edge {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:root {
+  /* Quick and precise in front, slow and continuous behind: every press and
+     focus on a card eases on this curve. */
+  --menu-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --menu-ink-soft: rgb(159 210 245 / 88%);
+  --menu-glass: linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
+  --menu-glass-on: linear-gradient(180deg, rgb(255 255 255 / 19%), rgb(255 255 255 / 9%));
+  --menu-rim: rgb(255 255 255 / 15%);
+  /* The way on: a warm red lit from the upper left, deep enough at its
+     light end for white small print to hold 4.5:1. */
+  --menu-lit: linear-gradient(105deg, #d9352a 0%, #b3221a 100%);
+  --menu-lit-on: linear-gradient(105deg, #e8412c 0%, #c4281d 100%);
+  /* The solid tint that stands in for the frost where it is too dear. */
+  --menu-flat: rgb(16 36 60 / 88%);
+}
+
+/* ── THE STAGE EVERY CARD STANDS ON ────────────────────────────────────────
+   A COVER, not a scrim over a stopped game: the snow behind is being drawn
+   at full rate, so the card is shaded against it rather than the snow dimmed
+   under the card. A page centres its card in a soft vignette; the door
+   (below) moves aside and keeps only a gradient on its own side. */
+.menu {
+  position: absolute;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: radial-gradient(120% 95% at 50% 50%, rgb(10 23 38 / 28%), rgb(10 23 38 / 62%));
+}
+
+:root[data-backdrop="race"] .menu {
+  background:
+    radial-gradient(120% 95% at 50% 50%, rgb(10 23 38 / 28%), rgb(10 23 38 / 62%)),
+    rgb(10 23 38 / 22%);
+}
+
+/* THE GRAIN: a fine film noise over the whole card stage, the analog finish
+   the scene's own grain is matched to. A tile of turbulence, stepped a few
+   times a second so it lives without crawling; still under reduced motion and
+   where the glass is flat (a repaint a step is not free over the race). */
+.menu::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-glass="flat"]) .menu::after {
+    animation: menu-grain 1s steps(8) infinite;
+  }
+}
+
+@keyframes menu-grain {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 160px 96px;
+  }
+}
+
+/* ── THE GLASS ──────────────────────────────────────────────────────────── */
+.menu-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(30rem, 100%);
+  max-height: 100%;
+  /* A card with a head never scrolls as a whole: its BODY does
+     (`.menu-body`), so the way back and the way on stay put. This is the
+     fallback for the cards with no head (the pause card), which are laid out
+     to fit and scroll only on a screen smaller than any phone. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(1rem, 3.5vmin, 1.6rem);
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, rgb(22 48 79 / 72%), rgb(10 23 38 / 84%));
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  border: 1px solid var(--menu-rim);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 16%),
+    0 24px 60px rgb(0 0 0 / 35%);
+  color: var(--snow);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+:root[data-glass="flat"] .menu-card:not(.menu-card-root) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--menu-flat);
+}
+
+/* A flex column at `max-height` SHRINKS its children to fit before it will
+   scroll, so a card taller than the viewport squeezed every row instead of
+   scrolling — and a row's `overflow: hidden` hid the evidence by clipping its
+   own text mid-word. It costs nothing on a card that FITS. */
+.menu-card > * {
+  flex-shrink: 0;
+}
+
+/* THE PAGE'S BODY (`MenuBody`): the one part of a card that scrolls, between
+   a head and a caption that do not — so BACK and the way on are never below
+   the fold. The inset and its matching negative margin give a lit box's ring
+   and a picked swatch's scale room inside the clip. */
+.menu-card > .menu-body {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  margin: -0.3rem;
+  padding: 0.3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.menu-body > * {
+  flex-shrink: 0;
+}
+
+/* EVERY MARK FROM menu-glyphs.tsx. Sized in `em`, so a glyph is whatever the
+   control it sits in is. */
+.menu-glyph {
+  flex: none;
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+/* ── THE LIGHT EDGE ────────────────────────────────────────────────────────
+   What focus LOOKS like on every card, from across a room: a ring of the
+   low sun's light running round the control's rim (a conic gradient masked
+   to the border and turned), a warm glow off it, and an accent bar growing
+   at its left. The cursor's class (`.nav-cursor`, `menu-nav.ts`), the
+   keyboard's `:focus-visible` and a mouse's hover share it; a thumb gets
+   none that sticks — `:active` is a phone's feedback. */
+.menu-tile,
+.menu-chip,
+.menu-item,
+.menu-back,
+.pause-foot-item {
+  position: relative;
+}
+
+.menu-tile::after,
+.menu-chip::after,
+.menu-item::after,
+.menu-back::after,
+.pause-foot-item::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1.5px;
+  border-radius: inherit;
+  /* The whole rim faintly lit, and the sun's bright run travelling it. */
+  background: conic-gradient(
+    from var(--edge),
+    rgb(255 178 122 / 38%) 0 58%,
+    var(--alpenglow) 72%,
+    #fff 80%,
+    var(--ice) 88%,
+    rgb(159 210 245 / 38%) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0;
+  transition: opacity 180ms var(--menu-ease);
+  pointer-events: none;
+}
+
+.menu-tile.nav-cursor::after,
+.menu-tile:focus-visible::after,
+.menu-chip.nav-cursor::after,
+.menu-chip:focus-visible::after,
+.menu-item.nav-cursor::after,
+.menu-item:focus-visible::after,
+.menu-back.nav-cursor::after,
+.menu-back:focus-visible::after,
+.pause-foot-item.nav-cursor::after,
+.pause-foot-item:focus-visible::after {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .menu-tile:hover::after,
+  .menu-chip:hover::after,
+  .menu-item:hover::after,
+  .menu-back:hover::after,
+  .pause-foot-item:hover::after {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu-tile::after,
+  .menu-chip::after,
+  .menu-item::after,
+  .menu-back::after,
+  .pause-foot-item::after {
+    animation: menu-edge 3.2s linear infinite;
+  }
+}
+
+@keyframes menu-edge {
+  to {
+    --edge: 360deg;
+  }
+}
+
+/* ── THE FRONT DOOR ────────────────────────────────────────────────────────
+   No box: a column to one side of the scene's subject over a gradient that
+   shades only its own side, so the mountain stays the picture. Wide screens
+   put it on the left with the skier on the right (`title-plan.ts`'s
+   `MENU_SLIDE` frames him there); a phone held upright stands it along the
+   bottom under him; a phone on its side keeps the left half. */
+.menu-door {
+  justify-content: flex-start;
+  padding-left: max(4vw, env(safe-area-inset-left));
+  background: linear-gradient(
+    90deg,
+    rgb(10 23 38 / 80%) 0%,
+    rgb(10 23 38 / 44%) 34%,
+    rgb(10 23 38 / 0%) 60%
+  );
+}
+
+:root[data-backdrop="race"] .menu-door {
+  background:
+    linear-gradient(90deg, rgb(10 23 38 / 80%) 0%, rgb(10 23 38 / 44%) 34%, rgb(10 23 38 / 0%) 60%),
+    rgb(10 23 38 / 25%);
+}
+
+/* `.menu-door` in front of every door rule: the shared card's own
+   sideways and upright blocks in `styles.css` (and `maps.css`) come
+   later in the cascade and restate a card's measures at one class. */
+.menu-door .menu-card-root {
+  align-self: stretch;
+  justify-content: center;
+  gap: 0.6rem;
+  width: clamp(23rem, 33vw, 30rem);
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  text-align: left;
+  /* THE LEAN (`menu-main.tsx`'s `useLean`): a mouse tilts the column a few
+     pixels against itself while the scene's lens leans with it. */
+  transform: translate3d(calc(var(--px, 0) * -4px), calc(var(--py, 0) * -3px), 0);
+  transition: transform 600ms var(--menu-ease);
+}
+
+.menu-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+  transform: translate3d(calc(var(--px, 0) * -2px), calc(var(--py, 0) * -2px), 0);
+}
+
+/* The inline lockup (`title-logo.tsx`): sized by its height, the width
+   following the drawing's own ratio. */
+.menu-brand-logo {
+  height: clamp(3rem, 10vmin, 4.4rem);
+  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 35%));
+}
+
+.menu-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* ── A SLAB ────────────────────────────────────────────────────────────────
+   A pane of frosted glass with a mark and a name: the mark is what the eye
+   lands on, the word confirms it, the line under it is the small print. A
+   form's labelled rows are the one thing the way into a game must not read
+   as, so a slab is a mark first. */
+.menu-tile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.4rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--menu-rim);
+  border-radius: 0.9rem;
+  background: var(--menu-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 18%),
+    0 12px 30px rgb(0 0 0 / 22%);
+  color: var(--snow);
+  font: inherit;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform 180ms var(--menu-ease),
+    background 180ms var(--menu-ease),
+    box-shadow 180ms var(--menu-ease),
+    opacity 180ms var(--menu-ease),
+    filter 180ms var(--menu-ease);
+}
+
+:root[data-glass="flat"] .menu-tile:not(.menu-tile-hero),
+:root[data-glass="flat"] .menu-minor-item {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--menu-flat);
+}
+
+/* The accent bar: the flag's red growing up the slab's left edge. */
+.menu-tile::before,
+.menu-minor-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--flag);
+  transform: scaleY(0);
+  transition: transform 220ms var(--menu-ease);
+  pointer-events: none;
+}
+
+.menu-tile .menu-glyph {
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--flag);
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 30%));
+}
+
+.menu-tile-words {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.menu-tile-name {
+  position: relative;
+  font-size: clamp(1.15rem, 2.4vmin + 0.5rem, 1.4rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.menu-tile-line {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.25;
+  color: var(--menu-ink-soft);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
+.menu-tile.nav-cursor,
+.menu-tile:focus-visible {
+  transform: translateX(8px);
+  background: var(--menu-glass-on);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 26%),
+    0 14px 34px rgb(0 0 0 / 26%),
+    0 0 28px rgb(255 178 122 / 22%);
+  outline: none;
+}
+
+.menu-tile.nav-cursor::before,
+.menu-tile:focus-visible::before,
+.menu-minor-item.nav-cursor::before,
+.menu-minor-item:focus-visible::before {
+  transform: scaleY(1);
+}
+
+@media (hover: hover) {
+  .menu-tile:hover {
+    transform: translateX(8px);
+    background: var(--menu-glass-on);
+  }
+
+  .menu-tile:hover::before,
+  .menu-minor-item:hover::before {
+    transform: scaleY(1);
+  }
+
+  .menu-tiles:has(> :hover) > :not(:hover) {
+    opacity: 0.86;
+  }
+}
+
+/* THE OTHERS RECEDE while one is chosen, so the chosen one reads from the
+   sofa. */
+.menu-tiles:has(> .nav-cursor, > :focus-visible) > :not(.nav-cursor, :focus-visible) {
+  opacity: 0.84;
+}
+
+/* The press: in, and a white breath across the glass. */
+.menu-tile:active {
+  transform: translateX(8px) scale(0.985);
+  box-shadow:
+    inset 0 0 0 100vmax rgb(255 255 255 / 10%),
+    0 8px 20px rgb(0 0 0 / 24%);
+  transition-duration: 90ms;
+}
+
+/* ── THE LIT SLAB ──────────────────────────────────────────────────────────
+   PLAY on the door, RACE on its page — the one red on the card, taller than
+   the slabs beside it, because being told which press comes first is the
+   most useful thing a front door does for somebody who has just arrived. */
+.menu-tile-hero {
+  min-height: 6.1rem;
+  padding: 1rem 1.25rem;
+  background: var(--menu-lit);
+  border-color: rgb(255 255 255 / 32%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 38%),
+    inset 0 -18px 30px rgb(120 14 8 / 25%),
+    0 16px 36px rgb(160 30 20 / 32%),
+    0 10px 26px rgb(0 0 0 / 22%);
+}
+
+.menu-tile-hero .menu-glyph {
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--snow);
+}
+
+.menu-tile-hero .menu-tile-name {
+  font-size: clamp(1.45rem, 3vmin + 0.6rem, 1.85rem);
+  letter-spacing: 0.1em;
+}
+
+.menu-tile-hero .menu-tile-line {
+  color: rgb(255 255 255 / 92%);
+}
+
+.menu-tile-hero::before {
+  background: var(--snow);
+}
+
+.menu-tile-hero.nav-cursor,
+.menu-tile-hero:focus-visible {
+  background: var(--menu-lit-on);
+  filter: brightness(1.04);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 45%),
+    0 18px 40px rgb(200 40 27 / 38%),
+    0 0 32px rgb(255 178 122 / 30%);
+}
+
+@media (hover: hover) {
+  .menu-tile-hero:hover {
+    background: var(--menu-lit-on);
+  }
+}
+
+/* THE SHEEN — a bar of light crossing the lit slab now and then: the one
+   moving thing on the card. Its box is the slab's own shape and clips the
+   bar, so the slab itself needs no `overflow: hidden` and its light edge can
+   sit on the rim. */
+.menu-tile-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.menu-tile-sheen::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  bottom: -50%;
+  left: -40%;
+  width: 26%;
+  transform: translateX(-200%) rotate(14deg);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0%),
+    rgb(255 255 255 / 24%),
+    rgb(255 255 255 / 0%)
+  );
+  opacity: 0;
+}
+
+/* ── THE SMALL ROW: GALLERY AND STATISTICS ─────────────────────────────────
+   Not a run, so not slab-sized: two small panes side by side under the
+   slabs, the statistics carrying its one figure as small print. */
+.menu-minor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.menu-minor:has(> .nav-cursor, > :focus-visible) > :not(.nav-cursor, :focus-visible) {
+  opacity: 0.84;
+}
+
+/* ── A CHIP ─────────────────────────────────────────────────────────────────
+   The quietest press: a ghost pill (the door's DEVELOPER, a start card's
+   reroll). The small row's panes are chips cut square. */
+.menu-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  color: rgb(244 248 251 / 86%);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 180ms var(--menu-ease),
+    color 180ms var(--menu-ease),
+    transform 180ms var(--menu-ease),
+    opacity 180ms var(--menu-ease);
+}
+
+.menu-chip .menu-glyph {
+  width: 1.35em;
+  height: 1.35em;
+  color: var(--ice);
+}
+
+.menu-chip.nav-cursor,
+.menu-chip:focus-visible {
+  background: rgb(255 255 255 / 14%);
+  color: var(--snow);
+  box-shadow: 0 0 22px rgb(255 178 122 / 20%);
+  outline: none;
+}
+
+@media (hover: hover) {
+  .menu-chip:hover {
+    background: rgb(255 255 255 / 12%);
+    color: var(--snow);
+  }
+}
+
+.menu-chip:active {
+  transform: scale(0.97);
+}
+
+.menu-minor-item {
+  justify-content: flex-start;
+  gap: 0.75rem;
+  min-height: 3.3rem;
+  padding: 0.6rem 0.9rem;
+  border-color: var(--menu-rim);
+  border-radius: 0.8rem;
+  background: var(--menu-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 10px 24px rgb(0 0 0 / 18%);
+  text-align: left;
+}
+
+.menu-minor-item .menu-glyph {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--flag);
+}
+
+.menu-minor-item .menu-tile-name {
+  font-size: 0.86rem;
+  letter-spacing: 0.12em;
+}
+
+.menu-minor-item .menu-tile-line {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.menu-minor-item .menu-tile-words {
+  gap: 0.15rem;
+}
+
+.menu-minor-item.nav-cursor,
+.menu-minor-item:focus-visible {
+  background: var(--menu-glass-on);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 24%),
+    0 0 26px rgb(255 178 122 / 22%);
+}
+
+.menu-minor-item:active {
+  transform: scale(0.98);
+}
+
+/* THE STRIP along the column's foot: DEVELOPER once let out, and the build. */
+.menu-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.4rem;
+  margin-top: 0.15rem;
+}
+
+/* The build, linking to its own commit: small print at the foot. */
+.menu-version {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  /* A commit sha is a sha: upper-cased it is a string nobody can match
+     against `git log`. */
+  text-transform: none;
+  color: var(--ice);
+  opacity: 0.55;
+  text-decoration: none;
+}
+
+.menu-version-dev {
+  opacity: 0.45;
+}
+
+/* ── THE PLAY PAGE: the door's column with its slabs swapped ─────────────── */
+.menu-play-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.menu-play-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  padding-bottom: 0.3rem;
+  background: linear-gradient(var(--flag), var(--flag)) left bottom / 2.2rem 2px no-repeat;
+}
+
+/* ── THE DEAL: the slabs arriving ──────────────────────────────────────────
+   In from the left one after another, 60 ms apart (`--i`, the markup's
+   order). `backwards`, never `both`: a forwards fill would keep applying the
+   last keyframe's transform at animation priority and kill the press and the
+   focus shift. On the visit's first door the deal waits while the attract
+   card flies the logo into the header (`data-title-flip`). */
+@media (prefers-reduced-motion: no-preference) {
+  .menu-card-root [style*="--i"] {
+    animation: menu-deal 340ms var(--menu-ease) backwards;
+    animation-delay: calc(var(--i) * 60ms + 60ms);
+  }
+
+  :root[data-title-flip] .menu-card-root [style*="--i"] {
+    animation-play-state: paused;
+  }
+
+  .menu-tile-sheen::before {
+    animation: menu-sheen 6s 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes menu-deal {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes menu-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-200%) rotate(14deg);
+  }
+  5% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0;
+  }
+  20.01%,
+  100% {
+    opacity: 0;
+    transform: translateX(700%) rotate(14deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-card-root,
+  .menu-tile,
+  .menu-chip {
+    transition-property: background, box-shadow, opacity, filter, color;
+  }
+}
+
+/* ── THE DOOR HELD UPRIGHT ─────────────────────────────────────────────────
+   The scene fills the screen with the skier in its upper half; the logo
+   stands over the sky at the top and the column along the bottom, over a
+   scrim that deepens under it. It must fit 390×844 with nothing to scroll. */
+@media (orientation: portrait) {
+  .menu-door {
+    justify-content: center;
+    padding: max(1.1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    background: linear-gradient(
+      180deg,
+      rgb(10 23 38 / 38%) 0%,
+      rgb(10 23 38 / 0%) 16%,
+      rgb(10 23 38 / 0%) 44%,
+      rgb(10 23 38 / 66%) 62%,
+      rgb(10 23 38 / 90%) 100%
+    );
+  }
+
+  :root[data-backdrop="race"] .menu-door {
+    background:
+      linear-gradient(
+        180deg,
+        rgb(10 23 38 / 38%) 0%,
+        rgb(10 23 38 / 0%) 16%,
+        rgb(10 23 38 / 0%) 44%,
+        rgb(10 23 38 / 66%) 62%,
+        rgb(10 23 38 / 90%) 100%
+      ),
+      rgb(10 23 38 / 22%);
+  }
+
+  .menu-door .menu-card-root {
+    width: min(100%, 30rem);
+    padding: 0;
+    justify-content: flex-end;
+    gap: 0.55rem;
+  }
+
+  .menu-door .menu-card-root .menu-brand {
+    align-items: center;
+    margin-bottom: auto;
+  }
+
+  .menu-door .menu-card-root .menu-brand-logo {
+    height: auto;
+    width: min(70vw, 20rem);
+  }
+
+  .menu-door .menu-card-root .menu-tile {
+    min-height: 3.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-hero {
+    min-height: 5.2rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile.nav-cursor,
+  .menu-door .menu-card-root .menu-tile:focus-visible,
+  .menu-door .menu-card-root .menu-tile:active {
+    transform: translateX(4px);
+  }
+}
+
+/* ── THE DOOR TURNED SIDEWAYS ──────────────────────────────────────────────
+   HOW THE GAME IS ACTUALLY HELD: 390 px of height less the safe areas. The
+   column keeps the left half, compact, and the skier the right. `max-height`
+   rather than a width query, because what is short is what hurts. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu-door {
+    padding: max(0.6rem, env(safe-area-inset-top)) max(0.6rem, env(safe-area-inset-right))
+      max(0.6rem, env(safe-area-inset-bottom)) max(1.2rem, env(safe-area-inset-left));
+    background: linear-gradient(
+      90deg,
+      rgb(10 23 38 / 82%) 0%,
+      rgb(10 23 38 / 48%) 40%,
+      rgb(10 23 38 / 0%) 64%
+    );
+  }
+
+  :root[data-backdrop="race"] .menu-door {
+    background:
+      linear-gradient(
+        90deg,
+        rgb(10 23 38 / 82%) 0%,
+        rgb(10 23 38 / 48%) 40%,
+        rgb(10 23 38 / 0%) 64%
+      ),
+      rgb(10 23 38 / 22%);
+  }
+
+  .menu-door .menu-card-root {
+    width: min(48vw, 26rem);
+    gap: 0.42rem;
+  }
+
+  .menu-door .menu-card-root .menu-brand {
+    margin-bottom: 0.35rem;
+  }
+
+  .menu-door .menu-card-root .menu-brand-logo {
+    height: 2.3rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile {
+    min-height: 3rem;
+    gap: 0.8rem;
+    padding: 0.5rem 0.9rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile .menu-glyph {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-name {
+    font-size: 1.02rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-line {
+    font-size: 0.62rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-hero {
+    min-height: 3.9rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-hero .menu-glyph {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .menu-door .menu-card-root .menu-tile-hero .menu-tile-name {
+    font-size: 1.3rem;
+  }
+
+  .menu-door .menu-card-root .menu-minor-item {
+    min-height: 2.6rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .menu-door .menu-card-root .menu-strip {
+    min-height: 1rem;
+    margin-top: 0;
+  }
+}

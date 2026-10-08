@@ -34,6 +34,7 @@
     "ride": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/ride-lab.mjs",
     "audition": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/audition.mjs",
     "screenshots": "node scripts/screenshot.mjs",
+    "title": "node scripts/title-preview.mjs",
     "profile": "node scripts/profile-render.mjs",
     "bench": "node scripts/benchmark.mjs",
     "cpu-cost": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/cpu-cost.mjs",

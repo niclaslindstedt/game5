@@ -368,6 +368,11 @@ export const STRINGS = {
   splashPress: "PRESS ANY KEY TO START",
 
   /* ── THE FRONT DOOR (menu-main.tsx) ────────────────────────────────── */
+  /** The lit slab, its page's head, and what is behind it. */
+  menuPlay: "PLAY",
+  menuPlayLine: "RACE · TRICKS · FREE RIDE",
+  /** The OPTIONS slab's line: what is set behind it. */
+  menuOptionsLine: "PICTURE · SOUND · CONTROLS",
   /** A race's map line where a link pinned a seed. */
   menuRaceSeed: (seed: number): string => `SEED ${seed}`,
   /** THE DISCIPLINES the game names, by their id. */

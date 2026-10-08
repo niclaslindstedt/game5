@@ -141,6 +141,13 @@
 //                   probe (`video-probe.ts`) may move the picture, and a lab
 //                   wants it held still.
 //   ?splash=1|0     force the attract card up, or off an ordinary visit.
+//   ?backdrop=race  the front door over the live race the bot rides (as
+//                   after a run) rather than the title scene a visit opens
+//                   on; `title` the scene, whatever else the link says
+//                   (`shell.ts`'s `initialBackdrop`).
+//   ?titleT=<s>     the title scene held at this title time (seconds since
+//                   its reveal began, 0–600): the lab's frozen frame
+//                   (`make title`), its resolution and grain held still.
 //   ?update=1       draw the new-build button as if a build were waiting
 //                   (read by `update-button.tsx` itself).
 //
@@ -176,6 +183,7 @@ export type DevPage = "dev" | "benchHistory";
 /** The cards a link may open on. */
 export type MenuPage =
   | "root"
+  | "play"
   | "skis"
   | "dress"
   | "options"
@@ -190,6 +198,7 @@ export type MenuPage =
   | DevPage;
 const MENU_PAGES: readonly MenuPage[] = [
   "root",
+  "play",
   "skis",
   "dress",
   "options",
@@ -277,6 +286,8 @@ export type UrlParams = {
   afterski: boolean;
   /** A free ride's buzz to begin with, 0..1; null sober. */
   buzz: number | null;
+  /** The title scene held at this title time, s; null for the live clock. */
+  titleT: number | null;
 };
 
 /** The sky a link names, if any. */
@@ -410,6 +421,7 @@ export function readParams(search: string): UrlParams {
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
     afterski: q.get("afterski") === "1",
     buzz: buzzOf(q.get("buzz")),
+    titleT: titleTOf(q.get("titleT")),
   };
 }
 
@@ -447,6 +459,12 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     inLodge: params.afterski || ride.inLodge,
     buzz: params.buzz ?? ride.buzz,
   };
+}
+
+/** A frozen title time a link may name: 0–600 s. */
+function titleTOf(raw: string | null): number | null {
+  const t = raw === null || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(t) && t >= 0 ? Math.min(t, 600) : null;
 }
 
 /** A link's buzz: a number in 0..1, or null. */

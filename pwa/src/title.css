@@ -1,0 +1,462 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE LOGO (`title-logo.tsx`): the mark leant beside the FALL LINE wordmark,
+   standing still, and its REVEAL on the title.
+
+   The two layers share one box — the mark's svg and the name's, one over
+   the other — so the logo is sized by a WIDTH alone (or a height, with the
+   width left to the ratio the component states inline). */
+.title-logo {
+  position: relative;
+  display: block;
+  pointer-events: none;
+}
+
+.title-logo-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The tile's rim: a hairline of ice round the badge, so it holds its edge
+   against a dark sky and still reads on a bright one. */
+.title-logo-rim {
+  fill: none;
+  stroke: var(--ice);
+  stroke-opacity: 0.32;
+  stroke-width: 6;
+}
+
+.title-logo-carve {
+  fill: none;
+  stroke: var(--flag);
+  stroke-linecap: round;
+}
+
+.title-logo-depth {
+  fill: var(--brand-night);
+  fill-opacity: 0.9;
+}
+
+.title-logo-dust {
+  fill: var(--snow);
+}
+
+/* Standing still, the reveal's own pieces are not there at all. */
+.title-logo-dust circle,
+.title-logo-glint {
+  opacity: 0;
+}
+
+/* ── THE REVEAL ─────────────────────────────────────────────────────────────
+   Five beats on one clock, each starting where the last has said its piece:
+
+     0 ms     the peak rises 8 units into place and fades up (300 ms), the
+              alpenglow flashes on its ridge a moment behind it;
+     250 ms   the carve draws itself from the summit down (700 ms);
+     700 ms   the name is swept on by a window leant along the fall line
+              (600 ms);
+     1300 ms  the cut opens — the whole copy over the cut one fades — and
+              the snow dust puffs off the letters' foot;
+     2000 ms  a glint runs across the letters, once.
+
+   Arrival animations hold their FIRST frame through their delay
+   (`backwards`), never their last (`forwards`), so a press transform or a
+   later rule is never pinned under one. */
+.title-logo-reveal .title-logo-peak,
+.title-logo-reveal .title-logo-tile,
+.title-logo-reveal .title-logo-rim {
+  animation: title-rise 300ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.title-logo-reveal .title-logo-glow {
+  animation: title-flash 700ms 150ms ease-out backwards;
+}
+
+.title-logo-reveal .title-logo-carve path {
+  stroke-dasharray: 1;
+  animation: title-carve 700ms 250ms cubic-bezier(0.33, 0, 0.2, 1) backwards;
+}
+
+.title-logo-reveal .title-logo-word {
+  animation: title-sweep 600ms 700ms cubic-bezier(0.33, 0, 0.2, 1) backwards;
+}
+
+.title-logo-reveal .title-logo-whole {
+  opacity: 0;
+  animation: title-open 260ms 1300ms ease-in backwards;
+}
+
+.title-logo-reveal .title-logo-dust circle {
+  animation: title-dust 900ms 1250ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.title-logo-reveal .title-logo-glint {
+  animation: title-glint 900ms 2000ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+@keyframes title-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes title-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+    fill: #fff;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes title-carve {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The window leans back along the fall line ("\"), its top edge trailing
+   its foot by a quarter of the box, and sweeps the name left to right. */
+@keyframes title-sweep {
+  from {
+    clip-path: polygon(-25% 0, -25% 0, 0% 100%, -25% 100%);
+  }
+  to {
+    clip-path: polygon(-25% 0, 125% 0, 150% 100%, -25% 100%);
+  }
+}
+
+@keyframes title-open {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes title-dust {
+  0% {
+    opacity: 0;
+    transform: none;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dust-x), var(--dust-y));
+  }
+}
+
+@keyframes title-glint {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(var(--glint-run));
+  }
+}
+
+/* Under reduced motion the logo stands finished: the cut open, nothing
+   drawing, sweeping, puffing or glinting. */
+@media (prefers-reduced-motion: reduce) {
+  .title-logo-reveal *,
+  .title-logo-reveal .title-logo-word {
+    animation: none !important;
+  }
+}
+
+/* ── THE TITLE STAGE (`title-stage.tsx`) ───────────────────────────────────
+   The scene's own canvas, over the world's (which stands empty behind it
+   until the first run is stood up) and under every card. It takes no
+   pointer: the cards over it do. */
+.title-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--brand-night);
+}
+
+.title-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* The still plate, where WebGL2 is missing or failed: cover-fit about the
+   subject, faded in with the reveal as the canvas's exposure would be. */
+.title-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 55% 42%;
+  opacity: 0;
+  transition: opacity 1800ms ease-out;
+}
+
+.title-stage[data-lit] .title-poster {
+  opacity: 1;
+}
+
+/* ── THE ATTRACT CARD (`splash-screen.tsx`) ────────────────────────────────
+   Beat one: the house's name, small and quiet, on the dark the boot screen
+   opened on. Then the card goes CLEAR and the scene under it is the title:
+   the logo high on the sky, the invitation low and central. */
+.splash {
+  position: fixed;
+  inset: 0;
+  top: var(--shell-top);
+  height: var(--shell-visible);
+  z-index: 2000;
+  color: var(--hud-ink);
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--brand-night);
+  transition: background-color 420ms ease-out;
+}
+
+/* NO `pointer-events: none` while it leaves, and that is not an omission: a
+   tap is three events and only the FIRST presses the card, so a card that
+   stopped taking presses as it went would hand the `click` that follows its
+   own `pointerdown` straight to the menu coming up underneath. */
+.splash:not([data-phase="loading"]) {
+  background-color: transparent;
+}
+
+/* A soft shade behind the title's corner and under the invitation, so both
+   read on the brightest sky and snow without a panel's edge. */
+.splash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 62% 48% at 22% 20%,
+      rgb(10 23 38 / 46%) 0%,
+      rgb(10 23 38 / 18%) 55%,
+      rgb(10 23 38 / 0%) 100%
+    ),
+    linear-gradient(
+      0deg,
+      rgb(10 23 38 / 50%) 0%,
+      rgb(10 23 38 / 32%) 9%,
+      rgb(10 23 38 / 14%) 19%,
+      rgb(10 23 38 / 4%) 27%,
+      rgb(10 23 38 / 0%) 34%
+    );
+  transition: opacity 1200ms 600ms ease-out;
+}
+
+.splash[data-phase="reveal"]::before,
+.splash[data-phase="ready"]::before {
+  opacity: 1;
+}
+
+.splash[data-phase="done"]::before {
+  opacity: 0;
+  transition: opacity 360ms ease-out;
+}
+
+.splash-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  animation: splash-in 600ms ease-out backwards;
+}
+
+.splash-card.leaving {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+
+.splash-publisher {
+  font-size: clamp(0.85rem, 2.6vmin, 1.25rem);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  line-height: 1;
+}
+
+.splash-presents {
+  font-size: clamp(0.5rem, 1.5vmin, 0.7rem);
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  /* The tracking is applied to the RIGHT of every glyph, the last one
+     included, so without this the word sits visibly left of centre. */
+  text-indent: 0.5em;
+  opacity: 0.6;
+}
+
+/* THE TITLE: high on the sky. On a wide screen upper left, inside the safe
+   crop and clear of the skier; on a tall one, centred over the summit. */
+.splash-title {
+  position: absolute;
+  left: max(6vw, env(safe-area-inset-left));
+  top: max(9vh, env(safe-area-inset-top));
+  filter: drop-shadow(0 6px 24px rgb(10 23 38 / 45%));
+}
+
+.splash-logo {
+  width: min(40vw, 72vh, 34rem);
+}
+
+/* A phone on its side: the title held clear of the skier's head. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .splash-logo {
+    width: min(34vw, 58vh);
+  }
+}
+
+@media (orientation: portrait) {
+  .splash-title {
+    left: 50%;
+    top: max(7vh, calc(env(safe-area-inset-top) + 1.2rem));
+    translate: -50% 0;
+  }
+
+  .splash-logo {
+    width: min(82vw, 30rem);
+  }
+}
+
+/* WHAT THE CARD WANTS: low and central, arriving once the logo has landed
+   and then BREATHING — a slow swell in and out, not an arcade blink. */
+.splash-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(6vh, calc(env(safe-area-inset-bottom) + 1.2rem));
+  font-size: clamp(0.72rem, 2.3vmin, 1rem);
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 0.9em 2.4em;
+  font-weight: 700;
+  text-align: center;
+  color: var(--snow);
+  /* A soft pool of the night under the words, so they read over the
+     brightest snow the lens drifts across, with no box edge to show. */
+  background: radial-gradient(closest-side, rgb(10 23 38 / 42%), rgb(10 23 38 / 0%));
+  text-shadow:
+    0 1px 10px rgb(10 23 38 / 70%),
+    0 0 2px rgb(10 23 38 / 60%);
+  animation:
+    splash-prompt-in 500ms ease-out backwards,
+    splash-breathe 1600ms 500ms ease-in-out infinite alternate;
+}
+
+/* Pressed: one white flash, and the invitation goes with the card. */
+.splash-prompt.flash {
+  animation: splash-flash 360ms ease-out forwards;
+}
+
+/* The ring turning in the corner while beat one waits. It turns on a
+   TRANSFORM only, so it keeps turning while the main thread is busy. */
+.splash-spinner {
+  position: absolute;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  width: clamp(0.9rem, 2.6vmin, 1.2rem);
+  aspect-ratio: 1;
+  border: 0.12rem solid color-mix(in srgb, var(--hud-ink), transparent 82%);
+  border-top-color: color-mix(in srgb, var(--hud-ink), transparent 40%);
+  border-radius: 50%;
+  animation: splash-spin 900ms linear infinite;
+}
+
+/* The front door's own logo is held hidden while the title's flies into
+   its place, then shown as the flight lands. */
+:root[data-title-flip] .menu-brand .title-logo {
+  opacity: 0;
+}
+
+.menu-brand .title-logo {
+  transition: opacity 200ms ease-out;
+}
+
+@keyframes splash-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-prompt-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+}
+
+@keyframes splash-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+@keyframes splash-flash {
+  0% {
+    opacity: 1;
+    color: #fff;
+    text-shadow:
+      0 0 18px #fff,
+      0 0 2px #fff;
+  }
+  33% {
+    opacity: 1;
+    color: #fff;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the card still shows and still does its job. The
+   invitation stays lit rather than breathing, the ring stands still, and the
+   logo stands finished (`title-logo.tsx`'s own rule). */
+@media (prefers-reduced-motion: reduce) {
+  .splash-card,
+  .splash-prompt,
+  .splash-spinner {
+    animation: none;
+  }
+
+  .splash-prompt.flash {
+    animation: none;
+    opacity: 0;
+  }
+}

@@ -18,9 +18,9 @@ const extra = (Constants.expoConfig?.extra ?? {}) as { gameUrl?: string };
 export const REMOTE_GAME_URL: string | undefined =
   process.env.EXPO_PUBLIC_GAME_URL ?? extra.gameUrl;
 
-/** The brand background — `BRAND_COLOR` in pwa/src/identity.ts (the high sky) and
+/** The brand background — `BRAND_COLOR` in pwa/src/identity.ts (the night) and
  * the website's theme-color. It paints the shell behind the WebView so no
  * white flash shows through while the page loads or during safe-area insets.
  * app.config.js reads the same value off identity.ts; at runtime Expo hands it
  * back, so there is one source and no restatement. */
-export const BRAND_BG: string = Constants.expoConfig?.backgroundColor ?? "#6fa8dc";
+export const BRAND_BG: string = Constants.expoConfig?.backgroundColor ?? "#0a1726";

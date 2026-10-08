@@ -78,14 +78,11 @@ const DEATH_NAMES: Record<DeathCause, string> = {
 };
 
 export const STATS_STRINGS = {
-  /** The front door's tile, and the card's head. */
+  /** The front door's small button, and its one figure: the runs counted
+   * and how far they went. */
   menuStats: "STATISTICS",
   menuStatsLine: (runs: number, metres: number): string =>
-    runs === 0
-      ? "EVERY RUN, COUNTED"
-      : `${whole(runs)} ${runs === 1 ? "RUN" : "RUNS"} · ${reach(metres)} SKIED`,
-  menuStatsTop: (kmh: number | null): string =>
-    kmh === null ? "SKI ONE AND IT LANDS HERE" : `TOP SPEED ${Math.round(kmh)} KM/H`,
+    runs === 0 ? "NO RUNS YET" : `${whole(runs)} ${runs === 1 ? "RUN" : "RUNS"} · ${reach(metres)}`,
   statsTitle: "STATISTICS",
   /** The count of runs and how long they go back, under the head. */
   statsSince: (runs: number, since: number): string =>

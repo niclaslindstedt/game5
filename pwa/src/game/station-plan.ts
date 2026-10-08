@@ -82,6 +82,13 @@ const LANE = 1.4;
  * edge of the platform its rider waits on, m — so neither he nor the cabin
  * coming round to him rides through one. */
 const CANOPY_CLEAR = 1.5;
+/** A chair's half-width across the line, m (`lifts.ts`'s chair, its bar
+ * 2.3 m), and how far past it a hood's columns stand, m — the columns are
+ * set in `HOOD_INSET` from the hood's edge (`station-build.ts`'s
+ * `terminal`), so the chairs and their riders run between them. */
+const CHAIR_HALF = 1.2;
+const HOOD_CLEAR = 0.6;
+const HOOD_INSET = 0.7;
 /** The map board at a gondola's top: m down the line from its wheel past
  * the door its rider is walked out of, and across it — off the cut under
  * the way in. */
@@ -114,11 +121,12 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
       const off = L - p.look.off;
       // THE TOP: the way off down the lane, the house beside it.
       const lane = chairLane(p);
-      put("hood", L - 1, 0, p.heading, g * 2 + 2.4, wheelY(L) + 0.35);
+      const hood = (g + CHAIR_HALF + HOOD_CLEAR + HOOD_INSET) * 2;
+      put("hood", L - 1, 0, p.heading, hood, wheelY(L) + 0.35);
       put("booth", off - BOOTH_BACK, lane.v + BOOTH_LANE, side + Math.PI);
       // THE FOOT.
       const e = p.look.entry;
-      put("hood", 1, 0, p.heading, g * 2 + 2.4, wheelY(0) + 0.35);
+      put("hood", 1, 0, p.heading, hood, wheelY(0) + 0.35);
       put("booth", e.at + 1, g + BOOTH_OUT, side + Math.PI);
       put("load", e.at, e.side, p.heading, e.across * 2);
       corral(fence, p);

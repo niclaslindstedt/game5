@@ -51,6 +51,7 @@ import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { stepAfterski } from "./afterski.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
+import { trafficStrike } from "./traffic-contact.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -229,9 +230,12 @@ export function stepRun(
     const swept = chairStrike(run);
     // ...or a piste machine he rode into, or whose blade met him.
     const struck = swept ? null : groomerStrike(run, events);
-    const cause = swept || struck ? null : wipeoutCause(run, events, speed0);
+    // ...or a car, the ski bus or a bicycle in the village (`traffic-contact.ts`).
+    const hit = swept || struck ? null : trafficStrike(run, events);
+    const cause = swept || struck || hit ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
     else if (struck) throwRider(run, "groomer", struck, events);
+    else if (hit) throwRider(run, "car", hit.v, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
   }

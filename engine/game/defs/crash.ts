@@ -160,6 +160,10 @@ export const CRASH = {
     // Ridden into a piste machine (`groomer.ts`), or met by its blade:
     // knocked flat on his back off the steel, and over onto a side.
     groomer: { pitch: -0.7, side: 0.6, up: 0.8 },
+    // Knocked down by a car, the ski bus or a bicycle in the village
+    // (`traffic-contact.ts`): the legs taken by the bumper, the body
+    // thrown up onto the bonnet and off it, over onto a side.
+    car: { pitch: 0.8, side: 0.6, up: 1.1 },
     // Thrown out of a hot air balloon's basket as it goes over on the snow
     // (`balloon.ts`): over the rim head first, and onto a side.
     balloon: { pitch: 0.9, side: 0.5, up: 1.2 },

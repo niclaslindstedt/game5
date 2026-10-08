@@ -29,6 +29,7 @@ import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
+import type { TrafficEvent } from "./traffic-contact.ts";
 import type { PisteDay } from "./piste-day.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
@@ -397,7 +398,7 @@ export type Injury = {
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer";
+export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -661,6 +662,7 @@ export type GameEvent =
   | GrimbearEvent
   | AfterskiEvent
   | GroomerEvent
+  | TrafficEvent
   | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }

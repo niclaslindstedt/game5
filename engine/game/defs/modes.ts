@@ -481,6 +481,7 @@ export function freeRules(laps: number): RunRules {
     sled: true,
     afterski: true,
     groomer: true,
+    traffic: true,
     start: "line",
     gates: "arcade",
     window: 0,

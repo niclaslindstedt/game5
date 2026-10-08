@@ -32,6 +32,8 @@ import {
   CORRAL_TAIL,
   boardingRing,
   cabinsOf,
+  isMountainBuilding,
+  isResortBuilding,
   clearOfLifts,
   helipadOf,
   liftPlans,
@@ -198,6 +200,16 @@ function inBuilding(level: Level, x: number, z: number, pad: number): boolean {
     if (Math.abs(c.x - x) > reach || Math.abs(c.z - z) > reach) continue;
     const { lx, lz } = intoFrame(c.x, c.z, c.heading, x, z);
     if (Math.abs(lx) < d.width / 2 + pad && Math.abs(lz) < d.depth / 2 + pad) return true;
+    // The ski area's own: its terrace, apron or porch and what stands on it
+    // (the tables, the racks, the deck chairs) as well.
+    if (isResortBuilding(c.kind)) {
+      if (
+        Math.abs(lx) < d.width / 2 + d.reach.side + pad &&
+        lz > 0 &&
+        lz < d.depth / 2 + d.reach.front + pad
+      )
+        return true;
+    }
     if (c.kind === "afterski") {
       const front = d.depth / 2 + TERRACE;
       // The deck, and the racks and steps on the snow before it.
@@ -490,16 +502,20 @@ function lodgeSpots(level: Level): Spot[] {
 }
 
 /** THE CABINS: the open snow before a hut's, a cabin's or a chalet's porch
- * (the yard the placer keeps clear, `CABIN_LAYOUT.clear.yard`). */
+ * (the yard the placer keeps clear, `CABIN_LAYOUT.clear.yard`) — and before
+ * each of the ski area's own buildings (`isResortBuilding`), past its
+ * terrace, apron or porch: the village's a place of the base area, the
+ * mountain's a yard. */
 function cabinSpots(level: Level): Spot[] {
   const out: Spot[] = [];
   for (const c of cabinsOf(level)) {
     if (c.kind === "afterski" || c.kind === "shed") continue;
     const d = CABINS[c.kind];
     const z0 = d.depth / 2 + d.reach.front + 0.8;
+    const own = isResortBuilding(c.kind);
     out.push({
-      id: `${c.id}-porch`,
-      kind: "porch",
+      id: `${c.id}-${own ? "front" : "porch"}`,
+      kind: own ? (isMountainBuilding(c.kind) ? "yard" : "base") : "porch",
       x: c.x,
       z: c.z,
       heading: c.heading,

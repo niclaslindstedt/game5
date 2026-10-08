@@ -24,6 +24,7 @@
 import {
   CABINS,
   cabinsOf,
+  fellsTree,
   regionOf,
   sampleField,
   sampleFieldGradient,
@@ -99,14 +100,15 @@ function woodOf(needle: string): Rgb {
 }
 
 export function minimapSource(level: Level): MinimapSource {
+  const houses = cabinsOf(level);
   const trees = new Float32Array(level.trees.length * 3);
   level.trees.forEach((t, i) => {
     trees[i * 3] = t.x;
     trees[i * 3 + 1] = t.z;
-    trees[i * 3 + 2] = t.crown;
+    // A tree felled for a building's site is no mark: no crown.
+    trees[i * 3 + 2] = fellsTree(houses, t.x, t.z) ? 0 : t.crown;
   });
   const look = regionLookOf(regionOf(level).id);
-  const houses = cabinsOf(level);
   const cabins = new Float32Array(houses.length * 6);
   houses.forEach((c, i) => {
     const d = CABINS[c.kind];
@@ -161,13 +163,25 @@ const ROOF_GROW = 1.5;
 const ROOF_LEAST = 4.2;
 /** Which way each kind's ridge runs (`MinimapSource.cabins`): a cabin's
  * along its front, a hut's and a chalet's gable to the front, a shed's
- * lean-to none, the afterski lodge's along its long front. */
+ * lean-to none, the afterski lodge's along its long front; the ski
+ * area's own buildings' along their long fronts, the flat and mono-pitched
+ * ones none. */
 const RIDGE: Readonly<Record<CabinKind, number>> = {
   cabin: 1,
   hut: 2,
   chalet: 2,
   shed: 0,
   afterski: 1,
+  restaurant: 1,
+  ticket: 0,
+  rental: 1,
+  school: 1,
+  firstAid: 1,
+  hotel: 1,
+  garage: 1,
+  pumpHouse: 0,
+  mountainHut: 1,
+  patrol: 0,
 };
 /** How strongly the woods' mass is laid over the snow at its thickest, and
  * how far round each tree it reaches, as a share of its crown — wide
@@ -295,6 +309,7 @@ function stampWoods(
 ): void {
   const density = new Float32Array(px * px);
   for (let n = 0; n < trees.length; n += 3) {
+    if (trees[n + 2] <= 0) continue;
     const cx = trees[n] / step - 0.5;
     const cz = trees[n + 1] / step - 0.5;
     const r = Math.max(1.5, (trees[n + 2] * WOOD_REACH) / step);
@@ -325,6 +340,7 @@ function stampWoods(
  * rather than as a black blot. */
 function stampTrees(out: Uint8ClampedArray, px: number, step: number, trees: Float32Array): void {
   for (let n = 0; n < trees.length; n += 3) {
+    if (trees[n + 2] <= 0) continue;
     const cx = trees[n] / step - 0.5;
     const cz = trees[n + 1] / step - 0.5;
     const r = Math.max(0.7, (trees[n + 2] * 0.8) / step);

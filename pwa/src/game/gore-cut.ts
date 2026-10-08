@@ -19,10 +19,10 @@ import type { V3 } from "./skier-pose.ts";
 /** Every bone a piece takes with it. */
 export const PIECE_BONES: Record<GorePiece, readonly SkierBone[]> = {
   head: ["head"],
-  armL: ["upperarm_l", "elbow_l", "forearm_l", "hand_l"],
-  armR: ["upperarm_r", "elbow_r", "forearm_r", "hand_r"],
-  forearmL: ["forearm_l", "hand_l"],
-  forearmR: ["forearm_r", "hand_r"],
+  armL: ["upperarm_l", "upperarm_lo_l", "elbow_l", "forearm_l", "forearm_lo_l", "hand_l"],
+  armR: ["upperarm_r", "upperarm_lo_r", "elbow_r", "forearm_r", "forearm_lo_r", "hand_r"],
+  forearmL: ["forearm_l", "forearm_lo_l", "hand_l"],
+  forearmR: ["forearm_r", "forearm_lo_r", "hand_r"],
   legL: ["thigh_l", "knee_l", "shin_l", "boot_l"],
   legR: ["thigh_r", "knee_r", "shin_r", "boot_r"],
   shinL: ["shin_l", "boot_l"],

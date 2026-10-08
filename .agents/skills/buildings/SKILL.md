@@ -16,7 +16,7 @@ and why).
 
 | Module | Use it for |
 | --- | --- |
-| `pwa/src/game/facade-paint.ts` | THE MATERIALS (`FACADE.*`): plain, boards, cladding, roof, panel, concrete, glazing, window, shutter, door, snow, steel, louvre. Each is a 256 px tile whose size in metres is `FACADE_TILE`; `once` tiles are laid once over a quad (a window, a door) and `glazing` is laid once up its band and repeated along it. |
+| `pwa/src/game/facade-paint.ts` | THE MATERIALS (`FACADE.*`): plain, boards, cladding, roof, panel, concrete, glazing, window, shutter, door, snow, steel, louvre, and the log buildings' layers (stone and render among them, which the village builds with too). Each is a 256 px tile whose size in metres is `FACADE_TILE`; `once` tiles are laid once over a quad (a window, a door) and `glazing` is laid once up its band and repeated along it. |
 | `pwa/src/game/facade-kit.ts` | THE KIT, in a building's own frame (x across, y up, z along), set down with `at(x, y, z, yaw)`: `box`, `prism`, `frustum`, `column`, `wall`, `quad`, `cap`, `gableRoof`, `monoRoof`, `flatRoof` (each with its fascia, soffit, verges and a SNOW BLANKET run over the eave), `inset` (a pane or a door stood proud of a wall, lit at night when asked). |
 | `pwa/src/game/facade-mesh.ts` | `facadeGeometry(kit.out)` and `facadeMaterial(haze, name)`: one mesh, one draw, for every building of a kind. |
 | `pwa/src/game/station-build.ts` | The worked example: every station end and its pieces, from the engine's own footprints (`stationHouses`) and the layout (`station-plan.ts`). |

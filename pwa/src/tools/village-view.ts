@@ -12,6 +12,14 @@
 //     village as a skier coming down the last run sees it;
 //   * village-lift — the base from high up the main lift's line, looking
 //     down on it;
+//   * village-air — the whole village from the air over the valley, its
+//     streets, blocks, square and car park laid out under the lens;
+//   * village-street — down the main street at a walker's eye from one
+//     end, the shops and the sidewalks either side;
+//   * village-square — the square from across the main street, the bus
+//     stop, the crossing and the base lodge behind;
+//   * village-back — down the back street, the parked strip and its
+//     windrows;
 //   * village — THE SHEET: every kind on the map from its front three
 //     quarters, its back three quarters and from far off, a row a kind.
 
@@ -19,6 +27,9 @@ import {
   CABINS,
   resortBuildingsOf,
   cabinsOf,
+  streetAt,
+  villageOf,
+  type StreetPoint,
   type Cabin,
   type CabinKind,
   type Level,
@@ -35,6 +46,10 @@ const KINDS: readonly CabinKind[] = [
   "hotel",
   "garage",
   "pumpHouse",
+  "house",
+  "apartments",
+  "shop",
+  "church",
   "mountainHut",
   "patrol",
 ];
@@ -44,6 +59,10 @@ export const VILLAGE_VIEWS = [
   "village",
   "village-plaza",
   "village-lift",
+  "village-air",
+  "village-street",
+  "village-square",
+  "village-back",
   ...KINDS.map((k) => `village-${k}`),
 ] as const;
 
@@ -86,7 +105,7 @@ export function buildingPose(
 /** The base's heart — the lodge, the buildings round it within 150 m —
  * its middle, its spread and the way the lodge faces. */
 function baseOf(level: Level): { x: number; y: number; z: number; r: number; face: number } | null {
-  const all = resortBuildingsOf(cabinsOf(level)).filter((c) => c.run === "hub");
+  const all = resortBuildingsOf(cabinsOf(level)).filter((c) => !isMountain(c.kind));
   const lodge = all.find((c) => c.kind === "restaurant") ?? all[0];
   if (!lodge) return null;
   const v = all.filter((c) => Math.hypot(c.x - lodge.x, c.z - lodge.z) < 150);
@@ -104,6 +123,40 @@ function baseOf(level: Level): { x: number; y: number; z: number; r: number; fac
   let r = 30;
   for (const c of v) r = Math.max(r, Math.hypot(c.x - x, c.z - z));
   return { x, y, z, r, face: lodge.heading };
+}
+
+function isMountain(kind: CabinKind): boolean {
+  return kind === "mountainHut" || kind === "patrol";
+}
+
+/** A lens `high` m over the street `id` at arc `s`, looking `ahead` m
+ * along it (back the way it runs when `ahead` is negative), `lat` m to
+ * its right. */
+function streetPose(
+  level: Level,
+  id: string,
+  s: number,
+  ahead: number,
+  lat: number,
+  high: number,
+): LensPose | null {
+  const v = villageOf(level);
+  const st = v?.streets.find((q) => q.id === id);
+  if (!st) return null;
+  const p: StreetPoint = { x: 0, y: 0, z: 0, s: 0, heading: 0 };
+  const q: StreetPoint = { x: 0, y: 0, z: 0, s: 0, heading: 0 };
+  streetAt(st, s, p);
+  streetAt(st, s + ahead, q);
+  const rx = Math.cos(p.heading);
+  const rz = -Math.sin(p.heading);
+  const ex = p.x + rx * lat;
+  const ez = p.z + rz * lat;
+  return {
+    eye: { x: ex, y: level.groundAt(ex, ez) + high, z: ez },
+    target: { x: q.x + rx * lat * 0.3, y: level.groundAt(q.x, q.z) + high * 0.6, z: q.z },
+    fov: 60,
+    roll: 0,
+  };
 }
 
 type Lab = {
@@ -163,6 +216,73 @@ export function villageShots(lab: Lab): Record<string, () => string> {
       },
       "the base from up the mountain",
     );
+  };
+  shots["village-air"] = () => {
+    const v = villageOf(lab.level);
+    if (!v) return "no village streets on this map";
+    const { x, z } = v.centre;
+    // From out over the valley, high, looking back up at the village.
+    const ex = x + 40;
+    const ez = z + v.valley * 230;
+    return frame(
+      {
+        eye: { x: ex, y: lab.level.groundAt(x, z) + 150, z: ez },
+        target: { x, y: lab.level.groundAt(x, z), z: z + v.valley * 20 },
+        fov: 55,
+        roll: 0,
+      },
+      `the village from the air, ${v.streets.length} streets`,
+    );
+  };
+  shots["village-street"] = () => {
+    const v = villageOf(lab.level);
+    const id = v?.main[0];
+    const pose = id ? streetPose(lab.level, id, 6, 60, 4.4, 1.7) : null;
+    if (!pose) return "no village streets on this map";
+    return frame(pose, "down the main street");
+  };
+  shots["village-square"] = () => {
+    const v = villageOf(lab.level);
+    const sq = v?.areas.find((a) => a.kind === "square");
+    if (!v || !sq) return "no village square on this map";
+    // From the main street's far sidewalk across from it, looking over the
+    // crossing at the square and the lodge behind it.
+    const main = v.streets.filter((s) => v.main.includes(s.id));
+    let best: { st: (typeof main)[number]; s: number } | null = null;
+    let d = Infinity;
+    for (const st of main) {
+      for (const p of st.points) {
+        const e = Math.hypot(p.x - sq.x - 12, p.z - sq.z);
+        if (e < d) {
+          d = e;
+          best = { st, s: p.s };
+        }
+      }
+    }
+    if (!best) return "no main street by the square";
+    const at: StreetPoint = { x: 0, y: 0, z: 0, s: 0, heading: 0 };
+    streetAt(best.st, best.s, at);
+    const hub = v.valley > 0 ? 1 : -1;
+    // The far side's sidewalk: the main street's reach on the valley side.
+    const lat = -hub * 5.6;
+    const ex = at.x + Math.cos(at.heading) * lat;
+    const ez = at.z - Math.sin(at.heading) * lat;
+    return frame(
+      {
+        eye: { x: ex, y: lab.level.groundAt(ex, ez) + 1.8, z: ez },
+        target: { x: sq.x - 6, y: sq.y + 3.5, z: sq.z },
+        fov: 64,
+        roll: 0,
+      },
+      "the square across the main street",
+    );
+  };
+  shots["village-back"] = () => {
+    const v = villageOf(lab.level);
+    const id = v?.back[0];
+    const pose = id ? streetPose(lab.level, id, 6, 50, -2, 1.7) : null;
+    if (!pose) return "no back street on this map";
+    return frame(pose, "down the back street");
   };
   shots.village = () => {
     const rows = KINDS.map((k) => [k, first(k)] as const).filter(([, c]) => c);

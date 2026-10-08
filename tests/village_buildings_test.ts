@@ -12,6 +12,7 @@ import { CABINS, cabinsOf, resortBuildingsOf, type Cabin } from "@engine";
 import { FacadeKit } from "../pwa/src/game/facade-kit.ts";
 import { FACADE_LAYERS } from "../pwa/src/game/facade-paint.ts";
 import { buildResortBuilding, buildResortBuildings } from "../pwa/src/game/village-build.ts";
+import { TOWER } from "../pwa/src/game/village-town.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 /** How far past its roof's or terrace's reach the furniture round a
@@ -19,6 +20,9 @@ import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
  * ridge a chimney or a mast may rise. */
 const AROUND = 6;
 const ABOVE = 7.5;
+/** The church's spire stands over its nave's ridge, as far as a spire's
+ * point does (`village-town.ts`'s `TOWER`), its cross on it. */
+const SPIRE = TOWER.spire + 2;
 
 /** The most triangles any one building of a kind is drawn with. */
 const BUDGET = 4000;
@@ -63,7 +67,8 @@ describe("the ski area's buildings as built", () => {
         expect(Math.abs(lx), c.kind).toBeLessThan(d.width / 2 + d.reach.side + AROUND);
         expect(lz, c.kind).toBeLessThan(d.depth / 2 + d.reach.front + AROUND);
         expect(lz, c.kind).toBeGreaterThan(-d.depth / 2 - d.reach.back - AROUND);
-        expect(pos[i + 1] - c.y, c.kind).toBeLessThan(d.ridge + ABOVE);
+        const top = c.kind === "church" ? SPIRE : d.ridge + ABOVE;
+        expect(pos[i + 1] - c.y, c.kind).toBeLessThan(top);
         low = Math.min(low, pos[i + 1]);
       }
       // The plinth runs down past the lowest snow under the walls.

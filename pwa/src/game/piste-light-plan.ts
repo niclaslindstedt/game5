@@ -119,7 +119,7 @@ function solidAt(deg: number): number {
   return solid;
 }
 
-function solidOf(aim: number): number {
+export function solidOf(aim: number): number {
   const deg = Math.min(90, Math.max(0, (aim * 180) / Math.PI));
   const i = Math.min(89, Math.floor(deg));
   return solidAt(i) + (solidAt(i + 1) - solidAt(i)) * (deg - i);

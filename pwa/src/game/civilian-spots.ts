@@ -34,6 +34,8 @@ import {
   cabinsOf,
   isMountainBuilding,
   isResortBuilding,
+  onCarriageway,
+  TOWN_KINDS,
   clearOfLifts,
   helipadOf,
   liftPlans,
@@ -41,6 +43,7 @@ import {
   queueLane,
   sledSpotOf,
   stationHouses,
+  villageBox,
   type Cabin,
   type Level,
   type LiftPlan,
@@ -247,6 +250,8 @@ export function civilianClear(
   if (ground.onIce(x, z)) return false;
   if (ground.nearestTree(x, z, C.trunk + spare)) return false;
   if (inBuilding(level, x, z, C.wall + spare)) return false;
+  // Off the village's carriageways: a walker keeps to its sidewalks.
+  if (onCarriageway(level, x, z)) return false;
   const o = obstaclesOf(level);
   const house = C.house + spare;
   for (const h of o.houses) {
@@ -280,11 +285,15 @@ export function civilianClear(
 
 /** Whether (x, z) lies past the HUB's valley-side edge (R29) — off the
  * base, down toward the valley. The base's rounds keep to its mountain
- * side; what lies below it is the valley's own. False off the hub's
+ * side; what lies below it is the valley's own — but for the village laid
+ * there, whose streets are the base's too. False off the hub's
  * reach across, or on a map with none. */
 export function pastHub(level: Level, x: number, z: number): boolean {
   const hub = level.resort?.hub;
   if (!hub || hub.bottom.length === 0) return false;
+  // The village below the hub is the base's own: its sidewalks are walked.
+  const box = villageBox(level);
+  if (box && x >= box.x0 && x <= box.x1 && z >= box.z0 && z <= box.z1) return false;
   const i = Math.round((x - hub.x0) / hub.step);
   if (i < 0 || i >= hub.bottom.length) return false;
   const down = Math.sign(hub.bottom[i] - hub.top[i]);
@@ -513,6 +522,9 @@ function cabinSpots(level: Level): Spot[] {
   const out: Spot[] = [];
   for (const c of cabinsOf(level)) {
     if (c.kind === "afterski" || c.kind === "shed") continue;
+    // The town's own houses, flats, shops and church are its people's,
+    // not the ski area's: nobody is dealt a place before them here.
+    if ((TOWN_KINDS as readonly string[]).includes(c.kind)) continue;
     const d = CABINS[c.kind];
     const z0 = d.depth / 2 + d.reach.front + 0.8;
     const own = isResortBuilding(c.kind);

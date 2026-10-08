@@ -39,6 +39,19 @@
 //     and tiller pass through, a concrete apron before them. Off at one end.
 //   * PUMP HOUSE — the snowmaking pumps and compressors: a low concrete box,
 //     a steel double door, louvres, pipes on the wall. Off at one end.
+// THE TOWN round them, on the village's streets (`village-streets.ts`):
+//   * HOUSE — a chalet house: a rendered or stone ground floor under a
+//     timber upper floor, a gable to the street on deep eaves, a balcony
+//     across the gable. Along the back streets behind a yard.
+//   * APARTMENTS — an apartment chalet: three storeys over a stone ground
+//     floor, a balcony on every floor along the long face, a broad gable.
+//   * SHOP — a two-storey shop house: the ground floor glazed to the
+//     street (the display windows, the door, an awning, the sign band),
+//     the flat over it, a gable to the street. At the back of the main
+//     street's sidewalk.
+//   * CHURCH — the village church: a rendered nave under a steep roof, its
+//     gable to the square, and its BELL TOWER at the front with a pointed
+//     spire over the belfry. Across the main street from the square.
 // THE MOUNTAIN:
 //   * MOUNTAIN HUT — the mountain restaurant beside a top station: one
 //     storey over a storey dug into the slope, a broad low gable heavy with
@@ -50,14 +63,16 @@
 import type { CabinDef } from "./cabins.ts";
 
 /** The ski area's buildings by kind: the village's and the mountain's. */
-export type VillageKind =
+export type BaseKind =
   "restaurant" | "ticket" | "rental" | "school" | "firstAid" | "hotel" | "garage" | "pumpHouse";
+export type TownKind = "house" | "apartments" | "shop" | "church";
+export type VillageKind = BaseKind | TownKind;
 export type MountainKind = "mountainHut" | "patrol";
 export type ResortKind = VillageKind | MountainKind;
 
-/** The village's kinds in the order the placer stands them — the ones a
+/** The base's kinds in the order the placer stands them — the ones a
  * skier walks into first, the hotels after, the service buildings last. */
-export const VILLAGE_KINDS: readonly VillageKind[] = [
+export const BASE_KINDS: readonly BaseKind[] = [
   "restaurant",
   "ticket",
   "rental",
@@ -67,6 +82,12 @@ export const VILLAGE_KINDS: readonly VillageKind[] = [
   "garage",
   "pumpHouse",
 ];
+
+/** The town's kinds, which stand only on the village's streets. */
+export const TOWN_KINDS: readonly TownKind[] = ["house", "apartments", "shop", "church"];
+
+/** Every one of the village's kinds. */
+export const VILLAGE_KINDS: readonly VillageKind[] = [...BASE_KINDS, ...TOWN_KINDS];
 
 /** The mountain's kinds. */
 export const MOUNTAIN_KINDS: readonly MountainKind[] = ["mountainHut", "patrol"];
@@ -174,6 +195,63 @@ export const RESORT_BUILDINGS: Readonly<Record<ResortKind, CabinDef>> = {
     terrace: 1.8,
     share: 0,
     plinth: 1.2,
+    cut: 1.2,
+  },
+  // A chalet house of 12 × 10 m: a 2.8 m ground floor and a timber floor
+  // to the eaves at 5.6 m, a 25° gable to 8.4 m on 1.4 m eaves; the
+  // balcony and the doorstep 2 m out before it.
+  house: {
+    width: 12,
+    depth: 10,
+    walls: 5.6,
+    ridge: 8.4,
+    reach: { side: 1.4, back: 1.2, front: 2 },
+    terrace: 2.2,
+    share: 0,
+    plinth: 1.4,
+    cut: 1,
+  },
+  // 22 × 13 m: a 3.2 m stone ground floor and three storeys of 2.8 m to
+  // the eaves at 11.6 m, a 25° gable to 14.6 m; eaves and balconies 2.2 m
+  // out before it.
+  apartments: {
+    width: 22,
+    depth: 13,
+    walls: 11.6,
+    ridge: 14.6,
+    reach: { side: 1.8, back: 1.6, front: 2.2 },
+    terrace: 2.6,
+    share: 0,
+    plinth: 2,
+    cut: 2,
+  },
+  // 13 × 11 m: a 3.6 m shop floor and a flat over it to the eaves at
+  // 6.4 m, a 28° gable to 9.4 m on 1.4 m eaves; the awning 1.8 m out
+  // over the walk.
+  shop: {
+    width: 13,
+    depth: 11,
+    walls: 6.4,
+    ridge: 9.4,
+    reach: { side: 1.4, back: 1.2, front: 1.8 },
+    terrace: 1.8,
+    share: 0,
+    plinth: 1,
+    cut: 0.8,
+  },
+  // A nave of 13 × 24 m to the eaves at 8 m under a 45° roof to 14.5 m,
+  // its bell tower of 5.4 m square inside the front (the spire's tip
+  // some 30 m up — `village-town.ts`); the porch and steps 3 m out
+  // before the door.
+  church: {
+    width: 13,
+    depth: 24,
+    walls: 8,
+    ridge: 14.5,
+    reach: { side: 1, back: 1, front: 3 },
+    terrace: 2.2,
+    share: 0,
+    plinth: 1.6,
     cut: 1.2,
   },
   // 20 × 12 m: a storey dug into the slope under the floor, one storey of

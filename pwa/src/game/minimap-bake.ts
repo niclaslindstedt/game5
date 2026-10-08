@@ -6,9 +6,9 @@
 // region's own rock and slopes, `region-look.ts`, as the snow shader shows
 // it), the packed snow of the track in the groomer's grey, the WOODS as a
 // green mass over the ground they stand on, and every tree a dark dot its
-// crown's size inside it, and every CABIN (`cabinsOf`) as a roof the way a
-// piste map marks a building — the country a skier reads off the plate, not
-// only the runs drawn over it.
+// crown's size inside it, the village's STREETS (`villageOf`), and every
+// CABIN (`cabinsOf`) as a roof the way a piste map marks a building — the
+// country a skier reads off the plate, not only the runs drawn over it.
 //
 // ONCE PER MAP, AND OFF THE THREAD THE SNOW IS DRAWN ON. Nothing on the
 // ground changes during a race — the trails are the snow's, not the map's —
@@ -23,11 +23,14 @@
 
 import {
   CABINS,
+  besidePoint,
   cabinsOf,
-  fellsTree,
+  felledTrees,
   regionOf,
   sampleField,
   sampleFieldGradient,
+  sideReach,
+  villageOf,
   type CabinKind,
   type Heightfield,
   type Level,
@@ -77,6 +80,10 @@ export type MinimapSource = {
    * ridge) sextuples, m and radians — the roof's own centre, its reach in;
    * the ridge 1 across its front, 2 front to back, 0 a lean-to's none. */
   cabins: Float32Array;
+  /** The village's streets, square and car park as (ax, az, bx, bz, half
+   * its width) quintuples, m — every piece of every street's line, out to
+   * the back of its sidewalks; empty where the map has no village. */
+  streets: Float32Array;
 };
 
 type Rgb = [number, number, number];
@@ -101,12 +108,14 @@ function woodOf(needle: string): Rgb {
 
 export function minimapSource(level: Level): MinimapSource {
   const houses = cabinsOf(level);
+  const gone = felledTrees(level);
   const trees = new Float32Array(level.trees.length * 3);
   level.trees.forEach((t, i) => {
     trees[i * 3] = t.x;
     trees[i * 3 + 1] = t.z;
-    // A tree felled for a building's site is no mark: no crown.
-    trees[i * 3 + 2] = fellsTree(houses, t.x, t.z) ? 0 : t.crown;
+    // A tree felled for the village or a building's site is no mark: no
+    // crown.
+    trees[i * 3 + 2] = gone[i] ? 0 : t.crown;
   });
   const look = regionLookOf(regionOf(level).id);
   const cabins = new Float32Array(houses.length * 6);
@@ -139,7 +148,40 @@ export function minimapSource(level: Level): MinimapSource {
     },
     wood: woodOf(look.needle),
     cabins,
+    streets: streetsOf(level),
   };
+}
+
+/** The village's ground as the chart draws it (`MinimapSource.streets`). */
+function streetsOf(level: Level): Float32Array {
+  const v = villageOf(level);
+  if (!v) return new Float32Array(0);
+  const out: number[] = [];
+  for (const st of v.streets) {
+    const r0 = sideReach(st.section, 0);
+    const r1 = sideReach(st.section, 1);
+    // The line run down the middle of the whole width, off the
+    // centreline by half the difference of its two sides.
+    const lat = (r1 - r0) / 2;
+    const half = (r0 + r1) / 2;
+    for (let n = 1; n < st.points.length; n++) {
+      const a = besidePoint(st.points[n - 1], lat);
+      const b = besidePoint(st.points[n], lat);
+      out.push(a.x, a.z, b.x, b.z, half);
+    }
+  }
+  for (const a of v.areas) {
+    const fx = Math.sin(a.heading);
+    const fz = Math.cos(a.heading);
+    out.push(
+      a.x - fx * a.depth,
+      a.z - fz * a.depth,
+      a.x + fx * a.depth,
+      a.z + fz * a.depth,
+      a.half,
+    );
+  }
+  return new Float32Array(out);
 }
 
 /** The map's paint, sRGB 0..255. A cool blue-grey in the hollows to white on
@@ -154,6 +196,9 @@ const TREE = [30, 70, 52];
 /** A cabin's roof on the chart: a dark timber brown under a rim darker
  * still, so it stands off the woods' green and the snow alike. */
 const ROOF = [112, 66, 44];
+/** A village street: a cool grey a shade darker than the piste's, so the
+ * town reads as town under its roofs. */
+const STREET = [128, 126, 134];
 const ROOF_RIM = [52, 32, 24];
 const ROOF_RIDGE = [214, 190, 170];
 /** A roof is drawn this much larger than it stands, as a piste map marks a
@@ -182,6 +227,10 @@ const RIDGE: Readonly<Record<CabinKind, number>> = {
   pumpHouse: 0,
   mountainHut: 1,
   patrol: 0,
+  house: 2,
+  apartments: 1,
+  shop: 2,
+  church: 2,
 };
 /** How strongly the woods' mass is laid over the snow at its thickest, and
  * how far round each tree it reaches, as a share of its crown — wide
@@ -292,6 +341,7 @@ export function bakeMinimap(
   }
   stampWoods(out, px, step, src.trees, src.wood);
   stampTrees(out, px, step, src.trees);
+  stampStreets(out, px, step, src.streets);
   stampCabins(out, px, step, src.cabins);
   return out;
 }
@@ -360,6 +410,49 @@ function stampTrees(out: Uint8ClampedArray, px: number, step: number, trees: Flo
         out[k + 2] += (TREE[2] - out[k + 2]) * a;
       }
     }
+  }
+}
+
+/** Every street as a band its width, soft by half a pixel at its edge and
+ * never narrower than a pixel and a half, so a lane is a line at any
+ * zoom. */
+function stampStreets(
+  out: Uint8ClampedArray,
+  px: number,
+  step: number,
+  streets: Float32Array,
+): void {
+  const cover = new Float32Array(px * px);
+  for (let n = 0; n < streets.length; n += 5) {
+    const ax = streets[n] / step - 0.5;
+    const az = streets[n + 1] / step - 0.5;
+    const bx = streets[n + 2] / step - 0.5;
+    const bz = streets[n + 3] / step - 0.5;
+    const r = Math.max(0.75, streets[n + 4] / step);
+    const ex = bx - ax;
+    const ez = bz - az;
+    const ee = Math.max(1e-9, ex * ex + ez * ez);
+    const i0 = Math.max(0, Math.floor(Math.min(ax, bx) - r - 1));
+    const i1 = Math.min(px - 1, Math.ceil(Math.max(ax, bx) + r + 1));
+    const j0 = Math.max(0, Math.floor(Math.min(az, bz) - r - 1));
+    const j1 = Math.min(px - 1, Math.ceil(Math.max(az, bz) + r + 1));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const h = Math.max(0, Math.min(1, ((i - ax) * ex + (j - az) * ez) / ee));
+        const d = Math.hypot(i - ax - ex * h, j - az - ez * h);
+        const a = Math.min(1, Math.max(0, r + 0.5 - d));
+        const k = j * px + i;
+        if (a > cover[k]) cover[k] = a;
+      }
+    }
+  }
+  for (let k = 0; k < cover.length; k++) {
+    const a = cover[k] * 0.9;
+    if (a <= 0) continue;
+    const o = k * 4;
+    out[o] += (STREET[0] - out[o]) * a;
+    out[o + 1] += (STREET[1] - out[o + 1]) * a;
+    out[o + 2] += (STREET[2] - out[o + 2]) * a;
   }
 }
 

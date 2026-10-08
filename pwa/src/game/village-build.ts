@@ -31,6 +31,10 @@
 //     flood lamps, the concrete apron, a fuel tank.
 //   * THE PUMP HOUSE (`pumpHouse`): formwork concrete under a flat roof,
 //     a steel double door, louvres, pipes, a sign band, a cooling tower.
+//   * THE TOWN round them — the houses, flats, shops and church along the
+//     village's streets — is `village-town.ts`'s; the streets' furniture
+//     (the lamps, the bus shelter, the signs, the snow poles) is
+//     `street-furniture-build.ts`'s, built into the same kit.
 //
 // The frame is the engine's (`defs/cabins.ts`): x across the front, +z out
 // of it, y up from the floor (`Site`). Three-free: the arrays are made a
@@ -41,6 +45,9 @@ import { resortBuildingsOf, cabinsOf, type Cabin, type Level } from "@engine";
 import { FACADE } from "./facade-paint.ts";
 import { FacadeKit } from "./facade-kit.ts";
 import { buildMountainBuilding } from "./mountain-build.ts";
+import { apartments, church, house, shop } from "./village-town.ts";
+import { buildStreetEdges } from "./street-edges-build.ts";
+import { buildStreetFurniture } from "./street-furniture-build.ts";
 import {
   Site,
   backPitch,
@@ -87,6 +94,8 @@ const SNOW = 0.4;
 export function buildResortBuildings(level: Level, cabins = cabinsOf(level)): FacadeKit {
   const kit = new FacadeKit();
   for (const c of resortBuildingsOf(cabins)) buildResortBuilding(kit, level, c);
+  buildStreetEdges(kit, level);
+  buildStreetFurniture(kit, level);
   return kit;
 }
 
@@ -110,6 +119,14 @@ export function buildResortBuilding(kit: FacadeKit, level: Level, c: Cabin): voi
       return garage(site);
     case "pumpHouse":
       return pumpHouse(site);
+    case "house":
+      return house(site);
+    case "apartments":
+      return apartments(site);
+    case "shop":
+      return shop(site);
+    case "church":
+      return church(site);
     default:
       return buildMountainBuilding(site);
   }

@@ -19,6 +19,8 @@
 import * as THREE from "three";
 import type { GameState, Level, RunRules, SkierState } from "@engine";
 
+import { hasCivilians } from "./civilian-plan.ts";
+import { createCiviliansView } from "./civilians-view.ts";
 import { createCrowdView, type CrowdView } from "./crowd-view.ts";
 
 export type { CrowdView };
@@ -219,24 +221,25 @@ export function createSpectators(level: Level, haze: HazeUniforms): Spectators {
 }
 
 /** EVERYONE ON THE MOUNTAIN who is not racing: the free ride's amateurs
- * (`crowd-view.ts`) and, on a run with something to watch
- * (`hasSpectators`), the crowd watching it — one view to the renderer. */
+ * (`crowd-view.ts`) and its people on foot (`civilians-view.ts`, wherever
+ * the ski area has its people — `hasCivilians`) and, on a run with
+ * something to watch (`hasSpectators`), the crowd watching it — one view to
+ * the renderer. */
 export function createPeopleView(level: Level, haze: HazeUniforms, rules: RunRules): CrowdView {
-  const crowd = createCrowdView(level, haze);
-  if (!hasSpectators(rules)) return crowd;
-  const fans = createSpectators(level, haze);
+  const views: CrowdView[] = [createCrowdView(level, haze)];
+  if (hasCivilians(rules)) views.push(createCiviliansView(level, haze));
+  if (hasSpectators(rules)) views.push(createSpectators(level, haze));
+  if (views.length === 1) return views[0];
   const group = new THREE.Group();
   group.name = "crowd";
-  group.add(crowd.group, fans.group);
+  for (const v of views) group.add(v.group);
   return {
     group,
     update(state, eye) {
-      crowd.update(state, eye);
-      fans.update(state, eye);
+      for (const v of views) v.update(state, eye);
     },
     dispose() {
-      crowd.dispose();
-      fans.dispose();
+      for (const v of views) v.dispose();
     },
   };
 }

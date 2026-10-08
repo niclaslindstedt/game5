@@ -231,14 +231,23 @@ describe("riding a lift on a free ride", () => {
       run.skier.speed = 8;
       step(run, NEUTRAL_INPUT);
       expect(run.skier.lift?.phase).toBe("board");
-      expect(run.skier.lift?.walk).toBeGreaterThan(BOARDING_RING.radius);
-      // Glided up the queue's lane, never faster than the glide asks, onto
-      // the lift facing up its line.
+      // Turned to the way as a skier turns — never slid along it sideways
+      // or backward — then skated up the queue's lane, never faster than
+      // the glide asks, onto the lift facing up its line.
       let fastest = 0;
+      let across = 0;
       ride(run, 60, (r) => {
-        if (r.skier.lift?.phase === "board") fastest = Math.max(fastest, r.skier.speed);
-        return r.skier.lift?.phase === "ride";
+        const c = r.skier;
+        if (c.lift?.phase === "board") {
+          fastest = Math.max(fastest, c.speed);
+          if (c.speed > 0.3) {
+            const way = Math.atan2(c.vx, c.vz);
+            across = Math.max(across, Math.abs(angleDiff(c.heading, way)));
+          }
+        }
+        return c.lift?.phase === "ride";
       });
+      expect(across).toBeLessThan(0.3);
       expect(run.skier.lift?.phase).toBe("ride");
       expect(fastest).toBeLessThan(BOARDING_RING.glide * 2);
       expect(Math.abs(angleDiff(run.skier.heading, plan.heading))).toBeLessThan(0.05);

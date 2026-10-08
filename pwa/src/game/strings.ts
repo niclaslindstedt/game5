@@ -536,6 +536,8 @@ export const STRINGS = {
   optMedium: "MEDIUM",
   optHigh: "HIGH",
   optMax: "MAX",
+  /** A RESOLUTION stop: "70%". */
+  optShare: (percent: string): string => `${percent}%`,
   optShadowSkiers: "SKIERS",
   optCustom: "CUSTOM",
   optAuto: "AUTO",
@@ -612,6 +614,9 @@ export const STRINGS = {
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
   optSprayHint: "How much snow the skis throw.",
+  optLamps: "LAMPS",
+  optLampsHint:
+    "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
   optAntialias: "SMOOTH EDGES",
   optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
 

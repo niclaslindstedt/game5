@@ -37,7 +37,9 @@ import {
   type Assist,
   type CreateGameOptions,
   type GrimbearAsk,
+  type GameState,
   type GrimbearState,
+  lastPiste,
   type Level,
   type RunRules,
   type SkiSpec,
@@ -414,6 +416,34 @@ export function freeTopOptions(
     // A ride begun at the afterski starts again on the snow, not at the bar.
     inLodge: false,
   };
+}
+
+/** The options a free ride's restart stands the next rider up on, off the
+ * ride `again` it was begun on (`freeAgainOptions`); null for every other
+ * run, which starts again from its start line. */
+export function freeRestart(
+  state: GameState,
+  again: CreateGameOptions | null,
+): CreateGameOptions | null {
+  return !state.rules.course && !state.rules.tricks && again
+    ? freeTopOptions(again, lastPiste(state), state.grimbear)
+    : null;
+}
+
+/** WHERE THE NEXT RIDER STANDS once this one is dead: the start of a race
+ * or a tricks run; on a free ride, wherever the restart's options `next`
+ * (`freeTopOptions`) put him, read in the order `createGame` reads them —
+ * the balloon's basket, the paramotor's summit, the helicopter's pad, the
+ * snowmobile, then the top of the last piste skied, else the start line. */
+export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket";
+
+export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
+  if (rules.course || rules.tricks || !next) return "start";
+  if (next.balloon && !next.inLodge) return "basket";
+  if (next.para) return "summit";
+  if (rules.heli && next.heli) return "pad";
+  if (rules.sled && next.sled) return "sled";
+  return next.run !== undefined ? "top" : "start";
 }
 
 /** THE GRIMBEAR ON A RIDE STARTED AGAIN: still out where he was, and still

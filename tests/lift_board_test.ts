@@ -15,13 +15,18 @@ import {
   CORRAL_TAIL,
   NEUTRAL_INPUT,
   TUNING,
+  angleDiff,
   arrivalOf,
   boardingRing,
+  cabinDoors,
   carrierAt,
   carrierCount,
   createGame,
   liftPlans,
+  platformOf,
   queueLane,
+  railAt,
+  seatedShare,
   standSkier,
   step,
   type GameEvent,
@@ -164,18 +169,102 @@ describe("boarding a lift from its ring", () => {
     expect(run.skier.lift!.speed).toBeLessThan(plan.look.slow);
   });
 
-  for (const kind of ["chair", "gondola"] as const) {
-    it(`fades a ${kind}'s rider into his carrier as it leaves the station`, () => {
-      const plan = of(kind);
-      const run = atRing(plan);
-      ride(run, 60, (r) => r.skier.lift?.phase === "ride");
-      const l = run.skier.lift!;
-      expect(l.faded).toBe(true);
-      // Sat in it at once, out of the station.
-      expect(Number.isNaN(l.from.y)).toBe(true);
-      expect(l.u).toBeGreaterThan(plan.look.entry.at);
+  it("fades a chair's rider into his chair as it leaves the station", () => {
+    const plan = of("chair");
+    const run = atRing(plan);
+    ride(run, 60, (r) => r.skier.lift?.phase === "ride");
+    const l = run.skier.lift!;
+    expect(l.faded).toBe(true);
+    // Sat in it at once, out of the station.
+    expect(Number.isNaN(l.from.y)).toBe(true);
+    expect(l.u).toBeGreaterThan(plan.look.entry.at);
+  });
+
+  it("takes a gondola's rider through the hall to wait on its platform, and his cabin comes round to him", () => {
+    const plan = of("gondola");
+    const G = TUNING.lift.gondola;
+    const run = atRing(plan);
+    ride(run, 60, (r) => r.skier.lift?.phase === "wait");
+    const l = run.skier.lift!;
+    expect(l.phase).toBe("wait");
+    // Faded through the door and back in on him stood on the platform,
+    // beside his cabin's way, facing up the line.
+    expect(l.faded).toBe(true);
+    const p = platformOf(plan);
+    expect(Math.hypot(run.skier.x - p.x, run.skier.z - p.z)).toBeLessThan(1e-6);
+    // His cabin comes round the wheel, slowing to the station's crawl, its
+    // doors opening, and takes him alongside.
+    const at = railAt(plan, l.u);
+    expect(Math.hypot(at.x - plan.lift.bottom.x, at.z - plan.lift.bottom.z)).toBeLessThan(4);
+    let waited = 0;
+    ride(run, 30, (r) => {
+      if (r.skier.lift?.phase === "wait") waited += TUNING.dt;
+      return r.skier.lift?.phase === "ride";
     });
-  }
+    expect(waited).toBeGreaterThan(1.5);
+    expect(waited).toBeLessThan(6);
+    const took = run.skier.lift!;
+    expect(took.speed).toBeCloseTo(G.creep, 5);
+    expect(cabinDoors(took)).toBeCloseTo(1, 5);
+    expect(seatedShare(took)).toBeLessThan(0.1);
+    // He steps in and sits while it creeps on, its doors shut, and it is
+    // taken back onto the rope.
+    ride(run, G.stepIn, () => false);
+    expect(seatedShare(run.skier.lift!)).toBeCloseTo(1, 5);
+    expect(run.skier.lift!.speed).toBeCloseTo(G.creep, 5);
+    ride(run, G.shut + 0.05, () => false);
+    expect(cabinDoors(run.skier.lift!)).toBeCloseTo(0, 5);
+    ride(run, 3, () => false);
+    expect(run.skier.lift!.speed).toBeGreaterThan(2);
+    // Sat in it up the line, his cabin's floor carried off the platform.
+    expect(Math.abs(angleDiff(run.skier.heading, plan.heading))).toBeLessThan(0.05);
+  });
+
+  it("stops, steps his skis round on the spot and skates off when he comes in the wrong way", () => {
+    const plan = of("chair");
+    const ring = boardingRing(plan);
+    const lane = queueLane(plan);
+    const a = lane[lane.length - 2];
+    const b = lane[lane.length - 1];
+    // Out of the corral's side of the ring, heading away from it.
+    const away = Math.atan2(
+      plan.dx * (b.u - a.u) + plan.dz * (b.v - a.v),
+      plan.dz * (b.u - a.u) - plan.dx * (b.v - a.v),
+    );
+    const run = createGame({ level, mode: "free", crowd: 0, quiet: true });
+    standSkier(run, ring.x, ring.z, away);
+    run.skier.vx = Math.sin(away) * 4;
+    run.skier.vz = Math.cos(away) * 4;
+    run.skier.speed = 4;
+    let skidded = false;
+    let pivoted = false;
+    let across = 0;
+    let swung = 0;
+    let last = away;
+    ride(
+      run,
+      30,
+      (r) => r.skier.lift?.phase !== "board" && r.skier.lift !== null,
+      NEUTRAL_INPUT,
+      (r) => {
+        const c = r.skier;
+        if (c.lift?.phase !== "board") return;
+        if (c.skid > 0) skidded = true;
+        if (c.pivot !== 0) pivoted = true;
+        if (c.speed > 0.3) {
+          across = Math.max(across, Math.abs(angleDiff(c.heading, Math.atan2(c.vx, c.vz))));
+          // Never swivelled while he slides.
+          swung = Math.max(swung, Math.abs(angleDiff(last, c.heading)) / TUNING.dt);
+        }
+        last = c.heading;
+      },
+    );
+    expect(skidded).toBe(true);
+    expect(pivoted).toBe(true);
+    expect(across).toBeLessThan(0.3);
+    expect(swung).toBeLessThan(TUNING.lift.board.turn + 0.1);
+    expect(run.skier.lift?.phase).toBe("ride");
+  });
 
   it("never takes the ring through the gondola's corral fence from the side", () => {
     const plan = of("gondola");

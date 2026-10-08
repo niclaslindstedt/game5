@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -388,6 +388,18 @@ crowd:
 # ARGS="--sheet=race --views=pass --hour=19"; ARGS="--sheet=moves".
 audience:
 	npm run audience -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE CIVILIANS LAB: the free ride's people on foot — every body at every
+# pose its figure is morphed between (figures), each activity strobed as the
+# view blends it (moves), the things they hold and the deck chairs and
+# snowmen with the heads, the staff and the cuts (props), and SEED's ski area
+# through the game's renderer (resort: lift, terrace, yard, base, walker,
+# cocoa, kids, overview; terrace and base again at hour 21) —
+# previews/civilians/*.png. Its own one-off bundle from
+# pwa/civilians-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n; ARGS="--sheet=resort --views=terrace --night="; ARGS=--tag=round1.
+civilians:
+	npm run civilians -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE LIFT RIDE LAB: a free ride begun on the chairlift, carried to the
 # top, stood off down the unload ramp and its lane past the station house,

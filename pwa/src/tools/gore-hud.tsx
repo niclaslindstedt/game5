@@ -57,7 +57,7 @@ function Page({ f }: { f: HudFrame }): JSX.Element {
         </div>
         <BodyPanel tile={tile} />
         {tile.blow && <GForce blow={tile.blow} />}
-        {f.died && <DeathCard wreck={wreck} cause={f.died.cause} />}
+        {f.died && <DeathCard wreck={wreck} cause={f.died.cause} again="top" />}
       </div>
     </div>
   );

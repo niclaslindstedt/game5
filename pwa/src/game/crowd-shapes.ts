@@ -54,14 +54,14 @@ const CUT: Readonly<
 
 /** The kit's own colours, painted into the mesh: boots, gloves, goggles'
  * lens, poles. */
-const BOOT = new THREE.Color(0x24272d);
-const GLOVE = new THREE.Color(0x1d1f24);
-const LENS = new THREE.Color(0xd08a2c);
+export const BOOT = new THREE.Color(0x24272d);
+export const GLOVE = new THREE.Color(0x1d1f24);
+export const LENS = new THREE.Color(0xd08a2c);
 const POLE = new THREE.Color(0x9ea6ae);
 /** A dressed face's shade: the multiplier its slot's colour is drawn at —
  * the facets a shade apart so a jacket still reads as a body. */
-const FULL = new THREE.Color(1, 1, 1);
-const SHADE = new THREE.Color(0.86, 0.86, 0.86);
+export const FULL = new THREE.Color(1, 1, 1);
+export const SHADE = new THREE.Color(0.86, 0.86, 0.86);
 
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -71,9 +71,9 @@ const norm = (a: V3): V3 => mul(a, 1 / (Math.hypot(a[0], a[1], a[2]) || 1));
 const mix = (a: V3, b: V3, t: number): V3 => add(mul(a, 1 - t), mul(b, t));
 
 /** A body's frame at a point: its right, its up and its forward. */
-type Frame = { r: V3; u: V3; f: V3 };
+export type Frame = { r: V3; u: V3; f: V3 };
 
-function frameOf(right: V3, up: V3): Frame {
+export function frameOf(right: V3, up: V3): Frame {
   const u = norm(up);
   const r = norm(sub(right, mul(u, dot(right, u))));
   return { r, u, f: cross(r, u) };
@@ -81,20 +81,26 @@ function frameOf(right: V3, up: V3): Frame {
 
 /** A ring of `sides` round `c` in the plane of `fr.r` and `fr.f`, its radii
  * `rx` across and `rz` front to back. */
-function ring(c: V3, fr: Frame, rx: number, rz: number, sides: number): V3[] {
+export function ring(c: V3, fr: Frame, rx: number, rz: number, sides: number): V3[] {
   return Array.from({ length: sides }, (_, k) => {
     const a = (k / sides) * Math.PI * 2 + Math.PI / sides;
     return add(c, add(mul(fr.r, Math.cos(a) * rx), mul(fr.f, Math.sin(a) * rz)));
   });
 }
 
-class Figure {
-  readonly s = new Shape(0, { marks: { aSlot: 1 }, stems: false });
-  constructor() {
+export class Figure {
+  readonly s: Shape;
+  /** `parts`: whether every vertex also carries the part of the kit it is
+   * (`aPart`), which an instance may fold away — the civilians' figures. */
+  constructor(parts = false) {
+    this.s = new Shape(0, { marks: parts ? { aSlot: 1, aPart: 1 } : { aSlot: 1 }, stems: false });
     this.s.facet = 0.55;
   }
   slot(k: number): void {
     this.s.mark("aSlot", k);
+  }
+  part(k: number): void {
+    this.s.mark("aPart", k);
   }
   /** A tube from `a` to `b`, its rings started off `ref` (a body's right),
    * radii `ra` to `rb`, closed at `b` when `cap`. */
@@ -202,39 +208,18 @@ class Figure {
   }
 }
 
-/** Build one pose of a body at a cut. The same calls in the same order
- * for every pose: what differs is where the joints are. */
-function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
+/** A posed body's two frames: its hips' and its chest's. */
+export function bodyFrames(P: Posed): { hips: Frame; chest: Frame } {
+  return {
+    hips: frameOf(sub(P.hipR, P.hipL), sub(P.neck, P.pelvis)),
+    chest: frameOf(sub(P.shoulderR, P.shoulderL), sub(P.neck, P.waist)),
+  };
+}
+
+/** THE LEGS, hip to knee to the boot's cuff: the pants' slot. */
+export function emitLegs(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, hips: Frame): void {
   const cut = CUT[lod];
-  const H = look.height;
-  const k = H / 1.8;
-  const hips = frameOf(sub(P.hipR, P.hipL), sub(P.neck, P.pelvis));
-  const chest = frameOf(sub(P.shoulderR, P.shoulderL), sub(P.neck, P.waist));
-  const own = DRESS_SLOT.own;
-
-  // ── The skis and the boots ─────────────────────────────────────────────
-  fig.ski(P.skiL, lod);
-  fig.ski(P.skiR, lod);
-  fig.slot(own);
-  for (const [ankle, sk] of lod === "far"
-    ? []
-    : ([
-        [P.ankleL, P.skiL],
-        [P.ankleR, P.skiR],
-      ] as const)) {
-    const toe = add(sk.mid, mul(norm(sub(sk.tip, sk.tail)), 0.06));
-    fig.limb(
-      ankle,
-      add(toe, mul(norm(sub(ankle, toe)), 0.03)),
-      hips.r,
-      0.06 * k,
-      0.07 * k,
-      4,
-      BOOT,
-    );
-  }
-
-  // ── The legs ───────────────────────────────────────────────────────────
+  const k = look.height / 1.8;
   // One-piece or coat, the thighs are whatever the suit is.
   fig.slot(DRESS_SLOT.pants);
   for (const [hip, knee, ankle] of [
@@ -244,8 +229,22 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
     fig.limb(hip, knee, hips.r, 0.078 * k, 0.062 * k, cut.limb, FULL);
     fig.limb(knee, ankle, hips.r, 0.062 * k, 0.058 * k, cut.limb, SHADE);
   }
+}
 
-  // ── The trunk: keyed rings from the seat to the collar ────────────────
+/** THE TRUNK: keyed rings from the seat to the collar, the jacket's slot
+ * between the seat and the shoulders (`middle` names another for a vest
+ * over it), and the freerider's pack. */
+export function emitTrunk(
+  fig: Figure,
+  P: Posed,
+  look: CrowdLook,
+  lod: CrowdLod,
+  hips: Frame,
+  chest: Frame,
+  middle: number = DRESS_SLOT.jacket,
+): void {
+  const H = look.height;
+  const k = H / 1.8;
   const up = hips.u;
   const coat = look.coat ?? 0;
   const seat = sub(P.pelvis, mul(up, 0.04 * H + coat));
@@ -254,7 +253,7 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
   const ribs = mix(P.waist, P.neck, 0.55);
   const shoulders = mix(P.shoulderL, P.shoulderR, 0.5);
   const collar = add(P.neck, mul(chest.u, 0.02 * H));
-  const S = cut.torso;
+  const S = CUT[lod].torso;
   const keyed: [V3, Frame, number, number][] =
     lod === "far"
       ? [
@@ -282,7 +281,7 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
         ? [lower, SHADE]
         : band >= last
           ? [DRESS_SLOT.accent, FULL]
-          : [DRESS_SLOT.jacket, band % 2 ? FULL : SHADE],
+          : [middle, band % 2 ? FULL : SHADE],
     add(P.neck, mul(chest.u, 0.05 * H)),
   );
   // A pack on the back of the freerider.
@@ -300,8 +299,19 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
       true,
     );
   }
+}
 
-  // ── The arms, the gloves and the poles ────────────────────────────────
+/** THE ARMS, the gloves and — when `poles` — the poles. */
+export function emitArms(
+  fig: Figure,
+  P: Posed,
+  look: CrowdLook,
+  lod: CrowdLod,
+  chest: Frame,
+  poles: boolean,
+): void {
+  const cut = CUT[lod];
+  const k = look.height / 1.8;
   for (const [shoulder, elbow, hand, basket] of [
     [P.shoulderL, P.elbowL, P.handL, P.basketL],
     [P.shoulderR, P.elbowR, P.handR, P.basketR],
@@ -314,7 +324,7 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
       fig.limb(elbow, hand, chest.r, 0.046 * k, 0.04 * k, cut.limb - 1, SHADE);
     }
     if (lod === "far") continue;
-    fig.slot(own);
+    fig.slot(DRESS_SLOT.own);
     const into = norm(sub(hand, elbow));
     fig.limb(
       sub(hand, mul(into, 0.02)),
@@ -326,8 +336,48 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
       GLOVE,
       true,
     );
-    if (look.poles && cut.poles) fig.limb(hand, basket, chest.r, 0.011, 0.008, 3, POLE);
+    if (poles && cut.poles) fig.limb(hand, basket, chest.r, 0.011, 0.008, 3, POLE);
   }
+}
+
+/** How round each part is at a cut (`CUT`), for a builder of its own. */
+export function cutOf(lod: CrowdLod): (typeof CUT)[CrowdLod] {
+  return CUT[lod];
+}
+
+/** Build one pose of a body at a cut. The same calls in the same order
+ * for every pose: what differs is where the joints are. */
+function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
+  const cut = CUT[lod];
+  const H = look.height;
+  const k = H / 1.8;
+  const { hips, chest } = bodyFrames(P);
+  const own = DRESS_SLOT.own;
+
+  // ── The skis and the boots ─────────────────────────────────────────────
+  fig.ski(P.skiL, lod);
+  fig.ski(P.skiR, lod);
+  fig.slot(own);
+  for (const [ankle, sk] of lod === "far"
+    ? []
+    : ([
+        [P.ankleL, P.skiL],
+        [P.ankleR, P.skiR],
+      ] as const)) {
+    const toe = add(sk.mid, mul(norm(sub(sk.tip, sk.tail)), 0.06));
+    fig.limb(
+      ankle,
+      add(toe, mul(norm(sub(ankle, toe)), 0.03)),
+      hips.r,
+      0.06 * k,
+      0.07 * k,
+      4,
+      BOOT,
+    );
+  }
+  emitLegs(fig, P, look, lod, hips);
+  emitTrunk(fig, P, look, lod, hips, chest);
+  emitArms(fig, P, look, lod, chest, look.poles);
 
   // ── The head, and what is on it ───────────────────────────────────────
   const r = look.head;

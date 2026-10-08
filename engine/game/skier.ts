@@ -109,6 +109,7 @@ import {
   strideOn,
 } from "./poles.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
+import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
 import { heldSlip, switchSteer } from "./switch.ts";
@@ -175,7 +176,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   const T = techniqueOf(state.rules);
 
   // ── The controls, through their lags ──────────────────────────────────
-  c.tuck = approach(c.tuck, clamp(input.tuck, 0, 1), INPUT_RATE * dt);
+  // Hurt, he folds only as deep as his legs and his trunk let him (`hurt.ts`).
+  c.tuck = approach(c.tuck, clamp(input.tuck, 0, 1) * hurtTuck(c), INPUT_RATE * dt);
   c.brake = approach(c.brake, clamp(input.brake, 0, 1), INPUT_RATE * dt);
   c.carve = approach(c.carve, input.carve === true ? 1 : 0, INPUT_RATE * dt);
   // ...and the steer, read the way he is going when he rides SWITCH.
@@ -200,12 +202,18 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   snowNormal(level, c, normal);
   const slide = slideOver(c, normal);
   const still = stoodStill(c, c.sidestep !== 0 ? slide : speed0);
-  const goal = (still ? sidestepEdge(c, normal) : c.steer * lock) + skiPull(c);
+  // Hurt, the leg on the outside of the turn stands the skis over less (`hurt.ts`).
+  const goal =
+    (still ? sidestepEdge(c, normal) : c.steer * lock * hurtEdge(c, c.steer)) + skiPull(c);
   // ...no further than he is laid over plus his angulation, or than his
   // legs stand the skis under him where he crosses under (`incline.ts`).
   const fall = crossFall(level, c, T);
   const reach = edgeWithin(c, goal, fall, T);
-  c.edge = approach(c.edge, reach, S.edgeRate * fit.edgeRate * T.edgeRate * dt);
+  c.edge = approach(
+    c.edge,
+    reach,
+    S.edgeRate * fit.edgeRate * T.edgeRate * hurtRate(c, reach) * dt,
+  );
   // THE SKID: the skis pivoted across the way by the brake — toward the
   // side the edge is on for a hockey stop, and with the skis straight a
   // snowplough, which pivots nothing and only scrubs.
@@ -556,7 +564,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // with it: `grip.skidHold` of the hold, by how far it is pivoted —
     // until he is all but stopped, when the pivoted edge is SET and bites
     // the ledge it stops on (`grip.skidBite`).
-    const edgeHold = grip.edge * shaken * edgeShare * skiBite(c, p.side);
+    const edgeHold = grip.edge * shaken * edgeShare * skiBite(c, p.side) * hurtGrip(c, p.side);
     const hold =
       (edgeHold + grip.base) *
       ARC.sideGrip *
@@ -649,7 +657,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     strained += load;
     // THE DRIVE pushes along the skis, under the boots, at a crawl.
     if (p.station === "mid")
-      along += (bite * poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step)) / 2;
+      along +=
+        (bite *
+          poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step) *
+          hurtDrive(c)) /
+        2;
     push(
       cx,
       cy,
@@ -898,7 +910,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.airborne = false;
     c.airTime = 0;
     if (flew >= TUNING.air.counts) {
-      const lost = landingLoss(impact, harshSpeedOf(spec) * harshShare(c));
+      const lost = landingLoss(impact, harshSpeedOf(spec) * harshShare(c) * hurtLanding(c));
       if (lost > 0) {
         // The legs folded to their stop take it out of the way along the slope.
         snowNormal(level, c, normal);

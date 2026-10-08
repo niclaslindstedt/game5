@@ -342,6 +342,26 @@ function nearestOn(level: Level, at: P3, ds: number): { x: number; z: number; he
   return level.track.points.find((p) => p.s >= s) ?? near;
 }
 
+/** Stood up off a fall `fell` he survives, and skied away: only his blood
+ * is left where he lay. */
+function gotUp(st: Stage, fell: { s: GameState; at: P3 }): void {
+  const { s, at } = fell;
+  st.run(s, 4, still);
+  const close = (onBody(1.3, 3, 1.8, 45) as (q: GameState) => LensPose)(s);
+  st.shoot(s, "lying", close);
+  st.until(
+    s,
+    (q) => !q.skier.thrown,
+    4,
+    () => ({ ...NEUTRAL_INPUT, reset: true }),
+  );
+  st.run(s, 0.5, still);
+  st.shoot(s, "up", close);
+  st.run(s, 3, bot);
+  st.shoot(s, "gone", close);
+  st.shoot(s, "gone-above", around(st.level, at, 1.0, 1.5, 7, 55, 0));
+}
+
 export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   // ── INTO A TRUNK ────────────────────────────────────────────────────────
   /** Skied square into a trunk at 108 km/h: his body stops on it. */
@@ -639,6 +659,16 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.clearBodies();
     st.shoot(next, "cleared", around(st.level, at, 1.0, 1.5, 9, 55, 0));
   },
+  /** A hard fall he survives, then stood back up and skied away: nothing
+   * of him is left where he lay but his blood. */
+  "got-up"(st) {
+    gotUp(st, ontoSnow(st, "left", 10, 6));
+  },
+  /** The same in a deep day's powder off the piste. */
+  "got-up-powder"(st) {
+    gotUp(st, ontoAt(st, looseSpot(st.level), "left", 10, 6, 2.5));
+  },
+
   // ── THE HUD ────────────────────────────────────────────────────────────
   /** A fatal crash with the HUD over it: skiing, the blow's jolt, the
    * readouts falling off it, DIED and the dark. */
@@ -678,7 +708,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   machines: ["groomer", "heli"],
   blood: ["spray", "snow"],
-  leak: ["leak", "leak-face"],
+  leak: ["leak", "leak-face", "got-up", "got-up-powder"],
   pools: ["pool-piste", "pool-powder"],
   close: ["closeup"],
   hud: ["wreck"],

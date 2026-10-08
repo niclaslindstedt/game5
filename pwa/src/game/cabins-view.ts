@@ -32,12 +32,16 @@ import { CABIN_PAINT } from "./cabin-parts.ts";
 
 import { buildCabin, porchOf, type CabinLod } from "./cabin-shapes.ts";
 import { lodgeYardGeometry } from "./lodge-yard.ts";
-import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { FACADE } from "./facade-paint.ts";
+import { facadeMaterial } from "./facade-mesh.ts";
+import { PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import { LUX_TO_LAMP } from "./piste-lights.ts";
 
 /** Where a building hands its near cut over to its far, m, and the band
- * either side of it it keeps the cut it has. */
-const NEAR = 190;
+ * either side of it it keeps the cut it has. The far cut carries the logs,
+ * the stone and the windows in its paint, so it holds up close enough that
+ * the near cut's every log is wanted only inside this. */
+const NEAR = 130;
 const HYSTERESIS = 12;
 
 /** The lamplight in a window, linear, and how bright at full dark. */
@@ -152,6 +156,14 @@ export function driftGeometry(level: Level, cabins: readonly Cabin[]): THREE.Buf
   for (let i = 0; i < n; i++) col.set([snow.r, snow.g, snow.b], i * 3);
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   geo.setAttribute("glow", new THREE.BufferAttribute(new Float32Array(n), 1));
+  // The buildings' material: the drift in the painted snow, laid in plan.
+  const uv = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) uv.set([pos[i * 3] / 4, pos[i * 3 + 2] / 4], i * 2);
+  geo.setAttribute("facadeUv", new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute(
+    "facadeLayer",
+    new THREE.BufferAttribute(new Float32Array(n).fill(FACADE.snow), 1),
+  );
   geo.setIndex(index);
   geo.computeVertexNormals();
   return geo;
@@ -170,12 +182,7 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   // The log buildings only: the ski area's own buildings (the village's and
   // the mountain's, `isResortBuilding`) are not drawn here.
   const cabins = cabinsOf(level).filter((c) => !isResortBuilding(c.kind));
-  const material = hazeMaterial(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }),
-    haze,
-    "cabin",
-    graftGlow,
-  );
+  const material = facadeMaterial(haze, "cabin");
   const geos: THREE.BufferGeometry[] = [];
   const meshes: THREE.InstancedMesh[] = [];
   const byKind = new Map<CabinKind, Cabin[]>();

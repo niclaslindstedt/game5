@@ -30,6 +30,7 @@
 // vertex colour is read. The bones are `SKIER_BONES`, by index.
 
 import { skierPose, type V3 } from "./skier-pose.ts";
+import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, STANDING, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 
 export type { V3 } from "./skier-pose.ts";
@@ -126,6 +127,8 @@ for (const s of ["l", "r"]) {
  * (the trunk against a thigh or an arm) wide, so a deep fold spreads over a
  * hand's width. */
 const BLEND = { hinge: 0.04, ball: 0.075 };
+/** Half the width the cloth is eased over across a break, m. */
+const CUT = 0.03;
 
 let segments: Record<string, Seg> | null = null;
 function segs(): Record<string, Seg> {
@@ -202,6 +205,25 @@ export function clothWeights(p: V3, among?: string[]): Influence[] {
     out.delete("spine");
     out.set("pelvis", (out.get("pelvis") ?? 0) + share * (1 - c));
     out.set("chest", (out.get("chest") ?? 0) + share * c);
+  }
+  // PAST A BREAK (`skier-broken.ts`): an arm bone's share past where it
+  // would break goes to the bone below the break, eased over a few
+  // centimetres — on a sound arm the two move as one.
+  for (const s of ["l", "r"]) {
+    for (const [bone, at] of [
+      [`upperarm_${s}`, BREAK.upper],
+      [`forearm_${s}`, BREAK.fore],
+    ] as const) {
+      const share = out.get(bone);
+      if (!share) continue;
+      const seg = S[bone];
+      const m = along(p, seg).t * len(sub(seg.b, seg.a));
+      const c = smoothstep((m - at + CUT) / (2 * CUT));
+      if (c <= 0) continue;
+      if (c >= 1) out.delete(bone);
+      else out.set(bone, share * (1 - c));
+      out.set(bone.replace("arm_", "arm_lo_"), share * c);
+    }
   }
   const four = [...out.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
   const sum = four.reduce((s, [, w]) => s + w, 0);

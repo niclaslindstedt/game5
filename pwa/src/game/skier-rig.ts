@@ -44,6 +44,7 @@ import {
   type SkierPoseInput,
   type V3,
 } from "./skier-pose.ts";
+import { BREAK } from "./skier-broken.ts";
 
 export const SKIER_BONES = [
   "pelvis",
@@ -69,6 +70,13 @@ export const SKIER_BONES = [
   "elbow_r",
   "hand_l",
   "hand_r",
+  // THE ARM'S BONES BELOW A BREAK (`skier-broken.ts`): on a sound arm each
+  // rides with the bone it is cut from, so the skin past the break moves
+  // as one with the skin above it; broken, it hangs from the break.
+  "upperarm_lo_l",
+  "forearm_lo_l",
+  "upperarm_lo_r",
+  "forearm_lo_r",
 ] as const;
 export type SkierBone = (typeof SKIER_BONES)[number];
 
@@ -127,6 +135,15 @@ function qhalf(a: Quat, b: Quat): Quat {
 function rotateBy(q: Quat, v: V3): V3 {
   const t = qmul(qmul(q, { w: 0, ...v }), qconj(q));
   return { x: t.x, y: t.y, z: t.z };
+}
+
+/** The shorter turn taking unit vector `a` onto unit vector `b`. */
+function fromTo(a: V3, b: V3): Quat {
+  const c = cross(a, b);
+  const q = { w: 1 + dot(a, b), x: c.x, y: c.y, z: c.z };
+  if (q.w < 1e-6) return { w: 0, x: 1, y: 0, z: 0 };
+  const l = Math.hypot(q.w, q.x, q.y, q.z);
+  return { w: q.w / l, x: q.x / l, y: q.y / l, z: q.z / l };
 }
 
 /** THE REST the half bones turn from: every bone in the pose the model is
@@ -224,8 +241,34 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
     const boot = p.boots[i];
     out[`boot_${s}`] = span(p.feet[i], add(p.feet[i], scale(boot.f, 0.2)), boot.n, up);
     const elbow = bend(p.shoulders[i], p.elbows[i], p.hands[i]);
-    out[`upperarm_${s}`] = span(p.shoulders[i], p.elbows[i], elbow, scale(chest, -1));
-    out[`forearm_${s}`] = span(p.elbows[i], p.hands[i], elbow, scale(chest, -1));
+    const kink = p.kinks?.[i] ?? null;
+    // A BROKEN BONE IN TWO (`skier-broken.ts`): above the break along the
+    // piece held, below it along the piece hanging — and a sound one's
+    // lower bone its own frame moved down it to where a break would be,
+    // so the skin weighted to either moves the same.
+    const below = (f: BoneFrame, at: number): BoneFrame => ({
+      ...f,
+      head: add(f.head, scale(f.y, at)),
+      length: f.length - at,
+    });
+    if (kink?.bone === "upper") {
+      const face = bend(kink.at, p.elbows[i], p.hands[i]);
+      out[`upperarm_${s}`] = span(p.shoulders[i], kink.at, face, scale(chest, -1));
+      out[`upperarm_lo_${s}`] = span(kink.at, p.elbows[i], face, scale(chest, -1));
+    } else {
+      out[`upperarm_${s}`] = span(p.shoulders[i], p.elbows[i], elbow, scale(chest, -1));
+      out[`upperarm_lo_${s}`] = below(out[`upperarm_${s}`], BREAK.upper);
+    }
+    if (kink?.bone === "fore") {
+      out[`forearm_${s}`] = span(p.elbows[i], kink.at, elbow, scale(chest, -1));
+      out[`forearm_lo_${s}`] = span(kink.at, p.hands[i], elbow, scale(chest, -1));
+    } else if (kink?.bone === "wrist") {
+      out[`forearm_${s}`] = span(p.elbows[i], kink.at, elbow, scale(chest, -1));
+      out[`forearm_lo_${s}`] = below(out[`forearm_${s}`], BREAK.fore);
+    } else {
+      out[`forearm_${s}`] = span(p.elbows[i], p.hands[i], elbow, scale(chest, -1));
+      out[`forearm_lo_${s}`] = below(out[`forearm_${s}`], BREAK.fore);
+    }
     // THE HALF BONES: at every hip, knee, shoulder and elbow, a bone turned
     // half way between the two it joins — the skin across the joint rides
     // it, so a fold past a right angle spreads over the joint rather than
@@ -235,9 +278,20 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
     // pole runs through the fist whatever the stroke does to it, the wrist
     // turning to hold it. A thrown skier's hand has let go: it lies along
     // the forearm.
-    const fore = out[`forearm_${s}`];
-    const pole = p.poles?.[i];
-    if (pole) {
+    const fore = out[`forearm_lo_${s}`];
+    const pole = p.dropped?.[i] ? null : p.poles?.[i];
+    if (kink?.bone === "wrist") {
+      // THE HAND HANGING OFF A BROKEN WRIST: the empty hand's frame turned
+      // about the wrist from along the forearm to the way it hangs.
+      const turn = fromTo(fore.y, norm(sub(p.hands[i], kink.at)));
+      out[`hand_${s}`] = {
+        head: p.hands[i],
+        x: rotateBy(turn, fore.x),
+        y: rotateBy(turn, fore.y),
+        z: rotateBy(turn, fore.z),
+        length: 0.08,
+      };
+    } else if (pole) {
       const zz = norm(sub(p.hands[i], pole));
       let yy = sub(fore.y, scale(zz, dot(fore.y, zz)));
       yy = dot(yy, yy) < 1e-8 ? fore.z : norm(yy);
@@ -249,7 +303,7 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
     out[`hip_${s}`] = halfway("pelvis", `thigh_${s}`, out, hip);
     out[`knee_${s}`] = halfway(`thigh_${s}`, `shin_${s}`, out, p.knees[i]);
     out[`shoulder_${s}`] = halfway("chest", `upperarm_${s}`, out, p.shoulders[i]);
-    out[`elbow_${s}`] = halfway(`upperarm_${s}`, `forearm_${s}`, out, p.elbows[i]);
+    out[`elbow_${s}`] = halfway(`upperarm_lo_${s}`, `forearm_${s}`, out, p.elbows[i]);
   });
   return out;
 }

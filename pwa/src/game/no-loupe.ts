@@ -10,12 +10,15 @@
 // the taps on the glass) is a POINTER event, and pointer events are dispatched
 // whatever a touch listener cancels. What a cancelled `touchend` does lose is
 // the browser's synthesized `click`, so the guard clicks the pressed element
-// itself — a quick second press of a menu row still lands.
+// itself — a quick second press of a menu row still lands. It cancels an end
+// only when it will give that click back (`loupeAction`): an end it cannot
+// cancel, or a touch that is no tap, is the browser's whole, or a stepper
+// tapped quickly steps twice or not at all.
 //
 // A field that MEANS to take typed text (an input, a text area, anything
 // editable) is left to the browser entirely: it needs its caret.
 
-import { isSecondTap, isTap } from "./no-loupe-tap.ts";
+import { isSecondTap, isTap, loupeAction } from "./no-loupe-tap.ts";
 
 function editable(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -40,14 +43,23 @@ export function guardAgainstLoupe(doc: Document = document): () => void {
     const now = e.timeStamp;
     const second = isSecondTap(lastEnd, now);
     lastEnd = now;
-    if (!second || e.touches.length > 0 || editable(e.target)) return;
-    e.preventDefault();
-    // The cancelled end takes the browser's click with it: give it back.
-    const t = e.changedTouches[0];
+    const t = e.touches.length === 0 ? e.changedTouches[0] : undefined;
     const from = start;
     start = null;
-    if (!t || !from || from.target !== e.target) return;
-    if (!isTap(from.x, from.y, t.clientX, t.clientY)) return;
+    const tap =
+      t !== undefined &&
+      from !== null &&
+      from.target === e.target &&
+      isTap(from.x, from.y, t.clientX, t.clientY);
+    const action = loupeAction({
+      second,
+      cancelable: e.cancelable,
+      editable: editable(e.target),
+      tap,
+    });
+    if (action === "leave") return;
+    // The cancelled end takes the browser's click with it: give it back.
+    e.preventDefault();
     if (e.target instanceof HTMLElement) e.target.click();
     else if (e.target instanceof Element) {
       e.target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));

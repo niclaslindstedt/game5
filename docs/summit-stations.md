@@ -170,11 +170,18 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   mode, a pure function of the engine's clock: a replay hangs them where the
   run did, and a skier seated on carrier `k` — a rider of the field, one day —
   is wherever it is.
-- **Boarding in the free ride (`lift-ride.ts`)** — ride slowly into a lift's
-  LOAD ZONE facing up its line and it takes you: a chair or a gondola behind
-  the station's FADE — the picture goes black as you reach its load line or
-  its door and comes back with you already sat on the chair leaving the
-  station, or seated in a cabin (glazed, your skis in its rack) — and a drag
+- **Boarding in the free ride (`lift-ride.ts`, `lift-board.ts`)** — ride
+  slowly into a lift's LOAD ZONE facing up its line and it takes you: a chair
+  behind the station's FADE — the picture goes black as you reach its load
+  line and comes back with you already sat on the chair leaving the station;
+  a gondola through the door at the back of its hall, the picture fading
+  back in on you stood on the PLATFORM beside the bullwheel under its canopy
+  — where, as at a real detachable gondola, your cabin comes round the wheel
+  on the station's rail off the rope, slowing to a crawl of 0.3 m/s with its
+  doors sliding open; as it comes alongside you rack your skis on its door,
+  step in turned to its doorway and sit down on the bench along its back
+  wall while it creeps on (1.6 s), its doors shut (1.2 s), and it is taken
+  back onto the rope and away up the line (`own-cabin.ts` draws it) — and a drag
   from the head of its track, where you stand and WAIT for a T-bar of the
   lift's own to come round; as it passes you sit back onto it and are pulled
   up the track on your skis, let go short of the top wheel. Carried, the
@@ -188,7 +195,12 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   SKATED up the queue's lane inside the corral, beside the queue (whoever
   stands in your way is shouldered aside and staggers, the news column's
   bump), to the load zone and boarded as above. The gondola's queue walks
-  in through the door rather than vanishing at it.
+  in through the door rather than vanishing at it. Taken facing off the way
+  in, you TURN to it as a skier does, never swivelled while you slide: in
+  fast and turned far off it you stop first (the skis thrown across and
+  scraped to a stand), at a crawl you step your skis round on the spot a
+  pair at a time, and rolling and turned less you skate round to it, a
+  step turned into each push — then skate the lane.
 - **The way in (`lift-line.ts`, `LiftLook.in` and `.rail`)** — the last
   tower stands past the pad's rim, 30 m short of a chair's top wheel (34 m
   of a gondola's) and slid on back off any groomed snow, as tall as it must

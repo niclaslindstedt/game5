@@ -50,6 +50,8 @@ import {
 } from "@engine";
 
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
+import type { SkierPose } from "./skier-joints.ts";
+import { armBreaks, breakArms, createArmSwing, SWING, type ArmBreak } from "./skier-broken.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
@@ -94,6 +96,9 @@ import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 
 /** How long a rider takes to stand up off a chair, s. */
 const STAND_UP = 0.35;
+/** How long the acceleration a broken arm feels is eased over, s — the
+ * engine's steps' jitter taken out of its swing. */
+const FELT_EASE = 0.1;
 /** A gondola cabin's floor under its rider's origin, m (`lifts.ts`). */
 const CABIN_FLOOR = -1.0;
 
@@ -583,8 +588,42 @@ export function createSkisModel(
   let basketWalk: BasketWalk | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
+  // HIS BROKEN ARMS swinging from their breaks (`skier-broken.ts`), and the
+  // acceleration they feel his body's, eased — the velocity it was taken
+  // off a frame ago.
+  const arms = createArmSwing();
+  const felt = { x: 0, y: 0, z: 0 };
+  let lastV: { x: number; y: number; z: number } | null = null;
+  const feltBody = new THREE.Vector3();
+  const toBody = new THREE.Quaternion();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
+
+  /** The pose made over for his broken arms, swung by `dt` s under the
+   * gravity they feel: g less his acceleration, in his body's frame. */
+  function broken(
+    skier: SkierState,
+    breaks: [ArmBreak | null, ArmBreak | null],
+    dt: number,
+  ): (p: SkierPose) => SkierPose {
+    if (dt > 0 && lastV) {
+      let ax = (skier.vx - lastV.x) / dt;
+      let ay = (skier.vy - lastV.y) / dt;
+      let az = (skier.vz - lastV.z) / dt;
+      const a = Math.hypot(ax, ay, az);
+      if (a > SWING.most) [ax, ay, az] = [ax, ay, az].map((v) => (v * SWING.most) / a);
+      const k = 1 - Math.exp(-dt / FELT_EASE);
+      felt.x += (ax - felt.x) * k;
+      felt.y += (ay - felt.y) * k;
+      felt.z += (az - felt.z) * k;
+    }
+    lastV = { x: skier.vx, y: skier.vy, z: skier.vz };
+    feltBody
+      .set(-felt.x, -9.81 - felt.y, -felt.z)
+      .applyQuaternion(toBody.copy(root.quaternion).invert());
+    const g = { x: feltBody.x, y: feltBody.y, z: feltBody.z };
+    return (p) => breakArms(p, breaks, arms, dt, g);
+  }
 
   return {
     root,
@@ -721,7 +760,9 @@ export function createSkisModel(
               fore: [stand.fore[0], stand.fore[1]] as const,
             }
           : pose;
-        const input = inBasket ? { ...held, poles: false } : held;
+        // A BROKEN ARM drops its pole: both broken, he rides with none.
+        const breaks = armBreaks(skier.body.injuries);
+        const input = inBasket || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
@@ -761,7 +802,7 @@ export function createSkisModel(
             stand.rock[i] += skis[i].rock;
           }
         } else resetDangle(dangle);
-        figure.pose(input, seat);
+        figure.pose(input, seat, breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.

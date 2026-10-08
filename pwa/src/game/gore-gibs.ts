@@ -15,6 +15,14 @@
 //     then to rest.
 //   * A ROPE — the bowel out of a burst belly: a chain of points, one end
 //     held at the wound, the rest falling, draped on the snow, dragged.
+//     Thin and light for its length, the air holds it back hard, so a body
+//     flying streams it out BEHIND him like a tail; wet and limp, its
+//     whip dies in a moment rather than swinging it round him; and jerked
+//     harder than it holds — the body slammed down while the loops fly on —
+//     it TEARS, and the piece torn off flies and lies on its own.
+//   * A STREAM'S PATH — where blood poured off a body has got to (`streamPath`,
+//     drawn by `gore-blood.ts`): an arc to the snow off a body at rest,
+//     streamed out behind one thrown through the air.
 //
 // The snow is the map's (`groundAt`, `normalAt`) under the drawn cover;
 // every one of them slides on it with a snow's friction and stops.
@@ -36,6 +44,11 @@ const SLIDE = 2.6;
 const REST = 0.25;
 /** The share of the way into the snow it bounces back out with. */
 const BOUNCE = 0.18;
+/** THE AIR ON A STREAM, 1/m: a drop of blood a few millimetres across is
+ * slowed by the air at 3 ρ_air Cd / (4 ρ_blood d) times its speed squared —
+ * 1.2 kg/m³, a sphere's 0.47, 1050 kg/m³, 3 mm: ≈ 0.13 /m. A stream torn
+ * into drops by the wind it meets is held back nearly as hard. */
+export const DROP_AIR = 0.12;
 
 /** A TWO-ENDED PIECE: the cut end `a` and the far end `b`, where each was a
  * frame ago, the length between them, each end's radius, and the roll about
@@ -217,8 +230,36 @@ export type Rope = {
   held: V3 | null;
 };
 
-/** A rope `count` points long, coiled out of `at` along `v` m/s. */
-export function rope(at: V3, v: V3, count: number, link: number, r: number, dt: number): Rope {
+/** THE AIR ON A ROPE, 1/m: the quadratic drag over the mass of a length of
+ * it, ½ ρ Cd d / λ — air at 1.2 kg/m³ across a cylinder (Cd ≈ 1.2) of the
+ * rope's own diameter, over a tube of wet tissue (≈ 1050 kg/m³) as thick.
+ * A bowel 3.4 cm across is ≈ 0.026 /m: at 15 m/s the air takes ≈ 6 m/s²
+ * off it, where it takes next to nothing off the body it hangs from. */
+function ropeDrag(r: number): number {
+  return (0.5 * 1.2 * 1.2 * 2 * r) / (1050 * Math.PI * r * r);
+}
+/** WET TISSUE'S LOSS, 1/s: the rate a loop's way relative to its
+ * neighbours' dies — a bowel and its mesentery are limp and lossy, so a
+ * flick runs out within a few tenths of a second rather than swinging. */
+const LIMP = 9;
+/** THE JERK IT TEARS AT, m/s: a link pulled apart faster than this — the
+ * wound stopped dead while the loops fly on, or the other way — parts. */
+const TEAR = 7;
+/** The fewest points a torn piece keeps, either side of the tear. */
+const SCRAP = 4;
+
+/** A rope `count` points long, coiled out of `at`, going the body's way
+ * `carry` m/s and unfurled out of the wound by `out` m/s more toward its
+ * far end. */
+export function rope(
+  at: V3,
+  carry: V3,
+  out: V3,
+  count: number,
+  link: number,
+  r: number,
+  dt: number,
+): Rope {
   const p: V3[] = [];
   const l: V3[] = [];
   for (let i = 0; i < count; i++) {
@@ -226,15 +267,84 @@ export function rope(at: V3, v: V3, count: number, link: number, r: number, dt: 
     const a = i * 1.7;
     const q = { x: at.x + 0.04 * Math.cos(a), y: at.y + 0.01 * i, z: at.z + 0.04 * Math.sin(a) };
     p.push(q);
-    const k = 0.3 + 0.7 * (i / count);
-    l.push({ x: q.x - v.x * k * dt, y: q.y - v.y * k * dt, z: q.z - v.z * k * dt });
+    const k = i / count;
+    l.push({
+      x: q.x - (carry.x + out.x * k) * dt,
+      y: q.y - (carry.y + out.y * k) * dt,
+      z: q.z - (carry.z + out.z * k) * dt,
+    });
   }
   return { p, l, link, r, held: { ...at } };
 }
 
-export function stepRope(o: Rope, ground: GibGround, dt: number): void {
-  if (dt <= 0) return;
-  for (let i = 0; i < o.p.length; i++) verlet(o.p[i], o.l[i], dt);
+/** One frame of a rope. Returns the piece TORN OFF it this frame, if it
+ * tore — the rope keeps the end at the wound, the piece the rest, let go —
+ * and lets go of the wound itself (`held` left null) if it is jerked off it. */
+export function stepRope(o: Rope, ground: GibGround, dt: number): Rope | null {
+  if (dt <= 0) return null;
+  const n = o.p.length;
+  // Each point's way this frame, m/frame: the air's drag off it, then the
+  // tissue's loss toward its neighbours' way.
+  const drag = ropeDrag(o.r);
+  const limp = Math.min(1, LIMP * dt);
+  const way: V3[] = o.p.map((p, i) => {
+    const w = { x: p.x - o.l[i].x, y: p.y - o.l[i].y, z: p.z - o.l[i].z };
+    const k = 1 / (1 + drag * Math.hypot(w.x, w.y, w.z));
+    w.x *= k;
+    w.y *= k;
+    w.z *= k;
+    return w;
+  });
+  if (o.held) {
+    way[0].x = o.held.x - o.p[0].x;
+    way[0].y = o.held.y - o.p[0].y;
+    way[0].z = o.held.z - o.p[0].z;
+  }
+  for (let i = 1; i < n; i++) {
+    const a = way[i - 1];
+    const b = i + 1 < n ? way[i + 1] : way[i];
+    const w = way[i];
+    o.l[i].x = o.p[i].x - (w.x + ((a.x + b.x) / 2 - w.x) * limp);
+    o.l[i].y = o.p[i].y - (w.y + ((a.y + b.y) / 2 - w.y) * limp);
+    o.l[i].z = o.p[i].z - (w.z + ((a.z + b.z) / 2 - w.z) * limp);
+  }
+  for (let i = 0; i < n; i++) {
+    if (i === 0 && o.held) {
+      o.l[0].x = o.p[0].x;
+      o.l[0].y = o.p[0].y;
+      o.l[0].z = o.p[0].z;
+      o.p[0].x = o.held.x;
+      o.p[0].y = o.held.y;
+      o.p[0].z = o.held.z;
+    } else verlet(o.p[i], o.l[i], dt);
+  }
+  // THE TEAR: torn from the wound if that is jerked past what it holds, and
+  // otherwise the link pulled apart hardest, if it is, parts — never so
+  // near an end that a scrap is left.
+  // A link's stretch over the frame is its pull-apart speed times the
+  // frame's time — floored, so a frame drawn held (next to no time) cannot
+  // tear on what the last frame's solve left over.
+  const tear = TEAR * Math.max(dt, 1 / 120);
+  if (o.held && n > 1) {
+    const b = o.p[1];
+    const h = o.held;
+    if (Math.hypot(b.x - h.x, b.y - h.y, b.z - h.z) - o.link > tear) o.held = null;
+  }
+  let torn: Rope | null = null;
+  let worst = tear;
+  let at = -1;
+  for (let i = SCRAP - 1; i + SCRAP < n; i++) {
+    const a = o.p[i];
+    const b = o.p[i + 1];
+    const over = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) - o.link;
+    if (over > worst) {
+      worst = over;
+      at = i;
+    }
+  }
+  if (at >= 0) {
+    torn = { p: o.p.splice(at + 1), l: o.l.splice(at + 1), link: o.link, r: o.r, held: null };
+  }
   for (let k = 0; k < 6; k++) {
     if (o.held) {
       o.p[0].x = o.held.x;
@@ -246,4 +356,38 @@ export function stepRope(o: Rope, ground: GibGround, dt: number): void {
     }
     for (let i = 0; i < o.p.length; i++) onSnow(o.p[i], o.l[i], o.r, ground, dt);
   }
+  return torn;
+}
+
+/** A DRAWN STREAM'S PATH, off the body it pours from: where blood let go at
+ * the wound `t` s ago is now, relative to the wound, and its way relative to
+ * the body — written into `at` and `way`. It leaves at `out` m/s relative to
+ * the body; the body goes `carry` m/s through still air; `fall` is the share
+ * of gravity felt relative to the body (1 on the snow, near 0 while he flies
+ * and falls with it). The air holds the blood back as hard as a drop of a
+ * few millimetres is held (linearised about the wind it meets, `DROP_AIR`),
+ * so from a body at rest it pours in the old ballistic arc, and from a body
+ * thrown through the air it streams out BEHIND him, the way he came — what
+ * an eye sees at one instant is where the blood let go before has got to,
+ * and none of it is ever ahead of him. */
+export function streamPath(out: V3, carry: V3, fall: number, t: number, at: V3, way: V3): void {
+  const wind = Math.hypot(carry.x, carry.y, carry.z);
+  const k = DROP_AIR * wind;
+  // E1 = (1 − e^−kt)/k, E2 = (t − E1)/k, as series for a slight drag.
+  const kt = k * t;
+  const small = kt < 1e-3;
+  const e = Math.exp(-kt);
+  const E1 = small ? t - (k * t * t) / 2 : (1 - e) / k;
+  const E2 = small ? (t * t) / 2 - (k * t * t * t) / 6 : (t - E1) / k;
+  // The steady pull relative to the body: the air's drag back along his
+  // way, and what he does not fall of gravity.
+  const cx = -k * carry.x;
+  const cy = -k * carry.y - G * fall;
+  const cz = -k * carry.z;
+  at.x = out.x * E1 + cx * E2;
+  at.y = out.y * E1 + cy * E2;
+  at.z = out.z * E1 + cz * E2;
+  way.x = out.x * e + cx * E1;
+  way.y = out.y * e + cy * E1;
+  way.z = out.z * e + cz * E1;
 }

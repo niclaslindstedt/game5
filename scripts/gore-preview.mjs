@@ -16,7 +16,8 @@
 //   maul     maul (the grimbear's catch: torn in two)
 //   machines groomer (knocked down before a working piste machine: torn
 //            apart under its belts and tiller), heli (on the skid when the
-//            helicopter is flown into the snow: blown apart)
+//            helicopter is flown into the snow: blown apart), heli-fly
+//            (the same blast followed in the air beside him)
 //   blood    spray (a stump close over two heartbeats: the spurt and the
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
@@ -60,7 +61,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, spray, snow, closeup, wreck)",
+      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

@@ -4,11 +4,14 @@
 // (`gore-view.ts` hands it where the blood leaves him and how much).
 //
 //   * A STREAM is blood POURING out of a gap in his clothes or a torn
-//     wound, not thrown: one unbroken tube down the path a drop let go
-//     there falls along (the arc off its way out under gravity, to the
-//     snow), thicker the more flows and thinning as it speeds up, laid
-//     again every frame from where the wound is now — and where it meets
-//     the snow it spatters. A gout (a piece torn off) is a short burst of
+//     wound, not thrown: one unbroken tube through where the blood let go
+//     there over the last moment has got to (`gore-gibs.ts`'s
+//     `streamPath`: the arc off its way out under gravity to the snow from
+//     a body at rest; streamed out BEHIND a body thrown through the air,
+//     held back by the air while he flies on, and broken into drops a
+//     couple of metres back), thicker the more flows and thinning as it
+//     speeds up, laid again every frame from where the wound is now — and
+//     where it meets the snow it spatters. A gout (a piece torn off) is a short burst of
 //     drops that falls within a metre or so.
 //   * A DROP meets the snow and leaves a SPLAT the size its volume soaks.
 //   * A POOL is a blot that grows under a gap that lies still, its area
@@ -21,6 +24,7 @@
 
 import * as THREE from "three";
 
+import { DROP_AIR, streamPath } from "./gore-gibs.ts";
 import { dropGeometry, GORE_COLOURS, poolMask, splatGeometry, splatMask } from "./gore-shapes.ts";
 
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
@@ -47,8 +51,10 @@ export type Blood = {
     next: () => number,
   ): void;
   /** Pour a STREAM out of `at` along `dir` for `dt` s: `q` L/s at about
-   * `speed` m/s, the body's own way `carry` added; `lead` the points it
-   * runs over his skin to get to `at` (blood down a bare face). */
+   * `speed` m/s off a body going `carry` m/s; `lead` the points it runs
+   * over his skin to get to `at` (blood down a bare face); `fall` the share
+   * of gravity it feels relative to him (1 on the snow, near 0 while he
+   * falls through the air with it). */
   stream(
     at: THREE.Vector3,
     dir: THREE.Vector3,
@@ -58,6 +64,7 @@ export type Blood = {
     carry: THREE.Vector3,
     next: () => number,
     lead?: readonly THREE.Vector3[],
+    fall?: number,
   ): void;
   /** Lay a blot `r` m across at (x, z), `shade` its darkness (1 fresh). */
   splat(x: number, z: number, r: number, shade: number, turn: number): void;
@@ -81,12 +88,24 @@ const SPLATS = 3200;
  * never take a pool's place. */
 const POOLS = 160;
 const G = 9.81;
-/** The share of a drop's speed the air takes a second. */
+/** The share of a drop's speed the air takes a second, beside what it
+ * takes by the square of the speed (`DROP_AIR`) — so a drop thrown off a
+ * body flying through the air falls back behind it, and falls at a few
+ * millimetres' terminal speed. */
 const AIR = 0.15;
 /** The most streams at once, the rings down each and the sides of a ring. */
 const STREAMS = 48;
 const RINGS = 14;
 const SIDES = 5;
+/** How far behind a body going fast a stream holds together before the
+ * wind has torn it into drops, m — and the speed it is at its shortest.
+ * Slower, it holds together further, to a pour at rest's whole fall. */
+const BREAK = 0.5;
+const BREAK_SPEED = 8;
+/** The drops a second a stream torn by the wind throws on behind him at a
+ * full pour (`FULL` L/s), thinning with what flows. */
+const SPRAY = 70;
+const FULL = 0.05;
 /** The blots a second a stream spatters where it meets the snow. */
 const SPATTER = 6;
 /** How far over the snow a blot lies, m — the drawn surface under it. */
@@ -135,12 +154,18 @@ export function createBlood(wrap: Wrap): Blood {
     x: number;
     y: number;
     z: number;
-    vx: number;
-    vy: number;
-    vz: number;
+    /** Its way out relative to the body, the body's way, gravity's share. */
+    out: { x: number; y: number; z: number };
+    carry: { x: number; y: number; z: number };
+    fall: number;
     r: number;
     lead?: readonly THREE.Vector3[];
   }[] = [];
+  const rel = { x: 0, y: 0, z: 0 };
+  /** Whether the last stream measured by `fallTime` was torn by the wind
+   * before it met the snow. */
+  let torn = false;
+  const relWay = { x: 0, y: 0, z: 0 };
   drops.frustumCulled = false;
   drops.count = 0;
   group.add(drops);
@@ -248,13 +273,33 @@ export function createBlood(wrap: Wrap): Blood {
     mesh.instanceColor!.needsUpdate = true;
   };
 
-  /** How long a drop let go as stream `o` takes to meet the snow, s. */
+  /** How far back along stream `o` it reaches, s: to where it meets the
+   * snow, or — off a body going fast — to where the wind has torn it into
+   * drops. */
   const fallTime = (o: (typeof asked)[number]): number => {
     if (!ground) return 0.5;
+    const speed = Math.hypot(o.carry.x, o.carry.y, o.carry.z);
+    const reach =
+      speed < 2
+        ? Infinity
+        : BREAK + 6 * BREAK * Math.max(0, (BREAK_SPEED - speed) / (BREAK_SPEED - 2));
     let t = 0;
+    let lx = 0;
+    let ly = 0;
+    let lz = 0;
+    let run = 0;
+    torn = false;
     for (; t < 1.6; t += 0.02) {
-      const y = o.y + o.vy * t - 0.5 * G * t * t;
-      if (y <= ground.heightAt(o.x + o.vx * t, o.z + o.vz * t)) break;
+      streamPath(o.out, o.carry, o.fall, t, rel, relWay);
+      run += Math.hypot(rel.x - lx, rel.y - ly, rel.z - lz);
+      lx = rel.x;
+      ly = rel.y;
+      lz = rel.z;
+      if (run >= reach) {
+        torn = true;
+        break;
+      }
+      if (o.y + rel.y <= ground.heightAt(o.x + rel.x, o.z + rel.z)) break;
     }
     return t;
   };
@@ -267,7 +312,8 @@ export function createBlood(wrap: Wrap): Blood {
     let k = 0;
     for (const o of asked) {
       const end = Math.max(0.02, fallTime(o));
-      const u0 = Math.max(0.3, Math.hypot(o.vx, o.vy, o.vz));
+      const tapers = torn;
+      const u0 = Math.max(0.3, Math.hypot(o.out.x, o.out.y, o.out.z));
       // The first rings over the skin it runs on, the rest its fall.
       const lead = o.lead ?? [];
       const fall = RINGS - lead.length;
@@ -287,10 +333,11 @@ export function createBlood(wrap: Wrap): Blood {
           u = u0;
         } else {
           const t = (end * (i - lead.length)) / (fall - 1);
-          cx = o.x + o.vx * t;
-          cy = o.y + o.vy * t - 0.5 * G * t * t;
-          cz = o.z + o.vz * t;
-          T.set(o.vx, o.vy - G * t, o.vz);
+          streamPath(o.out, o.carry, o.fall, t, rel, relWay);
+          cx = o.x + rel.x;
+          cy = o.y + rel.y;
+          cz = o.z + rel.z;
+          T.set(relWay.x, relWay.y, relWay.z);
           u = Math.max(1e-3, T.length());
           T.divideScalar(u);
         }
@@ -299,7 +346,11 @@ export function createBlood(wrap: Wrap): Blood {
           .normalize();
         B.crossVectors(T, N);
         // Thinning as it speeds up: the same flow through a faster stream.
-        const r = o.r * Math.max(0.7, Math.sqrt(u0 / Math.max(u0, u)));
+        // Torn by the wind, it thins away to the drops it breaks into.
+        const r =
+          o.r *
+          Math.max(0.7, Math.sqrt(u0 / Math.max(u0, u))) *
+          (tapers && i >= lead.length ? 1 - (0.8 * (i - lead.length)) / (fall - 1) : 1);
         for (let j = 0; j < SIDES; j++) {
           const a = (j / SIDES) * Math.PI * 2;
           const c = Math.cos(a);
@@ -356,7 +407,7 @@ export function createBlood(wrap: Wrap): Blood {
         size[i] = 0.004 + 0.009 * next() ** 3;
       }
     },
-    stream(at, dir, speed, q, dt, carry, next, lead) {
+    stream(at, dir, speed, q, dt, carry, next, lead, fall = 1) {
       if (q <= 0 || asked.length >= STREAMS) return;
       // As thick as what flows, from a thread to a pour a couple of
       // centimetres across — drawn a little fuller than life, so a thread
@@ -366,19 +417,45 @@ export function createBlood(wrap: Wrap): Blood {
         x: at.x,
         y: at.y,
         z: at.z,
-        vx: dir.x * speed + carry.x,
-        vy: dir.y * speed + carry.y,
-        vz: dir.z * speed + carry.z,
+        out: { x: dir.x * speed, y: dir.y * speed, z: dir.z * speed },
+        carry: { x: carry.x, y: carry.y, z: carry.z },
+        fall,
         r,
         ...(lead ? { lead: lead.slice(0, RINGS - 4) } : {}),
       });
+      const o = asked[asked.length - 1];
+      // Torn by the wind, it flies on behind him as drops, going as the
+      // stream was where it tore.
+      if (ground && dt > 0) {
+        const t = fallTime(o);
+        if (torn) {
+          let n = SPRAY * Math.min(1, q / FULL) * dt;
+          const mark = { x: 0, y: 0, z: 0 };
+          streamPath(o.out, o.carry, o.fall, t, rel, relWay);
+          mark.x = o.x + rel.x;
+          mark.y = o.y + rel.y;
+          mark.z = o.z + rel.z;
+          for (; n > 0 && live < DROPS; n--) {
+            if (n < 1 && next() > n) break;
+            const i = live++;
+            px[i] = mark.x + (next() - 0.5) * 0.05;
+            py[i] = mark.y + (next() - 0.5) * 0.05;
+            pz[i] = mark.z + (next() - 0.5) * 0.05;
+            vx[i] = o.carry.x + relWay.x + (next() - 0.5) * 0.8;
+            vy[i] = o.carry.y + relWay.y + (next() - 0.5) * 0.8;
+            vz[i] = o.carry.z + relWay.z + (next() - 0.5) * 0.8;
+            size[i] = 0.003 + 0.006 * next() ** 2;
+          }
+        }
+      }
       // Where it meets the snow, it spatters.
       if (ground && dt > 0 && next() < SPATTER * dt) {
-        const t = fallTime(asked[asked.length - 1]);
-        const o = asked[asked.length - 1];
-        const x = o.x + o.vx * t + (next() - 0.5) * 0.06;
-        const z = o.z + o.vz * t + (next() - 0.5) * 0.06;
-        lay(splats, take(), x, z, r * (2 + 2 * next()), 1, next() * 6.28);
+        streamPath(o.out, o.carry, o.fall, fallTime(o), rel, relWay);
+        const x = o.x + rel.x + (next() - 0.5) * 0.06;
+        const z = o.z + rel.z + (next() - 0.5) * 0.06;
+        // Only where it reaches the snow — not where the wind tore it.
+        if (o.y + rel.y - ground.heightAt(x, z) < 0.2)
+          lay(splats, take(), x, z, r * (2 + 2 * next()), 1, next() * 6.28);
       }
     },
     splat(x, z, r, shade, turn) {
@@ -402,9 +479,9 @@ export function createBlood(wrap: Wrap): Blood {
       ground = g;
       layTubes();
       if (dt <= 0) return;
-      const k = Math.exp(-AIR * dt);
       let j = 0;
       for (let i = 0; i < live; i++) {
+        const k = Math.exp(-(AIR + DROP_AIR * Math.hypot(vx[i], vy[i], vz[i])) * dt);
         vx[i] *= k;
         vz[i] *= k;
         vy[i] = vy[i] * k - G * dt;

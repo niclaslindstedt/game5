@@ -6,15 +6,16 @@
 
 import { describe, expect, it } from "vitest";
 
-import { CABINS, type CabinKind } from "@engine";
+import { type LogKind } from "@engine";
 import { buildCabin, cabinTriangles } from "../pwa/src/game/cabin-shapes.ts";
 import { FACADE, FACADE_LAYERS } from "../pwa/src/game/facade-paint.ts";
 
-const KINDS = Object.keys(CABINS) as CabinKind[];
+/** The log buildings (the ski area's own are `village-build.ts`'s). */
+const KINDS: LogKind[] = ["hut", "cabin", "chalet", "shed", "afterski"];
 
 /** The most triangles each kind's near cut may take: its logs as geometry,
  * everything else in the paint. */
-const BUDGET: Record<CabinKind, number> = {
+const BUDGET: Record<LogKind, number> = {
   hut: 1400,
   cabin: 1800,
   chalet: 2200,

@@ -50,6 +50,10 @@ export interface WorldRenderer {
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */
   setDeathCam(on: boolean): void;
+  /** Every body left lying gone — the run left for the menu. (A run stood
+   * up after a death on the same map leaves the dead one lying on its own,
+   * `gore-view.ts`'s `leave`.) */
+  clearBodies(): void;
   /** THE X-RAY CAM (`xray-shots.ts`): this frame's look — the skeleton drawn
    * inside him and the lens on the bone breaking — or null when it is off. */
   setXray(look: XrayLook | null): void;

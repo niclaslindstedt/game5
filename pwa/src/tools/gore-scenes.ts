@@ -43,6 +43,8 @@ export type Stage = {
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   shoot(state: GameState, label: string, lens?: Lens): void;
   sky(over: SkyOverride | null): Promise<void>;
+  /** Every body left lying gone. */
+  clearBodies(): void;
 };
 
 type P3 = { x: number; y: number; z: number };
@@ -288,6 +290,16 @@ function ontoTop(
 
 const seconds = (s: GameState) => s.t;
 
+/** The piste's point `ds` m along it from the one nearest `at`. */
+function nearestOn(level: Level, at: P3, ds: number): { x: number; z: number; heading: number } {
+  let near = level.track.points[0];
+  for (const p of level.track.points) {
+    if (Math.hypot(p.x - at.x, p.z - at.z) < Math.hypot(near.x - at.x, near.z - at.z)) near = p;
+  }
+  const s = Math.max(0, near.s + ds);
+  return level.track.points.find((p) => p.s >= s) ?? near;
+}
+
 export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   // ── INTO A TRUNK ────────────────────────────────────────────────────────
   /** Skied square into a trunk at 108 km/h: his body stops on it. */
@@ -465,6 +477,38 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "7s", onBody(2.5, 4.5, 2.2, 50));
     st.shoot(s, "7s-far", "far");
   },
+  // ── THE DEAD LEFT LYING ────────────────────────────────────────────────
+  /** Killed on the piste, then the next rider stood up above him skiing
+   * down past his body, his pieces and his blood. */
+  remains(st) {
+    st.clearBodies();
+    const { s, at } = ontoSnow(st, "left", 28, 8);
+    st.until(s, (q) => (q.gore?.dead ?? -1) >= 0, 10, still);
+    st.run(s, 3, still);
+    const close = (onBody(1.4, 4, 2.5, 50) as (q: GameState) => LensPose)(s);
+    st.shoot(s, "dead", close);
+    // The next rider, a way up the piste, skiing down it past him.
+    const next = st.fresh();
+    const p = nearestOn(st.level, at, -70);
+    placeRun(next, { x: p.x, z: p.z, heading: p.heading, speed: 12 });
+    // The same lens on what was left: the statue, not the rider.
+    st.shoot(next, "left-lying", close);
+    const away = (q: GameState) => Math.hypot(q.skier.x - at.x, q.skier.z - at.z);
+    st.run(next, 0.2, bot);
+    st.shoot(next, "next-rider", "chase");
+    for (const d of [40, 20, 9]) {
+      st.until(next, (q) => away(q) < d, 20, bot);
+      st.shoot(next, `${d}m`, "chase");
+    }
+    st.until(next, (q) => away(q) < 4, 10, bot);
+    st.shoot(next, "passing", around(st.level, at, 1.4, 8, 2.4, 55, 0.2));
+    st.shoot(next, "passing-helmet", "helmet");
+    st.run(next, 1, bot);
+    st.shoot(next, "past", "chase");
+    st.shoot(next, "above", around(st.level, at, 1.0, 1.5, 9, 55, 0));
+    st.clearBodies();
+    st.shoot(next, "cleared", around(st.level, at, 1.0, 1.5, 9, 55, 0));
+  },
   // ── THE HUD ────────────────────────────────────────────────────────────
   /** A fatal crash with the HUD over it: skiing, the blow's jolt, the
    * readouts falling off it, DIED and the dark. */
@@ -506,4 +550,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   blood: ["spray", "snow"],
   close: ["closeup"],
   hud: ["wreck"],
+  remains: ["remains"],
 };

@@ -604,6 +604,7 @@ export function App() {
       },
       toMenu: () => {
         // The run goes back to the bot: nothing more is filed or recorded.
+        renderer.clearBodies();
         book.clear();
         pinned.clear();
         replays.clear();

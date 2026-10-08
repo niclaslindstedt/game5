@@ -595,6 +595,8 @@ export function createWorldRenderer(
       }
       // A slot on another pair than the one it was drawn as — the player
       // chose different skis for a race on the same map — is rebuilt.
+      // THE DEAD LEFT LYING (a new run after a death), off the body as last drawn.
+      if (state !== lastState) gore?.leave(riders[0].model);
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
         if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
@@ -905,6 +907,7 @@ export function createWorldRenderer(
     },
 
     setDeathCam: hurt.setDeathCam,
+    clearBodies: () => gore?.clearRemains(),
     setXray: hurt.setXray,
 
     setShot(next) {

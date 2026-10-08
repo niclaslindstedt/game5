@@ -74,7 +74,10 @@
 // the note says so; and the tunnels as buildings (`tunnel-view.ts`):
 // tunnel-mouth (the fan house), tunnel-span (the gallery from beside it),
 // tunnel-exit (the exit portal) and tunnels (the sheet: each from three
-// sides, and a row from inside the lane).
+// sides, and a row from inside the lane); and the lifts' hardware
+// (`lift-view.ts`, `make lifts`): lift-tower, lift-chair, lift-cabin,
+// lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
+// the cabins, the T-bars, the lines and a bullwheel).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -180,6 +183,11 @@ const VIEWS = [
   "tunnel-span",
   "tunnel-exit",
   "tunnels",
+  "lift-tower",
+  "lift-chair",
+  "lift-cabin",
+  "lift-tbar",
+  "lifts",
 ];
 
 const args = parseArgs(

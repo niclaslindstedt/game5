@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -59,6 +59,17 @@ buildings:
 	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --views=tunnels $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE LIFTS LAB: the lifts' hardware as drawn (`lifts.ts`, `lift-shapes.ts`,
+# `docs/lifts.md`) through the game's own renderer — a chair's tower from
+# three sides and at chase range, a gondola's and a drag's tower, a chair
+# from three sides, a gondola cabin from two, a T-bar, the lines from a
+# skier's eye and a bullwheel — previews/world-free-lifts.png by day and
+# previews/world-free-h21-lifts.png after dark, then one part a frame
+# (world-free-lift-tower/-chair/-cabin/-tbar.png).
+lifts:
+	npm run world -- --free --hour=11 --views=lift-tower,lift-chair,lift-cabin,lift-tbar,lifts $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --hour=21 --views=lifts --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:

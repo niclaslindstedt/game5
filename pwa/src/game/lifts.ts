@@ -3,9 +3,11 @@
 // (`lift-plan.ts`: where each tower stands, how high, and where the rope
 // hangs):
 //
-//   * THE TOWERS: a tapered steel column on the snow under each support,
-//     and at its head a crossarm with a sheave train at each end the rope
-//     rides over — one arm to one side for a drag's single rope.
+//   * THE TOWERS: a round tapered steel column on the snow under each
+//     support with a ladder up its downhill face, and at its head a
+//     crossarm with a sheave train at each end the rope rides over, a
+//     catwalk, lifting frames and a lightning rod — one arm to one side
+//     for a drag's single rope (`lift-shapes.ts`, `docs/lifts.md`).
 //   * THE STATIONS: at each end a house behind the bullwheel, the wheel
 //     itself flat at the rope's height on a column of its own, and the
 //     rope turned round it.
@@ -13,10 +15,10 @@
 //     save for their sag, drawn as LINES — a rope is a few centimetres
 //     thick, a pixel wide at any distance a skier sees it from, and a
 //     tube that thin would flicker in and out of the picture.
-//   * WHAT RIDES IT: a gondola's cabins, a chair's four-seat chairs (the
-//     up side facing up the line, the down side facing down it), a drag's
-//     T-bars on cords reaching down to a skier's hips over the snow under
-//     each. Hung where they stand — a lift that turned would be a second
+//   * WHAT RIDES IT (`lift-carriers.ts`): a gondola's cabins, a chair's
+//     four-seat chairs (the up side facing up the line, the down side
+//     facing down it), a drag's T-bars on cords reaching down to a
+//     skier's hips over the snow under each. Hung where they stand — a lift that turned would be a second
 //     clock the replay and the ghost would have to agree on.
 //
 //   * THE BOARDING RINGS at their feet, where a free ride's queues start
@@ -28,9 +30,11 @@
 //     too and handed their cuts by `update`'s lens.
 //
 // THE DRAWS ARE FEW: every part of a kind is one INSTANCE of one mesh for
-// the whole resort, coloured per vertex where it is more than one paint,
-// and the ropes of every lift are one set of lines — a dozen draws for a
-// mountain's lifts, however many towers.
+// the whole resort, coloured per vertex where it is more than one paint —
+// at two cuts for the detailed parts, the whole part near the lens and a
+// few boxes past it (`lift-cuts.ts`) — and the ropes of every lift are one
+// set of lines: a couple of dozen draws for a mountain's lifts, however
+// many towers.
 
 import * as THREE from "three";
 import { TUNING, type Level, type LiftRide, type SkierState } from "@engine";
@@ -58,8 +62,27 @@ import { createBoardingRings } from "./boarding-rings.ts";
 import { createCabins } from "./cabins-view.ts";
 import { liftFade } from "./camera-lift.ts";
 import { createOwnCabin } from "./own-cabin.ts";
-import { CHAIR_BACK, CHAIR_SEAT, TOW } from "./skier-seat.ts";
-import { box, buildStations, merged } from "./station-parts.ts";
+import { CHAIR_SEAT, TOW } from "./skier-seat.ts";
+import {
+  LIFT_PAINT,
+  columnGeometry,
+  ladderGeometry,
+  towerHeadFarGeometry,
+  towerHeadGeometry,
+} from "./lift-shapes.ts";
+import { Cut, StillCut } from "./lift-cuts.ts";
+import {
+  bullwheelGeometry,
+  cabinFarGeometry,
+  cabinGeometry,
+  chairFarGeometry,
+  chairGeometry,
+  springBoxFarGeometry,
+  springBoxGeometry,
+  teeFarGeometry,
+  teeGeometry,
+} from "./lift-carriers.ts";
+import { buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
@@ -73,6 +96,14 @@ const SINK = 1.2;
 /** A drag's bar rides this high over the snow up the line, m — under a
  * skier's seat, where his own bar sits (`skier-seat.ts`'s `TOW`). */
 const TEE = 0.8;
+
+/** How near the lens each part is drawn whole, m — past it at its far cut
+ * (`lift-cuts.ts`): a chair or a cabin a few dozen pixels wide, a tower's
+ * head, a T-bar. */
+const CHAIR_REACH = 80;
+const CABIN_REACH = 110;
+const HEAD_REACH = 140;
+const TEE_REACH = 50;
 
 /** The paints, sRGB: the towers' galvanised steel, the dark steel of the
  * grips and the sheaves, a gondola cabin's body and its glass, a chair's
@@ -126,57 +157,6 @@ export type RiderPose = {
   q: { x: number; y: number; z: number; w: number };
 };
 
-/** A GONDOLA CABIN from its grip on the rope down: the grip, the hanger
- * arm, the roof, the glazed band and the body under it. +z is the way it
- * travels. */
-function cabinGeometry(): THREE.BufferGeometry {
-  return merged([
-    box(0.32, 0.3, 0.9, 0, -0.1, 0, PAINT.dark),
-    box(0.12, 1.9, 0.12, 0, -1.15, 0, PAINT.dark),
-    box(1.95, 0.22, 2.15, 0, -2.2, 0, PAINT.cabin),
-    box(1.9, 0.85, 2.1, 0, -2.75, 0, PAINT.glass),
-    box(1.92, 1.05, 2.12, 0, -3.7, 0, PAINT.cabin),
-  ]);
-}
-
-/** A FOUR-SEAT CHAIR from its grip down: the hanger coming down behind the
- * back, the back and the seat, the bar under it, and the restraint with
- * its footrest in front. +z is the way the rider faces. */
-function chairGeometry(): THREE.BufferGeometry {
-  return merged([
-    box(0.26, 0.28, 0.6, 0, -0.1, 0, PAINT.dark),
-    box(0.1, 0.1, 0.5, 0, -0.25, -0.22, PAINT.dark),
-    box(0.1, 1.85, 0.1, 0, -1.15, -0.46, PAINT.dark),
-    box(2.3, 0.08, 0.08, 0, -2.05, -0.46, PAINT.dark),
-    box(2.2, 0.7, 0.09, 0, -2.08, CHAIR_BACK - 0.045, PAINT.seat),
-    box(2.2, 0.11, 0.58, 0, 0.055 - CHAIR_SEAT, -0.08, PAINT.seat),
-    box(2.3, 0.07, 0.07, 0, -2.53, -0.08, PAINT.dark),
-    box(2.2, 0.05, 0.05, 0, -1.85, 0.42, PAINT.dark),
-    box(0.05, 1.0, 0.05, -1.0, -2.35, 0.42, PAINT.dark),
-    box(0.05, 1.0, 0.05, 1.0, -2.35, 0.42, PAINT.dark),
-    box(2.0, 0.05, 0.28, 0, -2.85, 0.42, PAINT.dark),
-  ]);
-}
-
-/** A tower's head, the rope's height at its origin: the crossarm under the
- * rope and a sheave train at each rope's place — for a drag, one arm out
- * to its one rope. */
-function headGeometry(kind: LiftKind, gauge: number): THREE.BufferGeometry {
-  if (kind === "drag") {
-    return merged([
-      box(DRAG_ARM + 0.3, 0.18, 0.18, DRAG_ARM / 2, -0.42, 0, PAINT.steel),
-      box(0.2, 0.24, 1.4, DRAG_ARM, -0.16, 0, PAINT.dark),
-    ]);
-  }
-  const train = kind === "gondola" ? 3.2 : 2.4;
-  return merged([
-    box(gauge + 1.8, 0.56, 0.56, 0, -0.66, 0, PAINT.steel),
-    box(0.36, 0.36, train, -gauge / 2, -0.22, 0, PAINT.dark),
-    box(0.36, 0.36, train, gauge / 2, -0.22, 0, PAINT.dark),
-    box(1.3, 0.7, 1.3, 0, -1.0, 0, PAINT.steel),
-  ]);
-}
-
 /** The ropes' offsets right of the line, m: up and down, or a drag's one. */
 function ropesOf(plan: LiftPlan): number[] {
   return plan.lift.kind === "drag" ? [DRAG_ARM] : [plan.look.gauge / 2, -plan.look.gauge / 2];
@@ -224,8 +204,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     return m;
   };
   const painted = std({ vertexColors: true, roughness: 0.55, metalness: 0.3 }, "lift");
-  const steel = std({ color: PAINT.steel, roughness: 0.45, metalness: 0.55 }, "lift");
-  const plain = std({ color: 0xffffff, roughness: 0.8 }, "lift");
+  const steel = std({ color: LIFT_PAINT.galv, roughness: 0.42, metalness: 0.6 }, "lift");
+  const cordMat = std({ color: LIFT_PAINT.dark, roughness: 0.8 }, "lift");
 
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -233,6 +213,9 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const at = new THREE.Vector3();
   const size = new THREE.Vector3();
   const tint = new THREE.Color();
+  const pitchQ = new THREE.Quaternion();
+  const side = new THREE.Vector3(1, 0, 0);
+  const one = new THREE.Vector3(1, 1, 1);
   /** An instanced mesh of `count`, filled by `fill(set)` — `set` places the
    * next instance — and added to the group if anything was set. */
   const instanced = (
@@ -256,10 +239,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     const mesh = new THREE.InstancedMesh(geo, mat, count);
     let i = 0;
     fill((x, y, z, yaw, s, colour) => {
-      mesh.setMatrixAt(
-        i,
-        m4.compose(at.set(x, y, z), q.setFromAxisAngle(up, yaw), s ?? size.set(1, 1, 1)),
-      );
+      q.setFromAxisAngle(up, yaw);
+      mesh.setMatrixAt(i, m4.compose(at.set(x, y, z), q, s ?? size.set(1, 1, 1)));
       if (colour !== undefined) mesh.setColorAt(i, tint.set(colour));
       i++;
     });
@@ -273,13 +254,9 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     group.add(mesh);
   };
 
-  // THE COLUMNS: one tapered square tube for every tower and every
+  // THE COLUMNS: one round tapered steel tube for every tower and every
   // bullwheel's post, scaled to its height and its kind's girth.
-  // A four-sided cylinder turned an eighth: a square tube 2 m across its
-  // flats at its foot (a corner at √2), tapered to its head.
-  const column = new THREE.CylinderGeometry(Math.SQRT2 * COLUMN_TAPER, Math.SQRT2, 1, 4, 1);
-  column.rotateY(Math.PI / 4);
-  column.translate(0, 0.5, 0);
+  const column = columnGeometry(COLUMN_TAPER);
   const supports = plans.reduce((n, p) => n + p.supports.length, 0);
   instanced(column, steel, supports, (set) => {
     for (const p of plans) {
@@ -326,22 +303,60 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     }
   });
 
-  // THE HEADS, one mesh a kind: the crossarm and the sheave trains.
+  // THE LADDERS up every tower's downhill face, on stand-offs, leant in
+  // with the column's taper to its head; the snow hides their feet. Near
+  // the lens only.
+  const still: StillCut[] = [];
+  const stillCut = (cut: Cut, fill: (put: (m: THREE.Matrix4) => void) => void) => {
+    for (const m of cut.meshes) {
+      meshes.push(m);
+      group.add(m);
+    }
+    geos.push(cut.near.geometry);
+    if (cut.far) geos.push(cut.far.geometry);
+    const sc = new StillCut(cut);
+    fill((m) => sc.add(m));
+    sc.update(null);
+    still.push(sc);
+  };
+  const towerList = plans.flatMap((p) =>
+    p.supports.filter((s) => !s.station).map((s) => ({ p, s })),
+  );
+  stillCut(new Cut(ladderGeometry(), null, painted, towerList.length, 70, false), (put) => {
+    for (const { p, s } of towerList) {
+      const w = p.look.column;
+      const top = s.rope - 0.9;
+      const lean = Math.atan2(w * (1 - COLUMN_TAPER), top + SINK);
+      const off = w * COLUMN_TAPER + 0.16;
+      q.setFromAxisAngle(up, p.heading).multiply(pitchQ.setFromAxisAngle(side, lean));
+      put(m4.compose(at.set(s.x - p.dx * off, s.ground + top - 0.2, s.z - p.dz * off), q, one));
+    }
+  });
+
+  // THE HEADS, one pair of cuts a kind: the crossarm and the sheave trains.
   for (const kind of ["gondola", "chair", "drag"] as const) {
-    const own = plans.filter((p) => p.lift.kind === kind);
-    const towers = own.reduce((n, p) => n + p.supports.length - 2, 0);
-    if (towers === 0) continue;
-    const head = headGeometry(kind, own[0].look.gauge);
-    instanced(head, painted, towers, (set) => {
-      for (const p of own) {
-        for (const s of p.supports) if (!s.station) set(s.x, s.ground + s.rope, s.z, p.heading);
+    const own = towerList.filter(({ p }) => p.lift.kind === kind);
+    if (own.length === 0) continue;
+    const look = own[0].p.look;
+    const args = [kind, look.gauge, look.column, COLUMN_TAPER, DRAG_ARM] as const;
+    const cut = new Cut(
+      towerHeadGeometry(...args),
+      towerHeadFarGeometry(...args),
+      painted,
+      own.length,
+      HEAD_REACH,
+    );
+    stillCut(cut, (put) => {
+      for (const { p, s } of own) {
+        q.setFromAxisAngle(up, p.heading);
+        put(m4.compose(at.set(s.x, s.ground + s.rope, s.z), q, one));
       }
     });
   }
 
   // THE STATIONS: the bullwheel flat at the rope's height over each end of
   // the line; the houses behind them are buildings (below).
-  const wheelGeo = new THREE.CylinderGeometry(1, 1, 1, 20);
+  const wheelGeo = bullwheelGeometry();
   const ends = plans.length * 2;
   type End = { p: LiftPlan; wheelX: number; wheelZ: number; wheelY: number };
   const stations: End[] = plans.flatMap((p) =>
@@ -352,7 +367,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       wheelY: h.wheel.ground + h.wheel.rope,
     })),
   );
-  instanced(wheelGeo, plain, ends, (set) => {
+  instanced(wheelGeo, painted, ends, (set) => {
     for (const e of stations) {
       const r = Math.max(0.6, e.p.look.gauge / 2 + 0.25);
       set(
@@ -361,7 +376,6 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
         e.wheelZ - (e.p.lift.kind === "drag" ? (e.p.dx * DRAG_ARM) / 2 : 0),
         e.p.heading,
         size.set(r, 0.35, r),
-        PAINT.dark,
       );
     }
   });
@@ -459,23 +473,24 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   });
   const placeOf = (c: Carrier, t: number) => carrierAt(c.p, c.k, t);
   const zero = new THREE.Vector3(0, 0, 0);
-  const cabins = instancedMoving(cabinGeometry(), painted, carriers.gondola.length);
-  const chairs = instancedMoving(chairGeometry(), painted, carriers.chair.length);
+  const cabins = movingCut(
+    cabinGeometry(),
+    cabinFarGeometry(),
+    carriers.gondola.length,
+    CABIN_REACH,
+  );
+  const chairs = movingCut(chairGeometry(), chairFarGeometry(), carriers.chair.length, CHAIR_REACH);
   // A DRAG'S T-BARS: the spring box at the rope, the cord down from it to
   // a skier's hips over the snow under it on the way up (reeled in on the
   // way down), and the bar across.
-  const springGeo = new THREE.BoxGeometry(0.14, 0.55, 0.14);
-  springGeo.translate(0, -0.3, 0);
   const cordGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 4, 1, true);
   cordGeo.translate(0, -0.5, 0);
-  const tee = merged([
-    box(0.04, 0.6, 0.04, 0, 0.3, 0, PAINT.dark),
-    box(1.0, 0.06, 0.06, 0, 0, 0, PAINT.steel),
-  ]);
+  const tee = teeGeometry();
+  geos.push(tee);
   const dragN = carriers.drag.length;
-  const springs = instancedMoving(springGeo, plain, dragN, PAINT.dark);
-  const cords = instancedMoving(cordGeo, plain, dragN, PAINT.dark, false);
-  const tees = instancedMoving(tee, painted, dragN);
+  const springs = movingCut(springBoxGeometry(), springBoxFarGeometry(), dragN, TEE_REACH);
+  const cords = instancedMoving(cordGeo, cordMat, dragN, undefined, false);
+  const tees = movingCut(tee.clone(), teeFarGeometry(), dragN, TEE_REACH);
   // THE RIDER'S OWN CHAIR, hung under him from the rope while he rides one.
   const ridden = new THREE.Mesh(chairGeometry(), painted);
   geos.push(ridden.geometry);
@@ -498,11 +513,11 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   // THE RIDER'S OWN T-BAR while a drag pulls him: the spring box at the
   // rope over him, the cord down from it, and the bar behind his thighs —
   // the clock's bar nearest him stood aside for it, as a chair's is.
-  const towBox = merged([box(0.14, 0.55, 0.14, 0, -0.3, 0, PAINT.dark)]);
-  const towCord = merged([box(0.03, 1, 0.03, 0, -0.5, 0, PAINT.dark)]);
+  const towBox = springBoxGeometry();
+  const towCord = cordGeo.clone();
   geos.push(towBox, towCord);
   const towSpring = new THREE.Mesh(towBox, painted);
-  const towLine = new THREE.Mesh(towCord, painted);
+  const towLine = new THREE.Mesh(towCord, cordMat);
   const towTee = new THREE.Mesh(tee, painted);
   const tow = [towSpring, towLine, towTee];
   for (const m of tow) {
@@ -556,6 +571,23 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const riderQ = new THREE.Quaternion();
   const bar = new THREE.Vector3();
 
+  /** A part whose instances move, at two cuts: filled every frame. */
+  function movingCut(
+    near: THREE.BufferGeometry,
+    far: THREE.BufferGeometry,
+    count: number,
+    reach: number,
+  ): Cut | null {
+    geos.push(near, far);
+    if (count === 0) return null;
+    const cut = new Cut(near, far, painted, count, reach);
+    for (const m of cut.meshes) {
+      meshes.push(m);
+      group.add(m);
+    }
+    return cut;
+  }
+
   /** An instanced mesh whose instances move: filled every frame. */
   function instancedMoving(
     geo: THREE.BufferGeometry,
@@ -579,41 +611,39 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   }
 
   const hide = m4.compose(zero, q.identity(), zero).clone();
-  /** Every carrier where the clock has it; the one a rider sits in is his
-   * own chair's (`ridden`). */
-  function moveCarriers(t: number, sat: readonly { index: number; u: number }[]): void {
-    const seat = (h: THREE.InstancedMesh | null, list: Carrier[]) => {
+  /** Every carrier where the clock has it, at the cut its distance from
+   * `eye` asks; the one a rider sits in is his own chair's (`ridden`). */
+  function moveCarriers(
+    t: number,
+    sat: readonly { index: number; u: number }[],
+    eye?: THREE.Vector3,
+  ): void {
+    const seat = (h: Cut | null, list: Carrier[]) => {
       if (!h) return;
-      list.forEach((c, n) => {
+      h.begin(eye);
+      for (const c of list) {
         const { u, side, out } = placeOf(c, t);
         const mine =
           side === 0 && sat.some((r) => r.index === c.i && Math.abs(u - r.u) < c.p.look.every / 2);
-        if (!out || mine) {
-          h.setMatrixAt(n, hide);
-          return;
-        }
+        if (!out || mine) continue;
         const o = ropesOf(c.p)[side];
         const x = c.p.lift.bottom.x + c.p.dx * u + c.p.dz * o;
         const z = c.p.lift.bottom.z + c.p.dz * u - c.p.dx * o;
-        h.setMatrixAt(
-          n,
-          m4.compose(
-            at.set(x, ropeAt(c.p, u), z),
-            q.setFromAxisAngle(up, side === 0 ? c.p.heading : c.p.heading + Math.PI),
-            size.set(1, 1, 1),
-          ),
-        );
-      });
-      h.instanceMatrix.needsUpdate = true;
+        q.setFromAxisAngle(up, side === 0 ? c.p.heading : c.p.heading + Math.PI);
+        h.add(m4.compose(at.set(x, ropeAt(c.p, u), z), q, one));
+      }
+      h.end();
     };
     seat(cabins, carriers.gondola);
     seat(chairs, carriers.chair);
     if (!springs || !cords || !tees) return;
+    springs.begin(eye);
+    tees.begin(eye);
     carriers.drag.forEach((c, n) => {
       const { u, side, out } = placeOf(c, t);
       const mine = side === 0 && sat.some((r) => r.index === c.i && Math.abs(u - r.u) < 6);
       if (!out || mine) {
-        for (const h of [springs, cords, tees]) h.setMatrixAt(n, hide);
+        cords.setMatrixAt(n, hide);
         return;
       }
       const o = ropesOf(c.p)[0];
@@ -624,11 +654,13 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       // Up the line the cord reaches a skier's hips; reeled in coming down.
       const cord = side === 0 ? Math.max(0.3, y - 0.58 - (level.groundAt(x, z) + TEE + 0.6)) : 0.3;
       q.setFromAxisAngle(up, yaw);
-      springs.setMatrixAt(n, m4.compose(at.set(x, y, z), q, size.set(1, 1, 1)));
+      springs.add(m4.compose(at.set(x, y, z), q, one));
       cords.setMatrixAt(n, m4.compose(at.set(x, y - 0.58, z), q, size.set(1, cord, 1)));
-      tees.setMatrixAt(n, m4.compose(at.set(x, y - 0.58 - cord - 0.6, z), q, size.set(1, 1, 1)));
+      tees.add(m4.compose(at.set(x, y - 0.58 - cord - 0.6, z), q, one));
     });
-    for (const h of [springs, cords, tees]) h.instanceMatrix.needsUpdate = true;
+    springs.end();
+    tees.end();
+    cords.instanceMatrix.needsUpdate = true;
   }
   moveCarriers(0, []);
 
@@ -673,7 +705,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       chair.quaternion.copy(riderQ);
     }
     for (let k = n; k < theirs.length; k++) theirs[k].visible = false;
-    moveCarriers(t, satOn);
+    moveCarriers(t, satOn, eye);
+    for (const c of still) c.update(eye);
     if (drawn) riderQ.set(drawn.q.x, drawn.q.y, drawn.q.z, drawn.q.w);
     // His own T-bar on a drag: the bar across the backs of his thighs
     // under his seat, in his own frame (`TOW`), its stem to his left and

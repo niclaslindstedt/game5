@@ -55,7 +55,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, close, hud); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, close, hud, remains); every one when left out",
     },
     views: {
       kind: "string",

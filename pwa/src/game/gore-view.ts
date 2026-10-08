@@ -23,6 +23,11 @@
 //     under a body lying still; his clothes soak red round every wound.
 //   * THE SPIKE. Run through on a tree's top, the bloodied point stands out
 //     of him.
+//   * THE DEAD LEFT LYING (`leave`). A rider who died is not tidied away
+//     when the next one is stood up on the same mountain: his body as it
+//     was last drawn (`gore-remains.ts`), the pieces, the guts, the spike
+//     and every blot of his blood stay where they lie, for the next one to
+//     ski past — the last few dead, the oldest cleared first.
 
 import * as THREE from "three";
 import {
@@ -40,8 +45,9 @@ import {
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import { bindPose } from "./dress-loft.ts";
-import { createBlood } from "./gore-blood.ts";
+import { createBlood, type Blood } from "./gore-blood.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
+import { bakeFigure, disposeFigure } from "./gore-remains.ts";
 import {
   lump,
   rope,
@@ -74,6 +80,9 @@ type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 /** What the view asks of the player's model: to be drawn without the
  * pieces he lost, and his skin — its frames, its group and his outfit. */
 export type GoreModel = {
+  /** Everything he is drawn as hangs under it: what a body left lying is
+   * baked from (`gore-remains.ts`). */
+  root: THREE.Object3D;
   setGore(lost: number, crush: number): void;
   skin(): {
     frames: Record<SkierBone, BoneFrame>;
@@ -89,6 +98,14 @@ export type GoreView = {
   update(state: GameState, model: GoreModel, simDt: number, dt: number): void;
   /** A new run: everything gone, his clothes clean. */
   clear(model: GoreModel | null): void;
+  /** A DEAD RIDER LEFT LYING: if the last run drawn ended in his death,
+   * his body as last drawn, the pieces, the guts, the spike and his blood
+   * kept where they are, apart from the next rider's, until `clearRemains`
+   * or the map goes. Called on a new run before its first pose, while
+   * `model` is still drawn as the body; nothing when he did not die. */
+  leave(model: GoreModel): void;
+  /** Every body left lying gone. */
+  clearRemains(): void;
   dispose(): void;
 };
 
@@ -206,11 +223,28 @@ const m2 = new THREE.Matrix4();
 
 const toV = (p: V3, out = new THREE.Vector3()) => out.set(p.x, p.y, p.z);
 
+/** How many dead are left lying at once; the oldest goes first. */
+const REMAINS = 4;
+
+/** ONE BODY LEFT LYING: the statue of him, what was torn out of him, and
+ * the blood he left — all owned here now. */
+type Remains = {
+  body: THREE.Group;
+  pieces: Dressed[];
+  loose: THREE.Mesh[];
+  guts: THREE.Mesh[];
+  blood: Blood;
+};
+
 export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const group = new THREE.Group();
   group.name = "gore";
-  const blood = createBlood(wrap);
+  let blood = createBlood(wrap);
   group.add(blood.group);
+  const dead = new THREE.Group();
+  dead.name = "gore-remains";
+  group.add(dead);
+  const remains: Remains[] = [];
 
   const flesh = wrap(
     new THREE.MeshStandardMaterial({
@@ -532,8 +566,52 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     rng = createRng(level.seed ^ 0x5eed90e);
   };
 
+  const forget = (r: Remains) => {
+    dead.remove(r.body, r.blood.group, ...r.loose, ...r.guts, ...r.pieces.map((d) => d.group));
+    disposeFigure(r.body);
+    for (const d of r.pieces) d.dispose();
+    for (const m of r.guts) m.geometry.dispose();
+    r.blood.dispose();
+  };
+
+  const leave = (model: GoreModel) => {
+    if (!last?.gore || last.gore.dead < 0) return;
+    // His body baked as the last frame drew it, its stumps and its open
+    // wounds on it, his clothes as soaked as they were.
+    const body = bakeFigure(model.root, wrap);
+    dead.add(body);
+    blood.settle();
+    dead.add(blood.group);
+    const r: Remains = {
+      body,
+      pieces: pieces.map((p) => p.dressed),
+      loose: [...gibs.map((g) => g.mesh), ...(spike ? [spike] : [])],
+      guts: guts.map((g) => g.mesh),
+      blood,
+    };
+    for (const o of [...r.pieces.map((d) => d.group), ...r.loose, ...r.guts]) dead.add(o);
+    remains.push(r);
+    while (remains.length > REMAINS) forget(remains.shift()!);
+    // Owned by the dead now: the next rider starts with none of it.
+    pieces = [];
+    gibs = [];
+    guts = [];
+    spike = null;
+    blood = createBlood(wrap);
+    group.add(blood.group);
+    clearAll(model);
+    last = null;
+  };
+
+  const clearRemains = () => {
+    for (const r of remains) forget(r);
+    remains.length = 0;
+  };
+
   return {
     group,
+    leave,
+    clearRemains,
     update(state, model, simDt, dt) {
       if (state !== last || state.tick === 0) {
         if (last) clearAll(model);
@@ -855,6 +933,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     },
     dispose() {
       clearAll(null);
+      clearRemains();
       blood.dispose();
       flesh.dispose();
       for (const g of geometries) g.dispose();

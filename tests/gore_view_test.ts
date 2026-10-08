@@ -118,7 +118,7 @@ describe("what flies off a body", () => {
 
 describe("the HUD taking his blows", () => {
   it("is still and true while he is alive and nothing has struck him", () => {
-    expect(wreckOf(null, null)).toMatchObject({ jolt: 0, bend: 0, fall: 0, word: 0, dark: 0 });
+    expect(wreckOf(null, null)).toMatchObject({ jolt: 0, fade: 0, word: 0, dark: 0 });
   });
 
   it("jolts on a blow and settles as it ages", () => {
@@ -129,10 +129,13 @@ describe("the HUD taking his blows", () => {
     expect(wreckOf({ g: 120, id: 3, age: 1 }, null).jolt).toBe(0);
   });
 
-  it("breaks up, says DIED and goes dark in that order when he dies", () => {
+  it("fades its readouts, then says DIED and goes dark, in that order when he dies", () => {
     const at = (t: number) => wreckOf(null, t);
-    expect(at(0)).toMatchObject({ fall: 0, word: 0, dark: 0 });
-    expect(at(DEATH.fall + DEATH.falling).fall).toBe(1);
+    expect(at(0)).toMatchObject({ fade: 0, word: 0, dark: 0 });
+    expect(at(DEATH.clearing / 2).fade).toBeCloseTo(0.5);
+    expect(at(DEATH.clear + DEATH.clearing).fade).toBe(1);
+    // The readouts are gone before the word comes up.
+    expect(DEATH.clear + DEATH.clearing).toBeLessThanOrEqual(DEATH.word);
     expect(at(DEATH.word - 0.01).word).toBe(0);
     expect(at(DEATH.word + DEATH.rise).word).toBe(1);
     expect(at(DEATH.dark - 0.01).dark).toBe(0);

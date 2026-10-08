@@ -214,8 +214,7 @@ export function Hud({
         ...(wreck
           ? {
               "--hud-jolt": wreck.jolt.toFixed(3),
-              "--hud-bend": wreck.bend.toFixed(2),
-              "--hud-fall": wreck.fall.toFixed(3),
+              "--hud-fade": wreck.fade.toFixed(3),
             }
           : {}),
       }}

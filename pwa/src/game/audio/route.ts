@@ -475,6 +475,18 @@ export function soundForEvent(
         : null;
     }
 
+    // THE HOT AIR BALLOON (`balloon.ts`): over the side and out onto the
+    // snow heard as a push off a machine, the basket onto the snow as a
+    // set-down; its burner's roar and its fire are beds of their own to come.
+    case "balloon": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      return event.phase === "jump" || event.phase === "step"
+        ? { id: "heli_drop", shape: heard }
+        : event.phase === "touch"
+          ? { id: "heli_land", shape: heard }
+          : null;
+    }
+
     // THE AFTERSKI (`afterski-bank.ts`): always the player's own, heard
     // where he is — the lodge's door in and out, a beer; and a buzzed
     // skier's fall worked off on foot: up, a ski picked up, back in.

@@ -120,6 +120,8 @@
 //                   bottom (`sled.ts`), over the start card's RUN row.
 //   ?para=1         a free ride begun ON THE SUMMIT UNDER THE PARAMOTOR
 //                   (`para.ts`), over the start card's RUN row.
+//   ?balloon=1      a free ride begun IN A HOT AIR BALLOON's basket on the
+//                   valley floor (`balloon.ts`), over the start card's RUN row.
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
@@ -263,6 +265,8 @@ export type UrlParams = {
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
   para: boolean;
+  /** A free ride begun in the hot air balloon, over the card's RUN row. */
+  balloon: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
   /** A free ride the grimbear hunts (true) or never shows on (false), over
@@ -404,6 +408,7 @@ export function readParams(search: string): UrlParams {
     plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
+    balloon: q.get("balloon") === "1",
     sled: q.get("sled") === "1",
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
@@ -428,13 +433,16 @@ export function linkWorld(
 }
 
 /** A free ride's options with a link's sky, region, grade, helicopter,
- * snowmobile and paramotor laid over the card's. */
+ * snowmobile, paramotor and balloon laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
+  // A link naming a machine is the start, whatever the card picked.
+  const named = params.heli || params.sled || params.para || params.balloon;
   return {
     ...ride,
-    heli: !params.para && (params.heli || ride.heli),
-    sled: !params.para && !params.heli && (params.sled || ride.sled),
-    para: params.para || (!params.heli && !params.sled && ride.para),
+    heli: !params.para && !params.balloon && (params.heli || ride.heli),
+    sled: !params.para && !params.heli && !params.balloon && (params.sled || ride.sled),
+    para: !params.balloon && (params.para || (!params.heli && !params.sled && ride.para)),
+    balloon: params.balloon || (!named && ride.balloon),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,

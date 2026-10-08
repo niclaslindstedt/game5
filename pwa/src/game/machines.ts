@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREE RIDE'S MACHINES IN THE RENDERER — the helicopter on its pad
 // (`heli-scene.ts`), the snowmobile at the bottom (`sled-scene.ts`) and the
-// paramotor's wing over a skier begun under it (`para-scene.ts`) and the
+// paramotor's wing over a skier begun under it (`para-scene.ts`), the hot
+// air balloon a skier is begun in (`balloon-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), held
 // together so the renderer holds them by one hand: built per map with the
 // rest of the world (only where a run's rules carry them), the player's
@@ -24,6 +25,7 @@ import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
+import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
@@ -94,8 +96,12 @@ export function createMachines(
   // The paramotor rides every free ride's rules: drawn only while a run
   // carries the rig (`GameState.para`).
   const para: ParaScene | null = state.rules.heli ? createParaScene(haze) : null;
+  // ...and the hot air balloon, drawn while a run carries one
+  // (`GameState.balloon`) — a stand-in until its model lands.
+  const balloon: BalloonScene | null = state.rules.heli ? createBalloonScene(haze) : null;
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
+  if (balloon) group.add(balloon.group);
   const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
   if (groomers) group.add(groomers.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
@@ -126,6 +132,7 @@ export function createMachines(
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
+      balloon?.frame(s);
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
@@ -165,6 +172,7 @@ export function createMachines(
       sled?.dispose();
       groomers?.dispose();
       para?.dispose();
+      balloon?.dispose();
     },
   };
 }

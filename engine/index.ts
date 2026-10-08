@@ -465,6 +465,10 @@ export {
   type ParaPhaseEvent,
   type ParaPiece,
   type ParaState,
+  type BalloonEvent,
+  type BalloonMode,
+  type BalloonPhaseEvent,
+  type BalloonState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -787,6 +791,34 @@ export {
 } from "./game/para.ts";
 export { paraPilot } from "./game/para-pilot.ts";
 export { eddyUp, paraAirAt, type ParaAir } from "./game/para-air.ts";
+export {
+  BALLOON,
+  BALLOON_CENTRE,
+  BALLOON_EMPTY,
+  BALLOON_PLAN,
+  BALLOON_SIDE,
+} from "./game/defs/balloon.ts";
+export {
+  balloonAboard,
+  balloonDown,
+  balloonSiteOf,
+  balloonTrim,
+  freshBalloon,
+  standingPoint as balloonStandingPoint,
+  startBalloon,
+  stepBalloon,
+  walkMostX as balloonWalkMostX,
+  walkMostZ as balloonWalkMostZ,
+} from "./game/balloon.ts";
+export { balloonPilot, PILOT_HOLD as BALLOON_PILOT_HOLD } from "./game/balloon-pilot.ts";
+export {
+  BALLOON_AIR,
+  airDensity as balloonAirDensity,
+  airKelvin as balloonAirKelvin,
+  airPressure as balloonAirPressure,
+  balloonWindAt,
+  upValley,
+} from "./game/balloon-air.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

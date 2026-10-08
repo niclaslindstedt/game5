@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight afterski
 
 build:
 	npm run build
@@ -455,6 +455,17 @@ para:
 # "--compare=previews/para-wind-before.json" after; "--rows=storm,down-9".
 para-wind:
 	npm run para-wind -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE HOT AIR BALLOON'S FLIGHT LAB: scripted flights of the free ride's
+# balloon in pure Node — the bot's hands holding a height, a hop off the
+# tether, the valve held, the burner held till the fabric cooks, a jump over
+# the side, a walk about the basket, a breeze and a gale: the top, the climb
+# and the sink, the lag from a burn to a climb, the envelope's hottest, the
+# propane burnt, the way carried up the mountain, the fire and the end.
+# ARGS="--json=previews/balloon-before.json" before a change,
+# "--compare=previews/balloon-before.json" after; "--rows=pilot,gale --trace=pilot".
+balloon-flight:
+	npm run balloon-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE GRIMBEAR LAB: the free ride's grimbear staged at every moment he has —
 # the figure from eight sides, his run and walk across one stride, each

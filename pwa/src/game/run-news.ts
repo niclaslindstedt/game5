@@ -202,6 +202,19 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "collapse") return { text: STRINGS.newsParaCollapse, tone: "bad" };
       if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
       return { text: STRINGS.newsParaRestart, tone: "info" };
+    case "balloon":
+      // The balloon: let go, off and onto the snow, too hot, alight, over
+      // the side or out, the ride begun again, the basket over.
+      if (e.phase === "launch") return { text: STRINGS.newsBalloonLaunch, tone: "good" };
+      if (e.phase === "liftoff") return { text: STRINGS.newsBalloonLiftoff, tone: "info" };
+      if (e.phase === "touch") return { text: STRINGS.newsBalloonTouch, tone: "info" };
+      if (e.phase === "hot") return { text: STRINGS.newsBalloonHot, tone: "bad" };
+      if (e.phase === "fire") return { text: STRINGS.newsBalloonFire, tone: "bad" };
+      if (e.phase === "jump") return { text: STRINGS.newsBalloonJump, tone: "good" };
+      if (e.phase === "step") return { text: STRINGS.newsBalloonStep, tone: "good" };
+      if (e.phase === "restart") return { text: STRINGS.newsBalloonRestart, tone: "info" };
+      if (e.phase === "crash") return { text: STRINGS.newsBalloonCrash, tone: "bad" };
+      return null;
     default:
       return null;
   }

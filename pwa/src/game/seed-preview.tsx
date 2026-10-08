@@ -340,7 +340,7 @@ export function SeedPreview({
   /** The machine the ride begins on, when the RUN row picked one: marked
    * where it waits on the valley floor (the paramotor on the summit)
    * rather than at any run's head; the afterski at its lodge's door. */
-  machine?: "heli" | "sled" | "para" | "afterski" | null;
+  machine?: "heli" | "sled" | "para" | "balloon" | "afterski" | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;

@@ -232,6 +232,17 @@ export function paraOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === PARA_RUN;
 }
 
+/** THE RUN ROW'S BALLOON STOP: the HOT AIR BALLOON stood up inflated on
+ * the valley floor (`balloon.ts`) — the ride begun in its basket, held on
+ * its tether until the first burns make it light. A run id of its own, as
+ * the machines' are. */
+export const BALLOON_RUN = "balloon";
+
+/** Whether the ride on `seed` begins in the hot air balloon. */
+export function balloonOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === BALLOON_RUN;
+}
+
 /** THE RUN ROW'S AFTERSKI STOP: no run and no machine, but INSIDE the
  * valley's afterski lodge (`afterski.ts`) — the ride begun at the party,
  * his skis in the rack, the beers coming round, and the machine press the
@@ -327,8 +338,9 @@ export function freeGameOptions(
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
+  const balloon = balloonOn(ride, seed);
   const party = afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || party;
+  const vehicle = heli || sled || para || balloon || party;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
@@ -346,6 +358,8 @@ export function freeGameOptions(
     sled,
     // THE PARAMOTOR: stood on the summit, the wing over him.
     para,
+    // THE HOT AIR BALLOON: in its basket on the valley floor, tethered.
+    balloon,
     // THE AFTERSKI: inside the valley's lodge, the party under way.
     inLodge: party,
     snowDepth: depthOf(ride.snow),
@@ -365,7 +379,7 @@ export function freeGameOptions(
     // whose run passes nearest the start line, led off its top onto that run.
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
-    byLift: spot === null && !(heli || sled || para),
+    byLift: spot === null && !(heli || sled || para || balloon),
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.

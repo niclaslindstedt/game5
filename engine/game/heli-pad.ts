@@ -56,10 +56,9 @@ function leanOver(level: Level, x: number, z: number, r: number): number {
   return most;
 }
 
-/** Whether (x, z) is clear: no trunk under the sweep, off every lift's line
+/** Whether (x, z) is clear: no trunk within `room`, off every lift's line
  * and station, and out of the tunnels' lanes. */
-function clearAt(level: Level, x: number, z: number): boolean {
-  const room = HELI.pad.radius;
+function clearAt(level: Level, x: number, z: number, room: number): boolean {
   if (treesNear(level, x, z, room, near).length > 0) return false;
   for (const p of liftPlans(level)) {
     const rx = x - p.lift.bottom.x;
@@ -88,11 +87,25 @@ export function summitward(level: Level, x: number, z: number): number {
 }
 
 function findPad(level: Level): Helipad {
+  return openSpotNear(level, HELI.pad.radius, HELI.pad.slope, []);
+}
+
+/** A PLACE TO STAND A MACHINE on the valley floor: the nearest patch to
+ * the village (or the finish) leaning no more than `slope` over a circle of
+ * `room`, clear of trunks, lifts and tunnels by `room`, and outside every
+ * circle of `avoid` — faced to the summit. The helipad's search, and any
+ * other machine's that wants open snow at the bottom (`balloon.ts`). */
+export function openSpotNear(
+  level: Level,
+  room: number,
+  slope: number,
+  avoid: readonly { x: number; z: number; r: number }[],
+): Helipad {
   const resort = level.resort;
   const finish = level.track.points[level.track.points.length - 1];
   const centre = resort ? resort.village : { x: finish.x, z: finish.z };
   const half = level.size / 2;
-  const edge = HELI.pad.radius + 30;
+  const edge = room + 30;
   let best: { x: number; z: number; cost: number } | null = null;
   for (let dz = -SEARCH; dz <= SEARCH; dz += STEP) {
     for (let dx = -SEARCH; dx <= SEARCH; dx += STEP) {
@@ -101,11 +114,12 @@ function findPad(level: Level): Helipad {
       if (Math.abs(x - half) > half - edge || Math.abs(z - half) > half - edge) continue;
       const d = hypot(dx, dz);
       if (best && d >= best.cost) continue;
-      const lean = leanOver(level, x, z, HELI.pad.radius);
-      if (lean > HELI.pad.slope) continue;
+      const lean = leanOver(level, x, z, room);
+      if (lean > slope) continue;
+      if (avoid.some((a) => hypot(a.x - x, a.z - z) < a.r)) continue;
       const cost = d + lean * 600;
       if (best && cost >= best.cost) continue;
-      if (!clearAt(level, x, z)) continue;
+      if (!clearAt(level, x, z, room)) continue;
       best = { x, z, cost };
     }
   }

@@ -50,7 +50,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
-import { NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
+import { NO_BALLOON, NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
+import { BALLOON_PANEL, BALLOON_SCRIPT } from "./lib/audition-balloon.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -100,6 +101,7 @@ const RUNTIME = [
   "pwa/src/game/audio/snow-voice.ts",
   "pwa/src/game/audio/tunnel-voice.ts",
   "pwa/src/game/audio/heli-voice.ts",
+  "pwa/src/game/audio/balloon-voice.ts",
   "pwa/src/game/audio/sled-voice.ts",
 ];
 
@@ -378,7 +380,7 @@ const page = `<!doctype html>
     <div class="switches"><button id="sled" class="primary" type="button">Start the snowmobile</button></div>
     <div id="sledSliders"></div>
   </div>
-
+${BALLOON_PANEL}
   <div id="bank"></div>
 
   <footer>
@@ -729,6 +731,7 @@ sledBtn.addEventListener("click", () => {
   sledRack = { timer, rack };
 });
 
+${BALLOON_SCRIPT}
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -876,8 +879,9 @@ async function meter() {
         Object.assign(window.__ear.tunnel, p.tunnel ?? { presence: 0, fan: 0 });
         Object.assign(window.__ear.heli, p.noHeli, p.heli ?? {});
         Object.assign(window.__ear.sled, p.noSled, p.sled ?? {});
+        Object.assign(window.__ear.balloon, p.noBalloon, p.balloon ?? {});
       },
-      { ...preset, noHeli: NO_HELI, noSled: NO_SLED },
+      { ...preset, noHeli: NO_HELI, noSled: NO_SLED, noBalloon: NO_BALLOON },
     );
   await set(PRESETS[0]);
   await page.click("#rush");
@@ -885,6 +889,7 @@ async function meter() {
   await page.click("#tunnel");
   await page.click("#heli");
   await page.click("#sled");
+  await page.click("#balloon");
   for (const preset of PRESETS) {
     await set(preset);
     await page.waitForTimeout(SETTLE_MS);
@@ -896,6 +901,7 @@ async function meter() {
   await page.click("#tunnel");
   await page.click("#heli");
   await page.click("#sled");
+  await page.click("#balloon");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");

@@ -25,6 +25,7 @@ import {
   generateLevel,
   gradeOf,
   helipadOf,
+  balloonSiteOf,
   lodgesOf,
   paraStartOf,
   sledSpotOf,
@@ -99,10 +100,10 @@ export type PreviewPainted = {
   /** Where the RUN row's machines wait on the valley floor — the
    * helicopter's pad (`helipadOf`) and the snowmobile's spot
    * (`sledSpotOf`) — and the summit the paramotor starts on
-   * (`paraStartOf`): the place the card marks when one is picked — and the
+   * (`paraStartOf`) and the balloon's site (`balloonSiteOf`): the place the card marks when one is picked — and the
    * door of the valley's afterski lodge (`lodgesOf`), null on a map with
    * none, where the RUN row offers no afterski. */
-  machines: Record<"heli" | "sled" | "para", { x: number; y: number; z: number }> & {
+  machines: Record<"heli" | "sled" | "para" | "balloon", { x: number; y: number; z: number }> & {
     afterski: { x: number; y: number; z: number } | null;
   };
 };
@@ -211,6 +212,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           heli: placeOf(helipadOf(level)),
           sled: placeOf(sledSpotOf(level)),
           para: summitOf(level),
+          balloon: placeOf(balloonSiteOf(level)),
           afterski: lodgeDoorOf(level),
         },
       };

@@ -1,6 +1,6 @@
 # The paramotor
 
-A free ride can start under a powered wing. Pick **PARAMOTOR** on the start card's RUN row (the stop before the snowmobile), or follow a `?start=free&para=1` link. You start on the summit with your skis on, a small ram-air wing held up over you on its lines and a motor on your back. Ski off until the wing flies, fly it anywhere on the mountain, land on your skis, and drop the whole rig to ski on.
+A free ride can start under a powered wing. Pick **PARAMOTOR** on the start card's RUN row (the stop before the balloon and the snowmobile), or follow a `?start=free&para=1` link. You start on the summit with your skis on, a small ram-air wing held up over you on its lines and a motor on your back. Ski off until the wing flies, fly it anywhere on the mountain, land on your skis, and drop the whole rig to ski on.
 
 The engine side is `engine/game/para.ts` (the flight), `para-state.ts` (its state and events), `para-pilot.ts` (the bot's hands) and `defs/para.ts` (every number). The app side is `pwa/src/game/para-canopy.ts` (the wing's shape, its paint and its line plan, three-free), `para-motor.ts` (the motor unit as built), `para-scene.ts` (the two hung on the engine's bodies, the lines drawn, the downed wing laid on the snow, and the pilot sat in the harness), `camera-para.ts` (the camera rows under the wing), `hud-para.tsx` (the strip), `audio/para-bed.ts` (the motor's sound) and `strings-para.ts`.
 

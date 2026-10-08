@@ -81,6 +81,7 @@ import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
+import { startBalloon } from "./balloon.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
 import { stepRun } from "./run.ts";
@@ -221,6 +222,11 @@ export type CreateGameOptions = {
    * wing inflated over him. Wins over `byLift`, `spawn` and the machines.
    * Ignored by every mode but the free ride. */
   para?: boolean;
+  /** A FREE RIDE begun IN A HOT AIR BALLOON (`balloon.ts`): stood in its
+   * basket on the valley floor, the envelope inflated over him and held on
+   * its tether. Wins over every other start but the lodge's. Ignored by
+   * every mode but the free ride. */
+  balloon?: boolean;
   /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
    * the party under way and his skis in the rack. Wins over every other
    * start. Ignored by every mode without lodges. */
@@ -462,10 +468,14 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (rules.afterski) state.afterski = freshAfterski();
-  const para = free && options.para === true;
-  if (state.heli && options.heli && !para) startAgain(state, []);
-  if (state.sled && options.sled && !(state.heli && options.heli) && !para) startSled(state, []);
+  const balloon = free && options.balloon === true && !options.inLodge;
+  const para = free && options.para === true && !balloon;
+  if (state.heli && options.heli && !para && !balloon) startAgain(state, []);
+  if (state.sled && options.sled && !(state.heli && options.heli) && !para && !balloon) {
+    startSled(state, []);
+  }
   if (para) startPara(state, []);
+  if (balloon) startBalloon(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.
@@ -474,6 +484,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     options.byLift &&
     !(options.inLodge && lodgesOf(level).length > 0) &&
     !para &&
+    !balloon &&
     !(state.heli && options.heli) &&
     !(state.sled && options.sled)
       ? options.spawn

@@ -21,6 +21,7 @@
 import { pilotInput } from "../game/heli.ts";
 import { sledPilot } from "../game/sled-pilot.ts";
 import { paraPilot } from "../game/para-pilot.ts";
+import { balloonPilot } from "../game/balloon-pilot.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
@@ -624,6 +625,8 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // ...and one under a paramotor's wing skis off the summit and flies it
   // (`para-pilot.ts`), never dropping the rig.
   if (state.para && state.para.mode !== "dropped" && !c.thrown) return paraPilot(state);
+  // ...and in a hot air balloon's basket, the bot flies it (`balloon-pilot.ts`).
+  if (state.balloon?.aboard) return balloonPilot(state);
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)

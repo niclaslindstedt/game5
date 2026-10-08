@@ -30,6 +30,12 @@ import {
 } from "@engine";
 
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";
+import { createBalloonBed } from "../pwa/src/game/audio/balloon-bed.ts";
+import {
+  BALLOON_REF,
+  balloonTargets,
+  type BalloonVoice,
+} from "../pwa/src/game/audio/balloon-voice.ts";
 import {
   WIND_FULL,
   WIND_LAYERS,
@@ -154,6 +160,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   heli: { kind: "heli", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   para: { kind: "para", t: 1, phase: "drop", x: 0, y: 0, z: 0, speed: 14 },
+  balloon: { kind: "balloon", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 3 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
 };
 
@@ -736,5 +743,92 @@ describe("the ride bed (ride-bed.ts)", () => {
     const sum = (r: ReturnType<typeof recorder>) =>
       r.layers.reduce((acc, l) => acc + (l.sets[0]?.level ?? 0), 0);
     expect(sum(quiet)).toBeCloseTo(sum(loud) / 2, 6);
+  });
+});
+
+describe("the hot air balloon, heard (balloon-voice.ts, balloon-bed.ts)", () => {
+  const voice = (o: Partial<BalloonVoice> = {}): BalloonVoice => ({
+    flame: 0,
+    pilot: 1,
+    vent: 0,
+    heat: 0.6,
+    fire: 0,
+    distance: BALLOON_REF,
+    t: 3,
+    ...o,
+  });
+  const mix = { machine: 1 };
+
+  it("routes its moments to its own sounds, never the helicopter's", () => {
+    for (const [phase, id] of [
+      ["jump", "balloon_jump"],
+      ["step", "balloon_step"],
+      ["touch", "balloon_touch"],
+      ["crash", "balloon_crash"],
+    ] as const) {
+      const hit = soundForEvent({ ...EVERY_EVENT_BY_KIND.balloon, phase });
+      expect(hit?.id, phase).toBe(id);
+      expect(RUN_BANK[id], id).toBeDefined();
+    }
+    expect(RUN_BANK.balloon_valve).toBeDefined();
+    expect(RUN_BANK.balloon_shut).toBeDefined();
+  });
+
+  it("is a hiss between burns and a roar in one, the roar following the flame", () => {
+    const quiet = balloonTargets(voice(), mix);
+    const half = balloonTargets(voice({ flame: 0.5 }), mix);
+    const full = balloonTargets(voice({ flame: 1 }), mix);
+    expect(quiet.roar.level).toBe(0);
+    expect(quiet.rumble.level).toBe(0);
+    expect(quiet.pilot.level).toBeGreaterThan(0);
+    expect(full.pilot.level).toBe(0);
+    expect(half.roar.level).toBeGreaterThan(0);
+    expect(full.roar.level).toBeGreaterThan(half.roar.level);
+    expect(full.roar.cutoff!).toBeGreaterThan(half.roar.cutoff!);
+    // The jet leads the flame in and trails it out.
+    expect(balloonTargets(voice({ flame: 0.1 }), mix).jet.level).toBeGreaterThan(
+      full.jet.level * 0.25,
+    );
+  });
+
+  it("breathes out of the crown only while venting a hot envelope, and roars alight", () => {
+    expect(balloonTargets(voice(), mix).vent.level).toBe(0);
+    expect(balloonTargets(voice({ vent: 1, heat: 0 }), mix).vent.level).toBe(0);
+    expect(balloonTargets(voice({ vent: 1 }), mix).vent.level).toBeGreaterThan(0);
+    expect(balloonTargets(voice(), mix).fire.level).toBe(0);
+    expect(balloonTargets(voice({ fire: 1 }), mix).fire.level).toBeGreaterThan(0);
+  });
+
+  it("falls away with the distance, the top first, and never past the headset", () => {
+    const near = balloonTargets(voice({ flame: 1 }), mix);
+    const far = balloonTargets(voice({ flame: 1, distance: 300 }), mix);
+    expect(far.roar.level).toBeLessThan(near.roar.level * 0.5);
+    expect(far.roar.cutoff!).toBeLessThan(near.roar.cutoff!);
+    for (const d of [BALLOON_REF, 40, 400])
+      for (const f of [0, 1])
+        for (const t of Object.values(
+          balloonTargets(voice({ flame: f, fire: 1, vent: 1, distance: d }), mix),
+        ))
+          expect(t.cutoff ?? 0).toBeLessThanOrEqual(HEADSET);
+  });
+
+  it("clacks the valve on its edges and builds nothing on a run with no balloon", () => {
+    const level = syntheticLevel();
+    const state = createGame({ level, mode: "free", balloon: true, crowd: 0, quiet: true });
+    const rec = recorder();
+    const bed = createBalloonBed(rec);
+    bed.setView("chase");
+    state.balloon!.valve = false;
+    bed.update(state, 1 / 60);
+    const before = rec.noises.length + rec.tones.length;
+    state.balloon!.valve = true;
+    bed.update(state, 1 / 60);
+    expect(rec.noises.length + rec.tones.length).toBeGreaterThan(before);
+    expect(bed.live()).toBeGreaterThan(0);
+    bed.silence();
+    expect(bed.live()).toBe(0);
+    const none = createBalloonBed(rec);
+    none.update(createGame({ level, mode: "free", crowd: 0, quiet: true }), 1 / 60);
+    expect(none.live()).toBe(0);
   });
 });

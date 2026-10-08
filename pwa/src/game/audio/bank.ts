@@ -23,6 +23,7 @@ import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
 import { GORE_BANK } from "./gore-bank.ts";
 import { HELI_BANK } from "./heli-bank.ts";
+import { BALLOON_BANK } from "./balloon-bank.ts";
 import { SLED_BANK } from "./sled-bank.ts";
 import { LIFT_BANK } from "./lift-voice.ts";
 import { TUNNEL_BANK } from "./tunnel-voice.ts";
@@ -704,6 +705,9 @@ export const RUN_BANK: SoundBank = {
   // THE HELICOPTER (`heli-bank.ts`): the skid boarded, lifted off and set
   // down, the drop, the crash and the fire's crackle — the bed's cue.
   ...HELI_BANK,
+  // THE HOT AIR BALLOON (`balloon-bank.ts`): the blast valve open and
+  // shut, over the side, out onto the snow, set down, and the crash.
+  ...BALLOON_BANK,
   ...SLED_BANK,
   ...AFTERSKI_BANK,
   ...GORE_BANK,

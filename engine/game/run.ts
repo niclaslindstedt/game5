@@ -46,6 +46,7 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
+import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { stepAfterski } from "./afterski.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
@@ -108,7 +109,9 @@ export function stepRun(
   // forgotten: a reset never sends him back to where he was before.
   // In a lodge he is stood at its door: the machine press is the lodge's
   // (out again), never a machine's that happens to pass it.
-  const out = run.afterski?.inside ? { ...input, machine: false } : input;
+  // In a balloon's basket the press is the balloon's (over the side, or
+  // out), never a machine's that happens to stand by its site.
+  const out = run.afterski?.inside || balloonAboard(run) ? { ...input, machine: false } : input;
   // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
   // and while he drives one the step is its own.
   if (stepGroomers(run, out, events)) return forgetRun(run);
@@ -120,6 +123,9 @@ export function stepRun(
   if (stepSled(run, out, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
   if (stepLift(run, out, events)) return forgetRun(run);
+  // THE HOT AIR BALLOON (`balloon.ts`): flown, adrift without him or down
+  // — and while he stands in its basket the step is its own.
+  if (stepBalloon(run, input, events)) return forgetRun(run);
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
   if (paraPress(run, out, events)) return;
@@ -255,7 +261,7 @@ export function stepRun(
     // burning, which stands him up on its pad when it is done (`heli.ts`).
     // Buzzed on a free ride, he gets up where he lies and fetches his skis
     // instead (`buzz.ts`).
-    if (crashOver(off, player) && !heliDown(run) && !holdsHim(run)) {
+    if (crashOver(off, player) && !heliDown(run) && !balloonDown(run) && !holdsHim(run)) {
       if (player && fetchesSkis(run)) getUp(run, off, events);
       else standUp(run, events, true);
     }

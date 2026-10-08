@@ -22,9 +22,9 @@ import {
   type SkierInput,
 } from "@engine";
 
-// Seed 1 by generator v6, the map these crashes were measured on: the snow
-// the airframe comes down on is that map's.
-const level = generateLevel(1, { version: 6 });
+// Seed 1, the map these crashes were measured on: the snow the airframe
+// comes down on is that map's.
+const level = generateLevel(1);
 const hands = (collective: number): SkierInput => ({
   ...NEUTRAL_INPUT,
   heli: { collective, pitch: 0, roll: 0, pedal: 0 },

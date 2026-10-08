@@ -774,7 +774,7 @@ export interface Lift {
   kind: "gondola" | "chair" | "drag";
   bottom: Vec3;
   top: Vec3;
-  /** THE RAMPS OFF ITS TOP (R26, generator v5 on): one down from its pad's
+  /** THE RAMPS OFF ITS TOP (R26): one down from its pad's
    * rim to the head of each run a rider skis onto from it. Absent on a drag
    * and on a map from before them. */
   ramps?: SummitRamp[];
@@ -789,10 +789,6 @@ export type SummitRamp = {
   from: Vec3;
   to: Vec3 & { s: number };
   width: number;
-  /** A ramp generator v5 laid (`looseTops`), which may roll over a LIP
-   * into a drop down to its run (`summit-ramps-v5.ts`); absent, it falls
-   * evenly all the way. */
-  lip?: boolean;
 };
 
 /** A course (R28): the line from a run's top station down the network to

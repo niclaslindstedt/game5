@@ -236,11 +236,7 @@ export const ROAD_ROW: GradeRow = {
 };
 
 /** R26 — the stations and the lifts between them. */
-function placeStations(
-  rng: Rng,
-  plan: TerrainPlan,
-  chain: boolean,
-): { stations: Stations; lifts: LiftPlan[] } {
+function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts: LiftPlan[] } {
   const m = plan.massif;
   if (!m) throw new Error("not a resort's mountain");
   const L = RR.lift;
@@ -286,15 +282,13 @@ function placeStations(
   const lifts: LiftPlan[] = [
     gondola,
     // The peak's chair leaves beside the gondola's top, a skate from it
-    // (R29) — from v7 its queue AHEAD of a rider out of the gondola and to
-    // one side, at the first of the aims (R26; `resort-build.ts` tries the
+    // (R29), its queue AHEAD of a rider out of the gondola and to one
+    // side, at the first of the aims (R26; `resort-build.ts` tries the
     // others where the snow will not carry him there).
     {
       id: "C1",
       kind: "chair",
-      bottom: chain
-        ? chainBottom(gondola, "chair", peak, RR.lift.chain.aims[0])
-        : { x: mid.x + side * 45, z: mid.z + 20 },
+      bottom: chainBottom(gondola, "chair", peak, RR.lift.chain.aims[0]),
       top: peak,
     },
     { id: "C2", kind: "chair", bottom: shoulderFoot, top: shoulder },
@@ -314,9 +308,8 @@ function placeStations(
 export function planResort(
   rng: Rng,
   plan: TerrainPlan,
-  chain = false,
 ): { lifts: LiftPlan[]; specs: RunSpec[]; village: Point } {
-  const { stations, lifts } = placeStations(rng, plan, chain);
+  const { stations, lifts } = placeStations(rng, plan);
   const tops = new Map(lifts.map((l) => [l.id, l.top]));
   const specs: RunSpec[] = [];
   for (const slot of SLOTS) {

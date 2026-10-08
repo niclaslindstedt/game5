@@ -19,13 +19,15 @@ import type { BuiltResort } from "./resort-build.ts";
  * skier makes between two of them at that pitch can carry (a weave of
  * radius `course.gates.radius` or R6's floor half again), and on the line
  * over a kicker or a drop, where a skier goes straight. A gate the spacing
- * would stand on a drop moves off it, inside the spacing's band. */
+ * would stand on a drop, or on a kicker of a `park` (R20), moves off it,
+ * inside the spacing's band where it can. */
 export function courseGates(
   track: { track: { points: TrackPoint[]; length: number } },
   drops: readonly Cliff[],
   kickers: readonly Kicker[],
   grade: PisteGrade,
   salt: number,
+  park: readonly Kicker[] = [],
 ): Checkpoint[] {
   const G = RR.course.gates;
   const L = track.track.length;
@@ -34,10 +36,20 @@ export function courseGates(
   // a gate that would stand on a drop's approach, face or landing (R24)
   // stepped out of it to whichever side keeps the spacing.
   const D = R.drop;
-  const zones = drops.map((d) => ({
-    from: (d.s ?? 0) - d.shelf - D.gateClear,
-    to: (d.s ?? 0) + d.face + d.landing + D.gateClear,
-  }));
+  // A park's kicker (R20) is kept clear the same way: no gate on its ramp,
+  // deck, landing or run-out, and a run-in from the gate before it.
+  const T = R.trick.gateClear;
+  const zones = drops
+    .map((d) => ({
+      from: (d.s ?? 0) - d.shelf - D.gateClear,
+      to: (d.s ?? 0) + d.face + d.landing + D.gateClear,
+    }))
+    .concat(
+      park.map((k) => ({
+        from: (k.s ?? 0) - k.ramp - T.before,
+        to: (k.s ?? 0) + k.landing + T.after,
+      })),
+    );
   const arcs = [s0];
   for (let prev = s0; ;) {
     const left = L - prev;

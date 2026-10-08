@@ -172,10 +172,10 @@ describe("the slalom racer's technique", () => {
 });
 
 describe("the bot's slalom", () => {
-  it("skis seed 38's course clean, carved, at a slalom's pace — and par is its time", () => {
-    // The low massif's (v6, the race maps' own): the course this pace was
-    // measured on.
-    const level = generateLevel(38, { grade: "red", version: 6 });
+  it("skis seed 19's course clean, carved, at a slalom's pace — and par is its time", () => {
+    // The first slalom race map's hill but one (seed 19's red, course 8):
+    // the course this pace was measured on.
+    const level = generateLevel(19, { grade: "red", course: "8" });
     const state = createGame({ level, mode: "slalom", spec: SWIFT, quiet: true });
     let top = 0;
     let edge = 0;

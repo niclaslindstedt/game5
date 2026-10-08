@@ -55,7 +55,7 @@ export type LevelParts = {
 };
 
 /** The level's three queries: bilinear reads of its two grids. */
-function queriesOf(
+export function queriesOf(
   ground: Heightfield,
   packed: Heightfield,
 ): Pick<Level, "groundAt" | "normalAt" | "packedAt"> {

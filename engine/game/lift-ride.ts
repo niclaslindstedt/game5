@@ -72,7 +72,6 @@ import {
   toPlatform,
 } from "./lift-board.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
-import { generatorTraits } from "../mapgen/versions.ts";
 import { carrierSwingAt } from "./carrier-swing.ts";
 import type { Level, Run, SummitRamp } from "../mapgen/types.ts";
 import { derive } from "./skier.ts";
@@ -481,7 +480,7 @@ function joinOf(
 /** THE RUNS A RIDER STOOD OFF A LIFT'S TOP CAN SKI ONTO, each with the way
  * he goes for it and the arc he joins it at: off a leaning pad (R26) every
  * run a ramp comes down to (`Lift.ramps` — from the ramp's head on the
- * pad's rim, falling all the way); off a drag's top, or a pad of v5's,
+ * pad's rim, falling all the way); off a drag's top
  * every run a ramp comes down to and every other leaving it that
  * drops below it near enough (`joinOf`, the point it is joined at). A lane off the top that starts up
  * the contour above it is none of them. What the signs at a top point at,
@@ -491,8 +490,7 @@ export function runsOffTop(
   plan: LiftPlan,
 ): { run: number; at: { x: number; z: number; s: number } }[] {
   const top = plan.lift.top;
-  const old = generatorTraits(level.version);
-  const ramped = plan.lift.kind !== "drag" && !old.looseTops;
+  const ramped = plan.lift.kind !== "drag";
   const out: { run: number; at: { x: number; z: number; s: number } }[] = [];
   (level.resort?.runs ?? []).forEach((r, i) => {
     if (r.from !== plan.lift.id) return;

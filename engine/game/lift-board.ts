@@ -32,6 +32,9 @@ import { TUNING } from "./defs/tuning.ts";
 import {
   CORRAL_TAIL,
   GONDOLA_IN_STATION,
+  carrierAt,
+  carrierClock,
+  carrierCount,
   carrierPassing,
   queueLane,
   ropeAt,
@@ -54,14 +57,42 @@ export function along(plan: LiftPlan, u: number, side: number): { x: number; z: 
   };
 }
 
+/** How quickly his push is taken up and let go while a lift leads him,
+ * per second of drive — a stride eased in and out, never cut in a step
+ * (the figure's gait is drawn by it, `skier-gait.ts`). */
+const DRIVE_EASE = 3;
+const STEP_EASE = 1.5;
+
 /** The skier stood at a plan point and heading, moving `way` m/s along
- * `heading` — `standSkier`'s rest with a way kept. */
-export function setOff(run: GameState, x: number, z: number, heading: number, way: number): void {
-  standSkier(run, x, z, heading);
+ * `heading` — `standSkier`'s rest with a way kept — his push (`drive`)
+ * eased toward `drive` from what it was. */
+export function setOff(
+  run: GameState,
+  x: number,
+  z: number,
+  heading: number,
+  way: number,
+  drive = 0,
+  step = 0,
+): void {
   const c = run.skier;
+  const was = c.drive;
+  const stepWas = c.step;
+  standSkier(run, x, z, heading);
   c.vx = Math.sin(heading) * way;
   c.vz = Math.cos(heading) * way;
+  const k = DRIVE_EASE * TUNING.dt;
+  c.drive = was + clamp(drive - was, -k, k);
+  // ...and the step he turns into a push likewise (the gait hands a step
+  // turn over to a double pole by it).
+  const j = STEP_EASE * TUNING.dt;
+  c.step = stepWas + clamp(step - stepWas, -j, j);
   derive(c, run.level);
+  // Led, he stands square to the snow: its cross-slope read two ways (the
+  // stance's sides and the grid's normal under him) differs over a kink in
+  // the snow, and the difference read as a lean would throw his body
+  // across from one step to the next.
+  c.incline = 0;
 }
 
 /** Where boarding takes him: out onto a chair's load line under its up
@@ -254,9 +285,7 @@ function setOut(run: GameState, plan: LiftPlan, ride: LiftRide): boolean {
     drive = B.drive;
     step = Math.sign(off);
   }
-  setOff(run, x, z, head, pace);
-  c.drive = drive;
-  c.step = step;
+  setOff(run, x, z, head, pace, drive, step);
   c.pivot = pivot;
   if (skid > 0) {
     // The hockey stop as the pose draws it: the skis pivoted across the
@@ -265,7 +294,7 @@ function setOut(run: GameState, plan: LiftPlan, ride: LiftRide): boolean {
     c.brake = skid;
     c.skiAngle = Math.sign(off) * skid * 1.2;
   }
-  if (drive > 0) c.stride += strideRate(pace, c.poles, step) * drive * dt;
+  if (c.drive > 0) c.stride += strideRate(pace, c.poles, step) * c.drive * dt;
   ride.head = head;
   ride.pace = pace;
   return false;
@@ -301,12 +330,19 @@ export function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): boole
   let head = ride.head ?? c.heading;
   const turn = clamp(angleDiff(head, goal), -B.turn * dt, B.turn * dt);
   head += turn;
-  setOff(run, at.x, at.z, head, pace);
   // Skating it: the push and the strides the figure's gait is drawn by —
   // gliding while he is still checking down from coming in fast — and a
   // step turned into each push where the way bends.
-  c.drive = pace <= B.pace + 0.2 && togo > B.end ? B.drive : 0;
-  c.step = c.drive > 0 ? clamp(turn / (B.arc * dt), -1, 1) : 0;
+  const driving = pace <= B.pace + 0.2 && togo > B.end;
+  setOff(
+    run,
+    at.x,
+    at.z,
+    head,
+    pace,
+    driving ? B.drive : 0,
+    driving ? clamp(turn / (B.arc * dt), -1, 1) : 0,
+  );
   c.pivot = 0;
   c.stride += strideRate(pace, c.poles, c.step) * c.drive * dt;
   ride.s = s;
@@ -318,19 +354,70 @@ export function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): boole
   delete ride.head;
   delete ride.walk;
   delete ride.set;
-  c.drive = 0;
-  c.step = 0;
   return true;
 }
 
 /** ON A DRAG'S TRACK: stood on its bar's right arm facing up the line
  * until the next T-bar comes round to him — the one the clock brings past
  * the load line (`carrierPassing`), so his is a bar of the lift's own.
- * True when it takes him from behind. */
-export function stepTee(run: GameState, plan: LiftPlan): boolean {
+ * The bar it is, as it takes him from behind; -1 while he waits. */
+export function stepTee(run: GameState, plan: LiftPlan): number {
   const p = boardAt(plan);
   setOff(run, p.x, p.z, plan.heading, 0);
-  return carrierPassing(plan, plan.look.entry.at, run.t, TUNING.dt) >= 0;
+  const at = plan.look.entry.at;
+  if (run.skier.lift) run.skier.lift.due = nextCarrierIn(plan, at, run.t);
+  return carrierPassing(plan, at, run.t, TUNING.dt);
+}
+
+/** ON A CHAIR'S LOAD LINE: stood on it facing up the line, looking back
+ * for his chair, until the next chair the clock brings round the wheel
+ * (`carrierAt`, the lift's own) comes up behind him — its grip
+ * `chair.take` m behind his boots, the seat's front edge at the backs of
+ * his knees. The chair it is, as it scoops him; -1 while he waits. */
+export function stepChairWait(run: GameState, plan: LiftPlan): number {
+  const p = boardAt(plan);
+  setOff(run, p.x, p.z, plan.heading, 0);
+  const at = plan.look.entry.at - K.chair.take;
+  if (run.skier.lift) run.skier.lift.due = nextCarrierIn(plan, at, run.t);
+  return carrierPassing(plan, at, run.t, TUNING.dt);
+}
+
+/** HOW LONG TILL THE NEXT CARRIER passes `u` m up the line on its way up,
+ * s, at the clock's `t` — what a skier on a chair's load line watches
+ * coming over his shoulder. */
+export function nextCarrierIn(plan: LiftPlan, u: number, t: number): number {
+  const clock = carrierClock(plan);
+  const n = carrierCount(plan);
+  const span = clock ? clock.span : 2 * plan.length;
+  const gap = span / n;
+  const v = plan.look.speed;
+  // Carrier k's clock reads k·gap + v·t; the next to reach u's reading.
+  let at = u;
+  if (clock) {
+    const i = Math.min(clock.s.length - 2, Math.max(0, Math.floor(u / clock.step)));
+    const f = Math.min(1, Math.max(0, u / clock.step - i));
+    at = clock.s[i] + (clock.s[i + 1] - clock.s[i]) * f;
+  }
+  const p = (v * t - at) / gap;
+  return ((Math.ceil(p) - p) * gap) / v;
+}
+
+/** The carrier on its way up nearest `u` m up the line at the clock's
+ * `t` — the one a rider is put on where nothing took him from the snow
+ * (a free ride's arrival, the lift skipped up). */
+export function carrierNear(plan: LiftPlan, u: number, t: number): number {
+  let best = 0;
+  let gap = Infinity;
+  for (let k = 0; k < carrierCount(plan); k++) {
+    const c = carrierAt(plan, k, t);
+    if (c.side !== 0) continue;
+    const d = Math.abs(c.u - u);
+    if (d < gap) {
+      gap = d;
+      best = k;
+    }
+  }
+  return best;
 }
 
 /** THE STATION'S RAIL round a gondola's bottom wheel, `r` m along it: up

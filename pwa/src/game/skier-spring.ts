@@ -496,7 +496,10 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   else [s.keep, s.keepRate] = follow(s.keep, s.keepRate, keep, dt, KEEP_FOLLOW);
   const n = Math.floor(ride.stride);
   const way = Math.abs(ride.way);
-  if (n !== s.poledStride) {
+  // A new stride's plant — or no stride running (coasting, carried up a
+  // lift): the snow passed is the gait's own reckoning again, never the
+  // metres glided since a plant long gone.
+  if (n !== s.poledStride || !(ride.drive > 0)) {
     const step = ride.step ?? 0;
     const rate =
       strideRate(ride.speed, true, step) * stepQuick(step, ride.speed) * Math.max(0.2, ride.drive);

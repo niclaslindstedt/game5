@@ -259,8 +259,10 @@ export function holdPush(o: {
       Math.max(0, rate * (1 - duty)),
     );
     const r = (phase - duty) / (1 - duty);
+    // Pinned as far as the pole bites (`bites`), so a part-biting push
+    // still lets go exactly where the recovery takes it from (`end`).
     const at = pushing
-      ? timed + (pinnedSwing(zAt, plant, passed) - timed) * held
+      ? timed + (1 + (pinnedSwing(zAt, plant, passed) - 1) * bites - timed) * held
       : end * (2 * r * r * r - 3 * r * r + 1) + follow * (r * r * r - 2 * r * r + r);
     const arm = armAt(DOUBLE_ARM, at, pushing, end);
     return {

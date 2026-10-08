@@ -12,6 +12,8 @@
 
 import * as THREE from "three";
 import { box, merged } from "./station-parts.ts";
+import { CABIN_HALF, CABIN_Y, cabinHanger } from "./lift-carriers.ts";
+import { LIFT_PAINT, Shape } from "./lift-shapes.ts";
 
 /** The cabin's paints, sRGB: its body, the dark steel of the grip and the
  * hanger, its bench and the skis in its rack. */
@@ -21,9 +23,9 @@ export type CabinPaint = { cabin: number; dark: number; seat: number; skis: numb
  * out of the flank its leaves slide, m. */
 const DOOR = { half: 0.5, out: 0.04 };
 
-/** How far down from the grip: the roof, the glass band's middle and the
- * body's middle, the floor, m — the clock's cabins' (`lifts.ts`). */
-const Y = { roof: -2.2, glass: -2.75, body: -3.7, floor: -4.175 };
+/** How far down from the grip: the glass band's middle and the body's
+ * middle, the floor, m — the clock's cabins' (`lift-carriers.ts`). */
+const Y = { glass: -2.75, body: -3.7, floor: -4.175 };
 
 export type OwnCabin = {
   group: THREE.Group;
@@ -51,9 +53,6 @@ export function createOwnCabin(
   const body = new THREE.Mesh(
     keep(
       merged([
-        box(0.32, 0.3, 0.9, 0, -0.1, 0, paint.dark),
-        box(0.12, 1.9, 0.12, 0, -1.15, 0, paint.dark),
-        box(1.95, 0.22, 2.15, 0, Y.roof, 0, paint.cabin),
         ...posts,
         // The door's posts.
         box(0.07, 0.85, 0.07, 0.94, Y.glass, -DOOR.half, paint.cabin),
@@ -76,6 +75,26 @@ export function createOwnCabin(
     painted,
   );
   body.castShadow = true;
+  // The grip, the hanger and the rounded roof and skirt the clock's
+  // cabins have (`lift-carriers.ts`).
+  const shell = new Shape();
+  cabinHanger(shell);
+  const { w, l } = CABIN_HALF;
+  const C = CABIN_Y;
+  const ring = (y: number, inset: number, cut: number) => ({
+    y,
+    hw: w - inset,
+    hl: l - inset,
+    cut,
+  });
+  shell.loft(
+    [ring(C.glassTop, 0.03, 0.37), ring(C.eave, 0.06, 0.36), ring(C.crown, 0.3, 0.28)],
+    () => LIFT_PAINT.roof,
+    LIFT_PAINT.roof,
+    LIFT_PAINT.roof,
+  );
+  const top = new THREE.Mesh(keep(shell.geometry()), painted);
+  top.castShadow = true;
   const panes = new THREE.Mesh(
     keep(
       merged([
@@ -120,7 +139,7 @@ export function createOwnCabin(
   stood.castShadow = true;
   back.add(stood);
   const group = new THREE.Group();
-  group.add(body, panes, ...leaves.map((l) => l.leaf));
+  group.add(body, top, panes, ...leaves.map((l) => l.leaf));
   group.visible = false;
 
   const set = (open: number, racked: boolean): void => {

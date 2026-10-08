@@ -7,9 +7,15 @@
 // never slide, and the machine gone at the end.
 
 import { describe, expect, it } from "vitest";
-import { HELI, treesNear } from "@engine";
+import { HELI, fromEuler, rotate, treesNear, type Vec3 } from "@engine";
 
-import { CREW_POSES, RESCUE_STRIDE, crewDials } from "../pwa/src/game/rescue-crew.ts";
+import {
+  CREW_JOINTS,
+  CREW_POSES,
+  RESCUE_STRIDE,
+  crewDials,
+  crewPoints,
+} from "../pwa/src/game/rescue-crew.ts";
 import {
   BEARERS,
   RESCUE,
@@ -68,9 +74,14 @@ describe("rescue plan", () => {
         expect(a.raise - a.carry).toBeCloseTo(plan.path.length / RESCUE.walk, 5);
       });
 
-      it("kneels before it starts, and is gone at the end", () => {
+      it("waits stood off with the board before it starts, and is gone at the end", () => {
         const f = rescueAt(level, plan, -1, freshRescueFrame());
-        for (const c of f.crew) expect(c.move.rise).toBe(0);
+        for (const c of f.crew) {
+          expect(c.move.rise).toBe(1);
+          expect(c.move.walking).toBe(0);
+          expect(Math.hypot(c.x - plan.spot.x, c.z - plan.spot.z)).toBeGreaterThan(5);
+        }
+        expect(f.casualty.sprawl).toBe(1);
         expect(f.heli.shown).toBe(true);
         rescueAt(level, plan, plan.at.gone + 1, f);
         expect(f.heli.shown).toBe(false);
@@ -110,6 +121,71 @@ describe("rescue plan", () => {
           expect(Math.abs(strode - walked[j]) / walked[j]).toBeLessThan(0.08);
         }
       });
+    });
+  }
+
+  for (const { name, level, plan } of cases) {
+    it(`${name}: nobody kneels, stands or reaches into the board, at any moment`, () => {
+      const f = freshRescueFrame();
+      const worst: string[] = [];
+      for (let t = -1; t < plan.at.clear + 1; t += 0.1) {
+        rescueAt(level, plan, t, f);
+        const st = f.stretcher;
+        if (!st.shown) continue;
+        const q = fromEuler(st.heading, st.pitch, st.roll);
+        const ax = rotate(q, { x: 1, y: 0, z: 0 });
+        const ay = rotate(q, { x: 0, y: 1, z: 0 });
+        const az = rotate(q, { x: 0, y: 0, z: 1 });
+        for (let j = 0; j < BEARERS.length; j++) {
+          const c = f.crew[j];
+          if (!c.shown) continue;
+          const pts = crewPoints(BEARERS[j].body, c.move);
+          for (const joint of CREW_JOINTS) {
+            const [x, y, z] = pts[joint];
+            const w: Vec3 = {
+              x: c.x + x * Math.cos(c.heading) + z * Math.sin(c.heading) - st.x,
+              y: c.y + y - st.y,
+              z: c.z - x * Math.sin(c.heading) + z * Math.cos(c.heading) - st.z,
+            };
+            const dot = (a: Vec3) => w.x * a.x + w.y * a.y + w.z * a.z;
+            const lx = dot(ax);
+            const ly = dot(ay);
+            const lz = dot(az);
+            // The board's solid — frame and mattress — less a few cm.
+            const inside = Math.abs(lx) < 0.25 && ly > -0.04 && ly < 0.1 && Math.abs(lz) < 0.97;
+            if (inside && worst.length < 5)
+              worst.push(
+                `t ${t.toFixed(1)} ${BEARERS[j].role}#${j} ${joint} at ${lx.toFixed(2)},${ly.toFixed(2)},${lz.toFixed(2)}`,
+              );
+          }
+        }
+      }
+      expect(worst).toEqual([]);
+    });
+
+    it(`${name}: he lies on the board's top from the strapping to the cabin`, () => {
+      const f = freshRescueFrame();
+      for (let t = plan.at.scoop.strap; t < plan.at.clear; t += 0.25) {
+        rescueAt(level, plan, t, f);
+        const st = f.stretcher;
+        const q = fromEuler(st.heading, st.pitch, st.roll);
+        const d = { x: f.casualty.x - st.x, y: f.casualty.y - st.y, z: f.casualty.z - st.z };
+        const ax = rotate(q, { x: 1, y: 0, z: 0 });
+        const ay = rotate(q, { x: 0, y: 1, z: 0 });
+        expect(Math.abs(d.x * ax.x + d.y * ax.y + d.z * ax.z)).toBeLessThan(0.03);
+        expect(Math.abs(d.x * ay.x + d.y * ay.y + d.z * ay.z - RESCUE.lies.up)).toBeLessThan(0.03);
+        expect(f.casualty.roll).toBeCloseTo(st.roll, 5);
+      }
+    });
+
+    it(`${name}: he is rolled onto his side and back as the board goes under`, () => {
+      const f = freshRescueFrame();
+      const S = plan.at.scoop;
+      rescueAt(level, plan, S.slide + 0.1, f);
+      expect(f.casualty.roll).toBeLessThan(-1);
+      rescueAt(level, plan, S.strap, f);
+      expect(Math.abs(f.casualty.roll - f.stretcher.roll)).toBeLessThan(1e-6);
+      expect(f.casualty.sprawl).toBe(0);
     });
   }
 

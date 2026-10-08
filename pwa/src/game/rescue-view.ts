@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE RESCUE ON THE NEXT RUN, DRAWN — a run after one that ended INJURED
-// (`engine/game/rescue.ts`, `GoreState.injured`) passes the spot where he
+// (`GoreState.injured`) passes the spot where he
 // fell, and there the AIR AMBULANCE has set down and its crew carry him on
 // a stretcher to it (`rescue-plan.ts` decides where and when; the crew's
 // poses are `rescue-crew.ts`'). Drawn here: the helicopter (`heli-view.ts`
-// over its own model, re-painted signal yellow — `MODEL_URL` is the one
-// line a dedicated model is swapped in on), its rotor turning, its lights
+// over the air ambulance's model — `MODEL_URL` is the one line it is named
+// on), its rotor turning, its lights
 // and its landing lamp after dark and its wash thrown up as it lifts; the
 // four of them — the doctor and the paramedic in the flight crew's red with
 // a reflective yoke and white helmets, two patrollers in red with the white
 // cross — built on the civilians' bodies (`buildPosedFigure`) and posed by
-// morph weights; and the stretcher: its rails, an orange vacuum mattress
-// moulded round him, a gold rescue foil strapped over him to the chin, and
-// him in it in his own colours, his helmet on.
+// morph weights; HIM, in his own colours with his helmet on, lying where he
+// fell, rolled onto the board (`rescue-scoop.ts`) and strapped; and the
+// stretcher: its rails and an orange vacuum mattress moulded round him.
 //
 // Presentation only, end to end: it reads the states it is handed and the
 // map, and writes nothing. It shows on the ONE run after an injured one —
@@ -32,11 +32,12 @@ import {
 
 import { CIVILIAN_SLOT as SLOT, PART } from "./civilian-dress.ts";
 import { buildPosedFigure } from "./civilian-shapes.ts";
+import { CROWD_LOOKS } from "./crowd-rig.ts";
 import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import { coloursOf, gearOf, type Outfit } from "./outfit.ts";
-import { CREW_POSES, crewDials, crewTargets } from "./rescue-crew.ts";
+import { CREW_POSES, casualtyTargets, crewDials, crewTargets } from "./rescue-crew.ts";
 import {
   BEARERS,
   RESCUE,
@@ -71,7 +72,7 @@ const DRESS: Record<
 
 /** The stretcher's own colours. */
 const MATTRESS = 0xe9581c;
-const FOIL = 0xd6a73c;
+const BUCKLE = 0xb8bcc2;
 const STRAP = 0x1c1d21;
 const RAIL = 0x9ea4ab;
 
@@ -202,9 +203,9 @@ function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 
 /** THE STRETCHER in its own frame (x across, y up from its rails, z ahead
- * — his head's end): the rails and their ends, the vacuum mattress
- * moulded up round him and round his head, the foil over him from his feet
- * to his chin, three straps across it. */
+ * — his head's end): the rails and their ends, and the vacuum mattress on
+ * them moulded up a hand's breadth round him and round his head, low enough
+ * that all of him shows. */
 function stretcherGeometry(): THREE.BufferGeometry {
   const S = RESCUE.stretcher;
   const L = S.length / 2;
@@ -218,35 +219,44 @@ function stretcherGeometry(): THREE.BufferGeometry {
   }
   for (const z of [-L + 0.02, L - 0.02])
     box(geos, RAIL, -S.rail, -0.02, z - 0.02, S.rail, 0.01, z + 0.02);
-  // The mattress: its base, then its sides and its head moulded up.
+  // The mattress: its base, then its sides, its foot and its head moulded up.
   box(geos, MATTRESS, -0.29, -0.07, -L + 0.03, 0.29, 0.05, L - 0.03);
-  for (const s of [-1, 1]) box(geos, MATTRESS, s * 0.21, 0.04, -L + 0.08, s * 0.3, 0.2, L - 0.15);
-  box(geos, MATTRESS, -0.29, 0.04, L - 0.12, 0.29, 0.13, L - 0.03);
-  for (const s of [-1, 1]) box(geos, MATTRESS, s * 0.12, 0.05, L - 0.4, s * 0.22, 0.27, L - 0.12);
-  box(geos, MATTRESS, -0.29, 0.04, -L + 0.03, 0.29, 0.22, -L + 0.1);
-  // THE FOIL: draped over him, its middle high over his chest and boots.
-  const foil = new THREE.CylinderGeometry(0.26, 0.26, 1.5, 14, 1, false, -Math.PI / 2, Math.PI);
-  foil.rotateX(-Math.PI / 2);
-  foil.scale(1, 0.95, 1);
-  foil.translate(0, 0.11, -L + 0.1 + 0.75);
-  paint(foil, FOIL);
-  geos.push(foil);
-  for (const z of [-0.62, -0.1, 0.32]) box(geos, STRAP, -0.3, 0.06, z - 0.03, 0.3, 0.37, z + 0.03);
+  for (const s of [-1, 1]) box(geos, MATTRESS, s * 0.24, 0.04, -L + 0.08, s * 0.3, 0.13, L - 0.15);
+  box(geos, MATTRESS, -0.29, 0.04, L - 0.12, 0.29, 0.12, L - 0.03);
+  for (const s of [-1, 1]) box(geos, MATTRESS, s * 0.13, 0.05, L - 0.36, s * 0.22, 0.2, L - 0.12);
+  box(geos, MATTRESS, -0.29, 0.04, -L + 0.03, 0.29, 0.14, -L + 0.08);
   return merge(geos);
 }
 
-/** Where the casualty lies on the stretcher: on his back on the mattress,
- * his feet to its foot, his head in the head blocks. */
-function casualtyMatrix(): THREE.Matrix4 {
-  const L = RESCUE.stretcher.length / 2;
-  // His own frame (x right, y up, z his face) onto the stretcher's: his
-  // up along it to the head's end, his face up, his right to its left.
+/** Along the board, m, and how high over its rails his front is there:
+ * the straps over his chest, his hips and his shins. */
+const STRAPS = [
+  { z: 0.42, top: 0.31 },
+  { z: 0.0, top: 0.29 },
+  { z: -0.48, top: 0.24 },
+] as const;
+
+/** One STRAP done up across him: over the top of him and down both sides
+ * to the mattress's edge. */
+function strapGeometry(z: number, top: number): THREE.BufferGeometry {
+  const geos: THREE.BufferGeometry[] = [];
+  box(geos, STRAP, -0.27, top, z - 0.025, 0.27, top + 0.015, z + 0.025);
+  for (const s of [-1, 1])
+    box(geos, STRAP, s * 0.255, 0.1, z - 0.025, s * 0.275, top + 0.015, z + 0.025);
+  box(geos, BUCKLE, -0.035, top + 0.01, z - 0.03, 0.035, top + 0.025, z + 0.03);
+  return merge(geos);
+}
+
+/** His own frame (x right, y up, z his face) laid on his back with his
+ * middle at the origin: his up along +z (the way his head points), his face
+ * up, his right to the left — `height` m tall in his boots. */
+function lyingMatrix(height: number): THREE.Matrix4 {
   const m = new THREE.Matrix4().makeBasis(
     new THREE.Vector3(-1, 0, 0),
     new THREE.Vector3(0, 0, 1),
     new THREE.Vector3(0, 1, 0),
   );
-  m.setPosition(0, 0.17, -L + 0.12);
+  m.setPosition(0, 0, -height / 2);
   return m;
 }
 
@@ -295,14 +305,21 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const frame = new THREE.Mesh(stretcherGeometry(), kit);
   frame.castShadow = true;
   stretcher.add(frame);
+  const straps = STRAPS.map(({ z, top }) => {
+    const m = new THREE.Mesh(strapGeometry(z, top), kit);
+    m.castShadow = true;
+    stretcher.add(m);
+    return m;
+  });
   group.add(stretcher);
   let casualty: THREE.Mesh | null = null;
   let outfit: Outfit | null = null;
-  const lying = casualtyMatrix();
+  let lying = lyingMatrix(1.8);
+  const placed = new THREE.Matrix4();
 
   function dressCasualty(): void {
     if (casualty) {
-      stretcher.remove(casualty);
+      group.remove(casualty);
       casualty.geometry.dispose();
     }
     const o = outfit;
@@ -310,7 +327,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     const body: CrowdBody = female ? "woman" : "man";
     const c = o ? coloursOf(o) : null;
     const g = dressed(
-      buildPosedFigure(body, "near", crewTargets(body).slice(0, 1), `casualty:${body}`),
+      buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`),
       {
         jacket: c?.jacket ?? 0x2b5fa8,
         pants: c?.pants ?? 0x1c1f24,
@@ -323,10 +340,12 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       [PART.helmet],
     );
     casualty = new THREE.Mesh(g, material);
+    casualty.morphTargetInfluences = [1];
     casualty.matrixAutoUpdate = false;
-    casualty.matrix.copy(lying);
     casualty.castShadow = true;
-    stretcher.add(casualty);
+    casualty.frustumCulled = false;
+    lying = lyingMatrix(CROWD_LOOKS[body].height);
+    group.add(casualty);
   }
 
   let plan: RescuePlan | null = null;
@@ -340,6 +359,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const dummy = { x: 0, z: 0 };
   const quat = new THREE.Quaternion();
   const euler = new THREE.Euler(0, 0, 0, "YXZ");
+  const pos = new THREE.Vector3();
 
   /** Where he lay as the run ended: his hips off his thrown body, else
    * where he was. */
@@ -413,6 +433,18 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       euler.set(-st.pitch, st.heading, -st.roll, "YXZ");
       quat.setFromEuler(euler);
       stretcher.quaternion.copy(quat);
+      for (let k = 0; k < straps.length; k++) straps[k].visible = k < st.straps;
+      // HIM: on the snow as found, rolled, laid on the board.
+      const c = now.casualty;
+      if (casualty) {
+        casualty.visible = c.shown;
+        euler.set(-c.pitch, c.heading, -c.roll, "YXZ");
+        quat.setFromEuler(euler);
+        placed.compose(pos.set(c.x, c.y, c.z), quat, ONE);
+        casualty.matrix.multiplyMatrices(placed, lying);
+        casualty.matrixWorldNeedsUpdate = true;
+        casualty.morphTargetInfluences![0] = c.sprawl;
+      }
     },
     dress(o) {
       outfit = o;
@@ -442,6 +474,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       for (const m of crew) m.mesh.geometry.dispose();
       if (casualty) casualty.geometry.dispose();
       frame.geometry.dispose();
+      for (const m of straps) m.geometry.dispose();
       material.dispose();
       kit.dispose();
     },
@@ -451,3 +484,4 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
 const HUB = HELI.rotor.hub;
 const HELI_WEIGHT = HELI.mass * 9.81;
 const NO_HOOKS = { flame: () => {}, strike: () => {} };
+const ONE = new THREE.Vector3(1, 1, 1);

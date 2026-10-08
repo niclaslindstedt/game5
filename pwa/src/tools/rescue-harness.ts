@@ -154,7 +154,17 @@ function stage(t: number): string {
     [A.raise, "raised"],
     [A.carry, "carrying"],
     [A.rise, "lifting"],
-    [0, "knelt"],
+    [A.scoop.kneel, "at the corners"],
+    [A.scoop.step, "to the corners"],
+    [A.scoop.stand, "standing"],
+    [A.scoop.strap, "strapping"],
+    [A.scoop.back, "laid back"],
+    [A.scoop.slide, "board slid"],
+    [A.scoop.roll, "log-roll"],
+    [A.scoop.assess, "straightened"],
+    [A.scoop.turn, "turned to it"],
+    [A.scoop.down, "board laid"],
+    [0, "walking up"],
   ];
   return names.find(([at]) => t >= at)?.[1] ?? "waiting";
 }
@@ -184,11 +194,60 @@ const middle = {
 };
 const across = Math.atan2(plan.site.x - plan.spot.x, plan.site.z - plan.spot.z);
 
+/** THE SCOOP frame by frame: walked up, the board laid down, the log-roll,
+ * the board slid under, laid back, strapped, the corners taken, the lift
+ * and the first steps — each moment from every lens asked for: from his
+ * feet's end (`side`), from overhead (`above`) and from a chase lens's
+ * height off his head's end (`chase`). */
+function scoopViews(s: GameState, lenses: readonly ("side" | "above" | "chase")[]): void {
+  const Q = A.scoop;
+  const T = RESCUE.scoop.time;
+  const [p0, p1] = plan.path.pts;
+  const h = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  const at = { x: plan.spot.x, y: plan.spot.y, z: plan.spot.z };
+  const lens = {
+    side: planted(at, h, 0.6, 4.4, 2.6, 45, 0.1),
+    above: planted(at, h, 0.4, 0.9, 4.6, 48, 0),
+    chase: planted(at, h + Math.PI, -2.6, 6.5, 2.4, 45, 0.3),
+  };
+  const moments: [string, number][] = [
+    ["waiting", -1],
+    ["walking up", Q.down * 0.85],
+    ["arrived", Q.down],
+    ["board down", Q.turn],
+    ["turned to it", Q.assess],
+    ["straightening", Q.assess + T.assess * 0.5],
+    ["rolling", Q.roll + T.roll * 0.5],
+    ["on his side", Q.slide],
+    ["board sliding", Q.slide + T.slide * 0.5],
+    ["board under", Q.back],
+    ["laid back", Q.back + T.back * 0.6],
+    ["strap 1", Q.strap + T.strap * 0.3],
+    ["strapped", Q.stand],
+    ["standing", Q.step],
+    ["to the corners", Q.step + T.step * 0.6],
+    ["knelt at them", A.rise],
+    ["lifting", A.rise + RESCUE.time.rise * 0.5],
+    ["lifted", A.carry],
+    ["first step", A.carry + 0.7],
+    ["second step", A.carry + 1.4],
+  ];
+  for (const which of lenses) {
+    view = `scoop-${which}`;
+    for (const [label, t] of moments) {
+      poseAt(s, Math.max(0, t), 0.4);
+      shoot(s, label, lens[which]);
+    }
+  }
+}
+
 const VIEWS: Record<string, (s: GameState) => void> = {
   overview(s) {
     const lens = planted(middle, across, 34, 12, 24, 50, 0);
     for (const [label, t] of [
       ["waiting", -1],
+      ["walking up", A.scoop.down * 0.6],
+      ["scooping", A.scoop.slide + 1],
       ["lifting", A.rise + 1],
       ["carrying", (A.carry + A.raise) / 2],
       ["at the door", A.raise + 0.5],
@@ -201,17 +260,8 @@ const VIEWS: Record<string, (s: GameState) => void> = {
       shoot(s, label, lens);
     }
   },
-  kneel(s) {
-    poseAt(s, 0.5);
-    const h = Math.atan2(plan.path.pts[1].x - plan.spot.x, plan.path.pts[1].z - plan.spot.z);
-    shoot(s, "from the side", planted(plan.spot, h, 4.2, 0.3, 1.4, 45, 0.3));
-    shoot(s, "from the feet", planted(plan.spot, h, 0.6, 4.2, 1.8, 45, 0.3));
-    shoot(s, "from above", planted(plan.spot, h, 1.2, 0.2, 3.6, 40, 0));
-    shoot(s, "close", planted(plan.spot, h, 1.6, -0.6, 1.3, 50, 0.1));
-    poseAt(s, A.rise + RESCUE.time.rise * 0.5);
-    shoot(s, "lifting", planted(plan.spot, h, 4.2, 0.3, 1.4, 45, 0.5));
-    poseAt(s, A.carry);
-    shoot(s, "stood", planted(plan.spot, h, 4.2, 0.3, 1.4, 45, 0.6));
+  scoop(s) {
+    scoopViews(s, ["side", "above", "chase"]);
   },
   carry(s) {
     const t0 = A.carry + (A.raise - A.carry) * 0.35;
@@ -291,7 +341,7 @@ function pass(s: GameState): void {
 
 const GROUPS: Record<string, readonly string[]> = {
   site: ["overview"],
-  kneel: ["kneel"],
+  scoop: ["scoop"],
   carry: ["carry", "carry-front"],
   load: ["load"],
   lift: ["lift"],

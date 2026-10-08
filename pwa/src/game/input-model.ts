@@ -461,6 +461,18 @@ export function sampleInput(
   });
 }
 
+/** THE WALKING PAD in the balloon's basket (`hud-balloon.tsx`, the stick's
+ * channel): the thumb's travel across is the edge — he walks the way it is
+ * pushed, through the one flip screen to engine — and up is the lean
+ * forward (the engine's −1), so the pad walks him the way the arrows point
+ * from where the lens stands. It owns both while it is down. */
+export function walkPad(input: SkierInput, touch: TouchChannel): void {
+  const x = clamp(touch.stickX, -1, 1);
+  const y = clamp(touch.stickY, -1, 1);
+  input.steer = x === 0 ? 0 : x * SCREEN_TO_ENGINE;
+  input.lean = y === 0 ? 0 : -y;
+}
+
 // ── THE HELICOPTER, FLOWN BY HAND (`heli.ts`, `SkierInput.heli`) ────────
 
 /** Which of the helicopter's keys are down (`settings-heli-keys.ts`). */

@@ -73,6 +73,7 @@ import { SledReadout } from "./hud-sled.tsx";
 import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
+import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
 
 export type { HudFlash };
 
@@ -164,13 +165,25 @@ export function Hud({
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
+  // IN THE BALLOON'S BASKET the edge thumb's glass is the walking pad and
+  // the lever's the burner, the vent and the jump (`hud-balloon.tsx`).
+  const basket = snap.balloon;
   const leverZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={lever} role="power" live={live} />
+  ) : basket ? (
+    <BalloonPad
+      touch={input.touch}
+      side={lever}
+      landed={basket.call === "landed"}
+      onJump={input.requestMachine}
+    />
   ) : (
     <LeverZone touch={input.touch} feel={feel} side={lever} />
   );
   const barZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
+  ) : basket ? (
+    <StickZone touch={input.touch} feel={feel} side={barSide} role="walk" />
   ) : (
     <BarZone
       touch={input.touch}
@@ -613,6 +626,11 @@ export function Hud({
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
           on him — in the air clock's place, which a flight never shows. */}
       {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
+      {/* THE HOT AIR BALLOON (`hud-balloon.tsx`): its instruments and the
+          call while he stands in the basket, in the same place. */}
+      {snap.balloon && (
+        <BalloonReadout balloon={snap.balloon} touch={touch} machineKey={machineKey} />
+      )}
       {/* THE PISTE MACHINE (`hud-groomer.tsx`): driven, or the call to one
           working near him when nothing else is calling. */}
       {snap.groomer &&

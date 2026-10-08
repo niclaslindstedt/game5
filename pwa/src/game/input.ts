@@ -43,6 +43,7 @@ import {
   neutralTouch,
   sampleHeli,
   sampleInput,
+  walkPad,
   type HeliKeysHeld,
   type KeysHeld,
   type TouchChannel,
@@ -57,8 +58,16 @@ export type InputManager = {
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
    * the helicopter's skid, flying it (`heliControls`); `down` whether he is
    * thrown off his skis, where the tuck key pressed or a tap anywhere is
-   * the reset (`crash.getUp` says when the engine takes it). */
-  sample: (dt: number, airborne?: boolean, flying?: boolean, down?: boolean) => SkierInput;
+   * the reset (`crash.getUp` says when the engine takes it); `basket`
+   * whether he stands in the balloon's basket, where the walking pad
+   * (`hud-balloon.tsx`) walks him across and along it. */
+  sample: (
+    dt: number,
+    airborne?: boolean,
+    flying?: boolean,
+    down?: boolean,
+    basket?: boolean,
+  ) => SkierInput;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -212,7 +221,7 @@ export function createInputManager(
   target.document.addEventListener("visibilitychange", onBlur);
 
   return {
-    sample: (dt, airborne = false, flying = false, down = false) => {
+    sample: (dt, airborne = false, flying = false, down = false, basket = false) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
@@ -220,6 +229,8 @@ export function createInputManager(
       // controls.
       if (flying) input.heli = sampleHeli(heli, heliKeys, touch, dt);
       else heli.collective = 0;
+      // In the balloon's basket the walking pad owns both ways he walks.
+      if (basket && touch.stick) walkPad(input, touch);
       // On or off a machine: ENTER, or the double tap on touch.
       if (machine || touch.tap2) input.machine = true;
       // Down off his skis, the get-up press is the reset.

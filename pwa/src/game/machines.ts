@@ -12,7 +12,7 @@
 // rides it, flown onto it and off it.
 
 import * as THREE from "three";
-import type { GameState, Level } from "@engine";
+import { BALLOON, type GameState, type Level } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import type { SolidBox } from "./camera-clear.ts";
@@ -26,6 +26,7 @@ import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import { PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
+import { createBalloonLadder, inBasket } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
@@ -56,9 +57,12 @@ export type Machines = {
   /** THE HELICOPTER'S LENS, flown in from the skier's `ladder` and back
    * out to it (`heli-scene.ts`), or null while the ladder has it whole. */
   lens(ladder: LensPose, dt: number): LensPose | null;
-  /** WHILE HE RIDES THE SNOWMOBILE, the ladder the lens is framed on —
-   * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
-   * this frame (so call it after `frame`); otherwise nothing, the pose left. */
+  /** WHILE HE RIDES THE SNOWMOBILE (or drives a piste machine, hangs under
+   * the paramotor's wing, stands in the balloon's basket), the ladder the
+   * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
+   * `camera-para.ts`, `camera-balloon.ts`), `pose` moved onto the machine as
+   * drawn this frame (so call it after `frame`); otherwise nothing, the pose
+   * left. */
   ladder(pose: RigPose, state: GameState): Ladder | undefined;
   /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
    * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
@@ -79,6 +83,11 @@ export type Machines = {
   ready: Promise<void>;
   dispose(): void;
 };
+
+/** A whole stride in the basket (both boots), m, and the metres of stride
+ * a radian of turning on the spot is worth. */
+const STRIDE = 0.7;
+const TURN_STEP = 0.25;
 
 /** The longest the run's load waits on the machines' models, ms: a file that
  * never comes is linked when it does, rather than holding the card up. */
@@ -107,6 +116,11 @@ export function createMachines(
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
   if (balloon) group.add(balloon.group);
+  // The balloon's own ladder while he stands in its basket.
+  const basketLens = balloon ? createBalloonLadder() : null;
+  let lastDt = 1 / 60;
+  // His steps about the basket, as last seen (`seat`).
+  const walk = { x: Number.NaN, z: Number.NaN, face: 0, strides: 0, pace: 0 };
   const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
   if (groomers) group.add(groomers.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
@@ -132,8 +146,27 @@ export function createMachines(
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
-      // In the balloon's basket his pair is racked in its corner.
-      model.setBasket(!!s.balloon?.aboard);
+      // In the balloon's basket his pair is racked in its corner, and he
+      // steps as he walks about it (or turns where he stands).
+      const b = s.balloon;
+      if (b?.aboard) {
+        const moved = Number.isNaN(walk.x)
+          ? 0
+          : Math.hypot(b.walkX - walk.x, b.walkZ - walk.z) +
+            TURN_STEP *
+              Math.abs(Math.atan2(Math.sin(b.face - walk.face), Math.cos(b.face - walk.face)));
+        walk.x = b.walkX;
+        walk.z = b.walkZ;
+        walk.face = b.face;
+        walk.strides += moved / STRIDE;
+        const pace = Math.min(1, moved / Math.max(1e-3, lastDt) / BALLOON.walk.speed);
+        walk.pace += (pace - walk.pace) * Math.min(1, lastDt * 10);
+        model.setBasket(true, walk);
+      } else {
+        walk.x = Number.NaN;
+        walk.pace = 0;
+        model.setBasket(false);
+      }
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       sledFx.stamps = stamps;
@@ -141,6 +174,7 @@ export function createMachines(
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
       balloon?.frame(s, alpha, dt);
+      lastDt = dt;
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
@@ -170,6 +204,11 @@ export function createMachines(
         groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
         return GROOMER_RIGS;
       }
+      if (balloon && basketLens && inBasket(s.balloon, !!s.skier.thrown)) {
+        basketLens.pose(pose, s.balloon, balloon.at(), lastDt);
+        return basketLens.rigs;
+      }
+      basketLens?.snap();
       if (para && underWing(s)) {
         paraRigPose(pose, para.wing());
         return PARA_RIGS;

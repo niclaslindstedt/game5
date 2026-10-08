@@ -14,6 +14,7 @@
 // shell (§23.2), and there are none.
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
+import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -293,6 +294,9 @@ export type HudSnapshot = {
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
+  /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
+   * while he stands in its basket, or null. */
+  balloon: HudBalloon | null;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -695,6 +699,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     sled: balloonAboard(state) ? null : sledOf(state),
     groomer: balloonAboard(state) ? null : groomerOf(state),
     para: paraOf(state),
+    balloon: balloonOf(state),
     afterski: balloonAboard(state) ? null : afterskiOf(state),
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,

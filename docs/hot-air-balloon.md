@@ -64,13 +64,44 @@ The skier's own keys:
 
 | Key | In the basket |
 | --- | --- |
-| Tuck (↑, the lever on touch) | the BLAST VALVE — held, the burner roars; it is on or off |
+| Tuck (↑) | the BLAST VALVE — held, the burner roars; it is on or off |
 | Skid (↓) | the PARACHUTE VALVE's cord — hot air out of the crown |
-| Edge (← →) and lean | WALK about the basket at a shuffle (0.9 m/s), never through the wicker; he turns to face the way he walks |
+| Edge (← →) and lean | WALK about the basket at a shuffle (0.9 m/s), never through the wicker; he turns to face the way he walks, and his boots step as he goes (a stride of 0.7 m, a step for every quarter-metre turned on the spot — `machines.ts`, `skis-body.ts`'s `stepBoots`) |
 | Machine (Enter, a double tap) | OVER THE SIDE — or, the basket still on the snow, STEP OUT |
 | Reset (R) | start again in the basket on the valley floor |
 
-On touch the edge thumb walks him across the basket; walking along it on a left d-pad is open (see below).
+**On touch** the basket has a layout of its own (`hud-balloon.tsx`'s `BalloonPad`, `hud.tsx`): the LEFT thumb is a WALKING PAD (the helicopter's `StickZone` on `role="walk"`, resting faint low on the left until a thumb lands — up walks him toward the way the basket faces, across walks him across it, through `input-model.ts`'s `walkPad`); the RIGHT thumb has three presses — BURN held (the blast valve), VENT held (the parachute's cord) and JUMP (STEP OUT once the basket stands still on the snow); a double tap anywhere is the machine press too. The KEYS page says the same under the free ride's rows.
+
+## The cameras
+
+In the basket the lens is the balloon's own ladder (`pwa/src/game/camera-balloon.ts`, three-free, held by `tests/camera_balloon_test.ts`), handed to `camera.ts` by `machines.ts` while he stands in it and handed back the moment he is over the side or thrown — the ordinary fall lens follows him from there. One ladder object, so every change of rung, and the change into and out of the basket, is flown over the lens's hand-over rather than cut.
+
+| Rung | What it is |
+| --- | --- |
+| TIPS | FIRST PERSON OVER THE RIM: leant forward over the wall he faces, his eye 1.5 m over the floor a hand back from the rim's roll, tipped 0.95 rad down at the snow under the basket (74° of field) — the rim, the wicker and the cylinders' padding in the frame's foot. The point he leans to is a ray from his boots along the way he faces to the wall, held 0.3 m off the corners and their rods, eased over 0.18 s so it walks along the wall and never jumps a corner |
+| HELMET | HIS EYES stood where he is: 1.68 m up, 0.1 m ahead of his boots, tipped 0.5 rad down (72°), held 0.15 m off a corner's rod |
+| CHASE | 31 m behind the basket's heading, at 10 m up the balloon (the middle of its whole height, pulled toward the basket) — the whole balloon in a 58° frame |
+| FAR | 62 m off and 12 m over that, 54° |
+| HIGH | 34 m off and 52 m over, looking down on the crown, 60° |
+| ORBIT | round it at 44 m, 56° |
+
+Both first-person rungs hide his figure as the skier's do; the eye is written each frame in the basket's own frame off the drawn basket (`balloon-scene.ts`'s `at`), so it pitches and rolls with the wicker as he walks it.
+
+## The instruments
+
+`pwa/src/game/balloon-hud.ts` (DOM-free) reads the state; `hud-balloon.tsx` draws it in the air clock's place, top centre, with `pwa/src/balloon.css`:
+
+- **ALT** over the snow under the basket and **MSL** over the sea (the second dropped on a narrow screen), m;
+- **VARIO**, the climb, a bar up green or down red, full at 5 m/s;
+- **ENV**, the envelope's air on a gauge to 140 °C with the fabric's working limit's RED LINE at 120 °C, the cell red past it;
+- **FUEL**, the propane left, kg, on a gauge of a full load, red under 15 %;
+- **WIND**, its speed in km/h and an arrow the way it carries him, up the way the basket faces.
+
+Under the strip, THE CALL the moment asks for, the most urgent first (`balloonCall`): FIRE — JUMP! (the envelope alight), ENVELOPE HOT (past the red line), SINKING — BURN! (falling faster than 2.8 m/s under 80 m), OUT OF PROPANE, ON THE TETHER, LANDED — STEP OUT, and BURN while the valve is open; under it, how to fly it on the keys or the thumbs in use.
+
+## The sound
+
+Synthesized, as every sound is (`docs/audio.md`). The BED (`audio/balloon-voice.ts`, scheduled by `audio/balloon-bed.ts`) is six layers: the ROAR (pink noise in a band opening with the flame), the RUMBLE under it (brown noise under 200 Hz, heaving with the flame's tongues), the JET's hiss (white noise high up, leading the flame in and trailing it out), the PILOT light's small hiss between burns, the VENT's breath out of the crown (only while the envelope is hotter than the air), and the FIRE's deep roar, its CRACKLE raised as pops off a hash of the clock (the burning helicopter's `crackleAt`). Off the blast valve's own edges it plays the lever's clack and the WHOOMP of the gas lighting (`balloon_valve`) and the smaller clack of it shut (`balloon_shut`). Every level is the level in the basket, the burner 2.4 m over his boots — about the helicopter's hover there, as it is in life — and out of it the ear falls off with the helicopter's law. The `balloon` event's moments are its own one-shots (`audio/balloon-bank.ts`): over the side (`balloon_jump`), stepping out (`balloon_step`), the basket set down (`balloon_touch`) and the basket into the snow (`balloon_crash`).
 
 ## The start
 
@@ -121,13 +152,15 @@ So:
 ## The labs
 
 - `make balloon-flight`: scripted flights in pure Node on a generated map — the bot holding 120 m and 300 m over the snow ahead of it, a hop off the tether, the valve held, the burner held, a jump, a walk, a breeze and a gale. It prints the top, the climb and sink, the lag from the first burn to a climb, the envelope's hottest, the propane burnt, the way carried up the mountain, the fire and how each ended. Keep `ARGS=--json=previews/balloon-before.json` before a change and `ARGS=--compare=…` after; `ARGS="--trace=pilot"` prints a row's flight every 5 s.
-- `make balloon`: the balloon as drawn, through the game's own renderer on a generated map (the harness `pwa/balloon-preview.html` over `pwa/src/tools/balloon-harness.ts` and `balloon-scenes.ts`): tethered, in flight from six sides, the basket close, up into the mouth and the valve, leaning, dusk and night, burning, down on the snow, every colourway, the walk, a turntable, the jump and every camera rung — and the fire: `fire` (the pilot lights close, the ignition and the tail frame by frame, the burn from the basket up into the mouth, by day, at dusk and at night, the flame laid over by 3, 7 and 11 m/s), `catch` (the envelope scorching and catching on its tether in a 13 m/s wind, then burning, frame by frame) and `inferno` (alight in flight, the skier over the side, engulfed, falling, the wreck burning down and smouldering; and after dark). A contact sheet a group in `previews/balloon-<group>.png`; `ARGS=--sheet=colours,night` some.
+- `make balloon`: the balloon as drawn, through the game's own renderer on a generated map (the harness `pwa/balloon-preview.html` over `pwa/src/tools/balloon-harness.ts` and `balloon-scenes.ts`): tethered, in flight from six sides, the basket close, up into the mouth and the valve, leaning, dusk and night, burning, down on the snow, every colourway, the walk, a turntable, the jump and every camera rung — and the fire: `fire` (the pilot lights close, the ignition and the tail frame by frame, the burn from the basket up into the mouth, by day, at dusk and at night, the flame laid over by 3, 7 and 11 m/s), `catch` (the envelope scorching and catching on its tether in a 13 m/s wind, then burning, frame by frame) and `inferno` (alight in flight, the skier over the side, engulfed, falling, the wreck burning down and smouldering; and after dark). `lenses` is every camera rung tethered and in flight and `first-person` the basket's first person at three places in the basket facing three ways, 100 m up; `walk` steps him about it. A contact sheet a group in `previews/balloon-<group>.png`; `ARGS=--sheet=colours,night` some.
 - `tests/balloon_fire_test.ts` holds the fire's plan: the flame's length against the class's, the burst, the tail, the bend, where it catches, the spread up and down the gores and the whole envelope swept before it is burnt through.
 - `tests/balloon_look_test.ts` holds the drawing to the engine: the volume, the shape and where it is widest, the panels, the lobes, the mesh, the wires, the burner, the cylinders, the wicker, the paint's rule and the envelope laid on the snow.
+- `tests/camera_balloon_test.ts` holds the lens: the leaning eye on the wall and off the corners, both eyes in the basket and clear of the rods, the look down over the rim, the eye walking and turning with him, the booms holding the whole balloon.
+- `tests/audio_test.ts` holds the sound: its routes, the roar following the flame, the pilot between burns, the vent and the fire, the fall-off with distance and the valve's clack.
 - `tests/balloon_test.ts` holds it: the tether, the drift up the mountain, the lag, the valve, the crash of a cooled envelope and the restart, the fire in a gale, the jump, the walk, the step out, the reset, determinism, and the site.
 
 ## What is still open
 
 - The envelope's cloth is a shape, not a cloth simulation: it does not billow as it lays down, nor stream as it burns beyond the shrink and the ripple. The flame has no heat shimmer (a refraction pass the renderer does not have), and the whisper burner's golden flame is not drawn (the game has one valve). The holes the fire eats are not cut out of the envelope's shadow.
-- A camera ladder of its own (the first-person rung in the basket looking down over the side), the HUD (altimeter, variometer, envelope temperature with its red line, fuel, wind) and the sound (the burner's roar, the pilot light, the fire).
-- On touch, a left d-pad to walk the basket both ways (the helicopter's `StickZone`).
+- The hand-over between the first-person rungs and the booms is a straight blend and may pass through the wicker for a frame or two; the fall lens after a jump follows the skier and lets the balloon go out of frame.
+- The burner's flame is thin by day from the chase and far rungs.

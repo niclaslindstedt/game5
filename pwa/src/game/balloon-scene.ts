@@ -78,6 +78,14 @@ export type BalloonScene = {
    * the envelope's (its mouth's centre, up its axis), as last drawn. */
   basket: THREE.Object3D;
   envelope: THREE.Object3D;
+  /** The basket's floor centre and attitude as last drawn (the lens is
+   * framed off it, `camera-balloon.ts`), or null while none is drawn. */
+  at(): {
+    x: number;
+    y: number;
+    z: number;
+    q: { x: number; y: number; z: number; w: number };
+  } | null;
   dispose(): void;
 };
 
@@ -402,6 +410,7 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     look: envelope.look,
     basket: body,
     envelope: mesh,
+    at: () => (group.visible ? drawn : null),
     frame(state, alpha, dt) {
       const b = state.balloon;
       group.visible = !!b;

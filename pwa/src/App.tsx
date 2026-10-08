@@ -427,6 +427,7 @@ export function App() {
             state.skier.airborne,
             !!state.heli?.rider,
             state.skier.thrown !== null,
+            !!state.balloon?.aboard,
           );
 
     window.__SH_PROBE__ = () =>

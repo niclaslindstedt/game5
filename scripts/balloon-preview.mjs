@@ -25,7 +25,9 @@
 //   walk       the skier walked about the basket
 //   turntable  in flight from eight sides
 //   jump       over the side, the balloon flying on alone
-//   lenses     every rung of the game's camera in flight
+//   lenses     every rung of the game's camera aboard, tethered and in
+//              flight, and the first-person view at three places in the
+//              basket facing three ways, 100 m up
 //   fire       the burner: the pilot lights, the ignition and the tail
 //              frame by frame, up into the mouth, by day, dusk and night,
 //              the flame laid over by the wind

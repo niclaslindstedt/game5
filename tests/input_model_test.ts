@@ -41,6 +41,7 @@ import {
   POWER_PAD_DEAD,
   powerAxis,
   sampleInput,
+  walkPad,
   COLLECTIVE_KEY_RATE,
   COLLECTIVE_THUMB_RATE,
   NO_HELI_KEYS,
@@ -509,5 +510,23 @@ describe("W and S in the air (a desktop's lean)", () => {
   it("leans forward for W let go and pressed again in the air, and back for S", () => {
     expect(fly({ tuck: true }, { tuck: true }, true)).toBeLessThan(-0.9);
     expect(fly({}, { brake: true })).toBeGreaterThan(0.9);
+  });
+});
+
+describe("the walking pad in the balloon's basket (walkPad)", () => {
+  it("walks him the way the thumb goes: up toward the basket's front, right to the screen's right", () => {
+    const input = { steer: 0, lean: 0 } as Parameters<typeof walkPad>[0];
+    const touch = neutralTouch();
+    touch.stick = true;
+    touch.stickY = 1;
+    walkPad(input, touch);
+    // The engine walks along the basket by −lean (`balloon.ts`'s walk).
+    expect(-input.lean).toBe(1);
+    expect(input.steer).toBe(0);
+    touch.stickX = 1;
+    touch.stickY = 0;
+    walkPad(input, touch);
+    expect(input.steer).toBe(SCREEN_TO_ENGINE);
+    expect(input.lean).toBe(0);
   });
 });

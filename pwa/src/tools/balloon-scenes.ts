@@ -263,6 +263,20 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(s, 2.4, ride({ steer: -1, lean: 1 }));
     st.shoot(s, "back-left", around(0.6, 3.4, 1.2, 60, 0.6));
     st.shoot(s, "back-left-side", around(5, 1.5, 0, 50, 1.5));
+    // HIS STEPS, frame by frame as he walks along the basket: from the
+    // back wall forward, seen from the side.
+    const b = ball(s);
+    b.walkX = 0;
+    b.walkZ = -0.6;
+    b.face = 0;
+    st.run(s, 0.3, still);
+    for (let i = 0; i < 4; i++) {
+      st.run(s, 0.18, ride({ lean: -1 }));
+      st.shoot(s, `step-${i + 1}`, around(4.2, 1.6, 0.4, 42, 1.0));
+    }
+    // ...and turning on the spot.
+    st.run(s, 0.25, ride({ steer: 1 }));
+    st.shoot(s, "turning", around(4.2, 1.6, 0.4, 42, 1.0));
   },
   // ── THE BALLOON ALONE, FROM EIGHT SIDES ────────────────────────────────
   turntable(st) {
@@ -282,13 +296,58 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "adrift", fromSnow(25, 60));
   },
   // ── EVERY RUNG OF THE LADDER ───────────────────────────────────────────
+  // Tethered on the valley floor, then in flight over the mountain.
   lenses(st) {
+    const s = st.fresh();
+    st.run(s, 1, still);
     for (const rung of RUNGS) {
-      const s = st.fresh();
       st.camera(rung);
-      st.skip(s, 90, bot);
-      st.run(s, 1.5, bot);
-      st.shoot(s, rung, rung);
+      st.run(s, 1.2, still);
+      st.shoot(s, `tethered-${rung}`, rung);
+    }
+    const up = aloft(st, 100);
+    for (const rung of RUNGS) {
+      st.camera(rung);
+      st.run(up, 1.5, bot);
+      st.shoot(up, `flight-${rung}`, rung);
+    }
+    st.camera("chase");
+  },
+  // ── THE FIRST-PERSON VIEW: three places in the basket, three ways ──────
+  // Over 100 m up: TIPS (leant out over the rim, looking down) where he
+  // stands — the middle, a front corner, a back corner — facing ahead, to
+  // a side and behind; HELMET (his own eyes) at the middle the same ways.
+  "first-person"(st) {
+    const s = aloft(st, 100);
+    const b = ball(s);
+    const at = (x: number, z: number, face: number) => {
+      b.walkX = x;
+      b.walkZ = z;
+      b.face = face;
+    };
+    const places = [
+      { x: 0, z: 0, name: "middle" },
+      { x: 0.38, z: 0.55, name: "front-corner" },
+      { x: -0.38, z: -0.55, name: "back-corner" },
+    ];
+    const faces = [
+      { a: 0, name: "ahead" },
+      { a: Math.PI / 2, name: "side" },
+      { a: Math.PI, name: "behind" },
+    ];
+    st.camera("tips");
+    for (const p of places) {
+      for (const f of faces) {
+        at(p.x, p.z, f.a);
+        st.run(s, 0.6, still);
+        st.shoot(s, `tips-${p.name}-${f.name}`, "tips");
+      }
+    }
+    st.camera("helmet");
+    for (const f of faces) {
+      at(0, 0, f.a);
+      st.run(s, 0.6, still);
+      st.shoot(s, `helmet-middle-${f.name}`, "helmet");
     }
     st.camera("chase");
   },
@@ -446,7 +505,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   walk: ["walk"],
   turntable: ["turntable"],
   jump: ["jump"],
-  lenses: ["lenses"],
+  lenses: ["lenses", "first-person"],
   fire: ["fire", "fire-night", "fire-wind"],
   catch: ["catch"],
   inferno: ["inferno", "inferno-night"],

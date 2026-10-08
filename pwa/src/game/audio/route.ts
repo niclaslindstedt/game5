@@ -230,13 +230,15 @@ export function soundForEvent(
         // A stake's fall is a balance lost: the high-side's sound; a chair
         // run into him a padded body knocked down, the shoulder's. A fall
         // into the A-nets is the mesh's own (the `net` event's, beside
-        // this one) and a body going over into it.
+        // this one) and a body going over into it; thrown out of a balloon's
+        // basket, a body rolled out onto the snow (the basket's slam is the
+        // `balloon` event's).
         id:
           event.cause === "stake"
             ? "wipeout_catch"
             : event.cause === "chair" || event.cause === "maul"
               ? "wipeout_skier"
-              : event.cause === "net"
+              : event.cause === "net" || event.cause === "balloon"
                 ? "wipeout_roll"
                 : `wipeout_${event.cause}`,
         shape: intoSnow(
@@ -475,21 +477,24 @@ export function soundForEvent(
         : null;
     }
 
-    // THE HOT AIR BALLOON (`balloon.ts`): over the side and out onto the
-    // snow heard as a push off a machine, the basket onto the snow as a
-    // set-down. Its burner's roar and its fire are beds of their own to
-    // come, read off the state rather than an event: the roar while
-    // `BalloonState.valve` is open (its ignition the valve's opening, as
-    // `balloon-fire-plan.ts`'s burst draws it), the pilot's hiss off
-    // `.pilot`, the crackle off `.burning` / `.burnt` — and the drawing's own
-    // shares, `BalloonScene.roar()` and `.blaze()`, beside them.
+    // THE HOT AIR BALLOON (`balloon-bank.ts`): over the side, out onto the
+    // snow, the basket set down and into the snow too hard. Its burner,
+    // pilot, vent and fire are a bed of their own (`balloon-bed.ts`), read
+    // off the state rather than an event.
     case "balloon": {
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
-      return event.phase === "jump" || event.phase === "step"
-        ? { id: "heli_drop", shape: heard }
-        : event.phase === "touch"
-          ? { id: "heli_land", shape: heard }
-          : null;
+      switch (event.phase) {
+        case "jump":
+          return { id: "balloon_jump", shape: heard };
+        case "step":
+          return { id: "balloon_step", shape: heard };
+        case "touch":
+          return { id: "balloon_touch", shape: heard };
+        case "crash":
+          return { id: "balloon_crash", shape: heard };
+        default:
+          return null;
+      }
     }
 
     // THE AFTERSKI (`afterski-bank.ts`): always the player's own, heard

@@ -10,6 +10,7 @@ import { BONES, ORGANS, type GameState } from "@engine";
 
 import type { Forecast } from "../pwa/src/game/impact-forecast.ts";
 import { XRAY_BONES, XRAY_ORGANS } from "../pwa/src/game/xray-model.ts";
+import { SKIP, createSkipCount } from "../pwa/src/game/xray-run.ts";
 import { BIG_BONES, XRAY, boneKind, createXrayDirector } from "../pwa/src/game/xray-shots.ts";
 
 type Fake = {
@@ -200,5 +201,29 @@ describe("the X-ray skeleton (xray-model.ts)", () => {
       new Set(ORGANS.map((o) => o.replace(/[LR]$/, ""))),
     );
     for (const k of BIG_BONES) expect(XRAY_BONES.some((p) => boneKind(p.name) === k)).toBe(true);
+  });
+});
+
+describe("skipping the X-ray cam", () => {
+  it("lets go at once at the run's own pace and does not take the fall up again", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s));
+    d.seen(femur, as(s));
+    expect(run(d, s, 0.3).active).toBe(true);
+    d.skip(as(s));
+    expect(d.frame(as(s), WALL)).toMatchObject({ active: false, rate: 1, xray: 0 });
+    // The blow still coming is seen again, and left alone.
+    d.step(as(s));
+    d.seen({ ...femur, in: 0.1 }, as(s));
+    expect(d.frame(as(s), WALL).active).toBe(false);
+  });
+
+  it("counts a mash of the keys, not one press", () => {
+    const c = createSkipCount();
+    expect(c.press(0)).toBe(false);
+    expect(c.press(SKIP.within + 0.1)).toBe(false);
+    expect(c.press(SKIP.within + 0.3)).toBe(true);
+    expect(c.press(SKIP.within + 0.4)).toBe(false);
   });
 });

@@ -133,7 +133,14 @@ export type XrayDirector = {
   frame(state: GameState, wall: number): XrayLook;
   /** Put it down (a new run). */
   drop(): void;
+  /** SKIPPED by the player: the cam lets go at once, the run back at its
+   * own pace, and takes no other shot of this fall. */
+  skip(state: GameState): void;
 };
+
+/** A skipped fall's cam is not taken up again for this many game seconds,
+ * so a blow skipped in the lead does not start it over on the next frame. */
+const SKIP_HOLD = 4;
 
 export const IDLE_XRAY: XrayLook = {
   active: false,
@@ -200,6 +207,7 @@ export function createXrayDirector(): XrayDirector {
   let since = 0;
   const shotBones = new Set<string>();
   let last: GameState | null = null;
+  let heldTill = -Infinity;
 
   const reset = (): void => {
     on = false;
@@ -218,6 +226,7 @@ export function createXrayDirector(): XrayDirector {
     leadAge = 0;
     since = 0;
     shotBones.clear();
+    heldTill = -Infinity;
   };
 
   const keyOf = (s: XrayShot): string =>
@@ -248,7 +257,7 @@ export function createXrayDirector(): XrayDirector {
 
   return {
     seen(f, state) {
-      if (!f || (spent && !on) || (body && !on)) return;
+      if (!f || (spent && !on) || (body && !on) || state.t < heldTill) return;
       if (!on && (f.in > XRAY.lead || !f.fatal)) return;
       const at = state.t + f.in;
       const bone = bestBone(f.bones);
@@ -276,7 +285,8 @@ export function createXrayDirector(): XrayDirector {
         last = state;
       }
       // Stood back up: ready for the next fall.
-      if (spent && !on && !state.skier.thrown && !(state.gore && state.gore.dead >= 0)) reset();
+      const down = !!state.skier.thrown || !!(state.gore && state.gore.dead >= 0);
+      if (spent && !on && !down && state.t >= heldTill) reset();
       // A blow the read ahead missed starts the cam only if he is dying.
       const dying = !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0);
       for (const e of state.events as GameEvent[]) {
@@ -375,6 +385,13 @@ export function createXrayDirector(): XrayDirector {
     drop() {
       reset();
       last = null;
+    },
+
+    skip(state) {
+      if (!on) return;
+      on = false;
+      spent = true;
+      heldTill = state.t + SKIP_HOLD;
     },
   };
 }

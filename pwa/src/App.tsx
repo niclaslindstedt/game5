@@ -284,7 +284,7 @@ export function App() {
       adopt: (s) => adopt(s),
       shell: () => shellRef.current,
     });
-    const xray = createXrayRun(renderer.setXray, xrayHud);
+    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current.keys);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -767,9 +767,8 @@ export function App() {
       setAway(awayRef.current);
     };
     document.addEventListener("visibilitychange", onVisibility);
-    // A browser makes no sound before the player has touched something, so
-    // the unlock hangs off real gestures only — captured, so a card that
-    // stops propagation cannot swallow it.
+    // A browser makes no sound before the player has touched something, so the unlock
+    // hangs off real gestures only — captured, so a card cannot swallow it.
     const unlockOpts = { capture: true, passive: true } as const;
     document.addEventListener("pointerdown", unlockAudio, unlockOpts);
     document.addEventListener("keydown", unlockAudio, unlockOpts);
@@ -795,6 +794,7 @@ export function App() {
       audio.silence();
       observer.disconnect();
       stopTaps();
+      xray.dispose();
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
       document.removeEventListener("keydown", unlockAudio, unlockOpts);

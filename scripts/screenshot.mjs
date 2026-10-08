@@ -45,7 +45,12 @@
 //                    (--surface afterski).
 //   ?buzz=<0..1>     a free ride begun with a buzz (--surface buzzed).
 //   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
-//   ?splash=1 / ?menu=root   the attract card / the front door;
+//   ?splash=1 / ?menu=root   the attract card / the front door, over the
+//                    TITLE SCENE (a visit's first door);
+//   ?backdrop=race   ...the front door over the LIVE RACE the bot rides
+//                    instead, as after a run (--surface menu-race).
+//   ?titleT=<s>      the title scene and the attract card frozen at that
+//                    title time (`make title` is the lab built on it).
 //   ?menu=options|keys       OPTIONS, and its KEYS page.
 //   ?menu=skis[&skis=id]     the ski card RACE opens, on a pair.
 //   ?menu=dress      the DRESS card behind the ski card's CUSTOMIZE SKIER.
@@ -121,9 +126,18 @@ const SCENES = {
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
-  // The title and the invitation, which wait for the first map to be built.
+  // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
-  menu: { params: { menu: "root" }, wait: ".menu-card-root", settle: 1200 },
+  // The front door over the title scene (a visit's first)...
+  menu: { params: { menu: "root" }, wait: ".menu-card-root", settle: 1800 },
+  // ...and over the live race the bot rides, as after a run. A software
+  // rasterizer draws the race at a frame or so a second, and the tiles'
+  // arrival runs on the frames, so it is given the time to finish.
+  "menu-race": {
+    params: { menu: "root", backdrop: "race" },
+    wait: ".menu-card-root",
+    settle: 12000,
+  },
   // The loading card is up for as long as a map takes to build and no
   // longer, so it is photographed on the first frame it is in the DOM.
   loading: {

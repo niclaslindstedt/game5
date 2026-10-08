@@ -12,7 +12,8 @@
 // `botInput` under a card, the input manager under a run. Leaving a race
 // for the front door hands the same skis back to the bot rather than
 // tearing anything down, which is why the menu comes up over the map the
-// player was just on. Under a card the camera is the slow ORBIT round the
+// player was just on. Until the first run the door stands over the TITLE
+// SCENE instead (`title-app.tsx`), and no map is built. Under a card the camera is the slow ORBIT round the
 // skis; over a run it is the rung the skier chose (`cameraFor`).
 //
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player
@@ -140,7 +141,7 @@ import {
   watching,
   type Shell,
 } from "./game/shell.ts";
-import { SplashScreen } from "./game/splash-screen.tsx";
+import { useTitle } from "./game/title-app.tsx";
 import { splashSkipped } from "./game/splash.ts";
 import { readHudLayer } from "@niclaslindstedt/oss-game-framework/shots/shot-hud";
 import { createShotRequest } from "./game/shot-request.ts";
@@ -176,11 +177,12 @@ export function App() {
         ? "menu"
         : "splash",
   );
+  const title = useTitle(params, shell);
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
-  /** True once the renderer has drawn a frame — what the attract card waits
-   * on before it will take a press (`splash.ts`). */
+  /** True once the race has drawn a frame (over the title: once booted) —
+   * what the attract card waits on before it will take a press. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings();
@@ -393,6 +395,7 @@ export function App() {
     const setShellNow = (next: Shell): void => {
       shellRef.current = next;
       setShell(next);
+      title.shellIs(next);
       renderer.setCamera(cameraFor(next, settingsRef.current.camera));
     };
 
@@ -470,9 +473,14 @@ export function App() {
     if (params.rides && params.pose) placeRun(state, params.pose);
     const holdRide = heldRide(params.rides ? params.hold : null); // `?hold=`, as the map stands
     renderer.setCamera(cameraFor(shellRef.current, settingsRef.current.camera));
-    build(state).catch((e: unknown) =>
-      error(`the renderer could not build the map: ${e instanceof Error ? e.message : String(e)}`),
-    );
+    // Over the title nothing is built until the first run (`title-app.tsx`).
+    if (!title.raced()) setWarm(true);
+    else
+      build(state).catch((e: unknown) =>
+        error(
+          `the renderer could not build the map: ${e instanceof Error ? e.message : String(e)}`,
+        ),
+      );
 
     /* ── STANDING A RACE UP ────────────────────────────────────────────── */
     const loader = createLoader(
@@ -609,6 +617,7 @@ export function App() {
         setPage("root");
         frozen = false;
         clock.resume();
+        title.toRace(); // the live race is the door's backdrop from here on
         setShellNow("menu");
       },
       abandonLoad: () => {
@@ -647,7 +656,8 @@ export function App() {
 
     // PRESET ▸ AUTO (`picture-auto.ts`): times the race under the front
     // door and fits every picture row to this machine. Never over a race a
-    // link boots, a link's picture or a lab's `?probe=0`.
+    // link boots, a link's picture, a lab's `?probe=0` or the title scene
+    // (the stored picture stands until the door is first over the race).
     const pictureAuto = createPictureAuto(
       params.probe && !params.rides && !params.video && Object.keys(params.picture).length === 0,
       setSettings,
@@ -703,7 +713,7 @@ export function App() {
       devRig.frame(frameMs, dtFrame, performance.now() - simAt);
       if (!shown || !appDraws(shellRef.current)) return;
       const still = frozen || held || clock.paused();
-      const quiet = !playerRides(shellRef.current) && !loader.busy() && !still;
+      const quiet = !playerRides(shellRef.current) && !loader.busy() && !still && title.raced();
       const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
       const drawAt = performance.now();
       renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
@@ -861,6 +871,7 @@ export function App() {
   return (
     <>
       <canvas ref={canvasRef} />
+      {title.stage(shell)}
       {hudUp && (
         <Hud
           snap={snap!}
@@ -978,15 +989,10 @@ export function App() {
         />
       )}
       <DevLayer dev={dev} shell={shell} video={videoOf(settings)} />
-      {shell === "splash" && (
-        <SplashScreen
-          warm={warm}
-          onDone={() => {
-            shellRef.current = "menu";
-            setShell("menu");
-          }}
-        />
-      )}
+      {title.splash(warm, () => {
+        shellRef.current = "menu";
+        setShell("menu");
+      })}
     </>
   );
 }

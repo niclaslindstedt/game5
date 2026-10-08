@@ -17,7 +17,10 @@ not running. The pause card is the one exception and the one that proves the
 rule: it stands over the PLAYER's own run, and a run that carried on while
 its skier read a card would cost him the gate he stopped at.
 `shell.ts`'s `simulates()` draws that line and `tests/menu_system_test.ts`
-holds it.
+holds it. Until a visit's first run the cards stand over the TITLE SCENE
+instead of a race (`shell.ts`'s `Backdrop`, `title-app.tsx`): no map is
+built behind it, and the first return from a run (`toMenu`) puts the live
+race back for the rest of the visit.
 
 **Checking it: the PICTURE, not a counter.** Under a software rasterizer a
 frame-time probe quantizes and never moves, so a live loop reads as a dead
@@ -53,7 +56,7 @@ and the rows are its `menu-knobs.tsx` trimmed to what this page uses.
 
 | Surface | Covers | Where |
 | --- | --- | --- |
-| `splash` | The publisher's name while the first map is built, then the title, the trails laying themselves, and an invitation | `splash-screen.tsx` over the policy in `splash.ts`; the mark from `app-mark.ts` via `mark-trails.tsx` |
+| `splash` | The publisher's name while the title scene comes in, then the REVEAL over it (the exposure up, the logo drawing itself, the invitation breathing), and on a press the logo FLOWN into the door's header | `splash-screen.tsx` over the policy in `splash.ts` (`revealAt`) and the beats in `title-plan.ts`; the scene is `title-stage.tsx` over `title-renderer.ts`; `make title` (`?titleT=` freezes it) |
 | `menu` | The front door over a bot-skied run: the CAMPAIGN as the lit tile, RACE (a pinned mountain picked on the level card, against the field), FREE RIDE, TRICKS, the OPTIONS chip and the GALLERY chip (the sound switch is a row inside OPTIONS, never a chip on the door) — and its pages, which are the SAME surface over the same live run (`App.tsx`'s `page`: `root`, `campaign`, `levels`, `tricks`, `start`, `skis`, `options`, `keys`, `gallery`, `dev`…). A RACE opens the SKI card — the pair on its rack with the skier beside it, its sheet beside that, the four topsheets, SKI — which is the last card before the start line. FREE RIDE opens the START card first (the map with its chart, the country, the date, the hour, the snow), whose NEXT is the ski card | `menu-main.tsx`, `menu-start.tsx` (over `free-ride.ts`, `seed-preview.tsx`, `seed-maps.ts`, `seed-store.ts`, `seed-chart.ts`, `panorama.ts`), `menu-skis.tsx` (over `ski-picker.tsx`, `ski-turntable.ts`, `ski-stats.ts`, `ski-topsheets.ts`), `menu-options.tsx`, `menu-keys.tsx` |
 | `loading` | A run being stood up, paid for in slices | `loading-screen.tsx` over `run-loader.ts`, whose steps are `app-load.ts`'s |
 | `pause` | The run HELD: RESUME, OPTIONS (the camera and the sound), and a quiet strip along the foot of the three that end it — RESTART, REPLAY, MAIN MENU | `menu-pause.tsx` |

@@ -96,3 +96,31 @@ export function cameraFor(shell: Shell, chosen: CameraRung): CameraRung {
   if (shell === "bench") return BENCHMARK.camera;
   return hudOver(shell) ? chosen : "orbit";
 }
+
+/** WHAT THE FRONT DOOR STANDS OVER. At launch, the TITLE SCENE
+ * (`title-stage.tsx`): a picture rather than a race, so the first door costs
+ * no map built and no mountain drawn. Once the player has skied and comes
+ * back to the door (`App.tsx`'s `toMenu`, the one switch), it is the live
+ * RACE the bot rides on, as it always was — and it never goes back to the
+ * title in that visit. */
+export type Backdrop = "title" | "race";
+
+/** The backdrop a visit opens on: a lab's `?backdrop=title|race` first; a
+ * visit that boots into a run (a link's race, the benchmark) has no title to
+ * show; everything else opens on the title scene. */
+export function initialBackdrop(search: string, rides: boolean): Backdrop {
+  const asked = new URLSearchParams(search).get("backdrop");
+  if (asked === "title" || asked === "race") return asked;
+  return rides ? "race" : "title";
+}
+
+/** Whether the title scene is drawn: over the attract card, the front door
+ * and the first loading card while the backdrop is the title — and never
+ * again once a run has been skied (`spent`), whatever the backdrop says. */
+export function titleUp(backdrop: Backdrop, shell: Shell, spent: boolean): boolean {
+  return (
+    backdrop === "title" &&
+    !spent &&
+    (shell === "splash" || shell === "menu" || shell === "loading")
+  );
+}

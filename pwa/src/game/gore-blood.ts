@@ -49,6 +49,9 @@ export type Blood = {
   update(dt: number, ground: BloodGround): void;
   /** How many drops are flying. */
   flying(): number;
+  /** The rider gone (`gore-view.ts`'s `leave`): nothing more flies and no
+   * pool grows, and every blot stays on the snow. */
+  settle(): void;
   clear(): void;
   dispose(): void;
 };
@@ -237,6 +240,11 @@ export function createBlood(wrap: Wrap): Blood {
       drops.instanceMatrix.needsUpdate = true;
     },
     flying: () => live,
+    settle() {
+      live = 0;
+      drops.count = 0;
+      pools.clear();
+    },
     clear() {
       live = 0;
       drops.count = 0;

@@ -8,21 +8,20 @@
 //
 //   * A BLOW JOLTS IT: every blow he falls on knocks the whole HUD off its
 //     place and lets it spring back, the harder the further (`jolt`).
-//   * HIS DEATH BREAKS IT: when he dies the readouts drop off the glass and
-//     fall away, the word DIED comes up over the picture and the picture
-//     goes dark; then the run starts again from the top, a new rider and a
+//   * HIS DEATH CLEARS IT: when he dies the readouts fade slowly away where
+//     they stand, gone before anything else happens; then the word DIED
+//     comes up over the picture and the picture goes dark; then the run starts again from the top, a new rider and a
 //     new try (`DEATH.again`, read by `App.tsx`).
 
 import type { GameState } from "@engine";
 
-/** THE DEATH'S TIMELINE, s after he died. The word comes up while the
- * camera still holds on him and his heart's last beats spray; the picture
- * goes dark under it; the run starts again from the top. */
+/** THE DEATH'S TIMELINE, s after he died. The readouts fade first and are
+ * gone before the word comes up, while the camera still holds on him and
+ * his heart's last beats spray; the picture goes dark under it; the run
+ * starts again from the top. */
 export const DEATH = {
-  /** The readouts start to fall off the glass. */
-  fall: 0.25,
-  /** How long they take to fall away. */
-  falling: 1.4,
+  /** The readouts start to fade (they take `HUD_FADE` to go). */
+  clear: 0,
   /** The word comes up, and how long it takes. */
   word: 1.1,
   rise: 0.6,
@@ -42,10 +41,8 @@ export type Wreck = {
    * starts a new jolt). */
   jolt: number;
   joltId: number;
-  /** How far out of true the glass leans, deg. */
-  bend: number;
-  /** How far the readouts have fallen off it, 0 … 1. */
-  fall: number;
+  /** How far the readouts have faded, 0 … 1. */
+  fade: number;
   /** The word DIED's opacity, and the dark over the picture, 0 … 1. */
   word: number;
   dark: number;
@@ -53,6 +50,18 @@ export type Wreck = {
 
 const ramp = (t: number, from: number, over: number): number =>
   Math.max(0, Math.min(1, (t - from) / over));
+
+/** How long the readouts take to fade off the glass, s. */
+export const HUD_FADE = 1;
+
+/** THE HUD FADED OFF THE GLASS, 0 … 1, `since` s after whatever cleared it
+ * began (null: it has not). One fade for every reason the readouts go —
+ * his death here, and any other moment the picture should be left bare —
+ * drawn as `--hud-fade` on the HUD (`wreck.css`); several reasons at once
+ * are the furthest of them (`Math.max`). */
+export function hudFade(since: number | null): number {
+  return since === null ? 0 : ramp(since, 0, HUD_FADE);
+}
 
 /** THE HUD'S WRECK for a body that took the blow `blow` (its g, its id
  * and its age, s — or none) and died `died` s ago (null: alive). */
@@ -66,9 +75,7 @@ export function wreckOf(
   return {
     jolt,
     joltId: blow?.id ?? 0,
-    // Knocked out of true as the readouts fall off it.
-    bend: dead ? 3 * ramp(died, DEATH.fall, DEATH.falling) : 0,
-    fall: dead ? ramp(died, DEATH.fall, DEATH.falling) : 0,
+    fade: dead ? hudFade(died - DEATH.clear) : 0,
     word: dead ? ramp(died, DEATH.word, DEATH.rise) : 0,
     dark: dead ? ramp(died, DEATH.dark, DEATH.fade) : 0,
   };

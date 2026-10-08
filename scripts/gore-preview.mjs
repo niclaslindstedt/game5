@@ -21,7 +21,7 @@
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
 //   hud      wreck (the HUD over a fatal crash: the jolt,
-//            the readouts falling off it, DIED and the dark — each frame
+//            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
 //
 // Each GROUP is one contact sheet, previews/gore-<group>.png, and every
@@ -55,7 +55,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, close, hud); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, close, hud, remains); every one when left out",
     },
     views: {
       kind: "string",

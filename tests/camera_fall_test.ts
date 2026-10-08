@@ -18,7 +18,7 @@ import {
   type RigPose,
 } from "../pwa/src/game/camera-rigs.ts";
 import { FALL, fallAhead } from "../pwa/src/game/camera-fall.ts";
-import { PARA_RIGS } from "../pwa/src/game/camera-para.ts";
+import { hangIn, PARA_RIGS, paraRigPose } from "../pwa/src/game/camera-para.ts";
 
 const DT = 1 / 60;
 const G = 9.81;
@@ -118,9 +118,59 @@ describe("the fall look", () => {
   });
 
   it("is never taken under the paramotor's wing", () => {
-    for (const r of ["chase", "far", "high"] as const)
-      expect((PARA_RIGS[r] as BoomRig).fall ?? 0).toBe(0);
-    for (const r of ["tips", "helmet"] as const)
+    for (const r of ["chase", "far"] as const) expect((PARA_RIGS[r] as BoomRig).fall ?? 0).toBe(0);
+    for (const r of ["tips", "helmet", "high"] as const)
       expect((PARA_RIGS[r] as BoltedRig).fallDown ?? 0).toBe(0);
+  });
+});
+
+describe("the pilot's own cameras under the wing", () => {
+  const pilot = (): RigPose => ({
+    x: 10,
+    y: 300,
+    z: 20,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    vx: 0,
+    vy: -1,
+    vz: 15,
+    speed: 15,
+    airborne: true,
+    packed: 1,
+    q: { x: 0, y: 0, z: 0, w: 1 },
+  });
+  // The wing six metres up the lines, leant back and over to his right.
+  const wing = { x: 12, y: 305.5, z: 18 };
+
+  it("keeps the bolted rungs on him while the booms frame up his lines", () => {
+    const pose = paraRigPose(pilot(), wing);
+    expect(pose.y).toBeGreaterThan(301);
+    const lens = frameRig(PARA_RIGS.helmet, pose, createBoomState(), DT, () => 0);
+    const eye = (PARA_RIGS.helmet as BoltedRig).eye;
+    expect(lens.eye.x).toBeCloseTo(10 + eye.x, 6);
+    expect(lens.eye.y).toBeCloseTo(300 + eye.y, 6);
+    expect(lens.eye.z).toBeCloseTo(20 + eye.z, 6);
+  });
+
+  it("looks up the slope on the snow and down over the drop once he flies", () => {
+    const ground = frameRig(
+      PARA_RIGS.helmet,
+      paraRigPose(pilot(), wing, 0),
+      createBoomState(),
+      DT,
+      () => 0,
+    );
+    const flying = frameRig(
+      PARA_RIGS.helmet,
+      paraRigPose(pilot(), wing, 1),
+      createBoomState(),
+      DT,
+      () => 0,
+    );
+    expect(aimOf(ground)).toBeGreaterThan(aimOf(flying) + 0.4);
+    let hung = 0;
+    for (let i = 0; i < 4 / DT; i++) hung = hangIn(hung, DT);
+    expect(hung).toBeGreaterThan(0.9);
   });
 });

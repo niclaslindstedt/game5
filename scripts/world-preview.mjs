@@ -71,7 +71,10 @@
 // first one's lane), tunnel (the player stood in its mouth, from behind its
 // fan) and tunnel-side (the lane from beside it, the player in it) — a map
 // whose generator laid none is given a stub pair on its valley floor, and
-// the note says so.
+// the note says so; and the tunnels as buildings (`tunnel-view.ts`):
+// tunnel-mouth (the fan house), tunnel-span (the gallery from beside it),
+// tunnel-exit (the exit portal) and tunnels (the sheet: each from three
+// sides, and a row from inside the lane).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -173,6 +176,10 @@ const VIEWS = [
   "tunnel-inside",
   "tunnel",
   "tunnel-side",
+  "tunnel-mouth",
+  "tunnel-span",
+  "tunnel-exit",
+  "tunnels",
 ];
 
 const args = parseArgs(

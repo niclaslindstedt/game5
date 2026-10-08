@@ -60,7 +60,9 @@ tile. Leave a material white (`0xffffff`) to show it as painted.
 every kind of station's foot and top from three sides in the game's own
 renderer (`pwa/src/tools/station-view.ts`), then the race sheet
 (`race-buildings`, `pwa/src/tools/race-buildings-view.ts`: the start house on
-a slalom, the hut, the arena). Every sheet's shots are gathered in
+a slalom, the hut, the arena) and the tunnel sheet (`tunnels`,
+`pwa/src/tools/tunnel-view.ts`: the fan house, the gallery and the exit
+portal from three sides, and from inside the lane). Every sheet's shots are gathered in
 `pwa/src/tools/building-shots.ts`, so the harness (at its 1000-line cap)
 needs no new line for a new sheet. A new building gets its own
 sheet the same way: a module in `pwa/src/tools/` exporting its shots, wired

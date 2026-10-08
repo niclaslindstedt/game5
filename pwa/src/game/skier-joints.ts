@@ -7,6 +7,10 @@
 import type { Boot } from "./skier-limbs.ts";
 import type { V3 } from "./skier-vec.ts";
 
+/** A BROKEN ARM as posed: which bone is broken and where the break is, in
+ * the body frame. */
+export type Kink = { bone: "upper" | "fore" | "wrist"; at: V3 };
+
 export type SkierPose = {
   hips: V3;
   /** The hip joints, left and right — the pelvis turned with the skis. */
@@ -36,6 +40,14 @@ export type SkierPose = {
   /** Each pole's basket end, or null with the poles gone (a thrown skier
    * has let go of them). */
   poles: [V3, V3] | null;
+  /** A pole DROPPED by a hand that cannot hold it — an arm broken
+   * (`skier-broken.ts`): that side's pole is not drawn, and its hand holds
+   * nothing. Left out, he holds both he has. */
+  dropped?: [boolean, boolean];
+  /** WHERE AN ARM IS BROKEN, each side (`skier-broken.ts`): the upper arm
+   * or the forearm kinked at the break, the arm below it hanging from
+   * there; the wrist, the hand hanging off it. Left out, both are sound. */
+  kinks?: [Kink | null, Kink | null];
   /** How far the skier looks into the turn, rad (positive to his right). */
   look: number;
 };

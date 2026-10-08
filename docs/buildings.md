@@ -1,0 +1,29 @@
+# The buildings
+
+Every building on the mountain except the log cabins and the afterski lodge (`cabin-shapes.ts`, `lodge-shapes.ts`, which have their own builder) is built the same way: LOW-POLY GEOMETRY CARRYING PAINTED MATERIALS. A wall is a dozen triangles, and its face carries what it is made of — larch boards, ribbed steel, a standing-seam roof, formwork concrete, glass — with that material's colour, roughness and relief, so the sun picks out a board's edge, a rib or a mullion on a flat quad.
+
+## The pieces
+
+| Module | What it is |
+| --- | --- |
+| `pwa/src/game/facade-paint.ts` | THE STACK: thirteen materials painted in code into one array of 256 px tiles — colour with roughness in the alpha, and a relief turned into a tangent-space normal map. Pure and DOM-free; every tile repeats seamlessly, or is laid once over its quad (a window, a door). |
+| `pwa/src/game/facade-material.ts` | The stack uploaded once a page as two texture arrays and grafted into the world material: the layer's colour under the vertex colour (which TINTS it), its roughness, its relief bent into the normal from the screen derivatives (no tangents stored). |
+| `pwa/src/game/facade-mesh.ts` | A kit's arrays made a geometry; the one material (haze, the panes' glow after dark, the stack). |
+| `pwa/src/game/facade-kit.ts` | THE KIT: quads, walls, boxes, prisms, frustums, columns, gable / mono-pitch / flat roofs with their fascia, soffit and verges, a BLANKET OF SNOW on every roof with its lip over the eave, and insets (a pane or a door stood proud of a wall). Three-free. |
+| `pwa/src/game/station-build.ts` | The lift stations, one mesh for the resort. |
+
+**Why painted in code and not baked in Blender.** A baked tile and a painted one look alike at the distances a station is seen from a chair or the piste; painting keeps every building a pure function of the map like everything else on the mountain, ships no binary textures, and lets the suite hold the stack (`tests/facade_test.ts`). Blender stays the route for an object seen close and shaped beyond a box (the skis, the machines — `docs/models.md`).
+
+## What the real ones are like
+
+Restated from public descriptions of built stations and the operators' own literature; no building is copied.
+
+- **A detachable chairlift's terminal** is an open shed more than a house: a long hood of white or light-grey panels over the bullwheel and the rail the chairs slow down on, on a few steel columns, the wheel turning under its end. Its panels are large composite or aluminium sheets with recessed joints; a band of colour runs round it. An operator's glazed cabin stands at the load and the unload; a mast with a lightning rod and an anemometer rises off it or the house.
+- **The drive and the garage.** At one end, usually the foot, a building holds the drive and the room the chairs are run into overnight: a concrete base, timber or sheet walls, a wide roller door, small windows, a louvred vent for the motor room, a pitched roof with deep eaves for the snow.
+- **A gondola station** is a hall: a concrete base (cast in place, its formwork joints and tie holes showing), a steel frame skinned in profiled sheet or timber with long bands of glass, a shallow pitched roof on wide eaves sized for the snow load; the cabins turn round the wheel under a roof on columns.
+- **A drag lift's stations** are small: a timber hut for the operator and the drive, the bullwheel on a steel frame beside it.
+- **Materials as they weather**: larch or spruce boards 12–20 cm wide laid vertically weather from honey-brown to silver; trapezoidal steel sheet has ribs 20–30 cm apart; a standing-seam roof's seams are about half a metre apart; concrete formwork panels are 1.2–2.4 m with tie holes in a grid.
+
+## The lab
+
+`make buildings` (or `make world ARGS="--views=stations --free"`) draws `previews/world-free-stations.png`: a chair's, a gondola's and a drag's foot and top (the longest lift of each kind on the map) from three sides, through the game's own renderer. `station-<kind>-<end>` is one of them at 1280 × 720. `--hour=21` shows the panes lit after dark.

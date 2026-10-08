@@ -30,7 +30,7 @@ export const STATION_VIEWS = [
 const ANGLES = [
   { name: "front 3/4", az: 40, high: 3, dist: 1.25 },
   { name: "back 3/4", az: 215, high: 5, dist: 1.25 },
-  { name: "close", az: 110, high: 1.7, dist: 0.7 },
+  { name: "side", az: 95, high: 2.5, dist: 0.85 },
 ];
 
 /** The longest lift of a kind on the map, planned. */

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
 
 build:
 	npm run build
@@ -47,6 +47,13 @@ icons:
 # session. SEED=n picks the map; ARGS="--views=powder,lookback" a subset.
 world:
 	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
+
+# THE BUILDINGS LAB: every kind of lift station's foot and top from three
+# sides, through the game's own renderer, as one sheet —
+# previews/world-free-stations.png (`docs/buildings.md`, the `buildings`
+# skill). ARGS=--hour=21 shows the panes lit after dark.
+buildings:
+	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:

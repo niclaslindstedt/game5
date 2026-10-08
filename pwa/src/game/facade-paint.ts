@@ -195,7 +195,7 @@ export function paintPixel(layer: FacadeLayer, u: number, v: number): Px {
       const s = u * n - b;
       const gap = s < 0.07;
       const tone = hash(b, 3, 11);
-      const silver = hash(b, 5, 13) * 0.55;
+      const silver = 0.25 + hash(b, 5, 13) * 0.3;
       const brown = hex(0x8b6844);
       const grey = hex(0x8a8178);
       const base: [number, number, number] = [
@@ -206,7 +206,7 @@ export function paintPixel(layer: FacadeLayer, u: number, v: number): Px {
       // The grain, long up the board; a butt joint somewhere on it.
       const grain = fbm(u, v, n * 4, 3, 21 + b, 3);
       const joint = Math.abs(v - hash(b, 7, 17)) < 0.006;
-      const k = 0.72 + tone * 0.28 + (grain - 0.5) * 0.3;
+      const k = 0.8 + tone * 0.14 + (grain - 0.5) * 0.28;
       if (gap || joint) return px(hex(0x241a12), 1, 0.95, 0);
       return px(base, k, 0.82, 0.75 + 0.25 * Math.sin(Math.PI * s));
     }

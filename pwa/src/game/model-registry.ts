@@ -187,6 +187,21 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "by morph targets solved from the player's own pose and dressed per instance",
   },
   {
+    asset: "People on foot",
+    ids: CROWD_BODIES.map((b) => `civilian-${b}`),
+    source: "code",
+    code: [
+      "pwa/src/game/civilian-shapes.ts",
+      "pwa/src/game/civilian-moves.ts",
+      "pwa/src/game/tree-mesh.ts",
+    ],
+    drawnBy: "pwa/src/game/civilians-view.ts",
+    note:
+      "procedural: the free ride's staff and guests off their skis — the crowd's eight bodies " +
+      "without skis at three levels of detail, posed by morph targets off the afterski's keys, " +
+      "their props, deck chairs and snowmen built in code",
+  },
+  {
     asset: "Spectators",
     ids: ["fan-near", "fan-far"],
     source: "code",

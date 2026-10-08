@@ -397,9 +397,12 @@ export function spikeGeometry(length: number, r: number): THREE.BufferGeometry {
   );
 }
 
-/** A DROP: a small faceted bead of radius 1 (scaled per drop). */
+/** A DROP: a short six-sided rod of radius 1 and half-length 1 along y,
+ * scaled per drop — a bead at a few millimetres when it is not stretched,
+ * and stretched along its way a length of stream whose full width runs to
+ * its ends, so the next one's overlap leaves no neck between them. */
 export function dropGeometry(): THREE.BufferGeometry {
-  return new THREE.IcosahedronGeometry(1, 0);
+  return new THREE.CylinderGeometry(1, 1, 2, 6, 1);
 }
 
 /** A SPLAT on the snow: a flat disc of radius 1 lying in x–z. */
@@ -468,6 +471,53 @@ export function splatMask(size = 128): THREE.CanvasTexture | null {
     );
     g.fill();
   }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.NoColorSpace;
+  return t;
+}
+
+/** THE POOL'S SHAPE: blood run out onto the snow and soaked into it — one
+ * wide blot nearly filling its disc, its edge lobed where it ran on along
+ * the grains further one way than another, and speckled where it wicked
+ * furthest; no satellites (nothing fell, it ran). An alpha mask, as the
+ * splat's. */
+export function poolMask(size = 256): THREE.CanvasTexture | null {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const g = c.getContext("2d");
+  if (!g) return null;
+  const h = size / 2;
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, size, size);
+  g.globalCompositeOperation = "lighten";
+  for (let i = 0; i < 26; i++) {
+    const a = noise(i, 11, 5) * Math.PI * 2;
+    const d = i === 0 ? 0 : h * 0.5 * Math.sqrt(noise(i, 13, 2));
+    const r = h * (i === 0 ? 0.62 : 0.2 + 0.24 * noise(i, 17, 9));
+    const x = h + Math.cos(a) * d;
+    const y = h + Math.sin(a) * d;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.7, "rgba(240,240,240,0.97)");
+    grad.addColorStop(0.9, "rgba(150,150,150,0.55)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  }
+  const img = g.getImageData(0, 0, size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = img.data[i];
+    if (v > 15 && v < 235) {
+      const w = Math.min(255, v * (0.5 + noise(i, 3, 1)));
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = w;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  g.globalCompositeOperation = "source-over";
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.NoColorSpace;
   return t;

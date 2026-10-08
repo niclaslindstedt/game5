@@ -34,6 +34,19 @@ import { clearOfLifts } from "./lift-line.ts";
 import { pisteMasts } from "./piste-masts.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { treesNear, type Upright } from "./upright-grid.ts";
+import {
+  downhillOf,
+  pick,
+  pointAt,
+  rectPoints,
+  roofRadius,
+  roofsMeet,
+  toSegment,
+  toward,
+  wallRadius,
+  type Line,
+} from "./cabin-site.ts";
+import { insideWalls, placeResortBuildings, type Fit } from "./resort-buildings.ts";
 
 /** One building as it stands: the middle of its walls' footprint in plan,
  * the FLOOR (the plinth's top) and the lowest ground under its walls, the
@@ -52,8 +65,6 @@ export type Cabin = {
   s: number;
   group: number;
 };
-
-type Line = { id: string; road: boolean; track: { points: TrackPoint[]; length: number } };
 
 const L = CABIN_LAYOUT;
 /** How far off the hub's edge a lodge beside it is first tried, m. */
@@ -80,18 +91,6 @@ const SEARCH: readonly (readonly [number, number, number])[] = [
   [-30, 1, 45],
   [0, -1, 45],
 ];
-
-/** A small FNV hash of the seed, a run, a station and a salt, to 0..1. */
-function pick(seed: number, id: string, k: number, salt: number): number {
-  let h = 2166136261 ^ (seed >>> 0);
-  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  h = Math.imul(h ^ k, 16777619);
-  h = Math.imul(h ^ salt, 16777619);
-  h ^= h >>> 13;
-  h = Math.imul(h, 2246822507);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 
 /** The lines a ski area's cabins stand along: every run and lane of the
  * area, or the one piste of a map that has none. */
@@ -122,53 +121,6 @@ function hasVenue(level: Level): boolean {
   );
 }
 
-/** A building's corners in plan — its walls' (`pad` 0) or wider — in the
- * world, from its middle and heading: the building's x is the heading's
- * right, its z the heading; its middles too, and with `every` a point at
- * least that often along and across, so nothing narrower slips between. */
-function rectPoints(
-  kind: CabinKind,
-  x: number,
-  z: number,
-  heading: number,
-  roof: boolean,
-  pad: number,
-  every = Infinity,
-): [number, number][] {
-  const d = CABINS[kind];
-  const r = roof ? d.reach : { side: 0, back: 0, front: 0 };
-  const x0 = -d.width / 2 - r.side - pad;
-  const x1 = d.width / 2 + r.side + pad;
-  const z0 = -d.depth / 2 - r.back - pad;
-  const z1 = d.depth / 2 + r.front + pad;
-  const fx = Math.sin(heading);
-  const fz = Math.cos(heading);
-  const out: [number, number][] = [];
-  const nu = Math.max(2, Math.ceil((x1 - x0) / every));
-  const nv = Math.max(2, Math.ceil((z1 - z0) / every));
-  for (let i = 0; i <= nu; i++) {
-    for (let j = 0; j <= nv; j++) {
-      const lx = x0 + ((x1 - x0) * i) / nu;
-      const lz = z0 + ((z1 - z0) * j) / nv;
-      // Right of the heading is (cos h, −sin h).
-      out.push([x + lx * fz + lz * fx, z - lx * fx + lz * fz]);
-    }
-  }
-  return out;
-}
-
-/** The radius of a building's roof, m — the circle that holds it. */
-function roofRadius(kind: CabinKind): number {
-  const d = CABINS[kind];
-  const r = d.reach;
-  return hypot(d.width / 2 + r.side, d.depth / 2 + Math.max(r.front, r.back));
-}
-
-/** Half a building's walls' longer side, m. */
-function wallRadius(kind: CabinKind): number {
-  return Math.max(CABINS[kind].width, CABINS[kind].depth) / 2;
-}
-
 const cache = new WeakMap<Level, Cabin[]>();
 
 /** EVERY CABIN of `level`, worked out once. */
@@ -179,20 +131,6 @@ export function cabinsOf(level: Level): readonly Cabin[] {
     cache.set(level, list);
   }
   return list;
-}
-
-/** The heading straight down the ground's fall line at (x, z). */
-function downhillOf(level: Level, x: number, z: number): number {
-  const gx = level.groundAt(x + 4, z) - level.groundAt(x - 4, z);
-  const gz = level.groundAt(x, z + 4) - level.groundAt(x, z - 4);
-  return Math.atan2(-gx, -gz);
-}
-
-/** `from` turned toward `to` by no more than `most` radians. */
-function toward(from: number, to: number, most: number): number {
-  let d = to - from;
-  d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI;
-  return from + Math.max(-most, Math.min(most, d));
 }
 
 function placeCabins(level: Level): Cabin[] {
@@ -214,63 +152,35 @@ function placeCabins(level: Level): Cabin[] {
   const hit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
   const course = { track: level.track };
 
-  /** Whether the building fits here, and its floor and lowest ground. */
+  /** Whether the building fits here, and its floor and lowest ground —
+   * judged as a cabin is, or with a `fit` on its roof's rectangle and that
+   * fit's clearances (the ski area's own buildings, `resort-buildings.ts`). */
   const fits = (
     kind: CabinKind,
     x: number,
     z: number,
     heading: number,
     group: number,
+    fit?: Fit,
   ): { y: number; base: number } | null => {
-    const def = CABINS[kind];
     const radius = roofRadius(kind);
     const edge = radius + 40;
     if (x < edge || z < edge || x > level.size - edge || z > level.size - edge) return null;
     // Off every run's snow, by the packed field and by every run's line.
-    for (const [px, pz] of rectPoints(kind, x, z, heading, kind !== "afterski", 2, 3)) {
+    // (An afterski lodge's terrace, and a mountain building's on its `fit`,
+    // may stand out over packed snow; its walls may not.)
+    const deck = kind === "afterski" || !!fit?.deck;
+    for (const [px, pz] of rectPoints(kind, x, z, heading, !deck, 2, 3)) {
       if (level.packedAt(px, pz) > 0.25) return null;
       if ((level.iceAt?.(px, pz) ?? 0) > 0) return null;
       if (!clearOfLifts(level, px, pz)) return null;
     }
-    for (const line of lines) {
-      nearestWithin(line, x, z, radius + 60, hit);
-      if (hit.distance === Infinity) continue;
-      const w = line.track.points[hit.index].width;
-      if (hit.distance - w / 2 < radius + 3) return null;
-    }
-    nearestWithin(course, x, z, radius + 120, hit);
-    if (hit.distance !== Infinity) {
-      const w = level.track.points[hit.index].width;
-      if (hit.distance - w / 2 < radius + (venue ? C.venue : 3)) return null;
-    }
-    // Clear of the ski area's furniture.
-    for (const lift of lifts) {
-      for (const end of [lift.bottom, lift.top]) {
-        if (hypot(end.x - x, end.z - z) < C.station + radius) return null;
-      }
-      for (const ramp of lift.ramps ?? []) {
-        const ex = ramp.to.x - ramp.from.x;
-        const ez = ramp.to.z - ramp.from.z;
-        const len2 = Math.max(1e-6, ex * ex + ez * ez);
-        const t = Math.max(
-          0,
-          Math.min(1, ((x - ramp.from.x) * ex + (z - ramp.from.z) * ez) / len2),
-        );
-        const d = hypot(ramp.from.x + ex * t - x, ramp.from.z + ez * t - z);
-        if (d < ramp.width / 2 + radius + 8) return null;
-      }
-    }
-    for (const t of tunnels) {
-      for (const q of t.points) {
-        if (hypot(q.x - x, q.z - z) < t.width / 2 + C.tunnel + radius) return null;
-      }
-    }
-    if (hub && outsideHub(hub, x, z) < C.hub + radius) return null;
-    for (const m of masts) {
-      if (hypot(m.x - x, m.z - z) < radius + C.mast) return null;
-    }
-    for (const p of pads) {
-      if (hypot(p.x - x, p.z - z) < radius + C.pad) return null;
+    // A building judged on its rectangle is settled first: the trees and
+    // the ground are cheaper to ask than every point of it.
+    const settled = fit ? settle(kind, x, z, heading, radius, fit) : null;
+    if (fit && !settled) return null;
+    if (fit ? !clearOnPlan(kind, x, z, heading, fit) : !clearRound(x, z, radius)) {
+      return null;
     }
     for (const k of level.kickers ?? []) {
       if (hypot(k.x - x, k.z - z) < C.kicker + radius + k.landing / 2) return null;
@@ -279,22 +189,141 @@ function placeCabins(level: Level): Cabin[] {
       const reach = c.width / 2 + c.face + c.landing + 15;
       if (hypot(c.x - x, c.z - z) < reach + radius) return null;
     }
-    for (const cp of cps) {
-      if (hypot(cp.x - x, cp.z - z) < C.gate + radius) return null;
-    }
-    if (hypot(level.spawn.x - x, level.spawn.z - z) < C.start + radius) return null;
-    if (finish && hypot(finish.x - x, finish.z - z) < C.finish + radius) return null;
     // No other building's roof within a stride of this one's.
     // A building of its own group stands a step from its walls instead.
     for (const o of cabins) {
+      if (fit) {
+        if (roofsMeet(o, { kind, x, z, heading }, fit.clear.roof)) return null;
+        continue;
+      }
       const room =
         o.group === group
           ? wallRadius(o.kind) + wallRadius(kind) + 1
           : roofRadius(o.kind) + radius + C.roof;
       if (hypot(o.x - x, o.z - z) < room) return null;
     }
+    return settled ?? settle(kind, x, z, heading, radius, fit);
+  };
+
+  /** A cabin's clearances, on the circle round its roof: the runs and the
+   * course, the ski area's furniture, the gates, the start and the finish. */
+  const clearRound = (x: number, z: number, radius: number): boolean => {
+    for (const line of lines) {
+      nearestWithin(line, x, z, radius + 60, hit);
+      if (hit.distance === Infinity) continue;
+      const w = line.track.points[hit.index].width;
+      if (hit.distance - w / 2 < radius + 3) return false;
+    }
+    nearestWithin(course, x, z, radius + 120, hit);
+    if (hit.distance !== Infinity) {
+      const w = level.track.points[hit.index].width;
+      if (hit.distance - w / 2 < radius + (venue ? C.venue : 3)) return false;
+    }
+    // Clear of the ski area's furniture.
+    for (const lift of lifts) {
+      for (const end of [lift.bottom, lift.top]) {
+        if (hypot(end.x - x, end.z - z) < C.station + radius) return false;
+      }
+      for (const ramp of lift.ramps ?? []) {
+        const d = toSegment(x, z, ramp.from.x, ramp.from.z, ramp.to.x, ramp.to.z);
+        if (d < ramp.width / 2 + radius + 8) return false;
+      }
+    }
+    for (const t of tunnels) {
+      for (const q of t.points) {
+        if (hypot(q.x - x, q.z - z) < t.width / 2 + C.tunnel + radius) return false;
+      }
+    }
+    if (hub && outsideHub(hub, x, z) < C.hub + radius) return false;
+    for (const m of masts) {
+      if (hypot(m.x - x, m.z - z) < radius + C.mast) return false;
+    }
+    for (const p of pads) {
+      if (hypot(p.x - x, p.z - z) < radius + C.pad) return false;
+    }
+    for (const cp of cps) {
+      if (hypot(cp.x - x, cp.z - z) < C.gate + radius) return false;
+    }
+    if (hypot(level.spawn.x - x, level.spawn.z - z) < C.start + radius) return false;
+    if (finish && hypot(finish.x - x, finish.z - z) < C.finish + radius) return false;
+    return true;
+  };
+
+  /** A ski area building's clearances, on its roof's rectangle (every
+   * point of it, a few metres apart): the runs and the course past their
+   * edges, every lift's stations and the lane its queue stands in, the
+   * summits' ramps, the wind tunnels, the hub, the masts, the pads, the
+   * gates, the start and the finish arena. */
+  const clearOnPlan = (
+    kind: CabinKind,
+    x: number,
+    z: number,
+    heading: number,
+    fit: Fit,
+  ): boolean => {
+    const F = fit.clear;
+    const pts = rectPoints(kind, x, z, heading, true, 0, 4);
+    for (const [px, pz] of pts) {
+      for (const line of lines) {
+        nearestWithin(line, px, pz, F.line + 40, hit);
+        if (hit.distance === Infinity) continue;
+        if (hit.distance - line.track.points[hit.index].width / 2 < F.line) return false;
+      }
+      nearestWithin(course, px, pz, F.line + 60, hit);
+      if (hit.distance !== Infinity) {
+        const w = level.track.points[hit.index].width;
+        if (hit.distance - w / 2 < (venue ? C.venue : F.line)) return false;
+      }
+      for (const lift of lifts) {
+        for (const end of [lift.bottom, lift.top]) {
+          if (hypot(end.x - px, end.z - pz) < F.station) return false;
+        }
+        for (const ramp of lift.ramps ?? []) {
+          const d = toSegment(px, pz, ramp.from.x, ramp.from.z, ramp.to.x, ramp.to.z);
+          if (d < ramp.width / 2 + F.ramp) return false;
+        }
+      }
+      for (const q of fit.queues) {
+        for (let i = 0; i + 1 < q.length; i++) {
+          if (toSegment(px, pz, q[i].x, q[i].z, q[i + 1].x, q[i + 1].z) < F.queue) return false;
+        }
+      }
+      for (const t of tunnels) {
+        const a = t.points[0];
+        const b = t.points[t.points.length - 1];
+        if (toSegment(px, pz, a.x, a.z, b.x, b.z) < t.width / 2 + F.tunnel) return false;
+      }
+      if (hub && outsideHub(hub, px, pz) < F.hub) return false;
+      for (const m of masts) {
+        if (hypot(m.x - px, m.z - pz) < C.mast) return false;
+      }
+      for (const p of pads) {
+        if (hypot(p.x - px, p.z - pz) < F.pad) return false;
+      }
+      for (const cp of cps) {
+        if (hypot(cp.x - px, cp.z - pz) < F.gate) return false;
+      }
+      if (hypot(level.spawn.x - px, level.spawn.z - pz) < F.start) return false;
+      if (finish && hypot(finish.x - px, finish.z - pz) < F.finish) return false;
+    }
+    return true;
+  };
+
+  /** No crown over the roof, and the floor terraced into the ground: the
+   * floor and the lowest ground under the walls, or null. */
+  const settle = (
+    kind: CabinKind,
+    x: number,
+    z: number,
+    heading: number,
+    radius: number,
+    fit?: Fit,
+  ): { y: number; base: number } | null => {
+    const def = CABINS[kind];
     // No crown over the roof: every trunk near, in the building's frame,
-    // kept a share of its crown outside the roof's rectangle.
+    // kept a share of its crown outside the roof's rectangle — but for a
+    // trunk inside the walls of a building whose site is cleared for it
+    // (`fit.fell`), felled for it.
     const fx = Math.sin(heading);
     const fz = Math.cos(heading);
     const r = def.reach;
@@ -304,6 +333,7 @@ function placeCabins(level: Level): Cabin[] {
       const dz = t.z - z;
       const lx = dx * fz - dz * fx;
       const lz = dx * fx + dz * fz;
+      if (fit?.fell && insideWalls(def.width, def.depth, lx, lz)) continue;
       const m = Math.max(t.crown * C.crown + 0.5, C.trunk);
       if (
         lx > -def.width / 2 - r.side - m &&
@@ -329,14 +359,12 @@ function placeCabins(level: Level): Cabin[] {
     // Never dug in at the front: the porch's deck and the doorstep stand
     // clear of the snow before them.
     let front = -Infinity;
-    const fx0 = Math.sin(heading);
-    const fz0 = Math.cos(heading);
     const lz = def.depth / 2 + def.reach.front;
     for (const lx of [-def.width / 2, 0, def.width / 2]) {
-      front = Math.max(front, level.groundAt(x + lx * fz0 + lz * fx0, z - lx * fx0 + lz * fz0));
+      front = Math.max(front, level.groundAt(x + lx * fz + lz * fx, z - lx * fx + lz * fz));
     }
     const P = L.plinth;
-    const y = Math.max(lo + P.least, hi - P.cut, front + P.door);
+    const y = Math.max(lo + P.least, hi - (def.cut ?? P.cut), front + P.door);
     if (y - lo > (def.plinth ?? P.most) + 1e-9) return null;
     return { y, base: lo };
   };
@@ -350,8 +378,9 @@ function placeCabins(level: Level): Cabin[] {
     run: string,
     s: number,
     group: number,
+    fit?: Fit,
   ): Cabin | null => {
-    const at = fits(kind, x, z, heading, group);
+    const at = fits(kind, x, z, heading, group, fit);
     if (!at) return null;
     const cabin: Cabin = {
       id: `H${cabins.length + 1}`,
@@ -478,6 +507,11 @@ function placeCabins(level: Level): Cabin[] {
     lodge.id = `A${cabins.filter((c) => c.kind === "afterski").length}`;
     return lodge;
   });
+  // The ski area's own buildings, after every cabin and lodge so not one
+  // of those moves for them.
+  placeResortBuildings(level, (kind, x, z, heading, run, s, group, fit) =>
+    stand(kind, x, z, heading, run, s, groups + group, fit),
+  );
   return cabins;
 }
 
@@ -583,24 +617,6 @@ function placeLodges(
     }
   }
   tryAt(mid, valley);
-}
-
-/** A line's station `s` m down it (`trackPointAt` over bare points). */
-function pointAt(points: TrackPoint[], length: number, s: number, out: TrackPoint): void {
-  const n = points.length;
-  const u = Math.max(0, Math.min(length, s));
-  let i = Math.min(n - 2, Math.max(0, Math.floor((u / Math.max(1e-6, length)) * (n - 1))));
-  while (i > 0 && points[i].s > u) i--;
-  while (i < n - 2 && points[i + 1].s <= u) i++;
-  const a = points[i];
-  const b = points[Math.min(n - 1, i + 1)];
-  const t = b.s > a.s ? (u - a.s) / (b.s - a.s) : 0;
-  out.x = a.x + (b.x - a.x) * t;
-  out.z = a.z + (b.z - a.z) * t;
-  out.y = a.y + (b.y - a.y) * t;
-  out.s = u;
-  out.heading = t < 0.5 ? a.heading : b.heading;
-  out.width = a.width + (b.width - a.width) * t;
 }
 
 const walls = new WeakMap<Level, Upright[]>();

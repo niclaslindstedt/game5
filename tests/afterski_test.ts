@@ -15,6 +15,7 @@ import {
   createGame,
   doorOf,
   generateLevel,
+  isResortBuilding,
   levelDigest,
   lodgesOf,
   NEUTRAL_INPUT,
@@ -77,7 +78,9 @@ describe("the afterski lodges", () => {
 
   it("are placed after the cabins, so not one cabin moves for them", () => {
     for (const seed of SEEDS) {
-      const all = cabinsOf(levelFor(seed));
+      // The log buildings: the ski area's own come after every one of them
+      // (`tests/resort_buildings_test.ts`).
+      const all = cabinsOf(levelFor(seed)).filter((c) => !isResortBuilding(c.kind));
       const first = all.findIndex((c) => c.kind === "afterski");
       expect(first).toBeGreaterThan(-1);
       expect(all.slice(first).every((c) => c.kind === "afterski")).toBe(true);

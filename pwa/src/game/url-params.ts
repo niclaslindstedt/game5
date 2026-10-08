@@ -183,6 +183,7 @@ export type DevPage = "dev" | "unlocks" | "benchHistory";
 /** The cards a link may open on. */
 export type MenuPage =
   | "root"
+  | "play"
   | "skis"
   | "dress"
   | "options"
@@ -198,6 +199,7 @@ export type MenuPage =
   | DevPage;
 const MENU_PAGES: readonly MenuPage[] = [
   "root",
+  "play",
   "skis",
   "dress",
   "options",

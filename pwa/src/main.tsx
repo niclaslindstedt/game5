@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { render } from "preact";
 
+// The cards first: a page's own block in styles.css overrides the base card.
+import "./menu.css";
+import "./menu-pages.css";
 import "./styles.css";
 import "./campaign.css";
 import "./dev.css";

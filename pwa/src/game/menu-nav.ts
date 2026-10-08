@@ -37,9 +37,11 @@ const ROOTS = [".menu-card", ".hud-card", ".splash"];
 
 /** What the cursor may land on. Everything the menus are built from is a
  * button; the rest of the list is there so a surface that grows a real
- * control of another kind is not silently skipped. */
+ * control of another kind is not silently skipped. `data-nav-skip` is small
+ * print that happens to be a link (the build's stamp): pressable by a
+ * pointer, never a stop on the walk. */
 const ITEMS =
-  "button:not([disabled]), [role='button']:not([aria-disabled='true']), a[href], input[type='range']:not([disabled])";
+  "button:not([disabled]), [role='button']:not([aria-disabled='true']), a[href]:not([data-nav-skip]), input[type='range']:not([disabled])";
 
 /** Where the cursor stands when a surface comes up. Falls back to the way
  * ON, and then to the first row that is not the way OUT — a cursor parked

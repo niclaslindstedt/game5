@@ -53,11 +53,6 @@ function dateOf(dayOfYear: number): string {
 export const CAMPAIGN_STRINGS = {
   /* ── THE FRONT DOOR'S TILE (menu-main.tsx) ─────────────────────────── */
   campaign: "CAMPAIGN",
-  /** How far up the mountain the player has got. */
-  menuCampaignLine: (cleared: number, of: number): string => `${cleared} OF ${of} RUNS CLEARED`,
-  /** The rung the campaign would pick next. */
-  menuCampaignNext: (name: string): string => `NEXT · ${name.toUpperCase()}`,
-  menuCampaignDone: "EVERY RUN CLEARED",
 
   /* ── THE CAMPAIGN CARD (menu-campaign.tsx) ─────────────────────────── */
   campaignRide: "SKI",

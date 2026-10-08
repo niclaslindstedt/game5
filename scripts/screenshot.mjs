@@ -45,7 +45,8 @@
 //                    (--surface afterski).
 //   ?buzz=<0..1>     a free ride begun with a buzz (--surface buzzed).
 //   ?run=2           a slalom's SECOND RUN, the first skied by the bot (--run2).
-//   ?splash=1 / ?menu=root   the attract card / the front door, over the
+//   ?splash=1 / ?menu=root   the attract card / the front door (?menu=play its
+//                            PLAY page), over the
 //                    TITLE SCENE (a visit's first door);
 //   ?backdrop=race   ...the front door over the LIVE RACE the bot rides
 //                    instead, as after a run (--surface menu-race).
@@ -138,6 +139,8 @@ const SURFACES = {
     wait: ".menu-card-root",
     settle: 12000,
   },
+  // ...and its PLAY page: RACE, TRICKS and FREE RIDE on the door's column.
+  play: { params: { menu: "play" }, wait: ".menu-card-play", settle: 1800 },
   // The loading card is up for as long as a map takes to build and no
   // longer, so it is photographed on the first frame it is in the DOM.
   loading: {

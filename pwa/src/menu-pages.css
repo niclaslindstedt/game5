@@ -1,0 +1,376 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE CARDS' PARTS — a page's head, its rows and the pause card, cut from the
+   glass `menu.css` states. Imported right after it and before `styles.css`
+   (`main.tsx`), for the same reason: a page's own block there must win. */
+
+/* ── A PAGE'S HEAD (menu-knobs.tsx's `MenuHead`) ───────────────────────────
+   The way out and the title, then the rows. The title carries the flag's
+   short underline, drawn into its own padding so it costs no height. */
+.menu-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.8rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.menu-back {
+  padding: 0.38rem 0.75rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  color: var(--ice);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 180ms var(--menu-ease),
+    color 180ms var(--menu-ease);
+}
+
+.menu-back.nav-cursor,
+.menu-back:focus-visible {
+  background: rgb(255 255 255 / 14%);
+  color: var(--snow);
+  box-shadow: 0 0 20px rgb(255 178 122 / 20%);
+  outline: none;
+}
+
+@media (hover: hover) {
+  .menu-back:hover {
+    background: rgb(255 255 255 / 12%);
+    color: var(--snow);
+  }
+}
+
+.menu-head .menu-title {
+  justify-self: start;
+  padding-bottom: 0.32rem;
+  margin-bottom: -0.32rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--snow);
+  background: linear-gradient(var(--flag), var(--flag)) left bottom / 2.2rem 2px no-repeat;
+}
+
+/* ── A ROW (`.menu-item`): the pause card's presses, a page's way on ─────── */
+.menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.menu-item {
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--menu-rim);
+  border-radius: 0.75rem;
+  background: var(--menu-glass);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
+  color: var(--snow);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 180ms var(--menu-ease),
+    box-shadow 180ms var(--menu-ease),
+    transform 180ms var(--menu-ease);
+}
+
+/* Inside the rim: a row clips its own fill (`overflow: hidden`), so its
+   light edge is drawn on the inner side of the border. */
+.menu-item::after {
+  inset: 0;
+}
+
+.menu-item.nav-cursor,
+.menu-item:focus-visible {
+  background: var(--menu-glass-on);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 22%),
+    0 0 26px rgb(255 178 122 / 20%);
+  outline: none;
+}
+
+@media (hover: hover) {
+  .menu-item:hover {
+    background: var(--menu-glass-on);
+  }
+}
+
+.menu-item:active {
+  transform: scale(0.985);
+}
+
+/* The way ON, given the weight the eye should land on first. */
+.menu-item-start {
+  background: var(--menu-lit);
+  border-color: rgb(255 255 255 / 32%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 36%),
+    0 10px 26px rgb(160 30 20 / 28%);
+}
+
+.menu-item-start.nav-cursor,
+.menu-item-start:focus-visible {
+  background: var(--menu-lit-on);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 42%),
+    0 12px 30px rgb(200 40 27 / 34%),
+    0 0 28px rgb(255 178 122 / 26%);
+}
+
+@media (hover: hover) {
+  .menu-item-start:hover {
+    background: var(--menu-lit-on);
+  }
+}
+
+/* A press that ENDS something, held apart and given none of the weight of
+   the rows above it. Written after `.menu-item` on purpose: an override
+   placed earlier than its base rule loses the cascade without a word. */
+.menu-item-leave {
+  margin-top: 0.55rem;
+  background: rgb(10 23 38 / 55%);
+  color: var(--hud-info);
+  font-size: 0.88rem;
+}
+
+.menu-item-name {
+  position: relative;
+}
+
+/* ── THE PAUSE CARD (menu-pause.tsx) ───────────────────────────────────────
+   The same glass, narrower, over a run standing still (so the frost is paid
+   once). It opens with WHICH RUN IS HELD rather than the game's name, and
+   RESUME wears the way on's red.
+
+   IT IS THE TIGHTEST HEIGHT BUDGET IN THE GAME. A phone held SIDEWAYS is 390
+   px tall and this card carries a head, a strip of figures and five presses
+   inside it — which is why RESUME and OPTIONS are a LINE apiece with a mark
+   at the head of each, and the three that end the race share one quiet strip
+   at the foot. Measure it (`scrollHeight` against `clientHeight`, both
+   viewports) before adding anything: a card a row too tall does not clip and
+   does not show in any screenshot — its last press sits below the fold. */
+.menu-card-pause {
+  align-items: stretch;
+  text-align: center;
+  width: min(24rem, 100%);
+  gap: clamp(0.45rem, 2.2vmin, 0.9rem);
+}
+
+.menu-pause-head {
+  margin-bottom: clamp(0.1rem, 1vmin, 0.3rem);
+}
+
+.menu-pause-head .menu-title {
+  font-size: clamp(1.3rem, 5.5vmin, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--snow);
+}
+
+/* THE MOUNTAIN as the free ride raises it again: a footnote to the line
+   over it, small enough to stay one line on a phone. */
+.menu-pause-head .menu-pause-mountain {
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+/* HOW THE HELD RUN HAS GONE (`pause-stats.ts`): up to four figures in ONE
+   row, each over its caption. `1fr` columns rather than `auto-fit` with a
+   minimum: a minimum that cannot be met WRAPS, silently, and a strip that
+   wrapped would cost this card a second line on the viewport with none to
+   give. The widest figure was MEASURED into a four-cell strip at every
+   reference viewport. */
+.pause-stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.3rem;
+  /* Scaled against the SHORT axis: the viewport that decides this card is a
+     phone on its side. */
+  margin: 0.1rem 0 clamp(0.3rem, 1.5vmin, 0.55rem);
+  padding: clamp(0.28rem, 1.2vmin, 0.45rem) 0.2rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+
+.pause-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pause-stat-value {
+  /* FLAT, and deliberately not clamped against a viewport: the card is
+     `min(24rem, 100%)` wide, so a cell barely moves, and a figure sized
+     against the viewport walks out of its column on a wide short screen.
+     This is the size the widest figure was measured to fit at. */
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--hud-ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pause-stat-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  color: var(--ice);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* THE ROWS, ON THIS CARD ONLY: a mark and a line, the layout that lets the
+   presses share a phone's short side with a head, the figures and a foot. */
+.menu-card-pause .menu-item {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.45rem, 1.7vmin, 0.7rem);
+  padding: clamp(0.44rem, 1.6vmin, 0.62rem) clamp(0.6rem, 2.2vmin, 0.85rem);
+  text-align: left;
+  font-size: 0.92rem;
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+}
+
+.menu-card-pause .menu-items {
+  gap: clamp(0.34rem, 1.4vmin, 0.5rem);
+}
+
+/* Scoped to the ROWS: the pause card's OPTIONS panel wears
+   `.menu-card-pause` too, and its group headings carry marks of their own. */
+.menu-card-pause .menu-item .menu-glyph {
+  width: 1.25em;
+  height: 1.25em;
+  opacity: 0.9;
+}
+
+/* THE FOOT STRIP: RESTART, WATCH REPLAY and MAIN MENU — the three presses
+   that END the race — side by side in the card's quietest ink with no fill
+   until a finger or the cursor is on one. Three `1fr` columns: a strip that
+   could wrap would buy back the very row it exists to save. */
+.pause-foot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.3rem;
+  padding-top: clamp(0.3rem, 1.2vmin, 0.5rem);
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.pause-foot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* From the top, so the three marks and their words stand on one line and
+     the replay's price hangs under its own word. */
+  justify-content: flex-start;
+  gap: 0.18rem;
+  min-width: 0;
+  /* A thumb's worth of target, whatever the words inside it come to. */
+  min-height: 2.75rem;
+  padding: 0.35rem 0.2rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: none;
+  color: var(--ice);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 180ms var(--menu-ease),
+    color 180ms var(--menu-ease);
+}
+
+.pause-foot-item.nav-cursor,
+.pause-foot-item:focus-visible {
+  background: rgb(255 255 255 / 10%);
+  color: var(--snow);
+  outline: none;
+}
+
+@media (hover: hover) {
+  .pause-foot-item:hover {
+    background: rgb(255 255 255 / 8%);
+    color: var(--snow);
+  }
+}
+
+.pause-foot-item:active {
+  transform: scale(0.97);
+}
+
+.pause-foot-item .menu-glyph {
+  width: 1.15rem;
+  height: 1.15rem;
+  opacity: 0.85;
+}
+
+.pause-foot-name,
+.pause-foot-note {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+
+/* WATCH REPLAY's price, under its word: taken mid-race, the race is over. */
+.pause-foot-note {
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+/* THE PAUSE CARD'S OPTIONS PANEL: the same groups the front door's page
+   carries, ONE COLUMN AT EVERY WIDTH (four groups split two and two is a
+   panel with a hole in its corner). */
+.menu-card-pause-options {
+  align-items: stretch;
+  text-align: left;
+  gap: 0.55rem;
+}
+
+/* `align-items` restated: the two-column rule at 48rem sets it to `start`
+   for a GRID, and the same word in a flex COLUMN sized every group to its own
+   longest label. */
+.menu-card-pause-options .knob-groups {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+/* The head reads as the card's, not as a page's: the run behind it is still
+   the subject. */
+.menu-card-pause-options .menu-title {
+  font-size: clamp(0.95rem, 3.4vmin, 1.15rem);
+}

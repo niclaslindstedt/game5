@@ -1,7 +1,7 @@
 ---
 title: 844×390 with no insets hid every card's overrun — judge cards at `iphone` and `iphone-browser`
 date: 2026-10-01
-scope: scripts/screenshot.mjs, pwa/src/styles.css, pwa/src/game/menu-*.tsx
+scope: scripts/screenshot.mjs, pwa/src/styles.css, pwa/src/menu.css, pwa/src/game/menu-main.tsx
 concepts: [viewport, safe-area, height-budget, screenshots, cards]
 ---
 

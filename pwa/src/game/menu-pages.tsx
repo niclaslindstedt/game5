@@ -30,7 +30,7 @@ import { nextFreeSeed } from "./free-ride.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export function MenuPages(p: {
-  page: Exclude<MenuPage, "root">;
+  page: Exclude<MenuPage, "root" | "play">;
   setPage: (page: MenuPage) => void;
   /** The mode the cards are for: whichever tile opened them. */
   mode: GameMode;
@@ -56,6 +56,8 @@ export function MenuPages(p: {
 }) {
   const { page, setPage, settings, setSettings, campaign } = p;
   const back = (): void => setPage("root");
+  /** The three ways onto the snow go back to PLAY's page, which opened them. */
+  const toPlay = (): void => setPage("play");
   if (page === "races") {
     const pins = frontDoorPins(campaign.progress, settings, p.linkSeed);
     const seedLine = p.linkSeed === null ? null : STRINGS.menuRaceSeed(p.linkSeed);
@@ -71,7 +73,7 @@ export function MenuPages(p: {
             skiCross: seedLine ?? pins.skiCrossMap ?? undefined,
           }}
           chosen={p.mode}
-          onBack={back}
+          onBack={toPlay}
           onPick={(mode) => campaign.openCard(mode, p.linkSeed === null ? "levels" : "skis")}
         />
       </div>
@@ -82,7 +84,7 @@ export function MenuPages(p: {
       <div class="menu">
         <FreestylePage
           chosen={p.mode}
-          onBack={back}
+          onBack={toPlay}
           onPick={(mode) => campaign.openCard(mode, p.linkSeed === null ? "tricks" : "skis")}
         />
       </div>
@@ -146,7 +148,7 @@ export function MenuPages(p: {
               ride: { ...s.ride, seed: nextFreeSeed(p.startSeed), spot: null },
             }))
           }
-          onBack={back}
+          onBack={toPlay}
           onNext={() => setPage("skis")}
         />
       ) : page === "gallery" ? (

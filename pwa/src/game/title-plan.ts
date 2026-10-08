@@ -49,10 +49,11 @@ const PUSH = 1.06;
 const PUSH_S = 6;
 /** The front door's framing: tighter still, which is the room the subject
  * needs to be slid aside into — right of centre on a wide screen (the
- * column of slabs on the left), and below it on a tall one (the logo
- * above). Shares of the visible frame. */
+ * column of slabs on the left), and above it on a tall one (the column
+ * along the bottom, the logo over the sky). Shares of the visible frame,
+ * positive right and down. */
 const ZOOM_MENU = 1.1;
-const MENU_SLIDE = { landscape: [0.08, 0], portrait: [0, 0.06] } as const;
+const MENU_SLIDE = { landscape: [0.14, 0], portrait: [0, -0.1] } as const;
 /** The drift: a slow Lissajous of the lens, a share of the visible frame —
  * about one per cent of it every ten seconds. */
 const DRIFT = { ax: 0.0065, ay: 0.0045, px: 23, py: 31, qx: 41, qy: 53 } as const;

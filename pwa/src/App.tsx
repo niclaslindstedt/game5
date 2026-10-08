@@ -871,7 +871,7 @@ export function App() {
   return (
     <>
       <canvas ref={canvasRef} />
-      {title.stage(shell)}
+      {title.stage(shell, videoOf(settings))}
       {hudUp && (
         <Hud
           snap={snap!}
@@ -939,10 +939,11 @@ export function App() {
           onReplay={canReplay ? () => pressRef.current.watch() : null}
         />
       )}
-      {shell === "menu" && page === "root" && (
+      {shell === "menu" && (page === "root" || page === "play") && (
         <MainMenu
           {...frontDoorPins(campaign.progress, settings, params.seed)}
-          onCampaign={() => setPage("campaign")}
+          page={page}
+          onPage={setPage}
           seed={nextSeed}
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
@@ -958,7 +959,7 @@ export function App() {
           onHeld={() => setSettings((s) => ({ ...s, developer: true }))}
         />
       )}
-      {shell === "menu" && page !== "root" && (
+      {shell === "menu" && page !== "root" && page !== "play" && (
         <MenuPages
           page={page}
           setPage={setPage}

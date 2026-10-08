@@ -19,6 +19,7 @@ import {
   lodgesOf,
   NEUTRAL_INPUT,
   SNOW_DIAL,
+  slalomRules,
   snowCoverOf,
   standSkier,
   step,
@@ -30,8 +31,10 @@ import {
   SEASONS,
   SNOW_STOPS,
   depthOf,
+  againAt,
   freeAgainOptions,
   freeGameOptions,
+  freeRestart,
   freeRunList,
   freeTopOptions,
   freshRide,
@@ -245,6 +248,30 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     const slot = first.level.grid[0];
     expect(again.skier.x).toBeCloseTo(slot.x, 5);
     expect(again.skier.z).toBeCloseTo(slot.z, 5);
+  });
+
+  it("names where the next rider stands after a death, as the restart stands him", () => {
+    const opts = {
+      ...freeGameOptions(freshRide(), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const free = freeAgainOptions(opts, first.level);
+    const rules = first.rules;
+    // The last piste skied: its head (here the start line, the one piste's top).
+    expect(againAt(rules, freeRestart(first, free))).toBe("top");
+    expect(againAt(rules, { ...free, run: undefined })).toBe("start");
+    expect(againAt(rules, { ...free, run: "r1" })).toBe("top");
+    expect(againAt({ ...rules, heli: true }, { ...free, heli: true })).toBe("pad");
+    expect(againAt({ ...rules, sled: true }, { ...free, sled: true })).toBe("sled");
+    expect(againAt(rules, { ...free, para: true })).toBe("summit");
+    expect(againAt(rules, { ...free, balloon: true })).toBe("basket");
+    // A race starts again at its start, whatever the free ride was.
+    expect(againAt(slalomRules(1), free)).toBe("start");
+    expect(freeRestart({ ...first, rules: slalomRules(1) }, free)).toBeNull();
+    for (const at of ["start", "top", "pad", "sled", "summit", "basket"] as const) {
+      expect(STRINGS.diedAgain[at]).toMatch(/^A NEW RIDER /);
+    }
   });
 });
 

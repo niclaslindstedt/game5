@@ -56,7 +56,6 @@ import {
   botInput,
   createGame,
   error,
-  lastPiste,
   placeRun,
   step,
   type CreateGameOptions,
@@ -79,9 +78,11 @@ import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
   FIRST_FREE_SEED,
+  againAt,
   freeAgainOptions,
+  type AgainAt,
   freeGameOptions,
-  freeTopOptions,
+  freeRestart,
   standingFor,
 } from "./game/free-ride.ts";
 import { freeAsk, freeRideLevel, quietSeedMaps } from "./game/seed-maps.ts";
@@ -167,6 +168,7 @@ export function App() {
   const [flashes, setFlashes] = useState<HudFlash[]>([]);
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
+  const [again, setAgain] = useState<AgainAt>("start");
   const [shell, setShell] = useState<Shell>(() =>
     params.rides
       ? params.paused
@@ -502,10 +504,10 @@ export function App() {
       if (loader.busy()) return;
       // A free ride starts again at the top of the last piste it skied;
       // every other run from the start line, on the same map, in its mode.
-      const next =
-        !state.rules.course && !state.rules.tricks && freeAgain
-          ? createGame(freeTopOptions(freeAgain, lastPiste(state), state.grimbear))
-          : (pinned.again() ?? playerGame(state.level, state.seed));
+      const free = freeRestart(state, freeAgain);
+      const next = free
+        ? createGame(free)
+        : (pinned.again() ?? playerGame(state.level, state.seed));
       adopt(next, ticketFor(next));
       frozen = false;
       clock.resume();
@@ -694,7 +696,7 @@ export function App() {
         const steps = clock.frame(dtRun);
         for (let i = 0; i < steps; i++) stepOnce();
         if (replays.over()) pressRef.current.toMenu();
-        // DIED (`hud-wreck.ts`): a new rider at the top once the dark is down.
+        // DIED (`hud-wreck.ts`): a new rider (`againAt`) once the dark is down.
         else if (playerRides(shellRef.current) && deathOver(state)) restart();
       } else {
         // Held: the controls are still read, so a banked reset does not fire on the thaw.
@@ -736,7 +738,10 @@ export function App() {
       hudClock += dtFrame;
       if (hudClock >= HUD_TICK) {
         hudClock = 0;
-        setSnap(takeSnapshot(state, book.ledger()));
+        const taken = takeSnapshot(state, book.ledger());
+        setSnap(taken);
+        // Where the next rider will stand, read only once this one is dead.
+        if (taken.died) setAgain(againAt(state.rules, freeRestart(state, freeAgain)));
         const kept = live.filter((f) => f.until > wall);
         if (kept.length !== live.length) live.splice(0, live.length, ...kept);
         setFlashes(live.map(({ id, text, tone }) => ({ id, text, tone })));
@@ -879,6 +884,7 @@ export function App() {
           tuckKey={boundLabel(settings.keys.tuck)}
           jumpKey={boundLabel(settings.keys.jump)}
           injuries={injuriesShown(settings, shellContent())}
+          again={again}
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands

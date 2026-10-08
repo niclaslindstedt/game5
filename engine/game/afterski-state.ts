@@ -21,6 +21,10 @@ export type AfterskiState = {
   last: number;
   /** The beer in his hand: seconds into drinking it, or −1 between. */
   sip: number;
+  /** The lodge he has just come out of (`Cabin.id`), or null: its door is
+   * not offered again — no call, no press in — until he has been out of
+   * its reach, so the way out does not stand there as a way back in. */
+  out: string | null;
 };
 
 /** THE LATE HANDS (`buzz.ts`'s `drunkInput`): the edge and the lean as

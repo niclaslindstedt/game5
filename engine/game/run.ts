@@ -54,6 +54,7 @@ import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
 import { forgetRun, noteSkied } from "./skied.ts";
+import { stepHurt } from "./hurt.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { hockeyStop, stopMade } from "./hockey-stop.ts";
@@ -105,6 +106,9 @@ export function stepRun(
   player = false,
 ): void {
   const racing = run.phase === "racing";
+  // What his injuries leave him this step (`hurt.ts`), on a run that
+  // carries them.
+  if (player) stepHurt(run);
   // Carried by any of the machines below, the place he last left a run is
   // forgotten: a reset never sends him back to where he was before.
   // In a lodge he is stood at its door: the machine press is the lodge's
@@ -270,6 +274,9 @@ export function stepRun(
   if (run.rules.course) {
     stepCourse(run, x0, z0, events);
     stepTrap(run, x0, z0, events);
+    // Where he leaves the piste, for a reset that stands him back up hurt
+    // (`resetPose`) — only on a run that carries its injuries.
+    if (run.gore) noteSkied(run);
   }
   // A FREE RIDE remembers the runs it skies instead (`skied.ts`) — never
   // the ones flown over under the paramotor's wing.

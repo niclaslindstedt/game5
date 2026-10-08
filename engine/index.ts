@@ -636,6 +636,18 @@ export {
 } from "./game/defs/anatomy.ts";
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";
 export {
+  hurtDrive,
+  hurtEdge,
+  hurtGrip,
+  hurtLanding,
+  hurtOf,
+  hurtRate,
+  hurtTuck,
+  stepHurt,
+} from "./game/hurt.ts";
+export { HURT } from "./game/defs/hurt.ts";
+export type { Hurt } from "./game/hurt-state.ts";
+export {
   bearingToNext,
   finishRun,
   outRun,

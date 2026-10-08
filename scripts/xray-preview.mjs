@@ -47,6 +47,11 @@ const args = parseArgs(
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },
     most: { kind: "number", default: 18, help: "the most wall seconds a scene runs" },
+    again: {
+      kind: "number",
+      default: 0,
+      help: "times a death is stood up again as a new run (as the app restarts) and died again",
+    },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
     height: { kind: "number", default: 720, help: "a frame's height, px" },
     cols: { kind: "number", default: 4, help: "tiles a row on a sheet" },
@@ -121,6 +126,7 @@ const query = new URLSearchParams({
   scale: String(args.scale),
   every: String(args.every),
   most: String(args.most),
+  again: String(args.again),
 }).toString();
 await page.goto(`${server.url}xray-preview.html?${query}`);
 await guarded(page.waitForFunction("window.__xray !== undefined"));

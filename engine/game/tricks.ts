@@ -85,6 +85,7 @@
 import { pipeHit } from "./pipe-air.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { harshShare } from "./damage.ts";
+import { hurtLanding } from "./hurt.ts";
 import { harshSpeedOf } from "./limits.ts";
 import type {
   BailCause,
@@ -310,7 +311,7 @@ function turnsLanded(state: GameState, events: GameEvent[]): void {
  * touchdown with nothing into the slope, 1 the one that folds them to the
  * stop. */
 export function landingGrade(c: SkierState, impact: number): number {
-  return impact / (harshSpeedOf(c.spec) * harshShare(c));
+  return impact / (harshSpeedOf(c.spec) * harshShare(c) * hurtLanding(c));
 }
 
 /** How far the skier is turned from the way he is going over the snow,

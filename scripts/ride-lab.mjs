@@ -67,6 +67,10 @@ const args = parseArgs(
       kind: "number",
       help: "the afterski's beer in him, 0..1, on the free ride's terms (the scenario's own when left out; 0 skis a drunk scenario sober)",
     },
+    hurt: {
+      kind: "string",
+      help: "ski HURT, as a reset leaves him with the INJURIES switch on (`hurt.ts`): parts and AIS ranks, e.g. kneeL:3,back:2",
+    },
     "no-png": { kind: "flag", help: "print the numbers, draw nothing" },
     card: {
       kind: "flag",
@@ -74,7 +78,7 @@ const args = parseArgs(
     },
     out: { kind: "string", default: "previews", help: "where the pictures go" },
   },
-  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--buzz 0..1] [--no-poles] [--no-png] [--out dir]",
+  "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--buzz 0..1] [--hurt part:ais,…] [--no-poles] [--no-png] [--out dir]",
 );
 
 if (args.skis !== "all" && !E.isSkiId(args.skis)) {
@@ -99,6 +103,19 @@ if (wanted && !SCENARIO_IDS.includes(wanted)) {
 }
 const chosen = wanted ? SCENARIOS.filter((s) => s.id === wanted) : SCENARIOS;
 
+/** The injuries `--hurt` names: a part and its AIS rank each. */
+const hurts = (args.hurt ?? "")
+  .split(",")
+  .filter(Boolean)
+  .map((w) => {
+    const [part, ais] = w.split(":");
+    if (!E.BODY_PARTS.includes(part) || !(Number(ais) >= 1 && Number(ais) <= 5)) {
+      console.error(`--hurt: "${w}" is not part:ais (${E.BODY_PARTS.join(", ")}; 1..5)`);
+      process.exit(2);
+    }
+    return { part, ais: Number(ais) };
+  });
+
 /** Ski a scenario and keep a frame every step. */
 function record(scenario, asked) {
   // A scenario of a discipline's own pair skis it whatever the lab asked.
@@ -115,8 +132,15 @@ function record(scenario, asked) {
     resilience: args.resilience,
     poles: !args["no-poles"],
     quiet: true,
+    ...(hurts.length > 0 ? { gore: true } : {}),
   });
   E.placeRun(state, scenario.place(S));
+  // HURT (`hurt.ts`): the injuries a reset stood him back up with.
+  for (const h of hurts) {
+    const i = E.BODY_PARTS.indexOf(h.part);
+    state.skier.body.worst[i] = Math.max(state.skier.body.worst[i], h.ais);
+    state.skier.body.injuries.push({ part: h.part, kind: "bruisedKnee", ais: h.ais, t: 0 });
+  }
   // A scenario that needs a moment placeRun cannot stand — the skis slid
   // across the way, an edge already stood up — sets it here.
   scenario.prepare?.(state, S);

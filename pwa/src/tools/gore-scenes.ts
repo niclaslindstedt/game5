@@ -522,6 +522,60 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "20s-other-side", onBody(4.4, 2.4, 1.3, 45));
     st.shoot(s, "20s-above", onBody(0.4, 1, 3.2, 50));
   },
+  /** Face first onto the snow, the head split open: the face has nothing
+   * over it, so it streams and drips straight off it. */
+  "leak-face"(st) {
+    // A fall that splits the head open is rare in a helmet: staged here as
+    // a face-first fall with the skull broken by twice what breaks it.
+    const { s } = ontoSnow(st, "front", 9, 3);
+    st.run(s, 0.4, still);
+    s.skier.body.injuries.push({ part: "head", kind: "skullFracture", ais: 4, t: s.t, energy: 2 });
+    const t0 = s.t;
+    const onHead =
+      (yaw: number, dist: number, up: number): Lens =>
+      (q) => {
+        const p = q.skier.thrown?.points;
+        const h = p
+          ? { x: p[R.head * 3], y: p[R.head * 3 + 1], z: p[R.head * 3 + 2] }
+          : { x: q.skier.x, y: q.skier.y, z: q.skier.z };
+        return around(q.level, h, yaw, dist, up, 40, 0);
+      };
+    for (const t of [0.5, 1.5, 3]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `+${t}s`, onHead(1.1, 1.2, 0.5));
+    }
+    st.shoot(s, "+3s-other-side", onHead(4.2, 1.2, 0.5));
+    st.shoot(s, "+3s-above", onHead(0.4, 0.6, 1.6));
+    // Square on his face, wherever it is turned: forward is his right
+    // (shoulder to shoulder) crossed with his neck.
+    const onFace: Lens = (q) => {
+      const p = q.skier.thrown!.points;
+      const at = (i: number) => ({ x: p[i * 3], y: p[i * 3 + 1], z: p[i * 3 + 2] });
+      const h = at(R.head);
+      const l = at(R.shoulderL);
+      const r = at(R.shoulderR);
+      const rx = r.x - l.x,
+        ry = r.y - l.y,
+        rz = r.z - l.z;
+      const ux = h.x - (l.x + r.x) / 2,
+        uy = h.y - (l.y + r.y) / 2,
+        uz = h.z - (l.z + r.z) / 2;
+      const fx = ry * uz - rz * uy,
+        fy = rz * ux - rx * uz,
+        fz = rx * uy - ry * ux;
+      const n = Math.hypot(fx, fy, fz) || 1;
+      const ex = h.x + (fx / n) * 0.45,
+        ez = h.z + (fz / n) * 0.45;
+      const ey = Math.max(q.level.groundAt(ex, ez) + 0.12, h.y + (fy / n) * 0.45 + 0.1);
+      return {
+        eye: { x: ex, y: ey, z: ez },
+        target: { x: h.x, y: h.y - 0.05, z: h.z },
+        fov: 40,
+        roll: 0,
+      };
+    };
+    st.shoot(s, "+3s-face", onFace);
+  },
   /** Torn apart on the groomed piste and left lying: his blood spreading
    * wide on the packed snow round him, from above. */
   "pool-piste"(st) {
@@ -624,7 +678,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   machines: ["groomer", "heli"],
   blood: ["spray", "snow"],
-  leak: ["leak"],
+  leak: ["leak", "leak-face"],
   pools: ["pool-piste", "pool-powder"],
   close: ["closeup"],
   hud: ["wreck"],

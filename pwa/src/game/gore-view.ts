@@ -48,7 +48,7 @@ import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/pr
 
 import { bindPose } from "./dress-loft.ts";
 import { createBlood, type Blood } from "./gore-blood.ts";
-import { hardLeaks, pourOf, type Leak } from "./gore-flow.ts";
+import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
 import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
@@ -320,6 +320,9 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   // The litres each part hit hard has bled into his clothes, and the
   // litres run onto the snow under each gap since the pools last grew.
   const soakedIn = new Map<BodyPart, number>();
+  let drips = 0;
+  // Which cheek his face's blood runs over as he lies, and how far.
+  const cheek: Cheek = { side: 1, lean: 0 };
   // The body's way, smoothed: what a stream is carried along by — the
   // ragdoll's own step-to-step jitter would break it into dashes.
   const drift = new THREE.Vector3();
@@ -518,6 +521,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     opened = 0;
     crushed = false;
     soakedIn.clear();
+    drips = 0;
     drift.set(0, 0, 0);
     poolAcc.clear();
     blood.clear();
@@ -836,7 +840,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       // The parts hit hard, under his clothes.
       const height = (p: V3) => world(p, M, v3).y;
       const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
-      wounds.push(...hardLeaks(hard, f, M));
+      wounds.push(...hardLeaks(hard, f, M, cheek));
       const total = wounds.reduce((s, w) => s + w.share, 0) || 1;
       const lying = carry.length() < 0.6;
       poolClock += dt;
@@ -854,7 +858,16 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           if (had < HOLD) continue;
         }
         const speed = pourOf(w, beat, g.rate);
-        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next());
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead);
+        if (w.lead) {
+          // And it drips off the face, the more the faster it runs.
+          drips += simDt * Math.min(DRIPS, 4 + q * 600);
+          const n = Math.floor(drips);
+          if (n > 0) {
+            drips -= n;
+            blood.emit(w.at, w.dir, 0.5 + beat, n, 0.6, along, () => rng.next());
+          }
+        }
         // What reaches the snow under a gap lying on it pools there; a
         // share runs on under him, into the one pool round his body.
         if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
@@ -918,6 +931,10 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           }
         });
         for (const h of hard) {
+          if (h.part === "head") {
+            at.push(...faceRuns(bind, cheek));
+            continue;
+          }
           const litres = soakedIn.get(h.part) ?? 0;
           if (litres <= 0.005) continue;
           const gap = lowestGap(h.part, f, height);

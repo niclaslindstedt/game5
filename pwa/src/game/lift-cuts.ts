@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// A LIFT PART AT TWO CUTS: one instanced mesh of the whole part for the
+// ones near the lens and one of a few boxes for the rest, every instance
+// handed to one or the other by its distance from the eye — so a
+// mountain's hundreds of chairs and towers cost their detail only where
+// it can be seen (`lifts.ts`). A part with no far cut is not drawn past
+// its reach (a ladder).
+
+import * as THREE from "three";
+
+export class Cut {
+  readonly near: THREE.InstancedMesh;
+  readonly far: THREE.InstancedMesh | null;
+  private n = 0;
+  private f = 0;
+  private eye: THREE.Vector3 | null = null;
+  private readonly reach2: number;
+  private readonly at = new THREE.Vector3();
+
+  /** `reach` m is as far as the near cut is drawn. */
+  constructor(
+    near: THREE.BufferGeometry,
+    far: THREE.BufferGeometry | null,
+    mat: THREE.Material,
+    capacity: number,
+    reach: number,
+    shadow = true,
+  ) {
+    this.reach2 = reach * reach;
+    const make = (g: THREE.BufferGeometry) => {
+      const m = new THREE.InstancedMesh(g, mat, Math.max(1, capacity));
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.castShadow = shadow;
+      m.receiveShadow = true;
+      // What a cut holds changes as the lens moves: never culled whole.
+      m.frustumCulled = false;
+      m.count = 0;
+      return m;
+    };
+    this.near = make(near);
+    this.far = far ? make(far) : null;
+  }
+
+  /** Every mesh it draws with, for the group and for disposal. */
+  get meshes(): THREE.InstancedMesh[] {
+    return this.far ? [this.near, this.far] : [this.near];
+  }
+
+  /** Start a fill from `eye` — or, with none, every instance far. */
+  begin(eye: THREE.Vector3 | null | undefined): void {
+    this.eye = eye ?? null;
+    this.n = 0;
+    this.f = 0;
+  }
+
+  /** The next instance, placed by `m`. */
+  add(m: THREE.Matrix4): void {
+    this.at.setFromMatrixPosition(m);
+    const near = this.eye ? this.at.distanceToSquared(this.eye) < this.reach2 : !this.far;
+    if (near) this.near.setMatrixAt(this.n++, m);
+    else if (this.far) this.far.setMatrixAt(this.f++, m);
+  }
+
+  end(): void {
+    this.near.count = this.n;
+    this.near.instanceMatrix.needsUpdate = true;
+    if (this.far) {
+      this.far.count = this.f;
+      this.far.instanceMatrix.needsUpdate = true;
+    }
+  }
+}
+
+/** A cut of parts that STAND STILL (the towers' heads and ladders): their
+ * matrices kept, and handed out again only once the eye has moved
+ * `again` m since the last time. */
+export class StillCut {
+  readonly cut: Cut;
+  private readonly again: number;
+  private readonly list: THREE.Matrix4[] = [];
+  private last: THREE.Vector3 | null = null;
+  private filled = false;
+
+  constructor(cut: Cut, again = 10) {
+    this.cut = cut;
+    this.again = again;
+  }
+
+  add(m: THREE.Matrix4): void {
+    this.list.push(m.clone());
+  }
+
+  /** Handed out from `eye` if it has moved far enough (or never was). */
+  update(eye: THREE.Vector3 | null | undefined): void {
+    if (eye ? this.last && this.last.distanceTo(eye) < this.again : this.filled) return;
+    this.cut.begin(eye);
+    for (const m of this.list) this.cut.add(m);
+    this.cut.end();
+    this.filled = true;
+    if (eye) this.last = (this.last ?? new THREE.Vector3()).copy(eye);
+  }
+}

@@ -12,6 +12,9 @@ import {
   angleDiff,
   carrierAt,
   carrierCount,
+  carrierGripAt,
+  carrierSpeedAt,
+  carrierSwingAt,
   chairLane,
   LIFT_LOOK,
   liftPlans,
@@ -180,15 +183,41 @@ describe("the lifts always run", () => {
     for (const p of plans) {
       const n = carrierCount(p);
       expect(n).toBeGreaterThan(1);
-      for (const k of [0, Math.floor(n / 2)]) {
-        const a = carrierAt(p, k, 10);
-        const b = carrierAt(p, k, 10.5);
-        expect(carrierAt(p, k, 10)).toEqual(a);
-        expect(a.u).toBeGreaterThanOrEqual(0);
-        expect(a.u).toBeLessThanOrEqual(p.length);
-        if (a.side === b.side && a.out && b.out)
-          expect(Math.abs(b.u - a.u)).toBeCloseTo(p.look.speed * 0.5, 6);
+      for (const k of [0, Math.floor(n / 2), Math.floor(n / 3)]) {
+        for (const t of [10, 37.25, 81.5]) {
+          const a = carrierAt(p, k, t);
+          const b = carrierAt(p, k, t + 0.5);
+          expect(carrierAt(p, k, t)).toEqual(a);
+          expect(a.u).toBeGreaterThanOrEqual(0);
+          expect(a.u).toBeLessThanOrEqual(p.length);
+          if (a.side !== b.side || !a.out || !b.out) continue;
+          const run = Math.abs(b.u - a.u);
+          // Out on the line at the rope's speed; slowed through a
+          // detachable's terminals, never below their crawl.
+          const lined = [a, b].every((c) => carrierSpeedAt(p, c.u, c.side) === p.look.speed);
+          if (lined) expect(run).toBeCloseTo(p.look.speed * 0.5, 4);
+          expect(run).toBeLessThanOrEqual(p.look.speed * 0.5 + 1e-6);
+          expect(run).toBeGreaterThanOrEqual(Math.min(p.look.slow, p.look.speed) * 0.5 - 1e-3);
+        }
       }
+    }
+  });
+
+  it("slows a detachable's carriers to a crawl to load and unload them", () => {
+    for (const p of plans.filter((q) => q.lift.kind === "chair")) {
+      const load = p.look.entry.at;
+      const off = p.length - p.look.off;
+      expect(carrierSpeedAt(p, load, 0)).toBeCloseTo(p.look.slow, 6);
+      expect(carrierSpeedAt(p, off, 0)).toBeCloseTo(p.look.slow, 6);
+      expect(carrierSpeedAt(p, p.length / 2, 0)).toBe(p.look.speed);
+      // Its grip on the station's rail there: the seat at a skier's knee
+      // over the load line, and over the unload ramp's crest.
+      const seat = TUNING.lift.seat + TUNING.lift.sit;
+      expect(carrierGripAt(p, load) - p.supports[0].ground).toBeCloseTo(TUNING.lift.chair.rail, 6);
+      expect(carrierGripAt(p, off) - p.ramp!).toBeGreaterThanOrEqual(seat - 1e-6);
+      // And it swings on its hanger, never past its most.
+      for (let u = 0; u <= p.length; u += 5)
+        expect(Math.abs(carrierSwingAt(p, u, 0))).toBeLessThanOrEqual(TUNING.lift.swingMost);
     }
   });
 });

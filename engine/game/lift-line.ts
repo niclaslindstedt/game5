@@ -206,10 +206,16 @@ export type LiftPlan = {
   heading: number;
   /** Bottom station, the towers in order, the top station. */
   supports: Support[];
+  /** A chair's UNLOAD RAMP: the snow's highest under its up rope over the
+   * last few metres to the unload point, m — what its top terminal's rail
+   * carries the seat over at a skier's knee (`carrierGripAt`). */
+  ramp?: number;
 };
 
 /** How far a tower may be slid along the line off a piste, m. */
 const SLIDE = 24;
+/** How far short of a chair's unload point its ramp's crest is read, m. */
+const RAMP_READ = 4;
 /** WHERE A TOWER MAY STAND BESIDE A PISTE (`docs/summit-stations.md`). A
  * ski area runs its lines up beside its runs, never down the middle of
  * one, and where a tower must stand in or by a run the rules a ski area is
@@ -481,7 +487,20 @@ export function planLift(
   if (sited) {
     for (const t of supports) if (!t.station && gapAt(t.u) < TOWER_SITE.pad) t.pad = true;
   }
-  return { lift, look, length, dx, dz, heading: Math.atan2(dx, dz), supports };
+  const plan: LiftPlan = { lift, look, length, dx, dz, heading: Math.atan2(dx, dz), supports };
+  if (lift.kind === "chair") {
+    const off = length - look.off;
+    let ramp = -Infinity;
+    for (let u = off - RAMP_READ; u <= off + 0.01; u += 0.5) {
+      const v = look.gauge / 2;
+      ramp = Math.max(
+        ramp,
+        level.groundAt(lift.bottom.x + dx * u + dz * v, lift.bottom.z + dz * u - dx * v),
+      );
+    }
+    plan.ramp = ramp;
+  }
+  return plan;
 }
 
 /** THE WAY OFF A CHAIR'S TOP (`docs/summit-stations.md`): stood up at the
@@ -643,19 +662,143 @@ export function carrierCount(plan: LiftPlan): number {
  * down (1), and whether it is out on the line rather than turning in a
  * station. A pure function of the clock, never stepped: the app hangs
  * every chair, cabin and T-bar by it on every map in every mode, a replay
- * hangs them where the run did, and a skier seated on carrier `k` (a
- * rider of the field, one day) is wherever it is. */
+ * hangs them where the run did, and a skier seated on carrier `k` is
+ * wherever it is.
+ *
+ * A DETACHABLE lift's carriers (a chair's, a gondola's — `look.slow` under
+ * `look.speed`) are let go of the rope in each terminal and creep through
+ * it (`carrierSpeedAt`): slowed onto the unload, round the wheel and up to
+ * the load line at the terminal's speed, and taken up to the rope's after
+ * it — so they bunch in a station and spread out on the line, as a real
+ * one's do. They are evenly spaced in the loop's TIME (`carrierClock`), the
+ * rope's speed `t` seconds on; a drag's, on a fixed grip, in its length. */
 export function carrierAt(
   plan: LiftPlan,
   k: number,
   t: number,
 ): { u: number; side: 0 | 1; out: boolean } {
   const loop = 2 * plan.length;
-  const at = ((((k * loop) / carrierCount(plan) + plan.look.speed * t) % loop) + loop) % loop;
+  const clock = carrierClock(plan);
+  const span = clock ? clock.span : loop;
+  const s = ((((k * span) / carrierCount(plan) + plan.look.speed * t) % span) + span) % span;
+  const at = clock ? loopAt(clock, s) : s;
   const side = at < plan.length ? 0 : 1;
   const u = side === 0 ? at : loop - at;
   const clear = plan.lift.kind === "gondola" ? GONDOLA_IN_STATION : 2;
   return { u, side, out: u > clear && u < plan.length - clear };
+}
+
+/** WHERE A CARRIER'S GRIP RUNS, m over the sea, `u` m up the line: on the
+ * rope — but through a chair's bottom terminal on its station's RAIL,
+ * low enough that the seat comes in at the back of a standing skier's
+ * knees on the load line (`lift.chair.rail` m over the station's snow),
+ * climbing back up to the rope over `lift.chair.climb` m out of it. The
+ * top terminal's rail is the rope's own (`LiftLook.rail`). */
+export function carrierGripAt(plan: LiftPlan, u: number): number {
+  const rope = ropeAt(plan, u);
+  if (plan.lift.kind !== "chair") return rope;
+  const K = TUNING.lift;
+  const C = K.chair;
+  const load = plan.look.entry.at;
+  const off = plan.length - plan.look.off;
+  let grip = rope;
+  if (u < load + C.climb) {
+    const rail = plan.supports[0].ground + C.rail;
+    const t = Math.max(0, (u - load) / C.climb);
+    const k = t * t * (3 - 2 * t);
+    grip = Math.min(rope, rail) + (rope - Math.min(rope, rail)) * k;
+  }
+  // Into the top terminal the rail carries the seat over the unload ramp's
+  // crest at a skier's knee — his skis come down onto it, never into it —
+  // eased on over `climb` m before the unload and off again to the wheel.
+  if (plan.ramp !== undefined && u > off - C.climb) {
+    const lift = Math.max(0, plan.ramp + K.sit + K.seat - rope);
+    const t =
+      u <= off
+        ? (u - off + C.climb) / C.climb
+        : 1 - Math.min(1, (u - off) / Math.max(1, plan.length - off));
+    grip += lift * t * t * (3 - 2 * t);
+  }
+  return grip;
+}
+
+/** Where a detachable lift's carriers take their riders on at its foot,
+ * m up the line: a chair's load line, a cabin's platform. */
+export function loadPoint(plan: LiftPlan): number {
+  return plan.lift.kind === "gondola" ? TUNING.lift.gondola.load : plan.look.entry.at;
+}
+
+/** HOW FAST A CARRIER RUNS `u` m up the line on `side`, m/s: the rope's
+ * speed out on the line, a detachable's terminal speed (`look.slow`) from
+ * the unload round the top wheel and from the bottom wheel to the load
+ * line, and between them slowed at `lift.decel` into each terminal and
+ * taken up at `lift.accel` out of it — the very curve a rider's own carrier
+ * rides (`lift-ride.ts`'s `stepCarried`). A drag runs at one speed. */
+export function carrierSpeedAt(plan: LiftPlan, u: number, side: 0 | 1): number {
+  const { speed, slow } = plan.look;
+  if (slow >= speed) return speed;
+  const K = TUNING.lift;
+  const load = loadPoint(plan);
+  const off = plan.length - plan.look.off;
+  const v2 = (a: number, d: number) => slow * slow + 2 * a * Math.max(0, d);
+  // Up: taken up off the load line, slowed onto the unload. Down: taken up
+  // out of the top terminal, slowed into the bottom one.
+  const w2 =
+    side === 0
+      ? Math.min(v2(K.accel, u - load), v2(K.decel, off - u))
+      : Math.min(v2(K.accel, off - u), v2(K.decel, u - load));
+  return Math.min(speed, Math.sqrt(w2));
+}
+
+/** A DETACHABLE LIFT'S LOOP IN TIME: the loop's length `w` (m, round from
+ * the bottom wheel up the line and back down it) against the rope-speed
+ * metres `s` a carrier's clock has run to reach it — `s` grows faster than
+ * `w` where the carrier creeps — tabled every `STEP` m, and the loop's
+ * whole `span` in those metres. Null for a lift that never slows. */
+type CarrierClock = { step: number; s: Float64Array; span: number };
+const clocks = new WeakMap<LiftPlan, CarrierClock | null>();
+const CLOCK_STEP = 0.5;
+
+export function carrierClock(plan: LiftPlan): CarrierClock | null {
+  const had = clocks.get(plan);
+  if (had !== undefined) return had;
+  let clock: CarrierClock | null = null;
+  if (plan.look.slow < plan.look.speed) {
+    const loop = 2 * plan.length;
+    const n = Math.ceil(loop / CLOCK_STEP);
+    const step = loop / n;
+    const s = new Float64Array(n + 1);
+    const rate = (w: number) => {
+      const side = w < plan.length ? 0 : 1;
+      return plan.look.speed / carrierSpeedAt(plan, side === 0 ? w : loop - w, side);
+    };
+    for (let i = 1; i <= n; i++)
+      s[i] = s[i - 1] + ((rate((i - 1) * step) + rate(i * step)) / 2) * step;
+    clock = { step, s, span: s[n] };
+  }
+  clocks.set(plan, clock);
+  return clock;
+}
+
+/** The loop's length `w` the clock has run `s` rope-speed metres to. */
+function loopAt(clock: CarrierClock, s: number): number {
+  const a = clock.s;
+  let lo = 0;
+  let hi = a.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (a[mid] <= s) lo = mid;
+    else hi = mid;
+  }
+  const f = (s - a[lo]) / Math.max(1e-9, a[hi] - a[lo]);
+  return (lo + Math.min(1, Math.max(0, f))) * clock.step;
+}
+
+/** The rope-speed metres a carrier's clock has run to `u` m up the line. */
+function clockAt(clock: CarrierClock, u: number): number {
+  const i = Math.min(clock.s.length - 2, Math.max(0, Math.floor(u / clock.step)));
+  const f = Math.min(1, Math.max(0, u / clock.step - i));
+  return clock.s[i] + (clock.s[i + 1] - clock.s[i]) * f;
 }
 
 /** How far into its stations a gondola's cabin goes out of sight, m. */
@@ -813,13 +956,14 @@ export function queueSpot(plan: LiftPlan, i: number): { x: number; z: number; he
  * one a skier waiting there is taken by. */
 export function carrierPassing(plan: LiftPlan, u: number, t: number, dt: number): number {
   const n = carrierCount(plan);
-  const loop = 2 * plan.length;
-  const gap = loop / n;
+  const clock = carrierClock(plan);
+  const gap = (clock ? clock.span : 2 * plan.length) / n;
   const v = plan.look.speed;
-  // Carrier k is at (k·gap + v·t) mod loop; it crosses `u` when that comes
-  // to `u` + m·loop.
-  const p1 = (v * t - u) / gap;
-  const p0 = (v * (t - dt) - u) / gap;
+  // Carrier k is at (k·gap + v·t) mod the loop on its clock; it crosses
+  // `u` when that comes to `u`'s place on the clock + m·loop.
+  const at = clock ? clockAt(clock, u) : u;
+  const p1 = (v * t - at) / gap;
+  const p0 = (v * (t - dt) - at) / gap;
   if (Math.floor(p1) === Math.floor(p0)) return -1;
   const k = Math.round(-Math.floor(p1)) % n;
   return (k + n) % n;

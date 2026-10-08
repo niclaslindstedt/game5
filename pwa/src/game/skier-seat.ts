@@ -17,7 +17,7 @@
 // (`skier-dangle.ts`): the seat carries their swing and the lower legs are
 // turned to it about the knees.
 
-import { TUNING } from "@engine";
+import { TUNING, seatedShare, type LiftRide } from "@engine";
 
 import {
   BODY,
@@ -38,6 +38,64 @@ import type { V3 } from "./skier-vec.ts";
  * the grip (behind it) — the chair's own (`lifts.ts` builds it to these). */
 export const CHAIR_SEAT = 2.4;
 export const CHAIR_BACK = -0.335;
+
+/** How long a rider takes to stand up off a chair, s. */
+export const STAND_UP = 0.35;
+/** A gondola cabin's floor under its rider's origin, m (`lifts.ts`). */
+export const CABIN_FLOOR = -1.0;
+
+/** How sat he is DRAWN, between frames: on a chair's or a cabin's seat
+ * (`seated`) and back onto a T-bar (`towing`), each 0..1 — the engine's
+ * `seatedShare` while the lift has him, eased off over `STAND_UP` s once
+ * it lets him go. */
+export type SeatEase = { seated: number; towing: number };
+
+export function createSeatEase(): SeatEase {
+  return { seated: 0, towing: 0 };
+}
+
+/** One frame of {@link SeatEase}, `dt` s on, for the ride `lift` (and sat
+ * on a helicopter's skid when `perched`): whether he is sat in a chair or
+ * a cabin this frame. The view (`skis-body.ts`) and the labs read it. */
+export function easeSeat(
+  mem: SeatEase,
+  lift: LiftRide | null,
+  perched: boolean,
+  dt: number,
+): { sat: boolean } {
+  const sat = lift?.phase === "ride" && (lift.kind === "chair" || lift.kind === "gondola");
+  const towed = lift?.kind === "drag" && lift.phase === "ride";
+  const share = perched ? 1 : sat ? seatedShare(lift) : 0;
+  // Let out of a gondola's door at its top, he is stood behind the fade.
+  const cut = lift?.kind === "gondola" && lift.stand !== undefined;
+  mem.seated = share >= mem.seated || cut ? share : Math.max(share, mem.seated - dt / STAND_UP);
+  mem.towing = towed ? seatedShare(lift) : Math.max(0, mem.towing - dt / STAND_UP);
+  return { sat };
+}
+
+/** THE LOOK BACK for the carrier (`LiftRide.due`): stood on a chair's load
+ * line or a drag's track, a skier looks back over his inside shoulder —
+ * the one toward the line, which the carriers come round the wheel on —
+ * for the one that will take him, and faces front again to meet it. How
+ * far round, of the look back riding switch gives (`skier-switch.ts`), and
+ * when, s before it comes: turned to it from `from` to `held`, back to the
+ * front from `front` to `meet`. */
+export const LOOK_BACK = { share: 0.6, from: 3.4, held: 2.4, front: 1.1, meet: 0.35 } as const;
+
+function step01(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+/** How far he looks back for his carrier, −1..1 — to his left, the inside
+ * shoulder, negative (`SkierPoseInput.switched`'s sign). */
+export function lookBack(lift: LiftRide | null): number {
+  if (lift?.phase !== "wait" || lift.due === undefined || lift.kind === "gondola") return 0;
+  const L = LOOK_BACK;
+  // ...turning to it no quicker than `held − from` allows from where he stopped.
+  const turn = Math.min(step01(L.from, L.held, lift.due), step01(0, L.from - L.held, lift.t));
+  return -L.share * turn * step01(L.meet, L.front, lift.due);
+}
 
 /** The seat as the pose needs it: how seated he is, 0..1, the seat's top
  * in the body frame, m, and — dangling off a helicopter's skid — each
@@ -129,12 +187,17 @@ export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
     const on = lerp(knees[i], hipJoints[i], HAND_ALONG);
     return lerp(carry(p.hands[i]), { x: on.x, y: on.y + HAND_OVER, z: on.z }, k);
   }) as [V3, V3];
+  // ...blended in from the pose's own, so nothing jumps as he sits or rises.
   const elbows = [0, 1].map((i) =>
-    solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
-      x: i ? 1 : -1,
-      y: -0.6,
-      z: -0.4,
-    }),
+    lerp(
+      carry(p.elbows[i]),
+      solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
+        x: i ? 1 : -1,
+        y: -0.6,
+        z: -0.4,
+      }),
+      k,
+    ),
   ) as [V3, V3];
   // The poles held upright beside the knees, the baskets hanging — or, on
   // a cabin's floor, stood on it and leant forward.
@@ -209,11 +272,15 @@ export function towPose(p: SkierPose, share: number, M: Mounts, tee: number): Sk
   const stem = { x: -tee, y: TOW.hips.y + TOW.grip.y, z: TOW.grip.z };
   const hands = [lerp(carry(p.hands[0]), stem, k), carry(p.hands[1])] as [V3, V3];
   const elbows = [0, 1].map((i) =>
-    solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
-      x: i ? 1 : -1,
-      y: -0.6,
-      z: -0.2,
-    }),
+    lerp(
+      carry(p.elbows[i]),
+      solveLimb(shoulders[i], hands[i], BODY.upperArm, BODY.forearm, {
+        x: i ? 1 : -1,
+        y: -0.6,
+        z: -0.2,
+      }),
+      k,
+    ),
   ) as [V3, V3];
   // The left pole hung from its fist; both trail behind on the snow.
   const poles = p.poles

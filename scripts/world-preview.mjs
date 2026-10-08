@@ -79,7 +79,10 @@
 // hub), village-lift (from up the mountain), village-air (the village and
 // its streets from the air), village-street, village-square and
 // village-back (down its streets at a walker's eye), village-<kind> (one
-// kind close) and village (the sheet: every kind from three sides).
+// kind close) and village (the sheet: every kind from three sides); and the
+// lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
+// lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
+// the cabins, the T-bars, the lines and a bullwheel).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -206,6 +209,11 @@ const VIEWS = [
   "village-mountainHut",
   "village-patrol",
   "village",
+  "lift-tower",
+  "lift-chair",
+  "lift-cabin",
+  "lift-tbar",
+  "lifts",
 ];
 
 const args = parseArgs(

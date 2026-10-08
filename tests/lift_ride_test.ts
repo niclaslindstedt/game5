@@ -24,6 +24,7 @@ import {
   arrivalOf,
   chairLane,
   createGame,
+  carrierAt,
   emptyChairAt,
   freeRunOf,
   freeRuns,
@@ -310,6 +311,8 @@ describe("riding a lift on a free ride", () => {
     const run = atEntry(plan);
     ride(run, 3, (r) => r.skier.lift?.phase === "ride");
     step(run, { ...NEUTRAL_INPUT, reset: true });
+    // Stood up off the chair over the ramp, and let go.
+    ride(run, TUNING.lift.rise + 0.1, (r) => r.skier.lift === null);
     expect(run.skier.lift).toBeNull();
     expect(Math.hypot(run.skier.x - plan.lift.top.x, run.skier.z - plan.lift.top.z)).toBeLessThan(
       plan.look.off + plan.look.gauge + 2,
@@ -343,16 +346,21 @@ describe("a free ride begun on a lift", () => {
     expect(resort.runs.find((r) => r.id === run.progress.skied.at(-1))!.from).toBe(target.from);
   });
 
-  it("rides only the last seconds of the lift, the top close ahead", () => {
+  it("rides only the last seconds of the lift, the top close ahead, on a chair of its own", () => {
     const run = createGame({ level, mode: "free", byLift: true, spawn: spot, quiet: true });
-    expect(arrivalOf(plans[run.skier.lift!.index]).u).toBe(run.skier.lift!.u);
+    const lift = run.skier.lift!;
+    const plan = plans[lift.index];
+    // The lift's own chair nearest where the arrival starts.
+    expect(lift.carrier).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(arrivalOf(plan).u - lift.u)).toBeLessThanOrEqual(plan.look.every / 2 + 0.01);
     let at = -1;
     ride(run, 30, (r) => {
       if (r.events.some((e) => e.kind === "lift" && e.phase === "off")) at = r.t;
       return at >= 0;
     });
-    expect(at).toBeGreaterThan(TUNING.lift.arrive - 0.05);
-    expect(at).toBeLessThan(TUNING.lift.arrive + 0.05);
+    const slack = plan.look.every / 2 / plan.look.slow + 0.05;
+    expect(at).toBeGreaterThan(TUNING.lift.arrive - slack);
+    expect(at).toBeLessThan(TUNING.lift.arrive + slack);
   });
 
   it("is stood off at the top and the skis are his at once — nothing leads him", () => {
@@ -378,8 +386,11 @@ describe("a free ride begun on a lift", () => {
     const left = run.skier.chairLeft!;
     expect(left.index).toBe(plans.indexOf(plan));
     // Running on toward the wheel at the terminal's speed, then gone round it.
-    expect(emptyChairAt(plan, left, run.t + 1)).toBeCloseTo(left.u + plan.look.slow, 6);
-    expect(emptyChairAt(plan, left, run.t + 60)).toBeNull();
+    expect(emptyChairAt(plan, left, left.t + 1)).toBeCloseTo(left.u + plan.look.slow, 6);
+    expect(emptyChairAt(plan, left, left.t + 60)).toBeNull();
+    // ...the lift's own chair, the one he sat on, on the clock's way.
+    const chair = carrierAt(plan, left.carrier!, left.t + 1);
+    expect(chair.u).toBeCloseTo(emptyChairAt(plan, left, left.t + 1)!, 1);
     // Stopped dead on the unload ramp, the chair comes on into his legs.
     const events = ride(run, 6, (r) => r.skier.thrown !== null, { ...NEUTRAL_INPUT, brake: 1 });
     expect(events.some((e) => e.kind === "wipeout" && e.cause === "chair")).toBe(true);

@@ -7,7 +7,13 @@
 // split firewood showing its ends, a gable roof of boards with its eaves and
 // verges, and the BLANKET OF SNOW on a roof slope — thick, lumped, run out
 // over the eave in a rounded lip and cut off square at the verge, where its
-// depth shows. Flat colour a face, faceted light, as the woods round them.
+// depth shows. Faceted light, as the woods round them, and every face
+// carrying the MATERIAL it is made of: the buildings' painted stack
+// (`facade-paint.ts` — the bark along a log and the rings on its sawn end,
+// dressed stone, split firewood, a casement, a plank door, a board shutter)
+// tinted by the face's colour, so the detail is in the paint and a wall of
+// stone or a window is a handful of faces rather than a stone or a board a
+// box.
 //
 // THE FRAME is the building's (`defs/cabins.ts`): x across its front, y up
 // from the floor, z toward its front. A WALL is stated as a frame of its
@@ -16,7 +22,8 @@
 
 import * as THREE from "three";
 
-import { Shape, jitter, type V3 } from "./tree-mesh.ts";
+import { FACADE, FACADE_TILE, type FacadeLayer } from "./facade-paint.ts";
+import { Shape, faceNormal, jitter, type V3 } from "./tree-mesh.ts";
 
 const colour = (hex: number): THREE.Color => new THREE.Color(hex);
 
@@ -49,6 +56,8 @@ export const CABIN_PAINT = {
   /** Plank walls (a shed), and the render of a chalet's stone floor. */
   board: [colour(0x7a5a3c), colour(0x6a4c32)],
   render: colour(0xe6e0d3),
+  /** No tint: a material in its own painted colours. */
+  white: colour(0xffffff),
   /** The snow, lit and in its own shade. */
   snow: colour(0xf4f7fa),
   snowShade: colour(0xdfe7ef),
@@ -57,16 +66,118 @@ export const CABIN_PAINT = {
 export type CabinShape = Shape;
 
 /** A fresh bench: no lean, no trunk, every face wound outward, a GLOW mark
- * (a window's pane, lit at night). */
+ * (a window's pane, lit at night) and the facade's two (`facadeLayer`, the
+ * material, and `facadeUv` over its tile), every push matte until a face
+ * names its material. */
 export function cabinBench(): Shape {
-  const s = new Shape(0, { stems: false, wind: true, marks: { glow: 1 } });
+  const s = new Shape(0, {
+    stems: false,
+    wind: true,
+    marks: { glow: 1, facadeUv: 2, facadeLayer: 1 },
+  });
+  s.mark("facadeLayer", FACADE.matte);
   s.facet = 0.7;
   return s;
 }
 
-/** A box from (x0, y0, z0) to (x1, y1, z1), each face one colour; `top`
- * the top's own colour; `skip` leaves out faces nobody sees ("y-" the
- * bottom, "z-" the back…). */
+/** UVs over a layer's tile: a corner of a face `u`, `v` metres from its
+ * own origin, or the face's share 0..1 across a `once` tile. */
+type UV = [number, number];
+
+/** A FACE of a material: a quad a b c d (a its foot's left, b its foot's
+ * right, c its head's right, d its head's left) with its corners' UVs. */
+export function face(
+  s: Shape,
+  a: V3,
+  b: V3,
+  c: V3,
+  d: V3,
+  uv: readonly [UV, UV, UV, UV],
+  layer: FacadeLayer,
+  col: THREE.Color,
+  n?: V3,
+): void {
+  const nn = n ?? faceNormal(a, b, c);
+  s.mark("facadeLayer", layer);
+  const push = (p: V3, t: UV): void => {
+    s.mark("facadeUv", t[0], t[1]);
+    s.push(p, col, nn);
+  };
+  push(a, uv[0]);
+  push(b, uv[1]);
+  push(c, uv[2]);
+  // A triangle is a quad whose head is one point.
+  if (d !== c) {
+    push(a, uv[0]);
+    push(c, uv[2]);
+    push(d, uv[3]);
+  }
+  s.mark("facadeUv", 0, 0);
+  s.mark("facadeLayer", FACADE.matte);
+}
+
+/** A face laid with its material in METRES over the tile — `w` wide, `h`
+ * high, from (`u0`, `v0`) m — or once over it for a `once` layer. */
+export function laid(
+  s: Shape,
+  a: V3,
+  b: V3,
+  c: V3,
+  d: V3,
+  layer: FacadeLayer,
+  col: THREE.Color,
+  n?: V3,
+  u0 = 0,
+  v0 = 0,
+): void {
+  const t = FACADE_TILE[layer];
+  if (t.once) {
+    face(
+      s,
+      a,
+      b,
+      c,
+      d,
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+      layer,
+      col,
+      n,
+    );
+    return;
+  }
+  const w = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const h = Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
+  const ua = u0 / t.u;
+  const ub = (u0 + w) / t.u;
+  const va = v0 / t.v;
+  const vb = (v0 + h) / t.v;
+  face(
+    s,
+    a,
+    b,
+    c,
+    d,
+    [
+      [ua, va],
+      [ub, va],
+      [ub, vb],
+      [ua, vb],
+    ],
+    layer,
+    col,
+    n,
+  );
+}
+
+/** A box from (x0, y0, z0) to (x1, y1, z1), each face one colour in its
+ * material (`layer`, matte unless named, laid in metres); `top` the top's
+ * own colour and `topLayer` its own material; `skip` leaves out faces
+ * nobody sees ("y-" the bottom, "z-" the back…). */
 export function box(
   s: Shape,
   x0: number,
@@ -78,25 +189,51 @@ export function box(
   c: THREE.Color,
   top: THREE.Color = c,
   skip: readonly string[] = ["y-"],
+  layer: FacadeLayer = FACADE.matte,
+  topLayer: FacadeLayer = layer,
 ): void {
   const p = (x: number, y: number, z: number): V3 => [x, y, z];
+  const L = (
+    a: V3,
+    b: V3,
+    cc: V3,
+    d: V3,
+    col: THREE.Color,
+    n: V3,
+    ly: FacadeLayer,
+    u0: number,
+    v0: number,
+  ) => laid(s, a, b, cc, d, ly, col, n, u0, v0);
   if (!skip.includes("y+"))
-    s.quad(p(x0, y1, z0), p(x0, y1, z1), p(x1, y1, z1), p(x1, y1, z0), top, [0, 1, 0]);
+    L(
+      p(x0, y1, z1),
+      p(x1, y1, z1),
+      p(x1, y1, z0),
+      p(x0, y1, z0),
+      top,
+      [0, 1, 0],
+      topLayer,
+      x0,
+      -z1,
+    );
   if (!skip.includes("y-"))
-    s.quad(p(x0, y0, z0), p(x1, y0, z0), p(x1, y0, z1), p(x0, y0, z1), c, [0, -1, 0]);
+    L(p(x0, y0, z0), p(x1, y0, z0), p(x1, y0, z1), p(x0, y0, z1), c, [0, -1, 0], layer, x0, z0);
   if (!skip.includes("z+"))
-    s.quad(p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1), c, [0, 0, 1]);
+    L(p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1), c, [0, 0, 1], layer, x0, y0);
   if (!skip.includes("z-"))
-    s.quad(p(x1, y0, z0), p(x0, y0, z0), p(x0, y1, z0), p(x1, y1, z0), c, [0, 0, -1]);
+    L(p(x1, y0, z0), p(x0, y0, z0), p(x0, y1, z0), p(x1, y1, z0), c, [0, 0, -1], layer, -x1, y0);
   if (!skip.includes("x+"))
-    s.quad(p(x1, y0, z1), p(x1, y0, z0), p(x1, y1, z0), p(x1, y1, z1), c, [1, 0, 0]);
+    L(p(x1, y0, z1), p(x1, y0, z0), p(x1, y1, z0), p(x1, y1, z1), c, [1, 0, 0], layer, -z1, y0);
   if (!skip.includes("x-"))
-    s.quad(p(x0, y0, z0), p(x0, y0, z1), p(x0, y1, z1), p(x0, y1, z0), c, [-1, 0, 0]);
+    L(p(x0, y0, z0), p(x0, y0, z1), p(x0, y1, z1), p(x0, y1, z0), c, [-1, 0, 0], layer, z0, y0);
 }
 
 /** A ROUND LOG from `a` to `b` (horizontal), faceted to six sides with a
  * flat top and bottom — so the courses sit on their flats with the
- * chinking line between — and its END GRAIN capped where it shows. */
+ * chinking line between — its bark laid along it and its END GRAIN capped
+ * where it shows. The flat underside sits on the course below and is never
+ * drawn; `flat` false leaves out the top's too, where the next course sits
+ * on it. */
 export function logBar(
   s: Shape,
   a: V3,
@@ -105,6 +242,7 @@ export function logBar(
   c: THREE.Color,
   capA: boolean,
   capB: boolean,
+  flat = true,
 ): void {
   const dx = b[0] - a[0];
   const dz = b[2] - a[2];
@@ -120,27 +258,67 @@ export function logBar(
     const t = ((k + 0.5) / 6) * Math.PI * 2;
     return [sx * Math.cos(t), Math.sin(t), sz * Math.cos(t)];
   };
-  // A log tapers a little from its butt to its top.
+  // A log tapers a little from its butt to its top; the bark is laid in
+  // metres along it (from where it starts, so two logs never repeat in
+  // step) and once round it.
   const rb = r * 0.94;
+  const tile = FACADE_TILE[FACADE.bark].u;
+  const u0 = (a[0] * 0.37 + a[2] * 0.61 + a[1] * 1.7) / tile;
+  const u1 = u0 + len / tile;
   for (let k = 0; k < 6; k++) {
-    // The flat underside sits on the course below: never seen.
-    if (k === 4) continue;
+    if (k === 4 || (k === 1 && !flat)) continue;
     // The underside's two faces are a shade darker: the shadow a course
     // throws on the one below.
     const shade = k >= 3 ? c.clone().multiplyScalar(0.9) : c;
-    s.quad(ring(a, k, r), ring(b, k, rb), ring(b, k + 1, rb), ring(a, k + 1, r), shade, out(k));
+    face(
+      s,
+      ring(a, k, r),
+      ring(b, k, rb),
+      ring(b, k + 1, rb),
+      ring(a, k + 1, r),
+      [
+        [u0, k / 6],
+        [u1, k / 6],
+        [u1, (k + 1) / 6],
+        [u0, (k + 1) / 6],
+      ],
+      FACADE.bark,
+      shade,
+      out(k),
+    );
   }
-  // The sawn end: the grain as one flat face, a shade darker toward the
-  // bark on its lower half.
-  const cap = (p: V3, rr: number, n: V3): void => {
+  // The sawn end: the rings painted on one flat face.
+  const cap = (p: V3, rr: number, n: V3, flip: number): void => {
     const pts = [0, 1, 2, 3, 4, 5].map((k) => ring(p, k, rr));
-    s.tri(pts[0], pts[1], pts[2], CABIN_PAINT.grain, n);
-    s.tri(pts[0], pts[2], pts[3], CABIN_PAINT.grain, n);
-    s.tri(pts[0], pts[3], pts[4], CABIN_PAINT.grainDark, n);
-    s.tri(pts[0], pts[4], pts[5], CABIN_PAINT.grainDark, n);
+    const uv = (k: number): UV => {
+      const t = (k / 6) * Math.PI * 2;
+      return [0.5 + 0.49 * Math.cos(t) * flip, 0.5 + 0.49 * Math.sin(t)];
+    };
+    face(
+      s,
+      pts[0],
+      pts[1],
+      pts[2],
+      pts[3],
+      [uv(0), uv(1), uv(2), uv(3)],
+      FACADE.endGrain,
+      CABIN_PAINT.white,
+      n,
+    );
+    face(
+      s,
+      pts[0],
+      pts[3],
+      pts[4],
+      pts[5],
+      [uv(0), uv(3), uv(4), uv(5)],
+      FACADE.endGrain,
+      CABIN_PAINT.white,
+      n,
+    );
   };
-  if (capA) cap(a, r, [-dx / len, 0, -dz / len]);
-  if (capB) cap(b, rb, [dx / len, 0, dz / len]);
+  if (capA) cap(a, r, [-dx / len, 0, -dz / len], -1);
+  if (capB) cap(b, rb, [dx / len, 0, dz / len], 1);
 }
 
 /** A WALL'S OWN FRAME: `u` along it, `y` up, `o` out of it, from the
@@ -163,7 +341,9 @@ export function on(w: Wall, u: number, y: number, o: number): V3 {
   return [w.x + w.ux * u + w.nx * o, y, w.z + w.uz * u + w.nz * o];
 }
 
-/** A box laid on a wall: `u0..u1` along it, `y0..y1`, `o0..o1` out of it. */
+/** A box laid on a wall: `u0..u1` along it, `y0..y1`, `o0..o1` out of it,
+ * in its material (`layer`, matte unless named); `skip` leaves out the
+ * faces nobody sees ("top", "bottom", "front", "ends"). */
 export function wallBox(
   s: Shape,
   w: Wall,
@@ -175,100 +355,203 @@ export function wallBox(
   o1: number,
   c: THREE.Color,
   top: THREE.Color = c,
+  layer: FacadeLayer = FACADE.matte,
+  skip: readonly string[] = [],
 ): void {
   const n: V3 = [w.nx, 0, w.nz];
   const along: V3 = [w.ux, 0, w.uz];
   const p = (u: number, y: number, o: number): V3 => on(w, u, y, o);
-  s.quad(p(u0, y0, o1), p(u1, y0, o1), p(u1, y1, o1), p(u0, y1, o1), c, n);
-  s.quad(p(u0, y1, o0), p(u0, y1, o1), p(u1, y1, o1), p(u1, y1, o0), top, [0, 1, 0]);
-  s.quad(p(u0, y0, o0), p(u1, y0, o0), p(u1, y0, o1), p(u0, y0, o1), c, [0, -1, 0]);
-  s.quad(p(u1, y0, o1), p(u1, y0, o0), p(u1, y1, o0), p(u1, y1, o1), c, along);
-  s.quad(p(u0, y0, o0), p(u0, y0, o1), p(u0, y1, o1), p(u0, y1, o0), c, [-along[0], 0, -along[2]]);
+  if (!skip.includes("front"))
+    laid(s, p(u0, y0, o1), p(u1, y0, o1), p(u1, y1, o1), p(u0, y1, o1), layer, c, n, u0, y0);
+  if (!skip.includes("top"))
+    laid(s, p(u0, y1, o1), p(u1, y1, o1), p(u1, y1, o0), p(u0, y1, o0), layer, top, [0, 1, 0], u0);
+  if (!skip.includes("bottom"))
+    laid(s, p(u0, y0, o0), p(u1, y0, o0), p(u1, y0, o1), p(u0, y0, o1), layer, c, [0, -1, 0], u0);
+  if (!skip.includes("ends")) {
+    laid(s, p(u1, y0, o1), p(u1, y0, o0), p(u1, y1, o0), p(u1, y1, o1), layer, c, along, 0, y0);
+    laid(
+      s,
+      p(u0, y0, o0),
+      p(u0, y0, o1),
+      p(u0, y1, o1),
+      p(u0, y1, o0),
+      layer,
+      c,
+      [-along[0], 0, -along[2]],
+      0,
+      y0,
+    );
+  }
+}
+
+/** A face on a wall: `u0..u1` × `y0..y1`, `o` out of it, in its material. */
+export function wallFace(
+  s: Shape,
+  w: Wall,
+  u0: number,
+  u1: number,
+  y0: number,
+  y1: number,
+  o: number,
+  layer: FacadeLayer,
+  c: THREE.Color,
+): void {
+  laid(
+    s,
+    on(w, u0, y0, o),
+    on(w, u1, y0, o),
+    on(w, u1, y1, o),
+    on(w, u0, y1, o),
+    layer,
+    c,
+    [w.nx, 0, w.nz],
+    u0,
+    y0,
+  );
 }
 
 /** An opening in a wall: a window or a door, `u0..u1` and `y0..y1`. */
 export type Opening = { wall: Wall; u0: number; u1: number; y0: number; y1: number };
 
-/** A WINDOW in its opening: the pane set back in the wall, lit at night
- * (the GLOW mark); a cross of mullions; the casing boards round it; a sill
- * with its line of snow; and a pair of shutters folded back beside it
- * (`shutter` null: none). */
+/** THE OPENING'S SURROUND: the reveals from the wall's face back to what
+ * is set in it, and the casing boards proud round it — their faces and
+ * their outer edges — `k` m wide, in `c`. */
+function surround(
+  s: Shape,
+  op: Opening,
+  back: number,
+  k: number,
+  c: THREE.Color,
+  sill: boolean,
+): void {
+  const { wall: w, u0, u1, y0, y1 } = op;
+  const along: V3 = [w.ux, 0, w.uz];
+  const T = FACADE.timber;
+  const o = 0.05;
+  // The reveals: the opening's two sides and its head, inside the casing.
+  laid(
+    s,
+    on(w, u0, y0, back),
+    on(w, u0, y0, o),
+    on(w, u0, y1, o),
+    on(w, u0, y1, back),
+    T,
+    c,
+    along,
+  );
+  laid(s, on(w, u1, y0, o), on(w, u1, y0, back), on(w, u1, y1, back), on(w, u1, y1, o), T, c, [
+    -along[0],
+    0,
+    -along[2],
+  ]);
+  laid(
+    s,
+    on(w, u0, y1, o),
+    on(w, u1, y1, o),
+    on(w, u1, y1, back),
+    on(w, u0, y1, back),
+    T,
+    c,
+    [0, -1, 0],
+  );
+  // The casing: its two sides and its head, their faces and outer edges.
+  const foot = sill ? y0 : y0 - k;
+  wallFace(s, w, u0 - k, u0, foot, y1 + k, o, T, c);
+  wallFace(s, w, u1, u1 + k, foot, y1 + k, o, T, c);
+  wallFace(s, w, u0, u1, y1, y1 + k, o, T, c);
+  laid(
+    s,
+    on(w, u0 - k, foot, 0),
+    on(w, u0 - k, foot, o),
+    on(w, u0 - k, y1 + k, o),
+    on(w, u0 - k, y1 + k, 0),
+    T,
+    c,
+    [-along[0], 0, -along[2]],
+  );
+  laid(
+    s,
+    on(w, u1 + k, foot, o),
+    on(w, u1 + k, foot, 0),
+    on(w, u1 + k, y1 + k, 0),
+    on(w, u1 + k, y1 + k, o),
+    T,
+    c,
+    along,
+  );
+  laid(
+    s,
+    on(w, u0 - k, y1 + k, o),
+    on(w, u1 + k, y1 + k, o),
+    on(w, u1 + k, y1 + k, 0),
+    on(w, u0 - k, y1 + k, 0),
+    T,
+    c,
+    [0, 1, 0],
+  );
+}
+
+/** A WINDOW in its opening: the casement set back in the wall — its sash,
+ * its cross of mullions and the glass painted, the glass alone lit at
+ * night (the GLOW mark; the material lights only a casement's glass) — the
+ * reveals and the casing boards round it; a sill with its line of snow;
+ * and a pair of board shutters folded back beside it (`shutter` null:
+ * none). */
 export function windowIn(s: Shape, op: Opening, shutter: THREE.Color | null): void {
   const { wall: w, u0, u1, y0, y1 } = op;
   const P = CABIN_PAINT;
   const back = -0.06;
   s.mark("glow", 1);
-  s.quad(
-    on(w, u0, y0, back),
-    on(w, u1, y0, back),
-    on(w, u1, y1, back),
-    on(w, u0, y1, back),
-    P.glass,
-    [w.nx, 0, w.nz],
-  );
+  wallFace(s, w, u0, u1, y0, y1, back, FACADE.casement, P.white);
   s.mark("glow", 0);
-  // The mullions: a cross laid flat on the pane, seen from outside only.
-  const um = (u0 + u1) / 2;
-  const ym = (y0 + y1) / 2;
-  const bar = 0.035;
-  const front = (a: number, b: number, ya: number, yb: number, o: number, c: THREE.Color): void =>
-    s.quad(on(w, a, ya, o), on(w, b, ya, o), on(w, b, yb, o), on(w, a, yb, o), c, [w.nx, 0, w.nz]);
-  front(um - bar, um + bar, y0, y1, back + 0.03, P.trim);
-  front(u0, u1, ym - bar, ym + bar, back + 0.031, P.trim);
   const k = 0.09;
-  wallBox(s, w, u0 - k, u0, y0 - k, y1 + k, back, 0.05, P.trim);
-  wallBox(s, w, u1, u1 + k, y0 - k, y1 + k, back, 0.05, P.trim);
-  wallBox(s, w, u0, u1, y1, y1 + k, back, 0.05, P.trim);
+  surround(s, op, back, k, P.trim, true);
   // The sill stands out of the wall, and snow lies along it.
-  wallBox(s, w, u0 - k - 0.04, u1 + k + 0.04, y0 - k - 0.04, y0, back, 0.12, P.trim);
-  wallBox(s, w, u0 - k, u1 + k, y0, y0 + 0.05, 0, 0.12, P.snow);
+  wallBox(
+    s,
+    w,
+    u0 - k - 0.04,
+    u1 + k + 0.04,
+    y0 - k - 0.04,
+    y0,
+    back,
+    0.12,
+    P.trim,
+    P.trim,
+    FACADE.timber,
+    ["bottom"],
+  );
+  wallBox(s, w, u0 - k, u1 + k, y0, y0 + 0.05, 0, 0.12, P.snow, P.snow, FACADE.snow, [
+    "bottom",
+    "ends",
+  ]);
   if (shutter) {
     const sw = (u1 - u0) / 2 + 0.04;
     for (const [a, b] of [
       [u0 - k - sw, u0 - k - 0.01],
       [u1 + k + 0.01, u1 + k + sw],
     ]) {
-      wallBox(s, w, a, b, y0 - 0.04, y1 + 0.04, 0.04, 0.09, shutter);
-      // The shutter's ledges.
-      for (const y of [y0 + 0.12, y1 - 0.12]) {
-        front(a + 0.03, b - 0.03, y - 0.035, y + 0.035, 0.1, shutter.clone().multiplyScalar(0.75));
-      }
+      wallBox(s, w, a, b, y0 - 0.04, y1 + 0.04, 0.04, 0.09, shutter, shutter, FACADE.boardShutter, [
+        "bottom",
+        "top",
+      ]);
     }
   }
 }
 
-/** A PLANK DOOR in its opening: the planks set back in the wall, its
- * ledges, its iron latch and the casing round it. */
+/** A PLANK DOOR in its opening: its boards, ledges, brace and latch
+ * painted on one face set back in the wall, the reveals and the casing
+ * round it. */
 export function doorIn(s: Shape, op: Opening): void {
   const { wall: w, u0, u1, y0, y1 } = op;
   const P = CABIN_PAINT;
   const back = -0.06;
-  const planks = 4;
-  for (let i = 0; i < planks; i++) {
-    const a = u0 + ((u1 - u0) * i) / planks;
-    const b = u0 + ((u1 - u0) * (i + 1)) / planks;
-    s.quad(
-      on(w, a, y0, back),
-      on(w, b, y0, back),
-      on(w, b, y1, back),
-      on(w, a, y1, back),
-      P.door[i % 2],
-      [w.nx, 0, w.nz],
-    );
-  }
-  for (const y of [y0 + 0.3, y1 - 0.35]) {
-    wallBox(s, w, u0 + 0.05, u1 - 0.05, y - 0.06, y + 0.06, back, back + 0.04, P.door[1]);
-  }
-  wallBox(s, w, u1 - 0.2, u1 - 0.12, y0 + 0.95, y0 + 1.05, back, back + 0.08, P.iron);
-  const k = 0.1;
-  wallBox(s, w, u0 - k, u0, y0, y1 + k, back, 0.05, P.door[1]);
-  wallBox(s, w, u1, u1 + k, y0, y1 + k, back, 0.05, P.door[1]);
-  wallBox(s, w, u0 - k, u1 + k, y1, y1 + k, back, 0.06, P.door[1]);
+  wallFace(s, w, u0, u1, y0, y1, back, FACADE.plankDoor, P.white);
+  surround(s, op, back, 0.1, P.door[1], true);
 }
 
-/** A FACE OF DRESSED STONE on a wall: `u0..u1` × `y0..y1`, laid in courses
- * `course` m high, each stone `stone` m long (running bond, every other
- * course shifted half a stone), each its own tone, standing `o` out. */
+/** A FACE OF DRESSED STONE on a wall: `u0..u1` × `y0..y1`, `o` out — the
+ * courses, the running bond and the mortar painted (`FACADE.stone`). */
 export function stoneFace(
   s: Shape,
   w: Wall,
@@ -277,41 +560,14 @@ export function stoneFace(
   y0: number,
   y1: number,
   o: number,
-  course: number,
-  stone: number,
-  seed: number,
 ): void {
-  const n: V3 = [w.nx, 0, w.nz];
-  const rows = Math.max(1, Math.round((y1 - y0) / course));
-  let i = seed * 37;
-  for (let r = 0; r < rows; r++) {
-    const ya = y0 + ((y1 - y0) * r) / rows;
-    const yb = y0 + ((y1 - y0) * (r + 1)) / rows;
-    let u = u0;
-    let first = true;
-    while (u < u1 - 1e-6) {
-      const len = stone * (first && r % 2 ? 0.5 : 0.75 + jitter(i++) * 0.5);
-      first = false;
-      const ub = Math.min(u1, u + len);
-      const tone = CABIN_PAINT.stone[Math.floor(jitter(i++) * 4) % 4];
-      // A stone stands a hair proud of its mortar at random.
-      const proud = o + jitter(i++) * 0.02;
-      s.quad(
-        on(w, u, ya, proud),
-        on(w, ub, ya, proud),
-        on(w, ub, yb, proud),
-        on(w, u, yb, proud),
-        tone,
-        n,
-      );
-      u = ub;
-    }
-  }
+  wallFace(s, w, u0, u1, y0, y1, o, FACADE.stone, CABIN_PAINT.white);
 }
 
 /** A STACK OF SPLIT FIREWOOD against a wall: `u0..u1` along it, up to
- * `h`, `depth` out of it — its ends showing as rows of sawn faces over a
- * dark backing, a bark top and a cap of snow. */
+ * `h`, `depth` out of it — its ends painted (`FACADE.woodpile`) on its
+ * face, the bark of the split logs on its ends and top, and a cap of
+ * snow. */
 export function woodStack(
   s: Shape,
   w: Wall,
@@ -323,28 +579,11 @@ export function woodStack(
 ): void {
   const P = CABIN_PAINT;
   const o1 = o0 + depth;
-  const n: V3 = [w.nx, 0, w.nz];
-  wallBox(s, w, u0, u1, 0, h, o0, o1 - 0.03, P.logLow, P.log[1]);
-  const r = 0.11;
-  const rows = Math.floor(h / (r * 1.75));
-  const cols = Math.floor((u1 - u0) / (r * 2.05));
-  let i = Math.floor(u0 * 100 + h * 31);
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const cu = u0 + r * 1.05 + col * r * 2.05 + (row % 2 ? r * 0.5 : 0);
-      if (cu + r > u1) continue;
-      const cy = r * 0.95 + row * r * 1.75;
-      const rr = r * (0.8 + jitter(i++) * 0.25);
-      const tone = jitter(i++) < 0.3 ? P.grain.clone().multiplyScalar(0.85) : P.grain;
-      const pts = [0, 1, 2, 3, 4].map((k): V3 => {
-        const t = (k / 5) * Math.PI * 2 + jitter(i) * 2;
-        return on(w, cu + Math.cos(t) * rr, cy + Math.sin(t) * rr, o1);
-      });
-      i++;
-      for (let k = 1; k < 4; k++) s.tri(pts[0], pts[k], pts[k + 1], tone, n);
-    }
-  }
-  wallBox(s, w, u0 - 0.03, u1 + 0.03, h, h + 0.09, o0, o1 + 0.03, P.snow);
+  wallBox(s, w, u0, u1, 0, h, o0, o1, P.log[1], P.log[1], FACADE.bark, ["front", "bottom"]);
+  wallFace(s, w, u0, u1, 0, h, o1, FACADE.woodpile, P.white);
+  wallBox(s, w, u0 - 0.03, u1 + 0.03, h, h + 0.09, o0, o1 + 0.03, P.snow, P.snow, FACADE.snow, [
+    "bottom",
+  ]);
 }
 
 /** A GABLE ROOF stated across its slope: `along` from `a0` to `a1` down
@@ -382,10 +621,24 @@ export function gableRoof(s: Shape, r: Roof, sides: readonly number[] = [-1, 1])
     const up: V3 = r.at(0, sg * 0.6, 1);
     const upN: V3 = [up[0] - r.at(0, 0, 0)[0], 1, up[2] - r.at(0, 0, 0)[2]];
     s.quad(E1(r.a0), E1(r.a1), R1(r.a1), R1(r.a0), P.shingle, upN);
-    s.quad(E0(r.a0), R0(r.a0), R0(r.a1), E0(r.a1), P.soffit, [-upN[0], -1, -upN[2]]);
+    laid(
+      s,
+      E0(r.a0),
+      E0(r.a1),
+      R0(r.a1),
+      R0(r.a0),
+      FACADE.timber,
+      P.soffit,
+      [-upN[0], -1, -upN[2]],
+      r.a0,
+    );
     const out = r.at(0, sg, 0);
     const o0 = r.at(0, 0, 0);
-    s.quad(E0(r.a0), E0(r.a1), E1(r.a1), E1(r.a0), P.fascia, [out[0] - o0[0], 0, out[2] - o0[2]]);
+    laid(s, E0(r.a0), E0(r.a1), E1(r.a1), E1(r.a0), FACADE.timber, P.fascia, [
+      out[0] - o0[0],
+      0,
+      out[2] - o0[2],
+    ]);
     for (const [a, k] of [
       [r.a0, -1],
       [r.a1, 1],
@@ -466,11 +719,22 @@ export function roofSnow(
         const under = k >= 4;
         const n = r.at(0, sg * (under ? 0.2 : 0.4), 0);
         const col = under ? P.snowShade : P.snow;
-        s.quad(rings[j][k], rings[j + 1][k], rings[j + 1][k + 1], rings[j][k + 1], col, [
-          n[0] - o[0],
-          under ? -0.6 : 1,
-          n[2] - o[2],
-        ]);
+        // The snow's own grain laid in plan: along the ridge and down it.
+        const uv = (jj: number, kk: number): [number, number] => [
+          as[jj] / 4,
+          (sg * section[kk][0]) / 4,
+        ];
+        face(
+          s,
+          rings[j][k],
+          rings[j + 1][k],
+          rings[j + 1][k + 1],
+          rings[j][k + 1],
+          [uv(j, k), uv(j + 1, k), uv(j + 1, k + 1), uv(j, k + 1)],
+          FACADE.snow,
+          col,
+          [n[0] - o[0], under ? -0.6 : 1, n[2] - o[2]],
+        );
       }
     }
     // The square ends at the verges, their faces lit as the snow's side.
@@ -496,7 +760,6 @@ export function chimney(
   z1: number,
   y0: number,
   y1: number,
-  seed: number,
 ): void {
   const faces: Wall[] = [
     { x: (x0 + x1) / 2, z: z1, ux: 1, uz: 0, nx: 0, nz: 1 },
@@ -506,10 +769,23 @@ export function chimney(
   ];
   faces.forEach((f, i) => {
     const half = i < 2 ? (x1 - x0) / 2 : (z1 - z0) / 2;
-    stoneFace(s, f, -half, half, y0, y1, 0, 0.3, 0.42, seed + i);
+    stoneFace(s, f, -half, half, y0, y1, 0);
   });
   const k = 0.07;
-  box(s, x0 - k, y1, z0 - k, x1 + k, y1 + 0.12, z1 + k, CABIN_PAINT.stone[1]);
+  const P = CABIN_PAINT;
+  box(
+    s,
+    x0 - k,
+    y1,
+    z0 - k,
+    x1 + k,
+    y1 + 0.12,
+    z1 + k,
+    P.white,
+    P.white,
+    ["y+", "y-"],
+    FACADE.stone,
+  );
   box(
     s,
     x0 - k + 0.02,
@@ -518,6 +794,9 @@ export function chimney(
     x1 + k - 0.02,
     y1 + 0.26,
     z1 + k - 0.02,
-    CABIN_PAINT.snow,
+    P.snow,
+    P.snow,
+    ["y-"],
+    FACADE.snow,
   );
 }

@@ -76,8 +76,10 @@
 // tunnel-exit (the exit portal) and tunnels (the sheet: each from three
 // sides, and a row from inside the lane); and the ski area's own buildings
 // (`village-view.ts`, on a free ride): village-plaza (the base from over the
-// hub), village-lift (from up the mountain), village-<kind> (one kind close)
-// and village (the sheet: every kind from three sides).
+// hub), village-lift (from up the mountain), village-air (the village and
+// its streets from the air), village-street, village-square and
+// village-back (down its streets at a walker's eye), village-<kind> (one
+// kind close) and village (the sheet: every kind from three sides).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -185,6 +187,10 @@ const VIEWS = [
   "tunnels",
   "village-plaza",
   "village-lift",
+  "village-air",
+  "village-street",
+  "village-square",
+  "village-back",
   "village-restaurant",
   "village-ticket",
   "village-rental",
@@ -193,6 +199,10 @@ const VIEWS = [
   "village-hotel",
   "village-garage",
   "village-pumpHouse",
+  "village-house",
+  "village-apartments",
+  "village-shop",
+  "village-church",
   "village-mountainHut",
   "village-patrol",
   "village",

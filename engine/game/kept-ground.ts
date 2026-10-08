@@ -6,7 +6,7 @@
 // at every lift's foot — and the TRANSPORT LANES between them, the
 // machines' own roads, ploughed open through the day. A fall over a ski
 // area is skied into its runs (`piste-day.ts`), but the flat ground round a
-// station and along a cat track has no pitch that would carry a rider
+// station and along a cat track — or down a village street — has no pitch that would carry a rider
 // through it — so it is shovelled, milled and ploughed, and stays the
 // night's packed snow under only what has come down since the ride began
 // (`snow.ts`'s `packedSnow`, `pisteIce`).
@@ -20,6 +20,7 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import type { Level } from "../mapgen/types.ts";
 import { GROOM_CELL, groomCellOf } from "./groomed.ts";
+import { onStreet, villageBox } from "./village.ts";
 
 /** How far round a lift's foot its load zone, corral and queue are kept,
  * m: past the corral's tail and the boarding ring either side. */
@@ -90,6 +91,18 @@ export function keptCells(level: Level): Set<number> {
       const a = r.points[i - 1];
       const b = r.points[i];
       keep(cells, a.x, a.z, b.x, b.z, b.width / 2);
+    }
+  }
+  // THE VILLAGE'S STREETS, its square and its car park: ploughed open
+  // through the day and packed by the traffic, to the back of their
+  // sidewalks (`village.ts`).
+  const box = villageBox(level);
+  if (box) {
+    const C = GROOM_CELL;
+    for (let x = Math.floor(box.x0 / C) * C + C / 2; x < box.x1; x += C) {
+      for (let z = Math.floor(box.z0 / C) * C + C / 2; z < box.z1; z += C) {
+        if (onStreet(level, x, z)) cells.add(groomCellOf(x, z));
+      }
     }
   }
   baked.set(level, cells);

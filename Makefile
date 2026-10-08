@@ -55,13 +55,15 @@ world:
 # previews/world-race-buildings.png, then the wind tunnels' fan house,
 # gallery and exit portal — previews/world-free-tunnels.png, then the ski
 # area's village and mountain buildings — previews/world-free-village.png
-# (and village-plaza, village-lift). ARGS=--hour=21
-# shows the panes lit after dark.
+# (and village-plaza, village-lift), and its streets — village-air (the
+# plan from the air), village-street (down the main street at eye
+# height), village-square and village-back. ARGS=--hour=21 shows the
+# panes and the street lamps lit after dark.
 buildings:
 	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --views=tunnels $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
-	npm run world -- --free --views=village-plaza,village-lift,village $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --views=village-plaza,village-lift,village,village-air,village-street,village-square,village-back $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:

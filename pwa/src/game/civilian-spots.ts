@@ -34,6 +34,8 @@ import {
   cabinsOf,
   isMountainBuilding,
   isResortBuilding,
+  onCarriageway,
+  TOWN_KINDS,
   clearOfLifts,
   helipadOf,
   liftPlans,
@@ -247,6 +249,8 @@ export function civilianClear(
   if (ground.onIce(x, z)) return false;
   if (ground.nearestTree(x, z, C.trunk + spare)) return false;
   if (inBuilding(level, x, z, C.wall + spare)) return false;
+  // Off the village's carriageways: a walker keeps to its sidewalks.
+  if (onCarriageway(level, x, z)) return false;
   const o = obstaclesOf(level);
   const house = C.house + spare;
   for (const h of o.houses) {
@@ -513,6 +517,9 @@ function cabinSpots(level: Level): Spot[] {
   const out: Spot[] = [];
   for (const c of cabinsOf(level)) {
     if (c.kind === "afterski" || c.kind === "shed") continue;
+    // The town's own houses, flats, shops and church are its people's,
+    // not the ski area's: nobody is dealt a place before them here.
+    if ((TOWN_KINDS as readonly string[]).includes(c.kind)) continue;
     const d = CABINS[c.kind];
     const z0 = d.depth / 2 + d.reach.front + 0.8;
     const own = isResortBuilding(c.kind);

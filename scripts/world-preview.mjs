@@ -59,6 +59,10 @@
 // `keen-2`, `keen-side` and `keen-lift`: the enthusiasts out on the empty
 // slopes (`enthusiasts.ts`), each from behind, one from beside his line and
 // one carried up a lift;
+// race-buildings (the sheet), race-house, race-hut, race-stand, race-leader
+// and race-screen: the start's and the finish arena's buildings
+// (`race-buildings-view.ts`) — with `--slalom` the start house over a
+// slalom's top, without it the start hut;
 // then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
@@ -123,6 +127,13 @@ const VIEWS = [
   "station-drag-foot",
   "station-drag-top",
   "stations",
+  "race-buildings",
+  "race-house",
+  "race-hut",
+  "race-stand",
+  "race-leader",
+  "race-screen",
+  "race-house-in",
   "cliff",
   "cliff-edge",
   "sign",
@@ -218,6 +229,10 @@ const args = parseArgs(
       kind: "flag",
       help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
     },
+    slalom: {
+      kind: "flag",
+      help: "set a slalom over the seed (its start house, for the race- views)",
+    },
     free: {
       kind: "flag",
       help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
@@ -229,7 +244,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--grimbear] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -314,6 +329,7 @@ const query = new URLSearchParams({
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
   ...(args.downhill ? { downhill: "1" } : {}),
+  ...(args.slalom ? { slalom: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
@@ -355,7 +371,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

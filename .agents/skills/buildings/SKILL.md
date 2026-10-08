@@ -20,6 +20,7 @@ and why).
 | `pwa/src/game/facade-kit.ts` | THE KIT, in a building's own frame (x across, y up, z along), set down with `at(x, y, z, yaw)`: `box`, `prism`, `frustum`, `column`, `wall`, `quad`, `cap`, `gableRoof`, `monoRoof`, `flatRoof` (each with its fascia, soffit, verges and a SNOW BLANKET run over the eave), `inset` (a pane or a door stood proud of a wall, lit at night when asked). |
 | `pwa/src/game/facade-mesh.ts` | `facadeGeometry(kit.out)` and `facadeMaterial(haze, name)`: one mesh, one draw, for every building of a kind. |
 | `pwa/src/game/station-build.ts` | The worked example: every station end and its pieces, from the engine's own footprints (`stationHouses`) and the layout (`station-plan.ts`). |
+| `pwa/src/game/race-build.ts`, `arena-build.ts` | The start house and hut, the grandstands, the leader's platform and the video tower; `strut()` (a tube between two points, for scaffold) and `snowWall()` (a wall whose foot follows the snow). |
 
 The VERTEX COLOUR TINTS the material: the ribbed sheet is painted light grey,
 so `0xc0392e` makes a red booth and `0x9aa4ad` a grey hall from the same
@@ -57,9 +58,13 @@ tile. Leave a material white (`0xffffff`) to show it as painted.
 
 `make buildings` draws the station sheet (`previews/world-free-stations.png`):
 every kind of station's foot and top from three sides in the game's own
-renderer (`pwa/src/tools/station-view.ts`). A new building gets its own
+renderer (`pwa/src/tools/station-view.ts`), then the race sheet
+(`race-buildings`, `pwa/src/tools/race-buildings-view.ts`: the start house on
+a slalom, the hut, the arena). Every sheet's shots are gathered in
+`pwa/src/tools/building-shots.ts`, so the harness (at its 1000-line cap)
+needs no new line for a new sheet. A new building gets its own
 sheet the same way: a module in `pwa/src/tools/` exporting its shots, wired
-into `world-harness.tsx` beside `stationShots`, and its view names added to
+into `building-shots.ts`, and its view names added to
 `VIEWS` in `scripts/world-preview.mjs` (a name missing there is silently
 skipped). `station-<kind>-<end>` is one frame at 1280 × 720 for a close look.
 

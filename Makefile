@@ -51,9 +51,12 @@ world:
 # THE BUILDINGS LAB: every kind of lift station's foot and top from three
 # sides, through the game's own renderer, as one sheet —
 # previews/world-free-stations.png (`docs/buildings.md`, the `buildings`
-# skill). ARGS=--hour=21 shows the panes lit after dark.
+# skill), then the slalom's start house and the finish arena —
+# previews/world-race-buildings.png. ARGS=--hour=21 shows the panes lit
+# after dark.
 buildings:
 	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:

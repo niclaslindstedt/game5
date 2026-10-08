@@ -39,7 +39,7 @@ import { intoNet, netLens } from "./net-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
 import { signView } from "./sign-view.ts";
-import { stationShots } from "./station-view.ts";
+import { buildingShots } from "./building-shots.ts";
 import {
   DEFAULT_VIDEO,
   SHADOW_LEVELS,
@@ -99,11 +99,9 @@ const renderer = createWorldRenderer(canvas, {
 renderer.resize(width, height, 1);
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
-/** A DOWNHILL set over the seed (`?downhill=1`) — its A-nets for the
- * `net-<s>` views. */
-const downhill = params.get("downhill") === "1";
-/** A FREE RIDE over the seed (`?free=1`): `lift-ring`, the `keen-` views. */
-const free = params.get("free") === "1";
+/** The run's mode: a DOWNHILL (`?downhill=1`, its A-nets), a FREE RIDE
+ * (`?free=1`: `lift-ring`, `keen-`) or a SLALOM (`?slalom=1`). */
+const [downhill, free, slalom] = ["downhill", "free", "slalom"].map((m) => params.get(m) === "1");
 /** The sun's solar hour (`withSky`), the map's own unless named. */
 const hour = Number(params.get("hour") ?? Number.NaN);
 const state: GameState = createGame({
@@ -111,7 +109,7 @@ const state: GameState = createGame({
   region,
   grade,
   ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
-  ...(free ? { mode: "free" as const } : {}),
+  ...(free || slalom ? { mode: free ? ("free" as const) : ("slalom" as const) } : {}),
   ...(params.get("grimbear") === "1" ? { grimbear: "hunt" as const } : {}),
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
   // A free ride's crowd is the hour's (`enthusiasts.ts`).
@@ -614,7 +612,7 @@ function standoff(): string {
 const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
-  ...stationShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas }),
+  ...buildingShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas }),
   spawn() {
     rideUntil(() => state.t >= 1.5, 3);
     renderer.setCamera("chase", true);

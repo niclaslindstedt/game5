@@ -17,6 +17,7 @@ import { BODY_STRINGS } from "./strings-body.ts";
 import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
+import { STATS_STRINGS } from "./strings-stats.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -88,6 +89,8 @@ const vertical = (metres: number): string => `${Math.round(metres)} M`;
 export const STRINGS = {
   /* ── THE SHUTTER AND THE GALLERY — stated in strings-gallery.ts ─────── */
   ...GALLERY_STRINGS,
+  /* ── THE STATISTICS — stated in strings-stats.ts ──────────────────── */
+  ...STATS_STRINGS,
   /* ── THE DEVELOPER PAGE — stated in strings-dev.ts ─────────────────── */
   ...DEV_STRINGS,
   /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
@@ -692,18 +695,10 @@ export const STRINGS = {
     high: "HIGH",
   },
 
-  /* ── THE TIME TRIAL AND THE RECORD BOOK (menu-main.tsx, hud.tsx,
-        hud-result.tsx) ─────────────────────────────────────────────────── */
-  menuTrial: "TIME TRIAL",
-  menuTrialLine: (seed: number): string => `SEED ${seed} · TOP TO BOTTOM · ALONE`,
-  /** The row standing for this mountain and pair, on the tile. */
-  menuTrialBest: (seconds: number, skis: string): string =>
-    `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
-  menuTrialNoBest: "NO TIME SET YET",
+  /* ── THE RECORD BOOK (hud.tsx, hud-result.tsx) ─────────────────────── */
   /** The gap to the record at a crossing: `-0.42` ahead, `+1.30` behind. */
   gap: (seconds: number): string => `${seconds < 0 ? "−" : "+"}${Math.abs(seconds).toFixed(2)}`,
   gapLabel: "VS BEST",
-  resultTrialTitle: "TIME TRIAL",
   resultRecord: "NEW RECORD",
   /** The row that stood, with its pair and the day it was set. */
   resultBest: (seconds: number, skis: string, at: number): string =>
@@ -711,7 +706,8 @@ export const STRINGS = {
       at > 0 ? ` · ${new Date(at).toISOString().slice(0, 10)}` : ""
     }`,
   resultOff: (seconds: number): string => `+${seconds.toFixed(2)} OFF THE RECORD`,
-  resultTrialAgain: "SKI AGAIN",
+  /** A run alone ridden again (a tricks run). */
+  resultSkiAgain: "SKI AGAIN",
   /** The news line at the finish of a run with nobody else on it. */
   newsFinishAlone: (seconds: number): string => `FINISH  ${formatTime(seconds)}`,
 
@@ -723,7 +719,7 @@ export const STRINGS = {
   /** Said while the picture runs slow, so it is not read as dropped frames. */
   replaySlow: "SLOW",
   replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "timeTrial" ? "TIME TRIAL" : mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "halfpipe" ? "HALFPIPE" : mode === "moguls" ? "MOGULS" : "RACE"}`,
+    `SEED ${seed} · ${mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "halfpipe" ? "HALFPIPE" : mode === "moguls" ? "MOGULS" : "RACE"}`,
   replayLine: (skis: string, time: number | null, place: number | null): string =>
     `${skis.toUpperCase()} · ${
       time === null

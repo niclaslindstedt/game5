@@ -119,7 +119,7 @@ describe("the campaign: furthest progress", () => {
   /** The first rung of the ladder, whatever it is called today. */
   const RUNG = CAMPAIGN_LEVELS[0].id;
   const board = (result: Partial<CampaignProgress["results"][string]>): CampaignProgress => ({
-    results: { [RUNG]: { best: 100, skis: "hare", place: 4, medal: null, ...result } },
+    results: { [RUNG]: { best: 100, skis: "hare", place: 4, ...result } },
     points: {},
   });
 
@@ -148,7 +148,7 @@ describe("the campaign: furthest progress", () => {
 
   it("lets any ridden time beat a row UNLOCKS set by hand", () => {
     const unlocked: CampaignProgress = {
-      results: { [RUNG]: { place: 4, medal: null } },
+      results: { [RUNG]: { place: 4 } },
       points: {},
     };
     expect(mergeBoards(unlocked, board({ best: 97, skis: "swift" })).results[RUNG]).toMatchObject({
@@ -161,17 +161,9 @@ describe("the campaign: furthest progress", () => {
     });
   });
 
-  it("keeps the better medal", () => {
-    const merged = mergeBoards(
-      board({ best: 95, medal: "bronze" }),
-      board({ best: 99, medal: "gold" }),
-    );
-    expect(merged.results[RUNG]?.medal).toBe("gold");
-  });
-
   it("drops a map this ladder no longer has", () => {
     const merged = mergeBoards(EMPTY_PROGRESS, {
-      results: { "a-shelf-that-was-recut-9": { best: 1, skis: "hare", place: 1, medal: "gold" } },
+      results: { "a-shelf-that-was-recut-9": { best: 1, skis: "hare", place: 1 } },
       points: { "a-shelf-that-was-recut-9": { you: 3 } },
     });
     expect(merged).toEqual(EMPTY_PROGRESS);

@@ -1,0 +1,347 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* ── THE STATISTICS (menu-stats.tsx) ──────────────────────────────────────
+   The life of a skier on this device, under the front door's STATISTICS
+   tile. Wider than a settings card, because most of it is figures side by
+   side: four headline tiles in a row on a desktop and two by two on a
+   phone, the groups in as many columns as the card has room for and one on
+   a phone held upright. Every figure is ink on the card's own blue; the
+   bars are the one colour the card uses for emphasis, the flag's red,
+   always with their name and value written beside them. */
+
+.menu-card-stats {
+  width: min(58rem, 100%);
+  gap: 0.7rem;
+}
+
+.stats-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stats-sub {
+  margin-top: -0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+}
+
+.stats-empty {
+  padding: 1.6rem 0.4rem;
+  text-align: center;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  line-height: 1.7;
+  opacity: 0.8;
+}
+
+/* THE FOUR HEADLINES: one number each, big, with its label over it and one
+   line of proportion under it. */
+.stats-heroes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.stats-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.8rem 0.75rem;
+  border: 2px solid rgb(244 248 251 / 22%);
+  border-radius: 0.55rem;
+  background: rgb(44 92 140 / 45%);
+  box-shadow: 0 3px 0 rgb(13 34 51 / 45%);
+}
+
+.stats-hero-label,
+.stats-heading,
+.stats-best-label,
+.stats-figure dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  opacity: 0.72;
+}
+
+.stats-hero-value {
+  font-size: clamp(1.25rem, 4.2vmin, 1.9rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-hero-line {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--sky);
+  opacity: 0.85;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.stats-heading {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgb(244 248 251 / 18%);
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* THE BESTS: a row each — what, how much, and the run that set it. */
+.stats-bests {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.stats-best {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "label value"
+    "where where";
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgb(13 34 51 / 35%);
+}
+
+.stats-best-label {
+  grid-area: label;
+}
+
+.stats-best-value {
+  grid-area: value;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-best-where {
+  grid-area: where;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* THE GROUPS: as many columns as fit, one on a phone. */
+.stats-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem 1.4rem;
+  align-items: start;
+}
+
+.stats-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.8rem;
+  margin: 0;
+}
+
+.stats-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.stats-figure dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* THE BARS: name and value on one line, the bar under them. */
+.stats-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+}
+
+.stats-bar-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-bar-track {
+  grid-column: 1 / -1;
+  height: 0.45rem;
+  border-radius: 0.25rem;
+  background: rgb(244 248 251 / 10%);
+  overflow: hidden;
+}
+
+.stats-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.25rem;
+  background: var(--flag);
+}
+
+/* THE LAST RUNS: one line each on a desktop, two on a phone. */
+.stats-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stats-run {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) 5.5rem 7rem;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgb(13 34 51 / 30%);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.stats-run-mode,
+.stats-run-result {
+  font-weight: 700;
+}
+
+.stats-run-where {
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-run-top,
+.stats-run-result {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-foot {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.2rem;
+}
+
+@media (max-width: 640px) {
+  .stats-heroes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-run {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "mode result"
+      "where top";
+    gap: 0.15rem 0.6rem;
+  }
+
+  .stats-run-mode {
+    grid-area: mode;
+  }
+
+  .stats-run-result {
+    grid-area: result;
+  }
+
+  .stats-run-where {
+    grid-area: where;
+  }
+
+  .stats-run-top {
+    grid-area: top;
+  }
+}
+
+/* THE MAP PICKER: the gallery's stepper round the map's name. */
+.stats-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.stats-picker-value {
+  min-width: 9rem;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.stats-maps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.stats-map {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgb(244 248 251 / 14%);
+  border-radius: 0.4rem;
+  background: rgb(13 34 51 / 30%);
+  color: inherit;
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.stats-map-seed {
+  font-weight: 700;
+}
+
+.stats-map-line {
+  opacity: 0.7;
+}
+
+.stats-quiet {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+
+/* A phone on its side: the headlines kept short so the bests show above
+   the fold. */
+@media (max-height: 480px) {
+  .stats-hero {
+    padding: 0.5rem 0.65rem;
+  }
+}

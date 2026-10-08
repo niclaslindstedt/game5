@@ -127,7 +127,7 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 ## The spectators: a race's audience
 
 Every run with something to watch (`hasSpectators`: a course counted or a
-terrain park scored — the race, the time trial, the tricks run; never the
+terrain park scored — the race, the tricks run; never the
 free ride, whose people are the amateurs above) is watched by a CROWD
 standing where a real race's crowd stands. Presentation only, end to end.
 

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE LEVEL CARD — which of the pinned maps a RACE or a TIME TRIAL is ridden
-// on.
+// THE LEVEL CARD — which of the pinned maps a RACE is ridden on.
 //
 // THE GAME'S MEASURED MAPS ARE PINNED. A time is only worth measuring
 // against somebody else's if the two were skied down the same piste on the
@@ -13,34 +12,16 @@
 // (`race-maps.ts`), every one open: nine maps chosen for the discipline, one
 // page of boxes, the course's drop and length on each.
 //
-// A TIME TRIAL picks one of the CAMPAIGN'S maps, and what is open is what
-// the campaign has opened, a whole shelf at a time (`shelfUnlocked`). Not
-// map by map: this is not a second ladder to climb, it is the shelves you
-// have been given, and a skier who has skied the glacier should be able to
-// time any of it. The first shelf holding a map the mode can ride is open
-// on a fresh app (`shelfOpenFor`), so the card is never empty and always
-// has its SKI press.
-//
-// The card wears the campaign's own silhouette and classes — the shelf tabs,
-// the boxes, the piste behind each — because a map should look like itself
-// wherever it is offered. What is INSIDE a box is each card's own: the ladder
+// The card wears the campaign's own silhouette and classes — the boxes, the
+// piste behind each — because a map should look like itself wherever it is
+// offered. What is INSIDE a box is each card's own: the ladder
 // shows what a rung paid, and this shows what the run would BE and the best
 // it has ever been ridden in.
 
 import { type GameMode } from "@engine";
-import { useState } from "preact/hooks";
 
-import {
-  findLevel,
-  fitsMode,
-  reachedShelfFor,
-  shelfOpenFor,
-  type CampaignLevel,
-  type CampaignMode,
-  type CampaignProgress,
-  type CampaignShelf,
-} from "./campaign.ts";
-import { CourseMap, ShelfTabs, dayLine } from "./menu-campaign.tsx";
+import { type CampaignLevel, type CampaignMode } from "./campaign.ts";
+import { CourseMap, dayLine } from "./menu-campaign.tsx";
 import { raceMapsOf, type RaceMap } from "./race-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -49,8 +30,7 @@ import { STRINGS } from "./strings.ts";
 
 /** The measured mode's own billing word: the slalom's for any other. */
 function billedMode(mode: GameMode): CampaignMode {
-  return mode === "timeTrial" ||
-    mode === "downhill" ||
+  return mode === "downhill" ||
     mode === "superG" ||
     mode === "giantSlalom" ||
     mode === "speedSki" ||
@@ -86,7 +66,7 @@ function LevelBox({
       <CourseMap levelId={level.id} />
       <span class="menu-level-head">
         <GradeMark grade={level.grade} className="menu-level-grade" />
-        <Glyph name={mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
+        <Glyph name="flag" className="menu-level-mode" />
         <span class="menu-level-billing">{STRINGS.campaignBilling(billedMode(mode))}</span>
       </span>
       <span class="menu-level-name">{level.name}</span>
@@ -107,15 +87,12 @@ function LevelBox({
 
 export function LevelsPage({
   mode,
-  progress,
   chosen,
   best,
   onBack,
   onPick,
 }: {
   mode: GameMode;
-  /** The campaign's board — what is open here is what it has opened. */
-  progress: CampaignProgress;
   /** The map the settings already stand on, if any. */
   chosen: string | null;
   /** The record standing on a map in this mode, as a line, or null. */
@@ -124,23 +101,14 @@ export function LevelsPage({
   /** On to the skis card, which is where RIDE is. */
   onPick: (level: CampaignLevel) => void;
 }) {
+  // Only a race reaches this card (`skisBack`): a mode with no nine of its
+  // own has nothing to pick here.
   const races = raceMapsOf(mode);
-  if (races) {
-    return (
-      <RaceMapsPage
-        mode={mode}
-        maps={races}
-        chosen={chosen}
-        best={best}
-        onBack={onBack}
-        onPick={onPick}
-      />
-    );
-  }
+  if (!races) return null;
   return (
-    <ShelvesPage
+    <RaceMapsPage
       mode={mode}
-      progress={progress}
+      maps={races}
       chosen={chosen}
       best={best}
       onBack={onBack}
@@ -151,19 +119,17 @@ export function LevelsPage({
 
 /** The title over a level card, by the mode it picks a map for. */
 function levelsTitle(mode: GameMode): string {
-  return mode === "timeTrial"
-    ? STRINGS.levelsTrial
-    : mode === "downhill"
-      ? STRINGS.levelsDownhill
-      : mode === "superG"
-        ? STRINGS.levelsSuperG
-        : mode === "giantSlalom"
-          ? STRINGS.levelsGiantSlalom
-          : mode === "speedSki"
-            ? STRINGS.levelsSpeedSki
-            : mode === "skiCross"
-              ? STRINGS.levelsSkiCross
-              : STRINGS.levelsRace;
+  return mode === "downhill"
+    ? STRINGS.levelsDownhill
+    : mode === "superG"
+      ? STRINGS.levelsSuperG
+      : mode === "giantSlalom"
+        ? STRINGS.levelsGiantSlalom
+        : mode === "speedSki"
+          ? STRINGS.levelsSpeedSki
+          : mode === "skiCross"
+            ? STRINGS.levelsSkiCross
+            : STRINGS.levelsRace;
 }
 
 /** THE RIDE PRESS in a level card's head: on to the skis card. */
@@ -219,74 +185,6 @@ function RaceMapsPage({
             />
           ))}
         </div>
-      </MenuBody>
-    </div>
-  );
-}
-
-/** THE CAMPAIGN'S SHELVES, as the time trial picks a map off them. */
-function ShelvesPage({
-  mode,
-  progress,
-  chosen,
-  best,
-  onBack,
-  onPick,
-}: {
-  mode: GameMode;
-  progress: CampaignProgress;
-  chosen: string | null;
-  best: (level: CampaignLevel) => string | null;
-  onBack: () => void;
-  onPick: (level: CampaignLevel) => void;
-}) {
-  const stood = chosen === null ? null : findLevel(chosen);
-  const offered = (shelf: CampaignShelf): boolean => shelfOpenFor(shelf, mode, progress);
-  const [shown, setShown] = useState<CampaignShelf>(() =>
-    stood && fitsMode(stood.level, mode) && offered(stood.shelf)
-      ? stood.shelf
-      : reachedShelfFor(mode, progress),
-  );
-  const open = offered(shown);
-  // Only the maps the mode can ride: a slalom only where the campaign sets
-  // one, a downhill on a downhill's course (`fitsMode`).
-  const maps = shown.levels.filter((level) => fitsMode(level, mode));
-  const billed = billedMode(mode);
-  const pick = open ? (maps.find((level) => level.id === chosen) ?? maps[0] ?? null) : null;
-  return (
-    <div class="menu-card menu-card-levels">
-      <MenuHead
-        back={onBack}
-        backLabel={STRINGS.menuBack}
-        title={levelsTitle(mode)}
-        action={pick ? <RidePress onPick={() => onPick(pick)} /> : undefined}
-      />
-      <MenuBody>
-        <ShelfTabs
-          shown={shown}
-          open={offered}
-          line={(shelf) => shelf.blurb}
-          hint={STRINGS.levelsShelfLocked}
-          onPick={setShown}
-        />
-        {open && maps.length === 0 ? (
-          <p class="menu-empty">{STRINGS.levelsNoneHere(billed)}</p>
-        ) : open ? (
-          <div class="menu-levels">
-            {maps.map((level) => (
-              <LevelBox
-                key={level.id}
-                level={level}
-                mode={mode}
-                best={best(level)}
-                chosen={level === pick}
-                onPick={() => onPick(level)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p class="menu-empty">{STRINGS.campaignShelfLocked}</p>
-        )}
       </MenuBody>
     </div>
   );

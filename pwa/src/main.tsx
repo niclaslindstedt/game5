@@ -10,6 +10,7 @@ import "./heli.css";
 import "./sled.css";
 import "./afterski.css";
 import "./para.css";
+import "./stats.css";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";

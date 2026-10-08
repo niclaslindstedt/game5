@@ -20,7 +20,6 @@
 //     by the bot, held still once drawn so nothing moves under the shutter.
 //   ?paused=1        ...held under the pause card instead.
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
-//   ?mode=trial      the run is a TIME TRIAL rather than a race (--trial).
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
 //   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
 //                    --run2 its race).
@@ -427,7 +426,6 @@ const args = parseArgs(
       help: "build the seed's piste to this grade (green, blue, red, black)",
     },
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
-    trial: { kind: "flag", help: "a time trial rather than a race (?mode=trial)" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
     skis: {
       kind: "string",
@@ -469,7 +467,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--trial] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -673,7 +671,6 @@ if (args.surface) {
         if (args.hour !== undefined) params.hour = String(args.hour);
         if (args.region !== undefined) params.region = String(args.region);
         if (args.grade !== undefined) params.grade = String(args.grade);
-        if (args.trial) params.mode = "trial";
         if (args.tricks) params.mode = "tricks";
         if (args.downhill) params.mode = "downhill";
         if (args.superg) params.mode = "superg";
@@ -692,7 +689,7 @@ if (args.surface) {
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.trial ? "-trial" : ""}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +

@@ -88,7 +88,7 @@ Hold a shortlist to a BRIEF instead, and read the index as a pass mark:
   rung, an air rung, a traverse rung, a powder rung, a dark one
 - the shelf's colour held: every map is built to its shelf's grade (R23),
   and `make rate CAMPAIGN=1` says so with `!!` where one measures another
-- the formats interleaved: a race, a time trial
+- the disciplines interleaved: a slalom, a downhill on a black
 - no `make analyze` errors — the sweep prints them
 
 Then confirm in the game — the bot's time on the candidate — because a rung

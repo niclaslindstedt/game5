@@ -532,13 +532,21 @@ export function isGameMode(value: unknown): value is GameMode {
 }
 
 /** THE TIME TRIAL'S NUMBERS: the race's lights, nobody else on the snow,
- * and the one length it is offered at — the piste, once. */
+ * and the one length it is ridden at — the piste, once.
+ *
+ * It is NO MODE A PLAYER PICKS any more — no card stands one up — and is
+ * kept as the suite's and the labs' plain run ALONE ON THE PISTE: one skier
+ * under the lights with the course counting and nothing else dealt (the
+ * physics tests, the technique and audience labs, the replay's and the
+ * ghost's rigs ride it). Its rules and its name are unchanged, so no digest
+ * moves. */
 export const TIME_TRIAL = {
   countdown: RACE.countdown,
   laps: [1] as readonly number[],
 } as const;
 
-/** The time trial as a skier is dealt it: the lights and the piste, alone. */
+/** The time trial as a run is dealt it: the lights and the piste, alone —
+ * the labs' and the suite's solo run (see `TIME_TRIAL`). */
 export function timeTrialRules(laps: number): RunRules {
   return {
     rivals: 0,
@@ -689,7 +697,7 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
  * skis — what the ski card is opened on for that race — and a trick
  * format's (big air's, slopestyle's and the halfpipe's the Raven; moguls'
  * the Ibex; aerials' the Kestrel), or
- * null for a mode that is neither (the time trial, the free ride, the
+ * null for a mode that is neither (the labs' time trial, the free ride, the
  * tricks run). */
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   slalom: SLALOM.skis,

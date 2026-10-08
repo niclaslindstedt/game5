@@ -12,7 +12,7 @@
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
 //   machines.ts     the free ride's helicopter, snowmobile and piste machines
 //   snowfall.ts     the snow falling round the lens, the spindrift
-//   ghost-model.ts  the time trial's ghost, see-through and trail-less
+//   ghost-model.ts  a ghost, see-through and trail-less (no mode keeps one now)
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start

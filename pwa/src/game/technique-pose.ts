@@ -12,7 +12,7 @@
 // (`docs/disciplines.md` § Slalom and § Giant slalom, super-G and downhill;
 // *(est.)* there marks an estimate), turned into the pose's terms. The FREE
 // row is the pose as it stands without this table, to the last bit — so a
-// run that names no technique (a free ride, a time trial, the crowd, every
+// run that names no technique (a free ride, the labs' run alone, the crowd, every
 // lab that poses him by hand) is drawn exactly as before.
 //
 // Three-free and DOM-free: the suite reads it (`tests/technique_pose_test.ts`).

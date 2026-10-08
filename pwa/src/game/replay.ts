@@ -30,7 +30,7 @@
 // race, and a press that does nothing is the better failure.
 //
 // WHICH RUNS KEEP ONE: the ones the record book keeps (`keepsRecords` — the
-// race and the time trial) and the TRICKS run, whose flips are the most
+// races, and the engine's time trial the suite rides) and the TRICKS run, whose flips are the most
 // worth watching back of anything the game has, armed on their very first
 // step (`keepsReplay`). A free ride's
 // day and snow are the skier's own and it has no flag to end on. The offer

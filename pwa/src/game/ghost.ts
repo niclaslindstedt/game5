@@ -125,7 +125,10 @@ export function mapPrint(level: Level): string {
 
 /** THE MODES A TAPE IS KEPT FOR: the one ridden ALONE. A race has a field
  * to be measured against instead — and a ghost's run is stepped beside the
- * player's, so a field would have to be stepped twice. */
+ * player's, so a field would have to be stepped twice. The TIME TRIAL is no
+ * mode a player picks any more, so no run of his rides a ghost now; it is
+ * kept here as the engine's run alone, the one the suite holds the rig and
+ * the tape to, waiting for the next mode ridden alone. */
 export const GHOST_MODES: readonly GameMode[] = ["timeTrial"];
 
 /** Which piece of snow a run is on — null on a run that keeps no tape. */

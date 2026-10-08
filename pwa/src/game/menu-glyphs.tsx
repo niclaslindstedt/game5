@@ -5,8 +5,8 @@
 // failed; a mark is found without reading.
 //
 // Only the marks this slice's cards use: the peaks on the CAMPAIGN and the
-// padlock on what it has not opened, the flag on RACE, the stopwatch on the
-// TIME TRIAL, the kicker on FREE RIDE, the flip on TRICKS, the shutter on the
+// padlock on what it has not opened, the flag on RACE, the kicker on FREE
+// RIDE, the flip on TRICKS, the shutter on the
 // GALLERY chip, the sliders on the front door's OPTIONS chip,
 // the four the pause card is read by — carry on, start again, watch it
 // back, leave — the
@@ -29,12 +29,12 @@ export const GLYPH_NAMES = [
   "gauge",
   "display",
   "kicker",
-  "clock",
   "peaks",
   "lock",
   "camera",
   "flip",
   "replay",
+  "chart",
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -144,16 +144,6 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <path d="M19.6 13.4l-1.4 3.2-3.2-1.2" />
     </>
   ),
-  // A STOPWATCH: the time trial — the loop alone, against the clock. The
-  // crown on top is what keeps it from reading as the dial.
-  clock: (
-    <>
-      <circle cx="12" cy="13.4" r="7.6" />
-      <path d="M10 2.8h4M12 2.8v3" />
-      <path d="M12 13.4V9.2" />
-      <path d="M18.2 6.4l1.4-1.4" />
-    </>
-  ),
   // TWO PEAKS AND A PENNANT on the higher: the campaign — a ladder of maps
   // climbed shelf by shelf. The pennant is what keeps it from reading as
   // the kicker's slope.
@@ -188,6 +178,17 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <path d="M4.6 9.2A8 8 0 1 1 4 12" />
       <path d="M4.2 4.8v4.6h4.6" />
       <path d="M10.2 8.8 15.4 12l-5.2 3.2Z" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // THREE BARS OFF A BASELINE, climbing: the statistics — a skier's numbers
+  // added up. Bars rather than a line, so it shares no silhouette with the
+  // gauge or the peaks.
+  chart: (
+    <>
+      <path d="M3.5 20.5h17" />
+      <rect x="5.4" y="12.5" width="3.4" height="8" rx="0.6" />
+      <rect x="10.3" y="8" width="3.4" height="12.5" rx="0.6" />
+      <rect x="15.2" y="3.5" width="3.4" height="17" rx="0.6" />
     </>
   ),
 };

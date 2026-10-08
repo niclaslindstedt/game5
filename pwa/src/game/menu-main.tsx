@@ -5,11 +5,11 @@
 // turns slowly round the skis. A menu that stopped the snow would be a menu
 // that announces the game is not running.
 //
-// THE CAMPAIGN IS THE LIT TILE: three shelves of six pinned maps, ridden
-// for points against the field (`menu-campaign.tsx`). Its face is the one
-// on the card that CHANGES between visits — how far up the ladder the player
-// has got, and the rung it would pick next — which is what stops a front
-// door being furniture.
+// THE CAMPAIGN IS THE LIT TILE: four shelves of pinned maps, raced for
+// points against the field (`menu-campaign.tsx`). Its face is the one on the
+// card that CHANGES between visits — how far up the ladder the player has
+// got, and the rung it would pick next — which is what stops a front door
+// being furniture.
 //
 // THE RACE under it is ONE tile for every discipline: it opens the race card
 // (`menu-races.tsx`) — the SLALOM, two runs against a field of thirty, one on
@@ -19,10 +19,7 @@
 // (`menu-levels.tsx`), so a time in the record book is a time down a piste
 // somebody else can ride. Six disciplines do not fit a front door a phone
 // holds upright; one choice of race, then a map, does. A link that pinned a
-// seed says so on the tile instead, because that visit rides the seed. The
-// TIME TRIAL rides a pinned map too, named on its tile. The trial is the
-// same piste alone against the clock, the record book's row for that
-// mountain and pair, and the ghost of the run that set it (`ghost-run.ts`).
+// seed says so on the tile instead, because that visit rides the seed.
 // TRICKS beside them: two minutes on the map's trick field (R20), alone, the
 // score the run — on the map the menu stands over.
 // THE FREE RIDE beside it, unlit: the whole map and nobody on it, set up on
@@ -72,15 +69,14 @@ function VersionStamp() {
 export function MainMenu({
   campaign,
   onCampaign,
-  trialMap,
   seed,
   pinned,
-  trial,
   onRace,
   onFree,
-  onTrial,
   onOptions,
   onGallery,
+  stats,
+  onStats,
   tricks,
   onTricks,
   developer,
@@ -90,22 +86,20 @@ export function MainMenu({
   /** THE CAMPAIGN tile's face: how far up the ladder, and the rung next. */
   campaign: { cleared: number; of: number; next: string | null };
   onCampaign: () => void;
-  /** The pinned map the TIME TRIAL rides, by name — null where a link
-   * pinned a seed instead. */
-  trialMap: string | null;
   /** The seed a run off a seed of its own will build. */
   seed: number;
   /** Whether a link pinned it. */
   pinned: boolean;
-  /** The TIME TRIAL tile: its seed and the row standing. */
-  trial: { seed: number; best: { time: number; skis: string } | null };
   /** Onto the race card (`menu-races.tsx`). */
   onRace: () => void;
-  onTrial: () => void;
   /** Onto the free ride's start card. */
   onFree: () => void;
   onOptions: () => void;
   onGallery: () => void;
+  /** The STATISTICS tile's face: runs, metres skied, the top speed (null
+   * before any run), and the press onto its card. */
+  stats: { runs: number; distance: number; kmh: number | null };
+  onStats: () => void;
   /** The TRICKS tile: the map it rides and how long the run lasts, s. */
   tricks?: { map: string; seconds: number };
   onTricks?: () => void;
@@ -170,25 +164,21 @@ export function MainMenu({
               <span class="menu-tile-line">{STRINGS.menuRacesFormat(SLALOM.field + 1)}</span>
             </span>
           </button>
+          {/* THE STATISTICS (`menu-stats.tsx`): every run counted, billed
+              with how much and how fast. */}
           <button
             type="button"
             class="menu-tile menu-tile-wide"
-            data-menu="trial"
-            onClick={onTrial}
+            data-menu="stats"
+            onClick={onStats}
           >
-            <Glyph name="clock" />
+            <Glyph name="chart" />
             <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.menuTrial}</span>
+              <span class="menu-tile-name">{STRINGS.menuStats}</span>
               <span class="menu-tile-line">
-                {trialMap === null
-                  ? STRINGS.menuTrialLine(trial.seed)
-                  : STRINGS.menuPinnedLine(trialMap)}
+                {STRINGS.menuStatsLine(stats.runs, stats.distance)}
               </span>
-              <span class="menu-tile-line">
-                {trial.best
-                  ? STRINGS.menuTrialBest(trial.best.time, trial.best.skis)
-                  : STRINGS.menuTrialNoBest}
-              </span>
+              <span class="menu-tile-line">{STRINGS.menuStatsTop(stats.kmh)}</span>
             </span>
           </button>
           {tricks && (

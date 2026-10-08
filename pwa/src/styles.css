@@ -2948,8 +2948,9 @@ canvas {
 
 /* Ink on the orange, where every other mark on the card is orange on the
    blue: the hero is the one tile lit from the other side. */
-/* THE TIME TRIAL: the hero's shape, a row the card's width, but in the
-   card's own blue — the second way onto the snow, not the lit one. */
+/* THE WIDE TILES (RACE, TRICKS, FREE RIDE): the hero's shape, a row the
+   card's width, but in the card's own blue — more ways onto the snow, not
+   the lit one. */
 .menu-tile-wide {
   grid-column: 1 / -1;
   flex-direction: row;
@@ -4806,8 +4807,8 @@ canvas {
 }
 
 /* ── THE FREE RIDE: its start card, its chart ──────────────────────────────
-   (Its front-door tile is a `.menu-tile-wide`, unlit, like the time trial's:
-   exactly one red control per card, and that is RACE.) */
+   (Its front-door tile is a `.menu-tile-wide`, unlit, like the race's:
+   exactly one lit control per card, and that is the CAMPAIGN.) */
 /* A PAGE'S WAY ON, STANDING IN ITS HEAD opposite the way back. `.menu-item`
    is a full-width row; here only its colour and weight are kept. */
 .menu-head-with-action {

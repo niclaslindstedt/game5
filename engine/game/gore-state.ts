@@ -82,7 +82,9 @@ export type Impaled = {
  * `beats` counts its beats since the first wound that bled (the phase the
  * spray pulses on), at `rate` beats a minute; `blood` is the litres lost,
  * `flow` the litres a second leaving him this step, the beat's pulse in it
- * (`pulse`, 0 … 1 over a beat). */
+ * (`pulse`, 0 … 1 over a beat) — of which `out` leaves him through the
+ * skin (the rest bleeds inside him, never seen), and `shed` the litres that
+ * have, all told: the blood the snow under him can show. */
 export type GoreState = {
   lost: number;
   torn: TornPiece[];
@@ -97,6 +99,8 @@ export type GoreState = {
   rate: number;
   blood: number;
   flow: number;
+  out: number;
+  shed: number;
   pulse: number;
 };
 
@@ -115,6 +119,8 @@ export function freshGore(): GoreState {
     rate: 0,
     blood: 0,
     flow: 0,
+    out: 0,
+    shed: 0,
     pulse: 0,
   };
 }

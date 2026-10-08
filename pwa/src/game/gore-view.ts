@@ -23,6 +23,11 @@
 //     under a body lying still; his clothes soak red round every wound.
 //   * THE SPIKE. Run through on a tree's top, the bloodied point stands out
 //     of him.
+//   * THE DEAD LEFT LYING (`leave`). A rider who died is not tidied away
+//     when the next one is stood up on the same mountain: his body as it
+//     was last drawn (`gore-remains.ts`), the pieces, the guts, the spike
+//     and every blot of his blood stay where they lie, for the next one to
+//     ski past — the last few dead, the oldest cleared first.
 
 import * as THREE from "three";
 import {
@@ -32,7 +37,9 @@ import {
   GORE_OPEN,
   GORE_PIECES,
   TUNING,
+  bleedsOf,
   fracturesOf,
+  type BodyPart,
   type GameState,
   type GorePiece,
   type Level,
@@ -40,8 +47,12 @@ import {
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import { bindPose } from "./dress-loft.ts";
-import { createBlood } from "./gore-blood.ts";
+import { createBlood, type Blood } from "./gore-blood.ts";
+import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
+import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
+import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
+import { bakeFigure, disposeFigure } from "./gore-remains.ts";
 import {
   lump,
   rope,
@@ -74,6 +85,9 @@ type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 /** What the view asks of the player's model: to be drawn without the
  * pieces he lost, and his skin — its frames, its group and his outfit. */
 export type GoreModel = {
+  /** Everything he is drawn as hangs under it: what a body left lying is
+   * baked from (`gore-remains.ts`). */
+  root: THREE.Object3D;
   setGore(lost: number, crush: number): void;
   skin(): {
     frames: Record<SkierBone, BoneFrame>;
@@ -85,10 +99,21 @@ export type GoreModel = {
 
 export type GoreView = {
   group: THREE.Group;
-  /** One frame: `simDt` the engine's time it moved, `dt` the frame's. */
-  update(state: GameState, model: GoreModel, simDt: number, dt: number): void;
+  /** One frame: `simDt` the engine's time it moved, `dt` the frame's;
+   * `veil` how far the X-ray has him (`xray-view.ts`), under which the
+   * blood flying and the bone out through his skin stand down — the X-ray
+   * draws its own, and under its dark veil they read as black specks. */
+  update(state: GameState, model: GoreModel, simDt: number, dt: number, veil?: number): void;
   /** A new run: everything gone, his clothes clean. */
   clear(model: GoreModel | null): void;
+  /** A DEAD RIDER LEFT LYING: if the last run drawn ended in his death,
+   * his body as last drawn, the pieces, the guts, the spike and his blood
+   * kept where they are, apart from the next rider's, until `clearRemains`
+   * or the map goes. Called on a new run before its first pose, while
+   * `model` is still drawn as the body; nothing when he did not die. */
+  leave(model: GoreModel): void;
+  /** Every body left lying gone. */
+  clearRemains(): void;
   dispose(): void;
 };
 
@@ -172,12 +197,9 @@ const POINT_BONE: SkierBone[] = [
   "hand_r",
 ];
 
-/** A drop a litre: how many the spray throws for the blood it carries —
- * far fewer than the real tens of thousands, each standing for many. */
-const DROPS_A_LITRE = 1400;
-/** How far a jet carries at a beat's crest, m/s, and its dribble's between. */
-const JET = 5.2;
-const DRIBBLE = 0.6;
+/** The litres his clothes hold round a wound before it runs out at a
+ * gap: a jacket's and its layers' worth of a cupful. */
+const HOLD = 0.1;
 
 type Piece = {
   piece: GorePiece;
@@ -206,11 +228,28 @@ const m2 = new THREE.Matrix4();
 
 const toV = (p: V3, out = new THREE.Vector3()) => out.set(p.x, p.y, p.z);
 
+/** How many dead are left lying at once; the oldest goes first. */
+const REMAINS = 4;
+
+/** ONE BODY LEFT LYING: the statue of him, what was torn out of him, and
+ * the blood he left — all owned here now. */
+type Remains = {
+  body: THREE.Group;
+  pieces: Dressed[];
+  loose: THREE.Mesh[];
+  guts: THREE.Mesh[];
+  blood: Blood;
+};
+
 export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const group = new THREE.Group();
   group.name = "gore";
-  const blood = createBlood(wrap);
+  let blood = createBlood(wrap);
   group.add(blood.group);
+  const dead = new THREE.Group();
+  dead.name = "gore-remains";
+  group.add(dead);
+  const remains: Remains[] = [];
 
   const flesh = wrap(
     new THREE.MeshStandardMaterial({
@@ -278,11 +317,19 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const fractures = new Map<string, THREE.Mesh>();
   let soakClock = 0;
   let poolClock = 0;
+  // The litres each part hit hard has bled into his clothes, and the
+  // litres run onto the snow under each gap since the pools last grew.
+  const soakedIn = new Map<BodyPart, number>();
+  let drips = 0;
+  // Which cheek his face's blood runs over as he lies, and how far.
+  const cheek: Cheek = { side: 1, lean: 0 };
+  // The body's way, smoothed: what a stream is carried along by — the
+  // ragdoll's own step-to-step jitter would break it into dashes.
+  const drift = new THREE.Vector3();
+  const poolAcc = new Map<string, number>();
   let last: GameState | null = null;
 
-  /** His clothes' own colours, before any blood: a copy a cloth. */
-  const clean = new WeakMap<THREE.BufferGeometry, Float32Array>();
-  const soaked = new Set<THREE.BufferGeometry>();
+  const soak = createSoak();
 
   const meshOf = (g: THREE.BufferGeometry): THREE.Mesh => {
     const m = new THREE.Mesh(g, flesh);
@@ -409,7 +456,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     toV(cut.at, stump.position);
     stump.quaternion.setFromUnitVectors(yUp, toV(cut.out, v1).multiplyScalar(-1).normalize());
     dressed.group.add(stump);
-    soakCloth(dressed.cloth, [{ at: cut.at, r: 0.16 }], 1, true);
+    soak.cloth(dressed.cloth, [{ at: cut.at, r: 0.16 }], 1, true);
     pieces.push({
       piece,
       dressed,
@@ -424,62 +471,9 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     // The gout: a burst out of both ends of the tear, and a gobbet or two.
     const dir = worldDir(cut.out, M);
     const carry = v2.set(v.vx, v.vy, v.vz);
-    blood.emit(a0, dir, 3.5, 70, 0.6, carry, () => rng.next());
-    blood.emit(a0, dir.clone().negate(), 2.5, 40, 0.7, carry, () => rng.next());
+    blood.emit(a0, dir, 1.4, 50, 0.5, carry, () => rng.next());
+    blood.emit(a0, dir.clone().negate(), 1, 30, 0.6, carry, () => rng.next());
     throwOut(["gobbet", "gobbet"], a0, dir, carry, 2.5);
-  };
-
-  /** Soak a cloth red round the wounds `at` (the bind pose's frame), each
-   * reaching `r`, as wet as `wet` (0 … 1). */
-  function soakCloth(
-    g: THREE.BufferGeometry,
-    wounds: { at: V3; r: number }[],
-    wet: number,
-    force = false,
-  ) {
-    const col = g.getAttribute("color") as THREE.BufferAttribute;
-    let orig = clean.get(g);
-    if (!orig) {
-      orig = Float32Array.from(col.array as Float32Array);
-      clean.set(g, orig);
-    }
-    if (!force && wounds.length === 0) return;
-    soaked.add(g);
-    const pos = g.getAttribute("position");
-    const arr = col.array as Float32Array;
-    // Blood soaked into cloth: near black-red where it is soaked through.
-    const br = 0.11;
-    const bg = 0.004;
-    const bb = 0.004;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      let k = 0;
-      for (const w of wounds) {
-        const d = Math.hypot(x - w.at.x, y - w.at.y, z - w.at.z);
-        // A ragged edge: the soak's reach wanders round the wound.
-        const reach = w.r * (0.8 + 0.4 * Math.sin(x * 41 + z * 37 + y * 23));
-        k = Math.max(k, Math.min(1, ((reach - d) / (0.35 * reach)) * wet));
-      }
-      k = Math.max(0, k);
-      arr[3 * i] = orig[3 * i] + (br - orig[3 * i]) * k;
-      arr[3 * i + 1] = orig[3 * i + 1] + (bg - orig[3 * i + 1]) * k;
-      arr[3 * i + 2] = orig[3 * i + 2] + (bb - orig[3 * i + 2]) * k;
-    }
-    col.needsUpdate = true;
-  }
-
-  const unsoak = () => {
-    for (const g of soaked) {
-      const orig = clean.get(g);
-      const col = g.getAttribute("color") as THREE.BufferAttribute;
-      if (orig) {
-        (col.array as Float32Array).set(orig);
-        col.needsUpdate = true;
-      }
-    }
-    soaked.clear();
   };
 
   /** The trunk's front at the chest (`chest`) or the belly (`abdomen`), in
@@ -526,15 +520,66 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     spike = null;
     opened = 0;
     crushed = false;
+    soakedIn.clear();
+    drips = 0;
+    drift.set(0, 0, 0);
+    poolAcc.clear();
     blood.clear();
-    unsoak();
+    soak.clear();
     model?.setGore(0, 0);
     rng = createRng(level.seed ^ 0x5eed90e);
   };
 
+  const forget = (r: Remains) => {
+    dead.remove(r.body, r.blood.group, ...r.loose, ...r.guts, ...r.pieces.map((d) => d.group));
+    disposeFigure(r.body);
+    for (const d of r.pieces) d.dispose();
+    for (const m of r.guts) m.geometry.dispose();
+    r.blood.dispose();
+  };
+
+  const leave = (model: GoreModel) => {
+    if (!last?.gore || last.gore.dead < 0) return;
+    // His body baked as the last frame drew it, its stumps and its open
+    // wounds on it, his clothes as soaked as they were.
+    const body = bakeFigure(model.root, wrap);
+    dead.add(body);
+    blood.settle();
+    dead.add(blood.group);
+    const r: Remains = {
+      body,
+      pieces: pieces.map((p) => p.dressed),
+      loose: [...gibs.map((g) => g.mesh), ...(spike ? [spike] : [])],
+      guts: guts.map((g) => g.mesh),
+      blood,
+    };
+    for (const o of [...r.pieces.map((d) => d.group), ...r.loose, ...r.guts]) dead.add(o);
+    remains.push(r);
+    while (remains.length > REMAINS) forget(remains.shift()!);
+    // Owned by the dead now: the next rider starts with none of it.
+    pieces = [];
+    gibs = [];
+    guts = [];
+    spike = null;
+    blood = createBlood(wrap);
+    group.add(blood.group);
+    clearAll(model);
+    last = null;
+  };
+
+  const clearRemains = () => {
+    for (const r of remains) forget(r);
+    remains.length = 0;
+  };
+
   return {
     group,
-    update(state, model, simDt, dt) {
+    leave,
+    clearRemains,
+    update(state, model, simDt, dt, veil = 0) {
+      const veiled = veil > 0.4;
+      blood.group.visible = !veiled;
+      for (const m of fractures.values()) m.visible = !veiled;
       if (state !== last || state.tick === 0) {
         if (last) clearAll(model);
         last = state;
@@ -591,7 +636,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             });
           }
         }
-        blood.emit(at, dir, 3, 120, 0.8, carry, () => rng.next());
+        blood.emit(at, dir, 1.2, 80, 0.7, carry, () => rng.next());
       });
       // THE SKULL CRUSHED.
       if (g.crushed >= 0 && !crushed) {
@@ -605,7 +650,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           carry,
           3,
         );
-        blood.emit(at, dir, 3.5, 140, 1.1, carry, () => rng.next());
+        blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
       }
       // THE SPIKE through him.
       if (g.impaled && !spike) {
@@ -716,9 +761,19 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
       }
 
-      // THE BLOOD: every wound spurts on the beat, and pools under him.
+      // THE BLOOD. A torn wound has no cloth over it: it pours out where
+      // it is, pumped on the beat. Every part hit hard bleeds under his
+      // clothes until they hold no more, then runs out of the lowest gap
+      // in them (`gore-leaks.ts`). What reaches the snow pools under him.
       const beat = g.rate > 0 ? g.pulse : 0;
-      const wounds: { at: THREE.Vector3; dir: THREE.Vector3; share: number; key: string }[] = [];
+      drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
+      // A stream takes the body's way only when the body is really going —
+      // a body lying or hanging still jitters, and a stream off it falls.
+      const going = drift.length();
+      const along = new THREE.Vector3()
+        .copy(drift)
+        .multiplyScalar(Math.min(1, Math.max(0, (going - 1.5) / 2)));
+      const wounds: Leak[] = [];
       for (const piece of cuts) {
         const c = cutOf(piece, f);
         wounds.push({
@@ -782,23 +837,50 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           key: `piece${pieces.indexOf(p)}`,
         });
       }
+      // The parts hit hard, under his clothes.
+      const height = (p: V3) => world(p, M, v3).y;
+      const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
+      wounds.push(...hardLeaks(hard, f, M, cheek));
       const total = wounds.reduce((s, w) => s + w.share, 0) || 1;
       const lying = carry.length() < 0.6;
       poolClock += dt;
       const pool = poolClock > 0.1;
       if (pool) poolClock = 0;
+      const hips = world(f.pelvis.head, M);
+      const low = hips.y - level.groundAt(hips.x, hips.z) < 0.5;
       for (const w of wounds) {
-        const litres = g.flow * simDt * (w.share / total);
-        const n = litres * DROPS_A_LITRE + (rng.next() < (litres * DROPS_A_LITRE) % 1 ? 1 : 0);
-        const speed = g.rate > 0 ? DRIBBLE + JET * beat : DRIBBLE * 0.5;
-        if (n >= 1)
-          blood.emit(w.at, w.dir, speed, Math.floor(n), 0.18 + 0.2 * (1 - beat), carry, () =>
-            rng.next(),
-          );
-        // What runs out of him lying still soaks into the snow under the wound.
-        if (pool && lying && w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
-          blood.pool(w.key, w.at.x, w.at.z, g.flow * 0.1 * (w.share / total) * 0.6);
+        const q = g.out * (w.share / total);
+        if (w.part) {
+          // Soaked into the clothes round the wound until they hold no
+          // more; then it runs out at the gap.
+          const had = soakedIn.get(w.part) ?? 0;
+          soakedIn.set(w.part, had + q * simDt);
+          if (had < HOLD) continue;
         }
+        const speed = pourOf(w, beat, g.rate);
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead);
+        if (w.lead) {
+          // And it drips off the face, the more the faster it runs.
+          drips += simDt * Math.min(DRIPS, 4 + q * 600);
+          const n = Math.floor(drips);
+          if (n > 0) {
+            drips -= n;
+            blood.emit(w.at, w.dir, 0.5 + beat, n, 0.6, along, () => rng.next());
+          }
+        }
+        // What reaches the snow under a gap lying on it pools there; a
+        // share runs on under him, into the one pool round his body.
+        if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
+          poolAcc.set(w.key, (poolAcc.get(w.key) ?? 0) + q * simDt * (low ? 0.3 : 1));
+          if (low) poolAcc.set("body", (poolAcc.get("body") ?? 0) + q * simDt * 0.7);
+        }
+      }
+      if (pool && lying) {
+        for (const [key, litres] of poolAcc) {
+          const at = key === "body" ? hips : wounds.find((w) => w.key === key)?.at;
+          if (at && litres > 0) blood.pool(key, at.x, at.z, litres, spreadAt(state, at.x, at.z));
+        }
+        poolAcc.clear();
       }
       // The pieces lying on the snow bleed into it too.
       if (pool) {
@@ -809,6 +891,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             p.stick.a.x,
             p.stick.a.z,
             0.012 * Math.exp(-(state.t - p.t) / 4),
+            spreadAt(state, p.stick.a.x, p.stick.a.z),
           );
         }
       }
@@ -817,14 +900,15 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         normalAt: (x, z, out) => ground.normalAt(x, z, out as V3),
       });
 
-      // HIS CLOTHES SOAKED round every wound, the more the more he bled.
+      // HIS CLOTHES SOAKED: round every torn wound, and from every part hit
+      // hard down the way it runs to the gap it comes out of.
       soakClock += dt;
       if (soakClock > 0.25) {
         soakClock = 0;
         const bind = bindPose().frames;
         const wet = Math.min(1, 0.3 + g.blood / 1.2);
         const reach = 0.1 + Math.min(0.35, g.blood * 0.12);
-        const at: { at: V3; r: number }[] = [];
+        const at: { at: V3; r: number; blood?: readonly [number, number, number] }[] = [];
         for (const piece of cuts)
           at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
         GORE_OPEN.forEach((_, bit) => {
@@ -846,7 +930,24 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             });
           }
         });
-        if (at.length > 0) soakCloth(skin.cloth, at, wet);
+        for (const h of hard) {
+          if (h.part === "head") {
+            at.push(...faceRuns(bind, cheek));
+            continue;
+          }
+          const litres = soakedIn.get(h.part) ?? 0;
+          if (litres <= 0.005) continue;
+          const gap = lowestGap(h.part, f, height);
+          at.push(
+            ...soakPath(
+              partAt(h.part, bind),
+              gapAt(gap, bind),
+              Math.min(1, litres / HOLD),
+              0.07 + Math.min(0.2, 0.5 * Math.sqrt(litres)),
+            ),
+          );
+        }
+        if (at.length > 0) soak.cloth(skin.cloth, at, Math.max(wet, hard.length > 0 ? 0.9 : 0));
       }
     },
     clear(model) {
@@ -855,6 +956,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     },
     dispose() {
       clearAll(null);
+      clearRemains();
       blood.dispose();
       flesh.dispose();
       for (const g of geometries) g.dispose();

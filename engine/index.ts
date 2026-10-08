@@ -599,7 +599,7 @@ export {
   snowGive,
   stepBody,
 } from "./game/body.ts";
-export { holdsHim, isDead, stepGore } from "./game/gore.ts";
+export { bleedsOf, holdsHim, isDead, stepGore, type Bleed } from "./game/gore.ts";
 export {
   GORE_OPEN,
   GORE_PIECES,

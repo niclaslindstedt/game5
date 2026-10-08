@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// STANDING A RUN UP ON A PINNED MAP — a campaign rung, a RACE or a TIME
-// TRIAL off the level card, or a TRICKS run off the trick map card — and
+// STANDING A RUN UP ON A PINNED MAP — a campaign rung, a RACE off the level
+// card, or a TRICKS run off the trick map card — and
 // standing the same one up again.
 //
 // A FACTORY over the app's own closures, the shape `app-load.ts` is built
@@ -92,8 +92,8 @@ export function createPinnedRuns(world: {
   loader: Loader;
   /** The run on the snow now. */
   current: () => GameState;
-  /** What the game remembers — the help, the damage switch, the trial's
-   * length, the lens — read at the press. */
+  /** What the game remembers — the help, the damage switch, the lens —
+   * read at the press. */
   settings: () => Settings;
   /** Who skis, and with what: the pair (a link's `?skis=` over the stored
    * one), the help and the switches (a link's `?poles=` over the stored
@@ -121,7 +121,7 @@ export function createPinnedRuns(world: {
           world.rig.arm(training ? null : rungOf);
           const now = world.current();
           const built = now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
-          const opts = { ...pinnedRun(pin, mode, rung, skier, s.trialLaps, built), training };
+          const opts = { ...pinnedRun(pin, mode, rung, skier, built), training };
           const game = createGame(opts);
           last = { ...opts, level: game.level };
           return game;

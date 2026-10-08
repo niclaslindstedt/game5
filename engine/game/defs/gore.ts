@@ -75,10 +75,28 @@ export const GORE = {
       impaled: 0.2,
       fracture: 0.03,
     },
-    /** With the heart stopped: what still drains, as a share of the flow,
-     * and the seconds it halves in. */
-    drain: 0.12,
-    halve: 2.5,
+    /** A PART HIT HARD bleeds without a mortal wound (`bleedsOf`). A blunt
+     * blow at `split` times an injury's even-chance energy splits the skin
+     * under the clothes, and the part bleeds OUT at `out[ais]` L/s (the
+     * scalp and the face `head` times that); any other injury of AIS 3 or
+     * more bleeds INSIDE — a torn organ at `organ[ais]`, a closed break
+     * (a femur's or the pelvis's takes litres) at `bone[ais]` — counted
+     * among the litres lost and never seen. A split clots by half in
+     * `clot` s, a bleed inside in `seal` s. */
+    bleed: {
+      split: 1.8,
+      out: [0, 0, 0.012, 0.025, 0.04, 0.06],
+      head: 2,
+      organ: [0, 0, 0, 0.03, 0.05, 0.08],
+      bone: [0, 0, 0, 0.02, 0.03, 0.04],
+      clot: 20,
+      seal: 60,
+    },
+    /** With the heart stopped: what still drains out of the wounds under
+     * its own weight, as a share of the flow, and the seconds it halves in
+     * — a body torn open empties onto the snow over the next half minute. */
+    drain: 0.3,
+    halve: 12,
   },
   /** THE HEART: its rate on the first wound and as all the blood that
    * kills is gone, beats a minute — and the seconds it beats on after

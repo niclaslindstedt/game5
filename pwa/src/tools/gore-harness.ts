@@ -13,6 +13,7 @@
 import {
   BONES,
   createGame,
+  bleedsOf,
   fracturesOf,
   generateLevel,
   GORE_OPEN,
@@ -154,7 +155,12 @@ function stateLine(s: GameState): string {
     `${g.impaled ? ` · on a ${g.impaled.stuff}` : ""}` +
     `${broken.length ? ` · broken ${broken.join(" ")}` : ""}\n` +
     `${g.dead >= 0 ? `DEAD (${g.cause})` : g.mortal >= 0 ? "dying" : "alive"} · heart ${g.rate.toFixed(0)}/min · ` +
-    `lost ${g.blood.toFixed(2)} l · ${g.flow.toFixed(2)} l/s`
+    `lost ${g.blood.toFixed(2)} l (out ${g.shed.toFixed(2)} l) · ${g.flow.toFixed(2)} l/s\n` +
+    `bleeding ${
+      bleedsOf(s)
+        .map((h) => `${h.part}${h.out > 0 ? ":out" : ""}${h.inside > 0 ? ":in" : ""}`)
+        .join(" ") || "-"
+    }`
   );
 }
 
@@ -201,6 +207,7 @@ const stage: Stage = {
       seed,
     });
   },
+  clearBodies: () => renderer.clearBodies(),
   async sky(over) {
     const sky = over ? { ...(baseSky ?? {}), ...over } : baseSky;
     renderer.setSky(sky);
@@ -217,6 +224,8 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     const scene = VIEWS[v];
     if (!scene) throw new Error(`no view "${v}"`);
     view = v;
+    // Each view on snow of its own: no dead left lying from the last one.
+    renderer.clearBodies();
     await scene(stage);
   }
   const tw = Math.round(width * scale);

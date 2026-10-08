@@ -45,7 +45,7 @@ describe("every built discipline's nine", () => {
       expect(new Set(maps.map((m) => m.day.weather)).size).toBeGreaterThan(2);
     });
   }
-  it("are the nine a mode's level card offers, and the time trial keeps the campaign's", () => {
+  it("are the nine a mode's level card offers, and a mode that races no discipline has none", () => {
     expect(raceMapsOf("slalom")).toBe(RACE_MAPS.slalom);
     expect(raceMapsOf("downhill")).toBe(RACE_MAPS.downhill);
     expect(raceMapsOf("superG")).toBe(RACE_MAPS.superG);
@@ -71,16 +71,15 @@ describe("the level card's answer, per discipline", () => {
   it("puts a race on its discipline's pick, its first by default, and a link on its seed", () => {
     expect(pinnedFor(NO_PICKS, "slalom", null)).toBe(slalom1);
     expect(pinnedFor(NO_PICKS, "downhill", null)).toBe((RACE_MAPS.downhill ?? [])[0]);
-    const picks = { level: null, raceMap: { slalom: slalom2.id, downhill: downhill3.id } };
+    const picks = { raceMap: { slalom: slalom2.id, downhill: downhill3.id } };
     expect(pinnedFor(picks, "slalom", null)).toBe(slalom2);
     expect(pinnedFor(picks, "downhill", null)).toBe(downhill3);
     // One discipline's map is never another's.
-    expect(pinnedFor({ level: null, raceMap: { slalom: downhill3.id } }, "slalom", null)).toBe(
-      slalom1,
-    );
+    expect(pinnedFor({ raceMap: { slalom: downhill3.id } }, "slalom", null)).toBe(slalom1);
     expect(pinnedFor(picks, "slalom", 38)).toBeNull();
-    // The time trial still rides the campaign's maps.
-    expect(pinnedFor(picks, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
+    // A mode with no nine of its own is pinned to nothing — not even a
+    // campaign map, which only a rung rides.
+    expect(pinnedFor(picks, "timeTrial", null)).toBeNull();
   });
 
   it("is remembered per discipline, and a stale or misplaced one is not", () => {

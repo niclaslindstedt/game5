@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE GORE AS DRAWN, in its three-free and DOM-free halves: where the
 // skin is cut for a piece torn off (`gore-cut.ts`), how what flies off a
-// body comes to rest on the snow (`gore-gibs.ts`), and the HUD taking his
-// blows and his death (`hud-wreck.ts`).
+// body comes to rest on the snow (`gore-gibs.ts`), where blood under his
+// clothes runs out of them (`gore-leaks.ts`), and the HUD taking his blows
+// and his death (`hud-wreck.ts`).
 
 import { describe, expect, it } from "vitest";
-import { GORE_PIECES, type GorePiece } from "@engine";
+import { BODY_PARTS, GORE_PIECES, type GorePiece } from "@engine";
 
 import {
   PIECE_BONES,
@@ -15,7 +16,9 @@ import {
   pieceCollapse,
 } from "../pwa/src/game/gore-cut.ts";
 import { rope, stepRope, stepStick, stick, type GibGround } from "../pwa/src/game/gore-gibs.ts";
-import { DEATH, wreckOf } from "../pwa/src/game/hud-wreck.ts";
+import { GAPS, gapAt, lowestGap, partAt, soakPath } from "../pwa/src/game/gore-leaks.ts";
+import { bindPose } from "../pwa/src/game/dress-loft.ts";
+import { DEATH, HUD_FADE, hudFade, wreckOf } from "../pwa/src/game/hud-wreck.ts";
 import type { BoneFrame, SkierBone } from "../pwa/src/game/skier-rig.ts";
 
 const bit = (p: GorePiece): number => 1 << GORE_PIECES.indexOf(p);
@@ -118,7 +121,7 @@ describe("what flies off a body", () => {
 
 describe("the HUD taking his blows", () => {
   it("is still and true while he is alive and nothing has struck him", () => {
-    expect(wreckOf(null, null)).toMatchObject({ jolt: 0, bend: 0, fall: 0, word: 0, dark: 0 });
+    expect(wreckOf(null, null)).toMatchObject({ jolt: 0, fade: 0, word: 0, dark: 0 });
   });
 
   it("jolts on a blow and settles as it ages", () => {
@@ -129,14 +132,58 @@ describe("the HUD taking his blows", () => {
     expect(wreckOf({ g: 120, id: 3, age: 1 }, null).jolt).toBe(0);
   });
 
-  it("breaks up, says DIED and goes dark in that order when he dies", () => {
+  it("fades the readouts over one shared fade", () => {
+    expect(hudFade(null)).toBe(0);
+    expect(hudFade(0)).toBe(0);
+    expect(hudFade(HUD_FADE / 2)).toBeCloseTo(0.5);
+    expect(hudFade(HUD_FADE * 2)).toBe(1);
+  });
+
+  it("fades its readouts, then says DIED and goes dark, in that order when he dies", () => {
     const at = (t: number) => wreckOf(null, t);
-    expect(at(0)).toMatchObject({ fall: 0, word: 0, dark: 0 });
-    expect(at(DEATH.fall + DEATH.falling).fall).toBe(1);
+    expect(at(0)).toMatchObject({ fade: 0, word: 0, dark: 0 });
+    expect(at(HUD_FADE / 2).fade).toBeCloseTo(0.5);
+    expect(at(DEATH.clear + HUD_FADE).fade).toBe(1);
+    // The readouts are gone before the word comes up.
+    expect(DEATH.clear + HUD_FADE).toBeLessThanOrEqual(DEATH.word);
     expect(at(DEATH.word - 0.01).word).toBe(0);
     expect(at(DEATH.word + DEATH.rise).word).toBe(1);
     expect(at(DEATH.dark - 0.01).dark).toBe(0);
     expect(at(DEATH.dark + DEATH.fade).dark).toBe(1);
     expect(DEATH.dark + DEATH.fade).toBeLessThanOrEqual(DEATH.again);
+  });
+});
+
+describe("blood under the clothes", () => {
+  const bind = bindPose().frames;
+
+  it("has a gap to run out of for every part, near the part", () => {
+    for (const part of BODY_PARTS) {
+      expect(GAPS[part].length).toBeGreaterThan(0);
+      const p = partAt(part, bind);
+      for (const gap of GAPS[part]) {
+        const g = gapAt(gap, bind);
+        // Inside the garment that holds it: never further than a body.
+        expect(Math.hypot(g.x - p.x, g.y - p.y, g.z - p.z)).toBeLessThan(1.3);
+      }
+    }
+  });
+
+  it("runs out of the lowest gap as he lies", () => {
+    // Stood up, a thigh's blood runs down to the boot top.
+    expect(lowestGap("thighL", bind, (p) => p.y)).toBe("ankleL");
+    // Stood on his head, up to the jacket's hem.
+    expect(lowestGap("thighL", bind, (p) => -p.y)).toMatch(/^hem/);
+    // Lying on his back (his front up), the chest's runs out of the back of the collar or hem.
+    expect(lowestGap("chest", bind, (p) => p.z)).toMatch(/B$/);
+  });
+
+  it("soaks from the wound toward the gap as far as the blood has reached", () => {
+    const from = { x: 0, y: 0, z: 0 };
+    const to = { x: 0, y: -1, z: 0 };
+    expect(soakPath(from, to, 0, 0.1)).toHaveLength(1);
+    const all = soakPath(from, to, 1, 0.1);
+    expect(all[all.length - 1].at.y).toBeCloseTo(-1);
+    expect(all[all.length - 1].r).toBeLessThan(all[0].r);
   });
 });

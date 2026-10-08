@@ -50,7 +50,7 @@ would be timed with the race.
 `reproQuery` in `debug-readout.ts`, read back by `url-params.ts`:
 
 ```
-?start=slalom&seed=39&mode=trial&skis=swift&t=41.25&camera=chase&weather=fair&hour=11&pose=x,z,heading,speed&splash=0
+?start=slalom&seed=39&mode=downhill&skis=swift&t=41.25&camera=chase&weather=fair&hour=11&pose=x,z,heading,speed&splash=0
 ```
 
 - `t` pre-rides the run with the BOT to that second — the clock, the lights,

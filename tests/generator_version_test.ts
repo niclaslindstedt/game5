@@ -23,8 +23,8 @@
 // Every pinned map is built here anyway, so the two other things a campaign
 // map quotes about itself without a build are held to it too: the day on its
 // box (`CampaignLevel.day`) and the loop drawn behind it (`campaign-routes.ts`,
-// `make routes`). Four ski areas, each built once and raced down six courses,
-// is the cost, which is why this is its own file: on a shard it is the whole
+// `make routes`). Four ski areas, each built once and raced down three to
+// five courses, is the cost, which is why this is its own file: on a shard it is the whole
 // file's floor.
 
 import { describe, expect, it } from "vitest";

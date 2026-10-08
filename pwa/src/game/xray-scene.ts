@@ -3,7 +3,9 @@
 // (`xray-shots.ts` directs, `camera-xray.ts` frames, `xray-view.ts` draws
 // the skeleton inside him) while the app has it running, and the DEATH CAM
 // (`camera-death.ts`) while he is off his skis otherwise. One place picks
-// between them, so the renderer asks one question for both.
+// between them, so the renderer asks one question for both — and the death
+// cam (or the ladder) is what the X-ray lens flies in off and back home to,
+// so neither hand-over is a cut.
 
 import * as THREE from "three";
 
@@ -13,7 +15,7 @@ import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import type { LensPose, LineClear } from "./camera-rigs.ts";
 import { createXrayLens, frameXray } from "./camera-xray.ts";
 import { createXrayView, type XraySkin } from "./xray-view.ts";
-import type { XrayLook } from "./xray-shots.ts";
+import { IDLE_XRAY, type XrayLook } from "./xray-shots.ts";
 
 export type HurtLens = {
   /** The skeleton's group, added to the scene once. */
@@ -37,6 +39,9 @@ export type HurtLens = {
   ): LensPose | null;
   /** Whether the X-ray cam has the run (the figure is drawn whatever rung). */
   active(): boolean;
+  /** How far the skin is glass this frame, 0 … 1: what is drawn outside
+   * him (the gore's blood and shards) stands down while the world is veiled. */
+  veil(): number;
   dispose(): void;
 };
 
@@ -47,7 +52,8 @@ export function createHurtLens(): HurtLens {
   let deathOn = false;
   let look: XrayLook | null = null;
   const target = new THREE.Vector3();
-  /** The lens either cam drew last frame: what the other flies off. */
+  /** The lens the game's own camera drew last frame (the death cam's or
+   * the ladder's), what the death cam flies on from. */
   let prev: LensPose | null = null;
 
   return {
@@ -63,7 +69,7 @@ export function createHurtLens(): HurtLens {
       skin.group.traverse((o) => {
         if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.Mesh);
       });
-      view.update(look ?? IDLE_LOOK, state, skin, meshes);
+      view.update(look ?? IDLE_XRAY, state, skin, meshes);
     },
     lens(allowed, body, ladder, dt, groundAt, clear, snap) {
       const shot = allowed && look?.active ? look.shot : null;
@@ -74,41 +80,35 @@ export function createHurtLens(): HurtLens {
         at =
           shot.kind === "bone"
             ? view.centreOf(shot.bone, target)
-            : shot.kind === "tear"
-              ? // Between where it tore and where he has slid since: the
-                // stump and the piece in one frame.
-                body
-                ? target.set(
-                    (shot.at.x + body.x) / 2,
-                    (shot.at.y + body.y) / 2,
-                    (shot.at.z + body.z) / 2,
-                  )
-                : target.set(shot.at.x, shot.at.y, shot.at.z)
-              : body
-                ? target.set(body.x, body.y, body.z)
+            : // A tear is seen on him, at the stump — the piece is flung
+              // off out of the frame; the way back looks where he lies.
+              body
+              ? target.set(body.x, body.y, body.z)
+              : shot.kind === "tear"
+                ? target.set(shot.at.x, shot.at.y, shot.at.z)
                 : view.bodyCentre(target);
         // A bone not drawn (torn away) is looked for in the body.
         at ??= view.bodyCentre(target);
         if (!at && body) at = target.set(body.x, body.y, body.z);
       }
-      const x = frameXray(xlens, shot, at, prev ?? ladder, dt, groundAt, clear);
-      if (x) {
-        if (death.active) dropDeathCam(death);
-        return (prev = x);
-      }
+      // THE GAME'S OWN CAMERA this frame — the death cam's while it has him,
+      // else the ladder's: run underneath the X-ray cam, so the lens flies
+      // in off it and is drawn back home to it.
+      let home: LensPose | null = null;
       if (deathOn && allowed) {
-        const dead = frameDeath(death, body, prev ?? ladder, dt, groundAt, clear);
-        if (death.ended) snap();
-        return (prev = dead);
-      }
-      if (death.active) dropDeathCam(death);
-      return (prev = null);
+        home = frameDeath(death, body, prev ?? ladder, dt, groundAt, clear);
+        if (death.ended && !shot) snap();
+      } else if (death.active) dropDeathCam(death);
+      prev = home;
+      // Nothing hides him under the X-ray (`xray-view.ts`), so its lens is
+      // never pulled in by what stands between.
+      const x = frameXray(xlens, shot, at, home ?? ladder, look?.back ?? 0, dt, groundAt);
+      return x ?? home;
     },
     active: () => !!look?.active,
+    veil: () => (look?.active ? look.xray : 0),
     dispose() {
       view.dispose();
     },
   };
 }
-
-const IDLE_LOOK: XrayLook = { active: false, rate: 1, xray: 0, shot: null, age: 0, index: 0 };

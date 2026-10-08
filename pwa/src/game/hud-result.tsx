@@ -18,15 +18,14 @@
 //
 // UNDER THE TITLE, the course raced by its runs' names (`courseName`).
 //
-// A TIME TRIAL'S PLATE is the same card with the time where the place was
-// and no table under it — there is nobody else to list — and under either
-// the RECORD BOOK's line (`records.ts`): a new record, or the row that
-// stood with its pair, its date and how far off it this run was. The row
-// is the one that stood when the run began (`HudSnapshot.best`), so the
-// plate can say the run beat it after the book has been rewritten.
+// Under the place, the RECORD BOOK's line (`records.ts`): a new record, or
+// the row that stood with its pair, its date and how far off it this run
+// was. The row is the one that stood when the run began
+// (`HudSnapshot.best`), so the plate can say the run beat it after the book
+// has been rewritten.
 //
 // ON A CAMPAIGN RUNG the plate adds three lines — the rung, what it paid
-// (points on a race, a medal on a trial) and what the finish did to the
+// (the points) and what the finish did to the
 // ladder — and NEXT RUN takes NEW MOUNTAIN's place, skiing the rung the ladder
 // opened (`campaign-run.ts` writes the lines; this only draws them).
 // A TRICKS RUN'S PLATE is the score where the time was, and no book under
@@ -191,9 +190,8 @@ export function ResultPlate({
   const out = slalom?.out ?? null;
   if (!result && !out) return null;
   if (!result) return <OutPlate snap={snap} onAgain={onAgain} />;
-  const trial = snap.mode === "timeTrial";
   const record = best === null || result.time < best.time;
-  const gold = snap.tricks ? false : trial ? record : result.place === 1;
+  const gold = snap.tricks ? false : result.place === 1;
   const mine = standings.find((s) => s.you);
   const second = slalom?.second ?? null;
   const onward = (second?.kind === "go" || second?.kind === "race") && onSecond !== null;
@@ -207,17 +205,13 @@ export function ResultPlate({
           <span class="hud-card-note hud-result-label">
             {snap.tricks
               ? STRINGS.resultTricksTitle
-              : trial
-                ? STRINGS.resultTrialTitle
-                : slalom
-                  ? raceTitle(slalom)
-                  : STRINGS.resultTitle}
+              : slalom
+                ? raceTitle(slalom)
+                : STRINGS.resultTitle}
           </span>
           {snap.course && <span class="hud-card-note">{snap.course}</span>}
           {snap.tricks ? (
             <span class="hud-card-title">{STRINGS.score(snap.tricks.score)}</span>
-          ) : trial ? (
-            <span class="hud-card-title">{STRINGS.resultTime(result.time)}</span>
           ) : slalom?.zone ? (
             /* A SPEED RACE: the place and the SPEED the zone timed, the time
                it was read off under it, and on the final the speed he
@@ -368,8 +362,8 @@ export function ResultPlate({
               data-nav-next={onward ? undefined : true}
               onClick={onAgain}
             >
-              {trial || snap.tricks
-                ? STRINGS.resultTrialAgain
+              {snap.tricks
+                ? STRINGS.resultSkiAgain
                 : slalom
                   ? raceAgain(slalom)
                   : STRINGS.resultAgain}

@@ -131,6 +131,10 @@ export type RigPose = {
   /** ON A LIFT (`camera-lift.ts`): how much of the lift's close look the
    * boom takes, and that look — from boarding to the lead onto a run. */
   ride?: RideLook | null;
+  /** How far a machine's ladder moved the pose off him, m (`camera-para.ts`
+   * frames its booms up his lines): the bolted rungs take it back off and
+   * stay on him. */
+  lift?: Vec3 | null;
 };
 
 /** A pose at rest at the origin — what the renderer fills every frame. */
@@ -174,6 +178,10 @@ export type BoltedRig = {
   /** THE FALL LOOK (`camera-fall.ts`): how much further down the look is
    * tipped in a long fall, rad — the head spotting the landing. */
   fallDown?: number;
+  /** LOOKING INTO THE TURN: rad of yaw the look is swung toward the side
+   * he is rolled to, per rad of roll — a pilot under a wing turns his head
+   * to where he is going. */
+  turn?: number;
 };
 
 export type BoomRig = {
@@ -551,7 +559,10 @@ export function frameRig(
 ): LensPose {
   if (rig.kind === "bolted") {
     const off = rotate(pose.q, rig.eye);
-    const eye = { x: pose.x + off.x, y: pose.y + off.y, z: pose.z + off.z };
+    const lift = pose.lift;
+    const eye = lift
+      ? { x: pose.x - lift.x + off.x, y: pose.y - lift.y + off.y, z: pose.z - lift.z + off.z }
+      : { x: pose.x + off.x, y: pose.y + off.y, z: pose.z + off.z };
     // Bolted on, the tremor swings the aim: the whole world buzzes.
     const shake = tremorAt(st, pose, rig.tremor, dt);
     const swing = rig.look * PACE.tremor.aim;
@@ -561,6 +572,14 @@ export function frameRig(
       : 0;
     const dip = rig.look * Math.tan((rig.down ?? 0) + spot);
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
+    if (rig.turn) {
+      const a = pose.roll * rig.turn;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      const x = fwd.x * c + fwd.z * s;
+      fwd.z = fwd.z * c - fwd.x * s;
+      fwd.x = x;
+    }
     const target = { x: eye.x + fwd.x, y: eye.y + fwd.y, z: eye.z + fwd.z };
     st.fresh = false;
     return {

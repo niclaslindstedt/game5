@@ -65,7 +65,6 @@ export function reproQuery(f: ReproFacts): string {
   const q = new URLSearchParams();
   q.set("start", f.mode === "free" ? "free" : "slalom");
   q.set("seed", String(f.seed));
-  if (f.mode === "timeTrial") q.set("mode", "trial");
   if (f.mode === "tricks") q.set("mode", "tricks");
   q.set("skis", f.skis);
   q.set("t", String(round(f.t, 2)));

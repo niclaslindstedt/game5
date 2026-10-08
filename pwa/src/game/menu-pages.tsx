@@ -14,6 +14,7 @@ import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
 import { SkisCards } from "./menu-dress.tsx";
 import { GalleryPage } from "./menu-gallery.tsx";
+import { StatsPage } from "./menu-stats.tsx";
 import { KeysPage } from "./menu-keys.tsx";
 import { OptionsPage } from "./menu-options.tsx";
 import { PinnedCards } from "./menu-pinned.tsx";
@@ -23,6 +24,7 @@ import { StartPage } from "./menu-start.tsx";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
 import type { Settings } from "./settings.ts";
+import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
 import { nextFreeSeed } from "./free-ride.ts";
 import type { MenuPage } from "./url-params.ts";
@@ -48,6 +50,9 @@ export function MenuPages(p: {
   /** RIDE on the skis card: onto the snow in the mode the cards are for. */
   onRide: () => void;
   onFreeRide: () => void;
+  /** The STATISTICS card's book, and clearing it. */
+  stats: StatsBook;
+  onResetStats: () => void;
 }) {
   const { page, setPage, settings, setSettings, campaign } = p;
   const back = (): void => setPage("root");
@@ -146,6 +151,8 @@ export function MenuPages(p: {
         />
       ) : page === "gallery" ? (
         <GalleryPage onBack={back} />
+      ) : page === "stats" ? (
+        <StatsPage book={p.stats} onBack={back} onReset={p.onResetStats} />
       ) : page === "dev" || page === "unlocks" || page === "benchHistory" ? (
         <DevPages
           page={page}

@@ -24,7 +24,6 @@ import {
   ladderAfter,
   levelCleared,
   levelUnlocked,
-  medalFor,
   pointsFor,
   recordRun,
   shelfWon,
@@ -37,7 +36,7 @@ import { STRINGS } from "./strings.ts";
 export type CampaignPlate = {
   /** The shelf, the rung's number and its name. */
   title: string;
-  /** What the run paid: the points on a race, the medal on a trial. */
+  /** What the run paid: the points. */
   award: string;
   /** Whether the run CLEARED the rung — the award is lit. */
   cleared: boolean;
@@ -48,11 +47,10 @@ export type CampaignPlate = {
   next: CampaignLevel | null;
 };
 
-/** THE PLATE'S LINES for a run on `level` that finished `place` of the field
- * in `time`, with the board as it stood before the run and after it. Pure. */
+/** THE PLATE'S LINES for a run on `level` that finished `place` of the field,
+ * with the board as it stood before the run and after it. Pure. */
 export function campaignPlateFor(
   level: CampaignLevel,
-  time: number,
   place: number,
   before: CampaignProgress,
   after: CampaignProgress,
@@ -60,14 +58,8 @@ export function campaignPlateFor(
   const here = findLevel(level.id);
   const shelf = here?.shelf;
   const title = STRINGS.plateRung(shelf?.name ?? "", (here?.index ?? 0) + 1, level.name);
-  const medal = medalFor(level, time);
-  const award =
-    level.mode === "timeTrial"
-      ? medal
-        ? STRINGS.plateMedal(STRINGS.campaignMedal[medal])
-        : STRINGS.plateNoMedal(level.medals?.bronze ?? 0)
-      : STRINGS.platePoints(pointsFor(place));
-  const cleared = level.mode === "timeTrial" ? medal !== null : pointsFor(place) > 0;
+  const award = STRINGS.platePoints(pointsFor(place));
+  const cleared = pointsFor(place) > 0;
 
   const step = ladderAfter(level.id, after);
   let ladder: string | null = null;
@@ -128,7 +120,7 @@ export function createCampaignRig(world: {
           order,
         });
         world.setProgress(after);
-        plate = campaignPlateFor(level, e.time, order.indexOf(null) + 1, before, after);
+        plate = campaignPlateFor(level, order.indexOf(null) + 1, before, after);
       }
     },
     plate: () => plate,

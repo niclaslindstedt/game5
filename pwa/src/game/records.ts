@@ -9,15 +9,18 @@
 // because the seven pairs are seven answers to the snow — a slalom ski's time
 // down a groomed piste is not a powder ski's to beat — and the run count is
 // (always one on a piste, kept so the key's shape is the sibling games'),
-// because a one-run trial and a three-run one would be two different
+// because a one-run race and a three-run one would be two different
 // stopwatches. A SLALOM'S SECOND RUN is set on a course of its own (R31),
-// so it keeps its own row — and its own ghost — beside the first run's. The
+// so it keeps its own row beside the first run's. The
 // date the row was set is written on it, and so are the
 // clock at every crossing of the run that set it (`splits`), which is what
 // the HUD's split is read against at each checkpoint of the next run.
 //
-// WHICH MODES KEEP A BOOK is `keepsRecords` — the race and the time trial.
-// The FREE RIDE keeps none: its runs are not comparable (a map on a day and
+// WHICH MODES KEEP A BOOK is `keepsRecords` — the races, and the engine's
+// TIME TRIAL: no card stands one up any more, but it is still the run alone
+// the suite and the labs ride the book, the ghost and the replay on, and a
+// row a trial set before it was retired is still a row. The FREE RIDE keeps
+// none: its runs are not comparable (a map on a day and
 // a depth of snow of the skier's own choosing, and no course to time), which
 // is the case the predicate exists for. Nor does a TRICKS run: its figure is
 // a score, higher the better, and this book is a book of times.

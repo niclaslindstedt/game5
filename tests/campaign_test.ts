@@ -22,7 +22,6 @@ import {
 import {
   CAMPAIGN_LEVELS,
   EMPTY_PROGRESS,
-  MEDALS,
   PLAYER_ID,
   POINTS,
   SHELVES,
@@ -35,16 +34,13 @@ import {
   ladderAfter,
   levelCleared,
   levelUnlocked,
-  medalFor,
   mergeProgress,
   NO_PICKS,
   pinnedFor,
   pinnedGameOptions,
   pinnedRun,
   pointsFor,
-  reachedShelfFor,
   recordRun,
-  shelfOpenFor,
   skierKey,
   shelfStandings,
   shelfUnlocked,
@@ -68,31 +64,33 @@ function orderWith(place: number): (number | null)[] {
 
 const [FIRST, SECOND, THIRD] = SHELVES;
 const race = (shelf = FIRST): CampaignLevel => shelf.levels.find((l) => l.mode === "slalom")!;
-const trial = (shelf = FIRST): CampaignLevel => shelf.levels.find((l) => l.mode === "timeTrial")!;
 
-/** Every map of a shelf cleared: the race won, the trial on gold. */
+/** Every map of a shelf cleared: every race won. */
 function winShelf(progress: CampaignProgress, shelf = FIRST): CampaignProgress {
   let out = progress;
   for (const level of shelf.levels) {
-    out = recordRun(out, level, {
-      time: level.medals ? level.medals.gold - 1 : 300,
-      skis: "hare",
-      order: orderWith(1),
-    });
+    out = recordRun(out, level, { time: 300, skis: "hare", order: orderWith(1) });
   }
   return out;
 }
 
 describe("the ladder", () => {
-  it("is four ski areas of six courses each, ids unique and numbered by rung", () => {
+  it("is four ski areas of three to five courses each, ids unique and in rung order", () => {
     expect(SHELVES).toHaveLength(4);
+    expect(SHELVES.map((shelf) => shelf.levels.length)).toEqual([3, 5, 4, 4]);
     const ids = new Set<string>();
     for (const shelf of SHELVES) {
-      expect(shelf.levels).toHaveLength(6);
       expect(shelf.name.length).toBeGreaterThan(0);
       const courses = new Set<string>();
-      shelf.levels.forEach((level, i) => {
-        expect(level.id).toBe(`${shelf.id}-${i + 1}`);
+      // The ids are the six-rung ladder's, kept when its time trials were
+      // dropped so a stored board still lands on its maps: the shelf's stem
+      // and a rung number that only climbs.
+      let rung = 0;
+      shelf.levels.forEach((level) => {
+        const match = /^([a-z]+)-(\d)$/.exec(level.id);
+        expect(match?.[1], level.id).toBe(shelf.id);
+        expect(Number(match?.[2]), level.id).toBeGreaterThan(rung);
+        rung = Number(match?.[2]);
         // ONE SKI AREA a shelf (R25): every map is the shelf's seed in the
         // shelf's country on a resort generator, raced down a course of its
         // own (R28) — never the same course twice.
@@ -110,14 +108,13 @@ describe("the ladder", () => {
         expect(level.digest).toMatch(/^[0-9a-f]{8}$/);
       });
     }
-    expect(CAMPAIGN_LEVELS).toHaveLength(24);
+    expect(CAMPAIGN_LEVELS).toHaveLength(16);
   });
 
-  it("races on red and black — one blue at most, the very first rung — and blackens as it climbs", () => {
-    CAMPAIGN_LEVELS.forEach((level, i) => {
-      if (i === 0 && level.grade === "blue") return;
+  it("races on red and black and blackens as it climbs", () => {
+    for (const level of CAMPAIGN_LEVELS) {
       expect(["red", "black"], `${level.id} is a ${level.grade} run`).toContain(level.grade);
-    });
+    }
     const blacks = SHELVES.map((shelf) => shelf.levels.filter((l) => l.grade === "black").length);
     for (let i = 1; i < blacks.length; i++) {
       expect(
@@ -128,35 +125,19 @@ describe("the ladder", () => {
     expect(blacks[blacks.length - 1]).toBeGreaterThan(blacks[0]);
   });
 
-  it("sets every slalom on a red or a black, and mixes slaloms and trials on every shelf", () => {
+  it("races every rung, a slalom on every shelf and a downhill only on a black", () => {
     for (const shelf of SHELVES) {
       const slaloms = shelf.levels.filter((l) => l.mode === "slalom");
-      for (const l of slaloms) expect(["red", "black"]).toContain(l.grade);
-      expect(slaloms.length).toBeGreaterThanOrEqual(3);
-      expect(shelf.levels.length - slaloms.length).toBeGreaterThanOrEqual(2);
-    }
-    // The one blue warms up against the clock.
-    expect(FIRST.levels[0].grade).toBe("blue");
-    expect(FIRST.levels[0].mode).toBe("timeTrial");
-  });
-
-  it("skis every rung as one run top to bottom, and prices every trial gold under silver under bronze", () => {
-    for (const level of CAMPAIGN_LEVELS) {
-      expect(level.laps).toBe(1);
-      // A race (a slalom, a downhill) pays places, never medals.
-      if (level.mode !== "timeTrial") {
-        expect(level.medals).toBeUndefined();
-      } else {
-        const m = level.medals!;
-        expect(m.gold).toBeLessThan(m.silver);
-        expect(m.silver).toBeLessThan(m.bronze);
-        // Roughly a run's worth of seconds — two to five minutes down a
-        // course of 1.3–3.5 km: a medal off by a factor is a typo, not a
-        // curation.
-        expect(m.silver).toBeGreaterThan(100);
-        expect(m.silver).toBeLessThan(600);
+      expect(slaloms.length).toBeGreaterThanOrEqual(2);
+      for (const l of shelf.levels) {
+        expect(["slalom", "downhill"]).toContain(l.mode);
+        if (l.mode === "downhill") expect(l.grade).toBe("black");
       }
     }
+  });
+
+  it("skis every rung as one run top to bottom", () => {
+    for (const level of CAMPAIGN_LEVELS) expect(level.laps).toBe(1);
   });
 
   it("builds every shelf on a ski area of its own", () => {
@@ -173,21 +154,10 @@ describe("the ladder", () => {
   });
 });
 
-describe("the points and the medals", () => {
+describe("the points", () => {
   it("pays the podium and nothing below it", () => {
     expect(POINTS).toEqual([3, 2, 1]);
     expect([1, 2, 3, 4].map(pointsFor)).toEqual([3, 2, 1, 0]);
-  });
-
-  it("gives a medal only on a trial, the best one the time is under", () => {
-    const t = trial();
-    const m = t.medals!;
-    expect(medalFor(race(), 1)).toBeNull();
-    expect(medalFor(t, m.gold)).toBe("gold");
-    expect(medalFor(t, m.gold + 0.01)).toBe("silver");
-    expect(medalFor(t, m.bronze)).toBe("bronze");
-    expect(medalFor(t, m.bronze + 0.01)).toBeNull();
-    expect(MEDALS).toEqual(["bronze", "silver", "gold"]);
   });
 });
 
@@ -200,7 +170,7 @@ describe("the board keeps the better afternoon", () => {
       skis: "hare",
       order: orderWith(2),
     });
-    expect(after.results[level.id]).toEqual({ best: 400, skis: "hare", place: 2, medal: null });
+    expect(after.results[level.id]).toEqual({ best: 400, skis: "hare", place: 2 });
     expect(after.points[level.id][PLAYER_ID]).toBe(2);
     expect(after.points[level.id][skierKey(0)]).toBe(3);
     expect(Object.values(after.points[level.id]).reduce((a, b) => a + b, 0)).toBe(6);
@@ -210,17 +180,7 @@ describe("the board keeps the better afternoon", () => {
     const won = recordRun(EMPTY_PROGRESS, level, { time: 420, skis: "hare", order: orderWith(1) });
     const worse = recordRun(won, level, { time: 390, skis: "swift", order: orderWith(4) });
     expect(worse.points[level.id]).toEqual(won.points[level.id]);
-    expect(worse.results[level.id]).toEqual({ best: 390, skis: "swift", place: 1, medal: null });
-  });
-
-  it("books no points on a trial, and keeps the best medal", () => {
-    const t = trial();
-    const m = t.medals!;
-    const gold = recordRun(EMPTY_PROGRESS, t, { time: m.gold, skis: "hare", order: [null] });
-    expect(gold.points[t.id]).toBeUndefined();
-    const slower = recordRun(gold, t, { time: m.bronze, skis: "hare", order: [null] });
-    expect(slower.results[t.id].medal).toBe("gold");
-    expect(slower.results[t.id].best).toBe(m.gold);
+    expect(worse.results[level.id]).toEqual({ best: 390, skis: "swift", place: 1 });
   });
 });
 
@@ -231,22 +191,6 @@ describe("the locks", () => {
     expect(levelUnlocked(FIRST, 0, EMPTY_PROGRESS)).toBe(true);
     expect(levelUnlocked(FIRST, 1, EMPTY_PROGRESS)).toBe(false);
     expect(levelUnlocked(SECOND, 0, EMPTY_PROGRESS)).toBe(false);
-  });
-
-  it("offers every measured mode a map on a fresh board, so the level card has its SKI press", () => {
-    for (const mode of ["slalom", "downhill", "timeTrial"] as const) {
-      const shelf = reachedShelfFor(mode, EMPTY_PROGRESS);
-      expect(shelfOpenFor(shelf, mode, EMPTY_PROGRESS)).toBe(true);
-      expect(shelf.levels.some((level) => fitsMode(level, mode))).toBe(true);
-    }
-    // The first shelf has no black: the downhill lands on the first that does,
-    // and opens no other shelf.
-    const downhill = reachedShelfFor("downhill", EMPTY_PROGRESS);
-    expect(downhill).toBe(SHELVES.find((s) => s.levels.some((l) => fitsMode(l, "downhill"))));
-    expect(shelfOpenFor(SECOND, "slalom", EMPTY_PROGRESS)).toBe(false);
-    expect(SHELVES.filter((s) => shelfOpenFor(s, "downhill", EMPTY_PROGRESS))).toHaveLength(
-      downhill === FIRST ? 1 : 2,
-    );
   });
 
   it("opens the next map on a podium, and not on fourth", () => {
@@ -265,18 +209,6 @@ describe("the locks", () => {
     expect(levelUnlocked(SECOND, 1, third)).toBe(true);
   });
 
-  it("clears a trial on bronze and not without a medal", () => {
-    const t = trial();
-    const none = recordRun(EMPTY_PROGRESS, t, {
-      time: t.medals!.bronze + 5,
-      skis: "hare",
-      order: [null],
-    });
-    expect(levelCleared(none, t)).toBe(false);
-    const bronze = recordRun(none, t, { time: t.medals!.bronze, skis: "hare", order: [null] });
-    expect(levelCleared(bronze, t)).toBe(true);
-  });
-
   it("opens the next shelf when this one is won — every map cleared, top of the table", () => {
     const won = winShelf(EMPTY_PROGRESS);
     expect(shelfWon(FIRST, won)).toBe(true);
@@ -288,11 +220,7 @@ describe("the locks", () => {
   it("keeps the next shelf shut when every map is cleared but a rival tops the table", () => {
     let out: CampaignProgress = EMPTY_PROGRESS;
     for (const level of FIRST.levels) {
-      out = recordRun(out, level, {
-        time: level.medals ? level.medals.gold : 300,
-        skis: "hare",
-        order: orderWith(3),
-      });
+      out = recordRun(out, level, { time: 300, skis: "hare", order: orderWith(3) });
     }
     expect(FIRST.levels.every((l) => levelCleared(out, l))).toBe(true);
     expect(shelfWon(FIRST, out)).toBe(false);
@@ -328,9 +256,10 @@ describe("where the campaign picks back up", () => {
     expect(ladderAfter(FIRST.levels[0].id, one)).toEqual({ kind: "next", level: FIRST.levels[1] });
     expect(ladderAfter(FIRST.levels[1].id, one)).toEqual({ kind: "locked", shelf: FIRST });
     const won = winShelf(EMPTY_PROGRESS);
-    expect(ladderAfter(FIRST.levels[5].id, won)).toEqual({ kind: "next", level: SECOND.levels[0] });
-    expect(ladderAfter(THIRD.levels[5].id, won).kind).not.toBe("next");
-    expect(campaignStanding(won)).toEqual({ cleared: 6, of: 24 });
+    const lastOf = (shelf: typeof FIRST) => shelf.levels[shelf.levels.length - 1];
+    expect(ladderAfter(lastOf(FIRST).id, won)).toEqual({ kind: "next", level: SECOND.levels[0] });
+    expect(ladderAfter(lastOf(THIRD).id, won).kind).not.toBe("next");
+    expect(campaignStanding(won)).toEqual({ cleared: FIRST.levels.length, of: 16 });
   });
 });
 
@@ -353,24 +282,39 @@ describe("a stored board", () => {
     const out = mergeProgress({
       results: { [rung.id]: { best: 190, skis: "eagle", place: 1, medal: "silver" } },
     });
-    expect(out.results[rung.id]).toEqual({ place: 1, medal: null });
+    expect(out.results[rung.id]).toEqual({ place: 1 });
     expect(levelCleared(out, rung)).toBe(true);
   });
 
-  it("drops anything this ladder does not have or cannot read", () => {
-    const [a, b, c, d] = FIRST.levels.map((level) => level.id);
+  it("leaves a dropped trial's row lying, and a medal stored on a race", () => {
+    // `rime-1` was the time trial the first shelf opened on.
+    const race1 = FIRST.levels[0];
     const out = mergeProgress({
       results: {
-        "nowhere-1": { best: 1, skis: "hare", place: 1, medal: null },
-        [a]: { best: "fast", skis: "hare", place: 1, medal: null },
-        [b]: { best: 100, skis: "sofa", place: 1, medal: "gold" },
-        [c]: { best: 100, skis: "hare", place: 0, medal: null },
-        [d]: { best: 100, skis: "hare", place: 2, medal: "platinum" },
+        "rime-1": { best: 150, skis: "hare", place: 1, medal: "gold" },
+        [race1.id]: { best: 200, skis: "hare", place: 2, medal: null },
+      },
+      points: { "rime-1": { you: 3 } },
+    });
+    expect(out).toEqual({
+      results: { [race1.id]: { best: 200, skis: "hare", place: 2 } },
+      points: {},
+    });
+  });
+
+  it("drops anything this ladder does not have or cannot read", () => {
+    const [a, b, c, d] = [...FIRST.levels, ...SECOND.levels].map((level) => level.id);
+    const out = mergeProgress({
+      results: {
+        "nowhere-1": { best: 1, skis: "hare", place: 1 },
+        [a]: { best: "fast", skis: "hare", place: 1 },
+        [b]: { best: 100, skis: "sofa", place: 1 },
+        [c]: { best: 100, skis: "hare", place: 0 },
+        [d]: { best: 100, skis: "hare", place: 2 },
       },
       points: { "nowhere-1": { you: 3 }, [d]: { you: 2, r0: "x" } },
     });
     expect(Object.keys(out.results)).toEqual([d]);
-    expect(out.results[d].medal).toBeNull();
     expect(out.points).toEqual({ [d]: { you: 2 } });
     for (const junk of [null, 7, "board", [], { results: 3 }]) {
       expect(mergeProgress(junk)).toEqual(EMPTY_PROGRESS);
@@ -379,72 +323,66 @@ describe("a stored board", () => {
 });
 
 describe("which map a run is on", () => {
-  it("times every pinned map, sets a slalom only on the campaign's slalom maps, and frees none", () => {
+  it("sets a slalom only on the campaign's slalom maps, and frees none", () => {
     for (const level of CAMPAIGN_LEVELS) {
       expect(fitsMode(level, "slalom")).toBe(level.mode === "slalom");
-      expect(fitsMode(level, "timeTrial")).toBe(true);
+      expect(fitsMode(level, "timeTrial")).toBe(false);
       expect(fitsMode(level, "free")).toBe(false);
       expect(fitsMode(level, "tricks")).toBe(false);
     }
   });
 
-  it("puts a time trial on the chosen map, the first by default, and a link on its seed", () => {
-    const pick = (level: string | null) => ({ ...NO_PICKS, level });
-    expect(pinnedFor(NO_PICKS, "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
-    const late = SHELVES[3].levels[1].id;
-    expect(pinnedFor(pick(late), "timeTrial", null)?.id).toBe(late);
-    expect(pinnedFor(pick("nowhere-2"), "timeTrial", null)).toBe(CAMPAIGN_LEVELS[0]);
-    expect(pinnedFor(pick(late), "free", null)).toBeNull();
-    expect(pinnedFor(pick(late), "timeTrial", 38)).toBeNull();
+  it("pins no campaign map to a mode with no race maps, nor to a link's seed", () => {
+    expect(pinnedFor(NO_PICKS, "timeTrial", null)).toBeNull();
+    expect(pinnedFor(NO_PICKS, "free", null)).toBeNull();
+    expect(pinnedFor(NO_PICKS, "tricks", null)).toBeNull();
+    expect(pinnedFor(NO_PICKS, "slalom", 38)).toBeNull();
     // A campaign map is never a race's: a race rides its discipline's nine.
     const firstSlalom = CAMPAIGN_LEVELS.find((l) => l.mode === "slalom")!;
-    expect(pinnedFor(pick(firstSlalom.id), "slalom", null)?.id).not.toBe(firstSlalom.id);
+    expect(pinnedFor(NO_PICKS, "slalom", null)?.id).not.toBe(firstSlalom.id);
   });
 
   it("stands a rung up in its own mode and laps, with nobody leaning on anybody", () => {
     const built = syntheticLevel();
     const skier = { spec: SKIS, assist: FULL_ASSIST, damage: false };
-    const t = trial(THIRD);
+    const t = THIRD.levels.find((l) => l.mode === "downhill")!;
     const rung = campaignGameOptions(t, skier, built);
-    expect(rung).toMatchObject({ seed: t.seed, mode: "timeTrial", laps: t.laps, contact: false });
+    expect(rung).toMatchObject({ seed: t.seed, mode: "downhill", laps: t.laps, contact: false });
     expect(rung.level).toBe(built);
-    // Off the level card: the race over the race's one run top to bottom
-    // (a trial rung's map included), the trial over the chip's.
-    expect(pinnedRun(trial(), "slalom", false, skier, 1, built)).toMatchObject({
+    // Off the level card: the race over the race's one run top to bottom.
+    expect(pinnedRun(race(), "slalom", false, skier, built)).toMatchObject({
       mode: "slalom",
       laps: LEVEL_RULES.race.laps,
     });
-    expect(pinnedRun(t, "timeTrial", false, skier, 1, built)).toMatchObject({ laps: 1 });
     expect(pinnedGameOptions(t, "slalom", skier, { built }).contact).toBeUndefined();
   });
 
-  it("bills the front door off the board and the chosen map", () => {
-    const pick = THIRD.levels[3];
-    const pins = frontDoorPins(EMPTY_PROGRESS, { ...NO_PICKS, level: pick.id }, null);
-    expect(pins.campaign).toEqual({ cleared: 0, of: 24, next: FIRST.levels[0].name });
-    expect(pins.trialMap).toBe(pick.name);
-    expect(frontDoorPins(EMPTY_PROGRESS, NO_PICKS, 7).trialMap).toBeNull();
+  it("bills the front door off the board", () => {
+    const pins = frontDoorPins(EMPTY_PROGRESS, NO_PICKS, null);
+    expect(pins.campaign).toEqual({ cleared: 0, of: 16, next: FIRST.levels[0].name });
+    expect(pins).not.toHaveProperty("trialMap");
     expect(frontDoorPins(EMPTY_PROGRESS, NO_PICKS, 7).raceMap).toBeNull();
   });
 
-  it("keeps the level card's pick between visits, and only a map this ladder has", () => {
-    expect(freshSettings().level).toBeNull();
-    const kept = SHELVES[3].levels[4].id;
-    expect(mergeSettings({ level: kept }).level).toBe(kept);
-    expect(mergeSettings({ level: "nowhere-1" }).level).toBeNull();
-    expect(mergeSettings({ level: 3 }).level).toBeNull();
+  it("reads a stored blob from before the time trial was retired, and keeps none of it", () => {
+    const old = mergeSettings({ level: SHELVES[3].levels[2].id, trialLaps: 1 });
+    expect(old).not.toHaveProperty("level");
+    expect(old).not.toHaveProperty("trialLaps");
+    expect(old).toEqual(freshSettings());
   });
 
   it("opens the campaign and the level card off a link, and walks BACK to the card that opened the skis", () => {
     expect(readParams("?menu=campaign").page).toBe("campaign");
-    expect(readParams("?menu=levels&mode=trial")).toMatchObject({
+    expect(readParams("?menu=levels&mode=downhill")).toMatchObject({
       page: "levels",
-      mode: "timeTrial",
+      mode: "downhill",
     });
+    // The time trial's link is no mode now: it boots the slalom.
+    expect(readParams("?mode=trial").mode).toBe("slalom");
     expect(skisBack(null, "free", null)).toBe("start");
     expect(skisBack(FIRST.levels[0], "slalom", null)).toBe("campaign");
     expect(skisBack(null, "slalom", null)).toBe("levels");
-    expect(skisBack(null, "timeTrial", 7)).toBe("root");
+    expect(skisBack(null, "slalom", 7)).toBe("root");
     expect(skisBack(null, "tricks", null)).toBe("tricks");
     expect(skisBack(null, "tricks", 7)).toBe("root");
     expect(readParams("?menu=tricks&mode=tricks").page).toBe("tricks");
@@ -457,7 +395,7 @@ describe("the finish plate on a rung", () => {
     const opened = winShelf(EMPTY_PROGRESS);
     const level = SECOND.levels[0];
     const after = recordRun(opened, level, { time: 1, skis: "hare", order: orderWith(1) });
-    const plate = campaignPlateFor(level, 1, 1, opened, after);
+    const plate = campaignPlateFor(level, 1, opened, after);
     expect(plate.cleared).toBe(true);
     expect(plate.award).toContain("3");
     expect(plate.next).toBe(SECOND.levels[1]);
@@ -469,7 +407,7 @@ describe("the finish plate on a rung", () => {
     const opened = winShelf(EMPTY_PROGRESS);
     const level = SECOND.levels[0];
     const after = recordRun(opened, level, { time: 1, skis: "hare", order: orderWith(4) });
-    const plate = campaignPlateFor(level, 1, 4, opened, after);
+    const plate = campaignPlateFor(level, 4, opened, after);
     expect(plate.cleared).toBe(false);
     expect(plate.next).toBeNull();
     expect(plate.ladder).not.toBeNull();
@@ -477,14 +415,14 @@ describe("the finish plate on a rung", () => {
 
   it("names the shelf won on its last rung", () => {
     const before = winShelf(EMPTY_PROGRESS);
-    const last = FIRST.levels[5];
+    const last = FIRST.levels[FIRST.levels.length - 1];
     const almost: CampaignProgress = {
       results: { ...before.results },
       points: { ...before.points },
     };
     delete almost.results[last.id];
     delete almost.points[last.id];
-    const plate = campaignPlateFor(last, 300, 1, almost, before);
+    const plate = campaignPlateFor(last, 1, almost, before);
     expect(plate.ladder).toContain(FIRST.name.toUpperCase());
     expect(plate.next).toBe(SECOND.levels[0]);
   });
@@ -504,21 +442,22 @@ describe("the rig", () => {
       progress: () => board,
       setProgress: (next) => (board = next),
     });
-    const t = trial();
+    const t = race();
     rig.arm(t);
     expect(rig.riding()).toBe(t);
-    const state = finished(t.medals!.silver);
+    const state = finished(120);
     rig.step(state);
-    expect(board.results[t.id].medal).toBe("silver");
+    expect(board.results[t.id]).toMatchObject({ best: 120, place: 1 });
+    expect(board.points[t.id][PLAYER_ID]).toBe(POINTS[0]);
     expect(rig.plate()?.cleared).toBe(true);
     // The same flag seen again books nothing more.
-    rig.step(finished(t.medals!.gold));
-    expect(board.results[t.id].medal).toBe("silver");
+    rig.step(finished(110));
+    expect(board.results[t.id].best).toBe(120);
     // Armed again — a restart — and the next flag books.
     rig.arm(t);
     expect(rig.plate()).toBeNull();
-    rig.step(finished(t.medals!.gold));
-    expect(board.results[t.id].medal).toBe("gold");
+    rig.step(finished(110));
+    expect(board.results[t.id].best).toBe(110);
   });
 
   it("books nothing for a run that is not a rung", () => {

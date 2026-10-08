@@ -394,11 +394,11 @@ describe("the frame-rate readout (frame-rate.ts)", () => {
 
 describe("the REPRO line (debug-readout.ts)", () => {
   it("is a URL the app reads back to the same run, moment and pose", () => {
-    const state = createGame({ seed: 39, mode: "timeTrial", quiet: true });
+    const state = createGame({ seed: 39, mode: "slalom", quiet: true });
     for (let i = 0; i < 600; i++) step(state, botInput(state));
-    const facts = reproOf(state, "timeTrial", "far");
+    const facts = reproOf(state, "slalom", "far");
     const params = readParams(reproQuery(facts));
-    expect(params).toMatchObject({ rides: true, seed: 39, mode: "timeTrial", camera: "far" });
+    expect(params).toMatchObject({ rides: true, seed: 39, mode: "slalom", camera: "far" });
     expect(params.skis).toBe(state.skier.spec.id);
     expect(params.t).toBeCloseTo(state.t, 2);
     expect(params.sky?.weather).toBe(weatherOf(state.level).kind);

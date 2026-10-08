@@ -902,8 +902,8 @@ export function disciplineOf(mode: GameMode): Discipline | null {
   return DISCIPLINES.find((d) => d.mode === mode)?.id ?? null;
 }
 
-/** THE RACE MAPS A MODE IS RACED ON, or null where it rides the campaign's
- * (the time trial) or measures nothing (the free ride, the tricks run). */
+/** THE RACE MAPS A MODE IS RACED ON, or null where it races no discipline
+ * (the free ride, the tricks run). */
 export function raceMapsOf(mode: GameMode): readonly RaceMap[] | null {
   const discipline = disciplineOf(mode);
   const maps = discipline === null ? undefined : RACE_MAPS[discipline];

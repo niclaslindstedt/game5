@@ -26,7 +26,11 @@
 // three rigid nodes: `HELI_NODES`), switched by `VITE_MODEL_HELI`; it is
 // not fetched with the skis — only a free ride with the helicopter wants
 // it — so `heliModelUrl()` is where its drawer (`heli-view.ts`) fetches it
-// from, `null` when the build packs none. So are the snowmobile
+// from, `null` when the build packs none. Its AIR AMBULANCE
+// (`models/rescue.glb`, `make models KIND=rescue`: the same airframe in a
+// mountain rescue service's yellow, with a hoist, a searchlight and the
+// wire cutters) carries the same `HELI_NODES` and is packed under the same
+// switch, fetched from `rescueModelUrl()`. So are the snowmobile
 // (`sledModelUrl`, `VITE_MODEL_SLED`) and the night's piste machine
 // (`groomerModelUrl`, `VITE_MODEL_GROOMER`), each fetched by its drawer.
 
@@ -110,6 +114,14 @@ export function groomerModelUrl(): string | null {
  * switched off (`VITE_MODEL_HELI=0`) and the build packs none. */
 export function heliModelUrl(): string | null {
   return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/heli.glb` : null;
+}
+
+/** Where this build serves the air ambulance's glTF (the heli's airframe
+ * dressed for mountain rescue, the same `HELI_NODES`), or `null` when the
+ * helicopter is switched off (`VITE_MODEL_HELI=0`) and the build packs
+ * neither. */
+export function rescueModelUrl(): string | null {
+  return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/rescue.glb` : null;
 }
 
 const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };

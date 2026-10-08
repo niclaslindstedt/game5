@@ -162,6 +162,21 @@ The sound is `docs/audio.md`'s. In brief:
 - the wash's roar of blowing snow near the ground;
 - the explosion's whump, crack and fire.
 
+## The air ambulance
+
+A second model of the same airframe, `pwa/models/rescue.glb`, is the mountain rescue helicopter — the air ambulance that lands on the snow beside a skier too hurt to get up. It is built by `scripts/blender/rescue.py` (`make blender KIND=rescue`, published by `make models KIND=rescue`), which runs the heli's builder whole off the same `HELI` and dresses it, so its frame, its three nodes (`heli_body`, `heli_rotor`, `heli_tail_rotor`) and their origins are the heli's exactly, and one drawer poses either. It is packed under the heli's switch (`VITE_MODEL_HELI`) and fetched from `rescueModelUrl()`.
+
+What it is drawn after — what the light helicopters flying mountain rescue and emergency medical work in the Alps look like:
+
+- **Colour for being seen.** Rescue machines are painted for conspicuity against snow, rock and forest; across the Alps the commonest is an all-over signal YELLOW, set off by a dark (black or anthracite) band or lettering and a thin red line, where other services fly red and white. Rotor tips are banded bright. The model is yellow over the skin, the cowling, the fins and the blade tips, with an anthracite band low along the cabin sweeping up the boom and a red pinstripe over it.
+- **The medical emblem.** An air ambulance carries the six-armed blue STAR of the emergency medical services in a white field on its sides (and the word for ambulance or a call sign). The red cross is a protected emblem and is not used here. The model has a white disc with the blue star on each side of the cabin's back, between the sliding door and the engine bay.
+- **The rescue hoist.** Mountain rescue lowers a doctor or a rescuer on a cable and lifts the casualty out where the machine cannot land. On this class the electric hoist hangs on a short boom over a cabin door — the side with the large sliding door the stretcher goes in by — its drum at the boom's end, a hook on a short cable under it and a status light on it. The model's boom comes out of the roof's edge over the right-hand sliding door.
+- **The searchlight.** A steerable searchlight sits under the nose or the belly for night work, a round lamp in a housing on a gimbal; the model's looks ahead and down from under the chin, left of the landing lights. Its lens is not lit in the model, so the drawer can switch it on.
+- **Wire-strike protection.** Machines that work low among cables carry a cutter on the roof ahead of the rotor head and one under the chin, each a blade raked forward with jaws at its tip, and a sawtoothed deflector strip up the windscreen's centre post that steers a wire into them; the three together guard most of the frontal profile against wires met in level flight.
+- **Loading the stretcher.** A light single-engine machine loads the stretcher through its wide side door into a cabin stripped to a stretcher and two seats; the bigger twins load through clamshell doors at the back. The model keeps the class's sliding door and adds no rear doors. It carries no ski basket.
+
+Materials, by name, for the drawer: the heli's (`trim` and `paint` now the yellow, `stripe` the red line, `glass`, `metal`, `dark`, `rotor`, `lamp`, `lamp_green`) and `band` (anthracite), `mark_white`, `emblem` (the star's blue) and `searchlight` (the lens).
+
 ## Measuring it
 
 - `npx vitest run tests/heli_test.ts`: the thrust against momentum theory, the climb with no ceiling, the hang toward the skier, the turn, the drop and the lurch, the pilot home, the boarding, the crash and the restart, the wash, and determinism.

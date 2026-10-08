@@ -239,12 +239,13 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter,
+# The models the game ships: every pair of skis, the heli-ski helicopter
+# and its air ambulance,
 # the mountain snowmobile and the night's piste machine, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
@@ -254,6 +255,7 @@ blender:
 models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)

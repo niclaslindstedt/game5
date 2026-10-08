@@ -4,7 +4,7 @@
 // down the last stretch are `gates.ts`'s):
 //
 //   * THE GRANDSTANDS: tiered standing terraces either side of the line,
-//     grey treads on scaffolding down to the snow, the risers dressed in
+//     timber treads on scaffolding down to the snow, the risers dressed in
 //     the arch's red and white, a rail along the back.
 //   * THE FENCES: orange spectator netting on posts in front of every bank
 //     on the mountain, and the PADDED BOARDS round the finish circle — the
@@ -16,8 +16,10 @@
 //     over it, facing up the piste so the stands can see it — showing the
 //     run's clock, live.
 //
-// Built in code in the marks' chunky look; reads the `Level` and the plan
-// and writes neither.
+// The stands, the platform and the video wall's tower are built on the
+// facade kit in scaffold steel, timber and white panels (`arena-build.ts`);
+// the boards, the exit gate and the nets in the marks' chunky look here.
+// Reads the `Level` and the plan and writes neither.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -25,9 +27,12 @@ import type { GameState, Level } from "@engine";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 
 import { PALETTE } from "../identity.ts";
+import { buildGrandstand, buildLeaderPlatform, buildVideoTower } from "./arena-build.ts";
+import { FacadeKit } from "./facade-kit.ts";
+import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { netLook, netTexture } from "./gates.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import type { Fence, Grandstand, SpectatorPlan } from "./spectator-plan.ts";
+import type { Fence, SpectatorPlan } from "./spectator-plan.ts";
 
 export type FinishArena = {
   group: THREE.Group;
@@ -36,8 +41,6 @@ export type FinishArena = {
   dispose(): void;
 };
 
-const GREY = new THREE.Color(0x9aa1a8);
-const DARK = new THREE.Color(0x3a3f45);
 const WHITE = new THREE.Color(0xf2f4f5);
 const RED = new THREE.Color(PALETTE.flag);
 const BLUE = new THREE.Color(PALETTE.gateBlue);
@@ -79,71 +82,6 @@ class Kit {
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3));
     g.computeVertexNormals();
     return g;
-  }
-}
-
-/** A grandstand's terraces, scaffold and rail. */
-function buildStand(kit: Kit, level: Level, s: Grandstand): void {
-  // The stand's own frame: `f` along it, `b` back away from the piste.
-  const yaw = s.facing + Math.PI;
-  const bx = Math.sin(yaw);
-  const bz = Math.cos(yaw);
-  const fx = Math.cos(yaw);
-  const fz = -Math.sin(yaw);
-  const at = (a: number, back: number) => ({
-    x: s.x + fx * a + bx * back,
-    z: s.z + fz * a + bz * back,
-  });
-  const floor = s.y - 0.5;
-  for (let r = 0; r < s.rows; r++) {
-    const top = s.y + r * s.rise;
-    const c = at(0, (r + 0.5) * s.tread);
-    // The tread and the step's body under it, down to the deck.
-    kit.box(c.x, top - 0.06, c.z, s.width, 0.12, s.tread, yaw, GREY);
-    // The riser at its front: banner panels, red and white.
-    const panels = Math.round(s.width / 4);
-    for (let k = 0; k < panels; k++) {
-      const a = -s.width / 2 + (k + 0.5) * (s.width / panels);
-      const p = at(a, r * s.tread + 0.02);
-      const h = r === 0 ? top - 0.12 - (floor - 0.4) : s.rise;
-      kit.box(
-        p.x,
-        top - 0.12 - h / 2,
-        p.z,
-        s.width / panels,
-        h,
-        0.04,
-        yaw,
-        (k + r) % 2 ? WHITE : RED,
-      );
-    }
-  }
-  // The scaffold: legs every four metres along and every two back, down to
-  // the snow from under each tread, a beam along each line of them.
-  for (let a = -s.width / 2; a <= s.width / 2 + 0.01; a += 4) {
-    for (let r = 0; r <= s.rows; r += 2) {
-      const p = at(a, Math.min(r, s.rows - 0.05) * s.tread);
-      const top = s.y + Math.min(r, s.rows - 1) * s.rise - 0.12;
-      const g = level.groundAt(p.x, p.z) - 0.3;
-      kit.box(p.x, (top + g) / 2, p.z, 0.09, top - g, 0.09, yaw, DARK);
-    }
-  }
-  // The back: a rail on posts at the top step's edge.
-  const backTop = s.y + (s.rows - 1) * s.rise;
-  const rail = at(0, s.rows * s.tread - 0.05);
-  kit.box(rail.x, backTop + 1.05, rail.z, s.width, 0.06, 0.06, yaw, DARK);
-  for (let a = -s.width / 2; a <= s.width / 2 + 0.01; a += 2) {
-    const p = at(a, s.rows * s.tread - 0.05);
-    kit.box(p.x, backTop + 0.55, p.z, 0.05, 1.05, 0.05, yaw, DARK);
-  }
-  // Its two ends: a stair of the treads' own grey, a rail up it.
-  for (const side of [-1, 1]) {
-    for (let r = 0; r < s.rows; r++) {
-      const p = at((side * s.width) / 2, (r + 0.5) * s.tread);
-      const top = s.y + r * s.rise;
-      kit.box(p.x, (top + floor) / 2, p.z, 0.08, top - floor, s.tread, yaw, DARK);
-      kit.box(p.x, top + 0.55, p.z, 0.05, 1.0, 0.05, yaw, DARK);
-    }
   }
 }
 
@@ -234,7 +172,10 @@ export function createFinishArena(
   };
   const painted = std({ vertexColors: true, roughness: 0.75 }, "arena-painted");
   const kit = new Kit();
-  for (const s of plan.stands) buildStand(kit, level, s);
+  // The stands, the leader's platform and the video wall's tower: built on
+  // the facade kit, painted (`arena-build.ts`) — one mesh.
+  const built = new FacadeKit();
+  for (const s of plan.stands) buildGrandstand(built, level, s);
   const netTex = netTexture();
   texs.push(netTex);
   // Seen from both sides, and drawn as three draws a see-through two-sided
@@ -282,90 +223,12 @@ export function createFinishArena(
       const z = a.exit.z + rz * side * 2.25;
       kit.box(x, level.groundAt(x, z) + 1.1, z, 1.0, 2.4, 0.9, a.heading, RED);
     }
-    // THE LEADER'S PLATFORM: the deck, the board at its back, the chair.
-    // Its deck at least the line's height, on a box down to the snow.
-    const under = level.groundAt(a.leader.x, a.leader.z);
-    const lg = Math.max(under, a.y - 0.2);
-    const back = a.leader.facing + Math.PI;
-    const bx = Math.sin(back);
-    const bz = Math.cos(back);
-    kit.box(
-      a.leader.x,
-      (lg + 0.3 + under - 0.3) / 2,
-      a.leader.z,
-      3.5,
-      lg + 0.6 - under,
-      3.5,
-      a.heading,
-      DARK,
-    );
-    const bdx = a.leader.x + bx * 1.5;
-    const bdz = a.leader.z + bz * 1.5;
-    kit.box(bdx, lg + 0.3 + 1.2, bdz, 1.8, 2.4, 0.07, a.heading, RED);
-    kit.box(bdx, lg + 0.3 + 1.9, bdz, 1.5, 0.3, 0.09, a.heading, WHITE);
-    kit.box(bdx, lg + 0.3 + 0.5, bdz, 1.5, 0.12, 0.09, a.heading, WHITE);
-    const cx = a.leader.x + bx * 0.3;
-    const cz = a.leader.z + bz * 0.3;
-    kit.box(cx, lg + 0.3 + 0.45, cz, 0.6, 0.12, 0.6, a.heading, WHITE);
-    kit.box(cx + bx * 0.27, lg + 0.3 + 0.8, cz + bz * 0.27, 0.6, 0.6, 0.08, a.heading, WHITE);
-    for (const [u, v] of [
-      [-0.25, -0.25],
-      [0.25, -0.25],
-      [-0.25, 0.25],
-      [0.25, 0.25],
-    ]) {
-      kit.box(
-        cx + rx * u + bx * v,
-        lg + 0.3 + 0.2,
-        cz + rz * u + bz * v,
-        0.05,
-        0.4,
-        0.05,
-        a.heading,
-        DARK,
-      );
-    }
-    // THE VIDEO WALL: scaffold legs, the screen's frame, a white roof and
-    // sides, and the screen itself — lit, so it reads in any light.
+    // THE LEADER'S PLATFORM, its deck at least the line's height; THE
+    // VIDEO WALL's tower round its screen.
+    const lg = Math.max(level.groundAt(a.leader.x, a.leader.z), a.y - 0.2);
+    buildLeaderPlatform(built, level, a, lg + 0.3);
+    buildVideoTower(built, level, a.screen);
     const s = a.screen;
-    const sx = Math.cos(s.facing);
-    const sz = -Math.sin(s.facing);
-    const fwdx = Math.sin(s.facing);
-    const fwdz = Math.cos(s.facing);
-    const top = s.y + s.height / 2;
-    for (const u of [-1, 1]) {
-      for (const v of [-0.6, 0.6]) {
-        const x = s.x + sx * u * (s.width / 2 - 0.2) - fwdx * (v + 0.7);
-        const z = s.z + sz * u * (s.width / 2 - 0.2) - fwdz * (v + 0.7);
-        const g = level.groundAt(x, z) - 0.3;
-        kit.box(x, (top + g) / 2, z, 0.12, top - g, 0.12, s.facing, DARK);
-      }
-    }
-    kit.box(
-      s.x - fwdx * 0.12,
-      s.y,
-      s.z - fwdz * 0.12,
-      s.width + 0.4,
-      s.height + 0.4,
-      0.2,
-      s.facing,
-      DARK,
-    );
-    kit.box(
-      s.x - fwdx * 0.7,
-      top + 0.45,
-      s.z - fwdz * 0.7,
-      s.width + 1.2,
-      0.1,
-      2.6,
-      s.facing,
-      WHITE,
-    );
-    for (const u of [-1, 1]) {
-      const x = s.x + sx * u * (s.width / 2 + 0.55) - fwdx * 0.7;
-      const z = s.z + sz * u * (s.width / 2 + 0.55) - fwdz * 0.7;
-      kit.box(x, s.y + 0.2, z, 0.08, s.height + 0.9, 2.6, s.facing, WHITE);
-    }
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 284;
@@ -398,6 +261,15 @@ export function createFinishArena(
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   group.add(mesh);
+  const structures = facadeGeometry(built.out);
+  geos.push(structures);
+  const facade = facadeMaterial(haze, "arena");
+  mats.push(facade);
+  const steel = new THREE.Mesh(structures, facade);
+  steel.castShadow = true;
+  steel.receiveShadow = true;
+  steel.name = "arena-structures";
+  group.add(steel);
 
   let shown = "";
   return {

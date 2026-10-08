@@ -56,6 +56,8 @@ import { liftFade } from "./camera-lift.ts";
 import { CHAIR_BACK, CHAIR_SEAT, TOW } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
+import { buildStationHouses } from "./station-build.ts";
+import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -357,51 +359,19 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     });
   }
 
-  // THE STATIONS: a house at each end of the line (`stationHouses`), its
-  // roof, and the bullwheel flat at the rope's height over the end itself.
-  const houseGeo = new THREE.BoxGeometry(1, 1, 1);
-  houseGeo.translate(0, 0.5, 0);
-  const roofGeo = new THREE.BoxGeometry(1, 1, 1);
-  roofGeo.translate(0, 0.5, 0);
+  // THE STATIONS: the bullwheel flat at the rope's height over each end of
+  // the line; the houses behind them are buildings (below).
   const wheelGeo = new THREE.CylinderGeometry(1, 1, 1, 20);
   const ends = plans.length * 2;
-  type End = {
-    x: number;
-    z: number;
-    base: number;
-    top: number;
-    p: LiftPlan;
-    width: number;
-    length: number;
-    wheelX: number;
-    wheelZ: number;
-    wheelY: number;
-  };
+  type End = { p: LiftPlan; wheelX: number; wheelZ: number; wheelY: number };
   const stations: End[] = plans.flatMap((p) =>
     stationHouses(level, p).map((h) => ({
-      x: h.x,
-      z: h.z,
-      base: h.base,
-      top: h.top,
       p,
-      width: h.halfWidth * 2,
-      length: h.halfLength * 2,
       wheelX: h.wheel.x,
       wheelZ: h.wheel.z,
       wheelY: h.wheel.ground + h.wheel.rope,
     })),
   );
-  instanced(houseGeo, plain, ends, (set) => {
-    for (const e of stations) {
-      const walls = e.p.lift.kind === "gondola" ? PAINT.walls : PAINT.timber;
-      set(e.x, e.base, e.z, e.p.heading, size.set(e.width, e.top - e.base, e.length), walls);
-    }
-  });
-  instanced(roofGeo, plain, ends, (set) => {
-    for (const e of stations) {
-      set(e.x, e.top, e.z, e.p.heading, size.set(e.width + 1.2, 0.45, e.length + 1.2), PAINT.roof);
-    }
-  });
   instanced(wheelGeo, plain, ends, (set) => {
     for (const e of stations) {
       const r = Math.max(0.6, e.p.look.gauge / 2 + 0.25);
@@ -420,6 +390,17 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   // gates, the masts, the doors, the load lines and the fences.
   const layout = layStations(level, plans);
   buildStations(layout, level.groundAt, painted, group, geos, meshes);
+  // THE BUILDINGS (`station-build.ts`): every station's house, the
+  // terminals, the booths, a gondola's platform roof and door, a drag's
+  // hut — one mesh in the painted materials (`facade-paint.ts`).
+  const facadeMat = facadeMaterial(haze, "stations");
+  mats.push(facadeMat);
+  const buildings = facadeGeometry(buildStationHouses(level, plans, layout).out);
+  geos.push(buildings);
+  const houses3d = new THREE.Mesh(buildings, facadeMat);
+  houses3d.castShadow = true;
+  houses3d.receiveShadow = true;
+  group.add(houses3d);
   // THE PISTE MAP BOARDS' FACES (`map-board.ts`), each marked at its top.
   const boards = createMapBoards(
     level,

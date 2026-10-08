@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE COURSE'S MARKS, BUILT — the gate pole and its panel, a ski cross's
 // stubby pole and triangular flag, the edge stake and its band, the marker
-// over the owed gate, the start hut, and the inflatable arch with its
-// skirts and blowers: every one PROCEDURALLY, on
+// over the owed gate, and the inflatable arch with its skirts and blowers
+// (the start hut is a building, `race-build.ts`): every one PROCEDURALLY, on
 // the trees' bench (`tree-mesh.ts`), in the same chunky, faceted, low-poly
 // look as the woods and the wildlife around them. `gates.ts` places and
 // colours them; the measures are `start-arch.ts`'s (`ARCH`, `GATE`) and
@@ -10,8 +10,8 @@
 //
 // FLAT COLOUR A FACE, faceted light. A part that is one colour per instance
 // (a pole, a panel, a stake — tinted by `setColorAt`) is built WHITE, so the
-// instance's colour is the colour; a part with paint of its own (the hut's
-// planks, the marker's white cap, the arch's piping) carries it per face.
+// instance's colour is the colour; a part with paint of its own (the
+// marker's white cap, the arch's piping) carries it per face.
 // Every face is lit half by its own normal and half by the part's mass, so
 // a pole reads as a faceted stake rather than a smooth tube and the arch as
 // a fat fabric tube of panels.
@@ -168,74 +168,6 @@ export function gateMarker(): THREE.BufferGeometry {
   );
   s.cap(table, [0, h * 0.42, 0], WHITE, [0, 1, 0]);
   s.cap(girdle, [0, -h * 0.58, 0], red, [0, -1, 0], true);
-  return s.geometry();
-}
-
-/** THE START HUT: a timber box under a gabled roof with its eaves out and
- * its ridge loaded with snow, the side to the piste OPEN — a counter at
- * waist height, the starter's window. `width` across the piste's line
- * (x), `depth` along it (z), its open face to +x — the skier's right, and
- * the hut stands off the line's left edge, so the window is to the piste. */
-export function startHut(width: number, depth: number, height: number): THREE.BufferGeometry {
-  const s = bench(0.7);
-  const plank = [colour(0x6b4a2e), colour(0x5c3f27)];
-  const trim = colour(0x3e2a1a);
-  const roof = colour(0x2c3036);
-  const snow = colour(0xf2f5f8);
-  const hw = width / 2;
-  const hd = depth / 2;
-  const boards = 5;
-  // A wall from (x0, z0) to (x1, z1), planked in courses of two browns; a
-  // window course left open where `open` asks (from–to of the height).
-  const wall = (
-    x0: number,
-    z0: number,
-    x1: number,
-    z1: number,
-    out: V3,
-    open?: [number, number],
-  ): void => {
-    for (let k = 0; k < boards; k++) {
-      const y0 = (k / boards) * height;
-      const y1 = ((k + 1) / boards) * height;
-      if (open && y0 >= open[0] - 1e-6 && y1 <= open[1] + 1e-6) continue;
-      s.quad([x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0], plank[k % 2], out);
-    }
-  };
-  wall(hw, -hd, hw, hd, [1, 0, 0], [height * 0.4, height * 0.8]);
-  wall(-hw, hd, hw, hd, [0, 0, 1]);
-  wall(hw, -hd, -hw, -hd, [0, 0, -1]);
-  wall(-hw, -hd, -hw, hd, [-1, 0, 0]);
-  // The counter under the window, and the posts at its corners.
-  const cy = height * 0.4;
-  s.quad([hw, cy, -hd], [hw, cy, hd], [hw + 0.25, cy, hd], [hw + 0.25, cy, -hd], trim, [0, 1, 0]);
-  for (const z of [-hd, hd]) {
-    s.tube([hw, 0, z], [hw, height, z], 0.07, 0.07, 4, trim);
-  }
-  // The gable roof: two slopes over the eaves, the gables' triangles, and
-  // the snow on top — a white plane on each slope, thick at the ridge.
-  const eave = 0.35;
-  const ridge = height + width * 0.32;
-  const rx = hw + eave;
-  const rz = hd + eave;
-  for (const side of [-1, 1]) {
-    const e0: V3 = [side * rx, height - 0.08, -rz];
-    const e1: V3 = [side * rx, height - 0.08, rz];
-    const r0: V3 = [0, ridge, -rz];
-    const r1: V3 = [0, ridge, rz];
-    s.quad(e0, e1, r1, r0, roof, [side * 0.6, 1, 0]);
-    const lift = 0.07;
-    const m0: V3 = [side * rx * 0.85, height - 0.08 + (ridge - height) * 0.15 + lift, -rz];
-    const m1: V3 = [side * rx * 0.85, height - 0.08 + (ridge - height) * 0.15 + lift, rz];
-    s.quad(m0, m1, [0, ridge + lift * 1.6, rz], [0, ridge + lift * 1.6, -rz], snow, [
-      side * 0.5,
-      1,
-      0,
-    ]);
-  }
-  for (const z of [-hd, hd]) {
-    s.tri([-hw, height, z], [hw, height, z], [0, ridge, z], plank[1], [0, 0, Math.sign(z)]);
-  }
   return s.geometry();
 }
 

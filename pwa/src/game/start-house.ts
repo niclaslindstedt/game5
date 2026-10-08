@@ -10,16 +10,22 @@
 // the START CLOCK, its light red until GO and green after, its digits
 // counting the starter's word down.
 //
-// Built in code, in the marks' faceted look (`tree-mesh.ts`'s bench), in
-// the house's own frame: x across to the racer's right, z down the course,
-// y up from the snow under the wand. The printed faces are canvases.
+// The house, its billboard wall, the start ramp's kickboards and the
+// timing box are built on the facade kit and painted (`race-build.ts`); the
+// wand's posts and the pole holes in the marks' faceted look (`tree-mesh.ts`'s
+// bench); all in the house's own frame: x across to the racer's right, z
+// down the course, y up from the snow under the wand. The printed faces are
+// canvases.
 
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
-import { APP_NAME, PALETTE } from "../identity.ts";
+import { APP_NAME } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
+import { FacadeKit } from "./facade-kit.ts";
+import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { buildStartHouse } from "./race-build.ts";
 import { HOUSE, startHousePlan } from "./start-house-plan.ts";
 import { STRINGS } from "./strings.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
@@ -34,12 +40,6 @@ function wandOpen(t: number): number {
 }
 
 const colour = (hex: THREE.ColorRepresentation): THREE.Color => new THREE.Color(hex);
-const PANEL = colour(PALETTE.pine);
-const SHELL = colour(0x3a4048);
-const DARK = colour(0x0c0e11);
-const INSIDE = colour(0xb9b4aa);
-const ROOF = colour(0x2a2f36);
-const SNOW = colour(0xf1f4f7);
 const POST = colour(0x15181c);
 const ALLOY = colour(0xc4cacf);
 const TRODDEN = colour(0xd5dde6);
@@ -94,118 +94,23 @@ export function createStartHouse(level: Level, haze: HazeUniforms): StartHouse |
   const roof = plan.eaves - plan.y;
   const top = Math.max(roof, F.height);
   const hw = HOUSE.width / 2;
-  const back = -HOUSE.depth;
   const s = new Shape(0, { stems: false, wind: true });
   s.facet = 0.8;
 
-  /** A face of the house, its foot on the snow wherever the snow is. */
-  const wall = (
-    x0: number,
-    z0: number,
-    x1: number,
-    z1: number,
-    upTo: number,
-    c: THREE.Color,
-    out: V3,
-  ): void => {
-    const n = Math.max(2, Math.round(Math.hypot(x1 - x0, z1 - z0) / 0.5));
-    for (let k = 0; k < n; k++) {
-      const a = k / n;
-      const b = (k + 1) / n;
-      const xa = x0 + (x1 - x0) * a;
-      const za = z0 + (z1 - z0) * a;
-      const xb = x0 + (x1 - x0) * b;
-      const zb = z0 + (z1 - z0) * b;
-      s.quad(
-        [xa, snowAt(xa, za) - 0.2, za],
-        [xb, snowAt(xb, zb) - 0.2, zb],
-        [xb, upTo, zb],
-        [xa, upTo, za],
-        c,
-        out,
-      );
-    }
-  };
-  // THE HOUSE behind the front: its sides and back, a roof with snow on it,
-  // and dark inside — the doorway shows the dark.
-  wall(-hw, -0.1, -hw, back, roof, SHELL, [-1, 0, 0]);
-  wall(hw, back, hw, -0.1, roof, SHELL, [1, 0, 0]);
-  wall(hw, back, -hw, back, roof, SHELL, [0, 0, -1]);
-  wall(-hw + 0.08, back + 0.08, hw - 0.08, back + 0.08, roof, INSIDE, [0, 0, 1]);
-  wall(-hw + 0.08, -0.1, -hw + 0.08, back + 0.08, roof, INSIDE, [1, 0, 0]);
-  wall(hw - 0.08, back + 0.08, hw - 0.08, -0.1, roof, INSIDE, [-1, 0, 0]);
-  s.quad(
-    [-hw, roof - 0.02, 0],
-    [hw, roof - 0.02, 0],
-    [hw, roof - 0.02, back],
-    [-hw, roof - 0.02, back],
-    INSIDE,
-    [0, -1, 0],
-  );
-  s.quad(
-    [-hw - 0.2, roof, back - 0.2],
-    [hw + 0.2, roof, back - 0.2],
-    [hw + 0.2, roof, 0],
-    [-hw - 0.2, roof, 0],
-    ROOF,
-    [0, -1, 0],
-  );
-  s.quad(
-    [-hw - 0.2, roof + 0.2, 0],
-    [hw + 0.2, roof + 0.2, 0],
-    [hw + 0.2, roof + 0.2, back - 0.2],
-    [-hw - 0.2, roof + 0.2, back - 0.2],
-    SNOW,
-    [0, 1, 0],
-  );
-
-  // THE FRONT WALL: the green panels round the doorway, to the snow
-  // wherever it is; the band and the boards are printed planes over it.
-  const fw = F.width / 2;
+  // THE HOUSE, its billboard wall, the ramp and the timing box: built on
+  // the facade kit, painted (`race-build.ts`).
   const door = D.width / 2;
   const lintel = snowAt(0, 0) + D.height;
-  const panel = (x0: number, x1: number, y0: (x: number) => number, y1: number): void => {
-    const n = Math.max(1, Math.round((x1 - x0) / 0.6));
-    for (let k = 0; k < n; k++) {
-      const xa = x0 + ((x1 - x0) * k) / n;
-      const xb = x0 + ((x1 - x0) * (k + 1)) / n;
-      s.quad([xa, y0(xa), 0], [xb, y0(xb), 0], [xb, y1, 0], [xa, y1, 0], PANEL, [0, 0, 1]);
-    }
-  };
-  const foot = (x: number): number => snowAt(x, 0) - 0.2;
-  panel(-fw, -door, foot, top);
-  panel(door, fw, foot, top);
-  panel(-door, door, () => lintel, top);
-  // Its back, inside the house: plain, and light.
-  for (const [x0, x1] of [
-    [-fw, -door],
-    [door, fw],
-  ] as const) {
-    s.quad(
-      [x1, foot(x1), -0.06],
-      [x0, foot(x0), -0.06],
-      [x0, top, -0.06],
-      [x1, top, -0.06],
-      INSIDE,
-      [0, 0, -1],
-    );
-  }
-  // The doorway's jambs and head, dark.
-  for (const x of [-door, door]) {
-    s.quad([x, foot(x), 0], [x, foot(x), -0.3], [x, lintel, -0.3], [x, lintel, 0], DARK, [
-      -Math.sign(x),
-      0,
-      0,
-    ]);
-  }
-  s.quad(
-    [-door, lintel, 0],
-    [door, lintel, 0],
-    [door, lintel, -0.3],
-    [-door, lintel, -0.3],
-    DARK,
-    [0, -1, 0],
-  );
+  const kit = new FacadeKit();
+  buildStartHouse(kit, snowAt, roof, top);
+  const built = facadeGeometry(kit.out);
+  geos.push(built);
+  const facade = facadeMaterial(haze, "start-house");
+  mats.push(facade);
+  const walls = new THREE.Mesh(built, facade);
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  group.add(walls);
   // THE WAND between its two posts at the door's foot.
   const W = HOUSE.wand;
   const wy = snowAt(0, 0);

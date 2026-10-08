@@ -75,10 +75,21 @@
   }
 }
 
-/* On a phone in portrait the strip drops the height over the sea. */
+/* On a phone in portrait the strip drops the height over the sea and
+   stands under the minimap and its presses, which the full strip would run
+   under; its hint wraps. */
 @media (max-width: 480px) {
   .hud-balloon-sea {
     display: none;
+  }
+
+  .hud-balloon {
+    top: calc(max(0.4rem, env(safe-area-inset-top)) + 10rem);
+  }
+
+  .hud-balloon .hud-para-hint {
+    max-width: 92vw;
+    white-space: normal;
   }
 }
 
@@ -134,6 +145,15 @@
   height: clamp(3.4rem, 14vmin, 4.4rem);
   font-size: clamp(0.62rem, 2.3vmin, 0.8rem);
   border-color: rgb(226 64 46 / 70%);
+}
+
+/* In portrait the readouts at the foot of the screen reach under the
+   thumb's corner: VENT goes up beside JUMP instead. */
+@media (max-aspect-ratio: 3/4) {
+  .hud-balloon-vent {
+    bottom: calc(max(1.4rem, env(safe-area-inset-bottom)) + clamp(5.8rem, 25vmin, 7.8rem));
+    right: calc(max(1.2rem, env(safe-area-inset-right)) + clamp(5rem, 20vmin, 6.6rem));
+  }
 }
 
 .hud-balloon-held {

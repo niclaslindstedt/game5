@@ -43,8 +43,9 @@ export type BodyMove = {
 
 /** One key of a move: the hips over the ground and off the middle, the
  * trunk's bend forward and its roll and twist, the head's nod, where each
- * ankle stands (y over the ground) and each hand is. */
-type Key = {
+ * ankle stands (y over the ground) and each hand is. The civilians' moves
+ * (`civilian-moves.ts`) are keys too. */
+export type Key = {
   hipY: number;
   hipX: number;
   hipZ: number;
@@ -56,14 +57,14 @@ type Key = {
   hands: [V3, V3];
 };
 
-const v = (x: number, y: number, z: number): V3 => ({ x, y, z });
+export const v = (x: number, y: number, z: number): V3 => ({ x, y, z });
 
 /** The ankle over the sole, m. */
-const ANKLE = 0.09;
+export const ANKLE = 0.09;
 /** The beat a crowd dances to, Hz: the thump through the floor. */
 export const BEAT = 2.0;
 
-const STAND: Key = {
+export const STAND: Key = {
   hipY: 0.93,
   hipX: 0,
   hipZ: 0,
@@ -108,7 +109,7 @@ const BENT: Key = {
   hands: [v(-0.08, 0.1, 0.62), v(0.12, 0.1, 0.6)],
 };
 
-function blend(a: Key, b: Key, k: number): Key {
+export function blend(a: Key, b: Key, k: number): Key {
   const n = (p: number, q: number): number => p + (q - p) * k;
   return {
     hipY: n(a.hipY, b.hipY),
@@ -227,7 +228,7 @@ function keyOf(m: BodyMove): Key {
 
 /** THE DANCES, `amp` of their size (a man drinking dances small): each a
  * bounce on the beat, the hips swaying over two, and the arms its own. */
-function dance(t: number, style: number, amp: number): Key {
+export function dance(t: number, style: number, amp: number): Key {
   const key = copy(STAND);
   const b = t * Math.PI * 2 * BEAT;
   const bar = b / 2;
@@ -291,7 +292,12 @@ function reach(root: V3, to: V3, a: number, b: number, bend: V3): [V3, V3] {
 /** THE POINTS a move puts the body's joints at, in the ragdoll's order
  * (`RAGDOLL`) and its frame: x right, y up, z ahead, the snow at `ground`. */
 export function movePoints(m: BodyMove, ground: number): number[] {
-  const k = keyOf(m);
+  return keyPoints(keyOf(m), ground);
+}
+
+/** THE POINTS a key puts the body's joints at, in the ragdoll's order and
+ * the move's frame, the snow at `ground`. */
+export function keyPoints(k: Key, ground: number): number[] {
   const g = ground;
   const centre = v(k.hipX, g + k.hipY, k.hipZ);
   // The trunk: bent forward by `pitch`, rolled to his right by `roll`.

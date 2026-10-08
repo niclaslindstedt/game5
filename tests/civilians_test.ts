@@ -65,6 +65,8 @@ describe("the civilians' plan", () => {
   it("is only a free ride's", () => {
     expect(hasCivilians(freeRules(1))).toBe(true);
     expect(hasCivilians(slalomRules(1))).toBe(false);
+    // After dark the amateurs go in and the terraces party on.
+    expect(hasCivilians({ ...freeRules(1), crowd: 0 })).toBe(true);
     expect(civilianHour(level)).toBe(level.sun.hour);
   });
 

@@ -181,9 +181,11 @@ export function freshCivilianPose(): CivilianPose {
 }
 
 /** WHETHER A RUN HAS CIVILIANS: a run with the ski area's people on it —
- * the free ride's amateurs (`RunRules.crowd`). */
-export function hasCivilians(rules: Pick<RunRules, "crowd">): boolean {
-  return rules.crowd > 0;
+ * the free ride's amateurs (`RunRules.crowd`) or, after dark when the
+ * amateurs have gone in, its lodges' afterski (`RunRules.afterski`): the
+ * terraces party on and the lift crew stays on at the lifts that run. */
+export function hasCivilians(rules: Pick<RunRules, "crowd" | "afterski">): boolean {
+  return rules.crowd > 0 || rules.afterski === true;
 }
 
 /** The hour a map's civilians live at: the map's own (the sun stands at it

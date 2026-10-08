@@ -158,6 +158,33 @@ beat), `span` (how long it lasts), `walked` (metres in all), `carry`, `seat`
 The plan's `props` are what a place holds besides people: the deck chairs and
 the snowmen.
 
+## How they are drawn
+
+Each person is one instance of a figure built in code on the crowd's bench
+(`civilian-shapes.ts`): the crowd's eight bodies with the legs, trunk and arms
+the amateurs are cut with (`crowd-shapes.ts`), boots with flat soles instead of
+skis, no poles, a bare head under a helmet, a beanie or the person's own hair,
+and every prop he may hold — skis over the left shoulder, a mug, a beer, a
+snowball, a shovel and a broom — built into the same mesh and folded away in
+the vertex shader unless his kit shows it. A patrol's jacket carries a white
+cross; the staff wear their post's colours (`civilian-dress.ts`).
+
+The poses are morph targets of that one mesh, each the afterski's own key
+(`party-pose.ts`'s `keyPoints`) solved onto the body (`civilian-moves.ts`):
+two stances, four walk keys a stride apart, the skis carried, a sip, two talk
+gestures, two of a wave, two of a cheer, two dances of four keys each, a
+shovel's scoop and toss, a broom's two strokes, a throw's wind-up and
+release, a snowman's two pats, and sat on a bench, in the snow and in a deck
+chair (each with a sip and a word). `civilianDials` turns a `CivilianPose`
+into the weights of a moment — a walk stepped off the metres walked, a dance
+on the run's clock so a terrace keeps one beat, a cycle per chore.
+
+`civilians-view.ts` draws them instanced, one mesh a body and a cut (near to
+35 m, mid to 120 m, far to 600 m and culled past it), every buffer sized once
+off the plan; the deck chairs and snowmen are one static mesh. The view is
+built only where `hasCivilians` says so — a free ride by day, and its lodges'
+terraces after dark — and goes with the map. `make civilians` is the lab.
+
 ## Sources
 
 - Lift attendant and operator job descriptions from several ski areas, and a

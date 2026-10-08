@@ -62,6 +62,7 @@
     "birds": "node scripts/birds-preview.mjs",
     "crowd": "node scripts/crowd-preview.mjs",
     "audience": "node scripts/audience-preview.mjs",
+    "civilians": "node scripts/civilians-preview.mjs",
     "lift-ride": "node scripts/lift-ride-preview.mjs",
     "heli": "node scripts/heli-preview.mjs",
     "sled": "node scripts/sled-preview.mjs",

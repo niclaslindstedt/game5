@@ -27,6 +27,7 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 | The figures: eight bodies × three cuts, the poses as relative morph targets, the palette graft | `pwa/src/game/crowd-shapes.ts` |
 | The kit each is dealt | `pwa/src/game/crowd-dress.ts` (three-free) |
 | The instanced draw | `pwa/src/game/crowd-view.ts`, hung on `renderer.ts` |
+| THE CIVILIANS (people on foot): where and when (`civilian-plan.ts`), the poses as morph targets off the afterski's keys and the weights of a moment (`civilian-moves.ts`), the kit (`civilian-dress.ts`), the figure without skis and its props, deck chairs and snowmen (`civilian-shapes.ts`, sharing `crowd-shapes.ts`' legs, trunk and arms), the instanced draw (`civilians-view.ts`); `make civilians` | `pwa/src/game/civilian-*.ts`, `civilians-view.ts` |
 
 ## The rules
 

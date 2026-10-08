@@ -27,9 +27,9 @@
     <polygon fill="#f4f8fb" points="296,84 440,512 96,512 140,214"/>
     <polygon fill="#dbe6f1" points="140,214 96,512 0,512 0,350"/>
     <polygon fill="#ffb27a" points="296,84 415,165 407,177"/>
-    <g fill="none" stroke="#e0332b" stroke-width="26" stroke-linecap="round">
-      <path d="M 272.5 117.81 A 117 117 0 0 1 257.83 327.62 A 91 91 0 0 0 210.13 451.88"/>
-      <path d="M 251.5 154.19 A 75 75 0 0 1 242.1 288.68 A 133 133 0 0 0 172.38 470.3"/>
+    <g fill="none" stroke="#e0332b" stroke-width="19" stroke-linecap="round">
+      <path d="M 279.08 113.82 A 110 110 0 0 1 266.36 295.76 A 222 222 0 0 0 155.49 480.27"/>
+      <path d="M 256.92 142.18 A 74 74 0 0 1 248.36 264.58 A 258 258 0 0 0 119.52 479.01"/>
     </g>
   </g>
 </svg>

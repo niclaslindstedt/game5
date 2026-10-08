@@ -79,21 +79,21 @@ const FACETS = [
 // the second. The first bend's sweep starts above the +x axis, so its range
 // is stated negative and a sampled angle is folded back under `to` before
 // the test.
-const TRACK_W = 13; // half width of one track
+const TRACK_W = 9.5; // half width of one track
 const ARCS = [
-  { cx: 214, cy: 219.14, r: 96, from: -60, to: 68 },
-  { cx: 291.92, cy: 411.99, r: 112, from: 154, to: 248 },
+  { cx: 211.36, cy: 200.5, r: 92, from: -52, to: 60 },
+  { cx: 377.36, cy: 488.02, r: 240, from: 182, to: 240 },
 ];
-// The two tracks, 42 apart about the spine: the outer one 21 out on the
-// first bend — and so 21 in on the second.
+// The two tracks, 36 apart about the spine: the outer one 18 out on the
+// first bend — and so 18 in on the second.
 const LINES = [
-  { offsets: [21, -21], color: FLAG },
-  { offsets: [-21, 21], color: FLAG },
+  { offsets: [18, -18], color: FLAG },
+  { offsets: [-18, 18], color: FLAG },
 ];
 // Round caps at each track's two ends, so a stroke does not end on a chisel.
 const CAPS = [
-  { arc: 0, deg: -60 },
-  { arc: 1, deg: 154 },
+  { arc: 0, deg: -52 },
+  { arc: 1, deg: 182 },
 ];
 
 /** The tile's night: a vertical gradient from the night overhead to the
@@ -150,7 +150,7 @@ function trackAt(x, y, lines = LINES, halfWidth = TRACK_W) {
  * out to both tracks' outer edges) it is two solid pixels of red, which is
  * the mark at that size. Only the 16 is drawn so. */
 const RIBBON = [{ offsets: [0, 0], color: FLAG }];
-const RIBBON_W = 21 + TRACK_W;
+const RIBBON_W = 18 + TRACK_W;
 
 /** Off the square's sides — only a maskable icon's padding reaches there —
  * the two skylines run on down at their own slopes, the shoulder's to the

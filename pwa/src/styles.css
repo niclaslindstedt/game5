@@ -2110,10 +2110,10 @@ canvas {
 .mark-trails {
   position: relative;
   display: block;
-  /* The drawing's own ratio — MARK_TRAIL_VIEWBOX in app-mark.ts (204 × 384),
+  /* The drawing's own ratio — MARK_TRAIL_VIEWBOX in app-mark.ts (222 × 386),
      restated because a stylesheet cannot import a TypeScript module, so a
      mark mounted anywhere needs only a width. Change one, change both. */
-  aspect-ratio: 204 / 384;
+  aspect-ratio: 222 / 386;
 }
 
 .mark-trails svg {

@@ -15,6 +15,14 @@
 // settled a glint runs across the letters. Transforms and opacity only, but
 // for the carve's dash and the sweep's window. Without `reveal`, or under
 // reduced motion, the logo simply stands finished.
+//
+// THE CUT IS A GAP, never a line: its band is clipped to the ink letters'
+// own outline before it masks anything, so the background shows through it
+// inside a glyph and nothing at all is drawn or removed outside one — the
+// depth under the letters is cut by the same mask, so no dark copy shows in
+// the gap. It is only drawn LARGE: a few pixels tall the gap splits the I
+// into a colon, so the inline header and anything under ~60 px go uncut
+// (`cut`).
 
 import { useId } from "preact/hooks";
 
@@ -47,9 +55,13 @@ const pts = (poly: readonly Pt[]): string => poly.map(([x, y]) => `${x},${y}`).j
 export function TitleLogo({
   lockup: kind,
   reveal = false,
+  cut: cutOn = kind === "stacked",
   className,
 }: {
   lockup: LockupKind;
+  /** Draw the carve cut through the name. On for the stacked lockup, off for
+   * the inline one; pass false for any logo drawn under ~60 px tall. */
+  cut?: boolean;
   /** Play the title's reveal on arrival rather than standing finished. */
   reveal?: boolean;
   className?: string;
@@ -134,14 +146,21 @@ export function TitleLogo({
             <stop offset="0.5" stop-color="#fff" stop-opacity="0.75" />
             <stop offset="1" stop-color="#fff" stop-opacity="0" />
           </linearGradient>
-          {/* THE CUT, a gap: everything but its band is let through. */}
-          <mask id={id("cut")} maskUnits="userSpaceOnUse" x={x} y={y} width={w} height={h}>
-            <rect x={x} y={y} width={w} height={h} fill="#fff" />
-            <polygon points={pts(cutBand(L.cut))} fill="#000" />
-          </mask>
           <clipPath id={id("letters")}>{words}</clipPath>
+          {/* THE CUT, a gap: everything is let through but its band, and the
+              band only where it lies inside a letter. */}
+          {cutOn && (
+            <mask id={id("cut")} maskUnits="userSpaceOnUse" x={x} y={y} width={w} height={h}>
+              <rect x={x} y={y} width={w} height={h} fill="#fff" />
+              <polygon
+                points={pts(cutBand(L.cut))}
+                fill="#000"
+                clip-path={`url(#${id("letters")})`}
+              />
+            </mask>
+          )}
         </defs>
-        <g mask={`url(#${id("cut")})`}>
+        <g mask={cutOn ? `url(#${id("cut")})` : undefined}>
           <g class="title-logo-depth" transform={`translate(${DEPTH[0]} ${DEPTH[1]})`}>
             {words}
           </g>
@@ -150,7 +169,7 @@ export function TitleLogo({
         {/* The same letters whole, over the cut ones: the reveal fades them
             out last, which is the cut opening. Standing still they are not
             drawn at all. */}
-        {reveal && (
+        {reveal && cutOn && (
           <g class="title-logo-whole" fill={`url(#${id("ink")})`}>
             {words}
           </g>

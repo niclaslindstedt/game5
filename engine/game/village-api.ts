@@ -3,7 +3,8 @@
 // (`engine/index.ts`): the street plan (`village-streets.ts`), what its
 // streets carry for traffic and walkers (`village-furniture.ts`), the
 // village as the map knows it (`village.ts`) and the numbers it is laid
-// by (`defs/village-streets.ts`).
+// by (`defs/village-streets.ts`) — and the ski area's own buildings
+// (`resort-buildings.ts`) it stands on lots of.
 
 export {
   MASK as STREET_MASK,
@@ -52,3 +53,22 @@ export {
   type StreetSide,
 } from "./defs/village-streets.ts";
 export { BASE_KINDS, TOWN_KINDS, type BaseKind, type TownKind } from "./defs/resort-buildings.ts";
+
+export {
+  buildingDoor,
+  buildingFront,
+  fellsTree,
+  insideWalls,
+  isMountainBuilding,
+  isResortBuilding,
+  resortBuildingsOf,
+} from "./resort-buildings.ts";
+export {
+  MOUNTAIN_KINDS,
+  RESORT_BUILDINGS,
+  RESORT_LAYOUT,
+  VILLAGE_KINDS,
+  type MountainKind,
+  type ResortKind,
+  type VillageKind,
+} from "./defs/resort-buildings.ts";

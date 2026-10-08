@@ -727,25 +727,8 @@ export {
   type CabinKind,
   type LogKind,
 } from "./game/defs/cabins.ts";
-export {
-  buildingDoor,
-  buildingFront,
-  fellsTree,
-  insideWalls,
-  isMountainBuilding,
-  isResortBuilding,
-  resortBuildingsOf,
-} from "./game/resort-buildings.ts";
-export {
-  MOUNTAIN_KINDS,
-  RESORT_BUILDINGS,
-  RESORT_LAYOUT,
-  VILLAGE_KINDS,
-  type MountainKind,
-  type ResortKind,
-  type VillageKind,
-} from "./game/defs/resort-buildings.ts";
-// THE VILLAGE'S STREETS: the plan, what it carries, the questions asked of it.
+// THE SKI AREA'S BUILDINGS AND THE VILLAGE'S STREETS: where they stand, the
+// plan, what it carries, the questions asked of it.
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
 export {

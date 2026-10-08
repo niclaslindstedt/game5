@@ -99,13 +99,30 @@ look at a building (a scratch script over `paintFacades` and the framework's
 - **Image libraries rate-limit** scripted searches: send a user agent and
   pause between calls, and fall back to the search engine's results.
 
-## Porting the log cabins
+## The log cabins
 
-The cabins (`cabin-shapes.ts`, `cabin-parts.ts`) are still built on the
-trees' bench with flat colours. Porting them is this loop with one twist:
-their logs are round and their walls are courses, so either paint a LOG
-WALL material (courses of round logs with chinking: a height that bulges per
-course) and build the walls flat, keeping the corner notches as geometry,
-or keep the logs as geometry and only take the roof, the stone and the
-windows to the stack. Keep `CABINS`' footprints and the glow mark the
-windows already carry (`graftGlow` is in the facade material too).
+The cabins, chalets, sheds and the afterski lodge (`cabin-shapes.ts`,
+`lodge-shapes.ts`, `cabin-parts.ts`) were ported onto the stack by keeping
+the LOGS as geometry and painting everything between: a whole course is one
+faceted log (sixteen triangles, its hidden flats left out), and its bark
+and end grain are layers of their own; windows, doors, shutters, stone,
+firewood, balustrades, render and quoins are flat faces in their material,
+with only the casings, reveals and sills left proud for depth. The bench
+carries the facade's attributes as MARKS (`cabinBench`: `facadeLayer`,
+`facadeUv`), so a part built the old way is matte and a part that names
+its material (`face`, `laid`, `box`/`wallBox`'s `layer`) is painted — one
+geometry, one draw, the facade material. The far cut paints the courses on
+flat walls (`logWall`), which let the hand-over come nearer the lens.
+
+What it taught, worth keeping for the next building:
+
+- **Measure where the triangles go before choosing what to paint.** The
+  logs looked like the cost; they were a third of it. A window as boxes
+  was 84 triangles, a woodpile 191, a stone plinth face 70 — the small
+  repeated parts are where a building spends.
+- **A lit pane on a painted casement lights the whole quad** unless the
+  material masks it: `facade-material.ts` lights a casement's glass only
+  (its smoothest texels). Give a new glowing layer the same care.
+- **A woodpile or a balustrade reads by its contrast**, not its geometry:
+  paint the pieces packed and the shadow between them mid-dark, or the
+  face goes black at range.

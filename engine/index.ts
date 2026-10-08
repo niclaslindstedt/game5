@@ -636,6 +636,18 @@ export {
 } from "./game/defs/anatomy.ts";
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";
 export {
+  hurtDrive,
+  hurtEdge,
+  hurtGrip,
+  hurtLanding,
+  hurtOf,
+  hurtRate,
+  hurtTuck,
+  stepHurt,
+} from "./game/hurt.ts";
+export { HURT } from "./game/defs/hurt.ts";
+export type { Hurt } from "./game/hurt-state.ts";
+export {
   bearingToNext,
   finishRun,
   outRun,
@@ -857,6 +869,7 @@ export {
 export {
   arriveByLift,
   arrivalOf,
+  cabinDoors,
   chairStrike,
   emptyChairAt,
   freeRunOf,
@@ -866,6 +879,7 @@ export {
   seatedShare,
   stepLift,
 } from "./game/lift-ride.ts";
+export { CABIN_HALF, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {
   airPointsPerSecond,
   landingGrade,

@@ -20,6 +20,7 @@
 //   node scripts/lift-ride-preview.mjs --camera=far --skip-build
 //   node scripts/lift-ride-preview.mjs --board=drag   (the T-bar boarded)
 //   node scripts/lift-ride-preview.mjs --board=gondola --at=8,9,10,11
+//   node scripts/lift-ride-preview.mjs --board=chair --approach=wrong
 //
 // With `--board=` it photographs a lift's FOOT instead: the skier rolled
 // into its boarding ring, skating up the queue's lane past the crowd on
@@ -80,6 +81,11 @@ const args = parseArgs(
       kind: "string",
       default: "",
       help: "photograph boarding a lift at its foot instead: drag, gondola or chair",
+    },
+    approach: {
+      kind: "string",
+      default: "lane",
+      help: "with --board, how he rolls into the ring: lane (facing in), wrong (from the corral's side, facing away), side (across)",
     },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
@@ -169,6 +175,7 @@ const query = new URLSearchParams({
   ...(args.at ? { at: args.at } : {}),
   ...(args.board ? { board: args.board } : {}),
   ...(args.view ? { view: args.view } : {}),
+  approach: args.approach,
   quality: args.quality,
   w: String(args.width),
   h: String(args.height),
@@ -185,7 +192,7 @@ const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
 if (crashed) process.exit(1);
 const stem =
   args.out ||
-  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}`;
+  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}${args.approach === "lane" ? "" : `-${args.approach}`}`;
 const out = join(outDir, `${stem}.png`);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(

@@ -130,6 +130,7 @@ export function stepCrowdLifts(state: GameState, crowd: CrowdState, net: LiftRun
     if (
       mine &&
       mine.index === i &&
+      mine.kind === "drag" &&
       (mine.phase === "wait" || (mine.phase === "ride" && mine.t < 2 * dt))
     )
       continue;

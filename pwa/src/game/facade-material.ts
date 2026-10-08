@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 
-import { FACADE_LAYERS, FACADE_SIZE, paintFacades } from "./facade-paint.ts";
+import { FACADE, FACADE_LAYERS, FACADE_SIZE, paintFacades } from "./facade-paint.ts";
 
 let stack: { albedo: THREE.DataArrayTexture; normal: THREE.DataArrayTexture } | null = null;
 let users = 0;
@@ -104,8 +104,12 @@ export function graftFacade(shader: THREE.WebGLProgramParametersWithUniforms): v
       `#include <map_fragment>
   float facadeL = floor(vFacadeLayer + 0.5);
   vec4 facadeTexel = texture(uFacadeAlbedo, vec3(vFacadeUv, facadeL));
+  // A cabin's casement lights only its glass (the smoothest of it), never
+  // its sash and mullions.
+  float facadeLit = abs(facadeL - ${FACADE.casement.toFixed(1)}) < 0.5 ? step(facadeTexel.a, 0.2) : 1.0;
   diffuseColor.rgb *= facadeTexel.rgb;`,
     )
+    .replace("totalEmissiveRadiance += vGlow *", "totalEmissiveRadiance += facadeLit * vGlow *")
     .replace(
       "#include <roughnessmap_fragment>",
       "#include <roughnessmap_fragment>\n  roughnessFactor *= facadeTexel.a;",

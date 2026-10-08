@@ -809,8 +809,8 @@ export function createWorldRenderer(
       );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
-      const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);
-      dealLamps(env.haze, look.lamps, riders, floods ?? gates?.floods ?? [], lens.camera.position);
+      const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
+      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, video.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

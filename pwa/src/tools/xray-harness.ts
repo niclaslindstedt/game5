@@ -25,7 +25,7 @@ import {
   type SkierInput,
 } from "@engine";
 
-import { diedOf } from "../game/hud-wreck.ts";
+import { deathOver, diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 import { createXrayRun, dying } from "../game/xray-run.ts";
@@ -62,6 +62,9 @@ const scale = Number(params.get("scale") ?? 0.4);
 /** Wall seconds between two frames shot, and the most wall seconds run. */
 const every = Number(params.get("every") ?? 0.5);
 const most = Number(params.get("most") ?? 18);
+/** How many times a death is stood up again as the app does it (a new run
+ * on the same map, the same renderer and cam) and the scene died again. */
+const again = Number(params.get("again") ?? 0);
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
@@ -205,7 +208,8 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
   const note = await ready;
   const make = SCENES[name];
   if (!make) throw new Error(`no scene "${name}"`);
-  const { s: state, drive = still } = make();
+  let { s: state, drive = still } = make();
+  let left = again;
   // One frame drawn and a moment let by, so the skeleton's chunk is in.
   renderer.draw(state, 1, 1 / 60);
   await new Promise((r) => setTimeout(r, 300));
@@ -221,6 +225,12 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
   let next = 0;
   let started = -1;
   for (let f = 0; wall < most; f++) {
+    // DIED and its dark run out: a new run, as `App.tsx`'s restart.
+    if (left > 0 && deathOver(state)) {
+      left--;
+      ({ s: state, drive = still } = make());
+      started = -1;
+    }
     renderer.setDeathCam(dying(state));
     const rate = xray.frame(state, WALL, true);
     acc += WALL * rate;

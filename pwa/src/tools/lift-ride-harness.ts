@@ -78,6 +78,11 @@ const VIEWS: Record<string, { x: number; y: number; z: number }> = {
   back: { x: 0.4, y: 0.6, z: -3 },
   front: { x: 0.3, y: 0.5, z: 3 },
 };
+/** How he rolls into the boarding ring: `lane` up the queue's lane from
+ * beyond the corral, facing in; `wrong` from the corral's side of the
+ * ring, facing away from it — the way he must turn round to go in; `side`
+ * across the lane, facing across it. */
+const approach = params.get("approach") ?? "lane";
 /** The lift whose foot is photographed boarding, by kind. */
 const board = (params.get("board") ?? "") as LiftKind | "";
 const width = Number(params.get("w") ?? 1280);
@@ -142,11 +147,15 @@ function atFoot(kind: LiftKind): GameState | null {
   const ov = (b.v - a.v) / len;
   const ox = plan.dx * ou + plan.dz * ov;
   const oz = plan.dz * ou - plan.dx * ov;
-  const out = 7;
-  const heading = Math.atan2(-ox, -oz);
-  standSkier(state, ring.x + ox * out, ring.z + oz * out, heading);
-  state.skier.vx = -ox * 3.5;
-  state.skier.vz = -oz * 3.5;
+  // In, along the lane (default); the wrong way, out of the ring's far
+  // side heading away from the corral; or across it.
+  const [fx, fz, out] =
+    approach === "wrong" ? [ox, oz, 5] : approach === "side" ? [oz, -ox, 5] : [-ox, -oz, 7];
+  const sx = ring.x - fx * out;
+  const sz = ring.z - fz * out;
+  standSkier(state, sx, sz, Math.atan2(fx, fz));
+  state.skier.vx = fx * 3.5;
+  state.skier.vz = fz * 3.5;
   return state;
 }
 

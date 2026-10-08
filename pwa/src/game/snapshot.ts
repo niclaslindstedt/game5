@@ -54,6 +54,7 @@ import { diedOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
+import { gazeAllowed } from "./lift-gaze.ts";
 import { buildMinimap, type HudMinimap } from "./minimap-view.ts";
 import { splitGap, type RunLedger } from "./records.ts";
 import { courseName } from "./run-names.ts";
@@ -211,6 +212,9 @@ export type HudSnapshot = {
   /** A FREE RIDE: no field, no gates owed — the HUD shows the run's best
    * air and the distance skied in their place. */
   free: boolean;
+  /** CARRIED UP A LIFT (`lift-gaze.ts`'s `gazeAllowed`): a finger on the
+   * glass looks round rather than skis, so the thumbs' pads are not drawn. */
+  carried?: boolean;
   /** The run's longest flight so far, s — 0 until one has lasted
    * `AIR_SHOWN`. */
   bestAir: number;
@@ -664,6 +668,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         ? courseName(state.level, state.level.resort.course)
         : null,
     free: !state.rules.course,
+    carried: gazeAllowed(c.lift),
     bestAir: p.bestAir > AIR_SHOWN ? p.bestAir : 0,
     distance: p.distance,
     result:

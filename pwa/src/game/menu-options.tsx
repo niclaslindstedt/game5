@@ -59,11 +59,13 @@ import { shellContent } from "../shell-host.ts";
 import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
+  RESOLUTION_LEVELS,
   TIERS,
   TRAIL_LEVELS,
   presetOf,
   withPreset,
   type DistanceLevel,
+  type ResolutionLevel,
   type ShadowLevel,
   type Tier,
   type TrailLevel,
@@ -89,6 +91,11 @@ const TIER_STOPS = stopsOf(TIERS);
  * the whole pictures. */
 const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAuto }, ...TIER_STOPS];
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
+/** RESOLUTION reads as the share it is: 50% … 100%. */
+const RESOLUTION_STOPS: Stop<ResolutionLevel>[] = RESOLUTION_LEVELS.map((id) => ({
+  id,
+  label: STRINGS.optShare(id),
+}));
 const TRAIL_STOPS = stopsOf<TrailLevel>(TRAIL_LEVELS);
 const SHADOW_WORD: Record<ShadowLevel, string> = {
   off: STRINGS.optOff,
@@ -304,7 +311,7 @@ export function OptionsPage({
             </KnobGroup>
           </div>
           <div class="knob-col">
-            {/* Eight rows, not one, because they are eight different bills — a
+            {/* Nine rows, not one, because they are nine different bills — a
               machine can be short of pixels and rich in triangles. PRESET
               moves all of them and reads back which one they still are. */}
             <KnobGroup title={STRINGS.optPicture} glyph="display">
@@ -346,7 +353,7 @@ export function OptionsPage({
               <StepRow
                 label={STRINGS.optResolution}
                 hint={STRINGS.optResolutionHint}
-                stops={TIER_STOPS}
+                stops={RESOLUTION_STOPS}
                 value={video.resolution}
                 onPick={(resolution) => setVideo({ resolution })}
                 onHint={setHint}
@@ -397,6 +404,14 @@ export function OptionsPage({
                 stops={TIER_STOPS}
                 value={video.spray}
                 onPick={(spray) => setVideo({ spray })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optLamps}
+                hint={STRINGS.optLampsHint}
+                stops={TIER_STOPS}
+                value={video.lamps}
+                onPick={(lamps) => setVideo({ lamps })}
                 onHint={setHint}
               />
               <StepRow

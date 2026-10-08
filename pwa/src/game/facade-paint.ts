@@ -50,11 +50,44 @@ export const FACADE = {
   steel: 11,
   /** A machine room's louvred vent. */
   louvre: 12,
+  // THE LOG BUILDINGS' MATERIALS (`cabin-shapes.ts`): painted neutral where
+  // the builder tints them (a log's tone, a shutter's colour), in their own
+  // colours where they have one.
+  /** Flat white and matte: a cabin part in its vertex colour alone. */
+  matte: 13,
+  /** The weathered side of a round log, its grain running along it (u along
+   * the log, v once round it), its knots and its checks. */
+  bark: 14,
+  /** A log's sawn end: the rings, the pith, the bark and a check. */
+  endGrain: 15,
+  /** A wall of round logs in courses, chinked between (v four courses up):
+   * the far cut's walls. */
+  logWall: 16,
+  /** Dressed stone in courses, running bond, its mortar raked back. */
+  stone: 17,
+  /** A stack of split firewood seen end on. */
+  woodpile: 18,
+  /** A small cabin window: its painted casing, the sill, a cross of
+   * mullions over the glass — the far cut's. */
+  casement: 19,
+  /** A plank door: its boards, two ledges and the latch. */
+  plankDoor: 20,
+  /** A board shutter, painted (tinted), its two ledges and the brace. */
+  boardShutter: 21,
+  /** A balcony's cut boards, close set, a shape sawn out of every joint. */
+  balustrade: 22,
+  /** Lime render, off-white and soft. */
+  render: 23,
+  /** A rendered corner's quoins: two courses of dressed stone, long and
+   * short, the render beside the short one (u from the corner in). */
+  quoins: 24,
+  /** Sawn timber: a post, a rail, a fascia — the grain alone. */
+  timber: 25,
 } as const;
 export type FacadeLayer = (typeof FACADE)[keyof typeof FACADE];
 
 /** How many layers the stack holds, and each tile's side in pixels. */
-export const FACADE_LAYERS = 13;
+export const FACADE_LAYERS = 26;
 export const FACADE_SIZE = 256;
 
 /** Each layer's tile in metres, along (u) and up (v) — `once` where it is
@@ -74,6 +107,19 @@ export const FACADE_TILE: Readonly<Record<FacadeLayer, { u: number; v: number; o
     10: { u: 4, v: 4 },
     11: { u: 1, v: 1 },
     12: { u: 1, v: 0.6 },
+    13: { u: 4, v: 4 },
+    14: { u: 2.4, v: 1 },
+    15: { u: 1, v: 1, once: true },
+    16: { u: 3, v: 1 },
+    17: { u: 2.4, v: 1.36 },
+    18: { u: 1, v: 1 },
+    19: { u: 1, v: 1, once: true },
+    20: { u: 1, v: 1, once: true },
+    21: { u: 1, v: 1, once: true },
+    22: { u: 1.04, v: 1 },
+    23: { u: 2.4, v: 2.4 },
+    24: { u: 0.6, v: 0.84, once: true },
+    25: { u: 1.2, v: 1.2 },
   };
 
 /** A glazing band is laid once UP its height but repeated ALONG it, a pane
@@ -97,6 +143,19 @@ const RELIEF: Readonly<Record<FacadeLayer, number>> = {
   10: 1.2,
   11: 1,
   12: 5,
+  13: 0,
+  14: 2.5,
+  15: 2,
+  16: 6,
+  17: 4,
+  18: 4,
+  19: 4,
+  20: 3,
+  21: 3,
+  22: 4,
+  23: 0.8,
+  24: 3,
+  25: 1.2,
 };
 
 /** A pixel: its colour 0..1 (sRGB), its roughness and its height 0..1. */
@@ -304,6 +363,222 @@ export function paintPixel(layer: FacadeLayer, u: number, v: number): Px {
       // Each blade falls outward: lit on its face, dark in the slot under it.
       const h = s < 0.75 ? s / 0.75 : 0;
       return px(hex(0x5a6066), 0.55 + h * 0.55, 0.5, h);
+    }
+    default:
+      return layer >= FACADE.matte
+        ? paintCabin(layer, u, v)
+        : { r: 1, g: 1, b: 1, rough: 0.6, h: 0.5 };
+  }
+}
+
+/** The tone a log course is dealt, 0..1, off its index. */
+const LOGS: [number, number, number][] = [hex(0x7d5a3a), hex(0x6c4c31), hex(0x84603f)];
+
+/** One pixel of a LOG BUILDING's layer (`FACADE.matte` on). */
+function paintCabin(layer: FacadeLayer, u: number, v: number): Px {
+  switch (layer) {
+    case FACADE.matte:
+      return px([1, 1, 1], 0.96 + noise(u, v, 8, 8, 91) * 0.06, 0.88, 0.5);
+    case FACADE.bark: {
+      // Along the log a drawknifed, weathered surface: the grain long and
+      // streaky, a knot here and there, a check split along it.
+      const grain = fbm(u, v, 3, 40, 101, 3);
+      const silver = fbm(u, v, 2, 4, 103, 2);
+      const base: [number, number, number] = [
+        mix(1, 0.93, silver),
+        mix(0.95, 0.93, silver),
+        mix(0.88, 0.93, silver),
+      ];
+      const ci = Math.floor(u * 6);
+      const cj = Math.floor(v * 4);
+      if (hash(ci, cj, 105) > 0.72) {
+        const cu = (ci + 0.3 + hash(ci, cj, 107) * 0.4) / 6;
+        const cv = (cj + 0.3 + hash(ci, cj, 109) * 0.4) / 4;
+        const d = Math.hypot((u - cu) * 2.4, (v - cv) * 0.95) / 0.028;
+        if (d < 1) return px([0.42, 0.31, 0.22], 0.9 + d * 0.2, 0.8, 0.85 - d * 0.2);
+        if (d < 1.6) return px(base, 0.72 + (d - 1) * 0.3, 0.85, 0.6);
+      }
+      const row = Math.floor(v * 12);
+      const tv = v * 12 - row;
+      if (hash(row, 1, 111) > 0.62 && Math.abs(tv - 0.5) < 0.07 && noise(u, row, 5, 1, 113) > 0.55)
+        return px([0.24, 0.19, 0.15], 1, 0.95, 0);
+      return px(base, 0.8 + grain * 0.32, 0.86, 0.45 + (grain - 0.5) * 0.6);
+    }
+    case FACADE.endGrain: {
+      // The sawn end, centred: growth rings round the pith, weathered
+      // darker toward the bark, one check split from the pith out.
+      const x = (u - 0.5) * 2;
+      const y = (v - 0.5) * 2;
+      const r = Math.hypot(x, y);
+      if (r > 0.86) return px([0.36, 0.27, 0.19], 1, 0.95, 0.55);
+      if (r < 0.05) return px([0.42, 0.3, 0.2], 1, 0.9, 0.5);
+      const wob = noise(u, v, 6, 6, 121) * 0.06;
+      const ring = 0.5 + 0.5 * Math.sin((r + wob) * 44);
+      const a = Math.atan2(y, x);
+      const dA = Math.abs(((a - 0.7 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (dA * r < 0.022 * (0.4 + r) && r > 0.1) return px([0.22, 0.16, 0.11], 1, 0.95, 0);
+      const t = 0.3 * ring + 0.35 * smooth(0.45, 0.86, r);
+      const c: [number, number, number] = [
+        mix(0.84, 0.6, t),
+        mix(0.7, 0.46, t),
+        mix(0.52, 0.32, t),
+      ];
+      return px(c, 0.95 + noise(u, v, 32, 32, 123) * 0.08, 0.9, 0.7 + ring * 0.12);
+    }
+    case FACADE.logWall: {
+      // Four courses up the tile: each a round log lit on its top and
+      // darkening under its belly, a line of chinking at every joint.
+      const c = Math.floor(v * 4);
+      const t = v * 4 - c;
+      if (t < 0.05 || t > 0.95)
+        return px([0.85, 0.81, 0.74], 0.92 + noise(u, v, 24, 4, 131) * 0.1, 0.95, 0.04);
+      const bulge = Math.sin((Math.PI * (t - 0.05)) / 0.9);
+      const tone = LOGS[Math.floor(hash(c, 0, 133) * 3) % 3];
+      const grain = fbm(u, v, 4, 32, 135, 3);
+      const k = (0.55 + 0.45 * Math.sqrt(bulge)) * (0.86 + 0.18 * t) * (0.86 + grain * 0.28);
+      return px(tone, k * 1.15, 0.86, Math.sqrt(bulge));
+    }
+    case FACADE.stone: {
+      // Four courses of 34 cm, four stones of about 60 cm a course, every
+      // other course a half stone along; joints of 2 cm, raked back.
+      const c = Math.floor(v * 4);
+      const t = v * 4 - c;
+      const x = (((u * 4 + (c % 2) * 0.5) % 4) + 4) % 4;
+      const jit = (i: number) => (hash(((i % 4) + 4) % 4, c, 141) - 0.5) * 0.35;
+      let i = Math.floor(x);
+      if (x < i + jit(i)) i -= 1;
+      const left = i + jit(i);
+      const right = i + 1 + jit(i + 1);
+      const du = Math.min(x - left, right - x) * 0.6;
+      const dv = Math.min(t, 1 - t) * 0.34;
+      if (du < 0.012 || dv < 0.012) return px([0.34, 0.33, 0.32], 1, 0.95, 0);
+      const id = ((i % 4) + 4) % 4;
+      const tone = hash(id, c, 143);
+      const warm = hash(id, c, 145) > 0.8 ? 0.05 : 0;
+      const f = fbm(u, v, 12, 8, 147, 3);
+      const base: [number, number, number] = [
+        mix(0.5, 0.66, tone) + warm,
+        mix(0.49, 0.63, tone) + warm * 0.6,
+        mix(0.47, 0.6, tone),
+      ];
+      const edge = smooth(0.01, 0.06, Math.min(du, dv));
+      return px(base, (0.88 + f * 0.2) * (0.78 + 0.22 * edge), 0.9, 0.55 + 0.3 * edge + f * 0.15);
+    }
+    case FACADE.woodpile: {
+      // Six rows of 17 cm and five pieces a row, every other row half a
+      // piece along: rounds, halves and wedges, in shadow between.
+      let best: Px | null = null;
+      const row0 = Math.floor(v * 6);
+      for (let dr = -1; dr <= 1; dr++) {
+        const row = row0 + dr;
+        const rw = ((row % 6) + 6) % 6;
+        const col0 = Math.floor(u * 5 - (rw % 2) * 0.5);
+        for (let dc = -1; dc <= 1; dc++) {
+          const cl = (((col0 + dc) % 5) + 5) % 5;
+          const cu = (cl + 0.5 + (rw % 2) * 0.5 + (hash(cl, rw, 151) - 0.5) * 0.16) / 5;
+          const cv = (rw + 0.5 + (hash(cl, rw, 153) - 0.5) * 0.16) / 6;
+          let du = u - cu;
+          let dv = v - cv;
+          du -= Math.round(du);
+          dv -= Math.round(dv);
+          const R = 0.094 + hash(cl, rw, 155) * 0.014;
+          const r = Math.hypot(du, dv);
+          if (r > R) continue;
+          const kind = hash(cl, rw, 157);
+          const th = hash(cl, rw, 159) * Math.PI * 2;
+          const along = du * Math.cos(th) + dv * Math.sin(th);
+          if (kind > 0.45 && kind < 0.8 && along < -0.3 * R) continue;
+          if (kind >= 0.8) {
+            const a = Math.atan2(dv, du) - th;
+            const w = Math.abs(((a + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+            if (w > 1.35) continue;
+          }
+          if (kind <= 0.45 && r > R * 0.86) {
+            best = px([0.35, 0.26, 0.19], 1, 0.95, 0.75);
+            continue;
+          }
+          const ring = 0.5 + 0.5 * Math.sin((r / R) * 13);
+          const k = (0.82 + hash(cl, rw, 161) * 0.24) * (0.92 + ring * 0.08);
+          best = px([0.82, 0.67, 0.49], k, 0.9, 0.8 + hash(cl, rw, 163) * 0.2 - (r / R) * 0.1);
+        }
+      }
+      return best ?? px([0.2, 0.15, 0.11], 1, 0.95, 0);
+    }
+    case FACADE.casement: {
+      const trim: [number, number, number] = [0.92, 0.9, 0.84];
+      if (v < 0.09) return px(trim, 0.9, 0.7, 1);
+      if (u < 0.11 || u > 0.89 || v > 0.9) return px(trim, 1, 0.7, 0.9);
+      if (Math.abs(u - 0.5) < 0.03 || Math.abs(v - 0.52) < 0.03) return px(trim, 0.96, 0.7, 0.75);
+      return glass((u - 0.11) / 0.78, (v - 0.09) / 0.81);
+    }
+    case FACADE.plankDoor: {
+      const b = Math.floor(u * 4);
+      const sb = u * 4 - b;
+      const grain = fbm(u, v, 8, 6, 171, 3);
+      const plank: [number, number, number] = b % 2 ? [0.31, 0.2, 0.12] : [0.37, 0.24, 0.14];
+      if (u > 0.78 && u < 0.86 && v > 0.47 && v < 0.53) return px([0.16, 0.16, 0.16], 1, 0.5, 1);
+      const ledge = Math.abs(v - 0.18) < 0.045 || Math.abs(v - 0.8) < 0.045;
+      const dl = Math.abs(v - 0.22 - (u - 0.1) * (0.54 / 0.8)) / 1.2;
+      if (ledge || (dl < 0.03 && u > 0.08 && u < 0.92))
+        return px([0.29, 0.19, 0.11], 0.9 + grain * 0.2, 0.85, 1);
+      if (sb < 0.035) return px([0.1, 0.07, 0.05], 1, 0.95, 0);
+      return px(plank, 0.85 + grain * 0.3, 0.85, 0.6 + grain * 0.2);
+    }
+    case FACADE.boardShutter: {
+      const b = Math.floor(u * 3);
+      const sb = u * 3 - b;
+      const f = fbm(u, v, 6, 6, 181, 3);
+      const paint: [number, number, number] = [0.95, 0.95, 0.93];
+      const ledge = Math.abs(v - 0.15) < 0.05 || Math.abs(v - 0.85) < 0.05;
+      const dl = Math.abs(v - 0.2 - (u - 0.1) * (0.6 / 0.8)) / 1.25;
+      if (ledge || (dl < 0.035 && u > 0.08 && u < 0.92)) return px(paint, 0.8 + f * 0.1, 0.75, 1);
+      if (sb < 0.04 || u > 0.985) return px(paint, 0.35, 0.9, 0);
+      return px(paint, 0.88 + f * 0.14, 0.75, 0.65);
+    }
+    case FACADE.balustrade: {
+      // Eight boards of 13 cm a tile, butted, a waisted shape sawn out
+      // across every joint — the balcony's pattern — dark behind.
+      const b = Math.floor(u * 8);
+      const sb = u * 8 - b;
+      const dx = (sb < 0.5 ? sb : sb - 1) * 0.13;
+      const dy = (v - 0.5) * 0.82;
+      const w = 0.03 * (1.15 + 0.75 * Math.cos((dy / 0.2) * Math.PI));
+      const joint = sb < 0.5 ? b : b + 1;
+      if (joint % 2 === 0 && Math.abs(dy) < 0.2 && Math.abs(dx) < w)
+        return px([0.07, 0.05, 0.04], 1, 0.95, 0);
+      if (sb < 0.02 || sb > 0.98) return px([0.4, 0.36, 0.32], 1, 0.9, 0.2);
+      const grain = fbm(u, v, 16, 3, 191, 3);
+      const k = 0.86 + hash(b, 0, 193) * 0.1 + (grain - 0.5) * 0.2;
+      return px([1, 0.96, 0.9], k, 0.85, 0.7 + grain * 0.2);
+    }
+    case FACADE.render: {
+      const f = fbm(u, v, 6, 6, 201, 4);
+      return px([0.93, 0.91, 0.86], 0.92 + f * 0.1, 0.92, 0.4 + f * 0.4);
+    }
+    case FACADE.quoins: {
+      const c = v < 0.5 ? 0 : 1;
+      const t = c ? v - 0.5 : v;
+      const len = c ? 0.583 : 0.917;
+      const dv = Math.min(t, 0.5 - t) * 0.84;
+      const du = Math.abs(u - len) * 0.6;
+      if (u > len + 0.02) {
+        const f = fbm(u, v, 4, 6, 201, 3);
+        return px([0.93, 0.91, 0.86], 0.92 + f * 0.1, 0.92, 0.4 + f * 0.3);
+      }
+      if (dv < 0.012 || du < 0.012) return px([0.34, 0.33, 0.32], 1, 0.95, 0);
+      const f = fbm(u, v, 8, 8, 211, 3);
+      const tone = c ? 0.35 : 0.7;
+      const edge = smooth(0.01, 0.05, Math.min(dv, du));
+      return px(
+        [mix(0.52, 0.64, tone), mix(0.5, 0.61, tone), mix(0.47, 0.58, tone)],
+        (0.88 + f * 0.2) * (0.8 + 0.2 * edge),
+        0.9,
+        0.6 + 0.3 * edge,
+      );
+    }
+    case FACADE.timber: {
+      const grain = fbm(u, v, 4, 28, 221, 3);
+      return px([1, 0.97, 0.92], 0.84 + grain * 0.24, 0.85, 0.5 + (grain - 0.5) * 0.5);
     }
     default:
       return { r: 1, g: 1, b: 1, rough: 0.6, h: 0.5 };

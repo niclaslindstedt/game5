@@ -37,6 +37,7 @@ import {
   type Wall,
 } from "./cabin-parts.ts";
 import type { CabinLod, Plan } from "./cabin-shapes.ts";
+import { FACADE } from "./facade-paint.ts";
 import { DECK, DECK_END, GAP, TERRACE, TERRACE_TABLES as T } from "./lodge-measure.ts";
 import type { Shape, V3 } from "./tree-mesh.ts";
 
@@ -70,7 +71,13 @@ function plank(
   y1: number,
   c: THREE.Color,
 ): void {
-  box(s, x0, DECK.top + y0, z0, x1, DECK.top + y1, z1, c, c);
+  box(s, x0, DECK.top + y0, z0, x1, DECK.top + y1, z1, c, c, ["y-"], FACADE.timber);
+}
+
+/** A leg or a trestle under a board: its four sides only. */
+function leg(s: Shape, x0: number, z0: number, x1: number, z1: number, y1: number): void {
+  const c = P.board[1];
+  box(s, x0, DECK.top, z0, x1, DECK.top + y1, z1, c, c, ["y-", "y+"], FACADE.timber);
 }
 
 /** A TRESTLE TABLE at (x, z) along x, with a bench either side. */
@@ -80,10 +87,11 @@ function table(s: Shape, x: number, z: number, lod: CabinLod): void {
   for (const dz of [-T.bench, T.bench])
     plank(s, x - L, z + dz - 0.17, x + L, z + dz + 0.17, T.seat - 0.05, T.seat, P.board[0]);
   if (lod) return;
+  // At each end the table's leg and, under it, the trestle the benches sit
+  // on across the pair.
   for (const dx of [-L + 0.2, L - 0.2]) {
-    plank(s, x + dx - 0.05, z - 0.3, x + dx + 0.05, z + 0.3, 0, 0.7, P.board[1]);
-    for (const dz of [-0.75, 0.75])
-      plank(s, x + dx - 0.05, z + dz - 0.12, x + dx + 0.05, z + dz + 0.12, 0, 0.42, P.board[1]);
+    leg(s, x + dx - 0.05, z - 0.3, x + dx + 0.05, z + 0.3, 0.7);
+    leg(s, x + dx - 0.04, z - 0.88, x + dx + 0.04, z + 0.88, 0.42);
   }
 }
 
@@ -134,7 +142,18 @@ function swag(s: Shape, a: V3, b: V3, sag: number, lod: CabinLod, seed: number):
   for (let i = 1; i < n; i++) {
     const p = at(i / n);
     const c = LODGE_PAINT.bulb[(i + seed) % 3];
-    box(s, p[0] - r, p[1] - r * 2.2, p[2] - r, p[0] + r, p[1] - 0.01, p[2] + r, c, c, []);
+    // A bulb: a little three-sided drop hung point down, its top a cap.
+    const tip: V3 = [p[0], p[1] - r * 2.4, p[2]];
+    const rim = [0, 1, 2].map((k): V3 => {
+      const t = (k / 3) * Math.PI * 2 + i;
+      return [p[0] + Math.cos(t) * r * 1.2, p[1] - 0.01, p[2] + Math.sin(t) * r * 1.2];
+    });
+    for (let k = 0; k < 3; k++) {
+      const a = rim[k];
+      const b = rim[(k + 1) % 3];
+      s.tri(a, b, tip, c, [a[0] + b[0] - 2 * p[0], -0.3, a[2] + b[2] - 2 * p[2]]);
+    }
+    s.tri(rim[0], rim[2], rim[1], c, [0, 1, 0]);
   }
   s.mark("glow", 0);
 }
@@ -175,20 +194,21 @@ function terrace(s: Shape, roof: Roof, lod: CabinLod): void {
   const x = W / 2 + DECK_END;
   const z0 = D / 2;
   const z1 = D / 2 + TERRACE;
-  box(s, -x, DECK.top - DECK.thick, z0, x, DECK.top, z1, P.board[1], P.board[0]);
-  if (lod === 0) {
-    // The deck's boards, a dark line between each.
-    for (let zz = z0 + 0.3; zz < z1; zz += 0.3) {
-      s.quad(
-        [-x, DECK.top + 0.004, zz + 0.02],
-        [x, DECK.top + 0.004, zz + 0.02],
-        [x, DECK.top + 0.004, zz - 0.02],
-        [-x, DECK.top + 0.004, zz - 0.02],
-        P.board[1].clone().multiplyScalar(0.75),
-        [0, 1, 0],
-      );
-    }
-  }
+  // The deck, its boards painted on its top.
+  box(
+    s,
+    -x,
+    DECK.top - DECK.thick,
+    z0,
+    x,
+    DECK.top,
+    z1,
+    P.board[1],
+    P.white,
+    ["y-"],
+    FACADE.timber,
+    FACADE.boards,
+  );
   // THE RAILING: the front in two runs either side of the steps, and the
   // two ends; posts every couple of metres, a top rail with snow on it.
   const front: Wall = { x: 0, z: z1 - 0.06, ux: 1, uz: 0, nx: 0, nz: 1 };
@@ -198,12 +218,25 @@ function terrace(s: Shape, roof: Roof, lod: CabinLod): void {
   ];
   const y = DECK.top;
   const rail = (w: Wall, u0: number, u1: number): void => {
-    wallBox(s, w, u0, u1, y + 0.92, y + 1.02, -0.06, 0.02, P.log[1], P.snow);
-    wallBox(s, w, u0, u1, y + 0.42, y + 0.5, -0.05, 0.01, P.log[2]);
+    wallBox(s, w, u0, u1, y + 0.92, y + 1.02, -0.06, 0.02, P.log[1], P.snow, FACADE.timber);
+    wallBox(s, w, u0, u1, y + 0.42, y + 0.5, -0.05, 0.01, P.log[2], P.log[2], FACADE.timber);
     const n = Math.max(1, Math.round((u1 - u0) / (lod ? 3 : 1.6)));
     for (let i = 0; i <= n; i++) {
       const u = u0 + ((u1 - u0) * i) / n;
-      wallBox(s, w, u - 0.06, u + 0.06, y, y + 1.0, -0.08, 0.04, P.log[0]);
+      wallBox(
+        s,
+        w,
+        u - 0.06,
+        u + 0.06,
+        y,
+        y + 1.0,
+        -0.08,
+        0.04,
+        P.log[0],
+        P.log[0],
+        FACADE.timber,
+        ["bottom"],
+      );
     }
   };
   rail(front, -x, -GAP);
@@ -303,9 +336,8 @@ export function lodgePlan(
     extras: (s, lod) => {
       terrace(s, roof, lod);
       sign(s, front, 2.6);
-      chimney(s, -3.6, -2.9, -1.8, -1.1, roofUnder(roof, 1.1) - 0.1, d.ridge + 0.75, 11);
-      if (lod === 0)
-        chimney(s, 3.9, 4.5, -2.4, -1.8, roofUnder(roof, 1.8) - 0.1, d.ridge + 0.55, 12);
+      chimney(s, -3.6, -2.9, -1.8, -1.1, roofUnder(roof, 1.1) - 0.1, d.ridge + 0.75);
+      chimney(s, 3.9, 4.5, -2.4, -1.8, roofUnder(roof, 1.8) - 0.1, d.ridge + 0.55);
     },
   };
 }

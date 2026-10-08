@@ -1,12 +1,12 @@
 # The buildings
 
-Every building on the mountain except the log cabins and the afterski lodge (`cabin-shapes.ts`, `lodge-shapes.ts`, which have their own builder) is built the same way: LOW-POLY GEOMETRY CARRYING PAINTED MATERIALS. A wall is a dozen triangles, and its face carries what it is made of — larch boards, ribbed steel, a standing-seam roof, formwork concrete, glass — with that material's colour, roughness and relief, so the sun picks out a board's edge, a rib or a mullion on a flat quad.
+Every building on the mountain is built the same way: LOW-POLY GEOMETRY CARRYING PAINTED MATERIALS. A wall is a dozen triangles, and its face carries what it is made of — larch boards, ribbed steel, a standing-seam roof, formwork concrete, glass — with that material's colour, roughness and relief, so the sun picks out a board's edge, a rib or a mullion on a flat quad.
 
 ## The pieces
 
 | Module | What it is |
 | --- | --- |
-| `pwa/src/game/facade-paint.ts` | THE STACK: thirteen materials painted in code into one array of 256 px tiles — colour with roughness in the alpha, and a relief turned into a tangent-space normal map. Pure and DOM-free; every tile repeats seamlessly, or is laid once over its quad (a window, a door). |
+| `pwa/src/game/facade-paint.ts` | THE STACK: twenty-six materials painted in code — the stations' thirteen and the log buildings' thirteen — into one array of 256 px tiles — colour with roughness in the alpha, and a relief turned into a tangent-space normal map. Pure and DOM-free; every tile repeats seamlessly, or is laid once over its quad (a window, a door). |
 | `pwa/src/game/facade-material.ts` | The stack uploaded once a page as two texture arrays and grafted into the world material: the layer's colour under the vertex colour (which TINTS it), its roughness, its relief bent into the normal from the screen derivatives (no tangents stored). |
 | `pwa/src/game/facade-mesh.ts` | A kit's arrays made a geometry; the one material (haze, the panes' glow after dark, the stack). |
 | `pwa/src/game/facade-kit.ts` | THE KIT: quads, walls, boxes, prisms, frustums, columns, gable / mono-pitch / flat roofs with their fascia, soffit and verges, a BLANKET OF SNOW on every roof with its lip over the eave, and insets (a pane or a door stood proud of a wall). Three-free. |
@@ -33,6 +33,28 @@ Restated from public descriptions of built stations and the operators' own liter
 
 - **A covered gallery** over a ski area's conveyor is built in modules: arched ribs (aluminium, steel or glued timber) carrying curved polycarbonate sheet a few millimetres thick, UV-stabilised, translucent; the small ones are about 2.2 m wide and 2.3 m high inside, with doors at the ends and side exits every couple of metres. They are rated for a metre of snow on the roof and for gale-force wind, and galvanised cheeks run along both sides a little over the snow so the groomer's blade does not reach the sheet. A curved roof sheds its snow off the steep flanks and keeps it along the flatter crown. A **road snow shed or avalanche gallery** is the heavy version — corrugated steel arches or a reinforced-concrete box — and its mouth is a deeper portal frame, often in a contrasting colour, on wing walls. The game's wind tunnels take the light gallery's skin at a road gallery's scale (a 9 m lane under an arch of about 5.3 m radius), and a big axial fan in a short drum with a flared intake ahead of the entrance.
 
+## The log buildings
+
+The cabins, the chalets, the woodsheds and the afterski lodge (`cabin-shapes.ts`, `lodge-shapes.ts`, out of `cabin-parts.ts`'s pieces) keep a builder of their own — a round log is a faceted loft, not a kit box — but they are drawn in the same stack by the same material, every vertex naming its layer (`facadeLayer`, `facadeUv`, marks on the trees' bench). What a log building is made of decides what stays geometry and what is paint:
+
+- **The logs stay geometry.** A round-log wall is read by its courses' shadow lines and by the saddle-notched corners, every log run on past the corner far enough that the notch holds and its sawn end shows. A whole course is one six-sided log of sixteen triangles (its underside never drawn, its top's flat left out wherever the next course sits on it), so the silhouette costs little; the bark is painted along it (`bark`: the drawknifed grain, knots, a check) and the rings on its end (`endGrain`: the pith, the growth rings, a radial check, the bark ring).
+- **The detail between is paint.** Chinking is about an inch of daub between the courses; the window, the door, the stone, the firewood and a balcony's cut boards are flat faces in their own material: `casement` (the sash, a cross of mullions, the glass — the ONLY part the night lights, the material masking the glow to the glass), `plankDoor` (four boards, two ledges and a brace, the latch), `boardShutter` (tinted green or red), `stone` (dressed courses, running bond, raked joints — the plinth and the chimneys), `woodpile` (rounds, halves and wedges end on), `balustrade` (butted boards, a waisted shape sawn out of every other joint), `render` and `quoins` (a chalet's rendered floor and its corner stones), `timber` (posts, rails, casings, the soffit). The casings, reveals and sills stay a few faces proud of the wall so a window keeps its depth.
+- **The far cut is the near one painted flat.** Past `NEAR` (`cabins-view.ts`) a building's walls are one face each in `logWall` (the courses where the near cut's lie, chinked between), its windows, shutters and doors painted on them — so the hand-over is close to invisible and comes nearer the lens than when the far cut was banded colour.
+
+What it bought, near cut / far cut, in triangles (`make cabins`):
+
+| Kind | Before | After |
+| --- | --- | --- |
+| hut | 2247 / 322 | 1346 / 242 |
+| cabin | 3307 / 304 | 1746 / 358 |
+| chalet | 3994 / 650 | 2134 / 460 |
+| shed | 706 / 144 | 136 / 122 |
+| afterski | 7078 / 1236 | 4318 / 918 |
+
+`tests/cabin_shapes_test.ts` holds each kind to its budget, every vertex to a layer of the stack and the windows to their glow.
+
 ## The lab
 
 `make buildings` (or `make world ARGS="--views=stations --free"`) draws `previews/world-free-stations.png`: a chair's, a gondola's and a drag's foot and top (the longest lift of each kind on the map) from three sides, through the game's own renderer. `station-<kind>-<end>` is one of them at 1280 × 720. `--hour=21` shows the panes lit after dark. `race-buildings` (with `race-house`, `race-hut`, `race-stand`, `race-leader`, `race-screen`, `race-house-in`) is the race sheet: the start hut and the finish arena on a default run, the start house with `--slalom --hour=12`. `tunnels` (with `tunnel-mouth`, `tunnel-span`, `tunnel-exit`, `pwa/src/tools/tunnel-view.ts`) is the wind tunnels' sheet on a free ride (`--free`): the first tunnel's fan house, its gallery halfway down and its exit from three sides, and a row from inside the lane. The sheets replace the canvas once drawn, so name single views before them.
+
+The log buildings have a lab of their own: `make cabins` draws every kind from six sides, at its far cut and at night (`previews/cabins.png`), with each cut's triangles; `make world ARGS="--free --views=cabin,cabin-near,cabins-air"` shows them where they stand.

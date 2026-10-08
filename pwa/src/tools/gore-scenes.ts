@@ -98,6 +98,29 @@ function flatSpot(level: Level): { x: number; z: number; heading: number } {
   return best;
 }
 
+/** A spot in the loose snow off the piste, beside its flattest stretch,
+ * where nothing was groomed — the snow a fall into the powder is staged on. */
+function looseSpot(level: Level): { x: number; z: number; heading: number } {
+  const n = { x: 0, y: 1, z: 0 };
+  let best = { x: 0, z: 0, heading: 0 };
+  let score = -Infinity;
+  for (const p of level.track.points) {
+    if (p.s < 80 || p.s > level.track.length - 120) continue;
+    for (const side of [-1, 1]) {
+      const d = p.width / 2 + 14;
+      const x = p.x + Math.cos(p.heading) * d * side;
+      const z = p.z - Math.sin(p.heading) * d * side;
+      if (level.packedAt(x, z) > 0.1 || treesNear(level, x, z, 5, []).length > 0) continue;
+      level.normalAt(x, z, n);
+      if (n.y > score) {
+        score = n.y;
+        best = { x, z, heading: p.heading };
+      }
+    }
+  }
+  return best;
+}
+
 /** The kinds whose trunk stands bare under a high crown — a body met on
  * one is seen, not swallowed by a spruce's skirt of boughs to the snow. */
 const BARE = new Set(["pine", "larch", "lodgepole", "snag", "whitepine"]);
@@ -234,6 +257,24 @@ export function skiAtTree(
   const h = Math.hypot(n.x, n.z) > 0.02 ? Math.atan2(n.x, n.z) : 0;
   placeRun(s, { x: t.x - Math.sin(h) * back, z: t.z - Math.cos(h) * back, heading: h, speed });
   return { s, tree: { x: t.x, y: t.y, z: t.z }, side: h + Math.PI / 2 };
+}
+
+/** His body thrown into the snow at (x, z), `pose` first, `speed` m/s down
+ * into it, sliding `slide` m/s along it. */
+function ontoAt(
+  st: Stage,
+  p: { x: number; z: number; heading: number },
+  pose: Pose,
+  speed: number,
+  slide: number,
+  depth?: number,
+): { s: GameState; at: P3 } {
+  const s = st.fresh();
+  if (depth !== undefined) s.snowDepth = depth;
+  const g = st.level.groundAt(p.x, p.z);
+  const v = { x: Math.sin(p.heading) * slide, y: -speed, z: Math.cos(p.heading) * slide };
+  throwAt(s, p.x, p.z, p.heading, pose, v, g, 0.3);
+  return { s, at: { x: p.x, y: g, z: p.z } };
 }
 
 /** His body flown into a lone trunk, `pose` leading, at `speed` m/s. */
@@ -455,6 +496,40 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       );
     }
   },
+  /** A hard fall with nothing torn off: the parts hit hardest bleed under
+   * his clothes, soak them, and run out at the gaps — the collar, the
+   * hem, the cuffs, the boot tops — onto the snow. */
+  leak(st) {
+    const { s } = ontoSnow(st, "back", 16, 4);
+    const t0 = s.t;
+    for (const t of [1, 4, 10, 20]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `${t}s`, onBody(1.3, 2.4, 1.3, 45));
+    }
+    st.shoot(s, "20s-other-side", onBody(4.4, 2.4, 1.3, 45));
+    st.shoot(s, "20s-above", onBody(0.4, 1, 3.2, 50));
+  },
+  /** Torn apart on the groomed piste and left lying: his blood spreading
+   * wide on the packed snow round him, from above. */
+  "pool-piste"(st) {
+    const { s } = ontoSnow(st, "left", 28, 6);
+    const t0 = s.t;
+    for (const t of [5, 15, 30]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `${t}s`, onBody(0.4, 1.5, 6, 55));
+    }
+    st.shoot(s, "30s-low", onBody(2.2, 4.5, 1.8, 50));
+  },
+  /** The same off the piste in a deep day's powder: it sinks in. */
+  "pool-powder"(st) {
+    const { s } = ontoAt(st, looseSpot(st.level), "left", 45, 8, 2.5);
+    const t0 = s.t;
+    for (const t of [5, 15, 30]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `${t}s`, onBody(0.4, 1.5, 6, 55));
+    }
+    st.shoot(s, "30s-low", onBody(2.2, 4.5, 1.8, 50));
+  },
   /** The snow red under him: pooled, splashed and smeared, from above. */
   snow(st) {
     const { s, at } = ontoSnow(st, "left", 28, 10);
@@ -504,6 +579,8 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   machines: ["groomer", "heli"],
   blood: ["spray", "snow"],
+  leak: ["leak"],
+  pools: ["pool-piste", "pool-powder"],
   close: ["closeup"],
   hud: ["wreck"],
 };

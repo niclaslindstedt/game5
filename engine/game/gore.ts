@@ -41,7 +41,7 @@ import { GORE, INSTANT } from "./defs/gore.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
-import { BONES } from "./defs/anatomy.ts";
+import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
@@ -476,7 +476,46 @@ function mortality(state: GameState, g: GoreState, events: GameEvent[]): void {
  * them): the thighs, the shins, the upper arms and the forearms. */
 const OPEN_BONE = /^(femur|tibia|humerus|radius|ulna)/;
 
-/** The litres a second every wound bleeds at the full pressure. */
+/** ONE PART HIT HARD, bleeding: `out` L/s through its skin, under the
+ * clothes, and `inside` L/s into him — both at the full pressure, each
+ * clotting since the blow. */
+export type Bleed = { part: BodyPart; out: number; inside: number };
+
+/** THE PARTS HIT HARD ENOUGH TO BLEED, mortal wound or none: a blunt blow
+ * far enough past an injury's even chance splits the skin and the part
+ * bleeds out; a torn organ or a closed break bleeds inside (`GORE.blood
+ * .bleed`). Read off the injuries he carries, so a reset's mending stops
+ * it. The drawing asks the same (`gore-view.ts`: where it leaks out). */
+export function bleedsOf(state: GameState): Bleed[] {
+  const B = GORE.blood.bleed;
+  const out: Bleed[] = [];
+  for (const h of state.skier.body.injuries) {
+    const def = INJURIES[h.kind] as InjuryDef;
+    if (def.mech === "heat") continue;
+    const ais = Math.min(5, h.ais);
+    const since = Math.max(0, state.t - h.t);
+    let o = 0;
+    let i = 0;
+    if ((h.energy ?? 1) >= B.split && def.mech === "blunt" && !def.organs) {
+      o = B.out[ais] * (h.part === "head" ? B.head : 1) * 0.5 ** (since / B.clot);
+    } else if (def.organs) {
+      i = B.organ[ais] * 0.5 ** (since / B.seal);
+    } else if (def.fracture === "break") {
+      i = B.bone[ais] * 0.5 ** (since / B.seal);
+    }
+    if (o <= 0 && i <= 0) continue;
+    const b = out.find((x) => x.part === h.part);
+    // A part's skin splits once — its worst; what bleeds inside sums.
+    if (b) {
+      b.out = Math.max(b.out, o);
+      b.inside += i;
+    } else out.push({ part: h.part, out: o, inside: i });
+  }
+  return out;
+}
+
+/** The litres a second every mortal wound bleeds at the full pressure —
+ * all of it out through the skin. */
 function flowOf(g: GoreState, state: GameState): number {
   const F = GORE.blood.flow;
   let q = 0;
@@ -508,8 +547,20 @@ function flowOf(g: GoreState, state: GameState): number {
 /** THE HEART: racing as the blood goes, pumping it out in spurts, and
  * stopped at death — the wounds then only drain. */
 function heart(state: GameState, g: GoreState): void {
-  const q = flowOf(g, state);
-  if (q <= 0 && g.mortal < 0) return;
+  let qOut = flowOf(g, state);
+  let qIn = 0;
+  for (const b of bleedsOf(state)) {
+    qOut += b.out;
+    qIn += b.inside;
+  }
+  const q = qOut + qIn;
+  if (q <= 1e-5 && g.mortal < 0) {
+    g.flow = 0;
+    g.out = 0;
+    g.rate = 0;
+    g.pulse = 0;
+    return;
+  }
   const V = GORE.blood.volume;
   const lost = Math.min(1, g.blood / (V * GORE.blood.fatal));
   const H = GORE.heart;
@@ -531,5 +582,9 @@ function heart(state: GameState, g: GoreState): void {
     const since = state.t - g.dead - H.agonal;
     g.flow = q * GORE.blood.drain * 0.5 ** (since / GORE.blood.halve);
   }
+  // Never more than is left in him.
+  g.flow = Math.min(g.flow, (V - g.blood) / dt);
+  g.out = q > 0 ? (g.flow * qOut) / q : 0;
   g.blood = Math.min(V, g.blood + g.flow * dt);
+  g.shed += g.out * dt;
 }

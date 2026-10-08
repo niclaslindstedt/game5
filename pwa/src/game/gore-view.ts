@@ -32,7 +32,9 @@ import {
   GORE_OPEN,
   GORE_PIECES,
   TUNING,
+  bleedsOf,
   fracturesOf,
+  type BodyPart,
   type GameState,
   type GorePiece,
   type Level,
@@ -41,6 +43,8 @@ import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/pr
 
 import { bindPose } from "./dress-loft.ts";
 import { createBlood } from "./gore-blood.ts";
+import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
+import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
 import {
   lump,
@@ -172,12 +176,15 @@ const POINT_BONE: SkierBone[] = [
   "hand_r",
 ];
 
-/** A drop a litre: how many the spray throws for the blood it carries —
- * far fewer than the real tens of thousands, each standing for many. */
-const DROPS_A_LITRE = 1400;
-/** How far a jet carries at a beat's crest, m/s, and its dribble's between. */
-const JET = 5.2;
-const DRIBBLE = 0.6;
+/** How fast blood leaves a torn artery at a beat's crest over its pour
+ * between, m/s — out of a stump it pumps, never far. */
+const JET = 1.3;
+const POUR = 0.3;
+/** How fast it runs out of a gap in his clothes, m/s. */
+const SEEP = 0.12;
+/** The litres his clothes hold round a wound before it runs out at a
+ * gap: a jacket's and its layers' worth of a cupful. */
+const HOLD = 0.1;
 
 type Piece = {
   piece: GorePiece;
@@ -205,6 +212,16 @@ const m1 = new THREE.Matrix4();
 const m2 = new THREE.Matrix4();
 
 const toV = (p: V3, out = new THREE.Vector3()) => out.set(p.x, p.y, p.z);
+
+/** Where the blood leaves him: a torn wound's own place, or the gap in his
+ * clothes a part hit hard (`part`) runs out of. */
+type Leak = {
+  at: THREE.Vector3;
+  dir: THREE.Vector3;
+  share: number;
+  key: string;
+  part?: BodyPart;
+};
 
 export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const group = new THREE.Group();
@@ -278,11 +295,16 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const fractures = new Map<string, THREE.Mesh>();
   let soakClock = 0;
   let poolClock = 0;
+  // The litres each part hit hard has bled into his clothes, and the
+  // litres run onto the snow under each gap since the pools last grew.
+  const soakedIn = new Map<BodyPart, number>();
+  // The body's way, smoothed: what a stream is carried along by — the
+  // ragdoll's own step-to-step jitter would break it into dashes.
+  const drift = new THREE.Vector3();
+  const poolAcc = new Map<string, number>();
   let last: GameState | null = null;
 
-  /** His clothes' own colours, before any blood: a copy a cloth. */
-  const clean = new WeakMap<THREE.BufferGeometry, Float32Array>();
-  const soaked = new Set<THREE.BufferGeometry>();
+  const soak = createSoak();
 
   const meshOf = (g: THREE.BufferGeometry): THREE.Mesh => {
     const m = new THREE.Mesh(g, flesh);
@@ -409,7 +431,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     toV(cut.at, stump.position);
     stump.quaternion.setFromUnitVectors(yUp, toV(cut.out, v1).multiplyScalar(-1).normalize());
     dressed.group.add(stump);
-    soakCloth(dressed.cloth, [{ at: cut.at, r: 0.16 }], 1, true);
+    soak.cloth(dressed.cloth, [{ at: cut.at, r: 0.16 }], 1, true);
     pieces.push({
       piece,
       dressed,
@@ -424,62 +446,9 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     // The gout: a burst out of both ends of the tear, and a gobbet or two.
     const dir = worldDir(cut.out, M);
     const carry = v2.set(v.vx, v.vy, v.vz);
-    blood.emit(a0, dir, 3.5, 70, 0.6, carry, () => rng.next());
-    blood.emit(a0, dir.clone().negate(), 2.5, 40, 0.7, carry, () => rng.next());
+    blood.emit(a0, dir, 1.4, 50, 0.5, carry, () => rng.next());
+    blood.emit(a0, dir.clone().negate(), 1, 30, 0.6, carry, () => rng.next());
     throwOut(["gobbet", "gobbet"], a0, dir, carry, 2.5);
-  };
-
-  /** Soak a cloth red round the wounds `at` (the bind pose's frame), each
-   * reaching `r`, as wet as `wet` (0 … 1). */
-  function soakCloth(
-    g: THREE.BufferGeometry,
-    wounds: { at: V3; r: number }[],
-    wet: number,
-    force = false,
-  ) {
-    const col = g.getAttribute("color") as THREE.BufferAttribute;
-    let orig = clean.get(g);
-    if (!orig) {
-      orig = Float32Array.from(col.array as Float32Array);
-      clean.set(g, orig);
-    }
-    if (!force && wounds.length === 0) return;
-    soaked.add(g);
-    const pos = g.getAttribute("position");
-    const arr = col.array as Float32Array;
-    // Blood soaked into cloth: near black-red where it is soaked through.
-    const br = 0.11;
-    const bg = 0.004;
-    const bb = 0.004;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      let k = 0;
-      for (const w of wounds) {
-        const d = Math.hypot(x - w.at.x, y - w.at.y, z - w.at.z);
-        // A ragged edge: the soak's reach wanders round the wound.
-        const reach = w.r * (0.8 + 0.4 * Math.sin(x * 41 + z * 37 + y * 23));
-        k = Math.max(k, Math.min(1, ((reach - d) / (0.35 * reach)) * wet));
-      }
-      k = Math.max(0, k);
-      arr[3 * i] = orig[3 * i] + (br - orig[3 * i]) * k;
-      arr[3 * i + 1] = orig[3 * i + 1] + (bg - orig[3 * i + 1]) * k;
-      arr[3 * i + 2] = orig[3 * i + 2] + (bb - orig[3 * i + 2]) * k;
-    }
-    col.needsUpdate = true;
-  }
-
-  const unsoak = () => {
-    for (const g of soaked) {
-      const orig = clean.get(g);
-      const col = g.getAttribute("color") as THREE.BufferAttribute;
-      if (orig) {
-        (col.array as Float32Array).set(orig);
-        col.needsUpdate = true;
-      }
-    }
-    soaked.clear();
   };
 
   /** The trunk's front at the chest (`chest`) or the belly (`abdomen`), in
@@ -526,8 +495,11 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     spike = null;
     opened = 0;
     crushed = false;
+    soakedIn.clear();
+    drift.set(0, 0, 0);
+    poolAcc.clear();
     blood.clear();
-    unsoak();
+    soak.clear();
     model?.setGore(0, 0);
     rng = createRng(level.seed ^ 0x5eed90e);
   };
@@ -591,7 +563,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             });
           }
         }
-        blood.emit(at, dir, 3, 120, 0.8, carry, () => rng.next());
+        blood.emit(at, dir, 1.2, 80, 0.7, carry, () => rng.next());
       });
       // THE SKULL CRUSHED.
       if (g.crushed >= 0 && !crushed) {
@@ -605,7 +577,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           carry,
           3,
         );
-        blood.emit(at, dir, 3.5, 140, 1.1, carry, () => rng.next());
+        blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
       }
       // THE SPIKE through him.
       if (g.impaled && !spike) {
@@ -716,9 +688,19 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
       }
 
-      // THE BLOOD: every wound spurts on the beat, and pools under him.
+      // THE BLOOD. A torn wound has no cloth over it: it pours out where
+      // it is, pumped on the beat. Every part hit hard bleeds under his
+      // clothes until they hold no more, then runs out of the lowest gap
+      // in them (`gore-leaks.ts`). What reaches the snow pools under him.
       const beat = g.rate > 0 ? g.pulse : 0;
-      const wounds: { at: THREE.Vector3; dir: THREE.Vector3; share: number; key: string }[] = [];
+      drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
+      // A stream takes the body's way only when the body is really going —
+      // a body lying or hanging still jitters, and a stream off it falls.
+      const going = drift.length();
+      const along = new THREE.Vector3()
+        .copy(drift)
+        .multiplyScalar(Math.min(1, Math.max(0, (going - 1.5) / 2)));
+      const wounds: Leak[] = [];
       for (const piece of cuts) {
         const c = cutOf(piece, f);
         wounds.push({
@@ -782,23 +764,48 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           key: `piece${pieces.indexOf(p)}`,
         });
       }
+      // The parts hit hard, under his clothes.
+      const height = (p: V3) => world(p, M, v3).y;
+      const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
+      for (const h of hard) {
+        const gap = lowestGap(h.part, f, height);
+        const from = world(partAt(h.part, f), M);
+        const at = world(gapAt(gap, f), M);
+        const dir = at.clone().sub(from).normalize().multiplyScalar(0.35);
+        dir.y -= 1;
+        wounds.push({ at, dir: dir.normalize(), share: h.out, key: gap, part: h.part });
+      }
       const total = wounds.reduce((s, w) => s + w.share, 0) || 1;
       const lying = carry.length() < 0.6;
       poolClock += dt;
       const pool = poolClock > 0.1;
       if (pool) poolClock = 0;
+      const hips = world(f.pelvis.head, M);
+      const low = hips.y - level.groundAt(hips.x, hips.z) < 0.5;
       for (const w of wounds) {
-        const litres = g.flow * simDt * (w.share / total);
-        const n = litres * DROPS_A_LITRE + (rng.next() < (litres * DROPS_A_LITRE) % 1 ? 1 : 0);
-        const speed = g.rate > 0 ? DRIBBLE + JET * beat : DRIBBLE * 0.5;
-        if (n >= 1)
-          blood.emit(w.at, w.dir, speed, Math.floor(n), 0.18 + 0.2 * (1 - beat), carry, () =>
-            rng.next(),
-          );
-        // What runs out of him lying still soaks into the snow under the wound.
-        if (pool && lying && w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
-          blood.pool(w.key, w.at.x, w.at.z, g.flow * 0.1 * (w.share / total) * 0.6);
+        const q = g.out * (w.share / total);
+        if (w.part) {
+          // Soaked into the clothes round the wound until they hold no
+          // more; then it runs out at the gap.
+          const had = soakedIn.get(w.part) ?? 0;
+          soakedIn.set(w.part, had + q * simDt);
+          if (had < HOLD) continue;
         }
+        const speed = w.part ? SEEP * (1 + beat) : g.rate > 0 ? POUR + JET * beat : POUR * 0.5;
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next());
+        // What reaches the snow under a gap lying on it pools there; a
+        // share runs on under him, into the one pool round his body.
+        if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
+          poolAcc.set(w.key, (poolAcc.get(w.key) ?? 0) + q * simDt * (low ? 0.3 : 1));
+          if (low) poolAcc.set("body", (poolAcc.get("body") ?? 0) + q * simDt * 0.7);
+        }
+      }
+      if (pool && lying) {
+        for (const [key, litres] of poolAcc) {
+          const at = key === "body" ? hips : wounds.find((w) => w.key === key)?.at;
+          if (at && litres > 0) blood.pool(key, at.x, at.z, litres, spreadAt(state, at.x, at.z));
+        }
+        poolAcc.clear();
       }
       // The pieces lying on the snow bleed into it too.
       if (pool) {
@@ -809,6 +816,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             p.stick.a.x,
             p.stick.a.z,
             0.012 * Math.exp(-(state.t - p.t) / 4),
+            spreadAt(state, p.stick.a.x, p.stick.a.z),
           );
         }
       }
@@ -817,7 +825,8 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         normalAt: (x, z, out) => ground.normalAt(x, z, out as V3),
       });
 
-      // HIS CLOTHES SOAKED round every wound, the more the more he bled.
+      // HIS CLOTHES SOAKED: round every torn wound, and from every part hit
+      // hard down the way it runs to the gap it comes out of.
       soakClock += dt;
       if (soakClock > 0.25) {
         soakClock = 0;
@@ -846,7 +855,20 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             });
           }
         });
-        if (at.length > 0) soakCloth(skin.cloth, at, wet);
+        for (const h of hard) {
+          const litres = soakedIn.get(h.part) ?? 0;
+          if (litres <= 0.005) continue;
+          const gap = lowestGap(h.part, f, height);
+          at.push(
+            ...soakPath(
+              partAt(h.part, bind),
+              gapAt(gap, bind),
+              Math.min(1, litres / HOLD),
+              0.07 + Math.min(0.2, 0.5 * Math.sqrt(litres)),
+            ),
+          );
+        }
+        if (at.length > 0) soak.cloth(skin.cloth, at, Math.max(wet, hard.length > 0 ? 0.9 : 0));
       }
     },
     clear(model) {

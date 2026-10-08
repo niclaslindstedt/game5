@@ -6,7 +6,16 @@
 // it stops.
 
 import { describe, expect, it } from "vitest";
-import { GORE, GORE_PIECES, TUNING, lostPiece, step, type GameEvent } from "@engine";
+import {
+  GORE,
+  GORE_PIECES,
+  TUNING,
+  bleedsOf,
+  lostPiece,
+  mendBody,
+  step,
+  type GameEvent,
+} from "@engine";
 
 import { stageTrial, type Staging } from "./support/injury-stage.ts";
 
@@ -104,5 +113,43 @@ describe("mortal wounds", () => {
     const g = s.gore!;
     expect(g.blood).toBeGreaterThan(0.2);
     expect(g.blood).toBeLessThanOrEqual(GORE.blood.volume);
+  });
+
+  it("bleed out of a part hit hard enough to split its skin, and inside out of a torn organ", () => {
+    const { state } = stageTrial(SOFT_TRUNK, 0, true);
+    const t = state.t;
+    state.skier.body.injuries.push(
+      // A broken forearm struck far past its even chance: the skin split.
+      { part: "armL", kind: "brokenForearm", ais: 2, t, energy: 2.5 },
+      // The same break only just past it: closed, and it bleeds nowhere.
+      { part: "armR", kind: "brokenForearm", ais: 2, t, energy: 1.1 },
+      // A torn spleen: inside him, never seen.
+      { part: "abdomen", kind: "tornSpleen", ais: 3, t, energy: 3 },
+    );
+    const bleeds = bleedsOf(state);
+    const of = (part: string) => bleeds.find((b) => b.part === part);
+    expect(of("armL")?.out).toBeGreaterThan(0);
+    expect(of("armL")?.inside ?? 0).toBe(0);
+    expect(of("armR")).toBeUndefined();
+    expect(of("abdomen")?.out ?? 0).toBe(0);
+    expect(of("abdomen")?.inside).toBeGreaterThan(0);
+    // It clots: a minute on, a split bleeds a fraction of what it did.
+    state.t += 60;
+    expect(bleedsOf(state).find((b) => b.part === "armL")!.out).toBeLessThan(of("armL")!.out * 0.2);
+    // And a reset's mending stops all of it.
+    mendBody(state.skier.body);
+    expect(bleedsOf(state)).toHaveLength(0);
+  });
+
+  it("shed onto the snow only what leaves him through the skin", () => {
+    const { state } = ride(ON_ICE, 10);
+    const g = state.gore!;
+    expect(g.shed).toBeGreaterThan(0.2);
+    expect(g.shed).toBeLessThanOrEqual(g.blood + 1e-9);
+    // A body torn open goes on emptying onto the snow after the heart stops.
+    const dead = g.shed;
+    const more = ride(ON_ICE, 25).state.gore!;
+    expect(more.shed).toBeGreaterThan(dead);
+    expect(more.blood).toBeLessThanOrEqual(GORE.blood.volume);
   });
 });

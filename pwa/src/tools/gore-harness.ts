@@ -207,6 +207,7 @@ const stage: Stage = {
       seed,
     });
   },
+  clearBodies: () => renderer.clearBodies(),
   async sky(over) {
     const sky = over ? { ...(baseSky ?? {}), ...over } : baseSky;
     renderer.setSky(sky);
@@ -223,6 +224,8 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     const scene = VIEWS[v];
     if (!scene) throw new Error(`no view "${v}"`);
     view = v;
+    // Each view on snow of its own: no dead left lying from the last one.
+    renderer.clearBodies();
     await scene(stage);
   }
   const tw = Math.round(width * scale);

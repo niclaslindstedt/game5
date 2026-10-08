@@ -42,7 +42,7 @@ export function gapAt(gap: Gap, f: Frames): V3 {
     // Out from under the helmet: down the face, or the nape.
     case "face":
       // The head's frame stands at his eyes: the face is below its origin.
-      return along(f.head, -0.3, 0.1);
+      return along(f.head, -0.36, 0.09);
     case "nape":
       return along(f.head, 0.2, -0.08);
     // The jacket's collar round the neck.
@@ -71,12 +71,12 @@ export function gapAt(gap: Gap, f: Frames): V3 {
 /** A cheek under the helmet's rim, `side` −1 left or 1 right: where blood
  * off his face runs from when he lies on that side. */
 export function cheekAt(f: Frames, side: number): V3 {
-  return along(f.head, -0.15, 0.07, 0.055 * side);
+  return along(f.head, -0.25, 0.07, 0.055 * side);
 }
 
 /** Under his nose, below the goggles: where blood off his face starts. */
 export function noseAt(f: Frames): V3 {
-  return along(f.head, 0.05, 0.13);
+  return along(f.head, -0.1, 0.12);
 }
 
 /** The middle of a body part on his frames: where it is hurt. */

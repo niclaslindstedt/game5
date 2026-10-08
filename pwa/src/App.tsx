@@ -18,12 +18,11 @@
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player
 // rides is armed with a ticket — its seed, skis, mode and length — before
 // its first step; every input the engine is handed passes `snapInput` on
-// the way in, so what the book's tape writes down is what was ridden; and
-// a TIME TRIAL is ridden beside the ghost of the best run on that ticket.
-// The bot's race under a card is armed with nothing.
+// the way in, so what the book's tape writes down is what was ridden. The
+// bot's race under a card is armed with nothing.
 //
 // THE CAMPAIGN (`campaign-run.ts`, `pinned-run.ts`): a rung is armed before its
-// first step and booked at the flag; RACE and TIME TRIAL ride pinned maps too.
+// first step and booked at the flag; a RACE rides a pinned map too.
 // THE REPLAY (`replay-run.ts`): the same runs are recorded as the controls
 // that rode them, and WATCH REPLAY on the finish plate or the pause card
 // rebuilds the race and steps it off the tape under the `replay` surface —
@@ -59,7 +58,6 @@ import {
   error,
   lastPiste,
   placeRun,
-  skisById,
   step,
   type CreateGameOptions,
   type GameMode,
@@ -91,7 +89,7 @@ import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
 import { createRunBook, type RunBook, type RunTicket } from "./game/ghost-run.ts";
-import { keepsRecords, pairKey, runKey } from "./game/records.ts";
+import { keepsRecords, runKey } from "./game/records.ts";
 import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
@@ -99,7 +97,7 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
-import { createXrayRun } from "./game/xray-run.ts";
+import { createXrayRun, dying, xrayHud } from "./game/xray-run.ts";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
@@ -107,6 +105,7 @@ import { watchMachineTaps } from "./game/machine-tap.ts";
 import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
 import { MainMenu } from "./game/menu-main.tsx";
+import { useStats } from "./game/use-stats.ts";
 import { MenuPages } from "./game/menu-pages.tsx";
 import { createMenuNav, walkCardsOnKeys } from "./game/menu-nav.ts";
 import { PauseMenu } from "./game/menu-pause.tsx";
@@ -155,8 +154,7 @@ import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 const HUD_TICK = 1 / 12;
 /** How long a line stays in the news column, s. */
 const FLASH_LIFE = 3.2;
-/** How long the loading card takes to fade off the race underneath. Must
- * match the `.loading.leaving` transition in styles.css. */
+/** The loading card's fade off the race; must match `.loading.leaving` in styles.css. */
 const LOAD_FADE_MS = 260;
 /** How much of the mix the bot's race gets under a card. */
 const CARD_DUCK = 0.5;
@@ -218,7 +216,7 @@ export function App() {
    * the map the start card opens on, and a free ride on it is stood up off
    * the ski area already built — and dealt fresh after every race stood up. */
   const [nextSeed, setNextSeed] = useState(() => params.seed ?? FIRST_FREE_SEED);
-  /** THE MAP THE MENU IS STANDING OVER — what the TIME TRIAL tile rides. */
+  /** THE MAP THE MENU IS STANDING OVER — what a tricks run a link pinned rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
   // (A link to the start card is a free ride on its way to the skis card.)
@@ -227,6 +225,7 @@ export function App() {
   const campaign = useCampaign({ mode: modeRef, setPage, setSettings });
   const dev = useDevApp();
   const bookRef = useRef<RunBook | null>(null);
+  const stats = useStats();
   useCloudSync({ settings, setSettings, campaign, book: bookRef, shell });
   const [input, setInput] = useState<InputManager | null>(null);
   /** The bar over a recording, and whether there is one worth offering —
@@ -277,6 +276,7 @@ export function App() {
     setInput(manager);
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
+    manager.onLook((dx, dy) => renderer.lookAround(dx, dy));
     const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
     bookRef.current = book;
     const replays = createReplayRun({
@@ -284,7 +284,7 @@ export function App() {
       adopt: (s) => adopt(s),
       shell: () => shellRef.current,
     });
-    const xray = createXrayRun(renderer.setXray);
+    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current.keys);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -332,7 +332,7 @@ export function App() {
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-        return raceOrFallback(1, { ...skierOf(s), mode: "slalom", laps: s.trialLaps });
+        return raceOrFallback(1, { ...skierOf(s), mode: "slalom" });
       }
     };
     // A race a link boots into is the player's, with the player's help; the
@@ -341,13 +341,7 @@ export function App() {
       ? freeBoot()
       : raceOrFallback(
           raceSeed,
-          params.rides
-            ? {
-                ...skierOf(settingsRef.current),
-                mode: params.mode,
-                laps: settingsRef.current.trialLaps,
-              }
-            : null,
+          params.rides ? { ...skierOf(settingsRef.current), mode: params.mode } : null,
           linkWorld(params),
         );
     // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
@@ -363,7 +357,6 @@ export function App() {
         seed,
         ...linkWorld(params),
         mode,
-        laps: mode === "timeTrial" ? settingsRef.current.trialLaps : undefined,
         training: mode === "downhill" ? true : undefined,
         ...skierOf(settingsRef.current),
       });
@@ -408,6 +401,7 @@ export function App() {
     const adopt = (next: GameState, ticket: RunTicket | null = null): void => {
       state = next;
       book.arm(next, ticket);
+      stats.rig.arm(next, mode);
       replays.arm(next, ticket ? mode : null);
       setMapSeed(next.seed);
       live.length = 0;
@@ -427,6 +421,7 @@ export function App() {
             state.skier.airborne,
             !!state.heli?.rider,
             state.skier.thrown !== null,
+            state.skier.lift,
           );
 
     window.__SH_PROBE__ = () =>
@@ -448,6 +443,7 @@ export function App() {
       if (preroll) return;
       const rides = playerRides(shellRef.current);
       if (soundsLive(shellRef.current)) audio.events(state.events, state);
+      if (rides && !params.bot) stats.rig.step(state);
       if (rides) {
         if (!params.bot) campaign.rig.step(state);
         runRumble.events(state.events);
@@ -604,7 +600,9 @@ export function App() {
       },
       toMenu: () => {
         // The run goes back to the bot: nothing more is filed or recorded.
+        renderer.clearBodies();
         book.clear();
+        stats.rig.flush();
         pinned.clear();
         replays.clear();
         setPage("root");
@@ -686,7 +684,7 @@ export function App() {
       const shown = drawable();
       // SLOW MOTION is fewer steps a frame: the replay director's (`replay-shots.ts`) and the X-ray cam's.
       const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
-      renderer.setDeathCam(playerRides(shellRef.current));
+      renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
       const dtRun = dtFrame * rate;
       const simAt = performance.now();
@@ -757,6 +755,7 @@ export function App() {
       if (document.hidden) {
         clock.pause();
         audio.silence();
+        stats.rig.flush();
       } else {
         clock.resume();
         last = performance.now();
@@ -765,9 +764,8 @@ export function App() {
       setAway(awayRef.current);
     };
     document.addEventListener("visibilitychange", onVisibility);
-    // A browser makes no sound before the player has touched something, so
-    // the unlock hangs off real gestures only — captured, so a card that
-    // stops propagation cannot swallow it.
+    // A browser makes no sound before the player has touched something, so the unlock
+    // hangs off real gestures only — captured, so a card cannot swallow it.
     const unlockOpts = { capture: true, passive: true } as const;
     document.addEventListener("pointerdown", unlockAudio, unlockOpts);
     document.addEventListener("keydown", unlockAudio, unlockOpts);
@@ -793,6 +791,7 @@ export function App() {
       audio.silence();
       observer.disconnect();
       stopTaps();
+      xray.dispose();
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
       document.removeEventListener("keydown", unlockAudio, unlockOpts);
@@ -803,8 +802,7 @@ export function App() {
       renderer.dispose();
       delete window.__SH_PROBE__;
     };
-    // Boots once: the URL is read on mount and `renderKit` is set exactly
-    // once.
+    // Boots once: the URL is read on mount and `renderKit` is set exactly once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderKit]);
 
@@ -814,8 +812,9 @@ export function App() {
   useEffect(() => rendererRef.current?.setVideo(videoOf(settings)), [renderKit, settings.video]);
   useEffect(() => rendererRef.current?.dress(settings.outfit), [renderKit, settings.outfit]);
 
-  /** THE TIME TRIAL'S MAP: a pinned one, or the one the menu stands over. */
-  const trialSeed = params.seed ?? mapSeed;
+  /** THE MAP A TRICKS RUN RIDES where no trick map card picked it: a
+   * pinned one, or the one the menu stands over. */
+  const hereSeed = params.seed ?? mapSeed;
   /** Onto the snow: in the mode the tile that opened the skis card named, on
    * the seed that tile showed and the pair the ski card holds. */
   const race = (): void => {
@@ -838,18 +837,12 @@ export function App() {
     ) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
     }
-    // The trial and the tricks run are ridden on the map the menu stands over.
-    const trial = modeRef.current === "timeTrial" || modeRef.current === "tricks";
-    pressRef.current.race(trial ? trialSeed : nextSeed, modeRef.current);
+    // The tricks run is ridden on the map the menu stands over.
+    const here = modeRef.current === "tricks";
+    pressRef.current.race(here ? hereSeed : nextSeed, modeRef.current);
     // The next race deals the next map, unless a link pinned this one.
-    if (!trial && params.seed === null) setNextSeed(dealSeed());
+    if (!here && params.seed === null) setNextSeed(dealSeed());
   };
-  const trialBest = bookRef.current?.standing({
-    seed: trialSeed,
-    ...pairKey(specOf(settings)),
-    mode: "timeTrial",
-    laps: settings.trialLaps,
-  });
 
   /** The map on the start card: the one it stored, or the first of the
    * free ride's own mountains (`FREE_SEEDS`). */
@@ -940,17 +933,14 @@ export function App() {
           onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}
-          trial={{
-            seed: trialSeed,
-            best: trialBest ? { time: trialBest.value, skis: skisById(trialBest.skis).name } : null,
-          }}
           onRace={() => setPage("races")}
-          onTrial={() => campaign.openCard("timeTrial", params.seed === null ? "levels" : "skis")}
           onFree={() => campaign.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
           onGallery={() => setPage("gallery")}
+          stats={stats.face}
+          onStats={() => setPage("stats")}
           developer={settings.developer}
           onDeveloper={() => setPage("dev")}
           onHeld={() => setSettings((s) => ({ ...s, developer: true }))}
@@ -974,6 +964,8 @@ export function App() {
           onLinkSkis={() => setLinkSkis(null)}
           onRide={race}
           onFreeRide={freeRide}
+          stats={stats.book}
+          onResetStats={stats.rig.reset}
         />
       )}
       {(shell === "loading" || loadLeaving) && (

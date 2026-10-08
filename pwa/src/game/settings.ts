@@ -4,9 +4,8 @@
 // the topsheet on each pair, whether the sound is on at all, and every row
 // of OPTIONS (`menu-options.tsx`) — the three faders, the picture
 // (`settings-video.ts`), the keys (`settings-input.ts`), the thumbs, and how
-// much help the skier is given — and the time trial's length, the start
-// card's answers for a free ride (`free-ride.ts`), and the pinned maps the
-// level cards last picked. The record book, the ghosts and the campaign's
+// much help the skier is given — and the start card's answers for a free
+// ride (`free-ride.ts`), and the pinned maps the level cards last picked. The record book, the ghosts and the campaign's
 // board are kept beside it, not in it (`records.ts`, `ghost.ts`,
 // `campaign.ts`). Nothing is remembered that the player has no way to
 // change: the camera is walked with C (or the HUD's press) and the sound is
@@ -22,7 +21,6 @@
 import {
   AERIALS,
   SKIS,
-  TIME_TRIAL,
   isAerialCode,
   isSkiId,
   riderById,
@@ -33,7 +31,6 @@ import {
   type SkiSpec,
 } from "@engine";
 
-import { findLevel } from "./campaign.ts";
 import { mergeRacePicks, type RacePicks } from "./race-maps.ts";
 import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -128,15 +125,9 @@ export type Settings = {
    * the device says" (`injuriesShown`): shown, unless the store app reports
    * a content filter. */
   injuries: boolean | null;
-  /** The time trial's length, laps (`TIME_TRIAL.laps`). */
-  trialLaps: number;
   /** THE START CARD's answers: the free ride's mountain, day and snow
    * (`free-ride.ts`). */
   ride: FreeRide;
-  /** THE TIME TRIAL'S LEVEL CARD's answer: the campaign map a TIME TRIAL
-   * skis (`menu-levels.tsx`, `pinnedFor`) — its id, or null for the first
-   * rung. */
-  level: string | null;
   /** EACH DISCIPLINE'S LEVEL CARD's answer: the race map a SLALOM or a
    * DOWNHILL is raced on (`race-maps.ts`) — an id per discipline, its
    * first map where none is kept. */
@@ -192,9 +183,7 @@ export function freshSettings(): Settings {
     assist: { steer: "full", air: "full" },
     damage: false,
     injuries: null,
-    trialLaps: TIME_TRIAL.laps[0],
     ride: freshRide(),
-    level: null,
     raceMap: {},
     trickMap: null,
     aerialPlan: AERIALS.plan,
@@ -275,11 +264,9 @@ export function mergeSettings(parsed: unknown): Settings {
   out.assist.air = onLadder(assist.air, ASSIST_LEVELS, out.assist.air);
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
   if (typeof blob.injuries === "boolean") out.injuries = blob.injuries;
-  if (typeof blob.trialLaps === "number" && TIME_TRIAL.laps.includes(blob.trialLaps)) {
-    out.trialLaps = blob.trialLaps;
-  }
+  // A blob from before the time trial was retired carries its length
+  // (`trialLaps`) and its level card's pick (`level`); both are left lying.
   out.ride = mergeRide(blob.ride);
-  if (typeof blob.level === "string" && findLevel(blob.level) !== null) out.level = blob.level;
   out.raceMap = mergeRacePicks(blob.raceMap);
   if (isTrickMap(blob.trickMap)) out.trickMap = blob.trickMap;
   if (isAerialCode(blob.aerialPlan)) out.aerialPlan = blob.aerialPlan;

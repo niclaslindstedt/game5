@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CAMPAIGN CARD — a row of four shelves, six boxes each, and the table
+// THE CAMPAIGN CARD — a row of four shelves, a few boxes each, and the table
 // under the one being looked at.
 //
 // The card is one column: the shelves as a row of tabs across the top (four
 // across, two by two on a phone held upright) — each a SKI AREA, named, with
-// its kind of country (R21) and the six runs' GRADE SIGNS in rung order
+// its kind of country (R21) and its runs' GRADE SIGNS in rung order
 // (R23: the green circle, the blue square, the red rectangle, the black
 // diamond — `grade-mark.tsx`), so the climb from the gentle runs to the
-// steep ones reads before a box is opened — the six boxes in a grid, each
+// steep ones reads before a box is opened — the boxes in a grid, each
 // with its own run's sign, then the table.
-// A BOX is a number, a name, what the map is (a race or a time trial, over
-// top to bottom) and the day it is skied in, the piste itself drawn behind
-// the words (`CourseMap`), and what has been got out of it — the best place
-// and the points it paid, the best time, the medal. Shut, it is the number,
+// A BOX is a number, a name, what the map is (a slalom or a downhill, top to
+// bottom) and the day it is skied in, the piste itself drawn behind the
+// words (`CourseMap`), and what has been got out of it — the best place and
+// the points it paid, the best time. Shut, it is the number,
 // the piste and a padlock, and the reason is its accessible name.
 //
 // THE RING is on the box the campaign would pick next (`continueAt`): where
@@ -28,7 +28,6 @@ import { useState } from "preact/hooks";
 
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import {
-  MEDALS,
   PLAYER_ID,
   POINTS,
   SHELVES,
@@ -52,7 +51,7 @@ import { ROUTE_BOX, ROUTE_STROKE } from "./route-shape.ts";
 import { STRINGS } from "./strings.ts";
 
 /** THE MAP'S OWN LOOP, as the shape it is — the whole track in its own box,
- * so a shelf's six boxes read as six different rides before a word on any of
+ * so a shelf's boxes read as different rides before a word on any of
  * them has been read.
  *
  * It sits BEHIND the words rather than beside them: a box is already as
@@ -86,8 +85,7 @@ export function CourseMap({ levelId }: { levelId: string }) {
 
 /** THE DAY a map is ridden in, on one line under its name — the sky and the
  * hour the run starts at. Stated here and read by the level card too: a rung
- * and the same map offered for a time trial must not be able to disagree
- * about what day it is. */
+ * and a race map must say what day it is the same way. */
 export function dayLine(level: CampaignLevel): string {
   return STRINGS.campaignDay(
     STRINGS.campaignSky[level.day.weather] ?? level.day.weather,
@@ -132,7 +130,6 @@ function LevelBox({
   const result = progress.results[level.id];
   const points = progress.points[level.id]?.[PLAYER_ID];
   const field = RACE.rivals + 1;
-  const won = result?.medal ?? null;
   return (
     <button
       type="button"
@@ -146,23 +143,11 @@ function LevelBox({
       <span class="menu-level-head">
         <span class="menu-level-no">{index + 1}</span>
         <GradeMark grade={level.grade} className="menu-level-grade" />
-        <Glyph name={level.mode === "timeTrial" ? "clock" : "flag"} className="menu-level-mode" />
+        <Glyph name="flag" className="menu-level-mode" />
         <span class="menu-level-billing">{billing(level)}</span>
       </span>
       <span class="menu-level-name">{level.name}</span>
       <span class="menu-level-day">{dayLine(level)}</span>
-      {level.medals && (
-        <span class="menu-level-medals">
-          {MEDALS.map((medal) => (
-            <span
-              key={medal}
-              class={`menu-level-medal menu-level-medal-${medal}${won !== null && MEDALS.indexOf(won) >= MEDALS.indexOf(medal) ? " menu-level-medal-won" : ""}`}
-            >
-              {STRINGS.campaignMedalCost(STRINGS.campaignMedal[medal], level.medals![medal])}
-            </span>
-          ))}
-        </span>
-      )}
       {result && (
         <span class="menu-level-marks">
           {points !== undefined && (

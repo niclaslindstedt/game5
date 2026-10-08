@@ -12,7 +12,7 @@
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
 //   machines.ts     the free ride's helicopter, snowmobile and piste machines
 //   snowfall.ts     the snow falling round the lens, the spindrift
-//   ghost-model.ts  the time trial's ghost, see-through and trail-less
+//   ghost-model.ts  a ghost, see-through and trail-less (no mode keeps one now)
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
@@ -46,8 +46,9 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
-import { createLens, lensRay, type Lens } from "./camera.ts";
+import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
+import { figureShown } from "./camera-para.ts";
 import { createTvCamera } from "./camera-tv.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
@@ -60,6 +61,7 @@ import { createGoreView, type GoreView } from "./gore-view.ts";
 import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
+import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
@@ -323,6 +325,7 @@ export function createWorldRenderer(
   const lensDir = new THREE.Vector3();
   const rigPose: RigPose = freshRigPose();
   const rideMem = createRideMemory();
+  const gaze = createGazeRig(); // looking round from the lift (`lift-gaze.ts`)
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
@@ -595,6 +598,8 @@ export function createWorldRenderer(
       }
       // A slot on another pair than the one it was drawn as — the player
       // chose different skis for a race on the same map — is rebuilt.
+      // THE DEAD LEFT LYING (a new run after a death), off the body as last drawn.
+      if (state !== lastState) gore?.leave(riders[0].model);
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
         if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
@@ -679,7 +684,7 @@ export function createWorldRenderer(
         gore = createGoreView(level, wrap);
         scene.add(gore.group);
       }
-      gore?.update(state, riders[0].model, simDt, dt);
+      gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);
@@ -708,7 +713,7 @@ export function createWorldRenderer(
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state);
-      player.model.setSkierVisible(lens.rung() !== "tips" && lens.rung() !== "helmet");
+      player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.
       hurt.update(state, player.model.skin());
@@ -731,16 +736,12 @@ export function createWorldRenderer(
         dead ??
         frameStart(startMoment(state, d), ladder);
       if (planted) {
-        const cam = lens.camera;
-        cam.position.set(planted.eye.x, planted.eye.y, planted.eye.z);
-        cam.up.set(0, 1, 0);
-        cam.lookAt(planted.target.x, planted.target.y, planted.target.z);
-        if (planted.roll !== 0) cam.rotateZ(-planted.roll);
-        cam.fov = planted.fov;
-        cam.updateProjectionMatrix();
-        cam.updateMatrixWorld();
+        aimLens(lens.camera, planted);
         player.model.setSkierVisible(true);
       }
+      // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
+      const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);
+      if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
       // A rival standing in the lens's own spot is left out of this frame.
@@ -904,7 +905,9 @@ export function createWorldRenderer(
       override = view;
     },
 
+    lookAround: gaze.drag,
     setDeathCam: hurt.setDeathCam,
+    clearBodies: () => gore?.clearRemains(),
     setXray: hurt.setXray,
 
     setShot(next) {

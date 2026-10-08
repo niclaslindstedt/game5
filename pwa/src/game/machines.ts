@@ -22,7 +22,7 @@ import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
-import { PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
+import { hangIn, PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
@@ -101,6 +101,8 @@ export function createMachines(
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
   let seated: SkisModel | null = null;
   let current: GameState = state;
+  // How far into the flight the pilot's own cameras are (`hangIn`), 0..1.
+  let hung = 0;
   const floods: Flood[] = [];
   if (sled) {
     group.add(sled.group);
@@ -126,6 +128,7 @@ export function createMachines(
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
+      hung = s.para?.flying ? hangIn(hung, dt) : 0;
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
@@ -146,13 +149,14 @@ export function createMachines(
       return heli?.lens(ladder, dt) ?? null;
     },
     ladder(pose, s) {
+      pose.lift = null;
       const g = drivenGroomer(s);
       if (g) {
         groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
         return GROOMER_RIGS;
       }
       if (para && underWing(s)) {
-        paraRigPose(pose, para.wing());
+        paraRigPose(pose, para.wing(), hung);
         return PARA_RIGS;
       }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;

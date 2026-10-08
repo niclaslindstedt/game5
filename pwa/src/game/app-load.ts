@@ -197,7 +197,7 @@ export function createLoader(
  * the front door is the bot's, on the default pair with every hand on. */
 export function raceOrFallback(
   seed: number,
-  skier: (PinnedSkier & { mode: GameMode; laps: number }) | null,
+  skier: (PinnedSkier & { mode: GameMode }) | null,
   world: Pick<CreateGameOptions, "sky" | "region" | "grade"> = {},
 ): GameState {
   const help = {
@@ -209,7 +209,6 @@ export function raceOrFallback(
           ...(skier.gore ? { gore: true } : {}),
           poles: skier.poles,
           mode: skier.mode,
-          laps: skier.mode === "timeTrial" ? skier.laps : undefined,
           // A downhill is stood up as its training run (`downhill-run.ts`).
           training: skier.mode === "downhill" ? true : undefined,
         }

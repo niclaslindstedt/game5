@@ -523,8 +523,8 @@ grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE RESCUE LAB: the air ambulance on the run after an injured one
-# (docs/rescue.md) — where it lands, the crew knelt by the stretcher and
-# lifting it, the carry stride by stride, the loading through the door, the
+# (docs/rescue.md) — where it lands, the crew scooping him onto the
+# stretcher frame by frame (--sheet=scoop) and lifting it, the carry stride by stride, the loading through the door, the
 # lift-off and the wash, the next run skied past it, after dark — through
 # the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
 # and every frame alone. Its own one-off bundle from pwa/rescue-preview.html

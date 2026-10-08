@@ -7,9 +7,13 @@
 // eye and iterated on:
 //
 //   site     overview (the whole scene from above at every stage: waiting,
-//            lifting, carrying, at the door, loading, lifting off, away)
-//   kneel    kneel (the four knelt by him on the stretcher, close, from
-//            two sides; the stretcher, the mattress and the foil)
+//            walking up, scooping, lifting, carrying, at the door, loading,
+//            lifting off, away)
+//   scoop    scoop (him got onto the board frame by frame — the walk up
+//            with it, the board laid beside him, him straightened, the
+//            log-roll, the board slid under, laid back, strapped, the four
+//            at the corners, the lift and the first steps — from his feet's
+//            end, from overhead and from a chase lens's height)
 //   carry    carry (one stride frame by frame, side on — the feet, the
 //            hands on the rails), carry-front (the same from ahead)
 //   load     load (raised, inched over the sill, the two stepping up, the
@@ -52,12 +56,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, kneel, carry, load, lift, pass, night); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (overview, kneel, carry, carry-front, load, lift, pass, night)",
+      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     at: {

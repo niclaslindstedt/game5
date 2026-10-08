@@ -13,7 +13,7 @@ The research below is restated in our own words, with the numbers the scene uses
 - **The crew of a helicopter emergency medical service** is usually three: a pilot, an emergency physician and a paramedic (or a crew member trained for the role).
 - **In the mountains** a rescue specialist often flies too, for terrain where the machine cannot land.
 - **Physicians** fly in about three services in four.
-- **In the scene:** a doctor and a paramedic come off the machine. Two patrollers join them, the ski area's first responders, who had already packaged the casualty when it landed. The doctor and the paramedic fly with him; the patrollers stay.
+- **In the scene:** a doctor and a paramedic come off the machine. Two patrollers join them, the ski area's first responders, and the four of them get him onto the board together. The doctor and the paramedic fly with him; the patrollers stay.
 
 ### The stretcher
 
@@ -21,9 +21,24 @@ The research below is restated in our own words, with the numbers the scene uses
 - **Moving him onto it** takes four lifters plus one person holding the head.
 - **The mattress** stays clear of the face. Its valve is at the feet.
 - **Straps** hold him across the chest, the hips and the legs.
-- **A rescue foil** (gold or silver) over him keeps the heat in.
-- **In the scene:** a 2.0 m frame with rails 0.62 m apart. An orange mattress is moulded up round him and his head, with a gold foil over him to his chin and three straps. He lies in it in the player's own outfit with his helmet still on, as a patient with a suspected head injury is brought in.
+- **In the scene:** a 2.0 m frame with rails 0.62 m apart and a low orange mattress on it, with blocks either side of his head and three straps buckled over his chest, hips and legs. He lies on it face up and uncovered, in the player's own colours (his jacket, pants and helmet, on the crowd's lying figure) with his helmet still on, as a patient with a suspected head injury is brought in.
 - **The carry:** four bearers, one at each corner on the outside, each holding the rail with his inner hand. They walk at **0.8 m/s** in step pairs a quarter of a stride apart, on boot steps of **0.55 m**. On a slope the uphill bearers lower their corner and the downhill ones raise theirs (up to 1.6 × 15 cm) to keep the stretcher level.
+
+### Getting him onto the board
+
+- **The log-roll:** a casualty with a suspected spine injury is turned as one piece. One rescuer holds the head in line and calls the moves; the others kneel along his side, reach over him to the far shoulder, hip and knee and roll him toward themselves onto his side. The board is slid in against his back, and he is rolled back down onto it. A scoop stretcher is the other way in (two halves slid under him from both sides and clipped together); the scene uses the log-roll, which reads at a distance.
+- **Straps** go on before he is lifted: the chest, the hips and the legs.
+- **The lift:** the bearers stand at the handles, outside the board, and lift on a call, together.
+- **In the scene** (`rescue-scoop.ts`, `RESCUE.scoop`, about 25 s before the lift):
+  - **He lies** where he fell, face up, a little sprawled. The four walk up from 7 m off at 1.2 m/s, the two patrollers carrying the board between them.
+  - **They kneel** (1.2 s): the doctor and a patroller on his left, the two with the board on his right. The board is laid down 0.6 m off his middle, alongside him.
+  - **Assess** (2 s): he is straightened, his arms and legs drawn in.
+  - **Roll** (1.6 s): the two on his left roll him about his left edge onto his side, toward themselves, about 80°.
+  - **Slide** (2 s): the two on his right push the board in against his back.
+  - **Back** (1.6 s): he is laid back onto it as it settles under him.
+  - **Strap** (3.6 s): three straps, one after another.
+  - **To the corners** (1 s up, 1.6 s walking, 1 s down): the four stand, step round to the handles outside the board and kneel with a hand on the rail. Then they rise together.
+  - **No clipping:** `tests/rescue_plan_test.ts` holds every posed hand, knee, foot and hip of the crew outside the board's box at every moment, and him on its top from the strap to the door.
 
 ### The landing zone
 
@@ -42,7 +57,7 @@ The research below is restated in our own words, with the numbers the scene uses
 - **Loading:** the stretcher goes in through the side door feet or head first, depending on the cabin. The crew lift it to the cabin floor and slide it in on its rails, and the medical crew climb in after it.
 - **Wash and lift-off:** the rotor's wash on take-off throws loose snow up into a cloud. Crews stamp the landing zone down before a landing for that reason.
 - **The timeline** (`plan.at`, seconds from the start):
-  - **kneel → rise (2.5 s):** the four kneel beside him.
+  - **0 → rise (about 25 s):** the scoop above.
   - **rise → carry (2.2 s):** they lift together.
   - **carry → raise:** the carry, path length ÷ 0.8 m/s, on a curve that ends square to the door.
   - **raise (1 s):** the stretcher is raised to the floor.

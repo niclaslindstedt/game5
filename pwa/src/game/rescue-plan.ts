@@ -27,128 +27,37 @@
 // goes. Started when the player first comes within `RESCUE.reach`, so he
 // sees it; the carry alone takes longer than he takes to ski past.
 
-import { HELI, fromEuler, rotate, treesNear, type CrowdBody, type Level, type Vec3 } from "@engine";
+import { HELI, fromEuler, rotate, treesNear, type Level, type Vec3 } from "@engine";
 
-import { railOf, RESCUE_STRIDE, type CrewMove, type Hand } from "./rescue-crew.ts";
+import { railOf, RESCUE_STRIDE } from "./rescue-crew.ts";
+import {
+  BEARERS,
+  LEVEL_MOST,
+  R,
+  RESCUE,
+  S,
+  clamp,
+  ease,
+  fwdOf,
+  hy,
+  rightOf,
+  wrap,
+  type CrewPose,
+  type P2,
+  type RescueFrame,
+  type RescuePlan,
+} from "./rescue-defs.ts";
+import { casualtyOn, scoopAt } from "./rescue-scoop.ts";
 
-const R = HELI.rotor.radius;
-
-/** The rescue's numbers, m, s, m/s. */
-export const RESCUE = {
-  /** How near the player first comes before it starts, m. */
-  reach: 180,
-  site: {
-    /** The rings searched round him, nearest the middle first, m. */
-    radii: [30, 26, 34, 22, 38, 42],
-    /** The steepest the skids are set on (a flight manual's 6–10°), as a
-     * gradient, and the steepest taken when nothing flatter is clear. */
-    slope: 0.15,
-    slopeMost: 0.24,
-    /** The room the disc keeps from a trunk and a lift's line, m past its
-     * radius; the room the carry keeps from a trunk, m. */
-    trees: 2.5,
-    lift: 22,
-    path: 1.6,
-    /** The gap kept under the disc's rim, m. */
-    rim: 1.4,
-  },
-  /** THE STRETCHER: a vacuum mattress on a frame, m — its length, its
-   * width, and where the bearers' hands hold its rails (across and along
-   * from its middle). */
-  stretcher: { length: 2.0, width: 0.56, rail: 0.31, along: 0.72 },
-  /** The walking pace with a stretcher between four, m/s. */
-  walk: 0.8,
-  /** THE CABIN DOOR on the side he is loaded through: how far aft of the
-   * skid datum's middle its middle is, and how far outboard the skin, m. */
-  door: { z: 1.4, skin: HELI.body.width / 2 },
-  /** Seconds each part of it takes. */
-  time: {
-    kneel: 2.5,
-    rise: 2.2,
-    raise: 1.0,
-    inch: 0.9,
-    climb: 1.8,
-    slide: 2.8,
-    turn: 1.0,
-    clear: 11,
-    spool: 1.6,
-    hover: 4.0,
-    away: 40,
-  },
-  /** How far the stretcher's front end is carried short of the skin before
-   * it is raised, then over the floor's edge, m. */
-  short: 0.42,
-  over: 0.06,
-  /** The hover, m over the snow, and the climb-out: the acceleration, the
-   * cruise and the climb, m/s², m/s, m/s. */
-  hover: 4.5,
-  accel: 2.4,
-  cruise: 38,
-  climb: 2.2,
-} as const;
-
-/** Who carries, at his corner: across (+ his right) and along (+ ahead)
- * of the stretcher's middle, the hand on its rail, and what he is. */
-export type Bearer = {
-  role: "doctor" | "paramedic" | "patrol";
-  body: CrowdBody;
-  across: number;
-  along: number;
-  hand: Exclude<Hand, null>;
-  /** Whether he flies with the casualty. */
-  boards: boolean;
-};
-
-const S = RESCUE.stretcher;
-export const BEARERS: readonly Bearer[] = [
-  { role: "doctor", body: "woman", across: -1, along: 1, hand: "R", boards: true },
-  { role: "paramedic", body: "man", across: 1, along: 1, hand: "L", boards: true },
-  { role: "patrol", body: "man", across: -1, along: -1, hand: "R", boards: false },
-  { role: "patrol", body: "freerider", across: 1, along: -1, hand: "L", boards: false },
-];
-
-type P2 = { x: number; z: number };
-
-export type RescuePlan = {
-  /** Where he lay (the stretcher's middle at the start), the snow there. */
-  spot: Vec3;
-  /** THE MACHINE as it sits: its skid datum, heading, and the attitude the
-   * snow under its skids leaves it at; the side its door is on (+1 its
-   * right), the heading it leaves on. */
-  site: Vec3 & { heading: number; pitch: number; roll: number; side: 1 };
-  away: number;
-  /** The way out of the door (horizontal), and the floor's height in the
-   * door, m. */
-  out: P2;
-  floor: number;
-  /** THE CARRY: the path's points and their arc lengths, m. */
-  path: { pts: P2[]; s: number[]; length: number };
-  /** Where the stretcher's middle stops: carried (`end`), and in the cabin. */
-  end: P2;
-  cabin: P2;
-  /** The moments each part starts, s from the start. */
-  at: {
-    rise: number;
-    carry: number;
-    raise: number;
-    inch: number;
-    climb: number;
-    slide: number;
-    clear: number;
-    lift: number;
-    gone: number;
-  };
-};
-
-const hy = (x: number, z: number): number => Math.hypot(x, z);
-const fwdOf = (h: number): P2 => ({ x: Math.sin(h), z: Math.cos(h) });
-const rightOf = (h: number): P2 => ({ x: Math.cos(h), z: -Math.sin(h) });
-const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
-const ease = (u: number): number => {
-  const c = clamp(u, 0, 1);
-  return c * c * (3 - 2 * c);
-};
-const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
+export {
+  BEARERS,
+  RESCUE,
+  freshRescueFrame,
+  type Bearer,
+  type CrewPose,
+  type RescueFrame,
+  type RescuePlan,
+} from "./rescue-defs.ts";
 
 /** The downhill way over a reach, horizontal, unit (or none on the flat). */
 function downhill(level: Level, x: number, z: number, d: number): P2 | null {
@@ -349,7 +258,27 @@ export function planRescue(level: Level, spot: { x: number; z: number }): Rescue
   }
   const length = s[N];
   const T = RESCUE.time;
-  const rise = T.kneel;
+  // THE SCOOP, from the moment they set off toward him with the board.
+  const Q = RESCUE.scoop.time;
+  let k0 = RESCUE.scoop.approach / RESCUE.scoop.pace;
+  const step = (d: number): number => {
+    const at = k0;
+    k0 += d;
+    return at;
+  };
+  const scoop = {
+    down: step(Q.down),
+    turn: step(Q.turn),
+    assess: step(Q.assess),
+    roll: step(Q.roll),
+    slide: step(Q.slide),
+    back: step(Q.back),
+    strap: step(Q.strap),
+    stand: step(Q.stand),
+    step: step(Q.step),
+    kneel: step(Q.kneel),
+  };
+  const rise = k0;
   const carry = rise + T.rise;
   const raise = carry + length / RESCUE.walk;
   const inch = raise + T.raise;
@@ -366,7 +295,7 @@ export function planRescue(level: Level, spot: { x: number; z: number }): Rescue
     path: { pts, s, length },
     end,
     cabin,
-    at: { rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
+    at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
   };
 }
 
@@ -385,65 +314,6 @@ function along(plan: RescuePlan, d: number): { x: number; z: number; heading: nu
     x: a.x + (b.x - a.x) * u,
     z: a.z + (b.z - a.z) * u,
     heading: Math.atan2(b.x - a.x, b.z - a.z),
-  };
-}
-
-/** One bearer at a moment: where he stands, which way he faces, how he
- * is posed and whether he is drawn. */
-export type CrewPose = {
-  x: number;
-  y: number;
-  z: number;
-  heading: number;
-  move: CrewMove;
-  shown: boolean;
-};
-
-/** How many spans of `RAISE` a bearer raises or lowers his corner to hold
- * the stretcher level on a slope: past it (a steep face) it tilts. */
-const LEVEL_MOST = 1.6;
-
-/** THE MOMENT: the machine, the stretcher (the middle of its rails and its
- * attitude) and the four. */
-export type RescueFrame = {
-  heli: {
-    x: number;
-    y: number;
-    z: number;
-    heading: number;
-    pitch: number;
-    roll: number;
-    /** The rotor's share of its rpm, the thrust as a share of the weight,
-     * and whether it is gone from sight. */
-    spool: number;
-    thrust: number;
-    shown: boolean;
-  };
-  stretcher: {
-    x: number;
-    y: number;
-    z: number;
-    heading: number;
-    pitch: number;
-    roll: number;
-    shown: boolean;
-  };
-  crew: CrewPose[];
-};
-
-export function freshRescueFrame(): RescueFrame {
-  const crew = BEARERS.map(() => ({
-    x: 0,
-    y: 0,
-    z: 0,
-    heading: 0,
-    shown: true,
-    move: { rise: 0, stride: 0, walking: 0, hand: null, raise: 0 } as CrewMove,
-  }));
-  return {
-    heli: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, spool: 1, thrust: 0.15, shown: true },
-    stretcher: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, shown: true },
-    crew,
   };
 }
 
@@ -490,8 +360,8 @@ function bearerAt(plan: RescuePlan, j: number, t: number) {
   const turned = wrap(mid.heading - along(plan, 0).heading);
   const walked = mid.came - b.across * (S.rail + hand.x) * turned;
   return {
-    x: cx - rt.x * b.across * hand.x - f.x * hand.z,
-    z: cz - rt.z * b.across * hand.x - f.z * hand.z,
+    x: cx + rt.x * b.across * hand.x - f.x * hand.z,
+    z: cz + rt.z * b.across * hand.x - f.z * hand.z,
     heading: mid.heading,
     rise,
     walked,
@@ -506,6 +376,8 @@ const LET_GO = RESCUE.time.slide * 0.55;
 export function rescueAt(level: Level, plan: RescuePlan, t: number, out: RescueFrame): RescueFrame {
   const A = plan.at;
   heliAt(level, plan, t, out.heli);
+  // Until they lift him: the walk up, the log-roll onto the board, the straps.
+  if (t < A.rise) return scoopAt(level, plan, t, out);
   const raised = ease((t - A.raise) / RESCUE.time.raise);
   const ground: number[] = [];
   let mid = middleAt(plan, t);
@@ -565,6 +437,8 @@ export function rescueAt(level: Level, plan: RescuePlan, t: number, out: RescueF
   st.pitch = Math.atan2((ys[0] + ys[1] - ys[2] - ys[3]) / 2, 2 * S.along);
   st.roll = Math.atan2((ys[0] + ys[2] - ys[1] - ys[3]) / 2, 2 * S.rail);
   st.shown = t < A.clear + 1;
+  st.straps = RESCUE.scoop.straps;
+  casualtyOn(st, out.casualty);
   // THE FRONT TWO let go and step up into the cabin; THE REAR TWO let go,
   // turn round, walk clear and turn back to watch it go.
   for (let j = 0; j < BEARERS.length; j++) {

@@ -43,9 +43,22 @@ export const HOLD_HAND = { x: 0.27, y: 0.76, z: 0.02 } as const;
 export const GRIP = 0.035;
 /** How far `raise` lifts the holding hand, m (the reference man's). */
 export const RAISE = 0.15;
-/** Where the rail is under a bearer KNELT beside the stretcher on the snow,
- * his own frame, m. */
-export const KNEEL_HAND = { x: 0.3, y: 0.2, z: 0.12 } as const;
+/** Where the rail is under a bearer KNELT beside the stretcher on the snow
+ * (the board lying on it), his own frame, m. */
+export const KNEEL_HAND = { x: 0.3, y: 0.105, z: 0.12 } as const;
+
+/** KNELT FACING THE WORK on both knees, his two hands out ahead of him:
+ * over the casualty (`tend`: on his chest and hip, `Near`, then pulled up
+ * toward him rolling him onto his side, `Pull`) or on the board's near rail
+ * (`push`: at hand, `Near`, then out at arm's length, `Far`, sliding it
+ * under him). Where the hands are, his own frame, m. */
+export const FACE_HANDS = {
+  tendNear: { y: 0.3, z: 0.62 },
+  tendPull: { y: 0.48, z: 0.38 },
+  pushNear: { y: 0.16, z: 0.34 },
+  pushFar: { y: 0.16, z: 0.8 },
+} as const;
+export type FaceKind = "tend" | "push";
 
 /** The targets, in the order the morph targets and weights go in (the
  * stance, `STOOD`, is the base). */
@@ -68,6 +81,10 @@ export const CREW_POSES = [
   "walk1",
   "walk2",
   "walk3",
+  "tendNear",
+  "tendPull",
+  "pushNear",
+  "pushFar",
 ] as const;
 export type CrewTarget = (typeof CREW_POSES)[number];
 
@@ -104,7 +121,7 @@ function kneel(hand: "L" | "R"): Key {
   key.hipY = 0.5;
   key.hipZ = -0.1;
   key.hipX = s * 0.03;
-  key.pitch = 0.62;
+  key.pitch = 0.78;
   key.nod = -0.25;
   key.roll = s * 0.06;
   // The inner foot set flat ahead, the outer knee down behind it.
@@ -114,6 +131,29 @@ function kneel(hand: "L" | "R"): Key {
   key.hands[1 - i] = v(s * 0.12, 0.3, 0.38);
   return key;
 }
+
+/** Knelt on both knees facing the work, sat back or leant out over it,
+ * both hands at (`y`, `z`), a hand's breadth either side of his middle. */
+function faceKneel(y: number, z: number, pitch: number, hipY: number, hipZ: number): Key {
+  const key = copy(STOOD);
+  key.hipY = hipY;
+  key.hipZ = hipZ;
+  key.hipX = 0;
+  key.pitch = pitch;
+  key.nod = -0.3;
+  key.roll = 0;
+  key.twist = 0;
+  key.feet = [v(-0.15, 0.12, -0.42), v(0.15, 0.12, -0.42)];
+  key.hands = [v(-0.17, y, z), v(0.17, y, z)];
+  return key;
+}
+
+const FACE: Record<keyof typeof FACE_HANDS, Key> = {
+  tendNear: faceKneel(FACE_HANDS.tendNear.y, FACE_HANDS.tendNear.z, 1.0, 0.52, -0.05),
+  tendPull: faceKneel(FACE_HANDS.tendPull.y, FACE_HANDS.tendPull.z, 0.45, 0.55, -0.1),
+  pushNear: faceKneel(FACE_HANDS.pushNear.y, FACE_HANDS.pushNear.z, 0.9, 0.4, -0.2),
+  pushFar: faceKneel(FACE_HANDS.pushFar.y, FACE_HANDS.pushFar.z, 1.1, 0.5, 0.1),
+};
 
 /** THE STRIDE at its `q`th quarter (0..3): the left foot planted from
  * `q = 0` (set down ahead) through 1 to 2 (pushed off behind), swung
@@ -144,6 +184,7 @@ export function strideKey(q: 0 | 1 | 2 | 3, hand: Hand): Key {
 /** A target's key. */
 export function crewKey(target: CrewTarget | "stand"): Key {
   if (target === "stand") return STOOD;
+  if (target in FACE) return FACE[target as keyof typeof FACE];
   const hand = /L/.test(target) ? "L" : "R";
   if (target.startsWith("kneel")) return kneel(hand);
   if (target.startsWith("hold")) return holding(STOOD, hand);
@@ -178,6 +219,11 @@ export type CrewMove = {
   hand: Hand;
   /** The holding hand raised, in spans of `RAISE` (−1 … 1). */
   raise: number;
+  /** Knelt facing the work (0 not … 1 wholly), which work, and how far
+   * through it the hands are (0 `Near` … 1 `Pull` / `Far`). */
+  face?: number;
+  work?: FaceKind;
+  reach?: number;
 };
 
 const AT = Object.fromEntries(CREW_POSES.map((k, i) => [k, i])) as Record<CrewTarget, number>;
@@ -188,6 +234,8 @@ const AT = Object.fromEntries(CREW_POSES.map((k, i) => [k, i])) as Record<CrewTa
  * raise less the hold, so only the arm moves). */
 export function crewDials(m: CrewMove, out: Float32Array): Float32Array {
   out.fill(0);
+  const face = Math.max(0, Math.min(1, m.face ?? 0));
+  const rest = 1 - face;
   const rise = Math.max(0, Math.min(1, m.rise));
   const walking = Math.max(0, Math.min(1, m.walking)) * rise;
   const x = (m.stride - Math.floor(m.stride)) * 4;
@@ -208,6 +256,15 @@ export function crewDials(m: CrewMove, out: Float32Array): Float32Array {
     // Hands free: stood (the stance, the base) or walking.
     cyc("walk");
   }
+  // Knelt facing the work, over whatever else is left of him.
+  if (face > 0) {
+    for (let i = 0; i < out.length; i++) out[i] *= rest;
+    const r = Math.max(0, Math.min(1, m.reach ?? 0));
+    const [a, b] =
+      m.work === "push" ? (["pushNear", "pushFar"] as const) : (["tendNear", "tendPull"] as const);
+    out[AT[a]] += face * (1 - r);
+    out[AT[b]] += face * r;
+  }
   return out;
 }
 
@@ -219,4 +276,78 @@ export function railOf(body: CrowdBody, rise: number, raise: number): number {
   const r = Math.max(0, Math.min(1, rise));
   const up = HOLD_HAND.y + RAISE * raise - GRIP;
   return k * (KNEEL_HAND.y - GRIP + (up - KNEEL_HAND.y + GRIP) * r);
+}
+
+/** The joints a bearer's figure is measured by: his hands, knees, ankles,
+ * hips and middle. */
+export const CREW_JOINTS = [
+  "handL",
+  "handR",
+  "kneeL",
+  "kneeR",
+  "ankleL",
+  "ankleR",
+  "hipL",
+  "hipR",
+  "pelvis",
+] as const;
+export type CrewJoint = (typeof CREW_JOINTS)[number];
+
+const skeletons = new Map<CrowdBody, Posed[]>();
+const weights = new Float32Array(CREW_POSES.length);
+
+/** WHERE HIS JOINTS ARE at a moment, his own frame, m: the stance and every
+ * target blended by the weights the figure is drawn with (the morph
+ * targets are the same blend of the same skeletons, near enough) — what
+ * the suite holds against the stretcher. */
+export function crewPoints(
+  body: CrowdBody,
+  m: CrewMove,
+): Record<CrewJoint, [number, number, number]> {
+  let sk = skeletons.get(body);
+  if (!sk) {
+    sk = crewTargets(body).map((t) => t.posed);
+    skeletons.set(body, sk);
+  }
+  crewDials(m, weights);
+  const out = {} as Record<CrewJoint, [number, number, number]>;
+  for (const name of CREW_JOINTS) {
+    const base = sk[0][name] as unknown as number[];
+    const p: [number, number, number] = [base[0], base[1], base[2]];
+    for (let k = 0; k < CREW_POSES.length; k++) {
+      const w = weights[k];
+      if (w === 0) continue;
+      const q = sk[k + 1][name] as unknown as number[];
+      for (let i = 0; i < 3; i++) p[i] += w * (q[i] - base[i]);
+    }
+    out[name] = p;
+  }
+  return out;
+}
+
+/** HIM, LYING (the casualty): stood straight in the stance's frame, legs
+ * together and arms down at his sides, as he is laid on his back on the
+ * board — the figure is turned to lie; and SPRAWLED as he was found, a knee
+ * drawn up and an arm flung out, which the doctor straightens. */
+const LIE: Key = {
+  ...blend(STAND, STAND, 0),
+  hipY: 0.965,
+  pitch: 0,
+  nod: 0,
+  feet: [v(-0.09, ANKLE, 0), v(0.09, ANKLE, 0)],
+  hands: [v(-0.25, 0.86, 0.02), v(0.25, 0.86, 0.02)],
+};
+const SPRAWL: Key = {
+  ...blend(LIE, LIE, 0),
+  hipX: 0.03,
+  roll: 0.06,
+  nod: 0.15,
+  feet: [v(-0.16, ANKLE, 0.02), v(0.2, 0.42, 0.06)],
+  hands: [v(-0.62, 1.36, 0.02), v(0.3, 0.92, 0.12)],
+};
+
+/** The casualty's skeletons: lying straight (the base), and sprawled. */
+export function casualtyTargets(body: CrowdBody): { posed: Posed; holding: Holding }[] {
+  const look = CROWD_LOOKS[body];
+  return [LIE, SPRAWL].map((k) => ({ posed: keyPosed(k, look), holding: EMPTY }));
 }

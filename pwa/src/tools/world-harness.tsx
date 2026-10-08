@@ -39,6 +39,7 @@ import { intoNet, netLens } from "./net-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
 import { signView } from "./sign-view.ts";
+import { stationShots } from "./station-view.ts";
 import {
   DEFAULT_VIDEO,
   SHADOW_LEVELS,
@@ -613,6 +614,7 @@ function standoff(): string {
 const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
+  ...stationShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas }),
   spawn() {
     rideUntil(() => state.t >= 1.5, 3);
     renderer.setCamera("chase", true);

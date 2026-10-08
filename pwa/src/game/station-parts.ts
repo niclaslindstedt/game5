@@ -150,6 +150,10 @@ const BUILD: Readonly<Record<PartKind, () => THREE.BufferGeometry>> = {
     ]),
 };
 
+/** The pieces that are buildings, built in the painted materials by
+ * `station-build.ts` rather than here. */
+const BUILT_ELSEWHERE: ReadonlySet<PartKind> = new Set(["hood", "booth", "canopy", "door", "hut"]);
+
 /** A hood, a canopy and a load line are scaled across to their width. */
 const WIDE: ReadonlySet<PartKind> = new Set(["hood", "canopy", "load"]);
 
@@ -199,6 +203,8 @@ export function buildStations(
     byKind.set(part.kind, list);
   }
   for (const [kind, list] of byKind) {
+    // The buildings among them are `station-build.ts`'s.
+    if (BUILT_ELSEWHERE.has(kind)) continue;
     add(
       BUILD[kind](),
       list.map((p) => ({

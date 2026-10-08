@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -419,6 +419,29 @@ civilians:
 # like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GETTING ON AND OFF LAB, as filmed: every way on and off a lift — a
+# chair's load and unload, a T-bar's pick-up and release, a gondola's
+# step-in and step-out (`pwa/src/tools/lift-stage.ts`) — ridden on the real
+# engine through the game's renderer and photographed frame by frame, a
+# row a lens (the lift line's flanks, from down the line, the game's own
+# chase), one sheet a stage, previews/lift-strip-<stage>-<seed>.png. The
+# lift-ride lab's bundle; needs a Chromium. STAGE=chair-load,…|all
+# SEED=n REGION=id; ARGS="--views=side,back,top,chase --frames=14".
+lift-board:
+	npm run lift-ride -- --strip=$(if $(STAGE),$(STAGE),all) $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GETTING ON AND OFF LAB, numbered (pure Node, seconds): each stage
+# ridden on the engine and posed at 60 fps as the view poses him, and the
+# hand-overs measured — the origin's fastest move, a joint's pop, the
+# heading's swivel, the boots' sink and float, the seconds faded black and
+# how long each part takes against the research's bands — with a strobe
+# from above and the side and its traces, previews/lift-flow.png.
+# STAGE= SEED= REGION=; ARGS="--json=previews/lift-flow-before.json" before
+# a change and ARGS="--compare=previews/lift-flow-before.json" after;
+# ARGS="--list" names each worst frame, "--dump=t0,t1 --joint=handsL" walks it.
+lift-flow:
+	npm run lift-flow -- $(if $(STAGE),--stage=$(STAGE),) $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE HELICOPTER LAB: the free ride's helicopter staged at every event it
 # has and photographed through the game's renderer — parked on its pad and

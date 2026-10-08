@@ -837,6 +837,9 @@ export {
   carrierAt,
   carrierCount,
   carrierPassing,
+  carrierSpeedAt,
+  carrierGripAt,
+  loadPoint,
   CHAIR_EXIT,
   chairLane,
   liftPlans,
@@ -866,6 +869,7 @@ export {
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
+export { carrierSwingAt } from "./game/carrier-swing.ts";
 export {
   arriveByLift,
   arrivalOf,
@@ -879,7 +883,14 @@ export {
   seatedShare,
   stepLift,
 } from "./game/lift-ride.ts";
-export { CABIN_HALF, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
+export {
+  CABIN_HALF,
+  carrierNear,
+  gondolaGrip,
+  nextCarrierIn,
+  platformOf,
+  railAt,
+} from "./game/lift-board.ts";
 export {
   airPointsPerSecond,
   landingGrade,

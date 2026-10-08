@@ -800,12 +800,12 @@ export function createWorldRenderer(
         if (ride) seated.push({ ride, drawn: riders[i].drawn });
       }
       lifts?.update(
-        state.t,
+        state.t - (1 - alpha) * TUNING.dt,
         skier.lift,
         player.drawn,
-        skier.chairLeft,
         lens.camera.position,
         seated,
+        state.crowd?.amateurs,
       );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);

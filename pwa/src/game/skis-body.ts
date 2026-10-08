@@ -40,7 +40,6 @@ import * as THREE from "three";
 import {
   TUNING,
   flightGravity,
-  seatedShare,
   type GameState,
   type LoneSki,
   type SkiSpec,
@@ -82,7 +81,15 @@ import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import { fetchMove, movePose } from "./party-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
-import { CHAIR_SEAT, seatedPose, type Seat } from "./skier-seat.ts";
+import {
+  CABIN_FLOOR,
+  CHAIR_SEAT,
+  createSeatEase,
+  easeSeat,
+  lookBack,
+  seatedPose,
+  type Seat,
+} from "./skier-seat.ts";
 import type { Board } from "./skier-sled.ts";
 import {
   createDangle,
@@ -94,13 +101,9 @@ import {
 } from "./skier-dangle.ts";
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 
-/** How long a rider takes to stand up off a chair, s. */
-const STAND_UP = 0.35;
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
 const FELT_EASE = 0.1;
-/** A gondola cabin's floor under its rider's origin, m (`lifts.ts`). */
-const CABIN_FLOOR = -1.0;
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -362,8 +365,9 @@ export function poseInputOf(
     fore: stand.fore,
     incline: stand.incline,
     sidestep: Number.isNaN(legs.hip) ? skier.sidestep : legs.platform,
-    // RIDING SWITCH: looking back over the shoulder his body has turned to.
-    switched: legs.back * legs.backSide,
+    // RIDING SWITCH: looking back over the shoulder his body has turned to
+    // — or, waiting for a chair or a T-bar, over his inside one for it.
+    switched: legs.back * legs.backSide + lookBack(skier.lift),
     airborne: skier.airborne,
     landing: skier.landing,
     bump: legs.bump,
@@ -572,10 +576,9 @@ export function createSkisModel(
   // lying away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
   const BOUND = bound.radius;
-  // How seated he is drawn, eased down as he stands off a chair.
-  let seated = 0;
-  // How far he is drawn sat back onto a T-bar, eased off as it lets go.
-  let towing = 0;
+  // How seated he is drawn, eased down as he stands off a chair, and how
+  // far sat back onto a T-bar, eased off as it lets go (`easeSeat`).
+  const seatEase = createSeatEase();
   // The helicopter's skid he is sat on, if any (`setPerch`), and his legs
   // dangling off it (`skier-dangle.ts`).
   let perch: Perch | null = null;
@@ -769,12 +772,8 @@ export function createSkisModel(
         // ...or IN A GONDOLA'S CABIN, sat on the bench along its back wall
         // at a chair's height, the poles stood on its floor; or TOWED BY A
         // T-BAR, sat back onto the bar as it takes him.
-        const lift = skier.lift;
-        const sat = lift?.phase === "ride" && (lift.kind === "chair" || lift.kind === "gondola");
-        const towed = lift?.kind === "drag" && lift.phase === "ride";
-        const share = perch !== null ? 1 : sat ? seatedShare(lift) : 0;
-        seated = share >= seated ? share : Math.max(share, seated - dt / STAND_UP);
-        towing = towed ? seatedShare(lift) : Math.max(0, towing - dt / STAND_UP);
+        const { sat } = easeSeat(seatEase, skier.lift, perch !== null, dt);
+        const { seated, towing } = seatEase;
         const seatY = perch?.y ?? lastPerch ?? TUNING.lift.seat - CHAIR_SEAT;
         if (perch !== null) lastPerch = perch.y;
         else if (sat) lastPerch = null;

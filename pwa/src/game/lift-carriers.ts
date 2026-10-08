@@ -33,10 +33,10 @@ const CUSHION = 0.11 - CHAIR_SEAT;
 
 /** A DETACHABLE QUAD CHAIR from its grip down: the hanger curving down
  * behind the back to the seat's beam, the back and seat frames, four
- * padded seats and backrests, the armrests, and the safety bar lowered
- * over the riders' laps with its footrest under their boots. Its seat's
- * top and its backrest's face stand where the rider's pose is built to
- * sit (`CHAIR_SEAT`, `CHAIR_BACK`). */
+ * padded seats and backrests and the armrests — its safety bar a part of
+ * its own (`chairBarGeometry`), swung down and up about its pivot. Its
+ * seat's top and its backrest's face stand where the rider's pose is
+ * built to sit (`CHAIR_SEAT`, `CHAIR_BACK`). */
 export function chairGeometry(): THREE.BufferGeometry {
   const s = new Shape();
   const root = grip(s);
@@ -79,29 +79,55 @@ export function chairGeometry(): THREE.BufferGeometry {
     s.pad(0.52, 0.1, 0.56, x, CUSHION - 0.05, -0.07, P.cushion, 0.045);
     s.pad(0.52, 0.09, 0.6, x, CUSHION + 0.33, CHAIR_BACK - 0.045, P.seat, 0.04, Math.PI / 2 - 0.12);
   }
-  // THE SAFETY BAR, lowered: its arms off the back's top at each end, over
-  // and down to the bar across the riders' laps, two drops to the
-  // footrest under their boots.
-  const pivot = top - 0.05;
+  return s.geometry();
+}
+
+/** THE SAFETY BAR'S PIVOT on a chair, in its grip's frame, m: at the
+ * backrest's top rail, each end — what the bar swings about. And how far
+ * it swings up off the riders' laps to stand clear over their heads, rad
+ * (about +x: negative lifts it). */
+const BAR_HALF = 1.13 + 0.04;
+export const CHAIR_BAR = { y: CUSHION + 0.57, z: CHAIR_BACK - 0.1, up: -2.2 } as const;
+
+/** A CHAIR'S SAFETY BAR, lowered, about its pivot (`CHAIR_BAR` at the
+ * origin): its arms off the back's top at each end, over and down to the
+ * bar across the riders' laps, two drops to the footrest under their
+ * boots — the footrest going up and down with it. */
+export function chairBarGeometry(): THREE.BufferGeometry {
+  const s = new Shape();
+  const at = (x: number, y: number, z: number) => v3(x, y - CHAIR_BAR.y, z - CHAIR_BAR.z);
   const lap = CUSHION + 0.45;
-  for (const x of [-half - 0.04, half + 0.04]) {
+  for (const x of [-BAR_HALF, BAR_HALF]) {
     s.tube(
-      [v3(x, pivot, back), v3(x, pivot + 0.03, -0.12), v3(x, lap + 0.04, 0.3), v3(x, lap, 0.42)],
+      [
+        at(x, CHAIR_BAR.y, CHAIR_BAR.z),
+        at(x, CHAIR_BAR.y + 0.03, -0.12),
+        at(x, lap + 0.04, 0.3),
+        at(x, lap, 0.42),
+      ],
       0.03,
       P.galv,
     );
   }
-  s.tube([v3(-half - 0.04, lap, 0.42), v3(half + 0.04, lap, 0.42)], 0.032, P.galv);
+  s.tube([at(-BAR_HALF, lap, 0.42), at(BAR_HALF, lap, 0.42)], 0.032, P.galv);
   // A footrest a pair of seats: two drops off the bar to a frame of two
   // rails with a grid between them.
   const foot = CUSHION - 0.5;
   for (const cx of [-0.58, 0.58]) {
-    s.tube([v3(cx, lap, 0.42), v3(cx, foot + 0.1, 0.46), v3(cx, foot, 0.5)], 0.028, P.galv);
+    s.tube([at(cx, lap, 0.42), at(cx, foot + 0.1, 0.46), at(cx, foot, 0.5)], 0.028, P.galv);
     for (const z of [0.4, 0.62]) {
-      s.tube([v3(cx - 0.45, foot, z), v3(cx + 0.45, foot, z)], 0.022, P.galv, 4);
+      s.tube([at(cx - 0.45, foot, z), at(cx + 0.45, foot, z)], 0.022, P.galv, 4);
     }
-    s.box(0.9, 0.015, 0.2, cx, foot - 0.01, 0.51, P.dark);
+    s.box(0.9, 0.015, 0.2, cx, foot - 0.01 - CHAIR_BAR.y, 0.51 - CHAIR_BAR.z, P.dark);
   }
+  return s.geometry();
+}
+
+/** A chair's safety bar at range: the bar across and the footrest. */
+export function chairBarFarGeometry(): THREE.BufferGeometry {
+  const s = new Shape();
+  s.box(2.34, 0.06, 0.06, 0, CUSHION + 0.45 - CHAIR_BAR.y, 0.42 - CHAIR_BAR.z, P.galv);
+  s.box(2.0, 0.05, 0.24, 0, CUSHION - 0.5 - CHAIR_BAR.y, 0.51 - CHAIR_BAR.z, P.dark);
   return s.geometry();
 }
 
@@ -265,8 +291,8 @@ export function bullwheelGeometry(): THREE.BufferGeometry {
 }
 
 /** A CHAIR AT RANGE: the grip, the hanger, the seat and back as two
- * slabs, the bar and the footrest — its outline in a sixth of the
- * triangles. */
+ * slabs — its outline in a sixth of the triangles (its bar is
+ * `chairBarFarGeometry`). */
 export function chairFarGeometry(): THREE.BufferGeometry {
   const s = new Shape();
   const back = CHAIR_BACK - 0.1;
@@ -284,8 +310,6 @@ export function chairFarGeometry(): THREE.BufferGeometry {
   );
   s.box(2.24, 0.12, 0.58, 0, CUSHION - 0.06, -0.07, P.cushion);
   s.box(2.24, 0.62, 0.1, 0, CUSHION + 0.31, CHAIR_BACK - 0.05, P.seat);
-  s.box(2.34, 0.06, 0.06, 0, CUSHION + 0.45, 0.42, P.galv);
-  s.box(2.0, 0.05, 0.24, 0, CUSHION - 0.5, 0.51, P.dark);
   return s.geometry();
 }
 

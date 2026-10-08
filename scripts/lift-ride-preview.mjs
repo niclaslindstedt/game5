@@ -28,6 +28,18 @@
 // gondola's door or a chair's load line and back in on him sat in his
 // carrier — at moments in seconds from the ring:
 // `previews/lift-board-<kind>-<seed>.png`.
+//
+// With `--strip=` it FILMS the getting on and off frame by frame instead —
+// `make lift-board`: one sheet a stage (`pwa/src/tools/lift-stage.ts`:
+// chair-load, chair-unload, tbar-pick, tbar-release, gondola-in,
+// gondola-out, or `all`), a row a lens (`--views=`: `side` and `lside` off
+// the lift line's flanks, `back` from down the line, `front`, `top`, and
+// the game's own `chase`), a column a moment, `--frames=` of them evenly
+// over the stage's window (`--before=` s before the carrier takes him or he
+// is stood off, `--after=` s after): `previews/lift-strip-<stage>-<seed>.png`.
+//
+//   node scripts/lift-ride-preview.mjs --strip=all
+//   node scripts/lift-ride-preview.mjs --strip=chair-load --views=side,chase --frames=14
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -82,6 +94,19 @@ const args = parseArgs(
       default: "",
       help: "photograph boarding a lift at its foot instead: drag, gondola or chair",
     },
+    strip: {
+      kind: "string",
+      default: "",
+      help: "film getting on or off frame by frame: chair-load, chair-unload, tbar-pick, tbar-release, gondola-in, gondola-out, or all",
+    },
+    views: {
+      kind: "string",
+      default: "side,back,chase",
+      help: "with --strip, the lenses a row each: side, lside, back, front, top, chase (the game's camera)",
+    },
+    frames: { kind: "number", default: 10, help: "with --strip, the moments filmed (columns)" },
+    before: { kind: "number", default: 3, help: "with --strip, s filmed before the key event" },
+    after: { kind: "number", default: 4, help: "with --strip, s filmed after it" },
     approach: {
       kind: "string",
       default: "lane",
@@ -96,7 +121,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--board=kind] [--camera=rung] [--at=s,…] [--skip-build]",
+  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--board=kind | --strip=stage,…] [--camera=rung] [--at=s,…] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -168,36 +193,58 @@ page.on("console", (msg) => {
 });
 page.setDefaultTimeout(args.timeout * 1000);
 
-const query = new URLSearchParams({
-  seed: String(args.seed),
-  region: args.region,
-  camera: args.camera,
-  ...(args.at ? { at: args.at } : {}),
-  ...(args.board ? { board: args.board } : {}),
-  ...(args.view ? { view: args.view } : {}),
-  approach: args.approach,
-  quality: args.quality,
-  w: String(args.width),
-  h: String(args.height),
-  cols: String(args.cols),
-  scale: String(args.scale),
-  ...(args.spot ? { spot: args.spot } : {}),
-  ...(args.run ? { run: args.run } : {}),
-}).toString();
-await page.goto(`${server.url}lift-ride-preview.html?${query}`);
-await page.waitForFunction("window.__liftRide !== undefined");
-await page.evaluate("window.__liftRide.ready");
-const t0 = Date.now();
-const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
-if (crashed) process.exit(1);
-const stem =
-  args.out ||
-  `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${args.region === "alpine" ? "" : `-${args.region}`}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}${args.approach === "lane" ? "" : `-${args.approach}`}`;
-const out = join(outDir, `${stem}.png`);
-await page.locator("#sheet").screenshot({ path: out });
-console.log(
-  `${out.replace(`${root}/`, "")}  ${shot.note}, ${shot.tiles} tiles  (${((Date.now() - t0) / 1000).toFixed(1)} s)`,
-);
+const STAGES = [
+  "chair-load",
+  "chair-unload",
+  "tbar-pick",
+  "tbar-release",
+  "gondola-in",
+  "gondola-out",
+];
+const strips = args.strip === "all" ? STAGES : args.strip ? args.strip.split(",") : [""];
+for (const strip of strips) {
+  const query = new URLSearchParams({
+    seed: String(args.seed),
+    region: args.region,
+    camera: args.camera,
+    ...(args.at ? { at: args.at } : {}),
+    ...(args.board ? { board: args.board } : {}),
+    ...(args.view ? { view: args.view } : {}),
+    ...(strip
+      ? {
+          strip,
+          views: args.views,
+          frames: String(args.frames),
+          before: String(args.before),
+          after: String(args.after),
+        }
+      : {}),
+    approach: args.approach,
+    quality: args.quality,
+    w: String(args.width),
+    h: String(args.height),
+    cols: String(args.cols),
+    scale: String(strip ? Math.min(args.scale, 0.3) : args.scale),
+    ...(args.spot ? { spot: args.spot } : {}),
+    ...(args.run ? { run: args.run } : {}),
+  }).toString();
+  await page.goto(`${server.url}lift-ride-preview.html?${query}`);
+  await page.waitForFunction("window.__liftRide !== undefined");
+  await page.evaluate("window.__liftRide.ready");
+  const t0 = Date.now();
+  const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
+  if (crashed) process.exit(1);
+  const region = args.region === "alpine" ? "" : `-${args.region}`;
+  const stem = strip
+    ? `lift-strip-${strip}-${args.seed}${region}`
+    : args.out ||
+      `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${region}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}${args.approach === "lane" ? "" : `-${args.approach}`}`;
+  const out = join(outDir, `${args.out && strip ? `${args.out}-${strip}` : stem}.png`);
+  await page.locator("#sheet").screenshot({ path: out });
+  console.log(
+    `${out.replace(`${root}/`, "")}  ${shot.note}, ${shot.tiles} tiles  (${((Date.now() - t0) / 1000).toFixed(1)} s)`,
+  );
+}
 
 await browser.close();
 await server.close();

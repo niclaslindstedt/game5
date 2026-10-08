@@ -15,6 +15,9 @@ import {
   bullwheelGeometry,
   cabinFarGeometry,
   cabinGeometry,
+  CHAIR_BAR,
+  chairBarFarGeometry,
+  chairBarGeometry,
   chairFarGeometry,
   chairGeometry,
   springBoxFarGeometry,
@@ -50,6 +53,7 @@ describe("the lifts' hardware as built", () => {
   const parts: Record<string, [THREE.BufferGeometry, THREE.BufferGeometry | null, number, number]> =
     {
       chair: [chairGeometry(), chairFarGeometry(), 700, 160],
+      chairBar: [chairBarGeometry(), chairBarFarGeometry(), 400, 24],
       cabin: [cabinGeometry(), cabinFarGeometry(), 700, 200],
       spring: [springBoxGeometry(), springBoxFarGeometry(), 150, 12],
       tee: [teeGeometry(), teeFarGeometry(), 120, 24],
@@ -89,11 +93,21 @@ describe("the lifts' hardware as built", () => {
     // A quad's seat is 2.2–2.4 m across with its frame.
     expect(b.max.x - b.min.x).toBeGreaterThan(2.2);
     expect(b.max.x - b.min.x).toBeLessThan(2.5);
-    // Its footrest hangs about half a metre under the seat's top.
-    expect(b.min.y).toBeGreaterThan(-CHAIR_SEAT - 0.6);
-    expect(b.min.y).toBeLessThan(-CHAIR_SEAT - 0.3);
     // Nothing of it stands behind the hanger's sweep past the backrest.
     expect(b.min.z).toBeGreaterThan(CHAIR_BACK - 0.35);
+    // Its safety bar, lowered about its pivot: the footrest hangs about
+    // half a metre under the seat's top, the bar across the laps ahead.
+    const bar = chairBarGeometry().translate(0, CHAIR_BAR.y, CHAIR_BAR.z);
+    const lowered = bounds(bar);
+    expect(lowered.min.y).toBeGreaterThan(-CHAIR_SEAT - 0.6);
+    expect(lowered.min.y).toBeLessThan(-CHAIR_SEAT - 0.3);
+    expect(lowered.max.z).toBeGreaterThan(0.4);
+    // Raised, it stands over the riders' heads, clear of the seat ahead.
+    const up = bounds(
+      chairBarGeometry().rotateX(CHAIR_BAR.up).translate(0, CHAIR_BAR.y, CHAIR_BAR.z),
+    );
+    expect(up.min.y).toBeGreaterThan(CHAIR_BAR.y - 0.1);
+    expect(up.max.z).toBeLessThan(CHAIR_BAR.z + 0.4);
   });
 
   it("builds the cabin to its bands", () => {

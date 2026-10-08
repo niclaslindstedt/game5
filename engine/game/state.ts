@@ -315,10 +315,11 @@ export type SkierState = {
   jib?: JibRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
-   * the lift, how far up its line it let him go, m, and when, s — null
+   * the lift, how far up its line it let him go, m, and when, s (and which
+   * of its carriers it is, `LiftRide.carrier`) — null
    * once it is round the wheel, or he never rode one. A skier stopped in
    * its way is knocked down by it. */
-  chairLeft: { index: number; u: number; t: number } | null;
+  chairLeft: { index: number; u: number; t: number; carrier?: number } | null;
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;

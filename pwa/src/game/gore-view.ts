@@ -200,6 +200,7 @@ const POINT_BONE: SkierBone[] = [
 /** The litres his clothes hold round a wound before it runs out at a
  * gap: a jacket's and its layers' worth of a cupful. */
 const HOLD = 0.1;
+const G = 9.81;
 
 type Piece = {
   piece: GorePiece;
@@ -326,6 +327,11 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   // The body's way, smoothed: what a stream is carried along by — the
   // ragdoll's own step-to-step jitter would break it into dashes.
   const drift = new THREE.Vector3();
+  /** The share of gravity the blood feels relative to him: 1 while the snow
+   * holds him up, near 0 while he falls through the air with it — off his
+   * body's own fall, `lastFall` the way down he had a frame ago. */
+  let felt = 1;
+  let lastFall = 0;
   const poolAcc = new Map<string, number>();
   let last: GameState | null = null;
 
@@ -523,6 +529,8 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     soakedIn.clear();
     drips = 0;
     drift.set(0, 0, 0);
+    felt = 1;
+    lastFall = 0;
     poolAcc.clear();
     blood.clear();
     soak.clear();
@@ -620,12 +628,16 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
             mesh.castShadow = true;
             mesh.frustumCulled = false;
             group.add(mesh);
-            v1.copy(dir).multiplyScalar(rng.range(1.5, 3)).add(carry);
-            v1.y += rng.range(0.5, 1.5);
+            // Unfurled out of the wound, going his way with him — spilled
+            // slower the faster he goes, the wind taking it back at once.
+            const spill = 1 / (1 + carry.length() / 4);
+            v1.copy(dir).multiplyScalar(rng.range(1.5, 3) * spill);
+            v1.y += rng.range(0.5, 1.5) * spill;
             guts.push({
               mesh,
               rope: rope(
                 { x: at.x, y: at.y, z: at.z },
+                { x: carry.x, y: carry.y, z: carry.z },
                 { x: v1.x, y: v1.y, z: v1.z },
                 count,
                 0.06,
@@ -754,11 +766,21 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       }
       const belly = GORE_OPEN.indexOf("abdomen");
       const held = world(openAt(belly, f).at, M, v3);
-      for (const gut of guts) {
-        // Held at the wound by the mesentery while there is a body to hold it.
+      for (const gut of [...guts]) {
+        // Held at the wound by the mesentery while there is a body to hold
+        // it and it has not been torn off it; a piece torn off flies alone.
         gut.rope.held = gut.held ? { x: held.x, y: held.y, z: held.z } : null;
-        stepRope(gut.rope, ground, fly);
+        const torn = stepRope(gut.rope, ground, fly);
+        if (!gut.rope.held) gut.held = false;
         layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
+        if (torn) {
+          const mesh = new THREE.Mesh(tubeGeometry(torn.p.length), flesh);
+          mesh.castShadow = true;
+          mesh.frustumCulled = false;
+          group.add(mesh);
+          layTube(mesh.geometry, torn.p, torn.r);
+          guts.push({ mesh, rope: torn, held: false });
+        }
       }
 
       // THE BLOOD. A torn wound has no cloth over it: it pours out where
@@ -767,6 +789,11 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       // in them (`gore-leaks.ts`). What reaches the snow pools under him.
       const beat = g.rate > 0 ? g.pulse : 0;
       drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
+      if (simDt > 0) {
+        const fallen = Math.min(1, Math.max(0, -(carry.y - lastFall) / (G * simDt)));
+        felt += (1 - fallen - felt) * (1 - Math.exp(-simDt / 0.1));
+        lastFall = carry.y;
+      }
       // A stream takes the body's way only when the body is really going —
       // a body lying or hanging still jitters, and a stream off it falls.
       const going = drift.length();
@@ -858,7 +885,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           if (had < HOLD) continue;
         }
         const speed = pourOf(w, beat, g.rate);
-        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead);
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead, felt);
         if (w.lead) {
           // And it drips off the face, the more the faster it runs.
           drips += simDt * Math.min(DRIPS, 4 + q * 600);

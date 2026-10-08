@@ -584,7 +584,8 @@ const bb = new THREE.Vector3();
 const up = new THREE.Vector3(0, 1, 0);
 
 /** Lay a tube's rings round the points `p`, `r` thick, bulging and pinched
- * along it as a bowel's loops are. */
+ * along it as a bowel's loops are. A tube with more rings than points — a
+ * rope torn shorter — closes its rings past the last point onto it. */
 export function layTube(
   g: THREE.BufferGeometry,
   p: readonly { x: number; y: number; z: number }[],
@@ -613,6 +614,8 @@ export function layTube(
       );
     }
   }
+  const end = p[p.length - 1];
+  for (let i = p.length * around; i < pos.count; i++) pos.setXYZ(i, end.x, end.y, end.z);
   pos.needsUpdate = true;
   g.computeVertexNormals();
   g.computeBoundingSphere();

@@ -720,7 +720,31 @@ export {
 } from "./game/snow-guns.ts";
 export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
-export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
+export {
+  CABINS,
+  CABIN_LAYOUT,
+  type CabinDef,
+  type CabinKind,
+  type LogKind,
+} from "./game/defs/cabins.ts";
+export {
+  buildingDoor,
+  buildingFront,
+  fellsTree,
+  insideWalls,
+  isMountainBuilding,
+  isResortBuilding,
+  resortBuildingsOf,
+} from "./game/resort-buildings.ts";
+export {
+  MOUNTAIN_KINDS,
+  RESORT_BUILDINGS,
+  RESORT_LAYOUT,
+  VILLAGE_KINDS,
+  type MountainKind,
+  type ResortKind,
+  type VillageKind,
+} from "./game/defs/resort-buildings.ts";
 export {
   hashOf as rockHash,
   onAnyCliff,

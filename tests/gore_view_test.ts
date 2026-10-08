@@ -15,7 +15,14 @@ import {
   cutsOf,
   pieceCollapse,
 } from "../pwa/src/game/gore-cut.ts";
-import { rope, stepRope, stepStick, stick, type GibGround } from "../pwa/src/game/gore-gibs.ts";
+import {
+  rope,
+  stepRope,
+  stepStick,
+  stick,
+  streamPath,
+  type GibGround,
+} from "../pwa/src/game/gore-gibs.ts";
 import { GAPS, gapAt, lowestGap, partAt, soakPath } from "../pwa/src/game/gore-leaks.ts";
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { DEATH, HUD_FADE, hudFade, wreckOf } from "../pwa/src/game/hud-wreck.ts";
@@ -107,7 +114,7 @@ describe("what flies off a body", () => {
   it("a bowel held at the wound stays at it and keeps its links", () => {
     const dt = 1 / 60;
     const at = { x: 0, y: 0.6, z: 0 };
-    const r = rope(at, { x: 2, y: 1, z: 0 }, 12, 0.08, 0.02, dt);
+    const r = rope(at, { x: 0, y: 0, z: 0 }, { x: 2, y: 1, z: 0 }, 12, 0.08, 0.02, dt);
     for (let i = 0; i < 60 * 4; i++) stepRope(r, FLAT, dt);
     expect(r.p[0]).toEqual(at);
     for (let i = 0; i + 1 < r.p.length; i++) {
@@ -116,6 +123,71 @@ describe("what flies off a body", () => {
       expect(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)).toBeLessThan(0.08 * 1.3);
     }
     for (const p of r.p) expect(p.y).toBeGreaterThan(-0.01);
+  });
+
+  it("a bowel out of a body flying through the air streams out behind him", () => {
+    const dt = 1 / 60;
+    const v = { x: 16, y: 8, z: 0 };
+    const at = { x: 0, y: 50, z: 0 };
+    // Spilled out of the belly forward and up, as the blast opens it.
+    const r = rope(at, v, { x: 0.5, y: 0.3, z: 0 }, 22, 0.06, 0.017, dt);
+    let ahead = -Infinity;
+    for (let i = 1; i <= 90; i++) {
+      const t = i * dt;
+      r.held = { x: v.x * t, y: 50 + v.y * t - 4.9 * t * t, z: 0 };
+      stepRope(r, FLAT, dt);
+      if (t > 0.25) {
+        const w = { x: v.x, y: v.y - 9.81 * t };
+        const tip = r.p[r.p.length - 1];
+        const along = (tip.x - r.held.x) * w.x + (tip.y - r.held.y) * w.y;
+        ahead = Math.max(ahead, along / Math.hypot(w.x, w.y));
+      }
+    }
+    // Never swung out in front of him: the far end stays behind the wound,
+    // and is a metre back once the wind has had it.
+    expect(ahead).toBeLessThan(0);
+    const w = { x: v.x, y: v.y - 9.81 * 1.5 };
+    const tip = r.p[r.p.length - 1];
+    const back = ((tip.x - r.held!.x) * w.x + (tip.y - r.held!.y) * w.y) / Math.hypot(w.x, w.y);
+    expect(back).toBeLessThan(-1);
+    expect(r.held).not.toBeNull();
+  });
+
+  it("a bowel jerked harder than it holds tears", () => {
+    const dt = 1 / 60;
+    const r = rope(
+      { x: 0, y: 2, z: 0 },
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0 },
+      20,
+      0.06,
+      0.017,
+      dt,
+    );
+    for (let i = 0; i < 30; i++) stepRope(r, FLAT, dt);
+    // The wound snatched away at 30 m/s.
+    r.held = { x: 0.5, y: 2, z: 0 };
+    const torn = stepRope(r, FLAT, dt);
+    expect(torn !== null || r.held === null).toBe(true);
+  });
+
+  it("blood off a body at rest pours in the ballistic arc", () => {
+    const at = { x: 0, y: 0, z: 0 };
+    const way = { x: 0, y: 0, z: 0 };
+    streamPath({ x: 1, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, 1, 0.4, at, way);
+    expect(at.x).toBeCloseTo(0.4, 6);
+    expect(at.y).toBeCloseTo(-0.5 * 9.81 * 0.16, 6);
+  });
+
+  it("blood off a body thrown through the air trails behind him, never ahead", () => {
+    const carry = { x: 30, y: 5, z: 0 };
+    const at = { x: 0, y: 0, z: 0 };
+    const way = { x: 0, y: 0, z: 0 };
+    for (const t of [0.05, 0.2, 0.5, 1]) {
+      // Pumped out forward, the way he is going, while he falls with it.
+      streamPath({ x: 2, y: 0.5, z: 0 }, carry, 0, t, at, way);
+      if (t >= 0.2) expect(at.x * carry.x + at.y * carry.y).toBeLessThan(0);
+    }
   });
 });
 

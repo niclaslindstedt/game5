@@ -22,8 +22,9 @@ import * as THREE from "three";
 import { CABINS, CABIN_LAYOUT, type Cabin, type CabinKind, type Level } from "@engine";
 
 import { buildCabin, type CabinLod } from "../game/cabin-shapes.ts";
-import { createHazeUniforms, hazeMaterial } from "../game/haze.ts";
-import { driftGeometry, graftGlow } from "../game/cabins-view.ts";
+import { createHazeUniforms } from "../game/haze.ts";
+import { driftGeometry } from "../game/cabins-view.ts";
+import { facadeMaterial } from "../game/facade-mesh.ts";
 import { lodgeYardGeometry } from "../game/lodge-yard.ts";
 import { LUX_TO_LAMP } from "../game/piste-lights.ts";
 
@@ -83,12 +84,7 @@ async function main(): Promise<void> {
   renderer.setRenderTarget(null);
   haze.uHeroMap.value = hero.depthTexture;
 
-  const material = hazeMaterial(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }),
-    haze,
-    "cabin-lab",
-    graftGlow,
-  );
+  const material = facadeMaterial(haze, "cabin-lab");
   const snowMat = new THREE.MeshStandardMaterial({ color: 0xeef3f8, roughness: 0.95 });
   const dark = new THREE.MeshBasicMaterial({ color: 0x11181d });
   const pale = new THREE.MeshBasicMaterial({ color: 0x5a6670 });

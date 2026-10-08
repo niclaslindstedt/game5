@@ -15,42 +15,61 @@
 //   - THE STANCE IS THE SAME athletic one as riding forward, if anything
 //     lower: knees and ankles bent, the shins on the boots' tongues — never
 //     stood up on straight legs.
-//   - THE HANDS go out wide and forward of him for balance, the arm on the
-//     shoulder he looks over drawn round with the open shoulder, and the
-//     poles trail behind the way he goes — toward his tips.
+//   - THE HANDS DROP LOW BY HIS SIDES, a little out from the hips, and the
+//     POLES POINT LOW AND BACK — trailing the way he goes, toward his tips,
+//     the baskets clear of the snow. Not the forward skier's hands out in
+//     front at the steering wheel's quarter to three, and never a tuck's
+//     fists ahead of his face: tucked switch, his chest is over his tips and
+//     the way he goes is behind him.
 
 /** The look back at its fullest: the head turned in the body's frame,
  * rad (the trunk's turn and the neck's together — the chin over the
  * shoulder, the eyes a little behind square across), the shoulders' turn
- * off the hips', rad, the hips' own turn toward it, rad, the hips sunk, m,
- * the hands carried round with the shoulders, rad, and spread wide, m. */
+ * off the hips', rad, the hips' own turn toward it, rad, and the hips
+ * sunk, m. */
 export const SWITCH_LOOK = {
   head: 2.15,
   twist: 0.7,
   hips: 0.25,
   sink: 0.06,
-  arms: 0.45,
-  wide: 0.1,
+} as const;
+
+/** THE HANDS AND POLES carried switch: each fist off the hips, m — out to
+ * its side, up (down, negative: the arms let hang near straight), and along
+ * toward the tips, and how much further along in a full tuck, where the
+ * body is folded over the tips and the fists go down beside the knees —
+ * the share of the shoulders' turn they are carried round by, and the
+ * pole's lean off the plumb toward the tips, rad (near flat: low, the
+ * baskets clear of the snow), and how far it leans out to its side (a share
+ * of its drop). */
+export const SWITCH_CARRY = {
+  out: 0.32,
+  up: -0.16,
+  fore: 0.14,
+  tuckFore: 0.32,
+  turn: 0.2,
+  lean: 1.15,
+  splay: 0.12,
 } as const;
 
 export type SwitchShape = {
-  /** How far into the look back he is, 0..1 — the poles trailing behind
-   * the way he goes, toward his tips, at 1. */
+  /** How far into the look back he is, 0..1. */
   w: number;
   /** Added to the pose's `look` (whose head yaw is half of it). */
   look: number;
   twist: number;
   hips: number;
   sink: number;
-  arms: number;
-  wide: number;
+  /** The tuck he is in, 0..1 — where his fists go. */
+  crouch: number;
 };
 
 /** The look back as the pose lays it on, for `switched` −1..1 — how far
  * into it, signed to the shoulder: positive toward the body frame's +x,
- * the side the hips hang to for a positive `hipRight` — and how far he is in
- * the air (0..1): a flight is ridden square, the head coming back round. */
-export function switchShape(switched: number | undefined, air: number): SwitchShape {
+ * the side the hips hang to for a positive `hipRight` — how far he is in
+ * the air (0..1): a flight is ridden square, the head coming back round —
+ * and the tuck he is in. */
+export function switchShape(switched: number | undefined, air: number, crouch = 0): SwitchShape {
   const k = Math.max(-1, Math.min(1, switched ?? 0)) * (1 - air);
   const w = Math.abs(k);
   return {
@@ -59,24 +78,50 @@ export function switchShape(switched: number | undefined, air: number): SwitchSh
     twist: SWITCH_LOOK.twist * k,
     hips: SWITCH_LOOK.hips * k,
     sink: SWITCH_LOOK.sink * w,
-    arms: SWITCH_LOOK.arms * k,
-    wide: SWITCH_LOOK.wide * w,
+    crouch,
   };
 }
 
-/** A fist carried round with the open shoulder: turned about the hips'
- * upright by `turn` rad (the same way as the shoulders' twist and the
- * head's look) and set out to its side by `wide` m. */
-export function switchHand(
-  h: { x: number; y: number; z: number },
-  hips: { x: number; z: number },
-  side: number,
-  sw: SwitchShape,
-): { x: number; y: number; z: number } {
-  if (sw.arms === 0 && sw.wide === 0) return h;
-  const dx = h.x - hips.x + side * sw.wide;
-  const dz = h.z - hips.z;
-  const c = Math.cos(sw.arms);
-  const s = Math.sin(sw.arms);
-  return { x: hips.x + dx * c + dz * s, y: h.y, z: hips.z - dx * s + dz * c };
+type P3 = { x: number; y: number; z: number };
+
+/** `v` (x, z) turned about the upright by `a` rad — the way the shoulders'
+ * twist and the head's look turn, +z toward +x. */
+function turned(v: P3, a: number): P3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: v.x * c + v.z * s, y: v.y, z: -v.x * s + v.z * c };
+}
+
+/** A fist carried switch: blended from where the rest of the pose has it
+ * to low by his side, off the hips, carried round a share of the
+ * shoulders' turn. */
+export function switchHand(h: P3, hips: P3, side: number, sw: SwitchShape): P3 {
+  if (sw.w === 0) return h;
+  const C = SWITCH_CARRY;
+  const fore = C.fore + C.tuckFore * sw.crouch;
+  const off = turned({ x: side * C.out, y: C.up, z: fore }, C.turn * sw.twist);
+  const to = { x: hips.x + off.x, y: hips.y + off.y, z: hips.z + off.z };
+  return {
+    x: h.x + (to.x - h.x) * sw.w,
+    y: h.y + (to.y - h.y) * sw.w,
+    z: h.z + (to.z - h.z) * sw.w,
+  };
+}
+
+/** A pole's hang carried switch: blended from the pose's own to low and
+ * back toward his tips, a little out to its side (unit). */
+export function switchPole(dir: P3, side: number, sw: SwitchShape): P3 {
+  if (sw.w === 0) return dir;
+  const C = SWITCH_CARRY;
+  const back = turned(
+    { x: side * C.splay, y: -Math.cos(C.lean), z: Math.sin(C.lean) },
+    C.turn * sw.twist,
+  );
+  const v = {
+    x: dir.x + (back.x - dir.x) * sw.w,
+    y: dir.y + (back.y - dir.y) * sw.w,
+    z: dir.z + (back.z - dir.z) * sw.w,
+  };
+  const n = Math.hypot(v.x, v.y, v.z) || 1;
+  return { x: v.x / n, y: v.y / n, z: v.z / n };
 }

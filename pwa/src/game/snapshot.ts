@@ -14,6 +14,7 @@
 // shell (§23.2), and there are none.
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
+import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -32,6 +33,7 @@ import {
   heliWithin,
   mayGetUp,
   paraRigged,
+  balloonAboard,
   sledWithin,
   groomerWithin,
   trenched,
@@ -45,7 +47,10 @@ import {
   type RunOut,
   edgeMostOf,
   techniqueOf,
+  holdsHim,
+  type DeathCause,
 } from "@engine";
+import { diedOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
@@ -144,6 +149,9 @@ export type RaceHud = {
 
 export type HudSnapshot = {
   speedKmh: number;
+  /** HOW HIGH HE IS over the sea, m (`Mountain.sea`) — null on a map that
+   * publishes no mountain. */
+  altitude: number | null;
   /** THE EDGE the skis stand on, as a share of the pair's full edge at a
    * standstill, -1..1 — SCREEN-space, so positive is the skis tipped to
    * the player's right. */
@@ -192,6 +200,11 @@ export type HudSnapshot = {
    * straight ahead, and how far, m — or null with nothing owed. */
   missed: { angle: number; distance: number } | null;
   seed: number;
+  /** WHERE HE IS on the map, to the metre (the engine's x across and z down
+   * the map): beside the seed, so a picture names the spot on its mountain
+   * as well as the mountain — the same frame `make level` and the labs
+   * read. */
+  at: { x: number; z: number };
   /** The COURSE raced, by its runs' names (`courseName`) — null off a ski
    * area and on a free ride, which races none. */
   course?: string | null;
@@ -256,6 +269,9 @@ export type HudSnapshot = {
    * of him, the worst injuries, the run's hardest blow — and the blow on
    * the g meter while it holds. */
   body: BodyTile;
+  /** HIS DEATH on an injuries run (`hud-wreck.ts`): how long ago, s, and
+   * what of — null alive, or on a run without the wounds that kill. */
+  died: { since: number; cause: DeathCause } | null;
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
@@ -278,6 +294,9 @@ export type HudSnapshot = {
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
+  /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
+   * while he stands in its basket, or null. */
+  balloon: HudBalloon | null;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -613,8 +632,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
   const lights = state.rules.countdown > 0 && !race && !state.cross;
+  const mountain = state.level.mountain;
   return {
     speedKmh: c.speed * 3.6,
+    altitude: mountain ? c.y - mountain.sea : null,
     // Against the most edge he can use — a slalom racer's past the ski's own.
     edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,
@@ -637,6 +658,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     airBest: airTime > 0 && airTime > p.bestAir,
     missed: owed ? { angle: owed.error * SCREEN_TO_ENGINE, distance: owed.distance } : null,
     seed: state.seed,
+    at: { x: Math.round(c.x), z: Math.round(c.z) },
     course:
       state.rules.course && state.level.resort
         ? courseName(state.level, state.level.resort.course)
@@ -657,7 +679,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     minimap: buildMinimap(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
-    getUp: c.thrown !== null && mayGetUp(c.thrown),
+    // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).
+    getUp: c.thrown !== null && mayGetUp(c.thrown) && !holdsHim(state),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],
@@ -666,16 +689,25 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         }
       : null,
     body: bodyTile(c.body, state.t),
+    died: diedLine(state),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
     wind: windOf(state),
-    heli: heliOf(state),
-    sled: sledOf(state),
-    groomer: groomerOf(state),
+    // In a balloon's basket no machine on the snow calls him.
+    heli: balloonAboard(state) ? null : heliOf(state),
+    sled: balloonAboard(state) ? null : sledOf(state),
+    groomer: balloonAboard(state) ? null : groomerOf(state),
     para: paraOf(state),
-    afterski: afterskiOf(state),
+    balloon: balloonOf(state),
+    afterski: balloonAboard(state) ? null : afterskiOf(state),
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };
+}
+
+/** His death, as the HUD reads it. */
+function diedLine(state: GameState): HudSnapshot["died"] {
+  const since = diedOf(state);
+  return since === null || !state.gore?.cause ? null : { since, cause: state.gore.cause };
 }

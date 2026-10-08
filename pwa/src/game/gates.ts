@@ -7,7 +7,7 @@
 //     dealt the gate (`Checkpoint.colour`: they alternate down the piste,
 //     R11), so the skier passes BETWEEN the two panels of one colour.
 //   * THE START: a START HUT at the top of the piste, off the line's left
-//     edge, and the WAND across the start gate — two posts and a bar at
+//     edge (`race-build.ts`), and the WAND across the start gate — two posts and a bar at
 //     the knee, the thing a racer's shins push through to start the clock.
 //     A race's start house over its course instead (`start-house.ts`), and
 //     a SKI CROSS's start gate of four doors (`cross-gate.ts`).
@@ -41,12 +41,19 @@
 //
 // EVERY MARK IS BUILT IN CODE, in the woods' chunky, faceted, low-poly look
 // (`mark-shapes.ts`: the poles and their panels, the stakes, the marker, the
-// hut, the arch's tube, skirts and blowers); the wand, the nets, the masts,
+// arch's tube, skirts and blowers; the hut is a building, `race-build.ts`); the wand, the nets, the masts,
 // the banner, the guy lines and the line dyed on the snow are strung and
 // laid on this map's own ground here.
 
 import * as THREE from "three";
-import { speedSkiLines, stakePlan, type Checkpoint, type GameState, type Level } from "@engine";
+import {
+  speedSkiLines,
+  stakePlan,
+  type Checkpoint,
+  type GameState,
+  type Level,
+  type Wind,
+} from "@engine";
 
 import { PALETTE } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
@@ -65,16 +72,20 @@ import {
   gateMarker,
   gatePanel,
   gatePole,
-  startHut,
 } from "./mark-shapes.ts";
 import { createCrossFlags } from "./cross-flags.ts";
 import { createCrossGate } from "./cross-gate.ts";
 import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
+import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
+import type { SkyLook } from "./sky.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
 import { netShape, netStretch, NETS } from "./spectator-plan.ts";
 import { createStartHouse } from "./start-house.ts";
+import { FacadeKit } from "./facade-kit.ts";
+import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
+import { buildStartHut, startHutSpot } from "./race-build.ts";
 import { ARCH, archPlan, type ArchPlan } from "./start-arch.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
@@ -83,10 +94,6 @@ import { LOOSE } from "./trail-stamp.ts";
  * slalom gate is two poles a little over a metre apart with a panel 0.5 m
  * deep at the top. */
 const PANEL = { pole: 1.85, gap: 1.05, drop: 0.5, radius: 0.017 };
-
-/** THE START HUT, m: its footprint and height, and where it stands — off
- * the line's left edge. */
-const HUT = { width: 2.4, depth: 2.2, height: 2.1, out: 2.5 };
 
 /** THE WAND: two posts either side of the start gate's centre and the bar
  * between them, at a racer's knee. */
@@ -111,6 +118,11 @@ export type Gates = {
    * edge poles' reflectors and the piste lights along every run, with
    * `pixels` the lens's focal length in pixels. */
   setLamps(level: number, pixels: number): void;
+  /** THE SNOW GUNS of a thin season (`snow-guns-view.ts`): their sweep,
+   * their plumes and their whales at the run's moment, in its sky. */
+  air(state: GameState, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
+  /** The snow guns standing, for the labs; null where none stand. */
+  guns: SnowGuns | null;
   dispose(): void;
 };
 
@@ -344,27 +356,29 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     });
     // A ski cross's start gate is its own mark: no marker over its doors.
     tops.push(first && crossGate ? [] : own);
-    if (first && !house && !crossGate) hutAt(cp, rx, rz, fx, fz);
+    if (first && !house && !crossGate) hutAt(cp, rx, rz);
     if (last) {
       const end = runOut?.finish ?? cp;
       finish(end, Math.sin(end.heading), Math.cos(end.heading));
     }
   };
 
-  // THE START HUT off the line's left edge, a timber box under a gabled
-  // roof, its window to the piste; and the wand across the gate.
-  const hutAt = (cp: Checkpoint, rx: number, rz: number, fx: number, fz: number) => {
-    const half = cp.width / 2 + 1;
-    const hx = cp.x - rx * (half + HUT.out) + fx * 1.5;
-    const hz = cp.z - rz * (half + HUT.out) + fz * 1.5;
-    const hy = level.groundAt(hx, hz);
-    const hutGeo = startHut(HUT.width, HUT.depth, HUT.height);
-    geos.push(hutGeo);
-    const hut = new THREE.Mesh(hutGeo, painted);
-    hut.position.set(hx, hy, hz);
-    hut.rotation.y = cp.heading;
-    hut.castShadow = true;
-    group.add(hut);
+  // THE START HUT off the line's left edge, built on the facade kit
+  // (`race-build.ts`), its window to the piste; and the wand across the gate.
+  const hutAt = (cp: Checkpoint, rx: number, rz: number) => {
+    const spot = startHutSpot(level, false);
+    if (spot) {
+      const kit = new FacadeKit();
+      buildStartHut(kit, level, spot);
+      const hutGeo = facadeGeometry(kit.out);
+      geos.push(hutGeo);
+      const hutMat = facadeMaterial(haze, "start-hut");
+      mats.push(hutMat);
+      const hut = new THREE.Mesh(hutGeo, hutMat);
+      hut.castShadow = true;
+      hut.receiveShadow = true;
+      group.add(hut);
+    }
     // The wand: two posts a racer's shins go between, the bar at the knee.
     for (const side of [-1, 1]) {
       const px = cp.x + rx * side * (WAND.gap / 2);
@@ -700,6 +714,10 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const lights = createPisteLights(level, haze);
   group.add(lights.group);
 
+  // THE SNOW GUNS, in a thin season.
+  const guns = createSnowGuns(level, haze);
+  if (guns) group.add(guns.group);
+
   // A SLOPESTYLE COURSE'S RAILS AND BOXES (`jibs-view.ts`).
   const jibs = createJibs(level, std);
   if (jibs) group.add(jibs.group);
@@ -796,6 +814,10 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       }
       reflectorMat.emissiveIntensity = 0.2 + 1.6 * on;
     },
+    air(state, look, wind, eye, pixels) {
+      guns?.update(state, look, wind, eye, pixels);
+    },
+    guns,
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
@@ -805,6 +827,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       bands.dispose();
       signs.dispose();
       lights.dispose();
+      guns?.dispose();
       slalomPoles?.dispose();
       house?.dispose();
       crossFlags?.dispose();

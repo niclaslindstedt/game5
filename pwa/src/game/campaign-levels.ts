@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CAMPAIGN'S SHELVES, and the six maps each of them runs. Every map is a
+// THE CAMPAIGN'S SHELVES, and the races each of them runs. Every map is a
 // SEED's ski area in a KIND OF SNOW COUNTRY (R21), raced down one of its
 // COURSES (R28) of a PISTE GRADE (R23) and, where the ladder needs one, the
 // sky it is skied under — the maps are generated, not authored — so a shelf
@@ -23,37 +23,42 @@
 //
 // FOUR SHELVES, FOUR SKI AREAS. A shelf is ONE seed's resort on the
 // generator that builds ski areas (v4, R25–R28): a massif with its lifts,
-// its runs of every colour and its lanes down to the village — and its six
-// maps are six of that area's COURSES (R28), each the line from a top
-// station down the network to the village, raced through its own gates. The
-// whole mountain is there on every rung — a skier may leave the course and
-// ski anywhere on it — but the points are paid down the one course the rung
-// races. Every map of a shelf names the same seed and country, so the six
-// are one resort the generator builds once.
+// its runs of every colour and its lanes down to the village — and its maps
+// are some of that area's COURSES (R28), each the line from a top station
+// down the network to the village, raced through its own gates. The whole
+// mountain is there on every rung — a skier may leave the course and ski
+// anywhere on it — but the points are paid down the one course the rung
+// races. Every map of a shelf names the same seed and country, so a shelf's
+// maps are one resort the generator builds once.
 //
 // THE CAMPAIGN RACES RED AND BLACK. The greens and the blues are the free
-// ride's; a rung is a red or a black, with ONE blue to warm up on — the
-// very first rung of the first shelf, a time trial, because A SLALOM IS
-// NEVER SET ON AN EASY HILL: every slalom rung is a red or a black whose
-// slalom stretch (R31) is a real slalom hill, and a map whose stretch is
-// gentle, or cut short by its drops, is raced against the clock instead.
-// The shelves blacken as they climb,
+// ride's; every rung is a red or a black, because A SLALOM IS NEVER SET ON
+// AN EASY HILL: every slalom rung is a red or a black whose slalom stretch
+// (R31) is a real slalom hill, and the DOWNHILL (R32) is raced on a black
+// whose whole course is a downhill's. The shelves blacken as they climb,
 // and every rung is ordered by how hard it really is on the rating's index
 // (`make rate CAMPAIGN=1`) — the steepest pitch, the drop, the air, the
 // drops across the piste, the sky — because two blacks can be a world
 // apart: the early shelves' are the raceable ones, the last shelf's the
 // brutal.
 //
-//   RIME WOODS   MARITIME, seed 4: deep snow and rimed firs; a blue in a
-//                valley fog to warm up on, then five reds, the last into a
-//                storm.
-//   HIGH CIRQUE  ALPINE, seed 8: four reds off the cirque, then the first
-//                two blacks — one in a storm, then nine hundred metres of it.
-//   FROST BASIN  CONTINENTAL, seed 10: cold dry snow; three reds, then
-//                three blacks with drops across the piste, the last seven.
-//   COLD CREST   CONTINENTAL, seed 77: a short red and a long one among the
-//                four hardest blacks in the game — one in a storm, one in
-//                falling snow, the last nearly twelve hundred metres of drop.
+//   RIME WOODS   MARITIME, seed 4: deep snow and rimed firs; three red
+//                slaloms, opening on its first red in the sun and the last
+//                into a storm.
+//   HIGH CIRQUE  ALPINE, seed 8: three red slaloms off the cirque, then the
+//                first two blacks — a downhill in a storm, then a slalom on
+//                nine hundred metres of it.
+//   FROST BASIN  CONTINENTAL, seed 10: cold dry snow; two red slaloms, then
+//                a black slalom with drops across the piste and a downhill
+//                down a thousand metres of black, the last seven.
+//   COLD CREST   CONTINENTAL, seed 77: a short red and a long one, then two
+//                of the hardest blacks in the game — one in falling snow,
+//                the last nearly twelve hundred metres of drop.
+//
+// SIXTEEN RUNGS: three, five, four and four. The shelves were cut six to a
+// shelf, with time trials among the races; the trials went with the mode,
+// and the races kept their ids (`rime-2` …), so a board kept under the old
+// ladder still lands every race row on the map it was won on.
 //
 // The FELL has no shelf: its ski areas are gentle by nature — no black on
 // any of the first forty seeds and never more than two reds — so it is the
@@ -66,37 +71,17 @@
 // COUNT=40 REGION=…`; forty maritime seeds, eighty alpine, a hundred and
 // twenty continental): the ones with six red-and-black courses (or a blue
 // and five reds) that stand clean, every course finished by the bot, and a
-// plan that reads as a ski area somebody laid out. No continental area of
-// the hundred and twenty offered five blacks the bot finishes, so the last
-// shelf races four. Within a shelf the rungs climb on the index; across
-// the shelves the share of black climbs (0, 2, 3, 4) and so does the
-// shelf's mean ask.
-//
-// THE RUNG ORDER mixes slaloms, downhills and time trials, the slalom on
-// the maps whose stretch is a slalom hill and the DOWNHILL (R32) on a black
-// whose whole course is a downhill's: HIGH CIRQUE a slalom, a trial, two
-// slaloms, a downhill and a slalom, the slalom opening and closing it; RIME
-// WOODS opens on its blue against the clock and closes on two slaloms;
-// FROST BASIN closes on a trial and a downhill down a thousand metres of
-// black, cut up by its drops;
-// COLD CREST puts its storm black against the clock and its steep wall to a
-// slalom, four slaloms round two trials.
+// plan that reads as a ski area somebody laid out. Within a shelf the rungs
+// climb on the index; across the shelves the share of black climbs (none
+// of three, two of five, two of four, two of four) and so does the shelf's
+// mean ask.
 //
 // EVERY MAP IS SKIED ON THE HOUR, THE SEASON AND THE SKY ITS COURSE WAS
 // DEALT (R15, R19 — each course of a resort is dealt a day of its own) —
-// but for two, where the ladder needed a step the dealt day did not give:
-// fair-weather cloud over RIME WOODS's late-sun red, and falling snow over
-// COLD CREST's six-kicker black. A `sky` (`withSky`) moves nothing the
-// generator builds and so nothing the digest reads, but the rating reads it
-// (its weather axis), and the box bills it (`day`).
-//
-// THE MEDALS on a time trial are set against the bot's own run of it — the
-// all-mountain pair skied by the bot from the start gate to the finish,
-// which is what the curation loop measures (`make rate CAMPAIGN=1` prints it
-// beside them). SILVER IS THE BOT'S TIME and three per cent; BRONZE is an
-// eighth slower than the bot, because a medal is the DOOR to the next rung
-// and nothing else; GOLD is two per cent under it, a clean run the bot does
-// not ski.
+// but for one, where the ladder needed a step the dealt day did not give:
+// falling snow over COLD CREST's steep wall. A `sky` (`withSky`) moves
+// nothing the generator builds and so nothing the digest reads, but the
+// rating reads it (its weather axis), and the box bills it (`day`).
 
 import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind } from "@engine";
 
@@ -105,16 +90,11 @@ import type { GeneratorVersion, PisteGrade, RegionId, SkyOverride, WeatherKind }
  * house against a field (R32), a SUPER-G from a start lowered down it (R33
  * — a race map's, `race-maps.ts`, never a rung yet), a SPEED RACE down a
  * track cut straight down the face (R34 — a race map's too), a GIANT
- * SLALOM's two runs round its gates (R36 — a race map's too), or the TIME
- * TRIAL down
- * its whole course alone. A free ride measures nothing, so it is never a
- * rung. */
+ * SLALOM's two runs round its gates (R36 — a race map's too) or a SKI
+ * CROSS (R35 — a race map's too). A free ride measures nothing, so it is
+ * never a rung. */
 export type CampaignMode =
-  "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross" | "timeTrial";
-
-/** The three medals a time trial pays, worst first. */
-export const MEDALS = ["bronze", "silver", "gold"] as const;
-export type Medal = (typeof MEDALS)[number];
+  "slalom" | "giantSlalom" | "downhill" | "superG" | "speedSki" | "skiCross";
 
 export type CampaignLevel = {
   id: string;
@@ -135,8 +115,8 @@ export type CampaignLevel = {
   /** THE KIND OF SNOW COUNTRY the map is built in (R21): a shelf's own —
    * the alpine when left out. Part of what the digest names. */
   region?: RegionId;
-  /** THE PISTE GRADE of the course raced (R23) — red or black, the one blue
-   * the first rung — quoted so a box can sign it without building the map,
+  /** THE PISTE GRADE of the course raced (R23) — red or black on a rung,
+   * any on a race map — quoted so a box can sign it without building the map,
    * and held to the built map by `tests/generator_version_test.ts`. */
   grade: PisteGrade;
   /** THE COURSE of the seed's ski area this map is raced down (R28,
@@ -150,8 +130,6 @@ export type CampaignLevel = {
    * bill it without building the map, and held to the built map by
    * `tests/generator_version_test.ts`. */
   day: { weather: WeatherKind; hour: number };
-  /** A time trial's three medals, seconds over its laps — lower is better. */
-  medals?: Record<Medal, number>;
 };
 
 export type CampaignShelf = {
@@ -170,29 +148,14 @@ export type CampaignShelf = {
 };
 
 /** THE FIRST SHELF — open to everyone: a maritime ski area, deep snow and
- * rimed firs; the one blue to warm up on, then five reds, the last into a storm. */
+ * rimed firs; three red slaloms, the last into a storm. */
 const RIME_WOODS: CampaignShelf = {
   id: "rime",
   name: "Rime Woods",
-  blurb: "Deep snow and rimed firs: one blue to warm up on, then the reds",
+  blurb: "Deep snow and rimed firs: three red slaloms, the last into a storm",
   seed: 4,
   region: "maritime",
   levels: [
-    {
-      id: "rime-1",
-      name: "Fog Opener",
-      blurb: "The one blue, against the clock: wide turns through the rimed firs in a valley fog",
-      seed: 4,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "4a43faec",
-      region: "maritime",
-      grade: "blue",
-      course: "4",
-      day: { weather: "fog", hour: 12.65 },
-      medals: { gold: 149, silver: 157, bronze: 172 },
-    },
     {
       id: "rime-2",
       name: "First Red",
@@ -206,37 +169,6 @@ const RIME_WOODS: CampaignShelf = {
       grade: "red",
       course: "11",
       day: { weather: "clear", hour: 14.29 },
-    },
-    {
-      id: "rime-3",
-      name: "Flurry Line",
-      blurb: "Against the clock down a short red through flurries, four kickers between the firs",
-      seed: 4,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "0fc67945",
-      region: "maritime",
-      grade: "red",
-      course: "3",
-      day: { weather: "flurries", hour: 15.16 },
-      medals: { gold: 121, silver: 127, bronze: 138 },
-    },
-    {
-      id: "rime-4",
-      name: "Late Sun",
-      blurb: "The clock down a short red in the late sun under fair-weather cloud, to the village",
-      seed: 4,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "5b92d38a",
-      region: "maritime",
-      grade: "red",
-      course: "5",
-      sky: { weather: "fair" },
-      day: { weather: "fair", hour: 16.87 },
-      medals: { gold: 114, silver: 119, bronze: 130 },
     },
     {
       id: "rime-5",
@@ -269,7 +201,7 @@ const RIME_WOODS: CampaignShelf = {
   ],
 };
 
-/** THE SECOND SHELF — an alpine ski area under its cirque: four reds
+/** THE SECOND SHELF — an alpine ski area under its cirque: three reds
  * down the fall line, then the first two blacks. */
 const HIGH_CIRQUE: CampaignShelf = {
   id: "cirque",
@@ -291,21 +223,6 @@ const HIGH_CIRQUE: CampaignShelf = {
       grade: "red",
       course: "7",
       day: { weather: "clear", hour: 10.32 },
-    },
-    {
-      id: "cirque-2",
-      name: "Cirque Clock",
-      blurb: "Against the clock under the cirque at noon, three kickers on the way down",
-      seed: 8,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "67c47454",
-      region: "alpine",
-      grade: "red",
-      course: "2",
-      day: { weather: "fair", hour: 11.99 },
-      medals: { gold: 172, silver: 180, bronze: 197 },
     },
     {
       id: "cirque-3",
@@ -366,12 +283,12 @@ const HIGH_CIRQUE: CampaignShelf = {
   ],
 };
 
-/** THE THIRD SHELF — a continental ski area, cold dry snow: three reds,
- * then three blacks with drops across the piste. */
+/** THE THIRD SHELF — a continental ski area, cold dry snow: two reds,
+ * then two blacks with drops across the piste. */
 const FROST_BASIN: CampaignShelf = {
   id: "basin",
   name: "Frost Basin",
-  blurb: "Cold dry snow: short reds, then three blacks with drops",
+  blurb: "Cold dry snow: two reds, then two blacks with drops",
   seed: 10,
   region: "continental",
   levels: [
@@ -388,21 +305,6 @@ const FROST_BASIN: CampaignShelf = {
       grade: "red",
       course: "5",
       day: { weather: "clear", hour: 9.06 },
-    },
-    {
-      id: "basin-2",
-      name: "Snow Clock",
-      blurb: "The clock down a short, steep red in falling snow",
-      seed: 10,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "b4a5bd8e",
-      region: "continental",
-      grade: "red",
-      course: "3",
-      day: { weather: "snow", hour: 11.02 },
-      medals: { gold: 110, silver: 115, bronze: 126 },
     },
     {
       id: "basin-3",
@@ -434,21 +336,6 @@ const FROST_BASIN: CampaignShelf = {
       day: { weather: "flurries", hour: 11.36 },
     },
     {
-      id: "basin-5",
-      name: "Short Black",
-      blurb: "Against the clock down a short black, three drops and four kickers",
-      seed: 10,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "15003760",
-      region: "continental",
-      grade: "black",
-      course: "12",
-      day: { weather: "fair", hour: 13.41 },
-      medals: { gold: 149, silver: 157, bronze: 171 },
-    },
-    {
       id: "basin-6",
       name: "Basin Wall",
       blurb:
@@ -466,12 +353,12 @@ const FROST_BASIN: CampaignShelf = {
   ],
 };
 
-/** THE FOURTH SHELF — the steepest continental ski area: two reds among
- * the four hardest blacks in the game. */
+/** THE FOURTH SHELF — the steepest continental ski area: two reds, then
+ * two of the hardest blacks in the game. */
 const COLD_CREST: CampaignShelf = {
   id: "crest",
   name: "Cold Crest",
-  blurb: "The steepest blacks: drops, a storm and falling snow, two reds among four blacks",
+  blurb: "The steepest blacks: two reds, then two walls of black off the crest",
   seed: 77,
   region: "continental",
   levels: [
@@ -490,22 +377,6 @@ const COLD_CREST: CampaignShelf = {
       day: { weather: "fair", hour: 11.84 },
     },
     {
-      id: "crest-2",
-      name: "Steep Clock",
-      blurb:
-        "Against the clock down eleven hundred metres of black, the steepest pitch on the crest",
-      seed: 77,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "d41f4f5c",
-      region: "continental",
-      grade: "black",
-      course: "9",
-      day: { weather: "high", hour: 11.81 },
-      medals: { gold: 226, silver: 238, bronze: 260 },
-    },
-    {
       id: "crest-3",
       name: "Snow Red",
       blurb:
@@ -519,22 +390,6 @@ const COLD_CREST: CampaignShelf = {
       grade: "red",
       course: "5",
       day: { weather: "snow", hour: 10.95 },
-    },
-    {
-      id: "crest-4",
-      name: "Storm Black",
-      blurb:
-        "Against the clock down a black into a storm, four drops and the next one lost in the spindrift",
-      seed: 77,
-      mode: "timeTrial",
-      laps: 1,
-      version: 4,
-      digest: "6c263fb2",
-      region: "continental",
-      grade: "black",
-      course: "11",
-      day: { weather: "storm", hour: 10.97 },
-      medals: { gold: 159, silver: 167, bronze: 182 },
     },
     {
       id: "crest-5",

@@ -26,7 +26,6 @@ import {
   gateMarker,
   gatePanel,
   gatePole,
-  startHut,
 } from "../pwa/src/game/mark-shapes.ts";
 import { FOREST_LOOK } from "../pwa/src/game/settings-video.ts";
 import { ARCH, type ArchPlan } from "../pwa/src/game/start-arch.ts";
@@ -351,7 +350,6 @@ describe("the course's marks, built", () => {
       ["stake", edgeStake(2.2, 0.02), 20],
       ["band", edgeBand(2.2, 0.45, 0.02), 25],
       ["marker", gateMarker(), 20],
-      ["hut", startHut(2.4, 2.2, 2.1), 80],
       ["arch", archTube(plan, path()), 600],
       ["skirt", archSkirt(), 30],
       ["blower", archBlower(), 12],

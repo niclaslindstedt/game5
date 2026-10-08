@@ -44,12 +44,15 @@ import {
   cabinBench,
   chimney,
   doorIn,
+  face,
   gableRoof,
+  laid,
   logBar,
   roofSnow,
   roofUnder,
   stoneFace,
   wallBox,
+  wallFace,
   wallsOf,
   windowIn,
   woodStack,
@@ -57,6 +60,7 @@ import {
   type Roof,
   type Wall,
 } from "./cabin-parts.ts";
+import { FACADE, type FacadeLayer } from "./facade-paint.ts";
 import { DECK, TERRACE, lodgePlan } from "./lodge-shapes.ts";
 import type { Shape, V3 } from "./tree-mesh.ts";
 
@@ -150,14 +154,40 @@ function planOf(kind: CabinKind): Plan {
         // gable, its step, and the two posts that carry the roof's end.
         const z0 = D / 2;
         const z1 = D / 2 + d.reach.front - 0.1;
-        box(s, -W / 2, -0.22, z0, W / 2, 0, z1, P.board[1], P.board[0]);
-        box(s, -0.7, -0.5, z1, 0.7, -0.26, z1 + 0.35, P.board[1], P.board[0]);
+        box(
+          s,
+          -W / 2,
+          -0.22,
+          z0,
+          W / 2,
+          0,
+          z1,
+          P.board[1],
+          P.board[0],
+          ["y-"],
+          FACADE.timber,
+          FACADE.boards,
+        );
+        box(
+          s,
+          -0.7,
+          -0.5,
+          z1,
+          0.7,
+          -0.26,
+          z1 + 0.35,
+          P.board[1],
+          P.board[0],
+          ["y-"],
+          FACADE.timber,
+          FACADE.boards,
+        );
         for (const x of [-W / 2 + 0.12, W / 2 - 0.12]) {
           const top = roofUnder(roof, Math.abs(x));
           s.tube([x, 0, z1 - 0.12], [x, top, z1 - 0.12], 0.09, 0.08, lod ? 4 : 6, P.log[0]);
         }
-        chimney(s, -1.25, -0.7, -1.6, -1.05, roofUnder(roof, 1.25) - 0.1, d.ridge + 0.55, 3);
-        if (lod === 0) woodStack(s, wallsOf(W, D).right, -2.3, 0.0, 1.3, 0.42);
+        chimney(s, -1.25, -0.7, -1.6, -1.05, roofUnder(roof, 1.25) - 0.1, d.ridge + 0.55);
+        woodStack(s, wallsOf(W, D).right, -2.3, 0.0, 1.3, 0.42);
       },
     };
   }
@@ -193,10 +223,36 @@ function planOf(kind: CabinKind): Plan {
       snow: 0.38,
       extras: (s, lod) => {
         gableRoof(s, porch, [1]);
-        roofSnow(s, porch, 0.28, lod ? 1 : 4, 11, [1], true);
+        roofSnow(s, porch, 0.28, lod ? 1 : 2, 11, [1], true);
         const z1 = D / 2 + d.reach.front - 0.15;
-        box(s, -W / 2 - 0.1, -0.22, D / 2, W / 2 + 0.1, 0, z1 + 0.1, P.board[1], P.board[0]);
-        box(s, -0.8, -0.5, z1 + 0.1, 0.8, -0.26, z1 + 0.45, P.board[1], P.board[0]);
+        box(
+          s,
+          -W / 2 - 0.1,
+          -0.22,
+          D / 2,
+          W / 2 + 0.1,
+          0,
+          z1 + 0.1,
+          P.board[1],
+          P.board[0],
+          ["y-"],
+          FACADE.timber,
+          FACADE.boards,
+        );
+        box(
+          s,
+          -0.8,
+          -0.5,
+          z1 + 0.1,
+          0.8,
+          -0.26,
+          z1 + 0.45,
+          P.board[1],
+          P.board[0],
+          ["y-"],
+          FACADE.timber,
+          FACADE.boards,
+        );
         for (const x of [-W / 2 + 0.2, -1.2, 1.2, W / 2 - 0.2]) {
           const top = roofUnder(porch, z1 - D / 2);
           s.tube([x, 0, z1 - 0.1], [x, top, z1 - 0.1], 0.1, 0.09, lod ? 4 : 6, P.log[0]);
@@ -205,14 +261,9 @@ function planOf(kind: CabinKind): Plan {
         // shoulder, then the flue to above the ridge.
         const x0 = -W / 2 - 0.85;
         const x1 = -W / 2 - 0.02;
-        if (lod === 0) {
-          chimney(s, x0, x1, -1.7, -0.3, -PLINTH, 2.3, 7);
-          chimney(s, x0 + 0.12, x1 - 0.12, -1.35, -0.65, 2.3, d.ridge + 0.75, 8);
-          woodStack(s, wallsOf(W, D).right, 0.75, 2.45, 1.35, 0.42);
-        } else {
-          box(s, x0, -PLINTH, -1.7, x1, 2.3, -0.3, P.stone[0]);
-          box(s, x0 + 0.12, 2.3, -1.35, x1 - 0.12, d.ridge + 0.75, -0.65, P.stone[0]);
-        }
+        chimney(s, x0, x1, -1.7, -0.3, -PLINTH, 2.3);
+        chimney(s, x0 + 0.12, x1 - 0.12, -1.35, -0.65, 2.3, d.ridge + 0.75);
+        woodStack(s, wallsOf(W, D).right, 0.75, 2.45, 1.35, 0.42);
       },
     };
   }
@@ -253,33 +304,43 @@ function planOf(kind: CabinKind): Plan {
       ],
       shutter: P.shutter[0],
       snow: 0.5,
-      extras: (s, lod) => {
+      extras: (s) => {
         // The rendered stone floor, its corners laid in quoins.
         const walls = wallsOf(W, D);
         for (const [name, wall] of Object.entries(walls)) {
           const half = name === "front" || name === "back" ? W / 2 : D / 2;
           const holes = planHoles("chalet").filter((h) => h.wall === name && h.y1 <= floor);
-          plate(s, wall, -half, half, 0, floor, 0, holes, P.render);
-          if (lod === 0) {
-            for (let i = 0; i < 6; i++) {
-              const y0 = (i * floor) / 6;
-              const y1 = ((i + 1) * floor) / 6;
-              const long = i % 2 ? 0.55 : 0.35;
-              for (const [ua, ub] of [
-                [-half, -half + long],
-                [half - long, half],
-              ]) {
-                const tone = P.stone[(i + (ua < 0 ? 1 : 2)) % 4];
-                s.quad(
-                  on(wall, ua, y0 + 0.02, 0.025),
-                  on(wall, ub, y0 + 0.02, 0.025),
-                  on(wall, ub, y1 - 0.02, 0.025),
-                  on(wall, ua, y1 - 0.02, 0.025),
-                  tone,
-                  [wall.nx, 0, wall.nz],
-                );
-              }
-            }
+          plate(s, wall, -half, half, 0, floor, 0, holes, P.white, FACADE.render);
+          // The quoins: a strip of long and short stones up each corner, the
+          // courses of one face against the other's half a pair up.
+          const lift = name === "front" || name === "back" ? 0 : 0.5;
+          const pair = floor / 3;
+          for (const k of [-1, 1]) {
+            const ua = k < 0 ? -half : half;
+            const ub = ua - k * 0.6;
+            face(
+              s,
+              on(wall, k < 0 ? ua : ub, 0, 0.025),
+              on(wall, k < 0 ? ub : ua, 0, 0.025),
+              on(wall, k < 0 ? ub : ua, floor, 0.025),
+              on(wall, k < 0 ? ua : ub, floor, 0.025),
+              k < 0
+                ? [
+                    [0, lift],
+                    [1, lift],
+                    [1, lift + floor / pair],
+                    [0, lift + floor / pair],
+                  ]
+                : [
+                    [1, lift],
+                    [0, lift],
+                    [0, lift + floor / pair],
+                    [1, lift + floor / pair],
+                  ],
+              FACADE.quoins,
+              P.white,
+              [wall.nx, 0, wall.nz],
+            );
           }
           // The floor's beam the logs stand on.
           wallBox(s, wall, -half - 0.05, half + 0.05, floor - 0.12, floor, -0.1, 0.06, P.log[1]);
@@ -288,7 +349,20 @@ function planOf(kind: CabinKind): Plan {
         const z0 = D / 2;
         const z1 = D / 2 + 1.35;
         const x = W / 2 + 0.25;
-        box(s, -x, floor - 0.16, z0, x, floor, z1, P.board[1], P.board[0]);
+        box(
+          s,
+          -x,
+          floor - 0.16,
+          z0,
+          x,
+          floor,
+          z1,
+          P.board[1],
+          P.board[0],
+          ["y-"],
+          FACADE.timber,
+          FACADE.boards,
+        );
         const rail: Wall[] = [
           { x: 0, z: z1, ux: 1, uz: 0, nx: 0, nz: 1 },
           { x: x, z: (z0 + z1) / 2, ux: 0, uz: -1, nx: 1, nz: 0 },
@@ -296,28 +370,63 @@ function planOf(kind: CabinKind): Plan {
         ];
         rail.forEach((w, i) => {
           const half = i === 0 ? x : (z1 - z0) / 2;
-          wallBox(s, w, -half, half, floor + 0.95, floor + 1.05, -0.06, 0.02, P.board[0], P.snow);
-          wallBox(s, w, -half, half, floor + 0.05, floor + 0.13, -0.05, 0.01, P.board[1]);
-          // The cut boards between, close set.
-          const step = lod ? 0.6 : 0.26;
-          for (let u = -half + 0.12; u < half - 0.05; u += step) {
-            wallBox(
+          wallBox(
+            s,
+            w,
+            -half,
+            half,
+            floor + 0.95,
+            floor + 1.05,
+            -0.06,
+            0.02,
+            P.board[0],
+            P.snow,
+            FACADE.timber,
+          );
+          wallBox(
+            s,
+            w,
+            -half,
+            half,
+            floor + 0.05,
+            floor + 0.13,
+            -0.05,
+            0.01,
+            P.board[1],
+            P.board[1],
+            FACADE.timber,
+          );
+          // The cut boards between, close set, a shape sawn out of every
+          // other joint: painted on the panel's two faces.
+          const n = Math.round((2 * half) / 1.04);
+          for (const [o, sg] of [
+            [-0.02, 1],
+            [-0.05, -1],
+          ] as const) {
+            const ua = sg > 0 ? -half : half;
+            const ub = -ua;
+            face(
               s,
-              w,
-              u - 0.065,
-              u + 0.065,
-              floor + 0.13,
-              floor + 0.95,
-              -0.05,
-              -0.02,
+              on(w, ua, floor + 0.13, o),
+              on(w, ub, floor + 0.13, o),
+              on(w, ub, floor + 0.95, o),
+              on(w, ua, floor + 0.95, o),
+              [
+                [0, 0],
+                [n, 0],
+                [n, 1],
+                [0, 1],
+              ],
+              FACADE.balustrade,
               P.board[i % 2],
+              [w.nx * sg, 0, w.nz * sg],
             );
           }
         });
         for (const xx of [-x + 0.2, x - 0.2]) {
           s.tube([xx, floor - 1.0, z0], [xx, floor - 0.12, z1 - 0.1], 0.07, 0.07, 4, P.log[1]);
         }
-        chimney(s, 0.8, 1.45, -2.6, -1.95, roofUnder(roof, 0.8) - 0.1, d.ridge + 0.85, 5);
+        chimney(s, 0.8, 1.45, -2.6, -1.95, roofUnder(roof, 0.8) - 0.1, d.ridge + 0.85);
       },
     };
   }
@@ -345,59 +454,53 @@ function planOf(kind: CabinKind): Plan {
       const hi = d.walls;
       const lo = 1.6;
       const yAt = (z: number): number => lo + ((z + D / 2) / D) * (hi - lo);
-      const boards = (x0: number, z0: number, x1: number, z1: number, n: number, out: V3): void => {
-        for (let i = 0; i < n; i++) {
-          const ta = i / n;
-          const tb = (i + 1) / n;
-          const ax = x0 + (x1 - x0) * ta;
-          const az = z0 + (z1 - z0) * ta;
-          const bx = x0 + (x1 - x0) * tb;
-          const bz = z0 + (z1 - z0) * tb;
-          s.quad(
-            [ax, 0, az],
-            [bx, 0, bz],
-            [bx, yAt(bz), bz],
-            [ax, yAt(az), az],
-            P.board[i % 2],
-            out,
-          );
-        }
+      // The walls' boards, painted: one face a wall, its top along the
+      // roof's fall.
+      const boards = (x0: number, z0: number, x1: number, z1: number, out: V3): void => {
+        const L = Math.hypot(x1 - x0, z1 - z0) / 2.4;
+        face(
+          s,
+          [x0, 0, z0],
+          [x1, 0, z1],
+          [x1, yAt(z1), z1],
+          [x0, yAt(z0), z0],
+          [
+            [0, 0],
+            [L, 0],
+            [L, yAt(z1) / 2.4],
+            [0, yAt(z0) / 2.4],
+          ],
+          FACADE.boards,
+          P.white,
+          out,
+        );
       };
-      const n = lod ? 1 : 10;
-      boards(W / 2, -D / 2, -W / 2, -D / 2, n, [0, 0, -1]);
-      boards(-W / 2, -D / 2, -W / 2, D / 2, lod ? 1 : 7, [-1, 0, 0]);
-      boards(W / 2, D / 2, W / 2, -D / 2, lod ? 1 : 7, [1, 0, 0]);
+      boards(W / 2, -D / 2, -W / 2, -D / 2, [0, 0, -1]);
+      boards(-W / 2, -D / 2, -W / 2, D / 2, [-1, 0, 0]);
+      boards(W / 2, D / 2, W / 2, -D / 2, [1, 0, 0]);
       for (const [x, z] of [
         [-W / 2, D / 2],
         [W / 2, D / 2],
       ]) {
-        box(s, x - 0.07, 0, z - 0.14, x + 0.07, hi, z, P.log[1]);
+        box(s, x - 0.07, 0, z - 0.14, x + 0.07, hi, z, P.log[1], P.log[1], ["y-"], FACADE.timber);
       }
-      box(s, -W / 2, hi - 0.16, D / 2 - 0.14, W / 2, hi, D / 2, P.log[1]);
+      box(
+        s,
+        -W / 2,
+        hi - 0.16,
+        D / 2 - 0.14,
+        W / 2,
+        hi,
+        D / 2,
+        P.log[1],
+        P.log[1],
+        ["y-"],
+        FACADE.timber,
+      );
       const front: Wall = { x: 0, z: D / 2 - 0.2, ux: 1, uz: 0, nx: 0, nz: 1 };
-      if (lod === 0) woodStack(s, front, -W / 2 + 0.12, W / 2 - 0.12, 1.55, D - 0.5, -(D - 0.5));
-      else {
-        // The far cut's stack: the ends in two shaded bands, not a flat
-        // pale face that flashes on the far side of the valley.
-        for (let b = 0; b < 3; b++) {
-          const y0 = (b * 1.55) / 3;
-          const y1 = ((b + 1) * 1.55) / 3;
-          wallBox(
-            s,
-            front,
-            -W / 2 + 0.12,
-            W / 2 - 0.12,
-            y0,
-            y1,
-            -(D - 0.5),
-            0,
-            P.stackFar[b % 2],
-            P.logLow,
-          );
-        }
-      }
+      woodStack(s, front, -W / 2 + 0.12, W / 2 - 0.12, 1.55, D - 0.5, -(D - 0.5));
       gableRoof(s, roof, [1]);
-      roofSnow(s, roof, 0.3, lod ? 1 : 3, 17, [1], true);
+      roofSnow(s, roof, 0.3, lod ? 1 : 2, 17, [1], true);
     },
   };
 }
@@ -424,11 +527,12 @@ function plate(
   o: number,
   holes: readonly Hole[],
   c: THREE.Color,
+  layer: FacadeLayer = FACADE.matte,
 ): void {
   const n: V3 = [w.nx, 0, w.nz];
   const q = (a: number, b: number, ya: number, yb: number): void => {
     if (b - a < 1e-3 || yb - ya < 1e-3) return;
-    s.quad(on(w, a, ya, o), on(w, b, ya, o), on(w, b, yb, o), on(w, a, yb, o), c, n);
+    laid(s, on(w, a, ya, o), on(w, b, ya, o), on(w, b, yb, o), on(w, a, yb, o), layer, c, n, a, ya);
   };
   const cut = holes
     .filter((h) => h.y1 > y0 && h.y0 < y1)
@@ -513,9 +617,21 @@ function logWalls(s: Shape, kind: CabinKind, plan: Plan): void {
         u = h.u + h.w / 2 + 0.02;
       }
       spans.push([u, b]);
+      // The top's flat is drawn only where no full course sits on it.
+      const next = y + pitch;
+      const flat = !(next <= y1 - r * 0.5 && next + r * 0.866 <= top);
       for (const [ua, ub] of spans) {
         if (ub - ua < 0.05) continue;
-        logBar(s, on(w, ua, y, o), on(w, ub, y, o), r, col, caps && ua === a, caps && ub === b);
+        logBar(
+          s,
+          on(w, ua, y, o),
+          on(w, ub, y, o),
+          r,
+          col,
+          caps && ua === a,
+          caps && ub === b,
+          flat,
+        );
       }
     }
   }
@@ -544,7 +660,7 @@ export function porchOf(kind: CabinKind): number {
 
 /** THE PLINTH: dressed stone round the footprint (and under a porch's
  * deck), carried down past any terrace. */
-function plinth(s: Shape, kind: CabinKind, lod: CabinLod): void {
+function plinth(s: Shape, kind: CabinKind): void {
   const d = CABINS[kind];
   const W = d.width + 0.12 + (kind === "afterski" ? 1.2 : 0);
   const front = porchOf(kind);
@@ -562,66 +678,105 @@ function plinth(s: Shape, kind: CabinKind, lod: CabinLod): void {
   walls.forEach((w, i) => {
     const half = i < 2 ? W / 2 : D / 2;
     const top = front > 0 ? (kind === "afterski" ? DECK.top - DECK.thick : -0.22) : 0;
-    if (lod === 0) stoneFace(s, w, -half, half, -1.3, top, 0, 0.34, 0.6, i + 7);
-    else
-      s.quad(
-        on(w, -half, -1.3, 0),
-        on(w, half, -1.3, 0),
-        on(w, half, top, 0),
-        on(w, -half, top, 0),
-        P.stone[0],
-        [w.nx, 0, w.nz],
-      );
-    s.quad(
-      on(w, -half, -deep, 0),
-      on(w, half, -deep, 0),
-      on(w, half, -1.3, 0),
-      on(w, -half, -1.3, 0),
-      P.stone[3],
-      [w.nx, 0, w.nz],
-    );
+    stoneFace(s, w, -half, half, -deep, top, 0);
   });
 }
 
-/** THE FAR CUT's walls: each a flat face of logs (two tones in bands) cut
- * round nothing, its windows dark panes laid over it — lit at night. */
+/** THE FAR CUT's walls: each one flat face painted as its courses of logs
+ * (`FACADE.logWall`, the courses where the near cut's lie), and its
+ * openings painted on it — the casements lit at night, their shutters
+ * beside them, the plank doors. */
 function farWalls(s: Shape, kind: CabinKind, plan: Plan): void {
   const d = CABINS[kind];
   const walls = wallsOf(d.width, d.depth);
   const half = { front: d.width / 2, back: d.width / 2, left: d.depth / 2, right: d.depth / 2 };
   const roof = plan.roof;
+  const pitch = plan.log * 1.732 + 0.028;
+  const [y0, y1] = plan.logs;
   for (const name of ["front", "back", "left", "right"] as const) {
     const w = walls[name];
     const L = half[name];
-    const [y0, y1] = plan.logs;
-    const bands = 3;
-    for (let i = 0; i < bands; i++) {
-      const ya = y0 + ((y1 - y0) * i) / bands;
-      const yb = y0 + ((y1 - y0) * (i + 1)) / bands;
-      s.quad(on(w, -L, ya, 0), on(w, L, ya, 0), on(w, L, yb, 0), on(w, -L, yb, 0), P.log[i % 2], [
-        w.nx,
-        0,
-        w.nz,
-      ]);
-    }
+    const n: V3 = [w.nx, 0, w.nz];
+    // The courses: four to the tile, centred where the near cut's are.
+    const lift = name === "front" || name === "back" ? 0 : 0.5;
+    const uv = (u: number, y: number): [number, number] => [
+      (u + L) / 3,
+      ((y - y0) / pitch - lift) / 4,
+    ];
     const gable =
       plan.ridge === "z"
         ? name === "front" || name === "back"
         : name === "left" || name === "right";
-    if (gable)
-      s.tri(on(w, -L, y1, 0), on(w, L, y1, 0), on(w, 0, roof.ridge, 0), P.log[1], [w.nx, 0, w.nz]);
+    const p = (u: number, y: number): V3 => on(w, u, y, 0);
+    face(
+      s,
+      p(-L, y0),
+      p(L, y0),
+      p(L, y1),
+      p(-L, y1),
+      [uv(-L, y0), uv(L, y0), uv(L, y1), uv(-L, y1)],
+      FACADE.logWall,
+      P.white,
+      n,
+    );
+    if (gable) {
+      face(
+        s,
+        p(-L, y1),
+        p(L, y1),
+        p(0, roof.ridge),
+        p(0, roof.ridge),
+        [uv(-L, y1), uv(L, y1), uv(0, roof.ridge), uv(0, roof.ridge)],
+        FACADE.logWall,
+        P.white,
+        n,
+      );
+    }
     for (const h of plan.holes.filter((hh) => hh.wall === name)) {
-      s.mark("glow", h.door ? 0 : 1);
-      const c = h.door ? P.door[0] : P.glass;
-      s.quad(
-        on(w, h.u - h.w / 2, h.y0, 0.02),
-        on(w, h.u + h.w / 2, h.y0, 0.02),
-        on(w, h.u + h.w / 2, h.y1, 0.02),
-        on(w, h.u - h.w / 2, h.y1, 0.02),
-        c,
-        [w.nx, 0, w.nz],
+      const u0 = h.u - h.w / 2;
+      const u1 = h.u + h.w / 2;
+      if (h.door) {
+        wallFace(s, w, u0, u1, h.y0, h.y1, 0.02, FACADE.plankDoor, P.white);
+        continue;
+      }
+      s.mark("glow", 1);
+      wallFace(
+        s,
+        w,
+        u0 - 0.09,
+        u1 + 0.09,
+        h.y0 - 0.09,
+        h.y1 + 0.09,
+        0.03,
+        FACADE.casement,
+        P.white,
       );
       s.mark("glow", 0);
+      if (plan.shutter) {
+        const sw = (u1 - u0) / 2 + 0.04;
+        wallFace(
+          s,
+          w,
+          u0 - 0.1 - sw,
+          u0 - 0.1,
+          h.y0 - 0.04,
+          h.y1 + 0.04,
+          0.06,
+          FACADE.boardShutter,
+          plan.shutter,
+        );
+        wallFace(
+          s,
+          w,
+          u1 + 0.1,
+          u1 + 0.1 + sw,
+          h.y0 - 0.04,
+          h.y1 + 0.04,
+          0.06,
+          FACADE.boardShutter,
+          plan.shutter,
+        );
+      }
     }
   }
 }
@@ -632,7 +787,7 @@ export function buildCabin(kind: CabinKind, lod: CabinLod = 0): THREE.BufferGeom
   const plan = planOf(kind);
   const d = CABINS[kind];
   const walls = wallsOf(d.width, d.depth);
-  plinth(s, kind, lod);
+  plinth(s, kind);
   if (plan.log > 0) {
     if (lod === 0) {
       logWalls(s, kind, plan);
@@ -654,7 +809,7 @@ export function buildCabin(kind: CabinKind, lod: CabinLod = 0): THREE.BufferGeom
   plan.extras(s, lod);
   if (kind !== "shed") {
     gableRoof(s, plan.roof);
-    roofSnow(s, plan.roof, plan.snow, lod ? 1 : 5, kind.length);
+    roofSnow(s, plan.roof, plan.snow, lod ? 1 : 3, kind.length);
   }
   return s.geometry();
 }

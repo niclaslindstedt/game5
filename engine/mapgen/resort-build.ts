@@ -51,9 +51,9 @@ import {
   GRADES,
   PISTE_GRADES,
   pisteGradeOf,
+  scaledRow,
   steepestSpan,
   type GradeRow,
-  type PisteGrade,
 } from "./grades.ts";
 import { layOffKickers, layTrackKickers, publishTrackKickers } from "./kickers.ts";
 import { routeLane } from "./lanes.ts";
@@ -98,7 +98,7 @@ import {
   type RunSpec,
   type WalkedRun,
 } from "./network.ts";
-import { gradeRun, networkStamp, onCore, stampRun } from "./network-build.ts";
+import { funnelInto, gradeRun, networkStamp, onCore, stampRun } from "./network-build.ts";
 import { headOnContour, placeStart, startTop } from "./run-start.ts";
 import { groomRampsV5, layRampsV5 } from "./summit-ramps-v5.ts";
 import { regionRow, type Region, type RegionId } from "./regions.ts";
@@ -111,9 +111,9 @@ import { gridOnTrack } from "./spawn.ts";
 import { courseDay } from "./course-day.ts";
 import { dealSun, faceTheSun } from "./sun.ts";
 import { foldSurface, layCrust } from "./surface.ts";
-import type { TerrainPlan } from "./terrain.ts";
+import { seaLevelOf, type TerrainPlan } from "./terrain.ts";
 import { compileLevel } from "./compile.ts";
-import { courseGates, hashPick } from "./course-gates.ts";
+import { courseGates } from "./course-gates.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import type {
   Cliff,
@@ -143,6 +143,8 @@ export type BuiltRun = {
 
 /** A resort, built — everything a map of it shares. */
 export type BuiltResort = {
+  /** R25 — the sea's height in the map's frame, m (`seaLevelOf`). */
+  seaY: number;
   seed: number;
   attempt: number;
   sub: number;
@@ -178,24 +180,6 @@ export type AccessCures = {
   homeLanes: number;
   homeDrags: number;
 };
-
-/** Kickers on a run, by its length, against the grade row's count for a
- * course: the row's band is a downhill course's, and a resort's runs are
- * shorter — a run of `KICKER_REACH` metres carries the row's whole band,
- * and any but a green at least one. */
-const KICKER_REACH = 2000;
-
-/** A row's kicker and drop counts scaled to a run's length. */
-function scaledRow(row: GradeRow, length: number): GradeRow {
-  const k = Math.min(1.4, length / KICKER_REACH);
-  const least = row.id === "green" || row.id === null ? 0 : 1;
-  const on = {
-    min: Math.max(least, Math.floor(row.kickers.on.min * k)),
-    max: Math.max(least, Math.round(row.kickers.on.max * k)),
-  };
-  const drops = { min: Math.floor(row.drops.min * k), max: Math.round(row.drops.max * k) };
-  return { ...row, kickers: { ...row.kickers, on }, drops };
-}
 
 /** The salt for a run's own streams. */
 const RUN_SALT = 0x2b1d5e7;
@@ -249,10 +233,17 @@ export function attemptResort(
   version: GeneratorVersion,
 ): BuiltResort | string {
   const rng = createRng(sub);
-  const plan = planMassif(rng, region);
-  const ground = bakeMassif(plan);
   const traits = generatorTraits(version);
+  const plan = planMassif(rng, region, traits.lowMassif);
+  const ground = bakeMassif(plan);
   const chained = !traits.queueBeside;
+  const stepped = traits.steppedJunctions === true;
+  const grade = (
+    run: WalkedRun,
+    row: GradeRow,
+    onto: WalkedRun | null,
+    pinned?: (x: number, z: number) => boolean,
+  ) => gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
   const shape = padShape(traits.levelPads, traits.looseTops);
@@ -413,9 +404,20 @@ export function attemptResort(
       (drag?.(x, z, half) ?? false) || offRooms(x, z, half);
     // A drag's own run that will not walk clear of its line walks as it
     // would; the drag is then laid again off it (`clearStations`).
-    const laid =
+    let laid =
       lay(before.length > 0 ? { ...fair, avoid } : fair, shared) ||
       (!!drag && lay({ ...fair, avoid: before.length > 0 ? offRooms : undefined }, shared));
+    // From v8 a piste the tall mountain is too steep to lay at its colour
+    // is walked again a colour harder (R27): a shoulder's blue comes down as
+    // a red where the face will not carry a blue.
+    const harder =
+      spec.kind === "piste" && spec.row.id
+        ? PISTE_GRADES[PISTE_GRADES.indexOf(spec.row.id) + 1]
+        : undefined;
+    if (!laid && !traits.lowMassif && harder) {
+      const again = { ...fair, row: GRADES[harder] };
+      laid = lay(before.length > 0 ? { ...again, avoid } : again, shared);
+    }
     if (laid && placed) rooms.push(placed);
   }
   const pistes = walked.filter((w) => w.spec.kind === "piste").length;
@@ -475,7 +477,7 @@ export function attemptResort(
       // the runs pressed before it, which differs only by their benches.
       const row = run.spec.kind === "road" ? ROAD_ROW : run.spec.row;
       const onto = run.into ? walked[run.into.run] : null;
-      let graded = gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto);
+      let graded = grade(run, row, onto);
       // A run the mountain made gentler than its colour starts as the
       // colour it measures (R12): graded again with that start.
       const measured = graded || road(run) ? null : runColour(run.points, onto?.points ?? null);
@@ -484,7 +486,7 @@ export function attemptResort(
         PISTE_GRADES.indexOf(measured) < PISTE_GRADES.indexOf(run.spec.row.id ?? "black")
       ) {
         run.startSlope = GRADES[measured].spawn.maxSlope;
-        graded = gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto);
+        graded = grade(run, row, onto);
       }
       if (graded) {
         why.push(graded);
@@ -528,20 +530,21 @@ export function attemptResort(
     // A run that will not grade onto the runs before it is left out, and
     // every run that merges into it with it.
     const onto = w.into ? walked[w.into.run] : null;
+    if (onto && !stepped) funnelInto(w, onto);
     let why = lost.has(i)
       ? "no lift or lane brings a skier back to its top without a harder run (R29)"
       : w.into && dropped.has(w.into.run)
         ? "the run it merges into was left out"
         : w.spec.branch && dropped.has(w.spec.branch.run)
           ? "the run it leaves was left out"
-          : gradeRun(w, ground, row.track.maxGrade, colourCap(w), onto, pressed);
+          : grade(w, row, onto, pressed);
     // A run walked as gentler than its colour that grades out its colour
     // on the pressed mountain starts as its colour again (R12).
     if (!why && w.startSlope !== undefined) {
       const measured = runColour(w.points, onto?.points ?? null);
       if (PISTE_GRADES.indexOf(measured) >= PISTE_GRADES.indexOf(w.spec.row.id ?? "black")) {
         w.startSlope = undefined;
-        why = gradeRun(w, ground, row.track.maxGrade, colourCap(w), onto, pressed);
+        why = grade(w, row, onto, pressed);
       }
     }
     if (why) {
@@ -562,7 +565,7 @@ export function attemptResort(
     const drops = publishDrops(w, trackDrops);
     const kickers = publishTrackKickers(w, trackKickers);
     const drifts = road ? [] : dealDrifts(runSub, w.length, kickers, row.drift, drops, keepOff);
-    stampRun(w, ground, packed, stamp, drifts, w.into ? walked[w.into.run] : null);
+    stampRun(w, ground, packed, stamp, drifts, w.into ? walked[w.into.run] : null, stepped);
     built.push({
       walked: w,
       run: {
@@ -804,6 +807,7 @@ export function attemptResort(
   }
   if (courses.length === 0) return "no course runs down the network to the village";
   return {
+    seaY: seaLevelOf(plan, ground, village),
     seed,
     attempt,
     sub,
@@ -925,7 +929,7 @@ export function resortLevel(
   return {
     ...compileLevel({
       seed: b.seed,
-      size: R.world.size,
+      size: b.plan.size,
       ground: b.ground,
       packed: b.packed,
       points,
@@ -947,8 +951,11 @@ export function resortLevel(
         summit: { x: b.plan.massif?.peakX ?? 0, z: b.plan.summitZ, y: base.y + b.plan.vertical },
         base,
         vertical: b.plan.vertical,
-        altitude: b.plan.altitude,
-        treeLine: b.plan.treeLine,
+        // The village's altitude over the sea, and the tree line the plan's
+        // height over the floor above it (R21).
+        altitude: b.village.y - b.seaY,
+        treeLine: b.village.y - b.seaY + (b.plan.treeLine - b.plan.altitude),
+        sea: b.seaY,
       },
       attempt: b.attempt,
       drifts,
@@ -968,33 +975,6 @@ export function resortLevel(
       tunnels: b.tunnels,
     },
   };
-}
-
-/** R28 — which course a map asks for: by id, else of the colour asked (or
- * the nearest colour there is), else the seed's. */
-export function chooseCourse(
-  b: BuiltResort,
-  ask: { course?: string; grade?: PisteGrade; dealt: PisteGrade },
-): number {
-  if (ask.course !== undefined) {
-    const i = b.courses.findIndex((c) => c.course.id === ask.course);
-    if (i >= 0) return i;
-  }
-  const want = ask.grade ?? ask.dealt;
-  const order = ["green", "blue", "red", "black"] as const;
-  const wi = order.indexOf(want);
-  let best = 0;
-  let bestScore = Infinity;
-  b.courses.forEach((c, i) => {
-    const d = Math.abs(order.indexOf(c.course.grade) - wi);
-    // Nearest colour, the harder on a tie, then the seed's own pick.
-    const score = d * 4 - (order.indexOf(c.course.grade) > wi ? 1 : 0) + hashPick(b.seed, i) * 0.5;
-    if (score < bestScore) {
-      bestScore = score;
-      best = i;
-    }
-  });
-  return best;
 }
 
 export { BENCH, GRADES };

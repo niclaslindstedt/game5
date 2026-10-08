@@ -264,6 +264,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     holdJoints(P, L);
     holdLinks(P);
     calm(P, L, before);
+    if (b.pin) pinned(P, L, b.pin);
     for (let i = 0; i < N; i++) {
       const j = 3 * i;
       P[j] = clamp(P[j], lo, hi);
@@ -287,6 +288,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
       }
     }
   }
+  if (b.pin) pinned(P, L, b.pin);
   // Along the snow: what every point on it loses of its way.
   let touching = false;
   let planted = 0;
@@ -658,6 +660,14 @@ function calm(P: number[], L: number[], before: number): void {
 
 /** Every distance the body holds, each pulled back to its length — the
  * lighter end moved the more. */
+/** RUN THROUGH (`gore.ts`): the point on the spike held there, still. */
+function pinned(P: number[], L: number[], at: { point: number; x: number; y: number; z: number }) {
+  const j = 3 * at.point;
+  P[j] = L[j] = at.x;
+  P[j + 1] = L[j + 1] = at.y;
+  P[j + 2] = L[j + 2] = at.z;
+}
+
 function holdLinks(P: number[]): void {
   for (let k = 0; k < LINKS.length; k += 3) {
     const i = 3 * LINKS[k];

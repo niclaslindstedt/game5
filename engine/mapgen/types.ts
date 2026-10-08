@@ -109,6 +109,11 @@ export interface Mountain {
   /** THE TREE LINE (R14), m above the sea — the region's own band. Above
    * it nothing grows; `altitude` + `vertical` is the summit's. */
   treeLine: number;
+  /** THE SEA's height in the map's frame, m: a point's altitude is its
+   * height less this (the HUD's ALT). From generator v8 the map's lowest
+   * ground stands 10–20 m over it (R25); before, the valley floor stands
+   * `altitude` over it. */
+  sea: number;
 }
 
 /** ONE TREE WELL (`engine/game/tree-well.ts`): the hollow round a trunk at

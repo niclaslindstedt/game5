@@ -124,7 +124,8 @@ function hasVenue(level: Level): boolean {
 
 /** A building's corners in plan — its walls' (`pad` 0) or wider — in the
  * world, from its middle and heading: the building's x is the heading's
- * right, its z the heading. */
+ * right, its z the heading; its middles too, and with `every` a point at
+ * least that often along and across, so nothing narrower slips between. */
 function rectPoints(
   kind: CabinKind,
   x: number,
@@ -132,6 +133,7 @@ function rectPoints(
   heading: number,
   roof: boolean,
   pad: number,
+  every = Infinity,
 ): [number, number][] {
   const d = CABINS[kind];
   const r = roof ? d.reach : { side: 0, back: 0, front: 0 };
@@ -142,10 +144,12 @@ function rectPoints(
   const fx = Math.sin(heading);
   const fz = Math.cos(heading);
   const out: [number, number][] = [];
-  for (const u of [0, 0.5, 1]) {
-    for (const v of [0, 0.5, 1]) {
-      const lx = x0 + (x1 - x0) * u;
-      const lz = z0 + (z1 - z0) * v;
+  const nu = Math.max(2, Math.ceil((x1 - x0) / every));
+  const nv = Math.max(2, Math.ceil((z1 - z0) / every));
+  for (let i = 0; i <= nu; i++) {
+    for (let j = 0; j <= nv; j++) {
+      const lx = x0 + ((x1 - x0) * i) / nu;
+      const lz = z0 + ((z1 - z0) * j) / nv;
       // Right of the heading is (cos h, −sin h).
       out.push([x + lx * fz + lz * fx, z - lx * fx + lz * fz]);
     }
@@ -223,7 +227,7 @@ function placeCabins(level: Level): Cabin[] {
     const edge = radius + 40;
     if (x < edge || z < edge || x > level.size - edge || z > level.size - edge) return null;
     // Off every run's snow, by the packed field and by every run's line.
-    for (const [px, pz] of rectPoints(kind, x, z, heading, kind !== "afterski", 2)) {
+    for (const [px, pz] of rectPoints(kind, x, z, heading, kind !== "afterski", 2, 3)) {
       if (level.packedAt(px, pz) > 0.25) return null;
       if ((level.iceAt?.(px, pz) ?? 0) > 0) return null;
       if (!clearOfLifts(level, px, pz)) return null;

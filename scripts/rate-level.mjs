@@ -17,8 +17,7 @@
 //   make rate CAMPAIGN=1                 the committed ladder, audited as a
 //                                        set: every map rebuilt on its own
 //                                        version and held to its digest, the
-//                                        bot's time on it (and a trial's
-//                                        medals against it), does every
+//                                        bot's time on it, does every
 //                                        rung ask more than the one before,
 //                                        is any pair the same map twice
 //   make rate RACE=superG                a discipline's nine race maps (slalom,
@@ -233,15 +232,9 @@ async function auditCampaign() {
       const row = rowOf(pinned.id, level, { sky: campaignSky(pinned), runSeconds });
       printRow(row);
       const bot = run.finished ? `${f(run.time, 1)} s top to bottom` : "DID NOT FINISH";
-      const medals = pinned.medals
-        ? ` · medals gold ${pinned.medals.gold} / silver ${pinned.medals.silver} / bronze ${pinned.medals.bronze} s`
-        : "";
       console.log(
-        `  ${pinned.mode} "${pinned.name}" — course ${pinned.course} (${pinned.grade}), the bot ${bot}${medals}`,
+        `  ${pinned.mode} "${pinned.name}" — course ${pinned.course} (${pinned.grade}), the bot ${bot}`,
       );
-      if (pinned.medals && run.finished && run.time > pinned.medals.bronze) {
-        console.log(`  !! the bot is slower than ${pinned.id}'s bronze — the door would be shut`);
-      }
       if (row.rating.stats.grade !== pinned.grade) {
         console.log(
           `  !! ${pinned.id} pins a ${pinned.grade} and measures ${row.rating.stats.grade}`,

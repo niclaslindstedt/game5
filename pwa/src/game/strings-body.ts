@@ -9,7 +9,7 @@
 // these are the words. They say WHAT is hurt, plainly — a torn ligament, a
 // broken bone, a bruised kidney — and nothing about how it looks.
 
-import type { BodyPart, InjuryKind } from "@engine";
+import type { BodyPart, DeathCause, InjuryKind } from "@engine";
 
 /** Which side a paired part is on, as the line says it: `LEFT ` / `RIGHT `
  * (with the space), and nothing for a part of the trunk. */
@@ -131,6 +131,12 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
 export type BodyCondition = "sound" | "bruised" | "hurt" | "injured" | "serious" | "critical";
 
 export const BODY_STRINGS = {
+  /** OPTIONS ▸ INJURIES: the switch over the body plate and the g meter. */
+  optInjuries: "INJURIES",
+  optInjuriesHint:
+    "The body plate and the g meter: what a fall hurts, bone by bone. Off for a younger player — the crashes stay, the injuries go.",
+  optInjuriesLocked:
+    "Off: this device's content restrictions for a child's account hide the body plate and the g meter.",
   /** One injury's line. */
   injury: (kind: InjuryKind, part: BodyPart): string => INJURY_WORDS[kind](sideWord(part)),
   /** ...and how many more there are than the panel lists. */
@@ -151,4 +157,21 @@ export const BODY_STRINGS = {
   gUnit: "G",
   /** The run's hardest blow he fell on so far, under the body. */
   hardest: (g: number): string => `HARDEST ${Math.round(g)} G`,
+  /** HIS DEATH, on an injuries run (`hud-wreck.ts`): the word, what of,
+   * and what comes next. */
+  died: "DIED",
+  diedOf: {
+    head: "HEAD TORN OFF",
+    crush: "SKULL CRUSHED",
+    impaled: "RUN THROUGH",
+    opened: "TORN OPEN",
+    torn: "TORN IN TWO",
+    bled: "BLED OUT",
+    trauma: "INJURIES PAST SAVING",
+    fire: "BURNED",
+    maul: "TORN IN TWO BY THE GRIMBEAR",
+    machine: "UNDER THE PISTE MACHINE",
+    blast: "BLOWN APART",
+  } satisfies Record<DeathCause, string>,
+  diedAgain: "A NEW RIDER AT THE TOP",
 };

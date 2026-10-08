@@ -150,7 +150,29 @@ export const PRESETS = [
   }),
   sledAt("off a crest, revving free", 22, { rev: 1, throttle: 1, load: 0, belt: 40 }),
   sledAt("left idling, 60 m off", 0, { rev: 0, distance: 60 }),
+  // THE HOT AIR BALLOON: stood in its basket (drifting with the wind, so
+  // no air past him) between burns, burning, venting, alight; and heard
+  // from below as it flies on without him.
+  balloonAt("in the basket, the pilot lit", {}),
+  balloonAt("in the basket, burning", { flame: 1 }),
+  balloonAt("in the basket, venting", { vent: 1, heat: 0.7 }),
+  balloonAt("the envelope on fire", { fire: 1, pilot: 0 }),
+  balloonAt("burning, 150 m off", { flame: 1, distance: 150 }),
 ];
+
+/** A balloon preset over silence: the skier stood still in no wind, and
+ * the balloon as `balloon` sets it. */
+function balloonAt(name, balloon) {
+  return {
+    name,
+    rush: { wind: 0, crouch: 0, airborne: true },
+    snow: on("groomed", { pace: 0, edge: 0, skid: 0, airborne: true }),
+    balloon: { pilot: 1, distance: 2.4, ...balloon },
+  };
+}
+
+/** A preset that says nothing of the balloon has it far off and cold. */
+export const NO_BALLOON = { flame: 0, pilot: 0, vent: 0, heat: 0, fire: 0, distance: 2000 };
 
 /** A snowmobile preset over silence: the skier in `wind` m/s of air, and the
  * machine as `sled` sets it. */

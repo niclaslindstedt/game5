@@ -72,17 +72,22 @@ import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
 import { freshGatePoles } from "./gate-poles.ts";
 import { clipCrowd, createCrowd, stepCrowd } from "./crowd.ts";
+import { dealEnthusiasts, nightOver, stepEnthusiasts } from "./enthusiasts.ts";
+import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
+import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
 import { startPara } from "./para.ts";
+import { startBalloon } from "./balloon.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
 import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
+import { freshGore } from "./gore-state.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -160,6 +165,10 @@ export type CreateGameOptions = {
   /** How many amateurs are out on the ski area (`crowd.ts`); the mode's
    * own when left out — the free ride's crowd, nobody on any other. */
   crowd?: number;
+  /** How many ENTHUSIASTS are out on a free ride (`enthusiasts.ts`):
+   * `ENTHUSIASTS.count` after dark with the crowd left to the hour, none
+   * otherwise, when left out. */
+  enthusiasts?: number;
   /** The skis; the all-mountain pair when left out. */
   spec?: SkiSpec;
   /** The arcade's help for the player's own skiing (`Assist`); every hand on
@@ -168,6 +177,12 @@ export type CreateGameOptions = {
   /** Whether blows dull the player's edges (`damage.ts`); off when left
    * out. */
   damage?: boolean;
+  /** Whether the player's run is MORTAL (`gore.ts`): a blow past what a
+   * body survives tears a limb off, opens him or kills him, a body thrown
+   * onto a tree's top is run through, and a mortal wound is never stood
+   * back up — the app's to end. Off when left out, and then nothing of it
+   * runs: the INJURIES switch's (`settings.ts`). */
+  gore?: boolean;
   /** How much the player can take before he goes down, 0 a club skier …
    * 1 a professional (`SkierState.resilience`); 1 when left out. The
    * field's is its own, dealt at the start line. */
@@ -207,6 +222,11 @@ export type CreateGameOptions = {
    * wing inflated over him. Wins over `byLift`, `spawn` and the machines.
    * Ignored by every mode but the free ride. */
   para?: boolean;
+  /** A FREE RIDE begun IN A HOT AIR BALLOON (`balloon.ts`): stood in its
+   * basket on the valley floor, the envelope inflated over him and held on
+   * its tether. Wins over every other start but the lodge's. Ignored by
+   * every mode but the free ride. */
+  balloon?: boolean;
   /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
    * the party under way and his skis in the rack. Wins over every other
    * start. Ignored by every mode without lodges. */
@@ -288,7 +308,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     stunts: base.stunts,
     limit: base.limit,
     airGravity: base.airGravity,
-    crowd: Math.max(0, Math.round(options.crowd ?? base.crowd)),
+    // AFTER DARK the crowd has gone in (`enthusiasts.ts`); asked for, it
+    // is out whatever the hour.
+    crowd: Math.max(0, Math.round(options.crowd ?? (nightOver(level) ? 0 : base.crowd))),
     lifts: base.lifts,
     heli: base.heli,
     sled: base.sled,
@@ -421,6 +443,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     rules,
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
+    ...(options.gore ? { gore: freshGore() } : {}),
     snowDepth: clampSnowDepth(options.snowDepth),
     fresh: Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
@@ -445,18 +468,23 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (rules.afterski) state.afterski = freshAfterski();
-  const para = free && options.para === true;
-  if (state.heli && options.heli && !para) startAgain(state, []);
-  if (state.sled && options.sled && !(state.heli && options.heli) && !para) startSled(state, []);
+  const balloon = free && options.balloon === true && !options.inLodge;
+  const para = free && options.para === true && !balloon;
+  if (state.heli && options.heli && !para && !balloon) startAgain(state, []);
+  if (state.sled && options.sled && !(state.heli && options.heli) && !para && !balloon) {
+    startSled(state, []);
+  }
   if (para) startPara(state, []);
+  if (balloon) startBalloon(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.
   const lifted =
     free &&
     options.byLift &&
-    !options.inLodge &&
+    !(options.inLodge && lodgesOf(level).length > 0) &&
     !para &&
+    !balloon &&
     !(state.heli && options.heli) &&
     !(state.sled && options.sled)
       ? options.spawn
@@ -495,11 +523,18 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     state.aerial = freshAerial(planOf(options));
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
+  // ...and the few keen skiers still lapping the lit runs instead.
+  const keen =
+    options.enthusiasts ??
+    (free && options.crowd === undefined && nightOver(level) ? ENTHUSIASTS.count : 0);
+  if (free && keen > 0) dealEnthusiasts(state, keen);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
     state.groomers = freshGroomers(state);
   }
+  // THE SNOW GUNS (`snow-guns.ts`), running in a thin season's cold.
+  if (free && rules.groomer && snowGunsRun(level)) state.machineSnow = machineSnowOf(level);
   // A run begun with a buzz, or inside the valley's lodge.
   if (options.buzz) state.skier.buzz = Math.max(0, Math.min(1, options.buzz));
   const lodge = free && options.inLodge ? lodgesOf(level)[0] : undefined;
@@ -554,6 +589,7 @@ export function step(state: GameState, input: SkierInput): GameState {
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).
   if (state.mogulTurns) stepMogulTurns(state, TUNING.dt);
   stepRivals(state);
+  stepEnthusiasts(state);
   if (state.rules.contact) clipRiders(state, events);
   // THE CROWD (`crowd.ts`), on a run that has one.
   if (state.crowd) {

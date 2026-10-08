@@ -25,6 +25,7 @@ import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
+import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
 import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
@@ -68,10 +69,17 @@ export function createRunAudio(): RunAudio {
   const sled: SledBed = createSledBed(sfx);
   // THE FREE RIDE'S PARAMOTOR (`para-bed.ts`), on the skier's back.
   const para: ParaBed = createParaBed(sfx);
+  // THE FREE RIDE'S HOT AIR BALLOON (`balloon-bed.ts`): its burner over
+  // his head, and as it flies on without him.
+  const balloon: BalloonBed = createBalloonBed(sfx);
   // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
   let ear: Listener = listenerFor("chase");
+  // HIS OWN HEART as he bleeds (`engine/game/gore.ts`'s beat): the beat
+  // counted last heard, and the run it was counted on.
+  let heard = 0;
+  let heartOf: GameState | null = null;
 
   return {
     events(list, state) {
@@ -82,7 +90,13 @@ export function createRunAudio(): RunAudio {
         const ground = bed.ground();
         // The helicopter is somewhere else on the mountain: heard from the
         // skier's head.
-        if ((event.kind === "heli" || event.kind === "sled" || event.kind === "para") && state) {
+        if (
+          (event.kind === "heli" ||
+            event.kind === "sled" ||
+            event.kind === "para" ||
+            event.kind === "balloon") &&
+          state
+        ) {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
         }
@@ -100,6 +114,16 @@ export function createRunAudio(): RunAudio {
     },
 
     frame(state, dt, duck = 1) {
+      const g = state.gore;
+      if (state !== heartOf) {
+        heartOf = state;
+        heard = g ? Math.floor(g.beats) : 0;
+      }
+      if (g && g.rate > 0 && Math.floor(g.beats) > heard) {
+        heard = Math.floor(g.beats);
+        // Louder the more he has lost: the beat is all he hears at the end.
+        playSound(sfx, RUN_BANK, "heartbeat", { gain: duck * Math.min(1.4, 0.6 + g.blood / 1.5) });
+      }
       room.update(state, dt, duck);
       const outside = state.afterski?.inside ? 0 : duck;
       bed.update(state, dt, outside);
@@ -107,6 +131,7 @@ export function createRunAudio(): RunAudio {
       heli.update(state, dt, outside);
       sled.update(state, dt, outside);
       para.update(state, dt, outside);
+      balloon.update(state, dt, outside);
     },
 
     setView(view) {
@@ -116,6 +141,7 @@ export function createRunAudio(): RunAudio {
       heli.setView(view);
       sled.setView(view);
       para.setView(view);
+      balloon.setView(view);
     },
 
     silence() {
@@ -124,6 +150,7 @@ export function createRunAudio(): RunAudio {
       heli.silence();
       sled.silence();
       para.silence();
+      balloon.silence();
       room.silence();
     },
 
@@ -133,6 +160,7 @@ export function createRunAudio(): RunAudio {
       heli.reset();
       sled.reset();
       para.reset();
+      balloon.reset();
       room.reset();
     },
   };

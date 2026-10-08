@@ -837,8 +837,9 @@ export const INJURY = {
    * or a mast's bare STEEL next to nothing; a tower's foam PAD
    * (`TOWER_PAD`, 0.22 m of it) most of its thickness crushed, which is
    * what it is wrapped round a column on a run for; a cabin's LOG wall a
-   * little less than a living trunk. */
-  solid: { trunk: 0.01, steel: 0.003, padded: 0.15, log: 0.006 },
+   * little less than a living trunk; a crag's ROCK nothing at all but the
+   * frost and the lichen on it. */
+  solid: { trunk: 0.01, steel: 0.003, padded: 0.15, log: 0.006, rock: 0.002 },
   helmet: 0.012,
   /** THE SNOW'S GIVE, m: bare ice, the groomer (the study's hard snow),
    * and loose snow — `soft` of it at once and `deep` more for every unit of

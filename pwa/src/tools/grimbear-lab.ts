@@ -33,6 +33,9 @@ function beside(state: GameState, off: number): LensPose {
 }
 
 export function grimbearShots(state: GameState, lab: GrimbearLab): Record<string, () => string> {
+  // Every run of his lands, so the catch is there to photograph: most miss
+  // in the game (`GRIMBEAR.miss`), the grimbear lab's `miss` sheet.
+  if (state.grimbear) state.grimbear.rng.chance = () => false;
   const at = (phase: string, after: number, limit: number): boolean =>
     state.grimbear !== undefined &&
     lab.rideUntil(() => state.grimbear?.phase === phase && state.grimbear.t >= after, limit);

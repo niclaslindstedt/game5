@@ -15,7 +15,7 @@
 // pair they are about to stand on.
 //
 // TWO THINGS ARE ON IT: THE SKIS, which is the decision, and the readings
-// beside it — five figures and six bars (`ski-stats.ts`). The card's one
+// beside it — five figures and three bars (`ski-stats.ts`). The card's one
 // line of prose is the catalog's own blurb, standing in the picture under
 // the pair. It WRITES `settings.skis`; a race stood up from here and one
 // a `?skis=` link boots into read the same pair the same way. A pair is

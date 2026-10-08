@@ -20,9 +20,9 @@
 //   campaign  YES. A board half-ridden on one device and half on another is
 //             the case this whole file exists for.
 //   settings  THE SKIER'S HALF. The camera, the skis, the outfit, the sound and its
-//             faders, the keys, the help, damage, the poles, the trial's length, the
+//             faders, the keys, the help, damage, the poles, the
 //             level cards' maps, the trick map, the free ride's card, the
-//             HUD switch — a person's preferences. NOT the picture (`video`, `probed`, `autoPicture`: what
+//             HUD switch, the injuries — a person's preferences. NOT the picture (`video`, `probed`, `autoPicture`: what
 //             THIS machine can hold) and NOT the thumbs (`touch`: the travel
 //             of a screen this size) and NOT the developer page (`developer`,
 //             `dev`: a bench let out on one machine is not let out on the
@@ -36,7 +36,7 @@
 //             goes through, the mode read out of the row's own id.
 //   ghosts    THE FASTER TAPE PER ROW, the same rule the book keeps.
 //   campaign  FURTHEST PROGRESS. Per map: the better time (and the skis that
-//             set it, together), the HIGHER place, the better medal, and the
+//             set it, together), the HIGHER place, and the
 //             field's points from whichever afternoon placed the player
 //             higher — exactly what `recordRun` does for a local run.
 //   settings  THE LATER CHANGE. A preference has no "better", so this is the
@@ -50,7 +50,6 @@
 
 import {
   EMPTY_PROGRESS,
-  MEDALS,
   PLAYER_ID,
   PROGRESS_KEY,
   findLevel,
@@ -59,7 +58,6 @@ import {
   saveProgress,
   type CampaignProgress,
   type LevelResult,
-  type Medal,
 } from "./campaign.ts";
 import { loadGhosts, readsAsGhost, saveGhost, type GhostRun } from "./ghost.ts";
 import {
@@ -145,12 +143,6 @@ export function mergeGhosts(mine: readonly GhostRun[], theirs: readonly GhostRun
   return [...out.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-function betterMedal(a: Medal | null, b: Medal | null): Medal | null {
-  if (a === null) return b;
-  if (b === null) return a;
-  return MEDALS.indexOf(a) >= MEDALS.indexOf(b) ? a : b;
-}
-
 /** FURTHEST PROGRESS. Per map, the better of the two rows, and the board from
  * whichever afternoon placed the player higher. A map this ladder does not
  * have is dropped: the ladder moved under it. */
@@ -175,7 +167,6 @@ export function mergeBoards(mine: CampaignProgress, theirs: CampaignProgress): C
     results[id] = {
       ...figure,
       place: Math.min(standing.place, row.place),
-      medal: betterMedal(standing.medal, row.medal),
     };
   }
   // THE BOARD FOLLOWS THE BETTER AFTERNOON: a map's points are the whole

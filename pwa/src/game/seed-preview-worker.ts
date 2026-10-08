@@ -21,9 +21,12 @@
 import {
   boundLevel,
   cabinsOf,
+  doorOf,
   generateLevel,
   gradeOf,
   helipadOf,
+  balloonSiteOf,
+  lodgesOf,
   paraStartOf,
   sledSpotOf,
   portableLevel,
@@ -97,8 +100,12 @@ export type PreviewPainted = {
   /** Where the RUN row's machines wait on the valley floor — the
    * helicopter's pad (`helipadOf`) and the snowmobile's spot
    * (`sledSpotOf`) — and the summit the paramotor starts on
-   * (`paraStartOf`): the place the card marks when one is picked. */
-  machines: Record<"heli" | "sled" | "para", { x: number; y: number; z: number }>;
+   * (`paraStartOf`) and the balloon's site (`balloonSiteOf`): the place the card marks when one is picked — and the
+   * door of the valley's afterski lodge (`lodgesOf`), null on a map with
+   * none, where the RUN row offers no afterski. */
+  machines: Record<"heli" | "sled" | "para" | "balloon", { x: number; y: number; z: number }> & {
+    afterski: { x: number; y: number; z: number } | null;
+  };
 };
 
 /** A seed the generator refuses is an answer too: the card says so rather
@@ -154,6 +161,15 @@ const summitOf = (level: Level) => {
   return { x, y: level.groundAt(x, z), z };
 };
 
+/** The door of the valley's afterski lodge a ride begun at the party
+ * stands at (`lodgesOf`'s first), or null on a map with none. */
+const lodgeDoorOf = (level: Level) => {
+  const lodge = lodgesOf(level)[0];
+  if (!lodge) return null;
+  const { x, z } = doorOf(lodge);
+  return { x, y: level.groundAt(x, z), z };
+};
+
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   const { seed, region, grade, paint, level: given } = e.data;
   try {
@@ -196,6 +212,8 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           heli: placeOf(helipadOf(level)),
           sled: placeOf(sledSpotOf(level)),
           para: summitOf(level),
+          balloon: placeOf(balloonSiteOf(level)),
+          afterski: lodgeDoorOf(level),
         },
       };
     }

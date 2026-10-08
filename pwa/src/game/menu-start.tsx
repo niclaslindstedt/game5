@@ -39,7 +39,10 @@
 //           the chart marks its head with a pulse; the line under the chart
 //           bills it. Its LAST three stops are no run but a way up with no
 //           lift: the PARAMOTOR — the ride begun on the summit, the wing
-//           over him, skied off and flown (`para.ts`) — the SNOWMOBILE — the ride begun stood on its boards, the
+//           over him, skied off and flown (`para.ts`) — the HOT AIR
+//           BALLOON, the ride begun in its basket on the valley floor and
+//           flown up the mountain on the day's wind (`balloon.ts`) — the AFTERSKI, the ride
+//           begun inside the valley's lodge at the party (`afterski.ts`) — the SNOWMOBILE — the ride begun stood on its boards, the
 //           skis racked, ridden up the mountain and hopped off (`sled.ts`) —
 //           and the HELICOPTER: the ride begun sat on the skid of the
 //           helicopter on its pad on the valley floor, flown up the mountain
@@ -69,11 +72,15 @@ import { useState } from "preact/hooks";
 import {
   HELI_RUN,
   PARA_RUN,
+  BALLOON_RUN,
   SLED_RUN,
   SEASONS,
   SNOW_STOPS,
   heliOn,
   paraOn,
+  balloonOn,
+  afterskiOn,
+  AFTERSKI_RUN,
   sledOn,
   markedRun,
   spotOn,
@@ -153,7 +160,9 @@ export function StartPage({
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
-  const vehicle = heli || sled || para;
+  const balloon = balloonOn(ride, seed);
+  const party = afterskiOn(ride, seed);
+  const vehicle = heli || sled || para || balloon || party;
   const marked = list && !vehicle ? markedRun(ride, seed, list) : null;
   // The RUN row walks the runs of the GRADE row's colour — every run where
   // it stands on AS DEALT, or where the map has none of the colour.
@@ -166,8 +175,13 @@ export function StartPage({
     ...(list
       ? [
           { id: PARA_RUN, label: STRINGS.startRunPara },
+          { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
           { id: HELI_RUN, label: STRINGS.startRunHeli },
+          // ...and the party in the valley's lodge, where the map has one.
+          ...(list.machines.afterski
+            ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
+            : []),
         ]
       : []),
   ];
@@ -229,7 +243,19 @@ export function StartPage({
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}
                 stops={runStops}
-                value={heli ? HELI_RUN : sled ? SLED_RUN : para ? PARA_RUN : (marked?.id ?? "")}
+                value={
+                  heli
+                    ? HELI_RUN
+                    : sled
+                      ? SLED_RUN
+                      : para
+                        ? PARA_RUN
+                        : balloon
+                          ? BALLOON_RUN
+                          : party
+                            ? AFTERSKI_RUN
+                            : (marked?.id ?? "")
+                }
                 extra={STRINGS.startRunWaiting}
                 onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
                 onHint={setHint}
@@ -238,7 +264,19 @@ export function StartPage({
             <SeedPreview
               chart={chart}
               entry={marked}
-              machine={heli ? "heli" : sled ? "sled" : para ? "para" : null}
+              machine={
+                heli
+                  ? "heli"
+                  : sled
+                    ? "sled"
+                    : para
+                      ? "para"
+                      : balloon
+                        ? "balloon"
+                        : party
+                          ? "afterski"
+                          : null
+              }
               spot={vehicle ? null : spotOn(ride, seed)}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />

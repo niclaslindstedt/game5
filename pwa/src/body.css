@@ -499,3 +499,15 @@
     transition: none;
   }
 }
+
+/* THE X-RAY CAM HAS HIM (`xray-run.ts`'s `xrayHud`): the body plate and the
+   g meter fade away while his own body is shown, and back after. */
+.hud-body,
+.hud-gforce {
+  transition: filter 0.6s ease;
+}
+
+:root.xray-on .hud-body,
+:root.xray-on .hud-gforce {
+  filter: opacity(0);
+}

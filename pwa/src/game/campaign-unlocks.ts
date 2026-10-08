@@ -2,8 +2,8 @@
 // DEVELOPER ▸ UNLOCKS, as policy: the campaign's board SET rather than
 // earned.
 //
-// The ladder costs evenings — eighteen maps, each behind a podium or a medal
-// on the one before it, and a shelf behind a table won outright. That is the
+// The ladder costs evenings — sixteen maps, each behind a podium on the one
+// before it, and a shelf behind a table won outright. That is the
 // right price for a player and the wrong one for anybody who has to LOOK at
 // the last rung, which is every review pass. So every shelf can be opened
 // or shut by hand, and the whole ladder at once.
@@ -13,7 +13,7 @@
 // over a first shelf never cleared is a board no player could have), and
 // shutting one wipes it and every shelf after it.
 //
-// A GRANT MOVES THE PLACE, THE MEDAL AND THE BOARD, AND NEVER A TIME: a map
+// A GRANT MOVES THE PLACE AND THE BOARD, AND NEVER A TIME: a map
 // opened by hand keeps any figure actually ridden on it and invents none
 // (`LevelResult`'s time is optional for exactly this). NEITHER PRESS TOUCHES
 // THE RECORD BOOK (`records.ts`), which is a different store: a lock puts the
@@ -23,7 +23,6 @@
 // the markup over these answers.
 
 import {
-  MEDALS,
   PLAYER_ID,
   POINTS,
   SHELVES,
@@ -31,22 +30,17 @@ import {
   skierKey,
   shelfUnlocked,
   shelfWon,
-  type CampaignLevel,
   type CampaignProgress,
   type CampaignShelf,
   type LevelResult,
   type LevelScores,
 } from "./campaign.ts";
 
-/** A map won outright: first on a race with the board to match, gold on a
- * trial. */
-function grantLevel(level: CampaignLevel): { result: LevelResult; scores: LevelScores | null } {
-  if (level.mode === "timeTrial") {
-    return { result: { place: 1, medal: MEDALS[MEDALS.length - 1] }, scores: null };
-  }
+/** A map won outright: first on the race with the board to match. */
+function grantLevel(): { result: LevelResult; scores: LevelScores } {
   const scores: LevelScores = { [PLAYER_ID]: POINTS[0] };
   for (let i = 1; i < POINTS.length; i++) scores[skierKey(i - 1)] = POINTS[i];
-  return { result: { place: 1, medal: null }, scores };
+  return { result: { place: 1 }, scores };
 }
 
 function open(progress: CampaignProgress, shelves: readonly CampaignShelf[]): CampaignProgress {
@@ -54,11 +48,11 @@ function open(progress: CampaignProgress, shelves: readonly CampaignShelf[]): Ca
   const points = { ...progress.points };
   for (const shelf of shelves) {
     for (const level of shelf.levels) {
-      const { result, scores } = grantLevel(level);
+      const { result, scores } = grantLevel();
       const stood = results[level.id];
       results[level.id] =
         stood?.best === undefined ? result : { ...result, best: stood.best, skis: stood.skis };
-      if (scores) points[level.id] = scores;
+      points[level.id] = scores;
     }
   }
   return { results, points };

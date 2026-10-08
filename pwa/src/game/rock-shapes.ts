@@ -1,32 +1,27 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ROCK AS BUILT — every outcrop (`rock-plan.ts`) as a knot of sharp,
-// faceted SHARDS in the world frame: few triangles, all of them carrying
-// the shape (no texture does it), flat-lit a facet at a time so the blades
-// catch the sun on one side and go dark on the other.
+// THE ROCK AS BUILT — the DROPS' whole surface as coarse, faceted rock in
+// the world frame: few triangles, all of them carrying the shape (no
+// texture does it), flat-lit a facet at a time so a plane catches the sun
+// and the next goes dark.
 //
-// A SHARD is a slab stood on end: a base of four or five points on an
-// ellipse long along the outcrop's strike and thin across it, each point
-// sunk under the ground beneath IT (so a shard on a 40° face is buried on
-// its uphill side, not perched), drawn up to a point leaned off plumb by
-// the outcrop's dip. A tall one is broken half way up — a ring of its own,
-// shoved in and out — so its faces kink the way split rock does. Five to
-// fifteen triangles a shard.
+// A WALL'S SKIN (`buildSkin`): a jittered lattice of corners over the
+// natural walls too steep to hold snow (the engine's `rockShare`), each
+// corner stood a little proud of the ground where it is bare and tucked
+// under the snow where it is not, so the rock is the surface of the whole
+// steep face and its edges, the top of the hill among them, go into the
+// snow rather than stopping. A CLIFF'S WALL (`buildWall`): the engine's
+// skin of corners over a rocky cliff's face (`cliffWalls`), lip to foot.
+// Two triangles a cell of either.
 //
 // SNOW HOLDS ON A FACET THAT FACES UP: past `SNOW_HOLDS` of the sky the
 // facet is painted snow, between it and `SNOW_SLIDES` a mix, the rest the
-// region's rock in a shade of its own a shard. Three-free: plain arrays the
+// region's rock in a shade of its own a facet. Three-free: plain arrays the
 // draw (`rocks.ts`) hands the GPU and the suite counts.
 
-import type { Level } from "@engine";
+import { ROCKS, rockDraw as unit, rockHash, rockShare, type CliffWall, type Level } from "@engine";
 
-import { hashOf, unit, type Outcrop } from "./rock-plan.ts";
-
-/** The share of standing shards that are blades. */
-const BLADES = 0.3;
-/** How dark a shard's foot is, of its own colour. */
+/** How dark the rock is where it goes into the snow, of its own colour. */
 const FOOT = 0.45;
-/** Rubble shards a knot, for each of its standing ones. */
-const RUBBLE = 1.5;
 
 /** Linear 0..1 RGB, the way `region-look.ts` authors its tones. */
 export type Tone = readonly [number, number, number];
@@ -35,6 +30,9 @@ export type Tone = readonly [number, number, number];
  * it slides off below. */
 export const SNOW_HOLDS = 0.62;
 export const SNOW_SLIDES = 0.42;
+/** A wall's skin lies at 50° and more, so snow holds only on its ledges:
+ * whole past this up share (a facet tipped under 30°). */
+const SKIN_HOLDS = 0.87;
 /** The region's rock tone as the crags paint it: the region's hue, warmed
  * a little and brought to one VALUE (`ROCK_VALUE`, linear luminance) —
  * the shader's tone is that rock seen through a skin of snow and
@@ -107,108 +105,130 @@ function tri(
   }
 }
 
-/** Append the shards of outcrop `o` to `m`, its rock `tone`. `share` 0..1
- * keeps that share of a knot's shards (the smallest dropped first), so a
- * cheaper picture keeps the crags' outline. */
-export function buildOutcrop(m: RockMesh, level: Level, o: Outcrop, tone: Tone, share = 1): void {
-  const sx = Math.sin(o.strike);
-  const sz = Math.cos(o.strike);
-  const lean = Math.tan(o.dip);
+/** A corner of a wall's skin: where it stands and how bare it is there. */
+type Corner = { readonly p: P; readonly bare: number };
+
+/** Append the ROCK SKIN of a wall over lattice cells `i0..i1` × `j0..j1`
+ * (exclusive ends, the lattice `cell` m and global, so two tiles share
+ * the corners on their seam) to `m`, its rock `tone`: a corner every
+ * cell, jittered in plan off a hash of the map's `seed` and its place,
+ * standing over the ground where it is bare (`rockShare`) — `proud` and up
+ * to `rough` more by how bare — and tucked under the snow where it is not;
+ * every cell with a bare corner laid as two flat facets, split along a
+ * diagonal of its own. So the rock is the whole steep surface, from where
+ * the slope turns too steep for snow to where it eases at the top, broken
+ * into big flat planes at odd angles, with the snow on every facet that
+ * faces the sky. */
+export function buildSkin(
+  m: RockMesh,
+  level: Level,
+  tone: Tone,
+  seed: number,
+  cell: number,
+  i0: number,
+  j0: number,
+  i1: number,
+  j1: number,
+): void {
+  const S = ROCKS.skin;
   const stone = rockTone(tone);
-  const keep = Math.max(1, Math.round(o.shards * share));
-  // THE RUBBLE round the knot's foot — low, broken teeth, so the ground
-  // between the crags is uneven too; the first thing a cheap picture drops.
-  const rubble = Math.round(o.shards * RUBBLE * share * share);
-  for (let k = 0; k < keep + rubble; k++) {
-    const h = hashOf(o.hash, 100 + k);
-    const loose = k >= keep;
-    // The first shard is the knot's tallest, at its middle; the rest
-    // strung out along the strike, a little to either side of it; the
-    // rubble scattered wider round them.
-    const reach = loose ? o.spread * 1.5 : o.spread;
-    const along = k === 0 ? 0 : (unit(h, 0) - 0.5) * 2 * reach;
-    const across = k === 0 ? 0 : (unit(h, 1) - 0.5) * (loose ? 1.2 : 0.45) * reach;
-    const cx = o.x + sx * along + sz * across;
-    const cz = o.z + sz * along - sx * across;
-    const height =
-      k === 0 ? o.height : o.height * (loose ? 0.1 + 0.2 * unit(h, 2) : 0.28 + 0.6 * unit(h, 2));
-    // A slab: long along the strike, thinner across it, and still twice
-    // as tall as it is long — pointy, but rock, not an icicle.
-    // A third of the standing ones are BLADES — a fin run out along the
-    // strike, the shape a split bed of rock stands in.
-    const blade = !loose && unit(h, 32) < BLADES ? 1.9 : 1;
-    const long = height * (0.4 + 0.32 * unit(h, 3)) * blade;
-    const thin = long * (0.5 + 0.35 * unit(h, 4));
-    const sides = unit(h, 5) < 0.5 ? 4 : 5;
-    const sink = 0.2 + height * 0.18;
-    const ground = level.groundAt(cx, cz);
-    const base: P[] = [];
-    const turn = (unit(h, 6) - 0.5) * 0.5;
-    for (let s = 0; s < sides; s++) {
-      const a = (s / sides) * Math.PI * 2 + turn + (unit(h, 10 + s) - 0.5) * (1.4 / sides);
-      const r = 0.75 + 0.45 * unit(h, 20 + s);
-      const u = Math.cos(a) * long * r;
-      const v = Math.sin(a) * thin * r;
-      const x = cx + sx * u + sz * v;
-      const z = cz + sz * u - sx * v;
-      base.push([x, level.groundAt(x, z) - sink, z]);
-    }
-    // The point, leaned off plumb along the dip and a hair off it.
-    const off = Math.min(height * lean, long * 0.9);
-    const tipX = cx + Math.sin(o.dipHeading) * off + (unit(h, 7) - 0.5) * long * 0.4;
-    const tipZ = cz + Math.cos(o.dipHeading) * off + (unit(h, 8) - 0.5) * long * 0.4;
-    const tip: P = [tipX, ground + height, tipZ];
-    // The shard's own shade of the region's rock.
-    const shade = 0.78 + 0.44 * unit(h, 9);
-    const warm = (unit(h, 30) - 0.5) * 0.04;
-    const paint = (ny: number): Tone => {
-      const f = 0.8 + 0.4 * unit(h, 40 + Math.round(ny * 50));
-      const rock: Tone = [
-        stone[0] * shade * f * (1 + warm),
-        stone[1] * shade * f,
-        stone[2] * shade * f * (1 - warm),
-      ];
-      const snow = Math.max(0, Math.min(1, (ny - SNOW_SLIDES) / (SNOW_HOLDS - SNOW_SLIDES)));
-      return [
-        rock[0] + (SNOW[0] - rock[0]) * snow,
-        rock[1] + (SNOW[1] - rock[1]) * snow,
-        rock[2] + (SNOW[2] - rock[2]) * snow,
-      ];
-    };
-    // THE FOOT IN SHADOW: the sky is hidden from the cracks a shard
-    // stands in, so its colour darkens toward the snow it comes out of.
-    const shadeAt = (p: P): number =>
-      FOOT + (1 - FOOT) * Math.min(1, Math.max(0, (p[1] - ground + sink) / (height * 0.7 + sink)));
-    const axis = (t: number): P => [
-      cx + (tipX - cx) * t,
-      ground + height * t,
-      cz + (tipZ - cz) * t,
-    ];
-    if (height > 1.5) {
-      // BROKEN half way up: a ring between the base and the point, each
-      // corner shoved in or out, so the faces kink.
-      const t = 0.4 + 0.2 * unit(h, 31);
-      const mid = axis(t);
-      const ring: P[] = base.map((b, s) => {
-        const push = 0.75 + 0.55 * unit(h, 50 + s);
-        return [
-          mid[0] + (b[0] - cx) * (1 - t) * push,
-          b[1] + (tip[1] - b[1]) * t,
-          mid[2] + (b[2] - cz) * (1 - t) * push,
-        ];
-      });
-      const low = axis(t * 0.5);
-      const high = axis((1 + t) / 2);
-      for (let s = 0; s < sides; s++) {
-        const s1 = (s + 1) % sides;
-        tri(m, base[s], base[s1], ring[s1], low, paint, shadeAt);
-        tri(m, base[s], ring[s1], ring[s], low, paint, shadeAt);
-        tri(m, ring[s], ring[s1], tip, high, paint, shadeAt);
+  const w = i1 - i0 + 1;
+  const corners: (Corner | null)[] = new Array(w * (j1 - j0 + 1)).fill(null);
+  const cornerAt = (i: number, j: number): Corner => {
+    const k = (j - j0) * w + (i - i0);
+    const had = corners[k];
+    if (had) return had;
+    const h = rockHash(seed, i, j);
+    const x = (i + (unit(h, 0) - 0.5) * 2 * S.jitter) * cell;
+    const z = (j + (unit(h, 1) - 0.5) * 2 * S.jitter) * cell;
+    const bare = rockShare(level, x, z);
+    const ground = level.groundAt(x, z);
+    const y = bare > S.from ? ground + S.proud + S.rough * bare * unit(h, 2) : ground - S.sink;
+    const c: Corner = { p: [x, y, z], bare };
+    corners[k] = c;
+    return c;
+  };
+  const shadeAt = (p: P): number => (p[1] < level.groundAt(p[0], p[2]) ? FOOT + 0.2 : 1);
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
+      const a = cornerAt(i, j);
+      const b = cornerAt(i + 1, j);
+      const c = cornerAt(i + 1, j + 1);
+      const d = cornerAt(i, j + 1);
+      if (Math.max(a.bare, b.bare, c.bare, d.bare) <= S.from) continue;
+      const h = rockHash(seed, i, j, 7);
+      const mx = (a.p[0] + b.p[0] + c.p[0] + d.p[0]) / 4;
+      const mz = (a.p[2] + b.p[2] + c.p[2] + d.p[2]) / 4;
+      // Under the ground at the cell's middle: inside the hill.
+      const inside: P = [mx, level.groundAt(mx, mz) - 3, mz];
+      if (unit(h, 0) < 0.5) {
+        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt);
+        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt);
+      } else {
+        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt);
+        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt);
       }
-    } else {
-      const inside = axis(0.3);
-      for (let s = 0; s < sides; s++) {
-        tri(m, base[s], base[(s + 1) % sides], tip, inside, paint, shadeAt);
+    }
+  }
+}
+
+/** A facet's paint off hash `h`'s draws from `n`: its own shade of the
+ * rock `stone`, snow over it by how much it faces the sky. */
+function paintOf(stone: Tone, h: number, n: number, holds = SNOW_HOLDS): (ny: number) => Tone {
+  const slides = holds - (SNOW_HOLDS - SNOW_SLIDES);
+  return (ny) => {
+    const f = 0.72 + 0.5 * unit(h, n);
+    const warm = (unit(h, n + 1) - 0.5) * 0.05;
+    const rock: Tone = [stone[0] * f * (1 + warm), stone[1] * f, stone[2] * f * (1 - warm)];
+    const snow = Math.max(0, Math.min(1, (ny - slides) / (holds - slides)));
+    return [
+      rock[0] + (SNOW[0] - rock[0]) * snow,
+      rock[1] + (SNOW[1] - rock[1]) * snow,
+      rock[2] + (SNOW[2] - rock[2]) * snow,
+    ];
+  };
+}
+
+/** Append cliff `w`'s ROCK WALL to `m` (`cliff-wall.ts`' skin of corners),
+ * its rock `tone`: two flat facets a cell of the skin, each cell split
+ * along a diagonal of its own so no two read alike, every facet its own
+ * shade of the rock, snow on the ones up at the lip that face the sky, and
+ * the foot darkened where it goes into the snow. Two triangles a cell, a
+ * few hundred a cliff. */
+export function buildWall(m: RockMesh, w: CliffWall, tone: Tone): void {
+  const stone = rockTone(tone);
+  const { rows, cols, pos } = w;
+  const fx = Math.sin(w.heading);
+  const fz = Math.cos(w.heading);
+  const corner = (r: number, j: number): P => {
+    const i = (r * cols + j) * 3;
+    return [pos[i], pos[i + 1], pos[i + 2]];
+  };
+  // Darker toward the foot: the sky hidden from the bottom of the wall.
+  const lipY = (j: number): number => corner(1, j)[1];
+  const footY = (j: number): number => corner(rows - 1, j)[1];
+  for (let r = 0; r < rows - 1; r++) {
+    for (let j = 0; j < cols - 1; j++) {
+      const h = (w.hash ^ Math.imul(r + 1, 0x9e3779b1) ^ Math.imul(j + 1, 0x85ebca6b)) >>> 0;
+      const a = corner(r, j);
+      const b = corner(r, j + 1);
+      const c = corner(r + 1, j + 1);
+      const d = corner(r + 1, j);
+      const mx = (a[0] + b[0] + c[0] + d[0]) / 4;
+      const my = (a[1] + b[1] + c[1] + d[1]) / 4;
+      const mz = (a[2] + b[2] + c[2] + d[2]) / 4;
+      // Behind the face: back into the hill and down.
+      const inside: P = [mx - fx * 3, my - 2, mz - fz * 3];
+      const top = Math.max(lipY(j), lipY(j + 1));
+      const bottom = Math.min(footY(j), footY(j + 1));
+      const shadeAt = (p: P): number =>
+        FOOT + (1 - FOOT) * Math.min(1, Math.max(0, (p[1] - bottom) / Math.max(0.5, top - bottom)));
+      if (unit(h, 0) < 0.5) {
+        tri(m, a, b, c, inside, paintOf(stone, h, 1), shadeAt);
+        tri(m, a, c, d, inside, paintOf(stone, h, 3), shadeAt);
+      } else {
+        tri(m, a, b, d, inside, paintOf(stone, h, 1), shadeAt);
+        tri(m, b, c, d, inside, paintOf(stone, h, 3), shadeAt);
       }
     }
   }

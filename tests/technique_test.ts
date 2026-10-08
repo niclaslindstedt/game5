@@ -31,6 +31,7 @@ import {
   cutEdgeAt,
   cutGrip,
   edgeLockAt,
+  generateLevel,
   placeRun,
   slalomPar,
   step,
@@ -172,7 +173,10 @@ describe("the slalom racer's technique", () => {
 
 describe("the bot's slalom", () => {
   it("skis seed 38's course clean, carved, at a slalom's pace — and par is its time", () => {
-    const state = createGame({ seed: 38, mode: "slalom", spec: SWIFT, quiet: true });
+    // The low massif's (v6, the race maps' own): the course this pace was
+    // measured on.
+    const level = generateLevel(38, { grade: "red", version: 6 });
+    const state = createGame({ level, mode: "slalom", spec: SWIFT, quiet: true });
     let top = 0;
     let edge = 0;
     for (let i = 0; i < 120 / TUNING.dt && !state.progress.finished; i++) {

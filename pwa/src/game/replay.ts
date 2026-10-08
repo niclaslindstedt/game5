@@ -30,7 +30,7 @@
 // race, and a press that does nothing is the better failure.
 //
 // WHICH RUNS KEEP ONE: the ones the record book keeps (`keepsRecords` — the
-// race and the time trial) and the TRICKS run, whose flips are the most
+// races, and the engine's time trial the suite rides) and the TRICKS run, whose flips are the most
 // worth watching back of anything the game has, armed on their very first
 // step (`keepsReplay`). A free ride's
 // day and snow are the skier's own and it has no flag to end on. The offer
@@ -81,6 +81,7 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     spec: state.skier.spec,
     assist: { ...state.assist },
     damage: state.damage,
+    gore: state.gore !== undefined,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,
     // A slalom's second run: the first run carried in again, so the course

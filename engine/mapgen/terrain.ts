@@ -35,6 +35,7 @@ import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED, verticalBand, type GradeRow, type ProfileShape } from "./grades.ts";
 import { REGIONS, scaleBand, scaleCount, type Region } from "./regions.ts";
 import { LEVEL_RULES as R, inBand } from "./rules.ts";
+import type { Vec3 } from "./types.ts";
 
 /** A bowl: a round hollow in the high face (R3). */
 export type Bowl = {
@@ -65,6 +66,16 @@ export type TerrainPlan = {
    * (R14, R21's bands). */
   readonly altitude: number;
   readonly treeLine: number;
+  /** R1 — the side of the map's square, m: the rule book's `world.size`,
+   * or from generator v8 a resort's own (`massif.size`). */
+  readonly size: number;
+  /** R25 — how far over the sea the map's lowest ground stands, m (from
+   * generator v8; absent before, where the floor stands at `altitude`). */
+  readonly sea?: number;
+  /** R25 — how many times R3's wavelengths the hills and the spurs and
+   * gullies are drawn at (from generator v8, `massif.relief.scale`): absent,
+   * one. */
+  readonly fold?: number;
   /** Where the summit ridge's crest runs and where the valley floor
    * begins, m down the map. */
   readonly summitZ: number;
@@ -200,6 +211,7 @@ export function planTerrain(
     vertical,
     altitude,
     treeLine,
+    size,
     summitZ,
     baseZ,
     flank,
@@ -288,8 +300,8 @@ export function countryFields(plan: TerrainPlan): CountryFields {
     warpX: noiseField(420, s.warp),
     warpZ: noiseField(420, s.warp + 17),
     flank: noiseField(260, s.flank),
-    hills: fbmFields(R.face.hills.scale, 4, s.hills),
-    ridges: ridgedFields(R.face.ridges.scale, s.ridges),
+    hills: fbmFields(R.face.hills.scale * (plan.fold ?? 1), 4, s.hills),
+    ridges: ridgedFields(R.face.ridges.scale * (plan.fold ?? 1), s.ridges),
     rollers: ridgedFields(R.face.rollers.scale, s.rollers),
     crests: ridgedFields(170, s.crests),
     crestsFine: ridgedFields(60, s.crests + 5),
@@ -321,7 +333,7 @@ export function flankAcross(plan: TerrainPlan, noise: number, x: number, open: n
   const F = R.mountain.flank;
   const band = plan.flankBand ?? F;
   const warp = (noise * 2 - 1) * F.warp;
-  const across = Math.abs(x - R.world.size / 2) + warp;
+  const across = Math.abs(x - plan.size / 2) + warp;
   return smoothstep(band.inner, band.outer, across) * open;
 }
 
@@ -408,7 +420,7 @@ export function bakeCountry(
   at: (plan: TerrainPlan, f: CountryFields, x: number, z: number) => number = countryAt,
 ): Heightfield {
   const cell = R.world.cell;
-  const n = Math.round(R.world.size / cell) + 1;
+  const n = Math.round(plan.size / cell) + 1;
   const field = createHeightfield(0, 0, cell, n, n);
   const d = field.data;
   const fields = countryFields(plan);
@@ -417,4 +429,15 @@ export function bakeCountry(
     for (let c = 0; c < n; c++) d[r * n + c] = at(plan, fields, c * cell, z);
   }
   return field;
+}
+
+/** R25 — where the sea stands in the map's frame, m: from v8 the lowest
+ * ground's height less the plan's `sea`; on the low massif under the
+ * village by the floor's altitude (R21), as the tree line is measured. */
+export function seaLevelOf(plan: TerrainPlan, ground: Heightfield, village: Vec3): number {
+  if (plan.sea === undefined) return village.y - plan.altitude;
+  let low = Infinity;
+  const d = ground.data;
+  for (let i = 0; i < d.length; i++) if (d[i] < low) low = d[i];
+  return low - plan.sea;
 }

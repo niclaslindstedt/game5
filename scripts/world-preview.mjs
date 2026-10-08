@@ -36,9 +36,9 @@
 // front) and cabins-air (the first from high over its run), tower-pad,
 // tower-edge, tower-span (the lift towers where they meet the runs: the
 // padded one nearest a run, a bare one off its edge, a span across one),
-// rocks, rocks-near, rocks-run, rocks-air (the crags on the bare faces: the
-// rockiest corner from below, the tallest close, one from a run, the
-// corner from the air), forest,
+// rocks, rocks-cliff, rocks-near, rocks-run, rocks-air (the crags on the
+// drops: the widest cliff from its landing and close, the tallest crag
+// close, the rock nearest a run, the rockiest corner from the air), forest,
 // approach-140, approach-90, approach-60, approach-40 (the forest view's line
 // walked in toward the wood — a shadow that appears between two of them was
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
@@ -55,6 +55,14 @@
 // piste — the pocket the mesh makes round him and the skis hooked in it;
 // with `--free --grimbear`, `grimbear-lurk`, `-chase`, `-run`, `-maul` and
 // `-leave`: the beast behind his trunk, out of it, over the skier and off;
+// with `--free --hour=21` (a free ride after dark), `keen-0`, `keen-1`,
+// `keen-2`, `keen-side` and `keen-lift`: the enthusiasts out on the empty
+// slopes (`enthusiasts.ts`), each from behind, one from beside his line and
+// one carried up a lift;
+// race-buildings (the sheet), race-house, race-hut, race-stand, race-leader
+// and race-screen: the start's and the finish arena's buildings
+// (`race-buildings-view.ts`) — with `--slalom` the start house over a
+// slalom's top, without it the start hut;
 // then the wildlife:
 // herd (the biggest animal the map holds, from beside it), birds (the flock
 // most in the air, from the snow under it) and prints (last night's prints
@@ -63,7 +71,10 @@
 // first one's lane), tunnel (the player stood in its mouth, from behind its
 // fan) and tunnel-side (the lane from beside it, the player in it) — a map
 // whose generator laid none is given a stub pair on its valley floor, and
-// the note says so.
+// the note says so; and the tunnels as buildings (`tunnel-view.ts`):
+// tunnel-mouth (the fan house), tunnel-span (the gallery from beside it),
+// tunnel-exit (the exit portal) and tunnels (the sheet: each from three
+// sides, and a row from inside the lane).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -80,6 +91,11 @@ const buildDir = join(root, "previews", ".world-preview");
 const outDir = join(root, "previews");
 
 const VIEWS = [
+  "keen-0",
+  "keen-1",
+  "keen-2",
+  "keen-side",
+  "keen-lift",
   "grimbear-lurk",
   "grimbear-chase",
   "grimbear-run",
@@ -107,6 +123,20 @@ const VIEWS = [
   "lift-foot",
   "lift-door",
   "lift-ring",
+  "station-chair-foot",
+  "station-chair-top",
+  "station-gondola-foot",
+  "station-gondola-top",
+  "station-drag-foot",
+  "station-drag-top",
+  "stations",
+  "race-buildings",
+  "race-house",
+  "race-hut",
+  "race-stand",
+  "race-leader",
+  "race-screen",
+  "race-house-in",
   "cliff",
   "cliff-edge",
   "sign",
@@ -123,6 +153,7 @@ const VIEWS = [
   "tower-edge",
   "tower-span",
   "rocks",
+  "rocks-cliff",
   "rocks-near",
   "rocks-run",
   "rocks-air",
@@ -145,6 +176,10 @@ const VIEWS = [
   "tunnel-inside",
   "tunnel",
   "tunnel-side",
+  "tunnel-mouth",
+  "tunnel-span",
+  "tunnel-exit",
+  "tunnels",
 ];
 
 const args = parseArgs(
@@ -201,6 +236,10 @@ const args = parseArgs(
       kind: "flag",
       help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
     },
+    slalom: {
+      kind: "flag",
+      help: "set a slalom over the seed (its start house, for the race- views)",
+    },
     free: {
       kind: "flag",
       help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
@@ -212,7 +251,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--free] [--grimbear] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -297,6 +336,7 @@ const query = new URLSearchParams({
   ...(args.picture ? { picture: args.picture } : {}),
   ...(args.snow > 0 ? { snow: String(args.snow) } : {}),
   ...(args.downhill ? { downhill: "1" } : {}),
+  ...(args.slalom ? { slalom: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
@@ -338,7 +378,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

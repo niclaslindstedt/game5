@@ -33,7 +33,6 @@ import {
   outsideHub,
   pisteGradeOf,
   regionRow,
-  scaleBand,
   scaleCount,
   verticalBand,
   REGIONS,
@@ -104,16 +103,20 @@ describe("the generator is a pure function of its seed", () => {
   it("builds a map in well under the budget a test suite can afford", () => {
     const t0 = performance.now();
     generateLevel(99);
-    expect(performance.now() - t0).toBeLessThan(15_000);
+    // The tall massif (R25) is a bigger map with more to lay on it; a seed
+    // that needs several attempts still comes in under this.
+    expect(performance.now() - t0).toBeLessThan(30_000);
   });
 });
 
 describe("the Level contract", () => {
   it("publishes every field, in its units", () => {
     for (const level of corpus()) {
-      expect(level.size).toBe(R.world.size);
+      // A resort's map is the tall massif's (R25), wider than one piste's.
+      const size = level.resort ? RR.massif.size : R.world.size;
+      expect(level.size).toBe(size);
       expect(level.cell).toBe(R.world.cell);
-      expect(level.ground.cols).toBe(R.world.size / R.world.cell + 1);
+      expect(level.ground.cols).toBe(size / R.world.cell + 1);
       expect(level.ground.rows).toBe(level.ground.cols);
       expect(level.packed.cols).toBe(level.ground.cols);
       expect(level.track.closed).toBe(false);
@@ -144,9 +147,7 @@ describe("the Level contract", () => {
       // The grade's band (R23), with the region's share of its multiple —
       // on a resort the massif's (R25).
       const region = regionRow(level.region);
-      const band = level.resort
-        ? scaleBand(RR.massif.vertical, region.relief.vertical)
-        : verticalBand(region, gradeRowOf(level));
+      const band = level.resort ? RR.massif.vertical : verticalBand(region, gradeRowOf(level));
       expect(withinBand(M.vertical, band, 1e-6)).toBe(true);
       expect(M.summit.y - M.base.y).toBeCloseTo(M.vertical, 6);
       expect(M.summit.z).toBeCloseTo(R.mountain.summit * level.size, 6);
@@ -154,10 +155,19 @@ describe("the Level contract", () => {
       const last = level.track.points[level.track.points.length - 1];
       expect(M.base.x).toBeCloseTo(last.x, 6);
       expect(M.base.y).toBeCloseTo(level.groundAt(last.x, last.z), 3);
-      // The altitudes (R21): the valley floor and the tree line, m above the
-      // sea, in the alpine's bands.
-      expect(withinBand(M.altitude, REGIONS.alpine.altitude.base)).toBe(true);
-      expect(withinBand(M.treeLine, REGIONS.alpine.altitude.treeLine)).toBe(true);
+      // The altitudes: a resort's valley floor a few metres over the sea, its
+      // lowest ground in `massif.sea` (R25); one piste's in the alpine's band (R21).
+      if (level.resort) {
+        const g = level.ground;
+        let lowest = Infinity;
+        for (const h of g.data) lowest = Math.min(lowest, h);
+        expect(withinBand(lowest - M.sea, RR.massif.sea, 0.5)).toBe(true);
+        expect(M.altitude).toBeGreaterThan(lowest - M.sea - 1e-6);
+        expect(M.altitude).toBeLessThan(120);
+      } else {
+        expect(withinBand(M.altitude, REGIONS.alpine.altitude.base)).toBe(true);
+        expect(withinBand(M.treeLine, REGIONS.alpine.altitude.treeLine)).toBe(true);
+      }
       // A green's few hundred metres (R23) may stand under the tree line
       // whole; a mountain of a red's vertical or more tops out over it.
       if (M.vertical > 600) expect(M.treeLine).toBeLessThan(M.altitude + M.vertical);

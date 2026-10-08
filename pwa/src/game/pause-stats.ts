@@ -78,7 +78,7 @@ export function pauseStats(snap: PauseRun, max: number = PAUSE_STATS): PauseStat
     label: STRINGS.clockLabel,
     shown: true,
   };
-  // The row the time trial is being skied against — the HUD only ever shows
+  // The row the run is being skied against — the HUD only ever shows
   // the GAP to it, at a crossing, and never the figure itself.
   const record: Candidate = {
     key: "record",

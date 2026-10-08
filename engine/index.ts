@@ -412,6 +412,9 @@ export {
   type NetRun,
 } from "./game/crowd.ts";
 export { inCabin } from "./game/crowd-lift.ts";
+export { dealEnthusiasts, nightOver, stepEnthusiasts } from "./game/enthusiasts.ts";
+export { ENTHUSIASTS } from "./game/defs/enthusiasts.ts";
+export type { FreeRider } from "./game/enthusiast-state.ts";
 export { throwAmateur } from "./game/crowd-down.ts";
 export {
   NEUTRAL_INPUT,
@@ -462,6 +465,10 @@ export {
   type ParaPhaseEvent,
   type ParaPiece,
   type ParaState,
+  type BalloonEvent,
+  type BalloonMode,
+  type BalloonPhaseEvent,
+  type BalloonState,
   type SnowContact,
   type BailCause,
   type TrickKind,
@@ -576,6 +583,7 @@ export {
   baseOf,
   blowOf,
   bonesOf,
+  doseOn,
   energyOver,
   fractureEnergyOf,
   fracturesOf,
@@ -591,6 +599,20 @@ export {
   snowGive,
   stepBody,
 } from "./game/body.ts";
+export { bleedsOf, holdsHim, isDead, stepGore, type Bleed } from "./game/gore.ts";
+export {
+  GORE_OPEN,
+  GORE_PIECES,
+  freshGore,
+  lostPiece,
+  type DeathCause,
+  type GoreOpen,
+  type GorePiece,
+  type GoreState,
+  type Impaled,
+  type TornPiece,
+} from "./game/gore-state.ts";
+export { GORE } from "./game/defs/gore.ts";
 export {
   BODY_PARTS,
   BONES,
@@ -666,8 +688,36 @@ export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./gam
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
 export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export {
+  gunSeason,
+  gunSolid,
+  machineSnowAt,
+  machineSnowOf,
+  nozzleOf,
+  snowGunsOf,
+  snowGunsOut,
+  snowGunsRun,
+  standingGuns,
+  whaleOf,
+  whaleShare,
+  type MachineSnow,
+  type SnowGun,
+  type SnowGunMount,
+  type Whale,
+} from "./game/snow-guns.ts";
+export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
 export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
+export {
+  hashOf as rockHash,
+  onAnyCliff,
+  rockShare,
+  rockyCliff,
+  unit as rockDraw,
+  wallOf,
+} from "./game/rocks.ts";
+export { ROCKS } from "./game/defs/rocks.ts";
+export { cliffWalls, faceShare, wallSolids, type CliffWall } from "./game/cliff-wall.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,
@@ -741,6 +791,34 @@ export {
 } from "./game/para.ts";
 export { paraPilot } from "./game/para-pilot.ts";
 export { eddyUp, paraAirAt, type ParaAir } from "./game/para-air.ts";
+export {
+  BALLOON,
+  BALLOON_CENTRE,
+  BALLOON_EMPTY,
+  BALLOON_PLAN,
+  BALLOON_SIDE,
+} from "./game/defs/balloon.ts";
+export {
+  balloonAboard,
+  balloonDown,
+  balloonSiteOf,
+  balloonTrim,
+  freshBalloon,
+  standingPoint as balloonStandingPoint,
+  startBalloon,
+  stepBalloon,
+  walkMostX as balloonWalkMostX,
+  walkMostZ as balloonWalkMostZ,
+} from "./game/balloon.ts";
+export { balloonPilot, PILOT_HOLD as BALLOON_PILOT_HOLD } from "./game/balloon-pilot.ts";
+export {
+  BALLOON_AIR,
+  airDensity as balloonAirDensity,
+  airKelvin as balloonAirKelvin,
+  airPressure as balloonAirPressure,
+  balloonWindAt,
+  upValley,
+} from "./game/balloon-air.ts";
 export {
   DRAG_ARM,
   LIFT_LOOK,

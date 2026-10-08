@@ -26,7 +26,7 @@
 // which: the skis's six are held and ramped, the four around a race happen
 // once however long the key is down.
 
-import type { SkierInput } from "@engine";
+import type { LiftRide, SkierInput } from "@engine";
 
 import {
   DEFAULT_KEYS,
@@ -43,11 +43,14 @@ import {
   neutralTouch,
   sampleHeli,
   sampleInput,
+  walkPad,
   type HeliKeysHeld,
   type KeysHeld,
   type TouchChannel,
 } from "./input-model.ts";
 import { DEFAULT_HELI_KEYS, type HeliAction, type HeliBindings } from "./settings-heli-keys.ts";
+import { watchGazeDrags } from "./lift-gaze-watch.ts";
+import { gazeAllowed } from "./lift-gaze.ts";
 
 export type { InputAction };
 
@@ -57,8 +60,19 @@ export type InputManager = {
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
    * the helicopter's skid, flying it (`heliControls`); `down` whether he is
    * thrown off his skis, where the tuck key pressed or a tap anywhere is
-   * the reset (`crash.getUp` says when the engine takes it). */
-  sample: (dt: number, airborne?: boolean, flying?: boolean, down?: boolean) => SkierInput;
+   * the reset (`crash.getUp` says when the engine takes it); `lift` the lift
+   * he is on, where a drag looks round rather than holds the tuck while it
+   * carries him (`lift-gaze.ts`); `basket` whether he stands in the
+   * balloon's basket, where the walking pad (`hud-balloon.tsx`) walks him
+   * across and along it. */
+  sample: (
+    dt: number,
+    airborne?: boolean,
+    flying?: boolean,
+    down?: boolean,
+    lift?: LiftRide | null,
+    basket?: boolean,
+  ) => SkierInput;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -68,6 +82,11 @@ export type InputManager = {
    * helicopter tapped while he stands beside it (`hud-sled.tsx`,
    * `hud-heli.tsx`) lands here, as ENTER does. */
   requestMachine: () => void;
+  /** Queue one JUMP press, as a tap of the jump key — the afterski room's
+   * tap on the picture, which orders another round, lands here. */
+  requestJump: () => void;
+  /** Hear the drags that look round from the lift, CSS px. */
+  onLook: (handler: (dx: number, dy: number) => void) => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
   /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
@@ -202,6 +221,15 @@ export function createInputManager(
     for (const k of Object.keys(heliKeys) as HeliAction[]) heliKeys[k] = false;
   };
 
+  // LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): every drag on a run, which
+  // the renderer takes only while a lift carries him.
+  let carriedNow = false;
+  let onLook: (dx: number, dy: number) => void = () => {};
+  const gaze = watchGazeDrags(target, {
+    riding: claiming,
+    drag: (dx, dy) => onLook(dx, dy),
+  });
+
   target.addEventListener("keydown", onKeyDown);
   target.addEventListener("keyup", onKeyUp);
   target.addEventListener("blur", onBlur);
@@ -209,14 +237,19 @@ export function createInputManager(
   target.document.addEventListener("visibilitychange", onBlur);
 
   return {
-    sample: (dt, airborne = false, flying = false, down = false) => {
+    sample: (dt, airborne = false, flying = false, down = false, lift = null, basket = false) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
+      // A thumb dragged to look round from the lift is no tuck held to skip it.
+      carriedNow = gazeAllowed(lift);
+      if (carriedNow && gaze.dragging()) input.tuck = 0;
       // Sat on the skid the helicopter's table is the hand: its four
       // controls.
       if (flying) input.heli = sampleHeli(heli, heliKeys, touch, dt);
       else heli.collective = 0;
+      // In the balloon's basket the walking pad owns both ways he walks.
+      if (basket && touch.stick) walkPad(input, touch);
       // On or off a machine: ENTER, or the double tap on touch.
       if (machine || touch.tap2) input.machine = true;
       // Down off his skis, the get-up press is the reset.
@@ -235,6 +268,12 @@ export function createInputManager(
     requestMachine: () => {
       machine = true;
     },
+    requestJump: () => {
+      jumped = true;
+    },
+    onLook: (handler) => {
+      onLook = handler;
+    },
     onAction: (handler) => {
       onAction = handler;
     },
@@ -244,6 +283,7 @@ export function createInputManager(
       indexHeli(next.heliKeys ?? DEFAULT_HELI_KEYS);
     },
     dispose: () => {
+      gaze.stop();
       target.removeEventListener("keydown", onKeyDown);
       target.removeEventListener("keyup", onKeyUp);
       target.removeEventListener("blur", onBlur);

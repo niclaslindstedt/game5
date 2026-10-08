@@ -12,7 +12,7 @@
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
 //   machines.ts     the free ride's helicopter, snowmobile and piste machines
 //   snowfall.ts     the snow falling round the lens, the spindrift
-//   ghost-model.ts  the time trial's ghost, see-through and trail-less
+//   ghost-model.ts  a ghost, see-through and trail-less (no mode keeps one now)
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
@@ -35,8 +35,10 @@ import {
   windAt,
   windFromOf,
   withSky,
+  type FreeRider,
   type GameState,
   type Level,
+  type Rival,
   type SkiSpec,
   type SkierState,
   type SkyOverride,
@@ -44,19 +46,22 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
-import { createLens, lensRay, type Lens } from "./camera.ts";
+import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
+import { figureShown } from "./camera-para.ts";
 import { createTvCamera } from "./camera-tv.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
-import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
+import { createHurtLens } from "./xray-scene.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
-import { createLifts, type Lifts } from "./lifts.ts";
+import { createGoreView, type GoreView } from "./gore-view.ts";
+import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
+import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
@@ -77,9 +82,10 @@ import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
+import type { SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
-import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
+import { DEFAULT_OUTFIT, dealtOutfit, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -208,7 +214,7 @@ export function createWorldRenderer(
   // the canvas, or through the region's grade; the samples go with it.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
   const afterski = createAfterskiView(picture);
-  const lens: Lens = createLens(NEAR, FAR);
+  const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
   /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, or null
    * for the ladder's own rung. */
@@ -220,6 +226,8 @@ export function createWorldRenderer(
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
+  /** The other skiers sat on chairs this frame (`lifts.ts`). */
+  const seated: SeatedRider[] = [];
   const wrap = <M extends THREE.Material>(m: M, name: string): M => hazeMaterial(m, env.haze, name);
   const snowfall = createSnowfall(env.haze);
   snowfall.setBudget(SPRAY_SHARE[video.spray]);
@@ -237,6 +245,8 @@ export function createWorldRenderer(
   let trail: TrailMap | null = null;
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
+  /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
+  let gore: GoreView | null = null;
   /** WHAT SNOW LIES WHERE for this run (`snowpack.ts`), a lab's forced
    * kind, and the samples every reader takes of it — each read at once. */
   let pack: Snowpack | null = null;
@@ -262,9 +272,9 @@ export function createWorldRenderer(
   /** The new snow the trail maps have been filled by, m (`trail.fill`). */
   let filled = 0;
   let override: LensPose | null = null;
-  /** THE DEATH CAM: its state, and whether the app lets it take the lens. */
-  const death = createDeathCam();
-  let deathOn = false;
+  /** THE DEATH CAM and THE X-RAY CAM (`xray-scene.ts`), and his skeleton. */
+  const hurt = createHurtLens();
+  scene.add(hurt.group);
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
   let box = { width: 1, height: 1, pixelRatio: 1 };
@@ -318,6 +328,7 @@ export function createWorldRenderer(
   const lensDir = new THREE.Vector3();
   const rigPose: RigPose = freshRigPose();
   const rideMem = createRideMemory();
+  const gaze = createGazeRig(); // looking round from the lift (`lift-gaze.ts`)
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
@@ -331,6 +342,7 @@ export function createWorldRenderer(
     wildlife?.dispose();
     crowd?.dispose();
     machines?.dispose();
+    gore?.dispose();
     for (const r of riders) r.model.dispose();
     for (const o of [
       terrain?.group,
@@ -342,6 +354,7 @@ export function createWorldRenderer(
       wildlife?.group,
       crowd?.group,
       machines?.group,
+      gore?.group,
     ]) {
       if (o) scene.remove(o);
     }
@@ -349,7 +362,7 @@ export function createWorldRenderer(
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
-    cloud = machines = null;
+    cloud = machines = gore = null;
     pack = null;
     wildlife = crowd = null;
     clear = undefined;
@@ -384,13 +397,31 @@ export function createWorldRenderer(
   const forestOptions = (): ForestOptions => ({
     ...FOREST_LOOK[video.forest],
     far: DISTANCE_LOOK[video.distance].trees,
+    view: DISTANCE_LOOK[video.distance].view,
     casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
   });
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */
   let outfit: Outfit = DEFAULT_OUTFIT;
-  const dressOf = (i: number) =>
-    i === 0 ? { outfit } : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  /** The run's rivals, read for an enthusiast's own kit. */
+  let field: readonly Rival[] = [];
+  const dealtKits = new Map<string, SkierDress>();
+  /** An enthusiast's kit, dealt off his look (`dealtOutfit`), kept. */
+  const kitOfFree = (free: FreeRider): SkierDress => {
+    const key = `${free.look}:${free.rider}`;
+    let kit = dealtKits.get(key);
+    if (!kit) {
+      const { tone, ...dressed } = dealtOutfit(free.look, free.rider);
+      kit = { outfit: dressed, tone };
+      dealtKits.set(key, kit);
+    }
+    return kit;
+  };
+  const dressOf = (i: number): SkierDress => {
+    if (i === 0) return { outfit };
+    const free = field[i - 1]?.free;
+    return free ? kitOfFree(free) : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+  };
   const kitOf = (i: number): string => {
     const d = dressOf(i);
     return outfitKey(d.outfit, d.tone);
@@ -530,6 +561,7 @@ export function createWorldRenderer(
       scene.add(cloud.mesh);
       machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow });
       scene.add(machines.group);
+      field = state.rivals;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -563,11 +595,14 @@ export function createWorldRenderer(
       if (!level || state.level !== level || !terrain || !trail || !spray || !cloud) return;
       const opened = performance.now();
       const runs = runsOf(state);
+      field = state.rivals;
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }
       // A slot on another pair than the one it was drawn as — the player
       // chose different skis for a race on the same map — is rebuilt.
+      // THE DEAD LEFT LYING (a new run after a death), off the body as last drawn.
+      if (state !== lastState) gore?.leave(riders[0].model);
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
         if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
@@ -648,6 +683,11 @@ export function createWorldRenderer(
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
         if (skier.airborne) r.vy = skier.vy;
       }
+      if (state.gore && !gore) {
+        gore = createGoreView(level, wrap);
+        scene.add(gore.group);
+      }
+      gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);
@@ -675,42 +715,36 @@ export function createWorldRenderer(
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
-      const own = machines?.ladder(rigPose, state);
-      player.model.setSkierVisible(lens.rung() !== "tips" && lens.rung() !== "helmet");
+      const own = machines?.ladder(rigPose, state, lens.camera.aspect);
+      player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
-      // THE DEATH CAM (`camera-death.ts`): the lens off the ladder while he is off his skis.
-      let dead: LensPose | null = null;
-      if (deathOn && !override && !shot && lens.rung() !== "orbit") {
-        dead = frameDeath(
-          death,
-          sampleBody(player.body, alpha),
-          ladder,
-          Math.min(dt, 0.1),
-          level.groundAt,
-          clear,
-        );
-        if (death.ended) lens.snap();
-      } else if (death.active) {
-        dropDeathCam(death);
-      }
+      // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.
+      hurt.update(state, player.model.skin());
+      const allowed = !override && !shot && lens.rung() !== "orbit";
+      const dead = hurt.lens(
+        allowed,
+        sampleBody(player.body, alpha),
+        ladder,
+        Math.min(dt, 0.1),
+        level.groundAt,
+        clear,
+        () => lens.snap(),
+      );
       // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
         (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
+        (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
         frameStart(startMoment(state, d), ladder);
       if (planted) {
-        const cam = lens.camera;
-        cam.position.set(planted.eye.x, planted.eye.y, planted.eye.z);
-        cam.up.set(0, 1, 0);
-        cam.lookAt(planted.target.x, planted.target.y, planted.target.z);
-        if (planted.roll !== 0) cam.rotateZ(-planted.roll);
-        cam.fov = planted.fov;
-        cam.updateProjectionMatrix();
-        cam.updateMatrixWorld();
+        aimLens(lens.camera, planted);
         player.model.setSkierVisible(true);
       }
+      // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
+      const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);
+      if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
       // A rival standing in the lens's own spot is left out of this frame.
@@ -763,7 +797,19 @@ export function createWorldRenderer(
         timer.pop();
       }
       gates?.update(state);
-      lifts?.update(state.t, skier.lift, player.drawn, skier.chairLeft, lens.camera.position);
+      seated.length = 0;
+      for (let i = 1; i < runs.length; i++) {
+        const ride = runs[i].skier.lift;
+        if (ride) seated.push({ ride, drawn: riders[i].drawn });
+      }
+      lifts?.update(
+        state.t,
+        skier.lift,
+        player.drawn,
+        skier.chairLeft,
+        lens.camera.position,
+        seated,
+      );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
       const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
@@ -779,6 +825,7 @@ export function createWorldRenderer(
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
       snowfall.update(look, wind, lens.camera, level, dt);
+      gates?.air(state, look, wind, lens.camera.position, pixels);
 
       const built = performance.now();
       if (present) {
@@ -861,9 +908,10 @@ export function createWorldRenderer(
       override = view;
     },
 
-    setDeathCam(on) {
-      deathOn = on;
-    },
+    lookAround: gaze.drag,
+    setDeathCam: hurt.setDeathCam,
+    clearBodies: () => gore?.clearRemains(),
+    setXray: hurt.setXray,
 
     setShot(next) {
       if (!next) tv.drop();
@@ -941,6 +989,7 @@ export function createWorldRenderer(
     },
     dispose() {
       unload();
+      hurt.dispose();
       overlay.dispose();
       snowfall.dispose();
       picture.dispose();

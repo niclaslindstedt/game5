@@ -102,7 +102,7 @@ export function netShape(level: Level): { out: number; height: number } {
 }
 
 /** WHO GETS A CROWD: every run with something to watch — a course
- * counted (the race and the time trial) or a terrain park scored (the
+ * counted (a race, or the labs' run alone) or a terrain park scored (the
  * tricks run). A free ride's ski area has its own people (`crowd.ts`). */
 export function hasSpectators(rules: Pick<RunRules, "course" | "tricks">): boolean {
   return rules.course || rules.tricks;

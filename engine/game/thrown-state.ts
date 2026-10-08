@@ -52,6 +52,9 @@ export type Thrown = {
   struck: number[];
   /** Which of his points are in an A-net this step, a bit each (`catchInNets`). */
   netted: number;
+  /** RUN THROUGH (`gore.ts`): the point held on a spike, and where — the
+   * rest of him hangs off it. Absent while nothing holds him. */
+  pin?: { point: number; x: number; y: number; z: number } | null;
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
   skis: LoneSki[];

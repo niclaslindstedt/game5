@@ -4,8 +4,10 @@
 // (`ghost.ts`) and the ghost it is ridden against.
 //
 // WHICH RUNS HAVE A GHOST, and why only those. A ghost is somebody to ride
-// against where there is nobody else out there, so it belongs to the TIME
-// TRIAL (`GHOST_MODES`). A race already has a field to be measured against,
+// against where there is nobody else out there, so it belongs to a run
+// ridden alone (`GHOST_MODES`: the engine's time trial, which no card stands
+// up any more — so no player's run has one now). A race already has a field
+// to be measured against,
 // and a ghost's run is stepped beside the player's, so a field would have to
 // be stepped twice to put one on the snow beside it. A race is still FILED:
 // its time is written in the book under its own mode.

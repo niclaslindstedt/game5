@@ -230,13 +230,15 @@ export function soundForEvent(
         // A stake's fall is a balance lost: the high-side's sound; a chair
         // run into him a padded body knocked down, the shoulder's. A fall
         // into the A-nets is the mesh's own (the `net` event's, beside
-        // this one) and a body going over into it.
+        // this one) and a body going over into it; thrown out of a balloon's
+        // basket, a body rolled out onto the snow (the basket's slam is the
+        // `balloon` event's).
         id:
           event.cause === "stake"
             ? "wipeout_catch"
             : event.cause === "chair" || event.cause === "maul"
               ? "wipeout_skier"
-              : event.cause === "net"
+              : event.cause === "net" || event.cause === "balloon"
                 ? "wipeout_roll"
                 : `wipeout_${event.cause}`,
         shape: intoSnow(
@@ -245,6 +247,24 @@ export function soundForEvent(
         ),
       };
     }
+
+    // A MORTAL WOUND (`gore.ts`): the body coming apart, the skull, a
+    // spike. DEATH says nothing of its own: the heart's last beats are the
+    // `heartbeat` the app plays off the run, and then nothing.
+    case "gore":
+      return {
+        id:
+          event.what === "torn"
+            ? "gore_torn"
+            : event.what === "crush"
+              ? "gore_crush"
+              : event.what === "open"
+                ? "gore_open"
+                : "gore_impaled",
+        shape: { gain: 1.1, pitch: 1, stretch: 1 },
+      };
+    case "death":
+      return null;
 
     case "bump": {
       const hard = ramp(event.speed, 1, HIT_FULL);
@@ -292,7 +312,7 @@ export function soundForEvent(
       return { id: "trap" };
 
     // THE GRIMBEAR (`grimbear.ts`): his roar out of the trees, over the
-    // skier he took, and pulled up short — heard from where he stands.
+    // skier he took, as he dives past the one he missed, and pulled up short — heard from where he stands.
     case "grimbear":
       return event.phase === "gone"
         ? null
@@ -300,7 +320,11 @@ export function soundForEvent(
             id: "roar",
             shape: {
               ...heardAt({ x: event.x, y: contact.ear?.y ?? 0, z: event.z }, contact.ear, 25, 0.2),
-              ...(event.phase === "halt" ? { pitch: 0.85 } : {}),
+              ...(event.phase === "halt"
+                ? { pitch: 0.85 }
+                : event.phase === "miss"
+                  ? { pitch: 1.15 }
+                  : {}),
             },
           };
 
@@ -451,6 +475,26 @@ export function soundForEvent(
       return event.phase === "drop" || event.phase === "collapse"
         ? { id: "heli_drop", shape: heard }
         : null;
+    }
+
+    // THE HOT AIR BALLOON (`balloon-bank.ts`): over the side, out onto the
+    // snow, the basket set down and into the snow too hard. Its burner,
+    // pilot, vent and fire are a bed of their own (`balloon-bed.ts`), read
+    // off the state rather than an event.
+    case "balloon": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      switch (event.phase) {
+        case "jump":
+          return { id: "balloon_jump", shape: heard };
+        case "step":
+          return { id: "balloon_step", shape: heard };
+        case "touch":
+          return { id: "balloon_touch", shape: heard };
+        case "crash":
+          return { id: "balloon_crash", shape: heard };
+        default:
+          return null;
+      }
     }
 
     // THE AFTERSKI (`afterski-bank.ts`): always the player's own, heard

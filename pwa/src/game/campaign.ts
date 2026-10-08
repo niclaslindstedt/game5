@@ -5,7 +5,7 @@
 // by, so a campaign map is just those with a name and the mode pinned to
 // them (`campaign-levels.ts`): the same generator builds it, on the version
 // it was curated under, and it comes out identical for every player. A
-// shelf is ONE SKI AREA (a seed's resort, R25) and its maps six of the
+// shelf is ONE SKI AREA (a seed's resort, R25) and its maps some of the
 // area's COURSES (R28): the whole mountain is there to ski on every rung,
 // and the points are paid down the one course the rung races.
 //
@@ -16,15 +16,11 @@
 // one for third, nothing at all for fourth. The points are kept for the
 // WHOLE field, because the thing that has to be true at the end of a shelf
 // is "you beat these three", and that is only a sentence if their points are
-// on the board beside yours. A TIME TRIAL rung is ridden alone against the
-// clock and pays a MEDAL instead — bronze, silver, gold, against times set
-// off the bot's own run — and no points, because there is nobody out there
-// to have beaten.
+// on the board beside yours.
 //
 // The results are also THE LOCK, at both scales:
 //
-//   * A MAP opens once the one before it CLEARED — a podium on a race, a
-//     medal on a trial.
+//   * A MAP opens once the one before it CLEARED — a podium.
 //   * A SHELF opens once the one before it has been WON: every map on it
 //     cleared, and the player top of its table.
 //
@@ -33,13 +29,10 @@
 // shape of the thing — see the shelf, then go back for the wins it costs to
 // leave it — and it is why a map already cleared is still worth riding.
 //
-// A TIME TRIAL off the front door rides one of THESE maps rather than a
-// seed — the same snow, the same day, ridden for the record book instead of
-// for points (`menu-levels.tsx`, `pinnedFor`) — and what its level card
-// offers is gated on the campaign having OPENED that shelf. A RACE (the
-// slalom, the super-G, the downhill) is raced on its discipline's own nine
-// (`race-maps.ts`), all open, chosen for the discipline. A seed of your own
-// is the FREE RIDE's, and a link's (`?seed=`).
+// A RACE off the front door (the slalom, the super-G, the downhill …) is
+// raced on its discipline's own nine (`race-maps.ts`), all open, chosen for
+// the discipline, never on these. A seed of your own is the FREE RIDE's,
+// and a link's (`?seed=`).
 //
 // Two halves, the way `records.ts` is split: everything above the storage
 // line is PURE — a map built, a run booked, a lock read — so
@@ -64,16 +57,14 @@ import {
 
 import {
   CAMPAIGN_LEVELS,
-  MEDALS,
   SHELVES,
   type CampaignLevel,
   type CampaignShelf,
-  type Medal,
 } from "./campaign-levels.ts";
 import { disciplineOf, raceMapFor, raceMapsOf, type RacePicks } from "./race-maps.ts";
 
-export { CAMPAIGN_LEVELS, MEDALS, SHELVES } from "./campaign-levels.ts";
-export type { CampaignLevel, CampaignMode, CampaignShelf, Medal } from "./campaign-levels.ts";
+export { CAMPAIGN_LEVELS, SHELVES } from "./campaign-levels.ts";
+export type { CampaignLevel, CampaignMode, CampaignShelf } from "./campaign-levels.ts";
 
 /* ── THE MAP, BUILT ───────────────────────────────────────────────────── */
 
@@ -97,7 +88,7 @@ export function findLevel(
  * generator version, in its country, raced down its own course (R28) of its
  * grade (R23). Nothing about the sky is in here — a pinned sky is laid over
  * the run (`pinnedGameOptions`), and the same map under a different sky is
- * the same map, with the same digest. The six maps of a shelf are one
+ * the same map, with the same digest. The maps of a shelf are one
  * resort, which the generator builds once and keeps (`buildResort`). */
 export function buildCampaignLevel(level: CampaignLevel): Level {
   return generateLevel(level.seed, {
@@ -114,28 +105,26 @@ export function campaignSky(level: CampaignLevel): SkyOverride | undefined {
   return level.sky;
 }
 
-/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: the TIME TRIAL rides any
- * of them — the piste is the piste — but a SLALOM only the maps the
+/** WHETHER A PINNED MAP CAN BE RIDDEN AS `mode`: a SLALOM only the maps the
  * campaign sets one on, the reds and blacks whose slalom stretch (R31) is a
  * slalom hill, because a slalom is never set on an easy one; a DOWNHILL
  * (R32) the campaign's downhill rungs and every black, the courses with a
- * downhill's vertical under them; and none takes the FREE RIDE, the one mode
- * allowed a seed and a day of its own. */
+ * downhill's vertical under them; each other discipline its own maps; and
+ * none takes the FREE RIDE, the one mode allowed a seed and a day of its
+ * own, or a TRICKS run, which is skied on a trick map. */
 export function fitsMode(level: CampaignLevel, mode: GameMode): boolean {
   if (mode === "superG") return level.mode === "superG";
   if (mode === "giantSlalom") return level.mode === "giantSlalom";
   if (mode === "speedSki") return level.mode === "speedSki";
   if (mode === "skiCross") return level.mode === "skiCross";
   if (mode === "slalom") return level.mode === "slalom";
-  if (mode === "downhill") return level.mode === "downhill" || level.grade === "black";
-  return mode === "timeTrial";
+  return mode === "downhill" && (level.mode === "downhill" || level.grade === "black");
 }
 
 /** The campaign's own name for a measured mode: the mode itself where a
  * rung can be one, the slalom's otherwise. */
 function measuredMode(mode: GameMode): CampaignLevel["mode"] {
-  return mode === "timeTrial" ||
-    mode === "downhill" ||
+  return mode === "downhill" ||
     mode === "superG" ||
     mode === "giantSlalom" ||
     mode === "speedSki" ||
@@ -144,31 +133,21 @@ function measuredMode(mode: GameMode): CampaignLevel["mode"] {
     : "slalom";
 }
 
-/** The pinned map named by an id, where it exists and the mode can ride it —
- * null on anything else, so a stale stored id is simply not a map. */
-export function levelForMode(id: string | null, mode: GameMode): CampaignLevel | null {
-  if (id === null) return null;
-  const found = findLevel(id);
-  return found && fitsMode(found.level, mode) ? found.level : null;
-}
-
-/** WHAT THE LEVEL CARDS LAST PICKED, as the settings keep it: the time
- * trial's campaign map (`Settings.level`) and each discipline's race map
- * (`Settings.raceMap`). */
-export type PinnedPicks = { level: string | null; raceMap: RacePicks };
+/** WHAT THE LEVEL CARDS LAST PICKED, as the settings keep them: each
+ * discipline's race map (`Settings.raceMap`). */
+export type PinnedPicks = { raceMap: RacePicks };
 
 /** No card has picked anything yet: every mode's first map. */
-export const NO_PICKS: PinnedPicks = { level: null, raceMap: {} };
+export const NO_PICKS: PinnedPicks = { raceMap: {} };
 
 /** THE PINNED MAP A MEASURED RUN IS ON, or null where it is choosing its
  * own. A RACE rides the race map its discipline's level card last picked
- * (`Settings.raceMap`, `race-maps.ts`) and a TIME TRIAL the campaign map
- * its card last picked (`Settings.level`) — or the first that fits, on a
- * fresh app — so two figures in the record book are two figures down the
- * same piste. Two answers are null: a FREE RIDE, the mode that picks a
- * seed; and a LINK that names a seed (`?seed=`), which takes the pinned map
- * off for that visit so a lab or a shared link rides exactly the seed it
- * names. */
+ * (`Settings.raceMap`, `race-maps.ts`) — or its first, on a fresh app — so
+ * two figures in the record book are two figures down the same piste. The
+ * answer is null for a mode with no nine of its own (a FREE RIDE, a TRICKS
+ * run: the modes that pick a seed or a trick map), and for a LINK that
+ * names a seed (`?seed=`), which takes the pinned map off for that visit
+ * so a lab or a shared link rides exactly the seed it names. */
 export function pinnedFor(
   picks: PinnedPicks,
   mode: GameMode,
@@ -177,10 +156,8 @@ export function pinnedFor(
   if (linkSeed !== null) return null;
   const races = raceMapsOf(mode);
   const discipline = disciplineOf(mode);
-  if (races && discipline) return raceMapFor(mode, picks.raceMap[discipline]) ?? races[0];
-  const first = CAMPAIGN_LEVELS.find((l) => fitsMode(l, mode));
-  if (!first) return null;
-  return levelForMode(picks.level, mode) ?? first;
+  if (!races || !discipline) return null;
+  return raceMapFor(mode, picks.raceMap[discipline]) ?? races[0];
 }
 
 /** WHAT A RIDE PRESS STANDS UP ON A PINNED MAP, as the arguments of the
@@ -212,11 +189,19 @@ export function isPinnedMap(level: Level, pin: CampaignLevel): boolean {
 
 /** Who skis a pinned run, and with what: the pair, the help, whether
  * blows cost him, and his poles (with them when left out). */
-export type PinnedSkier = { spec: SkiSpec; assist: Assist; damage: boolean; poles?: boolean };
+export type PinnedSkier = {
+  spec: SkiSpec;
+  assist: Assist;
+  damage: boolean;
+  poles?: boolean;
+  /** The INJURIES switch on (`injuriesShown`): a blow past what a body
+   * survives tears him apart and kills him (`CreateGameOptions.gore`). */
+  gore?: boolean;
+};
 
 /** A RUN ON THE PINNED MAP — the map's own snow under the map's own sky,
  * skied as `mode` on the skier's pair. `laps` is the run's own — a
- * rung's, or a measured run's (`measuredLaps`) — and the rung's when left
+ * rung's, or a measured run's (R16's one) — and the rung's when left
  * out.
  *
  * `built` is the map already paid for — building one is the most expensive
@@ -237,6 +222,7 @@ export function pinnedGameOptions(
     spec: skier.spec,
     assist: skier.assist,
     damage: skier.damage,
+    ...(skier.gore ? { gore: true } : {}),
     poles: skier.poles,
     contact: opts.contact,
   };
@@ -253,25 +239,18 @@ export function campaignGameOptions(
   return pinnedGameOptions(level, level.mode, skier, { built, contact: false });
 }
 
-/** How many runs a MEASURED run on a pinned map is: a race is the race's
- * one (R16) whatever the rung's own, a trial the front door's chip (one). */
-export function measuredLaps(mode: GameMode, trialLaps: number): number {
-  return mode === "timeTrial" ? trialLaps : LEVEL_RULES.race.laps;
-}
-
 /** THE RUN A PRESS ASKS FOR on a pinned map: a campaign RUNG in its own mode
- * over its own laps, or — off the level card — the map ridden as `mode`, a
- * race over the race's laps and a trial over the front door's `trialLaps`. */
+ * over its own laps, or — off the level card — the map raced as `mode` over
+ * the race's one run (R16) whatever the map's own. */
 export function pinnedRun(
   pin: CampaignLevel,
   mode: CampaignLevel["mode"],
   rung: boolean,
   skier: PinnedSkier,
-  trialLaps: number,
   built?: Level,
 ): CreateGameOptions {
   if (rung) return campaignGameOptions(pin, skier, built);
-  return pinnedGameOptions(pin, mode, skier, { laps: measuredLaps(mode, trialLaps), built });
+  return pinnedGameOptions(pin, mode, skier, { laps: LEVEL_RULES.race.laps, built });
 }
 
 /* ── THE POINTS ───────────────────────────────────────────────────────── */
@@ -299,37 +278,27 @@ export function pointsFor(place: number): number {
   return POINTS[place - 1] ?? 0;
 }
 
-/** WHICH MEDAL a time earns on a trial, or none. A race pays no medal. */
-export function medalFor(level: CampaignLevel, time: number): Medal | null {
-  if (!level.medals) return null;
-  let won: Medal | null = null;
-  for (const medal of MEDALS) if (time <= level.medals[medal]) won = medal;
-  return won;
-}
-
 /** Points for one race, by skier id. */
 export type LevelScores = Record<string, number>;
 
 /** What the player got out of a map, best of every afternoon: the time, the
- * skis that set it, the best place against the field (1 on a trial, where
- * there is no field) and — on a trial — the best medal.
+ * skis that set it and the best place against the field.
  *
  * The time and the skis are absent together on a map opened by hand
- * (`campaign-unlocks.ts`): it has a place and a medal because that is what a
- * lock reads, and no time because nobody rode one. The first real run fills
- * the pair in. */
+ * (`campaign-unlocks.ts`): it has a place because that is what a lock
+ * reads, and no time because nobody rode one. The first real run fills the
+ * pair in. */
 export type LevelResult = {
   best?: number;
   skis?: SkiId;
   place: number;
-  medal: Medal | null;
 };
 
 export type CampaignProgress = {
   /** The player's best on each map ridden to the flag, by map id. */
   results: Record<string, LevelResult>;
   /** What every race has paid the WHOLE FIELD, by map id — the board the
-   * campaign is played on. A map never ridden, and a trial, is absent. */
+   * campaign is played on. A map never ridden is absent. */
   points: Record<string, LevelScores>;
 };
 
@@ -347,7 +316,7 @@ export type CampaignRun = {
  * BETTER AFTERNOON — the one that placed the player higher, and the whole
  * field's points from that same run with it. A worse run changes nothing on
  * the board (a run skied for fun must never cost a title), while the best
- * time and the best medal improve on their own, whatever the field did.
+ * time improves on its own, whatever the field did.
  * Pure: returns the progress to render from. */
 export function recordRun(
   progress: CampaignProgress,
@@ -355,7 +324,6 @@ export function recordRun(
   run: CampaignRun,
 ): CampaignProgress {
   const place = run.order.indexOf(null) + 1 || run.order.length + 1;
-  const medal = medalFor(level, run.time);
   const stood = progress.results[level.id];
   // The time and the skis are kept or replaced TOGETHER — a best time beside
   // the wrong pair is a line the card would read out loud.
@@ -366,10 +334,8 @@ export function recordRun(
   const result: LevelResult = {
     ...figure,
     place: stood === undefined ? place : Math.min(stood.place, place),
-    medal: stood === undefined ? medal : bestMedal(stood.medal, medal),
   };
   const results = { ...progress.results, [level.id]: result };
-  if (level.mode === "timeTrial") return { results, points: progress.points };
   const scored: LevelScores = {};
   run.order.forEach((id, i) => {
     scored[skierKey(id)] = pointsFor(i + 1);
@@ -384,20 +350,12 @@ export function recordRun(
   return { results, points };
 }
 
-function bestMedal(a: Medal | null, b: Medal | null): Medal | null {
-  if (a === null) return b;
-  if (b === null) return a;
-  return MEDALS.indexOf(a) >= MEDALS.indexOf(b) ? a : b;
-}
-
 /* ── THE LOCKS ────────────────────────────────────────────────────────── */
 
-/** CLEARED — the map paid the player something: a podium on a race, a medal
- * on a trial. */
+/** CLEARED — the map paid the player something: a podium. */
 export function levelCleared(progress: CampaignProgress, level: CampaignLevel): boolean {
   const result = progress.results[level.id];
-  if (result === undefined) return false;
-  return level.mode === "timeTrial" ? result.medal !== null : result.place <= PODIUM;
+  return result !== undefined && result.place <= PODIUM;
 }
 
 /** A map opens once the one before it on its shelf has been cleared; the
@@ -475,43 +433,14 @@ export function shelfUnlocked(shelf: CampaignShelf, progress: CampaignProgress):
   return shelfWon(SHELVES[index - 1], progress);
 }
 
-/** WHETHER THE LEVEL CARD OFFERS A SHELF TO `mode`: every shelf the campaign
- * has opened, and the FIRST shelf holding a map the mode can ride, opened or
- * not — so the card is never empty. The first shelf carries no black, so
- * without it a DOWNHILL would have nowhere to go on a fresh app; it is the
- * map `pinnedFor` already puts a fresh app's downhill on. */
-export function shelfOpenFor(
-  shelf: CampaignShelf,
-  mode: GameMode,
-  progress: CampaignProgress,
-): boolean {
-  return shelfUnlocked(shelf, progress) || shelf === SHELVES.find((s) => holdsMode(s, mode));
-}
-
-/** Where the level card lands for `mode`: the furthest shelf it offers that
- * holds a map the mode can ride. */
-export function reachedShelfFor(mode: GameMode, progress: CampaignProgress): CampaignShelf {
-  let reached = SHELVES[0];
-  for (const shelf of SHELVES) {
-    if (holdsMode(shelf, mode) && shelfOpenFor(shelf, mode, progress)) reached = shelf;
-  }
-  return reached;
-}
-
-function holdsMode(shelf: CampaignShelf, mode: GameMode): boolean {
-  return shelf.levels.some((level) => fitsMode(level, mode));
-}
-
 /** WHERE THE CAMPAIGN PICKS BACK UP on a shelf. Forward first: the next open
- * map never ridden. Then back to the first open race not WON or trial
- * without its gold — which is the whole shape of a points campaign. Null
+ * map never ridden. Then back to the first open race not WON — which is
+ * the whole shape of a points campaign. Null
  * when every open map has given up all it has. */
 export function continueAt(shelf: CampaignShelf, progress: CampaignProgress): CampaignLevel | null {
   const open = shelf.levels.filter((_l, index) => levelUnlocked(shelf, index, progress));
   const spent = (level: CampaignLevel): boolean =>
-    level.mode !== "timeTrial"
-      ? (progress.points[level.id]?.[PLAYER_ID] ?? 0) === POINTS[0]
-      : progress.results[level.id]?.medal === MEDALS[MEDALS.length - 1];
+    (progress.points[level.id]?.[PLAYER_ID] ?? 0) === POINTS[0];
   return (
     open.find((level) => progress.results[level.id] === undefined) ??
     open.find((level) => !spent(level)) ??
@@ -538,8 +467,8 @@ export function campaignStanding(progress: CampaignProgress): { cleared: number;
 }
 
 /** THE FRONT DOOR'S PINNED FACES: the campaign tile's (how far up the ladder
- * and the rung it would pick next) and the map the SLALOM, DOWNHILL and TIME
- * TRIAL tiles ride — null where a link pinned a seed instead. */
+ * and the rung it would pick next) and the map each discipline on the race
+ * card rides — null where a link pinned a seed instead. */
 export function frontDoorPins(
   progress: CampaignProgress,
   chosen: PinnedPicks,
@@ -552,7 +481,6 @@ export function frontDoorPins(
   giantSlalomMap: string | null;
   speedSkiMap: string | null;
   skiCrossMap: string | null;
-  trialMap: string | null;
 } {
   return {
     campaign: {
@@ -565,7 +493,6 @@ export function frontDoorPins(
     giantSlalomMap: pinnedFor(chosen, "giantSlalom", linkSeed)?.name ?? null,
     speedSkiMap: pinnedFor(chosen, "speedSki", linkSeed)?.name ?? null,
     skiCrossMap: pinnedFor(chosen, "skiCross", linkSeed)?.name ?? null,
-    trialMap: pinnedFor(chosen, "timeTrial", linkSeed)?.name ?? null,
   };
 }
 
@@ -616,7 +543,8 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
   const known = new Set(CAMPAIGN_LEVELS.map((l) => l.id));
   // The rungs raced as a DOWNHILL now, which were trials once: a row there
   // with a medal on it is a trial's — kept as the clear it paid (a trial's
-  // place is 1st), its time down the unset course dropped.
+  // place is 1st), its time down the unset course dropped. A medal anywhere
+  // else is left lying: the trials it was won on are gone from the ladder.
   const downhills = new Set(CAMPAIGN_LEVELS.filter((l) => l.mode === "downhill").map((l) => l.id));
   const blob = parsed as { results?: unknown; points?: unknown };
   if (typeof blob.results === "object" && blob.results !== null) {
@@ -624,12 +552,11 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
       if (!known.has(id) || typeof row !== "object" || row === null) continue;
       const r = row as Partial<LevelResult>;
       if (!Number.isInteger(r.place) || (r.place as number) < 1) continue;
-      const medal = MEDALS.find((m) => m === r.medal) ?? null;
-      if (downhills.has(id) && medal !== null) {
-        out.results[id] = { place: 1, medal: null };
+      if (downhills.has(id) && isMedal((row as { medal?: unknown }).medal)) {
+        out.results[id] = { place: 1 };
         continue;
       }
-      const kept: LevelResult = { place: r.place as number, medal };
+      const kept: LevelResult = { place: r.place as number };
       // The time and the skis come as a pair or not at all.
       const timed = typeof r.best === "number" && Number.isFinite(r.best) && r.best >= 0;
       if (timed && typeof r.skis === "string" && isSkiId(r.skis)) {
@@ -650,6 +577,11 @@ export function mergeProgress(parsed: unknown): CampaignProgress {
     }
   }
   return out;
+}
+
+/** A medal as the trials once stored one. */
+function isMedal(medal: unknown): boolean {
+  return medal === "bronze" || medal === "silver" || medal === "gold";
 }
 
 export function loadProgress(): CampaignProgress {

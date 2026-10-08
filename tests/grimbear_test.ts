@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE GRIMBEAR (`grimbear.ts`): dealt only to a free ride that asks for him;
 // hidden behind a trunk ahead of the skier and beside his line before he
-// can be seen; out of the trees as the skier comes; catching him ONCE —
+// can be seen; out of the trees as the skier comes; missing him most runs
+// (a dive past him, swiping air) and catching him ONCE —
 // the skier thrown, the beast walking off, the reset at the top of the
 // slope — and every sighting after that a chase that pulls up short.
 
@@ -27,7 +28,7 @@ import {
   grimbearAgain,
 } from "../pwa/src/game/free-ride.ts";
 import { freshGrimbearPose, grimbearPose } from "../pwa/src/game/grimbear-pose.ts";
-import { SKIS } from "@engine";
+import { SKIS, lostPiece } from "@engine";
 
 /** The SLOPE with one trunk 9 m beside the straight below the bend. */
 const TREE = { x: SLOPE.x + 9, z: 700 };
@@ -39,8 +40,15 @@ function woods(): Level {
   return level;
 }
 
-function ride(ask?: "hunt" | "roam"): GameState {
-  return createGame({ level: woods(), mode: "free", quiet: true, grimbear: ask, crowd: 0 });
+function ride(ask?: "hunt" | "roam", gore = false): GameState {
+  return createGame({ level: woods(), mode: "free", quiet: true, grimbear: ask, crowd: 0, gore });
+}
+
+/** A hunt whose every run lands (or misses) — the burst's draw decided. */
+function rigged(lands: boolean, gore = false): GameState {
+  const state = ride("hunt", gore);
+  state.grimbear!.rng.chance = () => !lands;
+  return state;
 }
 
 /** The skier straight down the piste's line at `speed`, the beast stepped
@@ -113,7 +121,7 @@ describe("the ambush", () => {
 
 describe("the hunt", () => {
   it("breaks cover as the skier comes and takes him, once", () => {
-    const state = ride("hunt");
+    const state = rigged(true);
     const b = state.grimbear!;
     b.wait = 0;
     const events = glide(state, 620, 15, 8);
@@ -129,15 +137,27 @@ describe("the hunt", () => {
     expect(b.top).toBe(true);
   });
 
+  it("tears the skier in two, on a run with the injuries on, and kills him", () => {
+    const state = rigged(true, true);
+    state.grimbear!.wait = 0;
+    glide(state, 620, 15, 8);
+    expect(state.skier.thrown?.cause).toBe("maul");
+    step(state, NEUTRAL_INPUT);
+    expect(lostPiece(state.gore, "lower")).toBe(true);
+    expect(lostPiece(state.gore, "legL")).toBe(true);
+    expect(state.gore!.cause).toBe("maul");
+    expect(state.gore!.dead).toBeGreaterThanOrEqual(0);
+  });
+
   it("catches a skier going flat out too", () => {
-    const state = ride("hunt");
+    const state = rigged(true);
     state.grimbear!.wait = 0;
     glide(state, 600, 30, 8);
     expect(state.skier.thrown?.cause).toBe("maul");
   });
 
   it("walks off, and the skier is stood up at the top of the slope", () => {
-    const state = ride("hunt");
+    const state = rigged(true);
     const b = state.grimbear!;
     b.wait = 0;
     glide(state, 620, 15, 6);
@@ -155,6 +175,54 @@ describe("the hunt", () => {
     expect(state.skier.x).toBeCloseTo(state.level.spawn.x, 3);
     expect(state.skier.z).toBeCloseTo(state.level.spawn.z, 3);
     expect(b.top).toBe(false);
+  });
+});
+
+describe("the miss", () => {
+  for (const speed of [8, 15, 30]) {
+    it(`dives past a skier at ${speed} m/s, swiping air, and is still hunting`, () => {
+      const state = rigged(false);
+      const b = state.grimbear!;
+      b.wait = 0;
+      const c = state.skier;
+      c.x = SLOPE.x;
+      c.z = TREE.z - 75;
+      c.vx = 0;
+      c.vz = speed;
+      const seen: string[] = [];
+      let nearest = Infinity;
+      for (let i = 0; i < Math.round(10 / TUNING.dt); i++) {
+        state.t += TUNING.dt;
+        c.z += speed * TUNING.dt;
+        state.events.length = 0;
+        stepGrimbear(state, state.events);
+        for (const e of state.events) if (e.kind === "grimbear") seen.push(e.phase);
+        if (b.phase === "run" || b.phase === "miss")
+          nearest = Math.min(nearest, Math.hypot(b.x - c.x, b.z - c.z));
+      }
+      expect(seen.slice(0, 3)).toEqual(["burst", "miss", "halt"]);
+      expect(c.thrown).toBeNull();
+      // He came for him — within a lunge — and went by, never on him.
+      expect(nearest).toBeLessThan(GRIMBEAR.lunge + 0.5);
+      expect(nearest).toBeGreaterThan(GRIMBEAR.reach);
+      expect(b.hunt).toBe(true);
+      expect(b.top).toBe(false);
+    });
+  }
+
+  it("misses about four runs in five, off his own stream", () => {
+    let lands = 0;
+    const n = 400;
+    for (let seed = 0; seed < n; seed++) {
+      const level = woods();
+      level.seed = seed;
+      const state = createGame({ level, mode: "free", quiet: true, grimbear: "hunt", crowd: 0 });
+      state.grimbear!.wait = 0;
+      glide(state, 620, 15, 8);
+      if (state.skier.thrown?.cause === "maul") lands++;
+    }
+    expect(lands / n).toBeGreaterThan(1 - GRIMBEAR.miss - 0.07);
+    expect(lands / n).toBeLessThan(1 - GRIMBEAR.miss + 0.07);
   });
 });
 

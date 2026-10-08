@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE CAMPAIGN'S WORDS — the front door's CAMPAIGN tile, the campaign card
-// (`menu-campaign.tsx`), the level card a RACE and a TIME TRIAL pick their
+// (`menu-campaign.tsx`), the level card a RACE picks its
 // mountain on (`menu-levels.tsx`), the card a TRICKS run picks its park on
 // (`menu-tricks.tsx`) and the lines the finish plate adds on a rung
 // (`campaign-run.ts`). Stated beside the one table and spread into it
@@ -8,7 +8,7 @@
 // and the campaign's block is one file to read. Templates, never
 // concatenations at the call site (§39.2).
 //
-// The shelves are four SKI AREAS, each raced down six of its red and black
+// The shelves are four SKI AREAS, each raced down some of its red and black
 // courses (`campaign-levels.ts`); their names and blurbs are the ladder's
 // own data there, and the kind of country a tab bills is `regionNames`.
 
@@ -18,19 +18,17 @@ import type { CampaignMode } from "./campaign-levels.ts";
 
 /** A measured mode's word on a box. */
 const modeWord = (mode: CampaignMode): string =>
-  mode === "timeTrial"
-    ? "TIME TRIAL"
-    : mode === "downhill"
-      ? "DOWNHILL"
-      : mode === "superG"
-        ? "SUPER-G"
-        : mode === "giantSlalom"
-          ? "GIANT SLALOM"
-          : mode === "speedSki"
-            ? "SPEED SKIING"
-            : mode === "skiCross"
-              ? "SKI CROSS"
-              : "RACE";
+  mode === "downhill"
+    ? "DOWNHILL"
+    : mode === "superG"
+      ? "SUPER-G"
+      : mode === "giantSlalom"
+        ? "GIANT SLALOM"
+        : mode === "speedSki"
+          ? "SPEED SKIING"
+          : mode === "skiCross"
+            ? "SKI CROSS"
+            : "RACE";
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -60,8 +58,6 @@ export const CAMPAIGN_STRINGS = {
   /** The rung the campaign would pick next. */
   menuCampaignNext: (name: string): string => `NEXT · ${name.toUpperCase()}`,
   menuCampaignDone: "EVERY RUN CLEARED",
-  /** The RACE and TIME TRIAL tiles, billed with the pinned run they ski. */
-  menuPinnedLine: (name: string): string => `${name.toUpperCase()} · TOP TO BOTTOM`,
 
   /* ── THE CAMPAIGN CARD (menu-campaign.tsx) ─────────────────────────── */
   campaignRide: "SKI",
@@ -72,7 +68,7 @@ export const CAMPAIGN_STRINGS = {
     `${cleared} OF ${of} CLEARED · ${ordinal(place)} ON THE TABLE`,
   campaignShelfLocked: "WIN THE SHELF BEFORE IT TO OPEN THIS ONE",
   /** Why a run is shut: the rung before it has not paid out yet. */
-  campaignLevelLocked: "CLEAR THE RUN BEFORE IT — A PODIUM OR A MEDAL",
+  campaignLevelLocked: "CLEAR THE RUN BEFORE IT — A PODIUM",
   campaignPoints: (points: number): string => plural(points, "PT", "PTS"),
   campaignPlace: (place: number, of: number): string => `${ordinal(place)} OF ${of}`,
   campaignWins: (wins: number): string => plural(wins, "WIN", "WINS"),
@@ -100,16 +96,10 @@ export const CAMPAIGN_STRINGS = {
     storm: "STORM",
     fog: "FOG",
   } as Record<string, string>,
-  campaignMedal: { bronze: "BRONZE", silver: "SILVER", gold: "GOLD" } as Record<string, string>,
-  /** What a medal costs on a trial's box, to the whole second: `GOLD 1'51"`. */
-  campaignMedalCost: (medal: string, seconds: number): string =>
-    `${medal} ${formatTime(seconds).replace(/"\d+$/, '"')}`,
 
   /* ── THE LEVEL CARD (menu-levels.tsx) ──────────────────────────────── */
   levelsRace: "RACE ON",
   levelsDownhill: "DOWNHILL ON",
-  levelsTrial: "TIME TRIAL ON",
-  levelsShelfLocked: "OPENED BY THE CAMPAIGN",
   /** Over a discipline's nine: what they are. */
   levelsRaceMaps: "NINE MOUNTAINS PICKED FOR THIS RACE · THE GENTLEST FIRST",
   /** A race map's course on its box: the drop and the length — a slalom's in
@@ -119,8 +109,6 @@ export const CAMPAIGN_STRINGS = {
       length < 1000 ? `${Math.round(length)} M` : `${(length / 1000).toFixed(1)} KM`
     }`,
   levelsNoBest: "NO TIME SET YET",
-  /** An open shelf with no map the mode can ride (no black for a downhill). */
-  levelsNoneHere: (mode: CampaignMode): string => `NO ${modeWord(mode)} ON THIS SHELF`,
   levelsBest: (seconds: number, skis: string): string =>
     `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
 
@@ -136,8 +124,6 @@ export const CAMPAIGN_STRINGS = {
   plateRung: (shelf: string, rung: number, name: string): string =>
     `${shelf.toUpperCase()} ${rung} · ${name.toUpperCase()}`,
   platePoints: (points: number): string => `+${plural(points, "POINT", "POINTS")}`,
-  plateMedal: (medal: string): string => `${medal} MEDAL`,
-  plateNoMedal: (bronze: number): string => `NO MEDAL · BRONZE IS ${formatTime(bronze)}`,
   plateOpened: (name: string): string => `${name.toUpperCase()} IS OPEN`,
   plateShelfWon: (shelf: string): string => `${shelf.toUpperCase()} WON`,
   plateLocked: "CLEAR THIS RUN TO GO ON",

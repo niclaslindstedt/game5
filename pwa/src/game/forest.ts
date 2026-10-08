@@ -56,12 +56,14 @@ import { treeTilt } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
- * row's `far`, all m), the share of the far band's sketches that stand, how
+ * row's `far`, all m), how far the crags stand (the DISTANCE row's `view`:
+ * the whole picture, since a crag far off is what a far lens looks at), the share of the far band's sketches that stand, how
  * many variants of each kind are drawn, and what the trees cast (the FOREST
  * row's cut, or none unless SHADOWS is ALL) — `settings-video.ts` says what
  * each stop buys. */
 export type ForestOptions = Omit<ForestLook, "casters"> & {
   far: number;
+  view: number;
   casters: TreeCasters | "none";
 };
 
@@ -158,8 +160,8 @@ export type Forest = {
 export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
   let options = { ...initial };
   const group = new THREE.Group();
-  // THE CRAGS on the bare faces stand with the woods: the same reach, and
-  // the far share the share of their shards (`rocks.ts`).
+  // THE CRAGS on the drops stand with the woods, out to the whole view,
+  // and the far share is the share of their blocks (`rocks.ts`).
   const rocks = createRocks(level, haze, options.farShare);
   group.add(rocks.group);
   const count = level.trees.length;
@@ -586,7 +588,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   return {
     group,
     update(camera, shadow) {
-      rocks.update(camera.position, options.far);
+      rocks.update(camera.position, options.view);
       // The casters, when the circle has moved, turned with the sun or
       // changed size — a metre, or a few hundredths of a degree.
       if (

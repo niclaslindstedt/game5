@@ -29,6 +29,7 @@ import {
   RUN_CAMERAS,
   assistOf,
   freshSettings,
+  injuriesShown,
   mergeSettings,
   mixOf,
   nextCamera,
@@ -285,6 +286,23 @@ describe("what the game remembers (settings.ts)", () => {
     expect(freshSettings().damage).toBe(false);
     expect(mergeSettings({ damage: true }).damage).toBe(true);
     expect(mergeSettings({ damage: "yes" }).damage).toBe(false);
+  });
+
+  it("draws the injuries as the player or the device says", () => {
+    const fresh = freshSettings();
+    expect(fresh.injuries).toBe(null);
+    expect(mergeSettings({ injuries: false }).injuries).toBe(false);
+    expect(mergeSettings({ injuries: "no" }).injuries).toBe(null);
+    // Nothing picked: shown, unless the device's owner filters.
+    expect(injuriesShown(fresh, null)).toBe(true);
+    expect(injuriesShown(fresh, "filtered")).toBe(false);
+    // A pick is the player's own — over an adult's filter, too.
+    const on = { ...fresh, injuries: true };
+    const off = { ...fresh, injuries: false };
+    expect(injuriesShown(off, null)).toBe(false);
+    expect(injuriesShown(on, "filtered")).toBe(true);
+    // A parental control on the device is over any pick.
+    expect(injuriesShown(on, "child")).toBe(false);
   });
 
   it("keeps the readouts up unless they were taken down, and only as a switch", () => {

@@ -106,7 +106,7 @@ export const RESOLUTION_SHARE: Record<ResolutionLevel, number> = {
 /** How far out the ground reaches under DISTANCE MAX, m: past the basin's
  * rim from any corner of it, so the mountains are always ground and never a
  * hole with the sky in it. Every shorter stop closes its mist first. */
-export const TERRAIN_REACH = 2800;
+export const TERRAIN_REACH = 3800;
 
 export type TerrainLook = {
   /** Cells a side per level (a multiple of 4). */

@@ -165,6 +165,9 @@ export function KeysPage({
         {/* ...and neither has the paramotor: the same keys fly the wing. */}
         <h3 class="knob-section">{STRINGS.keysParaTitle}</h3>
         <p class="knob-note">{STRINGS.paraKeysNote}</p>
+        {/* ...nor the balloon: the same keys burn, vent and walk the basket. */}
+        <h3 class="knob-section">{STRINGS.keysBalloonTitle}</h3>
+        <p class="knob-note">{STRINGS.balloonKeysNote}</p>
         {/* The page's own restore: a skier who has made a mess of the keys
           wants the keys back, not the whole options page thrown away. */}
         <button

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: world sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear groomer tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind afterski
+.PHONY: world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -47,6 +47,18 @@ icons:
 # session. SEED=n picks the map; ARGS="--views=powder,lookback" a subset.
 world:
 	npm run world -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(if $(GRADE),--grade $(GRADE),) $(ARGS)
+
+# THE BUILDINGS LAB: every kind of lift station's foot and top from three
+# sides, through the game's own renderer, as one sheet —
+# previews/world-free-stations.png (`docs/buildings.md`, the `buildings`
+# skill), then the slalom's start house and the finish arena —
+# previews/world-race-buildings.png, then the wind tunnels' fan house,
+# gallery and exit portal — previews/world-free-tunnels.png. ARGS=--hour=21
+# shows the panes lit after dark.
+buildings:
+	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --views=tunnels $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:
@@ -456,6 +468,32 @@ para:
 para-wind:
 	npm run para-wind -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
+# THE HOT AIR BALLOON'S FLIGHT LAB: scripted flights of the free ride's
+# balloon in pure Node — the bot's hands holding a height, a hop off the
+# tether, the valve held, the burner held till the fabric cooks, a jump over
+# the side, a walk about the basket, a breeze and a gale: the top, the climb
+# and the sink, the lag from a burn to a climb, the envelope's hottest, the
+# propane burnt, the way carried up the mountain, the fire and the end.
+# ARGS="--json=previews/balloon-before.json" before a change,
+# "--compare=previews/balloon-before.json" after; "--rows=pilot,gale --trace=pilot".
+balloon-flight:
+	npm run balloon-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE BALLOON LAB: the free ride's hot air balloon staged at every moment it
+# has — tethered on the valley floor, in flight over the mountain, the
+# basket, burner and skirt close up, up into the mouth, the parachute
+# pulled, leant over in the wind, after dark with the burner lit, burning,
+# laid on the snow, every colourway, the walk, eight sides, over the side,
+# every camera rung — and its fire: the burner lit and going out, the
+# envelope catching in a gale, burning, falling and the wreck smouldering
+# (`fire`, `catch`, `inferno`) — through the game's own renderer. One contact sheet a
+# group, previews/balloon-<group>.png, and every frame alone,
+# previews/balloon-<view>-<label>.png. Its own one-off bundle from
+# pwa/balloon-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--sheet=tethered,basket" a few sheets, "--views=night" a few views.
+balloon:
+	npm run balloon -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE GRIMBEAR LAB: the free ride's grimbear staged at every moment he has —
 # the figure from eight sides, his run and walk across one stride, each
 # move, the ambush ridden, THE KILL frame by frame and as the death cam
@@ -467,6 +505,34 @@ para-wind:
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
+# skied into a trunk, flown into one head first, thrown onto the snow, onto
+# his feet, onto a tree's top or a post's, caught by the grimbear — frame by
+# frame through the game's own renderer, with the blood spurting on the
+# beat and the snow red under him. One contact sheet a group,
+# previews/gore-<group>.png, and every frame alone. Its own one-off bundle
+# from pwa/gore-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=trunk,blood", "--views=spray".
+gore:
+	npm run gore -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE X-RAY LAB: a hard blow on a run with the INJURIES switch on, run the
+# way the app runs it — the read ahead, the run slowed, the lens closing on
+# the bone that breaks, the pans to the next one and the limb torn, the
+# whole body and the death — photographed every half second of wall
+# through the game's own renderer: previews/xray-<scene>.png. Its own
+# one-off bundle from pwa/xray-preview.html; needs a Chromium like `world`.
+# ARGS="--scene=trunk|trunk-fast|head|slam --most=14".
+xray:
+	npm run xray -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE X-RAY SKELETON: every bone and organ of BodyParts3D (fetched into
+# the gitignored previews/.bodyparts3d/), thinned and fitted onto the
+# skier's rig, drawn inside his dressed outline (previews/xray-body.png);
+# ARGS=--write regenerates pwa/src/game/xray-model.ts.
+xray-body:
+	npm run xray-body -- $(ARGS)
+
 # THE PISTE MACHINE LAB: the free ride's night groomers photographed
 # through the game's own renderer — the figure from eight sides and up
 # close, at work by day, at dusk, after dark with every lamp lit, in the
@@ -477,6 +543,17 @@ grimbear:
 # Chromium like `world`. ARGS="--sheet=night,snow", "--views=turntable".
 groomer:
 	npm run groomer -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SNOW GUN LAB: a thin season's snow guns on a free ride through the
+# game's own renderer — a fan gun on its carriage and on its column and a
+# lance from a few metres, a running gun's cone side on and down its run,
+# the whale it lays, the skier skiing past on the chase, and the plumes
+# under the floodlights. One contact sheet a group, previews/snowguns-
+# <group>.png, and every frame alone. Its own one-off bundle from
+# pwa/snowguns-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=plume", "--day=70 --hour=8" (a late season).
+snowguns:
+	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
 # through the game's own renderer — one well from every side and at the
@@ -651,6 +728,17 @@ level:
 # `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE JUNCTIONS LAB: where the groomed snow BREAKS — a lip, a step or a
+# wall where a lane leaves a piste, a run merges into another, or anywhere
+# on a run nothing was built to be jumped — read down the fall line on every
+# packed metre, the kickers, drops and pads left out, one row a seed by
+# kind. `--versions=7,8` builds the same seeds by an older generator beside
+# the current one; `--sheet` draws the worst as relief. Pure Node.
+# `make junctions SEED=3 REGION=continental ARGS=--list` ·
+# `make junctions COUNT=10 ARGS="--versions=7,8 --sheet"`
+junctions:
+	npm run junctions -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the

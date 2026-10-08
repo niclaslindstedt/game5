@@ -352,11 +352,13 @@ describe("a free ride begun on a lift", () => {
     const events = ride(run, 30, (r) => r.skier.lift === null);
     expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
     expect(run.skier.lift).toBeNull();
-    // Let be, he slides off the ramp onto the deck and no further: nothing
-    // steers him for a run.
+    // Let be, he slides off the ramp and coasts to a stop on the level top,
+    // never down off it: nothing steers him for a run.
     ride(run, 20, () => false);
     const c = run.skier;
-    expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(RR_PAD / 2 + 4);
+    expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(RR_PAD);
+    expect(Math.abs(c.y - plan.lift.top.y)).toBeLessThan(2);
+    expect(c.speed).toBeLessThan(0.5);
     expect(c.thrown).toBeNull();
   });
 

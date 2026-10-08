@@ -11,10 +11,12 @@
 //     the half-pipe the wind is held in.
 //   * THE CHEVRONS on the snow under it, pointing the way, chasing with the
 //     rings.
-//   * THE FAN at the entrance: a cowl standing round the mouth, a lip of
-//     light on it, and a ring of blades turning inside its rim — open in
-//     the middle, so a skier is drawn in through it — with a sign over it,
-//     chevrons pointing in.
+//   * THE FAN at the entrance: a ring of blades turning inside the drum's
+//     rim — open in the middle, so a skier is drawn in through it — a lip
+//     of light on the drum's mouth and lit chevrons on the sign over it,
+//     pointing in. The drum, the sign and everything else that stands
+//     still of a tunnel — the footings, the snow on the crown, the portals
+//     — are buildings, `tunnel-build.ts`'s, on the facade kit.
 //   * THE STREAKS: snow blown down the lane a third faster than the
 //     tunnel carries a skier, so the wind overtakes him; each fades in at
 //     the fan and out at the exit, and enters again.
@@ -38,7 +40,9 @@
 import * as THREE from "three";
 import type { Level } from "@engine";
 
+import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { ARCH_FEET, FAN_HOUSE, buildTunnels, fanOf } from "./tunnel-build.ts";
 import {
   TUNNEL_LOOK,
   archRadius,
@@ -57,7 +61,7 @@ import {
 
 /** How far past the half circle an arch's feet run into the snow, rad —
  * enough to keep a foot under on a lane with some fall across it. */
-const FEET = 0.16;
+const FEET = ARCH_FEET;
 
 /** A streak every this many metres of a lane at the full SPRAY share. */
 const STREAK_EVERY = 2;
@@ -90,9 +94,8 @@ const CANOPY = { archesPerRing: 2, around: 12 };
 const GLOW_LOW = 0.55;
 const GLOW_HIGH = 2.6;
 
-/** The paints, sRGB: the arches' and the cowl's white enamel, the blades'
- * bright steel, the sign's board. */
-const PAINT = { frame: 0xe8ecef, steel: 0xb9c1c8, board: 0x22262b };
+/** The paints, sRGB: the arches' white enamel, the blades' bright steel. */
+const PAINT = { frame: 0xe8ecef, steel: 0xb9c1c8 };
 
 export type WindTunnels = {
   group: THREE.Object3D;
@@ -184,34 +187,6 @@ function rotorGeometry(): THREE.BufferGeometry {
   parts.push(new THREE.TorusGeometry(0.58, 0.02, 4, 32));
   parts.push(new THREE.TorusGeometry(0.96, 0.025, 4, 32));
   return joined(parts);
-}
-
-/** The cowl round a fan: a short open drum of unit radius `depth` long
- * down +z from the origin, standing on the snow like the arches. */
-function cowlGeometry(depth: number): THREE.BufferGeometry {
-  const g = new THREE.CylinderGeometry(
-    1,
-    1,
-    depth,
-    40,
-    1,
-    true,
-    Math.PI / 2 - FEET,
-    Math.PI + 2 * FEET,
-  );
-  g.rotateX(Math.PI / 2);
-  g.translate(0, 0, depth / 2);
-  return g;
-}
-
-/** THE SIGN over the mouth: a dark board on two posts, its foot at the
- * origin. Its chevrons are `signArrows`. */
-function boardGeometry(): THREE.BufferGeometry {
-  return joined([
-    box(6.4, 2.2, 0.22, 0, 2.6, 0),
-    box(0.22, 1.6, 0.22, -2.4, 0.8, 0),
-    box(0.22, 1.6, 0.22, 2.4, 0.8, 0),
-  ]);
 }
 
 /** Three chevrons pointing UP the board, on its face toward −z — the way a
@@ -379,15 +354,6 @@ export function createWindTunnels(level: Level, haze: HazeUniforms, budget = 1):
       side: THREE.DoubleSide,
     }),
   );
-  // The cowls and the signs' boards, painted a vertex each: one draw.
-  const cowling = wrap(
-    new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.45,
-      metalness: 0.2,
-      side: THREE.DoubleSide,
-    }),
-  );
   const light = wrap(new THREE.MeshBasicMaterial({ color: 0xffffff }));
   const lamps = wrap(new THREE.MeshBasicMaterial({ vertexColors: true }));
   const decal = wrap(
@@ -519,36 +485,40 @@ export function createWindTunnels(level: Level, haze: HazeUniforms, budget = 1):
   // THE CANOPY, one draw for the lot.
   whole(canopyGeometry(tunnels), skin, false).renderOrder = 2;
 
-  // THE FANS: a cowl, its lip, its blades and the sign over it, standing
-  // `fanBack` m before each entrance. All but the blades stand still, so
-  // they are laid where they stand, two draws for every fan.
-  const depth = 3.2;
+  // THE BUILDINGS (`tunnel-build.ts`): the footings, the snow on the
+  // crowns, the portals and the fan houses with their sign gantries — one
+  // mesh in the painted materials (`facade-paint.ts`) for every tunnel.
+  const built = facadeGeometry(buildTunnels(level, tunnels).out);
+  const facade = facadeMaterial(haze, "tunnels");
+  mats.push(facade);
+  geos.push(built);
+  const buildings = new THREE.Mesh(built, facade);
+  buildings.castShadow = true;
+  buildings.receiveShadow = true;
+  group.add(buildings);
+
+  // THE FANS: the lit lip on each drum's mouth and the sign's arrows (one
+  // draw) and the blades, `fanBack` m and the drum's depth before each
+  // entrance (`fanOf`).
+  const depth = FAN_HOUSE.depth;
   /** The blades turn in the middle of the drum. */
   const mid = depth / 2;
-  const fans = tunnels.map((tunnel) => {
-    tunnelPointAt(tunnel, 0, at);
-    const back = TUNNEL_LOOK.fanBack + depth;
-    const x = at.x - Math.sin(at.heading) * back;
-    const z = at.z - Math.cos(at.heading) * back;
-    const ground = Math.min(at.y, level.groundAt(x, z));
-    return { x, y: ground, z, heading: at.heading, r: archRadius(tunnel) + 0.9 };
-  });
-  const fixed: THREE.BufferGeometry[] = [];
-  const fixedPaint: THREE.Color[] = [];
+  const fans = tunnels.map((tunnel) => fanOf(level, tunnel));
   const lit: THREE.BufferGeometry[] = [];
   const litPaint: THREE.Color[] = [];
   fans.forEach((f, i) => {
-    const sign = f.y + f.r - 0.4;
-    fixed.push(stood(cowlGeometry(depth), f.x, f.y, f.z, f.heading, f.r));
-    fixedPaint.push(new THREE.Color(PAINT.frame));
-    fixed.push(stood(boardGeometry(), f.x, sign, f.z, f.heading, 1));
-    fixedPaint.push(new THREE.Color(PAINT.board));
-    lit.push(stood(hoop(0.05, 6, 28), f.x, f.y, f.z, f.heading, f.r + 0.02));
+    const sign = f.y + f.r + FAN_HOUSE.sign.foot;
+    // The lip of light round the bellmouth's rim, ahead of the drum.
+    const bell = FAN_HOUSE.bell;
+    const ahead = bell.length + 0.04;
+    const lip = f.r + bell.flare - FAN_HOUSE.shell / 2;
+    const lx = f.x - Math.sin(f.heading) * ahead;
+    const lz = f.z - Math.cos(f.heading) * ahead;
+    lit.push(stood(hoop(0.035, 6, 28), lx, f.y, lz, f.heading, lip));
     litPaint.push(new THREE.Color(tunnelPaint(i)).multiplyScalar(GLOW_HIGH * 0.7));
     lit.push(stood(signArrows(), f.x, sign, f.z, f.heading, 1));
     litPaint.push(new THREE.Color(tunnelPaint(i)).multiplyScalar(GLOW_HIGH));
   });
-  whole(joined(fixed, fixedPaint), cowling, true);
   whole(joined(lit, litPaint), lamps, false);
   const rotors = instanced(rotorGeometry(), steel, fans.length, true);
   rotors.count = fans.length;

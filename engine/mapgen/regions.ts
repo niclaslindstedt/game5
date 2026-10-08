@@ -147,6 +147,12 @@ export type Region = {
     readonly scale: number;
     readonly exposed: number;
   } | null;
+  /** WHETHER ROCK BREAKS THROUGH (R21): the drops' crags and the walls'
+   * outcrops (`engine/game/rocks.ts`) — solid, so a skier meets them — and
+   * the dark stone the shader paints on every face too steep to hold snow.
+   * False where the snow holds on everything. Read by nothing the
+   * generator builds, so no seed moves. */
+  readonly rock: boolean;
   /** Frozen water (R21): none on a mountain. Every row is null; the slot
    * is where a frozen tarn in a bowl would be stated if a region ever laid
    * one. */
@@ -192,6 +198,7 @@ export const REGIONS: Readonly<Record<RegionId, Region>> = {
     altitude: { base: { min: 1300, max: 1600 }, treeLine: { min: 1800, max: 2200 } },
     sun: { latitude: R.sun.latitude, dayOfYear: R.sun.dayOfYear },
     crust: null,
+    rock: true,
     river: null,
   },
   // THE FELL: a northern mountain, low and rounded — half the vertical,
@@ -229,6 +236,7 @@ export const REGIONS: Readonly<Record<RegionId, Region>> = {
     altitude: { base: { min: 350, max: 500 }, treeLine: { min: 600, max: 1000 } },
     sun: { latitude: { min: 60, max: 69 }, dayOfYear: { min: 40, max: 90 } },
     crust: { cover: 0.45, packed: 0.55, scale: 140, exposed: 1 },
+    rock: true,
     river: null,
   },
   // THE CONTINENTAL: a high, cold, dry range — the biggest vertical, tall
@@ -267,6 +275,7 @@ export const REGIONS: Readonly<Record<RegionId, Region>> = {
     altitude: { base: { min: 2300, max: 2700 }, treeLine: { min: 3000, max: 3500 } },
     sun: { latitude: { min: 39, max: 52 }, dayOfYear: { min: 1, max: 80 } },
     crust: { cover: 0.12, packed: 0.5, scale: 110, exposed: 0.7 },
+    rock: true,
     river: null,
   },
   // THE MARITIME: a mountain by the sea under deep, heavy snow — a modest
@@ -304,6 +313,7 @@ export const REGIONS: Readonly<Record<RegionId, Region>> = {
     altitude: { base: { min: 300, max: 600 }, treeLine: { min: 1400, max: 1600 } },
     sun: { latitude: { min: 36, max: 44 }, dayOfYear: { min: 10, max: 80 } },
     crust: null,
+    rock: false,
     river: null,
   },
 };

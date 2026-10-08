@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { GoreEvent, GoreState } from "./gore-state.ts";
 import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
@@ -42,6 +43,7 @@ import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
 export type * from "./para-state.ts";
+export type * from "./balloon-state.ts";
 
 export type SkierInput = {
   /** -1..1; positive edges the skis into a clockwise turn (right in map
@@ -254,9 +256,8 @@ export type SkierState = {
   trench: number;
   trenchFor: number;
   boggedFor: number;
-  /** IN A TREE WELL (`tree-well.ts`): how far the snow under his CoG is
-   * lowered by the well he stands in, m — 0 out of one, and on every map
-   * skied in the ordinary snow. */
+  /** IN A TREE WELL (`tree-well.ts`): how far the well lowers the snow
+   * under his CoG, m — 0 out of one, and always in the ordinary snow. */
   well: number;
   /** Seconds lying over on the snow (`crash.ts`) — the fall's clock;
    * turning over in the air does not run it. */
@@ -606,16 +607,16 @@ export type RunOut = {
  * bot is allowed, dealt once at the start line; `react` how long after GO
  * he stays in the gate, s (`RACE.reactBand`); `lane` the line it holds
  * down the piste, m right of the centreline — its own slot's; `id` its
- * slot less one. */
+ * slot less one; `free` an enthusiast's, out on a free ride after dark. */
 export type Rival = {
   id: number;
   run: GameState;
   pace: number;
-  /** How much this rival can take before he goes down, 0..1 — his skier's
-   * `resilience`, dealt at the start line. */
+  /** How much he can take before he goes down, 0..1 (his `resilience`). */
   resilience: number;
   react: number;
   lane: number;
+  free?: import("./enthusiast-state.ts").FreeRider;
 };
 
 export type GameEvent =
@@ -659,26 +660,24 @@ export type GameEvent =
       radius?: number;
       post?: true;
     }
-  /** A SAVE (`crash.ts`): something that nearly threw him, ridden out —
-   * which, and how near it came, 0..1. */
+  /** A SAVE (`crash.ts`): a near throw ridden out — which, how near, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
   | AfterskiEvent
   | GroomerEvent
+  | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }
-  /** A ski or the legs have taken a blow worth saying (`damage.ts`):
-   * which, and how bad it now is, 0..1. */
+  /** A ski or the legs blown (`damage.ts`): which, and how bad now, 0..1. */
   | { kind: "damage"; t: number; part: DamagePart; level: number }
   /** AN INJURY TAKEN (`body.ts`): the part, which, its AIS rank. */
   | { kind: "injury"; t: number; part: BodyPart; injury: InjuryKind; ais: number }
   /** Another skier — the player's own contact with rival `rival`, or (with
    * `rival` −1) with amateur `amateur` of the crowd (`crowd.ts`). */
   | { kind: "bump"; t: number; rival: number; speed: number; amateur?: number }
-  /** A gate taken: its index, the run it was taken on (always 0), and the
-   * clock. */
+  /** A gate taken: its index, the run it was taken on (always 0), the clock. */
   | { kind: "checkpoint"; t: number; index: number; lap: number; split: number }
   /** A gate skied past without being taken. */
   | { kind: "missed"; t: number; index: number; penalty?: number }
@@ -747,7 +746,8 @@ export type GameEvent =
       speed: number;
     }
   | SledEvent
-  | import("./para-state.ts").ParaEvent;
+  | import("./para-state.ts").ParaEvent
+  | import("./balloon-state.ts").BalloonEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
@@ -936,9 +936,10 @@ export type GameState = ContestState & {
   /** The arcade's help (`Assist`), 0..1 per hand; the field always rides
    * with every hand on. */
   assist: Assist;
-  /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the
-   * player's option, off unless asked for; a rival never takes damage. */
+  /** Whether blows dull an edge or hurt the legs (`damage.ts`): the player's option. */
   damage?: boolean;
+  /** THE PLAYER'S MORTAL WOUNDS (`gore.ts`), on a run that asked for them. */
+  gore?: GoreState;
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */
@@ -969,32 +970,31 @@ export type GameState = ContestState & {
   /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;
-  /** THE EDGE STAKES (`edge-stakes.ts`) as this run has knocked them —
-   * from the first one touched; absent until then. */
+  /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
   stakes?: StakeState;
-  /** THE CROWD (`crowd.ts`): the amateurs out on the ski area — on a run
-   * whose rules ask for one (the free ride); absent everywhere else. */
+  /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
-  /** THE HELICOPTER (`heli.ts`) and THE SNOWMOBILE (`sled.ts`): on a run
-   * whose rules carry them (the free ride); absent everywhere else. */
+  /** THE HELICOPTER (`heli.ts`), THE SNOWMOBILE (`sled.ts`): on a free ride;
+   * THE PARAMOTOR (`para.ts`), THE BALLOON (`balloon.ts`): begun on one. */
   heli?: HeliState;
   sled?: SledState;
-  /** THE PARAMOTOR (`para.ts`): on a free ride begun on it, else absent. */
   para?: import("./para-state.ts").ParaState;
-  /** THE AFTERSKI (`afterski.ts`): on a run whose rules have lodges to go
-   * into (the free ride); absent everywhere else. */
+  balloon?: import("./balloon-state.ts").BalloonState;
+  /** THE AFTERSKI (`afterski.ts`) with its lodges, and THE GRIMBEAR
+   * (`grimbear.ts`) the app dealt: on a free ride. */
   afterski?: AfterskiState;
-  /** THE GRIMBEAR (`grimbear.ts`): on a free ride the app dealt him to. */
   grimbear?: GrimbearState;
-  /** THE PISTE MACHINES (`groomer.ts`) and their snow (`groomed.ts`). */
+  /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
+   * snow guns' (`snow-guns.ts`, a thin season's): read, never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
+  machineSnow?: import("./snow-guns.ts").MachineSnow;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;
-  /** Seconds of the lights still to run; 0 once they are out. */
+  /** Seconds of the lights still to run (0 once out); the phase; and this
+   * step's events, cleared at the top of each step. */
   countdown: number;
   phase: GamePhase;
-  /** This step's events, cleared at the top of each step. */
   events: GameEvent[];
 };

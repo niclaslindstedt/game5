@@ -71,6 +71,83 @@
   opacity: 0.8;
 }
 
+/* THE ROOM'S TAP: the whole picture a press for another round — under the
+   corner's cluster (z-index 1) and the door, over the rest. */
+.hud-afterski-tap {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hud-afterski-tap:focus-visible {
+  outline: none;
+}
+
+/* THE DOOR: the way out, at the foot of the glass. */
+.hud-afterski-door {
+  position: absolute;
+  z-index: 2;
+  bottom: max(1.2rem, calc(env(safe-area-inset-bottom) + 0.6rem));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.55rem 0.9rem 0.45rem;
+  border: 2px solid rgb(255 255 255 / 70%);
+  border-radius: 0.9rem;
+  background: rgb(30 18 8 / 55%);
+  color: var(--hud-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  transform: translateX(-50%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hud-afterski-door:active {
+  background: rgb(60 36 14 / 75%);
+}
+
+.hud-afterski-door-icon {
+  width: clamp(2.4rem, 8vmin, 3.4rem);
+  height: clamp(2.4rem, 8vmin, 3.4rem);
+  overflow: visible;
+}
+
+.hud-afterski-door-frame,
+.hud-afterski-door-arrow {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hud-afterski-door-leaf {
+  fill: #b9773a;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.hud-afterski-door-knob {
+  fill: #ffd27a;
+}
+
+.hud-afterski-door-word {
+  font-size: clamp(0.62rem, 1.9vmin, 0.85rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
 @keyframes hud-afterski-pulse {
   from {
     opacity: 0.65;

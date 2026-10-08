@@ -90,12 +90,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "stuck":
       return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };
     case "grimbear":
-      // Out of the trees, and pulled up short; the catch is the wipeout's.
+      // Out of the trees, diving past, and pulled up short; the catch is
+      // the wipeout's.
       return e.phase === "burst"
         ? { text: STRINGS.newsGrimbear, tone: "bad" }
-        : e.phase === "halt"
-          ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
-          : null;
+        : e.phase === "miss"
+          ? { text: STRINGS.newsGrimbearMiss, tone: "good" }
+          : e.phase === "halt"
+            ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
+            : null;
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"
@@ -199,6 +202,19 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "collapse") return { text: STRINGS.newsParaCollapse, tone: "bad" };
       if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
       return { text: STRINGS.newsParaRestart, tone: "info" };
+    case "balloon":
+      // The balloon: let go, off and onto the snow, too hot, alight, over
+      // the side or out, the ride begun again, the basket over.
+      if (e.phase === "launch") return { text: STRINGS.newsBalloonLaunch, tone: "good" };
+      if (e.phase === "liftoff") return { text: STRINGS.newsBalloonLiftoff, tone: "info" };
+      if (e.phase === "touch") return { text: STRINGS.newsBalloonTouch, tone: "info" };
+      if (e.phase === "hot") return { text: STRINGS.newsBalloonHot, tone: "bad" };
+      if (e.phase === "fire") return { text: STRINGS.newsBalloonFire, tone: "bad" };
+      if (e.phase === "jump") return { text: STRINGS.newsBalloonJump, tone: "good" };
+      if (e.phase === "step") return { text: STRINGS.newsBalloonStep, tone: "good" };
+      if (e.phase === "restart") return { text: STRINGS.newsBalloonRestart, tone: "info" };
+      if (e.phase === "crash") return { text: STRINGS.newsBalloonCrash, tone: "bad" };
+      return null;
     default:
       return null;
   }

@@ -171,7 +171,10 @@ describe("the stations, kept clear", () => {
   // the decks, the ramps off a top, the load zones at a foot and the
   // transport lanes are the night's packed snow, carrying only what has
   // fallen since the ride began.
-  const level = generateLevel(2, { region: "maritime", sky: { weather: "storm" } });
+  const level = generateLevel(2, {
+    region: "maritime",
+    sky: { weather: { kind: "storm", snowfall: 1 } },
+  });
   const ride = (): GameState =>
     createGame({ level, mode: "free", byLift: true, run: "3", crowd: 0, quiet: true });
   const lift = level.resort!.lifts.find((l) => l.id === "G1")!;

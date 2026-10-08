@@ -57,12 +57,10 @@ describe("the modes", () => {
     expect(run.rules).toEqual(fieldRules(run.level.laps));
   });
 
-  it("the trial is always one run top to bottom; a stored length is read back as one", () => {
+  it("the trial is always one run top to bottom, and a stored length is no setting now", () => {
     expect(TIME_TRIAL.laps).toEqual([1]);
-    expect(freshSettings().trialLaps).toBe(1);
-    expect(mergeSettings({ trialLaps: 3 }).trialLaps).toBe(1);
-    expect(mergeSettings({ trialLaps: 2 }).trialLaps).toBe(1);
-    expect(mergeSettings({ trialLaps: "1" }).trialLaps).toBe(1);
+    expect(freshSettings()).not.toHaveProperty("trialLaps");
+    expect(mergeSettings({ trialLaps: 3 })).not.toHaveProperty("trialLaps");
   });
 });
 
@@ -151,7 +149,9 @@ describe("the HUD's reading of it", () => {
   });
 
   it("a link names the mode", () => {
-    expect(readParams("?start=race&mode=trial").mode).toBe("timeTrial");
+    expect(readParams("?start=race&mode=downhill").mode).toBe("downhill");
+    // The time trial is no mode a link boots any more.
+    expect(readParams("?start=race&mode=trial").mode).toBe("slalom");
     expect(readParams("?start=race").mode).toBe("slalom");
     expect(readParams("?mode=nonsense").mode).toBe("slalom");
   });

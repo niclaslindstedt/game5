@@ -64,6 +64,8 @@ import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
+import { wreckOf } from "./hud-wreck.ts";
+import { DeathCard } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
@@ -71,6 +73,7 @@ import { SledReadout } from "./hud-sled.tsx";
 import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
+import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
 
 export type { HudFlash };
 
@@ -111,6 +114,8 @@ export function Hud({
   bare = false,
   machineKey,
   tuckKey,
+  jumpKey = "SPACE",
+  injuries = true,
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -138,6 +143,12 @@ export function Hud({
   /** The tuck key as bound — what stands a fallen skier up past the first
    * seconds of his fall, with a tap anywhere on touch. */
   tuckKey: string;
+  /** The jump key as bound — what orders another round in the afterski's
+   * room. */
+  jumpKey?: string;
+  /** Whether the body's injuries are drawn (`settings.ts`'s
+   * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
+  injuries?: boolean;
 }) {
   const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
@@ -154,13 +165,25 @@ export function Hud({
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
   // the cyclic, the lever's the collective and the pedals.
+  // IN THE BALLOON'S BASKET the edge thumb's glass is the walking pad and
+  // the lever's the burner, the vent and the jump (`hud-balloon.tsx`).
+  const basket = snap.balloon;
   const leverZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={lever} role="power" live={live} />
+  ) : basket ? (
+    <BalloonPad
+      touch={input.touch}
+      side={lever}
+      landed={basket.call === "landed"}
+      onJump={input.requestMachine}
+    />
   ) : (
     <LeverZone touch={input.touch} feel={feel} side={lever} />
   );
   const barZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
+  ) : basket ? (
+    <StickZone touch={input.touch} feel={feel} side={barSide} role="walk" />
   ) : (
     <BarZone
       touch={input.touch}
@@ -168,7 +191,8 @@ export function Hud({
       side={barSide}
     />
   );
-  const thumbs = touch && (
+  // Indoors there is nothing to ski: the room's tap is the whole glass.
+  const thumbs = touch && !indoors && (
     <div class="hud-touch">
       {/* In reading order, so the zone on the left is the first child
           whichever of the two it is. */}
@@ -177,12 +201,19 @@ export function Hud({
       {lever === "right" && leverZone}
     </div>
   );
+  // THE GLASS TAKING HIS BLOWS, and his death (`hud-wreck.ts`): only
+  // where his injuries are drawn at all.
+  const wreck = injuries ? wreckOf(snap.body.blow, snap.died?.since ?? null) : null;
+  // The readouts faded off the glass (`hudFade`): any other reason to clear
+  // it folds in here with `Math.max`.
+  const fade = wreck?.fade ?? 0;
   if (bare) {
     return (
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
         <div class="hud-topright">
           <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
         </div>
+        {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
         {thumbs}
       </div>
     );
@@ -192,19 +223,33 @@ export function Hud({
       class="hud"
       data-air={snap.airTime > 0 ? "1" : undefined}
       data-finished={snap.finished ? "1" : undefined}
-      style={{ "--hud-dark": String(snap.dark) }}
+      data-wreck={wreck ? "1" : undefined}
+      data-fade={fade > 0 ? "1" : undefined}
+      data-jolt={wreck && wreck.jolt > 0 ? String(wreck.joltId % 2) : undefined}
+      style={{
+        "--hud-dark": String(snap.dark),
+        "--hud-fade": fade.toFixed(3),
+        ...(wreck
+          ? {
+              "--hud-jolt": wreck.jolt.toFixed(3),
+            }
+          : {}),
+      }}
       data-touch={touch ? "1" : undefined}
     >
       {/* THE RUN'S FIGURES — the clock, the place, the gates — are a
           contest's, and a FREE RIDE is no contest: it skis without them,
-          and carries the MAP'S SEED alone in their place, so a picture of
-          it says which mountain it was taken on — the one number that
-          brings it back. */}
+          and carries the MAP'S SEED in their place, and where on it he
+          stands, so a picture of it says which mountain it was taken on and
+          where — the numbers that bring it back. */}
       {leisure && (
         <div class="hud-top">
           <div class="hud-top-row">
             <div class="hud-chip hud-seed">
-              <span>{snap.seed}</span>
+              <span>
+                {snap.seed}
+                <span class="hud-seed-at">{STRINGS.seedAt(snap.at.x, snap.at.z)}</span>
+              </span>
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           </div>
@@ -441,21 +486,33 @@ export function Hud({
       )}
 
       {/* Indoors (the afterski's room) there is nothing to ski: no speed,
-          edge or wind, and no body panel. */}
+          edge or wind, and no body panel. In the balloon's basket the dial
+          is the BASKET'S speed over the snow and nothing of the skier's:
+          the edge, his own wind and the height are the strip's. */}
       {!indoors && (
         <div class="hud-speed">
-          <div class="hud-revs-row">
-            <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
-            <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
-              {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
-            </span>
-          </div>
+          {!snap.balloon && (
+            <div class="hud-revs-row">
+              <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
+              <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
+                {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
+              </span>
+            </div>
+          )}
           <div class="hud-cluster">
-            <span class="hud-speed-num">{Math.round(snap.speedKmh)}</span>
+            <span class="hud-speed-num">
+              {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
+            </span>
             <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
-            <WindMeter wind={snap.wind} />
+            {!snap.balloon && <WindMeter wind={snap.wind} />}
             {snap.damage && <DamageGauge damage={snap.damage} />}
           </div>
+          {snap.balloon && <span class="hud-chip-sub">{STRINGS.balloonGround}</span>}
+          {snap.altitude !== null && !snap.balloon && (
+            <span class="hud-chip-sub hud-altitude" title={STRINGS.altitudeSaid}>
+              {STRINGS.altitude(snap.altitude)}
+            </span>
+          )}
         </div>
       )}
 
@@ -569,7 +626,9 @@ export function Hud({
           afterski={snap.afterski}
           touch={touch}
           machineKey={machineKey}
+          jumpKey={jumpKey}
           onPress={input.requestMachine}
+          onDrink={input.requestJump}
         />
       )}
       {snap.buzz > 0.005 && <BuzzMeter buzz={snap.buzz} />}
@@ -577,6 +636,11 @@ export function Hud({
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
           on him — in the air clock's place, which a flight never shows. */}
       {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
+      {/* THE HOT AIR BALLOON (`hud-balloon.tsx`): its instruments and the
+          call while he stands in the basket, in the same place. */}
+      {snap.balloon && (
+        <BalloonReadout balloon={snap.balloon} touch={touch} machineKey={machineKey} />
+      )}
       {/* THE PISTE MACHINE (`hud-groomer.tsx`): driven, or the call to one
           working near him when nothing else is calling. */}
       {snap.groomer &&
@@ -593,9 +657,10 @@ export function Hud({
         )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
-          moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`). */}
-      {!indoors && <BodyPanel tile={snap.body} />}
-      {snap.body.blow && <GForce blow={snap.body.blow} />}
+          moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`) — neither
+          where OPTIONS ▸ INJURIES or the device's content setting says no. */}
+      {injuries && !indoors && <BodyPanel tile={snap.body} />}
+      {injuries && snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
       {snap.tricks && <ComboTile tile={snap.tricks} />}
@@ -631,6 +696,8 @@ export function Hud({
           </div>
         </div>
       )}
+
+      {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
 
       {thumbs}
     </div>

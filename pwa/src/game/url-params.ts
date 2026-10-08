@@ -4,9 +4,9 @@
 // makes a frame somebody found handable to somebody else — and it is the
 // contract `scripts/screenshot.mjs` drives the built site through.
 //
-//   ?seed=<n>       pin the map: the front door's RACE and TIME TRIAL ride
-//                   this seed rather than a campaign map off the level card,
-//                   and the race the menu stands over is built on it too.
+//   ?seed=<n>       pin the map: the front door's RACE rides this seed
+//                   rather than a race map off the level card, and the race
+//                   the menu stands over is built on it too.
 //   ?start=slalom   boot straight into a slalom in its start house (the splash
 //                   and the front door skipped). `start=race` and `start=1`
 //                   are the same.
@@ -51,10 +51,9 @@
 //                   chough, falcon, eagle, wolverine, peregrine, marmot,
 //                   hare), over the stored one and never written back —
 //                   how a lab photographs a pair it did not pick.
-//   ?mode=trial     the run a link boots into (or the next one pressed) is
-//                   a TIME TRIAL — alone, against the record and the ghost —
-//                   rather than a race; ?mode=tricks, a TRICKS run on the
-//                   seed's trick field; ?mode=downhill, a DOWNHILL;
+//   ?mode=tricks    the run a link boots into (or the next one pressed) is
+//                   a TRICKS run on the seed's trick field rather than a
+//                   slalom; ?mode=downhill, a DOWNHILL;
 //                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
 //                   ?mode=speedski, a SPEED RACE;
 //                   ?mode=skicross, a SKI CROSS; ?mode=bigair, a BIG AIR
@@ -84,8 +83,8 @@
 //   ?menu=options   ...on OPTIONS, and `keys` on OPTIONS ▸ KEYS; `skis` on
 //                   the skis card RACE opens; `start` on the free ride's
 //                   start card; `campaign` on the campaign card; `levels` on
-//                   the level card a RACE (or, with `mode=trial`, a TIME
-//                   TRIAL) picks its pinned map on; `gallery` on the pictures
+//                   the level card a RACE picks its pinned map on (the
+//                   discipline `mode=` names); `gallery` on the pictures
 //                   kept; `dev` on the DEVELOPER page (let out, as the
 //                   title's hold lets it out), `unlocks` and `benchHistory` behind it.
 //   ?bench=1        run DEVELOPER ▸ BENCHMARK the moment the app is up —
@@ -120,6 +119,8 @@
 //                   bottom (`sled.ts`), over the start card's RUN row.
 //   ?para=1         a free ride begun ON THE SUMMIT UNDER THE PARAMOTOR
 //                   (`para.ts`), over the start card's RUN row.
+//   ?balloon=1      a free ride begun IN A HOT AIR BALLOON's basket on the
+//                   valley floor (`balloon.ts`), over the start card's RUN row.
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
@@ -186,6 +187,7 @@ export type MenuPage =
   | "levels"
   | "tricks"
   | "gallery"
+  | "stats"
   | DevPage;
 const MENU_PAGES: readonly MenuPage[] = [
   "root",
@@ -200,6 +202,7 @@ const MENU_PAGES: readonly MenuPage[] = [
   "levels",
   "tricks",
   "gallery",
+  "stats",
   "dev",
   "unlocks",
   "benchHistory",
@@ -263,6 +266,8 @@ export type UrlParams = {
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
   para: boolean;
+  /** A free ride begun in the hot air balloon, over the card's RUN row. */
+  balloon: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
   /** A free ride the grimbear hunts (true) or never shows on (false), over
@@ -374,21 +379,19 @@ export function readParams(search: string): UrlParams {
                 ? "speedSki"
                 : start === "skicross" || q.get("mode") === "skicross"
                   ? "skiCross"
-                  : q.get("mode") === "trial"
-                    ? "timeTrial"
-                    : q.get("mode") === "tricks"
-                      ? "tricks"
-                      : start === "bigair" || q.get("mode") === "bigair"
-                        ? "bigAir"
-                        : start === "slopestyle" || q.get("mode") === "slopestyle"
-                          ? "slopestyle"
-                          : start === "halfpipe" || q.get("mode") === "halfpipe"
-                            ? "halfpipe"
-                            : start === "moguls" || q.get("mode") === "moguls"
-                              ? "moguls"
-                              : start === "aerials" || q.get("mode") === "aerials"
-                                ? "aerials"
-                                : "slalom",
+                  : q.get("mode") === "tricks"
+                    ? "tricks"
+                    : start === "bigair" || q.get("mode") === "bigair"
+                      ? "bigAir"
+                      : start === "slopestyle" || q.get("mode") === "slopestyle"
+                        ? "slopestyle"
+                        : start === "halfpipe" || q.get("mode") === "halfpipe"
+                          ? "halfpipe"
+                          : start === "moguls" || q.get("mode") === "moguls"
+                            ? "moguls"
+                            : start === "aerials" || q.get("mode") === "aerials"
+                              ? "aerials"
+                              : "slalom",
     bot: q.get("bot") === "1",
     run: q.get("run") === "2" ? 2 : 1,
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
@@ -404,6 +407,7 @@ export function readParams(search: string): UrlParams {
     plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
+    balloon: q.get("balloon") === "1",
     sled: q.get("sled") === "1",
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
@@ -428,13 +432,16 @@ export function linkWorld(
 }
 
 /** A free ride's options with a link's sky, region, grade, helicopter,
- * snowmobile and paramotor laid over the card's. */
+ * snowmobile, paramotor and balloon laid over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
+  // A link naming a machine is the start, whatever the card picked.
+  const named = params.heli || params.sled || params.para || params.balloon;
   return {
     ...ride,
-    heli: !params.para && (params.heli || ride.heli),
-    sled: !params.para && !params.heli && (params.sled || ride.sled),
-    para: params.para || (!params.heli && !params.sled && ride.para),
+    heli: !params.para && !params.balloon && (params.heli || ride.heli),
+    sled: !params.para && !params.heli && !params.balloon && (params.sled || ride.sled),
+    para: !params.balloon && (params.para || (!params.heli && !params.sled && ride.para)),
+    balloon: params.balloon || (!named && ride.balloon),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     grade: params.grade ?? ride.grade,

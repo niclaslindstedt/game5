@@ -138,7 +138,13 @@ export function trickSky(map: TrickMap): SkyOverride {
 
 /** Who rides a trick map, and with what: the machine, the help, whether
  * blows bend it, and his poles (with them when left out). */
-export type TrickSkier = { spec: SkiSpec; assist: Assist; damage: boolean; poles?: boolean };
+export type TrickSkier = {
+  spec: SkiSpec;
+  assist: Assist;
+  damage: boolean;
+  poles?: boolean;
+  gore?: boolean;
+};
 
 /** A TRICKS RUN ON A TRICK MAP, as `createGame` takes it: the map (built, or
  * the one already standing), on its date, at its hour, under its sky, on the
@@ -157,6 +163,7 @@ export function trickGameOptions(
     spec: skier.spec,
     assist: skier.assist,
     damage: skier.damage,
+    ...(skier.gore ? { gore: true } : {}),
     poles: skier.poles,
   };
 }

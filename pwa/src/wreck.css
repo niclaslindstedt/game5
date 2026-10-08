@@ -1,0 +1,124 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE HUD TAKING HIS BLOWS, AND HIS DEATH (`hud-wreck.ts`, `hud-glass.tsx`)
+   — only with the INJURIES switch on.
+
+   A BLOW JOLTS the readouts off their place and they spring back: the
+   root's `data-jolt` flips between two identical animations on every new
+   blow, so each one starts its own; `--hud-jolt` is how hard (0 … 1).
+   HIS DEATH fades every readout slowly away where it stands
+   (`--hud-fade`, 0 … 1) before the death card comes up. */
+
+.hud[data-jolt="0"] {
+  animation: hud-jolt-a 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.hud[data-jolt="1"] {
+  animation: hud-jolt-b 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes hud-jolt-a {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  12% {
+    translate: calc(var(--hud-jolt) * -2.4vmin) calc(var(--hud-jolt) * 3.2vmin);
+    rotate: calc(var(--hud-jolt) * -2.5deg);
+  }
+  30% {
+    translate: calc(var(--hud-jolt) * 1.8vmin) calc(var(--hud-jolt) * -1.4vmin);
+    rotate: calc(var(--hud-jolt) * 1.6deg);
+  }
+  55% {
+    translate: calc(var(--hud-jolt) * -0.6vmin) calc(var(--hud-jolt) * 0.5vmin);
+    rotate: calc(var(--hud-jolt) * -0.5deg);
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+@keyframes hud-jolt-b {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  12% {
+    translate: calc(var(--hud-jolt) * -2.4vmin) calc(var(--hud-jolt) * 3.2vmin);
+    rotate: calc(var(--hud-jolt) * -2.5deg);
+  }
+  30% {
+    translate: calc(var(--hud-jolt) * 1.8vmin) calc(var(--hud-jolt) * -1.4vmin);
+    rotate: calc(var(--hud-jolt) * 1.6deg);
+  }
+  55% {
+    translate: calc(var(--hud-jolt) * -0.6vmin) calc(var(--hud-jolt) * 0.5vmin);
+    rotate: calc(var(--hud-jolt) * -0.5deg);
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+
+/* THE READOUTS FADED OFF THE GLASS (`hud-wreck.ts`'s `hudFade`): his
+   death, or any other moment the picture is left bare — each readout fades
+   away where it stands. `data-fade` is on the HUD only while it fades, so
+   a readout's own opacity is left alone the rest of the time. */
+/* (`--hud-fade` moves a dozen times a second: smoothed between.) */
+.hud[data-fade] > :not(.hud-death) {
+  transition: opacity 0.12s linear;
+  opacity: calc(1 - var(--hud-fade, 0));
+}
+
+/* THE DEATH CARD: the picture going dark, the word over it. */
+.hud-death {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgb(0 0 0 / calc(var(--death-dark, 0) * 100%));
+  /* The snapshot moves a dozen times a second: smoothed between. */
+  transition: background-color 0.12s linear;
+  z-index: 20;
+}
+.hud-death-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2vmin;
+  text-align: center;
+  transition: opacity 0.12s linear;
+}
+.hud-death-word {
+  font-size: min(22vmin, 160px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  color: #c3110c;
+  text-shadow:
+    0 0 2vmin rgb(0 0 0 / 80%),
+    0 0.6vmin 0 rgb(40 0 0 / 90%);
+}
+.hud-death-cause {
+  font-size: min(4vmin, 28px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  color: #f1e7e2;
+  text-shadow: 0 0 1.2vmin rgb(0 0 0 / 90%);
+}
+.hud-death-again {
+  font-size: min(2.6vmin, 18px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.24em;
+  color: rgb(241 231 226 / 70%);
+  text-shadow: 0 0 1vmin rgb(0 0 0 / 90%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud[data-jolt] {
+    animation: none;
+  }
+}

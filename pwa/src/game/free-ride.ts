@@ -232,6 +232,29 @@ export function paraOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === PARA_RUN;
 }
 
+/** THE RUN ROW'S BALLOON STOP: the HOT AIR BALLOON stood up inflated on
+ * the valley floor (`balloon.ts`) — the ride begun in its basket, held on
+ * its tether until the first burns make it light. A run id of its own, as
+ * the machines' are. */
+export const BALLOON_RUN = "balloon";
+
+/** Whether the ride on `seed` begins in the hot air balloon. */
+export function balloonOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === BALLOON_RUN;
+}
+
+/** THE RUN ROW'S AFTERSKI STOP: no run and no machine, but INSIDE the
+ * valley's afterski lodge (`afterski.ts`) — the ride begun at the party,
+ * his skis in the rack, the beers coming round, and the machine press the
+ * way out onto the snow with whatever buzz he has drunk. A run id of its
+ * own, as the machines' are; offered only on a map with a lodge. */
+export const AFTERSKI_RUN = "afterski";
+
+/** Whether the ride on `seed` begins inside the afterski lodge. */
+export function afterskiOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === AFTERSKI_RUN;
+}
+
 /** The spot to start at on `seed`, or null for the start line. */
 export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } | null {
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
@@ -309,19 +332,22 @@ export const GRIMBEAR_ODDS = 1 / 3;
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  skier: { spec: SkiSpec; assist: Assist; poles?: boolean },
+  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean },
   random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
-  const vehicle = heli || sled || para;
+  const balloon = balloonOn(ride, seed);
+  const party = afterskiOn(ride, seed);
+  const vehicle = heli || sled || para || balloon || party;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
     spec: skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
+    ...(skier.gore ? { gore: true } : {}),
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,
@@ -332,6 +358,10 @@ export function freeGameOptions(
     sled,
     // THE PARAMOTOR: stood on the summit, the wing over him.
     para,
+    // THE HOT AIR BALLOON: in its basket on the valley floor, tethered.
+    balloon,
+    // THE AFTERSKI: inside the valley's lodge, the party under way.
+    inLodge: party,
     snowDepth: depthOf(ride.snow),
     // ONE PATH FOR THE HOUR: the TIME row's word goes through `day`
     // (`withDay`, which reads it on the map's own latitude and the season's
@@ -347,7 +377,9 @@ export function freeGameOptions(
     // there, never carried up a lift to the top of the run beside it. With no
     // spot it comes onto the mountain BY CHAIR (`lift-ride.ts`): up the lift
     // whose run passes nearest the start line, led off its top onto that run.
-    byLift: spot === null && !vehicle,
+    // (The afterski asks for the chair too: a map with no lodge — which
+    // the card never offers it on — comes onto the mountain by lift.)
+    byLift: spot === null && !(heli || sled || para || balloon),
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
@@ -373,7 +405,15 @@ export function freeTopOptions(
   run: string | undefined,
   beast?: GrimbearState,
 ): CreateGameOptions {
-  return { ...again, spawn: undefined, byLift: false, run, grimbear: grimbearAgain(beast) };
+  return {
+    ...again,
+    spawn: undefined,
+    byLift: false,
+    run,
+    grimbear: grimbearAgain(beast),
+    // A ride begun at the afterski starts again on the snow, not at the bar.
+    inLodge: false,
+  };
 }
 
 /** THE GRIMBEAR ON A RIDE STARTED AGAIN: still out where he was, and still

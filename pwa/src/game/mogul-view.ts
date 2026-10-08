@@ -56,7 +56,7 @@ export function createMoguls(
     for (let k = 0; k + 1 < cols; k++) {
       const a = r * cols + k;
       const b = a + cols;
-      index.push(a, a + 1, b, a + 1, b + 1, b);
+      index.push(a, b, a + 1, a + 1, b, b + 1);
     }
   }
   const geo = new THREE.BufferGeometry();

@@ -294,33 +294,11 @@
   opacity: 0.7;
 }
 
-.menu-level-medals,
 .menu-level-marks {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
   font-size: 0.6rem;
-}
-
-.menu-level-medal {
-  opacity: 0.55;
-}
-
-.menu-level-medal-won {
-  opacity: 1;
-  font-weight: 700;
-}
-
-.menu-level-medal-won.menu-level-medal-bronze {
-  color: #d9915a;
-}
-
-.menu-level-medal-won.menu-level-medal-silver {
-  color: #d6dde2;
-}
-
-.menu-level-medal-won.menu-level-medal-gold {
-  color: #f2c14e;
 }
 
 .menu-level-mark-lit {

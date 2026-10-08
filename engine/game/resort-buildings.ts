@@ -38,12 +38,15 @@ import { CABINS, type CabinKind } from "./defs/cabins.ts";
 import {
   MOUNTAIN_KINDS,
   RESORT_LAYOUT as R,
+  BASE_KINDS,
   VILLAGE_KINDS,
   type MountainKind,
   type ResortKind,
   type VillageKind,
 } from "./defs/resort-buildings.ts";
 import { liftPlans, queueLane } from "./lift-line.ts";
+import { placeOnStreets } from "./village-place.ts";
+import { planVillageStreets, rememberStreets } from "./village-streets.ts";
 
 /** What a ski area building keeps clear of (`RESORT_LAYOUT.fit`'s numbers,
  * m), the lanes the lifts' queues stand in (in the world), and whether a
@@ -55,6 +58,12 @@ export type Fit = {
   /** Whether its terrace may stand out over packed snow (a top's pad),
    * its walls kept off it. */
   deck: boolean;
+  /** Whether its whole lot is cleared of trees (a village building on its
+   * street: `village.ts`'s `felledTrees`), so no crown is asked about. */
+  lot?: boolean;
+  /** A point its roof may not reach (a street, an open place), when given:
+   * false where it may not. */
+  keep?: (x: number, z: number) => boolean;
 };
 
 /** Stand a kind at a place facing a heading, beside a run at an arc, in a
@@ -147,8 +156,13 @@ export function insideWalls(width: number, depth: number, lx: number, lz: number
   return Math.abs(lx) < width / 2 - 0.4 && Math.abs(lz) < depth / 2 - 0.4;
 }
 
-/** Place the ski area's buildings of `level` with `stand`. */
-export function placeResortBuildings(level: Level, stand: StandAt): void {
+/** Place the ski area's buildings of `level` with `stand`, after the log
+ * buildings `placed` (which the village's streets keep off). */
+export function placeResortBuildings(
+  level: Level,
+  stand: StandAt,
+  placed: readonly Cabin[] = [],
+): void {
   const resort = level.resort;
   if (!resort) return;
   const queues = liftPlans(level).map((p) =>
@@ -157,13 +171,27 @@ export function placeResortBuildings(level: Level, stand: StandAt): void {
       z: p.lift.bottom.z + p.dz * u - p.dx * v,
     })),
   );
-  placeVillage(level, stand, { clear: R.fit, queues, fell: true, deck: false });
+  // THE VILLAGE: on its streets where a loop of them fits below the hub,
+  // else along the hub's edge.
+  const fit: Fit = { clear: R.fit, queues, fell: true, deck: false };
+  const streets = planVillageStreets(level, placed);
+  rememberStreets(level, streets);
+  if (streets) placeOnStreets(level, streets, stand, fit, hotelsOf(level));
+  else placeVillage(level, stand, fit);
   placeMountain(level, stand, {
     clear: { ...R.fit, station: 12 },
     queues,
     fell: true,
     deck: true,
   });
+}
+
+/** How many hotel blocks the village is dealt. */
+function hotelsOf(level: Level): number {
+  const seed = level.seed >>> 0;
+  return (
+    R.hotels.least + Math.floor(pick(seed, "village", 0, 31) * (R.hotels.most - R.hotels.least + 1))
+  );
 }
 
 /** A site along the hub's edge: which edge, where along it, how far off. */
@@ -173,7 +201,6 @@ function placeVillage(level: Level, stand: StandAt, fit: Fit): void {
   const resort = level.resort;
   const hub = resort?.hub;
   if (!resort || !hub) return;
-  const seed = level.seed >>> 0;
   const x0 = hub.x0;
   const x1 = hub.x0 + hub.step * (hub.top.length - 1);
   const mid = hubAt(hub, (x0 + x1) / 2);
@@ -200,12 +227,10 @@ function placeVillage(level: Level, stand: StandAt, fit: Fit): void {
   // (the nearer end if the further has no room).
   const far = Math.abs(x1 - village.x) > Math.abs(x0 - village.x) ? x1 : x0;
   const near = far === x1 ? x0 : x1;
-  const hotels =
-    R.hotels.least +
-    Math.floor(pick(seed, "village", 0, 31) * (R.hotels.most - R.hotels.least + 1));
+  const hotels = hotelsOf(level);
   let lodgeX = village.x;
   const kinds: VillageKind[] = [];
-  for (const k of VILLAGE_KINDS) {
+  for (const k of BASE_KINDS) {
     if (k === "hotel") for (let i = 0; i < hotels; i++) kinds.push(k);
     else kinds.push(k);
   }

@@ -169,15 +169,35 @@ describe("boarding a lift from its ring", () => {
     expect(run.skier.lift!.speed).toBeLessThan(plan.look.slow);
   });
 
-  it("fades a chair's rider into his chair as it leaves the station", () => {
+  it("stands a chair's rider on its load line, looking back, until a chair of the clock scoops him", () => {
     const plan = of("chair");
     const run = atRing(plan);
-    ride(run, 60, (r) => r.skier.lift?.phase === "ride");
+    ride(run, 60, (r) => r.skier.lift?.phase === "wait");
+    step(run, NEUTRAL_INPUT);
+    const at = run.skier.lift!;
+    // In the open, never faded, and told how long till his chair comes.
+    expect(at.faded).toBeUndefined();
+    expect(at.due).toBeGreaterThan(0);
+    const rx = run.skier.x - plan.lift.bottom.x;
+    const rz = run.skier.z - plan.lift.bottom.z;
+    expect(rx * plan.dx + rz * plan.dz).toBeCloseTo(plan.look.entry.at, 1);
+    let waited = 0;
+    ride(run, 30, (r) => {
+      if (r.skier.lift?.phase === "wait") waited += TUNING.dt;
+      return r.skier.lift?.phase === "ride";
+    });
+    // A chair comes round every `every` m of the loop.
+    expect(waited).toBeLessThan(plan.look.every / plan.look.slow + 1);
     const l = run.skier.lift!;
-    expect(l.faded).toBe(true);
-    // Sat in it at once, out of the station.
-    expect(Number.isNaN(l.from.y)).toBe(true);
-    expect(l.u).toBeGreaterThan(plan.look.entry.at);
+    expect(l.faded).toBeUndefined();
+    // Taken by the lift's own chair, where the clock has it, and scooped
+    // up off the snow onto its seat rather than put there.
+    expect(l.carrier).toBeGreaterThanOrEqual(0);
+    const chair = carrierAt(plan, l.carrier!, run.t);
+    expect(Math.abs(chair.u - l.u)).toBeLessThan(0.05);
+    expect(seatedShare(l)).toBeLessThan(0.1);
+    ride(run, TUNING.lift.scoop, () => false);
+    expect(seatedShare(run.skier.lift!)).toBeCloseTo(1, 5);
   });
 
   it("takes a gondola's rider through the hall to wait on its platform, and his cabin comes round to him", () => {
@@ -263,7 +283,8 @@ describe("boarding a lift from its ring", () => {
     expect(pivoted).toBe(true);
     expect(across).toBeLessThan(0.3);
     expect(swung).toBeLessThan(TUNING.lift.board.turn + 0.1);
-    expect(run.skier.lift?.phase).toBe("ride");
+    // ...to the load line, to wait there for his chair.
+    expect(run.skier.lift?.phase).toBe("wait");
   });
 
   it("never takes the ring through the gondola's corral fence from the side", () => {
@@ -329,7 +350,8 @@ describe("leaving a lift early", () => {
       // Not before it has been held long enough.
       ride(run, TUNING.lift.skip.hold - 0.2, () => false, tuck);
       expect(run.skier.lift?.skip).toBeUndefined();
-      const there = arrivalOf(plan).u;
+      // A chair's rider is put on the lift's own chair nearest there.
+      const there = arrivalOf(plan).u - (kind === "chair" ? plan.look.every / 2 : 0);
       ride(run, 1.5, (r) => r.skier.lift?.faded === true && r.skier.lift.u >= there - 1, tuck);
       const l = run.skier.lift!;
       expect(l.u).toBeGreaterThanOrEqual(there - 1);

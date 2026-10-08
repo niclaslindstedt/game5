@@ -13,7 +13,9 @@
  * it swings, rad, and the kick a tower's bend in the rope gives it, rad/s
  * per unit of slope change read `bend` m either side (to `kickMost`
  * rad/s — a lurch of a few degrees); how long a chair
- * scoops a rider up, s; the way a chair stands him up with on the ramp,
+ * scoops a rider up, s, and how long he takes to stand up off it at the
+ * unload, s (`rise`: his skis on the ramp, pushing off the seat and
+ * sliding on ahead of it); the way a chair stands him up with on the ramp,
  * turned `ramp` rad off the line to the up rope's side (a step out of
  * the chair's way into the lane straight on off the ramp, `chairLane`),
  * a cabin walks him out with, m/s, and how far short of the top the
@@ -61,8 +63,19 @@
  * shut over `shut` s and it is taken back onto the rope and away. Through
  * the station its grip runs on a RAIL, `rail` m over the wheel's foot (the
  * cabin's floor at the platform's), and climbs to the rope over `climb` m
- * once out of it. */
+ * once out of it. At the top he is let out of its door and walks on out
+ * onto the pad under the lift's hand for `out` s — the picture coming back
+ * in on him there, the station's hall a cut behind its fade.
+ *
+ * A CHAIR'S BOTTOM TERMINAL (`chair`, `lift-line.ts`'s `gripAt`): its grip
+ * runs on the station's rail `rail` m over the bottom wheel's foot — the
+ * seat's top (`CHAIR_SEAT` under the grip) at the back of a standing
+ * skier's knees on the load line — and climbs back up to the rope over
+ * `climb` m past the load line. A skier waiting on the load line is
+ * scooped by the chair whose grip comes to `take` m behind his boots
+ * (`lift-board.ts`'s `stepChairWait`), and sat on it over `scoop` s. */
 export const LIFT = {
+  chair: { rail: 2.95, climb: 12, take: 0.7 },
   cabinBack: 0.65,
   jumpOut: 1.3,
   skip: { hold: 3, fade: 0.5 },
@@ -88,8 +101,9 @@ export const LIFT = {
     from: 2,
     come: 0.55,
     creep: 0.3,
-    stepIn: 1.6,
+    stepIn: 2.4,
     shut: 1.2,
+    out: 1.25,
     rail: 4.3,
     climb: 6,
   },
@@ -107,6 +121,7 @@ export const LIFT = {
   bend: 3,
   scoop: 0.8,
   standUp: 2.2,
+  rise: 0.9,
   ramp: 0.3,
   walkOut: 1.5,
   door: 10,

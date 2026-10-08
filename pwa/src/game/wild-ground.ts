@@ -8,7 +8,7 @@
 // Three-free, like everything the wildlife decides, so the tests read it;
 // cached against the level, because both placers and the renderer ask.
 
-import { nearestTrackPoint, type Level, type TreeDef, type Vec3 } from "@engine";
+import { felledTrees, nearestTrackPoint, type Level, type TreeDef, type Vec3 } from "@engine";
 
 import { LOOSE } from "./trail-stamp.ts";
 
@@ -42,7 +42,10 @@ export function wildGround(level: Level): WildGround {
   if (hit) return hit;
   const bins = new Map<number, TreeDef[]>();
   const key = (ix: number, iz: number): number => ix * 4096 + iz;
-  for (const t of level.trees) {
+  // The trees standing: never one felled for the village or a building.
+  const gone = felledTrees(level);
+  const standing = level.trees.filter((_, i) => !gone[i]);
+  for (const t of standing) {
     const k = key(Math.floor(t.x / CELL), Math.floor(t.z / CELL));
     const bin = bins.get(k);
     if (bin) bin.push(t);
@@ -82,7 +85,7 @@ export function wildGround(level: Level): WildGround {
     inside: (x, z, margin = 0) =>
       x > margin && z > margin && x < level.size - margin && z < level.size - margin,
     tallTrees: (height) =>
-      level.trees.filter((t) => t.height >= height).sort((a, b) => b.height - a.height),
+      standing.filter((t) => t.height >= height).sort((a, b) => b.height - a.height),
   };
   cache.set(level, ground);
   return ground;

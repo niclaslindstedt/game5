@@ -612,7 +612,7 @@ function standoff(): string {
 const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
-  ...buildingShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas }),
+  ...buildingShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas, state }),
   spawn() {
     rideUntil(() => state.t >= 1.5, 3);
     renderer.setCamera("chase", true);

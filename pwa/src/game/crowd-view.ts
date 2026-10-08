@@ -21,10 +21,14 @@
 // small pool. A fall is rare, so a few such meshes at a time cost nothing.
 
 import * as THREE from "three";
+import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
+import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
   CROWD,
   CROWD_BODIES,
+  TUNING,
   carrierAt,
+  carrierSwingAt,
   inCabin,
   liftPlans,
   type CrowdBody,
@@ -167,6 +171,9 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const fwd = new THREE.Vector3();
   const right = new THREE.Vector3();
   const normal = { x: 0, y: 1, z: 0 };
+  const lift = new THREE.Vector3();
+  /** When each amateur was last sat on a chair, s of the engine's clock. */
+  let satAt = new Float64Array(0);
   const dials = new Float32Array(TARGETS);
   /** How far under a chair's seat each body's figure is set, m. */
   const seatDrop = Object.fromEntries(
@@ -194,6 +201,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         capacityOf = counts;
       }
       outfits = crowd.amateurs.map((a) => outfitOf(a, crowd.groups[a.group], level.seed));
+      satAt = new Float64Array(crowd.amateurs.length).fill(-Infinity);
     }
     for (const slot of slots.values()) slot.n = 0;
     for (const pool of fallen.values()) pool.n = 0;
@@ -208,9 +216,27 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       if (inCabin(a, plans[a.lift])) continue;
       if (kind && mine?.phase === "ride" && mine.index === a.lift) {
         const c = carrierAt(plans[a.lift], a.carrier, state.t);
-        if (c.side === 0 && Math.abs(c.u - mine.u) < plans[a.lift].look.every / 2) continue;
+        const his =
+          mine.carrier !== undefined
+            ? mine.carrier === a.carrier
+            : c.side === 0 && Math.abs(c.u - mine.u) < plans[a.lift].look.every / 2;
+        if (his) continue;
       }
-      const seat = kind === "chair" ? Math.min(1, a.timer / CROWD.ride.sit) : 0;
+      // Sat on a chair: scooped onto it over `ride.sit` s, swung on its
+      // hanger as the clock swings it, and stood up off it at the unload
+      // over `lift.rise` s as he slides away.
+      let seat = 0;
+      let swing = 0;
+      if (kind === "chair") {
+        seat = Math.min(1, a.timer / CROWD.ride.sit);
+        const c = carrierAt(plans[a.lift], a.carrier, state.t);
+        swing = carrierSwingAt(plans[a.lift], c.u, c.side) * seat;
+        satAt[a.id] = state.t;
+      } else if (!kind) {
+        const since = state.t - satAt[a.id];
+        if (since >= 0 && since < TUNING.lift.rise)
+          seat = 1 - smoothstep(0, TUNING.lift.rise, since);
+      }
       const dx = a.x - eye.x;
       const dz = a.z - eye.z;
       const d2 = dx * dx + dz * dz;
@@ -247,7 +273,13 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
       const mirror = dialsOf(a, dials, state.t, seat);
-      pos.set(a.x, a.y - (seat > 0 ? seatDrop[a.body] : 0), a.z);
+      if (kind === "chair") {
+        // Hung from the grip `ride.under` m over the seat, swung about it.
+        const e = fromEuler(a.heading, swing, 0);
+        quat.set(e.x, e.y, e.z, e.w);
+        pos.set(0, -(CROWD.ride.under + seatDrop[a.body]), 0).applyQuaternion(quat);
+        pos.add(lift.set(a.x, a.y + CROWD.ride.under, a.z));
+      } else pos.set(a.x, a.y - (kind && seat > 0 ? seatDrop[a.body] : 0), a.z);
       m.compose(pos, quat, size.set(mirror, 1, 1));
       slot.mesh.setMatrixAt(i, m);
       // The morph texture: the base's influence, then each target's.

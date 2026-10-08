@@ -16,7 +16,7 @@ import {
   cabinWalls,
   cabinsOf,
   clearOfLifts,
-  fellsTree,
+  felledTrees,
   generateLevel,
   isMountainBuilding,
   isResortBuilding,
@@ -146,6 +146,7 @@ describe("the ski area's buildings", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       const all = cabinsOf(level);
+      const gone = felledTrees(level);
       for (const c of resortBuildingsOf(all)) {
         for (const o of all) {
           if (o === c) continue;
@@ -167,22 +168,25 @@ describe("the ski area's buildings", () => {
         const d = CABINS[c.kind];
         const fx = Math.sin(c.heading);
         const fz = Math.cos(c.heading);
-        for (const t of level.trees) {
+        level.trees.forEach((t, i) => {
           const dx = t.x - c.x;
           const dz = t.z - c.z;
-          if (Math.abs(dx) > 70 || Math.abs(dz) > 70) continue;
+          if (Math.abs(dx) > 70 || Math.abs(dz) > 70) return;
           const lx = dx * fz - dz * fx;
           const lz = dx * fx + dz * fz;
+          // A tree inside the walls is felled; one felled for the village's
+          // lots and streets stands nowhere either.
           if (insideWalls(d.width, d.depth, lx, lz)) {
-            expect(fellsTree(all, t.x, t.z)).toBe(true);
-            continue;
+            expect(gone[i], `${t.kind} inside ${c.id}`).toBe(1);
+            return;
           }
+          if (gone[i]) return;
           const under =
             Math.abs(lx) < d.width / 2 + d.reach.side &&
             lz > -d.depth / 2 - d.reach.back &&
             lz < d.depth / 2 + d.reach.front;
           expect(under, `${t.kind} under ${c.id} ${c.kind}`).toBe(false);
-        }
+        });
       }
     }
   });

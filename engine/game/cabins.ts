@@ -264,6 +264,7 @@ function placeCabins(level: Level): Cabin[] {
     const F = fit.clear;
     const pts = rectPoints(kind, x, z, heading, true, 0, 4);
     for (const [px, pz] of pts) {
+      if (fit.keep && !fit.keep(px, pz)) return false;
       for (const line of lines) {
         nearestWithin(line, px, pz, F.line + 40, hit);
         if (hit.distance === Infinity) continue;
@@ -327,7 +328,7 @@ function placeCabins(level: Level): Cabin[] {
     const fx = Math.sin(heading);
     const fz = Math.cos(heading);
     const r = def.reach;
-    for (const i of treesNear(level, x, z, radius + 12, near)) {
+    for (const i of fit?.lot ? [] : treesNear(level, x, z, radius + 12, near)) {
       const t = level.trees[i];
       const dx = t.x - x;
       const dz = t.z - z;
@@ -509,8 +510,11 @@ function placeCabins(level: Level): Cabin[] {
   });
   // The ski area's own buildings, after every cabin and lodge so not one
   // of those moves for them.
-  placeResortBuildings(level, (kind, x, z, heading, run, s, group, fit) =>
-    stand(kind, x, z, heading, run, s, groups + group, fit),
+  placeResortBuildings(
+    level,
+    (kind, x, z, heading, run, s, group, fit) =>
+      stand(kind, x, z, heading, run, s, groups + group, fit),
+    cabins.slice(),
   );
   return cabins;
 }

@@ -16,6 +16,7 @@ import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
 import { wallSolids } from "./cliff-wall.ts";
 import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
+import { felledTrees, villageSolids } from "./village.ts";
 
 const lists = new WeakMap<Level, Upright[]>();
 
@@ -75,10 +76,18 @@ export function solidsOf(level: Level): readonly Upright[] {
   const posts = postsOf(level);
   const cabins = cabinWalls(level);
   const rocks = wallSolids(level);
+  const village = villageSolids(level);
+  // A tree felled for the village or a building stands nowhere: kept in
+  // its place in the list (so every index holds) as a solid no body is
+  // ever under.
+  const gone = felledTrees(level);
+  const trees = gone.includes(1)
+    ? level.trees.map((t, i) => (gone[i] ? { ...t, y: -1e5, height: 0, radius: 0 } : t))
+    : level.trees;
   list =
-    posts.length + cabins.length + rocks.length === 0
+    trees === level.trees && posts.length + cabins.length + rocks.length + village.length === 0
       ? level.trees
-      : [...level.trees, ...posts, ...cabins, ...rocks];
+      : [...trees, ...posts, ...cabins, ...rocks, ...village];
   solids.set(level, list);
   return list;
 }

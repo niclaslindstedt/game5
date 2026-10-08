@@ -28,6 +28,7 @@ import { cellKey, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/
 import type { Level, TreeWell, Vec3, WellField } from "../mapgen/types.ts";
 import { TREE_WELLS } from "./defs/tree-wells.ts";
 import { bottomlessOf } from "./snow.ts";
+import { felledTrees } from "./village.ts";
 
 const W = TREE_WELLS;
 const RINGED: ReadonlySet<string> = new Set(W.ringed);
@@ -43,7 +44,10 @@ export function wellsOf(level: Level, share: number): TreeWell[] {
   const out: TreeWell[] = [];
   if (share <= 0) return out;
   const n: Vec3 = { x: 0, y: 1, z: 0 };
-  for (const t of level.trees) {
+  const gone = felledTrees(level);
+  for (let i = 0; i < level.trees.length; i++) {
+    const t = level.trees[i];
+    if (gone[i]) continue;
     const kind = t.kind ?? "spruce";
     // On the groomer there is none: the machines fill it.
     if (level.packedAt(t.x, t.z) >= 0.5) continue;

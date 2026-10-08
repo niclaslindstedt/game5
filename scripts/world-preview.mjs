@@ -82,7 +82,11 @@
 // kind close) and village (the sheet: every kind from three sides); and the
 // lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
 // lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
-// the cabins, the T-bars, the lines and a bullwheel).
+// the cabins, the T-bars, the lines and a bullwheel); and the
+// village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
+// the main street), village-junction, village-carpark, village-bus (the ski
+// bus at its stop), village-cyclist and vehicles (the sheet: every kind
+// from four sides) — `--hour=21` for them after dark.
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -214,6 +218,18 @@ const VIEWS = [
   "lift-cabin",
   "lift-tbar",
   "lifts",
+  "village-traffic",
+  "village-junction",
+  "village-carpark",
+  "village-bus",
+  "village-cyclist",
+  "vehicles",
+  "vehicle-hatch",
+  "vehicle-estate",
+  "vehicle-suv",
+  "vehicle-van",
+  "vehicle-bus",
+  "vehicle-bike",
 ];
 
 const args = parseArgs(

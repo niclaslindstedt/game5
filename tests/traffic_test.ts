@@ -8,6 +8,9 @@
 
 import { describe, expect, it } from "vitest";
 
+import { lampLevels, vehicleLook } from "../pwa/src/game/traffic-look.ts";
+import { PEDAL_POSES, PEDAL_STRIDE, pedalDials } from "../pwa/src/game/traffic-rider.ts";
+
 import {
   DRIVES,
   NEUTRAL_INPUT,
@@ -247,5 +250,47 @@ describe("met by the skier", () => {
     const dx = s.skier.x - c.x;
     const dz = s.skier.z - c.z;
     expect(Math.abs(dx * rx + dz * rz)).toBeGreaterThan(V.width / 2);
+  });
+});
+
+describe("the traffic as drawn", () => {
+  it("deals each vehicle one look, every time, and no roof load on a van, bus or bike", () => {
+    for (let id = 0; id < 200; id++) {
+      for (const kind of ["hatch", "estate", "suv", "van", "bus", "bike"] as const) {
+        const a = vehicleLook(38, id, kind, id % 2 === 0);
+        expect(vehicleLook(38, id, kind, id % 2 === 0)).toEqual(a);
+        if (kind === "van" || kind === "bus" || kind === "bike") expect(a.roof).toBe("none");
+        if (kind === "bus" || kind === "bike") expect(a.snow).toBe("none");
+      }
+    }
+  });
+
+  it("lights the lamps by the dark, the brake and the signal, and none on a parked car", () => {
+    const out: [number, number, number, number] = [0, 0, 0, 0];
+    expect(lampLevels(null, 1, 0, out)).toEqual([0, 0, 0, 0]);
+    const day = [...lampLevels({ brake: false, signal: 0, speed: 8 }, 0, 0, out)];
+    const night = [...lampLevels({ brake: false, signal: 0, speed: 8 }, 1, 0, out)];
+    expect(night[0]).toBeGreaterThan(day[0]);
+    expect(night[1]).toBeGreaterThan(day[1]);
+    expect(lampLevels({ brake: true, signal: 0, speed: 3 }, 0, 0, out)[1]).toBeGreaterThan(0.8);
+    // A right turn flashes the right indicator only, on and off at 1.5 Hz.
+    const on = [...lampLevels({ brake: false, signal: 1, speed: 3 }, 0, 0.1, out)];
+    const off = [...lampLevels({ brake: false, signal: 1, speed: 3 }, 0, 0.1 + 0.5 / 1.5, out)];
+    expect(on[2]).toBe(0);
+    expect(on[3]).toBe(1);
+    expect(off[3]).toBe(0);
+  });
+
+  it("turns the cranks once a stride, the weights a blend of two keys", () => {
+    const w = new Float32Array(PEDAL_POSES.length);
+    const v = new Float32Array(PEDAL_POSES.length);
+    for (let m = 0; m < PEDAL_STRIDE * 2; m += 0.13) {
+      pedalDials(m, w);
+      pedalDials(m + PEDAL_STRIDE, v);
+      const sum = w.reduce((a, b) => a + b, 0);
+      expect(sum).toBeLessThanOrEqual(1 + 1e-6);
+      expect(w.filter((x) => x > 1e-6).length).toBeLessThanOrEqual(2);
+      for (let i = 0; i < w.length; i++) expect(v[i]).toBeCloseTo(w[i], 4);
+    }
   });
 });

@@ -4,14 +4,13 @@
 // (`downhill-run.ts`, `slalom-heat.ts`'s `secondRunOf`, `pinned-run.ts`),
 // the speed trap (`trapOf`), the four intermediates (`slalom-board.ts`),
 // the run a restart and a replay stand up again (`replay.ts`), the maps a
-// downhill is raced on (`campaign.ts`), the link that boots one
+// downhill is raced on, the link that boots one
 // (`url-params.ts`), and the news and the pulse the trap and the nets earn.
 
 import { describe, expect, it } from "vitest";
 
 import { DISCIPLINE_RULES, DOWNHILL, createGame, skisById, type GameState } from "@engine";
 
-import { CAMPAIGN_LEVELS, fitsMode } from "../pwa/src/game/campaign.ts";
 import { isTraining, trainingOf, trapOf } from "../pwa/src/game/downhill-run.ts";
 import { secondRunOff } from "../pwa/src/game/pinned-run.ts";
 import { recipeOf } from "../pwa/src/game/replay.ts";
@@ -131,14 +130,6 @@ describe("a downhill's timing", () => {
 });
 
 describe("where a downhill is raced", () => {
-  it("rides the campaign's blacks off the level card, never a slalom's red", () => {
-    const blacks = CAMPAIGN_LEVELS.filter((l) => l.grade === "black");
-    expect(blacks.length).toBeGreaterThan(0);
-    for (const l of CAMPAIGN_LEVELS) {
-      expect(fitsMode(l, "downhill")).toBe(l.grade === "black" || l.mode === "downhill");
-    }
-  });
-
   it("boots off a link into its training, or with ?run=2 its race", () => {
     expect(readParams("?start=downhill").mode).toBe("downhill");
     expect(readParams("?start=downhill").rides).toBe(true);

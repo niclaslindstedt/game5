@@ -5,9 +5,8 @@
 // of OPTIONS (`menu-options.tsx`) — the three faders, the picture
 // (`settings-video.ts`), the keys (`settings-input.ts`), the thumbs, and how
 // much help the skier is given — and the start card's answers for a free
-// ride (`free-ride.ts`), and the pinned maps the level cards last picked. The record book, the ghosts and the campaign's
-// board are kept beside it, not in it (`records.ts`, `ghost.ts`,
-// `campaign.ts`). Nothing is remembered that the player has no way to
+// ride (`free-ride.ts`), and the pinned maps the level cards last picked. The record book and the ghosts
+// are kept beside it, not in it (`records.ts`, `ghost.ts`). Nothing is remembered that the player has no way to
 // change: the camera is walked with C (or the HUD's press) and the sound is
 // the switch on the front door and the pause card.
 //

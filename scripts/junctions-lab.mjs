@@ -21,7 +21,7 @@
 // The table is a seed a row: the steps on the runs by kind, the worst (its
 // pitch before and after, where), and the lanes the area laid. `--versions`
 // builds the same seeds by older generators beside the current one
-// (`versions.ts` — a version a campaign map still names can be asked for),
+// (`versions.ts` — a version a pinned map still names can be asked for),
 // so a grading change is read before and after in one run. `--sheet` draws
 // the worst steps of the first version as relief, each beside the same
 // patch under every other version (previews/junctions.png).

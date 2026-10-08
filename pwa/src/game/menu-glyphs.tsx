@@ -4,8 +4,7 @@
 // a player has to READ to find the press they came for is a card that has
 // failed; a mark is found without reading.
 //
-// Only the marks this slice's cards use: the peaks on the CAMPAIGN and the
-// padlock on what it has not opened, the flag on RACE, the kicker on FREE
+// Only the marks this slice's cards use: the flag on RACE, the kicker on FREE
 // RIDE, the flip on TRICKS, the shutter on the
 // GALLERY chip, the sliders on the front door's OPTIONS chip,
 // the four the pause card is read by — carry on, start again, watch it
@@ -29,8 +28,6 @@ export const GLYPH_NAMES = [
   "gauge",
   "display",
   "kicker",
-  "peaks",
-  "lock",
   "camera",
   "flip",
   "replay",
@@ -144,24 +141,6 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <path d="M19.6 13.4l-1.4 3.2-3.2-1.2" />
     </>
   ),
-  // TWO PEAKS AND A PENNANT on the higher: the campaign — a ladder of maps
-  // climbed shelf by shelf. The pennant is what keeps it from reading as
-  // the kicker's slope.
-  peaks: (
-    <>
-      <path d="M2.5 20.5l6.5-10 3.4 5.2 3.6-8.2 5.5 13z" />
-      <path d="M16 7.5V2.8" />
-      <path d="M16 2.8h4l-1.2 1.6 1.2 1.6h-4" fill="currentColor" />
-    </>
-  ),
-  // A PADLOCK: a map or a shelf the campaign has not opened yet.
-  lock: (
-    <>
-      <rect x="5" y="10.5" width="14" height="10" rx="1.8" />
-      <path d="M8.2 10.5V7.6a3.8 3.8 0 0 1 7.6 0v2.9" />
-      <path d="M12 14.4v2.4" />
-    </>
-  ),
   // THE SHUTTER: the pictures a skier took, and the press that takes one — a
   // stills camera, never the HUD's movie camera, which walks the ladder.
   camera: (
@@ -182,7 +161,7 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
   ),
   // THREE BARS OFF A BASELINE, climbing: the statistics — a skier's numbers
   // added up. Bars rather than a line, so it shares no silhouette with the
-  // gauge or the peaks.
+  // gauge.
   chart: (
     <>
       <path d="M3.5 20.5h17" />

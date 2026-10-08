@@ -23,7 +23,7 @@ Beside the disciplines, one spec cuts across all of them:
 
 | Spec | Feature | State |
 | --- | --- | --- |
-| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps, off the campaign; the pause card naming the map for a free ride | built for every discipline — the slalom, the giant slalom, the super-G, the downhill, speed skiing and the ski cross |
+| [RACE_MAPS.md](RACE_MAPS.md) | Every discipline's own NINE pinned maps; the pause card naming the map for a free ride | built for every discipline — the slalom, the giant slalom, the super-G, the downhill, speed skiing and the ski cross |
 
 The TRICK FORMATS — the judged freestyle events that are to replace the one
 arcade TRICKS run — are researched and drafted, none built. Their research
@@ -70,7 +70,7 @@ history behind it, works in this order:
    rule and its setter), `ski-physics` / `ski-tuning` (the technique row,
    the skis), `bot-improvement` and `simulate-run` (the bot, `make sim`),
    `collision` (gates), `hud-and-menus` / `menu-system` (the HUD, the front
-   door), `crowd` (the audience), `campaign` (rungs), `lab-tooling` (a lab),
+   door), `crowd` (the audience), `pinned-maps` (the race maps), `lab-tooling` (a lab),
    `commit` and `changelog` at the end. Read each one's lessons first
    (`npx ogf-skill-lessons <skill>`).
 3. **Research first.** Work the spec's research to-do with web sources;
@@ -90,7 +90,6 @@ history behind it, works in this order:
    MAPS (`RACE_MAPS.md`: a sweep of seeds for the ones whose course makes a
    good race of this discipline, rows in `race-maps.ts`, held by
    `tests/race_maps_test.ts`), which is what its level card offers.
-   Campaign rungs are optional and come after.
 5. **Measure and look**: the labs the spec names and the router's labs
    table owes — `make sim` before and after (the bot finishes every seed),
    `make ride`, `make level` / `make analyze` for the course, the technique
@@ -689,10 +688,10 @@ cloud session; `screenshots` needs `make build` first.
 | `make technique` | Each riding technique skied by the bot on one course: PATH (strobed from above, gates drawn, a scale bar), BEHIND (TV frames at transition, edge-set, apex, exit), SIDE (the apex), TURNS (every technique's natural linked carve on one open slope at one scale, the line coloured by radius, each apex labelled radius/time/edge, the researched radius drawn), and a TABLE against the research targets (`--json` to save, `--compare` to diff) | THE loop for a technique row and its pose: run before and after every physics or pose change. `--techniques=slalom` and `--sheets=none` give the table in seconds; `--course=slalom|piste` |
 | `make ride` | Scripted scenarios on synthetic slopes, each a table and a picture; `slalom-cut` and `slalom-rhythm` measure a technique's carve and rhythm without the bot | A new technique gets its own scenarios (`scripts/lib/ride-slalom.mjs` is the pattern); `ARGS=--card` is every pair's card |
 | `make sim` | The bot down 8 seeds on the open race rules: times, misses, resets, digests | The determinism guard for every OTHER mode — save its table before the first edit |
-| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`, `speedSki`, `skiCross` — `--heat` a ski-cross heat): out runs, the speed trap | THE sweep for a discipline; the campaign's rungs still by a scratch test |
+| `make sim ARGS="--mode downhill --skis eagle --count 16"` | The bot down each seed's course of a discipline (`slalom`, `downhill`, `superG`, `speedSki`, `skiCross` — `--heat` a ski-cross heat): out runs, the speed trap | THE sweep for a discipline; its nine race maps by `make rate RACE=…` |
 | `make sim ARGS="--skis all"` | Every pair down every seed | A pair's retune (the downhill pair's misses showed here) |
 | `make level` / `make analyze` | One map's piste, gates, kickers and grades; the rule book's verdict | The course rule and its setter; `make resort` for the ski area |
-| `make rate CAMPAIGN=1` | Every campaign rung rated, with the bot's time and a trial's medals | Curating a discipline's rungs and setting medals (gold 0.98×, silver 1.03×, bronze 1.125× the bot) |
+| `make rate RACE=…` | A discipline's nine race maps rated, with the bot against par | Curating a discipline's race maps |
 | `make screenshots` | The built game at a moment: `--t s`, `--seed`, `--run2` (the second run's plate), `--downhill --skis eagle` (a downhill's training; `--run2` its race), `--hold kmh --move m --hold-for s` (forces a run — a DSQ plate), `--surface menu,…` for cards | The start (t≈1, 3, 5), mid-run, the plates, the front door at `--viewport desktop,phone,landscape` |
 | `make audience` | The crowd's moves, looks and cuts, and a race skied past them (`--mode=slalom`, views incl. `course`, `combo`, `arena`, `stand`) | A discipline's spectator placement |
 | `make skier-metrics` | The pose measured against a skier's bands, frames at fault (`--json` / `--compare`) | Any pose change — the pose row per technique |

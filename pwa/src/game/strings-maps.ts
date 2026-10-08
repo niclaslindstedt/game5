@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE PINNED MAPS' WORDS — the level card a RACE picks its mountain on
+// (`menu-levels.tsx`) and the card a TRICKS run picks its park on
+// (`menu-tricks.tsx`), and the day and billing every map box shares
+// (`course-map.tsx`). Stated beside the one table and spread into it
+// (`strings.ts`), so every word the player reads is still one `STRINGS` key.
+// Templates, never concatenations at the call site (§39.2).
+
+import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
+
+import type { PinnedMode } from "./pinned-levels.ts";
+
+/** A measured mode's word on a box. */
+const modeWord = (mode: PinnedMode): string =>
+  mode === "downhill"
+    ? "DOWNHILL"
+    : mode === "superG"
+      ? "SUPER-G"
+      : mode === "giantSlalom"
+        ? "GIANT SLALOM"
+        : mode === "speedSki"
+          ? "SPEED SKIING"
+          : mode === "skiCross"
+            ? "SKI CROSS"
+            : "RACE";
+
+/** A solar hour as a clock: `13:44`. */
+function clockOf(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  return `${String(h + Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** A day of the year (1–365) as a date: `24 FEB`. */
+function dateOf(dayOfYear: number): string {
+  let d = Math.min(365, Math.max(1, Math.round(dayOfYear)));
+  let m = 0;
+  while (d > MONTH_DAYS[m]) d -= MONTH_DAYS[m++];
+  return `${d} ${MONTHS[m]}`;
+}
+
+export const MAP_STRINGS = {
+  /* ── EVERY MAP BOX (course-map.tsx) ────────────────────────────────── */
+  mapRide: "SKI",
+  /** What a box is: the game, and the run it always is — the piste once,
+   * top to bottom. */
+  mapBilling: (mode: PinnedMode): string =>
+    mode === "superG"
+      ? "SUPER-G · ONE RUN"
+      : mode === "giantSlalom"
+        ? "GIANT SLALOM · TWO RUNS"
+        : mode === "speedSki"
+          ? "SPEED SKIING · TWO RUNS"
+          : mode === "skiCross"
+            ? "SKI CROSS · FOUR ABREAST"
+            : `${modeWord(mode)} · TOP TO BOTTOM`,
+  /** The day a run is skied in, under its name: the sky and the start hour. */
+  mapDay: (sky: string, hour: number): string => `${sky} · ${clockOf(hour)}`,
+  mapSky: {
+    clear: "CLEAR",
+    fair: "FAIR",
+    flurries: "FLURRIES",
+    high: "HIGH CLOUD",
+    overcast: "OVERCAST",
+    snow: "SNOW",
+    storm: "STORM",
+    fog: "FOG",
+  } as Record<string, string>,
+
+  /* ── THE LEVEL CARD (menu-levels.tsx) ──────────────────────────────── */
+  levelsRace: "RACE ON",
+  levelsDownhill: "DOWNHILL ON",
+  /** Over a discipline's nine: what they are. */
+  levelsRaceMaps: "NINE MOUNTAINS PICKED FOR THIS RACE · THE GENTLEST FIRST",
+  /** A race map's course on its box: the drop and the length — a slalom's in
+   * metres, a speed course's in kilometres. */
+  levelsFigures: (vertical: number, length: number): string =>
+    `${Math.round(vertical)} M DROP · ${
+      length < 1000 ? `${Math.round(length)} M` : `${(length / 1000).toFixed(1)} KM`
+    }`,
+  levelsNoBest: "NO TIME SET YET",
+  levelsBest: (seconds: number, skis: string): string =>
+    `BEST ${formatTime(seconds)} · ${skis.toUpperCase()}`,
+
+  /* ── THE TRICK MAP CARD (menu-tricks.tsx) ──────────────────────────── */
+  tricksOn: "TRICKS ON",
+  /** What a trick map's box is: the run and how long the buzzer gives it. */
+  tricksBilling: (seconds: number): string => `TRICKS · ${Math.round(seconds / 60)} MIN`,
+  /** The day a park is skied on: the sky, the hour and the date. */
+  tricksDay: (sky: string, hour: number, dayOfYear: number): string =>
+    `${sky} · ${clockOf(hour)} · ${dateOf(dayOfYear)}`,
+} as const;

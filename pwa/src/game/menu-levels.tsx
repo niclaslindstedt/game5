@@ -12,16 +12,15 @@
 // (`race-maps.ts`), every one open: nine maps chosen for the discipline, one
 // page of boxes, the course's drop and length on each.
 //
-// The card wears the campaign's own silhouette and classes — the boxes, the
-// piste behind each — because a map should look like itself wherever it is
-// offered. What is INSIDE a box is each card's own: the ladder
-// shows what a rung paid, and this shows what the run would BE and the best
-// it has ever been ridden in.
+// The card wears the map boxes' own silhouette and classes — the boxes, the
+// piste behind each (`course-map.tsx`) — because a map should look like
+// itself wherever it is offered: what the run would BE and the best it has
+// ever been ridden in.
 
 import { type GameMode } from "@engine";
 
-import { type CampaignLevel, type CampaignMode } from "./campaign.ts";
-import { CourseMap, dayLine } from "./menu-campaign.tsx";
+import { CourseMap, dayLine } from "./course-map.tsx";
+import { type PinnedLevel, type PinnedMode } from "./pinned.ts";
 import { raceMapsOf, type RaceMap } from "./race-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -29,7 +28,7 @@ import { Glyph } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** The measured mode's own billing word: the slalom's for any other. */
-function billedMode(mode: GameMode): CampaignMode {
+function billedMode(mode: GameMode): PinnedMode {
   return mode === "downhill" ||
     mode === "superG" ||
     mode === "giantSlalom" ||
@@ -46,7 +45,7 @@ function LevelBox({
   chosen,
   onPick,
 }: {
-  level: CampaignLevel | RaceMap;
+  level: PinnedLevel | RaceMap;
   mode: GameMode;
   /** The best this map has seen in THIS mode, as the record book reads it. */
   best: string | null;
@@ -67,7 +66,7 @@ function LevelBox({
       <span class="menu-level-head">
         <GradeMark grade={level.grade} className="menu-level-grade" />
         <Glyph name="flag" className="menu-level-mode" />
-        <span class="menu-level-billing">{STRINGS.campaignBilling(billedMode(mode))}</span>
+        <span class="menu-level-billing">{STRINGS.mapBilling(billedMode(mode))}</span>
       </span>
       <span class="menu-level-name">{level.name}</span>
       <span class="menu-level-day">{dayLine(level)}</span>
@@ -96,10 +95,10 @@ export function LevelsPage({
   /** The map the settings already stand on, if any. */
   chosen: string | null;
   /** The record standing on a map in this mode, as a line, or null. */
-  best: (level: CampaignLevel) => string | null;
+  best: (level: PinnedLevel) => string | null;
   onBack: () => void;
   /** On to the skis card, which is where RIDE is. */
-  onPick: (level: CampaignLevel) => void;
+  onPick: (level: PinnedLevel) => void;
 }) {
   // Only a race reaches this card (`skisBack`): a mode with no nine of its
   // own has nothing to pick here.
@@ -141,7 +140,7 @@ function RidePress({ onPick }: { onPick: () => void }) {
       data-menu="skis"
       onClick={onPick}
     >
-      <span class="menu-item-name">{STRINGS.campaignRide}</span>
+      <span class="menu-item-name">{STRINGS.mapRide}</span>
     </button>
   );
 }
@@ -158,9 +157,9 @@ function RaceMapsPage({
   mode: GameMode;
   maps: readonly RaceMap[];
   chosen: string | null;
-  best: (level: CampaignLevel) => string | null;
+  best: (level: PinnedLevel) => string | null;
   onBack: () => void;
-  onPick: (level: CampaignLevel) => void;
+  onPick: (level: PinnedLevel) => void;
 }) {
   const pick = maps.find((map) => map.id === chosen) ?? maps[0];
   return (

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // WHICH GENERATOR BUILT THIS MAP — the world generator's versions, and the
-// contract that lets a campaign map outlive a change to the rules.
+// contract that lets a pinned map outlive a change to the rules.
 //
 // The problem this exists for: a map is generated fresh from its seed, so
 // the rules ARE the map. Move a gate spacing, a kicker's height band, a
 // draw in the seeded stream, and seed 38 stops being the map that was
-// rated, timed and named — silently, everywhere, at once. The campaign is
-// the one part of the game where that is not acceptable: its maps were
-// CURATED, and a ladder that re-rolls under its own rungs is a ladder
-// nobody chose — and every best time and every medal on it is a result on
-// a piste that no longer exists.
+// rated, timed and named — silently, everywhere, at once. The pinned maps
+// (a race's nine, the trick maps, the benchmark's race) are the part of the
+// game where that is not acceptable: they were CURATED, and every best time
+// on one is a result on a piste that would no longer exist.
 //
-// So a campaign map names the version it was curated under, and that
+// So a pinned map names the version it was curated under, and that
 // version keeps building it. Nothing else does: the free ride, the menu's
 // backdrop, every lab, every sweep and every test take
 // `CURRENT_GENERATOR_VERSION` and move with the rules, which is the whole
@@ -23,11 +22,11 @@
 //      here, with a note saying what moved.
 //   2. The old row keeps the old behaviour, through a TRAIT read at the one
 //      place the behaviour differs (see `GeneratorTraits` below).
-//   3. A campaign map moves to the new version DELIBERATELY: re-rated,
+//   3. A pinned map moves to the new version DELIBERATELY: re-rated,
 //      re-timed, re-named if the piste no longer earns its name — the
-//      `campaign-levels.ts` header says how. Bumping every map in one commit
+//      `pinned-levels.ts` header says how. Bumping every map in one commit
 //      because the suite went red is the exact move this exists to prevent.
-//   4. A version no campaign map names any more is DELETED — the row, and
+//   4. A version no pinned map names any more is DELETED — the row, and
 //      every trait branch that only existed for it.
 //      `tests/generator_version_test.ts` refuses to let one linger.
 //
@@ -36,7 +35,7 @@
 // owed to the committed maps and to nothing else.
 //
 // HOW A RE-ROLL IS NOTICED. The generator has no way to know its output
-// moved, so the campaign carries a DIGEST of every map it pins
+// moved, so every pinned map carries a DIGEST of itself
 // (`levelDigest`, `digest.ts`) and the suite rebuilds each one and compares.
 // A red `generator_version_test` is then one of two things with opposite
 // fixes: a map deliberately moved (a new seed — the digest was meant to
@@ -81,19 +80,6 @@ export type GeneratorTraits = {
    * maps and the benchmark stand on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
-  /** LEVEL PADS (v4): every gondola's and chair's top stands on a level pad
-   * `lift.pad` metres across (R26), with no ramps off it, no approach cut
-   * under its line and no rope held to the snow. From v5 the pad is
-   * `lift.top.pad` across and leans off its deck to both sides
-   * (`lift.top`), ramps come down off it to its runs, and the ground under
-   * every line's way in is cut beneath the rope. */
-  levelPads?: boolean;
-  /** STARTS ACROSS THE TOP (v4): a run's start is looked for along the line
-   * across the face through its top station, at whatever height that finds
-   * — tens of metres above the station, often, so a rider off the lift had
-   * to climb to it. From v5 every start is slid down the fall line
-   * under the top (R27), so a rider glides down to it. */
-  startsAcrossTop?: boolean;
   /** THE TOPS LEFT TO THE CONTOUR (v5): every run off a top starts on the
    * top's contour 4 m under its snow, at whatever distance, a lane where
    * its slot puts it; a ramp comes down off a pad's rim only where one
@@ -105,7 +91,7 @@ export type GeneratorTraits = {
    * run's own snow falling all the way and evenly, a chair's unload falls
    * ahead of the rider and the cut starts behind his tails. */
   looseTops?: boolean;
-  /** THE PEAK'S CHAIR BESIDE THE MID-STATION (v4–v6): its bottom station
+  /** THE PEAK'S CHAIR BESIDE THE MID-STATION (v5–v6): its bottom station
    * stands 45 m across the face and 20 m down from the gondola's top, slid
    * across its line off any run — its queue as often beside or behind a
    * rider out of the gondola as ahead of him, or straight in his way. From
@@ -121,7 +107,7 @@ export type GeneratorTraits = {
    * line stays on the other's surface and is filled down off it, and the
    * junction's corridor is levelled onto the other's surface as it falls. */
   steppedJunctions?: boolean;
-  /** THE LOW MASSIF (v4–v6): the resort's mountain 900–1150 m tall (the
+  /** THE LOW MASSIF (v5–v6): the resort's mountain 900–1150 m tall (the
    * region's multiple on it, the fell's half of it) over a valley floor at
    * the region's base altitude, its folds R3's own. From v8 it stands
    * 1420–1620 m over a floor 10–20 m above the sea, every country at least
@@ -133,38 +119,19 @@ export type GeneratorTraits = {
 /** Every version the generator can still build, oldest first.
  *
  * The last row is the rules as they stand in this tree; everything above it
- * is a fossil, alive only because a campaign map still names it. */
+ * is a fossil, alive only because a pinned map still names it. */
 export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
   {
     version: 1,
     note:
       "The generator as Fall Line launched with it (R1–R22): one ungraded piste down one " +
-      "face, the fall line due north. v4 builds every map as a whole ski area — a massif, " +
+      "face, the fall line due north. Later versions build every map as a whole ski area — a massif, " +
       "its lifts, a network of runs each built to a PISTE GRADE (R23) with the drops " +
       "across a black (R24), the face turned to the sun (R15) and transport lanes merging " +
       "down to a village (R25–R28) — raced on one course down it; this row builds one " +
       "piste on the ungraded rules with the face due north.",
     singlePiste: true,
     steppedJunctions: true,
-  },
-  {
-    version: 4,
-    note:
-      "The resorts with their stations: every map a ski area on one massif — its lifts, " +
-      "its runs of every colour and its transport lanes merging down to the village " +
-      "(R25–R27) — raced on one COURSE down that network (R28), the woods thick low down " +
-      "and thinning through the ecotone to the tree line (R14); every gondola's and " +
-      "chair's top stands on a level pad cut into the slope, its downhill edge a lip onto " +
-      "the face and a chair's unload ramp on it, every station stands beside the runs, " +
-      "never on one, and no drag lift crosses a piste (R26). From v5 on every gondola's and " +
-      "chair's top is cut wider and LEANING off its deck to both sides instead of level; this " +
-      "row keeps the level pad 30 m across, and every run's start found along the line " +
-      "across the face through its top, at whatever height that is.",
-    levelPads: true,
-    startsAcrossTop: true,
-    queueBeside: true,
-    steppedJunctions: true,
-    lowMassif: true,
   },
   {
     version: 5,
@@ -221,11 +188,11 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
 ];
 
 /** What a map is built by unless something pins it to an older set of
- * rules. Every entry point that is not a campaign map lands here. */
+ * rules. Every entry point that is not a pinned map lands here. */
 export const CURRENT_GENERATOR_VERSION: GeneratorVersion =
   GENERATOR_VERSIONS[GENERATOR_VERSIONS.length - 1].version;
 
-/** The versions this build can still be asked for — the check a campaign
+/** The versions this build can still be asked for — the check a pinned
  * map's row is held to, and the list a test walks. */
 export const GENERATOR_VERSION_IDS: readonly GeneratorVersion[] = GENERATOR_VERSIONS.map(
   (row) => row.version,

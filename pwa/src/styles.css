@@ -2927,16 +2927,10 @@ canvas {
 }
 
 /* ── THE HERO ──────────────────────────────────────────────────────────────
-   THE CAMPAIGN, and the only lit tile on the card. It is bigger than the
-   four beside it in every way the eye reads size — width, mark, weight of
-   colour — because being told which button to press first is the single most
-   useful thing a front door can do for somebody who has just arrived.
-
-   It is also the only tile whose FACE CHANGES between visits: the line under
-   the name is how far up the ladder the player has got (`campaignStanding`).
-   That is what stops the door being furniture — a card that says exactly the
-   same thing on the fortieth visit as on the first is a card nobody reads
-   twice, and no amount of decoration fixes it.
+   RACE, and the only lit tile on the card. It is bigger than the others
+   in every way the eye reads size — width, mark, weight of colour — because
+   being told which button to press first is the single most useful thing a
+   front door can do for somebody who has just arrived.
 
    Laid out as a ROW here — mark left, words right — which is the shape that
    fills a tile twice as wide as it is tall, and which breaks the grid of
@@ -4814,8 +4808,8 @@ canvas {
 }
 
 /* ── THE FREE RIDE: its start card, its chart ──────────────────────────────
-   (Its front-door tile is a `.menu-tile-wide`, unlit, like the race's:
-   exactly one lit control per card, and that is the CAMPAIGN.) */
+   (Its front-door tile is a `.menu-tile-wide`, unlit:
+   exactly one lit control per card, and that is the RACE.) */
 /* A PAGE'S WAY ON, STANDING IN ITS HEAD opposite the way back. `.menu-item`
    is a full-width row; here only its colour and weight are kept. */
 .menu-head-with-action {

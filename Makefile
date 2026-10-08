@@ -773,22 +773,22 @@ analyze:
 
 # RATE generated maps — how HARD each one is and what KIND of hard, on the
 # eight axes of engine/rating/ folded into one index. `--stats` is the
-# population per axis; CAMPAIGN=1 audits the committed ladder (every map on
-# its own version and held to its digest, the bot's time, the climb).
-# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate CAMPAIGN=1`
+# population per axis; RACE=<discipline> audits that discipline's nine race
+# maps (every map on its own version and held to its digest, the bot's time).
+# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate RACE=superG`
 rate:
-	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(CAMPAIGN),--campaign,) $(if $(RACE),--race $(RACE),) $(ARGS)
+	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
 # THE DIFFICULTY SCHEMATIC: one map from above with what makes it hard drawn
 # over it — the corners, the climbs, the drifts, the walled woods — and the
-# eight axes beside it, to previews/difficulty-<seed>.png. CAMPAIGN=1 draws
-# one sheet per committed map.
-# `make difficulty SEED=38` · `make difficulty CAMPAIGN=1`
+# eight axes beside it, to previews/difficulty-<seed>.png. RACE=<discipline>
+# draws one sheet per race map of that discipline.
+# `make difficulty SEED=38` · `make difficulty RACE=downhill`
 difficulty:
-	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(CAMPAIGN),--campaign,) $(ARGS)
+	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
-# THE CAMPAIGN'S ROUTES: every pinned map's loop written down as the line its
-# box on the card draws (pwa/src/game/campaign-routes.ts, generated).
+# THE MAP ROUTES: every pinned map's loop written down as the line its box
+# on the card draws (pwa/src/game/map-routes.ts, generated).
 # `make routes` · `make routes ARGS=--check`
 routes:
 	npm run routes -- $(ARGS)

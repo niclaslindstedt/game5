@@ -161,7 +161,7 @@ No frozen water lies on a mountain: every row's `river` is null and `Level.ice` 
 
 Every piste a graded generator builds (v4: every run of the area, and the course raced measured
 whole) is built to one PISTE GRADE — the colour on its signs,
-asked for with `GenerateOptions.grade` (the free ride's GRADE row, a `?grade=` link, a campaign
+asked for with `GenerateOptions.grade` (the free ride's GRADE row, a `?grade=` link, a pinned
 map's own) or dealt off the seed on a stream of its own (a fifth green, three tenths blue, three
 tenths red, a fifth black) — and published as `Level.grade`. A piste is graded by its STEEPEST
 hundred metres, the northern signs' bands: GREEN to 16 % (9°), BLUE to 27 % (15°), RED to 47 %
@@ -196,7 +196,7 @@ an attempt is built in and `engine/analysis/resort.ts` (`analyzeResort`, with `a
 `tests/resort_test.ts` asserts it across seeds in every region.
 
 - **The massif** (`massif.ts`, R25) — 1420–1620 m of vertical over a floor by the sea on a 4000 m
-  square (v4–v6: 900–1150 m, the region's multiple on top, on R1's 3000 m), the
+  square (v5–v6: 900–1150 m, the region's multiple on top, on R1's 3000 m), the
   summit ridge rising to a PEAK one side of the map's middle and falling to a lower SHOULDER on the
   other; the face under the peak on a steep profile, the face under the shoulder on a rounded,
   gentler one, blended across a sector; a BENCH part-way down where the fall eases and the
@@ -288,20 +288,20 @@ findings; `--count 24` sweeps (`make resort COUNT=24 REGION=fell`).
 ## Versions, and the digest
 
 The rules ARE the map, so a change that moves what a seed builds re-rolls every map at once. That
-is the point of a generator everywhere but the CAMPAIGN, whose twenty-four maps were curated — rated,
-timed, named — and must stay the maps they were. So the generator is VERSIONED
+is the point of a generator everywhere but the PINNED MAPS — the race maps and the trick maps —
+which were curated — rated, timed, named — and must stay the maps they were. So the generator is VERSIONED
 (`engine/mapgen/versions.ts`): `GenerateOptions.version` asks for a version, `Level.version` says
-which one built a map, and everything that is not a campaign map takes `CURRENT_GENERATOR_VERSION`.
-A campaign map names its version and carries the DIGEST of the map that came out (`levelDigest`,
+which one built a map, and everything that is not a pinned map takes `CURRENT_GENERATOR_VERSION`.
+A pinned map names its version and carries the DIGEST of the map that came out (`levelDigest`,
 `engine/mapgen/digest.ts`: FNV-1a over the piste every 20 m, the gates, the start line, the kickers,
 the cliffs and the drops, the drifts, every trunk, the day, the sky, the region and the grade, and
-the ground under every gate and lip), and `tests/generator_version_test.ts` rebuilds each one and
-compares.
+the ground under every gate and lip), and `tests/race_maps_test.ts` and `tests/trick_maps_test.ts` rebuild each
+one and compare.
 
 The contract: a change that moves what a seed builds owes a NEW row in `GENERATOR_VERSIONS`, with
 the old behaviour kept on the old row as an optional trait read at the one place it differs
-(`generatorTraits(opts.version)`); a campaign map moves onto the new version only deliberately,
-re-rated and re-timed; and a version no campaign map names any more is deleted, row and trait
+(`generatorTraits(opts.version)`); a pinned map moves onto the new version only deliberately,
+re-rated and re-timed; and a version no pinned map names any more is deleted, row and trait
 branches together. A red digest is never fixed by writing the new one down unless the map was
 meant to move.
 
@@ -314,30 +314,21 @@ Today there are four:
   is exactly the map it was; its colour is only measured. Its trait `northFace` keeps the fall line
   due north whatever the hour, and `singlePiste` builds one piste down one face rather than a ski
   area.
-- **v4** is the resorts with their stations (R25–R30): every map a ski area on one massif, its lifts
+- **v5** is the resorts with their stations (R25–R30): every map a ski area on one massif, its lifts
   and the drag lifts access asks for, its runs of every colour and its transport lanes merging down
   to the hub at the foot of the mountain, every piste skiable again without a harder one, two wind
-  tunnels along the hub, raced on one course down that network through slalom gates — a gate missed
-  costs three seconds — the woods thick low down and thinning through the ecotone to the tree line.
-  Every gondola's and chair's top stands on a level PAD 30 m across (`station-pad.ts`), cut into the
-  slope more than filled — so its downhill edge is a LIP onto the face — eased into the mountain over
-  22 m and groomed; a chair's pad carries its UNLOAD RAMP, a mound of packed snow 1.2 m high under
-  the unload point 7 m short of the top. The pad is pressed before the runs are walked — their starts
-  and first stretch keep 25 m off its middle, a lane's route keeps off it — pressed again at its level
-  once the runs are graded (yielding to every run's own line), and the off-piste kickers and cliffs
-  keep off it as off a run. Every BOTTOM station stands beside the runs, never on one, slid across its
-  line where a run came down over it (`station-clear.ts`), and no drag lift's track crosses a piste —
-  the nursery's drag may stand short, its foot up its line beside the nursery run, where the valley
-  floor has no room. The analyzer holds all of it (R26). Every campaign map builds on it, its trait
-  `levelPads` keeping those level 30 m pads and `startsAcrossTop` its runs' starts. It lays no terrain park (R20): a TRICKS run off a seed
-  is built on v1's one piste, as the trick maps are (`createGame`).
-- **v5** is v4 with LEANING TOPS left to the contour, kept for the race maps that stand on it
-  (`pwa/src/game/race-maps.ts`). Its trait `looseTops` builds v6's leaning pad but keeps v5's rest:
+  tunnels along the hub, raced on one course down that network through slalom gates, the woods thick
+  low down and thinning through the ecotone to the tree line. Every BOTTOM station stands beside the
+  runs, never on one, slid across its line where a run came down over it (`station-clear.ts`), and no
+  drag lift's track crosses a piste — the nursery's drag may stand short, its foot up its line beside
+  the nursery run, where the valley floor has no room (R26). Its tops LEAN to the contour; it is kept
+  for the race maps that stand on it (`pwa/src/game/race-maps.ts`). It lays no terrain park (R20): a
+  TRICKS run off a seed is built on v1's one piste, as the trick maps are (`createGame`). Its trait `looseTops` builds v6's leaning pad but keeps v5's rest:
   every run off a top started on the top's contour 4 m under it wherever that lay, a ramp only where
   one reached a run's snow past its head and within 180 m, met at the run's shoulder and rolling over
   a LIP into a drop where it had to fall far (`summit-ramps-v5.ts`), a chair's unload a mound, and
   the cut under a chair's way in from 11 m behind its unload.
-- **v6** is v4 with LEANING TOPS ABOVE THEIR RUNS. Every gondola's and chair's top stands on a pad
+- **v6** is v5 with LEANING TOPS ABOVE THEIR RUNS. Every gondola's and chair's top stands on a pad
   48 m across (`lift.top`), its DECK 7 m either side of the line — the wheel, the unload ramp and
   the way off — level, and the pad falling off the deck to both sides at 11 % to its rim, about 2 m
   under the deck, before it is eased into the mountain. A chair's UNLOAD RAMP is whole under the chair
@@ -357,10 +348,9 @@ Today there are four:
   takes the lean and the cut back out and holds what is left level, holds every ramp to its rim, its run,
   its fall and its steepest, refuses a piste off a chair's or a gondola's top with no ramp down to it or
   a run off one starting against it, and holds every lift's carriers clear of the snow out of its load
-  and unload zones (`ropeShortfall`). v4, v5 and v6 stand the peak's chair 45 m across the face and
+  and unload zones (`ropeShortfall`). v5 and v6 stand the peak's chair 45 m across the face and
   20 m down from the gondola's top, slid across its line off any run (their trait `queueBeside`), so
-  its queue lay as often beside or behind a rider out of the gondola as ahead of him; v4's trait
-  `startsAcrossTop` keeps a campaign map's starts where they were.
+  its queue lay as often beside or behind a rider out of the gondola as ahead of him.
 - **v8** is the current rules: THE TALL MOUNTAIN, with THE NEXT LIFT AHEAD. The massif stands
   1420–1620 m (`massif.vertical`) over a valley floor whose lowest ground is 10–20 m above the sea
   (`massif.sea`, published as `Mountain.sea`, the height every altitude is read over), in every
@@ -372,7 +362,7 @@ Today there are four:
   stands the same share of the mountain over the floor as the region's bands give the low massif; the
   fell's runs are no longer tilted gentler; the nursery's top stands as far up from the floor as on
   the 3000 m square; and a piste the face will not carry at its colour is walked again a colour
-  harder. v4, v5 and v6 build the LOW MASSIF (their trait `lowMassif`): 900–1150 m of vertical (the
+  harder. v5 and v6 build the LOW MASSIF (their trait `lowMassif`): 900–1150 m of vertical (the
   region's multiple on it) over a floor at the region's base altitude, R3's folds as they are, on the
   3000 m square. v7 — v6 with the next lift ahead, on the low massif — was pinned by no map and went
   with this row. THE NEXT LIFT AHEAD: Where the gondola tops out a skate from
@@ -398,14 +388,15 @@ Today there are four:
   ceiling, up to 1.18 of it, where the surfaces it runs between lie further apart than the ceiling
   carries it, and the run left out past that — a merging run wider than the run it joins narrows to
   that run's width over its last stretch (`funnelInto`), and nothing is levelled past its last
-  station. `make junctions` finds the steps that are left; v4, v5 and v6 keep the steps where runs
+  station. `make junctions` finds the steps that are left; v5 and v6 keep the steps where runs
   met (their trait `steppedJunctions`). Every free ride, every race off a link and every lab builds
   on it.
 
 
-v2 — the graded generator of one piste down one face (R23, R24) — was retired when the campaign
-moved onto the ski areas, and v3 — the ski areas before their stations stood beside the runs — when
-the campaign moved onto v4, and v7 when v8 raised the mountain: no map names any of them any more, so their rows went, and a number is never
+v2 — the graded generator of one piste down one face (R23, R24) — and v3 — the ski areas before
+their stations stood beside the runs — were retired when the maps pinned on them moved on, v4 — the
+ski areas with level 30 m pads at their tops — when the maps that stood on it were dropped, and v7
+when v8 raised the mountain: no map names any of them any more, so their rows went, and a number is never
 used twice.
 
 ## Labs
@@ -418,7 +409,7 @@ used twice.
   last one.
 - `npm run rate` — how HARD a map is and what kind of hard (`engine/rating/`: the steepness, the
   bends, the air, the woods walling the piste, the traverses, the drifts, the weather, the length)
-  over a sweep; `--stats` is the population per axis, `--campaign` audits the committed ladder,
+  over a sweep; `--stats` is the population per axis, `--race id` audits a discipline's nine race maps,
   `--region` sweeps another kind of country. `npm run difficulty -- --seed 38` draws what makes a
   map hard over its plan.
 - `npm run resort -- --seed 7` — the whole ski area a seed builds (R25–R30): the piste map from

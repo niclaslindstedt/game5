@@ -121,7 +121,7 @@ rule). The research covers three things, and each spec lists them as boxes:
 **The mode presets them.** Picking a format opens the ski card on ITS PAIR
 and the dress card on ITS BUILD, as picking a race does: a row in
 `defs/modes.ts`'s `RACE_SKIS` and `RACE_RIDERS` (read by `raceSkisOf` /
-`raceRiderOf`, applied by `campaign-app.ts`), held by
+`raceRiderOf`, applied by `map-picks.ts`), held by
 `tests/race_skis_test.ts` and `tests/race_riders_test.ts` — every built
 format has both rows, and the argument for each stands beside it in the
 code with its source in `docs/freestyle.md`. Big air's: the Raven, the

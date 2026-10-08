@@ -25,7 +25,7 @@
 // multiple of one is exact in floating point and a band scaled by one is
 // the same band, so the alpine path through the generator draws the same
 // numbers off the same stream in the same order as it would with no region
-// table at all; `levelDigest` and the campaign's pinned maps hold it to
+// table at all; `levelDigest` and the pinned maps hold it to
 // that.
 
 import { LEVEL_RULES as R, type Band } from "./rules.ts";

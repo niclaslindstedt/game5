@@ -2,14 +2,14 @@
 // A MAP'S FINGERPRINT — one word that moves when the map a seed builds
 // moves, and does not when it does not.
 //
-// The campaign pins its maps to a generator version (`versions.ts`), and the
+// A pinned map names the generator version it was built by (`versions.ts`), and the
 // version registry is a promise the generator cannot check on its own:
 // nothing in `generateLevel` knows that seed 38 used to put its third gate
 // somewhere else. So every pinned map carries the digest it was curated
 // with, and the suite rebuilds it and compares. The digest reads what a
 // SKIER meets — the piste (a station every twenty metres: where it runs,
 // how high, how wide), every gate, the start line, every kicker (the park's
-// among them on a map built for a tricks run, R20 — no campaign map is, so
+// among them on a map built for a tricks run, R20 — no race map is, so
 // asking for one is asking for a different map), the cliffs, the drifts,
 // every trunk, the day and the sky — and the ground under every gate and
 // every lip, so the mountain moving under an unmoved piste is caught too.
@@ -19,7 +19,7 @@
 //
 // FNV-1a over the values rounded to centimetres, the way the sim's
 // determinism digest is built (`sim/simulate.ts`), printed as eight hex
-// digits so it reads as one word in a campaign map's row.
+// digits so it reads as one word in a pinned map's row.
 
 import { sampleField } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { DEFAULT_REGION, regionOf } from "./regions.ts";

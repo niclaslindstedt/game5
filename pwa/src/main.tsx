@@ -2,7 +2,7 @@
 import { render } from "preact";
 
 import "./styles.css";
-import "./campaign.css";
+import "./maps.css";
 import "./dev.css";
 import "./body.css";
 import "./wreck.css";

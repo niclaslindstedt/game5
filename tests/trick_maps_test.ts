@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TRICK MAPS (`pwa/src/game/trick-maps.ts`): six seeds with their trick
-// field, each held to its digest and its drawn loop like a campaign map;
+// field, each held to its digest and its drawn loop like a race map;
 // each ridden on a day of its own — the date, the hour and the sky reach the
 // run — every one carrying the three sizes of kicker; the card's answer is
 // remembered, a stale one is not; and the words the card reads them in.
@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SKIS, FULL_ASSIST, createGame, levelDigest, weatherOf } from "@engine";
-import { CAMPAIGN_ROUTES } from "../pwa/src/game/campaign-routes.ts";
+import { MAP_ROUTES } from "../pwa/src/game/map-routes.ts";
 import { routeOf } from "../pwa/src/game/route-shape.ts";
 import { mergeSettings } from "../pwa/src/game/settings.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -37,9 +37,7 @@ describe("the six trick maps", () => {
       const built = buildTrickMap(map);
       expect(built.version).toBe(map.version);
       expect(levelDigest(built), `${map.id}'s digest moved`).toBe(map.digest);
-      expect(CAMPAIGN_ROUTES[map.id], `${map.id}'s line — run \`make routes\``).toBe(
-        routeOf(built),
-      );
+      expect(MAP_ROUTES[map.id], `${map.id}'s line — run \`make routes\``).toBe(routeOf(built));
       const field = (built.kickers ?? []).filter((k) => k.trick);
       for (const size of ["low", "medium", "high"] as const) {
         expect(

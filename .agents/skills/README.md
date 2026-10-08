@@ -75,10 +75,10 @@ sibling's the day one lands, and add its registry row.
 | `playtest` | Looking at the real game: `make world`'s views and `make screenshots`' moments |
 | `test-scenario` | Exact situations: the synthetic slope, `placeRun`, scripted inputs, the ride lab's scenarios |
 | `debug-game` | Deterministic repros, classifying by layer, the failing test first |
-| `debug-tools` | The developer page behind the title's seven-second hold: the overlay's instruments, the free camera, the REPRO line, UNLOCKS, and the BENCHMARK with its report and history; `make bench` |
+| `debug-tools` | The developer page behind the title's seven-second hold: the overlay's instruments, the free camera, the REPRO line, and the BENCHMARK with its report and history; `make bench` |
 | `simulate-run` | `make sim`: the `RunReport` table, its columns, which movements are regressions |
 | `level-rating` | Whether a generated mountain is any GOOD and how HARD: `engine/rating/`'s eight axes and the index, the ladder scorer, `make rate` and `make difficulty` |
-| `campaign` | The pinned maps and the ladder they make — three shelves of six (the nursery, the ridge, the glacier), the points, the locks, the level card a measured run picks its map on, the generator-version contract and the digest a pinned map stands on |
+| `pinned-maps` | The pinned maps — every discipline's nine race maps and the trick maps, the level card a measured run picks its map on, the generator-version contract and the digest a pinned map stands on |
 | `bot-improvement` | The piste-reading bot in `engine/sim/bot.ts` — the player's stand-in and every rival — measured with `make sim` |
 | `sound-effects` | Every sound synthesized from parameters — the wind, the edges and the snow, the poles as steered layers, every one-shot as a def — under `pwa/src/game/audio/`; the audition page and its meter |
 

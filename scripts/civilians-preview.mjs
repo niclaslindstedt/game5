@@ -13,7 +13,8 @@
 //             broom, the snowball, the heads, the staff, a deck chair, a
 //             snowman, the cuts                       → previews/civilians/props.png
 //   resort    `--seed`'s free ride at `--views` (lift, terrace, yard, base,
-//             walker, cocoa, kids, overview) by day, and `--night` of them
+//             square, walker, skier, cocoa, kids, snowball, roller,
+//             overview) by day, and `--night` of them
 //             at `--night-hour`                       → previews/civilians/resort-<seed>-<view>[-night].png
 //
 // The page does the drawing (`pwa/src/tools/civilians-harness.ts`); this
@@ -39,7 +40,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".civilians-preview");
 
 const SHEETS = ["figures", "moves", "props", "resort"];
-const VIEWS = ["lift", "terrace", "yard", "base", "walker", "cocoa", "kids", "overview"];
+const VIEWS = [
+  "lift",
+  "terrace",
+  "yard",
+  "base",
+  "square",
+  "walker",
+  "skier",
+  "cocoa",
+  "kids",
+  "snowball",
+  "roller",
+  "overview",
+];
 
 const args = parseArgs(
   process.argv.slice(2),

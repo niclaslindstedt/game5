@@ -35,7 +35,11 @@ import type { SpotKind } from "./civilian-spots.ts";
  *   * `shovel`: a scoop of snow lifted and thrown aside, over and over.
  *   * `sweep`: a broom worked across the load line's boards.
  *   * `throw`: a snowball scooped, packed and thrown.
- *   * `build`: crouched packing a snowman. */
+ *   * `build`: crouched packing a snowman.
+ *   * `roll`: bent over pushing a snowball along the snow, the ball
+ *     growing as it goes (a child's, to the snowman).
+ *   * `skate`: on his skis, skating along the valley floor from one lift's
+ *     foot to the next (drawn on the crowd's skiing figure). */
 export type Activity =
   | "stand"
   | "talk"
@@ -49,7 +53,9 @@ export type Activity =
   | "shovel"
   | "sweep"
   | "throw"
-  | "build";
+  | "build"
+  | "roll"
+  | "skate";
 
 /** What a civilian has in his hands. `skis`: a pair on one shoulder, tips
  * forward and down, a hand in front on them, the bindings behind the
@@ -74,9 +80,13 @@ export type RoleId =
   | "cocoa"
   | "rester"
   | "walker"
+  | "stroller"
+  | "baseSkier"
+  | "meetup"
   | "child"
   | "snowballer"
-  | "builder";
+  | "builder"
+  | "roller";
 
 /** One step of a routine: the activity, how long it is held (dealt between
  * the two, s), what is in his hands meanwhile (the role's own if unsaid). */
@@ -93,9 +103,12 @@ export type Step = {
  *   * `seat`: on one of the place's seats (a terrace bench), else about it;
  *   * `chair`: in a deck chair set out for him on the snow (a prop);
  *   * `walk`: walking a leg to another place and back, pausing at each end;
+ *   * `route`: going ROUND the base — through a few of its places in turn
+ *     and back the same way, pausing at each (`civilian-route.ts`); on
+ *     skis (`Role.skis`) skating it along the valley floor;
  *   * `ring`: about the place in a ring of his own party, facing in (a
  *     knot of people with mugs; a class round its instructor). */
-export type Moves = "post" | "area" | "seat" | "chair" | "walk" | "ring";
+export type Moves = "post" | "area" | "seat" | "chair" | "walk" | "route" | "ring";
 
 /** A party a role brings with him: who, how likely, how many. */
 export type Party = {
@@ -124,6 +137,8 @@ export type Role = {
   /** Staff: the first at a post is out whenever his post is manned at all. */
   readonly staff: boolean;
   readonly party?: Party;
+  /** On his skis (a `route` skated, not walked), at this pace, m/s. */
+  readonly skis?: readonly [number, number];
 };
 
 /** THE STAFF COLOURS, sRGB. A ski area dresses its staff so a guest finds
@@ -269,6 +284,26 @@ const H = {
     [19, 0.2],
     [22, 0.08],
     [24, 0.05],
+  ],
+  meet: [
+    [0, 0],
+    [8, 0],
+    [8.5, 0.7],
+    [9.5, 1],
+    [16.5, 1],
+    [17.5, 0.5],
+    [19, 0],
+    [24, 0],
+  ],
+  skiing: [
+    [0, 0],
+    [8.3, 0],
+    [9, 0.8],
+    [10, 1],
+    [15.5, 1],
+    [16.8, 0.5],
+    [17.5, 0.08],
+    [24, 0.08],
   ],
   kids: [
     [0, 0],
@@ -438,6 +473,67 @@ export const CIVILIAN_ROLES: readonly Role[] = [
     staff: false,
     party: { role: "child", chance: 0.25, count: [1, 2] },
   },
+  // GOING ROUND THE BASE: a guest walking from one lift's foot to the next,
+  // by the village and back — skis on a shoulder or not, a family with the
+  // children at their side. At peak hours the base is a crossroads, and
+  // most of it is people on foot moving between the lifts.
+  {
+    id: "stroller",
+    at: ["base"],
+    chance: 1,
+    count: [2, 4],
+    bodies: GUESTS,
+    dress: "guest",
+    carry: "skis",
+    moves: "route",
+    routine: [
+      { act: "stand", seconds: [5, 14] },
+      { act: "talk", seconds: [4, 9] },
+      { act: "wave", seconds: [1, 2] },
+    ],
+    hours: H.guests,
+    staff: false,
+    party: { role: "child", chance: 0.35, count: [1, 2] },
+  },
+  // SKIING ACROSS THE BOTTOM: a guest still on his skis skating along the
+  // valley floor from one lift's foot to another, slowly, stopping at each.
+  {
+    id: "baseSkier",
+    at: ["base"],
+    chance: 1,
+    count: [1, 3],
+    bodies: GUESTS,
+    dress: "guest",
+    carry: "none",
+    moves: "route",
+    routine: [
+      { act: "stand", seconds: [3, 8] },
+      { act: "talk", seconds: [2, 5] },
+    ],
+    hours: H.skiing,
+    staff: false,
+    skis: [2.2, 3.6],
+  },
+  // A MEETING POINT: friends with their skis stood in a knot by a lift's
+  // foot, waiting for the rest, talking, waving one over.
+  {
+    id: "meetup",
+    at: ["base"],
+    chance: 0.55,
+    count: [3, 5],
+    bodies: GUESTS,
+    dress: "guest",
+    carry: "skis",
+    moves: "ring",
+    routine: [
+      { act: "talk", seconds: [6, 12] },
+      { act: "stand", seconds: [4, 10] },
+      { act: "wave", seconds: [2, 3] },
+      { act: "talk", seconds: [5, 10] },
+    ],
+    hours: H.meet,
+    staff: false,
+  },
   {
     id: "child",
     at: [],
@@ -575,7 +671,7 @@ export const CIVILIAN_ROLES: readonly Role[] = [
   {
     id: "snowballer",
     at: ["yard", "base"],
-    chance: 0.3,
+    chance: 0.45,
     count: [1, 1],
     bodies: KIDS,
     dress: "guest",
@@ -594,7 +690,7 @@ export const CIVILIAN_ROLES: readonly Role[] = [
   {
     id: "builder",
     at: ["yard", "porch", "base"],
-    chance: 0.12,
+    chance: 0.3,
     count: [1, 2],
     bodies: KIDS,
     dress: "guest",
@@ -605,6 +701,21 @@ export const CIVILIAN_ROLES: readonly Role[] = [
       { act: "stand", seconds: [2, 5] },
       { act: "build", seconds: [8, 16] },
     ],
+    hours: H.kids,
+    staff: false,
+  },
+  // A child ROLLING the next ball over to the snowman, bent over it, the
+  // ball growing on the way; lifted on, then back for another.
+  {
+    id: "roller",
+    at: [],
+    chance: 0,
+    count: [0, 0],
+    bodies: KIDS,
+    dress: "guest",
+    carry: "none",
+    moves: "route",
+    routine: [{ act: "build", seconds: [5, 9] }],
     hours: H.kids,
     staff: false,
   },

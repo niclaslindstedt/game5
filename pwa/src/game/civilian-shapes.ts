@@ -625,8 +625,10 @@ function deckchair(s: Shape, o: V3, heading: number, stripe: THREE.Color): void 
 }
 
 /** A snowman: three balls of packed snow, coal eyes and buttons, a carrot,
- * two stick arms, the children's own size. */
-function snowman(s: Shape, o: V3, heading: number): void {
+ * two stick arms, the children's own size — at its `stage`: the bottom
+ * ball alone, the middle one on it, or finished with its head, face and
+ * arms. */
+function snowman(s: Shape, o: V3, heading: number, stage: 1 | 2 | 3 = 3): void {
   const white = new THREE.Color(0xf2f5f8);
   const coal = new THREE.Color(0x1d1f22);
   const carrot = new THREE.Color(0xe2701f);
@@ -652,7 +654,8 @@ function snowman(s: Shape, o: V3, heading: number): void {
     }
   };
   ball(0.3, 0.36);
-  ball(0.78, 0.26);
+  if (stage >= 2) ball(0.78, 0.26);
+  if (stage < 3) return;
   ball(1.12, 0.17);
   const face = (y: number, r: number, side: number): V3 => {
     const a = side * 0.35;
@@ -688,7 +691,7 @@ export function buildCivilianProps(plan: CivilianPlan, origin: V3): THREE.Buffer
   plan.props.forEach((p, i) => {
     const o: V3 = [p.x - origin[0], p.y - origin[1], p.z - origin[2]];
     if (p.kind === "deckchair") deckchair(s, o, p.heading, stripes[i % stripes.length]);
-    else snowman(s, o, p.heading);
+    else snowman(s, o, p.heading, p.stage);
   });
   return s.geometry();
 }
